@@ -103,7 +103,7 @@ configuration details.  The config file should look like this...
 At this point OESS is configured, but services like 
 
 
-==6. Bannanna==
+==6. Banana==
 {{{
  _
 //\
