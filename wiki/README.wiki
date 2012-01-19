@@ -133,6 +133,7 @@ So far OESS has been tested against the NEC Rack switch model G8264
 
 ==10. OSCARS (IDC)==
 
+ (Our RPM of OSCARS 0.6.0 is available at http://noc.net.internet2.edu/oscars-0.6.0-3.noarch.rpm)
 OESS only works with OSCARS 0.6.  An OSCARS distribution that has been tested
 to work with OESS is included with this distribution.  Configuring OSCARS is 
 covered in the OSCARS documentation.  Configuring OESS to work with OSCARS is 
