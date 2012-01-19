@@ -104,7 +104,7 @@ At this point OESS is configured, but services like
 
 
 ==6. Bannanna==
-`
+{{{
  _
 //\
 V  \
@@ -120,7 +120,7 @@ V  \
              `-.__  `----"""    __.-'
                   `--..____..--' _
 
-`
+}}}
 ==7. Where to go for Help==
 
 
