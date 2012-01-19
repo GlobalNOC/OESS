@@ -1,0 +1,216 @@
+#labels Featured
+= README =
+
+ == OESS - Open Exchange Software Suite ==
+
+Copyright 2011 Trustees of Indiana University 
+ 
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+
+==1. What is OESS==
+
+OESS is an application to configure and control OpenFlow Enabled switches
+through a very simple and user friendly User Interface.  OESS provides 
+sub-second circuit provisioning, automatic failover, per-interface permissions, 
+and automatic per-Vlan statistics.
+
+==2. Requirements==
+
+OESS requires several packages to work, the core is built on Apache, and MySQL
+howevever there are several other packages needed.  One of which is SNAPP collector.
+
+==3. Installation==
+
+OESS is easy to setup, with our provided oess_setup.pl script.  This script
+(installed in /usr/bin/oess_setup.pl via RPM) takes a user step by step to
+get base OESS configuration up and running.  Once the base installation is
+complete the rest of the configuration is done through the Administrator 
+Interface located (http://localhost/oess/admin/admin_index.cgi).  This UI
+allows for the creation of new users, the acceptance of new Nodes and links
+and the setup and configuration of workgroups.
+
+To start the OESS services, there is an init script /etc/init.d/oess that should
+start all of the individual pieces of OESS in the proper order.
+
+OESS needs a few ports to be able to operator
+6633 - OpenFlow protocol
+443/80  - Apache/SSL
+
+==4. Administration==
+
+The Admin UI provides the ability to control almost every aspect of the OESS 
+software.  Including users, workgroups, ports, nodes, and links. Any 
+user that can reach the administrative UI can make any changes.  This should
+be locked down to allowed users, through use of a different HTPASSWD file
+or a different authentication mechanism.  Once this is done, users can be 
+added and put into workgroups.  The workgroups allow permissions to be assigned
+to users as groups instead of individuals.  This way an entity can have multiple
+people with the same permissions.  Workgroups are given access to individual 
+interfaces on devices. Any workgroup can provision over trunk interfaces.
+
+Once a user and workgroup are configured, the network devices need to be approved.
+This depends on the network devices being configured to talk to the openflow
+controller now running on the host.  If the devices are talking to the controller
+then they will appear in the Discovery section of the admin UI.  Clicking a row
+in under the devices table, allows the user to set the device name, and set a lat
+and longitude.  Once the device is confirmed, any links detected between other 
+confirmed devices will appear in the links table.  Select a row in the Links table
+to approve a link for usage.  Once all of the devices and links have been confirmed
+the available non-trunk interfaces for the devices will appear in the Workgroups 
+add Edge Port page.  Add any ports to the workgroup to allow that group to provision
+any circuits.
+
+==5. Configuration==
+
+*IF YOU RAN THE oess_setup.pl SCRIPT SKIP THIS SECTION!*
+
+If you do not use the oess_setup.pl script then manual configuration must occur.
+First you need a mysql instance running, and need to create an OESS mysql user
+and set the password, finally create the database named (oess?) and do a grant 
+all on oess.* to your oess user.
+
+Once the OESS user is installed and granted privileges on the OESS Database,
+you can now install the schema.  The schema will be located with the OESS::Database
+perl module.  It will be called nddi.sql.  Import the schema into your mysql instance.
+
+Once the OESS schema is installed, you need to set a few bits of information, for example
+it needs a local network/domain.  This needs to be inserted into the network table, and 
+the is_local bit needs to be set to 1.
+
+At this point in time the OESS database is all set, but the OESS configuration is not done.
+OESS needs to know how to talk to the database, the configuration file that contains this
+information needs to be located in /etc/oess/database.xml this configuration file should 
+contain all of the information on how to connect to the mysql database, and oscars 
+configuration details.  The config file should look like this...
+
+<config version="0.1" snapp_config_location="/SNMP/snapp/snapp_config.xml">
+  <credentials type="mysql" database="oess" username="oess-rw" password="secret"></credentials>
+  <oscars host="https://localhost" cert="/path/to/mycert.crt" key="/path/to/mykey.key" 
+  topo="http://ndb7.net.internet2.edu:8012/perfSONAR_PS/services/topology"/>
+</config>
+
+At this point OESS is configured, but services like 
+
+
+==6. Bannanna==
+
+ _
+//\
+V  \
+ \  \_
+  \,'.`-.
+   |\ `. `.       
+   ( \  `. `-.                        _,.-:\
+    \ \   `.  `-._             __..--' ,-';/
+     \ `.   `-.   `-..___..---'   _.--' ,'/
+      `. `.    `-._        __..--'    ,' /
+        `. `-_     ``--..''       _.-' ,'
+          `-_ `-.___        __,--'   ,'
+             `-.__  `----"""    __.-'
+                  `--..____..--' _
+
+
+==7. Where to go for Help==
+
+
+==8. Downloading the Code==
+code.google.com/p/nddi/downloads
+
+==9. Supported devices==
+
+So far OESS has been tested against the NEC Rack switch model G8264
+
+==10. OSCARS (IDC)==
+
+OESS only works with OSCARS 0.6.  An OSCARS distribution that has been tested
+to work with OESS is included with this distribution.  Configuring OSCARS is 
+covered in the OSCARS documentation.  Configuring OESS to work with OSCARS is 
+covered below.
+
+Presuming you have an OSCARS 0.6 instance setup and running, it is very simple
+to import all of the remote topologies into your OESS instance.  A script called
+populate_remote_information.pl pulls down topology from the configured Topology
+Service and populates the node and interface data into the Database.  This is
+then used when provisioning Interdomain circuits in OESS.  To configure remote
+links to other networks in OESS, use the Administration UI, and select the Remote
+Links tab.  To add a new Link, first select the confirmed node, then pick the local
+interface the remote link is on.  At this point you will get a popup that ask for the
+name and the remote urn.  The name will be the name for the link in your topology
+that will be submitted to the Topology service.  The remote URN should be the remote
+IDCs endpoint which this port connects to.  When you are done adding remote links
+click the submit topology button, to submit your topology to your configured 
+Topology Service
+
+You probably need to restart OSCARS now to make it not cache the topology.
+At this point if you have a peering up, you should be able to do interdomain circuits
+
+==11. Testing with MiniNet==
+
+If you want to test and play with OESS but do not have any OpenFlow capable switches
+then MiniNet is for you.  MiniNet provides software defined OpenFlow switches that
+can process flow rules according to the openflow specification.
+
+MiniNet can be obtained here
+http://yuba.stanford.edu/foswiki/bin/view/OpenFlow/MininetGettingStarted
+
+Save the following as /home/openflow/mininet/custom/oess.py
+from mininet.topo import Topo, Node
+
+class MyTopo( Topo ):
+   "Simple topology example."
+
+   def __init__( self, enable_all = True ):
+       "Create custom topo."
+
+       # Add default members to class.                                                                                                                                                                                                                                      
+       super( MyTopo, self ).__init__()
+
+       # Set Node IDs for hosts and switches                                                                                                                                                                                                                                
+       northSwitch = 1
+       southSwitch = 2
+       eastSwitch  = 3
+       westSwitch  = 4
+
+       eastHost  = 5
+       westHost  = 6
+       northHost = 7
+
+       # Add nodes                                                                                                                                                                                                                                                           
+       self.add_node( northSwitch, Node( is_switch=True ) )
+       self.add_node( southSwitch, Node( is_switch=True ) )
+       self.add_node( eastSwitch,  Node( is_switch=True ) )
+       self.add_node( westSwitch,  Node( is_switch=True ) )
+
+       self.add_node( eastHost,    Node( is_switch=False ) )
+       self.add_node( westHost,   Node( is_switch=False ) )
+       self.add_node( northHost,   Node( is_switch=False ) )
+
+       # Add edges                                                                                                                                                                                                                                                           
+       self.add_edge( eastSwitch, northSwitch )
+       self.add_edge( eastSwitch, southSwitch )
+       self.add_edge( westSwitch, northSwitch )
+       self.add_edge( westSwitch, southSwitch )
+       #self.add_edge( northSwitch, southSwitch )                                                                                                                                                                                                                           
+       self.add_edge( eastSwitch, eastHost )
+       self.add_edge( westSwitch, westHost )
+       self.add_edge( northSwitch, northHost )
+
+       # Consider all switches and hosts 'on'                                                                                                                                                                                                                               
+       self.enable_all()
+
+topos = { 'oess_example': ( lambda: MyTopo() ) }
+
+then run the following on the mini-net host
+
+cd /home/openflow/mininet; sudo mn --controller remote --ip <ip address of controller host> --custom ./custom/oess.py --topo oess_example --port=<port controller is listening on, default 6633>
