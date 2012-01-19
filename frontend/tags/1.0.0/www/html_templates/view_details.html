@@ -1,0 +1,80 @@
+[% INCLUDE js_templates/view_details.js %]
+
+
+<div class="main_page">
+  <br>
+  [% INCLUDE html_templates/circuit_details_box.html %]
+
+  <div id="view_details_buttons_div">
+
+    <div class="button_holder">
+      <div id="edit_button"></div>
+    </div>
+
+    <div class="button_holder">
+      <div id="edit_interdomain_button"></div>
+    </div>
+ 
+    <div class="button_holder">
+      <div id="remove_button"></div>
+    </div>
+    
+  </div>
+
+  <table class="map_table">
+    <tr>
+
+      <td>
+        <div id="map" class="openlayers smaller"></div>
+	<span id="interdomain_path_status" class="soft_title"></span>
+      </td>
+
+      <td>
+	<div id="details_tabs" class="yui-navset">
+
+	  <ul class="yui-nav">
+	    <li class="selected"><a href="#tab1"><em>Traffic</em></a></li>
+	    <li><a href="#tab2"><em>User Events</em></a></li>
+	    <li><a href="#tab3"><em>Network Events</em></a></li>
+	  </ul>
+
+	  <div class="yui-content">
+
+	    <div id="traffic_container" class="no_padding">
+	      <div id="traffic_graph"></div>
+	      <center>
+		<div id="traffic_legend"></div>
+	      </center>
+	      <select id="traffic_time">
+		<option value="600">Past 10 Minutes</option>
+		<option value="3600">Past Hour</option>
+		<option value="86400">Past Day</option>
+		<option value="259200">Past 3 Days</option>
+		<option value="604800">Past Week</option>
+		<option value="2592000">Past Month</option>
+	      </select>
+	    </div>
+
+	    <div id="future_container" class="no_padding">
+	      <div id="scheduled_events_table"></div>
+	    </div>
+
+	    <div id="historical_container" class="no_padding">
+	      <div id="historical_events_table"></div>
+	    </div>
+
+	  </div>
+
+	</div>
+      </td>
+
+    </tr>
+    <tr>
+      <td>
+        [% INCLUDE html_templates/map_legend.html %]
+      </td>
+      <td></td>
+    </tr>
+  </table>
+
+</div>

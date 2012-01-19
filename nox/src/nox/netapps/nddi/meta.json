@@ -1,0 +1,13 @@
+{
+    "components": [
+        {
+            "name": "nddi_dbus" ,
+            "dependencies": [
+	      "discovery"	
+            ],
+            "python": "nox.netapps.nddi.nddi_dbus" 
+        }
+
+    ]
+}
+

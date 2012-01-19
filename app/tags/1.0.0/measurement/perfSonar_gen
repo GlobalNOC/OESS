@@ -1,0 +1,205 @@
+#!/usr/bin/perl
+
+use strict;
+use Getopt::Std;
+use Data::Dumper;
+use HTML::Entities;
+use XML::Simple;
+use OESS::Database;
+use DBI;
+
+=head2 connect_to_snapp
+
+connect to the snapp database, and the OESS Database (to find the snapp config)
+
+=cut
+
+
+sub connect_to_snapp{
+    my $oess = OESS::Database->new( config => '/etc/oess/database.xml');
+    my $snapp_config = $oess->get_snapp_config_location();
+    my $config = XML::Simple::XMLin($snapp_config);
+    my $username = $config->{'db'}->{'username'};
+    my $password = $config->{'db'}->{'password'};
+    my $database = $config->{'db'}->{'name'};
+    my $snapp_db = DBI->connect("DBI:mysql:$database", $username, $password);
+        
+    return $snapp_db;
+}
+
+sub main{
+    my $usage = "$0:the SNAPP DB perfSonar_out_path and perfSonar_out_file need to be defined\n\n";
+    my $snapp_db = &connect_to_snapp();
+    my $query = "select * from global where global.name = 'perfSonar_out_path'";
+    my $sth = $snapp_db->prepare($query);
+    $sth->execute();
+    my $perf_dir = $sth->fetchrow_hashref()->{'value'};
+    $query = "select * from global where global.name = 'perfSonar_out_file'";
+    $sth = $snapp_db->prepare($query);
+    $sth->execute();
+    my $file = $sth->fetchrow_hashref()->{'value'};
+    open PERF, ">" . $file or die "Unable to open output file $!\n";
+    print PERF "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+    print PERF "<nmwg:store xmlns:nmwg=\"http://ggf.org/ns/nmwg/base/2.0/\" ";
+    print PERF "xmlns:netutil=\"http://ggf.org/ns/nmwg/characteristic/utilization/2.0/\" ";
+    print PERF "xmlns:nmwgt=\"http://ggf.org/ns/nmwg/topology/2.0/\">\n";
+
+    #pull out all of the collections that are active
+
+    $query = "select *,collection_instantiation.description as coll_description,host.description as short_name, host.ip_address as management_address from collection_class,collection,collection_instantiation,host where collection.host_id = host.host_id and collection_instantiation.collection_id = collection.collection_id and collection_instantiation.end_epoch = -1 and collection_class.name like '%Interface%' and collection_class.collection_class_id = collection.collection_class_id";
+    $sth = $snapp_db->prepare($query);
+    $sth->execute();
+    
+    my @collections;
+    while(my $row = $sth->fetchrow_hashref()){
+	push(@collections,$row);
+    }
+
+
+    #for every collection add it to the perfSonar config
+    foreach my $collection (@collections){
+	if(!defined($collection->{'rrdfile'}) || $collection->{'rrdfile'} eq ''){
+	    next;
+	}
+	
+	my $collection_name = encode_entities($collection->{'name'});    
+	$collection->{'rrdfile'} = encode_entities($collection->{'rrdfile'});
+	$collection->{'premap_oid_suffix'} = encode_entities($collection->{'premap_oid_suffix'});
+
+        #-------input direction -- bps
+	print PERF "  <nmwg:metadata id=\"$collection_name-in\" xmlns:nmwg=\"http://ggf.org/ns/nmwg/base/2.0/\">\n";
+	print PERF "    <netutil:subject xmlns:netutil=\"http://ggf.org/ns/nmwg/characteristic/utilization/2.0/\" id=\"$collection->{'management_address'}\">\n";
+	print PERF "      <nmwgt:interface xmlns:nmwgt=\"http://ggf.org/ns/nmwg/topology/2.0/\">\n";
+	print PERF "        <nmwgt:hostName>$collection->{'short_name'}</nmwgt:hostName>\n";
+	print PERF "        <nmwgt:ifName>" . $collection->{'premap_oid_suffix'} . "</nmwgt:ifName>\n";
+	print PERF "        <nmwgt:direction>in</nmwgt:direction>\n";
+	print PERF "        <nmwgt:capacity>10737418240</nmwgt:capacity>\n";
+	print PERF "        <nmwgt:ifDescription>" . encode_entities($collection->{'coll_description'}) . "</nmwgt:ifDescription>\n";
+	print PERF "      </nmwgt:interface>\n";
+	print PERF "    </netutil:subject>\n";
+	print PERF "    <nmwg:eventType>http://ggf.org/ns/nmwg/characteristic/utilization/2.0</nmwg:eventType>\n";
+	print PERF "    <nmwg:parameters id=\"1\">\n";
+	print PERF "      <nmwg:parameter name=\"supportedEventType\">http://ggf.org/ns/nmwg/tools/snmp/2.0</nmwg:parameter>\n";
+	print PERF "      <nmwg:parameter name=\"supportedEventType\">http://ggf.org/ns/nmwg/characteristic/utilization/2.0</nmwg:parameter>\n";
+	print PERF "    </nmwg:parameters>\n";
+	print PERF "  </nmwg:metadata>\n";
+	print PERF "  <nmwg:data id=\"$collection_name-in-bits\" metadataIdRef=\"$collection_name-in\" xmlns:nmwg=\"http://ggf.org/ns/nmwg/base/2.0/\">\n";
+	print PERF "    <nmwg:key id=\"1\">\n";
+	print PERF "      <nmwg:parameters id=\"2\">\n";
+	print PERF "        <nmwg:parameter name=\"supportedEventType\">http://ggf.org/ns/nmwg/tools/snmp/2.0</nmwg:parameter>\n";
+	print PERF "        <nmwg:parameter name=\"supportedEventType\">http://ggf.org/ns/nmwg/characteristic/utilization/2.0</nmwg:parameter>\n";
+	print PERF "        <nmwg:parameter name=\"type\">rrd</nmwg:parameter>\n";
+	print PERF "        <nmwg:parameter name=\"valueUnits\">Bps</nmwg:parameter>\n";
+	print PERF "        <nmwg:parameter name=\"file\">". $perf_dir . "/" . $collection->{'rrdfile'} . "</nmwg:parameter>\n";
+	print PERF "        <nmwg:parameter name=\"dataSource\">input</nmwg:parameter>\n";
+	print PERF "      </nmwg:parameters>\n";
+	print PERF "    </nmwg:key> \n";
+	print PERF "  </nmwg:data>\n";
+	
+	#--------input direction -- errors
+	print PERF "  <nmwg:metadata id=\"$collection_name-in-errors\" xmlns:nmwg=\"http://ggf.org/ns/nmwg/base/2.0/\">\n";
+	print PERF "     <neterr:subject xmlns:neterr=\"http://ggf.org/ns/nmwg/characteristic/errors/2.0/\" id=\"$collection->{'management_address'}\">\n";
+	print PERF "      <nmwgt:interface xmlns:nmwgt=\"http://ggf.org/ns/nmwg/topology/2.0/\">\n";
+	print PERF "        <nmwgt:hostName>$collection->{'short_name'}</nmwgt:hostName>\n";
+	print PERF "        <nmwgt:ifName>" . $collection->{'premap_oid_suffix'} . "</nmwgt:ifName>\n";
+	print PERF "        <nmwgt:direction>in</nmwgt:direction>\n";
+	print PERF "        <nmwgt:capacity>10737418240</nmwgt:capacity>\n";
+	
+	print PERF "        <nmwgt:ifDescription>" . encode_entities($collection->{'coll_description'}) . "</nmwgt:ifDescription>\n";
+	print PERF "      </nmwgt:interface>\n";
+	print PERF "    </neterr:subject>\n";
+	print PERF "    <nmwg:eventType>http://ggf.org/ns/nmwg/tools/snmp/2.0</nmwg:eventType>\n";
+	print PERF "    <nmwg:eventType>http://ggf.org/ns/nmwg/characteristic/errors/2.0</nmwg:eventType>\n";
+	print PERF "    <nmwg:parameters id=\"1\">\n";
+	print PERF "      <nmwg:parameter name=\"supportedEventType\">http://ggf.org/ns/nmwg/tools/snmp/2.0</nmwg:parameter>\n";
+	print PERF "      <nmwg:parameter name=\"supportedEventType\">http://ggf.org/ns/nmwg/characteristic/errors/2.0</nmwg:parameter>\n";
+	print PERF "    </nmwg:parameters>\n";
+	print PERF "  </nmwg:metadata>\n";
+	
+	print PERF "  <nmwg:data id=\"$collection_name-in-errors\" metadataIdRef=\"$collection_name-in-errors\" xmlns:nmwg=\"http://ggf.org/ns/nmwg/base/2.0/\">\n";
+	print PERF "    <nmwg:key id=\"1\">\n";
+	print PERF "      <nmwg:parameters id=\"2\">\n";
+	print PERF "        <nmwg:parameter name=\"supportedEventType\">http://ggf.org/ns/nmwg/tools/snmp/2.0</nmwg:parameter>\n";
+	print PERF "        <nmwg:parameter name=\"supportedEventType\">http://ggf.org/ns/nmwg/characteristic/errors/2.0</nmwg:parameter>\n";
+	print PERF "        <nmwg:parameter name=\"type\">rrd</nmwg:parameter>\n";
+	print PERF "        <nmwg:parameter name=\"valueUnits\">Eps</nmwg:parameter>\n";
+	print PERF "        <nmwg:parameter name=\"file\">". $perf_dir . "/" . $collection->{'rrdfile'} .  "</nmwg:parameter>\n";
+	print PERF "        <nmwg:parameter name=\"dataSource\">inerror</nmwg:parameter>\n";
+	print PERF "      </nmwg:parameters>\n";
+	print PERF "    </nmwg:key> \n";
+	print PERF "  </nmwg:data>\n";
+    
+    
+	#-----output direction -- utilization
+	print PERF "  <nmwg:metadata id=\"$collection_name-out\" xmlns:nmwg=\"http://ggf.org/ns/nmwg/base/2.0/\">\n";
+	print PERF "    <netutil:subject xmlns:netutil=\"http://ggf.org/ns/nmwg/characteristic/utilization/2.0/\" id=\"$collection->{'management_address'}\">\n";
+	print PERF "      <nmwgt:interface xmlns:nmwgt=\"http://ggf.org/ns/nmwg/topology/2.0/\">\n";
+	print PERF "        <nmwgt:hostName>" . $collection->{'short_name'} . "</nmwgt:hostName>\n";
+	print PERF "        <nmwgt:ifName>" . $collection->{'premap_oid_suffix'} . "</nmwgt:ifName>\n";
+	print PERF "        <nmwgt:direction>out</nmwgt:direction>\n";
+	print PERF "        <nmwgt:capacity>10737418240</nmwgt:capacity>\n";
+	print PERF "        <nmwgt:ifDescription>" . encode_entities($collection->{'coll_description'}) . "</nmwgt:ifDescription>\n";
+	print PERF "      </nmwgt:interface>\n";
+	print PERF "    </netutil:subject>\n";
+	print PERF "    <nmwg:eventType>http://ggf.org/ns/nmwg/tools/snmp/2.0</nmwg:eventType>\n";
+	print PERF "    <nmwg:eventType>http://ggf.org/ns/nmwg/characteristic/utilization/2.0</nmwg:eventType>\n";
+	print PERF "    <nmwg:parameters id=\"1\">\n";
+	print PERF "      <nmwg:parameter name=\"supportedEventType\">http://ggf.org/ns/nmwg/tools/snmp/2.0</nmwg:parameter>\n";
+	print PERF "      <nmwg:parameter name=\"supportedEventType\">http://ggf.org/ns/nmwg/characteristic/utilization/2.0</nmwg:parameter>\n";
+	print PERF "    </nmwg:parameters>\n";
+	print PERF "  </nmwg:metadata>\n";
+	print PERF "  <nmwg:data id=\"$collection_name-out-bits\" metadataIdRef=\"$collection_name-out\" xmlns:nmwg=\"http://ggf.org/ns/nmwg/base/2.0/\">\n";
+	print PERF "    <nmwg:key id=\"1\">\n";
+	print PERF "      <nmwg:parameters id=\"2\">\n";
+	print PERF "        <nmwg:parameter name=\"supportedEventType\">http://ggf.org/ns/nmwg/tools/snmp/2.0</nmwg:parameter>\n";
+	print PERF "        <nmwg:parameter name=\"supportedEventType\">http://ggf.org/ns/nmwg/characteristic/utilization/2.0</nmwg:parameter>\n";
+	print PERF "        <nmwg:parameter name=\"type\">rrd</nmwg:parameter>\n";
+	print PERF "        <nmwg:parameter name=\"valueUnits\">Bps</nmwg:parameter>\n";
+	print PERF "        <nmwg:parameter name=\"file\">". $perf_dir . "/" . $collection->{'rrdfile'} .  "</nmwg:parameter>\n";
+	print PERF "        <nmwg:parameter name=\"dataSource\">output</nmwg:parameter>\n";
+	print PERF "      </nmwg:parameters>\n";
+	print PERF "    </nmwg:key> \n";
+	print PERF "  </nmwg:data>\n";
+	
+	
+	#-----output direction -- errors
+	
+	print PERF "  <nmwg:metadata id=\"$collection_name-out-errors\" xmlns:nmwg=\"http://ggf.org/ns/nmwg/base/2.0/\">\n";
+	print PERF "     <neterr:subject xmlns:neterr=\"http://ggf.org/ns/nmwg/characteristic/errors/2.0/\" id=\"$collection->{'management_address'}\">\n";
+	print PERF "      <nmwgt:interface xmlns:nmwgt=\"http://ggf.org/ns/nmwg/topology/2.0/\">\n";
+	
+	print PERF "        <nmwgt:hostName>" . $collection->{'short_name'} . "</nmwgt:hostName>\n";
+	print PERF "        <nmwgt:ifName>"  . $collection->{'premap_id_suffix'} . "</nmwgt:ifName>\n";
+	print PERF "        <nmwgt:direction>out</nmwgt:direction>\n";
+	#hard coding
+	print PERF "        <nmwgt:capacity>10737418240</nmwgt:capacity>\n";
+	print PERF "        <nmwgt:ifDescription>" . encode_entities($collection->{'coll_description'}) . "</nmwgt:ifDescription>\n";
+	print PERF "      </nmwgt:interface>\n";
+	print PERF "    </neterr:subject>\n";
+	print PERF "    <nmwg:eventType>http://ggf.org/ns/nmwg/tools/snmp/2.0</nmwg:eventType>\n";
+	print PERF "    <nmwg:eventType>http://ggf.org/ns/nmwg/characteristic/errors/2.0</nmwg:eventType>\n";
+	print PERF "    <nmwg:parameters id=\"1\">\n";
+	print PERF "      <nmwg:parameter name=\"supportedEventType\">http://ggf.org/ns/nmwg/tools/snmp/2.0</nmwg:parameter>\n";
+	print PERF "      <nmwg:parameter name=\"supportedEventType\">http://ggf.org/ns/nmwg/characteristic/errors/2.0</nmwg:parameter>\n";
+	print PERF "    </nmwg:parameters>\n";
+	print PERF "  </nmwg:metadata>\n";
+	print PERF   "<nmwg:data id=\"$collection_name-out-errors\" metadataIdRef=\"$collection_name-out-errors\" xmlns:nmwg=\"http://ggf.org/ns/nmwg/base/2.0/\">\n";
+	print PERF "    <nmwg:key id=\"1\">\n";
+	print PERF "      <nmwg:parameters id=\"2\">\n";
+	print PERF "        <nmwg:parameter name=\"supportedEventType\">http://ggf.org/ns/nmwg/tools/snmp/2.0</nmwg:parameter>\n";
+	print PERF "        <nmwg:parameter name=\"supportedEventType\">http://ggf.org/ns/nmwg/characteristic/errors/2.0</nmwg:parameter>\n";
+	print PERF "        <nmwg:parameter name=\"type\">rrd</nmwg:parameter>\n";
+	print PERF "        <nmwg:parameter name=\"valueUnits\">Eps</nmwg:parameter>\n";
+	print PERF "        <nmwg:parameter name=\"file\">". $perf_dir . "/" . $collection->{'rrdfile'} .  "</nmwg:parameter>\n";
+	print PERF "        <nmwg:parameter name=\"dataSource\">outerror</nmwg:parameter>\n";
+	print PERF "      </nmwg:parameters>\n";
+	print PERF "    </nmwg:key> \n";
+	print PERF "  </nmwg:data>\n";
+	
+    }
+    
+    print PERF "</nmwg:store>\n";
+    close(PERF);
+}
+
+main();
