@@ -29,6 +29,7 @@ and automatic per-Vlan statistics.
 
 OESS requires several packages to work, the core is built on Apache, and MySQL
 howevever there are several other packages needed.  One of which is SNAPP collector.
+EPEL (http://fedoraproject.org/wiki/EPEL) has several of the requirements.  A RH6 box with EPEL should have all of the dependencies to install OESS.
 
 ==3. Installation==
 
