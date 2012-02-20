@@ -33,6 +33,8 @@ EPEL (http://fedoraproject.org/wiki/EPEL) has several of the requirements.  A RH
 
 ==3. Installation==
 
+**NOTE: Before running /usr/bin/oess_setup you must have MySQL running, and know the administrator (root) password
+
 OESS is easy to setup, with our provided oess_setup.pl script.  This script
 (installed in /usr/bin/oess_setup.pl via RPM) takes a user step by step to
 get base OESS configuration up and running.  Once the base installation is
