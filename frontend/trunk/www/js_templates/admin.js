@@ -477,10 +477,10 @@ function setup_users_tab(){
 	    }
 	    
 
-	    showUserInfoPanel.call(this, user_id, first, family, email, auth_names, [region.left, region.bottom]);
+	    showUserInfoPanel.call(this, user_id, first, family, email, auth_names, [region.left, region.bottom], oArgs);
 	});
 
-    function showUserInfoPanel(user_id, first_name, family_name, email, auth_names, xy){
+    function showUserInfoPanel(user_id, first_name, family_name, email, auth_names, xy, target){
 
 	if (this.user_panel){
 	    this.user_panel.destroy();
@@ -517,7 +517,7 @@ function setup_users_tab(){
 		  "</tr>"		      
 		  );
 	
-	p.setFooter("<div id='submit_user'></div>");
+	p.setFooter("<div id='submit_user'></div><div id='delete_user'></div>");
 
 	p.render(document.body);
 
@@ -534,6 +534,65 @@ function setup_users_tab(){
 	YAHOO.util.Dom.get("user_given_name").focus();
 
 	var submit_button = new YAHOO.widget.Button("submit_user", {label: "Save"});
+
+	if (user_id){
+	    var delete_button = new YAHOO.widget.Button("delete_user", {label: "Delete"});
+
+	    delete_button.on("click", function(){
+
+		    YAHOO.util.Dom.get("user_status").innerHTML = "";
+
+		    var fname = YAHOO.util.Dom.get("user_given_name").value;
+		    var lname = YAHOO.util.Dom.get("user_family_name").value;
+		    
+		    showConfirm("Are you sure you wish to delete user \"" + fname + " " + lname + "\"? Note that this action cannot be undone.",
+				function(){
+				    delete_button.set("label", "Deleting...");
+				    delete_button.set("disabled", true);
+				    submit_button.set("disabled", true);
+
+				    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=delete_user&user_id="+user_id);
+				    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+				    ds.responseSchema = {
+					resultsList: "results",
+					fields: [{key: "success"}],
+					metaFields: {
+					    error: "error"
+					}
+				    };
+				    
+				    ds.sendRequest("",
+						   {
+						       success: function(req, resp){
+							   delete_button.set("label", "Delete");
+							   delete_button.set("disabled", false);
+							   submit_button.set("disabled", false);			
+			   
+							   if (resp.meta.error){
+							       alert("Error delete user: " + resp.meta.error);
+							   }
+							   else{
+							       p.destroy();
+							       user_table.deleteRow(target.target);
+							       YAHOO.util.Dom.get("user_status").innerHTML = "User deleted successfully.";
+							   }
+						       },
+						       failure: function(req, resp){
+							   delete_button.set("label", "Delete");
+							   delete_button.set("disabled", false);
+							   submit_button.set("disabled", false);
+							   							   
+							   alert("Server error while removing user.");
+						       }
+						   }
+						   );
+			
+				},
+				function(){}
+				);
+
+		});
+	}
 
 	submit_button.on("click", function(){
 		this.set("label", "Saving...");

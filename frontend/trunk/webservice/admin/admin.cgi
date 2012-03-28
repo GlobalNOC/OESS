@@ -92,6 +92,9 @@ sub main {
 	case "add_user" {
 	    $output = &add_user();
 	}
+	case "delete_user" {
+	    $output = &delete_user();
+	}
 	case "add_user_to_workgroup" {
 	    $output = &add_user_to_workgroup();
 	}
@@ -451,6 +454,24 @@ sub add_user {
 	$results->{'results'} = [{success => 1, user_id => $new_user_id}];
     }
     
+    return $results;
+}
+
+sub delete_user {
+    my $results;
+
+    my $user_id = $cgi->param('user_id');
+
+    my $output = $db->delete_user(user_id => $user_id);
+
+    if (! defined $output){
+	$results->{'error'} = $db->get_error();
+	$results->{'results'} = [{success => 0}];
+    }
+    else {
+	$results->{'results'} = [{success => 1}];
+    }
+
     return $results;
 }
 

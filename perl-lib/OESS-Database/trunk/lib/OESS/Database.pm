@@ -1384,7 +1384,7 @@ sub get_users {
     my $self = shift;
     my %args = @_;
 
-    my $users;
+    my @users;
 
     my $results = $self->_execute_query("select * from user order by given_names");
 
@@ -1413,11 +1413,11 @@ sub get_users {
 	    push(@{$data->{'auth_name'}}, $auth_row->{'auth_name'});
 	}
 	
-	push(@$users, $data);
+	push(@users, $data);
 
     }
 
-    return $users;
+    return \@users;
 }
 
 =head2 get_users_in_workgroup
@@ -1670,6 +1670,64 @@ sub add_user {
 
     return $user_id;
 }
+
+=head2 delete_user
+
+Removes a pre-existing user's record from the database. Returns a boolean on success.
+
+=over
+
+=item user_id
+
+The internal MySQL primary key int identifier for this user.
+
+=back
+
+=cut
+
+sub delete_user {
+    my $self = shift;
+    my %args = @_;
+
+    my $user_id = $args{'user_id'};
+
+    # does this user even exist?
+    my $info = $self->get_user_by_id(user_id => $user_id);
+
+    if (! defined $info){
+	$self->_set_error("Internal error identifying user with id: $user_id");
+	return undef;
+    }
+
+    # first let's make sure we aren't deleting system
+    if ($info->[0]->{'given_names'} =~ /^system$/i){
+	$self->_set_error("Cannot delete the system user.");
+	return undef;
+    }
+
+    # okay, looks good. Let's delete this user
+    $self->_start_transaction();
+
+    if (! defined $self->_execute_query("delete from user_workgroup_membership where user_id = ?", [$user_id])) {
+	$self->_set_error("Internal error delete user.");
+	return undef;
+    }
+
+    if (! defined $self->_execute_query("delete from remote_auth where user_id = ?", [$user_id])){
+	$self->_set_error("Internal error delete user.");
+	return undef;
+    }
+
+    if (! defined $self->_execute_query("delete from user where user_id = ?", [$user_id])){
+	$self->_set_error("Internal error delete user.");
+	return undef;
+    }
+
+    $self->_commit();
+
+    return 1;
+}
+
 
 =head2 edit_user
 
