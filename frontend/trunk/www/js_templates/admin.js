@@ -89,7 +89,7 @@ function setup_remote_dev_tab(){
 		    var new_lat  = YAHOO.util.Dom.get('remote_node_lat').value;
 		    var new_lon  = YAHOO.util.Dom.get('remote_node_lon').value;
 
-		    if (! new_lat || ! new_lat.match(/^\-?\d+(\.\d+)?$/) || new_lat < -180 || new_lat > 180){
+		    if (! new_lat || ! new_lat.match(/^\-?\d+(\.\d+)?$/) || new_lat < -90 || new_lat > 90){
 			alert("You must specify a valid latitude at which this device will be visualized on the map.");
 			return;
 		    }
@@ -1320,7 +1320,7 @@ function setup_network_tab(){
 			return;
 		    }
 		   
-		    if (! new_lat || ! new_lat.match(/^\-?\d+(\.\d+)?$/) || new_lat < -180 || new_lat > 180){
+		    if (! new_lat || ! new_lat.match(/^\-?\d+(\.\d+)?$/) || new_lat < -90 || new_lat > 90){
 			alert("You must specify a valid latitude at which this device will be visualized on the map.");
 			return;
 		    }
@@ -1506,7 +1506,7 @@ function setup_discovery_tab(){
 			return;
 		    }
 		   
-		    if (! lat || ! lat.match(/^\-?\d+(\.\d+)?$/) || lat < -180 || lat > 180){
+		    if (! lat || ! lat.match(/^\-?\d+(\.\d+)?$/) || lat < -90 || lat > 90){
 			alert("You must specify a valid latitude at which this device will be visualized on the map.");
 			return;
 		    }
