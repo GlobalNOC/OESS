@@ -2326,7 +2326,7 @@ sub decom_node {
 
     $self->_start_transaction();
 
-    my $result = $self->_execute_query("update node set operational_state = 'down' where node_id = ?",
+    my $result = $self->_execute_query("update node set operational_state = 'down', name = concat(name, '-', node_id, '-decomed') where node_id = ?",
 				       [$node_id]
 	                              );
 
@@ -2395,7 +2395,7 @@ sub confirm_link {
 
     $self->_start_transaction();
     
-    my $result = $self->_execute_query("update link_instantiation set link_state = 'active' where link_id = ? and link_state = 'available'", [$link_id]);
+    my $result = $self->_execute_query("update link_instantiation set link_state = 'active' where link_id = ? and link_state = 'available' and end_epoch = -1", [$link_id]);
 
     if ($result != 1){
 	$self->_set_error("Error updating link instantiation.");
@@ -2405,7 +2405,7 @@ sub confirm_link {
     $result = $self->_execute_query("update link set name = ? where link_id = ?", [$name, $link_id]);
 
     if ($result != 1){
-	$self->_set_error("Error updating link.");
+	$self->_set_error("Error updating link name.");
 	return undef;
     }
 
