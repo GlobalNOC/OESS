@@ -135,7 +135,7 @@ sub get_circuit_data{
     my $ints = $self->{'db'}->get_circuit_endpoints(circuit_id => $params{'circuit_id'});
 
     # reorder them to make sure we always get the same interface
-    my @sorted = sort { $a->{'interface'} <=> $b->{'interface'} } @$ints;
+    my @sorted = sort { $a->{'port_no'} <=> $b->{'port_no'} } @$ints;
 
     my $int_a = $sorted[0];
 
@@ -148,7 +148,7 @@ sub get_circuit_data{
     my $host = $self->get_host_by_external_id($int_a->{'node_id'});
     
     #find the collections RRD file in SNAPP
-    my $collection = $self->_find_rrd_file_by_host_int_and_vlan($host->{'host_id'},$int_a->{'interface'},$int_a->{'tag'});
+    my $collection = $self->_find_rrd_file_by_host_int_and_vlan($host->{'host_id'},$int_a->{'port_no'},$int_a->{'tag'});
     if(defined($collection)){
 	my $rrd_file = $rrd_dir . $collection->{'rrdfile'};
 	return $self->get_rrd_file_data( file => $rrd_file, start_time => $params{'start_time'}, end_time => $params{'end_time'});
