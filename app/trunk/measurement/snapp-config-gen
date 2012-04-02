@@ -225,10 +225,10 @@ sub get_user{
 sub decom_everything{
     my $snapp_db = shift;
     
-    my $query = "update collection_instantiation set end_epoch = $time";
+    my $query = "update collection_instantiation set end_epoch = $time where end_epoch = -1";
     $snapp_db->do($query);
 
-    $query = "update category_collection_membership set end_epoch = $time";
+    $query = "update category_collection_membership set end_epoch = $time where end_epoch = -1";
     $snapp_db->do($query);
 
     return;
@@ -301,7 +301,7 @@ sub add_collection_instance{
     my $descr = shift;
 
     #create the instance
-    my $query = "insert into collection_instantiation (collection_id,description,end_epoch,start_epoch) VALUES (?,?,-1,NOW())";
+    my $query = "insert into collection_instantiation (collection_id,description,end_epoch,start_epoch) VALUES (?,?,-1,UNIX_TIMESTAMP(NOW()))";
     my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$!);
     $sth->execute($collection_id,$descr)or handle_error($snapp_db,$!);
 }
@@ -386,7 +386,7 @@ sub add_category{
     }
     
     #add the hierarchy
-    $query = "insert into category_hierarchy (parent_category_id,child_category_id,end_epoch,start_epoch) VALUES (?,?,-1,NOW())";
+    $query = "insert into category_hierarchy (parent_category_id,child_category_id,end_epoch,start_epoch) VALUES (?,?,-1,UNIX_TIMESTAMP(NOW()))";
     $sth = $snapp_db->prepare($query) or handle_error($snapp_db,$!);
     $sth->execute($category_parent,$res) or handle_error($snapp_db,$!);
     return $res;
@@ -417,7 +417,7 @@ sub add_category_collection_membership{
 	return;
     }else{
 	#ok didn't exist add to SNAPP
-	$query = "insert into category_collection_membership (category_id,collection_id, end_epoch, start_epoch) VALUES (?,?,-1,NOW())";
+	$query = "insert into category_collection_membership (category_id,collection_id, end_epoch, start_epoch) VALUES (?,?,-1,UNIX_TIMESTAMP(NOW()))";
 	$sth = $snapp_db->prepare($query) or handle_error($snapp_db,$!);
 	$sth->execute($category_id,$collection_id) or handle_error($snapp_db,$!);
 	return;
