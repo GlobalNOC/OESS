@@ -140,14 +140,20 @@ sub process_node{
     my $category = shift;
 
     my $query = "select * from host where host.external_id = ?";
-    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$!);
-    $sth->execute($node->{'node_id'})or handle_error($snapp_db,$!);
+    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+    $sth->execute($node->{'node_id'})or handle_error($snapp_db,$DBI::errstr);
     
     if(my $row = $sth->fetchrow_hashref()){
 	$query = "update host set ip_address = ?, description = ?, dns_name = ?, community = ? where host_id = ?";
-	$sth = $snapp_db->prepare($query)or handle_error($snapp_db,$!);
-	$sth->execute($node->{'management_addr_ipv4'},$node->{'name'},$node->{'name'},"public",$row->{'host_id'})or handle_error($snapp_db,$!);
-	return $row->{'host_id'};
+	$sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+	$sth->execute($node->{'management_addr_ipv4'},$node->{'name'},$node->{'name'},"public",$row->{'host_id'})or handle_error($snapp_db,$DBI::errstr);
+	my $host_id = $row->{'host_id'};
+
+	#now update collection names if the host name changed
+	$query = "update collection set name = replace(name,'" . $row->{'description'} . "','" . $node->{'name'} . "') where host_id = " . $row->{'host_id'};
+	$sth = $snapp_db->prepare($query) or handle_error($snapp_db,$DBI::errstr);
+	$sth->execute() or handle_error($snapp_db,$DBI::errstr);
+	
     }else{
 	return add_host($snapp_db,$node);
     }
@@ -169,8 +175,8 @@ sub add_host{
     my $node = shift;
 
     my $query = "insert into host (ip_address,description,dns_name,community,external_id) VALUES (?,?,?,?,?)";
-    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$!);
-    my $res = $sth->execute($node->{'management_addr_ipv4'},$node->{'name'},$node->{'name'},"community",$node->{'node_id'})or handle_error($snapp_db,$!);
+    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+    my $res = $sth->execute($node->{'management_addr_ipv4'},$node->{'name'},$node->{'name'},"community",$node->{'node_id'})or handle_error($snapp_db,$DBI::errstr);
     $res = $sth->{'mysql_insertid'};
     return $res;
     
@@ -187,8 +193,8 @@ sub get_acl_role_by_user_id{
     my $user_id = shift;
 
     my $query = "select * from user_role_membership where user_role_membership.user_id = ?";
-    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$!);
-    $sth->execute($user_id)or handle_error($snapp_db,$!);
+    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+    $sth->execute($user_id)or handle_error($snapp_db,$DBI::errstr);
     
     return $sth->fetchrow_hashref();
 }
@@ -206,8 +212,8 @@ sub get_user{
 
     my $query = "select user_id from user where user.name = ?";
 
-    my $sth = $snapp_db->prepare($query) or handle_error($snapp_db,$!);
-    $sth->execute($user) or handle_error($snapp_db,$!);
+    my $sth = $snapp_db->prepare($query) or handle_error($snapp_db,$DBI::errstr);
+    $sth->execute($user) or handle_error($snapp_db,$DBI::errstr);
     
     return $sth->fetchrow_hashref()->{'user_id'};
 
@@ -248,8 +254,8 @@ sub get_collection{
     
     #try and find the collection
     my $query = "select * from collection where collection.name = ?";
-    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$!);
-    $sth->execute($info->{'name'})or handle_error($snapp_db,$!);
+    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+    $sth->execute($info->{'name'})or handle_error($snapp_db,$DBI::errstr);
     #does the collection exist?
     if(my $collection = $sth->fetchrow_hashref()){
 	#set it back to active
@@ -280,8 +286,8 @@ sub add_collection{
 
     #insert the collection
     my $query = "insert into collection (name,host_id,rrdfile,premap_oid_suffix,collection_class_id,oid_suffix_mapping_id) VALUES (?,?,?,?,?,?)";
-    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$!);
-    my $res = $sth->execute($info->{'name'},$info->{'host_id'},$rrd_file,$info->{'premap_oid_suffix'},$info->{'collection_class_id'},$info->{'oid_suffix_mapping_id'})or handle_error($snapp_db,$!);
+    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+    my $res = $sth->execute($info->{'name'},$info->{'host_id'},$rrd_file,$info->{'premap_oid_suffix'},$info->{'collection_class_id'},$info->{'oid_suffix_mapping_id'})or handle_error($snapp_db,$DBI::errstr);
     $res = $sth->{'mysql_insertid'};
     
     #add the collection_instance
@@ -302,8 +308,8 @@ sub add_collection_instance{
 
     #create the instance
     my $query = "insert into collection_instantiation (collection_id,description,end_epoch,start_epoch) VALUES (?,?,-1,UNIX_TIMESTAMP(NOW()))";
-    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$!);
-    $sth->execute($collection_id,$descr)or handle_error($snapp_db,$!);
+    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+    $sth->execute($collection_id,$descr)or handle_error($snapp_db,$DBI::errstr);
 }
 
 =head2 udpate_collection_instance_ned
@@ -320,16 +326,16 @@ sub update_collection_instance_end{
     
     #find the decomed instance
     my $query = "select * from collection_instantiation where collection_id = ? and end_epoch = $time";
-    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$!);
-    $sth->execute($collection_id)or handle_error($snapp_db,$!);
+    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+    $sth->execute($collection_id)or handle_error($snapp_db,$DBI::errstr);
     #does the decomed instance exists
     if(my $row = $sth->fetchrow_hashref()){
 	#does the description = the new descr?
 	if($row->{'description'} eq $descr){
 	    #update the end time
 	    $query = "update collection_instantiation set end_epoch = -1 where collection_id = ? and end_epoch = $time";
-	    $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$!);
-	    $sth->execute($collection_id)or handle_error($snapp_db,$!);
+	    $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+	    $sth->execute($collection_id)or handle_error($snapp_db,$DBI::errstr);
 	}else{
 	    #current description != description create new instnace
 	    add_collection_instance($snapp_db,$collection_id,$descr);
@@ -352,8 +358,8 @@ sub get_category_by_name{
     my $parent = shift;
     
     my $query = "select * from category where category.name = ?";
-    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$!);
-    $sth->execute($name)or handle_error($snapp_db,$!);
+    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+    $sth->execute($name)or handle_error($snapp_db,$DBI::errstr);
     
     if(my $category = $sth->fetchrow_hashref()){
 	return $category->{'category_id'};
@@ -387,8 +393,8 @@ sub add_category{
     
     #add the hierarchy
     $query = "insert into category_hierarchy (parent_category_id,child_category_id,end_epoch,start_epoch) VALUES (?,?,-1,UNIX_TIMESTAMP(NOW()))";
-    $sth = $snapp_db->prepare($query) or handle_error($snapp_db,$!);
-    $sth->execute($category_parent,$res) or handle_error($snapp_db,$!);
+    $sth = $snapp_db->prepare($query) or handle_error($snapp_db,$DBI::errstr);
+    $sth->execute($category_parent,$res) or handle_error($snapp_db,$DBI::errstr);
     return $res;
 }
 
@@ -406,20 +412,20 @@ sub add_category_collection_membership{
     
     #does this exist already?
     my $query = "select * from category_collection_membership where category_id = ? and collection_id = ? and end_epoch = $time";
-    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$!);
-    $sth->execute($category_id,$collection_id)or handle_error($snapp_db,$!);
+    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+    $sth->execute($category_id,$collection_id)or handle_error($snapp_db,$DBI::errstr);
     
     if(my $row = $sth->fetchrow_hashref()){
 	#already existed, just update end time
 	$query = "update category_collection_membership set end_epoch = -1 where category_id = ? and collection_id = ? and end_epoch = $time";
-	$sth = $snapp_db->prepare($query)or handle_error($snapp_db,$!);
-	$sth->execute($category_id,$collection_id)or handle_error($snapp_db,$!);
+	$sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+	$sth->execute($category_id,$collection_id)or handle_error($snapp_db,$DBI::errstr);
 	return;
     }else{
 	#ok didn't exist add to SNAPP
 	$query = "insert into category_collection_membership (category_id,collection_id, end_epoch, start_epoch) VALUES (?,?,-1,UNIX_TIMESTAMP(NOW()))";
-	$sth = $snapp_db->prepare($query) or handle_error($snapp_db,$!);
-	$sth->execute($category_id,$collection_id) or handle_error($snapp_db,$!);
+	$sth = $snapp_db->prepare($query) or handle_error($snapp_db,$DBI::errstr);
+	$sth->execute($category_id,$collection_id) or handle_error($snapp_db,$DBI::errstr);
 	return;
     }
 }
