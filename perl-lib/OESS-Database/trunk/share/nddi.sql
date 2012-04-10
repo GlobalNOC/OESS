@@ -212,6 +212,7 @@ CREATE TABLE `node` (
   `latitude` double NOT NULL,
   `operational_state` enum('unknown','up','down') NOT NULL DEFAULT 'unknown',
   `network_id` int(10) NOT NULL,
+  `vlan_tag_range` varchar(255) DEFAULT '1-4095',
   PRIMARY KEY (`node_id`),
   UNIQUE KEY `node_idx` (`name`),
   KEY `network_node_fk` (`network_id`),
@@ -266,16 +267,34 @@ DROP TABLE IF EXISTS `path_instantiation`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `path_instantiation` (
+  `path_instantiation_id` int(11) NOT NULL AUTO_INCREMENT,
   `path_id` int(10) NOT NULL,
   `end_epoch` int(10) NOT NULL,
   `path_state` enum('active','available','deploying') NOT NULL DEFAULT 'active',
   `start_epoch` int(10) NOT NULL,
-  `internal_vlan_id` int(10) NOT NULL,
-  PRIMARY KEY (`path_id`,`end_epoch`),
-  UNIQUE KEY `path_instantiaiton_idx` (`end_epoch`,`internal_vlan_id`),
+  PRIMARY KEY (`path_instantiation_id`),
+  KEY `end_epoch_path` (`path_id`,`end_epoch`),
   CONSTRAINT `path_path_instantiaiton_fk` FOREIGN KEY (`path_id`) REFERENCES `path` (`path_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8 |
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `path_instantiation_vlan_ids`
+--
+
+DROP TABLE IF EXISTS `path_instantiation_vlan_ids`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `path_instantiation_vlan_ids` (
+  `path_instantiation_id` int(11) NOT NULL,
+  `node_id` int(11) NOT NULL,
+  `internal_vlan_id` int(11) NOT NULL,
+  KEY `path_instantiation_id` (`path_instantiation_id`),
+  KEY `node_id` (`node_id`),
+  CONSTRAINT `path_instantiation_vlan_ids_ibfk_1` FOREIGN KEY (`path_instantiation_id`) REFERENCES `path_instantiation` (`path_instantiation_id`),
+  CONSTRAINT `path_instantiation_vlan_ids_ibfk_2` FOREIGN KEY (`node_id`) REFERENCES `node` (`node_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 |
+/*!40101 SET character_set_client = @saved_cs_client *;/
 
 --
 -- Table structure for table `remote_auth`

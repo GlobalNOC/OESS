@@ -206,9 +206,11 @@ sub _generate_translation_rule{
     
     	    my $actions = $prev_rule->{'action'};
 
-            # if we have already seen this exact rule (intranode path likely), skip                                                                                                                                                                                          
-            if ($actions->[0][0]->value()    == OFPAT_SET_VLAN_VID &&
-                $actions->[0][1]->value()    == $out_tag &&
+            # if we have already seen this exact rule (intranode path likely), skip
+            if ((
+		($actions->[0][0]->value() == OFPAT_SET_VLAN_VID && $actions->[0][1]->value() == $out_tag)
+		||
+		($actions->[0][0]->value() == OFPAT_STRIP_VLAN && $actions->[0][1]->value() == 0)) &&
 		$actions->[1][0]->value()    == OFPAT_OUTPUT &&
                 $actions->[1][1][1]->value() == $out_port){
                 return;
@@ -294,16 +296,21 @@ sub _generate_commands{
     my %backup_path;
     my @commands;
 
+    my $internal_ids = $circuit_details->{'internal_ids'};
+
     foreach my $link (@{$circuit_details->{'links'}}){
-	$primary_path{$link->{'node_a'}}{$circuit_details->{'pri_path_internal_tag'}}{$link->{'port_no_a'}} = 1;
-	$primary_path{$link->{'node_z'}}{$circuit_details->{'pri_path_internal_tag'}}{$link->{'port_no_z'}} = 1;
+	my $node_a = $link->{'node_a'};
+	my $node_z = $link->{'node_z'};
+	$primary_path{$node_a}{$link->{'port_no_a'}}{$internal_ids->{'primary'}{$node_a}} = $internal_ids->{'primary'}{$node_z};
+	$primary_path{$node_z}{$link->{'port_no_z'}}{$internal_ids->{'primary'}{$node_z}} = $internal_ids->{'primary'}{$node_a};
     }
     foreach my $link (@{$circuit_details->{'backup_links'}}){
-        $backup_path{$link->{'node_a'}}{$circuit_details->{'bu_path_internal_tag'}}{$link->{'port_no_a'}} = 1;
-        $backup_path{$link->{'node_z'}}{$circuit_details->{'bu_path_internal_tag'}}{$link->{'port_no_z'}} = 1;
+	my $node_a = $link->{'node_a'};
+	my $node_z = $link->{'node_z'};
+	$backup_path{$node_a}{$link->{'port_no_a'}}{$internal_ids->{'backup'}{$node_a}} = $internal_ids->{'backup'}{$node_z};
+	$backup_path{$node_z}{$link->{'port_no_z'}}{$internal_ids->{'backup'}{$node_z}} = $internal_ids->{'backup'}{$node_a};
     }
-    
-   
+
    if($action == FWDCTL_ADD_VLAN || $action == FWDCTL_REMOVE_VLAN){
      my $sw_act = FWDCTL_ADD_RULE;
 
@@ -322,37 +329,29 @@ sub _generate_commands{
      #--- gen set of rules to apply to each node on either primary or backup path
      #--- get the set of links on the primary and backup, then get the interfaces for each
      #---    node     
+     foreach my $path ((\%primary_path, \%backup_path)){
 
-     my $path = \%primary_path;
-     #--- go node by node and figure out the simple forwarding rules for this path
-     foreach my $node (sort keys %$path){
-         foreach my $vlan_tag (sort keys %{$path->{$node}}){
-             #--- iterate through ports need set of rules for each input/output port combo
-             foreach my $interface(sort keys %{$path->{$node}{$vlan_tag}}){
-                 foreach my $other_if(sort keys %{$path->{$node}{$vlan_tag}}){
-	             #--- skip when the 2 interfaces are the same
-                     next if($other_if eq $interface);
-	             $self->_generate_forward_rule(\@commands,$dpid_lookup->{$node},$vlan_tag,$interface,$other_if,$sw_act);
-                 }
-             }
-         }
-    } 
+	 #--- go node by node and figure out the simple forwarding rules for this path
+	 foreach my $node (sort keys %$path){
+	     foreach my $interface (sort keys %{$path->{$node}}){
+		 foreach my $other_if(sort keys %{$path->{$node}}){
+		     
+		     #--- skip when the 2 interfaces are the same
+		     next if($other_if eq $interface);
+		     
+		     #--- iterate through ports need set of rules for each input/output port combo
+		     foreach my $vlan_tag (sort keys %{$path->{$node}{$interface}}){          
+			 
+			 my $remote_tag = $path->{$node}{$other_if}{$vlan_tag};
 
-    $path = \%backup_path;
-    #--- go node by node and figure out the simple forwarding rules for this path
-    foreach my $node (sort keys %$path){
-        foreach my $vlan_tag (sort keys %{$path->{$node}}){
-        #--- iterate through ports need set of rules for each input/output port combo
-            foreach my $interface(sort keys %{$path->{$node}{$vlan_tag}}){
-                foreach my $other_if(sort keys %{$path->{$node}{$vlan_tag}}){
-                    #--- skip when the 2 interfaces are the same
-                    next if($other_if eq $interface);
-                    $self->_generate_forward_rule(\@commands,$dpid_lookup->{$node},$vlan_tag,$interface,$other_if,$sw_act);
-                }
-            }
-        }
-    }
-    
+			 # future optimization if remote_tag and vlan_tag are the same?
+			 #$self->_generate_forward_rule(\@commands,$dpid_lookup->{$node},$vlan_tag,$interface,$other_if,$sw_act);
+			 $self->_generate_translation_rule(\@commands,$dpid_lookup->{$node}, $vlan_tag, $interface, $remote_tag, $other_if, $sw_act);		     
+		     }
+		 }
+	     }
+	 } 
+     }
 
     #--- gen set of rules to apply at each endpoint these are for forwarding and translation
     foreach my $endpoint(@{$circuit_details->{'endpoints'}}){
@@ -362,10 +361,13 @@ sub _generate_commands{
       my $outer_tag = $endpoint->{'tag'};
 
       #--- iterate over the non-edge interfaces on the primary path to setup rules that both forward AND translate
-      foreach my $inner_tag (sort keys %{$primary_path{$node}}){
-        foreach my $other_if(sort keys %{$primary_path{$node}{$inner_tag}}){
-           $self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$outer_tag, $interface, $inner_tag, $other_if,$sw_act);
-	   $self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$inner_tag, $other_if, $outer_tag, $interface,$sw_act);
+      foreach my $other_if(sort keys %{$primary_path{$node}}){
+	  foreach my $local_inner_tag (sort keys %{$primary_path{$node}{$other_if}}){
+
+	      my $remote_inner_tag = $primary_path{$node}{$other_if}{$local_inner_tag};
+
+	      $self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$outer_tag, $interface, $remote_inner_tag, $other_if,$sw_act);
+	      $self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$local_inner_tag, $other_if, $outer_tag, $interface,$sw_act);
         }
       }
 
@@ -373,14 +375,14 @@ sub _generate_commands{
       #--- this will be sorta odd as these will always exist regardless backup or primary
       #--- path if exist
       foreach my $other_ep(@{$circuit_details->{'endpoints'}}){
-      	my $other_node =  $other_ep->{'node'};
-        my $other_if   =  $other_ep->{'port_no'};
-        my $other_tag  =  $other_ep->{'tag'};
-
-        next if($other_ep == $endpoint || $node ne $other_node );
-        
-        $self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$outer_tag, $interface, $other_tag, $other_if,$sw_act);
-        $self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$other_tag, $other_if, $outer_tag, $interface,$sw_act);
+	  my $other_node =  $other_ep->{'node'};
+	  my $other_if   =  $other_ep->{'port_no'};
+	  my $other_tag  =  $other_ep->{'tag'};
+	  
+	  next if($other_ep == $endpoint || $node ne $other_node );
+	  
+	  $self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$outer_tag, $interface, $other_tag, $other_if,$sw_act);
+	  $self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$other_tag, $other_if, $outer_tag, $interface,$sw_act);
       }
     }
      
@@ -405,21 +407,26 @@ sub _generate_commands{
         my $outer_tag = $endpoint->{'tag'};
 
         #--- add new edge rules
-        foreach my $inner_tag (sort keys %{$path->{$node}}){
-          foreach my $other_if(sort keys %{$path->{$node}{$inner_tag}}){
-              $self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$outer_tag, $interface, $inner_tag, $other_if,FWDCTL_ADD_RULE);
-              $self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$inner_tag, $other_if, $outer_tag, $interface,FWDCTL_ADD_RULE);
-         }
-       }
+	foreach my $other_if(sort keys %{$path->{$node}}){
+	    foreach my $local_inner_tag (sort keys %{$path->{$node}{$other_if}}){
+		my $remote_inner_tag = $path->{$node}{$other_if}{$local_inner_tag};
+		
+		$self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$outer_tag, $interface, $remote_inner_tag, $other_if,FWDCTL_ADD_RULE);
+		$self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$local_inner_tag, $other_if, $outer_tag, $interface,FWDCTL_ADD_RULE);
+	    }
+	}
 
-       #--- remove existing edge rules
-       foreach my $inner_tag (sort keys %{$old->{$node}}){
-         foreach my $other_if(sort keys %{$old->{$node}{$inner_tag}}){
-             $self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$outer_tag, $interface, $inner_tag, $other_if,FWDCTL_REMOVE_RULE);
-	     $self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$inner_tag, $other_if, $outer_tag, $interface,FWDCTL_REMOVE_RULE);
-         }
-       }
-    }
+        #--- remove existing edge rules
+	foreach my $other_if(sort keys %{$old->{$node}}){
+	    foreach my $local_inner_tag (sort keys %{$old->{$node}{$other_if}}){
+		my $remote_inner_tag = $old->{$node}{$other_if}{$local_inner_tag};
+		
+		$self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$outer_tag, $interface, $remote_inner_tag, $other_if,FWDCTL_REMOVE_RULE);
+		$self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$local_inner_tag, $other_if, $outer_tag, $interface,FWDCTL_REMOVE_RULE);
+	    }
+	}
+
+     }
      
      return \@commands; 
    }

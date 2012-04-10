@@ -524,11 +524,13 @@ sub confirm_node {
     my $name    = $cgi->param('name');
     my $long    = $cgi->param('longitude');
     my $lat     = $cgi->param('latitude');
+    my $range   = $cgi->param('vlan_range');
 
-    my $result = $db->confirm_node(node_id   => $node_id,
-				   name      => $name,
-				   longitude => $long,
-				   latitude  => $lat
+    my $result = $db->confirm_node(node_id    => $node_id,
+				   name       => $name,
+				   longitude  => $long,
+				   latitude   => $lat,
+				   vlan_range => $range
 	                           );
 
     if (! defined $result){
@@ -550,11 +552,13 @@ sub update_node {
     my $name    = $cgi->param('name');
     my $long    = $cgi->param('longitude');
     my $lat     = $cgi->param('latitude');
+    my $range   = $cgi->param('vlan_range');
 
-    my $result = $db->update_node(node_id   => $node_id,
-				  name      => $name,
-				  longitude => $long,
-				  latitude  => $lat
+    my $result = $db->update_node(node_id    => $node_id,
+				  name       => $name,
+				  longitude  => $long,
+				  latitude   => $lat,
+				  vlan_range => $range
 	);
     
     if (! defined $result){

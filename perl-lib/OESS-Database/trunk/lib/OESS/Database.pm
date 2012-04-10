@@ -335,7 +335,7 @@ sub switch_circuit_to_alternate_path {
 
 
     # grab the path_id of the one we're switching away from
-    $query = "select path_instantiation.path_id, path_instantiation.internal_vlan_id from path " . 
+    $query = "select path_instantiation.path_id, path_instantiation.path_instantiation_id from path " . 
 	     " join path_instantiation on path.path_id = path_instantiation.path_id " .
 	     " where path_instantiation.path_state = 'active' and path_instantiation.end_epoch = -1 " .
 	     " and path.circuit_id = ?";
@@ -348,8 +348,8 @@ sub switch_circuit_to_alternate_path {
     }
 
     my $old_active_path_id   = @$results[0]->{'path_id'};
-    my $old_active_path_vlan = @$results[0]->{'internal_vlan_id'};
- 
+    my $old_instantiation    = @$results[0]->{'path_instantiation_id'};
+
     # decom the current path instantiation
     $query = "update path_instantiation set path_instantiation.end_epoch = unix_timestamp(NOW()) " .
 	     " where path_instantiation.path_id = ? and path_instantiation.end_epoch = -1";
@@ -361,18 +361,26 @@ sub switch_circuit_to_alternate_path {
 	return undef;
     }
 
-
     # create a new path instantiation of the old path
-    $query = "insert into path_instantiation (path_id, start_epoch, end_epoch, path_state, internal_vlan_id) " .
-	     " values (?, unix_timestamp(NOW()), -1, 'available', ?)";
+    $query = "insert into path_instantiation (path_id, start_epoch, end_epoch, path_state) " .
+	     " values (?, unix_timestamp(NOW()), -1, 'available')";
     
-    $success = $self->_execute_query($query, [$old_active_path_id, $old_active_path_vlan]);
+    my $new_available = $self->_execute_query($query, [$old_active_path_id]);
 
-    if (! defined $success){
+    if (! defined $new_available){
 	$self->_set_error("Unable to create new available path based on old instantiation.");
 	return undef;
     }
 
+    # point the internal vlan mappings from the old over to the new path instance
+    $query = "update path_instantiation_vlan_ids set path_instantiation_id = ? where path_instantiation_id = ?";
+
+    $success = $self->_execute_query($query, [$new_available, $old_instantiation]);
+
+    if (! defined $success){
+	$self->_set_error("Unable to move internal vlan id mappings over to new path instance.");
+	return undef;
+    }
 
     # at this point, the old path instantiation has been decom'd by virtue of its end_epoch
     # being set and another one has been created in 'available' state based on it.
@@ -838,7 +846,7 @@ sub get_map_layers {
 
     # grab only the local network
     my $query = "select network.longitude as network_long, network.latitude as network_lat, network.name as network_name, " .
-	" node.longitude as node_long, node.latitude as node_lat, node.name as node_name, node.node_id as node_id, " .
+	" node.longitude as node_long, node.latitude as node_lat, node.name as node_name, node.vlan_tag_range, node.node_id as node_id, " .
 	" to_node.name as to_node, " .
 	" link.name as link_name, if(intA.operational_state = 'up' && intB.operational_state = 'up', 'up', 'down') as link_state, if(int_instA.capacity_mbps > int_instB.capacity_mbps, int_instB.capacity_mbps, int_instA.capacity_mbps) as capacity, link.link_id as link_id " .
 	"from node " .
@@ -892,7 +900,8 @@ sub get_map_layers {
 	$networks->{$network_name}->{'nodes'}->{$node_name} = {"node_name"    => $node_name,
 							       "node_lat"     => $row->{'node_lat'},
 							       "node_long"    => $row->{'node_long'},
-							       "node_id"      => $row->{'node_id'}
+							       "node_id"      => $row->{'node_id'},
+							       "vlan_range"   => $row->{'vlan_tag_range'}
 							   };
 
 	# make sure we have an array even if we never get any links for this node
@@ -1954,7 +1963,7 @@ sub get_circuit_details {
     # basic circuit info
     my $query = "select circuit.name, circuit.description, circuit.circuit_id, " .
 	" circuit_instantiation.reserved_bandwidth_mbps, circuit_instantiation.circuit_state  , " .
-        " pr_pi.internal_vlan_id as pri_path_internal_tag, bu_pi.internal_vlan_id as bu_path_internal_tag, " .
+#        " pr_pi.internal_vlan_id as pri_path_internal_tag, bu_pi.internal_vlan_id as bu_path_internal_tag, " .
 	" if(bu_pi.path_state = 'active', 'backup', 'primary') as active_path " .
 	"from circuit " .
 	" join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id " .
@@ -1970,17 +1979,23 @@ sub get_circuit_details {
 
     $sth->execute($circuit_id);
 
+    my $primary_path_id;
+    my $backup_path_id;
+
     if (my $row = $sth->fetchrow_hashref()){
 	$details = {'circuit_id'             => $circuit_id,
 		    'name'                   => $row->{'name'},
 		    'description'            => $row->{'description'},
 		    'bandwidth'              => $row->{'reserved_bandwidth_mbps'},
 		    'state'                  => $row->{'circuit_state'},
-		    'pri_path_internal_tag'  => $row->{'pri_path_internal_tag'},
-		    'bu_path_internal_tag'   => $row->{'bu_path_internal_tag'},
+#		    'pri_path_internal_tag'  => $row->{'pri_path_internal_tag'},
+#		    'bu_path_internal_tag'   => $row->{'bu_path_internal_tag'},
 		    'active_path'            => $row->{'active_path'}
 	           };
+
     }
+    
+    $details->{'internal_ids'} = $self->get_circuit_internal_ids(circuit_id => $circuit_id) || [];
 
     $details->{'endpoints'}    = $self->get_circuit_endpoints(circuit_id => $circuit_id) || [];
 
@@ -1991,6 +2006,44 @@ sub get_circuit_details {
 	                                                 ) || [];
 
     return $details;
+}
+
+=head2 get_circuit_internal_ids
+
+=cut
+
+sub get_circuit_internal_ids {
+    my $self = shift;
+    my %args = @_;
+
+    my $circuit_id = $args{'circuit_id'};
+
+    my $query = "select internal_vlan_id, node.node_id, node.name, path.path_type " .
+	" from path_instantiation_vlan_ids " .
+	"  join path_instantiation on path_instantiation.path_instantiation_id = path_instantiation_vlan_ids.path_instantiation_id " .
+	"  join path on path.path_id = path_instantiation.path_id " .
+	"  join node on node.node_id = path_instantiation_vlan_ids.node_id " .
+	"  where path.circuit_id = ?";
+
+    my $ids = $self->_execute_query($query, [$circuit_id]);
+
+    if (! defined $ids){
+	$self->_set_error("Internal error while fetching circuit internal vlan ids.");
+	return undef;
+    }
+
+    my $results;
+
+    foreach my $row (@$ids){
+
+	my $path_type = $row->{'path_type'};
+	my $tag       = $row->{'internal_vlan_id'};
+	my $node      = $row->{'name'};
+
+	$results->{$path_type}->{$node} = $tag;
+    }
+
+    return $results;
 }
 
 =head2 get_circuit_endpoints
@@ -2265,10 +2318,11 @@ sub confirm_node {
     my $self = shift;
     my %args = @_;
 
-    my $node_id = $args{'node_id'};
-    my $name    = $args{'name'};
-    my $lat     = $args{'latitude'};
-    my $long    = $args{'longitude'};
+    my $node_id    = $args{'node_id'};
+    my $name       = $args{'name'};
+    my $lat        = $args{'latitude'};
+    my $long       = $args{'longitude'};
+    my $vlan_range = $args{'vlan_range'};
 
     $self->_start_transaction();
 
@@ -2279,8 +2333,8 @@ sub confirm_node {
 	return undef;
     }
 
-    $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ? where node_id = ?",
-	                            [$name, $long, $lat, $node_id]
+    $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ?, vlan_tag_range = ? where node_id = ?",
+	                            [$name, $long, $lat, $vlan_range, $node_id]
 	                           );
 
     if ($result != 1){
@@ -2297,15 +2351,16 @@ sub update_node {
     my $self = shift;
     my %args = @_;
 
-    my $node_id = $args{'node_id'};
-    my $name    = $args{'name'};
-    my $lat     = $args{'latitude'};
-    my $long    = $args{'longitude'};
+    my $node_id    = $args{'node_id'};
+    my $name       = $args{'name'};
+    my $lat        = $args{'latitude'};
+    my $long       = $args{'longitude'};
+    my $vlan_range = $args{'vlan_range'};
 
     $self->_start_transaction();
 
-    my $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ? where node_id = ?",
-				       [$name, $long, $lat, $node_id]
+    my $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ?, vlan_tag_range = ? where node_id = ?",
+				       [$name, $long, $lat, $vlan_range, $node_id]
 	                              );
 
     if ($result != 1){
@@ -2508,7 +2563,7 @@ sub get_pending_nodes {
     my %args = @_;
 
     my $sth = $self->_prepare_query("select node.node_id, node_instantiation.dpid, inet_ntoa(node_instantiation.management_addr_ipv4) as address, " .
-				    " node.name, node.longitude, node.latitude " .
+				    " node.name, node.longitude, node.latitude, node.vlan_tag_range " .
 				    " from node join node_instantiation on node.node_id = node_instantiation.node_id " .
 				    " where node_instantiation.admin_state = 'available'"
 	                           ) or return undef;
@@ -2523,7 +2578,8 @@ sub get_pending_nodes {
 			  "ip_address" => $row->{'address'},
 			  "name"       => $row->{'name'},
 			  "longitude"  => $row->{'longitude'},
-			  "latitude"   => $row->{'latitude'}
+			  "latitude"   => $row->{'latitude'},
+			  "vlan_range" => $row->{'vlan_tag_range'}
 	                 }
 	    );
     }
@@ -2593,11 +2649,9 @@ sub get_link_by_name{
 	return undef;
     }
 
-    my $link = $self->_execute_query("select * from link where name = ?",[$args{'nane'}])->[0];
+    my $link = $self->_execute_query("select * from link where name = ?",[$args{'name'}])->[0];
     return $link;
     
-
-
 }
 
 =head2 get_link_by_dpid_and_port
@@ -2641,7 +2695,7 @@ sub get_link_by_dpid_and_port {
     return $result;
 }
 
-=head2
+=head2 get_link_endpoints
 
 =cut
 
@@ -3731,16 +3785,7 @@ sub provision_circuit {
     foreach my $path_type (qw(primary backup)){
 	
 	my $relevant_links = $link_lookup->{$path_type};
-	
-	# figure out what internal ID we can use for this
-	my $internal_vlan = $self->_get_available_internal_vlan_id();
-	
-	if (! defined $internal_vlan){
-	    $self->_set_error("Internal error finding available internal id.");
-	    return undef;
-	}
-	
-	
+
 	# create the primary path object
 	$query = "insert into path (path_type, circuit_id) values (?, ?)";
 	
@@ -3753,19 +3798,58 @@ sub provision_circuit {
 	
 	
 	# instantiate path object
-	$query = "insert into path_instantiation (path_id, internal_vlan_id, end_epoch, start_epoch, path_state) values (?, ?, -1, unix_timestamp(NOW()), ?)";
+	$query = "insert into path_instantiation (path_id, end_epoch, start_epoch, path_state) values (?, -1, unix_timestamp(NOW()), ?)";
 
 	my $path_state = "deploying";
 
 	if ($path_type eq "backup"){
 	    $path_state = "available";
 	}
+
+	my $path_instantiation_id = $self->_execute_query($query, [$path_id, $path_state]);
 	
-	if (! defined $self->_execute_query($query, [$path_id, $internal_vlan, $path_state])){
+	if (! defined $path_instantiation_id ){
 	    $self->_set_error("Error while instantiating path record.");
 	    return undef;	
 	} 
-	
+
+	my %seen_endpoints;
+	# figure out all the nodes along this path so we can assign them an internal tag
+	foreach my $link (@$relevant_links){
+	    my $info      = $self->get_link_by_name(name => $link);
+
+	    if (! defined $info){
+		$self->_set_error("Unable to determine link with name \"$link\"");
+		return undef;
+	    }
+
+	    my $endpoints = $self->get_link_endpoints(link_id => $info->{'link_id'});
+
+	    foreach my $endpoint (@$endpoints){
+		my $node_id = $endpoint->{'node_id'};
+
+		# make sure we don't double assign
+		next if ($seen_endpoints{$node_id});
+		$seen_endpoints{$node_id} = 1;
+	    
+		# figure out what internal ID we can use for this
+		my $internal_vlan = $self->_get_available_internal_vlan_id(node_id => $node_id);
+		
+		if (! defined $internal_vlan){
+		    $self->_set_error("Internal error finding available internal id for node $endpoint->{'node_name'}.");
+		    return undef;
+		}
+
+		$query = "insert into path_instantiation_vlan_ids (path_instantiation_id, node_id, internal_vlan_id) values (?, ?, ?)";
+
+		if (! defined $self->_execute_query($query, [$path_instantiation_id, $node_id, $internal_vlan])){
+		    $self->_set_error("Error while creating path instantiation vlan tag.");
+		    return undef;
+		}
+
+	    }
+
+	}
 	
 	# now create the primary links into the primary path
 	for (my $i = 0; $i < @$relevant_links; $i++){
@@ -4312,7 +4396,7 @@ sub add_or_update_interface{
 
 
 =head2 edit_circuit
-TODO
+
 =cut
 
 sub edit_circuit {
@@ -4556,7 +4640,7 @@ sub edit_circuit {
 
 =over
 
-=item 
+=item error_string
 
 The error text to set the internal error state to.
 
@@ -4630,7 +4714,7 @@ Returns a statement handle (DBI) after preparing the given query.
 
 =over
 
-=item
+=item query
 
 The query to prepare.
 
@@ -4661,11 +4745,11 @@ Return type varies depending on query type. Select queries return an array of ha
 
 =over
 
-=item 
+=item query
 
 The query string to execute.
 
-=item
+=item arguments
 
 An array of arguments to pass into the query execute. This is the same as executing a DBI based query with placeholders (?).
 
@@ -4683,7 +4767,6 @@ sub _execute_query {
     my $sth = $dbh->prepare($query);
 
     #warn "Query is: $query\n";
-
     #warn "Args are: " . Dumper($args);
 
     if (! $sth){
@@ -4729,17 +4812,27 @@ sub _execute_query {
 
 Returns the lowest currently available internal vlan identifier or undef if none are available.
 
+=over
+
+=item node_id
+
+=back
+
 =cut
 
 sub _get_available_internal_vlan_id {
     my $self = shift;
     my %args = @_;
 
-    my $query = "select internal_vlan_id from path_instantiation where end_epoch = -1";
+    my $node_id = $args{'node_id'};
+
+    my $query = "select internal_vlan_id from path_instantiation_vlan_ids " .
+	" join path_instantiation on path_instantiation.path_instantiation_id = path_instantiation_vlan_ids.path_instantiation_id " .
+	"   where path_instantiation.end_epoch = -1 and path_instantiation_vlan_ids.node_id = ?";
 
     my %used;
 
-    my $results = $self->_execute_query($query, []);
+    my $results = $self->_execute_query($query, [$node_id]);
 
     # something went wrong
     if (! defined $results){
@@ -4751,13 +4844,80 @@ sub _get_available_internal_vlan_id {
 	$used{$row->{'internal_vlan_id'}} = 1;
     }
 
-    for (my $i = 1; $i < 4096; $i++){
-	if (! exists $used{$i}){
-	    return $i;
+    my $allowed_vlan_tags = $self->get_allowed_vlans(node_id => $node_id);
+
+    foreach my $tag (@$allowed_vlan_tags){
+	if (! exists $used{$tag}){
+	    return $tag;
 	}
     }
 
     return undef;
+}
+
+=head2 get_allowed_vlans
+
+Returns an array of tags that are configured to be allowed for this node.
+
+=over 
+
+=item node_id
+
+=back
+
+=cut
+
+sub get_allowed_vlans {
+    my $self = shift;
+    my %args = @_;
+
+    my $node_id = $args{'node_id'};
+
+    my $query = "select vlan_tag_range from node where node_id = ?";
+
+    my $results = $self->_execute_query($query, [$node_id]);
+
+    if (! defined $results){
+	$self->_set_error("Internal error while determining what vlan tag ranges are allowed for node id: $node_id.");
+	return undef;
+    }
+
+    my @tags;
+
+    # stored as a string so we can define multiple ranges
+    my $string = $results->[0]->{'vlan_tag_range'};
+
+    my @split = split(/,/, $string);
+    
+    foreach my $element (@split){
+
+	if ($element =~ /(\d+)-(\d+)/){
+	    my $start = $1;
+	    my $end   = $2;
+
+	    if ($start < 1 || $end > 4095){
+		warn "Invalid start = $start and/or end = $end in tag ranges for node id: $node_id\n";
+		next;
+	    }
+
+	    foreach my $tag_number ($start .. $end){
+		push(@tags, $tag_number);
+	    }
+	}
+	else {
+	    if ($element =~ /(\d+)/){
+		my $tag_number = $1;
+		if ($tag_number < 1 || $tag_number > 4095){
+		    warn "Invalid tag $tag_number for node id: $node_id\n";
+		    next;
+		}
+		push (@tags, $1);
+	    }
+	}
+
+    }
+
+    return \@tags;
 }
 
 =head2 _validate_endpoint
@@ -4854,7 +5014,9 @@ sub get_current_actions{
 
 
 =head2 get_circuits_by_state
+
 returns the all circuits in a given state
+
 =cut
 
 sub get_circuits_by_state{
@@ -4885,7 +5047,6 @@ sub get_circuits_by_state{
     }
 
     return \@results;
-
     
 }
 

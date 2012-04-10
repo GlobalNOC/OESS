@@ -1321,11 +1321,12 @@ function setup_network_tab(){
 		panel = null;
 	    }
 
-	    var node_id = args[0].node_id;
-	    var node    = args[0].name;
-	    var lat     = args[0].lat;
-	    var lon     = args[0].lon;
-	    
+	    var node_id    = args[0].node_id;
+	    var node       = args[0].name;
+	    var lat        = args[0].lat;
+	    var lon        = args[0].lon;
+	    var vlan_range = args[0].vlan_range;
+
 	    var feature = args[0].feature;
 
 	    this.changeNodeImage(feature, this.ACTIVE_IMAGE);
@@ -1351,8 +1352,13 @@ function setup_network_tab(){
 			  "<td>Longitude:</td>" +
 			  "<td><input type='text' id='active_node_lon' size='10'></td>" +
 			  "</tr>" + 
+			  "<tr>" +
+			  "<td>Vlan Range:</td>" + 
+			  "<td><input type='text' id='active_node_vlan_range' size='10'></td>" +
+			  "</tr>" + 
 			  "</table>"
 			  );
+
 	    panel.setFooter("<div id='save_active_node'></div>" + 
 			    "<div id='delete_active_node'></div>");
 
@@ -1362,17 +1368,19 @@ function setup_network_tab(){
 
 	    panel.render(YAHOO.util.Dom.get("active_element_details"));
 
-	    YAHOO.util.Dom.get('active_node_name').value = node;
-	    YAHOO.util.Dom.get('active_node_lat').value  = lat;
-	    YAHOO.util.Dom.get('active_node_lon').value  = lon; 
+	    YAHOO.util.Dom.get('active_node_name').value        = node;
+	    YAHOO.util.Dom.get('active_node_lat').value         = lat;
+	    YAHOO.util.Dom.get('active_node_lon').value         = lon; 
+	    YAHOO.util.Dom.get('active_node_vlan_range').value  = vlan_range; 
 
 	    var save_button   = new YAHOO.widget.Button("save_active_node", {label: "Update Device"});
 	    var delete_button = new YAHOO.widget.Button("delete_active_node", {label: "Decomission Device"});
 
 	    save_button.on("click", function(){
-		    var new_name = YAHOO.util.Dom.get('active_node_name').value;
-		    var new_lat  = YAHOO.util.Dom.get('active_node_lat').value;
-		    var new_lon  = YAHOO.util.Dom.get('active_node_lon').value;
+		    var new_name  = YAHOO.util.Dom.get('active_node_name').value;
+		    var new_lat   = YAHOO.util.Dom.get('active_node_lat').value;
+		    var new_lon   = YAHOO.util.Dom.get('active_node_lon').value;
+		    var new_range = YAHOO.util.Dom.get('active_node_vlan_range').value;
 
 		    if (! new_name){
 			alert("You must specify a name for this device.");
@@ -1389,7 +1397,17 @@ function setup_network_tab(){
 			return;
 		    }
 
-		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_node&node_id="+node_id+"&name="+encodeURIComponent(new_name)+"&latitude="+new_lat+"&longitude="+new_lon);
+		    var ranges = new_range.split(",");
+
+		    for (var i = 0; i < ranges.length; i++){
+		    	var segment = ranges[i];
+		    	if (! segment.match(/^\d+$/) && ! segment.match(/^\d+-\d+$/)){
+			   alert("You must specify a valid vlan range in the format \"1-3,5,7,8-10\"");
+			   return;
+			}				
+		    }
+
+		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_node&node_id="+node_id+"&name="+encodeURIComponent(new_name)+"&latitude="+new_lat+"&longitude="+new_lon+"&vlan_range="+encodeURIComponent(new_range));
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
 		    ds.responseSchema = {
@@ -1526,6 +1544,10 @@ function setup_discovery_tab(){
 				       "<td>Longitude:</td>" +
 				       "<td><input type='text' id='node_lon' size='10'></td>" +
 				       "</tr>" + 
+				       "<tr>" + 
+				       "<td>Vlan Range:</td>" + 
+				       "<td><input type='text' id='vlan_range' size='10'></td>" +
+				       "</tr>" + 
 				       "</table>"
 				       );
 
@@ -1545,15 +1567,20 @@ function setup_discovery_tab(){
 		YAHOO.util.Dom.get('node_lon').value = record.getData('longitude');
 	    }
 
+	    if (record.getData('vlan_range')){
+	       YAHOO.util.Dom.get('vlan_range').value = record.getData('vlan_range');
+	    }	    
+
 	    YAHOO.util.Dom.get("node_name").focus();
 
 	    var confirm_button = new YAHOO.widget.Button("confirm_node", {label: "Confirm Device"});
 
 	    confirm_button.on("click", function(e){
 
-		    var lat  = YAHOO.util.Dom.get('node_lat').value;
-		    var lon  = YAHOO.util.Dom.get('node_lon').value;
-		    var name = YAHOO.util.Dom.get('node_name').value;
+		    var lat   = YAHOO.util.Dom.get('node_lat').value;
+		    var lon   = YAHOO.util.Dom.get('node_lon').value;
+		    var name  = YAHOO.util.Dom.get('node_name').value;
+		    var range = YAHOO.util.Dom.get('vlan_range').value;
 
 		    if (! name){
 			alert("You must specify a name for this device.");
@@ -1575,7 +1602,18 @@ function setup_discovery_tab(){
 			return;
 		    }
 
-		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=confirm_node&node_id=" + record.getData('node_id') + "&name=" + encodeURIComponent(name) + "&latitude=" + encodeURIComponent(lat) + "&longitude=" + encodeURIComponent(lon));
+		    var ranges = range.split(",");
+
+		    for (var i = 0; i < ranges.length; i++){
+		    	var segment = ranges[i];
+		    	if (! segment.match(/^\d+$/) && ! segment.match(/^\d+-\d+$/)){
+			   alert("You must specify a valid vlan range in the format \"1-3,5,7,8-10\"");
+			   return;
+			}				
+		    }
+
+		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=confirm_node&node_id=" + record.getData('node_id') + "&name=" + encodeURIComponent(name) + "&latitude=" + encodeURIComponent(lat) + "&longitude=" + encodeURIComponent(lon) + "&vlan_range=" + encodeURIComponent(range));
+
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
 		    ds.responseSchema = {
@@ -1781,7 +1819,8 @@ function makePendingNodeTable(){
                  {key: "ip_address"},
                  {key: "longitude"},
                  {key: "latitude"},
-                 {key: "name"}
+                 {key: "name"},
+		 {key: "vlan_range"},
 		 ]
     };
 

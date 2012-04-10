@@ -190,9 +190,10 @@ function NDDIMap(div_id, interdomain_mode){
 	  return;
       }
 
-      var node_lat  = parseFloat(node_info.node_lat);
-      var node_long = parseFloat(node_info.node_long);
-      var node_id   = parseInt(node_info.node_id || -1);
+      var node_lat   = parseFloat(node_info.node_lat);
+      var node_long  = parseFloat(node_info.node_long);
+      var node_id    = parseInt(node_info.node_id || -1);
+      var vlan_range = node_info.vlan_range;
 				  
       var pointStyle = OpenLayers.Util.extend({}, OpenLayers.Feature.Vector.style['default']);
 				  
@@ -215,7 +216,8 @@ function NDDIMap(div_id, interdomain_mode){
       point.element_lat  = node_lat;
       point.element_lon  = node_long;			
       point.element_id   = node_id;
-      
+      point.vlan_range   = vlan_range;
+
       var pointFeature  = new OpenLayers.Feature.Vector(point,
 							null,
 							pointStyle
@@ -937,7 +939,8 @@ function NDDIMap(div_id, interdomain_mode){
 					      var lat     = geo.element_lat;
 					      var lon     = geo.element_lon;
 					      var node_id = geo.element_id;
-					      self.events['clickNode'].fire({name: node, lat: lat, lon: lon, node_id: node_id, feature: e.feature});
+					      var range   = geo.vlan_range;					      
+					      self.events['clickNode'].fire({name: node, lat: lat, lon: lon, node_id: node_id, vlan_range: range,  feature: e.feature});
 					  }
 					  // otherwise we're clicking on a link
 					  else{
