@@ -101,16 +101,16 @@ function page_init(){
   legend_init(nddi_map, false, true);
     
   nddi_map.showDefault();
-  
+
   nddi_map.on("loaded", function(){
-	  this.updateMapFromSession(session, session.data.interdomain == 1);
+          this.updateMapFromSession(session, session.data.interdomain == 1);
 
-	  if (session.data.interdomain == 1){			  
-	      getInterDomainPath(this);
-	  }
+          if (session.data.interdomain == 1){
+              this.getInterDomainPath(session.data.circuit_id, YAHOO.util.Dom.get("interdomain_path_status"));
+          }
 
-      });
-  
+      });  
+ 
   var edit_button = new YAHOO.widget.Button("edit_button", {label: "Edit Circuit"});
 
   edit_button.on("click", function(){
@@ -231,57 +231,6 @@ function setupMeasurementGraph(){
 	});
 
     return graph;
-}
-
-function getInterDomainPath(map){
-
-    YAHOO.util.Dom.get("interdomain_path_status").innerHTML = "Querying interdomain path....";
-
-    var ds = new YAHOO.util.DataSource("services/remote.cgi?action=query_reservation&circuit_id="+session.data.circuit_id);
-    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-    ds.responseSchema = {
-	resultsList: "results",
-	fields: [{key: "status"},
-                 {key: "message"},
-                 {key: "path"}
-		 ]	
-    }
-
-    ds.sendRequest("", 
-		   {
-		       success: function(req, resp){
-
-			   var endpoints = resp.results[0].path;
-
-			   for (var i = 0; i < endpoints.length; i++){
-
-			       var from_node = endpoints[i].from_node;
-			       var from_lat  = parseFloat(endpoints[i].from_lat);
-			       var from_lon  = parseFloat(endpoints[i].from_lon);
-
-			       var to_node   = endpoints[i].to_node;
-			       var to_lat    = parseFloat(endpoints[i].to_lat);			       
-			       var to_lon    = parseFloat(endpoints[i].to_lon);			       
-
-			       if (from_node == to_node){
-				   continue;
-			       }
-
-			       map.showNode(from_node, null, {"node_lat": from_lat, "node_long": from_lon});
-			       map.showNode(to_node, null, {"node_lat": to_lat, "node_long": to_lon});
-
-			       map.connectEndpoints([from_node, to_node]);
-			   }
-
-			   YAHOO.util.Dom.get("interdomain_path_status").innerHTML = "Total Interdomain Path";
-
-		       },
-		       failure: function(req, resp){
-			   YAHOO.util.Dom.get("interdomain_path_status").innerHTML = "Unable to query interdomain path.";
-		       }
-		   }
-		   );
-
 }
 
 function setupScheduledEvents(){

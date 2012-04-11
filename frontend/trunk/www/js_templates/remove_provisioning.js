@@ -31,7 +31,7 @@ function init(){
 	    this.updateMapFromSession(session);
 	    
 	    if (session.data.interdomain == 1){
-		this.connectSessionEndpoints(session);		    
+                this.getInterDomainPath(session.data.circuit_id);
 	    }
 
 	});      

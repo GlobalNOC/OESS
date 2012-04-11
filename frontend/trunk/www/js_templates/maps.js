@@ -1,12 +1,12 @@
 <script>
 
 function NDDIMap(div_id, interdomain_mode){
-  
+
   this.UNSELECTED_IMAGE    = "[% path %]media/blue-circle.png";
   this.SELECTED_IMAGE      = "[% path %]media/orange-circle.png";
   this.ACTIVE_IMAGE        = "[% path %]media/yellow-circle.png";
   this.NON_IMPORTANT_IMAGE = "[% path %]media/gray-circle.png";
-    
+
   this.LINK_UP        = "#3158a7";
   this.LINK_DOWN      = "#b46253";
   this.LINK_PRIMARY   = "#b7f33b";//"#DEA567";
@@ -15,7 +15,7 @@ function NDDIMap(div_id, interdomain_mode){
   this.ACTIVE_HALO_COLOR   = "#f47e20";//"#FFFFCC";//"#DADADA";
   this.INACTIVE_HALO_COLOR = "#666666";
   this.UNKNOWN_HALO_COLOR  = "#A0A0A0";
- 
+
   this.ACTIVE_LINK_WIDTH   = 5.5;
   this.INACTIVE_LINK_WIDTH = 3.0;
 
@@ -24,15 +24,15 @@ function NDDIMap(div_id, interdomain_mode){
 
   // keep a reference to ourselves to use in various callbacks
   var self = this;
-    
+
   this.events = {};
-  
+
   this.events['clickNode'] = new YAHOO.util.CustomEvent("clickNode", this);
   this.events['clickLink'] = new YAHOO.util.CustomEvent("clickLink", this);
   this.events['hoverNode'] = new YAHOO.util.CustomEvent("hoverNode", this);
   this.events['hoverLink'] = new YAHOO.util.CustomEvent("hoverLink", this);
   this.events['loaded']    = new YAHOO.util.CustomEvent("loaded", this);
-  
+
   this.on = function(event_name, callback){
     if (this.events[event_name]){
       this.events[event_name].subscribe(callback);
@@ -46,7 +46,7 @@ function NDDIMap(div_id, interdomain_mode){
 
   this.calculateZoomLevel = function(width){
       var zoomLevel = Math.max(2, parseInt(width / 182) + 1);
-      
+
       // arbitrary zoom limit
       if (zoomLevel > 4){
 	  zoomLevel = 4;
@@ -54,7 +54,66 @@ function NDDIMap(div_id, interdomain_mode){
 
       return zoomLevel;
   };
-  
+
+  this.getInterDomainPath = function(circuit_id, element){
+
+      if (element){
+          element.innerHTML = "Querying interdomain path....";
+      }
+
+      var ds = new YAHOO.util.DataSource("services/remote.cgi?action=query_reservation&circuit_id="+circuit_id);
+      ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+      ds.responseSchema = {
+          resultsList: "results",
+          fields: [{key: "status"},
+                   {key: "message"},
+                   {key: "path"}
+                   ]
+      }
+
+      var self = this;
+
+      ds.sendRequest("",
+                     {
+                       success: function(req, resp){
+
+                           var endpoints = resp.results[0].path;
+
+                           for (var i = 0; i < endpoints.length; i++){
+
+                               var from_node = endpoints[i].from_node;
+                               var from_lat  = parseFloat(endpoints[i].from_lat);
+                               var from_lon  = parseFloat(endpoints[i].from_lon);
+
+			       var to_node   = endpoints[i].to_node;
+                               var to_lat    = parseFloat(endpoints[i].to_lat);
+                               var to_lon    = parseFloat(endpoints[i].to_lon);
+
+                               if (from_node == to_node){
+                                   continue;
+                               }
+
+			       self.showNode(from_node, null, {"node_lat": from_lat, "node_long": from_lon});
+                               self.showNode(to_node, null, {"node_lat": to_lat, "node_long": to_lon});
+
+                               self.connectEndpoints([from_node, to_node]);
+                           }
+
+                           if (element){
+                               element.innerHTML = "Total Interdomain Path";
+			   }
+
+                       },
+                       failure: function(req, resp){
+                             if (element){
+			         element.innerHTML = "Unable to query interdomain path.";
+                             }
+                       }
+                   }
+                   );
+
+  };
+
   this.showDefault = function(){
 
       var lonlat = new OpenLayers.LonLat(-97, 38).transform(this.map.displayProjection,
@@ -76,7 +135,7 @@ function NDDIMap(div_id, interdomain_mode){
 	  for (var j = 0; j < nodes.length; j++){
 
 	      var nodeZ = nodes[j];
-	      
+
 	      var name;
 
 	      if (nodeA < nodeZ){
@@ -108,10 +167,10 @@ function NDDIMap(div_id, interdomain_mode){
 	      }
 	  }
       }
-      
+
   };
 
-  this.isFeatureDrawn = function(feature_name){     
+  this.isFeatureDrawn = function(feature_name){
 
       for (var i = 0; i < this.map.layers[1].features.length; i++){
 	  var feature = this.map.layers[1].features[i];
@@ -179,7 +238,7 @@ function NDDIMap(div_id, interdomain_mode){
       // if we weren't given node info, try to find it in our cache
       if (! node_info){
 	  node_info = this._findNode(node_name);
-	  
+
 	  if (node_info){
 	      node_info = node_info["node"];
 	  }
@@ -194,9 +253,9 @@ function NDDIMap(div_id, interdomain_mode){
       var node_long  = parseFloat(node_info.node_long);
       var node_id    = parseInt(node_info.node_id || -1);
       var vlan_range = node_info.vlan_range;
-				  
+
       var pointStyle = OpenLayers.Util.extend({}, OpenLayers.Feature.Vector.style['default']);
-				  
+
       pointStyle.strokeColor      = "#00FF00";
       pointStyle.fillColor        = "#00FF00";
       pointStyle.fillOpacity      = 0.9;
@@ -210,11 +269,11 @@ function NDDIMap(div_id, interdomain_mode){
       var lonlat = new OpenLayers.LonLat(node_long, node_lat).transform(this.map.displayProjection,
 									this.map.projection);
 
-				  
-      var point = new OpenLayers.Geometry.Point(lonlat.lon, lonlat.lat);											       	       		  
+
+      var point = new OpenLayers.Geometry.Point(lonlat.lon, lonlat.lat);
       point.element_name = node_name;
       point.element_lat  = node_lat;
-      point.element_lon  = node_long;			
+      point.element_lon  = node_long;
       point.element_id   = node_id;
       point.vlan_range   = vlan_range;
 
@@ -222,12 +281,12 @@ function NDDIMap(div_id, interdomain_mode){
 							null,
 							pointStyle
 							);
-      
-      this.map.layers[1].addFeatures([pointFeature]);
-      
-      this.showNodeLinks(node_name, draw_other_data);      
 
-      // now that we've drawn it, see if it's outside the current viewport. if so, readjust to show it      
+      this.map.layers[1].addFeatures([pointFeature]);
+
+      this.showNodeLinks(node_name, draw_other_data);
+
+      // now that we've drawn it, see if it's outside the current viewport. if so, readjust to show it
       var current_extent = this.map.getExtent();
 
       var bounds = new OpenLayers.Bounds();
@@ -239,7 +298,7 @@ function NDDIMap(div_id, interdomain_mode){
 	  var feature = this.map.layers[1].features[i];
 
 	  // nodes only, not links
-	  if (feature.geometry.id.indexOf('Point') != -1){  
+	  if (feature.geometry.id.indexOf('Point') != -1){
 
 	      var lat = feature.geometry.element_lat;
 	      var lon = feature.geometry.element_lon;
@@ -272,12 +331,12 @@ function NDDIMap(div_id, interdomain_mode){
 
 	  for (var from_node in possible_links){
 
-	      var node_links = possible_links[from_node];	      
-	      
+	      var node_links = possible_links[from_node];
+
 	      for (var j = 0; j < node_links.length; j++){
 
 		  var link_data = node_links[j];
-		  
+
 		  if (from_node == node_name || link_data['to'] == node_name){
 		      links.push(link_data);
 		  }
@@ -326,7 +385,7 @@ function NDDIMap(div_id, interdomain_mode){
       var links = this._getNodeLinks(node_name);
 
       for (var j = 0; j < links.length; j++){
-	  
+
 	  var link_data = links[j];
 
 	  var from_node = node_name;
@@ -390,38 +449,38 @@ function NDDIMap(div_id, interdomain_mode){
 	  // transform to projection
 	  var lonlat    = new OpenLayers.LonLat(from_long, from_lat).transform(this.map.displayProjection,
 									       this.map.projection);
-	  
+
 	  from_long = lonlat.lon;
 	  from_lat  = lonlat.lat;
-	  
+
 	  lonlat  = new OpenLayers.LonLat(to_long, to_lat).transform(this.map.displayProjection,
 								     this.map.projection);
-	  
+
 	  to_long = lonlat.lon;
-	  to_lat  = lonlat.lat;	  
-	  
+	  to_lat  = lonlat.lat;
+
 	  var dy     = to_lat - from_lat;
 	  var dx     = to_long - from_long;
 	  var length = Math.sqrt(dx * dx + dy * dy);
-	  
+
 	  if (length > 0){
 	      dx /= length;
 	      dy /= length;
 	  }
-	  
+
 	  var from_ll = new OpenLayers.Geometry.Point(from_long + dx,
 						      from_lat + dy
 						      );
-	  
+
 	  var to_ll = new OpenLayers.Geometry.Point(to_long - dx,
 						    to_lat - dy
 						    );
 
-	  
+
 	  // create the base line representing this link
 	  //
 	  var line = new OpenLayers.Geometry.LineString([from_ll, to_ll]);
-	  
+
 	  line.element_name    = link_name;
 	  line.link_capacity   = capacity;
 	  line.link_state      = state;
@@ -435,36 +494,36 @@ function NDDIMap(div_id, interdomain_mode){
 	      cursor: "hand",
 	      graphicZIndex: 5
 	  };
-	 
-	  
+
+
 	  var feature = new OpenLayers.Feature.Vector(line, null, style);
-	  
-	  
+
+
 	  // now make the "halo" line below each line
 	  //
 	  var halo = new OpenLayers.Geometry.LineString([from_ll, to_ll]);
 	  halo.element_name  = "halo_line";
 	  halo.link_capacity = 0;
 	  halo.link_state    = 'na';
-	  
+
 	  var halo_style = {
-	      strokeWidth: 4.5, 
-	      strokeOpacity: 0.0, 
+	      strokeWidth: 4.5,
+	      strokeOpacity: 0.0,
 	      strokeColor: this.INACTIVE_HALO_COLOR,
 	      graphicZIndex: 5
 	  };
 
-	  
+
 	  var halo_feature = new OpenLayers.Feature.Vector(halo, null, halo_style);
-	  
-	  
+
+
 	  // now make the "secondary path" feature above each line
 	  //
 	  var secondary_path = new OpenLayers.Geometry.LineString([from_ll, to_ll]);
 	  secondary_path.element_name  = link_name;
 	  secondary_path.link_capacity = capacity;
 	  secondary_path.link_state    = state;
-	  
+
 	  var secondary_style = {
 	      strokeWidth: style.strokeWidth,
 	      strokeOpacity: 0.0,
@@ -472,36 +531,36 @@ function NDDIMap(div_id, interdomain_mode){
 	      strokeColor: this.LINK_SECONDARY,
 	      graphicZIndex: 6
 	  };
-	  
+
 	  var secondary_path_feature = new OpenLayers.Feature.Vector(secondary_path, null, secondary_style);
 	  secondary_path_feature.type = "secondary";
 
-	  // lastly make the "fat path" feature that sits on top of everything and is fully transparent to provide a 
+	  // lastly make the "fat path" feature that sits on top of everything and is fully transparent to provide a
 	  // tolerance zone for clicking and hovering
 	  var fat_path = new OpenLayers.Geometry.LineString([from_ll, to_ll]);
 	  fat_path.element_name  = "fat_line";
 	  fat_path.link_capacity = 0;
 	  fat_path.link_state    = "na";
-	  
+
 	  var fat_style = {
 	      strokeWidth: style.strokeWidth + 10,
 	      strokeOpacity: 0.0,
 	      graphicZIndex: 5
 	  };
-	  
+
 	  var fat_feature = new OpenLayers.Feature.Vector(fat_path, null, fat_style);
-	  
+
 	  // keep some references to these guys for later
 	  feature.halo_feature                = halo_feature;
 	  feature.secondary_path_feature      = secondary_path_feature;
-	  
+
 	  secondary_path_feature.halo_feature    = halo_feature;
 	  secondary_path_feature.primary_feature = feature;
-	  
+
 	  halo_feature.primary_feature = feature;
-	  
+
 	  fat_feature.primary_feature = feature;
-	  
+
 	  // order is important! must make the feature sandwich
 	  this.map.layers[1].addFeatures([feature, halo_feature, secondary_path_feature, fat_feature]);
 
@@ -509,9 +568,9 @@ function NDDIMap(div_id, interdomain_mode){
 	      this.changeLinkColor(feature, this.LINK_PRIMARY);
 	      this.showHalo(feature, this.ACTIVE_HALO_COLOR);
 	      this.changeLinkOpacity(feature, this.ACTIVE_LINK_OPACITY);
-	      this.changeLinkWidth(feature, this.ACTIVE_LINK_WIDTH);	      
+	      this.changeLinkWidth(feature, this.ACTIVE_LINK_WIDTH);
 	  }
-	                   
+
   };
 
   this.changeLinkWidth = function(link, width){
@@ -528,13 +587,13 @@ function NDDIMap(div_id, interdomain_mode){
   };
 
   this.changeLinkOpacity = function(link, opacity){
-      this.updateFeature(link, "strokeOpacity", opacity);     
+      this.updateFeature(link, "strokeOpacity", opacity);
   };
-  
+
   this.changeLinkColor = function(link, color){
-      this.updateFeature(link, "strokeColor", color);      
+      this.updateFeature(link, "strokeColor", color);
   };
-  
+
   this.changeNodeImage = function(node, image){
     this.updateFeature(node, "externalGraphic", image);
   };
@@ -548,14 +607,14 @@ function NDDIMap(div_id, interdomain_mode){
 	  return;
       }
 
-      this.changeLinkColor(link.halo_feature, color);      
+      this.changeLinkColor(link.halo_feature, color);
       this.changeLinkOpacity(link.halo_feature, 1.0);
   };
 
   this.hideHalo = function(link){
       this.changeLinkOpacity(link.halo_feature, 0.0);
   };
-   
+
   this.updateFeature = function(feature, key, value){
     feature.style[key] = value;
     this.map.layers[1].drawFeature(feature);
@@ -566,17 +625,17 @@ function NDDIMap(div_id, interdomain_mode){
 
       for (var j = 0; j < this.map.layers[1].features.length; j++){
 	  var feature = this.map.layers[1].features[j];
-	  
+
 	  if (feature.geometry.element_name == "halo_line"){
 	      continue;
-	  }	  
+	  }
 	  if (feature.type == "secondary"){
 	      continue;
 	  }
-	  
+
 	  // if this feature is a node, ie a point on the map
-	  if (feature.geometry.id.indexOf('Point') != -1){	      
-	      this.changeNodeImage(feature, this.UNSELECTED_IMAGE);	      
+	  if (feature.geometry.id.indexOf('Point') != -1){
+	      this.changeNodeImage(feature, this.UNSELECTED_IMAGE);
 	  }
 	  // otherwise this feature must be a link
 	  else{
@@ -588,12 +647,12 @@ function NDDIMap(div_id, interdomain_mode){
   };
 
   this.connectSessionEndpoints = function(session){
-      
+
       var endpoints = [];
       for (var i = 0; i < session.data.endpoints.length; i++){
 	  endpoints.push(session.data.endpoints[i].node);
       }
-      
+
       this.connectEndpoints(endpoints);
 
   };
@@ -609,11 +668,11 @@ function NDDIMap(div_id, interdomain_mode){
 
     // show the nodes
     for (var i = 0; i < endpoints.length; i++){
-	this.showNode(endpoints[i].node);		
+	this.showNode(endpoints[i].node);
     }
 
     for (var j = 0; j < this.map.layers[1].features.length; j++){
-      
+
       	var feature = this.map.layers[1].features[j];
 
 	if (feature.geometry.element_name == "halo_line"){
@@ -623,24 +682,24 @@ function NDDIMap(div_id, interdomain_mode){
 	if (feature.type == "secondary"){
 	    continue;
 	}
-      
+
 	var was_selected = false, dual = false;
-      
+
 	// if this feature is a node, ie a point on the map
 	if (feature.geometry.id.indexOf('Point') != -1){
-	      
+
 	  for (var i = 0; i < endpoints.length; i++){
-      
+
 	    var node = endpoints[i].node;
-	
-	    if (feature.geometry.element_name == node){	  
+
+	    if (feature.geometry.element_name == node){
 	      this.changeNodeImage(feature, this.SELECTED_IMAGE);
 	      was_selected = true;
 	      break;
 	    }
-    
+
 	  }
-	  
+
 	  if (! was_selected){
 	      if (discolor_nodes){
 		  this.changeNodeImage(feature, this.NON_IMPORTANT_IMAGE);
@@ -650,14 +709,14 @@ function NDDIMap(div_id, interdomain_mode){
 	      }
 
 	  }
-	  
+
 	}
 	// otherwise this feature must be a link
 	else{
-	  
+
 	  for (var i = 0; i < links.length; i++){
-	    var link = links[i];	    
-	    
+	    var link = links[i];
+
 	    if (feature.geometry.element_name == link){
 		this.changeLinkColor(feature, this.LINK_PRIMARY);
 
@@ -675,22 +734,22 @@ function NDDIMap(div_id, interdomain_mode){
 		    this.changeLinkOpacity(feature, this.INACTIVE_LINK_OPACITY);
 		    this.changeLinkWidth(feature, this.INACTIVE_LINK_WIDTH);
 		}
-		
+
 		was_selected = true;
 		break;
-	    }    
+	    }
 
 	  }
-	  
+
 	  for (var i = 0; i < backups.length; i++){
-	    
+
 	    var link = backups[i];
-	    
+
 	    if (feature.geometry.element_name == link){
 	      // if this was previously selected, we have a doubly used link and should color
 	      if (was_selected){
-		  if (feature.secondary_path_feature){		      
-		      this.changeLinkOpacity(feature.secondary_path_feature, this.ACTIVE_LINK_OPACITY);	
+		  if (feature.secondary_path_feature){
+		      this.changeLinkOpacity(feature.secondary_path_feature, this.ACTIVE_LINK_OPACITY);
 		      this.changeLinkWidth(feature, this.ACTIVE_LINK_WIDTH);
 		  }
 		  dual = true;
@@ -718,7 +777,7 @@ function NDDIMap(div_id, interdomain_mode){
 	      }
 	      was_selected = true;
 	    }
-	    
+
 	  }
 
 	  // we have a primary and NOT a secondary, hide the secondary path
@@ -742,12 +801,12 @@ function NDDIMap(div_id, interdomain_mode){
 	      }
 
 	  }
-	  	  
+
 	}
-    }    
+    }
 
   };
-  
+
 
   this._createMap = function(div_id){
                      OpenLayers.ImgPath = "[% path %]openlayers/theme/dark/";
@@ -764,22 +823,22 @@ function NDDIMap(div_id, interdomain_mode){
 
 						  });
 
-    
+
 		     var world_layer = new OpenLayers.Layer.TMS("World", "",
 							  {
 							      url: "[% path %]tiles/1.0.0/OESS_background/",
 							      serviceVersion: ".",
-							      layername: ".", 
+							      layername: ".",
 							      alpha: true,
 							      type: "png",
-							      getURL: function(bounds){		
-					  
+							      getURL: function(bounds){
+
 								      var res = this.map.getResolution();
 								      var x = Math.round((bounds.left - this.maxExtent.left) / (res * this.tileSize.w));
 								      var y = Math.round((bounds.bottom - this.maxExtent.bottom) / (res * this.tileSize.h));
 
 								      var z = this.map.getZoom();
-			
+
 								      if (x >= 0 && y >= 0) {
 									  return "[% path %]tiles/1.0.0/OESS_background/" + z + "/" + x + "/" + y + "." + this.type;
 								      } else {
@@ -787,7 +846,7 @@ function NDDIMap(div_id, interdomain_mode){
 								      }
 								  }
 							  },
-                                                          {isBaseLayer: true, 
+                                                          {isBaseLayer: true,
 							   rendererOptions: {zIndexing: true}
 							  }
 							 );
@@ -803,16 +862,16 @@ function NDDIMap(div_id, interdomain_mode){
 				 this.zoomTo(2);
 			     }
 			 });
-    
+
 		     return map;
   };
 
- 
-    
+
+
   this._getMapData = function(){
-  
+
     var url = "[% path %]services/data.cgi?action=get_maps";
-  
+
     var ds = new YAHOO.util.DataSource(url);
 
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
@@ -826,35 +885,35 @@ function NDDIMap(div_id, interdomain_mode){
 	error: "error"
       }
     };
-  
+
     ds.sendRequest("", {success: function(req, resp){
 			  if (resp.meta.error){
 			    alert("Error - " + resp.meta.error);
 			    return;
 			  }
-  
+
 			  var results = resp.results;
 
 			  // hang on to all these things so we can add / remove things quickly later
-			  this.cache = results;			  
+			  this.cache = results;
 
 
-			  var layer = new OpenLayers.Layer.Vector("network_layer", 
+			  var layer = new OpenLayers.Layer.Vector("network_layer",
 								  {
 								      rendererOptions: {zIndexing: true}
-								  }								  
+								  }
 								  );
-			  
-			  this.map.addLayer(layer);		    
-			  
+
+			  this.map.addLayer(layer);
+
 			  var clickControl = new OpenLayers.Control.SelectFeature(layer, {clickout: true, toggle: true});
-			  
+
 			  var hoverControl = new OpenLayers.Control.SelectFeature(layer, {hover: true,
 											  highlightOnly: true,
 											  renderIntent: 'temporary',
 											  eventListeners: {
 				                                                                featurehighlighted: function(e){
-					  
+
 					                                                        for (var i = self.map.popups.length - 1; i > -1; i--){
 												    self.map.removePopup(self.map.popups[i]);
 												}
@@ -864,10 +923,10 @@ function NDDIMap(div_id, interdomain_mode){
 												if (feature.primary_feature){
 												    feature = feature.primary_feature;
 												}
-											      	
+
 												var element = feature.geometry;
-												
-												
+
+
 												// figure out how wide this popup needs to be.
 												// Since there's no way to actually measure text in Javascript,
 												// we'll create a node, stick the text into it, and measure the node
@@ -878,25 +937,25 @@ function NDDIMap(div_id, interdomain_mode){
 												measure.style.position = "absolute";
 												measure.style['font-weight'] = 'bold';
 												measure.innerHTML = element.element_name;
-												
+
 												document.body.appendChild(measure);
-												var width  = measure.clientWidth;	
+												var width  = measure.clientWidth;
 												var height = measure.clientHeight;
-												document.body.removeChild(measure);										      
-												
+												document.body.removeChild(measure);
+
 												var offset = new OpenLayers.LonLat(1, 1).transform(this.map.displayProjection,
 																		   this.map.projection);
-												
+
 												var lonlat = e.feature.geometry.getBounds().getCenterLonLat().add(offset.lon, offset.lat);
-												
+
 												var popup = new OpenLayers.Popup(e.feature.id,
 																 lonlat,
 																 new OpenLayers.Size(width + 10, height + 2),
 																 "<div style='text-align: center;'><b>"+element.element_name+"</b></div>"
 																 );
-												
+
 												popup.setBackgroundColor("#EEEEEE");
-												
+
 												self.map.addPopup(popup);
 					                                                     },
 												featureunhighlighted: function(e){
@@ -910,27 +969,27 @@ function NDDIMap(div_id, interdomain_mode){
 										 );
 			  this.map.addControl(hoverControl);
 			  this.map.addControl(clickControl);
-			  
+
 			  hoverControl.activate();
 			  clickControl.activate();
-			  
+
 			  layer.events.on({
 				  featureselected: function(e){
 				      try{
 
-					      
+
 					  // turn off any popups still up
 					  for (var i = self.map.popups.length - 1; i > -1; i--){
 					      self.map.removePopup(self.map.popups[i]);
 					  }
-					  
+
 					  var feature = e.feature;
-					  
+
 					  // this basically redirects all clicks on things like halo lines
 					  if (e.feature.primary_feature){
 					      feature = e.feature.primary_feature;
 					  }
-					  
+
 					  var geo = feature.geometry;
 
 					  // we're clicking on a Point, ie a node
@@ -939,7 +998,7 @@ function NDDIMap(div_id, interdomain_mode){
 					      var lat     = geo.element_lat;
 					      var lon     = geo.element_lon;
 					      var node_id = geo.element_id;
-					      var range   = geo.vlan_range;					      
+					      var range   = geo.vlan_range;
 					      self.events['clickNode'].fire({name: node, lat: lat, lon: lon, node_id: node_id, vlan_range: range,  feature: e.feature});
 					  }
 					  // otherwise we're clicking on a link
@@ -948,15 +1007,15 @@ function NDDIMap(div_id, interdomain_mode){
 					      var state    = geo.link_state;
 					      var capacity = geo.link_capacity;
 					      var link_id  = geo.element_id;
-					      
-					      self.events['clickLink'].fire({name: link, state: state, capacity: capacity, link_id: link_id, feature: feature});					      
-					  }					      					      
+
+					      self.events['clickLink'].fire({name: link, state: state, capacity: capacity, link_id: link_id, feature: feature});
+					  }
 				      }
 				      catch(e){alert(e);}
 				  }
 				  }
-				  );	                  
-	    
+				  );
+
 	                  // in interdomain mode, don't show anything by default. Something calling this
 	                  // will need to use "showNode" to put things on the map
 			  if (! interdomain_mode){
@@ -964,9 +1023,9 @@ function NDDIMap(div_id, interdomain_mode){
 			      // we're in intradomain mode otherwise, go ahead and show the local domain.
 			      // add all the network goodies
 			      for (var i = 0; i < results.length; i++){
-			    
-				  var network = results[i].meta.network_name;    
-				  
+
+				  var network = results[i].meta.network_name;
+
 				  // don't drawn the foreign networks
 				  if (results[i].meta.local == 0){
 				      continue;
@@ -975,31 +1034,31 @@ function NDDIMap(div_id, interdomain_mode){
 				  // now draw all the nodes
 				  for (var node_name in results[i].nodes){
 				      this.showNode(node_name);
-				  }				  
+				  }
 			      }
 			  }
 
 			  self.events['loaded'].fire();
-  
+
 			},
 			failure: function(req, resp){
-			
+
 			},
 			scope: this
 		       });
-  
+
   }
 
   // remove all features, requery server for data, redraw
   this.reinitialize = function(){
-      this.map.layers[1].removeAllFeatures();      
+      this.map.layers[1].removeAllFeatures();
       this.map.removeLayer(this.map.layers[1]);
       this._getMapData();
   };
 
   this.map = this._createMap(div_id);
   this._getMapData();
-  
+
   return this;
 }
 
