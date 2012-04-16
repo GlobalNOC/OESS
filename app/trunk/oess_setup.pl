@@ -41,13 +41,13 @@ sub main{
 
     require SOAP::Data::Builder;
 
-    eval { require Term::ReadPassword; };
+    eval { require Term::ReadKey; };
 
     if( $@ ){
-	CPAN::Shell->install("Term::ReadPassword");
+	CPAN::Shell->install("Term::ReadKey");
     }
 
-    require Term::ReadPassword;
+    use Term::ReadKey;
     print "\n\n\n";
     print "#####################################";
     print "\n\n  Starting Configuration of OESS\n\n";
@@ -60,10 +60,14 @@ sub main{
     my $db_user = optional_parameter("Admin user","root");
     my $db_name = "oess";
     my $db_pass;
-    while(!($db_pass = read_password("Admin Password: "))){
+   
+    ReadMode('noecho');
+    while(!($db_pass = required_parameter("Admin Password: "))){
 	print "\nAdmin Password is required\n\n";
     }
-
+    ReadMode('normal');
+    print "\n";
+    
     my $host = hostname;
     my $oscars_host = optional_parameter("Oscars Host URL","https://$host");
     my $my_cert = optional_parameter("OSCARS SSL Cert","mycert.crt");
@@ -86,14 +90,19 @@ sub main{
     continue_param("Do you want to create the database $db_name and install the OESS schema there?");
     print "The Follwing password requests are for the new mysql oess and snapp users that will be created\n";
     my $oess_pass;
-    while(!($oess_pass = read_password("OESS Password: "))){
+    ReadMode('noecho');
+    while(!($oess_pass = required_parameter("OESS Password: "))){
         print "\nOESS Password is required\n\n";
     }
 
+    print "\n";
+
     my $snapp_pass;
-    while(!($snapp_pass = read_password("SNAPP Password: "))){
+    while(!($snapp_pass = required_parameter("SNAPP Password: "))){
         print "\nSNAPP Password is required\n\n";
     }
+    ReadMode('normal');
+    print "\n";
 
     print "\nCreating new users\n";
     
