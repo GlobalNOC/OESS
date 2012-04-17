@@ -212,7 +212,7 @@ CREATE TABLE `node` (
   `latitude` double NOT NULL,
   `operational_state` enum('unknown','up','down') NOT NULL DEFAULT 'unknown',
   `network_id` int(10) NOT NULL,
-  `vlan_tag_range` varchar(255) DEFAULT '1-4095',
+  `vlan_tag_range` varchar(255) NOT NULL DEFAULT '1-4095',
   PRIMARY KEY (`node_id`),
   UNIQUE KEY `node_idx` (`name`),
   KEY `network_node_fk` (`network_id`),
