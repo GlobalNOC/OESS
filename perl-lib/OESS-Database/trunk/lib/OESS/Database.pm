@@ -4560,49 +4560,72 @@ sub edit_circuit {
 
         my $relevant_links = $link_lookup->{$path_type};
 
-        # figure out what internal ID we can use for this                                                                                                                                                 
-        my $internal_vlan = $self->_get_available_internal_vlan_id();
-
-        if (! defined $internal_vlan){
-            $self->_set_error("Internal error finding available internal id.");
-            return undef;
-        }
-
-
 	#try to find the path first
 	$query = "select * from path where circuit_id = ? and path_type = ?";
 	my $res = $self->_execute_query($query,[$circuit_id, $path_type]);
 	my $path_id;
 	if(!defined($res) || !defined(@{$res}[0])){
 	    # create the primary path object
-	    print STDERR "Creating path\n";
+	    #print STDERR "Creating path\n";
 	    $query = "insert into path (path_type, circuit_id) values (?, ?)";
 	    $path_id = $self->_execute_query($query, [$path_type, $circuit_id]);
 	}else{
-	    print STDERR "Path already exists\n";
+	    #print STDERR "Path already exists\n";
 	    $path_id = @{$res}[0]->{'path_id'};
 	}
+	
+	if (! $path_id){
+	    $self->_set_error("Error while creating path record.");
+	    return undef;
+	}
+	
+	# instantiate path object
+	$query = "insert into path_instantiation (path_id, end_epoch, start_epoch, path_state) values (?, -1, unix_timestamp(NOW()), ?)";
+	
+	my $path_state = "deploying";
+	
+	if ($path_type eq "backup"){
+	    $path_state = "available";
+	}
+	
+	my $path_instantiation_id = $self->_execute_query($query, [$path_id, $path_state]);
 
-        if (! $path_id){
-            $self->_set_error("Error while creating path record.");
-            return undef;
-        }
+	if (! defined $path_instantiation_id){
+	    $self->_set_error("Error while instantiating path record.");
+	    return undef;
+	}
+	
 
+	my %seen_endpoints;
+	foreach my $link (@$relevant_links){
+	    my $info = $self->get_link_by_name(name => $link);
+	    
+	    my $endpoints = $self->get_link_endpoints(link_id => $info->{'link_id'});
+	    
+	    foreach my $endpoint (@$endpoints){
+		my $node_id = $endpoint->{'node_id'};
 
-        # instantiate path object                                                                                                                                                                         
-        $query = "insert into path_instantiation (path_id, internal_vlan_id, end_epoch, start_epoch, path_state) values (?, ?, -1, unix_timestamp(NOW()), ?)";
+		next if ($seen_endpoints{$node_id});
+		$seen_endpoints{$node_id} = 1;
+	    		
+		# figure out what internal ID we can use for this
+		my $internal_vlan = $self->_get_available_internal_vlan_id(node_id => $node_id);
+		
+		if (! defined $internal_vlan){
+		    $self->_set_error("Internal error finding available internal id.");
+		    return undef;
+		}
+		
+		$query = "insert into path_instantiation_vlan_ids (path_instantiation_id, node_id, internal_vlan_id) values (?, ?, ?)";
 
-        my $path_state = "deploying";
+		if (! defined $self->_execute_query($query, [$path_instantiation_id, $node_id, $internal_vlan])){
+		    $self->_set_error("Error while creating path instantiation vlan tag.");
+		    return undef;
+		}
 
-        if ($path_type eq "backup"){
-            $path_state = "available";
-        }
+	    }
 
-        if (! defined $self->_execute_query($query, [$path_id, $internal_vlan, $path_state])){
-            $self->_set_error("Error while instantiating path record.");
-            return undef;
-        }
-
+	}
 
         # now create the primary links into the primary path                                                                                                                                              
         for (my $i = 0; $i < @$relevant_links; $i++){
