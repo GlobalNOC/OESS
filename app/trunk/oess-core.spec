@@ -1,6 +1,6 @@
 Name:		oess-core		
-Version:	0.9.999
-Release:	2%{?dist}
+Version:	1.0.1
+Release:	1%{?dist}
 Summary:	The core oess service provides
 
 Group:		Network
@@ -10,7 +10,9 @@ Source0:	%{name}-%{version}.tar.gz
 BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 BuildRequires:	perl
-Requires:	perl(OESS::Database), perl(Net::DBus),dbus,dbus-libs,mysql-server,nox
+Requires:	perl(OESS::Database) >= 1.0.1
+Requires:       perl(Net::DBus), dbus, dbus-libs, mysql-server
+Requires:       nox >= 0.9.2
 Requires(interp): /bin/sh
 Requires(rpmlib): rpmlib(CompressedFileNames) <= 3.0.4-1 rpmlib(PayloadFilesHavePrefix) <= 4.0-1
 Requires(post): /bin/sh
