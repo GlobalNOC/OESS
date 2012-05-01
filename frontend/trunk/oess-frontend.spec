@@ -1,5 +1,5 @@
 Name:		oess-frontend		
-Version:	1.0.0
+Version:	1.0.1
 Release:	1%{?dist}
 Summary:	The core oess service provides
 
@@ -10,8 +10,8 @@ Source0:	%{name}-%{version}.tar.gz
 BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 BuildRequires:	perl
-Requires:	perl(OESS::Database), perl(Net::DBus),dbus,dbus-libs,mysql-server,oess-core
-Requires:       nox
+Requires:	perl(OESS::Database) >= 1.0.1, perl(Net::DBus),dbus,dbus-libs,mysql-server,oess-core
+Requires:       nox >= 0.9.2
 Requires:       yui2
 Requires:       httpd, mod_ssl
 Requires:       nddi-tiles
