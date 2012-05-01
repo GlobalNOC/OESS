@@ -53,6 +53,10 @@ sub flow_stats_in_callback{
     #associate each rule with its in/out port/vlan
     foreach my $rule (@$rules){
 
+	# might be some other rules or default forwarding or something, we can't match this to a 
+	# vlan / port so skip
+	next if (!defined $rule->{'match'});
+
 	if(!defined($switch->{$rule->{'match'}->{'in_port'}})){
 	    $switch->{$rule->{'match'}->{'in_port'}} = {};
 	}

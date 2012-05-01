@@ -57,6 +57,8 @@ use constant OFPAT_SET_TP_DST   => 10;
 use constant OFPAT_ENQUEUE      => 11;
 use constant OFPAT_VENDOR       => 65535;
 
+use constant OFPP_CONTROLLER    => 65533;
+
 use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
@@ -439,6 +441,19 @@ sub datapath_join{
     my $dpid   = shift;
     my $ports  = shift;
 
+    #--- first push the default "forward to controller" rule to this node. This enables
+    #--- discovery to work properly regardless of whether the switch's implementation does it by default
+    #--- or not
+    my $xid     = $self->{'of_controller'}->install_default_forward($dpid);
+
+    my $result = $self->_poll_xids([$xid]);
+
+    if ($result != FWDCTL_SUCCESS){
+	_log("Warning: unable to install default forward to controller rule in switch $dpid, discovery likely will not work.");
+    }    
+    else {
+	_log("Send default forwarding rule to $dpid");
+    }
 
     #--- get the set of circuits
     my $current_circuits = $self->{'db'}->get_current_circuits();

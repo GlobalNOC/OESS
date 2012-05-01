@@ -23,8 +23,9 @@
 
 from nox.lib.core import *
 
+from nox.lib.packet.ethernet     import NDP_MULTICAST
 from nox.lib.packet.ethernet     import ethernet
-from nox.lib.packet.packet_utils import mac_to_str, mac_to_int
+from nox.lib.packet.packet_utils import mac_to_str, mac_to_int, array_to_octstr
 from nox.netapps.discovery.pylinkevent   import Link_event
 from nox.lib.netinet.netinet import c_ntohl
 
@@ -109,7 +110,7 @@ class dBusEventGen(dbus.service.Object):
        string =  "packet_in: "+str(dpid)+" :  "+str(in_port)
        logger.info(string)
 
-    @dbus.service.signal(dbus_interface=ifname,signature='taa{sv}')
+    @dbus.service.signal(dbus_interface=ifname, signature='taa{sv}')
     def flow_stats_in(self,dpid,obj):
         string = "flow_stats_in: " + str(dpid) + str(obj)
         #logger.info(string)
@@ -124,14 +125,36 @@ class dBusEventGen(dbus.service.Object):
         return FWDCTL_UNKNOWN        
 
     @dbus.service.method(dbus_interface=ifname,
+                         in_signature='t',
+                         out_signature='t'
+                         )
+    def install_default_forward(self, dpid):
+        my_attrs          = {}
+        my_attrs[DL_TYPE] = 0x88cc       
+
+        actions = [[openflow.OFPAT_OUTPUT, [65535, openflow.OFPP_CONTROLLER]]]
+        
+        idle_timeout = 0
+        hard_timeout = 0
+
+        #--- first we check to make sure the switch is in a ready state to accept more flow mods.
+        xid = _do_barrier(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=None)); 
+
+        return xid
+
+    @dbus.service.method(dbus_interface=ifname,
                          in_signature='ta{sv}qqa(qv)q',
                          out_signature='t'
                          )
     def install_datapath_flow(self,dpid, attrs,idle_timeout,hard_timeout,actions,inport ):
 	#--- here goes nothing
  	my_attrs = {}
-        my_attrs[DL_VLAN] = int(attrs['DL_VLAN'])        
-        my_attrs[IN_PORT] = int(attrs['IN_PORT'])
+        if attrs.get("DL_VLAN"):
+            my_attrs[DL_VLAN] = int(attrs['DL_VLAN'])        
+        if attrs.get("IN_PORT"):
+            my_attrs[IN_PORT] = int(attrs['IN_PORT'])
+        if attrs.get("DL_TYPE"):
+            my_attrs[DL_TYPE] = int(attrs["DL_TYPE"])
 
         #--- this is less than ideal. to make dbus happy we need to pass extra arguments in the
         #--- strip vlan case, but NOX won't be happy with them so we remove them here
@@ -388,8 +411,27 @@ class nddi_dbus(Component):
             self.flow_stats[dpid] = flows
 
         if done == False:
-            if self.flow_stats[dpid]:                
-                self.sg.flow_stats_in(dpid,self.flow_stats[dpid])
+            if self.flow_stats[dpid]:     
+
+                # get rid of rules that don't have matches on them because we can't key off
+                # port / vlan to get info that we need
+                for row in reversed(self.flow_stats[dpid]):                    
+                    if row.has_key("match"):
+
+                        if  not row["match"]:
+                            self.flow_stats[dpid].remove(row)
+                        else:
+                            # not exactly elegant, the 64bit numbers such as dl_dst in the match element seem
+                            # to break dbus signature. For now until we find a better way let's just remove them
+                            # since our traffic stats doesn't use them anyway.
+                            for element in reversed(row["match"].keys()):
+                                if isinstance(row["match"][element], long):
+                                    del row["match"][element]
+
+                # fire the event if we still have any flows left
+                if self.flow_stats[dpid]:
+                    self.sg.flow_stats_in(dpid,self.flow_stats[dpid])
+
             self.flow_stats[dpid] = None
  
     def send_flow_stats_request(self, dpid, match, table_id, xid=-1):
