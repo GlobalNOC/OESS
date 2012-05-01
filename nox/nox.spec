@@ -1,17 +1,17 @@
 Name:	nox		
-Version: 0.9.1	
-Release:	6%{?dist}
+Version: 0.9.2	
+Release:	1%{?dist}
 Summary: nox an openflow controller	
 
 Group:	Networking	
 License: GPLv3	
 URL:	http://www.noxrepo.org	
-Source0: nox-0.9.1.tar.gz	
+Source0: nox-0.9.2.tar.gz	
 #BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-roo
 
 BuildRequires:	gcc, gcc-c++,boost,dbus,boost-filesystem,boost-test,openssl-devel,boost-devel,python-devel
-Requires: dbus-python, python,openssl,swig,python,python-twisted	
+Requires: dbus-python, python,openssl,swig,python,python-twisted,pygobject2
 
 %description
 The dbus enhanced openflow conrtoller
@@ -614,9 +614,6 @@ rm -rf %{buildroot}
    /usr/bin/nox/webapps/webserver/meta.json
    /usr/bin/nox/webapps/webserver/webauth.pyc
    /usr/bin/nox/webapps/webserver/webserver.pyc
-   /usr/bin/nox/webapps/webserver/www/0/nox/webapps/webserver/.svn/entries
-   /usr/bin/nox/webapps/webserver/www/0/nox/webapps/webserver/.svn/prop-base/happy_face.png.svn-base
-   /usr/bin/nox/webapps/webserver/www/0/nox/webapps/webserver/.svn/text-base/happy_face.png.svn-base
    /usr/bin/nox/webapps/webserver/www/0/nox/webapps/webserver/happy_face.png
    /usr/bin/nox/webapps/webservice/__init__.pyc
    /usr/bin/nox/webapps/webservice/meta.json
