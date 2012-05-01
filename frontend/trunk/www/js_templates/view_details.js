@@ -16,7 +16,7 @@ function init(){
 	                },
 		        failure: function(req, resp){
 		             alert("Error loading circuit details.");
-	                },
+	                }
 		   });
 
 }
@@ -28,14 +28,14 @@ function make_circuit_details_datasource(){
 	resultsList: "results",
 	fields: [
            {key: "circuit_id", parser: "number"},
-           {key: "description"},     
+           {key: "description"},
            {key: "bandwidth", parser: "number"},
            {key: "links"},
            {key: "backup_links"},
            {key: "endpoints"},
            {key: "state"},
            {key: "active_path"}
-	]	
+	]
     };
 
     return ds;
@@ -43,7 +43,7 @@ function make_circuit_details_datasource(){
 
 function save_session_from_datasource(details){
     session.clear();
-    
+
     session.data.circuit_id   = details.circuit_id;
     session.data.description  = details.description;
     session.data.bandwidth    = details.bandwidth * 1000000;
@@ -54,7 +54,7 @@ function save_session_from_datasource(details){
     session.data.links        = [];
     session.data.backup_links = [];
     session.data.passthrough  = [];
-    
+
     for (var i = 0; i < details.endpoints.length; i++){
 	var endpoint = details.endpoints[i];
 
@@ -71,7 +71,7 @@ function save_session_from_datasource(details){
 	}
 
 	if (endpoint.role == "trunk"){
-	    session.data.passthrough.push(endpoint_data);			                    	 
+	    session.data.passthrough.push(endpoint_data);
 	}
 	else{
 	    session.data.endpoints.push(endpoint_data);
@@ -83,23 +83,23 @@ function save_session_from_datasource(details){
 	var path_component = details.links[i];
 	session.data.links.push(path_component.name);
     }
-    
+
     for (var i = 0; i < details.backup_links.length; i++){
 	var path_component = details.backup_links[i];
 	session.data.backup_links.push(path_component.name);
     }
-    
+
     session.save();
 }
 
 function page_init(){
   // defined in circuit_details_box.js
   var endpoint_table = summary_init();
-   
+
   var nddi_map = new NDDIMap("map", session.data.interdomain == 1);
-  
+
   legend_init(nddi_map, false, true);
-    
+
   nddi_map.showDefault();
 
   nddi_map.on("loaded", function(){
@@ -109,8 +109,8 @@ function page_init(){
               this.getInterDomainPath(session.data.circuit_id, YAHOO.util.Dom.get("interdomain_path_status"));
           }
 
-      });  
- 
+      });
+
   var edit_button = new YAHOO.widget.Button("edit_button", {label: "Edit Circuit"});
 
   edit_button.on("click", function(){
@@ -156,7 +156,7 @@ function page_init(){
       edit_interdomain.on("click", function(){
 	      window.location = "?action=edit_details";
 	  });
-      
+
   }
   else {
       YAHOO.util.Dom.get("edit_interdomain_button").parentNode.style.display = "none";
@@ -165,7 +165,47 @@ function page_init(){
 
   var tabs = new YAHOO.widget.TabView("details_tabs");
 
-  setupMeasurementGraph();
+  var graph = setupMeasurementGraph();
+
+  nddi_map.on("clickNode", function(e, args){
+
+		var node = args[0].name;
+
+		var valid_node = false;
+		// make sure this node is part of the circuit
+		for (var i = 0; i < session.data.endpoints.length; i++){
+		  if (session.data.endpoints[i].node == node){
+		    valid_node = true;
+		  }
+		}
+
+		// if they clicked on some random node not part of the circuit just ignore it
+		  //if (! valid_node) return;
+
+		if (graph.updating){
+		  clearTimeout(graph.updating);
+		}
+
+		graph.options.node      = node;
+		graph.options.interface = null;
+		graph.options.link      = null;
+
+		graph.render();
+	      });
+
+  nddi_map.on("clickLink", function(e, args){
+		var link = args[0].name;
+
+		if (graph.updating){
+		  clearTimeout(graph.updating);
+		}
+
+		graph.options.link      = link;
+		graph.options.interface = null;
+		graph.options.node      = null;
+
+		graph.render();
+	      });
 
   setupScheduledEvents();
 
@@ -174,25 +214,25 @@ function page_init(){
   // we can poll the map to show intradomain status updates unless we're interdomain
   if (session.data.interdomain == 0){
       setInterval(function(){
-	      
+
 	      var ds = make_circuit_details_datasource();
 
 	      ds.sendRequest("", {success: function(req, resp){
 			  var details = resp.results[0];
-			  
+
 			  save_session_from_datasource(details);
-			  
+
 			  for (var i = 0; i < session.data.endpoints.length; i++){
 			      nddi_map.removeNode(session.data.endpoints[i].node);
 			  }
-			  
-			  nddi_map.updateMapFromSession(session, true);			  
+
+			  nddi_map.updateMapFromSession(session, true);
 		      },
 			  failure: function(req, resp){
-			  
+
 		      }
 		  });
-	  
+
 
 	  }, 10000);
   }
@@ -206,11 +246,12 @@ function setupMeasurementGraph(){
     var now  = date.valueOf() / 1000;
 
     var then = now - 600;
-    
+
     var graph = new MeasurementGraph("traffic_graph",
 				     "traffic_legend",
 				     {
 					 title:      session.data.description,
+					 title_div:    YAHOO.util.Dom.get("traffic_title"),
 					 circuit_id: session.data.circuit_id,
 					 start:      then,
 					 end:        now
@@ -241,7 +282,7 @@ function setupScheduledEvents(){
 
     var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_circuit_scheduled_events&circuit_id="+session.data.circuit_id);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-    
+
     ds.responseSchema = {
 	resultsList: "results",
 	fields: [{key: "user"},
@@ -269,7 +310,7 @@ function setupScheduledEvents(){
     var config = {
 	height: "255px"
     };
-    
+
     var table = new YAHOO.widget.ScrollingDataTable("scheduled_events_table", cols, ds, config);
 
     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
@@ -282,8 +323,8 @@ function setupScheduledEvents(){
 	    if (! record) return;
 
 	    var region = YAHOO.util.Dom.getRegion(oArgs.target);
-	    
-	    showActionPanel(record, [region.left, region.top]);	    
+
+	    showActionPanel(record, [region.left, region.top]);
 
 	});
 
@@ -298,7 +339,7 @@ function setupNetworkEvents(){
 
     var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_circuit_network_events&circuit_id="+session.data.circuit_id);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-    
+
     ds.responseSchema = {
 	resultsList: "results",
 	fields: [{key: "fullname"},
@@ -317,7 +358,7 @@ function setupNetworkEvents(){
     var config = {
 	height: "255px"
     };
-    
+
     var table = new YAHOO.widget.ScrollingDataTable("historical_events_table", cols, ds, config);
 
     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
@@ -330,7 +371,7 @@ function setupNetworkEvents(){
 	    if (! record) return;
 
 	    var region = YAHOO.util.Dom.getRegion(oArgs.target);
-	    
+
 	    showActionPanel(record, [region.left, region.top]);
 	});
 
@@ -340,5 +381,5 @@ function setupNetworkEvents(){
 
 
 YAHOO.util.Event.onDOMReady(init);
-  
+
 </script>

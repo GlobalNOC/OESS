@@ -2705,7 +2705,7 @@ sub get_link_endpoints {
 
     my $link_id = $args{'link_id'};
 
-    my $query = "select node.node_id, node.name as node_name, interface.interface_id, interface.name as interface_name, interface.description, interface.operational_state, interface.role from node ";
+    my $query = "select node.node_id, node.name as node_name, interface.interface_id, interface.name as interface_name, interface.port_number as port_number, interface.description, interface.operational_state, interface.role from node ";
     $query   .= " join interface on interface.node_id = node.node_id " ;
     $query   .= " join link_instantiation on interface.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id) ";
     $query   .= "  and link_instantiation.end_epoch = -1 ";
@@ -3230,7 +3230,7 @@ sub add_remote_link {
 					    no_instantiation  => 1
 	                                    );
 
-    warn Dumper($node_info);
+    #warn Dumper($node_info);
 
     my $remote_node_id;
 
@@ -3785,6 +3785,8 @@ sub provision_circuit {
     foreach my $path_type (qw(primary backup)){
 	
 	my $relevant_links = $link_lookup->{$path_type};
+
+	next if (! @$relevant_links);
 
 	# create the primary path object
 	$query = "insert into path (path_type, circuit_id) values (?, ?)";

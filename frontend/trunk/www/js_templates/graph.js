@@ -34,7 +34,7 @@ function MeasurementGraph(container, legend_container, options){
     };
 
     this.GRAPH_CONFIG = {lines: {
-	                          show: true, 
+	                          show: true,
 				  lineWidth: 2,
 				  fill: false
 	                 },
@@ -118,7 +118,7 @@ function MeasurementGraph(container, legend_container, options){
 	}
     };
 
-    this._showError = function(){ 
+    this._showError = function(){
 
 	if (this.panel) this.panel.destroy();
 
@@ -139,7 +139,7 @@ function MeasurementGraph(container, legend_container, options){
 	this.panel.show();
 
     };
-    
+
     this._renderGraph = function(request, response){
 
 	if (response && response.meta.in_progress == 1){
@@ -175,15 +175,6 @@ function MeasurementGraph(container, legend_container, options){
 			 name: name
 	    };
 
-	    if (name == "Ping (ms)"){
-                this.GRAPH_CONFIG["y2axis"] = {};
-                this.GRAPH_CONFIG["y2axis"]["tickFormatter"] = this.convertToSI;
-                this.GRAPH_CONFIG["y2axis"]["min"] = 50;
-                this.GRAPH_CONFIG["y2axis"]["max"] = 125;
-		setup["yaxis"] = 2;
-		setup["color"] = "#b83b93";
-	    }
-
 	    if (name == "Input (bps)"){
 		setup["lines"] = {fill: .6};
 		setup["color"] = "#00FF00";
@@ -201,8 +192,10 @@ function MeasurementGraph(container, legend_container, options){
 					   shown_data,
 					   this.GRAPH_CONFIG
 					   );
-	
+
 	this._hideLoading();
+
+	this._showTitle(response.meta.node, response.meta.interface, response.meta.interfaces);
 
 	this.updating = setTimeout(function(self){
 		return function(){
@@ -213,7 +206,34 @@ function MeasurementGraph(container, legend_container, options){
 	    }(this), this.POLL_INTERVAL);
 
     };
-    
+
+    this._showTitle = function(node, interface, all_interfaces){
+      if (! this.options.title_div) return;
+
+      if (! this.options.node) this.options.node = node;
+      if (! this.options.interface) this.options.interface = interface;
+
+      var sel = new YAHOO.util.Element(document.createElement("select"));
+
+      for (var i = 0; i < all_interfaces.length; i++){
+	var intf = all_interfaces[i];
+	sel.get("element").options[i] = new Option(intf, intf);
+	if (interface == intf){
+	  sel.get("element").selectedIndex = i;
+	}
+      }
+
+      sel.on("change", function(e, self){
+	       var new_intf = this.get("element").options[this.get("element").selectedIndex].value;
+	       self.options.interface = new_intf;
+	       self.render();
+	     }, this);
+
+      this.options.title_div.innerHTML = node + " - ";
+      sel.appendTo(this.options.title_div);
+    }
+
+
     this.render = function(skip_show){
 
 	if (this.updating){
@@ -224,7 +244,20 @@ function MeasurementGraph(container, legend_container, options){
 	    this._showLoading();
 	}
 
-	var ds = new YAHOO.util.DataSource("services/measurement.cgi?action=get_circuit_data&circuit_id="+this.options.circuit_id+"&start="+parseInt(this.options.start)+"&end="+parseInt(this.options.end));
+      var url = "services/measurement.cgi?action=get_circuit_data&circuit_id="+this.options.circuit_id+"&start="+parseInt(this.options.start)+"&end="+parseInt(this.options.end)
+
+      if (this.options.node){
+	url += "&node="+encodeURIComponent(this.options.node);
+
+	if (this.options.interface){
+	  url += "&interface="+encodeURIComponent(this.options.interface);
+	}
+      }
+      else if (this.options.link){
+	url += "&link="+encodeURIComponent(this.options.link);
+      }
+
+      var ds = new YAHOO.util.DataSource(url);
 	ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
 	ds.responseSchema = {
@@ -234,7 +267,10 @@ function MeasurementGraph(container, legend_container, options){
 		     ],
 	    metaFields: {
 		"in_progress": "in_progress",
-		"error": "error"
+		"error": "error",
+		"node": "node",
+		"interface": "interface",
+		"interfaces": "interfaces"
 	    }
 	};
 
@@ -251,10 +287,10 @@ function MeasurementGraph(container, legend_container, options){
 		           },
 		           scope: this
 	    });
-		
+
     };
 
-    
+
     this.render();
 
     return this;

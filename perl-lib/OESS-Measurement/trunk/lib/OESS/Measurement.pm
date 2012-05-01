@@ -108,18 +108,25 @@ sub get_circuit_data{
     my $self = shift;
     my %params = @_;
 
-    if(!defined($params{'circuit_id'})){
+    my $circuit_id = $params{'circuit_id'};
+    my $start      = $params{'start_time'};
+    my $end        = $params{'end'};
+    my $node       = $params{'node'};
+    my $interface  = $params{'interface'};
+
+    if(!defined $circuit_id){
 	$self->_set_error("circuit_id is required");
 	return undef;
     }
 
-    if(!defined($params{'start_time'})){
+    if(!defined $start){
 	$self->_set_error("start_time is required and should be in epoch time");
 	return undef;
     }
 
-    if(!defined($params{'end_time'})){
-	
+    # assume we mean "start to now"
+    if(!defined $end){
+	$end = time;
     }
 
     #find the base RRD dir
@@ -131,27 +138,113 @@ sub get_circuit_data{
 	$rrd_dir = $row->{'value'};
     }
 
-    #find the circuits first endpoing                                                                                                                    
-    my $ints = $self->{'db'}->get_circuit_endpoints(circuit_id => $params{'circuit_id'});
+    my $circuit_details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
 
-    # reorder them to make sure we always get the same interface
-    my @sorted = sort { $a->{'port_no'} <=> $b->{'port_no'} } @$ints;
+    my %all_interfaces;
 
-    my $int_a = $sorted[0];
+    my $chosen_int;
 
-    # make sure we're looking at the local end
-    if ($int_a->{'local'} eq 0){
-	$int_a = $sorted[1];
+    my $links = $circuit_details->{'links'};
+
+    # keep track of all interfaces available for a given node so we can show them as 
+    # alternative options in the result set
+    foreach my $link (@$links){	
+	$all_interfaces{$link->{'node_a'}}{$link->{'interface_a'}} = 1;
+	$all_interfaces{$link->{'node_z'}}{$link->{'interface_z'}} = 1;
+    }
+
+    my $ints = $self->{'db'}->get_circuit_endpoints(circuit_id => $circuit_id);
+
+    # grab all the endpoint interfaces as well
+    foreach my $int (@$ints){
+	$all_interfaces{$int->{'node'}}{$int->{'interface'}} = 1;
+
+	if (defined $node && $int->{'node'} eq $node){
+	    if (! defined $interface || $int->{'interface'} eq $interface){
+		warn "Choosing endpoint for $node";
+		$chosen_int = $int;
+	    }
+	}
+
+    }   
+
+    if (! defined $chosen_int){
+	# if we were asked specifically for a node, try to find it
+	if (defined $node){
+
+	    my $node_info = $self->{'db'}->get_node_by_name(name => $node);
+	    
+	    if (! defined $node_info){
+		$self->_set_error("Unable to find node \"$node\"");
+		return undef;
+	    }
+	    
+	    foreach my $link (@$links){
+		
+		# this will tell us one of the ports which should be good enough
+		if ($link->{'node_a'} eq $node){
+		    warn Dumper($link);
+		    warn $interface;
+		    if (!defined $interface || $interface eq $link->{'interface_a'}){ 
+			$chosen_int = {node_id    => $node_info->{'node_id'},
+				       port_no    => $link->{'port_no_a'},
+				       node       => $node,
+				       tag        => $circuit_details->{'internal_ids'}->{'primary'}->{$node},
+				       interface  => $link->{'interface_a'},
+			};
+			last;
+		    }
+		}
+		if ($link->{'node_z'} eq $node){	      
+		    warn Dumper($link);
+		    warn $interface;
+		    if (!defined $interface || $interface eq $link->{'interface_z'}){ 
+			$chosen_int = {node_id    => $node_info->{'node_id'},
+				       port_no    => $link->{'port_no_z'},
+				       node       => $node,
+				       tag        => $circuit_details->{'internal_ids'}->{'primary'}->{$node},
+				       interface  => $link->{'interface_z'},
+			};
+			last;
+		    }
+		}
+	    }
+	    
+	}
+	# we weren't asked specifically for one so let's just pick the first one
+	else {
+	    
+	    # reorder them to make sure we always get the same interface
+	    my @sorted = sort { $a->{'port_no'} <=> $b->{'port_no'} } @$ints;
+	    
+	    $chosen_int = $sorted[0];
+	    
+	    # make sure we're looking at the local end
+	    if ($chosen_int->{'local'} eq 0){
+		$chosen_int = $sorted[1];
+	    }
+	    
+	}
     }
 
     #get all the host details for the interfaces host
-    my $host = $self->get_host_by_external_id($int_a->{'node_id'});
+    my $host = $self->get_host_by_external_id($chosen_int->{'node_id'});
     
     #find the collections RRD file in SNAPP
-    my $collection = $self->_find_rrd_file_by_host_int_and_vlan($host->{'host_id'},$int_a->{'port_no'},$int_a->{'tag'});
+    my $collection = $self->_find_rrd_file_by_host_int_and_vlan($host->{'host_id'},$chosen_int->{'port_no'},$chosen_int->{'tag'});
+
     if(defined($collection)){
+	
 	my $rrd_file = $rrd_dir . $collection->{'rrdfile'};
-	return $self->get_rrd_file_data( file => $rrd_file, start_time => $params{'start_time'}, end_time => $params{'end_time'});
+	my $data     = $self->get_rrd_file_data( file => $rrd_file, start_time => $start, end_time => $end),
+
+	my @all_interfaces = keys %{$all_interfaces{$chosen_int->{'node'}}};
+
+	return {"node"       => $chosen_int->{'node'}, 
+		"interface"  => $chosen_int->{'interface'},
+		"data"       => $data,
+		"interfaces" => \@all_interfaces
+	};
     }else{
 	#unable to find RRD file
 	$self->_set_error("Unable to find RRD/Collection");

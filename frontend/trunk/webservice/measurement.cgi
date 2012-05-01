@@ -79,13 +79,38 @@ sub get_circuit_data {
     my $end        = $cgi->param("end");
     my $circuit_id = $cgi->param("circuit_id");
 
+    # optional parameters, if not given we will pick the first alphabetical node / intf to show traffic for
+    my $node       = $cgi->param('node');
+    my $interface  = $cgi->param('interface');
+    
+    my $link       = $cgi->param('link');
+
+    # if we were sent a link, pick one of the endpoints to use for gathering data
+    if (defined $link){
+
+	my $link_id = $db->get_link_id_by_name(link => $link);
+
+	if (! defined $link_id){
+	    $results->{'results'} = [];
+	    $results->{'error'} = $db->get_error();
+	    return $results;
+	}
+
+	my $endpoints = $db->get_link_endpoints(link_id => $link_id);
+
+	$node      = $endpoints->[0]->{'node_name'};
+	$interface = $endpoints->[0]->{'interface_name'};
+    }
+
     if ($start !~ /^\d+$/ || $end !~ /^\d+$/ || $circuit_id !~ /^\d+$/){
 	return undef;
     }
 
     my $data = $measurement->get_circuit_data(circuit_id => $circuit_id,
 					      start_time => $start,
-					      end_end    => $end
+					      end_time   => $end,
+					      node       => $node,
+					      interface  => $interface
 	);
 
 
@@ -97,35 +122,11 @@ sub get_circuit_data {
 	$results->{'results'}     = [];
 	$results->{'in_progress'} = 1;
     }
-    else{   
-
-       # TEMPORARY HACK FOR PING STUFF                                                                                                                                                        \
-                                                                                                                                                                                               
-
-        if (-e "/tmp/pinger_stats.csv"){
-
-            open(PING_STATS, "/tmp/pinger_stats.csv");
-
-            my $ping_data;
-
-            while (my $line = <PING_STATS>){
-
-		my ($ip, $time, $value) = split(/,/, $line);
-
-		next if ($time < $start);
-
-                push (@$ping_data, [$time, $value]);
-
-            }
-
-            if (defined $ping_data && @$ping_data > 0){
-		push(@$data, {"name" => "Ping (ms)",
-			      "data" => $ping_data});
-	    }
-
-	}
-
-	$results->{'results'} = $data;
+    else{
+	$results->{'results'}    = $data->{'data'};
+	$results->{'node'}       = $data->{'node'};
+	$results->{'interface'}  = $data->{'interface'};
+	$results->{'interfaces'} = $data->{'interfaces'}; 
     } 
 
     return $results;
