@@ -46,7 +46,7 @@ case "$1" in
 	if [ -f $PIDFILE ]; then
 		MYPID=`head -n 1 $PIDFILE`
 		TEST_RUNNING=`ps -p ${MYPID} | grep ${MYPID}`
-		if [ -z ${TEST_RUNNING} ]; then
+		if [ -z "${TEST_RUNNING}" ]; then
 			echo -n " ready to start"
 		else
 			echo -n "already running"
@@ -83,7 +83,7 @@ case "$1" in
 	if [ -f $PIDFILE ]; then
 		MYPID=`head -n 1 $PIDFILE`
 		TEST_RUNNING=`ps -p ${MYPID} | grep ${MYPID}`
-		if [ -z ${TEST_RUNNING} ]
+		if [ -z "${TEST_RUNNING}" ]
 		then
 			echo "oess-$name (pid `cat $PIDFILE`) is not running (but PID file exists)"
 			exit 3
