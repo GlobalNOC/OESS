@@ -89,17 +89,28 @@ sub main{
 
     continue_param("Do you want to create the database $db_name and install the OESS schema there?");
     print "The Follwing password requests are for the new mysql oess and snapp users that will be created\n";
-    my $oess_pass;
+    my ($oess_pass, $oess_confirm);
     ReadMode('noecho');
-    while(!($oess_pass = required_parameter("OESS Password: "))){
-        print "\nOESS Password is required\n\n";
-    }
+    while (1){
+	$oess_pass    = required_parameter("OESS Password: ");
+	print "\n";
+	$oess_confirm = required_parameter("Confirm OESS Password: ");
+	print "\n";
 
+	last if ($oess_pass eq $oess_confirm);
+	print "Passwords did not match, try again.\n";
+    }
     print "\n";
 
-    my $snapp_pass;
-    while(!($snapp_pass = required_parameter("SNAPP Password: "))){
-        print "\nSNAPP Password is required\n\n";
+    my ($snapp_pass, $snapp_confirm);
+    while (1){
+	$snapp_pass    = required_parameter("SNAPP Password: ");
+	print "\n";
+	$snapp_confirm = required_parameter("Confirm SNAPP Password: ");
+	print "\n";
+
+	last if ($snapp_pass eq $snapp_confirm);
+	print "Passwords did not match, try again.\n";
     }
     ReadMode('normal');
     print "\n";
@@ -157,7 +168,7 @@ close(FILE);
     
     my $sql_file = "";
     while($sql_file eq '' || !-e $sql_file){
-	$sql_file = optional_parameter("Location of snapp.mysql.sql","/usr/share/doc/snapp-collector-3.0.12/sql/snapp.mysql.sql");
+	$sql_file = optional_parameter("Location of snapp.mysql.sql","/usr/share/oess-core/snapp.mysql.sql");
     }
 
     system("mysql -u\"$db_user\" -p\"$db_pass\" -h\"$db_host\" -P\"$db_port\" \"snapp\" < $sql_file");
@@ -181,7 +192,7 @@ close(FILE);
     $handle->do("GRANT ALL PRIVILEGES ON snapp.* to 'snapp'\@'localhost'");
     $sql_file = "";
     while($sql_file eq '' || !-e $sql_file){
-        $sql_file = optional_parameter("Location of SNAPPs base_example.sql","/usr/share/doc/snapp-collector-3.0.12/sql/base_example.sql");
+        $sql_file = optional_parameter("Location of SNAPPs base_example.sql","/usr/share/oess-core/snapp_base.mysql.sql");
     }
 
     system("mysql -u\"$db_user\" -p\"$db_pass\" -h\"$db_host\" -P\"$db_port\" \"snapp\" < $sql_file");
@@ -251,16 +262,32 @@ close(FILE);
 
 
     #create a user
-    continue_param("OESS Frontend requires a user, would you like to add a user via htpasswd file?");
+    if (yes_or_no_parameter("OESS Frontend requires a user, would you like to add a user via htpasswd file?") eq "y"){
+   
+	my $user = required_parameter("UserName");
+	
+	my ($pass, $confirm);
+	
+	while (1){
+	    $pass    = required_parameter("Password");	
+	    print "\n";
+	    $confirm = required_parameter("Confirm Password");
+	    print "\n";	
+	    
+	    last if ($pass eq $confirm);
+	    print "Passwords did not match, try again.\n";
+	}
+	
+	open(FILE, "> /usr/share/oess-frontend/www/.htpasswd");
+	print FILE $user . ":" . crypt($pass,$pass) . "\n";
+	close(FILE);
+    }
     
-    my $user = required_parameter("UserName");
-    my $pass = required_parameter("Password");
-    
-    open(FILE, "> /usr/share/oess-frontend/www/.htpasswd");
-    print FILE $user . ":" . crypt($pass,$pass) . "\n";
-    close(FILE);
-    
-    
+    if (yes_or_no_parameter("Would you like to start the OESS services?") eq "y"){
+	`/etc/init.d/oess start`;
+    }
+
+    print "Done!\n";
 }
 
 sub required_parameter {

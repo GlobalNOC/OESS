@@ -66,6 +66,9 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} snapp.mysql.sql $RPM_BUILD_ROOT/%{docdir}/
 %{__install} snapp_base.mysql.sql $RPM_BUILD_ROOT/%{docdir}/
 
+%{__install} QUICK_START $RPM_BUILD_ROOT/%{docdir}/
+%{__install} README $RPM_BUILD_ROOT/%{docdir}/
+
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{_bindir}/oess/
 
 
@@ -91,6 +94,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/init.d/oess
 %{docdir}/snapp.mysql.sql
 %{docdir}/snapp_base.mysql.sql
+%{docdir}/README
+%{docdir}/QUICK_START
 %{idcdir}/idc.cgi
 %{idcdir}/OSCARS/
 %{idcdir}/OSCARS/pss.pm
