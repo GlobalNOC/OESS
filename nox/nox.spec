@@ -647,7 +647,7 @@ if [ $1 -eq 1 ]; then
 
   #add the tdor user
   /usr/sbin/groupadd _oess
-  /usr/sbin/useradd  -m  -c "NOX User" -d /var/log/nox -s /dev/null -g _oess _oess
+  /usr/sbin/useradd  -r -m  -c "NOX User" -d /var/log/nox -s /dev/null -g _oess _oess
 
 
 fi
