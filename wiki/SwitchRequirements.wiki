@@ -10,6 +10,10 @@ In order for the software to work, the switches must be able to support the Open
 
 - Support rules that change the vlan tag of a flow
 
+- Support rules that send packets to controller
+
+- Support rules that match on ether type
+
 - Support removing flows
 
 - Support barrier messages
