@@ -7,7 +7,8 @@ In order for the software to work, the switches must be able to support the Open
 - Support rules that match on vlan tag
 
 - Support rules that set the output port of a flow
-
+     - Must support multiple output ports with different VLAN IDs for multi-point support
+ 
 - Support rules that change the vlan tag of a flow
 
 - Support rules that send packets to controller
