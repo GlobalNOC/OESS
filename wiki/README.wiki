@@ -159,6 +159,7 @@ The remaining instructions assume that the VM option has been chosen. If Mininet
 
 Log into the MiniNet host as the "openflow" user and create a topology file in "/home/openflow/mininet/custom/oess.py" as follows (note that since this is Python, white space / indentation is important):
 
+{{{
 from mininet.topo import Topo, Node
 
 class MyTopo( Topo ):
@@ -204,7 +205,7 @@ class MyTopo( Topo ):
        self.enable_all()
 
 topos = { 'oess_example': ( lambda: MyTopo() ) }
-
+}}}
 and then run the following command:
 
 cd /home/openflow/mininet; sudo mn --controller remote --ip <ip address of controller host> --custom ./custom/oess.py --topo oess_example --port=<port controller is listening on, default 6633>
