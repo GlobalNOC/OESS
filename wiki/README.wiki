@@ -111,6 +111,8 @@ V  \
 ==7. Where to go for Help==
 nddi-users@internet2.edu
 
+See https://lists.internet2.edu/sympa/info/nddi-users for more information.
+
 ==8. Downloading the Code==
 http://code.google.com/p/nddi/downloads
 
