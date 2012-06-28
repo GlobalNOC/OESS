@@ -58,7 +58,19 @@ the available non-trunk interfaces for the devices will appear as options under 
 
 *IF YOU RAN THE oess_setup.pl SCRIPT SKIP THIS SECTION!*
 
-If you do not use the oess_setup.pl script, it is recommended that you use the included VM image of a pre-staged OESS installation. See the Links section of http://code.google.com/p/nddi/ for a link to the most recent image. Otherwise, manual configuration must occur.
+If you do not use the oess_setup.pl script, it is recommended that you use the included VM image of a pre-staged OESS installation. See the Links section of http://code.google.com/p/nddi/ for a link to the most recent image. If using the image, the relevant bits of user information are:
+
+machine:
+root => "openflow"
+
+mysql:
+root => "oess"
+
+frontend
+oess => "openflow"
+
+
+Otherwise, manual configuration must occur.
 
 First you need a mysql instance running. Create an OESS mysql user
 and set the password. Finally, create the database named "oess" and grant all permissions
