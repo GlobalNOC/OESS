@@ -59,7 +59,7 @@ sub main {
 	
 	case "provision_circuit" {
 	    $output = &provision_circuit();
-	}
+3	}
 	case "remove_circuit" {
 	    $output = &remove_circuit();
 	}
@@ -100,9 +100,9 @@ sub _send_add_command {
 
     my $result = $client->addVlan($circuit_id);
 
-    warn "RESULT: " . Dumper($result);
+    warn "ADD RESULT: $result";
 
-    return 1;
+    return $result;
 }
 
 sub _send_remove_command {
@@ -134,7 +134,7 @@ sub _send_remove_command {
 
     warn "RESULT: " . Dumper($result);
 
-    return 1;
+    return $result;
 }
 
 
@@ -187,6 +187,20 @@ sub provision_circuit {
 	    if (! defined $result){
 		$output->{'warning'} = "Unable to talk to fwdctl service - is it running?";
 	    }
+	    
+	    # failure, remove the circuit now
+	    if ($result == 0){
+		$cgi->param('circuit_id', $output->{'circuit_id'});
+		$cgi->param('remove_time', -1);
+		$cgi->param('force', 1);
+		my $removal = remove_circuit();
+
+		warn "Removal status: " . Data::Dumper::Dumper($removal);
+
+		$results->{'error'} = "Unabled to provision circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been removed.";
+		return $results;
+	    }
+
 	}
 
     }
@@ -194,9 +208,14 @@ sub provision_circuit {
 
 	my $result = _send_remove_command(circuit_id => $circuit_id);
 	
-	if (! defined $result){
+	if (! $result){
 	    $output->{'warning'} = "Unable to talk to fwdctl service - is it running?";
 	    return;
+	}
+
+	if ($result == 0){
+	    $results->{'error'} = "Unable to remove circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been left in the database.";
+	    return $results;
 	}
         
 
@@ -220,6 +239,12 @@ sub provision_circuit {
 	if (! defined $result){
 	    $output->{'warning'} = "Unable to talk to fwdctl service - is it running?";
 	}       
+
+	if ($result == 0){
+	    $results->{'error'} = "Unable to edit circuit. Please check your logs or contact your server adminstrator for more information. Circuit is likely not live on the network anymore.";
+	    return $results;
+	}
+
 
     }
 
@@ -248,6 +273,15 @@ sub remove_circuit {
 	if (! defined $result){
 	    $results->{'error'} = "Unable to talk to fwdctl service - is it running?";
 	    return $results;
+	}
+
+	if ($result == 0){
+	    $results->{'error'} = "Unable to remove circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been left in the database.";
+
+	    # if force is sent, it will clear it from the database regardless of whether fwdctl reported success or not
+	    if (! $cgi->param('force')){
+		return $results;
+	    }
 	}
 
     }

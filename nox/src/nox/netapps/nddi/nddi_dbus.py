@@ -45,7 +45,7 @@ from dbus.mainloop.glib import DBusGMainLoop
 FWDCTL_WAITING = 2
 FWDCTL_SUCCESS = 1
 FWDCTL_FAILURE = 0
-FWDCTL_UNKNOWN = -1
+FWDCTL_UNKNOWN = 3
 
 PENDING  = 0
 ANSWERED = 1
@@ -57,6 +57,7 @@ logger = logging.getLogger('org.nddi.openflow')
 ifname = 'org.nddi.openflow'
 
 barrier_callbacks = {}
+flowmod_callbacks = {}
 
 #--- this is a a wrapper class that defineds the dbus interface
 class dBusEventGen(dbus.service.Object):
@@ -119,9 +120,21 @@ class dBusEventGen(dbus.service.Object):
                          in_signature='t',
                          out_signature='t'
                          )
-    def get_xid_result(self, xid):
-        if barrier_callbacks.has_key(xid):
-            return barrier_callbacks[xid]["result"]        
+    def get_dpid_result(self, dpid):
+        logger.info("Checking dpid %s" % str(dpid))
+        logger.info(str(flowmod_callbacks))
+        if flowmod_callbacks.has_key(dpid):    
+            for info in flowmod_callbacks[dpid]:
+                if info["status"] == PENDING:
+                    return FWDCTL_WAITING
+                elif info["result"] == FWDCTL_FAILURE:
+                    del flowmod_callbacks[dpid]
+                    return FWDCTL_FAILURE
+
+            # pop these all out, we're done here
+            del flowmod_callbacks[dpid]
+            return FWDCTL_SUCCESS
+
         return FWDCTL_UNKNOWN        
 
     @dbus.service.method(dbus_interface=ifname,
@@ -137,10 +150,9 @@ class dBusEventGen(dbus.service.Object):
         idle_timeout = 0
         hard_timeout = 0
 
-        #--- first we check to make sure the switch is in a ready state to accept more flow mods.
-        xid = _do_barrier(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=None)); 
+        _do_install(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=None)); 
 
-        return xid
+        return dpid
 
     @dbus.service.method(dbus_interface=ifname,
                          in_signature='ta{sv}qqa(qv)q',
@@ -166,11 +178,9 @@ class dBusEventGen(dbus.service.Object):
                 actions.insert(i, new_action)
 
         #--- first we check to make sure the switch is in a ready state to accept more flow mods.
-        xid = _do_barrier(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=inport)); 
+        _do_install(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=inport)); 
 
-        logger.info("generated xid = %s" % xid)
-
-        return xid
+        return dpid
 
     @dbus.service.method(dbus_interface=ifname,
                          in_signature='ta{sv}',
@@ -182,9 +192,9 @@ class dBusEventGen(dbus.service.Object):
         my_attrs[IN_PORT] = int(attrs['IN_PORT'])
 
         #--- first we check to make sure the switch is in a ready state to accept more flow mods
-        xid = _do_barrier(dpid, lambda: inst.delete_datapath_flow(dpid, my_attrs))
+        _do_install(dpid, lambda: inst.delete_datapath_flow(dpid, my_attrs))
 
-        return xid
+        return dpid
 
 
 #--- series of callbacks to glue the reception of NoX events to the generation of D-Bus events
@@ -251,34 +261,35 @@ def datapath_leave_callback(sg,dp_id):
 
 def barrier_reply_callback(sg,dp_id,xid):
 
-    # uh, yeah. Apparently NOX doesn't give you back the native int form that it does when
-    # you send a barrier message, you have to convert it yourself here
-    xid = c_ntohl(xid)
-
-    logger.info("got barrier response from %s, xid = %s" % (dp_id, xid))
-
-    if barrier_callbacks.has_key(xid):
-        callback = barrier_callbacks[xid].get("callback")
-
-        start_time = barrier_callbacks[xid]["start_time"]
-
-        if callback:
-            logger.info("issuing callback for response from %s xid: %s" % (dp_id, xid))
-            result = callback()
-            logger.info("callback result was %s" % str(result))
-            if result == None or result == True:
-                barrier_callbacks[xid]["result"] = FWDCTL_SUCCESS
-            else:
-                barrier_callbacks[xid]["result"] = FWDCTL_FAILURE
-            barrier_callbacks[xid]["status"] = ANSWERED
-
+    if flowmod_callbacks.has_key(dp_id):
+        for info in flowmod_callbacks[dp_id]:
+            if info["status"] != ANSWERED:
+                logger.info("got barrier for %s" % (dp_id))
+                info["result"]      = FWDCTL_SUCCESS
+                info["status"]      = ANSWERED
+                break
+ 
     sg.barrier_reply(dp_id,xid)
 
+
+def error_callback(sg, dpid, type, code, data, xid):
+    
+    logger.info("handling error from %s, xid = %s" % (dpid, xid))
+
+    if flowmod_callbacks.has_key(dpid):
+        for info in flowmod_callbacks[dpid]:
+            if info["status"] == PENDING:
+                info["status"] = ANSWERED
+                info["result"] = FWDCTL_FAILURE
+                break
 
 def flow_mod_callback(sg,dpid, attrs, command, idle_to, hard_to, buffer_id,priority, cookie):
     attr_dict = {}
     if attrs:
       attr_dict = dbus.Dictionary(attrs, signature='sv')
+
+    if flowmod_callbacks.has_key(dpid):
+        inst.send_barrier(dpid)
 
     sg.flow_mod(dpid,attr_dict,command,idle_to,hard_to,buffer_id,priority,cookie)
 
@@ -286,6 +297,9 @@ def flow_removed_callback(sg,dpid,attrs, priority, reason, cookie, dur_sec, dur_
     attr_dict = {}
     if attrs:
       attr_dict = dbus.Dictionary(attrs, signature='sv')
+
+    if flowmod_callbacks.has_key(dpid):
+        inst.send_barrier(dpid)
      
     sg.flow_removed(dpid,attr_dict,priority, reason, cookie, dur_sec, dur_nsec, byte_count, packet_count)
 
@@ -298,15 +312,14 @@ inst = None
 
 # send a barrier message with a reference to the actual function we want to run when the switch
 # has responded and told us that it is ready
-def _do_barrier(dpid, callback):
+def _do_install(dpid, callback):
 
-    xid = inst.send_barrier(dpid)
+    if not flowmod_callbacks.has_key(dpid):
+        flowmod_callbacks[dpid] = []
 
-    barrier_callbacks[xid] = {"callback": callback, "status": PENDING, "result": FWDCTL_WAITING, "start_time": time()}
+    flowmod_callbacks[dpid].append({"status": PENDING, "result": FWDCTL_WAITING, "start_time": time()})
 
-    logger.info("sending barrier to %s" % dpid)
-
-    return xid
+    callback();
 
 def run_glib ():
     """ Process glib events within NOX """
@@ -352,6 +365,8 @@ class nddi_dbus(Component):
 	self.register_for_datapath_join (lambda dp, stats : 
                                          datapath_join_callback(self.sg,dp, self.ctxt.get_switch_ip(dp), stats) 
                                          )
+
+        self.register_for_error(lambda dpid, type, code, data, xid: error_callback(self.sg, dpid, type, code, data, xid))
 
         self.register_for_datapath_leave(lambda dp : 
                                           datapath_leave_callback(self.sg,dp) )
@@ -416,6 +431,10 @@ class nddi_dbus(Component):
                 # get rid of rules that don't have matches on them because we can't key off
                 # port / vlan to get info that we need
                 for row in reversed(self.flow_stats[dpid]):                    
+
+                    if row.has_key("cookie"):
+                        del row["cookie"]
+
                     if row.has_key("match"):
 
                         if  not row["match"]:

@@ -62,7 +62,7 @@ use constant OFPP_CONTROLLER    => 65533;
 use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
-use constant FWDCTL_UNKNOWN     => -1;
+use constant FWDCTL_UNKNOWN     => 3;
 
 $| = 1;
 
@@ -590,7 +590,7 @@ sub _poll_xids{
 
 	    my $xid = @$xids[$i];    
 
-	    my $output = $self->{'of_controller'}->get_xid_result($xid);
+	    my $output = $self->{'of_controller'}->get_dpid_result($xid);
 
 	    # this one is still pending, just check the next
 	    next if ($output == FWDCTL_WAITING);
@@ -605,6 +605,9 @@ sub _poll_xids{
 	}
 
     }
+
+    warn "XID Result is: $result";
+    warn "(1 => success, 2 => waiting, 0 => failure, 3 => unknown)";
     
     return $result;
 }
@@ -642,6 +645,9 @@ sub addVlan {
 	push(@xids, $xid);
     }	
 
+    warn "XIDS:";
+    warn Data::Dumper::Dumper(\@xids);
+
     my $result = $self->_poll_xids(\@xids);
 
     if ($result == FWDCTL_SUCCESS){
@@ -671,7 +677,7 @@ sub addVlan {
 	}
     }
 
-    return "{status: $result}";
+    return $result;
 }
 
 #dbus_method("deleteVlan", ["string"], ["string"]);
@@ -694,7 +700,7 @@ sub deleteVlan {
 
     my $result = $self->_poll_xids(\@xids);
         
-    return "{status: $result}";
+    return $result;
 }
 
 
@@ -730,8 +736,8 @@ sub changeVlanPath {
     my $result = $self->_poll_xids(\@xids);
 
     # we failed to remove any rules we needed to, no sense going forward. Report failure
-    if ($result eq 0){
-	return "{status: 0}";
+    if ($result eq FWDCTL_FAILURE){
+	return $result;
     }
 
     # reset xids
@@ -749,7 +755,7 @@ sub changeVlanPath {
 
     $result = $self->_poll_xids(\@xids);
     
-    return "{status: $result}";
+    return $result;
 }
 
 
