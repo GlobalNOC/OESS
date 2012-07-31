@@ -325,7 +325,7 @@ class Component:
     def send_flow_command(self, dp_id, command, attrs, 
                           priority=openflow.OFP_DEFAULT_PRIORITY,
                           add_args=None,
-                          hard_timeout=openflow.OFP_FLOW_PERMANENT, xid=0):
+                          hard_timeout=openflow.OFP_FLOW_PERMANENT):
         m = set_match(attrs)
         if m == None:
             return False
@@ -341,7 +341,7 @@ class Component:
             buffer_id = UINT32_MAX
         
         self.ctxt.send_flow_command(dp_id, command, m, idle_timeout,
-                                    hard_timeout, oactions, buffer_id, priority, xid)
+                                    hard_timeout, oactions, buffer_id, priority)
 
         return True
 
@@ -415,7 +415,7 @@ class Component:
     def install_datapath_flow(self, dp_id, attrs, idle_timeout, hard_timeout,
                               actions, buffer_id=None, 
                               priority=openflow.OFP_DEFAULT_PRIORITY,
-                              inport=None, packet=None, xid=None):
+                              inport=None, packet=None):
         """\brief Add a flow entry to datapath.
 
         @param dp_id datapath to add the entry to
@@ -448,17 +448,8 @@ class Component:
         if buffer_id == None:
             buffer_id = UINT32_MAX
 
-        if xid == None:
-            if not hasattr(self, 'xid'):
-                xid = 8238
-            else:
-                xid = getattr(self, 'xid')
-            if xid >= 0xFFffFFfe:
-                xid = 8238
-            setattr(self, 'xid', xid + 1)
-
         self.send_flow_command(dp_id, openflow.OFPFC_ADD, attrs, priority,
-                          (idle_timeout, actions, buffer_id), hard_timeout, xid)
+                          (idle_timeout, actions, buffer_id), hard_timeout)
         
         if buffer_id == UINT32_MAX and packet != None:
             for action in actions:
@@ -469,9 +460,7 @@ class Component:
                         self.send_openflow_packet(dp_id, packet, action[1][1], inport)
                 else:
                     raise NotImplementedError
-
-        return xid
-
+                    
     def send_barrier(self, dpid, xid=None):
         #TODO: replace with real XID code
         if xid == None:
