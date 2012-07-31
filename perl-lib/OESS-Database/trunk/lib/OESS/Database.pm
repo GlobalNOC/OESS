@@ -1,3 +1,4 @@
+
 #!/usr/bin/perl
 #------ NDDI OESS Database Interaction Module
 ##-----
@@ -1840,8 +1841,8 @@ sub get_current_circuits {
 	"from circuit " .
 	" join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id " .
 	"  and circuit_instantiation.end_epoch = -1 and circuit_instantiation.circuit_state != 'decom' " .
-	" join path on path.circuit_id = circuit.circuit_id " .
-	"  join path_instantiation on path_instantiation.path_id = path.path_id " .
+	" left join path on path.circuit_id = circuit.circuit_id " .
+	"  left join path_instantiation on path_instantiation.path_id = path.path_id " .
 	"    and path_instantiation.end_epoch = -1 and path_instantiation.path_state in ('active', 'deploying') " .
 	" join circuit_edge_interface_membership on circuit_edge_interface_membership.circuit_id = circuit.circuit_id " .
 	"  and circuit_edge_interface_membership.end_epoch = -1 " .
@@ -1968,8 +1969,8 @@ sub get_circuit_details {
 	"from circuit " .
 	" join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id " .
 	"  and circuit_instantiation.end_epoch = -1 " .
-	"join path as pr_p on pr_p.circuit_id = circuit.circuit_id and pr_p.path_type = 'primary' " . 
-	"join path_instantiation as pr_pi on pr_pi.path_id = pr_p.path_id and pr_pi.end_epoch = -1 ".
+	"left join path as pr_p on pr_p.circuit_id = circuit.circuit_id and pr_p.path_type = 'primary' " . 
+	"left join path_instantiation as pr_pi on pr_pi.path_id = pr_p.path_id and pr_pi.end_epoch = -1 ".
         " left join path as bu_p on bu_p.circuit_id = circuit.circuit_id and bu_p.path_type = 'backup' " .        
         " left join path_instantiation as bu_pi on bu_pi.path_id = bu_p.path_id and bu_pi.end_epoch = -1 ".
 
