@@ -1,3 +1,14 @@
+OESS Database 1.0.2 [Aug 01 2012]
+---------------------------------
+*Fixed intra-switch circuits that were not showing up
+because of a join with link
+
+*Fixed an issue that prevented users from being able to
+decom a node when a link on the node was already decom
+
+
+OESS Database 1.0.1 [??? ?? 2012]
+---------------------------------
 OESS Database 1.0.0 [Jan 18 2012]
-----------------------------
+---------------------------------
 First release on an unsuspecting world
