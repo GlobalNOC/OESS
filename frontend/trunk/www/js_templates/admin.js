@@ -614,16 +614,22 @@ function setup_users_tab(){
 
 		if (! fname || !lname){
 		    alert("You must specify a first and last name for this user.");
+		    this.set("label", "Save");
+		    this.set("disabled", false);
 		    return;
 		}
 
 		if (! email){
 		    alert("You must specify an email address for this user.");
+		    this.set("label", "Save");
+                    this.set("disabled", false);
 		    return;
 		}
 
 		if (! auth){
 		    alert("You must specify at least one username for this user.");
+		    this.set("label", "Save");
+                    this.set("disabled", false);
 		    return;
 		}
 
