@@ -15,6 +15,10 @@ Requires:       nox >= 0.9.2
 Requires:       yui2
 Requires:       httpd, mod_ssl
 Requires:       nddi-tiles
+Requires:	perl-Crypt-SSLeay
+Requires:	xmlsec1
+Requires:	xmlsec1-openssl
+Requires:	perl-SOAP-Data-Builder
 BuildArch:	noarch
 %description
 
