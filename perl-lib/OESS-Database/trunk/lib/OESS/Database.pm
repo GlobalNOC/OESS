@@ -4523,7 +4523,7 @@ sub edit_circuit {
         }
 
         $query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, end_epoch, start_epoch) values (?, ?, ?, -1, unix_timestamp(NOW()))";
-	print STDERR "Adding interface " . $interface_id . "." . $vlan . "\n";
+	
         if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $vlan])){
             $self->_set_error("Unable to create circuit edge to interface '$interface'");
             return undef;
