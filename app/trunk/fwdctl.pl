@@ -455,6 +455,17 @@ sub datapath_join{
 	_log("Send default forwarding rule to $dpid");
     }
 
+    $xid     = $self->{'of_controller'}->install_default_drop($dpid);
+
+    $result = $self->_poll_xids([$xid]);
+
+    if ($result != FWDCTL_SUCCESS){
+        _log("Warning: unable to install default drop to controller rule in switch $dpid, lots of traffic could be headed our way.");
+    }
+    else {
+        _log("Send default drop rule to $dpid");
+    }
+
     #--- get the set of circuits
     my $current_circuits = $self->{'db'}->get_current_circuits();
     if (! defined $current_circuits){
