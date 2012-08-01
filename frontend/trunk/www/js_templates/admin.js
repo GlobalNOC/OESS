@@ -1296,7 +1296,7 @@ function setup_network_tab(){
 							       YAHOO.util.Dom.get("active_network_update_status").innerHTML = "Link successfully decomissioned.";
 							   }
 							   else{
-							       alert("Device decomission unsuccessful.");
+							       alert("Link decomission unsuccessful.");
 							   }
 							   
 						       },

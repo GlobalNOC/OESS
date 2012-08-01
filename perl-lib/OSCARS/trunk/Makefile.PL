@@ -11,6 +11,7 @@ WriteMakefile(
                   'LWP::UserAgent'=>0,
                   'Test::More'=> 0,
                   'XML::XPath' => 0,
+		  'SOAP::Data::Builder' => 0
               },
               dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
               clean               => { FILES => 'OSCARS-Client-*' },
