@@ -29,3 +29,14 @@ Alias /oess            /usr/share/oess-frontend/www
 	AuthUserFile /usr/share/oess-frontend/www/.htpasswd
 	Require valid-user
 </Directory>
+
+Alias /idc            /usr/share/oess-core/idc
+
+<Directory "/usr/share/oess-core/idc">
+        SSLRequireSSL
+        AddHandler cgi-script .cgi
+        DirectoryIndex index.cgi
+        Options ExecCGI
+        Order allow,deny
+        Allow from all
+</Directory>
