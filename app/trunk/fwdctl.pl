@@ -434,7 +434,36 @@ sub _generate_commands{
    }
 }
 
+sub _push_default_rules{
+    my $self = shift;
+    
+    my $nodes = $self->{'db'}->get_node_dpid_hash();
 
+    foreach my $node (keys (%{$nodes})){
+
+	my $xid     = $self->{'of_controller'}->install_default_forward($nodes->{$node});
+	
+	my $result = $self->_poll_xids([$xid]);
+	
+	if ($result != FWDCTL_SUCCESS){
+	    _log("Warning: unable to install default forward to controller rule in switch " . $nodes->{$node} . ", discovery likely will not work.");
+	}
+	else {
+	    _log("Send default forwarding rule to " . $nodes->{$node});
+	}
+	
+	$xid     = $self->{'of_controller'}->install_default_drop($nodes->{$node});
+	
+	$result = $self->_poll_xids([$xid]);
+	
+	if ($result != FWDCTL_SUCCESS){
+	    _log("Warning: unable to install default drop to controller rule in switch " . $nodes->{$node} . ", lots of traffic could be headed our way.");
+	}
+	else {
+	    _log("Send default drop rule to " . $nodes->{$node});
+	}
+    }
+}
 
 sub datapath_join{
     my $self   = shift;
@@ -798,6 +827,10 @@ sub core{
     my $service = $bus->export_service("org.nddi.fwdctl");
     
     $srv_object = FwdCtl->new($service,$dbus->{'dbus'});
+
+    #first thing to do is to try and push out all of the default forward/drop rules
+    #to all of the switches to make sure they are in a known state
+    $srv_object->_push_default_rules();
     
     #--- on creation we need to resync the database out to the network as the switches
     #--- might not be in the same state (emergency mode maybe) and there might be 
