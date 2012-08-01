@@ -646,8 +646,8 @@ sub _poll_xids{
 
     }
 
-    warn "XID Result is: $result";
-    warn "(1 => success, 2 => waiting, 0 => failure, 3 => unknown)";
+    #warn "XID Result is: $result";
+    #warn "(1 => success, 2 => waiting, 0 => failure, 3 => unknown)";
     
     return $result;
 }
