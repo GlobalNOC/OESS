@@ -141,7 +141,6 @@ class dBusEventGen(dbus.service.Object):
                          in_signature='t',
                          out_signature='t'
                          )
-
     def install_default_drop(self, dpid):
         my_attrs          = {}
         actions           = []
@@ -149,10 +148,13 @@ class dBusEventGen(dbus.service.Object):
         idle_timeout = 0
         hard_timeout = 0
         
-        _do_install(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_atrrs, idle_timeout=idle_timout, hard_timeout=hard_timeout, actions=actions,priority=0x0001 inport=None));
+        _do_install(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout, actions=actions,priority=0x0001, inport=None))
 
         return dpid
-                   
+    @dbus.service.method(dbus_interface=ifname,
+                         in_signature='t',
+                         out_signature='t'
+                         )
     def install_default_forward(self, dpid):
         my_attrs          = {}
         my_attrs[DL_TYPE] = 0x88cc       
@@ -162,7 +164,7 @@ class dBusEventGen(dbus.service.Object):
         idle_timeout = 0
         hard_timeout = 0
 
-        _do_install(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=None)); 
+        _do_install(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=None))
 
         return dpid
 
