@@ -42,7 +42,7 @@ OESS-Topology -Perl module for topology operations/computations on the OESS data
 
 =cut
 
-our $VERSION = '1.0.0';
+our $VERSION = '1.0.2';
 
 
 =head1 SYNOPSIS
