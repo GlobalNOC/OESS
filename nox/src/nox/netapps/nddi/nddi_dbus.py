@@ -169,6 +169,15 @@ class dBusEventGen(dbus.service.Object):
         return dpid
 
     @dbus.service.method(dbus_interface=ifname,
+                         in_signature='t',
+                         out_signature='b')
+    def get_node_connect_status(self, status_dpid):
+        for dpid in self.sg.switches:
+            if dpid == status_dpid:
+                return True
+        return False
+
+    @dbus.service.method(dbus_interface=ifname,
                          in_signature='ta{sv}qqa(qv)q',
                          out_signature='t'
                          )
