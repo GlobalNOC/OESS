@@ -1,14 +1,14 @@
 Name:	nox		
-Version: 0.9.2	
-Release: 2%{?dist}
+Version: 0.9.3	
+Release: 1%{?dist}
 Summary: nox an openflow controller	
 
 Group:	Networking	
 License: GPLv3	
 URL:	http://www.noxrepo.org	
-Source0: nox-0.9.2.tar.gz	
+Source0: nox-0.9.3.tar.gz	
 #BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
-BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-roo
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 
 BuildRequires:	gcc, gcc-c++,boost,dbus,boost-filesystem,boost-test,openssl-devel,boost-devel,python-devel
 Requires: dbus-python, python,openssl,swig,python,python-twisted,pygobject2
