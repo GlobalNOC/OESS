@@ -440,27 +440,32 @@ sub _push_default_rules{
     my $nodes = $self->{'db'}->get_node_dpid_hash();
 
     foreach my $node (keys (%{$nodes})){
+	my $node_details = $self->{'db'}->get_node_by_dpid($nodes->{$node});
 
-	my $xid     = $self->{'of_controller'}->install_default_forward($nodes->{$node});
-	
-	my $result = $self->_poll_xids([$xid]);
-	
-	if ($result != FWDCTL_SUCCESS){
-	    _log("Warning: unable to install default forward to controller rule in switch " . $nodes->{$node} . ", discovery likely will not work.");
+	if($node_details->{'default_forward'} == 1){
+	    my $xid     = $self->{'of_controller'}->install_default_forward($nodes->{$node});
+	    
+	    my $result = $self->_poll_xids([$xid]);
+	    
+	    if ($result != FWDCTL_SUCCESS){
+		_log("Warning: unable to install default forward to controller rule in switch " . $nodes->{$node} . ", discovery likely will not work.");
+	    }
+	    else {
+		_log("Send default forwarding rule to " . $nodes->{$node});
+	    }
 	}
-	else {
-	    _log("Send default forwarding rule to " . $nodes->{$node});
-	}
-	
-	$xid     = $self->{'of_controller'}->install_default_drop($nodes->{$node});
-	
-	$result = $self->_poll_xids([$xid]);
-	
-	if ($result != FWDCTL_SUCCESS){
-	    _log("Warning: unable to install default drop to controller rule in switch " . $nodes->{$node} . ", lots of traffic could be headed our way.");
-	}
-	else {
-	    _log("Send default drop rule to " . $nodes->{$node});
+
+	if($node_details->{'default_drop'} == 1){
+	    $xid     = $self->{'of_controller'}->install_default_drop($nodes->{$node});
+	    
+	    $result = $self->_poll_xids([$xid]);
+	    
+	    if ($result != FWDCTL_SUCCESS){
+		_log("Warning: unable to install default drop to controller rule in switch " . $nodes->{$node} . ", lots of traffic could be headed our way.");
+	    }
+	    else {
+		_log("Send default drop rule to " . $nodes->{$node});
+	    }
 	}
     }
 }
@@ -473,26 +478,32 @@ sub datapath_join{
     #--- first push the default "forward to controller" rule to this node. This enables
     #--- discovery to work properly regardless of whether the switch's implementation does it by default
     #--- or not
-    my $xid     = $self->{'of_controller'}->install_default_forward($dpid);
-
-    my $result = $self->_poll_xids([$xid]);
-
-    if ($result != FWDCTL_SUCCESS){
-	_log("Warning: unable to install default forward to controller rule in switch $dpid, discovery likely will not work.");
-    }    
-    else {
-	_log("Send default forwarding rule to $dpid");
+    my $node = $self->{'db'}->get_node_by_dpid($dpid);
+    if(!defined($node) || $node->{'default_forward'} == 1){
+	my $xid     = $self->{'of_controller'}->install_default_forward($dpid);
+	
+	my $result = $self->_poll_xids([$xid]);
+	
+	if ($result != FWDCTL_SUCCESS){
+	    _log("Warning: unable to install default forward to controller rule in switch $dpid, discovery likely will not work.");
+	}    
+	else {
+	    _log("Send default forwarding rule to $dpid");
+	}
+	
     }
 
-    $xid     = $self->{'of_controller'}->install_default_drop($dpid);
-
-    $result = $self->_poll_xids([$xid]);
-
-    if ($result != FWDCTL_SUCCESS){
-        _log("Warning: unable to install default drop to controller rule in switch $dpid, lots of traffic could be headed our way.");
-    }
-    else {
-        _log("Send default drop rule to $dpid");
+    if(!defined($node) || $node->{'default_drop'} == 1){
+	$xid     = $self->{'of_controller'}->install_default_drop($dpid);
+	
+	$result = $self->_poll_xids([$xid]);
+	
+	if ($result != FWDCTL_SUCCESS){
+	    _log("Warning: unable to install default drop to controller rule in switch $dpid, lots of traffic could be headed our way.");
+	}
+	else {
+	    _log("Send default drop rule to $dpid");
+	}
     }
 
     #--- get the set of circuits
