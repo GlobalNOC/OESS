@@ -213,6 +213,8 @@ CREATE TABLE `node` (
   `operational_state` enum('unknown','up','down') NOT NULL DEFAULT 'unknown',
   `network_id` int(10) NOT NULL,
   `vlan_tag_range` varchar(255) NOT NULL DEFAULT '1-4095',
+  `default_forward` varchar(255) DEFAULT '1',
+  `default_drop` varchar(255) DEFAULT '1',
   PRIMARY KEY (`node_id`),
   UNIQUE KEY `node_idx` (`name`),
   KEY `network_node_fk` (`network_id`),
@@ -465,7 +467,21 @@ CREATE TABLE `workgroup_node_membership` (
   CONSTRAINT `workgroups_workgroup_host_membership_fk` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--  
+-- Table structure for table `oess_version`
+--  
+
+DROP TABLE IF EXISTS `oess_version`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `oess_version` (
+  `version` varchar(32) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+/*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;

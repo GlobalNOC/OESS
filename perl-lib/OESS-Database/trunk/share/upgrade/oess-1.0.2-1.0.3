@@ -69,11 +69,11 @@ sub upgrade{
     my $sth = $dbh->prepare($str);
     $sth->execute();
     
-    $str = "alter table node add default_forward varchar(255) default = 1";
+    $str = "alter table node add default_forward varchar(255) default 1";
     $sth = $dbh->prepare($str);
     $sth->execute();
     
-    $str = "alter table node add default_drop varchar(255) default = 1";
+    $str = "alter table node add default_drop varchar(255) default 1";
     $sth = $dbh->prepare($str);
     $sth->execute();
 

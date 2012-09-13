@@ -6,5 +6,4 @@ BEGIN {
         use_ok( 'OESS::Database' );
 }
 
-#diag( "Testing GMOC::Common $GMOC::Config::VERSION, Perl $], $^X\n" );
 
