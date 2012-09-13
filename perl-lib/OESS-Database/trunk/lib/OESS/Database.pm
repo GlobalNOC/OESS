@@ -167,6 +167,23 @@ sub get_error {
 }
 
 
+=head2 get_oess_schema_version
+    
+=cut
+
+sub get_oess_schema_version{
+    my $self = shift;
+    my $query = "select * from oess_version";
+    my $res = $self->_execute_query($query,[]);
+    if(!defined($res)){
+	#must be < version 1.0.3
+	return;
+    }else{
+	$res = $res->[0]->{'version'};
+	return $res;
+    }
+}
+
 =head2 update_circuit_state
 
 Changes a circuit instantiation identified by $circuit_id from $old_state to $new_state.
