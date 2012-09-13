@@ -208,25 +208,34 @@ sub do_port_modify{
 
        $dbh->begin_work() or die $dbh->errstr;
 
-       my $int = $db->get_interface_by_dpid_and_port(dpid => $dpid, port_number => $port_info->{'port_no'});
-       if(!defined($int)){
-	   print_log(LOG_ERR,"Unable to do_port_modify");
-	   return;
-       }
-
        my $operational_state = 'up';
        my $operational_state_num=(int($port_info->{'state'}) & 0x1);
        if(1 == $operational_state_num){
-	   $operational_state = 'down';
+           $operational_state = 'down';
        }
 
        my $admin_state = 'up';
        my $admin_state_num = (int($port_info->{'config'}) & 0x1);
 
        if(1 == $admin_state_num){
-	   $admin_state = 'down';
+           $admin_state = 'down';
        }
-       print STDERR Dumper($port_info);
+
+       my $int = $db->get_interface_by_dpid_and_port(dpid => $dpid, port_number => $port_info->{'port_no'});
+       if(!defined($int)){
+	   #new interface!
+	   my $node = $db->get_node_by_dpid( dpid => $dpid);
+	   
+	   my $res = $db->add_or_update_interface(node_id => $node->{'node_id'}, name => $port_info->{'name'}, description => $port_info->{'name'}, operational_state => $operational_state, port_num => $port_info->{'port_no'}, admin_state => $admin_state);
+	   print_log(LOG_ERR,"Added new interface!");
+	   if(!defined($res)){
+	       $dbh->rollback();
+	       return;
+	   }
+	   $dbh->commit();
+	   return;
+       }
+
        #my $res = $db->update_interface_operational_state( operational_state => $operational_state, interface_id => $int->{'interface_id'});
        my $res = $db->add_or_update_interface(node_id => $int->{'node_id'}, name => $port_info->{'name'}, description => $port_info->{'name'}, operational_state => $operational_state, port_num => $port_info->{'port_no'}, admin_state => $admin_state);
 
@@ -250,7 +259,10 @@ sub db_port_status{
     my $port_info=$args{'port_info'} ;      
     
     switch($reason){
-	case OFPPR_ADD 	{print_log(LOG_DEBUG, " adding port\n");};
+	case OFPPR_ADD 	{
+	    print_log(LOG_DEBUG, " adding port\n");
+	    do_port_modify(dpid=> $dpid, port_info=>$port_info);
+	};
 	case OFPPR_DELETE 	{print_log(LOG_DEBUG, "deleting port\n");};
 	case OFPPR_MODIFY     { 
 	    print_log(LOG_DEBUG,"modify port\n");
@@ -263,7 +275,7 @@ sub port_status_callback{
 	my $dpid   = shift;
 	my $reason = shift;
 	my $info   = shift;
-	print_log(LOG_INFO, "port status: $dpid: $reason: ".Dumper($info));
+	print_log(LOG_ERR, "port status: $dpid: $reason: ".Dumper($info));
   
         db_port_status(dpid=>$dpid,reason=>$reason,port_info=>$info);
 }
