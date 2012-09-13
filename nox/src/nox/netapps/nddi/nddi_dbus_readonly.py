@@ -57,7 +57,7 @@ logger = logging.getLogger('org.nddi.openflow_readonly')
 ifname = 'org.nddi.openflow_readonly'
 
 barrier_callbacks = {}
-flowmod_callbacks = {}
+xid_callbacks = {}
 
 #--- this is a a wrapper class that defineds the dbus interface
 class dBusEventGenReadonly(dbus.service.Object):
@@ -88,6 +88,45 @@ class dBusEventGenReadonly(dbus.service.Object):
                 return True
         return False
 
+    @dbus.service.method(dbus_interface=ifname,
+                         in_signature='t',
+                         out_signature=''
+                         )
+    def send_flow_stats_request(self, dpid):
+        """Send a flow stats request to a switch (dpid).
+        @param dpid - datapath/switch to contact
+        """
+        self.collection_epoch += 1
+        flow = of.ofp_match()
+        flow.wildcards = 0xffffffff
+        # Create the stats request header
+        request = of.ofp_stats_request()
+        if xid == -1:
+            request.header.xid = c_htonl(long(self.collection_epoch))
+        else:
+            request.header.xid = c_htonl(xid)
+            
+        request.header.type = openflow.OFPT_STATS_REQUEST
+        request.type = openflow.OFPST_FLOW
+        request.flags = 0
+        # Create the stats request body
+        body = of.ofp_flow_stats_request()
+        body.match = match
+        body.table_id = table_id
+        body.out_port = openflow.OFPP_NONE
+        request.header.length = len(request.pack()) + len(body.pack())
+        self.send_openflow_command(dpid, request.pack() + body.pack())
+        logger.info("flowmod sent at: " + time.time() + "for " + dpid)
+
+
+#def get_xid_result(self, xid):
+#        logger.info("Checking xid %s" % str(xid))
+#        if xid_callback.has_key(xid):    
+#            data = xid_callback[xid]
+#            del xid_callbacks[xid]
+#            return data
+#        return
+
 inst = None
 
 def datapath_join_callback(sg,dp_id,ip_address,stats):
@@ -98,7 +137,6 @@ def datapath_join_callback(sg,dp_id,ip_address,stats):
 
     if not dp_id in sg.switches:
         sg.switches.add(dp_id)
-
 
 def datapath_leave_callback(sg,dp_id):
     if dp_id in sg.switches:
@@ -154,9 +192,25 @@ class nddi_dbus_readonly(Component):
         self.register_for_datapath_leave(lambda dp : 
                                           datapath_leave_callback(self.sg,dp) )
 
+        self.register_for_flow_stats_in(self.flow_stats_in_handler)
+        self.fire_flow_stats_timer()
+
+
+    def fire_flow_stats_timer(self):
+        for dpid in self.sg.switches:
+            self.collection_epoch += 1
+            flow = of.ofp_match()
+            flow.wildcards = 0xffffffff
+            self.send_flow_stats_request(dpid, flow,0xff)
+
+        self.post_callback(60, self.fire_flow_stats_timer)
+
+
     def getInterface(self):
         return str(nddi_dbus_readonly)
 
+    def flow_stats_in_handler(self, dpid, flows, done, xid):
+        logger.info("flowmod received at: " + time.time() + " from dpid: " + dpid)
 
 def getFactory():
     class Factory:

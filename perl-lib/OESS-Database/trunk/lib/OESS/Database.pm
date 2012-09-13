@@ -31,11 +31,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 1.0.2
+Version 1.0.3
 
 =cut
 
-our $VERSION = '1.0.2';
+our $VERSION = '1.0.3';
 
 =head1 SYNOPSIS
 
@@ -5037,6 +5037,51 @@ sub get_current_actions{
     
 }
 
+
+=head2 can_modify_circuit
+
+=cut
+
+sub can_modify_circuit{
+    my $self = shift;
+    my %params = @_;
+
+    if(!defined($params{'circuit_id'})){
+	$self->_set_error("can_modify_circuit requires a circuit_id");
+	return;
+    }
+
+    if(!defined($params{'username'})){
+	$self->_set_error("can_modify_circuit requires a username");
+	return;
+    }
+
+    if(!defined($params{'workgroup_id'})){
+	$self->_set_error("can_modify_circuit requires a workgroup_id");
+	return;
+    }
+
+    my $user_id = $self->get_user_id_by_auth_name( auth_name => $params{'username'});
+    my $is_user_in_workgroup = $self->is_user_in_workgroup( workgroup_id => $params{'workgroup_id'}, 
+							    user_id => $user_id);
+
+    if(!$is_user_in_workgroup){
+	return 0;
+    }
+
+    my $query = "select workgroup_id from circuit where circuit_id = ?";
+    my $res = $self->_execute_query($query,[$params{'circuit_id'}])->[0];
+    if(!defined($res)){
+	$self->_set_error("Unable to find circuit with id " . $params{'circuit_id'});
+	return;
+    }
+
+    if($res->{'workgroup_id'} == $params{'workgroup_id'}){
+	return 1;
+    }
+
+    return 0;
+}
 
 
 =head2 get_circuits_by_state

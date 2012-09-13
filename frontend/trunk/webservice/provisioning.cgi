@@ -1,4 +1,4 @@
-#!/usr/bin/perl -T
+[>0;95;c#!/usr/bin/perl -T
 #
 ##----- NDDI OESS provisioning.cgi
 ##-----                                                                                  
@@ -263,8 +263,23 @@ sub remove_circuit {
 
     my $circuit_id  = $cgi->param('circuit_id');
     my $remove_time = $cgi->param('remove_time'); 
-
+    my $workgroup_id = $cgi->param('workgroup_id');
     $results->{'results'} = [];
+
+    my $can_remove = $db->can_modify_circuit(circuit_id  => $circuit_id,
+					     user_name   => $ENV{'REMOTE_USER'},
+					     workgroup_id => $workgroup_id
+	);
+    
+    if (! defined $can_remove){
+        $results->{'error'}   = $db->get_error();
+        return $results;
+    }
+
+    if($can_remove < 1){
+	$results->{'error'} = "Users and workgroup do not have permission to remove this circuit";
+	return $results;
+    }
 
     # removing it now, otherwise we'll just schedule it for later
     if ($remove_time && $remove_time <= time()){
@@ -287,15 +302,16 @@ sub remove_circuit {
     }
 
     my $output = $db->remove_circuit(circuit_id  => $circuit_id,
-				     remove_time => $remove_time,
-				     user_name   => $ENV{'REMOTE_USER'}
-	                            );
+                                     remove_time => $remove_time,
+				     user_name   => $ENV{'REMOTE_USER'},
+                                     workgroup_id => $workgroup_id
+	);
 
     if (! defined $output){
-	$results->{'error'}   = $db->get_error();
-	return $results;
+        $results->{'error'}   = $db->get_error();
+        return $results;
     }
-    
+
     $results->{'results'} = [{success => 1}];
     
     return $results;

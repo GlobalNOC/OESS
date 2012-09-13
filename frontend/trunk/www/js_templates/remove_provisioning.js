@@ -212,7 +212,7 @@ function removeLocalCircuit(){
 	}
     };
 
-    var postVars = "action=remove_circuit&circuit_id="+encodeURIComponent(circuit_id)+"&remove_time="+encodeURIComponent(remove_time);
+    var postVars = "action=remove_circuit&circuit_id="+encodeURIComponent(circuit_id)+"&remove_time="+encodeURIComponent(remove_time) + "&workgroup_id=" + encodeURIComponent(session.data.workgroup_id);
 
     ds.sendRequest(postVars, {success: handleSuccess, failure: handleFailure, scope: this});
 }
