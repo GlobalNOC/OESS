@@ -1332,7 +1332,8 @@ function setup_network_tab(){
 	    var lat        = args[0].lat;
 	    var lon        = args[0].lon;
 	    var vlan_range = args[0].vlan_range;
-
+	    var default_drop = args[0].default_drop;
+	    var default_forward = args[0].default_forward;
 	    var feature = args[0].feature;
 
 	    this.changeNodeImage(feature, this.ACTIVE_IMAGE);
@@ -1361,7 +1362,16 @@ function setup_network_tab(){
 			  "<tr>" +
 			  "<td>Vlan Range:</td>" + 
 			  "<td><input type='text' id='active_node_vlan_range' size='10'></td>" +
-			  "</tr>" + 
+			  "</tr>" +
+			  "<tr>" +
+			  "<td colspan='2'>Default Forward LLDP to controller</td>"+
+			  "<td><input type='checkbox' id='active_node_default_forward' checked /></td>" +
+			  "</tr>" +
+			  "<tr>" +
+			  "<td colspan='2'>Default Drop Rule</td>" +
+			  "<td><input type='checkbox' id='active_node_default_drop' checked /></td>" +
+			  "</td>" +
+			  "</tr>" +
 			  "</table>"
 			  );
 
@@ -1377,7 +1387,14 @@ function setup_network_tab(){
 	    YAHOO.util.Dom.get('active_node_name').value        = node;
 	    YAHOO.util.Dom.get('active_node_lat').value         = lat;
 	    YAHOO.util.Dom.get('active_node_lon').value         = lon; 
-	    YAHOO.util.Dom.get('active_node_vlan_range').value  = vlan_range; 
+	    YAHOO.util.Dom.get('active_node_vlan_range').value  = vlan_range;
+	    if(default_drop == 0){
+		YAHOO.util.Dom.get('active_node_default_drop').checked = false;
+	    }
+
+	    if(default_forward == 0){
+		YAHOO.util.Dom.get('active_node_default_forward').checked = false;
+	    }
 
 	    var save_button   = new YAHOO.widget.Button("save_active_node", {label: "Update Device"});
 	    var delete_button = new YAHOO.widget.Button("delete_active_node", {label: "Decomission Device"});
@@ -1387,6 +1404,8 @@ function setup_network_tab(){
 		    var new_lat   = YAHOO.util.Dom.get('active_node_lat').value;
 		    var new_lon   = YAHOO.util.Dom.get('active_node_lon').value;
 		    var new_range = YAHOO.util.Dom.get('active_node_vlan_range').value;
+		    var new_default_drop = YAHOO.util.Dom.get('active_node_default_drop').checked;
+		    var new_default_forward = YAHOO.util.Dom.get('active_node_default_forward').checked;
 
 		    if (! new_name){
 			alert("You must specify a name for this device.");
@@ -1413,7 +1432,7 @@ function setup_network_tab(){
 			}				
 		    }
 
-		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_node&node_id="+node_id+"&name="+encodeURIComponent(new_name)+"&latitude="+new_lat+"&longitude="+new_lon+"&vlan_range="+encodeURIComponent(new_range));
+		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_node&node_id="+node_id+"&name="+encodeURIComponent(new_name)+"&latitude="+new_lat+"&longitude="+new_lon+"&vlan_range="+encodeURIComponent(new_range) + "&default_drop=" + encodeURIComponent(new_default_drop) + "&default_forward=" + encodeURIComponent(new_default_forward));
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
 		    ds.responseSchema = {
@@ -1553,7 +1572,16 @@ function setup_discovery_tab(){
 				       "<tr>" + 
 				       "<td>Vlan Range:</td>" + 
 				       "<td><input type='text' id='vlan_range' size='10'></td>" +
-				       "</tr>" + 
+				       "</tr>" +
+				       "<tr>" +
+				       "<td colspan='2'>Default Forward LLDP to controller</td>"+
+				       "<td><input type='checkbox' id='default_forward' checked /></td>" +
+				       "</tr>" +
+				       "<tr>" +
+				       "<td colspan='2'>Default Drop Rule</td>" + 
+				       "<td><input type='checkbox' id='default_drop' checked /></td>" +
+				       "</td>" +
+				       "</tr>" +
 				       "</table>"
 				       );
 
@@ -1577,6 +1605,14 @@ function setup_discovery_tab(){
 	       YAHOO.util.Dom.get('vlan_range').value = record.getData('vlan_range');
 	    }	    
 
+	    if(record.getData('default_forward')){
+		YAHOO.util.Dom.get('default_forward').checked = record.getData('default_forward');
+	    }
+
+	    if(record.getData('default_drop')){
+		YAHOO.util.Dom.get('default_drop').checked = record.getData('default_drop');
+            }
+
 	    YAHOO.util.Dom.get("node_name").focus();
 
 	    var confirm_button = new YAHOO.widget.Button("confirm_node", {label: "Confirm Device"});
@@ -1587,7 +1623,8 @@ function setup_discovery_tab(){
 		    var lon   = YAHOO.util.Dom.get('node_lon').value;
 		    var name  = YAHOO.util.Dom.get('node_name').value;
 		    var range = YAHOO.util.Dom.get('vlan_range').value;
-
+		    var default_drop = YAHOO.util.Dom.get('default_drop').checked;
+		    var default_forward = YAHOO.util.Dom.get('default_forward').checked;
 		    if (! name){
 			alert("You must specify a name for this device.");
 			return;
@@ -1618,7 +1655,7 @@ function setup_discovery_tab(){
 			}				
 		    }
 
-		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=confirm_node&node_id=" + record.getData('node_id') + "&name=" + encodeURIComponent(name) + "&latitude=" + encodeURIComponent(lat) + "&longitude=" + encodeURIComponent(lon) + "&vlan_range=" + encodeURIComponent(range));
+		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=confirm_node&node_id=" + record.getData('node_id') + "&name=" + encodeURIComponent(name) + "&latitude=" + encodeURIComponent(lat) + "&longitude=" + encodeURIComponent(lon) + "&vlan_range=" + encodeURIComponent(range) + "&default_drop=" + encodeURIComponent(default_drop) + "&default_forward=" + encodeURIComponent(default_forward));
 
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 

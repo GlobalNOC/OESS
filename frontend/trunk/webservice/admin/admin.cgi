@@ -525,12 +525,28 @@ sub confirm_node {
     my $long    = $cgi->param('longitude');
     my $lat     = $cgi->param('latitude');
     my $range   = $cgi->param('vlan_range');
+    my $default_drop = $cgi->param('default_drop');
+    my $default_forward = $cgi->param('default_forward');
+
+    if($default_drop eq 'true'){
+	$default_drop = 1;
+    }else{
+	$default_drop = 0;
+    }
+
+    if($default_forward eq 'true'){
+	$default_forward = 1;
+    }else{
+	$default_forward = 0;
+    }
 
     my $result = $db->confirm_node(node_id    => $node_id,
 				   name       => $name,
 				   longitude  => $long,
 				   latitude   => $lat,
-				   vlan_range => $range
+				   vlan_range => $range,
+				   default_forward => $default_forward,
+				   default_drop => $default_drop
 	                           );
 
     if (! defined $result){
@@ -553,12 +569,29 @@ sub update_node {
     my $long    = $cgi->param('longitude');
     my $lat     = $cgi->param('latitude');
     my $range   = $cgi->param('vlan_range');
+    my $default_drop = $cgi->param('default_drop');
+    my $default_forward= $cgi->param('default_forward');
+
+    if($default_drop eq 'true'){
+	$default_drop =1;
+    }else{
+        $default_drop =0;
+    }
+
+    if($default_forward eq 'true'){
+        $default_forward = 1;
+    }else{
+        $default_forward = 0;
+    }
+
 
     my $result = $db->update_node(node_id    => $node_id,
 				  name       => $name,
 				  longitude  => $long,
 				  latitude   => $lat,
-				  vlan_range => $range
+				  vlan_range => $range,
+				  default_forward => $default_forward,
+				  default_drop => $default_drop
 	);
     
     if (! defined $result){

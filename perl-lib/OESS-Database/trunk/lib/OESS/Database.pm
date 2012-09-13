@@ -864,7 +864,7 @@ sub get_map_layers {
 
     # grab only the local network
     my $query = "select network.longitude as network_long, network.latitude as network_lat, network.name as network_name, " .
-	" node.longitude as node_long, node.latitude as node_lat, node.name as node_name, node.vlan_tag_range, node.node_id as node_id, " .
+	" node.longitude as node_long, node.latitude as node_lat, node.name as node_name, node.vlan_tag_range, node.node_id as node_id, node.default_drop as default_drop, node.default_forward as default_forward, " .
 	" to_node.name as to_node, " .
 	" link.name as link_name, if(intA.operational_state = 'up' && intB.operational_state = 'up', 'up', 'down') as link_state, if(int_instA.capacity_mbps > int_instB.capacity_mbps, int_instB.capacity_mbps, int_instA.capacity_mbps) as capacity, link.link_id as link_id " .
 	"from node " .
@@ -919,7 +919,9 @@ sub get_map_layers {
 							       "node_lat"     => $row->{'node_lat'},
 							       "node_long"    => $row->{'node_long'},
 							       "node_id"      => $row->{'node_id'},
-							       "vlan_range"   => $row->{'vlan_tag_range'}
+							       "vlan_range"   => $row->{'vlan_tag_range'},
+							       "default_drop" => $row->{'default_drop'},
+							       "default_forward" => $row->{'default_forward'}
 							   };
 
 	# make sure we have an array even if we never get any links for this node
@@ -2341,6 +2343,14 @@ sub confirm_node {
     my $lat        = $args{'latitude'};
     my $long       = $args{'longitude'};
     my $vlan_range = $args{'vlan_range'};
+    my $default_drop = $args{'default_drop'};
+    my $default_forward = $args{'default_forward'};
+    if(!defined($default_drop)){
+	$default_drop = 1;
+    }
+    if(!defined($default_forward)){
+	$default_forward = 1;
+    }
 
     $self->_start_transaction();
 
@@ -2351,8 +2361,8 @@ sub confirm_node {
 	return undef;
     }
 
-    $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ?, vlan_tag_range = ? where node_id = ?",
-	                            [$name, $long, $lat, $vlan_range, $node_id]
+    $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ?, vlan_tag_range = ?, default_drop = ?, default_forward = ? where node_id = ?",
+	                            [$name, $long, $lat, $vlan_range,$default_drop, $default_forward, $node_id]
 	                           );
 
     if ($result != 1){
@@ -2374,11 +2384,19 @@ sub update_node {
     my $lat        = $args{'latitude'};
     my $long       = $args{'longitude'};
     my $vlan_range = $args{'vlan_range'};
+    my $default_drop = $args{'default_drop'};
+    my $default_forward= $args{'default_forward'};
+    if(!defined($default_drop)){
+	$default_drop =1;
+    }
+    if(!defined($default_forward)){
+        $default_forward = 1;
+    }
 
     $self->_start_transaction();
 
-    my $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ?, vlan_tag_range = ? where node_id = ?",
-				       [$name, $long, $lat, $vlan_range, $node_id]
+    my $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ?, vlan_tag_range = ?,default_drop = ?, default_forward = ? where node_id = ?",
+				       [$name, $long, $lat, $vlan_range,$default_drop,$default_forward, $node_id]
 	                              );
 
     if ($result != 1){
