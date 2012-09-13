@@ -479,6 +479,17 @@ CREATE TABLE `oess_version` (
   `version` varchar(32) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `oess_version`
+--
+
+LOCK TABLES `oess_version` WRITE;
+/*!40000 ALTER TABLE `oess_version` DISABLE KEYS */;
+INSERT INTO `oess_version` VALUES ('1.0.3');
+/*!40000 ALTER TABLE `oess_version` ENABLE KEYS */;
+UNLOCK TABLES;
+
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 
