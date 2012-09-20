@@ -1242,7 +1242,7 @@ void Handshake_fsm::register_switch() {
     mgmt_map.insert(mhashmap::value_type(dpid, mgmt_id));
 
     /* delete all flows on this switch */
-    {
+    /*    {
         ofp_flow_mod* ofm;
         size_t size = sizeof *ofm;
         boost::shared_array<char> raw_of(new char[size]);
@@ -1261,10 +1261,10 @@ void Handshake_fsm::register_switch() {
         ofm->flags        = htons(0);
         /* XXX OK to do non-blocking send?  We do so with all other
          * commands on switch join */
-        if ( send_openflow_command(dpid, &ofm->header, false) == EAGAIN) {
+    /*if ( send_openflow_command(dpid, &ofm->header, false) == EAGAIN) {
               lg.err("Error, unable to clear flow table on startup");
         }
-    }
+    }*/
 
     lg.dbg("Registering switch with DPID = %"PRIx64"\n",dpid.as_host()); 
     /* Really we want to just dispatch this event immediately, but that would
