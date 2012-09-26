@@ -707,7 +707,7 @@ sub get_node_dpid_hash {
 sub get_current_nodes{
     my $self = shift;
 
-    my $nodes = $self->_execute_query("select node.name from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1",[]);
+    my $nodes = $self->_execute_query("select node.name, node_instantiation.dpid from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1",[]);
     
     return $nodes;   
 }

@@ -94,7 +94,8 @@ sub new {
 	_log("Could not make database object");
 	exit(1);
     }
-
+    my @tmp;
+    $self->{'nodes_for_diff'} = \@tmp;
     $self->{'db'} = $db;
 
     dbus_method("addVlan", ["uint32"], ["string"]);
@@ -107,28 +108,10 @@ sub new {
 sub _sync_database_to_network {
     my $self = shift;
 
-    my $current_circuits = $self->{'db'}->get_current_circuits();
-
-    if (! defined $current_circuits){
-	_log("!!!Unable to sync database to network!!!\nSleeping 10 seconds to give you a chance to abort (control-c)...");
-	sleep(10);
-	return;
+    my $nodes = $self->{'db'}->get_current_nodes();
+    foreach my $node(@$nodes){
+	push(@{$self->{'nodes_for_diff'}},$node->{'dpid'});
     }
-    
-    foreach my $circuit (@$current_circuits){
-	my $circuit_id   = $circuit->{'circuit_id'};
-	my $circuit_name = $circuit->{'name'}; 
-	my $state        = $circuit->{'state'};
-
-	next unless ($state eq "deploying" || $state eq "active");
-
-	_log("  - Syncing \"$circuit_name\" (id = $circuit_id)...");
-
-	#!!! would probably be useful to have a meaningful return code here
-	$self->addVlan($circuit_id);
-    }
-
-    return 1;
 }
 
 sub _generate_forward_rule{
@@ -171,7 +154,7 @@ sub _generate_forward_rule{
     $rule{'sw_act'}	      = $sw_act;
     $rule{'dpid'}             = dbus_uint64($dpid);
     $rule{'attr'}{'DL_VLAN'}  = dbus_uint16($tag);
-    $rule{'attr'}{'IN_PORT'}  = dbus_uint16($in_port);
+    $rule{'attr'}{'IN_PORT'}  = dbus_uint1o6($in_port);
 
     my @action;
     $action[0][0]             = dbus_uint16(OFPAT_OUTPUT);
@@ -283,12 +266,14 @@ sub _generate_commands{
      my $circuit_details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
 
     if (!defined $circuit_details){
+	_log("No Such Circuit");
         #--- no such ckt error
         #--- !!! need to set error !!!
         return undef;
     }
     my $dpid_lookup  = $self->{'db'}->get_node_dpid_hash();
     if(!defined $dpid_lookup){
+	_log("No Such DPID");
 	#--- some sorta of internal error
 	#--- !!! need to set error !!!
 	return undef;
@@ -507,6 +492,56 @@ sub datapath_join{
 	}
     }
 
+    #set this node for diffing!
+    push(@{$self->{'nodes_for_diff'}},$dpid);
+
+
+}
+
+sub _replace_flowmod{
+    my $self = shift;
+    my $dpid = shift;
+    my $delete_command = shift;
+    my $new_command = shift;
+    my $xid;
+    _log("replacing flowmods");
+
+    if(!defined($delete_command) && !defined($new_command)){
+	return undef;
+    }
+
+    my @xids;
+    if(defined($delete_command)){
+	#delete this flowmod
+	$xid = $self->{'of_controller'}->delete_datapath_flow($dpid,$delete_command->{'attr'});
+	push(@xids, $xid);
+    }
+    
+    if(defined($new_command)){
+	$xid = $self->{'of_controller'}->install_datapath_flow($dpid,$new_command->{'attr'},0,0,$new_command->{'action'},$new_command->{'attr'}->{'IN_PORT'});
+	push(@xids, $xid);
+	#wait for the delete to take place
+    }
+
+    my $result = $self->_poll_xids(\@xids);
+    return $result;
+}
+
+sub _process_flow_stats_to_command{
+    my $port_num = shift;
+    my $vlan = shift;
+    
+    my %tmp;
+    $tmp{'attr'}{'DL_VLAN'} = dbus_uint16($vlan);
+    $tmp{'attr'}{'IN_PORT'} = dbus_uint16($port_num);
+    return \%tmp;
+}
+
+sub _do_diff{
+    my $self = shift;
+    my $dpid = shift;
+    my $current_flows = shift;
+    _log("Diffing DPID: $dpid");
     #--- get the set of circuits
     my $current_circuits = $self->{'db'}->get_current_circuits();
     if (! defined $current_circuits){
@@ -521,15 +556,79 @@ sub datapath_join{
         my $state        = $circuit->{'state'};
     
         next unless ($state eq "deploying" || $state eq "active");
-    
-        _log("  - Syncing dpid=$dpid \"$circuit_name\" (id = $circuit_id)...");
-    
-        #--- call addVlan but pass a second arg of dpid that tells add to only update the specified dpid.
-        #--- in the case where a switch goes down, the port_status event will trigger a vlan to fail over to 
-        #--- backup, if the port going down was caused by a switch crashing, then when it reboots, we will get
-        #--- this join event, and we will readd the primary path which will likely be non-active.
-        $self->addVlan($circuit_id,$dpid);
+	#--- get the set of commands needed to create this vlan per design
+	my $commands = $self->_generate_commands($circuit_id,FWDCTL_ADD_VLAN);
+	foreach my $command (@$commands){
+	    #ignore rules not for this dpid
+	    next if($command->{'dpid'}->value() != $dpid);
+	    #ok so we have our list of rules for the 
+	    if(defined($current_flows->{$command->{'attr'}->{'IN_PORT'}->value()})){
+		my $port = $current_flows->{$command->{'attr'}->{'IN_PORT'}->value()};
+		if(defined($port->{$command->{'attr'}->{'DL_VLAN'}->value()})){
+		    my $action_list = $port->{$command->{'attr'}->{'DL_VLAN'}->value()}->{'actions'};
+		    $port->{$command->{'attr'}->{'DL_VLAN'}->value()}->{'seen'} = 1;
+		    #ok... so our match matches...
+		    #does our action match?
+		    if($#{$action_list} != $#{$command->{'action'}}){
+			_log("Flowmod actions do not match, removing and replacing");
+			#replace the busted flowmod with our new flowmod...
+			my $result = $self->_replace_flowmod($dpid,_process_flow_stats_to_command($command->{'attr'}->{'IN_PORT'}->value(),$command->{'attr'}->{'DL_VLAN'}->value()),$command);
+			next;
+		    }
+		    
+		    for(my $i=0;$i<=$#{$command->{'action'}};$i++){
+			my $action = $command->{'action'}->[$i];
+			my $action2 = $action_list->[$i];
+			if($action2->{'type'} == $action->[0]->value()){
+			    if($action2->{'type'} == 0){
+				#this is type of output
+				if($action2->{'port'} == $action->[1]->[1]->value()){
+				    #perfect keep going
+				}else{
+				    _log("Flowmod actions do not match, replacing");
+				    #replace the busted flowmod with our new flowmod...
+				    my $result = $self->_replace_flowmod($dpid,_process_flow_stats_to_command($command->{'attr'}->{'IN_PORT'}->value(),$command->{'attr'}->{'DL_VLAN'}->value()),$command);
+				    last;
+				}
+			    }elsif($action2->{'type'} == 1){
+				#this is type of set vlan
+				if($action2->{'vlan_vid'} == $action->[1]->value()){
+				    #perfect keep going
+				}else{
+				    _log("Flowmod actions do not match, replacing");
+				    #replace the busted flwomod with our new flowmod
+				    my $result = $self->_replace_flowmod($dpid,_process_flow_stats_to_command($command->{'attr'}->{'IN_PORT'}->value(),$command->{'attr'}->{'DL_VLAN'}->value()),$command);
+				    last;
+				}
+			    }
+			}
+		    }
+		}else{
+		    _log("adding a missing flowmod");
+		    #match doesn't exist in our current flows 
+		    my $result = $self->_replace_flowmod($dpid,undef,$command);
+		}
+	    }else{
+		_log("adding a missing flowmod");
+		#match doesn't exist in our current flows
+		my $result = $self->_replace_flowmod($dpid,undef,$command);
+	    }
+	}
     }
+    #ok, now we need to figure out if we saw flowmods that we weren't suppose to
+    foreach my $port_num (keys (%{$current_flows})){
+	my $port = $current_flows->{$port_num};
+	foreach my $vlan (keys (%{$port})){
+	    if($port->{$vlan}->{'seen'} == 1){
+		next;
+	    }else{
+		_log("Removing flowmod that was not suppose to be there");
+		my $result = $self->_replace_flowmod($dpid,_process_flow_stats_to_command($port_num,$vlan),undef);
+	    }
+	}
+    }
+
+    
     print "datapath_join: $dpid: circuits resynched \n";
 }
     
@@ -611,6 +710,43 @@ sub port_status{
 	#--- the primary is determined to be intact.
 	
         print "port status: $dpid: $reason: ".Dumper($info);
+}
+
+sub _process_flows_to_hash{
+    my $flows = shift;
+    my $tmp = {};
+
+    foreach my $flow (@$flows){
+	my $match = $flow->{'match'};
+	if(!defined($match->{'in_port'})){
+	    next;
+	}
+	$tmp->{$match->{'in_port'}}->{$match->{'dl_vlan'}} = {seen => 0,actions => $flow->{'actions'}};
+    }
+
+    return $tmp;
+}
+
+sub flow_stats_in{
+    my $self = shift;
+    my $dpid = shift;
+    my $flows = shift;
+
+    if($#{$self->{'nodes_for_diff'}} < 0){
+	return;
+    }
+
+    for(my $i=0;$i<=$#{$self->{'nodes_for_diff'}};$i++){
+	my $node = $self->{'nodes_for_diff'}->[$i];
+	if($node == $dpid){
+	    #process the flow_rules into a lookup hash
+	    my $hash = _process_flows_to_hash($flows);
+	    splice(@{$self->{'nodes_for_diff'}},$i,1);
+	    #now that we have the lookup hash of flow_rules
+	    #do the diff
+	    $self->_do_diff($dpid,$hash);
+	} 
+    }
 }
 
 sub link_event {
@@ -872,10 +1008,16 @@ sub core{
 	$srv_object->link_event($a_dpid,$a_port,$z_dpid,$z_port,$status);
     }
 
+    sub flow_stats_callback{
+	my $dpid = shift;
+	my $flows = shift;
+	$srv_object->flow_stats_in($dpid,$flows);
+    }
+
     $dbus->connect_to_signal("datapath_join",\&datapath_join_callback);
     $dbus->connect_to_signal("port_status",\&port_status_callback);
     $dbus->connect_to_signal("link_event",\&link_event_callback);
-   
+    $dbus->connect_to_signal("flow_stats_in",\&flow_stats_callback);
     $dbus->start_reactor();
 }
 
