@@ -71,7 +71,7 @@ ACI_PACKAGE([netapps],[misc network apps],
                	routing user_event_log tests topology discovery 
                	bindings_storage switchstats flow_fetcher data
                	switch_management networkstate hoststate tablog 
-               	route lavi monitoring spanning_tree flowtracer
+               	route lavi monitoring spanning_tree flowtracer nddi
                 #add netapps component here
 		],
                [yes])
