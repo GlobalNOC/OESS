@@ -1,4 +1,4 @@
-[>0;95;c#!/usr/bin/perl -T
+#!/usr/bin/perl -T
 #
 ##----- NDDI OESS provisioning.cgi
 ##-----                                                                                  
