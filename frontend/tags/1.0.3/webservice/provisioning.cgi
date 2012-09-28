@@ -1,4 +1,4 @@
-[>0;95;c#!/usr/bin/perl -T
+#!/usr/bin/perl -T
 #
 ##----- NDDI OESS provisioning.cgi
 ##-----                                                                                  
@@ -267,7 +267,7 @@ sub remove_circuit {
     $results->{'results'} = [];
 
     my $can_remove = $db->can_modify_circuit(circuit_id  => $circuit_id,
-					     user_name   => $ENV{'REMOTE_USER'},
+					     username   => $ENV{'REMOTE_USER'},
 					     workgroup_id => $workgroup_id
 	);
     

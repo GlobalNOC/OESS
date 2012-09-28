@@ -1,6 +1,6 @@
 Name:		oess-frontend		
 Version:	1.0.3
-Release:	1%{?dist}
+Release:	3%{?dist}
 Summary:	The core oess service provides
 
 Group:		Network
@@ -18,7 +18,6 @@ Requires:       nddi-tiles
 Requires:	perl-Crypt-SSLeay
 Requires:	xmlsec1
 Requires:	xmlsec1-openssl
-Requires:	perl-SOAP-Data-Builder
 BuildArch:	noarch
 %description
 

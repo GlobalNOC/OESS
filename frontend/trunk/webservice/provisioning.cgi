@@ -303,7 +303,7 @@ sub remove_circuit {
 
     my $output = $db->remove_circuit(circuit_id  => $circuit_id,
                                      remove_time => $remove_time,
-				     user_name   => $ENV{'REMOTE_USER'},
+				     username   => $ENV{'REMOTE_USER'},
                                      workgroup_id => $workgroup_id
 	);
 

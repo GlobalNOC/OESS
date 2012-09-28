@@ -13,5 +13,10 @@ Makefile.PL
 MANIFEST
 META.yml
 README
+share/dummy_populate.pl
 share/nddi.sql
+share/upgrade/oess-1.0.2-1.0.3
+share/xml/import.rnc
 t/00-load_base.t
+t/xml_dumps/dump1.xml
+t/xml_dumps/dump_trans.xml
