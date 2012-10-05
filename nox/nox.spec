@@ -17,7 +17,7 @@ Requires: dbus-python, python,openssl,swig,python,python-twisted,pygobject2
 The dbus enhanced openflow conrtoller
 
 %prep
-%setup -q
+%setup -q -c nox-0.9.3
 
 
 %build
