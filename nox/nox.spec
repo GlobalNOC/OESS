@@ -6,7 +6,7 @@ Summary: nox an openflow controller
 Group:	Networking	
 License: GPLv3	
 URL:	http://www.noxrepo.org	
-Source0: nox-0.9.3.tar.gz	
+Source0: nox.tar.gz	
 #BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 
