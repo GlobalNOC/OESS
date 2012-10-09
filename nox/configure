@@ -17872,6 +17872,7 @@ _ACEOF
                	bindings_storage switchstats flow_fetcher data
                	switch_management networkstate hoststate tablog
                	route lavi monitoring spanning_tree flowtracer
+		nddi
                 #add netapps component here
 		\""`
           eval `echo "HAVE_netapps=yes"`
