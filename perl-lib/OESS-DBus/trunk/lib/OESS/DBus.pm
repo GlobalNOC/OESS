@@ -83,8 +83,17 @@ sub new{
 
 sub start_reactor{
     my $self = shift;
+    my %params = @_;
     
     $self->{'reactor'} = Net::DBus::Reactor->main();
+
+    #add any timeouts
+    if(defined($params{'timeouts'})){
+	foreach my $timeout (@{$params{'timeouts'}}){
+	    $self->{'reactor'}->add_timeout($timeout->{'interval'},$timeout->{'callback'});
+	}
+    }
+
     $self->{'reactor'}->run();
 }
 

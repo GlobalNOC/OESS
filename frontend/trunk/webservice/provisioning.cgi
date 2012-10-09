@@ -165,6 +165,11 @@ sub provision_circuit {
     my @remote_nodes = $cgi->param('remote_node');
     my @remote_tags  = $cgi->param('remote_tag');
 
+    my $workgroup_name = $db->get_workgroup_by_id( workgroup_id => $workgroup_id);
+    if($workgroup_name eq 'Demo'){
+	return {error => 'sorry this is a demo account, and can not actually provision'};
+    }
+
     if (!$circuit_id || $circuit_id eq -1){
 	$output = $db->provision_circuit(description    => $description,
 					 bandwidth      => $bandwidth,

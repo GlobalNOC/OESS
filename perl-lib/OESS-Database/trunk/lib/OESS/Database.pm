@@ -782,7 +782,7 @@ sub create_link_instantiation{
 sub get_edge_links{
     my $self = shift;
     my $reserved_bw = shift;
-    my $links = $self->_execute_query("select link.name, link_instantiation.interface_a_id, link_instantiation.interface_z_id, node_a.name as node_a_name,node_b.name as node_b_name,least(interface_inst_a.capacity_mbps,interface_inst_b.capacity_mbps) as link_capacity, sum(reserved_bandwidth_mbps) as reserved_bw_mbps from link_instantiation,interface as interface_a,interface as interface_b,node as node_a, node as node_b, interface_instantiation as interface_inst_a, interface_instantiation as interface_inst_b,link left join link_path_membership on link_path_membership.link_id=link.link_id and link_path_membership.end_epoch=-1  left join path on link_path_membership.path_id=path.path_id left join path_instantiation on path_instantiation.path_id=path.path_id and path_instantiation.end_epoch=-1 and path_state='active' left join circuit on path.circuit_id=circuit.circuit_id left join circuit_instantiation on circuit.circuit_id=circuit_instantiation.circuit_id and circuit_state='active' where link.link_id=link_instantiation.link_id and  interface_inst_a.end_epoch=-1 and interface_inst_a.interface_id=interface_a.interface_id and link_instantiation.end_epoch=-1 and  interface_a.node_id=node_a.node_id and interface_b.node_id=node_b.node_id and link_instantiation.interface_a_id=interface_a.interface_id and link_instantiation.interface_z_id=interface_b.interface_id and interface_inst_b.end_epoch=-1 and interface_inst_b.interface_id=interface_b.interface_id and interface_a.operational_state = 'up' and interface_b.operational_state = 'up' group by link.link_id having (link_capacity-(IFNULL(reserved_bw_mbps,0)))>?",[$reserved_bw]);
+    my $links = $self->_execute_query("select link.name, link_instantiation.interface_a_id, link_instantiation.interface_z_id, node_a.name as node_a_name,node_b.name as node_b_name,least(interface_inst_a.capacity_mbps,interface_inst_b.capacity_mbps) as link_capacity, sum(reserved_bandwidth_mbps) as reserved_bw_mbps from link_instantiation,interface as interface_a,interface as interface_b,node as node_a, node as node_b, interface_instantiation as interface_inst_a, interface_instantiation as interface_inst_b,link left join link_path_membership on link_path_membership.link_id=link.link_id and link_path_membership.end_epoch=-1  left join path on link_path_membership.path_id=path.path_id left join path_instantiation on path_instantiation.path_id=path.path_id and path_instantiation.end_epoch=-1 and path_state='active' left join circuit on path.circuit_id=circuit.circuit_id left join circuit_instantiation on circuit.circuit_id=circuit_instantiation.circuit_id and circuit_state='active' where link.link_id=link_instantiation.link_id and link_instantiation.link_state = 'active' and interface_inst_a.end_epoch=-1 and interface_inst_a.interface_id=interface_a.interface_id and link_instantiation.end_epoch=-1 and  interface_a.node_id=node_a.node_id and interface_b.node_id=node_b.node_id and link_instantiation.interface_a_id=interface_a.interface_id and link_instantiation.interface_z_id=interface_b.interface_id and interface_inst_b.end_epoch=-1 and interface_inst_b.interface_id=interface_b.interface_id and interface_a.operational_state = 'up' and interface_b.operational_state = 'up' group by link.link_id having (link_capacity-(IFNULL(reserved_bw_mbps,0)))>?",[$reserved_bw]);
 
     return $links;
 
@@ -819,7 +819,7 @@ sub get_node_interfaces {
 
     push(@query_args, $node_name);
 
-    my $query = "select interface.name, interface.description, interface.interface_id from interface " .
+    my $query = "select interface.port_number, interface.name, interface.description, interface.interface_id from interface " .
 	        " join node on node.name = ? and node.node_id = interface.node_id " .
 		" join interface_instantiation on interface_instantiation.end_epoch = -1 and interface_instantiation.interface_id = interface.interface_id ";
 
@@ -841,7 +841,8 @@ sub get_node_interfaces {
     foreach my $row (@$rows){
 	push(@results, {"name"         => $row->{'name'},
 			"description"  => $row->{'description'},
-			"interface_id" => $row->{'interface_id'}
+			"interface_id" => $row->{'interface_id'},
+			"port_number" => $row->{'port_number'}
 	               }
 	    );
     }
@@ -1147,6 +1148,22 @@ sub get_workgroup_details_by_name {
     if (! defined $result){
 	$self->_set_error("Internal error while fetching workgroup details.");
 	return undef;
+    }
+
+    return @$result[0];
+}
+
+sub get_workgroup_details_by_id{
+    my $self = shift;
+    my %args = @_;
+
+    my $workgroup_id = $args{'workgroup_id'};
+
+    my $result = $self->_execute_query("select workgroup_id, name, description from workgroup where workgroup_id = ?", [$workgroup_id]);
+
+    if (! defined $result){
+        $self->_set_error("Internal error while fetching workgroup details.");
+        return undef;
     }
 
     return @$result[0];

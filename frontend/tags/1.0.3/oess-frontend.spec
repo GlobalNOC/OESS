@@ -1,6 +1,6 @@
 Name:		oess-frontend		
 Version:	1.0.3
-Release:	3%{?dist}
+Release:	4%{?dist}
 Summary:	The core oess service provides
 
 Group:		Network
