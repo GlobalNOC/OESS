@@ -17,11 +17,11 @@ Requires: dbus-python, python,openssl,swig,python,python-twisted,pygobject2
 The dbus enhanced openflow conrtoller
 
 %prep
-%setup -q -c nox-0.9.3
+%setup -q -n nox
 
 
 %build
-mkdir build/
+#mkdir build/
 #cd build/
 #../configure --with-boost-filesystem=boost_filesystem --with-boost-unit-test-framework=boost_unit_test_framework
 %configure --with-boost-filesystem=boost_filesystem --with-boost-unit-test-framework=boost_unit_test_framework
