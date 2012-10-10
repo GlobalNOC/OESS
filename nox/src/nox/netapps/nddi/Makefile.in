@@ -649,8 +649,7 @@ nox-install-local:
 	fi;
 
 test:
-	@$(PYTHON) $(top_builddir)/src/nox/coreapps/testharness/testharness.py $(TEST_FLAGS) -b $(top_builddir) ./
-	nddi_dbus_readonly.py
+	@$(PYTHON) $(top_builddir)/src/nox/coreapps/testharness/testharness.py $(TEST_FLAGS) -b $(top_builddir) ./nddi_dbus_readonly.py
 
 
 all-local:  nox-all-local
