@@ -31,11 +31,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 1.0.3
+Version 1.0.4
 
 =cut
 
-our $VERSION = '1.0.3';
+our $VERSION = '1.0.4';
 
 =head1 SYNOPSIS
 
@@ -1107,7 +1107,7 @@ sub get_workgroups {
 
     my $workgroups;
 
-    my $results = $self->_execute_query("select workgroup_id, name from workgroup");
+    my $results = $self->_execute_query("select workgroup_id, name, external_id from workgroup");
 
     if (! defined $results){
 	$self->_set_error("Internal error while fetching workgroups");
@@ -1116,7 +1116,8 @@ sub get_workgroups {
 
     foreach my $workgroup (@$results){
 	push (@$workgroups, {workgroup_id => $workgroup->{'workgroup_id'},
-			     name         => $workgroup->{'name'}
+			     name         => $workgroup->{'name'},
+			     external_id  => $workgroup->{'external_id'}
 	      });
     }
 
@@ -1409,8 +1410,9 @@ sub add_workgroup {
     my %args = @_;
 
     my $name = $args{'name'};
+    my $external_id = $args{'external_id'};
 
-    my $new_wg_id = $self->_execute_query("insert into workgroup (name) values (?)", [$name]);
+    my $new_wg_id = $self->_execute_query("insert into workgroup (name,external_id) values (?,?)", [$name,$external_id]);
 
     if (! defined $new_wg_id){
 	$self->_set_error("Unable to add new workgroup");
