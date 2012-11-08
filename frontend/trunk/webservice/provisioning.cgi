@@ -153,6 +153,10 @@ sub provision_circuit {
     my $description  = $cgi->param('description');
     my $bandwidth    = $cgi->param('bandwidth');
 
+    # TEMPORARY HACK UNTIL OPENFLOW PROPERLY SUPPORTS QUEUING. WE CANT
+    # DO BANDWIDTH RESERVATIONS SO FOR NOW ASSUME EVERYTHING HAS 0 BANDWIDTH RESERVED
+    $bandwidth = 0;
+
     my $provision_time = $cgi->param('provision_time');
     my $remove_time    = $cgi->param('remove_time');
 
