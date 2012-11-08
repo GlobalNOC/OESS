@@ -88,15 +88,23 @@ function init(){
 			   alert("Q-in-Q is not supported at this time.");
 		       }
                      });
+  
+  var bandwidth_holder = new YAHOO.util.Element(YAHOO.util.Dom.get("reserved_bandwidth_holder"));
+  var chosen_domain    = session.data.interdomain || "0";
 
-  var chosen_domain = session.data.interdomain || "0";
+  if (chosen_domain == 0){
+      bandwidth_holder.setStyle("display", "none");
+  }
 
   hookupRadioButtons("interdomain", chosen_domain, function(){
+
 		       if (document.getElementsByName('interdomain')[1].checked){
 			   setNextButton("Proceed to Step 2: Endpoints", "?action=interdomain", verify_inputs);  
+			   bandwidth_holder.setStyle("display", "table-row");
 		       }
 		       else{
 			   setNextButton("Proceed to Step 2: Endpoints", "?action=endpoints", verify_inputs);  			   
+			   bandwidth_holder.setStyle("display", "none");
 		       }
 		     });
 
