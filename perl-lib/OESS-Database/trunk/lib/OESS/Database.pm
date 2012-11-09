@@ -1110,7 +1110,7 @@ sub get_workgroups {
 
     my $workgroups;
 
-    my $results = $self->_execute_query("select workgroup_id, name, external_id from workgroup");
+    my $results = $self->_execute_query("select workgroup_id, name,type, external_id from workgroup");
 
     if (! defined $results){
 	$self->_set_error("Internal error while fetching workgroups");
@@ -1120,7 +1120,8 @@ sub get_workgroups {
     foreach my $workgroup (@$results){
 	push (@$workgroups, {workgroup_id => $workgroup->{'workgroup_id'},
 			     name         => $workgroup->{'name'},
-			     external_id  => $workgroup->{'external_id'}
+			     external_id  => $workgroup->{'external_id'},
+			     type         => $workgroup->{'type'}
 	      });
     }
 
