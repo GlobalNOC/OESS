@@ -59,9 +59,11 @@ sub main {
 	
 	case "provision_circuit" {
 	    $output = &provision_circuit();
-3	}
+	}
 	case "remove_circuit" {
 	    $output = &remove_circuit();
+	}case "fail_over_circuit"{
+	    $output = &fail_over_circuit();
 	}
 	else{
 	    $output = {error => "Unknown action - $action"};
@@ -71,6 +73,36 @@ sub main {
     
     send_json($output);
     
+}
+
+sub _fail_over{
+    my %args = @_;
+    
+    my $bus = Net::DBus->system;
+
+    my $client;
+    my $service;
+    
+    eval {
+	$service = $bus->get_service("org.nddi.fwdctl");
+	$client  = $service->get_object("/controller1");
+    };
+
+    if($@){
+	warn "Error in _connect_to_fwdctl: $@";
+    }
+    
+    if(!defined($client)){
+	return;
+    }
+
+    my $circuit_id = $args{'circuit_id'};
+
+    my $result = $client->changeVlanPath($circuit_id);
+
+    warn "Failover RESULT: $result";
+
+    return $result;
 }
 
 sub _send_add_command {
@@ -326,6 +358,34 @@ sub remove_circuit {
     
     return $results;
 }
+
+sub fail_over_circuit{
+    my $results;
+
+    my $circuit_id  = $cgi->param('circuit_id');
+    my $workgroup_id = $cgi->param('workgroup_id');
+    
+    my $can_fail_over = $db->can_modify_circuit(circuit_id   => $circuit_id,
+						username     => $ENV{'REMOTE_USER'},
+						workgroup_id => $workgroup_id
+	);
+
+    if (! defined $can_fail_over){
+        $results->{'error'}   = $db->get_error();
+        return $results;
+    }
+
+    if($can_fail_over < 1){
+        $results->{'error'} = "Users and workgroup do not have permission to remove this circuit";
+        return $results;
+    }
+    
+    
+
+    return $results;
+}
+
+
 
 sub send_json{
     my $output = shift;
