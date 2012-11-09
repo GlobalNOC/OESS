@@ -111,6 +111,33 @@ function page_init(){
 
       });
 
+  var change_path_button new YAHOO.widget.Button("change_path_button", {label: "Change Path"});
+  change_path_button.on("click", function(){
+	  showConfirm("Doing this may cause a disruption in traffic.  Are you sure?",
+		      function(){
+			  var ds = new YAHOO.widget.Datasource("services/provisioning.cgi?action=fail_over_circuit&circuit_id=" + session.data.circuit_id + "&workgroup_id=" + session.data.workgroup_id);
+			  ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+
+			  ds.connMethodPost = true;
+			  ds.connTimeout    = 30 * 1000; // 30 seconds
+
+			  ds.responseSchema = {
+			      resultsList: "results",
+			      fields: [{key: "success", parser: "number"},
+			               {key: "circuit_id", parser: "number"}
+				      ],
+			      metaFields: {
+				  error: "error",
+				  warning: "warning"
+			      }
+			  };
+		      },
+		      function(){
+			  //do nothing
+		      });
+
+      });
+
   var edit_button = new YAHOO.widget.Button("edit_button", {label: "Edit Circuit"});
 
   edit_button.on("click", function(){

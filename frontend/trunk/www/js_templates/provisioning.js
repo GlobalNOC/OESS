@@ -1,4 +1,4 @@
-<script>
+B1;3201;0c<script>
 
 function init(){  
 

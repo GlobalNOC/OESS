@@ -647,7 +647,7 @@ sub port_status{
 	my $link_status = $info->{'link'};
 	
 	my $link_info   = $self->{'db'}->get_link_by_dpid_and_port(dpid => $dpid, 
-							 port => $port_number);
+								   port => $port_number);
 	
 	if (! defined $link_info || @$link_info < 1){
 	    _log("Could not find link info for dpid = $dpid and port_no = $port_number");
