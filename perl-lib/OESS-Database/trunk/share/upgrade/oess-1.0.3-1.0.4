@@ -8,15 +8,15 @@
 #----- $Id: $                                                        
 #-----                                                               
 #----- This is run when upgrading the database from     
-#----- version 1.0.2 to version 1.0.3                                
+#----- version 1.0.3 to version 1.0.4                                
 #-------------------------------------------------------------------- 
 
 use strict;
 use warnings;
 use OESS::Database;
 
-my $prev_version = "1.0.2";
-my $version = "1.0.3";
+my $prev_version = "1.0.3";
+my $version = "1.0.4";
 
 sub main{
 
@@ -32,7 +32,7 @@ sub main{
     my $dbq = new OESS::Database();
     my $current_version = $dbq->get_oess_schema_version();    
     
-    if(@$current_version[0] eq ''){
+    if($current_version eq '1.0.3'){
 	$dbq->{'dbh'}->begin_work();
 	upgrade($dbq->{'dbh'});
 	$dbq->{'dbh'}->commit();
@@ -68,7 +68,16 @@ sub upgrade{
     my $str = "alter table workgroup add external_id varchar(255)";
     my $sth = $dbh->prepare($str);
     $sth->execute();
-    
+
+    #add a workgroup type field
+    $str = "alter table workgroup add type varchar(20) DEFAULT 'normal'";
+    $sth = $dbh->prepare($str);
+    $sth->execute();
+    #set the default
+    $str = "update workgroup set type='normal'";
+    $sth = $dbh->prepare($str);
+    $sth->execute();
+
     ####################################
     #
     # End all changes

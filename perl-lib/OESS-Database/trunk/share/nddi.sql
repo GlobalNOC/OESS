@@ -430,6 +430,7 @@ CREATE TABLE `workgroup` (
   `description` varchar(255) NOT NULL,
   `name` varchar(255) NOT NULL,
   `external_id` varchar(255) DEFAULT NULL,
+  `type` varchar(20) DEFAULT 'normal',
   PRIMARY KEY (`workgroup_id`),
   UNIQUE KEY `workgroups_idx` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;

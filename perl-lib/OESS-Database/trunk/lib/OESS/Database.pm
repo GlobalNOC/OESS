@@ -1127,6 +1127,25 @@ sub get_workgroups {
     return $workgroups;
 }
 
+=head2 get_workgroup_by_id
+
+=cut
+
+sub get_workgroup_by_id{
+    my $self = shift;
+    my %args = @_;
+
+    my $results = $self->_execute_query("select * from workgroup where workgroup_id = ?",[$args{'workgroup_id'}])->[0];
+
+    if (! defined $results){
+	$self->_set_error("Internal error while fetching workgroups");
+        return undef;
+    }
+
+
+    return $results
+}
+
 =head2 get_workgroup_details_by_name
 
 Returns the details for a workgroup with the name $name.
@@ -1871,12 +1890,13 @@ sub get_current_circuits {
     my %args = @_;
 
     my $workgroup_id = $args{'workgroup_id'};
+    my $workgroup = $self->get_workgroup_by_id( workgroup_id => $args{'workgroup_id'});
 
     my $dbh = $self->{'dbh'};
 
     my @to_pass;
 
-    my $query = "select circuit.name, circuit.description, circuit.circuit_id, " .
+    my $query = "select circuit.workgroup_id, circuit.name, circuit.description, circuit.circuit_id, " .
 	" circuit_instantiation.reserved_bandwidth_mbps, circuit_instantiation.circuit_state, " .
 	" path.path_type, interface.name as int_name, node.name as node_name " .
 	"from circuit " .
@@ -1894,7 +1914,7 @@ sub get_current_circuits {
 	"  left join node_instantiation on node.node_id = node_instantiation.node_id " .
 	"    and node_instantiation.end_epoch = -1 ";
 
-    if ($workgroup_id){
+    if ($workgroup_id && $workgroup->{'type'} ne 'admin'){
 	$query .= " where circuit.workgroup_id = ?";
 	push(@to_pass, $workgroup_id);
     }
@@ -1922,7 +1942,8 @@ sub get_current_circuits {
 					'description' => $row->{'description'},
 					'bandwidth'   => $row->{'reserved_bandwidth_mbps'},
 					'state'       => $row->{'circuit_state'},
-					'endpoints'   => []
+					'endpoints'   => [],
+					'workgroup_id' => $row->{'workgroup_id'}
 	    };
 	    
 	}
@@ -3975,7 +3996,7 @@ sub remove_circuit {
 
     my $circuit_id  = $args{'circuit_id'};
     my $remove_time = $args{'remove_time'};
-    my $user_name   = $args{'user_name'};
+    my $user_name   = $args{'username'};
 
     my $user_id = $self->get_user_id_by_auth_name(auth_name => $user_name);
 
@@ -5117,6 +5138,8 @@ sub can_modify_circuit{
 	$self->_set_error("can_modify_circuit requires a workgroup_id");
 	return;
     }
+    print STDERR Dumper(%params);
+    my $workgroup = $self->get_workgroup_by_id( workgroup_id => $params{'workgroup_id'});
 
     my $user_id = $self->get_user_id_by_auth_name( auth_name => $params{'username'});
     my $is_user_in_workgroup = $self->is_user_in_workgroup( workgroup_id => $params{'workgroup_id'}, 
@@ -5134,6 +5157,11 @@ sub can_modify_circuit{
     }
 
     if($res->{'workgroup_id'} == $params{'workgroup_id'}){
+	return 0 if $workgroup->{'type'} eq 'demo';
+	return 1 if $workgroup->{'type'} eq 'normal' || $workgroup->{'type'} eq 'admin';
+    }
+
+    if($workgroup->{'type'} eq 'admin'){
 	return 1;
     }
 
@@ -5152,7 +5180,7 @@ sub get_circuits_by_state{
     my %params = @_;
 
     if(!defined($params{'state'})){
-	$self->_set_error("get_circuits_by_state requires state paramter to be defined");
+	$self->_set_error("get_circuits_by_state requires state parameter to be defined");
 	return undef;
     }
 

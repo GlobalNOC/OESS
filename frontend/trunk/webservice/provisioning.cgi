@@ -169,8 +169,9 @@ sub provision_circuit {
     my @remote_nodes = $cgi->param('remote_node');
     my @remote_tags  = $cgi->param('remote_tag');
 
-    my $workgroup_name = $db->get_workgroup_by_id( workgroup_id => $workgroup_id);
-    if($workgroup_name eq 'Demo'){
+    my $workgroup = $db->get_workgroup_by_id( workgroup_id => $workgroup_id);
+
+    if($workgroup->{'name'} eq 'Demo'){
 	return {error => 'sorry this is a demo account, and can not actually provision'};
     }
 
@@ -275,8 +276,8 @@ sub remove_circuit {
     my $workgroup_id = $cgi->param('workgroup_id');
     $results->{'results'} = [];
 
-    my $can_remove = $db->can_modify_circuit(circuit_id  => $circuit_id,
-					     user_name   => $ENV{'REMOTE_USER'},
+    my $can_remove = $db->can_modify_circuit(circuit_id   => $circuit_id,
+					     username     => $ENV{'REMOTE_USER'},
 					     workgroup_id => $workgroup_id
 	);
     
@@ -312,7 +313,7 @@ sub remove_circuit {
 
     my $output = $db->remove_circuit(circuit_id  => $circuit_id,
                                      remove_time => $remove_time,
-				     username   => $ENV{'REMOTE_USER'},
+				     user_name   => $ENV{'REMOTE_USER'},
                                      workgroup_id => $workgroup_id
 	);
 
