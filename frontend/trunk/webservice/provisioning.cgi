@@ -52,7 +52,7 @@ sub main {
     }    
 
     my $action = $cgi->param('action');
-
+    print STDERR "action " . $action;
     my $output;
 
     switch ($action){
@@ -62,7 +62,8 @@ sub main {
 	}
 	case "remove_circuit" {
 	    $output = &remove_circuit();
-	}case "fail_over_circuit"{
+	}
+	case "fail_over_circuit"{
 	    $output = &fail_over_circuit();
 	}
 	else{
@@ -380,7 +381,20 @@ sub fail_over_circuit{
         return $results;
     }
     
+
+    my $result = _fail_over(circuit_id => $circuit_id, workgroup_id => $workgroup_id);
+    if(!defined($result)){
+	$results->{'error'} = "Unable to change the path";
+	$results->{'results'} = [{success => 0}];
+    }
     
+    if($result == 0){
+	$results->{'error'} = "Unable to change the path";
+	$results->{'results'} = [{success => 0}];
+    }
+
+    $results->{'results'} = [{success => 1}];
+
 
     return $results;
 }

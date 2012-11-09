@@ -110,33 +110,41 @@ function page_init(){
           }
 
       });
-
-  var change_path_button new YAHOO.widget.Button("change_path_button", {label: "Change Path"});
-  change_path_button.on("click", function(){
-	  showConfirm("Doing this may cause a disruption in traffic.  Are you sure?",
-		      function(){
-			  var ds = new YAHOO.widget.Datasource("services/provisioning.cgi?action=fail_over_circuit&circuit_id=" + session.data.circuit_id + "&workgroup_id=" + session.data.workgroup_id);
-			  ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-
-			  ds.connMethodPost = true;
-			  ds.connTimeout    = 30 * 1000; // 30 seconds
-
-			  ds.responseSchema = {
-			      resultsList: "results",
-			      fields: [{key: "success", parser: "number"},
-			               {key: "circuit_id", parser: "number"}
-				      ],
-			      metaFields: {
-				  error: "error",
-				  warning: "warning"
-			      }
-			  };
-		      },
-		      function(){
-			  //do nothing
-		      });
-
-      });
+  if(session.data.backup_links.length > 0){
+      var change_path_button = new YAHOO.widget.Button("change_path_button", {label: "Change Path"});
+      change_path_button.on("click", function(){
+	      showConfirm("Doing this may cause a disruption in traffic.  Are you sure?",
+			  function(){
+			      var ds = new YAHOO.util.DataSource("services/provisioning.cgi?action=fail_over_circuit&circuit_id=" + session.data.circuit_id + "&workgroup_id=" + session.data.workgroup_id);
+			      ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+			      
+			      ds.connTimeout    = 30 * 1000; // 30 seconds
+			      
+			      ds.responseSchema = {
+				  resultsList: "results",
+				  fields: [{key: "success", parser: "number"},
+			      {key: "circuit_id", parser: "number"}
+					   ],
+				  metaFields: {
+				      error: "error",
+				      warning: "warning"
+				  }
+			      };
+			      ds.sendRequest("",{success: function(){
+					  alert('Successfully changed the path');
+					  window.location.reload();
+				      },
+					  failure: function(){
+					  alert('Unable to change to the backup path');
+				      }},ds);
+			      
+			  },
+			  function(){
+			      //do nothing
+			  });
+	      
+	  });
+  }
 
   var edit_button = new YAHOO.widget.Button("edit_button", {label: "Edit Circuit"});
 
@@ -288,13 +296,9 @@ function setupMeasurementGraph(){
     var time_select = new YAHOO.util.Element(YAHOO.util.Dom.get("traffic_time"));
     time_select.on("change", function(){
 	    var new_start = this.get('element').options[this.get('element').selectedIndex].value;
-
 	    var date = new Date();
-
 	    graph.options.end   = date.valueOf() / 1000;
-
 	    graph.options.start = graph.options.end - new_start;
-
 	    graph.render();
 	});
 
@@ -342,17 +346,11 @@ function setupScheduledEvents(){
 
     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
-
     table.subscribe("rowClickEvent", function(oArgs){
-
 	    var record = this.getRecord(oArgs.target);
-
 	    if (! record) return;
-
 	    var region = YAHOO.util.Dom.getRegion(oArgs.target);
-
 	    showActionPanel(record, [region.left, region.top]);
-
 	});
 
     return table;
@@ -363,8 +361,7 @@ function setupNetworkEvents(){
     YAHOO.util.Dom.get("historical_events_table").innerHTML = "Coming soon...";
     return;
 
-
-    var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_circuit_network_events&circuit_id="+session.data.circuit_id);
+    var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_circuit_network_events&circuit_id=" + session.data.circuit_id);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
     ds.responseSchema = {
@@ -392,13 +389,9 @@ function setupNetworkEvents(){
     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
 
     table.subscribe("rowClickEvent", function(oArgs){
-
 	    var record = this.getRecord(oArgs.target);
-
 	    if (! record) return;
-
 	    var region = YAHOO.util.Dom.getRegion(oArgs.target);
-
 	    showActionPanel(record, [region.left, region.top]);
 	});
 
