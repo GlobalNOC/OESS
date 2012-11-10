@@ -381,7 +381,7 @@ sub fail_over_circuit{
         return $results;
     }
     
-
+    $db->switch_circuit_to_alternate_path(circuit_id => $circuit_id);
     my $result = _fail_over(circuit_id => $circuit_id, workgroup_id => $workgroup_id);
     if(!defined($result)){
 	$results->{'error'} = "Unable to change the path";
