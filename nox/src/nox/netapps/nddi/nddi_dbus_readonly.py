@@ -153,7 +153,6 @@ class nddi_dbus_readonly(Component):
         self.register_for_datapath_leave(lambda dp : 
                                           datapath_leave_callback(self.sg,dp) )
 
-        self.register_for_flow_stats_in(self.flow_stats_in_handler)
 
     def getInterface(self):
         return str(nddi_dbus_readonly)

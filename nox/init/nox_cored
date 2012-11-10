@@ -25,9 +25,9 @@ fi
 name=nox
 #base_dir=/CHANGEME/
 controller=/usr/bin/nox_core
-options=" -d -i ptcp: nddi_dbus  -n /var/log/nox/nox.info"
+options=" -d -i ptcp: nddi_dbus nddi_dbus_readonly -n /var/log/nox/nox.info"
 username=_oess
-lockfile=/var/lock/subsys/snapp-$name
+lockfile=/var/lock/subsys/$name
 command="$controller   $options"
 PIDFILE=/var/run/nox/nox.pid
 command="$controller  -p $PIDFILE $options"
