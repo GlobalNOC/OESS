@@ -1,13 +1,26 @@
-Changes for OE-SS over time
+= Changes for OE-SS over time =
 
-= Introduction =
+== 1.0.4 ==
 
-Add your content here.
+*Added the ability to force a failover of a circuit
+*Added a workgroup type field allowing for groups to be administrator and see all circuits for all workgroups
+*Removed the reserved BW setting for intra-domain circuits (since OF doesn't support this)
+*Fixed a query that prevented us from using circuits in the shortest path calculation when there was 0 BW remaining
 
+== 1.0.3 ==
 
-= Details =
+*Added a nddi_readonly dbus section
+*Added a monitoring webservice capable of only checking on node status
 
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
+== 1.0.2 ==
+
+*Removed flush tables from NOX on node connect
+*Implemented flow diffing in FWDCTL allowing traffic forwarding even if a node disconnects and reconnects
+
+== 1.0.1 ==
+
+a few bug fixes
+
+==1.0.0 ==
+
+*First release on an unsuspecting world!!!
