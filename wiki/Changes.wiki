@@ -2,7 +2,7 @@
 
 == 1.0.4 ==
 
-  * Added the ability to force a failover of a circuit
+  * Added the ability to force a failover of a circuit to a backup path
   * Added a workgroup type field allowing for groups to be administrator and see all circuits for all workgroups
   * Removed the reserved BW setting for intra-domain circuits (since OF doesn't support this)
   * Fixed a query that prevented us from using circuits in the shortest path calculation when there was 0 BW remaining
