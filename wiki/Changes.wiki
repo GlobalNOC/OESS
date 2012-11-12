@@ -2,20 +2,20 @@
 
 == 1.0.4 ==
 
-*Added the ability to force a failover of a circuit
-*Added a workgroup type field allowing for groups to be administrator and see all circuits for all workgroups
-*Removed the reserved BW setting for intra-domain circuits (since OF doesn't support this)
-*Fixed a query that prevented us from using circuits in the shortest path calculation when there was 0 BW remaining
+  *Added the ability to force a failover of a circuit
+  *Added a workgroup type field allowing for groups to be administrator and see all circuits for all workgroups
+  *Removed the reserved BW setting for intra-domain circuits (since OF doesn't support this)
+  *Fixed a query that prevented us from using circuits in the shortest path calculation when there was 0 BW remaining
 
 == 1.0.3 ==
 
-*Added a nddi_readonly dbus section
-*Added a monitoring webservice capable of only checking on node status
+  *Added a nddi_readonly dbus section
+  *Added a monitoring webservice capable of only checking on node status
 
 == 1.0.2 ==
 
-*Removed flush tables from NOX on node connect
-*Implemented flow diffing in FWDCTL allowing traffic forwarding even if a node disconnects and reconnects
+  *Removed flush tables from NOX on node connect
+  *Implemented flow diffing in FWDCTL allowing traffic forwarding even if a node disconnects and reconnects
 
 == 1.0.1 ==
 
@@ -23,4 +23,4 @@ a few bug fixes
 
 ==1.0.0 ==
 
-*First release on an unsuspecting world!!!
+  *First release on an unsuspecting world!!!
