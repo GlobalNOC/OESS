@@ -303,7 +303,7 @@ sub teardownReq {
 
 	my $result = $db->remove_circuit(circuit_id  => $circuit_info->{'circuit_id'},
 					 remove_time => -1,
-					 user_name   => $username
+					 username   => $username
 	                                );
 
 	if (! defined $result){
