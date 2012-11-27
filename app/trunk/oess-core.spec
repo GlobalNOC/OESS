@@ -13,6 +13,8 @@ BuildRequires:	perl
 Requires:	perl(OESS::Database) >= 1.0.4
 Requires:       perl(Net::DBus), dbus, dbus-libs, mysql-server
 Requires:       nox >= 0.9.3
+Requires:		xmlsec1-devel
+Requires:		xmlsec1-openssl-devel
 Requires(interp): /bin/sh
 Requires(rpmlib): rpmlib(CompressedFileNames) <= 3.0.4-1 rpmlib(PayloadFilesHavePrefix) <= 4.0-1
 Requires(post): /bin/sh
