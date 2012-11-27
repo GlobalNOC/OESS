@@ -1106,11 +1106,22 @@ Returns an array of hashes containing basic information for all workgroups.
 
 sub get_workgroups {
     my $self = shift;
-    my %args = @_;
 
+    my %args = ( 'user_id' => undef,
+				 @_,
+				);
+
+	my @dbargs = ();
     my $workgroups;
+	my $sql="select w.workgroup_id, w.name,w.type, w.external_id from workgroup w ";
 
-    my $results = $self->_execute_query("select workgroup_id, name,type, external_id from workgroup");
+	if(defined $args{'user_id'}){
+		$sql .= "join user_workgroup_membership m on w.workgroup_id = m.workgroup_id ".
+		       "join user u on m.user_id = u.user_id and u.user_id = ?";
+		
+		push(@dbargs, $args{'user_id'});
+	}
+	    my $results = $self->_execute_query($sql,\@dbargs);
 
     if (! defined $results){
 	$self->_set_error("Internal error while fetching workgroups");

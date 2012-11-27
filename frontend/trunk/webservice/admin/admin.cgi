@@ -264,10 +264,16 @@ sub add_remote_link {
 }
 
 sub get_workgroups{
-    my $results;
-
-    my $workgroups = $db->get_workgroups();
-
+    
+	my %parameters = (
+					  'user_id' => $cgi->param('user_id'),
+					 );
+ 
+	my $results;
+	my $workgroups;
+	
+	$workgroups = $db->get_workgroups(%parameters);
+	
     if (! defined $workgroups){
 	$results->{'error'} = $db->get_error();
 	$results->{'results'} = [];
