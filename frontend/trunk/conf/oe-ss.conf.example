@@ -40,3 +40,6 @@ Alias /idc            /usr/share/oess-core/idc
         Order allow,deny
         Allow from all
 </Directory>
+
+
+Redirect 301 /oess/admin/admin_index.cgi /oess/admin
