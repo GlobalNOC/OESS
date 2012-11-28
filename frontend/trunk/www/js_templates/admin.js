@@ -1715,8 +1715,8 @@ function makeWorkgroupACLTable(id){
 		 ]
     };
 
-    var columns = [{key: "node_name", label: "Endpoint", width: 180},
-	           {key: "interface_name", label: "Interface", width: 60},	  
+    var columns = [{key: "node_name", label: "Endpoint", width: 180 ,sortable:true},
+				   {key: "interface_name", label: "Interface", width: 60 ,sortable:true},	  
 	           {label: "Remove", formatter: function(el, rec, col, data){
 			                           var b = new YAHOO.widget.Button({label: "Remove"});
 						   b.appendTo(el);
@@ -1725,13 +1725,14 @@ function makeWorkgroupACLTable(id){
 	           ];
 
     var config = {
-	paginator:  new YAHOO.widget.Paginator({rowsPerPage: 10,
-						containers: ["workgroup_acl_table_nav"]
+		sortedBy: {key:'node_name', dir:'asc'},
+		paginator:  new YAHOO.widget.Paginator({rowsPerPage: 10,
+												containers: ["workgroup_acl_table_nav"]
 	    })
     };
 
     var table = new YAHOO.widget.DataTable("workgroup_acl_table", columns, ds, config);
-
+	console.log(table);
     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
 

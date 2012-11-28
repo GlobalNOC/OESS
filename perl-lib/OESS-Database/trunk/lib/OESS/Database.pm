@@ -1312,7 +1312,8 @@ sub get_workgroup_acls {
 		"  join node on node.node_id = interface.node_id " .
 		"  join node_instantiation on node.node_id = node_instantiation.node_id " .
 		"    and node_instantiation.end_epoch = -1 " .
-		" where workgroup.workgroup_id = ?";
+		" where workgroup.workgroup_id = ?" .
+		"order by node_name ASC, int_name ASC";
 
     my $results = $self->_execute_query($query, [$workgroup_id]);
 
