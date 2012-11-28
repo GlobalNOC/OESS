@@ -1796,16 +1796,18 @@ function makeUserTable(div_id){
 		 ]
     };
 
-    var columns = [{key: "first_name", label: "Name", width: 200,
-		    formatter: function(el, rec, col, data){
+    var columns = [{key: "first_name", label: "First Name", width: 100,sortable:true
+		    /*formatter: function(el, rec, col, data){
 		                    el.innerHTML = rec.getData("first_name") + " " + rec.getData("family_name");
-	                       }
+	                       }*/
 	           },
-	           {key: "auth_name", label: "Username", width: 175},
-	           {key: "email_address", label: "Email Address", width: 175}
+				   {key: "family_name",label:"Last Name", width: 100,sortable:true },
+				   {key: "auth_name", label: "Username", width: 175,sortable:true},
+				   {key: "email_address", label: "Email Address", width: 175,sortable:true}
 	];
 
     var config = {
+		sortedBy: {key:'first_name', dir:'asc'},
 	paginator:  new YAHOO.widget.Paginator({rowsPerPage: 10,
 						containers: [div_id + "_nav"]
 	    })
