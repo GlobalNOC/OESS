@@ -339,7 +339,6 @@ sub _generate_commands{
 	     }
 	 } 
      }
-
     #--- gen set of rules to apply at each endpoint these are for forwarding and translation
     foreach my $endpoint(@{$circuit_details->{'endpoints'}}){
 

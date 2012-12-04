@@ -31,11 +31,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 1.0.4
+Version 1.0.5
 
 =cut
 
-our $VERSION = '1.0.4';
+our $VERSION = '1.0.5';
 
 =head1 SYNOPSIS
 
@@ -2048,7 +2048,6 @@ sub get_circuit_details {
 	"left join path_instantiation as pr_pi on pr_pi.path_id = pr_p.path_id and pr_pi.end_epoch = -1 ".
         " left join path as bu_p on bu_p.circuit_id = circuit.circuit_id and bu_p.path_type = 'backup' " .        
         " left join path_instantiation as bu_pi on bu_pi.path_id = bu_p.path_id and bu_pi.end_epoch = -1 ".
-
 	" where circuit.circuit_id = ?";
 
     my $sth = $self->_prepare_query($query) or return undef;
@@ -2141,35 +2140,54 @@ sub get_circuit_endpoints {
     my $self = shift;
     my %args = @_;
 
-    my $query = "select interface.name as int_name, node.name as node_name, interface.interface_id, node.node_id as node_id, circuit_edge_interface_membership.extern_vlan_id, interface.port_number, network.is_local, interface.role, urn.urn " .
-	" from interface " .
-	" join circuit_edge_interface_membership on circuit_edge_interface_membership.circuit_id = ? " .
-	"  and circuit_edge_interface_membership.end_epoch = -1 " .
-	"  and interface.interface_id = circuit_edge_interface_membership.interface_id " .
-	" left join interface_instantiation on interface.interface_id = interface_instantiation.interface_id " .
-	"    and interface_instantiation.end_epoch = -1" . 
-	" join node on node.node_id = interface.node_id " .
-	"  left join node_instantiation on node.node_id = node_instantiation.node_id " .
-	"    and node_instantiation.end_epoch = -1 " .
-	" join network on network.network_id = node.network_id ".
-        " left join urn on interface.interface_id=urn.interface_id" .
-        " group by interface.interface_id ";
+#    my $query = "select interface.name as int_name, node.name as node_name, interface.interface_id, node.node_id as node_id, circuit_edge_interface_membership.extern_vlan_id, interface.port_number, network.is_local, interface.role, urn.urn " .
+#	" from interface " .
+#	" join circuit_edge_interface_membership on circuit_edge_interface_membership.circuit_id = ? " .
+#	"  and circuit_edge_interface_membership.end_epoch = -1 " .
+#	"  and interface.interface_id = circuit_edge_interface_membership.interface_id " .
+#	" left join interface_instantiation on interface.interface_id = interface_instantiation.interface_id " .
+#	"    and interface_instantiation.end_epoch = -1" . 
+#	" join node on node.node_id = interface.node_id " .
+#	"  left join node_instantiation on node.node_id = node_instantiation.node_id " .
+#	"    and node_instantiation.end_epoch = -1 " .
+#	" join network on network.network_id = node.network_id ".
+ #       " left join urn on interface.interface_id=urn.interface_id" .
+  #      " group by interface.interface_id ";
+
+    my $query = "select * from circuit_edge_interface_membership where circuit_edge_interface_membership.circuit_id = ?";
 
     my $sth = $self->_prepare_query($query) or return undef;
 
     $sth->execute($args{'circuit_id'});
 
+    #we now have a handle on all of the rows... we need to pull out the interface data
+    #because the same interface might be involved we have to break it up into 2 queries
+
+    $query = "select interface.name as int_name, node.name as node_name, interface.interface_id, node.node_id as node_id, interface.port_number, network.is_local, interface.role from interface, interface_instantiation, node, node_instantiation, network " . 
+	"where node.node_id = interface.node_id and node_instantiation.node_id = node.node_id and interface_instantiation.interface_id = interface.interface_id and interface.interface_id = ? and node_instantiation.end_epoch = -1" . 
+	" and interface_instantiation.end_epoch = -1 and network.network_id = node.network_id";
+
+
+	#"join node on node.node_id = interface.node_id node" network, urn where interface.interface_id = ? and node.node_id = interface.node_id and node.network_id = network.network_id and interface.interface_id = urn.interface_id";
+    
+    my $sth2 = $self->_prepare_query($query) or return undef;
+
     my $results;
 
     while (my $row = $sth->fetchrow_hashref()){
-	push (@$results, {'node'      => $row->{'node_name'},
-			  'interface' => $row->{'int_name'},
+
+	$sth2->execute($row->{'interface_id'});
+
+	my $endpoint = $sth2->fetchrow_hashref();
+	print STDERR Dumper($endpoint);
+	push (@$results, {'node'      => $endpoint->{'node_name'},
+			  'interface' => $endpoint->{'int_name'},
 			  'tag'       => $row->{'extern_vlan_id'},
-			  'node_id'   => $row->{'node_id'},
-			  'port_no'   => $row->{'port_number'},
-			  'local'     => $row->{'is_local'},
-			  'role'      => $row->{'role'},
-			  'urn'       => $row->{'urn'}
+			  'node_id'   => $endpoint->{'node_id'},
+			  'port_no'   => $endpoint->{'port_number'},
+			  'local'     => $endpoint->{'is_local'},
+			  'role'      => $endpoint->{'role'},
+			  'urn'       => $endpoint->{'urn'}
 	                 }
 	    );
     }

@@ -48,8 +48,7 @@ CREATE TABLE `circuit_edge_interface_membership` (
   `end_epoch` int(10) NOT NULL,
   `start_epoch` int(10) NOT NULL,
   `extern_vlan_id` int(10) NOT NULL,
-  PRIMARY KEY (`interface_id`,`circuit_id`,`end_epoch`),
-  UNIQUE KEY `circuit_edge_interface_membership_idx` (`end_epoch`,`extern_vlan_id`,`interface_id`),
+  PRIMARY KEY (`interface_id`,`circuit_id`,`end_epoch`,`extern_vlan_id`),
   KEY `circuit_circuit_interface_membership_fk` (`circuit_id`),
   CONSTRAINT `circuit_circuit_interface_membership_fk` FOREIGN KEY (`circuit_id`) REFERENCES `circuit` (`circuit_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `interface_circuit_interface_membership_fk` FOREIGN KEY (`interface_id`) REFERENCES `interface` (`interface_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
