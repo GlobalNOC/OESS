@@ -32,11 +32,15 @@
 #                                                 
 use strict;
 use warnings;
-
+use OESS::Database;
 use CGI;
 use Template;
 use Switch;
 use FindBin;
+
+my $db= OESS::Database->new();
+
+my $is_admin = $db->get_user_admin_status($ENV{'REMOTE_USER'});
 
 my $ADD_BREADCRUMBS = [{title => "Workgroups",   url => "?action=workgroups"},
                        {title => "Home",         url => "?action=index"},
@@ -144,11 +148,11 @@ sub main{
 				     $current_breadcrumb = "Provisioning";				     
 	                           }
 	case "about"         { $filename           = "html_templates/splash.html";
-			       $title              = "About";
+						   $title              = "About";
 	                     }
 	else                 { $filename = "html_templates/error.html"; 
-			       $title    = "Error";
-			     }
+						   $title    = "Error";
+					   }
 	
     }
 
