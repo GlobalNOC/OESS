@@ -574,6 +574,18 @@ sub get_user_by_id{
     return $self->_execute_query($query,[$user_id]);
 }
 
+sub get_user_admin_status{
+	my $self = shift;
+	my %args = @_;
+	my $username = $args{'username'};
+	
+	my $query = "select a.auth_name, 1 as is_admin from user u join remote_auth a on (u.user_id = a.user_id) join user_workgroup_membership m on (u.user_id = m.user_id) join workgroup w on (m.workgroup_id = m.workgroup_id) where w.type='admin' and a.auth_name = ? limit 1";
+	warn Dumper($query);
+	warn Dumper ($username);
+	return $self->_execute_query($query,[$username]);
+	
+}
+
 =head2 get_user_id_by_given_name
 
 Returns the internal user_id for a user identified by $name.
