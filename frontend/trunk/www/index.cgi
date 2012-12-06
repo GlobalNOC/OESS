@@ -40,7 +40,6 @@ use FindBin;
 
 my $db= OESS::Database->new();
 
-my $is_admin = $db->get_user_admin_status($ENV{'REMOTE_USER'});
 
 my $ADD_BREADCRUMBS = [{title => "Workgroups",   url => "?action=workgroups"},
                        {title => "Home",         url => "?action=index"},
@@ -73,7 +72,10 @@ sub main{
     my $cgi = new CGI;
 
     my $tt  = Template->new(INCLUDE_PATH => "$FindBin::Bin") || die $Template::ERROR;
-    
+
+    my $is_admin = $db->get_user_admin_status(username=>$ENV{'REMOTE_USER'})->[0]{'is_admin'};
+	
+	
     #-- What to pass to the TT and what http headers to send
     my ($vars, $output, $filename, $title, $breadcrumbs, $current_breadcrumb);
     
@@ -160,7 +162,7 @@ sub main{
     $vars->{'title'}              = $title;
     $vars->{'breadcrumbs'}        = $breadcrumbs;
     $vars->{'current_breadcrumb'} = $current_breadcrumb;
-			       
+	$vars->{'is_admin'}           = $is_admin;		       
     
     $tt->process("html_templates/page_base.html", $vars, \$output) or warn $tt->error();
     
