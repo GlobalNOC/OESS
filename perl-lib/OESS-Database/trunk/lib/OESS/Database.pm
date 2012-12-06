@@ -304,6 +304,22 @@ sub update_circuit_path_state {
     return 1;
 }
 
+sub update_circuit_name{
+    my $self = shift;
+    my %args = @_;
+
+    return if !defined($args{'circuit_id'});
+    return if (!defined($args{'circuit_name'}) || $args{'circuit_name'} eq '');
+
+    my $query = "update circuit set name = ? where circuit_id = ?";
+    
+    if(!defined($self->_execute_query($query, [$args{'circuit_name'},$args{'circuit_id'}]))){
+	return 0;
+    }
+
+    return 1;
+}
+
 =head2 switch_circuit_to_alternate_path
 
 Changes a circuit's records over to its available path. If the circuit is presently
@@ -5450,6 +5466,8 @@ sub gen_topo{
     $writer->end();
     return $xml;
 }
+
+
 
 
 return 1;
