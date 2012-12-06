@@ -1,4 +1,3 @@
-
 #!/usr/bin/perl
 #------ NDDI OESS Database Interaction Module
 ##-----
@@ -596,8 +595,7 @@ sub get_user_admin_status{
 	my $username = $args{'username'};
 	
 	my $query = "select a.auth_name, 1 as is_admin from user u join remote_auth a on (u.user_id = a.user_id) join user_workgroup_membership m on (u.user_id = m.user_id) join workgroup w on (m.workgroup_id = m.workgroup_id) where w.type='admin' and a.auth_name = ? limit 1";
-	warn Dumper($query);
-	warn Dumper ($username);
+	
 	return $self->_execute_query($query,[$username]);
 	
 }
@@ -1149,6 +1147,7 @@ sub get_workgroups {
 		
 		push(@dbargs, $args{'user_id'});
 	}
+	$sql .= " order by w.name";
 	    my $results = $self->_execute_query($sql,\@dbargs);
 
     if (! defined $results){
@@ -1288,7 +1287,8 @@ sub get_workgroups_by_auth_name {
 	        " join user_workgroup_membership on user_workgroup_membership.workgroup_id = workgroup.workgroup_id " .
 		" join user on user.user_id = user_workgroup_membership.user_id " .
 		" join remote_auth on remote_auth.user_id = user.user_id " .
-		"  and remote_auth.auth_name = ?";
+		"  and remote_auth.auth_name = ?" .
+		" order by workgroup.name ";
 
     my $results = $self->_execute_query($query, [$auth_name]);
 
