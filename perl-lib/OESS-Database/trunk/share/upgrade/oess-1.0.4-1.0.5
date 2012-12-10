@@ -73,6 +73,10 @@ sub upgrade{
     $sth = $dbh->prepare($str);
     $sth->execute();
 
+	$str = "alter table remote_auth modify auth_name VARCHAR(256)";
+	$sth = $dbh->prepare($str);
+	$sth->execute();
+
     ####################################
     #
     # End all changes

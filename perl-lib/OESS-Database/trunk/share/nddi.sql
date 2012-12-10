@@ -306,7 +306,7 @@ DROP TABLE IF EXISTS `remote_auth`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `remote_auth` (
   `auth_id` int(10) NOT NULL AUTO_INCREMENT,
-  `auth_name` varchar(10) NOT NULL,
+  `auth_name` varchar(256) NOT NULL,
   `user_id` int(10) NOT NULL,
   PRIMARY KEY (`auth_id`),
   UNIQUE KEY `remote_auth_idx` (`auth_name`),
