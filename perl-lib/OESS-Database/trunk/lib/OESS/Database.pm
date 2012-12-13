@@ -1475,8 +1475,10 @@ sub add_workgroup {
     my $name = $args{'name'};
     my $external_id = $args{'external_id'};
     my $type = $args{'type'};
-    
-    if($type ne 'admin' || $type ne 'normal' || $type ne 'demo'){
+    $type = 'normal' if !defined($type);
+
+    if($type ne 'admin' && $type ne 'normal' && $type ne 'demo'){
+	print STDERR "Type is not one of our explicit types... setting to normal\n";
 	$type = 'normal';
     }
 
