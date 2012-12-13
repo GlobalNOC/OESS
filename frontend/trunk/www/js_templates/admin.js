@@ -1123,7 +1123,7 @@ function setup_workgroup_tab(){
 		    this.set("label", "Creating workgroup...");
 		    this.set("disabled", true);
 
-		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_workgroup&name="+encodeURIComponent(workgroup_name)+"&external_id="+encodeURIComponent(external_id)+"&type="encodeURIComponent(workgroup_type);
+		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_workgroup&name="+encodeURIComponent(workgroup_name)+"&external_id="+encodeURIComponent(external_id)+"&type="+encodeURIComponent(workgroup_type) );
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 		    ds.responseSchema = {
 			resultsList: "results",
