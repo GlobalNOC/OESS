@@ -32,7 +32,7 @@ sub main{
     my $dbq = new OESS::Database();
     my $current_version = $dbq->get_oess_schema_version();    
     
-    if($current_version eq '1.0.3'){
+    if($current_version eq $prev_version){
 	$dbq->{'dbh'}->begin_work();
 	upgrade($dbq->{'dbh'});
 	$dbq->{'dbh'}->commit();
@@ -57,6 +57,33 @@ sub upgrade{
     #
     ####################################
     
+    my $str = "select * from workgroup";
+    my $sth = $dbh->prepare($str);
+    my $admin_is_set = 0;
+    my @workgroups;
+    $sth->execute();
+    while(my $workgroup = $sth->fetchrow_hashref()){
+	push(@workgroups,$workgroup);
+	if($workgroup->{'type'} eq 'admin'){
+	    $admin_is_set = 1;
+	}
+    }
+    if(!$admin_is_set){
+	print "Which workgroup would you like to be Admin:\n";
+	for(my $i=0;$i<=$#workgroups;$i++){
+	    my $workgroup = $workgroups[$i];
+	    print "  " . ($i+1) . ". " . $workgroup->{'name'} . "\n";
+	}
+	print "\n";
+	my $admin_workgroup_selection = required_parameter("Workgroup to make Admin: ");
+	
+	$str = "update workgroup set type = 'admin' where workgroup_id = ?";
+	$sth = $dbh->prepare($str);
+	$sth->execute($workgroups[$admin_workgroup_selection-1]->{'workgroup_id'});
+	print "Done!\n";
+    }
+
+    
     
     #################################### 
     #
@@ -65,18 +92,18 @@ sub upgrade{
     ####################################
    
     #add the schema bits to support hairpin circuits ISSUE=4833
-    my $str = "alter table circuit_edge_interface_membership drop primary, add primary key (interface_id, circuit_id, end_epoch, extern_vlan_id)";
-    my $sth = $dbh->prepare($str);
+    $str = "alter table circuit_edge_interface_membership drop primary, add primary key (interface_id, circuit_id, end_epoch, extern_vlan_id)";
+    $sth = $dbh->prepare($str);
     $sth->execute();
 
     $str = "alter table circuit_edge_interface_membership drop key circuit_edge_interface_membership_idx";
     $sth = $dbh->prepare($str);
     $sth->execute();
 
-	$str = "alter table remote_auth modify auth_name VARCHAR(256)";
-	$sth = $dbh->prepare($str);
-	$sth->execute();
-
+    $str = "alter table remote_auth modify auth_name VARCHAR(255)";
+    $sth = $dbh->prepare($str);
+    $sth->execute();
+    
     ####################################
     #
     # End all changes
@@ -100,4 +127,21 @@ sub continue_parameter {
     chomp($yes_or_no);
 
     exit(0) if ($yes_or_no !~ /y/i || $yes_or_no =~ /n/i);
+}
+
+
+sub required_parameter {
+
+    my $name = shift;
+
+    while (1) {
+
+	print "$name (required): ";
+        my $response = <>;
+	chomp($response);
+
+        return $response if ($response);
+
+	print "\nThis option is required!\n\n";
+    }
 }
