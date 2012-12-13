@@ -1,0 +1,149 @@
+#!/usr/bin/perl
+#-------------------------------------------------------------------
+#----- OESS 1.0.4 - 1.0.5 upgrade module                         
+#-----                                                               
+#----- Copyright(C) 2010 The Trustees of Indiana University          
+#--------------------------------------------------------------------
+#----- $HeadURL: $                                                   
+#----- $Id: $                                                        
+#-----                                                               
+#----- This is run when upgrading the database from     
+#----- version 1.0.4 to version 1.0.5                                
+#-------------------------------------------------------------------- 
+
+use strict;
+use warnings;
+use OESS::Database;
+
+my $prev_version = "1.0.4";
+my $version = "1.0.5";
+
+sub main{
+
+    print "*******************************************************************\n";
+    print "*********             OESS DB UPGRADE           ************\n";
+    print "*******************************************************************\n";
+    print "********* This will upgrade from $prev_version to $version **********\n";
+    print "********* of the OESS DB any other version will not work ************\n";
+    
+    continue_parameter("Do you wish to continue");
+
+    
+    my $dbq = new OESS::Database();
+    my $current_version = $dbq->get_oess_schema_version();    
+    
+    if($current_version eq $prev_version){
+	$dbq->{'dbh'}->begin_work();
+	upgrade($dbq->{'dbh'});
+	$dbq->{'dbh'}->commit();
+    }else{
+	print "Wrong version of OESS DB\n";
+	print "This script only upgrades from version $prev_version to $version\n";
+	exit;
+    }
+    
+    print STDERR "Upgrade Successful!!\n";
+    
+}
+
+
+sub upgrade{
+    my $dbh = shift;
+    my $term = shift;
+
+    ####################################
+    #
+    # Ask for any new parameters here
+    #
+    ####################################
+    
+    my $str = "select * from workgroup";
+    my $sth = $dbh->prepare($str);
+    my $admin_is_set = 0;
+    my @workgroups;
+    $sth->execute();
+    while(my $workgroup = $sth->fetchrow_hashref()){
+	push(@workgroups,$workgroup);
+	if($workgroup->{'type'} eq 'admin'){
+	    $admin_is_set = 1;
+	}
+    }
+    if(!$admin_is_set){
+	print "OE-SS 1.0.5 requires that a user be in an Admin workgroup to access any of the Administration pages.\n";
+	print "I have detected that there are no current Admin level workgroups.\n";
+	print "Which workgroup would you like to be Admin:\n";
+	for(my $i=0;$i<=$#workgroups;$i++){
+	    my $workgroup = $workgroups[$i];
+	    print "  " . ($i+1) . ". " . $workgroup->{'name'} . "\n";
+	}
+	print "\n";
+	my $admin_workgroup_selection = required_parameter("Workgroup to make Admin: ");
+	
+	$str = "update workgroup set type = 'admin' where workgroup_id = ?";
+	$sth = $dbh->prepare($str);
+	$sth->execute($workgroups[$admin_workgroup_selection-1]->{'workgroup_id'});
+	print "Done!\n";
+    }
+
+    
+    
+    #################################### 
+    #
+    # All Changes should happen in here
+    #
+    ####################################
+   
+    #add the schema bits to support hairpin circuits ISSUE=4833
+    $str = "alter table circuit_edge_interface_membership drop primary, add primary key (interface_id, circuit_id, end_epoch, extern_vlan_id)";
+    $sth = $dbh->prepare($str);
+    $sth->execute();
+
+    $str = "alter table circuit_edge_interface_membership drop key circuit_edge_interface_membership_idx";
+    $sth = $dbh->prepare($str);
+    $sth->execute();
+
+    $str = "alter table remote_auth modify auth_name VARCHAR(255)";
+    $sth = $dbh->prepare($str);
+    $sth->execute();
+    
+    ####################################
+    #
+    # End all changes
+    #
+    #####################################
+    
+    #ok done with the rest of the upgrade update our version
+    $str = "update oess_version set version = '$version'";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+}
+
+main();
+
+sub continue_parameter {
+
+    my $name = shift;
+
+    print "$name [y/n]: ";
+    my $yes_or_no = <>;
+    chomp($yes_or_no);
+
+    exit(0) if ($yes_or_no !~ /y/i || $yes_or_no =~ /n/i);
+}
+
+
+sub required_parameter {
+
+    my $name = shift;
+
+    while (1) {
+
+	print "$name (required): ";
+        my $response = <>;
+	chomp($response);
+
+        return $response if ($response);
+
+	print "\nThis option is required!\n\n";
+    }
+}
