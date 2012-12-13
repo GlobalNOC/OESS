@@ -1474,8 +1474,13 @@ sub add_workgroup {
 
     my $name = $args{'name'};
     my $external_id = $args{'external_id'};
+    my $type = $args{'type'};
+    
+    if($type ne 'admin' || $type ne 'normal' || $type ne 'demo'){
+	$type = 'normal';
+    }
 
-    my $new_wg_id = $self->_execute_query("insert into workgroup (name,external_id) values (?,?)", [$name,$external_id]);
+    my $new_wg_id = $self->_execute_query("insert into workgroup (name,external_id,type) values (?,?,?)", [$name,$external_id,$type]);
 
     if (! defined $new_wg_id){
 	$self->_set_error("Unable to add new workgroup");
