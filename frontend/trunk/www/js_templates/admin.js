@@ -1091,7 +1091,13 @@ function setup_workgroup_tab(){
 					   );
 
 	    p.setHeader("New Workgroup");
-	    p.setBody("Name: <input type='text' id='new_workgroup_name' size='38'>");
+	    p.setBody("Name: <input type='text' id='new_workgroup_name' size='38'>" +
+				  "External ID: <input type='text' id='new_workgroup_external_id' size='33'>"+
+				  "Workgroup Type: <select id='new_workgroup_type'>"+
+				  "<option value=\"normal\">Normal</option>"+
+				  "<option value=\"demo\">Demo</option>"+
+				  "<option value=\"admin\">Admin</option>"+
+				  "</select>");
 	    p.setFooter("<div id='submit_new_workgroup'></div>");
 
 	    p.render(document.body);
@@ -1105,8 +1111,11 @@ function setup_workgroup_tab(){
 	    submit_button.on("click", function(){
 		    
 		    var workgroup_name = YAHOO.util.Dom.get('new_workgroup_name').value;
-
-		    if (! workgroup_name){
+			var external_id = YAHOO.util.Dom.get('new_workgroup_external_id').value;
+			var workgroup_type= YAHOO.util.Dom.get('new_workgroup_type');
+			workgroup_type= workgroup_type.options[workgroup_type.selectedIndex].value;
+		    
+			if (! workgroup_name){
 			alert("You must specify a workgroup name.");
 			return;
 		    }
@@ -1114,7 +1123,7 @@ function setup_workgroup_tab(){
 		    this.set("label", "Creating workgroup...");
 		    this.set("disabled", true);
 
-		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_workgroup&name="+encodeURIComponent(workgroup_name));
+		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_workgroup&name="+encodeURIComponent(workgroup_name)+"&external_id="+encodeURIComponent(external_id)+"&type="encodeURIComponent(workgroup_type);
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 		    ds.responseSchema = {
 			resultsList: "results",
@@ -1834,13 +1843,14 @@ function makeWorkgroupTable(){
 		 ]
     };
 
-    var columns = [{key: "name", label: "Name", width: 180},
+    var columns = [{key: "name", label: "Name", sortable:true,width: 180},
 		   ];
 
     var config = {
 	paginator: new YAHOO.widget.Paginator({rowsPerPage: 10,
-					       containers: ["workgroup_table_nav"]
-	    })
+										   containers: ["workgroup_table_nav"]
+										  }),
+		sortedBy:{key:'name',dir:'asc'}
     };
 
 

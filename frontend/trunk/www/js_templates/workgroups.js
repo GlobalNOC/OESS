@@ -45,13 +45,14 @@ function make_workgroups_table(){
 	}
     };
 
-    var cols = [{key: "name", label: "Workgroup", width: 300}
+    var cols = [{key: "name", label: "Workgroup", sortable:true, width: 300}
 		];
 
     var config = {
-	paginator: new YAHOO.widget.Paginator({rowsPerPage: 5,
-					       containers: ["workgroups_table_nav"]
-	    })
+		paginator: new YAHOO.widget.Paginator({rowsPerPage: 5,
+										   containers: ["workgroups_table_nav"]
+										  }),
+		sortedBy:{key:"name", dir:"asc"}
     }
 
     var dt = new YAHOO.widget.DataTable("workgroups_table", cols, ds, config);
