@@ -365,8 +365,9 @@ sub add_workgroup {
 
     my $name        = $cgi->param("name");
     my $external_id = $cgi->param('external_id');
+    my $type        = $cgi->param('type');
     my $new_wg_id =
-      $db->add_workgroup( name => $name, external_id => $external_id );
+      $db->add_workgroup( name => $name, external_id => $external_id , type => $type);
 
     if ( !defined $new_wg_id ) {
         $results->{'error'} = $db->get_error();
