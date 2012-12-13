@@ -69,6 +69,8 @@ sub upgrade{
 	}
     }
     if(!$admin_is_set){
+	print "OE-SS 1.0.5 requires that a user be in an Admin workgroup to access any of the Administration pages.\n";
+	print "I have detected that there are no current Admin level workgroups.\n";
 	print "Which workgroup would you like to be Admin:\n";
 	for(my $i=0;$i<=$#workgroups;$i++){
 	    my $workgroup = $workgroups[$i];
