@@ -94,7 +94,7 @@ sub upgrade{
     ####################################
    
     #add the schema bits to support hairpin circuits ISSUE=4833
-    $str = "alter table circuit_edge_interface_membership drop primary, add primary key (interface_id, circuit_id, end_epoch, extern_vlan_id)";
+    $str = "alter table circuit_edge_interface_membership drop primary key, add primary key (interface_id, circuit_id, end_epoch, extern_vlan_id)";
     $sth = $dbh->prepare($str);
     $sth->execute();
 
