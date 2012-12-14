@@ -1,4 +1,12 @@
 = Changes for OE-SS over time =
+== 1.0.5 ==
+
+  * Added the ability to do Hairpin (in and out same interface different vlan) circuits in OE-SS
+  * Added user sorting in the Admin UI
+  * Changed a limit of 10 characters to 255 for usernames
+  * Added an Admin Link the UI if a user is an administrator
+  * Admin UI is now protected internally via OE-SS configured policy
+  * Fixed a bug that prevented some inter-domain circuit from successfully provisioning
 
 == 1.0.4 ==
 
