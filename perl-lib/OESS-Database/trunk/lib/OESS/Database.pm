@@ -2189,7 +2189,7 @@ sub get_circuit_endpoints {
  #       " left join urn on interface.interface_id=urn.interface_id" .
   #      " group by interface.interface_id ";
 
-    my $query = "select * from circuit_edge_interface_membership where circuit_edge_interface_membership.circuit_id = ?";
+    my $query = "select * from circuit_edge_interface_membership where circuit_edge_interface_membership.circuit_id = ? and circuit_edge_interface_membership.end_epoch = -1";
 
     my $sth = $self->_prepare_query($query) or return undef;
 
