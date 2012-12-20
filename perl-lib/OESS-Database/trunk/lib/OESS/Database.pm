@@ -856,9 +856,8 @@ sub get_node_interfaces {
 	push(@query_args, $workgroup_id);
 	$query .= " join workgroup_interface_membership on workgroup_interface_membership.interface_id = interface.interface_id ";
     }
-
     $query .= " where interface.operational_state = 'up' and interface.role != 'trunk' ";
-		
+    
     if (defined $workgroup_id){
 	$query .= " and workgroup_interface_membership.workgroup_id = ?";
     }
@@ -1944,23 +1943,25 @@ sub get_current_circuits {
 
     my @to_pass;
 
-    my $query = "select circuit.workgroup_id, circuit.name, circuit.description, circuit.circuit_id, " .
-	" circuit_instantiation.reserved_bandwidth_mbps, circuit_instantiation.circuit_state, " .
-	" path.path_type, interface.name as int_name, node.name as node_name " .
-	"from circuit " .
-	" join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id " .
-	"  and circuit_instantiation.end_epoch = -1 and circuit_instantiation.circuit_state != 'decom' " .
-	" left join path on path.circuit_id = circuit.circuit_id " .
-	"  left join path_instantiation on path_instantiation.path_id = path.path_id " .
-	"    and path_instantiation.end_epoch = -1 and path_instantiation.path_state in ('active', 'deploying') " .
-	" join circuit_edge_interface_membership on circuit_edge_interface_membership.circuit_id = circuit.circuit_id " .
-	"  and circuit_edge_interface_membership.end_epoch = -1 " .
-	" join interface on interface.interface_id = circuit_edge_interface_membership.interface_id " .
-	"  left join interface_instantiation on interface.interface_id = interface_instantiation.interface_id " .
-	"    and interface_instantiation.end_epoch = -1" . 
-	" join node on node.node_id = interface.node_id " .
-	"  left join node_instantiation on node.node_id = node_instantiation.node_id " .
-	"    and node_instantiation.end_epoch = -1 ";
+    #my $query = "select circuit.workgroup_id, circuit.name, circuit.description, circuit.circuit_id, " .
+#	" circuit_instantiation.reserved_bandwidth_mbps, circuit_instantiation.circuit_state, " .
+#	" path.path_type, interface.name as int_name, node.name as node_name " .
+#	"from circuit " .
+#	" join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id " .
+#	"  and circuit_instantiation.end_epoch = -1 and circuit_instantiation.circuit_state != 'decom' " .
+#	" left join path on path.circuit_id = circuit.circuit_id " .
+#	"  left join path_instantiation on path_instantiation.path_id = path.path_id " .
+#	"    and path_instantiation.end_epoch = -1 and path_instantiation.path_state in ('active', 'deploying') " .
+#	" join circuit_edge_interface_membership on circuit_edge_interface_membership.circuit_id = circuit.circuit_id " .
+#	"  and circuit_edge_interface_membership.end_epoch = -1 " .
+#	" join interface on interface.interface_id = circuit_edge_interface_membership.interface_id " .
+#	"  left join interface_instantiation on interface.interface_id = interface_instantiation.interface_id " .
+#	"    and interface_instantiation.end_epoch = -1" . 
+#	" join node on node.node_id = interface.node_id " .
+#	"  left join node_instantiation on node.node_id = node_instantiation.node_id " .
+#	"    and node_instantiation.end_epoch = -1 ";
+
+    my $query = "select circuit.workgroup_id, circuit.name, circuit.description, circuit.circuit_id, circuit_instantiation.circuit_state from circuit join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id and circuit_instantiation.end_epoch = -1 and circuit_instantiation.circuit_state != 'decom'";
 
     if ($workgroup_id && $workgroup->{'type'} ne 'admin'){
 	$query .= " where circuit.workgroup_id = ?";
@@ -1979,7 +1980,7 @@ sub get_current_circuits {
     my $circuits;
 
     foreach my $row (@$rows){
-
+	print STDERR Dumper($row);
 	my $circuit_id = $row->{'circuit_id'};
 	
 	# first time seeing this circuit, add basic info
@@ -2198,9 +2199,7 @@ sub get_circuit_endpoints {
     #we now have a handle on all of the rows... we need to pull out the interface data
     #because the same interface might be involved we have to break it up into 2 queries
 
-    $query = "select interface.name as int_name, node.name as node_name, interface.interface_id, node.node_id as node_id, interface.port_number, network.is_local, interface.role from interface, interface_instantiation, node, node_instantiation, network " . 
-	"where node.node_id = interface.node_id and node_instantiation.node_id = node.node_id and interface_instantiation.interface_id = interface.interface_id and interface.interface_id = ? and node_instantiation.end_epoch = -1" . 
-	" and interface_instantiation.end_epoch = -1 and network.network_id = node.network_id";
+    $query = "select interface.name as int_name, node.name as node_name, interface.interface_id, node.node_id as node_id, interface.port_number, network.is_local, interface.role, urn.urn from interface,node, network,urn where node.node_id = interface.node_id and interface.interface_id = ? and network.network_id = node.network_id and urn.interface_id = interface.interface_id";
 
 
 	#"join node on node.node_id = interface.node_id node" network, urn where interface.interface_id = ? and node.node_id = interface.node_id and node.network_id = network.network_id and interface.interface_id = urn.interface_id";
