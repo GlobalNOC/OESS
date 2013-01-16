@@ -172,15 +172,18 @@ class dBusEventGen(dbus.service.Object):
                          in_signature='ta{sv}qqa(qv)q',
                          out_signature='t'
                          )
-    def install_datapath_flow(self,dpid, attrs,idle_timeout,hard_timeout,actions,inport ):
+    def install_datapath_flow(self,dpid, attrs,idle_timeout,hard_timeout,actions,inport):
 	#--- here goes nothing
  	my_attrs = {}
+        priority = 32768
         if attrs.get("DL_VLAN"):
             my_attrs[DL_VLAN] = int(attrs['DL_VLAN'])        
         if attrs.get("IN_PORT"):
             my_attrs[IN_PORT] = int(attrs['IN_PORT'])
         if attrs.get("DL_TYPE"):
             my_attrs[DL_TYPE] = int(attrs["DL_TYPE"])
+        if attrs.get("PRIORITY"):
+            priority = int(attrs["PRIORITY"])
 
         #--- this is less than ideal. to make dbus happy we need to pass extra arguments in the
         #--- strip vlan case, but NOX won't be happy with them so we remove them here
@@ -192,7 +195,7 @@ class dBusEventGen(dbus.service.Object):
                 actions.insert(i, new_action)
 
         #--- first we check to make sure the switch is in a ready state to accept more flow mods.
-        _do_install(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=inport)); 
+        _do_install(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,priority=priority,inport=inport)); 
 
         return dpid
 
