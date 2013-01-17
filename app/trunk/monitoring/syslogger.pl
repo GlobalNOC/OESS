@@ -8,9 +8,11 @@ use English;
 use Proc::Daemon;
 use OESS::Database;
 use OESS::DBus;
+use Net::DBus qw(:typing);
+use Data::Dumper;
 use Sys::Syslog qw(:standard :macros);
 use Getopt::Long;
-
+use OESS::Syslogger;
 #these are part of the OpenFlow spec
 #they are the reason for the port change
 use constant OFPPR_ADD => 0;
@@ -101,6 +103,55 @@ sub port_status{
 
     }
 }
+
+=head2 circuit_create callback
+
+This is called when the webservice provisions a new circuit or schedules a new circuit to be provisioned.
+
+=cut
+
+sub circuit_create{
+
+	#                 circuit_id    => $output->{'circuit_id'},
+	#                 workgroup_id  => $output->{'workgroup_id'},
+	#                 name          => $circuit_details->{'name'},
+    #                 description   => $description,
+    #                 circuit_state => $circuit_details->{'circuit_state'}
+
+	my $circuit = shift;
+	my $circuit_name= $circuit->{'name'};
+	my $circuit_id = $circuit->{'id'};
+	my $status = $circuit->{'circuit_state'};  
+
+	syslog(LOG_ERR,"CIRCUIT Created: $circuit_name:$circuit_id in $status state");
+
+
+}
+
+=head2 circuit_modify callback
+
+This is called at the time of a modified circuit
+
+=cut
+
+sub circuit_modify{
+
+
+}
+
+=head2 circuit_decomision callback
+
+This is called at the time when a circuit is decomissioned
+
+=cut
+
+sub circuit_decomission{
+
+
+}
+
+
+
 
 =head2 datapath_join callback
 
@@ -212,10 +263,21 @@ sub main{
     $oess = OESS::Database->new(config => $oess_config);
 
     my $dbus = OESS::DBus->new(service => 'org.nddi.openflow', instance => '/controller1');
-    if(defined($dbus)){
-	$dbus->connect_to_signal("port_status",\&port_status);
-	$dbus->connect_to_signal("datapath_join",\&datapath_join);
-	$dbus->connect_to_signal("datapath_leave",\&datapath_leave);
+    
+	##dbus registers events to listen for on creation / scheduled  
+	my $bus = Net::DBus->system;
+    my $service = $bus->export_service("org.nddi.syslogger");
+	my $object = OESS::Syslogger->new($service,$dbus->{'dbus'});
+	if (!defined $object){
+		#fuuu
+		die("could not export org.nddi.syslogger service");		
+	}
+	
+	
+	if(defined($dbus)){
+		$dbus->connect_to_signal("port_status",\&port_status);
+		$dbus->connect_to_signal("datapath_join",\&datapath_join);
+		$dbus->connect_to_signal("datapath_leave",\&datapath_leave);
 	$dbus->start_reactor();
     }else{
 	syslog(LOG_ERR,"Unable to connect to the DBus");
