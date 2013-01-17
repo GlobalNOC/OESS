@@ -18,11 +18,16 @@ sub new {
 
 	bless $self, $class;
 
-	dbus_signal("circuit_provision", [["dict","string",["variant"]]],['string']);
-	dbus_signal("circuit_modify", [["dict","string",["variant"]]],['string']);
-	dbus_signal("circuit_decommission",  [["dict","string",["variant"]]],['string']);
+	dbus_signal("signal_circuit_provision", [["dict","string",["variant"]]],['string']);
+	dbus_signal("signal_circuit_modify", [["dict","string",["variant"]]]);
+	dbus_signal("signal_circuit_decommission",  [["dict","string",["variant"]]],['string']);
 
-		warn Data::Dumper::Dumper($self);
+	dbus_method("circuit_provision", [["dict","string",["variant"]]],['string']);
+	dbus_method("circuit_modify", [["dict","string",["variant"]]],['string']);
+	dbus_method("circuit_decommission",  [["dict","string",["variant"]]],['string']);
+
+
+		
 	return $self;
 
 }
@@ -33,6 +38,8 @@ sub circuit_provision {
 	my $self = shift;
 	my $circuit = shift;
 
+	$self->emit_signal("signal_circuit_provision", $circuit);
+
 }
 
 
@@ -40,7 +47,9 @@ sub circuit_provision {
 sub circuit_modify {
 	my $self = shift;
 	my $circuit = shift;
-	warn Data::Dumper::Dumper($circuit);
+	
+	$self->emit_signal("signal_circuit_modify", $circuit);
+
 }
 
     
@@ -48,6 +57,8 @@ sub circuit_modify {
 sub circuit_decomission {
 	my $self = shift;
 	my $circuit = shift;
+
+	$self->emit_signal("signal_circuit_decomission", $circuit);
 
 }
 
