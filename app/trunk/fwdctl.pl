@@ -580,12 +580,13 @@ sub _actual_diff{
     my $dpid = shift;
     my $current_flows = shift;
     my $commands = shift;
+
+    my $node = $self->{'db'}->get_node_by_dpid( dpid => $dpid);
     
     foreach my $command (@$commands){
 	#--- get the set of commands needed to create this vlan per design
 	foreach my $command (@$commands){
 	    #ignore rules not for this dpid
-	    print STDERR Dumper($command);
 	    next if($command->{'dpid'}->value() != $dpid);
 	    #ok so we have our list of rules for this node 
 	    if(defined($current_flows->{$command->{'attr'}->{'IN_PORT'}->value()})){
@@ -598,6 +599,8 @@ sub _actual_diff{
 		    if($#{$action_list} != $#{$command->{'action'}}){
 			_log("Flowmod actions do not match, removing and replacing");
 			#replace the busted flowmod with our new flowmod...
+			#first delay by some configured value in case the device can't handle it
+			usleep($node->{'tx_delay_ms'} * 1000);
 			my $result = $self->_replace_flowmod($dpid,_process_flow_stats_to_command($command->{'attr'}->{'IN_PORT'}->value(),$command->{'attr'}->{'DL_VLAN'}->value()),$command);
 			next;
 		    }
@@ -613,6 +616,8 @@ sub _actual_diff{
 				}else{
 				    _log("Flowmod actions do not match, replacing");
 				    #replace the busted flowmod with our new flowmod...
+				    #first delay by some configured value in case the device can't handle it
+				    usleep($node->{'tx_delay_ms'} * 1000);
 				    my $result = $self->_replace_flowmod($dpid,_process_flow_stats_to_command($command->{'attr'}->{'IN_PORT'}->value(),$command->{'attr'}->{'DL_VLAN'}->value()),$command);
 				    last;
 				}
@@ -623,6 +628,8 @@ sub _actual_diff{
 				}else{
 				    _log("Flowmod actions do not match, replacing");
 				    #replace the busted flwomod with our new flowmod
+				    #first delay by some configured value in case the device can't handle it
+				    usleep($node->{'tx_delay_ms'} * 1000);
 				    my $result = $self->_replace_flowmod($dpid,_process_flow_stats_to_command($command->{'attr'}->{'IN_PORT'}->value(),$command->{'attr'}->{'DL_VLAN'}->value()),$command);
 				    last;
 				}
@@ -632,11 +639,15 @@ sub _actual_diff{
 		}else{
 		    _log("adding a missing flowmod");
 		    #match doesn't exist in our current flows 
+		    #first delay by some configured value in case the device can't handle it
+		    usleep($node->{'tx_delay_ms'} * 1000);
 		    my $result = $self->_replace_flowmod($dpid,undef,$command);
 		}
 	    }else{
 		_log("adding a missing flowmod");
 		#match doesn't exist in our current flows
+		#first delay by some configured value in case the device can't handle it
+		usleep($node->{'tx_delay_ms'} * 1000);
 		my $result = $self->_replace_flowmod($dpid,undef,$command);
 	    }
 	}
@@ -650,6 +661,8 @@ sub _actual_diff{
 		next;
 	    }else{
 		_log("Removing flowmod that was not suppose to be there");
+		#first delay by some configured value in case the device can't handle it
+		usleep($node->{'tx_delay_ms'} * 1000);
 		my $result = $self->_replace_flowmod($dpid,_process_flow_stats_to_command($port_num,$vlan),undef);
 	    }
 	}
@@ -1028,13 +1041,15 @@ sub addVlan {
     my @xids;
 
     foreach my $command(@{$commands}){
-        if(defined $dpid && $dpid != $command->{'dpid'}->value()){
+        my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'});
+	if(defined $dpid && $dpid != $command->{'dpid'}->value()){
             #--- if we are restricting the call to a specific dpid
             #--- then ignore commands to non-matching dpids
             #--- this is used when trying to synch up a specific switch
             next;
         }
-
+        #first delay by some configured value in case the device can't handle it                                                                                                                                        
+	usleep($node->{'tx_delay_ms'} * 1000);
 	my $xid = $self->{'of_controller'}->install_datapath_flow($command->{'dpid'},$command->{'attr'},0,0,$command->{'action'},$command->{'attr'}->{'IN_PORT'});
 
 	push(@xids, $xid);
@@ -1089,6 +1104,9 @@ sub deleteVlan {
     
     foreach my $command(@{$commands}){
         #--- issue each command to controller
+	#first delay by some configured value in case the device can't handle it
+	my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'});
+	usleep($node->{'tx_delay_ms'} * 1000);
         my $xid = $self->{'of_controller'}->delete_datapath_flow($command->{'dpid'},$command->{'attr'});	
 	push(@xids, $xid);
     }
@@ -1120,8 +1138,10 @@ sub changeVlanPath {
 
     # we have to make sure to do the removes first
     foreach my $command(@$commands){
-
+	my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'});
 	if ($command->{'sw_act'} eq FWDCTL_REMOVE_RULE){
+	    #first delay by some configured value in case the device can't handle it                                                                                                                                        
+	    usleep($node->{'tx_delay_ms'} * 1000);
 	    my $xid = $self->{'of_controller'}->delete_datapath_flow($command->{'dpid'},$command->{'attr'});
 	    push (@xids, $xid);
 	}
@@ -1141,6 +1161,9 @@ sub changeVlanPath {
     foreach my $command(@$commands){
     
 	if ($command->{'sw_act'} ne FWDCTL_REMOVE_RULE){
+	    my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'});
+	    #first delay by some configured value in case the device can't handle it                                                                                                                                        
+	    usleep($node->{'tx_delay_ms'} * 1000);
 	    my $xid = $self->{'of_controller'}->install_datapath_flow($command->{'dpid'},$command->{'attr'},0,0,$command->{'action'},$command->{'attr'}->{'IN_PORT'});
 
 	    push(@xids, $xid);
