@@ -2544,7 +2544,7 @@ sub update_node {
     my $default_drop = $args{'default_drop'};
     my $default_forward= $args{'default_forward'};
     my $max_flows = $args{'max_flows'} || 0;
-    my $tx_delay_mx = $args{'tx_delay_ms'} || 0;
+    my $tx_delay_ms = $args{'tx_delay_ms'} || 0;
 
     if(!defined($default_drop)){
 	$default_drop =1;
@@ -2831,6 +2831,28 @@ sub get_pending_links {
     }
     
     return $links;
+}
+
+=head2 get_link_ints_on_node
+
+=cut
+
+sub get_link_ints_on_node{
+    my $self = shift;
+    my %args = @_;
+
+    my $str = "select interface.* from link, link_instantiation, interface where link.link_id = link_instantiation.link_id and link_instantiation.end_epoch = -1 and link_instantiation.interface_a_id = interface.interface_id and interface.node_id = ?";
+
+    my $ints = $self->_execute_query($str,[$args{'node_id'}]);
+
+    $str = "select interface.* from link, link_instantiation, interface where link.link_id = link_instantiation.link_id and link_instantiation.end_epoch = -1 and link_instantiation.interface_z_id = interface.interface_id and interface.node_id = ?";
+    
+    my $ints2 = $self->_execute_query($str,[$args{'node_id'}]);
+
+    foreach my $int (@$ints2){
+	push(@$ints,$int);
+    }
+    return $ints;
 }
 
 =head2 get_link_by_name
@@ -5347,6 +5369,7 @@ Generates an XML representation of the OESS database designed to be compliant OS
 sub gen_topo{   
     my $self   = shift;
 
+    my $workgroup = $self->{'db'}->get_workgroup_details_by_name( name => 'OSCARS');
     my $domain = $self->get_local_domain_name();
 	
     my $xml = "";
@@ -5365,7 +5388,14 @@ sub gen_topo{
         $writer->characters($node->{'management_addr_ipv4'});
         $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","address"]);
 
-        my $ints = $self->get_interfaces_by_node_and_state( node_id => $node->{'node_id'}, state => 'up');
+	
+        my $ints = $self->get_node_interfaces( node => $node->{'name'}, workgroup_id => $workgroup->{'workgroup_id'});
+
+	my $link_ints = $self->get_link_ints_by_node( node_id => $node->{'node_id'} );
+
+	foreach my $int (@$link_ints){
+	    push(@$ints,$int);
+	}
 
         foreach my $int (@$ints){
 
