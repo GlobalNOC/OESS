@@ -1426,6 +1426,8 @@ function setup_network_tab(){
 		    var new_lat   = YAHOO.util.Dom.get('active_node_lat').value;
 		    var new_lon   = YAHOO.util.Dom.get('active_node_lon').value;
 		    var new_range = YAHOO.util.Dom.get('active_node_vlan_range').value;
+		    var new_max_flows = YAHOO.util.Dom.get('max_flows').value;
+		    var tx_delay_ms = YAHOO.util.Dom.get('tx_delay_ms').value;
 		    var new_default_drop = YAHOO.util.Dom.get('active_node_default_drop').checked;
 		    var new_default_forward = YAHOO.util.Dom.get('active_node_default_forward').checked;
 
@@ -1454,7 +1456,7 @@ function setup_network_tab(){
 			}				
 		    }
 
-		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_node&node_id="+node_id+"&name="+encodeURIComponent(new_name)+"&latitude="+new_lat+"&longitude="+new_lon+"&vlan_range="+encodeURIComponent(new_range) + "&default_drop=" + encodeURIComponent(new_default_drop) + "&default_forward=" + encodeURIComponent(new_default_forward));
+		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_node&node_id="+node_id+"&name="+encodeURIComponent(new_name)+"&latitude="+new_lat+"&longitude="+new_lon+"&vlan_range="+encodeURIComponent(new_range) + "&default_drop=" + encodeURIComponent(new_default_drop) + "&default_forward=" + encodeURIComponent(new_default_forward) + "&max_flows=" + encodeURIComponent(new_max_flows) + "&tx_delay_ms=" + encodeURIComponent(new_tx_delay_ms));
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
 		    ds.responseSchema = {
@@ -1604,6 +1606,14 @@ function setup_discovery_tab(){
 				       "<td><input type='checkbox' id='default_drop' checked /></td>" +
 				       "</td>" +
 				       "</tr>" +
+				       "<tr>" +
+				       "<td colspan='2'>Maximum Number of Flow Mods</td>" +
+				       "<td><input type='text' id='max_flows' size='10'></td>" +
+				       "</tr>" +
+				       "<tr>" +
+				       "<td colspan='2'>FlowMod Processing Delay (ms)</td>" +
+				       "<td><input type='text' id='tx_delay_ms' size='10'></td>" +
+				       "</tr>" +
 				       "</table>"
 				       );
 
@@ -1635,6 +1645,14 @@ function setup_discovery_tab(){
 		YAHOO.util.Dom.get('default_drop').checked = record.getData('default_drop');
             }
 
+	    if(record.getData('max_flows')){
+		YAHOO.util.Dom.get('max_flows').checked = record.getData('max_flows');
+            }
+
+	    if(record.getData('tx_delay_ms')){
+		YAHOO.util.Dom.get('tx_delay_ms').checked = record.getData('tx_delay_ms');
+            }
+
 	    YAHOO.util.Dom.get("node_name").focus();
 
 	    var confirm_button = new YAHOO.widget.Button("confirm_node", {label: "Confirm Device"});
@@ -1647,6 +1665,9 @@ function setup_discovery_tab(){
 		    var range = YAHOO.util.Dom.get('vlan_range').value;
 		    var default_drop = YAHOO.util.Dom.get('default_drop').checked;
 		    var default_forward = YAHOO.util.Dom.get('default_forward').checked;
+		    var max_flows = YAHOO.util.Dom.get('max_flows').value;
+		    var tx_delay_ms = YAHOO.util.Dom.get('tx_delay_ms').value;
+
 		    if (! name){
 			alert("You must specify a name for this device.");
 			return;
@@ -1677,7 +1698,7 @@ function setup_discovery_tab(){
 			}				
 		    }
 
-		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=confirm_node&node_id=" + record.getData('node_id') + "&name=" + encodeURIComponent(name) + "&latitude=" + encodeURIComponent(lat) + "&longitude=" + encodeURIComponent(lon) + "&vlan_range=" + encodeURIComponent(range) + "&default_drop=" + encodeURIComponent(default_drop) + "&default_forward=" + encodeURIComponent(default_forward));
+		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=confirm_node&node_id=" + record.getData('node_id') + "&name=" + encodeURIComponent(name) + "&latitude=" + encodeURIComponent(lat) + "&longitude=" + encodeURIComponent(lon) + "&vlan_range=" + encodeURIComponent(range) + "&default_drop=" + encodeURIComponent(default_drop) + "&default_forward=" + encodeURIComponent(default_forward) + "&max_flows=" + encodeURIComponent(max_flows) + "&tx_delay_ms=" + encodeURIComponent(tx_delay_ms));
 
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
