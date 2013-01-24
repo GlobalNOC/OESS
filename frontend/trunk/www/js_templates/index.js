@@ -66,20 +66,6 @@
 		       }
 		   },
 		   {key: "description", label: "Description", width: 230},
-		   {key: "bandwidth", label: "Bandwidth", width: 80, formatter: function(el, rec, col, data){
-			   
-			   // gets returned as Mbps
-			   var bandwidth = data;
-			   
-			   if (bandwidth >= 1000){
-			       el.innerHTML = "<center>" + (bandwidth / 1000) + " Gbps </center>" ;
-			   }
-			   else{
-			       el.innerHTML = "<center>" + bandwidth + " Mbps </center>";
-			   }
-	      
-		       }
-		   },
 		   {key: "endpoints", label: "Endpoints", width: 230, formatter: function(el, rec, col, data){
 
 			   var endpoints  = rec.getData('endpoints');
