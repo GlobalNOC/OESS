@@ -2049,11 +2049,8 @@ sub get_current_circuits {
 	    
 	}
 	
-	push(@{$circuits->{$circuit_id}->{'endpoints'}}, {'node'      => $row->{'node_name'},
-							  'interface' => $row->{'int_name'}
-							  
-	     });
-	
+	$circuits->{$circuit_id}->{'endpoints'}    = $self->get_circuit_endpoints(circuit_id => $circuit_id) || [];
+
     }
     
     
@@ -2546,6 +2543,9 @@ sub update_node {
     my $vlan_range = $args{'vlan_range'};
     my $default_drop = $args{'default_drop'};
     my $default_forward= $args{'default_forward'};
+    my $max_flows = $args{'max_flows'} || 0;
+    my $tx_delay_mx = $args{'tx_delay_ms'} || 0;
+
     if(!defined($default_drop)){
 	$default_drop =1;
     }
@@ -2553,10 +2553,11 @@ sub update_node {
         $default_forward = 1;
     }
 
+
     $self->_start_transaction();
 
-    my $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ?, vlan_tag_range = ?,default_drop = ?, default_forward = ? where node_id = ?",
-				       [$name, $long, $lat, $vlan_range,$default_drop,$default_forward, $node_id]
+    my $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ?, vlan_tag_range = ?,default_drop = ?, default_forward = ?, tx_delay_ms = ?, max_flows = ?, where node_id = ?",
+				       [$name, $long, $lat, $vlan_range,$default_drop,$default_forward,$tx_delay_ms, $max_flows, $node_id]
 	                              );
 
     if ($result != 1){
@@ -3586,7 +3587,7 @@ sub get_nodes_by_admin_state{
 
     my $admin_state       = $args{'admin_state'};
     
-    my $select_nodes = "select node.node_id,node.name,inet_ntoa(node_instantiation.management_addr_ipv4) as management_addr_ipv4 from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.admin_state = ? and end_epoch = -1";
+    my $select_nodes = "select node.node_id,node.name,max_flows,tx_delay_ms,inet_ntoa(node_instantiation.management_addr_ipv4) as management_addr_ipv4 from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.admin_state = ? and end_epoch = -1";
 
     my $select_nodes_sth = $self->_prepare_query($select_nodes);
     $select_nodes_sth->execute($admin_state);
