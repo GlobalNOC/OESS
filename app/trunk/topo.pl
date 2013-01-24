@@ -29,6 +29,7 @@ use strict;
 use Data::Dumper;
 use OESS::Database;
 use OESS::DBus;
+use Net::DBus::Exporter qw(org.nddi.openflow);
 use Switch;
 use Socket;
 use Sys::Syslog qw(:standard :macros);
@@ -36,6 +37,7 @@ use English;
 use Getopt::Long;
 use Proc::Daemon;
 
+my $dbus;
 my $dbh;
 my $db;
 my $network_id=1;
@@ -182,8 +184,16 @@ sub datapath_leave_to_db{
     
     $dbh->ping();
     my $node = $db->get_node_by_dpid(dpid => $dpid);
+    my $interfaces = $db->get_node_interfaces( node => $node->{'name'} );
     $db->update_node_operational_state(node_id => $node->{'node_id'}, state => "down");
 
+    #set the interfaces on the node to down
+    foreach my $int (@$interfaces){
+
+	$db->update_interface_operational_state( interface_id => $int->{'interface_id'},
+						 operational_state => 'decom');
+	
+    }
 }
 
 
@@ -247,6 +257,8 @@ sub do_port_modify{
 
 }
 
+
+
 use constant OFPPR_ADD => 0;
 use constant OFPPR_DELETE => 1;
 use constant OFPPR_MODIFY => 2;
@@ -259,18 +271,21 @@ sub db_port_status{
     my $port_info=$args{'port_info'} ;      
     
     switch($reason){
-	case OFPPR_ADD 	{
+	case OFPPR_ADD 	  {
 	    print_log(LOG_DEBUG, " adding port\n");
 	    do_port_modify(dpid=> $dpid, port_info=>$port_info);
+	    
 	};
-	case OFPPR_DELETE 	{print_log(LOG_DEBUG, "deleting port\n");};
-	case OFPPR_MODIFY     { 
+	case OFPPR_DELETE {
+	    print_log(LOG_DEBUG, "deleting port\n");
+	    do_port_modify(dpid => $dpid, port_info=>$port_info);
+	};
+	case OFPPR_MODIFY { 
 	    print_log(LOG_DEBUG,"modify port\n");
 	    do_port_modify(dpid=>$dpid,port_info=>$port_info);
 	};
     }
 }
-
 sub port_status_callback{
 	my $dpid   = shift;
 	my $reason = shift;
@@ -278,6 +293,28 @@ sub port_status_callback{
 	print_log(LOG_ERR, "port status: $dpid: $reason: ".Dumper($info));
   
         db_port_status(dpid=>$dpid,reason=>$reason,port_info=>$info);
+
+	my $bus = Net::DBus->system;
+
+	my $client;
+	my $service;
+	eval {
+	    $service = $bus->get_service("org.nddi.fwdctl");
+	    $client  = $service->get_object("/controller1");
+	};
+
+	if ($@){
+	    warn "Error in _connect_to_fwdctl: $@";
+	    return undef;
+	}
+
+
+	if (! defined $client){
+	    return undef;
+	}
+
+
+	my $result = $client->topo_port_status($dpid,$reason,$info);
 }
 
 
@@ -446,7 +483,7 @@ sub core{
    }
 
 
-   my $dbus = OESS::DBus->new( service => "org.nddi.openflow", instance => "/controller1", timeout => -1, sleep_interval => .1);
+   $dbus = OESS::DBus->new( service => "org.nddi.openflow", instance => "/controller1", timeout => -1, sleep_interval => .1);
    if(defined($dbus)){
        my $sig;
        #--- topo events
@@ -454,6 +491,7 @@ sub core{
        $sig = $dbus->connect_to_signal("datapath_leave",\&datapath_leave_callback);
        $sig = $dbus->connect_to_signal("port_status",\&port_status_callback);
        $sig = $dbus->connect_to_signal("link_event",\&link_event_callback);
+
        $dbus->start_reactor();
    }else{
        syslog(LOG_ERR,"Unable to connect to DBus");

@@ -1915,6 +1915,58 @@ sub edit_user {
     return 1;
 }
 
+=head2 get_current_circuits_by_interface
+
+=cut
+
+sub get_current_circuits_by_interface{
+    my $self = shift;
+    my %args = @_;
+
+    my $interface = $args{'interface'};
+
+    my $dbh = $self->{'dbh'};
+
+    my $query = "select circuit.workgroup_id, circuit.name, circuit.description, circuit.circuit_id, circuit_instantiation.circuit_state from circuit join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id join circuit_edge_interface_membership on circuit_edge_interface_membership.circuit_id = circuit.circuit_id and circuit_instantiation.end_epoch = -1 and circuit_instantiation.circuit_state != 'decom' and circuit_edge_interface_membership.end_epoch = -1 and circuit_edge_interface_membership.interface_id = ?";
+    
+    my $rows = $self->_execute_query($query, [$interface->{'interface_id'}]);
+
+    if (! defined $rows){
+        $self->_set_error("Internal error while getting circuits.");
+        return undef;
+    }
+    
+    my $results = [];
+    my $circuits;
+    foreach my $row (@$rows){
+
+        my $circuit_id = $row->{'circuit_id'};
+        # first time seeing this circuit, add basic info
+        if (! exists $circuits->{$circuit_id}){
+            $circuits->{$circuit_id} = {'circuit_id'  => $row->{'circuit_id'},
+                                        'name'        => $row->{'name'},
+                                        'description' => $row->{'description'},
+                                        'bandwidth'   => $row->{'reserved_bandwidth_mbps'},
+                                        'state'       => $row->{'circuit_state'},
+                                        'endpoints'   => [],
+                                        'workgroup_id' => $row->{'workgroup_id'}
+            };
+	    
+	}
+
+	$circuits->{$circuit_id}->{'endpoints'}    = $self->get_circuit_endpoints(circuit_id => $circuit_id) || [];
+		
+    }
+
+    
+    foreach my $circuit_id (keys %$circuits){
+        push (@$results, $circuits->{$circuit_id});
+    }
+
+    return $results;
+
+}
+
 
 =head2 get_current_circuits
 
@@ -2199,10 +2251,10 @@ sub get_circuit_endpoints {
     #we now have a handle on all of the rows... we need to pull out the interface data
     #because the same interface might be involved we have to break it up into 2 queries
 
-    $query = "select interface.name as int_name, node.name as node_name, interface.interface_id, node.node_id as node_id, interface.port_number, network.is_local, interface.role, urn.urn from interface,node, network,urn where node.node_id = interface.node_id and interface.interface_id = ? and network.network_id = node.network_id and urn.interface_id = interface.interface_id";
+    #$query = "select interface.name as int_name, node.name as node_name, interface.interface_id, node.node_id as node_id, interface.port_number, network.is_local, interface.role, urn.urn from interface,node, network,urn where node.node_id = interface.node_id and interface.interface_id = ? and network.network_id = node.network_id and urn.interface_id = interface.interface_id";
+    $query = "select interface.name as int_name, node.name as node_name, interface.interface_id, node.node_id as node_id, interface.port_number, interface.role, network.is_local, urn.urn from node, network, interface left join urn on urn.interface_id = interface.interface_id where node.node_id = interface.node_id and interface.interface_id = ? and network.network_id = node.network_id";
 
-
-	#"join node on node.node_id = interface.node_id node" network, urn where interface.interface_id = ? and node.node_id = interface.node_id and node.network_id = network.network_id and interface.interface_id = urn.interface_id";
+    #"join node on node.node_id = interface.node_id node" network, urn where interface.interface_id = ? and node.node_id = interface.node_id and node.network_id = network.network_id and interface.interface_id = urn.interface_id";
     
     my $sth2 = $self->_prepare_query($query) or return undef;
 

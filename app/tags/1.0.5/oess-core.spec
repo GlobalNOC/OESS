@@ -1,6 +1,6 @@
 Name:		oess-core		
 Version:	1.0.5
-Release:	1%{?dist}
+Release:	2%{?dist}
 Summary:	The core oess service provides
 
 Group:		Network

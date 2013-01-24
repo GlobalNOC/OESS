@@ -73,6 +73,12 @@ class dBusEventGen(dbus.service.Object):
        logger.info(string)
 
     @dbus.service.signal(dbus_interface=ifname,
+                         signature='tua{sv}')
+    def topo_port_status(self,dp_id,reason,attrs):
+        string = "Topo Port Status Change: " + str(dp_id)+" attr " + str(dict(attrs))
+        logger.info(string)
+
+    @dbus.service.signal(dbus_interface=ifname,
                          signature='tqtqs')
     def link_event(self,sdp,sport,ddp,dport,action):
        string = "link_event: "+str(sdp)+" port "+str(sport)+" -->  "+str(ddp)+" port "+str(dport)+" is "+str(action)

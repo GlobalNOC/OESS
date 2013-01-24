@@ -464,8 +464,21 @@ sub _parse_struct {
     my $remoteNodeA = $xpath->find("./ns2:srcEndpoint", $layer2_info)->[0]->getChildNodes()->[0]->getValue();
     my $remoteNodeZ = $xpath->find("./ns2:destEndpoint", $layer2_info)->[0]->getChildNodes()->[0]->getValue();
 
-    my $remoteTagA = $xpath->find("./ns2:srcVtag", $layer2_info)->[0]->getChildNodes()->[0]->getValue();
-    my $remoteTagZ = $xpath->find("./ns2:destVtag", $layer2_info)->[0]->getChildNodes()->[0]->getValue();
+#    my $remoteTagA = $xpath->find("./ns2:srcVtag", $layer2_info)->[0]->getChildNodes()->[0]->getValue();
+#    my $remoteTagZ = $xpath->find("./ns2:destVtag", $layer2_info)->[0]->getChildNodes()->[0]->getValue();
+    my $remoteTagA = $xpath->find("./ns2:srcVtag", $layer2_info);
+    if(!defined($remoteTagA->[0])){
+        $remoteTagA = undef;
+    }else{
+        $remoteTagA = $remoteTagA->[0]->getChildNodes()->[0]->getValue();
+    }
+
+    my $remoteTagZ = $xpath->find("./ns2:destVtag", $layer2_info);
+    if(!defined($remoteTagZ->[0])){
+        $remoteTagZ = undef;
+    }else{      
+        $remoteTagZ = $remoteTagZ->[0]->getChildNodes()->[0]->getValue();
+    }
 
     my @remote_endpoints;
 

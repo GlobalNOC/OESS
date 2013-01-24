@@ -32,7 +32,7 @@ use Net::DBus::Exporter qw(org.nddi.fwdctl);
 use Net::DBus qw(:typing);
 use base qw(Net::DBus::Object);
 use Sys::Syslog qw(:macros :standard);
-
+use Switch;
 use OESS::Database;
 use OESS::Topology;
 
@@ -58,6 +58,11 @@ use constant OFPAT_ENQUEUE      => 11;
 use constant OFPAT_VENDOR       => 65535;
 
 use constant OFPP_CONTROLLER    => 65533;
+
+#port_status reasons
+use constant OFPPR_ADD => 0;
+use constant OFPPR_DELETE => 1;
+use constant OFPPR_MODIFY => 2;
 
 use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
@@ -101,6 +106,7 @@ sub new {
     dbus_method("addVlan", ["uint32"], ["string"]);
     dbus_method("deleteVlan", ["string"], ["string"]);
     dbus_method("changeVlanPath", ["string"], ["string"]);
+    dbus_method("topo_port_status",["uint64","uint32",["dict","string","string"]],["string"]);
 
     return $self;
 }
@@ -110,7 +116,8 @@ sub _sync_database_to_network {
 
     my $nodes = $self->{'db'}->get_current_nodes();
     foreach my $node(@$nodes){
-	push(@{$self->{'nodes_for_diff'}},$node->{'dpid'});
+	$node->{'full_diff'} = 1;
+	push(@{$self->{'nodes_for_diff'}},$node);
     }
 }
 
@@ -238,6 +245,7 @@ sub _generate_translation_rule{
 	# it does nothing and gets peeled off in nddi_dbus
 	$action[0][1]     = dbus_uint16(0);
     }
+    #tagged traffic
     else{   
 	$action[0][0]     = dbus_uint16(OFPAT_SET_VLAN_VID);
 	$action[0][1]     = dbus_uint16($out_tag);
@@ -264,7 +272,7 @@ sub _generate_commands{
     my $action           = shift;
 
      my $circuit_details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
-
+    print STDERR "Generate Commands - Circuit Details: " . Dumper($circuit_details);
     if (!defined $circuit_details){
 	_log("No Such Circuit");
         #--- no such ckt error
@@ -318,7 +326,7 @@ sub _generate_commands{
      #---    node     
      foreach my $path ((\%primary_path, \%backup_path)){
 
-	 #--- go node by node and figure out the simple forwarding rules for this path
+	 #--- get node by node and figure out the simple forwarding rules for this path
 	 foreach my $node (sort keys %$path){
 	     foreach my $interface (sort keys %{$path->{$node}}){
 		 foreach my $other_if(sort keys %{$path->{$node}}){
@@ -466,9 +474,8 @@ sub datapath_join{
 
     if(!defined($node) || $node->{'default_forward'} == 1){
 	my $xid     = $self->{'of_controller'}->install_default_forward($dpid);
-	
 	my $result = $self->_poll_xids([$xid]);
-	
+
 	if ($result != FWDCTL_SUCCESS){
 	    _log("Warning: unable to install default forward to controller rule in switch $dpid, discovery likely will not work.");
 	}    
@@ -492,7 +499,7 @@ sub datapath_join{
     }
 
     #set this node for diffing!
-    push(@{$self->{'nodes_for_diff'}},$dpid);
+    push(@{$self->{'nodes_for_diff'}},{dpid => $dpid, full_diff => 1});
 
 
 }
@@ -538,8 +545,10 @@ sub _process_flow_stats_to_command{
 
 sub _do_diff{
     my $self = shift;
-    my $dpid = shift;
+    my $node = shift;
     my $current_flows = shift;
+
+    my $dpid = $node->{'dpid'};
     _log("Diffing DPID: $dpid");
     #--- get the set of circuits
     my $current_circuits = $self->{'db'}->get_current_circuits();
@@ -548,19 +557,37 @@ sub _do_diff{
         return;
     }
     
-   #--- process each ckt
+    #--- process each ckt                                                                                                                                                                             
+    my @all_commands;
     foreach my $circuit (@$current_circuits){
         my $circuit_id   = $circuit->{'circuit_id'};
         my $circuit_name = $circuit->{'name'};
         my $state        = $circuit->{'state'};
-    
+
         next unless ($state eq "deploying" || $state eq "active");
+        #--- get the set of commands needed to create this vlan per design                                                                                                                           
+        my $commands = $self->_generate_commands($circuit_id,FWDCTL_ADD_VLAN);
+	foreach my $command (@$commands){
+	    push(@all_commands,$command);
+	}
+    }
+
+    $self->_actual_diff( $dpid, $current_flows, \@all_commands);
+}
+
+sub _actual_diff{
+    my $self = shift;
+    my $dpid = shift;
+    my $current_flows = shift;
+    my $commands = shift;
+    
+    foreach my $command (@$commands){
 	#--- get the set of commands needed to create this vlan per design
-	my $commands = $self->_generate_commands($circuit_id,FWDCTL_ADD_VLAN);
 	foreach my $command (@$commands){
 	    #ignore rules not for this dpid
+	    print STDERR Dumper($command);
 	    next if($command->{'dpid'}->value() != $dpid);
-	    #ok so we have our list of rules for the 
+	    #ok so we have our list of rules for this node 
 	    if(defined($current_flows->{$command->{'attr'}->{'IN_PORT'}->value()})){
 		my $port = $current_flows->{$command->{'attr'}->{'IN_PORT'}->value()};
 		if(defined($port->{$command->{'attr'}->{'DL_VLAN'}->value()})){
@@ -614,6 +641,7 @@ sub _do_diff{
 	    }
 	}
     }
+
     #ok, now we need to figure out if we saw flowmods that we weren't suppose to
     foreach my $port_num (keys (%{$current_flows})){
 	my $port = $current_flows->{$port_num};
@@ -628,10 +656,15 @@ sub _do_diff{
     }
 
     
-    print "datapath_join: $dpid: circuits resynched \n";
+    print "Diff complete: $dpid: circuits resynched \n";
 }
     
     
+=head2 port_status
+    listens to the port status event from NOX
+    and determins if a fail-over needs to occur
+    **NOTE - Not used for add/delete events
+=cut
 
 sub port_status{
 	my $self   = shift;
@@ -639,7 +672,7 @@ sub port_status{
         my $reason = shift;
         my $info   = shift;
 
-	#_log(Dumper($info));
+	return if($reason != OFPPR_MODIFY);
 
 	my $port_name   = $info->{'name'};
 	my $port_number = $info->{'port_no'};
@@ -711,6 +744,172 @@ sub port_status{
         print "port status: $dpid: $reason: ".Dumper($info);
 }
 
+sub _get_rules_on_port{
+    my $self = shift;
+    my %args = @_;
+    my $port_number = $args{'port_number'};
+    my $dpid = $args{'dpid'};
+
+    #find the interface
+    my $interface = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $dpid,
+								   port_number => $port_number);
+
+    #determine if anything needs to be pushed to the switch
+    #get a list of current circuits that are somehow involved on this interface/node
+    my $affected_circuits = $self->{'db'}->get_current_circuits_by_interface( interface => $interface);
+
+    print STDERR "Looking for DPID: " . $dpid . "\n";
+    print STDERR "Looking for PORT: " . $interface->{'port_number'} . "\n";
+
+    my @port_commands;
+    foreach my $ckt (@$affected_circuits){
+	print STDERR "PRocessing command\n";
+	my $circuit_id   = $ckt->{'circuit_id'};
+	my $circuit_name = $ckt->{'name'};
+	my $state        = $ckt->{'state'};
+
+	next unless ($state eq "deploying" || $state eq "active");
+	
+	my $commands = $self->_generate_commands($circuit_id,FWDCTL_ADD_VLAN);
+	foreach my $command (@$commands){
+	    #ignore rules not for this dpid
+	    next if($command->{'dpid'}->value() != $dpid);
+
+	    #include rules that have a match on this port
+	    if($command->{'attr'}->{'IN_PORT'}->value() == $port_number){
+		push(@port_commands,$command);
+		next;
+	    }
+	    
+	    #include rules that have an action on this port
+	    foreach my $action (@{$command->{'action'}}){
+		print STDERR "  Action: " . Dumper($action);
+		if($action->[0]->value() == OFPAT_OUTPUT && $action->[1]->[1]->value() == $port_number){
+		    push(@port_commands,$command);
+		}
+	    }
+	    
+	}
+    }
+
+    #return the list of rules
+    return \@port_commands;
+
+}
+
+sub _do_interface_diff{
+    my $self = shift;
+    my $node = shift;
+    my $current_rules = shift;
+
+    print STDERR "All Rules: " .  Dumper($current_rules);
+
+    my %current_flows;
+
+    $current_flows{$node->{'port_number'}} = $current_rules->{'port_number'};
+    #first we need to filter this down to flows on our interfaces
+    foreach my $port (keys (%{$current_rules})){
+	next if($port == $node->{'port_number'});
+	
+	foreach my $vlan (keys (%{$current_rules->{$port}})){
+	    my $actions = $current_rules->{$port}->{$vlan}->{'action'};
+	    foreach my $action (@$actions){
+		if($action->[0] == 0 && $action->[1] == $port){
+		    $current_flows{$port}{$vlan} = $current_rules->{$port}->{$vlan};
+		}
+	    }
+	}
+    }
+    
+    print STDERR "Current Flows:" . Dumper(%current_flows);
+
+    #get a list of all the rules that we want on the port
+    my $rules = $self->_get_rules_on_port( port_number => $node->{'port_number'}, dpid => $node->{'dpid'} );
+    
+    print STDERR "Expected Flows: " . Dumper($rules);
+
+    $self->_actual_diff( $node->{'dpid'}, \%current_flows, $rules);
+}
+
+sub topo_port_status{
+        my $self   = shift;
+        my $dpid   = shift;
+        my $reason = shift;
+        my $info   = shift;
+
+        my $port_name   = $info->{'name'};
+        my $port_number = $info->{'port_no'};
+        my $link_status = $info->{'link'};
+	
+	my $interface = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $dpid,
+								       port_number => $port_number);
+	print STDERR "Interface: " . Dumper($interface);
+	my $node = $self->{'db'}->get_node_by_dpid( dpid => $dpid );
+
+	print STDERR "Node: " . Dumper($node);
+	#ok so this is for the add/delete event
+	#not the up/down
+	switch ($reason) {
+	    #add case
+	    case OFPPR_ADD {
+		print STDERR "Detected the addition of an interface!!!\n";
+		#get list of rules we currently have
+		$node->{'interface_diff'} = 1;
+		$node->{'port_number'} = $port_number;
+		push(@{$self->{'nodes_for_diff'}},$node);
+
+		#note that this will cause the flow_stats_in handler to handle this data
+		#and it will then call the _do_interface_diff				
+	    };
+	    #the delete case
+	    case OFPPR_DELETE{
+		return 1;
+		#determine if anything needs to be pushed to the switch
+		#for now if we delete a link fail over
+		my $link_info   = $self->{'db'}->get_link_by_dpid_and_port(dpid => $dpid,
+                                                                           port => $port_number);
+
+                if(defined($link_info)){
+                    my $affected_circuits = $self->{'db'}->get_affected_circuits_by_link_id( link_id => $link_info->{'link_id'});
+                    if (! defined $affected_circuits){
+                        _log("Error getting affected circuits: " . $self->{'db'}->get_error());
+                        return 1;
+                    }
+
+                    _log("Checking affected circuits...");
+
+                    foreach my $circuit_info (@$affected_circuits){
+                        my $circuit_id   = $circuit_info->{'id'};
+                        my $circuit_name = $circuit_info->{'name'};
+
+                        _log("Checking $circuit_id");
+
+                        if ( $self->{'db'}->circuit_has_alternate_path(circuit_id => $circuit_id ) ){
+                            _log("Trying to change $circuit_id over to alternate path...");
+                            my $success = $self->{'db'}->switch_circuit_to_alternate_path(circuit_id => $circuit_id);
+                            _log("Success is $success");
+                            if (! $success){
+                                _log("Error changing \"$circuit_name\" (id = $circuit_id) to its backup: " . $self->{'db'}->get_error());
+                                next;
+			    }
+                            $self->changeVlanPath($circuit_id);
+                        }else {
+                            # this is probably where we would put the dynamic backup calculation
+                            # when we get there.
+                            _log("Warning: circuit \"$circuit_name\" (id = $circuit_id) has no backup and is now down.");
+                        }
+                    }
+                }
+
+	    };
+	    case OFPPR_MODIFY{
+		#don't do anything... we should not go here!
+	    };
+	}
+	return 1;
+
+}
+
 sub _process_flows_to_hash{
     my $flows = shift;
     my $tmp = {};
@@ -737,13 +936,22 @@ sub flow_stats_in{
 
     for(my $i=0;$i<=$#{$self->{'nodes_for_diff'}};$i++){
 	my $node = $self->{'nodes_for_diff'}->[$i];
-	if($node == $dpid){
+	print STDERR Dumper($node);
+	if($node->{'dpid'} == $dpid){
 	    #process the flow_rules into a lookup hash
 	    my $hash = _process_flows_to_hash($flows);
+
+	    #remove the node from the requested differ
 	    splice(@{$self->{'nodes_for_diff'}},$i,1);
+
 	    #now that we have the lookup hash of flow_rules
 	    #do the diff
-	    $self->_do_diff($dpid,$hash);
+	    if($node->{'full_diff'} == 1){
+		$self->_do_diff($node,$hash);
+	    }elsif($node->{'interface_diff'} == 1){
+		print STDERR "Doing an interface diff!!!\n";
+		$self->_do_interface_diff($node,$hash);
+	    }
 	} 
     }
 }
@@ -977,6 +1185,7 @@ sub core{
 
     #first thing to do is to try and push out all of the default forward/drop rules
     #to all of the switches to make sure they are in a known state
+    sleep(10);
     $srv_object->_push_default_rules();
     
     #--- on creation we need to resync the database out to the network as the switches
@@ -997,7 +1206,7 @@ sub core{
 	my $info   = shift;
 	$srv_object->port_status($dpid,$reason,$info);
     }
-    
+
     sub link_event_callback{
 	my $a_dpid  = shift;
 	my $a_port  = shift;
