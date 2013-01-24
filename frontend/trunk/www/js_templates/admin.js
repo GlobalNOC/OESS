@@ -1341,6 +1341,8 @@ function setup_network_tab(){
 	    var lat        = args[0].lat;
 	    var lon        = args[0].lon;
 	    var vlan_range = args[0].vlan_range;
+	    var max_flows = args[0].max_flows;
+	    var tx_delay_ms = args[0].tx_delay_ms;
 	    var default_drop = args[0].default_drop;
 	    var default_forward = args[0].default_forward;
 	    var feature = args[0].feature;
@@ -1381,6 +1383,14 @@ function setup_network_tab(){
 			  "<td><input type='checkbox' id='active_node_default_drop' checked /></td>" +
 			  "</td>" +
 			  "</tr>" +
+			  "<tr>" + 
+			  "<td colspan='2'>Maximum Number of Flow Mods</td>" +
+			  "<td><input type='text' id='max_flows' size='10'></td>" +
+			  "</tr>" +
+			  "<tr>" +
+			  "<td colspan='2'>FlowMod Processing Delay (ms)</td>" +
+                          "<td><input type='text' id='tx_delay_ms' size='10'></td>" +
+                          "</tr>" +
 			  "</table>"
 			  );
 
@@ -1397,6 +1407,9 @@ function setup_network_tab(){
 	    YAHOO.util.Dom.get('active_node_lat').value         = lat;
 	    YAHOO.util.Dom.get('active_node_lon').value         = lon; 
 	    YAHOO.util.Dom.get('active_node_vlan_range').value  = vlan_range;
+	    YAHOO.util.Dom.get('tx_delay_ms').value             = tx_delay_ms;
+	    YAHOO.util.Dom.get('max_flows').value                        = max_flows;
+	    
 	    if(default_drop == 0){
 		YAHOO.util.Dom.get('active_node_default_drop').checked = false;
 	    }
