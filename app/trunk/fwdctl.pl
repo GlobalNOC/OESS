@@ -71,6 +71,8 @@ use constant FWDCTL_UNKNOWN     => 3;
 
 $| = 1;
 
+my %node;
+
 sub _log {
     my $string = shift;
 
@@ -436,7 +438,7 @@ sub _push_default_rules{
 
 	if($node_details->{'default_forward'} == 1){
 	    my $xid     = $self->{'of_controller'}->install_default_forward($nodes->{$node});
-	    
+	    $node{$nodes->{$node}}++;
 	    my $result = $self->_poll_xids([$xid]);
 	    
 	    if ($result != FWDCTL_SUCCESS){
@@ -449,7 +451,7 @@ sub _push_default_rules{
 
 	if($node_details->{'default_drop'} == 1){
 	    my $xid     = $self->{'of_controller'}->install_default_drop($nodes->{$node});
-	    
+	    $node{$nodes->{$node}}++;
 	    my $result = $self->_poll_xids([$xid]);
 	    
 	    if ($result != FWDCTL_SUCCESS){
@@ -474,6 +476,7 @@ sub datapath_join{
 
     if(!defined($node) || $node->{'default_forward'} == 1){
 	my $xid     = $self->{'of_controller'}->install_default_forward($dpid);
+	$node{$dpid}++;
 	my $result = $self->_poll_xids([$xid]);
 
 	if ($result != FWDCTL_SUCCESS){
@@ -487,7 +490,7 @@ sub datapath_join{
 
     if(!defined($node) || $node->{'default_drop'} == 1){
 	my $xid     = $self->{'of_controller'}->install_default_drop($dpid);
-	
+	$node{$dpid}++;
 	my $result = $self->_poll_xids([$xid]);
 	
 	if ($result != FWDCTL_SUCCESS){
@@ -511,7 +514,7 @@ sub _replace_flowmod{
     my $new_command = shift;
     my $xid;
     _log("replacing flowmods");
-
+    my $node = $self->{'db'}->get_node_by_dpid( dpid => $dpid);
     if(!defined($delete_command) && !defined($new_command)){
 	return undef;
     }
@@ -520,11 +523,17 @@ sub _replace_flowmod{
     if(defined($delete_command)){
 	#delete this flowmod
 	$xid = $self->{'of_controller'}->delete_datapath_flow($dpid,$delete_command->{'attr'});
+	$node{$dpid}--;
 	push(@xids, $xid);
     }
     
     if(defined($new_command)){
+	if($node{$dpid} >= $node->{'max_flows'}){
+            _log("Node is currently at its maximum number of flows");
+            return FWDCTL_FAILURE;
+        }
 	$xid = $self->{'of_controller'}->install_datapath_flow($dpid,$new_command->{'attr'},0,0,$new_command->{'action'},$new_command->{'attr'}->{'IN_PORT'});
+	$node{$dpid}++;
 	push(@xids, $xid);
 	#wait for the delete to take place
     }
@@ -1050,8 +1059,12 @@ sub addVlan {
         }
         #first delay by some configured value in case the device can't handle it                                                                                                                                        
 	usleep($node->{'tx_delay_ms'} * 1000);
+	if($node{$dpid} >= $node->{'max_flows'}){
+	    _log("Node is currently at its maximum number of flows");
+	    return FWDCTL_FAILURE;
+	}
 	my $xid = $self->{'of_controller'}->install_datapath_flow($command->{'dpid'},$command->{'attr'},0,0,$command->{'action'},$command->{'attr'}->{'IN_PORT'});
-
+	$node{$dpid}++;
 	push(@xids, $xid);
     }	
 
@@ -1108,6 +1121,7 @@ sub deleteVlan {
 	my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'});
 	usleep($node->{'tx_delay_ms'} * 1000);
         my $xid = $self->{'of_controller'}->delete_datapath_flow($command->{'dpid'},$command->{'attr'});	
+	$node{$command->{'dpid'}}--;
 	push(@xids, $xid);
     }
 
@@ -1143,6 +1157,7 @@ sub changeVlanPath {
 	    #first delay by some configured value in case the device can't handle it                                                                                                                                        
 	    usleep($node->{'tx_delay_ms'} * 1000);
 	    my $xid = $self->{'of_controller'}->delete_datapath_flow($command->{'dpid'},$command->{'attr'});
+	    $node{$command->{'dpid'}}--;
 	    push (@xids, $xid);
 	}
 
@@ -1164,15 +1179,19 @@ sub changeVlanPath {
 	    my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'});
 	    #first delay by some configured value in case the device can't handle it                                                                                                                                        
 	    usleep($node->{'tx_delay_ms'} * 1000);
+	    if($node{$command->{'dpid'}} >= $node->{'max_flows'}){
+		_log("Node is currently at its maximum number of flows");
+		return FWDCTL_FAILURE;
+	    }
 	    my $xid = $self->{'of_controller'}->install_datapath_flow($command->{'dpid'},$command->{'attr'},0,0,$command->{'action'},$command->{'attr'}->{'IN_PORT'});
-
+	    $node{$command->{'dpid'}}++;
 	    push(@xids, $xid);
 	}
 
     }
 
     $result = $self->_poll_xids(\@xids);
-    
+
     return $result;
 }
 
