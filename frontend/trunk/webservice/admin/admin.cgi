@@ -605,6 +605,8 @@ sub update_node {
     my $range           = $cgi->param('vlan_range');
     my $default_drop    = $cgi->param('default_drop');
     my $default_forward = $cgi->param('default_forward');
+    my $max_flows       = $cgi->param('max_flows') || 0;
+    my $tx_delay_ms     = $cgi->param('tx_delay_mx') || 0;
 
     if ( $default_drop eq 'true' ) {
         $default_drop = 1;
@@ -627,7 +629,9 @@ sub update_node {
         latitude        => $lat,
         vlan_range      => $range,
         default_forward => $default_forward,
-        default_drop    => $default_drop
+        default_drop    => $default_drop,
+	tx_delay_ms     => $tx_delay_ms,
+	max_flows       => $max_flows
     );
 
     if ( !defined $result ) {
