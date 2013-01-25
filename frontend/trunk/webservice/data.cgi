@@ -273,9 +273,11 @@ sub get_node_interfaces{
 
     my $node         = $cgi->param('node');
     my $workgroup_id = $cgi->param('workgroup_id');
+    my $show_down   = $cgi->param('show_down') || 0;
 
     my $interfaces = $db->get_node_interfaces(node         => $node,
-					      workgroup_id => $workgroup_id
+					      workgroup_id => $workgroup_id,
+					      show_down    => $show_down
 	                                     );
 
     # something went wrong

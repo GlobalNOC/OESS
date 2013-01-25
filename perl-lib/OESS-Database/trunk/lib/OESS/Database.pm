@@ -831,6 +831,8 @@ The name of the node to query.
 
 =item workgroup_id (optional)
 
+=item show_down (optional)
+
 The internal MySQL primary key int identifier for this workgroup.
 
 =back
@@ -843,7 +845,7 @@ sub get_node_interfaces {
 
     my $node_name    = $args{'node'};
     my $workgroup_id = $args{'workgroup_id'};
-
+    my $show_down    = $args{'show_down'};
     my @query_args;
 
     push(@query_args, $node_name);
@@ -856,7 +858,11 @@ sub get_node_interfaces {
 	push(@query_args, $workgroup_id);
 	$query .= " join workgroup_interface_membership on workgroup_interface_membership.interface_id = interface.interface_id ";
     }
-    $query .= " where interface.operational_state = 'up' and interface.role != 'trunk' ";
+
+    $query .= " where interface.role != 'trunk' ";
+    if($show_down == 0){
+	$query .= " and interface.operational_state = 'up' ";
+    }
     
     if (defined $workgroup_id){
 	$query .= " and workgroup_interface_membership.workgroup_id = ?";
@@ -2249,7 +2255,7 @@ sub get_circuit_endpoints {
     #because the same interface might be involved we have to break it up into 2 queries
 
     #$query = "select interface.name as int_name, node.name as node_name, interface.interface_id, node.node_id as node_id, interface.port_number, network.is_local, interface.role, urn.urn from interface,node, network,urn where node.node_id = interface.node_id and interface.interface_id = ? and network.network_id = node.network_id and urn.interface_id = interface.interface_id";
-    $query = "select interface.name as int_name, node.name as node_name, interface.interface_id, node.node_id as node_id, interface.port_number, interface.role, network.is_local, urn.urn from interface left join interface_instantiation on interface.interface_id = interface_instantiation.interface_id and interface_instantiation.end_epoch = -1 join node on interface.node_id = node.node_id left join node_instantiation on node_instantiation.node_id = node.node_id and node_instantiation.end_epoch = -1 left join urn on urn.interface_id = interface.interface_id join network on node.network_id = network.network_id where interface.interface_id = ?"
+    $query = "select interface.name as int_name, node.name as node_name, interface.interface_id, node.node_id as node_id, interface.port_number, interface.role, network.is_local, urn.urn from interface left join interface_instantiation on interface.interface_id = interface_instantiation.interface_id and interface_instantiation.end_epoch = -1 join node on interface.node_id = node.node_id left join node_instantiation on node_instantiation.node_id = node.node_id and node_instantiation.end_epoch = -1 left join urn on urn.interface_id = interface.interface_id join network on node.network_id = network.network_id where interface.interface_id = ?";
 
     #"join node on node.node_id = interface.node_id node" network, urn where interface.interface_id = ? and node.node_id = interface.node_id and node.network_id = network.network_id and interface.interface_id = urn.interface_id";
     

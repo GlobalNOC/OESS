@@ -989,7 +989,7 @@ function setup_workgroup_tab(){
 
 			    this.changeNodeImage(feature, this.ACTIVE_IMAGE);
 
-			    var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_node_interfaces&node="+encodeURIComponent(node));
+			    var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_node_interfaces&show_down=1&node="+encodeURIComponent(node));
 			    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 			    ds.responseSchema = {
 				resultsList: "results",
