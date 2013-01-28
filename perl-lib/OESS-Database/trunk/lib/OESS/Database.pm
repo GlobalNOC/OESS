@@ -2683,6 +2683,34 @@ sub confirm_link {
     return 1;
 }
 
+sub update_link_state{
+    my $self = shift;
+    my %args = @_;
+
+    my $link_id = $args{'link_id'};
+    my $state = $args{'state'};
+
+    $self->_start_transaction();
+
+    if(!defined($link_id)){
+	$self->_set_error("No Link ID specified");
+	return undef;
+    }
+
+    if(!defined($state)){
+	$state = 'down';
+    }
+
+    my $result = $self->_execute_query("updat link set status = ? where link_id = ?",[$state,$link_id]);
+    if($result != 1){
+	$self->_set_error("Error updating link state");
+	return undef;
+    }
+    $self->_commit();
+
+    return 1;
+}
+
 sub update_link {
     my $self = shift;
     my %args = @_;
@@ -2721,11 +2749,20 @@ sub decom_link {
 	$self->_set_error("Error updating link instantiation.");
 	return undef;
     }
+   
+    $self->_execute_query("insert into link_instantiation (end_epoch,start_epoch,state,link_id,interface_a_id,interface_z_id) VALUES (-1,unix_timestamp(NOW()),'decom',?,?,?",[$link_details->{'interface_a_id'},$link_details->{'interface_z_id'},$link_id]);
 
-    my $update_interface_role = "update interface set role = 'unknown' where interface_id = ?";
-
-    $res = $self->_execute_query($update_interface_role,[$link_details->{'interface_a_id'}]);
-    $res = $self->_execute_query($update_interface_role,[$link_details->{'interface_z_id'}]);
+    if($link_details->{'status'} eq 'down'){
+	#link does not appear to be connected... set the interfaces back to "unknown" state
+	my $update_interface_role = "update interface set role = 'unknown' where interface_id = ?";
+	my $res = $self->_execute_query($update_interface_role,[$link_details->{'interface_a_id'}]);
+	$res = $self->_execute_query($update_interface_role,[$link_details->{'interface_z_id'}]);
+    }else{
+	#link is still up so its connected create a new instantiation waiting for approval
+	$self->_execute_query("update link_instantaition set end_epoch = unix_timestamp(NOW()) where end_epoch = -1 and link_id = ?", [$link_id]);
+	$self->_execute_query("insert into link_instantiation (end_epoch, start_epoch, state, link_id, interface_a_id, interface_z_id) VALUES (-1,unix_timestamp(NOW()),'available',?,?,?",[$link_details->{'interface_a_id'},$link_details->{'interface_z_id'},$link_id]);	
+	
+    }
 
     $self->_commit();
 
