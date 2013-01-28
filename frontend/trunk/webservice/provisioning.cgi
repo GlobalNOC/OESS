@@ -180,7 +180,7 @@ sub provision_circuit {
     $results->{'results'} = [];
 
     
-	my $output;
+    my $output;
 
     my $workgroup_id = $cgi->param('workgroup_id');
     my $external_id  = $cgi->param('external_identifier');
@@ -196,16 +196,15 @@ sub provision_circuit {
     my $provision_time = $cgi->param('provision_time');
     my $remove_time    = $cgi->param('remove_time');
 	
-	my $bus = Net::DBus->system;
-	my $log_svc;
+    my $bus = Net::DBus->system;
+    my $log_svc;
     my $log_client;
     eval {
         $log_svc    = $bus->get_service("org.nddi.syslogger");
         $log_client = $log_svc->get_object("/controller1");
     };
 
-
-	my @links        = $cgi->param('link');
+    my @links        = $cgi->param('link');
     my @backup_links = $cgi->param('backup_link');
     my @nodes        = $cgi->param('node');
     my @interfaces   = $cgi->param('interface');
@@ -241,8 +240,7 @@ sub provision_circuit {
         if ( defined $output ) {
 
             #send message to Syslogger DBUS about Add Case
-
-#if logging client is down, just skip it. Assume the syncer script will catch what falls through
+            #if logging client is down, just skip it. Assume the syncer script will catch what falls through
             if ( defined $log_client ) {
 
                 #Needed to sync db
@@ -252,6 +250,7 @@ sub provision_circuit {
                 # ckt->{'name'}
                 # ckt->{'description'},
                 # ckt->{'circuit_state'}
+		eval{
                 my $circuit_details = $db->get_circuit_details(
                     circuit_id => $output->{'circuit_id'} );
 
@@ -263,6 +262,7 @@ sub provision_circuit {
 												 circuit_state => $circuit_details->{'state'}
 												 }
 											  );
+		}
             }
 
         }
@@ -329,6 +329,7 @@ sub provision_circuit {
 
             #Send Edit to Syslogger DBUS
             if ( defined $log_client ) {
+		eval{
                 my $circuit_details = $db->get_circuit_details(
                     circuit_id => $output->{'circuit_id'} );
 
@@ -340,7 +341,7 @@ sub provision_circuit {
 											  circuit_state => $circuit_details->{'state'}
 											 }
 											 );
-
+		}
             }
         }
 
