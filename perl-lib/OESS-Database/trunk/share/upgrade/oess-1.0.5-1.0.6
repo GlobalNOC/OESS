@@ -67,6 +67,10 @@ sub upgrade{
     $str = $dbh->prepare($str);
     $sth->execute();
 
+    $str = "alter table link add column status enum('up','down') default 'up'";
+    $str = $dbh->prepare($str);
+    $sth->execute();
+
     
     ####################################
     #
