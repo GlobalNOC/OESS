@@ -2733,6 +2733,177 @@ sub update_link {
     return 1;
 }
 
+sub is_new_node_in_path{
+    my $self = shift;
+    my %args = @_;
+
+    my $link = $args{'link'};
+    if(!defined($link)){
+	return {error => "No Link specified", results =>[]};
+    }
+
+    my $link_details = $self->{'db'}->get_link_by_name( name => $link);
+    
+    if($link_details->{'status'} eq 'up'){
+	#short circuit here
+	#if the link is up then no way that there is a node in the path
+	return {results => [{link => $link_details, node_in_path => 'false'}]};
+    }
+
+
+    #find the 2 links that now make up this path
+    my $new_path = $self->_find_new_path( link => $link_details);
+
+    if(!defined($new_path)){
+	return {results => [{link => $link_details, node_in_path => 'false'}]};
+    }else{
+	return {results => [{link => $link_details, node_in_path => 'true', new_path => $new_path}]};
+    }
+}
+
+sub _find_new_path{
+    my $self = shift;
+    my %args = @_;
+
+    my $link = $args{'link'};
+
+    #ok so the link is down
+    #need to check and see if a new link exists
+    my $endpoints = $self->{'db'}->get_link_endpoints( link_id => $link->{'link_id'});
+    my $a_links = $self->{'db'}->get_link_by_interface_id( interface_id => $endpoints->[0]->{'interface_id'});
+    my $z_links = $self->{'db'}->get_link_by_interface_id( interface_id => $endpoints->[1]->{'interface_id'});
+
+    my $a_link;
+    my $z_link;
+    #ok we need to have 2 links for each of the interfaces
+    if($#{$a_links} >= 1){ 
+	foreach my $test_link (@{$a_links}){
+	    next if($test_link->{'link_id'} == $link->{'link_id'});
+	    if($test_link->{'status'} eq 'up'){
+		$a_link = $test_link;
+	    }
+	}
+    }else{
+	#no second link... not capable of creating a new path
+	return;
+    }
+
+    if($#{$z_links} >= 1){
+	foreach my $test_link (@{$z_links}){
+	    next if($test_link->{'link_id'} == $link->{'link_id'});
+	    if($test_link->{'status'} eq 'up'){
+                $z_link= $test_link;
+            }
+	}
+    }else{
+	#no second link... not capable of creating a new path
+	return;
+    }
+
+    if(defined($z_link) && defined($a_link)){
+	my $z_endpoints = $self->{'db'}->get_link_endpoints(link_id => $z_link->{'link_id'});
+	my $a_endpoints = $self->{'db'}->get_link_endpoints(link_id => $a_link->{'link_id'});
+	
+	my $new_a_int;
+	my $new_z_int;
+	
+	foreach my $ep (@$a_endpoints){
+	    next if($ep->{'interface_id'} == $endpoints->[0]->{'interface_id'});
+	    $new_a_int = $ep->{'interface_id'};		
+	}
+
+	foreach my $ep (@$z_endpoints){
+	    next if($ep->{'interface_id'} == $endpoints->[1]->{'interface_id'});
+	    $new_z_int = $ep->{'interface_id'};
+	}
+
+	if($new_z_int->{'node_id'} == $new_a_int->{'node_id'}){
+	    return [$a_link->{'link_id'},$z_link->{'link_id'}];
+	}
+	
+    }else{
+	return;
+    }
+    
+
+}
+
+
+sub insert_node_in_path{
+    my $self = shift;
+    my %args = @_;
+
+    my $link = $args{'link'};
+    if(!defined($link)){
+	return {error => 'no link specified to insert node'};
+    }
+
+    my $link_details = $self->{'db'}->get_link_by_name( name => $link);
+
+    if($link_details->{'status'} eq 'up'){
+        #short circuit here
+	#if the link is up then no way that there is a node in the path
+        return {results => [{link => $link_details, node_in_path => 'false'}]};
+    }
+
+
+    #find the 2 links that now make up this path
+    my $new_path = $self->_find_new_path( link => $link_details);
+
+    if(!defined($new_path)){
+	return {error => "no new paths found"};
+    }
+    
+    my $circuits = $self->{'db'}->get_affected_circuits_by_link_id( link_id => $link_details->{'link_id'} );
+    
+    foreach my $circuit (@$circuits){
+	#first we need to connect to DBus and remove the circuit from the switch...
+
+	my $bus = Net::DBus->system;
+	my $client;
+	my $service;
+
+	eval {
+	    $service = $bus->get_service("org.nddi.fwdctl");
+	    $client  = $service->get_object("/controller1");
+	};
+
+	if ($@) {
+	    warn "Error in _connect_to_fwdctl: $@";
+	    return undef;
+	}
+
+	if ( !defined $client ) {
+	    return undef;
+	}
+
+	my $result = $client->deleteVlan($circuit->{'circuit_id'});
+
+	warn "RESULT Delete VLAN: " . Dumper($result);
+
+	#ok now update the links
+	my $links = $self->{'db'}->_execute_query("select * from link_path_membership, path, path_instantiation where path.path_id = path_instantiation.path_id and path_instantiation.end_epoch = -1 and link_path_membership.path_id = path.path_id and path.circuit_id = ? and link_path_membership.end_epoch = -1",[$circuit->{'circuit_id'}]);
+
+	
+	foreach my $link (@$links){
+	    if($link->{'name'} eq $link){
+		#remove it and add 2 more
+		$self->{'db'}->_execute_query("update link_path_membership set end_epoch = unix_timestamp(NOW()) where link_id = ? and path_id = ? nad end_epoch = -1",[$link->{'link_id'},$link->{'path_id'}]);
+		#add the new links to the path
+		$self->{'db'}->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",[$new_path->{'new_path'}->[0]->{'link_id'},$link->{'path_id'}]);
+		$self->{'db'}->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",[$new_path->{'new_path'}->[1]->{'link_id'},$link->{'path_id'}]);
+	    }
+	}
+
+	#re-add circuit
+	$result = $client->addVlan($circuit->{'circuit_id'});
+	warn "RESULT ADD VLAN: " . Dumper($result);
+    }
+
+    return {success => 1};
+    
+}
+
 
 sub decom_link {
     my $self = shift;

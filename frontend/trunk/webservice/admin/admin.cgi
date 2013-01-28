@@ -89,7 +89,16 @@ sub main {
         case "update_link" {
             $output = &update_link();
         }
-        case "decom_link" {
+	case "is_new_node_in_path"{
+	    $output = &is_new_node_in_path();
+	}
+	case "insert_node_in_path" {
+	    $output = &insert_node_in_path();
+	}
+	case "is_ok_to_decom_link" {
+	    $output = &is_ok_to_decom();
+	}
+	case "decom_link" {
             $output = &decom_link();
         }
         case "get_users" {
@@ -158,6 +167,38 @@ sub main {
     }
 
     send_json($output);
+
+}
+
+sub insert_node_in_path{
+    my $results;
+
+    return $db->insert_node_in_path( link => $cgi->param('link'));
+
+}
+
+sub is_new_node_in_path{
+    my $results;
+    
+    $results->{'results'} = [];
+    
+    $results->{'results'}->[0] = $db->is_new_node_in_path(link => $cgi->param('link'));
+    return $results;
+}
+
+sub is_ok_to_decom{
+    
+    my $results;
+    $results->{'results'} = [];
+    
+    my $link_details = $db->get_link_by_name( name => $cgi->param('link'));
+
+    my $affected_circuits = $db->get_affected_circuits_by_link_id( link_id => $link_details->{'link_id'});
+    $results->{'results'}->[0]->{'active_circuits'} = $affected_circuits;
+   
+    $results->{'results'}->[0]->{'new_node_in_path'} = $db->is_new_node_in_path(link => $link_details->{'name'});
+
+    return $results;
 
 }
 
