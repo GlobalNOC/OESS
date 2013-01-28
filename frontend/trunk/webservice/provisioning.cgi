@@ -66,6 +66,9 @@ sub main {
         case "fail_over_circuit" {
             $output = &fail_over_circuit();
         }
+		case "reprovision_circuit"{
+								   $output = &reporvision_circuit();
+								  }
         else {
             $output = {
                 error => "Unknown action - $action"
@@ -196,9 +199,8 @@ sub provision_circuit {
 	my $bus = Net::DBus->system;
 	my $log_svc;
     my $log_client;
-
     eval {
-        $log_svc    = $bus->get_service("org.nddi.openflow");
+        $log_svc    = $bus->get_service("org.nddi.syslogger");
         $log_client = $log_svc->get_object("/controller1");
     };
 
@@ -253,13 +255,14 @@ sub provision_circuit {
                 my $circuit_details = $db->get_circuit_details(
                     circuit_id => $output->{'circuit_id'} );
 
-                $log_client->circuit_provision(
-                    circuit_id    => $output->{'circuit_id'},
-                    workgroup_id  => $output->{'workgroup_id'},
-                    name          => $circuit_details->{'name'},
-                    description   => $description,
-                    circuit_state => $circuit_details->{'circuit_state'}
-                );
+                $log_client->circuit_provision( {
+												 circuit_id    => $output->{'circuit_id'},
+												 workgroup_id  => $workgroup_id,
+												 name          => $circuit_details->{'name'},
+												 description   => $description,
+												 circuit_state => $circuit_details->{'state'}
+												 }
+											  );
             }
 
         }
@@ -329,13 +332,14 @@ sub provision_circuit {
                 my $circuit_details = $db->get_circuit_details(
                     circuit_id => $output->{'circuit_id'} );
 
-                $log_client->circuit_modify(
-                    circuit_id    => $output->{'circuit_id'},
-                    workgroup_id  => $output->{'workgroup_id'},
-                    name          => $circuit_details->{'name'},
-                    description   => $description,
-                    circuit_state => $circuit_details->{'circuit_state'}
-                );
+                $log_client->circuit_modify( {
+											  circuit_id    => $circuit_id,
+											  workgroup_id  => $workgroup_id,
+											  name          => $circuit_details->{'name'},
+											  description   => $description,
+											  circuit_state => $circuit_details->{'state'}
+											 }
+											 );
 
             }
         }
@@ -384,7 +388,7 @@ sub remove_circuit {
     my $log_client;
 
     eval {
-        $log_svc    = $bus->get_service("org.nddi.openflow");
+        $log_svc    = $bus->get_service("org.nddi.syslogger");
         $log_client = $log_svc->get_object("/controller1");
     };
 
@@ -437,21 +441,59 @@ sub remove_circuit {
     else {
 
         #DBUS Log removal event
-        my $circuit_details =
-          $db->get_circuit_details( circuit_id => $output->{'circuit_id'} );
 	
-        $log_client->circuit_modify(
-            circuit_id    => $output->{'circuit_id'},
+        my $circuit_details = $db->get_circuit_details( circuit_id => $output->{'circuit_id'} );
+
+        $log_client->circuit_decommission({
+            circuit_id    => $circuit_id,
             workgroup_id  => $workgroup_id,
             name          => $circuit_details->{'name'},
             description   => $circuit_details->{'description'},
-            circuit_state => $circuit_details->{'circuit_state'}
-        );
+            circuit_state => $circuit_details->{'state'}
+        });
 
     }
     $results->{'results'} = [ { success => 1 } ];
 
     return $results;
+}
+
+sub reprovision_circuit {
+
+	#removes and then re-adds circuit for 
+	my $results;
+
+	my $circuit_id = $cgi->param('circuit_id');
+	my $workgroup_id = $cgi->param('workgroup_id');
+
+	my $can_reprovision = $db->can_modify_circuit(
+												  circuit_id => $circuit_id,
+												  username => $ENV{'REMOTE_USER'},
+												  workgroup_id => $workgroup_id
+												  );
+	if ( !defined $can_reprovision ) {
+        $results->{'error'} = $db->get_error();
+        return $results;
+    }
+    if ( $can_reprovision < 1 ) {
+        $results->{'error'} =
+          "Users and workgroup do not have permission to remove this circuit";
+        return $results;
+    }
+
+	my $success= _send_remove_command(circuit_id => $circuit_id);
+	if (!$success){ 
+		$results->{'error'} = "Error sending circuit removal request to controller, please try again or contact your Systems Administrator";
+		return $results;
+	}
+	my $add_success = _send_add_command(circuit_id => $circuit_id);
+	if (!$add_success){
+		$results->{'error'} = "Error sending circuit provision request to controller, please try again or contact your Systems Administrator";
+		return $results;
+	}
+	$results->{'results'} = [ {success => 1 } ];
+
+	return $results;
 }
 
 sub fail_over_circuit {
