@@ -2712,6 +2712,8 @@ sub decom_link {
     my $link_id = $args{'link_id'};
 
     $self->_start_transaction();
+
+    my $link_details = $self->_execute_query("select * from link natural_join link_instantiation where link_id = ? and link_instantiation.end_epoch = -1",[$link_id])->[0];
     
     my $result = $self->_execute_query("update link_instantiation set end_epoch = unix_timestamp(NOW()) where end_epoch = -1 and link_id = ?", [$link_id]);
 
@@ -2719,6 +2721,11 @@ sub decom_link {
 	$self->_set_error("Error updating link instantiation.");
 	return undef;
     }
+
+    my $update_interface_role = "update interface set role = 'unknown' where interface_id = ?";
+
+    $res = $self->_execute_query($update_interface_role,[$link_details->{'interface_a_id'}]);
+    $res = $self->_execute_query($update_interface_role,[$link_details->{'interface_z_id'}]);
 
     $self->_commit();
 
