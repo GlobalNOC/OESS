@@ -58,8 +58,8 @@ sub upgrade{
     ####################################
    
     #add the schema bits to support maximum number of flows on a switch ISSUE=5272
-    $str = "alter table node add column max_flows int(11) default 4000";
-    $sth = $dbh->prepare($str);
+    my $str = "alter table node add column max_flows int(11) default 4000";
+    my $sth = $dbh->prepare($str);
     $sth->execute();
 
     #add the schema bits to support a rate for a switch ISSUE=5236

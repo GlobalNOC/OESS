@@ -231,9 +231,9 @@ sub update_circuit_state{
     my $bandwidth = $details->{'bandwidth'};
 
     my $query = "update circuit_instantiation set end_epoch = unix_timestamp(NOW()) " .
-	" where circuit_id = ? and end_epoch = -1 and circuit_state = ?";
+	" where circuit_id = ? and end_epoch = -1";
     
-    my $result = $self->_execute_query($query, [$circuit_id, $old_state]);
+    my $result = $self->_execute_query($query, [$circuit_id]);
 
     if (! defined $result){
 	$self->_set_error("Unable to decom old circuit instantiation.");
@@ -4203,7 +4203,7 @@ sub remove_circuit {
     
     $self->_commit();
 
-    return 1;
+    return {success => 1, circuit_id => $circuit_id};
 }
 
 
