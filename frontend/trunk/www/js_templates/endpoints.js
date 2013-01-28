@@ -2,21 +2,23 @@
   
 function makeInterfacesTable(node){
   
-  var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_node_interfaces&node="+encodeURIComponent(node)+"&workgroup_id="+session.data.workgroup_id);
+  var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_node_interfaces&node="+encodeURIComponent(node)+"&workgroup_id="+session.data.workgroup_id + "&show_down=1");
   ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
   ds.responseSchema = {
     resultsList: "results",
     fields: [
-      {key: "name"},
-      {key: "description"}
+  {key: "name"},
+  {key: "description"},
+  {key: "status"}
     ],
     metaFields: {
       error: "error"
     }
   };
   
-  var cols = [{key: "name", label: "Interface", width: 220}
-	      //{key: "description", label: "Description", width: 200}
+  var cols = [{key: "name", label: "Interface", width: 100},
+	      //{key: "description", label: "Description", width: 200},
+              {key: "status", label: "Status", width: 120}
 	     ];
   
   var configs = {
@@ -84,6 +86,10 @@ function init(){
 					      
 				  var interface = rec.getData('name');
 	
+				  var state = rec.getData('status');
+				  if(state == 'down'){
+				      alert('Creating a circuit on a link down interface may prevent your circuit from functioning');
+				  }
 				  var region = YAHOO.util.Dom.getRegion(args.target);
 
 				  var components = makeTagSelectPanel([region.left, region.bottom], interface);
