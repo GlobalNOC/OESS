@@ -428,6 +428,8 @@ sub remove_circuit {
         workgroup_id => $workgroup_id
     );
 
+#    print STDERR Dumper($output);
+
     if ( !defined $output ) {
         $results->{'error'} = $db->get_error();
         return $results;
@@ -437,7 +439,7 @@ sub remove_circuit {
         #DBUS Log removal event
         my $circuit_details =
           $db->get_circuit_details( circuit_id => $output->{'circuit_id'} );
-
+	
         $log_client->circuit_modify(
             circuit_id    => $output->{'circuit_id'},
             workgroup_id  => $workgroup_id,
