@@ -1276,7 +1276,19 @@ function setup_network_tab(){
 
 	    delete_button.on("click", function(){
 
-		    showConfirm("Decomissioning this link will remove it. This will not impact existing circuits going across it presently, but you will not be able to add any more circuits that traverse this link. Are you sure you wish to continue?", 
+		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=is_ok_to_decom_link&link=" + link_id);
+		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+		    ds.responseSchema = {
+			resultsList: "results",
+			fields: [{key: "success"}]
+		    }
+
+		    ds.sendRequest("",{
+			    success: function(req,resp){
+				alert('here');
+			    }});
+
+		    showConfirm("Decomissioning this link will remove it. Are you sure you wish to continue?", 
 				function(){
 
 				    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=decom_link&link_id="+link_id);	

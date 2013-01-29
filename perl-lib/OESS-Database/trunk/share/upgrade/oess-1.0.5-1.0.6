@@ -64,11 +64,11 @@ sub upgrade{
 
     #add the schema bits to support a rate for a switch ISSUE=5236
     $str = "alter table node add column tx_delay_ms int(11) default 0";
-    $str = $dbh->prepare($str);
+    $sth = $dbh->prepare($str);
     $sth->execute();
 
     $str = "alter table link add column status enum('up','down') default 'up'";
-    $str = $dbh->prepare($str);
+    $sth = $dbh->prepare($str);
     $sth->execute();
 
     

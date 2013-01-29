@@ -2690,7 +2690,7 @@ sub update_link_state{
 
     my $link_id = $args{'link_id'};
     my $state = $args{'state'};
-
+    
     $self->_start_transaction();
 
     if(!defined($link_id)){
@@ -2702,7 +2702,7 @@ sub update_link_state{
 	$state = 'down';
     }
 
-    my $result = $self->_execute_query("updat link set status = ? where link_id = ?",[$state,$link_id]);
+    my $result = $self->_execute_query("update link set status = ? where link_id = ?",[$state,$link_id]);
     if($result != 1){
 	$self->_set_error("Error updating link state");
 	return undef;
@@ -2737,17 +2737,15 @@ sub is_new_node_in_path{
     my $self = shift;
     my %args = @_;
 
-    my $link = $args{'link'};
-    if(!defined($link)){
+    my $link_details = $args{'link'};
+    if(!defined($link_details)){
 	return {error => "No Link specified", results =>[]};
     }
-
-    my $link_details = $self->{'db'}->get_link_by_name( name => $link);
     
     if($link_details->{'status'} eq 'up'){
 	#short circuit here
 	#if the link is up then no way that there is a node in the path
-	return {results => [{link => $link_details, node_in_path => 'false'}]};
+	return 0;
     }
 
 
@@ -2755,9 +2753,9 @@ sub is_new_node_in_path{
     my $new_path = $self->_find_new_path( link => $link_details);
 
     if(!defined($new_path)){
-	return {results => [{link => $link_details, node_in_path => 'false'}]};
+	return 0;
     }else{
-	return {results => [{link => $link_details, node_in_path => 'true', new_path => $new_path}]};
+	return 1;
     }
 }
 
@@ -2769,15 +2767,16 @@ sub _find_new_path{
 
     #ok so the link is down
     #need to check and see if a new link exists
-    my $endpoints = $self->{'db'}->get_link_endpoints( link_id => $link->{'link_id'});
-    my $a_links = $self->{'db'}->get_link_by_interface_id( interface_id => $endpoints->[0]->{'interface_id'});
-    my $z_links = $self->{'db'}->get_link_by_interface_id( interface_id => $endpoints->[1]->{'interface_id'});
+    my $endpoints = $self->get_link_endpoints( link_id => $link->{'link_id'});
+    my $a_links = $self->get_link_by_interface_id( interface_id => $endpoints->[0]->{'interface_id'});
+    my $z_links = $self->get_link_by_interface_id( interface_id => $endpoints->[1]->{'interface_id'});
 
     my $a_link;
     my $z_link;
     #ok we need to have 2 links for each of the interfaces
     if($#{$a_links} >= 1){ 
 	foreach my $test_link (@{$a_links}){
+	    print STDERR Dumper($test_link);
 	    next if($test_link->{'link_id'} == $link->{'link_id'});
 	    if($test_link->{'status'} eq 'up'){
 		$a_link = $test_link;
@@ -2801,22 +2800,22 @@ sub _find_new_path{
     }
 
     if(defined($z_link) && defined($a_link)){
-	my $z_endpoints = $self->{'db'}->get_link_endpoints(link_id => $z_link->{'link_id'});
-	my $a_endpoints = $self->{'db'}->get_link_endpoints(link_id => $a_link->{'link_id'});
+	my $z_endpoints = $self->get_link_endpoints(link_id => $z_link->{'link_id'});
+	my $a_endpoints = $self->get_link_endpoints(link_id => $a_link->{'link_id'});
 	
 	my $new_a_int;
 	my $new_z_int;
 	
 	foreach my $ep (@$a_endpoints){
 	    next if($ep->{'interface_id'} == $endpoints->[0]->{'interface_id'});
-	    $new_a_int = $ep->{'interface_id'};		
+	    $new_a_int = $ep;
 	}
 
 	foreach my $ep (@$z_endpoints){
 	    next if($ep->{'interface_id'} == $endpoints->[1]->{'interface_id'});
-	    $new_z_int = $ep->{'interface_id'};
+	    $new_z_int = $ep;
 	}
-
+	
 	if($new_z_int->{'node_id'} == $new_a_int->{'node_id'}){
 	    return [$a_link->{'link_id'},$z_link->{'link_id'}];
 	}
@@ -2824,8 +2823,6 @@ sub _find_new_path{
     }else{
 	return;
     }
-    
-
 }
 
 
@@ -2838,7 +2835,7 @@ sub insert_node_in_path{
 	return {error => 'no link specified to insert node'};
     }
 
-    my $link_details = $self->{'db'}->get_link_by_name( name => $link);
+    my $link_details = $self->get_link_by_name( name => $link);
 
     if($link_details->{'status'} eq 'up'){
         #short circuit here
@@ -2853,8 +2850,16 @@ sub insert_node_in_path{
     if(!defined($new_path)){
 	return {error => "no new paths found"};
     }
-    
-    my $circuits = $self->{'db'}->get_affected_circuits_by_link_id( link_id => $link_details->{'link_id'} );
+
+    print STDERR "New Path: " . Dumper($new_path) . "\n";
+    #ok first decom the old
+
+    $self->decom_link(link_id => $link_details->{'link_id'});
+
+    $self->confirm_link(link_id => $new_path->[0], name => $link_details->{'name'} . "-1");
+    $self->confirm_link(link_id => $new_path->[1], name => $link_details->{'name'} . "-2");
+
+    my $circuits = $self->get_affected_circuits_by_link_id( link_id => $link_details->{'link_id'} );
     
     foreach my $circuit (@$circuits){
 	#first we need to connect to DBus and remove the circuit from the switch...
@@ -2890,8 +2895,8 @@ sub insert_node_in_path{
 		#remove it and add 2 more
 		$self->{'db'}->_execute_query("update link_path_membership set end_epoch = unix_timestamp(NOW()) where link_id = ? and path_id = ? nad end_epoch = -1",[$link->{'link_id'},$link->{'path_id'}]);
 		#add the new links to the path
-		$self->{'db'}->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",[$new_path->{'new_path'}->[0]->{'link_id'},$link->{'path_id'}]);
-		$self->{'db'}->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",[$new_path->{'new_path'}->[1]->{'link_id'},$link->{'path_id'}]);
+		$self->{'db'}->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",[$new_path->[0],$link->{'path_id'}]);
+		$self->{'db'}->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",[$new_path->[1],$link->{'path_id'}]);
 	    }
 	}
 
@@ -2911,28 +2916,34 @@ sub decom_link {
 
     my $link_id = $args{'link_id'};
 
+    if(!defined($link_id)){
+	$self->_set_error("Link ID not specified");
+	return undef;
+    }
+
     $self->_start_transaction();
 
-    my $link_details = $self->_execute_query("select * from link natural_join link_instantiation where link_id = ? and link_instantiation.end_epoch = -1",[$link_id])->[0];
-    
+    my $link_details = $self->get_link( link_id => $link_id );
+
     my $result = $self->_execute_query("update link_instantiation set end_epoch = unix_timestamp(NOW()) where end_epoch = -1 and link_id = ?", [$link_id]);
 
     if ($result != 1){
 	$self->_set_error("Error updating link instantiation.");
 	return undef;
     }
-   
-    $self->_execute_query("insert into link_instantiation (end_epoch,start_epoch,state,link_id,interface_a_id,interface_z_id) VALUES (-1,unix_timestamp(NOW()),'decom',?,?,?",[$link_details->{'interface_a_id'},$link_details->{'interface_z_id'},$link_id]);
-
+    print STDERR "link_details: " . Dumper($link_details) . "\n";
+    $self->_execute_query("insert into link_instantiation (end_epoch,start_epoch,link_state,link_id,interface_a_id,interface_z_id) VALUES (-1,unix_timestamp(NOW()),'decom',?,?,?)",[$link_details->{'link_id'},$link_details->{'interface_a_id'},$link_details->{'interface_z_id'}]);
+    print STDERR "HERE!\n";
     if($link_details->{'status'} eq 'down'){
 	#link does not appear to be connected... set the interfaces back to "unknown" state
+	print STDERR "Updating interface roles\n";
 	my $update_interface_role = "update interface set role = 'unknown' where interface_id = ?";
 	my $res = $self->_execute_query($update_interface_role,[$link_details->{'interface_a_id'}]);
 	$res = $self->_execute_query($update_interface_role,[$link_details->{'interface_z_id'}]);
     }else{
 	#link is still up so its connected create a new instantiation waiting for approval
-	$self->_execute_query("update link_instantaition set end_epoch = unix_timestamp(NOW()) where end_epoch = -1 and link_id = ?", [$link_id]);
-	$self->_execute_query("insert into link_instantiation (end_epoch, start_epoch, state, link_id, interface_a_id, interface_z_id) VALUES (-1,unix_timestamp(NOW()),'available',?,?,?",[$link_details->{'interface_a_id'},$link_details->{'interface_z_id'},$link_id]);	
+	$self->_execute_query("update link_instantiation set end_epoch = unix_timestamp(NOW()) where end_epoch = -1 and link_id = ?", [$link_id]);
+	$self->_execute_query("insert into link_instantiation (end_epoch, start_epoch, link_state, link_id, interface_a_id, interface_z_id) VALUES (-1,unix_timestamp(NOW()),'available',?,?,?)",[$link_id,$link_details->{'interface_a_id'},$link_details->{'interface_z_id'}]);	
 	
     }
 
@@ -3075,6 +3086,36 @@ sub get_link_ints_on_node{
 	push(@$ints,$int);
     }
     return $ints;
+}
+
+=head2 get_link
+
+should use this everywhere
+
+=cut
+
+sub get_link{
+    my $self = shift;
+    my %args = @_;
+    
+    print STDERR Dumper(%args);
+
+    if(!defined($args{'link_id'}) && !defined($args{'link_name'})){
+	$self->_set_error("No Link_id or link_name specified");
+	return undef;
+    }
+
+    if(defined($args{'link_id'})){
+	my $link = $self->_execute_query("select * from link natural join link_instantiation where link_id = ? and link_instantiation.end_epoch = -1",[$args{'link_id'}])->[0];
+	return $link;
+    }else{
+	my $link = $self->_execute_query("select * from link natural join link_instantiation where name = ? and link_instantiation.end_epoch = -1",[$args{'link_name'}])->[0];
+	return $link;
+    }
+
+    #uh... not possible?
+    return undef;
+    
 }
 
 =head2 get_link_by_name
@@ -3909,7 +3950,7 @@ sub get_link_by_interface_id{
     
     my $interface_id = $args{'interface_id'};
     
-    my $select_link_by_interface = "select link.name as link_name, link.link_id,link.remote_urn, link_instantiation.interface_a_id, link_instantiation.interface_z_id from link,link_instantiation where link.link_id = link_instantiation.link_id and (link_instantiation.interface_a_id = ? or link_instantiation.interface_z_id = ?)";
+    my $select_link_by_interface = "select link.name as link_name,link.status, link.link_id,link.remote_urn, link_instantiation.interface_a_id, link_instantiation.interface_z_id from link,link_instantiation where link.link_id = link_instantiation.link_id and (link_instantiation.interface_a_id = ? or link_instantiation.interface_z_id = ?)";
     my $select_link_sth = $self->_prepare_query($select_link_by_interface);
     
     $select_link_sth->execute($interface_id,$interface_id);
@@ -5229,7 +5270,8 @@ sub _execute_query {
     my $args  = shift;
 
     my $dbh = $self->{'dbh'};
-
+    print STDERR "Query: " . $query . "\n";
+    print STDERR "Args: " . Dumper($args);
     my $sth = $dbh->prepare($query);
 
     #warn "Query is: $query\n";
