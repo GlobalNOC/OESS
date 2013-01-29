@@ -342,9 +342,10 @@ sub get_active_link_id_by_connectors{
 
        #find current link if any
        my $link = $db->get_link_by_a_or_z_end( interface_a_id => $interface_a_id, interface_z_id => $interface_z_id);
-       
+       print STDERR "Found LInk: " . Dumper($link);
        if(defined($link) && defined(@{$link})){
 	   $link = @{$link}[0];
+	   print STDERR "Returning LinkID: " . $link->{'link_id'} . "\n";
 	   return ($link->{'link_id'},$link->{''});
        }
 
@@ -414,7 +415,7 @@ sub link_event_to_db{
     my $z_dpid  = $args{'z_dpid'};
     my $z_port  = $args{'z_port'};
     my $status  = $args{'status'};
-    
+    print STDERR "Link Event!! STATUS: " . $status . "\n";
     switch($status){
 	case "add"{
 	    print_log(LOG_INFO, "add event\n");
@@ -424,8 +425,11 @@ sub link_event_to_db{
 	    #db_link_remove(a_dpid => $a_dpid, a_port => $a_port, z_dpid => $z_dpid, z_port => $z_port);
 	    my $interface_a = $db->get_interface_by_dpid_and_port( dpid => $a_dpid, port_number => $a_port);
 	    my $interface_z = $db->get_interface_by_dpid_and_port( dpid => $z_dpid, port_number => $z_port);
-	    my $link = get_active_link_id_by_connectors( interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'} );
-	    $link->update_state( link_id => $link->{'link_id'}, state => 'down');
+	    print STDERR Dumper($interface_a);
+	    print STDERR Dumper($interface_z);
+	    my ($link_id, $link_state) = get_active_link_id_by_connectors( interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'} );
+	    print STDERR "HERE!!\n" . Dumper($link_id);
+	    $db->update_link_state( link_id => $link_id, state => 'down');
 	}else{
 	    print_log(LOG_NOTICE, "Do not know how to handle $status link event\n");
 	}
@@ -439,6 +443,7 @@ sub link_event_callback{
 	my $z_dpid  = shift;
 	my $z_port  = shift;
 	my $status  = shift;
+	print STDERR "link event: $a_dpid / $a_port to $z_dpid / $z_port is $status\n";
 	print_log(LOG_DEBUG, "link event: $a_dpid / $a_port to $z_dpid / $z_port is $status\n");
         link_event_to_db(a_dpid=>$a_dpid, a_port=>$a_port, z_dpid=>$z_dpid, z_port=>$z_port,status=>$status);
 }
