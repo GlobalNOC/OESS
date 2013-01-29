@@ -377,7 +377,7 @@ sub db_link_add{
     if($link_db_id){
 	##up the state?       
 	print_log(LOG_DEBUG,"Link already exists, setting to up");
-	$db->update_link_state( link_id => $link_db_id, state = 'up');
+	$db->update_link_state( link_id => $link_db_id, state => 'up');
 
     }else{
 	##create a new one;
@@ -424,8 +424,8 @@ sub link_event_to_db{
 	    #db_link_remove(a_dpid => $a_dpid, a_port => $a_port, z_dpid => $z_dpid, z_port => $z_port);
 	    my $interface_a = $db->get_interface_by_dpid_and_port( dpid => $a_dpid, port_number => $a_port);
 	    my $interface_z = $db->get_interface_by_dpid_and_port( dpid => $z_dpid, port_number => $z_port);
-	    my $link = get_active_link_id_by_connectors( interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $inteface_z->{'interface_id'} );
-	    $link->update_state( link_id = $link->{'link_id'}, state => 'down');
+	    my $link = get_active_link_id_by_connectors( interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'} );
+	    $link->update_state( link_id => $link->{'link_id'}, state => 'down');
 	}else{
 	    print_log(LOG_NOTICE, "Do not know how to handle $status link event\n");
 	}
