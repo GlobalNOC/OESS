@@ -75,7 +75,7 @@ use XML::Simple;
 use File::ShareDir;
 use Data::Dumper qw(Dumper);
 use XML::Writer;
-
+use Net::DBus;
 use OESS::Topology;
 
 our $ENABLE_DEVEL=0;
@@ -509,7 +509,7 @@ sub get_affected_circuits_by_link_id {
     my @circuits;
 
     my $results = $self->_execute_query($query, [$link]);
-
+    print STDERR Dumper($results);
     if (! defined $results){
 	return undef;
     }
@@ -2835,7 +2835,7 @@ sub insert_node_in_path{
 	return {error => 'no link specified to insert node'};
     }
 
-    my $link_details = $self->get_link_by_name( name => $link);
+    my $link_details = $self->get_link( link_id => $link);
 
     if($link_details->{'status'} eq 'up'){
         #short circuit here
@@ -2860,48 +2860,51 @@ sub insert_node_in_path{
     $self->confirm_link(link_id => $new_path->[1], name => $link_details->{'name'} . "-2");
 
     my $circuits = $self->get_affected_circuits_by_link_id( link_id => $link_details->{'link_id'} );
+
+    my $service;
+    my $client;
+
+    my $bus = Net::DBus->system;
+
+    eval {
+	$service = $bus->get_service("org.nddi.fwdctl");
+	$client  = $service->get_object("/controller1");
+    };
+
+    if ($@) {
+	warn "Error in _connect_to_fwdctl: $@";
+	return undef;
+    }
     
+
+    if ( !defined $client ) {
+	return undef;
+    }
+
     foreach my $circuit (@$circuits){
 	#first we need to connect to DBus and remove the circuit from the switch...
-
-	my $bus = Net::DBus->system;
-	my $client;
-	my $service;
-
-	eval {
-	    $service = $bus->get_service("org.nddi.fwdctl");
-	    $client  = $service->get_object("/controller1");
-	};
-
-	if ($@) {
-	    warn "Error in _connect_to_fwdctl: $@";
-	    return undef;
-	}
-
-	if ( !defined $client ) {
-	    return undef;
-	}
-
-	my $result = $client->deleteVlan($circuit->{'circuit_id'});
+	print STDERR Dumper($circuit);
+	my $result = $client->deleteVlan($circuit->{'id'});
 
 	warn "RESULT Delete VLAN: " . Dumper($result);
 
 	#ok now update the links
-	my $links = $self->{'db'}->_execute_query("select * from link_path_membership, path, path_instantiation where path.path_id = path_instantiation.path_id and path_instantiation.end_epoch = -1 and link_path_membership.path_id = path.path_id and path.circuit_id = ? and link_path_membership.end_epoch = -1",[$circuit->{'circuit_id'}]);
-
+	my $links = $self->_execute_query("select * from link_path_membership, path, path_instantiation where path.path_id = path_instantiation.path_id and path_instantiation.end_epoch = -1 and link_path_membership.path_id = path.path_id and path.circuit_id = ? and link_path_membership.end_epoch = -1",[$circuit->{'id'}]);
+	
 	
 	foreach my $link (@$links){
-	    if($link->{'name'} eq $link){
+	    print STDERR Dumper($link);
+	    if($link->{'link_id'} == $link_details->{'link_id'}){
 		#remove it and add 2 more
-		$self->{'db'}->_execute_query("update link_path_membership set end_epoch = unix_timestamp(NOW()) where link_id = ? and path_id = ? nad end_epoch = -1",[$link->{'link_id'},$link->{'path_id'}]);
+		$self->_execute_query("update link_path_membership set end_epoch = unix_timestamp(NOW()) where link_id = ? and path_id = ? and end_epoch = -1",[$link->{'link_id'},$link->{'path_id'}]);
 		#add the new links to the path
-		$self->{'db'}->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",[$new_path->[0],$link->{'path_id'}]);
-		$self->{'db'}->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",[$new_path->[1],$link->{'path_id'}]);
+		$self->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",[$new_path->[0],$link->{'path_id'}]);
+		$self->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",[$new_path->[1],$link->{'path_id'}]);
 	    }
 	}
 
 	#re-add circuit
-	$result = $client->addVlan($circuit->{'circuit_id'});
+	$result = $client->addVlan($circuit->{'id'});
 	warn "RESULT ADD VLAN: " . Dumper($result);
     }
 
@@ -5270,8 +5273,7 @@ sub _execute_query {
     my $args  = shift;
 
     my $dbh = $self->{'dbh'};
-    print STDERR "Query: " . $query . "\n";
-    print STDERR "Args: " . Dumper($args);
+
     my $sth = $dbh->prepare($query);
 
     #warn "Query is: $query\n";

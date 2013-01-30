@@ -1162,6 +1162,89 @@ function setup_workgroup_tab(){
 	});
 }
 
+function do_node_insert(link_id, map, delete_button, save_button, panel){
+    showConfirm("This link has active circuits.  However there is a node in the middle of the path.  Would you like to automatically approve the new links and migrate all existing circuits onto the new paths?",
+		function(){
+		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=insert_node_in_path&link_id=" + link_id);
+		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+		    
+		    ds.responseSchema = {
+			resultsList: "results",
+			fields: [{key: "success"}]
+		    };
+		    save_button.set("disabled",true);
+		    delete_button.set("disabled",true);
+		    delete_button.set("label","Migrating circuits...");
+		    
+		    ds.sendRequest("",{ success: function(req,resp){
+				delete_button.set("disabled", false);
+				delete_button.set("label", "Decomission Link");
+				save_button.set("disabled", false);
+
+				if(resp.results[0].success == 1){
+				    map.reinitialize();
+				    panel.destroy();
+				    panel = null;
+				    YAHOO.util.Dom.get("active_network_update_status").innerHTML = "Link successfully decomissioned.";
+				}else{
+				    alert('Error while migrating circuits');
+				}
+			    },failure: function(req,resp){
+				alert('error while communicating with server');
+			    }
+
+		},
+		function(){}
+		);
+		});
+}
+
+function do_decom_link(link_id,map,delete_button,save_button,panel){
+
+    showConfirm("Decomissioning this link will remove it. Are you sure you wish to continue?",
+		function(){
+
+		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=decom_link&link_id="+link_id);
+		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+
+		    ds.responseSchema = {
+			resultsList: "results",
+			fields: [{key: "success"}]
+		    };
+
+		    ds.sendRequest("",
+				   {
+				       success: function(req, resp){
+					   delete_button.set("disabled", false);
+					   delete_button.set("label", "Decomission Link");
+					   save_button.set("disabled", false);
+
+					   if (resp.results && resp.results[0].success == 1){
+					       map.reinitialize();
+					       panel.destroy();
+					       panel = null;
+					       YAHOO.util.Dom.get("active_network_update_status").innerHTML = "Link successfully decomissioned.";
+					   }
+					   else{
+					       alert("Link decomission unsuccessful.");
+					   }
+
+				       },
+					   failure: function(req, resp){
+					   save_button.set("disabled", false);
+					   delete_button.set("disabled", false);
+					   delete_button.set("label", "Decomission Link");
+					   alert("Error while talking to server.");
+				       }
+				   });
+
+		},
+		function(){}
+		);
+
+};
+
+
 function setup_network_tab(){
 
     // clear out the old map if we have it (ie, might have confirmed something)
@@ -1273,69 +1356,33 @@ function setup_network_tab(){
 
 		    
 		});
-
+	    
 	    delete_button.on("click", function(){
-
-		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=is_ok_to_decom_link&link=" + link_id);
+		    
+		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=is_ok_to_decom_link&link_id=" + link_id);
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 		    ds.responseSchema = {
 			resultsList: "results",
-			fields: [{key: "success"}]
+			fields: [{key: "success"},
+		                 {key: "active_circuits"},
+		                 {key: "new_node_in_path"}]
 		    }
 
 		    ds.sendRequest("",{
 			    success: function(req,resp){
-				alert('here');
+				var data = resp.results[0];
+				if(data.active_circuits.length <= 0){
+				    do_decom_link(link_id,map,delete_button,save_button,panel);
+				}else{
+				    if(data.new_node_in_path == 0){
+					alert('You can not decomission this link, there are active paths riding on it!');
+				    }else{
+					do_node_insert(link_id,map,delete_button,save_button,panel);
+				    }
+				}
 			    }});
 
-		    showConfirm("Decomissioning this link will remove it. Are you sure you wish to continue?", 
-				function(){
-
-				    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=decom_link&link_id="+link_id);	
-				    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-				    
-				    ds.responseSchema = {
-					resultsList: "results",
-					fields: [{key: "success"}]
-				    };
-				    
-				    save_button.set("disabled", true);
-				    delete_button.set("disabled", true);
-				    delete_button.set("label", "Decomissioning Link...");
-				    
-				    ds.sendRequest("", 
-						   {
-						       success: function(req, resp){
-							   delete_button.set("disabled", false);
-							   delete_button.set("label", "Decomission Link");
-							   save_button.set("disabled", false);
-
-							   if (resp.results && resp.results[0].success == 1){
-							       map.reinitialize();
-							       panel.destroy();
-							       panel = null;
-							       YAHOO.util.Dom.get("active_network_update_status").innerHTML = "Link successfully decomissioned.";
-							   }
-							   else{
-							       alert("Link decomission unsuccessful.");
-							   }
-							   
-						       },
-						       failure: function(req, resp){
-							   save_button.set("disabled", false);
-							   delete_button.set("disabled", false);
-							   delete_button.set("label", "Decomission Link");
-							   alert("Error while talking to server.");
-						       }
-						   }); 
-				    
-				},
-				function(){}
-				);
-
 		});
-
-	});
 
     map.on("clickNode", function(e, args){
 
@@ -1558,6 +1605,7 @@ function setup_network_tab(){
 		});
 	});
 
+	});
 }
 
 function setup_discovery_tab(){    
