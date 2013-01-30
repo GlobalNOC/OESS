@@ -35,6 +35,7 @@ use Sys::Syslog qw(:macros :standard);
 use Switch;
 use OESS::Database;
 use OESS::Topology;
+use Time::HiRes qw( usleep );
 
 use constant FWDCTL_ADD_VLAN     => 0;
 use constant FWDCTL_REMOVE_VLAN  => 1;
@@ -273,7 +274,7 @@ sub _generate_commands{
     my $circuit_id       = shift;
     my $action           = shift;
 
-     my $circuit_details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
+    my $circuit_details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
     print STDERR "Generate Commands - Circuit Details: " . Dumper($circuit_details);
     if (!defined $circuit_details){
 	_log("No Such Circuit");
@@ -445,9 +446,11 @@ sub _push_default_rules{
 		_log("Warning: unable to install default forward to controller rule in switch " . $nodes->{$node} . ", discovery likely will not work.");
 	    }
 	    else {
-		_log("Send default forwarding rule to " . $nodes->{$node});
+		_log("Sent default forwarding rule to " . $nodes->{$node});
 	    }
 	}
+
+	sleep(1);
 
 	if($node_details->{'default_drop'} == 1){
 	    my $xid     = $self->{'of_controller'}->install_default_drop($nodes->{$node});
@@ -458,7 +461,7 @@ sub _push_default_rules{
 		_log("Warning: unable to install default drop to controller rule in switch " . $nodes->{$node} . ", lots of traffic could be headed our way.");
 	    }
 	    else {
-		_log("Send default drop rule to " . $nodes->{$node});
+		_log("Sent default drop rule to " . $nodes->{$node});
 	    }
 	}
     }
@@ -487,6 +490,8 @@ sub datapath_join{
 	}
 	
     }
+
+    sleep(1);
 
     if(!defined($node) || $node->{'default_drop'} == 1){
 	my $xid     = $self->{'of_controller'}->install_default_drop($dpid);
@@ -862,7 +867,7 @@ sub topo_port_status{
         my $port_name   = $info->{'name'};
         my $port_number = $info->{'port_no'};
         my $link_status = $info->{'link'};
-	
+	print STDERR "TOPO PORT STATUS EVENT!!\n";
 	my $interface = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $dpid,
 								       port_number => $port_number);
 	print STDERR "Interface: " . Dumper($interface);
@@ -958,7 +963,7 @@ sub flow_stats_in{
 
     for(my $i=0;$i<=$#{$self->{'nodes_for_diff'}};$i++){
 	my $node = $self->{'nodes_for_diff'}->[$i];
-	print STDERR Dumper($node);
+
 	if($node->{'dpid'} == $dpid){
 	    #process the flow_rules into a lookup hash
 	    my $hash = _process_flows_to_hash($flows);

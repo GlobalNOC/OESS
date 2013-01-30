@@ -294,6 +294,8 @@ sub port_status_callback{
   
         db_port_status(dpid=>$dpid,reason=>$reason,port_info=>$info);
 
+	print_log(LOG_ERR, "attempting to send topo port add event");
+
 	my $bus = Net::DBus->system;
 
 	my $client;
@@ -304,16 +306,18 @@ sub port_status_callback{
 	};
 
 	if ($@){
+	    print_log(LOG_ERR, "unable to connect to fwdctl");
 	    warn "Error in _connect_to_fwdctl: $@";
 	    return undef;
 	}
 
 
 	if (! defined $client){
+	    print_log(LOG_ERR, "unable to get fwdctl instance");
 	    return undef;
 	}
 
-
+	print_log(LOG_ERR, "sending topo_port_status event");
 	my $result = $client->topo_port_status($dpid,$reason,$info);
 }
 
