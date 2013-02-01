@@ -214,6 +214,8 @@ CREATE TABLE `node` (
   `vlan_tag_range` varchar(255) NOT NULL DEFAULT '1-4095',
   `default_forward` varchar(255) DEFAULT '1',
   `default_drop` varchar(255) DEFAULT '1',
+  `max_flows` int(11) DEFAULT '4000',
+  `tx_delay_ms` int(11) DEFAULT '0',
   PRIMARY KEY (`node_id`),
   UNIQUE KEY `node_idx` (`name`),
   KEY `network_node_fk` (`network_id`),
@@ -487,7 +489,7 @@ CREATE TABLE `oess_version` (
 
 LOCK TABLES `oess_version` WRITE;
 /*!40000 ALTER TABLE `oess_version` DISABLE KEYS */;
-INSERT INTO `oess_version` VALUES ('1.0.5');
+INSERT INTO `oess_version` VALUES ('1.0.6');
 /*!40000 ALTER TABLE `oess_version` ENABLE KEYS */;
 UNLOCK TABLES;
 
