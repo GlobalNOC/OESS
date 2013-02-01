@@ -255,7 +255,8 @@ function NDDIMap(div_id, interdomain_mode){
       var vlan_range = node_info.vlan_range;
       var default_drop = node_info.default_drop;
       var default_forward = node_info.default_forward;
-
+      var tx_delay_ms = node_info.tx_delay_ms;
+      var max_flows = node_info.max_flows;
 
       var pointStyle = OpenLayers.Util.extend({}, OpenLayers.Feature.Vector.style['default']);
 
@@ -281,7 +282,8 @@ function NDDIMap(div_id, interdomain_mode){
       point.vlan_range   = vlan_range;
       point.default_drop = default_drop;
       point.default_forward = default_forward;
-
+      point.tx_delay_ms = tx_delay_ms;
+      point.max_flows = max_flows;
       var pointFeature  = new OpenLayers.Feature.Vector(point,
 							null,
 							pointStyle
@@ -1006,7 +1008,9 @@ function NDDIMap(div_id, interdomain_mode){
 					      var range   = geo.vlan_range;
 					      var default_forward = geo.default_forward;
 					      var default_drop = geo.default_drop;
-					      self.events['clickNode'].fire({name: node, lat: lat, lon: lon, node_id: node_id, vlan_range: range,default_forward: default_forward, default_drop: default_drop,  feature: e.feature});
+					      var max_flows = geo.max_flows;
+					      var tx_delay_ms = geo.tx_delay_ms;
+					      self.events['clickNode'].fire({name: node, lat: lat, lon: lon, node_id: node_id, vlan_range: range,default_forward: default_forward, default_drop: default_drop,max_flows: max_flows, tx_delay_ms: tx_delay_ms,  feature: e.feature});
 					  }
 					  // otherwise we're clicking on a link
 					  else{

@@ -900,7 +900,7 @@ sub get_map_layers {
 
     # grab only the local network
     my $query = "select network.longitude as network_long, network.latitude as network_lat, network.name as network_name, " .
-	" node.longitude as node_long, node.latitude as node_lat, node.name as node_name, node.vlan_tag_range, node.node_id as node_id, node.default_drop as default_drop, node.default_forward as default_forward, " .
+	" node.longitude as node_long,node.max_flows, node.tx_delay_ms, node.latitude as node_lat, node.name as node_name, node.vlan_tag_range, node.node_id as node_id, node.default_drop as default_drop, node.default_forward as default_forward, " .
 	" to_node.name as to_node, " .
 	" link.name as link_name, if(intA.operational_state = 'up' && intB.operational_state = 'up', 'up', 'down') as link_state, if(int_instA.capacity_mbps > int_instB.capacity_mbps, int_instB.capacity_mbps, int_instA.capacity_mbps) as capacity, link.link_id as link_id " .
 	"from node " .
@@ -957,7 +957,9 @@ sub get_map_layers {
 							       "node_id"      => $row->{'node_id'},
 							       "vlan_range"   => $row->{'vlan_tag_range'},
 							       "default_drop" => $row->{'default_drop'},
-							       "default_forward" => $row->{'default_forward'}
+							       "default_forward" => $row->{'default_forward'},
+							       "max_flows"    => $row->{'max_flows'},
+							       "tx_delay_ms" => $row->{'tx_delay_ms'}
 							   };
 
 	# make sure we have an array even if we never get any links for this node
@@ -2509,6 +2511,8 @@ sub confirm_node {
     my $vlan_range = $args{'vlan_range'};
     my $default_drop = $args{'default_drop'};
     my $default_forward = $args{'default_forward'};
+    my $max_flows = $args{'max_flows'};
+    my $tx_delay_ms = $args{'tx_delay_ms'};
     if(!defined($default_drop)){
 	$default_drop = 1;
     }
@@ -2525,8 +2529,8 @@ sub confirm_node {
 	return undef;
     }
 
-    $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ?, vlan_tag_range = ?, default_drop = ?, default_forward = ? where node_id = ?",
-	                            [$name, $long, $lat, $vlan_range,$default_drop, $default_forward, $node_id]
+    $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ?, vlan_tag_range = ?, default_drop = ?, default_forward = ?, max_flows = ?, tx_delay_ms = ? where node_id = ?",
+	                            [$name, $long, $lat, $vlan_range,$default_drop, $default_forward,$max_flows,$tx_delay_ms,$node_id]
 	                           );
 
     if ($result != 1){
@@ -2563,7 +2567,7 @@ sub update_node {
 
     $self->_start_transaction();
 
-    my $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ?, vlan_tag_range = ?,default_drop = ?, default_forward = ?, tx_delay_ms = ?, max_flows = ?, where node_id = ?",
+    my $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ?, vlan_tag_range = ?,default_drop = ?, default_forward = ?, tx_delay_ms = ?, max_flows = ? where node_id = ?",
 				       [$name, $long, $lat, $vlan_range,$default_drop,$default_forward,$tx_delay_ms, $max_flows, $node_id]
 	                              );
 
@@ -2750,7 +2754,7 @@ sub is_new_node_in_path{
 
 
     #find the 2 links that now make up this path
-    my $new_path = $self->_find_new_path( link => $link_details);
+    my ($new_path,$node_id) = $self->_find_new_path( link => $link_details);
 
     if(!defined($new_path)){
 	return 0;
@@ -2817,7 +2821,7 @@ sub _find_new_path{
 	}
 	
 	if($new_z_int->{'node_id'} == $new_a_int->{'node_id'}){
-	    return [$a_link->{'link_id'},$z_link->{'link_id'}];
+	    return ([$a_link->{'link_id'},$z_link->{'link_id'}],$new_z_int->{'node_id'});
 	}
 	
     }else{
@@ -2845,7 +2849,7 @@ sub insert_node_in_path{
 
 
     #find the 2 links that now make up this path
-    my $new_path = $self->_find_new_path( link => $link_details);
+    my ($new_path,$node_id) = $self->_find_new_path( link => $link_details);
 
     if(!defined($new_path)){
 	return {error => "no new paths found"};
@@ -2900,6 +2904,14 @@ sub insert_node_in_path{
 		#add the new links to the path
 		$self->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",[$new_path->[0],$link->{'path_id'}]);
 		$self->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",[$new_path->[1],$link->{'path_id'}]);
+		#insert the path_instantiation_vlan_ids for this new device
+		my $internal_vlan = $self->_get_available_internal_vlan_id(node_id => $node_id);
+		if(!defined($internal_vlan)){
+		    
+		    return {success => 0, error => "Internal Error finding available internal vlan"};
+		}
+		$self->_execute_query("insert into path_instantiation_vlan_ids (path_instantiation_id, node_id, internal_vlan_id) values (?, ?, ?)", [$links->{'path_instantiation_id'},$node_id,$internal_vlan]);
+
 	    }
 	}
 
@@ -4652,7 +4664,7 @@ sub get_node_by_dpid{
     if(my $row = $sth->fetchrow_hashref()){
 	return $row;
     }else{
-	$self->_set_error("Unable to find node with DPID");
+	$self->_set_error("Unable to find node with DPID " . $args{'dpid'});
 	return undef;
     }
 }

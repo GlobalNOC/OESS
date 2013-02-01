@@ -1383,7 +1383,7 @@ function setup_network_tab(){
 			    }});
 
 		});
-
+	});
     map.on("clickNode", function(e, args){
 
 	    YAHOO.util.Dom.get("active_network_update_status").innerHTML = "";
@@ -1444,11 +1444,11 @@ function setup_network_tab(){
 			  "</tr>" +
 			  "<tr>" + 
 			  "<td colspan='2'>Maximum Number of Flow Mods</td>" +
-			  "<td><input type='text' id='max_flows' size='10'></td>" +
+			  "<td><input type='text' id='active_max_flows' size='10'></td>" +
 			  "</tr>" +
 			  "<tr>" +
 			  "<td colspan='2'>FlowMod Processing Delay (ms)</td>" +
-                          "<td><input type='text' id='tx_delay_ms' size='10'></td>" +
+                          "<td><input type='text' id='active_tx_delay_ms' size='10'></td>" +
                           "</tr>" +
 			  "</table>"
 			  );
@@ -1466,8 +1466,8 @@ function setup_network_tab(){
 	    YAHOO.util.Dom.get('active_node_lat').value         = lat;
 	    YAHOO.util.Dom.get('active_node_lon').value         = lon; 
 	    YAHOO.util.Dom.get('active_node_vlan_range').value  = vlan_range;
-	    YAHOO.util.Dom.get('tx_delay_ms').value             = tx_delay_ms;
-	    YAHOO.util.Dom.get('max_flows').value                        = max_flows;
+	    YAHOO.util.Dom.get('active_tx_delay_ms').value             = tx_delay_ms;
+	    YAHOO.util.Dom.get('active_max_flows').value                        = max_flows;
 	    
 	    if(default_drop == 0){
 		YAHOO.util.Dom.get('active_node_default_drop').checked = false;
@@ -1485,8 +1485,8 @@ function setup_network_tab(){
 		    var new_lat   = YAHOO.util.Dom.get('active_node_lat').value;
 		    var new_lon   = YAHOO.util.Dom.get('active_node_lon').value;
 		    var new_range = YAHOO.util.Dom.get('active_node_vlan_range').value;
-		    var new_max_flows = YAHOO.util.Dom.get('max_flows').value;
-		    var tx_delay_ms = YAHOO.util.Dom.get('tx_delay_ms').value;
+		    var new_max_flows = YAHOO.util.Dom.get('active_max_flows').value;
+		    var new_tx_delay_ms = YAHOO.util.Dom.get('active_tx_delay_ms').value;
 		    var new_default_drop = YAHOO.util.Dom.get('active_node_default_drop').checked;
 		    var new_default_forward = YAHOO.util.Dom.get('active_node_default_forward').checked;
 
@@ -1605,7 +1605,6 @@ function setup_network_tab(){
 		});
 	});
 
-	});
 }
 
 function setup_discovery_tab(){    

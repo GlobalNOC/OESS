@@ -647,7 +647,7 @@ sub update_node {
     my $default_drop    = $cgi->param('default_drop');
     my $default_forward = $cgi->param('default_forward');
     my $max_flows       = $cgi->param('max_flows') || 0;
-    my $tx_delay_ms     = $cgi->param('tx_delay_mx') || 0;
+    my $tx_delay_ms     = $cgi->param('tx_delay_ms') || 0;
 
     if ( $default_drop eq 'true' ) {
         $default_drop = 1;

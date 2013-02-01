@@ -442,7 +442,7 @@ sub remove_circuit {
     else {
 
         #DBUS Log removal event
-	
+	eval{
         my $circuit_details = $db->get_circuit_details( circuit_id => $output->{'circuit_id'} );
 
         $log_client->circuit_decommission({
@@ -452,6 +452,7 @@ sub remove_circuit {
             description   => $circuit_details->{'description'},
             circuit_state => $circuit_details->{'state'}
         });
+	}
 
     }
     $results->{'results'} = [ { success => 1 } ];
