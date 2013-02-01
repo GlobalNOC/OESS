@@ -1,7 +1,49 @@
+#!/usr/bin/perl
+#------ NDDI OESS Syslogger Interaction Module
+##-----
+##----- $HeadURL: $
+##----- $Id: $
+##----- $Date: $
+##----- $LastChangedBy: $
+##-----
+##----- Provides DBus methods for interacting with Syslog 
+##-------------------------------------------------------------------------
+##
+## Copyright 2011 Trustees of Indiana University 
+## 
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##  you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+#
+
+=head1 NAME
+
+OESS::Syslogger - Interacting with DBus events that need to be syslogged
+
+=head1 VERSION
+
+Version 1.0.6
+
+=cut
+
+    our $VERSION = '1.0.6';
+
+
+=head1 SYNOPSIS
+
+=cut
+
 package OESS::Syslogger;
 
-#For events Syslogger is registering to be available for listeners in things like the webservice and the scheduler/elsewhere we're running this syslogger DBus server
-
+use strict;
 use Net::DBus::Exporter qw (org.nddi.syslogger);
 use Net::DBus qw(:typing);
 use Data::Dumper();
@@ -12,7 +54,7 @@ sub new {
 	my $class = shift;
    	my $service = shift;
 
-   	$self = $class->SUPER::new($service, "/controller1");
+   	my $self = $class->SUPER::new($service, "/controller1");
 
 	
 
