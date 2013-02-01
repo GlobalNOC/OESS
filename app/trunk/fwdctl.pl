@@ -1055,7 +1055,8 @@ sub addVlan {
     my @xids;
 
     foreach my $command(@{$commands}){
-        my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'});
+        my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'}->value());
+	print STDERR Dumper($node);
 	if(defined $dpid && $dpid != $command->{'dpid'}->value()){
             #--- if we are restricting the call to a specific dpid
             #--- then ignore commands to non-matching dpids
@@ -1064,12 +1065,12 @@ sub addVlan {
         }
         #first delay by some configured value in case the device can't handle it                                                                                                                                        
 	usleep($node->{'tx_delay_ms'} * 1000);
-	if($node{$dpid} >= $node->{'max_flows'}){
+	if($node{$command->{'dpid'}->value()} >= $node->{'max_flows'}){
 	    _log("Node is currently at its maximum number of flows");
 	    return FWDCTL_FAILURE;
 	}
 	my $xid = $self->{'of_controller'}->install_datapath_flow($command->{'dpid'},$command->{'attr'},0,0,$command->{'action'},$command->{'attr'}->{'IN_PORT'});
-	$node{$dpid}++;
+	$node{$command->{'dpid'}->value()}++;
 	push(@xids, $xid);
     }	
 
@@ -1123,7 +1124,7 @@ sub deleteVlan {
     foreach my $command(@{$commands}){
         #--- issue each command to controller
 	#first delay by some configured value in case the device can't handle it
-	my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'});
+	my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'}->value());
 	usleep($node->{'tx_delay_ms'} * 1000);
         my $xid = $self->{'of_controller'}->delete_datapath_flow($command->{'dpid'},$command->{'attr'});	
 	$node{$command->{'dpid'}}--;
@@ -1157,7 +1158,7 @@ sub changeVlanPath {
 
     # we have to make sure to do the removes first
     foreach my $command(@$commands){
-	my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'});
+	my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'}->value());
 	if ($command->{'sw_act'} eq FWDCTL_REMOVE_RULE){
 	    #first delay by some configured value in case the device can't handle it                                                                                                                                        
 	    usleep($node->{'tx_delay_ms'} * 1000);
@@ -1181,7 +1182,7 @@ sub changeVlanPath {
     foreach my $command(@$commands){
     
 	if ($command->{'sw_act'} ne FWDCTL_REMOVE_RULE){
-	    my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'});
+	    my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'}->value());
 	    #first delay by some configured value in case the device can't handle it                                                                                                                                        
 	    usleep($node->{'tx_delay_ms'} * 1000);
 	    if($node{$command->{'dpid'}} >= $node->{'max_flows'}){
