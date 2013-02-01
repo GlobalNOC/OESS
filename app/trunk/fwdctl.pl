@@ -275,7 +275,7 @@ sub _generate_commands{
     my $action           = shift;
 
     my $circuit_details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
-    print STDERR "Generate Commands - Circuit Details: " . Dumper($circuit_details);
+    _log( "Generate Commands - Circuit Details: " . Dumper($circuit_details));
     if (!defined $circuit_details){
 	_log("No Such Circuit");
         #--- no such ckt error
@@ -683,7 +683,7 @@ sub _actual_diff{
     }
 
     
-    print "Diff complete: $dpid: circuits resynched \n";
+    _log( "Diff complete: $dpid: circuits resynched \n");
 }
     
     
@@ -768,7 +768,7 @@ sub port_status{
 	#--- have a config option to return back to the primary on restoration of the path, when
 	#--- the primary is determined to be intact.
 	
-        print "port status: $dpid: $reason: ".Dumper($info);
+#        _log("port status: $dpid: $reason: ".Dumper($info));
 }
 
 sub _get_rules_on_port{
@@ -777,25 +777,40 @@ sub _get_rules_on_port{
     my $port_number = $args{'port_number'};
     my $dpid = $args{'dpid'};
 
+    _log("Finding all rules on port: $port_number for dpid: $dpid");
+
     #find the interface
     my $interface = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $dpid,
 								   port_number => $port_number);
-
     #determine if anything needs to be pushed to the switch
-    #get a list of current circuits that are somehow involved on this interface/node
+    #get a list of current circuits that terminate on this interface
     my $affected_circuits = $self->{'db'}->get_current_circuits_by_interface( interface => $interface);
 
-    print STDERR "Looking for DPID: " . $dpid . "\n";
-    print STDERR "Looking for PORT: " . $interface->{'port_number'} . "\n";
+    #get the link and list of circuits affected by this interface
+    my $link = $self->{'db'}->get_link_by_interface_id( interface_id => $interface->{'interface_id'});
+    _log( "Link!: " . Dumper($link));
+    if(defined($link)){
+
+	my $affected_link_circuits = $self->{'db'}->get_affected_circuits_by_link_id( link_id => $link->[0]->{'link_id'} );
+
+	foreach my $ckt (@$affected_link_circuits){
+	    push(@$affected_circuits,$ckt);
+	}
+    }
+
+    _log( "Affected Circuits: " . Dumper($affected_circuits));
+
+    _log( "Looking for DPID: " . $dpid);
+    _log("Looking for PORT: " . $port_number);
 
     my @port_commands;
     foreach my $ckt (@$affected_circuits){
-	print STDERR "PRocessing command\n";
-	my $circuit_id   = $ckt->{'circuit_id'};
+	_log( "Processing command");
+	my $circuit_id   = $ckt->{'id'};
 	my $circuit_name = $ckt->{'name'};
 	my $state        = $ckt->{'state'};
 
-	next unless ($state eq "deploying" || $state eq "active");
+	next unless ($state eq "deploying" || $state eq "active" || !defined($state));
 	
 	my $commands = $self->_generate_commands($circuit_id,FWDCTL_ADD_VLAN);
 	foreach my $command (@$commands){
@@ -810,7 +825,7 @@ sub _get_rules_on_port{
 	    
 	    #include rules that have an action on this port
 	    foreach my $action (@{$command->{'action'}}){
-		print STDERR "  Action: " . Dumper($action);
+		_log("  Action: " . Dumper($action));
 		if($action->[0]->value() == OFPAT_OUTPUT && $action->[1]->[1]->value() == $port_number){
 		    push(@port_commands,$command);
 		}
@@ -829,7 +844,7 @@ sub _do_interface_diff{
     my $node = shift;
     my $current_rules = shift;
 
-    print STDERR "All Rules: " .  Dumper($current_rules);
+    _log( "All Rules: " .  Dumper($current_rules));
 
     my %current_flows;
 
@@ -848,12 +863,12 @@ sub _do_interface_diff{
 	}
     }
     
-    print STDERR "Current Flows:" . Dumper(%current_flows);
+    _log("Current Flows: " . Dumper(%current_flows));
 
     #get a list of all the rules that we want on the port
     my $rules = $self->_get_rules_on_port( port_number => $node->{'port_number'}, dpid => $node->{'dpid'} );
     
-    print STDERR "Expected Flows: " . Dumper($rules);
+    _log( "Expected Flows: " . Dumper($rules));
 
     $self->_actual_diff( $node->{'dpid'}, \%current_flows, $rules);
 }
@@ -867,19 +882,19 @@ sub topo_port_status{
         my $port_name   = $info->{'name'};
         my $port_number = $info->{'port_no'};
         my $link_status = $info->{'link'};
-	print STDERR "TOPO PORT STATUS EVENT!!\n";
+	_log( "TOPO PORT STATUS EVENT!!");
 	my $interface = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $dpid,
 								       port_number => $port_number);
-	print STDERR "Interface: " . Dumper($interface);
+#	_log( "Interface: " . Dumper($interface));
 	my $node = $self->{'db'}->get_node_by_dpid( dpid => $dpid );
 
-	print STDERR "Node: " . Dumper($node);
+#	_log("Node: " . Dumper($node));
 	#ok so this is for the add/delete event
 	#not the up/down
 	switch ($reason) {
 	    #add case
 	    case OFPPR_ADD {
-		print STDERR "Detected the addition of an interface!!!\n";
+		_log("Detected the addition of an interface!!!");
 		#get list of rules we currently have
 		$node->{'interface_diff'} = 1;
 		$node->{'port_number'} = $port_number;
@@ -976,7 +991,7 @@ sub flow_stats_in{
 	    if($node->{'full_diff'} == 1){
 		$self->_do_diff($node,$hash);
 	    }elsif($node->{'interface_diff'} == 1){
-		print STDERR "Doing an interface diff!!!\n";
+		_log("Doing an interface diff!!!");
 		$self->_do_interface_diff($node,$hash);
 	    }
 	} 
@@ -1042,7 +1057,7 @@ sub addVlan {
     my $circuit_id = shift;
     my $dpid	   = shift;
 
-    print "addVlan: $circuit_id\n";
+    _log("addVlan: $circuit_id");
     my $topo = new OESS::Topology(db => $self->{'db'});
     my ($paths_are_valid,$reason) = $topo->validate_paths(circuit_id => $circuit_id);
     if(!$paths_are_valid){
@@ -1056,7 +1071,7 @@ sub addVlan {
 
     foreach my $command(@{$commands}){
         my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'}->value());
-	print STDERR Dumper($node);
+	_log(Dumper($node));
 	if(defined $dpid && $dpid != $command->{'dpid'}->value()){
             #--- if we are restricting the call to a specific dpid
             #--- then ignore commands to non-matching dpids

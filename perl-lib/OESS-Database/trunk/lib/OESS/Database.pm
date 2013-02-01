@@ -496,7 +496,7 @@ sub get_affected_circuits_by_link_id {
     my $link = $args{'link_id'};
 
     
-    my $query = "select circuit.name, circuit.circuit_id from circuit " .
+    my $query = "select circuit.name, circuit.circuit_id, circuit_instantiation.circuit_state as state from circuit " .
 	        " join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id " .
 		"  and circuit_instantiation.end_epoch = -1 and circuit_instantiation.circuit_state = 'active' " .
 		" join path on path.circuit_id = circuit.circuit_id " .
@@ -1998,7 +1998,10 @@ sub get_current_circuits {
     my %args = @_;
 
     my $workgroup_id = $args{'workgroup_id'};
-    my $workgroup = $self->get_workgroup_by_id( workgroup_id => $args{'workgroup_id'});
+    my $workgroup;
+    if(defined($workgroup_id)){
+	$workgroup = $self->get_workgroup_by_id( workgroup_id => $args{'workgroup_id'});
+    }
 
     my $dbh = $self->{'dbh'};
 
@@ -2041,7 +2044,6 @@ sub get_current_circuits {
     my $circuits;
 
     foreach my $row (@$rows){
-	print STDERR Dumper($row);
 	my $circuit_id = $row->{'circuit_id'};
 	
 	# first time seeing this circuit, add basic info
