@@ -49,8 +49,8 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} monitoring/* %{buildroot}/%{_bindir}
 %{__install} measurement/* %{buildroot}/%{_bindir}
 
-%{__install} idc/idc.cgi %{buildroot}/%{idcdir}
-%{__install} idc/OSCARS/*.pm %{buildroot}/%{idcdir}/OSCARS/
+#%{__install} idc/idc.cgi %{buildroot}/%{idcdir}
+#%{__install} idc/OSCARS/*.pm %{buildroot}/%{idcdir}/OSCARS/
 
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{_sysconfdir}/dbus-1/system.d/
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{_sysconfdir}/init.d/
@@ -99,9 +99,9 @@ rm -rf $RPM_BUILD_ROOT
 %{docdir}/snapp_base.mysql.sql
 %{docdir}/README
 %{docdir}/QUICK_START
-%{idcdir}/idc.cgi
-%{idcdir}/OSCARS/
-%{idcdir}/OSCARS/pss.pm
+#%{idcdir}/idc.cgi
+#%{idcdir}/OSCARS/
+#%{idcdir}/OSCARS/pss.pm
 
 /etc/cron.d/nddi-scheduler.cron
 
