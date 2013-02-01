@@ -2906,12 +2906,10 @@ sub insert_node_in_path{
 		$self->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",[$new_path->[1],$link->{'path_id'}]);
 		#insert the path_instantiation_vlan_ids for this new device
 		my $internal_vlan = $self->_get_available_internal_vlan_id(node_id => $node_id);
-		if(!defined($internal_vlan)){
-		    
+		if(!defined($internal_vlan)){   
 		    return {success => 0, error => "Internal Error finding available internal vlan"};
 		}
-		$self->_execute_query("insert into path_instantiation_vlan_ids (path_instantiation_id, node_id, internal_vlan_id) values (?, ?, ?)", [$links->{'path_instantiation_id'},$node_id,$internal_vlan]);
-
+		$self->_execute_query("insert into path_instantiation_vlan_ids (path_instantiation_id, node_id, internal_vlan_id) values (?, ?, ?)", [$link->{'path_instantiation_id'},$node_id,$internal_vlan]);
 	    }
 	}
 
