@@ -1,4 +1,7 @@
 #!/usr/bin/perl
+
+eval 'exec /usr/bin/perl  -S $0 ${1+"$@"}'
+    if 0; # not running under some shell
 #------ NDDI OESS Database Interaction Module
 ##-----
 ##----- $HeadURL: svn+ssh://svn.grnoc.iu.edu/grnoc/oe-ss/perl-lib/OESS-Database/trunk/lib/OESS/Database.pm $
@@ -846,6 +849,9 @@ sub get_node_interfaces {
     my $node_name    = $args{'node'};
     my $workgroup_id = $args{'workgroup_id'};
     my $show_down    = $args{'show_down'};
+    if(!defined($show_down)){
+	$show_down = 0;
+    }
     my @query_args;
 
     push(@query_args, $node_name);
@@ -5647,7 +5653,7 @@ Generates an XML representation of the OESS database designed to be compliant OS
 sub gen_topo{   
     my $self   = shift;
 
-    my $workgroup = $self->{'db'}->get_workgroup_details_by_name( name => 'OSCARS');
+    my $workgroup = $self->get_workgroup_details_by_name( name => 'OSCARS');
     my $domain = $self->get_local_domain_name();
 	
     my $xml = "";
@@ -5669,7 +5675,7 @@ sub gen_topo{
 	
         my $ints = $self->get_node_interfaces( node => $node->{'name'}, workgroup_id => $workgroup->{'workgroup_id'});
 
-	my $link_ints = $self->get_link_ints_by_node( node_id => $node->{'node_id'} );
+	my $link_ints = $self->get_link_ints_on_node( node_id => $node->{'node_id'} );
 
 	foreach my $int (@$link_ints){
 	    push(@$ints,$int);
