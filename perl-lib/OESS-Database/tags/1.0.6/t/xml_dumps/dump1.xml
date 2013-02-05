@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<?oxygen RNGSchema="file:/home/cviecco/svn/grnoc_oss/grnoc/oe-ss/perl-lib/OESS-Database/trunk/share/xml/import.rnc" type="compact"?>
+<oess_dump name="test1">
+  <user email="daldoyle@grnoc.iu.edu" given_names="Dan" last_name="Doyle"/>
+  <user email="cviecco@grnoc.iu.edu" given_names="Camilo" last_name="Viecco"/>
+  <user email="ebalas@grnoc.iu.edu" given_names="Ed" last_name="Balas"/>
+  <user email="system@localhost" given_names="System" last_name="System"/>
+  <workgroup name="workgroup1" description="test_worgroup1">
+    <user_member>daldoyle@grnoc.iu.edu</user_member>
+    <user_member>cviecco@grnoc.iu.edu</user_member>
+  </workgroup>
+  <workgroup name="workgroup2" description="test_worgroup2">
+      <user_member>daldoyle@grnoc.iu.edu</user_member>
+  </workgroup>
+  <network name="Internet2" latitude="33" longitude="-84">
+    <node name="Washington DC" latitude="38.939496" longitude="-77.146862" dpid="aaaa" managemnt_addr="10.0.0.1" admin_state="active">
+      <interface name="1" description="interface1" admin_state="active" operational_state="up"/>
+      <interface name="2" description="interface2" admin_state="active" operational_state="up"/>
+      <interface name="3" description="interface3" admin_state="active" operational_state="up"/>
+    </node>
+    <node name="Los Angeles" latitude="33.73" longitude="-118.2" dpid="aaab" managemnt_addr="10.0.0.2" admin_state="active">
+      <interface name="1" description="interface1" admin_state="active" operational_state="up"/>
+      <interface name="2" description="interface2" admin_state="active" operational_state="up"/>
+      <interface name="3" description="interface3" admin_state="active" operational_state="up"/>
+    </node>
+    <node name="Chicago" latitude="41.89" longitude="-87.64" dpid="aaac" managemnt_addr="10.0.0.3" admin_state="active">
+      <interface name="1" description="interface1" admin_state="active" operational_state="up"/>
+      <interface name="2" description="interface2" admin_state="active" operational_state="up"/>
+      <interface name="3" description="interface3" admin_state="active" operational_state="up"/>
+      <interface name="4" description="interface4" admin_state="active" operational_state="up"/>
+    </node>
+    <node name="New York" latitude="40.72" longitude="-74.00" dpid="aaad" managemnt_addr="10.0.0.4" admin_state="active">
+      <interface name="1" description="interface1" admin_state="active" operational_state="up"/>
+      <interface name="2" description="interface2" admin_state="active" operational_state="up"/>
+    </node>
+    <node name="Seattle" latitude="47.614457" longitude="-122.338413" dpid="aaae" managemnt_addr="10.0.0.5" admin_state="active">
+      <interface name="1" description="interface1" admin_state="active" operational_state="up"/>
+      <interface name="2" description="interface2" admin_state="active" operational_state="up"/>
+      <interface name="3" description="interface3" admin_state="active" operational_state="up"/>
+    </node>
+    <link name="Chic-Newy" state="active" interface_a="Chicago:1" interface_b="New York:1" link_state="active"/>
+    <link name="Newy-Wash" state="active" interface_a="New York:2" interface_b="Washington DC:1"  link_state="active"/>    
+    <link name="Wash-Losa" state="active" interface_a="Washington DC:2" interface_b="Los Angeles:1"  link_state="active"/>    
+    <link name="Losa-Seat" state="active" interface_a="Los Angeles:2" interface_b="Seattle:1"  link_state="active"/>    
+    <link name="Seat-Chic" state="active" interface_a="Seattle:2" interface_b="Chicago:2"  link_state="active"/>
+  </network>
+  <circuit name="camilo-test1" description="camilo-test1" reserved_bw="10">
+    <path type="primary" vlan="999">
+      <member_link>Chic-Newy</member_link>
+      <member_link>Newy-Wash</member_link>
+      <member_link>Seat-Chic</member_link>
+    </path>
+    <endpoint interface="3" node="Washington DC" vlan="44"/>
+    <endpoint interface="3" node="Seattle" vlan="234"/>
+  </circuit>
+</oess_dump>
