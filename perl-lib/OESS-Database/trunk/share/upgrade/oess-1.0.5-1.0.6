@@ -71,6 +71,13 @@ sub upgrade{
     $sth = $dbh->prepare($str);
     $sth->execute();
 
+    $str = "alter table link_instantiation drop key link_instantiation_idx";
+    $sth = $dbh->prepare($str);
+    $sth->execute();
+    
+    $str = "alter table link_instantiation drop key link_instantiation_idx1";
+    $sth = $dbh->prepare($str);
+    $sth->execute();
     
     ####################################
     #

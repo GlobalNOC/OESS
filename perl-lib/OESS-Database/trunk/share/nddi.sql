@@ -130,6 +130,7 @@ CREATE TABLE `link` (
   `link_id` int(10) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
   `remote_urn` varchar(256) DEFAULT NULL,
+  `status` enum('up','down') DEFAULT 'up',
   PRIMARY KEY (`link_id`),
   UNIQUE KEY `links_idx` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
@@ -150,8 +151,6 @@ CREATE TABLE `link_instantiation` (
   `interface_a_id` int(10) NOT NULL,
   `interface_z_id` int(10) NOT NULL,
   PRIMARY KEY (`link_id`,`end_epoch`),
-  UNIQUE KEY `link_instantiation_idx` (`end_epoch`,`interface_a_id`),
-  UNIQUE KEY `link_instantiation_idx1` (`end_epoch`,`interface_z_id`),
   KEY `interface_link_instantiation_fk` (`interface_a_id`),
   KEY `interface_link_instantiation_fk_1` (`interface_z_id`),
   CONSTRAINT `interface_link_instantiation_fk` FOREIGN KEY (`interface_a_id`) REFERENCES `interface` (`interface_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
