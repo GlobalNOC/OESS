@@ -20,6 +20,7 @@ Requires(rpmlib): rpmlib(CompressedFileNames) <= 3.0.4-1 rpmlib(PayloadFilesHave
 Requires(post): /bin/sh
 Requires: /bin/bash /usr/bin/perl perl(CGI) perl(DBI) perl(Data::Dumper) perl(English) perl(FindBin) perl(Getopt::Long) perl(Getopt::Std) perl(HTML::Entities) perl(LockFile::Simple) perl(Net::DBus) perl(Net::DBus::Exporter) perl(OESS::DBus) perl(OESS::Topology) perl(Proc::Daemon) perl(RRDs) perl(Socket) perl(Switch) perl(Sys::Hostname) perl(Sys::Syslog) perl(URI::Escape) perl(XML::Simple) perl(XML::Writer) perl(XML::XPath) perl(base) perl(constant) perl(strict) perl(warnings) perl(Term::ReadKey) perl(CPAN)
 Requires: perl-OESS-Database >= 1.0.6
+Requires: perl-OESS-Syslogger >= 1.0.6
 BuildArch:	noarch
 AutoreqProv: no
 %description
