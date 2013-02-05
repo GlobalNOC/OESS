@@ -1,4 +1,15 @@
 = Changes for OE-SS over time =
+== 1.0.6 ==
+
+  * OE-SS links once decomed can be re-approved
+  * all interfaces including down interfaces can be approved/provisioned
+  * added the ability to insert a node in the middle of a path
+  * Added support for per-device rate limiting for sending FlowMods
+  * added ability to detect a port add event and push flowmods as needed
+  * added the ability to have a per-node rule limit
+  * fixed an issue with the IDC integration preventing IDC circuit creation
+
+
 == 1.0.5 ==
 
   * Added the ability to do Hairpin (in and out same interface different vlan) circuits in OE-SS
