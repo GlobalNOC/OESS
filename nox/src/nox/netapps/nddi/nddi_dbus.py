@@ -120,7 +120,13 @@ class dBusEventGen(dbus.service.Object):
     @dbus.service.signal(dbus_interface=ifname, signature='taa{sv}')
     def flow_stats_in(self,dpid,obj):
         string = "flow_stats_in: " + str(dpid) + str(obj)
-        #logger.info(string)
+        logger.debug(string)
+
+    @dbus.service.method(dbus_interface=ifname,
+                         in_signature='tua{sv}',
+                         out_signature='tua{sv}')
+    def topo_port_status_ready(self, dpid, reason, attrs):
+        self.sg.topo_port_status(dpid,reason,attrs)
 
     @dbus.service.method(dbus_interface=ifname,
                          in_signature='t',
@@ -458,10 +464,15 @@ class nddi_dbus(Component):
                     if row.has_key("cookie"):
                         del row["cookie"]
 
-                    if row.has_key("match"):
+                    if row.has_key("actions"):
+                        if len(row["actions"]) == 0:
+                            self.flow_stats[dpid].remove(row)
+                            continue
 
+                    if row.has_key("match"):
                         if  not row["match"]:
                             self.flow_stats[dpid].remove(row)
+                            continue
                         else:
                             # not exactly elegant, the 64bit numbers such as dl_dst in the match element seem
                             # to break dbus signature. For now until we find a better way let's just remove them
@@ -472,6 +483,7 @@ class nddi_dbus(Component):
 
                 # fire the event if we still have any flows left
                 if self.flow_stats[dpid]:
+                    logger.error("FLOW STATS: " + str(dpid) + " " + str(self.flow_stats[dpid]))
                     self.sg.flow_stats_in(dpid,self.flow_stats[dpid])
 
             self.flow_stats[dpid] = None
