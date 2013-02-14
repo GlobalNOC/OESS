@@ -483,7 +483,6 @@ class nddi_dbus(Component):
 
                 # fire the event if we still have any flows left
                 if self.flow_stats[dpid]:
-                    logger.error("FLOW STATS: " + str(dpid) + " " + str(self.flow_stats[dpid]))
                     self.sg.flow_stats_in(dpid,self.flow_stats[dpid])
 
             self.flow_stats[dpid] = None
