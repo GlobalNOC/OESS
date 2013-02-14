@@ -197,6 +197,37 @@ function page_init(){
       YAHOO.util.Dom.get("edit_interdomain_button").parentNode.style.display = "none";
   }
 
+    var reprovision_button = new YAHOO.widget.Button("reprovision_button", {label: "Force Reprovision" });
+
+    reprovision_button.on("click", function(){
+
+	var circuit_id= session.data.circuit_id;
+	var workgroup_id = session.data.workgroup_id;
+
+	var ds = new YAHOO.util.DataSource("services/provisioning.cgi?action=reprovision_circuit&circuit_id="+circuit_id+"workgroup_id="+workgroup_id);
+	ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+	ds.responseSchema = {
+            resultsList: "results",
+            fields: [
+		{key: "success", parser: "number"},
+		
+            ],
+	    metaFields: {
+                error: "error",
+                warning: "warning"
+            }
+	};
+
+	ds.sendRequest("", { success: function(req, resp){ 
+	    alert("Successfully reprovisioned circuit");
+	    window.location.reload();
+	},
+			     failure: function(req, resp){
+				 alert("Failed to reprovision circuit, please try again later or contact your systems administrator if this continues");
+			     }
+			   });
+
+    })
 
   var tabs = new YAHOO.widget.TabView("details_tabs");
 
