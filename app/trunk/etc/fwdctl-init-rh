@@ -1,10 +1,10 @@
 #!/bin/bash
 #
-# SNAPP        Startup script for the OESS topo
+# Startup script for the OESS Forwarding Controller
 #
 # chkconfig: 2345 81 30
-# description: Stars a snapp collector which gathers SNMP data from devices specified in the config file
-# processname: snapp-collector
+# description: OE-SS Fowarding Controller daemon - it listens to events from NOX and other applications to make forwarding decisions and send them to NOX
+# processname: /usr/bin/fwdct.pl
 
 #THIS FILE REQUIRES EDITING FOR CORRECT OPERATION
 #EDIT the variables name and basedir!
@@ -25,19 +25,14 @@ fi
 # Check that networking is up.
 [ ${NETWORKING} = "no" ] && exit 0
 name=fwdctl
-#base_dir=/CHANGEME/
 exec_file=/usr/bin/$name.pl
-log_file=/var/log/$name.log
 options=" -d"
 username=_oess
 lockfile=/var/lock/subsys/$name
 command="$exec_file -u $username $options"
 PIDFILE=/var/run/oess/$name.pid
-#echo $command
 
-
-#set -x
-#ee how we were called.
+#see how we were called.
 case "$1" in
   start)
         #start
@@ -79,8 +74,6 @@ case "$1" in
         rm -rf $lockfile
         ;;
   status)
-        #snapp -p $base_dir/db/PID $command
-        #RETVAL=$?
         #status p0f
         if [ -f $PIDFILE ]; then
                 MYPID=`head -n 1 $PIDFILE`
