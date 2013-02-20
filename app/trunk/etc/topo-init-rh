@@ -1,10 +1,10 @@
 #!/bin/bash
 #
-# SNAPP        Startup script for the OESS topo
+# Startup script for the OESS topo
 #
 # chkconfig: 2345 81 30
-# description: Stars a snapp collector which gathers SNMP data from devices specified in the config file
-# processname: snapp-collector
+# description: Starts the Topo process which listens to dbus events from NOX and reacts to the properly
+# processname: /usr/bin/topo.pl
 
 #THIS FILE REQUIRES EDITING FOR CORRECT OPERATION
 #EDIT the variables name and basedir!
@@ -27,7 +27,6 @@ fi
 name=topo
 #base_dir=/CHANGEME/
 exec_file=/usr/bin/$name.pl
-log_file=/var/log/$name.log
 options=" -d"
 username=_oess
 lockfile=/var/lock/subsys/$name
