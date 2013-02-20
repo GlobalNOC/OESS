@@ -3,7 +3,7 @@
 # Startup script for the OESS topo
 #
 # chkconfig: 2345 81 30
-# description: Starts the Topo process which listens to dbus events from NOX and reacts to the properly
+# description: Starts the Topo process which listens to dbus events from NOX and reacts to the events
 # processname: /usr/bin/topo.pl
 
 #THIS FILE REQUIRES EDITING FOR CORRECT OPERATION
