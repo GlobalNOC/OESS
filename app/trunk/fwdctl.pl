@@ -598,74 +598,72 @@ sub _actual_diff{
     my $node = $self->{'db'}->get_node_by_dpid( dpid => $dpid);
     
     foreach my $command (@$commands){
-	#--- get the set of commands needed to create this vlan per design
-	foreach my $command (@$commands){
-	    #ignore rules not for this dpid
-	    next if($command->{'dpid'}->value() != $dpid);
-	    #ok so we have our list of rules for this node 
-	    if(defined($current_flows->{$command->{'attr'}->{'IN_PORT'}->value()})){
-		my $port = $current_flows->{$command->{'attr'}->{'IN_PORT'}->value()};
-		if(defined($port->{$command->{'attr'}->{'DL_VLAN'}->value()})){
-		    my $action_list = $port->{$command->{'attr'}->{'DL_VLAN'}->value()}->{'actions'};
-		    $port->{$command->{'attr'}->{'DL_VLAN'}->value()}->{'seen'} = 1;
-		    #ok... so our match matches...
-		    #does our action match?
-		    if($#{$action_list} != $#{$command->{'action'}}){
-			_log("Flowmod actions do not match, removing and replacing");
-			#replace the busted flowmod with our new flowmod...
-			#first delay by some configured value in case the device can't handle it
-			usleep($node->{'tx_delay_ms'} * 1000);
-			my $result = $self->_replace_flowmod($dpid,_process_flow_stats_to_command($command->{'attr'}->{'IN_PORT'}->value(),$command->{'attr'}->{'DL_VLAN'}->value()),$command);
-			next;
-		    }
-		    
-		    for(my $i=0;$i<=$#{$command->{'action'}};$i++){
-			my $action = $command->{'action'}->[$i];
-			my $action2 = $action_list->[$i];
-			if($action2->{'type'} == $action->[0]->value()){
-			    if($action2->{'type'} == 0){
-				#this is type of output
-				if($action2->{'port'} == $action->[1]->[1]->value()){
-				    #perfect keep going
-				}else{
-				    _log("Flowmod actions do not match, replacing");
-				    #replace the busted flowmod with our new flowmod...
-				    #first delay by some configured value in case the device can't handle it
-				    usleep($node->{'tx_delay_ms'} * 1000);
-				    my $result = $self->_replace_flowmod($dpid,_process_flow_stats_to_command($command->{'attr'}->{'IN_PORT'}->value(),$command->{'attr'}->{'DL_VLAN'}->value()),$command);
-				    last;
-				}
-			    }elsif($action2->{'type'} == 1){
-				#this is type of set vlan
-				if($action2->{'vlan_vid'} == $action->[1]->value()){
-				    #perfect keep going
-				}else{
-				    _log("Flowmod actions do not match, replacing");
-				    #replace the busted flwomod with our new flowmod
-				    #first delay by some configured value in case the device can't handle it
-				    usleep($node->{'tx_delay_ms'} * 1000);
-				    my $result = $self->_replace_flowmod($dpid,_process_flow_stats_to_command($command->{'attr'}->{'IN_PORT'}->value(),$command->{'attr'}->{'DL_VLAN'}->value()),$command);
-				    last;
-				}
+	#ignore rules not for this dpid
+	next if($command->{'dpid'}->value() != $dpid);
+	#ok so we have our list of rules for this node 
+	if(defined($current_flows->{$command->{'attr'}->{'IN_PORT'}->value()})){
+	    my $port = $current_flows->{$command->{'attr'}->{'IN_PORT'}->value()};
+	    if(defined($port->{$command->{'attr'}->{'DL_VLAN'}->value()})){
+		my $action_list = $port->{$command->{'attr'}->{'DL_VLAN'}->value()}->{'actions'};
+		$port->{$command->{'attr'}->{'DL_VLAN'}->value()}->{'seen'} = 1;
+		#ok... so our match matches...
+		#does our action match?
+		if($#{$action_list} != $#{$command->{'action'}}){
+		    _log("Flowmod actions do not match, removing and replacing");
+		    #replace the busted flowmod with our new flowmod...
+		    #first delay by some configured value in case the device can't handle it
+		    usleep($node->{'tx_delay_ms'} * 1000);
+		    my $result = $self->_replace_flowmod($dpid,_process_flow_stats_to_command($command->{'attr'}->{'IN_PORT'}->value(),$command->{'attr'}->{'DL_VLAN'}->value()),$command);
+		    next;
+		}
+		
+		for(my $i=0;$i<=$#{$command->{'action'}};$i++){
+		    my $action = $command->{'action'}->[$i];
+		    my $action2 = $action_list->[$i];
+		    if($action2->{'type'} == $action->[0]->value()){
+			if($action2->{'type'} == 0){
+			    #this is type of output
+			    if($action2->{'port'} == $action->[1]->[1]->value()){
+				#perfect keep going
+			    }else{
+				_log("Flowmod actions do not match, replacing");
+				#replace the busted flowmod with our new flowmod...
+				#first delay by some configured value in case the device can't handle it
+				usleep($node->{'tx_delay_ms'} * 1000);
+				my $result = $self->_replace_flowmod($dpid,_process_flow_stats_to_command($command->{'attr'}->{'IN_PORT'}->value(),$command->{'attr'}->{'DL_VLAN'}->value()),$command);
+				last;
+			    }
+			}elsif($action2->{'type'} == 1){
+			    #this is type of set vlan
+			    if($action2->{'vlan_vid'} == $action->[1]->value()){
+				#perfect keep going
+			    }else{
+				_log("Flowmod actions do not match, replacing");
+				#replace the busted flwomod with our new flowmod
+				#first delay by some configured value in case the device can't handle it
+				usleep($node->{'tx_delay_ms'} * 1000);
+				my $result = $self->_replace_flowmod($dpid,_process_flow_stats_to_command($command->{'attr'}->{'IN_PORT'}->value(),$command->{'attr'}->{'DL_VLAN'}->value()),$command);
+				last;
 			    }
 			}
 		    }
-		}else{
-		    _log("adding a missing flowmod");
-		    #match doesn't exist in our current flows 
-		    #first delay by some configured value in case the device can't handle it
-		    usleep($node->{'tx_delay_ms'} * 1000);
-		    my $result = $self->_replace_flowmod($dpid,undef,$command);
 		}
 	    }else{
 		_log("adding a missing flowmod");
-		#match doesn't exist in our current flows
+		#match doesn't exist in our current flows 
 		#first delay by some configured value in case the device can't handle it
 		usleep($node->{'tx_delay_ms'} * 1000);
 		my $result = $self->_replace_flowmod($dpid,undef,$command);
 	    }
+	}else{
+	    _log("adding a missing flowmod");
+	    #match doesn't exist in our current flows
+	    #first delay by some configured value in case the device can't handle it
+	    usleep($node->{'tx_delay_ms'} * 1000);
+	    my $result = $self->_replace_flowmod($dpid,undef,$command);
 	}
     }
+
 
     #ok, now we need to figure out if we saw flowmods that we weren't suppose to
     foreach my $port_num (keys (%{$current_flows})){
