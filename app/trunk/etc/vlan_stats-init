@@ -1,13 +1,10 @@
 #!/bin/bash
 #
-# OESS-Syslog        Startup script for the OESS syslog
+# OESS-VLAN_Stats        Startup script for the OESS vlan_stats
 #
 # chkconfig: 2345 81 30
-# description: Stars a snapp collector which gathers SNMP data from devices specified in the config file
-# processname: snapp-collector
-
-#EDIT the variables name and basedir!
-#ALSO EDIT the filename before copying to /etc/init.d
+# description: Starts the OE-SS Vlan Stats collector daemon - listens to NOX for flow_stat_in events and processes them into per-vlan per-interface stats
+# processname: /usr/bin/vlan_stats_d.pl
 
 # Source function library
 if [ -f /etc/rc.d/init.d/functions ]; then
@@ -24,7 +21,6 @@ fi
 # Check that networking is up.
 [ ${NETWORKING} = "no" ] && exit 0
 name=vlan_stats_d
-#base_dir=/CHANGEME/
 exec_file=/usr/bin/$name.pl
 log_file=/var/log/$name.log
 options=
@@ -32,11 +28,8 @@ username=_snapp
 lockfile=/var/lock/subsys/$name
 command="$exec_file -u $username $options"
 PIDFILE=/var/run/oess/$name.pid
-#echo $command
 
-
-#set -x
-#ee how we were called.
+#see how we were called.
 case "$1" in
   start)
         #start
@@ -80,8 +73,6 @@ case "$1" in
         rm -rf $lockfile
         ;;
   status)
-        #snapp -p $base_dir/db/PID $command
-        #RETVAL=$?
         #status p0f
         if [ -f $PIDFILE ]; then
                 MYPID=`head -n 1 $PIDFILE`

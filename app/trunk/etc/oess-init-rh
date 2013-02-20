@@ -1,14 +1,10 @@
 #!/bin/bash
 #
-# SNAPP        Startup script for the OESS topo
+# Startup script for all OE-SS parts (fwdctl, topo, vlan_stats, syslogger)
 #
 # chkconfig: 2345 81 30
-# description: Stars a snapp collector which gathers SNMP data from devices specified in the config file
-# processname: snapp-collector
+# description: Starts all OE-SS daemons in the proper order
 
-#THIS FILE REQUIRES EDITING FOR CORRECT OPERATION
-#EDIT the variables name and basedir!
-#ALSO EDIT the filename before copying to /etc/init.d
 
 # Source function library
 if [ -f /etc/rc.d/init.d/functions ]; then
@@ -24,11 +20,9 @@ fi
 
 # Check that networking is up.
 [ ${NETWORKING} = "no" ] && exit 0
-#echo $command
 
 
-#set -x
-#ee how we were called.
+#see how we were called.
 case "$1" in
   start)
         #start
@@ -39,8 +33,6 @@ case "$1" in
 	/etc/init.d/oess-topo stop && /etc/init.d/oess-vlan_stats stop && /etc/init.d/nox_cored stop &&	/etc/init.d/oess-fwdctl stop &&	/etc/init.d/oess-syslogger stop
         ;;
   status)
-        #snapp -p $base_dir/db/PID $command
-        #RETVAL=$?
         #status p0f
 	/etc/init.d/oess-topo status
 	/etc/init.d/oess-vlan_stats status
