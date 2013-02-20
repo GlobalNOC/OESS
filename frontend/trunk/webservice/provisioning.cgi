@@ -137,7 +137,7 @@ sub _send_add_command {
 
     my $result = $client->addVlan($circuit_id);
 
-    warn "ADD RESULT: $result";
+    #warn "ADD RESULT: $result";
 
     return $result;
 }
@@ -467,7 +467,7 @@ sub reprovision_circuit {
 
 	my $circuit_id = $cgi->param('circuit_id');
 	my $workgroup_id = $cgi->param('workgroup_id');
-
+	
 	my $can_reprovision = $db->can_modify_circuit(
 												  circuit_id => $circuit_id,
 												  username => $ENV{'REMOTE_USER'},

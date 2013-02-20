@@ -115,6 +115,7 @@ function page_init(){
       change_path_button.on("click", function(){
 	      showConfirm("Doing this may cause a disruption in traffic.  Are you sure?",
 			  function(){
+			      change_path_button.set("disabled",true);
 			      var ds = new YAHOO.util.DataSource("services/provisioning.cgi?action=fail_over_circuit&circuit_id=" + session.data.circuit_id + "&workgroup_id=" + session.data.workgroup_id);
 			      ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 			      
@@ -131,10 +132,12 @@ function page_init(){
 				  }
 			      };
 			      ds.sendRequest("",{success: function(){
-					  alert('Successfully changed the path');
-					  window.location.reload();
+				  change_path_button.set("disabled",false);
+				  alert('Successfully changed the path',function(){window.location.reload()});
+					  
 				      },
 					  failure: function(){
+					      change_path_button.set("disabled",false);
 					  alert('Unable to change to the backup path');
 				      }},ds);
 			      
@@ -200,34 +203,48 @@ function page_init(){
     var reprovision_button = new YAHOO.widget.Button("reprovision_button", {label: "Force Reprovision" });
 
     reprovision_button.on("click", function(){
+	showConfirm("Doing this may cause a disruption in traffic.  Are you sure? ", 
+		    function(){
+			reprovision_button.set('disabled',true);
+	
+			var circuit_id= session.data.circuit_id;
+			var workgroup_id = session.data.workgroup_id;
+			
+			var ds = new YAHOO.util.DataSource("services/provisioning.cgi?action=reprovision_circuit&circuit_id="+circuit_id+"&workgroup_id="+workgroup_id);
+			ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+			ds.responseSchema = {
+			    resultsList: "results",
+			    fields: [
+				{key: "success", parser: "number"},
+		    
+			    ],
+			    metaFields: {
+				error: "error",
+				warning: "warning"
+			    }
+			};
 
-	var circuit_id= session.data.circuit_id;
-	var workgroup_id = session.data.workgroup_id;
+			ds.sendRequest("", { 
+			    success: function(req, resp){ 
+				reprovision_button.set('disabled',false);
+				alert("Successfully reprovisioned circuit");
+				
+		    
+			    },
+			    failure: function(req, resp){
+				reprovision_button.set('disabled',false);
+				alert("Failed to reprovision circuit, please try again later or contact your systems administrator if this continues");
+			    }
+			});
 
-	var ds = new YAHOO.util.DataSource("services/provisioning.cgi?action=reprovision_circuit&circuit_id="+circuit_id+"workgroup_id="+workgroup_id);
-	ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-	ds.responseSchema = {
-            resultsList: "results",
-            fields: [
-		{key: "success", parser: "number"},
-		
-            ],
-	    metaFields: {
-                error: "error",
-                warning: "warning"
-            }
-	};
+		    },
+		    function(){ 
+			//do nothing
+		    }
+		   );
+    });
 
-	ds.sendRequest("", { success: function(req, resp){ 
-	    alert("Successfully reprovisioned circuit");
-	    window.location.reload();
-	},
-			     failure: function(req, resp){
-				 alert("Failed to reprovision circuit, please try again later or contact your systems administrator if this continues");
-			     }
-			   });
-
-    })
+    
 
   var tabs = new YAHOO.widget.TabView("details_tabs");
 
