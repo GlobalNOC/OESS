@@ -86,6 +86,52 @@ function showConfirm(text, yesCallback, noCallback){
     YAHOO.util.Dom.addClass("confirm", "popup_box");    
 }
 
+function table_filter(search_term){
+
+	//expects this to be a Yahoo.widget.DataTable Could simplify by making this a prototype method of DataTable but for now table_filter.call(myTable,searchTerm) should suffice
+
+
+      if (! this.cache){
+	return;
+      }
+      
+      var new_rows = [];
+      
+      // empty search term, show everything again
+      if (! search_term){
+	new_rows = this.cache.results;
+      }
+      else{
+
+	var regex = new RegExp(search_term, "i");
+		  var columns = this.getColumnSet().getDefinitions();
+	for (var i = 0; i < this.cache.results.length; i++){
+	
+	  var row = this.cache.results[i];
+	 
+	  for (var j = 0; j < columns.length; j++){
+	    var col_name = columns[j]['key'];
+	    
+	    var value = row[col_name];
+
+	    if (regex.exec(value)){
+	      new_rows.push(row);
+	      break;
+	    }
+	    
+	  }
+	  
+	} 	
+	
+      }
+      
+      this.deleteRows(0, this.getRecordSet().getRecords().length);
+    if(new_rows !== undefined  && new_rows.length > 0){
+      this.addRows(new_rows);
+	}
+}
+
+
 function setPageSummary(mainText, secondaryText){
   
   var holder_div = YAHOO.util.Dom.get('page_summary_container');

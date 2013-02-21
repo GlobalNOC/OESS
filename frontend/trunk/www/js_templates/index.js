@@ -26,13 +26,13 @@
 		
 	    if (e.keyCode == YAHOO.util.KeyListener.KEY.ENTER){
 		clearTimeout(searchTimeout);
-		table_filter(search_value);
+			table_filter.call(circuit_table,search_value);
 	    }
 	    else{
 		if (searchTimeout) clearTimeout(searchTimeout);
 		
 		searchTimeout = setTimeout(function(){
-			table_filter(search_value);
+			table_filter.call(circuit_table,search_value);
 		    }, 400);
 		
 	    } 
@@ -152,48 +152,7 @@
 	    return oArgs;
     });
     
-    function table_filter(search_term){
-
-      if (! circuit_table.cache){
-	return;
-      }
-      
-      var new_rows = [];
-      
-      // empty search term, show everything again
-      if (! search_term){
-	new_rows = circuit_table.cache.results;
-      }
-      else{
-
-	var regex = new RegExp(search_term, "i");
-	
-	for (var i = 0; i < circuit_table.cache.results.length; i++){
-	
-	  var row = circuit_table.cache.results[i];
-	
-	  for (var j = 0; j < columns.length; j++){
-	    var col_name = columns[j]['key'];
-	    
-	    var value = row[col_name];
-
-	    if (regex.exec(value)){
-	      new_rows.push(row);
-	      break;
-	    }
-	    
-	  }
-	  
-	} 	
-	
-      }
-      
-      circuit_table.deleteRows(0, circuit_table.getRecordSet().getRecords().length);
-      
-      circuit_table.addRows(new_rows);
-
-    }
-
+    
     // setup help stuff
 
     makeHelpPanel(["circuit_search", "circuit_search_label"], "Use this to filter the circuits table below. The table will filter as you type.");

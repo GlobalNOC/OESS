@@ -452,7 +452,36 @@ function removeRemoteLink(link_id, button){
 
 function setup_users_tab(){
 
-    var user_table = makeUserTable("user_table");
+	
+	 	
+
+    var user_table = makeUserTable("user_table","search_users");
+
+	var user_search = new YAHOO.util.Element(YAHOO.util.Dom.get('user_search'));
+    
+	var user_searchTimeout;
+	 	user_search.on('keyup', function(e){
+			var search_value = this.get('element').value;
+			
+	 		if (e.keyCode == YAHOO.util.KeyListener.KEY.ENTER){
+				clearTimeout(user_searchTimeout);
+				table_filter.call(user_table,search_value);
+			}
+			else{
+				if (user_searchTimeout) clearTimeout(user_searchTimeout);
+				
+				user_searchTimeout = setTimeout(function(){
+					table_filter.call(user_table,search_value);
+				}, 400);
+				
+			} 
+	    
+		}
+				 );
+
+
+
+
 
     user_table.subscribe("rowClickEvent", function(oArgs){
 
@@ -1883,9 +1912,10 @@ function makeWorkgroupUserTable(id){
     return table;
 }
 
-function makeUserTable(div_id){
+function makeUserTable(div_id,search_id){
     
     var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_users");
+    	
     
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
@@ -1920,11 +1950,41 @@ function makeUserTable(div_id){
     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
     table.subscribe("rowClickEvent", table.onEventSelectRow);
-
+	//Caching Data for search
+	table.on("dataReturnEvent", function(oArgs){		       		     
+	    this.cache = oArgs.response;
+	    return oArgs;
+    });
     return table;
 }
 
 function makeWorkgroupTable(){
+
+	var searchTimeout;
+    
+    var search = new YAHOO.util.Element(YAHOO.util.Dom.get('workgroup_search'));
+    
+    search.on('keyup', function(e){
+		
+	    var search_value = this.get('element').value;
+		
+	    if (e.keyCode == YAHOO.util.KeyListener.KEY.ENTER){
+		clearTimeout(searchTimeout);
+			table_filter.call(table,search_value);
+	    }
+	    else{
+		if (searchTimeout) clearTimeout(searchTimeout);
+		
+		searchTimeout = setTimeout(function(){
+			table_filter.call(table,search_value);
+		    }, 400);
+		
+	    } 
+	    
+	}
+	);
+    
+	
     var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_workgroups");
 
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
@@ -1936,7 +1996,7 @@ function makeWorkgroupTable(){
 		 ]
     };
 
-    var columns = [{key: "name", label: "Name", sortable:true,width: 180},
+    var columns = [{key: "name", label: "Name", sortable:true,width: 180}
 		   ];
 
     var config = {
@@ -1952,6 +2012,13 @@ function makeWorkgroupTable(){
     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
     table.subscribe("rowClickEvent", table.onEventSelectRow);
+
+	table.on("dataReturnEvent", function(oArgs){		       		     
+	    this.cache = oArgs.response;
+	    return oArgs;
+    });
+    
+
 
     return table;
 }
