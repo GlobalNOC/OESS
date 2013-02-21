@@ -61,10 +61,7 @@
     };
     
     var columns = [
-		   {key: "circuit_id", label: "Identifier", width: 60, formatter: function(el, rec, col, data){
-			   el.innerHTML = "<center>"+data+"</center>";
-		       }
-		   },
+		   
 		   {key: "description", label: "Description", width: 230},
 		   {key: "endpoints", label: "Endpoints", width: 230, formatter: function(el, rec, col, data){
 
