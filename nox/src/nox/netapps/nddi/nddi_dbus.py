@@ -170,7 +170,7 @@ class dBusEventGen(dbus.service.Object):
     def install_default_forward(self, dpid):
         my_attrs          = {}
         my_attrs[DL_TYPE] = 0x88cc       
-
+        my_attrs[DL_VLAN] = 65535
         actions = [[openflow.OFPAT_OUTPUT, [65535, openflow.OFPP_CONTROLLER]]]
         
         idle_timeout = 0
