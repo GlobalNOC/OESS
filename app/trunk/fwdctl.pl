@@ -149,7 +149,7 @@ sub _generate_translation_rule{
         $out_tag_str = "untagged";
     }
  
-    _log("creating forwarding rule: dpid:$dpid_str packets going in port:$in_port with tag:$in_tag_str sent out port:$out_port with tag:$out_tag_str\n");
+    #_log("create forwarding rule: dpid:$dpid_str packets going in port:$in_port with tag:$in_tag_str sent out port:$out_port with tag:$out_tag_str\n");
 
     # first let's see if we already have a rule that uses these exact same qualifiers (multipoint)
     foreach my $prev_rule (@$prev_rules){
@@ -490,6 +490,7 @@ sub _replace_flowmod{
     my $dpid = shift;
     my $delete_command = shift;
     my $new_command = shift;
+    my $delay_ms    = shift;  #--- this is a value that should be an attribute of the object 
     my $xid;
 
     my $node = $self->{'db'}->get_node_by_dpid( dpid => $dpid);
@@ -498,6 +499,11 @@ sub _replace_flowmod{
     }
 
     my @xids;
+
+    #--- crude rate limiting
+    if(defined $delay_ms){
+    	usleep($delay_ms * 1000);
+    }
     if(defined($delete_command)){
 	#delete this flowmod
 	$xid = $self->{'of_controller'}->delete_datapath_flow($dpid,$delete_command->{'attr'});
@@ -536,9 +542,12 @@ sub _do_diff{
     my $node = shift;
     my $current_flows = shift;
 
-    my $dpid = $node->{'dpid'};
-    my $dpid_str  = sprintf("%x",$dpid);
-    _log("sw: dpid:$dpid_str diff sw rules to oe-ss rules");
+    my $dpid          = $node->{'dpid'};
+    my $dpid_str      = sprintf("%x",$dpid);
+    my $node_info     = $self->{'db'}->get_node_by_dpid( dpid => $dpid );
+    my $sw_name       = $node_info->{'name'};
+
+    _log("sw:$sw_name dpid:$dpid_str diff sw rules to oe-ss rules");
     #--- get the set of circuits
     my $current_circuits = $self->{'db'}->get_current_circuits();
     if (! defined $current_circuits){
@@ -561,35 +570,45 @@ sub _do_diff{
 	}
     }
 
-    $self->_actual_diff( $dpid, $current_flows, \@all_commands);
-    _log("sw: dpid:$dpid_str diff complete");
+    $self->_actual_diff($dpid,$sw_name, $current_flows, \@all_commands);
 }
+
 
 sub _actual_diff{
     my $self = shift;
     my $dpid = shift;
+    my $sw_name = shift;
     my $current_flows = shift;
     my $commands = shift;
 
-    my $node = $self->{'db'}->get_node_by_dpid( dpid => $dpid);
+    my @rule_queue;			#--- temporary storage of forwarding rules
+    my %stats = ( 
+			mods => 0,
+			adds => 0,
+			rems => 0
+		);			#--- used to store stats about the diff
     
+    my $node = $self->{'db'}->get_node_by_dpid( dpid => $dpid);
+    my $dpid_str  = sprintf("%x",$dpid);
+
     foreach my $command (@$commands){
-	#ignore rules not for this dpid
+	#---ignore rules not for this dpid
 	next if($command->{'dpid'}->value() != $dpid);
-	#ok so we have our list of rules for this node 
-	if(defined($current_flows->{$command->{'attr'}->{'IN_PORT'}->value()})){
-	    my $port = $current_flows->{$command->{'attr'}->{'IN_PORT'}->value()};
-	    if(defined($port->{$command->{'attr'}->{'DL_VLAN'}->value()})){
-		my $action_list = $port->{$command->{'attr'}->{'DL_VLAN'}->value()}->{'actions'};
-		$port->{$command->{'attr'}->{'DL_VLAN'}->value()}->{'seen'} = 1;
-		#ok... so our match matches...
-		#does our action match?
+	my $com_port = $command->{'attr'}->{'IN_PORT'}->value();
+        my $com_vid  = $command->{'attr'}->{'DL_VLAN'}->value();
+	if(defined($current_flows->{$com_port})){
+	    #--- we have observed flows on the same switch port defined in the command
+	    my $obs_port = $current_flows->{$com_port};
+	    if(defined($obs_port->{$com_vid})){
+		#--- we have have a flow on the same switchport with the same vid match
+		my $action_list = $obs_port->{$com_vid}->{'actions'};
+	
+		$obs_port->{$com_vid}->{'seen'} = 1;
+		
 		if($#{$action_list} != $#{$command->{'action'}}){
-		    _log("Flowmod actions do not match, removing and replacing");
-		    #replace the busted flowmod with our new flowmod...
-		    #first delay by some configured value in case the device can't handle it
-		    usleep($node->{'tx_delay_ms'} * 1000);
-		    my $result = $self->_replace_flowmod($dpid,_process_flow_stats_to_command($command->{'attr'}->{'IN_PORT'}->value(),$command->{'attr'}->{'DL_VLAN'}->value()),$command);
+		    #-- the number of actions in the observed and the planned dont match just replace
+		    $stats{'mods'}++;
+		    push(@rule_queue, [$dpid,_process_flow_stats_to_command($com_port,$com_vid),$command,$node->{'tx_delay_ms'}]);
 		    next;
 		}
 		
@@ -597,64 +616,65 @@ sub _actual_diff{
 		    my $action = $command->{'action'}->[$i];
 		    my $action2 = $action_list->[$i];
 		    if($action2->{'type'} == $action->[0]->value()){
-			if($action2->{'type'} == 0){
-			    #this is type of output
+			if($action2->{'type'} == OFPAT_OUTPUT){
 			    if($action2->{'port'} == $action->[1]->[1]->value()){
-				#perfect keep going
+				#--- port matches nothing to do
 			    }else{
-				_log("Flowmod actions do not match, replacing");
-				#replace the busted flowmod with our new flowmod...
-				#first delay by some configured value in case the device can't handle it
-				usleep($node->{'tx_delay_ms'} * 1000);
-				my $result = $self->_replace_flowmod($dpid,_process_flow_stats_to_command($command->{'attr'}->{'IN_PORT'}->value(),$command->{'attr'}->{'DL_VLAN'}->value()),$command);
+				#--- port does not match we need to replace the rule on the switch
+                    		$stats{'mods'}++;
+                    		push(@rule_queue, [$dpid,_process_flow_stats_to_command($com_port,$com_vid),$command,$node->{'tx_delay_ms'}]);
 				last;
 			    }
-			}elsif($action2->{'type'} == 1){
-			    #this is type of set vlan
+			}elsif($action2->{'type'} ==  OFPAT_SET_VLAN_VID ){
 			    if($action2->{'vlan_vid'} == $action->[1]->value()){
-				#perfect keep going
+				#--- vlan_id also matches nothing to do
 			    }else{
-				_log("Flowmod actions do not match, replacing");
-				#replace the busted flwomod with our new flowmod
-				#first delay by some configured value in case the device can't handle it
-				usleep($node->{'tx_delay_ms'} * 1000);
-				my $result = $self->_replace_flowmod($dpid,_process_flow_stats_to_command($command->{'attr'}->{'IN_PORT'}->value(),$command->{'attr'}->{'DL_VLAN'}->value()),$command);
+				#--- vlan_id does not match we need to replace the rule on the switch
+                    		$stats{'mods'}++;
+                    		push(@rule_queue, [$dpid,_process_flow_stats_to_command($com_port,$com_vid),$command,$node->{'tx_delay_ms'}]);
 				last;
 			    }
 			}
 		    }
 		}
 	    }else{
-		_log("adding a missing flowmod");
-		#match doesn't exist in our current flows 
-		#first delay by some configured value in case the device can't handle it
-		usleep($node->{'tx_delay_ms'} * 1000);
-		my $result = $self->_replace_flowmod($dpid,undef,$command);
+		#---rule missing on switch
+                $stats{'adds'}++;
+                push(@rule_queue, [$dpid,undef,$command,$node->{'tx_delay_ms'}]);
 	    }
 	}else{
-	    _log("adding a missing flowmod");
-	    #match doesn't exist in our current flows
-	    #first delay by some configured value in case the device can't handle it
-	    usleep($node->{'tx_delay_ms'} * 1000);
-	    my $result = $self->_replace_flowmod($dpid,undef,$command);
+	    #---rule missing on switch
+	    $stats{'adds'}++;
+	    push(@rule_queue, [$dpid,undef,$command,$node->{'tx_delay_ms'}]);
 	}
     }
-
-
-    #ok, now we need to figure out if we saw flowmods that we weren't suppose to
+    #--- look for rules which are on the switch but which should not be there by design
     foreach my $port_num (keys (%{$current_flows})){
-	my $port = $current_flows->{$port_num};
-	foreach my $vlan (keys (%{$port})){
-	    if($port->{$vlan}->{'seen'} == 1){
+	my $obs_port = $current_flows->{$port_num};
+	foreach my $obs_vid (keys (%{$obs_port})){
+	    if($obs_port->{$obs_vid}->{'seen'} == 1){
+		#--- rule has already been seen when iterating above, skip
 		next;
 	    }else{
-		_log("Removing flowmod that was not suppose to be there");
-		#first delay by some configured value in case the device can't handle it
-		usleep($node->{'tx_delay_ms'} * 1000);
-		my $result = $self->_replace_flowmod($dpid,_process_flow_stats_to_command($port_num,$vlan),undef);
+		#---rule needs to be removed from switch 
+		$stats{'rems'}++;
+		push(@rule_queue, [$dpid,_process_flow_stats_to_command($port_num,$obs_vid),undef,$node->{'tx_delay_ms'}]);
 	    }
 	}
     }
+
+    my $total = $stats{'mods'} + $stats{'adds'} + $stats{'rems'};
+     _log("sw:$sw_name dpid:$dpid_str diff plans  $total changes.  mods:".$stats{'mods'}. " adds:".$stats{'adds'}. " removals:".$stats{'rems'}."\n");
+    
+    #--- process the rule_queue
+    my $success_count=0;
+    foreach my $args (@rule_queue){
+      my $result = $self->_replace_flowmod(@$args);   
+      if($result ==  FWDCTL_SUCCESS){
+	$success_count++;
+      }  	
+    }
+     _log("sw:$sw_name dpid:$dpid_str diff completed $success_count of $total changes\n");
 
 }
     
@@ -895,6 +915,7 @@ sub flow_stats_in{
 	return;
     }
 
+    #!-!-! we should refactor this to have a hash lookup based on dpid
     for(my $i=0;$i<=$#{$self->{'nodes_for_diff'}};$i++){
 	my $node = $self->{'nodes_for_diff'}->[$i];
 
