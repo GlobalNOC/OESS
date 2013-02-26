@@ -16,8 +16,8 @@ function makeInterfacesTable(node){
     }
   };
   
-  var cols = [{key: "name", label: "Interface", width: 100},
-	      //{key: "description", label: "Description", width: 200},
+  var cols = [{key: "name", label: "Interface"},
+	      {key: "description", label: "Description"},
               {key: "status", label: "Status", width: 120}
 	     ];
   

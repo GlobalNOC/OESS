@@ -248,7 +248,7 @@ function NDDIMap(div_id, interdomain_mode){
       if (! node_info){
 	  return;
       }
-
+	  
       var node_lat   = parseFloat(node_info.node_lat);
       var node_long  = parseFloat(node_info.node_long);
       var node_id    = parseInt(node_info.node_id || -1);
@@ -257,9 +257,10 @@ function NDDIMap(div_id, interdomain_mode){
       var default_forward = node_info.default_forward;
       var tx_delay_ms = node_info.tx_delay_ms;
       var max_flows = node_info.max_flows;
-
+	  var avail_endpoints = node_info.number_available_endpoints;
+	  
       var pointStyle = OpenLayers.Util.extend({}, OpenLayers.Feature.Vector.style['default']);
-
+	  
       pointStyle.strokeColor      = "#00FF00";
       pointStyle.fillColor        = "#00FF00";
       pointStyle.fillOpacity      = 0.9;
@@ -269,6 +270,15 @@ function NDDIMap(div_id, interdomain_mode){
       pointStyle.cursor           = "hand";
       pointStyle.externalGraphic  = this.UNSELECTED_IMAGE;
       pointStyle.graphicZIndex    = 10;
+
+	  if (avail_endpoints < 1 || avail_endpoints === undefined){
+		  
+		  pointStyle.strokeColor      = "#C0C0C0";
+		  pointStyle.fillColor        = "#C0C0C0";
+		  pointStyle.cursor = "";
+		  pointStyle.externalGraphic = this.NON_IMPORTANT_IMAGE;
+	  }
+	  
 
       var lonlat = new OpenLayers.LonLat(node_long, node_lat).transform(this.map.displayProjection,
 									this.map.projection);
@@ -284,6 +294,7 @@ function NDDIMap(div_id, interdomain_mode){
       point.default_forward = default_forward;
       point.tx_delay_ms = tx_delay_ms;
       point.max_flows = max_flows;
+	  point.available_endpoints = avail_endpoints;
       var pointFeature  = new OpenLayers.Feature.Vector(point,
 							null,
 							pointStyle
@@ -629,7 +640,7 @@ function NDDIMap(div_id, interdomain_mode){
 
 
   this.clearAllSelected = function(){
-
+	  
       for (var j = 0; j < this.map.layers[1].features.length; j++){
 	  var feature = this.map.layers[1].features[j];
 
@@ -667,7 +678,7 @@ function NDDIMap(div_id, interdomain_mode){
   // convenience function to update the map based on what we've selected and have
   // stored in our session cookie
   this.updateMapFromSession = function(session, discolor_nodes){
-
+	  
     var endpoints   = session.data.endpoints || [];
     var links       = session.data.links || [];
     var backups     = session.data.backup_links || [];
@@ -712,9 +723,15 @@ function NDDIMap(div_id, interdomain_mode){
 		  this.changeNodeImage(feature, this.NON_IMPORTANT_IMAGE);
 	      }
 	      else{
-		  this.changeNodeImage(feature, this.UNSELECTED_IMAGE);
-	      }
-
+			  if (feature.geometry.available_endpoints < 1)
+			  {
+				  this.changeNodeImage(feature, this.NON_IMPORTANT_IMAGE);
+			  }
+			  else {
+				  this.changeNodeImage(feature, this.UNSELECTED_IMAGE);
+	      
+			  }
+		  }
 	  }
 
 	}
@@ -878,6 +895,10 @@ function NDDIMap(div_id, interdomain_mode){
   this._getMapData = function(){
 
     var url = "[% path %]services/data.cgi?action=get_maps";
+
+	  if (session.data.workgroup_id){
+		  url += "&workgroup_id="+session.data.workgroup_id;
+	  }
 
     var ds = new YAHOO.util.DataSource(url);
 
