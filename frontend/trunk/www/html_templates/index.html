@@ -2,47 +2,46 @@
 
 <div class="main_page" style="position: relative;">
 
-  <center>  
+    <div id="workgroup_tabs" class="yui-navset" style="width: 90%; height:600px;">
+      <ul class="yui-nav">
+	<li class="selected"><a href="#tab1"><em>Active VLANS</em></a></li>
+	<li><a href=""><em>Network Status</em></a></li>
+	<li><a href=""><em>Users</em></a></li>
+	<li><a href=""><em>Actions</em></a></li>
+      </ul>
+      <div class="yui-content" style="height: 90%">
+	<div>
+	  <div style="text-align: left; margin-left: 123px; margin-bottom: 8px;">
+            <label for="circuit_search" id="circuit_search_label" class="soft_title">Search:</label>
+	    <input id="circuit_search" type="text" size="35">
+          </div>
 
-    <div id="instructions">
-      <p class="title">Workgroup Home</p>
-      <p class="subtitle">View existing circuits or create new ones</p>
+	  <center>
+	    <div id="circuit_table"></div>
+	    <div id="circuit_table_nav"></div>
+	  </center>
+	  
+	    <div style="float: right; margin-right: 117px; margin-top: 10px;">
+	      <table style="color: grey; font-size: 88%;">
+		<tr>
+		  <td>Total Circuits:</td>
+		  <td><div id="total_workgroup_circuits"></div></td>
+		</tr>
+		<tr>
+		  <td>Total Bandwidth:</td>
+		  <td><div id="total_workgroup_bandwidth"></div></td>
+		</tr>
+	      </table>
+	    </div>	  
+	</div>
+	<div><p>Available Resources</p></div>
+	<div><p>Users</p></div>
+	<div><em>Create a new circuit</em></div>
+      </div>
     </div> 
-
-  </center>
 
   <div style="float: right; margin-right: 65px; top: -27; position: relative;">
     <div id="new_circuit"></div>
-  </div>
-
-  <br><br>
-
-  <div>
-
-    <div style="text-align: left; margin-left: 215px; margin-bottom: 8px;">
-        <label for="circuit_search" id="circuit_search_label" class="soft_title">Search:</label>
-	<input id="circuit_search" type="text" size="35">
-    </div>
-
-  
-    <center>
-      <div id="circuit_table"></div>
-      <div id="circuit_table_nav"></div>
-    </center>
-
-  </div>
-  
-  <div style="float: right; margin-right: 117px; margin-top: 10px;">
-    <table style="color: grey; font-size: 88%;">
-      <tr>
-	<td>Total Circuits:</td>
-	<td><div id="total_workgroup_circuits"></div></td>
-      </tr>
-    <tr style="display:none">
-	<td>Total Bandwidth:</td>
-	<td><div id="total_workgroup_bandwidth"></div></td>
-	</tr>
-    </table>
   </div>
 
   <br clear="both">

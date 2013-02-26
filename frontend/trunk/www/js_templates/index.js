@@ -4,18 +4,20 @@
   function index_init(){
     
     // set up the new circuit button
-    var new_circuit = new YAHOO.widget.Button("new_circuit",
-					      {label: "New Circuit"}
-					     );
-    
-    new_circuit.on("click", function(){
-	    session.clear();
-	    window.location = "index.cgi?action=edit_details";
-	});
+    //    var new_circuit = new YAHOO.widget.Button("new_circuit",
+    //					      {label: "New Circuit"}
+    //					     );
+
+    var new_circuit = document.getElementById('create_new_circuit');
+    //    new_circuit.on("click", function(){
+    //	    session.clear();
+    //	    window.location = "index.cgi?action=edit_details";
+    //	});
     
     
     // set up the search bar
 
+    var tabs = new YAHOO.widget.TabView("workgroup_tabs");
     var searchTimeout;
     
     var search = new YAHOO.util.Element(YAHOO.util.Dom.get('circuit_search'));
