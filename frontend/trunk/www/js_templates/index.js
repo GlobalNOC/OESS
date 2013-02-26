@@ -3,20 +3,93 @@
   
   function index_init(){
     
-    // set up the new circuit button
-    //    var new_circuit = new YAHOO.widget.Button("new_circuit",
-    //					      {label: "New Circuit"}
-    //					     );
+    // set up the new circuit link
+    var new_circuit = new YAHOO.util.Element('create_new_vlan');
+    new_circuit.on('click', function(){
+	    session.clear();
+	    window.location = "index.cgi?action=edit_details";
+	});
+    
+    var add_user = new YAHOO.util.Element('request_user_add');
+    add_user.on('click', function(){
+	    
+	    var panel = new YAHOO.widget.Panel("request_user_add_p",
+					       {width: 360,
+						modal: true,
+                                                fixedcenter: true,
+                                                zIndex: 10,
+                                                draggable: false
+					       });
 
-    var new_circuit = document.getElementById('create_new_circuit');
-    //    new_circuit.on("click", function(){
-    //	    session.clear();
-    //	    window.location = "index.cgi?action=edit_details";
-    //	});
+            panel.setHeader("Request a User to be added to this Workgroup");
+            panel.setBody("<label for='username' class='soft_title'>Username:</label>" +
+                          "<input id='username' type='text' size='20' style='margin-left: 30px'>" +
+                          "<br><label for='given_name' class='soft_title'>Given Name:</label>" +
+                          "<input id='given_name' type='text' size='20' style='margin-left: 18px'>" + 
+			  "<br><label for='family_name' class='soft_title'>Family Name:</label>" + 
+			  "<input id='family_name' type='text' size='20' style='margin-left: 12px'>" + 
+			  "<br><label for='email_address' class='soft_title'>Email Address:</label>" +
+			  "<input id='email_address' type='text' size='20'>"
+                          );
+            panel.setFooter("<div id='send_user_add'></div><div id='cancel_user_add'></div>");
+
+            panel.render();
+
+	    var send_user_add_button = new YAHOO.widget.Button('send_user_add');
+            send_user_add_button.set('label','Send Request');
+            send_user_add_button.on('click',function(){
+                    panel.hide();
+                    panel.destroy();
+                });
+
+            var cancel_user_add_button = new YAHOO.widget.Button('cancel_user_add');
+	    cancel_user_add_button.set('label','Cancel');
+            cancel_user_add_button.on('click',function(){
+                    panel.hide();
+                    panel.destroy();
+                });
+
+	});
+
+    var send_feedback = new YAHOO.util.Element('send_feedback');
+    send_feedback.on('click', function(){
+	    
+	    var panel = new YAHOO.widget.Panel("send_feedback_p",
+					       {width: 660,
+						modal: true,
+						fixedcenter: true,
+						zIndex: 10,
+						draggable: false
+					       });
+
+            panel.setHeader("Send Feedback To Administrators");
+            panel.setBody("<label for='subject' class='soft_title'>Subject:</label>" +
+                          "<input id='subject' type='text' size='75' style='margin-left: 15px'>" +
+                          "<br><label for='feedback' class='soft_title' style='vertical-align: top'>Feedback:</label>" +
+                          "<textarea id='feedback' rows='20' cols='80'></textarea>"
+                          );
+            panel.setFooter("<div id='do_send_feedback'></div><div id='cancel_feedback'></div>");
+
+            panel.render();
+
+	    var send_feedback_button = new YAHOO.widget.Button('do_send_feedback');
+	    send_feedback_button.set('label','Send');
+	    send_feedback_button.on('click',function(){
+		    panel.hide();
+		    panel.destroy();
+		});
+
+	    var cancel_feedback_button = new YAHOO.widget.Button('cancel_feedback');
+	    cancel_feedback_button.set('label','Cancel');
+	    cancel_feedback_button.on('click',function(){
+		    panel.hide();
+		    panel.destroy();
+		});
+	});
+
     
     
     // set up the search bar
-
     var tabs = new YAHOO.widget.TabView("workgroup_tabs");
     var searchTimeout;
     
@@ -155,8 +228,39 @@
     });
     
     
-    // setup help stuff
 
+    var user_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_workgroup_members&workgroup_id="+session.data.workgroup_id);
+    user_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+    user_ds.responseSchema = {
+	resultsList: "results",
+	fields: [
+    {key: "auth_name"},
+    {key: "first_name"},
+    {key: "family_name"},
+    {key: "email_address"}
+		 ],
+	metaFields: {
+	    error: "error"
+	}
+    };
+
+    var user_columns = [
+
+                   {key: "auth_name", label: "Username(s)", width: 150},
+                   {key: "first_name", label: "Given Name", width: 150},
+                   {key: "family_name", label: "Last Name", width: 150},
+		   {key: "email_address", label: "Email Address", width: 150}
+                   ];
+
+    var user_config = {
+	paginator: new YAHOO.widget.Paginator({rowsPerPage: 10,
+					       containers: ["user_table_nav"]
+	    })
+    };
+
+    var user_table = new YAHOO.widget.DataTable("user_table", user_columns, user_ds, user_config);
+
+    // setup help stuff
     makeHelpPanel(["circuit_search", "circuit_search_label"], "Use this to filter the circuits table below. The table will filter as you type.");
 }
 

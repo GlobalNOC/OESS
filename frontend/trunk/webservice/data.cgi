@@ -89,8 +89,8 @@ sub main {
 	case "get_workgroups" {
 	    $output = &get_workgroups();
 	}
-	else{
-	    $output = {error => "Unknown action - $action"};
+	case "get_workgroup_members" {
+	    $output = &get_users_in_workgroup();
 	}
 
     }
@@ -306,6 +306,24 @@ sub get_maps{
 
     return $results;
 
+}
+
+sub get_users_in_workgroup {
+    my $results;
+
+    my $workgroup_id = $cgi->param('workgroup_id');
+
+    my $users = $db->get_users_in_workgroup( workgroup_id => $workgroup_id );
+
+    if ( !defined $users ) {
+	$results->{'error'}   = $db->get_error();
+        $results->{'results'} = [];
+    }
+    else {
+        $results->{'results'} = $users;
+    }
+
+    return $results;
 }
 
 sub send_json{
