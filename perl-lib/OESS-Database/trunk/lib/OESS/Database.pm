@@ -736,7 +736,7 @@ sub get_node_dpid_hash {
 sub get_current_nodes{
     my $self = shift;
 
-    my $nodes = $self->_execute_query("select node.name, node_instantiation.dpid from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1",[]);
+    my $nodes = $self->_execute_query("select node.name, node_instantiation.dpid,node.node_id from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1",[]);
     
     return $nodes;   
 }
@@ -1037,12 +1037,12 @@ HERE
 			  "  join node on node.network_id = network.network_id " . 
 				" where network.is_local = 0";
 
-		my $rows = $self->_execute_query($query, []);
+		$rows = $self->_execute_query($query, []);
 		my @node_array;
 		foreach my $row (@$rows){
 			push(@node_array,$row->{'node-id'});
 		}
-		my $node_list= join(',',@node_array);
+		 $node_list= join(',',@node_array);
 	if($workgroup_id && $node_list){
 		my $available_endpoint_query = <<HERE;
 select network.name as network_name, node.name, count(interface.port_number) as 'available_endpoint_count' from node 
