@@ -11,11 +11,19 @@
       </ul>
       <div class="yui-content" style="height: 90%">
 	<div>
-	  <div style="text-align: left; margin-left: 123px; margin-bottom: 8px;">
+	  <div style="inline-block; float:left;text-align: left; margin-left: 123px; margin-bottom: 8px;">
             <label for="circuit_search" id="circuit_search_label" class="soft_title">Search:</label>
 	    <input id="circuit_search" type="text" size="35">
-          </div>
-
+       </div>
+	  <div style="float-right;margin-right:80px;">
+		<label for="endpoint_node_selector">Circuits with an endpoint on: </label>
+		<select style="display:block;" id="endpoint_node_selector">
+		  <option>No Options Yet</option>
+		</select>
+		<label for="path_node_selector">Path traverses: </label>
+		<select id="path_node_selector"> <option> No Options</option> </select>
+		
+	  </div>
 	  <center>
 	    <div id="circuit_table"></div>
 	    <div id="circuit_table_nav"></div>
@@ -27,10 +35,11 @@
 		  <td>Total Circuits:</td>
 		  <td><div id="total_workgroup_circuits"></div></td>
 		</tr>
-		<tr>
+		
+		<tr style="display:none;">
 		  <td>Total Bandwidth:</td>
 		  <td><div id="total_workgroup_bandwidth"></div></td>
-		</tr>
+		</tr> 
 	      </table>
 	    </div>	  
 	</div>
