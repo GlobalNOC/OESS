@@ -902,54 +902,97 @@ sub get_map_layers {
     my $self = shift;
     my %args = @_;
 
+	my $workgroup_id= $args{'workgroup_id'};
     my $dbh = $self->{'dbh'};
 
     # grab only the local network
-    my $query = "select network.longitude as network_long, network.latitude as network_lat, network.name as network_name, " .
-	" node.longitude as node_long,node.max_flows, node.tx_delay_ms, node.latitude as node_lat, node.name as node_name, node.vlan_tag_range, node.node_id as node_id, node.default_drop as default_drop, node.default_forward as default_forward, " .
-	" to_node.name as to_node, " .
-	" link.name as link_name, if(intA.operational_state = 'up' && intB.operational_state = 'up', 'up', 'down') as link_state, if(int_instA.capacity_mbps > int_instB.capacity_mbps, int_instB.capacity_mbps, int_instA.capacity_mbps) as capacity, link.link_id as link_id " .
-	"from node " .
-	"  join node_instantiation on node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active' " .
-	" join network on node.network_id = network.network_id and network.is_local = 1 " . 
-
-	" join interface intA on intA.node_id = node.node_id " .
-	" join interface_instantiation int_instA on int_instA.interface_id = intA.interface_id " .
-	"  and int_instA.end_epoch = -1 " .
-
-	" left join link_instantiation on link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active' " .
-	"  and intA.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id) " .
-	" left join link on link.link_id = link_instantiation.link_id " .
-
-	" left join interface intB on intB.interface_id != intA.interface_id and intB.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id) " .
-	" left join interface_instantiation int_instB on int_instB.interface_id = intB.interface_id " .
-	"  and int_instB.end_epoch = -1 " .
-
-	" left join node to_node on to_node.node_id != node.node_id and to_node.node_id = intB.node_id";
-
-#	"from link " .
-#	" join link_instantiation on link_instantiation.link_id = link.link_id and link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active' " .
-#	" join interface_instantiation int_instA on int_instA.interface_id = link_instantiation.interface_a_id " .
-#	"  and int_instA.end_epoch = -1 " .
-#	" join interface_instantiation int_instB on int_instB.interface_id = link_instantiation.interface_z_id " .
-#	"  and int_instB.end_epoch = -1 " .
-#	" join interface intA on int_instA.interface_id = intA.interface_id " .
-#	" join interface intB on int_instB.interface_id = intB.interface_id " .
-#	" right join node on node.node_id in (intA.node_id, intB.node_id) " .
-#	"  join node_instantiation on node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active' " .
-#	" join network on node.network_id = network.network_id and network.is_local = 1 " . 
-#	" join node to_node on to_node.node_id != node.node_id and to_node.node_id in (intA.node_id, intB.node_id)";
+    my $query = <<HERE;
+	 select network.longitude as network_long, 
+     network.latitude as network_lat, 
+     network.name as network_name, 
+	 node.longitude as node_long,
+     node.max_flows, 
+     node.tx_delay_ms, 
+     node.latitude as node_lat, 
+     node.name as node_name, 
+     node.node_id,
+     node.vlan_tag_range, 
+     node.node_id as node_id, 
+     node.default_drop as default_drop, 
+     node.default_forward as default_forward,  
+	 to_node.name as to_node,  
+	 link.name as link_name, if(intA.operational_state = 'up' && intB.operational_state = 'up', 'up', 'down') as link_state, 
+     if(int_instA.capacity_mbps > int_instB.capacity_mbps, int_instB.capacity_mbps, int_instA.capacity_mbps) as capacity, link.link_id as link_id  
+	from node  
+	  join node_instantiation on node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active'  
+	 join network on node.network_id = network.network_id and network.is_local = 1  
+	 join interface intA on intA.node_id = node.node_id  
+	 join interface_instantiation int_instA on int_instA.interface_id = intA.interface_id  
+	  and int_instA.end_epoch = -1  
+	 left join link_instantiation on link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active'  
+	  and intA.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id)  
+	 left join link on link.link_id = link_instantiation.link_id  
+	 left join interface intB on intB.interface_id != intA.interface_id and intB.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id)  
+	 left join interface_instantiation int_instB on int_instB.interface_id = intB.interface_id  
+	  and int_instB.end_epoch = -1  
+	 left join node to_node on to_node.node_id != node.node_id and to_node.node_id = intB.node_id
+HERE
+	
     
-    my $sth = $self->_prepare_query($query) or return undef;
+    #my $sth = $self->_prepare_query($query) or return undef;
 
-    $sth->execute();
+    #$sth->execute();
 
     my $networks;
 
-    while (my $row = $sth->fetchrow_hashref()){
+    #while (my $row = $sth->fetchrow_hashref()){
+
+	my $rows = $self->_execute_query($query);
+
+	my @node_ids;
+
+	foreach my $row(@$rows){
+		push (@node_ids,$row->{'node_id'});
+	}
+	
+	
+	my $node_list = join(',',@node_ids);
+	my $nodes_endpoints= {};
+
+
+
+   #default_count_endpoints for when there are no results, if we have no workgroup_id return 1.
+	my $default_endpoint_count=1;	  
+		  if($workgroup_id){
+			  
+			  $default_endpoint_count=0;
+			  my $available_endpoint_query = <<HERE;
+select node.name, network.name as network_name, count(interface.port_number) as 'available_endpoint_count' from node 
+join network on node.network_id = network.network_id
+left join interface on node.node_id in ( $node_list ) and interface.node_id = node.node_id 
+join workgroup_interface_membership on workgroup_interface_membership.interface_id = interface.interface_id
+where workgroup_interface_membership.workgroup_id= ?
+group by node.name
+HERE
+			  my $results= $self->_execute_query($available_endpoint_query,[$workgroup_id]);
+	  		  
+			  foreach my $row (@$results){
+				  $nodes_endpoints->{$row->{'network_name'} }->{$row->{'name'} } = $row->{'available_endpoint_count'}; 
+			  }
+			  
+		  }
+	
+	 
+	
+
+
+	
+	foreach my $row(@$rows){
 
 	my $network_name = $row->{'network_name'};
 	my $node_name    = $row->{'node_name'};
+	my $avail_endpoints = ( defined($nodes_endpoints->{$network_name}->{$node_name})? $nodes_endpoints->{$network_name}->{$node_name} : $default_endpoint_count);
+	
 
 	$networks->{$network_name}->{'meta'} = {"network_long" => $row->{'network_long'},
 						"network_lat"  => $row->{'network_lat'},
@@ -965,8 +1008,9 @@ sub get_map_layers {
 							       "default_drop" => $row->{'default_drop'},
 							       "default_forward" => $row->{'default_forward'},
 							       "max_flows"    => $row->{'max_flows'},
-							       "tx_delay_ms" => $row->{'tx_delay_ms'}
-							   };
+							       "tx_delay_ms" => $row->{'tx_delay_ms'},
+							       "number_available_endpoints" => $avail_endpoints
+														  };
 
 	# make sure we have an array even if we never get any links for this node
 	if (! exists $networks->{$network_name}->{'links'}->{$node_name}){
@@ -985,41 +1029,62 @@ sub get_map_layers {
 	}
     }
 
-
-    # now grab the foreign networks (no instantiations, is_local = 0)
-    $query = "select network.longitude as network_long, network.latitude as network_lat, network.name as network_name, network.network_id as network_id, " .
-	" node.longitude as node_long, node.latitude as node_lat, node.name as node_name, node.node_id as node_id " .
-	" from network " .
-	"  join node on node.network_id = network.network_id " . 
-	" where network.is_local = 0";
-
-    my $rows = $self->_execute_query($query, []);
 	
-    foreach my $row (@$rows){
+		# now grab the foreign networks (no instantiations, is_local = 0)
+		$query = "select network.longitude as network_long, network.latitude as network_lat, network.name as network_name, network.network_id as network_id, " .
+		  " node.longitude as node_long, node.latitude as node_lat, node.name as node_name, node.node_id as node_id " .
+			" from network " .
+			  "  join node on node.network_id = network.network_id " . 
+				" where network.is_local = 0";
 
-	my $node_id      = $row->{'node_id'};
-	my $network_id   = $row->{'network_id'};
-	my $network_name = $row->{'network_name'};
-	my $node_name    = $row->{'node_name'};
-
-	$networks->{$network_name}->{'meta'} = {"network_long" => $row->{'network_long'},
-						"network_lat"  => $row->{'network_lat'},
-						"network_name" => $network_name,
-						"local"        => 0
-	};
-
-	my $node_lat = $row->{'node_lat'};
-	my $node_lon = $row->{'node_long'};
-
-	if ($node_lat eq 0 && $node_lon eq 0){
-	    $node_lat  = $row->{'network_lat'};
-	    $node_lon  = $row->{'network_long'};
+		my $rows = $self->_execute_query($query, []);
+		my @node_array;
+		foreach my $row (@$rows){
+			push(@node_array,$row->{'node-id'});
+		}
+		my $node_list= join(',',@node_array);
+	if($workgroup_id && $node_list){
+		my $available_endpoint_query = <<HERE;
+select network.name as network_name, node.name, count(interface.port_number) as 'available_endpoint_count' from node 
+join network on node.network_id = network.network_id
+left join interface on node.node_id in ( $node_list ) and interface.node_id = node.node_id 
+join workgroup_interface_membership on workgroup_interface_membership.interface_id = interface.interface_id
+where workgroup_interface_membership.workgroup_id= ?
+group by node.name
+HERE
+		my $results= $self->_execute_query($available_endpoint_query,[$workgroup_id]);
+	  		  
+		foreach my $row (@$results){
+			$nodes_endpoints->{$row->{'network_name'} }->{$row->{'name'} } = $row->{'available_endpoint_count'}; 
+		}
 	}
 
-	$networks->{$network_name}->{'nodes'}->{$node_name} = {"node_name"    => $node_name,
-							       "node_lat"     => $node_lat,
-							       "node_long"    => $node_lon,
-							   };
+    foreach my $row (@$rows){
+
+		my $node_id      = $row->{'node_id'};
+		my $network_id   = $row->{'network_id'};
+		my $network_name = $row->{'network_name'};
+		my $node_name    = $row->{'node_name'};
+		my $avail_endpoints = ( defined($nodes_endpoints->{$network_name}->{$node_name})? $nodes_endpoints->{$network_name}->{$node_name} : $default_endpoint_count);
+		$networks->{$network_name}->{'meta'} = {"network_long" => $row->{'network_long'},
+												"network_lat"  => $row->{'network_lat'},
+												"network_name" => $network_name,
+												"local"        => 0
+											   };
+		
+		my $node_lat = $row->{'node_lat'};
+		my $node_lon = $row->{'node_long'};
+		
+		if ($node_lat eq 0 && $node_lon eq 0){
+			$node_lat  = $row->{'network_lat'};
+			$node_lon  = $row->{'network_long'};
+		}
+
+		$networks->{$network_name}->{'nodes'}->{$node_name} = {"node_name"    => $node_name,
+															   "node_lat"     => $node_lat,
+															   "node_long"    => $node_lon,
+															   "number_available_endpoints" => $avail_endpoints
+															  };
 
     }
 
@@ -1027,8 +1092,8 @@ sub get_map_layers {
 
     foreach my $network_name (keys %$networks){
 
-	push (@$results, $networks->{$network_name});
-
+		push (@$results, $networks->{$network_name});
+	
     }
 
     return $results;
