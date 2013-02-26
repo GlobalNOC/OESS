@@ -4,6 +4,8 @@
 
 function init(){
 
+    var tabs = new YAHOO.widget.TabView("tabs");
+
     var ds = make_circuit_details_datasource();
 
     ds.sendRequest("", {success: function(req, resp){
@@ -98,7 +100,7 @@ function page_init(){
 
   var nddi_map = new NDDIMap("map", session.data.interdomain == 1);
 
-  legend_init(nddi_map, false, true);
+  //legend_init(nddi_map, false, true);
 
   nddi_map.showDefault();
 

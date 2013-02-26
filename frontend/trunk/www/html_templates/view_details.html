@@ -27,61 +27,51 @@
     </div>
   </div>
 
-  <table class="map_table">
-    <tr>
-
-      <td>
-        <div id="map" class="openlayers smaller"></div>
-	<span id="interdomain_path_status" class="soft_title"></span>
-      </td>
-
-      <td>
-	<div id="details_tabs" class="yui-navset">
-
-	  <ul class="yui-nav">
-	    <li class="selected"><a href="#tab1"><em>Traffic</em></a></li>
-	    <li><a href="#tab2"><em>User Events</em></a></li>
-	    <li><a href="#tab3"><em>Network Events</em></a></li>
-	  </ul>
-
-	  <div class="yui-content">
-
-	    <div id="traffic_container" class="no_padding">
-	      <div id="traffic_title" style="text-align: center;"></div>
-	      <div id="traffic_graph" style="width:468px; height:258px;"></div>
-	      <center>
-		<div id="traffic_legend"></div>
-	      </center>
-	      <select id="traffic_time">
-		<option value="600">Past 10 Minutes</option>
-		<option value="3600">Past Hour</option>
-		<option value="86400">Past Day</option>
-		<option value="259200">Past 3 Days</option>
-		<option value="604800">Past Week</option>
-		<option value="2592000">Past Month</option>
-	      </select>
-	    </div>
-
-	    <div id="future_container" class="no_padding">
-	      <div id="scheduled_events_table"></div>
-	    </div>
-
-	    <div id="historical_container" class="no_padding">
-	      <div id="historical_events_table"></div>
-	    </div>
-
+  
+  <div id="tabs" class="yui-navset" style="width: 960px; height: 368px">
+    <ul class="yui-nav">
+      <li class="selected"><a href="#utilization"><em>Utilization</em></a></li>
+      <li><a href="#history"><em>History</em></a></li>
+      <li><a href="#scheduled"><em>Scheduled Events</em></a></li>
+      <li><a href="#CLR"><em>Circuit Layout</em></a></li>
+    </uL>
+    <div class="yui-content">
+      <div>
+	<table>
+	  <tr><td>
+	  <div id="map" class="openlayers smaller"></div>
+	  <span id="interdomain_path_status" class="soft_title"></span>
+	</td>
+	<td style="pading-left: 10px">
+	  <div id="traffic_container" class="no_padding">
+	    <div id="traffic_title" style="text-align: center;"></div>
+	    <div id="traffic_graph" style="width:468px; height:258px;"></div>
+	    <center>
+	      <div id="traffic_legend"></div>
+	    </center>
+	    <select id="traffic_time">
+	      <option value="600">Past 10 Minutes</option>
+	      <option value="3600">Past Hour</option>
+	      <option value="86400">Past Day</option>
+	      <option value="259200">Past 3 Days</option>
+	      <option value="604800">Past Week</option>
+	      <option value="2592000">Past Month</option>
+	    </select>
 	  </div>
+	</td></tr></table>
+      </div>
 
-	</div>
-      </td>
+      <div id="history" class="no_padding" style="height: 337px;">
+	<div id="history_table"></div>
+      </div>
 
-    </tr>
-    <tr>
-      <td>
-        [% INCLUDE html_templates/map_legend.html %]
-      </td>
-      <td></td>
-    </tr>
-  </table>
+      <div id="scheduled" class="no_padding" style="height: 337px">
+	<div id="scheduled_event_table"></div>
+      </div>
 
+      <div id="CLR" class="no_padding" style="height: 337px">
+	<div id="CLR_table"></div>
+      </div>
+    </div>
+  </div>
 </div>
