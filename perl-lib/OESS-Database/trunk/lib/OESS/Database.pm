@@ -77,6 +77,7 @@ use DBI;
 use XML::Simple;
 use File::ShareDir;
 use Data::Dumper qw(Dumper);
+use Array::Utils qw(intersect);
 use XML::Writer;
 use Net::DBus;
 use OESS::Topology;
@@ -2069,7 +2070,11 @@ sub get_current_circuits {
     my %args = @_;
 
     my $workgroup_id = $args{'workgroup_id'};
-    my $workgroup;
+    my $endpoint_nodes = $args{'endpoint_nodes'};
+	my $path_nodes = $args{'path_nodes'};
+	
+	
+	my $workgroup;
     if(defined($workgroup_id)){
 	$workgroup = $self->get_workgroup_by_id( workgroup_id => $args{'workgroup_id'});
     }
@@ -2096,13 +2101,79 @@ sub get_current_circuits {
 #	"  left join node_instantiation on node.node_id = node_instantiation.node_id " .
 #	"    and node_instantiation.end_epoch = -1 ";
 
+	## Get all circuit ids that have an endpoint on a node passed
+	my $results = [];
+   my $circuit_list;
+   my @endpoint_circuit_ids;
+   my @path_circuit_ids;
+   my $circuit_id_filter;
+   if (@$endpoint_nodes) {
+	   my $endpoint_node_sql = <<HERE;
+select distinct circuit_instantiation.circuit_id from circuit_instantiation  
+join circuit_edge_interface_membership on circuit_edge_interface_membership.circuit_id = circuit_instantiation.circuit_id 
+  and circuit_instantiation.end_epoch = -1 
+  and circuit_edge_interface_membership.end_epoch = -1
+join interface on circuit_edge_interface_membership.interface_id = interface.interface_id
+and interface.node_id in (  
+HERE
+
+	   $endpoint_node_sql .= "?," x scalar(@$endpoint_nodes);
+	   chop($endpoint_node_sql);
+	   $endpoint_node_sql .= ")";
+	   
+	   
+	   my $endpoint_results = $self->_execute_query($endpoint_node_sql ,$endpoint_nodes);
+	
+	
+	   foreach my $row (@$endpoint_results){
+		   push(@endpoint_circuit_ids,$row->{'circuit_id'});
+	   }
+	   
+	   $circuit_id_filter = \@endpoint_circuit_ids;
+	   
+   }
+	if (@$path_nodes) {
+	
+		my $placeholders = "?". ",?" x (scalar(@$path_nodes)-1);
+
+		my $path_node_sql = <<HERE;
+select distinct path.circuit_id from path join path_instantiation p 
+on (path.path_id = p.path_id) 
+join link_path_membership m on m.path_id = p.path_id and p.end_epoch=-1 
+join link_instantiation l on l.end_epoch = -1 
+and m.link_id = l.link_id join interface i on i.interface_id = interface_a_id or i.interface_id = interface_z_id
+where i.node_id in ( $placeholders );
+
+HERE
+		
+		my $path_results = $self->_execute_query($path_node_sql, $path_nodes );
+	   
+		foreach my $row(@$path_results){
+			push(@path_circuit_ids,$row->{'circuit_id'});
+		}
+		$circuit_id_filter = \@path_circuit_ids;
+	}
+	#if we're looking for something that has an endpoint on a node, and has an endpoint on a node, we'll need the intersection of the two arrays of circuit_ids.
+	if (@$path_nodes && @$endpoint_nodes){
+		my @intersection = intersect(@endpoint_circuit_ids,@path_circuit_ids);
+		$circuit_id_filter = \@intersection;
+	}
+
+
     my $query = "select circuit.workgroup_id, circuit.name, circuit.description, circuit.circuit_id, circuit_instantiation.circuit_state from circuit join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id and circuit_instantiation.end_epoch = -1 and circuit_instantiation.circuit_state != 'decom'";
 
     if ($workgroup_id && $workgroup->{'type'} ne 'admin'){
-	$query .= " where circuit.workgroup_id = ?";
-	push(@to_pass, $workgroup_id);
+		$query .= " where circuit.workgroup_id = ?";
+		push(@to_pass, $workgroup_id);
     }
 
+	if (@$endpoint_nodes || @$path_nodes ) {
+		if(@$circuit_id_filter ==0){
+			return $results;
+		}
+		$query .= " and circuit.circuit_id in ( ?".",?" x (scalar(@$circuit_id_filter)-1) . ") ";
+	  push(@to_pass, @$circuit_id_filter);
+    }
     my $rows = $self->_execute_query($query, \@to_pass);
 
     if (! defined $rows){
@@ -2110,13 +2181,23 @@ sub get_current_circuits {
 	return undef;
     }
     
-    my $results = [];
+    
         
     my $circuits;
+	my @circuit_ids;
+	foreach my $row (@$rows){
+		push(@circuit_ids,$row->{'circuit_id'});
+	}
+	
+	
+ 
 
     foreach my $row (@$rows){
 	my $circuit_id = $row->{'circuit_id'};
 	
+	
+	
+
 	# first time seeing this circuit, add basic info
 	if (! exists $circuits->{$circuit_id}){
 	    
@@ -2133,8 +2214,11 @@ sub get_current_circuits {
 	
 	$circuits->{$circuit_id}->{'endpoints'}    = $self->get_circuit_endpoints(circuit_id => $circuit_id) || [];
 
+
     }
     
+
+
     
     foreach my $circuit_id (keys %$circuits){
 	
@@ -5359,8 +5443,8 @@ sub _execute_query {
 
     my $sth = $dbh->prepare($query);
 
-    #warn "Query is: $query\n";
-    #warn "Args are: " . Dumper($args);
+    warn "Query is: $query\n";
+    warn "Args are: " . Dumper($args);
 
     if (! $sth){
 	#warn "Error in prepare query: $DBI::errstr";
