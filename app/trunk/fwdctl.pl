@@ -80,7 +80,7 @@ sub _log {
     my $pid = getppid();
 
     if($pid == 1){
-        openlog("fwctl.pl", 'cons,pid', LOG_DAEMON);
+        openlog("fwdctl.pl", 'cons,pid', LOG_DAEMON);
 	syslog(LOG_WARNING,$string);
 	closelog();
     }else{
@@ -104,8 +104,8 @@ sub new {
 	_log("Could not make database object");
 	exit(1);
     }
-    my @tmp;
-    $self->{'nodes_for_diff'} = \@tmp;
+
+    $self->{'nodes_needing_diff'} = {};
     $self->{'db'} = $db;
     
 
@@ -123,7 +123,7 @@ sub _sync_database_to_network {
     my $nodes = $self->{'db'}->get_current_nodes();
     foreach my $node(@$nodes){
 	$node->{'full_diff'} = 1;
-	push(@{$self->{'nodes_for_diff'}},$node);
+	$self->{'nodes_needing_diff'}{$node->{'dpid'}} = $node;
     }
 }
 
@@ -149,7 +149,7 @@ sub _generate_translation_rule{
         $out_tag_str = "untagged";
     }
  
-    #_log("create forwarding rule: dpid:$dpid_str packets going in port:$in_port with tag:$in_tag_str sent out port:$out_port with tag:$out_tag_str\n");
+    #_log("-- create forwarding rule: dpid:$dpid_str packets going in port:$in_port with tag:$in_tag_str sent out port:$out_port with tag:$out_tag_str\n");
 
     # first let's see if we already have a rule that uses these exact same qualifiers (multipoint)
     foreach my $prev_rule (@$prev_rules){
@@ -393,50 +393,22 @@ sub _generate_commands{
 }
 
 #--- this and dp join need to be refactored to reuse code.
-sub _push_default_rules{
+sub _initialize{
     my $self = shift;
     
     my $nodes = $self->{'db'}->get_node_dpid_hash();
 
     foreach my $node (keys (%{$nodes})){
-        my $dpid         = $nodes->{$node};  #--- $nodes->{$node}... not to be confused with %node of course
-        my $dpid_str     = sprintf("%x",$dpid);
-	my $node_details = $self->{'db'}->get_node_by_dpid( dpid => $dpid);
-	my $sw_name      = $node_details->{'name'};
+        my $dpid         = $nodes->{$node};
+        $self->{'nodes_needing_init'}{$dpid} = $node; 
 
-	if($node_details->{'default_forward'} == 1){
-	    my $xid     = $self->{'of_controller'}->install_default_forward($dpid);
-	    $node{$dpid}++;
-	    my $result = $self->_poll_xids([$xid]);
-	    
-	    if ($result != FWDCTL_SUCCESS){
-		_log("sw:$sw_name dpid:$dpid_str failed to install lldp forward to controller rule, discovery will fail");
-	    }
-	    else {
-		_log("sw:$sw_name dpid:$dpid_str installed lldp forward to controller rule");
-	    }
-	}
-
-
-	if($node_details->{'default_drop'} == 1){
-	    my $xid     = $self->{'of_controller'}->install_default_drop($dpid);
-	    $node{$dpid}++;
-	    my $result = $self->_poll_xids([$xid]);
-	    
-	    if ($result != FWDCTL_SUCCESS){
-		_log("sw:$sw_name dpid:$dpid_str failed to install default drop rule, may cause traffic to flood controller");
-	    }
-	    else {
-		_log("sw:$sw_name dpid:$dpid_str installed default drop rule");
-	    }
-	}
+        $self->datapath_join_handler($dpid);
     }
 }
 
-sub datapath_join{
+sub datapath_join_handler{
     my $self   = shift;
     my $dpid   = shift;
-    my $ports  = shift;
 
     my $dpid_str  = sprintf("%x",$dpid);
 
@@ -448,40 +420,45 @@ sub datapath_join{
     if(defined $node_details){
 	$sw_name = $node_details->{'name'};
     }
-    _log("sw:$sw_name dpid:$dpid_str datapath join");
 
+    my %xid_hash;
 
     if(!defined($node_details) || $node_details->{'default_forward'} == 1){
 	my $xid     = $self->{'of_controller'}->install_default_forward($dpid);
+	if($xid == FWDCTL_FAILURE){
+	  #--- switch may not be connected yet or other error in controller
+	  _log("sw:$sw_name dpid:$dpid_str failed to install lldp forward to controller rule, discovery will fail");
+	  return;
+        }
+	$xid_hash{$xid} = 1;
 	$node{$dpid}++;
-	my $result = $self->_poll_xids([$xid]);
-
-	if ($result != FWDCTL_SUCCESS){
-	    _log("sw:$sw_name dpid:$dpid_str failed to install lldp forward to controller rule, discovery will fail");
-	}    
-	else {
-	    _log("sw:$sw_name dpid:$dpid_str installed lldp forward to controller rule");
-	}
-	
     }
-
 
     if(!defined($node_details) || $node_details->{'default_drop'} == 1){
 	my $xid     = $self->{'of_controller'}->install_default_drop($dpid);
+	if($xid == FWDCTL_FAILURE){
+        #--- switch may not be connected yet or other error in controller
+          _log("sw:$sw_name dpid:$dpid_str failed to install default drop rule, traffic may flood controller");
+          return;
+        }
+        $xid_hash{$xid}  = 1;
 	$node{$dpid}++;
-	my $result = $self->_poll_xids([$xid]);
+
+	my $result = $self->_poll_xids(\%xid_hash);
 	
 	if ($result != FWDCTL_SUCCESS){
-	    _log("sw:$sw_name dpid:$dpid_str failed to install default drop rule, may cause traffic to flood controller");
+	    _log("sw:$sw_name dpid:$dpid_str failed to install default drop or lldp forward rules, may cause traffic to flood controller or discovery to fail");
+	    return;
 	}
 	else {
-	    _log("sw:$sw_name dpid:$dpid_str installed default drop rule");
+	    _log("sw:$sw_name dpid:$dpid_str installed default drop rule and lldp forward rule");
 	}
+
     }
 
     #set this node for diffing!
-    push(@{$self->{'nodes_for_diff'}},{dpid => $dpid, full_diff => 1});
-
+    $self->{'nodes_needing_diff'}{$dpid} = {dpid => $dpid, full_diff => 1};
+    delete $self->{'nodes_needing_init'}{$dpid};
 
 }
 
@@ -498,7 +475,7 @@ sub _replace_flowmod{
 	return undef;
     }
 
-    my @xids;
+    my %xid_hash; 
 
     #--- crude rate limiting
     if(defined $delay_ms){
@@ -508,22 +485,22 @@ sub _replace_flowmod{
 	#delete this flowmod
 	$xid = $self->{'of_controller'}->delete_datapath_flow($dpid,$delete_command->{'attr'});
 	$node{$dpid}--;
-	push(@xids, $xid);
+	$xid_hash{$xid} = 1;
     }
     
     if(defined($new_command)){
-	if($node{$dpid} >= $node->{'max_flows'}){
+	if( $node{$dpid} >= $node->{'max_flows'}){
 	    my $dpid_str  = sprintf("%x",$dpid);
             _log("sw: dpipd:$dpid_str exceeding max_flows:".$node->{'max_flows'}." replace flowmod failed");
             return FWDCTL_FAILURE;
         }
 	$xid = $self->{'of_controller'}->install_datapath_flow($dpid,$new_command->{'attr'},0,0,$new_command->{'action'},$new_command->{'attr'}->{'IN_PORT'});
 	$node{$dpid}++;
-	push(@xids, $xid);
+    	$xid_hash{$xid} = 1;    
 	#wait for the delete to take place
     }
 
-    my $result = $self->_poll_xids(\@xids);
+    my $result = $self->_poll_xids(\%xid_hash);
     return $result;
 }
 
@@ -608,6 +585,7 @@ sub _actual_diff{
 		if($#{$action_list} != $#{$command->{'action'}}){
 		    #-- the number of actions in the observed and the planned dont match just replace
 		    $stats{'mods'}++;
+		    _log("--- we have a match port $com_port vid $com_vid, but num actions is wrong\n");
 		    push(@rule_queue, [$dpid,_process_flow_stats_to_command($com_port,$com_vid),$command,$node->{'tx_delay_ms'}]);
 		    next;
 		}
@@ -621,6 +599,8 @@ sub _actual_diff{
 				#--- port matches nothing to do
 			    }else{
 				#--- port does not match we need to replace the rule on the switch
+				_log("--- we have a match port $com_port vid $com_vid, but output port is wrong\n");
+
                     		$stats{'mods'}++;
                     		push(@rule_queue, [$dpid,_process_flow_stats_to_command($com_port,$com_vid),$command,$node->{'tx_delay_ms'}]);
 				last;
@@ -630,6 +610,7 @@ sub _actual_diff{
 				#--- vlan_id also matches nothing to do
 			    }else{
 				#--- vlan_id does not match we need to replace the rule on the switch
+				_log("--- we have a match port $com_port vid $com_vid, but set vid action is wrong\n");
                     		$stats{'mods'}++;
                     		push(@rule_queue, [$dpid,_process_flow_stats_to_command($com_port,$com_vid),$command,$node->{'tx_delay_ms'}]);
 				last;
@@ -640,11 +621,14 @@ sub _actual_diff{
 	    }else{
 		#---rule missing on switch
                 $stats{'adds'}++;
+		_log("--- 1.  we have a rule for port $com_port vid $com_vid  that doesnt appear on switch\n");
+
                 push(@rule_queue, [$dpid,undef,$command,$node->{'tx_delay_ms'}]);
 	    }
 	}else{
 	    #---rule missing on switch
 	    $stats{'adds'}++;
+	    _log("--- 2.  we have a rule for port $com_port vid $com_vid  that doesnt appear on switch\n");
 	    push(@rule_queue, [$dpid,undef,$command,$node->{'tx_delay_ms'}]);
 	}
     }
@@ -658,13 +642,14 @@ sub _actual_diff{
 	    }else{
 		#---rule needs to be removed from switch 
 		$stats{'rems'}++;
+		_log("--- we have a a rule on the switch for port $port_num vid $obs_vid which doesnt correspond with plan\n");
 		push(@rule_queue, [$dpid,_process_flow_stats_to_command($port_num,$obs_vid),undef,$node->{'tx_delay_ms'}]);
 	    }
 	}
     }
 
     my $total = $stats{'mods'} + $stats{'adds'} + $stats{'rems'};
-     _log("sw:$sw_name dpid:$dpid_str diff plans  $total changes.  mods:".$stats{'mods'}. " adds:".$stats{'adds'}. " removals:".$stats{'rems'}."\n");
+     _log("sw:$sw_name dpid:$dpid_str diff plan  $total changes.  mods:".$stats{'mods'}. " adds:".$stats{'adds'}. " removals:".$stats{'rems'}."\n");
     
     #--- process the rule_queue
     my $success_count=0;
@@ -880,7 +865,7 @@ sub topo_port_status{
 		#get list of rules we currently have
 		$node->{'interface_diff'} = 1;
 		$node->{'port_number'} = $port_number;
-		push(@{$self->{'nodes_for_diff'}},$node);
+		 $self->{'nodes_needing_diff'}{$dpid} = $node;
 
 		#note that this will cause the flow_stats_in handler to handle this data
 		#and it will then call the _do_interface_diff				
@@ -899,7 +884,14 @@ sub _process_flows_to_hash{
 	if(!defined($match->{'in_port'})){
 	    next;
 	}
-	$tmp->{$match->{'in_port'}}->{$match->{'dl_vlan'}} = {seen => 0,actions => $flow->{'actions'}};
+   
+
+	#--- internally we represet untagged as -1 
+	my $vid = $match->{'dl_vlan'};
+	if($vid == 65535){
+		$vid = -1;
+        }    
+	$tmp->{$match->{'in_port'}}->{$vid} = {seen => 0,actions => $flow->{'actions'}};
     }
 
     return $tmp;
@@ -911,29 +903,28 @@ sub flow_stats_in{
     my $dpid = shift;
     my $flows = shift;
 
-    if($#{$self->{'nodes_for_diff'}} < 0){
-	return;
+    #--- check to see if node still needs to be initialized
+    my $node = $self->{'nodes_needing_init'}{$dpid};
+    if(defined $node){
+      $self->datapath_join_handler($dpid);
     }
 
-    #!-!-! we should refactor this to have a hash lookup based on dpid
-    for(my $i=0;$i<=$#{$self->{'nodes_for_diff'}};$i++){
-	my $node = $self->{'nodes_for_diff'}->[$i];
+    #--- check to see if we need to perform diff
+    $node = $self->{'nodes_needing_diff'}{$dpid};
+    return if(!defined $node);
 
-	if($node->{'dpid'} == $dpid){
-	    #process the flow_rules into a lookup hash
-	    my $hash = _process_flows_to_hash($flows);
+    #---process the flow_rules into a lookup hash
+    my $hash = _process_flows_to_hash($flows);
 
-	    #remove the node from the requested differ
-	    splice(@{$self->{'nodes_for_diff'}},$i,1);
+    #--- take off the queue
+    delete  $self->{'nodes_needing_diff'}{$dpid};
 
-	    #now that we have the lookup hash of flow_rules
-	    #do the diff
-	    if($node->{'full_diff'} == 1){
-		$self->_do_diff($node,$hash);
-	    }elsif($node->{'interface_diff'} == 1){
-		$self->_do_interface_diff($node,$hash);
-	    }
-	} 
+    #--- now that we have the lookup hash of flow_rules
+    #--- do the diff
+    if($node->{'full_diff'} == 1){
+      $self->_do_diff($node,$hash);
+    }elsif($node->{'interface_diff'} == 1){
+      $self->_do_interface_diff($node,$hash);
     }
 }
 
@@ -951,40 +942,34 @@ sub link_event {
 }
 
 sub _poll_xids{
-    my $self    = shift;
-    my $xids    = shift;
+    my $self          = shift;
+    my $xid_hash_ref  = shift;   #-- some day hash will be useful if we have to do aysnch error handling
 
     my $result  = FWDCTL_SUCCESS;
     my $timeout = time() + 15;
     
     while (time() < $timeout){
-
-	# no more xids to poll, we're done
-	last if (@$xids == 0);
-
-	for (my $i = @$xids - 1; $i > -1; $i--){
-
-	    my $xid = @$xids[$i];    
-
+	foreach my $xid (keys %$xid_hash_ref){
 	    my $output = $self->{'of_controller'}->get_dpid_result($xid);
 
-	    # this one is still pending, just check the next
+	    #-- pending, retry later 
 	    next if ($output == FWDCTL_WAITING);
 
-	    # sadness, this one failed so we consider the whole thing a failure
+	    #--- one failed , some day have handler passed in hash 
 	    if ($output == FWDCTL_FAILURE){
 		$result = FWDCTL_FAILURE;
 	    }
+	    #--- must be success, remove from hash
+	    delete $xid_hash_ref->{$xid};
 
-	    # we're done with this xid, get rid of it
-	    splice(@$xids, $i, 1);
-	}
-
+        }
+	if(scalar keys %$xid_hash_ref == 0){
+	  return $result;
+        }
+	#--- if we got here lets take a short nap
+	usleep(100);
     }
 
-    #warn "XID Result is: $result";
-    #warn "(1 => success, 2 => waiting, 0 => failure, 3 => unknown)";
-    
     return $result;
 }
 
@@ -1006,7 +991,7 @@ sub addVlan {
     #--- get the set of commands needed to create this vlan per design
     my $commands = $self->_generate_commands($circuit_id,FWDCTL_ADD_VLAN); 
 
-    my @xids;
+    my %xid_hash;
 
     foreach my $command(@{$commands}){
 	#---!_!_! this needs to not make redudant queries
@@ -1026,13 +1011,13 @@ sub addVlan {
 	}
 	my $xid = $self->{'of_controller'}->install_datapath_flow($command->{'dpid'},$command->{'attr'},0,0,$command->{'action'},$command->{'attr'}->{'IN_PORT'});
 	$node{$command->{'dpid'}->value()}++;
-	push(@xids, $xid);
+	$xid_hash{$xid} = 1;
     }	
 
     #warn "XIDS:";
     #warn Data::Dumper::Dumper(\@xids);
 
-    my $result = $self->_poll_xids(\@xids);
+    my $result = $self->_poll_xids(\%xid_hash);
 
     if ($result == FWDCTL_SUCCESS){
 
@@ -1074,7 +1059,7 @@ sub deleteVlan {
     #--- get the set of commands needed to create this vlan per design
     my $commands = $self->_generate_commands($circuit_id,FWDCTL_REMOVE_VLAN);
 
-    my @xids;
+    my %xid_hash;
     
     foreach my $command(@{$commands}){
         #--- issue each command to controller
@@ -1083,10 +1068,10 @@ sub deleteVlan {
 	usleep($node->{'tx_delay_ms'} * 1000);
         my $xid = $self->{'of_controller'}->delete_datapath_flow($command->{'dpid'},$command->{'attr'});	
 	$node{$command->{'dpid'}}--;
-	push(@xids, $xid);
+	$xid_hash{$xid} = 1;
     }
 
-    my $result = $self->_poll_xids(\@xids);
+    my $result = $self->_poll_xids(\%xid_hash);
         
     return $result;
 }
@@ -1110,6 +1095,7 @@ sub changeVlanPath {
     my $commands = $self->_generate_commands($circuit_id,FWDCTL_CHANGE_PATH);
 
     my @xids;
+    my %xid_hash;
 
     # we have to make sure to do the removes first
     foreach my $command(@$commands){
@@ -1119,24 +1105,12 @@ sub changeVlanPath {
 	    usleep($node->{'tx_delay_ms'} * 1000);
 	    my $xid = $self->{'of_controller'}->delete_datapath_flow($command->{'dpid'},$command->{'attr'});
 	    $node{$command->{'dpid'}}--;
-	    push (@xids, $xid);
+	    $xid_hash{$xid} = 1;
 	}
 
     }
 
-    #--- removing a barrier check so that we can do this in 1/2 the net latency, ie let the mods be in flight at same time
-    #my $result = $self->_poll_xids(\@xids);
-
-    # we failed to remove any rules we needed to, no sense going forward. Report failure
-    #if ($result eq FWDCTL_FAILURE){
-	#return $result;
-    #}
-
-    # reset xids
-    #@xids = ();
-
     foreach my $command(@$commands){
-    
 	if ($command->{'sw_act'} ne FWDCTL_REMOVE_RULE){
 	    my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'}->value());
 	    #first delay by some configured value in case the device can't handle it                                                                                                                                        
@@ -1148,12 +1122,12 @@ sub changeVlanPath {
 	    }
 	    my $xid = $self->{'of_controller'}->install_datapath_flow($command->{'dpid'},$command->{'attr'},0,0,$command->{'action'},$command->{'attr'}->{'IN_PORT'});
 	    $node{$command->{'dpid'}}++;
-	    push(@xids, $xid);
+	    $xid_hash{$xid} = 1;
 	}
 
     }
 
-    my$result = $self->_poll_xids(\@xids);
+    my $result = $self->_poll_xids(\%xid_hash);
 
     return $result;
 }
@@ -1190,8 +1164,7 @@ sub core{
 
     #first thing to do is to try and push out all of the default forward/drop rules
     #to all of the switches to make sure they are in a known state
-    sleep(10);
-    $srv_object->_push_default_rules();
+    $srv_object->_initialize();
     
     #--- on creation we need to resync the database out to the network as the switches
     #--- might not be in the same state (emergency mode maybe) and there might be 
@@ -1202,7 +1175,9 @@ sub core{
     sub datapath_join_callback{
 	my $dpid   = shift;
 	my $ports  = shift;
-	$srv_object->datapath_join($dpid,$ports);
+        my $dpid_str  = sprintf("%x",$dpid);
+        FwdCtl::_log("sw: dpipd:$dpid_str datapath_join");
+	$srv_object->datapath_join_handler($dpid);
     }
     
     sub port_status_callback{
@@ -1231,6 +1206,7 @@ sub core{
     $dbus->connect_to_signal("port_status",\&port_status_callback);
     $dbus->connect_to_signal("link_event",\&link_event_callback);
     $dbus->connect_to_signal("flow_stats_in",\&flow_stats_callback);
+    FwdCtl::_log("all signals connected");
     $dbus->start_reactor();
 }
 
