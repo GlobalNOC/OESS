@@ -59,12 +59,13 @@ ifname = 'org.nddi.openflow'
 barrier_callbacks = {}
 flowmod_callbacks = {}
 
+switches = [];
+
 #--- this is a a wrapper class that defineds the dbus interface
 class dBusEventGen(dbus.service.Object):
 
     def __init__(self, bus, path):
        dbus.service.Object.__init__(self, bus_name=bus, object_path=path)
-       self.switches = set([])
 
     @dbus.service.signal(dbus_interface=ifname,
                          signature='tua{sv}')
@@ -154,6 +155,10 @@ class dBusEventGen(dbus.service.Object):
                          out_signature='t'
                          )
     def install_default_drop(self, dpid):
+
+        if not dpid in switches:
+          return 0;
+
         my_attrs          = {}
         actions           = []
         
@@ -168,6 +173,10 @@ class dBusEventGen(dbus.service.Object):
                          out_signature='t'
                          )
     def install_default_forward(self, dpid):
+
+        if not dpid in switches:
+          return 0;
+
         my_attrs          = {}
         my_attrs[DL_TYPE] = 0x88cc       
         my_attrs[DL_VLAN] = 65535
@@ -185,6 +194,10 @@ class dBusEventGen(dbus.service.Object):
                          out_signature='t'
                          )
     def install_datapath_flow(self,dpid, attrs,idle_timeout,hard_timeout,actions,inport):
+
+        if not dpid in switches:
+          return 0; 
+
 	#--- here goes nothing
  	my_attrs = {}
         priority = 32768
@@ -216,6 +229,10 @@ class dBusEventGen(dbus.service.Object):
                          out_signature='t'
                          )
     def delete_datapath_flow(self,dpid, attrs ):
+
+        if not dpid in switches:
+          return 0;
+
  	my_attrs = {}
         my_attrs[DL_VLAN] = int(attrs['DL_VLAN'])
         my_attrs[IN_PORT] = int(attrs['IN_PORT'])
@@ -248,17 +265,23 @@ def link_event_callback(sg,info):
 
     return CONTINUE
 
-def datapath_join_callback(sg,dp_id,ip_address,stats):
+def datapath_join_callback(ref,sg,dp_id,ip_address,stats):
 
     # NOX gives us the IP address in the native order, move it to network
     tmp = struct.pack("@I", ip_address)
     ip_address = struct.unpack("!I", tmp)[0]
 
-    if not dp_id in sg.switches:
-        sg.switches.add(dp_id)
+    if not dp_id in switches:
+        switches.append(dp_id)
 
     ports = stats['ports'];
     #print str(ports)
+
+    #--- we know we are going to need to get the set of flows so lets just do that now
+    ref.collection_epoch += 1
+    flow = of.ofp_match()
+    flow.wildcards = 0xffffffff
+    ref.send_flow_stats_request(dp_id, flow,0xff)
 
     port_list = []
     for i in range(0, len(ports)):
@@ -283,8 +306,8 @@ def datapath_join_callback(sg,dp_id,ip_address,stats):
     
 
 def datapath_leave_callback(sg,dp_id):
-    if dp_id in sg.switches:
-        sg.switches.remove(dp_id)
+    if dp_id in switches:
+        switches.remove(dp_id)
 
     sg.datapath_leave(dp_id)
 
@@ -391,19 +414,19 @@ class nddi_dbus(Component):
         self.sg = dBusEventGen(name,"/controller1")
 
 	#--- register for nox events 
-	self.register_for_datapath_join (lambda dp, stats : 
-                                         datapath_join_callback(self.sg,dp, self.ctxt.get_switch_ip(dp), stats) 
+	self.register_for_datapath_join (lambda dpid, stats : 
+                                         datapath_join_callback(self,self.sg,dpid, self.ctxt.get_switch_ip(dpid), stats) 
                                          )
 
         self.register_for_error(lambda dpid, type, code, data, xid: error_callback(self.sg, dpid, type, code, data, xid))
 
-        self.register_for_datapath_leave(lambda dp : 
-                                          datapath_leave_callback(self.sg,dp) )
+        self.register_for_datapath_leave(lambda dpid : 
+                                          datapath_leave_callback(self.sg,dpid) )
 
-        self.register_for_barrier_reply(lambda dp, xid: barrier_reply_callback(self.sg,dp,xid) )
+        self.register_for_barrier_reply(lambda dpid, xid: barrier_reply_callback(self.sg,dpid,xid) )
 
-	self.register_for_port_status(lambda dp, reason, port : 
-                                       port_status_callback(self.sg,dp, reason, port) )
+	self.register_for_port_status(lambda dpid, reason, port : 
+                                       port_status_callback(self.sg,dpid, reason, port) )
 
         self.register_for_flow_mod(lambda dpid, attrs, command, idle_to, hard_to, 
                                           buffer_id, priority, cookie : 
@@ -433,7 +456,7 @@ class nddi_dbus(Component):
         self.fire_flow_stats_timer()
 
     def fire_flow_stats_timer(self):
-        for dpid in self.sg.switches:
+        for dpid in switches:
             self.collection_epoch += 1
             flow = of.ofp_match()
             flow.wildcards = 0xffffffff
