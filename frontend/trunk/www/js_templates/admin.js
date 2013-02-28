@@ -543,13 +543,15 @@ function setup_users_tab(){
 		  "<tr>" +
 		  "<td>Username(s)<br>(comma separated)</td>" +
 		  "<td><input type='text' id='user_auth_names' size='38'></td>" +
-		  "</tr>"		      
+		  "</tr>"+
+		  "</table>"+
+		  "<div id='workgroup_membership_table'> </div>"
 		  );
-	
+		
 	p.setFooter("<div id='submit_user'></div><div id='delete_user'></div>");
 
 	p.render(document.body);
-
+		
 	makeHelpPanel("user_given_name", "This is the user's first name(s).");
 	makeHelpPanel("user_family_name", "This is the user's last, or family, name(s).");
 	makeHelpPanel("user_email_address", "This is the user's email address. This will be used to notify the user about events that happen to circuits in this workgroup.");
@@ -1827,6 +1829,7 @@ function setup_discovery_tab(){
 			
 		});
 
+       
 	    this.details_panel.show();
 
 	});
@@ -1863,7 +1866,7 @@ function makeWorkgroupACLTable(id){
     };
 
     var table = new YAHOO.widget.DataTable("workgroup_acl_table", columns, ds, config);
-	console.log(table);
+	
     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
 
@@ -2051,9 +2054,17 @@ function makePendingNodeTable(){
 	    })
     };
 
-
+    
     var table = new YAHOO.widget.DataTable("node_table", columns, ds, config);
+    var dsCallback = {
+        success: table.onDataReturnInitializeTable,
+        failure: function(){
+        },
+        scope: table
+    };
+            
 
+    ds.setInterval(15000,null,dsCallback);
     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
     table.subscribe("rowClickEvent", table.onEventSelectRow);
@@ -2094,6 +2105,15 @@ function makePendingLinkTable(){
 
 
     var table = new YAHOO.widget.DataTable("link_table", columns, ds, config);
+
+    var dsCallback = {
+        success: table.onDataReturnInitializeTable,
+        failure: function(){
+        },
+        scope: table
+    };
+
+    ds.setInterval(15000,null,dsCallback);
 
     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);

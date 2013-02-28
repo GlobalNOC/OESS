@@ -53,9 +53,9 @@ function summary_init(remove_only){
   var ds = new YAHOO.util.DataSource([]);
   ds.responseType = YAHOO.util.DataSource.TYPE_JSARRAY;
 
-  [% total_width = 350 %]
+  [% total_width = 550 %]
 
-  [% interface_width = 264 %]
+  
 
   [% IF delete %]
 
@@ -64,11 +64,11 @@ function summary_init(remove_only){
   [% END %]
 
   var cols = [
-    {key: "interface", label: "Interface", width: [% interface_width %], formatter: function(el, rec, col, data){
+    {key: "interface", label: "Interface", formatter: function(el, rec, col, data){
        el.innerHTML = rec.getData('node') + ' - ' + rec.getData('interface');
      }     
     },
-    {key: "tag", label: "VLAN", width: 42, formatter: function(el, rec, col, data){
+    {key: "tag", label: "VLAN", formatter: function(el, rec, col, data){
 	    if (data == -1){
 		el.innerHTML = "<span style='font-size: 74%;'>Untagged</span>";
 	    }

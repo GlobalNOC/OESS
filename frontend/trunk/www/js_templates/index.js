@@ -114,31 +114,105 @@
 	    
 	}
 	);
+	  $('.chzn').chosen({search_contains: true});
     
+    var node_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_nodes");
+	  node_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+	  node_ds.responseSchema = {
 
-    // build the circuits table
+		  resultsList: "results",
+		  fields: [
+			  {key: "node_id", parser:"number"},
+			  {key: "name" }
+		  ],
+		  metaFields: {
+			  error: "error"
+		  }
 
-    var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_existing_circuits&workgroup_id="+session.data.workgroup_id);
-    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-    ds.responseSchema = {
-      resultsList: "results",
-      fields: [
-        {key: "circuit_id", parser: "number"},
-	{key: "description"},
-        {key: "bandwidth", parser: "number"},
-	{key: "name"},
-	{key: "endpoints"},
-	{key: "state"}
-      ],
-      metaFields: {
-	error: "error"
-      }
-    };
-    
+	  };
+	  //get nodes for both option selectors
+
+	  node_ds.sendRequest("",
+					 {
+					     success: function(req, resp){
+						     var optionsfragment = document.createDocumentFragment();
+							 for (var i = 0; i < resp.results.length; i++){
+								 var option= document.createElement('option');
+								 option.setAttribute("value", resp.results[i].node_id);
+								 option.innerHTML= resp.results[i].name;
+								 optionsfragment.appendChild(option);
+							 }
+							 
+							 var endpoint= YAHOO.util.Dom.get("endpoint_node_selector");
+							 var path= YAHOO.util.Dom.get("path_node_selector");
+							 endpoint.appendChild(optionsfragment.cloneNode(true) );
+							 path.appendChild(optionsfragment.cloneNode(true) );
+							 $("#endpoint_node_selector").trigger("liszt:updated");
+							 $("#path_node_selector").trigger("liszt:updated");
+                             
+                             //set up subscriptions for events;
+						     
+                             var endpoint_el = new YAHOO.util.Element(endpoint);
+                             var path_el = new YAHOO.util.Element(path);
+                             console.log(endpoint_el);
+                             endpoint_el.subscribe("change", function(){ console.log("did stuff here"); build_circuitTable() } );
+                             path_el.subscribe("change", function(){ build_circuitTable() } );
+                         
+                         },
+						 failure: function(req, resp){
+							 throw("Error: fetching selections");
+						 },
+						 scope: this
+					 },
+					 node_ds);
+  
+ 
+
+
+function build_circuitTable(){
+    var dsString="services/data.cgi?action=get_existing_circuits&workgroup_id="+session.data.workgroup_id;
+
+    var endpointSelector= YAHOO.util.Dom.get("endpoint_node_selector");
+	var pathSelector= YAHOO.util.Dom.get("path_node_selector");
+
+    for(x=0;x<=endpointSelector.length; x++){
+        if(endpointSelector[x].selected){
+            dsString +="&endpoint_node_id="+endpointSelector[x].value;
+        }
+    }
+    for(x=0;x<=pathSelector.length; x++){
+        if(pathSelector[x].selected){
+            dsString +="&path_node_id="+pathSelector[x].value;
+        }
+    }
+    console.log(dsString);
+        
+
+
+}
+
+var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_existing_circuits&workgroup_id="+session.data.workgroup_id);
+      ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+      ds.responseSchema = {
+		  resultsList: "results",
+		  fields: [
+			  {key: "circuit_id", parser: "number"},
+			  {key: "description"},
+			  {key: "bandwidth", parser: "number"},
+			  {key: "name"},
+			  {key: "endpoints"},
+			  {key: "state"}
+		  ],
+		  metaFields: {
+			  error: "error"
+		  }
+	  };
+	 
+	     
     var columns = [
 		   
-		   {key: "description", label: "Description", width: 230},
-		   {key: "endpoints", label: "Endpoints", width: 230, formatter: function(el, rec, col, data){
+		   {key: "description", label: "Description", width: 330},
+		   {key: "endpoints", label: "Endpoints", width: 250, formatter: function(el, rec, col, data){
 
 			   var endpoints  = rec.getData('endpoints');
 			   
@@ -207,26 +281,33 @@
 	    var total_bandwidth = 0;
 
 	    for (var i = 0; i < results.length; i++){
-		var data = results[i];
-
-		total_circuits++;
-
-		total_bandwidth += data.bandwidth;
+		    var data = results[i];
+		    total_circuits++;
+		    total_bandwidth += data.bandwidth;
 	    }
 
 	    if (total_bandwidth >= 1000){
-		total_bandwidth = (total_bandwidth / 1000) + " Gbps";
+		    total_bandwidth = (total_bandwidth / 1000) + " Gbps";
 	    }
 	    else{
-		total_bandwidth = total_bandwidth + " Mbps";
+		    total_bandwidth = total_bandwidth + " Mbps";
 	    }
-
+        
 	    YAHOO.util.Dom.get("total_workgroup_bandwidth").innerHTML = total_bandwidth;
 	    YAHOO.util.Dom.get("total_workgroup_circuits").innerHTML = total_circuits;
 
 	    return oArgs;
-    });
-    
+    }
+                    );
+   
+
+
+
+
+
+    // build the circuits table
+
+
     
 
     var user_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_workgroup_members&workgroup_id="+session.data.workgroup_id);
