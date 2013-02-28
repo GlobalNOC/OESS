@@ -110,11 +110,18 @@
 	    <p class="title">Users</p>
 	    <p class="subtitle">Add or remove users</p>
 	  </div>
-	  
+	</center> 
 	  <br><br>
-
-	  <p class="soft_title">Existing Users</p>
-
+	  
+	  
+	  <div style="inline-block;float:left;text-align:left; margin-left: 105px; margin-bottom: 8px;">
+        <label for="user_search" id="user_search_label" class="soft_title">Search:</label>
+		<input id="user_search" type="text" size="25">
+      </div>
+	  
+	  <p style="float:left; margin-left:28px;" class="soft_title">Existing Users</p>
+	  
+	<center>
 	  <div id="user_table"></div>
 	  <div id="user_table_nav"></div>
 
@@ -142,9 +149,13 @@
 	  
 	  <br>
 
-	  <div id="node_table_container">
-	    <p class="soft_title">Workgroups</p>
-	    <div id="workgroup_table"></div>
+
+	  <div style="text-align: left; margin-left: 317px; margin-bottom: 8px;">
+        <label for="workgroup_search" id="workgroup_search_label" class="soft_title">Search:</label>
+		<input id="workgroup_search" type="text" size="15">
+      </div>
+	  <div id="workgroup_table_container">
+		<div id="workgroup_table"></div>
 	    <div id="workgroup_table_nav"></div>
 	  </div>
 	  
