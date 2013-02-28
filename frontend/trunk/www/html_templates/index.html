@@ -1,3 +1,4 @@
+
 [% INCLUDE js_templates/index.js %]
 
 <div class="main_page" style="position: relative;">
@@ -10,39 +11,44 @@
 	<li><a href=""><em>Actions</em></a></li>
       </ul>
       <div class="yui-content" style="height: 90%">
-	<div>
-	  <div style="inline-block; float:left;text-align: left; margin-left: 123px; margin-bottom: 8px;">
-            <label for="circuit_search" id="circuit_search_label" class="soft_title">Search:</label>
-	    <input id="circuit_search" type="text" size="35">
-       </div>
-	  <div style="float-right;margin-right:80px;">
-		<label for="endpoint_node_selector">Circuits with an endpoint on: </label>
-		<select style="display:block;" id="endpoint_node_selector">
-		  <option>No Options Yet</option>
-		</select>
-		<label for="path_node_selector">Path traverses: </label>
-		<select id="path_node_selector"> <option> No Options</option> </select>
-		
-	  </div>
-	  <center>
-	    <div id="circuit_table"></div>
-	    <div id="circuit_table_nav"></div>
-	  </center>
+		<div>
 	  
-	    <div style="float: right; margin-right: 117px; margin-top: 10px;">
-	      <table style="color: grey; font-size: 88%;">
-		<tr>
-		  <td>Total Circuits:</td>
-		  <td><div id="total_workgroup_circuits"></div></td>
-		</tr>
+		  <div style="display:inline-block; margin-top:28px;float:left;text-align: left; margin-left: 95px; margin-bottom: 8px;">
+			<label for="circuit_search" id="circuit_search_label" class="soft_title">Search:</label>
+			<input id="circuit_search" type="text" size="35" ></input>
+		  </div>
+		  
+
+		  <div style="display:inline-block;float:right; margin-right:95px;margin-top:8px;margin-bottom:8px;">
+			<label for="endpoint_node_selector" id="endpoint_node_label" class="soft_title"> With Endpoints On:</label>
+			<select multiple style="float:right; width:250px;"data-placeholder="Select Nodes" class="chzn-select" id="endpoint_node_selector">
+			  
+			</select>
+			<div style="margin-top:4px;">
+			  <label for="path_node_selector" id="path_node_label" class="soft_title">Path Traverses:</label>
+			  <select multiple data-placeholder="Select Nodes" style="width:250px;" class="chzn-select" id="path_node_selector"></select>	
+			</div>
+		  </div>
+	  	  
+		  <center>
+			<div id="circuit_table"></div>
+			<div id="circuit_table_nav"></div>
+		  </center>
+		  
+		  <div style="float: right; margin-right: 95px;">
+			<div style="color: grey; font-size: 88%;">
+			  
+				Total Circuits: <span id="total_workgroup_circuits"></span>
+			  
 		
-		<tr style="display:none;">
-		  <td>Total Bandwidth:</td>
-		  <td><div id="total_workgroup_bandwidth"></div></td>
-		</tr> 
-	      </table>
-	    </div>	  
-	</div>
+			  <div style="display:none;">
+				Total Bandwidth: <span id="total_workgroup_bandwidth"></span>
+			  </div> 
+			</div>
+	     </div> 	  
+		  <div style="clear:both"></div>
+		</div>
+
 	<div><p>Available Resources</p></div>
 	<div>
 	  <br>
