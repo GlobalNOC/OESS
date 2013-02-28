@@ -62,6 +62,9 @@ sub main {
 	case "get_maps" {
 	    $output = &get_maps();
 	}
+	case "get_nodes"{
+					 $output = get_nodes();
+					}
 	case "get_node_interfaces" {
 	    $output = &get_node_interfaces();
 	}
@@ -226,8 +229,12 @@ sub get_existing_circuits {
     my $results;
 
     my $workgroup_id = $cgi->param('workgroup_id');
-
-    my $circuits = $db->get_current_circuits(workgroup_id => $workgroup_id);
+	my @endpoint_nodes = $cgi->param('endpoint_node_id');
+	my @path_nodes = $cgi->param('path_node_id');
+    my $circuits = $db->get_current_circuits(workgroup_id => $workgroup_id,
+											 endpoint_nodes => \@endpoint_nodes,
+											 path_nodes => \@path_nodes
+											);
 
     if (!defined $circuits){
 	$results->{'error'} = $db->get_error();
@@ -267,6 +274,18 @@ sub get_shortest_path{
 
 }
 
+sub get_nodes {
+
+	my $nodes = $db->get_current_nodes();
+	
+	if (!defined($nodes)){
+		return({'error'   => $db->get_error()});
+	}
+	return ({results => $nodes } );
+
+
+}
+
 sub get_node_interfaces{
 
     my $results;
@@ -294,8 +313,10 @@ sub get_node_interfaces{
 sub get_maps{
 
     my $results;
+	my $workgroup_id = $cgi->param('workgroup_id');
 
-    my $layers = $db->get_map_layers();
+    my $layers = $db->get_map_layers(
+									workgroup_id => $workgroup_id );
 
     if (! defined $layers){
 	$results->{'error'} = $db->get_error();
