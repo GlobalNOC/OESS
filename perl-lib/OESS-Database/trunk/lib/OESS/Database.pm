@@ -2070,10 +2070,14 @@ sub get_current_circuits {
     my %args = @_;
 
     my $workgroup_id = $args{'workgroup_id'};
-    my $endpoint_nodes = $args{'endpoint_nodes'};
-	my $path_nodes = $args{'path_nodes'};
-	
-	
+    my $endpoint_nodes = $args{'endpoint_nodes'} || [];
+    my $path_nodes = $args{'path_nodes'} || [];
+    my $circuit_id_filter= [];
+    my $results = [];
+    my $circuit_list;
+    my @endpoint_circuit_ids;
+    my @path_circuit_ids;
+
 	my $workgroup;
     if(defined($workgroup_id)){
 	$workgroup = $self->get_workgroup_by_id( workgroup_id => $args{'workgroup_id'});
@@ -2102,12 +2106,9 @@ sub get_current_circuits {
 #	"    and node_instantiation.end_epoch = -1 ";
 
 	## Get all circuit ids that have an endpoint on a node passed
-	my $results = [];
-   my $circuit_list;
-   my @endpoint_circuit_ids;
-   my @path_circuit_ids;
-   my $circuit_id_filter;
-   if (@$endpoint_nodes) {
+
+   
+   if ( @$endpoint_nodes) {
 	   my $endpoint_node_sql = <<HERE;
 select distinct circuit_instantiation.circuit_id from circuit_instantiation  
 join circuit_edge_interface_membership on circuit_edge_interface_membership.circuit_id = circuit_instantiation.circuit_id 
@@ -2166,7 +2167,7 @@ HERE
 		$query .= " where circuit.workgroup_id = ?";
 		push(@to_pass, $workgroup_id);
     }
-
+	
 	if (@$endpoint_nodes || @$path_nodes ) {
 		if(@$circuit_id_filter ==0){
 			return $results;
