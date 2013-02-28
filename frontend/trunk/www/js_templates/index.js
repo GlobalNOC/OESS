@@ -114,7 +114,7 @@
 	    
 	}
 	);
-	  $('.chzn').chosen({search_contains: true});
+	  $('.chzn-select').chosen({search_contains: true});
     
     var node_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_nodes");
 	  node_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
