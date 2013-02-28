@@ -97,7 +97,7 @@ div#page_summary_container {
 }
 
 div#details_tabs {
-    width: 480px;
+    width: 930px;
     background-color: white;
 }
 
@@ -341,4 +341,9 @@ table.circuit_summary_table label {
     border-radius: 10px;
     opacity: 0.8 !important;
     filter:alpha(opacity=80) !important;
+}
+
+#path_node_selector_chzn {
+	float:right;
+	
 }
