@@ -10,6 +10,7 @@
  requires	XML::Simple; 
 #requires	DBD::MySQL;
  requires       File::ShareDir; 
+ requires  Array::Utils; 
  requires	Net::DBus;
   #         # Specific dependencies
   #           requires       'File::Spec'  => '0.80';
