@@ -1038,12 +1038,11 @@ sub addVlan {
 						new_state           => 'active',
 						modified_by_user_id => $user_id 
 		);
-	    
-	    $self->{'db'}->update_circuit_path_state(circuit_id  => $circuit_id,
-						     old_state   => 'deploying',
-						     new_state   => 'active',
-		);
 	}
+	$self->{'db'}->update_circuit_path_state(circuit_id  => $circuit_id,
+						 old_state   => 'deploying',
+						 new_state   => 'active',
+	    );
     }
 
     return $result;
