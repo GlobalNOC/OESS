@@ -95,6 +95,9 @@ sub main {
 	case "get_workgroup_members" {
 	    $output = &get_users_in_workgroup();
 	}
+	case "generate_clr"{
+	    $output = &generate_clr();
+	}
 
     }
     
@@ -160,6 +163,7 @@ sub get_circuit_scheduled_events {
 	$results->{'error'} = $db->get_error();
     }
     else{
+	print STDERR Dumper($events);
 	$results->{'results'} = $events;
     }
 
@@ -347,9 +351,33 @@ sub get_users_in_workgroup {
     return $results;
 }
 
+sub generate_clr{
+    my $results;
+    
+    my $circuit_id = $cgi->param('circuit_id');
+
+    if(!defined($circuit_id)){
+	$results->{'error'} = "No Circuit ID Specified";
+	$results->{'results'} = [];
+	return $results;
+    }
+    
+    my $circuit_clr = $db->generate_clr(circuit_id => $circuit_id);
+
+    if(!defined($circuit_clr)){
+	$results->{'error'} = $db->get_error();
+	$results->{'results'} = [];
+    }else{
+	$results->{'results'} = {clr => $circuit_clr};
+    }
+    
+    return $results;
+}
+
+
 sub send_json{
     my $output = shift;
-        
+    print STDERR Dumper($output);    
     print "Content-type: text/plain\n\n" . encode_json($output);
 }
 

@@ -295,7 +295,7 @@ function page_init(){
   setupScheduledEvents();
 
   setupNetworkEvents();
-
+  setupCLR();
   // we can poll the map to show intradomain status updates unless we're interdomain
   if (session.data.interdomain == 0){
       setInterval(function(){
@@ -358,25 +358,25 @@ function setupMeasurementGraph(){
 function setupScheduledEvents(){
 
 
-    YAHOO.util.Dom.get("scheduled_events_table").innerHTML = "Coming soon...";
-    return;
-
     var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_circuit_scheduled_events&circuit_id="+session.data.circuit_id);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
     ds.responseSchema = {
 	resultsList: "results",
-	fields: [{key: "user"},
-                 {key: "registration_time"},
-                 {key: "activation_time"},
-                 {key: "circuit_layout"},
-                 {key: "completed"}
+	fields: [
+    {key: "username"},
+    {key: "registration_time"},
+    {key: "activated"},
+    {key: "action"},
+    {key: "layout"},
+    {key: "completed"}
 		 ]
     };
 
-    var cols = [{key: "user", label: "By", width: 101},
+    var cols = [{key: "username", label: "By", width: 101},
 		{key: "registration_time", label: "Scheduled", width: 122},
-		{key: "activation_time", label: "Activated", width: 121},
+		{key: "action", label: "Action", width: 100},
+		{key: "activated", label: "Activated", width: 121},
 		{label: "Completed", formatter: function(el, rec, col, data){
 			if (rec.getData('completed')){
 			    el.innerHTML = "Yes";
@@ -396,6 +396,7 @@ function setupScheduledEvents(){
 
     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
+
     table.subscribe("rowClickEvent", function(oArgs){
 	    var record = this.getRecord(oArgs.target);
 	    if (! record) return;
@@ -406,10 +407,30 @@ function setupScheduledEvents(){
     return table;
 }
 
-function setupNetworkEvents(){
+function setupCLR(){
+    var ds = new YAHOO.util.DataSource("services/data.cgi?action=generate_clr&circuit_id=" + session.data.circuit_id);
+    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+    
+    ds.responseSchema = {
+	resultsList: "results",
+	fields: [{key: "clr"}]
+    };
 
-    YAHOO.util.Dom.get("historical_events_table").innerHTML = "Coming soon...";
-    return;
+    ds.sendRequest('',{success: function(Req,Resp){
+		var data = Resp.results;
+		if(data.length == 1){
+		    YAHOO.util.Dom.get("CLR_table").innerHTML = "<pre>" + data[0].clr;
+		}else{
+		    YAHOO.util.Dom.get("CLR_table").innerHTML = "Error occured fetching CLR data.  Error: " + data.error;
+		}
+	    },
+		failure: function(Req,Resp){
+		//do something
+	    }});
+
+}
+
+function setupNetworkEvents(){
 
     var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_circuit_network_events&circuit_id=" + session.data.circuit_id);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
