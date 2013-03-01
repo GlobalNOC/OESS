@@ -644,6 +644,8 @@ sub _actual_diff{
 		#---rule needs to be removed from switch 
 		$stats{'rems'}++;
 		_log("--- we have a a rule on the switch for port $port_num vid $obs_vid which doesnt correspond with plan\n");
+		#need to add to our total number of flows_on_the_switch... will be decremented once removed
+		$node{'dpid'}++;
 		push(@rule_queue, [$dpid,_process_flow_stats_to_command($port_num,$obs_vid),undef,$node->{'tx_delay_ms'}]);
 	    }
 	}
