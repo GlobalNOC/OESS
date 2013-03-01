@@ -49,13 +49,11 @@ function make_workgroups_table(){
 		];
 
     var config = {
-		paginator: new YAHOO.widget.Paginator({rowsPerPage: 5,
-										   containers: ["workgroups_table_nav"]
-										  }),
-		sortedBy:{key:"name", dir:"asc"}
+	sortedBy:{key:"name", dir:"asc"},
+	height: '200px'
     }
 
-    var dt = new YAHOO.widget.DataTable("workgroups_table", cols, ds, config);
+    var dt = new YAHOO.widget.ScrollingDataTable("workgroups_table", cols, ds, config);
 
     dt.subscribe("rowMouseoverEvent", dt.onEventHighlightRow);
     dt.subscribe("rowMouseoutEvent", dt.onEventUnhighlightRow);

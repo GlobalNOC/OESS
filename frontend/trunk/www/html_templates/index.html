@@ -6,42 +6,87 @@
       <ul class="yui-nav">
 	<li class="selected"><a href="#tab1"><em>Active VLANS</em></a></li>
 	<li><a href=""><em>Network Status</em></a></li>
+	<li><a href=""><em>Available Resources</em></a></li>
 	<li><a href=""><em>Users</em></a></li>
 	<li><a href=""><em>Actions</em></a></li>
       </ul>
       <div class="yui-content" style="height: 90%">
-		<div>
+	<!-- Active VLANS -->
+	<div>
 	  
-		  <div style="display:inline-block; margin-top:28px;float:left;text-align: left; margin-left: 25px; margin-bottom: 8px;">
-			<label for="circuit_search" id="circuit_search_label" class="soft_title">Search:</label>
-			<input id="circuit_search" type="text" size="20" ></input>
-			<label for="endpoint_node_selector" id="endpoint_node_label" class="soft_title"> With Endpoints On:
-			<select multiple style="height:30px; width:180px;"data-placeholder="Select Nodes" class="chzn-select" id="endpoint_node_selector"> </label>
-			</select>			
-			  <label for="path_node_selector" id="path_node_label" class="soft_title">Path Traverses: <select multiple data-placeholder="Select Nodes" style="display:inline;float:right;width:180px;" class="chzn-select" id="path_node_selector"></select>	</label>
-			
-		  </div>
-	  	  
-		  <center>
-			<div id="circuit_table"></div>
-			<div id="circuit_table_nav"></div>
-		  </center>
-		  
-		  <div style="float: right; margin-right: 95px;">
-			<div style="color: grey; font-size: 88%;">
-			  
-				Total Circuits: <span id="total_workgroup_circuits"></span>
-			  
-		
-			  <div style="display:none;">
-				Total Bandwidth: <span id="total_workgroup_bandwidth"></span>
-			  </div> 
-			</div>
-	     </div> 	  
-		  <div style="clear:both"></div>
-		</div>
+	  <div style="display:inline-block; margin-top:28px;float:left;text-align: left; margin-left: 95px; margin-bottom: 8px;">
+	    <label for="circuit_search" id="circuit_search_label" class="soft_title">Search:</label>
+	    <input id="circuit_search" type="text" size="35" ></input>
+	  </div>
+	  
+	  
+	  <div style="display:inline-block;float:right; margin-right:95px;margin-top:8px;margin-bottom:8px;">
+	    <label for="endpoint_node_selector" id="endpoint_node_label" class="soft_title"> With Endpoints On:</label>
+	    <select multiple style="float:right; width:250px;"data-placeholder="Select Nodes" class="chzn-select" id="endpoint_node_selector">
+	      
+	    </select>
+	    <div style="margin-top:4px;">
+	      <label for="path_node_selector" id="path_node_label" class="soft_title">Path Traverses:</label>
+	      <select multiple data-placeholder="Select Nodes" style="width:250px;" class="chzn-select" id="path_node_selector"></select>	
+	    </div>
+	  </div>
+	  
+	  <center>
+	    <div id="circuit_table"></div>
+	    <div id="circuit_table_nav"></div>
+	  </center>
+	  
+	  <div style="float: right; margin-right: 95px;">
+	    <div style="color: grey; font-size: 88%;">
+	      
+	      Total Circuits: <span id="total_workgroup_circuits"></span>
+	      
+	      
+	      <div style="display:none;">
+		Total Bandwidth: <span id="total_workgroup_bandwidth"></span>
+	      </div> 
+	    </div>
+	  </div> 	  
+	  <div style="clear:both"></div>
+	</div>
 
+	<!-- network status -->
+	<div>
+	  <div class="yui-g">
+	    <!-- left div -->
+	    <div class="yui-u first" style="height: 100%; width: 59%">
+	      <div>
+		<div id="network_status_map" style="height: 50%">
+		</div>
+	      </div>
+	      <div id="other_holder">
+		<div class="yui-g">
+		  <div class="yui-u first">
+		    <center><h3>Link Status</h3>
+		      <div id="link_status_table"></div>
+		    </center>
+		  </div>
+		  <div class="yui-u">
+		    <center><h3>Switch Status</h3>
+		    <div id="switch_status_table"></div>
+		    </center>
+		  </div>
+		</div>
+	      </div>
+	    </div>
+	    <!-- right div -->
+	    <div class="yui-u" style="height: 100%; width: 38%">
+	      <center><h3>Circuit Status</h3>
+	      <div id="circuit_status_table">
+	      </div>
+	      </center>
+	    </div>
+	  </div>
+	</div>
+	<!-- Available Resources -->
 	<div><p>Available Resources</p></div>
+
+	<!-- users -->
 	<div>
 	  <br>
 	  <center><h2>Users in this Workgroup</h2>
@@ -49,6 +94,8 @@
 	    </div>
 	  </center>
 	</div>
+
+	<!-- actions -->
 	<div>
 	  <br>
 	  <center><h2>Available Actions</h2></center>

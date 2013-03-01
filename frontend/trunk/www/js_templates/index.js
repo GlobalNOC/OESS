@@ -330,14 +330,58 @@ var ds = new YAHOO.util.DataSource(dsString);
       var ckt_table = build_circuitTable();
       
 
+    var link_status_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_all_link_status");
+    link_status_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+    link_status_ds.responseSchema = {
+	resultsList: "results",
+	fields: ["name","link_id","status"]
+    };
 
-
-
-    // build the circuits table
-
-
+    var link_status_columns = [
+			       {key: "name", label: "Link", width: 200},
+			       {key: "status", label: "Status", width: 40}
+			       ];
+    var link_table = new YAHOO.widget.ScrollingDataTable("link_status_table",link_status_columns, link_status_ds,{height: '210px'});
     
 
+    //build the switch status table
+    var switch_status_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_all_node_status");
+    switch_status_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+    switch_status_ds.responseSchema = {
+	resultsList: "results",
+	fields: ["name","node_id","operational_state"]
+    };
+
+    var switch_status_columns = [
+				 {key: "name", label: "Switch", width: 200},
+				 {key: "operational_state", label: "Status", width: 40}
+				 ];
+
+    var switch_table = new YAHOO.widget.ScrollingDataTable("switch_status_table",switch_status_columns, switch_status_ds,{height: '210px'});
+
+    var circuit_status_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_workgroup_circuit_status");
+    circuit_status_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+    circuit_status_ds.responseSchema = {
+	resultsList: "results",
+	fields: ["description","name","status"]
+    };
+
+    var circuit_status_cols = [
+			       {key: "description", label: "name", width: 200},
+			       {key: "status", label: "Status", width: 100}
+			       ];
+
+    var circuit_status_table = new YAHOO.widget.ScrollingDataTable("circuit_status_table",circuit_status_cols, circuit_status_ds,{height: '480px'});
+    
+    var nddi_map = new NDDIMap("network_status_map", session.data.interdomain == 0);
+
+    nddi_map.showDefault();
+
+    nddi_map.on("loaded", function(){
+	    this.updateMapFromSession(session);
+	});
+
+    // build the users table
     var user_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_workgroup_members&workgroup_id="+session.data.workgroup_id);
     user_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     user_ds.responseSchema = {
