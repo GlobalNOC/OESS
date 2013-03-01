@@ -101,13 +101,13 @@
 		
 	    if (e.keyCode == YAHOO.util.KeyListener.KEY.ENTER){
 		clearTimeout(searchTimeout);
-			table_filter.call(circuit_table,search_value);
+			table_filter.call(ckt_table,search_value);
 	    }
 	    else{
 		if (searchTimeout) clearTimeout(searchTimeout);
 		
 		searchTimeout = setTimeout(function(){
-			table_filter.call(circuit_table,search_value);
+			table_filter.call(ckt_table,search_value);
 		    }, 400);
 		
 	    } 
@@ -154,9 +154,12 @@
 						     
                              var endpoint_el = new YAHOO.util.Element(endpoint);
                              var path_el = new YAHOO.util.Element(path);
-                             console.log(endpoint_el);
-                             endpoint_el.subscribe("change", function(){ console.log("did stuff here"); build_circuitTable() } );
-                             path_el.subscribe("change", function(){ build_circuitTable() } );
+                             
+                             
+                             $("#endpoint_node_selector,#path_node_selector").chosen().change( function(){ 
+                                 
+                                 ckt_table = build_circuitTable.apply(ckt_table,[]); } );
+                             
                          
                          },
 						 failure: function(req, resp){
@@ -170,28 +173,31 @@
 
 
 function build_circuitTable(){
-    var dsString="services/data.cgi?action=get_existing_circuits&workgroup_id="+session.data.workgroup_id;
 
+    if ( typeof(this.destroy) == "function" ){
+        this.destroy();
+    };
+    
+
+    var dsString="services/data.cgi?action=get_existing_circuits&workgroup_id="+session.data.workgroup_id;
+    
     var endpointSelector= YAHOO.util.Dom.get("endpoint_node_selector");
 	var pathSelector= YAHOO.util.Dom.get("path_node_selector");
 
-    for(x=0;x<=endpointSelector.length; x++){
+    for(x=0;x<endpointSelector.length; x++){
         if(endpointSelector[x].selected){
             dsString +="&endpoint_node_id="+endpointSelector[x].value;
         }
     }
-    for(x=0;x<=pathSelector.length; x++){
+    for(x=0;x<pathSelector.length; x++){
         if(pathSelector[x].selected){
             dsString +="&path_node_id="+pathSelector[x].value;
         }
     }
     console.log(dsString);
-        
 
 
-}
-
-var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_existing_circuits&workgroup_id="+session.data.workgroup_id);
+var ds = new YAHOO.util.DataSource(dsString);
       ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
       ds.responseSchema = {
 		  resultsList: "results",
@@ -211,8 +217,8 @@ var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_existing_circui
 	     
     var columns = [
 		   
-		   {key: "description", label: "Description", width: 330},
-		   {key: "endpoints", label: "Endpoints", width: 250, formatter: function(el, rec, col, data){
+		   {key: "description", label: "Description", width: 450},
+		   {key: "endpoints", label: "Endpoints", width: 300, formatter: function(el, rec, col, data){
 
 			   var endpoints  = rec.getData('endpoints');
 			   
@@ -253,6 +259,14 @@ var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_existing_circui
     };
     
     var circuit_table = new YAHOO.widget.DataTable("circuit_table", columns, ds, config);
+
+    circuit_table.on("initEvent", function(){
+        var search = new YAHOO.util.Element(YAHOO.util.Dom.get('circuit_search'));
+        var search_value = search.get('element').value;
+	    table_filter.call(ckt_table,search_value);
+    }
+
+                    );
 
     circuit_table.subscribe("rowMouseoverEvent", circuit_table.onEventHighlightRow);
     circuit_table.subscribe("rowMouseoutEvent", circuit_table.onEventUnhighlightRow);
@@ -295,12 +309,26 @@ var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_existing_circui
         
 	    YAHOO.util.Dom.get("total_workgroup_bandwidth").innerHTML = total_bandwidth;
 	    YAHOO.util.Dom.get("total_workgroup_circuits").innerHTML = total_circuits;
+        
+       
 
-	    return oArgs;
+        return oArgs;
     }
                     );
-   
+    
+    
 
+    
+
+    return circuit_table;
+        
+
+
+}
+
+   
+      var ckt_table = build_circuitTable();
+      
 
 
 

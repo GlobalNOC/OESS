@@ -1,4 +1,3 @@
-
 [% INCLUDE js_templates/index.js %]
 
 <div class="main_page" style="position: relative;">
@@ -13,21 +12,14 @@
       <div class="yui-content" style="height: 90%">
 		<div>
 	  
-		  <div style="display:inline-block; margin-top:28px;float:left;text-align: left; margin-left: 95px; margin-bottom: 8px;">
+		  <div style="display:inline-block; margin-top:28px;float:left;text-align: left; margin-left: 25px; margin-bottom: 8px;">
 			<label for="circuit_search" id="circuit_search_label" class="soft_title">Search:</label>
-			<input id="circuit_search" type="text" size="35" ></input>
-		  </div>
-		  
-
-		  <div style="display:inline-block;float:right; margin-right:95px;margin-top:8px;margin-bottom:8px;">
-			<label for="endpoint_node_selector" id="endpoint_node_label" class="soft_title"> With Endpoints On:</label>
-			<select multiple style="float:right; width:250px;"data-placeholder="Select Nodes" class="chzn-select" id="endpoint_node_selector">
-			  
-			</select>
-			<div style="margin-top:4px;">
-			  <label for="path_node_selector" id="path_node_label" class="soft_title">Path Traverses:</label>
-			  <select multiple data-placeholder="Select Nodes" style="width:250px;" class="chzn-select" id="path_node_selector"></select>	
-			</div>
+			<input id="circuit_search" type="text" size="20" ></input>
+			<label for="endpoint_node_selector" id="endpoint_node_label" class="soft_title"> With Endpoints On:
+			<select multiple style="height:30px; width:180px;"data-placeholder="Select Nodes" class="chzn-select" id="endpoint_node_selector"> </label>
+			</select>			
+			  <label for="path_node_selector" id="path_node_label" class="soft_title">Path Traverses: <select multiple data-placeholder="Select Nodes" style="display:inline;float:right;width:180px;" class="chzn-select" id="path_node_selector"></select>	</label>
+			
 		  </div>
 	  	  
 		  <center>
