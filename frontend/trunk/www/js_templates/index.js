@@ -339,7 +339,13 @@ var ds = new YAHOO.util.DataSource(dsString);
 
     var link_status_columns = [
 			       {key: "name", label: "Link", width: 200},
-			       {key: "status", label: "Status", width: 40}
+			       {key: "status", label: "Status", width: 40, formatter: function(elLiner, oRec, oCol, oData){
+				       if(oRec.getData('status') == 'up'){
+					   elLiner.innerHTML = "<font color='green'>up</font>";
+				       }else{
+					   elLiner.innerHTML = "<font color='red'>" + oRec.getData('status') + "</font>";
+				       }
+				   }}
 			       ];
     var link_table = new YAHOO.widget.ScrollingDataTable("link_status_table",link_status_columns, link_status_ds,{height: '210px'});
     
@@ -354,21 +360,37 @@ var ds = new YAHOO.util.DataSource(dsString);
 
     var switch_status_columns = [
 				 {key: "name", label: "Switch", width: 200},
-				 {key: "operational_state", label: "Status", width: 40}
+				 {key: "operational_state", label: "Status", width: 40, formatter: function(elLiner, oRec, oCol, oData){
+					 if(oRec.getData('operational_state') == 'up'){
+					     elLiner.innerHTML = "<font color='green'>up</font>";
+					 }else{
+					     elLiner.innerHTML = "<font color='red'>" + oRec.getData('operational_state') + "</font>";
+					 }
+				     }}
 				 ];
 
     var switch_table = new YAHOO.widget.ScrollingDataTable("switch_status_table",switch_status_columns, switch_status_ds,{height: '210px'});
 
-    var circuit_status_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_workgroup_circuit_status");
+    var circuit_status_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_existing_circuits");
     circuit_status_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     circuit_status_ds.responseSchema = {
 	resultsList: "results",
-	fields: ["description","name","status"]
+	fields: ["description","name","operational_status","active_path"]
     };
 
     var circuit_status_cols = [
 			       {key: "description", label: "name", width: 200},
-			       {key: "status", label: "Status", width: 100}
+			       {key: "status", label: "Status", width: 100, formatter: function(elLiner, oRec, oColumn, oData){
+				       if(oRec.getData('operational_status') == 'down'){
+					   elLiner.innerHTML = "<font color='red'>down</font>";
+				       }else{
+					   if(oRec.getData('active_path') == 'primary'){
+					       elLiner.innerHTML = "<font color='green'>primary</font>";
+					   }else{
+					       elLiner.innerHTML = "<font color='orange'>backup</font>";
+					   }
+				       }
+				   }}
 			       ];
 
     var circuit_status_table = new YAHOO.widget.ScrollingDataTable("circuit_status_table",circuit_status_cols, circuit_status_ds,{height: '480px'});

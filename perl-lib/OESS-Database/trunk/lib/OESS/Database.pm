@@ -230,6 +230,7 @@ sub update_circuit_state{
 
     if (! defined $details){
 	$self->_set_error("Unable to find circuit information for circuit $circuit_id");
+	$self->{'dbh'}->rollback();
 	return undef;
     }
 
@@ -242,6 +243,7 @@ sub update_circuit_state{
 
     if (! defined $result){
 	$self->_set_error("Unable to decom old circuit instantiation.");
+	$self->{'dbq'}->rollback();
 	return undef;
     }
 
@@ -251,6 +253,7 @@ sub update_circuit_state{
 
     if (! defined $result){
 	$self->_set_error("Unable to create new circuit instantiation record.");
+	$self->{'dbh'}->rollback();
 	return undef;
     }
 
@@ -300,6 +303,7 @@ sub update_circuit_path_state {
 
     if (! defined $result){
 	$self->_set_error("Unable to update path instantiation for circuit $circuit_id");
+	$self->{'dbh'}->rollback();
 	return undef;
     }
 
@@ -366,6 +370,7 @@ sub switch_circuit_to_alternate_path {
 
     if (! defined $results || @$results < 1){
 	$self->_set_error("Unable to find path_id for alternate path.");
+	$self->{'dbh'}->rollback();
 	return undef;
     }
 
@@ -382,6 +387,7 @@ sub switch_circuit_to_alternate_path {
 
     if (! defined $results || @$results < 1){
 	$self->_set_error("Unable to find path_id for current path.");
+	$self->{'dbh'}->rollback();
 	return undef;
     }
 
@@ -396,6 +402,7 @@ sub switch_circuit_to_alternate_path {
 
     if (! $success ){
 	$self->_set_error("Unable to change path_instantiation of current path to inactive.");
+	$self->{'dbh'}->rollback();
 	return undef;
     }
 
@@ -407,6 +414,7 @@ sub switch_circuit_to_alternate_path {
 
     if (! defined $new_available){
 	$self->_set_error("Unable to create new available path based on old instantiation.");
+	$self->{'dbh'}->rollback();
 	return undef;
     }
 
@@ -417,6 +425,7 @@ sub switch_circuit_to_alternate_path {
 
     if (! defined $success){
 	$self->_set_error("Unable to move internal vlan id mappings over to new path instance.");
+	$self->{'dbh'}->rollback();
 	return undef;
     }
 
@@ -430,6 +439,7 @@ sub switch_circuit_to_alternate_path {
 
     if (! $success){
 	$self->_set_error("Unable to change state to active in alternate path.");
+	$self->{'dbh'}->rollback();
 	return undef;
     }
 
@@ -468,8 +478,6 @@ sub generate_clr{
 
     my $last_edited = $circuit_details->{'last_edited'};
     my $workgroup_name = $circuit_details->{'workgroup'}->{'name'};
-
-    print STDERR Dumper($created_user);
 
     my $clr = "";
     $clr .= "Circuit " . $circuit_details->{'name'} . "\n";
@@ -570,7 +578,7 @@ sub get_affected_circuits_by_link_id {
     my @circuits;
 
     my $results = $self->_execute_query($query, [$link]);
-    print STDERR Dumper($results);
+
     if (! defined $results){
 	return undef;
     }
@@ -641,7 +649,7 @@ sub get_user_by_id{
     my %args = @_;
     
     my $user_id = $args{'user_id'};
-    print STDERR Dumper($user_id);
+
     if(!defined($user_id)){
 	$self->_set_error("user_id was not defined");
 	return undef;
@@ -795,7 +803,7 @@ sub get_node_dpid_hash {
 sub get_current_nodes{
     my $self = shift;
 
-    my $nodes = $self->_execute_query("select node.name, node_instantiation.dpid,node.node_id from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1",[]);
+    my $nodes = $self->_execute_query("select node.name, node_instantiation.dpid,node.operational_state,node.node_id from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1",[]);
     
     return $nodes;   
 }
@@ -961,7 +969,7 @@ sub get_map_layers {
     my $self = shift;
     my %args = @_;
 
-	my $workgroup_id= $args{'workgroup_id'};
+    my $workgroup_id= $args{'workgroup_id'};
     my $dbh = $self->{'dbh'};
 
     # grab only the local network
@@ -1157,6 +1165,20 @@ HERE
     
     return $results;
     
+}
+
+=head2 get_current_links
+
+=cut
+
+sub get_current_links{
+    my $self = shift;
+
+    my $query = "select * from link, link_instantiation where link.link_id = link_instantiation.link_id and link_instantiation.end_epoch = -1";
+
+    my $res = $self->_execute_query($query,[]);
+
+    return $res;
 }
 
 =head2 get_circuit_scheduled_events
@@ -1616,7 +1638,6 @@ sub add_workgroup {
     $type = 'normal' if !defined($type);
 
     if($type ne 'admin' && $type ne 'normal' && $type ne 'demo'){
-	print STDERR "Type is not one of our explicit types... setting to normal\n";
 	$type = 'normal';
     }
 
@@ -2136,7 +2157,7 @@ sub get_current_circuits {
     my @endpoint_circuit_ids;
     my @path_circuit_ids;
 
-	my $workgroup;
+    my $workgroup;
     if(defined($workgroup_id)){
 	$workgroup = $self->get_workgroup_by_id( workgroup_id => $args{'workgroup_id'});
     }
@@ -2145,144 +2166,89 @@ sub get_current_circuits {
 
     my @to_pass;
 
-    #my $query = "select circuit.workgroup_id, circuit.name, circuit.description, circuit.circuit_id, " .
-#	" circuit_instantiation.reserved_bandwidth_mbps, circuit_instantiation.circuit_state, " .
-#	" path.path_type, interface.name as int_name, node.name as node_name " .
-#	"from circuit " .
-#	" join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id " .
-#	"  and circuit_instantiation.end_epoch = -1 and circuit_instantiation.circuit_state != 'decom' " .
-#	" left join path on path.circuit_id = circuit.circuit_id " .
-#	"  left join path_instantiation on path_instantiation.path_id = path.path_id " .
-#	"    and path_instantiation.end_epoch = -1 and path_instantiation.path_state in ('active', 'deploying') " .
-#	" join circuit_edge_interface_membership on circuit_edge_interface_membership.circuit_id = circuit.circuit_id " .
-#	"  and circuit_edge_interface_membership.end_epoch = -1 " .
-#	" join interface on interface.interface_id = circuit_edge_interface_membership.interface_id " .
-#	"  left join interface_instantiation on interface.interface_id = interface_instantiation.interface_id " .
-#	"    and interface_instantiation.end_epoch = -1" . 
-#	" join node on node.node_id = interface.node_id " .
-#	"  left join node_instantiation on node.node_id = node_instantiation.node_id " .
-#	"    and node_instantiation.end_epoch = -1 ";
-
-	## Get all circuit ids that have an endpoint on a node passed
-
-   
-   if ( @$endpoint_nodes) {
-	   my $endpoint_node_sql = <<HERE;
-select distinct circuit_instantiation.circuit_id from circuit_instantiation  
-join circuit_edge_interface_membership on circuit_edge_interface_membership.circuit_id = circuit_instantiation.circuit_id 
-  and circuit_instantiation.end_epoch = -1 
-  and circuit_edge_interface_membership.end_epoch = -1
-join interface on circuit_edge_interface_membership.interface_id = interface.interface_id
-and interface.node_id in (  
-HERE
-
-	   $endpoint_node_sql .= "?," x scalar(@$endpoint_nodes);
-	   chop($endpoint_node_sql);
-	   $endpoint_node_sql .= ")";
-	   
-	   
-	   my $endpoint_results = $self->_execute_query($endpoint_node_sql ,$endpoint_nodes);
+    ## Get all circuit ids that have an endpoint on a node passed
+    if ( @$endpoint_nodes) {
+	my $endpoint_node_sql ="
+	select distinct circuit_instantiation.circuit_id from circuit_instantiation  
+	    join circuit_edge_interface_membership on circuit_edge_interface_membership.circuit_id = circuit_instantiation.circuit_id 
+	    and circuit_instantiation.end_epoch = -1 
+	    and circuit_edge_interface_membership.end_epoch = -1
+	    join interface on circuit_edge_interface_membership.interface_id = interface.interface_id
+	    and interface.node_id in (  ";
+	
+	$endpoint_node_sql .= "?," x scalar(@$endpoint_nodes);
+	chop($endpoint_node_sql);
+	$endpoint_node_sql .= ")";
 	
 	
-	   foreach my $row (@$endpoint_results){
-		   push(@endpoint_circuit_ids,$row->{'circuit_id'});
-	   }
-	   
-	   $circuit_id_filter = \@endpoint_circuit_ids;
-	   
-   }
-	if (@$path_nodes) {
+	my $endpoint_results = $self->_execute_query($endpoint_node_sql ,$endpoint_nodes);
 	
-		my $placeholders = "?". ",?" x (scalar(@$path_nodes)-1);
-
-		my $path_node_sql = <<HERE;
-select distinct path.circuit_id from path join path_instantiation p 
-on (path.path_id = p.path_id) 
-join link_path_membership m on m.path_id = p.path_id and p.end_epoch=-1 
-join link_instantiation l on l.end_epoch = -1 
-and m.link_id = l.link_id join interface i on i.interface_id = interface_a_id or i.interface_id = interface_z_id
-where i.node_id in ( $placeholders );
-
-HERE
-		
-		my $path_results = $self->_execute_query($path_node_sql, $path_nodes );
-	   
-		foreach my $row(@$path_results){
-			push(@path_circuit_ids,$row->{'circuit_id'});
-		}
-		$circuit_id_filter = \@path_circuit_ids;
+	
+	foreach my $row (@$endpoint_results){
+	    push(@endpoint_circuit_ids,$row->{'circuit_id'});
 	}
-	#if we're looking for something that has an endpoint on a node, and has an endpoint on a node, we'll need the intersection of the two arrays of circuit_ids.
-	if (@$path_nodes && @$endpoint_nodes){
-		my @intersection = intersect(@endpoint_circuit_ids,@path_circuit_ids);
-		$circuit_id_filter = \@intersection;
+	
+	$circuit_id_filter = \@endpoint_circuit_ids;
+	
+    }
+    if (@$path_nodes) {
+	
+	my $placeholders = "?". ",?" x (scalar(@$path_nodes)-1);
+	
+	my $path_node_sql = "
+	select distinct path.circuit_id from path join path_instantiation p 
+	    on (path.path_id = p.path_id) 
+		join link_path_membership m on m.path_id = p.path_id and p.end_epoch=-1 
+		join link_instantiation l on l.end_epoch = -1 
+		and m.link_id = l.link_id join interface i on i.interface_id = interface_a_id or i.interface_id = interface_z_id
+		where i.node_id in ( $placeholders )";
+	
+	my $path_results = $self->_execute_query($path_node_sql, $path_nodes );
+	
+	foreach my $row(@$path_results){
+	    push(@path_circuit_ids,$row->{'circuit_id'});
 	}
-
-
-    my $query = "select circuit.workgroup_id, circuit.name, circuit.description, circuit.circuit_id, circuit_instantiation.circuit_state from circuit join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id and circuit_instantiation.end_epoch = -1 and circuit_instantiation.circuit_state != 'decom'";
-
+	$circuit_id_filter = \@path_circuit_ids;
+    }
+    #if we're looking for something that has an endpoint on a node, and has an endpoint on a node, we'll need the intersection of the two arrays of circuit_ids.
+    if (@$path_nodes && @$endpoint_nodes){
+	my @intersection = intersect(@endpoint_circuit_ids,@path_circuit_ids);
+	$circuit_id_filter = \@intersection;
+    }
+    
+    
+    my $query = "select circuit.circuit_id, circuit.workgroup_id, circuit.name, circuit.description, circuit.circuit_id, circuit_instantiation.circuit_state from circuit join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id and circuit_instantiation.end_epoch = -1 and circuit_instantiation.circuit_state != 'decom'";
+	
     if ($workgroup_id && $workgroup->{'type'} ne 'admin'){
 		$query .= " where circuit.workgroup_id = ?";
 		push(@to_pass, $workgroup_id);
     }
 	
-	if (@$endpoint_nodes || @$path_nodes ) {
-		if(@$circuit_id_filter ==0){
-			return $results;
-		}
-		$query .= " and circuit.circuit_id in ( ?".",?" x (scalar(@$circuit_id_filter)-1) . ") ";
-	  push(@to_pass, @$circuit_id_filter);
+    if (@$endpoint_nodes || @$path_nodes ) {
+	if(@$circuit_id_filter ==0){
+	    return $results;
+	}
+	$query .= " and circuit.circuit_id in ( ?".",?" x (scalar(@$circuit_id_filter)-1) . ") ";
+	push(@to_pass, @$circuit_id_filter);
     }
     my $rows = $self->_execute_query($query, \@to_pass);
-
+    
     if (! defined $rows){
 	$self->_set_error("Internal error while getting circuits.");
 	return undef;
     }
     
-    
-        
     my $circuits;
-	my @circuit_ids;
-	foreach my $row (@$rows){
-		push(@circuit_ids,$row->{'circuit_id'});
-	}
-	
-	
- 
-
+    my @circuit_ids;
     foreach my $row (@$rows){
-	my $circuit_id = $row->{'circuit_id'};
-	
-	
-	
-
-	# first time seeing this circuit, add basic info
-	if (! exists $circuits->{$circuit_id}){
-	    
-	    $circuits->{$circuit_id} = {'circuit_id'  => $row->{'circuit_id'},
-		                        'name'        => $row->{'name'},
-					'description' => $row->{'description'},
-					'bandwidth'   => $row->{'reserved_bandwidth_mbps'},
-					'state'       => $row->{'circuit_state'},
-					'endpoints'   => [],
-					'workgroup_id' => $row->{'workgroup_id'}
-	    };
-	    
-	}
-	
-	$circuits->{$circuit_id}->{'endpoints'}    = $self->get_circuit_endpoints(circuit_id => $circuit_id) || [];
-
-
+	push(@circuit_ids,$row->{'circuit_id'});
     }
     
 
-
     
-    foreach my $circuit_id (keys %$circuits){
-	
-	push (@$results, $circuits->{$circuit_id});
-	
+    foreach my $ckt (@circuit_ids){
+	my $circuit_details = $self->get_circuit_details( circuit_id => $ckt);
+	push(@{$results},$circuit_details);
     }
     
     return $results;
@@ -2349,7 +2315,6 @@ sub get_circuit_details {
     # basic circuit info
     my $query = "select circuit.name, circuit.description, circuit.circuit_id, circuit_instantiation.modified_by_user_id, circuit.workgroup_id, " .
 	" circuit_instantiation.reserved_bandwidth_mbps, circuit_instantiation.circuit_state, circuit_instantiation.start_epoch  , " .
-#        " pr_pi.internal_vlan_id as pri_path_internal_tag, bu_pi.internal_vlan_id as bu_path_internal_tag, " .
 	" if(bu_pi.path_state = 'active', 'backup', 'primary') as active_path " .
 	"from circuit " .
 	" join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id " .
@@ -2391,7 +2356,6 @@ sub get_circuit_details {
     $details->{'backup_links'} = $self->get_circuit_links(circuit_id => $circuit_id,
 							  type       => 'backup'
 	                                                 ) || [];
-    
     $details->{'workgroup'} = $self->get_workgroup_by_id( workgroup_id => $details->{'workgroup_id'} );
     $details->{'last_modified_by'} = $self->get_user_by_id( user_id => $details->{'user_id'} )->[0];
 
@@ -2403,6 +2367,34 @@ sub get_circuit_details {
 	$details->{'created_by'} = $self->get_user_by_id( user_id => $first_instantiation->{'modified_by_user_id'})->[0];
 	my $dt_create = DateTime->from_epoch( epoch => $first_instantiation->{'start_epoch'} );
 	$details->{'created_on'} = $dt_create->month . "/" . $dt_create->day . "/" . $dt_create->year . " " . $dt_create->hour . ":" . $dt_create->min . ":" . $dt_create->second;
+    }
+
+    my $links = $self->get_current_links();
+    my %down_links;
+
+    foreach my $link (@$links){
+	if($link->{'operational_state'} eq 'down'){
+	    $down_links{$link->{'name'}} = $link;
+	}
+    }
+
+    $details->{'operational_state'} = 'up';
+    my $count_down = keys %down_links;
+    if($count_down <= 0){
+	#no links are down... so we are up
+    }else{
+	my $path_links;
+	if($details->{'active_path'} eq 'primary'){
+	    $path_links = $details->{'links'};
+	}else{
+	    $path_links = $details->{'backup_links'};
+	}
+	
+	foreach my $link (@$path_links){
+	    if(defined($down_links{$link->{'name'}})){
+		$details->{'operational_state'} eq 'down';
+	    }
+	}
     }
 
     return $details;
@@ -3013,7 +3005,6 @@ sub _find_new_path{
     #ok we need to have 2 links for each of the interfaces
     if($#{$a_links} >= 1){ 
 	foreach my $test_link (@{$a_links}){
-	    print STDERR Dumper($test_link);
 	    next if($test_link->{'link_id'} == $link->{'link_id'});
 	    if($test_link->{'status'} eq 'up'){
 		$a_link = $test_link;
@@ -3088,7 +3079,6 @@ sub insert_node_in_path{
 	return {error => "no new paths found"};
     }
 
-    print STDERR "New Path: " . Dumper($new_path) . "\n";
     #ok first decom the old
 
     $self->decom_link(link_id => $link_details->{'link_id'});
@@ -3120,7 +3110,6 @@ sub insert_node_in_path{
 
     foreach my $circuit (@$circuits){
 	#first we need to connect to DBus and remove the circuit from the switch...
-	print STDERR Dumper($circuit);
 	my $result = $client->deleteVlan($circuit->{'id'});
 
 	warn "RESULT Delete VLAN: " . Dumper($result);
@@ -3130,7 +3119,7 @@ sub insert_node_in_path{
 	
 	
 	foreach my $link (@$links){
-	    print STDERR Dumper($link);
+
 	    if($link->{'link_id'} == $link_details->{'link_id'}){
 		#remove it and add 2 more
 		$self->_execute_query("update link_path_membership set end_epoch = unix_timestamp(NOW()) where link_id = ? and path_id = ? and end_epoch = -1",[$link->{'link_id'},$link->{'path_id'}]);
@@ -3179,10 +3168,10 @@ sub decom_link {
     }
     print STDERR "link_details: " . Dumper($link_details) . "\n";
     $self->_execute_query("insert into link_instantiation (end_epoch,start_epoch,link_state,link_id,interface_a_id,interface_z_id) VALUES (-1,unix_timestamp(NOW()),'decom',?,?,?)",[$link_details->{'link_id'},$link_details->{'interface_a_id'},$link_details->{'interface_z_id'}]);
-    print STDERR "HERE!\n";
+
     if($link_details->{'status'} eq 'down'){
 	#link does not appear to be connected... set the interfaces back to "unknown" state
-	print STDERR "Updating interface roles\n";
+
 	my $update_interface_role = "update interface set role = 'unknown' where interface_id = ?";
 	my $res = $self->_execute_query($update_interface_role,[$link_details->{'interface_a_id'}]);
 	$res = $self->_execute_query($update_interface_role,[$link_details->{'interface_z_id'}]);
@@ -3344,7 +3333,7 @@ sub get_link{
     my $self = shift;
     my %args = @_;
     
-    print STDERR Dumper(%args);
+
 
     if(!defined($args{'link_id'}) && !defined($args{'link_name'})){
 	$self->_set_error("No Link_id or link_name specified");
@@ -5296,11 +5285,9 @@ sub edit_circuit {
 	my $path_id;
 	if(!defined($res) || !defined(@{$res}[0])){
 	    # create the primary path object
-	    #print STDERR "Creating path\n";
 	    $query = "insert into path (path_type, circuit_id) values (?, ?)";
 	    $path_id = $self->_execute_query($query, [$path_type, $circuit_id]);
 	}else{
-	    #print STDERR "Path already exists\n";
 	    $path_id = @{$res}[0]->{'path_id'};
 	}
 	
@@ -5523,13 +5510,13 @@ sub _execute_query {
     warn "Args are: " . Dumper($args);
 
     if (! $sth){
-	#warn "Error in prepare query: $DBI::errstr";
+	warn "Error in prepare query: $DBI::errstr";
 	$self->_set_error("Unable to prepare query: $DBI::errstr");
 	return undef;
     }
 
     if (! $sth->execute(@$args) ){
-	#warn "Error in executing query: $DBI::errstr";
+	warn "Error in executing query: $DBI::errstr";
 	$self->_set_error("Unable to execute query: $DBI::errstr");
 	return undef;
     }
@@ -5787,7 +5774,7 @@ sub can_modify_circuit{
 	$self->_set_error("can_modify_circuit requires a workgroup_id");
 	return;
     }
-    print STDERR Dumper(%params);
+
     my $workgroup = $self->get_workgroup_by_id( workgroup_id => $params{'workgroup_id'});
 
     my $user_id = $self->get_user_id_by_auth_name( auth_name => $params{'username'});
@@ -5854,6 +5841,8 @@ sub get_circuits_by_state{
     return \@results;
     
 }
+
+
 
 =head2 get_local_domain_name
 

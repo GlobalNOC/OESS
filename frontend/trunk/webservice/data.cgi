@@ -98,6 +98,12 @@ sub main {
 	case "generate_clr"{
 	    $output = &generate_clr();
 	}
+	case "get_all_node_status"{
+	    $output = &get_all_node_status();
+	}
+	case "get_all_link_status"{
+	    $output = &get_all_link_status();
+	}
 
     }
     
@@ -233,12 +239,19 @@ sub get_existing_circuits {
     my $results;
 
     my $workgroup_id = $cgi->param('workgroup_id');
-	my @endpoint_nodes = $cgi->param('endpoint_node_id');
-	my @path_nodes = $cgi->param('path_node_id');
+    my @endpoint_nodes = $cgi->param('endpoint_node_id');
+    my @path_nodes = $cgi->param('path_node_id');
     my $circuits = $db->get_current_circuits(workgroup_id => $workgroup_id,
-											 endpoint_nodes => \@endpoint_nodes,
-											 path_nodes => \@path_nodes
-											);
+					     endpoint_nodes => \@endpoint_nodes,
+					     path_nodes => \@path_nodes);
+
+    my @res;
+
+    foreach my $circuit (@$circuits){
+	my $circuit_details = $db->get_circuit_details( circuit_id => $circuit->{'circuit_id'} );
+	$circuit->{'details'} = $circuit_details;
+	push(@res,$circuit);
+    }
 
     if (!defined $circuits){
 	$results->{'error'} = $db->get_error();
@@ -371,6 +384,25 @@ sub generate_clr{
 	$results->{'results'} = {clr => $circuit_clr};
     }
     
+    return $results;
+}
+
+sub get_all_node_status{
+    my $results;
+
+    my $nodes = $db->get_current_nodes();
+    
+    $results->{'results'} = $nodes;
+
+    return $results;
+}
+
+sub get_all_link_status{
+    my $results;
+
+    my $links = $db->get_current_links();
+
+    $results->{'results'} = $links;
     return $results;
 }
 
