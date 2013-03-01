@@ -579,7 +579,8 @@ sub _actual_diff{
 	    if(defined($obs_port->{$com_vid})){
 		#--- we have have a flow on the same switchport with the same vid match
 		my $action_list = $obs_port->{$com_vid}->{'actions'};
-	
+		#increment the number of flow_mods we know are on the box
+		$node{$dpid}++;
 		$obs_port->{$com_vid}->{'seen'} = 1;
 		
 		if($#{$action_list} != $#{$command->{'action'}}){
