@@ -203,10 +203,12 @@ function init(){
       
       var node      = records[i].getData('node');
       var interface = records[i].getData('interface');
-      var tag       = records[i].getData('tag');
+        var description = records[i].getData('interface_description');
+        var tag       = records[i].getData('tag');
       
       session.data.endpoints.push({interface: interface,
 				   node: node,
+                   interface_description: description,
 				   tag: tag,
 				  });
     }

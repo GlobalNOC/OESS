@@ -62,6 +62,7 @@ function save_session_from_datasource(details){
 
 	var endpoint_data = {node: endpoint.node,
 			     interface: endpoint.interface,
+                 interface_description: endpoint.interface_description,
 			     tag: endpoint.tag,
 			     role: endpoint.role,
 			     urn: endpoint.urn,

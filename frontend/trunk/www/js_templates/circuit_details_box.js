@@ -64,16 +64,23 @@ function summary_init(remove_only){
   [% END %]
 
   var cols = [
-    {key: "interface", label: "Interface", formatter: function(el, rec, col, data){
-       el.innerHTML = rec.getData('node') + ' - ' + rec.getData('interface');
-     }     
-    },
+      {key: "interface", label: "Interface", formatter: function(el, rec, col, data){
+          el.innerHTML = rec.getData('node') + ' - ' + rec.getData('interface');
+      }
+     
+      },
+      {key:"description", label: "Interface Description" , formatter: function(el,rec,col,data){
+          el.innerHTML = rec.getData('interface_description');
+          //console.log(data);
+          console.log(rec);
+      }
+  },
     {key: "tag", label: "VLAN", formatter: function(el, rec, col, data){
 	    if (data == -1){
-		el.innerHTML = "<span style='font-size: 74%;'>Untagged</span>";
+		    el.innerHTML = "<span style='font-size: 74%;'>Untagged</span>";
 	    }
 	    else {
-		el.innerHTML = data;
+		    el.innerHTML = data;
 	    }
 	}
     }    
@@ -112,9 +119,9 @@ function summary_init(remove_only){
   var endpoint_table = new YAHOO.widget.ScrollingDataTable("circuit_endpoints_table", cols, ds, configs);
  
   var endpoints = session.data.endpoints || [];
-
+    console.log(endpoints);
   for (var i = 0; i < endpoints.length; i++){
-      endpoint_table.addRow({interface: endpoints[i].interface, node: endpoints[i].node, tag: endpoints[i].tag, urn: endpoints[i].urn});    
+      endpoint_table.addRow({interface: endpoints[i].interface, interface_description: endpoints[i].interface_description, node: endpoints[i].node, tag: endpoints[i].tag, urn: endpoints[i].urn});    
   }
 
   // set up all the help hover widgets
