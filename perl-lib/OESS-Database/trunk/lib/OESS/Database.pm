@@ -81,6 +81,7 @@ use Array::Utils qw(intersect);
 use XML::Writer;
 use Net::DBus;
 use OESS::Topology;
+use DateTime;
 
 our $ENABLE_DEVEL=0;
 
@@ -437,6 +438,62 @@ sub switch_circuit_to_alternate_path {
     return 1;
 }
 
+=head2 generate_clr
+
+=cut
+
+sub generate_clr{
+    my $self = shift;
+    my %args = @_;
+    
+    my $circuit_id = $args{'circuit_id'};
+
+    if(!defined($circuit_id)){
+	$self->_set_error("No Circuit ID Specified");
+	return;
+    }
+    
+    my $circuit_details = $self->get_circuit_details(circuit_id => $circuit_id);
+    
+    if(!defined($circuit_details)){
+	$self->_set_error("No Circuit found by that ID ");
+	return;
+    }
+    
+    my $endpoints = $self->get_circuit_endpoints( circuit_id => $circuit_id);
+ 
+    my $last_modified_user = $circuit_details->{'last_modified_by'};
+    my $created_user = $circuit_details->{'created_by'};
+    my $created_on = $circuit_details->{'created_on'};
+
+    my $last_edited = $circuit_details->{'last_edited'};
+    my $workgroup_name = $circuit_details->{'workgroup'}->{'name'};
+
+    print STDERR Dumper($created_user);
+
+    my $clr = "";
+    $clr .= "Circuit " . $circuit_details->{'name'} . "\n";
+    $clr .= "Created by " . $created_user->{'given_names'} . " " . $created_user->{'family_name'} . " at " . $created_on . " for workgroup " . $workgroup_name . "\n";
+    $clr .= "Lasted Modified By: " . $last_modified_user->{'given_name'} . " " . $last_modified_user->{'family_name'} . " at " . $last_edited . "\n\n";
+    $clr .= "Endpoints: \n";
+
+    foreach my $endpoint (@$endpoints){
+	$clr .= "  " . $endpoint->{'node'} . " - " . $endpoint->{'interface'} . " VLAN " . $endpoint->{'tag'} . "\n";
+    }
+
+    $clr .= "\nPrimary Path:\n";
+    foreach my $path (@{$circuit_details->{'links'}}){
+	$clr .= "  " . $path->{'name'} . "\n";
+    }
+
+    $clr .= "\nBackup Path:\n";
+    foreach my $path (@{$circuit_details->{'backup_links'}}){
+	$clr .= "  " . $path->{'name'} . "\n";
+    }
+        
+    return $clr;
+    
+}
 =head2 circuit_has_alternate_path
 
 Returns whether or not the circuit given has an alternate path available. Presently this only checks to see
@@ -582,14 +639,15 @@ sub is_external_vlan_available_on_interface {
 sub get_user_by_id{
     my $self = shift;
     my %args = @_;
-
+    
     my $user_id = $args{'user_id'};
+    print STDERR Dumper($user_id);
     if(!defined($user_id)){
 	$self->_set_error("user_id was not defined");
 	return undef;
     }
 
-    my $query = "select * from user,remote_auth where user.user_id = remote_auth.user_id and user.user_id = ?";
+    my $query = "select * from user left join remote_auth on user.user_id = remote_auth.user_id where user.user_id = ?";
     return $self->_execute_query($query,[$user_id]);
 }
 
@@ -1053,52 +1111,52 @@ join workgroup_interface_membership on workgroup_interface_membership.interface_
 where workgroup_interface_membership.workgroup_id= ?
 group by node.name
 HERE
-		my $results= $self->_execute_query($available_endpoint_query,[$workgroup_id]);
-	  		  
-		foreach my $row (@$results){
-			$nodes_endpoints->{$row->{'network_name'} }->{$row->{'name'} } = $row->{'available_endpoint_count'}; 
-		}
+	    my $results= $self->_execute_query($available_endpoint_query,[$workgroup_id]);
+	
+	foreach my $row (@$results){
+	    $nodes_endpoints->{$row->{'network_name'} }->{$row->{'name'} } = $row->{'available_endpoint_count'}; 
 	}
-
-    foreach my $row (@$rows){
-
-		my $node_id      = $row->{'node_id'};
-		my $network_id   = $row->{'network_id'};
-		my $network_name = $row->{'network_name'};
-		my $node_name    = $row->{'node_name'};
-		my $avail_endpoints = ( defined($nodes_endpoints->{$network_name}->{$node_name})? $nodes_endpoints->{$network_name}->{$node_name} : $default_endpoint_count);
-		$networks->{$network_name}->{'meta'} = {"network_long" => $row->{'network_long'},
-												"network_lat"  => $row->{'network_lat'},
-												"network_name" => $network_name,
-												"local"        => 0
-											   };
-		
-		my $node_lat = $row->{'node_lat'};
-		my $node_lon = $row->{'node_long'};
-		
-		if ($node_lat eq 0 && $node_lon eq 0){
-			$node_lat  = $row->{'network_lat'};
-			$node_lon  = $row->{'network_long'};
-		}
-
-		$networks->{$network_name}->{'nodes'}->{$node_name} = {"node_name"    => $node_name,
-															   "node_lat"     => $node_lat,
-															   "node_long"    => $node_lon,
-															   "number_available_endpoints" => $avail_endpoints
-															  };
-
     }
-
-    my $results = [];
-
-    foreach my $network_name (keys %$networks){
-
-		push (@$results, $networks->{$network_name});
+    
+    foreach my $row (@$rows){
+	
+	my $node_id      = $row->{'node_id'};
+	my $network_id   = $row->{'network_id'};
+	my $network_name = $row->{'network_name'};
+	my $node_name    = $row->{'node_name'};
+	my $avail_endpoints = ( defined($nodes_endpoints->{$network_name}->{$node_name})? $nodes_endpoints->{$network_name}->{$node_name} : $default_endpoint_count);
+	$networks->{$network_name}->{'meta'} = {"network_long" => $row->{'network_long'},
+						"network_lat"  => $row->{'network_lat'},
+						"network_name" => $network_name,
+						"local"        => 0
+	};
+	
+	my $node_lat = $row->{'node_lat'};
+	my $node_lon = $row->{'node_long'};
+	
+	if ($node_lat eq 0 && $node_lon eq 0){
+	    $node_lat  = $row->{'network_lat'};
+	    $node_lon  = $row->{'network_long'};
+	}
+	
+	$networks->{$network_name}->{'nodes'}->{$node_name} = {"node_name"    => $node_name,
+							       "node_lat"     => $node_lat,
+							       "node_long"    => $node_lon,
+							       "number_available_endpoints" => $avail_endpoints
+	};
 	
     }
-
+    
+    my $results = [];
+    
+    foreach my $network_name (keys %$networks){
+	
+	push (@$results, $networks->{$network_name});
+	
+    }
+    
     return $results;
-
+    
 }
 
 =head2 get_circuit_scheduled_events
@@ -2289,8 +2347,8 @@ sub get_circuit_details {
     my $details;
 
     # basic circuit info
-    my $query = "select circuit.name, circuit.description, circuit.circuit_id, " .
-	" circuit_instantiation.reserved_bandwidth_mbps, circuit_instantiation.circuit_state  , " .
+    my $query = "select circuit.name, circuit.description, circuit.circuit_id, circuit_instantiation.modified_by_user_id, circuit.workgroup_id, " .
+	" circuit_instantiation.reserved_bandwidth_mbps, circuit_instantiation.circuit_state, circuit_instantiation.start_epoch  , " .
 #        " pr_pi.internal_vlan_id as pri_path_internal_tag, bu_pi.internal_vlan_id as bu_path_internal_tag, " .
 	" if(bu_pi.path_state = 'active', 'backup', 'primary') as active_path " .
 	"from circuit " .
@@ -2310,14 +2368,16 @@ sub get_circuit_details {
     my $backup_path_id;
 
     if (my $row = $sth->fetchrow_hashref()){
+	my $dt = DateTime->from_epoch( epoch => $row->{'start_epoch'} );
 	$details = {'circuit_id'             => $circuit_id,
 		    'name'                   => $row->{'name'},
 		    'description'            => $row->{'description'},
 		    'bandwidth'              => $row->{'reserved_bandwidth_mbps'},
 		    'state'                  => $row->{'circuit_state'},
-#		    'pri_path_internal_tag'  => $row->{'pri_path_internal_tag'},
-#		    'bu_path_internal_tag'   => $row->{'bu_path_internal_tag'},
-		    'active_path'            => $row->{'active_path'}
+		    'active_path'            => $row->{'active_path'},
+		    'user_id'                => $row->{'modified_by_user_id'},
+		    'last_edited'            => $dt->month . "/" . $dt->day . "/" . $dt->year . " " . $dt->hour . ":" . $dt->minute . ":" . $dt->second,
+		    'workgroup_id'           => $row->{'workgroup_id'}
 	           };
 
     }
@@ -2331,8 +2391,22 @@ sub get_circuit_details {
     $details->{'backup_links'} = $self->get_circuit_links(circuit_id => $circuit_id,
 							  type       => 'backup'
 	                                                 ) || [];
+    
+    $details->{'workgroup'} = $self->get_workgroup_by_id( workgroup_id => $details->{'workgroup_id'} );
+    $details->{'last_modified_by'} = $self->get_user_by_id( user_id => $details->{'user_id'} )->[0];
+
+    $query = "select * from circuit_instantiation where circuit_id = ? and end_epoch = (select min(end_epoch) from circuit_instantiation where circuit_id = ? and end_epoch > 0)";
+ 
+    my $first_instantiation = $self->_execute_query($query,[$circuit_id,$circuit_id])->[0];
+
+    if(defined($first_instantiation)){
+	$details->{'created_by'} = $self->get_user_by_id( user_id => $first_instantiation->{'modified_by_user_id'})->[0];
+	my $dt_create = DateTime->from_epoch( epoch => $first_instantiation->{'start_epoch'} );
+	$details->{'created_on'} = $dt_create->month . "/" . $dt_create->day . "/" . $dt_create->year . " " . $dt_create->hour . ":" . $dt_create->min . ":" . $dt_create->second;
+    }
 
     return $details;
+
 }
 
 =head2 get_circuit_internal_ids
@@ -2416,7 +2490,7 @@ sub get_circuit_endpoints {
     #because the same interface might be involved we have to break it up into 2 queries
 
     #$query = "select interface.name as int_name, node.name as node_name, interface.interface_id, node.node_id as node_id, interface.port_number, network.is_local, interface.role, urn.urn from interface,node, network,urn where node.node_id = interface.node_id and interface.interface_id = ? and network.network_id = node.network_id and urn.interface_id = interface.interface_id";
-    $query = "select interface.name as int_name, node.name as node_name, interface.interface_id, node.node_id as node_id, interface.port_number, interface.role, network.is_local, urn.urn from interface left join interface_instantiation on interface.interface_id = interface_instantiation.interface_id and interface_instantiation.end_epoch = -1 join node on interface.node_id = node.node_id left join node_instantiation on node_instantiation.node_id = node.node_id and node_instantiation.end_epoch = -1 left join urn on urn.interface_id = interface.interface_id join network on node.network_id = network.network_id where interface.interface_id = ?";
+    $query = "select interface.name as int_name,interface.description as int_descr, node.name as node_name, interface.interface_id, node.node_id as node_id, interface.port_number, interface.role, network.is_local, urn.urn from interface left join interface_instantiation on interface.interface_id = interface_instantiation.interface_id and interface_instantiation.end_epoch = -1 join node on interface.node_id = node.node_id left join node_instantiation on node_instantiation.node_id = node.node_id and node_instantiation.end_epoch = -1 left join urn on urn.interface_id = interface.interface_id join network on node.network_id = network.network_id where interface.interface_id = ?";
 
     #"join node on node.node_id = interface.node_id node" network, urn where interface.interface_id = ? and node.node_id = interface.node_id and node.network_id = network.network_id and interface.interface_id = urn.interface_id";
     
@@ -2437,6 +2511,7 @@ sub get_circuit_endpoints {
 			  'port_no'   => $endpoint->{'port_number'},
 			  'local'     => $endpoint->{'is_local'},
 			  'role'      => $endpoint->{'role'},
+			  'description' => $endpoint->{'description'},
 			  'urn'       => $endpoint->{'urn'}
 	                 }
 	    );
