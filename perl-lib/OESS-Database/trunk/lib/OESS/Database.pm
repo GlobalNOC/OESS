@@ -1491,7 +1491,7 @@ sub get_workgroup_acls {
 
     my $acls;
 
-    my $query = "select interface.name as int_name, interface.interface_id, node.name as node_name, node.node_id " .
+    my $query = "select interface.description,interface.operational_state as operational_state, interface.name as int_name, interface.interface_id, node.name as node_name, node.node_id " .
 	        " from workgroup " .
 		"  join workgroup_interface_membership on workgroup.workgroup_id = workgroup_interface_membership.workgroup_id " .
 		"  join interface on interface.interface_id = workgroup_interface_membership.interface_id " .
@@ -1514,7 +1514,9 @@ sub get_workgroup_acls {
 	push(@$acls, {"interface_id"   => $row->{'interface_id'},
 		      "interface_name" => $row->{'int_name'},
 		      "node_id"        => $row->{'node_id'},
-		      "node_name"      => $row->{'node_name'}
+		      "node_name"      => $row->{'node_name'},
+		      "operational_state" => $row->{'operational_state'},
+		      "description"    => $row->{'description'}
 	     });
     }
 

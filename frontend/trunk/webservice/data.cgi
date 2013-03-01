@@ -104,6 +104,13 @@ sub main {
 	case "get_all_link_status"{
 	    $output = &get_all_link_status();
 	}
+	case "get_all_resources_for_workgroup"{
+	    $output = &get_all_resources();
+	}
+	else{
+	    $output->{'error'} = "Error: No Action specified";
+	    $output->{'results'} = [];
+	}
 
     }
     
@@ -403,6 +410,18 @@ sub get_all_link_status{
     my $links = $db->get_current_links();
 
     $results->{'results'} = $links;
+    return $results;
+}
+
+sub get_all_resources{
+    my $results;
+    
+    my $workgroup_id = $cgi->param('workgroup_id');
+    if(!defined($workgroup_id)){
+	$results->{'error'} = "Did not specify workgroup id";
+	$results->{'results'} = [];
+    }
+    $results->{'results'} = $db->get_workgroup_acls( workgroup_id => $workgroup_id);
     return $results;
 }
 

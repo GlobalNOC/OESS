@@ -435,6 +435,36 @@ var ds = new YAHOO.util.DataSource(dsString);
 
     var user_table = new YAHOO.widget.DataTable("user_table", user_columns, user_ds, user_config);
 
+    var resource_map = new NDDIMap("available_resource_map", session.data.interdomain == 0);
+
+    resource_map.showDefault();
+
+    resource_map.on("loaded", function(){
+            this.updateMapFromSession(session);
+        });    
+
+    var avail_resource_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_all_resources_for_workgroup&workgroup_id=" + session.data.workgroup_id);
+    avail_resource_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+    avail_resource_ds.responseSchema = {
+	resultsList: "results",
+	fields: ["node_name","interface_name","operational_state","description"]
+    };
+    
+    var avail_resource_cols = [
+			       {key: "node_name", label: "Node", width: 200 },
+			       {key: "interface_name", label: "Interface", width: 50},
+			       {key: "description", label: "Description", width: 100},
+			       {key: "operational_state", label: "Status", formatter: function(elLiner, oRec, oCol, oData){
+				       if(oRec.getData('operational_state') == 'up'){
+					   elLiner.innerHTML = "<font color='green'>up</font>";
+				       }else{
+					   elLiner.innerHTML = "<font color='red'>" + oRec.getData('operational_state') + "</font>";
+				       }
+				   }}
+			       ];
+
+    var avail_resource_table = new YAHOO.widget.ScrollingDataTable("available_resource_table",avail_resource_cols, avail_resource_ds, {height: '473px', width: '475px'});
+
     // setup help stuff
     makeHelpPanel(["circuit_search", "circuit_search_label"], "Use this to filter the circuits table below. The table will filter as you type.");
 }

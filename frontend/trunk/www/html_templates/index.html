@@ -2,7 +2,7 @@
 
 <div class="main_page" style="position: relative;">
 
-    <div id="workgroup_tabs" class="yui-navset" style="width: 90%; height:600px;">
+    <div id="workgroup_tabs" class="yui-navset" style="width: 95%; height:600px;">
       <ul class="yui-nav">
 	<li class="selected"><a href="#tab1"><em>Active VLANS</em></a></li>
 	<li><a href=""><em>Network Status</em></a></li>
@@ -56,7 +56,7 @@
 	    <!-- left div -->
 	    <div class="yui-u first" style="height: 100%; width: 59%">
 	      <div>
-		<div id="network_status_map" style="height: 50%">
+		<div id="network_status_map" style="width: 100%; height: 50%">
 		</div>
 	      </div>
 	      <div id="other_holder">
@@ -83,8 +83,22 @@
 	    </div>
 	  </div>
 	</div>
+
 	<!-- Available Resources -->
-	<div><p>Available Resources</p></div>
+	<div>
+	  <!-- left bar -->
+	  <div class="yui-g">
+	    <div class="yui-u first" style="float:left; width: 48%; height: 100%; padding-right: 8px">
+	      <div id="available_resource_map" style="width: 100%;height: 95%"></div>
+	    </div>
+	    <!-- right bar -->
+	    <div class="yui-u" style="float:left; width: 48%">
+	      <center><h2>Available Resources</h2>
+		<div id="available_resource_table" style="width: 100%; height: 95%"></div>
+	      </center>
+	    </div>
+	  </div>
+	</div>
 
 	<!-- users -->
 	<div>
