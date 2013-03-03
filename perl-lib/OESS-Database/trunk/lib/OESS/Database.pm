@@ -5902,23 +5902,30 @@ sub gen_topo{
 
     #generate the topology
     my $nodes = $self->get_nodes_by_admin_state(admin_state => "active");
+
     foreach my $node (@$nodes){
         $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","node"], id => "urn:ogf:network:domain=" . $domain . ":node=" . $node->{'name'});
         $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","address"]);
         $writer->characters($node->{'management_addr_ipv4'});
         $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","address"]);
 
-	
-        my $ints = $self->get_node_interfaces( node => $node->{'name'}, workgroup_id => $workgroup->{'workgroup_id'});
+	my %interfaces;
+        my $ints = $self->get_node_interfaces( node => $node->{'name'}, workgroup_id => $workgroup->{'workgroup_id'}, show_down => 1);
+
+	foreach my $int (@$ints){
+	    $interfaces{$int->{'name'}} = $int;
+	}
 
 	my $link_ints = $self->get_link_ints_on_node( node_id => $node->{'node_id'} );
 
 	foreach my $int (@$link_ints){
-	    push(@$ints,$int);
+	    $interfaces{$int->{'name'}} = $int;
 	}
 
-        foreach my $int (@$ints){
+	print STDERR Dumper($ints);
 
+        foreach my $int_name (keys (%interfaces)){
+	    my $int = $interfaces{$int_name};
             $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","port"], id => "urn:ogf:network:domain=" . $domain . ":node=" . $node->{'name'} . ":port=" . $int->{'name'});
 
             $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","capacity"]);
@@ -5936,8 +5943,9 @@ sub gen_topo{
 
             my $links = $self->get_link_by_interface_id( interface_id => $int->{'interface_id'});
             my $processed_link = 0;
+
             foreach my $link (@$links){
-                # only show links we know about that are trunked (this is actually the interface role)                                                                                                                                   
+                # only show links we know about that are trunked (this is actually the interface role)                                          
                 $processed_link = 1;
                 if(!defined($link->{'remote_urn'})){
                     $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","link"], id => "urn:ogf:network:domain=" . $domain . ":node=" . $node->{'name'} . ":port=" . $int->{'name'} . ":link=" . $link->{'link_name'});
@@ -5975,11 +5983,13 @@ sub gen_topo{
                     $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","remoteLinkId"]);
                 }
 		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","trafficEngineeringMetric"]);
+
 		if(defined($link->{'remote_urn'})){
 		    $writer->characters("100");
 		}else{
 		    $writer->characters("10");
 		}
+		
 		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","trafficEngineeringMetric"]);
 		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","capacity"]);
 		$writer->characters($int->{'capacity_mbps'} * 1000000);
