@@ -1181,6 +1181,26 @@ sub get_current_links{
     return $res;
 }
 
+=head2 get_circuits_on_link
+
+=cut
+
+sub get_circuits_on_link{
+    my $self = shift;
+    my %args = @_;
+
+    my $link_id = $args{'link_id'};
+
+    my $query = "select * from link_path_membership, path, circuit, circuit_instantiation  where path.path_id = link_path_membership.path_id and link_path_membership.link_id = ? and link_path_membership.end_epoch = -1 and circuit.circuit_id = path.circuit_id and circuit_instantiation.circuit_id = circuit.circuit_id";
+
+    my $circuits = $self->_execute_query($query,[$link_id]);
+
+    return $circuits;
+
+}
+
+
+
 =head2 get_circuit_scheduled_events
 
 Returns an array of hashes containing information about user scheduled events for this circuit.
