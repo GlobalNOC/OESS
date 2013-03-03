@@ -36,6 +36,8 @@ use Data::Dumper;
 
 use OESS::Database;
 use OESS::Topology;
+use Email::MIME;
+use Email::Sender::Simple qw(sendmail);
 
 my $db   = new OESS::Database();
 my $topo = new OESS::Topology();
@@ -106,6 +108,9 @@ sub main {
 	}
 	case "get_all_resources_for_workgroup"{
 	    $output = &get_all_resources();
+	}
+	case "send_email" {
+	    $output = &send_email();
 	}
 	else{
 	    $output->{'error'} = "Error: No Action specified";
@@ -423,6 +428,29 @@ sub get_all_resources{
     }
     $results->{'results'} = $db->get_workgroup_acls( workgroup_id => $workgroup_id);
     return $results;
+}
+
+sub send_message{
+    my $results;
+    
+    my $subject = $cgi->param('subject');
+    my $body = $cgi->param('body');
+
+    my $message = Email::MIME->create(
+	header_str => [
+	    From => 'oess@' . $db->get_local_domain_name(),
+	    To => $db->get_admin_email();,
+	    Subject => $subject,
+	],
+	attributes => {
+	    encoding => 'quoted-printable',
+	    charset => 'ISO-8859-1'
+	},
+	body_str => $body
+	);
+
+    sendmail($message);
+    
 }
 
 

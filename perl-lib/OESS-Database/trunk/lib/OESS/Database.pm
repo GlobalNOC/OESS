@@ -125,7 +125,6 @@ sub new{
     my $database = $config->{'credentials'}->{'database'};
 
     my $snapp_config_location = $config->{'snapp_config_location'};
-
     my $oscars_info = {
 	host => $config->{'oscars'}->{'host'},
 	key  => $config->{'oscars'}->{'key'},
@@ -143,7 +142,7 @@ sub new{
     }
 
     $dbh->{'mysql_auto_reconnect'}   = 1;
-
+    $self->{'admin_email'}           = $config->{'admin_email'};
     $self->{'snapp_config_location'} = $snapp_config_location;
     $self->{'dbh'}                   = $dbh;
     $self->{'oscars'} = $oscars_info;
@@ -6086,7 +6085,10 @@ sub gen_topo{
     return $xml;
 }
 
-
+sub get_admin_email{
+    my $self = shift;
+    return $self->{'admin_email_address'};
+}
 
 
 return 1;
