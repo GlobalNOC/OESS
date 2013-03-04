@@ -40,6 +40,19 @@
             send_user_add_button.on('click',function(){
                     panel.hide();
                     panel.destroy();
+		    var ds = new YAHOO.util.DataSource("services/data.cgi?action=send_message");
+		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+		    ds.responseSchema = {
+			resultsList: "results",
+			fields: ["success","error"]
+		    };
+
+		    ds.sendRequest("",{success: function(Req,Res){
+			    },
+				failure: function(Req,Res){
+
+			    },
+				argument: ds},ds);
                 });
 
             var cancel_user_add_button = new YAHOO.widget.Button('cancel_user_add');

@@ -33,6 +33,7 @@
 use strict;
 use warnings;
 use OESS::Database;
+use Data::Dumper;
 use CGI;
 use Template;
 use Switch;
@@ -74,7 +75,7 @@ sub main{
     my $tt  = Template->new(INCLUDE_PATH => "$FindBin::Bin") || die $Template::ERROR;
 
     my $is_admin = $db->get_user_admin_status(username=>$ENV{'REMOTE_USER'})->[0]{'is_admin'};
-	
+    
 	
     #-- What to pass to the TT and what http headers to send
     my ($vars, $output, $filename, $title, $breadcrumbs, $current_breadcrumb);
@@ -157,13 +158,14 @@ sub main{
 					   }
 	
     }
+    $vars->{'admin_email'}        = $db->get_admin_email();
 
     $vars->{'page'}               = $filename;
     $vars->{'title'}              = $title;
     $vars->{'breadcrumbs'}        = $breadcrumbs;
     $vars->{'current_breadcrumb'} = $current_breadcrumb;
-	$vars->{'is_admin'}           = $is_admin;		       
-    
+    $vars->{'is_admin'}           = $is_admin;		       
+    print STDERR Dumper($vars);
     $tt->process("html_templates/page_base.html", $vars, \$output) or warn $tt->error();
     
     print "Content-type: text/html\n\n" . $output;
