@@ -6087,7 +6087,7 @@ sub gen_topo{
 
 sub get_admin_email{
     my $self = shift;
-    return $self->{'admin_email_address'};
+    return $self->{'admin_email'};
 }
 
 
