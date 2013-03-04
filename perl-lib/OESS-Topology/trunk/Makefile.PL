@@ -4,7 +4,7 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile(
     NAME                => 'OESS::Topology',
-    AUTHOR              => 'GMOC Systems Engineering <syseng@grnoc.iu.edu>',
+    AUTHOR              => 'GRNOC Systems Engineering <syseng@grnoc.iu.edu>',
     VERSION_FROM        => 'lib/OESS/Topology.pm',
 #ABSTRACT_FROM       => 'lib/GMOC/DB.pm',
               PL_FILES            => {},
@@ -16,7 +16,7 @@ WriteMakefile(
                   'XML::XPath' => 0,
               },
               dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
-              clean               => { FILES => 'GMOC-Config-*' },
+              clean               => { FILES => 'OESS-Topology*' },
               );
 
 
