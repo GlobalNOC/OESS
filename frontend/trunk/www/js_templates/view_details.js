@@ -366,7 +366,7 @@ function setupScheduledEvents(){
 	resultsList: "results",
 	fields: [
     {key: "username"},
-    {key: "registration_time"},
+    {key: "scheduled"},
     {key: "activated"},
     {key: "action"},
     {key: "layout"},
@@ -375,8 +375,25 @@ function setupScheduledEvents(){
     };
 
     var cols = [{key: "username", label: "By", width: 101},
-		{key: "registration_time", label: "Scheduled", width: 122},
-		{key: "action", label: "Action", width: 100},
+		{key: "scheduled", label: "Scheduled", width: 122},
+		{key: "action", label: "Action", width: 100, formatter: function(elLiner,oRec,oCol,oData){
+			var txt = oRec.getData('layout');
+			//browsers that don't suck
+			if(window.DOMParser){
+			    parser = new DOMParser();
+			    xmlDoc = parser.parseFromString(txt,"text/xml");
+			    
+			}
+			//IE
+			else{
+			    xmlDoc=new ActiveXObject("Microsoft.XMLDOM");
+			    xmlDoc.async=false;
+			    xmlDoc.loadXML(txt);
+			}
+
+			var opt = xmlDoc.childNodes[0];
+			elLiner.innerHTML = opt.attributes.action.value;
+		    }},
 		{key: "activated", label: "Activated", width: 121},
 		{label: "Completed", formatter: function(el, rec, col, data){
 			if (rec.getData('completed')){
