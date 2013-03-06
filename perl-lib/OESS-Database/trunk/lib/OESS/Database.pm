@@ -915,6 +915,7 @@ sub get_node_interfaces {
     my $node_name    = $args{'node'};
     my $workgroup_id = $args{'workgroup_id'};
     my $show_down    = $args{'show_down'};
+    my $show_trunk   = $args{'show_trunk'} || 0;
     if(!defined($show_down)){
 	$show_down = 0;
     }
@@ -930,9 +931,10 @@ sub get_node_interfaces {
 	push(@query_args, $workgroup_id);
 	$query .= " join workgroup_interface_membership on workgroup_interface_membership.interface_id = interface.interface_id ";
     }
-
-    $query .= " where interface.role != 'trunk' ";
-    if($show_down == 0){
+    if ($show_trunk == 0){
+        $query .= " where interface.role != 'trunk' ";
+    }
+        if($show_down == 0){
 	$query .= " and interface.operational_state = 'up' ";
     }
     

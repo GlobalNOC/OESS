@@ -705,6 +705,23 @@ sub update_interface {
     my $interface_id= $cgi->param('interface_id');
     my $description= $cgi->param('description');
 
+    my $result = $db->update_interface_description( 'interface_id' => $interface_id,
+                                                  'description' => $description
+                                                  );
+    if ( !defined $result ) {
+        $results->{'results'} = [
+            {
+                "error"   => $db->get_error(),
+                "success" => 0
+            }
+        ];
+    }
+    else {
+        $results->{'results'} = [ { "success" => 1 } ];
+    }
+
+    return $results;
+
 }
 
 sub decom_node {
