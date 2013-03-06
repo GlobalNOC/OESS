@@ -1249,7 +1249,7 @@ sub get_circuit_scheduled_events {
 }
 
 
-=head2 get_circuit_network_events
+=head2 get_circuit_history
 
 Returns an array of hashes containing information about events for this circuit that have were network driven, such as links going down or
 ports and nodes dropping off the network.
@@ -1264,7 +1264,7 @@ The internal MySQL primary key int identifier for this circuit.
 
 =cut
 
-sub get_circuit_network_events {
+sub get_circuit_history {
     my $self = shift;
     my %args = @_;
 
@@ -1279,7 +1279,7 @@ sub get_circuit_network_events {
 	     " from circuit " . 
 	     " join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id " . 
 	     " join user on user.user_id = circuit_instantiation.modified_by_user_id " .
-	     " join remote_auth on remote_auth.user_id = user.user_id " .
+	     " left join remote_auth on remote_auth.user_id = user.user_id " .
 	     "where circuit.circuit_id = ?";
 
     my $results = $self->_execute_query($query, [$circuit_id]);
