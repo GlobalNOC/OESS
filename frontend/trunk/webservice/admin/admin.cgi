@@ -80,6 +80,9 @@ sub main {
         case "update_node" {
             $output = &update_node();
         }
+        case "update_interface" {
+                                 $output = &update_interface();
+                                }
         case "decom_node" {
             $output = &decom_node();
         }
@@ -695,6 +698,13 @@ sub update_node {
     }
 
     return $results;
+}
+
+sub update_interface {
+    my $results;
+    my $interface_id= $cgi->param('interface_id');
+    my $description= $cgi->param('description');
+
 }
 
 sub decom_node {
