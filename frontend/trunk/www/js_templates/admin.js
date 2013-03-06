@@ -1453,10 +1453,39 @@ function setup_network_tab(){
 			}
 		    };
 			    
-		var cols = [{key:'name', label: "Interface", width: 220},
-                    {key:'description', label: "Description", width: 220}
+		var cols = [{key:'name', label: "Interface", width: 150},
+                    {key:'description', label: "Description", width: 220, 
+                     editor: new YAHOO.widget.TextboxCellEditor(
+                         {  
+                             asyncSubmitter: function( callback, newValue) {
+                                 var record = this.getRecord();
+                                 var column = this.getColumn();
+                                 var oldValue = this.value;
+                                 YAHOO.util.Connect.asyncRequest(
+                                     'get',
+                                     '../services/admin/admin.cgi?action=update_interface&interface_id='+record.getData('interface_id')+'&description='+encodeURIComponent(newValue),
+                                     {
+                                         success:function(o) {
+                                             var r = YAHOO.lang.JSON.parse(o.responseText);
+                                             callback(true,  newValue );
+                                         },
+                                         failure: function(o){
+                                             console.log("failure");
+                                             callback(false, oldValue);
+                                         },
+                                         scope:this
+                                         
+                                     }
+                                     
+                                 );
+                             }
+                         } ) 
+                    }
+                   
                    ];
       
+        console.log(cols);
+
 		    
 		    var configs = {
 			height: "100px"
@@ -1529,7 +1558,16 @@ function setup_network_tab(){
 			    
 		table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
 		table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
-	    YAHOO.util.Dom.get('active_node_name').value        = node;
+	    table.subscribe("cellClickEvent", function (ev){ 
+            console.log("here!");
+            var target= YAHOO.util.Event.getTarget(ev);
+            var column = table.getColumn(target);
+            if (column.key=='description'){
+                table.onEventShowCellEditor(ev);
+            }
+        }
+);
+        YAHOO.util.Dom.get('active_node_name').value        = node;
 	    YAHOO.util.Dom.get('active_node_lat').value         = lat;
 	    YAHOO.util.Dom.get('active_node_lon').value         = lon; 
 	    YAHOO.util.Dom.get('active_node_vlan_range').value  = vlan_range;
