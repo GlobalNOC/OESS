@@ -2679,6 +2679,44 @@ sub update_interface_operational_state{
     return 1;
 }
 
+=head2 update_interface_description
+
+Updates the description of a matching interface
+
+=over
+
+=item description
+
+The description of the interface.
+
+=item interface_id
+
+The ID of the interface to update
+
+=back
+
+=cut
+
+sub update_interface_description{
+    my $self = shift;
+    my %args = @_;
+    if(!defined($args{'interface_id'})){
+        $self->_set_error("Interface ID was not specified");
+        return undef;
+    }
+    if(!defined($args{'description'})){
+        $self->_set_error("description was not specified");
+        return undef;
+    }
+    
+    my $res = $self->_execute_query("update interface set description = ? where interface.interface_id = ?",[$args{'description'},$args{'interface_id'}]);
+    if(!defined($res)){
+        $self->_set_error("Unable to update interface description");
+        return undef;
+    }
+    return 1;
+}
+
 =head2 get_interface_id_by_names
 
 Returns the interface_id of the interface with name $interface on the node with name $node.
