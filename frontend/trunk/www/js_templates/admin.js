@@ -1437,12 +1437,41 @@ function setup_network_tab(){
 	    var default_forward = args[0].default_forward;
 	    var feature = args[0].feature;
 
+       
+        var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_node_interfaces&node="+encodeURIComponent(node) );
+                
+		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+		    ds.responseSchema = {
+			resultsList: "results",
+			fields: [
+		                 {key: "name"},
+		                 {key: "description"},
+		                 {key: "interface_id", parser: "number"}
+				 ],
+			metaFields: {
+			    error: "error"
+			}
+		    };
+			    
+		var cols = [{key:'name', label: "Interface", width: 220},
+                    {key:'description', label: "Description", width: 220}
+                   ];
+      
+		    
+		    var configs = {
+			height: "100px"
+		    };
+		    
+		    
+
+
+
 	    this.changeNodeImage(feature, this.ACTIVE_IMAGE);
 
 	    panel = new YAHOO.widget.Panel("node_details",
 					   { 
 					       width: 500,
-					       draggable: false
+					       draggable: true
 					   }
 					   );
 
@@ -1481,11 +1510,14 @@ function setup_network_tab(){
 			  "<td colspan='2'>FlowMod Processing Delay (ms)</td>" +
                           "<td><input type='text' id='active_tx_delay_ms' size='10'></td>" +
                           "</tr>" +
-			  "</table>"
-			  );
+			  "</table>" +
+			  "<div id='node_interface_table' style='margin-top:8px;'> </div>"
+                     );
 
 	    panel.setFooter("<div id='save_active_node'></div>" + 
 			    "<div id='delete_active_node'></div>");
+        
+        
 
 	    panel.hideEvent.subscribe(function(){
 		    map.clearAllSelected();
@@ -1493,6 +1525,10 @@ function setup_network_tab(){
 
 	    panel.render(YAHOO.util.Dom.get("active_element_details"));
 
+        var table = new YAHOO.widget.ScrollingDataTable("node_interface_table", cols, ds, configs);
+			    
+		table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
+		table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
 	    YAHOO.util.Dom.get('active_node_name').value        = node;
 	    YAHOO.util.Dom.get('active_node_lat').value         = lat;
 	    YAHOO.util.Dom.get('active_node_lon').value         = lon; 
