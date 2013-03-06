@@ -7,14 +7,14 @@
   <table class="circuit_summary_table">
 
     <tr>
-      <td colspan="2" style="padding-bottom: 8px;">
+      <td colspan="2" style="padding-bottom: 8px;padding-right:20px;">
         <label for="summary_description" id="summary_description_label">Description</label>
         <div id="summary_description" width="200px"></div>
       </td>
 
-      <td rowspan="4" style="padding-left: 20px; vertical-align: top;">
-	<label for="circuit_endpoints_table" id="circuit_endpoints_table_label">Endpoints</label>
-        <div id="circuit_endpoints_table"></div>
+      <td rowspan="4" style="vertical-align: top;">
+	    <label for="circuit_endpoints_table" id="circuit_endpoints_table_label">Endpoints</label>
+        <div id="circuit_endpoints_table" style="overflow-x:visible"></div>
       </td>    
 
       [% IF show_times %]

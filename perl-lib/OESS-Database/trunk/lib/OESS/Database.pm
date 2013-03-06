@@ -2326,8 +2326,7 @@ The internal MySQL primary key int identifier for this circuit.
 =cut
 
 sub get_circuit_details {
-    my $self = shift;
-    my %args = @_;
+    my $self = shift;    my %args = @_;
 
     my $circuit_id = $args{'circuit_id'};
 
@@ -2503,7 +2502,7 @@ sub get_circuit_endpoints {
     #because the same interface might be involved we have to break it up into 2 queries
 
     #$query = "select interface.name as int_name, node.name as node_name, interface.interface_id, node.node_id as node_id, interface.port_number, network.is_local, interface.role, urn.urn from interface,node, network,urn where node.node_id = interface.node_id and interface.interface_id = ? and network.network_id = node.network_id and urn.interface_id = interface.interface_id";
-    $query = "select interface.name as int_name,interface.description as int_descr, node.name as node_name, interface.interface_id, node.node_id as node_id, interface.port_number, interface.role, network.is_local, urn.urn from interface left join interface_instantiation on interface.interface_id = interface_instantiation.interface_id and interface_instantiation.end_epoch = -1 join node on interface.node_id = node.node_id left join node_instantiation on node_instantiation.node_id = node.node_id and node_instantiation.end_epoch = -1 left join urn on urn.interface_id = interface.interface_id join network on node.network_id = network.network_id where interface.interface_id = ?";
+    $query = "select interface.name as int_name,interface.description as interface_description, node.name as node_name, interface.interface_id, node.node_id as node_id, interface.port_number, interface.role, network.is_local, urn.urn from interface left join interface_instantiation on interface.interface_id = interface_instantiation.interface_id and interface_instantiation.end_epoch = -1 join node on interface.node_id = node.node_id left join node_instantiation on node_instantiation.node_id = node.node_id and node_instantiation.end_epoch = -1 left join urn on urn.interface_id = interface.interface_id join network on node.network_id = network.network_id where interface.interface_id = ?";
 
     #"join node on node.node_id = interface.node_id node" network, urn where interface.interface_id = ? and node.node_id = interface.node_id and node.network_id = network.network_id and interface.interface_id = urn.interface_id";
     
@@ -2524,7 +2523,7 @@ sub get_circuit_endpoints {
 			  'port_no'   => $endpoint->{'port_number'},
 			  'local'     => $endpoint->{'is_local'},
 			  'role'      => $endpoint->{'role'},
-			  'description' => $endpoint->{'description'},
+			  'interface_description' => $endpoint->{'interface_description'},
 			  'urn'       => $endpoint->{'urn'}
 	                 }
 	    );

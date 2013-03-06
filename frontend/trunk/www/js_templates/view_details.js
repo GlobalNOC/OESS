@@ -59,7 +59,7 @@ function save_session_from_datasource(details){
 
     for (var i = 0; i < details.endpoints.length; i++){
 	var endpoint = details.endpoints[i];
-
+        
 	var endpoint_data = {node: endpoint.node,
 			     interface: endpoint.interface,
                  interface_description: endpoint.interface_description,

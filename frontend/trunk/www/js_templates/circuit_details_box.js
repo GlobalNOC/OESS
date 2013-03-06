@@ -53,35 +53,37 @@ function summary_init(remove_only){
   var ds = new YAHOO.util.DataSource([]);
   ds.responseType = YAHOO.util.DataSource.TYPE_JSARRAY;
 
-  [% total_width = 550 %]
+  [% total_width = 495 %]
 
   
 
   [% IF delete %]
 
     [% interface_width = 195 %]
-
+    [% total_width = 563 %]
   [% END %]
 
   var cols = [
-      {key: "interface", label: "Interface", formatter: function(el, rec, col, data){
-          el.innerHTML = rec.getData('node') + ' - ' + rec.getData('interface');
-      }
+      {key: "interface", width: 250, label: "Interface", formatter: 
+       function(el, rec, col, data){
+           el.innerHTML = rec.getData('node') + ' - ' + rec.getData('interface');
+       }
      
       },
-      {key:"description", label: "Interface Description" , formatter: function(el,rec,col,data){
-          el.innerHTML = rec.getData('interface_description');
-          //console.log(data);
-          console.log(rec);
-      }
-  },
-    {key: "tag", label: "VLAN", formatter: function(el, rec, col, data){
-	    if (data == -1){
-		    el.innerHTML = "<span style='font-size: 74%;'>Untagged</span>";
-	    }
-	    else {
-		    el.innerHTML = data;
-	    }
+      {key:"description", width: 150, label: "Interface Description" , formatter: 
+       function(el,rec,col,data){
+           el.innerHTML = rec.getData('interface_description');
+           //console.log(data);
+           console.log(rec);
+       }
+      },
+      {key: "tag", width: 30, label: "VLAN", formatter: function(el, rec, col, data){
+	      if (data == -1){
+		      el.innerHTML = "<span style='font-size: 74%;'>Untagged</span>";
+	      }
+	      else {
+		      el.innerHTML = data;
+	      }
 	}
     }    
 
@@ -116,8 +118,17 @@ function summary_init(remove_only){
       width: '[% total_width %]px'
   };
   
-  var endpoint_table = new YAHOO.widget.ScrollingDataTable("circuit_endpoints_table", cols, ds, configs);
  
+
+  var endpoint_table = new YAHOO.widget.ScrollingDataTable("circuit_endpoints_table", cols, ds, configs);
+  /* endpoint_table.on('initEvent', function(){
+        console.log("checking size");
+        
+        var table_div = YAHOO.util.Element("circuit_endpoints_table");
+        
+                }
+    });*/
+
   var endpoints = session.data.endpoints || [];
     console.log(endpoints);
   for (var i = 0; i < endpoints.length; i++){
