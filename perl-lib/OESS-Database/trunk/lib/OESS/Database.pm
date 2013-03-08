@@ -1315,27 +1315,27 @@ sub get_workgroups {
     my $self = shift;
 
     my %args = ( 'user_id' => undef,
-				 @_,
-				);
-
-	my @dbargs = ();
+		 @_,
+	);
+    
+    my @dbargs = ();
     my $workgroups;
-	my $sql="select w.workgroup_id, w.name,w.type, w.external_id from workgroup w ";
-
-	if(defined $args{'user_id'}){
-		$sql .= "join user_workgroup_membership m on w.workgroup_id = m.workgroup_id ".
-		       "join user u on m.user_id = u.user_id and u.user_id = ?";
-		
-		push(@dbargs, $args{'user_id'});
-	}
-	$sql .= " order by w.name";
-	    my $results = $self->_execute_query($sql,\@dbargs);
-
+    my $sql="select w.workgroup_id, w.name,w.type, w.external_id from workgroup w ";
+    
+    if(defined $args{'user_id'}){
+	$sql .= "join user_workgroup_membership m on w.workgroup_id = m.workgroup_id ".
+	    "join user u on m.user_id = u.user_id and u.user_id = ?";
+	
+	push(@dbargs, $args{'user_id'});
+    }
+    $sql .= " order by w.name";
+    my $results = $self->_execute_query($sql,\@dbargs);
+    
     if (! defined $results){
 	$self->_set_error("Internal error while fetching workgroups");
 	return undef;
     }
-
+    
     foreach my $workgroup (@$results){
 	push (@$workgroups, {workgroup_id => $workgroup->{'workgroup_id'},
 			     name         => $workgroup->{'name'},
@@ -1343,7 +1343,7 @@ sub get_workgroups {
 			     type         => $workgroup->{'type'}
 	      });
     }
-
+    
     return $workgroups;
 }
 
@@ -5566,8 +5566,8 @@ sub _execute_query {
 
     my $sth = $dbh->prepare($query);
 
-    warn "Query is: $query\n";
-    warn "Args are: " . Dumper($args);
+    #warn "Query is: $query\n";
+    #warn "Args are: " . Dumper($args);
 
     if (! $sth){
 	warn "Error in prepare query: $DBI::errstr";
