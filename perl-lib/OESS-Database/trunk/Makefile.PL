@@ -1,24 +1,35 @@
-  use inc::Module::Install;
-  
-  # Define metadata
- name           'OESS-Database';
- all_from       'lib/OESS/Database.pm';
- license	'apache';
- author		'syseng@grnoc.iu.edu';
-  #      
- requires       DBI;
- requires	XML::Simple; 
-#requires	DBD::MySQL;
- requires       File::ShareDir; 
- requires  Array::Utils; 
- requires	Net::DBus;
-  #         # Specific dependencies
-  #           requires       'File::Spec'  => '0.80';
-  #             test_requires  'Test::More'  => '0.42';
-  #               recommends     'Text::CSV_XS'=> '0.50';
-  #                 no_index       'directory'   => 'demos';
-  #                   install_script 'myscript';
-  #                     
- 
-install_share; 
-                        WriteAll;
+use strict;
+use warnings;
+use ExtUtils::MakeMaker;
+
+WriteMakefile(
+    NAME                => 'OESS::Database',
+    AUTHOR              => 'GRNOC Systems Engineering <syseng@grnoc.iu.edu>',
+    VERSION_FROM        => 'lib/OESS/Database.pm',
+    ABSTRACT_FROM       => 'lib/OESS/Database.pm',
+    PL_FILES            => {},
+    PREREQ_PM => {
+	'DBI'=> 0,
+	'XML::Simple'=> 0,
+	'File::ShareDir' => 0,
+	'Array::Utils' => 0,
+	'Net::DBus' => 0
+    },
+    dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
+    clean               => { FILES => 'OESS-Database-*' },
+    );
+
+sub MY::test
+{
+    q(
+TEST_VERBOSE=1
+test : pure_all
+	$(FULLPERL) t/TEST $(TEST_VERBOSE)
+
+test_jenkins : pure_all
+	$(FULLPERL) t/TEST $(TEST_VERBOSE) --formatter=TAP::Formatter::Console
+
+    );
+}
+
+

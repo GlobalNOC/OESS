@@ -229,7 +229,7 @@ sub update_circuit_state{
 
     if (! defined $details){
 	$self->_set_error("Unable to find circuit information for circuit $circuit_id");
-	$self->{'dbh'}->rollback();
+	$self->_rollback();
 	return undef;
     }
 
@@ -252,7 +252,7 @@ sub update_circuit_state{
 
     if (! defined $result){
 	$self->_set_error("Unable to create new circuit instantiation record.");
-	$self->{'dbh'}->rollback();
+	$self->_rollback();
 	return undef;
     }
 
@@ -302,7 +302,7 @@ sub update_circuit_path_state {
 
     if (! defined $result){
 	$self->_set_error("Unable to update path instantiation for circuit $circuit_id");
-	$self->{'dbh'}->rollback();
+	$self->_rollback();
 	return undef;
     }
 
@@ -369,7 +369,7 @@ sub switch_circuit_to_alternate_path {
 
     if (! defined $results || @$results < 1){
 	$self->_set_error("Unable to find path_id for alternate path.");
-	$self->{'dbh'}->rollback();
+	$self->_rollback();
 	return undef;
     }
 
@@ -386,7 +386,7 @@ sub switch_circuit_to_alternate_path {
 
     if (! defined $results || @$results < 1){
 	$self->_set_error("Unable to find path_id for current path.");
-	$self->{'dbh'}->rollback();
+	$self->_rollback();
 	return undef;
     }
 
@@ -401,7 +401,7 @@ sub switch_circuit_to_alternate_path {
 
     if (! $success ){
 	$self->_set_error("Unable to change path_instantiation of current path to inactive.");
-	$self->{'dbh'}->rollback();
+	$self->_rollback();
 	return undef;
     }
 
@@ -413,7 +413,7 @@ sub switch_circuit_to_alternate_path {
 
     if (! defined $new_available){
 	$self->_set_error("Unable to create new available path based on old instantiation.");
-	$self->{'dbh'}->rollback();
+	$self->_rollback();
 	return undef;
     }
 
@@ -424,7 +424,7 @@ sub switch_circuit_to_alternate_path {
 
     if (! defined $success){
 	$self->_set_error("Unable to move internal vlan id mappings over to new path instance.");
-	$self->{'dbh'}->rollback();
+	$self->_rollback();
 	return undef;
     }
 
@@ -438,7 +438,7 @@ sub switch_circuit_to_alternate_path {
 
     if (! $success){
 	$self->_set_error("Unable to change state to active in alternate path.");
-	$self->{'dbh'}->rollback();
+	$self->_rollback();
 	return undef;
     }
 
@@ -1944,6 +1944,8 @@ sub add_user {
     my $email       = $args{'email_address'};
     my $auth_names  = $args{'auth_names'};
 
+    return undef if(!defined($given_name) || !defined($family_name) || !defined($email) || !defined($auth_names));
+
     if ($given_name =~ /^system$/ || $family_name =~ /^system$/){
 	$self->_set_error("Cannot use 'system' as a username.");
 	return undef;
@@ -1957,6 +1959,7 @@ sub add_user {
 
     if (! defined $user_id){
 	$self->_set_error("Unable to create new user.");
+	$self->_rollback();
 	return undef;
     }
 
@@ -5469,6 +5472,12 @@ sub _start_transaction {
     my $dbh = $self->{'dbh'};
 
     $dbh->begin_work();
+}
+
+sub _rollback{
+    my $self = shift;
+    my $dbh = $self->{'dbh'};
+    $dbh->rollback();
 }
 
 =head2 _get_uuid 
