@@ -149,7 +149,7 @@ sub _generate_translation_rule{
         $out_tag_str = "untagged";
     }
  
-    #_log("-- create forwarding rule: dpid:$dpid_str packets going in port:$in_port with tag:$in_tag_str sent out port:$out_port with tag:$out_tag_str\n");
+    warn ("-- create forwarding rule: dpid:$dpid_str packets going in port:$in_port with tag:$in_tag_str sent out port:$out_port with tag:$out_tag_str\n");
 
     # first let's see if we already have a rule that uses these exact same qualifiers (multipoint)
     foreach my $prev_rule (@$prev_rules){
@@ -158,37 +158,55 @@ sub _generate_translation_rule{
 	
     	# same vlan, same port, and same host == same qualifier, time to add to the actions
     	if ($prev_attrs->{'DL_VLAN'}->value()    eq $in_tag 
-	    && $prev_attrs->{'IN_PORT'}->value() eq $in_port 
-	    && $prev_rule->{'dpid'}->value()     eq $dpid
-	    && $prev_rule->{'sw_act'}            eq $sw_act){
+            && $prev_attrs->{'IN_PORT'}->value() eq $in_port 
+            && $prev_rule->{'dpid'}->value()     eq $dpid
+            && $prev_rule->{'sw_act'}            eq $sw_act){
     
+           
     	    my $actions = $prev_rule->{'action'};
+            #warn "In ,_generate_translation_rule found matching rule, adding actions to existing rule?:";
+            
+               
 
-            # if we have already seen this exact rule (intranode path likely), skip
-            if ((
-		($actions->[0][0]->value() == OFPAT_SET_VLAN_VID && $actions->[0][1]->value() == $out_tag)
-		||
-		($actions->[0][0]->value() == OFPAT_STRIP_VLAN && $actions->[0][1]->value() == 0)) &&
-		$actions->[1][0]->value()    == OFPAT_OUTPUT &&
-                $actions->[1][1][1]->value() == $out_port){
-                return;
+                 
+            #walk through actions in set pairs (0,1),(1,2)(2,3)(3,4),(4,5) to detect duplicate actions
+
+            for ( my $i =0; $i <= $#{$actions}; $i++){
+                
+                if ( ($actions->[$i][0]->value() == OFPAT_SET_VLAN_VID && $actions->[$i][1]->value() == $out_tag)
+                     || ($actions->[$i][0]->value() == OFPAT_STRIP_VLAN && $actions->[$i][1]->value() == 0) 
+                          )
+                  
+                  {
+                      #warn "matched first rule";
+                      
+                      if ( $actions->[$i+1][0] && $actions->[$i+1][1][1] 
+                                  && $actions->[$i+1][0]->value() == OFPAT_OUTPUT 
+                           && $actions->[$i+1][1][1]->value() == $out_port)
+                        {
+                            #warn "matched second rule, skipping";
+                            return;
+                        }
+                      
+                  }
             }
 
+
     	    my @new_first_action;
+            
+            $new_first_action[0] = dbus_uint16(OFPAT_SET_VLAN_VID);
+            $new_first_action[1] = dbus_uint16($out_tag);
 
-	    $new_first_action[0] = dbus_uint16(OFPAT_SET_VLAN_VID);
-	    $new_first_action[1] = dbus_uint16($out_tag);
+            push (@$actions, \@new_first_action);
 
-	    push (@$actions, \@new_first_action);
-
-	    my @new_second_action;
+            my @new_second_action;
 
     	    $new_second_action[0]    = dbus_uint16(OFPAT_OUTPUT);
     	    $new_second_action[1][0] = dbus_uint16(0);
     	    $new_second_action[1][1] = dbus_uint16($out_port);
 
     	    push(@$actions, \@new_second_action);
-
+            
     	    return;
     	}
     }
