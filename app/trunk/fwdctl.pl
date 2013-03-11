@@ -170,7 +170,7 @@ sub _generate_translation_rule{
 
                  
             #walk through actions in set pairs (0,1),(1,2)(2,3)(3,4),(4,5) to detect duplicate actions
-
+            #Note we're expecting actions the actions to always be ordered Set VLAN_ID or Strip VLAN, Set Out Port
             for ( my $i =0; $i <= $#{$actions}; $i++){
                 
                 if ( ($actions->[$i][0]->value() == OFPAT_SET_VLAN_VID && $actions->[$i][1]->value() == $out_tag)
