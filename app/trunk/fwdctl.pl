@@ -149,7 +149,7 @@ sub _generate_translation_rule{
         $out_tag_str = "untagged";
     }
  
-    warn ("-- create forwarding rule: dpid:$dpid_str packets going in port:$in_port with tag:$in_tag_str sent out port:$out_port with tag:$out_tag_str\n");
+    #_log("-- create forwarding rule: dpid:$dpid_str packets going in port:$in_port with tag:$in_tag_str sent out port:$out_port with tag:$out_tag_str\n");
 
     # first let's see if we already have a rule that uses these exact same qualifiers (multipoint)
     foreach my $prev_rule (@$prev_rules){
