@@ -85,6 +85,7 @@ function init(){
 				  var rec = this.getRecord(args.target);
 					      
 				  var interface = rec.getData('name');
+            var description = rec.getData('description');
 	
 				  var state = rec.getData('status');
 				  if(state == 'down'){
@@ -152,7 +153,8 @@ function init(){
 							   }
 							   else if (resp.results[0].available == 1){
 							       endpoint_table.addRow({interface: interface,
-								                      node: node,
+								                          interface_description: description,
+                                                          node: node,
 								                      tag: new_tag});
 						
 							       save_session();
