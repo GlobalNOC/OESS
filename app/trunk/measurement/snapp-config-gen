@@ -153,7 +153,7 @@ sub process_node{
 	$query = "update collection set name = replace(name,'" . $row->{'description'} . "','" . $node->{'name'} . "') where host_id = " . $row->{'host_id'};
 	$sth = $snapp_db->prepare($query) or handle_error($snapp_db,$DBI::errstr);
 	$sth->execute() or handle_error($snapp_db,$DBI::errstr);
-	
+	return $host_id;
     }else{
 	return add_host($snapp_db,$node);
     }
