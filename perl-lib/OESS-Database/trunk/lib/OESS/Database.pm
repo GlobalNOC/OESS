@@ -572,7 +572,7 @@ sub get_affected_circuits_by_link_id {
 		"  and path_instantiation.end_epoch = -1 and path_instantiation.path_state = 'active' " .
 		" join link_path_membership on link_path_membership.path_id = path.path_id " . 
 		" join link on link.link_id = link_path_membership.link_id " . 
-		"  where link.link_id = ? ";
+		"  where link.link_id = ? and link_path_membership.end_epoch = -1 ";
 
     my @circuits;
 
