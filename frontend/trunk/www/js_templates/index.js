@@ -39,8 +39,17 @@
             send_user_add_button.set('label','Send Request');
             send_user_add_button.on('click',function(){
                     panel.hide();
-                    panel.destroy();
-		    var ds = new YAHOO.util.DataSource("services/data.cgi?action=send_message");
+		    //                    panel.destroy();
+		    var username = document.getElementById('username').value;
+		    var given_name = document.getElementById('given_name').value;
+		    var family_name = document.getElementById('family_name').value;
+		    var email_address = document.getElementById('email_address').value;
+		    
+		    var subject = "Please Add User to workgroup " + session.data.workgroup_name  + " (ID=" + session.data.workgroup_id + ")";
+		    var body = "Details: <br><table><tr><td>Username:</td><td>" + username + "</td></tr><tr><td>Given Name:</td><td>" + given_name + "</td></tr><tr><td>Family Name:</td><td>" + family_name + "</td></tr><tr><td>Email Address:</td><td>" + email_address + "</td></tr></table>";
+		    subject = encodeURI(subject);
+		    body = encodeURI(body);
+		    var ds = new YAHOO.util.DataSource("services/data.cgi?action=send_email&subject=" + subject + "&body=" + body );
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 		    ds.responseSchema = {
 			resultsList: "results",
@@ -48,6 +57,7 @@
 		    };
 
 		    ds.sendRequest("",{success: function(Req,Res){
+				
 			    },
 				failure: function(Req,Res){
 

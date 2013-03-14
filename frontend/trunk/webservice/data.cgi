@@ -34,10 +34,10 @@ use JSON;
 use Switch;
 use Data::Dumper;
 
+use URI::Escape;
+use MIME::Lite;
 use OESS::Database;
 use OESS::Topology;
-use Email::MIME;
-use Email::Sender::Simple qw(sendmail);
 
 my $db   = new OESS::Database();
 my $topo = new OESS::Topology();
@@ -85,8 +85,8 @@ sub main {
 	case "get_circuit_scheduled_events" {
 	    $output = &get_circuit_scheduled_events();
 	}
-	case "get_circuit_network_events" {
-	    $output = &get_circuit_network_events();
+	case "get_circuit_history" {
+	    $output = &get_circuit_history();
 	}
 	case "is_vlan_tag_available" {
 	    $output = &is_vlan_tag_available();
@@ -110,7 +110,7 @@ sub main {
 	    $output = &get_all_resources();
 	}
 	case "send_email" {
-	    $output = &send_email();
+	    $output = &send_message();
 	}
 	else{
 	    $output->{'error'} = "Error: No Action specified";
@@ -188,12 +188,12 @@ sub get_circuit_scheduled_events {
     return $results;
 }
 
-sub get_circuit_network_events {
+sub get_circuit_history {
     my $results;
 
     my $circuit_id = $cgi->param('circuit_id');
 
-    my $events = $db->get_circuit_network_events(circuit_id => $circuit_id);
+    my $events = $db->get_circuit_history(circuit_id => $circuit_id);
 
     if (! defined $events){
 	$results->{'error'} = $db->get_error();
@@ -437,21 +437,18 @@ sub send_message{
     my $subject = $cgi->param('subject');
     my $body = $cgi->param('body');
 
-    # my $message = Email::MIME->create(
-    #                                   header_str => [
-    #                                                  From => 'oess@' . $db->get_local_domain_name(),
-    #                                                  To => $db->get_admin_email();,
-    #                                                  Subject => $subject,
-    #                                                 ],
-    #                                   attributes => {
-    #                                                  encoding => 'quoted-printable',
-    #                                                  charset => 'ISO-8859-1'
-    #                                                 },
-    #                                   body_str => $body
-    #                                  );
+    my $username = $ENV{'REMOTE_USER'};
+
+    my $message = MIME::Lite->new(
+	From => 'oess@' . $db->get_local_domain_name(),
+	To => $db->get_admin_email(),
+	Subject => $subject,
+	Type => 'text/html',
+	Data => uri_unescape($body) . "<br><br>This was generated on behalf of $username from the OESS Application");
+    $message->send('smtp','localhost');
     
-    # sendmail($message);
-    
+    return {results => [{sucess => 1}]};
+        
 }
 
 

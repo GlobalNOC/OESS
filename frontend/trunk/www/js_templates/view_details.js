@@ -295,7 +295,7 @@ function page_init(){
 
   setupScheduledEvents();
 
-  setupNetworkEvents();
+  setupHistory();
   setupCLR();
   // we can poll the map to show intradomain status updates unless we're interdomain
   if (session.data.interdomain == 0){
@@ -448,9 +448,9 @@ function setupCLR(){
 
 }
 
-function setupNetworkEvents(){
+function setupHistory(){
 
-    var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_circuit_network_events&circuit_id=" + session.data.circuit_id);
+    var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_circuit_history&circuit_id=" + session.data.circuit_id);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
     ds.responseSchema = {
@@ -465,14 +465,15 @@ function setupNetworkEvents(){
 
     var cols = [{key: "fullname", label: "By", width: 121},
 		{key: "activated", label: "Scheduled On", width: 142},
-		{key: "completed", label: "Done On", width: 141}
+		{key: "completed", label: "Done On", width: 141},
+		{key: "event", label: "Event", width: 140}
 		];
 
     var config = {
 	height: "255px"
     };
 
-    var table = new YAHOO.widget.ScrollingDataTable("historical_events_table", cols, ds, config);
+    var table = new YAHOO.widget.ScrollingDataTable("history_table", cols, ds, config);
 
     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
