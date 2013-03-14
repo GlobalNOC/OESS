@@ -2398,7 +2398,7 @@ sub get_circuit_details {
     my %down_links;
 
     foreach my $link (@$links){
-	if($link->{'operational_state'} eq 'down'){
+	if( $link->{'operational_status'} && $link->{'operational_state'} eq 'down'){
 	    $down_links{$link->{'name'}} = $link;
 	}
     }
@@ -2417,7 +2417,7 @@ sub get_circuit_details {
 	
 	foreach my $link (@$path_links){
 	    if(defined($down_links{$link->{'name'}})){
-		$details->{'operational_state'} eq 'down';
+            $details->{'operational_state'} = 'down';
 	    }
 	}
     }
@@ -5217,7 +5217,8 @@ sub edit_circuit {
     my $circuit = $self->get_circuit_by_id(circuit_id => $circuit_id);
     if(!defined($circuit)){
 	$self->_set_error("Unable to find circuit by id $circuit_id");
-	return undef;
+	$self->_rollback();
+    return undef;
     }
 
     if ($provision_time > time()){
@@ -5226,6 +5227,7 @@ sub edit_circuit {
 	my $success = $self->_add_event(\%args);
 
 	if (! defined $success){
+        $self->_rollback();
 	    return undef;
 	}
 
@@ -5236,7 +5238,8 @@ sub edit_circuit {
 
     if (! defined $result){
 	$self->_set_error("Unable to update circuit description.");
-	return undef;
+	$self->_rollback();
+    return undef;
     }
 
     # daldoyle - no need to instantiation on circuit edit, causes conflicts with the scheduler and other tools since
@@ -5287,17 +5290,20 @@ sub edit_circuit {
 
         if (! $interface_id ){
             $self->_set_error("Unable to find interface '$interface' on node '$node'");
+            $self->_rollback();
             return undef;
         }
 
 	if (! $self->_validate_endpoint(interface_id => $interface_id, workgroup_id => $workgroup_id)){
 	    $self->_set_error("Interface \"$interface\" on endpoint \"$node\" is not allowed for this workgroup.");
-	    return undef;
+	    $self->_rollback();
+        return undef;
 	}
 
         # need to check to see if this external vlan is open on this interface first                                                                                                                
         if (! $self->is_external_vlan_available_on_interface(vlan => $vlan, interface_id => $interface_id) ){
             $self->_set_error("Vlan '$vlan' is currently in use by another circuit on interface '$interface' on endpoint '$node'");
+            $self->_rollback();
             return undef;
         }
 
@@ -5305,6 +5311,7 @@ sub edit_circuit {
 	
         if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $vlan])){
             $self->_set_error("Unable to create circuit edge to interface '$interface'");
+            $self->_rollback();
             return undef;
         }
 
@@ -5321,14 +5328,16 @@ sub edit_circuit {
 
 	if (! $interface_id){
 	    $self->_set_error("Unable to find interface associated with URN: $urn");
-	    return undef;
+	    $self->_rollback();
+        return undef;
 	}
 
 	$query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, end_epoch, start_epoch) values (?, ?, ?, -1, unix_timestamp(NOW()))";
 	
 	if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $tag])){
 	    $self->_set_error("Unable to create circuit edge to interface \"$urn\" with tag $tag.");
-	    return undef;
+	    $self->_rollback();
+        return undef;
 	}
 
     }
@@ -5356,7 +5365,8 @@ sub edit_circuit {
 	
 	if (! $path_id){
 	    $self->_set_error("Error while creating path record.");
-	    return undef;
+	    $self->_rollback();
+        return undef;
 	}
 	
 	# instantiate path object
@@ -5372,7 +5382,8 @@ sub edit_circuit {
 
 	if (! defined $path_instantiation_id){
 	    $self->_set_error("Error while instantiating path record.");
-	    return undef;
+	    $self->_rollback();
+        return undef;
 	}
 	
 
@@ -5393,14 +5404,16 @@ sub edit_circuit {
 		
 		if (! defined $internal_vlan){
 		    $self->_set_error("Internal error finding available internal id.");
-		    return undef;
+		    $self->_rollback();
+            return undef;
 		}
 		
 		$query = "insert into path_instantiation_vlan_ids (path_instantiation_id, node_id, internal_vlan_id) values (?, ?, ?)";
 
 		if (! defined $self->_execute_query($query, [$path_instantiation_id, $node_id, $internal_vlan])){
 		    $self->_set_error("Error while creating path instantiation vlan tag.");
-		    return undef;
+		    $self->_rollback();
+            return undef;
 		}
 
 	    }
@@ -5418,6 +5431,7 @@ sub edit_circuit {
 
             if (! $link_id){
                 $self->_set_error("Unable to find link '$link'");
+                $self->_rollback();
                 return undef;
             }
 
@@ -5425,6 +5439,7 @@ sub edit_circuit {
 
             if (! defined $self->_execute_query($query, [$link_id, $path_id])){
                 $self->_set_error("Error adding link '$link' into path.");
+                $self->_rollback();
                 return undef;
             }
 
