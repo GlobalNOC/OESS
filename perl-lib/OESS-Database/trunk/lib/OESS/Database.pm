@@ -4780,13 +4780,13 @@ sub _add_event{
     $tmp->{'tags'}         = $params->{'tags'};
     $tmp->{'version'}      = "1.0";
     $tmp->{'action'}       = "provision";
-
+    
     my $circuit_layout = XMLout($tmp);
     
     my $query = "insert into scheduled_action (user_id,workgroup_id,circuit_id,registration_epoch,activation_epoch,circuit_layout,completion_epoch) VALUES (?,?,?,?,?,?,-1)";
     
     my $result = $self->_execute_query($query,[$params->{'user_id'},
-					       1,
+                                               $params->{'workgroup_id'},
 					       $params->{'circuit_id'},
 					       time(),
 					       $params->{'provision_time'},
@@ -4828,7 +4828,7 @@ sub _add_remove_event {
     my $query = "insert into scheduled_action (user_id,workgroup_id,circuit_id,registration_epoch,activation_epoch,circuit_layout,completion_epoch) VALUES (?,?,?,?,?,?,-1)";
     
     my $result = $self->_execute_query($query,[$params->{'user_id'},
-					       1,
+					       $params->{'workgroup_id'},
 					       $params->{'circuit_id'},
 					       time(),
 					       $params->{'remove_time'},
