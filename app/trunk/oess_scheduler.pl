@@ -27,6 +27,15 @@ sub main{
         return undef;
     }
 
+	 my $log_svc;
+     my $log_client;
+
+    eval {
+        $log_svc    = $bus->get_service("org.nddi.syslogger");
+        $log_client = $log_svc->get_object("/controller1");
+    };
+
+
     my $actions = $oess->get_current_actions();
 
     foreach my $action (@$actions){
@@ -37,7 +46,7 @@ sub main{
 	    my $user = $oess->get_user_by_id( user_id => $action->{'user_id'} )->[0];
 	    my $ckt = $oess->get_circuit_by_id( circuit_id => $action->{'circuit_id'})->[0];
             #edit the circuit to make it active
-	    print STDERR Dumper($ckt);
+	    #print STDERR Dumper($ckt);
 	    my $output = $oess->edit_circuit(circuit_id     => $action->{'circuit_id'},
 					     name           => $circuit_layout->{'name'},
 					     bandwidth      => $circuit_layout->{'bandwidth'},
@@ -100,21 +109,42 @@ sub main{
 		$res = $client->deleteVlan($action->{'circuit_id'});
 	    };
 	    if(!defined($res)){
-		syslog(LOG_ERR,"Res was not defined");
+			syslog(LOG_ERR,"Res was not defined");
 	    }
-	    syslog(LOG_ERR,"Res: '" . $res . "'");
+	    syslog(LOG_DEBUG,"Res: '" . $res . "'");
 	    my $user = $oess->get_user_by_id( user_id => $action->{'user_id'} )->[0];
-	    $res = $oess->remove_circuit( circuit_id => $action->{'circuit_id'}, remove_time => time(), user_name => $user->{'auth_name'});
+	    $res = $oess->remove_circuit( circuit_id => $action->{'circuit_id'}, remove_time => time(), username => $user->{'auth_name'});
+
+		
+
 	    if(!defined($res)){
 		syslog(LOG_ERR,"unable to remove circuit");
 		$oess->_rollback();
 		die;
 	    }else{
-		$res = $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
+		
+			$res = $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
+		
+
 		if(!defined($res)){
 		    syslog(LOG_ERR,"Unable to complete action");
 		    $oess->_rollback();
 		}
+		
+
+			#Delete is complete and successful, send event on DBUS Channel Syslogger listens on.
+            
+            my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
+            
+            $log_client->circuit_decommission({
+                                               circuit_id    => $action->{'circuit_id'},
+                                               workgroup_id  => $action->{'workgroup_id'},
+                                               name          => $circuit_details->{'name'},
+                                               description   => $circuit_details->{'description'},
+                                               circuit_state => $circuit_details->{'circuit_state'}
+                                              });
+            
+
 	    }
 	}
     }
