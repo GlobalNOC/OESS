@@ -149,7 +149,7 @@ sub _generate_translation_rule{
         $out_tag_str = "untagged";
     }
  
-    #_log("-- create forwarding rule: dpid:$dpid_str packets going in port:$in_port with tag:$in_tag_str sent out port:$out_port with tag:$out_tag_str\n");
+    _log("-- create forwarding rule: dpid:$dpid_str packets going in port:$in_port with tag:$in_tag_str sent out port:$out_port with tag:$out_tag_str\n");
 
     # first let's see if we already have a rule that uses these exact same qualifiers (multipoint)
     foreach my $prev_rule (@$prev_rules){
@@ -874,19 +874,31 @@ sub topo_port_status{
 
         my $link_info   = $self->{'db'}->get_link_by_dpid_and_port(dpid => $dpid,
                                                                            port => $port_number);
-	my $link_id   = @$link_info[0]->{'link_id'};
-        my $link_name = @$link_info[0]->{'name'};
-        my $sw_name   = $node->{'name'};
-        my $dpid_str  = sprintf("%x",$dpid);
+
+	my $link_id;
+	my $link_name;
+
+	if(defined(@$link_info[0])){
+	    $link_id   = @$link_info[0]->{'link_id'};
+	    $link_name = @$link_info[0]->{'name'};
+	}
+
+	my $sw_name   = $node->{'name'};
+	my $dpid_str  = sprintf("%x",$dpid);
+
 
 	switch ($reason) {
 	    #add case
 	    case OFPPR_ADD {
-		_log("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name has been added");
+		if(defined($link_id) && defined($link_name)){
+		    _log("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name has been added");
+		}else{
+		    _log("sw:$sw_name dpid:$dpid_str port $port_name");
+		}
 		#get list of rules we currently have
 		$node->{'interface_diff'} = 1;
 		$node->{'port_number'} = $port_number;
-		 $self->{'nodes_needing_diff'}{$dpid} = $node;
+		$self->{'nodes_needing_diff'}{$dpid} = $node;
 
 		#note that this will cause the flow_stats_in handler to handle this data
 		#and it will then call the _do_interface_diff				
