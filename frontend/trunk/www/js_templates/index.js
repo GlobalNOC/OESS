@@ -2,7 +2,7 @@
   
   
   function index_init(){
-    
+    session.clear();
     // set up the new circuit link
     var new_circuit = new YAHOO.util.Element('create_new_vlan');
     new_circuit.on('click', function(){
