@@ -2398,9 +2398,9 @@ sub get_circuit_details {
     my %down_links;
 
     foreach my $link (@$links){
-	if( $link->{'operational_status'} && $link->{'operational_state'} eq 'down'){
-	    $down_links{$link->{'name'}} = $link;
-	}
+        if( $link->{'operational_state'} && $link->{'operational_state'} eq 'down'){
+            $down_links{$link->{'name'}} = $link;
+        }
     }
 
     $details->{'operational_state'} = 'up';
