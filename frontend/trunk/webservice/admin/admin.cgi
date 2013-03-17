@@ -81,8 +81,8 @@ sub main {
             $output = &update_node();
         }
         case "update_interface" {
-                                 $output = &update_interface();
-                                }
+	    $output = &update_interface();
+	}
         case "decom_node" {
             $output = &decom_node();
         }
@@ -704,11 +704,15 @@ sub update_interface {
     my $results;
     my $interface_id= $cgi->param('interface_id');
     my $description= $cgi->param('description');
+    my $vlan_tags = $cgi->param('vlan_tag_range');
 
     my $result = $db->update_interface_description( 'interface_id' => $interface_id,
-                                                  'description' => $description
-                                                  );
-    if ( !defined $result ) {
+						    'description'  => $description );
+    
+    my $result2 = $db->update_interface_vlan_range( 'vlan_tag_range' => $vlan_tags,
+						    'interface_id'   => $interface_id );
+    
+    if ( !defined $result || !defined($result2) ) {
         $results->{'results'} = [
             {
                 "error"   => $db->get_error(),
