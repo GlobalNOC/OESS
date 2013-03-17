@@ -571,8 +571,8 @@ sub get_affected_circuits_by_link_id {
 		" join path_instantiation on path_instantiation.path_id = path.path_id " .
 		"  and path_instantiation.end_epoch = -1 and path_instantiation.path_state = 'active' " .
 		" join link_path_membership on link_path_membership.path_id = path.path_id " . 
-		" join link on link.link_id = link_path_membership.link_id " . 
-		"  where link.link_id = ? and link_path_membership.end_epoch = -1 ";
+		" join link on link.link_id = link_path_membership.link_id and link_path_membership.end_epoch = -1" . 
+		"  where link.link_id = ?";
 
     my @circuits;
 
@@ -619,6 +619,16 @@ sub is_external_vlan_available_on_interface {
     my $vlan_tag     = $args{'vlan'};
     my $interface_id = $args{'interface_id'};
 
+    if(!defined($interface_id)){
+	$self->_set_error("No Interface ID Specified");
+	return undef
+    }
+
+    if(!defined($interface_id)){
+	$self->_set_error("No VLAN Tag specified");
+	return undef
+    }
+
     my $query = "select circuit.name from circuit join circuit_edge_interface_membership " .
 	        " on circuit.circuit_id = circuit_edge_interface_membership.circuit_id " . 		
 		" where circuit_edge_interface_membership.interface_id = ? " . 
@@ -632,6 +642,25 @@ sub is_external_vlan_available_on_interface {
 	return undef;
     }
 
+    $query = "select * from interface where interface.interface_id = ?";
+
+    my $interface = $self->_execute_query( $query, [$interface_id])->[0];
+
+    my $tags = $self->_process_tag_string($interface->{'vlan_tag_range'});
+
+    
+    #first verify tag is in available range
+    my $found = 0;
+    foreach my $tag (@$tags){
+	if($tag == $vlan_tag){
+	    $found = 1;
+	}
+    }
+    if(!$found){
+	return 0;
+    }
+
+    #verify no other circuit is using it
     if (@$result > 0){
 	return 0;
     }
@@ -1097,30 +1126,31 @@ HERE
 	}
     }
 
-	
-		# now grab the foreign networks (no instantiations, is_local = 0)
-		$query = "select network.longitude as network_long, network.latitude as network_lat, network.name as network_name, network.network_id as network_id, " .
-		  " node.longitude as node_long, node.latitude as node_lat, node.name as node_name, node.node_id as node_id " .
-			" from network " .
-			  "  join node on node.network_id = network.network_id " . 
-				" where network.is_local = 0";
-
-		$rows = $self->_execute_query($query, []);
-		my @node_array;
-		foreach my $row (@$rows){
-			push(@node_array,$row->{'node-id'});
-		}
-		 $node_list= join(',',@node_array);
-	if($workgroup_id && $node_list){
-		my $available_endpoint_query = <<HERE;
-select network.name as network_name, node.name, count(interface.port_number) as 'available_endpoint_count' from node 
+    
+    # now grab the foreign networks (no instantiations, is_local = 0)
+    $query = "select network.longitude as network_long, network.latitude as network_lat, network.name as network_name, network.network_id as network_id, " .
+	" node.longitude as node_long, node.latitude as node_lat, node.name as node_name, node.node_id as node_id " .
+	" from network " .
+	"  join node on node.network_id = network.network_id " . 
+	" where network.is_local = 0";
+    
+    $rows = $self->_execute_query($query, []);
+    my @node_array;
+    foreach my $row (@$rows){
+	push(@node_array,$row->{'node-id'});
+    }
+    $node_list= join(',',@node_array);
+    if($workgroup_id && $node_list){
+	my $available_endpoint_query = <<HERE;
+	select network.name as network_name, node.name, count(interface.port_number) as 'available_endpoint_count' from node 
 join network on node.network_id = network.network_id
 left join interface on node.node_id in ( $node_list ) and interface.node_id = node.node_id 
 join workgroup_interface_membership on workgroup_interface_membership.interface_id = interface.interface_id
 where workgroup_interface_membership.workgroup_id= ?
 group by node.name
 HERE
-	    my $results= $self->_execute_query($available_endpoint_query,[$workgroup_id]);
+
+        my $results= $self->_execute_query($available_endpoint_query,[$workgroup_id]);
 	
 	foreach my $row (@$results){
 	    $nodes_endpoints->{$row->{'network_name'} }->{$row->{'name'} } = $row->{'available_endpoint_count'}; 
@@ -2681,6 +2711,30 @@ sub update_interface_operational_state{
     }
 
     return 1;
+}
+
+=head2 update_interface_vlan_range
+
+=cut
+
+sub update_interface_vlan_range{
+    my $self = shift;
+    my %args = @_;
+
+    if(!defined($args{'interface_id'})){
+	$self->_set_error("Interface ID was not specified");
+	return undef;
+    }
+
+    if(!defined($args{'vlan_tag_range'})){
+	$self->_set_error("Vlan Tag Range not specified... defaulting to 1-4095");
+	return undef;
+    }
+
+    $self->_execute_query("update interface set vlan_tag_range = ? where interface.interface_id = ?",[$args{'vlan_tag_range'},$args{'interface_id'}]);
+    
+    return 1;
+    
 }
 
 =head2 update_interface_description
@@ -5069,6 +5123,10 @@ sub add_or_update_interface{
 	$args{'mtu_bytes'} = 9000;
     }
 
+    if(!defined($args{'vlan_tag_range'})){
+	$args{'vlan_tag_range'} = "1-4095";
+    }
+
     my $int_id;
 
     my $int = $self->_execute_query("select * from interface where interface.node_id = ? and interface.name = ?",[$args{'node_id'},$args{'name'}]);
@@ -5706,13 +5764,19 @@ sub get_allowed_vlans {
 	return undef;
     }
 
-    my @tags;
-
     # stored as a string so we can define multiple ranges
     my $string = $results->[0]->{'vlan_tag_range'};
 
+    my $tags = $self->_process_tag_string($string);
+    return $tags;
+}
+
+sub _process_tag_string{
+    my $self = shift;
+    my $string = shift;
+
     my @split = split(/,/, $string);
-    
+    my @tags;
     foreach my $element (@split){
 
 	if ($element =~ /(\d+)-(\d+)/){
@@ -5720,7 +5784,6 @@ sub get_allowed_vlans {
 	    my $end   = $2;
 
 	    if ($start < 1 || $end > 4095){
-		warn "Invalid start = $start and/or end = $end in tag ranges for node id: $node_id\n";
 		next;
 	    }
 
@@ -5732,7 +5795,6 @@ sub get_allowed_vlans {
 	    if ($element =~ /(\d+)/){
 		my $tag_number = $1;
 		if ($tag_number < 1 || $tag_number > 4095){
-		    warn "Invalid tag $tag_number for node id: $node_id\n";
 		    next;
 		}
 		push (@tags, $1);
