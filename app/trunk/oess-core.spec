@@ -11,7 +11,7 @@ BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 BuildRequires:	perl
 Requires:       perl(Net::DBus), dbus, dbus-libs, mysql-server
-Requires:       nox >= 0.9.6
+Requires:       nox >= 0.9.7
 Requires:		xmlsec1-devel
 Requires:		xmlsec1-openssl-devel
 Requires(interp): /bin/sh
