@@ -527,6 +527,7 @@ sub main(){
                            "daemon|d" => \$is_daemon,
                          ); 
     if (0!=$is_daemon){
+	print STDERR "OPENING LOG\n";
          openlog("topo.pl", 'cons,pid', LOG_DAEMON);
          
     }
@@ -541,6 +542,7 @@ sub main(){
     $SIG{'CHLD'} = 'CHLD_handler';
 
     if (0!=$is_daemon){
+	print STDERR "Daemonizing\n";
        my $daemon = Proc::Daemon->new( 
                                 pid_file => '/var/run/oess/topo.pid'
        );
