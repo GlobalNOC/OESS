@@ -1448,7 +1448,8 @@ function setup_network_tab(){
 		    {key: "name"},
 		    {key: "description"},
 		    {key: "vlan_tag_range"},
-		    {key: "interface_id", parser: "number"}
+		    {key: "interface_id", parser: "number"},
+		    {key: "int_role"}
 				 ],
 			metaFields: {
 			    error: "error"
@@ -1469,7 +1470,7 @@ function setup_network_tab(){
 										     callback(true,  newValue );
 										 },
 										     failure: function(o){
-										     console.log("failure");
+
 										     callback(false, oldValue);
 										 },
 										     scope:this
@@ -1480,7 +1481,15 @@ function setup_network_tab(){
 					 }
 				     } ) 
 				},
-				{key: 'vlan_tag_range', label: 'VLAN Tags', width: 220, editor:new YAHOO.widget.TextboxCellEditor({
+				{key: 'vlan_tag_range', label: 'VLAN Tags', width: 220,
+				 formatter: function(elLiner, oRec, oCol, oData){
+					if(oRec.getData('int_role') == 'trunk'){
+					    elLiner.innerHTML = 'TRUNK';
+					}else{
+					    elLiner.innerHTML = oRec.getData('vlan_tag_range');
+					}
+				    },
+				 editor:new YAHOO.widget.TextboxCellEditor({
 					    asyncSubmitter: function( callback, newValue) {
 						var record = this.getRecord();
 						var column = this.getColumn();
@@ -1492,7 +1501,6 @@ function setup_network_tab(){
 											callback(true,  newValue );
 										    },
 											failure: function(o){
-											console.log("failure");
 											callback(false, oldValue);
 										    },
 											scope:this
@@ -1505,7 +1513,6 @@ function setup_network_tab(){
 				
 				];
 		    
-		    console.log(cols);
 		    
 		    
 		    var configs = {
@@ -1586,7 +1593,7 @@ function setup_network_tab(){
 		    if (column.key=='description'){
 			table.onEventShowCellEditor(ev);
 		    }
-		    if(column.key=='vlan_tag_range'){
+		    if(column.key=='vlan_tag_range' && target.firstChild.innerHTML != 'TRUNK'){
 			table.onEventShowCellEditor(ev);
 		    }
 		});

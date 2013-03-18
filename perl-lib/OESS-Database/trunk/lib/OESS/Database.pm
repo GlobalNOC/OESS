@@ -952,7 +952,7 @@ sub get_node_interfaces {
 
     push(@query_args, $node_name);
 
-    my $query = "select interface.vlan_tag_range,interface.port_number,interface.operational_state, interface.name, interface.description, interface.interface_id from interface " .
+    my $query = "select interface.role,interface.vlan_tag_range,interface.port_number,interface.operational_state, interface.name, interface.description, interface.interface_id from interface " .
 	        " join node on node.name = ? and node.node_id = interface.node_id " .
 		" join interface_instantiation on interface_instantiation.end_epoch = -1 and interface_instantiation.interface_id = interface.interface_id ";
 
@@ -978,12 +978,13 @@ sub get_node_interfaces {
     my @results;
 
     foreach my $row (@$rows){
-	push(@results, {"name"         => $row->{'name'},
-			"description"  => $row->{'description'},
-			"interface_id" => $row->{'interface_id'},
-			"port_number" => $row->{'port_number'},
-			"status" => $row->{'operational_state'},
-			"vlan_tag_range" => $row->{'vlan_tag_range'}
+	push(@results, {"name"           => $row->{'name'},
+			"description"    => $row->{'description'},
+			"interface_id"   => $row->{'interface_id'},
+			"port_number"    => $row->{'port_number'},
+			"status"         => $row->{'operational_state'},
+			"vlan_tag_range" => $row->{'vlan_tag_range'},
+			"int_role"       => $row->{'role'}
 	               }
 	    );
     }
