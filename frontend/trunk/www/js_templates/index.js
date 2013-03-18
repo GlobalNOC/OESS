@@ -357,7 +357,7 @@ var ds = new YAHOO.util.DataSource(dsString);
     link_status_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     link_status_ds.responseSchema = {
 	resultsList: "results",
-	fields: ["name","link_id","status"]
+	fields: ["name","link_id","status","operational_state"]
     };
 
     var link_status_columns = [
@@ -398,13 +398,13 @@ var ds = new YAHOO.util.DataSource(dsString);
     circuit_status_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     circuit_status_ds.responseSchema = {
 	resultsList: "results",
-	fields: ["description","name","operational_status","active_path"]
+	fields: ["description","name","operational_state","active_path"]
     };
 
     var circuit_status_cols = [
 			       {key: "description", label: "name", width: 200},
 			       {key: "status", label: "Status", width: 100, formatter: function(elLiner, oRec, oColumn, oData){
-				       if(oRec.getData('operational_status') == 'down'){
+				       if(oRec.getData('operational_state') == 'down'){
 					   elLiner.innerHTML = "<font color='red'>down</font>";
 				       }else{
 					   if(oRec.getData('active_path') == 'primary'){

@@ -2431,7 +2431,8 @@ sub get_circuit_details {
     my %down_links;
 
     foreach my $link (@$links){
-        if( $link->{'operational_state'} && $link->{'operational_state'} eq 'down'){
+	print STDERR Dumper($link);
+        if( $link->{'status'} eq 'down'){
             $down_links{$link->{'name'}} = $link;
         }
     }
@@ -2439,6 +2440,8 @@ sub get_circuit_details {
     $details->{'operational_state'} = 'up';
     my $count_down = keys %down_links;
     if($count_down <= 0){
+	print STDERR "Down links: " . Dumper(%down_links);
+	print STDERR "Count Down: " . $count_down . "\n";
 	#no links are down... so we are up
     }else{
 	my $path_links;
@@ -2447,10 +2450,11 @@ sub get_circuit_details {
 	}else{
 	    $path_links = $details->{'backup_links'};
 	}
-	
+	print STDERR "All Downed Links: " . Dumper(%down_links);
 	foreach my $link (@$path_links){
+	    print STDERR "Link: " . Dumper($link);
 	    if(defined($down_links{$link->{'name'}})){
-            $details->{'operational_state'} = 'down';
+		$details->{'operational_state'} = 'down';
 	    }
 	}
     }
