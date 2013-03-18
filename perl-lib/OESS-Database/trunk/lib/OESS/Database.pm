@@ -83,6 +83,9 @@ use Net::DBus;
 use OESS::Topology;
 use DateTime;
 
+use constant MAX_VLAN_TAG => 4095;
+use constant MIN_VLAN_TAG => 1;
+
 our $ENABLE_DEVEL=0;
 
 =head1 PUBLIC METHODS
@@ -2735,7 +2738,6 @@ sub update_interface_vlan_range{
     }
 
     if(!defined($args{'vlan_tag_range'})){
-	$self->_set_error("Vlan Tag Range not specified... defaulting to 1-4095");
 	return undef;
     }
 
@@ -5139,7 +5141,7 @@ sub add_or_update_interface{
     }
 
     if(!defined($args{'vlan_tag_range'})){
-	$args{'vlan_tag_range'} = "1-4095";
+	$args{'vlan_tag_range'} = LOW_VLAN_TAG . "-" . MAX_VLAN_TAG;
     }
 
     my $int_id;
@@ -5802,7 +5804,7 @@ sub _process_tag_string{
 	    my $start = $1;
 	    my $end   = $2;
 
-	    if ($start < 1 || $end > 4095){
+	    if ($start < LOW_VLAN_TAG || $end > MAX_VLAN_TAG){
 		return undef;
 	    }
 
@@ -5812,7 +5814,7 @@ sub _process_tag_string{
 
 	}elsif ($element =~ /^(\d+)$/){
 	    my $tag_number = $1;
-	    if ($tag_number < 1 || $tag_number > 4095){
+	    if ($tag_number < LOW_VLAN_TAG || $tag_number > MAX_VLAN_TAG){
 		return undef;
 	    }
 	    push (@tags, $1);
