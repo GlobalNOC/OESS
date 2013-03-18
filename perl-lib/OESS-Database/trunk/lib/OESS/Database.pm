@@ -5141,7 +5141,7 @@ sub add_or_update_interface{
     }
 
     if(!defined($args{'vlan_tag_range'})){
-	$args{'vlan_tag_range'} = LOW_VLAN_TAG . "-" . MAX_VLAN_TAG;
+	$args{'vlan_tag_range'} = MIN_VLAN_TAG . "-" . MAX_VLAN_TAG;
     }
 
     my $int_id;
@@ -5804,7 +5804,7 @@ sub _process_tag_string{
 	    my $start = $1;
 	    my $end   = $2;
 
-	    if ($start < LOW_VLAN_TAG || $end > MAX_VLAN_TAG){
+	    if ($start < MIN_VLAN_TAG || $end > MAX_VLAN_TAG){
 		return undef;
 	    }
 
@@ -5814,7 +5814,7 @@ sub _process_tag_string{
 
 	}elsif ($element =~ /^(\d+)$/){
 	    my $tag_number = $1;
-	    if ($tag_number < LOW_VLAN_TAG || $tag_number > MAX_VLAN_TAG){
+	    if ($tag_number < MIN_VLAN_TAG || $tag_number > MAX_VLAN_TAG){
 		return undef;
 	    }
 	    push (@tags, $1);
