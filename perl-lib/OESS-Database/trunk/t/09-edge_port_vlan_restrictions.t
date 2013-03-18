@@ -68,6 +68,6 @@ $res = $db->update_interface_vlan_range( interface_id => $interfaces->[1]->{'int
 
 ok($res == 0, "Says it was not successfull updating the range to non-integer format");
 
-$interface = $db->get_interface( interface_id => $interfaces->[1]->{'interface'});
+$interface = $db->get_interface( interface_id => $interfaces->[1]->{'interface_id'});
 
 ok($interface->{'vlan_tag_range'} ne 'foo-200', "Vlan range was not updated");

@@ -2739,6 +2739,13 @@ sub update_interface_vlan_range{
 	return undef;
     }
 
+    my $parse_results = $self->_process_tag_string( $args{'vlan_tag_range'} );
+
+    if(!defined($parse_results)){
+	print STDERR "Args: " . $args{'vlan_tag_range'} . " not a valid Vlan tag string\n";
+	return 0;
+    }
+
     $self->_execute_query("update interface set vlan_tag_range = ? where interface.interface_id = ?",[$args{'vlan_tag_range'},$args{'interface_id'}]);
     
     return 1;
@@ -5783,30 +5790,37 @@ sub _process_tag_string{
     my $self = shift;
     my $string = shift;
 
+    if(!defined($string)){
+	return undef;
+    }
     my @split = split(/,/, $string);
     my @tags;
-    foreach my $element (@split){
 
-	if ($element =~ /(\d+)-(\d+)/){
+    foreach my $element (@split){
+	if ($element =~ /^(\d+)-(\d+)$/){
+
 	    my $start = $1;
 	    my $end   = $2;
 
 	    if ($start < 1 || $end > 4095){
-		next;
+		return undef;
 	    }
 
 	    foreach my $tag_number ($start .. $end){
 		push(@tags, $tag_number);
 	    }
-	}
-	else {
-	    if ($element =~ /(\d+)/){
-		my $tag_number = $1;
-		if ($tag_number < 1 || $tag_number > 4095){
-		    next;
-		}
-		push (@tags, $1);
+
+	}elsif ($element =~ /^(\d+)$/){
+	    my $tag_number = $1;
+	    if ($tag_number < 1 || $tag_number > 4095){
+		return undef;
 	    }
+	    push (@tags, $1);
+	
+	}else{
+
+	    return undef;
+	
 	}
 
     }
