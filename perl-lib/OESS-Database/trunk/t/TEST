@@ -14,15 +14,22 @@ if (@ARGV && $ARGV[0] =~ /^--formatter=/) {
 unshift(@INC, "blib/lib", "blib/arch");
 
 my @tests;
-if (@ARGV) {
-    for (@ARGV) {
-        if (-d $_) {
-            push(@tests, <$_/*.t>);
-        }
-        else {
-            $_ .= ".t" unless /\.t$/;
-            push(@tests, $_);
-        }
+if (defined $ENV{'TEST_FILES'}){
+    my @test_files = $ENV{'TEST_FILES'};
+    for (@test_files) {
+	if (-d $_) {
+	    push(@tests, <$_/*.t>);
+	}
+	else {
+	    if (/\*/){
+		my @files = glob($_);
+		push(@tests, @files);
+	    }
+	    else {
+		$_ .= ".t" unless /\.t$/;
+		push(@tests, $_);
+	    }
+	}
     }
 }
 else {
