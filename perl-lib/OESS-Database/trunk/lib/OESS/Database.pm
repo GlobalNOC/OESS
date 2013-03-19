@@ -75,7 +75,6 @@ package OESS::Database;
 
 use DBI;
 use XML::Simple;
-use File::ShareDir;
 use Data::Dumper qw(Dumper);
 use Array::Utils qw(intersect);
 use XML::Writer;
@@ -83,8 +82,10 @@ use Net::DBus;
 use OESS::Topology;
 use DateTime;
 
+use constant VERSION => '1.0.7';
 use constant MAX_VLAN_TAG => 4095;
 use constant MIN_VLAN_TAG => 1;
+use constant SHARE_DIR => "/usr/share/doc/perl-OESS-Database-" . VERSION . "/";
 
 our $ENABLE_DEVEL=0;
 
@@ -3674,13 +3675,7 @@ A debug method to show what schema file the tests (and presumably the real datab
 sub print_db_schema_file{
     my $self = shift;
 
-    my $module_dir=File::ShareDir::dist_dir('OESS-Database');
-    
-    warn "module_dir=$module_dir\n";
-    
-    my $file_path=File::ShareDir::dist_file('OESS-Database','nddi.sql');
-    
-    warn "file_path=$file_path\n";
+    warn "file_path=" . SHARE_DIR . "/share/nddi.sql";
 } 
 
 =head2 reset_database
@@ -3709,8 +3704,8 @@ sub reset_database{
     my $password = $xml->{'credentials'}->{'password'};
     my $database = $xml->{'credentials'}->{'database'};
 
-    my $import_filename = File::ShareDir::dist_file('OESS-Database','nddi.sql');
-
+    #my $import_filename = File::ShareDir::dist_file('OESS-Database','nddi.sql');
+    my $import_filename = SHARE_DIR . "/share/nddi.sql";
     warn "reset the database to $import_filename\n";
     $dbh->do("drop database $database");
     $dbh->do("create database $database");

@@ -13,6 +13,7 @@ Makefile.PL
 MANIFEST
 META.yml
 normal
+OESS-Database.spec
 README
 share/dummy_populate.pl
 share/nddi.sql

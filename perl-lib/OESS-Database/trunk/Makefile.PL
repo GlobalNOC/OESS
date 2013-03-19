@@ -2,6 +2,11 @@ use strict;
 use warnings;
 use ExtUtils::MakeMaker;
 
+sub MY::postamble { << 'END';}
+rpm:    dist
+	rpmbuild -ta OESS-Database-$(VERSION).tar.gz
+END
+
 WriteMakefile(
     NAME                => 'OESS::Database',
     AUTHOR              => 'GRNOC Systems Engineering <syseng@grnoc.iu.edu>',
@@ -11,7 +16,6 @@ WriteMakefile(
     PREREQ_PM => {
 	'DBI'=> 0,
 	'XML::Simple'=> 0,
-	'File::ShareDir' => 0,
 	'Array::Utils' => 0,
 	'Net::DBus' => 0
     },
