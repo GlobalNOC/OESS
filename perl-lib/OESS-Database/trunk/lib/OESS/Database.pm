@@ -83,9 +83,10 @@ use OESS::Topology;
 use DateTime;
 
 use constant VERSION => '1.0.7';
-use constant MAX_VLAN_TAG => 4095;
+use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant SHARE_DIR => "/usr/share/doc/perl-OESS-Database-" . VERSION . "/";
+use constant UNTAGGED => -1;
 
 our $ENABLE_DEVEL=0;
 
@@ -628,7 +629,7 @@ sub is_external_vlan_available_on_interface {
 	return undef
     }
 
-    if(!defined($interface_id)){
+    if(!defined($vlan_tag)){
 	$self->_set_error("No VLAN Tag specified");
 	return undef
     }
@@ -660,12 +661,14 @@ sub is_external_vlan_available_on_interface {
 	    $found = 1;
 	}
     }
+
     if(!$found){
 	return 0;
     }
 
     #verify no other circuit is using it
     if (@$result > 0){
+	print STDERR "In Use on another circuit\n";
 	return 0;
     }
 
@@ -5790,6 +5793,7 @@ sub _process_tag_string{
     if(!defined($string)){
 	return undef;
     }
+
     my @split = split(/,/, $string);
     my @tags;
 
@@ -5799,7 +5803,7 @@ sub _process_tag_string{
 	    my $start = $1;
 	    my $end   = $2;
 
-	    if ($start < MIN_VLAN_TAG || $end > MAX_VLAN_TAG){
+	    if (($start < MIN_VLAN_TAG && $start != UNTAGGED)|| $end > MAX_VLAN_TAG){
 		return undef;
 	    }
 
@@ -5807,9 +5811,9 @@ sub _process_tag_string{
 		push(@tags, $tag_number);
 	    }
 
-	}elsif ($element =~ /^(\d+)$/){
+	}elsif ($element =~ /^(\-?\d+)$/){
 	    my $tag_number = $1;
-	    if ($tag_number < MIN_VLAN_TAG || $tag_number > MAX_VLAN_TAG){
+	    if (($tag_number < MIN_VLAN_TAG && $tag_number != UNTAGGED) || $tag_number > MAX_VLAN_TAG){
 		return undef;
 	    }
 	    push (@tags, $1);

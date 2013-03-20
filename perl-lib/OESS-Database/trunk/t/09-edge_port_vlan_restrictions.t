@@ -14,7 +14,7 @@ BEGIN {
 use lib "$path";
 use OESSDatabaseTester;
 
-use Test::More tests => 10;
+use Test::More tests => 13;
 use Test::Deep;
 use OESS::Database;
 use OESSDatabaseTester;
@@ -71,3 +71,15 @@ ok($res == 0, "Says it was not successfull updating the range to non-integer for
 $interface = $db->get_interface( interface_id => $interfaces->[1]->{'interface_id'});
 
 ok($interface->{'vlan_tag_range'} ne 'foo-200', "Vlan range was not updated");
+
+$res = $db->update_interface_vlan_range( interface_id => $interfaces->[1]->{'interface_id'}, vlan_tag_range => '-1,1-4095');
+
+ok($res == 1, "Says update was successful");
+
+$interface = $db->get_interface( interface_id => $interfaces->[1]->{'interface_id'});
+
+ok($interface->{'vlan_tag_range'} eq '-1,1-4095', "Vlan range was updated to include untagged");
+
+$is_external_vlan_avail = $db->is_external_vlan_available_on_interface( vlan => -1, interface_id => $interfaces->[1]->{'interface_id'} );
+
+ok($is_external_vlan_avail == 1, "Untagged interface supported");
