@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+x#!/usr/bin/perl
 
 eval 'exec /usr/bin/perl  -S $0 ${1+"$@"}'
     if 0; # not running under some shell
@@ -87,7 +87,7 @@ use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant SHARE_DIR => "/usr/share/doc/perl-OESS-Database-" . VERSION . "/";
 use constant UNTAGGED => -1;
-
+use constant OSCARS_WG => 'OSCARS IDC';
 our $ENABLE_DEVEL=0;
 
 =head1 PUBLIC METHODS
@@ -6036,7 +6036,7 @@ Generates an XML representation of the OESS database designed to be compliant OS
 sub gen_topo{   
     my $self   = shift;
 
-    my $workgroup = $self->get_workgroup_details_by_name( name => 'OSCARS IDC');
+    my $workgroup = $self->get_workgroup_details_by_name( name => OSCARS_WG );
     my $domain = $self->get_local_domain_name();
 	
     my $xml = "";
