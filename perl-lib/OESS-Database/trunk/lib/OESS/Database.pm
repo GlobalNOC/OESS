@@ -6036,7 +6036,7 @@ Generates an XML representation of the OESS database designed to be compliant OS
 sub gen_topo{   
     my $self   = shift;
 
-    my $workgroup = $self->get_workgroup_details_by_name( name => 'OSCARS');
+    my $workgroup = $self->get_workgroup_details_by_name( name => 'OSCARS IDC');
     my $domain = $self->get_local_domain_name();
 	
     my $xml = "";
