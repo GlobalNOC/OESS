@@ -419,7 +419,7 @@ sub _initialize{
     foreach my $node (keys (%{$nodes})){
         my $dpid         = $nodes->{$node};
         $self->{'nodes_needing_init'}{$dpid} = $node; 
-
+	$node{$dpid} = 0;
         $self->datapath_join_handler($dpid);
     }
 }
