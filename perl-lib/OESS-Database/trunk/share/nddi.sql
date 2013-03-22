@@ -92,7 +92,7 @@ CREATE TABLE `interface` (
   `operational_state` enum('unknown','up','down') NOT NULL DEFAULT 'unknown',
   `role` enum('unknown','trunk','customer') NOT NULL DEFAULT 'unknown',
   `node_id` int(10) NOT NULL,
-  `vlan_tag_range` varchar(255) DEFAULT '1-4095',
+  `vlan_tag_range` varchar(255) DEFAULT '-1,1-4095',
   PRIMARY KEY (`interface_id`),
   UNIQUE KEY `node_id_name_idx` (`node_id`,`name`),
   UNIQUE KEY `node_port_idx` (`node_id`,`port_number`),

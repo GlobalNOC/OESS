@@ -58,7 +58,7 @@ sub upgrade{
     ####################################
    
     #add the schema bits to support edge port vlan range ISSUE=5648
-    my $str = "alter table interface add column vlan_tag_range varchar(255) default '1-4095'";
+    my $str = "alter table interface add column vlan_tag_range varchar(255) default '-1,1-4095'";
     my $sth = $dbh->prepare($str);
     $sth->execute();
 
