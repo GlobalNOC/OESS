@@ -2645,6 +2645,27 @@ sub get_circuit_links {
     return $results;
 }
 
+=head2 get_interface_speed
+
+=cut
+
+sub get_interface_speed{
+    my $self = shift;
+    my %args = @_;
+    
+    my $interface_id = $args{'interface_id'};
+    
+    my $query = "select * from interface_instantiation where end_epoch = -1 and interface_id = ?";
+
+    my $results = $self->_execute_query($query, [$interface_id]);
+    if (! defined $results){
+        $self->_set_error("Internal error getting interface information.");
+        return undef;
+    }
+
+    return @$results[0]->{'capacity_mbps'};
+}
+
 =head2 get_interface
 
 Returns a hash with information about an interface identified by $interface_id
@@ -2665,7 +2686,7 @@ sub get_interface {
 
     my $interface_id = $args{'interface_id'};
 
-    my $query = "select * from interface natural join interface_instantiation where interface_id = ? and end_epoch = -1";
+    my $query = "select * from interface where interface_id = ?";
     
     my $results = $self->_execute_query($query, [$interface_id]);
 
@@ -6073,7 +6094,8 @@ sub gen_topo{
 	    my $int = $interfaces{$int_name};
 	    if(!defined($int->{'capacity_mbps'})){
 		my $interface = $self->get_interface( interface_id => $int->{'interface_id'} );
-		$int->{'capacity_mbps'} = $interface->{'capacity_mbps'};
+		my $speed = $self->get_interface_speed( interface_id => $int->{'interface_id'});
+		$int->{'capacity_mbps'} = $speed;
 	    }
             $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","port"], id => "urn:ogf:network:domain=" . $domain . ":node=" . $node->{'name'} . ":port=" . $int->{'name'});
 
