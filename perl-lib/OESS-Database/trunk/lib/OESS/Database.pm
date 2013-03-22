@@ -2665,7 +2665,7 @@ sub get_interface {
 
     my $interface_id = $args{'interface_id'};
 
-    my $query = "select * from interface where interface_id = ?";
+    my $query = "select * from interface natural join interface_instantiation where interface_id = ? and end_epoch = -1";
     
     my $results = $self->_execute_query($query, [$interface_id]);
 
@@ -6069,10 +6069,12 @@ sub gen_topo{
 	    $interfaces{$int->{'name'}} = $int;
 	}
 
-	print STDERR Dumper($ints);
-
         foreach my $int_name (keys (%interfaces)){
 	    my $int = $interfaces{$int_name};
+	    if(!defined($int->{'capacity_mbps'})){
+		my $interface = $self->get_interface( interface_id => $int->{'interface_id'} );
+		$int->{'capacity_mbps'} = $interface->{'capacity_mbps'};
+	    }
             $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","port"], id => "urn:ogf:network:domain=" . $domain . ":node=" . $node->{'name'} . ":port=" . $int->{'name'});
 
             $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","capacity"]);
