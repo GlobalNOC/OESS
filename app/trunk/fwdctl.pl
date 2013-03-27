@@ -758,10 +758,14 @@ sub port_status{
 	    
 	}
 	
-	#--- when a port comes back up, do nothing for now, in future it might make sense to 
-	#--- have a config option to return back to the primary on restoration of the path, when
-	#--- the primary is determined to be intact.
-	
+	#--- when a port comes back up determine if any circuits that are currently down
+	#--- can be restored by failing over to this path, we do not restore by default
+	else{
+	    
+
+	}
+
+
 #        _log("port status: $dpid: $reason: ".Dumper($info));
 }
 

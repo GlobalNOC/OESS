@@ -162,9 +162,8 @@ sub datapath_join_to_db{
 	    return undef;
 	}
 
-	if($operational_state eq 'down'){
-	    
-	}
+	#fire the topo_port_status_event
+	_send_topo_port_status($dpid,$reason,$port);
 
     }
 
@@ -259,8 +258,6 @@ sub do_port_modify{
        }
        $dbh->commit();
 
-       _send_topo_port_status($dpid,$reason,$port_info);
-
 }
 
 
@@ -279,7 +276,9 @@ sub db_port_status{
     switch($reason){
 	case OFPPR_ADD 	  {
 	    print_log(LOG_DEBUG, " adding port\n");
-	    do_port_modify(dpid=> $dpid, port_info=>$port_info);	    
+	    do_port_modify(dpid=> $dpid, port_info=>$port_info);
+	    #fire the topo_port_status_event
+	    _send_topo_port_status($dpid,$reason,$info);
 	};
 	case OFPPR_DELETE {
 	    print_log(LOG_DEBUG, "deleting port\n");
@@ -296,7 +295,7 @@ sub db_port_status{
 sub _send_topo_port_status{
     my $dpid = shift;
     my $reason = shift;
-    my $ifno = shift;
+    my $info = shift;
 
     print_log(LOG_ERR, "attempting to send topo port add event");
 
@@ -332,9 +331,6 @@ sub port_status_callback{
 	print_log(LOG_ERR, "port status: $dpid: $reason: ".Dumper($info));
   
         db_port_status(dpid=>$dpid,reason=>$reason,port_info=>$info);
-
-	#fire the topo_port_status_event
-	_send_topo_port_status($dpid,$reason,$info);
 }
 
 
