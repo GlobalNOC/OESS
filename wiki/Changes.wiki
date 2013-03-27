@@ -5,7 +5,7 @@
  * Add data refresh to discovery data tables.
  * OESS usage graph show interface description
  * OE-SS ability to browse list of interfaces and their descriptions
- * Display all DPIDs in HEX
+ * Show DPIDs in HEX in logging
  * Add circuit CLR To UI
  * Add ability to force "re-provision" circuit
  * Dynamic sizing for workgroup selector box (along with the next buttons)
