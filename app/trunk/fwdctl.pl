@@ -903,6 +903,9 @@ sub topo_port_status{
 		#note that this will cause the flow_stats_in handler to handle this data
 		#and it will then call the _do_interface_diff				
 	    };
+	    else {
+		$self->port_status($dpid,$reason,$info);
+	    };
 	}
 	return 1;
 
