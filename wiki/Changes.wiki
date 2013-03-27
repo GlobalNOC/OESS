@@ -1,4 +1,36 @@
 = Changes for OE-SS over time =
+
+== 1.0.7 ==
+
+ * Add data refresh to discovery data tables.
+ * OESS usage graph show interface description
+ * OE-SS ability to browse list of interfaces and their descriptions
+ * Display all DPIDs in HEX
+ * Add circuit CLR To UI
+ * Add ability to force "re-provision" circuit
+ * Dynamic sizing for workgroup selector box (along with the next buttons)
+ * Add ability to search for workgroup or user
+ * Remove internal circuit 'identifier' from UI as it is not useful to users
+ * Properly Display nodes as having no endpoints in circuit provisioning if user does not have access to any endpoints on that node.
+ * OESS UI Refresh: Users Tab, Actions Section
+ * OE-SS Edit circuit (with a backup path) leaves primary path in deploying state
+ * OE-SS allows for link decomisioning even with backup paths on that link
+ * Add OE-SS Network Status Page
+ * Add the available resources tab
+ * Make feedback button mailto configurable
+ * SNAPP config gen for OE-SS bombing with undefined host_id
+ * Add ability for OESS to manage edge port vlan restrictions
+ * Fix bug where fwdctl on device connect does not reset flowmod count to 0
+ * Resolve bug where multi-point circuits in OE-SS have too many actions causing dup packets
+ * Cleanup Internal errors in nox
+ * Resolve bug which results in handling of  OE-SS OSCARS topology submission with duplicate entries
+ * Resolve bug where OE-SS is not counting existing flows against the max-flow-mods during diff
+ * Resolve bug where OE-SS rule diffing breaks vlans with untagged endpoint
+ * Resolve Bug where port down events firing too fast causing "double" fail over
+ * Resolve OESS UI Bug: Network Status / Available Resources page does not clear the Map Session Data
+ * Resolve OESS Bug: Scheduler reporting
+ * Resolved bug where OE-SS topology submission not including edge interfaces
+
 == 1.0.6 ==
 
   * OE-SS links once decomed can be re-approved
