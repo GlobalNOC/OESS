@@ -77,6 +77,7 @@ sub _set_error{
 
         $self->{'error'}{'timestamp'}   = gmtime;
         $self->{'error'}{'message'}     = shift;
+
         if(defined $self->{'dbh'}){
            $self->{'error'}{'dbi_err'}  = $self->{'dbh'}->errstr;
         }else{
@@ -408,6 +409,44 @@ sub find_path{
     return \@selected_links;
     
 }
+
+sub is_path_up{
+    my $self = shift;
+    my %args = @_;
+
+    my $path = $args{'path_id'};
+
+    if(!defined($path)){
+	
+	return ;
+    }
+
+    my $links = $self->{'db'}->get_current_links();
+    
+    my %down_links;
+    my %unknown_links;
+    foreach my $link (@$links){
+        if( $link->{'status'} eq 'down'){
+            $down_links{$link->{'name'}} = $link;
+        }elsif($link->{'status'} eq 'unknown'){
+	    $unknown_links{$link->{'name'}} = $link;
+	}
+    }
+
+    my $path_links = $self->{'db'}->get_path_links( path_id => $path );
+
+    foreach my $link (@$path_links){
+	if($down_links{$link->{'name'}}){
+	    return 0;
+	}elsif($unknown_links{$link->{'name'}}){
+	    return 2;
+	}
+    }
+ 
+
+    return 1;
+}
+
 
 1;
 
