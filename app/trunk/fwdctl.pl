@@ -70,6 +70,11 @@ use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
 
+#link statuses
+use constant OESS_LINK_UP       => 1;
+use constant OESS_LINK_DOWN     => 0;
+use constant OESS_LINK_UNKNOWN  => 2;
+
 $| = 1;
 
 my %node;
@@ -108,6 +113,13 @@ sub new {
     $self->{'nodes_needing_diff'} = {};
     $self->{'db'} = $db;
     
+    my $topo = new OESS::Topology->new( db => $self->{'db'});
+    if(! $topo){
+	_log("Could not initialize topo library");
+	exit(1);
+    }
+
+    $self->{'topo'} = $topo;
 
     dbus_method("addVlan", ["uint32"], ["string"]);
     dbus_method("deleteVlan", ["string"], ["string"]);
@@ -692,81 +704,115 @@ sub _actual_diff{
 =cut
 
 sub port_status{
-	my $self   = shift;
-        my $dpid   = shift;
-        my $reason = shift;
-        my $info   = shift;
-
-	return if($reason != OFPPR_MODIFY);
-
-	my $port_name   = $info->{'name'};
-	my $port_number = $info->{'port_no'};
-	my $link_status = $info->{'link'};
-
-	my $node_details = $self->{'db'}->get_node_by_dpid( dpid => $dpid );
-
+    my $self   = shift;
+    my $dpid   = shift;
+    my $reason = shift;
+    my $info   = shift;
+    
+    return if($reason != OFPPR_MODIFY);
+    
+    my $port_name   = $info->{'name'};
+    my $port_number = $info->{'port_no'};
+    my $link_status = $info->{'link'};
+    
+    my $node_details = $self->{'db'}->get_node_by_dpid( dpid => $dpid );
+    
+    
+    my $link_info   = $self->{'db'}->get_link_by_dpid_and_port(dpid => $dpid, 
+							       port => $port_number);
+    
+    if (! defined $link_info || @$link_info < 1){
+	#--- no link means edge port
+	# _log("Could not find link info for dpid = $dpid and port_no = $port_number");
+	return;
+    }
+    
+    my $link_id   = @$link_info[0]->{'link_id'};
+    my $link_name = @$link_info[0]->{'name'};
+    my $sw_name   = $node_details->{'name'};
+    my $dpid_str  = sprintf("%x",$dpid);
+    
+    #--- when a port goes down, determine the set of ckts that traverse the port
+    #--- for each ckt, fail over to the non-active path, after determining that the path 
+    #--- looks to be intact.
+    if (! $link_status){
+	_log("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name is down");
 	
-	my $link_info   = $self->{'db'}->get_link_by_dpid_and_port(dpid => $dpid, 
-								   port => $port_number);
+	my $affected_circuits = $self->{'db'}->get_affected_circuits_by_link_id(link_id => $link_id);
 	
-	if (! defined $link_info || @$link_info < 1){
-	   #--- no link means edge port
-	   # _log("Could not find link info for dpid = $dpid and port_no = $port_number");
+	if (! defined $affected_circuits){
+	    _log("Error getting affected circuits: " . $self->{'db'}->get_error());
 	    return;
 	}
-    
-	my $link_id   = @$link_info[0]->{'link_id'};
-        my $link_name = @$link_info[0]->{'name'};
-        my $sw_name   = $node_details->{'name'};
-	my $dpid_str  = sprintf("%x",$dpid);
 	
-	#--- when a port goes down, determine the set of ckts that traverse the port
-	#--- for each ckt, fail over to the non-active path, after determining that the path 
-	#--- looks to be intact.
-	if (! $link_status){
-	 _log("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name is down");
+	foreach my $circuit_info (@$affected_circuits){
+	    my $circuit_id   = $circuit_info->{'id'};
+	    my $circuit_name = $circuit_info->{'name'};
 	    
-	    my $affected_circuits = $self->{'db'}->get_affected_circuits_by_link_id(link_id => $link_id);
-	    
-	    if (! defined $affected_circuits){
-		_log("Error getting affected circuits: " . $self->{'db'}->get_error());
-		return;
-	    }
-	    
-	    foreach my $circuit_info (@$affected_circuits){
-		my $circuit_id   = $circuit_info->{'id'};
-		my $circuit_name = $circuit_info->{'name'};
+	    my $alternate_path = $self->{'db'}->circuit_has_alternate_path(circuit_id => $circuit_id);
+	    if(defined($alternate_path)){
+		#determine if alternate path is up
 		
-		if ( $self->{'db'}->circuit_has_alternate_path(circuit_id => $circuit_id ) ){		
+		if( $self->{'topo'}->is_path_up( path_id => $alternate_path ) ){
 		    my $success = $self->{'db'}->switch_circuit_to_alternate_path(circuit_id => $circuit_id);
-                    _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name moving to alternate path");     
+		    _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name moving to alternate path");     
+		    
 		    if (! $success){
-			 _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has NOT been moved to alternate path due to error: ".$self->{'db'}->get_error());
+			_log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $self->{'db'}->get_error());
 			next;
 		    }
 		    
 		    $self->changeVlanPath($circuit_id);
 		    #--- no way to now if this succeeds???
-
+		}else{
+		    _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has a backup path, but it is down as well.  Not failing over");
+		    next;
 		}
-		else {
-		    # this is probably where we would put the dynamic backup calculation
-		    # when we get there.
-		    _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name  has no alternate path and is down");  
-		}
+		
 	    }
-	    
+	    else {
+		
+		# this is probably where we would put the dynamic backup calculation
+		# when we get there.
+		_log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name  has no alternate path and is down");  
+	    }
 	}
 	
-	#--- when a port comes back up determine if any circuits that are currently down
-	#--- can be restored by failing over to this path, we do not restore by default
-	else{
-	    
-
+    }
+    
+    #--- when a port comes back up determine if any circuits that are currently down
+    #--- can be restored by failing over to this path, we do not restore by default
+    else{
+	
+	my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $link_id);
+	
+	foreach my $circuit (@$circuits){
+	    my $paths = $self->{'db'}->get_circuit_paths( circuit_id => $circuit->{'circuit_id'} );
+	    if($#{$paths} > 1){
+		#ok we have 2 paths
+		if($paths->[0]->{'path_status'} eq 'active' && $paths->[0]->{'status'} != OESS_LINK_DOWN){
+		    #ok path is up and is active do nothing
+		}elsif($paths->[0]->{'path_status'} eq 'active' && $paths->[0]->{'status'} == OESS_LINK_DOWN){
+		    #ok the active path is down
+		    #did our other path recover it
+		    if($paths->[1]->{'status'} != OESS_LINK_DOWN){
+			#fail it over!
+			my $success = $self->{'db'}->switch_circuit_to_alternate_path( circuit_id => $circuit->{'circuit_id'});
+			_log("vlan:" . $circuit->{'name'} ." id:" . $circuit->{'circuit_id'} . " affected by trunk:$link_name moving to alternate path");
+			
+			if (! $success){
+			    _log("vlan:" . $circuit->{'name'} . " id:" . $circuit->{'circuit_id'} . " affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $self->{'db'}->get_error());
+			    next;
+			}
+			
+			$self->changeVlanPath($circuit->{'circuit_id'});
+		    }
+		}elsif($paths->[0]->{'status'} == OESS_LINK_DOWN && $paths->[1]->{'status'} == OESS_LINK_DOWN){
+		    _log("vlan:" . $circuit->{'name'} . " id:" . $circuit->{'circuit_id'} . "_id affected by trunk:$link_name all paths currently down, no attempt to restore has been made");
+		}
+	    }
 	}
-
-
-#        _log("port status: $dpid: $reason: ".Dumper($info));
+    }
 }
 
 sub _get_rules_on_port{
@@ -906,10 +952,10 @@ sub topo_port_status{
 
 		#note that this will cause the flow_stats_in handler to handle this data
 		#and it will then call the _do_interface_diff				
-	    };
+	    }
 	    else {
 		$self->port_status($dpid,$reason,$info);
-	    };
+	    }
 	}
 	return 1;
 
@@ -1022,8 +1068,7 @@ sub addVlan {
     my $dpid	   = shift;
 
     _log("addVlan: $circuit_id");
-    my $topo = new OESS::Topology(db => $self->{'db'});
-    my ($paths_are_valid,$reason) = $topo->validate_paths(circuit_id => $circuit_id);
+    my ($paths_are_valid,$reason) = $self->{'topo'}->validate_paths(circuit_id => $circuit_id);
     if(!$paths_are_valid){
 	_log("Invalid VLAN: $reason\n");
 	return "Invalid VLAN: $reason";
@@ -1123,8 +1168,7 @@ sub changeVlanPath {
     my $circuit_id = shift;
 
     print "changeVlanPath: $circuit_id\n";
-    my $topo = new OESS::Topology(db => $self->{'db'});
-    my ($paths_are_valid,$reason) = $topo->validate_paths(circuit_id => $circuit_id);
+    my ($paths_are_valid,$reason) = $self->{'topo'}->validate_paths(circuit_id => $circuit_id);
     if(!$paths_are_valid){
         _log("Invalid VLAN: $reason\n");
         return "Invalid VLAN: $reason";  

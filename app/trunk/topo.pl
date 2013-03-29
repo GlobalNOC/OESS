@@ -37,6 +37,10 @@ use English;
 use Getopt::Long;
 use Proc::Daemon;
 
+use constant OFPPR_ADD => 0;
+use constant OFPPR_DELETE => 1;
+use constant OFPPR_MODIFY => 2;
+
 my $dbus;
 my $dbh;
 my $db;
@@ -153,8 +157,6 @@ sub datapath_join_to_db{
 	    $admin_state = 'down';
 	}
 
-	print STDERR "AdminState: " . $admin_state . "\n";
-
 	my $int_id = $db->add_or_update_interface(node_id => $node_id,name => $port->{'name'}, description => $port->{'name'}, operational_state => $operational_state, port_num => $port->{'port_no'}, admin_state => $admin_state);
 
 	if(!defined($int_id)){
@@ -162,8 +164,26 @@ sub datapath_join_to_db{
 	    return undef;
 	}
 
+	#determine if any links are now down or unknown state
+	my $link = $db->get_link_by_interface_id( interface_id => $int_id );
+	if(defined($link)){
+	    if($operational_state eq 'up'){
+		if($link->{'status'} eq 'up'){
+		    #its up... and has been up...
+		}else{
+		    #wait for the link to be detected and then it will get set to up!
+		    $db->update_link_state( link_id => $link->{'link_id'}, state => 'unknown' );
+		}
+	    }else{
+		$db->update_link_state( link_id => $link->{'link_id'}, state => 'down');
+	    }
+	}else{
+	    #no link on this interface...
+	}
+
+
 	#fire the topo_port_status_event
-	_send_topo_port_status($dpid,$reason,$port);
+	_send_topo_port_status($dpid,OFPPR_ADD,$port);
 
     }
 
@@ -252,6 +272,8 @@ sub do_port_modify{
        #my $res = $db->update_interface_operational_state( operational_state => $operational_state, interface_id => $int->{'interface_id'});
        my $res = $db->add_or_update_interface(node_id => $int->{'node_id'}, name => $port_info->{'name'}, description => $port_info->{'name'}, operational_state => $operational_state, port_num => $port_info->{'port_no'}, admin_state => $admin_state);
 
+       #ok now update the link state as well
+
        if(!defined($res)){
 	   $dbh->rollback();
 	   return;
@@ -260,11 +282,6 @@ sub do_port_modify{
 
 }
 
-
-
-use constant OFPPR_ADD => 0;
-use constant OFPPR_DELETE => 1;
-use constant OFPPR_MODIFY => 2;
 
 sub db_port_status{
     my %args = @_;
@@ -278,7 +295,7 @@ sub db_port_status{
 	    print_log(LOG_DEBUG, " adding port\n");
 	    do_port_modify(dpid=> $dpid, port_info=>$port_info);
 	    #fire the topo_port_status_event
-	    _send_topo_port_status($dpid,$reason,$info);
+	    _send_topo_port_status($dpid,$reason,$port_info);
 	};
 	case OFPPR_DELETE {
 	    print_log(LOG_DEBUG, "deleting port\n");
@@ -431,23 +448,28 @@ sub link_event_to_db{
     my $z_dpid  = $args{'z_dpid'};
     my $z_port  = $args{'z_port'};
     my $status  = $args{'status'};
-    print STDERR "Link Event!! STATUS: " . $status . "\n";
     switch($status){
 	case "add"{
+
 	    print_log(LOG_INFO, "add event\n");
 	    db_link_add(a_dpid=>$a_dpid, a_port=>$a_port, z_dpid=>$z_dpid, z_port=>$z_port);		
+
 	}case "remove"{
+
 	    print_log(LOG_INFO, "down event however we don't do anything with this...\n");
-	    #db_link_remove(a_dpid => $a_dpid, a_port => $a_port, z_dpid => $z_dpid, z_port => $z_port);
 	    my $interface_a = $db->get_interface_by_dpid_and_port( dpid => $a_dpid, port_number => $a_port);
 	    my $interface_z = $db->get_interface_by_dpid_and_port( dpid => $z_dpid, port_number => $z_port);
-	    print STDERR Dumper($interface_a);
-	    print STDERR Dumper($interface_z);
 	    my ($link_id, $link_state) = get_active_link_id_by_connectors( interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'} );
-	    print STDERR "HERE!!\n" . Dumper($link_id);
-	    $db->update_link_state( link_id => $link_id, state => 'down');
+	    if($interface_a->{'state'} eq 'up' && $interface_z->{'state'} eq 'up'){
+		$db->update_link_state( link_id => $link_id, state => 'unknown');
+	    }else{
+		$db->update_link_state( link_id => $link_id, state => 'down');
+	    }
+
 	}else{
+
 	    print_log(LOG_NOTICE, "Do not know how to handle $status link event\n");
+
 	}
     }
 }
