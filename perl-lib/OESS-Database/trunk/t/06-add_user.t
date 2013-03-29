@@ -25,7 +25,6 @@ my $db = OESS::Database->new(config => OESSDatabaseTester::getConfigFilePath());
 my $user = $db->add_user( );
 ok(!defined($user), "no value returned when no workgroup id specified");
 my $error = $db->get_error();
-print STDERR Dumper($error);
 ok(defined($error), "No params were passed and we got an error back");
 
 $user = $db->add_user( given_name => 'foo' );
@@ -47,18 +46,18 @@ ok(!defined($user), "no value returned when family name and given name specified
 $user = $db->add_user( family_name => 'bar',
 		       given_name => 'foo',
 		       email_address => 'foo@bar.com',
-		       auth_name => 'foo');
+		       auth_names => 'foo');
 
-ok(defined($user) && $user->{'user_id'} == 922, "New user created with only 1 auth_name specified");
+ok(defined($user) && $user == 922, "New user created with only 1 auth_name specified");
 
 $user = $db->add_user( family_name => 'bar2',
 		       given_name => 'foo2',
 		       email_address => 'foo2@bar2.com',
-		       auth_name => ['foo2','foo2@bar.com','aasdf3rdf']);
+		       auth_names => ['foo2','foo2@bar.com','aasdf3rdf']);
 
-ok(defined($user) && $user->{'user_id'} == 923, "New user created with multiple auth_name specified");
+ok(defined($user) && $user == 923, "New user created with multiple auth_name specified");
 
-my $user_details = $db->get_user_by_id( user_id => $user->{'user_id'});
+my $user_details = $db->get_user_by_id( user_id => $user);
 
 ok(defined($user_details), "User existing in the DB");
 

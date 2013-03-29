@@ -1364,7 +1364,7 @@ sub get_workgroups {
 	);
     
     my @dbargs = ();
-    my $workgroups;
+    my $workgroups = [];
     my $sql="select w.workgroup_id, w.name,w.type, w.external_id from workgroup w ";
     
     if(defined $args{'user_id'}){
@@ -1376,10 +1376,10 @@ sub get_workgroups {
     $sql .= " order by w.name";
     my $results = $self->_execute_query($sql,\@dbargs);
     
-    if (! defined $results){
-	$self->_set_error("Internal error while fetching workgroups");
-	return undef;
-    }
+#    if (! defined $results){
+#	$self->_set_error("Internal error while fetching workgroups");
+#	return undef;
+#    }
     
     foreach my $workgroup (@$results){
 	push (@$workgroups, {workgroup_id => $workgroup->{'workgroup_id'},
@@ -1851,6 +1851,14 @@ sub is_user_in_workgroup {
     my $workgroup_id = $args{'workgroup_id'};
     my $user_id      = $args{'user_id'};
 
+    if(!defined($workgroup_id)){
+	return;
+    }
+
+    if(!defined($user_id)){
+	return;
+    }
+
     my $result = $self->_execute_query("select 1 from user_workgroup_membership where workgroup_id = ? and user_id = ?",
 	                               [$workgroup_id, $user_id]
 	);
@@ -1886,6 +1894,14 @@ sub add_user_to_workgroup {
 
     my $user_id      = $args{'user_id'};
     my $workgroup_id = $args{'workgroup_id'};
+
+    if(!defined($user_id)){
+	return;
+    }
+
+    if(!defined($workgroup_id)){
+	return;
+    }
 
     if ($self->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
 	$self->_set_error("User is already a member of this workgroup.");
@@ -1989,11 +2005,14 @@ sub add_user {
     my $email       = $args{'email_address'};
     my $auth_names  = $args{'auth_names'};
 
-    return undef if(!defined($given_name) || !defined($family_name) || !defined($email) || !defined($auth_names));
+    if(!defined($given_name) || !defined($family_name) || !defined($email) || !defined($auth_names)){
+	$self->_set_error("Invalid parameters to add user, please provide a given name, family name, email, and auth names");
+	return;
+    }
 
     if ($given_name =~ /^system$/ || $family_name =~ /^system$/){
 	$self->_set_error("Cannot use 'system' as a username.");
-	return undef;
+	return;
     }
 
     $self->_start_transaction();
@@ -2008,10 +2027,15 @@ sub add_user {
 	return undef;
     }
 
-    foreach my $name (@$auth_names){
-	$query = "insert into remote_auth (auth_name, user_id) values (?, ?)";
-
-	$self->_execute_query($query, [$name, $user_id]);
+    if(ref($auth_names) eq 'ARRAY'){
+    
+	foreach my $name (@$auth_names){
+	    $query = "insert into remote_auth (auth_name, user_id) values (?, ?)";
+	    $self->_execute_query($query, [$name, $user_id]);
+	}
+    }else{
+	$query = "insert into remote_auth (auth_name, user_id) values (?,?)";
+	$self->_execute_query($query, [$auth_names, $user_id]);
     }
 
     $self->_commit();

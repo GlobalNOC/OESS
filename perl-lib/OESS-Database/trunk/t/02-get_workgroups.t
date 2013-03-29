@@ -46,7 +46,8 @@ cmp_deeply($workgroups->[0], {
    }, "Workgroup information matches for user_id 11");
 
 $workgroups = $db->get_workgroups( user_id => 1);
+
 ok(defined($workgroups), "returned a value from get_workgroups with a user_id specfified but not a member of any workgroups");
-ok($#{$workgroups} == 0, "No workgroups were returned");
+ok($#{$workgroups} == -1, "No workgroups were returned");
 
 

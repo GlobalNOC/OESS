@@ -14,7 +14,7 @@ BEGIN {
 use lib "$path";
 use OESSDatabaseTester;
 
-use Test::More tests => 5;
+use Test::More tests => 4;
 use Test::Deep;
 use OESS::Database;
 use OESSDatabaseTester;
