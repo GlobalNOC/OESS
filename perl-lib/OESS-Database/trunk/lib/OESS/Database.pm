@@ -528,7 +528,7 @@ sub circuit_has_alternate_path{
 
     my $circuit_id = $args{'circuit_id'};
 
-    my $query  = "select 1 from path " . 
+    my $query  = "select path.path_id from path " . 
 	         " join path_instantiation on path.path_id = path_instantiation.path_id " .
 		 "  and path_instantiation.path_state = 'available' and path_instantiation.end_epoch = -1 " .
 	         " where circuit_id = ?";
@@ -541,10 +541,10 @@ sub circuit_has_alternate_path{
     }
 
     if (@$result > 0){
-	return 1;
+	return $result->[0]->{'path_id'};
     }
 
-    return 0;
+    return;
 }
 
 =head2 get_affected_circuits_by_link_id
@@ -1233,7 +1233,11 @@ sub get_circuits_on_link{
 
     my $link_id = $args{'link_id'};
 
-    my $query = "select * from link_path_membership, path, circuit, circuit_instantiation  where path.path_id = link_path_membership.path_id and link_path_membership.link_id = ? and link_path_membership.end_epoch = -1 and circuit.circuit_id = path.circuit_id and circuit_instantiation.circuit_id = circuit.circuit_id";
+    if(!defined($link_id)){
+	return;
+    }
+
+    my $query = "select link_path_membership.end_epoch as lpm_end, circuit_instantiation.end_epoch as ci_end, circuit.*, circuit_instantiation.*, path.* from link_path_membership, path, circuit, circuit_instantiation  where path.path_id = link_path_membership.path_id and link_path_membership.link_id = ? and link_path_membership.end_epoch = -1 and circuit.circuit_id = path.circuit_id and circuit_instantiation.circuit_id = circuit.circuit_id and link_path_membership.end_epoch = -1 and circuit_instantiation.end_epoch = -1 and circuit_instantiation.circuit_state ='active'";
 
     my $circuits = $self->_execute_query($query,[$link_id]);
 
@@ -2357,6 +2361,33 @@ sub get_circuit_details_by_name {
     return 0;
 }
 
+=head2 get_circuit_paths
+    returns the circuits paths include the links that they ride over and their status
+=cut
+
+sub get_circuit_paths{
+    my $self = shift;
+    my %args = @_;
+
+    my $circuit_id = $args{'circuit_id'};
+
+    if(!defined($circuit_id)){
+	return;
+    }
+
+    my $query = "select * from path natural join path_instantiation where path.circuit_id = ? and path_instantiation.end_epoch = -1";
+
+    my $paths = $self->_execute_query($query, [$circuit_id]);
+    
+    foreach my $path (@$paths){
+	$path->{'status'} = $self->{'topo'}->is_path_up( path_id => $path->{'path_id'} );
+	$path->{'links'} = $self->get_path_links( path_id => $path->{'path_id'});
+    }
+
+
+    return $paths;
+}
+
 =head2 get_circuit_details
 
 Returns a hash of information such as id, name, bandwidth, which path is active, and more about the requested circuit. This information also includes endpoints, links, and backup links.
@@ -2372,7 +2403,8 @@ The internal MySQL primary key int identifier for this circuit.
 =cut
 
 sub get_circuit_details {
-    my $self = shift;    my %args = @_;
+    my $self = shift;
+    my %args = @_;
 
     my $circuit_id = $args{'circuit_id'};
 
@@ -2422,6 +2454,7 @@ sub get_circuit_details {
     $details->{'backup_links'} = $self->get_circuit_links(circuit_id => $circuit_id,
 							  type       => 'backup'
 	                                                 ) || [];
+
     $details->{'workgroup'} = $self->get_workgroup_by_id( workgroup_id => $details->{'workgroup_id'} );
     $details->{'last_modified_by'} = $self->get_user_by_id( user_id => $details->{'user_id'} )->[0];
 
@@ -2435,37 +2468,22 @@ sub get_circuit_details {
 	$details->{'created_on'} = $dt_create->month . "/" . $dt_create->day . "/" . $dt_create->year . " " . $dt_create->hour . ":" . $dt_create->min . ":" . $dt_create->second;
     }
 
-    my $links = $self->get_current_links();
-    my %down_links;
 
-    foreach my $link (@$links){
-	print STDERR Dumper($link);
-        if( $link->{'status'} eq 'down'){
-            $down_links{$link->{'name'}} = $link;
-        }
-    }
-
-    $details->{'operational_state'} = 'up';
-    my $count_down = keys %down_links;
-    if($count_down <= 0){
-	print STDERR "Down links: " . Dumper(%down_links);
-	print STDERR "Count Down: " . $count_down . "\n";
-	#no links are down... so we are up
-    }else{
-	my $path_links;
-	if($details->{'active_path'} eq 'primary'){
-	    $path_links = $details->{'links'};
-	}else{
-	    $path_links = $details->{'backup_links'};
-	}
-	print STDERR "All Downed Links: " . Dumper(%down_links);
-	foreach my $link (@$path_links){
-	    print STDERR "Link: " . Dumper($link);
-	    if(defined($down_links{$link->{'name'}})){
+    my $paths = $self->get_circuit_paths( circuit_id => $circuit_id);
+    foreach my $path (@$paths){
+	if($path->{'state'} eq 'active'){
+	    if($self->{'topo'}->is_path_up( path_id => $path->{'path_id'} )){
+		$details->{'operational_state'} = 'up';
+	    }else{
 		$details->{'operational_state'} = 'down';
 	    }
 	}
     }
+
+    if(!defined($details->{'operational_state'})){
+	$details->{'operational_state'} = 'unknown';
+    }
+
 
     return $details;
 
@@ -2583,6 +2601,28 @@ sub get_circuit_endpoints {
     
 }
 
+=head2 get_path_links
+
+=cut
+
+sub get_path_links{
+    my $self = shift;
+    my %args = @_;
+
+    my $path_id = $args{'path_id'};
+
+    if(!defined($path_id)){
+	return undef;
+    }
+
+    my $query = "select link.link_id, link.name from link_path_membership, link where link.link_id = link_path_membership.link_id and link_path_membership.end_epoch = -1 and link_path_membership.path_id = ? ";
+    
+    my $results = $self->_execute_query($query,[$path_id]);
+
+    return $results;
+    
+}
+
 =head2 get_circuit_links
 
 Returns an array of hashes containing information about the path links for the circuit. If no type is given, it assumes primary path links. 
@@ -2632,7 +2672,7 @@ sub get_circuit_links {
     my $results;
 
     while (my $row = $sth->fetchrow_hashref()){
-	push (@$results, { name        =>  $row->{'name'},
+	push (@$results, { name        => $row->{'name'},
 			   node_a      => $row->{'node_a'},
 			   port_no_a   => $row->{'port_no_a'},
 			   interface_a => $row->{'interface_a'},
@@ -4338,7 +4378,7 @@ sub get_link_by_interface_id{
     
     my $interface_id = $args{'interface_id'};
     
-    my $select_link_by_interface = "select link.name as link_name,link.status, link.link_id,link.remote_urn, link_instantiation.interface_a_id, link_instantiation.interface_z_id from link,link_instantiation where link.link_id = link_instantiation.link_id and (link_instantiation.interface_a_id = ? or link_instantiation.interface_z_id = ?)";
+    my $select_link_by_interface = "select link.name as link_name,link.status, link.link_id,link.remote_urn, link_instantiation.interface_a_id, link_instantiation.interface_z_id, link from link,link_instantiation where link.link_id = link_instantiation.link_id and (link_instantiation.interface_a_id = ? or link_instantiation.interface_z_id = ?)";
     my $select_link_sth = $self->_prepare_query($select_link_by_interface);
     
     $select_link_sth->execute($interface_id,$interface_id);

@@ -131,7 +131,7 @@ CREATE TABLE `link` (
   `link_id` int(10) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
   `remote_urn` varchar(256) DEFAULT NULL,
-  `status` enum('up','down') DEFAULT 'up',
+  `status` enum('up','down','unknown') DEFAULT 'up',
   PRIMARY KEY (`link_id`),
   UNIQUE KEY `links_idx` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
