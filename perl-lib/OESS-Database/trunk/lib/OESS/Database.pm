@@ -1215,8 +1215,8 @@ HERE
 
 sub get_current_links{
     my $self = shift;
-
-    my $query = "select * from link, link_instantiation where link.link_id = link_instantiation.link_id and link_instantiation.end_epoch = -1";
+    #We don't set the end_epoch when a link is available or when it is decom, we only want active links ISSUE 5759
+    my $query = "select * from link, link_instantiation where link.link_id = link_instantiation.link_id and link_instantiation.end_epoch = -1 and link_state = 'active'";
 
     my $res = $self->_execute_query($query,[]);
 
