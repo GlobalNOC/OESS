@@ -394,7 +394,7 @@ var ds = new YAHOO.util.DataSource(dsString);
 
     var switch_table = new YAHOO.widget.ScrollingDataTable("switch_status_table",switch_status_columns, switch_status_ds,{height: '210px'});
 
-    var circuit_status_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_existing_circuits");
+      var circuit_status_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_existing_circuits&workgroup_id="+session.data.workgroup_id);
     circuit_status_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     circuit_status_ds.responseSchema = {
 	resultsList: "results",

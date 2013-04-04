@@ -253,6 +253,16 @@ sub get_existing_circuits {
     my $workgroup_id = $cgi->param('workgroup_id');
     my @endpoint_nodes = $cgi->param('endpoint_node_id');
     my @path_nodes = $cgi->param('path_node_id');
+    
+    if(!$workgroup_id){
+        my $is_admin=$db->get_user_admin_status( 'username'=>$username );
+        unless ($is_admin){
+            $results->{'error'} = "Error: no workgroup_id specified";
+            return $results;
+        }
+
+    }
+    
     my $circuits = $db->get_current_circuits(workgroup_id => $workgroup_id,
 					     endpoint_nodes => \@endpoint_nodes,
 					     path_nodes => \@path_nodes);
