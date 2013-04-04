@@ -1,10 +1,10 @@
-= Changes for OE-SS over time =
+= Changes for OESS over time =
 
 == 1.0.7 ==
 
  * Add data refresh to discovery data tables.
  * OESS usage graph show interface description
- * OE-SS ability to browse list of interfaces and their descriptions
+ * OESS ability to browse list of interfaces and their descriptions
  * Show DPIDs in HEX in logging
  * Add circuit CLR To UI
  * Add ability to force "re-provision" circuit
@@ -13,27 +13,27 @@
  * Remove internal circuit 'identifier' from UI as it is not useful to users
  * Properly Display nodes as having no endpoints in circuit provisioning if user does not have access to any endpoints on that node.
  * OESS UI Refresh: Users Tab, Actions Section
- * OE-SS Edit circuit (with a backup path) leaves primary path in deploying state
- * OE-SS allows for link decomisioning even with backup paths on that link
- * Add OE-SS Network Status Page
+ * OESS Edit circuit (with a backup path) leaves primary path in deploying state
+ * OESS allows for link decomisioning even with backup paths on that link
+ * Add OESS Network Status Page
  * Add the available resources tab
  * Make feedback button mailto configurable
- * SNAPP config gen for OE-SS bombing with undefined host_id
+ * SNAPP config gen for OESS bombing with undefined host_id
  * Add ability for OESS to manage edge port vlan restrictions
  * Fix bug where fwdctl on device connect does not reset flowmod count to 0
- * Resolve bug where multi-point circuits in OE-SS have too many actions causing dup packets
+ * Resolve bug where multi-point circuits in OESS have too many actions causing dup packets
  * Cleanup Internal errors in nox
- * Resolve bug which results in handling of  OE-SS OSCARS topology submission with duplicate entries
- * Resolve bug where OE-SS is not counting existing flows against the max-flow-mods during diff
- * Resolve bug where OE-SS rule diffing breaks vlans with untagged endpoint
+ * Resolve bug which results in handling of  OESS OSCARS topology submission with duplicate entries
+ * Resolve bug where OESS is not counting existing flows against the max-flow-mods during diff
+ * Resolve bug where OESS rule diffing breaks vlans with untagged endpoint
  * Resolve Bug where port down events firing too fast causing "double" fail over
  * Resolve OESS UI Bug: Network Status / Available Resources page does not clear the Map Session Data
  * Resolve OESS Bug: Scheduler reporting
- * Resolved bug where OE-SS topology submission not including edge interfaces
+ * Resolved bug where OESS topology submission not including edge interfaces
 
 == 1.0.6 ==
 
-  * OE-SS links once decomed can be re-approved
+  * OESS links once decomed can be re-approved
   * all interfaces including down interfaces can be approved/provisioned
   * added the ability to insert a node in the middle of a path
   * Added support for per-device rate limiting for sending FlowMods
@@ -44,11 +44,11 @@
 
 == 1.0.5 ==
 
-  * Added the ability to do Hairpin (in and out same interface different vlan) circuits in OE-SS
+  * Added the ability to do Hairpin (in and out same interface different vlan) circuits in OESS
   * Added user sorting in the Admin UI
   * Changed a limit of 10 characters to 255 for usernames
   * Added an Admin Link the UI if a user is an administrator
-  * Admin UI is now protected internally via OE-SS configured policy
+  * Admin UI is now protected internally via OESS configured policy
   * Fixed a bug that prevented some inter-domain circuit from successfully provisioning
 
 == 1.0.4 ==
