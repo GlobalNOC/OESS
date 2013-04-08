@@ -17,7 +17,6 @@ use OESSDatabaseTester;
 use Test::More tests => 4;
 use Test::Deep;
 use OESS::Database;
-use OESSDatabaseTester;
 use Data::Dumper;
 
 my $db = OESS::Database->new(config => OESSDatabaseTester::getConfigFilePath());
