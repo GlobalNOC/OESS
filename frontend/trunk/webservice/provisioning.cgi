@@ -66,7 +66,7 @@ sub main {
         case "fail_over_circuit" {
             $output = &fail_over_circuit();
         }
-		case "reprovision_circuit"{
+          case "reprovision_circuit"{
 								   $output = &reprovision_circuit();
 								  }
         else {
