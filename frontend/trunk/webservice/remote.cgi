@@ -1,31 +1,31 @@
 #!/usr/bin/perl -T
 #
 ##----- NDDI OESS Remote.cgi
-##-----                                                                                  
+##-----
 ##----- $HeadURL: svn+ssh://svn.grnoc.iu.edu/grnoc/oe-ss/frontend/trunk/webservice/remote.cgi $
 ##----- $Id$
 ##----- $Date$
 ##----- $LastChangedBy$
-##-----                                                                                
+##-----
 ##----- Communicates with an IDC to implement a cross domain circuit
 ##
 ##-------------------------------------------------------------------------
 ##
-##                                                                                       
-## Copyright 2011 Trustees of Indiana University                                         
-##                                                                                       
-##   Licensed under the Apache License, Version 2.0 (the "License");                     
-##  you may not use this file except in compliance with the License.                     
-##   You may obtain a copy of the License at                                             
-##                                                                                       
-##       http://www.apache.org/licenses/LICENSE-2.0                                      
-##                                                                                       
-##   Unless required by applicable law or agreed to in writing, software                 
-##   distributed under the License is distributed on an "AS IS" BASIS,                   
-##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.            
-##   See the License for the specific language governing permissions and                 
-##   limitations under the License.                                                      
-#                                                 
+##
+## Copyright 2011 Trustees of Indiana University
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##  you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+#
 use strict;
 use warnings;
 
@@ -48,7 +48,7 @@ use XML::XPath;
 
 my $db   = new OESS::Database();
 my $topo = new OESS::Topology();
-my $oscars = OSCARS::Client->new( 
+my $oscars = OSCARS::Client->new(
     cert => $db->get_oscars_cert(),
     key => $db->get_oscars_key(),
     url => $db->get_oscars_host() . ":9001/OSCARS",
@@ -67,39 +67,39 @@ $| = 1;
 sub main {
 
     if (! $db){
-	send_json({"error" => "Unable to connect to database."});
-	exit(1);
-    }    
+    send_json({"error" => "Unable to connect to database."});
+    exit(1);
+    }
 
     my $action = $cgi->param('action');
 
     my $output;
 
     switch ($action){
-	
-	case "get_networks" {
-	    $output = &get_networks();
-	}
-	case "create_reservation" {
-	    $output = &create_reservation();
-	}
-	case "query_reservation" {
-	    $output = &query_reservation();
-	}
-	case "cancel_reservation"{
-	    $output = &cancel_reservation();
-	}
-	case "modify_reservation" {
-	    $output = &modify_reservation();
-	}
-	else{
-	    $output = {error => "Unknown action - $action"};
-	}
+
+    case "get_networks" {
+        $output = &get_networks();
+    }
+    case "create_reservation" {
+        $output = &create_reservation();
+    }
+    case "query_reservation" {
+        $output = &query_reservation();
+    }
+    case "cancel_reservation"{
+        $output = &cancel_reservation();
+    }
+    case "modify_reservation" {
+        $output = &modify_reservation();
+    }
+    else{
+        $output = {error => "Unknown action - $action"};
+    }
 
     }
-    
+
     send_json($output);
-    
+
 }
 
 sub get_networks {
@@ -107,7 +107,7 @@ sub get_networks {
 
     my $workgroup_id = $cgi->param('workgroup_id');
 
-    # Make a SOAP envelope, use the XML file as the body.                                                                                                                                                                                                           
+    # Make a SOAP envelope, use the XML file as the body.
     my $message = "";
     $message .= "<SOAP-ENV:Envelope xmlns:SOAP-ENC=\"http://schemas.xmlsoap.org/soap/encoding/\"\n";
     $message .= "                   xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\"\n";
@@ -125,7 +125,7 @@ sub get_networks {
     #end body
     $message .= "  </SOAP-ENV:Body>\n";
     $message .= "</SOAP-ENV:Envelope>\n";
-    
+
 
     my $ua = LWP::UserAgent->new ('timeout' => ( 30 * 1000));
     my $messg = HTTP::Request->new('POST',$PS_TS , new HTTP::Headers, $message);
@@ -135,142 +135,142 @@ sub get_networks {
     my $resp = $ua->request($messg);
     my $respContent;
     if($resp->is_success){
-	$respContent = $resp->content();
+    $respContent = $resp->content();
 
-	$XML::XPath::Namespaces = 0;
+    $XML::XPath::Namespaces = 0;
 
-	my $xpath = XML::XPath->new(xml => $respContent);
-	$xpath->set_namespace("SOAP-ENC", "http://schemas.xmlsoap.org/soap/encoding/");
-	$xpath->set_namespace("SOAP-ENV", "http://schemas.xmlsoap.org/soap/envelope/");
-	$xpath->set_namespace("xsd", "http://www.w3.org/2001/XMLSchema");
-	$xpath->set_namespace("xsi", "http://www.w3.org/2001/XMLSchema-instance");
-	$xpath->set_namespace("nmwg", "http://ggf.org/ns/nmwg/base/2.0/");
-	$xpath->set_namespace("ns1", "http://ogf.org/schema/network/topology/ctrlPlane/20080828/");
-	$xpath->set_namespace("nmtopo", "http://ogf.org/schema/network/topology/base/20070828/");
+    my $xpath = XML::XPath->new(xml => $respContent);
+    $xpath->set_namespace("SOAP-ENC", "http://schemas.xmlsoap.org/soap/encoding/");
+    $xpath->set_namespace("SOAP-ENV", "http://schemas.xmlsoap.org/soap/envelope/");
+    $xpath->set_namespace("xsd", "http://www.w3.org/2001/XMLSchema");
+    $xpath->set_namespace("xsi", "http://www.w3.org/2001/XMLSchema-instance");
+    $xpath->set_namespace("nmwg", "http://ggf.org/ns/nmwg/base/2.0/");
+    $xpath->set_namespace("ns1", "http://ogf.org/schema/network/topology/ctrlPlane/20080828/");
+    $xpath->set_namespace("nmtopo", "http://ogf.org/schema/network/topology/base/20070828/");
 
-	my %LOOKUP;
+    my %LOOKUP;
 
-	# get a listing of all the lat/long info we know about first to avoid doing lots of queries
-	my $node_lat_longs = $db->_execute_query("select name, latitude, longitude from node");
-	foreach my $row (@$node_lat_longs){
-	    $LOOKUP{'nodes'}{$row->{'name'}} = {"longitude" => $row->{'longitude'},
-						"latitude"  => $row->{'latitude'}
-	                                        };
-	}
+    # get a listing of all the lat/long info we know about first to avoid doing lots of queries
+    my $node_lat_longs = $db->_execute_query("select name, latitude, longitude from node");
+    foreach my $row (@$node_lat_longs){
+        $LOOKUP{'nodes'}{$row->{'name'}} = {"longitude" => $row->{'longitude'},
+                        "latitude"  => $row->{'latitude'}
+                                            };
+    }
 
-	# get a listing of all the lat/long info we know about first to avoid doing lots of queries
-	my $net_lat_longs = $db->_execute_query("select name, latitude, longitude, is_local from network");
-	foreach my $row (@$node_lat_longs){
-	    $LOOKUP{'networks'}{$row->{'name'}} = {"longitude" => $row->{'longitude'},
-						   "latitude"  => $row->{'latitude'},
-						   "is_local"  => $row->{'is_local'}
-	                                           };
-	}
+    # get a listing of all the lat/long info we know about first to avoid doing lots of queries
+    my $net_lat_longs = $db->_execute_query("select name, latitude, longitude, is_local from network");
+    foreach my $row (@$node_lat_longs){
+        $LOOKUP{'networks'}{$row->{'name'}} = {"longitude" => $row->{'longitude'},
+                           "latitude"  => $row->{'latitude'},
+                           "is_local"  => $row->{'is_local'}
+                                               };
+    }
 
-	my $DOMAIN_BASE = "/SOAP-ENV:Envelope/SOAP-ENV:Body/nmwg:message/nmwg:data/nmtopo:topology/ns1:domain";
+    my $DOMAIN_BASE = "/SOAP-ENV:Envelope/SOAP-ENV:Body/nmwg:message/nmwg:data/nmtopo:topology/ns1:domain";
 
-	my $domain_elements = $xpath->find($DOMAIN_BASE);
+    my $domain_elements = $xpath->find($DOMAIN_BASE);
 
-	my @domains;
+    my @domains;
 
-	foreach my $domain_element (@$domain_elements){
+    foreach my $domain_element (@$domain_elements){
 
-	    my $domain = $domain_element->getAttribute("id");
+        my $domain = $domain_element->getAttribute("id");
 
-	    $domain =~ /urn:ogf:network:domain=(.*)/;
-	    my $domain_name = $1;
-	
-	    my @links;
+        $domain =~ /urn:ogf:network:domain=(.*)/;
+        my $domain_name = $1;
 
-	    my $node_elements = $xpath->find("./ns1:node", $domain_element);
+        my @links;
 
-	    foreach my $node_element (@$node_elements){
-	    
-		my $node  = $node_element->getAttribute("id");
+        my $node_elements = $xpath->find("./ns1:node", $domain_element);
 
-		my $port_elements = $xpath->find("./ns1:port", $node_element); 
+        foreach my $node_element (@$node_elements){
 
-		foreach my $port_element (@$port_elements){
-		    
-		    my $port = $port_element->getAttribute('id');
+        my $node  = $node_element->getAttribute("id");
 
-		    my $link_elements = $xpath->find("./ns1:link", $port_element);
+        my $port_elements = $xpath->find("./ns1:port", $node_element);
 
-		    foreach my $link_element (@$link_elements){
-			
-			my $link = $link_element->getAttribute('id');
+        foreach my $port_element (@$port_elements){
 
-			my $remote_link = $xpath->find("./ns1:remoteLinkId", $link_element);
+            my $port = $port_element->getAttribute('id');
 
-			my $remote_link_urn = @$remote_link[0]->getChildNodes()->[0]->getValue();
+            my $link_elements = $xpath->find("./ns1:link", $port_element);
 
-			my @tmp = split(':', $link);
-			my $node_name = $tmp[4];
-			my $port_name = $tmp[5];
-			my $link_name = $tmp[6];
-			$node_name =~ s/node=//g;
-			$port_name =~ s/port=//g;
-			$link_name =~ s/link=//g;
+            foreach my $link_element (@$link_elements){
 
-			if ($domain_name ne $LOCAL_DOMAIN){
-			    $node_name = $domain_name . "-" . $node_name;
-			}
+            my $link = $link_element->getAttribute('id');
 
-			my $latlong = $LOOKUP{'nodes'}{$node_name};
+            my $remote_link = $xpath->find("./ns1:remoteLinkId", $link_element);
 
-			if (! $latlong || ($latlong->{'latitude'} eq 0 && $latlong->{'longitude'} eq 0)){
-			    $latlong = $LOOKUP{'networks'}{$domain_name};
-			}
+            my $remote_link_urn = @$remote_link[0]->getChildNodes()->[0]->getValue();
 
-			# if it's in the local domain and we have a workgroup specified, make sure it's
-			# part of the workgroup auth
-			if (defined $workgroup_id){
+            my @tmp = split(':', $link);
+            my $node_name = $tmp[4];
+            my $port_name = $tmp[5];
+            my $link_name = $tmp[6];
+            $node_name =~ s/node=//g;
+            $port_name =~ s/port=//g;
+            $link_name =~ s/link=//g;
 
-			    my $is_local = $LOOKUP{'networks'}{$domain_name}{'is_local'};
+            if ($domain_name ne $LOCAL_DOMAIN){
+                $node_name = $domain_name . "-" . $node_name;
+            }
 
-			    if ($is_local eq 1){
+            my $latlong = $LOOKUP{'nodes'}{$node_name};
 
-				my $auth = $db->_execute_query("select 1 from workgroup_interface_membership " .
-							       " join interface on interface.interface_id = workgroup_interface_membership.interface_id " .
-							       " join node on node.node_id = interface.node_id " .
-							       " where workgroup_id = ? and interface.name = ? and node.name = ?",
-							       [$workgroup_id, $port_name, $node_name]);
+            if (! $latlong || ($latlong->{'latitude'} eq 0 && $latlong->{'longitude'} eq 0)){
+                $latlong = $LOOKUP{'networks'}{$domain_name};
+            }
 
-				# didn't find a membership, skip this
-				next if ($auth && @$auth < 1);
-			    }		    
+            # if it's in the local domain and we have a workgroup specified, make sure it's
+            # part of the workgroup auth
+            if (defined $workgroup_id){
 
-			}
+                my $is_local = $LOOKUP{'networks'}{$domain_name}{'is_local'};
 
-			push(@links,{urn        => $link, 
-				     node       => $node_name, 
-				     port       => $port_name , 
-				     link       => $link_name, 
-				     remote_urn => $remote_link_urn, 
-				     latitude   => $latlong->{'latitude'},
-				     longitude  => $latlong->{'longitude'}
-			     });
-		       
-		    }
-		}
-	    }
+                if ($is_local eq 1){
 
-	    @links = sort { 
-		            if ($a->{'node'} eq $b->{'node'}){
-				return $a->{'port'} cmp $b->{'port'};
-			    }
-			    return $a->{'node'} cmp $b->{'node'};
-	                  } @links;
-			    
-	    push(@domains,{ name => $domain_name, urn => $domain, links => \@links});
-	}    
+                my $auth = $db->_execute_query("select 1 from workgroup_interface_membership " .
+                                   " join interface on interface.interface_id = workgroup_interface_membership.interface_id " .
+                                   " join node on node.node_id = interface.node_id " .
+                                   " where workgroup_id = ? and interface.name = ? and node.name = ?",
+                                   [$workgroup_id, $port_name, $node_name]);
 
-	@domains = sort { $a->{'name'} cmp $b->{'name'} } @domains;
-	
-	return {'results' => \@domains};
+                # didn't find a membership, skip this
+                next if ($auth && @$auth < 1);
+                }
+
+            }
+
+            push(@links,{urn        => $link,
+                     node       => $node_name,
+                     port       => $port_name ,
+                     link       => $link_name,
+                     remote_urn => $remote_link_urn,
+                     latitude   => $latlong->{'latitude'},
+                     longitude  => $latlong->{'longitude'}
+                 });
+
+            }
+        }
+        }
+
+        @links = sort {
+                    if ($a->{'node'} eq $b->{'node'}){
+                return $a->{'port'} cmp $b->{'port'};
+                }
+                return $a->{'node'} cmp $b->{'node'};
+                      } @links;
+
+        push(@domains,{ name => $domain_name, urn => $domain, links => \@links});
+    }
+
+    @domains = sort { $a->{'name'} cmp $b->{'name'} } @domains;
+
+    return {'results' => \@domains};
     }
     else{
-	return {'error' => 'Error retreiving remote topologies'};
+    return {'error' => 'Error retreiving remote topologies'};
     }
 }
 
@@ -289,50 +289,50 @@ sub create_reservation{
     # swap the src and dst around to try and make sure that we send a local one first.
     # OSCARS will not work unless the local network comes first for some reason.
     if ($src_urn !~ /domain=$LOCAL_DOMAIN/){
-	my $tmp  = $src_urn;
-	$src_urn = $dst_urn;
-	$dst_urn = $tmp;
+    my $tmp  = $src_urn;
+    $src_urn = $dst_urn;
+    $dst_urn = $tmp;
 
-	$tmp      = $src_vlan;
-	$src_vlan = $dst_vlan;
-	$dst_vlan = $tmp;
+    $tmp      = $src_vlan;
+    $src_vlan = $dst_vlan;
+    $dst_vlan = $tmp;
     }
 
     my ($gri,$gti) = $oscars->create_reservation(
-	src_urn => $src_urn,
-	dst_urn => $dst_urn,
-	src_vlan => $src_vlan,
-	dst_vlan => $dst_vlan,
-	bandwidth => $bandwidth,
-	start_time => $start_time,
-	end_time => $end_time,
-	description => $description
-	);
+    src_urn => $src_urn,
+    dst_urn => $dst_urn,
+    src_vlan => $src_vlan,
+    dst_vlan => $dst_vlan,
+    bandwidth => $bandwidth,
+    start_time => $start_time,
+    end_time => $end_time,
+    description => $description
+    );
 
     if(!defined($gri) || !defined($gti)){
-	return {error => $oscars->get_error()};
+    return {error => $oscars->get_error()};
     }
     return {results => [{gri => $gri, gti => $gti}]};;
 
 }
 
 sub query_reservation{
-    
+
     my $circuit_id = $cgi->param("circuit_id");
     my $gri        = $cgi->param("gri");
 
     if (! $gri){
-	$gri = $db->get_circuit_by_id(circuit_id => $circuit_id)->[0]->{'external_identifier'};
+    $gri = $db->get_circuit_by_id(circuit_id => $circuit_id)->[0]->{'external_identifier'};
     }
 
     if (! $gri){
-	return {error => "Unable to get GRI for circuit $circuit_id to cancel reservation."};
+    return {error => "Unable to get GRI for circuit $circuit_id to cancel reservation."};
     }
-    
+
     my ($status,$message,$path) = $oscars->query_reservation( gri => $gri);
 
     if(!defined($status)){
-	return {error => $oscars->get_error()};
+    return {error => $oscars->get_error()};
     }
 
     my @path_struct;
@@ -341,47 +341,47 @@ sub query_reservation{
 
     foreach my $link_urn (@$path){
 
-	$link_urn =~ /domain=(\S+):node=(\S+):port=(\S+):link=(\S+)/;
+    $link_urn =~ /domain=(\S+):node=(\S+):port=(\S+):link=(\S+)/;
 
-	my $domain = $1;
-	my $node   = $2;
-	my $port   = $3;
-	my $link   = $4;
+    my $domain = $1;
+    my $node   = $2;
+    my $port   = $3;
+    my $link   = $4;
 
-	if ($domain ne $LOCAL_DOMAIN){
-	    $node = $domain . "-" . $node;
-	}
+    if ($domain ne $LOCAL_DOMAIN){
+        $node = $domain . "-" . $node;
+    }
 
-	my $latlong = $db->_execute_query("select latitude, longitude from node where name = ?",
-					  [$node]
-	    )->[0];
-	
-	if (! $latlong || ($latlong->{'latitude'} eq 0 && $latlong->{'longitude'} eq 0)){
-	    $latlong = $db->_execute_query("select latitude, longitude from network where name = ?", [$domain])->[0];
-	}
+    my $latlong = $db->_execute_query("select latitude, longitude from node where name = ?",
+                      [$node]
+        )->[0];
 
-	# couldn't find anything for this, default to 0,0
-	if (! $latlong){
-	    $latlong = {"latitude" => 0, "longitude" => 0};
-	}
+    if (! $latlong || ($latlong->{'latitude'} eq 0 && $latlong->{'longitude'} eq 0)){
+        $latlong = $db->_execute_query("select latitude, longitude from network where name = ?", [$domain])->[0];
+    }
 
-	$curr_data = {"node" => $node,
-		      "lon"  => $latlong->{"longitude"},
-		      "lat"  => $latlong->{"latitude"}
-	};
-	
-	if ($prev_data){
-	    push(@path_struct, {"from_node" => $prev_data->{'node'}, 
-				"from_lon"  => $prev_data->{'lon'}, 
-				"from_lat"  => $prev_data->{'lat'},
-				"to_node"   => $curr_data->{'node'},
-				"to_lon"    => $curr_data->{'lon'},
-				"to_lat"    => $curr_data->{'lat'}
-		 }
-		);				
-	}
+    # couldn't find anything for this, default to 0,0
+    if (! $latlong){
+        $latlong = {"latitude" => 0, "longitude" => 0};
+    }
 
-	$prev_data = $curr_data;
+    $curr_data = {"node" => $node,
+                  "lon"  => $latlong->{"longitude"},
+                  "lat"  => $latlong->{"latitude"}
+                 };
+
+    if ($prev_data){
+        push(@path_struct, {"from_node" => $prev_data->{'node'},
+                            "from_lon"  => $prev_data->{'lon'},
+                            "from_lat"  => $prev_data->{'lat'},
+                            "to_node"   => $curr_data->{'node'},
+                            "to_lon"    => $curr_data->{'lon'},
+                            "to_lat"    => $curr_data->{'lat'}
+                           }
+            );
+    }
+
+    $prev_data = $curr_data;
     }
 
     return {results => [{status => $status, message => $message, path => \@path_struct}]};
@@ -394,13 +394,13 @@ sub cancel_reservation{
     my $gri = $db->get_circuit_by_id(circuit_id => $circuit_id)->[0]->{'external_identifier'};
 
     if (! $gri){
-	return {error => "Unable to get GRI for circuit $circuit_id to cancel reservation."};
+    return {error => "Unable to get GRI for circuit $circuit_id to cancel reservation."};
     }
 
     my ($status,$message) = $oscars->cancel_reservation( gri => $gri);
-    
+
     if(!defined($status)){
-	return {error => $oscars->get_error()};
+    return {error => $oscars->get_error()};
     }
 
     return {results => [{status => $status, message => $message, gri => $gri}]};
@@ -424,21 +424,21 @@ sub modify_reservation{
     $gri = $db->get_circuit_by_id(circuit_id => $circuit_id)->[0]->{'external_identifier'};
 
     if (! $gri){
-	return {error => "Unable to get GRI for circuit $circuit_id to modify reservation."};
+    return {error => "Unable to get GRI for circuit $circuit_id to modify reservation."};
     }
 
     ($gri,$gti) = $oscars->modify_reservation( gri => $gri,
-					       src_urn => $src_urn,
-					       dst_urn => $dst_urn,
-					       src_vlan => $src_vlan,
-					       dst_vlan => $dst_vlan,
-					       bandwidth => $bandwidth,
-					       start_time => $start_time,
-					       end_time => $end_time,
-					       description => $description);
-    
+                           src_urn => $src_urn,
+                           dst_urn => $dst_urn,
+                           src_vlan => $src_vlan,
+                           dst_vlan => $dst_vlan,
+                           bandwidth => $bandwidth,
+                           start_time => $start_time,
+                           end_time => $end_time,
+                           description => $description);
+
     if(!defined($gri) || !defined($gti)){
-	return {error => $oscars->get_error()};
+    return {error => $oscars->get_error()};
     }
 
     return {results => [{gri => $gri, gti => $gti}]};
