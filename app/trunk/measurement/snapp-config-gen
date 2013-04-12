@@ -312,7 +312,7 @@ sub add_collection_instance{
     $sth->execute($collection_id,$descr)or handle_error($snapp_db,$DBI::errstr);
 }
 
-=head2 udpate_collection_instance_ned
+=head2 update_collection_instance_end
 
     given a snapp db handle, collection id and description makes a decision on if it needs to create a new instance, or re-activate the existing instance
 
