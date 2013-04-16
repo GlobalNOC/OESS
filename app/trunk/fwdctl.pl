@@ -446,6 +446,7 @@ sub datapath_join_handler{
     #--- discovery to work properly regardless of whether the switch's implementation does it by default
     #--- or not
     my $node_details = $self->{'db'}->get_node_by_dpid(dpid => $dpid);
+    $node{$dpid} = 0;
     my $sw_name = "";
     if(defined $node_details){
 	$sw_name = $node_details->{'name'};
