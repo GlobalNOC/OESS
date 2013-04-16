@@ -145,12 +145,17 @@ sub get_circuit_data{
     my $chosen_int;
 
     my $links = $circuit_details->{'links'};
-
+    my $backup_links = $circuit_details->{'backup_links'};
     # keep track of all interfaces available for a given node so we can show them as 
     # alternative options in the result set
     foreach my $link (@$links){	
 	$all_interfaces{$link->{'node_a'}}{$link->{'interface_a'}} = 1;
 	$all_interfaces{$link->{'node_z'}}{$link->{'interface_z'}} = 1;
+    }
+
+    foreach my $link (@$backup_links){
+	$all_interfaces{$link->{'node_a'}}{$link->{'interface_a'}} = 1;
+        $all_interfaces{$link->{'node_z'}}{$link->{'interface_z'}} = 1;
     }
 
     my $ints = $self->{'db'}->get_circuit_endpoints(circuit_id => $circuit_id);
@@ -178,38 +183,21 @@ sub get_circuit_data{
 		$self->_set_error("Unable to find node \"$node\"");
 		return undef;
 	    }
+
 	    
-	    foreach my $link (@$links){
-		
-		# this will tell us one of the ports which should be good enough
-		if ($link->{'node_a'} eq $node){
-		    warn Dumper($link);
-		    warn $interface;
-		    if (!defined $interface || $interface eq $link->{'interface_a'}){ 
-			$chosen_int = {node_id    => $node_info->{'node_id'},
-				       port_no    => $link->{'port_no_a'},
-				       node       => $node,
-				       tag        => $circuit_details->{'internal_ids'}->{'primary'}->{$node},
-				       interface  => $link->{'interface_a'},
-			};
-			last;
-		    }
-		}
-		if ($link->{'node_z'} eq $node){	      
-		    warn Dumper($link);
-		    warn $interface;
-		    if (!defined $interface || $interface eq $link->{'interface_z'}){ 
-			$chosen_int = {node_id    => $node_info->{'node_id'},
-				       port_no    => $link->{'port_no_z'},
-				       node       => $node,
-				       tag        => $circuit_details->{'internal_ids'}->{'primary'}->{$node},
-				       interface  => $link->{'interface_z'},
-			};
-			last;
-		    }
-		}
+	    my $int = $self->find_int_on_path_using_node( links => $links, node => $node );
+	    if(!defined($int)){
+		#didn't find it on the primary... look for it on the backup
+		$int = $self->find_int_on_path_using_node( links => $backup_links, node => $node );
+		$int->{'tag'} = $circuit_details->{'internal_ids'}->{'backup'}->{$node},
+	    }else{
+		#found it on the primary
+		$int->{'tag'} = $circuit_details->{'internal_ids'}->{'primary'}->{$node},
 	    }
-	    
+
+	    $int->{'node_id'} = $node_info->{'node_id'};
+	    $chosen_int = $int;
+
 	}
 	# we weren't asked specifically for one so let's just pick the first one
 	else {
@@ -250,6 +238,47 @@ sub get_circuit_data{
 	$self->_set_error("Unable to find RRD/Collection");
 	return BUILDING_FILE;#[{name => 'Creating RRD', data => [[time(), undef]]}];
     }
+}
+
+sub find_int_on_path_using_node{
+    my $self = shift;
+    my %params = @_;
+
+    if(!defined($params{'links'})){
+	return;
+    }
+
+    if(!defined($params{'node'})){
+	return;
+    }
+
+
+    my $interface;
+
+    foreach my $link (@{$params{'links'}}){
+	# this will tell us one of the ports which should be good enough
+	if ($link->{'node_a'} eq $params{'node'}){
+	    if (!defined $interface || $interface eq $link->{'interface_a'}){
+		$interface = {port_no    => $link->{'port_no_a'},
+			      node       => $params{'node'},
+			      interface  => $link->{'interface_a'},
+		};
+		last;
+	    }
+	}
+	if ($link->{'node_z'} eq $params{'node'}){
+	    if (!defined $interface || $interface eq $link->{'interface_z'}){
+		$interface = {port_no    => $link->{'port_no_z'},
+			      node       => $params{'node'},
+			      interface  => $link->{'interface_z'},
+		};
+		last;
+	    }
+	}
+    }
+
+    return $interface;
+
 }
 
 sub _find_rrd_file_by_host_and_int{
