@@ -23,7 +23,7 @@ use Data::Dumper;
 my $db = OESS::Database->new(config => OESSDatabaseTester::getConfigFilePath());
 
 my $user = $db->add_user( );
-ok(!defined($user), "no value returned when no workgroup id specified");
+ok(!defined($user), "no value returned when no user id specified");
 my $error = $db->get_error();
 ok(defined($error), "No params were passed and we got an error back");
 
