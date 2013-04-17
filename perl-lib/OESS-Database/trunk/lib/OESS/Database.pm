@@ -1948,9 +1948,9 @@ sub remove_user_from_workgroup {
 
 
     my $result = $self->_execute_query("select 1 from user_workgroup_membership where workgroup_id = ? and user_id = ?",
-	                               [$workgroup_id, $user_id]
+				      [$workgroup_id, $user_id]
 	);
-
+	
     if (@$result < 1){
 	$self->_set_error("User is not a member of this workgroup.");
 	return undef;
