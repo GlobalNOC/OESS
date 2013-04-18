@@ -184,7 +184,6 @@ sub get_circuit_scheduled_events {
         $results->{'error'} = $db->get_error();
     }
     else {
-        print STDERR Dumper($events);
         $results->{'results'} = $events;
     }
 
@@ -475,7 +474,6 @@ sub send_message {
 
 sub send_json {
     my $output = shift;
-    print STDERR Dumper($output);
     print "Content-type: text/plain\n\n" . encode_json($output);
 }
 
