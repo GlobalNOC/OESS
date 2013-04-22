@@ -429,7 +429,7 @@ sub datapath_join_handler{
     my $dpid   = shift;
 
     my $dpid_str  = sprintf("%x",$dpid);
-
+    $node{$dpid} = 0;
     #--- first push the default "forward to controller" rule to this node. This enables
     #--- discovery to work properly regardless of whether the switch's implementation does it by default
     #--- or not
