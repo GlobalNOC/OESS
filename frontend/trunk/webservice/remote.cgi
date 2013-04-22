@@ -48,11 +48,12 @@ use XML::XPath;
 
 my $db   = new OESS::Database();
 my $topo = new OESS::Topology();
-my $oscars = OSCARS::Client->new(
+print STDERR "HOST: " . $db->get_oscars_host() . "\n";
+my $oscars = OSCARS::Client->new( 
     cert => $db->get_oscars_cert(),
     key => $db->get_oscars_key(),
     url => $db->get_oscars_host() . ":9001/OSCARS",
-    debug => 0,
+    debug => 1,
     timeout => 60000
     );
 

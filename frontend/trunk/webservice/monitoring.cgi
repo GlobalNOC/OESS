@@ -113,45 +113,6 @@ sub get_node_status{
     return $tmp;
 }
 
-sub get_node_status{
-    my $results;
-
-    my $bus = Net::DBus->system;
-
-    my $client;
-    my $service;
-
-    eval {
-        $service = $bus->get_service("org.nddi.openflow");
-        $client  = $service->get_object("/controller2");
-    };
-
-    if ($@){
-        warn "Error in _connect_to_nox: $@";
-        return undef;
-    }
-
-    if (! defined $client){
-        return undef;
-    }
-
-    my $node_name = $cgi->param('node');
-    my $node = $db->get_node_by_name( name => $node_name);
-
-    if(!defined($node)){
-        warn "Unable to find node named $node_name\n";
-        return {error => "Unable to find node - $node_name "};
-    }
-
-    my $result = $client->get_node_connect_status($node->{'dpid'});
-    $result = int($result);
-    my $tmp;
-    $tmp->{'results'} = {node => $node_name, status => $result};
-
-    return $tmp;
-}
-
-
 sub get_rules_on_node{
     my $results;
 
