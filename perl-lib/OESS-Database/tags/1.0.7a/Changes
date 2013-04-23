@@ -1,3 +1,7 @@
+OESS Database 1.0.7a [Apr 23 2013]
+----------------------------------
+* Fixed unconstrained join to workgroups that was giving admin status to non admin users
+
 OESS Database 1.0.7 [Mar 18 2013]
 ---------------------------------
 
