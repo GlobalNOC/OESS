@@ -2486,7 +2486,7 @@ sub get_circuit_internal_ids {
 	"  join path_instantiation on path_instantiation.path_instantiation_id = path_instantiation_vlan_ids.path_instantiation_id " .
 	"  join path on path.path_id = path_instantiation.path_id " .
 	"  join node on node.node_id = path_instantiation_vlan_ids.node_id " .
-	"  where path.circuit_id = ?";
+	"  where path.circuit_id = ? and path_instantiation.end_epoch = -1";
 
     my $ids = $self->_execute_query($query, [$circuit_id]);
 

@@ -298,7 +298,7 @@ sub update_circuit_path_state {
     my $new_state   = $args{'new_state'};
 
     $self->_start_transaction();
-
+    
     my $query = "update path_instantiation set path_state = ? " .
 	        " where end_epoch = -1 and path_state = ? " .
 		" and path_instantiation.path_id in (select path_id from path where circuit_id = ?)";
@@ -952,6 +952,7 @@ sub get_node_interfaces {
     my $workgroup_id = $args{'workgroup_id'};
     my $show_down    = $args{'show_down'};
     my $show_trunk   = $args{'show_trunk'} || 0;
+    
     if(!defined($show_down)){
 	$show_down = 0;
     }
@@ -2528,7 +2529,7 @@ sub get_circuit_internal_ids {
 	"  join path_instantiation on path_instantiation.path_instantiation_id = path_instantiation_vlan_ids.path_instantiation_id " .
 	"  join path on path.path_id = path_instantiation.path_id " .
 	"  join node on node.node_id = path_instantiation_vlan_ids.node_id " .
-	"  where path.circuit_id = ?";
+	"  where path.circuit_id = ? and path_instantiation.end_epoch = -1";
 
     my $ids = $self->_execute_query($query, [$circuit_id]);
 
