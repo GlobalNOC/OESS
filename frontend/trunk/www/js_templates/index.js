@@ -382,8 +382,8 @@ var ds = new YAHOO.util.DataSource(dsString);
     };
 
     var switch_status_columns = [
-				 {key: "name", label: "Switch", width: 200},
-				 {key: "operational_state", label: "Status", width: 40, formatter: function(elLiner, oRec, oCol, oData){
+				 {key: "name", label: "Switch",sortable: true, width: 200},
+				 {key: "operational_state", sortable: true, label: "Status", width: 40, formatter: function(elLiner, oRec, oCol, oData){
 					 if(oRec.getData('operational_state') == 'up'){
 					     elLiner.innerHTML = "<font color='green'>up</font>";
 					 }else{
@@ -402,8 +402,8 @@ var ds = new YAHOO.util.DataSource(dsString);
     };
 
     var circuit_status_cols = [
-			       {key: "description", label: "name", width: 200},
-			       {key: "status", label: "Status", width: 100, formatter: function(elLiner, oRec, oColumn, oData){
+			       {key: "description", label: "name",sortable:true, width: 200},
+			       {key: "status", label: "Status",sortable:true, width: 100,sortable: true, formatter: function(elLiner, oRec, oColumn, oData){
 				       if(oRec.getData('operational_state') == 'down'){
 					   elLiner.innerHTML = "<font color='red'>down</font>";
 				       }else{
@@ -474,10 +474,10 @@ var ds = new YAHOO.util.DataSource(dsString);
     };
     
     var avail_resource_cols = [
-			       {key: "node_name", label: "Node", width: 200 },
-			       {key: "interface_name", label: "Interface", width: 50},
-			       {key: "description", label: "Description", width: 100},
-			       {key: "operational_state", label: "Status", formatter: function(elLiner, oRec, oCol, oData){
+			       {key: "node_name",sortable: true, label: "Node", width: 200 },
+			       {key: "interface_name", sortable: true, label: "Interface", width: 50},
+			       {key: "description", sortable: true,  label: "Description", width: 100},
+			       {key: "operational_state", sortable:true, label: "Status", formatter: function(elLiner, oRec, oCol, oData){
 				       if(oRec.getData('operational_state') == 'up'){
 					   elLiner.innerHTML = "<font color='green'>up</font>";
 				       }else{
