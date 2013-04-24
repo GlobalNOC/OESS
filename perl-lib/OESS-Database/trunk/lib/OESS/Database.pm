@@ -4403,7 +4403,23 @@ sub get_link_by_interface_id{
     
     my $interface_id = $args{'interface_id'};
     
-    my $select_link_by_interface = "select link.name as link_name,link.status, link.link_id,link.remote_urn, link_instantiation.interface_a_id, link_instantiation.interface_z_id, link from link,link_instantiation where link.link_id = link_instantiation.link_id and (link_instantiation.interface_a_id = ? or link_instantiation.interface_z_id = ?)";
+    if(!defined($interface_id)){
+	$self->_set_error("No interface_id specified to get_link_by_interface_id");
+	return undef;
+    }
+    my $show_decom = 1;
+    if(defined($args{'show_decom'}) && $args{'show_decom'} == 0){
+	$show_decom = 0;
+    }
+
+
+    my $select_link_by_interface = "select link.name as link_name,link.status, link.link_id,link.remote_urn, link_instantiation.interface_a_id, link_instantiation.interface_z_id from link,link_instantiation where link.link_id = link_instantiation.link_id and link_instantiation.end_epoch = -1 and (link_instantiation.interface_a_id = ? or link_instantiation.interface_z_id = ?)";
+    
+    if(!$show_decom){
+	$select_link_by_interface .= " and link_instantiation.link_state != 'decom'"
+    }
+    
+
     my $select_link_sth = $self->_prepare_query($select_link_by_interface);
     
     $select_link_sth->execute($interface_id,$interface_id);
@@ -6204,7 +6220,8 @@ sub gen_topo{
             $writer->characters(1000000);
             $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","granularity"]);
 
-            my $links = $self->get_link_by_interface_id( interface_id => $int->{'interface_id'});
+            my $links = $self->get_link_by_interface_id( interface_id => $int->{'interface_id'},
+							 show_decom => 0 );
             my $processed_link = 0;
 
             foreach my $link (@$links){
