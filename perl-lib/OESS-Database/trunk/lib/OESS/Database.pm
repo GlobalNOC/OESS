@@ -4513,6 +4513,33 @@ sub get_circuit_by_interface_id{
     }
 }
 
+=head2 schedule_path_change
+
+=cut
+
+sub schedule_path_change{
+    my $self = shift;
+    my %params = @_;
+
+    if(!defined($params{'circuit_id'}) || !defined($params{'when'}) || !defined($params{'path'}) || !defined($params{'user_id'}) || !defined($params{'workgroup_id'})){
+	return;
+    }
+
+    my $tmp;
+    $tmp->{'path'}         = $params{'path'};
+    $tmp->{'version'}      = "1.0";
+    $tmp->{'action'}       = "change_path";
+
+    my $circuit_layout = XMLout($tmp);
+	
+    
+    my $query = "insert into scheduled_action (user_id, workgroup_id, circuit_id, registration_epoch, activation_epoch, circuit_layout) VALUES (?,?,?,UNIX_TIMESTAMP(NOW()),?,?)";
+    my $res = $self->_execute_query($query, [$params{'user_id'},$params{'workgroup_id'},$params{'circuit_id'},$params{'when'},$circuit_layout]);
+
+    return $res;
+}
+
+
 =head2 provision_circuit
 
 Creates a new circuit record and its path information.
