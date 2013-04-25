@@ -466,6 +466,11 @@ var ds = new YAHOO.util.DataSource(dsString);
             this.updateMapFromSession(session);
         });    
 
+    tabs.on('activeTabChange', function(){
+	    resource_map.map.render("available_resource_map");
+	    nddi_map.map.render("network_status_map");
+	});
+
     var avail_resource_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_all_resources_for_workgroup&workgroup_id=" + session.data.workgroup_id);
     avail_resource_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     avail_resource_ds.responseSchema = {
