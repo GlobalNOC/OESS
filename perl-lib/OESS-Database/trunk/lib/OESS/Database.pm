@@ -3310,7 +3310,7 @@ sub insert_node_in_path{
     $self->confirm_link(link_id => $new_path->[0], name => $link_details->{'name'} . "-1");
     $self->confirm_link(link_id => $new_path->[1], name => $link_details->{'name'} . "-2");
 
-    my $circuits = $self->get_affected_circuits_by_link_id( link_id => $link_details->{'link_id'} );
+    my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $link_details->{'id'});
 
     my $service;
     my $client;
