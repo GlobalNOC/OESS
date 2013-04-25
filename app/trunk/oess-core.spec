@@ -107,7 +107,7 @@ rm -rf $RPM_BUILD_ROOT
 #%{idcdir}/OSCARS/
 #%{idcdir}/OSCARS/pss.pm
 
-/etc/cron.d/nddi-scheduler.cron
+%config(noreplace) /etc/cron.d/nddi-scheduler.cron
 
 %doc
 
