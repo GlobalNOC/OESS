@@ -452,6 +452,8 @@ sub datapath_join_handler{
 	$sw_name = $node_details->{'name'};
     }
 
+    _log("sw:$sw_name dpid:$dpid_str datapath join");
+
     my %xid_hash;
 
     if(!defined($node_details) || $node_details->{'default_forward'} == 1){
@@ -474,17 +476,17 @@ sub datapath_join_handler{
         }
         $xid_hash{$xid}  = 1;
 	$node{$dpid}++;
+    }
 
-	my $result = $self->_poll_xids(\%xid_hash);
-	
-	if ($result != FWDCTL_SUCCESS){
-	    _log("sw:$sw_name dpid:$dpid_str failed to install default drop or lldp forward rules, may cause traffic to flood controller or discovery to fail");
-	    return;
-	}
-	else {
-	    _log("sw:$sw_name dpid:$dpid_str installed default drop rule and lldp forward rule");
-	}
-
+    
+    my $result = $self->_poll_xids(\%xid_hash);
+    
+    if ($result != FWDCTL_SUCCESS){
+	_log("sw:$sw_name dpid:$dpid_str failed to install default drop or lldp forward rules, may cause traffic to flood controller or discovery to fail");
+	return;
+    }
+    else {
+	_log("sw:$sw_name dpid:$dpid_str installed default drop rule and lldp forward rule");
     }
 
     #set this node for diffing!
