@@ -80,16 +80,16 @@ sub send_notification {
                );
     
     
-
+    #warn Dumper (\%args);
     my $subject_map = {
-                        'failover' => "OESS Notification: Circuit Failover",
-                        'modify' => "OESS Notification: Circuit Modified",
-                        'provision' => "OESS Notification: Circuit ".$args{'circuit_data'}{'circuit_name'}." Provisioned",
+                        'failover' => "OESS Notification: Circuit ".$args{'circuit_data'}{'description'}." Failover",
+                        'modify' => "OESS Notification: Circuit ".$args{'circuit_data'}{'description'}." Modified",
+                        'provision' => "OESS Notification: Circuit ".$args{'circuit_data'}{'description'}." Provisioned",
                         'decommission' => "OESS Notification: Circuit Decommissioned"
                        };
 
     my $vars = {
-                workgroup_name => $args{'contact_data'}{'workgroup_name'},
+                
                 circuit_clr => $args{'circuit_data'}{'clr'},
                 from_signature_name => $self->{'from_name'},
                 given_name => $args{'contact_data'}{'given_name'},
@@ -119,7 +119,7 @@ sub _build_templates {
 
 Greetings [%given_name%],[%last_name%],
 
-I'm writing to notify you that the following circuit has been provisioned in workgroup [%workgroup_name%]: 
+I'm writing to notify you that the following circuit has been provisioned: 
 
 [%circuit_clr%]
 
@@ -129,11 +129,11 @@ Sincerely,
 
 TEMPLATE
 
-      $self->{'decomission_template'} = <<TEMPLATE;
+      $self->{'decommission_template'} = <<TEMPLATE;
 
 Greetings [%given_name%],[%last_name%],
 
-The following circuit has been decomissioned in workgroup [%workgroup_name%]: 
+The following circuit has been decommissioned: 
 
 [%circuit_clr%]
 
@@ -146,9 +146,11 @@ TEMPLATE
 
 $self->{'modify_template'} = <<TEMPLATE;
 
-Greetings [%given_name%] [%last_name%]
+Greetings [%given_name%] [%last_name%],
 
-The following circuit has been modified in workgroup [%workgroup_name%]
+The following circuit has been modified:
+
+The details of the circuit as they are currently are now:
 
 [%circuit_clr%]
 
@@ -157,6 +159,23 @@ Sincerely,
 [%from_signature_name%]
 
 TEMPLATE
+
+$self->{'failover_template'} = <<TEMPLATE;
+
+Greetings [%given_name%] [%last_name%],
+
+The following circuit has been failed over:
+
+The details of the circuit as they are currently are now:
+
+[%circuit_clr%]
+
+Sincerely,
+
+[%from_signature_name%]
+
+TEMPLATE
+
 
 }
 
@@ -207,18 +226,32 @@ sub _connect_services {
 sub get_notification_data {
     my $self   = shift;
     my %args = @_;
-    my $ws;
+    my $ws = $self->{'ws'};
     my $ckt    = $args{'circuit'};
     my $username;
+    
     my $user_id;
     my $details = $ws->get_circuit_details( action=> 'get_circuit_details', circuit_id => $ckt->{'circuit_id'})->{'results'};
-
-    my $clr = $ws->get_circuit_clr(action=> 'get_circuit_clr', circuit_id => $ckt->{'circuit_id'})->{'results'} ;
+    unless($details){
+        warn "No circuit details found, returning";
+        return;
+    }
+    #warn Dumper ($details);
+    $user_id = $details->{'user_id'};
+    my $clr = $ws->get_circuit_clr(action=> 'generate_clr', circuit_id => $ckt->{'circuit_id'} )->{'results'}->{'clr'} ;
+    unless ($clr){
+        warn "No CLR for $ckt->{'circuit_id'} ?";
+    }
+    #warn Dumper ($clr);
     my $email_address;
 
-    #my $user_id = $username;
     
     my $workgroup_members = $ws->get_workgroup_members(action=>'get_workgroup_members', workgroup_id => $details->{'workgroup_id'})->{'results'};
+    
+    unless($workgroup_members){
+        warn "No workgroup members found, returning";
+        return;
+    }
 
     foreach my $member (@$workgroup_members){
         if ($member->{'user_id'} == $user_id)
@@ -228,7 +261,7 @@ sub get_notification_data {
           }
     }
 
-    return ({  'username'=> $username, 'last_modified' => $details->{'last_edited'}, 'affected_users' => $workgroup_members });
+    return ({  'username'=> $username, 'last_modified' => $details->{'last_edited'}, 'clr' => $clr, 'affected_users' => $workgroup_members });
 }
 
 
