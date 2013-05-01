@@ -85,15 +85,15 @@ sub send_notification {
                         'failover' => "OESS Notification: Circuit ".$args{'circuit_data'}{'description'}." Failover",
                         'modify' => "OESS Notification: Circuit ".$args{'circuit_data'}{'description'}." Modified",
                         'provision' => "OESS Notification: Circuit ".$args{'circuit_data'}{'description'}." Provisioned",
-                        'decommission' => "OESS Notification: Circuit Decommissioned"
+                        'decommission' => "OESS Notification: Circuit ".$args{'circuit_data'}{'description'}." Decommissioned"
                        };
 
     my $vars = {
-                
+                circuit_description => $args{'circuit_data'}{'description'},
                 circuit_clr => $args{'circuit_data'}{'clr'},
                 from_signature_name => $self->{'from_name'},
-                given_name => $args{'contact_data'}{'given_name'},
-                last_name => $args{'contact_data'}{'last_name'}
+                given_name => $args{'contact_data'}{'first_name'},
+                last_name => $args{'contact_data'}{'family_name'}
                };
 
     my $body;
@@ -117,7 +117,7 @@ sub _build_templates {
 
     $self->{'provision_template'} = <<TEMPLATE;
 
-Greetings [%given_name%],[%last_name%],
+Greetings [%given_name%] [%last_name%],
 
 I'm writing to notify you that the following circuit has been provisioned: 
 
@@ -131,11 +131,9 @@ TEMPLATE
 
       $self->{'decommission_template'} = <<TEMPLATE;
 
-Greetings [%given_name%],[%last_name%],
+Greetings [%given_name%] [%last_name%],
 
-The following circuit has been decommissioned: 
-
-[%circuit_clr%]
+The circuit [%circuit_description%] has been decommissioned.
 
 Sincerely,
 
@@ -247,7 +245,7 @@ sub get_notification_data {
 
     
     my $workgroup_members = $ws->get_workgroup_members(action=>'get_workgroup_members', workgroup_id => $details->{'workgroup_id'})->{'results'};
-    
+    warn Dumper ($workgroup_members);
     unless($workgroup_members){
         warn "No workgroup members found, returning";
         return;
