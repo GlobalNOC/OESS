@@ -96,11 +96,11 @@ sub circuit_modify {
 
     
 
-sub circuit_decomission {
+sub circuit_decommission {
 	my $self = shift;
 	my $circuit = shift;
 
-	$self->emit_signal("signal_circuit_decomission", $circuit);
+	$self->emit_signal("signal_circuit_decommission", $circuit);
 
 }
 
