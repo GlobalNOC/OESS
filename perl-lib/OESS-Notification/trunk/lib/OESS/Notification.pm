@@ -245,7 +245,7 @@ sub get_notification_data {
 
     
     my $workgroup_members = $ws->get_workgroup_members(action=>'get_workgroup_members', workgroup_id => $details->{'workgroup_id'})->{'results'};
-    warn Dumper ($workgroup_members);
+    
     unless($workgroup_members){
         warn "No workgroup members found, returning";
         return;
