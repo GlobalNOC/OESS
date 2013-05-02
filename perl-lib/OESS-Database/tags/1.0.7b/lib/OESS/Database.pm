@@ -82,7 +82,7 @@ use Net::DBus;
 use OESS::Topology;
 use DateTime;
 
-use constant VERSION => '1.0.7';
+use constant VERSION => '1.0.7b';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant SHARE_DIR => "/usr/share/doc/perl-OESS-Database-" . VERSION . "/";
