@@ -231,7 +231,7 @@ sub update_circuit_state{
     $self->_start_transaction();
 
     my $details = $self->get_circuit_details(circuit_id => $circuit_id);
-
+    
     if (! defined $details){
 	$self->_set_error("Unable to find circuit information for circuit $circuit_id");
 	$self->_rollback();
@@ -461,21 +461,29 @@ sub generate_clr{
     my %args = @_;
     
     my $circuit_id = $args{'circuit_id'};
-
+    my $show_historical=0;
     if(!defined($circuit_id)){
 	$self->_set_error("No Circuit ID Specified");
 	return;
     }
     
     my $circuit_details = $self->get_circuit_details(circuit_id => $circuit_id);
-    
+    #if ($circuit_details->{'state'} eq 'decom'){
+        #$circuit_details = $self->get_circuit_details(circuit_id => $circuit_id, show_historical => 1);
+    #}
+    warn Dumper ($circuit_details);
     if(!defined($circuit_details)){
 	$self->_set_error("No Circuit found by that ID ");
 	return;
     }
-    
-    my $endpoints = $self->get_circuit_endpoints( circuit_id => $circuit_id);
  
+    if ($circuit_details->{'state'} eq 'decom'){
+        $show_historical=1;
+    }
+   
+    my $endpoints = $self->get_circuit_endpoints( circuit_id => $circuit_id, show_historical => $show_historical);
+ 
+
     my $last_modified_user = $circuit_details->{'last_modified_by'};
     my $created_user = $circuit_details->{'created_by'};
     my $created_on = $circuit_details->{'created_on'};
@@ -484,15 +492,20 @@ sub generate_clr{
     my $workgroup_name = $circuit_details->{'workgroup'}->{'name'};
 
     my $clr = "";
-    $clr .= "Circuit " . $circuit_details->{'name'} . "\n";
-    $clr .= "Created by " . $created_user->{'given_names'} . " " . $created_user->{'family_name'} . " at " . $created_on . " for workgroup " . $workgroup_name . "\n";
-    $clr .= "Lasted Modified By: " . $last_modified_user->{'given_name'} . " " . $last_modified_user->{'family_name'} . " at " . $last_edited . "\n\n";
-    $clr .= "Endpoints: \n";
+    $clr .= "Circuit: $circuit_details->{'description'}\n" .
+            "Circuit Status: $circuit_details->{'state'}\n" .
+            "Active Path: $circuit_details->{'active_path'}\n".
+            "Created by: $created_user->{'given_names'} $created_user->{'family_name'} at $created_on\n".  
+            "In Workgroup: $workgroup_name \n" .
+            "Lasted Modified by: $last_modified_user->{'given_names'} $last_modified_user->{'family_name'} at $last_edited \n\n";
+   
+    $clr .= "Endpoints \n" .
+            "---------\n";   
 
     foreach my $endpoint (@$endpoints){
 	$clr .= "  " . $endpoint->{'node'} . " - " . $endpoint->{'interface'} . " VLAN " . $endpoint->{'tag'} . "\n";
     }
-
+    
     $clr .= "\nPrimary Path:\n";
     foreach my $path (@{$circuit_details->{'links'}}){
 	$clr .= "  " . $path->{'name'} . "\n";
@@ -2401,7 +2414,7 @@ sub get_circuit_paths{
     }
 
     my $query = "select * from path natural join path_instantiation where path.circuit_id = ? and path_instantiation.end_epoch = -1";
-
+    
     my $paths = $self->_execute_query($query, [$circuit_id]);
     
     foreach my $path (@$paths){
@@ -2433,6 +2446,8 @@ sub get_circuit_details {
 
     my $circuit_id = $args{'circuit_id'};
 
+    my @bind_params = ($circuit_id);
+
     my $details;
 
     # basic circuit info
@@ -2448,36 +2463,59 @@ sub get_circuit_details {
         " left join path_instantiation as bu_pi on bu_pi.path_id = bu_p.path_id and bu_pi.end_epoch = -1 ".
 	" where circuit.circuit_id = ?";
 
+    # if ($args{'show_historical'}){
+
+    #     my $query = "select circuit.name, circuit.description, circuit.circuit_id, circuit_instantiation.modified_by_user_id, circuit.workgroup_id, " .
+    #       " circuit_instantiation.reserved_bandwidth_mbps, circuit_instantiation.circuit_state, circuit_instantiation.start_epoch  , " .
+    #       " if(bu_pi.path_state = 'active', 'backup', 'primary') as active_path " .
+    #       "from circuit " .
+    #       " join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id " .
+    #       "  and circuit_instantiation.end_epoch = -1 " .
+    #       "left join path as pr_p on pr_p.circuit_id = circuit.circuit_id and pr_p.path_type = 'primary' " . 
+	#       "left join path_instantiation as pr_pi on pr_pi.path_id = pr_p.path_id and pr_pi.end_epoch = (select max(end_epoch) from path_instantiation where path_instantiation.path_id = pr_p.path_id) ".
+    #       " left join path as bu_p on bu_p.circuit_id = circuit.circuit_id and bu_p.path_type = 'backup' " .        
+    #       " left join path_instantiation as bu_pi on bu_pi.path_id = bu_p.path_id and bu_pi.end_epoch = (select max(end_epoch) from path_instantiation where path_instantiation.path_id = bu_p.path_id) ".
+	#       " where circuit.circuit_id = ?";
+
+
+
+    # }
+
     my $sth = $self->_prepare_query($query) or return undef;
 
-    $sth->execute($circuit_id);
+    $sth->execute(@bind_params);
 
     my $primary_path_id;
     my $backup_path_id;
-
+    my $show_historical =0;
     if (my $row = $sth->fetchrow_hashref()){
-	my $dt = DateTime->from_epoch( epoch => $row->{'start_epoch'} );
-	$details = {'circuit_id'             => $circuit_id,
-		    'name'                   => $row->{'name'},
-		    'description'            => $row->{'description'},
-		    'bandwidth'              => $row->{'reserved_bandwidth_mbps'},
-		    'state'                  => $row->{'circuit_state'},
-		    'active_path'            => $row->{'active_path'},
-		    'user_id'                => $row->{'modified_by_user_id'},
-		    'last_edited'            => $dt->month . "/" . $dt->day . "/" . $dt->year . " " . $dt->hour . ":" . $dt->minute . ":" . $dt->second,
-		    'workgroup_id'           => $row->{'workgroup_id'}
-	           };
-
+        my $dt = DateTime->from_epoch( epoch => $row->{'start_epoch'} );
+        $details = {'circuit_id'             => $circuit_id,
+                    'name'                   => $row->{'name'},
+                    'description'            => $row->{'description'},
+                    'bandwidth'              => $row->{'reserved_bandwidth_mbps'},
+                    'state'                  => $row->{'circuit_state'},
+                    'active_path'            => $row->{'active_path'},
+                    'user_id'                => $row->{'modified_by_user_id'},
+                    'last_edited'            => $dt->month . "/" . $dt->day . "/" . $dt->year . " " . $dt->hour . ":" . $dt->minute . ":" . $dt->second,
+                    'workgroup_id'           => $row->{'workgroup_id'}
+                   };
+        if ( $row->{'circuit_state'} eq 'decom' ){
+            $show_historical =1;
+        }
+    
     }
+   
     
     $details->{'internal_ids'} = $self->get_circuit_internal_ids(circuit_id => $circuit_id) || [];
 
-    $details->{'endpoints'}    = $self->get_circuit_endpoints(circuit_id => $circuit_id) || [];
+    $details->{'endpoints'}    = $self->get_circuit_endpoints(circuit_id => $circuit_id, show_historical=> $show_historical) || [];
 
-    $details->{'links'}        = $self->get_circuit_links(circuit_id => $circuit_id) || [];
+    $details->{'links'}        = $self->get_circuit_links(circuit_id => $circuit_id, show_historical=> $show_historical) || [];
 
     $details->{'backup_links'} = $self->get_circuit_links(circuit_id => $circuit_id,
-							  type       => 'backup'
+							  type       => 'backup',
+                                                          show_historical => $show_historical
 	                                                 ) || [];
 
     $details->{'workgroup'} = $self->get_workgroup_by_id( workgroup_id => $details->{'workgroup_id'} );
@@ -2494,7 +2532,7 @@ sub get_circuit_details {
     }
 
 
-    my $paths = $self->get_circuit_paths( circuit_id => $circuit_id);
+    my $paths = $self->get_circuit_paths( circuit_id => $circuit_id, show_historical => $show_historical);
     foreach my $path (@$paths){
 	if($path->{'state'} eq 'active'){
 	    if($self->{'topo'}->is_path_up( path_id => $path->{'path_id'} )){
@@ -2586,10 +2624,17 @@ sub get_circuit_endpoints {
   #      " group by interface.interface_id ";
 
     my $query = "select * from circuit_edge_interface_membership where circuit_edge_interface_membership.circuit_id = ? and circuit_edge_interface_membership.end_epoch = -1";
+    my @bind_values = ($args{'circuit_id'});
+
+    if ($args{'show_historical'} ){
+        #we set end_epoch in bulk, so it should be safe to get the set of edge_interfaces with the max end_epoch.
+        $query = "select * from circuit_edge_interface_membership where circuit_edge_interface_membership.circuit_id = ? and  end_epoch = (select max(end_epoch) from circuit_edge_interface_membership where circuit_id = ? )";
+        push(@bind_values,$args{'circuit_id'});
+    }
 
     my $sth = $self->_prepare_query($query) or return undef;
-
-    $sth->execute($args{'circuit_id'});
+    
+    $sth->execute(@bind_values);
 
     #we now have a handle on all of the rows... we need to pull out the interface data
     #because the same interface might be involved we have to break it up into 2 queries
@@ -2687,9 +2732,22 @@ sub get_circuit_links {
  	" join interface if_z on link_inst.interface_z_id = if_z.interface_id ". 
 	" join node node_a on if_a.node_id = node_a.node_id ".
 	" join node node_z on if_z.node_id = node_z.node_id ";
+    
+ if ($args{'show_historical'}){
+     #warn( "Getting Historical Data");
+      $query = 
 
+        "select link.name, node_a.name as node_a, if_a.name as interface_a, if_a.port_number as port_no_a, node_z.name as node_z, if_z.name as interface_z, if_z.port_number as port_no_z ".                     
+ "from path join link_path_membership on path.path_id = link_path_membership.path_id ".
+"and path.circuit_id = ? and path.path_type= ? and link_path_membership.end_epoch= (select max(end_epoch) from link_path_membership m where m.path_id = path.path_id) ".
+"join link on link_path_membership.link_id = link.link_id ".
+"join link_instantiation link_inst on link.link_id = link_inst.link_id and link_inst.end_epoch = -1 ".
+"join interface if_a on link_inst.interface_a_id = if_a.interface_id ".
+"join interface if_z on link_inst.interface_z_id = if_z.interface_id  join node node_a on if_a.node_id = node_a.node_id  join node node_z on if_z.node_id = node_z.node_id ";
+
+    }
     my $sth = $self->_prepare_query($query) or return undef;
-
+    
     $sth->execute($args{'circuit_id'},
 		  $args{'type'}
 	         );
@@ -5792,8 +5850,8 @@ sub _execute_query {
 
     my $sth = $dbh->prepare($query);
 
-    #warn "Query is: $query\n";
-    #warn "Args are: " . Dumper($args);
+   # warn "Query is: $query\n";
+   # warn "Args are: " . Dumper($args);
 
     if (! $sth){
 	warn "Error in prepare query: $DBI::errstr";
