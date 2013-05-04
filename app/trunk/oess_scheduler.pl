@@ -31,7 +31,7 @@ sub main{
      my $log_client;
 
     eval {
-        $log_svc    = $bus->get_service("org.nddi.syslogger");
+        $log_svc    = $bus->get_service("org.nddi.notification");
         $log_client = $log_svc->get_object("/controller1");
     };
 

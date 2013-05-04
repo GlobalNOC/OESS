@@ -14,40 +14,65 @@ use Data::Dumper;
 #OESS Notification Daemon.
 
 #create notification object globally
-my $notification = OESS::Notification->new(
-                                              config_file=>'/etc/oess/notification.xml'
-                                         );
+#my $notification = OESS::Notification->new(
+
+#                                         );
 
 
 sub connect_to_dbus {
 
-   my $prov_dbus = OESS::DBus->new(
-        service  => 'org.nddi.syslogger',
-        instance => '/controller1'
-    );
+  # my $prov_dbus = OESS::DBus->new(
+   #     service  => 'org.nddi.syslogger',
+   #     instance => '/controller1'
+   # );
    my $fwdctl_dbus = OESS::DBus->new(
                                     service =>'org.nddi.fwdctl',
                                     instance=>'/controller1'
                                     );
 
-    if ( defined($prov_dbus) ) {
-        $prov_dbus->connect_to_signal( "signal_circuit_provision",   \&notify_provision );
-        $prov_dbus->connect_to_signal( "signal_circuit_decommission", \&notify_decomission );
-        $prov_dbus->connect_to_signal( "signal_circuit_modify",      \&notify_modification );
+   my $dbus = OESS::DBus->new(service => 'org.nddi.openflow', instance => '/controller1');
+   
+   ##dbus registers events to listen for on creation / scheduled
+   my $bus = Net::DBus->system;
+   my $service = $bus->export_service("org.nddi.notification");
+   
+   my $notification = OESS::Notification->new(service =>$service,
+                                               config_file=>'/etc/oess/notification.xml');
+   #warn Dumper ($object);
+   #warn Dumper $object->{'ws'};
+   if (!defined $notification){
+        #fuuu
+        die("could not export org.nddi.notification service");
     }
-    else {
+
+
+    #if ( defined($prov_dbus) ) {
+     #   $prov_dbus->connect_to_signal( "signal_circuit_provision",   \&notify_provision );
+     #   $prov_dbus->connect_to_signal( "signal_circuit_decommission", \&notify_decomission );
+     #   $prov_dbus->connect_to_signal( "signal_circuit_modify",      \&notify_modification );
+    #}
+    #else {
         #syslog( LOG_ERR, "Unable to connect to the DBus" );
-        die;
-    }
+     #   die;
+    #}
+
+   my $callback =  sub {
+           my ($circuit,$success) = @_;
+           $notification->notify_failover($circuit,$success);
+
+       };
+   
    if (defined ($fwdctl_dbus) ){
-       #$fwdctl_dbus->connect_to_signal("signal_circuit_failover", \&notify_failover );
+       warn "connecting to signal";
+       
+
+       $fwdctl_dbus->connect_to_signal("signal_circuit_failover", $callback );
 
    }
    else {
        die;
    }
 
-   #This is weird, but I believe because Net::DBUS::Reactor (in the internals of OESS::DBus) is a singleton, you're actually registering to one loop in the backend, so only one start_reactor is required..
    $fwdctl_dbus->start_reactor();
 
 }
@@ -55,87 +80,93 @@ sub connect_to_dbus {
 
 
 
-sub notify_failover{
-    my ($circuit) = @_;
+# sub notify_failover{
+#     my ($circuit,$success) = @_;
+        
+#     my $circuit_notification_data = $notification->get_notification_data( circuit => $circuit );   
+#     #$circuit->{'clr'} = $circuit_notification_data->{'clr'};
+#     #warn "$success";
+#     foreach my $user ( @{$circuit_notification_data->{'affected_users'} } ){
 
-    my $circuit_notification_data = $notification->get_notification_data( circuit => $circuit );   
-    $circuit->{'clr'} = $circuit_notification_data->{'clr'};
-    foreach my $user ( @{$circuit_notification_data->{'affected_users'} } ){
-
-        $notification->send_notification( 
-                                           notification_type =>'failover',
-                                           username => $circuit_notification_data->{'username'},
-                                           contact_data => $user,
-                                           circuit_data => $circuit
+#         $notification->send_notification( 
+#                                            notification_type =>"failover_$success",
+#                                            username => $circuit_notification_data->{'username'},
+#                                            contact_data => $user,
+#                                            circuit_data => $circuit_notification_data->{'circuit'}
                                           
-                                          );
-    }
+#                                           );
+#     }
 
     
 
-}
+# }
 
-sub notify_provision{
-    my ($circuit) = @_;
+# sub notify_provision{
+#     my ($circuit) = @_;
 
-    my $circuit_notification_data = $notification->get_notification_data(  circuit =>$circuit );   
-    $circuit->{'clr'} = $circuit_notification_data->{'clr'};
-    foreach my $user ( @{$circuit_notification_data->{'affected_users'} } ){
+#     my $circuit_notification_data = $notification->get_notification_data(  circuit =>$circuit );   
+#     $circuit->{'clr'} = $circuit_notification_data->{'clr'};
+#     foreach my $user ( @{$circuit_notification_data->{'affected_users'} } ){
 
-        $notification->send_notification( 
-                                           notification_type =>'provision',
-                                           username => $circuit_notification_data->{'username'},
-                                           contact_data => $user,
-                                           circuit_data => $circuit
+#         $notification->send_notification( 
+#                                            notification_type =>'provision',
+#                                            username => $circuit_notification_data->{'username'},
+#                                            contact_data => $user,
+#                                            circuit_data => $circuit
                                            
-                                          );
-    }
+#                                           );
+#     }
 
 
-}
+# }
 
-sub notify_decomission {
-    my ($circuit) = @_;
+# sub notify_decomission {
+#     my ($circuit) = @_;
 
-    my $circuit_notification_data = $notification->get_notification_data(  circuit =>$circuit );   
+#     my $circuit_notification_data = $notification->get_notification_data(  circuit =>$circuit );   
 
-    foreach my $user ( @{$circuit_notification_data->{'affected_users'} } ){
-    $circuit->{'clr'} = $circuit_notification_data->{'clr'};
-        $notification->send_notification( 
-                                           notification_type =>'decommission',
-                                           username => $circuit_notification_data->{'username'},
-                                           contact_data => $user,
-                                           circuit_data => $circuit
+#     foreach my $user ( @{$circuit_notification_data->{'affected_users'} } ){
+#     $circuit->{'clr'} = $circuit_notification_data->{'clr'};
+#         $notification->send_notification( 
+#                                            notification_type =>'decommission',
+#                                            username => $circuit_notification_data->{'username'},
+#                                            contact_data => $user,
+#                                            circuit_data => $circuit
                                            
-                                          );
-    }
+#                                           );
+#     }
 
 
 
-}
+# }
 
-sub notify_modification {
-    my ($circuit) = @_;
+# sub notify_modification {
+#     my ($circuit) = @_;
 
-    my $circuit_notification_data = $notification->get_notification_data( circuit => $circuit );   
-    $circuit->{'clr'} = $circuit_notification_data->{'clr'};
-    foreach my $user ( @{$circuit_notification_data->{'affected_users'} } ){
-        $notification->send_notification( 
-                                           notification_type =>'modify',
-                                           username => $circuit_notification_data->{'username'},
-                                           contact_data => $user,
-                                           circuit_data => $circuit
+#     my $circuit_notification_data = $notification->get_notification_data( circuit => $circuit );   
+#     $circuit->{'clr'} = $circuit_notification_data->{'clr'};
+#     foreach my $user ( @{$circuit_notification_data->{'affected_users'} } ){
+#         $notification->send_notification( 
+#                                            notification_type =>'modify',
+#                                            username => $circuit_notification_data->{'username'},
+#                                            contact_data => $user,
+#                                            circuit_data => $circuit
                                           
-                                          );
-    }
+#                                           );
+#     }
 
-}
+# }
 
 sub main{
     connect_to_dbus;
 }
+#sub fwdctl_failover_callback{
+#    my $notification = shift;
+#    my ($circuit,$success) = @_;
 
-
+    
+    
+#}
 our ( $opt_f, $opt_u );
 my $result = GetOptions(
     "foreground" => \$opt_f,
