@@ -200,9 +200,11 @@ sub provision_circuit {
     my $log_svc;
     my $log_client;
     eval {
-        $log_svc    = $bus->get_service("org.nddi.syslogger");
+        $log_svc    = $bus->get_service("org.nddi.notification");
         $log_client = $log_svc->get_object("/controller1");
     };
+    warn $@ if $@;
+
 
     my @links        = $cgi->param('link');
     my @backup_links = $cgi->param('backup_link');
@@ -250,19 +252,20 @@ sub provision_circuit {
                 # ckt->{'name'}
                 # ckt->{'description'},
                 # ckt->{'circuit_state'}
-		eval{
-                my $circuit_details = $db->get_circuit_details(
-                    circuit_id => $output->{'circuit_id'} );
-
-                $log_client->circuit_provision( {
-												 circuit_id    => $output->{'circuit_id'},
-												 workgroup_id  => $workgroup_id,
-												 name          => $circuit_details->{'name'},
-												 description   => $description,
-												 circuit_state => $circuit_details->{'state'}
-												 }
-											  );
-		}
+                eval{
+                    my $circuit_details = $db->get_circuit_details(
+                                                                   circuit_id => $output->{'circuit_id'} );
+                    
+                    $log_client->circuit_provision( {
+                                                     circuit_id    => $output->{'circuit_id'},
+                                                     workgroup_id  => $workgroup_id,
+                                                     name          => $circuit_details->{'name'},
+                                                     description   => $description,
+                                                     circuit_state => $circuit_details->{'state'}
+                                                    }
+                                                  );
+                };
+                warn $@ if $@;
             }
 
         }
@@ -329,21 +332,24 @@ sub provision_circuit {
 
             #Send Edit to Syslogger DBUS
             if ( defined $log_client ) {
-		eval{
-                my $circuit_details = $db->get_circuit_details(
-                    circuit_id => $output->{'circuit_id'} );
-
-                $log_client->circuit_modify( {
-											  circuit_id    => $circuit_id,
-											  workgroup_id  => $workgroup_id,
-											  name          => $circuit_details->{'name'},
-											  description   => $description,
-											  circuit_state => $circuit_details->{'state'}
-											 }
-											 );
-		}
+                eval{
+                    my $circuit_details = $db->get_circuit_details(
+                                                                   circuit_id => $output->{'circuit_id'} );
+                    warn "Sending circuit_modify";
+                    $log_client->circuit_modify( {
+                                                  circuit_id    => $circuit_id,
+                                                  workgroup_id  => $workgroup_id,
+                                                  name          => $circuit_details->{'name'},
+                                                  description   => $description,
+                                                  circuit_state => $circuit_details->{'state'}
+                                                 }
+                                               );
+                };
+                  warn $@ if $@;
             }
+            
         }
+
 
         $result = _send_add_command( circuit_id => $output->{'circuit_id'} );
 
@@ -389,9 +395,10 @@ sub remove_circuit {
     my $log_client;
 
     eval {
-        $log_svc    = $bus->get_service("org.nddi.syslogger");
+        $log_svc    = $bus->get_service("org.nddi.notification");
         $log_client = $log_svc->get_object("/controller1");
     };
+    warn $@ if $@;
 
     if ( !defined $can_remove ) {
         $results->{'error'} = $db->get_error();
@@ -442,19 +449,21 @@ sub remove_circuit {
     else {
 
         #DBUS Log removal event
-	eval{
-        my $circuit_details = $db->get_circuit_details( circuit_id => $output->{'circuit_id'} );
-
-        $log_client->circuit_decommission({
-            circuit_id    => $circuit_id,
-            workgroup_id  => $workgroup_id,
-            name          => $circuit_details->{'name'},
-            description   => $circuit_details->{'description'},
-            circuit_state => $circuit_details->{'state'}
-        });
-	}
+        eval{
+            my $circuit_details = $db->get_circuit_details( circuit_id => $output->{'circuit_id'} );
+            warn ("sending circuit_decommission");
+            $log_client->circuit_decommission( {
+                                                circuit_id    => $circuit_id,
+                                                workgroup_id  => $workgroup_id,
+                                                name          => $circuit_details->{'name'},
+                                                description   => $circuit_details->{'description'},
+                                                circuit_state => $circuit_details->{'state'}
+                                               }
+                                             );
+        }
 
     }
+    warn $@ if $@;
     $results->{'results'} = [ { success => 1 } ];
 
     return $results;
