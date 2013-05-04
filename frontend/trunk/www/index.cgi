@@ -165,7 +165,7 @@ sub main{
     $vars->{'breadcrumbs'}        = $breadcrumbs;
     $vars->{'current_breadcrumb'} = $current_breadcrumb;
     $vars->{'is_admin'}           = $is_admin;		       
-    print STDERR Dumper($vars);
+    #print STDERR Dumper($vars);
     $tt->process("html_templates/page_base.html", $vars, \$output) or warn $tt->error();
     
     print "Content-type: text/html\n\n" . $output;

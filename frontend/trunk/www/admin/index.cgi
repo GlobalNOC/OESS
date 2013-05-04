@@ -37,7 +37,7 @@ sub main {
 #-- Figure out what we're trying to templatize here or default to workgroups page.
     my $action = "admin";
 
-    if ( $cgi->param('action') =~ /^(\w+)$/ ) {
+    if ( $cgi->param('action') && $cgi->param('action') =~ /^(\w+)$/ ) {
         $action = $1;
     }
 
