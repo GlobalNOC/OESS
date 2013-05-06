@@ -125,6 +125,9 @@ sub new {
     dbus_method("changeVlanPath", ["string"], ["string"]);
     dbus_method("topo_port_status",["uint64","uint32",["dict","string","string"]],["string"]);
     dbus_method("rules_per_switch",["uint64"],["uint32"]);
+    
+    my @params = ( [["dict","string",["variant"]]],['string']);
+    dbus_signal("signal_circuit_failover", @params );
     return $self;
 }
 
@@ -768,33 +771,37 @@ sub _fail_over_circuits{
     my $circuits = $params{'circuits'};
     my $link_name = $params{'link_name'};
     foreach my $circuit_info (@$circuits){
-	my $circuit_id   = $circuit_info->{'id'};
-	my $circuit_name = $circuit_info->{'name'};
-	
-	my $alternate_path = $self->{'db'}->circuit_has_alternate_path(circuit_id => $circuit_id);
-	if(defined($alternate_path)){
-	    #determine if alternate path is up
-	    if( $self->{'topo'}->is_path_up( path_id => $alternate_path ) ){
-		my $success = $self->{'db'}->switch_circuit_to_alternate_path(circuit_id => $circuit_id);
-		_log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name moving to alternate path");
-		
-		if (! $success){
-		    _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $self->{'db'}->get_error());
-		    next;
-		}
-		
-		$self->changeVlanPath($circuit_id);
-		#--- no way to now if this succeeds???
-	    }else{
-		_log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has a backup path, but it is down as well.  Not failing over");
-		next;
-	    }
-	    
-	} else {  
-	    # this is probably where we would put the dynamic backup calculation
-	    # when we get there.
-	    _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name  has no alternate path and is down");
-	}
+        my $circuit_id   = $circuit_info->{'id'};
+        my $circuit_name = $circuit_info->{'name'};
+        
+        my $alternate_path = $self->{'db'}->circuit_has_alternate_path(circuit_id => $circuit_id);
+        if(defined($alternate_path)){
+            #determine if alternate path is up
+            if( $self->{'topo'}->is_path_up( path_id => $alternate_path ) ){
+                my $success = $self->{'db'}->switch_circuit_to_alternate_path(circuit_id => $circuit_id);
+                _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name moving to alternate path");
+                
+                if (! $success){
+                    _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $self->{'db'}->get_error());
+                    $self->emit_signal("signal_circuit_failover", $circuit_info,"failed_unknown" );
+                    next;
+                }
+                
+                $self->changeVlanPath($circuit_id);
+                #--- no way to now if this succeeds???
+                $self->emit_signal("signal_circuit_failover", $circuit_info,"success" );
+            }else {
+                _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has a backup path, but it is down as well.  Not failing over");
+                $self->emit_signal("signal_circuit_failover", $circuit_info,"failed_path_down" );
+                next;
+            }
+            
+        } else {  
+            # this is probably where we would put the dynamic backup calculation
+            # when we get there.
+            _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name  has no alternate path and is down");
+            $self->emit_signal("signal_circuit_failover", $circuit_info,"failed_no_backup" );
+        }
     }
 
     return;
