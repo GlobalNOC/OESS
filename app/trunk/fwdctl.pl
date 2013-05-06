@@ -109,7 +109,6 @@ sub new {
 	_log("Could not make database object");
 	exit(1);
     }
-
     $self->{'nodes_needing_diff'} = {};
     $self->{'db'} = $db;
     
@@ -135,7 +134,7 @@ sub _sync_database_to_network {
     my $nodes = $self->{'db'}->get_current_nodes();
     foreach my $node(@$nodes){
 	$node->{'full_diff'} = 1;
-	$self->{'nodes_needing_diff'}{$node->{'dpid'}} = $node;
+        $self->{'nodes_needing_diff'}{$node->{'dpid'}} = $node;
     }
 }
 
@@ -379,7 +378,7 @@ sub _generate_commands{
      
      #--- if this was a remove call, then we would basically change the base action of the command 
      return \@commands;
-    
+     
    }elsif($action == FWDCTL_CHANGE_PATH){
      #--- if primary path , change to backup.  If backup switch to primary
      #--- switching involves changing endpoint rules
@@ -429,8 +428,8 @@ sub _initialize{
     my $nodes = $self->{'db'}->get_node_dpid_hash();
 
     foreach my $node (keys (%{$nodes})){
-        my $dpid         = $nodes->{$node};
-        $self->{'nodes_needing_init'}{$dpid} = $node; 
+        my $dpid = $nodes->{$node};
+	$self->{'nodes_needing_init'}{$dpid} = $node;
 	$node{$dpid} = 0;
         $self->datapath_join_handler($dpid);
     }
@@ -489,10 +488,10 @@ sub datapath_join_handler{
 	_log("sw:$sw_name dpid:$dpid_str installed default drop rule and lldp forward rule");
     }
 
-    #set this node for diffing!
+    #schedule_for_flow_stats
     $self->{'nodes_needing_diff'}{$dpid} = {dpid => $dpid, full_diff => 1};
     delete $self->{'nodes_needing_init'}{$dpid};
-
+    
 }
 
 sub _replace_flowmod{
@@ -710,6 +709,7 @@ sub _restore_down_circuits{
     my %params = @_;
     my $circuits = $params{'circuits'};
     my $link_name = $params{'link_name'};
+
     #this loop is for automatic restoration when both paths are down
     foreach my $circuit (@$circuits){
 	my $paths = $self->{'db'}->get_circuit_paths( circuit_id => $circuit->{'circuit_id'} );
@@ -721,23 +721,18 @@ sub _restore_down_circuits{
 		#check to see if both paths are up and we are on the backup and that we are to restore to primary
 		_log("vlan: " . $circuit->{'name'} . " id: " . $circuit->{'circuit_id'} . "_id affected by trunk:$link_name all paths up");
 		if($paths->[0]->{'status'} != OESS_LINK_DOWN && $paths->[1]->{'status'} != OESS_LINK_DOWN && $circuit->{'restore_to_primary'} && $circuit->{'active_path'} eq 'backup'){
+
                     #both paths are up... currently we are on backup path, and we are configure to restore to primary
-		    if(defined($circuit->{'restore_to_primary_hold_timer'}) && $circuit->{'restore_to_primary_hold_timer'} <= 0){
-			#move it now
-			_log("vlan: " . $circuit->{'name'} . " id: " . $circuit->{'circuit_id'} . "_id currently on backup path configure to restore to primary... attempting");
-			$self->changeVlanPath($circuit->{'circuit_id'});
-		    }else{
-			#schedule the change path
-			_log("vlan: " . $circuit->{'name'} . " id: " . $circuit->{'circuit_id'} . "_id currently on backup path, scheduling restore to primary for " . $circuit->{'restore_to_primary_hold_timer'} . " minutes from now");
-			$self->{'db'}->schedule_path_change( circuit_id => $circuit->{'circuit_id'},
-							     path => 'primary',
-							     when => time() + (60 * $circuit->{'restore_to_primary_hold_timer'}));
-		    }
-		}else{		
+		    #schedule the change path
+		    _log("vlan: " . $circuit->{'name'} . " id: " . $circuit->{'circuit_id'} . "_id currently on backup path, scheduling restore to primary for " . $circuit->{'restore_to_primary_hold_timer'} . " minutes from now");
+		    $self->{'db'}->schedule_path_change( circuit_id => $circuit->{'circuit_id'},
+							 path => 'primary',
+							 when => time() + (60 * $circuit->{'restore_to_primary_hold_timer'}));
+		    
+		}else{
 		    _log("vlan: " . $circuit->{'name'} . " id: " . $circuit->{'circuit_id'} . "_id affected by trunk:$link_name all paths currently up, no attempt to restore has been made");
 		}
 	    }elsif($paths->[0]->{'path_status'} eq 'active' && $paths->[0]->{'status'} == OESS_LINK_DOWN){
-
 		#ok the active path is down
 		#did our other path recover it
 		if($paths->[1]->{'status'} != OESS_LINK_DOWN){
@@ -771,7 +766,7 @@ sub _fail_over_circuits{
     my %params = @_;
     
     my $circuits = $params{'circuits'};
-    my $link_name = $params{'link_nmae'};
+    my $link_name = $params{'link_name'};
     foreach my $circuit_info (@$circuits){
 	my $circuit_id   = $circuit_info->{'id'};
 	my $circuit_name = $circuit_info->{'name'};
@@ -855,6 +850,7 @@ sub port_status{
 
 	#fail over affected circuits
 	$self->_fail_over_circuits( circuits => $affected_circuits, link_name => $link_name );
+	$self->_reschedule_restorations( link_id => $link_id);
 	
     }
     
@@ -863,36 +859,28 @@ sub port_status{
     else{
 		
 	my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $link_id);
-
 	$self->_restore_down_circuits( circuits => $circuits, link_name => $link_name );
-	#this loop is for automatic restoration when both paths are down
-	foreach my $circuit (@$circuits){
-	    my $paths = $self->{'db'}->get_circuit_paths( circuit_id => $circuit->{'circuit_id'} );
+    
+    }
+}
 
-	    if($#{$paths} > 1){
-		#ok we have 2 paths
-		if($paths->[0]->{'path_status'} eq 'active' && $paths->[0]->{'status'} != OESS_LINK_DOWN){
-		    #ok path is up and is active do nothing
-		}elsif($paths->[0]->{'path_status'} eq 'active' && $paths->[0]->{'status'} == OESS_LINK_DOWN){
-		    #ok the active path is down
-		    #did our other path recover it
-		    if($paths->[1]->{'status'} != OESS_LINK_DOWN){
-			#bring it back to this path
-			my $success = $self->{'db'}->switch_circuit_to_alternate_path( circuit_id => $circuit->{'circuit_id'});
-			_log("vlan:" . $circuit->{'name'} ." id:" . $circuit->{'circuit_id'} . " affected by trunk:$link_name moving to alternate path");
-			
-			if (! $success){
-			    _log("vlan:" . $circuit->{'name'} . " id:" . $circuit->{'circuit_id'} . " affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $self->{'db'}->get_error());
-			    next;
-			}
-			
-			$self->changeVlanPath($circuit->{'circuit_id'});
-		    }
-		}elsif($paths->[0]->{'status'} == OESS_LINK_DOWN && $paths->[1]->{'status'} == OESS_LINK_DOWN){
-		    _log("vlan:" . $circuit->{'name'} . " id:" . $circuit->{'circuit_id'} . "_id affected by trunk:$link_name all paths currently down, no attempt to restore has been made");
-		}
-	    }
+sub _reschedule_restorations{
+    my $self = shift;
+    my %args = @_;
 
+    if(!defined($args{'link_id'})){
+	return;
+    }
+
+    my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $args{'link_id'} );
+
+    foreach my $circuit (@$circuits){
+	
+	my $scheduled_events = $self->{'db'}->get_circuit_scheduled_events( circuit_id => $circuit->{'circuit_id'},
+									    show_completed => 0 );
+	
+	foreach my $event (@$scheduled_events){
+	    
 	}
 
     }
@@ -1028,10 +1016,11 @@ sub topo_port_status{
 		}else{
 		    _log("sw:$sw_name dpid:$dpid_str port $port_name");
 		}
+		
 		#get list of rules we currently have
 		$node->{'interface_diff'} = 1;
-		$node->{'port_number'} = $port_number;
-		$self->{'nodes_needing_diff'}{$dpid} = $node;
+                $node->{'port_number'} = $port_number;
+                $self->{'nodes_needing_diff'}{$dpid} = $node;
 
 		#note that this will cause the flow_stats_in handler to handle this data
 		#and it will then call the _do_interface_diff				
@@ -1078,34 +1067,34 @@ sub _process_flows_to_hash{
 }
 
 
-sub flow_stats_in{
+sub get_flow_stats{
     my $self = shift;
-    my $dpid = shift;
-    my $flows = shift;
-
-    #--- check to see if node still needs to be initialized
-    my $node = $self->{'nodes_needing_init'}{$dpid};
-    if(defined $node){
-      $self->datapath_join_handler($dpid);
+    _log("getting all flow stats");
+    foreach my $dpid (keys (%{$self->{'nodes_needing_diff'}})){
+	_log("getting flow stats for dpid: " . $dpid);
+	my $node = $self->{'nodes_needing_diff'}{$dpid};
+	my ($time,$flows) = $self->{'of_controller'}->get_flow_stats($dpid);
+	
+	if($time == -1){
+	    #we don't have flow data yet
+	    _log("no flow stats cached yet");
+	    next;
+	}
+    
+	
+	#---process the flow_rules into a lookup hash
+	my $hash = _process_flows_to_hash($flows);
+	
+	#--- now that we have the lookup hash of flow_rules
+	#--- do the diff
+	if($node->{'full_diff'} == 1){
+	    $self->_do_diff($node,$hash);
+	}elsif($node->{'interface_diff'} == 1){
+	    $self->_do_interface_diff($node,$hash);
+	}
+	delete $self->{'nodes_needing_diff'}{$dpid};
     }
-
-    #--- check to see if we need to perform diff
-    $node = $self->{'nodes_needing_diff'}{$dpid};
-    return if(!defined $node);
-
-    #---process the flow_rules into a lookup hash
-    my $hash = _process_flows_to_hash($flows);
-
-    #--- take off the queue
-    delete  $self->{'nodes_needing_diff'}{$dpid};
-
-    #--- now that we have the lookup hash of flow_rules
-    #--- do the diff
-    if($node->{'full_diff'} == 1){
-      $self->_do_diff($node,$hash);
-    }elsif($node->{'interface_diff'} == 1){
-      $self->_do_interface_diff($node,$hash);
-    }
+   
 }
 
 sub link_event {
@@ -1373,18 +1362,21 @@ sub core{
 	$srv_object->link_event($a_dpid,$a_port,$z_dpid,$z_port,$status);
     }
 
-    sub flow_stats_callback{
-	my $dpid = shift;
-	my $flows = shift;
-	$srv_object->flow_stats_in($dpid,$flows);
+    sub get_flow_stats_callback{
+	$srv_object->get_flow_stats();
     }
 
     $dbus->connect_to_signal("datapath_join",\&datapath_join_callback);
     $dbus->connect_to_signal("port_status",\&port_status_callback);
     $dbus->connect_to_signal("link_event",\&link_event_callback);
-    $dbus->connect_to_signal("flow_stats_in",\&flow_stats_callback);
+
     FwdCtl::_log("all signals connected");
-    $dbus->start_reactor();
+
+    $dbus->start_reactor( timeouts => [{ interval => 10000, callback => Net::DBus::Callback->new(
+              method => sub {
+		  get_flow_stats_callback();
+              })
+				       }]);
 }
 
 sub main{

@@ -137,14 +137,47 @@ sub main{
 		
 		my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
 		
-		$log_client->circuit_decommission({
-		    circuit_id    => $action->{'circuit_id'},
-		    workgroup_id  => $action->{'workgroup_id'},
-		    name          => $circuit_details->{'name'},
-		    description   => $circuit_details->{'description'},
-		    circuit_state => $circuit_details->{'circuit_state'}
-						  });
+		$log_client->circuit_decommission({ circuit_id    => $action->{'circuit_id'},
+						    workgroup_id  => $action->{'workgroup_id'},
+						    name          => $circuit_details->{'name'},
+						    description   => $circuit_details->{'description'},
+						    circuit_state => $circuit_details->{'circuit_state'} });
 	    }
+	}elsif($circuit_layout->{'action'} eq 'change_path'){
+
+	    #verify the circuit has an alternate path
+	    my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
+	    
+	    #if we are already on our scheduled path... don't change
+	    if($circuit_details->{'active_path'} ne $circuit_layout->{'path'}){
+		syslog(LOG_INFO,"Changing the patch of circuit " . $circuit_details->{'description'} . ":" . $circuit_details->{'circuit_id'});
+		my $success = $oess->switch_circuit_to_alternate_path( circuit_id => $action->{'circuit_id'} );
+		
+		if($success){
+		    my $res;
+		    eval{
+			$res = $client->changeVlanPath($action->{'circuit_id'});
+		    };
+		}
+
+		$res = $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
+
+                if(!defined($res)){
+                    syslog(LOG_ERR,"Unable to complete action");
+                    $oess->_rollback();
+                }
+
+	    }else{
+		#already done... nothing to do... complete the 
+		syslog(LOG_WARN,"Circuit " . $circuit_details->{'description'} . ":" . $circuit_details->{'circuit_id'} . " is already on Path:" . $circuit_layout->{'path'} . "completing scheduled action"); 
+		$res = $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
+
+                if(!defined($res)){
+                    syslog(LOG_ERR,"Unable to complete action");
+                    $oess->_rollback();
+                }
+	    }
+	    
 	}
     }
 }
