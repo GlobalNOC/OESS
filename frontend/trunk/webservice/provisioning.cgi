@@ -33,10 +33,11 @@ use warnings;
 use CGI;
 use JSON;
 use Switch;
-use Net::DBus::Exporter qw(org.nddi.fwdctl);
+#use Net::DBus::Exporter qw(org.nddi.fwdctl);
 use Data::Dumper;
 
 use OESS::Database;
+use OESS::Topology;
 
 my $db = new OESS::Database();
 
@@ -168,7 +169,7 @@ sub _send_remove_command {
 
     my $result = $client->deleteVlan($circuit_id);
 
-    warn "RESULT: " . Dumper($result);
+    #warn "RESULT: " . Dumper($result);
 
     return $result;
 }
@@ -512,6 +513,16 @@ sub fail_over_circuit {
 
     my $circuit_id   = $cgi->param('circuit_id');
     my $workgroup_id = $cgi->param('workgroup_id');
+    my $forced = $cgi->param('force') || undef;
+
+    my $bus = Net::DBus->system;
+    my $log_svc;
+    my $log_client;
+    eval {
+        $log_svc    = $bus->get_service("org.nddi.notification");
+        $log_client = $log_svc->get_object("/controller1");
+    };
+    warn $@ if $@;
 
     my $can_fail_over = $db->can_modify_circuit(
         circuit_id   => $circuit_id,
@@ -530,21 +541,60 @@ sub fail_over_circuit {
         return $results;
     }
 
-    $db->switch_circuit_to_alternate_path( circuit_id => $circuit_id );
-    my $result =
-      _fail_over( circuit_id => $circuit_id, workgroup_id => $workgroup_id );
-    if ( !defined($result) ) {
-        $results->{'error'} = "Unable to change the path";
-        $results->{'results'} = [ { success => 0 } ];
+    my $alternate_path = $db->circuit_has_alternate_path(circuit_id => $circuit_id);
+    if(defined($alternate_path) ){
+        my $topo = OESS::Topology->new( db => $db);
+        my $is_up = $topo->is_path_up( path_id => $alternate_path );
+        if ( $is_up || $forced ){
+
+            $db->switch_circuit_to_alternate_path( circuit_id => $circuit_id );
+            my $result =
+              _fail_over( circuit_id => $circuit_id, workgroup_id => $workgroup_id );
+            if ( !defined($result) ) {
+                $results->{'error'} = "Unable to change the path";
+                $results->{'results'} = [ { success => 0 } ];
+            }
+
+            if ( $result == 0 ) {
+                $results->{'error'} = "Unable to change the path";
+                $results->{'results'} = [ { success => 0 } ];
+            }
+
+            if ($is_up){
+                eval {
+                    $log_client->circuit_failover(
+                                                   {
+                                                    requested_by => $ENV{'REMOTE_USER'},
+                                                    circuit_id => $circuit_id,
+                                                    workgroup_id  => $workgroup_id,
+                                                    failover_type=> "manual_success"
+                                                   },
+
+                                                  );
+                    };
+                warn $@ if $@;
+            }
+            elsif($forced){
+                eval {
+                    $log_client->circuit_failover( {
+                                                     requested_by     => $ENV{'REMOTE_USER'},
+                                                     circuit_id    => $circuit_id,
+                                                     workgroup_id  => $workgroup_id,
+                                                    failover_type=> "forced"
+                                                   },
+
+                                                  );
+                    };
+                warn $@ if $@;
+            }
+            $results->{'results'} = [ { success => 1 } ];
+        }
+
+        else{
+            $results->{'error'} = "Alternative Path is down, failing over will cause this circuit to be down.";
+            $results->{'results'} = [ { success => 0 } ];
+        }
     }
-
-    if ( $result == 0 ) {
-        $results->{'error'} = "Unable to change the path";
-        $results->{'results'} = [ { success => 0 } ];
-    }
-
-    $results->{'results'} = [ { success => 1 } ];
-
     return $results;
 }
 
