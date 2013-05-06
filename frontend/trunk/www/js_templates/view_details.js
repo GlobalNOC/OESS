@@ -125,29 +125,78 @@ function page_init(){
 			      ds.connTimeout    = 30 * 1000; // 30 seconds
 			      
 			      ds.responseSchema = {
-				  resultsList: "results",
-				  fields: [{key: "success", parser: "number"},
-			      {key: "circuit_id", parser: "number"}
-					   ],
-				  metaFields: {
-				      error: "error",
-				      warning: "warning"
-				  }
+				      resultsList: "results",
+				      fields: [{key: "success", parser: "number"},
+			                   {key: "circuit_id", parser: "number"},
+                               {key: "alt_path_down", parser:"number"}
+					          ],
+				      metaFields: {
+				          error: "error",
+				          warning: "warning"
+				      }
 			      };
-			      ds.sendRequest("",{success: function(){
-				  change_path_button.set("disabled",false);
-				  alert('Successfully changed the path',function(){window.location.reload()});
-					  
-				      },
-					  failure: function(){
-					      change_path_button.set("disabled",false);
-					  alert('Unable to change to the backup path');
-				      }},ds);
+			      ds.sendRequest("",{success: function(Req,Resp){
+                      
+                      var data= Resp.results;
+                      console.log(data);
+                      if ( data[0].alt_path_down == 1) {
+                                             showConfirm("WARNING: The Path you are attempting to fail over to is DOWN. Failing this circuit over will result in it being unavailable. Would you like to continue?",
+                                                         function() {ds.sendRequest("&force=1", {
+                                                             success: function(){
+                                                                 change_path_button.set("disabled",false);
+                                                                 alert('Successfully changed the path',function(){window.location.reload()});
+                                                                 
+                                                             },
+                                                             failure: function() {
+                                                                 change_path_button.set("disabled",false);
+                                                                 alert('Unable to change to the backup path');
+                                                             }
+                                                         },ds) },
+                                                         function() {
+                                                             change_path_button.set("disabled",false);
+                                                         }
+                                                        );
+                                         
+                      }
+                      else {
+				          change_path_button.set("disabled",false);
+				          alert('Successfully changed the path',function(){window.location.reload()});
+					  }
+				  },
+					                 failure: function(Req,Resp){
+					                     //var data = Resp.results;
+                                         console.log(Resp);
+                                         if (Resp.error == "Alternative Path is down, failing over will cause this circuit to be down."){
+                                             showConfirm("WARNING: The Path you are attempting to fail over to is DOWN. Failing this circuit over will result in it being unavailable. Would you like to continue?",
+                                                         function() {ds.sendRequest("&force=1", {
+                                                             success: function(){
+                                                                 change_path_button.set("disabled",false);
+                                                                 alert('Successfully changed the path',function(){window.location.reload()});
+                                                                 
+                                                             },
+                                                             failure: function() {
+                                                                 change_path_button.set("disabled",false);
+                                                                 alert('Unable to change to the backup path');
+                                                             }
+                                                         },ds) },
+                                                         function() {
+                                                             change_path_button.set("disabled",false);
+                                                         }
+                                                        );
+                                             
+
+                                         }
+					                     else {
+                                             change_path_button.set("disabled",false);
+                                             alert('Unable to change to the backup path');
+                                         }
+                                         
+				                     }},ds);
 			      
 			  },
-			  function(){
-			      //do nothing
-			  });
+			          function(){
+			              //do nothing
+			          });
 	      
 	  });
   }
