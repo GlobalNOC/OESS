@@ -126,22 +126,23 @@ class dBusEventGen(dbus.service.Object):
                          in_signature='t',
                          out_signature='t'
                          )
-    def get_dpid_result(self, dpid):
-        logger.info("Checking dpid %s" % str(dpid))
+    def get_xid_result(self, xid):
+        logger.info("Checking xid %s" % str(xid))
         logger.info(str(flowmod_callbacks))
-        if flowmod_callbacks.has_key(dpid):    
-            for info in flowmod_callbacks[dpid]:
+        if flowmod_callbacks.has_key(xid):
+            for info in flowmod_callbacks[xid]:
                 if info["status"] == PENDING:
                     return FWDCTL_WAITING
                 elif info["result"] == FWDCTL_FAILURE:
-                    del flowmod_callbacks[dpid]
+                    del flowmod_callbacks[xid]
                     return FWDCTL_FAILURE
 
             # pop these all out, we're done here
-            del flowmod_callbacks[dpid]
+            del flowmod_callbacks[xid]
             return FWDCTL_SUCCESS
 
-        return FWDCTL_UNKNOWN        
+        return FWDCTL_UNKNOWN
+
 
     @dbus.service.method(dbus_interface=ifname,
                          in_signature='t',

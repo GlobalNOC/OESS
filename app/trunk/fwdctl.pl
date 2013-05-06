@@ -1119,7 +1119,7 @@ sub _poll_xids{
     
     while (time() < $timeout){
 	foreach my $xid (keys %$xid_hash_ref){
-	    my $output = $self->{'of_controller'}->get_dpid_result($xid);
+	    my $output = $self->{'of_controller'}->get_xid_result($xid);
 
 	    #-- pending, retry later 
 	    next if ($output == FWDCTL_WAITING);
