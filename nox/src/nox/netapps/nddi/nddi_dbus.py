@@ -59,8 +59,8 @@ ifname = 'org.nddi.openflow'
 barrier_callbacks = {}
 flowmod_callbacks = {}
 
-switches = [];
-
+switches = []
+last_flow_stats = {}
 #--- this is a a wrapper class that defineds the dbus interface
 class dBusEventGen(dbus.service.Object):
 
@@ -103,31 +103,24 @@ class dBusEventGen(dbus.service.Object):
        string = "barrier_reply: "+str(dp_id)
        logger.info(string)
 
-    @dbus.service.signal(dbus_interface=ifname,signature='ta{sv}qqquqt')
-    def flow_mod(self,dpid,attrs,command,idle_to,hard_to,buffer_id,priority,cookie):
-       string =  "flowmod: "+str(dpid)+" : "+str(command)+" : "+str(cookie)
-       logger.info(string)
-
-    @dbus.service.signal(dbus_interface=ifname,signature='ta{sv}qytuutt')
-    def flow_removed(self,dpid,attrs,priority,reason,cookie,dur_sec,dur_nsec, byte_count, packet_count):
-       string =  "flowrm: "+str(dpid)+" :  "+str(cookie)
-       logger.info(string)
-
     @dbus.service.signal(dbus_interface=ifname,signature='tuquuay')
     def packet_in(self,dpid,in_port, reason, length, buffer_id, data):
        string =  "packet_in: "+str(dpid)+" :  "+str(in_port)
        logger.info(string)
 
-    @dbus.service.signal(dbus_interface=ifname, signature='taa{sv}')
-    def flow_stats_in(self,dpid,obj):
-        string = "flow_stats_in: " + str(dpid) + str(obj)
-        logger.debug(string)
-
     @dbus.service.method(dbus_interface=ifname,
-                         in_signature='tua{sv}',
-                         out_signature='tua{sv}')
-    def topo_port_status_ready(self, dpid, reason, attrs):
-        self.sg.topo_port_status(dpid,reason,attrs)
+                         in_signature='t',
+                         out_signature='iaa{sv}'
+                         )
+    def get_flow_stats(self, dpid):
+        string = "get_flow_stats: " + str(dpid)
+        logger.debug(string)
+        if last_flow_stats.has_key(dpid):
+            logger.debug("returning flow stats for dpid: " + str(dpid))
+            return (last_flow_stats[dpid]["time"],last_flow_stats[dpid]["flows"])
+        else:
+            logger.debug("No Flow stats cached for dpid: " + str(dpid))
+            return (-1, [{"flows": "not yet cached"}])
 
     @dbus.service.method(dbus_interface=ifname,
                          in_signature='t',
@@ -308,6 +301,8 @@ def datapath_join_callback(ref,sg,dp_id,ip_address,stats):
 def datapath_leave_callback(sg,dp_id):
     if dp_id in switches:
         switches.remove(dp_id)
+    if dp_id in last_flow_stats:
+        last_flow_stats.remove(dp_id)
 
     sg.datapath_leave(dp_id)
 
@@ -334,27 +329,6 @@ def error_callback(sg, dpid, type, code, data, xid):
                 info["status"] = ANSWERED
                 info["result"] = FWDCTL_FAILURE
                 break
-
-def flow_mod_callback(sg,dpid, attrs, command, idle_to, hard_to, buffer_id,priority, cookie):
-    attr_dict = {}
-    if attrs:
-      attr_dict = dbus.Dictionary(attrs, signature='sv')
-
-    if flowmod_callbacks.has_key(dpid):
-        inst.send_barrier(dpid)
-
-    sg.flow_mod(dpid,attr_dict,command,idle_to,hard_to,buffer_id,priority,cookie)
-
-def flow_removed_callback(sg,dpid,attrs, priority, reason, cookie, dur_sec, dur_nsec, byte_count, packet_count):
-    attr_dict = {}
-    if attrs:
-      attr_dict = dbus.Dictionary(attrs, signature='sv')
-
-    if flowmod_callbacks.has_key(dpid):
-        inst.send_barrier(dpid)
-     
-    sg.flow_removed(dpid,attr_dict,priority, reason, cookie, dur_sec, dur_nsec, byte_count, packet_count)
-
 
 def packet_in_callback(sg, dpid,in_port,reason, length,buffer_id, data) :
     sg.packet_in(dpid,in_port,reason, length,buffer_id, data.arr)
@@ -400,7 +374,7 @@ class nddi_dbus(Component):
         self.ctxt = ctxt
         self.collection_epoch = 0
         self.collection_epoch_duration = 10
-        self.flow_stats = {}
+        self.latest_flow_stats = {}
 
     def install(self):
 	#--- setup the dbus foo
@@ -412,7 +386,7 @@ class nddi_dbus(Component):
         
 
         self.sg = dBusEventGen(name,"/controller1")
-
+        self.flow_stats = {}
 	#--- register for nox events 
 	self.register_for_datapath_join (lambda dpid, stats : 
                                          datapath_join_callback(self,self.sg,dpid, self.ctxt.get_switch_ip(dpid), stats) 
@@ -427,18 +401,6 @@ class nddi_dbus(Component):
 
 	self.register_for_port_status(lambda dpid, reason, port : 
                                        port_status_callback(self.sg,dpid, reason, port) )
-
-        self.register_for_flow_mod(lambda dpid, attrs, command, idle_to, hard_to, 
-                                          buffer_id, priority, cookie : 
-                                          flow_mod_callback(self.sg, dpid, attrs, command, 
-                                                            idle_to, hard_to, buffer_id,
-                                                            priority, cookie) )
-
-	self.register_for_flow_removed(lambda dpid, attrs, priority, reason, cookie, dur_sec, 
-                                              dur_nsec, byte_count, packet_count : 
-                                              flow_removed_callback(self.sg, dpid, attrs, priority, 
-                                                                    reason, cookie, dur_sec,dur_nsec,
-                                                                    byte_count,packet_count) )
 
 	#self.register_for_packet_in( lambda dpid, in_port, reason, length, buffer_id, data :
 	#				    packet_in_callback(self.sg, dpid, in_port, reason, length, 
@@ -471,30 +433,30 @@ class nddi_dbus(Component):
 
         if dpid in self.flow_stats:
             if self.flow_stats[dpid] == None:
-                self.flow_stats[dpid] = flows
+                self.flow_stats[dpid] = {"time": int(time()) , "flows": flows}
             else:
-                self.flow_stats[dpid].extend(flows)
+                self.flow_stats[dpid]["flows"].extend(flows)
         else:
-            self.flow_stats[dpid] = flows
+            self.flow_stats[dpid] = {"time": int(time()) , "flows": flows}
 
         if done == False:
             if self.flow_stats[dpid]:     
 
                 # get rid of rules that don't have matches on them because we can't key off
                 # port / vlan to get info that we need
-                for row in reversed(self.flow_stats[dpid]):                    
+                for row in reversed(self.flow_stats[dpid]["flows"]):                    
 
                     if row.has_key("cookie"):
                         del row["cookie"]
 
                     if row.has_key("actions"):
                         if len(row["actions"]) == 0:
-                            self.flow_stats[dpid].remove(row)
+                            self.flow_stats[dpid]["flows"].remove(row)
                             continue
 
                     if row.has_key("match"):
                         if  not row["match"]:
-                            self.flow_stats[dpid].remove(row)
+                            self.flow_stats[dpid]["flows"].remove(row)
                             continue
                         else:
                             # not exactly elegant, the 64bit numbers such as dl_dst in the match element seem
@@ -504,9 +466,9 @@ class nddi_dbus(Component):
                                 if isinstance(row["match"][element], long):
                                     del row["match"][element]
 
-                # fire the event if we still have any flows left
+                # update our cache with the latest flow stats
                 if self.flow_stats[dpid]:
-                    self.sg.flow_stats_in(dpid,self.flow_stats[dpid])
+                    last_flow_stats[dpid] = self.flow_stats[dpid]
 
             self.flow_stats[dpid] = None
  
