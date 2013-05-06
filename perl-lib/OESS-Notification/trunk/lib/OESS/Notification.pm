@@ -79,15 +79,14 @@ sub new {
     dbus_signal("signal_circuit_provision", [["dict","string",["variant"]]],['string']);
 	dbus_signal("signal_circuit_modify", [["dict","string",["variant"]]]);
 	dbus_signal("signal_circuit_decommission",  [["dict","string",["variant"]]],['string']);
+    dbus_signal("signal_circuit_failover",  [["dict","string",["variant"]]],['string']);
 
 	dbus_method("circuit_provision", [["dict","string",["variant"]]],['string']);
 	dbus_method("circuit_modify", [["dict","string",["variant"]]],['string']);
 	dbus_method("circuit_decommission",  [["dict","string",["variant"]]],['string']);
-    
+    dbus_method("circuit_failover",  [["dict","string",["variant"]]],['string']);
 
 
-    
-    
     return $self;
 }
 
@@ -97,18 +96,15 @@ sub circuit_provision {
 
 
     my $circuit_notification_data = $self->get_notification_data(  circuit =>$circuit );   
-    $circuit->{'clr'} = $circuit_notification_data->{'clr'};
-    foreach my $user ( @{$circuit_notification_data->{'affected_users'} } ){
-
-        $self->send_notification( 
-                                           notification_type =>'provision',
-                                           username => $circuit_notification_data->{'username'},
-                                           contact_data => $user,
-                                           circuit_data => $circuit
-                                           
-                                          );
-    }
-
+    #$circuit->{'clr'} = $circuit_notification_data->{'clr'}; 
+   
+        $self->send_notification(
+                                 to => $circuit_notification_data->{'affected_users'},
+                                 notification_type =>'provision',
+                                 workgroup => $circuit_notification_data->{'workgroup'},
+                                 circuit_data => $circuit_notification_data->{'circuit'},
+                                 forced_by => $circuit->{'forced_by'}
+                                );
 
 	$self->emit_signal("signal_circuit_provision", $circuit);
 
@@ -122,43 +118,67 @@ sub circuit_modify {
 	warn ("in circuit modify");
 
      my $circuit_notification_data = $self->get_notification_data( circuit => $circuit );   
-    $circuit->{'clr'} = $circuit_notification_data->{'clr'};
-    foreach my $user ( @{$circuit_notification_data->{'affected_users'} } ){
-        $self->send_notification( 
-                                           notification_type =>'modify',
-                                           username => $circuit_notification_data->{'username'},
-                                           contact_data => $user,
-                                           circuit_data => $circuit
-                                          
-                                          );
-    }
+    #$circuit
+    #$circuit->{'clr'} = $circuit_notification_data->{'clr'};
+    #foreach my $user ( @{$circuit_notification_data->{'affected_users'} } ){
+    
+        
+
+    $self->send_notification( 
+                             to => $circuit_notification_data->{'affected_users'},
+                             notification_type =>'modify',
+                             workgroup => $circuit_notification_data->{'workgroup'},
+                             circuit_data => $circuit_notification_data->{'circuit'}                                          
+                            );
+    
 
 	$self->emit_signal("signal_circuit_modify", $circuit);
 
 }
-
     
 
 sub circuit_decommission {
 	my $self = shift;
 	my $circuit = shift;
 
-    my $circuit_notification_data = $self->get_notification_data(  circuit =>$circuit );   
+    my $circuit_notification_data = $self->get_notification_data(  circuit =>$circuit );      
 
-    foreach my $user ( @{$circuit_notification_data->{'affected_users'} } ){
-    $circuit->{'clr'} = $circuit_notification_data->{'clr'};
-        $self->send_notification( 
-                                           notification_type =>'decommission',
-                                           username => $circuit_notification_data->{'username'},
-                                           contact_data => $user,
-                                           circuit_data => $circuit
-                                           
-                                          );
-    }
-
+    $self->send_notification(
+                             to => $circuit_notification_data->{'affected_users'},
+                             notification_type =>'decommission',
+                             workgroup => $circuit_notification_data->{'workgroup'},
+                             circuit_data => $circuit_notification_data->{'circuit'}
+                             
+                            );
 
     #in case anything needs to listen to this event
 	$self->emit_signal("signal_circuit_decommission", $circuit);
+
+}
+
+#dbusmethod circuit_failover
+
+sub circuit_failover {
+	my $self = shift;
+	my ($circuit) = @_;
+    
+    my $circuit_notification_data = $self->get_notification_data(  circuit =>$circuit );
+
+     my $notification_type = "failover_".$circuit->{'failover_type'};
+    if ($circuit->{'failover_type'}='forced' && $circuit->{'forced_by'}) {
+        $notification_type = "failover_forced";
+    }
+    
+    $self->send_notification(
+                             to => $circuit_notification_data->{'affected_users'},
+                             notification_type => $notification_type,
+                             workgroup => $circuit_notification_data->{'workgroup'},
+                             circuit_data => $circuit_notification_data->{'circuit'},
+                             forced_by => $circuit->{'forced_by'}
+                            );
+
+    #in case anything needs to listen to this event
+	$self->emit_signal("signal_circuit_failover", $circuit);
 
 }
 
@@ -170,38 +190,48 @@ sub send_notification {
     my %args = (
                 notification_type => undef,
                 circuit_data => undef,
-                contact_data => undef,
+                #contact_data => undef,
+                to => [],
                 @_
                );
-    
+    my @to_list= ();
     
     
     my $subject_map = {                       
                        'modify' => "OESS Notification: Circuit ".$args{'circuit_data'}{'description'}." Modified",
                        'provision' => "OESS Notification: Circuit ".$args{'circuit_data'}{'description'}." Provisioned",
                        'decommission' => "OESS Notification: Circuit ".$args{'circuit_data'}{'description'}." Decommissioned",
+                       
                        'failover_failed_unknown' => "OESS Notification: Circuit ".$args{'circuit_data'}{'description'}." is down",
                        'failover_failed_no_backup' =>"OESS Notification: Circuit ".$args{'circuit_data'}{'description'}." is down",
                        'failover_failed_path_down' => "OESS Notification: Circuit ".$args{'circuit_data'}{'description'}." is down",
                        'failover_success' => "OESS Notification: Circuit ".$args{'circuit_data'}{'description'}." Successful Failover to alternate path",
+                       'failover_manual_success' => "OESS Notification: Circuit ".$args{'circuit_data'}{'description'}." Successful Failover to alternate path",
+                       'failover_forced' => "OESS Notification: Circuit ".$args{'circuit_data'}{'description'}." Manual Failover to down path",
                       };
     
     my $vars = {
+                workgroup => $args{'workgroup'},
                 circuit_description => $args{'circuit_data'}{'description'},
                 clr => $args{'circuit_data'}{'clr'},
                 from_signature_name => $self->{'from_name'},
-                given_name => $args{'contact_data'}{'first_name'},
-                last_name => $args{'contact_data'}{'family_name'}
+                
                };
-
+    
     my $body;
     my $template = $args{'notification_type'} . '_template';
     
     $self->{'tt'}->process(\$self->{$template}, $vars, \$body);
     
-    $self->_send_notification(  body => $body,
+    foreach my $user (@{$args{'to'}} ){
+        push (@to_list, $user->{'email_address'} );
+    }
+    my $to_string = join(",", @to_list );
+
+    $self->_send_notification(  to => $to_string,
+                                 body => $body,
                                  subject => $subject_map->{ $args{'notification_type'} }, 
-                                 email_address => $args{'contact_data'}{'email_address'}
+                                
                                 );
     return 1;
 }
@@ -219,7 +249,7 @@ Greetings [%given_name%] [%last_name%],
 
 The following circuit has been provisioned: 
 
-[%circuit_clr%]
+[%clr%]
 
 Sincerely,
 
@@ -233,7 +263,7 @@ Greetings [%given_name%] [%last_name%],
 
 The circuit [%circuit_description%] has been decommissioned. For reference, its layout record is below:
 
-[%circuit_clr%]
+[%clr%]
 
 Sincerely,
 
@@ -244,13 +274,11 @@ TEMPLATE
 
 $self->{'modify_template'} = <<TEMPLATE;
 
-Greetings [%given_name%] [%last_name%],
+Greetings workgroup: [%workgroup%] ,
 
 The following circuit has been modified:
 
-The details of the circuit as they are currently are now:
-
-[%circuit_clr%]
+[%clr%]
 
 Sincerely,
 
@@ -262,11 +290,37 @@ $self->{'failover_success_template'} = <<TEMPLATE;
 
 Greetings [%given_name%] [%last_name%],
 
-The following circuit has successfully failed over to an alternate path:
+The following circuit has successfully failed over to an alternate path, for reference it is now configured as:
 
-The details of the circuit as they are currently are now:
+[%clr%]
 
-[%circuit_clr%]
+Sincerely,
+
+[%from_signature_name%]
+
+TEMPLATE
+
+$self->{'failover_manual_success_template'} = <<TEMPLATE;
+
+Greetings [%given_name%] [%last_name%],
+
+The following circuit has successfully failed over to an alternate path, for reference it is now configured as:
+
+[%clr%]
+
+Sincerely,
+
+[%from_signature_name%]
+
+TEMPLATE
+
+$self->{'failover_forced_template'} = <<TEMPLATE;
+
+Greetings [%given_name%] [%last_name%],
+
+The following circuit was manually failed over to a path that was down, and thus is unavailable. For reference it is now configured as:
+
+[%clr%]
 
 Sincerely,
 
@@ -284,7 +338,7 @@ This circuit is currently down.
 
 The details of the circuit as they were before attempted failover:
 
-[%circuit_clr%]
+[%clr%]
 
 Sincerely,
 
@@ -301,7 +355,7 @@ The following circuit is currently down.
 
 The details of the circuit as they were before attempted failover:
 
-[%circuit_clr%]
+[%clr%]
 
 Sincerely,
 
@@ -319,7 +373,7 @@ The following circuit is currently down.
 
 The details of the circuit as they were before attempted failover:
 
-[%circuit_clr%]
+[%clr%]
 
 Sincerely,
 
@@ -339,7 +393,7 @@ The details of the circuit are below:
 
 Sincerely,
 
-[$from_signature_name%]
+[%from_signature_name%]
 TEMPLATE
 
 }
@@ -434,7 +488,7 @@ sub get_notification_data {
                     'description' => $details->{'description'},
                     'clr' => $clr
                   };
-    return ({  'username'=> $username, 'last_modified' => $details->{'last_edited'}, 'clr' => $clr, 'affected_users' => $workgroup_members, 'circuit'=> $circuit  });
+    return ({  'username'=> $username, 'last_modified' => $details->{'last_edited'}, 'clr' => $clr, 'workgroup' => $details->{'workgroup'}->{'name'}, 'affected_users' => $workgroup_members, 'circuit'=> $circuit  });
 }
 
 
@@ -444,10 +498,10 @@ sub _send_notification {
     my %args = @_;
     
     my $body = $args{'body'};
-
+    #warn Dumper ($body);
     my $message = MIME::Lite->new(
                                   From => $self->{'from_address'},
-                                  To => $args{'email_address'},
+                                  To => $args{'to'},
                                   Subject => $args{'subject'},
                                   Type => 'text/plain',
                                   Data => uri_unescape($body) );
