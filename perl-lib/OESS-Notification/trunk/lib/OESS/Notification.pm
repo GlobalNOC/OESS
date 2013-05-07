@@ -103,7 +103,7 @@ sub circuit_provision {
                                  notification_type =>'provision',
                                  workgroup => $circuit_notification_data->{'workgroup'},
                                  circuit_data => $circuit_notification_data->{'circuit'},
-                                 forced_by => $circuit->{'forced_by'}
+                                 
                                 );
 
 	$self->emit_signal("signal_circuit_provision", $circuit);
@@ -165,7 +165,7 @@ sub circuit_failover {
     my $circuit_notification_data = $self->get_notification_data(  circuit =>$circuit );
 
      my $notification_type = "failover_".$circuit->{'failover_type'};
-    if ($circuit->{'failover_type'}='forced' && $circuit->{'forced_by'}) {
+    if ($circuit->{'failover_type'}='forced' && $circuit->{'requested_by'}) {
         $notification_type = "failover_forced";
     }
     
@@ -174,7 +174,7 @@ sub circuit_failover {
                              notification_type => $notification_type,
                              workgroup => $circuit_notification_data->{'workgroup'},
                              circuit_data => $circuit_notification_data->{'circuit'},
-                             forced_by => $circuit->{'forced_by'}
+                             requested_by => $circuit->{'requested_by'}
                             );
 
     #in case anything needs to listen to this event
@@ -523,16 +523,13 @@ sub notify_failover{
     #$circuit->{'clr'} = $circuit_notification_data->{'clr'};
     
     
-
-
-        $self->send_notification( 
+        $self->send_notification(
                                  to => $circuit_notification_data->{'affected_users'},
+                                 workgroup => $circuit_notification_data->{'workgroup'},
+                                 circuit_data => $circuit_notification_data->{'circuit'},
                                  notification_type =>"failover_".$circuit->{'failover_type'},
-                                 username => $circuit_notification_data->{'username'},
-                                 contact_data => $user,
-                                 circuit_data => $circuit_notification_data->{'circuit'} 
                                 );
-    }
+    
 
     
 
