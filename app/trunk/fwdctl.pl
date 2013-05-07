@@ -1198,12 +1198,7 @@ sub addVlan {
 
 	my $details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
 	
-	my $user_id = $self->{'db'}->get_user_id_by_given_name(name => "System");
-	
-	if (! $user_id){
-	    return "Unable to get System user: " . $self->{'db'}->get_error();       
-	}
-	
+		
 	if ($details->{'state'} eq "deploying" || $details->{'state'} eq "scheduled"){
 	    
 	    my $state = $details->{'state'};
@@ -1211,7 +1206,7 @@ sub addVlan {
 	    $self->{'db'}->update_circuit_state(circuit_id          => $circuit_id,
 						old_state           => $state,
 						new_state           => 'active',
-						modified_by_user_id => $user_id 
+						modified_by_user_id => $details->{'user_id'} 
 		);
 	}
 	$self->{'db'}->update_circuit_path_state(circuit_id  => $circuit_id,
