@@ -591,8 +591,11 @@ sub fail_over_circuit {
         }
 
         else{
-            $results->{'error'} = "Alternative Path is down, failing over will cause this circuit to be down.";
-            $results->{'results'} = [ { success => 0 } ];
+            
+            $results->{'error'}{'message'} = "Alternative Path is down, failing over will cause this circuit to be down.";
+            $results->{'results'} = [ {
+                                       'success' =>0,
+                                       alt_path_down => 1 } ];
         }
     }
     return $results;
