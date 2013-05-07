@@ -50,7 +50,9 @@ our $VERSION = '1.0.0';
 
 =head1 SYNOPSIS
 
-=cut
+Object handles Notification Functions required for OE-SS.
+
+=cut 
 
 =head2 C<new()>
 
@@ -85,7 +87,7 @@ sub new {
 	dbus_method("circuit_modify", [["dict","string",["variant"]]],['string']);
 	dbus_method("circuit_decommission",  [["dict","string",["variant"]]],['string']);
     dbus_method("circuit_failover",  [["dict","string",["variant"]]],['string']);
-
+    dbus_method("circuit_restore_to_primary", [["dict","string",["variant"]]],['string']);
 
     return $self;
 }
@@ -182,6 +184,27 @@ sub circuit_failover {
 
 }
 
+sub circuit_restore_to_primary {
+	my $self = shift;
+	my ($circuit) = @_;
+    
+    my $circuit_notification_data = $self->get_notification_data(  circuit =>$circuit );
+
+     my $notification_type = "restore_to_primary";
+        
+    $self->send_notification(
+                             to => $circuit_notification_data->{'affected_users'},
+                             notification_type => $notification_type,
+                             workgroup => $circuit_notification_data->{'workgroup'},
+                             circuit_data => $circuit_notification_data->{'circuit'},
+                             requested_by => $circuit->{'requested_by'}
+                            );
+
+    #in case anything needs to listen to this event
+	$self->emit_signal("signal_circuit_failover", $circuit);
+
+}
+
 
 
 sub send_notification {
@@ -201,7 +224,7 @@ sub send_notification {
                        'modify' => "OESS Notification: Circuit ".$args{'circuit_data'}{'description'}." Modified",
                        'provision' => "OESS Notification: Circuit ".$args{'circuit_data'}{'description'}." Provisioned",
                        'decommission' => "OESS Notification: Circuit ".$args{'circuit_data'}{'description'}." Decommissioned",
-                       
+                       'restore_to_primary' => "OESS Notification: Circuit ".$args{'circuit_data'}{'description'}. " Restored to Primary Path",
                        'failover_failed_unknown' => "OESS Notification: Circuit ".$args{'circuit_data'}{'description'}." is down",
                        'failover_failed_no_backup' =>"OESS Notification: Circuit ".$args{'circuit_data'}{'description'}." is down",
                        'failover_failed_path_down' => "OESS Notification: Circuit ".$args{'circuit_data'}{'description'}." is down",
@@ -381,11 +404,11 @@ Sincerely,
 
 TEMPLATE
 
-$self->{'return_to_primary_template'} = <<TEMPLATE;
+$self->{'restore_to_primary_template'} = <<TEMPLATE;
 
 Greetings [%given_name%] [%last_name%],
 
-This circuit has been migrated back to its primary from backup due to the circuit preferences.
+This circuit has been migrated back to its primary path from the backup due to the circuit preferences.
 
 The details of the circuit are below:
 
