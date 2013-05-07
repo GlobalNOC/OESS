@@ -130,7 +130,6 @@ sub new {
     dbus_method("topo_port_status",["uint64","uint32",["dict","string","string"]],["string"]);
     dbus_method("rules_per_switch",["uint64"],["uint32"]);
     
-    #my @params = ( 
     dbus_signal("signal_circuit_failover", [["dict","string",["variant"]]],['string']);
     return $self;
 }
@@ -717,14 +716,10 @@ sub _restore_down_circuits{
     my $circuits = $params{'circuits'};
     my $link_name = $params{'link_name'};
  
-    print "in restore_down_circuits\n";
-
     #this loop is for automatic restoration when both paths are down
     foreach my $circuit (@$circuits){
-	print Dumper($circuit);
 	my $paths = $self->{'db'}->get_circuit_paths( circuit_id => $circuit->{'circuit_id'} );
 	if($#{$paths} >= 1){
-	    print STDERR Dumper($paths);
 
 	    #ok we have 2 paths
 	    my $backup_path;
@@ -925,24 +920,17 @@ sub _cancel_restorations{
     my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $args{'link_id'} , path => 'primary');
 
     foreach my $circuit (@$circuits){
-	_log("looking for restore to primary events for circuit: " . $circuit->{'circuit_id'});
 	my $scheduled_events = $self->{'db'}->get_circuit_scheduled_events( circuit_id => $circuit->{'circuit_id'},
 									    show_completed => 0 );
 	
-
 	foreach my $event (@$scheduled_events){
-	    _log("found an even for circuit: " . $circuit->{'circuit_id'});
-	    print Dumper($event);
 	    if($event->{'user_id'} == SYSTEM_USER){
 		#this is probably us... verify
-		_log("was registered by system user");
 		my $xml = XMLin($event->{'layout'});
 		next if $xml->{'action'} ne 'change_path';
-		_log("has action change path");
 		next if $xml->{'path'} ne 'primary';
-		_log("has path of primary");
 		$self->{'db'}->cancel_scheduled_action( scheduled_action_id => $event->{'scheduled_action_id'} );
-		_log("canceled event");
+		_log("Canceling restore to primary for circuit: " . $circuit->{'circuit_id'} . " because primary path is down");
 	    }
 	}
     }
@@ -1131,15 +1119,13 @@ sub _process_flows_to_hash{
 
 sub get_flow_stats{
     my $self = shift;
-    _log("getting all flow stats");
     foreach my $dpid (keys (%{$self->{'nodes_needing_diff'}})){
-	_log("getting flow stats for dpid: " . $dpid);
 	my $node = $self->{'nodes_needing_diff'}{$dpid};
 	my ($time,$flows) = $self->{'of_controller'}->get_flow_stats($dpid);
 	
 	if($time == -1){
 	    #we don't have flow data yet
-	    _log("no flow stats cached yet");
+	    _log("no flow stats cached yet for dpid: " . $dpid);
 	    next;
 	}
     
