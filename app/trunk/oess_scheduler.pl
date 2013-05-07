@@ -23,7 +23,7 @@ sub main{
     };
 
     if ($@){
-	syslog(LOG_ERROR,"Error in _connect_to_fwdctl: $@");
+	syslog(LOG_ERR,"Error in _connect_to_fwdctl: $@");
         return undef;
     }
 
@@ -144,7 +144,7 @@ sub main{
 						    circuit_state => $circuit_details->{'circuit_state'} });
 	    }
 	}elsif($circuit_layout->{'action'} eq 'change_path'){
-
+	    syslog(LOG_ERR,"Found a change_path action!!\n");
 	    #verify the circuit has an alternate path
 	    my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
 	    
@@ -152,9 +152,8 @@ sub main{
 	    if($circuit_details->{'active_path'} ne $circuit_layout->{'path'}){
 		syslog(LOG_INFO,"Changing the patch of circuit " . $circuit_details->{'description'} . ":" . $circuit_details->{'circuit_id'});
 		my $success = $oess->switch_circuit_to_alternate_path( circuit_id => $action->{'circuit_id'} );
-		
+		my $res;
 		if($success){
-		    my $res;
 		    eval{
 			$res = $client->changeVlanPath($action->{'circuit_id'});
 		    };
@@ -169,8 +168,8 @@ sub main{
 
 	    }else{
 		#already done... nothing to do... complete the 
-		syslog(LOG_WARN,"Circuit " . $circuit_details->{'description'} . ":" . $circuit_details->{'circuit_id'} . " is already on Path:" . $circuit_layout->{'path'} . "completing scheduled action"); 
-		$res = $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
+		syslog(LOG_WARNING,"Circuit " . $circuit_details->{'description'} . ":" . $circuit_details->{'circuit_id'} . " is already on Path:" . $circuit_layout->{'path'} . "completing scheduled action"); 
+		my $res = $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
 
                 if(!defined($res)){
                     syslog(LOG_ERR,"Unable to complete action");

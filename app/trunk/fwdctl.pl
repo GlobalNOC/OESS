@@ -35,6 +35,7 @@ use Sys::Syslog qw(:macros :standard);
 use Switch;
 use OESS::Database;
 use OESS::Topology;
+use XML::Simple;
 use Time::HiRes qw( usleep );
 
 use constant FWDCTL_ADD_VLAN     => 0;
@@ -927,21 +928,21 @@ sub _cancel_restorations{
 	_log("looking for restore to primary events for circuit: " . $circuit->{'circuit_id'});
 	my $scheduled_events = $self->{'db'}->get_circuit_scheduled_events( circuit_id => $circuit->{'circuit_id'},
 									    show_completed => 0 );
-	print Dumper($scheduled_events);
 	
 
 	foreach my $event (@$scheduled_events){
 	    _log("found an even for circuit: " . $circuit->{'circuit_id'});
+	    print Dumper($event);
 	    if($event->{'user_id'} == SYSTEM_USER){
 		#this is probably us... verify
 		_log("was registered by system user");
-		my $xml = XMLIn($event->{'circuit_layout'});
+		my $xml = XMLin($event->{'layout'});
 		next if $xml->{'action'} ne 'change_path';
 		_log("has action change path");
 		next if $xml->{'path'} ne 'primary';
 		_log("has path of primary");
-		$self->{'db'}->cancel_scheduled_action( action_id => $event->{'scheduled_action_id'} );
-		_log("canceld event");
+		$self->{'db'}->cancel_scheduled_action( scheduled_action_id => $event->{'scheduled_action_id'} );
+		_log("canceled event");
 	    }
 	}
     }
