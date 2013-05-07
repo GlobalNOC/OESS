@@ -57,15 +57,14 @@ sub connect_to_dbus {
     #}
 
    my $callback =  sub {
-           my ($circuit,$success) = @_;
-           $notification->notify_failover($circuit,$success);
+           my ($circuit) = @_;
+           $notification->notify_failover($circuit);
 
        };
    
    if (defined ($fwdctl_dbus) ){
-       warn "connecting to signal";
+       warn "connecting to signal_circuit_failover signal";
        
-
        $fwdctl_dbus->connect_to_signal("signal_circuit_failover", $callback );
 
    }
