@@ -259,7 +259,7 @@ function saveLocalCircuit(){
 
     var provision_time = session.data.provision_time;
     var remove_time    = session.data.remove_time;
-
+    var restore_to_primary = session.data.restore_to_primary;
     // get the times from milli into seconds
     if (provision_time != -1){
 	provision_time = parseInt(provision_time / 1000);
@@ -295,7 +295,8 @@ function saveLocalCircuit(){
 	           +"&bandwidth="+encodeURIComponent(bandwidth)
 	           +"&provision_time="+encodeURIComponent(provision_time)
 	           +"&remove_time="+encodeURIComponent(remove_time)
-	           +"&workgroup_id="+workgroup_id;
+	           +"&workgroup_id="+workgroup_id
+	           +"&restore_to_primary="+restore_to_primary;
     
 
     for (var i = 0; i < endpoints.length; i++){
