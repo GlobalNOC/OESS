@@ -75,6 +75,9 @@ use constant OESS_LINK_UP       => 1;
 use constant OESS_LINK_DOWN     => 0;
 use constant OESS_LINK_UNKNOWN  => 2;
 
+#SYSTEM USER
+use constant SYSTEM_USER        => 1;
+
 $| = 1;
 
 my %node;
@@ -712,50 +715,86 @@ sub _restore_down_circuits{
     my %params = @_;
     my $circuits = $params{'circuits'};
     my $link_name = $params{'link_name'};
+ 
+    print "in restore_down_circuits\n";
 
     #this loop is for automatic restoration when both paths are down
     foreach my $circuit (@$circuits){
+	print Dumper($circuit);
 	my $paths = $self->{'db'}->get_circuit_paths( circuit_id => $circuit->{'circuit_id'} );
-	
-	if($#{$paths} > 1){
+	if($#{$paths} >= 1){
+	    print STDERR Dumper($paths);
 
 	    #ok we have 2 paths
-	    if($paths->[0]->{'path_status'} eq 'active' && $paths->[0]->{'status'} != OESS_LINK_DOWN){
-		#check to see if both paths are up and we are on the backup and that we are to restore to primary
-		_log("vlan: " . $circuit->{'name'} . " id: " . $circuit->{'circuit_id'} . "_id affected by trunk:$link_name all paths up");
-		if($paths->[0]->{'status'} != OESS_LINK_DOWN && $paths->[1]->{'status'} != OESS_LINK_DOWN && $circuit->{'restore_to_primary'} && $circuit->{'active_path'} eq 'backup'){
-
-                    #both paths are up... currently we are on backup path, and we are configure to restore to primary
-		    #schedule the change path
-		    _log("vlan: " . $circuit->{'name'} . " id: " . $circuit->{'circuit_id'} . "_id currently on backup path, scheduling restore to primary for " . $circuit->{'restore_to_primary_hold_timer'} . " minutes from now");
-		    $self->{'db'}->schedule_path_change( circuit_id => $circuit->{'circuit_id'},
-							 path => 'primary',
-							 when => time() + (60 * $circuit->{'restore_to_primary_hold_timer'}));
-		    
+	    my $backup_path;
+	    my $primary_path;
+	    foreach my $path (@$paths){
+		if($path->{'path_type'} eq 'primary'){
+		    $primary_path = $path;
 		}else{
-		    _log("vlan: " . $circuit->{'name'} . " id: " . $circuit->{'circuit_id'} . "_id affected by trunk:$link_name all paths currently up, no attempt to restore has been made");
+		    $backup_path = $path;
 		}
-	    }elsif($paths->[0]->{'path_status'} eq 'active' && $paths->[0]->{'status'} == OESS_LINK_DOWN){
-		#ok the active path is down
-		#did our other path recover it
-		if($paths->[1]->{'status'} != OESS_LINK_DOWN){
+	    }
 
-		    #bring it back to this path
-		    my $success = $self->{'db'}->switch_circuit_to_alternate_path( circuit_id => $circuit->{'circuit_id'});
-		    _log("vlan:" . $circuit->{'name'} ." id:" . $circuit->{'circuit_id'} . " affected by trunk:$link_name moving to alternate path");
-		    
-		    if (! $success){
-			_log("vlan:" . $circuit->{'name'} . " id:" . $circuit->{'circuit_id'} . " affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $self->{'db'}->get_error());
-			next;
+
+	    #if the restored path is the backup
+	    if($circuit->{'path_type'} eq 'backup'){
+
+		if($primary_path->{'status'} == OESS_LINK_DOWN){
+		    #if the primary path is down and the backup path is up and is not active fail over
+		    if($self->{'topo'}->is_path_up( path_id => $backup_path->{'path_id'} ) && $backup_path->{'path_state'} ne 'active'){
+			#bring it back to this path
+			my $success = $self->{'db'}->switch_circuit_to_alternate_path( circuit_id => $circuit->{'circuit_id'});
+			_log("vlan:" . $circuit->{'name'} ." id:" . $circuit->{'circuit_id'} . " affected by trunk:$link_name moving to alternate path");
+			
+			if (! $success){
+			    _log("vlan:" . $circuit->{'name'} . " id:" . $circuit->{'circuit_id'} . " affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $self->{'db'}->get_error());
+			    next;
+			}
+			
+			$self->changeVlanPath($circuit->{'circuit_id'});
+		    }else{
+			#both paths are down...
+			
 		    }
-		    
-		    $self->changeVlanPath($circuit->{'circuit_id'});
-		    
 		}
+
+	    }else{
+		#the primary path is the one that was restored
 		
-	    }elsif($paths->[0]->{'status'} == OESS_LINK_DOWN && $paths->[1]->{'status'} == OESS_LINK_DOWN){
-		_log("vlan:" . $circuit->{'name'} . " id:" . $circuit->{'circuit_id'} . "_id affected by trunk:$link_name all paths currently down, no attempt to restore has been made");
-	    }   
+		if($primary_path->{'path_state'} eq 'active'){
+		    #nothing to do here as we are already on the primary path
+		    _log("Primary path restored and we were alread on it");
+		}else{
+		    
+		    if($self->{'topo'}->is_path_up( path_id => $primary_path->{'path_id'} )){
+			if($self->{'topo'}->is_path_up( path_id => $backup_path->{'path_id'} )){
+			    #ok the backup path is up and active... schedule the restoration
+			    #schedule the change path
+			    _log("vlan: " . $circuit->{'name'} . " id: " . $circuit->{'circuit_id'} . " is currently on backup path, scheduling restore to primary for " . $circuit->{'restore_to_primary'} . " minutes from now");
+			    $self->{'db'}->schedule_path_change( circuit_id => $circuit->{'circuit_id'},
+								 path => 'primary',
+								 when => time() + (60 * $circuit->{'restore_to_primary'}),
+								 user_id => SYSTEM_USER,
+								 workgroup_id => $circuit->{'workgroup_id'} );
+			}else{
+			    #ok the primary path is up and the backup is down and active... lets move now
+			    my $success = $self->{'db'}->switch_circuit_to_alternate_path( circuit_id => $circuit->{'circuit_id'});
+			    _log("vlan:" . $circuit->{'name'} ." id:" . $circuit->{'circuit_id'} . " affected by trunk:$link_name moving to alternate path");
+			    if (! $success){
+				_log("vlan:" . $circuit->{'name'} . " id:" . $circuit->{'circuit_id'} . " affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $self->{'db'}->get_error());
+				next;
+			    }
+
+			    $self->changeVlanPath($circuit->{'circuit_id'});
+			}
+		    }
+
+
+		}
+
+	    }
+
 	}	
     }
 }
@@ -857,7 +896,7 @@ sub port_status{
 
 	#fail over affected circuits
 	$self->_fail_over_circuits( circuits => $affected_circuits, link_name => $link_name );
-	$self->_reschedule_restorations( link_id => $link_id);
+	$self->_cancel_restorations( link_id => $link_id);
 	
     }
     
@@ -871,7 +910,7 @@ sub port_status{
     }
 }
 
-sub _reschedule_restorations{
+sub _cancel_restorations{
     my $self = shift;
     my %args = @_;
 
@@ -879,17 +918,29 @@ sub _reschedule_restorations{
 	return;
     }
 
-    my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $args{'link_id'} );
+    my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $args{'link_id'} , path => 'primary');
 
     foreach my $circuit (@$circuits){
-	
+	_log("looking for restore to primary events for circuit: " . $circuit->{'circuit_id'});
 	my $scheduled_events = $self->{'db'}->get_circuit_scheduled_events( circuit_id => $circuit->{'circuit_id'},
 									    show_completed => 0 );
+	print Dumper($scheduled_events);
 	
-	foreach my $event (@$scheduled_events){
-	    
-	}
 
+	foreach my $event (@$scheduled_events){
+	    _log("found an even for circuit: " . $circuit->{'circuit_id'});
+	    if($event->{'user_id'} == SYSTEM_USER){
+		#this is probably us... verify
+		_log("was registered by system user");
+		my $xml = XMLIn($event->{'circuit_layout'});
+		next if $xml->{'action'} ne 'change_path';
+		_log("has action change path");
+		next if $xml->{'path'} ne 'primary';
+		_log("has path of primary");
+		$self->{'db'}->cancel_scheduled_action( action_id => $event->{'scheduled_action_id'} );
+		_log("canceld event");
+	    }
+	}
     }
 }
 

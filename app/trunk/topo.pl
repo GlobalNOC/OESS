@@ -337,8 +337,11 @@ sub _send_topo_port_status{
 	return undef;
     }
 
-    print_log(LOG_ERR, "sending topo_port_statu event");
-    my $result = $client->topo_port_status($dpid,$reason,$info);
+    print_log(LOG_ERR, "trying to send topo_port_statu event");
+    eval {
+	my $result = $client->topo_port_status($dpid,$reason,$info);
+    }
+    
 }
 
 sub port_status_callback{
