@@ -509,22 +509,29 @@ sub _send_notification {
    
 }
 
+#entry point for failovers from fwdctl
+
 sub notify_failover{
     my $self = shift;
-    my ($circuit,$success) = @_;
-        
-    my $circuit_notification_data = $self->get_notification_data( circuit => $circuit );   
+    my ($circuit) = @_;
+    
+    warn "In Notify Failover";
+    #warn Dumper ($circuit);
+
+    
+    my $circuit_notification_data = $self->get_notification_data( circuit => {circuit_id => $circuit->{'id'} } );   
     #$circuit->{'clr'} = $circuit_notification_data->{'clr'};
-    #warn "$success";
-    foreach my $user ( @{$circuit_notification_data->{'affected_users'} } ){
+    
+    
+
 
         $self->send_notification( 
-                                           notification_type =>"failover_$success",
-                                           username => $circuit_notification_data->{'username'},
-                                           contact_data => $user,
-                                           circuit_data => $circuit_notification_data->{'circuit'}
-                                          
-                                          );
+                                 to => $circuit_notification_data->{'affected_users'},
+                                 notification_type =>"failover_".$circuit->{'failover_type'},
+                                 username => $circuit_notification_data->{'username'},
+                                 contact_data => $user,
+                                 circuit_data => $circuit_notification_data->{'circuit'} 
+                                );
     }
 
     
