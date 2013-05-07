@@ -477,11 +477,12 @@ sub generate_clr{
     }
 
     my $endpoints = $self->get_circuit_endpoints( circuit_id => $circuit_id);
+    
     if ($circuit_details->{'state'} eq 'decom'){
         $show_historical=1;
     }
    
-    my $endpoints = $self->get_circuit_endpoints( circuit_id => $circuit_id, show_historical => $show_historical);
+    $endpoints = $self->get_circuit_endpoints( circuit_id => $circuit_id, show_historical => $show_historical);
  
 
     my $last_modified_user = $circuit_details->{'last_modified_by'};
@@ -1416,7 +1417,10 @@ sub get_circuit_scheduled_events {
 	return;
     }
 
-    my $include_completed = $args{'show_completed'} || 1;
+    my $include_completed = $args{'show_completed'};
+    if(!defined($include_completed)){
+	$include_completed = 1;
+    }
     
     
     my $events = [];
@@ -1431,7 +1435,7 @@ sub get_circuit_scheduled_events {
 		" where scheduled_action.circuit_id = ?"; 
 
     if($include_completed != 1){
-	$query .= " and scheduled_action.completion_epoch = 0";
+	$query .= " and scheduled_action.completion_epoch = -1";
     }
 
     my $sth = $self->_prepare_query($query);
@@ -4759,7 +4763,7 @@ sub schedule_path_change{
     my $circuit_layout = XMLout($tmp);
 	
     
-    my $query = "insert into scheduled_action (user_id, workgroup_id, circuit_id, registration_epoch, activation_epoch, circuit_layout) VALUES (?,?,?,UNIX_TIMESTAMP(NOW()),?,?)";
+    my $query = "insert into scheduled_action (user_id, workgroup_id, circuit_id, registration_epoch, activation_epoch, circuit_layout, completion_epoch) VALUES (?,?,?,UNIX_TIMESTAMP(NOW()),?,?,-1)";
     my $res = $self->_execute_query($query, [$params{'user_id'},$params{'workgroup_id'},$params{'circuit_id'},$params{'when'},$circuit_layout]);
 
     return $res;
@@ -6259,7 +6263,7 @@ sub get_snapp_config_location{
 sub get_current_actions{
     my $self = shift;
     
-    my $query = "select * from scheduled_action where activation_epoch < unix_timestamp(now()) and completion_epoch = 0";
+    my $query = "select * from scheduled_action where activation_epoch < unix_timestamp(now()) and completion_epoch = -1";
     
     return $self->_execute_query($query,[]);
     
