@@ -466,17 +466,17 @@ sub generate_clr{
 	$self->_set_error("No Circuit ID Specified");
 	return;
     }
-    
+
+    my $clr ="";
+
     my $circuit_details = $self->get_circuit_details(circuit_id => $circuit_id);
-    #if ($circuit_details->{'state'} eq 'decom'){
-        #$circuit_details = $self->get_circuit_details(circuit_id => $circuit_id, show_historical => 1);
-    #}
-    warn Dumper ($circuit_details);
+
     if(!defined($circuit_details)){
 	$self->_set_error("No Circuit found by that ID ");
 	return;
     }
- 
+
+    my $endpoints = $self->get_circuit_endpoints( circuit_id => $circuit_id);
     if ($circuit_details->{'state'} eq 'decom'){
         $show_historical=1;
     }
@@ -491,31 +491,141 @@ sub generate_clr{
     my $last_edited = $circuit_details->{'last_edited'};
     my $workgroup_name = $circuit_details->{'workgroup'}->{'name'};
 
-    my $clr = "";
-    $clr .= "Circuit: $circuit_details->{'description'}\n" .
-            "Circuit Status: $circuit_details->{'state'}\n" .
-            "Active Path: $circuit_details->{'active_path'}\n".
-            "Created by: $created_user->{'given_names'} $created_user->{'family_name'} at $created_on\n".  
-            "In Workgroup: $workgroup_name \n" .
-            "Lasted Modified by: $last_modified_user->{'given_names'} $last_modified_user->{'family_name'} at $last_edited \n\n";
-   
-    $clr .= "Endpoints \n" .
-            "---------\n";   
+    if(defined($args{'raw'}) && $args{'raw'} == 1){
+	
+	$clr = "";
+	$clr .= "Circuit " . $circuit_details->{'name'} . "\n";
+        $clr .= "Created by " . $created_user->{'given_names'} . " " . $created_user->{'family_name'} . " at " . $created_on . " for workgroup " . $workgroup_name . "\n";
+        $clr .= "Lasted Modified By: " . $last_modified_user->{'given_name'} . " " . $last_modified_user->{'family_name'} . " at " . $last_edited . "\n\n";
+	
+	$clr .= "Primary Path:\n";
 
-    foreach my $endpoint (@$endpoints){
-	$clr .= "  " . $endpoint->{'node'} . " - " . $endpoint->{'interface'} . " VLAN " . $endpoint->{'tag'} . "\n";
-    }
+	
+	my $internal_ids = $circuit_details->{'internal_ids'};
     
-    $clr .= "\nPrimary Path:\n";
-    foreach my $path (@{$circuit_details->{'links'}}){
-	$clr .= "  " . $path->{'name'} . "\n";
+	my %primary_path;
+	my %backup_path;
+
+	foreach my $link (@{$circuit_details->{'links'}}){
+	    my $node_a = $link->{'node_a'};
+	    my $node_z = $link->{'node_z'};
+
+	    $primary_path{$node_a}{$link->{'port_no_a'}}{$internal_ids->{'primary'}{$node_a}} = $internal_ids->{'primary'}{$node_z};
+	    $primary_path{$node_z}{$link->{'port_no_z'}}{$internal_ids->{'primary'}{$node_z}} = $internal_ids->{'primary'}{$node_a};
+	    
+	}
+
+	foreach my $link (@{$circuit_details->{'backup_links'}}){
+	    my $node_a = $link->{'node_a'};
+	    my $node_z = $link->{'node_z'};
+	    $backup_path{$node_a}{$link->{'port_no_a'}}{$internal_ids->{'backup'}{$node_a}} = $internal_ids->{'backup'}{$node_z};
+	    $backup_path{$node_z}{$link->{'port_no_z'}}{$internal_ids->{'backup'}{$node_z}} = $internal_ids->{'backup'}{$node_a};
+	}
+
+
+	
+
+	my $path = \%primary_path;
+	#--- get node by node and figure out the simple forwarding rules for this path
+	foreach my $node (sort keys %$path){
+	    foreach my $interface (sort keys %{$path->{$node}}){
+		foreach my $other_if(sort keys %{$path->{$node}}){
+		    
+		    #--- skip when the 2 interfaces are the same
+		    next if($other_if eq $interface);
+		    $clr .= "NODE:" . $node . "\n  Match:";
+		    $clr .= "IN_PORT: " . $interface;
+		    #--- iterate through ports need set of rules for each input/output port combo
+		    foreach my $vlan_tag (sort keys %{$path->{$node}{$interface}}){          
+			$clr .= ", dl_vlan:" . $vlan_tag . "\n    OUTPUT: ";
+			my $remote_tag = $path->{$node}{$other_if}{$vlan_tag};
+			$clr .= $other_if . ":vlan" . $remote_tag;
+		    }
+		}
+		$clr .= "\n";
+	    }
+
+	} 
+    
+	$clr .= "\n\nBackup Path:\n";
+	$path = \%backup_path;
+        #--- get node by node and figure out the simple forwarding rules for this path
+        foreach my $node (sort keys %$path){
+            foreach my $interface (sort keys %{$path->{$node}}){
+                foreach my $other_if(sort keys %{$path->{$node}}){
+
+                    #--- skip when the 2 interfaces are the same
+                    next if($other_if eq $interface);
+                    $clr .= "NODE:" . $node . "\n  Match:";
+                    $clr .= "IN_PORT: " . $interface;
+                    #--- iterate through ports need set of rules for each input/output port combo
+                    foreach my $vlan_tag (sort keys %{$path->{$node}{$interface}}){
+                        $clr .= ", dl_vlan:" . $vlan_tag . "\n    OUTPUT: ";
+                        my $remote_tag = $path->{$node}{$other_if}{$vlan_tag};
+                        $clr .= $other_if . ":vlan" . $remote_tag;
+                    }
+                }
+		$clr .= "\n";
+            }
+        }
+	
+	foreach my $endpoint(@{$circuit_details->{'endpoints'}}){
+	    
+	    my $node      = $endpoint->{'node'};
+	    my $interface = $endpoint->{'port_no'};
+	    my $outer_tag = $endpoint->{'tag'};
+	    
+	    #--- iterate over the non-edge interfaces on the primary path to setup rules that both forward AND translate
+	    foreach my $other_if(sort keys %{$primary_path{$node}}){
+		foreach my $local_inner_tag (sort keys %{$primary_path{$node}{$other_if}}){
+		    
+		    my $remote_inner_tag = $primary_path{$node}{$other_if}{$local_inner_tag};
+		    
+		    #$self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$outer_tag, $interface, $remote_inner_tag, $other_if,$sw_act);
+		    #$self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$local_inner_tag, $other_if, $outer_tag, $interface,$sw_act);
+		}
+	    }
+	    
+	    #--- iterate over the endpoints again to catch more than 1 ep on same switch
+	    #--- this will be sorta odd as these will always exist regardless backup or primary
+	    #--- path if exist
+	    foreach my $other_ep(@{$circuit_details->{'endpoints'}}){
+		my $other_node =  $other_ep->{'node'};
+		my $other_if   =  $other_ep->{'port_no'};
+		my $other_tag  =  $other_ep->{'tag'};
+		
+		next if($other_ep == $endpoint || $node ne $other_node );
+		
+		#$self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$outer_tag, $interface, $other_tag, $other_if,$sw_act);
+		#$self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$other_tag, $other_if, $outer_tag, $interface,$sw_act);
+		
+	    }
+	}
+	
+	
+    }else{
+	
+	$clr = "";
+	$clr .= "Circuit " . $circuit_details->{'name'} . "\n";
+	$clr .= "Created by " . $created_user->{'given_names'} . " " . $created_user->{'family_name'} . " at " . $created_on . " for workgroup " . $workgroup_name . "\n";
+	$clr .= "Lasted Modified By: " . $last_modified_user->{'given_name'} . " " . $last_modified_user->{'family_name'} . " at " . $last_edited . "\n\n";
+	$clr .= "Endpoints: \n";
+	
+	foreach my $endpoint (@$endpoints){
+	    $clr .= "  " . $endpoint->{'node'} . " - " . $endpoint->{'interface'} . " VLAN " . $endpoint->{'tag'} . "\n";
+	}
+	
+	$clr .= "\nPrimary Path:\n";
+	foreach my $path (@{$circuit_details->{'links'}}){
+	    $clr .= "  " . $path->{'name'} . "\n";
+	}
+	
+	$clr .= "\nBackup Path:\n";
+	foreach my $path (@{$circuit_details->{'backup_links'}}){
+	    $clr .= "  " . $path->{'name'} . "\n";
+	}
     }
 
-    $clr .= "\nBackup Path:\n";
-    foreach my $path (@{$circuit_details->{'backup_links'}}){
-	$clr .= "  " . $path->{'name'} . "\n";
-    }
-        
     return $clr;
     
 }
@@ -1261,6 +1371,28 @@ sub get_circuits_on_link{
 
 
 
+=head2 cancel_scheduled_action
+
+=cut
+
+sub cancel_scheduled_action{
+    my $self = shift;
+    my %params = @_;
+
+    if(!defined($params{'scheduled_action_id'})){
+	print "NO SCHEDULED ACTION ID SPECIFIED\n";
+	return;
+    }
+
+    my $str = "delete from scheduled_action where scheduled_action_id = ?";
+    my $result = $self->_execute_query($str,[$params{'scheduled_action_id'}]);
+    if(defined($result)){
+	return 1;
+    }else{
+	return;
+    }
+}
+
 =head2 get_circuit_scheduled_events
 
 Returns an array of hashes containing information about user scheduled events for this circuit.
@@ -1280,17 +1412,27 @@ sub get_circuit_scheduled_events {
     my %args = @_;
 
     my $circuit_id = $args{'circuit_id'};
+    if(!defined($circuit_id)){
+	return;
+    }
 
+    my $include_completed = $args{'show_completed'} || 1;
+    
+    
     my $events = [];
 
-    my $query = "select remote_auth.auth_name, concat(user.given_names, ' ', user.family_name) as full_name, " .
+    my $query = "select user.user_id, remote_auth.auth_name, concat(user.given_names, ' ', user.family_name) as full_name, " .
 	        " from_unixtime(registration_epoch) as registration_time, from_unixtime(activation_epoch) as activation_time, " .
-		" scheduled_action.circuit_layout, " .
+		" scheduled_action.circuit_layout, scheduled_action.scheduled_action_id, " .
 		" from_unixtime(scheduled_action.completion_epoch) as completion_time " .
 		" from scheduled_action " .
 		" join user on user.user_id = scheduled_action.user_id " .
-		" join remote_auth on remote_auth.user_id = user.user_id " .
+		" left join remote_auth on remote_auth.user_id = user.user_id " .
 		" where scheduled_action.circuit_id = ?"; 
+
+    if($include_completed != 1){
+	$query .= " and scheduled_action.completion_epoch = 0";
+    }
 
     my $sth = $self->_prepare_query($query);
 
@@ -1302,7 +1444,9 @@ sub get_circuit_scheduled_events {
 			 "scheduled" => $row->{'registration_time'},
 			 "activated" => $row->{'activation_time'},
 			 "layout"    => $row->{'circuit_layout'},
-			 "completed" => $row->{'completion_time'}
+			 "completed" => $row->{'completion_time'},
+			 "user_id"   => $row->{'user_id'},
+			 "scheduled_action_id" => $row->{'scheduled_action_id'}
 	      });
     }
 
@@ -2538,7 +2682,7 @@ sub get_circuit_details {
 
     my $paths = $self->get_circuit_paths( circuit_id => $circuit_id, show_historical => $show_historical);
     foreach my $path (@$paths){
-	if($path->{'state'} && $path->{'state'} eq 'active'){
+	if($path->{'path_state'} eq 'active'){
 	    if($self->{'topo'}->is_path_up( path_id => $path->{'path_id'} )){
 		$details->{'operational_state'} = 'up';
 	    }else{
@@ -2613,20 +2757,6 @@ sub get_circuit_endpoints {
     my $self = shift;
     my %args = @_;
 
-#    my $query = "select interface.name as int_name, node.name as node_name, interface.interface_id, node.node_id as node_id, circuit_edge_interface_membership.extern_vlan_id, interface.port_number, network.is_local, interface.role, urn.urn " .
-#	" from interface " .
-#	" join circuit_edge_interface_membership on circuit_edge_interface_membership.circuit_id = ? " .
-#	"  and circuit_edge_interface_membership.end_epoch = -1 " .
-#	"  and interface.interface_id = circuit_edge_interface_membership.interface_id " .
-#	" left join interface_instantiation on interface.interface_id = interface_instantiation.interface_id " .
-#	"    and interface_instantiation.end_epoch = -1" . 
-#	" join node on node.node_id = interface.node_id " .
-#	"  left join node_instantiation on node.node_id = node_instantiation.node_id " .
-#	"    and node_instantiation.end_epoch = -1 " .
-#	" join network on network.network_id = node.network_id ".
- #       " left join urn on interface.interface_id=urn.interface_id" .
-  #      " group by interface.interface_id ";
-
     my $query = "select * from circuit_edge_interface_membership where circuit_edge_interface_membership.circuit_id = ? and circuit_edge_interface_membership.end_epoch = -1";
     my @bind_values = ($args{'circuit_id'});
 
@@ -2643,11 +2773,8 @@ sub get_circuit_endpoints {
     #we now have a handle on all of the rows... we need to pull out the interface data
     #because the same interface might be involved we have to break it up into 2 queries
 
-    #$query = "select interface.name as int_name, node.name as node_name, interface.interface_id, node.node_id as node_id, interface.port_number, network.is_local, interface.role, urn.urn from interface,node, network,urn where node.node_id = interface.node_id and interface.interface_id = ? and network.network_id = node.network_id and urn.interface_id = interface.interface_id";
     $query = "select interface.name as int_name,interface.description as interface_description, node.name as node_name, interface.interface_id, node.node_id as node_id, interface.port_number, interface.role, network.is_local, urn.urn from interface left join interface_instantiation on interface.interface_id = interface_instantiation.interface_id and interface_instantiation.end_epoch = -1 join node on interface.node_id = node.node_id left join node_instantiation on node_instantiation.node_id = node.node_id and node_instantiation.end_epoch = -1 left join urn on urn.interface_id = interface.interface_id join network on node.network_id = network.network_id where interface.interface_id = ?";
 
-    #"join node on node.node_id = interface.node_id node" network, urn where interface.interface_id = ? and node.node_id = interface.node_id and node.network_id = network.network_id and interface.interface_id = urn.interface_id";
-    
     my $sth2 = $self->_prepare_query($query) or return;
 
     my $results;
@@ -3421,9 +3548,11 @@ sub insert_node_in_path{
 	    if($link->{'link_id'} == $link_details->{'link_id'}){
 		#remove it and add 2 more
 		$self->_execute_query("update link_path_membership set end_epoch = unix_timestamp(NOW()) where link_id = ? and path_id = ? and end_epoch = -1",[$link->{'link_id'},$link->{'path_id'}]);
+
 		#add the new links to the path
 		$self->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",[$new_path->[0],$link->{'path_id'}]);
 		$self->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",[$new_path->[1],$link->{'path_id'}]);
+
 		#insert the path_instantiation_vlan_ids for this new device
 		my $internal_vlan = $self->_get_available_internal_vlan_id(node_id => $node_id);
 		if(!defined($internal_vlan)){   
@@ -4618,7 +4747,7 @@ sub schedule_path_change{
     my $self = shift;
     my %params = @_;
 
-    if(!defined($params{'circuit_id'}) || !defined($params{'when'}) || !defined($params{'path'}) || !defined($params{'user_id'}) || !defined($params{'workgroup_id'})){
+    if(!defined($params{'circuit_id'}) || !defined($params{'when'}) || !defined($params{'path'}) || !defined($params{'user_id'})){
 	return;
     }
 
@@ -6130,7 +6259,7 @@ sub get_snapp_config_location{
 sub get_current_actions{
     my $self = shift;
     
-    my $query = "select * from scheduled_action where activation_epoch < unix_timestamp(now()) and completion_epoch = -1";
+    my $query = "select * from scheduled_action where activation_epoch < unix_timestamp(now()) and completion_epoch = 0";
     
     return $self->_execute_query($query,[]);
     
@@ -6457,6 +6586,22 @@ sub gen_topo{
 sub get_admin_email{
     my $self = shift;
     return $self->{'admin_email'};
+}
+
+
+sub get_circuit_edge_on_interface{
+    my $self = shift;
+    my %params = @_;
+    
+    if(!defined($params{'interface_id'})){
+	$self->_set_error("No Interface ID specified for get_circuit_edge_on_interface");
+	return undef;
+    }
+
+    my $query = "select * from circuit, circuit_instantiation, circuit_edge_interface_membership where circuit.circuit_id = circuit_edge_interface_membership.circuit_id and circuit_instantiation.circuit_id = circuit.circuit_id and circuit_instantiation.end_epoch = -1 and circuit_edge_interface_membership.end_epoch = -1 and circuit_edge_interface_membership.interface_id = ? and circuit_instantiation.circuit_state != 'decom'";
+
+    my $circuits = $self->_execute_query($query,[$params{'interface_id'}]);
+    return $circuits;
 }
 
 
