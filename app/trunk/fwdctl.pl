@@ -129,8 +129,8 @@ sub new {
     dbus_method("topo_port_status",["uint64","uint32",["dict","string","string"]],["string"]);
     dbus_method("rules_per_switch",["uint64"],["uint32"]);
     
-    my @params = ( [["dict","string",["variant"]]],['string']);
-    dbus_signal("signal_circuit_failover", @params );
+    #my @params = ( 
+    dbus_signal("signal_circuit_failover", [["dict","string",["variant"]]],['string']);
     return $self;
 }
 
@@ -821,17 +821,20 @@ sub _fail_over_circuits{
                 _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name moving to alternate path");
                 
                 if (! $success){
+                    $circuit_info->{'failover_type'} = "failed_unknown";
                     _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $self->{'db'}->get_error());
-                    $self->emit_signal("signal_circuit_failover", $circuit_info,"failed_unknown" );
+                    $self->emit_signal("signal_circuit_failover", $circuit_info );
                     next;
                 }
                 
                 $self->changeVlanPath($circuit_id);
                 #--- no way to now if this succeeds???
-                $self->emit_signal("signal_circuit_failover", $circuit_info,"success" );
+                $circuit_info->{'failover_type'} = "success";
+                $self->emit_signal("signal_circuit_failover", $circuit_info );
             }else {
                 _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has a backup path, but it is down as well.  Not failing over");
-                $self->emit_signal("signal_circuit_failover", $circuit_info,"failed_path_down" );
+                $circuit_info->{'failover_type'} = "failed_no_backup";
+                $self->emit_signal("signal_circuit_failover", $circuit_info );
                 next;
             }
             
