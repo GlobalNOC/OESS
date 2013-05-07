@@ -2603,7 +2603,7 @@ sub get_circuit_details {
     my $details;
 
     # basic circuit info
-    my $query = "select circuit.name, circuit.description, circuit.circuit_id, circuit_instantiation.modified_by_user_id, circuit.workgroup_id, " .
+    my $query = "select circuit.restore_to_primary, circuit.name, circuit.description, circuit.circuit_id, circuit_instantiation.modified_by_user_id, circuit.workgroup_id, " .
 	" circuit_instantiation.reserved_bandwidth_mbps, circuit_instantiation.circuit_state, circuit_instantiation.start_epoch  , " .
 	" if(bu_pi.path_state = 'active', 'backup', 'primary') as active_path " .
 	"from circuit " .
@@ -2650,7 +2650,8 @@ sub get_circuit_details {
                     'active_path'            => $row->{'active_path'},
                     'user_id'                => $row->{'modified_by_user_id'},
                     'last_edited'            => $dt->month . "/" . $dt->day . "/" . $dt->year . " " . $dt->hour . ":" . $dt->minute . ":" . $dt->second,
-                    'workgroup_id'           => $row->{'workgroup_id'}
+                    'workgroup_id'           => $row->{'workgroup_id'},
+		    'restore_to_primary'     => $row->{'restore_to_primary'}
                    };
         if ( $row->{'circuit_state'} eq 'decom' ){
             $show_historical =1;
@@ -4836,6 +4837,7 @@ sub provision_circuit {
     my $external_id      = $args{'external_id'};
     my $remote_endpoints = $args{'remote_endpoints'} || [];
     my $remote_tags      = $args{'remote_tags'} || [];
+    my $restore_to_primary = $args{'restore_to_primary'} || 0;
 
     my $user_id        = $self->get_user_id_by_auth_name(auth_name => $user_name);
 
@@ -4869,7 +4871,7 @@ sub provision_circuit {
     my $name = $workgroup_details->{'name'} . "-" . $uuid;
     
     # create circuit record
-    my $circuit_id = $self->_execute_query("insert into circuit (name, description, workgroup_id, external_identifier) values (?, ?, ?, ?)",
+    my $circuit_id = $self->_execute_query("insert into circuit (name, description, workgroup_id, external_identifier, restore_to_primary) values (?, ?, ?, ?,?)",
 					   [$name, $description, $workgroup_id, $external_id]);
     
     if (! defined $circuit_id ){

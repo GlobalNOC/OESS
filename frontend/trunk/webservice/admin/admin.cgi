@@ -160,7 +160,9 @@ sub main {
         }
         case "populate_remote_information" {
             $output = &populate_remote_information();
-        }
+        }case "get_circuits_on_interface" {
+	    $output = &get_circuits_on_interface();
+	}
         else {
             $output = {
                 error => "Unknown action - $action"
@@ -172,6 +174,22 @@ sub main {
     send_json($output);
 
 }
+
+sub get_circuits_on_interface{
+    my $results;
+
+    my $link = $db->get_link_by_interface_id( interface_id => $cgi->param('interface_id'),
+					      show_decom => 0 );
+    if(defined($link->[0])){
+	#we have a link so now its really easy just call get_circuits_on_link
+	$results->{'results'} = $db->get_circuits_on_link( link_id => $link->[0]->{'link_id'} );
+    }else{
+	#ok... the interface is not part of a link, need to find all the circuits that have an endpoint on this interface
+	
+    }
+    return $results;
+}
+
 
 sub insert_node_in_path{
     my $results;

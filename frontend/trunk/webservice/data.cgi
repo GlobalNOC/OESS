@@ -405,14 +405,16 @@ sub generate_clr {
         return $results;
     }
 
-    my $circuit_clr = $db->generate_clr( circuit_id => $circuit_id );
-
+    
+    my $circuit_clr = $db->generate_clr( circuit_id => $circuit_id,
+					 raw => $cgi->param('raw') );
+    
     if ( !defined($circuit_clr) ) {
-        $results->{'error'}   = $db->get_error();
-        $results->{'results'} = [];
+	$results->{'error'}   = $db->get_error();
+	$results->{'results'} = [];
     }
     else {
-        $results->{'results'} = { clr => $circuit_clr };
+	$results->{'results'} = { clr => $circuit_clr };
     }
 
     return $results;

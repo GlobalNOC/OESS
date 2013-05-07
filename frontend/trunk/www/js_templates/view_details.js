@@ -36,7 +36,8 @@ function make_circuit_details_datasource(){
            {key: "backup_links"},
            {key: "endpoints"},
            {key: "state"},
-           {key: "active_path"}
+    {key: "active_path"},
+    {key: "restore_to_primary"}
 	]
     };
 
@@ -56,6 +57,8 @@ function save_session_from_datasource(details){
     session.data.links        = [];
     session.data.backup_links = [];
     session.data.passthrough  = [];
+    session.data.restore_to_primary = details.restore_to_primary;
+
 
     for (var i = 0; i < details.endpoints.length; i++){
 	var endpoint = details.endpoints[i];
@@ -135,63 +138,15 @@ function page_init(){
 				          warning: "warning"
 				      }
 			      };
-			      ds.sendRequest("",{success: function(Req,Resp){
-                      
-                      var data= Resp.results;
-                      console.log(data);
-                      if ( data[0].alt_path_down == 1) {
-                                             showConfirm("WARNING: The Path you are attempting to fail over to is DOWN. Failing this circuit over will result in it being unavailable. Would you like to continue?",
-                                                         function() {ds.sendRequest("&force=1", {
-                                                             success: function(){
-                                                                 change_path_button.set("disabled",false);
-                                                                 alert('Successfully changed the path',function(){window.location.reload()});
-                                                                 
-                                                             },
-                                                             failure: function() {
-                                                                 change_path_button.set("disabled",false);
-                                                                 alert('Unable to change to the backup path');
-                                                             }
-                                                         },ds) },
-                                                         function() {
-                                                             change_path_button.set("disabled",false);
-                                                         }
-                                                        );
-                                         
-                      }
-                      else {
-				          change_path_button.set("disabled",false);
-				          alert('Successfully changed the path',function(){window.location.reload()});
-					  }
-				  },
-					                 failure: function(Req,Resp){
-					                     //var data = Resp.results;
-                                         console.log(Resp);
-                                         if (Resp.error == "Alternative Path is down, failing over will cause this circuit to be down."){
-                                             showConfirm("WARNING: The Path you are attempting to fail over to is DOWN. Failing this circuit over will result in it being unavailable. Would you like to continue?",
-                                                         function() {ds.sendRequest("&force=1", {
-                                                             success: function(){
-                                                                 change_path_button.set("disabled",false);
-                                                                 alert('Successfully changed the path',function(){window.location.reload()});
-                                                                 
-                                                             },
-                                                             failure: function() {
-                                                                 change_path_button.set("disabled",false);
-                                                                 alert('Unable to change to the backup path');
-                                                             }
-                                                         },ds) },
-                                                         function() {
-                                                             change_path_button.set("disabled",false);
-                                                         }
-                                                        );
-                                             
-
-                                         }
-					                     else {
-                                             change_path_button.set("disabled",false);
-                                             alert('Unable to change to the backup path');
-                                         }
-                                         
-				                     }},ds);
+			      ds.sendRequest("",{success: function(){
+				  change_path_button.set("disabled",false);
+				  alert('Successfully changed the path');
+					  
+				      },
+					  failure: function(){
+					      change_path_button.set("disabled",false);
+					  alert('Unable to change to the backup path');
+				      }},ds);
 			      
 			  },
 			          function(){
@@ -494,6 +449,26 @@ function setupCLR(){
 		failure: function(Req,Resp){
 		//do something
 	    }});
+
+    var ds2 = new YAHOO.util.DataSource("services/data.cgi?action=generate_clr&circuit_id=" + session.data.circuit_id + "&raw=1");
+    ds2.responseType = YAHOO.util.DataSource.TYPE_JSON;
+
+    ds2.responseSchema = {
+	resultsList: "results",
+        fields: [{key: "clr"}]
+    };
+
+    ds2.sendRequest('',{success: function(Req,Resp){
+		var data = Resp.results;
+		if(data.length == 1){
+                    YAHOO.util.Dom.get("CLR_table_raw").innerHTML = "<pre>" + data[0].clr;
+                }else{
+                    YAHOO.util.Dom.get("CLR_table_raw").innerHTML = "Error occured fetching CLR data.  Error: " + data.error;
+		}
+            },
+                failure: function(Req,Resp){
+                //do something
+            }});
 
 }
 

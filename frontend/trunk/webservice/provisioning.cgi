@@ -197,6 +197,8 @@ sub provision_circuit {
     my $provision_time = $cgi->param('provision_time');
     my $remove_time    = $cgi->param('remove_time');
 	
+    my $restore_to_primary = $cgi->param('restore_to_primary');
+
     my $bus = Net::DBus->system;
     my $log_svc;
     my $log_client;
@@ -238,7 +240,8 @@ sub provision_circuit {
             tags           => \@tags,
             user_name      => $ENV{'REMOTE_USER'},
             workgroup_id   => $workgroup_id,
-            external_id    => $external_id
+            external_id    => $external_id,
+	    restore_to_primary => $restore_to_primary
         );
         if ( defined $output ) {
 

@@ -15,6 +15,11 @@ function summary_init(remove_only){
   YAHOO.util.Dom.get('summary_description').innerHTML       = session.data.description;
   YAHOO.util.Dom.get('summary_status').innerHTML            = session.data.state || "Planning";
   YAHOO.util.Dom.get('summary_type').innerHTML              = session.data.interdomain == 1 ? "Interdomain" : "Local";
+  if(session.data.restore_to_primary == 0){
+      YAHOO.util.Dom.get('restore_to_primary').innerHTML    = 'Off';
+  }else{
+      YAHOO.util.Dom.get('restore_to_primary').innerHTML        = session.data.restore_to_primary + " minutes";
+  }
 
   [% IF show_times %]
 
@@ -152,6 +157,8 @@ function summary_init(remove_only){
   makeHelpPanel(["summary_type", "summary_type_label"], "This indicates whether the circuit is simply intradomain (Local), or interdomain.");
 
   makeHelpPanel(["summary_status", "summary_status_label"], "This indicates the present status of the circuit.");
+
+  makeHelpPanel(["restore_to_primary", "restore_to_primary_label"], "This indicates if restore to primary is configured and the number of minutes until the primary is restored");
 
   return endpoint_table;
 }
