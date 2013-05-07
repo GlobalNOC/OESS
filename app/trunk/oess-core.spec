@@ -19,7 +19,7 @@ Requires(rpmlib): rpmlib(CompressedFileNames) <= 3.0.4-1 rpmlib(PayloadFilesHave
 Requires(post): /bin/sh
 Requires: /bin/bash /usr/bin/perl perl(CGI) perl(DBI) perl(Data::Dumper) perl(English) perl(FindBin) perl(Getopt::Long) perl(Getopt::Std) perl(HTML::Entities) perl(LockFile::Simple) perl(Net::DBus) perl(Net::DBus::Exporter) perl(OESS::DBus) perl(OESS::Topology) perl(Proc::Daemon) perl(RRDs) perl(Socket) perl(Switch) perl(Sys::Hostname) perl(Sys::Syslog) perl(URI::Escape) perl(XML::Simple) perl(XML::Writer) perl(XML::XPath) perl(base) perl(constant) perl(strict) perl(warnings) perl(Term::ReadKey) perl(CPAN)
 Requires: perl-OESS-Database >= 1.0.7
-Requires: perl-OESS-Syslogger >= 1.0.7
+Requires: perl-OESS-Notification >= 1.0.7
 Requires: perl-OESS-Topology >= 1.0.7
 Requires: perl-OESS-Measurement >= 1.0.7
 Requires: perl-OSCARS-Client >= 1.0.7
@@ -52,6 +52,7 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} oess_scheduler.pl %{buildroot}/%{_bindir}
 %{__install} monitoring/* %{buildroot}/%{_bindir}
 %{__install} measurement/* %{buildroot}/%{_bindir}
+%{__install} notification/* %{buildroot}/%{_bindir}
 
 #%{__install} idc/idc.cgi %{buildroot}/%{idcdir}
 #%{__install} idc/OSCARS/*.pm %{buildroot}/%{idcdir}/OSCARS/
@@ -64,12 +65,12 @@ rm -rf $RPM_BUILD_ROOT
 
 %{__install} etc/fwdctl-init-rh  $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-fwdctl
 %{__install} etc/topo-init-rh  $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-topo
-%{__install} etc/syslogger-init $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-syslogger
+%{__install} etc/notification-init-rh $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-notification
 %{__install} etc/vlan_stats-init $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-vlan_stats
 %{__install} etc/oess-init-rh $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess
 
 %{__install} etc/nddi-scheduler.cron $RPM_BUILD_ROOT/etc/cron.d/
-
+%{__install} etc/notify.xml $RPM_BUILD_ROOT/etc/oess/notify.xml
 %{__install} snapp.mysql.sql $RPM_BUILD_ROOT/%{docdir}/
 %{__install} snapp_base.mysql.sql $RPM_BUILD_ROOT/%{docdir}/
 
@@ -97,7 +98,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/init.d/oess-fwdctl
 %{_sysconfdir}/init.d/oess-topo
 %{_sysconfdir}/init.d/oess-vlan_stats
-%{_sysconfdir}/init.d/oess-syslogger
+%{_sysconfdir}/init.d/oess-notification
 %{_sysconfdir}/init.d/oess
 %{docdir}/snapp.mysql.sql
 %{docdir}/snapp_base.mysql.sql

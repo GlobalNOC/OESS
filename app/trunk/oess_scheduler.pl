@@ -165,6 +165,13 @@ sub main{
                     syslog(LOG_ERR,"Unable to complete action");
                     $oess->_rollback();
                 }
+        $log_client->circuit_restore_to_primary( { circuit_id    => $action->{'circuit_id'},
+                                                   workgroup_id  => $action->{'workgroup_id'},
+                                                   name          => $circuit_details->{'name'},
+                                                   description   => $circuit_details->{'description'},
+                                                   circuit_state => $circuit_details->{'circuit_state'} 
+                                                  }
+                                               );
 
 	    }else{
 		#already done... nothing to do... complete the 
