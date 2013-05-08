@@ -6341,7 +6341,12 @@ sub get_circuits_by_state{
     return;
     }
 
-    my $query = "select * from circuit,circuit_instantiation where circuit_instantiation.circuit_state = ?";
+    my $query  = "select * from circuit";
+       $query .= " JOIN circuit_instantiation";
+       $query .= " WHERE circuit.circuit_id = circuit_instantiation.circuit_id";
+       $query .= " AND circuit_instantiation.end_epoch = -1";
+       $query .= " AND circuit_instantiation.circuit_state = ?";
+
     my $sth = $self->{'dbh'}->prepare($query);
     if(!defined($sth)){
 	$self->_set_error("Unable to prepare Query: $query: $DBI::errstr");
