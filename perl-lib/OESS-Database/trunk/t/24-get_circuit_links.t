@@ -14,14 +14,20 @@ BEGIN {
 use lib "$path";
 use OESSDatabaseTester;
 
-use Test::More tests => 4;
+use Test::More tests => 5;
 use Test::Deep;
 use OESS::Database;
 use Data::Dumper;
 
 my $db = OESS::Database->new(config => OESSDatabaseTester::getConfigFilePath());
 
-my $links = $db->get_circuit_links( circuit_id => 4011);
+# test to make sure an empty array ref is returned when no results exists
+my $links = $db->get_circuit_links( circuit_id => 11, type => 'backup');
+my $ref = ref($links);
+is($ref, 'ARRAY', 'Empty results returned array ref');
+
+
+$links = $db->get_circuit_links( circuit_id => 4011);
 #warn Dumper ($links);
 #ok($#{$links} == 1, "Total number of links match");
 
