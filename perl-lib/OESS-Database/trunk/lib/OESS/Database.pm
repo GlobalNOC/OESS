@@ -82,7 +82,7 @@ use Net::DBus;
 use OESS::Topology;
 use DateTime;
 
-use constant VERSION => '1.0.7';
+use constant VERSION => '1.0.8';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant SHARE_DIR => "/usr/share/doc/perl-OESS-Database-" . VERSION . "/";
@@ -4872,7 +4872,7 @@ sub provision_circuit {
     
     # create circuit record
     my $circuit_id = $self->_execute_query("insert into circuit (name, description, workgroup_id, external_identifier, restore_to_primary) values (?, ?, ?, ?,?)",
-					   [$name, $description, $workgroup_id, $external_id]);
+					   [$name, $description, $workgroup_id, $external_id, $restore_to_primary]);
     
     if (! defined $circuit_id ){
 	$self->_set_error("Unable to create circuit record.");
