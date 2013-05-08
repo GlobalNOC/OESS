@@ -295,13 +295,12 @@ nox_installwwwdir = $(DESTDIR)$(bindir)/nox/webapps/webserver/www
 EXTRA_DIST = \
 	__init__.py\
 	meta.json\
-	nddi_dbus.py\
-	nddi_dbus_readonly.py
+	nddi_dbus.py
 
 @PY_ENABLED_TRUE@NOX_RUNTIMEFILES = meta.json\
 @PY_ENABLED_TRUE@	__init__.py\
-@PY_ENABLED_TRUE@	nddi_dbus.py\
-@PY_ENABLED_TRUE@       nddi_dbus_readonly.py
+@PY_ENABLED_TRUE@	nddi_dbus.py
+
 all: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
@@ -649,7 +648,7 @@ nox-install-local:
 	fi;
 
 test:
-	@$(PYTHON) $(top_builddir)/src/nox/coreapps/testharness/testharness.py $(TEST_FLAGS) -b $(top_builddir) ./nddi_dbus_readonly.py
+	@$(PYTHON) $(top_builddir)/src/nox/coreapps/testharness/testharness.py $(TEST_FLAGS) -b $(top_builddir) ./nddi_dbus.py
 
 
 all-local:  nox-all-local

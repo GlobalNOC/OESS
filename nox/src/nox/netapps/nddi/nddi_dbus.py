@@ -61,6 +61,23 @@ flowmod_callbacks = {}
 
 switches = []
 last_flow_stats = {}
+
+
+class dBusEventGenRo(dbus.service.Object):
+
+    def __init__(self,bus,path):
+        dbus.service.Object.__init__(self,bus_name=bus, object_path=path)
+        
+    @dbus.service.method(dbus_interface=ifname,
+                         in_signature='t',
+                         out_signature='b'
+                         )
+    def get_node_connect_status(self, status_dpid):
+        for dpid in switches:
+            if dpid == status_dpid:
+                return True
+        return False
+
 #--- this is a a wrapper class that defineds the dbus interface
 class dBusEventGen(dbus.service.Object):
 
@@ -384,10 +401,10 @@ class nddi_dbus(Component):
         bus = dbus.SystemBus()
         gobject.threads_init()
         run_glib()
-        name = dbus.service.BusName("org.nddi.openflow", bus)
-        
+        name = dbus.service.BusName(ifname, bus)
 
         self.sg = dBusEventGen(name,"/controller1")
+        self.sg_ro = dBusEventGenRo(name,"/controller_ro")
         self.flow_stats = {}
 	#--- register for nox events 
 	self.register_for_datapath_join (lambda dpid, stats : 

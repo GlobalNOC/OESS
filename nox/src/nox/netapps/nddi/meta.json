@@ -6,13 +6,7 @@
 	      "discovery"	
             ],
             "python": "nox.netapps.nddi.nddi_dbus" 
-        },
-	{   "name": "nddi_dbus_readonly" ,
-	    "dependencies": [
-	      "discovery"
-	    ],
-	    "python":"nox.netapps.nddi.nddi_dbus_readonly"
-	}
+        }
 
     ]
 }
