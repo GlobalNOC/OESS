@@ -403,36 +403,6 @@ sub _load_config{
     
 }
 
-=head2 connect_to_object
-
-standard connect to Net::DBus
-
-=cut
-
-
-sub connect_to_object{
-    my $service   = shift;
-    my $obj_name  = shift;
-
-    my $obj;
-    while(1){
-	eval{
-	    my $bus = Net::DBus->system;
-	    my $srv = undef;
-	    $srv = $bus->get_service($service);
-	    $obj = $srv->get_object($obj_name);
-	};
-	if($@){
-        #--- error
-	    syslog(LOG_WARNING,"dbus connection error: $@ ... retry in few");
-	    sleep 2;
-	}else{
-        #--- success
-	    return $obj;
-	}
-    }
-}
-
 =head2 connect_to_snapp
 
     Connect to the SNAPP Database 
