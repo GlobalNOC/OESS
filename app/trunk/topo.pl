@@ -581,7 +581,9 @@ sub main(){
     if (0!=$is_daemon){
 	print STDERR "Daemonizing\n";
        my $daemon = Proc::Daemon->new( 
-                                pid_file => '/var/run/oess/topo.pid'
+	   pid_file => '/var/run/oess/topo.pid'
+	   child_STDOUT => '/var/log/oess/topo.out',
+	   child_STDERR => '/var/log/oess/topo.log',
        );
 
        my $kid = $daemon->Init;

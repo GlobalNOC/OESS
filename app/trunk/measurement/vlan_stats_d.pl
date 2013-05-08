@@ -532,7 +532,10 @@ if($opt_f){
     main();
 }else{
 
-    my $daemon = Proc::Daemon->new(  pid_file => '/var/run/oess/vlan_stats_d.pid');
+    my $daemon = Proc::Daemon->new(  pid_file => '/var/run/oess/vlan_stats_d.pid'
+				     child_STDOUT => '/var/log/oess/vlan_stats.out',
+				     child_STDERR => '/var/log/oess/vlan_stats.log',
+	);
 
     my $kid = $daemon->Init;
     

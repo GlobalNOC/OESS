@@ -1445,8 +1445,10 @@ sub main{
 
     if ($is_daemon != 0){
        my $daemon = Proc::Daemon->new(
-	                               pid_file => '/var/run/oess/fwdctl.pid',	                       
-	                             );
+	   pid_file => '/var/run/oess/fwdctl.pid',	                       
+	   child_STDOUT => '/var/log/oess/fwdctl.out',
+	   child_STDERR => '/var/log/oess/fwdctl.log',
+	   );
 
        my $kid_pid = $daemon->Init;
 
