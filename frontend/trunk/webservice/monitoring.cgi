@@ -85,7 +85,7 @@ sub get_node_status{
 
     eval {
         $service = $bus->get_service("org.nddi.openflow");
-        $client  = $service->get_object("/controller2");
+        $client  = $service->get_object("/controller_ro");
     };
 
     if ($@){
