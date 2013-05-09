@@ -1,0 +1,50 @@
+Greetings workgroup [%workgroup%],
+
+[% SWITCH type %]
+[%  CASE 'provision' %]
+The following circuit has been provisioned: 
+
+[% CASE 'decommission' %]
+The circuit [%circuit_description%] has been decommissioned. For reference, its layout record is below:
+
+[% CASE 'modify' %]
+The following circuit has been modified:
+
+[% CASE 'failover_success' %]
+The following circuit has successfully failed over to an alternate path, for reference it is now configured as:
+
+[% CASE 'failover_manual_success' %]
+The following circuit has successfully failed over to an alternate path, for reference it is now configured as:
+
+[% CASE 'failover_forced' %]
+The following circuit was manually failed over to a path that was down, and thus is unavailable. For reference it is now configured as:
+
+[% CASE 'failover_failed_unknown' %]
+The following circuit attempted to fail over to an alternate path, however was not able to. 
+This circuit is currently unavailable.
+
+The details of the circuit as they were before attempted failover:
+
+[% CASE 'failover_failed_no_backup' %]
+This circuit was affected by an outage that would cause it to failover, however no alternative path was found.
+The following circuit is currently unavailable. 
+
+The details of the circuit as they were before attempted failover:
+
+[% CASE 'failover_failed_path_down' %]
+This circuit attempted to failover, however did not succeed because the alternative path is also down.
+The following circuit is currently unavailable
+
+The details of the circuit as they were before attempted failover:
+
+[% CASE 'restore_to_primary' %]
+This circuit has been migrated back to its primary path from the backup due to the circuit preferences.
+
+The details of the circuit are below:
+[% END %]
+[%clr%]
+
+Sincerely,
+
+[%from_signature_name%]
+TEMPLATE

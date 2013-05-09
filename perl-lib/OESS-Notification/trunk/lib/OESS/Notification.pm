@@ -76,6 +76,7 @@ sub new {
     my %args    = (
                    config_file => 'etc/oess/database.xml',
                    service => undef,
+                   template_path => '/usr/share/oess-core/',
                    @_,
                    );
 
@@ -86,13 +87,16 @@ sub new {
 
     my $self = $class->SUPER::new( $service, "/controller1" );
     $self->{'config_file'} = $args{'config_file'};
+    $self->{'template_path'} = $args{'template_path'};
     return if !defined( $self->{'config_file'} );
+
+    $self->{'tt'} = Template->new(ABSOLUTE=>1);
 
     bless $self, $class;
 
     $self->_process_config_file();
     $self->_connect_services();
-    $self->_build_templates();
+    
 
     dbus_signal( "signal_circuit_provision",
         [ [ "dict", "string", ["variant"] ] ],
@@ -248,10 +252,10 @@ sub send_notification {
     my %args = (
         notification_type => undef,
         circuit_data      => undef,
-
+        workgroup => undef,
         #contact_data => undef,
         to => [],
-        @_
+        @_,
     );
     my @to_list     = ();
     my $desc        = $args{'circuit_data'}{'description'};
@@ -286,18 +290,19 @@ sub send_notification {
     };
 
     my $vars = {
-        workgroup           => $args{'circuit_data'}{'workgroup'}{'name'},
-        circuit_description => $args{'circuit_data'}{'descriptionOB'},
-        clr                 => $args{'circuit_data'}{'clr'},
-        from_signature_name => $self->{'from_name'},
-
-    };
+                workgroup           => $args{'workgroup'},
+                circuit_description => $args{'circuit_data'}{'descriptionOB'},
+                clr                 => $args{'circuit_data'}{'clr'},
+                from_signature_name => $self->{'from_name'},
+                type => $args{'notification_type'}
+               };
 
     my $body;
-    my $template = $args{'notification_type'} . '_template';
+    
 
-    $self->{'tt'}->process( \$self->{$template}, $vars, \$body );
-
+    $self->{'tt'}->process( "$self->{'template_path'}/notification_templates.tmpl", $vars, \$body ) ||  warn $self->{'tt'}->error();
+    
+    
     foreach my $user ( @{ $args{'to'} } ) {
         push( @to_list, $user->{'email_address'} );
     }
@@ -316,7 +321,7 @@ sub _build_templates {
 
     my $self = shift;
 
-    $self->{'tt'} = Template->new();
+    
 
     $self->{'provision_template'} = <<TEMPLATE;
 
@@ -481,7 +486,7 @@ sub _process_config_file {
     my $self = shift;
 
     my $config = GRNOC::Config->new( config_file => $self->{'config_file'} );
-
+    
     $self->{'from_name'}    = $config->get('/config/smtp/@from_name')->[0];
     $self->{'from_address'} = $config->get('/config/smtp/@from_address')->[0];
     return;
@@ -597,7 +602,7 @@ sub notify_failover {
     my $self = shift;
     my ($circuit) = @_;
 
-    warn "In Notify Failover";
+    
 
     #warn Dumper ($circuit);
 
