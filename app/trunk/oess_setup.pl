@@ -73,6 +73,8 @@ sub main{
     my $my_cert = optional_parameter("OSCARS SSL Cert","mycert.crt");
     my $my_key = optional_parameter("OSCARS SSL Key","mykey.key");
     my $topo_host = optional_parameter("TopoHost","http://ndb7.net.internet2.edu:8012/perfSONAR_PS/services/topology");
+    my $from_address = optional_parameter("Notification originating email address","OESS\@localhost");
+    my $from_name = optional_parameter("Email From Name (used in signature)", "OESS Circuit Notifier");
 
     print "\nTesting DB connection\n";
     my $handle = DBI->connect("DBI:mysql:dbname=mysql;host=$db_host;port=$db_port",
@@ -131,6 +133,7 @@ sub main{
 <config snapp_config_location="/SNMP/snapp/snapp_config.xml" host="$db_host" port="$db_port">
   <credentials username="oess" password="$oess_pass" database="oess" />
   <oscars host="$oscars_host" cert="$my_cert" key="$my_key" topo="$topo_host"/>
+  <smtp from_address="$from_address" from_name="$from_name" /> 
 </config>
 END
 
