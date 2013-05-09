@@ -52,7 +52,7 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} oess_scheduler.pl %{buildroot}/%{_bindir}
 %{__install} measurement/* %{buildroot}/%{_bindir}
 %{__install} notification/* %{buildroot}/%{_bindir}
-%{__install} populate_remote_information.pl %{buildroot}/%{_bindir}
+%{__install} populate_remote_topologies.pl %{buildroot}/%{_bindir}
 
 #%{__install} idc/idc.cgi %{buildroot}/%{idcdir}
 #%{__install} idc/OSCARS/*.pm %{buildroot}/%{idcdir}/OSCARS/
@@ -94,7 +94,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/perfSonar_gen
 %{_bindir}/oess_setup.pl
 %{_bindir}/oess_scheduler.pl
-%{_bindir}/populate_remote_information.pl
+%{_bindir}/populate_remote_topologies.pl
 
 %{_sysconfdir}/dbus-1/system.d/nddi-dbus.conf
 %{_sysconfdir}/init.d/oess-fwdctl
