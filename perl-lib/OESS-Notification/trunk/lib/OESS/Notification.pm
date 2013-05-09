@@ -42,11 +42,11 @@ OESS::Notification
 
 =head1 VERSION:
 
-GRNOC:OESS::Notification 1.0.0
+GRNOC:OESS::Notification 1.0.8
 
 =cut
 
-our $VERSION = '1.0.0';
+our $VERSION = '1.0.8';
 
 =head1 SYNOPSIS
 
