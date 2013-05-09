@@ -1,4 +1,4 @@
 <config>
-  <websvc url='https://localhost/oess/services/data.cgi' user='aragusa' password='changeme' realm='OESS' />
+  <websvc url='https://localhost/oess/services/data.cgi' user='gmcnaugh' password='krak-ut-jag-4' realm='OESS' />
   <smtp from_address='oess_test@grnoc.iu.edu' from_name='OESS Notification Tester' />
 </config>
