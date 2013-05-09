@@ -525,7 +525,6 @@ sub flow_removed_callback{
 }
 	
 sub core{
-   print_log(LOG_NOTICE,"starting topo process\n");
    $db  = OESS::Database->new(config => $config_filename) or die();
    $dbh = $db->{'dbh'};
    if (not defined $dbh){
@@ -579,7 +578,6 @@ sub main(){
     $SIG{'CHLD'} = 'CHLD_handler';
 
     if (0!=$is_daemon){
-	print STDERR "Daemonizing\n";
        my $daemon = Proc::Daemon->new( 
 	   pid_file => '/var/run/oess/topo.pid',
 	   child_STDOUT => '/var/log/oess/topo.out',
