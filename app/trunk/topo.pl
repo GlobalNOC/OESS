@@ -563,7 +563,6 @@ sub main(){
                            "daemon|d" => \$is_daemon,
                          ); 
     if (0!=$is_daemon){
-	print STDERR "OPENING LOG\n";
          openlog("topo.pl", 'cons,pid', LOG_DAEMON);
          
     }
