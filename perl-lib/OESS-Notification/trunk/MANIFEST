@@ -1,0 +1,8 @@
+lib/OESS/Notification.pm
+Makefile.PL
+MANIFEST			This list of files
+OESS-Notification-1.0.8.tar.gz
+t/00-Init.t
+t/01-Send-Notification.t
+t/conf/test_config.xml
+t/TEST
