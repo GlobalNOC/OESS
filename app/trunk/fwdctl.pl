@@ -671,6 +671,8 @@ sub _actual_diff{
 	    push(@rule_queue, [$dpid,undef,$command,$node->{'tx_delay_ms'}]);
 	}
     }
+    
+    print STDERR Dumper($current_flows);
     #--- look for rules which are on the switch but which should not be there by design
     foreach my $port_num (keys (%{$current_flows})){
 	my $obs_port = $current_flows->{$port_num};
@@ -1026,7 +1028,7 @@ sub _do_interface_diff{
     #get a list of all the rules that we want on the port
     my $rules = $self->_get_rules_on_port( port_number => $node->{'port_number'}, dpid => $node->{'dpid'} );
     
-    $self->_actual_diff( $node->{'dpid'}, \%current_flows, $rules);
+    $self->_actual_diff( $node->{'dpid'},$node->{'name'}, \%current_flows, $rules);
     _log("sw: dpid:$dpid_str diff sw rules to oe-ss rules for port:".$current_rules->{'port_number'}." complete");
 }
 
