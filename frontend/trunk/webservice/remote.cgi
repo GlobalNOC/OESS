@@ -175,103 +175,102 @@ sub get_networks {
     my @domains;
 
     foreach my $domain_element (@$domain_elements){
-
+	
         my $domain = $domain_element->getAttribute("id");
-
+	
         $domain =~ /urn:ogf:network:domain=(.*)/;
         my $domain_name = $1;
-
+	
         my @links;
-
+	
         my $node_elements = $xpath->find("./ns1:node", $domain_element);
-
+	
         foreach my $node_element (@$node_elements){
-
-        my $node  = $node_element->getAttribute("id");
-
-        my $port_elements = $xpath->find("./ns1:port", $node_element);
-
-        foreach my $port_element (@$port_elements){
-
-            my $port = $port_element->getAttribute('id');
-
-            my $link_elements = $xpath->find("./ns1:link", $port_element);
-
-            foreach my $link_element (@$link_elements){
-
-            my $link = $link_element->getAttribute('id');
-
-            my $remote_link = $xpath->find("./ns1:remoteLinkId", $link_element);
-
-            my $remote_link_urn = @$remote_link[0]->getChildNodes()->[0]->getValue();
-
-            my @tmp = split(':', $link);
-            my $node_name = $tmp[4];
-            my $port_name = $tmp[5];
-            my $link_name = $tmp[6];
-            $node_name =~ s/node=//g;
-            $port_name =~ s/port=//g;
-            $link_name =~ s/link=//g;
-
-            if ($domain_name ne $LOCAL_DOMAIN){
-                $node_name = $domain_name . "-" . $node_name;
-            }
-
-            my $latlong = $LOOKUP{'nodes'}{$node_name};
-
-            if (! $latlong || ($latlong->{'latitude'} eq 0 && $latlong->{'longitude'} eq 0)){
-                $latlong = $LOOKUP{'networks'}{$domain_name};
-            }
-
-            # if it's in the local domain and we have a workgroup specified, make sure it's
-            # part of the workgroup auth
-            if (defined $workgroup_id){
-
-                my $is_local = $LOOKUP{'networks'}{$domain_name}{'is_local'};
-
-                if ($is_local eq 1){
-
-                my $auth = $db->_execute_query("select 1 from workgroup_interface_membership " .
-                                   " join interface on interface.interface_id = workgroup_interface_membership.interface_id " .
-                                   " join node on node.node_id = interface.node_id " .
-                                   " where workgroup_id = ? and interface.name = ? and node.name = ?",
-                                   [$workgroup_id, $port_name, $node_name]);
-
-                # didn't find a membership, skip this
-                next if ($auth && @$auth < 1);
-                }
-
-            }
-
-            push(@links,{urn        => $link,
-                     node       => $node_name,
-                     port       => $port_name ,
-                     link       => $link_name,
-                     remote_urn => $remote_link_urn,
-                     latitude   => $latlong->{'latitude'},
-                     longitude  => $latlong->{'longitude'}
-                 });
-
-            }
+	    
+	    my $node  = $node_element->getAttribute("id");
+	    
+	    my $port_elements = $xpath->find("./ns1:port", $node_element);
+	    
+	    foreach my $port_element (@$port_elements){
+		
+		my $port = $port_element->getAttribute('id');
+		
+		my $link_elements = $xpath->find("./ns1:link", $port_element);
+		
+		foreach my $link_element (@$link_elements){
+		    
+		    my $link = $link_element->getAttribute('id');
+		    
+		    my $remote_link = $xpath->find("./ns1:remoteLinkId", $link_element);
+		    
+		    my $remote_link_urn = @$remote_link[0]->getChildNodes()->[0]->getValue();
+		    
+		    my @tmp = split(':', $link);
+		    my $node_name = $tmp[4];
+		    my $port_name = $tmp[5];
+		    my $link_name = $tmp[6];
+		    $node_name =~ s/node=//g;
+		    $port_name =~ s/port=//g;
+		    $link_name =~ s/link=//g;
+		    
+		    if ($domain_name ne $LOCAL_DOMAIN){
+			$node_name = $domain_name . "-" . $node_name;
+		    }
+		    
+		    my $latlong = $LOOKUP{'nodes'}{$node_name};
+		    
+		    if (! $latlong || ($latlong->{'latitude'} eq 0 && $latlong->{'longitude'} eq 0)){
+			$latlong = $LOOKUP{'networks'}{$domain_name};
+		    }
+		    
+		    # if it's in the local domain and we have a workgroup specified, make sure it's
+		    # part of the workgroup auth
+		    if (defined $workgroup_id){
+			
+			my $is_local = $LOOKUP{'networks'}{$domain_name}{'is_local'};
+			
+			if ($is_local eq 1){
+			    
+			    my $auth = $db->_execute_query("select 1 from workgroup_interface_membership " .
+							   " join interface on interface.interface_id = workgroup_interface_membership.interface_id " .
+							   " join node on node.node_id = interface.node_id " .
+							   " where workgroup_id = ? and interface.name = ? and node.name = ?",
+							   [$workgroup_id, $port_name, $node_name]);
+			    
+			    # didn't find a membership, skip this
+			    next if ($auth && @$auth < 1);
+			}
+			
+		    }
+		    
+		    push(@links,{urn        => $link,
+				 node       => $node_name,
+				 port       => $port_name ,
+				 link       => $link_name,
+				 remote_urn => $remote_link_urn,
+				 latitude   => $latlong->{'latitude'},
+				 longitude  => $latlong->{'longitude'}
+			 });
+		    
+		}
+	    }
         }
-        }
-
+	
         @links = sort {
-                    if ($a->{'node'} eq $b->{'node'}){
+	    if ($a->{'node'} eq $b->{'node'}){
                 return $a->{'port'} cmp $b->{'port'};
-                }
-                return $a->{'node'} cmp $b->{'node'};
-                      } @links;
-
+	    }
+	    return $a->{'node'} cmp $b->{'node'};
+	} @links;
+	
         push(@domains,{ name => $domain_name, urn => $domain, links => \@links});
     }
-
+    
     @domains = sort { $a->{'name'} cmp $b->{'name'} } @domains;
-
     return {'results' => \@domains};
     }
     else{
-    return {'error' => 'Error retreiving remote topologies'};
+	return {'error' => 'Error retreiving remote topologies'};
     }
 }
 
