@@ -12,7 +12,7 @@ WriteMakefile(
 	'GRNOC::WebService::Client' => 0
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
-    clean               => { FILES => 'GRNOC-OESS-Syncer-*' },
+    clean               => { FILES => 'GRNOC-OESS-Notification-*' },
     );
 sub MY::test
 {
