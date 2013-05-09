@@ -97,12 +97,12 @@ else {
         my $new_uid = getpwnam($opt_u);
         $daemon = Proc::Daemon->new(
             setuid   => $new_uid,
-            pid_file => '/var/run/oess/oess_ckt_notify.pid'
+            pid_file => '/var/run/oess/oess-notify.pid'
         );
     }
     else {
         $daemon =
-          Proc::Daemon->new( pid_file => '/var/run/oess/oess_ckt_notify.pid' );
+          Proc::Daemon->new( pid_file => '/var/run/oess/oess-notify.pid' );
     }
     my $kid = $daemon->Init;
 
