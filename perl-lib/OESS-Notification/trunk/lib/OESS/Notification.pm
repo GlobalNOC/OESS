@@ -286,8 +286,8 @@ sub send_notification {
     };
 
     my $vars = {
-        workgroup           => $args{'workgroup'},
-        circuit_description => $args{'circuit_data'}{'description'},
+        workgroup           => $args{'circuit_data'}{'workgroup'}{'name'},
+        circuit_description => $args{'circuit_data'}{'descriptionOB'},
         clr                 => $args{'circuit_data'}{'clr'},
         from_signature_name => $self->{'from_name'},
 
