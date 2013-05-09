@@ -1,2 +1,2 @@
 * * * * * root /usr/bin/perl /usr/bin/oess_scheduler.pl
-1 * * * * root /usr/bin/perl /usr/bin/snapp-config-gen
+1 1 * * * root /usr/bin/perl /usr/bin/populate_remote_information.pl
