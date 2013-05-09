@@ -28,7 +28,7 @@ Requires: perl-OESS-DBus >= 1.0.8
 make
 
 %check
-make test
+
       
 %install
 rm -rf $RPM_BUILD_ROOT
