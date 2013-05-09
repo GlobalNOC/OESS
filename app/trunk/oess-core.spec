@@ -50,7 +50,6 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} topo.pl %{buildroot}/%{_bindir}
 %{__install} fwdctl.pl %{buildroot}/%{_bindir}
 %{__install} oess_scheduler.pl %{buildroot}/%{_bindir}
-%{__install} monitoring/* %{buildroot}/%{_bindir}
 %{__install} measurement/* %{buildroot}/%{_bindir}
 %{__install} notification/* %{buildroot}/%{_bindir}
 
@@ -70,7 +69,7 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} etc/oess-init-rh $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess
 
 %{__install} etc/nddi-scheduler.cron $RPM_BUILD_ROOT/etc/cron.d/
-%{__install} etc/notify.xml $RPM_BUILD_ROOT/etc/oess/notify.xml
+
 %{__install} snapp.mysql.sql $RPM_BUILD_ROOT/%{docdir}/
 %{__install} snapp_base.mysql.sql $RPM_BUILD_ROOT/%{docdir}/
 
@@ -88,12 +87,13 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,-)
 %{_bindir}/topo.pl
 %{_bindir}/fwdctl.pl
-%{_bindir}/syslogger.pl
+%{_bindir}/oess-notify.pl
 %{_bindir}/vlan_stats_d.pl
 %{_bindir}/snapp-config-gen
 %{_bindir}/perfSonar_gen
 %{_bindir}/oess_setup.pl
 %{_bindir}/oess_scheduler.pl
+
 %{_sysconfdir}/dbus-1/system.d/nddi-dbus.conf
 %{_sysconfdir}/init.d/oess-fwdctl
 %{_sysconfdir}/init.d/oess-topo
