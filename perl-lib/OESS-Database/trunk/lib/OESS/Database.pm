@@ -2888,10 +2888,10 @@ sub get_circuit_links {
 		  $args{'type'}
 	         );
 
-    my $results;
+    my @results;
 
     while (my $row = $sth->fetchrow_hashref()){
-	push (@$results, { name        => $row->{'name'},
+	push (@results, { name        => $row->{'name'},
 			   node_a      => $row->{'node_a'},
 			   port_no_a   => $row->{'port_no_a'},
 			   interface_a => $row->{'interface_a'},
@@ -2901,7 +2901,7 @@ sub get_circuit_links {
 			  });
     }
 
-    return $results;
+    return \@results;
 }
 
 =head2 get_interface_speed
