@@ -28,6 +28,7 @@ CREATE TABLE `circuit` (
   `description` varchar(255) NOT NULL,
   `workgroup_id` int(10) NOT NULL,
   `external_identifier` varchar(255) DEFAULT NULL,
+  `restore_to_primary` int(10) DEFAULT '0',
   PRIMARY KEY (`circuit_id`),
   UNIQUE KEY `circuit_idx` (`name`),
   KEY `workgroup_id` (`workgroup_id`),

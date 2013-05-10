@@ -529,16 +529,16 @@ sub generate_clr{
 	my $path = \%primary_path;
 	#--- get node by node and figure out the simple forwarding rules for this path
 	foreach my $node (sort keys %$path){
+	    $clr .= "NODE:" . $node ."\n";
 	    foreach my $interface (sort keys %{$path->{$node}}){
 		foreach my $other_if(sort keys %{$path->{$node}}){
 		    
 		    #--- skip when the 2 interfaces are the same
 		    next if($other_if eq $interface);
-		    $clr .= "NODE:" . $node . "\n  Match:";
-		    $clr .= "IN_PORT: " . $interface;
+		    $clr .= "Match: IN_PORT: " . $interface;
 		    #--- iterate through ports need set of rules for each input/output port combo
 		    foreach my $vlan_tag (sort keys %{$path->{$node}{$interface}}){          
-			$clr .= ", dl_vlan:" . $vlan_tag . "\n    OUTPUT: ";
+			$clr .= ", dl_vlan:" . $vlan_tag . "    OUTPUT: ";
 			my $remote_tag = $path->{$node}{$other_if}{$vlan_tag};
 			$clr .= $other_if . ":vlan" . $remote_tag;
 		    }
@@ -552,16 +552,16 @@ sub generate_clr{
 	$path = \%backup_path;
         #--- get node by node and figure out the simple forwarding rules for this path
         foreach my $node (sort keys %$path){
+	    $clr .= "NODE:" . $node . "\n";
             foreach my $interface (sort keys %{$path->{$node}}){
                 foreach my $other_if(sort keys %{$path->{$node}}){
 
                     #--- skip when the 2 interfaces are the same
                     next if($other_if eq $interface);
-                    $clr .= "NODE:" . $node . "\n  Match:";
-                    $clr .= "IN_PORT: " . $interface;
+                    $clr .= "Match: IN_PORT: " . $interface;
                     #--- iterate through ports need set of rules for each input/output port combo
                     foreach my $vlan_tag (sort keys %{$path->{$node}{$interface}}){
-                        $clr .= ", dl_vlan:" . $vlan_tag . "\n    OUTPUT: ";
+                        $clr .= ", dl_vlan:" . $vlan_tag . "    OUTPUT: ";
                         my $remote_tag = $path->{$node}{$other_if}{$vlan_tag};
                         $clr .= $other_if . ":vlan" . $remote_tag;
                     }
