@@ -166,7 +166,8 @@ sub datapath_join_to_db{
 
 	#determine if any links are now down or unknown state
 	my $link = $db->get_link_by_interface_id( interface_id => $int_id );
-	if(defined($link)){
+	if(defined($link) && defined($link->[0])){
+	    $link = $link->[0];
 	    if($operational_state eq 'up'){
 		if($link->{'status'} eq 'up'){
 		    #its up... and has been up...
