@@ -117,6 +117,8 @@ rm -rf $RPM_BUILD_ROOT
 %post
 mkdir -p %{_sysconfdir}/oess/
 mkdir -p /var/run/oess/
+mkdir -p /var/log/oess/
+chmod a+rw /var/log/oess/
 chmod a+rw /var/run/oess/
 chmod 644 /etc/cron.d/nddi-scheduler.cron
 
