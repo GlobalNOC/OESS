@@ -497,7 +497,7 @@ sub generate_clr{
 	$clr = "";
 	$clr .= "Circuit " . $circuit_details->{'name'} . "\n";
         $clr .= "Created by " . $created_user->{'given_names'} . " " . $created_user->{'family_name'} . " at " . $created_on . " for workgroup " . $workgroup_name . "\n";
-        $clr .= "Lasted Modified By: " . $last_modified_user->{'given_name'} . " " . $last_modified_user->{'family_name'} . " at " . $last_edited . "\n\n";
+        $clr .= "Lasted Modified By: " . $last_modified_user->{'given_names'} . " " . $last_modified_user->{'family_name'} . " at " . $last_edited . "\n\n";
 	
 	$clr .= "Primary Path:\n";
 
@@ -609,7 +609,7 @@ sub generate_clr{
 	$clr = "";
 	$clr .= "Circuit " . $circuit_details->{'name'} . "\n";
 	$clr .= "Created by " . $created_user->{'given_names'} . " " . $created_user->{'family_name'} . " at " . $created_on . " for workgroup " . $workgroup_name . "\n";
-	$clr .= "Lasted Modified By: " . $last_modified_user->{'given_name'} . " " . $last_modified_user->{'family_name'} . " at " . $last_edited . "\n\n";
+	$clr .= "Lasted Modified By: " . $last_modified_user->{'given_names'} . " " . $last_modified_user->{'family_name'} . " at " . $last_edited . "\n\n";
 	$clr .= "Endpoints: \n";
 	
 	foreach my $endpoint (@$endpoints){
@@ -1103,7 +1103,7 @@ sub get_node_interfaces {
 	$query .= " and workgroup_interface_membership.workgroup_id = ?";
     }
 
-    print STDERR "Query: " . $query . "\nARGS: " . Dumper(@query_args);
+    #print STDERR "Query: " . $query . "\nARGS: " . Dumper(@query_args);
 
     my $rows = $self->_execute_query($query, \@query_args);
 
