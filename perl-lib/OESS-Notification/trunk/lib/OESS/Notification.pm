@@ -540,9 +540,8 @@ sub get_notification_data {
     #warn Dumper ($clr);
     my $email_address;
 
-    my $workgroup_members = $db->get_workgroup_members(
-        action       => 'get_workgroup_members',
-        workgroup_id => $details->{'workgroup_id'}
+    my $workgroup_members = $db->get_users_in_workgroup(
+           workgroup_id => $details->{'workgroup_id'}
     );
 
     unless ($workgroup_members) {
