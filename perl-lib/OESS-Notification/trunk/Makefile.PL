@@ -5,12 +5,12 @@ use ExtUtils::MakeMaker;
 sub MY::postamble { <<"END"; }
 
 rpm: dist
-	rpmbuild -ta OESS-Notification-\$(VERSION).tar.gz
+	rpmbuild -ta perl-OESS-Notification-\$(VERSION).tar.gz
 
 END
 
 WriteMakefile(
-              NAME                => 'OESS::Notification',
+              NAME                => 'perl-OESS-Notification',
               AUTHOR              => 'GRNOC System Engineering <syseng@grnoc.iu.edu>',
               VERSION_FROM        => 'lib/OESS/Notification.pm',
               ABSTRACT_FROM       => 'lib/OESS/Notification.pm',
@@ -19,7 +19,7 @@ WriteMakefile(
                             'OESS::Database' => 0,
                            },
               dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
-              clean               => { FILES => 'OESS-Notification-*' },
+              clean               => { FILES => 'perl-OESS-Notification-*' },
              );
 
 sub MY::test

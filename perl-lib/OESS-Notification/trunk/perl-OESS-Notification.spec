@@ -1,5 +1,5 @@
 Summary: OESS Notification Daemon Library
-Name: OESS-Notification
+Name: perl-OESS-Notification
 Version: 1.0.8
 Release: 1
 License: APL 2.0
