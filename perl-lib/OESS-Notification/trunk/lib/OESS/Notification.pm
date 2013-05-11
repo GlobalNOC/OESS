@@ -64,6 +64,14 @@ new instantiation of OESS:Notification. Requires a service and a config_file to 
 The path on disk to the configuration file for database connection
 information. This defauls to "/etc/oess/database.xml".
 
+=item service
+
+The Net::DBus Service exported by the script calling this
+
+=item template_path (optional)
+
+path to the notification template file, defaults to absolute path /usr/share/oess-core
+
 =back
 
 =cut
@@ -129,6 +137,14 @@ sub new {
 
 dbus_method circuit_provision, sends a notification, and emits a signal that circuit has been provisioned
 
+=over
+
+=item circuit
+
+hashref containing circuit data, minimally at least the circuit_id
+
+=back
+
 =cut
 
 sub circuit_provision {
@@ -151,6 +167,21 @@ sub circuit_provision {
     $self->emit_signal( "signal_circuit_provision", $circuit );
 
 }
+
+=head2 C<circuit_modify()>
+
+dbus_method circuit_modify, sends a notification, and emits a signal that circuit has been modified
+
+=over
+
+=item circuit
+
+hashref containing circuit data, minimally at least the circuit_id
+
+=back
+
+=cut
+
 
 sub circuit_modify {
     my $self    = shift;
@@ -176,6 +207,20 @@ sub circuit_modify {
 
 }
 
+=head2 C<circuit_decommission()>
+
+dbus_method circuit_decommision, sends a notification, and emits a signal that circuit has been decommissioned
+
+=over
+
+=item circuit
+
+hashref containing circuit data, minimally at least the circuit_id
+
+=back
+
+=cut
+
 sub circuit_decommission {
     my $self    = shift;
     my $circuit = shift;
@@ -196,7 +241,19 @@ sub circuit_decommission {
 
 }
 
-#dbusmethod circuit_failover
+=head2 C<circuit_modify()>
+
+dbus_method circuit_modify, sends a notification, and emits a signal that circuit has been modified
+
+=over
+
+=item circuit
+
+hashref containing circuit data, minimally at least the circuit_id, and failover_type. If failover_type is manual or a manual forced type, include requested_by
+
+=back
+
+=cut
 
 sub circuit_failover {
     my $self = shift;
@@ -224,6 +281,20 @@ sub circuit_failover {
 
 }
 
+=head2 C<circuit_restore_to_primary()>
+
+dbus_method circuit_restore_to_primary, sends a notification, and emits a signal that circuit has been restored to primary
+
+=over
+
+=item circuit
+
+hashref containing circuit data, minimally at least the circuit_id
+
+=back
+
+=cut
+
 sub circuit_restore_to_primary {
     my $self = shift;
     my ($circuit) = @_;
@@ -245,6 +316,29 @@ sub circuit_restore_to_primary {
     $self->emit_signal( "signal_circuit_failover", $circuit );
 
 }
+
+=head2 C<send_notification()>
+
+sends a notification
+
+=over
+
+=item circuit_data
+
+hashref containing circuit data needed for the notification
+
+=item workgroup
+
+string of name of workgroup
+
+=item to
+
+arrayref of hashrefs minimally containing the  email_address key value pair 
+
+=back
+
+=cut
+
 
 sub send_notification {
     my $self = shift;
@@ -317,168 +411,11 @@ sub send_notification {
     return 1;
 }
 
-sub _build_templates {
-
-    my $self = shift;
-
-    
-
-    $self->{'provision_template'} = <<TEMPLATE;
-
-Greetings [%given_name%] [%last_name%],
-
-The following circuit has been provisioned: 
-
-[%clr%]
-
-Sincerely,
-
-[%from_signature_name%]
-
-TEMPLATE
-
-    $self->{'decommission_template'} = <<TEMPLATE;
-
-Greetings [%given_name%] [%last_name%],
-
-The circuit [%circuit_description%] has been decommissioned. For reference, its layout record is below:
-
-[%clr%]
-
-Sincerely,
-
-[%from_signature_name%]
-
-TEMPLATE
-
-    $self->{'modify_template'} = <<TEMPLATE;
-
-Greetings workgroup: [%workgroup%] ,
-
-The following circuit has been modified:
-
-[%clr%]
-
-Sincerely,
-
-[%from_signature_name%]
-
-TEMPLATE
-
-    $self->{'failover_success_template'} = <<TEMPLATE;
-
-Greetings [%given_name%] [%last_name%],
-
-The following circuit has successfully failed over to an alternate path, for reference it is now configured as:
-
-[%clr%]
-
-Sincerely,
-
-[%from_signature_name%]
-
-TEMPLATE
-
-    $self->{'failover_manual_success_template'} = <<TEMPLATE;
-
-Greetings [%given_name%] [%last_name%],
-
-The following circuit has successfully failed over to an alternate path, for reference it is now configured as:
-
-[%clr%]
-
-Sincerely,
-
-[%from_signature_name%]
-
-TEMPLATE
-
-    $self->{'failover_forced_template'} = <<TEMPLATE;
-
-Greetings [%given_name%] [%last_name%],
-
-The following circuit was manually failed over to a path that was down, and thus is unavailable. For reference it is now configured as:
-
-[%clr%]
-
-Sincerely,
-
-[%from_signature_name%]
-
-TEMPLATE
-
-    $self->{'failover_failed_unknown_template'} = <<TEMPLATE;
-
-Greetings [%given_name%] [%last_name%],
-
-The following circuit attempted to fail over to an alternate path, however was not able to. 
-This circuit is currently down.
-
-The details of the circuit as they were before attempted failover:
-
-[%clr%]
-
-Sincerely,
-
-[%from_signature_name%]
-
-TEMPLATE
-
-    $self->{'failover_failed_no_backup_template'} = <<TEMPLATE;
-
-Greetings [%given_name%] [%last_name%],
-
-This circuit was affected by an outage that would cause it to failover, however no alternative path was found.
-The following circuit is currently down. 
-
-The details of the circuit as they were before attempted failover:
-
-[%clr%]
-
-Sincerely,
-
-[%from_signature_name%]
-
-TEMPLATE
-
-    $self->{'failover_failed_path_down_template'} = <<TEMPLATE;
-
-Greetings [%given_name%] [%last_name%],
-
-This circuit attempted to failover, however did not succeed because the alternative path is also down.
-
-The following circuit is currently down. 
-
-The details of the circuit as they were before attempted failover:
-
-[%clr%]
-
-Sincerely,
-
-[%from_signature_name%]
-
-TEMPLATE
-
-    $self->{'restore_to_primary_template'} = <<TEMPLATE;
-
-Greetings [%given_name%] [%last_name%],
-
-This circuit has been migrated back to its primary path from the backup due to the circuit preferences.
-
-The details of the circuit are below:
-
-[%clr%]
-
-Sincerely,
-
-[%from_signature_name%]
-TEMPLATE
-
-}
 
 =head2 C<_process_config_file>
 
 Configures OESS::Syncer Object from config file
+
 
 =cut
 
@@ -494,7 +431,7 @@ sub _process_config_file {
 
 =head2 C<_connect_services_>
 
-Connects to data.cgi webservice for OESS to retrieve circuit information
+Connects to OESS Database for OESS to retrieve circuit information
 
 =cut
 
@@ -506,6 +443,20 @@ sub _connect_services {
 
     #$self->{'from_address'} = 'oess@' . $db->get_local_domain_name();
 }
+
+=head2 C<get_notification_data()>
+
+calls database to retrieve circuit details, users affected
+
+=over
+
+=item circuit
+
+hashref containing circuit data, minimally at least the circuit_id
+
+=back
+
+=cut
 
 sub get_notification_data {
 
@@ -576,6 +527,28 @@ sub get_notification_data {
     );
 }
 
+=head2 C<_send_notification>
+
+handles the actual delivery of notifications
+
+=over
+
+=item body
+
+text of email
+
+=item to
+
+comma separated list of addresses to send to
+
+=item subject
+
+subject of email
+
+=back
+
+=cut
+
 sub _send_notification {
 
     my $self = shift;
@@ -596,6 +569,22 @@ sub _send_notification {
 }
 
 #entry point for failovers from fwdctl
+
+=head2 C<notify_failover()>
+
+method called from reaction to fwdctl signal emission of a failover occurring
+
+=over
+
+=item circuit
+
+hashref, circuit_id is represented in fwdctl as the circuit->{'id'}
+
+=back
+
+=cut
+
+
 
 sub notify_failover {
     my $self = shift;
