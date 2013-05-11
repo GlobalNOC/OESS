@@ -4,7 +4,7 @@
 #
 # chkconfig: 2345 81 30
 # description: Starts OE-SS Notification Daemon - listens to events from NOX and sends out notifications
-# processname: /usr/bin/syslogger.pl
+# processname: /usr/bin/oess-notify.pl
 
 # Source function library
 if [ -f /etc/rc.d/init.d/functions ]; then
@@ -65,11 +65,11 @@ case "$1" in
   stop)
         #stop
         if [ -f $PIDFILE ]; then
-                action $"Stopping oess-${name}: " /bin/true
+                action $"Stopping ${name}: " /bin/true
                 kill -TERM `cat $PIDFILE`
                 rm -f $PIDFILE
         else
-                action $"Stopping oess-${name}: " /bin/false
+                action $"Stopping ${name}: " /bin/false
         fi
         rm -rf $lockfile
         ;;
