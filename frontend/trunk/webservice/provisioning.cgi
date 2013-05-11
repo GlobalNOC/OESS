@@ -243,36 +243,6 @@ sub provision_circuit {
             external_id    => $external_id,
 	    restore_to_primary => $restore_to_primary
         );
-        if ( defined $output ) {
-
-            #send message to Syslogger DBUS about Add Case
-            #if logging client is down, just skip it. Assume the syncer script will catch what falls through
-            if ( defined $log_client ) {
-
-                #Needed to sync db
-                #
-                # ckt->{'circuit_id'}
-                # ckt->{'workgroup_id'}
-                # ckt->{'name'}
-                # ckt->{'description'},
-                # ckt->{'circuit_state'}
-                eval{
-                    my $circuit_details = $db->get_circuit_details(
-                                                                   circuit_id => $output->{'circuit_id'} );
-                    
-                    $log_client->circuit_provision( {
-                                                     circuit_id    => $output->{'circuit_id'},
-                                                     workgroup_id  => $workgroup_id,
-                                                     name          => $circuit_details->{'name'},
-                                                     description   => $description,
-                                                     circuit_state => $circuit_details->{'state'}
-                                                    }
-                                                  );
-                };
-                warn $@ if $@;
-            }
-
-        }
         if ( defined $output && $provision_time <= time() ) {
 
             my $result =
@@ -295,7 +265,18 @@ sub provision_circuit {
 "Unabled to provision circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been removed.";
                 return $results;
             }
-
+            
+            #if we're here we've successfully provisioned onto the network, so log notification.
+            if (defined $log_client){
+                eval{
+                                       
+                    $log_client->circuit_provision( {
+                                                     circuit_id    => $output->{'circuit_id'},
+                                                    }
+                                                  );
+                };
+                warn $@ if $@;
+            }
         }
 
     }
@@ -332,27 +313,8 @@ sub provision_circuit {
             workgroup_id   => $workgroup_id,
             do_external    => 0
         );
-        if ( defined $output ) {
-
-            #Send Edit to Syslogger DBUS
-            if ( defined $log_client ) {
-                eval{
-                    my $circuit_details = $db->get_circuit_details(
-                                                                   circuit_id => $output->{'circuit_id'} );
-                    warn "Sending circuit_modify";
-                    $log_client->circuit_modify( {
-                                                  circuit_id    => $circuit_id,
-                                                  workgroup_id  => $workgroup_id,
-                                                  name          => $circuit_details->{'name'},
-                                                  description   => $description,
-                                                  circuit_state => $circuit_details->{'state'}
-                                                 }
-                                               );
-                };
-                  warn $@ if $@;
-            }
+             
             
-        }
 
 
         $result = _send_add_command( circuit_id => $output->{'circuit_id'} );
@@ -368,6 +330,17 @@ sub provision_circuit {
             return $results;
         }
 
+        #Send Edit to Syslogger DBUS
+            if ( defined $log_client ) {
+                eval{
+                    
+                    $log_client->circuit_modify( {
+                                                  circuit_id    => $circuit_id,
+                                                 }
+                                               );
+                };
+                  warn $@ if $@;
+            }
     }
 
     if ( !defined $output ) {
@@ -435,6 +408,8 @@ sub remove_circuit {
             }
         }
 
+        
+
     }
 
     my $output = $db->remove_circuit(
@@ -450,8 +425,8 @@ sub remove_circuit {
         $results->{'error'} = $db->get_error();
         return $results;
     }
-    else {
-
+    elsif ($remove_time <= time() ) {
+        #only send removal event if it happened now, not if it was scheduled to happen later.
         #DBUS Log removal event
         eval{
             my $circuit_details = $db->get_circuit_details( circuit_id => $output->{'circuit_id'} );
@@ -464,10 +439,12 @@ sub remove_circuit {
                                                 circuit_state => $circuit_details->{'state'}
                                                }
                                              );
-        }
+        };
+        warn $@ if $@;
 
+     
     }
-    warn $@ if $@;
+    
     $results->{'results'} = [ { success => 1 } ];
 
     return $results;
