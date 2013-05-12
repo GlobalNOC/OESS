@@ -538,9 +538,9 @@ sub generate_clr{
 		    $clr .= "Match: IN_PORT: " . $interface;
 		    #--- iterate through ports need set of rules for each input/output port combo
 		    foreach my $vlan_tag (sort keys %{$path->{$node}{$interface}}){          
-			$clr .= ", dl_vlan:" . $vlan_tag . "    OUTPUT: ";
-			my $remote_tag = $path->{$node}{$other_if}{$vlan_tag};
-			$clr .= $other_if . ":vlan" . $remote_tag;
+                $clr .= ", dl_vlan:" . $vlan_tag . "    OUTPUT: ";
+                my $remote_tag = $path->{$node}{$other_if}{$vlan_tag};
+                $clr .= $other_if . ":vlan" . $remote_tag;
 		    }
 		}
 		$clr .= "\n";
@@ -613,6 +613,7 @@ sub generate_clr{
 	$clr .= "Endpoints: \n";
 	
 	foreach my $endpoint (@$endpoints){
+        if ($endpoint->{'tag'} == UNTAGGED ){ $endpoint->{'tag'} = 'Untagged'; }
 	    $clr .= "  " . $endpoint->{'node'} . " - " . $endpoint->{'interface'} . " VLAN " . $endpoint->{'tag'} . "\n";
 	}
 	
