@@ -499,8 +499,8 @@ sub generate_clr{
         $clr .= "Created by " . $created_user->{'given_names'} . " " . $created_user->{'family_name'} . " at " . $created_on . " for workgroup " . $workgroup_name . "\n";
         $clr .= "Lasted Modified By: " . $last_modified_user->{'given_names'} . " " . $last_modified_user->{'family_name'} . " at " . $last_edited . "\n\n";
 	
-	$clr .= "Primary Path:\n";
-
+#	$clr .= "Primary Path:\n";
+	$clr .= "Flow Rules:";
 	
 	my $internal_ids = $circuit_details->{'internal_ids'};
     
@@ -529,12 +529,16 @@ sub generate_clr{
 	my $path = \%primary_path;
 	#--- get node by node and figure out the simple forwarding rules for this path
 	foreach my $node (sort keys %$path){
-	    $clr .= "NODE:" . $node ."\n";
+	    my $used_node_clr = 0;
 	    foreach my $interface (sort keys %{$path->{$node}}){
 		foreach my $other_if(sort keys %{$path->{$node}}){
 		    
 		    #--- skip when the 2 interfaces are the same
 		    next if($other_if eq $interface);
+		    if($used_node_clr == 0){
+			$used_node_clr = 1;
+			$clr .= "\nNODE:" . $node . "\n";
+		    }
 		    $clr .= "Match: IN_PORT: " . $interface;
 		    #--- iterate through ports need set of rules for each input/output port combo
 		    foreach my $vlan_tag (sort keys %{$path->{$node}{$interface}}){          
@@ -543,21 +547,23 @@ sub generate_clr{
                 $clr .= $other_if . ":vlan" . $remote_tag;
 		    }
 		}
-		$clr .= "\n";
 	    }
 
 	} 
     
-	$clr .= "\n\nBackup Path:\n";
 	$path = \%backup_path;
         #--- get node by node and figure out the simple forwarding rules for this path
         foreach my $node (sort keys %$path){
-	    $clr .= "NODE:" . $node . "\n";
+	    my $used_node_clr = 0;
             foreach my $interface (sort keys %{$path->{$node}}){
                 foreach my $other_if(sort keys %{$path->{$node}}){
 
                     #--- skip when the 2 interfaces are the same
                     next if($other_if eq $interface);
+		    if($used_node_clr == 0){
+			$used_node_clr = 1;
+			$clr .= "\nNODE:" . $node . "\n";
+		    }
                     $clr .= "Match: IN_PORT: " . $interface;
                     #--- iterate through ports need set of rules for each input/output port combo
                     foreach my $vlan_tag (sort keys %{$path->{$node}{$interface}}){
@@ -579,31 +585,14 @@ sub generate_clr{
 	    #--- iterate over the non-edge interfaces on the primary path to setup rules that both forward AND translate
 	    foreach my $other_if(sort keys %{$primary_path{$node}}){
 		foreach my $local_inner_tag (sort keys %{$primary_path{$node}{$other_if}}){
-		    
-		    my $remote_inner_tag = $primary_path{$node}{$other_if}{$local_inner_tag};
-		    
-		    #$self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$outer_tag, $interface, $remote_inner_tag, $other_if,$sw_act);
-		    #$self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$local_inner_tag, $other_if, $outer_tag, $interface,$sw_act);
+		    $clr .= "\nNODE: " . $node . "\n";
+		    my $remote_inner_tag = $primary_path{$node}{$other_if}{$local_inner_tag};		    
+		    $clr .= "Match: IN_PORT: " . $interface . ", dl_vlan: " . $outer_tag . "   OUTPUT: " . $other_if . ":vlan" . $remote_inner_tag . "\n";
+		    $clr .= "Match: IN_PORT: " . $other_if . ", dl_vlan: " . $remote_inner_tag . "   OUTPUT: " . $interface . ":vlan" . $outer_tag . "\n";
 		}
-	    }
-	    
-	    #--- iterate over the endpoints again to catch more than 1 ep on same switch
-	    #--- this will be sorta odd as these will always exist regardless backup or primary
-	    #--- path if exist
-	    foreach my $other_ep(@{$circuit_details->{'endpoints'}}){
-		my $other_node =  $other_ep->{'node'};
-		my $other_if   =  $other_ep->{'port_no'};
-		my $other_tag  =  $other_ep->{'tag'};
-		
-		next if($other_ep == $endpoint || $node ne $other_node );
-		
-		#$self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$outer_tag, $interface, $other_tag, $other_if,$sw_act);
-		#$self->_generate_translation_rule(\@commands,$dpid_lookup->{$node},$other_tag, $other_if, $outer_tag, $interface,$sw_act);
-		
-	    }
+	    }    
 	}
-	
-	
+
     }else{
 	
 	$clr = "";
@@ -963,7 +952,7 @@ sub get_node_dpid_hash {
 sub get_current_nodes{
     my $self = shift;
 
-    my $nodes = $self->_execute_query("select node.name, node_instantiation.dpid,node.operational_state,node.node_id from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1",[]);
+    my $nodes = $self->_execute_query("select node.name, node_instantiation.dpid,node.operational_state,node.node_id from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active'",[]);
     
     return $nodes;   
 }
