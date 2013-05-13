@@ -300,7 +300,10 @@ sub add_snapp{
     if(my $row = $sth->fetchrow_hashref()){
 	$host = $row;
     }else{
-	syslog(LOG_ERR,"Unable to find node (" . $node->{'node_id'} . ") in SNAPP");
+	#fire the datapath_join_callback... 
+	#this should attempt to add the host to SNAPP
+	#the next go around we should find the node and add collections
+	datapath_join_callback($dpid,undef,undef);
 	return;
     }
 
@@ -374,8 +377,9 @@ sub _load_config{
 
     #we need to reverse the hash...
     foreach my $key (keys (%{$tmp})){
-
+	
 	my $node = $oess->get_node_by_dpid( dpid => $tmp->{$key} );	
+	next if($node->{'admin_state'} ne 'active');
 	$node_hash->{$tmp->{$key}} = $node;
 	
     }
@@ -477,7 +481,9 @@ sub main{
 	$dbus->connect_to_signal("datapath_leave",\&datapath_leave_callback);
 	$dbus->connect_to_signal("datapath_join",\&datapath_join_callback);
 	$dbus->start_reactor( timeouts => [{interval => 10000, callback => Net::DBus::Callback->new(
-						method => sub { get_flow_stats(); })}]);
+						method => sub { get_flow_stats(); })},
+					   {interval => 300000, callback => Net::DBus::Callback->new(
+						method => sub { _load_config(); })}]);
     }else{
 	syslog(LOG_ERR,"Unable to connect to dbus");
 	die;
