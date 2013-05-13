@@ -767,14 +767,18 @@ sub _restore_down_circuits{
 		    
 		    if($self->{'topo'}->is_path_up( path_id => $primary_path->{'path_id'} )){
 			if($self->{'topo'}->is_path_up( path_id => $backup_path->{'path_id'} )){
-			    #ok the backup path is up and active... schedule the restoration
-			    #schedule the change path
-			    _log("vlan: " . $circuit->{'name'} . " id: " . $circuit->{'circuit_id'} . " is currently on backup path, scheduling restore to primary for " . $circuit->{'restore_to_primary'} . " minutes from now");
-			    $self->{'db'}->schedule_path_change( circuit_id => $circuit->{'circuit_id'},
-								 path => 'primary',
-								 when => time() + (60 * $circuit->{'restore_to_primary'}),
-								 user_id => SYSTEM_USER,
-								 workgroup_id => $circuit->{'workgroup_id'} );
+			    #ok the backup path is up and active... and restore to primary is not 0
+			    if($circuit->{'restore_to_primary'} > 0){
+				#schedule the change path
+				_log("vlan: " . $circuit->{'name'} . " id: " . $circuit->{'circuit_id'} . " is currently on backup path, scheduling restore to primary for " . $circuit->{'restore_to_primary'} . " minutes from now");
+				$self->{'db'}->schedule_path_change( circuit_id => $circuit->{'circuit_id'},
+								     path => 'primary',
+								     when => time() + (60 * $circuit->{'restore_to_primary'}),
+								     user_id => SYSTEM_USER,
+								     workgroup_id => $circuit->{'workgroup_id'} );
+			    }else{
+				#restore to primary is off
+			    }
 			}else{
 			    #ok the primary path is up and the backup is down and active... lets move now
 			    my $success = $self->{'db'}->switch_circuit_to_alternate_path( circuit_id => $circuit->{'circuit_id'});
