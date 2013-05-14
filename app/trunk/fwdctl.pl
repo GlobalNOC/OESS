@@ -1010,7 +1010,7 @@ sub _do_interface_diff{
     my $current_rules = shift;
     my $dpid_str  = sprintf("%x",$node->{'dpid'});
 
-    _log("sw: dpid:$dpid_str diff sw rules to oe-ss rules for port:".$current_rules->{'port_number'});
+    _log("sw: dpid:$dpid_str diff sw rules to oe-ss rules for port:".$node->{'port_number'});
 
     my %current_flows;
 
@@ -1033,7 +1033,7 @@ sub _do_interface_diff{
     my $rules = $self->_get_rules_on_port( port_number => $node->{'port_number'}, dpid => $node->{'dpid'} );
     
     $self->_actual_diff( $node->{'dpid'},$node->{'name'}, \%current_flows, $rules);
-    _log("sw: dpid:$dpid_str diff sw rules to oe-ss rules for port:".$current_rules->{'port_number'}." complete");
+    _log("sw: dpid:$dpid_str diff sw rules to oe-ss rules for port:".$node->>{'port_number'}." complete");
 }
 
 sub topo_port_status{
