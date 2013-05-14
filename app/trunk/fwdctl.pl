@@ -1076,7 +1076,14 @@ sub topo_port_status{
 		#get list of rules we currently have
 		$node->{'interface_diff'} = 1;
                 $node->{'port_number'} = $port_number;
-                $self->{'nodes_needing_diff'}{$dpid} = $node;
+		if(defined($self->{'nodes_needing_diff'})){
+                    #we we must need to be diffing the node already for at least another interface
+		    #set it to full diff as it will diff every interface then
+                    $self->{'nodes_needing_diff'}{$dpid} = {full_diff => 1, dpid => $dpid};
+                }else{
+		    #since no other part of the ndoe needs diffing, just diff this one interface
+                    $self->{'nodes_needing_diff'}{$dpid} = $node;
+                }
 
 		#note that this will cause the flow_stats_in handler to handle this data
 		#and it will then call the _do_interface_diff				
