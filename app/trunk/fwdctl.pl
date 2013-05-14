@@ -971,7 +971,7 @@ sub _get_rules_on_port{
 
     my @port_commands;
     foreach my $ckt (@$affected_circuits){
-	my $circuit_id   = $ckt->{'id'};
+	my $circuit_id   = $ckt->{'circuit_id'};
 	my $circuit_name = $ckt->{'name'};
 	my $state        = $ckt->{'state'};
 
