@@ -5,15 +5,16 @@
  * added configurable restore to primary behavior after hold timer
  * added email notifications for network events and user events
  * added a raw (flow rule) view of circuits
- * fixed an issue where large numbers of flow mods caused vlan_stats to process flows slowly and would back up all other process (fwdctl, topo, etc)
+ * added the ability to check for failover events on device re-sync
  * generation of OESS topology for IDC purposes was including multiple copies of decom nodes
  * improved barrier detection
  * improved logging in oess_scheduler
  * improved logging in fwdctl
- * fixed a problem that prevented the network status map from properly centering
- * fixed an issue that prevented non-endpoint nodes from showing data for circuits
- * added additional loggin in NOX
- * added the ability to check for failover events on device re-sync
+ * improved logging in NOX
+ * resolved an issue that prevented the network status map from properly centering
+ * resolved an issue that prevented non-endpoint nodes from showing data for circuits
+ * resolved an issue where large numbers of flow mods caused vlan_stats to process flows slowly, and would back up all other process (fwdctl, topo, etc)
+
 
 == 1.0.7 ==
 
