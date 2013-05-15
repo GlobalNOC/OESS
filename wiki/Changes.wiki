@@ -1,6 +1,7 @@
 = Changes for OESS over time =
 
 == 1.0.8 ==
+
 * added configurable restore to primary behavior after hold timer
 * added email notifications for network events and user events
 * added a raw (flow rule) view of circuits
