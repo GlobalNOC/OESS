@@ -5,7 +5,7 @@ package OESS::Notification;
 
 use URI::Escape;
 use OESS::Database;
-use GRNOC::Config;
+use XML::Simple;
 use Data::Dumper;
 use MIME::Lite;
 use Template;
@@ -422,10 +422,13 @@ Configures OESS::Syncer Object from config file
 sub _process_config_file {
     my $self = shift;
 
-    my $config = GRNOC::Config->new( config_file => $self->{'config_file'} );
-    
-    $self->{'from_name'}    = $config->get('/config/smtp/@from_name')->[0];
-    $self->{'from_address'} = $config->get('/config/smtp/@from_address')->[0];
+    #my $config = GRNOC::Config->new( config_file => $self->{'config_file'} );
+    my $config = XML::Simple::XMLin($self->{'config_file'});
+
+    $self->{'from_name'}    = $config->{'smtp'}->{'from_name'};
+    $self->{'from_address'} = $config->{'smtp'}->{'from_address'};
+    warn ($self->{'from_name'});
+    warn ($self->{'from_address'});
     return;
 }
 
