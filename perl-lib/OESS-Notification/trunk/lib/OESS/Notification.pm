@@ -427,8 +427,7 @@ sub _process_config_file {
 
     $self->{'from_name'}    = $config->{'smtp'}->{'from_name'};
     $self->{'from_address'} = $config->{'smtp'}->{'from_address'};
-    warn ($self->{'from_name'});
-    warn ($self->{'from_address'});
+    
     return;
 }
 
