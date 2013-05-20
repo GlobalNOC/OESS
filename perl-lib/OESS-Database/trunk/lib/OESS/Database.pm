@@ -1,3 +1,4 @@
+
 #!/usr/bin/perl
 
 eval 'exec /usr/bin/perl  -S $0 ${1+"$@"}'
@@ -357,28 +358,14 @@ sub switch_circuit_to_alternate_path {
 
     my $circuit_id     = $args{'circuit_id'};
     
-    if (! $self->circuit_has_alternate_path(circuit_id => $circuit_id ) ){
+    my $new_active_path_id = $self->circuit_has_alternate_path(circuit_id => $circuit_id );
+
+    if(!$new_active_path_id){
 	$self->_set_error("Circuit $circuit_id has no alternate path, refusing to try to switch to alternate.");
 	return;
     }
 
     $self->_start_transaction();
-
-    # grab the path id of the one we're going to switch to
-    $query = "select path_instantiation.path_id from path " . 
-	     " join path_instantiation on path.path_id = path_instantiation.path_id " .
-	     " where path_instantiation.path_state = 'available' and path_instantiation.end_epoch = -1 " .
-	     " and path.circuit_id = ?";
-
-    my $results = $self->_execute_query($query, [$circuit_id]);
-
-    if (! defined $results || @$results < 1){
-	$self->_set_error("Unable to find path_id for alternate path.");
-	$self->_rollback();
-	return;
-    }
-
-    my $new_active_path_id = @$results[0]->{'path_id'};
 
 
     # grab the path_id of the one we're switching away from
@@ -387,7 +374,7 @@ sub switch_circuit_to_alternate_path {
 	     " where path_instantiation.path_state = 'active' and path_instantiation.end_epoch = -1 " .
 	     " and path.circuit_id = ?";
 
-    $results = $self->_execute_query($query, [$circuit_id]);
+    my $results = $self->_execute_query($query, [$circuit_id]);
 
     if (! defined $results || @$results < 1){
 	$self->_set_error("Unable to find path_id for current path.");
