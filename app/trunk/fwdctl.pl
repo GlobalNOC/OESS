@@ -1289,7 +1289,7 @@ sub deleteVlan {
 	my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'}->value());
 	usleep($node->{'tx_delay_ms'} * 1000);
         my $xid = $self->{'of_controller'}->delete_datapath_flow($command->{'dpid'},$command->{'attr'});	
-	$node{$command->{'dpid'}}--;
+	$node{$command->{'dpid'}->value()}--;
 	$xid_hash{$xid} = 1;
     }
 
