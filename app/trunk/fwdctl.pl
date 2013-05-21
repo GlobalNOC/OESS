@@ -672,7 +672,6 @@ sub _actual_diff{
 	}
     }
     
-    print STDERR Dumper($current_flows);
     #--- look for rules which are on the switch but which should not be there by design
     foreach my $port_num (keys (%{$current_flows})){
 	my $obs_port = $current_flows->{$port_num};
@@ -685,7 +684,7 @@ sub _actual_diff{
 		$stats{'rems'}++;
 		_log("--- we have a a rule on the switch for port $port_num vid $obs_vid which doesnt correspond with plan\n");
 		#need to add to our total number of flows_on_the_switch... will be decremented once removed
-		$node{'dpid'}++;
+		$node{$dpid}++;
 		push(@rule_queue, [$dpid,_process_flow_stats_to_command($port_num,$obs_vid),undef,$node->{'tx_delay_ms'}]);
 	    }
 	}
