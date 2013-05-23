@@ -843,7 +843,8 @@ sub _fail_over_circuits{
             # this is probably where we would put the dynamic backup calculation
             # when we get there.
             _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name  has no alternate path and is down");
-            $self->emit_signal("signal_circuit_failover", $circuit_info,"failed_no_backup" );
+	    $circuit_info->{'failover_type'} = "failed_no_backup";
+	    $self->emit_signal("signal_circuit_failover", $circuit_info);
         }
     }
 
