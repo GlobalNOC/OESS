@@ -1250,7 +1250,7 @@ HERE
     $rows = $self->_execute_query($query, []);
     my @node_array;
     foreach my $row (@$rows){
-	push(@node_array,$row->{'node-id'});
+	push(@node_array,$row->{'node_id'});
     }
     $node_list= join(',',@node_array);
     if($workgroup_id && $node_list){
