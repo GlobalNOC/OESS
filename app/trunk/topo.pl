@@ -418,30 +418,128 @@ sub db_link_add{
 	$db->update_link_state( link_id => $link_db_id, state => 'up');
 
     }else{
-	##create a new one;
-	print_log(LOG_DEBUG,"Adding a new link");
+	#first determine if any of the ports are currently used by another link... and connect to the same other node	
+	my $links_a = $db->get_link_by_interface_id( interface_id => $interface_a->{'interface_id'}, show_decom => 0);
+	my $links_z = $db->get_link_by_interface_id( interface_id => $interface_z->{'interface_id'}, show_decom => 0);
 
-	my $link_name = "auto-" . $a_dpid . "-" . $a_port . "--" . $z_dpid . "-" . $z_port;
-	my $link = $db->get_link_by_name(name => $link_name);
-	my $link_id;
+	my $z_node = $db->get_node_by_id( node_id => $interface_z->{'node_id'} );
+	my $a_node = $db->get_node_by_id( node_id => $interface_a->{'node_id'} );
 
-	if(!defined($link)){
-	    $link_id = $db->add_link( name => $link_name );
+	my $a_links;
+	my $z_links;
+
+	#lets first remove any circuits not going to the node we want on these interfaces
+	foreach my $link (@$links_a){
+	    my $other_int = $db->get_interface( interface_id => $link->{'interface_a_id'} );
+	    if($other_int->{'interface_id'} == $interface_a->{'interface_a_id'}){
+		$other_int = $db->get_interface( interface_id => $link->{'interface_z_id'} );
+	    }
+
+	    my $other_node = $db->get_node_by_id( node_id => $other_int->{'node_id'} );
+	    
+	    if($other_node->{'node_id'} == $z_node->{'node_id'}){
+		push(@$a_links,$link);
+	    }
+	}
+
+	foreach my $link (@$links_z){
+	    my $other_int = $db->get_interface( interface_id => $link->{'interface_a_id'} );
+            if($other_int->{'interface_id'} == $interface_z->{'interface_a_id'}){
+                $other_int = $db->get_interface( interface_id => $link->{'interface_z_id'} );
+            }
+            my $other_node = $db->get_node_by_id( node_id => $other_int->{'node_id'} );
+
+            if($other_node->{'node_id'} == $a_node->{'node_id'}){
+		push(@$z_links,$link);
+            }
+	}
+
+
+	#ok... so we now only have the links going from a to z nodes
+	# we pretty much have 4 cases... there are 2 or more links going from a to z
+	# there is 1 link going from a to z (this is enumerated as 2 elsifs one for each side)
+	# there is no link going from a to z
+	if(defined($a_links->[0]) && defined($z_links->[0])){
+	    #ok this is the more complex one to worry about
+	    #pick one and move it, we will have to move another one later
+	    my $link = $a_links->[0];
+	    my $old_z = $link->{'interface_a_id'};
+	    if($old_z == $interface_a->{'interface_id'}){
+		$old_z = $link->{'interface_z_id'};
+	    }
+	    my $old_z_interface = $db->get_interface( interface_id => $old_z);
+	    $db->decom_link_instantiation( link_id => $link->{'link_id'} );
+	    $db->create_link_instantiation( link_id => $link->{'link_id'}, interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'}, state => $link->{'state'} );
+	    $db->_commit();
+	    #do admin notify
+	    
+
+	    #diff the interfaces
+	    _send_topo_port_status($z_node->{'dpid'},OFPPR_MODIFY,{name => $interface_z->{'name'}, port_no => $interface_z->{'port_no'}, link => 1});
+	    _send_topo_port_status($z_node->{'dpid'},OFPPR_MODIFY,{name => $interface_z->{'name'}, port_no => $old_z_interface->{'port_no'}, link => 1});
+
+	}elsif(defined($a_links->[0])){
+	    #easy case update link_a so that it is now on the new interfaces
+	    my $link = $a_links->[0];
+	    my $old_z =$link->{'interface_a_id'};
+	    if($old_z == $interface_a->{'interface_id'}){
+		$old_z = $link->{'interface_z_id'};
+            }
+            my $old_z_interface= $db->get_interface( interface_id => $old_z);
+	    #if its in the links_a that means the z end changed...
+	    $db->decom_link_instantiation( link_id => $link->{'link_id'} );
+	    $db->create_link_instantiation( link_id => $link->{'link_id'}, interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'}, state => $link->{'state'} );
+	    $db->_commit();
+	    #do admin notification
+	    
+	    
+	    #diff the z node
+	    _send_topo_port_status($z_node->{'dpid'},OFPPR_MODIFY,{name => $interface_z->{'name'}, port_no => $interface_z->{'port_no'}, link => 1});
+            _send_topo_port_status($z_node->{'dpid'},OFPPR_MODIFY,{name => $interface_z->{'name'}, port_no => $old_z_interface->{'port_no'}, link => 1});
+
+	}elsif(defined($z_links->[0])){
+            #easy case update link_a so that it is now on the new interfaces
+	    my $link = $z_links->[0];
+            
+	    my $old_a =$link->{'interface_a_id'};
+            if($old_a == $interface_z->{'interface_id'}){
+                $old_a = $link->{'interface_z_id'};
+            }
+            my $old_a_interface= $db->get_interface( interface_id => $old_a);
+
+	    $db->decom_link_instantiation( link_id => $link->{'link_id'});
+	    $db->create_link_instantiation( link_id => $link->{'link_id'}, interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'}, state => $link->{'state'});
+	    $db->_commit();
+	    #do admin notification 
+	
+	    #diff the interfaces
+            #diff the z node
+            _send_topo_port_status($a_node->{'dpid'},OFPPR_MODIFY,{name => $interface_a->{'name'}, port_no => $interface_a->{'port_no'}, link => 1});
+            _send_topo_port_status($a_node->{'dpid'},OFPPR_MODIFY,{name => $interface_a->{'name'}, port_no => $old_a_interface->{'port_no'}, link => 1});
 	}else{
-	    $link_id = $link->{'link_id'};
+	    ##create a new one link as none of the interfaces were part of any link
+	    print_log(LOG_DEBUG,"Adding a new link");
+	    
+	    my $link_name = "auto-" . $a_dpid . "-" . $a_port . "--" . $z_dpid . "-" . $z_port;
+	    my $link = $db->get_link_by_name(name => $link_name);
+	    my $link_id;
+	    
+	    if(!defined($link)){
+		$link_id = $db->add_link( name => $link_name );
+	    }else{
+		$link_id = $link->{'link_id'};
+	    }
+	    
+	    if(!defined($link_id)){
+		print_log(LOG_ERR,"Unable to add link!");
+		$dbh->rollback();
+		return undef;
+	    }
+	    
+	    $db->create_link_instantiation( link_id => $link_id, state => 'available', interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'});
+	    $db->_commit();
 	}
-	
-	if(!defined($link_id)){
-	    print_log(LOG_ERR,"Unable to add link!");
-	    $dbh->rollback();
-	    return undef;
-	}
-
-	$db->create_link_instantiation( link_id => $link_id, state => 'available', interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'});
-	
     }
-
-    $dbh->commit();
     
 }
 
