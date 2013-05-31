@@ -339,26 +339,44 @@ sub find_path{
     
     my %edge;
     my $used_link_set=Set::Scalar->new(@$try_avoid);
-    
-    
-    foreach my $link (@$links){
-	#add every link as an edge in our graph
-	$g->add_edge($link->{'node_a_name'},$link->{'node_b_name'});
-	$g->set_edge_attribute($link->{'node_a_name'},$link->{'node_b_name'},"name",$link->{'name'});
-	
-	if (not defined $reserved_bw){
-            $reserved_bw=0;
-	}
-	#calculate the "weight" of the edge
-	my $edge_weight=$link->{'link_capacity'} * 1.0 - $reserved_bw;
-	if($used_link_set->has($link->{'name'})){
-	    $edge_weight=$edge_weight*1e2;
-	}
+   
+    #--- determine the max weight 
+    #used as a baseline to start the primary path weights at
+    #when trying to determine the backup bath. 
+    my @weights;
+    foreach my $link (@$links){ push(@weights, $link->{'metric'}); }
+    my $max_weight = (sort { $b <=> $a } @weights)[0];
 
-	$g->set_edge_attribute($link->{'node_a_name'},$link->{'node_b_name'},"weight",$edge_weight);
-	$edge{$link->{'node_a_name'}}{$link->{'node_b_name'}}{'name'}=$link->{'name'};
+    foreach my $link (@$links){
+	    #add every link as an edge in our graph
+        my $current_reserved_bandwidth = $link->{'reserved_bw_mbps'};
+
+        #--- determine how much capacity will be left on this link after our requested circuit runs through it
+	    my $capacity_left = $link->{'link_capacity'} * 1.0 - $current_reserved_bandwidth - $reserved_bw;
+        #--- if the remaining capacity is less than zero we can't use this link so don't add it to the graph
+        next if($capacity_left < 0);
+    
+
+	    $g->add_edge($link->{'node_a_name'},$link->{'node_b_name'});
+	    $g->set_edge_attribute($link->{'node_a_name'},$link->{'node_b_name'},"name",$link->{'name'});
 	
-    };
+	    if (not defined $reserved_bw){
+            $reserved_bw=0;
+	    }
+	    my $edge_weight = $link->{'metric'};
+        #if the link is in our used list add the maximum weight 
+        #to its weight to ensure it's chose only as a last resort
+	    if($used_link_set->has($link->{'name'})){
+            #add one to the max weight in case the max weight is the same as this edges' weight
+            $edge_weight= $edge_weight + ($max_weight + 1);
+	    }
+
+	    $g->set_edge_attribute($link->{'node_a_name'},$link->{'node_b_name'},"weight",$edge_weight);
+	    $edge{$link->{'node_a_name'}}{$link->{'node_b_name'}}{'name'}=$link->{'name'};
+
+        # adjust max weight if this links weight is higher
+        $max_weight = $link->{'metric'} if($link->{'metric'} > $max_weight);	
+    }
     
     #run Dijkstra on our graph
     my $graph = $g->SPT_Dijkstra($nodes->[0]);
