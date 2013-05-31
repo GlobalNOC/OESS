@@ -1,8 +1,8 @@
--- MySQL dump 10.13  Distrib 5.1.61, for redhat-linux-gnu (x86_64)
+-- MySQL dump 10.13  Distrib 5.1.67, for redhat-linux-gnu (x86_64)
 --
 -- Host: localhost    Database: oess_test
 -- ------------------------------------------------------
--- Server version	5.1.61-log
+-- Server version	5.1.67
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -14,14 +14,6 @@
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-
---
--- Current Database: `oess_test`
---
-
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `oess_test` /*!40100 DEFAULT CHARACTER SET latin1 */;
-
-USE `oess_test`;
 
 --
 -- Table structure for table `circuit`
@@ -191,6 +183,7 @@ CREATE TABLE `link` (
   `name` varchar(255) NOT NULL,
   `remote_urn` varchar(256) DEFAULT NULL,
   `status` enum('up','down') DEFAULT 'up',
+  `metric` int(11) DEFAULT '0',
   PRIMARY KEY (`link_id`),
   UNIQUE KEY `links_idx` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=592 DEFAULT CHARSET=utf8;
@@ -202,7 +195,7 @@ CREATE TABLE `link` (
 
 LOCK TABLES `link` WRITE;
 /*!40000 ALTER TABLE `link` DISABLE KEYS */;
-INSERT INTO `link` VALUES (1,'Link 1',NULL,'up'),(21,'Link 21',NULL,'up'),(31,'Link 31',NULL,'up'),(41,'Link 41',NULL,'up'),(61,'Link 61',NULL,'up'),(71,'Link 71',NULL,'down'),(81,'Link 81',NULL,'up'),(91,'Link 91',NULL,'up'),(101,'Link 101',NULL,'up'),(111,'Link 111',NULL,'up'),(151,'Link 151',NULL,'up'),(161,'Link 161',NULL,'up'),(171,'Link 171',NULL,'up'),(181,'Link 181',NULL,'up'),(191,'Link 191',NULL,'up'),(211,'Link 211',NULL,'up'),(221,'Link 221',NULL,'up'),(231,'Link 231',NULL,'up'),(241,'ION-AL2S-ATLA','urn:ogf:network:domain=ion.internet2.edu:node=rtr.atla:port=xe-7/2/0:link=al2s','up'),(261,'ION-AL2S-HOUS','urn:ogf:network:domain=ion.internet2.edu:node=rtr.hous:port=xe-4/3/0:link=al2s','up'),(271,'ION-AL2S-KANS','urn:ogf:network:domain=ion.internet2.edu:node=rtr.kans:port=xe-0/0/1:link=al2s','up'),(281,'ION-AL2S-LOSA','urn:ogf:network:domain=ion.internet2.edu:node=rtr.losa:port=ae1:link=al2s','up'),(291,'ION-AL2S-NEWY','urn:ogf:network:domain=ion.internet2.edu:node=rtr.newy:port=xe-0/1/1:link=al2s','up'),(421,'ION-AL2S-CHIC','urn:ogf:network:domain=ion.internet2.edu:node=rtr.chic:port=ae1:link=al2s','up'),(501,'magpi','urn:ogf:network:domain=magpi.net:node=vlsr1:port=1-0-7:link=i2-al2s','up'),(511,'urn:ogf:network:domain=magpi.net:node=vlsr1:port=1-0-7:link=i2-al2s','urn:ogf:network:domain=al2s.net.internet2.edu:node=sdn-sw.newy32aoa.net.internet2.edu:port=e15/6:link=magpi','up'),(521,'Link 521',NULL,'up'),(531,'Link 531',NULL,'up'),(571,'OneNet','urn:ogf:network:domain=ou.edu:node=vlsr1:port=0-1-1:link=al2s','up'),(581,'ION-AL2S-SALT','urn:ogf:network:domain=ion.internet2.edu:node=rtr.salt:port=xe-0/1/1:link=al2s','up'),(591,'ION-AL2S-WASH','urn:ogf:network:domain=ion.internet2.edu:node=rtr.wash:port=ae4:link=al2s','up');
+INSERT INTO `link` VALUES (1,'Link 1',NULL,'up',0),(21,'Link 21',NULL,'up',0),(31,'Link 31',NULL,'up',0),(41,'Link 41',NULL,'up',0),(61,'Link 61',NULL,'up',0),(71,'Link 71',NULL,'down',0),(81,'Link 81',NULL,'up',0),(91,'Link 91',NULL,'up',0),(101,'Link 101',NULL,'up',0),(111,'Link 111',NULL,'up',0),(151,'Link 151',NULL,'up',0),(161,'Link 161',NULL,'up',0),(171,'Link 171',NULL,'up',0),(181,'Link 181',NULL,'up',0),(191,'Link 191',NULL,'up',0),(211,'Link 211',NULL,'up',0),(221,'Link 221',NULL,'up',0),(231,'Link 231',NULL,'up',0),(241,'ION-AL2S-ATLA','urn:ogf:network:domain=ion.internet2.edu:node=rtr.atla:port=xe-7/2/0:link=al2s','up',0),(261,'ION-AL2S-HOUS','urn:ogf:network:domain=ion.internet2.edu:node=rtr.hous:port=xe-4/3/0:link=al2s','up',0),(271,'ION-AL2S-KANS','urn:ogf:network:domain=ion.internet2.edu:node=rtr.kans:port=xe-0/0/1:link=al2s','up',0),(281,'ION-AL2S-LOSA','urn:ogf:network:domain=ion.internet2.edu:node=rtr.losa:port=ae1:link=al2s','up',0),(291,'ION-AL2S-NEWY','urn:ogf:network:domain=ion.internet2.edu:node=rtr.newy:port=xe-0/1/1:link=al2s','up',0),(421,'ION-AL2S-CHIC','urn:ogf:network:domain=ion.internet2.edu:node=rtr.chic:port=ae1:link=al2s','up',0),(501,'magpi','urn:ogf:network:domain=magpi.net:node=vlsr1:port=1-0-7:link=i2-al2s','up',0),(511,'urn:ogf:network:domain=magpi.net:node=vlsr1:port=1-0-7:link=i2-al2s','urn:ogf:network:domain=al2s.net.internet2.edu:node=sdn-sw.newy32aoa.net.internet2.edu:port=e15/6:link=magpi','up',0),(521,'Link 521',NULL,'up',0),(531,'Link 531',NULL,'up',0),(571,'OneNet','urn:ogf:network:domain=ou.edu:node=vlsr1:port=0-1-1:link=al2s','up',0),(581,'ION-AL2S-SALT','urn:ogf:network:domain=ion.internet2.edu:node=rtr.salt:port=xe-0/1/1:link=al2s','up',0),(591,'ION-AL2S-WASH','urn:ogf:network:domain=ion.internet2.edu:node=rtr.wash:port=ae4:link=al2s','up',0);
 /*!40000 ALTER TABLE `link` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -728,4 +721,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-05-09 17:45:39
+-- Dump completed on 2013-05-31 21:48:31

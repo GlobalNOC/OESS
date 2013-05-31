@@ -133,6 +133,7 @@ CREATE TABLE `link` (
   `name` varchar(255) NOT NULL,
   `remote_urn` varchar(256) DEFAULT NULL,
   `status` enum('up','down','unknown') DEFAULT 'up',
+  `metric` int(11) DEFAULT '0',
   PRIMARY KEY (`link_id`),
   UNIQUE KEY `links_idx` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
