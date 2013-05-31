@@ -112,6 +112,9 @@ sub main {
         case "send_email" {
             $output = &send_message();
         }
+        case "get_link_by_name" {
+            $output = &get_link_by_name();
+        }
         else {
             $output->{'error'}   = "Error: No Action specified";
             $output->{'results'} = [];
@@ -168,6 +171,25 @@ sub is_vlan_tag_available {
     }
     else {
         push( @{ $results->{'results'} }, { "available" => 0 } );
+    }
+
+    return $results;
+}
+
+sub get_link_by_name {
+    my $results;
+
+    $results->{'results'} = [];
+    
+    my $name = $cgi->param('name');
+    
+    my $link = $db->get_link_by_name( name => $name );
+    
+    if ( !defined $link ) {
+        $results->{'error'} = $db->get_error();
+    }
+    else {
+        $results->{'results'} = $link;
     }
 
     return $results;

@@ -1289,103 +1289,89 @@ function setup_network_tab(){
 	    this.clearAllSelected();
 	});
 
-    var panel;
+    var panel, save_button, delete_button;
+    var _generate_link_panel = function(link) {
+	    panel.setBody(
+            "<table>" +
+                //name field
+			    "<tr>" + 
+			    "<td>Name:</td>" +
+			    "<td>" + 
+			    "<input type='text' id='active_link_name' size='38'>" +
+			    "</td>" +
+			    "</tr>" +
+                //metric field
+			    "<tr>" + 
+			    "<td>Metric:</td>" +
+			    "<td>" + 
+			    "<input type='text' id='active_link_metric' size='38'>" +
+			    "</td>" +
+			    "</tr>" +
+            "</table>"
+		);
 
-    map.on("clickLink", function(e, args){
-
-	    YAHOO.util.Dom.get("active_network_update_status").innerHTML = "";
-
-	    this.clearAllSelected();
-
-	    if (panel){
-		panel.destroy();
-		panel = null;
-	    }
-
-	    var link_name = args[0].name;
-	    var link_id   = args[0].link_id;
-	    var feature   = args[0].feature;
-
-	    this.changeLinkColor(feature, this.LINK_PRIMARY);
-
-	    panel = new YAHOO.widget.Panel("link_details",
-					   {
-					       width: 500,
-					       draggable: false
-					   }
-					   );
-
-	    panel.setHeader("Details for Link: " + link_name);
-	    panel.setBody("<table>" +
-			  "<tr>" + 
-			  "<td>Name:</td>" +
-			  "<td>" + 
-			  "<input type='text' id='active_link_name' size='38'>" +
-			  "</td>" +
-			  "</tr>" +
-			  "</table>"
-			  );
-	    panel.setFooter("<div id='save_active_link'></div>" + 
-			    "<div id='delete_active_link'></div>");
-
-	    panel.hideEvent.subscribe(function(){
-		    map.clearAllSelected();
-		});
-
-	    panel.render(YAHOO.util.Dom.get("active_element_details"));
-
-	    YAHOO.util.Dom.get('active_link_name').value = link_name;
+        var editable_fields = [
+            "name",
+            "metric"
+        ];
+        //set values in all editable fields
+        for( var i=0; i<editable_fields.length; i++){
+            var field = editable_fields[i];
+	        var input = YAHOO.util.Dom.get('active_link_'+field);
+            input.value = link[field];
+        }
 	    
-	    var save_button   = new YAHOO.widget.Button("save_active_link", {label: "Update Link"});
-	    var delete_button = new YAHOO.widget.Button("delete_active_link", {label: "Decomission Link"});
-
 	    save_button.on("click", function(){
 
-		    var new_name = YAHOO.util.Dom.get('active_link_name').value;
+		    var new_name   = YAHOO.util.Dom.get('active_link_name').value;
+		    var new_metric = YAHOO.util.Dom.get('active_link_metric').value;
 		    
 		    if (! new_name){
 			alert("You must specify a name for this link.");
 			return;
 		    }
-		    
-		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_link&link_id=" + link_id + "&name="+ encodeURIComponent(new_name));
+		
+            var url  = "../services/admin/admin.cgi?action=update_link&link_id="+link.link_id;
+                url += "&name="+encodeURIComponent(new_name);
+            if(new_metric){
+                url += "&metric="+encodeURIComponent(new_metric);
+            }
+           
+		    var ds = new YAHOO.util.DataSource(url);
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-
 		    ds.responseSchema = {
-			resultsList: "results",
-			fields: [{key: "success"}]
+			    resultsList: "results",
+			    fields: [{key: "success"}]
 		    };
 
 		    delete_button.set("disabled", true);
 		    save_button.set("disabled", true);
 		    save_button.set("label", "Updating Link...");
 
-		    ds.sendRequest("", 
-				   {
-				       success: function(req, resp){
-					   delete_button.set("disabled", false);
-					   save_button.set("disabled", false);
-					   save_button.set("label", "Update Link");
+		    ds.sendRequest("", {
+                success: function(req, resp){
+                    delete_button.set("disabled", false);
+				    save_button.set("disabled", false);
+				    save_button.set("label", "Update Link");
 
-					   if (resp.results && resp.results[0].success == 1){
-					       map.reinitialize();
-					       panel.destroy();
-					       panel = null;
-					       YAHOO.util.Dom.get("active_network_update_status").innerHTML = "Link successfully updated."
-					   }
-					   else{
-					       alert("Link update unsuccessful.");
-					   }
+					if (resp.results && resp.results[0].success == 1){
+					    map.reinitialize();
+					    panel.destroy();
+					    panel = null;
+					    YAHOO.util.Dom.get("active_network_update_status").innerHTML = "Link successfully updated."
+				    }
+				    else{
+					    alert("Link update unsuccessful.");
+				    }
 
-				       },
-				       failure: function(req, resp){
-					   delete_button.set("disabled", false);
-					   save_button.set("disabled", false);
-					   save_button.set("label", "Update Link");
-					   alert("Error while talking to server.");
-				       }
-				   });
-
+				},
+				failure: function(req, resp){
+				    delete_button.set("disabled", false);
+				    save_button.set("disabled", false);
+				    save_button.set("label", "Update Link");
+				    alert("Error while talking to server.");
+				}
+            });
 		    
 		});
 	    
@@ -1415,7 +1401,72 @@ function setup_network_tab(){
 			    }});
 
 		});
-	});
+	};
+    map.on("clickLink", function(e, args){
+        YAHOO.util.Dom.get("active_network_update_status").innerHTML = "";
+
+        this.clearAllSelected();
+
+        if (panel){
+            panel.destroy();
+            panel = null;
+        }
+
+        var link_name = args[0].name;
+        var link_id   = args[0].link_id;
+        var feature   = args[0].feature;
+
+        this.changeLinkColor(feature, this.LINK_PRIMARY);
+
+        panel = new YAHOO.widget.Panel("link_details",{
+            width: 500,
+            draggable: false
+        });
+	    panel.render(YAHOO.util.Dom.get("active_element_details"));
+
+        panel.setHeader("Details for Link: " + link_name);
+        panel.setBody("<p>Loading data...</p>");
+
+        panel.setFooter("<div id='save_active_link'></div>" +
+                        "<div id='delete_active_link'></div>");
+
+        panel.hideEvent.subscribe(function(){
+            map.clearAllSelected();
+        });
+
+        save_button   = new YAHOO.widget.Button("save_active_link", {label: "Update Link"});
+        delete_button = new YAHOO.widget.Button("delete_active_link", {label: "Decomission Link"});
+
+        var url =  "../services/data.cgi?action=get_link_by_name";
+            url += "&name="+ encodeURIComponent(link_name);
+
+        var ds = new YAHOO.util.DataSource(url);
+        ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+
+        ds.responseSchema = {
+            resultsList: "results",
+            fields: [
+                {key: "link_id"},
+                {key: "status"},
+                {key: "remote_urn"},
+                {key: "metric"},
+                {key: "name"}
+            ]
+        };
+        ds.sendRequest("",{
+            success: function(req, resp){
+                if (resp.results){
+                    _generate_link_panel(resp.results[0]);
+                }else{
+                    alert("Could not fetch link data.");
+                }
+            },
+            failure: function(req, resp){
+                alert("Error while talking to server.");
+            }
+        });
+    });
+
     map.on("clickNode", function(e, args){
 
 	    YAHOO.util.Dom.get("active_network_update_status").innerHTML = "";

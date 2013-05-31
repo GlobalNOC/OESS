@@ -29,7 +29,7 @@
 use strict;
 use warnings;
 
-use CGI;
+use CGI; 
 use JSON;
 use Switch;
 use Data::Dumper;
@@ -799,10 +799,12 @@ sub update_link {
 
     my $link_id = $cgi->param('link_id');
     my $name    = $cgi->param('name');
+    my $metric  = $cgi->param('metric') || 0;
 
     my $result = $db->update_link(
         link_id => $link_id,
         name    => $name,
+        metric  => $metric
     );
 
     if ( !defined $result ) {
