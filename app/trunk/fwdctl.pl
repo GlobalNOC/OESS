@@ -1260,11 +1260,7 @@ sub addVlan {
     my $dpid	   = shift;
 
     _log("addVlan: $circuit_id");
-    my ($paths_are_valid,$reason) = $self->{'topo'}->validate_paths(circuit_id => $circuit_id);
-    if(!$paths_are_valid){
-	_log("Invalid VLAN: $reason\n");
-	return "Invalid VLAN: $reason";
-    }	
+
     #--- get the set of commands needed to create this vlan per design
     my $commands = $self->_generate_commands($circuit_id,FWDCTL_ADD_VLAN); 
 
@@ -1353,13 +1349,6 @@ sub deleteVlan {
 sub changeVlanPath {
     my $self = shift;
     my $circuit_id = shift;
-
-    print "changeVlanPath: $circuit_id\n";
-    my ($paths_are_valid,$reason) = $self->{'topo'}->validate_paths(circuit_id => $circuit_id);
-    if(!$paths_are_valid){
-        _log("Invalid VLAN: $reason\n");
-        return "Invalid VLAN: $reason";  
-    }
 
     #--- get the set of commands needed to create this vlan per design
     my $commands = $self->_generate_commands($circuit_id,FWDCTL_CHANGE_PATH);
