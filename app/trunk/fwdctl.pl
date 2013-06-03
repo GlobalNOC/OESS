@@ -144,6 +144,28 @@ sub new {
 sub _sync_database_to_network {
     my $self = shift;
 
+    my $circuits = $self->{'db'}->get_all_active_circuits();
+    foreach my $circuit (@$circuits){
+	if($circuit->{'operational_state'} eq 'up'){
+	    $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
+	}elsif($circuit_status{$circuit->{'circuit_id'}} eq 'down'){
+	    $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_DOWN;
+	}else{
+	    $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UNKNOWN;
+	}
+    }
+
+    my $links = $self->{'db'}->get_current_links();
+    foreach my $link (@$links){
+	if($link->{'status'} eq 'up'){
+	    $link_status{$link->{'name'}} = OESS_LINK_UP;
+	}elsif($link->{'status'} eq 'down'){
+	    $link_status{$link->{'name'}} = OESS_LINK_DOWN;
+	}else{
+	    $link_status{$link->{'name'}} = OESS_LINK_UNKNOWN;
+	}
+    }
+
     my $nodes = $self->{'db'}->get_current_nodes();
     foreach my $node(@$nodes){
 	$node->{'full_diff'} = 1;
@@ -843,7 +865,7 @@ sub _fail_over_circuits{
                     $circuit_info->{'failover_type'} = "failed_unknown";
                     _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $self->{'db'}->get_error());
                     $self->emit_signal("signal_circuit_failover", $circuit_info );
-                    $circuit_status{$circuit_id} = OESS_CIRCUIT_UNKOWN;
+                    $circuit_status{$circuit_id} = OESS_CIRCUIT_UNKNOWN;
 		    next;
 		   
                 }
