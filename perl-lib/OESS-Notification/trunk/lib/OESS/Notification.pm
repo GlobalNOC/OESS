@@ -16,23 +16,14 @@ use Net::DBus qw(:typing);
 use base qw(Net::DBus::Object);
 
 #--------------------------------------------------------------------
-
 #----- OESS::Notification
-
 #-----
-
 #----- Copyright(C) 2012 The Trustees of Indiana University
-
 #--------------------------------------------------------------------
-
 #----- $HeadURL: $
-
 #----- $Id: $
-
 #-----
-
 #----- Object handles Notification Functions required for OE-SS.
-
 #---------------------------------------------------------------------
 
 =head1 NAME
@@ -106,29 +97,13 @@ sub new {
     $self->_connect_services();
     
 
-    dbus_signal( "signal_circuit_provision",
-        [ [ "dict", "string", ["variant"] ] ],
-        ['string'] );
-    dbus_signal( "signal_circuit_modify",
-        [ [ "dict", "string", ["variant"] ] ] );
-    dbus_signal( "signal_circuit_decommission",
-        [ [ "dict", "string", ["variant"] ] ],
-        ['string'] );
-    dbus_signal( "signal_circuit_failover",
-        [ [ "dict", "string", ["variant"] ] ],
-        ['string'] );
+    dbus_signal( "circuit_provision",[ [ "dict", "string", ["variant"] ] ],['string'] );
+    dbus_signal( "circuit_modify", [ [ "dict", "string", ["variant"] ] ] );
+    dbus_signal( "circuit_decommission", [ [ "dict", "string", ["variant"] ] ], ['string'] );
+    dbus_signal( "circuit_change_path", [ [ "dict", "string", ["variant"] ] ], ['string'] );
+    dbus_signal( "circuit_restore", [['dict', 'string', ["variant"]]],['string']);
 
-    dbus_method( "circuit_provision", [ [ "dict", "string", ["variant"] ] ],
-        ['string'] );
-    dbus_method( "circuit_modify", [ [ "dict", "string", ["variant"] ] ],
-        ['string'] );
-    dbus_method( "circuit_decommission", [ [ "dict", "string", ["variant"] ] ],
-        ['string'] );
-    dbus_method( "circuit_failover", [ [ "dict", "string", ["variant"] ] ],
-        ['string'] );
-    dbus_method( "circuit_restore_to_primary",
-        [ [ "dict", "string", ["variant"] ] ],
-        ['string'] );
+    dbus_method( "circuit_notification", [["dict","string",["variant"]]],["string"]);
 
     return $self;
 }
@@ -147,173 +122,15 @@ hashref containing circuit data, minimally at least the circuit_id
 
 =cut
 
-sub circuit_provision {
+sub circuit_notification {
     my $self    = shift;
     my $circuit = shift;
 
-    my $circuit_notification_data =
-      $self->get_notification_data( circuit => $circuit );
-
-    #$circuit->{'clr'} = $circuit_notification_data->{'clr'};
-
-    $self->send_notification(
-        to                => $circuit_notification_data->{'affected_users'},
-        notification_type => 'provision',
-        workgroup         => $circuit_notification_data->{'workgroup'},
-        circuit_data      => $circuit_notification_data->{'circuit'},
-
-    );
-
+    my $circuit_notification_data = $self->get_notification_data( circuit => $circuit );
+    $self->send_notification( $circuit_notification_data );
+ 
+    #if($circuit->{'reason'} =~ /
     $self->emit_signal( "signal_circuit_provision", $circuit );
-
-}
-
-=head2 C<circuit_modify()>
-
-dbus_method circuit_modify, sends a notification, and emits a signal that circuit has been modified
-
-=over
-
-=item circuit
-
-hashref containing circuit data, minimally at least the circuit_id
-
-=back
-
-=cut
-
-
-sub circuit_modify {
-    my $self    = shift;
-    my $circuit = shift;
-
-    warn("in circuit modify");
-
-    my $circuit_notification_data =
-      $self->get_notification_data( circuit => $circuit );
-
-    #$circuit
-    #$circuit->{'clr'} = $circuit_notification_data->{'clr'};
-    #foreach my $user ( @{$circuit_notification_data->{'affected_users'} } ){
-
-    $self->send_notification(
-        to                => $circuit_notification_data->{'affected_users'},
-        notification_type => 'modify',
-        workgroup         => $circuit_notification_data->{'workgroup'},
-        circuit_data      => $circuit_notification_data->{'circuit'}
-    );
-
-    $self->emit_signal( "signal_circuit_modify", $circuit );
-
-}
-
-=head2 C<circuit_decommission()>
-
-dbus_method circuit_decommision, sends a notification, and emits a signal that circuit has been decommissioned
-
-=over
-
-=item circuit
-
-hashref containing circuit data, minimally at least the circuit_id
-
-=back
-
-=cut
-
-sub circuit_decommission {
-    my $self    = shift;
-    my $circuit = shift;
-
-    my $circuit_notification_data =
-      $self->get_notification_data( circuit => $circuit );
-
-    $self->send_notification(
-        to                => $circuit_notification_data->{'affected_users'},
-        notification_type => 'decommission',
-        workgroup         => $circuit_notification_data->{'workgroup'},
-        circuit_data      => $circuit_notification_data->{'circuit'}
-
-    );
-
-    #in case anything needs to listen to this event
-    $self->emit_signal( "signal_circuit_decommission", $circuit );
-
-}
-
-=head2 C<circuit_modify()>
-
-dbus_method circuit_modify, sends a notification, and emits a signal that circuit has been modified
-
-=over
-
-=item circuit
-
-hashref containing circuit data, minimally at least the circuit_id, and failover_type. If failover_type is manual or a manual forced type, include requested_by
-
-=back
-
-=cut
-
-sub circuit_failover {
-    my $self = shift;
-    my ($circuit) = @_;
-
-    my $circuit_notification_data =
-      $self->get_notification_data( circuit => $circuit );
-
-    my $notification_type = "failover_" . $circuit->{'failover_type'};
-    if ( $circuit->{'failover_type'} = 'forced' && $circuit->{'requested_by'} )
-    {
-        $notification_type = "failover_forced";
-    }
-
-    $self->send_notification(
-        to                => $circuit_notification_data->{'affected_users'},
-        notification_type => $notification_type,
-        workgroup         => $circuit_notification_data->{'workgroup'},
-        circuit_data      => $circuit_notification_data->{'circuit'},
-        requested_by      => $circuit->{'requested_by'}
-    );
-
-    #in case anything needs to listen to this event
-    $self->emit_signal( "signal_circuit_failover", $circuit );
-
-}
-
-=head2 C<circuit_restore_to_primary()>
-
-dbus_method circuit_restore_to_primary, sends a notification, and emits a signal that circuit has been restored to primary
-
-=over
-
-=item circuit
-
-hashref containing circuit data, minimally at least the circuit_id
-
-=back
-
-=cut
-
-sub circuit_restore_to_primary {
-    my $self = shift;
-    my ($circuit) = @_;
-
-    my $circuit_notification_data =
-      $self->get_notification_data( circuit => $circuit );
-
-    my $notification_type = "restore_to_primary";
-
-    $self->send_notification(
-        to                => $circuit_notification_data->{'affected_users'},
-        notification_type => $notification_type,
-        workgroup         => $circuit_notification_data->{'workgroup'},
-        circuit_data      => $circuit_notification_data->{'circuit'},
-        requested_by      => $circuit->{'requested_by'}
-    );
-
-    #in case anything needs to listen to this event
-    $self->emit_signal( "signal_circuit_failover", $circuit );
 
 }
 
@@ -342,53 +159,48 @@ arrayref of hashrefs minimally containing the  email_address key value pair
 
 sub send_notification {
     my $self = shift;
+    my $data = shift;
 
-    my %args = (
-        notification_type => undef,
-        circuit_data      => undef,
-        workgroup => undef,
-        #contact_data => undef,
-        to => [],
-        @_,
-    );
     my @to_list     = ();
-    my $desc        = $args{'circuit_data'}{'description'};
-    my $subject_map = {
-        'modify'    => "OESS Notification: Circuit " . $desc . " Modified",
-        'provision' => "OESS Notification: Circuit " . $desc . " Provisioned",
-        'decommission' => "OESS Notification: Circuit " 
-          . $desc
-          . " Decommissioned",
-        'restore_to_primary' => "OESS Notification: Circuit " 
-          . $desc
-          . " Restored to Primary Path",
-        'failover_failed_unknown' => "OESS Notification: Circuit " 
-          . $desc
-          . " is down",
-        'failover_failed_no_backup' => "OESS Notification: Circuit " 
-          . $desc
-          . " is down",
-        'failover_failed_path_down' => "OESS Notification: Circuit " 
-          . $desc
-          . " is down",
-        'failover_success' => "OESS Notification: Circuit " 
-          . $desc
-          . " Successful Failover to alternate path",
-        'failover_manual_success' => "OESS Notification: Circuit " 
-          . $desc
-          . " Successful Failover to alternate path",
-        'failover_forced' => "OESS Notification: Circuit " 
-          . $desc
-          . " Manual Failover to down path",
-
-    };
+    my $desc        = $data->{'circuit_data'}->{'description'};
+    my $subject = "OESS Notification: Circuit " . $desc . " is " . $data->{'circuit'}->{'status'};
+#    my $subject_map = {
+#
+#        'modify'    => "OESS Notification: Circuit " . $desc . " Modified",
+#        'provision' => "OESS Notification: Circuit " . $desc . " Provisioned",
+#        'decommission' => "OESS Notification: Circuit " 
+#          . $desc
+#          . " Decommissioned",
+#        'restore_to_primary' => "OESS Notification: Circuit " 
+#          . $desc
+#          . " Restored to Primary Path",
+#        'failover_failed_unknown' => "OESS Notification: Circuit " 
+#          . $desc
+#          . " is down",
+#        'failover_failed_no_backup' => "OESS Notification: Circuit " 
+#          . $desc
+#          . " is down",
+#        'failover_failed_path_down' => "OESS Notification: Circuit " 
+#          . $desc
+#          . " is down",
+#        'failover_success' => "OESS Notification: Circuit " 
+#          . $desc
+#          . " Successful Failover to alternate path",
+#        'failover_manual_success' => "OESS Notification: Circuit " 
+#          . $desc
+#          . " Successful Failover to alternate path",
+#        'failover_forced' => "OESS Notification: Circuit " 
+#          . $desc
+#          . " Manual Failover to down path",
+#
+#    };
 
     my $vars = {
-                workgroup           => $args{'workgroup'},
-                circuit_description => $args{'circuit_data'}{'descriptionOB'},
-                clr                 => $args{'circuit_data'}{'clr'},
+                workgroup           => $data->{'workgroup'},
+                circuit_description => $data->{'circuit_data'}{'description'},
+                clr                 => $data->{'circuit_data'}{'clr'},
                 from_signature_name => $self->{'from_name'},
-                type => $args{'notification_type'}
+                type => $data->{'reason'}
                };
 
     my $body;
@@ -397,7 +209,7 @@ sub send_notification {
     $self->{'tt'}->process( "$self->{'template_path'}/notification_templates.tmpl", $vars, \$body ) ||  warn $self->{'tt'}->error();
     
     
-    foreach my $user ( @{ $args{'to'} } ) {
+    foreach my $user ( @{ $data->{'to'} } ) {
         push( @to_list, $user->{'email_address'} );
     }
     my $to_string = join( ",", @to_list );
@@ -405,7 +217,7 @@ sub send_notification {
     $self->_send_notification(
         to      => $to_string,
         body    => $body,
-        subject => $subject_map->{ $args{'notification_type'} },
+        subject => $subject,
 
     );
     return 1;
@@ -443,7 +255,6 @@ sub _connect_services {
     my $db = OESS::Database->new();
     $self->{'db'} = $db;
 
-    #$self->{'from_address'} = 'oess@' . $db->get_local_domain_name();
 }
 
 =head2 C<get_notification_data()>
@@ -471,26 +282,18 @@ sub get_notification_data {
     my $username;
 
     my $user_id;
-    my $details = $db->get_circuit_details(
-        action     => 'get_circuit_details',
-        circuit_id => $ckt->{'circuit_id'}
-    );
+    my $details = $db->get_circuit_details( circuit_id => $ckt->{'circuit_id'} );
     unless ($details) {
         warn "No circuit details found, returning";
         return;
     }
 
-    #warn Dumper ($details);
     $user_id = $details->{'user_id'};
-    my $clr = $db->generate_clr(
-        action     => 'generate_clr',
-        circuit_id => $ckt->{'circuit_id'}
-    );
+    my $clr = $db->generate_clr( circuit_id => $ckt->{'circuit_id'} );
     unless ($clr) {
         warn "No CLR for $ckt->{'circuit_id'} ?";
     }
 
-    #warn Dumper ($clr);
     my $email_address;
 
     my $workgroup_members = $db->get_users_in_workgroup(
@@ -505,18 +308,12 @@ sub get_notification_data {
     foreach my $member (@$workgroup_members) {
         if ( $member->{'user_id'} == $user_id ) {
             $username = $member->{'username'};
-
-            #$email_address = $member->{'email_address'};
         }
     }
 
-    my $circuit = {
-        'circuit_id'   => $details->{'circuit_id'},
-        'workgroup_id' => $details->{'workgroup_id'},
-        'name'         => $details->{'name'},
-        'description'  => $details->{'description'},
-        'clr'          => $clr
-    };
+    $details->{'reason'} = $ckt->{'reason'};
+    $details->{'status'} = $ckt->{'status'};
+
     return (
         {
             'username'       => $username,
@@ -524,7 +321,7 @@ sub get_notification_data {
             'clr'            => $clr,
             'workgroup'      => $details->{'workgroup'}->{'name'},
             'affected_users' => $workgroup_members,
-            'circuit'        => $circuit
+            'circuit'        => $details
         }
     );
 }
@@ -570,44 +367,5 @@ sub _send_notification {
 
 }
 
-#entry point for failovers from fwdctl
-
-=head2 C<notify_failover()>
-
-method called from reaction to fwdctl signal emission of a failover occurring
-
-=over
-
-=item circuit
-
-hashref, circuit_id is represented in fwdctl as the circuit->{'id'}
-
-=back
-
-=cut
-
-
-
-sub notify_failover {
-    my $self = shift;
-    my ($circuit) = @_;
-
-    
-
-    #warn Dumper ($circuit);
-
-    my $circuit_notification_data = $self->get_notification_data(
-        circuit => { circuit_id => $circuit->{'id'} } );
-
-    #$circuit->{'clr'} = $circuit_notification_data->{'clr'};
-
-    $self->send_notification(
-        to                => $circuit_notification_data->{'affected_users'},
-        workgroup         => $circuit_notification_data->{'workgroup'},
-        circuit_data      => $circuit_notification_data->{'circuit'},
-        notification_type => "failover_" . $circuit->{'failover_type'},
-    );
-
-}
 
 1;
