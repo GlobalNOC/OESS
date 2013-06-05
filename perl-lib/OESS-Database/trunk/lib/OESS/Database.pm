@@ -1007,6 +1007,26 @@ sub create_link_instantiation{
 
 }
 
+
+=head2 decom_link_instantiation
+
+=cut
+
+sub decom_link_instantiation{
+    my $self = shift;
+    my %args = @_;
+    
+    if(!defined($args{'link_id'})){
+	$self->_set_error("No Link ID Specified to decom_link_instantiation");
+	return;
+    }
+
+    my $res = $self->_execute_query("update link_instantiation set end_epoch = UNIX_TIMESTAMP(NOW()) where link_id = ?",[$args{'link_id'}]);
+    
+    return 1;
+
+}
+
 =head2 get_edge_links
 
 =cut
