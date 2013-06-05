@@ -1,3 +1,4 @@
+#!/usr/bin/perl
 use strict;
 use warnings;
 
@@ -9,7 +10,7 @@ use XML::Simple;
 use Data::Dumper;
 use MIME::Lite;
 use Template;
-
+use Switch;
 use Net::DBus::Exporter qw (org.nddi.notification);
 use Net::DBus qw(:typing);
 
@@ -98,10 +99,12 @@ sub new {
     
 
     dbus_signal( "circuit_provision",[ [ "dict", "string", ["variant"] ] ],['string'] );
-    dbus_signal( "circuit_modify", [ [ "dict", "string", ["variant"] ] ] );
-    dbus_signal( "circuit_decommission", [ [ "dict", "string", ["variant"] ] ], ['string'] );
+    dbus_signal( "circuit_modified", [ [ "dict", "string", ["variant"] ] ] );
+    dbus_signal( "circuit_removed", [ [ "dict", "string", ["variant"] ] ], ['string'] );
     dbus_signal( "circuit_change_path", [ [ "dict", "string", ["variant"] ] ], ['string'] );
-    dbus_signal( "circuit_restore", [['dict', 'string', ["variant"]]],['string']);
+    dbus_signal( "circuit_restored", [['dict', 'string', ["variant"]]],['string']);
+    dbus_signal( "circuit_down", [['dict', 'string', ["variant"]]],['string']);
+    dbus_signal( "circuit_unknown", [['dict', 'string', ["variant"]]],['string']);
 
     dbus_method( "circuit_notification", [["dict","string",["variant"]]],["string"]);
 
@@ -127,10 +130,35 @@ sub circuit_notification {
     my $circuit = shift;
 
     my $circuit_notification_data = $self->get_notification_data( circuit => $circuit );
-    $self->send_notification( $circuit_notification_data );
+
+    my $subject = "OESS Notification: Circuit '" . $circuit_notification_data->{'circuit'}->{'description'} . "' ";
  
-    #if($circuit->{'reason'} =~ /
-    $self->emit_signal( "signal_circuit_provision", $circuit );
+    switch($circuit->{'type'}){
+	case "provisioned"{
+	    $subject .= "has been provisioned";
+	    $self->emit_signal( "circuit_provision", $circuit );
+	}case "removed" {
+	    $subject .= "has been removed";
+	    $self->emit_signal( "circuit_removed", $circuit );
+	}case "modified" {
+	    $subject .= "has been edited";
+	    $self->emit_signal( "circuit_modified", $circuit );
+	}case "change_path" {
+	    $subject .= "has changed to " . $circuit_notification_data->{'circuit'}->{'active_path'} . " path";
+	    $self->emit_signal( "circuit_change_path", $circuit );
+	}case "restored" {
+	    $subject .= "has been restored";
+	    $self->emit_signal( "circuit_restored", $circuit );
+	}case "down" {
+	    $subject .= "is down";
+	    $self->emit_signal( "circuit_down", $circuit );
+	}case "unknown" {
+	    $subject .= "is in an unknown state";
+	    $self->emit_signal( "circuit_unknown", $circuit );
+	}
+    }
+    $circuit_notification_data->{'subject'} = $subject;
+    $self->send_notification( $circuit_notification_data );
 
 }
 
@@ -162,54 +190,25 @@ sub send_notification {
     my $data = shift;
 
     my @to_list     = ();
-    my $desc        = $data->{'circuit_data'}->{'description'};
-    my $subject = "OESS Notification: Circuit " . $desc . " is " . $data->{'circuit'}->{'status'};
-#    my $subject_map = {
-#
-#        'modify'    => "OESS Notification: Circuit " . $desc . " Modified",
-#        'provision' => "OESS Notification: Circuit " . $desc . " Provisioned",
-#        'decommission' => "OESS Notification: Circuit " 
-#          . $desc
-#          . " Decommissioned",
-#        'restore_to_primary' => "OESS Notification: Circuit " 
-#          . $desc
-#          . " Restored to Primary Path",
-#        'failover_failed_unknown' => "OESS Notification: Circuit " 
-#          . $desc
-#          . " is down",
-#        'failover_failed_no_backup' => "OESS Notification: Circuit " 
-#          . $desc
-#          . " is down",
-#        'failover_failed_path_down' => "OESS Notification: Circuit " 
-#          . $desc
-#          . " is down",
-#        'failover_success' => "OESS Notification: Circuit " 
-#          . $desc
-#          . " Successful Failover to alternate path",
-#        'failover_manual_success' => "OESS Notification: Circuit " 
-#          . $desc
-#          . " Successful Failover to alternate path",
-#        'failover_forced' => "OESS Notification: Circuit " 
-#          . $desc
-#          . " Manual Failover to down path",
-#
-#    };
+    my $desc        = $data->{'circuit'}->{'description'};
 
     my $vars = {
                 workgroup           => $data->{'workgroup'},
-                circuit_description => $data->{'circuit_data'}{'description'},
-                clr                 => $data->{'circuit_data'}{'clr'},
+                circuit_description => $data->{'circuit'}->{'description'},
+                clr                 => $data->{'clr'},
                 from_signature_name => $self->{'from_name'},
-                type => $data->{'reason'}
+                type => $data->{'circuit'}->{'type'},
+		reason => $data->{'circuit'}->{'reason'},
+		active_path => $data->{'circuit'}->{'active_path'},
+		user => $data->{'last_user'},
                };
 
     my $body;
-    
 
     $self->{'tt'}->process( "$self->{'template_path'}/notification_templates.tmpl", $vars, \$body ) ||  warn $self->{'tt'}->error();
     
     
-    foreach my $user ( @{ $data->{'to'} } ) {
+    foreach my $user ( @{ $data->{'affected_users'} } ) {
         push( @to_list, $user->{'email_address'} );
     }
     my $to_string = join( ",", @to_list );
@@ -217,7 +216,7 @@ sub send_notification {
     $self->_send_notification(
         to      => $to_string,
         body    => $body,
-        subject => $subject,
+        subject => $data->{'subject'},
 
     );
     return 1;
@@ -313,7 +312,7 @@ sub get_notification_data {
 
     $details->{'reason'} = $ckt->{'reason'};
     $details->{'status'} = $ckt->{'status'};
-
+    $details->{'type'} = $ckt->{'type'};
     return (
         {
             'username'       => $username,
@@ -354,7 +353,7 @@ sub _send_notification {
     my %args = @_;
 
     my $body = $args{'body'};
-
+    
     #warn Dumper ($body);
     my $message = MIME::Lite->new(
         From    => $self->{'from_address'},
@@ -363,6 +362,7 @@ sub _send_notification {
         Type    => 'text/plain',
         Data    => uri_unescape($body)
     );
+    warn Dumper($message);
     $message->send( 'smtp', 'localhost' );
 
 }
