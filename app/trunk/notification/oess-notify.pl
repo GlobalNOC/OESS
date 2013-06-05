@@ -54,21 +54,19 @@ sub connect_to_dbus {
         config_file => '/etc/oess/database.xml'
     );
 
-    if ( !defined $notification ) {
-        
+    if ( !defined $notification ) {    
         die("could not export org.nddi.notification service");
     }
 
- #closure allows us to have notification object in scope when fwdctl events fire
+    #closure allows us to have notification object in scope when fwdctl events fire
     my $callback = sub {
         my ($circuit) = @_;
-        $notification->notify_failover($circuit);
+        $notification->circuit_notification($circuit);
     };
 
     if ( defined($fwdctl_dbus) ) {
         warn "connecting to signal_circuit_failover signal";
-        $fwdctl_dbus->connect_to_signal( "signal_circuit_failover", $callback );
-
+        $fwdctl_dbus->connect_to_signal( "circuit_notification", $callback );
     }
     else {
         die;

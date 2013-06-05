@@ -136,15 +136,16 @@ sub new {
     dbus_method("changeVlanPath", ["string"], ["string"]);
     dbus_method("topo_port_status",["uint64","uint32",["dict","string","string"]],["string"]);
     dbus_method("rules_per_switch",["uint64"],["uint32"]);
-    
-    dbus_signal("signal_circuit_failover", [["dict","string",["variant"]]],['string']);
+    #for notification purposes
+    dbus_signal("circuit_notification", [["dict","string",["variant"]]],['string']);
+
     return $self;
 }
 
 sub _sync_database_to_network {
     my $self = shift;
 
-    my $circuits = $self->{'db'}->get_all_active_circuits();
+    my $circuits = $self->{'db'}->get_current_circuits();
     foreach my $circuit (@$circuits){
 	if($circuit->{'operational_state'} eq 'up'){
 	    $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
@@ -781,12 +782,17 @@ sub _restore_down_circuits{
 			$self->changeVlanPath($circuit->{'circuit_id'});
 			$circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
 			#send notification
+			$circuit->{'status'} = 'up';
+			$circuit->{'reason'} = 'Backup path has been restoreed';
+			$self->emit_signal("circuit_notification", $circuit );
 			
 		    }elsif($self->{'topo'}->is_path_up( path_id => $backup_path->{'path_id'}) && $backup_path->{'path_state'} eq 'active'){
 			#circuit was on backup path, and backup path is now up
 			next if $circuit_status{$circuit->{'circuit_id'}} == OESS_CIRCUIT_UP;
 			#send notification on restore
-			
+			$circuit->{'status'} = 'up';
+			$circuit->{'reason'} = 'Backup path has been restored';
+			$self->emit_signal("circuit_notification", $circuit);
 
 		    }else{
 			#both paths are down...
@@ -802,6 +808,9 @@ sub _restore_down_circuits{
 		    _log("Primary path restored and we were alread on it");
 		    $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
 		    #send notifcation on restore
+		    $circuit->{'status'} = 'up';
+		    $circuit->{'reason'} = 'Primary path has been restored';
+		    $self->emit_signal("circuit_notification", $circuit );
 		}else{
 		    
 		    if($self->{'topo'}->is_path_up( path_id => $primary_path->{'path_id'} )){
@@ -830,6 +839,9 @@ sub _restore_down_circuits{
 			    $self->changeVlanPath($circuit->{'circuit_id'});
 			    $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
 			    #send restore notification
+			    $circuit->{'status'} = 'up';
+			    $circuit->{'reason'} = 'Primary path has been restored';
+			    $self->emit_signal("circuit_notification", $circuit );
 			}
 		    }
 		}
@@ -862,9 +874,10 @@ sub _fail_over_circuits{
                 _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name moving to alternate path");
                 
                 if (! $success){
-                    $circuit_info->{'failover_type'} = "failed_unknown";
+                    $circuit_info->{'status'} = "unknown";
+		    $circuit_info->{'reason'} = "An Error occured while attempting to switch to the backup path";
                     _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $self->{'db'}->get_error());
-                    $self->emit_signal("signal_circuit_failover", $circuit_info );
+                    $self->emit_signal("circuit_notification", $circuit_info );
                     $circuit_status{$circuit_id} = OESS_CIRCUIT_UNKNOWN;
 		    next;
 		   
@@ -872,14 +885,16 @@ sub _fail_over_circuits{
                 
                 $self->changeVlanPath($circuit_id);
                 #--- no way to now if this succeeds???
-                $circuit_info->{'failover_type'} = "success";
-                $self->emit_signal("signal_circuit_failover", $circuit_info );
+                $circuit_info->{'status'} = "up";
+		$circuit_info->{'reason'} = "successful path failover";
+                $self->emit_signal("circuit_notification", $circuit_info );
 		$circuit_status{$circuit_id} = OESS_CIRCUIT_UP;
             }else {
                 _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has a backup path, but it is down as well.  Not failing over");
-                $circuit_info->{'failover_type'} = "failed_no_backup";
+                $circuit_info->{'status'} = "down";
+		$circuit_info->{'reason'} = "primary and backup path are both down";
 		next if($circuit_status{$circuit_id} == OESS_CIRCUIT_DOWN);
-                $self->emit_signal("signal_circuit_failover", $circuit_info );
+                $self->emit_signal("circuit_notification", $circuit_info );
 		$circuit_status{$circuit_id} = OESS_CIRCUIT_DOWN;
                 next;
             }
@@ -888,9 +903,10 @@ sub _fail_over_circuits{
             # this is probably where we would put the dynamic backup calculation
             # when we get there.
             _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has no alternate path and is down");
-	    $circuit_info->{'failover_type'} = "failed_no_backup";
+	    $circuit_info->{'status'} = "down";
+	    $circuit_info->{'reason'} = "no backup path configured";
 	    next if($circuit_status{$circuit_id} == OESS_CIRCUIT_DOWN);
-            $self->emit_signal("signal_circuit_failover", $circuit_info);
+            $self->emit_signal("circuit_notification", $circuit_info);
 	    $circuit_status{$circuit_id} = OESS_CIRCUIT_DOWN;
         }
     }

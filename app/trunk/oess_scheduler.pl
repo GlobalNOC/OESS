@@ -173,10 +173,10 @@ sub main{
                     syslog(LOG_ERR,"Unable to complete action");
                     $oess->_rollback();
                 }
-                $log_client->circuit_restore_to_primary( { circuit_id    => $action->{'circuit_id'},
-                                                           
-                                                         }
-                                                       );
+
+		eval{
+		    $log_client->circuit_change_path( { circuit_id    => $action->{'circuit_id'} });
+		}
 
             }else{
                 #already done... nothing to do... complete the scheduled action
