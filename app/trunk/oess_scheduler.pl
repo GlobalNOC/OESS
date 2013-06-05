@@ -71,7 +71,11 @@ sub main{
             $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
             
             eval {
-                $log_client->circuit_provision({ circuit_id => $action->{'circuit_id'} } );
+		my $circuit_details = $db->get_circuit_details( circuit_id => $action->{'circuit_id'} );
+		$circuit_details->{'status'} = 'up';
+		$circuit_details->{'type'} = 'provisioned';
+		$circuit_details->{'reason'} = ' scheduled circuit provisioning';
+                $log_client->circuit_notification({ circuit_id => $action->{'circuit_id'} } );
             };
             
             
@@ -102,13 +106,17 @@ sub main{
             
             $res = undef;
             
-            eval{ 
+            eval{
                 $res = $client->addVlan($output->{'circuit_id'});
             };
             
             $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
             
             eval{
+		my $circuit_details = $db->get_circuit_details( circuit_id => $action->{'circuit_id'} );
+                $circuit_details->{'status'} = 'up';
+                $circuit_details->{'type'} = 'modified';
+                $circuit_details->{'reason'} = ' scheduled circuit modification';
                 $log_client->circuit_modify({ circuit_id    => $action->{'circuit_id'} });
             };
 
@@ -148,6 +156,10 @@ sub main{
             #Delete is complete and successful, send event on DBUS Channel Notification listens on.
 		
             eval {
+		my $circuit_details = $db->get_circuit_details( circuit_id => $action->{'circuit_id'} );
+                $circuit_details->{'status'} = 'up';
+                $circuit_details->{'type'} = 'removed';
+                $circuit_details->{'reason'} = ' scheduled circuit removal';
                 $log_client->circuit_decommission({ circuit_id    => $action->{'circuit_id'} });
             };
 
@@ -175,7 +187,11 @@ sub main{
                 }
 
 		eval{
-		    $log_client->circuit_change_path( { circuit_id    => $action->{'circuit_id'} });
+		    my $circuit_details = $db->get_circuit_details( circuit_id => $action->{'circuit_id'} );
+		    $circuit_details->{'status'} = 'up';
+		    $circuit_details->{'reason'} = $action->{'reason'};
+		    $circuit_details->{'change_path'};
+		    $log_client->circuit_notification( $action->{'circuit_id'} });
 		}
 
             }else{
