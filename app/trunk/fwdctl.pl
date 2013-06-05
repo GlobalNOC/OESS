@@ -781,7 +781,7 @@ sub _restore_down_circuits{
 			$circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
 			#send notification
 			$circuit->{'status'} = 'up';
-			$circuit->{'reason'} = 'the backup path has been restoreed';
+			$circuit->{'reason'} = 'the backup path has been restored';
 			$circuit->{'type'} = 'restored';
 			$self->emit_signal("circuit_notification", $circuit );
 			
