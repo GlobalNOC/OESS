@@ -149,7 +149,7 @@ sub _sync_database_to_network {
     foreach my $circuit (@$circuits){
 	if($circuit->{'operational_state'} eq 'up'){
 	    $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
-	}elsif($circuit_status{$circuit->{'circuit_id'}} eq 'down'){
+	}elsif($circuit->{'operational_state'}  eq 'down'){
 	    $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_DOWN;
 	}else{
 	    $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UNKNOWN;
@@ -564,7 +564,7 @@ sub _replace_flowmod{
         }
 	$xid = $self->{'of_controller'}->install_datapath_flow($dpid,$new_command->{'attr'},0,0,$new_command->{'action'},$new_command->{'attr'}->{'IN_PORT'});
 	$node{$dpid}++;
-    	$xid_hash{$xid} = 1;    
+    	$xid_hash{$xid} = 1;
 	#wait for the delete to take place
     }
 
@@ -669,7 +669,6 @@ sub _actual_diff{
 			    }else{
 				#--- port does not match we need to replace the rule on the switch
 				_log("--- we have a match port $com_port vid $com_vid, but output port is wrong\n");
-
                     		$stats{'mods'}++;
                     		push(@rule_queue, [$dpid,_process_flow_stats_to_command($com_port,$com_vid),$command,$node->{'tx_delay_ms'}]);
 				last;
@@ -691,7 +690,6 @@ sub _actual_diff{
 		#---rule missing on switch
                 $stats{'adds'}++;
 		_log("--- 1.  we have a rule for port $com_port vid $com_vid  that doesnt appear on switch\n");
-
                 push(@rule_queue, [$dpid,undef,$command,$node->{'tx_delay_ms'}]);
 	    }
 	}else{
@@ -721,7 +719,7 @@ sub _actual_diff{
     }
 
     my $total = $stats{'mods'} + $stats{'adds'} + $stats{'rems'};
-     _log("sw:$sw_name dpid:$dpid_str diff plan  $total changes.  mods:".$stats{'mods'}. " adds:".$stats{'adds'}. " removals:".$stats{'rems'}."\n");
+    _log("sw:$sw_name dpid:$dpid_str diff plan  $total changes.  mods:".$stats{'mods'}. " adds:".$stats{'adds'}. " removals:".$stats{'rems'}."\n");
     
     #--- process the rule_queue
     my $success_count=0;
@@ -731,7 +729,7 @@ sub _actual_diff{
 	$success_count++;
       }  	
     }
-     _log("sw:$sw_name dpid:$dpid_str diff completed $success_count of $total changes\n");
+    _log("sw:$sw_name dpid:$dpid_str diff completed $success_count of $total changes\n");
 
 }
     
@@ -1387,7 +1385,7 @@ sub changeVlanPath {
 	    #first delay by some configured value in case the device can't handle it                                                                                                                                        
 	    usleep($node->{'tx_delay_ms'} * 1000);
 	    my $xid = $self->{'of_controller'}->delete_datapath_flow($command->{'dpid'},$command->{'attr'});
-	    $node{$command->{'dpid'}}--;
+	    $node{$command->{'dpid'}->value()}--;
 	    $xid_hash{$xid} = 1;
 	}
 
@@ -1398,13 +1396,13 @@ sub changeVlanPath {
 	    my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'}->value());
 	    #first delay by some configured value in case the device can't handle it                                                                                                                                        
 	    usleep($node->{'tx_delay_ms'} * 1000);
-	    if($node{$command->{'dpid'}} >= $node->{'max_flows'}){
+	    if($node{$command->{'dpid'}->value()} >= $node->{'max_flows'}){
 		 my $dpid_str  = sprintf("%x",$command->{'dpid'});
 		_log("sw: dpipd:$dpid_str exceeding max_flows:".$node->{'max_flows'}." changing path failed");
 		return FWDCTL_FAILURE;
 	    }
 	    my $xid = $self->{'of_controller'}->install_datapath_flow($command->{'dpid'},$command->{'attr'},0,0,$command->{'action'},$command->{'attr'}->{'IN_PORT'});
-	    $node{$command->{'dpid'}}++;
+	    $node{$command->{'dpid'}->value()}++;
 	    $xid_hash{$xid} = 1;
 	}
 
