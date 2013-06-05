@@ -1394,7 +1394,7 @@ sub changeVlanPath {
     foreach my $command(@$commands){
 	if ($command->{'sw_act'} ne FWDCTL_REMOVE_RULE){
 	    my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'}->value());
-	    #first delay by some configured value in case the device can't handle it                                                                                                                                        
+	    #first delay by some configured value in case the device can't handle it
 	    usleep($node->{'tx_delay_ms'} * 1000);
 	    if($node{$command->{'dpid'}->value()} >= $node->{'max_flows'}){
 		 my $dpid_str  = sprintf("%x",$command->{'dpid'});
