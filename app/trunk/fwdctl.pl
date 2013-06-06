@@ -615,7 +615,7 @@ sub _do_diff{
 	}
     }
 
-    $self->_actual_diff($dpid,$sw_name, $current_flows, \@all_commands);
+    $self->_actual_diff($dpid,$sw_name, $current_flows, \@all_commands,1);
 }
 
 
@@ -625,6 +625,11 @@ sub _actual_diff{
     my $sw_name = shift;
     my $current_flows = shift;
     my $commands = shift;
+    my $do_increment = shift; #if doing an interface diff, we have already seen these on the devices so re-doing them will cause us to be off on our counts
+
+    if(!defined($do_increment)){
+	$do_increment = 0;
+    }
 
     my @rule_queue;			#--- temporary storage of forwarding rules
     my %stats = ( 
@@ -648,7 +653,9 @@ sub _actual_diff{
 		#--- we have have a flow on the same switchport with the same vid match
 		my $action_list = $obs_port->{$com_vid}->{'actions'};
 		#increment the number of flow_mods we know are on the box
-		$node{$dpid}++;
+		if($do_increment){
+		    $node{$dpid}++;
+		}
 		$obs_port->{$com_vid}->{'seen'} = 1;
 		
 		if($#{$action_list} != $#{$command->{'action'}}){
@@ -712,7 +719,9 @@ sub _actual_diff{
 		$stats{'rems'}++;
 		_log("--- we have a a rule on the switch for port $port_num vid $obs_vid which doesnt correspond with plan\n");
 		#need to add to our total number of flows_on_the_switch... will be decremented once removed
-		$node{$dpid}++;
+		if($do_increment){
+		    $node{$dpid}++;
+		}
 		push(@rule_queue, [$dpid,_process_flow_stats_to_command($port_num,$obs_vid),undef,$node->{'tx_delay_ms'}]);
 	    }
 	}
@@ -1102,7 +1111,7 @@ sub _do_interface_diff{
     #get a list of all the rules that we want on the port
     my $rules = $self->_get_rules_on_port( port_number => $node->{'port_number'}, dpid => $node->{'dpid'} );
     
-    $self->_actual_diff( $node->{'dpid'},$node->{'name'}, \%current_flows, $rules);
+    $self->_actual_diff( $node->{'dpid'},$node->{'name'}, \%current_flows, $rules, 0);
     _log("sw: dpid:$dpid_str diff sw rules to oe-ss rules for port:".$node->{'port_number'}." complete");
 }
 
