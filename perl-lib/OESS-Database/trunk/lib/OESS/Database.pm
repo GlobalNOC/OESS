@@ -4766,7 +4766,7 @@ sub schedule_path_change{
     $tmp->{'path'}         = $params{'path'};
     $tmp->{'version'}      = "1.0";
     $tmp->{'action'}       = "change_path";
-
+    $tmp->{'reason'}       = $params{'reason'};
     my $circuit_layout = XMLout($tmp);
 	
     
