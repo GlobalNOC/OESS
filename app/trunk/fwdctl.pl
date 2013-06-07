@@ -212,9 +212,6 @@ sub _generate_translation_rule{
            
     	    my $actions = $prev_rule->{'action'};
             #warn "In ,_generate_translation_rule found matching rule, adding actions to existing rule?:";
-            
-               
-
                  
             #walk through actions in set pairs (0,1),(1,2)(2,3)(3,4),(4,5) to detect duplicate actions
             #Note we're expecting actions the actions to always be ordered Set VLAN_ID or Strip VLAN, Set Out Port
@@ -615,7 +612,9 @@ sub _do_diff{
 	}
     }
 
-    $self->_actual_diff($dpid,$sw_name, $current_flows, \@all_commands,1);
+    $node{$dpid} = 0;
+
+    $self->_actual_diff($dpid,$sw_name, $current_flows, \@all_commands);
 }
 
 
@@ -625,11 +624,6 @@ sub _actual_diff{
     my $sw_name = shift;
     my $current_flows = shift;
     my $commands = shift;
-    my $do_increment = shift; #if doing an interface diff, we have already seen these on the devices so re-doing them will cause us to be off on our counts
-
-    if(!defined($do_increment)){
-	$do_increment = 0;
-    }
 
     my @rule_queue;			#--- temporary storage of forwarding rules
     my %stats = ( 
@@ -653,9 +647,8 @@ sub _actual_diff{
 		#--- we have have a flow on the same switchport with the same vid match
 		my $action_list = $obs_port->{$com_vid}->{'actions'};
 		#increment the number of flow_mods we know are on the box
-		if($do_increment){
-		    $node{$dpid}++;
-		}
+		$node{$dpid}++;
+
 		$obs_port->{$com_vid}->{'seen'} = 1;
 		
 		if($#{$action_list} != $#{$command->{'action'}}){
@@ -718,10 +711,8 @@ sub _actual_diff{
 		#---rule needs to be removed from switch 
 		$stats{'rems'}++;
 		_log("--- we have a a rule on the switch for port $port_num vid $obs_vid which doesnt correspond with plan\n");
-		#need to add to our total number of flows_on_the_switch... will be decremented once removed
-		if($do_increment){
-		    $node{$dpid}++;
-		}
+		$node{$dpid}++;
+
 		push(@rule_queue, [$dpid,_process_flow_stats_to_command($port_num,$obs_vid),undef,$node->{'tx_delay_ms'}]);
 	    }
 	}
@@ -942,58 +933,71 @@ sub port_status{
     my $reason = shift;
     my $info   = shift;
     
-    return if($reason != OFPPR_MODIFY);
-    
     my $port_name   = $info->{'name'};
     my $port_number = $info->{'port_no'};
     my $link_status = $info->{'link'};
-    
+
     my $node_details = $self->{'db'}->get_node_by_dpid( dpid => $dpid );
-    
-    
-    my $link_info   = $self->{'db'}->get_link_by_dpid_and_port(dpid => $dpid, 
+
+
+    my $link_info   = $self->{'db'}->get_link_by_dpid_and_port(dpid => $dpid,
 							       port => $port_number);
-    
+
     if (! defined $link_info || @$link_info < 1){
-	#--- no link means edge port
-	# _log("Could not find link info for dpid = $dpid and port_no = $port_number");
+                #--- no link means edge port
+                # _log("Could not find link info for dpid = $dpid and port_no = $port_number");
 	return;
     }
-    
+
     my $link_id   = @$link_info[0]->{'link_id'};
     my $link_name = @$link_info[0]->{'name'};
     my $sw_name   = $node_details->{'name'};
     my $dpid_str  = sprintf("%x",$dpid);
-    
-    #--- when a port goes down, determine the set of ckts that traverse the port
-    #--- for each ckt, fail over to the non-active path, after determining that the path 
-    #--- looks to be intact.
-    if (! $link_status){
-	_log("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name is down");
-	
-	my $affected_circuits = $self->{'db'}->get_affected_circuits_by_link_id(link_id => $link_id);
-	
-	if (! defined $affected_circuits){
-	    _log("Error getting affected circuits: " . $self->{'db'}->get_error());
-	    return;
-	}
 
-	#fail over affected circuits
-	$self->_fail_over_circuits( circuits => $affected_circuits, link_name => $link_name );
-	$self->_cancel_restorations( link_id => $link_id);
-	
-    }
-    
-    #--- when a port comes back up determine if any circuits that are currently down
-    #--- can be restored by bringing it back up over to this path, we do not restore by default
-    else{
+    switch($reason){
+
+	case(OFPPR_MODIFY){    
+	    #--- when a port goes down, determine the set of ckts that traverse the port
+	    #--- for each ckt, fail over to the non-active path, after determining that the path 
+	    #--- looks to be intact.
+	    if (! $link_status){
+		_log("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name is down");
 		
-	my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $link_id);
-	$self->_restore_down_circuits( circuits => $circuits, link_name => $link_name );
-    
+		my $affected_circuits = $self->{'db'}->get_affected_circuits_by_link_id(link_id => $link_id);
+		
+		if (! defined $affected_circuits){
+		    _log("Error getting affected circuits: " . $self->{'db'}->get_error());
+		    return;
+		}
+		
+		#fail over affected circuits
+		$self->_fail_over_circuits( circuits => $affected_circuits, link_name => $link_name );
+		$self->_cancel_restorations( link_id => $link_id);
+	
+	    }
+	    
+	    #--- when a port comes back up determine if any circuits that are currently down
+	    #--- can be restored by bringing it back up over to this path, we do not restore by default
+	    else{
+		
+		my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $link_id);
+		$self->_restore_down_circuits( circuits => $circuits, link_name => $link_name );
+		
+	    }
+	}case(OFPPR_DELETE){
+	    if(defined($link_id) && defined($link_name)){
+		_log("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name has been removed");
+	    }else{
+		_log("sw:$sw_name dpid:$dpid_str port $port_name has been removed");
+	    }
+	    $self->{'nodes_needing_diff'}{$dpid} = {full_diff => 1, dpid => $dpid};
+	    #note that this will cause the flow_stats_in handler to handle this data
+	}else{
+	    #this is the add case and we don't want to do anything here, as TOPO will tell us
+	}
     }
 }
-
+	
 sub _cancel_restorations{
     my $self = shift;
     my %args = @_;
@@ -1019,6 +1023,7 @@ sub _cancel_restorations{
 	    }
 	}
     }
+    
 }
 
 sub _get_rules_on_port{
@@ -1050,7 +1055,7 @@ sub _get_rules_on_port{
 
     my @port_commands;
     foreach my $ckt (@$affected_circuits){
-	my $circuit_id   = $ckt->{'circuit_id'};
+	my $circuit_id   = $ckt->{'id'};
 	my $circuit_name = $ckt->{'name'};
 	my $state        = $ckt->{'state'};
 
@@ -1093,15 +1098,17 @@ sub _do_interface_diff{
 
     my %current_flows;
 
-    $current_flows{$node->{'port_number'}} = $current_rules->{'port_number'};
+    $current_flows{$node->{'port_number'}} = $current_rules->{$node->{'port_number'}};
+ 
     #first we need to filter this down to flows on our interfaces
     foreach my $port (keys (%{$current_rules})){
 	next if($port == $node->{'port_number'});
 	
 	foreach my $vlan (keys (%{$current_rules->{$port}})){
-	    my $actions = $current_rules->{$port}->{$vlan}->{'action'};
+	    my $actions = $current_rules->{$port}->{$vlan}->{'actions'};
+	    print STDERR Dumper($actions);
 	    foreach my $action (@$actions){
-		if($action->[0] == 0 && $action->[1] == $port){
+		if($action->{'type'} == OFPAT_OUTPUT && $action->{'port'} == $node->{'port_number'}){
 		    $current_flows{$port}{$vlan} = $current_rules->{$port}->{$vlan};
 		}
 	    }
@@ -1149,23 +1156,19 @@ sub topo_port_status{
 		if(defined($link_id) && defined($link_name)){
 		    _log("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name has been added");
 		}else{
-		    _log("sw:$sw_name dpid:$dpid_str port $port_name");
+		    _log("sw:$sw_name dpid:$dpid_str port $port_name has been added");
 		}
 		
-		#get list of rules we currently have
-		$node->{'interface_diff'} = 1;
-                $node->{'port_number'} = $port_number;
-		if(defined($self->{'nodes_needing_diff'})){
-                    #we we must need to be diffing the node already for at least another interface
-		    #set it to full diff as it will diff every interface then
-                    $self->{'nodes_needing_diff'}{$dpid} = {full_diff => 1, dpid => $dpid};
-                }else{
-		    #since no other part of the ndoe needs diffing, just diff this one interface
-                    $self->{'nodes_needing_diff'}{$dpid} = $node;
-                }
-
+		$self->{'nodes_needing_diff'}{$dpid} = {full_diff => 1, dpid => $dpid};
 		#note that this will cause the flow_stats_in handler to handle this data
-		#and it will then call the _do_interface_diff				
+	    }case OFPPR_DELETE {
+		if(defined($link_id) && defined($link_name)){
+                    _log("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name has been removed");
+                }else{
+                    _log("sw:$sw_name dpid:$dpid_str port $port_name has been removed");
+		}
+		$self->{'nodes_needing_diff'}{$dpid} = {full_diff => 1, dpid => $dpid};
+		#note that this will cause the flow_stats_in handler to handle this data
 	    }
 	    else {
 		$self->port_status($dpid,$reason,$info);
@@ -1227,11 +1230,9 @@ sub get_flow_stats{
 	
 	#--- now that we have the lookup hash of flow_rules
 	#--- do the diff
-	if($node->{'full_diff'} == 1){
-	    $self->_do_diff($node,$hash);
-	}elsif($node->{'interface_diff'} == 1){
-	    $self->_do_interface_diff($node,$hash);
-	}
+	
+	$self->_do_diff($node,$hash);
+	
 	delete $self->{'nodes_needing_diff'}{$dpid};
     }
    
