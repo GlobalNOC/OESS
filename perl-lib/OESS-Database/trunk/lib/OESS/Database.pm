@@ -690,7 +690,8 @@ sub get_affected_circuits_by_link_id {
 
     foreach my $circuit (@$results){
 	push(@circuits, {"name" => $circuit->{'name'},
-			 "id"   => $circuit->{'circuit_id'}
+			 "id"   => $circuit->{'circuit_id'},
+			 "state" => $circuit->{'state'}
 	                 }
 	    );
     }
@@ -2594,6 +2595,9 @@ sub get_circuit_details {
     my %args = @_;
 
     my $circuit_id = $args{'circuit_id'};
+    if(!defined($circuit_id)){
+	return;
+    }
 
     my @bind_params = ($circuit_id);
 
