@@ -190,7 +190,7 @@ sub main{
 		eval{
 		    my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
 		    $circuit_details->{'status'} = 'up';
-		    $circuit_details->{'reason'} = $action->{'reason'};
+		    $circuit_details->{'reason'} = $circuit_layout->{'reason'};
 		    $circuit_details->{'type'} = 'change_path';
 		    warn "Attempting to send notification\n";
 		    $log_client->circuit_notification( $circuit_details );

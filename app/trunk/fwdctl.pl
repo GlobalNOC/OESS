@@ -826,7 +826,7 @@ sub _restore_down_circuits{
 								     when => time() + (60 * $circuit->{'restore_to_primary'}),
 								     user_id => SYSTEM_USER,
 								     workgroup_id => $circuit->{'workgroup_id'},
-								     reason => 'restoring to primary'  );
+								     reason => 'restoring to primary because of circuit configuration'  );
 			    }else{
 				#restore to primary is off
 			    }
