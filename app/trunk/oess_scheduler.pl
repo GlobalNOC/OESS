@@ -71,11 +71,11 @@ sub main{
             $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
             
             eval {
-		my $circuit_details = $db->get_circuit_details( circuit_id => $action->{'circuit_id'} );
+		my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
 		$circuit_details->{'status'} = 'up';
 		$circuit_details->{'type'} = 'provisioned';
 		$circuit_details->{'reason'} = ' scheduled circuit provisioning';
-                $log_client->circuit_notification({ circuit_id => $action->{'circuit_id'} } );
+                $log_client->circuit_notification( $circuit_details );
             };
             
             
@@ -113,11 +113,11 @@ sub main{
             $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
             
             eval{
-		my $circuit_details = $db->get_circuit_details( circuit_id => $action->{'circuit_id'} );
+		my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
                 $circuit_details->{'status'} = 'up';
                 $circuit_details->{'type'} = 'modified';
                 $circuit_details->{'reason'} = ' scheduled circuit modification';
-                $log_client->circuit_modify({ circuit_id    => $action->{'circuit_id'} });
+                $log_client->circuit_notification( $circuit_details );
             };
 
         }
@@ -156,7 +156,7 @@ sub main{
             #Delete is complete and successful, send event on DBUS Channel Notification listens on.
 		
             eval {
-		my $circuit_details = $db->get_circuit_details( circuit_id => $action->{'circuit_id'} );
+		my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
                 $circuit_details->{'status'} = 'up';
                 $circuit_details->{'type'} = 'removed';
                 $circuit_details->{'reason'} = ' scheduled circuit removal';
@@ -172,6 +172,7 @@ sub main{
             if($circuit_details->{'active_path'} ne $circuit_layout->{'path'}){
                 syslog(LOG_INFO,"Changing the patch of circuit " . $circuit_details->{'description'} . ":" . $circuit_details->{'circuit_id'});
                 my $success = $oess->switch_circuit_to_alternate_path( circuit_id => $action->{'circuit_id'} );
+		my $success = 1;
                 my $res;
                 if($success){
                     eval{
@@ -187,11 +188,12 @@ sub main{
                 }
 
 		eval{
-		    my $circuit_details = $db->get_circuit_details( circuit_id => $action->{'circuit_id'} );
+		    my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
 		    $circuit_details->{'status'} = 'up';
 		    $circuit_details->{'reason'} = $action->{'reason'};
-		    $circuit_details->{'change_path'};
-		    $log_client->circuit_notification( $action->{'circuit_id'} });
+		    $circuit_details->{'type'} = 'change_path';
+		    warn "Attempting to send notification\n";
+		    $log_client->circuit_notification( $circuit_details );
 		}
 
             }else{

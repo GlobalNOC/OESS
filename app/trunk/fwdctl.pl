@@ -761,7 +761,7 @@ sub _restore_down_circuits{
 		}
 	    }
 
-
+	    warn Dumper($circuit);
 	    #if the restored path is the backup
 	    if($circuit->{'path_type'} eq 'backup'){
 
@@ -805,7 +805,8 @@ sub _restore_down_circuits{
 		
 		if($primary_path->{'path_state'} eq 'active'){
 		    #nothing to do here as we are already on the primary path
-		    _log("Primary path restored and we were alread on it");
+		    _log("ckt:" . $circuit->{'circuit_id'} . " primary path restored and we were alread on it");
+		    next if($circuit_status{$circuit->{'circuit_id'}} == OESS_CIRCUIT_UP);
 		    $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
 		    #send notifcation on restore
 		    $circuit->{'status'} = 'up';
@@ -849,9 +850,18 @@ sub _restore_down_circuits{
 		    }
 		}
 	    }
+	}else{
+	    next if($circuit_status{$circuit->{'circuit_id'}} == OESS_CIRCUIT_UP);
+	    $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
+            #send restore notification
+	    $circuit->{'status'} = 'up';
+	    $circuit->{'reason'} = 'the primary path has been restored';
+	    $circuit->{'type'} = 'restored';
+	    $self->emit_signal("circuit_notification", $circuit );
 	}	
     }
     #set the link up
+    warn Dumper(%circuit_status);
     $link_status{$link_name} = OESS_LINK_UP;
 }
 
@@ -880,6 +890,7 @@ sub _fail_over_circuits{
                     $circuit_info->{'status'} = "unknown";
 		    $circuit_info->{'reason'} = "An Error occured while attempting to switch to the alternate path";
 		    $circuit_info->{'type'} = 'unknown';
+		    $circuit_info->{'circuit_id'} = $circuit_info->{'id'};
                     _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $self->{'db'}->get_error());
                     $self->emit_signal("circuit_notification", $circuit_info );
                     $circuit_status{$circuit_id} = OESS_CIRCUIT_UNKNOWN;
@@ -892,12 +903,15 @@ sub _fail_over_circuits{
                 $circuit_info->{'status'} = "up";
 		$circuit_info->{'reason'} = " the current path went down.";
 		$circuit_info->{'type'} = 'change_path';
+		$circuit_info->{'circuit_id'} = $circuit_info->{'id'};
                 $self->emit_signal("circuit_notification", $circuit_info );
 		$circuit_status{$circuit_id} = OESS_CIRCUIT_UP;
             }else {
                 _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has a backup path, but it is down as well.  Not failing over");
                 $circuit_info->{'status'} = "down";
 		$circuit_info->{'reason'} = "s primary and backup path are both down";
+		$circuit_info->{'type'} = 'down';
+		$circuit_info->{'circuit_id'} = $circuit_info->{'id'};
 		next if($circuit_status{$circuit_id} == OESS_CIRCUIT_DOWN);
                 $self->emit_signal("circuit_notification", $circuit_info );
 		$circuit_status{$circuit_id} = OESS_CIRCUIT_DOWN;
@@ -911,12 +925,14 @@ sub _fail_over_circuits{
 	    $circuit_info->{'status'} = "down";
 	    $circuit_info->{'reason'} = " has no backup path configured";
 	    $circuit_info->{'type'} = 'down';
+	    $circuit_info->{'circuit_id'} = $circuit_info->{'id'};
 	    next if($circuit_status{$circuit_id} == OESS_CIRCUIT_DOWN);
             $self->emit_signal("circuit_notification", $circuit_info);
 	    $circuit_status{$circuit_id} = OESS_CIRCUIT_DOWN;
         }
     }
     #set the status to down
+    warn Dumper(%circuit_status);
     $link_status{$link_name} = OESS_LINK_DOWN;
     return;
 }
@@ -944,8 +960,8 @@ sub port_status{
 							       port => $port_number);
 
     if (! defined $link_info || @$link_info < 1){
-                #--- no link means edge port
-                # _log("Could not find link info for dpid = $dpid and port_no = $port_number");
+	#--- no link means edge port
+	#_log("Could not find link info for dpid = $dpid and port_no = $port_number");
 	return;
     }
 
@@ -956,7 +972,9 @@ sub port_status{
 
     switch($reason){
 
+	#port status was modified (either up or down)
 	case(OFPPR_MODIFY){    
+	    warn "LINK: " . $link_name . " changed state to '" . $link_status ."'";
 	    #--- when a port goes down, determine the set of ckts that traverse the port
 	    #--- for each ckt, fail over to the non-active path, after determining that the path 
 	    #--- looks to be intact.
