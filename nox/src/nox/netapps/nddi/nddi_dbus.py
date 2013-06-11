@@ -180,17 +180,17 @@ class dBusEventGen(dbus.service.Object):
 
         return xid
     @dbus.service.method(dbus_interface=ifname,
-                         in_signature='t',
+                         in_signature='tq',
                          out_signature='t'
                          )
-    def install_default_forward(self, dpid):
+    def install_default_forward(self, dpid, vlan):
 
         if not dpid in switches:
           return 0;
 
         my_attrs          = {}
         my_attrs[DL_TYPE] = 0x88cc       
-        my_attrs[DL_VLAN] = 65535
+        my_attrs[DL_VLAN] = vlan
         actions = [[openflow.OFPAT_OUTPUT, [65535, openflow.OFPP_CONTROLLER]]]
         
         idle_timeout = 0
