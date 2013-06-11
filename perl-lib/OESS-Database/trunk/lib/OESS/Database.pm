@@ -151,7 +151,9 @@ sub new{
     $self->{'admin_email'}           = $config->{'admin_email'};
     $self->{'snapp_config_location'} = $snapp_config_location;
     $self->{'dbh'}                   = $dbh;
-    $self->{'oscars'} = $oscars_info;
+    $self->{'oscars'}                = $oscars_info;
+    print STDERR Dumper($config);
+    $self->{'discovery_vlan'}        = $config->{'discovery_vlan'} || -1;
 
     if (! defined $self->{'topo'}){
 	$self->{'topo'} = OESS::Topology->new(db => $self);
