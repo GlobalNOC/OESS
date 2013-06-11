@@ -489,7 +489,7 @@ sub datapath_join_handler{
     my %xid_hash;
 
     if(!defined($node_details) || $node_details->{'default_forward'} == 1){
-	my $xid     = $self->{'of_controller'}->install_default_forward($dpid);
+	my $xid     = $self->{'of_controller'}->install_default_forward($dpid,$self->{'db'}->{'discovery_vlan'});
 	if($xid == FWDCTL_FAILURE){
 	  #--- switch may not be connected yet or other error in controller
 	  _log("sw:$sw_name dpid:$dpid_str failed to install lldp forward to controller rule, discovery will fail");
@@ -761,7 +761,7 @@ sub _restore_down_circuits{
 		}
 	    }
 
-	    warn Dumper($circuit);
+
 	    #if the restored path is the backup
 	    if($circuit->{'path_type'} eq 'backup'){
 
@@ -826,7 +826,7 @@ sub _restore_down_circuits{
 								     when => time() + (60 * $circuit->{'restore_to_primary'}),
 								     user_id => SYSTEM_USER,
 								     workgroup_id => $circuit->{'workgroup_id'},
-								     reason => 'restoring to primary because of circuit configuration'  );
+								     reason => "circuit configuration specified restore to primary after " . $circuit->{'restore_to_primary'} . "minutes"  );
 			    }else{
 				#restore to primary is off
 			    }
@@ -861,7 +861,7 @@ sub _restore_down_circuits{
 	}	
     }
     #set the link up
-    warn Dumper(%circuit_status);
+
     $link_status{$link_name} = OESS_LINK_UP;
 }
 
@@ -901,7 +901,7 @@ sub _fail_over_circuits{
                 $self->changeVlanPath($circuit_id);
                 #--- no way to now if this succeeds???
                 $circuit_info->{'status'} = "up";
-		$circuit_info->{'reason'} = " the current path went down.";
+		$circuit_info->{'reason'} = "the current path went down.";
 		$circuit_info->{'type'} = 'change_path';
 		$circuit_info->{'circuit_id'} = $circuit_info->{'id'};
                 $self->emit_signal("circuit_notification", $circuit_info );
@@ -932,7 +932,7 @@ sub _fail_over_circuits{
         }
     }
     #set the status to down
-    warn Dumper(%circuit_status);
+
     $link_status{$link_name} = OESS_LINK_DOWN;
     return;
 }
@@ -974,7 +974,6 @@ sub port_status{
 
 	#port status was modified (either up or down)
 	case(OFPPR_MODIFY){    
-	    warn "LINK: " . $link_name . " changed state to '" . $link_status ."'";
 	    #--- when a port goes down, determine the set of ckts that traverse the port
 	    #--- for each ckt, fail over to the non-active path, after determining that the path 
 	    #--- looks to be intact.
