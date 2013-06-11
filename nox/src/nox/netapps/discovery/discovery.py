@@ -30,6 +30,7 @@ from nox.lib.packet.ethernet          import LLDP_MULTICAST, NDP_MULTICAST
 from nox.lib.packet.ethernet          import ethernet  
 from nox.lib.packet.lldp              import lldp, chassis_id, port_id, end_tlv
 from nox.lib.packet.lldp              import ttl 
+from nox.lib.packet.vlan              import vlan
 from nox.lib.netinet.netinet          import create_datapathid_from_host
 from nox.lib.openflow                 import OFPP_LOCAL
 
@@ -44,6 +45,7 @@ LLDP_TTL             = 120 # currently ignored
 LLDP_SEND_PERIOD     = .10 
 TIMEOUT_CHECK_PERIOD = 5.
 LINK_TIMEOUT         = 30.
+VLAN_ID              = None
 
 lg = logging.getLogger('discovery')
 
@@ -55,7 +57,7 @@ lg = logging.getLogger('discovery')
 # 
 # ---------------------------------------------------------------------- 
   
-def create_discovery_packet(dpid, portno, ttl_):    
+def create_discovery_packet(dpid, portno, vlan_id, ttl_):    
 
     # Create lldp packet
     discovery_packet = lldp()
@@ -76,12 +78,26 @@ def create_discovery_packet(dpid, portno, ttl_):
     discovery_packet.add_tlv(end_tlv())
 
     eth = ethernet()
-    # To insure that the LLDP src mac address is not a multicast
-    # address, since we have no control on choice of dpid
     eth.src = '\x00' + struct.pack('!Q',dpid)[3:8]
     eth.dst = NDP_MULTICAST
-    eth.set_payload(discovery_packet)
-    eth.type = ethernet.LLDP_TYPE
+    
+    if(vlan_id != None):
+        
+        vlan_packet = vlan()
+        vlan_packet.id = vlan_id
+        vlan_packet.pcp = 0
+        vlan_packet.c = 0
+        vlan_packet.eth_type = ethernet.LLDP_TYPE
+        vlan_packet.set_payload(discovery_packet)
+
+        eth.set_payload(vlan_packet)
+        eth.type = ethernet.VLAN_TYPE
+        eth.eth_type = ethernet.LLDP_TYPE
+    
+    else:
+        eth.set_payload(discovery_packet)
+        eth.type = ethernet.LLDP_TYPE
+        
 
     return eth
 
@@ -140,6 +156,7 @@ class discovery(Component):
 
 
         self.lldp_send_period = LLDP_SEND_PERIOD
+        self.vlan_id = VLAN_ID
         if arg_len == 1:
             try:
                 val = float(configuration['arguments'][0])
@@ -147,6 +164,15 @@ class discovery(Component):
                 lg.debug("Setting LLDP send timer to " + str(val))
             except Exception, e:
                 lg.error("unable to convert arg to float " + configuration['arguments'][0])
+
+        elif arg_len == 2:
+            try:
+                val = int(configuration['arguments'][1])
+                self.vlan_id = val;
+                lg.debug("Setting LLDP VLAN to " + str(val))
+            except Exception, e:
+                lg.error("unable to convert arg to integer " + configuration['arguments'][0])
+    
 
         self.register_event(Link_event.static_get_name())
         Link_event.register_event_converter(self.ctxt)
@@ -156,8 +182,13 @@ class discovery(Component):
         self.register_for_datapath_leave( lambda dp       : discovery.dp_leave(self, dp) )
         self.register_for_port_status( lambda dp, reason, port : discovery.port_status_change(self, dp, reason, port) )
         # register handler for all LLDP packets 
-        match = {DL_DST : array_to_octstr(array.array('B',NDP_MULTICAST)),\
-                  DL_TYPE: ethernet.LLDP_TYPE}
+        if(self.vlan_id != None):
+            match = {
+                DL_DST : array_to_octstr(array.array('B',NDP_MULTICAST)),DL_TYPE: ethernet.LLDP_TYPE, DL_VLAN: self.vlan_id}
+        else:
+            match = {
+                DL_DST: array_to_octstr(array.array('B',NDP_MULTICAST)),DL_TYPE: ethernet.LLDP_TYPE }
+                
         self.register_for_packet_match(lambda
             dp,inport,reason,len,bid,packet :
             discovery.lldp_input_handler(self,dp,inport,reason,len,bid,packet),
@@ -180,7 +211,7 @@ class discovery(Component):
             if port[PORT_NO] == OFPP_LOCAL:
                 continue
 
-            self.lldp_packets[dp][port[PORT_NO]] = create_discovery_packet(dp, port[PORT_NO], LLDP_TTL);
+            self.lldp_packets[dp][port[PORT_NO]] = create_discovery_packet(dp, port[PORT_NO], self.vlan_id, LLDP_TTL);
 
     # --
     # On datapath leave, delete all associated links
@@ -219,7 +250,7 @@ class discovery(Component):
         # Only process 'sane' ports
         if port[PORT_NO] <= openflow.OFPP_MAX:
             if reason == openflow.OFPPR_ADD:
-                self.lldp_packets[dp][port[PORT_NO]] = create_discovery_packet(dp, port[PORT_NO], LLDP_TTL);
+                self.lldp_packets[dp][port[PORT_NO]] = create_discovery_packet(dp, port[PORT_NO], self.vlan_id, LLDP_TTL);
             elif reason == openflow.OFPPR_DELETE:
                 del self.lldp_packets[dp][port[PORT_NO]]
 
@@ -248,8 +279,16 @@ class discovery(Component):
 
     def lldp_input_handler(self, dp_id, inport, ofp_reason, total_frame_len, buffer_id, packet):
         
-        assert (packet.type == ethernet.LLDP_TYPE)
-    
+        if(packet.type == ethernet.VLAN_TYPE):
+            packet = packet.next
+            assert (packet.eth_type == ethernet.LLDP_TYPE)
+        elif(packet.type == ethernet.LLDP_TYPE):
+            assert (packet.type == ethernet.LLDP_TYPE)
+        else:
+            #we should not get here!
+            lg.error("lldp_input_handler did not get a proper packet")
+            return
+
         if not packet.next:
             lg.error("lldp_input_handler lldp packet could not be parsed")
             return
