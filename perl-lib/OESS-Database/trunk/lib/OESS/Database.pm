@@ -1024,7 +1024,7 @@ sub decom_link_instantiation{
 	return;
     }
 
-    my $res = $self->_execute_query("update link_instantiation set end_epoch = UNIX_TIMESTAMP(NOW()) where link_id = ?",[$args{'link_id'}]);
+    my $res = $self->_execute_query("update link_instantiation set end_epoch = UNIX_TIMESTAMP(NOW()) where link_id = ? and end_epoch = -1",[$args{'link_id'}]);
     
     return 1;
 
@@ -2720,10 +2720,10 @@ sub get_circuit_internal_ids {
 
     my $query = "select internal_vlan_id, node.node_id, node.name, path.path_type " .
 	" from path_instantiation_vlan_ids " .
-	"  join path_instantiation on path_instantiation.path_instantiation_id = path_instantiation_vlan_ids.path_instantiation_id " .
-	"  join path on path.path_id = path_instantiation.path_id " .
-	"  join node on node.node_id = path_instantiation_vlan_ids.node_id " .
-	"  where path.circuit_id = ? and path_instantiation.end_epoch = -1";
+	" join path_instantiation on path_instantiation.path_instantiation_id = path_instantiation_vlan_ids.path_instantiation_id " .
+	" join path on path.path_id = path_instantiation.path_id " .
+	" join node on node.node_id = path_instantiation_vlan_ids.node_id " .
+	" where path.circuit_id = ? and path_instantiation.end_epoch = -1";
 
     my $ids = $self->_execute_query($query, [$circuit_id]);
 
@@ -2895,13 +2895,13 @@ sub get_circuit_links {
 
     while (my $row = $sth->fetchrow_hashref()){
 	push (@results, { name        => $row->{'name'},
-			   node_a      => $row->{'node_a'},
-			   port_no_a   => $row->{'port_no_a'},
-			   interface_a => $row->{'interface_a'},
-			   node_z      => $row->{'node_z'},
-			   port_no_z   => $row->{'port_no_z'},
-			   interface_z => $row->{'interface_z'}
-			  });
+			  node_a      => $row->{'node_a'},
+			  port_no_a   => $row->{'port_no_a'},
+			  interface_a => $row->{'interface_a'},
+			  node_z      => $row->{'node_z'},
+			  port_no_z   => $row->{'port_no_z'},
+			  interface_z => $row->{'interface_z'}
+	      });
     }
 
     return \@results;
@@ -4636,7 +4636,7 @@ sub get_link_by_interface_id{
     }
 
 
-    my $select_link_by_interface = "select link.name as link_name,link.status, link.link_id,link.remote_urn, link_instantiation.interface_a_id, link_instantiation.interface_z_id from link,link_instantiation where link.link_id = link_instantiation.link_id and link_instantiation.end_epoch = -1 and (link_instantiation.interface_a_id = ? or link_instantiation.interface_z_id = ?)";
+    my $select_link_by_interface = "select link.name as link_name,link.status, link.link_id,link.remote_urn, link_instantiation.interface_a_id, link_instantiation.interface_z_id, link_instantiation.link_state as state from link,link_instantiation where link.link_id = link_instantiation.link_id and link_instantiation.end_epoch = -1 and (link_instantiation.interface_a_id = ? or link_instantiation.interface_z_id = ?)";
     
     if(!$show_decom){
 	$select_link_by_interface .= " and link_instantiation.link_state != 'decom'"
@@ -4644,7 +4644,7 @@ sub get_link_by_interface_id{
     
 
     my $select_link_sth = $self->_prepare_query($select_link_by_interface);
-    
+
     $select_link_sth->execute($interface_id,$interface_id);
     my @results;
     while(my $row = $select_link_sth->fetchrow_hashref()){
@@ -6019,11 +6019,11 @@ sub _execute_query {
     my $args  = shift;
 
     my $dbh = $self->{'dbh'};
-
+    
     my $sth = $dbh->prepare($query);
 
-   # warn "Query is: $query\n";
-   # warn "Args are: " . Dumper($args);
+    #warn "Query is: $query\n";
+    #warn "Args are: " . Dumper($args);
 
     if (! $sth){
 	warn "Error in prepare query: $DBI::errstr";
