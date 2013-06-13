@@ -431,12 +431,11 @@ sub db_link_add{
 	#lets first remove any circuits not going to the node we want on these interfaces
 	foreach my $link (@$links_a){
 	    my $other_int = $db->get_interface( interface_id => $link->{'interface_a_id'} );
-	    if($other_int->{'interface_id'} == $interface_a->{'interface_a_id'}){
+	    if($other_int->{'interface_id'} == $interface_a->{'interface_id'}){
 		$other_int = $db->get_interface( interface_id => $link->{'interface_z_id'} );
 	    }
 
 	    my $other_node = $db->get_node_by_id( node_id => $other_int->{'node_id'} );
-	    
 	    if($other_node->{'node_id'} == $z_node->{'node_id'}){
 		push(@$a_links,$link);
 	    }
@@ -444,11 +443,10 @@ sub db_link_add{
 
 	foreach my $link (@$links_z){
 	    my $other_int = $db->get_interface( interface_id => $link->{'interface_a_id'} );
-            if($other_int->{'interface_id'} == $interface_z->{'interface_a_id'}){
+            if($other_int->{'interface_id'} == $interface_z->{'interface_id'}){
                 $other_int = $db->get_interface( interface_id => $link->{'interface_z_id'} );
             }
             my $other_node = $db->get_node_by_id( node_id => $other_int->{'node_id'} );
-
             if($other_node->{'node_id'} == $a_node->{'node_id'}){
 		push(@$z_links,$link);
             }
@@ -475,10 +473,11 @@ sub db_link_add{
 	    
 
 	    #diff the interfaces
-	    _send_topo_port_status($z_node->{'dpid'},OFPPR_MODIFY,{name => $interface_z->{'name'}, port_no => $interface_z->{'port_no'}, link => 1});
-	    _send_topo_port_status($z_node->{'dpid'},OFPPR_MODIFY,{name => $interface_z->{'name'}, port_no => $old_z_interface->{'port_no'}, link => 1});
+	    _send_topo_port_status($z_node->{'dpid'},OFPPR_ADD,{name => $interface_z->{'name'}, port_no => $interface_z->{'port_no'}, link => 1});
+	    _send_topo_port_status($z_node->{'dpid'},OFPPR_ADD,{name => $interface_z->{'name'}, port_no => $old_z_interface->{'port_no'}, link => 1});
 
 	}elsif(defined($a_links->[0])){
+	    print_log(LOG_WARNING,"LINK has changed interface on z side");
 	    #easy case update link_a so that it is now on the new interfaces
 	    my $link = $a_links->[0];
 	    my $old_z =$link->{'interface_a_id'};
@@ -494,11 +493,12 @@ sub db_link_add{
 	    
 	    
 	    #diff the z node
-	    _send_topo_port_status($z_node->{'dpid'},OFPPR_MODIFY,{name => $interface_z->{'name'}, port_no => $interface_z->{'port_no'}, link => 1});
-            _send_topo_port_status($z_node->{'dpid'},OFPPR_MODIFY,{name => $interface_z->{'name'}, port_no => $old_z_interface->{'port_no'}, link => 1});
+	    _send_topo_port_status($z_node->{'dpid'},OFPPR_ADD,{name => $interface_z->{'name'}, port_no => $interface_z->{'port_no'}, link => 1});
+            _send_topo_port_status($z_node->{'dpid'},OFPPR_ADD,{name => $interface_z->{'name'}, port_no => $old_z_interface->{'port_no'}, link => 1});
 
 	}elsif(defined($z_links->[0])){
             #easy case update link_a so that it is now on the new interfaces
+	    print_log(LOG_WARNING,"Link has changed ports on the A side");
 	    my $link = $z_links->[0];
             
 	    my $old_a =$link->{'interface_a_id'};
@@ -514,9 +514,10 @@ sub db_link_add{
 	
 	    #diff the interfaces
             #diff the z node
-            _send_topo_port_status($a_node->{'dpid'},OFPPR_MODIFY,{name => $interface_a->{'name'}, port_no => $interface_a->{'port_no'}, link => 1});
-            _send_topo_port_status($a_node->{'dpid'},OFPPR_MODIFY,{name => $interface_a->{'name'}, port_no => $old_a_interface->{'port_no'}, link => 1});
+            _send_topo_port_status($a_node->{'dpid'},OFPPR_ADD,{name => $interface_a->{'name'}, port_no => $interface_a->{'port_no'}, link => 1});
+            _send_topo_port_status($a_node->{'dpid'},OFPPR_ADD,{name => $interface_a->{'name'}, port_no => $old_a_interface->{'port_no'}, link => 1});
 	}else{
+	    print_log(LOG_WARNING,"This is not part of any other link... making a new instance");
 	    ##create a new one link as none of the interfaces were part of any link
 	    print_log(LOG_DEBUG,"Adding a new link");
 	    
