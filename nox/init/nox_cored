@@ -27,11 +27,16 @@ name=nox
 controller=/usr/bin/nox_core
 
 vlan=$(/usr/bin/xml_grep --text_only '/config/discovery_vlan' /etc/oess/database.xml)
-if [  -n "$vlan" -a "$vlan" -ne "-1" ];
+if [ -n "$vlan" ];
 then
-options=" -d -i ptcp: discovery=15,$vlan nddi_dbus -n /var/log/nox/nox.info"
+    if [ "$vlan" -ne "-1" ];
+    then
+	options=" -d -i ptcp: discovery=15,$vlan nddi_dbus -n /var/log/nox/nox.info"
+    else
+	options=" -d -i ptcp: nddi_dbus -n /var/log/nox/nox.info"
+    fi
 else
-options=" -d -i ptcp: nddi_dbus -n /var/log/nox/nox.info"
+    options=" -d -i ptcp: nddi_dbus -n /var/log/nox/nox.info"
 fi
 
 username=_oess
