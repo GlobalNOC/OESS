@@ -275,13 +275,14 @@ sub do_port_modify{
 
        #ok now update the link state as well
        my $link = $db->get_link_by_interface_id( interface_id => $int->{'interface_id'} );
-       if(defined($link)){
-	   $db->update_link_state( link_id => $link->{'link_id'}, state => $operational_state);
+       foreach my $lnk (@$link){
+	   $db->update_link_state( link_id => $lnk->{'link_id'}, state => $operational_state);
 	   if(!defined($res)){
 	       $dbh->rollback();
 	       return;
 	   }
        }
+
        $dbh->commit();
 
 }
