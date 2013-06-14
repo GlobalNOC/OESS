@@ -36,13 +36,23 @@ use Data::Dumper;
 
 use constant DEBUG => 2;
 
+#link statuses
+use constant OESS_LINK_UP       => 1;
+use constant OESS_LINK_DOWN     => 0;
+use constant OESS_LINK_UNKNOWN  => 2;
+
+#circuit statuses
+use constant OESS_CIRCUIT_UP    => 1;
+use constant OESS_CIRCUIT_DOWN  => 0;
+use constant OESS_CIRCUIT_UNKNOWN => 2;
+
 =head1 NAME
 
 OESS-Topology -Perl module for topology operations/computations on the OESS database.
 
 =cut
 
-our $VERSION = '1.0.8';
+our $VERSION = '1.0.9';
 
 
 =head1 SYNOPSIS
@@ -346,36 +356,38 @@ sub find_path{
     my @weights;
     foreach my $link (@$links){ push(@weights, $link->{'metric'}); }
     my $max_weight = (sort { $b <=> $a } @weights)[0];
-
+    
     foreach my $link (@$links){
-	    #add every link as an edge in our graph
+	#add every link as an edge in our graph
         my $current_reserved_bandwidth = $link->{'reserved_bw_mbps'};
-
+	
         #--- determine how much capacity will be left on this link after our requested circuit runs through it
-	    my $capacity_left = $link->{'link_capacity'} * 1.0 - $current_reserved_bandwidth - $reserved_bw;
+	my $capacity_left = $link->{'link_capacity'} * 1.0 - $current_reserved_bandwidth - $reserved_bw;
         #--- if the remaining capacity is less than zero we can't use this link so don't add it to the graph
         next if($capacity_left < 0);
-    
-
-	    $g->add_edge($link->{'node_a_name'},$link->{'node_b_name'});
-	    $g->set_edge_attribute($link->{'node_a_name'},$link->{'node_b_name'},"name",$link->{'name'});
 	
-	    if (not defined $reserved_bw){
+	
+	$g->add_edge($link->{'node_a_name'},$link->{'node_b_name'});
+	$g->set_edge_attribute($link->{'node_a_name'},$link->{'node_b_name'},"name",$link->{'name'});
+	
+	if (not defined $reserved_bw){
             $reserved_bw=0;
-	    }
-	    my $edge_weight = $link->{'metric'};
+	}
+	my $edge_weight = $link->{'metric'};
         #if the link is in our used list add the maximum weight 
         #to its weight to ensure it's chose only as a last resort
-	    if($used_link_set->has($link->{'name'})){
+	if($used_link_set->has($link->{'name'})){
             #add one to the max weight in case the max weight is the same as this edges' weight
-            $edge_weight= $edge_weight + ($max_weight + 1);
-	    }
+	    $edge_weight= $edge_weight + ($max_weight + 1);
+	}
+	
+	$g->set_edge_attribute($link->{'node_a_name'},$link->{'node_b_name'},"weight",$edge_weight);
+	warn "Edge: " . $link->{'node_a_name'} . "<->" . $link->{'node_b_name'} . " = " . $edge_weight . "\n";
 
-	    $g->set_edge_attribute($link->{'node_a_name'},$link->{'node_b_name'},"weight",$edge_weight);
-	    $edge{$link->{'node_a_name'}}{$link->{'node_b_name'}}{'name'}=$link->{'name'};
-
+	$edge{$link->{'node_a_name'}}{$link->{'node_b_name'}}{'name'}=$link->{'name'};
+	
         # adjust max weight if this links weight is higher
-        $max_weight = $link->{'metric'} if($link->{'metric'} > $max_weight);	
+        #$max_weight = $link->{'metric'} if($link->{'metric'} > $max_weight);	
     }
     
     #run Dijkstra on our graph
@@ -401,6 +413,7 @@ sub find_path{
 	    }
 
 	    for(my $i=0;$i<scalar(@path)-1;$i++){
+		warn Dumper(@path);
 		my $link_name=$edge{$path[$i]}{$path[$i+1]}{'name'};
 		if(!$link_name){
 		    $link_name=$edge{$path[$i+1]}{$path[$i]}{'name'};
@@ -439,20 +452,40 @@ sub is_path_up{
 	return ;
     }
 
-    my $links = $self->{'db'}->get_current_links();
-    
     my %down_links;
     my %unknown_links;
-    foreach my $link (@$links){
-        if( $link->{'status'} eq 'down'){
-            $down_links{$link->{'name'}} = $link;
-        }elsif($link->{'status'} eq 'unknown'){
-	    $unknown_links{$link->{'name'}} = $link;
+
+    if(defined($args{'link_status'})){
+	my $link_status = $args{'link_status'};
+	foreach my $key (keys (%{$link_status})){
+	    if($link_status->{$key} == OESS_LINK_DOWN){
+		$down_links{$key} = 1;
+	    }elsif($link_status->{$key} == OESS_LINK_UNKNOWN){
+		$unknown_links{$key} = 1;
+	    }
 	}
+    }else{
+
+	my $links = $self->{'db'}->get_current_links();
+	
+	my %down_links;
+	my %unknown_links;
+	foreach my $link (@$links){
+	    warn "Link: " . $link->{'name'} . " status: " . $link->{'status'} . "\n";
+	    if( $link->{'status'} eq 'down'){
+		$down_links{$link->{'name'}} = $link;
+	    }elsif($link->{'status'} eq 'unknown'){
+		$unknown_links{$link->{'name'}} = $link;
+	    }
+	}
+	
+	warn "Down Links: " . Dumper(%down_links);
+	warn "Unknown Links: " . Dumper(%unknown_links);
     }
-
+    
     my $path_links = $self->{'db'}->get_path_links( path_id => $path );
-
+    warn "My Links: " . Dumper($path_links);
+    
     foreach my $link (@$path_links){
 	if($down_links{$link->{'name'}}){
 	    return 0;
@@ -461,7 +494,6 @@ sub is_path_up{
 	}
     }
  
-
     return 1;
 }
 
