@@ -269,11 +269,11 @@ sub provision_circuit {
             #if we're here we've successfully provisioned onto the network, so log notification.
             if (defined $log_client){
                 eval{
-                                       
-                    $log_client->circuit_provision( {
-                                                     circuit_id    => $output->{'circuit_id'},
-                                                    }
-                                                  );
+		    my $circuit_details = $db->get_circuit_details( circuit_id => $output->{'circuit_id'} );
+		    $circuit_details->{'status'} = 'up';
+		    $circuit_details->{'reason'} = 'provisioned';
+		    $circuit_details->{'type'} = 'provisioned';
+                    $log_client->circuit_notification( $circuit_details  );
                 };
                 warn $@ if $@;
             }
@@ -303,6 +303,7 @@ sub provision_circuit {
             description    => $description,
             bandwidth      => $bandwidth,
             provision_time => $provision_time,
+	    restore_to_primary => $restore_to_primary,
             remove_time    => $remove_time,
             links          => \@links,
             backup_links   => \@backup_links,
@@ -333,11 +334,11 @@ sub provision_circuit {
         #Send Edit to Syslogger DBUS
             if ( defined $log_client ) {
                 eval{
-                    
-                    $log_client->circuit_modify( {
-                                                  circuit_id    => $circuit_id,
-                                                 }
-                                               );
+                    my $circuit_details = $db->get_circuit_details( circuit_id => $output->{'circuit_id'} );
+		    $circuit_details->{'status'} = 'up';
+		    $circuit_details->{'reason'} = 'edited';
+		    $circuit_details->{'type'} = 'modified';
+                    $log_client->circuit_notification( $circuit_details  );
                 };
                   warn $@ if $@;
             }
@@ -431,14 +432,10 @@ sub remove_circuit {
         eval{
             my $circuit_details = $db->get_circuit_details( circuit_id => $output->{'circuit_id'} );
             warn ("sending circuit_decommission");
-            $log_client->circuit_decommission( {
-                                                circuit_id    => $circuit_id,
-                                                workgroup_id  => $workgroup_id,
-                                                name          => $circuit_details->{'name'},
-                                                description   => $circuit_details->{'description'},
-                                                circuit_state => $circuit_details->{'state'}
-                                               }
-                                             );
+	    $circuit_details->{'status'} = 'removed';
+	    $circuit_details->{'reason'} = 'removed by ' . $ENV{'REMOTE_USER'};
+	    $circuit_details->{'type'} = 'removed';
+            $log_client->circuit_notification( $circuit_details );
         };
         warn $@ if $@;
 
@@ -540,31 +537,25 @@ sub fail_over_circuit {
                 $results->{'results'} = [ { success => 0 } ];
             }
 
+	    my $circuit_details = $db->get_circuit_details( circuit_id => $circuit_id );
+
             if ($is_up){
                 eval {
-                    $log_client->circuit_failover(
-                                                   {
-                                                    requested_by => $ENV{'REMOTE_USER'},
-                                                    circuit_id => $circuit_id,
-                                                    workgroup_id  => $workgroup_id,
-                                                    failover_type=> "manual_success"
-                                                   },
-
-                                                  );
-                    };
+                    $circuit_details->{'status'} = 'up';
+		    $circuit_details->{'reason'} = "user " . $ENV{'REMOTE_USER'} . " forced the circuit to change to the alternate path";
+		    $circuit_details->{'type'} = 'change_path';
+		    $log_client->circuit_notification( $circuit_details );
+		    
+		};
                 warn $@ if $@;
             }
             elsif($forced){
                 eval {
-                    $log_client->circuit_failover( {
-                                                     requested_by     => $ENV{'REMOTE_USER'},
-                                                     circuit_id    => $circuit_id,
-                                                     workgroup_id  => $workgroup_id,
-                                                    failover_type=> "forced"
-                                                   },
-
-                                                  );
-                    };
+		    $circuit_details->{'status'} = 'down';
+		    $circuit_details->{'reason'} = "user " . $ENV{'REMOTE_USER'} . " forced the circuit to change to the alternate path which is down!";
+		    $circuit_details->{'down'};
+                    $log_client->circuit_notification( $circuit_details  );
+		};
                 warn $@ if $@;
             }
             $results->{'results'} = [ { success => 1 } ];
