@@ -33,11 +33,11 @@ OESS::Notification
 
 =head1 VERSION:
 
-GRNOC:OESS::Notification 1.0.8
+GRNOC:OESS::Notification 1.0.9
 
 =cut
 
-our $VERSION = '1.0.8';
+our $VERSION = '1.0.9';
 
 =head1 SYNOPSIS
 
@@ -130,7 +130,10 @@ sub circuit_notification {
     my $circuit = shift;
 
     my $circuit_notification_data = $self->get_notification_data( circuit => $circuit );
-
+    if(!defined($circuit_notification_data)){
+	warn "Unable to get circuit data for circuit: " . $circuit->{'circuit_id'};
+	return;
+    }
     my $subject = "OESS Notification: Circuit '" . $circuit_notification_data->{'circuit'}->{'description'} . "' ";
  
     switch($circuit->{'type'}){
@@ -276,7 +279,6 @@ sub get_notification_data {
     my %args = @_;
     my $db   = $self->{'db'};
 
-    #warn Dumper($ws);
     my $ckt = $args{'circuit'};
     my $username;
 
@@ -353,8 +355,7 @@ sub _send_notification {
     my %args = @_;
 
     my $body = $args{'body'};
-    
-    #warn Dumper ($body);
+
     my $message = MIME::Lite->new(
         From    => $self->{'from_address'},
         To      => $args{'to'},
@@ -362,7 +363,7 @@ sub _send_notification {
         Type    => 'text/plain',
         Data    => uri_unescape($body)
     );
-    warn Dumper($message);
+
     $message->send( 'smtp', 'localhost' );
 
 }
