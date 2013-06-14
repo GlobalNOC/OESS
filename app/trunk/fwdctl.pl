@@ -324,6 +324,10 @@ sub _generate_commands{
     foreach my $link (@{$circuit_details->{'links'}}){
 	my $node_a = $link->{'node_a'};
 	my $node_z = $link->{'node_z'};
+	warn Dumper($node_a);
+	warn Dumper($node_z);
+	warn Dumper($link);
+	warn Dumper($internal_ids);
 	$primary_path{$node_a}{$link->{'port_no_a'}}{$internal_ids->{'primary'}{$node_a}} = $internal_ids->{'primary'}{$node_z};
 	$primary_path{$node_z}{$link->{'port_no_z'}}{$internal_ids->{'primary'}{$node_z}} = $internal_ids->{'primary'}{$node_a};
     }
@@ -744,7 +748,7 @@ sub _restore_down_circuits{
     my %params = @_;
     my $circuits = $params{'circuits'};
     my $link_name = $params{'link_name'};
- 
+
     #this loop is for automatic restoration when both paths are down
     foreach my $circuit (@$circuits){
 	my $paths = $self->{'db'}->get_circuit_paths( circuit_id => $circuit->{'circuit_id'} );
@@ -767,7 +771,7 @@ sub _restore_down_circuits{
 
 		if($primary_path->{'status'} == OESS_LINK_DOWN){
 		    #if the primary path is down and the backup path is up and is not active fail over
-		    if($self->{'topo'}->is_path_up( path_id => $backup_path->{'path_id'} ) && $backup_path->{'path_state'} ne 'active'){
+		    if($self->{'topo'}->is_path_up( path_id => $backup_path->{'path_id'}, link_status => \%link_status ) && $backup_path->{'path_state'} ne 'active'){
 			#bring it back to this path
 			my $success = $self->{'db'}->switch_circuit_to_alternate_path( circuit_id => $circuit->{'circuit_id'});
 			_log("vlan:" . $circuit->{'name'} ." id:" . $circuit->{'circuit_id'} . " affected by trunk:$link_name moving to alternate path");
@@ -785,15 +789,16 @@ sub _restore_down_circuits{
 			$circuit->{'type'} = 'restored';
 			$self->emit_signal("circuit_notification", $circuit );
 			
-		    }elsif($self->{'topo'}->is_path_up( path_id => $backup_path->{'path_id'}) && $backup_path->{'path_state'} eq 'active'){
+		    }elsif($self->{'topo'}->is_path_up( path_id => $backup_path->{'path_id'}, link_status => \%link_status) && $backup_path->{'path_state'} eq 'active'){
 			#circuit was on backup path, and backup path is now up
+			_log("vlan:" . $circuit->{'name'} ." id:" . $circuit->{'circuit_id'} . " affected by trunk:$link_name was restored");
 			next if $circuit_status{$circuit->{'circuit_id'}} == OESS_CIRCUIT_UP;
 			#send notification on restore
 			$circuit->{'status'} = 'up';
 			$circuit->{'reason'} = 'the backup path has been restored';
 			$circuit->{'type'} = 'restored';
 			$self->emit_signal("circuit_notification", $circuit);
-
+			$circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
 		    }else{
 			#both paths are down...
 			#do not do anything
@@ -815,8 +820,8 @@ sub _restore_down_circuits{
 		    $self->emit_signal("circuit_notification", $circuit );
 		}else{
 		    
-		    if($self->{'topo'}->is_path_up( path_id => $primary_path->{'path_id'} )){
-			if($self->{'topo'}->is_path_up( path_id => $backup_path->{'path_id'} )){
+		    if($self->{'topo'}->is_path_up( path_id => $primary_path->{'path_id'}, link_status => \%link_status )){
+			if($self->{'topo'}->is_path_up( path_id => $backup_path->{'path_id'}, link_status => \%link_status)){
 			    #ok the backup path is up and active... and restore to primary is not 0
 			    if($circuit->{'restore_to_primary'} > 0){
 				#schedule the change path
@@ -860,9 +865,7 @@ sub _restore_down_circuits{
 	    $self->emit_signal("circuit_notification", $circuit );
 	}	
     }
-    #set the link up
 
-    $link_status{$link_name} = OESS_LINK_UP;
 }
 
 =head2 _fail_over_circuits
@@ -875,6 +878,7 @@ sub _fail_over_circuits{
     
     my $circuits = $params{'circuits'};
     my $link_name = $params{'link_name'};
+
     foreach my $circuit_info (@$circuits){
         my $circuit_id   = $circuit_info->{'id'};
         my $circuit_name = $circuit_info->{'name'};
@@ -882,7 +886,7 @@ sub _fail_over_circuits{
         my $alternate_path = $self->{'db'}->circuit_has_alternate_path(circuit_id => $circuit_id);
         if(defined($alternate_path)){
             #determine if alternate path is up
-            if( $self->{'topo'}->is_path_up( path_id => $alternate_path ) ){
+            if( $self->{'topo'}->is_path_up( path_id => $alternate_path , link_status => \%link_status )){
                 my $success = $self->{'db'}->switch_circuit_to_alternate_path(circuit_id => $circuit_id);
                 _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name moving to alternate path");
                 
@@ -931,9 +935,7 @@ sub _fail_over_circuits{
 	    $circuit_status{$circuit_id} = OESS_CIRCUIT_DOWN;
         }
     }
-    #set the status to down
 
-    $link_status{$link_name} = OESS_LINK_DOWN;
     return;
 }
     
@@ -987,6 +989,7 @@ sub port_status{
 		    return;
 		}
 		
+		$link_status{$link_name} = OESS_LINK_DOWN;
 		#fail over affected circuits
 		$self->_fail_over_circuits( circuits => $affected_circuits, link_name => $link_name );
 		$self->_cancel_restorations( link_id => $link_id);
@@ -996,7 +999,8 @@ sub port_status{
 	    #--- when a port comes back up determine if any circuits that are currently down
 	    #--- can be restored by bringing it back up over to this path, we do not restore by default
 	    else{
-		
+		_log("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name is up");
+		$link_status{$link_name} = OESS_LINK_UP;
 		my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $link_id);
 		$self->_restore_down_circuits( circuits => $circuits, link_name => $link_name );
 		
@@ -1011,6 +1015,7 @@ sub port_status{
 	    #note that this will cause the flow_stats_in handler to handle this data
 	}else{
 	    #this is the add case and we don't want to do anything here, as TOPO will tell us
+	    
 	}
     }
 }
@@ -1329,7 +1334,9 @@ sub addVlan {
 	if($node{$command->{'dpid'}->value()} >= $node->{'max_flows'}){
 	    my $dpid_str  = sprintf("%x",$command->{'dpid'});
             _log("sw: dpipd:$dpid_str exceeding max_flows:".$node->{'max_flows'}." adding vlan failed");
+	    $circuit_status{$circuit_id} = OESS_CIRCUIT_UNKNOWN;
 	    return FWDCTL_FAILURE;
+	    
 	}
 	my $xid = $self->{'of_controller'}->install_datapath_flow($command->{'dpid'},$command->{'attr'},0,0,$command->{'action'},$command->{'attr'}->{'IN_PORT'});
 	$node{$command->{'dpid'}->value()}++;
@@ -1360,8 +1367,9 @@ sub addVlan {
 						 old_state   => 'deploying',
 						 new_state   => 'active',
 	    );
-    }
 
+	$circuit_status{$circuit_id} = OESS_CIRCUIT_UP;
+    }
     return $result;
 }
 
