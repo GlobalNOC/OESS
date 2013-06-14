@@ -413,7 +413,7 @@ sub find_path{
 	    }
 
 	    for(my $i=0;$i<scalar(@path)-1;$i++){
-		warn Dumper(@path);
+
 		my $link_name=$edge{$path[$i]}{$path[$i+1]}{'name'};
 		if(!$link_name){
 		    $link_name=$edge{$path[$i+1]}{$path[$i]}{'name'};
@@ -479,12 +479,10 @@ sub is_path_up{
 	    }
 	}
 	
-	warn "Down Links: " . Dumper(%down_links);
-	warn "Unknown Links: " . Dumper(%unknown_links);
     }
     
     my $path_links = $self->{'db'}->get_path_links( path_id => $path );
-    warn "My Links: " . Dumper($path_links);
+
     
     foreach my $link (@$path_links){
 	if($down_links{$link->{'name'}}){
