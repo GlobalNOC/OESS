@@ -23,6 +23,7 @@ share/upgrade/oess-1.0.4-1.0.5
 share/upgrade/oess-1.0.5-1.0.6
 share/upgrade/oess-1.0.6-1.0.7
 share/upgrade/oess-1.0.7-1.0.8
+share/upgrade/oess-1.0.8-1.0.9
 share/xml/import.rnc
 t/00-load_base.t
 t/01-load_known_state.t
@@ -52,6 +53,7 @@ t/23-get_circuit_edge_on_interface.t
 t/23-get_interface_by_dpid_and_port.t
 t/24-get_circuit_links.t
 t/25-get_circuits_by_state.t
+t/26-get_circuit_details.t
 t/conf/database.xml
 t/conf/oess_known_state.old.sql
 t/conf/oess_known_state.sql
