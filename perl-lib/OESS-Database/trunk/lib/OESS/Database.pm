@@ -34,11 +34,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 1.0.8
+Version 1.0.9
 
 =cut
 
-our $VERSION = '1.0.8';
+our $VERSION = '1.0.9';
 
 =head1 SYNOPSIS
 
@@ -83,7 +83,7 @@ use Net::DBus;
 use OESS::Topology;
 use DateTime;
 
-use constant VERSION => '1.0.8';
+use constant VERSION => '1.0.9';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant SHARE_DIR => "/usr/share/doc/perl-OESS-Database-" . VERSION . "/";
@@ -5631,7 +5631,7 @@ sub edit_circuit {
     my $workgroup_id   = $args{'workgroup_id'};
     my $remote_endpoints = $args{'remote_endpoints'} || [];
     my $remote_tags      = $args{'remote_tags'} || [];
-
+    my $restore_to_primary = $args{'restore_to_primary'} || 0;
     # whether this edit should only edit everything or just local bits
     my $do_external    = $args{'do_external'} || 0;
 
@@ -5666,7 +5666,7 @@ sub edit_circuit {
 	return {'success' => 1, 'circuit_id' => $circuit_id};
     }
 
-    my $result = $self->_execute_query("update circuit set description = ? where circuit_id = ?", [$description, $circuit_id]);
+    my $result = $self->_execute_query("update circuit set description = ?, restore_to_primary = ? where circuit_id = ?", [$description,$restore_to_primary, $circuit_id]);
 
     if (! defined $result){
 	$self->_set_error("Unable to update circuit description.");
