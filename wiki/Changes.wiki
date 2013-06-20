@@ -7,6 +7,7 @@
  *  trunk metrics defined in admin UI and used in path calculations
  *  support Discovery when using hybrid mode on switches that do not support untagged frames.
  *  modest performance improvements in the restoration code path
+ * Added the ability to detect link port moves and adjust flow rules accordingly
 
 *Bugs*:
  * several fixes related to total flow_mods per switch tracking
