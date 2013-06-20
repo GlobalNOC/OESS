@@ -1,5 +1,19 @@
 = Changes for OESS over time =
 
+== 1.0.9 ==
+
+*Features*:
+ *  graceful trunk interface swaps
+ *  trunk metrics defined in admin UI and used in path calculations
+ *  support Discovery when using hybrid mode on switches that do not support untagged frames.
+ *  modest performance improvements in the restoration code path
+
+*Bugs*:
+ * several fixes related to total flow_mods per switch tracking
+ * several fixes related to email notification based on network event
+ * fixed issue where we should have been interface diff but were doing a full node diff
+ * resolved internal event handling race condition discovered as a result of improvements in restoration code	path, would have impacted restoration triggered by port_down events.
+
 == 1.0.8 ==
 
  * added configurable restore to primary behavior after hold timer
