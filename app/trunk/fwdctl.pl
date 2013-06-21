@@ -493,7 +493,9 @@ sub datapath_join_handler{
     my %xid_hash;
 
     if(!defined($node_details) || $node_details->{'default_forward'} == 1){
-	my $xid     = $self->{'of_controller'}->install_default_forward($dpid,$self->{'db'}->{'discovery_vlan'});
+	my $status = $self->{'of_controller'}->install_default_forward($dpid,$self->{'db'}->{'discovery_vlan'});
+    my $xid = $self->{'of_controller'}->send_barrier($dpid); 
+    _log("datapath_join_handler: send_barrier: with dpid: $dpid");
 	if($xid == FWDCTL_FAILURE){
 	  #--- switch may not be connected yet or other error in controller
 	  _log("sw:$sw_name dpid:$dpid_str failed to install lldp forward to controller rule, discovery will fail");
@@ -504,7 +506,9 @@ sub datapath_join_handler{
     }
 
     if(!defined($node_details) || $node_details->{'default_drop'} == 1){
-	my $xid     = $self->{'of_controller'}->install_default_drop($dpid);
+	my $status = $self->{'of_controller'}->install_default_drop($dpid);
+    my $xid = $self->{'of_controller'}->send_barrier($dpid); 
+    _log("datapath_join_handler: send_barrier: with dpid: $dpid");
 	if($xid == FWDCTL_FAILURE){
         #--- switch may not be connected yet or other error in controller
           _log("sw:$sw_name dpid:$dpid_str failed to install default drop rule, traffic may flood controller");
@@ -537,7 +541,6 @@ sub _replace_flowmod{
     my $delete_command = shift;
     my $new_command = shift;
     my $delay_ms    = shift;  #--- this is a value that should be an attribute of the object 
-    my $xid;
 
     my $node = $self->{'db'}->get_node_by_dpid( dpid => $dpid);
     if(!defined($delete_command) && !defined($new_command)){
@@ -545,16 +548,21 @@ sub _replace_flowmod{
     }
 
     my %xid_hash; 
-
+    my %dpid_hash;
     #--- crude rate limiting
     if(defined $delay_ms){
     	usleep($delay_ms * 1000);
     }
     if(defined($delete_command)){
 	#delete this flowmod
-	$xid = $self->{'of_controller'}->delete_datapath_flow($dpid,$delete_command->{'attr'});
+	my $status = $self->{'of_controller'}->delete_datapath_flow($dpid,$delete_command->{'attr'});
+    my $xid = $self->{'of_controller'}->send_barrier($dpid);
+    if(!$node{'send_barrier_status'}){
+    _log("replace flowmod: send_barrier: with dpid: $dpid");
+    $xid_hash{$xid} = 1;
+    $dpid_hash{$dpid->value()} = 1;
+    }
 	$node{$dpid}--;
-	$xid_hash{$xid} = 1;
     }
     
     if(defined($new_command)){
@@ -563,14 +571,28 @@ sub _replace_flowmod{
             _log("sw: dpipd:$dpid_str exceeding max_flows:".$node->{'max_flows'}." replace flowmod failed");
             return FWDCTL_FAILURE;
         }
-	$xid = $self->{'of_controller'}->install_datapath_flow($dpid,$new_command->{'attr'},0,0,$new_command->{'action'},$new_command->{'attr'}->{'IN_PORT'});
-	$node{$dpid}++;
-    	$xid_hash{$xid} = 1;
-	#wait for the delete to take place
+	my $status = $self->{'of_controller'}->install_datapath_flow($dpid,$new_command->{'attr'},0,0,$new_command->{'action'},$new_command->{'attr'}->{'IN_PORT'});
+
+    # send the barrier if the bulk flag is not set
+    if(!$node{'send_barrier_bulk'}){
+    my $xid = $self->{'of_controller'}->send_barrier($dpid);
+    _log("replace flowmod: send_barrier: with dpid: $dpid");
+    $xid_hash{$xid} = 1;
+    $dpid_hash{$dpid} = 1;
     }
 
-    my $result = $self->_poll_xids(\%xid_hash);
-    return $result;
+	$node{$dpid}++;
+	#wait for the delete to take place
+    }
+  
+    my $result; 
+    if(%xid_hash){
+        $result = $self->_poll_xids(\%xid_hash);
+        if($result != FWDCTL_SUCCESS) {
+            _log("_replace_flowmod fwdctl fail");
+        }
+    } 
+    return ($result, %dpid_hash);
 }
 
 sub _process_flow_stats_to_command{
@@ -726,14 +748,38 @@ sub _actual_diff{
     _log("sw:$sw_name dpid:$dpid_str diff plan  $total changes.  mods:".$stats{'mods'}. " adds:".$stats{'adds'}. " removals:".$stats{'rems'}."\n");
     
     #--- process the rule_queue
-    my $success_count=0;
+    #my $success_count=0;
+    my %dpid_hash;
+    my %xid_hash;
+    my $new_result;
+    my $non_success_result;
+    my %new_dpids;
+    _log("before calling _replace_flowmod in loop with rule_queue:". @rule_queue);
     foreach my $args (@rule_queue){
-      my $result = $self->_replace_flowmod(@$args);   
-      if($result ==  FWDCTL_SUCCESS){
-	$success_count++;
-      }  	
+      ($new_result, %new_dpids) = $self->_replace_flowmod(@$args);   
+      if(defined($new_result) && ($new_result != FWDCTL_SUCCESS)){
+        $non_success_result = $new_result;
+      }
+      @dpid_hash{keys %new_dpids} = values %new_dpids; # merge the new dpids in with the total
+      _log("adding dpids: ".Dumper(\%dpid_hash));
+      #if($result ==  FWDCTL_SUCCESS){
+	  #$success_count++;
+      #}  	
     }
-    _log("sw:$sw_name dpid:$dpid_str diff completed $success_count of $total changes\n");
+    _log("In actual_diff with dpids: ". Dumper(\%dpid_hash)); 
+    foreach my $dpid (keys %dpid_hash){
+        my $xid = $self->{'of_controller'}->send_barrier($dpid);
+        $xid_hash{$xid} = 1;
+        _log("replace flowmod: send_barrier: with dpid: $dpid");
+    }
+    my $result = $self->_poll_xids(\%xid_hash);
+    if($result == FWDCTL_SUCCESS){
+        _log("sw:$sw_name dpid:$dpid_str diff completed $total changes\n");
+    } else {
+        _log("sw:$sw_name dpid:$dpid_str diff did not complete\n");
+    }
+
+    #_log("sw:$sw_name dpid:$dpid_str diff completed $success_count of $total changes\n");
 
 }
     
@@ -750,6 +796,11 @@ sub _restore_down_circuits{
     my $link_name = $params{'link_name'};
 
     #this loop is for automatic restoration when both paths are down
+    my %dpid_hash;
+    my %new_dpids;
+    my $new_result;
+    my $non_success_result;
+    _log("In _restore_down_circuits with circuits: ".@$circuits);
     foreach my $circuit (@$circuits){
 	my $paths = $self->{'db'}->get_circuit_paths( circuit_id => $circuit->{'circuit_id'} );
 	if($#{$paths} >= 1){
@@ -780,8 +831,16 @@ sub _restore_down_circuits{
 			    _log("vlan:" . $circuit->{'name'} . " id:" . $circuit->{'circuit_id'} . " affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $self->{'db'}->get_error());
 			    next;
 			}
-			
-			$self->changeVlanPath($circuit->{'circuit_id'});
+		
+            _log("before _changeVlanPath in _restore_down_circuits");	
+			($new_result, %new_dpids) = $self->_changeVlanPath($circuit->{'circuit_id'});
+            _log("after _changeVlanPath in _restore_down_circuits with new dpids".Dumper(\%new_dpids));	
+            # if send barriers happend and if they were not successful then set the error_result parameter
+            if(defined($new_result) && ($new_result != FWDCTL_SUCCESS)){
+                $non_success_result = $new_result;
+            }
+            @dpid_hash{keys %new_dpids} = values %new_dpids; # merge the new dpids in with the total
+
 			$circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
 			#send notification
 			$circuit->{'status'} = 'up';
@@ -844,7 +903,15 @@ sub _restore_down_circuits{
 				next;
 			    }
 
-			    $self->changeVlanPath($circuit->{'circuit_id'});
+                _log("before _changeVlanPath in _restore_down_circuits");	
+			    ($new_result, %new_dpids) = $self->_changeVlanPath($circuit->{'circuit_id'});
+                _log("after _changeVlanPath in _restore_down_circuits with new dpids". Dumper(\%new_dpids));	
+                # if send barriers happend and if they were not successful then set the error_result parameter
+                if(defined($new_result) && ($new_result != FWDCTL_SUCCESS)){
+                    $non_success_result = $new_result;
+                }
+                @dpid_hash{keys %new_dpids} = values %new_dpids; # merge the new dpids in with the total
+
 			    $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
 			    #send restore notification
 			    $circuit->{'status'} = 'up';
@@ -866,6 +933,20 @@ sub _restore_down_circuits{
 	}	
     }
 
+    # send the barrier for all the unique dpids
+    my %xid_hash;
+    _log("In _restore_down_circuits with dpids: ". Dumper(\%dpid_hash)); 
+    foreach my $dpid (keys %dpid_hash) {
+        my $xid = $self->{'of_controller'}->send_barrier($dpid);
+        _log("_restore_down_circuits: send_barrier: with dpid: $dpid");
+        $xid_hash{$xid} = 1;
+    }
+    my $result = $self->_poll_xids(\%xid_hash);
+    if ($result != FWDCTL_SUCCESS || defined($non_success_result)){
+	    _log("failed to restore downed circuits ");
+    }
+    
+
 }
 
 =head2 _fail_over_circuits
@@ -879,6 +960,11 @@ sub _fail_over_circuits{
     my $circuits = $params{'circuits'};
     my $link_name = $params{'link_name'};
 
+    my %new_dpids;
+    my %dpid_hash;
+    my $new_result;
+    my $non_success_result;
+    _log("in _fail_over_circuits with circuits: ".@$circuits);
     foreach my $circuit_info (@$circuits){
         my $circuit_id   = $circuit_info->{'id'};
         my $circuit_name = $circuit_info->{'name'};
@@ -901,8 +987,14 @@ sub _fail_over_circuits{
 		    next;
 		   
                 }
-                
-                $self->changeVlanPath($circuit_id);
+                _log("before _changeVlanPath in _fail_over_circuits"); 
+                ($new_result, %new_dpids) = $self->_changeVlanPath($circuit_id);
+                _log("before _changeVlanPath in _fail_over_circuits:".Dumper(\%new_dpids)); 
+                if(defined($new_result) && ($new_result != FWDCTL_SUCCESS)){
+                    $non_success_result = $new_result;
+                }
+                @dpid_hash{keys %new_dpids} = values %new_dpids; # merge the new dpids in with the total
+
                 #--- no way to now if this succeeds???
                 $circuit_info->{'status'} = "up";
 		$circuit_info->{'reason'} = "the current path went down.";
@@ -934,6 +1026,18 @@ sub _fail_over_circuits{
             $self->emit_signal("circuit_notification", $circuit_info);
 	    $circuit_status{$circuit_id} = OESS_CIRCUIT_DOWN;
         }
+    }
+    # send the barrier for all the unique dpids
+    my %xid_hash;
+    _log("In _fail_over_circuits with dpids: ". Dumper(\%dpid_hash)); 
+    foreach my $dpid (keys %dpid_hash) {
+        my $xid = $self->{'of_controller'}->send_barrier($dpid);
+        _log("_fail_over_circuits: send_barrier: with dpid: $dpid");
+        $xid_hash{$xid} = 1;
+    }
+    my $result = $self->_poll_xids(\%xid_hash);
+    if ($result != FWDCTL_SUCCESS || defined($non_success_result)){
+        _log("failed to fail over circuits ");
     }
 
     return;
@@ -1319,6 +1423,7 @@ sub addVlan {
     my $commands = $self->_generate_commands($circuit_id,FWDCTL_ADD_VLAN); 
 
     my %xid_hash;
+    my %dpid_hash;
 
     foreach my $command(@{$commands}){
 	#---!_!_! this needs to not make redudant queries
@@ -1338,15 +1443,34 @@ sub addVlan {
 	    return FWDCTL_FAILURE;
 	    
 	}
-	my $xid = $self->{'of_controller'}->install_datapath_flow($command->{'dpid'},$command->{'attr'},0,0,$command->{'action'},$command->{'attr'}->{'IN_PORT'});
+	my $status = $self->{'of_controller'}->install_datapath_flow($command->{'dpid'},$command->{'attr'},0,0,$command->{'action'},$command->{'attr'}->{'IN_PORT'});
+    # send the barrier now if need be
+    if(!$node{'send_barrier_bulk'}){
+        my $xid = $self->{'of_controller'}->send_barrier($dpid);
+        _log("addVlan: send_barrier: with dpid: $dpid");
+        $xid_hash{$xid} = 1; 
+    }
 	$node{$command->{'dpid'}->value()}++;
-	$xid_hash{$xid} = 1;
-    }	
+    $dpid_hash{$command->{'dpid'}->value()} = 1;
+    }
+    my $initial_result;
+    if(%xid_hash) {
+        $initial_result = $self->_poll_xids(\%xid_hash);
+    }
+    _log("In _addVlan with dpids: ". Dumper(\%dpid_hash)); 
+    foreach my $dpid(keys %dpid_hash) {
+        my $xid = $self->{'of_controller'}->send_barrier($dpid);
+        _log("addVlan: send_barrier: with dpid: $dpid");
+	    $xid_hash{$xid} = 1;
+    }
 
     #warn "XIDS:";
     #warn Data::Dumper::Dumper(\@xids);
-
     my $result = $self->_poll_xids(\%xid_hash);
+    # if the initial poll_xid method was called and it returned a failure treat the second one as a failure as well
+    if(defined($initial_result) && ($initial_result != FWDCTL_SUCCESS)){
+        $result = $initial_result;
+    }
 
     if ($result == FWDCTL_SUCCESS){
 
@@ -1370,6 +1494,10 @@ sub addVlan {
 
 	$circuit_status{$circuit_id} = OESS_CIRCUIT_UP;
     }
+    else {
+        _log("addVlan fwdctl fail");
+
+    }
     return $result;
 }
 
@@ -1384,22 +1512,113 @@ sub deleteVlan {
     my $commands = $self->_generate_commands($circuit_id,FWDCTL_REMOVE_VLAN);
 
     my %xid_hash;
+    my %dpid_hash;
     
     foreach my $command(@{$commands}){
         #--- issue each command to controller
 	#first delay by some configured value in case the device can't handle it
 	my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'}->value());
 	usleep($node->{'tx_delay_ms'} * 1000);
-        my $xid = $self->{'of_controller'}->delete_datapath_flow($command->{'dpid'},$command->{'attr'});	
-	$node{$command->{'dpid'}->value()}--;
-	$xid_hash{$xid} = 1;
+    my $status = $self->{'of_controller'}->delete_datapath_flow($command->{'dpid'},$command->{'attr'});	
+    # send a barrier now if need be
+    if($node{'send_barrier_bulk'}){
+        my $xid = $self->{'of_controller'}->send_barrier($command->{'dpid'});
+        _log("deleteVlan: send_barrier: with dpid: ".$command->{'dpid'}->value());
+	    $xid_hash{$xid} = 1;
     }
-
+	$node{$command->{'dpid'}->value()}--;
+    $dpid_hash{$command->{'dpid'}->value()} = 1;
+    }
+    # if any barrier were sent poll the xids first
+    my $initial_result;
+    if(%xid_hash) {
+        my $initial_result = $self->_poll_xids(\%xid_hash);
+        
+    }
+    %xid_hash = ();
+    _log("In deleteVlan with dpids: ". Dumper(\%dpid_hash)); 
+    foreach my $dpid (keys %dpid_hash){
+        my $xid = $self->{'of_controller'}->send_barrier($dpid);
+        _log("deleteVlan: send_barrier: with dpid: $dpid");
+	    $xid_hash{$xid} = 1;
+    }
     my $result = $self->_poll_xids(\%xid_hash);
+    # if the initial poll xids method was called and it failed return its result
+    if(defined($initial_result) && ($initial_result == FWDCTL_SUCCESS)){
+        $result = $initial_result;
+    }
+    if($result != FWDCTL_SUCCESS){
+        _log("deleteVlan fwdctl fail");
+
+    }   
         
     return $result;
 }
 
+# the internal method that does not send the barrier
+sub _changeVlanPath {
+
+    my $self = shift;
+    my $circuit_id = shift;
+    #--- get the set of commands needed to create this vlan per design
+    my $commands = $self->_generate_commands($circuit_id,FWDCTL_CHANGE_PATH);
+    my %dpid_hash;
+    my %xid_hash;
+    # we have to make sure to do the removes first
+    _log("In _changeVlanPath with commands: ".@$commands);
+    foreach my $command(@$commands){
+    my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'}->value());
+    if ($command->{'sw_act'} eq FWDCTL_REMOVE_RULE){
+        #first delay by some configured value in case the device can't handle it
+        usleep($node->{'tx_delay_ms'} * 1000);
+        my $status = $self->{'of_controller'}->delete_datapath_flow($command->{'dpid'},$command->{'attr'});
+        $node{$command->{'dpid'}->value()}--;
+
+        # send the barrier now if the bulk flag is not set 
+        if(!$node{'send_barrier_bulk'}){
+            my $xid = $self->{'of_controller'}->send_barrier($command->{'dpid'});
+            _log("_changeVlanPath: send_barrier: with dpid: ".$command->{'dpid'}->value());
+            $xid_hash{$xid} = 1;
+        }
+        $dpid_hash{$command->{'dpid'}->value()} = 1;
+    }
+
+    }
+
+    foreach my $command(@$commands){
+    if ($command->{'sw_act'} ne FWDCTL_REMOVE_RULE){
+        my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'}->value());
+        #first delay by some configured value in case the device can't handle it
+        usleep($node->{'tx_delay_ms'} * 1000);
+        if($node{$command->{'dpid'}->value()} >= $node->{'max_flows'}){
+         my $dpid_str  = sprintf("%x",$command->{'dpid'});
+        _log("sw: dpipd:$dpid_str exceeding max_flows:".$node->{'max_flows'}." changing path failed");
+        return FWDCTL_FAILURE;
+        }
+        my $status = $self->{'of_controller'}->install_datapath_flow($command->{'dpid'},$command->{'attr'},0,0,$command->{'action'},$command->{'attr'}->{'IN_PORT'});
+        $node{$command->{'dpid'}->value()}++;
+        
+        if(!$node{'send_barrier_bulk'}){
+            my $xid = $self->{'of_controller'}->send_barrier($command->{'dpid'});
+            _log("_changeVlanPath: send_barrier: with dpid: ".$command->{'dpid'}->value());
+            $xid_hash{$xid} = 1;
+        }
+        $dpid_hash{$command->{'dpid'}->value()} = 1;
+    }
+
+    }
+    # if we sent any barriers immediately, poll the xids
+    my $result;
+    if(%xid_hash){
+        $result = $self->_poll_xids(\%xid_hash);
+        if($result != FWDCTL_SUCCESS){
+            _log("failed to install flows in _changeVlanPath");
+        } 
+    }
+
+    _log("in _changeVlanPath dpid_hash: ".Dumper(\%dpid_hash));
+    return ($result, %dpid_hash);
+}
 
 #dbus_method("changeVlanPath", ["string"], ["string"]);
 
@@ -1410,8 +1629,10 @@ sub changeVlanPath {
     #--- get the set of commands needed to create this vlan per design
     my $commands = $self->_generate_commands($circuit_id,FWDCTL_CHANGE_PATH);
 
-    my @xids;
+    #my @xids;
+    my $xid;
     my %xid_hash;
+    my %dpid_hash;
 
     # we have to make sure to do the removes first
     foreach my $command(@$commands){
@@ -1419,9 +1640,17 @@ sub changeVlanPath {
 	if ($command->{'sw_act'} eq FWDCTL_REMOVE_RULE){
 	    #first delay by some configured value in case the device can't handle it                                                                                                                                        
 	    usleep($node->{'tx_delay_ms'} * 1000);
-	    my $xid = $self->{'of_controller'}->delete_datapath_flow($command->{'dpid'},$command->{'attr'});
+	    my $status = $self->{'of_controller'}->delete_datapath_flow($command->{'dpid'},$command->{'attr'});
 	    $node{$command->{'dpid'}->value()}--;
-	    $xid_hash{$xid} = 1;
+        
+        # send the barrier now if the bulk flag is not set 
+        if(!$node{'send_barrier_bulk'}){
+            my $xid = $self->{'of_controller'}->send_barrier($command->{'dpid'});
+            _log("changeVlanPath: send_barrier: with dpid: ".$command->{'dpid'}->value());
+            $xid_hash{$xid} = 1;
+        }
+
+        $dpid_hash{$command->{'dpid'}} = 1;
 	}
 
     }
@@ -1436,14 +1665,41 @@ sub changeVlanPath {
 		_log("sw: dpipd:$dpid_str exceeding max_flows:".$node->{'max_flows'}." changing path failed");
 		return FWDCTL_FAILURE;
 	    }
-	    my $xid = $self->{'of_controller'}->install_datapath_flow($command->{'dpid'},$command->{'attr'},0,0,$command->{'action'},$command->{'attr'}->{'IN_PORT'});
+	    my $status = $self->{'of_controller'}->install_datapath_flow($command->{'dpid'},$command->{'attr'},0,0,$command->{'action'},$command->{'attr'}->{'IN_PORT'});
 	    $node{$command->{'dpid'}->value()}++;
-	    $xid_hash{$xid} = 1;
+
+        # send the barrier now if the bulk flag is not set 
+        if(!$node{'send_barrier_bulk'}){
+            my $xid = $self->{'of_controller'}->send_barrier($command->{'dpid'});
+            _log("changeVlanPath: send_barrier: with dpid: ".$command->{'dpid'}->value());
+            $xid_hash{$xid} = 1;
+        }
+
+        $dpid_hash{$command->{'dpid'}->value()} = 1;
 	}
 
     }
+    # if there were any barriers sent immediately poll the returned xids
+    my $initial_result;
+    if(%xid_hash){
+        $initial_result = $self->_poll_xids(\%xid_hash);
+    }
+    %xid_hash = ();
 
+    _log("In changeVlanPath with dpids: ". Dumper(\%dpid_hash)); 
+    foreach my $dpid (keys %dpid_hash){
+        $xid = $self->{'of_controller'}->{'of_controller'}->send_barrier($dpid);
+        _log("changeVlanPath: send_barrier: with dpid: $dpid");
+        $xid_hash{$xid} = 1;
+    }
     my $result = $self->_poll_xids(\%xid_hash);
+    #if the initial poll xids method wqs called and it was not successful send its return
+    if(defined($initial_result) && ($initial_result != FWDCTL_SUCCESS)){
+        $result = $initial_result;    
+    } 
+    if($result != FWDCTL_SUCCESS) {
+        _log("changeVlanPath fwdctl fail");
+    }
 
     return $result;
 }
