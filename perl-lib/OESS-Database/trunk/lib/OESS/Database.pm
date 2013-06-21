@@ -3159,11 +3159,15 @@ sub confirm_node {
     my $default_forward = $args{'default_forward'};
     my $max_flows = $args{'max_flows'};
     my $tx_delay_ms = $args{'tx_delay_ms'};
+    my $bulk_barrier = $args{'bulk_barrier'};
     if(!defined($default_drop)){
 	$default_drop = 1;
     }
     if(!defined($default_forward)){
 	$default_forward = 1;
+    }
+    if(!defined($bulk_barrier)){
+	$bulk_barrier = 0;
     }
 
     $self->_start_transaction();
@@ -3176,8 +3180,8 @@ sub confirm_node {
     return;
     }
 
-    $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ?, vlan_tag_range = ?, default_drop = ?, default_forward = ?, max_flows = ?, tx_delay_ms = ? where node_id = ?",
-	                            [$name, $long, $lat, $vlan_range,$default_drop, $default_forward,$max_flows,$tx_delay_ms,$node_id]
+    $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ?, vlan_tag_range = ?, default_drop = ?, default_forward = ?, max_flows = ?, tx_delay_ms = ?, send_barrier_bulk = ?  where node_id = ?",
+	                            [$name, $long, $lat, $vlan_range,$default_drop, $default_forward,$max_flows,$tx_delay_ms,$bulk_barrier,$node_id]
 	                           );
 
     if ($result != 1){
@@ -3213,6 +3217,10 @@ sub update_node {
         $default_forward = 1;
     }
 
+    if(!defined($barrier_bulk)){
+	$barrier_bulk = 0;
+    }
+
 
     $self->_start_transaction();
 
@@ -3223,7 +3231,7 @@ sub update_node {
     if ($result != 1){
 	$self->_set_error("Error updating node.");
 	$self->_rollback();
-    return;
+	return;
     }
 
     $self->_commit();
