@@ -1489,7 +1489,7 @@ function setup_network_tab(){
 	    var default_forward = args[0].default_forward;
 	    var barrier_bulk = args[0].barrier_bulk;
 	    var feature = args[0].feature;
-
+	    var dpid = args[0].dpid;
        
         var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_node_interfaces&show_down=1&show_trunk=1&node="+encodeURIComponent(node) );
                 
@@ -1580,7 +1580,6 @@ function setup_network_tab(){
 	    panel = new YAHOO.widget.Panel("node_details",
 					   { 
 					       width: 700,
-					       height: 400,
 					       centered: true,
 					       draggable: true
 					   }
@@ -1593,6 +1592,10 @@ function setup_network_tab(){
 			  "<td colspan='4'>" + 
 			  "<input type='text' id='active_node_name' size='38'>" +
 			  "</td>" +
+			  "</tr>" +
+			  "<tr>" +
+			  "<td>DPID:</td>" +
+			  "<td colspan='4'><label id='dpid_str'></label></td>" + 
 			  "</tr>" +
 			  "<tr>" +
 			  "<td>Latitude:</td>" +
@@ -1661,7 +1664,7 @@ function setup_network_tab(){
 	    YAHOO.util.Dom.get('active_node_vlan_range').value  = vlan_range;
 	    YAHOO.util.Dom.get('active_tx_delay_ms').value             = tx_delay_ms;
 	    YAHOO.util.Dom.get('active_max_flows').value                        = max_flows;
-	    
+	    YAHOO.util.Dom.get('dpid_str').innerHTML = dpid;
 	    if(default_drop == 0){
 		YAHOO.util.Dom.get('active_node_default_drop').checked = false;
 	    }
