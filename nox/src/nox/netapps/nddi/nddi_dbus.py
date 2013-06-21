@@ -176,9 +176,9 @@ class dBusEventGen(dbus.service.Object):
         idle_timeout = 0
         hard_timeout = 0
         
-        xid = _do_install(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout, actions=actions,priority=0x0001, inport=None))
+        status = _do_install(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout, actions=actions,priority=0x0001, inport=None))
 
-        return xid
+        return status
     @dbus.service.method(dbus_interface=ifname,
                          in_signature='tq',
                          out_signature='t'
@@ -196,9 +196,9 @@ class dBusEventGen(dbus.service.Object):
         idle_timeout = 0
         hard_timeout = 0
 
-        xid = _do_install(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=None))
+        status = _do_install(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=None))
 
-        return xid
+        return status
 
     @dbus.service.method(dbus_interface=ifname,
                          in_signature='ta{sv}qqa(qv)q',
@@ -231,9 +231,9 @@ class dBusEventGen(dbus.service.Object):
                 actions.insert(i, new_action)
 
         #--- first we check to make sure the switch is in a ready state to accept more flow mods.
-        xid = _do_install(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,priority=priority,inport=inport)); 
+        status = _do_install(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,priority=priority,inport=inport)); 
 
-        return xid
+        return status
 
     @dbus.service.method(dbus_interface=ifname,
                          in_signature='ta{sv}',
@@ -249,10 +249,18 @@ class dBusEventGen(dbus.service.Object):
         my_attrs[IN_PORT] = int(attrs['IN_PORT'])
 
         #--- first we check to make sure the switch is in a ready state to accept more flow mods
-        xid = _do_install(dpid, lambda: inst.delete_datapath_flow(dpid, my_attrs))
+        status = _do_install(dpid, lambda: inst.delete_datapath_flow(dpid, my_attrs))
 
+        return status
+
+    @dbus.service.method(dbus_interface=ifname,
+                         in_signature='t',
+                         out_signature='t'
+                         )
+    def send_barrier(self, dpid):
+
+        xid = inst.send_barrier(dpid)
         return xid
-
 
 #--- series of callbacks to glue the reception of NoX events to the generation of D-Bus events
 def port_status_callback(sg,dp_id, ofp_port_reason, attrs):
@@ -364,7 +372,8 @@ def _do_install(dpid, callback):
     flowmod_callbacks[dpid].append({"status": PENDING, "result": FWDCTL_WAITING, "start_time": time()})
 
     callback();
-    return inst.send_barrier(dpid)
+    #return inst.send_barrier(dpid)
+    return 1
 
 global high_water
 highwater = 0
