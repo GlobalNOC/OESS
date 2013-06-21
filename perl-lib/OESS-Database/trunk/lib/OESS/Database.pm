@@ -152,7 +152,7 @@ sub new{
     $self->{'snapp_config_location'} = $snapp_config_location;
     $self->{'dbh'}                   = $dbh;
     $self->{'oscars'}                = $oscars_info;
-    print STDERR Dumper($config);
+
     $self->{'discovery_vlan'}        = $config->{'discovery_vlan'} || -1;
 
     if (! defined $self->{'topo'}){
@@ -1140,20 +1140,21 @@ sub get_map_layers {
 
     # grab only the local network
     my $query = <<HERE;
-	 select network.longitude as network_long, 
-     network.latitude as network_lat, 
-     network.name as network_name, 
-	 node.longitude as node_long,
-     node.max_flows, 
-     node.tx_delay_ms, 
-     node.latitude as node_lat, 
-     node.name as node_name, 
-     node.node_id,
-     node.vlan_tag_range, 
-     node.node_id as node_id, 
-     node.default_drop as default_drop, 
-     node.default_forward as default_forward,  
-	 to_node.name as to_node,  
+    select network.longitude as network_long, 
+    network.latitude as network_lat, 
+    network.name as network_name, 
+    node.longitude as node_long,
+    node.max_flows, 
+    node.tx_delay_ms, 
+    node.latitude as node_lat, 
+    node.name as node_name, 
+    node.node_id,
+    node.vlan_tag_range, 
+    node.node_id as node_id, 
+    node.default_drop as default_drop, 
+    node.default_forward as default_forward,
+    node.send_barrier_bulk as barrier_bulk,
+    to_node.name as to_node,  
 	 link.name as link_name, if(intA.operational_state = 'up' && intB.operational_state = 'up', 'up', 'down') as link_state, 
      if(int_instA.capacity_mbps > int_instB.capacity_mbps, int_instB.capacity_mbps, int_instA.capacity_mbps) as capacity, link.link_id as link_id  
 	from node  
@@ -1242,6 +1243,7 @@ HERE
 							       "default_forward" => $row->{'default_forward'},
 							       "max_flows"    => $row->{'max_flows'},
 							       "tx_delay_ms" => $row->{'tx_delay_ms'},
+							       "barrier_bulk" => $row->{'barrier_bulk'},
 							       "number_available_endpoints" => $avail_endpoints
 														  };
 
@@ -3208,7 +3210,7 @@ sub update_node {
     my $default_forward= $args{'default_forward'};
     my $max_flows = $args{'max_flows'} || 0;
     my $tx_delay_ms = $args{'tx_delay_ms'} || 0;
-    my $barrier_bulk = $args{'barrier_bulk'} || 1;
+    my $barrier_bulk = $args{'bulk_barrier'} || 1;
 
     if(!defined($default_drop)){
 	$default_drop =1;
