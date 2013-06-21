@@ -556,11 +556,11 @@ sub _replace_flowmod{
     if(defined($delete_command)){
 	#delete this flowmod
 	my $status = $self->{'of_controller'}->delete_datapath_flow($dpid,$delete_command->{'attr'});
-    my $xid = $self->{'of_controller'}->send_barrier($dpid);
     if(!$node{'send_barrier_status'}){
-    _log("replace flowmod: send_barrier: with dpid: $dpid");
-    $xid_hash{$xid} = 1;
-    $dpid_hash{$dpid->value()} = 1;
+        my $xid = $self->{'of_controller'}->send_barrier($dpid);
+        _log("replace flowmod: send_barrier: with dpid: $dpid");
+        $xid_hash{$xid} = 1;
+        $dpid_hash{$dpid->value()} = 1;
     }
 	$node{$dpid}--;
     }
