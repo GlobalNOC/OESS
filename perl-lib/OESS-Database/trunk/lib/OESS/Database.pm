@@ -3210,7 +3210,7 @@ sub update_node {
     my $default_forward= $args{'default_forward'};
     my $max_flows = $args{'max_flows'} || 0;
     my $tx_delay_ms = $args{'tx_delay_ms'} || 0;
-    my $barrier_bulk = $args{'bulk_barrier'} || 1;
+    my $barrier_bulk = $args{'bulk_barrier'} || 0;
 
     if(!defined($default_drop)){
 	$default_drop =1;
