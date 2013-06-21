@@ -3208,7 +3208,7 @@ sub update_node {
     my $default_forward= $args{'default_forward'};
     my $max_flows = $args{'max_flows'} || 0;
     my $tx_delay_ms = $args{'tx_delay_ms'} || 0;
-    my $send_barrier_bulk = $args{'send_barrier_bulk'} || 1;
+    my $barrier_bulk = $args{'barrier_bulk'} || 1;
 
     if(!defined($default_drop)){
 	$default_drop =1;
@@ -3224,8 +3224,8 @@ sub update_node {
 
     $self->_start_transaction();
 
-    my $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ?, vlan_tag_range = ?,default_drop = ?, default_forward = ?, tx_delay_ms = ?, max_flows = ?, send_barrier_bulk = $send_barrier_bulk where node_id = ?",
-				       [$name, $long, $lat, $vlan_range,$default_drop,$default_forward,$tx_delay_ms, $max_flows, $node_id]
+    my $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ?, vlan_tag_range = ?,default_drop = ?, default_forward = ?, tx_delay_ms = ?, max_flows = ?, send_barrier_bulk = ? where node_id = ?",
+				       [$name, $long, $lat, $vlan_range,$default_drop,$default_forward,$tx_delay_ms, $max_flows, $barrier_bulk, $node_id]
 	                              );
 
     if ($result != 1){
@@ -5402,7 +5402,7 @@ sub add_node{
 	$self->_set_error("Node Name was not specified");
 	return;
     }
-    my $send_barrier_bulk = 1;
+    my $send_barrier_bulk = 0;
     if($args{'send_barrier_bulk'}){
         $send_barrier_bulk = $args{'send_barrier_bulk'}; 
     }
