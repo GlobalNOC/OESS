@@ -3204,6 +3204,7 @@ sub update_node {
     my $default_forward= $args{'default_forward'};
     my $max_flows = $args{'max_flows'} || 0;
     my $tx_delay_ms = $args{'tx_delay_ms'} || 0;
+    my $send_barrier_bulk = $args{'send_barrier_bulk'} || 1;
 
     if(!defined($default_drop)){
 	$default_drop =1;
@@ -3215,7 +3216,7 @@ sub update_node {
 
     $self->_start_transaction();
 
-    my $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ?, vlan_tag_range = ?,default_drop = ?, default_forward = ?, tx_delay_ms = ?, max_flows = ? where node_id = ?",
+    my $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ?, vlan_tag_range = ?,default_drop = ?, default_forward = ?, tx_delay_ms = ?, max_flows = ?, send_barrier_bulk = $send_barrier_bulk where node_id = ?",
 				       [$name, $long, $lat, $vlan_range,$default_drop,$default_forward,$tx_delay_ms, $max_flows, $node_id]
 	                              );
 
@@ -3670,7 +3671,7 @@ sub get_pending_nodes {
     my %args = @_;
 
     my $sth = $self->_prepare_query("select node.node_id, node_instantiation.dpid, inet_ntoa(node_instantiation.management_addr_ipv4) as address, " .
-				    " node.name, node.longitude, node.latitude, node.vlan_tag_range " .
+				    " node.name, node.longitude, node.latitude, node.vlan_tag_range, node.send_barrier_bulk " .
 				    " from node join node_instantiation on node.node_id = node_instantiation.node_id " .
 				    " where node_instantiation.admin_state = 'available'"
 	                           ) or return;
@@ -5393,10 +5394,14 @@ sub add_node{
 	$self->_set_error("Node Name was not specified");
 	return;
     }
+    my $send_barrier_bulk = 1;
+    if($args{'send_barrier_bulk'}){
+        $send_barrier_bulk = $args{'send_barrier_bulk'}; 
+    }
 
     my $default_lat ="0.0";
     my $default_long="0.0";
-    my $res = $self->_execute_query("insert into node (name,latitude, longitude, operational_state,network_id) VALUES (?,?,?,?,?)",[$args{'name'},$default_lat,$default_long,$args{'operational_state'},$args{'network_id'}]);
+    my $res = $self->_execute_query("insert into node (name,latitude, longitude, operational_state,network_id,send_barrier_bulk) VALUES (?,?,?,?,?,?)",[$args{'name'},$default_lat,$default_long,$args{'operational_state'},$args{'network_id'},$send_barrier_bulk]);
 
     if(!defined($res)){
 	$self->_set_error("Unable to create new node record");

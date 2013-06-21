@@ -218,6 +218,7 @@ CREATE TABLE `node` (
   `default_drop` varchar(255) DEFAULT '1',
   `max_flows` int(11) DEFAULT '4000',
   `tx_delay_ms` int(11) DEFAULT '0',
+  `send_barrier_bulk` tinyint(1) DEFAULT '1',
   PRIMARY KEY (`node_id`),
   UNIQUE KEY `node_idx` (`name`),
   KEY `network_node_fk` (`network_id`),
