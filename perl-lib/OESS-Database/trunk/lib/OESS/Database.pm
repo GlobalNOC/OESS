@@ -1154,6 +1154,7 @@ sub get_map_layers {
     node.default_drop as default_drop, 
     node.default_forward as default_forward,
     node.send_barrier_bulk as barrier_bulk,
+    node_instantiation.dpid as dpid,
     to_node.name as to_node,  
 	 link.name as link_name, if(intA.operational_state = 'up' && intB.operational_state = 'up', 'up', 'down') as link_state, 
      if(int_instA.capacity_mbps > int_instB.capacity_mbps, int_instB.capacity_mbps, int_instA.capacity_mbps) as capacity, link.link_id as link_id  
@@ -1243,6 +1244,7 @@ HERE
 							       "default_forward" => $row->{'default_forward'},
 							       "max_flows"    => $row->{'max_flows'},
 							       "tx_delay_ms" => $row->{'tx_delay_ms'},
+							       "dpid"         => sprintf("%x",$row->{'dpid'}),
 							       "barrier_bulk" => $row->{'barrier_bulk'},
 							       "number_available_endpoints" => $avail_endpoints
 														  };
