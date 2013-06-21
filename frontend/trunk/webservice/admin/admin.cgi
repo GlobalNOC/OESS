@@ -621,7 +621,7 @@ sub confirm_node {
     my $default_forward = $cgi->param('default_forward');
     my $tx_delay_ms     = $cgi->param('tx_delay_ms');
     my $max_flows       = $cgi->param('max_flows');
-
+    my $bulk_barrier    = $cgi->param('bulk_barrier');
 
     if ( $default_drop eq 'true' ) {
         $default_drop = 1;
@@ -637,6 +637,12 @@ sub confirm_node {
         $default_forward = 0;
     }
 
+    if($bulk_barrier eq 'true'){
+	$bulk_barrier = 1;
+    }else{
+	$bulk_barrier = 0;
+    }
+
     my $result = $db->confirm_node(
         node_id         => $node_id,
         name            => $name,
@@ -646,7 +652,8 @@ sub confirm_node {
         default_forward => $default_forward,
         default_drop    => $default_drop,
 	tx_delay_ms     => $tx_delay_ms,
-	max_flows       => $max_flows
+	max_flows       => $max_flows,
+	bulk_barrier    => $bulk_barrier
     );
 
     if ( !defined $result ) {
@@ -676,6 +683,7 @@ sub update_node {
     my $default_forward = $cgi->param('default_forward');
     my $max_flows       = $cgi->param('max_flows') || 0;
     my $tx_delay_ms     = $cgi->param('tx_delay_ms') || 0;
+    my $bulk_barrier    = $cgi->param('bulk_barrier') || 0;
 
     if ( $default_drop eq 'true' ) {
         $default_drop = 1;
@@ -691,6 +699,12 @@ sub update_node {
         $default_forward = 0;
     }
 
+    if($bulk_barrier eq 'true'){
+	$bulk_barrier = 1;
+    }else{
+	$bulk_barrier = 0;
+    }
+
     my $result = $db->update_node(
         node_id         => $node_id,
         name            => $name,
@@ -700,7 +714,8 @@ sub update_node {
         default_forward => $default_forward,
         default_drop    => $default_drop,
 	tx_delay_ms     => $tx_delay_ms,
-	max_flows       => $max_flows
+	max_flows       => $max_flows,
+	bulk_barrier    => $bulk_barrier
     );
 
     if ( !defined $result ) {

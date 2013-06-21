@@ -304,7 +304,7 @@ function setup_remote_tab(){
 		    var cols = [{key: "name", label: "Local Interface", width: 220}];
 		    
 		    var configs = {
-			height: "277px"
+			height: "400px"
 		    };
 		    
 		    var table = new YAHOO.widget.ScrollingDataTable("remote_interface_table", cols, ds, configs);
@@ -1487,6 +1487,7 @@ function setup_network_tab(){
 	    var tx_delay_ms = args[0].tx_delay_ms;
 	    var default_drop = args[0].default_drop;
 	    var default_forward = args[0].default_forward;
+	    var barrier_bulk = args[0].barrier_bulk;
 	    var feature = args[0].feature;
 
        
@@ -1579,6 +1580,7 @@ function setup_network_tab(){
 	    panel = new YAHOO.widget.Panel("node_details",
 					   { 
 					       width: 700,
+					       height: 400,
 					       centered: true,
 					       draggable: true
 					   }
@@ -1618,6 +1620,10 @@ function setup_network_tab(){
 			  "<tr>" +
 			  "<td colspan='2'>FlowMod Processing Delay (ms)</td>" +
                           "<td><input type='text' id='active_tx_delay_ms' size='10'></td>" +
+                          "</tr>" +
+			  "<tr>" +
+                          "<td colspan='2'>Send Bulk Flow Rules</td>" +
+                          "<td><input type='checkbox' id='active_barrier_bulk' checked></td>" +
                           "</tr>" +
 			  "</table>" +
 			  "<div id='node_interface_table' style='margin-top:8px;'> </div>"
@@ -1664,6 +1670,10 @@ function setup_network_tab(){
 		YAHOO.util.Dom.get('active_node_default_forward').checked = false;
 	    }
 
+	    if(barrier_bulk == 0){
+		YAHOO.util.Dom.get('active_barrier_bulk').checked = false;
+	    }
+
 	    var save_button   = new YAHOO.widget.Button("save_active_node", {label: "Update Device"});
 	    var delete_button = new YAHOO.widget.Button("delete_active_node", {label: "Decomission Device"});
 
@@ -1676,7 +1686,7 @@ function setup_network_tab(){
 		    var new_tx_delay_ms = YAHOO.util.Dom.get('active_tx_delay_ms').value;
 		    var new_default_drop = YAHOO.util.Dom.get('active_node_default_drop').checked;
 		    var new_default_forward = YAHOO.util.Dom.get('active_node_default_forward').checked;
-
+		    var new_barrier_bulk = YAHOO.util.Dom.get('active_barrier_bulk').checked;
 		    if (! new_name){
 			alert("You must specify a name for this device.");
 			return;
@@ -1702,7 +1712,7 @@ function setup_network_tab(){
 			}				
 		    }
 
-		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_node&node_id="+node_id+"&name="+encodeURIComponent(new_name)+"&latitude="+new_lat+"&longitude="+new_lon+"&vlan_range="+encodeURIComponent(new_range) + "&default_drop=" + encodeURIComponent(new_default_drop) + "&default_forward=" + encodeURIComponent(new_default_forward) + "&max_flows=" + encodeURIComponent(new_max_flows) + "&tx_delay_ms=" + encodeURIComponent(new_tx_delay_ms));
+		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_node&node_id="+node_id+"&name="+encodeURIComponent(new_name)+"&latitude="+new_lat+"&longitude="+new_lon+"&vlan_range="+encodeURIComponent(new_range) + "&default_drop=" + encodeURIComponent(new_default_drop) + "&default_forward=" + encodeURIComponent(new_default_forward) + "&max_flows=" + encodeURIComponent(new_max_flows) + "&tx_delay_ms=" + encodeURIComponent(new_tx_delay_ms) + "&bulk_barrier=" + encodeURIComponent(new_barrier_bulk));
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
 		    ds.responseSchema = {
@@ -1860,6 +1870,9 @@ function setup_discovery_tab(){
 				       "<td colspan='2'>FlowMod Processing Delay (ms)</td>" +
 				       "<td><input type='text' id='tx_delay_ms' size='10'></td>" +
 				       "</tr>" +
+				       "<tr>" +
+				       "<td colspan='2'>Send Bulk Flow Rules</td>" +
+				       "<td><input type='checkbox' id='bulk_barrier' checked></td>" +
 				       "</table>"
 				       );
 
@@ -1899,6 +1912,10 @@ function setup_discovery_tab(){
 		YAHOO.util.Dom.get('tx_delay_ms').checked = record.getData('tx_delay_ms');
             }
 
+	    if(record.getData('bulk_barrier')){
+		YAHOO.util.Dom.get('bulk_barrier').checked = record.getData('bulk_barrier');
+	    }
+
 	    YAHOO.util.Dom.get("node_name").focus();
 
 	    var confirm_button = new YAHOO.widget.Button("confirm_node", {label: "Confirm Device"});
@@ -1913,6 +1930,7 @@ function setup_discovery_tab(){
 		    var default_forward = YAHOO.util.Dom.get('default_forward').checked;
 		    var max_flows = YAHOO.util.Dom.get('max_flows').value;
 		    var tx_delay_ms = YAHOO.util.Dom.get('tx_delay_ms').value;
+		    var bulk_barrier = YAHOO.util.Dom.get('bulk_barrier').value;
 
 		    if (! name){
 			alert("You must specify a name for this device.");
@@ -1944,7 +1962,7 @@ function setup_discovery_tab(){
 			}				
 		    }
 
-		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=confirm_node&node_id=" + record.getData('node_id') + "&name=" + encodeURIComponent(name) + "&latitude=" + encodeURIComponent(lat) + "&longitude=" + encodeURIComponent(lon) + "&vlan_range=" + encodeURIComponent(range) + "&default_drop=" + encodeURIComponent(default_drop) + "&default_forward=" + encodeURIComponent(default_forward) + "&max_flows=" + encodeURIComponent(max_flows) + "&tx_delay_ms=" + encodeURIComponent(tx_delay_ms));
+		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=confirm_node&node_id=" + record.getData('node_id') + "&name=" + encodeURIComponent(name) + "&latitude=" + encodeURIComponent(lat) + "&longitude=" + encodeURIComponent(lon) + "&vlan_range=" + encodeURIComponent(range) + "&default_drop=" + encodeURIComponent(default_drop) + "&default_forward=" + encodeURIComponent(default_forward) + "&max_flows=" + encodeURIComponent(max_flows) + "&tx_delay_ms=" + encodeURIComponent(tx_delay_ms) + "&bulk_barrier=" + encodeURIComponent(bulk_barrier));
 
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
