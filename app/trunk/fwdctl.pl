@@ -929,7 +929,7 @@ sub _restore_down_circuits{
     _log("In _restore_down_circuits with dpids: ". Dumper(\%dpid_hash)); 
     foreach my $dpid (keys %dpid_hash) {
         my $xid = $self->{'of_controller'}->send_barrier($dpid);
-        _log("_restore_down_circuits: send_barrier: with dpid: $dpid");
+        _log("_restore_down_circuits: send_bulk_barrier: with dpid: $dpid");
         $xid_hash{$xid} = 1;
     }
     my $result = $self->_poll_xids(\%xid_hash);
@@ -1023,7 +1023,7 @@ sub _fail_over_circuits{
     _log("In _fail_over_circuits with dpids: ". Dumper(\%dpid_hash)); 
     foreach my $dpid (keys %dpid_hash) {
         my $xid = $self->{'of_controller'}->send_barrier($dpid);
-        _log("_fail_over_circuits: send_barrier: with dpid: $dpid");
+        _log("_fail_over_circuits: send_bulk_barrier: with dpid: $dpid");
         $xid_hash{$xid} = 1;
     }
     my $result = $self->_poll_xids(\%xid_hash);
