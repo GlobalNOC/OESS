@@ -24,6 +24,7 @@ share/upgrade/oess-1.0.5-1.0.6
 share/upgrade/oess-1.0.6-1.0.7
 share/upgrade/oess-1.0.7-1.0.8
 share/upgrade/oess-1.0.8-1.0.9
+share/upgrade/oess-1.0.9-1.0.10
 share/xml/import.rnc
 t/00-load_base.t
 t/01-load_known_state.t
