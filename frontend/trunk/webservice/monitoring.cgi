@@ -144,7 +144,7 @@ sub get_rules_on_node{
     }
     my $result = $client->rules_per_switch($node->{'dpid'});
 
-    print STDERR Dumper($result);
+    #print STDERR Dumper($result);
 
     $result = int($result);
     my $tmp;
