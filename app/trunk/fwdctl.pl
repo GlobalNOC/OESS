@@ -324,10 +324,6 @@ sub _generate_commands{
     foreach my $link (@{$circuit_details->{'links'}}){
 	my $node_a = $link->{'node_a'};
 	my $node_z = $link->{'node_z'};
-	warn Dumper($node_a);
-	warn Dumper($node_z);
-	warn Dumper($link);
-	warn Dumper($internal_ids);
 	$primary_path{$node_a}{$link->{'port_no_a'}}{$internal_ids->{'primary'}{$node_a}} = $internal_ids->{'primary'}{$node_z};
 	$primary_path{$node_z}{$link->{'port_no_z'}}{$internal_ids->{'primary'}{$node_z}} = $internal_ids->{'primary'}{$node_a};
     }
@@ -546,8 +542,6 @@ sub _replace_flowmod{
     if(!defined($delete_command) && !defined($new_command)){
 	return undef;
     }
-
-    _log(Dumper($node));
 
     my %xid_hash; 
     #--- crude rate limiting
@@ -823,9 +817,7 @@ sub _restore_down_circuits{
 			    next;
 			}
 		
-            _log("before _changeVlanPath in _restore_down_circuits");	
 			($new_result, %new_dpids) = $self->_changeVlanPath($circuit->{'circuit_id'});
-            _log("after _changeVlanPath in _restore_down_circuits with new dpids".Dumper(\%new_dpids));	
             # if send barriers happend and if they were not successful then set the error_result parameter
             if(defined($new_result) && ($new_result != FWDCTL_SUCCESS)){
                 $non_success_result = $new_result;
@@ -894,9 +886,7 @@ sub _restore_down_circuits{
 				next;
 			    }
 
-                _log("before _changeVlanPath in _restore_down_circuits");	
 			    ($new_result, %new_dpids) = $self->_changeVlanPath($circuit->{'circuit_id'});
-                _log("after _changeVlanPath in _restore_down_circuits with new dpids". Dumper(\%new_dpids));	
                 # if send barriers happend and if they were not successful then set the error_result parameter
                 if(defined($new_result) && ($new_result != FWDCTL_SUCCESS)){
                     $non_success_result = $new_result;
@@ -926,7 +916,6 @@ sub _restore_down_circuits{
 
     # send the barrier for all the unique dpids
     my %xid_hash;
-    _log("In _restore_down_circuits with dpids: ". Dumper(\%dpid_hash)); 
     foreach my $dpid (keys %dpid_hash) {
         my $xid = $self->{'of_controller'}->send_barrier($dpid);
         _log("_restore_down_circuits: send_bulk_barrier: with dpid: $dpid");
@@ -978,9 +967,7 @@ sub _fail_over_circuits{
 		    next;
 		   
                 }
-                _log("before _changeVlanPath in _fail_over_circuits"); 
                 ($new_result, %new_dpids) = $self->_changeVlanPath($circuit_id);
-                _log("before _changeVlanPath in _fail_over_circuits:".Dumper(\%new_dpids)); 
                 if(defined($new_result) && ($new_result != FWDCTL_SUCCESS)){
                     $non_success_result = $new_result;
                 }
@@ -1020,7 +1007,6 @@ sub _fail_over_circuits{
     }
     # send the barrier for all the unique dpids
     my %xid_hash;
-    _log("In _fail_over_circuits with dpids: ". Dumper(\%dpid_hash)); 
     foreach my $dpid (keys %dpid_hash) {
         my $xid = $self->{'of_controller'}->send_barrier($dpid);
         _log("_fail_over_circuits: send_bulk_barrier: with dpid: $dpid");
@@ -1223,7 +1209,6 @@ sub _do_interface_diff{
 	
 	foreach my $vlan (keys (%{$current_rules->{$port}})){
 	    my $actions = $current_rules->{$port}->{$vlan}->{'actions'};
-	    print STDERR Dumper($actions);
 	    foreach my $action (@$actions){
 		if($action->{'type'} == OFPAT_OUTPUT && $action->{'port'} == $node->{'port_number'}){
 		    $current_flows{$port}{$vlan} = $current_rules->{$port}->{$vlan};
@@ -1436,7 +1421,6 @@ sub addVlan {
 	}
 	my $status = $self->{'of_controller'}->install_datapath_flow($command->{'dpid'},$command->{'attr'},0,0,$command->{'action'},$command->{'attr'}->{'IN_PORT'});
 	# send the barrier now if need be
-	_log(Dumper($node));
 	if(!$node->{'send_barrier_bulk'}){
 	    my $xid = $self->{'of_controller'}->send_barrier($command->{'dpid'});
 	    my $dpid_str  = sprintf("%x",$command->{'dpid'}->value());
@@ -1451,7 +1435,6 @@ sub addVlan {
     if(%xid_hash) {
         $initial_result = $self->_poll_xids(\%xid_hash);
     }
-    _log("In _addVlan with dpids: ". Dumper(\%dpid_hash)); 
     foreach my $dpid(keys %dpid_hash) {
         my $xid = $self->{'of_controller'}->send_barrier($dpid);
         _log("addVlan: send_bulk_barrier: with dpid: $dpid");
@@ -1528,7 +1511,6 @@ sub deleteVlan {
         $initial_result = $self->_poll_xids(\%xid_hash);   
     }
 
-    _log("In deleteVlan with dpids: ". Dumper(\%dpid_hash)); 
     foreach my $dpid (keys %dpid_hash){
         my $xid = $self->{'of_controller'}->send_barrier($dpid);
         _log("deleteVlan: send_bulk_barrier: with dpid: $dpid");
@@ -1610,7 +1592,6 @@ sub _changeVlanPath {
         } 
     }
 
-    _log("in _changeVlanPath dpid_hash: ".Dumper(\%dpid_hash));
     return ($result, %dpid_hash);
 }
 
@@ -1622,7 +1603,6 @@ sub changeVlanPath {
     my %xid_hash;
     my ($initial_result, %dpid_hash) = $self->_changeVlanPath($circuit_id);
     
-    _log("In changeVlanPath with dpids: ". Dumper(\%dpid_hash)); 
 
     foreach my $dpid (keys %dpid_hash){
         my $xid = $self->{'of_controller'}->{'of_controller'}->send_barrier($dpid);
