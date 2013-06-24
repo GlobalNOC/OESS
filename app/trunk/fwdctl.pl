@@ -494,30 +494,30 @@ sub datapath_join_handler{
 
     if(!defined($node_details) || $node_details->{'default_forward'} == 1){
 	my $status = $self->{'of_controller'}->install_default_forward($dpid,$self->{'db'}->{'discovery_vlan'});
-    my $xid = $self->{'of_controller'}->send_barrier($dpid); 
-    _log("datapath_join_handler: send_barrier: with dpid: $dpid");
+	my $xid = $self->{'of_controller'}->send_barrier($dpid); 
+	_log("datapath_join_handler: send_barrier: with dpid: $dpid");
 	if($xid == FWDCTL_FAILURE){
-	  #--- switch may not be connected yet or other error in controller
-	  _log("sw:$sw_name dpid:$dpid_str failed to install lldp forward to controller rule, discovery will fail");
-	  return;
+	    #--- switch may not be connected yet or other error in controller
+	    _log("sw:$sw_name dpid:$dpid_str failed to install lldp forward to controller rule, discovery will fail");
+	    return;
         }
 	$xid_hash{$xid} = 1;
 	$node{$dpid}++;
     }
-
+    
     if(!defined($node_details) || $node_details->{'default_drop'} == 1){
 	my $status = $self->{'of_controller'}->install_default_drop($dpid);
-    my $xid = $self->{'of_controller'}->send_barrier($dpid); 
-    _log("datapath_join_handler: send_barrier: with dpid: $dpid");
+	my $xid = $self->{'of_controller'}->send_barrier($dpid); 
+	_log("datapath_join_handler: send_barrier: with dpid: $dpid");
 	if($xid == FWDCTL_FAILURE){
-        #--- switch may not be connected yet or other error in controller
-          _log("sw:$sw_name dpid:$dpid_str failed to install default drop rule, traffic may flood controller");
-          return;
+	    #--- switch may not be connected yet or other error in controller
+	    _log("sw:$sw_name dpid:$dpid_str failed to install default drop rule, traffic may flood controller");
+	    return;
         }
         $xid_hash{$xid}  = 1;
 	$node{$dpid}++;
     }
-
+    
     
     my $result = $self->_poll_xids(\%xid_hash);
     
@@ -541,27 +541,28 @@ sub _replace_flowmod{
     my $delete_command = shift;
     my $new_command = shift;
     my $delay_ms    = shift;  #--- this is a value that should be an attribute of the object 
-
+    
     my $node = $self->{'db'}->get_node_by_dpid( dpid => $dpid);
     if(!defined($delete_command) && !defined($new_command)){
 	return undef;
     }
 
+    _log(Dumper($node));
+
     my %xid_hash; 
-    my %dpid_hash;
     #--- crude rate limiting
     if(defined $delay_ms){
     	usleep($delay_ms * 1000);
     }
+
     if(defined($delete_command)){
 	#delete this flowmod
-	my $status = $self->{'of_controller'}->delete_datapath_flow($dpid,$delete_command->{'attr'});
-    if(!$node{'send_barrier_status'}){
-        my $xid = $self->{'of_controller'}->send_barrier($dpid);
-        _log("replace flowmod: send_barrier: with dpid: $dpid");
-        $xid_hash{$xid} = 1;
-        $dpid_hash{$dpid->value()} = 1;
-    }
+	my $status = $self->{'of_controller'}->delete_datapath_flow(dbus_uint64($dpid),$delete_command->{'attr'});
+	if(!$node->{'send_barrier_bulk'}){
+	    my $xid = $self->{'of_controller'}->send_barrier(dbus_uint64($dpid));
+	    _log("replace flowmod: send_barrier: with dpid: $dpid");
+	    $xid_hash{$xid} = 1;
+	}
 	$node{$dpid}--;
     }
     
@@ -571,20 +572,19 @@ sub _replace_flowmod{
             _log("sw: dpipd:$dpid_str exceeding max_flows:".$node->{'max_flows'}." replace flowmod failed");
             return FWDCTL_FAILURE;
         }
-	my $status = $self->{'of_controller'}->install_datapath_flow($dpid,$new_command->{'attr'},0,0,$new_command->{'action'},$new_command->{'attr'}->{'IN_PORT'});
-
-    # send the barrier if the bulk flag is not set
-    if(!$node{'send_barrier_bulk'}){
-    my $xid = $self->{'of_controller'}->send_barrier($dpid);
-    _log("replace flowmod: send_barrier: with dpid: $dpid");
-    $xid_hash{$xid} = 1;
-    $dpid_hash{$dpid} = 1;
-    }
-
+	my $status = $self->{'of_controller'}->install_datapath_flow(dbus_uint64($dpid),$new_command->{'attr'},0,0,$new_command->{'action'},$new_command->{'attr'}->{'IN_PORT'});
+	
+	# send the barrier if the bulk flag is not set
+	if(!$node->{'send_barrier_bulk'}){
+	    my $xid = $self->{'of_controller'}->send_barrier(dbus_uint64($dpid));
+	    _log("replace flowmod: send_barrier: with dpid: $dpid");
+	    $xid_hash{$xid} = 1;
+	}
+	
 	$node{$dpid}++;
 	#wait for the delete to take place
     }
-  
+    
     my $result; 
     if(%xid_hash){
         $result = $self->_poll_xids(\%xid_hash);
@@ -592,7 +592,8 @@ sub _replace_flowmod{
             _log("_replace_flowmod fwdctl fail");
         }
     } 
-    return ($result, %dpid_hash);
+
+    return $result;
 }
 
 sub _process_flow_stats_to_command{
@@ -749,37 +750,27 @@ sub _actual_diff{
     
     #--- process the rule_queue
     #my $success_count=0;
-    my %dpid_hash;
     my %xid_hash;
-    my $new_result;
     my $non_success_result;
-    my %new_dpids;
     _log("before calling _replace_flowmod in loop with rule_queue:". @rule_queue);
     foreach my $args (@rule_queue){
-      ($new_result, %new_dpids) = $self->_replace_flowmod(@$args);   
-      if(defined($new_result) && ($new_result != FWDCTL_SUCCESS)){
-        $non_success_result = $new_result;
-      }
-      @dpid_hash{keys %new_dpids} = values %new_dpids; # merge the new dpids in with the total
-      _log("adding dpids: ".Dumper(\%dpid_hash));
-      #if($result ==  FWDCTL_SUCCESS){
-	  #$success_count++;
-      #}  	
+	my $new_result = $self->_replace_flowmod(@$args);   
+	if(defined($new_result) && ($new_result != FWDCTL_SUCCESS)){
+	    $non_success_result = $new_result;
+	}
     }
-    _log("In actual_diff with dpids: ". Dumper(\%dpid_hash)); 
-    foreach my $dpid (keys %dpid_hash){
-        my $xid = $self->{'of_controller'}->send_barrier($dpid);
-        $xid_hash{$xid} = 1;
-        _log("replace flowmod: send_barrier: with dpid: $dpid");
-    }
+    
+    my $xid = $self->{'of_controller'}->send_barrier(dbus_uint64($dpid));
+    $xid_hash{$xid} = 1;
+    _log("diff barrier with dpid: $dpid");
+    
     my $result = $self->_poll_xids(\%xid_hash);
+
     if($result == FWDCTL_SUCCESS){
         _log("sw:$sw_name dpid:$dpid_str diff completed $total changes\n");
     } else {
         _log("sw:$sw_name dpid:$dpid_str diff did not complete\n");
     }
-
-    #_log("sw:$sw_name dpid:$dpid_str diff completed $success_count of $total changes\n");
 
 }
     
@@ -1437,21 +1428,24 @@ sub addVlan {
         #first delay by some configured value in case the device can't handle it                                                                                                                                        
 	usleep($node->{'tx_delay_ms'} * 1000);
 	if($node{$command->{'dpid'}->value()} >= $node->{'max_flows'}){
-	    my $dpid_str  = sprintf("%x",$command->{'dpid'});
+	    my $dpid_str  = sprintf("%x",$command->{'dpid'}->value());
             _log("sw: dpipd:$dpid_str exceeding max_flows:".$node->{'max_flows'}." adding vlan failed");
 	    $circuit_status{$circuit_id} = OESS_CIRCUIT_UNKNOWN;
 	    return FWDCTL_FAILURE;
 	    
 	}
 	my $status = $self->{'of_controller'}->install_datapath_flow($command->{'dpid'},$command->{'attr'},0,0,$command->{'action'},$command->{'attr'}->{'IN_PORT'});
-    # send the barrier now if need be
-    if(!$node{'send_barrier_bulk'}){
-        my $xid = $self->{'of_controller'}->send_barrier($dpid);
-        _log("addVlan: send_barrier: with dpid: $dpid");
-        $xid_hash{$xid} = 1; 
-    }
+	# send the barrier now if need be
+	_log(Dumper($node));
+	if(!$node->{'send_barrier_bulk'}){
+	    my $xid = $self->{'of_controller'}->send_barrier($command->{'dpid'});
+	    my $dpid_str  = sprintf("%x",$command->{'dpid'}->value());
+	    _log("addVlan: send_barrier: with dpid: $dpid_str");
+	    $xid_hash{$xid} = 1; 
+	}else{
+	    $dpid_hash{$command->{'dpid'}->value()} = 1;
+	}
 	$node{$command->{'dpid'}->value()}++;
-    $dpid_hash{$command->{'dpid'}->value()} = 1;
     }
     my $initial_result;
     if(%xid_hash) {
@@ -1460,12 +1454,10 @@ sub addVlan {
     _log("In _addVlan with dpids: ". Dumper(\%dpid_hash)); 
     foreach my $dpid(keys %dpid_hash) {
         my $xid = $self->{'of_controller'}->send_barrier($dpid);
-        _log("addVlan: send_barrier: with dpid: $dpid");
-	    $xid_hash{$xid} = 1;
+        _log("addVlan: send_bulk_barrier: with dpid: $dpid");
+	$xid_hash{$xid} = 1;
     }
-
-    #warn "XIDS:";
-    #warn Data::Dumper::Dumper(\@xids);
+    
     my $result = $self->_poll_xids(\%xid_hash);
     # if the initial poll_xid method was called and it returned a failure treat the second one as a failure as well
     if(defined($initial_result) && ($initial_result != FWDCTL_SUCCESS)){
@@ -1519,37 +1511,37 @@ sub deleteVlan {
 	#first delay by some configured value in case the device can't handle it
 	my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'}->value());
 	usleep($node->{'tx_delay_ms'} * 1000);
-    my $status = $self->{'of_controller'}->delete_datapath_flow($command->{'dpid'},$command->{'attr'});	
-    # send a barrier now if need be
-    if($node{'send_barrier_bulk'}){
-        my $xid = $self->{'of_controller'}->send_barrier($command->{'dpid'});
-        _log("deleteVlan: send_barrier: with dpid: ".$command->{'dpid'}->value());
+	my $status = $self->{'of_controller'}->delete_datapath_flow($command->{'dpid'},$command->{'attr'});	
+	# send a barrier now if need be
+	if(!$node->{'send_barrier_bulk'}){
+	    my $xid = $self->{'of_controller'}->send_barrier($command->{'dpid'});
+	    _log("deleteVlan: send_barrier: with dpid: ".$command->{'dpid'}->value());
 	    $xid_hash{$xid} = 1;
-    }
+	}else{
+	    $dpid_hash{$command->{'dpid'}->value()} = 1;
+	}
 	$node{$command->{'dpid'}->value()}--;
-    $dpid_hash{$command->{'dpid'}->value()} = 1;
     }
     # if any barrier were sent poll the xids first
     my $initial_result;
     if(%xid_hash) {
-        my $initial_result = $self->_poll_xids(\%xid_hash);
-        
+        $initial_result = $self->_poll_xids(\%xid_hash);   
     }
-    %xid_hash = ();
+
     _log("In deleteVlan with dpids: ". Dumper(\%dpid_hash)); 
     foreach my $dpid (keys %dpid_hash){
         my $xid = $self->{'of_controller'}->send_barrier($dpid);
-        _log("deleteVlan: send_barrier: with dpid: $dpid");
-	    $xid_hash{$xid} = 1;
+        _log("deleteVlan: send_bulk_barrier: with dpid: $dpid");
+	$xid_hash{$xid} = 1;
     }
+
     my $result = $self->_poll_xids(\%xid_hash);
     # if the initial poll xids method was called and it failed return its result
-    if(defined($initial_result) && ($initial_result == FWDCTL_SUCCESS)){
+    if(defined($initial_result) && ($initial_result != FWDCTL_SUCCESS)){
         $result = $initial_result;
     }
     if($result != FWDCTL_SUCCESS){
         _log("deleteVlan fwdctl fail");
-
     }   
         
     return $result;
@@ -1567,45 +1559,47 @@ sub _changeVlanPath {
     # we have to make sure to do the removes first
     _log("In _changeVlanPath with commands: ".@$commands);
     foreach my $command(@$commands){
-    my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'}->value());
-    if ($command->{'sw_act'} eq FWDCTL_REMOVE_RULE){
-        #first delay by some configured value in case the device can't handle it
-        usleep($node->{'tx_delay_ms'} * 1000);
-        my $status = $self->{'of_controller'}->delete_datapath_flow($command->{'dpid'},$command->{'attr'});
-        $node{$command->{'dpid'}->value()}--;
-
-        # send the barrier now if the bulk flag is not set 
-        if(!$node{'send_barrier_bulk'}){
-            my $xid = $self->{'of_controller'}->send_barrier($command->{'dpid'});
-            _log("_changeVlanPath: send_barrier: with dpid: ".$command->{'dpid'}->value());
-            $xid_hash{$xid} = 1;
-        }
-        $dpid_hash{$command->{'dpid'}->value()} = 1;
-    }
+	my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'}->value());
+	if ($command->{'sw_act'} eq FWDCTL_REMOVE_RULE){
+	    #first delay by some configured value in case the device can't handle it
+	    usleep($node->{'tx_delay_ms'} * 1000);
+	    my $status = $self->{'of_controller'}->delete_datapath_flow($command->{'dpid'},$command->{'attr'});
+	    $node{$command->{'dpid'}->value()}--;
+	    
+	    # send the barrier now if the bulk flag is not set 
+	    if(!$node->{'send_barrier_bulk'}){
+		my $xid = $self->{'of_controller'}->send_barrier($command->{'dpid'});
+		_log("_changeVlanPath: send_barrier: with dpid: ".$command->{'dpid'}->value());
+		$xid_hash{$xid} = 1;
+	    }else{
+		$dpid_hash{$command->{'dpid'}->value()} = 1;
+	    }
+	}
 
     }
 
     foreach my $command(@$commands){
-    if ($command->{'sw_act'} ne FWDCTL_REMOVE_RULE){
-        my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'}->value());
-        #first delay by some configured value in case the device can't handle it
-        usleep($node->{'tx_delay_ms'} * 1000);
-        if($node{$command->{'dpid'}->value()} >= $node->{'max_flows'}){
-         my $dpid_str  = sprintf("%x",$command->{'dpid'});
-        _log("sw: dpipd:$dpid_str exceeding max_flows:".$node->{'max_flows'}." changing path failed");
-        return FWDCTL_FAILURE;
-        }
-        my $status = $self->{'of_controller'}->install_datapath_flow($command->{'dpid'},$command->{'attr'},0,0,$command->{'action'},$command->{'attr'}->{'IN_PORT'});
-        $node{$command->{'dpid'}->value()}++;
-        
-        if(!$node{'send_barrier_bulk'}){
-            my $xid = $self->{'of_controller'}->send_barrier($command->{'dpid'});
-            _log("_changeVlanPath: send_barrier: with dpid: ".$command->{'dpid'}->value());
-            $xid_hash{$xid} = 1;
-        }
-        $dpid_hash{$command->{'dpid'}->value()} = 1;
-    }
-
+	if ($command->{'sw_act'} ne FWDCTL_REMOVE_RULE){
+	    my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'}->value());
+	    #first delay by some configured value in case the device can't handle it
+	    usleep($node->{'tx_delay_ms'} * 1000);
+	    if($node{$command->{'dpid'}->value()} >= $node->{'max_flows'}){
+		my $dpid_str  = sprintf("%x",$command->{'dpid'});
+		_log("sw: dpipd:$dpid_str exceeding max_flows:".$node->{'max_flows'}." changing path failed");
+		return FWDCTL_FAILURE;
+	    }
+	    my $status = $self->{'of_controller'}->install_datapath_flow($command->{'dpid'},$command->{'attr'},0,0,$command->{'action'},$command->{'attr'}->{'IN_PORT'});
+	    $node{$command->{'dpid'}->value()}++;
+	    
+	    if(!$node->{'send_barrier_bulk'}){
+		my $xid = $self->{'of_controller'}->send_barrier($command->{'dpid'});
+		_log("_changeVlanPath: send_barrier: with dpid: ".$command->{'dpid'}->value());
+		$xid_hash{$xid} = 1;
+	    }else{
+		$dpid_hash{$command->{'dpid'}->value()} = 1;
+	    }
+	}
+	
     }
     # if we sent any barriers immediately, poll the xids
     my $result;
@@ -1625,71 +1619,14 @@ sub _changeVlanPath {
 sub changeVlanPath {
     my $self = shift;
     my $circuit_id = shift;
-
-    #--- get the set of commands needed to create this vlan per design
-    my $commands = $self->_generate_commands($circuit_id,FWDCTL_CHANGE_PATH);
-
-    #my @xids;
-    my $xid;
     my %xid_hash;
-    my %dpid_hash;
-
-    # we have to make sure to do the removes first
-    foreach my $command(@$commands){
-	my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'}->value());
-	if ($command->{'sw_act'} eq FWDCTL_REMOVE_RULE){
-	    #first delay by some configured value in case the device can't handle it                                                                                                                                        
-	    usleep($node->{'tx_delay_ms'} * 1000);
-	    my $status = $self->{'of_controller'}->delete_datapath_flow($command->{'dpid'},$command->{'attr'});
-	    $node{$command->{'dpid'}->value()}--;
-        
-        # send the barrier now if the bulk flag is not set 
-        if(!$node{'send_barrier_bulk'}){
-            my $xid = $self->{'of_controller'}->send_barrier($command->{'dpid'});
-            _log("changeVlanPath: send_barrier: with dpid: ".$command->{'dpid'}->value());
-            $xid_hash{$xid} = 1;
-        }
-
-        $dpid_hash{$command->{'dpid'}} = 1;
-	}
-
-    }
-
-    foreach my $command(@$commands){
-	if ($command->{'sw_act'} ne FWDCTL_REMOVE_RULE){
-	    my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->{'dpid'}->value());
-	    #first delay by some configured value in case the device can't handle it
-	    usleep($node->{'tx_delay_ms'} * 1000);
-	    if($node{$command->{'dpid'}->value()} >= $node->{'max_flows'}){
-		 my $dpid_str  = sprintf("%x",$command->{'dpid'});
-		_log("sw: dpipd:$dpid_str exceeding max_flows:".$node->{'max_flows'}." changing path failed");
-		return FWDCTL_FAILURE;
-	    }
-	    my $status = $self->{'of_controller'}->install_datapath_flow($command->{'dpid'},$command->{'attr'},0,0,$command->{'action'},$command->{'attr'}->{'IN_PORT'});
-	    $node{$command->{'dpid'}->value()}++;
-
-        # send the barrier now if the bulk flag is not set 
-        if(!$node{'send_barrier_bulk'}){
-            my $xid = $self->{'of_controller'}->send_barrier($command->{'dpid'});
-            _log("changeVlanPath: send_barrier: with dpid: ".$command->{'dpid'}->value());
-            $xid_hash{$xid} = 1;
-        }
-
-        $dpid_hash{$command->{'dpid'}->value()} = 1;
-	}
-
-    }
-    # if there were any barriers sent immediately poll the returned xids
-    my $initial_result;
-    if(%xid_hash){
-        $initial_result = $self->_poll_xids(\%xid_hash);
-    }
-    %xid_hash = ();
-
+    my ($initial_result, %dpid_hash) = $self->_changeVlanPath($circuit_id);
+    
     _log("In changeVlanPath with dpids: ". Dumper(\%dpid_hash)); 
+
     foreach my $dpid (keys %dpid_hash){
-        $xid = $self->{'of_controller'}->{'of_controller'}->send_barrier($dpid);
-        _log("changeVlanPath: send_barrier: with dpid: $dpid");
+        my $xid = $self->{'of_controller'}->{'of_controller'}->send_barrier($dpid);
+        _log("changeVlanPath: send_bulk_barrier: with dpid: $dpid");
         $xid_hash{$xid} = 1;
     }
     my $result = $self->_poll_xids(\%xid_hash);
@@ -1700,7 +1637,7 @@ sub changeVlanPath {
     if($result != FWDCTL_SUCCESS) {
         _log("changeVlanPath fwdctl fail");
     }
-
+    
     return $result;
 }
 
