@@ -1605,7 +1605,7 @@ sub changeVlanPath {
     
 
     foreach my $dpid (keys %dpid_hash){
-        my $xid = $self->{'of_controller'}->{'of_controller'}->send_barrier($dpid);
+        my $xid = $self->{'of_controller'}->send_barrier($dpid);
         _log("changeVlanPath: send_bulk_barrier: with dpid: $dpid");
         $xid_hash{$xid} = 1;
     }
