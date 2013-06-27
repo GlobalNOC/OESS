@@ -805,7 +805,7 @@ sub _restore_down_circuits{
 	    #if the restored path is the backup
 	    if($circuit->{'path_type'} eq 'backup'){
 
-		if($primary_path->{'status'} == OESS_LINK_DOWN){
+		if($self->{'topo'}->is_path_up(path_id => $primary_path->{'path_id'}, link_status => \%link_status ) == OESS_LINK_DOWN){
 		    #if the primary path is down and the backup path is up and is not active fail over
 		    if($self->{'topo'}->is_path_up( path_id => $backup_path->{'path_id'}, link_status => \%link_status ) && $backup_path->{'path_state'} ne 'active'){
 			#bring it back to this path
