@@ -942,7 +942,7 @@ sub get_node_dpid_hash {
 sub get_current_nodes{
     my $self = shift;
 
-    my $nodes = $self->_execute_query("select node.name, node_instantiation.dpid,node.operational_state,node.node_id from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active'",[]);
+    my $nodes = $self->_execute_query("select node.name, node_instantiation.dpid,node.operational_state,node.node_id, node.send_barrier_ from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active'",[]);
     
     return $nodes;   
 }
@@ -6453,6 +6453,7 @@ sub gen_topo{
 
         foreach my $int_name (keys (%interfaces)){
 	    my $int = $interfaces{$int_name};
+	    $int->{'name'} =~ s/ /+/g;
 	    if(!defined($int->{'capacity_mbps'})){
 		my $interface = $self->get_interface( interface_id => $int->{'interface_id'} );
 		my $speed = $self->get_interface_speed( interface_id => $int->{'interface_id'});

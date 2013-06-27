@@ -6453,6 +6453,7 @@ sub gen_topo{
 
         foreach my $int_name (keys (%interfaces)){
 	    my $int = $interfaces{$int_name};
+	    $int->{'name'} =~ s/ /+/g;
 	    if(!defined($int->{'capacity_mbps'})){
 		my $interface = $self->get_interface( interface_id => $int->{'interface_id'} );
 		my $speed = $self->get_interface_speed( interface_id => $int->{'interface_id'});
