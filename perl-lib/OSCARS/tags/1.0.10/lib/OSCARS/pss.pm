@@ -514,6 +514,9 @@ sub _parse_struct {
     my $intfZ = $endpoints[1]->{'port'};
     my $tagZ  = $endpoints[1]->{'tag'};
 
+    $intfA =~ s/+/ /g;
+    $intfZ =~ s/+/ /g;
+
     my @links = keys %links;
 
 
