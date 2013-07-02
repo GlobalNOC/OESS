@@ -471,9 +471,9 @@ CREATE TABLE `workgroup_node_membership` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
---  
+--
 -- Table structure for table `oess_version`
---  
+--
 
 DROP TABLE IF EXISTS `oess_version`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -489,7 +489,7 @@ CREATE TABLE `oess_version` (
 
 LOCK TABLES `oess_version` WRITE;
 /*!40000 ALTER TABLE `oess_version` DISABLE KEYS */;
-INSERT INTO `oess_version` VALUES ('1.0.6');
+INSERT INTO `oess_version` VALUES ('1.0.7');
 /*!40000 ALTER TABLE `oess_version` ENABLE KEYS */;
 UNLOCK TABLES;
 
