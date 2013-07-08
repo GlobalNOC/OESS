@@ -1377,7 +1377,7 @@ function setup_network_tab(){
 	    
 	    delete_button.on("click", function(){
 		    
-		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=is_ok_to_decom_link&link_id=" + link_id);
+		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=is_ok_to_decom_link&link_id=" + link.link_id);
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 		    ds.responseSchema = {
 			resultsList: "results",
@@ -1390,12 +1390,12 @@ function setup_network_tab(){
 			    success: function(req,resp){
 				var data = resp.results[0];
 				if(data.active_circuits.length <= 0){
-				    do_decom_link(link_id,map,delete_button,save_button,panel);
+				    do_decom_link(link.link_id,map,delete_button,save_button,panel);
 				}else{
 				    if(data.new_node_in_path == 0){
 					alert('You can not decomission this link, there are active paths riding on it!');
 				    }else{
-					do_node_insert(link_id,map,delete_button,save_button,panel);
+					do_node_insert(link.link_id,map,delete_button,save_button,panel);
 				    }
 				}
 			    }});
