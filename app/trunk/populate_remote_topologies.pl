@@ -258,12 +258,16 @@ sub add_link {
 
     if (@$results > 0){
 	$node_id = @$results[0]->{'node_id'};
+	#ignore nodes that are part of our local network
+	next if(@$results[0]->{'network_id'} == 1);
     }
     else {
 	$node_id = $db->_execute_query("insert into node (name, longitude, latitude, operational_state, network_id) values (?, ?, ?, ?, ?)",
 				       [$node, 0, 0, "unknown", $network_id]
 	    ) or die "Couldn't create node";
     }
+
+    
 
     # figure out the interface
 
