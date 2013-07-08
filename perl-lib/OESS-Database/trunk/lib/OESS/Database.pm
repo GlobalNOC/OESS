@@ -34,11 +34,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 1.0.10
+Version 1.0.10a
 
 =cut
 
-our $VERSION = '1.0.10';
+our $VERSION = '1.0.10a';
 
 =head1 SYNOPSIS
 
@@ -83,7 +83,7 @@ use Net::DBus;
 use OESS::Topology;
 use DateTime;
 
-use constant VERSION => '1.0.10';
+use constant VERSION => '1.0.10a';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant SHARE_DIR => "/usr/share/doc/perl-OESS-Database-" . VERSION . "/";
