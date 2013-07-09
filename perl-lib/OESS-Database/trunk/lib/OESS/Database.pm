@@ -3531,13 +3531,12 @@ sub insert_node_in_path{
     }
 
     #ok first decom the old
+    my $circuits = $self->get_circuits_on_link( link_id => $link_details->{'link_id'});
 
     $self->decom_link(link_id => $link_details->{'link_id'});
 
     $self->confirm_link(link_id => $new_path->[0], name => $link_details->{'name'} . "-1");
     $self->confirm_link(link_id => $new_path->[1], name => $link_details->{'name'} . "-2");
-
-    my $circuits = $self->get_circuits_on_link( link_id => $link_details->{'id'});
 
     my $service;
     my $client;
@@ -3563,7 +3562,6 @@ sub insert_node_in_path{
 	#first we need to connect to DBus and remove the circuit from the switch...
 	my $result = $client->deleteVlan($circuit->{'circuit_id'});
 
-	warn "RESULT Delete VLAN: " . Dumper($result);
 
 	#ok now update the links
 	my $links = $self->_execute_query("select * from link_path_membership, path, path_instantiation where path.path_id = path_instantiation.path_id and path_instantiation.end_epoch = -1 and link_path_membership.path_id = path.path_id and path.circuit_id = ? and link_path_membership.end_epoch = -1",[$circuit->{'circuit_id'}]);
@@ -3590,7 +3588,6 @@ sub insert_node_in_path{
 
 	#re-add circuit
 	$result = $client->addVlan($circuit->{'circuit_id'});
-	warn "RESULT ADD VLAN: " . Dumper($result);
     }
 
     return {success => 1};
