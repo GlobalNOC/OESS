@@ -38,7 +38,7 @@ use base qw(Net::DBus::Object);
 use Sys::Syslog qw(:macros :standard);
 
 
-our $VERSION = '1.0.10';
+our $VERSION = '1.0.11';
 
 sub new{
 
