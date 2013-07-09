@@ -2552,7 +2552,7 @@ sub get_circuit_details_by_name {
 	return $self->get_circuit_details(circuit_id => $circuit_id);
     }
 
-    return 0;
+    return ;
 }
 
 =head2 get_circuit_paths
