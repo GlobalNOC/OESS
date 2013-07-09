@@ -26,7 +26,6 @@ my $active_circuits = $db->get_circuits_by_state( state => 'active' );
 
 is(@$active_circuits, 99, "Total number of circuits match");
 
-
 cmp_deeply($active_circuits->[0],{
     'circuit_state' => 'active',
     'circuit_id' => '11',
@@ -37,7 +36,8 @@ cmp_deeply($active_circuits->[0],{
     'reserved_bandwidth_mbps' => '0',
     'description' => 'Circuit 11',
     'end_epoch' => '-1',
-    'modified_by_user_id' => '1'
+    'modified_by_user_id' => '1',
+    'restore_to_primary' => '0'
 }, "values for first circuit matches");
 
 
@@ -51,13 +51,11 @@ cmp_deeply($active_circuits->[1],{
           'reserved_bandwidth_mbps' => '0',
           'description' => 'Circuit 51',
           'end_epoch' => '-1',
-          'modified_by_user_id' => '1'
+          'modified_by_user_id' => '1',
+	  'restore_to_primary' => '0'
 }, "values for second circuit matches");
 
 my $scheduled_circuits = $db->get_circuits_by_state( state => 'scheduled' );
 my $ref = ref $scheduled_circuits;
 is($ref, 'ARRAY', "No results returns empty array ref");
 
-print STDERR Dumper($scheduled_circuits);
-print STDERR Dumper($active_circuits->[0]);
-print STDERR Dumper($active_circuits->[1]);

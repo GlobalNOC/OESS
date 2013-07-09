@@ -33,36 +33,44 @@ ok($#{$circuits} == 7, "Total number of results match");
 cmp_deeply($circuits,[
 	       {
             'name' => 'Circuit 61',
-            'id' => '61'
+            'id' => '61',
+            'state' => 'active'
 	       },
 	       {
             'name' => 'Circuit 3851',
-            'id' => '3851'
+            'id' => '3851',
+            'state' => 'active'
 	       },
 	       {
             'name' => 'Circuit 3911',
-            'id' => '3911'
+            'id' => '3911',
+            'state' => 'active'
 	       },
 	       {
             'name' => 'Circuit 3961',
-            'id' => '3961'
+            'id' => '3961',
+            'state' => 'active'
 	       },
 	       {
             'name' => 'Circuit 4041',
-            'id' => '4041'
+            'id' => '4041',
+            'state' => 'active'
 	       },
 	       {
             'name' => 'Circuit 4101',
-            'id' => '4101'
+            'id' => '4101',
+            'state' => 'active'
 	       },
 	       {
             'name' => 'Circuit 4111',
-            'id' => '4111'
+            'id' => '4111',
+            'state' => 'active'
 	       },
 	       {
             'name' => 'Circuit 4131',
-            'id' => '4131'
+            'id' => '4131',
+            'state' => 'active'
 	       }
-	   ], "Output matches what we expect");
+	   ]);
 
 
