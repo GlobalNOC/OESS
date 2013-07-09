@@ -3422,13 +3422,6 @@ sub is_new_node_in_path{
 	return {error => "No Link specified", results =>[]};
     }
     
-    if($link_details->{'status'} eq 'up'){
-	#short circuit here
-	#if the link is up then no way that there is a node in the path
-	return 0;
-    }
-
-
     #find the 2 links that now make up this path
     my ($new_path,$node_id) = $self->_find_new_path( link => $link_details);
 
