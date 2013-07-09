@@ -1,0 +1,3 @@
+<config>
+  <smtp from_address='oess_test@grnoc.iu.edu' from_name='OESS Notification Tester' />
+</config>
