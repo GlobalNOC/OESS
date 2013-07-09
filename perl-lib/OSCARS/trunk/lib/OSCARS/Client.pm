@@ -40,7 +40,7 @@ OSCARS-Client -Perl module for Talking to the OSCARS API (0.6)
 
 =cut
 
-our $VERSION = '1.0.10a';
+our $VERSION = '1.0.11';
 
 =head1 SYNOPSIS
 
