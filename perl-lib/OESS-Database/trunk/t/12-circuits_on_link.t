@@ -40,7 +40,8 @@ cmp_deeply($circuits->[0],{
           'path_type' => 'primary',
           'lpm_end' => '-1',
           'end_epoch' => '-1',
-          'modified_by_user_id' => '1'
+          'modified_by_user_id' => '1',
+	  'restore_to_primary' => '0'
 	   }, "values for first circuit match");
 
 my $is_ok=1;
