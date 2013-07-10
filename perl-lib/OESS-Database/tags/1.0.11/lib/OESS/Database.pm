@@ -942,7 +942,7 @@ sub get_node_dpid_hash {
 sub get_current_nodes{
     my $self = shift;
 
-    my $nodes = $self->_execute_query("select node.name, node_instantiation.dpid,node.operational_state,node.node_id, node.send_barrier_ from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active'",[]);
+    my $nodes = $self->_execute_query("select node.name, node_instantiation.dpid,node.operational_state,node.node_id, node.send_barrier_bulk from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active'",[]);
     
     return $nodes;   
 }
