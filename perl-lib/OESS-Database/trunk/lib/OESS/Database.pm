@@ -960,7 +960,7 @@ sub add_link{
 	return;
     }
 
-    my $res = $self->_execute_query("insert into link (name, remote_urn) VALUES (?, ?)",
+    my $res = $self->_execute_query("insert into link (name, remote_urn,status) VALUES (?, ?,'up')",
 				    [$args{'name'}, $args{'remote_urn'}]);
 
     if(defined($res)){
@@ -6631,5 +6631,16 @@ sub get_circuit_edge_on_interface{
     return $circuits;
 }
 
+sub update_circuit_owner{
+    my $self = shift;
+    my %args = @_;
+
+    return if(!defined($args{'circuit_id'}));
+    return if(!defined($args{'workgroup_id'}));
+
+    my $str = "update circuit set workgroup_id = ? where circuit_id = ?";
+    my $success = $self->_execute_query($str,[$args{'circuit_id'},$args{'workgroup_id'}]);
+    return 1;
+}
 
 return 1;
