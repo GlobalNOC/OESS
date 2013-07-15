@@ -2656,7 +2656,7 @@ sub get_circuit_details {
                     'state'                  => $row->{'circuit_state'},
                     'active_path'            => $row->{'active_path'},
                     'user_id'                => $row->{'modified_by_user_id'},
-                    'last_edited'            => $dt->month . "/" . $dt->day . "/" . $dt->year . " " . $dt->hour . ":" . $dt->minute . ":" . $dt->second,
+                    'last_edited'            => $dt->strftime('%m/%d/%Y %H:%M:%S'),
                     'workgroup_id'           => $row->{'workgroup_id'},
 		    'restore_to_primary'     => $row->{'restore_to_primary'}
                    };
@@ -2688,7 +2688,8 @@ sub get_circuit_details {
     if(defined($first_instantiation)){
 	$details->{'created_by'} = $self->get_user_by_id( user_id => $first_instantiation->{'modified_by_user_id'})->[0];
 	my $dt_create = DateTime->from_epoch( epoch => $first_instantiation->{'start_epoch'} );
-	$details->{'created_on'} = $dt_create->month . "/" . $dt_create->day . "/" . $dt_create->year . " " . $dt_create->hour . ":" . $dt_create->min . ":" . $dt_create->second;
+	$details->{'created_on'} = $dt_create->strftime('%m/%d/%Y %H:%M:%S');
+	#$details->{'created_on'} = $dt_create->month . "/" . $dt_create->day . "/" . $dt_create->year . " " . $dt_create->hour . ":" . $dt_create->min . ":" . $dt_create->second;
     }
 
 
