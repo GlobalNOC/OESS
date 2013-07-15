@@ -1933,7 +1933,7 @@ function setup_discovery_tab(){
 		    var default_forward = YAHOO.util.Dom.get('default_forward').checked;
 		    var max_flows = YAHOO.util.Dom.get('max_flows').value;
 		    var tx_delay_ms = YAHOO.util.Dom.get('tx_delay_ms').value;
-		    var bulk_barrier = YAHOO.util.Dom.get('bulk_barrier').value;
+		    var bulk_barrier = YAHOO.util.Dom.get('bulk_barrier').checked;
 
 		    if (! name){
 			alert("You must specify a name for this device.");
