@@ -230,6 +230,8 @@ function getCircuitIdFromGRI(gri){
 			   session.data.circuit_id = results[0].circuit_id;
 			   session.save();
 			   
+			   update_circuit_owner(gri);
+			   
 			   alert("Circuit successfully provisioned.",
 				 function(){
 				     window.location = "?action=view_details";
@@ -239,9 +241,7 @@ function getCircuitIdFromGRI(gri){
 
 		       },
 		       failure: function(req, res){
-
 			   alert("Remote service reported success but we are unable to find the circuit. Please contact a system administrator about this.");
-
 		       }
 		   });
 
@@ -361,6 +361,31 @@ function handleLocalSuccess(request, response){
     else {
 	alert("Unknown return value in provisioning.");
     }
+}
+
+function update_circuit_owner(gri){
+    var ds = new YAHOO.util.DataSource("services/remote.cgi?action=update_circuit_owner&gri="+encodeURIComponent(gri) + "&workgroup_id=" + encodeURIComponent(session.data.workgroup_id));
+
+    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+
+    ds.responseSchema = {
+        resultsList: "results",
+	fields: [{key: "success"},
+    {key: "error"},
+    {key: "message"}]
+    };
+
+    ds.sendRequest("",
+                   {
+                       success: function(req, resp){
+			   var data = resp.results;
+			   if(!results.success){
+			       alert('An error occured changing circuit ownership');
+			   }
+		       },failure: function(req,resp){
+			   alert('Unable to change circuit ownership, the circuit probably exists, but is not visible to your workgroup');
+		       }
+		   });
 }
 
 function handleLocalFailure(request, response){
