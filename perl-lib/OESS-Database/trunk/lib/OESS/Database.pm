@@ -10,11 +10,11 @@ eval 'exec /usr/bin/perl  -S $0 ${1+"$@"}'
 ##----- $Date$
 ##----- $LastChangedBy$
 ##-----
-##----- Provides object oriented methods to interact with the OESS Database 
+##----- Provides object oriented methods to interact with the OESS Database
 ##-------------------------------------------------------------------------
 ##
-## Copyright 2011 Trustees of Indiana University 
-## 
+## Copyright 2011 Trustees of Indiana University
+##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##  you may not use this file except in compliance with the License.
 ##   You may obtain a copy of the License at
@@ -95,7 +95,7 @@ our $ENABLE_DEVEL=0;
 
 =head2 new
 
-Constructor for the Database object. Returns the object on 
+Constructor for the Database object. Returns the object on
 success and undefined on error such as unable to connect.
 
 =over
@@ -140,7 +140,7 @@ sub new{
 
     my $dbh      = DBI->connect("DBI:mysql:$database", $username, $password,
 				{mysql_auto_reconnect => 1,
-				 }				
+				 }
 	                       );
 
     if (! $dbh){
@@ -159,7 +159,7 @@ sub new{
 	$self->{'topo'} = OESS::Topology->new(db => $self);
     }
 
-    
+
     return $self;
 }
 
@@ -179,7 +179,7 @@ sub get_error {
 
 
 =head2 get_oess_schema_version
-    
+
 =cut
 
 sub get_oess_schema_version{
@@ -218,7 +218,7 @@ The state that the new circuit instantiation should be in.
 
 The internal MySQL primary key int identifier for the user performing this update.
 
-=back 
+=back
 
 =cut
 
@@ -234,7 +234,7 @@ sub update_circuit_state{
     $self->_start_transaction();
 
     my $details = $self->get_circuit_details(circuit_id => $circuit_id);
-    
+
     if (! defined $details){
 	$self->_set_error("Unable to find circuit information for circuit $circuit_id");
 	$self->_rollback();
@@ -245,7 +245,7 @@ sub update_circuit_state{
 
     my $query = "update circuit_instantiation set end_epoch = unix_timestamp(NOW()) " .
 	" where circuit_id = ? and end_epoch = -1";
-    
+
     my $result = $self->_execute_query($query, [$circuit_id]);
 
     if (! defined $result){
@@ -301,7 +301,7 @@ sub update_circuit_path_state {
     my $new_state   = $args{'new_state'};
 
     $self->_start_transaction();
-    
+
     my $query = "update path_instantiation set path_state = ? " .
 	        " where end_epoch = -1 and path_state = ? " .
 		" and path_instantiation.path_id in (select path_id from path where circuit_id = ?)";
@@ -327,7 +327,7 @@ sub update_circuit_name{
     return if (!defined($args{'circuit_name'}) || $args{'circuit_name'} eq '');
 
     my $query = "update circuit set name = ? where circuit_id = ?";
-    
+
     if(!defined($self->_execute_query($query, [$args{'circuit_name'},$args{'circuit_id'}]))){
 	return 0;
     }
@@ -338,7 +338,7 @@ sub update_circuit_name{
 =head2 switch_circuit_to_alternate_path
 
 Changes a circuit's records over to its available path. If the circuit is presently
-on the primary path it will attempt to go onto backup and vice versa. 
+on the primary path it will attempt to go onto backup and vice versa.
 
 I<This does not actually do any provisioning, it just changes the records in the database.>
 
@@ -359,7 +359,7 @@ sub switch_circuit_to_alternate_path {
     my $query;
 
     my $circuit_id     = $args{'circuit_id'};
-    
+
     my $new_active_path_id = $self->circuit_has_alternate_path(circuit_id => $circuit_id );
 
     if(!$new_active_path_id){
@@ -371,7 +371,7 @@ sub switch_circuit_to_alternate_path {
 
 
     # grab the path_id of the one we're switching away from
-    $query = "select path_instantiation.path_id, path_instantiation.path_instantiation_id from path " . 
+    $query = "select path_instantiation.path_id, path_instantiation.path_instantiation_id from path " .
 	     " join path_instantiation on path.path_id = path_instantiation.path_id " .
 	     " where path_instantiation.path_state = 'active' and path_instantiation.end_epoch = -1 " .
 	     " and path.circuit_id = ?";
@@ -402,7 +402,7 @@ sub switch_circuit_to_alternate_path {
     # create a new path instantiation of the old path
     $query = "insert into path_instantiation (path_id, start_epoch, end_epoch, path_state) " .
 	     " values (?, unix_timestamp(NOW()), -1, 'available')";
-    
+
     my $new_available = $self->_execute_query($query, [$old_active_path_id]);
 
     if (! defined $new_available){
@@ -448,7 +448,7 @@ sub switch_circuit_to_alternate_path {
 sub generate_clr{
     my $self = shift;
     my %args = @_;
-    
+
     my $circuit_id = $args{'circuit_id'};
     my $show_historical=0;
     if(!defined($circuit_id)){
@@ -466,13 +466,13 @@ sub generate_clr{
     }
 
     my $endpoints = $self->get_circuit_endpoints( circuit_id => $circuit_id);
-    
+
     if ($circuit_details->{'state'} eq 'decom'){
         $show_historical=1;
     }
-   
+
     $endpoints = $self->get_circuit_endpoints( circuit_id => $circuit_id, show_historical => $show_historical);
- 
+
 
     my $last_modified_user = $circuit_details->{'last_modified_by'};
     my $created_user = $circuit_details->{'created_by'};
@@ -482,17 +482,17 @@ sub generate_clr{
     my $workgroup_name = $circuit_details->{'workgroup'}->{'name'};
 
     if(defined($args{'raw'}) && $args{'raw'} == 1){
-	
+
 	$clr = "";
 	$clr .= "Circuit " . $circuit_details->{'name'} . "\n";
         $clr .= "Created by " . $created_user->{'given_names'} . " " . $created_user->{'family_name'} . " at " . $created_on . " for workgroup " . $workgroup_name . "\n";
         $clr .= "Lasted Modified By: " . $last_modified_user->{'given_names'} . " " . $last_modified_user->{'family_name'} . " at " . $last_edited . "\n\n";
-	
+
 #	$clr .= "Primary Path:\n";
 	$clr .= "Flow Rules:";
-	
+
 	my $internal_ids = $circuit_details->{'internal_ids'};
-    
+
 	my %primary_path;
 	my %backup_path;
 
@@ -502,7 +502,7 @@ sub generate_clr{
 
 	    $primary_path{$node_a}{$link->{'port_no_a'}}{$internal_ids->{'primary'}{$node_a}} = $internal_ids->{'primary'}{$node_z};
 	    $primary_path{$node_z}{$link->{'port_no_z'}}{$internal_ids->{'primary'}{$node_z}} = $internal_ids->{'primary'}{$node_a};
-	    
+
 	}
 
 	foreach my $link (@{$circuit_details->{'backup_links'}}){
@@ -513,7 +513,7 @@ sub generate_clr{
 	}
 
 
-	
+
 
 	my $path = \%primary_path;
 	#--- get node by node and figure out the simple forwarding rules for this path
@@ -521,7 +521,7 @@ sub generate_clr{
 	    my $used_node_clr = 0;
 	    foreach my $interface (sort keys %{$path->{$node}}){
 		foreach my $other_if(sort keys %{$path->{$node}}){
-		    
+
 		    #--- skip when the 2 interfaces are the same
 		    next if($other_if eq $interface);
 		    if($used_node_clr == 0){
@@ -530,7 +530,7 @@ sub generate_clr{
 		    }
 		    $clr .= "Match: IN_PORT: " . $interface;
 		    #--- iterate through ports need set of rules for each input/output port combo
-		    foreach my $vlan_tag (sort keys %{$path->{$node}{$interface}}){          
+		    foreach my $vlan_tag (sort keys %{$path->{$node}{$interface}}){
                 $clr .= ", dl_vlan:" . $vlan_tag . "    OUTPUT: ";
                 my $remote_tag = $path->{$node}{$other_if}{$vlan_tag};
                 $clr .= $other_if . ":vlan" . $remote_tag;
@@ -538,8 +538,8 @@ sub generate_clr{
 		}
 	    }
 
-	} 
-    
+	}
+
 	$path = \%backup_path;
         #--- get node by node and figure out the simple forwarding rules for this path
         foreach my $node (sort keys %$path){
@@ -564,42 +564,42 @@ sub generate_clr{
 		$clr .= "\n";
             }
         }
-	
+
 	foreach my $endpoint(@{$circuit_details->{'endpoints'}}){
-	    
+
 	    my $node      = $endpoint->{'node'};
 	    my $interface = $endpoint->{'port_no'};
 	    my $outer_tag = $endpoint->{'tag'};
-	    
+
 	    #--- iterate over the non-edge interfaces on the primary path to setup rules that both forward AND translate
 	    foreach my $other_if(sort keys %{$primary_path{$node}}){
 		foreach my $local_inner_tag (sort keys %{$primary_path{$node}{$other_if}}){
 		    $clr .= "\nNODE: " . $node . "\n";
-		    my $remote_inner_tag = $primary_path{$node}{$other_if}{$local_inner_tag};		    
+		    my $remote_inner_tag = $primary_path{$node}{$other_if}{$local_inner_tag};
 		    $clr .= "Match: IN_PORT: " . $interface . ", dl_vlan: " . $outer_tag . "   OUTPUT: " . $other_if . ":vlan" . $remote_inner_tag . "\n";
 		    $clr .= "Match: IN_PORT: " . $other_if . ", dl_vlan: " . $remote_inner_tag . "   OUTPUT: " . $interface . ":vlan" . $outer_tag . "\n";
 		}
-	    }    
+	    }
 	}
 
     }else{
-	
+
 	$clr = "";
 	$clr .= "Circuit " . $circuit_details->{'name'} . "\n";
 	$clr .= "Created by " . $created_user->{'given_names'} . " " . $created_user->{'family_name'} . " at " . $created_on . " for workgroup " . $workgroup_name . "\n";
 	$clr .= "Lasted Modified By: " . $last_modified_user->{'given_names'} . " " . $last_modified_user->{'family_name'} . " at " . $last_edited . "\n\n";
 	$clr .= "Endpoints: \n";
-	
+
 	foreach my $endpoint (@$endpoints){
         if ($endpoint->{'tag'} == UNTAGGED ){ $endpoint->{'tag'} = 'Untagged'; }
 	    $clr .= "  " . $endpoint->{'node'} . " - " . $endpoint->{'interface'} . " VLAN " . $endpoint->{'tag'} . "\n";
 	}
-	
+
 	$clr .= "\nPrimary Path:\n";
 	foreach my $path (@{$circuit_details->{'links'}}){
 	    $clr .= "  " . $path->{'name'} . "\n";
 	}
-	
+
 	$clr .= "\nBackup Path:\n";
 	foreach my $path (@{$circuit_details->{'backup_links'}}){
 	    $clr .= "  " . $path->{'name'} . "\n";
@@ -607,7 +607,7 @@ sub generate_clr{
     }
 
     return $clr;
-    
+
 }
 =head2 circuit_has_alternate_path
 
@@ -631,7 +631,7 @@ sub circuit_has_alternate_path{
 
     my $circuit_id = $args{'circuit_id'};
 
-    my $query  = "select path.path_id from path " . 
+    my $query  = "select path.path_id from path " .
 	         " join path_instantiation on path.path_id = path_instantiation.path_id " .
 		 "  and path_instantiation.path_state = 'available' and path_instantiation.end_epoch = -1 " .
 	         " where circuit_id = ?";
@@ -671,15 +671,15 @@ sub get_affected_circuits_by_link_id {
 
     my $link = $args{'link_id'};
 
-    
+
     my $query = "select circuit.name, circuit.circuit_id, circuit_instantiation.circuit_state as state from circuit " .
 	        " join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id " .
 		"  and circuit_instantiation.end_epoch = -1 and circuit_instantiation.circuit_state = 'active' " .
 		" join path on path.circuit_id = circuit.circuit_id " .
 		" join path_instantiation on path_instantiation.path_id = path.path_id " .
 		"  and path_instantiation.end_epoch = -1 and path_instantiation.path_state = 'active' " .
-		" join link_path_membership on link_path_membership.path_id = path.path_id " . 
-		" join link on link.link_id = link_path_membership.link_id and link_path_membership.end_epoch = -1" . 
+		" join link_path_membership on link_path_membership.path_id = path.path_id " .
+		" join link on link.link_id = link_path_membership.link_id and link_path_membership.end_epoch = -1" .
 		"  where link.link_id = ?";
 
     my @circuits;
@@ -739,8 +739,8 @@ sub is_external_vlan_available_on_interface {
     }
 
     my $query = "select circuit.name from circuit join circuit_edge_interface_membership " .
-	        " on circuit.circuit_id = circuit_edge_interface_membership.circuit_id " . 		
-		" where circuit_edge_interface_membership.interface_id = ? " . 
+	        " on circuit.circuit_id = circuit_edge_interface_membership.circuit_id " .
+		" where circuit_edge_interface_membership.interface_id = ? " .
 		"  and circuit_edge_interface_membership.extern_vlan_id = ? " .
 		"  and circuit_edge_interface_membership.end_epoch = -1";
 
@@ -757,7 +757,7 @@ sub is_external_vlan_available_on_interface {
 
     my $tags = $self->_process_tag_string($interface->{'vlan_tag_range'});
 
-    
+
     #first verify tag is in available range
     my $found = 0;
     foreach my $tag (@$tags){
@@ -786,7 +786,7 @@ sub is_external_vlan_available_on_interface {
 sub get_user_by_id{
     my $self = shift;
     my %args = @_;
-    
+
     my $user_id = $args{'user_id'};
 
     if(!defined($user_id)){
@@ -802,11 +802,11 @@ sub get_user_admin_status{
 	my $self = shift;
 	my %args = @_;
 	my $username = $args{'username'};
-	
+
 	my $query = "select a.auth_name, 1 as is_admin from user u join remote_auth a on (u.user_id = a.user_id) join user_workgroup_membership m on (u.user_id = m.user_id) join workgroup w on (m.workgroup_id = w.workgroup_id) where w.type='admin' and a.auth_name = ? limit 1";
-	
+
 	return $self->_execute_query($query,[$username]);
-	
+
 }
 
 =head2 get_user_id_by_given_name
@@ -929,7 +929,7 @@ sub get_node_dpid_hash {
     my $results = {};
 
     while (my $row = $sth->fetchrow_hashref()){
-	$results->{$row->{'name'}} = $row->{'dpid'};	
+	$results->{$row->{'name'}} = $row->{'dpid'};
     }
 
     return $results;
@@ -943,8 +943,8 @@ sub get_current_nodes{
     my $self = shift;
 
     my $nodes = $self->_execute_query("select node.name, node_instantiation.dpid,node.operational_state,node.node_id, node.send_barrier_bulk from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active'",[]);
-    
-    return $nodes;   
+
+    return $nodes;
 }
 
 =head2 add_link
@@ -954,7 +954,7 @@ sub get_current_nodes{
 sub add_link{
     my $self = shift;
     my %args = @_;
-    
+
     if(!defined($args{'name'})){
 	$self->_set_error("No Name was defined");
 	return;
@@ -969,7 +969,7 @@ sub add_link{
 
     $self->_set_error("Problem creating link");
     return;
-    
+
 }
 
 =head2 create_link_instantiation
@@ -1018,14 +1018,14 @@ sub create_link_instantiation{
 sub decom_link_instantiation{
     my $self = shift;
     my %args = @_;
-    
+
     if(!defined($args{'link_id'})){
 	$self->_set_error("No Link ID Specified to decom_link_instantiation");
 	return;
     }
 
     my $res = $self->_execute_query("update link_instantiation set end_epoch = UNIX_TIMESTAMP(NOW()) where link_id = ? and end_epoch = -1",[$args{'link_id'}]);
-    
+
     return 1;
 
 }
@@ -1076,7 +1076,7 @@ sub get_node_interfaces {
     my $workgroup_id = $args{'workgroup_id'};
     my $show_down    = $args{'show_down'};
     my $show_trunk   = $args{'show_trunk'} || 0;
-    
+
     if(!defined($show_down)){
 	$show_down = 0;
     }
@@ -1098,7 +1098,7 @@ sub get_node_interfaces {
     if($show_down == 0){
 	$query .= " and interface.operational_state = 'up' ";
     }
-    
+
     if (defined $workgroup_id){
 	$query .= " and workgroup_interface_membership.workgroup_id = ?";
     }
@@ -1140,40 +1140,40 @@ sub get_map_layers {
 
     # grab only the local network
     my $query = <<HERE;
-    select network.longitude as network_long, 
-    network.latitude as network_lat, 
-    network.name as network_name, 
+    select network.longitude as network_long,
+    network.latitude as network_lat,
+    network.name as network_name,
     node.longitude as node_long,
-    node.max_flows, 
-    node.tx_delay_ms, 
-    node.latitude as node_lat, 
-    node.name as node_name, 
+    node.max_flows,
+    node.tx_delay_ms,
+    node.latitude as node_lat,
+    node.name as node_name,
     node.node_id,
-    node.vlan_tag_range, 
-    node.node_id as node_id, 
-    node.default_drop as default_drop, 
+    node.vlan_tag_range,
+    node.node_id as node_id,
+    node.default_drop as default_drop,
     node.default_forward as default_forward,
     node.send_barrier_bulk as barrier_bulk,
     node_instantiation.dpid as dpid,
-    to_node.name as to_node,  
-	 link.name as link_name, if(intA.operational_state = 'up' && intB.operational_state = 'up', 'up', 'down') as link_state, 
-     if(int_instA.capacity_mbps > int_instB.capacity_mbps, int_instB.capacity_mbps, int_instA.capacity_mbps) as capacity, link.link_id as link_id  
-	from node  
-	  join node_instantiation on node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active'  
-	 join network on node.network_id = network.network_id and network.is_local = 1  
-	 join interface intA on intA.node_id = node.node_id  
-	 join interface_instantiation int_instA on int_instA.interface_id = intA.interface_id  
-	  and int_instA.end_epoch = -1  
-	 left join link_instantiation on link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active'  
-	  and intA.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id)  
-	 left join link on link.link_id = link_instantiation.link_id  
-	 left join interface intB on intB.interface_id != intA.interface_id and intB.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id)  
-	 left join interface_instantiation int_instB on int_instB.interface_id = intB.interface_id  
-	  and int_instB.end_epoch = -1  
+    to_node.name as to_node,
+	 link.name as link_name, if(intA.operational_state = 'up' && intB.operational_state = 'up', 'up', 'down') as link_state,
+     if(int_instA.capacity_mbps > int_instB.capacity_mbps, int_instB.capacity_mbps, int_instA.capacity_mbps) as capacity, link.link_id as link_id
+	from node
+	  join node_instantiation on node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active'
+	 join network on node.network_id = network.network_id and network.is_local = 1
+	 join interface intA on intA.node_id = node.node_id
+	 join interface_instantiation int_instA on int_instA.interface_id = intA.interface_id
+	  and int_instA.end_epoch = -1
+	 left join link_instantiation on link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active'
+	  and intA.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id)
+	 left join link on link.link_id = link_instantiation.link_id
+	 left join interface intB on intB.interface_id != intA.interface_id and intB.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id)
+	 left join interface_instantiation int_instB on int_instB.interface_id = intB.interface_id
+	  and int_instB.end_epoch = -1
 	 left join node to_node on to_node.node_id != node.node_id and to_node.node_id = intB.node_id
 HERE
-	
-    
+
+
     #my $sth = $self->_prepare_query($query) or return;
 
     #$sth->execute();
@@ -1189,52 +1189,52 @@ HERE
 	foreach my $row(@$rows){
 		push (@node_ids,$row->{'node_id'});
 	}
-	
-	
+
+
 	my $node_list = join(',',@node_ids);
 	my $nodes_endpoints= {};
 
 
 
    #default_count_endpoints for when there are no results, if we have no workgroup_id return 1.
-	my $default_endpoint_count=1;	  
+	my $default_endpoint_count=1;
 		  if($workgroup_id){
-			  
+
 			  $default_endpoint_count=0;
 			  my $available_endpoint_query = <<HERE;
-select node.name, network.name as network_name, count(interface.port_number) as 'available_endpoint_count' from node 
+select node.name, network.name as network_name, count(interface.port_number) as 'available_endpoint_count' from node
 join network on node.network_id = network.network_id
-left join interface on node.node_id in ( $node_list ) and interface.node_id = node.node_id 
+left join interface on node.node_id in ( $node_list ) and interface.node_id = node.node_id
 join workgroup_interface_membership on workgroup_interface_membership.interface_id = interface.interface_id
 where workgroup_interface_membership.workgroup_id= ?
 group by node.name
 HERE
 			  my $results= $self->_execute_query($available_endpoint_query,[$workgroup_id]);
-	  		  
+
 			  foreach my $row (@$results){
-				  $nodes_endpoints->{$row->{'network_name'} }->{$row->{'name'} } = $row->{'available_endpoint_count'}; 
+				  $nodes_endpoints->{$row->{'network_name'} }->{$row->{'name'} } = $row->{'available_endpoint_count'};
 			  }
-			  
+
 		  }
-	
-	 
-	
 
 
-	
+
+
+
+
 	foreach my $row(@$rows){
 
 	my $network_name = $row->{'network_name'};
 	my $node_name    = $row->{'node_name'};
 	my $avail_endpoints = ( defined($nodes_endpoints->{$network_name}->{$node_name})? $nodes_endpoints->{$network_name}->{$node_name} : $default_endpoint_count);
-	
+
 
 	$networks->{$network_name}->{'meta'} = {"network_long" => $row->{'network_long'},
 						"network_lat"  => $row->{'network_lat'},
 						"network_name" => $network_name,
 						"local"        => 1
 	};
-	
+
 	$networks->{$network_name}->{'nodes'}->{$node_name} = {"node_name"    => $node_name,
 							       "node_lat"     => $row->{'node_lat'},
 							       "node_long"    => $row->{'node_long'},
@@ -1261,19 +1261,19 @@ HERE
 									  "capacity"    => $row->{'capacity'},
 									  "to"          => $row->{'to_node'},
 									  "link_id"     => $row->{'link_id'}
-		                                                          }	
-		);		
+		                                                          }
+		);
 	}
     }
 
-    
+
     # now grab the foreign networks (no instantiations, is_local = 0)
     $query = "select network.longitude as network_long, network.latitude as network_lat, network.name as network_name, network.network_id as network_id, " .
 	" node.longitude as node_long, node.latitude as node_lat, node.name as node_name, node.node_id as node_id " .
 	" from network " .
-	"  join node on node.network_id = network.network_id " . 
+	"  join node on node.network_id = network.network_id " .
 	" where network.is_local = 0";
-    
+
     $rows = $self->_execute_query($query, []);
     my @node_array;
     foreach my $row (@$rows){
@@ -1282,23 +1282,23 @@ HERE
     $node_list= join(',',@node_array);
     if($workgroup_id && $node_list){
 	my $available_endpoint_query = <<HERE;
-	select network.name as network_name, node.name, count(interface.port_number) as 'available_endpoint_count' from node 
+	select network.name as network_name, node.name, count(interface.port_number) as 'available_endpoint_count' from node
 join network on node.network_id = network.network_id
-left join interface on node.node_id in ( $node_list ) and interface.node_id = node.node_id 
+left join interface on node.node_id in ( $node_list ) and interface.node_id = node.node_id
 join workgroup_interface_membership on workgroup_interface_membership.interface_id = interface.interface_id
 where workgroup_interface_membership.workgroup_id= ?
 group by node.name
 HERE
 
         my $results= $self->_execute_query($available_endpoint_query,[$workgroup_id]);
-	
+
 	foreach my $row (@$results){
-	    $nodes_endpoints->{$row->{'network_name'} }->{$row->{'name'} } = $row->{'available_endpoint_count'}; 
+	    $nodes_endpoints->{$row->{'network_name'} }->{$row->{'name'} } = $row->{'available_endpoint_count'};
 	}
     }
-    
+
     foreach my $row (@$rows){
-	
+
 	my $node_id      = $row->{'node_id'};
 	my $network_id   = $row->{'network_id'};
 	my $network_name = $row->{'network_name'};
@@ -1309,33 +1309,33 @@ HERE
 						"network_name" => $network_name,
 						"local"        => 0
 	};
-	
+
 	my $node_lat = $row->{'node_lat'};
 	my $node_lon = $row->{'node_long'};
-	
+
 	if ($node_lat eq 0 && $node_lon eq 0){
 	    $node_lat  = $row->{'network_lat'};
 	    $node_lon  = $row->{'network_long'};
 	}
-	
+
 	$networks->{$network_name}->{'nodes'}->{$node_name} = {"node_name"    => $node_name,
 							       "node_lat"     => $node_lat,
 							       "node_long"    => $node_lon,
 							       "number_available_endpoints" => $avail_endpoints
 	};
-	
+
     }
-    
+
     my $results = [];
-    
+
     foreach my $network_name (keys %$networks){
-	
+
 	push (@$results, $networks->{$network_name});
-	
+
     }
-    
+
     return $results;
-    
+
 }
 
 =head2 get_current_links
@@ -1425,8 +1425,8 @@ sub get_circuit_scheduled_events {
     if(!defined($include_completed)){
 	$include_completed = 1;
     }
-    
-    
+
+
     my $events = [];
 
     my $query = "select user.user_id, remote_auth.auth_name, concat(user.given_names, ' ', user.family_name) as full_name, " .
@@ -1436,7 +1436,7 @@ sub get_circuit_scheduled_events {
 		" from scheduled_action " .
 		" join user on user.user_id = scheduled_action.user_id " .
 		" left join remote_auth on remote_auth.user_id = user.user_id " .
-		" where scheduled_action.circuit_id = ?"; 
+		" where scheduled_action.circuit_id = ?";
 
     if($include_completed != 1){
 	$query .= " and scheduled_action.completion_epoch = -1";
@@ -1489,8 +1489,8 @@ sub get_circuit_history {
     my $query = "select remote_auth.auth_name, concat(user.given_names, ' ', user.family_name) as full_name, " .
 	     " from_unixtime(circuit_instantiation.end_epoch) as end_time, " .
 	     " from_unixtime(circuit_instantiation.start_epoch) as start_time " .
-	     " from circuit " . 
-	     " join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id " . 
+	     " from circuit " .
+	     " join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id " .
 	     " join user on user.user_id = circuit_instantiation.modified_by_user_id " .
 	     " left join remote_auth on remote_auth.user_id = user.user_id " .
 	     "where circuit.circuit_id = ?";
@@ -1501,7 +1501,7 @@ sub get_circuit_history {
 	$self->_set_error("Internal error fetching circuit instantiation events.");
 	return;
     }
-    
+
     foreach my $row (@$results){
 	push (@$events, {"username"  => $row->{'auth_name'},
 			 "fullname"  => $row->{'full_name'},
@@ -1528,25 +1528,25 @@ sub get_workgroups {
     my %args = ( 'user_id' => undef,
 		 @_,
 	);
-    
+
     my @dbargs = ();
     my $workgroups = [];
     my $sql="select w.workgroup_id, w.name,w.type, w.external_id from workgroup w ";
-    
+
     if(defined $args{'user_id'}){
 	$sql .= "join user_workgroup_membership m on w.workgroup_id = m.workgroup_id ".
 	    "join user u on m.user_id = u.user_id and u.user_id = ?";
-	
+
 	push(@dbargs, $args{'user_id'});
     }
     $sql .= " order by w.name";
     my $results = $self->_execute_query($sql,\@dbargs);
-    
+
 #    if (! defined $results){
 #	$self->_set_error("Internal error while fetching workgroups");
 #	return;
 #    }
-    
+
     foreach my $workgroup (@$results){
 	push (@$workgroups, {workgroup_id => $workgroup->{'workgroup_id'},
 			     name         => $workgroup->{'name'},
@@ -1554,7 +1554,7 @@ sub get_workgroups {
 			     type         => $workgroup->{'type'}
 	      });
     }
-    
+
     return $workgroups;
 }
 
@@ -1675,7 +1675,7 @@ sub get_workgroups_by_auth_name {
     my $auth_name = $args{'auth_name'};
 
     my $query = "select workgroup.name, workgroup.workgroup_id " .
-	        " from workgroup " . 
+	        " from workgroup " .
 	        " join user_workgroup_membership on user_workgroup_membership.workgroup_id = workgroup.workgroup_id " .
 		" join user on user.user_id = user_workgroup_membership.user_id " .
 		" join remote_auth on remote_auth.user_id = user.user_id " .
@@ -1695,9 +1695,9 @@ sub get_workgroups_by_auth_name {
 	push(@workgroups, {"name"         => $row->{'name'},
 			   "workgroup_id" => $row->{'workgroup_id'}
 	                  }
-	    );    
+	    );
     }
-    
+
     return \@workgroups;
 }
 
@@ -1728,7 +1728,7 @@ sub get_workgroup_acls {
 		"  join workgroup_interface_membership on workgroup.workgroup_id = workgroup_interface_membership.workgroup_id " .
 		"  join interface on interface.interface_id = workgroup_interface_membership.interface_id " .
 		"  join interface_instantiation on interface.interface_id = interface_instantiation.interface_id " .
-		"    and interface_instantiation.end_epoch = -1" . 
+		"    and interface_instantiation.end_epoch = -1" .
 		"  join node on node.node_id = interface.node_id " .
 		"  join node_instantiation on node.node_id = node_instantiation.node_id " .
 		"    and node_instantiation.end_epoch = -1 " .
@@ -1782,7 +1782,7 @@ sub add_workgroup_acl {
 
 
     my $query = "select 1 from workgroup_interface_membership where workgroup_id = ? and interface_id = ?";
-    
+
     my $results = $self->_execute_query($query, [$workgroup_id, $interface_id]);
 
     if (@$results > 0){
@@ -1793,7 +1793,7 @@ sub add_workgroup_acl {
     $query = "insert into workgroup_interface_membership (workgroup_id, interface_id) values (?, ?)";
 
     my $success = $self->_execute_query($query, [$workgroup_id, $interface_id]);
-    
+
     if (! defined $success ){
 	$self->_set_error("Internal error while adding edge port to workgroup ACL.");
 	return;
@@ -1828,7 +1828,7 @@ sub remove_workgroup_acl {
     my $workgroup_id = $args{'workgroup_id'};
 
     my $query = "select 1 from workgroup_interface_membership where workgroup_id = ? and interface_id = ?";
-    
+
     my $results = $self->_execute_query($query, [$workgroup_id, $interface_id]);
 
     if (@$results < 1){
@@ -1839,7 +1839,7 @@ sub remove_workgroup_acl {
     $query = "delete from workgroup_interface_membership where workgroup_id = ? and interface_id = ?";
 
     my $success = $self->_execute_query($query, [$workgroup_id, $interface_id]);
-    
+
     if (! defined $success ){
 	$self->_set_error("Internal error while removing edge port from workgroup ACL.");
 	return;
@@ -1912,7 +1912,7 @@ sub get_users {
 		    'user_id'       => $row->{'user_id'},
 		    'auth_name'     => []
 	};
-	
+
 	my $auth_results = $self->_execute_query("select auth_name from remote_auth where user_id = ?", [$row->{'user_id'}]);
 
 	if (! defined $auth_results){
@@ -1923,7 +1923,7 @@ sub get_users {
 	foreach my $auth_row (@$auth_results){
 	    push(@{$data->{'auth_name'}}, $auth_row->{'auth_name'});
 	}
-	
+
 	push(@users, $data);
 
     }
@@ -1953,9 +1953,9 @@ sub get_users_in_workgroup {
 
     my $users;
 
-    my $results = $self->_execute_query("select user.* from user " . 
+    my $results = $self->_execute_query("select user.* from user " .
 					" join user_workgroup_membership on user.user_id = user_workgroup_membership.user_id " .
-					" where user_workgroup_membership.workgroup_id = ?" . 
+					" where user_workgroup_membership.workgroup_id = ?" .
 					" order by given_names ",
 					[$workgroup_id]
 	                                );
@@ -1973,7 +1973,7 @@ sub get_users_in_workgroup {
 		    'user_id'       => $row->{'user_id'},
 		    'auth_name'     => []
 	};
-	
+
 	my $auth_results = $self->_execute_query("select auth_name from remote_auth where user_id = ?", [$row->{'user_id'}]);
 
 	if (! defined $auth_results){
@@ -1984,7 +1984,7 @@ sub get_users_in_workgroup {
 	foreach my $auth_row (@$auth_results){
 	    push(@{$data->{'auth_name'}}, $auth_row->{'auth_name'});
 	}
-	
+
 	push(@$users, $data);
 
     }
@@ -2077,7 +2077,7 @@ sub add_user_to_workgroup {
     my $result = $self->_execute_query("insert into user_workgroup_membership (workgroup_id, user_id) values (?, ?)",
 				       [$workgroup_id, $user_id]
 	);
-    
+
     if (! defined $result){
 	$self->_set_error("Unable to create user workgroup membership.");
 	return;
@@ -2116,7 +2116,7 @@ sub remove_user_from_workgroup {
     my $result = $self->_execute_query("select 1 from user_workgroup_membership where workgroup_id = ? and user_id = ?",
 				      [$workgroup_id, $user_id]
 	);
-	
+
     if (@$result < 1){
 	$self->_set_error("User is not a member of this workgroup.");
 	return;
@@ -2126,7 +2126,7 @@ sub remove_user_from_workgroup {
     $result = $self->_execute_query("delete from user_workgroup_membership where workgroup_id = ? and user_id = ?",
 				    [$workgroup_id, $user_id]
 	);
-    
+
     if (! defined $result){
 	$self->_set_error("Unable to delete user workgroup membership.");
 	return;
@@ -2136,7 +2136,7 @@ sub remove_user_from_workgroup {
 }
 
 
-=head2 add_user 
+=head2 add_user
 
 Adds a new user into the database. Returns the new user internal id if successful.
 
@@ -2194,7 +2194,7 @@ sub add_user {
     }
 
     if(ref($auth_names) eq 'ARRAY'){
-    
+
 	foreach my $name (@$auth_names){
 	    $query = "insert into remote_auth (auth_name, user_id) values (?, ?)";
 	    $self->_execute_query($query, [$name, $user_id]);
@@ -2331,7 +2331,7 @@ sub edit_user {
 
     foreach my $name (@$auth_names){
 	$query = "insert into remote_auth (auth_name, user_id) values (?, ?)";
-    
+
 	$self->_execute_query($query, [$name, $user_id]);
     }
 
@@ -2353,14 +2353,14 @@ sub get_current_circuits_by_interface{
     my $dbh = $self->{'dbh'};
 
     my $query = "select circuit.workgroup_id, circuit.name, circuit.description, circuit.circuit_id, circuit_instantiation.circuit_state from circuit join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id join circuit_edge_interface_membership on circuit_edge_interface_membership.circuit_id = circuit.circuit_id and circuit_instantiation.end_epoch = -1 and circuit_instantiation.circuit_state != 'decom' and circuit_edge_interface_membership.end_epoch = -1 and circuit_edge_interface_membership.interface_id = ?";
-    
+
     my $rows = $self->_execute_query($query, [$interface->{'interface_id'}]);
 
     if (! defined $rows){
         $self->_set_error("Internal error while getting circuits.");
         return;
     }
-    
+
     my $results = [];
     my $circuits;
     foreach my $row (@$rows){
@@ -2376,14 +2376,14 @@ sub get_current_circuits_by_interface{
                                         'endpoints'   => [],
                                         'workgroup_id' => $row->{'workgroup_id'}
             };
-	    
+
 	}
 
 	$circuits->{$circuit_id}->{'endpoints'}    = $self->get_circuit_endpoints(circuit_id => $circuit_id) || [];
-		
+
     }
 
-    
+
     foreach my $circuit_id (keys %$circuits){
         push (@$results, $circuits->{$circuit_id});
     }
@@ -2434,42 +2434,42 @@ sub get_current_circuits {
     ## Get all circuit ids that have an endpoint on a node passed
     if ( @$endpoint_nodes) {
 	my $endpoint_node_sql ="
-	select distinct circuit_instantiation.circuit_id from circuit_instantiation  
-	    join circuit_edge_interface_membership on circuit_edge_interface_membership.circuit_id = circuit_instantiation.circuit_id 
-	    and circuit_instantiation.end_epoch = -1 
+	select distinct circuit_instantiation.circuit_id from circuit_instantiation
+	    join circuit_edge_interface_membership on circuit_edge_interface_membership.circuit_id = circuit_instantiation.circuit_id
+	    and circuit_instantiation.end_epoch = -1
 	    and circuit_edge_interface_membership.end_epoch = -1
 	    join interface on circuit_edge_interface_membership.interface_id = interface.interface_id
 	    and interface.node_id in (  ";
-	
+
 	$endpoint_node_sql .= "?," x scalar(@$endpoint_nodes);
 	chop($endpoint_node_sql);
 	$endpoint_node_sql .= ")";
-	
-	
+
+
 	my $endpoint_results = $self->_execute_query($endpoint_node_sql ,$endpoint_nodes);
-	
-	
+
+
 	foreach my $row (@$endpoint_results){
 	    push(@endpoint_circuit_ids,$row->{'circuit_id'});
 	}
-	
+
 	$circuit_id_filter = \@endpoint_circuit_ids;
-	
+
     }
     if (@$path_nodes) {
-	
+
 	my $placeholders = "?". ",?" x (scalar(@$path_nodes)-1);
-	
+
 	my $path_node_sql = "
-	select distinct path.circuit_id from path join path_instantiation p 
-	    on (path.path_id = p.path_id) 
-		join link_path_membership m on m.path_id = p.path_id and p.end_epoch=-1 
-		join link_instantiation l on l.end_epoch = -1 
+	select distinct path.circuit_id from path join path_instantiation p
+	    on (path.path_id = p.path_id)
+		join link_path_membership m on m.path_id = p.path_id and p.end_epoch=-1
+		join link_instantiation l on l.end_epoch = -1
 		and m.link_id = l.link_id join interface i on i.interface_id = interface_a_id or i.interface_id = interface_z_id
 		where i.node_id in ( $placeholders )";
-	
+
 	my $path_results = $self->_execute_query($path_node_sql, $path_nodes );
-	
+
 	foreach my $row(@$path_results){
 	    push(@path_circuit_ids,$row->{'circuit_id'});
 	}
@@ -2480,15 +2480,15 @@ sub get_current_circuits {
 	my @intersection = intersect(@endpoint_circuit_ids,@path_circuit_ids);
 	$circuit_id_filter = \@intersection;
     }
-    
-    
+
+
     my $query = "select circuit.circuit_id, circuit.workgroup_id, circuit.name, circuit.description, circuit.circuit_id, circuit_instantiation.circuit_state from circuit join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id and circuit_instantiation.end_epoch = -1 and circuit_instantiation.circuit_state != 'decom'";
-	
+
     if ($workgroup_id && $workgroup->{'type'} ne 'admin'){
 		$query .= " where circuit.workgroup_id = ?";
 		push(@to_pass, $workgroup_id);
     }
-	
+
     if (@$endpoint_nodes || @$path_nodes ) {
 	if(@$circuit_id_filter ==0){
 	    return $results;
@@ -2497,27 +2497,27 @@ sub get_current_circuits {
 	push(@to_pass, @$circuit_id_filter);
     }
     my $rows = $self->_execute_query($query, \@to_pass);
-    
+
     if (! defined $rows){
 	$self->_set_error("Internal error while getting circuits.");
 	return;
     }
-    
+
     my $circuits;
     my @circuit_ids;
     foreach my $row (@$rows){
 	push(@circuit_ids,$row->{'circuit_id'});
     }
-    
 
-    
+
+
     foreach my $ckt (@circuit_ids){
 	my $circuit_details = $self->get_circuit_details( circuit_id => $ckt);
 	push(@{$results},$circuit_details);
     }
-    
+
     return $results;
-    
+
 }
 
 =head2 get_circuit_details_by_name
@@ -2548,7 +2548,7 @@ sub get_circuit_details_by_name {
 
     if (@$result > 0){
 	my $circuit_id = @$result[0]->{'circuit_id'};
-	
+
 	return $self->get_circuit_details(circuit_id => $circuit_id);
     }
 
@@ -2570,9 +2570,9 @@ sub get_circuit_paths{
     }
 
     my $query = "select * from path natural join path_instantiation where path.circuit_id = ? and path_instantiation.end_epoch = -1";
-    
+
     my $paths = $self->_execute_query($query, [$circuit_id]);
-    
+
     foreach my $path (@$paths){
 	$path->{'status'} = $self->{'topo'}->is_path_up( path_id => $path->{'path_id'} );
 	$path->{'links'} = $self->get_path_links( path_id => $path->{'path_id'});
@@ -2616,9 +2616,9 @@ sub get_circuit_details {
 	"from circuit " .
 	" join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id " .
 	"  and circuit_instantiation.end_epoch = -1 " .
-	"left join path as pr_p on pr_p.circuit_id = circuit.circuit_id and pr_p.path_type = 'primary' " . 
+	"left join path as pr_p on pr_p.circuit_id = circuit.circuit_id and pr_p.path_type = 'primary' " .
 	"left join path_instantiation as pr_pi on pr_pi.path_id = pr_p.path_id and pr_pi.end_epoch = -1 ".
-        " left join path as bu_p on bu_p.circuit_id = circuit.circuit_id and bu_p.path_type = 'backup' " .        
+        " left join path as bu_p on bu_p.circuit_id = circuit.circuit_id and bu_p.path_type = 'backup' " .
         " left join path_instantiation as bu_pi on bu_pi.path_id = bu_p.path_id and bu_pi.end_epoch = -1 ".
 	" where circuit.circuit_id = ?";
 
@@ -2630,9 +2630,9 @@ sub get_circuit_details {
     #       "from circuit " .
     #       " join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id " .
     #       "  and circuit_instantiation.end_epoch = -1 " .
-    #       "left join path as pr_p on pr_p.circuit_id = circuit.circuit_id and pr_p.path_type = 'primary' " . 
+    #       "left join path as pr_p on pr_p.circuit_id = circuit.circuit_id and pr_p.path_type = 'primary' " .
 	#       "left join path_instantiation as pr_pi on pr_pi.path_id = pr_p.path_id and pr_pi.end_epoch = (select max(end_epoch) from path_instantiation where path_instantiation.path_id = pr_p.path_id) ".
-    #       " left join path as bu_p on bu_p.circuit_id = circuit.circuit_id and bu_p.path_type = 'backup' " .        
+    #       " left join path as bu_p on bu_p.circuit_id = circuit.circuit_id and bu_p.path_type = 'backup' " .
     #       " left join path_instantiation as bu_pi on bu_pi.path_id = bu_p.path_id and bu_pi.end_epoch = (select max(end_epoch) from path_instantiation where path_instantiation.path_id = bu_p.path_id) ".
 	#       " where circuit.circuit_id = ?";
 
@@ -2663,10 +2663,10 @@ sub get_circuit_details {
         if ( $row->{'circuit_state'} eq 'decom' ){
             $show_historical =1;
         }
-    
+
     }
-   
-    
+
+
     $details->{'internal_ids'} = $self->get_circuit_internal_ids(circuit_id => $circuit_id) || [];
 
     $details->{'endpoints'}    = $self->get_circuit_endpoints(circuit_id => $circuit_id, show_historical=> $show_historical) || [];
@@ -2682,7 +2682,7 @@ sub get_circuit_details {
     $details->{'last_modified_by'} = $self->get_user_by_id( user_id => $details->{'user_id'} )->[0];
 
     $query = "select * from circuit_instantiation where circuit_id = ? and end_epoch = (select min(end_epoch) from circuit_instantiation where circuit_id = ? and end_epoch > 0)";
- 
+
     my $first_instantiation = $self->_execute_query($query,[$circuit_id,$circuit_id])->[0];
 
     if(defined($first_instantiation)){
@@ -2780,7 +2780,7 @@ sub get_circuit_endpoints {
     }
 
     my $sth = $self->_prepare_query($query) or return;
-    
+
     $sth->execute(@bind_values);
 
     #we now have a handle on all of the rows... we need to pull out the interface data
@@ -2812,7 +2812,7 @@ sub get_circuit_endpoints {
     }
 
     return $results;
-    
+
 }
 
 =head2 get_path_links
@@ -2830,16 +2830,16 @@ sub get_path_links{
     }
 
     my $query = "select link.link_id, link.name from link_path_membership, link where link.link_id = link_path_membership.link_id and link_path_membership.end_epoch = -1 and link_path_membership.path_id = ? ";
-    
+
     my $results = $self->_execute_query($query,[$path_id]);
 
     return $results;
-    
+
 }
 
 =head2 get_circuit_links
 
-Returns an array of hashes containing information about the path links for the circuit. If no type is given, it assumes primary path links. 
+Returns an array of hashes containing information about the path links for the circuit. If no type is given, it assumes primary path links.
 
 =over
 
@@ -2873,15 +2873,15 @@ sub get_circuit_links {
 	" join path on path.path_id = link_path_membership.path_id and path.circuit_id = ? " .
 	"  and path.path_type = ? ".
 	" join interface if_a on link_inst.interface_a_id = if_a.interface_id ".
- 	" join interface if_z on link_inst.interface_z_id = if_z.interface_id ". 
+ 	" join interface if_z on link_inst.interface_z_id = if_z.interface_id ".
 	" join node node_a on if_a.node_id = node_a.node_id ".
 	" join node node_z on if_z.node_id = node_z.node_id ";
-    
+
  if ($args{'show_historical'}){
      #warn( "Getting Historical Data");
-      $query = 
+      $query =
 
-        "select link.name, node_a.name as node_a, if_a.name as interface_a, if_a.port_number as port_no_a, node_z.name as node_z, if_z.name as interface_z, if_z.port_number as port_no_z ".                     
+        "select link.name, node_a.name as node_a, if_a.name as interface_a, if_a.port_number as port_no_a, node_z.name as node_z, if_z.name as interface_z, if_z.port_number as port_no_z ".
  "from path join link_path_membership on path.path_id = link_path_membership.path_id ".
 "and path.circuit_id = ? and path.path_type= ? and link_path_membership.end_epoch= (select max(end_epoch) from link_path_membership m where m.path_id = path.path_id) ".
 "join link on link_path_membership.link_id = link.link_id ".
@@ -2891,7 +2891,7 @@ sub get_circuit_links {
 
     }
     my $sth = $self->_prepare_query($query) or return;
-    
+
     $sth->execute($args{'circuit_id'},
 		  $args{'type'}
 	         );
@@ -2919,9 +2919,9 @@ sub get_circuit_links {
 sub get_interface_speed{
     my $self = shift;
     my %args = @_;
-    
+
     my $interface_id = $args{'interface_id'};
-    
+
     my $query = "select * from interface_instantiation where end_epoch = -1 and interface_id = ?";
 
     my $results = $self->_execute_query($query, [$interface_id]);
@@ -2954,7 +2954,7 @@ sub get_interface {
     my $interface_id = $args{'interface_id'};
 
     my $query = "select * from interface where interface_id = ?";
-    
+
     my $results = $self->_execute_query($query, [$interface_id]);
 
     if (! defined $results){
@@ -2972,7 +2972,7 @@ sub get_interface {
 sub get_interface_by_dpid_and_port{
     my $self = shift;
     my %args = @_;
-    
+
     if(!defined($args{'port_number'})){
 	$self->_set_error("Interface Port Number not specified");
 	return;
@@ -2984,7 +2984,7 @@ sub get_interface_by_dpid_and_port{
     }
 
     my $interface = $self->_execute_query("select interface.node_id,interface.interface_id from node,node_instantiation,interface where node.node_id = node_instantiation.node_id and interface.node_id = node.node_id  and node_instantiation.end_epoch = -1 and node_instantiation.dpid = ? and interface.port_number = ?",[$args{'dpid'},$args{'port_number'}])->[0];
-    
+
     return $interface;
 
 }
@@ -3006,7 +3006,7 @@ sub update_interface_operational_state{
 	$self->_set_error("Operational State not specified");
 	return;
     }
-    
+
     my $res = $self->_execute_query("update interface set operational_state = ? where interface.interface_id = ?",[$args{'operational_state'},$args{'interface_id'}]);
     if(!defined($res)){
 	$self->_set_error("Unable to update interfaces operational state");
@@ -3041,9 +3041,9 @@ sub update_interface_vlan_range{
     }
 
     $self->_execute_query("update interface set vlan_tag_range = ? where interface.interface_id = ?",[$args{'vlan_tag_range'},$args{'interface_id'}]);
-    
+
     return 1;
-    
+
 }
 
 =head2 update_interface_description
@@ -3075,7 +3075,7 @@ sub update_interface_description{
         $self->_set_error("description was not specified");
         return;
     }
-    
+
     my $res = $self->_execute_query("update interface set description = ? where interface.interface_id = ?",[$args{'description'},$args{'interface_id'}]);
     if(!defined($res)){
         $self->_set_error("Unable to update interface description");
@@ -3107,15 +3107,15 @@ sub get_interface_id_by_names{
     my %args = @_;
 
     my $dbh = $self->{'dbh'};
-    
+
     my $node_name      = $args{'node'};
     my $interface_name = $args{'interface'};
 
     my $select_interface_query = "select interface_id from interface where name=? and node_id=(select node_id from node where name=?)";
     my $select_interface_sth   = $self->_prepare_query($select_interface_query) or return;
-    
+
     $select_interface_sth->execute($interface_name,$node_name);
-    
+
     if(my $row = $select_interface_sth->fetchrow_hashref()){
 	return $row->{'interface_id'};
     }
@@ -3264,14 +3264,14 @@ sub decom_node {
 
     $result = $self->_execute_query("update node_instantiation set end_epoch = unix_timestamp(NOW()) where end_epoch = -1 and node_id = ?",
 				    [$node_id]);
-    
+
     if ($result != 1){
 	$self->_set_error("Error updating node instantiation.");
 	$self->_rollback();
     return;
     }
 
-    $result = $self->_execute_query("update interface_instantiation join interface on interface.interface_id = interface_instantiation.interface_id set end_epoch = unix_timestamp(NOW()) where end_epoch = -1 and node_id = ?", 
+    $result = $self->_execute_query("update interface_instantiation join interface on interface.interface_id = interface_instantiation.interface_id set end_epoch = unix_timestamp(NOW()) where end_epoch = -1 and node_id = ?",
 				    [$node_id]);
 
     if (! defined $result){
@@ -3280,7 +3280,7 @@ sub decom_node {
     return;
     }
 
-    $result = $self->_execute_query("update link_instantiation set end_epoch = unix_timestamp(NOW()) where end_epoch -1 and interface_a_id in (select interface_id from interface where node_id = ?) or interface_z_id in (select interface_id from interface where node_id = ?)", 
+    $result = $self->_execute_query("update link_instantiation set end_epoch = unix_timestamp(NOW()) where end_epoch -1 and interface_a_id in (select interface_id from interface where node_id = ?) or interface_z_id in (select interface_id from interface where node_id = ?)",
 				    [$node_id, $node_id]);
 
     if (! defined $result){
@@ -3323,7 +3323,7 @@ sub confirm_link {
     my $name    = $args{'name'};
 
     $self->_start_transaction();
-    
+
     my $result = $self->_execute_query("update link_instantiation set link_state = 'active' where link_id = ? and link_state = 'available' and end_epoch = -1", [$link_id]);
 
     if ($result != 1){
@@ -3341,8 +3341,8 @@ sub confirm_link {
     }
 
     $result = $self->_execute_query("update interface " .
-				    " join link_instantiation on interface.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id) " .				    
-				    " set role = 'trunk' " . 
+				    " join link_instantiation on interface.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id) " .
+				    " set role = 'trunk' " .
 				    " where link_instantiation.link_id = ?",
 				    [$link_id]);
 
@@ -3363,7 +3363,7 @@ sub update_link_state{
 
     my $link_id = $args{'link_id'};
     my $state = $args{'state'};
-    
+
     $self->_start_transaction();
 
     if(!defined($link_id)){
@@ -3396,7 +3396,7 @@ sub update_link {
     my $metric  = $args{'metric'};
 
     $self->_start_transaction();
-   
+
     my $sql  = "UPDATE link SET";
        $sql .= " name = ?,";
        $sql .= " metric = ?";
@@ -3422,7 +3422,7 @@ sub is_new_node_in_path{
     if(!defined($link_details)){
 	return {error => "No Link specified", results =>[]};
     }
-    
+
     #find the 2 links that now make up this path
     my ($new_path,$node_id) = $self->_find_new_path( link => $link_details);
 
@@ -3448,7 +3448,7 @@ sub _find_new_path{
     my $a_link;
     my $z_link;
     #ok we need to have 2 links for each of the interfaces
-    if($#{$a_links} >= 1){ 
+    if($#{$a_links} >= 1){
 	foreach my $test_link (@{$a_links}){
 	    next if($test_link->{'link_id'} == $link->{'link_id'});
 	    if($test_link->{'status'} eq 'up'){
@@ -3475,10 +3475,10 @@ sub _find_new_path{
     if(defined($z_link) && defined($a_link)){
 	my $z_endpoints = $self->get_link_endpoints(link_id => $z_link->{'link_id'});
 	my $a_endpoints = $self->get_link_endpoints(link_id => $a_link->{'link_id'});
-	
+
 	my $new_a_int;
 	my $new_z_int;
-	
+
 	foreach my $ep (@$a_endpoints){
 	    next if($ep->{'interface_id'} == $endpoints->[0]->{'interface_id'});
 	    $new_a_int = $ep;
@@ -3488,11 +3488,11 @@ sub _find_new_path{
 	    next if($ep->{'interface_id'} == $endpoints->[1]->{'interface_id'});
 	    $new_z_int = $ep;
 	}
-	
+
 	if($new_z_int->{'node_id'} == $new_a_int->{'node_id'}){
 	    return ([$a_link->{'link_id'},$z_link->{'link_id'}],$new_z_int->{'node_id'});
 	}
-	
+
     }else{
 	return;
     }
@@ -3546,7 +3546,7 @@ sub insert_node_in_path{
 	warn "Error in _connect_to_fwdctl: $@";
 	return;
     }
-    
+
 
     if ( !defined $client ) {
 	return;
@@ -3559,8 +3559,8 @@ sub insert_node_in_path{
 
 	#ok now update the links
 	my $links = $self->_execute_query("select * from link_path_membership, path, path_instantiation where path.path_id = path_instantiation.path_id and path_instantiation.end_epoch = -1 and link_path_membership.path_id = path.path_id and path.circuit_id = ? and link_path_membership.end_epoch = -1",[$circuit->{'circuit_id'}]);
-	
-	
+
+
 	foreach my $link (@$links){
 
 	    if($link->{'link_id'} == $link_details->{'link_id'}){
@@ -3573,7 +3573,7 @@ sub insert_node_in_path{
 
 		#insert the path_instantiation_vlan_ids for this new device
 		my $internal_vlan = $self->_get_available_internal_vlan_id(node_id => $node_id);
-		if(!defined($internal_vlan)){   
+		if(!defined($internal_vlan)){
 		    return {success => 0, error => "Internal Error finding available internal vlan"};
 		}
 		$self->_execute_query("insert into path_instantiation_vlan_ids (path_instantiation_id, node_id, internal_vlan_id) values (?, ?, ?)", [$link->{'path_instantiation_id'},$node_id,$internal_vlan]);
@@ -3585,7 +3585,7 @@ sub insert_node_in_path{
     }
 
     return {success => 1};
-    
+
 }
 
 
@@ -3623,8 +3623,8 @@ sub decom_link {
     }else{
 	#link is still up so its connected create a new instantiation waiting for approval
 	$self->_execute_query("update link_instantiation set end_epoch = unix_timestamp(NOW()) where end_epoch = -1 and link_id = ?", [$link_id]);
-	$self->_execute_query("insert into link_instantiation (end_epoch, start_epoch, link_state, link_id, interface_a_id, interface_z_id) VALUES (-1,unix_timestamp(NOW()),'available',?,?,?)",[$link_id,$link_details->{'interface_a_id'},$link_details->{'interface_z_id'}]);	
-	
+	$self->_execute_query("insert into link_instantiation (end_epoch, start_epoch, link_state, link_id, interface_a_id, interface_z_id) VALUES (-1,unix_timestamp(NOW()),'available',?,?,?)",[$link_id,$link_details->{'interface_a_id'},$link_details->{'interface_z_id'}]);
+
     }
 
     $self->_commit();
@@ -3678,7 +3678,7 @@ sub get_pending_nodes {
 				    " from node join node_instantiation on node.node_id = node_instantiation.node_id " .
 				    " where node_instantiation.admin_state = 'available'"
 	                           ) or return;
-    
+
     $sth->execute();
 
     my $results = [];
@@ -3711,10 +3711,10 @@ sub get_pending_links {
     my $sth = $self->_prepare_query("select link.link_id, link.name as link_name, nodeA.name as nodeA, nodeB.name as nodeB, intA.name as intA, intB.name as intB " .
 				    " from link join link_instantiation on link.link_id = link_instantiation.link_id " .
 				    " join interface intA on intA.interface_id = link_instantiation.interface_a_id " .
-				    "  join interface_instantiation iiA on intA.interface_id = iiA.interface_id " . 
+				    "  join interface_instantiation iiA on intA.interface_id = iiA.interface_id " .
 				    "   and iiA.end_epoch = -1 " .
 				    " join interface intB on intB.interface_id = link_instantiation.interface_z_id " .
-				    "  join interface_instantiation iiB on intB.interface_id = iiB.interface_id " . 
+				    "  join interface_instantiation iiB on intB.interface_id = iiB.interface_id " .
 				    "   and iiB.end_epoch = -1 " .
 				    " join node nodeA on nodeA.node_id = intA.node_id " .
 				    "  join node_instantiation niA on nodeA.node_id = niA.node_id and niA.end_epoch = -1 " .
@@ -3743,7 +3743,7 @@ sub get_pending_links {
 	             }
 	    );
     }
-    
+
     return $links;
 }
 
@@ -3760,7 +3760,7 @@ sub get_link_ints_on_node{
     my $ints = $self->_execute_query($str,[$args{'node_id'}]);
 
     $str = "select interface.* from link, link_instantiation, interface where link.link_id = link_instantiation.link_id and link_instantiation.end_epoch = -1 and link_instantiation.interface_z_id = interface.interface_id and interface.node_id = ?";
-    
+
     my $ints2 = $self->_execute_query($str,[$args{'node_id'}]);
 
     foreach my $int (@$ints2){
@@ -3778,7 +3778,7 @@ should use this everywhere
 sub get_link{
     my $self = shift;
     my %args = @_;
-    
+
 
 
     if(!defined($args{'link_id'}) && !defined($args{'link_name'})){
@@ -3796,7 +3796,7 @@ sub get_link{
 
     #uh... not possible?
     return;
-    
+
 }
 
 =head2 get_link_by_name
@@ -3814,7 +3814,7 @@ sub get_link_by_name{
 
     my $link = $self->_execute_query("select * from link where name = ?",[$args{'name'}])->[0];
     return $link;
-    
+
 }
 
 =head2 get_link_by_dpid_and_port
@@ -3844,7 +3844,7 @@ sub get_link_by_dpid_and_port {
 
     my $query = "select link.name, link.link_id from link " .
 	        " join link_instantiation on link.link_id = link_instantiation.link_id " .
-		"  and link_instantiation.end_epoch = -1 " . 
+		"  and link_instantiation.end_epoch = -1 " .
 		" join interface on interface.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id) " .
 		" join interface_instantiation on interface.interface_id = interface_instantiation.interface_id " .
 		"  and interface_instantiation.end_epoch = -1 " .
@@ -3907,9 +3907,9 @@ sub get_link_id_by_name{
 
     my $select_link_query = "select link_id from link where name=? ";
     my $select_link_sth   = $self->_prepare_query($select_link_query) or return;
-    
+
     $select_link_sth->execute($link_name);
-    
+
     if(my $row = $select_link_sth->fetchrow_hashref()){
 	return $row->{'link_id'};
     }
@@ -3987,7 +3987,7 @@ sub print_db_schema_file{
     my $self = shift;
 
     warn "file_path=" . SHARE_DIR . "/share/nddi.sql";
-} 
+}
 
 =head2 reset_database
 
@@ -4026,7 +4026,7 @@ sub reset_database{
 
     my $success = (! system("/usr/bin/mysql -u$username -p$password $database < $import_filename"));
 
-    # reconnect to the database    
+    # reconnect to the database
     $self->{'dbh'} = DBI->connect("DBI:mysql:$database", $username, $password);
 
     return $success;
@@ -4053,7 +4053,7 @@ sub add_into{
     my $filename = $args{'xml_dump'};
     my $dbh      = $self->{'dbh'};
 
-    my $xs = XML::Simple->new(ForceArray=>['user','workgroup','user_member','network','node','interface','link','circuit','path','member_link'], 
+    my $xs = XML::Simple->new(ForceArray=>['user','workgroup','user_member','network','node','interface','link','circuit','path','member_link'],
 			      KeyAttr => {user      => 'email',
 					  workgroup => 'name',
 					  network   => 'name',
@@ -4062,20 +4062,20 @@ sub add_into{
 					  link      => 'name',
 					  circuit   => 'name',
 			      });
-    
-    my $db_dump = $xs->XMLin($filename) or die;  
-    
-    
+
+    my $db_dump = $xs->XMLin($filename) or die;
+
+
     #users->
     my $users      = $db_dump->{'user'};
     my $user_query = "insert ignore into user (email,given_names,family_name) VALUES (?,?,?)";
     my $user_sth   = $self->_prepare_query($user_query) or return;
-    
+
     foreach my $user_name (keys %$users){
 	$user_sth->execute($user_name,
 			   $users->{$user_name}->{'given_names'},
 			   $users->{$user_name}->{'last_name'}
-	    ) or return;         
+	    ) or return;
     }
 
     #do workgroups
@@ -4089,7 +4089,7 @@ sub add_into{
 
     my $user_workgroup_insert  = 'insert into user_workgroup_membership (workgroup_id,user_id) VALUES (?,(select user_id from user where email=?))';
     my $user_workgroup_insert_sth = $self->_prepare_query($user_workgroup_insert) or return;
-    
+
     foreach my $workgroup_name (keys %$workgroups){
 
 	$workgroup_sth->execute($workgroup_name,
@@ -4111,8 +4111,8 @@ sub add_into{
 	foreach my $user (@$users_in_workgroup){
             $user_workgroup_insert_sth->execute($workgroup_db_id,
 						$user) or return;
-	}   
-    } 
+	}
+    }
 
     #now networks
     my $network_insert_query = "insert into network (name,longitude, latitude) VALUES (?,?,?)" ;
@@ -4130,7 +4130,7 @@ sub add_into{
     my $select_interface_query = "select interface_id from interface where name=? and node_id=(select node_id from node where name=?)";
     my $select_interface_sth   = $self->_prepare_query($select_interface_query) or return;
 
-    my $insert_interface_instantiaiton_query = "insert into interface_instantiation (interface_id,end_epoch,start_epoch,capacity_mbps,mtu_bytes) VALUES (?,-1,unix_timestamp(now()),10000,9000)";    
+    my $insert_interface_instantiaiton_query = "insert into interface_instantiation (interface_id,end_epoch,start_epoch,capacity_mbps,mtu_bytes) VALUES (?,-1,unix_timestamp(now()),10000,9000)";
     my $insert_interface_instantiaiton_sth   = $self->_prepare_query($insert_interface_instantiaiton_query) or return;
 
     my $networks = $db_dump->{'network'};
@@ -4181,7 +4181,7 @@ sub add_into{
 		return undef unless $interface_db_id;
 
 		$insert_interface_instantiaiton_sth->execute($interface_db_id) or return;
-		
+
 	    }
 	}
 
@@ -4196,25 +4196,25 @@ sub add_into{
 
 	foreach my $link_name (keys %$links){
 	    my $link = $links->{$link_name};
-	    
+
 	    $insert_new_link_sth->execute($link_name) or return;
-	    
+
 	    my ($node_a_name,$node_a_interface_name) = split(/:/,$link->{'interface_a'}) ;
-	    my ($node_b_name,$node_b_interface_name) = split(/:/,$link->{'interface_b'}) ;  
-	    
+	    my ($node_b_name,$node_b_interface_name) = split(/:/,$link->{'interface_b'}) ;
+
 	    my $interface_a_db_id = $self->get_interface_id_by_names(node      => $node_a_name,
 								     interface => $node_a_interface_name
 		);
-	    
+
 	    my $interface_b_db_id = $self->get_interface_id_by_names(node      => $node_b_name,
 								     interface => $node_b_interface_name
-		); 
-	    
+		);
+
 	    $insert_new_link_instantiation_sth->execute($link_name,
 							$interface_a_db_id,
 							$interface_b_db_id,
 							$link->{'link_state'} || "planned"
-		                                       );             
+		                                       );
 	}
     }
 
@@ -4232,7 +4232,7 @@ sub add_into{
     my $insert_path_inst_sth   = $self->_prepare_query( $insert_path_inst_query) or return;
 
     my $insert_link_path_membership_query = "insert into link_path_membership (path_id,link_id,end_epoch,start_epoch) VALUES ((select path_id from path where path_type=? and circuit_id=(select circuit_id from circuit where name=?)),?,-1, unix_timestamp(now()) )";
-    my $insert_link_path_membership_sth   = $self->_prepare_query($insert_link_path_membership_query) or return;      
+    my $insert_link_path_membership_sth   = $self->_prepare_query($insert_link_path_membership_query) or return;
 
     my $insert_circuit_edge_interface_membership_query = "insert into circuit_edge_interface_membership (circuit_id,interface_id,extern_vlan_id,end_epoch,start_epoch) VALUES ((select circuit_id from circuit where name=?),?,?,-1,unix_timestamp(now()))";
     my $insert_circuit_edge_interface_membership_sth   = $self->_prepare_query($insert_circuit_edge_interface_membership_query) or return;
@@ -4254,7 +4254,7 @@ sub add_into{
 	#now paths
 	my $paths = $circuit->{'path'};
 
-	foreach my $path (@$paths){	    
+	foreach my $path (@$paths){
 
 	    my $path_type     = $path->{'type'};
 	    my $internal_vlan = $path->{'vlan'} || $i++;
@@ -4274,7 +4274,7 @@ sub add_into{
 
 		$insert_link_path_membership_sth->execute($path_type,
 							  $circuit_name,
-							  $link_db_id) or return; 
+							  $link_db_id) or return;
 	    }
 	}
 
@@ -4286,7 +4286,7 @@ sub add_into{
 	    my $node_name = $end_point->{'node'};
 
 	    my $interface_name = $end_point->{'interface'};
-	    
+
 	    my $interface_db_id = $self->get_interface_id_by_names(node      => $node_name,
 								   interface => $interface_name);
 
@@ -4295,13 +4295,13 @@ sub add_into{
 								   $end_point->{'vlan'}
 		                                                  ) or return;
 	}
-	
+
     }
 
     return 1;
 }
 
-=head2 get_remote_links 
+=head2 get_remote_links
 
 =cut
 
@@ -4315,7 +4315,7 @@ sub get_remote_links {
 	" join interface_instantiation on interface.interface_id = interface_instantiation.interface_id " .
 	"  and interface_instantiation.end_epoch = -1 and interface_instantiation.admin_state != 'down' " .
 	" join node on node.node_id = interface.node_id " .
-	" join network on network.network_id = node.network_id and network.is_local = 1" . 
+	" join network on network.network_id = node.network_id and network.is_local = 1" .
 	" where link.remote_urn is not null";
 
     my $rows = $self->_execute_query($query, []);
@@ -4349,7 +4349,7 @@ sub add_remote_link {
 
     my $urn                 = $args{'urn'};
     my $name                = $args{'name'};
-    my $local_interface_id  = $args{'local_interface_id'}; 
+    my $local_interface_id  = $args{'local_interface_id'};
 
     if ($urn !~ /domain=(.+):node=(.+):port=(.+):link=(.+)$/){
 	$self->_set_error("Unable to deconstruct URN to determine elements. Expected format was urn:ogf:network:domain=foo:node=bar:port=biz:link=bam");
@@ -4364,9 +4364,9 @@ sub add_remote_link {
     my $remote_link   = $4;
 
     $self->_start_transaction();
-    
+
     my $remote_network_id = $self->get_network_by_name(network => $remote_domain);
-    
+
     if (! $remote_network_id){
 	$remote_network_id = $self->add_network(name      => $remote_domain,
 						longitude => 0,
@@ -4383,7 +4383,7 @@ sub add_remote_link {
 
     # remote are stored internally as $domain-$node
     $remote_node = $remote_domain . "-" . $remote_node;
-    
+
     my $node_info = $self->get_node_by_name(name              => $remote_node,
 					    no_instantiation  => 1
 	                                    );
@@ -4413,7 +4413,7 @@ sub add_remote_link {
 							     name             => $remote_port,
 							     no_instantiation => 1
 	                                                    );
-    
+
     if (! defined $remote_interface_id){
 	$self->_set_error("Unable to determine interface id: " . $self->get_error());
 	$self->_rollback();
@@ -4444,7 +4444,7 @@ sub add_remote_link {
 
     $self->_commit();
 
-    return 1;    
+    return 1;
 }
 
 =head2 get_network_by_name
@@ -4464,16 +4464,16 @@ The name of the network to get the identifier of.
 sub get_network_by_name{
     my $self = shift;
     my %args = @_;
-    
+
     my $dbh = $self->{'dbh'};
-    
+
     my $network_name = $args{'network'};
 
     my $select_network = "select network_id from network where name = ?";
     my $select_network_sth = $self->_prepare_query($select_network) or return;
-    
+
     $select_network_sth->execute($network_name) or return;
-    
+
     if(my $row = $select_network_sth->fetchrow_hashref()){
 	return $row->{'network_id'};
     }
@@ -4489,13 +4489,13 @@ sub get_network_by_name{
 sub add_network {
     my $self = shift;
     my %args = @_;
-    
+
     my $name       = $args{'name'};
     my $longitude  = $args{'longitude'};
     my $latitude   = $args{'latitude'};
     my $is_local   = $args{'is_local'};
-    
-    my $id = $self->_execute_query("insert into network (name, longitude, latitude, is_local) values (?, ?, ?, ?)", 
+
+    my $id = $self->_execute_query("insert into network (name, longitude, latitude, is_local) values (?, ?, ?, ?)",
 				   [$name, $longitude, $latitude, $is_local]);
 
     if (! defined $id){
@@ -4513,15 +4513,15 @@ sub add_network {
 sub get_network_by_id{
     my $self = shift;
     my %args = @_;
-    
+
 
     my $dbh = $self->{'dbh'};
     my $network_id = $args{'network'};
-    
+
     my $str = "select * from network where network_id = ?";
     my $sth = $self->_prepare_query($str) or return;
     $sth->execute($network_id) or return;
-    
+
     if(my $row = $sth->fetchrow_hashref()){
 	return $row;
     }
@@ -4551,7 +4551,7 @@ sub get_nodes_by_admin_state{
     my $dbh = $self->{'dbh'};
 
     my $admin_state       = $args{'admin_state'};
-    
+
     my $select_nodes = "select node.node_id,node.name,max_flows,tx_delay_ms,inet_ntoa(node_instantiation.management_addr_ipv4) as management_addr_ipv4 from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.admin_state = ? and end_epoch = -1";
 
     my $select_nodes_sth = $self->_prepare_query($select_nodes);
@@ -4592,11 +4592,11 @@ sub get_interfaces_by_node_and_state{
     my $state = $args{'state'};
 
     my $select_interfaces = "select interface.interface_id, interface.port_number, interface.name, interface.description, interface.role, interface_instantiation.capacity_mbps, interface_instantiation.mtu_bytes from interface,interface_instantiation where interface.interface_id = interface_instantiation.interface_id and interface_instantiation.end_epoch = -1 and interface.node_id = ? and interface_instantiation.admin_state = ?";
-    
+
     my $select_interfaces_sth = $self->_prepare_query($select_interfaces);
     $select_interfaces_sth->execute($node_id, $state);
     my @results;
-   
+
     while(my $row = $select_interfaces_sth->fetchrow_hashref()){
 	push(@results,$row);
     }
@@ -4627,9 +4627,9 @@ The internal MySQL primary key int identifier for this interface.
 sub get_link_by_interface_id{
     my $self = shift;
     my %args = @_;
-    
+
     my $interface_id = $args{'interface_id'};
-    
+
     if(!defined($interface_id)){
 	$self->_set_error("No interface_id specified to get_link_by_interface_id");
 	return;
@@ -4641,11 +4641,11 @@ sub get_link_by_interface_id{
 
 
     my $select_link_by_interface = "select link.name as link_name,link.status, link.link_id,link.remote_urn, link_instantiation.interface_a_id, link_instantiation.interface_z_id, link_instantiation.link_state as state from link,link_instantiation where link.link_id = link_instantiation.link_id and link_instantiation.end_epoch = -1 and (link_instantiation.interface_a_id = ? or link_instantiation.interface_z_id = ?)";
-    
+
     if(!$show_decom){
 	$select_link_by_interface .= " and link_instantiation.link_state != 'decom'"
     }
-    
+
 
     my $select_link_sth = $self->_prepare_query($select_link_by_interface);
 
@@ -4661,7 +4661,7 @@ sub get_link_by_interface_id{
 	$self->_set_error("Unable to find links with interface_id $interface_id");
 	return;
     }
-    
+
 }
 
 =head2 get_circuit_by_id
@@ -4673,7 +4673,7 @@ sub get_link_by_interface_id{
 sub get_circuit_by_id{
     my $self = shift;
     my %args = @_;
-    
+
     my $circuit_id = $args{'circuit_id'};
     if(!defined($circuit_id)){
 	warn "No Circuit ID defined";
@@ -4736,7 +4736,7 @@ The internal MySQL primary key int identifier for this interface.
 sub get_circuit_by_interface_id{
     my $self = shift;
     my %args = @_;
-    
+
     my $interface_id = $args{'interface_id'};
 
     my $select_circuit = "select circuit.name,circuit.description from circuit_edge_interface_membership,circuit_instantiation,circuit where circuit.circuit_id = circuit_edge_interface_membership.circuit_id, circuit_instantiation.cicuit_id = circuit.circuit_id and circuit_instantiation.circuit_state = 'active' and circuit_instantiation.end_epoch = -1 and circuit_edge_interface_membeship.interface_id = ? and circuit_edge_interface_membership.end_epcoh = -1";
@@ -4774,8 +4774,8 @@ sub schedule_path_change{
     $tmp->{'action'}       = "change_path";
     $tmp->{'reason'}       = $params{'reason'};
     my $circuit_layout = XMLout($tmp);
-	
-    
+
+
     my $query = "insert into scheduled_action (user_id, workgroup_id, circuit_id, registration_epoch, activation_epoch, circuit_layout, completion_epoch) VALUES (?,?,?,UNIX_TIMESTAMP(NOW()),?,?,-1)";
     my $res = $self->_execute_query($query, [$params{'user_id'},$params{'workgroup_id'},$params{'circuit_id'},$params{'when'},$circuit_layout]);
 
@@ -4793,7 +4793,7 @@ I<This does not actually create a circuit on the network - that is the forwardin
 
 =item description
 
-The description of this new circuit. 
+The description of this new circuit.
 
 =item bandwidth
 
@@ -4866,8 +4866,8 @@ sub provision_circuit {
     }
 
     if (! $self->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
-	$self->_set_error("Permission denied: user is not a part of the requested workgroup.");
-	return;
+        $self->_set_error("Permission denied: user is not a part of the requested workgroup.");
+        return;
     }
 
     my $query;
@@ -4877,64 +4877,76 @@ sub provision_circuit {
     my $uuid = $self->_get_uuid();
 
     if (! defined $uuid){
-	return;
+        return;
     }
 
     my $name = $workgroup_details->{'name'} . "-" . $uuid;
-    
+
     # create circuit record
     my $circuit_id = $self->_execute_query("insert into circuit (name, description, workgroup_id, external_identifier, restore_to_primary) values (?, ?, ?, ?,?)",
 					   [$name, $description, $workgroup_id, $external_id, $restore_to_primary]);
-    
+
     if (! defined $circuit_id ){
-	$self->_set_error("Unable to create circuit record.");
-	$self->_rollback();
-    return;
+        $self->_set_error("Unable to create circuit record.");
+        $self->_rollback();
+        return;
     }
 
     my $state;
     if($provision_time > time()){
-	$state = "scheduled";
+        $state = "scheduled";
     }else{
-	$state = "deploying";
+        $state = "deploying";
     }
 
     #instantiate circuit
     $query = "insert into circuit_instantiation (circuit_id, reserved_bandwidth_mbps, circuit_state, modified_by_user_id, end_epoch, start_epoch) values (?, ?, ?, ?, -1, unix_timestamp(now()))";
     $self->_execute_query($query, [$circuit_id, $bandwidth, $state, $user_id]);
-    
+
     if($state eq 'scheduled'){
 
-	$args{'user_id'}    = $user_id;
-	$args{'circuit_id'} = $circuit_id;	
+        $args{'user_id'}    = $user_id;
+        $args{'circuit_id'} = $circuit_id;
 
-	my $success = $self->_add_event(\%args);
+        my $success = $self->_add_event(\%args);
 
-	if (! defined $success){
-        $self->_rollback();
-        return;
-	}
+        if (! defined $success){
+            $self->_rollback();
+            return;
+        }
 
-	$self->_commit();
+        $self->_commit();
 
-	return {"success" => 1, "circuit_id" => $circuit_id};
+        return {"success" => 1, "circuit_id" => $circuit_id};
+    }
+    #handle when an event isn't scheduled to be built, but does have a scheduled removal date.
+    if($remove_time != -1){
+
+        $args{'user_id'}    = $user_id;
+        $args{'circuit_id'} = $circuit_id;
+        my $result = $self->_add_remove_event(\%args);
+
+        if (! defined $result) {
+            $self->_rollback();
+            return;
+        }
     }
 
     #not a scheduled event ie.. do it now
 
     # first set up endpoints
     for (my $i = 0; $i < @$nodes; $i++){
-	
+
 	my $node      = @$nodes[$i];
 	my $interface = @$interfaces[$i];
 	my $vlan      = @$tags[$i];
-	
+
 	$query = "select interface_id from interface " .
 	    " join node on node.node_id = interface.node_id " .
 	    " where node.name = ? and interface.name = ? ";
-	
+
 	my $interface_id = $self->_execute_query($query, [$node, $interface])->[0]->{'interface_id'};
-	
+
 	if (! $interface_id ){
 	    $self->_set_error("Unable to find interface '$interface' on node '$node'");
 	    return;
@@ -4944,15 +4956,15 @@ sub provision_circuit {
 	    $self->_set_error("Interface \"$interface\" on endpoint \"$node\" is not allowed for this workgroup.");
 	    return;
 	}
-	
+
 	# need to check to see if this external vlan is open on this interface first
 	if (! $self->is_external_vlan_available_on_interface(vlan => $vlan, interface_id => $interface_id) ){
 	    $self->_set_error("Vlan '$vlan' is currently in use by another circuit on interface '$interface' on endpoint '$node'");
 	    return;
 	}
-	
+
 	$query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, end_epoch, start_epoch) values (?, ?, ?, -1, unix_timestamp(NOW()))";
-	
+
 	if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $vlan])){
 	    $self->_set_error("Unable to create circuit edge to interface '$interface' on endpoint '$node'");
 	    return;
@@ -4976,7 +4988,7 @@ sub provision_circuit {
 
 
 	$query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, end_epoch, start_epoch) values (?, ?, ?, -1, unix_timestamp(NOW()))";
-	
+
 	if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $tag])){
 	    $self->_set_error("Unable to create circuit edge to interface \"$urn\" with tag $tag.");
 	    return;
@@ -4989,24 +5001,24 @@ sub provision_circuit {
     my $link_lookup = {'primary' => $links,
 		       'backup'  => $backup_links
     };
-    
+
     foreach my $path_type (qw(primary backup)){
-	
+
 	my $relevant_links = $link_lookup->{$path_type};
 
 	next if (! @$relevant_links);
 
 	# create the primary path object
 	$query = "insert into path (path_type, circuit_id) values (?, ?)";
-	
+
 	my $path_id = $self->_execute_query($query, [$path_type, $circuit_id]);
-	
+
 	if (! $path_id){
 	    $self->_set_error("Error while creating path record.");
 	    return;
 	}
-	
-	
+
+
 	# instantiate path object
 	$query = "insert into path_instantiation (path_id, end_epoch, start_epoch, path_state) values (?, -1, unix_timestamp(NOW()), ?)";
 
@@ -5017,11 +5029,11 @@ sub provision_circuit {
 	}
 
 	my $path_instantiation_id = $self->_execute_query($query, [$path_id, $path_state]);
-	
+
 	if (! defined $path_instantiation_id ){
 	    $self->_set_error("Error while instantiating path record.");
-	    return;	
-	} 
+	    return;
+	}
 
 	my %seen_endpoints;
 	# figure out all the nodes along this path so we can assign them an internal tag
@@ -5041,10 +5053,10 @@ sub provision_circuit {
 		# make sure we don't double assign
 		next if ($seen_endpoints{$node_id});
 		$seen_endpoints{$node_id} = 1;
-	    
+
 		# figure out what internal ID we can use for this
 		my $internal_vlan = $self->_get_available_internal_vlan_id(node_id => $node_id);
-		
+
 		if (! defined $internal_vlan){
 		    $self->_set_error("Internal error finding available internal id for node $endpoint->{'node_name'}.");
 		    return;
@@ -5060,28 +5072,28 @@ sub provision_circuit {
 	    }
 
 	}
-	
+
 	# now create the primary links into the primary path
 	for (my $i = 0; $i < @$relevant_links; $i++){
-	    
+
 	    my $link = @$relevant_links[$i];
-	    
+
 	    $query = "select link_id from link where name = ?";
-	    
+
 	    my $link_id = $self->_execute_query($query, [$link])->[0]->{'link_id'};
-	    
+
 	    if (! $link_id){
 		$self->_set_error("Unable to find link '$link'");
 		return;
 	    }
-	    
+
 	    $query = "insert into link_path_membership (link_id, path_id, end_epoch, start_epoch) values (?, ?, -1, unix_timestamp(NOW()))";
-	    
+
 	    if (! defined $self->_execute_query($query, [$link_id, $path_id])){
 		$self->_set_error("Error adding link '$link' into path.");
 		return;
 	    }
-	    
+
 	}
 
     }
@@ -5186,7 +5198,7 @@ sub remove_circuit {
 	$self->_rollback();
     return;
     }
-    
+
     $self->_commit();
 
     return {success => 1, circuit_id => $circuit_id};
@@ -5211,11 +5223,11 @@ sub _add_event{
     $tmp->{'tags'}         = $params->{'tags'};
     $tmp->{'version'}      = "1.0";
     $tmp->{'action'}       = "provision";
-    
+
     my $circuit_layout = XMLout($tmp);
-    
+
     my $query = "insert into scheduled_action (user_id,workgroup_id,circuit_id,registration_epoch,activation_epoch,circuit_layout,completion_epoch) VALUES (?,?,?,?,?,?,-1)";
-    
+
     my $result = $self->_execute_query($query,[$params->{'user_id'},
                                                $params->{'workgroup_id'},
 					       $params->{'circuit_id'},
@@ -5227,16 +5239,16 @@ sub _add_event{
 
     if (! defined $result){
 	$self->_set_error("Error creating scheduled addition.");
-	
+
     return;
     }
-    
-    if($params->{'remove_time'} != -1){
-	my $result = $self->_add_remove_event($params);	
 
-	if (! defined $result){
-	    return;
-	}
+    if($params->{'remove_time'} != -1){
+        my $result = $self->_add_remove_event($params);
+
+        if (! defined $result) {
+            return;
+        }
     }
 
     return 1;
@@ -5256,9 +5268,9 @@ sub _add_remove_event {
     $tmp->{'action'}       = "remove";
 
     my $circuit_layout = XMLout($tmp);
-    
+
     my $query = "insert into scheduled_action (user_id,workgroup_id,circuit_id,registration_epoch,activation_epoch,circuit_layout,completion_epoch) VALUES (?,?,?,?,?,?,-1)";
-    
+
     my $result = $self->_execute_query($query,[$params->{'user_id'},
 					       $params->{'workgroup_id'},
 					       $params->{'circuit_id'},
@@ -5271,7 +5283,7 @@ sub _add_remove_event {
     if (! defined $result){
 	$self->_set_error("Error creating scheduled removal.");
 	return;
-    }    
+    }
 
     return 1;
 }
@@ -5287,7 +5299,7 @@ sub update_action_complete_epoch{
     if(!defined($args{'scheduled_action_id'})){
 	return;
     }
-    
+
     my $query = "update scheduled_action set completion_epoch = unix_timestamp(now()) where scheduled_action_id = ?";
 
     return $self->_execute_query($query,[$args{'scheduled_action_id'}]);
@@ -5313,7 +5325,7 @@ sub get_node_by_name {
     my %args = @_;
 
     my $name = $args{'name'};
-    
+
     my $query;
 
     if ($args{'no_instantiation'}){
@@ -5342,10 +5354,10 @@ sub get_node_by_name {
 sub get_node_by_id{
     my $self = shift;
     my %args = @_;
-    
+
     my $str = "select node.*,node_instantiation.* from node, node_instantiation where node.node_id = node_instantiation.node_id and node.node_id = ?";
     my $sth = $self->_prepare_query($str);
-    
+
     $sth->execute($args{'node_id'});
     return $sth->fetchrow_hashref();
 }
@@ -5368,11 +5380,11 @@ The dpid of the node. This is whatever the switch uses to identify itself in Ope
 sub get_node_by_dpid{
     my $self = shift;
     my %args = @_;
-    
+
     if(!defined($args{'dpid'})){
 	$self->_set_error("DPID was not defined");
 	return;
-    }    
+    }
 
     my $sth = $self->{'dbh'}->prepare("select * from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.dpid = ?");
     $sth->execute($args{'dpid'});
@@ -5399,7 +5411,7 @@ sub add_node{
     }
     my $send_barrier_bulk = 0;
     if($args{'send_barrier_bulk'}){
-        $send_barrier_bulk = $args{'send_barrier_bulk'}; 
+        $send_barrier_bulk = $args{'send_barrier_bulk'};
     }
 
     my $default_lat ="0.0";
@@ -5428,7 +5440,7 @@ sub create_node_instance{
     }
 
     my $node_inst = $self->_execute_query("select * from node_instantiation where node_id = ? and end_epoch = -1",[$args{'node_id'}]);
-    
+
     if($#{$node_inst} >= 0){
 	my $res = $self->_execute_query("update node_instantiation set end_epoch = ? where node_id = ? and end_epoch = -1",[time(),$args{'node_id'}]);
 	if(!defined($res)){
@@ -5436,14 +5448,14 @@ sub create_node_instance{
 	    return;
 	}
      }
- 
+
     my $res = $self->_execute_query("insert into node_instantiation (node_id,end_epoch,start_epoch,management_addr_ipv4,admin_state,dpid) VALUES (?,?,?,?,?,?)",[$args{'node_id'},-1,time(),$args{'ipv4_addr'},$args{'admin_state'},$args{'dpid'}]);
-    
+
     if(!defined($res)){
 	$self->_set_error("Unable to create new node instantiation");
 	return;
     }
-    
+
 
     return 1;
 
@@ -5456,13 +5468,13 @@ sub create_node_instance{
 sub update_node_operational_state{
     my $self = shift;
     my %args = @_;
-    
+
     my $res = $self->_execute_query("update node set operational_state = ? where node_id = ?",[$args{'state'},$args{'node_id'}]);
     if(!defined($res)){
 	$self->_set_error("Unable to update operational state");
 	return;
     }
-    
+
     return 1;
 }
 
@@ -5474,17 +5486,17 @@ sub update_node_operational_state{
 sub add_or_update_interface{
     my $self = shift;
     my %args = @_;
-    
+
     if(!defined($args{'node_id'})){
 	$self->_set_error("Node ID was not defined");
 	return;
     }
-    
+
     if(!defined($args{'name'})){
 	$self->_set_error("Name was not defined");
 	return;
     }
-    
+
     if(!defined($args{'operational_state'})){
 	$args{'operational_state'} = 'unknown';
     }
@@ -5512,19 +5524,19 @@ sub add_or_update_interface{
     my $int_id;
 
     my $int = $self->_execute_query("select * from interface where interface.node_id = ? and interface.name = ?",[$args{'node_id'},$args{'name'}]);
-    
+
     #see if this interface already exists
     if($#{$int} >= 0){
 	#interface exists
 	$int = @{$int}[0];
 
 	$int_id = $int->{'interface_id'};
-	
+
 	#check to see if the existing port number matches the new one
 	if($int->{'port_number'} != $args{'port_num'}){
-	    
+
 	    my $port_num_changed = $self->_execute_query("select * from interface where interface.node_id = ? and interface.port_number = ? and interface.interface_id != ?",[$args{'node_id'},$args{'port_num'},$int->{'interface_id'}]);
-	    
+
 	    if($#{$port_num_changed} >= 0){
 		#this makes me a sad monkey :(
 		$port_num_changed = @{$port_num_changed}[0];
@@ -5534,26 +5546,26 @@ sub add_or_update_interface{
 		    return;
 		}
 	    }
-	    
+
 	    my $res = $self->_execute_query("update interface set port_number = ? where interface_id = ?",[$args{'port_num'},$int->{'interface_id'}]);
 	    if(!defined($res)){
 		return;
 	    }
 	}
-	
+
 	#update operational state
 	my $res = $self->_execute_query("update interface set operational_state = ? where interface.interface_id = ?",[$args{'operational_state'},$int->{'interface_id'}]);
 	if(!defined($res)){
 	    $self->_set_error("Unable to update operational_state");
 	    return;
 	}
-	
+
 
 
 	if (! $args{'no_instantiation'}){
 	    #ok now that we have verified the name and port exist and hopefully haven't changed on us we can check on our instantiation
 	    $res = $self->_execute_query("select * from interface_instantiation where interface_id = ? and end_epoch = -1",[$int->{'interface_id'}]);
-	    
+
 	    if(defined($res) && defined(@{$res}[0])){
 		$res = @{$res}[0];
 		if($res->{'capacity_mbps'} ne $args{'capacity_mbps'} || $res->{'mtu_bytes'} ne $args{'mtu_bytes'} || $res->{'admin_state'} ne $args{'admin_state'}){
@@ -5568,8 +5580,8 @@ sub add_or_update_interface{
 			return;
 		    }
 		}
-		
-		
+
+
 	    }else{
 		if (! $args{'no_instantiation'}){
 		    $self->_execute_query("insert into interface_instantiation (interface_id,admin_state,end_epoch,start_epoch,capacity_mbps,mtu_bytes) VALUES (?,?,-1,UNIX_TIMESTAMP(NOW()),?,?)",[$int->{'interface_id'},$args{'admin_state'},$args{'capacity_mbps'},$args{'mtu_bytes'}]);
@@ -5584,7 +5596,7 @@ sub add_or_update_interface{
 	#interface does not exist
 	#however we aren't guaranteed the same port number didn't already exist... lets check and verify
 	$int = $self->_execute_query("select * from interface where interface.node_id = ? and interface.port_number = ?",[$args{'node_id'},$args{'port_num'}]);
-	
+
 	if(defined($int) && defined(@{$int}[0])){
 	    #Uh oh, the name changed but the port number already existed... this device configuration is just completely different
 	    $int = @{$int}[0];
@@ -5610,7 +5622,7 @@ sub add_or_update_interface{
 	    }
 
 	}
-    
+
     }
 
     return $int_id;
@@ -5624,7 +5636,7 @@ sub add_or_update_interface{
 sub edit_circuit {
     my $self = shift;
     my %args = @_;
-    
+
     my $circuit_id     = $args{'circuit_id'};
     my $description    = $args{'description'};
     my $bandwidth      = $args{'bandwidth'};
@@ -5703,7 +5715,7 @@ sub edit_circuit {
 	    " set end_epoch = unix_timestamp(now()) where circuit_id = ? and end_epoch = -1";
     }
     $self->_execute_query($query, [$circuit_id]);
-    
+
     $query = "select * from path where circuit_id = ?";
     my $paths = $self->_execute_query($query, [$circuit_id]);
 
@@ -5715,7 +5727,7 @@ sub edit_circuit {
     }
 
     #re-instantiate
-    # first set up endpoints                                                                                                                                                                        
+    # first set up endpoints
     for (my $i = 0; $i < @$nodes; $i++){
 
         my $node      = @$nodes[$i];
@@ -5740,7 +5752,7 @@ sub edit_circuit {
         return;
 	}
 
-        # need to check to see if this external vlan is open on this interface first                                                                                                                
+        # need to check to see if this external vlan is open on this interface first
         if (! $self->is_external_vlan_available_on_interface(vlan => $vlan, interface_id => $interface_id) ){
             $self->_set_error("Vlan '$vlan' is currently in use by another circuit on interface '$interface' on endpoint '$node'");
             $self->_rollback();
@@ -5748,7 +5760,7 @@ sub edit_circuit {
         }
 
         $query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, end_epoch, start_epoch) values (?, ?, ?, -1, unix_timestamp(NOW()))";
-	
+
         if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $vlan])){
             $self->_set_error("Unable to create circuit edge to interface '$interface'");
             $self->_rollback();
@@ -5773,7 +5785,7 @@ sub edit_circuit {
 	}
 
 	$query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, end_epoch, start_epoch) values (?, ?, ?, -1, unix_timestamp(NOW()))";
-	
+
 	if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $tag])){
 	    $self->_set_error("Unable to create circuit edge to interface \"$urn\" with tag $tag.");
 	    $self->_rollback();
@@ -5802,22 +5814,22 @@ sub edit_circuit {
 	}else{
 	    $path_id = @{$res}[0]->{'path_id'};
 	}
-	
+
 	if (! $path_id){
 	    $self->_set_error("Error while creating path record.");
 	    $self->_rollback();
         return;
 	}
-	
+
 	# instantiate path object
 	$query = "insert into path_instantiation (path_id, end_epoch, start_epoch, path_state) values (?, -1, unix_timestamp(NOW()), ?)";
-	
+
 	my $path_state = "deploying";
-	
+
 	if ($path_type eq "backup"){
 	    $path_state = "available";
 	}
-	
+
 	my $path_instantiation_id = $self->_execute_query($query, [$path_id, $path_state]);
 
 	if (! defined $path_instantiation_id){
@@ -5825,29 +5837,29 @@ sub edit_circuit {
 	    $self->_rollback();
         return;
 	}
-	
+
 
 	my %seen_endpoints;
 	foreach my $link (@$relevant_links){
 	    my $info = $self->get_link_by_name(name => $link);
-	    
+
 	    my $endpoints = $self->get_link_endpoints(link_id => $info->{'link_id'});
-	    
+
 	    foreach my $endpoint (@$endpoints){
 		my $node_id = $endpoint->{'node_id'};
 
 		next if ($seen_endpoints{$node_id});
 		$seen_endpoints{$node_id} = 1;
-	    		
+
 		# figure out what internal ID we can use for this
 		my $internal_vlan = $self->_get_available_internal_vlan_id(node_id => $node_id);
-		
+
 		if (! defined $internal_vlan){
 		    $self->_set_error("Internal error finding available internal id.");
 		    $self->_rollback();
             return;
 		}
-		
+
 		$query = "insert into path_instantiation_vlan_ids (path_instantiation_id, node_id, internal_vlan_id) values (?, ?, ?)";
 
 		if (! defined $self->_execute_query($query, [$path_instantiation_id, $node_id, $internal_vlan])){
@@ -5860,7 +5872,7 @@ sub edit_circuit {
 
 	}
 
-        # now create the primary links into the primary path                                                                                                                                              
+        # now create the primary links into the primary path
         for (my $i = 0; $i < @$relevant_links; $i++){
 
             my $link = @$relevant_links[$i];
@@ -5923,7 +5935,7 @@ Begins a transaction on the database.
 
 sub _start_transaction {
     my $self = shift;
-    
+
     my $dbh = $self->{'dbh'};
 
     $dbh->begin_work();
@@ -5935,7 +5947,7 @@ sub _rollback{
     $dbh->rollback();
 }
 
-=head2 _get_uuid 
+=head2 _get_uuid
 
 Returns a UUID. This is generated via the underlying MySQL database.
 
@@ -6027,7 +6039,7 @@ sub _execute_query {
     my $args  = shift;
 
     my $dbh = $self->{'dbh'};
-    
+
     my $sth = $dbh->prepare($query);
 
     #warn "Query is: $query\n";
@@ -6072,7 +6084,7 @@ sub _execute_query {
 
 }
 
-=head2 _get_available_internal_vlan_id 
+=head2 _get_available_internal_vlan_id
 
 Returns the lowest currently available internal vlan identifier or undef if none are available.
 
@@ -6123,7 +6135,7 @@ sub _get_available_internal_vlan_id {
 
 Returns an array of tags that are configured to be allowed for this node.
 
-=over 
+=over
 
 =item node_id
 
@@ -6184,11 +6196,11 @@ sub _process_tag_string{
 		return;
 	    }
 	    push (@tags, $1);
-	
+
 	}else{
 
 	    return;
-	
+
 	}
 
     }
@@ -6269,7 +6281,7 @@ Returns the location of the SNAPP config
 sub get_snapp_config_location{
     my $self = shift;
     return $self->{'snapp_config_location'};
-	
+
 }
 
 =head2 get_current_actions
@@ -6280,11 +6292,11 @@ sub get_snapp_config_location{
 
 sub get_current_actions{
     my $self = shift;
-    
+
     my $query = "select * from scheduled_action where activation_epoch < unix_timestamp(now()) and completion_epoch = -1";
-    
+
     return $self->_execute_query($query,[]);
-    
+
 }
 
 
@@ -6314,7 +6326,7 @@ sub can_modify_circuit{
     my $workgroup = $self->get_workgroup_by_id( workgroup_id => $params{'workgroup_id'});
 
     my $user_id = $self->get_user_id_by_auth_name( auth_name => $params{'username'});
-    my $is_user_in_workgroup = $self->is_user_in_workgroup( workgroup_id => $params{'workgroup_id'}, 
+    my $is_user_in_workgroup = $self->is_user_in_workgroup( workgroup_id => $params{'workgroup_id'},
 							    user_id => $user_id);
 
     if(!$is_user_in_workgroup){
@@ -6353,7 +6365,7 @@ sub get_circuits_by_state{
 
     if(!defined($params{'state'})){
 	$self->_set_error("get_circuits_by_state requires state parameter to be defined");
-	
+
     return;
     }
 
@@ -6381,7 +6393,7 @@ sub get_circuits_by_state{
     }
 
     return \@results;
-    
+
 }
 
 
@@ -6394,24 +6406,24 @@ Returns the domain name of the network which is local to this instance.
 
 sub get_local_domain_name {
     my $self = shift;
-        
+
     my $result = $self->_execute_query("select name from network where is_local = 1")->[0];
 
     return $result->{'name'};
 }
 
-=head2 gen_topo 
+=head2 gen_topo
 
 Generates an XML representation of the OESS database designed to be compliant OSCARS.
 
 =cut
 
-sub gen_topo{   
+sub gen_topo{
     my $self   = shift;
 
     my $workgroup = $self->get_workgroup_details_by_name( name => OSCARS_WG );
     my $domain = $self->get_local_domain_name();
-	
+
     my $xml = "";
     my $writer = new XML::Writer(OUTPUT => \$xml, DATA_INDENT => 2, DATA_MODE => 1, NAMESPACES => 1);
     $writer->startTag("topology", id=> $domain);
@@ -6470,7 +6482,7 @@ sub gen_topo{
             my $processed_link = 0;
 
             foreach my $link (@$links){
-                # only show links we know about that are trunked (this is actually the interface role)                                          
+                # only show links we know about that are trunked (this is actually the interface role)
                 $processed_link = 1;
                 if(!defined($link->{'remote_urn'})){
                     $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","link"], id => "urn:ogf:network:domain=" . $domain . ":node=" . $node->{'name'} . ":port=" . $int->{'name'} . ":link=" . $link->{'link_name'});
@@ -6501,7 +6513,7 @@ sub gen_topo{
                     $writer->characters("urn:ogf:network:domain=" . $domain . ":node=" . $remote_node->{'name'} . ":port=" . $remote_int->{'interface_name'} . ":link=" . $link->{'link_name'});
                     $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","remoteLinkId"]);
                 }else{
-                    #remote urn is defined                                                                                                                                                                                               
+                    #remote urn is defined
                     $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","link"], id => "urn:ogf:network:domain=" . $domain . ":node=" . $node->{'name'} . ":port=" . $int->{'name'} . ":link=" . $link->{'link_name'});
                     $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","remoteLinkId"]);
                     $writer->characters($link->{'remote_urn'});
@@ -6514,12 +6526,12 @@ sub gen_topo{
 		}else{
 		    $writer->characters("10");
 		}
-		
+
 		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","trafficEngineeringMetric"]);
 		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","capacity"]);
 		$writer->characters($int->{'capacity_mbps'} * 1000000);
 		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","capacity"]);
-		
+
 		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","maximumReservableCapacity"]);
 		$writer->characters($int->{'capacity_mbps'} * 1000000);
 		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","maximumReservableCapacity"]);
@@ -6529,7 +6541,7 @@ sub gen_topo{
 		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","granularity"]);
 		$writer->characters(1000000);
 		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","granularity"]);
-		
+
 		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","SwitchingCapabilityDescriptors"]);
 		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","switchingcapType"]);
 		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","switchingcapType"]);
@@ -6545,10 +6557,10 @@ sub gen_topo{
 		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
 		$writer->characters("2-4094");
 		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
-		
+
 		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","switchingCapabilitySpecificInfo"]);
 		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","SwitchingCapabilityDescriptors"]);
-		
+
 		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","link"]);
 	    }
 
@@ -6603,7 +6615,7 @@ sub gen_topo{
 
         $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","node"]);
     }
-    
+
     #end do stuff
     $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","domain"]);
     $writer->endTag("topology");
@@ -6620,7 +6632,7 @@ sub get_admin_email{
 sub get_circuit_edge_on_interface{
     my $self = shift;
     my %params = @_;
-    
+
     if(!defined($params{'interface_id'})){
 	$self->_set_error("No Interface ID specified for get_circuit_edge_on_interface");
 	return undef;
