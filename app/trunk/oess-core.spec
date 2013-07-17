@@ -1,5 +1,5 @@
 Name:		oess-core		
-Version:	1.0.11
+Version:	1.0.12
 Release:	1%{?dist}
 Summary:	The core oess service provides
 
@@ -11,19 +11,19 @@ BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 BuildRequires:	perl
 Requires:       perl(Net::DBus), dbus, dbus-libs, mysql-server
-Requires:       nox >= 0.9.11
+Requires:       nox >= 0.9.12
 Requires:		xmlsec1-devel
 Requires:		xmlsec1-openssl-devel
 Requires(interp): /bin/sh
 Requires(rpmlib): rpmlib(CompressedFileNames) <= 3.0.4-1 rpmlib(PayloadFilesHavePrefix) <= 4.0-1
 Requires(post): /bin/sh
 Requires: /bin/bash /usr/bin/perl perl(CGI) perl(DBI) perl(Data::Dumper) perl(English) perl(FindBin) perl(Getopt::Long) perl(Getopt::Std) perl(HTML::Entities) perl(LockFile::Simple) perl(Net::DBus) perl(Net::DBus::Exporter) perl(OESS::DBus) perl(OESS::Topology) perl(Proc::Daemon) perl(RRDs) perl(Socket) perl(Switch) perl(Sys::Hostname) perl(Sys::Syslog) perl(URI::Escape) perl(XML::Simple) perl(XML::Writer) perl(XML::XPath) perl(base) perl(constant) perl(strict) perl(warnings) perl(Term::ReadKey) perl(CPAN)
-Requires: perl-OESS-Database >= 1.0.11
-Requires: perl-OESS-Notification >= 1.0.11
-Requires: perl-OESS-Topology >= 1.0.11
-Requires: perl-OESS-Measurement >= 1.0.11
-Requires: perl-OSCARS-Client >= 1.0.11
-Requires: perl-OESS-DBus >= 1.0.11
+Requires: perl-OESS-Database >= 1.0.12
+Requires: perl-OESS-Notification >= 1.0.12
+Requires: perl-OESS-Topology >= 1.0.12
+Requires: perl-OESS-Measurement >= 1.0.12
+Requires: perl-OSCARS-Client >= 1.0.12
+Requires: perl-OESS-DBus >= 1.0.12
 BuildArch:	noarch
 AutoreqProv: no
 %description
