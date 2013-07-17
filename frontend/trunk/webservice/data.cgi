@@ -446,7 +446,7 @@ sub get_all_node_status {
     my $results;
 
     my $nodes = $db->get_current_nodes();
-
+    
     $results->{'results'} = $nodes;
 
     return $results;
