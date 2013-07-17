@@ -5006,7 +5006,7 @@ sub provision_circuit {
 
 	my $relevant_links = $link_lookup->{$path_type};
 
-	next if (! @$relevant_links);
+	next if(!defined(@$relevant_links) || !defined($relevant_links->[0]));
 
 	# create the primary path object
 	$query = "insert into path (path_type, circuit_id) values (?, ?)";
@@ -5802,6 +5802,8 @@ sub edit_circuit {
     foreach my $path_type (qw(primary backup)){
 
         my $relevant_links = $link_lookup->{$path_type};
+
+	next if(!defined(@$relevant_links) || !defined($relevant_links->[0]));
 
 	#try to find the path first
 	$query = "select * from path where circuit_id = ? and path_type = ?";
