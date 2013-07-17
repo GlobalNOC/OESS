@@ -92,6 +92,8 @@ sub main {
     }
     case "modify_reservation" {
         $output = &modify_reservation();
+    }case "update_circuit_owner" {
+	$output = &update_circuit_owner();
     }
     else{
         $output = {error => "Unknown action - $action"};
@@ -404,6 +406,28 @@ sub cancel_reservation{
     }
 
     return {results => [{status => $status, message => $message, gri => $gri}]};
+
+}
+
+sub update_circuit_owner{
+    my $gri = $cgi->param('gri');
+    my $workgroup_id = $cgi->param('workgroup_id');
+
+    return {error => "No GRI Specified"} if(!defined($gri));
+    return {error => "No Workgroup ID Specified"} if(!defined($workgroup_id));
+			     
+    my $circuit = $db->get_circuit_by_external_identifier( external_identifier => $gri );
+    if(!defined($circuit)){
+	return {error => "Unable to find circuit with GRI: " . $gri };
+    }
+
+    my $res = $db->update_circuit_owner( circuit_id => $circuit->{'circuit_id'}, workgroup_id => $workgroup_id );
+    if(!defined($res)){
+	return {error => "Error updating circuit ownership"};
+    }else{
+	return {success => 1, message => "successfully update the circuit ownership"};
+    }
+    
 
 }
 
