@@ -40,7 +40,7 @@ use constant BUILDING_FILE => -1;
 
 our @EXPORT_OK = qw(BUILDING_FILE);
 
-our $VERSION = '1.0.11';
+our $VERSION = '1.0.12';
 
 our $ENABLE_DEVEL=0;
 
