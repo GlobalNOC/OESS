@@ -142,7 +142,7 @@ cmp_deeply($res,{
                                             'Node 21' => '120'
 					     }
 			   },
-          'last_edited' => '2/22/2013 18:01:26',
+          'last_edited' => '02/22/2013 18:01:26',
           'user_id' => '221',
           'restore_to_primary' => '0',
           'operational_state' => 'unknown'
