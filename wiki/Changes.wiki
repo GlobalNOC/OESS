@@ -1,5 +1,32 @@
 = Changes for OESS over time =
 
+== 1.0.12 ==
+
+*Bugs*:
+ * OESS Circuits without backup paths would end up with empty backup paths, and would fail over and not work
+ * OESS could not schedule a removal time on circuit creation
+
+== 1.0.11 ==
+
+*Features*:
+ * OSCARS circuits created through the OESS UI are now owned by the OESS workgroup 
+
+*Bugs*:
+ * new links on insertion do not have a status
+ * OESS CLR not showing minues < 10 properly
+ * approval of node not honoring bulk barrier flag
+ * fixed problems related to inserting a node in the middle of the path
+
+== 1.0.10 ==
+
+*Features*:
+*Added the ability to send barriers to each device once instead of after every flow mod when doing failovers
+*added dpid to oess admin network elements popup
+
+*Bugs*:
+ * fixed a possible synchornization issue between topo and fwdctl
+ * fixed OESS OSCARS integration when interfaces have names with spaces in the topology
+
 == 1.0.9 ==
 
 *Features*:
