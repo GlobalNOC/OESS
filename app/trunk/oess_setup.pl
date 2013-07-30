@@ -17,7 +17,7 @@ sub main{
 
     print "NOTE: This should ONLY be run for a fresh install of OESS, if you have an\n";
     print "existing OESS install, please run the upgrade scripts in the upgrade\n";
-    print "directory '/usr/share/oess/upgrade'\n";
+    print "directory '" . OESS::Database::SHARE_DIR . "upgrade/'\n";
     print "\nPress control+c to exit out of the installation process at any time\n";
     print "\n\nMySQL should be running, and you should know the administrator password\n";
     print "before continuing on.";
