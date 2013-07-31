@@ -500,18 +500,23 @@ Parmeters: -f --foreground runs the application in the foreground (ie... no fork
 
 =cut
 
-our($opt_f,$opt_u);
+our($opt_f,$opt_u, $opt_v);
 my $result = GetOptions("foreground" => \$opt_f,
-			"user=s" => \$opt_u);
+			"user=s" => \$opt_u,
+                        "verbose" => \$opt_v);
 
 if($opt_f){
     main();
 }else{
-
-    my $daemon = Proc::Daemon->new(  pid_file => '/var/run/oess/vlan_stats_d.pid',
-				     child_STDOUT => '/var/log/oess/vlan_stats.out',
-				     child_STDERR => '/var/log/oess/vlan_stats.log',
-	);
+    my $daemon;
+    if($opt_v){
+        $daemon = Proc::Daemon->new(  pid_file => '/var/run/oess/vlan_stats_d.pid',
+                                      child_STDOUT => '/var/log/oess/vlan_stats.out',
+                                      child_STDERR => '/var/log/oess/vlan_stats.log',
+            );
+    }else{
+        $daemon = Proc::Daemon->new(  pid_file => '/var/run/oess/vlan_stats_d.pid');
+    }
 
     my $kid = $daemon->Init;
     

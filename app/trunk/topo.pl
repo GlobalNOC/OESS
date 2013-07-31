@@ -681,11 +681,18 @@ sub main(){
     $SIG{'CHLD'} = 'CHLD_handler';
 
     if (0!=$is_daemon){
-       my $daemon = Proc::Daemon->new( 
-	   pid_file => '/var/run/oess/topo.pid',
-	   child_STDOUT => '/var/log/oess/topo.out',
-	   child_STDERR => '/var/log/oess/topo.log',
-       );
+        my $daemon
+        if($verbose){
+            $daemon = Proc::Daemon->new( 
+                pid_file => '/var/run/oess/topo.pid',
+                child_STDOUT => '/var/log/oess/topo.out',
+                child_STDERR => '/var/log/oess/topo.log',
+                );
+        }else{
+            $daemon = Proc::Daemon->new(
+                pid_file => '/var/run/oess/topo.pid'
+                );
+        }
 
        my $kid = $daemon->Init;
 
