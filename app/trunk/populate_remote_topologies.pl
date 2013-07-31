@@ -105,6 +105,9 @@ sub get_remote_topology {
 
 	    $domain =~ /urn:ogf:network:domain=(.*)/;
 	    my $domain_name = $1;
+            if($domain_name eq $LOCAL_DOMAIN){
+                next;
+            }
 
 	    my @links;
 
