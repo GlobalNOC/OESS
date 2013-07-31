@@ -197,10 +197,10 @@ function MeasurementGraph(container, legend_container, options){
 
 	this._showTitle(response.meta.node, response.meta.interface, response.meta.interfaces);
 
-	this.updating = setTimeout(function(self){
+	this.updating = setInterval(function(self){
 		return function(){
-		    self.options.start += (self.POLL_INTERVAL / 1000);
-		    self.options.end   += (self.POLL_INTERVAL / 1000);
+                    self.options.start += (self.POLL_INTERVAL / 1000);
+                    self.options.end   += (self.POLL_INTERVAL / 1000);
 		    self.render(true);
 		}
 	    }(this), this.POLL_INTERVAL);
@@ -278,12 +278,6 @@ function MeasurementGraph(container, legend_container, options){
 		            failure: function(req, resp){
 		               this._hideLoading();
 			       this._showError();
-
-			       this.updating = setTimeout(function(self){
-				       return function(){
-					   this.render(true);
-				       }
-				   }(this), 5000);
 		           },
 		           scope: this
 	    });
