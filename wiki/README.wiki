@@ -131,6 +131,8 @@ http://code.google.com/p/nddi/downloads
 ==9. Known Supported Devices==
 
 -NEC Rack switch model PF5820 / IBM G8264
+-Brocade MLXe16
+-Juniper MX960
 
 The software should work with any OpenFlow 1.0 compliant switch. See http://code.google.com/p/nddi/wiki/SwitchRequirements for a list of all the switch requirements for OESS to function properly.
 
