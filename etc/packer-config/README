@@ -1,0 +1,7 @@
+This is a config file for packer.io to build a virtualbox vm with a running OESS and its dependencies, as well as a barebone ks.cfg to automate the build process.
+
+packer is available at http://www.packer.io/
+After installing packer, navigate to this base directory and type "packer build oess.json"
+
+
+ 
