@@ -1,16 +1,16 @@
 {
 	"variables": {
 		   "oess_version":"1.0.12"
-	},	
+	},
     "builders":[
 	{
 	    "type": "virtualbox",
 	    "vm_name": "oess-{{user `oess_version`}}",
 	    "guest_os_type": "RedHat_64",
-	    "iso_url": "file:///Users/gmcnaugh/Downloads/CentOS-6.4-x86_64-minimal.iso",
-            "iso_checksum": "4a5fa01c81cc300f4729136e28ebe600",
+	    "iso_url": "file://CentOS-6.4-x86_64-minimal.iso",
+        "iso_checksum": "4a5fa01c81cc300f4729136e28ebe600",
 	    "http_directory": "./",
-            "iso_checksum_type": "md5",	 
+            "iso_checksum_type": "md5",
 	    "disk_size": "10000:,
             "boot_command":[
                 "<esc><wait>",
@@ -20,8 +20,8 @@
             "ssh_username": "oess",
             "ssh_password": "oess",
             "ssh_wait_timeout": "3000s",
-	    
-	    "vboxmanage": [	     
+
+	    "vboxmanage": [
 		[
 		    "modifyvm",
 		    "{{.Name}}",
@@ -36,8 +36,8 @@
 		    "1"
 		]
 	    ]
-	    
-	    
+
+
 	}	],
     "provisioners":[
 	{
@@ -51,7 +51,7 @@
 	     "destination": "/tmp/oess_settings.txt"
 	},
 	{
-	    
+
             "type": "shell",
 	    "inline": [
 
@@ -66,7 +66,7 @@
 		"cd oess-{{user `oess_version`}}",
 		"sudo yum -y install `find *.rpm`"
 	    ]
-	    
+
 	},
 	{
 	    "type": "shell",
@@ -77,8 +77,11 @@
 		"sudo /sbin/iptables -I INPUT 5 -m state --state NEW -m tcp -p tcp --dport 6633 -j ACCEPT",
 		"sudo /etc/init.d/messagebus restart",
 		"sudo /etc/init.d/oess restart",
-		"sudo /etc/init.d/httpd restart"
-	    ]
+		"sudo /etc/init.d/httpd restart",
+	    "sudo chkconfig mysqld on",
+        "sudo chkconfig httpd on",
+        "sudo chkconfig oess on"
+        ]
 	}
     ]
 }
