@@ -6443,6 +6443,8 @@ sub gen_topo{
         $writer->characters($node->{'management_addr_ipv4'});
         $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","address"]);
 
+        $node->{'vlan_tag_range'} =~ s/-1//g;
+
 	my %interfaces;
         my $ints = $self->get_node_interfaces( node => $node->{'name'}, workgroup_id => $workgroup->{'workgroup_id'}, show_down => 1);
 
@@ -6557,8 +6559,12 @@ sub gen_topo{
 		$writer->characters($int->{'mtu_bytes'});
 		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","interfaceMTU"]);
 		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
-		$writer->characters("2-4094");
-		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
+		
+                #$writer->characters("2-4094");
+                
+		$writer->characters( $node->{'vlan_tag_range'} );
+
+                $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
 
 		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","switchingCapabilitySpecificInfo"]);
 		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","SwitchingCapabilityDescriptors"]);
@@ -6602,7 +6608,9 @@ sub gen_topo{
                 $writer->characters($int->{'mtu_bytes'});
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","interfaceMTU"]);
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
-                $writer->characters("2-4094");
+                $int->{'vlan_tag_range'} =~ s/-1//g;
+                $writer->characters( $int->{'vlan_tag_range'} );
+                
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
 
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","switchingCapabilitySpecificInfo"]);
