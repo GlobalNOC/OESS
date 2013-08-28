@@ -168,6 +168,9 @@ function init(){
 			return;
 		    }
 
+                    //do some validation on the endpoint
+                    
+
 		    endpoint_table.addRow({interface: port,
 				           node: node,
 				           tag: new_tag,
