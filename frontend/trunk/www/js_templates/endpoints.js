@@ -1,6 +1,9 @@
 <script>
   
 function makeInterfacesTable(node){
+
+    var node_name_holder = document.getElementById('node_name_holder');
+    node_name_holder.innerHTML = "<center><h2><b>" + node + "</b></h2></center>";
   
   var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_node_interfaces&node="+encodeURIComponent(node)+"&workgroup_id="+session.data.workgroup_id + "&show_down=1");
   ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
