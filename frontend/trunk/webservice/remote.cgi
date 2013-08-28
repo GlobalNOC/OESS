@@ -245,8 +245,12 @@ sub get_networks {
 			
 		    }
 		    
+                    my $vlanRange = $xpath->find("./ns1:SwitchingCapabilityDescriptors/ns1:switchingCapabilitySpecificInfo/ns1:vlanRangeAvailability", $link_element);
+                    my $vlan_range = @$vlanRange[0]->getChildNodes()->[0]->getValue();
+
 		    push(@links,{urn        => $link,
 				 node       => $node_name,
+                                 vlan_range => $vlan_range,
 				 port       => $port_name ,
 				 link       => $link_name,
 				 remote_urn => $remote_link_urn,
