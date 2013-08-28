@@ -516,9 +516,14 @@ sub _parse_struct {
 
     $intfA =~ s/\+/ /g;
     $intfZ =~ s/\+/ /g;
-
+    $nodeA =~ s/\+/ /g;
+    $nodeZ =~ s/\+/ /g;
+    
     my @links = keys %links;
 
+    for(my $i=0;$i<$#links;$i++){
+        $links[$i] =~ s/\+/ /g;
+    }
 
     my @remote_nodes;
     my @remote_tags;
