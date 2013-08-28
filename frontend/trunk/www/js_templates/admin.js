@@ -286,7 +286,7 @@ function setup_remote_tab(){
 		    
 		    this.changeNodeImage(feature, this.ACTIVE_IMAGE);
 
-		    var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_node_interfaces&node="+encodeURIComponent(node));
+		    var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_node_interfaces&node="+encodeURIComponent(node) + "&show_down=1");
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 		    ds.responseSchema = {
 			resultsList: "results",
@@ -304,7 +304,7 @@ function setup_remote_tab(){
 		    var cols = [{key: "name", label: "Local Interface", width: 220}];
 		    
 		    var configs = {
-			height: "400px"
+			height: "300px"
 		    };
 		    
 		    var table = new YAHOO.widget.ScrollingDataTable("remote_interface_table", cols, ds, configs);
@@ -347,6 +347,11 @@ function setup_remote_tab(){
 			    save_button.on("click", function(){
 				    var urn  = YAHOO.util.Dom.get("remote_urn").value;
 				    var name = YAHOO.util.Dom.get("remote_link_name").value;
+                                    var regexp = new RegExp(/ /);
+                                    if(regexp.exec(name)){
+                                        alert("URN Names can not contain spaces");
+                                        return;
+                                    }
 
 				    if (! urn){
 					alert("You must specify a URN for this remote link.");
