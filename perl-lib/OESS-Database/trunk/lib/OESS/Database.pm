@@ -1201,7 +1201,7 @@ HERE
               my $available_endpoint_query = <<HERE;
 select node.name, network.name as network_name, count(interface.port_number) as 'available_endpoint_count' from node
 join network on node.network_id = network.network_id
-left join interface on node.node_id in ( $node_list ) and interface.node_id = node.node_id 
+left join interface on node.node_id in ( $node_list ) and interface.node_id = node.node_id
 where interface.workgroup_id= ?
 group by node.name
 HERE
@@ -1280,7 +1280,7 @@ HERE
     my $available_endpoint_query = <<HERE;
 	select network.name as network_name, node.name, count(interface.port_number) as 'available_endpoint_count' from node
 join network on node.network_id = network.network_id
-left join interface on node.node_id in ( $node_list ) and interface.node_id = node.node_id 
+left join interface on node.node_id in ( $node_list ) and interface.node_id = node.node_id
 where interface.workgroup_id= ?
 group by node.name
 HERE
@@ -1749,7 +1749,7 @@ sub get_workgroup_interfaces {
 
 =head2 update_interface_owner
 
-Changes the owner of an interface. 
+Changes the owner of an interface.
 
 =over
 
@@ -1795,7 +1795,7 @@ sub update_interface_owner {
         }
     }
 
-    
+
     $self->_start_transaction();
 
     $query = "update interface set workgroup_id = ? where interface_id = ?";
@@ -1806,7 +1806,7 @@ sub update_interface_owner {
 	$self->_rollback();
 	return;
     }
-   
+
     if(defined($args{'workgroup_id'})) {
         $query = "insert into interface_acl (interface_id, allow_deny, eval_position, vlan_start, vlan_end, notes) values (?,?,?,?,?,?)";
         my $query_args = [$interface_id, 'allow', 10, -1, 4095, 'Default ACL Rule' ];
@@ -1825,12 +1825,12 @@ sub update_interface_owner {
 	        return;
         }
     }
- 
+
     $self->_commit();
 
     return 1;
 }
-=head2 get_all_workgroups 
+=head2 get_all_workgroups
 
 Gets all the workgroups
 
@@ -1858,7 +1858,7 @@ sub get_all_workgroups {
         });
     }
 
-    return $workgroups; 
+    return $workgroups;
 }
 
 =head2 add_acl
@@ -1898,10 +1898,10 @@ sub add_acl {
         $args{'vlan_end'},
         $args{'notes'}
     ];
-    
+
     my $user_id = $args{'user_id'};
 
-    
+
     my $query = "insert into interface_acl (workgroup_id, interface_id, allow_deny, eval_position, vlan_start, vlan_end, notes) values (?,?,?,?,?,?,?)";
     my $acl_id = $self->_execute_query($query, $args);
 
@@ -1910,27 +1910,27 @@ sub add_acl {
         return;
     }
 
-    return $acl_id;     
-    
-} 
+    return $acl_id;
+
+}
 =head2 update_acl
 
-Updates acl 
+Updates acl
 
 =cut
 
 sub update_acl {
     my $self = shift;
     my %args = @_;
-    
-    
+
+
     if(!defined($args{'user_id'})){
     $self->_set_error("user_id not specified");
     return;
     }
-   
-    # get the current acl state     
-    my $query = "select * from interface_acl where interface_acl_id = ?"; 
+
+    # get the current acl state
+    my $query = "select * from interface_acl where interface_acl_id = ?";
     my $interface_acl = $self->_execute_query($query, [$args{'interface_acl_id'}]);
     if(!$interface_acl) {
         $self->_set_error("Error updating acl");
@@ -1967,10 +1967,10 @@ sub update_acl {
     # we may need to do some reordering
     else {
         # see if its position is changing
-        if($interface_acl->{'eval_position'} != $args{'eval_position'}) { 
+        if($interface_acl->{'eval_position'} != $args{'eval_position'}) {
             my $moving_lower = ($interface_acl->{'eval_position'} > $args{'eval_position'}) ? 1 : 0;
 
-            $query = "select * from interface_acl where interface_id = ? and eval_position = ? and interface_acl_id != ?"; 
+            $query = "select * from interface_acl where interface_id = ? and eval_position = ? and interface_acl_id != ?";
             $int_acl_at_position = $self->_execute_query($query, [$interface_acl->{'interface_id'}, $args{'eval_position'}, $args{'interface_acl_id'}]);
             if(!$int_acl_at_position) {
                 $self->_set_error("Error updating acl");
@@ -1981,7 +1981,7 @@ sub update_acl {
             if( @$int_acl_at_position > 0 ) {
                 $update_positions = 1;
                 # get all the acls for this interface except the one were editing
-                $query = "select * from interface_acl where interface_id = ? and interface_acl_id != ? order by eval_position"; 
+                $query = "select * from interface_acl where interface_id = ? and interface_acl_id != ? order by eval_position";
                 my $all_other_acls = $self->_execute_query($query, [$interface_acl->{'interface_id'}, $args{'interface_acl_id'}]);
                 if(!$all_other_acls) {
                     $self->_set_error("Error updating acl");
@@ -1993,9 +1993,9 @@ sub update_acl {
                     if( $moving_lower && ($other_acl->{'eval_position'} == $args{'eval_position'}) ){
                         push(@$all_int_acls, $args{'interface_acl_id'});
                     }
-                    
+
                     push(@$all_int_acls, $other_acl->{'interface_acl_id'});
-                   
+
                     # must insert acl after if were moving it to a higher position
                     if( !$moving_lower && ($other_acl->{'eval_position'} == $args{'eval_position'}) ){
                         push(@$all_int_acls, $args{'interface_acl_id'});
@@ -2005,7 +2005,7 @@ sub update_acl {
         }
     }
 
-    $query = "update interface_acl set workgroup_id = ?, allow_deny = ?, eval_position = ?, vlan_start = ?, vlan_end = ?, notes = ? where interface_acl_id = ?"; 
+    $query = "update interface_acl set workgroup_id = ?, allow_deny = ?, eval_position = ?, vlan_start = ?, vlan_end = ?, notes = ? where interface_acl_id = ?";
 
     my $params = [
         $args{'workgroup_id'},
@@ -2031,7 +2031,7 @@ sub update_acl {
         # reorder all the acls in the order we defined above starting with 10
         my $eval = 10;
         foreach my $interface_acl_id (@$all_int_acls) {
-            $query = "update interface_acl set eval_position = ? where interface_acl_id = ?"; 
+            $query = "update interface_acl set eval_position = ? where interface_acl_id = ?";
             $res = $self->_execute_query($query, [$eval, $interface_acl_id]);
             if(!$res) {
                 $self->_set_error("Error updating interface acl");
@@ -2041,7 +2041,7 @@ sub update_acl {
             $eval += 10;
         }
     }
-    
+
     $self->_commit();
 
     return 1;
@@ -2060,7 +2060,7 @@ sub remove_acl {
         $self->_set_error("Must pass in a user_id and an interface_acl_id");
         return;
     }
-    
+
     # get the current acl state
     my $query = "select * from interface_acl where interface_acl_id = ?";
     my $interface_acl = $self->_execute_query($query, [$args{'interface_acl_id'}]);
@@ -2110,7 +2110,7 @@ sub _has_used_eval_position {
         $self->_set_error("Could not query interface acl eval positions");
         return;
     }
-     
+
     if (@$result > 0){
         $self->_set_error("There is already an acl at eval position $args{'eval_position'}");
         return 1;
@@ -2153,7 +2153,7 @@ sub _get_next_eval_position {
 Gets all the interface acls for a given workgroup
 
 =cut
-      
+
 sub get_acls {
 
     my $self = shift;
@@ -2205,7 +2205,7 @@ sub _authorize_interface_acl {
     foreach my $workgroup (@$workgroups) {
         push(@$args, $workgroup->{'workgroup_id'});
     }
-    # need to dynamically generate placeholders since we don't know how many the 
+    # need to dynamically generate placeholders since we don't know how many the
     # user belongs to before hand
     my $place_holders = join(",", ("?") x @$workgroups);
     my $result = $self->_execute_query(
@@ -5232,7 +5232,7 @@ sub provision_circuit {
     my $restore_to_primary = $args{'restore_to_primary'} || 0;
 
     my $user_id        = $self->get_user_id_by_auth_name(auth_name => $user_name);
-    
+
     if(!$user_id) {
 	$self->_set_error("Unknown user '$user_name'");
 	return;
@@ -6639,8 +6639,8 @@ sub _validate_endpoint {
         my $permission = $result->{'allow_deny'};
         my $vlan_start = $result->{'vlan_start'};
         my $vlan_end   = $result->{'vlan_end'} || $vlan_start;
-      
-=cut 
+
+=cut
         my %is_in_vlan_range;
         # will have to set the range if vlan_end is defined
         if(defined($vlan_end)){
@@ -6863,9 +6863,10 @@ sub gen_topo{
 
     #generate the topology
     my $nodes = $self->get_nodes_by_admin_state(admin_state => "active");
-    
-    $node->{'name'} =~ s/ /+/g;
+
+
     foreach my $node (@$nodes){
+        $node->{'name'} =~ s/ /+/g;
         $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","node"], id => "urn:ogf:network:domain=" . $domain . ":node=" . $node->{'name'});
         $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","address"]);
         $writer->characters($node->{'management_addr_ipv4'});
@@ -6989,9 +6990,9 @@ sub gen_topo{
 		$writer->characters($int->{'mtu_bytes'});
 		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","interfaceMTU"]);
 		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
-		
+
                 #$writer->characters("2-4094");
-                
+
 		$writer->characters( $node->{'vlan_tag_range'} );
 
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
@@ -7040,7 +7041,7 @@ sub gen_topo{
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
                 $int->{'vlan_tag_range'} =~ s/-1//g;
                 $writer->characters( $int->{'vlan_tag_range'} );
-                
+
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
 
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","switchingCapabilitySpecificInfo"]);
