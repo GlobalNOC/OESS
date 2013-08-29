@@ -10,8 +10,8 @@
 ##----- Handles topology related events that appear over the dbus
 #---------------------------------------------------------------------
 #
-# Copyright 2011 Trustees of Indiana University 
-# 
+# Copyright 2011 Trustees of Indiana University
+#
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
@@ -65,7 +65,7 @@ sub print_log{
     my $priority=shift;
     my $message=shift;
     chomp($message);
-    
+
     if(0==$is_daemon){
 	return print STDERR "$message\n";
     }
@@ -78,11 +78,11 @@ sub datapath_join_to_db{
     my $dpid   = shift;
     my $ip     = shift;
     my $ports  = shift;
-    
+
     my $node_db_id;
     my $node_admin_state;
     my $node_admin_ipv4;
-    
+
     #step 0 -> begin transaction
     #steps 1. create new host if not there, if present then update state to available it state is planned.
     #step 2. -> get db interfaces,
@@ -92,7 +92,7 @@ sub datapath_join_to_db{
     #
     print_log(LOG_DEBUG,"Datapath Join event");
     $dbh->ping();
-    
+
     $dbh->begin_work();
     my $node = $db->get_node_by_dpid(dpid => $dpid);
     my $node_id;
@@ -106,9 +106,9 @@ sub datapath_join_to_db{
 	    ##update old, create new
 	    print_log(LOG_INFO, "updating state for node=" . $node->{'node_id'} . "\n");
 	    $db->create_node_instance(node_id => $node->{'node_id'}, ipv4_addr => $ip ,admin_state => 'available',dpid => $dpid);
-	}       
+	}
 	$node_id = $node->{'node_id'};
-	
+
     }else{
 	#insert and get the node_id
 	print_log(LOG_DEBUG,"Adding a new Node!");
@@ -138,8 +138,8 @@ sub datapath_join_to_db{
 	    $dbh->rollback();
 	    return;
 	}
-	$db->create_node_instance(node_id => $node_id, ipv4_addr => $ip, admin_state => 'available', dpid => $dpid);	
-    }     
+	$db->create_node_instance(node_id => $node_id, ipv4_addr => $ip, admin_state => 'available', dpid => $dpid);
+    }
 
     foreach my $port (@$ports){
 	next if $port->{'port_no#'} > (2 ** 12);
@@ -205,7 +205,7 @@ sub datapath_join_callback{
 
 sub datapath_leave_to_db{
     my $dpid = shift;
-    
+
     $dbh->ping();
     my $node = $db->get_node_by_dpid(dpid => $dpid);
     my $interfaces = $db->get_node_interfaces( node => $node->{'name'} );
@@ -216,7 +216,7 @@ sub datapath_leave_to_db{
 
 	$db->update_interface_operational_state( interface_id => $int->{'interface_id'},
 						 operational_state => 'decom');
-	
+
     }
 }
 
@@ -259,7 +259,7 @@ sub do_port_modify{
        if(!defined($int)){
 	   #new interface!
 	   my $node = $db->get_node_by_dpid( dpid => $dpid);
-	   
+
 	   my $res = $db->add_or_update_interface(node_id => $node->{'node_id'}, name => $port_info->{'name'}, description => $port_info->{'name'}, operational_state => $operational_state, port_num => $port_info->{'port_no'}, admin_state => $admin_state);
 	   print_log(LOG_ERR,"Added new interface!");
 	   if(!defined($res)){
@@ -293,8 +293,8 @@ sub db_port_status{
 
     my $dpid=$args{'dpid'};
     my $reason=$args{'reason'};
-    my $port_info=$args{'port_info'} ;      
-    
+    my $port_info=$args{'port_info'} ;
+
     switch($reason){
 	case OFPPR_ADD 	  {
 	    print_log(LOG_DEBUG, " adding port\n");
@@ -306,7 +306,7 @@ sub db_port_status{
 	    print_log(LOG_DEBUG, "deleting port\n");
 	    do_port_modify(dpid => $dpid, port_info=>$port_info);
 	};
-	case OFPPR_MODIFY { 
+	case OFPPR_MODIFY {
 	    print_log(LOG_DEBUG,"modify port\n");
 	    do_port_modify(dpid=>$dpid,port_info=>$port_info);
 	};
@@ -346,7 +346,7 @@ sub _send_topo_port_status{
     eval {
 	my $result = $client->topo_port_status($dpid,$reason,$info);
     }
-    
+
 }
 
 sub port_status_callback{
@@ -354,7 +354,7 @@ sub port_status_callback{
 	my $reason = shift;
 	my $info   = shift;
 	print_log(LOG_ERR, "port status: $dpid: $reason: ".Dumper($info));
-  
+
         db_port_status(dpid=>$dpid,reason=>$reason,port_info=>$info);
 }
 
@@ -370,13 +370,13 @@ sub get_active_link_id_by_connectors{
         my $interface_z_id = $args{'interface_z_id'};
 
        if(defined $interface_a_id){
-          
+
        }else{
           $interface_a_id = $db->get_interface_by_dpid_and_port( dpid => $a_dpid, port_number => $a_port);
        }
 
        if(defined $interface_z_id){
-          
+
        }else{
           $interface_z_id = $db->get_interface_by_dpid_and_port( dpid => $z_dpid, port_number => $z_port);
        }
@@ -400,10 +400,10 @@ sub db_link_add{
     my $a_port  = $args{'a_port'};
     my $z_dpid  = $args{'z_dpid'};
     my $z_port  = $args{'z_port'};
-    
+
     $dbh->ping();
     $dbh->begin_work();
-    
+
     my $interface_a = $db->get_interface_by_dpid_and_port( dpid => $a_dpid, port_number => $a_port);
     my $interface_z = $db->get_interface_by_dpid_and_port( dpid => $z_dpid, port_number => $z_port);
 
@@ -417,12 +417,12 @@ sub db_link_add{
     my ($link_db_id, $link_db_state) = get_active_link_id_by_connectors( interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'} );
 
     if($link_db_id){
-	##up the state?       
+	##up the state?
 	print_log(LOG_DEBUG,"Link already exists, setting to up");
 	$db->update_link_state( link_id => $link_db_id, state => 'up');
 
     }else{
-	#first determine if any of the ports are currently used by another link... and connect to the same other node	
+	#first determine if any of the ports are currently used by another link... and connect to the same other node
 	my $links_a = $db->get_link_by_interface_id( interface_id => $interface_a->{'interface_id'}, show_decom => 0);
 	my $links_z = $db->get_link_by_interface_id( interface_id => $interface_z->{'interface_id'}, show_decom => 0);
 
@@ -474,7 +474,7 @@ sub db_link_add{
 	    $db->create_link_instantiation( link_id => $link->{'link_id'}, interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'}, state => $link->{'state'} );
 	    $db->_commit();
 	    #do admin notify
-	    
+
 
 	    #diff the interfaces
 	    _send_topo_port_status($z_node->{'dpid'},OFPPR_ADD,{name => $interface_z->{'name'}, port_no => $interface_z->{'port_no'}, link => 1});
@@ -494,8 +494,8 @@ sub db_link_add{
 	    $db->create_link_instantiation( link_id => $link->{'link_id'}, interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'}, state => $link->{'state'} );
 	    $db->_commit();
 	    #do admin notification
-	    
-	    
+
+
 	    #diff the z node
 	    _send_topo_port_status($z_node->{'dpid'},OFPPR_ADD,{name => $interface_z->{'name'}, port_no => $interface_z->{'port_no'}, link => 1});
             _send_topo_port_status($z_node->{'dpid'},OFPPR_ADD,{name => $interface_z->{'name'}, port_no => $old_z_interface->{'port_no'}, link => 1});
@@ -504,7 +504,7 @@ sub db_link_add{
             #easy case update link_a so that it is now on the new interfaces
 	    print_log(LOG_WARNING,"Link has changed ports on the A side");
 	    my $link = $z_links->[0];
-            
+
 	    my $old_a =$link->{'interface_a_id'};
             if($old_a == $interface_z->{'interface_id'}){
                 $old_a = $link->{'interface_z_id'};
@@ -514,8 +514,8 @@ sub db_link_add{
 	    $db->decom_link_instantiation( link_id => $link->{'link_id'});
 	    $db->create_link_instantiation( link_id => $link->{'link_id'}, interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'}, state => $link->{'state'});
 	    $db->_commit();
-	    #do admin notification 
-	
+	    #do admin notification
+
 	    #diff the interfaces
             #diff the z node
             _send_topo_port_status($a_node->{'dpid'},OFPPR_ADD,{name => $interface_a->{'name'}, port_no => $interface_a->{'port_no'}, link => 1});
@@ -524,28 +524,28 @@ sub db_link_add{
 	    print_log(LOG_WARNING,"This is not part of any other link... making a new instance");
 	    ##create a new one link as none of the interfaces were part of any link
 	    print_log(LOG_DEBUG,"Adding a new link");
-	    
+
 	    my $link_name = "auto-" . $a_dpid . "-" . $a_port . "--" . $z_dpid . "-" . $z_port;
 	    my $link = $db->get_link_by_name(name => $link_name);
 	    my $link_id;
-	    
+
 	    if(!defined($link)){
 		$link_id = $db->add_link( name => $link_name );
 	    }else{
 		$link_id = $link->{'link_id'};
 	    }
-	    
+
 	    if(!defined($link_id)){
 		print_log(LOG_ERR,"Unable to add link!");
 		$dbh->rollback();
 		return undef;
 	    }
-	    
+
 	    $db->create_link_instantiation( link_id => $link_id, state => 'available', interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'});
 	    $db->_commit();
 	}
     }
-    
+
 }
 
 sub link_event_to_db{
@@ -559,7 +559,7 @@ sub link_event_to_db{
 	case "add"{
 
 	    print_log(LOG_INFO, "add event\n");
-	    db_link_add(a_dpid=>$a_dpid, a_port=>$a_port, z_dpid=>$z_dpid, z_port=>$z_port);		
+	    db_link_add(a_dpid=>$a_dpid, a_port=>$a_port, z_dpid=>$z_dpid, z_port=>$z_port);
 
 	}case "remove"{
 
@@ -595,7 +595,7 @@ sub link_event_callback{
 
 sub packet_in_callback{
         my $dpid    = shift;
-	my $in_port = shift; 
+	my $in_port = shift;
         my $reason  = shift;
  	my $length  = shift;
 	my $buff_id = shift;
@@ -627,7 +627,7 @@ sub flow_removed_callback{
         my $packcnt= shift;
 	print_log(LOG_DEBUG, "flow_removed: $dpid: $reason: $pri: $cookie: $dursec,$durnsec,$bytecnt,$packcnt: ".Dumper($attrs));
 }
-	
+
 sub core{
    $db  = OESS::Database->new(config => $config_filename) or die();
    $dbh = $db->{'dbh'};
@@ -657,7 +657,7 @@ sub core{
 
 
 sub main(){
-      
+
     my $verbose;
     my $username;
     my $result = GetOptions ( #"length=i" => \$length, # numeric
@@ -665,25 +665,25 @@ sub main(){
                            "user|u=s" => \$username,
                            "verbose" => \$verbose, #flag
                            "daemon|d" => \$is_daemon,
-                         ); 
+                         );
     if (0!=$is_daemon){
          openlog("topo.pl", 'cons,pid', LOG_DAEMON);
-         
+
     }
     #now change username/
     if(defined $username){
        my $new_uid=getpwnam($username);
        my $new_gid=getgrnam($username);
        $EGID=$new_gid;
-       $EUID=$new_uid;              
+       $EUID=$new_uid;
     }
 
     $SIG{'CHLD'} = 'CHLD_handler';
 
     if (0!=$is_daemon){
-        my $daemon
+        my $daemon;
         if($verbose){
-            $daemon = Proc::Daemon->new( 
+            $daemon = Proc::Daemon->new(
                 pid_file => '/var/run/oess/topo.pid',
                 child_STDOUT => '/var/log/oess/topo.out',
                 child_STDERR => '/var/log/oess/topo.log',
@@ -706,7 +706,7 @@ sub main(){
        sleep(2);
        if (0 == $daemon->Status()){
          die(); ##exit failure
-       } 
+       }
        exit(0);
 
     }
@@ -714,10 +714,10 @@ sub main(){
       #now a deamon, just run the core;
       core();
     }
- 
+
 
     #print_log(LOG_DEBUG, "is_daemon =$is_daemon\n");
-    #wern "hello\n"; 
+    #wern "hello\n";
     #core();
 }
 
