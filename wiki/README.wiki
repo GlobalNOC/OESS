@@ -1,4 +1,3 @@
-#labels Featured
  == OESS - Open Exchange Software Suite ==
 
 ==1. What is OESS==
