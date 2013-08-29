@@ -94,12 +94,38 @@ CREATE TABLE `interface` (
   `role` enum('unknown','trunk','customer') NOT NULL DEFAULT 'unknown',
   `node_id` int(10) NOT NULL,
   `vlan_tag_range` varchar(255) DEFAULT '-1,1-4095',
+  `workgroup_id` int(10) DEFAULT NULL,
   PRIMARY KEY (`interface_id`),
   UNIQUE KEY `node_id_name_idx` (`node_id`,`name`),
   UNIQUE KEY `node_port_idx` (`node_id`,`port_number`),
   KEY `node_interface_fk` (`node_id`),
+  CONSTRAINT `interface_ibfk_1` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`),
   CONSTRAINT `node_interface_fk` FOREIGN KEY (`node_id`) REFERENCES `node` (`node_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `interface_acl`
+--
+
+DROP TABLE IF EXISTS `interface_acl`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `interface_acl` (
+  `interface_acl_id` int(10) NOT NULL AUTO_INCREMENT,
+  `workgroup_id` int(10) DEFAULT NULL,
+  `interface_id` int(10) NOT NULL,
+  `allow_deny` enum('allow','deny') NOT NULL,
+  `eval_position` int(10) NOT NULL,
+  `vlan_start` int(10) NOT NULL,
+  `vlan_end` int(10) DEFAULT NULL,
+  `notes` text,
+  PRIMARY KEY (`interface_acl_id`),
+  KEY `workgroup_id` (`workgroup_id`),
+  KEY `interface_id` (`interface_id`),
+  CONSTRAINT `interface_acl_ibfk_1` FOREIGN KEY (`interface_id`) REFERENCES `interface` (`interface_id`),
+  CONSTRAINT `interface_acl_ibfk_2` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -438,23 +464,6 @@ CREATE TABLE `workgroup` (
   PRIMARY KEY (`workgroup_id`),
   UNIQUE KEY `workgroups_idx` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `workgroup_interface_membership`
---
-
-DROP TABLE IF EXISTS `workgroup_interface_membership`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `workgroup_interface_membership` (
-  `workgroup_id` int(10) NOT NULL,
-  `interface_id` int(10) NOT NULL,
-  PRIMARY KEY (`workgroup_id`,`interface_id`),
-  KEY `interface_workgroup_interface_membership_fk` (`interface_id`),
-  CONSTRAINT `interface_workgroup_interface_membership_fk` FOREIGN KEY (`interface_id`) REFERENCES `interface` (`interface_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `workgroups_workgroup_interface_membership_fk` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --

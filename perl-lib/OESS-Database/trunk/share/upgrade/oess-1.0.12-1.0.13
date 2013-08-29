@@ -1,0 +1,135 @@
+#!/usr/bin/perl
+#-------------------------------------------------------------------
+#----- OESS 1.0.12 - 1.0.13 upgrade module                         
+#-----                                                               
+#----- Copyright(C) 2010 The Trustees of Indiana University          
+#--------------------------------------------------------------------
+#----- $HeadURL: $                                                   
+#----- $Id: $                                                        
+#-----                                                               
+#----- This is run when upgrading the database from     
+#----- version 1.0.12 to version 1.0.13                                
+#-------------------------------------------------------------------- 
+
+use strict;
+use warnings;
+use OESS::Database;
+
+my $prev_version = "1.0.12";
+my $version = "1.0.13";
+
+sub main{
+
+    print "*******************************************************************\n";
+    print "*********             OESS DB UPGRADE           ************\n";
+    print "*******************************************************************\n";
+    print "********* This will upgrade from $prev_version to $version **********\n";
+    print "********* of the OESS DB any other version will not work ************\n";
+    
+    continue_parameter("Do you wish to continue");
+
+    
+    my $dbq = new OESS::Database();
+    my $current_version = $dbq->get_oess_schema_version();    
+    
+    if($current_version eq $prev_version){
+	$dbq->{'dbh'}->begin_work();
+	upgrade($dbq->{'dbh'});
+	$dbq->{'dbh'}->commit();
+    }else{
+	print "Wrong version of OESS DB\n";
+	print "This script only upgrades from version $prev_version to $version\n";
+	exit;
+    }
+    
+    print STDERR "Upgrade Successful!!\n";
+    
+}
+
+
+sub upgrade{
+    my $dbh = shift;
+    my $term = shift;
+    my $str;
+    my $sth;
+    #################################### 
+    #
+    # All Changes should happen in here
+    #
+    ####################################
+
+    #add interface_acl table
+    $str = "create table interface_acl ( ".
+           "interface_acl_id int(10) not null auto_increment, ".
+           "workgroup_id int(10), ".
+           "interface_id int(10) not null, ".
+           "allow_deny enum('allow','deny') not null, ".
+           "eval_position int(10) not null, ".
+           "vlan_start int(10) not null, ".
+           "vlan_end int(10), ".
+           "notes text, ".
+           "primary key (interface_acl_id), ".
+           "KEY `workgroup_id` (`workgroup_id`), ".
+           "KEY `interface_id` (`interface_id`), ".
+           "CONSTRAINT FOREIGN KEY (`interface_id`) REFERENCES `interface` (`interface_id`), ".
+           "CONSTRAINT FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`) ".
+           ") ENGINE=InnoDB DEFAULT CHARSET=utf8";
+    $sth = $dbh->prepare($str);
+    $sth->execute() or die "Unable to add interface_acl table"; 
+
+    # add workgroup column to interface table
+    $str = "alter table interface add column workgroup_id int(10)";
+    $sth = $dbh->prepare($str);
+    $sth->execute() or die "Unable to add workgroup column to interface table"; 
+    
+    # add constraint to worgroup column
+    $str = "alter table interface add foreign key(workgroup_id) references workgroup(workgroup_id)";
+    $sth = $dbh->prepare($str);
+    $sth->execute() or die "Unable to add constraint to workgroup column in interface table"; 
+    
+    # remove workgroup_interface_membership table
+    $str = "drop table workgroup_interface_membership";
+    $sth = $dbh->prepare($str);
+    $sth->execute() or die "Unable to remove workgroup_interface_membership table"; 
+    
+    ####################################
+    #
+    # End all changes
+    #
+    #####################################
+    
+    #ok done with the rest of the upgrade update our version
+    $str = "update oess_version set version = '$version'";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+}
+
+main();
+
+sub continue_parameter {
+
+    my $name = shift;
+
+    print "$name [y/n]: ";
+    my $yes_or_no = <>;
+    chomp($yes_or_no);
+
+    exit(0) if ($yes_or_no !~ /y/i || $yes_or_no =~ /n/i);
+}
+
+
+sub required_parameter {
+
+    my $name = shift;
+
+    while (1) {
+
+	print "$name (required): ";
+        my $response = <>;
+	chomp($response);
+
+        return $response if ($response);
+
+	print "\nThis option is required!\n\n";
+    }
+}
