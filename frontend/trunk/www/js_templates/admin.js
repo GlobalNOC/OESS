@@ -782,7 +782,7 @@ function setup_workgroup_tab(){
 
 	    var workgroup_user_table = makeWorkgroupUserTable(workgroup_id);
 
-	    var workgroup_acl_table  = makeWorkgroupACLTable(workgroup_id);    
+	    var owned_interfaces_table  = makeWorkgroupACLTable(workgroup_id);    
 
 	    workgroup_user_table.subscribe("cellClickEvent", function(oArgs){
 
@@ -834,7 +834,7 @@ function setup_workgroup_tab(){
 
 		});
 
-	    workgroup_acl_table.subscribe("cellClickEvent", function(oArgs){
+	    owned_interfaces_table.subscribe("cellClickEvent", function(oArgs){
 		    var col = this.getColumn(oArgs.target);
 		    var rec = this.getRecord(oArgs.target);
 
@@ -850,9 +850,9 @@ function setup_workgroup_tab(){
 		
 		    showConfirm("Are you sure you wish to remove interface \"" + int_name + "\" on endpoint \"" + node_name + "\"?",
 				function(){
-				    workgroup_acl_table.disable();
+				    owned_interfaces_table.disable();
 
-				    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=remove_workgroup_acl&workgroup_id="+workgroup_id+"&node_id="+node_id+"&interface_id="+interface_id);
+				    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_interface_owner&interface_id="+interface_id);
 				    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 				    ds.responseSchema = {
 					resultsList: "results",
@@ -865,17 +865,17 @@ function setup_workgroup_tab(){
 				    ds.sendRequest("",
 						   {
 						       success: function(req, resp){
-							   workgroup_acl_table.undisable();
+							   owned_interfaces_table.undisable();
 							   
 							   if (resp.meta.error){
 							       alert("Error removing ACL: " + resp.meta.error);
 							   }
 							   else{
-							       workgroup_acl_table.deleteRow(oArgs.target);
+							       owned_interfaces_table.deleteRow(oArgs.target);
 							   }
 						       },
 						       failure: function(req, resp){
-							   workgroup_acl_table.undisable();
+							   owned_interfaces_table.undisable();
 							   alert("Server error while removing ACL.");
 						       }
 						   }
@@ -972,11 +972,11 @@ function setup_workgroup_tab(){
 		});
 
 
-	    var add_new_acl = new YAHOO.widget.Button("add_new_workgroup_acl", {label: "Add Edge Port"});
+	    var add_new_owned_int = new YAHOO.widget.Button("add_new_owned_interfaces", {label: "Add Interface"});
 
 
 	    // show map to pick node / endpoint
-	    add_new_acl.on("click", function(){
+	    add_new_owned_int.on("click", function(){
 
 		    var region = YAHOO.util.Dom.getRegion('workgroups_content');
 
@@ -1026,6 +1026,8 @@ function setup_workgroup_tab(){
 
 			    this.changeNodeImage(feature, this.ACTIVE_IMAGE);
 
+                
+
 			    var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_node_interfaces&show_down=1&node="+encodeURIComponent(node));
 			    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 			    ds.responseSchema = {
@@ -1064,7 +1066,19 @@ function setup_workgroup_tab(){
 
 				    var interface_id = rec.getData('interface_id');
 
-				    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_workgroup_acl&workgroup_id="+workgroup_id+"&interface_id="+interface_id);
+                    //first check to see if this interface is already owned by another work group
+				    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_interface_owner&workgroup_id="+workgroup_id+"&interface_id="+interface_id);
+				    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+				    ds.responseSchema = {
+					resultsList: "results",
+					fields: [{key: "success"}],
+					metaFields: {
+					    error: "error"
+					}
+				    };
+                    
+
+				    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_interface_owner&workgroup_id="+workgroup_id+"&interface_id="+interface_id);
 				    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 				    ds.responseSchema = {
 					resultsList: "results",
@@ -1081,16 +1095,16 @@ function setup_workgroup_tab(){
 						       success: function(req, resp){
 							   table.undisable();
 							   if (resp.meta.error){
-							       YAHOO.util.Dom.get('add_acl_status').innerHTML = "Error adding edge port: " + resp.meta.error;
+							       YAHOO.util.Dom.get('add_acl_status').innerHTML = "Error adding interface: " + resp.meta.error;
 							   }
 							   else{
-							       YAHOO.util.Dom.get('add_acl_status').innerHTML = "Edge port added successfully.";
-							       workgroup_acl_table.getDataSource().sendRequest("", {success: workgroup_acl_table.onDataReturnInitializeTable,scope:workgroup_acl_table});
+							       YAHOO.util.Dom.get('add_acl_status').innerHTML = "Interface added successfully.";
+							       owned_interfaces_table.getDataSource().sendRequest("", {success: owned_interfaces_table.onDataReturnInitializeTable,scope:owned_interfaces_table});
 							   }
 						       },
 						       failure: function(req, resp){
 							   table.undisable();
-							   YAHOO.util.Dom.get('add_acl_status').innerHTML = "Server error while adding new edge port.";
+							   YAHOO.util.Dom.get('add_acl_status').innerHTML = "Server error while adding new edge interface.";
 						       }
 						   }
 						   );
@@ -2019,7 +2033,7 @@ function setup_discovery_tab(){
 }
 
 function makeWorkgroupACLTable(id){
-    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_workgroup_acls&workgroup_id="+id);
+    var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_workgroup_interfaces&workgroup_id="+id);
 
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
@@ -2043,11 +2057,11 @@ function makeWorkgroupACLTable(id){
     var config = {
 		sortedBy: {key:'node_name', dir:'asc'},
 		paginator:  new YAHOO.widget.Paginator({rowsPerPage: 10,
-												containers: ["workgroup_acl_table_nav"]
+												containers: ["owned_interfaces_table_nav"]
 	    })
     };
 
-    var table = new YAHOO.widget.DataTable("workgroup_acl_table", columns, ds, config);
+    var table = new YAHOO.widget.DataTable("owned_interfaces_table", columns, ds, config);
 	
     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);

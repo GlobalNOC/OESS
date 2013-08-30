@@ -70,6 +70,9 @@ sub main {
         case "get_node_interfaces" {
             $output = &get_node_interfaces();
         }
+        case "get_workgroup_interfaces" {
+            $output = &get_workgroup_interfaces();
+        }
         case "get_shortest_path" {
             $output = &get_shortest_path();
         }
@@ -136,6 +139,24 @@ sub get_workgroups {
     }
     else {
         $results->{'results'} = $workgroups;
+    }
+
+    return $results;
+}
+
+sub get_workgroup_interfaces {
+    my $results;
+
+    my $workgroup_id = $cgi->param('workgroup_id');
+
+    my $acls = $db->get_workgroup_interfaces( workgroup_id => $workgroup_id );
+
+    if ( !defined $acls ) {
+        $results->{'error'}   = $db->get_error();
+        $results->{'results'} = [];
+    }
+    else {
+        $results->{'results'} = $acls;
     }
 
     return $results;
@@ -470,7 +491,7 @@ sub get_all_resources {
         $results->{'results'} = [];
     }
     $results->{'results'} =
-      $db->get_workgroup_acls( workgroup_id => $workgroup_id );
+    $db->get_workgroup_interfaces( workgroup_id => $workgroup_id );
     return $results;
 }
 

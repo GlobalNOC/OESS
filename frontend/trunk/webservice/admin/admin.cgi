@@ -128,14 +128,8 @@ sub main {
         case "get_workgroups" {
             $output = &get_workgroups();
         }
-        case "get_workgroup_acls" {
-            $output = &get_workgroup_acls();
-        }
-        case "add_workgroup_acl" {
-            $output = &add_workgroup_acl();
-        }
-        case "remove_workgroup_acl" {
-            $output = &remove_workgroup_acl();
+        case "update_interface_owner" {
+            $output = &update_interface_owner();
         }
         case "add_workgroup" {
             $output = &add_workgroup();
@@ -362,53 +356,13 @@ sub get_workgroups {
     return $results;
 }
 
-sub get_workgroup_acls {
-    my $results;
-
-    my $workgroup_id = $cgi->param('workgroup_id');
-
-    my $acls = $db->get_workgroup_acls( workgroup_id => $workgroup_id );
-
-    if ( !defined $acls ) {
-        $results->{'error'}   = $db->get_error();
-        $results->{'results'} = [];
-    }
-    else {
-        $results->{'results'} = $acls;
-    }
-
-    return $results;
-}
-
-sub add_workgroup_acl {
+sub update_interface_owner {
     my $results;
 
     my $interface_id = $cgi->param('interface_id');
     my $workgroup_id = $cgi->param('workgroup_id');
 
-    my $success = $db->add_workgroup_acl(
-        interface_id => $interface_id,
-        workgroup_id => $workgroup_id
-    );
-
-    if ( !defined $success ) {
-        $results->{'error'}   = $db->get_error();
-        $results->{'results'} = [];
-    }
-    else {
-        $results->{'results'} = [ { success => 1 } ];
-    }
-
-    return $results;
-}
-
-sub remove_workgroup_acl {
-    my $results;
-
-    my $interface_id = $cgi->param('interface_id');
-    my $workgroup_id = $cgi->param('workgroup_id');
-
-    my $success = $db->remove_workgroup_acl(
+    my $success = $db->update_interface_owner(
         interface_id => $interface_id,
         workgroup_id => $workgroup_id
     );

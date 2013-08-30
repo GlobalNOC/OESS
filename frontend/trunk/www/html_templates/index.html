@@ -9,6 +9,7 @@
 	<li><a href=""><em>Available Resources</em></a></li>
 	<li><a href=""><em>Users</em></a></li>
 	<li><a href=""><em>Actions</em></a></li>
+	<li><a href=""><em>ACL</em></a></li>
       </ul>
       <div class="yui-content" style="height: 90%">
 	<!-- Active VLANS -->
@@ -116,6 +117,19 @@
 	  <a href="#request_user_add"><div id="request_user_add">Request a new user addition to this Workgroup</div></a>
 	  <a href="mailto:[% admin_email %]?SUBJECT=System Support: NDDI/OS3E Feedback Ticket">Send Feedback to Administrators</a>
 	</div>
+
+    <!-- acl -->
+    <div>
+        <h2>Owned Interfaces</h2>
+        <div id="owned_interface_table"></div>
+        <br>
+        <div id="interface_acl_container" style="display:none;">
+            <h2>Interface ACL</h2>
+	        <a href="#add_acl"><div id="add_interface_acl">Add Interface ACL</div></a>
+            <div id="interface_acl_table"></div>
+        </div>
+    </div>
+
       </div>
     </div> 
 
@@ -125,6 +139,8 @@
   </div>
 
   <div id="request_user_add_p">
+  </div>
+  <div id="interface_acl_panel">
   </div>
 
 </div>
