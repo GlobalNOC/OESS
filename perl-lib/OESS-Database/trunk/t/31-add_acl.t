@@ -46,7 +46,7 @@ $acl_id = $db->add_acl(
 );
 ok($acl_id, 'acl added');
 
-my $acls = $db->get_acls( workgroup_id => 11 );
+my $acls = $db->get_acls( owner_workgroup_id => 11 );
 is(@$acls, 1, '1 ACL Retrieved');
 my $acl = $acls->[0];
 
@@ -87,7 +87,7 @@ $acl_id = $db->add_acl(
 
 ok($acl_id, 'acl added');
 
-my $acls = $db->get_acls( workgroup_id => 11 );
+my $acls = $db->get_acls( owner_workgroup_id => 11 );
 is(@$acls, 2, '2 ACLs Retrieved');
 is($acls->[1]{'eval_position'}, '30', 'correct eval position');
 

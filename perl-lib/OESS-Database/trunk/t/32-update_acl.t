@@ -49,7 +49,7 @@ $acl_id = $db->update_acl(
 );
 ok($acl_id, 'acl updated');
 
-my $acls = $db->get_acls( workgroup_id => 51 );
+my $acls = $db->get_acls( owner_workgroup_id => 51 );
 is(@$acls, 6, '6 ACLs Retrieved');
 my $acl = $acls->[0];
 
@@ -76,7 +76,7 @@ $acl_id = $db->update_acl(
 );
 
 # make sure the eval_position reordering worked correctly
-$acls = $db->get_acls( workgroup_id => 51 );
+$acls = $db->get_acls( owner_workgroup_id => 51 );
 is(@$acls, 6, '6 ACLs Retrieved');
 is($acls->[0]{'interface_acl_id'},4, 'correct order');
 is($acls->[1]{'interface_acl_id'},5, 'correct order');
@@ -98,7 +98,7 @@ $acl_id = $db->update_acl(
     notes             => undef
 );
 # make sure the eval_position reordering worked correctly
-my $acls = $db->get_acls( workgroup_id => 51 );
+my $acls = $db->get_acls( owner_workgroup_id => 51 );
 is(@$acls, 6, '6 ACLs Retrieved');
 is($acls->[0]{'interface_acl_id'},7, 'correct order');
 is($acls->[1]{'interface_acl_id'},4, 'correct order');

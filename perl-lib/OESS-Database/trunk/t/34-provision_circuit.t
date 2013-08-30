@@ -62,17 +62,8 @@ ok($res->{'success'}, "circuit successfully added");
 $res = $db->get_circuit_details(
     circuit_id => $res->{'circuit_id'},
 );
-
+delete $res->{'last_modified_by'};
 my $correct_result =  {
-          'last_modified_by' => {
-                                  'email' => 'user_11@foo.net',
-                                  'is_admin' => '0',
-                                  'auth_id' => '1',
-                                  'given_names' => 'User 11',
-                                  'user_id' => '11',
-                                  'family_name' => 'User 11',
-                                  'auth_name' => 'aragusa@grnoc.iu.edu'
-                                },
           'state' => 'deploying',
           'backup_links' => [],
           'links' => [

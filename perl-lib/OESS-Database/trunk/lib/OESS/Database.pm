@@ -1746,6 +1746,77 @@ sub get_workgroup_interfaces {
 
     return $acls;
 }
+=head2 get_available_resources
+
+Gets the resources available for a given workgroup
+
+=over
+
+=item workgroup_id
+
+The workgroup_id to return the resources for 
+
+=back
+
+=cut
+
+sub get_available_resources {
+    my $self = shift;
+    my %args = @_;
+    
+    my $workgroup_id = $args{'workgroup_id'};
+
+    if(!defined($workgroup_id)) {
+	    $self->_set_error("Must pass in a workgroup_id");
+        return;
+    }
+
+    # get all the interfaces the workgroup owns
+    my $owned_interfaces = $self->get_workgroup_interfaces( workgroup_id => $workgroup_id ) || return;
+    foreach my $owned_interface (@$owned_interfaces) {
+        $owned_interface->{'is_owner'}   = 1;
+        $owned_interface->{'vlan_start'} = -1;
+        $owned_interface->{'vlan_end'}   = 4095;
+    }
+
+    # get all the interfaces that have an acl rule that applies to this workgroup
+    my $query = "select interface.description,interface.operational_state as operational_state, interface.name as int_name, interface.interface_id, node.name as node_name, node.node_id, interface_acl.vlan_start, interface_acl.vlan_end " .
+            " from interface_acl " .
+        "  join interface on interface.interface_id = interface_acl.interface_id " .
+        "  join interface_instantiation on interface.interface_id = interface_instantiation.interface_id " .
+        "    and interface_instantiation.end_epoch = -1" .
+        "  join node on node.node_id = interface.node_id " .
+        "  join node_instantiation on node.node_id = node_instantiation.node_id " .
+        "    and node_instantiation.end_epoch = -1 " .
+        " where interface_acl.workgroup_id = ? " .
+        " group by interface_acl.interface_id " .
+        " order by node_name ASC, int_name ASC";
+
+    my $interfaces = $self->_execute_query($query, [$workgroup_id]);
+    if (! defined $interfaces){
+        $self->_set_error("Internal error fetching accessible interfaces.");
+        return;
+    }
+    my $available_interfaces = $owned_interfaces;
+    foreach my $interface (@$interfaces) {
+        if ( $self->_validate_endpoint(interface_id => $interface->{'interface_id'}, workgroup_id => $workgroup_id )){
+            $interface->{'is_owner'} = 0;
+            push(@$available_interfaces, {
+                "interface_id"      => $interface->{'interface_id'},
+                "interface_name"    => $interface->{'int_name'},
+                "node_id"           => $interface->{'node_id'},
+                "node_name"         => $interface->{'node_name'},
+                "operational_state" => $interface->{'operational_state'},
+                "description"       => $interface->{'description'},
+                "vlan_start"        => $interface->{'vlan_start'},
+                "vlan_end"          => $interface->{'vlan_end'},
+                "is_owner"          => 0,
+            });
+        }
+    }
+        
+    return $available_interfaces;
+}
 
 =head2 update_interface_owner
 
@@ -1807,16 +1878,16 @@ sub update_interface_owner {
 	return;
     }
 
-    if(defined($args{'workgroup_id'})) {
-        $query = "insert into interface_acl (interface_id, allow_deny, eval_position, vlan_start, vlan_end, notes) values (?,?,?,?,?,?)";
-        my $query_args = [$interface_id, 'allow', 10, -1, 4095, 'Default ACL Rule' ];
-        my $success = $self->_execute_query($query, $query_args);
-        if (! defined $success ){
-	        $self->_set_error("Internal error while adding edge port to workgroup ACL.");
-	        $self->_rollback();
-	        return;
-        }
-    } else { # remove prior acl rules since those were set by the old workgroup
+    # determine if the workgroup is moving from one to another
+    my $changing_workgroup = 0;
+    $query = "select 1 from interface where workgroup_id IS NOT NULL and workgroup_id != ? and interface_id = ?";
+    my $results = $self->_execute_query($query, [$workgroup_id, $interface_id]);
+    if (@$results > 0){
+        $changing_workgroup = 1;
+    }
+
+    # remove prior acl rules since those were set by the old workgroup 
+    if(!defined($args{'workgroup_id'}) || $changing_workgroup) { 
         $query = "delete from interface_acl where interface_id = ?";
         my $success = $self->_execute_query($query, [$interface_id]);
         if (! defined $success ){
@@ -1825,6 +1896,18 @@ sub update_interface_owner {
 	        return;
         }
     }
+
+    # insert default rule if were adding a workgroup or changing workgroups
+    if(defined($args{'workgroup_id'})) {
+        $query = "insert into interface_acl (interface_id, allow_deny, eval_position, vlan_start, vlan_end, notes) values (?,?,?,?,?,?)";
+        my $query_args = [$interface_id, 'allow', 10, -1, 4095, 'Default ACL Rule' ];
+        my $success = $self->_execute_query($query, $query_args);
+        if (! defined $success ){
+	        $self->_set_error("Internal error while adding default acl rule.");
+	        $self->_rollback();
+	        return;
+        }
+    } 
 
     $self->_commit();
 
@@ -1928,9 +2011,13 @@ sub update_acl {
     $self->_set_error("user_id not specified");
     return;
     }
-
-    # get the current acl state
-    my $query = "select * from interface_acl where interface_acl_id = ?";
+    if(!defined($args{'interface_acl_id'})){
+    $self->_set_error("interface_acl_id not specified");
+    return;
+    }
+   
+    # get the current acl state     
+    my $query = "select * from interface_acl where interface_acl_id = ?"; 
     my $interface_acl = $self->_execute_query($query, [$args{'interface_acl_id'}]);
     if(!$interface_acl) {
         $self->_set_error("Error updating acl");
@@ -2160,18 +2247,19 @@ sub get_acls {
     my %args = @_;
 
     my $acls = [];
-    my $sql= "select acl.interface_acl_id, acl.workgroup_id, workgroup.name as workgroup_name, acl.interface_id, interface.name as interface_name, acl.allow_deny, acl.eval_position, acl.vlan_start, acl.vlan_end, acl.notes ";
-    $sql .= " from workgroup ";
-    $sql .= " join interface on workgroup.workgroup_id = interface.workgroup_id ";
+    my $sql= "select acl.interface_acl_id, acl.workgroup_id, workgroup.name as workgroup_name, owner_workgroup.workgroup_id as owner_workgroup_id, owner_workgroup.name as owner_workgroup_name, acl.interface_id, interface.name as interface_name, acl.allow_deny, acl.eval_position, acl.vlan_start, acl.vlan_end, acl.notes ";
+    $sql .= " from workgroup as owner_workgroup";
+    $sql .= " join interface on owner_workgroup.workgroup_id = interface.workgroup_id ";
     $sql .= " join interface_acl as acl on acl.interface_id = interface.interface_id ";
+    $sql .= " left join workgroup on acl.workgroup_id = workgroup.workgroup_id ";
     $sql .= " where 1=1 ";
-    $sql .= " and workgroup.workgroup_id = ? " if(defined($args{'workgroup_id'}));
+    $sql .= " and owner_workgroup.workgroup_id = ? " if(defined($args{'owner_workgroup_id'}));
     $sql .= " and acl.interface_id = ? " if(defined($args{'interface_id'}));
     $sql .= " and acl.interface_acl_id = ? " if(defined($args{'interface_acl_id'}));
     $sql .= " order by acl.eval_position";
 
     my $args = [];
-    push(@$args,$args{'workgroup_id'}) if(defined($args{'workgroup_id'}));
+    push(@$args,$args{'owner_workgroup_id'}) if(defined($args{'owner_workgroup_id'}));
     push(@$args,$args{'interface_id'}) if(defined($args{'interface_id'}));
     push(@$args,$args{'interface_acl_id'}) if(defined($args{'interface_acl_id'}));
 
@@ -3333,7 +3421,10 @@ sub get_interface {
 
     my $interface_id = $args{'interface_id'};
 
-    my $query = "select * from interface where interface_id = ?";
+    my $query = "select interface.interface_id, interface.name, interface.port_number, interface.description, interface.operational_state, interface.role, interface.node_id, interface.vlan_tag_range, workgroup.workgroup_id, workgroup.name as workgroup_name "; 
+    $query   .= "from interface ";
+    $query   .= "left join workgroup on interface.workgroup_id = workgroup.workgroup_id ";
+    $query   .= "where interface_id = ?";
 
     my $results = $self->_execute_query($query, [$interface_id]);
 
@@ -6639,29 +6730,11 @@ sub _validate_endpoint {
         my $permission = $result->{'allow_deny'};
         my $vlan_start = $result->{'vlan_start'};
         my $vlan_end   = $result->{'vlan_end'} || $vlan_start;
-
-=cut
-        my %is_in_vlan_range;
-        # will have to set the range if vlan_end is defined
-        if(defined($vlan_end)){
-            # if the start is -1 set it in the acceptable range hash
-            # and change the start to 1 for the loop
-            if($vlan_start == -1){
-                $is_in_vlan_range{$vlan_start} = 1;
-                $vlan_start = 1;
-            }
-            # set all tags between the start and end as acceptable ranges
-            for (my $i = $vlan_start; $i <= $vlan_end; $i++){
-                $is_in_vlan_range{$i} = 1;
-            }
-        } else {
-            $is_in_vlan_range{$vlan_start} = 1;
-        }
-=cut
+     
+        # if vlan is not defined just check the permission otherwise 
         # if our vlan falls within this rules range determine if it is allow
         # or deny
-        #if($is_in_vlan_range{$vlan}) {
-        if( ($vlan_start <= $vlan) && ($vlan <= $vlan_end) ) {
+        if( (!defined($vlan)) || (($vlan_start <= $vlan) && ($vlan <= $vlan_end)) ) {
             if($permission eq "deny") {
                 return 0;
             } else {
@@ -6863,9 +6936,9 @@ sub gen_topo{
 
     #generate the topology
     my $nodes = $self->get_nodes_by_admin_state(admin_state => "active");
-
-
+    
     foreach my $node (@$nodes){
+    $node->{'name'} =~ s/ /+/g;
         $node->{'name'} =~ s/ /+/g;
         $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","node"], id => "urn:ogf:network:domain=" . $domain . ":node=" . $node->{'name'});
         $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","address"]);
