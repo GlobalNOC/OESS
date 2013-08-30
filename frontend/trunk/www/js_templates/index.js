@@ -371,7 +371,7 @@ var ds = new YAHOO.util.DataSource(dsString);
 				   }}
 			       ];
     var link_table = new YAHOO.widget.ScrollingDataTable("link_status_table",link_status_columns, link_status_ds,{height: '210px'});
-    
+    link_status_ds.setInterval(30000);
 
     //build the switch status table
     var switch_status_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_all_node_status");
@@ -393,7 +393,7 @@ var ds = new YAHOO.util.DataSource(dsString);
 				 ];
 
     var switch_table = new YAHOO.widget.ScrollingDataTable("switch_status_table",switch_status_columns, switch_status_ds,{height: '210px'});
-
+    switch_status_ds.setInterval(30000);
       var circuit_status_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_existing_circuits&workgroup_id="+session.data.workgroup_id);
     circuit_status_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     circuit_status_ds.responseSchema = {
@@ -417,7 +417,7 @@ var ds = new YAHOO.util.DataSource(dsString);
 			       ];
 
     var circuit_status_table = new YAHOO.widget.ScrollingDataTable("circuit_status_table",circuit_status_cols, circuit_status_ds,{height: '480px'});
-    
+    circuit_status_ds.setInterval(30000);
     var nddi_map = new NDDIMap("network_status_map", session.data.interdomain == 0);
 
     nddi_map.showDefault();
@@ -425,6 +425,10 @@ var ds = new YAHOO.util.DataSource(dsString);
     nddi_map.on("loaded", function(){
 	    this.updateMapFromSession(session);
 	});
+
+    setInterval(function(){
+	    nddi_map.reinitialize();
+	}, 30000);
 
     // build the users table
     var user_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_workgroup_members&workgroup_id="+session.data.workgroup_id);
