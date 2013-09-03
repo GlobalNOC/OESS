@@ -273,16 +273,6 @@ sub do_port_modify{
        #my $res = $db->update_interface_operational_state( operational_state => $operational_state, interface_id => $int->{'interface_id'});
        my $res = $db->add_or_update_interface(node_id => $int->{'node_id'}, name => $port_info->{'name'}, description => $port_info->{'name'}, operational_state => $operational_state, port_num => $port_info->{'port_no'}, admin_state => $admin_state);
 
-       #ok now update the link state as well
-       my $link = $db->get_link_by_interface_id( interface_id => $int->{'interface_id'} );
-       foreach my $lnk (@$link){
-	   $db->update_link_state( link_id => $lnk->{'link_id'}, state => $operational_state);
-	   if(!defined($res)){
-	       $dbh->rollback();
-	       return;
-	   }
-       }
-
        $dbh->commit();
 
 }
