@@ -70,6 +70,9 @@ sub main {
         case "get_node_interfaces" {
             $output = &get_node_interfaces();
         }
+        case "get_interface" {
+            $output = &get_interface();
+        }
         case "get_workgroup_interfaces" {
             $output = &get_workgroup_interfaces();
         }
@@ -144,6 +147,24 @@ sub get_workgroups {
     return $results;
 }
 
+sub get_interface {
+    my $results;
+
+    my $interface_id = $cgi->param('interface_id');
+
+    my $interface = $db->get_interface( interface_id => $interface_id );
+
+    if ( !defined $interface ) {
+        $results->{'error'}   = $db->get_error();
+        $results->{'results'} = [];
+    }
+    else {
+        $results->{'results'} = $interface;
+    }
+
+    return $results;
+
+}
 sub get_workgroup_interfaces {
     my $results;
 
@@ -491,7 +512,7 @@ sub get_all_resources {
         $results->{'results'} = [];
     }
     $results->{'results'} =
-    $db->get_workgroup_interfaces( workgroup_id => $workgroup_id );
+    $db->get_available_resources( workgroup_id => $workgroup_id );
     return $results;
 }
 

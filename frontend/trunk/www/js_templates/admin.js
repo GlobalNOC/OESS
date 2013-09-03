@@ -848,7 +848,7 @@ function setup_workgroup_tab(){
 			return;
 		    }
 		
-		    showConfirm("Are you sure you wish to remove interface \"" + int_name + "\" on endpoint \"" + node_name + "\"?",
+		    showConfirm("Removing the interface will remove all acl rules the workgroup has associated with it. Are you sure you wish to remove interface \"" + int_name + "\" on endpoint \"" + node_name + "\"?",
 				function(){
 				    owned_interfaces_table.disable();
 
@@ -988,7 +988,7 @@ function setup_workgroup_tab(){
 								 region.top]
 							   });
 
-		    add_acl_p.setHeader("New Edge Port");
+		    add_acl_p.setHeader("Add Interface to Workgroup");
 		    add_acl_p.setBody("<div id='acl_map' class='openlayers smaller' style='float: left;'></div>" + 
 				      "<div id='new_interface_table' style='float: right;'></div>" +
 				      "<br clear='both'><br>" +
@@ -1000,7 +1000,7 @@ function setup_workgroup_tab(){
 
 		    add_acl_p.render('workgroups_content');
 
-		    var done_adding = new YAHOO.widget.Button("done_adding_edges", {label: "Done Adding Edges"});
+		    var done_adding = new YAHOO.widget.Button("done_adding_edges", {label: "Done Adding Interfaces"});
 		    done_adding.on("click", function(){
 			    add_acl_p.hide();
 			});
@@ -1067,49 +1067,68 @@ function setup_workgroup_tab(){
 				    var interface_id = rec.getData('interface_id');
 
                     //first check to see if this interface is already owned by another work group
-				    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_interface_owner&workgroup_id="+workgroup_id+"&interface_id="+interface_id);
+				    var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_interface&interface_id="+interface_id);
 				    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 				    ds.responseSchema = {
 					resultsList: "results",
-					fields: [{key: "success"}],
+					fields: [{key: "workgroup_id",
+                              key: "workgroup_name"
+                             }],
 					metaFields: {
 					    error: "error"
 					}
 				    };
-                    
+				    
+                    ds.sendRequest("",{
+                        success: function(req,resp){
+                            if(!resp.results){
+                                throw("Error fetching interface");
+                            }else {
+                                var workgroup_name = resp.results[0].workgroup_name;
+                                var confirmed;
+                                if(workgroup_name) {
+                                    confirmed = confirm("This interface is already owned by workgroup, "+workgroup_name+". Changing the workgroup will removed all of the acl rules that "+workgroup_name+" has associated to it. Are you sure you want to change the owner?");
+                                }else {
+                                    confirmed = true;
+                                }
+                                if(confirmed){
+                                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_interface_owner&workgroup_id="+workgroup_id+"&interface_id="+interface_id);
+                                    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                                    ds.responseSchema = {
+                                    resultsList: "results",
+                                    fields: [{key: "success"}],
+                                    metaFields: {
+                                        error: "error"
+                                    }
+                                    };
+             
+                                    this.disable();
+             
+                                    ds.sendRequest("",{
+                                        success: function(req, resp){
+                                            table.undisable();
+                                            if (resp.meta.error){
+                                                YAHOO.util.Dom.get('add_acl_status').innerHTML = "Error adding interface: " + resp.meta.error;
+                                            }
+                                            else{
+                                                YAHOO.util.Dom.get('add_acl_status').innerHTML = "Interface added successfully.";
+                                                owned_interfaces_table.getDataSource().sendRequest("", {success: owned_interfaces_table.onDataReturnInitializeTable,scope:owned_interfaces_table});
+                                            }
+                                        },
+                                        failure: function(req, resp){
+                                            table.undisable();
+                                            YAHOO.util.Dom.get('add_acl_status').innerHTML = "Server error while adding new edge interface.";
+                                        }
+                                    }, this);
+                                }
+                            }
+                        },
+                        failure: function(req,resp){
+                            throw("Error fetching interface");
+                        }
+                    }, this); 
 
-				    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_interface_owner&workgroup_id="+workgroup_id+"&interface_id="+interface_id);
-				    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-				    ds.responseSchema = {
-					resultsList: "results",
-					fields: [{key: "success"}],
-					metaFields: {
-					    error: "error"
-					}
-				    };
-
-				    this.disable();
-
-				    ds.sendRequest("",
-						   {
-						       success: function(req, resp){
-							   table.undisable();
-							   if (resp.meta.error){
-							       YAHOO.util.Dom.get('add_acl_status').innerHTML = "Error adding interface: " + resp.meta.error;
-							   }
-							   else{
-							       YAHOO.util.Dom.get('add_acl_status').innerHTML = "Interface added successfully.";
-							       owned_interfaces_table.getDataSource().sendRequest("", {success: owned_interfaces_table.onDataReturnInitializeTable,scope:owned_interfaces_table});
-							   }
-						       },
-						       failure: function(req, resp){
-							   table.undisable();
-							   YAHOO.util.Dom.get('add_acl_status').innerHTML = "Server error while adding new edge interface.";
-						       }
-						   }
-						   );
-
-				});
+				}); //end row click
 			    
 
 			});

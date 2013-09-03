@@ -480,20 +480,24 @@ var ds = new YAHOO.util.DataSource(dsString);
     avail_resource_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     avail_resource_ds.responseSchema = {
 	resultsList: "results",
-	fields: ["node_name","interface_name","operational_state","description"]
+	fields: ["node_name","interface_name","operational_state","description","vlan_tag_range"]
     };
     
     var avail_resource_cols = [
-			       {key: "node_name",sortable: true, label: "Node", width: 200 },
-			       {key: "interface_name", sortable: true, label: "Interface", width: 50},
-			       {key: "description", sortable: true,  label: "Description", width: 100},
+			       {key: "node_name",sortable: true, label: "Node"},
+			       {key: "interface_name", sortable: true, label: "Interface"},
+			       {key: "description", sortable: true,  label: "Description"},
 			       {key: "operational_state", sortable:true, label: "Status", formatter: function(elLiner, oRec, oCol, oData){
 				       if(oRec.getData('operational_state') == 'up'){
 					   elLiner.innerHTML = "<font color='green'>up</font>";
 				       }else{
 					   elLiner.innerHTML = "<font color='red'>" + oRec.getData('operational_state') + "</font>";
 				       }
-				   }}
+				   }},
+			       {key: "vlan_tag_range", sortable: true,  label: "VLAN Range", formatter: function(elLiner, oRec, oCol, oData){ 
+                        var string = oData.replace("-1", "untagged");
+			            elLiner.innerHTML = string;
+                   }}
 			       ];
 
     var avail_resource_table = new YAHOO.widget.ScrollingDataTable("available_resource_table",avail_resource_cols, avail_resource_ds, {height: '473px', width: '475px'});
@@ -544,8 +548,14 @@ var ds = new YAHOO.util.DataSource(dsString);
             {label: "VLAN Range", formatter: function(el, rec, col, data){
                 var vlan_start  = rec.getData('vlan_start');
                 var vlan_end    = rec.getData('vlan_end');
+                if(vlan_start == -1){
+                    vlan_start = 'untagged';
+                }
                 var string = vlan_start;
                 if(vlan_end !== null){
+                    if(vlan_start == "untagged") {
+                        string += ", 1";
+                    }
                     string += "-"+vlan_end;
                 }
 			    el.innerHTML = string;
@@ -767,13 +777,16 @@ var ds = new YAHOO.util.DataSource(dsString);
                 fields: [
                     "success",
                     "error"
-                ]
+                ],
+                metaFields: {
+                    error: "error"
+                }
             };
 
             ds.sendRequest("",{
                 success: function(req, resp){
-                    if(!resp.results[0].success){
-                        throw "Error saving acl data";
+                    if(!resp.results.length || !resp.results[0].success){
+                        alert("Error saving acl data: "+resp.meta.error);
                     }else {
                         build_interface_acl_table(interface_id);
                     }
@@ -825,6 +838,8 @@ var ds = new YAHOO.util.DataSource(dsString);
                     scope: this
                 },ds);
             }); 
+        }else {
+            $('#remove_acl_panel').css('display', 'none');
         }
 
         //fetch workgroups
