@@ -97,7 +97,7 @@ function init(){
 
     legend_init(map, true);
     
-    map.showDefault();
+    //map.showDefault();
 
     map.on("loaded", function(){
 	    this.updateMapFromSession(session);

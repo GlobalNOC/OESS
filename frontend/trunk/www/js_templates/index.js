@@ -421,7 +421,7 @@ var ds = new YAHOO.util.DataSource(dsString);
     circuit_status_ds.setInterval(30000);
     var nddi_map = new NDDIMap("network_status_map", session.data.interdomain == 0);
 
-    nddi_map.showDefault();
+    //nddi_map.showDefault();
 
     nddi_map.on("loaded", function(){
 	    this.updateMapFromSession(session);
@@ -465,15 +465,15 @@ var ds = new YAHOO.util.DataSource(dsString);
 
     var resource_map = new NDDIMap("available_resource_map", session.data.interdomain == 0);
 
-    resource_map.showDefault();
+    //resource_map.showDefault();
 
     resource_map.on("loaded", function(){
             this.updateMapFromSession(session);
         });    
 
     tabs.on('activeTabChange', function(){
-	    resource_map.map.render("available_resource_map");
-	    nddi_map.map.render("network_status_map");
+	    resource_map.render("available_resource_map");
+	    nddi_map.render("network_status_map");
 	});
 
     var avail_resource_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_all_resources_for_workgroup&workgroup_id=" + session.data.workgroup_id);

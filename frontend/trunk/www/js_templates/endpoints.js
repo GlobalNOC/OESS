@@ -53,7 +53,7 @@ function init(){
   
   legend_init(nddi_map, true);
     
-  nddi_map.showDefault();
+  //nddi_map.showDefault();
   
   nddi_map.on("loaded", function(){
 		this.updateMapFromSession(session);

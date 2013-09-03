@@ -21,6 +21,7 @@ function NDDIMap(div_id, interdomain_mode){
 
   this.ACTIVE_LINK_OPACITY   = 1.0;
   this.INACTIVE_LINK_OPACITY = 1.0;
+  this._initialized = false;
 
   // keep a reference to ourselves to use in various callbacks
   var self = this;
@@ -45,12 +46,7 @@ function NDDIMap(div_id, interdomain_mode){
   };
 
   this.calculateZoomLevel = function(width){
-      var zoomLevel = Math.max(2, parseInt(width / 182) + 1);
-
-      // arbitrary zoom limit
-      if (zoomLevel > 4){
-	  zoomLevel = 4;
-      }
+      var zoomLevel = Math.max(2, parseInt(width / 182, 10) + 1);
 
       return zoomLevel;
   };
@@ -114,15 +110,29 @@ function NDDIMap(div_id, interdomain_mode){
 
   };
 
-  this.showDefault = function(){
+    this.showDefault = function(){
 
-      var lonlat = new OpenLayers.LonLat(-97, 38).transform(this.map.displayProjection,
-							    this.map.projection);
-
-      var region = YAHOO.util.Dom.getRegion(div_id);
-
-      this.map.setCenter(lonlat, this.calculateZoomLevel(region.width));
-
+	var bounds = new OpenLayers.Bounds();
+	
+	for(var i=0;i< this.map.layers[1].features.length; i++){
+	    var feature = this.map.layers[1].features[i];
+	    
+	    if(feature.geometry.y != null || feature.geometry.x != null){
+		
+		var lat = feature.geometry.y;
+		var lon = feature.geometry.x;
+		
+		var latlon = new OpenLayers.LonLat(lon - 200000, lat - 200000);
+		bounds.extend(latlon);
+		
+		latlon = new OpenLayers.LonLat(lon + 200000, lat + 200000);
+		bounds.extend(latlon);
+	    }
+	    
+	}
+	
+	this.map.zoomToExtent(bounds, false);
+	
   };
 
   // connects all given nodes regardless of if they have an actual link
@@ -1076,7 +1086,10 @@ function NDDIMap(div_id, interdomain_mode){
 			  }
 
 			  self.events['loaded'].fire();
-
+			  if(this._initialized != true){
+			      this.showDefault();
+			  }
+			  this._initialized = true;
 			},
 			failure: function(req, resp){
 
@@ -1084,6 +1097,11 @@ function NDDIMap(div_id, interdomain_mode){
 			scope: this
 		       });
 
+  }
+
+  this.render = function( container ){
+      this.map.render( container );
+      this.showDefault();
   }
 
   // remove all features, requery server for data, redraw
@@ -1095,6 +1113,7 @@ function NDDIMap(div_id, interdomain_mode){
 
   this.map = this._createMap(div_id);
   this._getMapData();
+  
 
   return this;
 }

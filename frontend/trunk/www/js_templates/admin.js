@@ -268,7 +268,7 @@ function setup_remote_tab(){
 	    var map = new NDDIMap('remote_map');
 	    
 	    map.on("loaded", function(){
-		    this.showDefault();
+		    //this.showDefault();
 		    this.clearAllSelected();
 		});
 	    
@@ -1008,7 +1008,7 @@ function setup_workgroup_tab(){
 		    var map = new NDDIMap('acl_map');
 
 		    map.on("loaded", function(){
-			    this.showDefault();
+			    //this.showDefault();
 			    this.clearAllSelected();
 			});
 
@@ -1304,7 +1304,7 @@ function setup_network_tab(){
     var map = new NDDIMap("active_network_map");
 
     map.on("loaded", function(){
-	    this.showDefault();
+	    //this.showDefault();
 	    this.clearAllSelected();
 	});
 

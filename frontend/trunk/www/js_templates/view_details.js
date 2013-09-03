@@ -106,7 +106,7 @@ function page_init(){
 
   //legend_init(nddi_map, false, true);
 
-  nddi_map.showDefault();
+  //nddi_map.showDefault();
 
   nddi_map.on("loaded", function(){
           this.updateMapFromSession(session, session.data.interdomain == 1);

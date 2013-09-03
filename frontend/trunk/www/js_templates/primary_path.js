@@ -43,7 +43,7 @@ function init(){
   
   var shortest_path_button = new YAHOO.widget.Button("shortest_path_button", {label: "Suggest Shortest Path"});
   
-  nddi_map.showDefault();
+  //nddi_map.showDefault();
   
   shortest_path_button.on("click", function(){
 
