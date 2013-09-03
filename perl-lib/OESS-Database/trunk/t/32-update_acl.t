@@ -14,7 +14,7 @@ BEGIN {
 use lib "$path";
 use OESSDatabaseTester;
 
-use Test::More tests => 26;
+use Test::More tests => 30;
 use Test::Deep;
 use OESS::Database;
 use OESSDatabaseTester;
@@ -23,6 +23,34 @@ use Data::Dumper;
 my $db = OESS::Database->new(config => OESSDatabaseTester::getConfigFilePath());
 
 my $acl_id = $db->update_acl(
+    interface_acl_id => 3, 
+    user_id          => 11,
+    workgroup_id     => 51,
+    interface_id     => 45811,
+    allow_deny       => 'allow',
+    eval_position    => 10,
+    vlan_start       => 200,
+    vlan_end         => 99,
+    notes            => undef
+);
+ok(!$acl_id, 'vlan range sanity check');
+is($db->get_error(),'vlan_end can not be less than vlan_start','correct error');
+
+$acl_id = $db->update_acl(
+    interface_acl_id => 3, 
+    user_id          => 11,
+    workgroup_id     => 51,
+    interface_id     => 45811,
+    allow_deny       => 'allow',
+    eval_position    => 10,
+    vlan_start       => -1,
+    vlan_end         => 99,
+    notes            => undef
+);
+ok(!$acl_id, 'vlan range sanity check');
+is($db->get_error(),'-1-99 does not fall within the vlan tag range defined for the interface, 1-4095','correct error');
+
+$acl_id = $db->update_acl(
     interface_acl_id => 3, 
     user_id          => 301,
     workgroup_id     => 31,
@@ -49,8 +77,8 @@ $acl_id = $db->update_acl(
 );
 ok($acl_id, 'acl updated');
 
-my $acls = $db->get_acls( owner_workgroup_id => 51 );
-is(@$acls, 6, '6 ACLs Retrieved');
+my $acls = $db->get_acls( interface_acl_id => 3 );
+is(@$acls, 1, '1 ACL Retrieved');
 my $acl = $acls->[0];
 
 is($acl->{'vlan_end'},210,'vlan_end ok');

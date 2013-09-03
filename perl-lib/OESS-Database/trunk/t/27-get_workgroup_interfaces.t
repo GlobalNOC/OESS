@@ -34,6 +34,7 @@ ok(defined($res), "Found workgroup acls");
 cmp_deeply($res,[
           {
             'interface_name' => 'e3/2',
+            'vlan_tag_range' => '-1,1-4095',
             'node_name' => 'Node 1',
             'node_id' => '1',
             'interface_id' => '45911',
@@ -42,6 +43,7 @@ cmp_deeply($res,[
           },
           {
             'interface_name' => 'e15/1',
+            'vlan_tag_range' => '1-4095',
             'node_name' => 'Node 21',
             'node_id' => '21',
             'interface_id' => '45901',

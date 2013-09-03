@@ -1716,7 +1716,7 @@ sub get_workgroup_interfaces {
 
     my $acls;
 
-    my $query = "select interface.description,interface.operational_state as operational_state, interface.name as int_name, interface.interface_id, node.name as node_name, node.node_id " .
+    my $query = "select interface.description,interface.operational_state as operational_state, interface.name as int_name, interface.interface_id, interface.vlan_tag_range, node.name as node_name, node.node_id " .
 	        " from workgroup " .
 		"  join interface on interface.workgroup_id = workgroup.workgroup_id " .
 		"  join interface_instantiation on interface.interface_id = interface_instantiation.interface_id " .
@@ -1736,6 +1736,7 @@ sub get_workgroup_interfaces {
 
     foreach my $row (@$results){
 	push(@$acls, {"interface_id"   => $row->{'interface_id'},
+              "vlan_tag_range" => $row->{'vlan_tag_range'},
 		      "interface_name" => $row->{'int_name'},
 		      "node_id"        => $row->{'node_id'},
 		      "node_name"      => $row->{'node_name'},
@@ -1775,8 +1776,6 @@ sub get_available_resources {
     my $owned_interfaces = $self->get_workgroup_interfaces( workgroup_id => $workgroup_id ) || return;
     foreach my $owned_interface (@$owned_interfaces) {
         $owned_interface->{'is_owner'}   = 1;
-        $owned_interface->{'vlan_start'} = -1;
-        $owned_interface->{'vlan_end'}   = 4095;
     }
 
     # get all the interfaces that have an acl rule that applies to this workgroup
@@ -1788,18 +1787,21 @@ sub get_available_resources {
         "  join node on node.node_id = interface.node_id " .
         "  join node_instantiation on node.node_id = node_instantiation.node_id " .
         "    and node_instantiation.end_epoch = -1 " .
-        " where interface_acl.workgroup_id = ? " .
+        " where (interface_acl.workgroup_id = ? " .
+        " or interface_acl.workgroup_id IS NULL) " .
+        " and interface.workgroup_id != ? " .
         " group by interface_acl.interface_id " .
         " order by node_name ASC, int_name ASC";
 
-    my $interfaces = $self->_execute_query($query, [$workgroup_id]);
+    my $interfaces = $self->_execute_query($query, [$workgroup_id, $workgroup_id]);
     if (! defined $interfaces){
         $self->_set_error("Internal error fetching accessible interfaces.");
         return;
     }
     my $available_interfaces = $owned_interfaces;
     foreach my $interface (@$interfaces) {
-        if ( $self->_validate_endpoint(interface_id => $interface->{'interface_id'}, workgroup_id => $workgroup_id )){
+        my $vlan_tag_range = $self->_validate_endpoint(interface_id => $interface->{'interface_id'}, workgroup_id => $workgroup_id );
+        if ( $vlan_tag_range ){
             $interface->{'is_owner'} = 0;
             push(@$available_interfaces, {
                 "interface_id"      => $interface->{'interface_id'},
@@ -1808,8 +1810,7 @@ sub get_available_resources {
                 "node_name"         => $interface->{'node_name'},
                 "operational_state" => $interface->{'operational_state'},
                 "description"       => $interface->{'description'},
-                "vlan_start"        => $interface->{'vlan_start'},
-                "vlan_end"          => $interface->{'vlan_end'},
+                "vlan_tag_range"    => $vlan_tag_range,
                 "is_owner"          => 0,
             });
         }
@@ -1865,6 +1866,14 @@ sub update_interface_owner {
         return;
         }
     }
+    
+    # determine if the workgroup is moving from one to another
+    my $changing_workgroup = 0;
+    $query = "select 1 from interface where workgroup_id IS NOT NULL and workgroup_id != ? and interface_id = ?";
+    my $results = $self->_execute_query($query, [$workgroup_id, $interface_id]);
+    if (@$results > 0){
+        $changing_workgroup = 1;
+    }
 
 
     $self->_start_transaction();
@@ -1878,13 +1887,6 @@ sub update_interface_owner {
 	return;
     }
 
-    # determine if the workgroup is moving from one to another
-    my $changing_workgroup = 0;
-    $query = "select 1 from interface where workgroup_id IS NOT NULL and workgroup_id != ? and interface_id = ?";
-    my $results = $self->_execute_query($query, [$workgroup_id, $interface_id]);
-    if (@$results > 0){
-        $changing_workgroup = 1;
-    }
 
     # remove prior acl rules since those were set by the old workgroup 
     if(!defined($args{'workgroup_id'}) || $changing_workgroup) { 
@@ -1959,10 +1961,18 @@ sub add_acl {
         return;
     }
 
-    my $authorized = $self->_authorize_interface_acl(
+    my $interface = $self->_authorize_interface_acl(
         interface_id => $args{'interface_id'},
         user_id => $args{'user_id'}
     ) || return;
+
+    # check to make sure vlan start and end are valid
+    $self->_check_vlan_range(
+        vlan_tag_range => $interface->{'vlan_tag_range'},
+        vlan_start     => $args{'vlan_start'},
+        vlan_end       => $args{'vlan_end'}
+    ) || return;
+
     if(defined($args{'eval_position'})){
         if(  $self->_has_used_eval_position( interface_id  => $args{'interface_id'},
                                              eval_position => $args{'eval_position'} ) ){
@@ -2026,9 +2036,16 @@ sub update_acl {
     $interface_acl = $interface_acl->[0];
 
     # check if the user is authorized to edit this acl
-    my $authorized = $self->_authorize_interface_acl(
+    my $interface = $self->_authorize_interface_acl(
         interface_id => $interface_acl->{'interface_id'},
         user_id => $args{'user_id'}
+    ) || return;
+    
+    # check to make sure vlan start and end are valid
+    $self->_check_vlan_range(
+        vlan_tag_range => $interface->{'vlan_tag_range'},
+        vlan_start     => $args{'vlan_start'},
+        vlan_end       => $args{'vlan_end'}
     ) || return;
 
     if(!defined($args{'interface_acl_id'})){
@@ -2275,7 +2292,7 @@ sub get_acls {
 
 =head2 _authorize_interface_acl
 
-Checks if a user belongs to the workgroup that owns the interface and is allowd to edit it
+Checks if a user belongs to the workgroup that owns the interface and is allowd to edit it. Returns interface if true
 
 =cut
 sub _authorize_interface_acl {
@@ -2297,7 +2314,7 @@ sub _authorize_interface_acl {
     # user belongs to before hand
     my $place_holders = join(",", ("?") x @$workgroups);
     my $result = $self->_execute_query(
-        "select 1 from interface where interface_id = ? and workgroup_id in ($place_holders)",
+        "select * from interface where interface_id = ? and workgroup_id in ($place_holders)",
 	    $args
 	);
     if(!defined($result)){
@@ -2305,16 +2322,106 @@ sub _authorize_interface_acl {
 	    return;
     }
     if (@$result > 0){
-	    return 1;
+	    return $result->[0];
     }else {
 	    $self->_set_error("Access Denied");
-        return 0;
+        return undef;
     }
 
 }
+=head2 _check_vlan_range
+
+Checks to make sure vlan start is less than vlan end and they fall withing the interface's range
 
 =cut
 
+sub _check_vlan_range {
+    my $self = shift;
+    my %args = @_;
+
+    my $vlan_tag_range = $args{'vlan_tag_range'};
+
+    # create a string of the range passed in for error messages later
+    my $vlan_range_string;
+    if(defined($args{'vlan_end'})){
+        $vlan_range_string = $args{'vlan_start'}."-".$args{'vlan_end'};
+    }else {
+        $vlan_range_string = $args{'vlan_start'};
+    }
+
+    my $vlan_start = $args{'vlan_start'};
+    # if the start is untagged then check to see that it is 
+    # contained separately
+    my $check_for_untagged = 0;
+    if($vlan_start == UNTAGGED){
+        $check_for_untagged = 1;
+        # if vlan_end is defined set vlan_start to 1 so we skip over zero
+        # otherqise $vlan_start and $vlan_end will both be set to -1
+        if(defined($args{'vlan_end'})) {
+            $vlan_start = 1; 
+        }
+    }
+    my $vlan_end = $args{'vlan_end'} || $vlan_start;
+
+    if($vlan_end < $vlan_start) {
+	    $self->_set_error("vlan_end can not be less than vlan_start");
+	    return;
+    }
+
+    my @vlan_ranges = split(',', $vlan_tag_range);
+
+    # need to check untagged value separately if it was passed in since
+    # it will be the only unconsecutive value if it is defined
+    my $untagged_contained = 0;
+    if($check_for_untagged) {
+        foreach my $vlan_range (@vlan_ranges) {
+            if($vlan_range =~ /(\d+)-(\d+)/) {
+                my $vlan_range_start = $1;
+                my $vlan_range_end   = $2;
+                # is our submitted range contained within this range
+                if( (UNTAGGED >= $vlan_range_start) && 
+                    (UNTAGGED <= $vlan_range_end) ) {
+                    $untagged_contained = 1;
+                }
+            } else {
+                if( (UNTAGGED == $vlan_range) ) {
+                    $untagged_contained = 1;
+                } 
+            }
+        }
+        if(!$untagged_contained){
+	        $self->_set_error("$vlan_range_string does not fall within the vlan tag range defined for the interface, $vlan_tag_range");
+            return 0;
+        }else {
+            # we only passed in $vlan_start as -1 and its contained so return true
+            if( ($vlan_start == UNTAGGED) && ($vlan_end == UNTAGGED) ){
+                return 1;
+            }
+        }
+    }
+
+    # now check that vlan_start and vlan_end can fit somewhere in the vlan_tag range
+    foreach my $vlan_range (@vlan_ranges) {
+        if($vlan_range =~ /(\d+)-(\d+)/) {
+            my $vlan_range_start = $1;
+            my $vlan_range_end   = $2;
+
+            # is our submitted range contained within this range
+            if( ($vlan_start >= $vlan_range_start) && 
+                ($vlan_end   <= $vlan_range_end) ) {
+                
+                return 1;
+            }
+        } else {
+            if( ($vlan_start == $vlan_range) && ($vlan_end == $vlan_range) ) {
+                return 1;
+            }
+        }
+    }
+
+	$self->_set_error("$vlan_range_string does not fall within the vlan tag range defined for the interface, $vlan_tag_range");
+    return 0;
+}
 
 =head2 add_workgroup
 
@@ -6697,7 +6804,7 @@ sub _process_tag_string{
 
 =head2 _validate_endpoint
 
-Verifies that the endpoint in question is accessible to the given workgroup.
+Verifies that the endpoint in question is accessible to the given workgroup. If a vlan tag is not passed in returns the list of available vlan tag ranges.
 
 =over
 
@@ -6717,7 +6824,11 @@ sub _validate_endpoint {
     my $workgroup_id = $args{'workgroup_id'};
     my $vlan         = $args{'vlan'};
 
-    my $query = "select * from interface_acl where interface_id = ? and (workgroup_id = ? or workgroup_id IS NULL) order by eval_position";
+    my $query  = "select * ";
+       $query .= " from interface_acl ";
+       $query .= " join interface on interface_acl.interface_id = interface.interface_id ";
+       $query .= " where interface_acl.interface_id = ? ";
+       $query .= " and (interface_acl.workgroup_id = ? or interface_acl.workgroup_id IS NULL) order by eval_position";
 
     my $results = $self->_execute_query($query, [$interface_id, $workgroup_id]);
 
@@ -6726,15 +6837,35 @@ sub _validate_endpoint {
 	return;
     }
 
+
+    my $vlan_range_hash;
     foreach my $result (@$results) {
         my $permission = $result->{'allow_deny'};
         my $vlan_start = $result->{'vlan_start'};
         my $vlan_end   = $result->{'vlan_end'} || $vlan_start;
+    
      
-        # if vlan is not defined just check the permission otherwise 
-        # if our vlan falls within this rules range determine if it is allow
+        # if vlan is not defined determine what ranges are available 
+        if(!defined($vlan)) {
+            if($permission eq "deny") {
+                $vlan_range_hash = $self->_set_vlan_range_allow_deny(
+                    vlan_range_hash  => $vlan_range_hash,
+                    vlan_start       => $vlan_start,
+                    vlan_end         => $vlan_end,
+                    allow_deny       => 0
+                );
+            } else {
+                $vlan_range_hash = $self->_set_vlan_range_allow_deny(
+                    vlan_range_hash  => $vlan_range_hash,
+                    vlan_start       => $vlan_start,
+                    vlan_end         => $vlan_end,
+                    allow_deny       => 1
+                );
+            }
+        } 
+        # otherwise if our vlan falls within this rules range determine if it is allow
         # or deny
-        if( (!defined($vlan)) || (($vlan_start <= $vlan) && ($vlan <= $vlan_end)) ) {
+        elsif( ($vlan_start <= $vlan) && ($vlan <= $vlan_end)  ) {
             if($permission eq "deny") {
                 return 0;
             } else {
@@ -6743,10 +6874,112 @@ sub _validate_endpoint {
         }
     }
 
+    # convert the hash to a vlan range string
+    if(!defined($vlan)){
+        return $self->_vlan_range_hash2str( vlan_range_hash => $vlan_range_hash ); 
+    }
+
     # if no applicable rules were found default to deny
     return 0;
 }
 
+=head2 _set_vlan_range_allow_deny
+
+Sets the hash element keyed on vlan range to 1 for allow and 0 for deny. If the key already exists it does nothing because 
+we already encountered a rule that either allowed of denied it.
+
+=cut
+sub _set_vlan_range_allow_deny {
+    my $self = shift;
+    my %args = @_;
+
+    my $vlan_range_hash = $args{'vlan_range_hash'};
+    my $vlan_start      = $args{'vlan_start'};
+    my $vlan_end        = $args{'vlan_end'} || $vlan_start;
+    my $allow_deny      = $args{'allow_deny'};
+
+    for(my $vlan = $vlan_start; $vlan <= $vlan_end; $vlan++){
+        # only set allow_deny if we dont already have a value for this vlan
+        # otherwise we have already determined if it should be allowed or denied in a previous rule
+        if(!exists($vlan_range_hash->{$vlan})){
+            $vlan_range_hash->{$vlan} = $allow_deny;
+        }
+    }
+
+    return $vlan_range_hash;
+}
+
+sub _vlan_range_hash2str {
+    my $self = shift;
+    my %args = @_;
+    my $vlan_range_hash = $args{'vlan_range_hash'};
+
+    # delete zero if it exists since its an invalid tag
+    if(exists($vlan_range_hash->{'0'})){
+        delete $vlan_range_hash->{'0'};
+    }
+    # create an array of the allowed vlans and sort them
+    my @allowed_vlan_array;
+    foreach my $vlan (keys %$vlan_range_hash) {
+        my $is_allowed = $vlan_range_hash->{$vlan};
+        if($is_allowed){
+            push(@allowed_vlan_array, $vlan);
+        }
+    } 
+    @allowed_vlan_array = sort {$a <=> $b} @allowed_vlan_array;
+
+    # return undef if there are no allowed vlans
+    return undef if(@allowed_vlan_array == 0);
+
+    # now create a string of vlan ranges
+    my $vlan_start;
+    my $vlan_end;
+    my $last_vlan;
+    my $vlan_range_string = "";
+    foreach my $allowed_vlan (@allowed_vlan_array) {
+        # if we don't have a start set yet for consecutive ranges set it
+        if(!defined($vlan_start)){
+            $vlan_start = $allowed_vlan;    
+        } 
+        else {
+            # if we are in consecutive order set a new end
+            if($allowed_vlan == ($last_vlan + 1) ){
+                $vlan_end = $allowed_vlan;
+            } 
+            else {
+                # if we have a last set append the range on the string
+                #if(defined($last_vlan)){
+                if(defined($vlan_end)){
+                    $vlan_range_string .= "$vlan_start-$vlan_end,"; 
+                    $vlan_start = $allowed_vlan;
+                    $vlan_end   = undef;
+                }
+                # if we do not append the single value onto the string
+                else {
+                    $vlan_range_string .= "$vlan_start,"; 
+                    $vlan_start = $allowed_vlan;
+                }
+            }
+        }
+
+        $last_vlan = $allowed_vlan;
+    }
+
+    # check to see if we were still calculating a range when the loop finished
+    if(defined($vlan_start)){
+        if(defined($vlan_end)){
+            $vlan_range_string .= "$vlan_start-$vlan_end"; 
+        } else {
+            $vlan_range_string .= "$vlan_start"; 
+        }
+    }
+    # otherwise remove the trailing comma
+    else {
+        chop($vlan_range_string);
+    }
+
+    return $vlan_range_string;
+}
 
 =head2 get_oscars_host
 

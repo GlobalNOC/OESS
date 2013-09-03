@@ -166,7 +166,7 @@ CREATE TABLE `interface_acl` (
   KEY `interface_id` (`interface_id`),
   CONSTRAINT `interface_acl_ibfk_1` FOREIGN KEY (`interface_id`) REFERENCES `interface` (`interface_id`),
   CONSTRAINT `interface_acl_ibfk_2` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -175,7 +175,7 @@ CREATE TABLE `interface_acl` (
 
 LOCK TABLES `interface_acl` WRITE;
 /*!40000 ALTER TABLE `interface_acl` DISABLE KEYS */;
-INSERT INTO `interface_acl` VALUES (1,21,45901,'allow',10,101,200,'ima note'),(2,21,45911,'deny',20,100,NULL,NULL),(3,21,45811,'allow',10,100,NULL,'ima note'),(4,31,45811,'allow',20,101,NULL,'ima note'),(5,101,45811,'allow',30,102,NULL,'ima note'),(6,61,45811,'allow',40,103,NULL,'ima note'),(7,71,45811,'allow',50,104,NULL,'ima note'),(8,81,45811,'allow',60,105,NULL,'ima note'),(9,11,321,'allow',10,1,10,'(for test 34-provision_circuit.t)'),(10,11,511,'allow',10,1,10,'(for test 34-provision_circuit.t)'),(11,11,391,'deny',10,1,NULL,'(for test 34-provision_circuit.t)'),(12,11,391,'allow',20,1,4095,'(for test 34-provision_circuit.t)');
+INSERT INTO `interface_acl` VALUES (1,21,45901,'deny',10,101,200,'ima note'),(2,21,45911,'deny',20,100,NULL,NULL),(3,21,45811,'allow',10,100,NULL,'ima note'),(4,31,45811,'allow',20,101,NULL,'ima note'),(5,101,45811,'allow',30,102,NULL,'ima note'),(6,61,45811,'allow',40,103,NULL,'ima note'),(7,71,45811,'allow',50,104,NULL,'ima note'),(8,81,45811,'allow',60,105,NULL,'ima note'),(9,11,321,'allow',10,1,10,'(for test 34-provision_circuit.t)'),(10,11,511,'allow',10,1,10,'(for test 34-provision_circuit.t)'),(11,11,391,'deny',10,1,NULL,'(for test 34-provision_circuit.t)'),(12,11,391,'allow',20,1,4095,'(for test 34-provision_circuit.t)'),(13,21,45901,'allow',20,120,125,NULL),(14,21,45901,'allow',30,-1,4095,NULL);
 /*!40000 ALTER TABLE `interface_acl` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -732,4 +732,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-08-29  0:16:51
+-- Dump completed on 2013-09-03 17:46:04

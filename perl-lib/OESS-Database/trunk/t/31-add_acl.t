@@ -14,14 +14,42 @@ BEGIN {
 use lib "$path";
 use OESSDatabaseTester;
 
-use Test::More tests => 17;
+use Test::More tests => 21;
 use Test::Deep;
 use OESS::Database;
 use OESSDatabaseTester;
 use Data::Dumper;
 
 my $db = OESS::Database->new(config => OESSDatabaseTester::getConfigFilePath());
+
 my $acl_id = $db->add_acl(
+    user_id       => 11,
+    workgroup_id  => 31,
+    interface_id  => 45851,
+    allow_deny    => 'deny',
+    eval_position => 20,
+    vlan_start    => 100,
+    vlan_end      => 99,
+    notes         => undef
+);
+ok(!$acl_id, 'vlan_range sanity check 1');
+is($db->get_error(),'vlan_end can not be less than vlan_start','correct error');
+
+$acl_id = $db->add_acl(
+    user_id       => 11,
+    workgroup_id  => 31,
+    interface_id  => 45851,
+    allow_deny    => 'deny',
+    eval_position => 20,
+    vlan_start    => -1,
+    vlan_end      => 4095,
+    notes         => undef
+);
+ok(!$acl_id, 'vlan_range sanity check 1');
+is($db->get_error(),'-1-4095 does not fall within the vlan tag range defined for the interface, 1-4095','correct error');
+
+
+$acl_id = $db->add_acl(
     user_id       => 301,
     workgroup_id  => 21,
     interface_id  => 45841,
