@@ -96,13 +96,6 @@ sub get_error{
     return $err;
 }
 
-=head2 get_circuit_data
-  Params: circuit_id => circuit id of the circuit to find data for
-          start_time => the start_time to get data for
-          end_time => the end time to get data for (optional, if not defined is set to NOW)
-
-  return RRD Data
-=cut
 
 sub get_circuit_data{
     my $self = shift;
@@ -115,9 +108,115 @@ sub get_circuit_data{
     my $interface  = $params{'interface'};
 
     if(!defined $circuit_id){
-	$self->_set_error("circuit_id is required");
-	return undef;
+        $self->_set_error("circuit_id is required");
+        return undef;
     }
+
+    if(!defined $start){
+        $self->_set_error("start_time is required and should be in epoch time");
+        return undef;
+    }
+
+    # assume we mean "start to now"
+    if(!defined $end){
+        $end = time;
+    }
+
+    #find the base RRD dir
+    my $rrd_dir;
+    my $query = "select value from global where name = 'rrddir'";
+    my $sth = $self->{'dbh'}->prepare($query);
+    $sth->execute();
+    if(my $row = $sth->fetchrow_hashref()){
+        $rrd_dir = $row->{'value'};
+    }
+    
+    my $circuit_details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
+
+    my @interfaces;
+    
+    my $internal_ids = $circuit_details->{'internal_ids'};
+
+    foreach my $link (@{$circuit_details->{'links'}}){
+	my $node_a = $link->{'node_a'};
+	my $node_z = $link->{'node_z'};
+
+	push(@interfaces,{node => $node_a,
+			  int => $link->{'interface_a'},
+			  port_no => $link->{'port_no_a'},
+			  tag => $internal_ids->{'primary'}{$node_a}});
+	push(@interfaces,{node => $node_z,
+			  int => $link->{'interface_z'},
+			  port_no => $link->{'port_no_z'},
+			  tag => $internal_ids->{'primary'}{$node_z}});
+	
+    }
+
+    foreach my $link (@{$circuit_details->{'backup_links'}}){
+	my $node_a = $link->{'node_a'};
+	my $node_z = $link->{'node_z'};
+	push(@interfaces,{node => $node_a,
+                          int => $link->{'interface_a'},
+			  port_no => $link->{'port_no_a'},
+                          tag => $internal_ids->{'backup'}{$node_a}});
+	push(@interfaces,{node => $node_z,
+			  int => $link->{'interface_z'},
+			  port_no => $link->{'port_no_z'},
+			  tag => $internal_ids->{'backup'}{$node_z}});
+    }
+
+    my %endpoint;
+    foreach my $endpoint (@{$circuit_details->{'endpoints'}}){
+	push(@interfaces,{node => $endpoint->{'node'},
+			  int => $endpoint->{'interface'},
+			  port_no => $endpoint->{'port_no'},
+			  tag => $endpoint->{'tag'}});
+    }
+
+    
+    #ok we pushed all interfaces into a big array
+    #now pull out all the ones on our selected node... and if its the selected selected it
+    my $selected;
+    my @interfaces_on_node;
+    
+    if(!defined($node)){
+	$node = $interfaces[0]->{'node'};
+    }
+
+    foreach my $int (@interfaces){
+	if($int->{'node'} eq $node){
+	    if((!defined($interface) && !defined($selected)) || $int->{'int'} eq $interface){
+		$selected = $int;
+	    }else{
+		push(@interfaces_on_node,$int);
+	    }  
+	}
+    }
+    
+    #now we have selected an interface and have a list of all the other interfaces on that node
+    #generate our data
+    return $self->get_data( interface => $selected, other_ints => \@interfaces_on_node, start_time => $start, end_time => $end);
+
+}
+
+
+
+=head2 get_circuit_data
+  Params: circuit_id => circuit id of the circuit to find data for
+          start_time => the start_time to get data for
+          end_time => the end time to get data for (optional, if not defined is set to NOW)
+
+  return RRD Data
+=cut
+
+sub get_data{
+    my $self = shift;
+    my %params = @_;
+
+    my $selected = $params{'interface'};
+    my $other_ints = $params{'other_ints'};
+    my $start      = $params{'start_time'};
+    my $end        = $params{'end'};
 
     if(!defined $start){
 	$self->_set_error("start_time is required and should be in epoch time");
@@ -138,98 +237,48 @@ sub get_circuit_data{
 	$rrd_dir = $row->{'value'};
     }
 
-    my $circuit_details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
-
-    my %all_interfaces;
-
-    my $chosen_int;
-
-    my $links = $circuit_details->{'links'};
-    my $backup_links = $circuit_details->{'backup_links'};
-    # keep track of all interfaces available for a given node so we can show them as 
-    # alternative options in the result set
-    foreach my $link (@$links){	
-	$all_interfaces{$link->{'node_a'}}{$link->{'interface_a'}} = 1;
-	$all_interfaces{$link->{'node_z'}}{$link->{'interface_z'}} = 1;
-    }
-
-    foreach my $link (@$backup_links){
-	$all_interfaces{$link->{'node_a'}}{$link->{'interface_a'}} = 1;
-        $all_interfaces{$link->{'node_z'}}{$link->{'interface_z'}} = 1;
-    }
-
-    my $ints = $self->{'db'}->get_circuit_endpoints(circuit_id => $circuit_id);
-
-    # grab all the endpoint interfaces as well
-    foreach my $int (@$ints){
-	$all_interfaces{$int->{'node'}}{$int->{'interface'}} = 1;
-
-	if (defined $node && $int->{'node'} eq $node){
-	    if (! defined $interface || $int->{'interface'} eq $interface){
-		warn "Choosing endpoint for $node";
-		$chosen_int = $int;
-	    }
-	}
-
-    }   
-
-    if (! defined $chosen_int){
-	# if we were asked specifically for a node, try to find it
-	if (defined $node){
-
-	    my $node_info = $self->{'db'}->get_node_by_name(name => $node);
-	    
-	    if (! defined $node_info){
-		$self->_set_error("Unable to find node \"$node\"");
-		return undef;
-	    }
-
-	    
-	    my $int = $self->find_int_on_path_using_node( links => $links, node => $node );
-	    if(!defined($int)){
-		#didn't find it on the primary... look for it on the backup
-		$int = $self->find_int_on_path_using_node( links => $backup_links, node => $node );
-		$int->{'tag'} = $circuit_details->{'internal_ids'}->{'backup'}->{$node},
-	    }else{
-		#found it on the primary
-		$int->{'tag'} = $circuit_details->{'internal_ids'}->{'primary'}->{$node},
-	    }
-
-	    $int->{'node_id'} = $node_info->{'node_id'};
-	    $chosen_int = $int;
-
-	}
-	# we weren't asked specifically for one so let's just pick the first one
-	else {
-	    
-	    # reorder them to make sure we always get the same interface
-	    my @sorted = sort { $a->{'port_no'} <=> $b->{'port_no'} } @$ints;
-	    
-	    $chosen_int = $sorted[0];
-	    
-	    # make sure we're looking at the local end
-	    if ($chosen_int->{'local'} eq 0){
-		$chosen_int = $sorted[1];
-	    }
-	    
-	}
-    }
-
+    my $node = $self->{'db'}->get_node_by_name( name => $selected->{'node'});
+    warn Dumper($node);
     #get all the host details for the interfaces host
-    my $host = $self->get_host_by_external_id($chosen_int->{'node_id'});
+    my $host = $self->get_host_by_external_id($node->{'node_id'});
     
     #find the collections RRD file in SNAPP
-    my $collection = $self->_find_rrd_file_by_host_int_and_vlan($host->{'host_id'},$chosen_int->{'port_no'},$chosen_int->{'tag'});
+    my $collection = $self->_find_rrd_file_by_host_int_and_vlan($host->{'host_id'},$selected->{'port_no'},$selected->{'tag'});
 
     if(defined($collection)){
 	
 	my $rrd_file = $rrd_dir . $collection->{'rrdfile'};
-	my $data     = $self->get_rrd_file_data( file => $rrd_file, start_time => $start, end_time => $end),
+	my $data;
+        my $input  = $self->get_rrd_file_data( file => $rrd_file, start_time => $start, end_time => $end);
+        
+        push(@{$data},{name => 'Input (Bps)',
+                       data => $input});
 
-	my @all_interfaces = keys %{$all_interfaces{$chosen_int->{'node'}}};
+        my $output_agg;
+        foreach my $other_int (@$other_ints){
+            my $other_collection = $self->_find_rrd_file_by_host_int_and_vlan($host->{'host_id'},$other_int->{'port_no'},$other_int->{'tag'});
+            if(defined($other_collection)){
+                my $other_rrd_file = $rrd_dir . $collection->{'rrdfile'};
+                            
+                my $output = $self->get_rrd_file_data( file => $other_rrd_file, start_time => $start, end_time => $end);
+                $output_agg = aggregate_data($output_agg,$output);
+            }
+        }
+        
+        push(@{$data},{name => 'Output (Bps)',
+                       data => $output_agg});
+                
+        
+        
+        my @all_interfaces;
+	foreach my $int (@$other_ints){
+	    push(@all_interfaces, $int->{'int'});
+	}
 
-	return {"node"       => $chosen_int->{'node'}, 
-		"interface"  => $chosen_int->{'interface'},
+	push(@all_interfaces, $selected->{'int'});
+
+	return {"node"       => $selected->{'node'}, 
+		"interface"  => $selected->{'interface'},
 		"data"       => $data,
 		"interfaces" => \@all_interfaces
 	};
@@ -240,14 +289,33 @@ sub get_circuit_data{
     }
 }
 
+sub aggregate_data{
+    my $agg = shift;
+    my $new_data = shift;
+
+    if(!defined($agg)){
+        $agg = $new_data;
+	return $agg;
+    }
+
+    #theoretically they are the same step and same times so this should just work
+    #if it doesn't we need much more complex logic
+    for(my $i=0;$i<=$#{$agg};$i++){
+        if($agg->[$i]->[0] == $new_data->[$i]->[0]){
+            $agg->[$i]->[1] += $new_data->[$i]->[1];
+        }
+    }
+    return $agg;
+}
+
 sub find_int_on_path_using_node{
     my $self = shift;
     my %params = @_;
-
+    
     if(!defined($params{'links'})){
 	return;
     }
-
+    
     if(!defined($params{'node'})){
 	return;
     }
@@ -285,7 +353,7 @@ sub _find_rrd_file_by_host_and_int{
     my $self = shift;
     my $host_id = shift;
     my $int_name = shift;
-
+    
     my $query = "select * from collection where host_id = ? and premap_oid_suffix = ?";
     my $sth = $self->{'dbh'}->prepare($query);
     $sth->execute($host_id,"Ethernet" . $int_name);
@@ -392,7 +460,7 @@ sub get_rrd_file_data{
     for(my $i=0;$i<$#names;$i++){
 
 	if($names[$i] eq 'output'){
-	    $output = $i;
+            next;
 	}elsif($names[$i] eq 'input'){
 	    $input = $i;
 	}
@@ -415,9 +483,6 @@ sub get_rrd_file_data{
 		$bucket->{'input'} += @$row[$input] / $divisor;
 	    }
 	    
-	    if(defined(@$row[$output])){
-		$bucket->{'output'} += @$row[$output] / $divisor;
-	    }
 	}
 	
 	if($spacing > 1){
@@ -433,19 +498,14 @@ sub get_rrd_file_data{
 	    $bucket->{'input'} *= 8;
 	}
 	push(@inputs,[$bucket->{'time'}, $bucket->{'input'}]);
-	if(defined($bucket->{'output'})){
-	    $bucket->{'output'} *= 8;
-	}
-	push(@outputs,[$bucket->{'time'}, $bucket->{'output'}]);
-
     }
 
-    push(@results,{"name" => "Input (bps)",
-		   "data" => \@inputs});
-    push(@results,{"name" => "Output (bps)",
-		   "data" => \@outputs});
 
-    return \@results;    
+    return \@inputs;
+#    push(@results,{"name" => "Input (bps)",
+#		   "data" => \@inputs});
+#
+#    return \@results;    
 }
 
 
