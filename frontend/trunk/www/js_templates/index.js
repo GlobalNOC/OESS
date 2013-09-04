@@ -560,8 +560,7 @@ var ds = new YAHOO.util.DataSource(dsString);
                 }
 			    el.innerHTML = string;
             }},
-            {key: "notes", label: "Notes",sortable:false},
-            {key: "eval_position", label: "Eval Position"}
+            {key: "notes", label: "Notes",sortable:false}
         ];
 
         //var config = {
