@@ -141,29 +141,29 @@ sub circuit_notification {
 	return;
     }
     my $subject = "OESS Notification: Circuit '" . $circuit_notification_data->{'circuit'}->{'description'} . "' ";
-
+    my $workgroup = $circuit_notification_data->{'workgroup'};
 
     switch($circuit->{'type'}){
     case "provisioned"{
-	    $subject .= "has been provisioned";
+	    $subject .= "has been provisioned in workgroup: $workgroup ";
 	    $self->emit_signal( "circuit_provision", $circuit );
 	}case "removed" {
-	    $subject .= "has been removed";
+	    $subject .= "has been removed from workgroup: $workgroup";
 	    $self->emit_signal( "circuit_removed", $circuit );
 	}case "modified" {
-	    $subject .= "has been edited";
+	    $subject .= "has been edited in workgroup: $workgroup";
 	    $self->emit_signal( "circuit_modified", $circuit );
 	}case "change_path" {
-	    $subject .= "has changed to " . $circuit_notification_data->{'circuit'}->{'active_path'} . " path";
+	    $subject .= "has changed to " . $circuit_notification_data->{'circuit'}->{'active_path'} . " path in workgroup: $workgroup";
 	    $self->emit_signal( "circuit_change_path", $circuit );
 	}case "restored" {
-	    $subject .= "has been restored";
+	    $subject .= "has been restored for workgroup: $workgroup";
 	    $self->emit_signal( "circuit_restored", $circuit );
 	}case "down" {
-	    $subject .= "is down";
+	    $subject .= "is down for workgroup: $workgroup";
 	    $self->emit_signal( "circuit_down", $circuit );
 	}case "unknown" {
-	    $subject .= "is in an unknown state";
+	    $subject .= "is in an unknown state in workgroup: $workgroup";
 	    $self->emit_signal( "circuit_unknown", $circuit );
 	}
     }
