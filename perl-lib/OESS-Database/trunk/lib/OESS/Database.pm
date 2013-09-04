@@ -1098,34 +1098,84 @@ sub get_node_interfaces {
 	        " join node on node.name = ? and node.node_id = interface.node_id " .
 		" join interface_instantiation on interface_instantiation.end_epoch = -1 and interface_instantiation.interface_id = interface.interface_id ";
 
+    # get all the interfaces that have an acl rule that applies to this workgroup
+    # only used if workgroup_id is passed in
+    my $acl_query = "select interface.role, interface.port_number, interface.description,interface.operational_state as operational_state, interface.name as int_name, interface.interface_id, node.name as node_name, node.node_id, interface_acl.vlan_start, interface_acl.vlan_end " .
+            " from interface_acl " .
+        "  join interface on interface.interface_id = interface_acl.interface_id " .
+        "  join interface_instantiation on interface.interface_id = interface_instantiation.interface_id " .
+        "    and interface_instantiation.end_epoch = -1" .
+        "  join node on node.node_id = interface.node_id " .
+        "  join node_instantiation on node.node_id = node_instantiation.node_id " .
+        "    and node_instantiation.end_epoch = -1 " .
+        " where (interface_acl.workgroup_id = ? " .
+        " or interface_acl.workgroup_id IS NULL) " .
+        " and interface.workgroup_id != ? " .
+        " and node.name = ? ";
+
+
     if ($show_trunk == 0){
-        $query .= " where interface.role != 'trunk' ";
+        $query     .= " where interface.role != 'trunk' ";
+        $acl_query .= " and interface.role != 'trunk' ";
     }
     if($show_down == 0){
-	$query .= " and interface.operational_state = 'up' ";
+	    $query .= " and interface.operational_state = 'up' ";
+	    $acl_query .= " and interface.operational_state = 'up' ";
     }
 
     if (defined $workgroup_id){
-	push(@query_args, $workgroup_id);
-	$query .= " and interface.workgroup_id = ?";
+	    push(@query_args, $workgroup_id);
+	    $query .= " and interface.workgroup_id = ?";
     }
-
+    
     #print STDERR "Query: " . $query . "\nARGS: " . Dumper(@query_args);
 
     my $rows = $self->_execute_query($query, \@query_args);
 
+    
     my @results;
+    # if workgroup id was passed in we must execute the acl_query to get 
+    # all of the available interfaces
 
+    # finish up acl query
+    $acl_query .= " group by interface_acl.interface_id " .
+                  " order by node_name ASC, int_name ASC";
+    if(defined $workgroup_id){
+        my $available_interfaces = $self->_execute_query($acl_query, [
+            $workgroup_id,
+            $workgroup_id,
+            $node_name
+        ]);
+        foreach my $available_interface (@$available_interfaces){
+            my $vlan_tag_range = $self->_validate_endpoint(
+                interface_id => $available_interface->{'interface_id'}, 
+                workgroup_id => $workgroup_id 
+            );
+            if($vlan_tag_range) {
+                push(@results, {
+                    "name"           => $available_interface->{'int_name'}, 
+			        "description"    => $available_interface->{'description'}, 
+			        "interface_id"   => $available_interface->{'interface_id'}, 
+			        "port_number"    => $available_interface->{'port_number'},
+			        "status"         => $available_interface->{'operational_state'}, 
+			        "vlan_tag_range" => $vlan_tag_range,
+			        "int_role"       => $available_interface->{'role'} 
+	            });
+            }
+        }
+    }
+
+    # push on the initial rows
     foreach my $row (@$rows){
-	push(@results, {"name"           => $row->{'name'},
+	    push(@results, {
+            "name"           => $row->{'name'},
 			"description"    => $row->{'description'},
 			"interface_id"   => $row->{'interface_id'},
 			"port_number"    => $row->{'port_number'},
 			"status"         => $row->{'operational_state'},
 			"vlan_tag_range" => $row->{'vlan_tag_range'},
 			"int_role"       => $row->{'role'}
-	               }
-	    );
+	    });
     }
 
     return \@results;
