@@ -484,8 +484,8 @@ sub generate_clr{
     if(defined($args{'raw'}) && $args{'raw'} == 1){
 
 	$clr = "";
-	$clr .= "Circuit " . $circuit_details->{'name'} . "\n";
-        $clr .= "Created by " . $created_user->{'given_names'} . " " . $created_user->{'family_name'} . " at " . $created_on . " for workgroup " . $workgroup_name . "\n";
+	$clr .= "Circuit: " . $circuit_details->{'name'} . "\n";
+        $clr .= "Created by: " . $created_user->{'given_names'} . " " . $created_user->{'family_name'} . " at " . $created_on . " for workgroup " . $workgroup_name . "\n";
         $clr .= "Lasted Modified By: " . $last_modified_user->{'given_names'} . " " . $last_modified_user->{'family_name'} . " at " . $last_edited . "\n\n";
 
 #	$clr .= "Primary Path:\n";
@@ -595,8 +595,8 @@ sub generate_clr{
     }else{
 
 	$clr = "";
-	$clr .= "Circuit " . $circuit_details->{'name'} . "\n";
-	$clr .= "Created by " . $created_user->{'given_names'} . " " . $created_user->{'family_name'} . " at " . $created_on . " for workgroup " . $workgroup_name . "\n";
+	$clr .= "Circuit: " . $circuit_details->{'name'} . "\n";
+	$clr .= "Created by: " . $created_user->{'given_names'} . " " . $created_user->{'family_name'} . " at " . $created_on . " for workgroup " . $workgroup_name . "\n";
 	$clr .= "Lasted Modified By: " . $last_modified_user->{'given_names'} . " " . $last_modified_user->{'family_name'} . " at " . $last_edited . "\n\n";
 	$clr .= "Endpoints: \n";
 
@@ -1765,7 +1765,7 @@ Gets the resources available for a given workgroup
 
 =item workgroup_id
 
-The workgroup_id to return the resources for 
+The workgroup_id to return the resources for
 
 =back
 
@@ -1774,7 +1774,7 @@ The workgroup_id to return the resources for
 sub get_available_resources {
     my $self = shift;
     my %args = @_;
-    
+
     my $workgroup_id = $args{'workgroup_id'};
 
     if(!defined($workgroup_id)) {
@@ -1825,7 +1825,7 @@ sub get_available_resources {
             });
         }
     }
-        
+
     return $available_interfaces;
 }
 
@@ -1898,8 +1898,8 @@ sub update_interface_owner {
     }
 
 
-    # remove prior acl rules since those were set by the old workgroup 
-    if(!defined($args{'workgroup_id'}) || $changing_workgroup) { 
+    # remove prior acl rules since those were set by the old workgroup
+    if(!defined($args{'workgroup_id'}) || $changing_workgroup) {
         $query = "delete from interface_acl where interface_id = ?";
         my $success = $self->_execute_query($query, [$interface_id]);
         if (! defined $success ){
@@ -1919,7 +1919,7 @@ sub update_interface_owner {
 	        $self->_rollback();
 	        return;
         }
-    } 
+    }
 
     $self->_commit();
 
@@ -2035,9 +2035,9 @@ sub update_acl {
     $self->_set_error("interface_acl_id not specified");
     return;
     }
-   
-    # get the current acl state     
-    my $query = "select * from interface_acl where interface_acl_id = ?"; 
+
+    # get the current acl state
+    my $query = "select * from interface_acl where interface_acl_id = ?";
     my $interface_acl = $self->_execute_query($query, [$args{'interface_acl_id'}]);
     if(!$interface_acl) {
         $self->_set_error("Error updating acl");
@@ -3545,7 +3545,7 @@ sub get_interface {
 
     my $interface_id = $args{'interface_id'};
 
-    my $query = "select interface.interface_id, interface.name, interface.port_number, interface.description, interface.operational_state, interface.role, interface.node_id, interface.vlan_tag_range, workgroup.workgroup_id, workgroup.name as workgroup_name "; 
+    my $query = "select interface.interface_id, interface.name, interface.port_number, interface.description, interface.operational_state, interface.role, interface.node_id, interface.vlan_tag_range, workgroup.workgroup_id, workgroup.name as workgroup_name ";
     $query   .= "from interface ";
     $query   .= "left join workgroup on interface.workgroup_id = workgroup.workgroup_id ";
     $query   .= "where interface_id = ?";
@@ -7186,7 +7186,7 @@ sub gen_topo{
 
     #generate the topology
     my $nodes = $self->get_nodes_by_admin_state(admin_state => "active");
-    
+
     foreach my $node (@$nodes){
     $node->{'name'} =~ s/ /+/g;
         $node->{'name'} =~ s/ /+/g;
