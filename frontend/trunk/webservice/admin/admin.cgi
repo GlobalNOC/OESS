@@ -273,9 +273,15 @@ sub submit_topology {
     $sendSoap->content_length( length($xml) );
 
     my $httpResponse = $userAgent->request($sendSoap);
-
-    $results->{'results'} = [ { success => 1 } ];
-
+    warn Dumper($httpResponse);
+    warn Dumper($httpResponse->code());
+    warn Dumper($httpResponse->message());
+		
+    if($httpResponse->code() == 200 && $httpResponse->message() eq 'success'){
+	$results->{'results'} = [ { success => 1 } ];
+    }else{
+	$results->{'error'} = $httpResponse->message();
+    }
     return $results;
 }
 
