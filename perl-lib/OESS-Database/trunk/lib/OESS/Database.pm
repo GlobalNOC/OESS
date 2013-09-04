@@ -565,15 +565,18 @@ sub generate_clr{
             }
         }
 
+    my $last_node;
 	foreach my $endpoint(@{$circuit_details->{'endpoints'}}){
 
 	    my $node      = $endpoint->{'node'};
 	    my $interface = $endpoint->{'port_no'};
 	    my $outer_tag = $endpoint->{'tag'};
-
         # handle this bit differently if primary path is not defined
         if(!%primary_path){
-		    $clr .= "\nNODE: " . $node . "\n";
+            if(!defined($last_node) || ($node != $last_node) ) {
+                $last_node = $node;
+		        $clr .= "\nNODE: " . $node . "\n";
+            }
 		    $clr .= "Match: IN_PORT: " . $interface . ", dl_vlan: " . $outer_tag . "\n";
         }
         else {
