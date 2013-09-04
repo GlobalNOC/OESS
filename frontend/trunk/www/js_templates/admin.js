@@ -782,7 +782,7 @@ function setup_workgroup_tab(){
 
 	    var workgroup_user_table = makeWorkgroupUserTable(workgroup_id);
 
-	    var owned_interfaces_table  = makeWorkgroupACLTable(workgroup_id);    
+	    var owned_interfaces_table  = makeOwnedInterfaceTable(workgroup_id);    
 
 	    workgroup_user_table.subscribe("cellClickEvent", function(oArgs){
 
@@ -980,29 +980,29 @@ function setup_workgroup_tab(){
 
 		    var region = YAHOO.util.Dom.getRegion('workgroups_content');
 
-		    var add_acl_p = new YAHOO.widget.Panel("add_acl_p",
+		    var add_int_p = new YAHOO.widget.Panel("add_int_p",
 							   {modal: true,
-							    width: 750,
+							    width: 850,
 							    height: 400,
 							    xy: [region.left, 
 								 region.top]
 							   });
 
-		    add_acl_p.setHeader("Add Interface to Workgroup");
-		    add_acl_p.setBody("<div id='acl_map' class='openlayers smaller' style='float: left;'></div>" + 
+		    add_int_p.setHeader("Add Interface to Workgroup");
+		    add_int_p.setBody("<div id='acl_map' class='openlayers smaller' style='float: left;'></div>" + 
 				      "<div id='new_interface_table' style='float: right;'></div>" +
 				      "<br clear='both'><br>" +
-				      "<center><div id='add_acl_status' class='soft_title confirmation'></div></center>" + 
+				      "<center><div id='add_int_status' class='soft_title confirmation'></div></center>" + 
 				      "<div style='text-align: right; font-size: 85%'>" + 
 				      "<div id='done_adding_edges'></div>" + 
 				      "</div>"
 				      );
 
-		    add_acl_p.render('workgroups_content');
+		    add_int_p.render('workgroups_content');
 
 		    var done_adding = new YAHOO.widget.Button("done_adding_edges", {label: "Done Adding Interfaces"});
 		    done_adding.on("click", function(){
-			    add_acl_p.hide();
+			    add_int_p.hide();
 			});
 
 		    var map = new NDDIMap('acl_map');
@@ -1012,7 +1012,7 @@ function setup_workgroup_tab(){
 			    this.clearAllSelected();
 			});
 
-		    add_acl_p.hideEvent.subscribe(function(){
+		    add_int_p.hideEvent.subscribe(function(){
 			    map.destroy();
 			    this.destroy();
 			});
@@ -1042,7 +1042,8 @@ function setup_workgroup_tab(){
 				}
 			    };
 			    
-			    var cols = [{key: "name", label: "Interface", width: 220}];
+			    var cols = [{key: "name", label: "Interface", width: 80},
+                            {key: "description", label: "Description", width: 220}];
   
 			    var configs = {
 				height: "277px"
@@ -1056,7 +1057,7 @@ function setup_workgroup_tab(){
 			    table.subscribe("rowClickEvent", function(oArgs){
 				    this.onEventSelectRow(oArgs);
 
-				    YAHOO.util.Dom.get('add_acl_status').innerHTML = "";
+				    YAHOO.util.Dom.get('add_int_status').innerHTML = "";
 
 				    var rec = this.getRecord(oArgs.target);
 
@@ -1108,16 +1109,16 @@ function setup_workgroup_tab(){
                                         success: function(req, resp){
                                             table.undisable();
                                             if (resp.meta.error){
-                                                YAHOO.util.Dom.get('add_acl_status').innerHTML = "Error adding interface: " + resp.meta.error;
+                                                YAHOO.util.Dom.get('add_int_status').innerHTML = "Error adding interface: " + resp.meta.error;
                                             }
                                             else{
-                                                YAHOO.util.Dom.get('add_acl_status').innerHTML = "Interface added successfully.";
+                                                YAHOO.util.Dom.get('add_int_status').innerHTML = "Interface added successfully.";
                                                 owned_interfaces_table.getDataSource().sendRequest("", {success: owned_interfaces_table.onDataReturnInitializeTable,scope:owned_interfaces_table});
                                             }
                                         },
                                         failure: function(req, resp){
                                             table.undisable();
-                                            YAHOO.util.Dom.get('add_acl_status').innerHTML = "Server error while adding new edge interface.";
+                                            YAHOO.util.Dom.get('add_int_status').innerHTML = "Server error while adding new edge interface.";
                                         }
                                     }, this);
                                 }
@@ -2051,7 +2052,7 @@ function setup_discovery_tab(){
 
 }
 
-function makeWorkgroupACLTable(id){
+function makeOwnedInterfaceTable(id){
     var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_workgroup_interfaces&workgroup_id="+id);
 
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
@@ -2059,6 +2060,7 @@ function makeWorkgroupACLTable(id){
 	resultsList: "results",
 	fields: [{key: "node_id", parser: "number"},
                  {key: "interface_id", parser: "number"},
+                 {key: "description"},
                  {key: "node_name"},
                  {key: "interface_name"},
 		 ]
@@ -2066,6 +2068,7 @@ function makeWorkgroupACLTable(id){
 
     var columns = [{key: "node_name", label: "Endpoint", width: 180 ,sortable:true},
 				   {key: "interface_name", label: "Interface", width: 60 ,sortable:true},	  
+                   {key: "description", label: "Description", width: 140},
 	           {label: "Remove", formatter: function(el, rec, col, data){
 			                           var b = new YAHOO.widget.Button({label: "Remove"});
 						   b.appendTo(el);
@@ -2104,7 +2107,7 @@ function makeWorkgroupUserTable(id){
 		 ]
     };
 
-    var columns = [{key: "first_name", label: "Name", width: 220,
+    var columns = [{key: "first_name", label: "Name", width: 140,
 		    formatter: function(el, rec, col, data){
 		                    el.innerHTML = rec.getData("first_name") + " " + rec.getData("family_name");
 	                       }
