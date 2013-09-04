@@ -150,6 +150,7 @@ function setup_remote_dev_tab(){
 function setup_remote_tab(){
 
     var resubmit_button = new YAHOO.widget.Button("remote_submit_button", {label: "Submit Topology"});
+    var view_topo_button = new YAHOO.widget.Button("view_topo_button", {label: "View Topology"});
 
     resubmit_button.on("click", function(){
 	    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=submit_topology");
@@ -187,6 +188,40 @@ function setup_remote_tab(){
 			       scope: this
 			   }
 			   );
+
+	});
+
+    view_topo_button.on("click", function(){
+	    var region = YAHOO.util.Dom.getRegion('remote_content');
+	    var view_topo_p = new YAHOO.widget.Panel("view_topo_p",
+					       {modal: true,
+						width: 750,
+						height: 720,
+						xy: [region.left,
+						     region.top]
+					       });
+
+	    view_topo_p.setHeader("Current Topology");
+	    view_topo_p.render("remote_content");
+
+	    var topo_ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_topology");
+	    topo_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+	    topo_ds.responseSchema = {
+		resultsList: "results",
+		fields: [{key: "topo"}],
+		metaFields: {
+		    error: "error"
+		}
+	    };
+
+	    topo_ds.sendRequest("",{ success: function(Request,Response){
+			view_topo_p.setBody("<div style='overflow: scroll; height: 100%; width: 100%'><pre>" + Response.results[0].topo + "</pre></div>");
+		    }, 
+			failure: function(Request,Response){
+			
+		    },
+			scope: topo_ds});
+	    
 
 	});
 
