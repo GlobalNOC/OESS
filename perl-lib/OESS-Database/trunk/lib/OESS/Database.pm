@@ -571,15 +571,22 @@ sub generate_clr{
 	    my $interface = $endpoint->{'port_no'};
 	    my $outer_tag = $endpoint->{'tag'};
 
-	    #--- iterate over the non-edge interfaces on the primary path to setup rules that both forward AND translate
-	    foreach my $other_if(sort keys %{$primary_path{$node}}){
-		foreach my $local_inner_tag (sort keys %{$primary_path{$node}{$other_if}}){
+        # handle this bit differently if primary path is not defined
+        if(!%primary_path){
 		    $clr .= "\nNODE: " . $node . "\n";
-		    my $remote_inner_tag = $primary_path{$node}{$other_if}{$local_inner_tag};
-		    $clr .= "Match: IN_PORT: " . $interface . ", dl_vlan: " . $outer_tag . "   OUTPUT: " . $other_if . ":vlan" . $remote_inner_tag . "\n";
-		    $clr .= "Match: IN_PORT: " . $other_if . ", dl_vlan: " . $remote_inner_tag . "   OUTPUT: " . $interface . ":vlan" . $outer_tag . "\n";
-		}
-	    }
+		    $clr .= "Match: IN_PORT: " . $interface . ", dl_vlan: " . $outer_tag . "\n";
+        }
+        else {
+	        #--- iterate over the non-edge interfaces on the primary path to setup rules that both forward AND translate
+	        foreach my $other_if(sort keys %{$primary_path{$node}}){
+		    foreach my $local_inner_tag (sort keys %{$primary_path{$node}{$other_if}}){
+		        $clr .= "\nNODE: " . $node . "\n";
+		        my $remote_inner_tag = $primary_path{$node}{$other_if}{$local_inner_tag};
+		        $clr .= "Match: IN_PORT: " . $interface . ", dl_vlan: " . $outer_tag . "   OUTPUT: " . $other_if . ":vlan" . $remote_inner_tag . "\n";
+		        $clr .= "Match: IN_PORT: " . $other_if . ", dl_vlan: " . $remote_inner_tag . "   OUTPUT: " . $interface . ":vlan" . $outer_tag . "\n";
+		    }
+	        }
+        }
 	}
 
     }else{
