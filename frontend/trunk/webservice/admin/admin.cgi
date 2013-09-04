@@ -1,4 +1,4 @@
-#!/usr/bin/perl -T
+#!/usr/bin/perl
 #
 ##----- NDDI OESS Admin.cgi
 ##-----
@@ -156,6 +156,8 @@ sub main {
             $output = &populate_remote_information();
         }case "get_circuits_on_interface" {
 	    $output = &get_circuits_on_interface();
+	}case "get_topology"{
+	    $output = &gen_topology();
 	}
         else {
             $output = {
@@ -825,6 +827,13 @@ sub get_pending_links {
         $results->{'results'} = $links;
     }
 
+    return $results;
+}
+
+sub gen_topology{
+    my $topo = $db->gen_topo();
+    my $results;
+    $results->{'results'} = [{'topo' => $topo}];
     return $results;
 }
 
