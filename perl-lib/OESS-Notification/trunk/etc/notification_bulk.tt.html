@@ -408,11 +408,17 @@
                             <td valign="top" class="bodyContent">
                               Greetings, [%user%]
                               <p>You are receiving a notification because you are a member of workgroup:
+
                                 <strong>[%workgroup%]</strong></<p>
-                                                <p>An outage on backbone circuit
-                                                  <strong>[% link_name %]</strong><br />
+                               [% SWITCH type %]
+                               [% CASE 'link_down' %]
+                                                                 <p>An outage on backbone circuit: <strong>[% link_name %]</strong><br />
                                                   has caused the <strong>[% circuits.size %]</strong> circuits listed below to be affected.</p>
-                                                <table border="0" cellpading="0" cellspacing="0">
+                               [% CASE 'link_up' %]
+                                                                 <p>Backbone circuit: <strong>[% link_name %]</strong><br />
+                                                                   has returned to service and the below circuits were returned to service:
+                               [% END %]
+                                                                 <table border="0" cellpading="0" cellspacing="0">
                                                   <tr>
                                                 <td width="350px"><h4 class="h5">Affected Circuits:</h4></td>
                                                 <td width="190px">
@@ -433,9 +439,9 @@
                                                       STATUS
                                                     </th>
                                                   </tr>
-                                                  
+
 						  [% FOREACH circuit IN circuits %]
-						  [% IF ( loop.count mod 2 == 0 ) %] 
+						  [% IF ( loop.count mod 2 == 0 ) %]
 						  <tr >
 						  [% ELSE %]
                                                   <tr style="background-color:#FbFbFb;">
