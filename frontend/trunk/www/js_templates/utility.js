@@ -354,7 +354,9 @@ function makeTagSelectPanel(coordinates, interface){
 		  "<div id='add_new_vlan_tag_button'></div>" + 
 		  "<br>" + 
 		  "<label for='tagged' class='soft_title' style='padding-left: 16px;'>Tagged:</label>" + 
-		  "<input id='tagged' type='checkbox' checked='checked'>"
+		  "<input id='tagged' type='checkbox' checked='checked'><br>" + 
+		  "<label class='soft_title'>Allowed VLAN Range:<p id='new_vlan_tag_range'></p></label>"
+		  
 		  );
     
     panel.render(document.body);

@@ -244,9 +244,14 @@ sub get_networks {
 			}
 			
 		    }
-		    
+		    my $vlan_range;
                     my $vlanRange = $xpath->find("./ns1:SwitchingCapabilityDescriptors/ns1:switchingCapabilitySpecificInfo/ns1:vlanRangeAvailability", $link_element);
-                    my $vlan_range = @$vlanRange[0]->getChildNodes()->[0]->getValue();
+		    if(defined(@$vlanRange[0])){
+			$vlanRange = @$vlanRange[0]->getChildNodes();
+			if(defined($vlanRange->[0])){
+			    $vlan_range = $vlanRange->[0]->getValue();
+			}
+		    }
 
 		    push(@links,{urn        => $link,
 				 node       => $node_name,

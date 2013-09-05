@@ -10,9 +10,10 @@ function make_network_tree(){
     ds.responseSchema = {
 	resultsList: "results",
 	fields: [
-                  {key: "urn"},
-                  {key: "name"},
-                  {key: "links"}
+    {key: "urn"},
+    {key: "name"},
+    {key: "links"},
+    {key: "vlan_range"}
 		 ],
 	
     };
@@ -45,7 +46,7 @@ function make_network_tree(){
 				   var port_name = decodeURIComponent(info.port);
 				   var link_name = decodeURIComponent(info.link);
 				   var node_urn  = decodeURIComponent(info.urn);
-
+				   var vlan_range = decodeURIComponent(info.vlan_range);
 				   if (node_name == "*" || port_name == "*"){
 				       continue;
 				   }
@@ -54,7 +55,8 @@ function make_network_tree(){
 									  urn: node_urn,
 				                                          node: node_name,
 				                                          port: port_name,
-									  domain: network_name
+									  domain: network_name,
+									  vlan_range: vlan_range
 				                                          },
 				                                          node);
 			       }
@@ -126,6 +128,7 @@ function init(){
 	    var node  = tree_element.data.node; 
 	    var port  = tree_element.data.port;
 	    var domain = tree_element.data.domain;
+	    var vlan_range = tree_element.data.vlan_range;
 
 	    var region = YAHOO.util.Dom.getRegion(tree_element.contentElId);
 
@@ -140,6 +143,12 @@ function init(){
 	    var vlan_input = YAHOO.util.Dom.get('new_vlan_tag');
 
 	    vlan_input.focus();
+	    
+	    var vlan_range_display = YAHOO.util.Dom.get('new_vlan_tag_range');
+	    vlan_range_display.innerHTML = vlan_range;
+
+	    
+
 
 	    add_button.on("click", function(oArgs){
 
@@ -157,6 +166,9 @@ function init(){
 			    alert("You must specify a VLAN tag between 1 and 4095.");
 			    return;
 			}
+
+			
+
 		    }
 		    
 		    else {
