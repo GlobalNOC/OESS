@@ -1241,37 +1241,24 @@ HERE
 
 	my $rows = $self->_execute_query($query);
 
-	my @node_ids;
-
-	foreach my $row(@$rows){
-		push (@node_ids,$row->{'node_id'});
-	}
-
-
-	my $node_list = join(',',@node_ids);
 	my $nodes_endpoints= {};
 
 
 
    #default_count_endpoints for when there are no results, if we have no workgroup_id return 1.
 	my $default_endpoint_count=1;
-		  if($workgroup_id){
-
-			  $default_endpoint_count=0;
-              my $available_endpoint_query = <<HERE;
-select node.name, network.name as network_name, count(interface.port_number) as 'available_endpoint_count' from node
-join network on node.network_id = network.network_id
-left join interface on node.node_id in ( $node_list ) and interface.node_id = node.node_id
-where interface.workgroup_id= ?
-group by node.name
-HERE
-			  my $results= $self->_execute_query($available_endpoint_query,[$workgroup_id]);
-
-			  foreach my $row (@$results){
-				  $nodes_endpoints->{$row->{'network_name'} }->{$row->{'name'} } = $row->{'available_endpoint_count'};
-			  }
-
-		  }
+    if($workgroup_id){
+        $default_endpoint_count=0;
+        foreach my $row(@$rows){
+            my $ints = $self->get_node_interfaces( 
+                node => $row->{'node_name'}, 
+                workgroup_id => $workgroup_id, 
+                show_down => 1
+            );
+            my $count = @$ints;
+		    $nodes_endpoints->{$row->{'network_name'}}{$row->{'node_name'}} = $count;
+        }
+    }
 
 
 
@@ -1331,25 +1318,16 @@ HERE
 	" where network.is_local = 0";
 
     $rows = $self->_execute_query($query, []);
-    my @node_array;
-    foreach my $row (@$rows){
-	push(@node_array,$row->{'node_id'});
-    }
-    $node_list= join(',',@node_array);
-    if($workgroup_id && $node_list){
-    my $available_endpoint_query = <<HERE;
-	select network.name as network_name, node.name, count(interface.port_number) as 'available_endpoint_count' from node
-join network on node.network_id = network.network_id
-left join interface on node.node_id in ( $node_list ) and interface.node_id = node.node_id
-where interface.workgroup_id= ?
-group by node.name
-HERE
-
-        my $results= $self->_execute_query($available_endpoint_query,[$workgroup_id]);
-
-	foreach my $row (@$results){
-	    $nodes_endpoints->{$row->{'network_name'} }->{$row->{'name'} } = $row->{'available_endpoint_count'};
-	}
+    if($workgroup_id && @$rows ){
+        foreach my $row(@$rows){
+            my $ints = $self->get_node_interfaces(
+                node => $row->{'node_name'},
+                workgroup_id => $workgroup_id,
+                show_down => 1
+            );
+            my $count = @$ints;
+            $nodes_endpoints->{$row->{'network_name'}}{$row->{'node_name'}} = $count;
+        }
     }
 
     foreach my $row (@$rows){
