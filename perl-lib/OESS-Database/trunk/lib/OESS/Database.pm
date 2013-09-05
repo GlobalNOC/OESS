@@ -1793,7 +1793,7 @@ sub get_workgroup_interfaces {
 
     my $workgroup_id = $args{'workgroup_id'};
 
-    my $acls;
+    my $acls = [];
 
     my $query = "select interface.description,interface.operational_state as operational_state, interface.name as int_name, interface.interface_id, interface.vlan_tag_range, node.name as node_name, node.node_id " .
 	        " from workgroup " .
