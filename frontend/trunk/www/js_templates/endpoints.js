@@ -10,19 +10,25 @@ function makeInterfacesTable(node){
   ds.responseSchema = {
     resultsList: "results",
     fields: [
-  {key: "name"},
-  {key: "description"},
-  {key: "status"}
+        {key: "name"},
+        {key: "description"},
+        {key: "status"},
+        {key: "vlan_tag_range"}
     ],
     metaFields: {
       error: "error"
     }
   };
   
-  var cols = [{key: "name", label: "Interface"},
-	      {key: "description", label: "Description"},
-              {key: "status", label: "Status", width: 120}
-	     ];
+  var cols = [
+    {key: "name", label: "Interface"},
+	{key: "description", label: "Description", width: 120},
+    {key: "status", label: "Status"},
+    {key: "vlan_tag_range", label: "VLAN Tag Range", formatter: function(elLiner, oRec, oCol, oData){
+        var string = oData.replace("-1", "untagged");
+        elLiner.innerHTML = string;
+    }}
+  ];
   
   var configs = {
     height: "337px"
@@ -133,7 +139,7 @@ function init(){
 					  new_tag = -1;
 				      }
 
-				      var ds = new YAHOO.util.DataSource("services/data.cgi?action=is_vlan_tag_available&vlan="+new_tag+"&interface="+encodeURIComponent(interface)+"&node="+encodeURIComponent(node));
+				      var ds = new YAHOO.util.DataSource("services/data.cgi?action=is_vlan_tag_available&vlan="+new_tag+"&interface="+encodeURIComponent(interface)+"&node="+encodeURIComponent(node)+"&workgroup_id="+session.data.workgroup_id);
 				      ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 				      ds.responseSchema = {
 					  resultsList: "results",

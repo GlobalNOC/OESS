@@ -188,9 +188,10 @@ sub is_vlan_tag_available {
 
     $results->{'results'} = [];
 
-    my $interface = $cgi->param('interface');
-    my $node      = $cgi->param('node');
-    my $vlan_tag  = $cgi->param('vlan');
+    my $interface    = $cgi->param('interface');
+    my $node         = $cgi->param('node');
+    my $vlan_tag     = $cgi->param('vlan');
+    my $workgroup_id = $cgi->param('workgroup_id');
 
     my $interface_id = $db->get_interface_id_by_names(
         node      => $node,
@@ -201,6 +202,22 @@ sub is_vlan_tag_available {
         $results->{'error'} =
           "Unable to find interface '$interface' on endpoint '$node'";
         return $results;
+    }
+
+    my $is_vlan_tag_accessible = $db->_validate_endpoint(
+        interface_id => $interface_id,
+        vlan         => $vlan_tag,
+        workgroup_id => $workgroup_id
+    );
+    if(!$is_vlan_tag_accessible) {
+        if(!defined($is_vlan_tag_accessible)){
+            return {
+                results => [],
+                error   => $db->get_error()
+             };
+        } else {
+            return { results => [{ "available" => 0 }] };
+        }
     }
 
     my $is_available = $db->is_external_vlan_available_on_interface(

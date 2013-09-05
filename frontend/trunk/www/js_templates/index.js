@@ -495,7 +495,7 @@ var ds = new YAHOO.util.DataSource(dsString);
     avail_resource_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     avail_resource_ds.responseSchema = {
 	resultsList: "results",
-	fields: ["node_name","interface_name","operational_state","description","vlan_tag_range"]
+	fields: ["node_name","interface_name","operational_state","description","vlan_tag_range","is_owner"]
     };
 
     var avail_resource_cols = [
@@ -512,6 +512,13 @@ var ds = new YAHOO.util.DataSource(dsString);
 			       {key: "vlan_tag_range", sortable: true,  label: "VLAN Range", formatter: function(elLiner, oRec, oCol, oData){ 
                         var string = oData.replace("-1", "untagged");
 			            elLiner.innerHTML = string;
+                   }},
+                   {key: "is_owner", sortable: true, label: "Owned", formatter: function(elLiner, oRec, oCol, oData){
+                       if(oData == 1){
+			               elLiner.innerHTML = "Yes";
+                       } else {
+			               elLiner.innerHTML = "No";
+                       }
                    }}
 			       ];
 
