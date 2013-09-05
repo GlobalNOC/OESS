@@ -1,25 +1,39 @@
 <script>
 
 function Cookie(){
-  
+
   this.data = {};
-  
+
   this.load = function(){
-		var cookies = document.cookie.split("; ");
-		
-		for (var i = 0; i < cookies.length; i++){
-		  
+	  var cookies = document.cookie.split("; ");
+      var workgroup_id = YAHOO.util.History.getQueryStringParameter('workgroup_id');
+
+      var circuit_id = YAHOO.util.History.getQueryStringParameter('circuit_id');
+	  for (var i = 0; i < cookies.length; i++){
+
 		  var candidate = cookies[i];
-		  
+
 		  var kvpair = candidate.split("=");
 
-		  if (kvpair[0] == "data"){		 
-		    this.data = JSON.parse(decodeURIComponent(kvpair[1]));
-		    return;
+		  if (kvpair[0] == "data"){
+		      this.data = JSON.parse(decodeURIComponent(kvpair[1]));
 		  }
 
-		}		  
+		}
 
+
+        if (location.href.match(/action=index/ && workgroup_id) ){
+            this.data.workgroup_id = workgroup_id;
+
+        }
+        if (location.href.match(/action=view_details/ && circuit_id) ) {
+            this.data.circuit_id= circuit_id;
+        }
+
+        if (this.data){
+            console.log(this.data);
+            return;
+        }
 		// we don't have a cookie and we're not at the workgroups page and we're not in the admin
 		// section, so kick them back to workgroups
 		if (! location.href.match(/action=workgroups/) && ! location.href.match(/admin/)){
@@ -27,7 +41,7 @@ function Cookie(){
 		}
 
   };
-  
+
   this.clear = function(workgroup_too){
 
       var id   = this.data.workgroup_id;
@@ -43,14 +57,14 @@ function Cookie(){
 
       this.save();
   }
-  
+
   this.save = function(){
 		var expires = new Date();
-		expires.setDate(expires.getDate() + 1);    
-		document.cookie = "data=" + encodeURIComponent(JSON.stringify(this.data)) + ";path=/;expires=" + expires.toUTCString();				  
+		expires.setDate(expires.getDate() + 1);
+		document.cookie = "data=" + encodeURIComponent(JSON.stringify(this.data)) + ";path=/;expires=" + expires.toUTCString();
   }
 
-  return this;  
+  return this;
 }
 
 var session = new Cookie();

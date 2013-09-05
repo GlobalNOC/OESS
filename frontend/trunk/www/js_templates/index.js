@@ -1,7 +1,7 @@
 <script type='text/javascript' src='js_utilities/datatable_utils.js'></script>
 <script>
-  
-  
+
+
   function index_init(){
     session.clear();
     // set up the new circuit link
@@ -10,10 +10,10 @@
 	    session.clear();
 	    window.location = "index.cgi?action=edit_details";
 	});
-    
+
     var add_user = new YAHOO.util.Element('request_user_add');
     add_user.on('click', function(){
-	    
+
 	    var panel = new YAHOO.widget.Panel("request_user_add_p",
 					       {width: 360,
 						modal: true,
@@ -26,9 +26,9 @@
             panel.setBody("<label for='username' class='soft_title'>Username:</label>" +
                           "<input id='username' type='text' size='20' style='margin-left: 30px'>" +
                           "<br><label for='given_name' class='soft_title'>Given Name:</label>" +
-                          "<input id='given_name' type='text' size='20' style='margin-left: 18px'>" + 
-			  "<br><label for='family_name' class='soft_title'>Family Name:</label>" + 
-			  "<input id='family_name' type='text' size='20' style='margin-left: 12px'>" + 
+                          "<input id='given_name' type='text' size='20' style='margin-left: 18px'>" +
+			  "<br><label for='family_name' class='soft_title'>Family Name:</label>" +
+			  "<input id='family_name' type='text' size='20' style='margin-left: 12px'>" +
 			  "<br><label for='email_address' class='soft_title'>Email Address:</label>" +
 			  "<input id='email_address' type='text' size='20'>"
                           );
@@ -45,7 +45,7 @@
 		    var given_name = document.getElementById('given_name').value;
 		    var family_name = document.getElementById('family_name').value;
 		    var email_address = document.getElementById('email_address').value;
-		    
+
 		    var subject = "Please Add User to workgroup " + session.data.workgroup_name  + " (ID=" + session.data.workgroup_id + ")";
 		    var body = "Details: <br><table><tr><td>Username:</td><td>" + username + "</td></tr><tr><td>Given Name:</td><td>" + given_name + "</td></tr><tr><td>Family Name:</td><td>" + family_name + "</td></tr><tr><td>Email Address:</td><td>" + email_address + "</td></tr></table>";
 		    subject = encodeURI(subject);
@@ -58,7 +58,7 @@
 		    };
 
 		    ds.sendRequest("",{success: function(Req,Res){
-				
+
 			    },
 				failure: function(Req,Res){
 
@@ -77,7 +77,7 @@
 
     var send_feedback = new YAHOO.util.Element('send_feedback');
     send_feedback.on('click', function(){
-	    
+
 	    var panel = new YAHOO.widget.Panel("send_feedback_p",
 					       {width: 660,
 						modal: true,
@@ -111,35 +111,50 @@
 		});
 	});
 
-    
-    
+
+
     // set up the search bar
     var tabs = new YAHOO.widget.TabView("workgroup_tabs");
     var searchTimeout;
-    
+
+    var url = location.href.split('#');
+
+      if (url.length > 1) {
+
+          var tab_fragment = url[1];
+
+          var tabset = tabs.get('tabs');
+          for (var i = 0; i < tabset.length; i++) {
+              console.log(tabset[i].get('href'));
+              if (tabset[i].get('href') == '#' + tab_fragment) {
+                  tabs.selectTab(tabs.getTabIndex(tabset[i]) );
+                  break;
+              }
+          }
+      }
     var search = new YAHOO.util.Element(YAHOO.util.Dom.get('circuit_search'));
-    
+
     search.on('keyup', function(e){
-		
+
 	    var search_value = this.get('element').value;
-		
+
 	    if (e.keyCode == YAHOO.util.KeyListener.KEY.ENTER){
 		clearTimeout(searchTimeout);
 			table_filter.call(ckt_table,search_value);
 	    }
 	    else{
 		if (searchTimeout) clearTimeout(searchTimeout);
-		
+
 		searchTimeout = setTimeout(function(){
 			table_filter.call(ckt_table,search_value);
 		    }, 400);
-		
-	    } 
-	    
+
+	    }
+
 	}
 	);
 	  $('.chzn-select').chosen({search_contains: true});
-    
+
     var node_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_nodes");
 	  node_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 	  node_ds.responseSchema = {
@@ -166,25 +181,25 @@
 								 option.innerHTML= resp.results[i].name;
 								 optionsfragment.appendChild(option);
 							 }
-							 
+
 							 var endpoint= YAHOO.util.Dom.get("endpoint_node_selector");
 							 var path= YAHOO.util.Dom.get("path_node_selector");
 							 endpoint.appendChild(optionsfragment.cloneNode(true) );
 							 path.appendChild(optionsfragment.cloneNode(true) );
 							 $("#endpoint_node_selector").trigger("liszt:updated");
 							 $("#path_node_selector").trigger("liszt:updated");
-                             
+
                              //set up subscriptions for events;
-						     
+
                              var endpoint_el = new YAHOO.util.Element(endpoint);
                              var path_el = new YAHOO.util.Element(path);
-                             
-                             
-                             $("#endpoint_node_selector,#path_node_selector").chosen().change( function(){ 
-                                 
+
+
+                             $("#endpoint_node_selector,#path_node_selector").chosen().change( function(){
+
                                  ckt_table = build_circuitTable.apply(ckt_table,[]); } );
-                             
-                         
+
+
                          },
 						 failure: function(req, resp){
 							 throw("Error: fetching selections");
@@ -192,8 +207,8 @@
 						 scope: this
 					 },
 					 node_ds);
-  
- 
+
+
 
 
 function build_circuitTable(){
@@ -201,10 +216,10 @@ function build_circuitTable(){
     if ( typeof(this.destroy) == "function" ){
         this.destroy();
     };
-    
+
 
     var dsString="services/data.cgi?action=get_existing_circuits&workgroup_id="+session.data.workgroup_id;
-    
+
     var endpointSelector= YAHOO.util.Dom.get("endpoint_node_selector");
 	var pathSelector= YAHOO.util.Dom.get("path_node_selector");
 
@@ -237,36 +252,36 @@ var ds = new YAHOO.util.DataSource(dsString);
 			  error: "error"
 		  }
 	  };
-	 
-	     
+
+
     var columns = [
-		   
+
 		   {key: "description", label: "Description", width: 450},
 		   {key: "endpoints", label: "Endpoints", width: 300, formatter: function(el, rec, col, data){
 
 			   var endpoints  = rec.getData('endpoints');
-			   
+
 			   var string = "";
-			   
+
 			   if (endpoints.length <= 2){
-			       
+
 			       for (var i = 0; i < endpoints.length; i++){
-				   
+
 				   if (i > 0){
 				       string += "<br>";
 				   }
-				   
+
 				   string += endpoints[i].node + " - " + endpoints[i].interface;
 			       }
-			       
+
 			   }
 			   else{
-			       
+
 			       string += endpoints[0].node + " - " + endpoints[0].interface;
 			       string += "<br>and " + (endpoints.length - 1) + " more";
-			       
+
 			   }
-			   
+
 			   el.innerHTML = string;
 		       }
 		   },
@@ -275,13 +290,13 @@ var ds = new YAHOO.util.DataSource(dsString);
 		       }
 		   }
 		   ];
-    
+
     var config = {
 	      paginator: new YAHOO.widget.Paginator({rowsPerPage: 10,
 					     containers: ["circuit_table_nav"]
 					    })
     };
-    
+
     var circuit_table = new YAHOO.widget.DataTable("circuit_table", columns, ds, config);
 
     circuit_table.on("initEvent", function(){
@@ -308,9 +323,9 @@ var ds = new YAHOO.util.DataSource(dsString);
 	});
 
 
-    // cache the response so we can do some client side filtering 
+    // cache the response so we can do some client side filtering
     // and show aggregate stats
-    circuit_table.on("dataReturnEvent", function(oArgs){		       		     
+    circuit_table.on("dataReturnEvent", function(oArgs){
 	    this.cache = oArgs.response;
 
 	    var results = oArgs.response.results;
@@ -330,29 +345,29 @@ var ds = new YAHOO.util.DataSource(dsString);
 	    else{
 		    total_bandwidth = total_bandwidth + " Mbps";
 	    }
-        
+
 	    YAHOO.util.Dom.get("total_workgroup_bandwidth").innerHTML = total_bandwidth;
 	    YAHOO.util.Dom.get("total_workgroup_circuits").innerHTML = total_circuits;
-        
-       
+
+
 
         return oArgs;
     }
                     );
-    
-    
 
-    
+
+
+
 
     return circuit_table;
-        
+
 
 
 }
 
-   
+
       var ckt_table = build_circuitTable();
-      
+
 
     var link_status_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_all_link_status");
     link_status_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
@@ -469,7 +484,7 @@ var ds = new YAHOO.util.DataSource(dsString);
 
     resource_map.on("loaded", function(){
             this.updateMapFromSession(session);
-        });    
+        });
 
     tabs.on('activeTabChange', function(){
 	    resource_map.render("available_resource_map");
@@ -482,7 +497,7 @@ var ds = new YAHOO.util.DataSource(dsString);
 	resultsList: "results",
 	fields: ["node_name","interface_name","operational_state","description","vlan_tag_range"]
     };
-    
+
     var avail_resource_cols = [
 			       {key: "node_name",sortable: true, label: "Node"},
 			       {key: "interface_name", sortable: true, label: "Interface"},
@@ -585,7 +600,7 @@ var ds = new YAHOO.util.DataSource(dsString);
                 "vlan_end",
                 "interface_id",
                 "workgroup_id",
-                "notes" 
+                "notes"
             ],
             fields: ["success"],
             onSuccess: function(req, resp, index){
@@ -611,8 +626,8 @@ var ds = new YAHOO.util.DataSource(dsString);
         if(options.enableDragDrop){
             interface_acl_table.enableDragDrop();
         }
-       
-        //add editing functionality  
+
+        //add editing functionality
         interface_acl_table.subscribe("rowClickEvent", function(oArgs){
             if(this._dragDrop){
                 return;
@@ -644,12 +659,12 @@ var ds = new YAHOO.util.DataSource(dsString);
             {key: "node_name"},
             {key: "interface_name"}
         ]};
-    
+
         var columns = [
             {key: "node_name", label: "Node", width: 180 ,sortable:true},
             {key: "interface_name", label: "Interface", width: 60 ,sortable:true}
         ];
-    
+
         var config = {
             sortedBy: {key:'node_name', dir:'asc'},
             paginator:  new YAHOO.widget.Paginator({
@@ -658,13 +673,13 @@ var ds = new YAHOO.util.DataSource(dsString);
             }),
             selectionMode:"single"
         };
-    
+
         var owned_interface_table = new YAHOO.widget.DataTable("owned_interface_table", columns, ds, config);
 
         owned_interface_table.subscribe("rowClickEvent", function(oArgs){
             owned_interface_table.onEventSelectRow(oArgs);
             var record = owned_interface_table.getRecord(oArgs.target);
-            var interface_id = record.getData('interface_id'); 
+            var interface_id = record.getData('interface_id');
 
             //session.clear();
             //session.data.circuit_id  = record.getData('circuit_id');
@@ -673,7 +688,7 @@ var ds = new YAHOO.util.DataSource(dsString);
         });
         owned_interface_table.subscribe("rowMouseoverEvent", owned_interface_table.onEventHighlightRow);
         owned_interface_table.subscribe("rowMouseoutEvent", owned_interface_table.onEventUnhighlightRow);
-    
+
         return owned_interface_table;
     }
 
@@ -701,10 +716,10 @@ var ds = new YAHOO.util.DataSource(dsString);
             "<label for='acl_panel_workgroup' id='acl_panel_workgroup_label' style='margin-right: 12px' class='soft_title'>Workgroup:</label>" +
             "<select data-placeholder='Loading Workgroups...' style='width:250px;' class='chzn-select' id='acl_panel_workgroup'></select>" +
             "<br><br><label for='acl_panel_permission' id='acl_panel_permission_label' style='margin-right: 10px' class='soft_title'>Permission:</label>" +
-            "<select data-placeholder='Select Permission' style='width:250px;' class='chzn-select' id='acl_panel_permission'>" + 
+            "<select data-placeholder='Select Permission' style='width:250px;' class='chzn-select' id='acl_panel_permission'>" +
             "<option value></option>" +
-            "<option value='allow'>Allow</option>" + 
-            "<option value='deny'>Deny</option>" + 
+            "<option value='allow'>Allow</option>" +
+            "<option value='deny'>Deny</option>" +
             "</select>" +
             "<br><br><label for='acl_panel_vlan_start' class='soft_title'>VLAN Range:</label>" +
             "<input id='acl_panel_vlan_start' type='text' size='10' style='margin-left: 5px'>" +
@@ -727,8 +742,8 @@ var ds = new YAHOO.util.DataSource(dsString);
 	    $('.chzn-select').chosen({search_contains: true});
         //disable the workgroup selector until the workgroups are fetched
         $("#acl_panel_workgroup").attr('disabled', true).trigger("liszt:updated");
-       
-        //set up save button 
+
+        //set up save button
         var save_acl_button = new YAHOO.widget.Button('save_acl_panel');
         save_acl_button.set('label','Save');
         //disable the button until the workgroups have come back when editing
@@ -738,7 +753,7 @@ var ds = new YAHOO.util.DataSource(dsString);
         save_acl_button.on('click',function(){
             panel.hide();
 
-            //get values 
+            //get values
             var workgroup_id = $("#acl_panel_workgroup").chosen().val()
             var allow_deny   = $("#acl_panel_permission").chosen().val()
             var vlan_start   = $("#acl_panel_vlan_start").val();
@@ -763,12 +778,12 @@ var ds = new YAHOO.util.DataSource(dsString);
             url += "&allow_deny="+allow_deny;
             url += "&vlan_start="+vlan_start;
             url += "&interface_id="+interface_id;
-           
-            //optional 
+
+            //optional
             if(workgroup_id) {url += "&workgroup_id="+workgroup_id;}
             if(notes)        {url += "&notes="+notes;}
             if(vlan_end)     {url += "&vlan_end="+vlan_end;}
-            
+
             var ds = new YAHOO.util.DataSource(url);
             ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
             ds.responseSchema = {
@@ -802,7 +817,7 @@ var ds = new YAHOO.util.DataSource(dsString);
         cancel_acl_panel_button.set('label','Cancel');
         cancel_acl_panel_button.on('click',function(){
             panel.hide();
-        }); 
+        });
 
         //setup remove button if it is an edit
         if(is_edit){
@@ -812,14 +827,14 @@ var ds = new YAHOO.util.DataSource(dsString);
 
                 var url = "services/workgroup_manage.cgi?action=remove_acl";
                 url += "&interface_acl_id="+rec.getData("interface_acl_id");
-    
+
                 var ds = new YAHOO.util.DataSource(url);
                 ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                 ds.responseSchema = {
                     resultsList: "results",
                     fields: ["success"]
                 };
-    
+
                 ds.sendRequest("",{
                     success: function(req, resp){
                         if(resp.results.length <= 0){
@@ -836,7 +851,7 @@ var ds = new YAHOO.util.DataSource(dsString);
                     },
                     scope: this
                 },ds);
-            }); 
+            });
         }else {
             $('#remove_acl_panel').css('display', 'none');
         }
