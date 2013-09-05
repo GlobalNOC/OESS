@@ -209,15 +209,17 @@ sub create_reservation{
     my $body = '<ns3:createReservation xmlns="http://oscars.es.net/OSCARS/authParams" xmlns:ns10="http://docs.oasis-open.org/wsn/b-2" xmlns:ns11="http://docs.oasis-open.org/wsrf/r-2" xmlns:ns2="urn:oasis:names:tc:SAML:2.0:assertion" xmlns:ns3="http://oscars.es.net/OSCARS/06" xmlns:ns4="http://oscars.es.net/OSCARS/common" xmlns:ns5="http://ogf.org/schema/network/topology/ctrlPlane/20080828/" xmlns:ns6="http://www.w3.org/2000/09/xmldsig#" xmlns:ns7="http://www.w3.org/2001/04/xmlenc#" xmlns:ns8="http://docs.oasis-open.org/wsrf/bf-2" xmlns:ns9="http://www.w3.org/2005/08/addressing"><ns3:globalReservationId></ns3:globalReservationId><ns3:description>' . $description . '</ns3:description><ns3:userRequestConstraint><ns3:startTime>' . $start_time . '</ns3:startTime><ns3:endTime>' . $end_time . '</ns3:endTime><ns3:bandwidth>' . $bandwidth . '</ns3:bandwidth><ns3:pathInfo><ns3:pathSetupMode>timer-automatic</ns3:pathSetupMode><ns3:pathType>' . $path_type . '</ns3:pathType><ns3:layer2Info><ns3:srcVtag tagged="' . $src_tagged . '">' . $src_vlan . '</ns3:srcVtag><ns3:destVtag tagged="' . $dst_tagged . '">' . $dst_vlan . '</ns3:destVtag><ns3:srcEndpoint>'. $src_urn .'</ns3:srcEndpoint><ns3:destEndpoint>' . $dst_urn . '</ns3:destEndpoint></ns3:layer2Info></ns3:pathInfo></ns3:userRequestConstraint></ns3:createReservation>';
 
     my $signed_xml = $self->_create_signed_doc($body);
-
+    warn "Signed docuemtn successfully\n";
+    warn "URL: " . $self->{'url'} . "\n";
     my $messg = HTTP::Request->new('POST',$self->{'url'} , new HTTP::Headers, $signed_xml);
     $messg->header( 'SOAPAction' => "http://oscars.es.net/OSCARS/createReservation");
     $messg->content_type('text/xml');
     $messg->content_length( length($signed_xml));
     my $resp = $self->{'ua'}->request($messg);
-
+    warn "Sent request\nResp: ". $resp;
     my ($xpath,$result) = $self->_process_response($resp);
     if(!defined($xpath) || !defined($result)){
+	warn "Problem getting response\n";
 	return undef;
     }
 
@@ -479,6 +481,7 @@ sub _process_response{
     my $response = shift;
 
     if($response->is_success){
+	warn "REsponse is successfull\n";
 	my $xpath = XML::XPath->new(xml => $response->content);
 	$xpath->set_namespace("soap", "http://www.w3.org/2003/05/soap-envelope");
 	$xpath->set_namespace("ns3","http://oscars.es.net/OSCARS/06");
@@ -491,6 +494,7 @@ sub _process_response{
 	$xpath->set_namespace("soap", "http://www.w3.org/2003/05/soap-envelope");
 	my $reason = $xpath->find("/soap:Envelope/soap:Body/soap:Fault/soap:Reason/soap:Text");
 	$reason = @{$reason}[0];
+	warn "Failed because: " . $reason->string_value . "\n";
 	$self->_set_error($reason->string_value);
 	return undef;
     }

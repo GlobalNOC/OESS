@@ -399,46 +399,46 @@ sub _parse_struct {
 
     $XML::XPath::Namespaces = 0;
     my $xpath = XML::XPath->new(xml => $input);
-
+    
     my $setupReq = $xpath->find("/soap:Envelope/soap:Body/$type")->[0]; 
-
+    
     my $callback_url = $xpath->find("./callbackEndpoint", $setupReq)->[0]->getChildNodes()->[0]->getValue(); 
-
+    
     my $request     = $xpath->find("./reservation", $setupReq)->[0]; 
-
+    
     my $description = $xpath->find("./ns2:description", $request)->[0]->getChildNodes()->[0]->getValue(); 
     my $gri         = $xpath->find("./ns2:globalReservationId", $request)->[0]->getChildNodes()->[0]->getValue(); 
-
+    
     # in Mbps
     my $bandwidth = $xpath->find("./ns2:reservedConstraint/ns2:bandwidth", $request)->[0]->getChildNodes()->[0]->getValue();
-
+    
     my %links;
-
+    
     my @endpoints;
     
     # first real step is to figure out all the hops on this circuit that are relevant to us. We need to find all
     # the links and nodes that this circuit traverses on the local domain.
-
+    
     my $hop_info = $xpath->find("./ns2:reservedConstraint/ns2:pathInfo/ns2:path/ns3:hop", $request);
-
+    
     foreach my $hop (@$hop_info){
-
+        
 	my $link_element = $xpath->find("./ns3:link", $hop)->[0];
-
+        
 	my $link_urn = $link_element->getAttribute("id");
-
+        
 	warn "link: $link_urn";
-
+        
 	next unless ($link_urn =~ /domain=$LOCAL_DOMAIN/);
-
+        
 	$link_urn =~ /node=(\S+):port=(\S+):link=(\S+)/;
-
+        
 	my $node = $1;
 	my $port = $2;
 	my $link = $3;
-
-	my $tag = $xpath->find("./ns3:SwitchingCapabilityDescriptors/ns3:switchingCapabilitySpecificInfo/ns3:suggestedVLANRange", $link_element)->[0];
-
+        
+	my $tag = $xpath->find("./ns3:SwitchingCapabilityDescriptors/ns3:switchingCapabilitySpecificInfo/ns3:vlanRangeAvailability", $link_element)->[0];
+        
 	# if we have the tag defined, that means we're on an endpoint
 	if ($tag){
 	    $tag = $tag->getChildNodes()->[0]->getValue();	    
@@ -448,44 +448,44 @@ sub _parse_struct {
 	else{ 
 	    $links{$link} = 1;
 	}
-
+        
     }
 
     # we must have 2 endpoints here, otherwise presume some parsing error
     if (@endpoints != 2){
 	die "Didn't get two endpoints. I got: " . Data::Dumper::Dumper(\@endpoints);
     }
-
-
+    
+    
     # now let's figure out where the circuit actually terminates so we can keep a reference to the remote endpoint(s).
     # this might be inside of the local domain, it might be half in the local domain, or it might be entirely external.
     my $layer2_info = $xpath->find("./ns2:reservedConstraint/ns2:pathInfo/ns2:layer2Info", $request)->[0];
-
+    
     my $remoteNodeA = $xpath->find("./ns2:srcEndpoint", $layer2_info)->[0]->getChildNodes()->[0]->getValue();
     my $remoteNodeZ = $xpath->find("./ns2:destEndpoint", $layer2_info)->[0]->getChildNodes()->[0]->getValue();
-
+    
 #    my $remoteTagA = $xpath->find("./ns2:srcVtag", $layer2_info)->[0]->getChildNodes()->[0]->getValue();
 #    my $remoteTagZ = $xpath->find("./ns2:destVtag", $layer2_info)->[0]->getChildNodes()->[0]->getValue();
-
+    
     my $remoteTagA = $xpath->find("./ns2:srcVtag", $layer2_info);
     if(!defined($remoteTagA->[0])){
         $remoteTagA = undef;
     }else{
         $remoteTagA = $remoteTagA->[0]->getChildNodes()->[0]->getValue();
     }
-
+    
     my $remoteTagZ = $xpath->find("./ns2:destVtag", $layer2_info);
     if(!defined($remoteTagZ->[0])){
         $remoteTagZ = undef;
     }else{      
         $remoteTagZ = $remoteTagZ->[0]->getChildNodes()->[0]->getValue();
     }
-
+    
     my @remote_endpoints;
-
+    
     foreach my $remote_endpoint (({"node" => $remoteNodeA, "tag" => $remoteTagA},
 				  {"node" => $remoteNodeZ, "tag" => $remoteTagZ})){
-
+        
 	my $remote_node = $remote_endpoint->{'node'};
 	my $remote_tag  = $remote_endpoint->{'tag'};
 	
@@ -551,5 +551,3 @@ sub _parse_struct {
 }
 
 1;
-
-
