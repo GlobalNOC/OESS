@@ -789,8 +789,10 @@ function setup_workgroup_tab(){
 	    wg_panel.moveTo(region.left, region.top);
 	});
 
-    wg_panel.render("workgroups_content");
+    var wg_edit_button = new YAHOO.widget.Button("edit_workgroup_button",
+						 {label: "Edit Workgroup Details"});
 
+    wg_panel.render("workgroups_content");
     var close_panel = new YAHOO.widget.Button("close_panel_button", {label: "Done"});
     close_panel.on("click", function(){
 	    wg_panel.hide();
@@ -808,12 +810,39 @@ function setup_workgroup_tab(){
 
 	    var workgroup_name = record.getData('name');
 	    var workgroup_id   = record.getData('workgroup_id');
+	    var workgroup_external = record.getData('external_id');
 
 	    YAHOO.util.Dom.get('workgroup_title').innerHTML = workgroup_name;
 
 	    var region = YAHOO.util.Dom.getRegion("workgroups_content");	    
 
 	    wg_panel.moveTo(region.left, region.top);
+
+	    wg_edit_button.on("click",function(){
+		    var wg_details_panel = new YAHOO.widget.Panel("workgroup_details_p",
+								  {width: 400,
+								   height: 200,
+								   draggable: true,
+								   close: true,
+								   fixedcenter: true
+								  });
+
+		    wg_details_panel.setBody("<label>Workgroup Name:</label> <input type='text' id='workgroup_name_edit' value='" + workgroup_name + "'><br><label>External ID: <input type='text' id='workgroup_external_edit' value='" + workgroup_external + "'>");
+		    wg_details_panel.setFooter("<div id='submit_edit_workgroup'></div>");
+		    wg_details_panel.render("workgroups_content");
+		    var wg_submit_edit = new YAHOO.widget.Button("submit_edit_workgroup",
+								 {label: "submit"});
+		    wg_submit_edit.on("click", function(){
+			    var submit_ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=edit_workgroup&workgroup_id=" + workgroup_id + "&name=" + encodeURI(document.getElementById('workgroup_name_edit').value) + "&external_id=" + encodeURI(document.getElementById('workgroup_external_edit').value));
+			    submit_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+			    submit_ds.responseSchema = {
+				resultsList: "results",
+				fields: ["success","error"]
+			    }
+			    submit_ds.sendRequest();
+			    wg_details_panel.hide();
+			});
+					     });
 
 	    var workgroup_user_table = makeWorkgroupUserTable(workgroup_id);
 
@@ -2246,9 +2275,10 @@ function makeWorkgroupTable(){
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
 	resultsList: "results",
-	fields: [{key: "workgroup_id", parser: "number"},
-                 {key: "name"},
-                 {key: "description"}
+	fields: [ {key: "workgroup_id", parser: "number"},
+    {key: "name"},
+    {key: "description"},
+    {key: "external_id"}
 		 ]
     };
 
