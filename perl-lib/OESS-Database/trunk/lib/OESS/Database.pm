@@ -1793,7 +1793,7 @@ sub get_workgroup_interfaces {
 
     my $workgroup_id = $args{'workgroup_id'};
 
-    my $acls = [];
+    my $interfaces = [];
 
     my $query = "select interface.description,interface.operational_state as operational_state, interface.name as int_name, interface.interface_id, interface.vlan_tag_range, node.name as node_name, node.node_id " .
 	        " from workgroup " .
@@ -1814,7 +1814,7 @@ sub get_workgroup_interfaces {
     }
 
     foreach my $row (@$results){
-	push(@$acls, {"interface_id"   => $row->{'interface_id'},
+	push(@$interfaces, {"interface_id"   => $row->{'interface_id'},
               "vlan_tag_range" => $row->{'vlan_tag_range'},
 		      "interface_name" => $row->{'int_name'},
 		      "node_id"        => $row->{'node_id'},
@@ -1824,7 +1824,7 @@ sub get_workgroup_interfaces {
 	     });
     }
 
-    return $acls;
+    return $interfaces;
 }
 =head2 get_available_resources
 
