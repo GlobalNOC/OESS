@@ -1611,6 +1611,25 @@ sub get_workgroups {
     return $workgroups;
 }
 
+=head2 update_workgroup
+
+=cut
+
+sub update_workgroup{
+    my $self = shift;
+    my %args = @_;
+    
+    my $results = $self->_execute_query("update workgroup set name = ?, external_id = ? where workgroup_id = ?",[$args{'name'},$args{'external_id'},$args{'workgroup_id'}]);
+    
+    if(!defined($results)){
+	$self->_set_error("Internal error while fetching workgroups");
+	return;
+    }
+
+    return $results;
+
+}
+
 =head2 get_workgroup_by_id
 
 =cut
