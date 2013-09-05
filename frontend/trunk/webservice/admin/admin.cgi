@@ -156,6 +156,9 @@ sub main {
             $output = &populate_remote_information();
         }case "get_circuits_on_interface" {
 	    $output = &get_circuits_on_interface();
+	}case "edit_workgroup"{
+	    $output = &edit_workgroup();
+	}
 	}case "get_topology"{
 	    $output = &gen_topology();
 	}
@@ -840,6 +843,24 @@ sub gen_topology{
     my $topo = $db->gen_topo();
     my $results;
     $results->{'results'} = [{'topo' => $topo}];
+    return $results;
+}
+
+sub edit_workgroup{
+    
+    my $workgroup_id = $cgi->param('workgroup_id');
+    my $workgroup_name = $cgi->param('name');
+    my $external_id = $cgi->param('external_id');
+
+    my $res = $db->update_workgroup( workgroup_id => $workgroup_id,
+			      name => $workgroup_name,
+			      external_id => $external_id);
+    my $results;
+    if(defined($res)){
+	$results->{'results'} = [{success => 1}];
+    }else{
+	$results->{'error'} = $db->get_error();
+    }
     return $results;
 }
 
