@@ -29,7 +29,7 @@
 use strict;
 use warnings;
 
-use CGI; 
+use CGI;
 use JSON;
 use Switch;
 use Data::Dumper;
@@ -56,9 +56,9 @@ sub main {
     my $action      = $cgi->param('action');
     my $remote_user = $ENV{'REMOTE_USER'};
     my $output;
-	
+
     my $authorization = $db->get_user_admin_status( 'username' => $remote_user);
-	
+
     if ( $authorization->[0]{'is_admin'} != 1 ) {
         $output = {
             error => "User $remote_user does not have admin privileges",
@@ -184,7 +184,7 @@ sub get_circuits_on_interface{
 	$results->{'results'} = $db->get_circuits_on_link( link_id => $link->[0]->{'link_id'} );
     }else{
 	#ok... the interface is not part of a link, need to find all the circuits that have an endpoint on this interface
-	
+
     }
     return $results;
 }
@@ -199,24 +199,24 @@ sub insert_node_in_path{
 
 sub is_new_node_in_path{
     my $results;
-    
+
     $results->{'results'} = [];
-    
+
     $results->{'results'}->[0] = $db->is_new_node_in_path(link => $cgi->param('link'));
     return $results;
 }
 
 sub is_ok_to_decom{
-    
+
     my $results;
     $results->{'results'} = [];
-    
+
     my $link_details = $db->get_link( link_id => $cgi->param('link_id'));
 
     my $circuits = $db->get_circuits_on_link( link_id => $link_details->{'link_id'} );
     $results->{'results'}->[0]->{'active_circuits'} = $circuits;
-   
-    
+
+
 
     $results->{'results'}->[0]->{'new_node_in_path'} = $db->is_new_node_in_path(link => $link_details);
 
@@ -349,7 +349,7 @@ sub add_remote_link {
 
 sub get_workgroups {
 
-    my %parameters = ( 'user_id' => $cgi->param('user_id'), );
+    my %parameters = ( 'user_id' => $cgi->param('user_id')||undef, );
 
     my $results;
     my $workgroups;
@@ -706,10 +706,10 @@ sub update_interface {
 
     my $result = $db->update_interface_description( 'interface_id' => $interface_id,
 						    'description'  => $description );
-    
+
     my $result2 = $db->update_interface_vlan_range( 'vlan_tag_range' => $vlan_tags,
 						    'interface_id'   => $interface_id );
-    
+
     if ( !defined $result || !defined($result2) ) {
         $results->{'results'} = [
             {
@@ -871,4 +871,3 @@ sub send_json {
 }
 
 main();
-

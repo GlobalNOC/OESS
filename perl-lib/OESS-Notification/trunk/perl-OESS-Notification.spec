@@ -15,7 +15,7 @@ Requires: perl(Template)
 Requires: perl(MIME::Lite)
 Requires: perl-OESS-Database >= 1.0.12
 Requires: perl-OESS-DBus >= 1.0.12
-
+Requires: oess-frontend >= 1.0.12
 %description
 
 %define docdir /usr/share/oess-core
@@ -29,15 +29,18 @@ make
 
 %check
 
-      
+
 %install
 rm -rf $RPM_BUILD_ROOT
 make pure_install
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{docdir}
-%__install etc/notification_templates.tmpl $RPM_BUILD_ROOT/%{docdir}/        
+%__install etc/notification_templates.tmpl $RPM_BUILD_ROOT/%{docdir}/
+%__install etc/notification_bulk.tmpl $RPM_BUILD_ROOT/%{docdir}/
+%__install etc/notification_bulk.tt.html $RPM_BUILD_ROOT/%{docdir}/
+%__install etc/notification.tt.html $RPM_BUILD_ROOT/%{docdir}/
 # clean up buildroot
 find %{buildroot} -name .packlist -exec %{__rm} {} \;
-      
+
 %{_fixperms} $RPM_BUILD_ROOT/*
 
 %clean
@@ -48,10 +51,12 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,-)
 %doc %{_mandir}/man3/OESS::Notification.3pm.gz
 %{docdir}/notification_templates.tmpl
+%{docdir}/notification_bulk.tmpl
+%{docdir}/notification_bulk.tt.html
+%{docdir}/notification.tt.html
 %{perl_vendorlib}/OESS/Notification.pm
 
 
 %changelog
 * Thu May  9 2013 Grant McNaught <gmcnaugh@gkm.grnoc.iu.edu> - Notification-1
 - Initial build.
-

@@ -193,6 +193,7 @@ sub _send_bulk_notification {
        unless ( ref( $workgroup_notifications->{$circuit_details->{'workgroup'} }{'circuits'}) eq 'ARRAY'){
            $workgroup_notifications->{$circuit_details->{'workgroup'} }{'circuits'} = [];
            $workgroup_notifications->{$circuit_details->{'workgroup'} }{'affected_users'} = $circuit_details->{'affected_users'};
+           $workgroup_notifications->{$circuit_details->{'workgroup'} }{'workgroup_id'} = $circuit_details->{'workgroup_id'};
        }
        push (@{ $workgroup_notifications->{$circuit_details->{'workgroup'} }{'circuits'} }, $circuit_details->{'circuit'} );
 
@@ -219,8 +220,9 @@ sub _send_bulk_notification {
 
        my %vars = (
                    SUBJECT => $subject,
-                   base_url => 'https://gkm.grnoc.iu.edu/oess/',
-                   'workgroup'           => $workgroup,
+                   base_url => $self->{'base_url'},
+                   workgroup           => $workgroup,
+                   workgroup_id => $workgroup->{'workgroup_id'},
                    from_signature_name => $self->{'from_name'},
                    link_name => $link_name,
                    type => $dbus_data->{'type'},
@@ -295,7 +297,7 @@ sub send_notification {
     warn Dumper ($data->{'last_modified_by'});
     my %vars = (
                 SUBJECT => $data->{'subject'},
-                base_url => 'https://gkm.grnoc.iu.edu/oess/',
+                base_url => $self->{'base_url'},
                 circuit_id          => $data->{'circuit_id'},
                 workgroup           => $data->{'workgroup'},
                 circuit_description => $data->{'circuit'}->{'description'},
@@ -365,6 +367,7 @@ sub _process_config_file {
     $self->{'from_name'}    = $config->{'smtp'}->{'from_name'};
     $self->{'from_address'} = $config->{'smtp'}->{'from_address'};
     $self->{'image_base_url'} = $config->{'smtp'}->{'image_base_url'};
+    $self->{'base_url'} = $config->{'base_url'};
     return;
 }
 
@@ -445,6 +448,7 @@ sub get_notification_data {
             'last_modified_by'=> $details->{'last_modified_by'},
             'clr'            => $clr,
             'workgroup'      => $details->{'workgroup'}->{'name'},
+            'workgroup_id'      => $details->{'workgroup_id'},
             'affected_users' => $workgroup_members,
             'circuit'        => $details
         }

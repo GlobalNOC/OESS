@@ -1,8 +1,8 @@
 Alias /oess/tiles      /usr/share/nddi-tiles/
 Alias /oess/services   /usr/share/oess-frontend/webservice
 Alias /oess/yui/build  /usr/share/yui2
+Alias /oess/notification-img/ /usr/share/oess-frontend/www/media/notification
 Alias /oess            /usr/share/oess-frontend/www
-
 Alias /idc            /usr/share/oess-frontend/webservice/idc
 
 <Location /idc>
@@ -29,6 +29,13 @@ Alias /idc            /usr/share/oess-frontend/webservice/idc
 	  AuthUserFile /usr/share/oess-frontend/www/.htpasswd
 	  Require valid-user
 </Location>
+
+<Location /oess/notification-img >
+	  SSLRequireSSL
+	  Satisfy Any
+	  Allow from all
+</Location>
+
 
 <Location /oess/services>
 	  SSLRequireSSL
