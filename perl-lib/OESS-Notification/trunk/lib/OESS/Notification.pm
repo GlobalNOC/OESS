@@ -208,11 +208,11 @@ sub _send_bulk_notification {
 
        switch($type) {
                      case ('link_down'){
-                         $subject = "OESS Notification: Backbone Circuit $link_name is down. ".scalar(@$workgroup_circuits)." circuits are impacted in workgroup $workgroup";
+                         $subject = "OESS Notification: Backbone Link $link_name is down. ".scalar(@$workgroup_circuits)." circuits are impacted in workgroup $workgroup";
                      }
 
                      case ('link_up'){
-                         $subject = "OESS Notification: Backbone Circuit $link_name is up. ".scalar(@$workgroup_circuits)." circuits have been restored to service in workgroup $workgroup";
+                         $subject = "OESS Notification: Backbone Link $link_name is up. ".scalar(@$workgroup_circuits)." circuits have been restored to service in workgroup $workgroup";
                      }
                     }
 

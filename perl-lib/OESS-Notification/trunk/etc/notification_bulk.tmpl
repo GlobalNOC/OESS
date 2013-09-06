@@ -1,0 +1,16 @@
+Greetings, [%user%]
+           You are receiving a notification because you are a member of workgroup: [%workgroup%]
+[% SWITCH type %]
+[% CASE 'link_down' %]
+An outage on backbone link: [% link_name %]
+has caused the [% circuits.size %] circuits listed below to be affected.
+[% CASE 'link_up' %]
+Backbone link: [% link_name %] has returned to service and the below circuits were returned to service:
+[% END %]
+
+[% FOREACH circuit IN circuits %]
+Circuit:      [% circuit.description %]
+Action Taken: [% circuit.reason %]
+Status:       [% circuit.status %]
+
+[% END %]
