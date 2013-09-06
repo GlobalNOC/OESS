@@ -74,8 +74,8 @@ sub main{
     my $my_key = optional_parameter("OSCARS SSL Key","mykey.key");
     my $topo_host = optional_parameter("TopoHost","http://ndb7.net.internet2.edu:8012/perfSONAR_PS/services/topology");
     my $from_address = optional_parameter("Notification originating email address","OESS\@localhost");
-    my $image_base_url = optional_parameter("Base URL used to host images for html notifications", "https://myhost.example/oess/notification-img/");
-    my $base_url = optional_parameter("Base URL of OESS application", "https://myhost.example/oess/");
+    my $image_base_url = optional_parameter("Base URL used to host images for html notifications", "https://$host/oess/notification-img/");
+    my $base_url = optional_parameter("Base URL of OESS application", "https://$host/oess/");
     my $from_name = optional_parameter("Email From Name (used in signature)", "OESS Circuit Notifier");
 
     print "\nTesting DB connection\n";
