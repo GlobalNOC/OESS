@@ -222,7 +222,7 @@ sub _send_bulk_notification {
                    SUBJECT => $subject,
                    base_url => $self->{'base_url'},
                    workgroup           => $workgroup,
-                   workgroup_id => $workgroup->{'workgroup_id'},
+                   workgroup_id => $workgroup_notifications->{$workgroup }{'workgroup_id'},
                    from_signature_name => $self->{'from_name'},
                    link_name => $link_name,
                    type => $dbus_data->{'type'},
@@ -337,7 +337,7 @@ sub send_notification {
                                             TmplOptions => \%tmpl_options,
                                            );
 
-                 warn Dumper ($message);
+
     $message->send( 'smtp', 'localhost' );
 
 
