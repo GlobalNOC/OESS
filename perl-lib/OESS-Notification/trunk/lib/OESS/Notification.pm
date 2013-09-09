@@ -78,7 +78,7 @@ sub new {
                    service => undef,
                    template_path => '/usr/share/oess-core/',
                    @_,
-                   );
+                  );
 
 
     my $service = $args{'service'};
@@ -97,8 +97,6 @@ sub new {
 
     $self->_process_config_file();
     $self->_connect_services();
-
-
     dbus_signal( "circuit_provision",[ [ "dict", "string", ["variant"] ] ],['string'] );
     dbus_signal( "circuit_modified", [ [ "dict", "string", ["variant"] ] ] );
     dbus_signal( "circuit_removed", [ [ "dict", "string", ["variant"] ] ], ['string'] );
@@ -136,37 +134,43 @@ sub circuit_notification {
 
     $circuit = $dbus_data;
     my $circuit_notification_data = $self->get_notification_data( circuit => $circuit );
-    if(!defined($circuit_notification_data)){
-	warn "Unable to get circuit data for circuit: " . $circuit->{'circuit_id'};
-	return;
+    if (!defined($circuit_notification_data)) {
+        warn "Unable to get circuit data for circuit: " . $circuit->{'circuit_id'};
+          return;
     }
     my $subject = "OESS Notification: Circuit '" . $circuit_notification_data->{'circuit'}->{'description'} . "' ";
     my $workgroup = $circuit_notification_data->{'workgroup'};
 
-    switch($circuit->{'type'}){
-    case "provisioned"{
-	    $subject .= "has been provisioned in workgroup: $workgroup ";
-	    $self->emit_signal( "circuit_provision", $circuit );
-	}case "removed" {
-	    $subject .= "has been removed from workgroup: $workgroup";
-	    $self->emit_signal( "circuit_removed", $circuit );
-	}case "modified" {
-	    $subject .= "has been edited in workgroup: $workgroup";
-	    $self->emit_signal( "circuit_modified", $circuit );
-	}case "change_path" {
-	    $subject .= "has changed to " . $circuit_notification_data->{'circuit'}->{'active_path'} . " path in workgroup: $workgroup";
-	    $self->emit_signal( "circuit_change_path", $circuit );
-	}case "restored" {
-	    $subject .= "has been restored for workgroup: $workgroup";
-	    $self->emit_signal( "circuit_restored", $circuit );
-	}case "down" {
-	    $subject .= "is down for workgroup: $workgroup";
-	    $self->emit_signal( "circuit_down", $circuit );
-	}case "unknown" {
-	    $subject .= "is in an unknown state in workgroup: $workgroup";
-	    $self->emit_signal( "circuit_unknown", $circuit );
-	}
-    }
+    switch($circuit->{'type'} ) {
+        case "provisioned"{
+                           $subject .= "has been provisioned in workgroup: $workgroup ";
+                           $self->emit_signal( "circuit_provision", $circuit );
+                          }
+          case "removed" {
+                          $subject .= "has been removed from workgroup: $workgroup";
+                          $self->emit_signal( "circuit_removed", $circuit );
+                         }
+          case "modified" {
+                             $subject .= "has been edited in workgroup: $workgroup";
+                             $self->emit_signal( "circuit_modified", $circuit );
+                            }
+          case "change_path" {
+                                  $subject .= "has changed to " . $circuit_notification_data->{'circuit'}->{'active_path'} . " path in workgroup: $workgroup";
+                                  $self->emit_signal( "circuit_change_path", $circuit );
+                             }
+          case "restored" {
+                           $subject .= "has been restored for workgroup: $workgroup";
+                           $self->emit_signal( "circuit_restored", $circuit );
+                          }
+          case "down" {
+                       $subject .= "is down for workgroup: $workgroup";
+                       $self->emit_signal( "circuit_down", $circuit );
+                      }
+          case "unknown" {
+                          $subject .= "is in an unknown state in workgroup: $workgroup";
+                          $self->emit_signal( "circuit_unknown", $circuit );
+                         }
+      }
 
     $circuit_notification_data->{'subject'} = $subject;
     $self->send_notification( $circuit_notification_data );
@@ -174,116 +178,129 @@ sub circuit_notification {
 }
 
 sub _send_bulk_notification {
-   my $self = shift;
-   my $dbus_data = shift;
-   my $db = $self->{'db'};
-   my $circuits = $dbus_data->{'affected_circuits'};
-   my $link_name = $dbus_data->{'link_name'};
-   my $workgroup_notifications={};
-   my $type = $dbus_data->{'type'};
+    my $self = shift;
+    my $dbus_data = shift;
+    my $db = $self->{'db'};
+    my $circuits = $dbus_data->{'affected_circuits'};
+    my $link_name = $dbus_data->{'link_name'};
+    my $workgroup_notifications={};
+    my $type = $dbus_data->{'type'};
 
-   foreach my $circuit (@$circuits){
-       #build workgroup buckets
-       my $circuit_details = $self->get_notification_data(circuit => $circuit);
+    foreach my $circuit (@$circuits) {
+        #build workgroup buckets
+        my $circuit_details = $self->get_notification_data(circuit => $circuit);
 
-       unless ($workgroup_notifications->{$circuit_details->{'workgroup'} } ){
-           $workgroup_notifications->{$circuit_details->{'workgroup'} } = {};
-       }
+        my $owners = $circuit_details->{'endpoint_owners'};
 
-       unless ( ref( $workgroup_notifications->{$circuit_details->{'workgroup'} }{'circuits'}) eq 'ARRAY'){
-           $workgroup_notifications->{$circuit_details->{'workgroup'} }{'circuits'} = [];
-           $workgroup_notifications->{$circuit_details->{'workgroup'} }{'affected_users'} = $circuit_details->{'affected_users'};
-           $workgroup_notifications->{$circuit_details->{'workgroup'} }{'workgroup_id'} = $circuit_details->{'workgroup_id'};
-       }
-       push (@{ $workgroup_notifications->{$circuit_details->{'workgroup'} }{'circuits'} }, $circuit_details->{'circuit'} );
+        foreach my $owner (keys %$owners) {
+            my $affected_users = $owners->{$owner}->{'affected_users'};
+            my $workgroup_id = $owners->{$owner}->{'workgroup_id'};
 
-   }
-   #warn Dumper $workgroup_notifications;
-   foreach my $workgroup (keys %$workgroup_notifications){
-       #split into per workgroup circuit sets
-       my @to_list = ();
-       my $workgroup_circuits = $workgroup_notifications->{$workgroup}{'circuits'};
-       my $affected_users = $workgroup_notifications->{$workgroup}{'affected_users'};
-       my $subject;
+            unless ($workgroup_notifications->{$owner}) {
+                $workgroup_notifications->{$owner} = {};
+                $workgroup_notifications->{$owner}{'affected_users'} = $affected_users;
+                $workgroup_notifications->{$owner }{'workgroup_id'} = $workgroup_id;
+                $workgroup_notifications->{$owner}{'circuits'} = [];
+            }
 
-       switch($type) {
-                     case ('link_down'){
-                         $subject = "OESS Notification: Backbone Link $link_name is down. ".scalar(@$workgroup_circuits)." circuits are impacted in workgroup $workgroup";
-                     }
+            push (@{ $workgroup_notifications->{ $owner }{'circuits'} }, $circuit_details->{'circuit'} );
 
-                     case ('link_up'){
-                         $subject = "OESS Notification: Backbone Link $link_name is up. ".scalar(@$workgroup_circuits)." circuits have been restored to service in workgroup $workgroup";
-                     }
-                    }
+        }
 
+        unless ($workgroup_notifications->{$circuit_details->{'workgroup'} } ) {
+            $workgroup_notifications->{$circuit_details->{'workgroup'} } = {};
+            $workgroup_notifications->{$circuit_details->{'workgroup'} }{'affected_users'} = $circuit_details->{'affected_users'};
+            $workgroup_notifications->{$circuit_details->{'workgroup'} }{'workgroup_id'} = $circuit_details->{'workgroup_id'};
+            $workgroup_notifications->{$circuit_details->{'workgroup'} }{'circuits'} = [];
+        }
 
+        push (@{ $workgroup_notifications->{$circuit_details->{'workgroup'} }{'circuits'} }, $circuit_details->{'circuit'} );
 
-       my %vars = (
-                   SUBJECT => $subject,
-                   base_url => $self->{'base_url'},
-                   workgroup           => $workgroup,
-                   workgroup_id => $workgroup_notifications->{$workgroup }{'workgroup_id'},
-                   from_signature_name => $self->{'from_name'},
-                   link_name => $link_name,
-                   type => $dbus_data->{'type'},
-                   circuits => $workgroup_circuits,
-                   image_base_url => $self->{'image_base_url'}
-               );
-
-    my %tmpl_options = ( ABSOLUTE=>1,
-                         RELATIVE=>0,
-                       );
-    my $body;
-
-    #$self->{'tt'}->process( "$self->{'template_path'}/notification_templates.tmpl", $vars, \$body ) ||  warn $self->{'tt'}->error();
-
-    foreach my $user ( @$affected_users ) {
-        push( @to_list, $user->{'email_address'} );
     }
 
-    my $to_string = join( ",", @to_list );
+    foreach my $workgroup (keys %$workgroup_notifications) {
+        #split into per workgroup circuit sets
+        my @to_list = ();
+        my $workgroup_circuits = $workgroup_notifications->{$workgroup}{'circuits'};
+        my $affected_users = $workgroup_notifications->{$workgroup}{'affected_users'};
+        my $subject;
 
-    my $message = MIME::Lite::TT::HTML->new(
-                                            From    => $self->{'from_address'},
-                                            To      => $to_string,
-                                            Subject => $subject,
-                                            Encoding    => 'quoted-printable',
-                                            Timezone => 'UTC',
-                                            Template => {
-                                                         html => "$self->{'template_path'}/notification_bulk.tt.html",
-                                                         text => "$self->{'template_path'}/notification_bulk.tmpl"
-                                                        },
-                                            TmplParams => \%vars,
-                                            TmplOptions => \%tmpl_options,
-                                           );
+        switch($type) {
+            case ('link_down'){
+                $subject = "OESS Notification: Backbone Link $link_name is down. ".scalar(@$workgroup_circuits)." circuits are impacted in workgroup $workgroup";
+            }
 
-
-    $message->send( 'smtp', 'localhost' );
+            case ('link_up'){
+                $subject = "OESS Notification: Backbone Link $link_name is up. ".scalar(@$workgroup_circuits)." circuits have been restored to service in workgroup $workgroup";
+            }
+        }
 
 
-   }
+
+        my %vars = (
+                    SUBJECT => $subject,
+                    base_url => $self->{'base_url'},
+                    workgroup           => $workgroup,
+                    workgroup_id => $workgroup_notifications->{$workgroup }{'workgroup_id'},
+                    from_signature_name => $self->{'from_name'},
+                    link_name => $link_name,
+                    type => $dbus_data->{'type'},
+                    circuits => $workgroup_circuits,
+                    image_base_url => $self->{'image_base_url'}
+                   );
+
+        my %tmpl_options = ( ABSOLUTE=>1,
+                             RELATIVE=>0,
+                           );
+        my $body;
+
+        #$self->{'tt'}->process( "$self->{'template_path'}/notification_templates.tmpl", $vars, \$body ) ||  warn $self->{'tt'}->error();
+
+        foreach my $user ( @$affected_users ) {
+            push( @to_list, $user->{'email_address'} );
+        }
+
+        my $to_string = join( ",", @to_list );
+
+        my $message = MIME::Lite::TT::HTML->new(
+                                                From    => $self->{'from_address'},
+                                                To      => $to_string,
+                                                Subject => $subject,
+                                                Encoding    => 'quoted-printable',
+                                                Timezone => 'UTC',
+                                                Template => {
+                                                             html => "$self->{'template_path'}/notification_bulk.tt.html",
+                                                             text => "$self->{'template_path'}/notification_bulk.tmpl"
+                                                            },
+                                                TmplParams => \%vars,
+                                                TmplOptions => \%tmpl_options,
+                                               );
+
+
+        $message->send( 'smtp', 'localhost' );
+    }
 
 }
 
 =head2 C<send_notification()>
 
-sends a notification
+  sends a notification
 
-=over
+  =over
 
-=item circuit_data
+  =item circuit_data
 
-hashref containing circuit data needed for the notification
+  hashref containing circuit data needed for the notification
 
-=item workgroup
+  =item workgroup
 
-string of name of workgroup
+  string of name of workgroup
 
-=item to
+  =item to
 
-arrayref of hashrefs minimally containing the  email_address key value pair
+  arrayref of hashrefs minimally containing the  email_address key value pair
 
-=back
+  =back
 
 =cut
 
@@ -294,7 +311,7 @@ sub send_notification {
 
     my @to_list     = ();
     my $desc        = $data->{'circuit'}->{'description'};
-    warn Dumper ($data->{'last_modified_by'});
+
     my %vars = (
                 SUBJECT => $data->{'subject'},
                 base_url => $self->{'base_url'},
@@ -310,50 +327,84 @@ sub send_notification {
                 image_base_url => $self->{'image_base_url'}
                );
 
-    my %tmpl_options = ( ABSOLUTE=>1,
-                         RELATIVE=>0,
-                       );
-    my $body;
+      my %tmpl_options = ( ABSOLUTE=>1,
+                           RELATIVE=>0,
+                         );
+      my $body;
 
-    #$self->{'tt'}->process( "$self->{'template_path'}/notification_templates.tmpl", $vars, \$body ) ||  warn $self->{'tt'}->error();
+      #$self->{'tt'}->process( "$self->{'template_path'}/notification_templates.tmpl", $vars, \$body ) ||  warn $self->{'tt'}->error();
 
-    foreach my $user ( @{ $data->{'affected_users'} } ) {
-        push( @to_list, $user->{'email_address'} );
-    }
+      foreach my $user ( @{ $data->{'affected_users'} } ) {
+          push( @to_list, $user->{'email_address'} );
+      }
 
-    my $to_string = join( ",", @to_list );
-    warn ($self->{'template_path'});
-    my $message = MIME::Lite::TT::HTML->new(
-                                            From    => $self->{'from_address'},
-                                            To      => $to_string,
-                                            Subject => $data->{'subject'},
-                                            Encoding    => 'quoted-printable',
-                                            Timezone => 'UTC',
-                                            Template => {
-                                                         html => "$self->{'template_path'}/notification.tt.html",
-                                                         text => "$self->{'template_path'}/notification_templates.tmpl"
-                                                        },
-                                            TmplParams => \%vars,
-                                            TmplOptions => \%tmpl_options,
-                                           );
+      my $to_string = join( ",", @to_list );
+
+      my $message = MIME::Lite::TT::HTML->new(
+                                              From    => $self->{'from_address'},
+                                              To      => $to_string,
+                                              Subject => $data->{'subject'},
+                                              Encoding    => 'quoted-printable',
+                                              Timezone => 'UTC',
+                                              Template => {
+                                                           html => "$self->{'template_path'}/notification.tt.html",
+                                                           text => "$self->{'template_path'}/notification_templates.tmpl"
+                                                          },
+                                              TmplParams => \%vars,
+                                              TmplOptions => \%tmpl_options,
+                                             );
 
 
     $message->send( 'smtp', 'localhost' );
 
+    my $owners = $data->{'endpoint_owners'};
+    if ($owners) {
+        foreach my $owner (keys %$owners) {
+            my @owner_to_list;
+            $vars{'workgroup'} = $owner;
+            $vars{'workgroup_id'} = $owners->{$owner}{'workgroup_id'};
+            #$vars{'affected_users'} = $owners->{$owner}{'affected_users'};
 
-    #$self->_send_notification(
-     #   to      => $to_string,
-     #   body    => $body,
-     #   subject => $data->{'subject'},
+            foreach my $user ( @{ $data->{'affected_users'} } ) {
+                push( @owner_to_list, $user->{'email_address'} );
+            }
+            $to_string = join( ",", @owner_to_list );
 
-    #);
-    return 1;
+
+            my $message = MIME::Lite::TT::HTML->new(
+                                                      From    => $self->{'from_address'},
+                                                      To      => $to_string,
+                                                      Subject => $data->{'subject'},
+                                                      Encoding    => 'quoted-printable',
+                                                      Timezone => 'UTC',
+                                                      Template => {
+                                                                   html => "$self->{'template_path'}/notification.tt.html",
+                                                                   text => "$self->{'template_path'}/notification_templates.tmpl"
+                                                                  },
+                                                      TmplParams => \%vars,
+                                                      TmplOptions => \%tmpl_options,
+                                                     );
+
+
+            $message->send( 'smtp', 'localhost' );
+
+        }
+      }
+
+
+      #$self->_send_notification(
+      #   to      => $to_string,
+      #   body    => $body,
+      #   subject => $data->{'subject'},
+
+      #);
+      return 1;
 }
 
 
 =head2 C<_process_config_file>
 
-Configures OESS::Syncer Object from config file
+  Configures OESS::Syncer Object from config file
 
 
 =cut
@@ -373,87 +424,109 @@ sub _process_config_file {
 
 =head2 C<_connect_services_>
 
-Connects to OESS Database for OESS to retrieve circuit information
+  Connects to OESS Database for OESS to retrieve circuit information
 
 =cut
 
 sub _connect_services {
-    my $self = shift;
+      my $self = shift;
 
-    my $db = OESS::Database->new();
-    $self->{'db'} = $db;
+      my $db = OESS::Database->new();
+      $self->{'db'} = $db;
 
-}
+  }
 
 =head2 C<get_notification_data()>
 
-calls database to retrieve circuit details, users affected
+  calls database to retrieve circuit details, users affected
 
 =over
 
 =item circuit
 
-hashref containing circuit data, minimally at least the circuit_id
+  hashref containing circuit data, minimally at least the circuit_id
 
 =back
 
 =cut
 
-sub get_notification_data {
+  sub get_notification_data {
 
-    my $self = shift;
-    my %args = @_;
-    my $db   = $self->{'db'};
+      my $self = shift;
+      my %args = @_;
+      my $db   = $self->{'db'};
+      my $owners = {};
+      my $ckt = $args{'circuit'};
+      my $username;
 
-    my $ckt = $args{'circuit'};
-    my $username;
+      my $user_id;
+      my $details = $db->get_circuit_details( circuit_id => $ckt->{'circuit_id'} );
+      unless ($details) {
+          warn "No circuit details found, returning";
+          return;
+      }
 
-    my $user_id;
-    my $details = $db->get_circuit_details( circuit_id => $ckt->{'circuit_id'} );
-    unless ($details) {
-        warn "No circuit details found, returning";
-        return;
-    }
+      $user_id = $details->{'user_id'};
+      my $clr = $db->generate_clr( circuit_id => $ckt->{'circuit_id'} );
+      unless ($clr) {
+          warn "No CLR for $ckt->{'circuit_id'} ?";
+      }
 
-    $user_id = $details->{'user_id'};
-    my $clr = $db->generate_clr( circuit_id => $ckt->{'circuit_id'} );
-    unless ($clr) {
-        warn "No CLR for $ckt->{'circuit_id'} ?";
-    }
+      my $email_address;
 
-    my $email_address;
+      my $workgroup_members = $db->get_users_in_workgroup(
+                                                          workgroup_id => $details->{'workgroup_id'}
+                                                         );
 
-    my $workgroup_members = $db->get_users_in_workgroup(
-           workgroup_id => $details->{'workgroup_id'}
-    );
+      unless ($workgroup_members) {
+          warn "No workgroup members found, returning";
+          return;
+      }
 
-    unless ($workgroup_members) {
-        warn "No workgroup members found, returning";
-        return;
-    }
+      foreach my $member (@$workgroup_members) {
+          if ( $member->{'user_id'} == $user_id ) {
+              $username = $member->{'username'};
+          }
+      }
 
-    foreach my $member (@$workgroup_members) {
-        if ( $member->{'user_id'} == $user_id ) {
-            $username = $member->{'username'};
-        }
-    }
+      foreach my $endpoint ( @{ $details->{'endpoints'} }  ) {
 
-    $details->{'reason'} = $ckt->{'reason'};
-    $details->{'status'} = $ckt->{'status'};
-    $details->{'type'} = $ckt->{'type'};
-    return (
-        {
-            'username'       => $username,
-            'last_modified'  => $details->{'last_edited'},
-            'last_modified_by'=> $details->{'last_modified_by'},
-            'clr'            => $clr,
-            'workgroup'      => $details->{'workgroup'}->{'name'},
-            'workgroup_id'      => $details->{'workgroup_id'},
-            'affected_users' => $workgroup_members,
-            'circuit'        => $details
-        }
-    );
-}
+          my $interface_id = $db->get_interface_id_by_names(node =>$endpoint->{'node'} ,interface => $endpoint->{'interface'} );
+          my $interface = $db->get_interface(interface_id =>$interface_id);
+          my $workgroup_name = $interface->{'workgroup_name'};
+          #if the creator of the circuit is the same as the owner of the
+          #edge port we won't document them here, and if we already have the workgroup, skip it.
+          if ($interface->{'workgroup_id'} == $details->{'workgroup_id'} || $owners->{ $interface->{'workgroup_id'} } ) {
+              next;
+          }
+          $owners->{ $workgroup_name } = {};
+          $owners->{ $workgroup_name }{'workgroup_id'} = $interface->{'workgroup_id'};
+
+          my $owner_workgroup_members = $db->get_users_in_workgroup(
+                                                                    workgroup_id => $interface->{'workgroup_id'}
+                                                                   );
+          $owners->{ $workgroup_name }{'affected_users'} = $owner_workgroup_members;
+      }
+
+
+
+      $details->{'reason'} = $ckt->{'reason'};
+      $details->{'status'} = $ckt->{'status'};
+      $details->{'type'} = $ckt->{'type'};
+      return (
+              {
+               'username'       => $username,
+               'last_modified'  => $details->{'last_edited'},
+               'last_modified_by'=> $details->{'last_modified_by'},
+               'clr'            => $clr,
+               'endpoint_owners' => $owners,
+               'workgroup'      => $details->{'workgroup'}->{'name'},
+               'workgroup_id'      => $details->{'workgroup_id'},
+               'affected_users' => $workgroup_members,
+               'circuit'        => $details
+              }
+             );
+  }
 
 =head2 C<_send_notification>
 
