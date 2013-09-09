@@ -5,7 +5,7 @@
 ##----- $Id$
 ##----- $Date$
 ##----- $LastChangedBy$
-##----- 
+##-----
 ##----- Does shortest path calculations for the UI
 ##----------------------------------------------------------------------
 ##
@@ -13,7 +13,7 @@
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
-##   You may obtain a copy of the License at    
+##   You may obtain a copy of the License at
 ##
 ##       http://www.apache.org/licenses/LICENSE-2.0
 ##   Unless required by applicable law or agreed to in writing, software
@@ -22,7 +22,7 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 #
-                                   
+
 use strict;
 use warnings;
 
@@ -76,7 +76,7 @@ example:
 
 =head1 Protected Methods
 
-=head2 _set_error 
+=head2 _set_error
 
 Protected method used to document the point and reason an error occured
 
@@ -120,7 +120,7 @@ Creates a new OESS-topology Object
 
 sub new {
     my $class = shift;
-    
+
     my %args = (
 	config              => "/etc/oess/database.xml",
 	dbname              => undef,
@@ -130,10 +130,10 @@ sub new {
 	wg		    => undef,
 	@_,
         );
-    
-    my $self = \%args;       
+
+    my $self = \%args;
     bless($self,$class);
-    
+
     if (! defined $self->{'db'}){
 	my $db = OESS::Database->new(config => $args{'config'},
 	                             topo   => $self
@@ -145,7 +145,7 @@ sub new {
 
 	$self->{'db'}  = $db;
     }
-       
+
     return $self;
 }
 
@@ -178,12 +178,12 @@ sub path_is_loop_free{
 	$self->_set_error("Path has a loop!");
 	return 0;
     }
-    return 1;    
+    return 1;
 }
 
 =head2 all_endpoints_connected_in_path
 
-    checks to see if all the endpoints are connected 
+    checks to see if all the endpoints are connected
     by the given path
 
 =cut
@@ -227,7 +227,7 @@ sub all_endpoints_connected_in_path {
 
 
 =head2 validate_paths
-    
+
     for now this assumes the path we want to validate
     is part of a circuit record
 
@@ -246,17 +246,17 @@ sub validate_paths{
     my $res = $self->{'db'}->get_circuit_details(circuit_id=>$args{'circuit_id'});
 
     if(defined $res->{'links'}){
-	
+
 	if (! $self->path_is_loop_free($res->{'links'})){
 	    $self->_set_error("Primary path contains a loop");
 	    return (0,"Primary path contains a loop.");
 	}
-	
+
 	if (! $self->all_endpoints_connected_in_path($res->{'links'}, $res->{'endpoints'})){
 	    $self->_set_error("Primary path does not connect all endpoints.");
 	    return (0,"Primary path does not connect all endpoints.");
 	}
-	
+
     }
 
     if(defined $res->{'backup_links'}){
@@ -295,25 +295,25 @@ sub find_path{
     my %args = 	@_;
 
     my @selected_links = ();
-    
-    
-    my $reserved_bw = $args{'reserved_bw'};     
+
+
+    my $reserved_bw = $args{'reserved_bw'};
     if(!defined($reserved_bw)){
 	$reserved_bw = 0;
     }
 
     my $nodes = $args{'nodes'};
     my $try_avoid = $args{'used_links'};
-    
+
     my $db = $self->get_database();
-    my $g = Graph::Undirected->new;     
-        
+    my $g = Graph::Undirected->new;
+
     #now the acutal implementation, step0 sanity
     if(scalar(@$nodes) < 2){
 	$self->_set_error("Not enough nodes specified in find path: " . join(",",@$nodes));
         return undef;
     }
-    
+
     #step1 (get nodes);
     my @tmp = @{$db->get_current_nodes()};
 
@@ -323,10 +323,10 @@ sub find_path{
     }
 
     if(DEBUG > 2){
-	warn "db_nodes=".join(",",@db_nodes)."\n"; 
+	warn "db_nodes=".join(",",@db_nodes)."\n";
     }
-    
-    #Sanity check2 make sure the nodes are a subset of the nodes on the db    
+
+    #Sanity check2 make sure the nodes are a subset of the nodes on the db
     my $db_node_set    =Set::Scalar->new(@db_nodes);
     my $input_node_set =Set::Scalar->new(@$nodes);
 
@@ -346,58 +346,58 @@ sub find_path{
     #now put the edges in the graph
     #I am assuming there are NO repeated links between cities right now!
     my $links = $db->get_edge_links($reserved_bw);
-    
+
     my %edge;
     my $used_link_set=Set::Scalar->new(@$try_avoid);
-   
-    #--- determine the max weight 
+
+    #--- determine the max weight
     #used as a baseline to start the primary path weights at
-    #when trying to determine the backup bath. 
+    #when trying to determine the backup bath.
     my @weights;
     foreach my $link (@$links){ push(@weights, $link->{'metric'}); }
     my $max_weight = (sort { $b <=> $a } @weights)[0];
-    
+
     foreach my $link (@$links){
 	#add every link as an edge in our graph
         my $current_reserved_bandwidth = $link->{'reserved_bw_mbps'};
-	
+
         #--- determine how much capacity will be left on this link after our requested circuit runs through it
 	my $capacity_left = $link->{'link_capacity'} * 1.0 - $current_reserved_bandwidth - $reserved_bw;
         #--- if the remaining capacity is less than zero we can't use this link so don't add it to the graph
         next if($capacity_left < 0);
-	
-	
+
+
 	$g->add_edge($link->{'node_a_name'},$link->{'node_b_name'});
 	$g->set_edge_attribute($link->{'node_a_name'},$link->{'node_b_name'},"name",$link->{'name'});
-	
+
 	if (not defined $reserved_bw){
             $reserved_bw=0;
 	}
 	my $edge_weight = $link->{'metric'};
-        #if the link is in our used list add the maximum weight 
+        #if the link is in our used list add the maximum weight
         #to its weight to ensure it's chose only as a last resort
 	if($used_link_set->has($link->{'name'})){
             #add one to the max weight in case the max weight is the same as this edges' weight
 	    $edge_weight= $edge_weight + ($max_weight + 1);
 	}
-	
+
 	$g->set_edge_attribute($link->{'node_a_name'},$link->{'node_b_name'},"weight",$edge_weight);
 	warn "Edge: " . $link->{'node_a_name'} . "<->" . $link->{'node_b_name'} . " = " . $edge_weight . "\n";
 
 	$edge{$link->{'node_a_name'}}{$link->{'node_b_name'}}{'name'}=$link->{'name'};
-	
+
         # adjust max weight if this links weight is higher
-        #$max_weight = $link->{'metric'} if($link->{'metric'} > $max_weight);	
+        #$max_weight = $link->{'metric'} if($link->{'metric'} > $max_weight);
     }
-    
+
     #run Dijkstra on our graph
     my $graph = $g->SPT_Dijkstra($nodes->[0]);
-    
+
     if(DEBUG > 2){
 	warn "after SPT Calculation\n";
     }
-    
-    my @link_list = ();  
+
+    my @link_list = ();
     foreach my $node_a_name (@$nodes){
 	foreach my $node_b_name (@$nodes){
 	    next if $node_a_name eq $node_b_name;
@@ -427,18 +427,18 @@ sub find_path{
 	    }
 	}
     }
-    
+
     if(DEBUG>=2){
 	warn "link_list=".join(",",@link_list);
     }
     @selected_links=uniq(@link_list);
     if(DEBUG>=2){
-	warn "selected_links=".join(",",@selected_links); 
+	warn "selected_links=".join(",",@selected_links);
     }
-    
-    
+
+
     return \@selected_links;
-    
+
 }
 
 sub is_path_up{
@@ -448,7 +448,7 @@ sub is_path_up{
     my $path = $args{'path_id'};
 
     if(!defined($path)){
-	
+
 	return ;
     }
 
@@ -467,34 +467,35 @@ sub is_path_up{
     }else{
 
 	my $links = $self->{'db'}->get_current_links();
-	
-	my %down_links;
-	my %unknown_links;
+
+
 	foreach my $link (@$links){
-	    warn "Link: " . $link->{'name'} . " status: " . $link->{'status'} . "\n";
-	    if( $link->{'status'} eq 'down'){
-		$down_links{$link->{'name'}} = $link;
+
+
+        if( $link->{'status'} eq 'down'){
+            $down_links{$link->{'name'}} = $link;
 	    }elsif($link->{'status'} eq 'unknown'){
-		$unknown_links{$link->{'name'}} = $link;
+            $unknown_links{$link->{'name'}} = $link;
 	    }
+
 	}
-	
+
     }
-    
+
     my $path_links = $self->{'db'}->get_path_links( path_id => $path );
 
-    
+
     foreach my $link (@$path_links){
-	if($down_links{$link->{'name'}}){
-	    return 0;
-	}elsif($unknown_links{$link->{'name'}}){
-	    return 2;
-	}
+
+        if( $down_links{ $link->{'name'} } ){
+            return 0;
+        }elsif($unknown_links{$link->{'name'}}){
+            return 2;
+        }
     }
- 
+
     return 1;
 }
 
 
 1;
-
