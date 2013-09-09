@@ -52,11 +52,34 @@ function Cookie(){
 
                             }
 
-                          )
+                          );
 
         }
         if (location.href.match(/action=view_details/ && circuit_id) ) {
             this.data.circuit_id= circuit_id;
+
+            if(workgroup_id){
+                this.data.workgroup_id = workgroup_id;
+                ds.sendRequest("",
+                               {
+                                   success: function(req, resp){
+                                       for (var i =0; i < resp.results.length; i++){
+                                           if(resp.results[i].workgroup_id == workgroup_id){
+                                               this.data.workgroup_name = resp.results[i].name;
+                                               YAHOO.util.Dom.get("active_workgroup_name").innerHTML = this.data.workgroup_name;
+                                               break;
+                                           }
+                                       }
+
+                                   },
+                                   scope: this
+
+                               }
+
+                              );
+
+            }
+
         }
 
         if (this.data){
