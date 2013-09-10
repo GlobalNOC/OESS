@@ -26,7 +26,7 @@ my $res = $db->get_workgroup_interfaces();
 ok(!defined($res), "No value returned when no workgroup_id specified");
 
 my $error = $db->get_error();
-ok(!defined($error), "No Params were passed and we got an error back");
+is($error, 'Must pass in a workgroup_id.', "No Params were passed and we got an error back");
 
 $res = $db->get_workgroup_interfaces( workgroup_id => 1 );
 ok(defined($res), "Found workgroup acls");

@@ -25,7 +25,7 @@ my $db = OESS::Database->new(config => OESSDatabaseTester::getConfigFilePath());
 my $acl_id = $db->update_acl(
     interface_acl_id => 3, 
     user_id          => 11,
-    workgroup_id     => 51,
+    workgroup_id     => 61,
     interface_id     => 45811,
     allow_deny       => 'allow',
     eval_position    => 10,
@@ -39,7 +39,7 @@ is($db->get_error(),'vlan_end can not be less than vlan_start','correct error');
 $acl_id = $db->update_acl(
     interface_acl_id => 3, 
     user_id          => 11,
-    workgroup_id     => 51,
+    workgroup_id     => 61,
     interface_id     => 45811,
     allow_deny       => 'allow',
     eval_position    => 10,
@@ -67,7 +67,7 @@ is($db->get_error(),'Access Denied','correct error');
 $acl_id = $db->update_acl(
     interface_acl_id => 3, 
     user_id          => 11,
-    workgroup_id     => 51,
+    workgroup_id     => 61,
     interface_id     => 45811,
     allow_deny       => 'allow',
     eval_position    => 10,
@@ -83,7 +83,7 @@ my $acl = $acls->[0];
 
 is($acl->{'vlan_end'},210,'vlan_end ok');
 is($acl->{'vlan_start'},200,'vlan_start ok');
-is($acl->{'workgroup_id'},51,'workgroup_id ok');
+is($acl->{'workgroup_id'},61,'workgroup_id ok');
 is($acl->{'interface_id'},45811,'interface_id ok');
 is($acl->{'interface_acl_id'},3,'interface_acl_id ok');
 is($acl->{'eval_position'},10,'eval_position ok');
@@ -94,7 +94,7 @@ is($acl->{'notes'},undef,'notes ok');
 $acl_id = $db->update_acl(
     interface_acl_id  => 3, 
     user_id           => 11,
-    workgroup_id      => 51,
+    workgroup_id      => 61,
     interface_id      => 45811,
     allow_deny        => 'allow',
     eval_position     => 30,
@@ -117,7 +117,7 @@ is($acls->[5]{'interface_acl_id'},8, 'correct order');
 $acl_id = $db->update_acl(
     interface_acl_id  => 7,
     user_id           => 11,
-    workgroup_id      => 51,
+    workgroup_id      => 61,
     interface_id      => 45811,
     allow_deny        => 'allow',
     eval_position     => 10,

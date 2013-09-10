@@ -812,10 +812,28 @@ sub get_user_admin_status{
 	my $self = shift;
 	my %args = @_;
 	my $username = $args{'username'};
+	my $user_id  = $args{'user_id'};
 
-	my $query = "select a.auth_name, 1 as is_admin from user u join remote_auth a on (u.user_id = a.user_id) join user_workgroup_membership m on (u.user_id = m.user_id) join workgroup w on (m.workgroup_id = w.workgroup_id) where w.type='admin' and a.auth_name = ? limit 1";
+    if(!defined($username) && !defined($user_id)){
+	    $self->_set_error("user_id or username must be defined");
+        return []; 
+    }
 
-	return $self->_execute_query($query,[$username]);
+	my $query = "select a.auth_name, 1 as is_admin ";
+    $query   .= "from user u ";
+    $query   .= "join remote_auth a on (u.user_id = a.user_id) ";
+    $query   .= "join user_workgroup_membership m on (u.user_id = m.user_id) ";
+    $query   .= "join workgroup w on (m.workgroup_id = w.workgroup_id) ";
+    $query   .= "where w.type='admin' ";
+    $query   .= "and a.auth_name = ? " if($username);
+    $query   .= "and u.user_id = ? " if($user_id);
+    $query   .= "limit 1";
+
+    my $params = [];
+    push(@$params, $username) if($username);
+    push(@$params, $user_id)  if($user_id);
+
+	return $self->_execute_query($query,$params);
 
 }
 
@@ -1094,13 +1112,13 @@ sub get_node_interfaces {
 
     push(@query_args, $node_name);
 
-    my $query = "select interface.role,interface.vlan_tag_range,interface.port_number,interface.operational_state, interface.name, interface.description, interface.interface_id from interface " .
+    my $query = "select interface.role,interface.vlan_tag_range,interface.port_number,interface.operational_state, interface.name, interface.description, interface.interface_id, interface.workgroup_id from interface " .
 	        " join node on node.name = ? and node.node_id = interface.node_id " .
 		" join interface_instantiation on interface_instantiation.end_epoch = -1 and interface_instantiation.interface_id = interface.interface_id ";
 
     # get all the interfaces that have an acl rule that applies to this workgroup
     # only used if workgroup_id is passed in
-    my $acl_query = "select interface.role, interface.port_number, interface.description,interface.operational_state as operational_state, interface.name as int_name, interface.interface_id, node.name as node_name, node.node_id, interface_acl.vlan_start, interface_acl.vlan_end " .
+    my $acl_query = "select interface.role, interface.port_number, interface.description,interface.operational_state as operational_state, interface.name as int_name, interface.interface_id, node.name as node_name, node.node_id, interface_acl.vlan_start, interface_acl.vlan_end, interface.workgroup_id " .
             " from interface_acl " .
         "  join interface on interface.interface_id = interface_acl.interface_id " .
         "  join interface_instantiation on interface.interface_id = interface_instantiation.interface_id " .
@@ -1159,7 +1177,8 @@ sub get_node_interfaces {
 			        "port_number"    => $available_interface->{'port_number'},
 			        "status"         => $available_interface->{'operational_state'},
 			        "vlan_tag_range" => $vlan_tag_range,
-			        "int_role"       => $available_interface->{'role'}
+			        "int_role"       => $available_interface->{'role'},
+                    "workgroup_id"   => $available_interface->{'workgroup_id'}
 	            });
             }
         }
@@ -1174,7 +1193,8 @@ sub get_node_interfaces {
 			"port_number"    => $row->{'port_number'},
 			"status"         => $row->{'operational_state'},
 			"vlan_tag_range" => $row->{'vlan_tag_range'},
-			"int_role"       => $row->{'role'}
+			"int_role"       => $row->{'role'},
+            "workgroup_id"   => $row->{'workgroup_id'}
 	    });
     }
 
@@ -1770,6 +1790,10 @@ sub get_workgroup_interfaces {
     my %args = @_;
 
     my $workgroup_id = $args{'workgroup_id'};
+    if (!defined $workgroup_id){
+	    $self->_set_error("Must pass in a workgroup_id.");
+	    return;
+    }
 
     if(!defined($workgroup_id)){
 	return;
@@ -2027,6 +2051,11 @@ sub add_acl {
         user_id => $args{'user_id'}
     ) || return;
 
+    if($interface->{'workgroup_id'} == $args{'workgroup_id'}){
+        $self->_set_error("You can not create an acl rule that applies to the owner workgroup");
+        return;
+    }
+
     # check to make sure vlan start and end are valid
     $self->_check_vlan_range(
         vlan_tag_range => $interface->{'vlan_tag_range'},
@@ -2102,6 +2131,11 @@ sub update_acl {
         user_id => $args{'user_id'}
     ) || return;
 
+    if($interface->{'workgroup_id'} == $args{'workgroup_id'}){
+        $self->_set_error("You can not create an acl rule that applies to the owner workgroup");
+        return;
+    }
+    
     # check to make sure vlan start and end are valid
     $self->_check_vlan_range(
         vlan_tag_range => $interface->{'vlan_tag_range'},
@@ -2361,6 +2395,25 @@ sub _authorize_interface_acl {
     my %args = @_;
     my $user_id = $args{'user_id'};
     my $interface_id = $args{'interface_id'};
+
+    # first check if the user is an admin and if they are authorized
+    my $authorization = $self->get_user_admin_status( 'user_id' => $user_id);
+    if ( $authorization->[0]{'is_admin'} == 1 ) {
+        # now make sure the interface exists and return it if so
+        my $result = $self->_execute_query(
+            "select * from interface where interface_id = ?",
+	        [$interface_id],
+	    );
+        if(!defined($result)){
+	        $self->_set_error("Could not retrieve interface information");
+	        return;
+        }
+        if(@$result <= 0) {
+	        $self->_set_error("There is no interface with id: $interface_id");
+            return undef;
+        }
+        return $result->[0];;
+    }
 
     my $workgroups = $self->get_workgroups( user_id => $user_id );
     if(!defined($workgroups)){
