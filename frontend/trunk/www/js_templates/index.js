@@ -15,7 +15,7 @@
     add_user.on('click', function(){
 
 	    var panel = new YAHOO.widget.Panel("request_user_add_p",
-					       {width: 360,
+					       {width: 350,
 						modal: true,
                                                 fixedcenter: true,
                                                 zIndex: 10,
@@ -23,31 +23,49 @@
 					       });
 
             panel.setHeader("Request a User to be added to this Workgroup");
-            panel.setBody("<label for='username' class='soft_title'>Username:</label>" +
-                          "<input id='username' type='text' size='20' style='margin-left: 30px'>" +
-                          "<br><label for='given_name' class='soft_title'>Given Name:</label>" +
-                          "<input id='given_name' type='text' size='20' style='margin-left: 18px'>" +
-			  "<br><label for='family_name' class='soft_title'>Family Name:</label>" +
-			  "<input id='family_name' type='text' size='20' style='margin-left: 12px'>" +
-			  "<br><label for='email_address' class='soft_title'>Email Address:</label>" +
-			  "<input id='email_address' type='text' size='20'>"
-                          );
+            panel.setBody("<div id='user_add_error' style='color:#F00; margin-left:6em;margin-bottom:1em;'> </div>"+
+                           "<div style='margin-bottom:8px;'><label for='username' class='soft_title'>Username:</label>" +
+                          "<input id='username' type='text' size='20' style='float:right;margin-right: 60px;'>" +
+                          "</div><div style='margin-bottom:8px;'><label for='given_name' class='soft_title'>Given Name:</label>" +
+                          "<input id='given_name' type='text' size='20' style='float:right;margin-right: 60px'>" +
+			  "</div><div style='margin-bottom:8px;'><label for='family_name' class='soft_title'>Family Name:</label>" +
+			  "<input id='family_name' type='text' size='20' style='float:right;margin-right: 60px'>" +
+			  "</div><div style='margin-bottom:8px;'><label for='email_address' class='soft_title'>Email Address:</label>" +
+			  "<input id='email_address' type='text' size='20' style='float:right;margin-right: 60px'>" +
+              "</div><div style='margin-bottom:8px;'><label for='phone_number' class='soft_title'>Phone Number:</label>" +
+              "<input id='phone_number' type='text' size='20' style='float:right;margin-right: 60px'> </div>"
+                         );
             panel.setFooter("<div id='send_user_add'></div><div id='cancel_user_add'></div>");
 
             panel.render();
 
+
 	    var send_user_add_button = new YAHOO.widget.Button('send_user_add');
             send_user_add_button.set('label','Send Request');
             send_user_add_button.on('click',function(){
-                    panel.hide();
+
 		    //                    panel.destroy();
 		    var username = document.getElementById('username').value;
 		    var given_name = document.getElementById('given_name').value;
 		    var family_name = document.getElementById('family_name').value;
 		    var email_address = document.getElementById('email_address').value;
+            var phone_number = document.getElementById('phone_number').value;
+
+            if (!username || !given_name || !family_name || !email_address || !phone_number)
+                {
+                    var user_add_error =YAHOO.util.Dom.get('user_add_error');
+                    user_add_error.innerHTML="All Fields Are Required";
+                    return;
+                }
+            else {
+                var user_add_error =YAHOO.util.Dom.get('user_add_error');
+                user_add_error.innerHTML="";
+                panel.hide();
+
+            }
 
 		    var subject = "Please Add User to workgroup " + session.data.workgroup_name  + " (ID=" + session.data.workgroup_id + ")";
-		    var body = "Details: <br><table><tr><td>Username:</td><td>" + username + "</td></tr><tr><td>Given Name:</td><td>" + given_name + "</td></tr><tr><td>Family Name:</td><td>" + family_name + "</td></tr><tr><td>Email Address:</td><td>" + email_address + "</td></tr></table>";
+		    var body = "Details: <br><table><tr><td>Username:</td><td>" + username + "</td></tr><tr><td>Given Name:</td><td>" + given_name + "</td></tr><tr><td>Family Name:</td><td>" + family_name + "</td></tr><tr><td>Email Address:</td><td>" + email_address + "</td><td>Phone Number:</td><td>"+ phone_number + "</td></tr></table>";
 		    subject = encodeURI(subject);
 		    body = encodeURI(body);
 		    var ds = new YAHOO.util.DataSource("services/data.cgi?action=send_email&subject=" + subject + "&body=" + body );
@@ -509,7 +527,7 @@ var ds = new YAHOO.util.DataSource(dsString);
 					   elLiner.innerHTML = "<font color='red'>" + oRec.getData('operational_state') + "</font>";
 				       }
 				   }},
-			       {key: "vlan_tag_range", sortable: true,  label: "VLAN Range", formatter: function(elLiner, oRec, oCol, oData){ 
+			       {key: "vlan_tag_range", sortable: true,  label: "VLAN Range", formatter: function(elLiner, oRec, oCol, oData){
                         var string = oData.replace("-1", "untagged");
 			            elLiner.innerHTML = string;
                    }},
