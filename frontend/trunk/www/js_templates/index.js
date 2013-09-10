@@ -1,4 +1,6 @@
+<script type='text/javascript' src='js_utilities/interface_acl_panel.js'></script>
 <script type='text/javascript' src='js_utilities/datatable_utils.js'></script>
+<script type='text/javascript' src='js_utilities/interface_acl_table.js'></script>
 <script>
 
 
@@ -549,121 +551,26 @@ var ds = new YAHOO.util.DataSource(dsString);
     //---
     //--- Set up Acl stuff
     //---
-    function build_interface_acl_table(interface_id, options){
-        if(interface_acl_table) {
-            interface_acl_table.destroy();
-        }
-        var options = options || {};
-        //if ( typeof(this.destroy) == "function" ){
-        //    this.destroy();
-        //};
-
-        var dsString="services/workgroup_manage.cgi?action=get_acls&interface_id="+interface_id;
-
-        var ds = new YAHOO.util.DataSource(dsString);
-        ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-        ds.responseSchema = {
-        resultsList: "results",
-        fields: [
-            {key: "interface_acl_id", parser: "number"},
-            {key: "workgroup_id", parser: "number"},
-            {key: "workgroup_name"},
-            {key: "interface_id", parser: "number"},
-            {key: "allow_deny"},
-            {key: "eval_position"},
-            {key: "vlan_start"},
-            {key: "vlan_end"},
-            {key: "notes"}
-        ]};
-
-        var columns = [
-            {key: "workgroup_name", label: "Workgroup", width: 180 ,sortable:false, formatter: function(el, rec, col, data){
-                if(data === null) {
-			        el.innerHTML = "All";
-                } else {
-			        el.innerHTML = data;
-                }
-            }},
-            {key: "allow_deny", label: "Permission",sortable:false},
-            {label: "VLAN Range", formatter: function(el, rec, col, data){
-                var vlan_start  = rec.getData('vlan_start');
-                var vlan_end    = rec.getData('vlan_end');
-                if(vlan_start == -1){
-                    vlan_start = 'untagged';
-                }
-                var string = vlan_start;
-                if(vlan_end !== null){
-                    if(vlan_start == "untagged") {
-                        string += ", 1";
+    function build_interface_acl_table(interface_id){
+        interface_acl_table = get_interface_acl_table("interface_acl_table", interface_id, {
+            on_show_edit_panel: function(oArgs){
+                var record = oArgs.record;
+                var interface_id = oArgs.interface_id;
+                get_interface_acl_panel("interface_acl_panel", interface_id, {
+                    modal: true,
+                    fixedcenter: true,
+                    is_edit: true,
+                    record: record,
+                    on_remove_success: function(){
+                        build_interface_acl_table(interface_id);
+                    },
+                    on_add_edit_success: function(oArgs){
+                        var interface_id = oArgs.interface_id;
+                        build_interface_acl_table(interface_id);
                     }
-                    string += "-"+vlan_end;
-                }
-			    el.innerHTML = string;
-            }},
-            {key: "notes", label: "Notes",sortable:false}
-        ];
-
-        //var config = {
-        //    sortedBy: {key:'eval_position', dir:'asc'}
-        //};
-        var config = {};
-
-        $("#interface_acl_container").css('display', 'block');
-
-        var interface_acl_table = new YAHOO.widget.DataTable("interface_acl_table", columns, ds, config);
-
-
-
-        //make drag drop
-        _makeTableDragDrop(interface_acl_table, {
-            url: "services/workgroup_manage.cgi?action=update_acl",
-            position_param: "eval_position",
-            ws_params: [
-                "interface_acl_id",
-                "allow_deny",
-                "vlan_start",
-                "vlan_end",
-                "interface_id",
-                "workgroup_id",
-                "notes"
-            ],
-            fields: ["success"],
-            onSuccess: function(req, resp, index){
-                if(resp.results.length <= 0){
-                    alert("Save Unsuccessful");
-                }
-                var record_id = owned_interface_table.getSelectedRows()[0];
-                var interface_id = owned_interface_table.getRecord(record_id).getData("interface_id");
-                build_interface_acl_table(interface_id, {
-                    enableDragDrop: interface_acl_table._dragDrop
-                });
-            },
-            onFailure: function(req, resp, index) {
-                alert("Save Unsuccessful");
-                var record_id = owned_interface_table.getSelectedRows()[0];
-                var interface_id = owned_interface_table.getRecord(record_id).getData("interface_id");
-                build_interface_acl_table(interface_id, {
-                    enableDragDrop: interface_acl_table._dragDrop
                 });
             }
         });
-
-        if(options.enableDragDrop){
-            interface_acl_table.enableDragDrop();
-        }
-
-        //add editing functionality
-        interface_acl_table.subscribe("rowClickEvent", function(oArgs){
-            if(this._dragDrop){
-                return;
-            }
-            var record = this.getRecord(oArgs.target);
-            show_interface_acl_panel({ is_edit: true, record: record });
-        });
-        interface_acl_table.subscribe("rowMouseoverEvent", interface_acl_table.onEventHighlightRow);
-        interface_acl_table.subscribe("rowMouseoutEvent", interface_acl_table.onEventUnhighlightRow);
-
-        //return owned_interface_table;
         return interface_acl_table;
     }
 
@@ -717,215 +624,26 @@ var ds = new YAHOO.util.DataSource(dsString);
         return owned_interface_table;
     }
 
-    var show_interface_acl_panel = function(options){
-        var options = options || {};
-        var is_edit = options.is_edit || false;
-
-        var panel = new YAHOO.widget.Panel("interface_acl_panel",{
-            width: 360,
-            modal: true,
-            fixedcenter: true,
-            zIndex: 10,
-            draggable: false,
-            close: false
-        });
-
-        if(is_edit){
-            header = "Edit Interface ACL";
-        }else {
-            header = "Add Interface ACL";
-        }
-
-        panel.setHeader(header);
-        panel.setBody(
-            "<label for='acl_panel_workgroup' id='acl_panel_workgroup_label' style='margin-right: 12px' class='soft_title'>Workgroup:</label>" +
-            "<select data-placeholder='Loading Workgroups...' style='width:250px;' class='chzn-select' id='acl_panel_workgroup'></select>" +
-            "<br><br><label for='acl_panel_permission' id='acl_panel_permission_label' style='margin-right: 10px' class='soft_title'>Permission:</label>" +
-            "<select data-placeholder='Select Permission' style='width:250px;' class='chzn-select' id='acl_panel_permission'>" +
-            "<option value></option>" +
-            "<option value='allow'>Allow</option>" +
-            "<option value='deny'>Deny</option>" +
-            "</select>" +
-            "<br><br><label for='acl_panel_vlan_start' class='soft_title'>VLAN Range:</label>" +
-            "<input id='acl_panel_vlan_start' type='text' size='10' style='margin-left: 5px'>" +
-            "<input id='acl_panel_vlan_end' type='text' size='10' style='margin-left: 5px'>" +
-            "<br><br><label for='acl_panel_notes' class='soft_title'>Notes:</label>" +
-            "<textarea id='acl_panel_notes' rows='4' cols='35' style='margin-left: 12px'>"
-        );
-        panel.setFooter("<div id='save_acl_panel'></div><div id='remove_acl_panel'></div><div id='cancel_acl_panel'></div>");
-        panel.render();
-
-        //set the values of all the inputs
-        if(is_edit){
-            var rec = options.record;
-            $('#acl_panel_permission').val( rec.getData("allow_deny") )
-            $('#acl_panel_vlan_start').val( rec.getData("vlan_start") );
-            $('#acl_panel_vlan_end').val( rec.getData("vlan_end") );
-            $('#acl_panel_notes').val( rec.getData("notes") );
-        }
-
-	    $('.chzn-select').chosen({search_contains: true});
-        //disable the workgroup selector until the workgroups are fetched
-        $("#acl_panel_workgroup").attr('disabled', true).trigger("liszt:updated");
-
-        //set up save button
-        var save_acl_button = new YAHOO.widget.Button('save_acl_panel');
-        save_acl_button.set('label','Save');
-        //disable the button until the workgroups have come back when editing
-        if(is_edit){
-            save_acl_button.set('disabled', true);
-        }
-        save_acl_button.on('click',function(){
-            panel.hide();
-
-            //get values
-            var workgroup_id = $("#acl_panel_workgroup").chosen().val()
-            var allow_deny   = $("#acl_panel_permission").chosen().val()
-            var vlan_start   = $("#acl_panel_vlan_start").val();
-            var vlan_end     = $("#acl_panel_vlan_end").val();
-            var notes        = $("#acl_panel_notes").val();
-
-            var url = "services/workgroup_manage.cgi?action=";
-            var record_id = owned_interface_table.getSelectedRows()[0];
-            var interface_id = owned_interface_table.getRecord(record_id).getData("interface_id");
-            //determine which action and special params to send
-            if(is_edit){
-                var rec = options.record;
-                url += "update_acl";
-                url += "&interface_acl_id="+rec.getData("interface_acl_id");
-                url += "&eval_position="+rec.getData("eval_position");
-                //TODO add interface_acl_id
-            }else {
-                url += "add_acl";
-            }
-
-            //required
-            url += "&allow_deny="+allow_deny;
-            url += "&vlan_start="+vlan_start;
-            url += "&interface_id="+interface_id;
-
-            //optional
-            if(workgroup_id) {url += "&workgroup_id="+workgroup_id;}
-            if(notes)        {url += "&notes="+notes;}
-            if(vlan_end)     {url += "&vlan_end="+vlan_end;}
-
-            var ds = new YAHOO.util.DataSource(url);
-            ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-            ds.responseSchema = {
-                resultsList: "results",
-                fields: [
-                    "success",
-                    "error"
-                ],
-                metaFields: {
-                    error: "error"
-                }
-            };
-
-            ds.sendRequest("",{
-                success: function(req, resp){
-                    if(!resp.results.length || !resp.results[0].success){
-                        alert("Error saving acl data: "+resp.meta.error);
-                    }else {
-                        build_interface_acl_table(interface_id);
-                    }
-                },
-                failure: function(req, resp){
-                    throw "Error saving acl data";
-                },
-                scope: this
-            },ds);
-        });
-
-        //set up cancel button
-        var cancel_acl_panel_button = new YAHOO.widget.Button('cancel_acl_panel');
-        cancel_acl_panel_button.set('label','Cancel');
-        cancel_acl_panel_button.on('click',function(){
-            panel.hide();
-        });
-
-        //setup remove button if it is an edit
-        if(is_edit){
-            var remove_acl_button = new YAHOO.widget.Button('remove_acl_panel');
-            remove_acl_button.set('label','Remove');
-            remove_acl_button.on('click',function(){
-
-                var url = "services/workgroup_manage.cgi?action=remove_acl";
-                url += "&interface_acl_id="+rec.getData("interface_acl_id");
-
-                var ds = new YAHOO.util.DataSource(url);
-                ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-                ds.responseSchema = {
-                    resultsList: "results",
-                    fields: ["success"]
-                };
-
-                ds.sendRequest("",{
-                    success: function(req, resp){
-                        if(resp.results.length <= 0){
-                            alert("Error removing acl data");
-                        }else {
-                            panel.hide();
-                            var record_id = owned_interface_table.getSelectedRows()[0];
-                            var interface_id = owned_interface_table.getRecord(record_id).getData("interface_id");
-                            build_interface_acl_table(interface_id);
-                        }
-                    },
-                    failure: function(req, resp){
-                        alert("Error removing acl data");
-                    },
-                    scope: this
-                },ds);
-            });
-        }else {
-            $('#remove_acl_panel').css('display', 'none');
-        }
-
-        //fetch workgroups
-        var workgroup_ds = new YAHOO.util.DataSource("services/workgroup_manage.cgi?action=get_all_workgroups");
-        workgroup_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-        workgroup_ds.responseSchema = {
-            resultsList: "results",
-            fields: [
-                {key: "workgroup_id", parser:"number"},
-                {key: "name" }
-            ],
-            metaFields: {
-                error: "error"
-            }
-        };
-        workgroup_ds.sendRequest("",{
-            success: function(req, resp){
-                $('#acl_panel_workgroup').append("<option value>All</option>");
-                for( var i = 0; i < resp.results.length; i++ ){
-                    var id   = resp.results[i].workgroup_id;
-                    var name = resp.results[i].name;
-                    var option = "<option value='"+id+"'>"+name+"</option>";
-                    $('#acl_panel_workgroup').append(option);
-                }
-                //select proper value and enabled save button if its an edit
-                if(is_edit){
-                    save_acl_button.set('disabled', false);
-                    $('#acl_panel_workgroup').val( rec.getData("workgroup_id") )
-                }
-                //enable and update
-                $("#acl_panel_workgroup").attr('data-placeholder', 'Select Workgroup');
-                $("#acl_panel_workgroup").attr('disabled', false).trigger("liszt:updated");
-
-            },
-            failure: function(req, resp){
-                throw("Error: fetching selections");
-            },
-            scope: this
-        });
-
-    };
-
     var owned_interface_table = build_owned_interface_table();
 
     var add_interface_acl = new YAHOO.util.Element('add_interface_acl');
     add_interface_acl.on('click', function(){
-        show_interface_acl_panel({is_edit: false});
+        var record_id = owned_interface_table.getSelectedRows()[0];
+        var interface_id = owned_interface_table.getRecord(record_id).getData("interface_id");
+        get_interface_acl_panel("interface_acl_panel", interface_id, {
+            is_edit: false,
+            modal: true,
+            fixedcenter: true,
+            on_remove_success: function(){
+                var record_id = owned_interface_table.getSelectedRows()[0];
+                var interface_id = owned_interface_table.getRecord(record_id).getData("interface_id");
+                var interface_acl_table = build_interface_acl_table(interface_id);
+            },
+            on_add_edit_success: function(oArgs){
+                var interface_id = oArgs.interface_id;
+                var interface_acl_table = build_interface_acl_table(interface_id);
+            }
+        });
     });
 
 }

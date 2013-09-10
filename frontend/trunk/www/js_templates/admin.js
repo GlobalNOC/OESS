@@ -1,3 +1,6 @@
+<script type='text/javascript' src='../js_utilities/interface_acl_panel.js'></script>
+<script type='text/javascript' src='../js_utilities/datatable_utils.js'></script>
+<script type='text/javascript' src='../js_utilities/interface_acl_table.js'></script>
 <script>
 function admin_init(){
 
@@ -1593,6 +1596,73 @@ function setup_network_tab(){
 	    var barrier_bulk = args[0].barrier_bulk;
 	    var feature = args[0].feature;
 	    var dpid = args[0].dpid;
+      
+        function show_interface_acl_panel(args){
+            var interface_id = args.interface_id;
+            var interface_name = args.interface_name;
+            var acl_panel = new YAHOO.widget.Panel("interface_acl_view_panel",{
+                width: 700,
+                centered: true,
+                draggable: true
+            });
+
+            acl_panel.setHeader("ACL Rules for: "+interface_name);
+            acl_panel.setBody(
+                "<div id='interface_acl_table_container'>" +
+                    "<a href='#add_acl'><div id='add_interface_acl'>Add Interface ACL</div></a>" +
+                    "<div id='interface_acl_table'></div>" +
+                "</div>"
+            );
+
+            function build_interface_acl_table(interface_id){
+                interface_acl_table = get_interface_acl_table("interface_acl_table", interface_id, {
+                    url_prefix: "../",
+                    on_show_edit_panel: function(oArgs){
+                        var record = oArgs.record;
+                        var interface_id = oArgs.interface_id;
+                        get_interface_acl_panel("interface_acl_panel", interface_id, {
+                            render_location: YAHOO.util.Dom.get("active_element_details"),  
+                            url_prefix: "../",
+                            is_edit: true,
+                            record: record,
+                            on_remove_success: function(){
+                                build_interface_acl_table(interface_id);
+                            },
+                            on_add_edit_success: function(oArgs){
+                                var interface_id = oArgs.interface_id;
+                                build_interface_acl_table(interface_id);
+                            }
+                        });
+                    }
+                });
+            
+                return interface_acl_table;
+            }
+
+
+            acl_panel.hideEvent.subscribe(function(o) {
+                setTimeout(function() {acl_panel.destroy();}, 0);
+            });
+
+            //panel.setFooter("<div id='cancel_interface_acl_panel'></div>");
+            acl_panel.render(YAHOO.util.Dom.get("active_element_details"));
+            var add_interface_acl = new YAHOO.util.Element('add_interface_acl');
+            add_interface_acl.on('click', function(){
+                get_interface_acl_panel("interface_acl_panel", interface_id, {
+                    render_location: YAHOO.util.Dom.get("active_element_details"),  
+                    url_prefix: "../",
+                    is_edit: false,
+                    on_remove_success: function(){
+                        var interface_acl_table = build_interface_acl_table(interface_id);
+                    },
+                    on_add_edit_success: function(oArgs){
+                        //var interface_id = oArgs.interface_id;
+                        var interface_acl_table = build_interface_acl_table(interface_id);
+                    }
+                });
+            });
+            build_interface_acl_table(interface_id);
+        }
        
         var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_node_interfaces&show_down=1&show_trunk=1&node="+encodeURIComponent(node) );
                 
@@ -1604,6 +1674,7 @@ function setup_network_tab(){
 		    {key: "description"},
 		    {key: "vlan_tag_range"},
 		    {key: "interface_id", parser: "number"},
+		    {key: "workgroup_id", parser: "number"},
 		    {key: "int_role"}
 				 ],
 			metaFields: {
@@ -1664,8 +1735,24 @@ function setup_network_tab(){
 										
 										);
 					    }
-					} )}
-				
+					} )},
+                    {label: "ACL Info", formatter: function(el, rec, col, data){
+                        var interface_id   = rec.getData("interface_id");
+                        var interface_name = rec.getData("name");
+                        var workgroup_id   = rec.getData("workgroup_id");
+                        var b = new YAHOO.widget.Button({label: "View ACLs"});
+                        b.appendTo(el);
+                        b.on("click", function(){
+                            if(workgroup_id == null) {
+                                alert("You must first add a workgroup as the owner of this interface");
+                            }else {
+                                show_interface_acl_panel({
+                                    interface_id: interface_id,
+                                    interface_name: interface_name
+                                });
+                            }
+                        });
+                    }}
 				];
 		    
 		    

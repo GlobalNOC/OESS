@@ -158,7 +158,6 @@ sub main {
 	    $output = &get_circuits_on_interface();
 	}case "edit_workgroup"{
 	    $output = &edit_workgroup();
-	}
 	}case "get_topology"{
 	    $output = &gen_topology();
 	}
