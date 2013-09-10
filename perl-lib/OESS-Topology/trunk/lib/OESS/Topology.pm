@@ -34,7 +34,7 @@ use Graph::Directed;
 use List::MoreUtils qw{uniq};
 use Data::Dumper;
 
-use constant DEBUG => 2;
+use constant DEBUG => 0;
 
 #link statuses
 use constant OESS_LINK_UP       => 1;

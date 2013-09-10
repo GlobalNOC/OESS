@@ -52,3 +52,9 @@ $path = $topo->find_path(
                );
 ok($path, "find_path() ran succesfully");
 is_deeply($path,['Link 171','Link 151','Link 61','Link 91','Link 81']);
+
+$return = $db->update_link(
+                              link_id => 191,
+                              metric  => 0,
+                              name => 'Link 191'
+                             );
