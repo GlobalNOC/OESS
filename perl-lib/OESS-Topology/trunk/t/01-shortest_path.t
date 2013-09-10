@@ -25,8 +25,8 @@ ok(defined($db));
 
 my $config_file  = "$cwd/conf/database.xml";
 
-my $topo = OESS::Topology->new( 
-    config_file => $config_file,
+my $topo = OESS::Topology->new(
+    config => $config_file,
 );
 
 ok(defined($topo), "Topology object succesfully instantiated");
@@ -39,10 +39,10 @@ ok($path, "find_path() ran succesfully");
 is_deeply($path,['Link 181', 'Link 191']);
 
 # Change metric of link in middle of previous path and verfiy it takes the longer route now
-my $return = $db->update_link( 
+my $return = $db->update_link(
     link_id => 191,
     metric  => 10,
-    name => 'Link 191' 
+    name => 'Link 191'
 );
 
 ok($return, "Link 191 sucessfully updated");
