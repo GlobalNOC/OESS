@@ -175,12 +175,12 @@ function MeasurementGraph(container, legend_container, options){
 			 name: name
 	    };
 
-	    if (name == "Input (bps)"){
+	    if (name == "Input (Bps)"){
 		setup["lines"] = {fill: .6};
 		setup["color"] = "#00FF00";
 	    }
 
-	    if (name == "Output (bps)"){
+	    if (name == "Output (Bps)"){
 		setup["color"] = "#0000FF";
 	    }
 

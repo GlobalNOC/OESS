@@ -6,23 +6,23 @@
 ##----- $Date$
 ##----- $LastChangedBy$
 ##-----
-##----- Provides object oriented methods to interact with the DBus test             
+##----- Provides object oriented methods to interact with the DBus test
 ##----------------------------------------------------------------------
-##                                                                                       
-## Copyright 2011 Trustees of Indiana University                                         
-##                                                                                       
-##   Licensed under the Apache License, Version 2.0 (the "License");                     
-##  you may not use this file except in compliance with the License.                     
-##   You may obtain a copy of the License at                                             
-##                                                                                       
-##       http://www.apache.org/licenses/LICENSE-2.0                                      
-##                                                                                       
-##   Unless required by applicable law or agreed to in writing, software                 
-##   distributed under the License is distributed on an "AS IS" BASIS,                   
-##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.            
-##   See the License for the specific language governing permissions and                 
-##   limitations under the License.                                                      
-#                                                 
+##
+## Copyright 2011 Trustees of Indiana University
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##  you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+#
 
 
 package OESS::Measurement;
@@ -60,8 +60,8 @@ sub new{
 	config => $db->get_snapp_config_location(),
 	@_
 	);
-    
-    
+
+
     my $self = \%args;
     bless $self,$class;
 
@@ -74,17 +74,17 @@ sub new{
     my $password = $config->{'db'}->{'password'};
     my $database = $config->{'db'}->{'name'};
     my $dbh = DBI->connect("DBI:mysql:$database", $username, $password);
-    
+
     $self->{'dbh'} = $dbh;
-    
+
     return $self;
-    
+
 }
 
 sub _set_error {
     my $self = shift;
     my $error = shift;
-    
+
     $self->{'error'} = $error;
 }
 
@@ -130,75 +130,74 @@ sub get_circuit_data{
     if(my $row = $sth->fetchrow_hashref()){
         $rrd_dir = $row->{'value'};
     }
-    
+
     my $circuit_details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
 
     my @interfaces;
-    
+
     my $internal_ids = $circuit_details->{'internal_ids'};
 
     foreach my $link (@{$circuit_details->{'links'}}){
-	my $node_a = $link->{'node_a'};
-	my $node_z = $link->{'node_z'};
+        my $node_a = $link->{'node_a'};
+        my $node_z = $link->{'node_z'};
 
-	push(@interfaces,{node => $node_a,
-			  int => $link->{'interface_a'},
-			  port_no => $link->{'port_no_a'},
-			  tag => $internal_ids->{'primary'}{$node_a}});
-	push(@interfaces,{node => $node_z,
-			  int => $link->{'interface_z'},
-			  port_no => $link->{'port_no_z'},
-			  tag => $internal_ids->{'primary'}{$node_z}});
-	
+        push(@interfaces,{node => $node_a,
+                          int => $link->{'interface_a'},
+                          port_no => $link->{'port_no_a'},
+                          tag => $internal_ids->{'primary'}{$node_a}});
+        push(@interfaces,{node => $node_z,
+                          int => $link->{'interface_z'},
+                          port_no => $link->{'port_no_z'},
+                          tag => $internal_ids->{'primary'}{$node_z}});
+
     }
 
     foreach my $link (@{$circuit_details->{'backup_links'}}){
-	my $node_a = $link->{'node_a'};
-	my $node_z = $link->{'node_z'};
-	push(@interfaces,{node => $node_a,
+        my $node_a = $link->{'node_a'};
+        my $node_z = $link->{'node_z'};
+        push(@interfaces,{node => $node_a,
                           int => $link->{'interface_a'},
-			  port_no => $link->{'port_no_a'},
+                          port_no => $link->{'port_no_a'},
                           tag => $internal_ids->{'backup'}{$node_a}});
-	push(@interfaces,{node => $node_z,
-			  int => $link->{'interface_z'},
-			  port_no => $link->{'port_no_z'},
-			  tag => $internal_ids->{'backup'}{$node_z}});
+        push(@interfaces,{node => $node_z,
+                          int => $link->{'interface_z'},
+                          port_no => $link->{'port_no_z'},
+                          tag => $internal_ids->{'backup'}{$node_z}});
     }
 
     my %endpoint;
     foreach my $endpoint (@{$circuit_details->{'endpoints'}}){
-	push(@interfaces,{node => $endpoint->{'node'},
-			  int => $endpoint->{'interface'},
-			  port_no => $endpoint->{'port_no'},
-			  tag => $endpoint->{'tag'}});
+        push(@interfaces,{node => $endpoint->{'node'},
+                          int => $endpoint->{'interface'},
+                          port_no => $endpoint->{'port_no'},
+                          tag => $endpoint->{'tag'}});
     }
 
-    
+
     #ok we pushed all interfaces into a big array
     #now pull out all the ones on our selected node... and if its the selected selected it
     my $selected;
     my @interfaces_on_node;
-    
+
     if(!defined($node)){
-	$node = $interfaces[0]->{'node'};
+        $node = $interfaces[0]->{'node'};
     }
 
     foreach my $int (@interfaces){
-	if($int->{'node'} eq $node){
-	    if((!defined($interface) && !defined($selected)) || $int->{'int'} eq $interface){
-		$selected = $int;
-	    }else{
-		push(@interfaces_on_node,$int);
-	    }  
-	}
+        if($int->{'node'} eq $node){
+            if( ( !defined($interface) && !defined($selected) ) || $int->{'int'} eq $interface){
+                $selected = $int;
+            }else{
+                push(@interfaces_on_node,$int);
+            }
+        }
     }
-    
+
     #now we have selected an interface and have a list of all the other interfaces on that node
     #generate our data
     return $self->get_data( interface => $selected, other_ints => \@interfaces_on_node, start_time => $start, end_time => $end);
 
 }
-
 
 
 =head2 get_circuit_data
@@ -207,6 +206,7 @@ sub get_circuit_data{
           end_time => the end time to get data for (optional, if not defined is set to NOW)
 
   return RRD Data
+
 =cut
 
 sub get_data{
@@ -219,13 +219,13 @@ sub get_data{
     my $end        = $params{'end'};
 
     if(!defined $start){
-	$self->_set_error("start_time is required and should be in epoch time");
+        $self->_set_error("start_time is required and should be in epoch time");
 	return undef;
     }
 
     # assume we mean "start to now"
     if(!defined $end){
-	$end = time;
+        $end = time;
     }
 
     #find the base RRD dir
@@ -238,38 +238,38 @@ sub get_data{
     }
 
     my $node = $self->{'db'}->get_node_by_name( name => $selected->{'node'});
-    warn Dumper($node);
+    #warn Dumper($node);
     #get all the host details for the interfaces host
     my $host = $self->get_host_by_external_id($node->{'node_id'});
-    
+
     #find the collections RRD file in SNAPP
     my $collection = $self->_find_rrd_file_by_host_int_and_vlan($host->{'host_id'},$selected->{'port_no'},$selected->{'tag'});
 
     if(defined($collection)){
-	
+
 	my $rrd_file = $rrd_dir . $collection->{'rrdfile'};
 	my $data;
-        my $input  = $self->get_rrd_file_data( file => $rrd_file, start_time => $start, end_time => $end);
-        
-        push(@{$data},{name => 'Input (Bps)',
-                       data => $input});
+    my $input  = $self->get_rrd_file_data( file => $rrd_file, start_time => $start, end_time => $end);
 
-        my $output_agg;
+    push(@{$data},{name => 'Input (Bps)',
+                   data => $input});
+
+    my $output_agg;
         foreach my $other_int (@$other_ints){
             my $other_collection = $self->_find_rrd_file_by_host_int_and_vlan($host->{'host_id'},$other_int->{'port_no'},$other_int->{'tag'});
             if(defined($other_collection)){
                 my $other_rrd_file = $rrd_dir . $collection->{'rrdfile'};
-                            
+
                 my $output = $self->get_rrd_file_data( file => $other_rrd_file, start_time => $start, end_time => $end);
                 $output_agg = aggregate_data($output_agg,$output);
             }
         }
-        
+
         push(@{$data},{name => 'Output (Bps)',
                        data => $output_agg});
-                
-        
-        
+
+
+
         my @all_interfaces;
 	foreach my $int (@$other_ints){
 	    push(@all_interfaces, $int->{'int'});
@@ -277,8 +277,8 @@ sub get_data{
 
 	push(@all_interfaces, $selected->{'int'});
 
-	return {"node"       => $selected->{'node'}, 
-		"interface"  => $selected->{'interface'},
+	return {"node"       => $selected->{'node'},
+		"interface"  => $selected->{'int'},
 		"data"       => $data,
 		"interfaces" => \@all_interfaces
 	};
@@ -311,11 +311,11 @@ sub aggregate_data{
 sub find_int_on_path_using_node{
     my $self = shift;
     my %params = @_;
-    
+
     if(!defined($params{'links'})){
 	return;
     }
-    
+
     if(!defined($params{'node'})){
 	return;
     }
@@ -353,7 +353,7 @@ sub _find_rrd_file_by_host_and_int{
     my $self = shift;
     my $host_id = shift;
     my $int_name = shift;
-    
+
     my $query = "select * from collection where host_id = ? and premap_oid_suffix = ?";
     my $sth = $self->{'dbh'}->prepare($query);
     $sth->execute($host_id,"Ethernet" . $int_name);
@@ -375,7 +375,7 @@ sub _find_rrd_file_by_host_int_and_vlan{
     # what we'll need to look for
     if ($vlan eq -1){
         $vlan = 65535;
-    }    
+    }
 
     my $query = "select * from collection where host_id = ? and premap_oid_suffix = ?";
     my $sth = $self->{'dbh'}->prepare($query);
@@ -399,7 +399,7 @@ sub _find_rrd_file_by_host_int_and_vlan{
 sub get_host_by_external_id{
     my $self = shift;
     my $id = shift;
-    
+
     my $query = "select * from host where host.external_id = ?";
     my $sth = $self->{'dbh'}->prepare($query);
     $sth->execute($id);
@@ -450,7 +450,7 @@ sub get_rrd_file_data{
     if (! defined $data){
 	return undef;
     }
-    
+
     my @results;
     my $output;
     my $input;
@@ -478,13 +478,13 @@ sub get_rrd_file_data{
 	for($j = 0;$j<$spacing && $j+$i < @$data; $j++){
 	    my $row = @$data[$i+$j];
 	    my $divisor = ($j + $i == @$data - 1? $j+1 : $spacing);
-	    
+
 	    if(defined(@$row[$input])){
 		$bucket->{'input'} += @$row[$input] / $divisor;
 	    }
-	    
+
 	}
-	
+
 	if($spacing > 1){
 	    my $timeStart = $start;
 	    my $timeEnd = ($start + ($step*$spacing));
@@ -505,9 +505,8 @@ sub get_rrd_file_data{
 #    push(@results,{"name" => "Input (bps)",
 #		   "data" => \@inputs});
 #
-#    return \@results;    
+#    return \@results;
 }
 
 
 1;
-
