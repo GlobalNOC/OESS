@@ -519,30 +519,23 @@ var ds = new YAHOO.util.DataSource(dsString);
     };
 
     var avail_resource_cols = [
-			       {key: "node_name",sortable: true, label: "Node"},
-			       {key: "interface_name", sortable: true, label: "Interface"},
-			       {key: "description", sortable: true,  label: "Description"},
-			       {key: "operational_state", sortable:true, label: "Status", formatter: function(elLiner, oRec, oCol, oData){
-				       if(oRec.getData('operational_state') == 'up'){
-					   elLiner.innerHTML = "<font color='green'>up</font>";
-				       }else{
-					   elLiner.innerHTML = "<font color='red'>" + oRec.getData('operational_state') + "</font>";
-				       }
-				   }},
-			       {key: "vlan_tag_range", sortable: true,  label: "VLAN Range", formatter: function(elLiner, oRec, oCol, oData){
-                        var string = oData.replace("-1", "untagged");
-			            elLiner.innerHTML = string;
-                   }},
-                   {key: "is_owner", sortable: true, label: "Owned", formatter: function(elLiner, oRec, oCol, oData){
-                       if(oData == 1){
-			               elLiner.innerHTML = "Yes";
-                       } else {
-			               elLiner.innerHTML = "No";
-                       }
-                   }}
+    {key: "node_name",sortable: true, label: "Node", width: 250},
+    {key: "interface_name", sortable: true, label: "Interface", width: 90},
+    {key: "description", sortable: true,  label: "Description", width: 250},
+    {key: "vlan_tag_range", sortable: true,  label: "VLAN Range", width: 200, formatter: function(elLiner, oRec, oCol, oData){
+	    var string = oData.replace("-1", "untagged");
+	    elLiner.innerHTML = string;
+	}},
+    {key: "is_owner", sortable: true, label: "Owned", formatter: function(elLiner, oRec, oCol, oData){
+	    if(oData == 1){
+		elLiner.innerHTML = "Yes";
+	    } else {
+		elLiner.innerHTML = "No";
+	    }
+	}}
 			       ];
 
-    var avail_resource_table = new YAHOO.widget.ScrollingDataTable("available_resource_table",avail_resource_cols, avail_resource_ds, {height: '473px', width: '475px'});
+    var avail_resource_table = new YAHOO.widget.ScrollingDataTable("available_resource_table",avail_resource_cols, avail_resource_ds, {height: '223px'});
 
     // setup help stuff
     makeHelpPanel(["circuit_search", "circuit_search_label"], "Use this to filter the circuits table below. The table will filter as you type.");
