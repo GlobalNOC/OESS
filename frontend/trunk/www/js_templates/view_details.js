@@ -29,13 +29,14 @@ function make_circuit_details_datasource(){
     ds.responseSchema = {
 	resultsList: "results",
 	fields: [
-           {key: "circuit_id", parser: "number"},
-           {key: "description"},
-           {key: "bandwidth", parser: "number"},
-           {key: "links"},
-           {key: "backup_links"},
-           {key: "endpoints"},
-           {key: "state"},
+    {key: "circuit_id", parser: "number"},
+    {key: "workgroup"},
+    {key: "description"},
+    {key: "bandwidth", parser: "number"},
+    {key: "links"},
+    {key: "backup_links"},
+    {key: "endpoints"},
+    {key: "state"},
     {key: "active_path"},
     {key: "restore_to_primary"}
 	]
@@ -52,6 +53,7 @@ function save_session_from_datasource(details){
     session.data.bandwidth    = details.bandwidth * 1000000;
     session.data.state        = details.state;
     session.data.active_path  = details.active_path;
+    session.data.circuit_workgroup = details.workgroup;
     session.data.interdomain  = 0;
     session.data.endpoints    = [];
     session.data.links        = [];

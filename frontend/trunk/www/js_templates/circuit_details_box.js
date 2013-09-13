@@ -15,6 +15,9 @@ function summary_init(remove_only){
   YAHOO.util.Dom.get('summary_description').innerHTML       = session.data.description;
   YAHOO.util.Dom.get('summary_status').innerHTML            = session.data.state || "Planning";
   YAHOO.util.Dom.get('summary_type').innerHTML              = session.data.interdomain == 1 ? "Interdomain" : "Local";
+
+  YAHOO.util.Dom.get('workgroup_name').innerHTML            = session.data.circuit_workgroup.name || session.data.workgroup;
+
   if(session.data.restore_to_primary == 0){
       YAHOO.util.Dom.get('restore_to_primary').innerHTML    = 'Off';
   }else{
