@@ -28,7 +28,7 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
             error = 1;
         }
         if( ((vlan_end.match(/^-?\d+$/) != null) && (vlan_start.match(/^-?\d+$/) != null)) && 
-            (vlan_start > vlan_end) ){
+            (parseInt(vlan_start) > parseInt(vlan_end)) ){
             error_message += ' - The start of the vlan range must be smaller the the end of the range<br>';
             error = 1;
         } 
