@@ -32,6 +32,16 @@ is(@$res, 4, 'count');
 
 my $correct_result = [
           {
+            'interface_name' => 'e15/1',
+            'node_name' => 'Node 21',
+            'interface_id' => '45901',
+            'description' => 'e15/1',
+            'is_owner' => 0,
+            'vlan_tag_range' => '-1,1-100,201-4095',
+            'node_id' => '21',
+            'operational_state' => 'up'
+          },
+          {
             'interface_name' => 'e1/1',
             'node_name' => 'Node 11',
             'interface_id' => '321',
@@ -60,17 +70,7 @@ my $correct_result = [
             'vlan_tag_range' => '1-4095',
             'node_id' => '51',
             'operational_state' => 'up'
-          },
-          {
-            'interface_name' => 'e15/1',
-            'node_name' => 'Node 21',
-            'interface_id' => '45901',
-            'description' => 'e15/1',
-            'is_owner' => 0,
-            'vlan_tag_range' => '-1,1-100,201-4095',
-            'node_id' => '21',
-            'operational_state' => 'up'
           }
-        ];
+];
 
 cmp_deeply($res, $correct_result, "values for resources matches");

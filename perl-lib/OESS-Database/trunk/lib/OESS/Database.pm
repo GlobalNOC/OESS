@@ -1128,7 +1128,6 @@ sub get_node_interfaces {
         "    and node_instantiation.end_epoch = -1 " .
         " where (interface_acl.workgroup_id = ? " .
         " or interface_acl.workgroup_id IS NULL) " .
-        " and interface.workgroup_id != ? " .
         " and node.name = ? ";
 
 
@@ -1158,9 +1157,9 @@ sub get_node_interfaces {
     # finish up acl query
     $acl_query .= " group by interface_acl.interface_id " .
                   " order by node_name ASC, int_name ASC";
+    my %interface_already_added;
     if(defined $workgroup_id){
         my $available_interfaces = $self->_execute_query($acl_query, [
-            $workgroup_id,
             $workgroup_id,
             $node_name
         ]);
@@ -1169,6 +1168,8 @@ sub get_node_interfaces {
                 interface_id => $available_interface->{'interface_id'},
                 workgroup_id => $workgroup_id
             );
+            # keep track of this b/c we don't want to add the owned interface again
+            $interface_already_added{$available_interface->{'interface_id'}} = 1;
             if($vlan_tag_range) {
                 push(@results, {
                     "name"           => $available_interface->{'int_name'},
@@ -1186,6 +1187,9 @@ sub get_node_interfaces {
 
     # push on the initial rows
     foreach my $row (@$rows){
+        # skip if we already added this interface b/c of an acl rule
+        next if($interface_already_added{$row->{'interface_id'}});
+
 	    push(@results, {
             "name"           => $row->{'name'},
 			"description"    => $row->{'description'},
@@ -1859,12 +1863,9 @@ sub get_available_resources {
 
     # get all the interfaces the workgroup owns
     my $owned_interfaces = $self->get_workgroup_interfaces( workgroup_id => $workgroup_id ) || return;
-    foreach my $owned_interface (@$owned_interfaces) {
-        $owned_interface->{'is_owner'}   = 1;
-    }
 
     # get all the interfaces that have an acl rule that applies to this workgroup
-    my $query = "select interface.description,interface.operational_state as operational_state, interface.name as int_name, interface.interface_id, node.name as node_name, node.node_id, interface_acl.vlan_start, interface_acl.vlan_end " .
+    my $query = "select interface.description,interface.operational_state as operational_state, interface.name as int_name, interface.interface_id, node.name as node_name, node.node_id, interface_acl.vlan_start, interface_acl.vlan_end, interface.workgroup_id " .
             " from interface_acl " .
         "  join interface on interface.interface_id = interface_acl.interface_id " .
         "  join interface_instantiation on interface.interface_id = interface_instantiation.interface_id " .
@@ -1874,20 +1875,24 @@ sub get_available_resources {
         "    and node_instantiation.end_epoch = -1 " .
         " where (interface_acl.workgroup_id = ? " .
         " or interface_acl.workgroup_id IS NULL) " .
-        " and interface.workgroup_id != ? " .
         " group by interface_acl.interface_id " .
         " order by node_name ASC, int_name ASC";
 
-    my $interfaces = $self->_execute_query($query, [$workgroup_id, $workgroup_id]);
+    my $interfaces = $self->_execute_query($query, [$workgroup_id]);
     if (! defined $interfaces){
         $self->_set_error("Internal error fetching accessible interfaces.");
         return;
     }
-    my $available_interfaces = $owned_interfaces;
+    my $available_interfaces = [];
+    my %interface_already_added;
     foreach my $interface (@$interfaces) {
         my $vlan_tag_range = $self->_validate_endpoint(interface_id => $interface->{'interface_id'}, workgroup_id => $workgroup_id );
+        $interface_already_added{$interface->{'interface_id'}} = 1;
         if ( $vlan_tag_range ){
-            $interface->{'is_owner'} = 0;
+            my $is_owner = 0;
+            if($workgroup_id == $interface->{'workgroup_id'}){
+                $is_owner = 1;
+            } 
             push(@$available_interfaces, {
                 "interface_id"      => $interface->{'interface_id'},
                 "interface_name"    => $interface->{'int_name'},
@@ -1896,9 +1901,16 @@ sub get_available_resources {
                 "operational_state" => $interface->{'operational_state'},
                 "description"       => $interface->{'description'},
                 "vlan_tag_range"    => $vlan_tag_range,
-                "is_owner"          => 0,
+                "is_owner"          => $is_owner,
             });
         }
+    }
+    # now push on all the owned interfaces
+    foreach my $owned_interface (@$owned_interfaces) {
+        # we already added this interface b/c there was an acl rule for it
+        next if($interface_already_added{$owned_interface->{'interface_id'}});
+        $owned_interface->{'is_owner'}   = 1;
+        push(@$available_interfaces, $owned_interface);
     }
 
     return $available_interfaces;
@@ -2051,11 +2063,6 @@ sub add_acl {
         user_id => $args{'user_id'}
     ) || return;
 
-    if($interface->{'workgroup_id'} == $args{'workgroup_id'}){
-        $self->_set_error("You can not create an acl rule that applies to the owner workgroup");
-        return;
-    }
-
     # check to make sure vlan start and end are valid
     $self->_check_vlan_range(
         vlan_tag_range => $interface->{'vlan_tag_range'},
@@ -2131,11 +2138,6 @@ sub update_acl {
         user_id => $args{'user_id'}
     ) || return;
 
-    if($interface->{'workgroup_id'} == $args{'workgroup_id'}){
-        $self->_set_error("You can not create an acl rule that applies to the owner workgroup");
-        return;
-    }
-    
     # check to make sure vlan start and end are valid
     $self->_check_vlan_range(
         vlan_tag_range => $interface->{'vlan_tag_range'},
@@ -2446,7 +2448,7 @@ sub _authorize_interface_acl {
 =head2 _check_vlan_range
 
 Checks to make sure vlan start is less than vlan end and they fall withing the interface's range
-
+and that they are both numbers
 =cut
 
 sub _check_vlan_range {
@@ -2454,6 +2456,17 @@ sub _check_vlan_range {
     my %args = @_;
 
     my $vlan_tag_range = $args{'vlan_tag_range'};
+
+    # first make sure both range values are numbers
+    if( !($args{'vlan_start'} =~ m/^-?\d+$/) ) {
+	    $self->_set_error("vlan_start must be a numeric value");
+	    return;
+    }
+    if( defined($args{'vlan_end'}) && 
+        !($args{'vlan_end'} =~  m/^-?\d+$/) ){
+	    $self->_set_error("vlan_end must be a numeric value or undefined");
+	    return;
+    }
 
     # create a string of the range passed in for error messages later
     my $vlan_range_string;

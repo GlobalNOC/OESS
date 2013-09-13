@@ -14,13 +14,40 @@ BEGIN {
 use lib "$path";
 use OESSDatabaseTester;
 
-use Test::More tests => 21;
+use Test::More tests => 25;
 use Test::Deep;
 use OESS::Database;
 use OESSDatabaseTester;
 use Data::Dumper;
 
 my $db = OESS::Database->new(config => OESSDatabaseTester::getConfigFilePath());
+
+my $acl_id = $db->add_acl(
+    user_id       => 11,
+    workgroup_id  => 31,
+    interface_id  => 45851,
+    allow_deny    => 'deny',
+    eval_position => 80,
+    vlan_start    => '5oo',
+    vlan_end      => '1000',
+    notes         => undef
+);
+ok(!$acl_id, 'vlan_range sanity check 1');
+is($db->get_error(),'vlan_start must be a numeric value','correct error');
+
+
+my $acl_id = $db->add_acl(
+    user_id       => 11,
+    workgroup_id  => 31,
+    interface_id  => 45851,
+    allow_deny    => 'deny',
+    eval_position => 80,
+    vlan_start    => '500',
+    vlan_end      => '1ooo',
+    notes         => undef
+);
+ok(!$acl_id, 'vlan_range sanity check 1');
+is($db->get_error(),'vlan_end must be a numeric value or undefined','correct error');
 
 my $acl_id = $db->add_acl(
     user_id       => 11,
