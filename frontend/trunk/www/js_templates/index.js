@@ -597,8 +597,8 @@ var ds = new YAHOO.util.DataSource(dsString);
         ]};
 
         var columns = [
-            {key: "node_name", label: "Node", width: 180 ,sortable:true},
-            {key: "interface_name", label: "Interface", width: 60 ,sortable:true}
+            {key: "node_name", label: "Node",sortable:true},
+            {key: "interface_name", label: "Interface",sortable:true}
         ];
 
         var config = {
