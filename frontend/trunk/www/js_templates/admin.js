@@ -960,8 +960,8 @@ function setup_workgroup_tab(){
 		    var region = YAHOO.util.Dom.getRegion("workgroups_content");
 
 		    var new_user_p = new YAHOO.widget.Panel("add_workgroup_user",
-							    {modal: true,
-							     xy: [region.left + (region.width / 2) - 300,
+							    {
+				                  xy: [region.left + (region.width / 2) - 300,
 								  region.top + 75]
 							    }
 							    );
@@ -1048,8 +1048,7 @@ function setup_workgroup_tab(){
 		    var region = YAHOO.util.Dom.getRegion('workgroups_content');
 
 		    var add_int_p = new YAHOO.widget.Panel("add_int_p",
-							   {modal: true,
-							    width: 850,
+							   {width: 850,
 							    height: 400,
 							    xy: [region.left, 
 								 region.top]
@@ -1153,13 +1152,7 @@ function setup_workgroup_tab(){
                                 throw("Error fetching interface");
                             }else {
                                 var workgroup_name = resp.results[0].workgroup_name;
-                                var confirmed;
-                                if(workgroup_name) {
-                                    confirmed = confirm("This interface is already owned by workgroup, "+workgroup_name+". Changing the workgroup will removed all of the acl rules that "+workgroup_name+" has associated to it. Are you sure you want to change the owner?");
-                                }else {
-                                    confirmed = true;
-                                }
-                                if(confirmed){
+                                var update_interface_owner = function() {
                                     var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_interface_owner&workgroup_id="+workgroup_id+"&interface_id="+interface_id);
                                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                                     ds.responseSchema = {
@@ -1170,7 +1163,7 @@ function setup_workgroup_tab(){
                                     }
                                     };
              
-                                    this.disable();
+                                    table.disable();
              
                                     ds.sendRequest("",{
                                         success: function(req, resp){
@@ -1188,6 +1181,11 @@ function setup_workgroup_tab(){
                                             YAHOO.util.Dom.get('add_int_status').innerHTML = "Server error while adding new edge interface.";
                                         }
                                     }, this);
+                                }
+                                if(workgroup_name) {
+                                    showConfirm("This interface is already owned by workgroup, "+workgroup_name+". Changing the workgroup will removed all of the acl rules that "+workgroup_name+" has associated to it. Are you sure you want to change the owner?", update_interface_owner, function(){ return; } );
+                                }else {
+                                    update_interface_owner();
                                 }
                             }
                         },
