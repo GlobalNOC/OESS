@@ -266,7 +266,7 @@ var ds = new YAHOO.util.DataSource(dsString);
 			  {key: "bandwidth", parser: "number"},
 			  {key: "name"},
 			  {key: "endpoints"},
-			  {key: "state"}
+			  {key: "workgroup.name"}
 		  ],
 		  metaFields: {
 			  error: "error"
@@ -276,8 +276,10 @@ var ds = new YAHOO.util.DataSource(dsString);
 
     var columns = [
 
-		   {key: "description", label: "Description", width: 450},
-		   {key: "endpoints", label: "Endpoints", width: 300, formatter: function(el, rec, col, data){
+		   {key: "description", label: "Description", width: 450
+
+           },
+		   {key: "endpoints", label: "Endpoints", width: 280, formatter: function(el, rec, col, data){
 
 			   var endpoints  = rec.getData('endpoints');
 
@@ -305,16 +307,25 @@ var ds = new YAHOO.util.DataSource(dsString);
 			   el.innerHTML = string;
 		       }
 		   },
-		   {key: "state", label: "Status", width: 70, formatter: function(el, rec, col, data){
-			   el.innerHTML = "<center>"+data+"</center>";
+		   {key: "workgroup.name", label: "Owned By", width: 90, formatter: function(el, rec, col, data){
+
+
+               el.innerHTML = "<center>"+data+"</center>";
 		       }
 		   }
 		   ];
 
     var config = {
-	      paginator: new YAHOO.widget.Paginator({rowsPerPage: 10,
-					     containers: ["circuit_table_nav"]
-					    })
+	    paginator: new YAHOO.widget.Paginator({rowsPerPage: 10,
+					                           containers: ["circuit_table_nav"]
+
+					                          }),
+        formatRow: function (elTr, oRecord) {
+            if (oRecord.getData('workgroup.name') != session.data.workgroup_name){
+                Dom.addClass(elTr,'guest-workgroup');
+            }
+            return true;
+        }
     };
 
     var circuit_table = new YAHOO.widget.DataTable("circuit_table", columns, ds, config);

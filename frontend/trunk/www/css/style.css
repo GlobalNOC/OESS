@@ -10,6 +10,11 @@ div.main_page_header {
     width: 1024px;
 }
 
+tr.guest-workgroup {
+    color:#779;
+    font-style:italic;
+}
+
 div.main_page_footer {
     background: url(../media/oess-frame-footer.png) no-repeat bottom;
     height: 31px;
