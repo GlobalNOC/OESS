@@ -25,7 +25,7 @@ function makeInterfacesTable(node){
 	{key: "description", label: "Description", width: 120},
     {key: "status", label: "Status"},
     {key: "vlan_tag_range", label: "VLAN Tag Range", formatter: function(elLiner, oRec, oCol, oData){
-        var string = oData.replace("-1", "untagged");
+        var string = oData.replace(/^-1/, "untagged");
         elLiner.innerHTML = string;
     }}
   ];

@@ -534,7 +534,7 @@ var ds = new YAHOO.util.DataSource(dsString);
     {key: "interface_name", sortable: true, label: "Interface", width: 90},
     {key: "description", sortable: true,  label: "Description", width: 250},
     {key: "vlan_tag_range", sortable: true,  label: "VLAN Range", width: 200, formatter: function(elLiner, oRec, oCol, oData){
-	    var string = oData.replace("-1", "untagged");
+	    var string = oData.replace(/^-1/, "untagged");
 	    elLiner.innerHTML = string;
 	}},
     {key: "is_owner", sortable: true, label: "Owned", formatter: function(elLiner, oRec, oCol, oData){
