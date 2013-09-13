@@ -118,60 +118,67 @@ function page_init(){
           }
 
       });
-  if(session.data.backup_links.length > 0){
-      var change_path_button = new YAHOO.widget.Button("change_path_button", {label: "Change Path"});
-      change_path_button.on("click", function(){
-	      showConfirm("Doing this may cause a disruption in traffic.  Are you sure?",
-			  function(){
-			      change_path_button.set("disabled",true);
-			      var ds = new YAHOO.util.DataSource("services/provisioning.cgi?action=fail_over_circuit&circuit_id=" + session.data.circuit_id + "&workgroup_id=" + session.data.workgroup_id);
-			      ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-			      
-			      ds.connTimeout    = 30 * 1000; // 30 seconds
-			      
-			      ds.responseSchema = {
+
+  if(session.data.circuit_workgroup.workgroup_id != session.data.workgroup_id && [% is_admin %] == 0){
+
+  }else{
+      
+      if(session.data.backup_links.length > 0){
+	  var change_path_button = new YAHOO.widget.Button("change_path_button", {label: "Change Path"});
+	  change_path_button.on("click", function(){
+		  showConfirm("Doing this may cause a disruption in traffic.  Are you sure?",
+			      function(){
+				  change_path_button.set("disabled",true);
+				  var ds = new YAHOO.util.DataSource("services/provisioning.cgi?action=fail_over_circuit&circuit_id=" + session.data.circuit_id + "&workgroup_id=" + session.data.workgroup_id);
+				  ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+				  
+				  ds.connTimeout    = 30 * 1000; // 30 seconds
+				  
+				  ds.responseSchema = {
 				      resultsList: "results",
 				      fields: [{key: "success", parser: "number"},
-			                   {key: "circuit_id", parser: "number"},
-                               {key: "alt_path_down", parser:"number"}
-					          ],
+				  {key: "circuit_id", parser: "number"},
+				  {key: "alt_path_down", parser:"number"}
+					       ],
 				      metaFields: {
 				          error: "error",
 				          warning: "warning"
 				      }
-			      };
-			      ds.sendRequest("",{success: function(){
-				  change_path_button.set("disabled",false);
-				  alert('Successfully changed the path');
-					  
-				      },
-					  failure: function(){
+				  };
+				  ds.sendRequest("",{success: function(){
 					      change_path_button.set("disabled",false);
-					  alert('Unable to change to the backup path');
-				      }},ds);
-			      
-			  },
-			          function(){
-			              //do nothing
-			          });
+					      alert('Successfully changed the path');
+					      
+					  },
+					      failure: function(){
+					      change_path_button.set("disabled",false);
+					      alert('Unable to change to the backup path');
+					  }},ds);
+				  
+			      },
+			      function(){
+				  //do nothing
+			      });
+		  
+	      });
+      }
+      
+      
+      
+      var edit_button = new YAHOO.widget.Button("edit_button", {label: "Edit Circuit"});
+      
+      edit_button.on("click", function(){
 	      
-	  });
-  }
-
-  var edit_button = new YAHOO.widget.Button("edit_button", {label: "Edit Circuit"});
-
-  edit_button.on("click", function(){
-
 	  session.data.interdomain = 0;
-
+	  
 	  var endpoints = [];
-
+	  
 	  for (var i = 0; i < session.data.endpoints.length; i++){
 	      if (session.data.endpoints[i].local == 1){
 		  endpoints.push(session.data.endpoints[i]);
 	      }
 	  }
-
+	  
 	  if (endpoints.length < 2){
 	      for (var i = 0; i < session.data.passthrough.length; i++){
 		  if (session.data.passthrough[i].local == 1){
@@ -179,79 +186,80 @@ function page_init(){
 		  }
 	      }
 	  }
-
+	  
 	  session.data.endpoints = endpoints;
-
+	  
 	  session.save();
-
+	  
 	  window.location = "?action=edit_details";
-      });
-
-  var remove_button = new YAHOO.widget.Button("remove_button", {label: "Remove Circuit"});
-
-  remove_button.on("click", function(){
-
-	  window.location = "?action=remove_scheduling";
-      });
-
-
-  // show the edit interdomain stuff if we're an interdomain circuit
-  if (session.data.interdomain == 1){
-
-      var edit_interdomain = new YAHOO.widget.Button("edit_interdomain_button", {label: "Edit Interdomain"});
-
-      edit_interdomain.on("click", function(){
-	      window.location = "?action=edit_details";
 	  });
-
+      
+      var remove_button = new YAHOO.widget.Button("remove_button", {label: "Remove Circuit"});
+      
+      remove_button.on("click", function(){
+	      
+	      window.location = "?action=remove_scheduling";
+	  });
+      
+      
+      // show the edit interdomain stuff if we're an interdomain circuit
+      if (session.data.interdomain == 1){
+	  
+	  var edit_interdomain = new YAHOO.widget.Button("edit_interdomain_button", {label: "Edit Interdomain"});
+	  
+	  edit_interdomain.on("click", function(){
+		  window.location = "?action=edit_details";
+	      });
+	  
+      }
+      else {
+	  YAHOO.util.Dom.get("edit_interdomain_button").parentNode.style.display = "none";
+      }
+      
+      var reprovision_button = new YAHOO.widget.Button("reprovision_button", {label: "Force Reprovision" });
+      
+      reprovision_button.on("click", function(){
+	      showConfirm("Doing this may cause a disruption in traffic.  Are you sure? ", 
+			  function(){
+			      reprovision_button.set('disabled',true);
+			      
+			      var circuit_id= session.data.circuit_id;
+			      var workgroup_id = session.data.workgroup_id;
+			      
+			      var ds = new YAHOO.util.DataSource("services/provisioning.cgi?action=reprovision_circuit&circuit_id="+circuit_id+"&workgroup_id="+workgroup_id);
+			      ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+			      ds.responseSchema = {
+				  resultsList: "results",
+				  fields: [
+			      {key: "success", parser: "number"},
+			      
+					   ],
+				  metaFields: {
+				      error: "error",
+				      warning: "warning"
+				  }
+			      };
+			      
+			      ds.sendRequest("", { 
+				      success: function(req, resp){ 
+					  reprovision_button.set('disabled',false);
+					  alert("Successfully reprovisioned circuit");
+					  
+					  
+				      },
+					  failure: function(req, resp){
+					  reprovision_button.set('disabled',false);
+					  alert("Failed to reprovision circuit, please try again later or contact your systems administrator if this continues");
+				      }
+				  });
+			      
+			  },
+			  function(){ 
+			      //do nothing
+			  }
+			  );
+	  });
   }
-  else {
-      YAHOO.util.Dom.get("edit_interdomain_button").parentNode.style.display = "none";
-  }
-
-    var reprovision_button = new YAHOO.widget.Button("reprovision_button", {label: "Force Reprovision" });
-
-    reprovision_button.on("click", function(){
-	showConfirm("Doing this may cause a disruption in traffic.  Are you sure? ", 
-		    function(){
-			reprovision_button.set('disabled',true);
-	
-			var circuit_id= session.data.circuit_id;
-			var workgroup_id = session.data.workgroup_id;
-			
-			var ds = new YAHOO.util.DataSource("services/provisioning.cgi?action=reprovision_circuit&circuit_id="+circuit_id+"&workgroup_id="+workgroup_id);
-			ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-			ds.responseSchema = {
-			    resultsList: "results",
-			    fields: [
-				{key: "success", parser: "number"},
-		    
-			    ],
-			    metaFields: {
-				error: "error",
-				warning: "warning"
-			    }
-			};
-
-			ds.sendRequest("", { 
-			    success: function(req, resp){ 
-				reprovision_button.set('disabled',false);
-				alert("Successfully reprovisioned circuit");
-				
-		    
-			    },
-			    failure: function(req, resp){
-				reprovision_button.set('disabled',false);
-				alert("Failed to reprovision circuit, please try again later or contact your systems administrator if this continues");
-			    }
-			});
-
-		    },
-		    function(){ 
-			//do nothing
-		    }
-		   );
-    });
 
     
 
