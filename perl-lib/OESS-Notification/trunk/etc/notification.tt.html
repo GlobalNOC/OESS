@@ -385,6 +385,10 @@
             <table border="0" cellpadding="20" cellspacing="0" width="100%">
              <tr>
               <td class="bodyContent" style="border-collapse: collapse;" valign="top"> <p>Greetings, [% workgroup %] </p>
+[% IF endpoint_owner %]
+<p>You're receiving this notification because a circuit which terminates on a port owned by your workgroup has been modified.</p>
+
+[% END %]
 [% SWITCH type %]
 [%  CASE 'provisioned' %]
 <p>Circuit [% circuit_description %] has been provisioned by [% user %] </p>
@@ -402,6 +406,8 @@ The following circuit has successfully changed path to the [% active_path %] pat
 This circuit has been restored because [% reason %]
 
 [% END %]
+
+
 
 <p>The details of the circuit are below:</p>
 <pre>
