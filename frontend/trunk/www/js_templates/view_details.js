@@ -119,10 +119,8 @@ function page_init(){
 
       });
 
-  if(session.data.circuit_workgroup.workgroup_id != session.data.workgroup_id && [% is_admin %] == 0){
+  if(session.data.circuit_workgroup.workgroup_id == session.data.workgroup_id || [% is_admin %] == 1){
 
-  }else{
-      
       if(session.data.backup_links.length > 0){
 	  var change_path_button = new YAHOO.widget.Button("change_path_button", {label: "Change Path"});
 	  change_path_button.on("click", function(){
@@ -259,6 +257,8 @@ function page_init(){
 			  }
 			  );
 	  });
+  }else{
+
   }
 
     
