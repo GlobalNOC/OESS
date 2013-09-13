@@ -115,7 +115,7 @@ sub add_acl {
     else {
         $results->{'results'} = [{ 
             success => 1, 
-            workgroup_id => $acl_id 
+            interface_acl_id => $acl_id 
         }];
     }
 
