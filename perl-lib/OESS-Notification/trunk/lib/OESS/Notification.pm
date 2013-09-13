@@ -200,10 +200,10 @@ sub _send_bulk_notification {
                 $workgroup_notifications->{$owner} = {};
                 $workgroup_notifications->{$owner}{'affected_users'} = $affected_users;
                 $workgroup_notifications->{$owner }{'workgroup_id'} = $workgroup_id;
-                $workgroup_notifications->{$owner}{'circuits'} = [];
+                $workgroup_notifications->{$owner}{'endpoint_owned'}{'circuits'} = [];
             }
 
-            push (@{ $workgroup_notifications->{ $owner }{'circuits'} }, $circuit_details->{'circuit'} );
+            push (@{ $workgroup_notifications->{ $owner }{'endpoint_owned'}{'circuits'} }, $circuit_details->{'circuit'} );
 
         }
 
@@ -221,17 +221,24 @@ sub _send_bulk_notification {
     foreach my $workgroup (keys %$workgroup_notifications) {
         #split into per workgroup circuit sets
         my @to_list = ();
-        my $workgroup_circuits = $workgroup_notifications->{$workgroup}{'circuits'};
+        my $workgroup_circuits = $workgroup_notifications->{$workgroup}{'circuits'} || [];
+        my $circuits_on_owned_endpoints = $workgroup_notifications->{$workgroup}{'endpoint_owned'}{'circuits'} || [];
         my $affected_users = $workgroup_notifications->{$workgroup}{'affected_users'};
         my $subject;
-
+        my $circuit_count = 0;
+        if ($workgroup_circuits){
+            $circuit_count= scalar (@$workgroup_circuits);
+        }
+        my $owned_count =0;
+        if ($circuits_on_owned_endpoints){
+            $owned_count = scalar (@$circuits_on_owned_endpoints);
+        }
         switch($type) {
             case ('link_down'){
-                $subject = "OESS Notification: Backbone Link $link_name is down. ".scalar(@$workgroup_circuits)." circuits are impacted in workgroup $workgroup";
+                $subject = "OESS Notification: Backbone Link $link_name is down. ".$circuit_count." circuits in workgroup $workgroup and ".$owned_count." using ports owned by your workgroup are impacted";
             }
-
             case ('link_up'){
-                $subject = "OESS Notification: Backbone Link $link_name is up. ".scalar(@$workgroup_circuits)." circuits have been restored to service in workgroup $workgroup";
+                $subject = "OESS Notification: Backbone Link $link_name is up. ".$circuit_count." circuits in workgroup $workgroup and ".$owned_count. " using ports owned by your workgroup have been restored to service";
             }
         }
 
@@ -246,6 +253,7 @@ sub _send_bulk_notification {
                     link_name => $link_name,
                     type => $dbus_data->{'type'},
                     circuits => $workgroup_circuits,
+                    circuits_on_owned_endpoints => $circuits_on_owned_endpoints,
                     image_base_url => $self->{'image_base_url'}
                    );
 

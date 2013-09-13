@@ -403,29 +403,30 @@
                       <td valign="top">
 
                         <!-- // Begin Module: Standard Content \\ -->
-                        <table border="0" cellpadding="20" cellspacing="0" width="100%">
+                       <table border="0" cellpadding="20" cellspacing="0" width="100%">
                           <tr>
                             <td valign="top" class="bodyContent">
                               Greetings, [%user%]
                               <p>You are receiving a notification because you are a member of workgroup:
 
-                                <strong>[%workgroup%]</strong></<p>
+                                <strong>[%workgroup%]</strong></<p><p>
                                [% SWITCH type %]
                                [% CASE 'link_down' %]
-                                                                 <p>An outage on backbone circuit: <strong>[% link_name %]</strong><br />
-                                                  has caused the <strong>[% circuits.size %]</strong> circuits listed below to be affected.</p>
+                                                                 An outage on backbone link: <strong>[% link_name %]</strong><br />
+                                                  has caused the <strong>[% circuits.size + circuits_on_owned_endpoints.size  %]</strong> circuits listed below to be affected.</p>
                                [% CASE 'link_up' %]
-                                                                 <p>Backbone circuit: <strong>[% link_name %]</strong><br />
+                                                                 Backbone link: <strong>[% link_name %]</strong><br />
                                                                    has returned to service and the below circuits were returned to service:
                                [% END %]
-                                                                 <table border="0" cellpading="0" cellspacing="0">
+                                                                 </p>
+                                <table border="0" cellpading="0" cellspacing="0">
                                                   <tr>
-                                                <td width="350px"><h4 class="h5">Affected Circuits:</h4></td>
-                                                <td width="190px">
+                                                    <td width="350px"><h4 class="h5">Circuits in [%workgroup%]:</h4></td>
+                                                    <td width="190px">
 
-                                                </td>
-                                                </tr>
-                                                  </table>
+                                                    </td>
+                                                  </tr>
+                                </table>
                                                 <br/>
                                                 <table border="0" cellpadding="10" cellspacing="0" width="100%" class="templateDataTable">
                                                   <tr>
@@ -440,35 +441,92 @@
                                                     </th>
                                                   </tr>
 
-						  [% FOREACH circuit IN circuits %]
-						  [% IF ( loop.count mod 2 == 0 ) %]
-						  <tr >
-						  [% ELSE %]
+						                          [% FOREACH circuit IN circuits %]
+						                          [% IF ( loop.count mod 2 == 0 ) %]
+						                          <tr >
+						                          [% ELSE %]
                                                   <tr style="background-color:#FbFbFb;">
-						  [% END %]
-						  <td valign="top" class="dataTableContent" >
-                                                      <a href="[% base_url %]/circuit-details?circuit_id=[% circuit.circuit_id%]"> [% circuit.description %]</a>
-                                                    </td>
-                                                    <td valign="top" class="dataTableContent" mc:edit="data_table_content01">
-                                                      [% circuit.reason %]
-                                                    </td>
-						    [% SWITCH circuit.status %]
+						                          [% END %]
+						                          <td valign="top" class="dataTableContent" >
+                                                    <a href="[% base_url %]/circuit-details?circuit_id=[% circuit.circuit_id%]"> [% circuit.description %]</a>
+                                                  </td>
+                                                  <td valign="top" class="dataTableContent" mc:edit="data_table_content01">
+                                                    [% circuit.reason %]
+                                                  </td>
+						                          [% SWITCH circuit.status %]
 
-						    [%  CASE 'backup' %]
-						     [% status_color = 'orange' %]
-						    [%  CASE 'down' %]
-						     [% status_color = 'red' %]
-						    [%  CASE ['primary','up'] %]
-						     [% status_color = 'green' %]
-						    [%  CASE %]
-						     [% status_color = '#000' %]
-						    [% END %]
+						                          [%  CASE 'backup' %]
+						                          [% status_color = 'orange' %]
+						                          [%  CASE 'down' %]
+						                          [% status_color = 'red' %]
+						                          [%  CASE ['primary','up'] %]
+						                          [% status_color = 'green' %]
+						                          [%  CASE %]
+						                          [% status_color = '#000' %]
+						                          [% END %]
                                                     <td valign="top" class="dataTableContent" style="color:[% status_color %]; font-weight:bold" mc:edit="data_table_content02">
                                                       [% circuit.status %]
                                                     </td>
                                                   </tr>
 						  [% END %]
                                                 </table>
+
+                                               [% IF circuits_on_owned_endpoints.size %]
+                              <br/>
+                              <table border="0" cellpading="0" cellspacing="0">
+                                <tr>
+                                                    <td width="350px"><h4 class="h5">Foreign Circuits on Your Endpoints:</h4></td>
+                                                    <td width="190px">
+
+                                                    </td>
+                                                  </tr>
+                                </table>
+                                                <br/>
+                                                <table border="0" cellpadding="10" cellspacing="0" width="100%" class="templateDataTable">
+                                                  <tr>
+                                                    <th scope="col" valign="top" width="42%" class="dataTableHeading" mc:edit="data_table_heading00">
+                                                      CIRCUIT
+                                                    </th>
+                                                    <th scope="col" valign="top" width="42%" class="dataTableHeading" mc:edit="data_table_heading01">
+                                                      ACTION TAKEN
+                                                    </th>
+                                                    <th scope="col" valign="top" width="16%" class="dataTableHeading" mc:edit="data_table_heading02">
+                                                      STATUS
+                                                    </th>
+                                                  </tr>
+
+						                          [% FOREACH circuit IN circuits_on_owned_endpoints %]
+						                          [% IF ( loop.count mod 2 == 0 ) %]
+						                          <tr >
+						                          [% ELSE %]
+                                                  <tr style="background-color:#FbFbFb;">
+						                          [% END %]
+						                          <td valign="top" class="dataTableContent" >
+                                                    <a href="[% base_url %]/circuit-details?circuit_id=[% circuit.circuit_id%]"> [% circuit.description %]</a>
+                                                  </td>
+                                                  <td valign="top" class="dataTableContent" mc:edit="data_table_content01">
+                                                    [% circuit.reason %]
+                                                  </td>
+						                          [% SWITCH circuit.status %]
+
+						                          [%  CASE 'backup' %]
+						                          [% status_color = 'orange' %]
+						                          [%  CASE 'down' %]
+						                          [% status_color = 'red' %]
+						                          [%  CASE ['primary','up'] %]
+						                          [% status_color = 'green' %]
+						                          [%  CASE %]
+						                          [% status_color = '#000' %]
+						                          [% END %]
+                                                    <td valign="top" class="dataTableContent" style="color:[% status_color %]; font-weight:bold" mc:edit="data_table_content02">
+                                                      [% circuit.status %]
+                                                    </td>
+                                                  </tr>
+						                          [% END %]
+                                                  </table>
+
+                                               [% END %]
+
                                                 <tr>
                                                   <td align="center">
                                                     <a href="[%base_url%]index.cgi?action=index&workgroup=[% workgroup_id %]#network_status" target="_blank">
