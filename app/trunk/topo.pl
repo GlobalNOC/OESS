@@ -702,6 +702,7 @@ sub main(){
     }
     else{
       #now a deamon, just run the core;
+	$SIG{HUP} = sub{ exit(0); };
       core();
     }
 

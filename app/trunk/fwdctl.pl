@@ -1766,6 +1766,7 @@ sub main{
     }
     #not a deamon, just run the core;
     else {
+	$SIG{HUP} = sub{ exit(0); };
         core();
     }
 
