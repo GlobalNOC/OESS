@@ -86,10 +86,16 @@ sub get_all_workgroups {
 
 sub get_acls {
     my $results;
+
+    my %params;
+    if($cgi->param('interface_id')){
+        $params{'interface_id'} = $cgi->param('interface_id');
+    }
+    if($cgi->param('interface_acl_id')){
+        $params{'interface_acl_id'} = $cgi->param('interface_acl_id');
+    }
     
-    my $interface_id = $cgi->param('interface_id');
-    
-    my $acls = $db->get_acls( interface_id => $interface_id );
+    my $acls = $db->get_acls( %params );
 
     return parse_results( res => $acls );
 }
