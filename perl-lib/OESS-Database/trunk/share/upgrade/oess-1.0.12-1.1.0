@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 #-------------------------------------------------------------------
-#----- OESS 1.0.12 - 1.0.13 upgrade module                         
+#----- OESS 1.0.12 - 1.1.0 upgrade module                         
 #-----                                                               
 #----- Copyright(C) 2010 The Trustees of Indiana University          
 #--------------------------------------------------------------------
@@ -8,7 +8,7 @@
 #----- $Id: $                                                        
 #-----                                                               
 #----- This is run when upgrading the database from     
-#----- version 1.0.12 to version 1.0.13                                
+#----- version 1.0.12 to version 1.1.0                               
 #-------------------------------------------------------------------- 
 
 use strict;
@@ -16,7 +16,7 @@ use warnings;
 use OESS::Database;
 
 my $prev_version = "1.0.12";
-my $version = "1.0.13";
+my $version = "1.1.0";
 
 sub main{
 
@@ -57,7 +57,6 @@ sub upgrade{
     # All Changes should happen in here
     #
     ####################################
-
     #add interface_acl table
     $str = "create table interface_acl ( ".
            "interface_acl_id int(10) not null auto_increment, ".
@@ -91,7 +90,44 @@ sub upgrade{
     $str = "drop table workgroup_interface_membership";
     $sth = $dbh->prepare($str);
     $sth->execute() or die "Unable to remove workgroup_interface_membership table"; 
-    
+
+
+    # ask user if they want to do a generic migration
+    print "Would you like to do a migration of the current workgroup/interface ownership to the admin workgroup owns all interfaces and everyone has access? [y/n]: ";
+    my $yes_or_no = <>;
+    chomp($yes_or_no);
+
+    if($yes_or_no =~ /y/i){
+        # get the admin workgroup
+        $str = "select * from workgroup where type = 'admin'";
+        $sth = $dbh->prepare($str) or die "Could not fetch a admin workgroup";
+        $sth->execute() or die "Unable to fetch admin workgroup";
+        my $admin_workgroup = $sth->fetchrow_hashref();
+        my $admin_workgroup_id = $admin_workgroup->{'workgroup_id'};
+
+        if(!$admin_workgroup_id){
+            die "There are no admin workgroups, can't do migration";
+        }
+
+        # get all non trunk interfaces
+        $str = "select * from interface where role != 'trunk'";
+        $sth = $dbh->prepare($str);
+        
+        $sth->execute() or die "Unable to fetch interfaces for migration";
+        while(my $interface = $sth->fetchrow_hashref()){
+            my $interface_id = $interface->{'interface_id'};
+            # make the interface owner the admin workgroup 
+            my $str2 = "update interface set workgroup_id = $admin_workgroup_id where interface_id = $interface_id";
+            my $sth2 = $dbh->prepare($str2) or die "Unable to update interface owner \n";
+            $sth2->execute() or die "Unable to update interface owner\n";
+           
+            # insert the default acl rule 
+            my $str3 = "insert into interface_acl (workgroup_id, interface_id, allow_deny, eval_position, vlan_start, vlan_end, notes) VALUES (NULL, $interface_id, 'allow', 10, 1, 4096, 'installed during oess-1.0.12-1.1.0 upgrade')";
+            my $sth3 = $dbh->prepare($str3) or die "Unable to insert acl rule\n";
+            $sth3->execute() or die "Unable to insert acl rule\n";
+        } 
+    }
+
     ####################################
     #
     # End all changes
