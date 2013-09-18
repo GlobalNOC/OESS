@@ -427,14 +427,15 @@ sub update_circuit_owner{
 			     
     my $circuit = $db->get_circuit_by_external_identifier( external_identifier => $gri );
     if(!defined($circuit)){
-	return {error => "Unable to find circuit with GRI: " . $gri };
+	return {error => "Unable to find circuit with GRI: " . $gri,
+		results => []};
     }
 
     my $res = $db->update_circuit_owner( circuit_id => $circuit->{'circuit_id'}, workgroup_id => $workgroup_id );
     if(!defined($res)){
-	return {error => "Error updating circuit ownership"};
+	return {error => "Error updating circuit ownership", results => [0]};
     }else{
-	return {success => 1, message => "successfully update the circuit ownership"};
+	return {results => [{success => 1, message => "successfully update the circuit ownership"}]};
     }
     
 
