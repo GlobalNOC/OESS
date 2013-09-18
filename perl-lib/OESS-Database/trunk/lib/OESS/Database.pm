@@ -526,9 +526,9 @@ sub generate_clr{
 		    next if($other_if eq $interface);
 		    if($used_node_clr == 0){
 			$used_node_clr = 1;
-			$clr .= "\nNODE:" . $node . "\n";
+			$clr .= "\nNODE:" . $node . "";
 		    }
-		    $clr .= "Match: IN_PORT: " . $interface;
+		    $clr .= "\nMatch: IN_PORT: " . $interface;
 		    #--- iterate through ports need set of rules for each input/output port combo
 		    foreach my $vlan_tag (sort keys %{$path->{$node}{$interface}}){
                 $clr .= ", dl_vlan:" . $vlan_tag . "    OUTPUT: ";
@@ -5269,7 +5269,7 @@ sub get_nodes_by_admin_state{
 
     my $admin_state       = $args{'admin_state'};
 
-    my $select_nodes = "select node.node_id,node.name,max_flows,tx_delay_ms,inet_ntoa(node_instantiation.management_addr_ipv4) as management_addr_ipv4 from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.admin_state = ? and end_epoch = -1";
+    my $select_nodes = "select node.vlan_tag_range,node.node_id,node.name,max_flows,tx_delay_ms,inet_ntoa(node_instantiation.management_addr_ipv4) as management_addr_ipv4 from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.admin_state = ? and end_epoch = -1";
 
     my $select_nodes_sth = $self->_prepare_query($select_nodes);
     $select_nodes_sth->execute($admin_state);
@@ -7317,7 +7317,7 @@ sub gen_topo{
         $writer->characters($node->{'management_addr_ipv4'});
         $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","address"]);
 
-        $node->{'vlan_tag_range'} =~ s/-1//g;
+        $node->{'vlan_tag_range'} =~ s/-1/0/g;
 
 	my %interfaces;
         my $ints = $self->get_node_interfaces( node => $node->{'name'}, workgroup_id => $workgroup->{'workgroup_id'}, show_down => 1);
@@ -7437,11 +7437,18 @@ sub gen_topo{
 		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
 
                 #$writer->characters("2-4094");
-
-		$writer->characters( $node->{'vlan_tag_range'} );
+		if(defined($link->{'remote_urn'})){
+		    my $tag_range = $self->_validate_endpoint( workgroup_id => $workgroup->{'workgroup_id'}, interface_id => $int->{'interface_id'});
+		    $tag_range =~ s/-1/0/g;
+		    $writer->characters( $tag_range );
+		}else{
+		    $writer->characters( $node->{'vlan_tag_range'} );
+		}
 
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
-
+		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanTranslation"]);
+		$writer->characters("true");
+		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanTranslation"]);
 		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","switchingCapabilitySpecificInfo"]);
 		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","SwitchingCapabilityDescriptors"]);
 
@@ -7484,11 +7491,15 @@ sub gen_topo{
                 $writer->characters($int->{'mtu_bytes'});
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","interfaceMTU"]);
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
-                $int->{'vlan_tag_range'} =~ s/-1//g;
+		#replace -1 with 0 for OSCARS
+		$int->{'vlan_tag_range'} =~ s/-1/0/g;
                 $writer->characters( $int->{'vlan_tag_range'} );
 
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
 
+                $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanTranslation"]);
+                $writer->characters("true");
+                $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanTranslation"]);
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","switchingCapabilitySpecificInfo"]);
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","SwitchingCapabilityDescriptors"]);
 
@@ -7538,7 +7549,7 @@ sub update_circuit_owner{
     return if(!defined($args{'workgroup_id'}));
 
     my $str = "update circuit set workgroup_id = ? where circuit_id = ?";
-    my $success = $self->_execute_query($str,[$args{'circuit_id'},$args{'workgroup_id'}]);
+    my $success = $self->_execute_query($str,[$args{'workgroup_id'},$args{'circuit_id'}]);
     return 1;
 }
 
