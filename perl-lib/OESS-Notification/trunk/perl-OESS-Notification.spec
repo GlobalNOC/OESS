@@ -1,6 +1,6 @@
 Summary: OESS Notification Daemon Library
 Name: perl-OESS-Notification
-Version: 1.0.12
+Version: 1.1.0
 Release: 1
 License: APL 2.0
 Group: Network
@@ -13,9 +13,9 @@ BuildRequires: perl
 Requires: perl(URI::Escape),perl(Net::DBus), dbus, dbus-libs, mysql-server
 Requires: perl(Template)
 Requires: perl(MIME::Lite::TT::HTML)
-Requires: perl-OESS-Database >= 1.0.12
-Requires: perl-OESS-DBus >= 1.0.12
-Requires: oess-frontend >= 1.0.12
+Requires: perl-OESS-Database >= 1.1.0
+Requires: perl-OESS-DBus >= 1.1.0
+Requires: oess-frontend >= 1.1.0
 %description
 
 %define docdir /usr/share/oess-core
