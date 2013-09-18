@@ -109,7 +109,7 @@
       /*@editable*/ color:#202020;
       display:block;
       /*@editable*/ font-family:Arial;
-      /*@editable*/ font-size:19px;
+      /*@editable*/ font-size:17px;
       /*@editable*/ font-weight:bold;
       /*@editable*/ line-height:100%;
       margin-top:0;
@@ -388,7 +388,7 @@
 <p>
 [% SWITCH type %]
 [%  CASE 'provisioned' %]
-Circuit [% circuit_description %] has been provisioned by [% last_modified_by %] 
+Circuit [% circuit_description %] has been provisioned by [% last_modified_by %]
 
 [% CASE 'removed' %]
 The circuit:&nbsp;<b>[%circuit_description%]</b><br/> has been decommissioned by [% last_modified_by %]
@@ -404,11 +404,11 @@ This circuit has been restored because [% reason %]
 
 [% END %]
 </p>
-               <h4 class="h4" style="color: #202020; display: block; font-family: Arial; font-size: 19px; font-weight: bold; line-height: 100%; margin-bottom: 10px; margin-left: 0; margin-right: 0; margin-top: 0; text-align: left;">New Circuit Layout:</h4><pre>
+               <h4 class="h4" style="color: #202020; display: block; font-family: Arial; font-size: 17px; font-weight: bold; line-height: 100%; margin-bottom: 10px; margin-left: 0; margin-right: 0; margin-top: 0; text-align: left;">New Circuit Layout:</h4><pre>
 [% clr %]
 </pre> </td> </tr>
              <tr>
-              <td align="center" style="border-collapse: collapse;"><a href="https://[% base_url %]index.cgi?action=circuit_details&amp;circuit_id=[% circuit_id %]" target="_blank"><table border="0" cellpadding="15" cellspacing="0" class="templateButton" style="background-color: #3961C4; border: 0; border-collapse: separate !important; border-radius: 3px; color: #FFFFFF; font-family: Arial; font-size: 15px; font-weight: bold; letter-spacing: -.5px; line-height: 100%; text-align: center; text-decoration: none;">
+              <td align="center" style="border-collapse: collapse;"><a href="https://[% base_url %]index.cgi?action=view_details&circuit_id=[% circuit_id %]" target="_blank"><table border="0" cellpadding="15" cellspacing="0" class="templateButton" style="background-color: #3961C4; border: 0; border-collapse: separate !important; border-radius: 3px; color: #FFFFFF; font-family: Arial; font-size: 15px; font-weight: bold; letter-spacing: -.5px; line-height: 100%; text-align: center; text-decoration: none;">
                  <tbody>
                   <tr>
                    <td class="templateButtonContent" style="border-collapse: collapse;" valign="middle">View Circuit Details</td> </tr> </tbody>
@@ -422,8 +422,8 @@ This circuit has been restored because [% reason %]
            <td class="footerContent" style="border-collapse: collapse;" valign="top"> <!-- // Begin Module: Transactional Footer \\ -->
             <table border="0" cellpadding="10" cellspacing="0" width="100%">
              <tr>
-              <td align="center" style="border-collapse: collapse;" valign="top" width="200px"><img src="[% image_base_url %]/stanford.png" style="border: 0; display: inline; height: auto; line-height: 100%; outline: none; text-decoration: none;" /> </td>
-              <td align="center" style="border-collapse: collapse;" valign="top" width="200px"><img src="[% image_base_url %]/globalnoc.png" style="border: 0; display: inline; height: auto; line-height: 100%; outline: none; text-decoration: none;" /> </td>
+               <td width="3px" >&nbsp;</td>
+              <td align="center" style="border-collapse: collapse;" valign="top" width="297px"><img src="[% image_base_url %]/globalnoc.png" style="border: 0; display: inline; height: auto; line-height: 100%; outline: none; text-decoration: none;" /> </td>
               <td align="center" style="border-collapse: collapse;" valign="top"><img src="[% image_base_url %]/i2.png" style="border: 0; display: inline; height: auto; line-height: 100%; outline: none; text-decoration: none;" /> </td> </tr>
              <tr>
               <td colspan="3" style="border-collapse: collapse;" valign="top" width="100%">
