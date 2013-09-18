@@ -1,0 +1,58 @@
+[% INCLUDE js_templates/edit_details.js %]
+
+<div class="main_page">
+
+
+  <div style="padding-left: 50px">
+
+    <!-- sigh, tables for layout -->
+    <table class="nicely_spaced">
+      <tr>
+        <td id="edit_description_label">Description:</td>
+	<td>
+	  <input id="description" type="text" size="35">
+	</td>
+      </tr>
+
+      <tr id="reserved_bandwidth_holder">
+        <td id="edit_reserved_bandwidth_label">Reserved Bandwidth:</td>
+	<td>
+	    <div id="sliderbg">
+	      <div id="sliderthumb"><img src="media/thumb-n.gif"></div>
+	    </div>
+
+	    <input id="slider-value" type="text" size="1" style="float: left;" >
+            <div id="slider-value-units" style="float: right; margin-top: 5px;"></div>
+
+	</td>
+      </tr>
+      <tr>
+	<td id="restore_to_primary_label">
+	  Restore To Primary
+	</td><td>
+	  <input type="checkbox" name="restore_to_primary_button" id="restore_to_primary_button"> <div id="restore_to_primary_holder" style="display: none"><input type="text" size="3" id="restore_to_primary"> Hold Time (in minutes)</dvi>
+	</td>
+      </tr>
+      
+      <!-- can't support doing anything besides point to point, don't show -->
+      <tr style="display: none;">
+        <td id="tagging_label">Tagging:</td>
+	<td>
+	    <input type="radio" name="tagging" value="ptp" id="tagging-ptp">Point to Point
+	    <input type="radio" name="tagging" value="qnq" id="tagging-qnq" disabled="1">Q-in-Q Tunnel
+	</td>
+      </tr>
+
+      <tr id="interdomain_holder">
+        <td id="type_label">Type of Circuit:</td>
+	<td>
+	    <input type="radio" name="interdomain" value="0" id="interdomain-no">Local Domain
+	    <input type="radio" name="interdomain" value="1" id="interdomain-yes">Interdomain
+	</td>
+      </tr>
+
+    </table>
+
+  </div>
+
+</div>
