@@ -36,7 +36,7 @@ function init(){
   
   var nddi_map = new NDDIMap("map");
 
-  var layout = makePageLayout(nddi_map, {map_width: session.data.map_width,
+  var layout = makePageLayout(nddi_map, {map_width: 700,
 					 max_resize: 700});  
 
   legend_init(nddi_map);

@@ -16,12 +16,16 @@ function summary_init(remove_only){
   YAHOO.util.Dom.get('summary_status').innerHTML            = session.data.state || "Planning";
   YAHOO.util.Dom.get('summary_type').innerHTML              = session.data.interdomain == 1 ? "Interdomain" : "Local";
 
-  YAHOO.util.Dom.get('workgroup_name').innerHTML            = session.data.circuit_workgroup.name || session.data.workgroup;
+  if(session.data.circuit_workgroup != undefined){
+      YAHOO.util.Dom.get('workgroup_name').innerHTML        = session.data.circuit_workgroup.name;
+  }else{
+      YAHOO.util.Dom.get('workgroup_name').innerHTML        = session.data.workgroup_name;
+  }
 
-  if(session.data.restore_to_primary == 0){
+  if(session.data.restore_to_primary == 0 || session.data.restore_to_primary == undefined){
       YAHOO.util.Dom.get('restore_to_primary').innerHTML    = 'Off';
   }else{
-      YAHOO.util.Dom.get('restore_to_primary').innerHTML        = session.data.restore_to_primary + " minutes";
+      YAHOO.util.Dom.get('restore_to_primary').innerHTML    = session.data.restore_to_primary + " minutes";
   }
 
   [% IF show_times %]

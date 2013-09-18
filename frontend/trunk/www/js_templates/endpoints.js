@@ -53,7 +53,7 @@ function init(){
 
   var nddi_map = new NDDIMap("map");
 
-  var layout = makePageLayout(nddi_map, {map_width: session.data.map_width,
+  var layout = makePageLayout(nddi_map, {map_width: 540,
 					 max_resize: 700});
 
   
@@ -90,29 +90,31 @@ function init(){
 				    this.vlan_panel.destroy();
 				    this.vlan_panel = undefined;
 				  }
-  
+				  
 				  var rec = this.getRecord(args.target);
-					      
+				  var tag_range = rec.getData('vlan_tag_range');
 				  var interface = rec.getData('name');
-            var description = rec.getData('description');
+				  var description = rec.getData('description');
 	
 				  var state = rec.getData('status');
 				  if(state == 'down'){
 				      alert('Creating a circuit on a link down interface may prevent your circuit from functioning');
 				  }
+
 				  var region = YAHOO.util.Dom.getRegion(args.target);
 
 				  var components = makeTagSelectPanel([region.left, region.bottom], interface);
 
 				  var vlan_input = YAHOO.util.Dom.get('new_vlan_tag');
   
-
+				  
 				  this.vlan_panel = components.panel;
 
 				  var tagged = components.tagged_input;
 
 				  var add_tag_button = components.add_button;
-				  
+				  var tag_range_holder = YAHOO.util.Dom.get('new_vlan_tag_range');
+				  tag_range_holder.innerHTML = tag_range;
 
 				  this.vlan_panel.show();
 
