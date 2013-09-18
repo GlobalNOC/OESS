@@ -7317,7 +7317,8 @@ sub gen_topo{
         $writer->characters($node->{'management_addr_ipv4'});
         $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","address"]);
 
-        $node->{'vlan_tag_range'} =~ s/-1/0/g;
+        $node->{'vlan_tag_range'} =~ s/^-1/0/g;
+        $node->{'vlan_tag_range'} =~ s/,-1/0/g;
 
 	my %interfaces;
         my $ints = $self->get_node_interfaces( node => $node->{'name'}, workgroup_id => $workgroup->{'workgroup_id'}, show_down => 1);
@@ -7439,7 +7440,8 @@ sub gen_topo{
                 #$writer->characters("2-4094");
 		if(defined($link->{'remote_urn'})){
 		    my $tag_range = $self->_validate_endpoint( workgroup_id => $workgroup->{'workgroup_id'}, interface_id => $int->{'interface_id'});
-		    $tag_range =~ s/-1/0/g;
+		    $tag_range =~ s/^-1/0/g;
+		    $tag_range =~ s/,-1/0/g;
 		    $writer->characters( $tag_range );
 		}else{
 		    $writer->characters( $node->{'vlan_tag_range'} );
@@ -7492,7 +7494,8 @@ sub gen_topo{
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","interfaceMTU"]);
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
 		#replace -1 with 0 for OSCARS
-		$int->{'vlan_tag_range'} =~ s/-1/0/g;
+		$int->{'vlan_tag_range'} =~ s/^-1/0/g;
+		$int->{'vlan_tag_range'} =~ s/,-1/0/g;
                 $writer->characters( $int->{'vlan_tag_range'} );
 
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
