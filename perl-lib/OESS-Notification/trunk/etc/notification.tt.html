@@ -2,8 +2,8 @@
 <html>
  <head>
   <meta content="text/html; charset=UTF-8" http-equiv="Content-Type" /> <!-- Facebook sharing information tags -->
-  <meta content="*[%SUBJECT%]" property="og:title" />
-  <title>[%SUBJECT%]</title>
+  <meta content="*[% SUBJECT %]" property="og:title" />
+  <title>[% SUBJECT %]</title>
   <style type="text/css">
       /* Client-specific Styles */
       #outlook a{padding:0;} /* Force Outlook to provide a "view in browser" button. */
@@ -173,7 +173,7 @@
       * @tip Set the background color for your email's body area.
       */
       #templateBody{
-      background: url(img/oess-frame-body-600.png) repeat-y bottom;
+      background: url([%image_base_url%]/oess-frame-body-600.png) repeat-y bottom;
       /*@editable*/ background-color:#FFFFFF;
       }
 
@@ -374,30 +374,27 @@
       <table border="0" cellpadding="0" cellspacing="0" id="templateContainer" style="" width="600">
        <tr>
         <td align="center" style="border-collapse: collapse;" valign="top"> <!-- // Begin Template Header \\ -->
-         <table border="0" cellpadding="0" cellspacing="0" height="60px" id="templateHeader" style="background: url(img/oess-frame-head-600.png);" width="600">
+         <table border="0" cellpadding="0" cellspacing="0" height="60px" id="templateHeader" style="background: url([% image_base_url %]/oess-frame-head-600.png);" width="600">
           <tr>
            <td align="left" class="headerContent" style="border-collapse: collapse; color: #DDDDDD; font-family: Arial; font-size: 12px; font-weight: bold; line-height: 100%; padding: 0; padding-bottom: 3px; padding-left: 40px; text-align: left; vertical-align: bottom;" valign="bottom"> <!-- // Begin Module: Standard Header Image \\ --><a href="globalnoc.iu.edu" style="color: #DDDDDD;">Home</a> <!-- // End Module: Standard Header Image \\ --> </td> </tr> </table> <!-- // End Template Header \\ --> </td> </tr>
        <tr>
         <td align="center" style="border-collapse: collapse;" valign="top"> <!-- // Begin Template Body \\ -->
-         <table border="0" cellpadding="0" cellspacing="0" id="templateBody" style="background: url(img/oess-frame-body-600.png) repeat-y bottom; background-color: #FFFFFF;" width="600">
+         <table border="0" cellpadding="0" cellspacing="0" id="templateBody" style="background: url([% image_base_url %]/oess-frame-body-600.png) repeat-y bottom; background-color: #FFFFFF;" width="600">
           <tr>
            <td style="border-collapse: collapse;" valign="top"> <!-- // Begin Module: Standard Content \\ -->
             <table border="0" cellpadding="20" cellspacing="0" width="100%">
              <tr>
               <td class="bodyContent" style="border-collapse: collapse;" valign="top"> <p>Greetings, [% workgroup %] </p>
-[% IF endpoint_owner %]
-<p>You're receiving this notification because a circuit which terminates on a port owned by your workgroup has been modified.</p>
-
-[% END %]
+<p>
 [% SWITCH type %]
 [%  CASE 'provisioned' %]
-<p>Circuit [% circuit_description %] has been provisioned by [% user %] </p>
+Circuit [% circuit_description %] has been provisioned by [% last_modified_by %] 
 
 [% CASE 'removed' %]
-The circuit [%circuit_description%] has been decommissioned by [% user %]
+The circuit:&nbsp;<b>[%circuit_description%]</b><br/> has been decommissioned by [% last_modified_by %]
 
 [% CASE 'modified' %]
-The circuit [% circuit_description %] has been edited by user [% user %].
+The circuit:&nbsp;<b>[% circuit_description %]</b><br/> has been edited by user [% last_modified_by %].
 
 [% CASE 'change_path' %]
 The following circuit has successfully changed path to the [% active_path %] path because [% reason %]
@@ -406,24 +403,18 @@ The following circuit has successfully changed path to the [% active_path %] pat
 This circuit has been restored because [% reason %]
 
 [% END %]
-
-
-
-<p>The details of the circuit are below:</p>
-<pre>
-[%clr%]
-<pre>
+</p>
                <h4 class="h4" style="color: #202020; display: block; font-family: Arial; font-size: 19px; font-weight: bold; line-height: 100%; margin-bottom: 10px; margin-left: 0; margin-right: 0; margin-top: 0; text-align: left;">New Circuit Layout:</h4><pre>
 [% clr %]
 </pre> </td> </tr>
              <tr>
-              <td align="center" style="border-collapse: collapse;"><a href="https://[%base_url%]index.cgi?action=circuit_details&amp;circuit_id=[%circuit_id%]" target="_blank"><table border="0" cellpadding="15" cellspacing="0" class="templateButton" style="background-color: #3961C4; border: 0; border-collapse: separate !important; border-radius: 3px; color: #FFFFFF; font-family: Arial; font-size: 15px; font-weight: bold; letter-spacing: -.5px; line-height: 100%; text-align: center; text-decoration: none;">
+              <td align="center" style="border-collapse: collapse;"><a href="https://[% base_url %]index.cgi?action=circuit_details&amp;circuit_id=[% circuit_id %]" target="_blank"><table border="0" cellpadding="15" cellspacing="0" class="templateButton" style="background-color: #3961C4; border: 0; border-collapse: separate !important; border-radius: 3px; color: #FFFFFF; font-family: Arial; font-size: 15px; font-weight: bold; letter-spacing: -.5px; line-height: 100%; text-align: center; text-decoration: none;">
                  <tbody>
                   <tr>
                    <td class="templateButtonContent" style="border-collapse: collapse;" valign="middle">View Circuit Details</td> </tr> </tbody>
                 </table> </a> </td> </tr> </table> <!-- // End Module: Standard Content \\ --> </td> </tr> </table> <!-- // End Template Body \\ --> </td> </tr>
        <tr>
-        <td align="center" style="border-collapse: collapse;" valign="top"><img id="footerImage" src="img/oess-frame-footer-600.png" style="border: 0; height: auto; line-height: 100%; max-width: 600px; outline: none; text-decoration: none;" /> </td> </tr>
+        <td align="center" style="border-collapse: collapse;" valign="top"><img id="footerImage" src="[% image_base_url %]/oess-frame-footer-600.png" style="border: 0; height: auto; line-height: 100%; max-width: 600px; outline: none; text-decoration: none;" /> </td> </tr>
        <tr>
         <td align="center" style="border-collapse: collapse;" valign="top"> <!-- // Begin Template Footer \\ -->
          <table border="0" cellpadding="10" cellspacing="0" id="templateFooter" style="border-top: 0;" width="600">
@@ -431,9 +422,9 @@ This circuit has been restored because [% reason %]
            <td class="footerContent" style="border-collapse: collapse;" valign="top"> <!-- // Begin Module: Transactional Footer \\ -->
             <table border="0" cellpadding="10" cellspacing="0" width="100%">
              <tr>
-              <td align="center" style="border-collapse: collapse;" valign="top" width="200px"><img src="img/stanford.png" style="border: 0; display: inline; height: auto; line-height: 100%; outline: none; text-decoration: none;" /> </td>
-              <td align="center" style="border-collapse: collapse;" valign="top" width="200px"><img src="img/globalnoc.png" style="border: 0; display: inline; height: auto; line-height: 100%; outline: none; text-decoration: none;" /> </td>
-              <td align="center" style="border-collapse: collapse;" valign="top"><img src="img/i2.png" style="border: 0; display: inline; height: auto; line-height: 100%; outline: none; text-decoration: none;" /> </td> </tr>
+              <td align="center" style="border-collapse: collapse;" valign="top" width="200px"><img src="[% image_base_url %]/stanford.png" style="border: 0; display: inline; height: auto; line-height: 100%; outline: none; text-decoration: none;" /> </td>
+              <td align="center" style="border-collapse: collapse;" valign="top" width="200px"><img src="[% image_base_url %]/globalnoc.png" style="border: 0; display: inline; height: auto; line-height: 100%; outline: none; text-decoration: none;" /> </td>
+              <td align="center" style="border-collapse: collapse;" valign="top"><img src="[% image_base_url %]/i2.png" style="border: 0; display: inline; height: auto; line-height: 100%; outline: none; text-decoration: none;" /> </td> </tr>
              <tr>
               <td colspan="3" style="border-collapse: collapse;" valign="top" width="100%">
                <div mc:edit="std_footer" style="color: #707070; font-family: Arial; font-size: 12px; line-height: 125%; text-align: center;"><em><div class="grnoc_footer_legal_links" style="color: #707070; font-family: Arial; font-size: 12px; line-height: 125%; text-align: center;"><a href="http://www.iu.edu/comments/copyright.shtml">Copyright</a>&nbsp;&copy; 2013 The Trustees of <a href="http://www.iu.edu/">Indiana University</a> </div></em><br />
