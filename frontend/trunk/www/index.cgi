@@ -75,7 +75,9 @@ sub main{
     my $tt  = Template->new(INCLUDE_PATH => "$FindBin::Bin") || die $Template::ERROR;
 
     my $is_admin = $db->get_user_admin_status(username=>$ENV{'REMOTE_USER'})->[0]{'is_admin'};
-    
+    if(!defined($is_admin)){
+	$is_admin = 0;
+    }
 	
     #-- What to pass to the TT and what http headers to send
     my ($vars, $output, $filename, $title, $breadcrumbs, $current_breadcrumb);
@@ -165,6 +167,7 @@ sub main{
     $vars->{'breadcrumbs'}        = $breadcrumbs;
     $vars->{'current_breadcrumb'} = $current_breadcrumb;
     $vars->{'is_admin'}           = $is_admin;		       
+    
     #print STDERR Dumper($vars);
     $tt->process("html_templates/page_base.html", $vars, \$output) or warn $tt->error();
     
