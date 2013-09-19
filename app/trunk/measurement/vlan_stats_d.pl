@@ -506,7 +506,7 @@ my $result = GetOptions("foreground" => \$opt_f,
                         "verbose" => \$opt_v);
 
 if($opt_f){
-    $SIG{HUP} = sub{ exit(0); }
+    $SIG{HUP} = sub{ exit(0); };
     main();
 }else{
     my $daemon;
