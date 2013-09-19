@@ -87,6 +87,7 @@ my $result = GetOptions(
 );
 
 if ($opt_f) {
+    $SIG{HUP} = sub { die; };
     main();
 }
 else {
