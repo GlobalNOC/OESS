@@ -1,0 +1,93 @@
+[% INCLUDE js_templates/circuit_details_box.js %]
+
+<div>
+
+  <p class="title summary">Summary</p>
+  
+  <table class="circuit_summary_table">
+
+    <tr>
+      <td colspan="5" style="padding-bottom: 8px;padding-right:20px">
+        <label for="summary_description" id="summary_description_label">Description</label>
+        <div id="summary_description"></div>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        <label for="summary_type" id="summary_type_label">Type</label>
+        <div id="summary_type"></div>
+      </td>
+      
+      <td><center>
+        <label for="summary_bandwidth" id="summary_bandwidth_label">Bandwidth</label>
+        <div id="summary_bandwidth"></div>
+	</center>
+      </td>
+
+      <td><center>
+        <label for="restore_to_primary" id="restore_to_primary_label">Restore To Primary</label>
+        <div id="restore_to_primary" style="overflow-x:visible"></div>
+	</center>
+      </td>      
+
+      <td>
+	<center>
+        <label for="summary_status" id="summary_status_label">Status</label>
+        <div id="summary_status"></div>
+	</center>
+      </td>
+      
+      <td>
+	<center>
+	  <label for="workgroup_name" id="workgroup_name_label">Owned By</label>
+	  <div id="workgroup_name"></div>
+	</center>
+      </td>
+
+   </tr>
+   
+    <tr>
+      <td colspan="4" rowspan="4" style="vertical-align: top;">
+	<label for="circuit_endpoints_table" id="circuit_endpoints_table_label">Endpoints</label>
+        <div id="circuit_endpoints_table" style="overflow-x:visible"></div>
+      </td>    
+
+    </tr>    
+
+    <tr>
+      <td colspan="5" style="padding-bottom: 8px;padding-right:20px">
+        <label for="summary_description" id="summary_description_label">Description</label>
+        <div id="summary_description"></div>
+      </td>
+    </tr>
+
+  </table>
+  
+  [% IF show_times %]
+  <p class="title summary">Scheduling</p>
+  <table class="circuit_summary_table">
+    <tr>
+      [% IF ! remove_only %]
+      <td style="width: 200px">
+        <label id="summary_start_time_label">Start Time</label>
+      </td>
+      [% END %]
+      <td style="width: 200px">
+        <label id="summary_revome_time_label">End Time</label>
+      </td>
+    </tr>
+    <tr>
+      [% IF ! remove_only %]
+      <td style="width: 200px">
+        <div id="summary_start_time"></div>
+      </td>
+      [% END %]
+      <td>
+        <div id="summary_remove_time"></div>
+      </td>
+    </tr>
+  </table>
+  [% END %]
+
+</div>
