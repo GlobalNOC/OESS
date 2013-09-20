@@ -1112,15 +1112,17 @@ sub get_node_interfaces {
 
     push(@query_args, $node_name);
 
-    my $query = "select interface.role,interface.vlan_tag_range,interface.port_number,interface.operational_state, interface.name, interface.description, interface.interface_id, interface.workgroup_id from interface " .
+    my $query = "select interface.role,interface.vlan_tag_range,interface.port_number,interface.operational_state, interface.name, interface.description, interface.interface_id, interface.workgroup_id, workgroup.name as workgroup_name from interface " .
 	        " join node on node.name = ? and node.node_id = interface.node_id " .
+            " left join workgroup on interface.workgroup_id = workgroup.workgroup_id " .
 		" join interface_instantiation on interface_instantiation.end_epoch = -1 and interface_instantiation.interface_id = interface.interface_id ";
 
     # get all the interfaces that have an acl rule that applies to this workgroup
     # only used if workgroup_id is passed in
-    my $acl_query = "select interface.role, interface.port_number, interface.description,interface.operational_state as operational_state, interface.name as int_name, interface.interface_id, node.name as node_name, node.node_id, interface_acl.vlan_start, interface_acl.vlan_end, interface.workgroup_id " .
+    my $acl_query = "select interface.role, interface.port_number, interface.description,interface.operational_state as operational_state, interface.name as int_name, interface.interface_id, node.name as node_name, node.node_id, interface_acl.vlan_start, interface_acl.vlan_end, interface.workgroup_id, workgroup.name as workgroup_name " .
             " from interface_acl " .
         "  join interface on interface.interface_id = interface_acl.interface_id " .
+        "  left join workgroup on interface.workgroup_id = workgroup.workgroup_id " .
         "  join interface_instantiation on interface.interface_id = interface_instantiation.interface_id " .
         "    and interface_instantiation.end_epoch = -1" .
         "  join node on node.node_id = interface.node_id " .
@@ -1179,7 +1181,8 @@ sub get_node_interfaces {
 			        "status"         => $available_interface->{'operational_state'},
 			        "vlan_tag_range" => $vlan_tag_range,
 			        "int_role"       => $available_interface->{'role'},
-                    "workgroup_id"   => $available_interface->{'workgroup_id'}
+                    "workgroup_id"   => $available_interface->{'workgroup_id'},
+                    "workgroup_name"   => $available_interface->{'workgroup_name'}
 	            });
             }
         }
@@ -1198,7 +1201,8 @@ sub get_node_interfaces {
 			"status"         => $row->{'operational_state'},
 			"vlan_tag_range" => $row->{'vlan_tag_range'},
 			"int_role"       => $row->{'role'},
-            "workgroup_id"   => $row->{'workgroup_id'}
+            "workgroup_id"   => $row->{'workgroup_id'},
+            "workgroup_name" => $row->{'workgroup_name'}
 	    });
     }
 
