@@ -1808,6 +1808,60 @@ function setup_network_tab(){
 					   );
 
 	    panel.setHeader("Details for Network Element: " + node);
+        panel.setBody("<table style='width:100%'>" +
+            "<tr>" +
+              "<td colspan='4' class='soft_title'>Base Sytem Description and Information</td>"+
+            "</tr>" +
+            "<tr>" +
+                "<td colspan='2'>" +
+                    "<label for='active_node_name'>Name:</label>" +
+                    "<input type='text' size='38' style='margin-left:83px;' id='active_node_name'>" +
+                "</td>" +
+                "<td>" +
+                    "<label for='dpid_str'>DPID:</label>" +
+                "</td>" +
+                "<td>" +
+                    "<label id='dpid_str'></label>" +
+                "</td>" +
+            "</tr>" +
+                "<td>" +
+                    "<label for='active_node_lat'>Latitude:</label>" +
+                "</td>" +
+                "<td>" +
+                    "<input type='text' id='active_node_lat'>" +
+                "</td>" +
+                "<td>" +
+                    "<label for='active_node_lon'>Longitude:</label>" +
+                "</td>" +
+                "<td>" +
+                    "<input type='text' id='active_node_lon'>" +
+                "</td>" +
+            "</tr>" +
+            "<tr>" +
+              "<td colspan='2' class='soft_title'>Behaviours</td>"+
+              "<td colspan='2' class='soft_title'>Performance Characteristics</td>"+
+            "</tr>" +
+            "<tr>" +
+              "<td>Vlan Range:</td>" +
+              "<td><input type='text' id='active_node_vlan_range' size='10'></td>" +
+              "<td>Maximum Number of Flow Mods</td>" +
+              "<td><input type='text' id='active_max_flows' size='10'></td>" +
+            "</tr>" +
+            "<tr>" +
+              "<td>Default Forward LLDP to controller</td>"+
+              "<td><input type='checkbox' id='active_node_default_forward' checked /></td>" +
+              "<td>FlowMod Processing Delay (ms)</td>" +
+              "<td><input type='text' id='active_tx_delay_ms' size='10'></td>" +
+            "</tr>" +
+            "<tr>" +
+              "<td>Default Drop Rule</td>" +
+              "<td><input type='checkbox' id='active_node_default_drop' checked /></td>" +
+              "<td>Send Bulk Flow Rules</td>" +
+              "<td><input type='checkbox' id='active_barrier_bulk' checked></td>" +
+            "</tr>" +
+        "</table>" +
+        "<div id='node_interface_table' style='margin-top:8px;'> </div>");
+/*
 	    panel.setBody("<table>" +
 			  "<tr>" + 
 			  "<td>Name:</td>" +
@@ -1853,6 +1907,7 @@ function setup_network_tab(){
 			  "</table>" +
 			  "<div id='node_interface_table' style='margin-top:8px;'> </div>"
                      );
+*/
 
 	    panel.setFooter("<div id='save_active_node'></div>" + 
 			    "<div id='delete_active_node'></div>");
