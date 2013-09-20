@@ -323,7 +323,7 @@ sub send_notification {
     my %vars = (
                 SUBJECT => $data->{'subject'},
                 base_url => $self->{'base_url'},
-                circuit_id          => $data->{'circuit_id'},
+                circuit_id          => $data->{'circuit'}->{'circuit_id'},
                 workgroup           => $data->{'workgroup'},
                 circuit_description => $data->{'circuit'}->{'description'},
                 clr                 => $data->{'clr'},
@@ -331,7 +331,7 @@ sub send_notification {
                 type => $data->{'circuit'}->{'type'},
                 reason => $data->{'circuit'}->{'reason'},
                 active_path => $data->{'circuit'}->{'active_path'},
-                last_modified_by => "$data->{'last_modified_by'}{'given_names'}, $data->{'last_modified_by'}{'last_name'}",
+                last_modified_by => "$data->{'last_modified_by'}{'given_names'} $data->{'last_modified_by'}{'family_name'}",
                 image_base_url => $self->{'image_base_url'}
                );
 
