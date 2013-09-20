@@ -53,22 +53,41 @@
         <div id="circuit_endpoints_table" style="overflow-x:visible"></div>
       </td>    
 
-      [% IF show_times %]
-      <td rowspan="2" style="width: 200px">
-	[% IF ! remove_only %]
-	<label for="summary_start_time" id="summary_start_time_label">Start Time</label>
-	<div id="summary_start_time" style="margin-bottom: 10px;"></div>
-	[% END %]
-	<label for="summary_remove_time" id="summary_remove_time_label">Removal Time</label>
-	<div id="summary_remove_time"></div>
-      </td>
-
-      [% ELSE %]
-      <td style="width: 200px; visibility: hidden;"></td>
-
-      [% END %]
     </tr>    
 
+    <tr>
+      <td colspan="5" style="padding-bottom: 8px;padding-right:20px">
+        <label for="summary_description" id="summary_description_label">Description</label>
+        <div id="summary_description"></div>
+      </td>
+    </tr>
+
   </table>
+  
+  [% IF show_times %]
+  <p class="title summary">Scheduling</p>
+  <table class="circuit_summary_table">
+    <tr>
+      [% IF ! remove_only %]
+      <td style="width: 200px">
+        <label id="summary_start_time_label">Start Time</label>
+      </td>
+      [% END %]
+      <td style="width: 200px">
+        <label id="summary_revome_time_label">End Time</label>
+      </td>
+    </tr>
+    <tr>
+      [% IF ! remove_only %]
+      <td style="width: 200px">
+        <div id="summary_start_time"></div>
+      </td>
+      [% END %]
+      <td>
+        <div id="summary_remove_time"></div>
+      </td>
+    </tr>
+  </table>
+  [% END %]
 
 </div>

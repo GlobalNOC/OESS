@@ -276,10 +276,10 @@ var ds = new YAHOO.util.DataSource(dsString);
 
     var columns = [
 
-		   {key: "description", label: "Description", width: 450
+		   {key: "description", label: "Description", sortable: true, width: 450
 
            },
-		   {key: "endpoints", label: "Endpoints", width: 280, formatter: function(el, rec, col, data){
+		   {key: "endpoints", label: "Endpoints", sortable: true, width: 280, formatter: function(el, rec, col, data){
 
 			   var endpoints  = rec.getData('endpoints');
 
@@ -307,7 +307,7 @@ var ds = new YAHOO.util.DataSource(dsString);
 			   el.innerHTML = string;
 		       }
 		   },
-		   {key: "workgroup.name", label: "Owned By", width: 90, formatter: function(el, rec, col, data){
+		   {key: "workgroup.name", label: "Owned By", sortable: true, width: 90, formatter: function(el, rec, col, data){
 
 
                el.innerHTML = "<center>"+data+"</center>";
@@ -631,6 +631,7 @@ var ds = new YAHOO.util.DataSource(dsString);
     var owned_interface_table = build_owned_interface_table();
 
     var add_interface_acl = new YAHOO.util.Element('add_interface_acl');
+    var oLinkButton1 = new YAHOO.widget.Button("add_interface_acl");
     add_interface_acl.on('click', function(){
         var record_id = owned_interface_table.getSelectedRows()[0];
         var interface_id = owned_interface_table.getRecord(record_id).getData("interface_id");

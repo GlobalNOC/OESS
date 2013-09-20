@@ -176,7 +176,7 @@ div.main_page {
 }
 
 div.admin {
-    margin-left: 25px;
+    margin-left: 15px;
     width: 960px;
 }
 
@@ -356,4 +356,21 @@ table.circuit_summary_table tr{
 #path_node_selector_chzn {
 	float:right;
 	
+}
+
+.oess_yui_nav {
+    width: 110px !important;
+}
+
+.oess_yui_nav li {
+    white-space: nowrap; 
+}
+
+.oess_drag_and_drop tr {
+    cursor: crosshair !important;
+}
+
+.interface_acl_table {
+    margin-bottom: 5px;
+    text-align: left;
 }

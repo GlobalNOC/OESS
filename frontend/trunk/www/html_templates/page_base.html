@@ -37,7 +37,13 @@
 
       <div style="float: right; margin-right: 10px;margin-top: 20px; color: #b83b93; font-size: 26px;">
 		<div [% IF is_admin != 1 %] style="padding-right:28px;" [% END %]>
-		  <span id="feedbackLink" class="yui-button yui-link-button" >
+          <span id="docLink" class="yui-button yui-link-button" >
+            <span class="first-child">
+              <a href="http://globalnoc.iu.edu/sdn/oess.html" style="font-size: 10px">Documentation</a>
+            </span>
+          </span>
+		  
+          <span id="feedbackLink" class="yui-button yui-link-button" style="margin-left:0px;" >
 			<span class="first-child">
 			  <a href="mailto:[% admin_email %]?SUBJECT=System Support: NDDI/OS3E Feedback Ticket" style="font-size: 10px">Feedback</a>
 			</span>
@@ -58,9 +64,10 @@
      </div>
 
      <script>
-	   var oLinkButton = new YAHOO.widget.Button("feedbackLink");
+	   var oLinkButton1 = new YAHOO.widget.Button("docLink");
+	   var oLinkButton2 = new YAHOO.widget.Button("feedbackLink");
 	   [% IF is_admin == 1 %]
-	   var oLinkButton2 = new YAHOO.widget.Button("adminLink");
+	   var oLinkButton3 = new YAHOO.widget.Button("adminLink");
        [% END %]
 	   makeHelpPanel("active_workgroup_container", "This is the current workgroup you are using.");
      </script>

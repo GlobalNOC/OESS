@@ -824,14 +824,26 @@ function setup_workgroup_tab(){
 	    wg_edit_button.on("click",function(){
 		    var wg_details_panel = new YAHOO.widget.Panel("workgroup_details_p",
 								  {width: 400,
-								   height: 200,
+								   height: 130,
 								   draggable: true,
 								   close: true,
 								   fixedcenter: true
 								  });
 
-		    wg_details_panel.setBody("<label>Workgroup Name:</label> <input type='text' id='workgroup_name_edit' value='" + workgroup_name + "'><br><label>External ID: <input type='text' id='workgroup_external_edit' value='" + workgroup_external + "'>");
-		    wg_details_panel.setFooter("<div id='submit_edit_workgroup'></div>");
+
+		    wg_details_panel.setBody(
+                "<label>Workgroup Name:</label>"+
+                "<input type='text' id='workgroup_name_edit' value='" + workgroup_name + "'>"+
+                "<br>"+
+                "<br>"+
+                "<label>External ID:</label>"+
+                "<input type='text' id='workgroup_external_edit' value='" + workgroup_external + "'>" +
+                "<div style='text-align: right; font-size: 85%'>" +
+                "<div id='submit_edit_workgroup'></div>" +
+                "</div>"
+            );
+		    //wg_details_panel.setFooter("<div id='submit_edit_workgroup'></div>");
+            wg_details_panel.setHeader("Edit Workgroup Details");
 		    wg_details_panel.render("workgroups_content");
 		    var wg_submit_edit = new YAHOO.widget.Button("submit_edit_workgroup",
 								 {label: "submit"});
@@ -1599,7 +1611,7 @@ function setup_network_tab(){
             var interface_id = args.interface_id;
             var interface_name = args.interface_name;
             var acl_panel = new YAHOO.widget.Panel("interface_acl_view_panel",{
-                width: 700,
+                width: 650,
                 centered: true,
                 draggable: true
             });
@@ -1607,8 +1619,15 @@ function setup_network_tab(){
             acl_panel.setHeader("ACL Rules for: "+interface_name);
             acl_panel.setBody(
                 "<div id='interface_acl_table_container'>" +
-                    "<a href='#add_acl'><div id='add_interface_acl'>Add Interface ACL</div></a>" +
-                    "<div id='interface_acl_table'></div>" +
+                    //"<a href='#add_acl'><div id='add_interface_acl'>Add Interface ACL</div></a>" +
+                    "<div id='interface_acl_table' class='interface_acl_table'></div>" +
+                    "<div id='interface_acl_table_actions' class='interface_acl_table'>" +
+                    "<span class='yui-button yui-link-button'>" +
+                        "<span id='add_interface_acl' class='first-child'>" +
+                            "<a href='#add_acl'>Add ACL</a>" +
+                        "</span>" +
+                    "</span>" +
+                    "</div>" +
                 "</div>"
             );
 
@@ -1645,6 +1664,7 @@ function setup_network_tab(){
             //panel.setFooter("<div id='cancel_interface_acl_panel'></div>");
             acl_panel.render(YAHOO.util.Dom.get("active_element_details"));
             var add_interface_acl = new YAHOO.util.Element('add_interface_acl');
+            var oLinkButton1      = new YAHOO.widget.Button("add_interface_acl");
             add_interface_acl.on('click', function(){
                 get_interface_acl_panel("interface_acl_panel", interface_id, {
                     render_location: YAHOO.util.Dom.get("active_element_details"),  
@@ -1673,6 +1693,7 @@ function setup_network_tab(){
 		    {key: "vlan_tag_range"},
 		    {key: "interface_id", parser: "number"},
 		    {key: "workgroup_id", parser: "number"},
+            {key: "workgroup_name"},
 		    {key: "int_role"}
 				 ],
 			metaFields: {
@@ -1680,7 +1701,8 @@ function setup_network_tab(){
 			}
 		    };
 			    
-		    var cols = [{key:'name', label: "Interface", width: 60},
+		    var cols = [
+                {key:'name', label: "Interface", width: 60},
 				{key:'description', label: "Description", width: 200, 
 				 editor: new YAHOO.widget.TextboxCellEditor({  
 					 asyncSubmitter: function( callback, newValue) {
@@ -1734,12 +1756,22 @@ function setup_network_tab(){
 										);
 					    }
 					} )},
-                    {label: "ACL Info", formatter: function(el, rec, col, data){
+                    {key: "workgroup_name", label: "Workgroup", formatter: function(elLiner, oRec, oCol, oData){
+                        if(oData === null){
+                            elLiner.innerHTML = 'None';
+                        }else {
+                            elLiner.innerHTML = oData;
+                        }
+                    }},
+                    {label: "ACL Info", width: 100, formatter: function(el, rec, col, data){
                         var interface_id   = rec.getData("interface_id");
                         var interface_name = rec.getData("name");
                         var workgroup_id   = rec.getData("workgroup_id");
+                        var b;
+					    if(rec.getData('int_role') == 'trunk'){
+                            var b = new YAHOO.widget.Button({label: "View ACLs", disabled: true});
+                        }else {
                         var b = new YAHOO.widget.Button({label: "View ACLs"});
-                        b.appendTo(el);
                         b.on("click", function(){
                             if(workgroup_id == null) {
                                 alert("You must first add a workgroup as the owner of this interface");
@@ -1750,6 +1782,8 @@ function setup_network_tab(){
                                 });
                             }
                         });
+                        }
+                        b.appendTo(el);
                     }}
 				];
 		    
@@ -1767,7 +1801,7 @@ function setup_network_tab(){
 
 	    panel = new YAHOO.widget.Panel("node_details",
 					   { 
-					       width: 700,
+					       width: 790,
 					       centered: true,
 					       draggable: true
 					   }

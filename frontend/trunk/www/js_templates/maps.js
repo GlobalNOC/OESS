@@ -992,7 +992,7 @@ function NDDIMap(div_id, interdomain_mode){
 												var popup = new OpenLayers.Popup(e.feature.id,
 																 lonlat,
 																 new OpenLayers.Size(width + 10, height + 2),
-																 "<div style='text-align: center;'><b>"+element.element_name+"</b></div>"
+																 "<div style='text-align: center;white-space:nowrap;'><b>"+element.element_name+"</b></div>"
 																 );
 
 												popup.setBackgroundColor("#EEEEEE");

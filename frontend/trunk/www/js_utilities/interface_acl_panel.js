@@ -68,7 +68,7 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
         "<option value='deny'>Deny</option>" +
         "</select>" +
         "<br><br><label for='"+container_id+"_acl_panel_vlan_start' class='soft_title'>VLAN Range:</label>" +
-        "<input id='"+container_id+"_acl_panel_vlan_start' type='text' size='10' style='margin-left: 5px'>" +
+        "<input id='"+container_id+"_acl_panel_vlan_start' type='text' size='10' style='margin-left: 5px;margin-right: 5px;'>" + "-" +
         "<input id='"+container_id+"_acl_panel_vlan_end' type='text' size='10' style='margin-left: 5px'>" +
         "<br><br><label for='"+container_id+"_acl_panel_notes' class='soft_title'>Notes:</label>" +
         "<textarea id='"+container_id+"_acl_panel_notes' rows='4' cols='35' style='margin-left: 12px'>"

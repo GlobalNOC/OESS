@@ -8,7 +8,6 @@
         table.enableDragDrop = function(){
             //table._dragDrop = true;
             this._dragDrop = true;
-
             var _makeInitTargets = function(){
                 var allRows = table.getTbodyEl().rows;
 
@@ -122,7 +121,8 @@
             });
             //$('#'+link_id).html("Disable Reordering");
             $('#'+link_id+' a').html("Disable Reordering");
-
+            $('#'+help_id).css("display", "inline");
+            table.addClass("oess_drag_and_drop");
         };
 
         // makes internal hooks not react to drag and drop, also removes the
@@ -131,6 +131,8 @@
             this._dragDrop = false;
             //$('#'+link_id).html("Enable Reordering");
             $('#'+link_id+' a').html("Enable Reordering");
+            $('#'+help_id).css("display", "none");
+            table.removeClass("oess_drag_and_drop");
         };
 
 
@@ -179,13 +181,35 @@
         }
         //create toggle link
         var link_id     = table.get("id")+'_dd_toggle';
+        var help_id     = table.get("id")+'_help';
         //check to make sure link doesn't already exist
         if($('#'+link_id).length){
             $('#'+link_id).remove();
         }
+        if($('#'+help_id).length){
+            $('#'+help_id).remove();
+        }
+
         //var link_markup = '<a href="#"><div id="'+link_id+'">Enable Reordering</div></a>';
-        var link_markup = '<div id="'+link_id+'"><a href="#">Enable Reordering</a></div>';
-        $(link_markup).insertAfter('#'+table.get("id"));
+        /*var link_markup    = '<span class="yui-button yui-link-button">'+
+                             '<span id="'+link_id+'" class="first-child">'+
+                             '<a href="#">Enable Reordering</a>'+
+                             '</span></span>';*/
+        var link_markup    = '<span id="'+link_id+'" class="yui-button yui-link-button">'+
+                             '<span class="first-child">'+
+                             '<a href="#">Enable Reordering</a>'+
+                             '</span></span>';
+        var help_markup    = '<span id="'+help_id+'" class="soft_title" style="font-size:10px;margin-left:5px;display:none;">Drag and drop rows to reorder them</span>';
+        var actions_div = $('#'+table.get("id")+'_actions');
+        if(actions_div){
+            actions_div.append($(link_markup));
+            actions_div.append($(help_markup));
+        } else {
+            $(help_markup).insertAfter('#'+table.get("id"));
+            $(link_markup).insertAfter('#'+table.get("id"));
+        }
+        var oLinkButton1 = new YAHOO.widget.Button(link_id);
+
         $('#'+link_id).click(function(event) {
             event.preventDefault();
             if(table._dragDrop){
