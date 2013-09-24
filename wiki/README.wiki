@@ -86,10 +86,11 @@ At this point in time the OESS database is all set, but the OESS configuration i
 The configuration file that contains the database connection information needs to be located in /etc/oess/database.xml. This configuration file should contain all of the information on how to connect to the mysql database, as well as any oscars 
 configuration details.  The config file should look like this (replace with real values):
 
-<config version="0.1" snapp_config_location="/SNMP/snapp/snapp_config.xml">
+<config version="0.1" snapp_config_location="/SNMP/snapp/snapp_config.xml" base_url="https://localhost/oess/>
   <credentials type="mysql" database="oess" username="oess-rw" password="secret"></credentials>
   <oscars host="https://localhost" cert="/path/to/mycert.crt" key="/path/to/mykey.key" 
   topo="http://ndb7.net.internet2.edu:8012/perfSONAR_PS/services/topology"/>
+  <smtp from_address="oess@test.example" from_name="OESS Circuit Notifier" image_base_url="https://localhost/oess/notification-img"/>
 </config>
 
 At this point OESS is configured, but the services have not been started. Please note that it is important to start the services in the correct order.
