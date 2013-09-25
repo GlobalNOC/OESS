@@ -586,7 +586,7 @@ sub generate_clr{
 		        $clr .= "\nNODE: " . $node . "\n";
 		        my $remote_inner_tag = $primary_path{$node}{$other_if}{$local_inner_tag};
 		        $clr .= "Match: IN_PORT: " . $interface . ", dl_vlan: " . $outer_tag . "   OUTPUT: " . $other_if . ":vlan" . $remote_inner_tag . "\n";
-		        $clr .= "Match: IN_PORT: " . $other_if . ", dl_vlan: " . $remote_inner_tag . "   OUTPUT: " . $interface . ":vlan" . $outer_tag . "\n";
+		        $clr .= "Match: IN_PORT: " . $other_if . ", dl_vlan: " . $local_inner_tag . "   OUTPUT: " . $interface . ":vlan" . $outer_tag . "\n";
 		    }
 	        }
         }
