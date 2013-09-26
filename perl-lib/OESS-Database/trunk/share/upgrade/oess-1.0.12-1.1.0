@@ -86,12 +86,6 @@ sub upgrade{
     $sth = $dbh->prepare($str);
     $sth->execute() or die "Unable to add constraint to workgroup column in interface table"; 
     
-    # remove workgroup_interface_membership table
-    $str = "drop table workgroup_interface_membership";
-    $sth = $dbh->prepare($str);
-    $sth->execute() or die "Unable to remove workgroup_interface_membership table"; 
-
-
     # ask user if they want to do a generic migration
     print "Would you like to do a migration of the current workgroup/interface ownership to the admin workgroup owns all interfaces and everyone has access? [y/n]: ";
     my $yes_or_no = <>;
