@@ -1,5 +1,31 @@
 = Changes for OESS over time =
 
+== 1.1.0 ==
+
+*Bugs*:
+ * Graphs always show the correct timeframe, during demos they use to fall behind
+ * Graphs for nodes in the middle of the path now show correct data in both directions
+ * OSCARS PSS using the correct vlans in all cases
+ * Spaces in OSCARS Topology are now automatically replaced and handled
+ * Map extent is now dynamic, depending on the nodes visible
+ * intra-switch circuits showed now flows on the circuit RAW CLR
+ * Reworked the Circuit Details page to minimize wrapping/cutting off of text
+ * Reworked several Admin page sections to improve usability
+ * Circuit CLR Raw was not displaying the proper flow rules
+ * A synchronization issue prevented node insertions from working properly
+
+*Features*:
+ * Inter-domain provisioning now shows the available vlan range in the vlan selector
+ * OSCARS topology submission now contains the proper specified vlan-ranges
+ * Better topology submission error handling
+ * Local OSCARS topology is now visible inside of the application
+ * Network status tab refreshes every 30seconds
+ * Added the ability to edit workgroup information
+ * Active Circuit list shows owning workgroup
+ * ACL/Workgroup changes allowing for user controlled ACLs for each individual port owned by the workgroup
+ * 1 Notification per-Network Event to a user in a workgroup
+
+
 == 1.0.12 ==
 
 *Bugs*:
