@@ -554,13 +554,22 @@ var ds = new YAHOO.util.DataSource(dsString);
 
     //---
     //--- Set up Acl stuff
-    //---
+    //---A
+    var interface_acl_table;
+    var interface_acl_edit_panel;
     function build_interface_acl_table(interface_id){
         interface_acl_table = get_interface_acl_table("interface_acl_table", interface_id, {
             on_show_edit_panel: function(oArgs){
                 var record = oArgs.record;
                 var interface_id = oArgs.interface_id;
-                get_interface_acl_panel("interface_acl_panel", interface_id, {
+                //this.interface_acl_panel
+                if(interface_acl_edit_panel){
+                    interface_acl_edit_panel.destroy();
+                }
+                //if(interface_acl_table){
+                //    interface_acl_table.destroy();
+                //}
+                interface_acl_edit_panel = get_interface_acl_panel("interface_acl_edit_panel", interface_id, {
                     modal: true,
                     fixedcenter: true,
                     is_edit: true,
@@ -577,7 +586,7 @@ var ds = new YAHOO.util.DataSource(dsString);
         });
         return interface_acl_table;
     }
-
+    var add_interface_acl_panel; 
     function build_owned_interface_table(){
         if ( typeof(this.destroy) == "function" ){
             this.destroy();
@@ -632,10 +641,15 @@ var ds = new YAHOO.util.DataSource(dsString);
 
     var add_interface_acl = new YAHOO.util.Element('add_interface_acl');
     var oLinkButton1 = new YAHOO.widget.Button("add_interface_acl");
+    var add_interface_acl_panel;
     add_interface_acl.on('click', function(){
         var record_id = owned_interface_table.getSelectedRows()[0];
         var interface_id = owned_interface_table.getRecord(record_id).getData("interface_id");
-        get_interface_acl_panel("interface_acl_panel", interface_id, {
+        if(add_interface_acl_panel){
+            add_interface_acl_panel.destroy();
+        }
+        
+        add_interface_acl_panel = get_interface_acl_panel("interface_acl_panel", interface_id, {
             is_edit: false,
             modal: true,
             fixedcenter: true,

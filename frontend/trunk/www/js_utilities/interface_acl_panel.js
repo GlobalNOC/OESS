@@ -3,6 +3,9 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
     var is_edit = options.is_edit || false;
     var fixedcenter = options.fixedcenter || false;
     var modal = options.modal || false;
+    
+    $('body').append('<div id="'+container_id+'"></div>');
+    $('#'+container_id).css('textAlign', 'left');
 
     function _validate_data(data){
         var error_message = '<div style="text-align: left;">';
@@ -46,7 +49,7 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
         width: 360,
         modal: modal,
         fixedcenter: fixedcenter,
-        //zIndex: 10,
+        zIndex: 10,
         draggable: false,
         close: false
     });
@@ -259,5 +262,7 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
         },
         scope: this
     });
+
+    return panel;
 
 };
