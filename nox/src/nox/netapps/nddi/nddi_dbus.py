@@ -220,6 +220,8 @@ class dBusEventGen(dbus.service.Object):
             my_attrs[DL_TYPE] = int(attrs["DL_TYPE"])
         if attrs.get("PRIORITY"):
             priority = int(attrs["PRIORITY"])
+        if attrs.get("DL_DST"):
+            my_attrs[DL_DST] = int(attrs["DL_DST"])
 
         #--- this is less than ideal. to make dbus happy we need to pass extra arguments in the
         #--- strip vlan case, but NOX won't be happy with them so we remove them here
@@ -247,7 +249,7 @@ class dBusEventGen(dbus.service.Object):
  	my_attrs = {}
         my_attrs[DL_VLAN] = int(attrs['DL_VLAN'])
         my_attrs[IN_PORT] = int(attrs['IN_PORT'])
-
+        my_attrs[DL_DST]  = int(attrs['DL_DST'])
         #--- first we check to make sure the switch is in a ready state to accept more flow mods
         status = _do_install(dpid, lambda: inst.delete_datapath_flow(dpid, my_attrs))
 
