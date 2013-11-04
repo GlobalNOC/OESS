@@ -360,7 +360,7 @@ sub to_dbus{
 	    }case "dl_type"{
 		$command->{'attr'}{'DL_TYPE'} = Net::DBus::dbus_uint16($self->{'match'}->{$key});
 	    }case "dl_dst"{
-		$commnad->{'attr'}{'DL_DST'} = Net::DBus::dbus_uint64($self->{'match'}->{$key});
+		$command->{'attr'}{'DL_DST'} = Net::DBus::dbus_uint64($self->{'match'}->{$key});
 	    }else{
 		$self->_set_error("Error unsupported match: " . $key . "\n");
 		return;
@@ -375,6 +375,23 @@ sub to_dbus{
     return $command;
 }
 
+
+=head2 get_match
+
+=cut
+
+sub get_match{
+    my $self = shift;
+    
+    return $self->{'match'};
+
+}
+
+sub get_actions{
+    my $self = shift;
+    
+    return $self->{'actions'};
+}
 
 =head2 to_human
 
@@ -406,15 +423,37 @@ sub to_engineer{
 }
 
 
-=head2 same_match
+=head2 compare_match
 
 compares this match to another flow_rule match. return 1 for a match and 0 for do not match
 
 =cut
-sub same_match{
+sub compare_match{
+    my $self = shift;
+    my $other_rule = shift;
+    
+    return 0 if(!defined($other_rule));
 
-    return 0;
+    my $other_match = $other_rule->get_match();
+    
+    return 0 if(!defined($other_match));
 
+    foreach my $key (keys (%{$self->{'match'}})){
+        return 0 if(!defined($other_match->{$key}));
+        if($other_match->{$key} != $self->{'match'}->{$key}){
+            return 0;
+        }
+    }
+
+    foreach my $key (keys (%{$other_match})){
+        return 0 if(!defined($self->{'match'}->{$key}));
+        if($other_match->{$key}!= $self->{'match'}->{$key}){
+            return 0;
+        }
+    }
+
+    #made it this far so has to be the same
+    return 1;
 }
 
 
@@ -427,7 +466,33 @@ returns 0 on error
 =cut
 
 sub merge_actions{
-    
+    my $self = shift;
+    my $params = @_;
+
+    my $other_flow = $params{'flow_rule'};
+    #flow rule not defined can't merge flows
+    return 0 if(!defined($other_flow));
+
+    #no actions to merge invalid flow rule
+    return 0 if(!defined($other_flow->get_actions()));    
+
+    #now loop through all the actions and add any that don't exist
+    foreach my $other_action (@{$other_flow->get_actions()}){
+        my $found =0;
+        foreach my $action (@{$self->{'actions'}}){
+            my $action_type = (keys (%$other_action))->[0];
+            if(defined($action->{$action_type})){
+                if($action->{$action_type} == $other_action->{$action_type}){
+                    $found = 1;
+                }
+            }
+        }
+        if(!$found){
+            push(@{$self->{'actions'}},$other_action);
+        }
+    }
+
+
     return 1;
 
 }
