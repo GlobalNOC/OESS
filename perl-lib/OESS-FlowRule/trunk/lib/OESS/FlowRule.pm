@@ -31,11 +31,11 @@ OESS::FlowRule - OESS representation of FlowRules
 
 =head1 VERSION
 
-Version 1.0.8
+Version 1.1.1
 
 =cut
 
-our $VERSION = '1.0.8';
+our $VERSION = '1.1.1';
 
 =head1 SYNOPSIS
 
@@ -355,12 +355,12 @@ sub to_dbus{
 	switch ($key){
 	    case "in_port"{
 		$command->{'attr'}{'IN_PORT'} = Net::DBus::dbus_uint16($self->{'match'}->{$key});
-	    }
-	    case "dl_vlan"{
+	    }case "dl_vlan"{
 		$command->{'attr'}{'DL_VLAN'} = Net::DBus::dbus_uint16($self->{'match'}->{$key});
-	    }
-	    case "dl_type"{
+	    }case "dl_type"{
 		$command->{'attr'}{'DL_TYPE'} = Net::DBus::dbus_uint16($self->{'match'}->{$key});
+	    }case "dl_dst"{
+		$commnad->{'attr'}{'DL_DST'} = Net::DBus::dbus_uint64($self->{'match'}->{$key});
 	    }else{
 		$self->_set_error("Error unsupported match: " . $key . "\n");
 		return;
