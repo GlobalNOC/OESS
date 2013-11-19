@@ -374,8 +374,8 @@ def _do_install(dpid, callback):
     flowmod_callbacks[dpid].append({"status": PENDING, "result": FWDCTL_WAITING, "start_time": time()})
 
     callback();
-    #return inst.send_barrier(dpid)
-    return 1
+    return inst.send_barrier(dpid)
+    #return 1
 
 global high_water
 highwater = 0
