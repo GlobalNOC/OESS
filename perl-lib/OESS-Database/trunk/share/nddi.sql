@@ -29,6 +29,7 @@ CREATE TABLE `circuit` (
   `workgroup_id` int(10) NOT NULL,
   `external_identifier` varchar(255) DEFAULT NULL,
   `restore_to_primary` int(10) DEFAULT '0',
+  `static_mac` tinyint(1) DEFAULT '0',
   PRIMARY KEY (`circuit_id`),
   UNIQUE KEY `circuit_idx` (`name`),
   KEY `workgroup_id` (`workgroup_id`),
@@ -49,11 +50,13 @@ CREATE TABLE `circuit_edge_interface_membership` (
   `end_epoch` int(10) NOT NULL,
   `start_epoch` int(10) NOT NULL,
   `extern_vlan_id` int(10) NOT NULL,
-  PRIMARY KEY (`interface_id`,`circuit_id`,`end_epoch`,`extern_vlan_id`),
+  `circuit_edge_id` int(10) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`circuit_edge_id`),
+  UNIQUE KEY `interface_id` (`interface_id`,`circuit_id`,`end_epoch`,`extern_vlan_id`),
   KEY `circuit_circuit_interface_membership_fk` (`circuit_id`),
-  CONSTRAINT `circuit_circuit_interface_membership_fk` FOREIGN KEY (`circuit_id`) REFERENCES `circuit` (`circuit_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `interface_circuit_interface_membership_fk` FOREIGN KEY (`interface_id`) REFERENCES `interface` (`interface_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+  CONSTRAINT `circuit_edge_interface_membership_ibfk_1` FOREIGN KEY (`interface_id`) REFERENCES `interface` (`interface_id`),
+  CONSTRAINT `circuit_edge_interface_membership_ibfk_2` FOREIGN KEY (`circuit_id`) REFERENCES `circuit` (`circuit_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=81 DEFAULT CHARSET=utf8
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -245,6 +248,7 @@ CREATE TABLE `node` (
   `max_flows` int(11) DEFAULT '4000',
   `tx_delay_ms` int(11) DEFAULT '0',
   `send_barrier_bulk` tinyint(1) DEFAULT '1',
+  `max_static_mac_flows` int(10) DEFAULT '0',
   PRIMARY KEY (`node_id`),
   UNIQUE KEY `node_idx` (`name`),
   KEY `network_node_fk` (`network_id`),
@@ -461,6 +465,8 @@ CREATE TABLE `workgroup` (
   `name` varchar(255) NOT NULL,
   `external_id` varchar(255) DEFAULT NULL,
   `type` varchar(20) DEFAULT 'normal',
+  `max_mac_address_per_end` int(10) DEFAULT '10',
+  `max_circuits` int(10) DEFAULT '20',
   PRIMARY KEY (`workgroup_id`),
   UNIQUE KEY `workgroups_idx` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
