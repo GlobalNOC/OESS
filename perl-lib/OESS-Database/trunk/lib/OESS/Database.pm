@@ -34,11 +34,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 1.1.0
+Version 1.1.1
 
 =cut
 
-our $VERSION = '1.1.0';
+our $VERSION = '1.1.1';
 
 =head1 SYNOPSIS
 
@@ -83,7 +83,7 @@ use Net::DBus;
 use OESS::Topology;
 use DateTime;
 
-use constant VERSION => '1.1.0';
+use constant VERSION => '1.1.1';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant SHARE_DIR => "/usr/share/doc/perl-OESS-Database-" . VERSION . "/";
@@ -3323,7 +3323,7 @@ sub get_circuit_details {
     my $details;
 
     # basic circuit info
-    my $query = "select circuit.restore_to_primary, circuit.name, circuit.description, circuit.circuit_id, circuit_instantiation.modified_by_user_id, circuit.workgroup_id, " .
+    my $query = "select circuit.restore_to_primary, circuit.name, circuit.description, circuit.circuit_id, circuit.static_mac, circuit_instantiation.modified_by_user_id, circuit.workgroup_id, " .
 	" circuit_instantiation.reserved_bandwidth_mbps, circuit_instantiation.circuit_state, circuit_instantiation.start_epoch  , " .
 	" if(bu_pi.path_state = 'active', 'backup', 'primary') as active_path " .
 	"from circuit " .
@@ -3371,7 +3371,8 @@ sub get_circuit_details {
                     'user_id'                => $row->{'modified_by_user_id'},
                     'last_edited'            => $dt->strftime('%m/%d/%Y %H:%M:%S'),
                     'workgroup_id'           => $row->{'workgroup_id'},
-		    'restore_to_primary'     => $row->{'restore_to_primary'}
+		    'restore_to_primary'     => $row->{'restore_to_primary'},
+		    'static_mac_address'             => $row->{'static_mac'}
                    };
         if ( $row->{'circuit_state'} eq 'decom' ){
             $show_historical =1;
@@ -3510,11 +3511,15 @@ sub get_circuit_endpoints {
 
     my $results;
 
+
+
     while (my $row = $sth->fetchrow_hashref()){
 
 	$sth2->execute($row->{'interface_id'});
 
 	my $endpoint = $sth2->fetchrow_hashref();
+
+	my $mac_addrs = $self->_execute_query("select mac_address from circuit_edge_mac_address where circuit_edge_id = ?",[$row->{'circuit_edge_id'}]);
 
 	push (@$results, {'node'      => $endpoint->{'node_name'},
 			  'interface' => $endpoint->{'int_name'},
@@ -3524,7 +3529,8 @@ sub get_circuit_endpoints {
 			  'local'     => $endpoint->{'is_local'},
 			  'role'      => $endpoint->{'role'},
 			  'interface_description' => $endpoint->{'interface_description'},
-			  'urn'       => $endpoint->{'urn'}
+			  'urn'       => $endpoint->{'urn'},
+			  'mac_addrs' => $mac_addrs
 	                 }
 	    );
     }
