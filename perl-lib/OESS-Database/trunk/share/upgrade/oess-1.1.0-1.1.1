@@ -47,7 +47,7 @@ sub main{
 }
 
 
-sub upgrade{
+sub upgrade {
     my $dbh = shift;
     my $term = shift;
     my $str;
@@ -59,15 +59,19 @@ sub upgrade{
     ####################################
     #add the circuit edge mac address table 
     
-    $str = " alter table circuit_edge_interface_membership drop key interface_circuit_interface_membership_fk";
+    $str = " alter table circuit_edge_interface_membership drop foreign key interface_circuit_interface_membership_fk";
     $sth = $dbh->prepare($str);
     $sth->execute() or die "Unable to drop foreign keys to circuit_edge_interface_membership";
 
-    $str = " alter table circuit_edge_interface_membership drop key circuit_circuit_interface_membership_fk";
+    $str = " alter table circuit_edge_interface_membership drop foreign key circuit_circuit_interface_membership_fk";
     $sth = $dbh->prepare($str);
     $sth->execute() or die "Unable to drop foreign keys to circuit_edge_mac_address table";
+    
+    $str = "alter table circuit_edge_interface_membership drop primary key";
+    $sth = $dbh->prepare($str);
+    $sth->execute() or die "Unable to drop circuit_edge_interface_membership table's primary key";
 
-    $str = "alter table circuit_edge_interface_membership add column circuit_edge_id int(10) priamry key auto_increment not null";
+    $str = "alter table circuit_edge_interface_membership add column circuit_edge_id int(10) primary key auto_increment not null";
     $sth = $dbh->prepare($str);
     $sth->execute() or die "Unable to add new circuit_edge_id field to circuit_edge_interface_membership table";
 
@@ -75,7 +79,7 @@ sub upgrade{
     $sth = $dbh->prepare($str);
     $sth->execute() or die "Unable to add foreign key circuit_edge_interface_membership table";
 
-    $str = "alter table circuit_edge_interface_membership add foreign key (interface_id references interface(interface_id)";
+    $str = "alter table circuit_edge_interface_membership add foreign key (interface_id) references interface(interface_id)";
     $sth = $dbh->prepare($str);
     $sth->execute() or die "Unable to add foreign key constraint to circuit_edge_interface_membership table";
 
