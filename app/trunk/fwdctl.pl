@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/Usr/bin/perl
 #------ NDDI OESS Forwarding Control
 ##-----
 ##----- $HeadURL:
@@ -31,12 +31,13 @@ use Data::Dumper;
 use Net::DBus::Exporter qw(org.nddi.fwdctl);
 use Net::DBus qw(:typing);
 use base qw(Net::DBus::Object);
-#use Sys::Syslog qw(:macros :standard);
+
 use Log::Log4perl;
 use Switch;
 use OESS::FlowRule;
 use OESS::Database;
 use OESS::Topology;
+use OESS::Circuit;
 use XML::Simple;
 use Time::HiRes qw( usleep );
 
@@ -75,7 +76,7 @@ $| = 1;
 my %node;
 my %link_status;
 my %circuit_status;
-
+my $node_details;
 sub _log {
     my $string = shift;
 
@@ -109,7 +110,7 @@ sub new {
     $self->{'topo'} = $topo;
 
     $self->{'logger'} = Log::Log4perl->get_logger('OESS::FWDCTL');
-
+    $self->{'circuits'} = {};
     dbus_method("addVlan", ["uint32"], ["string"]);
     dbus_method("deleteVlan", ["string"], ["string"]);
     dbus_method("changeVlanPath", ["string"], ["string"]);
@@ -124,8 +125,17 @@ sub new {
 sub _sync_database_to_network {
     my $self = shift;
 
+    $self->{'logger'}->debug("Syncing DB to network");
     my $circuits = $self->{'db'}->get_current_circuits();
     foreach my $circuit (@$circuits) {
+
+	my $ckt = OESS::Circuit->new( db => $self->{'db'},
+				      circuit_id => $circuit->{'circuit_id'} );
+
+	$self->{'logger'}->trace("Ckt: " . Data::Dumper::Dumper($ckt));
+
+	$self->{'circuits'}->{ $ckt->get_id() } = $ckt;
+
         if ($circuit->{'operational_state'} eq 'up') {
             $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
         } elsif ($circuit->{'operational_state'}  eq 'down') {
@@ -150,361 +160,69 @@ sub _sync_database_to_network {
     foreach my $node (@$nodes) {
         $node->{'full_diff'} = 1;
         $self->{'nodes_needing_diff'}{$node->{'dpid'}} = $node;
+	$node_details->{$node->{'dpid'}} = $node;
     }
 }
 
-
-sub _dedup_flows{
-    my $self = shift;
-    my %params = @_;
-
-    my $prev_rules = $params{'flows'};
-    my $new_rule   = $params{'new_flow'};
-    my $sw_act     = $params{'action'};
-
-    # first let's see if we already have a rule that uses these exact same qualifiers (multipoint)
-    foreach my $prev_rule (@$prev_rules) {
-	if($prev_rule->compare_match( flow_rule => $new_rule)){
-	    $prev_rule->merge_actions( flow_rule => $new_rule );
-            return;
-        }
-    }
-        
-    push(@$prev_rules,$new_rule);
-
-}
-
-sub _generate_endpoint_rules{
-    #--- maybe we should refactor into this?
-
-}
 
 sub _generate_commands{
-    my $self = shift;
-    my $circuit_id= shift;
-    my $action = shift;
-    
-    return $self->_generate_commands_for_circuit($circuit_id,$action);
-}
-
-sub _generate_commands_for_circuit{
     my $self = shift;
     my $circuit_id = shift;
     my $action = shift;
 
-    my $circuit_details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
+    my $ckt;
+    $self->{'logger'}->debug("generating flows for circuit_id: " . $circuit_id);
+    if(!defined($self->{'circuit'}->{$circuit_id})){
 
-    #_log( "Generate Commands - Circuit Details: " . Dumper($circuit_details));
-    if (!defined $circuit_details) {
-        $self->{'logger'}->error("No Such Circuit circuit_id: " . $circuit_id);
-        return undef;
-    }
-    my $dpid_lookup  = $self->{'db'}->get_node_dpid_hash();
-    if (!defined $dpid_lookup) {
-        return undef;
-    }
-
-    #holds all of our flows!
-    my @flows;
-
-    my %node_ends;
-    my %in_ports;
-    foreach my $endpoint (@{$circuit_details->{'endpoints'}}){
-	$self->{'logger'}->debug("endpoint: " . Data::Dumper::Dumper($endpoint));
-	if(!defined($node_ends{$endpoint->{'node'}})){
-	    $node_ends{$endpoint->{'node'}} = 0;
-	}
-	$node_ends{$endpoint->{'node'}}++;
-	if(!defined($in_ports{$endpoint->{'node'}})){
-	    $in_ports{$endpoint->{'node'}} = ();
-	}
-	push(@{$in_ports{$endpoint->{'node'}}},$endpoint);
+	$ckt = OESS::Circuit->new( circuit_id => $circuit_id,
+				   db => $self->{'db'});
+	$self->{'logger'}->trace("ckt: " . Data::Dumper::Dumper($ckt));
+	$self->{'circuit'}->{$circuit_id} = $ckt;
     }
     
-    
-    
-    if($circuit_details->{'static_mac_address'}){
-	$self->{'logger'}->debug("Static MAC Address routing");
-	my $primary_graph = $self->{'topo'}->build_graph_of_circuit( circuit => $circuit_details,
-								     path => 'primary');
-	
-	
-	
-	my $internal_ids = $circuit_details->{'internal_ids'};
-	
-	my %finder;
-	
-	my $links = $circuit_details->{'links'};
-	my %paths;
-	foreach my $link (@{$links}) {
-	    my $node_a = $link->{'node_a'};
-	    my $node_z = $link->{'node_z'};
-	    
-	    if(!defined($in_ports{$node_a})){
-		$in_ports{$node_a} = ();
-	    }
-	    
-	    push(@{$in_ports{$node_a}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_a'}, tag => $internal_ids->{'primary'}{$node_a}});
-	    push(@{$in_ports{$node_z}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_z'}, tag => $internal_ids->{'primary'}{$node_z}});
-	    
-	    $finder{$node_a}{$node_z} = $link;
-	    $finder{$node_z}{$node_a} = $link;
-	    $paths{$node_a}{$link->{'port_no_a'}}{$internal_ids->{'primary'}{$node_a}} = $internal_ids->{'primary'}{$node_z};
-	    $paths{$node_z}{$link->{'port_no_z'}}{$internal_ids->{'primary'}{$node_z}} = $internal_ids->{'primary'}{$node_a};
-	}
-	
-	$self->{'logger'}->debug(Data::Dumper::Dumper($primary_graph));
-	my @verts = $primary_graph->vertices;
-	
+    $ckt = $self->{'circuit'}->{$circuit_id};
 
-	foreach my $vert (@verts){
-	    $self->{'logger'}->debug("Vert: " . $vert . " has degree: " . $primary_graph->degree($vert) . " and " . $node_ends{$vert} .
-				     " endpoints for total degree " . ($primary_graph->degree($vert) + $node_ends{$vert}));
-	    #check to see what degree our node is
-	    if(($primary_graph->degree($vert) + $node_ends{$vert})  > 2){
-		$self->{'logger'}->debug("Processing a complex node with more than 2 edges");
-		#complex node!!! take the endpoints and find the paths to each of them!
-		$self->{'logger'}->debug("Edges on verticie: " . Data::Dumper::Dumper($primary_graph->edges_to($vert)));
-		my @edges = $primary_graph->edges_to($vert);
-		$self->{'logger'}->debug("EDGES: " . Data::Dumper::Dumper(@edges));
-		foreach my $edge ($primary_graph->edges_to($vert)){
-		    $self->{'logger'}->debug("Finding link between " . $edge->[0] . " and " . $edge->[1]);
-		    my $link = $finder{$edge->[0]}{$edge->[1]};
-		    
-		    #this will process 
-		    foreach my $endpoint (@{$circuit_details->{'endpoints'}}){			
-			$self->{'logger'}->debug("Finding shortest path between " . $vert . " and " . $endpoint->{'node'});
-			my @next_hop = $primary_graph->SP_Dijkstra($vert, $endpoint->{'node'});
-			#$self->{'logger'}->debug("Next Hop: " . Data::Dumper::Dumper(\@next_hop));
-			if(defined($next_hop[1])){
-			    my $link = $finder{$next_hop[0]}{$next_hop[1]};
-			    #if we could find a link do it
-			    if(!defined($link)){
-				$self->{'logger'}->error("Couldn't find the link... but there should be one!");
-				next;
-			    }
-			    $self->{'logger'}->debug("Its a link!");
+    $self->{'logger'}->trace("ckt: " . Data::Dumper::Dumper($ckt));
 
-			    my $port;
-			    if($link->{'node_a'} eq $vert){
-				$port = $link->{'port_no_a'};
-			    }else{
-				$port = $link->{'port_no_z'};
-			    }
-			    
-			    foreach my $in_port (@{$in_ports{$vert}}){
-				#if the in port matches the out port go on to next
-				next if($in_port->{'port_no'} == $port);
+    switch($action){
+	case (FWDCTL_ADD_VLAN){
 
-				#for each mac addr
-				foreach my $mac_addr (@{$endpoint->{'mac_addrs'}}){
-				    
-				    $self->{'logger'}->debug("Creating flow for mac_addr " . $mac_addr->{'mac_address'} . " on node " . $vert);
-				    
-				    my $flow = OESS::FlowRule->new( match => {'dl_vlan' => $in_port->{'tag'},
-									      'in_port' => $in_port->{'port_no'},
-									      'dl_dst' => $mac_addr->{'mac_address'}},
-								    dpid => $dpid_lookup->{$vert},
-								    actions => [{'set_vlan_vid' => $internal_ids->{'primary'}{$next_hop[1]}},
-										{'output' => $port}]);
-				    
-				}
-			    }
-			    
-			}else{
-			    
-			    $self->{'logger'}->debug("not a link");
-			    #endpoint must be on this node
-			    foreach my $in_port (@{$in_ports{$vert}}){   
-				#if the in port matches the out port go on to next
-				next if($in_port->{'port_no'} == $endpoint->{'port_no'});
-				
-				#for each mac addr
-                                foreach my $mac_addr (@{$endpoint->{'mac_addrs'}}){
-				    
-				    $self->{'logger'}->debug("Creating flow for mac_addr " . $mac_addr->{'mac_address'} . " on node " . $vert);
-				    
-				    my $flow = OESS::FlowRule->new( match => {'dl_vlan' => $in_port->{'tag'},
-									      'in_port' => $in_port->{'port_no'},
-									      'dl_dst' => $mac_addr->{'mac_address'}},
-								    dpid => $dpid_lookup->{$vert},
-								    actions => [{'set_vlan_vid' => $endpoint->{'tag'}},
-										{'output' => $endpoint->{'port_no'}}]);
-				    
-				}
-			    }
-			}
-		    }
+	    my $flows = $ckt->get_flows();
+	    return $flows;
+
+	}case (FWDCTL_REMOVE_VLAN){
+
+	    my $flows = $ckt->get_flows();
+	    return $flows;
+
+	}case (FWDCTL_CHANGE_PATH){
+
+	    my $primary_flows = $ckt->get_endpoint_flows( path => 'primary');
+	    my $backup_flows =  $ckt->get_endpoint_flows( path => 'backup');
+	    my @commands;
+
+	    foreach my $flow (@$primary_flows){
+		if($ckt->get_current_path() eq 'primary'){
+		    $flow->{'sw_act'} = FWDCTL_ADD_RULE;
+		}else{
+		    $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
 		}
+		push(@commands,$flow);
 	    }
-	}
-    }
-    
-    
-    #we always do this part static mac addresses or not
-    #primary path rules
-    $self->_generate_path_flows( flows => \@flows, circuit => $circuit_details, path => 'primary', action => $action);
-    #backup path rules
-    $self->_generate_path_flows( flows => \@flows, circuit => $circuit_details, path => 'backup', action => $action);
-    #endpoint/flood rules
-    $self->_generate_endpoint_flows( flows => \@flows, circuit => $circuit_details, action =>  $action);
-    
-    return \@flows;
-    
-}
 
-sub _generate_endpoint_flows{
-    my $self = shift;
-    my %params = @_;
-
-    my $flows = $params{'flows'};
-    my $circuit = $params{'circuit'};
-    my $action = $params{'action'};
-    my $sw_act = FWDCTL_ADD_RULE;
-    
-    if ($action == FWDCTL_REMOVE_VLAN) {
-	$sw_act = FWDCTL_REMOVE_RULE;
-    }
-    
-    my $dpid_lookup  = $self->{'db'}->get_node_dpid_hash();    
-
-    my %primary_path;
-    my %backup_path;
-
-    my $internal_ids = $circuit->{'internal_ids'};
-
-    foreach my $link (@{$circuit->{'links'}}) {
-        my $node_a = $link->{'node_a'};
-        my $node_z = $link->{'node_z'};
-        $primary_path{$node_a}{$link->{'port_no_a'}}{$internal_ids->{'primary'}{$node_a}} = $internal_ids->{'primary'}{$node_z};
-        $primary_path{$node_z}{$link->{'port_no_z'}}{$internal_ids->{'primary'}{$node_z}} = $internal_ids->{'primary'}{$node_a};
-    }
-    foreach my $link (@{$circuit->{'backup_links'}}) {
-        my $node_a = $link->{'node_a'};
-        my $node_z = $link->{'node_z'};
-        $backup_path{$node_a}{$link->{'port_no_a'}}{$internal_ids->{'backup'}{$node_a}} = $internal_ids->{'backup'}{$node_z};
-        $backup_path{$node_z}{$link->{'port_no_z'}}{$internal_ids->{'backup'}{$node_z}} = $internal_ids->{'backup'}{$node_a};
-    }
-
-    foreach my $endpoint (@{$circuit->{'endpoints'}}) {
-	
-	my $node      = $endpoint->{'node'};
-	my $interface = $endpoint->{'port_no'};
-	my $outer_tag = $endpoint->{'tag'};
-	
-	#--- iterate over the non-edge interfaces on the primary path to setup rules that both forward AND translate
-	foreach my $other_if (sort keys %{$primary_path{$node}}) {
-	    foreach my $local_inner_tag (sort keys %{$primary_path{$node}{$other_if}}) {
-		
-		my $remote_inner_tag = $primary_path{$node}{$other_if}{$local_inner_tag};
-		
-		#build our flow rule
-		my $flow = OESS::FlowRule->new( match => {'dl_vlan' => $outer_tag,
-							  'in_port' => $interface},
-						dpid => $dpid_lookup->{$node},
-						actions => [{'set_vlan_vid' => $remote_inner_tag},
-							    {'output' => $other_if}]);
-		
-		$self->_dedup_flows(flows => $flows, new_flow => $flow);
-		
-		#build the other side
-		$flow = OESS::FlowRule->new( match => {'dl_vlan' => $local_inner_tag,
-						       'in_port' => $other_if},
-					     dpid => $dpid_lookup->{$node},
-					     actions => [{'set_vlan_vid' => $outer_tag},
-							 {'output' => $interface}]);
-		
-		$self->_dedup_flows(flows => $flows, new_flow => $flow);
-	    }
-	}
-	
-	#--- iterate over the endpoints again to catch more than 1 ep on same switch
-	#--- this will be sorta odd as these will always exist regardless backup or primary
-	#--- path if exist
-	foreach my $other_ep (@{$circuit->{'endpoints'}}) {
-	    my $other_node =  $other_ep->{'node'};
-	    my $other_if   =  $other_ep->{'port_no'};
-	    my $other_tag  =  $other_ep->{'tag'};
-	    
-	    next if($other_ep == $endpoint || $node ne $other_node );
-	    
-	    my $flow = OESS::FlowRule->new( match => {'dl_vlan' => $outer_tag,
-						      'in_port' => $interface},
-					    dpid => $dpid_lookup->{$node},
-					    actions => [{'set_vlan_vid' => $other_tag},
-							{'output' => $other_if}]);
-
-	    $self->_dedup_flows(flows => $flows, new_flow => $flow);
-	    
-	    $flow = OESS::FlowRule->new( match => {'dl_vlan'=> $other_tag,
-						   'in_port'=> $other_if},
-					 dpid => $dpid_lookup->{$node},
-					 actions => [{'set_vlan_vid'=> $outer_tag},
-						     {'output' => $interface}]);
-
-	    $self->_dedup_flows(flows => $flows, new_flow => $flow);
-	}
-    }
-}
-
-sub _generate_path_flows{
-    my $self = shift;
-    my %params = @_;
-    
-    my $flows = $params{'flows'};
-    my $circuit = $params{'circuit'};
-    my $path = $params{'path'};
-    my $action = $params{'action'};
-    my $dpid_lookup  = $self->{'db'}->get_node_dpid_hash();
-
-    my $internal_ids = $circuit->{'internal_ids'};
-    my $links;
-    if($path eq 'primary'){
-	$links = $circuit->{'links'};
-    }else{
-	$links = $circuit->{'backup_links'}
-    }
-
-    my %paths;
-
-    foreach my $link (@{$links}) {
-        my $node_a = $link->{'node_a'};
-        my $node_z = $link->{'node_z'};
-        $paths{$node_a}{$link->{'port_no_a'}}{$internal_ids->{'primary'}{$node_a}} = $internal_ids->{'primary'}{$node_z};
-        $paths{$node_z}{$link->{'port_no_z'}}{$internal_ids->{'primary'}{$node_z}} = $internal_ids->{'primary'}{$node_a};
-    }
-    
-
-    my $sw_act = FWDCTL_ADD_RULE;
-    
-    if ($action == FWDCTL_REMOVE_VLAN) {
-	$sw_act = FWDCTL_REMOVE_RULE;
-    }
-	
-    #--- gen set of rules to apply to each node on either primary or backup path
-    #--- get the set of links on the primary and backup, then get the interfaces for each
-    #--- node
-    foreach my $path (\%paths) {
-	#--- get node by node and figure out the simple forwarding rules for this path
-	foreach my $node (sort keys %$path) {
-	    foreach my $interface (sort keys %{$path->{$node}}) {
-		foreach my $other_if (sort keys %{$path->{$node}}) {
-		    #--- skip when the 2 interfaces are the same
-		    next if($other_if eq $interface);
-		    #--- iterate through ports need set of rules for each input/output port combo
-		    foreach my $vlan_tag (sort keys %{$path->{$node}{$interface}}) {			    
-			my $remote_tag = $path->{$node}{$other_if}{$vlan_tag};
-			my $flow = OESS::FlowRule->new( match => {'dl_vlan' => $vlan_tag,
-								  'in_port' => $interface},
-							dpid => $dpid_lookup->{$node},
-							actions => [{'set_vlan_vid' => $remote_tag},
-								    {'output' => $other_if}]);
-			$self->_dedup_flows(flows => $flows, new_flow => $flow);
-		    }
+	    foreach my $flow (@$backup_flows){
+		if($flow->{'sw_act'} eq 'primary'){
+		    $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
+		}else{
+		    $flow->{'sw_act'} = FWDCTL_ADD_RULE;
 		}
+		push(@commands,$flow);
 	    }
+
+	    return \@commands;
+
 	}
-    } 
+    }
 }
 
 #--- this and dp join need to be refactored to reuse code.
@@ -537,14 +255,14 @@ sub datapath_join_handler{
         $sw_name = $node_details->{'name'};
     }
 
-    _log("sw:$sw_name dpid:$dpid_str datapath join");
+    $self->{'logger'}->info("sw:$sw_name dpid:$dpid_str datapath join");
 
     my %xid_hash;
 
     if (!defined($node_details) || $node_details->{'default_forward'} == 1) {
         my $status = $self->{'of_controller'}->install_default_forward($dpid,$self->{'db'}->{'discovery_vlan'});
         my $xid = $self->{'of_controller'}->send_barrier($dpid);
-        _log("datapath_join_handler: send_barrier: with dpid: $dpid");
+        $self->{'logger'}->debug("datapath_join_handler: send_barrier: with dpid: $dpid");
         if ($xid == FWDCTL_FAILURE) {
             #--- switch may not be connected yet or other error in controller
             _log("sw:$sw_name dpid:$dpid_str failed to install lldp forward to controller rule, discovery will fail");
@@ -557,7 +275,7 @@ sub datapath_join_handler{
     if (!defined($node_details) || $node_details->{'default_drop'} == 1) {
         my $status = $self->{'of_controller'}->install_default_drop($dpid);
         my $xid = $self->{'of_controller'}->send_barrier($dpid);
-        _log("datapath_join_handler: send_barrier: with dpid: $dpid");
+        $self->{'logger'}->debug("datapath_join_handler: send_barrier: with dpid: $dpid");
         if ($xid == FWDCTL_FAILURE) {
             #--- switch may not be connected yet or other error in controller
             $self->{'logger'}->error("sw:$sw_name dpid:$dpid_str failed to install default drop rule, traffic may flood controller");
@@ -585,63 +303,48 @@ sub datapath_join_handler{
 
 sub _replace_flowmod{
     my $self = shift;
-    my $dpid = shift;
-    my $delete_command = shift;
-    my $new_command = shift;
-    my $delay_ms    = shift; #--- this is a value that should be an attribute of the object
+    my $commands = shift;
 
-    my $node = $self->{'db'}->get_node_by_dpid( dpid => $dpid);
-    if (!defined($delete_command) && !defined($new_command)) {
+    if (!defined($commands->{'remove'}) && !defined($commands->{'add'})) {
         return undef;
     }
 
     my %xid_hash;
     #--- crude rate limiting
-    if (defined $delay_ms) {
-        usleep($delay_ms * 1000);
-    }
 
-    if (defined($delete_command)) {
+    if (defined($commands->{'remove'})) {
         #delete this flowmod
-	$self->{'logger'}->info("Deleting flow: " . $delete_command->to_human());
-        my $status = $self->{'of_controller'}->delete_datapath_flow($delete_command->to_dbus());
-        if (!$node->{'send_barrier_bulk'}) {
-            my $xid = $self->{'of_controller'}->send_barrier($delete_command->get_dpid());
-            $self->{'logger'}->debug("replace flowmod: send_barrier: with dpid: $dpid");
-            $xid_hash{$dpid} = 1;
+	$self->{'logger'}->info("Deleting flow: " . $commands->{'remove'}->to_human());
+        my $status = $self->{'of_controller'}->delete_datapath_flow($commands->{'remove'}->to_dbus());
+        if(!$node_details->{'send_barrier_bulk'}){
+            my $xid = $self->{'of_controller'}->send_barrier($commands->{'remove'}->get_dpid());
+            $self->{'logger'}->debug("replace flowmod: send_barrier: with dpid: " . $commands->{'remove'}->get_dpid());
+            $xid_hash{$commands->{'remove'}->get_dpid()} = 1;
         }
-        $node{$dpid}--;
+        $node{$commands->{'remove'}->get_dpid()}--;
     }
-
-    if (defined($new_command)) {
-        if ( $node{$dpid} >= $node->{'max_flows'}) {
-            my $dpid_str  = sprintf("%x",$dpid);
-            $self->{'logger'}->error("sw: dpipd:$dpid_str exceeding max_flows:".$node->{'max_flows'}." replace flowmod failed");
+    
+    if (defined($commands->{'add'})) {
+        if ( $node{$commands->{'add'}->get_dpid()} >= $node_details->{'max_flows'}) {
+            my $dpid_str  = sprintf("%x",$commands->{'add'}->get_dpid());
+            $self->{'logger'}->error("sw: dpipd:$dpid_str exceeding max_flows:".$node_details->{$commands->{'add'}->get_dpid()}->{'max_flows'}." replace flowmod failed");
             return FWDCTL_FAILURE;
         }
-	$self->{'logger'}->info("Installing Flow: " . $new_command->to_human());
-        my $status = $self->{'of_controller'}->install_datapath_flow($new_command->to_dbus());
-
+	$self->{'logger'}->info("Installing Flow: " . $commands->{'add'}->to_human());
+        my $status = $self->{'of_controller'}->install_datapath_flow($commands->{'add'}->to_dbus());
+	
         # send the barrier if the bulk flag is not set
-        if (!$node->{'send_barrier_bulk'}) {
-            my $xid = $self->{'of_controller'}->send_barrier(dbus_uint64($dpid));
-            $self->{'logger'}->error("replace flowmod: send_barrier: with dpid: $dpid");
-            $xid_hash{$dpid} = 1;
+        if (!$node_details->{'send_barrier_bulk'}) {
+            my $xid = $self->{'of_controller'}->send_barrier(dbus_uint64($commands->{'add'}->get_dpid()));
+            $self->{'logger'}->error("replace flowmod: send_barrier: with dpid: " . $commands->{'add'}->get_dpid());
+            $xid_hash{$commands->{'add'}->get_dpid()} = 1;
         }
-
-        $node{$dpid}++;
+	
+        $node{$commands->{'add'}->get_dpid()}++;
         #wait for the delete to take place
     }
-
-    my $result;
-    if (%xid_hash) {
-        $result = $self->_poll_xids(\%xid_hash);
-        if ($result != FWDCTL_SUCCESS) {
-            $self->{'logger'}->error("_replace_flowmod fwdctl fail");
-        }
-    }
-
-    return $result;
+    
+    return;
 }
 
 sub _process_flow_stats_to_command{
@@ -663,6 +366,7 @@ sub _do_diff{
     my $dpid_str      = sprintf("%x",$dpid);
     my $node_info     = $self->{'db'}->get_node_by_dpid( dpid => $dpid );
     my $sw_name       = $node_info->{'name'};
+
 
     $self->{'logger'}->info("sw:$sw_name dpid:$dpid_str diff sw rules to oe-ss rules");
     #--- get the set of circuits
@@ -713,84 +417,37 @@ sub _actual_diff{
     foreach my $command (@$commands) {
         #---ignore rules not for this dpid
         next if($command->get_dpid() != $dpid);
-        my $com_port = $command->get_match()->{'in_port'};
-        my $com_vid  = $command->get_match()->{'dl_vlan'};
-        if (defined($current_flows->{$com_port})) {
-            #--- we have observed flows on the same switch port defined in the command
-            my $obs_port = $current_flows->{$com_port};
-            if (defined($obs_port->{$com_vid})) {
-                #--- we have have a flow on the same switchport with the same vid match
-                my $action_list = $obs_port->{$com_vid}->{'actions'};
-                #increment the number of flow_mods we know are on the box
-                $node{$dpid}++;
+	my $found = 0;
 
-                $obs_port->{$com_vid}->{'seen'} = 1;
+	for(my $i=0;$i<=$#{$current_flows};$i++){
+	    my $current_flow = $current_flows->[$i];
+	    if($command->compare_match( flow_rule => $current_flows->[$i])){
+		$found = 1;
+		if($command->compare_actions( flow_rule => $current_flows->[$i])){
+		    #woohoo we match
+		    delete $current_flow->[$i];
+		    last;
+		}else{
+		    #doh... we don't match... remove current flow, add the other flow
+		    $stats{'mods'}++;
+		    push(@rule_queue,{remove => $current_flows->[$i], add => $command});
+		    delete $current_flow->[$i];
+		    last;
+		}
+	    }
+	}
 
-                if ($#{$action_list} != $#{$command->get_actions()}) {
-                    #-- the number of actions in the observed and the planned dont match just replace
-                    $stats{'mods'}++;
-                    $self->{'logger'}->info("--- we have a match port $com_port vid $com_vid, but num actions is wrong\n");
-                    push(@rule_queue, [$dpid,_process_flow_stats_to_command($com_port,$com_vid),$command,$node->{'tx_delay_ms'}]);
-                    next;
-                }
-
-                for (my $i=0;$i<=$#{$command->{'action'}};$i++) {
-                    my $action = $command->{'action'}->[$i];
-                    my $action2 = $action_list->[$i];
-                    if ($action2->{'type'} == $action->[0]->value()) {
-                        if ($action2->{'type'} == OESS::FlowRule::OFPAT_OUTPUT) {
-                            if ($action2->{'port'} == $action->[1]->[1]->value()) {
-                                #--- port matches nothing to do
-                            } else {
-                                #--- port does not match we need to replace the rule on the switch
-                                $self->{'logger'}->info("--- we have a match port $com_port vid $com_vid, but output port is wrong\n");
-                                $stats{'mods'}++;
-                                push(@rule_queue, [$dpid,_process_flow_stats_to_command($com_port,$com_vid),$command,$node->{'tx_delay_ms'}]);
-                                last;
-                            }
-                        } elsif ($action2->{'type'} ==  OESS::FlowRule::OFPAT_SET_VLAN_VID ) {
-                            if ($action2->{'vlan_vid'} == $action->[1]->value()) {
-                                #--- vlan_id also matches nothing to do
-                            } else {
-                                #--- vlan_id does not match we need to replace the rule on the switch
-                                $self->{'logger'}->info("--- we have a match port $com_port vid $com_vid, but set vid action is wrong\n");
-                                $stats{'mods'}++;
-                                push(@rule_queue, [$dpid,_process_flow_stats_to_command($com_port,$com_vid),$command,$node->{'tx_delay_ms'}]);
-                                last;
-                            }
-                        }
-                    }
-                }
-            } else {
-                #---rule missing on switch
-                $stats{'adds'}++;
-                $self->{'logger'}->info("--- 1.  we have a rule for port $com_port vid $com_vid  that doesnt appear on switch\n");
-                push(@rule_queue, [$dpid,undef,$command,$node->{'tx_delay_ms'}]);
-            }
-        } else {
-            #---rule missing on switch
-            $stats{'adds'}++;
-            $self->{'logger'}->info("--- 2.  we have a rule for port $com_port vid $com_vid  that doesnt appear on switch\n");
-            push(@rule_queue, [$dpid,undef,$command,$node->{'tx_delay_ms'}]);
-        }
+	if(!$found){
+	    #doh... add this rule
+	    $stats{'adds'}++;
+	    push(@rule_queue,{add => $command});	    
+	}
     }
 
-    #--- look for rules which are on the switch but which should not be there by design
-    foreach my $port_num (keys (%{$current_flows})) {
-        my $obs_port = $current_flows->{$port_num};
-        foreach my $obs_vid (keys (%{$obs_port})) {
-            if ($obs_port->{$obs_vid}->{'seen'} == 1) {
-                #--- rule has already been seen when iterating above, skip
-                next;
-            } else {
-                #---rule needs to be removed from switch
-                $stats{'rems'}++;
-                $self->{'logger'}->info("--- we have a a rule on the switch for port $port_num vid $obs_vid which doesnt correspond with plan\n");
-                $node{$dpid}++;
-
-                push(@rule_queue, [$dpid,_process_flow_stats_to_command($port_num,$obs_vid),undef,$node->{'tx_delay_ms'}]);
-            }
-        }
+    #if we have any flows remaining the must be removed!
+    foreach my $current_flow (@$current_flows){
+	$stats{'rems'}++;
+	push(@rule_queue,{remove => $current_flow});
     }
 
     my $total = $stats{'mods'} + $stats{'adds'} + $stats{'rems'};
@@ -802,7 +459,7 @@ sub _actual_diff{
     my $non_success_result;
     $self->{'logger'}->debug("before calling _replace_flowmod in loop with rule_queue:". @rule_queue);
     foreach my $args (@rule_queue) {
-        my $new_result = $self->_replace_flowmod(@$args);
+        my $new_result = $self->_replace_flowmod($args);
         if (defined($new_result) && ($new_result != FWDCTL_SUCCESS)) {
             $non_success_result = $new_result;
         }
@@ -1011,31 +668,52 @@ sub _fail_over_circuits{
     my %dpid_hash;
     my $new_result;
     my $non_success_result;
-    _log("in _fail_over_circuits with circuits: ".@$circuits);
+
+    $self->{'logger'}->debug("in _fail_over_circuits with circuits: ".@$circuits);
     my $circuit_infos;
+    
     foreach my $circuit_info (@$circuits) {
         my $circuit_id   = $circuit_info->{'id'};
         my $circuit_name = $circuit_info->{'name'};
+	
+	my $circuit = $self->{'circuits'}->{$circuit_id};
+	
+	if(!defined($circuit)){
+	    $circuit = OESS::Circuit->new( circuit_id => $circuit_id, db => $self->{'db'});
+	}
+	if(!defined($circuit)){
+	    $self->error("unable to build circuit object for circuit_id: " . $circuit_id);
+	    next;
+	}
+	
+	if($circuit->has_backup_path()){
+	    
+	    my $current_path = $circuit->get_active_path();
+	    
+	    #if we know the current path, then the alternate is the other
+	    my $alternate_path = 'primary';
+	    if($current_path eq 'primary'){
+		$alternate_path = 'backup';
+	    }
 
-        my $alternate_path = $self->{'db'}->circuit_has_alternate_path(circuit_id => $circuit_id);
-        if (defined($alternate_path)) {
-            #determine if alternate path is up
-            if ( $self->{'topo'}->is_path_up( path_id => $alternate_path , link_status => \%link_status )) {
-                my $success = $self->{'db'}->switch_circuit_to_alternate_path(circuit_id => $circuit_id);
-                _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name moving to alternate path");
+	    #check the alternate paths status
+	    if($circuit->get_path_status( path => $alternate_path)){
+		my $success = $circuit->change_path();
+		$self->{'logger'}->warn("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name moving to alternate path");
 
-                if (! $success) {
+		#failed to move the path
+		if (! $success) {
                     $circuit_info->{'status'} = "unknown";
                     $circuit_info->{'reason'} = "Attempted to switch to alternate path, however an unknown error occured.";
                     $circuit_info->{'circuit_id'} = $circuit_info->{'id'};
-                    _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $self->{'db'}->get_error());
+                    $self->{'logger'}->error("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $self->{'db'}->get_error());
                     #$self->emit_signal("circuit_notification", $circuit_info );
                     push(@$circuit_infos, $circuit_info);
                     $circuit_status{$circuit_id} = OESS_CIRCUIT_UNKNOWN;
                     next;
-
                 }
-                ($new_result, %new_dpids) = $self->_changeVlanPath($circuit_id);
+
+		($new_result, %new_dpids) = $self->_changeVlanPath($circuit_id);
                 if (defined($new_result) && ($new_result != FWDCTL_SUCCESS)) {
                     $non_success_result = $new_result;
                 }
@@ -1048,8 +726,10 @@ sub _fail_over_circuits{
                 #$self->emit_signal("circuit_notification", $circuit_info );
                 push (@$circuit_infos, $circuit_info);
                 $circuit_status{$circuit_id} = OESS_CIRCUIT_UP;
-            } else {
-                _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has a backup path, but it is down as well.  Not failing over");
+		
+	    }else{
+		
+		$self->{'logger'}->warn("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has a backup path, but it is down as well.  Not failing over");
                 $circuit_info->{'status'} = "down";
                 $circuit_info->{'reason'} = "Attempted to fail to alternate path, however the primary and backup path are both down";
                 $circuit_info->{'circuit_id'} = $circuit_info->{'id'};
@@ -1058,12 +738,13 @@ sub _fail_over_circuits{
                 push (@$circuit_infos, $circuit_info);
                 $circuit_status{$circuit_id} = OESS_CIRCUIT_DOWN;
                 next;
-            }
 
-        } else {
-            # this is probably where we would put the dynamic backup calculation
+	    }
+	}else{
+	    
+	    # this is probably where we would put the dynamic backup calculation
             # when we get there.
-            _log("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has no alternate path and is down");
+            $self->{'logger'}->info("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has no alternate path and is down");
             $circuit_info->{'status'} = "down";
             $circuit_info->{'reason'} = "Could not fail over: no backup path configured";
 
@@ -1072,27 +753,29 @@ sub _fail_over_circuits{
             #$self->emit_signal("circuit_notification", $circuit_info);
             push (@$circuit_infos, $circuit_info);
             $circuit_status{$circuit_id} = OESS_CIRCUIT_DOWN;
-        }
-    }
-    if ( $circuit_infos && scalar(@$circuit_infos) ) {
-        $self->emit_signal("circuit_notification", {
-                                                    "type" => 'link_down',
-                                                    "link_name" => $link_name,
-                                                    "affected_circuits" => $circuit_infos
-                                                   }
-                          );
+
+	}
+
+	if ( $circuit_infos && scalar(@$circuit_infos) ) {
+	    $self->emit_signal("circuit_notification", {
+		"type" => 'link_down',
+		"link_name" => $link_name,
+		"affected_circuits" => $circuit_infos
+			       });
+	}
+	
     }
 
     # send the barrier for all the unique dpids
     my %xid_hash;
     foreach my $dpid (keys %dpid_hash) {
         my $xid = $self->{'of_controller'}->send_barrier($dpid);
-        _log("_fail_over_circuits: send_bulk_barrier: with dpid: $dpid");
+        $self->{'logger'}->debug("_fail_over_circuits: send_bulk_barrier: with dpid: $dpid");
         $xid_hash{$dpid} = 1;
     }
     my $result = $self->_poll_xids(\%xid_hash);
     if ($result != FWDCTL_SUCCESS || defined($non_success_result)) {
-        _log("failed to fail over circuits ");
+        $self->{'logger'}->error("failed to fail over circuits ");
     }
 
     return;
@@ -1140,12 +823,12 @@ sub port_status{
             #--- for each ckt, fail over to the non-active path, after determining that the path
             #--- looks to be intact.
             if (! $link_status) {
-                _log("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name is down");
+                $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name is down");
 
                 my $affected_circuits = $self->{'db'}->get_affected_circuits_by_link_id(link_id => $link_id);
 
                 if (! defined $affected_circuits) {
-                    _log("Error getting affected circuits: " . $self->{'db'}->get_error());
+                    $self->{'logger'}->error("Error getting affected circuits: " . $self->{'db'}->get_error());
                     return;
                 }
 
@@ -1159,7 +842,7 @@ sub port_status{
             #--- when a port comes back up determine if any circuits that are currently down
             #--- can be restored by bringing it back up over to this path, we do not restore by default
             else {
-                _log("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name is up");
+                $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name is up");
                 $link_status{$link_name} = OESS_LINK_UP;
                 my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $link_id);
                 $self->_restore_down_circuits( circuits => $circuits, link_name => $link_name );
@@ -1168,9 +851,9 @@ sub port_status{
         }
         case(OFPPR_DELETE){
             if (defined($link_id) && defined($link_name)) {
-                _log("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name has been removed");
+                $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name has been removed");
             } else {
-                _log("sw:$sw_name dpid:$dpid_str port $port_name has been removed");
+                $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port $port_name has been removed");
             }
             $self->{'nodes_needing_diff'}{$dpid} = {full_diff => 1, dpid => $dpid};
             #note that this will cause the flow_stats_in handler to handle this data
@@ -1202,7 +885,7 @@ sub _cancel_restorations{
                 next if $xml->{'action'} ne 'change_path';
                 next if $xml->{'path'} ne 'primary';
                 $self->{'db'}->cancel_scheduled_action( scheduled_action_id => $event->{'scheduled_action_id'} );
-                _log("Canceling restore to primary for circuit: " . $circuit->{'circuit_id'} . " because primary path is down");
+                $self->{'logger'}->warn("Canceling restore to primary for circuit: " . $circuit->{'circuit_id'} . " because primary path is down");
             }
         }
     }
@@ -1370,6 +1053,20 @@ sub rules_per_switch{
     return $node{$dpid};
 }
 
+sub _process_stats_to_flows{
+    my $flows = shift;
+    
+    my @new_flows;
+    foreach my $flow (@$flows){
+	
+	my $new_flow = OESS::FlowRule::stat_to_flow( $flow );
+	push(@new_flows,$new_flow);
+    }
+
+    return \@new_flows;
+    
+}
+
 sub _process_flows_to_hash{
     my $flows = shift;
     my $tmp = {};
@@ -1472,7 +1169,7 @@ sub addVlan {
     my $circuit_id = shift;
     my $dpid	   = shift;
 
-    _log("addVlan: $circuit_id");
+    $self->{'logger'}->info("addVlan: $circuit_id");
 
     #--- get the set of commands needed to create this vlan per design
     my $commands = $self->_generate_commands($circuit_id,FWDCTL_ADD_VLAN);
@@ -1499,7 +1196,7 @@ sub addVlan {
 
         }
 	$self->{'logger'}->info("Installing Flow: " . $command->to_human());
-        my $status = $self->{'of_controller'}->install_datapath_flow($command->to_dbus());#,$command->{'dpid'},$command->{'attr'},0,0,$command->{'action'},$command->{'attr'}->{'IN_PORT'});
+        my $status = $self->{'of_controller'}->install_datapath_flow($command->to_dbus());
         # send the barrier now if need be
         if (!$node->{'send_barrier_bulk'}) {
             my $xid = $self->{'of_controller'}->send_barrier($command->get_dpid());
@@ -1571,6 +1268,7 @@ sub deleteVlan {
     foreach my $command (@{$commands}) {
         #--- issue each command to controller
         #first delay by some configured value in case the device can't handle it
+	$self->{'logger'}->debug("Flow " . Data::Dumper::Dumper($command));
         my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->get_dpid());
         usleep($node->{'tx_delay_ms'} * 1000);
 	$self->{'logger'}->info("Removing Flow: " . $command->to_human());
@@ -1709,7 +1407,6 @@ sub changeVlanPath {
 package main;
 
 use OESS::DBus;
-#use Sys::Syslog qw(:standard :macros);
 use Log::Log4perl;
 use Net::DBus::Exporter qw(org.nddi.fwdctl);
 use Net::DBus qw(:typing);
@@ -1725,9 +1422,9 @@ my $srv_object = undef;
 sub core{
 
     my $dbus = OESS::DBus->new( service => "org.nddi.openflow", instance => "/controller1");
-
+    
     if (! defined $dbus) {
-        _log("Could not connect to openflow service, aborting.");
+        $log->fatal("Could not connect to openflow service, aborting.");
         exit(1);
     }
 
@@ -1750,7 +1447,7 @@ sub core{
         my $dpid   = shift;
         my $ports  = shift;
         my $dpid_str  = sprintf("%x",$dpid);
-        FwdCtl::_log("sw: dpipd:$dpid_str datapath_join");
+        $log->warn("sw: dpipd:$dpid_str datapath_join");
         $srv_object->datapath_join_handler($dpid);
     }
 
@@ -1778,7 +1475,7 @@ sub core{
     $dbus->connect_to_signal("port_status",\&port_status_callback);
     $dbus->connect_to_signal("link_event",\&link_event_callback);
 
-    FwdCtl::_log("all signals connected");
+    $log->info("all signals connected");
 
     $dbus->start_reactor( timeouts => [{ interval => 10000, callback => Net::DBus::Callback->new(
                                                                                                  method => sub {
