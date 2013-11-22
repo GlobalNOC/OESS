@@ -63,6 +63,7 @@ use warnings;
 use Switch;
 use Data::Dumper;
 use Net::DBus;
+use Log::Log4perl;
 
 package OESS::FlowRule;
 
@@ -90,11 +91,15 @@ sub new{
 	match => {},
 	action => [],
 	dpid => undef,
+	idle_timeout => 0,
+	hard_timeout => 0,
 	@_
 	);
 
     my $self = \%args;
     bless $self, $class;
+
+    $self->{'logger'} = Log::Log4perl->get_logger("OESS::FlowRule");
 
     my $validate_flow = $self->validate_flow();
     
@@ -256,6 +261,15 @@ sub set_priority{
     
 }
 
+=head2 get_dpid
+
+=cut
+
+sub get_dpid{
+    my $self = shift;
+    return $self->{'dpid'};
+}
+
 =head2 set_dpid
 
 =cut
@@ -283,14 +297,19 @@ sub set_dpid{
 sub to_dbus{
     my $self = shift;
 
+    $self->{'logger'}->debug("Processing flow to DBus");
+
     my $command;
-    
+    $command->{'dpid'} = Net::DBus::dbus_uint64($self->{'dpid'});
     my @actions;
+    $self->{'logger'}->debug("Processing Actions");
     for(my $i=0;$i<= $#{$self->{'actions'}};$i++){
 	my @tmp;
 	my $action = $self->{'actions'}->[$i];
+        $self->{'logger'}->trace("Processing Action: " . Data::Dumper::Dumper($action));
 
 	foreach my $key (keys (%$action)){
+            $self->{'logger'}->trace("Processing action: " . $key . " " . $action->{$key});
 	    switch ($key){
 		case "output" {
 		    #look at OF1.0 spec when sending ofp_action_output
@@ -313,13 +332,14 @@ sub to_dbus{
 		    }
 
 		    if(!defined($out_port)){
+                        $self->{'logger'}->error("Error no out_port specified in output action");
 			$self->_set_error("Error no out_port specified in output action");
 			return;
 		    }
 
 		    $tmp[0] = Net::DBus::dbus_uint16(OFPAT_OUTPUT);
-		    $tmp[1][0] = Net::DBus::dbus_uint16($max_length);
-		    $tmp[1][1] = Net::DBus::dbus_uint16($out_port);
+		    $tmp[1][0] = Net::DBus::dbus_uint16(int($max_length));
+		    $tmp[1][1] = Net::DBus::dbus_uint16(int($out_port));
 		}
 
 		case "set_vlan_vid" {
@@ -329,7 +349,7 @@ sub to_dbus{
 			$tmp[1] = Net::DBus::dbus_uint16(0);
 		    } else {
 			$tmp[0] = Net::DBus::dbus_uint16(OFPAT_SET_VLAN_VID);
-			$tmp[1] = Net::DBus::dbus_uint16($action->{$key});
+			$tmp[1] = Net::DBus::dbus_uint16(int($action->{$key}));
 		    }
 		}
 
@@ -337,12 +357,14 @@ sub to_dbus{
 		    #no actions... ie... do nothing
 		    
 		}else{
+                    $self->{'logger'}->error("Error unsupported action: " . $key . "\n");
 		    $self->_set_error("Error unsupported action: " . $key . "\n");
 		    return;
 		}
 	    }
 	    
 	    if(defined($tmp[0])){
+                $self->{'logger'}->trace("Adding: " . Data::Dumper::Dumper(@tmp)  . " to actions array ");
 		push(@actions,\@tmp);
 	    }
 	}
@@ -350,29 +372,36 @@ sub to_dbus{
 
     #push the actions on to the object
     $command->{'action'} = \@actions;
-
+    
+    $self->{'logger'}->debug("Processing Match");
     foreach my $key (keys (%{$self->{'match'}})){
+        $self->{'logger'}->trace("Processing Match Key: " . $key . " value: " . $self->{'match'}->{$key});
 	switch ($key){
 	    case "in_port"{
-		$command->{'attr'}{'IN_PORT'} = Net::DBus::dbus_uint16($self->{'match'}->{$key});
+		$command->{'attr'}{'IN_PORT'} = Net::DBus::dbus_uint16(int($self->{'match'}->{$key}));
 	    }case "dl_vlan"{
-		$command->{'attr'}{'DL_VLAN'} = Net::DBus::dbus_uint16($self->{'match'}->{$key});
+		$command->{'attr'}{'DL_VLAN'} = Net::DBus::dbus_uint16(int($self->{'match'}->{$key}));
 	    }case "dl_type"{
-		$command->{'attr'}{'DL_TYPE'} = Net::DBus::dbus_uint16($self->{'match'}->{$key});
+		$command->{'attr'}{'DL_TYPE'} = Net::DBus::dbus_uint16(int($self->{'match'}->{$key}));
 	    }case "dl_dst"{
-		$command->{'attr'}{'DL_DST'} = Net::DBus::dbus_uint64($self->{'match'}->{$key});
+		$command->{'attr'}{'DL_DST'} = Net::DBus::dbus_uint64(int($self->{'match'}->{$key}));
 	    }else{
+                $self->{'logger'}->error("Unsupported match attribute: " . $key . "\n");
 		$self->_set_error("Error unsupported match: " . $key . "\n");
 		return;
 	    }
 	}
     }
+    
+    #these are all set by default
+    $command->{'attr'}{'PRIORITY'} = Net::DBus::dbus_uint16(int($self->{'priority'}));
+    $command->{'attr'}{'HARD_TIMEOUT'} = Net::DBus::dbus_uint16(int($self->{'hard_timeout'}));
+    $command->{'attr'}{'IDLE_TIMEOUT'} = Net::DBus::dbus_uint16(int($self->{'idle_timeout'}));
 
-    if(defined($self->{'priority'})){
-	$command->{'attr'}{'PRIORITY'} = Net::DBus::dbus_uint16($self->{'priority'});
-    }
+    $self->{'logger'}->debug("returning the flow in dbus format");
+    $self->{'logger'}->trace("DBUS Data: " . Data::Dumper::Dumper($command));
 
-    return $command;
+    return (Net::DBus::dbus_uint64($self->{'dpid'}),$command->{'attr'},$command->{'action'});
 }
 
 
@@ -402,8 +431,90 @@ sub get_actions{
 sub to_human{
     my $self = shift;
 
+    my $match_str = "";
+    foreach my $key (keys (%{$self->{'match'}})){
+        $self->{'logger'}->trace("Processing Match Key: " . $key . " value: " . $self->{'match'}->{$key});
+	if($match_str ne ''){	    
+	    $match_str .= ", ";
+	}
+        switch ($key){
+            case "in_port"{
+                $match_str .= "IN PORT: " . $self->{'match'}->{$key};
+            }case "dl_vlan"{
+                $match_str .= "VLAN: " . $self->{'match'}->{$key};
+            }case "dl_type"{
+		$match_str .= "TYPE: " . $self->{'match'}->{$key};
+            }case "dl_dst"{
+		$match_str .= "DST MAC: " . $self->{'match'}->{$key};
+            }else{
+                $self->{'logger'}->error("Unsupported match attribute: " . $key . "\n");
+                $self->_set_error("Error unsupported match: " . $key . "\n");
+                return;
+            }
+        }
+    }
+
+    my $action_str = "";
+
+    for(my $i=0;$i<= $#{$self->{'actions'}};$i++){
+        my @tmp;
+        my $action = $self->{'actions'}->[$i];
+	foreach my $key (keys (%$action)){
+            if($action_str ne ''){
+		$action_str .= '          ';
+	    }
+	    switch ($key){
+                case "output" {
+                    #look at OF1.0 spec when sending ofp_action_output
+                    #it takes a max_length and a port
+                    #max length is only used when forwarding to controller
+                    #max_length defaults to 0 if not specified
+                    my $max_length;
+                    my $out_port;
+
+                    if(ref($action->{$key}) ne 'HASH'){
+                        $out_port = $action->{$key};
+                        $max_length = 0;
+                    }else{
+                        $max_length = $action->{$key}->{'max_length'};
+                        $out_port = $action->{$key}->{'port'};
+                    }
+
+                    if(!defined($max_length)){
+                        $max_length = 0;
+                    }
+
+                    if(!defined($out_port)){
+                        $self->_set_error("Error no out_port specified in output action");
+                        return;
+                    }
+
+		    $action_str .= "OUTPUT: " . $out_port . "\n";
+                }
+
+                case "set_vlan_vid" {
+                    if(!defined($action->{$key}) || $action->{$key} == -1){
+                        #untagged
+			$action_str .= "STRIP VLAN VID\n";
+                    } else {
+			$action_str .= "SET VLAN ID: " . $action->{$key} . "\n";
+                    }
+                }
+
+                case "drop"{
+                    #no actions... ie... do nothing
+                    
+                }else{
+                    $self->_set_error("Error unsupported action: " . $key . "\n");
+                    return;
+                }
+            }
+            
+	}
+    }
     
-    
+    my $dpid_str = sprintf("%x",$self->{'dpid'});
+    return "OFFlowMod:\n DPID: " . $dpid_str . "\n Match: " . $match_str . "\n Actions: " . $action_str;
 
 }
 
@@ -430,7 +541,9 @@ compares this match to another flow_rule match. return 1 for a match and 0 for d
 =cut
 sub compare_match{
     my $self = shift;
-    my $other_rule = shift;
+    my %params = @_;
+
+    my $other_rule = $params{'flow_rule'};
     
     return 0 if(!defined($other_rule));
 
@@ -457,6 +570,46 @@ sub compare_match{
 }
 
 
+=head2 compare_actions
+
+=cut
+
+sub compare_actions{
+    my $self = shift;
+    my %params = @_;
+
+    my $other_rule = $params{'flow_rule'};
+    
+    return 0 if(!defined($other_rule));
+    
+    my $other_actions = $other_rule->get_actions();
+
+    return 0 if(!defined($other_actions));
+    
+    if($#{$self->{'actions'}} != $#{$other_actions}){
+	return 0;
+    }
+
+    for(my $i=0;$i<=$#{$self->{'actions'}};$i++){
+	
+    }
+
+    return 1;
+}
+
+=head2 compare_flow
+
+=cut
+
+sub compare_flow{
+    my $self = shift;
+    my $params = @_;
+    
+    
+
+    return 0; 
+}
+
 =head2 merge_actions
 
 merges another flow_mods actions into this one, and if any actions are the same removes them
@@ -467,7 +620,7 @@ returns 0 on error
 
 sub merge_actions{
     my $self = shift;
-    my $params = @_;
+    my %params = @_;
 
     my $other_flow = $params{'flow_rule'};
     #flow rule not defined can't merge flows
@@ -476,11 +629,16 @@ sub merge_actions{
     #no actions to merge invalid flow rule
     return 0 if(!defined($other_flow->get_actions()));    
 
+    $self->{'logger'}->debug("Attempting to merge flow actions");
+
     #now loop through all the actions and add any that don't exist
     foreach my $other_action (@{$other_flow->get_actions()}){
+	$self->{'logger'}->trace("Actions: " . Data::Dumper::Dumper($self->{'actions'}));
         my $found =0;
         foreach my $action (@{$self->{'actions'}}){
-            my $action_type = (keys (%$other_action))->[0];
+	    $self->{'logger'}->trace("processing action: " . Data::Dumper::Dumper($action));
+	    $self->{'logger'}->trace("comparing to action: " . Data::Dumper::Dumper($other_action));
+            my $action_type = (keys (%$other_action))[0];
             if(defined($action->{$action_type})){
                 if($action->{$action_type} == $other_action->{$action_type}){
                     $found = 1;
@@ -494,5 +652,45 @@ sub merge_actions{
 
 
     return 1;
+
+}
+
+
+=head2 parse_stat
+
+=cut
+
+sub parse_stat{
+    my $self = shift;
+    my %params = @_;
+
+    my $dpid = $params{'dpid'};
+    my $stat = $params{'stat'};
+
+    return if(!defined($stat));
+
+    my $match = $stat->{'match'};
+    my $actions = $stat->{'actions'};
+
+    my @new_actions;
+
+    foreach my $action (@$actions){
+	switch ($action->[0]){
+	    case (OFPAT_OUTPUT){
+		push(@new_actions,{'output' => $action->[0]->[0]});
+	    }case (OFPAT_SET_VLAN_VID){
+		push(@new_actions,{'set_vlan_id' => $action->[1]});
+	    }case (OFPAT_STRIP_VLAN){
+		push(@new_actions,{'set_vlan_id' => -1});
+	    }
+	}
+    }
+
+    my $flow = OESS::FlowRule->new( match => $match,
+				    dpid => $dpid,
+				    actions => @new_actions);
+
+    return $flow;
+    
 
 }
