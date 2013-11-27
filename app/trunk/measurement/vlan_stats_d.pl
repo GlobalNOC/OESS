@@ -70,26 +70,15 @@ sub process_flow_stats{
 	    $port->{$rule->{'match'}->{'dl_vlan'}} = {};
 	}
 
+	if(defined($rule->{'match'}->{'dl_dst'})){
+	    if(!defined($port->{$rule->{'match'}->{'dl_vlan'}}->{'static_mac_addrs'})){
+		$port->{$rule->{'match'}->{'dl_vlan'}}->{'static_mac_addrs'} = ();
+	    }
+	    push(@{$port->{$rule->{'match'}->{'dl_vlan'}}->{'static_mac_addrs'}},$rule);
+	}
+
 	$port->{$rule->{'match'}->{'dl_vlan'}}->{'in'} = $rule;
 
-	my $vlan = $rule->{'match'}->{'dl_vlan'};
-
-	foreach my $action (@{$rule->{'actions'}}){
-	    
-	    if(defined($action->{'port'})){
-		if(!defined($switch->{$action->{'port'}})){
-		    $switch->{$action->{'port'}} = {};
-		}
-		if(!defined($switch->{$action->{'port'}}->{$vlan}->{'out'})){
-		    $switch->{$action->{'port'}}->{$vlan}->{'out'} = ();
-		}
-		push(@{$switch->{$action->{'port'}}->{$vlan}->{'out'}},$rule);
-	    }
-
-	    if(defined($action->{'vlan_vid'})){
-		$vlan = $action->{'vlan_vid'};
-	    }
-	}
     }
 
     #for every port
@@ -100,20 +89,17 @@ sub process_flow_stats{
 	    my $inbytes = $switch->{$port}->{$vlan}->{'in'}->{'byte_count'};
 	    my $inpackets = $switch->{$port}->{$vlan}->{'in'}->{'packet_count'};
 	    
-	    my $outbytes = 0;
-	    my $outpackets = 0;
 	    
-	    #the output is the aggregate of all the rules with actions matching our port/vlan
-	    foreach my $out (@{$switch->{$port}->{$vlan}->{'out'}}){
-		#need to compare to previous counts
-		
-		$outbytes += $out->{'byte_count'};
-		$outpackets += $out->{'packet_count'};
-	    }
-
 	    #do the RRD update
 	    #RRD update!
-	    update_rrd(dpid => $dpid, port => $port, vlan => $vlan, input => $inbytes, output => $outbytes, inUcast => $inpackets, outUcast => $outpackets);
+	    update_rrd(dpid => $dpid, port => $port, vlan => $vlan, input => $inbytes, inUcast => $inpackets);
+	    
+	    foreach my $rule (@{$switch->{$port}->{$vlan}->{'mac_addrs'}}){
+		my $static_in_bytes = $rule->{'in'}->{'byte_count'};
+		my $static_in_packets = $rule->{'in'}->{'packet_count'};
+		
+		update_rrd(dpid => $dpid, port => $port, vlan => $vlan, mac_addr => $rule->{'match'}->{'dl_dst'}, input => $static_in_bytes, inUcast => $static_in_packets);
+	    }
 	}
     }
 }
@@ -172,9 +158,12 @@ sub update_rrd{
 	return;
     }
 
-
-    my $file = $base_rrd_path . $node->{'node_id'} . "/" . $node->{'node_id'} . "-" . $params{'port'} . "-" . $params{'vlan'} . ".rrd";
-
+    my $file;
+    if(!defined($params{'mac_addr'})){
+	$file = $base_rrd_path . $node->{'node_id'} . "/" . $node->{'node_id'} . "-" . $params{'port'} . "-" . $params{'vlan'} . ".rrd";
+    }else{
+	$file = $base_rrd_path . $node->{'node_id'} . "/" . $node->{'node_id'} . "-" . $params{'port'} . "-" . $params{'vlan'} . "-" . $params{'mac_addr'} . ".rrd";
+    }
     #if the file doesn't exist create it
     if(! -e $base_path . $file){
 	my $res = create_rrd_file($file);
@@ -184,19 +173,26 @@ sub update_rrd{
     }
     
     #here are our RRA's
-    my $template = "input:output:inUcast:outUcast";
+    my $template = "input:inUcast";
     #generate our value String
-    my $value = "N:" . $params{'input'} . ":" . $params{'output'} . ":" . $params{'inUcast'} . ":" . $params{'outUcast'};
+    my $value = "N:" . $params{'input'} . ":" . $params{'inUcast'};
 
     my $tmp = $hosts->{$node->{'node_id'}};
-
-    if(defined($hosts->{$node->{'node_id'}}->{'collections'}->{$params{'port'} . "-" . $params{'vlan'}})){
-	#do nothing we already saw it
+    if(!defined($params{'mac_addr'})){
+	if(defined($hosts->{$node->{'node_id'}}->{'collections'}->{$params{'port'} . "-" . $params{'vlan'}})){
+	    #do nothing we already saw it
+	}else{
+	    #add the file to SNAPP (in case it was decommed, or never there)
+	    add_snapp($file,$params{'dpid'},$params{'port'},$params{'vlan'});
+	}
     }else{
-	#add the file to SNAPP (in case it was decommed, or never there)
-	add_snapp($file,$params{'dpid'},$params{'port'},$params{'vlan'});
+	if(defined($hosts->{$node->{'node_id'}}->{'collections'}->{$params{'port'} . "-" . $params{'vlan'} . "-" . $params{'mac_addr'}})){
+            #do nothing we already saw it
+	}else{
+            #add the file to SNAPP (in case it was decommed, or never there)
+            add_snapp($file,$params{'dpid'},$params{'port'},$params{'vlan'},$params{'mac_addr'});
+	}
     }
-
     #do the update and log any error
     RRDs::update($base_path . $file,"--template",$template,$value);
     my $error = RRDs::error();
@@ -283,7 +279,7 @@ sub add_snapp{
     my $dpid = shift;
     my $port = shift;
     my $vlan = shift;
-
+    my $mac_addr = shift;
     my $node = $oess->get_node_by_dpid( dpid => $dpid);
     my $host;
     
@@ -308,7 +304,12 @@ sub add_snapp{
     }
 
     $sth = $snapp_dbh->prepare("select * from collection where host_id = ? and premap_oid_suffix = ?") or handle_error($!);
-    $sth->execute($host->{'host_id'},$port . "-" . $vlan) or handle_error($!);
+
+    if(!defined($mac_addr)){
+	$sth->execute($host->{'host_id'},$port . "-" . $vlan) or handle_error($!);
+    }else{
+	$sth->execute($host->{'host_id'},$port . "-" . $vlan . "-" . $mac_addr) or handle_error($!);
+    }
     if(my $row = $sth->fetchrow_hashref()){
 	#hey this collection already exists
 	$sth = $snapp_dbh->prepare("select * from collection_instantiation where collection_id = ? and end_epoch = -1") or handle_error($!);
@@ -345,7 +346,11 @@ sub add_snapp{
 	if(!defined($sth)){
 	    return;
 	}
-	$sth->execute($node->{'name'} . "-" . $port . "-" . $vlan,$host->{'host_id'},$file,$port . "-" . $vlan,$port . "-" . $vlan,$collection_class->{'collection_class_id'},1) or handle_error($!);
+	if(!defined($mac_addr)){
+	    $sth->execute($node->{'name'} . "-" . $port . "-" . $vlan,$host->{'host_id'},$file,$port . "-" . $vlan,$port . "-" . $vlan,$collection_class->{'collection_class_id'},1) or handle_error($!);
+	}else{
+	    $sth->execute($node->{'name'} . "-" . $port . "-" . $vlan . "-" . $mac_addr,$host->{'host_id'},$file,$port . "-" . $vlan . "-" . $mac_addr,$port . "-" . $vlan . "-" . $mac_addr,$collection_class->{'collection_class_id'},1) or handle_error($!);
+	}
 	my $collection_id = $sth->{'mysql_insertid'};
 	if(!defined($collection_id)){
 	    syslog(LOG_ERR,"Unable to add collection: $!");
