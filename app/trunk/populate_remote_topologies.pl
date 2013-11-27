@@ -299,7 +299,7 @@ sub add_link {
     $remote_urn =~ s/\n\s*//g;
 
     $urn =~ /domain=(.+):node=(.+):port=(.+):link=(\S+)/;
-
+    my $local_dom =$1;
     my $local_node = $2;
     my $local_port = $3;
     my $local_link = $4;
@@ -313,6 +313,7 @@ sub add_link {
 
     # we don't care about intra domain links here, only inter
     return if ($remote_domain eq $local_domain);    
+    return if($local_dom eq $local_domain);
 
     # figure out the link if applicable
     $results = $db->_execute_query("select * from link where name = ?", [$urn]);
