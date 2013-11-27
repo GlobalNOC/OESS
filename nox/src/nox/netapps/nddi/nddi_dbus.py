@@ -201,10 +201,10 @@ class dBusEventGen(dbus.service.Object):
         return status
 
     @dbus.service.method(dbus_interface=ifname,
-                         in_signature='ta{sv}qqa(qv)q',
+                         in_signature='ta{sv}a(qv)',
                          out_signature='t'
                          )
-    def install_datapath_flow(self,dpid, attrs,idle_timeout,hard_timeout,actions,inport):
+    def install_datapath_flow(self,dpid,attrs,actions):
 
         if not dpid in switches:
           return 0; 
@@ -212,6 +212,8 @@ class dBusEventGen(dbus.service.Object):
 	#--- here goes nothing
  	my_attrs = {}
         priority = 32768
+        idle_timeout = 0
+        hard_timeout = 0
         if attrs.get("DL_VLAN"):
             my_attrs[DL_VLAN] = int(attrs['DL_VLAN'])        
         if attrs.get("IN_PORT"):
@@ -222,7 +224,10 @@ class dBusEventGen(dbus.service.Object):
             priority = int(attrs["PRIORITY"])
         if attrs.get("DL_DST"):
             my_attrs[DL_DST] = int(attrs["DL_DST"])
-
+        if attrs.get("IDLE_TIMEOUT"):
+            idle_timeout = int(attrs["IDLE_TIMEOUT"])
+        if attrs.get("HARD_TIMEOUT"):
+            hard_timeout = int(attrs["HARD_TIMEOUT"])
         #--- this is less than ideal. to make dbus happy we need to pass extra arguments in the
         #--- strip vlan case, but NOX won't be happy with them so we remove them here
         for i in range(len(actions)):
@@ -233,15 +238,15 @@ class dBusEventGen(dbus.service.Object):
                 actions.insert(i, new_action)
 
         #--- first we check to make sure the switch is in a ready state to accept more flow mods.
-        status = _do_install(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,priority=priority,inport=inport)); 
+        status = _do_install(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,priority=priority,inport=my_attrs[IN_PORT])); 
 
         return status
 
     @dbus.service.method(dbus_interface=ifname,
-                         in_signature='ta{sv}',
+                         in_signature='ta{sv}a(qv)',
                          out_signature='t'
                          )
-    def delete_datapath_flow(self,dpid, attrs ):
+    def delete_datapath_flow(self,dpid, attrs, actions ):
 
         if not dpid in switches:
           return 0;
@@ -374,8 +379,8 @@ def _do_install(dpid, callback):
     flowmod_callbacks[dpid].append({"status": PENDING, "result": FWDCTL_WAITING, "start_time": time()})
 
     callback();
-    return inst.send_barrier(dpid)
-    #return 1
+    #return inst.send_barrier(dpid)
+    return 1
 
 global high_water
 highwater = 0
