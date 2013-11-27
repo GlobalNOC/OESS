@@ -1,9 +1,0 @@
-<config admin_email="foo@bar.com" snapp_config_location="https://globalnoc.edu/snapp_file_location">
-    <credentials username="root" password="penumbra" database="oess_test"/>
-    <oscars>
-        <host>oscars-host</host>
-        <key>oscars-key</key>
-        <cert>oscars-cert</cert>
-        <topo>oscars-topo</topo>
-    </oscars>
-</config>

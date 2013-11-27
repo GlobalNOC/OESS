@@ -1,9 +1,0 @@
-Changes
-MANIFEST
-Makefile.PL
-README
-lib/OESS/Topology.pm
-t/conf/database.xml
-t/00-load_base.t
-t/01-shortest_path.t
-t/test_topologies/dump1.xml
