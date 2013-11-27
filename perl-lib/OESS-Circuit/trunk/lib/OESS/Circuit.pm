@@ -9,6 +9,14 @@ use Log::Log4perl;
 use OESS::FlowRule;
 use Graph::Directed;
 
+=head2 new
+
+    Creates a new OESS::Circuit object
+    requires an OESS::Database handle
+    and either the details from get_circuit_details or a circuit_id
+
+=cut
+
 sub new{
     my $that  = shift;
     my $class = ref($that) || $that;
@@ -49,6 +57,8 @@ sub new{
 
 =head2 get_id
 
+    returns the id of the circuit
+
 =cut
 
 sub get_id{
@@ -57,6 +67,9 @@ sub get_id{
 }
 
 =head2 update_circuit_details
+
+    reload the circuit details from the database to make sure everything 
+    is in sync with what should be there
 
 =cut
 
