@@ -34,18 +34,31 @@ function makeSlider(){
 
 function init(){
   
-    var restore_to_primary = new YAHOO.widget.Button("restore_to_primary_button",{ type: "checkbox",
-    										   label: "Off"});
+    var restore_to_primary = new YAHOO.widget.Button("restore_to_primary_button",{ 
+        type: "checkbox",
+        label: "Off"
+    });
     restore_to_primary.on('checkedChange', function(){
-	    if(this.get("checked")){
-		document.getElementById("restore_to_primary_holder").style.display = "inline";
-		this.set('label','On');
-	    }else{
-		document.getElementById("restore_to_primary_holder").style.display = "none";
-		this.set('label','Off');
-	    }
+        if(this.get("checked")){
+            document.getElementById("restore_to_primary_holder").style.display = "inline";
+            this.set('label','On');
+        }else{
+            document.getElementById("restore_to_primary_holder").style.display = "none";
+            this.set('label','Off');
+        }
 	});
-    
+    var static_mac_routing = new YAHOO.widget.Button("static_mac_routing_button",{ 
+        type: "checkbox",
+        label: "Off"
+    });
+    static_mac_routing.on('checkedChange', function(){
+        if(this.get("checked")){
+            this.set('label','On');
+        }else{
+            this.set('label','Off');
+        }
+	});
+
   setPageSummary("Basic Details", "Add Information");
 
   setNextButton("Proceed to Step 2: Endpoints", "?action=endpoints", verify_inputs);  
@@ -95,6 +108,13 @@ function init(){
   if(YAHOO.util.Dom.get('restore_to_primary').value > 0){
       restore_to_primary.set('checked',true);
   }
+  
+  YAHOO.util.Dom.get('static_mac_routing_button').value = session.data.static_mac_routing || 0;
+  if(YAHOO.util.Dom.get('static_mac_routing_button').value > 0){
+      static_mac_routing.set('checked',true);
+  }
+
+
   var chosen_tagging = session.data.tagging || "ptp";
  
   hookupRadioButtons("tagging", chosen_tagging, function(){
@@ -146,6 +166,8 @@ function init(){
       alert("You must enter a description.")
       return;
     }
+    
+    session.data.description  = description;
   
     var bandwidth = slider.getRealValue();
         
@@ -158,16 +180,22 @@ function init(){
     var interdomain = domain_options[0].checked ? domain_options[0].value : domain_options[1].value;
   
     var restore_to_primary = document.getElementById('restore_to_primary').value;
+   
+    //var static_mac_routing = document.getElementById('static_mac_routing_button').childNodes[0].childNodes[0];
+
     
     if(restore_to_primary == ''){
     	restore_to_primary = 0;
     }else{
     	restore_to_primary = parseInt(restore_to_primary);
     }
-
-    session.data.description  = description;
-
     session.data.restore_to_primary = restore_to_primary;
+
+    var static_mac = 0;
+    if(static_mac_routing.get("checked")){
+    	static_mac = 1;
+    }
+    session.data.static_mac_routing = static_mac;
 
     // OSCARS will require you to do at least 50M bandwidth and will fail to find a path if you 
     // give it 0 bandwidth

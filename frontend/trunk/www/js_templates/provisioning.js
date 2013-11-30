@@ -269,9 +269,10 @@ function saveLocalCircuit(){
 	remove_time = parseInt(remove_time / 1000);
     }
     
-    var endpoints      = session.data.endpoints;
-    var links          = session.data.links;
-    var backups        = session.data.backup_links;
+    var endpoints          = session.data.endpoints;
+    var links              = session.data.links;
+    var backups            = session.data.backup_links;
+    var static_mac = session.data.static_mac_routing;
 
     var circuit_id     = session.data.circuit_id || -1;
     
@@ -296,13 +297,20 @@ function saveLocalCircuit(){
 	           +"&provision_time="+encodeURIComponent(provision_time)
 	           +"&remove_time="+encodeURIComponent(remove_time)
 	           +"&workgroup_id="+workgroup_id
-	           +"&restore_to_primary="+restore_to_primary;
+	           +"&restore_to_primary="+restore_to_primary
+               +"&static_mac="+static_mac;
     
 
     for (var i = 0; i < endpoints.length; i++){
-	postVars += "&node=" + encodeURIComponent(endpoints[i].node);
-	postVars += "&interface=" + encodeURIComponent(endpoints[i].interface);
-	postVars += "&tag=" + encodeURIComponent(endpoints[i].tag);
+        postVars += "&node=" + encodeURIComponent(endpoints[i].node);
+        postVars += "&interface=" + encodeURIComponent(endpoints[i].interface);
+        postVars += "&tag=" + encodeURIComponent(endpoints[i].tag);
+        postVars += "&endpoint_mac_address_num=" +  encodeURIComponent(endpoints[i].mac_addrs.length);
+
+        var mac_addresses = endpoints[i].mac_addrs;
+        for(var j = 0; j < mac_addresses.length; j++){
+	        postVars += "&mac_address=" + encodeURIComponent(mac_addresses[j].mac_address);
+        }
     }
 
     for (var i = 0; i < links.length; i++){
@@ -313,6 +321,8 @@ function saveLocalCircuit(){
 	postVars += "&backup_link="+encodeURIComponent(backups[i]);
     }
 
+
+    alert(postVars);
     ds.sendRequest(postVars, {success: handleLocalSuccess, failure: handleLocalFailure, scope: this});
 
 }

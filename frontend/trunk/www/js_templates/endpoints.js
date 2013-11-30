@@ -85,126 +85,226 @@ function init(){
 		this.table = makeInterfacesTable(node);		
 		
 		this.table.subscribe("rowClickEvent", function(args){
+
+            if (this.vlan_panel){
+                this.vlan_panel.destroy();
+                this.vlan_panel = undefined;
+            }
+
+            var rec = this.getRecord(args.target);
+            var tag_range = rec.getData('vlan_tag_range');
+            var interface = rec.getData('name');
+            var description = rec.getData('description');
+
+            var state = rec.getData('status');
+            if(state == 'down'){
+              alert('Creating a circuit on a link down interface may prevent your circuit from functioning');
+            }
+
+            var region = YAHOO.util.Dom.getRegion(args.target);
+
+            var components = makeTagSelectPanel([region.left, region.bottom], {
+                include_static_mac_table: true,
+                panel_width: 393,
+                save_action: function(options){
+                    var mac_addresses = options.get_mac_addresses();
+                    var tag           = options.tag;
+                    endpoint_table.addRow({
+                        interface: interface,
+                        interface_description: description,
+                        node: node,
+                        tag: tag,
+                        vlan_tag_range: rec.getData("vlan_tag_range"),
+                        mac_addrs: mac_addresses //components.get_mac_addresses()
+                    });
+
+                    save_session();
+
+                    nddi_map.table.unselectAllRows();
+                    nddi_map.table.vlan_panel.destroy();
+                    nddi_map.table.vlan_panel = undefined; 
+                },
+                interface: interface,
+                interface_description: description,
+                node: node,
+                workgroup_id: session.data.workgroup_id,
+                tag_range: tag_range
+            });
+
+            var vlan_input = YAHOO.util.Dom.get('new_vlan_tag');
+
+
+            this.vlan_panel      = components.panel;
+            var tagged           = components.tagged_input;
+            var static_mac_table = components.static_mac_table;
+
+            //var add_tag_button = components.add_button;
+            //var save_button = components.save_button;
+            //var tag_range_holder = YAHOO.util.Dom.get('new_vlan_tag_range');
+            //tag_range_holder.innerHTML = tag_range;
+
+            this.vlan_panel.show();
+
+            /*
+            function verify_and_add_endpoint(){
+                //--- determine if tag is untagged and validate input
+                var new_tag;
+                if (tagged.get('element').checked){
+                    new_tag = vlan_input.value;
+                    if (! new_tag){
+                      alert("You must specify an outgoing VLAN tag.");
+                      return;
+                    }
+                    if (! new_tag.match(/^\d+$/) || new_tag >= 4096 || new_tag < 1){
+                      alert("You must specify a VLAN tag between 1 and 4095.");
+                      return;
+                    }
+                }else {
+                    new_tag = -1;
+                }
+               
+                //--- save function 
+                var tag_verified = false;
+                var mac_limit_verified = false;
+                function save(){
+                    // only save if both input has been validated
+                    if( tag_verified && mac_limit_verified ){
+                        save_button.set("label", "Save");
+                        save_button.set("disabled", false);
+
+                        endpoint_table.addRow({
+                            interface: interface,
+                            interface_description: description,
+                            node: node,
+                            tag: new_tag,
+                            mac_addrs: components.get_mac_addresses()
+                        });
+
+                        save_session();
+
+                        nddi_map.table.unselectAllRows();
+                        nddi_map.table.vlan_panel.destroy();
+                        nddi_map.table.vlan_panel = undefined;
+                    }
+                }
+
+                //--- validate the tag input
+                var tag_ds = new YAHOO.util.DataSource(
+                    "services/data.cgi?action=is_vlan_tag_available"+
+                    "&vlan="+new_tag+
+                    "&interface="+encodeURIComponent(interface)+
+                    "&node="+encodeURIComponent(node)+
+                    "&workgroup_id="+session.data.workgroup_id
+                );
+                tag_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                tag_ds.responseSchema = {
+                    resultsList: "results",
+                    fields: [{key: "available", parser: "number"}],
+                    metaFields: {
+                      "error": "error"
+                    }
+                };
+                
+                save_button.set("label", "Validating...");
+                save_button.set("disabled", true);
+                tag_ds.sendRequest("", {
+                success: function(req, resp){
+                    if (resp.meta.error){
+                        alert("Error - " + resp.meta.error);
+                        return;
+                    }
+                    else if (resp.results[0].available == 1){
+                        tag_verified = true;
+                        save();
+                    }
+                    else{
+                        if (new_tag == -1){
+                            alert("Untagged traffic is currently in use by another circuit on interface " + interface + " on endpoint " + node + ".");
+                        }
+                        else {
+                            alert("Tag " + new_tag + " is not currently available on interface " + interface + " on endpoint " + node + ".");
+                        }
+                        save_button.set("label", "Save");
+                        save_button.set("disabled", false);
+                    }
+
+                },
+                failure: function(reqp, resp){
+                    save_button.set("label", "Save");
+                    save_button.set("disabled", false);
+
+                    alert("Error validating endpoint.");
+                }});
+
+                //--- verfiy mac addrs don't go over limits
+                // build mac address string
+                var mac_address_string = "";
+                var mac_addresses = components.get_mac_addresses();
+                for(var i=0; i< mac_addresses.length; i++){
+                    var mac_address = mac_addresses[i].mac_address;
+                    mac_address_string += "&mac_address="+mac_address;
+                }
+
+                var mac_ds = new YAHOO.util.DataSource(
+                    "services/data.cgi?action=is_within_mac_limit"+
+                    mac_address_string+
+                    "&interface="+encodeURIComponent(interface)+
+                    "&node="+encodeURIComponent(node)+
+                    "&workgroup_id="+session.data.workgroup_id
+                );
+                mac_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                mac_ds.responseSchema = {
+                    resultsList: "results",
+                    fields: [
+                        {key: "verified", parser: "number"},
+                        {key: "explanation"}
+                    ],
+                    metaFields: {
+                      "error": "error"
+                    }
+                };
+
+                save_button.set("label", "Validating...");
+                save_button.set("disabled", true);
+                mac_ds.sendRequest("", {
+                success: function(req, resp){
+                    if (resp.meta.error){
+                        alert("Error - " + resp.meta.error);
+                        save_button.set("label", "Save");
+                        save_button.set("disabled", false);
+                        return;
+                    }
+                    else if (resp.results[0].verified == 1){
+                        mac_limit_verified = true;
+                        save();
+                    }
+                    else{
+                        alert( "Problem adding mac addresses: "+resp.results[0].explanation );
+                        save_button.set("label", "Save");
+                        save_button.set("disabled", false);
+                    }
+                },
+                failure: function(reqp, resp){
+                    save_button.set("label", "Save");
+                    save_button.set("disabled", false);
+
+                    alert("Error validating endpoint.");
+                }});
+                                
+            } //--- end verify_and_add_endpoint
+            */
+			
+			//save_button.on("click", verify_and_add_endpoint);
   
-                                  if (this.vlan_panel){
-				    this.vlan_panel.destroy();
-				    this.vlan_panel = undefined;
-				  }
-				  
-				  var rec = this.getRecord(args.target);
-				  var tag_range = rec.getData('vlan_tag_range');
-				  var interface = rec.getData('name');
-				  var description = rec.getData('description');
-	
-				  var state = rec.getData('status');
-				  if(state == 'down'){
-				      alert('Creating a circuit on a link down interface may prevent your circuit from functioning');
-				  }
+			new YAHOO.util.KeyListener(vlan_input,
+                    {keys: 13},
+                    {fn: verify_and_add_endpoint}
+            ).enable();
 
-				  var region = YAHOO.util.Dom.getRegion(args.target);
-
-				  var components = makeTagSelectPanel([region.left, region.bottom], interface);
-
-				  var vlan_input = YAHOO.util.Dom.get('new_vlan_tag');
-  
-				  
-				  this.vlan_panel = components.panel;
-
-				  var tagged = components.tagged_input;
-
-				  var add_tag_button = components.add_button;
-				  var tag_range_holder = YAHOO.util.Dom.get('new_vlan_tag_range');
-				  tag_range_holder.innerHTML = tag_range;
-
-				  this.vlan_panel.show();
-
-				  function verify_and_add_vlan_tag(){
-
-				      var new_tag;
-
-				      if (tagged.get('element').checked){
-
-					  new_tag = vlan_input.value;
-				    
-					  if (! new_tag){
-					      alert("You must specify an outgoing VLAN tag.");
-					      return;
-					  }
-					  
-					  if (! new_tag.match(/^\d+$/) || new_tag >= 4096 || new_tag < 1){
-					      alert("You must specify a VLAN tag between 1 and 4095.");
-					      return;
-					  }
-				      }
-				      
-				      else {
-					  new_tag = -1;
-				      }
-
-				      var ds = new YAHOO.util.DataSource("services/data.cgi?action=is_vlan_tag_available&vlan="+new_tag+"&interface="+encodeURIComponent(interface)+"&node="+encodeURIComponent(node)+"&workgroup_id="+session.data.workgroup_id);
-				      ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-				      ds.responseSchema = {
-					  resultsList: "results",
-					  fields: [{key: "available", parser: "number"}],
-					  metaFields: {
-					      "error": "error"
-					  }
-				      };
-				      
-				      add_tag_button.set("label", "Validating...");
-				      add_tag_button.set("disabled", true);
-
-				      ds.sendRequest("", {success: function(req, resp){
-						           add_tag_button.set("label", "Add Tag");
-							   add_tag_button.set("disabled", false);
-
-						           if (resp.meta.error){
-							       alert("Error - " + resp.meta.error);
-							       return;
-							   }
-							   else if (resp.results[0].available == 1){
-							       endpoint_table.addRow({interface: interface,
-								                          interface_description: description,
-                                                          node: node,
-								                      tag: new_tag});
-						
-							       save_session();
-							       
-							       nddi_map.table.unselectAllRows();
-							       nddi_map.table.vlan_panel.destroy();
-							       nddi_map.table.vlan_panel = undefined;	       
-							   }
-							   else{
-							       if (new_tag == -1){
-								   alert("Untagged traffic is currently in use by another circuit on interface " + interface + " on endpoint " + node + ".");
-							       }
-							       else {
-								   alert("Tag " + new_tag + " is not currently available on interface " + interface + " on endpoint " + node + ".");
-							       }
-							   }
-						 
-					               },
- 						       failure: function(reqp, resp){
-						           add_tag_button.set("label", "Add Tag");
-							   add_tag_button.set("disabled", false);
-
-						           alert("Error validating endpoint.");
-					               }
-					  });
-				    				    
-				  }
-				  
-				  add_tag_button.on("click", verify_and_add_vlan_tag);
-  
-				  new YAHOO.util.KeyListener(vlan_input,
-							     {keys: 13},
-							     {fn: verify_and_add_vlan_tag}).enable();
-				  
-
-				});
+        });
 		
 		
-	      });
+  });
   
   function save_session(){
     
@@ -214,16 +314,21 @@ function init(){
     
     for (var i = 0; i < records.length; i++){
       
-      var node      = records[i].getData('node');
-      var interface = records[i].getData('interface');
-        var description = records[i].getData('interface_description');
-        var tag       = records[i].getData('tag');
-      
-      session.data.endpoints.push({interface: interface,
-				   node: node,
-                   interface_description: description,
-				   tag: tag,
-				  });
+        var node           = records[i].getData('node');
+        var interface      = records[i].getData('interface');
+        var description    = records[i].getData('interface_description');
+        var tag            = records[i].getData('tag');
+        var mac_addrs      = records[i].getData('mac_addrs');
+        var vlan_tag_range = records[i].getData('vlan_tag_range');
+
+        session.data.endpoints.push({
+            interface: interface,
+            node: node,
+            interface_description: description,
+            tag: tag,
+            mac_addrs: mac_addrs,
+            vlan_tag_range: vlan_tag_range
+        });
     }
     
     session.save();

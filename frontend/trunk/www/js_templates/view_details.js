@@ -8,18 +8,18 @@ function init(){
 
     var ds = make_circuit_details_datasource();
 
-    ds.sendRequest("", {success: function(req, resp){
+    ds.sendRequest("", {
+        success: function(req, resp){
 
-		             var details = resp.results[0];
+            var details = resp.results[0];
 
-			     save_session_from_datasource(details);
-
-		             page_init();
-	                },
-		        failure: function(req, resp){
-		             alert("Error loading circuit details.");
-	                }
-		   });
+            save_session_from_datasource(details);
+            page_init();
+        },
+        failure: function(req, resp){
+            alert("Error loading circuit details.");
+        }
+    });
 
 }
 
@@ -38,7 +38,8 @@ function make_circuit_details_datasource(){
     {key: "endpoints"},
     {key: "state"},
     {key: "active_path"},
-    {key: "restore_to_primary"}
+    {key: "restore_to_primary"},
+    {key: "static_mac"} //TODO change to perma-name
 	]
     };
 
@@ -47,6 +48,7 @@ function make_circuit_details_datasource(){
 
 function save_session_from_datasource(details){
     session.clear();
+            
 
     session.data.circuit_id   = details.circuit_id;
     session.data.description  = details.description;
@@ -54,6 +56,7 @@ function save_session_from_datasource(details){
     session.data.state        = details.state;
     session.data.active_path  = details.active_path;
     session.data.circuit_workgroup = details.workgroup;
+    session.data.static_mac_routing = parseInt(details.static_mac);
     session.data.interdomain  = 0;
     session.data.endpoints    = [];
     session.data.links        = [];
@@ -63,38 +66,41 @@ function save_session_from_datasource(details){
 
 
     for (var i = 0; i < details.endpoints.length; i++){
-	var endpoint = details.endpoints[i];
-        
-	var endpoint_data = {node: endpoint.node,
-			     interface: endpoint.interface,
-                 interface_description: endpoint.interface_description,
-			     tag: endpoint.tag,
-			     role: endpoint.role,
-			     urn: endpoint.urn,
-			     local: endpoint.local
-	                     };
+        var endpoint = details.endpoints[i];
 
-	if (endpoint.local == 0){
-	    session.data.interdomain = 1;
-	}
+        var endpoint_data = {
+            node: endpoint.node,
+            interface: endpoint.interface,
+            interface_description: endpoint.interface_description,
+            tag: endpoint.tag,
+            role: endpoint.role,
+            urn: endpoint.urn,
+            local: endpoint.local,
+            mac_addrs: endpoint.mac_addrs,
+            vlan_tag_range: endpoint.vlan_tag_range
+        };
 
-	if (endpoint.role == "trunk"){
-	    session.data.passthrough.push(endpoint_data);
-	}
-	else{
-	    session.data.endpoints.push(endpoint_data);
-	}
+        if (endpoint.local == 0){
+            session.data.interdomain = 1;
+        }
+
+        if (endpoint.role == "trunk"){
+            session.data.passthrough.push(endpoint_data);
+        }
+        else{
+            session.data.endpoints.push(endpoint_data);
+        }
 
     }
 
     for (var i = 0; i < details.links.length; i++){
-	var path_component = details.links[i];
-	session.data.links.push(path_component.name);
+        var path_component = details.links[i];
+        session.data.links.push(path_component.name);
     }
 
     for (var i = 0; i < details.backup_links.length; i++){
-	var path_component = details.backup_links[i];
-	session.data.backup_links.push(path_component.name);
+        var path_component = details.backup_links[i];
+        session.data.backup_links.push(path_component.name);
     }
 
     session.save();

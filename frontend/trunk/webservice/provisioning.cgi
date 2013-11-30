@@ -198,6 +198,7 @@ sub provision_circuit {
     my $remove_time    = $cgi->param('remove_time');
 	
     my $restore_to_primary = $cgi->param('restore_to_primary');
+    my $static_mac = $cgi->param('static_mac');
 
     my $bus = Net::DBus->system;
     my $log_svc;
@@ -209,11 +210,13 @@ sub provision_circuit {
     warn $@ if $@;
 
 
-    my @links        = $cgi->param('link');
-    my @backup_links = $cgi->param('backup_link');
-    my @nodes        = $cgi->param('node');
-    my @interfaces   = $cgi->param('interface');
-    my @tags         = $cgi->param('tag');
+    my @links         = $cgi->param('link');
+    my @backup_links  = $cgi->param('backup_link');
+    my @nodes         = $cgi->param('node');
+    my @interfaces    = $cgi->param('interface');
+    my @tags          = $cgi->param('tag');
+    my @mac_addresses = $cgi->param('mac_address');
+    my @endpoint_mac_address_nums = $cgi->param('endpoint_mac_address_num');
 
     my @remote_nodes = $cgi->param('remote_node');
     my @remote_tags  = $cgi->param('remote_tag');
@@ -225,8 +228,10 @@ sub provision_circuit {
               'sorry this is a demo account, and can not actually provision' };
     }
 
-    if ( !$circuit_id || $circuit_id eq -1 ) {
+    #warn"bgeels: ".Dumper(\@mac_addresses);
+    #warn Dumper(\@endpoint_mac_address_nums);
 
+    if ( !$circuit_id || $circuit_id eq -1 ) {
         #Register with DB
         $output = $db->provision_circuit(
             description    => $description,
@@ -238,10 +243,13 @@ sub provision_circuit {
             nodes          => \@nodes,
             interfaces     => \@interfaces,
             tags           => \@tags,
+            mac_addresses  => \@mac_addresses,
+            endpoint_mac_address_nums  => \@endpoint_mac_address_nums,
             user_name      => $ENV{'REMOTE_USER'},
             workgroup_id   => $workgroup_id,
             external_id    => $external_id,
-	    restore_to_primary => $restore_to_primary
+	        restore_to_primary => $restore_to_primary,
+            static_mac => $static_mac
         );
         if ( defined $output && $provision_time <= time() ) {
 
@@ -303,7 +311,7 @@ sub provision_circuit {
             description    => $description,
             bandwidth      => $bandwidth,
             provision_time => $provision_time,
-	    restore_to_primary => $restore_to_primary,
+	        restore_to_primary => $restore_to_primary,
             remove_time    => $remove_time,
             links          => \@links,
             backup_links   => \@backup_links,
@@ -314,9 +322,6 @@ sub provision_circuit {
             workgroup_id   => $workgroup_id,
             do_external    => 0
         );
-             
-            
-
 
         $result = _send_add_command( circuit_id => $output->{'circuit_id'} );
 

@@ -16,7 +16,7 @@ function init(){
 	});
   
     // defined in circuit_details_box.js
-    var endpoint_table = summary_init(true);
+    var endpoint_table = summary_init({ remove_only: true });
    
     var nddi_map = new NDDIMap("map", session.data.interdomain == 1);
 

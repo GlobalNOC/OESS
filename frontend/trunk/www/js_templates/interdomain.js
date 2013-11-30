@@ -86,7 +86,7 @@ function init(){
     var layout = makePageLayout(map, {map_width: Math.min(session.data.map_width || 600, 600),
 				      max_resize: 600});
 
-    var endpoint_table = summary_init(false, true);
+    var endpoint_table = summary_init({ remove_only: false });
 
     endpoint_table.subscribe("rowDeleteEvent", function(oArgs){
 	    var node = oArgs.oldData.node;

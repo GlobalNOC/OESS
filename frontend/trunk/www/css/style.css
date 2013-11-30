@@ -84,6 +84,10 @@ div.breadcrumbs a {
     color: #DDDDDD;
 }
 
+#tag_selection {
+    text-align: left;
+}
+
 div#tag_selection button {
     font-size: 85%;
 }
@@ -263,7 +267,7 @@ table.nicely_spaced td{
 }
 
 table.circuit_summary_table {
-    width: 800px;
+    width: 750px;
 }
 
 table.circuit_summary_table td{
@@ -306,7 +310,6 @@ table.circuit_summary_table tr{
 }
 
 #circuit_endpoints_table {
-
 }
 
 #circuit_endpoints_table th{
@@ -317,6 +320,7 @@ table.circuit_summary_table tr{
     border-left: 0;
     border-right: 0;
     border-bottom: 0;
+    overflow-x: hidden;
 }
 
 #circuit_endpoints_table .yui-dt-hd {

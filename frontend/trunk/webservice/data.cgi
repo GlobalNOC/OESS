@@ -121,6 +121,9 @@ sub main {
         case "get_link_by_name" {
             $output = &get_link_by_name();
         }
+        case "is_within_mac_limit" {
+            $output = &is_within_mac_limit();
+        }
         else {
             $output->{'error'}   = "Error: No Action specified";
             $output->{'results'} = [];
@@ -531,6 +534,33 @@ sub get_all_resources {
     $results->{'results'} =
     $db->get_available_resources( workgroup_id => $workgroup_id );
     return $results;
+}
+
+sub is_within_mac_limit {
+    my @mac_addresses  = $cgi->param('mac_address');
+    my $interface      = $cgi->param('interface');
+    my $node           = $cgi->param('node');
+    my $workgroup_id   = $cgi->param('workgroup_id');
+
+    if(!@mac_addresses || !$interface || !$node || !$workgroup_id){
+        return {
+            error => "Must send mac_address, interface, node, and workgroup_id",
+            results => []
+        }; 
+    }
+
+    my $return = $db->is_within_mac_limit(
+        mac_address  => \@mac_addresses,
+        interface    => $interface,
+        node         => $node,
+        workgroup_id => $workgroup_id 
+    );
+    return {
+        error => undef,
+        results => [
+            $return
+        ]
+    };
 }
 
 sub send_message {

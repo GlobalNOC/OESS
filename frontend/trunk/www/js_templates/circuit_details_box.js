@@ -1,7 +1,10 @@
 <script>
   
-function summary_init(remove_only){
+function summary_init(options){
+  options = options || {};
   
+  var remove_only = options.remove_only;
+
   var bandwidth = session.data.bandwidth || 0;
   
   if (bandwidth < 1000000000){
@@ -26,6 +29,11 @@ function summary_init(remove_only){
       YAHOO.util.Dom.get('restore_to_primary').innerHTML    = 'Off';
   }else{
       YAHOO.util.Dom.get('restore_to_primary').innerHTML    = session.data.restore_to_primary + " minutes";
+  }
+  if(session.data.static_mac_routing == 0 || session.data.static_mac_routing == undefined){
+      YAHOO.util.Dom.get('static_mac_routing').innerHTML    = 'Off';
+  }else{
+      YAHOO.util.Dom.get('static_mac_routing').innerHTML    = 'On';
   }
 
   [% IF show_times %]
@@ -74,61 +82,106 @@ function summary_init(remove_only){
     [% interface_width = 195 %]
     [% total_width = 563 %]
   [% END %]
-
-  var cols = [
-      {key: "interface", width: 250, label: "Interface", formatter: 
-       function(el, rec, col, data){
+    var hide_static_mac = true;
+    if(session.data.static_mac_routing){
+        hide_static_mac = false;
+    }
+    var cols = [
+        {key: "interface", width: 250, label: "Interface", formatter: 
+        function(el, rec, col, data){
            el.innerHTML = rec.getData('node') + ' - ' + rec.getData('interface');
-       }
-     
-      },
-      {key:"description", width: 150, label: "Interface Description" , formatter: 
-       function(el,rec,col,data){
+        }
+
+        },
+        {key:"description", width: 150, label: "Interface Description" , formatter: 
+        function(el,rec,col,data){
            el.innerHTML = rec.getData('interface_description');
            //console.log(data);
            console.log(rec);
-       }
-      },
-      {key: "tag", width: 30, label: "VLAN", formatter: function(el, rec, col, data){
-	      if (data == -1){
-		      el.innerHTML = "<span style='font-size: 74%;'>Untagged</span>";
-	      }
-	      else {
-		      el.innerHTML = data;
-	      }
-	}
-    }    
+        }
+        },
+        {key: "tag", width: 30, label: "VLAN", formatter: function(el, rec, col, data){
+          if (data == -1){
+              el.innerHTML = "<span style='font-size: 74%;'>Untagged</span>";
+          }
+          else {
+              el.innerHTML = data;
+          }
+        }},
+        {key: "mac_addrs", label: "Static MAC Addresses", hidden: hide_static_mac, formatter: function(el, rec, col, data){
+          if (!data){
+              el.innerHTML = "None";
+          }
+          else {
+              var text = "";
+              for(var i=0; i<data.length;i++){
+                text += data[i].mac_address+"<br>";
+              }
+              el.innerHTML = text;
+          }
+        }}
+        [% IF delete %]
+            ,{
+            label: "Edit", width: 48, formatter: function(el, rec, col, data){
+            var button = new YAHOO.widget.Button({label: "Edit"});
+            YAHOO.util.Dom.addClass(button, "endpoint_edit_button");
+            var t = this;
+            button.on("click", function(){
+                var region = YAHOO.util.Dom.getRegion(el);
+                var components = makeTagSelectPanel([region.right, region.bottom], {
+                    include_static_mac_table: true,
+                    align_right: true,
+                    panel_width: 393,
+                    save_action: function(options){
+                        t.updateCell( rec , "tag" , options.tag , true);
+                        t.updateCell( rec , "mac_addrs" , options.get_mac_addresses() );
+                    },
+                    remove_action: function(options){
+                        var interface = rec.getData('interface');
+                        showConfirm("Are you sure you wish to delete interface " + interface + "?",
+                                function(){
+                                t.deleteRow(t.getRecordSet().getRecordIndex(rec));
+                                },
+                                function(){}
+                                );
 
-    [% IF delete %]
+                    },
+                    interface: rec.getData("interface"),
+                    interface_description: rec.getData("interface_description"),
+                    node: rec.getData("node"),
+                    tag_range: rec.getData("vlan_tag_range"),
+                    workgroup_id: session.data.workgroup_id,
+                    is_edit: true,
+                    current_values: {
+                        mac_addresses: rec.getData("mac_addrs"),
+                        tag: rec.getData("tag")
+                    }
+                }); 
+                var vlan_panel = components.panel;
+                vlan_panel.show();    
+                /*
+                    var interface = rec.getData('interface');
 
-    , {
-	label: "Delete", width: 48, formatter: function(el, rec, col, data){
-	var del_button = new YAHOO.widget.Button({label: "Delete"});
-	YAHOO.util.Dom.addClass(del_button, "endpoint_delete_button");
-	var t = this;
-	del_button.on("click", function(){
-			var interface = rec.getData('interface');
+                    showConfirm("Are you sure you wish to delete interface " + interface + "?",
+                            function(){
+                            t.deleteRow(t.getRecordSet().getRecordIndex(rec));
+                            },
+                            function(){}
+                            );
 
-			showConfirm("Are you sure you wish to delete interface " + interface + "?",
-				    function(){
-					t.deleteRow(t.getRecordSet().getRecordIndex(rec));
-				    },
-				    function(){}
-				    );
-
-		      });
-	del_button.appendTo(el);
-      }
-    }
-
+                */
+            });
+                button.appendTo(el);
+              }
+            }
     [% END %]
 
-  ];
+    ];
   
-  var configs = {
+    var configs = {
       height: '130px',
-      width: '[% total_width %]px'
-  };
+      //width: '[% total_width %]px'
+    };
   
  
 
@@ -141,11 +194,19 @@ function summary_init(remove_only){
                 }
     });*/
 
-  var endpoints = session.data.endpoints || [];
+    var endpoints = session.data.endpoints || [];
     console.log(endpoints);
-  for (var i = 0; i < endpoints.length; i++){
-      endpoint_table.addRow({interface: endpoints[i].interface, interface_description: endpoints[i].interface_description, node: endpoints[i].node, tag: endpoints[i].tag, urn: endpoints[i].urn});    
-  }
+    for (var i = 0; i < endpoints.length; i++){
+        endpoint_table.addRow({
+            interface: endpoints[i].interface, 
+            interface_description: endpoints[i].interface_description, 
+            node: endpoints[i].node, 
+            tag: endpoints[i].tag, 
+            urn: endpoints[i].urn,
+            mac_addrs: endpoints[i].mac_addrs,
+            vlan_tag_range: endpoints[i].vlan_tag_range,
+        });    
+    }
 
   // set up all the help hover widgets
   makeHelpPanel(["summary_description", "summary_description_label"], "This is the human readable description for this circuit.");
@@ -166,6 +227,8 @@ function summary_init(remove_only){
   makeHelpPanel(["summary_status", "summary_status_label"], "This indicates the present status of the circuit.");
 
   makeHelpPanel(["restore_to_primary", "restore_to_primary_label"], "This indicates if restore to primary is configured and the number of minutes until the primary is restored");
+  
+  makeHelpPanel(["static_mac_routing", "static_mac_routing_label"], "This indicates if the nodes will forward traffic based on the static MAC addresses configured on each endpoint.");
 
   return endpoint_table;
 }
