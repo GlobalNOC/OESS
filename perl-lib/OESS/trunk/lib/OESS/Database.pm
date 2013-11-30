@@ -3372,7 +3372,7 @@ sub get_circuit_details {
                     'last_edited'            => $dt->strftime('%m/%d/%Y %H:%M:%S'),
                     'workgroup_id'           => $row->{'workgroup_id'},
 		    'restore_to_primary'     => $row->{'restore_to_primary'},
-		    'static_mac_address'             => $row->{'static_mac'}
+		    'static_mac'             => $row->{'static_mac'}
                    };
         if ( $row->{'circuit_state'} eq 'decom' ){
             $show_historical =1;
@@ -3489,6 +3489,12 @@ sub get_circuit_endpoints {
     my $self = shift;
     my %args = @_;
 
+    # get the circuit info so we have the workgroup_id to get the vlan tag range later
+    my $sth0 = $self->_prepare_query("select * from circuit where circuit_id = ?") || return;
+    $sth0->execute($args{'circuit_id'});
+    my $circuit = $sth0->fetchrow_hashref();
+    my $workgroup_id = $circuit->{'workgroup_id'};
+
     my $query = "select * from circuit_edge_interface_membership where circuit_edge_interface_membership.circuit_id = ? and circuit_edge_interface_membership.end_epoch = -1";
     my @bind_values = ($args{'circuit_id'});
 
@@ -3515,24 +3521,35 @@ sub get_circuit_endpoints {
 
     while (my $row = $sth->fetchrow_hashref()){
 
-	$sth2->execute($row->{'interface_id'});
+        $sth2->execute($row->{'interface_id'});
 
-	my $endpoint = $sth2->fetchrow_hashref();
+        my $endpoint = $sth2->fetchrow_hashref();
 
-	my $mac_addrs = $self->_execute_query("select mac_address from circuit_edge_mac_address where circuit_edge_id = ?",[$row->{'circuit_edge_id'}]);
+        my $mac_addrs = $self->_execute_query("select mac_address from circuit_edge_mac_address where circuit_edge_id = ?",[$row->{'circuit_edge_id'}]);
 
-	push (@$results, {'node'      => $endpoint->{'node_name'},
-			  'interface' => $endpoint->{'int_name'},
-			  'tag'       => $row->{'extern_vlan_id'},
-			  'node_id'   => $endpoint->{'node_id'},
-			  'port_no'   => $endpoint->{'port_number'},
-			  'local'     => $endpoint->{'is_local'},
-			  'role'      => $endpoint->{'role'},
-			  'interface_description' => $endpoint->{'interface_description'},
-			  'urn'       => $endpoint->{'urn'},
-			  'mac_addrs' => $mac_addrs
-	                 }
-	    );
+        foreach my $mac_addr (@$mac_addrs){
+            $mac_addr->{'mac_address'} = mac_num2hex($mac_addr->{'mac_address'});
+        }
+
+        # retrieve the vlan tag range
+        my $vlan_tag_range = $self->_validate_endpoint(
+            interface_id => $endpoint->{'interface_id'},
+            workgroup_id => $workgroup_id
+        );
+
+        push (@$results, {'node'      => $endpoint->{'node_name'},
+                  'interface' => $endpoint->{'int_name'},
+                  'tag'       => $row->{'extern_vlan_id'},
+                  'node_id'   => $endpoint->{'node_id'},
+                  'port_no'   => $endpoint->{'port_number'},
+                  'local'     => $endpoint->{'is_local'},
+                  'role'      => $endpoint->{'role'},
+                  'interface_description' => $endpoint->{'interface_description'},
+                  'urn'       => $endpoint->{'urn'},
+                  'mac_addrs' => $mac_addrs,
+                  'vlan_tag_range' => $vlan_tag_range
+                         }
+            );
     }
 
     return $results;
@@ -5571,12 +5588,15 @@ sub provision_circuit {
     my $nodes            = $args{'nodes'};
     my $interfaces       = $args{'interfaces'};
     my $tags             = $args{'tags'};
+    my $mac_addresses    = $args{'mac_addresses'};
+    my $endpoint_mac_address_nums = $args{'endpoint_mac_address_nums'};
     my $user_name        = $args{'user_name'};
     my $workgroup_id     = $args{'workgroup_id'};
     my $external_id      = $args{'external_id'};
     my $remote_endpoints = $args{'remote_endpoints'} || [];
     my $remote_tags      = $args{'remote_tags'} || [];
     my $restore_to_primary = $args{'restore_to_primary'} || 0;
+    my $static_mac       = $args{'static_mac'} || 0;
 
     my $user_id        = $self->get_user_id_by_auth_name(auth_name => $user_name);
 
@@ -5610,8 +5630,8 @@ sub provision_circuit {
     my $name = $workgroup_details->{'name'} . "-" . $uuid;
 
     # create circuit record
-    my $circuit_id = $self->_execute_query("insert into circuit (name, description, workgroup_id, external_identifier, restore_to_primary) values (?, ?, ?, ?,?)",
-					   [$name, $description, $workgroup_id, $external_id, $restore_to_primary]);
+    my $circuit_id = $self->_execute_query("insert into circuit (name, description, workgroup_id, external_identifier, restore_to_primary, static_mac) values (?, ?, ?, ?, ?, ?)",
+					   [$name, $description, $workgroup_id, $external_id, $restore_to_primary, $static_mac]);
 
     if (! defined $circuit_id ){
         $self->_set_error("Unable to create circuit record.");
@@ -5667,6 +5687,8 @@ sub provision_circuit {
 	my $node      = @$nodes[$i];
 	my $interface = @$interfaces[$i];
 	my $vlan      = @$tags[$i];
+    my $endpoint_mac_address_num = @$endpoint_mac_address_nums[$i];
+    my $circuit_edge_id;
 
 	$query = "select interface_id from interface " .
 	    " join node on node.node_id = interface.node_id " .
@@ -5695,11 +5717,49 @@ sub provision_circuit {
 
 	$query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, end_epoch, start_epoch) values (?, ?, ?, -1, unix_timestamp(NOW()))";
 
-	if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $vlan])){
+	$circuit_edge_id = $self->_execute_query($query, [$interface_id, $circuit_id, $vlan]);
+	if (! defined($circuit_edge_id) ){
+        #if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $vlan])){
 	    $self->_set_error("Unable to create circuit edge to interface '$interface' on endpoint '$node'");
         $self->_rollback();
 	    return;
 	}
+
+    # now add any static mac addresses if the static mac address flag was sent
+    if($static_mac){
+        
+        # create an array of all the mac addresses for this endpoint
+        my @endpoint_mac_addresses;
+        for (my $j = 0; $j < $endpoint_mac_address_num; $j++){
+            my $mac_address = shift(@$mac_addresses);
+            push(@endpoint_mac_addresses, $mac_address);
+        }
+        
+        # check that the mac_addresses fall within the limits
+        my $result = $self->is_within_mac_limit(
+            mac_address  => \@endpoint_mac_addresses,
+            interface    => $interface,
+            node         => $node,
+            workgroup_id => $workgroup_id
+        );
+        if(!$result->{'verified'}){
+            $self->_set_error($result->{'explanation'});
+            $self->_rollback();
+            return;
+        }
+
+        # now add the mac addresses to the endpoint
+        $query = "insert into circuit_edge_mac_address values (?,?)";
+        foreach my $mac_address (@endpoint_mac_addresses){
+            $mac_address = mac_hex2num( $mac_address );
+            if( ! defined $self->_execute_query($query, [$circuit_edge_id, $mac_address]) ){
+                $self->_set_error("Unable to create mac address edge to interface '$interface' on endpoint '$node'");
+                $self->_rollback();
+                return;
+            }
+        }
+
+    }
 
     }
 
@@ -7564,6 +7624,117 @@ sub update_circuit_owner{
     my $str = "update circuit set workgroup_id = ? where circuit_id = ?";
     my $success = $self->_execute_query($str,[$args{'workgroup_id'},$args{'circuit_id'}]);
     return 1;
+}
+
+sub is_within_mac_limit {
+    my ($self, %args) = @_;
+
+    my $mac_address   = $args{'mac_address'};
+    my $interface     = $args{'interface'};
+    my $node          = $args{'node'};
+    my $workgroup_id  = $args{'workgroup_id'};
+
+    my $new_mac_address_count = @$mac_address;
+
+    #--- get the node_id and limit
+    my $str = "select * from node where name = ?";
+    my $rows = $self->_execute_query($str, [$node]);
+    my $node_id        = $rows->[0]{'node_id'};
+    my $node_mac_limit = $rows->[0]{'max_static_mac_flows'};  
+
+    #--- get the number of mac addresses associated with the node
+    $str = "SELECT COUNT(mac_address) AS mac_address_count FROM circuit_edge_mac_address ".
+           " JOIN circuit_edge_interface_membership ".
+           "   ON circuit_edge_mac_address.circuit_edge_id = circuit_edge_interface_membership.circuit_edge_id ".
+           " JOIN circuit_instantiation ".
+           "   ON circuit_edge_interface_membership.circuit_id = circuit_instantiation.circuit_id ".
+
+           " JOIN interface ON circuit_edge_interface_membership.interface_id = interface.interface_id ".
+           " JOIN node ON node.node_id = interface.node_id ".
+           " WHERE node.node_id = ? ".
+           "   AND circuit_instantiation.end_epoch = -1 ".
+           "   AND circuit_instantiation.circuit_state != 'decom'";
+
+    $rows = $self->_execute_query($str, [$node_id]);
+    my $node_mac_address_count = $rows->[0]{'mac_address_count'};
+
+    #--- get the number of mac addresses associated with the node by this workgroup
+    $str = "SELECT COUNT(mac_address) AS mac_address_count FROM circuit_edge_mac_address ".
+           " JOIN circuit_edge_interface_membership ".
+           "   ON circuit_edge_mac_address.circuit_edge_id = circuit_edge_interface_membership.circuit_edge_id ".
+           " JOIN circuit_instantiation ".
+           "   ON circuit_edge_interface_membership.circuit_id = circuit_instantiation.circuit_id ".
+           " JOIN interface ON circuit_edge_interface_membership.interface_id = interface.interface_id ".
+           " JOIN node ON node.node_id = interface.node_id ".
+           " JOIN circuit ON circuit_edge_interface_membership.circuit_id = circuit.circuit_id ".
+           " WHERE node.node_id = ?".
+           "   AND circuit.workgroup_id = ? ".
+           "   AND circuit_instantiation.end_epoch = -1 ".
+           "   AND circuit_instantiation.circuit_state != 'decom'";
+
+    $rows = $self->_execute_query($str, [$node_id, $workgroup_id]);
+    my $workgroup_node_mac_address_count = $rows->[0]{'mac_address_count'};
+
+    #--- verify this won't cause us to go over the limit
+    #if( ($new_mac_address_count + ($node_mac_address_count - $workgroup_node_mac_address_count)) > $node_mac_limit ){
+    if( ($new_mac_address_count + $node_mac_address_count) > $node_mac_limit ){
+        my $result = {
+            verified => 0,
+            explanation => "There are currently $node_mac_address_count mac addresses associated with node, $node. Adding $new_mac_address_count mac addresses to the node will cause it to exceed the nodes limit of $node_mac_limit."
+        };
+        return $result;
+    } 
+
+    #--- get the workgroup's per endpoint mac address limit
+    $str = "select * from workgroup where workgroup_id = ?";
+    $rows = $self->_execute_query($str, [$workgroup_id]);
+    my $max_mac_per_endpoint = $rows->[0]{'max_mac_address_per_end'};
+
+    #--- make sure the number of macs on the node falls withing the endpoint limit
+    #if( ($new_mac_address_count + ($node_mac_address_count - $workgroup_node_mac_address_count)) > $max_mac_per_endpoint ){
+    if( ($new_mac_address_count + $workgroup_node_mac_address_count) > $max_mac_per_endpoint ){
+        my $result = {
+            verified => 0,
+            explanation => "There are currently $node_mac_address_count mac addresses associated with node, $node. Adding $new_mac_address_count mac addresses to the node will cause it to exceed the limit imposed on this workgroup of $max_mac_per_endpoint."
+        };
+        return $result;
+    }   
+
+    my $result = {
+        verified => 1,
+        explanation => undef
+    };
+
+    return $result;
+}
+
+sub mac_hex2num {
+  my $mac_hex = shift;
+
+  $mac_hex =~ s/://g;
+
+  $mac_hex = substr(('0'x12).$mac_hex, -12);
+  my @mac_bytes = unpack("A2"x6, $mac_hex);
+
+  my $mac_num = 0;
+  foreach (@mac_bytes) {
+    $mac_num = $mac_num * (2**8) + hex($_);
+  }
+
+  return $mac_num;
+}
+
+
+sub mac_num2hex {
+  my $mac_num = shift;
+
+  my @mac_bytes;
+  for (1..6) {
+    unshift(@mac_bytes, sprintf("%02x", $mac_num % (2**8)));
+    $mac_num = int($mac_num / (2**8));
+  }
+
+  return join(':', @mac_bytes);
 }
 
 return 1;
