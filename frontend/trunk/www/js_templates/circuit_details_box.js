@@ -133,8 +133,13 @@ function summary_init(options){
                     align_right: true,
                     panel_width: 393,
                     save_action: function(options){
-                        t.updateCell( rec , "tag" , options.tag , true);
-                        t.updateCell( rec , "mac_addrs" , options.get_mac_addresses() );
+                        
+                        if(session.data.static_mac_routing){
+                            t.updateCell( rec , "tag" , options.tag , true);
+                            t.updateCell( rec , "mac_addrs" , (options.get_mac_addresses() || []) );
+                        }else {
+                            t.updateCell( rec , "tag" , options.tag );
+                        }
                     },
                     remove_action: function(options){
                         var interface = rec.getData('interface');

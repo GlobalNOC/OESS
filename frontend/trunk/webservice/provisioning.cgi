@@ -318,9 +318,12 @@ sub provision_circuit {
             nodes          => \@nodes,
             interfaces     => \@interfaces,
             tags           => \@tags,
+            mac_addresses  => \@mac_addresses,
+            endpoint_mac_address_nums  => \@endpoint_mac_address_nums,
             user_name      => $ENV{'REMOTE_USER'},
             workgroup_id   => $workgroup_id,
-            do_external    => 0
+            do_external    => 0,
+            static_mac => $static_mac
         );
 
         $result = _send_add_command( circuit_id => $output->{'circuit_id'} );

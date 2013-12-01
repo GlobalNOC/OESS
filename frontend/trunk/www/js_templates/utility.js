@@ -390,8 +390,9 @@ function makeStaticMacTable( body, header ) {
         add_mac_address.on('click', function(){
             var mac_address_input = YAHOO.util.Dom.get('mac_address_input');
             var mac_address = mac_address_input.value; 
-
-            if(mac_address.match(/^([0-9A-F]{2}:){5}([0-9A-F]{2})$/)){
+            mac_address = mac_address.toLowerCase();
+            //if(mac_address.match(/^([0-9A-F]{2}:){5}([0-9A-F]{2})$/)){
+            if(mac_address.match(/^([0-9a-f]{2}:){5}([0-9a-f]{2})$/)){
                 table.addRow({
                     mac_address: mac_address
                 });
@@ -520,7 +521,8 @@ function makeTagSelectPanel(coordinates, options ){
 
 
     var static_mac_table_init;
-    if(options.include_static_mac_table){
+    //if(options.include_static_mac_table){
+    if(session.data.static_mac_routing){
         var components = makeStaticMacTable( body, header );
         body   = components.body;
         header = components.header;
@@ -581,16 +583,20 @@ function makeTagSelectPanel(coordinates, options ){
 	    }
 	});  
     */
-    var table = static_mac_table_init();
-    var get_mac_addresses = function(){
-        var mac_addrs = [];
-        var records = table.getRecordSet().getRecords();
-        for(var i=0; i < records.length; i++){
-            mac_addrs.push({
-                mac_address: records[i].getData("mac_address")
-            });
-        } 
-        return mac_addrs;
+    var table;
+    var get_mac_addresses;
+    if(session.data.static_mac_routing){
+        table = static_mac_table_init();
+        get_mac_addresses = function(){
+            var mac_addrs = [];
+            var records = table.getRecordSet().getRecords();
+            for(var i=0; i < records.length; i++){
+                mac_addrs.push({
+                    mac_address: records[i].getData("mac_address")
+                });
+            } 
+            return mac_addrs;
+        }
     }
 
 
@@ -601,7 +607,7 @@ function makeTagSelectPanel(coordinates, options ){
         remove_button: remove_button
     };
 
-    if(options.include_static_mac_table){
+    if(session.data.static_mac_routing){
         obj.static_mac_table = table;
         obj.get_mac_addresses = get_mac_addresses;
     }
@@ -633,10 +639,16 @@ function makeTagSelectPanel(coordinates, options ){
                 save_button.set("label", "Save");
                 save_button.set("disabled", false);
 
-                options.save_action({
-                    get_mac_addresses: get_mac_addresses,
-                    tag: new_tag
-                });
+                if(!session.data.static_mac_routing) {
+                    options.save_action({
+                        tag: new_tag
+                    });
+                }else {
+                    options.save_action({
+                        get_mac_addresses: get_mac_addresses,
+                        tag: new_tag
+                    });
+                }
 
                 panel.hide();
                 /*
@@ -711,83 +723,89 @@ function makeTagSelectPanel(coordinates, options ){
             }});
         }
 
-        //--- verfiy mac addrs don't go over limits
-        // build mac address string
-        var mac_address_string = "";
-        var mac_addresses = get_mac_addresses();
-        for(var i=0; i< mac_addresses.length; i++){
-            var mac_address = mac_addresses[i].mac_address;
-            mac_address_string += "&mac_address="+mac_address;
-        }
-
-        var mac_ds = new YAHOO.util.DataSource(
-            "services/data.cgi?action=is_within_mac_limit"+
-            mac_address_string+
-            "&interface="+encodeURIComponent(options.interface)+
-            "&node="+encodeURIComponent(options.node)+
-            "&workgroup_id="+options.workgroup_id
-        );
-        mac_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-        mac_ds.responseSchema = {
-            resultsList: "results",
-            fields: [
-                {key: "verified", parser: "number"},
-                {key: "explanation"}
-            ],
-            metaFields: {
-              "error": "error"
+        //only validate mac addresses if the static mac flag was set
+        if(!session.data.static_mac_routing) {
+            mac_limit_verified = true;
+        }else {
+            //--- verfiy mac addrs don't go over limits
+            // build mac address string
+            var mac_address_string = "";
+            var mac_addresses = get_mac_addresses();
+            for(var i=0; i< mac_addresses.length; i++){
+                var mac_address = mac_addresses[i].mac_address;
+                mac_address_string += "&mac_address="+mac_address;
             }
-        };
 
-        save_button.set("label", "Validating...");
-        save_button.set("disabled", true);
-        mac_ds.sendRequest("", {
-        success: function(req, resp){
-            if (resp.meta.error){
-                alert("Error - " + resp.meta.error);
+            var mac_ds = new YAHOO.util.DataSource(
+                "services/data.cgi?action=is_within_mac_limit"+
+                mac_address_string+
+                "&interface="+encodeURIComponent(options.interface)+
+                "&node="+encodeURIComponent(options.node)+
+                "&workgroup_id="+options.workgroup_id
+            );
+            mac_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+            mac_ds.responseSchema = {
+                resultsList: "results",
+                fields: [
+                    {key: "verified", parser: "number"},
+                    {key: "explanation"}
+                ],
+                metaFields: {
+                  "error": "error"
+                }
+            };
+
+            save_button.set("label", "Validating...");
+            save_button.set("disabled", true);
+            mac_ds.sendRequest("", {
+            success: function(req, resp){
+                if (resp.meta.error){
+                    alert("Error - " + resp.meta.error);
+                    save_button.set("label", "Save");
+                    save_button.set("disabled", false);
+                    return;
+                }
+                else if (resp.results[0].verified == 1){
+                    mac_limit_verified = true;
+                    save();
+                }
+                else{
+                    alert( "Problem adding mac addresses: "+resp.results[0].explanation );
+                    save_button.set("label", "Save");
+                    save_button.set("disabled", false);
+                }
+            },
+            failure: function(reqp, resp){
                 save_button.set("label", "Save");
                 save_button.set("disabled", false);
-                return;
-            }
-            else if (resp.results[0].verified == 1){
-                mac_limit_verified = true;
-                save();
-            }
-            else{
-                alert( "Problem adding mac addresses: "+resp.results[0].explanation );
-                save_button.set("label", "Save");
-                save_button.set("disabled", false);
-            }
-        },
-        failure: function(reqp, resp){
-            save_button.set("label", "Save");
-            save_button.set("disabled", false);
 
-            alert("Error validating endpoint.");
-        }});
+                alert("Error validating endpoint.");
+            }});
 
-    } //--- end verify_and_add_endpoint
-
+        } 
+    }//--- end verify_and_add_endpoint
 
     // select all the current values if it is an edit
     if(options.is_edit){
         var vlan_input = YAHOO.util.Dom.get('new_vlan_tag');
         vlan_input.value = options.current_values.tag;
-        
-        var mac_addrs = options.current_values.mac_addresses;
-        table
-        for(var i=0; i< mac_addrs.length; i++){
-            var mac_addr = mac_addrs[i];
-            table.addRow({
-                mac_address: mac_addr.mac_address
-            });
+       
+        //only set the mac address steff if the mac address flag was set 
+        if(session.data.static_mac_routing){ 
+            var mac_addrs = options.current_values.mac_addresses;
+            for(var i=0; i< mac_addrs.length; i++){
+                var mac_addr = mac_addrs[i];
+                table.addRow({
+                    mac_address: mac_addr.mac_address
+                });
+            }
         }
     }
 
     save_button.on("click", verify_and_add_endpoint);
     if(options.remove_action){
         remove_button.on("click", function(){
-            options.remove_action
+            options.remove_action();
             panel.hide();
         });
     }else {

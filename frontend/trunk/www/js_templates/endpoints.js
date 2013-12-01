@@ -107,8 +107,11 @@ function init(){
                 include_static_mac_table: true,
                 panel_width: 393,
                 save_action: function(options){
-                    var mac_addresses = options.get_mac_addresses();
                     var tag           = options.tag;
+                    var mac_addresses = [];
+                    if(session.data.static_mac_routing) {
+                        mac_addresses = options.get_mac_addresses();
+                    }
                     endpoint_table.addRow({
                         interface: interface,
                         interface_description: description,

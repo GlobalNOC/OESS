@@ -322,7 +322,7 @@ function saveLocalCircuit(){
     }
 
 
-    alert(postVars);
+    //alert(postVars);
     ds.sendRequest(postVars, {success: handleLocalSuccess, failure: handleLocalFailure, scope: this});
 
 }
