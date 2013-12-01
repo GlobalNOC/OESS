@@ -44,7 +44,7 @@ cmp_deeply($res,{
                                   'family_name' => 'User 221',
                                   'auth_name' => 'user_221@foo.net'
     },
-          'static_mac_address' => 0,
+          'static_mac' => 0,
           'state' => 'active',
           'backup_links' => [
 	      {

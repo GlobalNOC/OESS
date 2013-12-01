@@ -37,7 +37,8 @@ cmp_deeply($active_circuits->[0],{
     'description' => 'Circuit 11',
     'end_epoch' => '-1',
     'modified_by_user_id' => '1',
-    'restore_to_primary' => '0'
+    'restore_to_primary' => '0',
+    'static_mac' => 0
 }, "values for first circuit matches");
 
 
@@ -52,7 +53,8 @@ cmp_deeply($active_circuits->[1],{
           'description' => 'Circuit 51',
           'end_epoch' => '-1',
           'modified_by_user_id' => '1',
-	  'restore_to_primary' => '0'
+	  'restore_to_primary' => '0',
+          'static_mac' => 0
 }, "values for second circuit matches");
 
 my $scheduled_circuits = $db->get_circuits_by_state( state => 'scheduled' );

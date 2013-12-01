@@ -86,7 +86,7 @@ use DateTime;
 use constant VERSION => '1.1.1';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
-use constant SHARE_DIR => "/usr/share/doc/perl-OESS-Database-" . VERSION . "/";
+use constant SHARE_DIR => "/usr/share/doc/perl-OESS-" . VERSION . "/";
 use constant UNTAGGED => -1;
 use constant OSCARS_WG => 'OSCARS IDC';
 our $ENABLE_DEVEL=0;

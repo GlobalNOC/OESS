@@ -65,6 +65,7 @@ $res = $db->get_circuit_details(
 delete $res->{'last_modified_by'};
 my $correct_result =  {
           'state' => 'deploying',
+          'static_mac' => 0,
           'backup_links' => [],
           'links' => [
                        {

@@ -73,6 +73,7 @@ delete $res->{'last_edited'};
 delete $res->{'internal_ids'};
 
 my $correct_result = {
+          'static_mac' => 0,
           'last_modified_by' => {
                                   'email' => 'user_1@foo.net',
                                   'is_admin' => '0',
