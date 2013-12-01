@@ -37,8 +37,9 @@ use Net::DBus::Reactor;
 use base qw(Net::DBus::Object);
 use Sys::Syslog qw(:macros :standard);
 
+=head2 new
 
-our $VERSION = '1.0.12';
+=cut
 
 sub new{
 
@@ -79,6 +80,10 @@ sub new{
     return $self;
     
 }
+
+=head2 start_reactor
+
+=cut
 
 
 sub start_reactor{
@@ -180,6 +185,9 @@ sub fire_signal{
     $self->{'dbus'}->$event(@_);
 }
 
+=head2 log
+
+=cut
 
 sub log {
     my $self   = shift;

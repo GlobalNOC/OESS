@@ -1701,6 +1701,10 @@ sub get_workgroup_details_by_name {
     return @$result[0];
 }
 
+=head2 get_workgroup_details_by_id
+
+=cut
+
 sub get_workgroup_details_by_id{
     my $self = shift;
     my %args = @_;
@@ -3964,7 +3968,7 @@ sub confirm_node {
     return 1;
 }
 
-=head2 update_ndoe
+=head2 update_node
 
 =cut
 
@@ -7733,6 +7737,10 @@ sub get_circuit_edge_on_interface{
     my $circuits = $self->_execute_query($query,[$params{'interface_id'}]);
     return $circuits;
 }
+
+=head2 update_circuit_owner
+
+=cut
 
 sub update_circuit_owner{
     my $self = shift;

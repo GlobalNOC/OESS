@@ -149,6 +149,10 @@ sub new {
     return $self;
 }
 
+=head get_database
+
+=cut
+
 sub get_database{
     my $self = shift;
     return $self->{'db'};
@@ -477,6 +481,10 @@ sub find_path{
     return \@selected_links;
 
 }
+
+=head2 is_path_up
+
+=cut
 
 sub is_path_up{
     my $self = shift;
