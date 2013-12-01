@@ -123,6 +123,7 @@ sub _load_circuit_details{
 
 sub _process_circuit_details{
     my $self = shift;
+    $self->{'circuit_id'} = $self->{'details'}->{'circuit_id'};
     $self->{'logger'}->debug("Processing circuit " . $self->{'circuit_id'});
     $self->_create_graph();
     $self->_create_flows();
@@ -136,7 +137,7 @@ sub _process_circuit_details{
     }
 
     $self->{'endpoints'} = $self->{'details'}->{'endpoints'};
-
+    $self->{'circuit_id'} = $self->{'details'}->{'circuit_id'};
 }
 
 

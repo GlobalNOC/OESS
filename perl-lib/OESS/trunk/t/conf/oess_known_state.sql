@@ -19,8 +19,6 @@
 -- Current Database: `oess_test`
 --
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `oess_test` /*!40100 DEFAULT CHARACTER SET latin1 */;
-
 USE `oess_test`;
 
 --
