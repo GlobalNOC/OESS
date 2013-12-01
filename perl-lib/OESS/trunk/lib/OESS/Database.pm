@@ -1239,6 +1239,7 @@ sub get_map_layers {
     node.default_drop as default_drop,
     node.default_forward as default_forward,
     node.send_barrier_bulk as barrier_bulk,
+    node.max_static_mac_flows as max_static_mac_flows,
     node_instantiation.dpid as dpid,
     to_node.name as to_node,
 	 link.name as link_name, if(intA.operational_state = 'up' && intB.operational_state = 'up', 'up', 'down') as link_state,
@@ -1313,6 +1314,7 @@ HERE
 							       "vlan_range"   => $row->{'vlan_tag_range'},
 							       "default_drop" => $row->{'default_drop'},
 							       "default_forward" => $row->{'default_forward'},
+							       "max_static_mac_flows" => $row->{'max_static_mac_flows'},
 							       "max_flows"    => $row->{'max_flows'},
 							       "tx_delay_ms" => $row->{'tx_delay_ms'},
 							       "dpid"         => sprintf("%x",$row->{'dpid'}),
@@ -1590,7 +1592,7 @@ sub get_workgroups {
 
     my @dbargs = ();
     my $workgroups = [];
-    my $sql="select w.workgroup_id, w.name,w.type, w.external_id from workgroup w ";
+    my $sql="select w.workgroup_id, w.name,w.type, w.external_id, w.max_mac_address_per_end, w.max_circuits from workgroup w ";
 
     if(defined $args{'user_id'}){
 	$sql .= "join user_workgroup_membership m on w.workgroup_id = m.workgroup_id ".
@@ -1607,10 +1609,13 @@ sub get_workgroups {
 #    }
 
     foreach my $workgroup (@$results){
-	push (@$workgroups, {workgroup_id => $workgroup->{'workgroup_id'},
-			     name         => $workgroup->{'name'},
-			     external_id  => $workgroup->{'external_id'},
-			     type         => $workgroup->{'type'}
+	push (@$workgroups, {
+            workgroup_id => $workgroup->{'workgroup_id'},
+            name         => $workgroup->{'name'},
+            external_id  => $workgroup->{'external_id'},
+            type         => $workgroup->{'type'},
+            max_circuits => $workgroup->{'max_circuits'},
+            max_mac_address_per_end => $workgroup->{'max_mac_address_per_end'}
 	      });
     }
 
@@ -1621,11 +1626,11 @@ sub get_workgroups {
 
 =cut
 
-sub update_workgroup{
+sub update_workgroup {
     my $self = shift;
     my %args = @_;
 
-    my $results = $self->_execute_query("update workgroup set name = ?, external_id = ? where workgroup_id = ?",[$args{'name'},$args{'external_id'},$args{'workgroup_id'}]);
+    my $results = $self->_execute_query("update workgroup set name = ?, external_id = ?, max_mac_address_per_end = ?, max_circuits = ? where workgroup_id = ?",[$args{'name'},$args{'external_id'},$args{'max_mac_address_per_end'}, $args{'max_circuits'}, $args{'workgroup_id'}]);
 
     if(!defined($results)){
 	$self->_set_error("Internal error while fetching workgroups");
@@ -3958,6 +3963,7 @@ sub update_node {
     my $max_flows = $args{'max_flows'} || 0;
     my $tx_delay_ms = $args{'tx_delay_ms'} || 0;
     my $barrier_bulk = $args{'bulk_barrier'} || 0;
+    my $max_static_mac_flows = $args{'max_static_mac_flows'} || 0;
 
     if(!defined($default_drop)){
 	$default_drop =1;
@@ -3973,8 +3979,8 @@ sub update_node {
 
     $self->_start_transaction();
 
-    my $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ?, vlan_tag_range = ?,default_drop = ?, default_forward = ?, tx_delay_ms = ?, max_flows = ?, send_barrier_bulk = ? where node_id = ?",
-				       [$name, $long, $lat, $vlan_range,$default_drop,$default_forward,$tx_delay_ms, $max_flows, $barrier_bulk, $node_id]
+    my $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ?, vlan_tag_range = ?,default_drop = ?, default_forward = ?, tx_delay_ms = ?, max_flows = ?, send_barrier_bulk = ?, max_static_mac_flows = ? where node_id = ?",
+				       [$name, $long, $lat, $vlan_range,$default_drop,$default_forward,$tx_delay_ms, $max_flows, $barrier_bulk, $max_static_mac_flows, $node_id]
 	                              );
 
     if ($result != 1){
@@ -7669,6 +7675,31 @@ sub update_circuit_owner{
 
     my $str = "update circuit set workgroup_id = ? where circuit_id = ?";
     my $success = $self->_execute_query($str,[$args{'workgroup_id'},$args{'circuit_id'}]);
+    return 1;
+}
+
+sub is_within_circuit_limit {
+    my ($self, %args) = @_;
+
+    my $workgroup_id = $args{'workgroup_id'}; 
+
+    my $str = "SELECT COUNT(*) as circuit_num ".
+        "FROM circuit ".
+        "JOIN circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id ".
+        "WHERE workgroup_id = ? ".
+        "AND circuit_state != 'decom' ".
+        "AND end_epoch = -1";
+    my $rows = $self->_execute_query($str, [$workgroup_id]);
+    my $circuit_num = $rows->[0]{'circuit_num'};
+
+    $str = "SELECT * from workgroup where workgroup_id = ?";
+    $rows = $self->_execute_query($str, [$workgroup_id]);
+    my $circuit_limit = $rows->[0]{'max_circuits'};
+
+    if($circuit_num >= $circuit_limit) {
+        return 0;
+    }
+
     return 1;
 }
 
