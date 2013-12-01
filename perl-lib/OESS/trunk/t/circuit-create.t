@@ -16,12 +16,12 @@ use OESS::Database;
 use OESS::Circuit;
 use OESSDatabaseTester;
 
-use Test::More tests => 4;
+use Test::More tests => 6;
 use Test::Deep;
 use Data::Dumper;
 
 
-my $db = OESS::Database->new( config => OESS::DatabaseTester::getConfigFilePath() );
+my $db = OESS::Database->new( config => OESSDatabaseTester::getConfigFilePath() );
 
 my $ckt = OESS::Circuit->new( circuit_id => 101, db => $db);
 
