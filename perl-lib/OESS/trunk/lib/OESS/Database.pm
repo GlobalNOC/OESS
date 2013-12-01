@@ -6453,6 +6453,11 @@ sub edit_circuit {
     my $remote_endpoints = $args{'remote_endpoints'} || [];
     my $remote_tags      = $args{'remote_tags'} || [];
     my $restore_to_primary = $args{'restore_to_primary'} || 0;
+    my $mac_addresses    = $args{'mac_addresses'};
+    my $endpoint_mac_address_nums = $args{'endpoint_mac_address_nums'};
+    my $static_mac       = $args{'static_mac'} || 0;
+
+
     # whether this edit should only edit everything or just local bits
     my $do_external    = $args{'do_external'} || 0;
 
@@ -6486,7 +6491,7 @@ sub edit_circuit {
 	return {'success' => 1, 'circuit_id' => $circuit_id};
     }
 
-    my $result = $self->_execute_query("update circuit set description = ?, restore_to_primary = ? where circuit_id = ?", [$description,$restore_to_primary, $circuit_id]);
+    my $result = $self->_execute_query("update circuit set description = ?, restore_to_primary = ?, static_mac = ? where circuit_id = ?", [$description,$restore_to_primary,$static_mac,$circuit_id]);
 
     if (! defined $result){
 	$self->_set_error("Unable to update circuit description.");
@@ -6533,6 +6538,8 @@ sub edit_circuit {
         my $node      = @$nodes[$i];
         my $interface = @$interfaces[$i];
         my $vlan      = @$tags[$i];
+        my $endpoint_mac_address_num = @$endpoint_mac_address_nums[$i];
+        my $circuit_edge_id;
 
         $query = "select interface_id from interface " .
             " join node on node.node_id = interface.node_id " .
@@ -6546,11 +6553,11 @@ sub edit_circuit {
             return;
         }
 
-	if (! $self->_validate_endpoint(interface_id => $interface_id, workgroup_id => $workgroup_id, vlan => $vlan)){
-	    $self->_set_error("Interface \"$interface\" on endpoint \"$node\" with VLAN tag \"$vlan\" is not allowed for this workgroup.");
-	    $self->_rollback();
-        return;
-	}
+        if (! $self->_validate_endpoint(interface_id => $interface_id, workgroup_id => $workgroup_id, vlan => $vlan)){
+            $self->_set_error("Interface \"$interface\" on endpoint \"$node\" with VLAN tag \"$vlan\" is not allowed for this workgroup.");
+            $self->_rollback();
+            return;
+        }
 
         # need to check to see if this external vlan is open on this interface first
         if (! $self->is_external_vlan_available_on_interface(vlan => $vlan, interface_id => $interface_id) ){
@@ -6561,10 +6568,49 @@ sub edit_circuit {
 
         $query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, end_epoch, start_epoch) values (?, ?, ?, -1, unix_timestamp(NOW()))";
 
-        if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $vlan])){
+        $circuit_edge_id = $self->_execute_query($query, [$interface_id, $circuit_id, $vlan]);
+        if (! defined($circuit_edge_id) ){
+
             $self->_set_error("Unable to create circuit edge to interface '$interface'");
             $self->_rollback();
             return;
+        }
+
+
+        # now add any static mac addresses if the static mac address flag was sent
+        if($static_mac){
+
+            # create an array of all the mac addresses for this endpoint
+            my @endpoint_mac_addresses;
+            for (my $j = 0; $j < $endpoint_mac_address_num; $j++){
+                my $mac_address = shift(@$mac_addresses);
+                push(@endpoint_mac_addresses, $mac_address);
+            }
+
+            # check that the mac_addresses fall within the limits
+            my $result = $self->is_within_mac_limit(
+                mac_address  => \@endpoint_mac_addresses,
+                interface    => $interface,
+                node         => $node,
+                workgroup_id => $workgroup_id
+            );
+            if(!$result->{'verified'}){
+                $self->_set_error($result->{'explanation'});
+                $self->_rollback();
+                return;
+            }
+
+            # now add the mac addresses to the endpoint
+            $query = "insert into circuit_edge_mac_address values (?,?)";
+            foreach my $mac_address (@endpoint_mac_addresses){
+                $mac_address = mac_hex2num( $mac_address );
+                if( ! defined $self->_execute_query($query, [$circuit_edge_id, $mac_address]) ){
+                    $self->_set_error("Unable to create mac address edge to interface '$interface' on endpoint '$node'");
+                    $self->_rollback();
+                    return;
+                }
+            }
+
         }
 
     }
