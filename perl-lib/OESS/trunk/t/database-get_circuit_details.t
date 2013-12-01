@@ -32,6 +32,8 @@ $res = $db->get_circuit_details( circuit_id => 3731 );
 ok(defined($res), "Ciruit found and details are listed");
 ok($res->{'circuit_id'} == 3731);
 
+warn Dumper($res);
+
 cmp_deeply($res,{
     'last_modified_by' => {
                                   'email' => 'user_221@foo.net',
@@ -42,6 +44,7 @@ cmp_deeply($res,{
                                   'family_name' => 'User 221',
                                   'auth_name' => 'user_221@foo.net'
     },
+          'static_mac_address' => 0,
           'state' => 'active',
           'backup_links' => [
 	      {
@@ -106,7 +109,8 @@ cmp_deeply($res,{
                              'urn' => undef,
                              'interface' => 'e3/1',
                              'tag' => '104',
-                             'role' => 'unknown'
+                             'role' => 'unknown',
+                             'mac_addrs' => []
 	      },
 	      {
                              'local' => '1',
@@ -117,15 +121,18 @@ cmp_deeply($res,{
                              'urn' => undef,
                              'interface' => 'e1/2',
                              'tag' => '2068',
-                             'role' => 'unknown'
+                             'role' => 'unknown',
+                             'mac_addrs' => []
 	      }
                          ],
     'workgroup' => {
+                           'max_circuits' => '20',
                            'workgroup_id' => '251',
                            'external_id' => '',
                            'name' => 'Workgroup 251',
                            'type' => 'normal',
-                           'description' => ''
+                           'description' => '',
+                           'max_mac_address_per_end' => '10'
     },
           'active_path' => 'primary',
           'bandwidth' => '0',
@@ -145,7 +152,7 @@ cmp_deeply($res,{
           'last_edited' => '02/22/2013 18:01:26',
           'user_id' => '221',
           'restore_to_primary' => '0',
-          'operational_state' => 'unknown'
+          'operational_state' => 'up'
 	   });
 
 $res = $db->get_circuit_details_by_name( name => 999999999 );
