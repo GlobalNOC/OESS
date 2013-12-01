@@ -84,6 +84,10 @@ use constant OFPP_CONTROLLER    => 65533;
 
 use constant UNTAGGED           => -1;
 
+=head2 new
+
+=cut
+
 sub new{
     my $that = shift;
     my $class = ref($that) || $that;
@@ -210,6 +214,7 @@ sub _validate_dpid{
     my $self = shift;
     return 1;
 }
+
 =head2 set_match
 
 =cut
@@ -417,6 +422,10 @@ sub get_match{
     return $self->{'match'};
 
 }
+
+=head2 get_actions
+
+=cut
 
 sub get_actions{
     my $self = shift;

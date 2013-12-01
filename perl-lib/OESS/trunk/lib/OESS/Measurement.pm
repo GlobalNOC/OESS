@@ -40,11 +40,11 @@ use constant BUILDING_FILE => -1;
 
 our @EXPORT_OK = qw(BUILDING_FILE);
 
-our $VERSION = '1.0.12';
-
 our $ENABLE_DEVEL=0;
 
+=head2 new
 
+=cut
 sub new{
     my $that = shift;
     my $class = ref($that) || $that;
@@ -87,6 +87,10 @@ sub _set_error {
 
     $self->{'error'} = $error;
 }
+
+=head2 get_error
+
+=cut
 
 sub get_error{
     my $self = shift;
@@ -200,7 +204,7 @@ sub get_circuit_data{
 }
 
 
-=head2 get_circuit_data
+=head2 get_data
   Params: circuit_id => circuit id of the circuit to find data for
           start_time => the start_time to get data for
           end_time => the end time to get data for (optional, if not defined is set to NOW)
@@ -289,6 +293,10 @@ sub get_data{
     }
 }
 
+=head2 aggregate_data
+
+=cut
+
 sub aggregate_data{
     my $agg = shift;
     my $new_data = shift;
@@ -307,6 +315,10 @@ sub aggregate_data{
     }
     return $agg;
 }
+
+=head2 find_int_on_path_using_node
+
+=cut
 
 sub find_int_on_path_using_node{
     my $self = shift;
