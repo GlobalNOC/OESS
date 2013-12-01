@@ -814,6 +814,8 @@ function setup_workgroup_tab(){
 	    var workgroup_name = record.getData('name');
 	    var workgroup_id   = record.getData('workgroup_id');
 	    var workgroup_external = record.getData('external_id');
+        var max_mac_address_per_end = record.getData('max_mac_address_per_end');
+        var max_circuits = record.getData('max_circuits');
 
 	    YAHOO.util.Dom.get('workgroup_title').innerHTML = workgroup_name;
 
@@ -824,11 +826,14 @@ function setup_workgroup_tab(){
 	    wg_edit_button.on("click",function(){
 		    var wg_details_panel = new YAHOO.widget.Panel("workgroup_details_p",
 								  {width: 400,
-								   height: 130,
+								   height: 150,
 								   draggable: true,
 								   close: true,
 								   fixedcenter: true
 								  });
+            wg_details_panel.hide = function(){
+                this.destroy();
+            };
 
 
 		    wg_details_panel.setBody(
@@ -838,6 +843,13 @@ function setup_workgroup_tab(){
                 "<br>"+
                 "<label>External ID:</label>"+
                 "<input type='text' id='workgroup_external_edit' value='" + workgroup_external + "'>" +
+                "<br>"+
+                "<label>Node MAC Address Limit:</label>"+
+                "<input type='text' id='workgroup_max_mac_address_per_end_edit' value='" + max_mac_address_per_end + "'>" +
+                "<br>"+
+                "<label>Circuit Limit:</label>"+
+                "<input type='text' id='workgroup_max_circuits_edit' value='" + max_circuits + "'>" +
+                "<br>"+
                 "<div style='text-align: right; font-size: 85%'>" +
                 "<div id='submit_edit_workgroup'></div>" +
                 "</div>"
@@ -848,7 +860,19 @@ function setup_workgroup_tab(){
 		    var wg_submit_edit = new YAHOO.widget.Button("submit_edit_workgroup",
 								 {label: "submit"});
 		    wg_submit_edit.on("click", function(){
-			    var submit_ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=edit_workgroup&workgroup_id=" + workgroup_id + "&name=" + encodeURI(document.getElementById('workgroup_name_edit').value) + "&external_id=" + encodeURI(document.getElementById('workgroup_external_edit').value));
+                max_mac_address_per_end = document.getElementById("workgroup_max_mac_address_per_end_edit").value;
+                max_circuits = document.getElementById("workgroup_max_circuits_edit").value;
+                if(!max_mac_address_per_end.match(/\d+/)){
+                    alert("Node mac limit must be an integer");
+                    return;
+                }
+                if(!max_circuits.match(/\d+/)){
+                    alert("Circuits limit must be an integer");
+                    return;
+                }
+
+
+			    var submit_ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=edit_workgroup&workgroup_id=" + workgroup_id + "&name=" + encodeURI(document.getElementById('workgroup_name_edit').value) + "&external_id=" + encodeURI(document.getElementById('workgroup_external_edit').value) + "&max_mac_address_per_end=" + max_mac_address_per_end + "&max_circuits=" + max_circuits );
 			    submit_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 			    submit_ds.responseSchema = {
 				resultsList: "results",
@@ -1606,6 +1630,7 @@ function setup_network_tab(){
 	    var barrier_bulk = args[0].barrier_bulk;
 	    var feature = args[0].feature;
 	    var dpid = args[0].dpid;
+        var max_static_mac_flows = args[0].max_static_mac_flows;
       
         function show_interface_acl_panel(args){
             var interface_id = args.interface_id;
@@ -1859,6 +1884,12 @@ function setup_network_tab(){
               "<td>Send Bulk Flow Rules</td>" +
               "<td><input type='checkbox' id='active_barrier_bulk' checked></td>" +
             "</tr>" +
+            "<tr>" +
+              "<td></td>" +
+              "<td></td>" +
+              "<td>Static MAC Limit</td>" +
+              "<td><input type='text' id='active_max_static_mac_flows' size='10'></td>" +
+            "</tr>" +
         "</table>" +
         "<div id='node_interface_table' style='margin-top:8px;'> </div>");
 /*
@@ -1935,13 +1966,15 @@ function setup_network_tab(){
 		    }
 		});
 
-	    YAHOO.util.Dom.get('active_node_name').value        = node;
-	    YAHOO.util.Dom.get('active_node_lat').value         = lat;
-	    YAHOO.util.Dom.get('active_node_lon').value         = lon; 
-	    YAHOO.util.Dom.get('active_node_vlan_range').value  = vlan_range;
-	    YAHOO.util.Dom.get('active_tx_delay_ms').value             = tx_delay_ms;
-	    YAHOO.util.Dom.get('active_max_flows').value                        = max_flows;
-	    YAHOO.util.Dom.get('dpid_str').innerHTML = dpid;
+	    YAHOO.util.Dom.get('active_node_name').value            = node;
+	    YAHOO.util.Dom.get('active_node_lat').value             = lat;
+	    YAHOO.util.Dom.get('active_node_lon').value             = lon; 
+	    YAHOO.util.Dom.get('active_node_vlan_range').value      = vlan_range;
+	    YAHOO.util.Dom.get('active_tx_delay_ms').value          = tx_delay_ms;
+	    YAHOO.util.Dom.get('active_max_flows').value            = max_flows;
+	    YAHOO.util.Dom.get('dpid_str').innerHTML                = dpid;
+	    YAHOO.util.Dom.get('active_max_static_mac_flows').value = max_static_mac_flows;
+
 	    if(default_drop == 0){
 		YAHOO.util.Dom.get('active_node_default_drop').checked = false;
 	    }
@@ -1967,6 +2000,7 @@ function setup_network_tab(){
 		    var new_default_drop = YAHOO.util.Dom.get('active_node_default_drop').checked;
 		    var new_default_forward = YAHOO.util.Dom.get('active_node_default_forward').checked;
 		    var new_barrier_bulk = YAHOO.util.Dom.get('active_barrier_bulk').checked;
+		    var new_max_static_mac_flows = YAHOO.util.Dom.get('active_max_static_mac_flows').value;
 		    if (! new_name){
 			alert("You must specify a name for this device.");
 			return;
@@ -1981,6 +2015,11 @@ function setup_network_tab(){
 			alert("You must specify a valid longitude at which this device will be visualized on the map.");
 			return;
 		    }
+            
+            if(! new_max_static_mac_flows || ! new_max_static_mac_flows.match(/\d+/) ) {
+                alert("The max mac rules limit must be an integer.");
+                return;
+            }
 
 		    var ranges = new_range.split(",");
 
@@ -1992,7 +2031,7 @@ function setup_network_tab(){
 			}				
 		    }
 
-		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_node&node_id="+node_id+"&name="+encodeURIComponent(new_name)+"&latitude="+new_lat+"&longitude="+new_lon+"&vlan_range="+encodeURIComponent(new_range) + "&default_drop=" + encodeURIComponent(new_default_drop) + "&default_forward=" + encodeURIComponent(new_default_forward) + "&max_flows=" + encodeURIComponent(new_max_flows) + "&tx_delay_ms=" + encodeURIComponent(new_tx_delay_ms) + "&bulk_barrier=" + encodeURIComponent(new_barrier_bulk));
+		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_node&node_id="+node_id+"&name="+encodeURIComponent(new_name)+"&latitude="+new_lat+"&longitude="+new_lon+"&vlan_range="+encodeURIComponent(new_range) + "&default_drop=" + encodeURIComponent(new_default_drop) + "&default_forward=" + encodeURIComponent(new_default_forward) + "&max_flows=" + encodeURIComponent(new_max_flows) + "&tx_delay_ms=" + encodeURIComponent(new_tx_delay_ms) + "&bulk_barrier=" + encodeURIComponent(new_barrier_bulk) + "&max_static_mac_flows=" + new_max_static_mac_flows);
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
 		    ds.responseSchema = {
@@ -2195,7 +2234,7 @@ function setup_discovery_tab(){
 	    if(record.getData('bulk_barrier')){
 		YAHOO.util.Dom.get('bulk_barrier').checked = record.getData('bulk_barrier');
 	    }
-
+	    
 	    YAHOO.util.Dom.get("node_name").focus();
 
 	    var confirm_button = new YAHOO.widget.Button("confirm_node", {label: "Confirm Device"});
@@ -2450,11 +2489,12 @@ function makeWorkgroupTable(){
     ds.responseSchema = {
 	resultsList: "results",
 	fields: [ {key: "workgroup_id", parser: "number"},
-    {key: "name"},
-    {key: "description"},
-    {key: "external_id"}
-		 ]
-    };
+        {key: "name"},
+        {key: "description"},
+        {key: "external_id"},
+        {key: "max_mac_address_per_end"},
+        {key: "max_circuits"} 
+	]};
 
     var columns = [{key: "name", label: "Name", sortable:true,width: 180}
 		   ];

@@ -648,6 +648,7 @@ sub update_node {
     my $max_flows       = $cgi->param('max_flows') || 0;
     my $tx_delay_ms     = $cgi->param('tx_delay_ms') || 0;
     my $bulk_barrier    = $cgi->param('bulk_barrier') || 0;
+    my $max_static_mac_flows = $cgi->param('max_static_mac_flows') || 0;
 
     if ( $default_drop eq 'true' ) {
         $default_drop = 1;
@@ -677,9 +678,10 @@ sub update_node {
         vlan_range      => $range,
         default_forward => $default_forward,
         default_drop    => $default_drop,
-	tx_delay_ms     => $tx_delay_ms,
-	max_flows       => $max_flows,
-	bulk_barrier    => $bulk_barrier
+        tx_delay_ms     => $tx_delay_ms,
+        max_flows       => $max_flows,
+        bulk_barrier    => $bulk_barrier,
+        max_static_mac_flows => $max_static_mac_flows
     );
 
     if ( !defined $result ) {
@@ -850,10 +852,17 @@ sub edit_workgroup{
     my $workgroup_id = $cgi->param('workgroup_id');
     my $workgroup_name = $cgi->param('name');
     my $external_id = $cgi->param('external_id');
+    my $max_circuits = $cgi->param('max_circuits');
+    my $max_mac_address_per_end = $cgi->param('max_mac_address_per_end');
 
-    my $res = $db->update_workgroup( workgroup_id => $workgroup_id,
-			      name => $workgroup_name,
-			      external_id => $external_id);
+    my $res = $db->update_workgroup( 
+        workgroup_id => $workgroup_id,
+		name => $workgroup_name,
+	    external_id => $external_id,
+	    max_circuits => $max_circuits,
+	    max_mac_address_per_end => $max_mac_address_per_end
+    );
+
     my $results;
     if(defined($res)){
 	$results->{'results'} = [{success => 1}];

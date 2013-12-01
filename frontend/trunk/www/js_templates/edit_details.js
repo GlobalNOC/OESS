@@ -129,6 +129,9 @@ function init(){
   
   if (chosen_domain == 0){
       bandwidth_holder.setStyle("display", "none");
+  }else {
+    static_mac_routing.set("checked", false);
+    static_mac_routing.set("disabled", true);
   }
 
   hookupRadioButtons("interdomain", chosen_domain, function(){
@@ -136,10 +139,13 @@ function init(){
 		       if (document.getElementsByName('interdomain')[1].checked){
 			   setNextButton("Proceed to Step 2: Endpoints", "?action=interdomain", verify_inputs);  
 			   bandwidth_holder.setStyle("display", "table-row");
+               static_mac_routing.set("checked", false);
+               static_mac_routing.set("disabled", true);
 		       }
 		       else{
 			   setNextButton("Proceed to Step 2: Endpoints", "?action=endpoints", verify_inputs);  			   
 			   bandwidth_holder.setStyle("display", "none");
+               static_mac_routing.set("disabled", false);
 		       }
 		     });
 

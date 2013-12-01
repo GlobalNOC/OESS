@@ -269,6 +269,7 @@ function NDDIMap(div_id, interdomain_mode){
       var max_flows = node_info.max_flows;
       var avail_endpoints = node_info.number_available_endpoints;
       var barrier_bulk = node_info.barrier_bulk;
+      var max_static_mac_flows = node_info.max_static_mac_flows;
       var dpid = node_info.dpid;
       var pointStyle = OpenLayers.Util.extend({}, OpenLayers.Feature.Vector.style['default']);
 	  
@@ -306,6 +307,7 @@ function NDDIMap(div_id, interdomain_mode){
       point.tx_delay_ms = tx_delay_ms;
       point.max_flows = max_flows;
       point.barrier_bulk = barrier_bulk;
+      point.max_static_mac_flows = max_static_mac_flows;
       point.dpid = dpid;
 	  point.available_endpoints = avail_endpoints;
       var pointFeature  = new OpenLayers.Feature.Vector(point,
@@ -680,8 +682,10 @@ function NDDIMap(div_id, interdomain_mode){
   this.connectSessionEndpoints = function(session){
 
       var endpoints = [];
-      for (var i = 0; i < session.data.endpoints.length; i++){
-	  endpoints.push(session.data.endpoints[i].node);
+      if(session.data.endpoints){
+          for (var i = 0; i < session.data.endpoints.length; i++){
+          endpoints.push(session.data.endpoints[i].node);
+          }
       }
 
       this.connectEndpoints(endpoints);
@@ -1045,8 +1049,9 @@ function NDDIMap(div_id, interdomain_mode){
 					      var max_flows = geo.max_flows;
 					      var tx_delay_ms = geo.tx_delay_ms;
 					      var barrier_bulk = geo.barrier_bulk;
+					      var max_static_mac_flows = geo.max_static_mac_flows;
 					      var dpid = geo.dpid;
-					      self.events['clickNode'].fire({name: node, lat: lat, lon: lon, node_id: node_id, vlan_range: range,default_forward: default_forward, default_drop: default_drop,max_flows: max_flows, tx_delay_ms: tx_delay_ms,  feature: e.feature, barrier_bulk: barrier_bulk, dpid: dpid});
+					      self.events['clickNode'].fire({name: node, lat: lat, lon: lon, node_id: node_id, vlan_range: range,default_forward: default_forward, default_drop: default_drop,max_flows: max_flows, tx_delay_ms: tx_delay_ms,  feature: e.feature, barrier_bulk: barrier_bulk, max_static_mac_flows: max_static_mac_flows, dpid: dpid});
 					  }
 					  // otherwise we're clicking on a link
 					  else{

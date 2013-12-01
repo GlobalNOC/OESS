@@ -132,6 +132,67 @@ function init(){
 
 	    var region = YAHOO.util.Dom.getRegion(tree_element.contentElId);
 
+        //var region = YAHOO.util.Dom.getRegion(args.target);
+
+        var components = makeTagSelectPanel([region.left, region.bottom], {
+            panel_width: 393,
+            save_action: function(options){
+                //var tag           = options.tag;
+                
+                /*
+                var mac_addresses = [];
+                if(session.data.static_mac_routing) {
+                    mac_addresses = options.get_mac_addresses();
+                }
+                endpoint_table.addRow({
+                    interface: interface,
+                    interface_description: description,
+                    node: node,
+                    tag: tag,
+                    vlan_tag_range: rec.getData("vlan_tag_range"),
+                    mac_addrs: mac_addresses //components.get_mac_addresses()
+                });
+                */
+
+                /*
+                save_session();
+
+                nddi_map.table.unselectAllRows();
+                nddi_map.table.vlan_panel.destroy();
+                nddi_map.table.vlan_panel = undefined;
+                */
+
+                //----
+                var new_tag = options.tag;
+
+                if (endpoint_table.getRecordSet().getRecords().length == 2){
+                    alert("You can only have exactly two endpoints.");
+                    return;
+                }
+
+                //do some validation on the endpoint
+                        
+
+                endpoint_table.addRow({
+                    interface: port,
+                    node: node,
+                    tag: new_tag,
+                    urn: urn
+                });
+
+                map.showNode(node);		    
+
+                save_session();
+
+            },
+            interface: interface,
+            interface_description: description,
+            node: node,
+            workgroup_id: session.data.workgroup_id,
+            tag_range: vlan_range
+        });
+
+        /*
 	    var components = makeTagSelectPanel([region.left - 10, region.bottom], port);
 
 	    panel          = components.panel;
@@ -198,6 +259,7 @@ function init(){
 		    save_session();
 
 		});
+        */
 	    
 	    return false;
 

@@ -8,9 +8,42 @@
     session.clear();
     // set up the new circuit link
     var new_circuit = new YAHOO.util.Element('create_new_vlan');
-    new_circuit.on('click', function(){
-	    session.clear();
-	    window.location = "index.cgi?action=edit_details";
+    //var checking_circuit_limit = false;
+    new_circuit.on('click', function(e){
+        e.preventDefault();
+        //checking_circuit_limit = true;
+        //new_circuit.set("innerHTML","Checking Circuit Limit...");
+        var circuit_limit_ds = new YAHOO.util.DataSource("services/data.cgi?action=is_within_circuit_limit&workgroup_id=" + session.data.workgroup_id );
+
+
+        circuit_limit_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+        circuit_limit_ds.responseSchema = {
+            resultsList: "results",
+            fields: [{key: "within_limit", parser: "number"}],
+            metaFields: {
+              "error": "error"
+            }
+        };
+
+        circuit_limit_ds.sendRequest("",{
+            success: function(req,resp){
+                if(parseInt(resp.results[0].within_limit)){
+	                session.clear();
+	                //window.location = "index.cgi?action=edit_details";
+                }else {
+                    alert("Workgroup is already at circuit limit");
+                    //new_circuit.set("innerHTML","Create a New VLAN");
+                    //checking_circuit_limit = false;
+                }
+            },
+            failure: function(req,resp){
+                alert("Problem fetching circuit limit for workgroup");
+                //new_circuit.set("innerHTML","Create a New VLAN");
+                //checking_circuit_limit = false;
+            }//,
+            //argument: circuit_limit_ds
+        }, this);
+
 	});
 
     var add_user = new YAHOO.util.Element('request_user_add');

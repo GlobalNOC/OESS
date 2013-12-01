@@ -124,6 +124,9 @@ sub main {
         case "is_within_mac_limit" {
             $output = &is_within_mac_limit();
         }
+        case "is_within_circuit_limit" {
+            $output = &is_within_circuit_limit();
+        }
         else {
             $output->{'error'}   = "Error: No Action specified";
             $output->{'results'} = [];
@@ -534,6 +537,28 @@ sub get_all_resources {
     $results->{'results'} =
     $db->get_available_resources( workgroup_id => $workgroup_id );
     return $results;
+}
+
+sub is_within_circuit_limit {
+    my $workgroup_id   = $cgi->param('workgroup_id');
+    
+    if(!$workgroup_id){
+        return {
+            error => "Must send workgroup_id",
+            results => []
+        }; 
+    }
+    my $return = $db->is_within_circuit_limit(
+        workgroup_id => $workgroup_id
+    );
+
+    return {
+        error => undef,
+        results => [{
+            'within_limit' => $return
+        }]
+    };
+
 }
 
 sub is_within_mac_limit {
