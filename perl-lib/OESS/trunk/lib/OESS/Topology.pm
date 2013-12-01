@@ -149,7 +149,7 @@ sub new {
     return $self;
 }
 
-=head get_database
+=head2 get_database
 
 =cut
 
