@@ -100,6 +100,9 @@ sub get_error{
     return $err;
 }
 
+=head2 get_circuit_data
+
+=cut
 
 sub get_circuit_data{
     my $self = shift;
