@@ -128,7 +128,8 @@ my $correct_result = {
                              'urn' => undef,
                              'interface' => 'e1/1',
                              'tag' => '2',
-                             'role' => 'unknown'
+                             'role' => 'unknown',
+                             'mac-addrs' => []
                            },
                            {
                              'local' => '1',
@@ -139,7 +140,8 @@ my $correct_result = {
                              'urn' => undef,
                              'interface' => 'e15/1',
                              'tag' => '2',
-                             'role' => 'unknown'
+                             'role' => 'unknown',
+                             'mac_addrs' => []
                            }
                          ],
           'workgroup' => {
