@@ -31,7 +31,9 @@ cmp_deeply($workgroups->[0],{
     'workgroup_id' => '1',
     'external_id' => undef,
     'name' => 'Workgroup 1',
-    'type' => 'normal'
+    'type' => 'normal',
+    'max_circuits' => 20,
+    'max_mac_address_per_end' => 10
    }, "Workgroup information matches");
 
 $workgroups = $db->get_workgroups( user_id => 11);
@@ -42,7 +44,9 @@ cmp_deeply($workgroups->[0], {
             'workgroup_id' => '1',
             'external_id' => undef,
             'name' => 'Workgroup 1',
-            'type' => 'normal'
+            'type' => 'normal',
+            'max_circuits' => 20,
+            'max_mac_address_per_end' => 10
    }, "Workgroup information matches for user_id 11");
 
 $workgroups = $db->get_workgroups( user_id => 1);

@@ -110,7 +110,7 @@ my $correct_result =  {
                              'interface' => 'e1/1',
                              'tag' => '1',
                              'role' => 'unknown',
-                             'max_addrs' => []
+                             'mac_addrs' => []
                            },
                            {
                              'local' => '1',

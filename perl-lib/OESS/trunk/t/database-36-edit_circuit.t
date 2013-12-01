@@ -129,7 +129,7 @@ my $correct_result = {
                              'interface' => 'e1/1',
                              'tag' => '2',
                              'role' => 'unknown',
-                             'mac-addrs' => []
+                             'mac_addrs' => []
                            },
                            {
                              'local' => '1',
