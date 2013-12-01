@@ -201,3 +201,5 @@ sub log {
 	warn $string;
     }    
 }
+
+1;
