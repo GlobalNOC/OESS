@@ -319,6 +319,9 @@ sub update_circuit_path_state {
     return 1;
 }
 
+=head2 update_circuit_name
+
+=cut
 sub update_circuit_name{
     my $self = shift;
     my %args = @_;
@@ -619,6 +622,7 @@ sub generate_clr{
     return $clr;
 
 }
+
 =head2 circuit_has_alternate_path
 
 Returns whether or not the circuit given has an alternate path available. Presently this only checks to see
@@ -635,7 +639,7 @@ The internal MySQL primary key int identifier for this circuit.
 
 =cut
 
-sub circuit_has_alternate_path{
+sub circuit_has_alternate_path {
     my $self = shift;
     my %args = @_;
 
@@ -808,6 +812,9 @@ sub get_user_by_id{
     return $self->_execute_query($query,[$user_id]);
 }
 
+=head2 get_user_admin_status
+
+=cut
 sub get_user_admin_status{
 	my $self = shift;
 	my %args = @_;
@@ -1690,6 +1697,9 @@ sub get_workgroup_details_by_name {
     return @$result[0];
 }
 
+=head2 get_workgroup_details_by_id
+
+=cut
 sub get_workgroup_details_by_id{
     my $self = shift;
     my %args = @_;
@@ -1845,6 +1855,7 @@ sub get_workgroup_interfaces {
 
     return $interfaces;
 }
+
 =head2 get_available_resources
 
 Gets the resources available for a given workgroup
@@ -2021,6 +2032,7 @@ sub update_interface_owner {
 
     return 1;
 }
+
 =head2 get_all_workgroups
 
 Gets all the workgroups
@@ -2112,6 +2124,7 @@ sub add_acl {
     return $acl_id;
 
 }
+
 =head2 update_acl
 
 Updates acl
@@ -2358,6 +2371,7 @@ sub _get_next_eval_position {
     }
 
 }
+
 =head2 get_acls
 
 Gets all the interface acls for a given workgroup
@@ -3949,6 +3963,9 @@ sub confirm_node {
     return 1;
 }
 
+=head2 update_node
+
+=cut
 sub update_node {
     my $self = shift;
     my %args = @_;
@@ -3994,6 +4011,9 @@ sub update_node {
     return 1;
 }
 
+=head2 decom_node
+
+=cut
 sub decom_node {
     my $self = shift;
     my %args = @_;
@@ -4107,6 +4127,9 @@ sub confirm_link {
     return 1;
 }
 
+=head2 update_link_state
+
+=cut
 sub update_link_state{
     my $self = shift;
     my %args = @_;
@@ -4137,6 +4160,10 @@ sub update_link_state{
     return 1;
 }
 
+=head2 update_link
+
+=cut
+
 sub update_link {
     my $self = shift;
     my %args = @_;
@@ -4163,6 +4190,10 @@ sub update_link {
 
     return 1;
 }
+
+=head2 is_new_node_in_path
+
+=cut
 
 sub is_new_node_in_path{
     my $self = shift;
@@ -4248,6 +4279,9 @@ sub _find_new_path{
     }
 }
 
+=head2 insert_node_in_path
+
+=cut
 
 sub insert_node_in_path{
     my $self = shift;
@@ -4338,7 +4372,9 @@ sub insert_node_in_path{
 
 }
 
+=head2 decom_link
 
+=cut
 sub decom_link {
     my $self = shift;
     my %args = @_;
@@ -7260,16 +7296,25 @@ sub get_oscars_host{
     return $self->{'oscars'}->{'host'};
 }
 
+=head2 get_oscars_key
+
+=cut
 sub get_oscars_key{
     my $self = shift;
     return $self->{'oscars'}->{'key'};
 }
 
+=head2 get_oscars_cert
+
+=cut
 sub get_oscars_cert{
     my $self = shift;
     return $self->{'oscars'}->{'cert'};
 }
 
+=head2 get_oscars_topo
+
+=cut
 sub get_oscars_topo{
     my $self = shift;
     return $self->{'oscars'}->{'topo'};
@@ -7652,12 +7697,17 @@ sub gen_topo{
     return $xml;
 }
 
+=head2 get_admin_email
+
+=cut
 sub get_admin_email{
     my $self = shift;
     return $self->{'admin_email'};
 }
 
+=head2 get_circuit_edge_on_interface
 
+=cut
 sub get_circuit_edge_on_interface{
     my $self = shift;
     my %params = @_;
@@ -7673,6 +7723,9 @@ sub get_circuit_edge_on_interface{
     return $circuits;
 }
 
+=head2 update_circuit_owner
+
+=cut
 sub update_circuit_owner{
     my $self = shift;
     my %args = @_;
@@ -7685,6 +7738,9 @@ sub update_circuit_owner{
     return 1;
 }
 
+=head2 is_within_circuit_limit
+
+=cut
 sub is_within_circuit_limit {
     my ($self, %args) = @_;
 
@@ -7710,6 +7766,29 @@ sub is_within_circuit_limit {
     return 1;
 }
 
+=head2 is_within_circuit_endpoint_limit
+
+=cut
+sub is_within_circuit_endpoint_limit {
+    my ($self, %args) = @_;
+
+    my $workgroup_id = $args{'workgroup_id'};
+    my $endpoint_num = $args{'endpoint_num'};
+
+    my $str = "SELECT * from workgroup where workgroup_id = ?";
+    my $rows = $self->_execute_query($str, [$workgroup_id]);
+    my $circuit_endpoint_limit = $rows->[0]{'max_circuit_endpoints'};
+
+    if($endpoint_num > $circuit_endpoint_limit) {
+        return 0;
+    }
+
+    return 1;
+}
+
+=head2 is_within_mac_limit
+
+=cut
 sub is_within_mac_limit {
     my ($self, %args) = @_;
 
@@ -7792,6 +7871,9 @@ sub is_within_mac_limit {
     return $result;
 }
 
+=head2 mac_hex2num
+
+=cut
 sub mac_hex2num {
   my $mac_hex = shift;
 
@@ -7808,7 +7890,9 @@ sub mac_hex2num {
   return $mac_num;
 }
 
+=head2 mac_num2hex
 
+=cut
 sub mac_num2hex {
   my $mac_num = shift;
 
