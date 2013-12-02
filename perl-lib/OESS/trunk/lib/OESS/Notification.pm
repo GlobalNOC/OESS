@@ -31,14 +31,6 @@ use base qw(Net::DBus::Object);
 
 OESS::Notification
 
-=head1 VERSION:
-
-GRNOC:OESS::Notification 1.1.0
-
-=cut
-
-our $VERSION = '1.1.0';
-
 =head1 SYNOPSIS
 
 Object handles Notification Functions required for OE-SS.
