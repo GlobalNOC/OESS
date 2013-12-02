@@ -268,6 +268,16 @@ sub set_priority{
     
 }
 
+=head2 get_priority
+
+=cut
+
+sub get_priority{
+    my $self = shift;
+    $self->{'logger'}->debug("Priority: " . $self->{'priority'});
+    return $self->{'priority'};
+}
+
 =head2 get_dpid
 
 =cut
@@ -565,6 +575,7 @@ sub compare_match{
     foreach my $key (keys (%{$self->{'match'}})){
         return 0 if(!defined($other_match->{$key}));
         if($other_match->{$key} != $self->{'match'}->{$key}){
+            $self->{'logger'}->debug("matches do not match: $key: " . $self->{'match'}->{$key} . " ne " . $other_match->{$key});
             return 0;
         }
     }
@@ -572,6 +583,7 @@ sub compare_match{
     foreach my $key (keys (%{$other_match})){
         return 0 if(!defined($self->{'match'}->{$key}));
         if($other_match->{$key}!= $self->{'match'}->{$key}){
+            $self->{'logger'}->debug("matches do not match: $key: " . $self->{'match'}->{$key} . "ne " . $other_match->{$key});
             return 0;
         }
     }
@@ -614,10 +626,30 @@ sub compare_actions{
 
 sub compare_flow{
     my $self = shift;
-    my $params = @_;
+    my %params = @_;
     
+    if(!defined($params{'flow_rule'})){
+        $self->{'logger'}->error("No Flow rule specified");
+        return 0;
+    }
     
+    if($self->compare_match( flow_rule => $params{'flow_rule'} ) && $self->compare_actions( flow_rule => $params{'flow_rule'})){
 
+        if($self->get_dpid() != $params{'flow_rule'}->get_dpid()){
+            $self->{'logger'}->debug("DPIDs do not match");
+            return 0;
+        }
+        
+        if($self->get_priority() != $params{'flow_rule'}->get_priority()){
+            $self->{'logger'}->debug("Priorities do not match");
+            return 0;
+        }
+
+        $self->{'logger'}->debug("flows match");
+        return 1;
+    }
+
+    $self->{'logger'}->debug("flows do not match");
     return 0; 
 }
 

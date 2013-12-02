@@ -125,19 +125,20 @@ sub _process_circuit_details{
     my $self = shift;
     $self->{'circuit_id'} = $self->{'details'}->{'circuit_id'};
     $self->{'logger'}->debug("Processing circuit " . $self->{'circuit_id'});
-    $self->_create_graph();
-    $self->_create_flows();
 
     $self->{'active_path'} = $self->{'details'}->{'active_path'};
     
     $self->{'has_backup_path'} = 0;
     
     if(scalar($self->{'details'}->{'backup_links'}) > 0){
+        $self->{'logger'}->debug("Circuit has backup path");
 	$self->{'has_backup_path'} = 1;
     }
 
     $self->{'endpoints'} = $self->{'details'}->{'endpoints'};
-    $self->{'circuit_id'} = $self->{'details'}->{'circuit_id'};
+
+    $self->_create_graph();
+    $self->_create_flows();
 }
 
 
@@ -231,6 +232,7 @@ sub _create_flows{
     $self->_generate_path_flows(path => 'primary');
     #backup path rules
     if($self->has_backup_path()){
+        $self->{'logger'}->debug("generating backup path flows");
 	$self->_generate_path_flows(path => 'backup');
     }
     #endpoint/flood rules
@@ -257,6 +259,9 @@ sub _dedup_flows{
     foreach my $flow (@$flows){
 	my $matched = 0;
 	foreach my $de_duped_flow (@deduped){
+            if($de_duped_flow->get_dpid() != $flow->get_dpid()){
+                next;
+            }
 	    if($de_duped_flow->compare_match( flow_rule => $flow)){
 		$de_duped_flow->merge_actions( flow_rule => $flow);
 		$matched = 1;
@@ -504,8 +509,8 @@ sub _generate_path_flows{
 		#--- skip when the 2 interfaces are the same
 		next if($other_if eq $interface);
 		#--- iterate through ports need set of rules for each input/output port combo
-		foreach my $vlan_tag (sort keys %{$path->{$node}{$interface}}) {
-		    my $remote_tag = $path->{$node}{$other_if}{$vlan_tag};
+		foreach my $vlan_tag (sort keys %{$self->{'path'}->{$path}->{$node}{$interface}}) {
+		    my $remote_tag = $self->{'path'}->{$path}->{$node}{$other_if}{$vlan_tag};
 		    my $flow = OESS::FlowRule->new( match => {'dl_vlan' => $vlan_tag,
 							      'in_port' => $interface},
 						    dpid => $self->{'dpid_lookup'}->{$node},
@@ -642,7 +647,7 @@ sub get_endpoints{
 
 sub has_backup_path{
     my $self = shift;
-    return $self->{'has_backup'};
+    return $self->{'has_backup_path'};
 }
 
 =head2 get_path
