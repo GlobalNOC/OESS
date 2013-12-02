@@ -6,6 +6,10 @@ use warnings;
 use Data::Dumper;
 use OESS::FlowRule;
 
+use Test::More tests => 3;
+use Test::Deep;
+
+
 my $flow_mod = OESS::FlowRule->new( match => {'dl_vlan' => 100,
 					      'in_port' => 678},
 				    actions => [{'output' => 679},
@@ -14,6 +18,7 @@ my $flow_mod = OESS::FlowRule->new( match => {'dl_vlan' => 100,
 						{'set_vlan_vid' => 101}],
 				    dpid => 1111111111);
 
-my $command = $flow_mod->to_dbus();
-
-warn Dumper($command);
+my ($dpid,$match,$action) = $flow_mod->to_dbus();
+ok(defined($dpid),"DPID was defined");
+ok(defined($match), "Match was defined");
+ok(defined($action), "Action was defined");
