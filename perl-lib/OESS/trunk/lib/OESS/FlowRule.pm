@@ -225,7 +225,7 @@ sub _validate_priority{
 	return 1;
     }
 
-    $self->{'logger'}->_error("Priority does not follow spec... must be an integer between 1 and 65535");
+    $self->{'logger'}->error("Priority does not follow spec... must be an integer between 1 and 65535");
 
     return 0;
 }
