@@ -33,7 +33,7 @@ cmp_deeply($paths->[0],{
             'start_epoch' => '1362144043',
             'path_type' => 'primary',
             'end_epoch' => '-1',
-            'path_state' => 'deploying',
+            'path_state' => 'active',
             'links' => [
                          {
                            'link_id' => '61',
