@@ -111,6 +111,10 @@ sub upgrade{
     $str = "alter table workgroup add column max_circuits int(10) default 20";
     $sth = $dbh->prepare($str);
     $sth->execute() or die "Unable to add max_circuits to node table";
+    
+    $str = "ALTER TABLE workgroup ADD max_circuit_endpoints INT(10) DEFAULT 10";
+    $sth = $dbh->prepare($str);
+    $sth->execute() or die "Unable to add max_circuit_endpoints to workgroup table";
 
     ####################################
     #
