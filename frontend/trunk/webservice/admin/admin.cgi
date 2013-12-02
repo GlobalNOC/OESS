@@ -853,6 +853,7 @@ sub edit_workgroup{
     my $workgroup_name = $cgi->param('name');
     my $external_id = $cgi->param('external_id');
     my $max_circuits = $cgi->param('max_circuits');
+    my $max_circuit_endpoints = $cgi->param('max_circuit_endpoints');
     my $max_mac_address_per_end = $cgi->param('max_mac_address_per_end');
 
     my $res = $db->update_workgroup( 
@@ -860,6 +861,7 @@ sub edit_workgroup{
 		name => $workgroup_name,
 	    external_id => $external_id,
 	    max_circuits => $max_circuits,
+	    max_circuit_endpoints => $max_circuit_endpoints,
 	    max_mac_address_per_end => $max_mac_address_per_end
     );
 

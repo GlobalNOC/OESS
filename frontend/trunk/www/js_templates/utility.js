@@ -477,13 +477,26 @@ function makeTagSelectPanel(coordinates, options ){
     if(options.align_right){
         coordinates[0] = coordinates[0] - (options.panel_width || 200); 
     }
+    
+    var tag_selection_panel = YAHOO.util.Dom.get("tag_selection");
+    if(tag_selection_panel){
+        tag_selection_panel = new YAHOO.util.Element(tag_selection_panel);
+        tag_selection_panel.destroy();
+    }
     var panel = new YAHOO.widget.Panel("tag_selection",{
         width: options.panel_width || 280,
-        xy: coordinates
+        xy: coordinates,
+        close: true
     });
     panel.hide = function(){
         this.destroy();
+        //this = undefined;
     };
+    /*
+    panel.close = function(){
+        this.destroy();
+    };
+    */
     //remove the default click handler (._doClose)
     //YAHOO.util.Event.removeListener(panel.close, "click");   
 
@@ -726,6 +739,9 @@ function makeTagSelectPanel(coordinates, options ){
         //only validate mac addresses if the static mac flag was set
         if(!session.data.static_mac_routing) {
             mac_limit_verified = true;
+            if(tag_verified){
+                save(); 
+            }
         }else {
             //--- verfiy mac addrs don't go over limits
             // build mac address string

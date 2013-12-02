@@ -815,6 +815,7 @@ function setup_workgroup_tab(){
 	    var workgroup_id   = record.getData('workgroup_id');
 	    var workgroup_external = record.getData('external_id');
         var max_mac_address_per_end = record.getData('max_mac_address_per_end');
+        var max_circuit_endpoints = record.getData('max_circuit_endpoints');
         var max_circuits = record.getData('max_circuits');
 
 	    YAHOO.util.Dom.get('workgroup_title').innerHTML = workgroup_name;
@@ -826,7 +827,7 @@ function setup_workgroup_tab(){
 	    wg_edit_button.on("click",function(){
 		    var wg_details_panel = new YAHOO.widget.Panel("workgroup_details_p",
 								  {width: 400,
-								   height: 150,
+								   height: 170,
 								   draggable: true,
 								   close: true,
 								   fixedcenter: true
@@ -850,6 +851,9 @@ function setup_workgroup_tab(){
                 "<label>Circuit Limit:</label>"+
                 "<input type='text' id='workgroup_max_circuits_edit' value='" + max_circuits + "'>" +
                 "<br>"+
+                "<label>Circuit Endpoint Limit:</label>"+
+                "<input type='text' id='workgroup_max_circuit_endpoints_edit' value='" + max_circuit_endpoints + "'>" +
+                "<br>"+
                 "<div style='text-align: right; font-size: 85%'>" +
                 "<div id='submit_edit_workgroup'></div>" +
                 "</div>"
@@ -862,6 +866,7 @@ function setup_workgroup_tab(){
 		    wg_submit_edit.on("click", function(){
                 max_mac_address_per_end = document.getElementById("workgroup_max_mac_address_per_end_edit").value;
                 max_circuits = document.getElementById("workgroup_max_circuits_edit").value;
+                max_circuit_endpoints = document.getElementById("workgroup_max_circuit_endpoints_edit").value;
                 if(!max_mac_address_per_end.match(/\d+/)){
                     alert("Node mac limit must be an integer");
                     return;
@@ -870,9 +875,13 @@ function setup_workgroup_tab(){
                     alert("Circuits limit must be an integer");
                     return;
                 }
+                if(!max_circuit_endpoints.match(/\d+/)){
+                    alert("Circuit endpoints limit must be an integer");
+                    return;
+                }
 
 
-			    var submit_ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=edit_workgroup&workgroup_id=" + workgroup_id + "&name=" + encodeURI(document.getElementById('workgroup_name_edit').value) + "&external_id=" + encodeURI(document.getElementById('workgroup_external_edit').value) + "&max_mac_address_per_end=" + max_mac_address_per_end + "&max_circuits=" + max_circuits );
+			    var submit_ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=edit_workgroup&workgroup_id=" + workgroup_id + "&name=" + encodeURI(document.getElementById('workgroup_name_edit').value) + "&external_id=" + encodeURI(document.getElementById('workgroup_external_edit').value) + "&max_mac_address_per_end=" + max_mac_address_per_end + "&max_circuits=" + max_circuits + "&max_circuit_endpoints=" + max_circuit_endpoints );
 			    submit_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 			    submit_ds.responseSchema = {
 				resultsList: "results",
@@ -2493,6 +2502,7 @@ function makeWorkgroupTable(){
         {key: "description"},
         {key: "external_id"},
         {key: "max_mac_address_per_end"},
+        {key: "max_circuit_endpoints"},
         {key: "max_circuits"} 
 	]};
 

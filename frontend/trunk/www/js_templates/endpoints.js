@@ -86,10 +86,12 @@ function init(){
 		
 		this.table.subscribe("rowClickEvent", function(args){
 
+            /*
             if (this.vlan_panel){
                 this.vlan_panel.destroy();
                 this.vlan_panel = undefined;
             }
+            */
 
             var rec = this.getRecord(args.target);
             var tag_range = rec.getData('vlan_tag_range');
@@ -107,25 +109,61 @@ function init(){
                 include_static_mac_table: true,
                 panel_width: 393,
                 save_action: function(options){
-                    var tag           = options.tag;
-                    var mac_addresses = [];
-                    if(session.data.static_mac_routing) {
-                        mac_addresses = options.get_mac_addresses();
-                    }
-                    endpoint_table.addRow({
-                        interface: interface,
-                        interface_description: description,
-                        node: node,
-                        tag: tag,
-                        vlan_tag_range: rec.getData("vlan_tag_range"),
-                        mac_addrs: mac_addresses //components.get_mac_addresses()
-                    });
 
-                    save_session();
+                    var add_row = function(options){
+                        var tag           = options.tag;
+                        var mac_addresses = [];
+                        if(session.data.static_mac_routing) {
+                            mac_addresses = options.get_mac_addresses();
+                        }
+                        endpoint_table.addRow({
+                            interface: interface,
+                            interface_description: description,
+                            node: node,
+                            tag: tag,
+                            vlan_tag_range: rec.getData("vlan_tag_range"),
+                            mac_addrs: mac_addresses //components.get_mac_addresses()
+                        });
 
-                    nddi_map.table.unselectAllRows();
-                    nddi_map.table.vlan_panel.destroy();
-                    nddi_map.table.vlan_panel = undefined; 
+                        save_session();
+
+                        nddi_map.table.unselectAllRows();
+                        nddi_map.table.vlan_panel.destroy();
+                        nddi_map.table.vlan_panel = undefined; 
+                    };
+
+                    var endpoint_limit_ds = new YAHOO.util.DataSource(
+                        "services/data.cgi?action=is_within_circuit_endpoint_limit"+
+                        "&workgroup_id=" + session.data.workgroup_id+
+                        "&endpoint_num=" + ( endpoint_table.getRecordSet().getRecords().length + 1 ) 
+                    );
+
+
+                    endpoint_limit_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                    endpoint_limit_ds.responseSchema = {
+                        resultsList: "results",
+                        fields: [{key: "within_limit", parser: "number"}],
+                        metaFields: {
+                          "error": "error"
+                        }
+                    };
+
+                    endpoint_limit_ds.sendRequest("",{
+                        success: function(req,resp){
+                            if(parseInt(resp.results[0].within_limit)){
+                                add_row(options);
+                            }else {
+                                alert("You have exceeded this workgroups max endpoints per circuit limit");
+                                //new_circuit.set("innerHTML","Create a New VLAN");
+                                //checking_circuit_limit = false;
+                            }
+                        },
+                        failure: function(req,resp){
+                            alert("Problem fetching workgroup max endpoints per circuit limit");
+                            //new_circuit.set("innerHTML","Create a New VLAN");
+                            //checking_circuit_limit = false;
+                        }
+                    }, this);
                 },
                 interface: interface,
                 interface_description: description,

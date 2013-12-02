@@ -325,6 +325,12 @@ sub provision_circuit {
             do_external    => 0,
             static_mac => $static_mac
         );
+        if(!$output){
+            return {
+                'error'   =>  $db->get_error(),
+                'results' => []
+            };
+        }
 
         $result = _send_add_command( circuit_id => $output->{'circuit_id'} );
 

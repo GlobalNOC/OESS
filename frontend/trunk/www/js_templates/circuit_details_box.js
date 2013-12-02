@@ -126,44 +126,109 @@ function summary_init(options){
             var button = new YAHOO.widget.Button({label: "Edit"});
             YAHOO.util.Dom.addClass(button, "endpoint_edit_button");
             var t = this;
+            var fetching_input = false;
+            //var vlan_panel;
             button.on("click", function(){
-                var region = YAHOO.util.Dom.getRegion(el);
-                var components = makeTagSelectPanel([region.right, region.bottom], {
-                    include_static_mac_table: true,
-                    align_right: true,
-                    panel_width: 393,
-                    save_action: function(options){
-                        
-                        if(session.data.static_mac_routing){
-                            t.updateCell( rec , "tag" , options.tag , true);
-                            t.updateCell( rec , "mac_addrs" , (options.get_mac_addresses() || []) );
-                        }else {
-                            t.updateCell( rec , "tag" , options.tag );
+                button.set('disabled',true);
+                var create_panel = function(){
+                    /*
+                    if(this.vlan_panel){
+                        this.vlan_panel.hide();
+                        //this.vlan_panel = undefined;
+                    }
+                    */
+
+                    var region = YAHOO.util.Dom.getRegion(el);
+                    var components = makeTagSelectPanel([region.right, region.bottom], {
+                        include_static_mac_table: true,
+                        align_right: true,
+                        panel_width: 393,
+                        save_action: function(options){
+
+                            if(session.data.static_mac_routing){
+                                t.updateCell( rec , "tag" , options.tag , true);
+                                t.updateCell( rec , "mac_addrs" , (options.get_mac_addresses() || []) );
+                            }else {
+                                t.updateCell( rec , "tag" , options.tag );
+                            }
+                        },
+                        remove_action: function(options){
+                            var interface = rec.getData('interface');
+                            showConfirm("Are you sure you wish to delete interface " + interface + "?",
+                                    function(){
+                                    t.deleteRow(t.getRecordSet().getRecordIndex(rec));
+                                    },
+                                    function(){}
+                                    );
+
+                        },
+                        interface: rec.getData("interface"),
+                        interface_description: rec.getData("interface_description"),
+                        node: rec.getData("node"),
+                        tag_range: rec.vlan_tag_range,
+                        workgroup_id: session.data.workgroup_id,
+                        is_edit: true,
+                        current_values: {
+                            mac_addresses: rec.getData("mac_addrs"),
+                            tag: rec.getData("tag")
+                        }
+                    });
+                    var vlan_panel = components.panel;
+                    vlan_panel.show();
+                    vlan_panel.subscribe("blur", function (event) { 
+                        this.destroy(); 
+                    });
+                    button.set('disabled',false);
+                };
+
+                if(!rec.vlan_tag_range){ 
+                    /*
+                    if(fetching_input){
+                        return;
+                    }else {
+                        fetching_input = true;
+                    }
+                    */
+                    var tag_ds = new YAHOO.util.DataSource(
+                        "services/data.cgi?action=get_vlan_tag_range"+
+                        "&interface="+encodeURIComponent(rec.getData('interface'))+
+                        "&node="+encodeURIComponent(rec.getData('node'))+
+                        "&workgroup_id="+session.data.workgroup_id
+                    );
+                    tag_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                    tag_ds.responseSchema = {
+                        resultsList: "results",
+                        fields: [{key: "vlan_tag_range"}],
+                        metaFields: {
+                          "error": "error"
+                        }
+                    };
+
+                    tag_ds.sendRequest("", {
+                    success: function(req, resp){
+                        if (resp.results[0].vlan_tag_range){
+                            fetching_input = false;
+                            rec.vlan_tag_range = resp.results[0].vlan_tag_range;
+                            create_panel();
+                        }else{
+                            alert("Problem fetching vlan tag range.");
+                            //save_button.set("label", "Save");
+                            //save_button.set("disabled", false);
+                            fetching_input = false;
                         }
                     },
-                    remove_action: function(options){
-                        var interface = rec.getData('interface');
-                        showConfirm("Are you sure you wish to delete interface " + interface + "?",
-                                function(){
-                                t.deleteRow(t.getRecordSet().getRecordIndex(rec));
-                                },
-                                function(){}
-                                );
+                    failure: function(req, resp){
+                        //save_button.set("label", "Save");
+                        //save_button.set("disabled", false);
 
-                    },
-                    interface: rec.getData("interface"),
-                    interface_description: rec.getData("interface_description"),
-                    node: rec.getData("node"),
-                    tag_range: rec.getData("vlan_tag_range"),
-                    workgroup_id: session.data.workgroup_id,
-                    is_edit: true,
-                    current_values: {
-                        mac_addresses: rec.getData("mac_addrs"),
-                        tag: rec.getData("tag")
-                    }
-                }); 
-                var vlan_panel = components.panel;
-                vlan_panel.show();    
+                        alert("Problem fetching vlan tag range.");
+                        fetching_input = false;
+                    }});
+                } else {
+                    create_panel();
+                }
+
+
                 /*
                     var interface = rec.getData('interface');
 
@@ -175,8 +240,8 @@ function summary_init(options){
                             );
 
                 */
-            });
-                button.appendTo(el);
+            });//--end on click
+            button.appendTo(el);
               }
             }
     [% END %]

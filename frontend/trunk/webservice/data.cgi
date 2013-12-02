@@ -127,6 +127,12 @@ sub main {
         case "is_within_circuit_limit" {
             $output = &is_within_circuit_limit();
         }
+        case "is_within_circuit_endpoint_limit" {
+            $output = &is_within_circuit_endpoint_limit();
+        }
+        case "get_vlan_tag_range" {
+            $output = &get_vlan_tag_range();
+        }
         else {
             $output->{'error'}   = "Error: No Action specified";
             $output->{'results'} = [];
@@ -239,6 +245,29 @@ sub is_vlan_tag_available {
     }
 
     return $results;
+}
+
+sub get_vlan_tag_range {
+    my $node = $cgi->param('node');
+    my $interface = $cgi->param('interface');
+    my $workgroup_id = $cgi->param('workgroup_id');
+
+    my $interface_id = $db->get_interface_id_by_names(
+        interface => $interface,
+        node      => $node 
+    ); 
+
+    my $vlan_tag_range = $db->_validate_endpoint(
+        interface_id => $interface_id,
+        workgroup_id => $workgroup_id
+    );
+
+    return {
+        results => [
+            {vlan_tag_range => $vlan_tag_range}
+        ]
+    };
+
 }
 
 sub get_link_by_name {
@@ -559,6 +588,29 @@ sub is_within_circuit_limit {
         }]
     };
 
+}
+
+sub is_within_circuit_endpoint_limit {
+    my $workgroup_id   = $cgi->param('workgroup_id');
+    my $endpoint_num   = $cgi->param('endpoint_num');
+
+    if(!defined($workgroup_id) || !defined($endpoint_num)){
+        return {
+            error => "Must send workgroup_id and endpoint_num",
+            results => []
+        };
+    }
+    my $return = $db->is_within_circuit_endpoint_limit(
+        workgroup_id => $workgroup_id,
+        endpoint_num => $endpoint_num
+    );
+
+    return {
+        error => undef,
+        results => [{
+            'within_limit' => $return
+        }]
+    };
 }
 
 sub is_within_mac_limit {

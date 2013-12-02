@@ -682,10 +682,8 @@ function NDDIMap(div_id, interdomain_mode){
   this.connectSessionEndpoints = function(session){
 
       var endpoints = [];
-      if(session.data.endpoints){
-          for (var i = 0; i < session.data.endpoints.length; i++){
-          endpoints.push(session.data.endpoints[i].node);
-          }
+      for (var i = 0; i < session.data.endpoints.length; i++){
+      endpoints.push(session.data.endpoints[i].node);
       }
 
       this.connectEndpoints(endpoints);
