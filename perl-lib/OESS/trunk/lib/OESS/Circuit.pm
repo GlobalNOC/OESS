@@ -130,7 +130,7 @@ sub _process_circuit_details{
     
     $self->{'has_backup_path'} = 0;
     $self->{'interdomain'} = 0;
-    if(scalar($self->{'details'}->{'backup_links'}) > 0){
+    if(scalar(@{$self->{'details'}->{'backup_links'}}) > 0){
         $self->{'logger'}->debug("Circuit has backup path");
 	$self->{'has_backup_path'} = 1;
     }
