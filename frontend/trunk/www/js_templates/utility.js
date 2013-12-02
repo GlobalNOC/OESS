@@ -737,7 +737,7 @@ function makeTagSelectPanel(coordinates, options ){
         }
 
         //only validate mac addresses if the static mac flag was set
-        if(!session.data.static_mac_routing) {
+        if(!session.data.static_mac_routing || ( get_mac_addresses().length == 0 )) {
             mac_limit_verified = true;
             if(tag_verified){
                 save(); 
