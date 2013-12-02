@@ -582,16 +582,16 @@ sub get_endpoint_flows{
     my $path = $params{'path'};
 
     if(!defined($path)){
+	$self->{'logger'}->error("Path was not defined");
 	return;
     }
-
-    if($path ne 'primary' || $path ne 'backup'){
-	return;
-    }
-
-
-    return $self->{'flows'}->{'endpoints'}->{$path};
     
+    if($path ne 'primary' && $path ne 'backup'){
+	$self->{'logger'}->error("Path '$path' is invalid");
+	return;
+    }
+
+    return $self->{'flows'}->{'endpoint'}->{$path};    
 }
 
 
