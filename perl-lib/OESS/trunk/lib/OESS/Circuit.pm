@@ -240,6 +240,7 @@ sub _create_flows{
     $self->_generate_endpoint_flows( path => 'primary');
     
     if($self->has_backup_path()){
+        $self->{'logger'}->debug("Generating backup path endpoint flows");
 	$self->_generate_endpoint_flows( path => 'backup');
     }    
 
@@ -247,6 +248,7 @@ sub _create_flows{
     $self->{'flows'}->{'path'}->{'backup'} = $self->_dedup_flows($self->{'flows'}->{'path'}->{'backup'});
     $self->{'flows'}->{'endpoint'}->{'primary'} = $self->_dedup_flows($self->{'flows'}->{'endpoint'}->{'primary'});
     $self->{'flows'}->{'endpoint'}->{'backup'} = $self->_dedup_flows($self->{'flows'}->{'endpoint'}->{'backup'});
+
 }
 
 
@@ -541,14 +543,21 @@ sub get_flows{
 	push(@flows,$flow);
     }
 
-    foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{'primary'}}){
-        push(@flows,$flow);
+    if($self->get_active_path() eq 'primary'){
+        
+        foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{'primary'}}){
+            push(@flows,$flow);
+        }
+
+    }else{
+
+        foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{'backup'}}){
+            push(@flows,$flow);
+        }
+
     }
 
-    foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{'backup'}}){
-        push(@flows,$flow);
-    }
-
+    
     foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{'primary'}}){
         push(@flows,$flow);
     }
@@ -557,7 +566,7 @@ sub get_flows{
         push(@flows,$flow);
     }
 
-    return \@flows;
+    return $self->_dedup_flows(\@flows);
 }
 
 =head2 get_endpoint_flows

@@ -16,7 +16,7 @@ use OESS::Database;
 use OESS::Circuit;
 use OESSDatabaseTester;
 
-use Test::More tests =>29;
+use Test::More tests =>25;
 use Test::Deep;
 use Data::Dumper;
 use Log::Log4perl;
@@ -29,7 +29,7 @@ my $ckt = OESS::Circuit->new( circuit_id => 4111, db => $db);
 
 my $flows = $ckt->get_flows();
 
-ok(scalar(@$flows) == 28, "Total number of flows match " . scalar(@$flows));
+ok(scalar(@$flows) == 24, "Total number of flows match " . scalar(@$flows));
 
 my $first_flow = OESS::FlowRule->new( dpid => 155569091328,
                                       match => {'dl_vlan' => 157,
@@ -377,70 +377,3 @@ my $flow_24 = OESS::FlowRule->new( 'actions' => [
 				   });
 
 ok($flow_24->compare_flow( flow_rule => $flows->[23]), "Flow24 Matches");
-my $flow_25 = OESS::FlowRule->new('actions' => [
-				      {
-                                  'set_vlan_vid' => '151'
-				      },
-				      {
-                                  'output' => '97'
-				      }
-                              ],
-                 'idle_timeout' => 0,
-                 'dpid' => '155569080320',
-				  'match' => {
-                              'dl_vlan' => 4090,
-                              'in_port' => '677'
-				  });
-
-ok($flow_25->compare_flow( flow_rule => $flows->[24]), "Flow25 matches");
-
-my $flow_26 = OESS::FlowRule->new('actions' => [
-				      {
-                                  'set_vlan_vid' => '4090'
-				      },
-				      {
-                                  'output' => '677'
-				      }
-                              ],
-                 'idle_timeout' => 0,
-                 'dpid' => '155569080320',
-				  'match' => {
-                              'dl_vlan' => 152,
-                              'in_port' => '97'
-				  });
-
-ok($flow_26->compare_flow( flow_rule => $flows->[25]), "Flow26 matches");
-my $flow_27 = OESS::FlowRule->new( 'actions' => [
-				       {
-                                  'set_vlan_vid' => '134'
-				       },
-				       {
-                                  'output' => '1'
-				       }
-                              ],
-                 'idle_timeout' => 0,
-                 'dpid' => '155568668928',
-				   'match' => {
-                              'dl_vlan' => 2055,
-                              'in_port' => '676'
-				   });
-
-ok($flow_27->compare_flow( flow_rule => $flows->[26]), "Flow27 Matches");
-
-my $flow_28 = OESS::FlowRule->new( 'actions' => [
-				       {
-                                  'set_vlan_vid' => '2055'
-				       },
-				       {
-                                  'output' => '676'
-				       }
-                              ],
-                 'idle_timeout' => 0,
-                 'dpid' => '155568668928',
-				   'match' => {
-                              'dl_vlan' => 141,
-                              'in_port' => '1'
-				   });
-
-ok($flow_28->compare_flow( flow_rule => $flows->[27]), "Flow28 Matches");
-
