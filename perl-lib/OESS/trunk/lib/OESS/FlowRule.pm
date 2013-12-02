@@ -107,7 +107,9 @@ sub new{
 
     $self->{'logger'} = Log::Log4perl->get_logger("OESS::FlowRule");
 
-    my $validate_flow = $self->validate_flow();
+    if(!$self->_validate_flow()){
+	return undef;
+    }
     
     return $self;
     
@@ -120,13 +122,13 @@ validates that the flow_rule is valid
 
 =cut
 
-sub validate_flow{
+sub _validate_flow{
     my $self = shift;
 
     if($self->_validate_match($self->{'match'}) && $self->_validate_actions($self->{'actions'}) && $self->_validate_priority($self->{'priority'}) && $self->_validate_dpid($self->{'dpid'})){
 	return 1;
     }else{
-	return;
+	return 0;
     }
     
 
@@ -139,8 +141,30 @@ sub validate_flow{
 sub _validate_match{
     my $self = shift;
     my $match = shift;
-
     
+    foreach my $key (keys (%{$match})){
+        $self->{'logger'}->trace("Processing Match Key: " . $key . " value: " . $match->{$key});
+        switch ($key){
+            case "in_port"{
+		if(!$self->_validate_port($match->{$key})){
+		    $self->{'logger'}->error("IN PORT: " . $match->{$key} . " is not supported");
+		    return 0;
+		}
+            }case "dl_vlan"{
+		if(!$self->_validate_vlan_id($match->{$key})){
+		    $self->{'logger'}->error("VLAN Tag " . $match->{$key} . " is not supported");
+		    return 0;
+		}
+            }case "dl_type"{
+		
+            }case "dl_dst"{
+
+            }else{
+                $self->{'logger'}->error("Unsupported match attribute: " . $key . "\n");
+                return 0;
+            }
+        }
+    }
 
     return 1;
 }
@@ -169,7 +193,7 @@ sub _validate_vlan_id{
 	return 1;
     }
 
-    $self->_set_error("VLAN ID must be between 1 and 4095");
+    $self->{'logger'}->error("VLAN ID must be between 1 and 4095");
     return;
 }
 
@@ -186,7 +210,7 @@ sub _validate_port{
     }
 
 
-    $self->_set_error("Port IDs must be between 1 and 65535");
+    $self->{'logger'}->error("Port IDs must be between 1 and 65535");
 }
 
 =head2 _validate_priority
@@ -201,7 +225,7 @@ sub _validate_priority{
 	return 1;
     }
 
-    $self->_set_error("Priority does not follow spec... must be an integer between 1 and 65535");
+    $self->{'logger'}->_error("Priority does not follow spec... must be an integer between 1 and 65535");
 
     return 0;
 }
@@ -299,7 +323,7 @@ sub set_dpid{
 	$self->{'dpid'} = $new_dpid;
 	return 1;
     }else{
-	$self->_set_error("DPID: " . $new_dpid . " is not a valid DPID, please try again");
+	$self->{'logger'}->error("DPID: " . $new_dpid . " is not a valid DPID, please try again");
 	return;
     }
     
@@ -350,7 +374,6 @@ sub to_dbus{
 
 		    if(!defined($out_port)){
                         $self->{'logger'}->error("Error no out_port specified in output action");
-			$self->_set_error("Error no out_port specified in output action");
 			return;
 		    }
 
@@ -375,7 +398,7 @@ sub to_dbus{
 		    
 		}else{
                     $self->{'logger'}->error("Error unsupported action: " . $key . "\n");
-		    $self->_set_error("Error unsupported action: " . $key . "\n");
+		    $self->{'logger'}->error("Error unsupported action: " . $key . "\n");
 		    return;
 		}
 	    }
@@ -404,7 +427,6 @@ sub to_dbus{
 		$command->{'attr'}{'DL_DST'} = Net::DBus::dbus_uint64(int($self->{'match'}->{$key}));
 	    }else{
                 $self->{'logger'}->error("Unsupported match attribute: " . $key . "\n");
-		$self->_set_error("Error unsupported match: " . $key . "\n");
 		return;
 	    }
 	}
@@ -469,7 +491,6 @@ sub to_human{
 		$match_str .= "DST MAC: " . $self->{'match'}->{$key};
             }else{
                 $self->{'logger'}->error("Unsupported match attribute: " . $key . "\n");
-                $self->_set_error("Error unsupported match: " . $key . "\n");
                 return;
             }
         }
@@ -506,7 +527,7 @@ sub to_human{
                     }
 
                     if(!defined($out_port)){
-                        $self->_set_error("Error no out_port specified in output action");
+                        $self->{'logger'}->error("Error no out_port specified in output action");
                         return;
                     }
 
