@@ -1,0 +1,155 @@
+#!/usr/bin/perl
+#-------------------------------------------------------------------
+#----- OESS 1.0.12 - 1.1.0 upgrade module                         
+#-----                                                               
+#----- Copyright(C) 2010 The Trustees of Indiana University          
+#--------------------------------------------------------------------
+#----- $HeadURL: $                                                   
+#----- $Id: $                                                        
+#-----                                                               
+#----- This is run when upgrading the database from     
+#----- version 1.1.0 to version 1.1.1                               
+#-------------------------------------------------------------------- 
+
+use strict;
+use warnings;
+use OESS::Database;
+
+my $prev_version = "1.1.0";
+my $version = "1.1.1";
+
+sub main{
+
+    print "*******************************************************************\n";
+    print "*********             OESS DB UPGRADE           ************\n";
+    print "*******************************************************************\n";
+    print "********* This will upgrade from $prev_version to $version **********\n";
+    print "********* of the OESS DB any other version will not work ************\n";
+    
+    continue_parameter("Do you wish to continue");
+
+    
+    my $dbq = new OESS::Database();
+    my $current_version = $dbq->get_oess_schema_version();    
+    
+    if($current_version eq $prev_version){
+	$dbq->{'dbh'}->begin_work();
+	upgrade($dbq->{'dbh'});
+	$dbq->{'dbh'}->commit();
+    }else{
+	print "Wrong version of OESS DB\n";
+	print "This script only upgrades from version $prev_version to $version\n";
+	exit;
+    }
+    
+    print STDERR "Upgrade Successful!!\n";
+    
+}
+
+
+sub upgrade{
+    my $dbh = shift;
+    my $term = shift;
+    my $str;
+    my $sth;
+    #################################### 
+    #
+    # All Changes should happen in here
+    #
+    ####################################
+    #add the circuit edge mac address table 
+    
+    $str = " alter table circuit_edge_interface_membership drop foreign key interface_circuit_interface_membership_fk";
+    $sth = $dbh->prepare($str);
+    $sth->execute() or die "Unable to drop foreign keys to circuit_edge_interface_membership";
+
+    $str = " alter table circuit_edge_interface_membership drop foreign key circuit_circuit_interface_membership_fk";
+    $sth = $dbh->prepare($str);
+    $sth->execute() or die "Unable to drop foreign keys to circuit_edge_mac_address table";
+    
+    $str = "alter table circuit_edge_interface_membership drop primary key";
+    $sth = $dbh->prepare($str);
+    $sth->execute() or die "Unable to drop circuit_edge_interface_membership table's primary key";
+
+    $str = "alter table circuit_edge_interface_membership add column circuit_edge_id int(10) primary key auto_increment not null";
+    $sth = $dbh->prepare($str);
+    $sth->execute() or die "Unable to add new circuit_edge_id field to circuit_edge_interface_membership table";
+
+    $str = "alter table circuit_edge_interface_membership add foreign key (circuit_id) references circuit(circuit_id)";
+    $sth = $dbh->prepare($str);
+    $sth->execute() or die "Unable to add foreign key circuit_edge_interface_membership table";
+
+    $str = "alter table circuit_edge_interface_membership add foreign key (interface_id) references interface(interface_id)";
+    $sth = $dbh->prepare($str);
+    $sth->execute() or die "Unable to add foreign key constraint to circuit_edge_interface_membership table";
+
+    $str = "alter table circuit_edge_interface_membership add unique key (interface_id, circuit_id, end_epoch, extern_vlan_id)";
+    $sth = $dbh->prepare($str);
+    $sth->execute() or die "Unable to add unique key to circuit edge interface membership table";
+
+    $str = "create table circuit_edge_mac_address ( ".
+        "circuit_edge_id int(10) not null, " . 
+        "mac_address BIGINT not null, " . 
+        "CONSTRAINT FOREIGN KEY (`circuit_edge_id`) REFERENCES `circuit_edge_interface_membership` (`circuit_edge_id`) ".
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8";
+    $sth = $dbh->prepare($str);
+    $sth->execute() or die "Unable to add circuit_edge_mac_address table"; 
+
+    # add static_mac to the circuit table
+    $str = "alter table circuit add column static_mac tinyint(1) default 0";
+    $sth = $dbh->prepare($str);
+    $sth->execute() or die "Unable to add static_mac column to circuit table";
+    
+    $str = "alter table node add column max_static_mac_flows int(10) default 0";
+    $sth = $dbh->prepare($str);
+    $sth->execute() or die "Unable to add max_static_mac_flows to node table";
+
+    $str = "alter table workgroup add column max_mac_address_per_end int(10) default 10";
+    $sth = $dbh->prepare($str);
+    $sth->execute() or die "Unable to add max_mac_address_per_end to node table";
+
+    $str = "alter table workgroup add column max_circuits int(10) default 20";
+    $sth = $dbh->prepare($str);
+    $sth->execute() or die "Unable to add max_circuits to node table";
+
+    ####################################
+    #
+    # End all changes
+    #
+    #####################################
+    
+    #ok done with the rest of the upgrade update our version
+    $str = "update oess_version set version = '$version'";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+}
+
+main();
+
+sub continue_parameter {
+
+    my $name = shift;
+
+    print "$name [y/n]: ";
+    my $yes_or_no = <>;
+    chomp($yes_or_no);
+
+    exit(0) if ($yes_or_no !~ /y/i || $yes_or_no =~ /n/i);
+}
+
+
+sub required_parameter {
+
+    my $name = shift;
+
+    while (1) {
+
+	print "$name (required): ";
+        my $response = <>;
+	chomp($response);
+
+        return $response if ($response);
+
+	print "\nThis option is required!\n\n";
+    }
+}
