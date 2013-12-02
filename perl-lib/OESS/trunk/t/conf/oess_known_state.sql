@@ -720,6 +720,7 @@ CREATE TABLE `workgroup` (
   `type` varchar(20) DEFAULT 'normal',
   `max_mac_address_per_end` int(10) DEFAULT '10',
   `max_circuits` int(10) DEFAULT '20',
+  `max_circuit_endpoints` int(10) DEFAULT '10',
   PRIMARY KEY (`workgroup_id`),
   UNIQUE KEY `workgroups_idx` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=262 DEFAULT CHARSET=utf8;
@@ -731,7 +732,7 @@ CREATE TABLE `workgroup` (
 
 LOCK TABLES `workgroup` WRITE;
 /*!40000 ALTER TABLE `workgroup` DISABLE KEYS */;
-INSERT INTO `workgroup` VALUES (1,'','Workgroup 1',NULL,'normal',10,20),(11,'','Workgroup 11',NULL,'admin',10,42),(21,'','Workgroup 21',NULL,'normal',10,20),(31,'','Workgroup 31',NULL,'demo',10,20),(51,'','Workgroup 51',NULL,'normal',10,20),(61,'','Workgroup 61',NULL,'normal',10,20),(71,'','Workgroup 71',NULL,'normal',10,20),(81,'','Workgroup 81',NULL,'normal',10,20),(101,'','Workgroup 101',NULL,'normal',10,20),(111,'','Workgroup 111',NULL,'normal',10,20),(121,'','Workgroup 121',NULL,'normal',10,20),(131,'','Workgroup 131',NULL,'normal',10,20),(141,'','Workgroup 141',NULL,'normal',10,20),(151,'','Workgroup 151',NULL,'normal',10,20),(161,'','Workgroup 161',NULL,'normal',10,20),(171,'','Workgroup 171',NULL,'normal',10,20),(181,'','Workgroup 181',NULL,'normal',10,20),(191,'','Workgroup 191',NULL,'normal',10,20),(201,'','Workgroup 201',NULL,'normal',10,20),(211,'','Workgroup 211','','normal',10,20),(221,'','Workgroup 221','','demo',10,20),(231,'','Workgroup 231','','normal',10,20),(241,'','Workgroup 241','','normal',10,20),(251,'','Workgroup 251','','normal',10,20),(261,'','Workgroup 261','','normal',10,20);
+INSERT INTO `workgroup` VALUES (1,'','Workgroup 1',NULL,'normal',10,20,10),(11,'','Workgroup 11',NULL,'admin',10,42,10),(21,'','Workgroup 21',NULL,'normal',10,20,10),(31,'','Workgroup 31',NULL,'demo',10,20,10),(51,'','Workgroup 51',NULL,'normal',10,20,10),(61,'','Workgroup 61',NULL,'normal',10,20,10),(71,'','Workgroup 71',NULL,'normal',10,20,10),(81,'','Workgroup 81',NULL,'normal',10,20,10),(101,'','Workgroup 101',NULL,'normal',10,20,10),(111,'','Workgroup 111',NULL,'normal',10,20,10),(121,'','Workgroup 121',NULL,'normal',10,20,10),(131,'','Workgroup 131',NULL,'normal',10,20,10),(141,'','Workgroup 141',NULL,'normal',10,20,10),(151,'','Workgroup 151',NULL,'normal',10,20,10),(161,'','Workgroup 161',NULL,'normal',10,20,10),(171,'','Workgroup 171',NULL,'normal',10,20,10),(181,'','Workgroup 181',NULL,'normal',10,20,10),(191,'','Workgroup 191',NULL,'normal',10,20,10),(201,'','Workgroup 201',NULL,'normal',10,20,10),(211,'','Workgroup 211','','normal',10,20,10),(221,'','Workgroup 221','','demo',10,20,10),(231,'','Workgroup 231','','normal',10,20,10),(241,'','Workgroup 241','','normal',10,20,10),(251,'','Workgroup 251','','normal',10,20,10),(261,'','Workgroup 261','','normal',10,20,10);
 /*!40000 ALTER TABLE `workgroup` ENABLE KEYS */;
 UNLOCK TABLES;
 

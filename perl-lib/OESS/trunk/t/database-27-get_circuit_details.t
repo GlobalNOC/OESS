@@ -132,7 +132,8 @@ cmp_deeply($res,{
                            'name' => 'Workgroup 251',
                            'type' => 'normal',
                            'description' => '',
-                           'max_mac_address_per_end' => '10'
+                           'max_mac_address_per_end' => '10',
+                           'max_circuit_endpoints' => '10'
     },
           'active_path' => 'primary',
           'bandwidth' => '0',

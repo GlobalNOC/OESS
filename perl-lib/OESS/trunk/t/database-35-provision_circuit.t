@@ -132,7 +132,8 @@ my $correct_result =  {
                            'type' => 'admin',
                            'description' => '',
 			   'max_circuits' => 42,
-			   'max_mac_address_per_end' => 10
+			   'max_mac_address_per_end' => 10,
+               'max_circuit_endpoints' => 10
                          },
           'active_path' => 'primary',
           'bandwidth' => '1337',

@@ -34,8 +34,9 @@ cmp_deeply($workgroup_details, { workgroup_id => '262',
 				 type => 'normal',
 				 external_id => undef,
 				 description => '',
-                                 max_mac_address_per_end=> 10,
-                                 max_circuits =>20
+                 max_mac_address_per_end=> 10,
+                 max_circuits =>20,
+                 max_circuit_endpoints => 10
            },"Workgroup details match");
 
 $workgroup = $db->add_workgroup( name => 'bar', type => 'admin' );
@@ -47,8 +48,9 @@ cmp_deeply($workgroup_details,{ workgroup_id => '263',
 				type => 'admin',
 				external_id=> undef,
 				description => '',
-                                max_mac_address_per_end => 10,
-                                max_circuits => 20
+                max_mac_address_per_end => 10,
+                max_circuits => 20,
+                max_circuit_endpoints => 10
            },"Workgroup details match");
 
 $workgroup = $db->add_workgroup( name => 'foobar' , type => 'something crazy');
@@ -60,8 +62,9 @@ cmp_deeply($workgroup_details,{ workgroup_id => '264',
 				type => 'normal',
 				external_id => undef,
 				description => '',
-                                max_mac_address_per_end=> 10,
-                                max_circuits =>20
+                max_mac_address_per_end=> 10,
+                max_circuits =>20,
+                max_circuit_endpoints => 10
 	   },"Workgroup details match");
 
 $workgroup = $db->add_workgroup( name => 'barfoo' , type => 'admin', external_id => 'asdfsdfs');
@@ -73,6 +76,7 @@ cmp_deeply($workgroup_details,{ workgroup_id => '265',
 				type => 'admin',
 				external_id => 'asdfsdfs',
 				description => '',
-                                max_mac_address_per_end=> 10,
-                                max_circuits =>20
+                max_mac_address_per_end=> 10,
+                max_circuits =>20,
+                max_circuit_endpoints => 10
            },"Workgroup details match");
