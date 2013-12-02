@@ -16,7 +16,7 @@ use OESS::Database;
 use OESS::Circuit;
 use OESSDatabaseTester;
 
-use Test::More tests => 5;
+use Test::More tests => 3;
 use Test::Deep;
 use Data::Dumper;
 use Log::Log4perl;
