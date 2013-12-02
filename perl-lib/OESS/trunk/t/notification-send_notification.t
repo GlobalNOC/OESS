@@ -12,7 +12,7 @@ my $bus     = Net::DBus->system;
 my $service = $bus->export_service("org.nddi.notification");
 
 
-my $notification = OESS::Notification->new( 'service'=> $service, 'config_file'=> "$FindBin::Bin/conf/test_config.xml" );
+my $notification = OESS::Notification->new( 'service'=> $service, 'config_file'=> "$FindBin::Bin/conf/database.xml" );
 
 $notification->{'template_path'} = "$FindBin::Bin/../etc/";
 
