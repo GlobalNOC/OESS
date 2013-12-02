@@ -129,13 +129,19 @@ sub _process_circuit_details{
     $self->{'active_path'} = $self->{'details'}->{'active_path'};
     
     $self->{'has_backup_path'} = 0;
-    
+    $self->{'interdomain'} = 0;
     if(scalar($self->{'details'}->{'backup_links'}) > 0){
         $self->{'logger'}->debug("Circuit has backup path");
 	$self->{'has_backup_path'} = 1;
     }
 
     $self->{'endpoints'} = $self->{'details'}->{'endpoints'};
+
+    foreach my $endpoint (@{$self->{'endpoints'}}){
+        if($endpoint->{'local'} == 0){
+            $self->{'interdomain'} = 1;
+        }
+    }
 
     $self->_create_graph();
     $self->_create_flows();
