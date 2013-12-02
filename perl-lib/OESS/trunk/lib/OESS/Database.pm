@@ -86,7 +86,7 @@ use DateTime;
 use constant VERSION => '1.1.1';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
-use constant SHARE_DIR => "/usr/share/doc/perl-OESS-" . VERSION . "/";
+use constant SHARE_DIR => "/usr/share/doc/perl-OESS-Database-" . VERSION . "/";
 use constant UNTAGGED => -1;
 use constant OSCARS_WG => 'OSCARS IDC';
 our $ENABLE_DEVEL=0;
@@ -318,10 +318,6 @@ sub update_circuit_path_state {
 
     return 1;
 }
-
-=head2 update_circuit_name
-
-=cut
 
 sub update_circuit_name{
     my $self = shift;
@@ -623,7 +619,6 @@ sub generate_clr{
     return $clr;
 
 }
-
 =head2 circuit_has_alternate_path
 
 Returns whether or not the circuit given has an alternate path available. Presently this only checks to see
@@ -812,12 +807,6 @@ sub get_user_by_id{
     my $query = "select * from user left join remote_auth on user.user_id = remote_auth.user_id where user.user_id = ?";
     return $self->_execute_query($query,[$user_id]);
 }
-
-=head2 get_user_admin_status
-
-return is the user is an admin or not
-
-=cut
 
 sub get_user_admin_status{
 	my $self = shift;
@@ -1701,10 +1690,6 @@ sub get_workgroup_details_by_name {
     return @$result[0];
 }
 
-=head2 get_workgroup_details_by_id
-
-=cut
-
 sub get_workgroup_details_by_id{
     my $self = shift;
     my %args = @_;
@@ -1860,7 +1845,6 @@ sub get_workgroup_interfaces {
 
     return $interfaces;
 }
-
 =head2 get_available_resources
 
 Gets the resources available for a given workgroup
@@ -2037,7 +2021,6 @@ sub update_interface_owner {
 
     return 1;
 }
-
 =head2 get_all_workgroups
 
 Gets all the workgroups
@@ -2129,7 +2112,6 @@ sub add_acl {
     return $acl_id;
 
 }
-
 =head2 update_acl
 
 Updates acl
@@ -2376,7 +2358,6 @@ sub _get_next_eval_position {
     }
 
 }
-
 =head2 get_acls
 
 Gets all the interface acls for a given workgroup
@@ -3968,10 +3949,6 @@ sub confirm_node {
     return 1;
 }
 
-=head2 update_node
-
-=cut
-
 sub update_node {
     my $self = shift;
     my %args = @_;
@@ -4016,12 +3993,6 @@ sub update_node {
 
     return 1;
 }
-
-=head2 decom_node
-
-    decomissions a node
-
-=cut
 
 sub decom_node {
     my $self = shift;
@@ -4136,10 +4107,6 @@ sub confirm_link {
     return 1;
 }
 
-=head2 update_link_state
-
-=cut
-
 sub update_link_state{
     my $self = shift;
     my %args = @_;
@@ -4170,10 +4137,6 @@ sub update_link_state{
     return 1;
 }
 
-=head2 update_link
-
-=cut
-
 sub update_link {
     my $self = shift;
     my %args = @_;
@@ -4200,10 +4163,6 @@ sub update_link {
 
     return 1;
 }
-
-=head2 is_new_node_in_path
-
-=cut
 
 sub is_new_node_in_path{
     my $self = shift;
@@ -4289,9 +4248,6 @@ sub _find_new_path{
     }
 }
 
-=head2 insert_node_in_path
-
-=cut
 
 sub insert_node_in_path{
     my $self = shift;
@@ -4382,11 +4338,6 @@ sub insert_node_in_path{
 
 }
 
-=head2 decom_link
-
-    decomissions a link
-
-=cut
 
 sub decom_link {
     my $self = shift;
@@ -5669,6 +5620,13 @@ sub provision_circuit {
 
     if (! $self->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
         $self->_set_error("Permission denied: user is not a part of the requested workgroup.");
+        return;
+    }
+
+    # make sure this workgroup hasn't gone over their circuit limit
+    my $within_limit = $self->is_within_circuit_limit( workgroup_id => $workgroup_id );
+    if(!$within_limit){
+        $self->_set_error("Permission denied: workgroup is already at circuit limit.");
         return;
     }
 
@@ -7302,27 +7260,15 @@ sub get_oscars_host{
     return $self->{'oscars'}->{'host'};
 }
 
-=head2 get_oscars_key
-
-=cut
-
 sub get_oscars_key{
     my $self = shift;
     return $self->{'oscars'}->{'key'};
 }
 
-=head2 get_oscars_cert
-
-=cut
-
 sub get_oscars_cert{
     my $self = shift;
     return $self->{'oscars'}->{'cert'};
 }
-
-=head2 get_oscars_topo
-
-=cut
 
 sub get_oscars_topo{
     my $self = shift;
@@ -7706,22 +7652,11 @@ sub gen_topo{
     return $xml;
 }
 
-=head2 get_admin_email
-
-returns the admin email address string
-
-=cut
-
 sub get_admin_email{
     my $self = shift;
     return $self->{'admin_email'};
 }
 
-=head2 get_circuit_edge_on_interface
-    
-    find circuits terminating on interface 
-
-=cut
 
 sub get_circuit_edge_on_interface{
     my $self = shift;
@@ -7738,10 +7673,6 @@ sub get_circuit_edge_on_interface{
     return $circuits;
 }
 
-=head2 update_circuit_owner
-
-=cut
-
 sub update_circuit_owner{
     my $self = shift;
     my %args = @_;
@@ -7753,10 +7684,6 @@ sub update_circuit_owner{
     my $success = $self->_execute_query($str,[$args{'workgroup_id'},$args{'circuit_id'}]);
     return 1;
 }
-
-=head2 is_within_circuit_limit
-
-=cut
 
 sub is_within_circuit_limit {
     my ($self, %args) = @_;
@@ -7782,10 +7709,6 @@ sub is_within_circuit_limit {
 
     return 1;
 }
-
-=head2 is_within_mac_limit
-
-=cut
 
 sub is_within_mac_limit {
     my ($self, %args) = @_;
@@ -7869,10 +7792,6 @@ sub is_within_mac_limit {
     return $result;
 }
 
-=head2 mac_hex2num
-
-=cut
-
 sub mac_hex2num {
   my $mac_hex = shift;
 
@@ -7889,9 +7808,6 @@ sub mac_hex2num {
   return $mac_num;
 }
 
-=head2 mac_num2hex
-
-=cut
 
 sub mac_num2hex {
   my $mac_num = shift;
