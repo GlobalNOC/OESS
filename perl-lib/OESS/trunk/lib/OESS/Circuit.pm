@@ -160,7 +160,7 @@ sub _create_graph{
 
     $self->{'graph'}->{'primary'} = $p;
 
-    if(defined($self->{'details'}->{'backup_links'}) && scalar($self->{'details'}->{'backup_links'}) > 0){
+    if($self->has_backup_path()){
 	
 	$self->{'logger'}->debug("Creating a Graph for the backup path for the circuit " . $self->{'circuit_id'});
 
@@ -220,11 +220,6 @@ sub _create_flows{
 	if($self->has_backup_path()){
 	    $self->_generate_static_mac_path_flows( path => 'backup');
 	}
-	#generate the endpoint flows
-	#$self->{'primary_static_mac_flows'} = $self->_generate_static_mac_endpoint_flows( path => 'primary');
-	#if($self->has_backup_path()){
-	#    $self->{'backup_static_mac_flows'} = $self->_generate_static_mac_endpoint_flows( path => 'backup');
-	#}
     }
     
     #we always do this part static mac addresses or not
