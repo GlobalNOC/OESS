@@ -130,7 +130,9 @@ my $correct_result =  {
                            'external_id' => undef,
                            'name' => 'Workgroup 11',
                            'type' => 'admin',
-                           'description' => ''
+                           'description' => '',
+			   'max_circuits' => 42,
+			   'max_mac_address_per_end' => 10
                          },
           'active_path' => 'primary',
           'bandwidth' => '1337',
