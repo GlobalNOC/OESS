@@ -769,6 +769,15 @@ sub change_path{
 
 }
 
+=head2 is_interdomain
+
+=cut
+
+sub is_interdomain{
+    my $self = shift;
+    return $self->{'interdomain'};
+}
+
 =head2 get_path_status
 
 =cut
