@@ -3556,10 +3556,10 @@ sub get_circuit_endpoints {
         }
 
         # retrieve the vlan tag range
-        my $vlan_tag_range = $self->_validate_endpoint(
-            interface_id => $endpoint->{'interface_id'},
-            workgroup_id => $workgroup_id
-        );
+#        my $vlan_tag_range = $self->_validate_endpoint(
+#            interface_id => $endpoint->{'interface_id'},
+#            workgroup_id => $workgroup_id
+#        );
 
         push (@$results, {'node'      => $endpoint->{'node_name'},
                   'interface' => $endpoint->{'int_name'},
@@ -3570,8 +3570,8 @@ sub get_circuit_endpoints {
                   'role'      => $endpoint->{'role'},
                   'interface_description' => $endpoint->{'interface_description'},
                   'urn'       => $endpoint->{'urn'},
-                  'mac_addrs' => $mac_addrs,
-                  'vlan_tag_range' => $vlan_tag_range
+                  'mac_addrs' => $mac_addrs#,
+                  #'vlan_tag_range' => $vlan_tag_range
                          }
             );
     }
