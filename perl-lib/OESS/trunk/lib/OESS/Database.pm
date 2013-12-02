@@ -1599,7 +1599,7 @@ sub get_workgroups {
 
     my @dbargs = ();
     my $workgroups = [];
-    my $sql="select w.workgroup_id, w.name,w.type, w.external_id, w.max_mac_address_per_end, w.max_circuits from workgroup w ";
+    my $sql="select w.workgroup_id, w.name,w.type, w.external_id, w.max_mac_address_per_end, w.max_circuits, w.max_circuit_endpoints from workgroup w ";
 
     if(defined $args{'user_id'}){
 	$sql .= "join user_workgroup_membership m on w.workgroup_id = m.workgroup_id ".
@@ -1622,6 +1622,7 @@ sub get_workgroups {
             external_id  => $workgroup->{'external_id'},
             type         => $workgroup->{'type'},
             max_circuits => $workgroup->{'max_circuits'},
+            max_circuit_endpoints => $workgroup->{'max_circuit_endpoints'},
             max_mac_address_per_end => $workgroup->{'max_mac_address_per_end'}
 	      });
     }
@@ -1637,7 +1638,7 @@ sub update_workgroup {
     my $self = shift;
     my %args = @_;
 
-    my $results = $self->_execute_query("update workgroup set name = ?, external_id = ?, max_mac_address_per_end = ?, max_circuits = ? where workgroup_id = ?",[$args{'name'},$args{'external_id'},$args{'max_mac_address_per_end'}, $args{'max_circuits'}, $args{'workgroup_id'}]);
+    my $results = $self->_execute_query("update workgroup set name = ?, external_id = ?, max_mac_address_per_end = ?, max_circuits = ?, max_circuit_endpoints = ? where workgroup_id = ?",[$args{'name'},$args{'external_id'},$args{'max_mac_address_per_end'}, $args{'max_circuits'}, $args{'max_circuit_endpoints'}, $args{'workgroup_id'}]);
 
     if(!defined($results)){
 	$self->_set_error("Internal error while fetching workgroups");
@@ -5666,6 +5667,18 @@ sub provision_circuit {
         return;
     }
 
+    # makes sure this workgroup hasn't gone over their endpoint limit
+    my $endpoint_num = @$nodes;
+    $within_limit = $self->is_within_circuit_endpoint_limit( 
+        workgroup_id => $workgroup_id,
+        endpoint_num => $endpoint_num
+    );
+    if(!$within_limit){
+        $self->_set_error("Permission denied: $endpoint_num endpoints exceeds the limit of endpoints per circuit placed on this workgroup.");
+        return;
+    }
+    
+
     my $query;
 
     $self->_start_transaction();
@@ -6513,6 +6526,17 @@ sub edit_circuit {
     my $user_id        = $self->get_user_id_by_auth_name(auth_name => $user_name);
     if (! $user_id ){
         $self->_set_error("Unknown user '$user_name'");
+        return;
+    }
+
+    # makes sure this workgroup hasn't gone over their endpoint limit
+    my $endpoint_num = @$nodes;
+    my $within_limit = $self->is_within_circuit_endpoint_limit( 
+        workgroup_id => $workgroup_id,
+        endpoint_num => $endpoint_num
+    );
+    if(!$within_limit){
+        $self->_set_error("Permission denied: $endpoint_num endpoints exceeds the limit of endpoints per circuit placed on this workgroup.");
         return;
     }
 
