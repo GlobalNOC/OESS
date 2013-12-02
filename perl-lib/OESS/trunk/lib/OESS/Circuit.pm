@@ -392,6 +392,7 @@ sub _generate_static_mac_path_flows{
 			    my $flow = OESS::FlowRule->new( match => {'dl_vlan' => $in_port->{'tag'},
 								      'in_port' => $in_port->{'port_no'},
 								      'dl_dst' => $mac_addr->{'mac_address'}},
+							    priority => 35000,
 							    dpid => $self->{'dpid_lookup'}->{$vert},
 							    actions => [{'set_vlan_vid' => $internal_ids->{$path}{$next_hop[1]}},
 									{'output' => $port}]);
@@ -417,6 +418,7 @@ sub _generate_static_mac_path_flows{
 			    my $flow = OESS::FlowRule->new( match => {'dl_vlan' => $in_port->{'tag'},
 								      'in_port' => $in_port->{'port_no'},
 								      'dl_dst' => $mac_addr->{'mac_address'}},
+							    priority =>35000,
 							    dpid => $self->{'dpid_lookup'}->{$vert},
 							    actions => [{'set_vlan_vid' => $endpoint->{'tag'}},
 									{'output' => $endpoint->{'port_no'}}]);
