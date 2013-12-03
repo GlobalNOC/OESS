@@ -692,8 +692,18 @@ sub has_backup_path{
 
 sub get_path{
     my $self = shift;
-    my $path = shift;
 
+    my %params = @_;
+
+    my $path = $params{'path'};
+    
+    if(!defined($path)){
+        $self->{'logger'}->error("Path was not defined");
+        return;
+    }
+
+    $self->{'logger'}->trace("Returning links for path '$path'");
+    
     if($path eq 'backup'){
         return $self->{'details'}->{'backup_links'};
     }else{

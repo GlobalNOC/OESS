@@ -16,7 +16,7 @@ use OESS::Database;
 use OESS::Circuit;
 use OESSDatabaseTester;
 
-use Test::More tests =>25;
+use Test::More tests =>26;
 use Test::Deep;
 use Data::Dumper;
 use Log::Log4perl;
@@ -26,6 +26,8 @@ Log::Log4perl::init_and_watch('t/conf/logging.conf',10);
 my $db = OESS::Database->new( config => OESSDatabaseTester::getConfigFilePath() );
 
 my $ckt = OESS::Circuit->new( circuit_id => 4111, db => $db);
+
+ok($ckt->has_backup_path(), "Circuit has backup path");
 
 my $flows = $ckt->get_flows();
 
