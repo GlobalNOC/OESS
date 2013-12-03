@@ -344,7 +344,7 @@ function makeStaticMacTable( body, header ) {
     header = "Static MAC Addresses & " + header; 
     body += "<div id='tag_selection_mac_table' style='margin-bottom: 2px;'></div>"; 
     var style = "'height: 27px; vertical-align: top;'";
-    body += "<input id='mac_address_input' type='text' size='13' style="+style+">";
+    body += "<input id='mac_address_input' type='text' size='18' style="+style+">";
     body += "<span class='yui-button yui-link-button'>";
     body +=     "<span id='add_mac_address' class='first-child'>";
     body +=         "<a href='#add_acl'>Add MAC Address</a>";
@@ -358,8 +358,8 @@ function makeStaticMacTable( body, header ) {
         ds.responseType = YAHOO.util.DataSource.TYPE_JSARRAY;
 
         var cols = [
-            {key: "mac_address", width: 130, label: "MAC Address"},
-            {label: "Delete", width: 65, formatter: function(el, rec, col, data){
+            {key: "mac_address", width: 135, label: "MAC Address"},
+            {label: "Delete", width: 80, formatter: function(el, rec, col, data){
                 var del_button = new YAHOO.widget.Button({label: "Delete"});
                 YAHOO.util.Dom.addClass(del_button, "mac_address_remove_button");
                 var t = this;
