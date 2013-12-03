@@ -127,7 +127,7 @@ sub _process_circuit_details{
     $self->{'logger'}->debug("Processing circuit " . $self->{'circuit_id'});
 
     $self->{'active_path'} = $self->{'details'}->{'active_path'};
-    
+    $self->{'static_mac'} = $self->{'details'}->{'static_mac'};
     $self->{'has_backup_path'} = 0;
     $self->{'interdomain'} = 0;
     if(scalar(@{$self->{'details'}->{'backup_links'}}) > 0){
@@ -220,7 +220,7 @@ sub _create_flows{
     }
     
     #do static mac addrs
-    if($circuit_details->{'static_mac_address'}){
+    if($self->is_static_mac()){
 	#generate normal flows that go on the path
 	$self->_generate_static_mac_path_flows( path => 'primary');
 	if($self->has_backup_path()){
@@ -311,6 +311,7 @@ sub _generate_static_mac_path_flows{
     my %finder;
     
     my $links;
+
     if($path eq 'primary'){
 	$links = $self->{'details'}->{'links'};
     }else{
@@ -343,6 +344,9 @@ sub _generate_static_mac_path_flows{
     
     
     foreach my $vert (@verts){
+        if(!defined($node_ends{$vert})){
+            $node_ends{$vert} =0;
+        }
 	$self->{'logger'}->debug("Vert: " . $vert . " has degree: " . $graph->degree($vert) . " and " . $node_ends{$vert} .
 				 " endpoints for total degree " . ($graph->degree($vert) + $node_ends{$vert}));
 
@@ -392,7 +396,7 @@ sub _generate_static_mac_path_flows{
 			    
 			    my $flow = OESS::FlowRule->new( match => {'dl_vlan' => $in_port->{'tag'},
 								      'in_port' => $in_port->{'port_no'},
-								      'dl_dst' => $mac_addr->{'mac_address'}},
+								      'dl_dst' => OESS::Database::mac_hex2num($mac_addr->{'mac_address'})},
 							    priority => 35000,
 							    dpid => $self->{'dpid_lookup'}->{$vert},
 							    actions => [{'set_vlan_vid' => $internal_ids->{$path}{$next_hop[1]}},
@@ -418,7 +422,7 @@ sub _generate_static_mac_path_flows{
 			    $self->{'logger'}->debug("Creating flow for mac_addr " . $mac_addr->{'mac_address'} . " on node " . $vert);
 			    my $flow = OESS::FlowRule->new( match => {'dl_vlan' => $in_port->{'tag'},
 								      'in_port' => $in_port->{'port_no'},
-								      'dl_dst' => $mac_addr->{'mac_address'}},
+								      'dl_dst' => OESS::Database::mac_hex2num($mac_addr->{'mac_address'})},
 							    priority =>35000,
 							    dpid => $self->{'dpid_lookup'}->{$vert},
 							    actions => [{'set_vlan_vid' => $endpoint->{'tag'}},
@@ -794,6 +798,15 @@ sub change_path{
 sub is_interdomain{
     my $self = shift;
     return $self->{'interdomain'};
+}
+
+=head2 is_static_mac
+
+=cut
+
+sub is_static_mac{
+    my $self = shift;
+    return $self->{'static_mac'};
 }
 
 =head2 get_path_status
