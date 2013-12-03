@@ -30,7 +30,7 @@ $user = $db->get_user_admin_status( username => 'user_921@foo.net' );
 warn Dumper ($user);
 ok(!@$user, "no value returned when user is not a member of an admin workgroup");
 
-$user = $db->get_user_admin_status( username => 'aragusa@grnoc.iu.edu');
+$user = $db->get_user_admin_status( username => 'aragusa');
 warn Dumper ($user);
 ok(@$user, "value returned when aragusa username passed");
 
