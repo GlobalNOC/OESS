@@ -1054,12 +1054,13 @@ sub rules_per_switch{
 }
 
 sub _process_stats_to_flows{
+    my $dpid = shift;
     my $flows = shift;
     
     my @new_flows;
     foreach my $flow (@$flows){
 	
-	my $new_flow = OESS::FlowRule::stat_to_flow( $flow );
+	my $new_flow = OESS::FlowRule::parse_stat( dpid => $dpid, stat => $flow );
 	push(@new_flows,$new_flow);
     }
 
@@ -1094,7 +1095,7 @@ sub get_flow_stats{
     my $self = shift;
     foreach my $dpid (keys (%{$self->{'nodes_needing_diff'}})) {
         my $node = $self->{'nodes_needing_diff'}{$dpid};
-        my ($time,$flows) = $self->{'of_controller'}->get_flow_stats($dpid);
+        my ($time,$stats) = $self->{'of_controller'}->get_flow_stats($dpid);
 
         if ($time == -1) {
             #we don't have flow data yet
@@ -1104,12 +1105,13 @@ sub get_flow_stats{
 
 
         #---process the flow_rules into a lookup hash
-        my $hash = _process_flows_to_hash($flows);
+        #my $hash = _process_flows_to_hash($flows);
+        my $flows = _process_stats_to_flows( $dpid, $stats);
 
         #--- now that we have the lookup hash of flow_rules
         #--- do the diff
 
-        $self->_do_diff($node,$hash);
+        $self->_do_diff($node,$flows);
 
         delete $self->{'nodes_needing_diff'}{$dpid};
     }
