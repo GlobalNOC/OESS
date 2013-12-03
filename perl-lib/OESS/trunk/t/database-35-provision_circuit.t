@@ -139,10 +139,10 @@ my $correct_result =  {
           'bandwidth' => '1337',
           'internal_ids' => {
                               'primary' => {
-                                             'Node 11' => '152',
+                                             'Node 11' => '154',
                                              'Node 5721' => '28',
-                                             'Node 61' => '134',
-                                             'Node 51' => '138'
+                                             'Node 61' => '135',
+                                             'Node 51' => '140'
                                            }
                             },
           'user_id' => '11',
