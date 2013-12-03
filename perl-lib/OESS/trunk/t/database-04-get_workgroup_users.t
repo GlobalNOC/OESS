@@ -35,7 +35,7 @@ cmp_deeply($users->[0], {
             'user_id' => '11',
             'family_name' => 'User 11',
             'auth_name' => [
-                             'aragusa@grnoc.iu.edu'
+                             'aragusa'
                            ],
             'first_name' => 'User 11'
           }, "first user in workgroup data matches");
