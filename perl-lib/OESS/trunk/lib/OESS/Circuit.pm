@@ -624,7 +624,7 @@ sub generate_clr{
 
     my $clr = "";
     $clr .= "Circuit: " . $self->{'details'}->{'name'} . "\n";
-    $clr .= "Created by: " . $self->{'details'}->{'created_by'}->{'given_names'} . " " . $self->{'details'}->{'created_by'}->{'family_name'} . " at " . $self->{'details'}->{'created_on'} . " for workgroup " . $self->{'workgroup'}->{'name'} . "\n";
+    $clr .= "Created by: " . $self->{'details'}->{'created_by'}->{'given_names'} . " " . $self->{'details'}->{'created_by'}->{'family_name'} . " at " . $self->{'details'}->{'created_on'} . " for workgroup " . $self->{'details'}->{'workgroup'}->{'name'} . "\n";
     $clr .= "Lasted Modified By: " . $self->{'details'}->{'last_modified_by'}->{'given_names'} . " " . $self->{'details'}->{'last_modified_by'}->{'family_name'} . " at " . $self->{'details'}->{'last_edited'} . "\n\n";
     $clr .= "Endpoints: \n";
 
@@ -638,9 +638,12 @@ sub generate_clr{
 	$clr .= "  " . $path->{'name'} . "\n";
     }
 
-    $clr .= "\nBackup Path:\n";
-    foreach my $path (@{$self->get_path( path => 'backup' )}){
-	$clr .= "  " . $path->{'name'} . "\n";
+    if($self->has_backup_path()){
+        
+        $clr .= "\nBackup Path:\n";
+        foreach my $path (@{$self->get_path( path => 'backup' )}){
+            $clr .= "  " . $path->{'name'} . "\n";
+        }
     }
 
     return $clr;
