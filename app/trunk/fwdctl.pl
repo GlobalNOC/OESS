@@ -500,7 +500,15 @@ sub _restore_down_circuits{
     my $circuit_notification_data = [];
     foreach my $circuit (@$circuits) {
 
-        my $ckt = $self->{'circuit'}->{$circuit->{'circuit_id'}};
+        my $ckt = $self->{'circuits'}->{$circuit->{'circuit_id'}};
+
+        if(!defined($ckt)){
+            $circuit = OESS::Circuit->new( circuit_id => $circuit->{'circuit_id'}, db => $self->{'db'});
+        }
+        if(!defined($ckt)){
+            $self->error("unable to build circuit object for circuit_id: " . $circuit->{'circuit_id'});
+            next;
+        }
 
         if($ckt->has_backup_path()){
 
