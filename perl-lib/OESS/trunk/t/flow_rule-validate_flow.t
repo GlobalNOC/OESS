@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use OESS::FlowRule;
 
-use Test::More tests => 15;
+use Test::More tests => 16;
 use Test::Deep;
 
 my $flow_rule = OESS::FlowRule->new();
@@ -54,3 +54,16 @@ ok($flow_rule->get_priority() == 400, "actually set priority");
 ok(!$flow_rule->set_priority( 400000 ), "was not able to set invalid priority");
 
 ok($flow_rule->get_priority() == 400, "flow priority was correct");
+
+my $flow_mod = OESS::FlowRule->new( match => {'dl_vlan' => 100,
+                                           'in_port' => 678,
+                                           'dl_dst' => 2114071831770928,
+                                           'dl_type' => 560320,
+                                           'foobar' => 1},
+                                 actions => [{'output' => 679},
+                                             {'set_vlan_vid' => 101},
+                                             {'output' => 1},
+                                             {'set_vlan_vid' => 101}],
+                                 dpid => 1111111111);
+
+ok(!defined($flow_mod), "Flow mode was not defined because foobar is not allowed match");
