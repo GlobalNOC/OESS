@@ -106,6 +106,24 @@ sub get_id{
     return $self->{'circuit_id'};
 }
 
+=head2 get_name
+
+=cut
+
+sub get_name{
+    my $self = shift;
+    return $self->{'details'}->{'name'};
+}
+
+=head2 get_restore_to_primary
+
+=cut
+
+sub get_restore_to_primary{
+    my $self = shift;
+    return $self->{'details'}->{'restore_to_primary'};
+}
+
 =head2 update_circuit_details
 
     reload the circuit details from the database to make sure everything 
@@ -728,10 +746,17 @@ sub get_active_path{
 
 sub change_path{
     my $self = shift;
+    my %params = @_;
+
+    my $do_commit = 1;
+    if(defined($params{'do_commit'})){
+        $do_commit = $params{'do_commit'};
+    }
+
     #change the path
 
     if(!$self->has_backup_path()){
-        $self->_set_error("Circuit " . $self->{'name'} . " has no alternate path, refusing to try to switch to alternate.");
+        $self->error("Circuit " . $self->{'name'} . " has no alternate path, refusing to try to switch to alternate.");
         return;
     }
 
@@ -742,8 +767,9 @@ sub change_path{
     
     my $results = $self->{'db'}->_execute_query($query, [$self->{'circuit_id'}]);
     my $new_active_path_id = $results->[0]->{'path_id'};
-    $self->{'db'}->_start_transaction();
-
+    if($do_commit){
+        $self->{'db'}->_start_transaction();
+    }
     # grab the path_id of the one we're switching away from
     $query = "select path_instantiation.path_id, path_instantiation.path_instantiation_id from path " .
 	" join path_instantiation on path.path_id = path_instantiation.path_id " .
@@ -753,7 +779,7 @@ sub change_path{
     $results = $self->{'db'}->_execute_query($query, [$self->{'circuit_id'}]);
 
     if (! defined $results || @$results < 1){
-        $self->_set_error("Unable to find path_id for current path.");
+        $self->error("Unable to find path_id for current path.");
         $self->{'db'}->_rollback();
         return;
     }
@@ -768,7 +794,7 @@ sub change_path{
     my $success = $self->{'db'}->_execute_query($query, [$old_active_path_id]);
 
     if (! $success ){
-        $self->_set_error("Unable to change path_instantiation of current path to inactive.");
+        $self->error("Unable to change path_instantiation of current path to inactive.");
         $self->_rollback();
         return;
     }
@@ -780,7 +806,7 @@ sub change_path{
     my $new_available = $self->{'db'}->_execute_query($query, [$old_active_path_id]);
 
     if (! defined $new_available){
-        $self->_set_error("Unable to create new available path based on old instantiation.");
+        $self->error("Unable to create new available path based on old instantiation.");
         $self->_rollback();
         return;
     }    
@@ -792,7 +818,7 @@ sub change_path{
 
     if (! defined $success){
         $self->{'logger'}->error("Unable to move internal vlan id mappings over to new path instance");
-        $self->_set_error("Unable to move internal vlan id mappings over to new path instance.");
+        $self->error("Unable to move internal vlan id mappings over to new path instance.");
         $self->_rollback();
         return;
     }
@@ -811,9 +837,10 @@ sub change_path{
         $self->{'db'}->_rollback();
         return;
     }
-
-    $self->{'db'}->_commit();
-
+    
+    if($do_commit){
+        $self->{'db'}->_commit();
+    }
     #DB is now updated change our internal identifier
     $self->update_circuit_details();
 
