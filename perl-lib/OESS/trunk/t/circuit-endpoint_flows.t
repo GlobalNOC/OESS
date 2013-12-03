@@ -16,7 +16,7 @@ use OESS::Database;
 use OESS::Circuit;
 use OESSDatabaseTester;
 
-use Test::More tests => 17;
+use Test::More tests => 19;
 use Test::Deep;
 use Data::Dumper;
 
@@ -190,3 +190,6 @@ $backup_flows = $ckt->get_endpoint_flows( path => 'backup');
 
 ok(defined($backup_flows), "Backup flows were not defined (circuit has no backup path)");
 ok(scalar(@$backup_flows) == 0, "No actual backup path flows were specified");
+
+ok(!defined($ckt->get_endpoint_flows( path => 'foo')), "Doesn't support paths that aren't 'primary' or 'backup'");
+ok(!defined($ckt->get_endpoint_flows()), "Doesn't support not specifying a path");

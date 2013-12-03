@@ -224,6 +224,7 @@ sub _create_flows{
 	#generate normal flows that go on the path
 	$self->_generate_static_mac_path_flows( path => 'primary');
 	if($self->has_backup_path()){
+            $self->{'logger'}->debug("generating static mac backup flows");
 	    $self->_generate_static_mac_path_flows( path => 'backup');
 	}
     }
