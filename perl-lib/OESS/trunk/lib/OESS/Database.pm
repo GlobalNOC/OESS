@@ -3401,7 +3401,7 @@ sub get_circuit_details {
     }
 
 
-    $details->{'internal_ids'} = $self->get_circuit_internal_ids(circuit_id => $circuit_id) || [];
+    $details->{'internal_ids'} = $self->get_circuit_internal_ids(circuit_id => $circuit_id) || {};
 
     $details->{'endpoints'}    = $self->get_circuit_endpoints(circuit_id => $circuit_id, show_historical=> $show_historical) || [];
 
