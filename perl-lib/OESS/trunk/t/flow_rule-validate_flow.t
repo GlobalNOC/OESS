@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use OESS::FlowRule;
 
-use Test::More tests => 16;
+use Test::More tests => 18;
 use Test::Deep;
 
 my $flow_rule = OESS::FlowRule->new();
@@ -19,11 +19,19 @@ $flow_rule = OESS::FlowRule->new(match => {'dl_vlan' => 5000});
 
 ok(!defined($flow_rule), "Does not validate with a bad vlan");
 
+$flow_rule = OESS::FlowRule->new(match => {'dl_vlan' => -1});
+
+ok(!defined($flow_rule), "Does not validate with a bad vlan");
+
 $flow_rule = OESS::FlowRule->new(match => {'in_port' => 5});
 
 ok(defined($flow_rule), "Validates with a good port");
 
 $flow_rule = OESS::FlowRule->new(match => {'in_port' => 700000});
+
+ok(!defined($flow_rule), "Does not Validate with a bad port");
+
+$flow_rule = OESS::FlowRule->new(match => {'in_port' => -2});
 
 ok(!defined($flow_rule), "Does not Validate with a bad port");
 

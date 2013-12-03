@@ -717,7 +717,6 @@ sub merge_actions{
 =cut
 
 sub parse_stat{
-    my $self = shift;
     my %params = @_;
 
     my $dpid = $params{'dpid'};
@@ -731,11 +730,12 @@ sub parse_stat{
     my @new_actions;
 
     foreach my $action (@$actions){
-	switch ($action->[0]){
+        warn Data::Dumper::Dumper($action);
+	switch ($action->{'type'}){
 	    case (OFPAT_OUTPUT){
-		push(@new_actions,{'output' => $action->[0]->[0]});
+		push(@new_actions,{'output' => $action->{'port'}});
 	    }case (OFPAT_SET_VLAN_VID){
-		push(@new_actions,{'set_vlan_id' => $action->[1]});
+		push(@new_actions,{'set_vlan_id' => $action->{'vlan_vid'}});
 	    }case (OFPAT_STRIP_VLAN){
 		push(@new_actions,{'set_vlan_id' => UNTAGGED});
 	    }
@@ -744,7 +744,7 @@ sub parse_stat{
 
     my $flow = OESS::FlowRule->new( match => $match,
 				    dpid => $dpid,
-				    actions => @new_actions);
+				    actions => \@new_actions);
 
     return $flow;
     
