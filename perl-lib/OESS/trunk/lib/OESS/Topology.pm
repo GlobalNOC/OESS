@@ -185,43 +185,6 @@ sub path_is_loop_free{
     return 1;
 }
 
-=head2 build_graph_of_circuit
-
-=cut
-
-sub build_graph_of_circuit{
-    my $self = shift;
-    my %params = @_;
-
-    my $circuit = $params{'circuit'};
-    if(!defined($circuit)){
-	return;
-    }
-
-    if(!defined($params{'path'})){
-	$params{'path'} = 'primary';
-    }
-
-
-    my @links;
-    if($params{'path'} eq 'primary'){
-	@links = @{$circuit->{'links'}};
-    }else{
-	@links = @{$circuit->{'backup_links'}};
-    }
-
-    my $g = Graph::Undirected->new;
-    
-    foreach my $link (@links){
-	$g->add_vertex($link->{'node_z'});
-	$g->add_vertex($link->{'node_a'});
-	$g->add_edge($link->{'node_a'},$link->{'node_z'});
-    }
-
-    return $g;
-
-}
-
 =head2 all_endpoints_connected_in_path
 
     checks to see if all the endpoints are connected
