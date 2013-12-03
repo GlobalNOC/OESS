@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use OESS::FlowRule;
 
-use Test::More tests => 18;
+use Test::More tests => 19;
 use Test::Deep;
 
 my $flow_rule = OESS::FlowRule->new();
@@ -20,6 +20,10 @@ $flow_rule = OESS::FlowRule->new(match => {'dl_vlan' => 5000});
 ok(!defined($flow_rule), "Does not validate with a bad vlan");
 
 $flow_rule = OESS::FlowRule->new(match => {'dl_vlan' => -1});
+
+ok(defined($flow_rule), "Allows untagged");
+
+$flow_rule = OESS::FlowRule->new( match => {'dl_vlan' => -200});
 
 ok(!defined($flow_rule), "Does not validate with a bad vlan");
 
