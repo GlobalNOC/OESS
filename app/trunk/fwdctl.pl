@@ -697,7 +697,7 @@ sub _fail_over_circuits{
 	    }
 
 	    #check the alternate paths status
-	    if($circuit->get_path_status( path => $alternate_path, link_status => \%link_status){
+	    if($circuit->get_path_status( path => $alternate_path, link_status => \%link_status)){
 		my $success = $circuit->change_path();
 		$self->{'logger'}->warn("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name moving to alternate path");
 
@@ -1172,16 +1172,16 @@ sub addVlan {
     my $dpid	   = shift;
 
     $self->{'logger'}->info("addVlan: $circuit_id");
-    
-    if(!defined($self->{'circuit'}->{$circuit_id})){
 
-        $ckt = OESS::Circuit->new( circuit_id => $circuit_id,
+    if(!defined($self->{'circuit'}->{$circuit_id})){
+        
+        my $ckt = OESS::Circuit->new( circuit_id => $circuit_id,
                                    db => $self->{'db'});
         $self->{'logger'}->trace("ckt: " . Data::Dumper::Dumper($ckt));
         $self->{'circuit'}->{$circuit_id} = $ckt;
     }else{    
         $self->{'circuit'}->{$circuit_id}->update_circuit_details();
-
+    }
     #--- get the set of commands needed to create this vlan per design
     my $commands = $self->_generate_commands($circuit_id,FWDCTL_ADD_VLAN);
 
@@ -1271,7 +1271,7 @@ sub deleteVlan {
 
     if(!defined($self->{'circuit'}->{$circuit_id})){
 
-        $ckt = OESS::Circuit->new( circuit_id => $circuit_id,
+        my $ckt = OESS::Circuit->new( circuit_id => $circuit_id,
                                    db => $self->{'db'});
         $self->{'logger'}->trace("ckt: " . Data::Dumper::Dumper($ckt));
         $self->{'circuit'}->{$circuit_id} = $ckt;
