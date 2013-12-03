@@ -5813,6 +5813,11 @@ sub provision_circuit {
         # now add the mac addresses to the endpoint
         $query = "insert into circuit_edge_mac_address values (?,?)";
         foreach my $mac_address (@endpoint_mac_addresses){
+            if( ! mac_validate( $mac_address ) ){
+                $self->_set_error("$mac_address is not a valid mac address.");
+                $self->_rollback();
+                return;
+            }
             $mac_address = mac_hex2num( $mac_address );
             if( ! defined $self->_execute_query($query, [$circuit_edge_id, $mac_address]) ){
                 $self->_set_error("Unable to create mac address edge to interface '$interface' on endpoint '$node'");
@@ -6687,6 +6692,12 @@ sub edit_circuit {
             # now add the mac addresses to the endpoint
             $query = "insert into circuit_edge_mac_address values (?,?)";
             foreach my $mac_address (@endpoint_mac_addresses){
+                if( ! mac_validate( $mac_address ) ){
+                    $self->_set_error("$mac_address is not a valid mac address.");
+                    $self->_rollback();
+                    return;
+                }
+
                 $mac_address = mac_hex2num( $mac_address );
                 if( ! defined $self->_execute_query($query, [$circuit_edge_id, $mac_address]) ){
                     $self->_set_error("Unable to create mac address edge to interface '$interface' on endpoint '$node'");
@@ -7938,6 +7949,19 @@ sub mac_num2hex {
   }
 
   return join(':', @mac_bytes);
+}
+
+=head2 mac_validate
+
+=cut
+sub mac_validate {
+    my $mac = shift;
+
+    if( $mac =~ /^([0-9a-f]{2}([:-]|$)){6}$/i ){
+        return 1;
+    }
+
+    return 0;
 }
 
 return 1;
