@@ -96,7 +96,7 @@ my $correct_result =  {
                          'interface_a' => 'e3/1'
                        }
                      ],
-          'circuit_id' => '4173',
+          'circuit_id' => '4183',
           'workgroup_id' => '11',
           'description' => 'Test',
           'endpoints' => [

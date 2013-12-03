@@ -35,7 +35,7 @@ my $res = $db->edit_circuit(
     'nodes' => ['Node 11', 'Node 51'], 
     'interfaces' => ['e15/1', 'e15/1'],
     'tags' => [1,1],
-    'user_name' => 'aragusa@grnoc.iu.edu',
+    'user_name' => 'aragusa',
     'workgroup_id' => 11,
     'external_id' => undef
 );
@@ -53,7 +53,7 @@ $res = $db->edit_circuit(
     'nodes' => ['Node 11', 'Node 51'], 
     'interfaces' => ['e1/1', 'e15/1'],
     'tags' => [2,2],
-    'user_name' => 'aragusa@grnoc.iu.edu',
+    'user_name' => 'aragusa',
     'workgroup_id' => 11,
     'external_id' => undef
 );
