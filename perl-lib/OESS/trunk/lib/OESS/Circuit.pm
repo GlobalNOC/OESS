@@ -286,6 +286,9 @@ sub _dedup_flows{
     foreach my $flow (@$flows){
 	my $matched = 0;
 	foreach my $de_duped_flow (@deduped){
+            if(!defined($flow) || !defined($de_duped_flow)){
+                next;
+            }
             if($de_duped_flow->get_dpid() != $flow->get_dpid()){
                 next;
             }
