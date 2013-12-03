@@ -11,7 +11,6 @@ WriteMakefile(
     NAME                => 'OESS',
     AUTHOR              => 'GRNOC Systems Engineering <syseng@grnoc.iu.edu>',
     VERSION_FROM        => 'lib/OESS/Database.pm',
-    ABSTRACT_FROM       => 'lib/OESS/Database.pm',
     PL_FILES            => {},
     PREREQ_PM => {
 	'DBI'=> 0,
