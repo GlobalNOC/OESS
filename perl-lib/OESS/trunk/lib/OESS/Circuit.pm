@@ -647,6 +647,17 @@ sub generate_clr{
 
 sub generate_clr_raw{
     
+    my $self = shift;
+
+    my $flows = $self->get_flows();
+
+    my $str = "";
+
+    foreach my $flow (@$flows){
+        $str .= $flow->to_human() . "\n";
+    }
+
+    return $str;
 }
 
 =head2 get_endpoints
@@ -711,7 +722,7 @@ sub change_path{
                  "  and path_instantiation.path_state = 'available' and path_instantiation.end_epoch = -1 " .
                  " where circuit_id = ?";
     
-    my $results = $self->_execute_query($query, [$self->{'circuit_id'}]);
+    my $results = $self->{'db'}->_execute_query($query, [$self->{'circuit_id'}]);
     my $new_active_path_id = $results->[0]->{'path_id'};
     $self->{'db'}->_start_transaction();
 
@@ -786,6 +797,7 @@ sub change_path{
     $self->{'db'}->_commit();
 
     #DB is now updated change our internal identifier
+    $self->update_circuit_details();
 
     return 1;
 
