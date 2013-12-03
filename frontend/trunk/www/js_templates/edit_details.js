@@ -187,9 +187,6 @@ function init(){
   
     var restore_to_primary = document.getElementById('restore_to_primary').value;
    
-    //var static_mac_routing = document.getElementById('static_mac_routing_button').childNodes[0].childNodes[0];
-
-    
     if(restore_to_primary == ''){
     	restore_to_primary = 0;
     }else{

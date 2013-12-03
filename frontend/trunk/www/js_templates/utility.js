@@ -343,8 +343,6 @@ function makeStaticMacTable( body, header ) {
   
     header = "Static MAC Addresses & " + header; 
     body += "<div id='tag_selection_mac_table' style='margin-bottom: 2px;'></div>"; 
-    //body += "<div id='tag_selection_mac_table'></div>"; 
-    //body += "<label for='mac_address_input' class='soft_title'>MAC Address:</label>";
     var style = "'height: 27px; vertical-align: top;'";
     body += "<input id='mac_address_input' type='text' size='13' style="+style+">";
     body += "<span class='yui-button yui-link-button'>";
@@ -391,7 +389,6 @@ function makeStaticMacTable( body, header ) {
             var mac_address_input = YAHOO.util.Dom.get('mac_address_input');
             var mac_address = mac_address_input.value; 
             mac_address = mac_address.toLowerCase();
-            //if(mac_address.match(/^([0-9A-F]{2}:){5}([0-9A-F]{2})$/)){
             if(mac_address.match(/^([0-9a-f]{2}:){5}([0-9a-f]{2})$/)){
                 table.addRow({
                     mac_address: mac_address
@@ -399,64 +396,6 @@ function makeStaticMacTable( body, header ) {
             }else {
                 alert("Invalid format, must match XX:XX:XX:XX:XX:XX");
             }
-
-            /*
-            var ds = new YAHOO.util.DataSource(
-                "services/data.cgi?action=is_vlan_tag_available"+
-                "&interface="+encodeURIComponent(interface)
-            );
-            ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-            ds.responseSchema = {
-            resultsList: "results",
-            fields: [{key: "available", parser: "number"}],
-                metaFields: {
-                  "error": "error"
-                }
-            };
-
-            add_tag_button.set("label", "Validating...");
-            add_tag_button.set("disabled", true);
-
-            ds.sendRequest("", {success: function(req, resp){
-            add_tag_button.set("label", "Add Tag");
-            add_tag_button.set("disabled", false);
-
-            if (resp.meta.error){
-                alert("Error - " + resp.meta.error);
-                return;
-            }
-            else if (resp.results[0].available == 1){
-                endpoint_table.addRow({
-                    interface: interface,
-                    interface_description: description,
-                    node: node,
-                    tag: new_tag
-                });
-
-                save_session();
-
-                nddi_map.table.unselectAllRows();
-                nddi_map.table.vlan_panel.destroy();
-                nddi_map.table.vlan_panel = undefined;
-            }
-            else{
-                if (new_tag == -1){
-                alert("Untagged traffic is currently in use by another circuit on interface " + interface + " on endpoint " + node + ".");
-                }
-                else {
-                alert("Tag " + new_tag + " is not currently available on interface " + interface + " on endpoint " + node + ".");
-                }
-            }
-
-            },
-            failure: function(reqp, resp){
-            add_tag_button.set("label", "Add Tag");
-            add_tag_button.set("disabled", false);
-
-            alert("Error validating endpoint.");
-            }
-            });
-            */
         });
 
         return table;
@@ -492,29 +431,6 @@ function makeTagSelectPanel(coordinates, options ){
         this.destroy();
         //this = undefined;
     };
-    /*
-    panel.close = function(){
-        this.destroy();
-    };
-    */
-    //remove the default click handler (._doClose)
-    //YAHOO.util.Event.removeListener(panel.close, "click");   
-
-    //add a new click handler (._doClose)
-    /*
-    YAHOO.util.Event.on(panel.hideEvent, "click", function(){
-        this.destroy();
-    }, panel, true);
-    */
-
-    /*
-    panel.on('visibleChange', function(e) {
-        var hidden = !e.newVal; // e.newVal will be true when showed, false when hidden
-        if (hidden) {
-            panel.destroy();
-        }
-    });
-    */
   
     var vlan_tag_attr_style = "margin-bottom: 4px'"; 
     var header = "VLAN Tag for Interface " + interface; 
@@ -534,7 +450,6 @@ function makeTagSelectPanel(coordinates, options ){
 
 
     var static_mac_table_init;
-    //if(options.include_static_mac_table){
     if(session.data.static_mac_routing){
         var components = makeStaticMacTable( body, header );
         body   = components.body;
@@ -577,25 +492,6 @@ function makeTagSelectPanel(coordinates, options ){
 	    }
 	});  
 
-
-    /*    
-    var add_tag_button = new YAHOO.widget.Button("add_new_vlan_tag_button", {label: "Add Tag"});
-    
-    var tagged = new YAHOO.util.Element(YAHOO.util.Dom.get("tagged"));
-    
-    tagged.on("click", function(){
-	    if (this.get('element').checked){
-            vlan_input.disabled = false;
-            vlan_input.focus();
-            add_tag_button.set("label", "Add Tag");
-	    }
-	    else {
-            vlan_input.disabled = true;
-            vlan_input.value = "";
-            add_tag_button.set("label", "Add Untagged");
-	    }
-	});  
-    */
     var table;
     var get_mac_addresses;
     if(session.data.static_mac_routing){
@@ -611,7 +507,6 @@ function makeTagSelectPanel(coordinates, options ){
             return mac_addrs;
         }
     }
-
 
     var obj = {
         panel: panel, 
@@ -664,21 +559,6 @@ function makeTagSelectPanel(coordinates, options ){
                 }
 
                 panel.hide();
-                /*
-                endpoint_table.addRow({
-                    interface: interface,
-                    interface_description: description,
-                    node: node,
-                    tag: new_tag,
-                    mac_addrs: components.get_mac_addresses()
-                });
-
-                save_session();
-
-                nddi_map.table.unselectAllRows();
-                nddi_map.table.vlan_panel.destroy();
-                nddi_map.table.vlan_panel = undefined;
-                */
             }
         }
 

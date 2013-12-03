@@ -94,17 +94,10 @@ function summary_init(options){
             YAHOO.util.Dom.addClass(button, "endpoint_edit_button");
             var t = this;
             var fetching_input = false;
-            //var vlan_panel;
+            
             button.on("click", function(){
                 button.set('disabled',true);
                 var create_panel = function(){
-                    /*
-                    if(this.vlan_panel){
-                        this.vlan_panel.hide();
-                        //this.vlan_panel = undefined;
-                    }
-                    */
-
                     var region = YAHOO.util.Dom.getRegion(el);
                     var components = makeTagSelectPanel([region.right, region.bottom], {
                         include_static_mac_table: true,
@@ -142,20 +135,10 @@ function summary_init(options){
                     });
                     var vlan_panel = components.panel;
                     vlan_panel.show();
-                    vlan_panel.subscribe("blur", function (event) { 
-                        this.destroy(); 
-                    });
                     button.set('disabled',false);
                 };
 
                 if(!rec.vlan_tag_range){ 
-                    /*
-                    if(fetching_input){
-                        return;
-                    }else {
-                        fetching_input = true;
-                    }
-                    */
                     var tag_ds = new YAHOO.util.DataSource(
                         "services/data.cgi?action=get_vlan_tag_range"+
                         "&interface="+encodeURIComponent(rec.getData('interface'))+
@@ -179,34 +162,14 @@ function summary_init(options){
                             create_panel();
                         }else{
                             alert("Problem fetching vlan tag range.");
-                            //save_button.set("label", "Save");
-                            //save_button.set("disabled", false);
-                            fetching_input = false;
                         }
                     },
                     failure: function(req, resp){
-                        //save_button.set("label", "Save");
-                        //save_button.set("disabled", false);
-
                         alert("Problem fetching vlan tag range.");
-                        fetching_input = false;
                     }});
                 } else {
                     create_panel();
                 }
-
-
-                /*
-                    var interface = rec.getData('interface');
-
-                    showConfirm("Are you sure you wish to delete interface " + interface + "?",
-                            function(){
-                            t.deleteRow(t.getRecordSet().getRecordIndex(rec));
-                            },
-                            function(){}
-                            );
-
-                */
             });//--end on click
             button.appendTo(el);
         }

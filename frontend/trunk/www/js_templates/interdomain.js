@@ -135,8 +135,6 @@ function init(){
 
 	    var region = YAHOO.util.Dom.getRegion(tree_element.contentElId);
 
-        //var region = YAHOO.util.Dom.getRegion(args.target);
-
         var components = makeTagSelectPanel([region.left, region.bottom], {
             panel_width: 393,
             save_action: function(options){
@@ -163,84 +161,13 @@ function init(){
 
             },
             interface: port,
-            //interface_description: description,
             node: node,
             workgroup_id: session.data.workgroup_id,
             tag_range: vlan_range,
             interdomain: true
         });
 
-        /*
-	    var components = makeTagSelectPanel([region.left - 10, region.bottom], port);
-
-	    panel          = components.panel;
-	    var tagged     = components.tagged_input;
-	    var add_button = components.add_button; 
-
-	    panel.show();
-
-	    var vlan_input = YAHOO.util.Dom.get('new_vlan_tag');
-
-	    vlan_input.focus();
-	    
-	    var vlan_range_display = YAHOO.util.Dom.get('new_vlan_tag_range');
-	    vlan_range_display.innerHTML = vlan_range;
-
-	    
-
-
-	    add_button.on("click", function(oArgs){
-
-		    var new_tag;
-
-		    if (tagged.get('element').checked){
-			new_tag = vlan_input.value;
-
-			if (! new_tag){
-			    alert("You must specify an outgoing VLAN tag.");
-			    return;
-			}
-			
-			if (! new_tag.match(/^\d+$/) || new_tag >= 4096 || new_tag < 1){
-			    alert("You must specify a VLAN tag between 1 and 4095.");
-			    return;
-			}
-
-			
-
-		    }
-		    
-		    else {
-			new_tag = -1;
-		    }	
-
-		    if (endpoint_table.getRecordSet().getRecords().length == 2){
-			alert("You can only have exactly two endpoints.");
-			return;
-		    }
-
-                    //do some validation on the endpoint
-                    
-
-		    endpoint_table.addRow({interface: port,
-				           node: node,
-				           tag: new_tag,
-				           urn: urn});
-
-		    if (panel){
-			panel.destroy();
-			panel = null;
-		    }
-
-		    map.showNode(node);		    
-
-		    save_session();
-
-		});
-        */
-	    
 	    return false;
-
 	});
 
   function save_session(){
