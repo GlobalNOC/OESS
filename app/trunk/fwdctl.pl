@@ -200,9 +200,10 @@ sub _generate_commands{
 	    my $primary_flows = $ckt->get_endpoint_flows( path => 'primary');
 	    my $backup_flows =  $ckt->get_endpoint_flows( path => 'backup');
 	    my @commands;
-
+            #we already performed the DB change so that means
+            #whatever path is active is actually what we are moving to
 	    foreach my $flow (@$primary_flows){
-		if($ckt->get_current_path() eq 'primary'){
+		if($ckt->get_active_path() eq 'primary'){
 		    $flow->{'sw_act'} = FWDCTL_ADD_RULE;
 		}else{
 		    $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
@@ -211,7 +212,7 @@ sub _generate_commands{
 	    }
 
 	    foreach my $flow (@$backup_flows){
-		if($flow->{'sw_act'} eq 'primary'){
+		if($ckt->get_active_path() eq 'primary'){
 		    $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
 		}else{
 		    $flow->{'sw_act'} = FWDCTL_ADD_RULE;
@@ -220,7 +221,6 @@ sub _generate_commands{
 	    }
 
 	    return \@commands;
-
 	}
     }
 }
@@ -697,7 +697,7 @@ sub _fail_over_circuits{
 	    }
 
 	    #check the alternate paths status
-	    if($circuit->get_path_status( path => $alternate_path)){
+	    if($circuit->get_path_status( path => $alternate_path, link_status => \%link_status){
 		my $success = $circuit->change_path();
 		$self->{'logger'}->warn("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name moving to alternate path");
 
@@ -1172,6 +1172,15 @@ sub addVlan {
     my $dpid	   = shift;
 
     $self->{'logger'}->info("addVlan: $circuit_id");
+    
+    if(!defined($self->{'circuit'}->{$circuit_id})){
+
+        $ckt = OESS::Circuit->new( circuit_id => $circuit_id,
+                                   db => $self->{'db'});
+        $self->{'logger'}->trace("ckt: " . Data::Dumper::Dumper($ckt));
+        $self->{'circuit'}->{$circuit_id} = $ckt;
+    }else{    
+        $self->{'circuit'}->{$circuit_id}->update_circuit_details();
 
     #--- get the set of commands needed to create this vlan per design
     my $commands = $self->_generate_commands($circuit_id,FWDCTL_ADD_VLAN);
@@ -1259,6 +1268,16 @@ sub addVlan {
 sub deleteVlan {
     my $self = shift;
     my $circuit_id = shift;
+
+    if(!defined($self->{'circuit'}->{$circuit_id})){
+
+        $ckt = OESS::Circuit->new( circuit_id => $circuit_id,
+                                   db => $self->{'db'});
+        $self->{'logger'}->trace("ckt: " . Data::Dumper::Dumper($ckt));
+        $self->{'circuit'}->{$circuit_id} = $ckt;
+    }else{
+        $self->{'circuit'}->{$circuit_id}->update_circuit_details();
+    }
 
     print "removeVlan: $circuit_id\n";
     #--- get the set of commands needed to create this vlan per design
