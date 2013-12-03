@@ -38,6 +38,7 @@ use Data::Dumper;
 
 use OESS::Database;
 use OESS::Topology;
+use OESS::Circuit;
 
 my $db = new OESS::Database();
 
@@ -532,13 +533,14 @@ sub fail_over_circuit {
         return $results;
     }
 
-    my $alternate_path = $db->circuit_has_alternate_path(circuit_id => $circuit_id);
-    if(defined($alternate_path) ){
-        my $topo = OESS::Topology->new( db => $db);
-        my $is_up = $topo->is_path_up( path_id => $alternate_path );
+    my $ckt = OESS::Circuit->new( circuit_id => $circuit_id, db => $db);
+    my $has_backup_path = $ckt->has_backup_path(); 
+    if($has_backup_path){
+        my $active_path = $ckt->get_active_path();
+        my $is_up = $ckt->get_path_status( path => $active_path );
         if ( $is_up || $forced ){
 
-            $db->switch_circuit_to_alternate_path( circuit_id => $circuit_id );
+            $ckt->change_path();
             my $result =
               _fail_over( circuit_id => $circuit_id, workgroup_id => $workgroup_id );
             if ( !defined($result) ) {

@@ -38,10 +38,12 @@ use URI::Escape;
 use MIME::Lite;
 use OESS::Database;
 use OESS::Topology;
+use OESS::Circuit;
+use Log::Log4perl;
 
 my $db   = new OESS::Database();
 my $topo = new OESS::Topology();
-
+Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
 my $cgi = new CGI;
 
 my $username = $ENV{'REMOTE_USER'};
@@ -49,7 +51,7 @@ my $username = $ENV{'REMOTE_USER'};
 $| = 1;
 
 sub main {
-
+    
     if ( !$db ) {
         send_json( { "error" => "Unable to connect to database." } );
         exit(1);
@@ -341,7 +343,8 @@ sub get_circuit_details {
 
     my $circuit_id = $cgi->param('circuit_id');
 
-    my $details = $db->get_circuit_details( circuit_id => $circuit_id );
+    my $ckt = OESS::Circuit->new( circuit_id => $circuit_id, db => $db);
+    my $details = $ckt->get_details();
 
     if ( !defined $details ) {
         $results->{'error'} = $db->get_error();
@@ -366,8 +369,8 @@ sub get_circuit_details_by_external_identifier {
         return $results;
     }
 
-    my $details =
-      $db->get_circuit_details( circuit_id => $info->{'circuit_id'} );
+    my $ckt = OESS::Circuit->new( circuit_id => $info->{'circuit_id'}, db => $db);
+    my $details = $ckt->get_details();
 
     if ( !defined $details ) {
         $results->{'error'} = $db->get_error();
@@ -410,8 +413,8 @@ sub get_existing_circuits {
     my @res;
 
     foreach my $circuit (@$circuits) {
-        my $circuit_details =
-          $db->get_circuit_details( circuit_id => $circuit->{'circuit_id'} );
+        my $ckt = OESS::Circuit->new( circuit_id => $circuit->{'circuit_id'}, db => $db);
+        my $circuit_details = $ckt->get_details();
         $circuit->{'details'} = $circuit_details;
         push( @res, $circuit );
     }
@@ -566,9 +569,14 @@ sub generate_clr {
         return $results;
     }
 
-    
-    my $circuit_clr = $db->generate_clr( circuit_id => $circuit_id,
-					 raw => $cgi->param('raw') );
+    my $ckt = OESS::Circuit->new( circuit_id => $circuit_id, db => $db);
+
+    my $circuit_clr;
+    if( $cgi->param('raw') ){
+        $circuit_clr = $ckt->generate_clr_raw();
+    }else {
+        $circuit_clr = $ckt->generate_clr();
+    }
     
     if ( !defined($circuit_clr) ) {
 	$results->{'error'}   = $db->get_error();
