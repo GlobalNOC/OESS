@@ -52,7 +52,7 @@ $res = $db->edit_circuit(
     'backup_links' => [],
     'nodes' => ['Node 11', 'Node 51'], 
     'interfaces' => ['e1/1', 'e15/1'],
-    'tags' => [2,2],
+    'tags' => [3,3],
     'user_name' => 'aragusa',
     'workgroup_id' => 11,
     'external_id' => undef
@@ -127,7 +127,7 @@ my $correct_result = {
                              'node_id' => '11',
                              'urn' => undef,
                              'interface' => 'e1/1',
-                             'tag' => '2',
+                             'tag' => '3',
                              'role' => 'unknown',
                              'mac_addrs' => []
                            },
@@ -139,7 +139,7 @@ my $correct_result = {
                              'node_id' => '51',
                              'urn' => undef,
                              'interface' => 'e15/1',
-                             'tag' => '2',
+                             'tag' => '3',
                              'role' => 'unknown',
                              'mac_addrs' => []
                            }
@@ -150,7 +150,7 @@ my $correct_result = {
                            'name' => 'Workgroup 11',
                            'type' => 'admin',
                            'description' => '',
-                           'max_circuits' => 42,
+                           'max_circuits' => 43,
                            'max_mac_address_per_end' => 10,
                            'max_circuit_endpoints' => 10
                          },

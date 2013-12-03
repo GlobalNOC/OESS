@@ -34,7 +34,7 @@ my $res = $db->provision_circuit(
     'nodes' => ['Node 11', 'Node 51'], 
     'interfaces' => ['e15/1', 'e15/1'],
     'tags' => [1,1],
-    'user_name' => 'aragusa@grnoc.iu.edu',
+    'user_name' => 'aragusa',
     'workgroup_id' => 11,
     'external_id' => undef
 );
@@ -51,7 +51,7 @@ $res = $db->provision_circuit(
     'nodes' => ['Node 11', 'Node 51'], 
     'interfaces' => ['e1/1', 'e15/1'],
     'tags' => [1,1],
-    'user_name' => 'aragusa@grnoc.iu.edu',
+    'user_name' => 'aragusa',
     'workgroup_id' => 11,
     'external_id' => undef
 );
@@ -131,7 +131,7 @@ my $correct_result =  {
                            'name' => 'Workgroup 11',
                            'type' => 'admin',
                            'description' => '',
-			   'max_circuits' => 42,
+			   'max_circuits' => 43,
 			   'max_mac_address_per_end' => 10,
                'max_circuit_endpoints' => 10
                          },
