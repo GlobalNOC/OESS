@@ -6528,6 +6528,17 @@ sub edit_circuit {
         $self->_set_error("Unknown user '$user_name'");
         return;
     }
+    my $workgroup_details = $self->get_workgroup_details(workgroup_id => $workgroup_id);
+    if (! defined $workgroup_details){
+        $self->_set_error("Unknown workgroup.");
+        return;
+    }
+    if (! $self->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
+        $self->_set_error("Permission denied: user is not a part of the requested workgroup.");
+        return;
+    }
+
+
 
     # makes sure this workgroup hasn't gone over their endpoint limit
     my $endpoint_num = @$nodes;
