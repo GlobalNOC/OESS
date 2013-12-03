@@ -499,53 +499,44 @@ sub _restore_down_circuits{
     $self->{'logger'}->debug("In _restore_down_circuits with circuits: ".@$circuits);
     my $circuit_notification_data = [];
     foreach my $circuit (@$circuits) {
-        my $paths = $self->{'db'}->get_circuit_paths( circuit_id => $circuit->{'circuit_id'} );
-        if ($#{$paths} >= 1) {
 
-            #ok we have 2 paths
-            my $backup_path;
-            my $primary_path;
-            foreach my $path (@$paths) {
-                if ($path->{'path_type'} eq 'primary') {
-                    $primary_path = $path;
-                } else {
-                    $backup_path = $path;
-                }
-            }
+        my $ckt = $self->{'circuit'}->{$circuit->{'circuit_id'}};
 
+        if($ckt->has_backup_path()){
 
             #if the restored path is the backup
             if ($circuit->{'path_type'} eq 'backup') {
 
-                if ($self->{'topo'}->is_path_up(path_id => $primary_path->{'path_id'}, link_status => \%link_status ) == OESS_LINK_DOWN) {
+                if ($ckt->get_path_status(path => 'primary', link_status => \%link_status ) == OESS_LINK_DOWN) {
                     #if the primary path is down and the backup path is up and is not active fail over
-                    if ($self->{'topo'}->is_path_up( path_id => $backup_path->{'path_id'}, link_status => \%link_status ) && $backup_path->{'path_state'} ne 'active') {
+                    
+                    if ($ckt->get_path_status( path => 'backup', link_status => \%link_status ) && $ckt->get_active_path() ne 'backup'){
                         #bring it back to this path
-                        my $success = $self->{'db'}->switch_circuit_to_alternate_path( circuit_id => $circuit->{'circuit_id'});
-                        $self->{'logger'}->warning("vlan:" . $circuit->{'name'} ." id:" . $circuit->{'circuit_id'} . " affected by trunk:$link_name moving to alternate path");
-
+                        my $success = $ckt->change_path();
+                        $self->{'logger'}->warning("vlan:" . $ckt->get_name() ." id:" . $ckt->get_id() . " affected by trunk:$link_name moving to alternate path");
+                        
                         if (! $success) {
-                            $self->{'logger'}->error("vlan:" . $circuit->{'name'} . " id:" . $circuit->{'circuit_id'} . " affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $self->{'db'}->get_error());
+                            $self->{'logger'}->error("vlan:" . $ckt->get_name() . " id:" . $ckt->get_id() . " affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $ckt->error());
                             next;
                         }
 
-                        ($new_result, %new_dpids) = $self->_changeVlanPath($circuit->{'circuit_id'});
+                        ($new_result, %new_dpids) = $self->_changeVlanPath($ckt->get_id());
                         # if send barriers happend and if they were not successful then set the error_result parameter
                         if (defined($new_result) && ($new_result != FWDCTL_SUCCESS)) {
                             $non_success_result = $new_result;
                         }
                         @dpid_hash{keys %new_dpids} = values %new_dpids; # merge the new dpids in with the total
 
-                        $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
+                        $circuit_status{$ckt->get_id()} = OESS_CIRCUIT_UP;
                         #send notification
                         $circuit->{'status'} = 'up';
                         $circuit->{'reason'} = 'the backup path has been restored';
                         $circuit->{'type'} = 'restored';
                         #$self->emit_signal("circuit_notification", $circuit );
                         push (@$circuit_notification_data, $circuit)
-                    } elsif ($self->{'topo'}->is_path_up( path_id => $backup_path->{'path_id'}, link_status => \%link_status) && $backup_path->{'path_state'} eq 'active') {
+                    } elsif ($ckt->get_path_status(path => 'backup', link_status => \%link_status) && $ckt->get_active_path() eq 'backup'){
                         #circuit was on backup path, and backup path is now up
-                        $self->{'logger'}->warn("vlan:" . $circuit->{'name'} ." id:" . $circuit->{'circuit_id'} . " affected by trunk:$link_name was restored");
+                        $self->{'logger'}->warn("vlan:" . $ckt->get_name() ." id:" . $ckt->get_id() . " affected by trunk:$link_name was restored");
                         next if $circuit_status{$circuit->{'circuit_id'}} == OESS_CIRCUIT_UP;
                         #send notification on restore
                         $circuit->{'status'} = 'up';
@@ -553,8 +544,8 @@ sub _restore_down_circuits{
                         $circuit->{'type'} = 'restored';
                         #$self->emit_signal("circuit_notification", $circuit);
                         push (@$circuit_notification_data, $circuit);
-                          $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
-                    } else {
+                        $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
+                } else {
                         #both paths are down...
                         #do not do anything
                     }
@@ -563,7 +554,7 @@ sub _restore_down_circuits{
             } else {
                 #the primary path is the one that was restored
 
-                if ($primary_path->{'path_state'} eq 'active') {
+                if ($ckt->get_active_path() eq 'primary'){
                     #nothing to do here as we are already on the primary path
                     $self->{'logger'}->debug("ckt:" . $circuit->{'circuit_id'} . " primary path restored and we were alread on it");
                     next if($circuit_status{$circuit->{'circuit_id'}} == OESS_CIRCUIT_UP);
@@ -576,31 +567,31 @@ sub _restore_down_circuits{
                     push (@$circuit_notification_data, $circuit)
                 } else {
 
-                    if ($self->{'topo'}->is_path_up( path_id => $primary_path->{'path_id'}, link_status => \%link_status )) {
-                        if ($self->{'topo'}->is_path_up( path_id => $backup_path->{'path_id'}, link_status => \%link_status)) {
+                    if ($ckt->get_path_status( path => 'primary', link_status => \%link_status )) {
+                        if ($ckt->get_path_status(path => 'backup', link_status => \%link_status)) {
                             #ok the backup path is up and active... and restore to primary is not 0
-                            if ($circuit->{'restore_to_primary'} > 0) {
+                            if ($ckt->get_restore_to_primary() > 0) {
                                 #schedule the change path
-                                $self->{'logger'}->warn("vlan: " . $circuit->{'name'} . " id: " . $circuit->{'circuit_id'} . " is currently on backup path, scheduling restore to primary for " . $circuit->{'restore_to_primary'} . " minutes from now");
-                                $self->{'db'}->schedule_path_change( circuit_id => $circuit->{'circuit_id'},
+                                $self->{'logger'}->warn("vlan: " . $ckt->get_name() . " id: " . $ckt->get_id() . " is currently on backup path, scheduling restore to primary for " . $ckt->get_restore_to_primary() . " minutes from now");
+                                $self->{'db'}->schedule_path_change( circuit_id => $ckt->get_id(),
                                                                      path => 'primary',
-                                                                     when => time() + (60 * $circuit->{'restore_to_primary'}),
+                                                                     when => time() + (60 * $ckt->get_restore_to_primary()),
                                                                      user_id => SYSTEM_USER,
                                                                      workgroup_id => $circuit->{'workgroup_id'},
-                                                                     reason => "circuit configuration specified restore to primary after " . $circuit->{'restore_to_primary'} . "minutes"  );
+                                                                     reason => "circuit configuration specified restore to primary after " . $ckt->get_restore_to_primary() . "minutes"  );
                             } else {
                                 #restore to primary is off
                             }
                         } else {
                             #ok the primary path is up and the backup is down and active... lets move now
-                            my $success = $self->{'db'}->switch_circuit_to_alternate_path( circuit_id => $circuit->{'circuit_id'});
-                            $self->{'logger'}->warn("vlan:" . $circuit->{'name'} ." id:" . $circuit->{'circuit_id'} . " affected by trunk:$link_name moving to alternate path");
+                            my $success = $ckt->change_path();
+                            $self->{'logger'}->warn("vlan:" . $ckt->get_id() ." id:" . $ckt->get_id() . " affected by trunk:$link_name moving to alternate path");
                             if (! $success) {
-                                $self->{'logger'}->error("vlan:" . $circuit->{'name'} . " id:" . $circuit->{'circuit_id'} . " affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $self->{'db'}->get_error());
+                                $self->{'logger'}->error("vlan:" . $ckt->get_id() . " id:" . $ckt->get_id() . " affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $ckt->error());
                                 next;
                             }
 
-                            ($new_result, %new_dpids) = $self->_changeVlanPath($circuit->{'circuit_id'});
+                            ($new_result, %new_dpids) = $self->_changeVlanPath($ckt->get_id());
                             # if send barriers happend and if they were not successful then set the error_result parameter
                             if (defined($new_result) && ($new_result != FWDCTL_SUCCESS)) {
                                 $non_success_result = $new_result;
@@ -706,7 +697,7 @@ sub _fail_over_circuits{
                     $circuit_info->{'status'} = "unknown";
                     $circuit_info->{'reason'} = "Attempted to switch to alternate path, however an unknown error occured.";
                     $circuit_info->{'circuit_id'} = $circuit_info->{'id'};
-                    $self->{'logger'}->error("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $self->{'db'}->get_error());
+                    $self->{'logger'}->error("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $circuit->error());
                     #$self->emit_signal("circuit_notification", $circuit_info );
                     push(@$circuit_infos, $circuit_info);
                     $circuit_status{$circuit_id} = OESS_CIRCUIT_UNKNOWN;
