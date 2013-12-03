@@ -13,6 +13,7 @@ use MIME::Lite::TT::HTML;
 use Switch;
 use Net::DBus::Exporter qw (org.nddi.notification);
 use Net::DBus qw(:typing);
+use OESS::Circuit;
 
 use base qw(Net::DBus::Object);
 
@@ -467,7 +468,8 @@ sub _connect_services {
       }
 
       $user_id = $details->{'user_id'};
-      my $clr = $db->generate_clr( circuit_id => $ckt->{'circuit_id'} );
+      my $ockt = OESS::Circuit->new( circuit_id => $ckt->{'circuit_id'}, db => $db);
+      my $clr = $ockt->generate_clr(); 
       unless ($clr) {
           warn "No CLR for $ckt->{'circuit_id'} ?";
       }
