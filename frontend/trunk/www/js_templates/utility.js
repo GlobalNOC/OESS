@@ -685,7 +685,8 @@ function makeTagSelectPanel(coordinates, options ){
         //--- validate the tag input
         // if this is an edit and we haven't changed the tag don't try to 
         // validate b/c it will be incorrect
-        if( options.is_edit && (new_tag == options.current_values.tag) ){
+        if( (options.interdomain) ||
+            (options.is_edit && (new_tag == options.current_values.tag)) ){
             tag_verified = true;
         } else {
             var tag_ds = new YAHOO.util.DataSource(

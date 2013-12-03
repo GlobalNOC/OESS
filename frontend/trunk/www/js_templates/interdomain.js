@@ -86,7 +86,10 @@ function init(){
     var layout = makePageLayout(map, {map_width: Math.min(session.data.map_width || 600, 600),
 				      max_resize: 600});
 
-    var endpoint_table = summary_init({ remove_only: false });
+    var endpoint_table = summary_init({ 
+        remove_only: false,
+        interdomain: true
+    });
 
     endpoint_table.subscribe("rowDeleteEvent", function(oArgs){
 	    var node = oArgs.oldData.node;
@@ -137,42 +140,14 @@ function init(){
         var components = makeTagSelectPanel([region.left, region.bottom], {
             panel_width: 393,
             save_action: function(options){
-                //var tag           = options.tag;
-                
-                /*
-                var mac_addresses = [];
-                if(session.data.static_mac_routing) {
-                    mac_addresses = options.get_mac_addresses();
-                }
-                endpoint_table.addRow({
-                    interface: interface,
-                    interface_description: description,
-                    node: node,
-                    tag: tag,
-                    vlan_tag_range: rec.getData("vlan_tag_range"),
-                    mac_addrs: mac_addresses //components.get_mac_addresses()
-                });
-                */
-
-                /*
-                save_session();
-
-                nddi_map.table.unselectAllRows();
-                nddi_map.table.vlan_panel.destroy();
-                nddi_map.table.vlan_panel = undefined;
-                */
-
                 //----
                 var new_tag = options.tag;
-
                 if (endpoint_table.getRecordSet().getRecords().length == 2){
                     alert("You can only have exactly two endpoints.");
                     return;
                 }
 
                 //do some validation on the endpoint
-                        
-
                 endpoint_table.addRow({
                     interface: port,
                     node: node,
@@ -184,12 +159,15 @@ function init(){
 
                 save_session();
 
+
+
             },
-            interface: interface,
-            interface_description: description,
+            interface: port,
+            //interface_description: description,
             node: node,
             workgroup_id: session.data.workgroup_id,
-            tag_range: vlan_range
+            tag_range: vlan_range,
+            interdomain: true
         });
 
         /*

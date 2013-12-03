@@ -86,43 +86,10 @@ function summary_init(options){
     if(session.data.static_mac_routing){
         hide_static_mac = false;
     }
-    var cols = [
-        {key: "interface", width: 250, label: "Interface", formatter: 
-        function(el, rec, col, data){
-           el.innerHTML = rec.getData('node') + ' - ' + rec.getData('interface');
-        }
 
-        },
-        {key:"description", width: 150, label: "Interface Description" , formatter: 
-        function(el,rec,col,data){
-           el.innerHTML = rec.getData('interface_description');
-           //console.log(data);
-           console.log(rec);
-        }
-        },
-        {key: "tag", width: 30, label: "VLAN", formatter: function(el, rec, col, data){
-          if (data == -1){
-              el.innerHTML = "<span style='font-size: 74%;'>Untagged</span>";
-          }
-          else {
-              el.innerHTML = data;
-          }
-        }},
-        {key: "mac_addrs", label: "Static MAC Addresses", hidden: hide_static_mac, formatter: function(el, rec, col, data){
-          if (!data){
-              el.innerHTML = "None";
-          }
-          else {
-              var text = "";
-              for(var i=0; i<data.length;i++){
-                text += data[i].mac_address+"<br>";
-              }
-              el.innerHTML = text;
-          }
-        }}
-        [% IF delete %]
-            ,{
-            label: "Edit", width: 48, formatter: function(el, rec, col, data){
+    //determine whether we should use a delete or edit action
+    var edit_column = {
+        label: "Edit", width: 48, formatter: function(el, rec, col, data){
             var button = new YAHOO.widget.Button({label: "Edit"});
             YAHOO.util.Dom.addClass(button, "endpoint_edit_button");
             var t = this;
@@ -242,10 +209,70 @@ function summary_init(options){
                 */
             });//--end on click
             button.appendTo(el);
-              }
-            }
-    [% END %]
+        }
+    };
+    var delete_column = {
+        label: "Delete", width: 48, formatter: function(el, rec, col, data){
+        var del_button = new YAHOO.widget.Button({label: "Delete"});
+        YAHOO.util.Dom.addClass(del_button, "endpoint_delete_button");
+        var t = this;
+        del_button.on("click", function(){
+            var interface = rec.getData('interface');
 
+            showConfirm("Are you sure you wish to delete interface " + interface + "?",
+                function(){
+                t.deleteRow(t.getRecordSet().getRecordIndex(rec));
+                },
+                function(){}
+            );
+
+         });
+        del_button.appendTo(el);
+        }
+    };
+    var action_column = edit_column;
+    if(options.interdomain){
+        action_column = delete_column;
+    }
+
+
+    var cols = [
+        {key: "interface", width: 250, label: "Interface", formatter: 
+        function(el, rec, col, data){
+           el.innerHTML = rec.getData('node') + ' - ' + rec.getData('interface');
+        }
+
+        },
+        {key:"description", width: 150, label: "Interface Description" , formatter: 
+        function(el,rec,col,data){
+           el.innerHTML = rec.getData('interface_description');
+           //console.log(data);
+           console.log(rec);
+        }
+        },
+        {key: "tag", width: 30, label: "VLAN", formatter: function(el, rec, col, data){
+          if (data == -1){
+              el.innerHTML = "<span style='font-size: 74%;'>Untagged</span>";
+          }
+          else {
+              el.innerHTML = data;
+          }
+        }},
+        {key: "mac_addrs", label: "Static MAC Addresses", hidden: hide_static_mac, formatter: function(el, rec, col, data){
+          if (!data){
+              el.innerHTML = "None";
+          }
+          else {
+              var text = "";
+              for(var i=0; i<data.length;i++){
+                text += data[i].mac_address+"<br>";
+              }
+              el.innerHTML = text;
+          }
+        }}
+        [% IF delete %]
+        ,action_column
+        [% END %]
     ];
   
     var configs = {
