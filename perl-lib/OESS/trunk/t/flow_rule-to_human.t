@@ -6,7 +6,7 @@ use warnings;
 use Data::Dumper;
 use OESS::FlowRule;
 
-use Test::More tests => 1;
+use Test::More tests => 2;
 use Test::Deep;
 
 
@@ -22,3 +22,12 @@ my $flow_mod = OESS::FlowRule->new( match => {'dl_vlan' => 100,
 
 my $str = $flow_mod->to_human();
 ok(defined($str), "FLow Mod string was defined");
+
+$flow_mod->set_actions( [{'output' => 679},
+                         {'set_vlan_vid' => 101},
+                         {'output' => 1},
+                         {'set_vlan_vid' => OESS::FlowRule::UNTAGGED}]);
+
+$str = $flow_mod->to_human();
+
+ok(defined($str), "Flow mod string was defined");

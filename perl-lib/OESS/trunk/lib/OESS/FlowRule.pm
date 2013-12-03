@@ -249,11 +249,11 @@ sub set_match{
 
 }
 
-=head2 set_action
+=head2 set_actions
 
 =cut
 
-sub set_action{
+sub set_actions{
     my $self = shift;
     my $new_actions = shift;
 
