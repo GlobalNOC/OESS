@@ -480,14 +480,14 @@ sub is_path_up{
 	foreach my $link (@$links){
 
 
-        if( $link->{'status'} eq 'down'){
-            $down_links{$link->{'name'}} = $link;
-	    }elsif($link->{'status'} eq 'unknown'){
-            $unknown_links{$link->{'name'}} = $link;
-	    }
-
+            if( $link->{'status'} eq 'down'){
+                $down_links{$link->{'name'}} = $link;
+            }elsif($link->{'status'} eq 'unknown'){
+                $unknown_links{$link->{'name'}} = $link;
+            }
+            
 	}
-
+        
     }
 
     my $path_links = $self->{'db'}->get_path_links( path_id => $path );

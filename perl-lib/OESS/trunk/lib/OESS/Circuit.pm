@@ -9,6 +9,11 @@ use Log::Log4perl;
 use OESS::FlowRule;
 use Graph::Directed;
 
+#link statuses
+use constant OESS_LINK_UP       => 1;
+use constant OESS_LINK_DOWN     => 0;
+use constant OESS_LINK_UNKNOWN  => 2;
+
 =head1 NAME
 
 OESS::Circuit - Circuit Interaction Module
@@ -830,12 +835,53 @@ sub get_path_status{
     my %params = @_;
 
     my $path = $params{'path'};
+    my $link_status = $params{'link_status'};
 
     if(!defined($path)){
 	return;
     }
     
+    my %down_links;
+    my %unknown_links;
     
+    if(!defined($link_status)){
+        my $links = $self->{'db'}->get_current_links();
+        
+        foreach my $link (@$links){
+
+
+            if( $link->{'status'} eq 'down'){
+                $down_links{$link->{'name'}} = $link;
+            }elsif($link->{'status'} eq 'unknown'){
+                $unknown_links{$link->{'name'}} = $link;
+            }
+
+        }
+
+    }else{
+        foreach my $key (keys (%{$link_status})){
+            if($link_status->{$key} == OESS_LINK_DOWN){
+                $down_links{$key} = 1;
+            }elsif($link_status->{$key} == OESS_LINK_UNKNOWN){
+                $unknown_links{$key} = 1;
+            }
+        }
+    }
+
+    my $path_links = $self->get_path( path => $path );
+
+
+    foreach my $link (@$path_links){
+
+        if( $down_links{ $link->{'name'} } ){
+            return 0;
+        }elsif($unknown_links{$link->{'name'}}){
+            return 2;
+        }
+
+    }
+    
+    return 1;
 
 }
 
