@@ -41,7 +41,7 @@ rm -rf $RPM_BUILD_ROOT
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{_bindir}/
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{idcdir}/OSCARS/
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{docdir}
-%__mkdir -p -m 0755 $RPM_BUILD_ROOT{%_sysconfdir}/oess/
+%__mkdir -p -m 0755 $RPM_BUILD_ROOT%{_sysconfdir}/oess/
 
 %{__install} oess_setup.pl %{buildroot}/%{_bindir}
 %{__install} topo.pl %{buildroot}/%{_bindir}
@@ -58,7 +58,7 @@ rm -rf $RPM_BUILD_ROOT
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{_sysconfdir}/init.d/
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT/etc/cron.d/
 
-%{__install} etc/logging.conf $RPM_BUILD_ROOT{%_sysconfdir}/oess/
+%{__install} etc/logging.conf $RPM_BUILD_ROOT%{_sysconfdir}/oess/
 
 %{__install} etc/nddi-dbus.conf $RPM_BUILD_ROOT%{_sysconfdir}/dbus-1/system.d/
 
@@ -101,6 +101,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/init.d/oess-vlan_stats
 %{_sysconfdir}/init.d/oess-notification
 %{_sysconfdir}/init.d/oess
+%{_sysconfdir}/oess/logging.conf
 %{docdir}/snapp.mysql.sql
 %{docdir}/snapp_base.mysql.sql
 %{docdir}/README
@@ -114,7 +115,6 @@ rm -rf $RPM_BUILD_ROOT
 %doc
 
 %post
-mkdir -p %{_sysconfdir}/oess/
 mkdir -p /var/run/oess/
 mkdir -p /var/log/oess/
 chmod a+rw /var/log/oess/
