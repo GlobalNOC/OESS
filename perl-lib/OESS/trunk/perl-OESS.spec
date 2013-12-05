@@ -14,7 +14,8 @@ Requires: perl(URI::Escape), dbus, dbus-libs, mysql-server, perl-XML-Simple, per
 
 %description
 
-%define docdir /usr/share/oess-core
+%define docdir /usr/share/doc/${name}-%{version}/
+%define template_dir /usr/share/oess-core/
 
 %prep
 %setup -q
@@ -30,10 +31,10 @@ make
 rm -rf $RPM_BUILD_ROOT
 make pure_install
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/upgrade
-%__install etc/notification_templates.tmpl $RPM_BUILD_ROOT/%{docdir}/
-%__install etc/notification_bulk.tmpl $RPM_BUILD_ROOT/%{docdir}/
-%__install etc/notification_bulk.tt.html $RPM_BUILD_ROOT/%{docdir}/
-%__install etc/notification.tt.html $RPM_BUILD_ROOT/%{docdir}/
+%__install etc/notification_templates.tmpl $RPM_BUILD_ROOT/%{template_dir}/
+%__install etc/notification_bulk.tmpl $RPM_BUILD_ROOT/%{template_dir}/
+%__install etc/notification_bulk.tt.html $RPM_BUILD_ROOT/%{template_dir}/
+%__install etc/notification.tt.html $RPM_BUILD_ROOT/%{template_dir}/
 %__install share/nddi.sql $RPM_BUILD_ROOT/%{docdir}/share/
 %__install share/upgrade/* $RPM_BUILD_ROOT/%{docdir}/share/upgrade/
 # clean up buildroot
