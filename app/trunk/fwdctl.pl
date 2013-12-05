@@ -1,4 +1,4 @@
-#!/Usr/bin/perl
+#!/usr/bin/perl
 #------ NDDI OESS Forwarding Control
 ##-----
 ##----- $HeadURL:
@@ -76,7 +76,8 @@ $| = 1;
 my %node;
 my %link_status;
 my %circuit_status;
-my $node_details;
+my %node_info;
+
 sub _log {
     my $string = shift;
 
@@ -160,7 +161,7 @@ sub _sync_database_to_network {
     foreach my $node (@$nodes) {
         $node->{'full_diff'} = 1;
         $self->{'nodes_needing_diff'}{$node->{'dpid'}} = $node;
-	$node_details->{$node->{'dpid'}} = $node;
+	$node_info{$node->{'dpid'}} = $node;
     }
 }
 
@@ -171,9 +172,8 @@ sub _generate_commands{
     my $action = shift;
 
     my $ckt;
-    $self->{'logger'}->debug("generating flows for circuit_id: " . $circuit_id);
+    $self->{'logger'}->debug("getting flows for circuit_id: " . $circuit_id);
     if(!defined($self->{'circuit'}->{$circuit_id})){
-
 	$ckt = OESS::Circuit->new( circuit_id => $circuit_id,
 				   db => $self->{'db'});
 	$self->{'logger'}->trace("ckt: " . Data::Dumper::Dumper($ckt));
@@ -200,6 +200,9 @@ sub _generate_commands{
 	    my $primary_flows = $ckt->get_endpoint_flows( path => 'primary');
 	    my $backup_flows =  $ckt->get_endpoint_flows( path => 'backup');
 	    my @commands;
+
+
+	    $self->{'logger'}->debug("Circuit is now on " . $ckt->get_active_path() . " path");
             #we already performed the DB change so that means
             #whatever path is active is actually what we are moving to
 	    foreach my $flow (@$primary_flows){
@@ -223,6 +226,8 @@ sub _generate_commands{
 	    return \@commands;
 	}
     }
+
+
 }
 
 #--- this and dp join need to be refactored to reuse code.
@@ -254,7 +259,7 @@ sub datapath_join_handler{
     if (defined $node_details) {
         $sw_name = $node_details->{'name'};
     }
-
+    $node_info{$dpid} = $node_details;
     $self->{'logger'}->info("sw:$sw_name dpid:$dpid_str datapath join");
 
     my %xid_hash;
@@ -316,7 +321,8 @@ sub _replace_flowmod{
         #delete this flowmod
 	$self->{'logger'}->info("Deleting flow: " . $commands->{'remove'}->to_human());
         my $status = $self->{'of_controller'}->delete_datapath_flow($commands->{'remove'}->to_dbus());
-        if(!$node_details->{'send_barrier_bulk'}){
+	$self->{'logger'}->trace("Node Details: " . Dumper($node_info{$commands->{'remove'}->get_dpid()}));
+        if(!$node_info{$commands->{'remove'}->get_dpid()}->{'send_barrier_bulk'}){
             my $xid = $self->{'of_controller'}->send_barrier($commands->{'remove'}->get_dpid());
             $self->{'logger'}->debug("replace flowmod: send_barrier: with dpid: " . $commands->{'remove'}->get_dpid());
             $xid_hash{$commands->{'remove'}->get_dpid()} = 1;
@@ -325,16 +331,17 @@ sub _replace_flowmod{
     }
     
     if (defined($commands->{'add'})) {
-        if ( $node{$commands->{'add'}->get_dpid()} >= $node_details->{'max_flows'}) {
+	$self->{'logger'}->trace("Node Details: " . Dumper($node_info{$commands->{'add'}->get_dpid()}));
+        if ( $node{$commands->{'add'}->get_dpid()} >= $node_info{$commands->{'add'}->get_dpid()}->{'max_flows'}) {
             my $dpid_str  = sprintf("%x",$commands->{'add'}->get_dpid());
-            $self->{'logger'}->error("sw: dpipd:$dpid_str exceeding max_flows:".$node_details->{$commands->{'add'}->get_dpid()}->{'max_flows'}." replace flowmod failed");
+            $self->{'logger'}->error("sw: dpipd:$dpid_str exceeding max_flows:".$node_info{$commands->{'add'}->get_dpid()}->{'max_flows'}." replace flowmod failed");
             return FWDCTL_FAILURE;
         }
 	$self->{'logger'}->info("Installing Flow: " . $commands->{'add'}->to_human());
         my $status = $self->{'of_controller'}->install_datapath_flow($commands->{'add'}->to_dbus());
 	
         # send the barrier if the bulk flag is not set
-        if (!$node_details->{'send_barrier_bulk'}) {
+        if (!$node_info{$commands->{'add'}->get_dpid()}->{'send_barrier_bulk'}) {
             my $xid = $self->{'of_controller'}->send_barrier(dbus_uint64($commands->{'add'}->get_dpid()));
             $self->{'logger'}->error("replace flowmod: send_barrier: with dpid: " . $commands->{'add'}->get_dpid());
             $xid_hash{$commands->{'add'}->get_dpid()} = 1;
@@ -391,6 +398,20 @@ sub _do_diff{
         }
     }
 
+    if (!defined($node_info) || $node_info->{'default_forward'} == 1) {
+	if(defined($self->{'db'}->{'discovery_vlan'}) && $self->{'db'}->{'discovery_vlan'} != -1){
+	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
+						    match => {'dl_type' => 35020,
+							      'dl_vlan' => $self->{'db'}->{'discovery_vlan'}},
+						    actions => [{'output' => 65533}]));
+	}else{
+	                push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
+								match => {'dl_type' => 35020,
+									  'dl_vlan' => -1},
+								actions => [{'output' => 65533}]));
+	}
+    }
+
     $node{$dpid} = 0;
 
     $self->_actual_diff($dpid,$sw_name, $current_flows, \@all_commands);
@@ -425,13 +446,13 @@ sub _actual_diff{
 		$found = 1;
 		if($command->compare_actions( flow_rule => $current_flows->[$i])){
 		    #woohoo we match
-		    delete $current_flow->[$i];
+		    delete $current_flows->[$i];
 		    last;
 		}else{
 		    #doh... we don't match... remove current flow, add the other flow
 		    $stats{'mods'}++;
 		    push(@rule_queue,{remove => $current_flows->[$i], add => $command});
-		    delete $current_flow->[$i];
+		    delete $current_flows->[$i];
 		    last;
 		}
 	    }
@@ -500,13 +521,13 @@ sub _restore_down_circuits{
     my $circuit_notification_data = [];
     foreach my $circuit (@$circuits) {
 
-        my $ckt = $self->{'circuits'}->{$circuit->{'circuit_id'}};
+        my $ckt = $self->{'circuit'}->{$circuit->{'circuit_id'}};
 
         if(!defined($ckt)){
             $circuit = OESS::Circuit->new( circuit_id => $circuit->{'circuit_id'}, db => $self->{'db'});
         }
         if(!defined($ckt)){
-            $self->error("unable to build circuit object for circuit_id: " . $circuit->{'circuit_id'});
+            $self->{'logger'}->error("unable to build circuit object for circuit_id: " . $circuit->{'circuit_id'});
             next;
         }
 
@@ -521,7 +542,7 @@ sub _restore_down_circuits{
                     if ($ckt->get_path_status( path => 'backup', link_status => \%link_status ) && $ckt->get_active_path() ne 'backup'){
                         #bring it back to this path
                         my $success = $ckt->change_path();
-                        $self->{'logger'}->warning("vlan:" . $ckt->get_name() ." id:" . $ckt->get_id() . " affected by trunk:$link_name moving to alternate path");
+                        $self->{'logger'}->warn("vlan:" . $ckt->get_name() ." id:" . $ckt->get_id() . " affected by trunk:$link_name moving to alternate path");
                         
                         if (! $success) {
                             $self->{'logger'}->error("vlan:" . $ckt->get_name() . " id:" . $ckt->get_id() . " affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $ckt->error());
@@ -675,7 +696,7 @@ sub _fail_over_circuits{
         my $circuit_id   = $circuit_info->{'id'};
         my $circuit_name = $circuit_info->{'name'};
 	
-	my $circuit = $self->{'circuits'}->{$circuit_id};
+	my $circuit = $self->{'circuit'}->{$circuit_id};
 	
 	if(!defined($circuit)){
 	    $circuit = OESS::Circuit->new( circuit_id => $circuit_id, db => $self->{'db'});
@@ -689,6 +710,7 @@ sub _fail_over_circuits{
 	    
 	    my $current_path = $circuit->get_active_path();
 	    
+	    $self->{'logger'}->debug("Circuits current active path: " . $current_path);
 	    #if we know the current path, then the alternate is the other
 	    my $alternate_path = 'primary';
 	    if($current_path eq 'primary'){
@@ -1401,6 +1423,15 @@ sub changeVlanPath {
     my $self = shift;
     my $circuit_id = shift;
     my %xid_hash;
+
+    my $ckt = $self->{'circuit'}->{$circuit_id};
+    if(!defined($ckt)){
+	$ckt = OESS::Circuit->new( circuit_id => $circuit_id, db => $self->{'db'});
+	$self->{'circuit'}->{$circuit_id} = $ckt;
+    }
+
+    $ckt->update_circuit_details();
+
     my ($initial_result, %dpid_hash) = $self->_changeVlanPath($circuit_id);
 
 
