@@ -111,7 +111,7 @@ sub new {
     $self->{'topo'} = $topo;
 
     $self->{'logger'} = Log::Log4perl->get_logger('OESS::FWDCTL');
-    $self->{'circuits'} = {};
+    $self->{'circuit'} = {};
     dbus_method("addVlan", ["uint32"], ["string"]);
     dbus_method("deleteVlan", ["string"], ["string"]);
     dbus_method("changeVlanPath", ["string"], ["string"]);
@@ -135,7 +135,7 @@ sub _sync_database_to_network {
 
 	$self->{'logger'}->trace("Ckt: " . Data::Dumper::Dumper($ckt));
 
-	$self->{'circuits'}->{ $ckt->get_id() } = $ckt;
+	$self->{'circuit'}->{ $ckt->get_id() } = $ckt;
 
         if ($circuit->{'operational_state'} eq 'up') {
             $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
@@ -171,16 +171,9 @@ sub _generate_commands{
     my $circuit_id = shift;
     my $action = shift;
 
-    my $ckt;
     $self->{'logger'}->debug("getting flows for circuit_id: " . $circuit_id);
-    if(!defined($self->{'circuit'}->{$circuit_id})){
-	$ckt = OESS::Circuit->new( circuit_id => $circuit_id,
-				   db => $self->{'db'});
-	$self->{'logger'}->trace("ckt: " . Data::Dumper::Dumper($ckt));
-	$self->{'circuit'}->{$circuit_id} = $ckt;
-    }
-    
-    $ckt = $self->{'circuit'}->{$circuit_id};
+
+    my $ckt = $self->get_ckt_object( $circuit_id );
 
     $self->{'logger'}->trace("ckt: " . Data::Dumper::Dumper($ckt));
 
@@ -521,15 +514,12 @@ sub _restore_down_circuits{
     my $circuit_notification_data = [];
     foreach my $circuit (@$circuits) {
 
-        my $ckt = $self->{'circuit'}->{$circuit->{'circuit_id'}};
+	my $ckt = $self->get_ckt_object( $circuit->{'circuit_id'});
 
-        if(!defined($ckt)){
-            $circuit = OESS::Circuit->new( circuit_id => $circuit->{'circuit_id'}, db => $self->{'db'});
-        }
-        if(!defined($ckt)){
-            $self->{'logger'}->error("unable to build circuit object for circuit_id: " . $circuit->{'circuit_id'});
-            next;
-        }
+	if(!defined($ckt)){
+	    $self->{'logger'}->error("No Circuit could be created or found for circuit: " . $circuit->{'circuit_id'});
+	    next;
+	}
 
         if($ckt->has_backup_path()){
 
@@ -696,13 +686,10 @@ sub _fail_over_circuits{
         my $circuit_id   = $circuit_info->{'id'};
         my $circuit_name = $circuit_info->{'name'};
 	
-	my $circuit = $self->{'circuit'}->{$circuit_id};
-	
+	my $circuit = $self->get_ckt_object( $circuit_id );
+
 	if(!defined($circuit)){
-	    $circuit = OESS::Circuit->new( circuit_id => $circuit_id, db => $self->{'db'});
-	}
-	if(!defined($circuit)){
-	    $self->error("unable to build circuit object for circuit_id: " . $circuit_id);
+	    $self->{'logger'}->error("Unable to create or find a circuit object for $circuit_id");
 	    next;
 	}
 	
@@ -1194,15 +1181,13 @@ sub addVlan {
 
     $self->{'logger'}->info("addVlan: $circuit_id");
 
-    if(!defined($self->{'circuit'}->{$circuit_id})){
-        
-        my $ckt = OESS::Circuit->new( circuit_id => $circuit_id,
-                                   db => $self->{'db'});
-        $self->{'logger'}->trace("ckt: " . Data::Dumper::Dumper($ckt));
-        $self->{'circuit'}->{$circuit_id} = $ckt;
-    }else{    
-        $self->{'circuit'}->{$circuit_id}->update_circuit_details();
+    my $ckt = $self->get_ckt_object( $circuit_id );
+    if(!defined($ckt)){
+	return FWDCTL_FAILURE;
     }
+    
+    $ckt->update_circuit_details();
+
     #--- get the set of commands needed to create this vlan per design
     my $commands = $self->_generate_commands($circuit_id,FWDCTL_ADD_VLAN);
 
@@ -1290,15 +1275,14 @@ sub deleteVlan {
     my $self = shift;
     my $circuit_id = shift;
 
-    if(!defined($self->{'circuit'}->{$circuit_id})){
+    my $ckt = $self->get_ckt_object( $circuit_id );
 
-        my $ckt = OESS::Circuit->new( circuit_id => $circuit_id,
-                                   db => $self->{'db'});
-        $self->{'logger'}->trace("ckt: " . Data::Dumper::Dumper($ckt));
-        $self->{'circuit'}->{$circuit_id} = $ckt;
-    }else{
-        $self->{'circuit'}->{$circuit_id}->update_circuit_details();
+    if(!defined($ckt)){
+	return FWDCTL_FAILURE;
     }
+
+    $ckt->update_circuit_details();
+
 
     print "removeVlan: $circuit_id\n";
     #--- get the set of commands needed to create this vlan per design
@@ -1424,11 +1408,7 @@ sub changeVlanPath {
     my $circuit_id = shift;
     my %xid_hash;
 
-    my $ckt = $self->{'circuit'}->{$circuit_id};
-    if(!defined($ckt)){
-	$ckt = OESS::Circuit->new( circuit_id => $circuit_id, db => $self->{'db'});
-	$self->{'circuit'}->{$circuit_id} = $ckt;
-    }
+    my $ckt = $self->get_ckt_object( $circuit_id );
 
     $ckt->update_circuit_details();
 
@@ -1452,6 +1432,24 @@ sub changeVlanPath {
     return $result;
 }
 
+
+sub get_ckt_ojbect{
+    my $self =shift;
+    my $ckt_id = shift;
+
+    my $ckt = $self->{'circuit'}->{$ckt_id};
+
+    if(!defined($ckt)){
+        $ckt = OESS::Circuit->new( circuit_id => $ckt_id, db => $self->{'db'});
+        $self->{'circuit'}->{$ckt->get_id()} = $ckt;
+    }
+
+    if(!defined($ckt)){
+	$self->{'logger'}->error("Error occured creating circuit: " . $ckt_id);
+    }
+
+    return $ckt;   
+}
 
 1;
 ###############################################################################
