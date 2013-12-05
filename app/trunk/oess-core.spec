@@ -41,6 +41,8 @@ rm -rf $RPM_BUILD_ROOT
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{_bindir}/
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{idcdir}/OSCARS/
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{docdir}
+%__mkdir -p -m 0755 $RPM_BUILD_ROOT{%_sysconfdir}/oess/
+
 %{__install} oess_setup.pl %{buildroot}/%{_bindir}
 %{__install} topo.pl %{buildroot}/%{_bindir}
 %{__install} fwdctl.pl %{buildroot}/%{_bindir}
@@ -55,6 +57,8 @@ rm -rf $RPM_BUILD_ROOT
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{_sysconfdir}/dbus-1/system.d/
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{_sysconfdir}/init.d/
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT/etc/cron.d/
+
+%{__install} etc/logging.conf $RPM_BUILD_ROOT{%_sysconfdir}/oess/
 
 %{__install} etc/nddi-dbus.conf $RPM_BUILD_ROOT%{_sysconfdir}/dbus-1/system.d/
 
