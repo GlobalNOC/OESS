@@ -4,11 +4,11 @@ use ExtUtils::MakeMaker;
 
 sub MY::postamble { << 'END';}
 rpm:    dist
-	rpmbuild -ta OESS-$(VERSION).tar.gz
+	rpmbuild -ta perl-OESS-$(VERSION).tar.gz
 END
 
 WriteMakefile(
-    NAME                => 'OESS',
+    NAME                => 'perl-OESS',
     AUTHOR              => 'GRNOC Systems Engineering <syseng@grnoc.iu.edu>',
     VERSION_FROM        => 'lib/OESS/Database.pm',
     PL_FILES            => {},
@@ -19,7 +19,7 @@ WriteMakefile(
 	'Net::DBus' => 0
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
-    clean               => { FILES => 'OESS-*' },
+    clean               => { FILES => 'perl-OESS-*' },
     );
 
 sub MY::test
