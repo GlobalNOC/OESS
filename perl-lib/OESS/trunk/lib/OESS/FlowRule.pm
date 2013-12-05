@@ -79,6 +79,7 @@ use constant PORT_WILDCARD      => 0;
 
 use constant UNTAGGED           => -1;
 use constant OF_UNTAGGED        => 65535;
+
 =head2 new
 
 =cut
