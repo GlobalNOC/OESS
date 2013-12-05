@@ -31,6 +31,7 @@ make
 rm -rf $RPM_BUILD_ROOT
 make pure_install
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/upgrade
+%__mkdir -p -m 0775 $RPM_BUILD_ROOT%{template_dir}
 %__install etc/notification_templates.tmpl $RPM_BUILD_ROOT/%{template_dir}/
 %__install etc/notification_bulk.tmpl $RPM_BUILD_ROOT/%{template_dir}/
 %__install etc/notification_bulk.tt.html $RPM_BUILD_ROOT/%{template_dir}/
