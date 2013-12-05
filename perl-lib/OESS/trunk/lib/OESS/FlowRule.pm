@@ -74,8 +74,11 @@ use constant OFPAT_ENQUEUE      => 11;
 use constant OFPAT_VENDOR       => 65535;
 use constant OFPP_CONTROLLER    => 65533;
 
-use constant UNTAGGED           => -1;
+use constant VLAN_WILDCARD      => 0;
+use constant PORT_WILDCARD      => 0;
 
+use constant UNTAGGED           => -1;
+use constant OF_UNTAGGED        => 65535;
 =head2 new
 
 =cut
@@ -147,10 +150,29 @@ sub _validate_match{
 		    $self->{'logger'}->error("VLAN Tag " . $match->{$key} . " is not supported");
 		    return 0;
 		}
+		#lets do a quick fix here... 65535 = -1
+		if($match->{$key} == 65535){
+		    $match->{$key} = -1;
+		}
             }case "dl_type"{
 		
             }case "dl_dst"{
 
+	    }case "dl_vlan_pcp"{
+		#not supported
+		return 0;
+	    }case "nw_proto"{
+		#not supported
+		return 0;
+	    }case "tp_src"{
+		#not supported
+		return;
+	    }case "nw_tos"{
+		#not supported
+		return 0;
+	    }case "tp_dst"{
+		#not supported
+		return 0;
             }else{
                 $self->{'logger'}->error("Unsupported match attribute: " . $key . "\n");
                 return 0;
@@ -181,11 +203,11 @@ sub _validate_vlan_id{
     my $self = shift;
     my $vlan_id = shift;
 
-    if($vlan_id == -1 || ($vlan_id > 0 && $vlan_id < 4096)){
+    if($vlan_id == 65535 || $vlan_id == -1 || $vlan_id == VLAN_WILDCARD || ($vlan_id > 0 && $vlan_id < 4096)){
 	return 1;
     }
 
-    $self->{'logger'}->error("VLAN ID must be between 1 and 4095");
+    $self->{'logger'}->error("VLAN ID must be between 1 and 4095, -1 (65535) and wildcard");
     return;
 }
 
@@ -375,7 +397,7 @@ sub to_dbus{
 		}
 
 		case "set_vlan_vid" {
-		    if(!defined($action->{$key}) || $action->{$key} == UNTAGGED){
+		    if(!defined($action->{$key}) || $action->{$key} == UNTAGGED || $action->{$key} == 65535){
 			#untagged
 			$tmp[0] = Net::DBus::dbus_uint16(OFPAT_STRIP_VLAN);
 			$tmp[1] = Net::DBus::dbus_uint16(0);
@@ -383,6 +405,15 @@ sub to_dbus{
 			$tmp[0] = Net::DBus::dbus_uint16(OFPAT_SET_VLAN_VID);
 			$tmp[1] = Net::DBus::dbus_uint16(int($action->{$key}));
 		    }
+		}case "set_vlan_id"{
+		    if(!defined($action->{$key}) || $action->{$key} == UNTAGGED || $action->{$key} == 65535){
+                        #untagged
+                        $tmp[0] = Net::DBus::dbus_uint16(OFPAT_STRIP_VLAN);
+                        $tmp[1] = Net::DBus::dbus_uint16(0);
+                    } else {
+                        $tmp[0] = Net::DBus::dbus_uint16(OFPAT_SET_VLAN_VID);
+                        $tmp[1] = Net::DBus::dbus_uint16(int($action->{$key}));
+                    }
 		}
 
 		case "drop"{
@@ -417,8 +448,18 @@ sub to_dbus{
 		$command->{'attr'}{'DL_TYPE'} = Net::DBus::dbus_uint16(int($self->{'match'}->{$key}));
 	    }case "dl_dst"{
 		$command->{'attr'}{'DL_DST'} = Net::DBus::dbus_uint64(int($self->{'match'}->{$key}));
+	    }case "dl_vlan_pcp"{
+		#not supported
+            }case "nw_proto"{
+		#not supported
+            }case "tp_src"{
+		#not supported
+            }case "nw_tos"{
+		#not supported
+            }case "tp_dst"{
+		#not supported
 	    }else{
-                $self->{'logger'}->error("Unsupported match attribute: " . $key . "\n");
+                $self->{'logger'}->error("To Dbus: Unsupported match attribute: " . $key . "\n");
 		return;
 	    }
 	}
@@ -481,6 +522,16 @@ sub to_human{
 		$match_str .= "TYPE: " . $self->{'match'}->{$key};
             }case "dl_dst"{
 		$match_str .= "DST MAC: " . $self->{'match'}->{$key};
+            }case "dl_vlan_pcp"{
+		$match_str .= "VLAN PCP: " . $self->{'match'}->{$key};
+	    }case "nw_proto"{
+		$match_str .= "NW PROTO: " . $self->{'match'}->{$key};
+            }case "tp_src"{
+		$match_str .= "TP SRC: " . $self->{'match'}->{$key};
+            }case "nw_tos"{
+		$match_str .= "NW TOS: " . $self->{'match'}->{$key};
+            }case "tp_dst"{
+		$match_str .= "TP DST: " . $self->{'match'}->{$key};
             }else{
                 $self->{'logger'}->error("Unsupported match attribute: " . $key . "\n");
                 return;
@@ -534,12 +585,19 @@ sub to_human{
 			$action_str .= "SET VLAN ID: " . $action->{$key} . "\n";
                     }
                 }
-
+		case "set_vlan_id" {
+                    if(!defined($action->{$key}) || $action->{$key} == UNTAGGED){
+			#untagged
+                        $action_str .= "STRIP VLAN VID\n";
+                    } else {
+                        $action_str .= "SET VLAN ID: " . $action->{$key} . "\n";
+                    }
+		}
                 case "drop"{
                     #no actions... ie... do nothing
                     
                 }else{
-                    $self->_set_error("Error unsupported action: " . $key . "\n");
+                    $self->{'logger'}->error("Error unsupported action: " . $key . "\n");
                     return;
                 }
             }
@@ -719,18 +777,24 @@ sub merge_actions{
 sub parse_stat{
     my %params = @_;
 
+    my $logger = Log::Log4perl->get_logger("OESS::FlowRule");
+    $logger->debug("Processing Stat to Flow Rule");
     my $dpid = $params{'dpid'};
     my $stat = $params{'stat'};
 
     return if(!defined($stat));
+    return if(!defined($dpid));
+
+    $logger->trace("Match: " . Data::Dumper::Dumper($stat->{'match'}));
 
     my $match = $stat->{'match'};
+    
+    $logger->trace("Actions: " . Data::Dumper::Dumper($stat->{'actions'}));
     my $actions = $stat->{'actions'};
 
     my @new_actions;
 
     foreach my $action (@$actions){
-        warn Data::Dumper::Dumper($action);
 	switch ($action->{'type'}){
 	    case (OFPAT_OUTPUT){
 		push(@new_actions,{'output' => $action->{'port'}});
@@ -741,8 +805,23 @@ sub parse_stat{
 	    }
 	}
     }
+    
+    my $new_match = {};
+    foreach my $key (keys (%{$match})){
+	switch($key){
+	    case "dl_vlan"{
+		$new_match->{$key} = $match->{$key};
+	    }case "in_port"{
+		$new_match->{$key} = $match->{$key};
+	    }case "dl_dst"{
+		$new_match->{$key} = $match->{$key};
+	    }case "dl_type"{
+		$new_match->{$key} = $match->{$key};
+	    }
+	}
+    }
 
-    my $flow = OESS::FlowRule->new( match => $match,
+    my $flow = OESS::FlowRule->new( match => $new_match,
 				    dpid => $dpid,
 				    actions => \@new_actions);
 

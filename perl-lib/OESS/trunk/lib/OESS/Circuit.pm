@@ -139,7 +139,7 @@ sub update_circuit_details{
 sub _load_circuit_details{
     my $self = shift;
     $self->{'logger'}->debug("Loading Circuit data for circuit: " . $self->{'circuit_id'});
-    my $data = $self->{'db'}->get_circuit_details( circuit_id => $self->{'circuit_id'});
+    my $data = $self->{'db'}->get_circuit_details( circuit_id => $self->{'circuit_id'} );
     $self->{'details'} = $data;
     $self->_process_circuit_details();
 }
@@ -148,8 +148,8 @@ sub _process_circuit_details{
     my $self = shift;
     $self->{'circuit_id'} = $self->{'details'}->{'circuit_id'};
     $self->{'logger'}->debug("Processing circuit " . $self->{'circuit_id'});
-
     $self->{'active_path'} = $self->{'details'}->{'active_path'};
+    $self->{'logger'}->debug("Active path: " . $self->get_active_path());
     $self->{'static_mac'} = $self->{'details'}->{'static_mac'};
     $self->{'has_backup_path'} = 0;
     $self->{'interdomain'} = 0;
@@ -763,6 +763,13 @@ sub change_path{
         return;
     }
 
+    my $current_path = $self->get_active_path();
+    my $alternate_path = 'primary';
+    if($current_path eq 'primary'){
+	$alternate_path = 'backup';
+    }
+    $self->{'logger'}->debug("Circuit ". $self->get_name()  . " is failing over to " . $alternate_path);
+
      my $query  = "select path.path_id from path " .
                  " join path_instantiation on path.path_id = path_instantiation.path_id " .
                  "  and path_instantiation.path_state = 'available' and path_instantiation.end_epoch = -1 " .
@@ -844,9 +851,10 @@ sub change_path{
     if($do_commit){
         $self->{'db'}->_commit();
     }
-    #DB is now updated change our internal identifier
-    $self->update_circuit_details();
 
+    $self->{'active_path'} = $alternate_path;
+    $self->{'circuit_details'}->{'active_path'} = $alternate_path;
+    $self->{'logger'}->debug("Circuit " . $self->get_id() . " is now on " . $alternate_path);
     return 1;
 
 }
@@ -887,6 +895,8 @@ sub get_path_status{
     my %down_links;
     my %unknown_links;
     
+    $self->{'logger'}->debug("ckt: " . $self->get_id() . " in get path status '" . $path . "' for links: " . Data::Dumper::Dumper($link_status));
+
     if(!defined($link_status)){
         my $links = $self->{'db'}->get_current_links();
         
@@ -913,12 +923,14 @@ sub get_path_status{
 
     my $path_links = $self->get_path( path => $path );
 
-
+    $self->{'logger'}->debug("Path LInks: " . Data::Dumper::Dumper($path_links));
     foreach my $link (@$path_links){
 
         if( $down_links{ $link->{'name'} } ){
+	    $self->{'logger'}->warn("Path is down because link: " . $link->{'name'} . " is down");
             return 0;
         }elsif($unknown_links{$link->{'name'}}){
+	    $self->{'logger'}->warn("Path is unknown because link: " . $link->{'name'} . " is unknown");
             return 2;
         }
 

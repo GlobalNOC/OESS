@@ -86,7 +86,7 @@ use DateTime;
 use constant VERSION => '1.1.1';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
-use constant SHARE_DIR => "/usr/share/doc/perl-OESS-Database-" . VERSION . "/";
+use constant SHARE_DIR => "/usr/share/doc/perl-OESS-" . VERSION . "/";
 use constant UNTAGGED => -1;
 use constant OSCARS_WG => 'OSCARS IDC';
 our $ENABLE_DEVEL=0;
@@ -798,7 +798,7 @@ sub get_node_dpid_hash {
 sub get_current_nodes{
     my $self = shift;
 
-    my $nodes = $self->_execute_query("select node.name, node_instantiation.dpid,node.operational_state,node.node_id, node.send_barrier_bulk from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active'",[]);
+    my $nodes = $self->_execute_query("select node.max_flows, node.name, node_instantiation.dpid,node.operational_state,node.node_id, node.send_barrier_bulk from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active'",[]);
 
     return $nodes;
 }

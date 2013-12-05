@@ -60,6 +60,21 @@ CREATE TABLE `circuit_edge_interface_membership` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `circuit_edge_mac_address`
+--
+
+DROP TABLE IF EXISTS `circuit_edge_mac_address`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `circuit_edge_mac_address` (
+  `circuit_edge_id` int(10) NOT NULL,
+  `mac_address` bigint(20) NOT NULL,
+  KEY `circuit_edge_id` (`circuit_edge_id`),
+  CONSTRAINT `circuit_edge_mac_address_ibfk_1` FOREIGN KEY (`circuit_edge_id`) REFERENCES `circuit_edge_interface_membership` (`circuit_edge_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `circuit_instantiation`
 --
 
