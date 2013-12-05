@@ -14,7 +14,7 @@ Requires: perl(URI::Escape), dbus, dbus-libs, mysql-server, perl-XML-Simple, per
 
 %description
 
-%define docdir /usr/share/doc/${name}-%{version}/
+%define docdir /usr/share/doc/%{name}-%{version}/
 %define template_dir /usr/share/oess-core/
 
 %prep
@@ -56,10 +56,10 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::Measurement.3pm.gz
 %doc %{_mandir}/man3/OESS::FlowRule.3pm.gz
 %doc %{_mandir}/man3/OESS::Notification.3pm.gz
-%{docdir}/notification_templates.tmpl
-%{docdir}/notification_bulk.tmpl
-%{docdir}/notification_bulk.tt.html
-%{docdir}/notification.tt.html
+%{template_dir}/notification_templates.tmpl
+%{template_dir}/notification_bulk.tmpl
+%{template_dir}/notification_bulk.tt.html
+%{template_dir}/notification.tt.html
 %{perl_vendorlib}/OESS/Notification.pm
 %{perl_vendorlib}/OESS/DBus.pm
 %{perl_vendorlib}/OESS/Database.pm
