@@ -259,26 +259,26 @@ sub datapath_join_handler{
 
     if (!defined($node_details) || $node_details->{'default_forward'} == 1) {
         my $status = $self->{'of_controller'}->install_default_forward($dpid,$self->{'db'}->{'discovery_vlan'});
-        my $xid = $self->{'of_controller'}->send_barrier($dpid);
+#        my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($dpid));
         $self->{'logger'}->debug("datapath_join_handler: send_barrier: with dpid: $dpid");
-        if ($xid == FWDCTL_FAILURE) {
+#        if ($xid == FWDCTL_FAILURE) {
             #--- switch may not be connected yet or other error in controller
-            _log("sw:$sw_name dpid:$dpid_str failed to install lldp forward to controller rule, discovery will fail");
-            return;
-        }
+#            _log("sw:$sw_name dpid:$dpid_str failed to install lldp forward to controller rule, discovery will fail");
+#            return;
+#        }
         $xid_hash{$dpid} = 1;
         $node{$dpid}++;
     }
 
     if (!defined($node_details) || $node_details->{'default_drop'} == 1) {
         my $status = $self->{'of_controller'}->install_default_drop($dpid);
-        my $xid = $self->{'of_controller'}->send_barrier($dpid);
-        $self->{'logger'}->debug("datapath_join_handler: send_barrier: with dpid: $dpid");
-        if ($xid == FWDCTL_FAILURE) {
+#        my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($dpid));
+#        $self->{'logger'}->debug("datapath_join_handler: send_barrier: with dpid: $dpid");
+#        if ($xid == FWDCTL_FAILURE) {
             #--- switch may not be connected yet or other error in controller
-            $self->{'logger'}->error("sw:$sw_name dpid:$dpid_str failed to install default drop rule, traffic may flood controller");
-            return;
-        }
+#            $self->{'logger'}->error("sw:$sw_name dpid:$dpid_str failed to install default drop rule, traffic may flood controller");
+#            return;
+#        }
         $xid_hash{$dpid}  = 1;
         $node{$dpid}++;
     }
@@ -316,7 +316,7 @@ sub _replace_flowmod{
         my $status = $self->{'of_controller'}->delete_datapath_flow($commands->{'remove'}->to_dbus());
 	$self->{'logger'}->trace("Node Details: " . Dumper($node_info{$commands->{'remove'}->get_dpid()}));
         if(!$node_info{$commands->{'remove'}->get_dpid()}->{'send_barrier_bulk'}){
-            my $xid = $self->{'of_controller'}->send_barrier($commands->{'remove'}->get_dpid());
+            my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($commands->{'remove'}->get_dpid()));
             $self->{'logger'}->debug("replace flowmod: send_barrier: with dpid: " . $commands->{'remove'}->get_dpid());
             $xid_hash{$commands->{'remove'}->get_dpid()} = 1;
         }
@@ -330,6 +330,7 @@ sub _replace_flowmod{
             $self->{'logger'}->error("sw: dpipd:$dpid_str exceeding max_flows:".$node_info{$commands->{'add'}->get_dpid()}->{'max_flows'}." replace flowmod failed");
             return FWDCTL_FAILURE;
         }
+	$self->{'logger'}->trace("FLow: " . Data::Dumper::Dumper($commands->{'add'}));
 	$self->{'logger'}->info("Installing Flow: " . $commands->{'add'}->to_human());
         my $status = $self->{'of_controller'}->install_datapath_flow($commands->{'add'}->to_dbus());
 	
@@ -651,7 +652,7 @@ sub _restore_down_circuits{
     # send the barrier for all the unique dpids
     my %xid_hash;
     foreach my $dpid (keys %dpid_hash) {
-        my $xid = $self->{'of_controller'}->send_barrier($dpid);
+        my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($dpid));
         $self->{'logger'}->debug("_restore_down_circuits: send_bulk_barrier: with dpid: $dpid");
         $xid_hash{$dpid} = 1;
     }
@@ -777,7 +778,7 @@ sub _fail_over_circuits{
     # send the barrier for all the unique dpids
     my %xid_hash;
     foreach my $dpid (keys %dpid_hash) {
-        my $xid = $self->{'of_controller'}->send_barrier($dpid);
+        my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($dpid));
         $self->{'logger'}->debug("_fail_over_circuits: send_bulk_barrier: with dpid: $dpid");
         $xid_hash{$dpid} = 1;
     }
@@ -1148,12 +1149,15 @@ sub _poll_xids{
 
     while (time() < $timeout) {
         foreach my $xid (keys %$xid_hash_ref) {
-            my $output = $self->{'of_controller'}->get_xid_result($xid);
+            my $output = $self->{'of_controller'}->get_xid_result(Net::DBus::dbus_uint64($xid));
 
             #-- pending, retry later
+	    my $dpid_str  = sprintf("%x",$xid);
+	    $self->{'logger'}->trace("Status of DPID: " . $dpid_str . " is " . $output);
             next if ($output == FWDCTL_WAITING);
 
             #--- one failed , some day have handler passed in hash
+	    $self->{'logger'}->debug("Have a response for DPID: " . $xid . " and is " . $output);
             if ($output == FWDCTL_FAILURE) {
                 $result = FWDCTL_FAILURE;
             }
@@ -1167,7 +1171,7 @@ sub _poll_xids{
         #--- if we got here lets take a short nap
         usleep(100);
     }
-
+    $self->{'logger'}->warn("Not all DPIDs ready... but timeout reached " . Dumper(keys(%{$xid_hash_ref})));
     return $result;
 }
 
@@ -1216,7 +1220,7 @@ sub addVlan {
         my $status = $self->{'of_controller'}->install_datapath_flow($command->to_dbus());
         # send the barrier now if need be
         if (!$node->{'send_barrier_bulk'}) {
-            my $xid = $self->{'of_controller'}->send_barrier($command->get_dpid());
+            my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($command->get_dpid()));
             my $dpid_str  = sprintf("%x",$command->get_dpid());
             _log("addVlan: send_barrier: with dpid: $dpid_str");
             $xid_hash{$command->get_dpid()} = 1;
@@ -1230,7 +1234,7 @@ sub addVlan {
         $initial_result = $self->_poll_xids(\%xid_hash);
     }
     foreach my $dpid (keys %dpid_hash) {
-        my $xid = $self->{'of_controller'}->send_barrier($dpid);
+        my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($dpid));
         _log("addVlan: send_bulk_barrier: with dpid: $dpid");
         $xid_hash{$dpid} = 1;
     }
@@ -1240,9 +1244,11 @@ sub addVlan {
     if (defined($initial_result) && ($initial_result != FWDCTL_SUCCESS)) {
         $result = $initial_result;
     }
+    
+    
 
     if ($result == FWDCTL_SUCCESS) {
-
+	$self->{'logger'}->info("Flows successfully pushed for circuit: " . $ckt->get_id());
         my $details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
 
 
@@ -1263,9 +1269,10 @@ sub addVlan {
 
         $circuit_status{$circuit_id} = OESS_CIRCUIT_UP;
     } else {
-        _log("addVlan fwdctl fail");
+	$self->{'logger'}->error("Failed to install flows on switch for circuit: " . $ckt->get_id());
 
     }
+    
     return $result;
 }
 
@@ -1301,7 +1308,7 @@ sub deleteVlan {
         my $status = $self->{'of_controller'}->delete_datapath_flow($command->to_dbus());
         # send a barrier now if need be
         if (!$node->{'send_barrier_bulk'}) {
-            my $xid = $self->{'of_controller'}->send_barrier($command->get_dpid());
+            my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($command->get_dpid()));
             _log("deleteVlan: send_barrier: with dpid: ".$command->get_dpid());
             $xid_hash{$command->get_dpid()} = 1;
         } else {
@@ -1316,7 +1323,7 @@ sub deleteVlan {
     }
 
     foreach my $dpid (keys %dpid_hash) {
-        my $xid = $self->{'of_controller'}->send_barrier($dpid);
+        my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($dpid));
         _log("deleteVlan: send_bulk_barrier: with dpid: $dpid");
         $xid_hash{$dpid} = 1;
     }
@@ -1355,7 +1362,7 @@ sub _changeVlanPath {
 
             # send the barrier now if the bulk flag is not set
             if (!$node->{'send_barrier_bulk'}) {
-                my $xid = $self->{'of_controller'}->send_barrier($command->get_dpid());
+                my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($command->get_dpid()));
                 $self->{'logger'}->debug("_changeVlanPath: send_barrier: with dpid: ".$command->get_dpid());
                 $xid_hash{$command->get_dpid()} = 1;
             } else {
@@ -1380,7 +1387,7 @@ sub _changeVlanPath {
             $node{$command->get_dpid()}++;
 
             if (!$node->{'send_barrier_bulk'}) {
-                my $xid = $self->{'of_controller'}->send_barrier($command->get_dpid());
+                my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($command->get_dpid()));
                 $self->{'logger'}->debug("_changeVlanPath: send_barrier: with dpid: ".$command->get_dpid());
                 $xid_hash{$command->get_dpid()} = 1;
             } else {
@@ -1416,7 +1423,7 @@ sub changeVlanPath {
 
 
     foreach my $dpid (keys %dpid_hash) {
-        my $xid = $self->{'of_controller'}->send_barrier($dpid);
+        my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($dpid));
         $self->{'logger'}->debug("changeVlanPath: send_bulk_barrier: with dpid: $dpid");
         $xid_hash{$dpid} = 1;
     }
@@ -1433,7 +1440,7 @@ sub changeVlanPath {
 }
 
 
-sub get_ckt_ojbect{
+sub get_ckt_object{
     my $self =shift;
     my $ckt_id = shift;
 
@@ -1456,24 +1463,23 @@ sub get_ckt_ojbect{
 package main;
 
 use OESS::DBus;
-use Log::Log4perl;
 use Net::DBus::Exporter qw(org.nddi.fwdctl);
 use Net::DBus qw(:typing);
 use base qw(Net::DBus::Object);
 use English;
 use Getopt::Long;
 use Proc::Daemon;
+use Data::Dumper;
 
 my $log;
 
 my $srv_object = undef;
 
 sub core{
-
     my $dbus = OESS::DBus->new( service => "org.nddi.openflow", instance => "/controller1");
-    
+    Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
+    $log = Log::Log4perl->get_logger("FWDCTL");
     if (! defined $dbus) {
-        $log->fatal("Could not connect to openflow service, aborting.");
         exit(1);
     }
 
@@ -1496,7 +1502,6 @@ sub core{
         my $dpid   = shift;
         my $ports  = shift;
         my $dpid_str  = sprintf("%x",$dpid);
-        $log->warn("sw: dpipd:$dpid_str datapath_join");
         $srv_object->datapath_join_handler($dpid);
     }
 
@@ -1524,8 +1529,6 @@ sub core{
     $dbus->connect_to_signal("port_status",\&port_status_callback);
     $dbus->connect_to_signal("link_event",\&link_event_callback);
 
-    $log->info("all signals connected");
-
     $dbus->start_reactor( timeouts => [{ interval => 10000, callback => Net::DBus::Callback->new(
                                                                                                  method => sub {
                                                                                                      get_flow_stats_callback();
@@ -1538,10 +1541,9 @@ sub main{
     my $verbose;
     my $username;
 
-    my $result = GetOptions (   #"length=i" => \$length, # numeric
-                             #"file=s"   => \$data, # string
+    my $result = GetOptions ( 
                              "user|u=s"  => \$username,
-                             "verbose"   => \$verbose, #flag
+                             "verbose"   => \$verbose,
                              "daemon|d"  => \$is_daemon,
                             );
 
@@ -1578,15 +1580,10 @@ sub main{
     #not a deamon, just run the core;
     else {
 	$SIG{HUP} = sub{ exit(0); };
-	$log->debug("Starting Core");
         core();
     }
 
 }
-
-Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
-$log = Log::Log4perl->get_logger("FWDCTL");
-$log->info("FWDCTL Start");
 
 main();
 
