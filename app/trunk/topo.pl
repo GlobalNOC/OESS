@@ -410,7 +410,7 @@ sub db_link_add{
 	##up the state?
 	print_log(LOG_DEBUG,"Link already exists, setting to up");
 	$db->update_link_state( link_id => $link_db_id, state => 'up');
-
+    $db->_commit();
     }else{
 	#first determine if any of the ports are currently used by another link... and connect to the same other node
 	my $links_a = $db->get_link_by_interface_id( interface_id => $interface_a->{'interface_id'}, show_decom => 0);
