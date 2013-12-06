@@ -3959,11 +3959,8 @@ sub update_link_state{
     my $link_id = $args{'link_id'};
     my $state = $args{'state'};
 
-    $self->_start_transaction();
-
     if(!defined($link_id)){
 	$self->_set_error("No Link ID specified");
-	$self->_rollback();
     return;
     }
 
@@ -3974,10 +3971,8 @@ sub update_link_state{
     my $result = $self->_execute_query("update link set status = ? where link_id = ?",[$state,$link_id]);
     if($result != 1){
 	$self->_set_error("Error updating link state");
-	$self->_rollback();
     return;
     }
-    $self->_commit();
 
     return 1;
 }
