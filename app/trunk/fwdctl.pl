@@ -260,14 +260,16 @@ sub datapath_join_handler{
     if (!defined($node_details) || $node_details->{'default_forward'} == 1) {
         my $status = $self->{'of_controller'}->install_default_forward($dpid,$self->{'db'}->{'discovery_vlan'});
 #        my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($dpid));
-        $self->{'logger'}->debug("datapath_join_handler: send_barrier: with dpid: $dpid");
+#        $self->{'logger'}->debug("datapath_join_handler: send_barrier: with dpid: $dpid");
 #        if ($xid == FWDCTL_FAILURE) {
             #--- switch may not be connected yet or other error in controller
 #            _log("sw:$sw_name dpid:$dpid_str failed to install lldp forward to controller rule, discovery will fail");
 #            return;
 #        }
-        $xid_hash{$dpid} = 1;
-        $node{$dpid}++;
+
+#        $xid_hash{$dpid} = 1;
+#        $node{$dpid}++;
+
     }
 
     if (!defined($node_details) || $node_details->{'default_drop'} == 1) {
@@ -275,16 +277,16 @@ sub datapath_join_handler{
 #        my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($dpid));
 #        $self->{'logger'}->debug("datapath_join_handler: send_barrier: with dpid: $dpid");
 #        if ($xid == FWDCTL_FAILURE) {
-            #--- switch may not be connected yet or other error in controller
+#            #--- switch may not be connected yet or other error in controller
 #            $self->{'logger'}->error("sw:$sw_name dpid:$dpid_str failed to install default drop rule, traffic may flood controller");
 #            return;
 #        }
-        $xid_hash{$dpid}  = 1;
-        $node{$dpid}++;
+#        $xid_hash{$dpid}  = 1;
+#        $node{$dpid}++;
     }
 
-
-    my $result = $self->_poll_xids(\%xid_hash);
+    my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($dpid));
+    my $result = $self->_poll_node_status({$dpid => 1});
 
     if ($result != FWDCTL_SUCCESS) {
         $self->{'logger'}->error("sw:$sw_name dpid:$dpid_str failed to install default drop or lldp forward rules, may cause traffic to flood controller or discovery to fail");
@@ -484,7 +486,7 @@ sub _actual_diff{
     $xid_hash{$dpid} = 1;
     $self->{'logger'}->info("diff barrier with dpid: $dpid");
 
-    my $result = $self->_poll_xids(\%xid_hash);
+    my $result = $self->_poll_node_status(\%xid_hash);
 
     if ($result == FWDCTL_SUCCESS) {
         $self->{'logger'}->info("sw:$sw_name dpid:$dpid_str diff completed $total changes\n");
@@ -656,7 +658,7 @@ sub _restore_down_circuits{
         $self->{'logger'}->debug("_restore_down_circuits: send_bulk_barrier: with dpid: $dpid");
         $xid_hash{$dpid} = 1;
     }
-    my $result = $self->_poll_xids(\%xid_hash);
+    my $result = $self->_poll_node_status(\%xid_hash);
     if ($result != FWDCTL_SUCCESS || defined($non_success_result)) {
 	$self->{'logger'}->error("failed to restore downed circuits ");
     }
@@ -782,7 +784,7 @@ sub _fail_over_circuits{
         $self->{'logger'}->debug("_fail_over_circuits: send_bulk_barrier: with dpid: $dpid");
         $xid_hash{$dpid} = 1;
     }
-    my $result = $self->_poll_xids(\%xid_hash);
+    my $result = $self->_poll_node_status(\%xid_hash);
     if ($result != FWDCTL_SUCCESS || defined($non_success_result)) {
         $self->{'logger'}->error("failed to fail over circuits ");
     }
@@ -1140,38 +1142,38 @@ sub link_event {
 
 }
 
-sub _poll_xids{
+sub _poll_node_status{
     my $self          = shift;
-    my $xid_hash_ref  = shift; #-- some day hash will be useful if we have to do aysnch error handling
+    my $dpid_hash_ref  = shift; #-- some day hash will be useful if we have to do aysnch error handling
 
     my $result  = FWDCTL_SUCCESS;
     my $timeout = time() + 15;
 
     while (time() < $timeout) {
-        foreach my $xid (keys %$xid_hash_ref) {
-            my $output = $self->{'of_controller'}->get_xid_result(Net::DBus::dbus_uint64($xid));
-
+        foreach my $dpid (keys %$dpid_hash_ref) {
+            my ($output,$failed_flows) = $self->{'of_controller'}->get_node_status(Net::DBus::dbus_uint64($dpid));
+            $self->{'logger'}->debug($output);
             #-- pending, retry later
-	    my $dpid_str  = sprintf("%x",$xid);
+	    my $dpid_str  = sprintf("%x",$dpid);
 	    $self->{'logger'}->trace("Status of DPID: " . $dpid_str . " is " . $output);
             next if ($output == FWDCTL_WAITING);
 
             #--- one failed , some day have handler passed in hash
-	    $self->{'logger'}->debug("Have a response for DPID: " . $xid . " and is " . $output);
+	    $self->{'logger'}->debug("Have a response for DPID: " . $dpid . " and is " . $output);
             if ($output == FWDCTL_FAILURE) {
                 $result = FWDCTL_FAILURE;
             }
             #--- must be success, remove from hash
-            delete $xid_hash_ref->{$xid};
+            delete $dpid_hash_ref->{$dpid};
 
         }
-        if (scalar keys %$xid_hash_ref == 0) {
+        if (scalar keys %$dpid_hash_ref == 0) {
             return $result;
         }
         #--- if we got here lets take a short nap
         usleep(100);
     }
-    $self->{'logger'}->warn("Not all DPIDs ready... but timeout reached " . Dumper(keys(%{$xid_hash_ref})));
+    $self->{'logger'}->warn("Not all DPIDs ready... but timeout reached " . Dumper(keys(%{$dpid_hash_ref})));
     return $result;
 }
 
@@ -1218,32 +1220,21 @@ sub addVlan {
         }
 	$self->{'logger'}->info("Installing Flow: " . $command->to_human());
         my $status = $self->{'of_controller'}->install_datapath_flow($command->to_dbus());
-        # send the barrier now if need be
-        if (!$node->{'send_barrier_bulk'}) {
-            my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($command->get_dpid()));
-            my $dpid_str  = sprintf("%x",$command->get_dpid());
-            _log("addVlan: send_barrier: with dpid: $dpid_str");
-            $xid_hash{$command->get_dpid()} = 1;
-        } else {
-            $dpid_hash{$command->get_dpid()} = 1;
-        }
         $node{$command->get_dpid()}++;
+	$dpid_hash{$command->get_dpid()} = 1;
     }
-    my $initial_result;
-    if (%xid_hash) {
-        $initial_result = $self->_poll_xids(\%xid_hash);
-    }
+
     foreach my $dpid (keys %dpid_hash) {
         my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($dpid));
         _log("addVlan: send_bulk_barrier: with dpid: $dpid");
-        $xid_hash{$dpid} = 1;
+        $dpid_hash{$dpid} = 1;
     }
 
-    my $result = $self->_poll_xids(\%xid_hash);
+    my $result = $self->_poll_node_status(\%dpid_hash);
     # if the initial poll_xid method was called and it returned a failure treat the second one as a failure as well
-    if (defined($initial_result) && ($initial_result != FWDCTL_SUCCESS)) {
-        $result = $initial_result;
-    }
+#    if (defined($initial_result) && ($initial_result != FWDCTL_SUCCESS)) {
+#        $result = $initial_result;
+#    }
     
     
 
@@ -1319,7 +1310,7 @@ sub deleteVlan {
     # if any barrier were sent poll the xids first
     my $initial_result;
     if (%xid_hash) {
-        $initial_result = $self->_poll_xids(\%xid_hash);
+        $initial_result = $self->_poll_node_status(\%xid_hash);
     }
 
     foreach my $dpid (keys %dpid_hash) {
@@ -1328,7 +1319,7 @@ sub deleteVlan {
         $xid_hash{$dpid} = 1;
     }
 
-    my $result = $self->_poll_xids(\%xid_hash);
+    my $result = $self->_poll_node_status(\%xid_hash);
     # if the initial poll xids method was called and it failed return its result
     if (defined($initial_result) && ($initial_result != FWDCTL_SUCCESS)) {
         $result = $initial_result;
@@ -1399,7 +1390,7 @@ sub _changeVlanPath {
     # if we sent any barriers immediately, poll the xids
     my $result;
     if (%xid_hash) {
-        $result = $self->_poll_xids(\%xid_hash);
+        $result = $self->_poll_node_status(\%xid_hash);
         if ($result != FWDCTL_SUCCESS) {
             $self->{'logger'}->error("failed to install flows in _changeVlanPath");
         }
@@ -1427,7 +1418,7 @@ sub changeVlanPath {
         $self->{'logger'}->debug("changeVlanPath: send_bulk_barrier: with dpid: $dpid");
         $xid_hash{$dpid} = 1;
     }
-    my $result = $self->_poll_xids(\%xid_hash);
+    my $result = $self->_poll_node_status(\%xid_hash);
     #if the initial poll xids method wqs called and it was not successful send its return
     if (defined($initial_result) && ($initial_result != FWDCTL_SUCCESS)) {
         $result = $initial_result;
