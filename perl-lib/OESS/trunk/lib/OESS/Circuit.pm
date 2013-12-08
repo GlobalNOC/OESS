@@ -133,6 +133,9 @@ sub get_restore_to_primary{
 
 sub update_circuit_details{
     my $self = shift;
+    $self->{'graph'} = {};
+    $self->{'endpoints'} = {};
+    $self->{'flows'} = {};
     $self->_load_circuit_details();
 }
 
