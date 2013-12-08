@@ -56,9 +56,7 @@ logger = logging.getLogger('org.nddi.openflow')
 
 ifname = 'org.nddi.openflow'
 
-barrier_callbacks = {}
 flowmod_callbacks = {}
-
 switches = []
 last_flow_stats = {}
 
@@ -67,7 +65,7 @@ class dBusEventGenRo(dbus.service.Object):
 
     def __init__(self,bus,path):
         dbus.service.Object.__init__(self,bus_name=bus, object_path=path)
-        
+        self.collection_epoch = 0
     @dbus.service.method(dbus_interface=ifname,
                          in_signature='t',
                          out_signature='b'
@@ -83,7 +81,7 @@ class dBusEventGen(dbus.service.Object):
 
     def __init__(self, bus, path):
        dbus.service.Object.__init__(self, bus_name=bus, object_path=path)
-
+       self.collection_epoch = 0
     @dbus.service.signal(dbus_interface=ifname,
                          signature='tua{sv}')
     def port_status(self,dp_id,reason,attrs):
@@ -141,29 +139,29 @@ class dBusEventGen(dbus.service.Object):
 
     @dbus.service.method(dbus_interface=ifname,
                          in_signature='t',
-                         out_signature='t'
+                         out_signature='iaa{sv}'
                          )
-    def get_xid_result(self, xid):
-        logger.info("Checking xid %s" % xid)
-        logger.info(str(flowmod_callbacks))
-        if flowmod_callbacks.has_key(dbus.UInt64(xid)):
-            logger.info("Found the xid")
-            for info in flowmod_callbacks[dbus.UInt64(xid)]:
-                logger.info("XID Result" + str(info))
-                if info["status"] == PENDING:
-                    logger.info("Still waiting")
-                    return FWDCTL_WAITING
-                elif info["result"] == FWDCTL_FAILURE:
-                    logger.info("was a failure")
-                    del flowmod_callbacks[xid]
-                    return FWDCTL_FAILURE
+    def get_node_status(self, dpid):
+        
+        if flowmod_callbacks.has_key(dpid):
+            xids = flowmod_callbacks[dpid].keys()
+            
+            if(len(xids) == 1):
 
-            # pop these all out, we're done here
-            logger.info("here")
-            del flowmod_callbacks[dbus.UInt64(xid)]
-            return FWDCTL_SUCCESS
+                if(flowmod_callbacks[dpid][xids[0]]["result"] == FWDCTL_SUCCESS):
+                    del flowmod_callbacks[dpid][xids[0]]
+                    return ( FWDCTL_SUCCESS, [])
 
-        return FWDCTL_UNKNOWN
+                elif(flowmod_callbacks[dpid][xids[0]]["result"] == FWDCTL_WAITING):
+                    return (FWDCTL_WAITING, [])
+                else:
+                    failed_flows = flowmod_callbacks[dpid][xids[0]]["failed_flows"]
+                    del flowmod_callbacks[dpid][xids[0]]
+                    return ( FWDCTL_FAILURE, failed_flows )
+            else:
+                return (FWDCTL_WAITING, [])
+            
+        return (FWDCTL_UNKNOWN,[])
 
 
     @dbus.service.method(dbus_interface=ifname,
@@ -180,10 +178,19 @@ class dBusEventGen(dbus.service.Object):
         
         idle_timeout = 0
         hard_timeout = 0
-        
-        status = _do_install(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout, actions=actions,priority=0x0001, inport=None))
 
-        return status
+        xid = inst.install_datapath_flow( dp_id=dpid,
+                                          attrs=my_attrs,
+                                          idle_timeout=idle_timeout,
+                                          hard_timeout=hard_timeout,
+                                          actions=actions,
+                                          priority=0x0001,
+                                          inport=None)
+        
+        _do_install(dpid,xid,my_attrs,actions)
+
+        return xid
+
     @dbus.service.method(dbus_interface=ifname,
                          in_signature='tq',
                          out_signature='t'
@@ -200,10 +207,11 @@ class dBusEventGen(dbus.service.Object):
         
         idle_timeout = 0
         hard_timeout = 0
+        xid = inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=None)
 
-        status = _do_install(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=None))
+        _do_install(dpid,xid,my_attrs,actions)
 
-        return status
+        return xid
 
     @dbus.service.method(dbus_interface=ifname,
                          in_signature='ta{sv}a(qv)',
@@ -242,13 +250,15 @@ class dBusEventGen(dbus.service.Object):
                 actions.remove(action)
                 actions.insert(i, new_action)
 
-        status = 0
         #--- first we check to make sure the switch is in a ready state to accept more flow mods.
         if (my_attrs.get("IN_PORT")):
-            status = _do_install(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,priority=priority,inport=my_attrs[IN_PORT])); 
+            xid = inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,priority=priority,inport=my_attrs[IN_PORT])
         else:
-            status = _do_install(dpid, lambda: inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,priority=priority,inport=None));
-        return status
+            xid = inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,priority=priority,inport=None)
+
+        _do_install(dpid,xid,my_attrs,actions)
+
+        return xid
 
 
     @dbus.service.method(dbus_interface=ifname,
@@ -260,6 +270,8 @@ class dBusEventGen(dbus.service.Object):
         if not dpid in switches:
           return 0;
 
+        logger.info("removing flow")
+
  	my_attrs = {}
         if attrs.get("DL_VLAN"):
             my_attrs[DL_VLAN] = int(attrs['DL_VLAN'])
@@ -269,10 +281,15 @@ class dBusEventGen(dbus.service.Object):
             my_attrs[DL_DST]  = int(attrs['DL_DST'])
         if attrs.get("DL_TYPE"):
             my_attrs[DL_TYPE]  = int(attrs['DL_TYPE'])
-        #--- first we check to make sure the switch is in a ready state to accept more flow mods
-        status = _do_install(dpid, lambda: inst.delete_datapath_flow(dpid, my_attrs))
 
-        return status
+        logger.info("removing flow")
+        #--- first we check to make sure the switch is in a ready state to accept more flow mods
+        xid = inst.delete_datapath_flow(dpid, my_attrs)
+        logger.info("flow removed xid: %d" % xid)
+        actions = []
+        _do_install(dpid,xid,my_attrs,actions)
+
+        return xid
 
     @dbus.service.method(dbus_interface=ifname,
                          in_signature='t',
@@ -280,11 +297,12 @@ class dBusEventGen(dbus.service.Object):
                          )
     def send_barrier(self, dpid):
         logger.info("Sending barrier for %s" % dpid)
-        if not flowmod_callbacks.has_key(dpid):
-            flowmod_callbacks[dpid] = []
-        flowmod_callbacks[dpid].append({"status": PENDING, "result": FWDCTL_WAITING, "start_time": time()})
         
         xid = inst.send_barrier(dpid)
+
+        if not flowmod_callbacks.has_key(dpid):
+            flowmod_callbacks[dpid] = {}
+        flowmod_callbacks[dpid][xid] = {"result": FWDCTL_WAITING}
         return xid
 
 #--- series of callbacks to glue the reception of NoX events to the generation of D-Bus events
@@ -322,7 +340,7 @@ def datapath_join_callback(ref,sg,dp_id,ip_address,stats):
     #print str(ports)
 
     #--- we know we are going to need to get the set of flows so lets just do that now
-    ref.collection_epoch += 1
+    sg.collection_epoch += 1
     flow = of.ofp_match()
     flow.wildcards = 0xffffffff
     ref.send_flow_stats_request(dp_id, flow,0xff)
@@ -358,15 +376,24 @@ def datapath_leave_callback(sg,dp_id):
     sg.datapath_leave(dp_id)
 
 def barrier_reply_callback(sg,dp_id,xid):
+
+    intxid = c_ntohl(xid)
+
     if flowmod_callbacks.has_key(dp_id):
-        for info in flowmod_callbacks[dp_id]:
-            if info["status"] != ANSWERED:
-                logger.info("got barrier for %s" % (dp_id))
-                info["result"]      = FWDCTL_SUCCESS
-                info["status"]      = ANSWERED
-                logger.info(str(flowmod_callbacks[dp_id]))
-                break
- 
+        flows = flowmod_callbacks[dp_id]
+        if(flows.has_key(intxid)):
+            flows[intxid]["status"] = ANSWERED
+            flows[intxid]["result"] = FWDCTL_SUCCESS
+            if not flows[intxid].has_key("failed_flows"):
+                flows[intxid]["failed_flows"] = []
+            flows[intxid]["failed_flows"] = []
+            xids = flows.keys()
+            for x in xids:
+                if(x < intxid):
+                    if(flows[x]["result"] == FWDCTL_FAILURE):
+                        flows[intxid]["result"] = FWDCTL_FAILURE
+                        flows[intxid]["failed_flows"].append(flows[x])
+                    del flows[x]
     sg.barrier_reply(dp_id,xid)
 
 
@@ -375,11 +402,13 @@ def error_callback(sg, dpid, type, code, data, xid):
     logger.info("handling error from %s, xid = %s" % (dpid, xid))
 
     if flowmod_callbacks.has_key(dpid):
-        for info in flowmod_callbacks[dpid]:
-            if info["status"] == PENDING:
-                info["status"] = ANSWERED
-                info["result"] = FWDCTL_FAILURE
-                break
+        flows = flomod_callbacks[dpid]
+        if(flows.has_key(xid)):
+            flows[xid]["result"] = FWDCTL_ERROR
+            flows[xid]["error"] = {}
+            flows[xid]["error"]["type"] = type
+            flows[xid]["error"]["code"] = code
+            
 
 def packet_in_callback(sg, dpid,in_port,reason, length,buffer_id, data) :
     sg.packet_in(dpid,in_port,reason, length,buffer_id, data.arr)
@@ -389,15 +418,13 @@ inst = None
 high_water = 0
 # send a barrier message with a reference to the actual function we want to run when the switch
 # has responded and told us that it is ready
-def _do_install(dpid, callback):
-#    logger.debug("DPID: " + str(dpid))
-#    if not flowmod_callbacks.has_key(dpid):
-#        flowmod_callbacks[dpid] = []
-#
-#    flowmod_callbacks[dpid].append({"status": PENDING, "result": FWDCTL_WAITING, "start_time": time()})
-
-    callback();
-    #return inst.send_barrier(dpid)
+def _do_install(dpid,xid,match,actions):
+    
+    if not flowmod_callbacks.has_key(dpid):
+        flowmod_callbacks[dpid] = {}
+    
+    flowmod_callbacks[dpid][xid] = {"result": FWDCTL_WAITING, "match": match, "actions": actions}
+    
     return 1
 
 global high_water
@@ -439,10 +466,9 @@ class nddi_dbus(Component):
         self.st = {}
         inst = self
         self.ctxt = ctxt
-        self.collection_epoch = 0
         self.collection_epoch_duration = 10
         self.latest_flow_stats = {}
-
+        
     def install(self):
 	#--- setup the dbus foo
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
@@ -480,7 +506,7 @@ class nddi_dbus(Component):
 
     def fire_flow_stats_timer(self):
         for dpid in switches:
-            self.collection_epoch += 1
+            self.sg.collection_epoch += 1
             flow = of.ofp_match()
             flow.wildcards = 0xffffffff
             self.send_flow_stats_request(dpid, flow,0xff)
@@ -542,7 +568,7 @@ class nddi_dbus(Component):
         # Create the stats request header
         request = of.ofp_stats_request()
         if xid == -1:
-            request.header.xid = c_htonl(long(self.collection_epoch))
+            request.header.xid = c_htonl(long(self.sg.collection_epoch))
         else:
             request.header.xid = c_htonl(xid)
             

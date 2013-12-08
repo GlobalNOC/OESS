@@ -325,7 +325,8 @@ class Component:
     def send_flow_command(self, dp_id, command, attrs, 
                           priority=openflow.OFP_DEFAULT_PRIORITY,
                           add_args=None,
-                          hard_timeout=openflow.OFP_FLOW_PERMANENT):
+                          hard_timeout=openflow.OFP_FLOW_PERMANENT,
+                          xid=0):
         m = set_match(attrs)
         if m == None:
             return False
@@ -340,10 +341,8 @@ class Component:
             oactions = ""
             buffer_id = UINT32_MAX
         
-        self.ctxt.send_flow_command(dp_id, command, m, idle_timeout,
-                                    hard_timeout, oactions, buffer_id, priority)
-
-        return True
+        return self.ctxt.send_flow_command(dp_id, command, m, idle_timeout,
+                                           hard_timeout, oactions, buffer_id, priority, xid)
 
     # Former PyAPI methods
 
@@ -387,14 +386,24 @@ class Component:
     # Absent keys are interpretted as wildcards.
     ###########################################################################
 
-    def delete_datapath_flow(self, dp_id, attrs):
+    def delete_datapath_flow(self, dp_id, attrs, xid=None):
         """\brief Delete all flow entries matching the passed in (potentially
         wildcarded) flow.
 
         @param dp_id datapath to delete the entries from
         @param attrs the flow as a dictionary (described above)
         """
-        return self.send_flow_command(dp_id, openflow.OFPFC_DELETE, attrs)
+        if xid == None:
+            if not hasattr(self, 'xid'):
+                xid = 8238
+            else:
+                xid = getattr(self, 'xid')
+            if xid >= 0xFFffFFfe:
+                xid = 8238
+                setattr(self, 'xid', xid + 1)
+
+        self.send_flow_command(dp_id, openflow.OFPFC_DELETE, attrs,xid=xid)
+        return xid
 
     def delete_strict_datapath_flow(self, dp_id, attrs,
                         priority=openflow.OFP_DEFAULT_PRIORITY):
@@ -415,7 +424,7 @@ class Component:
     def install_datapath_flow(self, dp_id, attrs, idle_timeout, hard_timeout,
                               actions, buffer_id=None, 
                               priority=openflow.OFP_DEFAULT_PRIORITY,
-                              inport=None, packet=None):
+                              inport=None, packet=None, xid=None):
         """\brief Add a flow entry to datapath.
 
         @param dp_id datapath to add the entry to
@@ -445,11 +454,20 @@ class Component:
         @param inport When packet is sent, the port on which packet came in as input,
         so that it can be omitted from any OFPP_FLOOD outputs.
         """
+        if xid == None:
+            if not hasattr(self, 'xid'):
+                xid = 8238
+            else:
+                xid = getattr(self, 'xid')
+            if xid >= 0xFFffFFfe:
+                xid = 8238
+                setattr(self, 'xid', xid + 1)
+
         if buffer_id == None:
             buffer_id = UINT32_MAX
 
         self.send_flow_command(dp_id, openflow.OFPFC_ADD, attrs, priority,
-                          (idle_timeout, actions, buffer_id), hard_timeout)
+                               (idle_timeout, actions, buffer_id), hard_timeout, xid)
         
         if buffer_id == UINT32_MAX and packet != None:
             for action in actions:
@@ -460,7 +478,9 @@ class Component:
                         self.send_openflow_packet(dp_id, packet, action[1][1], inport)
                 else:
                     raise NotImplementedError
-                    
+
+        return xid
+
     def send_barrier(self, dpid, xid=None):
         #TODO: replace with real XID code
         if xid == None:
@@ -472,7 +492,7 @@ class Component:
                 xid = 8238
             setattr(self, 'xid', xid + 1)
             data = struct.pack("!BBHL", openflow.OFP_VERSION,
-            openflow.OFPT_BARRIER_REQUEST, 8, xid)
+                               openflow.OFPT_BARRIER_REQUEST, 8, xid)
             self.send_openflow_command(dpid, data)
         return xid
 
