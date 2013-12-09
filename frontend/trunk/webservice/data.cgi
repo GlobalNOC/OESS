@@ -192,8 +192,11 @@ sub get_workgroup_interfaces {
     }else {
         my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
         if(!$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
-            $results->{'error'} = 'Error: you are not part of this workgroup';
-            return $results;
+            my $is_admin = $db->get_user_admin_status( 'username' => $username );
+            if(!$is_admin) {
+                $results->{'error'} = 'Error: you are not part of this workgroup';
+                return $results;
+            }
         }
     }
 
