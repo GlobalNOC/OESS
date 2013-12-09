@@ -1021,13 +1021,21 @@ sub get_node_interfaces {
         # skip if we already added this interface b/c of an acl rule
         next if($interface_already_added{$row->{'interface_id'}});
 
+        my $vlan_tag_range = $row->{'vlan_tag_range'};
+        if($workgroup_id) {
+            $vlan_tag_range = $self->_validate_endpoint(
+                interface_id => $row->{'interface_id'},
+                workgroup_id => $workgroup_id
+            );
+        }
+
 	    push(@results, {
             "name"           => $row->{'name'},
 			"description"    => $row->{'description'},
 			"interface_id"   => $row->{'interface_id'},
 			"port_number"    => $row->{'port_number'},
 			"status"         => $row->{'operational_state'},
-			"vlan_tag_range" => $row->{'vlan_tag_range'},
+			"vlan_tag_range" => $vlan_tag_range,
 			"int_role"       => $row->{'role'},
             "workgroup_id"   => $row->{'workgroup_id'},
             "workgroup_name" => $row->{'workgroup_name'}
