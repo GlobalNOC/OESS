@@ -467,7 +467,11 @@ function makeTagSelectPanel(coordinates, options ){
 
     //set the vlan_tag_range
     var tag_range_holder = YAHOO.util.Dom.get('new_vlan_tag_range');
-    tag_range_holder.innerHTML = options.tag_range;
+    if(options.tag_range === null){
+        tag_range_holder.innerHTML = "None Available";
+    } else {
+        tag_range_holder.innerHTML = options.tag_range;
+    }
 
     var save_button = new YAHOO.widget.Button('save_endpoint_button');
     save_button.set('label','Save');

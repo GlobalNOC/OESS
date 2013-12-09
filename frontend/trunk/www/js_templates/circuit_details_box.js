@@ -160,7 +160,12 @@ function summary_init(options){
                             fetching_input = false;
                             rec.vlan_tag_range = resp.results[0].vlan_tag_range;
                             create_panel();
-                        }else{
+                        }
+                        else if(resp.results[0].vlan_tag_range === null){
+                            rec.vlan_tag_range = "None Available"; 
+                            create_panel();
+                        } 
+                        else{
                             alert("Problem fetching vlan tag range.");
                         }
                     },
