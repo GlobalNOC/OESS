@@ -378,3 +378,8 @@ table.circuit_summary_table tr{
     margin-bottom: 5px;
     text-align: left;
 }
+
+.features_errors li {
+    list-style-type: disc !important;
+    list-style-position: outside !important;
+}
