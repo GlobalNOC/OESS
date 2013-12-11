@@ -1,6 +1,6 @@
 {
 	"variables": {
-		   "oess_version":"1.0.12"
+		   "oess_version":"1.1.1"
 	},
     "builders":[
 	{
@@ -61,7 +61,7 @@
 		"sudo useradd -r _snapp",
 		"wget http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm",
 		"sudo rpm -Uvh epel-release-6*.rpm",
-		"wget https://nddi.googlecode.com/files/oess-{{user `oess_version`}}.tar.gz",
+		"wget http://globalnoc.iu.edu/sdn/oess/oess-releases/oess-{{user `oess_version`}}.tar.gz",
 		"tar -xzf oess-{{user `oess_version`}}.tar.gz",
 		"cd oess-{{user `oess_version`}}",
 		"sudo yum -y install `find *.rpm`"
