@@ -130,12 +130,12 @@ sub _sync_database_to_network {
     my $circuits = $self->{'db'}->get_current_circuits();
     foreach my $circuit (@$circuits) {
 
-	my $ckt = OESS::Circuit->new( db => $self->{'db'},
-				      circuit_id => $circuit->{'circuit_id'} );
+    my $ckt = OESS::Circuit->new( db => $self->{'db'},
+                      circuit_id => $circuit->{'circuit_id'} );
 
-	$self->{'logger'}->trace("Ckt: " . Data::Dumper::Dumper($ckt));
+    $self->{'logger'}->trace("Ckt: " . Data::Dumper::Dumper($ckt));
 
-	$self->{'circuit'}->{ $ckt->get_id() } = $ckt;
+    $self->{'circuit'}->{ $ckt->get_id() } = $ckt;
 
         if ($circuit->{'operational_state'} eq 'up') {
             $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
@@ -161,7 +161,7 @@ sub _sync_database_to_network {
     foreach my $node (@$nodes) {
         $node->{'full_diff'} = 1;
         $self->{'nodes_needing_diff'}{$node->{'dpid'}} = $node;
-	$node_info{$node->{'dpid'}} = $node;
+    $node_info{$node->{'dpid'}} = $node;
     }
 }
 
@@ -178,46 +178,46 @@ sub _generate_commands{
     $self->{'logger'}->trace("ckt: " . Data::Dumper::Dumper($ckt));
 
     switch($action){
-	case (FWDCTL_ADD_VLAN){
+    case (FWDCTL_ADD_VLAN){
 
-	    my $flows = $ckt->get_flows();
-	    return $flows;
+        my $flows = $ckt->get_flows();
+        return $flows;
 
-	}case (FWDCTL_REMOVE_VLAN){
+    }case (FWDCTL_REMOVE_VLAN){
 
-	    my $flows = $ckt->get_flows();
-	    return $flows;
+        my $flows = $ckt->get_flows();
+        return $flows;
 
-	}case (FWDCTL_CHANGE_PATH){
+    }case (FWDCTL_CHANGE_PATH){
 
-	    my $primary_flows = $ckt->get_endpoint_flows( path => 'primary');
-	    my $backup_flows =  $ckt->get_endpoint_flows( path => 'backup');
-	    my @commands;
+        my $primary_flows = $ckt->get_endpoint_flows( path => 'primary');
+        my $backup_flows =  $ckt->get_endpoint_flows( path => 'backup');
+        my @commands;
 
 
-	    $self->{'logger'}->debug("Circuit is now on " . $ckt->get_active_path() . " path");
+        $self->{'logger'}->debug("Circuit is now on " . $ckt->get_active_path() . " path");
             #we already performed the DB change so that means
             #whatever path is active is actually what we are moving to
-	    foreach my $flow (@$primary_flows){
-		if($ckt->get_active_path() eq 'primary'){
-		    $flow->{'sw_act'} = FWDCTL_ADD_RULE;
-		}else{
-		    $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
-		}
-		push(@commands,$flow);
-	    }
+        foreach my $flow (@$primary_flows){
+        if($ckt->get_active_path() eq 'primary'){
+            $flow->{'sw_act'} = FWDCTL_ADD_RULE;
+        }else{
+            $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
+        }
+        push(@commands,$flow);
+        }
 
-	    foreach my $flow (@$backup_flows){
-		if($ckt->get_active_path() eq 'primary'){
-		    $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
-		}else{
-		    $flow->{'sw_act'} = FWDCTL_ADD_RULE;
-		}
-		push(@commands,$flow);
-	    }
+        foreach my $flow (@$backup_flows){
+        if($ckt->get_active_path() eq 'primary'){
+            $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
+        }else{
+            $flow->{'sw_act'} = FWDCTL_ADD_RULE;
+        }
+        push(@commands,$flow);
+        }
 
-	    return \@commands;
-	}
+        return \@commands;
+    }
     }
 
 
@@ -314,9 +314,9 @@ sub _replace_flowmod{
 
     if (defined($commands->{'remove'})) {
         #delete this flowmod
-	$self->{'logger'}->info("Deleting flow: " . $commands->{'remove'}->to_human());
+    $self->{'logger'}->info("Deleting flow: " . $commands->{'remove'}->to_human());
         my $status = $self->{'of_controller'}->delete_datapath_flow($commands->{'remove'}->to_dbus());
-	$self->{'logger'}->trace("Node Details: " . Dumper($node_info{$commands->{'remove'}->get_dpid()}));
+    $self->{'logger'}->trace("Node Details: " . Dumper($node_info{$commands->{'remove'}->get_dpid()}));
         if(!$node_info{$commands->{'remove'}->get_dpid()}->{'send_barrier_bulk'}){
             my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($commands->{'remove'}->get_dpid()));
             $self->{'logger'}->debug("replace flowmod: send_barrier: with dpid: " . $commands->{'remove'}->get_dpid());
@@ -324,29 +324,29 @@ sub _replace_flowmod{
         }
         $node{$commands->{'remove'}->get_dpid()}--;
     }
-    
+
     if (defined($commands->{'add'})) {
-	$self->{'logger'}->trace("Node Details: " . Dumper($node_info{$commands->{'add'}->get_dpid()}));
+    $self->{'logger'}->trace("Node Details: " . Dumper($node_info{$commands->{'add'}->get_dpid()}));
         if ( $node{$commands->{'add'}->get_dpid()} >= $node_info{$commands->{'add'}->get_dpid()}->{'max_flows'}) {
             my $dpid_str  = sprintf("%x",$commands->{'add'}->get_dpid());
             $self->{'logger'}->error("sw: dpipd:$dpid_str exceeding max_flows:".$node_info{$commands->{'add'}->get_dpid()}->{'max_flows'}." replace flowmod failed");
             return FWDCTL_FAILURE;
         }
-	$self->{'logger'}->trace("FLow: " . Data::Dumper::Dumper($commands->{'add'}));
-	$self->{'logger'}->info("Installing Flow: " . $commands->{'add'}->to_human());
+    $self->{'logger'}->trace("FLow: " . Data::Dumper::Dumper($commands->{'add'}));
+    $self->{'logger'}->info("Installing Flow: " . $commands->{'add'}->to_human());
         my $status = $self->{'of_controller'}->install_datapath_flow($commands->{'add'}->to_dbus());
-	
+
         # send the barrier if the bulk flag is not set
         if (!$node_info{$commands->{'add'}->get_dpid()}->{'send_barrier_bulk'}) {
             my $xid = $self->{'of_controller'}->send_barrier(dbus_uint64($commands->{'add'}->get_dpid()));
             $self->{'logger'}->error("replace flowmod: send_barrier: with dpid: " . $commands->{'add'}->get_dpid());
             $xid_hash{$commands->{'add'}->get_dpid()} = 1;
         }
-	
+
         $node{$commands->{'add'}->get_dpid()}++;
         #wait for the delete to take place
     }
-    
+
     return;
 }
 
@@ -395,17 +395,17 @@ sub _do_diff{
     }
 
     if (!defined($node_info) || $node_info->{'default_forward'} == 1) {
-	if(defined($self->{'db'}->{'discovery_vlan'}) && $self->{'db'}->{'discovery_vlan'} != -1){
-	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
-						    match => {'dl_type' => 35020,
-							      'dl_vlan' => $self->{'db'}->{'discovery_vlan'}},
-						    actions => [{'output' => 65533}]));
-	}else{
-	                push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
-								match => {'dl_type' => 35020,
-									  'dl_vlan' => -1},
-								actions => [{'output' => 65533}]));
-	}
+    if(defined($self->{'db'}->{'discovery_vlan'}) && $self->{'db'}->{'discovery_vlan'} != -1){
+        push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
+                            match => {'dl_type' => 35020,
+                                  'dl_vlan' => $self->{'db'}->{'discovery_vlan'}},
+                            actions => [{'output' => 65533}]));
+    }else{
+                    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
+                                match => {'dl_type' => 35020,
+                                      'dl_vlan' => -1},
+                                actions => [{'output' => 65533}]));
+    }
     }
 
     $node{$dpid} = 0;
@@ -434,38 +434,38 @@ sub _actual_diff{
     foreach my $command (@$commands) {
         #---ignore rules not for this dpid
         next if($command->get_dpid() != $dpid);
-	my $found = 0;
+    my $found = 0;
 
-	for(my $i=0;$i<=$#{$current_flows};$i++){
-	    my $current_flow = $current_flows->[$i];
-	    if($command->compare_match( flow_rule => $current_flows->[$i])){
-		$found = 1;
-		if($command->compare_actions( flow_rule => $current_flows->[$i])){
-		    #woohoo we match
-		    delete $current_flows->[$i];
-		    last;
-		}else{
-		    #doh... we don't match... remove current flow, add the other flow
-		    $stats{'mods'}++;
-		    push(@rule_queue,{remove => $current_flows->[$i], add => $command});
-		    delete $current_flows->[$i];
-		    last;
-		}
-	    }
-	}
+    for(my $i=0;$i<=$#{$current_flows};$i++){
+        my $current_flow = $current_flows->[$i];
+        if($command->compare_match( flow_rule => $current_flows->[$i])){
+        $found = 1;
+        if($command->compare_actions( flow_rule => $current_flows->[$i])){
+            #woohoo we match
+            delete $current_flows->[$i];
+            last;
+        }else{
+            #doh... we don't match... remove current flow, add the other flow
+            $stats{'mods'}++;
+            push(@rule_queue,{remove => $current_flows->[$i], add => $command});
+            delete $current_flows->[$i];
+            last;
+        }
+        }
+    }
 
-	if(!$found){
-	    #doh... add this rule
-	    $stats{'adds'}++;
-	    push(@rule_queue,{add => $command});	    
-	}
+    if(!$found){
+        #doh... add this rule
+        $stats{'adds'}++;
+        push(@rule_queue,{add => $command});
+    }
     }
 
     #if we have any flows remaining the must be removed!
     foreach my $current_flow (@$current_flows){
         next if(!defined($current_flow));
-	$stats{'rems'}++;
-	push(@rule_queue,{remove => $current_flow});
+    $stats{'rems'}++;
+    push(@rule_queue,{remove => $current_flow});
     }
 
     my $total = $stats{'mods'} + $stats{'adds'} + $stats{'rems'};
@@ -518,12 +518,12 @@ sub _restore_down_circuits{
     my $circuit_notification_data = [];
     foreach my $circuit (@$circuits) {
 
-	my $ckt = $self->get_ckt_object( $circuit->{'circuit_id'});
+    my $ckt = $self->get_ckt_object( $circuit->{'circuit_id'});
 
-	if(!defined($ckt)){
-	    $self->{'logger'}->error("No Circuit could be created or found for circuit: " . $circuit->{'circuit_id'});
-	    next;
-	}
+    if(!defined($ckt)){
+        $self->{'logger'}->error("No Circuit could be created or found for circuit: " . $circuit->{'circuit_id'});
+        next;
+    }
 
         if($ckt->has_backup_path()){
 
@@ -532,12 +532,12 @@ sub _restore_down_circuits{
 
                 if ($ckt->get_path_status(path => 'primary', link_status => \%link_status ) == OESS_LINK_DOWN) {
                     #if the primary path is down and the backup path is up and is not active fail over
-                    
+
                     if ($ckt->get_path_status( path => 'backup', link_status => \%link_status ) && $ckt->get_active_path() ne 'backup'){
                         #bring it back to this path
                         my $success = $ckt->change_path();
                         $self->{'logger'}->warn("vlan:" . $ckt->get_name() ." id:" . $ckt->get_id() . " affected by trunk:$link_name moving to alternate path");
-                        
+
                         if (! $success) {
                             $self->{'logger'}->error("vlan:" . $ckt->get_name() . " id:" . $ckt->get_id() . " affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $ckt->error());
                             next;
@@ -643,6 +643,7 @@ sub _restore_down_circuits{
             push (@$circuit_notification_data, $circuit);
         }
     }
+
     if ( $circuit_notification_data && scalar(@$circuit_notification_data) ){
         $self->emit_signal("circuit_notification", {
                                                     "type" => 'link_up',
@@ -661,7 +662,7 @@ sub _restore_down_circuits{
     }
     my $result = $self->_poll_node_status(\%xid_hash);
     if ($result != FWDCTL_SUCCESS || defined($non_success_result)) {
-	$self->{'logger'}->error("failed to restore downed circuits ");
+    $self->{'logger'}->error("failed to restore downed circuits ");
     }
 
 
@@ -685,36 +686,36 @@ sub _fail_over_circuits{
 
     $self->{'logger'}->debug("in _fail_over_circuits with circuits: ".@$circuits);
     my $circuit_infos;
-    
+
     foreach my $circuit_info (@$circuits) {
         my $circuit_id   = $circuit_info->{'id'};
         my $circuit_name = $circuit_info->{'name'};
-	
-	my $circuit = $self->get_ckt_object( $circuit_id );
 
-	if(!defined($circuit)){
-	    $self->{'logger'}->error("Unable to create or find a circuit object for $circuit_id");
-	    next;
-	}
-	
-	if($circuit->has_backup_path()){
-	    
-	    my $current_path = $circuit->get_active_path();
-	    
-	    $self->{'logger'}->debug("Circuits current active path: " . $current_path);
-	    #if we know the current path, then the alternate is the other
-	    my $alternate_path = 'primary';
-	    if($current_path eq 'primary'){
-		$alternate_path = 'backup';
-	    }
+    my $circuit = $self->get_ckt_object( $circuit_id );
 
-	    #check the alternate paths status
-	    if($circuit->get_path_status( path => $alternate_path, link_status => \%link_status)){
-		my $success = $circuit->change_path();
-		$self->{'logger'}->warn("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name moving to alternate path");
+    if(!defined($circuit)){
+        $self->{'logger'}->error("Unable to create or find a circuit object for $circuit_id");
+        next;
+    }
 
-		#failed to move the path
-		if (! $success) {
+    if($circuit->has_backup_path()){
+
+        my $current_path = $circuit->get_active_path();
+
+        $self->{'logger'}->debug("Circuits current active path: " . $current_path);
+        #if we know the current path, then the alternate is the other
+        my $alternate_path = 'primary';
+        if($current_path eq 'primary'){
+        $alternate_path = 'backup';
+        }
+
+        #check the alternate paths status
+        if($circuit->get_path_status( path => $alternate_path, link_status => \%link_status)){
+        my $success = $circuit->change_path();
+        $self->{'logger'}->warn("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name moving to alternate path");
+
+        #failed to move the path
+        if (! $success) {
                     $circuit_info->{'status'} = "unknown";
                     $circuit_info->{'reason'} = "Attempted to switch to alternate path, however an unknown error occured.";
                     $circuit_info->{'circuit_id'} = $circuit_info->{'id'};
@@ -725,7 +726,7 @@ sub _fail_over_circuits{
                     next;
                 }
 
-		($new_result, %new_dpids) = $self->_changeVlanPath($circuit_id);
+        ($new_result, %new_dpids) = $self->_changeVlanPath($circuit_id);
                 if (defined($new_result) && ($new_result != FWDCTL_SUCCESS)) {
                     $non_success_result = $new_result;
                 }
@@ -738,23 +739,25 @@ sub _fail_over_circuits{
                 #$self->emit_signal("circuit_notification", $circuit_info );
                 push (@$circuit_infos, $circuit_info);
                 $circuit_status{$circuit_id} = OESS_CIRCUIT_UP;
-		
-	    }else{
-		
-		$self->{'logger'}->warn("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has a backup path, but it is down as well.  Not failing over");
-                $circuit_info->{'status'} = "down";
-                $circuit_info->{'reason'} = "Attempted to fail to alternate path, however the primary and backup path are both down";
-                $circuit_info->{'circuit_id'} = $circuit_info->{'id'};
-                next if($circuit_status{$circuit_id} == OESS_CIRCUIT_DOWN);
-                #$self->emit_signal("circuit_notification", $circuit_info );
-                push (@$circuit_infos, $circuit_info);
-                $circuit_status{$circuit_id} = OESS_CIRCUIT_DOWN;
-                next;
 
-	    }
-	}else{
-	    
-	    # this is probably where we would put the dynamic backup calculation
+    }
+        else{
+
+            $self->{'logger'}->warn("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has a backup path, but it is down as well.  Not failing over");
+            $circuit_info->{'status'} = "down";
+            $circuit_info->{'reason'} = "Attempted to fail to alternate path, however the primary and backup path are both down";
+            $circuit_info->{'circuit_id'} = $circuit_info->{'id'};
+            next if($circuit_status{$circuit_id} == OESS_CIRCUIT_DOWN);
+            #$self->emit_signal("circuit_notification", $circuit_info );
+            push (@$circuit_infos, $circuit_info);
+            $circuit_status{$circuit_id} = OESS_CIRCUIT_DOWN;
+            next;
+
+        }
+    }
+        else{
+
+            # this is probably where we would put the dynamic backup calculation
             # when we get there.
             $self->{'logger'}->info("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has no alternate path and is down");
             $circuit_info->{'status'} = "down";
@@ -766,17 +769,19 @@ sub _fail_over_circuits{
             push (@$circuit_infos, $circuit_info);
             $circuit_status{$circuit_id} = OESS_CIRCUIT_DOWN;
 
-	}
+        }
 
-	if ( $circuit_infos && scalar(@$circuit_infos) ) {
-	    $self->emit_signal("circuit_notification", {
-		"type" => 'link_down',
-		"link_name" => $link_name,
-		"affected_circuits" => $circuit_infos
-			       });
-	}
-	
     }
+
+    if ( $circuit_infos && scalar(@$circuit_infos) ) {
+        $self->emit_signal("circuit_notification", {
+                                                    "type" => 'link_down',
+                                                    "link_name" => $link_name,
+                                                    "affected_circuits" => $circuit_infos
+                                                   });
+    }
+
+
 
     # send the barrier for all the unique dpids
     my %xid_hash;
@@ -1008,28 +1013,28 @@ sub topo_port_status{
     my $port_name   = $info->{'name'};
     my $port_number = $info->{'port_no'};
     my $link_status = $info->{'link'};
-	my $interface = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $dpid,
+    my $interface = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $dpid,
                                                                    port_number => $port_number);
-	my $node = $self->{'db'}->get_node_by_dpid( dpid => $dpid );
+    my $node = $self->{'db'}->get_node_by_dpid( dpid => $dpid );
 
     my $link_info   = $self->{'db'}->get_link_by_dpid_and_port(dpid => $dpid,
                                                                port => $port_number);
 
-	my $link_id;
-	my $link_name;
+    my $link_id;
+    my $link_name;
 
-	if (defined(@$link_info[0])) {
-	    $link_id   = @$link_info[0]->{'link_id'};
-	    $link_name = @$link_info[0]->{'name'};
-	}
+    if (defined(@$link_info[0])) {
+        $link_id   = @$link_info[0]->{'link_id'};
+        $link_name = @$link_info[0]->{'name'};
+    }
 
-	my $sw_name   = $node->{'name'};
-	my $dpid_str  = sprintf("%x",$dpid);
+    my $sw_name   = $node->{'name'};
+    my $dpid_str  = sprintf("%x",$dpid);
 
 
-	switch ($reason) {
-	    #add case
-	    case OFPPR_ADD {
+    switch ($reason) {
+        #add case
+        case OFPPR_ADD {
             if (defined($link_id) && defined($link_name)) {
                 _log("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name has been added");
             } else {
@@ -1038,7 +1043,7 @@ sub topo_port_status{
 
             $self->{'nodes_needing_diff'}{$dpid} = {full_diff => 1, dpid => $dpid};
             #note that this will cause the flow_stats_in handler to handle this data
-	    }case OFPPR_DELETE {
+        }case OFPPR_DELETE {
             if (defined($link_id) && defined($link_name)) {
                 _log("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name has been removed");
             } else {
@@ -1046,11 +1051,11 @@ sub topo_port_status{
             }
             $self->{'nodes_needing_diff'}{$dpid} = {full_diff => 1, dpid => $dpid};
             #note that this will cause the flow_stats_in handler to handle this data
-	    } else {
+        } else {
             $self->port_status($dpid,$reason,$info);
-	    }
-	}
-	return 1;
+        }
+    }
+    return 1;
 
 }
 
@@ -1068,16 +1073,16 @@ sub rules_per_switch{
 sub _process_stats_to_flows{
     my $dpid = shift;
     my $flows = shift;
-    
+
     my @new_flows;
     foreach my $flow (@$flows){
-	
-	my $new_flow = OESS::FlowRule::parse_stat( dpid => $dpid, stat => $flow );
-	push(@new_flows,$new_flow);
+
+    my $new_flow = OESS::FlowRule::parse_stat( dpid => $dpid, stat => $flow );
+    push(@new_flows,$new_flow);
     }
 
     return \@new_flows;
-    
+
 }
 
 sub _process_flows_to_hash{
@@ -1155,12 +1160,12 @@ sub _poll_node_status{
             my ($output,$failed_flows) = $self->{'of_controller'}->get_node_status(Net::DBus::dbus_uint64($dpid));
             $self->{'logger'}->debug($output);
             #-- pending, retry later
-	    my $dpid_str  = sprintf("%x",$dpid);
-	    $self->{'logger'}->trace("Status of DPID: " . $dpid_str . " is " . $output);
+        my $dpid_str  = sprintf("%x",$dpid);
+        $self->{'logger'}->trace("Status of DPID: " . $dpid_str . " is " . $output);
             next if ($output == FWDCTL_WAITING);
 
             #--- one failed , some day have handler passed in hash
-	    $self->{'logger'}->debug("Have a response for DPID: " . $dpid . " and is " . $output);
+        $self->{'logger'}->debug("Have a response for DPID: " . $dpid . " and is " . $output);
             if ($output == FWDCTL_FAILURE) {
                 $result = FWDCTL_FAILURE;
             }
@@ -1184,15 +1189,15 @@ sub _poll_node_status{
 sub addVlan {
     my $self       = shift;
     my $circuit_id = shift;
-    my $dpid	   = shift;
+    my $dpid       = shift;
 
     $self->{'logger'}->info("addVlan: $circuit_id");
 
     my $ckt = $self->get_ckt_object( $circuit_id );
     if(!defined($ckt)){
-	return FWDCTL_FAILURE;
+    return FWDCTL_FAILURE;
     }
-    
+
     $ckt->update_circuit_details();
 
     #--- get the set of commands needed to create this vlan per design
@@ -1219,10 +1224,10 @@ sub addVlan {
             return FWDCTL_FAILURE;
 
         }
-	$self->{'logger'}->info("Installing Flow: " . $command->to_human());
+    $self->{'logger'}->info("Installing Flow: " . $command->to_human());
         my $status = $self->{'of_controller'}->install_datapath_flow($command->to_dbus());
         $node{$command->get_dpid()}++;
-	$dpid_hash{$command->get_dpid()} = 1;
+    $dpid_hash{$command->get_dpid()} = 1;
     }
 
     foreach my $dpid (keys %dpid_hash) {
@@ -1236,11 +1241,11 @@ sub addVlan {
 #    if (defined($initial_result) && ($initial_result != FWDCTL_SUCCESS)) {
 #        $result = $initial_result;
 #    }
-    
-    
+
+
 
     if ($result == FWDCTL_SUCCESS) {
-	$self->{'logger'}->info("Flows successfully pushed for circuit: " . $ckt->get_id());
+    $self->{'logger'}->info("Flows successfully pushed for circuit: " . $ckt->get_id());
         my $details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
 
 
@@ -1261,10 +1266,10 @@ sub addVlan {
 
         $circuit_status{$circuit_id} = OESS_CIRCUIT_UP;
     } else {
-	$self->{'logger'}->error("Failed to install flows on switch for circuit: " . $ckt->get_id());
+    $self->{'logger'}->error("Failed to install flows on switch for circuit: " . $ckt->get_id());
 
     }
-    
+
     return $result;
 }
 
@@ -1277,7 +1282,7 @@ sub deleteVlan {
     my $ckt = $self->get_ckt_object( $circuit_id );
 
     if(!defined($ckt)){
-	return FWDCTL_FAILURE;
+    return FWDCTL_FAILURE;
     }
 
     $ckt->update_circuit_details();
@@ -1293,10 +1298,10 @@ sub deleteVlan {
     foreach my $command (@{$commands}) {
         #--- issue each command to controller
         #first delay by some configured value in case the device can't handle it
-	$self->{'logger'}->debug("Flow " . Data::Dumper::Dumper($command));
+    $self->{'logger'}->debug("Flow " . Data::Dumper::Dumper($command));
         my $node = $self->{'db'}->get_node_by_dpid( dpid => $command->get_dpid());
         usleep($node->{'tx_delay_ms'} * 1000);
-	$self->{'logger'}->info("Removing Flow: " . $command->to_human());
+    $self->{'logger'}->info("Removing Flow: " . $command->to_human());
         my $status = $self->{'of_controller'}->delete_datapath_flow($command->to_dbus());
         # send a barrier now if need be
         if (!$node->{'send_barrier_bulk'}) {
@@ -1348,7 +1353,7 @@ sub _changeVlanPath {
         if ($command->{'sw_act'} eq FWDCTL_REMOVE_RULE) {
             #first delay by some configured value in case the device can't handle it
             usleep($node->{'tx_delay_ms'} * 1000);
-	    $self->{'logger'}->info("Deleting flow: " . $command->to_human());
+        $self->{'logger'}->info("Deleting flow: " . $command->to_human());
             my $status = $self->{'of_controller'}->delete_datapath_flow($command->to_dbus());
             $node{$command->get_dpid()}--;
 
@@ -1374,7 +1379,7 @@ sub _changeVlanPath {
                 _log("sw: dpipd:$dpid_str exceeding max_flows:".$node->{'max_flows'}." changing path failed");
                 return FWDCTL_FAILURE;
             }
-	    $self->{'logger'}->info("Installing Flow: " . $command->to_human());
+        $self->{'logger'}->info("Installing Flow: " . $command->to_human());
             my $status = $self->{'of_controller'}->install_datapath_flow($command->to_dbus());
             $node{$command->get_dpid()}++;
 
@@ -1444,10 +1449,10 @@ sub get_ckt_object{
     }
 
     if(!defined($ckt)){
-	$self->{'logger'}->error("Error occured creating circuit: " . $ckt_id);
+    $self->{'logger'}->error("Error occured creating circuit: " . $ckt_id);
     }
 
-    return $ckt;   
+    return $ckt;
 }
 
 1;
@@ -1533,7 +1538,7 @@ sub main{
     my $verbose;
     my $username;
 
-    my $result = GetOptions ( 
+    my $result = GetOptions (
                              "user|u=s"  => \$username,
                              "verbose"   => \$verbose,
                              "daemon|d"  => \$is_daemon,
@@ -1571,7 +1576,7 @@ sub main{
     }
     #not a deamon, just run the core;
     else {
-	$SIG{HUP} = sub{ exit(0); };
+    $SIG{HUP} = sub{ exit(0); };
         core();
     }
 

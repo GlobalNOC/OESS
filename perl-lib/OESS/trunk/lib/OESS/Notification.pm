@@ -365,10 +365,11 @@ sub send_notification {
             $vars{'workgroup'} = $owner;
             $vars{'workgroup_id'} = $owners->{$owner}{'workgroup_id'};
             #$vars{'affected_users'} = $owners->{$owner}{'affected_users'};
-
-            foreach my $user ( @{ $data->{'affected_users'} } ) {
+            my $owner_affected_users = $owners->{$owner}{'affected_users'};
+            foreach my $user ( @$owner_affeted_users ) {
                 push( @owner_to_list, $user->{'email_address'} );
             }
+
             $to_string = join( ",", @owner_to_list );
 
 
@@ -469,7 +470,7 @@ sub _connect_services {
 
       $user_id = $details->{'user_id'};
       my $ockt = OESS::Circuit->new( circuit_id => $ckt->{'circuit_id'}, db => $db);
-      my $clr = $ockt->generate_clr(); 
+      my $clr = $ockt->generate_clr();
       unless ($clr) {
           warn "No CLR for $ckt->{'circuit_id'} ?";
       }
