@@ -463,6 +463,7 @@ sub _actual_diff{
 
     #if we have any flows remaining the must be removed!
     foreach my $current_flow (@$current_flows){
+        next if(!defined($current_flow));
 	$stats{'rems'}++;
 	push(@rule_queue,{remove => $current_flow});
     }
