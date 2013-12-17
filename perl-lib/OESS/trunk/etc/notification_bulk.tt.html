@@ -502,8 +502,8 @@
                                                   <tr style="background-color:#FbFbFb;">
 						                          [% END %]
 						                          <td valign="top" class="dataTableContent" >
-                                                    <a href="[% base_url %]/circuit-details?circuit_id=[% circuit.circuit_id%]"> [% circuit.description %]</a>
-                                                  </td>
+									    <a href="[% base_url %]/index.cgi?action=view_details&circuit_id=[% circuit.circuit_id%]"> [% circuit.description %]</a>
+									  </td>
                                                   <td valign="top" class="dataTableContent" mc:edit="data_table_content01">
                                                     [% circuit.reason %]
                                                   </td>
@@ -529,7 +529,7 @@
 
                                                 <tr>
                                                   <td align="center">
-                                                    <a href="[%base_url%]index.cgi?action=index&workgroup=[% workgroup_id %]#network_status" target="_blank">
+                                                    <a href="[%base_url%]/index.cgi?action=index&workgroup=[% workgroup_id %]#network_status" target="_blank">
                                                   <table border="0" cellpadding="15" cellspacing="0" class="templateButton" >
                                                     <tbody><tr>
                                                         <td valign="middle" class="templateButtonContent">View Current Status</td>
