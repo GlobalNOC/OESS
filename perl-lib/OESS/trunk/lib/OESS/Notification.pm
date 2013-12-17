@@ -366,7 +366,7 @@ sub send_notification {
             $vars{'workgroup_id'} = $owners->{$owner}{'workgroup_id'};
             #$vars{'affected_users'} = $owners->{$owner}{'affected_users'};
             my $owner_affected_users = $owners->{$owner}{'affected_users'};
-            foreach my $user ( @$owner_affeted_users ) {
+            foreach my $user ( @$owner_affected_users ) {
                 push( @owner_to_list, $user->{'email_address'} );
             }
 
