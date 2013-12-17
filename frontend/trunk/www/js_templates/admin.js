@@ -814,6 +814,9 @@ function setup_workgroup_tab(){
 	    var workgroup_name = record.getData('name');
 	    var workgroup_id   = record.getData('workgroup_id');
 	    var workgroup_external = record.getData('external_id');
+        if(workgroup_external === null){
+            workgroup_external = "";
+        }
         var max_mac_address_per_end = record.getData('max_mac_address_per_end');
         var max_circuit_endpoints = record.getData('max_circuit_endpoints');
         var max_circuits = record.getData('max_circuits');
@@ -835,7 +838,6 @@ function setup_workgroup_tab(){
             wg_details_panel.hide = function(){
                 this.destroy();
             };
-
 
 		    wg_details_panel.setBody(
                 "<label>Workgroup Name:</label>"+
@@ -879,9 +881,17 @@ function setup_workgroup_tab(){
                     alert("Circuit endpoints limit must be an integer");
                     return;
                 }
+                //construct url
+                var submit_ds_url= "../services/admin/admin.cgi?action=edit_workgroup&workgroup_id=" + workgroup_id + "&name=" + encodeURI(document.getElementById('workgroup_name_edit').value) + "&max_mac_address_per_end=" + max_mac_address_per_end + "&max_circuits=" + max_circuits + "&max_circuit_endpoints=" + max_circuit_endpoints;
+                //determine if workgroup external id is defined
+                workgroup_external = document.getElementById('workgroup_external_edit').value;
+                if( (workgroup_external !== undefined) &&
+                    (workgroup_external !=  "") &&
+                    (workgroup_external !== null) ){
+                    submit_ds_url += "&external_id=" + encodeURI(workgroup_external);
+                }
 
-
-			    var submit_ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=edit_workgroup&workgroup_id=" + workgroup_id + "&name=" + encodeURI(document.getElementById('workgroup_name_edit').value) + "&external_id=" + encodeURI(document.getElementById('workgroup_external_edit').value) + "&max_mac_address_per_end=" + max_mac_address_per_end + "&max_circuits=" + max_circuits + "&max_circuit_endpoints=" + max_circuit_endpoints );
+			    var submit_ds = new YAHOO.util.DataSource(submit_ds_url);
 			    submit_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 			    submit_ds.responseSchema = {
 				resultsList: "results",
