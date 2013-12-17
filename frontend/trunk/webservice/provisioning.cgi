@@ -533,8 +533,14 @@ sub fail_over_circuit {
     my $ckt = OESS::Circuit->new( circuit_id => $circuit_id, db => $db);
     my $has_backup_path = $ckt->has_backup_path();
     if ($has_backup_path) {
-        my $active_path = $ckt->get_active_path();
-        my $is_up = $ckt->get_path_status( path => $active_path );
+
+        my $current_path = $ckt->get_active_path();
+        my $alternate_path = 'primary';
+        if($current_path eq 'primary'){
+            $alternate_path = 'backup';
+        }
+        my $is_up = $ckt->get_path_status( path => $alternate_path );
+
         if ( $is_up || $forced ) {
 
             $ckt->change_path();
