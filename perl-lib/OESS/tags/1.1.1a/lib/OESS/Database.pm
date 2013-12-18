@@ -34,7 +34,7 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 1.1.1
+Version 1.1.1a
 
 =cut
 
@@ -83,7 +83,7 @@ use Net::DBus;
 use OESS::Topology;
 use DateTime;
 
-use constant VERSION => '1.1.1';
+use constant VERSION => '1.1.1a';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant SHARE_DIR => "/usr/share/doc/perl-OESS-" . VERSION . "/";
