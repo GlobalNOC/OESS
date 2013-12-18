@@ -2583,7 +2583,7 @@ sub is_user_in_workgroup {
     my $result = $self->_execute_query("select 1 from user_workgroup_membership where workgroup_id = ? and user_id = ?",
 	                               [$workgroup_id, $user_id]
 	);
-
+    
     if (@$result > 0){
 	return 1;
     }
@@ -7244,9 +7244,15 @@ sub can_modify_circuit{
     my $workgroup = $self->get_workgroup_by_id( workgroup_id => $params{'workgroup_id'});
 
     my $user_id = $self->get_user_id_by_auth_name( auth_name => $params{'username'});
+
+    my $authorization = $self->get_user_admin_status( 'user_id' => $user_id);
+    #giving Admins permission to edit / reprovision / delete circuits ISSUE=7690
+    if ( $authorization->[0]{'is_admin'} == 1 ) {
+        return 1;
+    }
     my $is_user_in_workgroup = $self->is_user_in_workgroup( workgroup_id => $params{'workgroup_id'},
 							    user_id => $user_id);
-
+    
     if(!$is_user_in_workgroup){
 	return 0;
     }

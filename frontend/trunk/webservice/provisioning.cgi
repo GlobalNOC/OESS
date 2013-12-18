@@ -290,7 +290,22 @@ sub provision_circuit {
     } else {
 
         ##Edit Existing Circuit
+        # verify is allowed to modify circuit ISSUE=7690
+        
+        my $can_edit = $db->can_modify_circuit(
+                                             circuit_id   => $circuit_id,
+                                             username     => $ENV{'REMOTE_USER'},
+                                             workgroup_id => $workgroup_id
+                                            );
 
+
+        if ( $can_edit < 1 ) {
+            $results->{'error'} =
+                "User and workgroup do not have permission to remove this circuit";
+            return $results;
+        }
+
+        
         my $result = _send_remove_command( circuit_id => $circuit_id );
 
         if ( !$result ) {
