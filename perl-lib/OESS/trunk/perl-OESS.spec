@@ -11,6 +11,8 @@ BuildArch: noarch
 
 BuildRequires: perl
 Requires: perl(URI::Escape), dbus, dbus-libs, mysql-server, perl-XML-Simple, perl-XML-XPath, perl-Module-Build, perl-Module-Install, perl-Array-Utils, perl-File-ShareDir, perl-Net-DBus, perl-XML-Writer, perl-DateTime, perl-Test-Deep, perl-Set-Scalar, perl-Graph, perl-List-MoreUtils, perl-Log-Log4perl, perl-MIME-Lite-TT-HTML
+Provides: perl-OESS-Circuit, perl-OESS-Database, perl-OESS-DBus, perl-OESS-Topology,perl-OESS-Measurement,perl-OESS-FlowRule
+Obsoletes: perl-OESS-Circuit, perl-OESS-Database, perl-OESS-DBus, perl-OESS-Topology,perl-OESS-Measurement,perl-OESS-FlowRule
 
 %description
 
