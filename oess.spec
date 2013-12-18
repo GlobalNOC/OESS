@@ -1,14 +1,14 @@
 Summary: OESS MetaPackage 
 Name: oess
-Version: 1.0.7
+Version: 1.1.1a
 Release: 1
 License: Apache
 Group: GRNOC
 #Source: 
 URL: http://globalnoc.iu.edu
 Buildroot: %{_tmppath}/%{name}-root
-Requires: oess-core >= 1.0.7
-Requires: oess-frontend >= 1.0.7
+Requires: oess-core >= 1.1.1a
+Requires: oess-frontend >= 1.1.1a
 
 %description
 Package that installs all of the OESS packages

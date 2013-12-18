@@ -20,11 +20,11 @@ OESS::Circuit - Circuit Interaction Module
 
 =head1 VERSION
 
-Version 1.1.1
+Version 1.1.1a
 
 =cut
 
-    our $VERSION = '1.1.1';
+    our $VERSION = '1.1.1a';
 
 =head1 SYNOPSIS
 
