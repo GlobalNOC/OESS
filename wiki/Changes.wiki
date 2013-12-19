@@ -1,4 +1,30 @@
 = Changes for OESS over time =
+== 1.1.1a ==
+
+*Bugs:
+
+* Resolved Issue with duplicate notifications
+
+* Fixed UI 'Change Path' logic pre-test to verify that alternate path is up.
+
+* Fixed Provisioning Webservice Permissions for admin users.
+
+*Features:
+
+== 1.1.1 ==
+
+
+*Bugs*:
+
+ * Fixed the barrier message and error handling from the openflow switches
+ * Forward to Controller / Discovery Rule is now diffed with the rest of the rules on the switch
+
+*Features*:
+
+ * Added the ability to provision a multi-point circuit with manually configured MAC Address routing
+ * Added more objects to abstract away some of the complexity of FWDCTL and add better unit test capabilties
+
+
 
 == 1.1.0 ==
 
