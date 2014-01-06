@@ -1037,10 +1037,19 @@ sub topo_port_status{
         case OFPPR_ADD {
             if (defined($link_id) && defined($link_name)) {
                 _log("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name has been added");
+                
+                #update all circuits involving this link.
+                my $circuits = $self->{'db'}->get_circuits_on_link(link_id => $link_id);
+                foreach my $circuit (@$circuits) {
+                    my $circuit_id = $circuit->{'circuit_id'};
+                    my $ckt = $self->get_ckt_object( $circuit_id );
+                    $ckt->update_circuit_details();
+                }
+                
             } else {
                 _log("sw:$sw_name dpid:$dpid_str port $port_name has been added");
             }
-
+            
             $self->{'nodes_needing_diff'}{$dpid} = {full_diff => 1, dpid => $dpid};
             #note that this will cause the flow_stats_in handler to handle this data
         }case OFPPR_DELETE {
