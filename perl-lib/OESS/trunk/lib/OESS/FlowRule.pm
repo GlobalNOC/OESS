@@ -686,7 +686,15 @@ sub compare_actions{
     }
 
     for(my $i=0;$i<=$#{$self->{'actions'}};$i++){
-	
+	my $obj = $self->{'actions'}->[$i];
+        my $obj2 = $other_actions->[$i];
+
+        #what if there are multiple keys (there shouldn't be)
+        my $key = (keys %{$obj})[0];
+        if($obj->{$key} ne $obj2->{$key}){
+            return 0;
+        }
+            
     }
 
     return 1;
