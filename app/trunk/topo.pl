@@ -467,8 +467,8 @@ sub db_link_add{
 
 
 	    #diff the interfaces
-	    _send_topo_port_status($z_node->{'dpid'},OFPPR_ADD,{name => $interface_z->{'name'}, port_no => $interface_z->{'port_no'}, link => 1});
-	    _send_topo_port_status($z_node->{'dpid'},OFPPR_ADD,{name => $interface_z->{'name'}, port_no => $old_z_interface->{'port_no'}, link => 1});
+	    _send_topo_port_status($z_node->{'dpid'},OFPPR_ADD,{name => $interface_z->{'name'}, port_no => $interface_z->{'port_number'}, link => 1});
+	    _send_topo_port_status($z_node->{'dpid'},OFPPR_ADD,{name => $interface_z->{'name'}, port_no => $old_z_interface->{'port_number'}, link => 1});
 
 	}elsif(defined($a_links->[0])){
 	    print_log(LOG_WARNING,"LINK has changed interface on z side");
@@ -487,8 +487,8 @@ sub db_link_add{
 
 
 	    #diff the z node
-	    _send_topo_port_status($z_node->{'dpid'},OFPPR_ADD,{name => $interface_z->{'name'}, port_no => $interface_z->{'port_no'}, link => 1});
-            _send_topo_port_status($z_node->{'dpid'},OFPPR_ADD,{name => $interface_z->{'name'}, port_no => $old_z_interface->{'port_no'}, link => 1});
+	    _send_topo_port_status($z_node->{'dpid'},OFPPR_ADD,{name => $interface_z->{'name'}, port_no => $interface_z->{'port_number'}, link => 1});
+            _send_topo_port_status($z_node->{'dpid'},OFPPR_ADD,{name => $interface_z->{'name'}, port_no => $old_z_interface->{'port_number'}, link => 1});
 
 	}elsif(defined($z_links->[0])){
             #easy case update link_a so that it is now on the new interfaces
@@ -507,9 +507,9 @@ sub db_link_add{
 	    #do admin notification
 
 	    #diff the interfaces
-            #diff the z node
-            _send_topo_port_status($a_node->{'dpid'},OFPPR_ADD,{name => $interface_a->{'name'}, port_no => $interface_a->{'port_no'}, link => 1});
-            _send_topo_port_status($a_node->{'dpid'},OFPPR_ADD,{name => $interface_a->{'name'}, port_no => $old_a_interface->{'port_no'}, link => 1});
+            #diff the a node
+            _send_topo_port_status($a_node->{'dpid'},OFPPR_ADD,{name => $interface_a->{'name'}, port_no => $interface_a->{'port_number'}, link => 1});
+            _send_topo_port_status($a_node->{'dpid'},OFPPR_ADD,{name => $old_a_interface->{'name'}, port_no => $old_a_interface->{'port_number'}, link => 1});
 	}else{
 	    print_log(LOG_WARNING,"This is not part of any other link... making a new instance");
 	    ##create a new one link as none of the interfaces were part of any link

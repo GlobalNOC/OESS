@@ -3576,7 +3576,7 @@ sub get_interface_by_dpid_and_port{
 	return;
     }
 
-    my $interface = $self->_execute_query("select interface.node_id,interface.interface_id from node,node_instantiation,interface where node.node_id = node_instantiation.node_id and interface.node_id = node.node_id  and node_instantiation.end_epoch = -1 and node_instantiation.dpid = ? and interface.port_number = ?",[$args{'dpid'},$args{'port_number'}])->[0];
+    my $interface = $self->_execute_query("select interface.name,interface.port_number,interface.node_id,interface.interface_id from node,node_instantiation,interface where node.node_id = node_instantiation.node_id and interface.node_id = node.node_id  and node_instantiation.end_epoch = -1 and node_instantiation.dpid = ? and interface.port_number = ?",[$args{'dpid'},$args{'port_number'}])->[0];
 
     return $interface;
 
