@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+package OESS::FlowRule;
 
 #------ NDDI OESS FlowRule Interaction Module
 ##-----
@@ -56,8 +56,8 @@ use Switch;
 use Data::Dumper;
 use Net::DBus;
 use Log::Log4perl;
+use Test::Deep::NoTest; 
 
-package OESS::FlowRule;
 
 use constant OFPAT_OUTPUT       => 0;
 use constant OFPAT_SET_VLAN_VID => 1;
@@ -121,7 +121,7 @@ validates that the flow_rule is valid
 sub _validate_flow{
     my $self = shift;
 
-    if($self->_validate_match($self->{'match'}) && $self->_validate_actions($self->{'actions'}) && $self->_validate_priority($self->{'priority'}) && $self->_validate_dpid($self->{'dpid'})){
+    if($self->_validate_match($self->{'match'}) && $self->_validate_actions($self->{'actions'}) && $self->_validate_priority($self->{'priority'}) && $self->_validate_dpid($self->{'dpid'}) && $self->_validate_byte_count($self->{'byte_count'}) && $self->_validate_packet_count($self->{'packet_count'})){
 	return 1;
     }else{
 	return 0;
@@ -189,10 +189,20 @@ sub _validate_match{
 
 =cut
 
-sub _validate_actions{
+sub _validate_actions {
     my $self = shift;
     my $actions = shift;
 
+    foreach my $action (@$actions) {
+        foreach my $key (keys %$action) {
+            my $value = $action->{$key};
+            # standardized the (set_vlan_vid/set_vlan_id) action
+            if($key eq 'set_vlan_vid'){
+                delete $action->{$key};
+                $action->{'set_vlan_id'} = $value;
+            }
+        }
+    }
     return 1;
 }
 
@@ -254,6 +264,25 @@ sub _validate_dpid{
     return 1;
 }
 
+=head2 _validate_byte_count
+
+=cut
+
+sub _validate_byte_count{
+    my $self = shift;
+    return 1;
+}
+
+=head2 _validate_packet_count
+
+=cut
+
+sub _validate_packet_count{
+    my $self = shift;
+    return 1;
+}
+
+
 =head2 set_match
 
 =cut
@@ -306,6 +335,60 @@ sub set_priority{
     }
     
 }
+
+=head2 set_byte_count
+
+=cut
+
+sub set_byte_count {
+    my $self = shift;
+    my $new_byte_count = shift;
+
+    if($self->_validate_byte_count($new_byte_count)){
+	$self->{'byte_count'} = $new_byte_count;
+	return 1;
+    }else{
+	return;
+    }
+    
+}
+
+=head2 set_packet_count
+
+=cut
+
+sub set_packet_count {
+    my $self = shift;
+    my $new_packet_count = shift;
+
+    if($self->_validate_packet_count($new_packet_count)){
+	$self->{'packet_count'} = $new_packet_count;
+	return 1;
+    }else{
+	return;
+    }
+    
+}
+=head2 get_byte_count
+
+=cut
+
+sub get_byte_count{
+    my $self = shift;
+    $self->{'logger'}->debug("Byte Count: " . $self->{'byte_count'});
+    return $self->{'byte_count'};
+}
+
+=head2 get_packet_count
+
+=cut
+
+sub get_packet_count{
+    my $self = shift;
+    $self->{'logger'}->debug("Packet Count: " . $self->{'packet_count'});
+    return $self->{'packet_count'};
+}
+
 
 =head2 get_priority
 
@@ -795,11 +878,16 @@ sub parse_stat{
     return if(!defined($dpid));
 
     $logger->trace("Match: " . Data::Dumper::Dumper($stat->{'match'}));
-
     my $match = $stat->{'match'};
     
     $logger->trace("Actions: " . Data::Dumper::Dumper($stat->{'actions'}));
     my $actions = $stat->{'actions'};
+
+    $logger->trace("Byte Count: " . $stat->{'byte_count'});
+    my $byte_count = $stat->{'byte_count'};
+    
+    $logger->trace("Packet Count: " . $stat->{'packet_count'});
+    my $packet_count = $stat->{'packet_count'};
 
     my @new_actions;
 
@@ -830,13 +918,44 @@ sub parse_stat{
 	}
     }
 
-    my $flow = OESS::FlowRule->new( match => $new_match,
-				    dpid => $dpid,
-				    actions => \@new_actions);
+    my $flow = OESS::FlowRule->new( 
+        match => $new_match,
+		dpid => $dpid,
+		actions => \@new_actions,
+        byte_count => $byte_count,
+        packet_count => $packet_count
+    );
 
     return $flow;
     
 
+}
+
+=head2 merge_actions
+
+Takes an arrary ref of OESS::FlowRules and returns an array ref of OESS::FlowRules that match the options passed in.
+
+Options
+match (hash ref)
+dpid  (scalar)
+
+=cut
+
+sub get_flowrules {
+    my %params = @_;
+    my $flowrules = $params{'flowrules'};
+    # filter options
+    my $match     = $params{'match'};
+    my $dpid      = $params{'dpid'};
+
+    my $result = [];
+    foreach my $flowrule (@$flowrules){
+        next if(defined($match) && !eq_deeply($match, $flowrule->get_match()));
+        next if(defined($dpid)  && !($dpid == $flowrule->get_dpid()));
+        push(@$result, $flowrule);
+    }
+
+    return $result;
 }
 
 1;
