@@ -71,8 +71,7 @@ sub new{
     }
     
     $self->{'dbus'} = $self->_connect_to_object();
-    
-    if(!defined($self->{'dbus'})){
+        if(!defined($self->{'dbus'})){
 	$self->log("error initializing OESS::DBus, unable to connect");
 	return undef;
     }

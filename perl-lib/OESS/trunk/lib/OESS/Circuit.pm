@@ -18,14 +18,6 @@ use constant OESS_LINK_UNKNOWN  => 2;
 
 OESS::Circuit - Circuit Interaction Module
 
-=head1 VERSION
-
-Version 1.1.1a
-
-=cut
-
-    our $VERSION = '1.1.1a';
-
 =head1 SYNOPSIS
 
 This is a module to provide a simplified object oriented way to connect to

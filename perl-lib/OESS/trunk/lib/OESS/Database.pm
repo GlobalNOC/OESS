@@ -34,11 +34,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 1.1.1
+Version 1.1.2
 
 =cut
 
-our $VERSION = '1.1.1a';
+our $VERSION = '1.1.2';
 
 =head1 SYNOPSIS
 
@@ -6388,7 +6388,7 @@ sub edit_circuit {
     if(!defined($circuit)){
 	$self->_set_error("Unable to find circuit by id $circuit_id");
 	$self->_rollback();
-    return;
+	return;
     }
 
     if ($provision_time > time()){
@@ -6397,10 +6397,10 @@ sub edit_circuit {
 	my $success = $self->_add_event(\%args);
 
 	if (! defined $success){
-        $self->_rollback();
+	    $self->_rollback();
 	    return;
 	}
-
+	$self->_commit();
 	return {'success' => 1, 'circuit_id' => $circuit_id};
     }
 
@@ -6409,7 +6409,7 @@ sub edit_circuit {
     if (! defined $result){
 	$self->_set_error("Unable to update circuit description.");
 	$self->_rollback();
-    return;
+	return;
     }
 
     # daldoyle - no need to instantiation on circuit edit, causes conflicts with the scheduler and other tools since
