@@ -372,6 +372,8 @@ def datapath_leave_callback(sg,dp_id):
         switches.remove(dp_id)
     if dp_id in last_flow_stats:
         del last_flow_stats[dp_id]
+    if dp_id in flowmod_callbacks:
+        flowmod_callbacks.remove(dp_id)
 
     sg.datapath_leave(dp_id)
 
