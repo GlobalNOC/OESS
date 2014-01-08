@@ -402,7 +402,7 @@ def error_callback(sg, dpid, type, code, data, xid):
     logger.info("handling error from %s, xid = %s" % (dpid, xid))
 
     if flowmod_callbacks.has_key(dpid):
-        flows = flomod_callbacks[dpid]
+        flows = flowmod_callbacks[dpid]
         if(flows.has_key(xid)):
             flows[xid]["result"] = FWDCTL_ERROR
             flows[xid]["error"] = {}
