@@ -56,7 +56,7 @@ use Switch;
 use Data::Dumper;
 use Net::DBus;
 use Log::Log4perl;
-use Test::Deep::NoTest; 
+use Test::Deep qw(eq_deeply);
 
 
 use constant OFPAT_OUTPUT       => 0;
@@ -369,6 +369,7 @@ sub set_packet_count {
     }
     
 }
+
 =head2 get_byte_count
 
 =cut
@@ -931,7 +932,7 @@ sub parse_stat{
 
 }
 
-=head2 merge_actions
+=head2 get_flowrules
 
 Takes an arrary ref of OESS::FlowRules and returns an array ref of OESS::FlowRules that match the options passed in.
 
