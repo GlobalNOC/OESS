@@ -340,9 +340,9 @@ class Component:
             idle_timeout = 0
             oactions = ""
             buffer_id = UINT32_MAX
-        
-        return self.ctxt.send_flow_command(dp_id, command, m, idle_timeout,
-                                           hard_timeout, oactions, buffer_id, priority, xid)
+ 
+        cookie = 0
+        return self.ctxt.send_flow_command(dp_id, command, m, idle_timeout, hard_timeout, oactions, buffer_id, priority, cookie, xid)
 
     # Former PyAPI methods
 

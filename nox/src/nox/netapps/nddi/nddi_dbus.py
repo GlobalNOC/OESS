@@ -155,9 +155,12 @@ class dBusEventGen(dbus.service.Object):
                 elif(flowmod_callbacks[dpid][xids[0]]["result"] == FWDCTL_WAITING):
                     return (FWDCTL_WAITING, [])
                 else:
-                    failed_flows = flowmod_callbacks[dpid][xids[0]]["failed_flows"]
-                    del flowmod_callbacks[dpid][xids[0]]
-                    return ( FWDCTL_FAILURE, failed_flows )
+                    if(flowmod_callbacks[dpid][xids[0]].has_key("failed_flows")):
+                        failed_flows = flowmod_callbacks[dpid][xids[0]]["failed_flows"]
+                        del flowmod_callbacks[dpid][xids[0]]
+                        return ( FWDCTL_FAILURE, failed_flows )
+                    else:
+                        return ( FWDCTL_FAILURE, [])
             else:
                 return (FWDCTL_WAITING, [])
             
@@ -255,7 +258,7 @@ class dBusEventGen(dbus.service.Object):
             xid = inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,priority=priority,inport=my_attrs[IN_PORT])
         else:
             xid = inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,priority=priority,inport=None)
-
+        logger.info("Flow XID: %d" % xid)
         _do_install(dpid,xid,my_attrs,actions)
 
         return xid
@@ -399,17 +402,17 @@ def barrier_reply_callback(sg,dp_id,xid):
     sg.barrier_reply(dp_id,xid)
 
 
-def error_callback(sg, dpid, type, code, data, xid):
+def error_callback(sg, dpid, error_type, code, data, xid):
     
-    logger.info("handling error from %s, xid = %s" % (dpid, xid))
-
+    logger.error("handling error from %s, xid = %d" % (dpid, xid))
+    intxid = c_ntohl(xid)
     if flowmod_callbacks.has_key(dpid):
         flows = flowmod_callbacks[dpid]
-        if(flows.has_key(xid)):
-            flows[xid]["result"] = FWDCTL_ERROR
-            flows[xid]["error"] = {}
-            flows[xid]["error"]["type"] = type
-            flows[xid]["error"]["code"] = code
+        if(flows.has_key(intxid)):
+            flows[intxid]["result"] = FWDCTL_FAILURE
+            flows[intxid]["error"] = {}
+            flows[intxid]["error"]["type"] = error_type
+            flows[intxid]["error"]["code"] = code
             
 
 def packet_in_callback(sg, dpid,in_port,reason, length,buffer_id, data) :
@@ -487,7 +490,7 @@ class nddi_dbus(Component):
                                          datapath_join_callback(self,self.sg,dpid, self.ctxt.get_switch_ip(dpid), stats) 
                                          )
 
-        self.register_for_error(lambda dpid, type, code, data, xid: error_callback(self.sg, dpid, type, code, data, xid))
+        self.register_for_error(lambda dpid, error_type, code, data, xid: error_callback(self.sg, dpid, error_type, code, data, xid))
 
         self.register_for_datapath_leave(lambda dpid : 
                                           datapath_leave_callback(self.sg,dpid) )

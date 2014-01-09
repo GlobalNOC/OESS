@@ -272,10 +272,12 @@ int
 PyContext::send_flow_command(uint64_t datapath_id,
                              ofp_flow_mod_command command,
                              const ofp_match& match, 
-			     uint16_t idle_timeout, uint16_t hard_timeout,
+			     uint16_t idle_timeout,
+			     uint16_t hard_timeout,
                              const Nonowning_buffer& actions,
                              uint32_t buffer_id, 
-			     uint16_t priority , uint64_t cookie,
+			     uint16_t priority,
+			     uint64_t cookie,
                              uint32_t xid) {
     ofp_flow_mod* ofm = NULL;
     size_t size = sizeof *ofm + actions.size();

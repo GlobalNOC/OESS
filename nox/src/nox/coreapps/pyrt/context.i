@@ -99,7 +99,7 @@ public:
     void send_flow_command(uint64_t datapath_id, ofp_flow_mod_command, 
                            const ofp_match&, uint16_t idle_timeout,
                            uint16_t hard_timeout, const Nonowning_buffer& actions,
-                           uint32_t buffer_id, uint16_t priority,
+                           uint32_t buffer_id, uint16_t priority, uint64_t cookie,
                            uint32_t xid);
 
     int close_openflow_connection(uint64_t datapathid);
