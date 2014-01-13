@@ -149,12 +149,20 @@ function page_init(){
 				          warning: "warning"
 				      }
 				  };
-				  ds.sendRequest("",{success: function(){
-					      change_path_button.set("disabled",false);
-					      alert('Successfully changed the path');
-					      
+				  ds.sendRequest("",{success: function(Request,Response){
+					      var data = Response.results;
+					      if(data[0].success == 0){
+						  if(data[0].alt_path_down == 1){
+						      alert('The alternate path is down, unable to change to it');
+						  }else{
+						      alert('An error occured changing the path');
+						  }
+					      }else{
+						  alert('Successfully changed the path');
+					      }
+					      change_path_button.set("disabled",false);					      
 					  },
-					      failure: function(){
+					      failure: function(Request, Response){
 					      change_path_button.set("disabled",false);
 					      alert('Unable to change to the backup path');
 					  }},ds);
