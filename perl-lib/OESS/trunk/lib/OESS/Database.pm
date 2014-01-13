@@ -4462,7 +4462,7 @@ sub get_link_by_dpid_and_port {
 		" join node on node.node_id = interface.node_id " .
 		" join node_instantiation on node.node_id = node_instantiation.node_id " .
 		"  and node_instantiation.end_epoch = -1 " .
-		" where node_instantiation.dpid = ? and interface.port_number = ?";
+		" where node_instantiation.dpid = ? and interface.port_number = ? and link_instantiation.link_state != 'decom'";
 
     my $result = $self->_execute_query($query, [$dpid, $port]);
 
@@ -6160,7 +6160,7 @@ sub create_node_instance{
 sub update_node_operational_state{
     my $self = shift;
     my %args = @_;
-
+    $self->_commit();
     my $res = $self->_execute_query("update node set operational_state = ? where node_id = ?",[$args{'state'},$args{'node_id'}]);
     if(!defined($res)){
 	$self->_set_error("Unable to update operational state");
