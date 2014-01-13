@@ -83,7 +83,7 @@ use Net::DBus;
 use OESS::Topology;
 use DateTime;
 
-use constant VERSION => '1.1.1a';
+use constant VERSION => '1.1.2';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant SHARE_DIR => "/usr/share/doc/perl-OESS-" . VERSION . "/";
@@ -3868,7 +3868,7 @@ sub decom_node {
     if ($result != 1){
 	$self->_set_error("Error updating node instantiation.");
 	$self->_rollback();
-    return;
+	return;
     }
 
     $result = $self->_execute_query("update interface_instantiation join interface on interface.interface_id = interface_instantiation.interface_id set end_epoch = unix_timestamp(NOW()) where end_epoch = -1 and node_id = ?",
@@ -3877,16 +3877,16 @@ sub decom_node {
     if (! defined $result){
 	$self->_set_error("Error updating interface instantiations.");
 	$self->_rollback();
-    return;
+	return;
     }
 
-    $result = $self->_execute_query("update link_instantiation set end_epoch = unix_timestamp(NOW()) where end_epoch -1 and interface_a_id in (select interface_id from interface where node_id = ?) or interface_z_id in (select interface_id from interface where node_id = ?)",
+    $result = $self->_execute_query("update link_instantiation set end_epoch = unix_timestamp(NOW()) where end_epoch = -1 and (interface_a_id in (select interface_id from interface where node_id = ?) or interface_z_id in (select interface_id from interface where node_id = ?))",
 				    [$node_id, $node_id]);
 
     if (! defined $result){
 	$self->_set_error("Error updating link instantiations.");
 	$self->_rollback();
-    return;
+	return;
     }
 
     $self->_commit();
