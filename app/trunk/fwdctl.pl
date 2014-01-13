@@ -161,7 +161,7 @@ sub _sync_database_to_network {
     foreach my $node (@$nodes) {
         $node->{'full_diff'} = 1;
         $self->{'nodes_needing_diff'}{$node->{'dpid'}} = $node;
-    $node_info{$node->{'dpid'}} = $node;
+	$node_info{$node->{'dpid'}} = $node;
     }
 }
 
@@ -170,57 +170,55 @@ sub _generate_commands{
     my $self = shift;
     my $circuit_id = shift;
     my $action = shift;
-
+    
     $self->{'logger'}->debug("getting flows for circuit_id: " . $circuit_id);
-
+    
     my $ckt = $self->get_ckt_object( $circuit_id );
-
+    
     $self->{'logger'}->trace("ckt: " . Data::Dumper::Dumper($ckt));
-
+    
     switch($action){
-    case (FWDCTL_ADD_VLAN){
-
-        my $flows = $ckt->get_flows();
-        return $flows;
-
-    }case (FWDCTL_REMOVE_VLAN){
-
-        my $flows = $ckt->get_flows();
-        return $flows;
-
-    }case (FWDCTL_CHANGE_PATH){
-
-        my $primary_flows = $ckt->get_endpoint_flows( path => 'primary');
-        my $backup_flows =  $ckt->get_endpoint_flows( path => 'backup');
-        my @commands;
-
-
-        $self->{'logger'}->debug("Circuit is now on " . $ckt->get_active_path() . " path");
+	case (FWDCTL_ADD_VLAN){
+	    
+	    my $flows = $ckt->get_flows();
+	    return $flows;
+	    
+	}case (FWDCTL_REMOVE_VLAN){
+	    
+	    my $flows = $ckt->get_flows();
+	    return $flows;
+	    
+	}case (FWDCTL_CHANGE_PATH){
+	    
+	    my $primary_flows = $ckt->get_endpoint_flows( path => 'primary');
+	    my $backup_flows =  $ckt->get_endpoint_flows( path => 'backup');
+	    my @commands;
+	    
+	    
+	    $self->{'logger'}->debug("Circuit is now on " . $ckt->get_active_path() . " path");
             #we already performed the DB change so that means
             #whatever path is active is actually what we are moving to
-        foreach my $flow (@$primary_flows){
-        if($ckt->get_active_path() eq 'primary'){
-            $flow->{'sw_act'} = FWDCTL_ADD_RULE;
-        }else{
-            $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
-        }
-        push(@commands,$flow);
-        }
-
-        foreach my $flow (@$backup_flows){
-        if($ckt->get_active_path() eq 'primary'){
-            $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
-        }else{
-            $flow->{'sw_act'} = FWDCTL_ADD_RULE;
-        }
-        push(@commands,$flow);
-        }
-
-        return \@commands;
+	    foreach my $flow (@$primary_flows){
+		if($ckt->get_active_path() eq 'primary'){
+		    $flow->{'sw_act'} = FWDCTL_ADD_RULE;
+		}else{
+		    $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
+		}
+		push(@commands,$flow);
+	    }
+	    
+	    foreach my $flow (@$backup_flows){
+		if($ckt->get_active_path() eq 'primary'){
+		    $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
+		}else{
+		    $flow->{'sw_act'} = FWDCTL_ADD_RULE;
+		}
+		push(@commands,$flow);
+	    }
+	    
+	    return \@commands;
+	}
     }
-    }
-
-
 }
 
 #--- this and dp join need to be refactored to reuse code.
@@ -259,30 +257,12 @@ sub datapath_join_handler{
 
     if (!defined($node_details) || $node_details->{'default_forward'} == 1) {
         my $status = $self->{'of_controller'}->install_default_forward($dpid,$self->{'db'}->{'discovery_vlan'});
-#        my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($dpid));
-#        $self->{'logger'}->debug("datapath_join_handler: send_barrier: with dpid: $dpid");
-#        if ($xid == FWDCTL_FAILURE) {
-            #--- switch may not be connected yet or other error in controller
-#            _log("sw:$sw_name dpid:$dpid_str failed to install lldp forward to controller rule, discovery will fail");
-#            return;
-#        }
-
-#        $xid_hash{$dpid} = 1;
-#        $node{$dpid}++;
-
+	$node{$dpid}++;
     }
 
     if (!defined($node_details) || $node_details->{'default_drop'} == 1) {
         my $status = $self->{'of_controller'}->install_default_drop($dpid);
-#        my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($dpid));
-#        $self->{'logger'}->debug("datapath_join_handler: send_barrier: with dpid: $dpid");
-#        if ($xid == FWDCTL_FAILURE) {
-#            #--- switch may not be connected yet or other error in controller
-#            $self->{'logger'}->error("sw:$sw_name dpid:$dpid_str failed to install default drop rule, traffic may flood controller");
-#            return;
-#        }
-#        $xid_hash{$dpid}  = 1;
-#        $node{$dpid}++;
+	$node{$dpid}++;
     }
 
     my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($dpid));
@@ -314,39 +294,39 @@ sub _replace_flowmod{
 
     if (defined($commands->{'remove'})) {
         #delete this flowmod
-    $self->{'logger'}->info("Deleting flow: " . $commands->{'remove'}->to_human());
-        my $status = $self->{'of_controller'}->delete_datapath_flow($commands->{'remove'}->to_dbus());
-    $self->{'logger'}->trace("Node Details: " . Dumper($node_info{$commands->{'remove'}->get_dpid()}));
-        if(!$node_info{$commands->{'remove'}->get_dpid()}->{'send_barrier_bulk'}){
-            my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($commands->{'remove'}->get_dpid()));
-            $self->{'logger'}->debug("replace flowmod: send_barrier: with dpid: " . $commands->{'remove'}->get_dpid());
-            $xid_hash{$commands->{'remove'}->get_dpid()} = 1;
-        }
-        $node{$commands->{'remove'}->get_dpid()}--;
+	$self->{'logger'}->info("Deleting flow: " . $commands->{'remove'}->to_human());
+	my $status = $self->{'of_controller'}->delete_datapath_flow($commands->{'remove'}->to_dbus());
+	$self->{'logger'}->trace("Node Details: " . Dumper($node_info{$commands->{'remove'}->get_dpid()}));
+	if(!$node_info{$commands->{'remove'}->get_dpid()}->{'send_barrier_bulk'}){
+	    my $xid = $self->{'of_controller'}->send_barrier(Net::DBus::dbus_uint64($commands->{'remove'}->get_dpid()));
+	    $self->{'logger'}->debug("replace flowmod: send_barrier: with dpid: " . $commands->{'remove'}->get_dpid());
+	    $xid_hash{$commands->{'remove'}->get_dpid()} = 1;
+	}
+	$node{$commands->{'remove'}->get_dpid()}--;
     }
-
+    
     if (defined($commands->{'add'})) {
-    $self->{'logger'}->trace("Node Details: " . Dumper($node_info{$commands->{'add'}->get_dpid()}));
+	$self->{'logger'}->trace("Node Details: " . Dumper($node_info{$commands->{'add'}->get_dpid()}));
         if ( $node{$commands->{'add'}->get_dpid()} >= $node_info{$commands->{'add'}->get_dpid()}->{'max_flows'}) {
             my $dpid_str  = sprintf("%x",$commands->{'add'}->get_dpid());
             $self->{'logger'}->error("sw: dpipd:$dpid_str exceeding max_flows:".$node_info{$commands->{'add'}->get_dpid()}->{'max_flows'}." replace flowmod failed");
             return FWDCTL_FAILURE;
         }
-    $self->{'logger'}->trace("FLow: " . Data::Dumper::Dumper($commands->{'add'}));
-    $self->{'logger'}->info("Installing Flow: " . $commands->{'add'}->to_human());
+	$self->{'logger'}->trace("FLow: " . Data::Dumper::Dumper($commands->{'add'}));
+	$self->{'logger'}->info("Installing Flow: " . $commands->{'add'}->to_human());
         my $status = $self->{'of_controller'}->install_datapath_flow($commands->{'add'}->to_dbus());
-
+	
         # send the barrier if the bulk flag is not set
         if (!$node_info{$commands->{'add'}->get_dpid()}->{'send_barrier_bulk'}) {
             my $xid = $self->{'of_controller'}->send_barrier(dbus_uint64($commands->{'add'}->get_dpid()));
             $self->{'logger'}->error("replace flowmod: send_barrier: with dpid: " . $commands->{'add'}->get_dpid());
             $xid_hash{$commands->{'add'}->get_dpid()} = 1;
         }
-
+	
         $node{$commands->{'add'}->get_dpid()}++;
         #wait for the delete to take place
     }
-
+    
     return;
 }
 
@@ -395,20 +375,21 @@ sub _do_diff{
     }
 
     if (!defined($node_info) || $node_info->{'default_forward'} == 1) {
-    if(defined($self->{'db'}->{'discovery_vlan'}) && $self->{'db'}->{'discovery_vlan'} != -1){
-        push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
-                            match => {'dl_type' => 35020,
-                                  'dl_vlan' => $self->{'db'}->{'discovery_vlan'}},
-                            actions => [{'output' => 65533}]));
-    }else{
-                    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
-                                match => {'dl_type' => 35020,
-                                      'dl_vlan' => -1},
-                                actions => [{'output' => 65533}]));
+	if(defined($self->{'db'}->{'discovery_vlan'}) && $self->{'db'}->{'discovery_vlan'} != -1){
+	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
+						    match => {'dl_type' => 35020,
+							      'dl_vlan' => $self->{'db'}->{'discovery_vlan'}},
+						    actions => [{'output' => 65533}]));
+	}else{
+	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
+						    match => {'dl_type' => 35020,
+							      'dl_vlan' => -1},
+						    actions => [{'output' => 65533}]));
+	}
     }
-    }
-
-    $node{$dpid} = 0;
+    
+    #start at one for the default drop
+    $node{$dpid} = 1;
 
     $self->_actual_diff($dpid,$sw_name, $current_flows, \@all_commands);
 }
@@ -434,45 +415,47 @@ sub _actual_diff{
     foreach my $command (@$commands) {
         #---ignore rules not for this dpid
         next if($command->get_dpid() != $dpid);
-    my $found = 0;
-
-    for(my $i=0;$i<=$#{$current_flows};$i++){
-        my $current_flow = $current_flows->[$i];
-        if($command->compare_match( flow_rule => $current_flows->[$i])){
-        $found = 1;
-        if($command->compare_actions( flow_rule => $current_flows->[$i])){
-            #woohoo we match
-            delete $current_flows->[$i];
-            last;
-        }else{
-            #doh... we don't match... remove current flow, add the other flow
-            $stats{'mods'}++;
-            push(@rule_queue,{remove => $current_flows->[$i], add => $command});
-            delete $current_flows->[$i];
-            last;
-        }
-        }
+	my $found = 0;
+	
+	for(my $i=0;$i<=$#{$current_flows};$i++){
+	    my $current_flow = $current_flows->[$i];
+	    if($command->compare_match( flow_rule => $current_flows->[$i])){
+		$found = 1;
+		if($command->compare_actions( flow_rule => $current_flows->[$i])){
+		    #woohoo we match
+		    $node{$dpid}++;
+		    delete $current_flows->[$i];
+		    last;
+		}else{
+		    #doh... we don't match... remove current flow, add the other flow
+		    $stats{'mods'}++;
+		    $node{$dpid}++;
+		    push(@rule_queue,{remove => $current_flows->[$i], add => $command});
+		    delete $current_flows->[$i];
+		    last;
+		}
+	    }
+	}
+	
+	if(!$found){
+	    #doh... add this rule
+	    $stats{'adds'}++;
+	    push(@rule_queue,{add => $command});
+	}
     }
-
-    if(!$found){
-        #doh... add this rule
-        $stats{'adds'}++;
-        push(@rule_queue,{add => $command});
-    }
-    }
-
+    
     #if we have any flows remaining the must be removed!
     foreach my $current_flow (@$current_flows){
         next if(!defined($current_flow));
-    $stats{'rems'}++;
-    push(@rule_queue,{remove => $current_flow});
+	$node{$dpid}++;
+	$stats{'rems'}++;
+	push(@rule_queue,{remove => $current_flow});
     }
-
+    
     my $total = $stats{'mods'} + $stats{'adds'} + $stats{'rems'};
     $self->{'logger'}->info("sw:$sw_name dpid:$dpid_str diff plan  $total changes.  mods:".$stats{'mods'}. " adds:".$stats{'adds'}. " removals:".$stats{'rems'}."\n");
-
+    
     #--- process the rule_queue
-    #my $success_count=0;
     my %xid_hash;
     my $non_success_result;
     $self->{'logger'}->debug("before calling _replace_flowmod in loop with rule_queue:". @rule_queue);
@@ -1016,25 +999,25 @@ sub topo_port_status{
     my $interface = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $dpid,
                                                                    port_number => $port_number);
     my $node = $self->{'db'}->get_node_by_dpid( dpid => $dpid );
-
+    
     my $link_info   = $self->{'db'}->get_link_by_dpid_and_port(dpid => $dpid,
                                                                port => $port_number);
-
+    
     my $link_id;
     my $link_name;
-
+    
     if (defined(@$link_info[0])) {
-        $link_id   = @$link_info[0]->{'link_id'};
-        $link_name = @$link_info[0]->{'name'};
+	$link_id   = @$link_info[0]->{'link_id'};
+	$link_name = @$link_info[0]->{'name'};
     }
-
+    
     my $sw_name   = $node->{'name'};
     my $dpid_str  = sprintf("%x",$dpid);
-
-
+    
+    
     switch ($reason) {
-        #add case
-        case OFPPR_ADD {
+	#add case
+	case OFPPR_ADD {
             if (defined($link_id) && defined($link_name)) {
                 _log("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name has been added");
                 
@@ -1049,10 +1032,10 @@ sub topo_port_status{
             } else {
                 _log("sw:$sw_name dpid:$dpid_str port $port_name has been added");
             }
-            
+	    
             $self->{'nodes_needing_diff'}{$dpid} = {full_diff => 1, dpid => $dpid};
             #note that this will cause the flow_stats_in handler to handle this data
-        }case OFPPR_DELETE {
+	}case OFPPR_DELETE {
             if (defined($link_id) && defined($link_name)) {
                 _log("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name has been removed");
             } else {
@@ -1060,9 +1043,9 @@ sub topo_port_status{
             }
             $self->{'nodes_needing_diff'}{$dpid} = {full_diff => 1, dpid => $dpid};
             #note that this will cause the flow_stats_in handler to handle this data
-        } else {
+	} else {
             $self->port_status($dpid,$reason,$info);
-        }
+	}
     }
     return 1;
 
@@ -1084,10 +1067,9 @@ sub _process_stats_to_flows{
     my $flows = shift;
 
     my @new_flows;
-    foreach my $flow (@$flows){
-
-    my $new_flow = OESS::FlowRule::parse_stat( dpid => $dpid, stat => $flow );
-    push(@new_flows,$new_flow);
+    foreach my $flow (@$flows){	
+	my $new_flow = OESS::FlowRule::parse_stat( dpid => $dpid, stat => $flow );
+	push(@new_flows,$new_flow);
     }
 
     return \@new_flows;
