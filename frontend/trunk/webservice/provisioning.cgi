@@ -270,7 +270,7 @@ sub provision_circuit {
 
                 #warn "Removal status: " . Data::Dumper::Dumper($removal);
                 $results->{'error'} =
-                  "Unabled to provision circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been removed.";
+                  "Unable to provision circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been removed.";
                 return $results;
             }
 
