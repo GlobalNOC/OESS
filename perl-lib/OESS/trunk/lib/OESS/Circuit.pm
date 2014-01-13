@@ -329,6 +329,7 @@ sub _generate_static_mac_path_flows{
     my $internal_ids = $self->{'details'}->{'internal_ids'};
     
     #finds the links when we just have a node and node
+    #
     my %finder;
     
     my $links;
@@ -352,8 +353,8 @@ sub _generate_static_mac_path_flows{
             $in_ports{$node_z} = ();
         }
 
-	push(@{$in_ports{$node_a}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_a'}, tag => $internal_ids->{$path}{$node_a}});
-	push(@{$in_ports{$node_z}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_z'}, tag => $internal_ids->{$path}{$node_z}});
+	push(@{$in_ports{$node_a}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_a'}, tag => $internal_ids->{$path}{$node_z}});
+	push(@{$in_ports{$node_z}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_z'}, tag => $internal_ids->{$path}{$node_a}});
 	
 	$finder{$node_a}{$node_z} = $link;
 	$finder{$node_z}{$node_a} = $link;
