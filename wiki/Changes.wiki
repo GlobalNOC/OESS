@@ -35,13 +35,12 @@
 
 *Bugs:
 
-* Resolved Issue with duplicate notifications
+ * Resolved Issue with duplicate notifications
 
-* Fixed UI 'Change Path' logic pre-test to verify that alternate path is up.
+ * Fixed UI 'Change Path' logic pre-test to verify that alternate path is up.
 
-* Fixed Provisioning Webservice Permissions for admin users.
+ * Fixed Provisioning Webservice Permissions for admin users.
 
-*Features:
 
 == 1.1.1 ==
 
