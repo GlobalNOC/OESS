@@ -1,0 +1,36 @@
+[% INCLUDE js_templates/interdomain.js %]
+
+<div class="main_page">
+  <br>
+  [% INCLUDE html_templates/circuit_details_box.html delete=1 %]
+  <br>
+
+  <div id="layout">
+
+    <div id="left">
+           
+      <div id="map" class="openlayers"></div>
+      
+      [% INCLUDE html_templates/map_legend.html %] 
+  
+    </div>
+
+    <div id="center">
+
+      <center>
+	<label class="soft_title">Available Networks</label>
+      </center>
+
+      <div id="networks_tree" style="height: 350px; overflow: auto;">
+	<br><br><br>
+	<center>
+	  <p>Loading OSCARS data...<p>
+	  <img src="media/loading.gif">
+	</center>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
