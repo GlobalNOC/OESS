@@ -906,6 +906,7 @@ sub parse_stat{
     
     my $new_match = {};
     foreach my $key (keys (%{$match})){
+	$logger->debug("Key: " . $key . " = " . $match->{$key});
 	switch($key){
 	    case "dl_vlan"{
 		$new_match->{$key} = $match->{$key};
