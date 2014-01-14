@@ -1,4 +1,21 @@
 = Changes for OESS over time =
+== 1.1.2 ==
+* Bugs*:
+*  ISSUE=7700 fixed the datapath leave event so that it removes any pending xids from the flowmod_callback queue
+*  ISSUE=7702 fixed a small typo in nddi_dbus.py which prevented proper error handling
+*  ISSUE=7741 fixed the compare_actions method in OESS::FlowRule and added unit tests
+*  ISSUE=7757 NOX was not sending XIDs even though one was specified, it now sends the proper XID in the openflow packet to the switch
+*  ISSUE=7742 Link migration was using a cached version of the circuit models and so was not updated the proper flow rules
+*  ISSUE=7768 Fixed a typo in an error message
+*  ISSUE=7769 the datapath_leave event was firing an error
+*  ISSUE=7770 FlowRule counts are now accurate after a diff
+*  ISSUE=7771 link migration when a link was created through a node insertion works properly now
+*  ISSUE=7773 nodes can not be decomed when multiple interface instantiations exist
+*  ISSUE=7774 the UI falsely reported that it had changed to an alternate path when the alternate path was down
+*  ISSUE=7776 static mac routing had issues when more than 2 nodes were involved in the path
+*  ISSUE=7777 Multi-point static mac addr circuits were not properly diffing because the flow stats were not properly passed to fwdctl
+*  ISSUE=7752 OESS::FlowRule could not handle the difference between set_vlan_vid and set_vlan_id
+
 == 1.1.1a ==
 
 *Bugs:
