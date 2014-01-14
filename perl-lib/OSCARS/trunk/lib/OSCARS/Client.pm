@@ -40,7 +40,7 @@ OSCARS-Client -Perl module for Talking to the OSCARS API (0.6)
 
 =cut
 
-our $VERSION = '1.1.1a';
+our $VERSION = '1.1.2';
 
 =head1 SYNOPSIS
 
@@ -482,6 +482,7 @@ sub _process_response{
 
     if($response->is_success){
 	warn "REsponse is successfull\n";
+	warn Dumper($response->content);
 	my $xpath = XML::XPath->new(xml => $response->content);
 	$xpath->set_namespace("soap", "http://www.w3.org/2003/05/soap-envelope");
 	$xpath->set_namespace("ns3","http://oscars.es.net/OSCARS/06");
