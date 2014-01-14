@@ -25,6 +25,7 @@ share/upgrade/oess-1.0.7-1.0.8
 share/upgrade/oess-1.0.8-1.0.9
 share/upgrade/oess-1.0.9-1.0.10
 share/upgrade/oess-1.1.0-1.1.1
+share/upgrade/oess-1.1.1-1.1.2
 t/00-load_base.t
 t/01-load_known_state.t
 t/02-pod.t
@@ -84,6 +85,8 @@ t/database-37-get_available_resources.t
 t/database-38-workgroup_circuit_limit.t
 t/dbus-timeout.t
 t/dbus-timeout_callback.t
+t/flow_rule-compare_actions.t
+t/flow_rule-compare_match.t
 t/flow_rule-new.t
 t/flow_rule-parse_stat.t
 t/flow_rule-to_dbus.t
