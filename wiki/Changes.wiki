@@ -1,6 +1,8 @@
 = Changes for OESS over time =
 == 1.1.2 ==
+
 * Bugs*:
+
 * ISSUE=7700 fixed the datapath leave event so that it removes any pending xids from the flowmod_callback queue
 
 * ISSUE=7702 fixed a small typo in nddi_dbus.py which prevented proper error handling
