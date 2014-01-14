@@ -1104,7 +1104,7 @@ sub get_flow_stats{
     foreach my $dpid (keys (%{$self->{'nodes_needing_diff'}})) {
         my $node = $self->{'nodes_needing_diff'}{$dpid};
         my ($time,$stats) = $self->{'of_controller'}->get_flow_stats($dpid);
-
+	$self->{'logger'}->debug("FlowStats: " . Dumper($stats));
         if ($time == -1) {
             #we don't have flow data yet
             _log("no flow stats cached yet for dpid: " . $dpid);
