@@ -1,0 +1,438 @@
+#!/usr/bin/perl
+
+use strict;
+
+use OESS::Database;
+use LockFile::Simple qw(lock trylock unlock);
+use Data::Dumper;
+use Getopt::Std;
+use Sys::Hostname;
+
+my $time;
+
+=head2 connect_to_dbs
+
+Connect to the OESS-Database and SNAPP Database and return the handles
+
+=cut
+
+sub connect_to_dbs{
+    my $oess_config = "/etc/oess/database.xml";
+    my $oess = OESS::Database->new(config => $oess_config);
+    
+    my $config = XML::Simple::XMLin($oess->get_snapp_config_location());
+    my $username = $config->{'db'}->{'username'};
+    my $password = $config->{'db'}->{'password'};
+    my $database = $config->{'db'}->{'name'};
+    my $snapp_db = DBI->connect("DBI:mysql:$database", $username, $password);
+    #if something goes wrong we can roll back, and not affect anything
+    $snapp_db->do('start transaction');
+    return ($oess,$snapp_db);
+}
+
+
+=head2 handle_error
+
+    sends an email saying that SNAPP config gen rolled back, and why if an error occurs
+    which is much better than having a 1/2 complete configuration and lots of data loss
+
+=cut
+
+sub handle_error{
+    my $test = shift;
+    my $message = shift;
+
+
+    warn "An error occured running SNAPP config gen.  Error was $message\n";
+
+    exit 0;
+}
+
+=head main
+
+pulls options, connecst to databases, finds the users and base categories and loops through every node and interface, basically the workhorse functions for SNAPP Config gen
+
+=cut
+
+sub main{
+    
+    my $usage = "$0 -v\n";
+    our($opt_v);
+    getopts('n:');
+    
+    my ($oess,$snapp_db) = connect_to_dbs();
+
+    my $user = get_user($snapp_db,"snapp-gen");
+    my $acl = get_acl_role_by_user_id($snapp_db,$user);
+    
+    #we decom everything (we have permission for) and then re-enable things that aren't suppose to go away
+    decom_everything($snapp_db,$acl);
+
+    my $node_category_id = get_category_by_name($snapp_db,"Nodes",undef);
+    my $role_category_id = get_category_by_name($snapp_db,"Interface Roles",undef);
+
+    #find all our active nodes
+    my $nodes = $oess->get_nodes_by_admin_state(admin_state => "active");
+    my $available_nodes = $oess->get_nodes_by_admin_state(admin_state => "available");
+    my @node_list;
+    push(@node_list,@$nodes);
+    push(@node_list,@$available_nodes);
+    #for every active node setup a category, do whatever it is we need to do for the node, and then add all interfaces
+    #to the SNAPP configuration
+    foreach my $node (@node_list){
+
+	#find the category or create it if it doesn't exist
+	my $category = get_category_by_name($snapp_db,$node->{'name'},$node_category_id);
+	
+	#add any node specific collections
+	my $node_id = process_node($snapp_db,$node,$category);
+
+	#find all of the nodes active interfaces
+	my $interfaces = $oess->get_interfaces_by_node_and_state(node_id => $node->{'node_id'},
+	                                                         state => 'up');
+	#for every interface add a collection, and add them to the proper categories
+	foreach my $interface (@$interfaces){
+	    $interface->{'host'} = $node;
+	    $interface->{'host'}->{'host_id'} = $node_id;
+	    $interface->{'host'}->{'category_id'} = $category;
+	    my $collection_id = process_interface($snapp_db,$interface,$category);
+	    add_category_collection_membership($snapp_db,$category,$collection_id);
+	}
+    }
+    #commit (woohoo we made it to the end successfully)
+    $snapp_db->do('commit');
+}
+
+=head2 process_interface
+
+    adds a given interface to SNAPP
+
+=cut
+
+sub process_interface{
+    my $snapp_db = shift;
+    my $interface = shift;
+    my $category = shift;
+    
+    #build the collection name
+    my $collection_name = $interface->{'host'}->{'name'} . "--" . $interface->{'name'};
+    
+    #get the collection/add it if it doesn't exist
+    my $collection = get_collection($snapp_db,{name => $collection_name,
+					       premap_oid_suffix => "Ethernet" . $interface->{'name'},
+					       collection_class_id => 4,
+					       oid_suffix_mapping_id => 4,
+					       host_id => $interface->{'host'}->{'host_id'},
+				               description => $interface->{'description'},
+				               node_id => $interface->{'host'}->{'node_id'}});
+    
+    return $collection;
+}
+
+=head2 process_node
+
+Adds the node to SNAPP so that all collections on this host can use it
+
+=cut
+sub process_node{
+    my $snapp_db = shift;
+    my $node = shift;
+    my $category = shift;
+
+    my $query = "select * from host where host.external_id = ?";
+    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+    $sth->execute($node->{'node_id'})or handle_error($snapp_db,$DBI::errstr);
+    
+    if(my $row = $sth->fetchrow_hashref()){
+	$query = "update host set ip_address = ?, description = ?, dns_name = ?, community = ? where host_id = ?";
+	$sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+	$sth->execute($node->{'management_addr_ipv4'},$node->{'name'},$node->{'name'},"public",$row->{'host_id'})or handle_error($snapp_db,$DBI::errstr);
+	my $host_id = $row->{'host_id'};
+
+	#now update collection names if the host name changed
+	$query = "update collection set name = replace(name,'" . $row->{'description'} . "','" . $node->{'name'} . "') where host_id = " . $row->{'host_id'};
+	$sth = $snapp_db->prepare($query) or handle_error($snapp_db,$DBI::errstr);
+	$sth->execute() or handle_error($snapp_db,$DBI::errstr);
+	return $host_id;
+    }else{
+	return add_host($snapp_db,$node);
+    }
+
+    return;
+}
+
+=head add_host
+
+    adds the host to SNAPP
+    takes the snapp_db handle and node object containing the name, node_id and ipv4 address
+
+    returns the host_id
+
+=cut
+
+sub add_host{
+    my $snapp_db = shift;
+    my $node = shift;
+
+    my $query = "insert into host (ip_address,description,dns_name,community,external_id) VALUES (?,?,?,?,?)";
+    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+    my $res = $sth->execute($node->{'management_addr_ipv4'},$node->{'name'},$node->{'name'},"community",$node->{'node_id'})or handle_error($snapp_db,$DBI::errstr);
+    $res = $sth->{'mysql_insertid'};
+    return $res;
+    
+}
+
+=head2 get_acl_role_by_user_id
+
+    given the snapp db handle and the user_id returns the acl rule for that user
+
+=cut
+
+sub get_acl_role_by_user_id{
+    my $snapp_db = shift;
+    my $user_id = shift;
+
+    my $query = "select * from user_role_membership where user_role_membership.user_id = ?";
+    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+    $sth->execute($user_id)or handle_error($snapp_db,$DBI::errstr);
+    
+    return $sth->fetchrow_hashref();
+}
+
+
+=head2 get_user
+
+  given a snapp db handle and a user name, returns the user id
+
+=cut
+
+sub get_user{
+    my $snapp_db = shift;
+    my $user = shift;
+
+    my $query = "select user_id from user where user.name = ?";
+
+    my $sth = $snapp_db->prepare($query) or handle_error($snapp_db,$DBI::errstr);
+    $sth->execute($user) or handle_error($snapp_db,$DBI::errstr);
+    
+    return $sth->fetchrow_hashref()->{'user_id'};
+
+}
+
+=head2 decom_everything
+
+    SNAPPs database has the ability to store historical information about collections
+    information such as descriptions, thresholds, and categories are stored indefinetly
+    
+    decom everything sets all collections end_epoch field to a time which is essentially now...
+
+=cut
+
+sub decom_everything{
+    my $snapp_db = shift;
+    
+    my $query = "update collection_instantiation set end_epoch = $time where end_epoch = -1";
+    $snapp_db->do($query);
+
+    $query = "update category_collection_membership set end_epoch = $time where end_epoch = -1";
+    $snapp_db->do($query);
+
+    return;
+}
+
+=head2 get_collection
+
+    given the snapp db handle and all of the information related to a collection, checks to see if the collection already exists.
+    if the collection exists updates the end_epoch to -1 and return the id
+    if it doesn't exist adds the collection and returns the id
+
+=cut
+
+sub get_collection{
+    my $snapp_db = shift;
+    my $info = shift;
+    
+    #try and find the collection
+    my $query = "select * from collection where collection.name = ?";
+    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+    $sth->execute($info->{'name'})or handle_error($snapp_db,$DBI::errstr);
+    #does the collection exist?
+    if(my $collection = $sth->fetchrow_hashref()){
+	#set it back to active
+	update_collection_instance_end($snapp_db,$collection->{'collection_id'},$info->{'description'});
+	return $collection->{'collection_id'};
+    }else{
+	#no collection found add it
+	return add_collection($snapp_db,$info);
+    }
+    
+}
+
+=head2 add_collection
+    
+    given the snapp db handle and all of the informatin about the collection, adds the collection to the SNAPP database
+    it generates the RRD file on the fly.
+
+    On success it returns the collection_id
+
+=cut
+
+sub add_collection{
+    my $snapp_db = shift;
+    my $info = shift;
+
+    #determine the rrd file
+    my $rrd_file = $info->{'node_id'} . "/" . $info->{'node_id'} . "--" . $info->{'premap_oid_suffix'} . ".rrd";
+
+    #insert the collection
+    my $query = "insert into collection (name,host_id,rrdfile,premap_oid_suffix,collection_class_id,oid_suffix_mapping_id) VALUES (?,?,?,?,?,?)";
+    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+    my $res = $sth->execute($info->{'name'},$info->{'host_id'},$rrd_file,$info->{'premap_oid_suffix'},$info->{'collection_class_id'},$info->{'oid_suffix_mapping_id'})or handle_error($snapp_db,$DBI::errstr);
+    $res = $sth->{'mysql_insertid'};
+    
+    #add the collection_instance
+    add_collection_instance($snapp_db,$res,$info->{'description'});
+    return $res;
+}
+
+=head2 add_collection_instance
+
+  given a snapp db handle and a collection_id and a descrition creates a collection_instance
+
+=cut
+
+sub add_collection_instance{
+    my $snapp_db = shift;
+    my $collection_id = shift;
+    my $descr = shift;
+
+    #create the instance
+    my $query = "insert into collection_instantiation (collection_id,description,end_epoch,start_epoch) VALUES (?,?,-1,UNIX_TIMESTAMP(NOW()))";
+    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+    $sth->execute($collection_id,$descr)or handle_error($snapp_db,$DBI::errstr);
+}
+
+=head2 update_collection_instance_end
+
+    given a snapp db handle, collection id and description makes a decision on if it needs to create a new instance, or re-activate the existing instance
+
+=cut
+
+sub update_collection_instance_end{
+    my $snapp_db = shift;
+    my $collection_id = shift;
+    my $descr =shift;
+
+    
+    #find the decomed instance
+    my $query = "select * from collection_instantiation where collection_id = ? and end_epoch = $time";
+    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+    $sth->execute($collection_id)or handle_error($snapp_db,$DBI::errstr);
+    #does the decomed instance exists
+    if(my $row = $sth->fetchrow_hashref()){
+	#does the description = the new descr?
+	if($row->{'description'} eq $descr){
+	    #update the end time
+	    $query = "update collection_instantiation set end_epoch = -1 where collection_id = ? and end_epoch = $time";
+	    $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+	    $sth->execute($collection_id)or handle_error($snapp_db,$DBI::errstr);
+	}else{
+	    #current description != description create new instnace
+	    add_collection_instance($snapp_db,$collection_id,$descr);
+	}
+    }else{
+	#couldn't find a decomed instnace, create it
+	add_collection_instance($snapp_db,$collection_id,$descr);
+    }
+}
+
+=head2 get_category_by_name
+
+    given a snapp db handle, category name, and category parent id, returns the category id, or adds the category and then returns the category id
+
+=cut
+
+sub get_category_by_name{
+    my $snapp_db = shift;
+    my $name = shift;
+    my $parent = shift;
+    
+    my $query = "select * from category where category.name = ?";
+    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+    $sth->execute($name)or handle_error($snapp_db,$DBI::errstr);
+    
+    if(my $category = $sth->fetchrow_hashref()){
+	return $category->{'category_id'};
+    }else{
+	return add_category($snapp_db,$name,$parent);
+    }
+}
+
+=head2 add_category
+
+    adds a category to the SNAPP database, and adds it to the correct hierarchy
+    parameters: snapp db handle
+                category name 
+                cagtegory parent id
+
+=cut
+
+sub add_category{
+    my $snapp_db = shift;
+    my $category_name = shift;
+    my $category_parent = shift;
+
+    #insert the category
+    my $query = "insert into category (description,name) VALUES (?,?)";
+    my $sth = $snapp_db->prepare($query);
+    my $res = $sth->execute($category_name,$category_name);
+    $res = $sth->{'mysql_insertid'};
+    if(!defined($category_parent)){
+	return $res;
+    }
+    
+    #add the hierarchy
+    $query = "insert into category_hierarchy (parent_category_id,child_category_id,end_epoch,start_epoch) VALUES (?,?,-1,UNIX_TIMESTAMP(NOW()))";
+    $sth = $snapp_db->prepare($query) or handle_error($snapp_db,$DBI::errstr);
+    $sth->execute($category_parent,$res) or handle_error($snapp_db,$DBI::errstr);
+    return $res;
+}
+
+
+=head2 add_category_collection_membership
+
+    given the snapp db handle, a collection_id and a category_id adds the collection to the category, unless it already was there in which case re-activate it
+
+=cut
+
+sub add_category_collection_membership{
+    my $snapp_db = shift;
+    my $category_id = shift;
+    my $collection_id = shift;
+    
+    #does this exist already?
+    my $query = "select * from category_collection_membership where category_id = ? and collection_id = ? and end_epoch = $time";
+    my $sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+    $sth->execute($category_id,$collection_id)or handle_error($snapp_db,$DBI::errstr);
+    
+    if(my $row = $sth->fetchrow_hashref()){
+	#already existed, just update end time
+	$query = "update category_collection_membership set end_epoch = -1 where category_id = ? and collection_id = ? and end_epoch = $time";
+	$sth = $snapp_db->prepare($query)or handle_error($snapp_db,$DBI::errstr);
+	$sth->execute($category_id,$collection_id)or handle_error($snapp_db,$DBI::errstr);
+	return;
+    }else{
+	#ok didn't exist add to SNAPP
+	$query = "insert into category_collection_membership (category_id,collection_id, end_epoch, start_epoch) VALUES (?,?,-1,UNIX_TIMESTAMP(NOW()))";
+	$sth = $snapp_db->prepare($query) or handle_error($snapp_db,$DBI::errstr);
+	$sth->execute($category_id,$collection_id) or handle_error($snapp_db,$DBI::errstr);
+	return;
+    }
+}
+
+#pick 1 time to do everything in
+$time = time();
+
+
+#run
+main();
