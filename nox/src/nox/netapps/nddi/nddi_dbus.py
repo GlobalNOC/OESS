@@ -547,16 +547,9 @@ class nddi_dbus(Component):
                             continue
 
                     if row.has_key("match"):
-                        if  not row["match"]:
+                        if not row["match"]:
                             self.flow_stats[dpid]["flows"].remove(row)
                             continue
-                        else:
-                            # not exactly elegant, the 64bit numbers such as dl_dst in the match element seem
-                            # to break dbus signature. For now until we find a better way let's just remove them
-                            # since our traffic stats doesn't use them anyway.
-                            for element in reversed(row["match"].keys()):
-                                if isinstance(row["match"][element], long):
-                                    del row["match"][element]
 
                 # update our cache with the latest flow stats
                 if self.flow_stats[dpid]:
