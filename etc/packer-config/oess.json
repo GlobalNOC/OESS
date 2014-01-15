@@ -1,27 +1,29 @@
 {
 	"variables": {
-		   "oess_version":"1.1.1"
-	},
+		   "oess_version":"1.1.2"
+	},	
     "builders":[
 	{
-	    "type": "virtualbox",
+	    "type": "virtualbox-iso",
 	    "vm_name": "oess-{{user `oess_version`}}",
 	    "guest_os_type": "RedHat_64",
-	    "iso_url": "file://CentOS-6.4-x86_64-minimal.iso",
-        "iso_checksum": "4a5fa01c81cc300f4729136e28ebe600",
+	    "iso_url": "http://mirror.symnds.com/distributions/CentOS-vault/6.4/isos/x86_64/CentOS-6.4-x86_64-minimal.iso",
+	    "format": "ova",
+            "iso_checksum": "4a5fa01c81cc300f4729136e28ebe600",
 	    "http_directory": "./",
-            "iso_checksum_type": "md5",
-	    "disk_size": "10000:,
-            "boot_command":[
+            "iso_checksum_type": "md5",	 
+	    "disk_size": 10000,
+            "boot_command": [
                 "<esc><wait>",
                 "linux ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/ks.cfg ",
                 "<enter><wait>"
     	    ],
+	    "shutdown_command": "sudo shutdown -h now",
             "ssh_username": "oess",
             "ssh_password": "oess",
-            "ssh_wait_timeout": "3000s",
-
-	    "vboxmanage": [
+            "ssh_wait_timeout": "300s",
+	    
+	    "vboxmanage": [	     
 		[
 		    "modifyvm",
 		    "{{.Name}}",
@@ -36,8 +38,8 @@
 		    "1"
 		]
 	    ]
-
-
+	    
+	    
 	}	],
     "provisioners":[
 	{
@@ -51,7 +53,7 @@
 	     "destination": "/tmp/oess_settings.txt"
 	},
 	{
-
+	    
             "type": "shell",
 	    "inline": [
 
@@ -66,7 +68,7 @@
 		"cd oess-{{user `oess_version`}}",
 		"sudo yum -y install `find *.rpm`"
 	    ]
-
+	    
 	},
 	{
 	    "type": "shell",
@@ -75,13 +77,16 @@
 		"sudo /usr/bin/mysql_secure_installation < /tmp/mysql_settings.txt",
 		"sudo perl /usr/bin/oess_setup.pl < /tmp/oess_settings.txt",
 		"sudo /sbin/iptables -I INPUT 5 -m state --state NEW -m tcp -p tcp --dport 6633 -j ACCEPT",
+		"sudo /sbin/iptables -I INPUT 5 -m state --state NEW -m tcp -p tcp --dport 443 -j ACCEPT",
+		"sudo /sbin/iptables -I INPUT 5 -m state --state NEW -m tcp -p tcp --dport 22 -j ACCEPT",
+		"sudo /etc/init.d/iptables save",
 		"sudo /etc/init.d/messagebus restart",
 		"sudo /etc/init.d/oess restart",
 		"sudo /etc/init.d/httpd restart",
-	    "sudo chkconfig mysqld on",
-        "sudo chkconfig httpd on",
-        "sudo chkconfig oess on"
-        ]
+		"sudo chkconfig mysqld on",
+        	"sudo chkconfig httpd on",
+        	"sudo chkconfig oess on"	
+    ]
 	}
     ]
 }
