@@ -7,15 +7,17 @@ oess
 https://no.way/
 mycert.crt
 mykey.key
-https://example.edu/
-oess-demo@example.edu
+https://fake.net/
+oess-demo@fake.changeme
+
+
 OESS Notifier
 y
 oess
 oess
 snapp
 snapp
-oess-test.invalid.example.com
+wrondomain.test.com
 /usr/share/oess-core/snapp.mysql.sql
 /usr/share/oess-core/snapp_base.mysql.sql
 /tmp/snapp_file_location/
@@ -27,7 +29,7 @@ admin
 oess-test
 oess
 test
-oess-test@example.edu
+oess-test@changeme.txt
 y
 changeme
 changeme
