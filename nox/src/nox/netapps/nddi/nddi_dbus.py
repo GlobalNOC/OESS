@@ -129,13 +129,21 @@ class dBusEventGen(dbus.service.Object):
                          )
     def get_flow_stats(self, dpid):
         string = "get_flow_stats: " + str(dpid)
-        logger.debug(string)
+        logger.info(string)
         if last_flow_stats.has_key(dpid):
-            logger.debug("returning flow stats for dpid: " + str(dpid))
-            return (last_flow_stats[dpid]["time"],last_flow_stats[dpid]["flows"])
+            #build an array of DBus Dicts
+            flow_stats = []
+            for item in last_flow_stats[dpid]["flows"]:
+                match = dbus.Dictionary(item['match'], signature='sv', variant_level = 2)
+                item['match'] = match
+                dict = dbus.Dictionary(item, signature='sv' , variant_level=3)
+                flow_stats.append(dict)
+
+            return (last_flow_stats[dpid]["time"],flow_stats)
         else:
-            logger.debug("No Flow stats cached for dpid: " + str(dpid))
+            logger.info("No Flow stats cached for dpid: " + str(dpid))
             return (-1, [{"flows": "not yet cached"}])
+            
 
     @dbus.service.method(dbus_interface=ifname,
                          in_signature='t',
@@ -433,7 +441,7 @@ def _do_install(dpid,xid,match,actions):
     return 1
 
 global high_water
-highwater = 0
+high_water = 0
 def run_glib ():
     """ Process glib events within NOX """
     context = gobject.MainLoop().get_context()
