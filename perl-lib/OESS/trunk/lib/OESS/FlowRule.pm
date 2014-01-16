@@ -56,7 +56,7 @@ use Switch;
 use Data::Dumper;
 use Net::DBus;
 use Log::Log4perl;
-use Test::Deep qw(eq_deeply);
+use Test::Deep::NoTest qw(eq_deeply);
 
 
 use constant OFPAT_OUTPUT       => 0;
