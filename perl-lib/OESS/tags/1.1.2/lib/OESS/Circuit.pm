@@ -360,6 +360,8 @@ sub _generate_static_mac_path_flows{
 	$finder{$node_z}{$node_a} = $link;
     }
 
+    $self->{'logger'}->debug(" IN PORTS " . Data::Dumper::Dumper(%in_ports));
+
     my $path_vlan_ids = $self->{'vlan_ids'}->{$path};
 
     my @verts = $graph->vertices;
@@ -415,7 +417,7 @@ sub _generate_static_mac_path_flows{
 			foreach my $mac_addr (@{$endpoint->{'mac_addrs'}}){
 			    
 			    $self->{'logger'}->debug("Creating flow for mac_addr " . $mac_addr->{'mac_address'} . " on node " . $vert);
-			    
+			    $self->{'logger'}->debug("Next hop: " . $next_hop[1] . " and path: " . $path . " and vlan " . $internal_ids->{$path}{$next_hop[1]});
 			    my $flow = OESS::FlowRule->new( match => {'dl_vlan' => $in_port->{'tag'},
 								      'in_port' => $in_port->{'port_no'},
 								      'dl_dst' => OESS::Database::mac_hex2num($mac_addr->{'mac_address'})},
@@ -578,21 +580,20 @@ sub get_flows{
             push(@flows,$flow);
         }
 
+	foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{'primary'}}){
+	    push(@flows,$flow);
+	}
+
     }else{
 
         foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{'backup'}}){
             push(@flows,$flow);
         }
 
-    }
+	foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{'backup'}}){
+	    push(@flows,$flow);
+	}
 
-    
-    foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{'primary'}}){
-        push(@flows,$flow);
-    }
-
-    foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{'backup'}}){
-        push(@flows,$flow);
     }
 
     return $self->_dedup_flows(\@flows);
