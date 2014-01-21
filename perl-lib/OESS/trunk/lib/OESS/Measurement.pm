@@ -110,7 +110,7 @@ sub get_circuit_data{
 
     my $circuit_id = $params{'circuit_id'};
     my $start      = $params{'start_time'};
-    my $end        = $params{'end'};
+    my $end        = $params{'end_time'};
     my $node       = $params{'node'};
     my $interface  = $params{'interface'};
 
