@@ -223,13 +223,13 @@ sub provision_circuit {
 
     my $workgroup = $db->get_workgroup_by_id( workgroup_id => $workgroup_id );
 
-    if ( $workgroup->{'name'} eq 'Demo' ) {
-        return { error =>
-                 'sorry this is a demo account, and can not actually provision' };
+    if(!defined($workgroup)){
+	return {error => 'unable to find workgroup $workgroup_id'};
+    }elsif ( $workgroup->{'name'} eq 'Demo' ) {
+        return { error => 'sorry this is a demo account, and can not actually provision' };
+    }elsif($workgroup->{'status'} eq 'decom'){
+	return {error => 'The selected workgroup is decomissioned and unable to provision'};
     }
-
-    #warn"bgeels: ".Dumper(\@mac_addresses);
-    #warn Dumper(\@endpoint_mac_address_nums);
 
     if ( !$circuit_id || $circuit_id eq -1 ) {
         #Register with DB
