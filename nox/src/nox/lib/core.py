@@ -402,7 +402,7 @@ class Component:
                 xid = 8238
                 setattr(self, 'xid', xid + 1)
 
-        self.send_flow_command(dp_id, openflow.OFPFC_DELETE, attrs,xid=xid)
+        self.send_flow_command(dp_id, openflow.OFPFC_DELETE_STRICT, attrs,xid=xid)
         return xid
 
     def delete_strict_datapath_flow(self, dp_id, attrs,
