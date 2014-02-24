@@ -14,6 +14,7 @@ use Switch;
 use Net::DBus::Exporter qw (org.nddi.notification);
 use Net::DBus qw(:typing);
 use OESS::Circuit;
+use Log::Log4perl;
 
 use base qw(Net::DBus::Object);
 
@@ -85,6 +86,7 @@ sub new {
     return if !defined( $self->{'config_file'} );
 
     $self->{'tt'} = Template->new(ABSOLUTE=>1);
+    $self->{'log'} = Log::Log4perl->get_logger("OESS::Notification");
 
     bless $self, $class;
 
@@ -128,7 +130,7 @@ sub circuit_notification {
     $circuit = $dbus_data;
     my $circuit_notification_data = $self->get_notification_data( circuit => $circuit );
     if (!defined($circuit_notification_data)) {
-        warn "Unable to get circuit data for circuit: " . $circuit->{'circuit_id'};
+        $self->{'log'}->error("Unable to get circuit data for circuit: " . $circuit->{'circuit_id'});
           return;
     }
     my $subject = "OESS Notification: Circuit '" . $circuit_notification_data->{'circuit'}->{'description'} . "' ";
@@ -468,7 +470,7 @@ sub _connect_services {
       my $user_id;
       my $details = $db->get_circuit_details( circuit_id => $ckt->{'circuit_id'} );
       unless ($details) {
-          warn "No circuit details found, returning";
+          $self->{'log'}->error("No circuit details found, returning");
           return;
       }
 
@@ -476,7 +478,7 @@ sub _connect_services {
       my $ockt = OESS::Circuit->new( circuit_id => $ckt->{'circuit_id'}, db => $db);
       my $clr = $ockt->generate_clr();
       unless ($clr) {
-          warn "No CLR for $ckt->{'circuit_id'} ?";
+          $self->{'log'}->error("No CLR for $ckt->{'circuit_id'} ?");
       }
 
       my $email_address;
@@ -486,7 +488,7 @@ sub _connect_services {
                                                          );
 
       unless ($workgroup_members) {
-          warn "No workgroup members found, returning";
+          $self->{'log'}->error( "No workgroup members found, returning");
           return;
       }
 
