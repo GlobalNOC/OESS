@@ -167,6 +167,8 @@ sub main{
     $vars->{'breadcrumbs'}        = $breadcrumbs;
     $vars->{'current_breadcrumb'} = $current_breadcrumb;
     $vars->{'is_admin'}           = $is_admin;		       
+    $vars->{'version'}            = OESS::Database::VERSION;
+
     
     #print STDERR Dumper($vars);
     $tt->process("html_templates/page_base.html", $vars, \$output) or warn $tt->error();
