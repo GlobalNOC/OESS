@@ -263,6 +263,10 @@ sub _send_bulk_notification {
 
         my $to_string = join( ",", @to_list );
 
+	if($to_string eq ''){
+	    return;
+	}
+
         my $message = MIME::Lite::TT::HTML->new(
                                                 From    => $self->{'from_address'},
                                                 To      => $to_string,
