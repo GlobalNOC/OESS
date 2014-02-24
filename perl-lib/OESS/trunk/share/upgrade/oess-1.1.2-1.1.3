@@ -53,6 +53,11 @@ sub upgrade{
     my $str;
     my $sth;
     
+    $str = "alter table workgroup add column status enum('active','decom') default 'active'";
+    $dbh->do($str);
+    
+    
+    
     #ok done with the rest of the upgrade update our version
     $str = "update oess_version set version = '$version'";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";

@@ -1436,6 +1436,8 @@ sub get_workgroups {
 
 	push(@dbargs, $args{'user_id'});
     }
+
+    $sql .= " where w.status eq 'active'";
     $sql .= " order by w.name";
     my $results = $self->_execute_query($sql,\@dbargs);
 
@@ -1602,7 +1604,7 @@ sub get_workgroups_by_auth_name {
 	        " join user_workgroup_membership on user_workgroup_membership.workgroup_id = workgroup.workgroup_id " .
 		" join user on user.user_id = user_workgroup_membership.user_id " .
 		" join remote_auth on remote_auth.user_id = user.user_id " .
-		"  and remote_auth.auth_name = ?" .
+		"  and remote_auth.auth_name = ? and workgroup.status = 'active'" .
 		" order by workgroup.name ";
 
     my $results = $self->_execute_query($query, [$auth_name]);
@@ -1873,7 +1875,7 @@ sub get_all_workgroups {
     my $self = shift;
 
     my $workgroups = [];
-    my $sql="select w.workgroup_id, w.name,w.type, w.external_id from workgroup w ";
+    my $sql="select w.workgroup_id, w.name,w.type, w.external_id from workgroup w where w.status = 'active'";
     $sql .= " order by w.name";
     my $results = $self->_execute_query($sql);
 
@@ -7266,6 +7268,7 @@ sub can_modify_circuit{
 
     if($res->{'workgroup_id'} == $params{'workgroup_id'}){
 	return 0 if $workgroup->{'type'} eq 'demo';
+        return 0 if $workgroup->{'status'} eq 'decom';
 	return 1 if $workgroup->{'type'} eq 'normal' || $workgroup->{'type'} eq 'admin';
     }
 
