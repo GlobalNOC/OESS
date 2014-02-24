@@ -33,8 +33,7 @@ use Set::Scalar;
 use Graph::Directed;
 use List::MoreUtils qw{uniq};
 use Data::Dumper;
-
-use constant DEBUG => 0;
+use Log::Log4perl;
 
 #link statuses
 use constant OESS_LINK_UP       => 1;
@@ -92,7 +91,7 @@ sub _set_error{
            $self->{'error'}{'dbi_err'}  = undef;
         }
         #$self->{'error'}{'stacktrace'}  = longmess;
-
+        $self->{'logger'}-error( "an error occured: " .  $self->{'error'}{'message'} );
 }
 
 =head2 get_error
@@ -119,6 +118,8 @@ Creates a new OESS-topology Object
 sub new {
     my $class = shift;
 
+    my $logger = Log::Log4perl->get_logger("OESS::Topology");
+
     my %args = (
 	config              => "/etc/oess/database.xml",
 	dbname              => undef,
@@ -131,6 +132,8 @@ sub new {
 
     my $self = \%args;
     bless($self,$class);
+
+    $self->{'logger'} = $logger;
 
     if (! defined $self->{'db'}){
 	my $db = OESS::Database->new(config => $args{'config'},
@@ -296,6 +299,8 @@ sub find_path{
     my $self = shift;
     my %args = 	@_;
 
+    $self->{'logger'}->debug("Finding shortest path");
+
     my @selected_links = ();
 
 
@@ -318,24 +323,20 @@ sub find_path{
 
     #step1 (get nodes);
     my @tmp = @{$db->get_current_nodes()};
+    
 
     my @db_nodes;
     foreach my $tmp_node (@tmp){
 	push(@db_nodes, $tmp_node->{'name'});
     }
 
-    if(DEBUG > 2){
-	warn "db_nodes=".join(",",@db_nodes)."\n";
-    }
+    $self->{'logger'}->debug("db_nodes=" . join(",",@db_nodes));
 
     #Sanity check2 make sure the nodes are a subset of the nodes on the db
     my $db_node_set    =Set::Scalar->new(@db_nodes);
     my $input_node_set =Set::Scalar->new(@$nodes);
 
     if(not $input_node_set <= $db_node_set){
-        if(DEBUG){
-	    warn "bad inputs:".join(",",@$nodes)."\n";
-        }
 	$self->_set_error("Bad inputs: " . join(",",@$nodes));
         return undef;
     }
@@ -348,7 +349,7 @@ sub find_path{
     #now put the edges in the graph
     #I am assuming there are NO repeated links between cities right now!
     my $links = $db->get_edge_links($reserved_bw);
-
+    $self->{'logger'}->debug("edge links: " . Dumper($links));
     my %edge;
     my $used_link_set=Set::Scalar->new(@$try_avoid);
 
@@ -356,7 +357,10 @@ sub find_path{
     #used as a baseline to start the primary path weights at
     #when trying to determine the backup bath.
     my @weights;
-    foreach my $link (@$links){ push(@weights, $link->{'metric'}); }
+    foreach my $link (@$links){ 
+        push(@weights, $link->{'metric'});
+    }
+
     my $max_weight = (sort { $b <=> $a } @weights)[0];
 
     foreach my $link (@$links){
@@ -366,6 +370,7 @@ sub find_path{
         #--- determine how much capacity will be left on this link after our requested circuit runs through it
 	my $capacity_left = $link->{'link_capacity'} * 1.0 - $current_reserved_bandwidth - $reserved_bw;
         #--- if the remaining capacity is less than zero we can't use this link so don't add it to the graph
+        $self->{'logger'}->debug("Capacity left on link " . $link->{'name'} . ": " . $capacity_left);
         next if($capacity_left < 0);
 
 
@@ -380,36 +385,29 @@ sub find_path{
         #to its weight to ensure it's chose only as a last resort
 	if($used_link_set->has($link->{'name'})){
             #add one to the max weight in case the max weight is the same as this edges' weight
+            $self->{'logger'}->debug("Link " . $link->{'name'} . " was already used.. adding weight");
 	    $edge_weight= $edge_weight + ($max_weight + 1);
 	}
 
 	$g->set_edge_attribute($link->{'node_a_name'},$link->{'node_b_name'},"weight",$edge_weight);
-	warn "Edge: " . $link->{'node_a_name'} . "<->" . $link->{'node_b_name'} . " = " . $edge_weight . "\n";
+	$self->{'logger'}->debug("Edge: " . $link->{'node_a_name'} . "<->" . $link->{'node_b_name'} . " = " . $edge_weight);
 
 	$edge{$link->{'node_a_name'}}{$link->{'node_b_name'}}{'name'}=$link->{'name'};
 
-        # adjust max weight if this links weight is higher
-        #$max_weight = $link->{'metric'} if($link->{'metric'} > $max_weight);
     }
 
     #run Dijkstra on our graph
-    my $graph = $g->SPT_Dijkstra($nodes->[0]);
+#    my $graph = $g->SP_Dijkstra($nodes->[0]);
 
-    if(DEBUG > 2){
-	warn "after SPT Calculation\n";
-    }
 
     my @link_list = ();
     foreach my $node_a_name (@$nodes){
 	foreach my $node_b_name (@$nodes){
 	    next if $node_a_name eq $node_b_name;
 	    #do the Shortest Path Calcualtion
-	    my @path=$graph->SP_Dijkstra($node_a_name, $node_b_name);
-
+	    my @path=$g->SP_Dijkstra($node_a_name, $node_b_name);
+            $self->{'logger'}->debug("Shortest path calc: for $node_a_name to $node_b_name " . Dumper(@path));
 	    if (!@path){
-		if(DEBUG){
-		    warn "No Path found";
-		}
 		$self->_set_error("No Path found");
 		return undef;
 	    }
@@ -422,22 +420,17 @@ sub find_path{
 		}
 		if($link_name){
 		    push(@link_list,$link_name);
-		    if(DEBUG > 2){
-			warn "Adding link name: " . $link_name . "\n";
-		    }
+		    $self->{'logger'}->debug("Adding link name: " . $link_name);
 		}
 	    }
 	}
     }
 
-    if(DEBUG>=2){
-	warn "link_list=".join(",",@link_list);
-    }
-    @selected_links=uniq(@link_list);
-    if(DEBUG>=2){
-	warn "selected_links=".join(",",@selected_links);
-    }
+    $self->{'logger'}->debug("link_list=".join(",",@link_list));
 
+    @selected_links=uniq(@link_list);
+
+    $self->{'logger'}->debug("selected_links=".join(",",@selected_links));
 
     return \@selected_links;
 
