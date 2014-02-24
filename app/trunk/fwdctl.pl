@@ -379,7 +379,7 @@ sub _do_diff{
 	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
 						    match => {'dl_type' => 35020,
 							      'dl_vlan' => $self->{'db'}->{'discovery_vlan'}},
-						    actions => [{'output' => 65533}]));
+						    actions => [{'output' => 65533, 'max_length' => 65535}]));
 	}else{
 	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
 						    match => {'dl_type' => 35020,
@@ -1190,7 +1190,9 @@ sub addVlan {
     }
 
     $ckt->update_circuit_details();
-
+    if($ckt->{'details'}->{'state'} eq 'decom'){
+	return FWDCTL_FAILURE;
+    }
     #--- get the set of commands needed to create this vlan per design
     my $commands = $self->_generate_commands($circuit_id,FWDCTL_ADD_VLAN);
 
@@ -1277,6 +1279,9 @@ sub deleteVlan {
     }
 
     $ckt->update_circuit_details();
+    if($ckt->{'details'}->{'state'} eq 'decom'){
+	return FWDCTL_FAILURE;
+    }
 
 
     print "removeVlan: $circuit_id\n";
