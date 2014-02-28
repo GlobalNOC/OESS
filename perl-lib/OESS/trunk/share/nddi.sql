@@ -435,6 +435,7 @@ CREATE TABLE `user` (
   `given_names` varchar(60) NOT NULL,
   `family_name` varchar(60) NOT NULL,
   `is_admin` int(10) NOT NULL DEFAULT '0',
+  'type' enum('normal','readonly') NOT NULL DEFAULT 'normal',
   PRIMARY KEY (`user_id`),
   KEY `user_idx` (`email`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8;
