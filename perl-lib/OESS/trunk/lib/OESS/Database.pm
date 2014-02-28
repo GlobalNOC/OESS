@@ -2470,6 +2470,7 @@ sub get_users {
 		    'family_name'   => $row->{'family_name'},
 		    'email_address' => $row->{'email'},
 		    'user_id'       => $row->{'user_id'},
+		    'type'          => $row->{'type'},
 		    'auth_name'     => []
 	};
 
@@ -2869,6 +2870,7 @@ sub edit_user {
     my $family_name = $args{'family_name'};
     my $email       = $args{'email_address'};
     my $auth_names  = $args{'auth_names'};
+    my $type        = $args{'type'};
 
     if ($given_name =~ /^system$/ || $family_name =~ /^system$/){
 	$self->_set_error("User 'system' is reserved.");
@@ -2877,9 +2879,9 @@ sub edit_user {
 
     $self->_start_transaction();
 
-    my $query = "update user set email = ?, given_names = ?, family_name = ? where user_id = ?";
+    my $query = "update user set email = ?, given_names = ?, family_name = ?, type =?  where user_id = ?";
 
-    my $result = $self->_execute_query($query, [$email, $given_name, $family_name, $user_id]);
+    my $result = $self->_execute_query($query, [$email, $given_name, $family_name,$type, $user_id]);
 
     if (! defined $user_id || $result == 0){
 	$self->_set_error("Unable to edit user - does this user actually exist?");
