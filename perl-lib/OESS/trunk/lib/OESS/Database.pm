@@ -2909,7 +2909,7 @@ sub get_current_circuits_by_interface{
 
     my $dbh = $self->{'dbh'};
 
-    my $query = "select circuit.workgroup_id, circuit.name, circuit.description, circuit.circuit_id, circuit_instantiation.circuit_state from circuit join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id join circuit_edge_interface_membership on circuit_edge_interface_membership.circuit_id = circuit.circuit_id and circuit_instantiation.end_epoch = -1 and circuit_instantiation.circuit_state != 'decom' and circuit_edge_interface_membership.end_epoch = -1 and circuit_edge_interface_membership.interface_id = ?";
+    my $query = "select circuit.workgroup_id,circuit.external_identifier, circuit.name, circuit.description, circuit.circuit_id, circuit_instantiation.circuit_state from circuit join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id join circuit_edge_interface_membership on circuit_edge_interface_membership.circuit_id = circuit.circuit_id and circuit_instantiation.end_epoch = -1 and circuit_instantiation.circuit_state != 'decom' and circuit_edge_interface_membership.end_epoch = -1 and circuit_edge_interface_membership.interface_id = ?";
 
     my $rows = $self->_execute_query($query, [$interface->{'interface_id'}]);
 
@@ -2930,6 +2930,7 @@ sub get_current_circuits_by_interface{
                                         'description' => $row->{'description'},
                                         'bandwidth'   => $row->{'reserved_bandwidth_mbps'},
                                         'state'       => $row->{'circuit_state'},
+                                        'external_identifier' => $row->{'external_identifier'},
                                         'endpoints'   => [],
                                         'workgroup_id' => $row->{'workgroup_id'}
             };
@@ -3039,7 +3040,7 @@ sub get_current_circuits {
     }
 
 
-    my $query = "select circuit.circuit_id, circuit.workgroup_id, circuit.name, circuit.description, circuit.circuit_id, circuit_instantiation.circuit_state ";
+    my $query = "select circuit.circuit_id, circuit.external_identifier, circuit.workgroup_id, circuit.name, circuit.description, circuit.circuit_id, circuit_instantiation.circuit_state ";
     $query   .= "from circuit ";
     $query   .= "join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id and circuit_instantiation.end_epoch = -1 and circuit_instantiation.circuit_state != 'decom' ";
     $query   .= "left join circuit_edge_interface_membership on circuit.circuit_id = circuit_edge_interface_membership.circuit_id and circuit_edge_interface_membership.end_epoch = -1 ";
@@ -3174,7 +3175,7 @@ sub get_circuit_details {
     my $details;
 
     # basic circuit info
-    my $query = "select circuit.restore_to_primary, circuit.name, circuit.description, circuit.circuit_id, circuit.static_mac, circuit_instantiation.modified_by_user_id, circuit.workgroup_id, " .
+    my $query = "select circuit.restore_to_primary, circuit.external_identifier, circuit.name, circuit.description, circuit.circuit_id, circuit.static_mac, circuit_instantiation.modified_by_user_id, circuit.workgroup_id, " .
 	" circuit_instantiation.reserved_bandwidth_mbps, circuit_instantiation.circuit_state, circuit_instantiation.start_epoch  , " .
 	" if(bu_pi.path_state = 'active', 'backup', 'primary') as active_path " .
 	"from circuit " .
@@ -3223,7 +3224,8 @@ sub get_circuit_details {
                     'last_edited'            => $dt->strftime('%m/%d/%Y %H:%M:%S'),
                     'workgroup_id'           => $row->{'workgroup_id'},
 		    'restore_to_primary'     => $row->{'restore_to_primary'},
-		    'static_mac'             => $row->{'static_mac'}
+		    'static_mac'             => $row->{'static_mac'},
+                    'external_identifier'    => $row->{'external_identifier'}
                    };
         if ( $row->{'circuit_state'} eq 'decom' ){
             $show_historical =1;
