@@ -504,28 +504,23 @@ function setup_users_tab(){
 	var user_search = new YAHOO.util.Element(YAHOO.util.Dom.get('user_search'));
     
 	var user_searchTimeout;
-	 	user_search.on('keyup', function(e){
-			var search_value = this.get('element').value;
-			
-	 		if (e.keyCode == YAHOO.util.KeyListener.KEY.ENTER){
-				clearTimeout(user_searchTimeout);
-				table_filter.call(user_table,search_value);
-			}
-			else{
-				if (user_searchTimeout) clearTimeout(user_searchTimeout);
-				
-				user_searchTimeout = setTimeout(function(){
-					table_filter.call(user_table,search_value);
-				}, 400);
-				
-			} 
-	    
-		}
-				 );
-
-
-
-
+    user_search.on('keyup', function(e){
+        var search_value = this.get('element').value;
+        
+        if (e.keyCode == YAHOO.util.KeyListener.KEY.ENTER){
+            clearTimeout(user_searchTimeout);
+            table_filter.call(user_table,search_value);
+        }
+        else{
+            if (user_searchTimeout) clearTimeout(user_searchTimeout);
+            
+            user_searchTimeout = setTimeout(function(){
+                table_filter.call(user_table,search_value);
+            }, 400);
+            
+        } 
+    
+    });
 
     user_table.subscribe("rowClickEvent", function(oArgs){
 
@@ -561,12 +556,11 @@ function setup_users_tab(){
 	    this.user_panel = null;
 	}
 	
-	var p = new YAHOO.widget.Panel("user_details",
-				       {width: 450,
-					xy: xy,
-					modal: true
-				       }
-				       );
+	var p = new YAHOO.widget.Panel("user_details",{
+        width: 450,
+		xy: xy,
+		modal: true
+	});
 	
 	this.user_panel = p;
 	
@@ -594,7 +588,10 @@ function setup_users_tab(){
 		  "<td><select id='user_type'><option value='normal'>Normal</option><option value='read-only'>Read-Only</option></select></td>" +
 		  "</tr>" +
 		  "</table>"+
-		  "<div id='workgroup_membership_table'> </div>"
+          "<div style='text-align:left;margin-top:5px;'>"+
+          "   <label>Workgroup Membership:</label>"+
+          "</div>"+
+		  "<div id='user_workgroup_table'></div>"
 		  );
 		
 	p.setFooter("<div id='submit_user'></div><div id='delete_user'></div>");
@@ -770,6 +767,8 @@ function setup_users_tab(){
 			       });
 
 	    });
+
+        makeUserWorkgroupTable(user_id)
 
     };
 
@@ -2491,6 +2490,41 @@ function makeUserTable(div_id,search_id){
 	    this.cache = oArgs.response;
 	    return oArgs;
     });
+    return table;
+}
+
+function makeUserWorkgroupTable(user_id) {
+
+    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_workgroups&user_id="+user_id);
+
+    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+    ds.responseSchema = {
+    resultsList: "results",
+    fields: [ {key: "workgroup_id", parser: "number"},
+        {key: "name"},
+        {key: "description"},
+        {key: "external_id"},
+        {key: "max_mac_address_per_end"},
+        {key: "max_circuit_endpoints"},
+        {key: "max_circuits"}
+    ]};
+
+    var columns = [{key: "name", label: "Name", sortable:true,width: 180}];
+
+    var config = {
+        paginator: new YAHOO.widget.Paginator({
+            rowsPerPage: 10,
+            containers: ["workgroup_table_nav"]
+        }),
+        sortedBy: {key:'name', dir:'asc'}
+    };
+
+
+    var table = new YAHOO.widget.DataTable("user_workgroup_table", columns, ds, config);
+
+    table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
+    table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
+    
     return table;
 }
 
