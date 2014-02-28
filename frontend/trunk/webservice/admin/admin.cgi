@@ -66,6 +66,11 @@ sub main {
         return ( send_json($output) );
     }
 
+    my $user = $db->get_user_by_id( user_id => $user_id);
+    if($user->{'type'} eq 'read-only'){
+        return send_json({error => 'Error: you are a readonly user'});
+    }
+
     switch ($action) {
 
         case "get_pending_nodes" {
@@ -542,13 +547,15 @@ sub edit_user {
     my $family_name = $cgi->param("family_name");
     my $email       = $cgi->param("email_address");
     my @auth_names  = $cgi->param("auth_name");
+    my $type        = $cgi->param('type');
 
     my $success = $db->edit_user(
         given_name    => $given_name,
         family_name   => $family_name,
         email_address => $email,
         auth_names    => \@auth_names,
-        user_id       => $user_id
+        user_id       => $user_id,
+        type          => $type
     );
 
     if ( !defined $success ) {

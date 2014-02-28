@@ -539,7 +539,8 @@ function setup_users_tab(){
 	    var first      = record.getData('first_name');
 	    var family     = record.getData('family_name');
 	    var email      = record.getData('email_address');
-	    var auth_names = (record.getData('auth_name') || []).join(",")
+	    var auth_names = (record.getData('auth_name') || []).join(",");
+	    var type       = record.getData('type');
 	    	    
 	    var region = YAHOO.util.Dom.getRegion(oArgs.target);
 
@@ -550,10 +551,10 @@ function setup_users_tab(){
 	    }
 	    
 
-	    showUserInfoPanel.call(this, user_id, first, family, email, auth_names, [region.left, region.bottom], oArgs);
+	    showUserInfoPanel.call(this, user_id, first, family, email, auth_names, type, [region.left, region.bottom], oArgs);
 	});
 
-    function showUserInfoPanel(user_id, first_name, family_name, email, auth_names, xy, target){
+    function showUserInfoPanel(user_id, first_name, family_name, email, auth_names,type, xy, target){
 
 	if (this.user_panel){
 	    this.user_panel.destroy();
@@ -588,6 +589,10 @@ function setup_users_tab(){
 		  "<td>Username(s)<br>(comma separated)</td>" +
 		  "<td><input type='text' id='user_auth_names' size='38'></td>" +
 		  "</tr>"+
+		  "<tr>" +
+		  "<td>User Type</td>" +
+		  "<td><select id='user_type'><option value='normal'>Normal</option><option value='read-only'>Read-Only</option></select></td>" +
+		  "</tr>" +
 		  "</table>"+
 		  "<div id='workgroup_membership_table'> </div>"
 		  );
@@ -600,12 +605,19 @@ function setup_users_tab(){
 	makeHelpPanel("user_family_name", "This is the user's last, or family, name(s).");
 	makeHelpPanel("user_email_address", "This is the user's email address. This will be used to notify the user about events that happen to circuits in this workgroup.");
 	makeHelpPanel("user_auth_names", "These are the usernames that this user is identified by. These are typically what the REMOTE_USER field will be set to for whatever authentication method you are using. If multiple values would like to be used, just separate them with a comma.");
+	makeHelpPanel("user_type", "Specifies either a normal user or a read-only user.  If a user is a read-only user then they can view everything that every user can see in their workgroup, however they are unable to affect any changes on the system.  A normal user can make changes that affect the system.");
+
+	if(type == 'normal'){
+	    type = 0;
+	}else{
+	    type = 1;
+	}
 
 	YAHOO.util.Dom.get("user_given_name").value    = first_name  || "";
 	YAHOO.util.Dom.get("user_family_name").value   = family_name || "";
 	YAHOO.util.Dom.get("user_email_address").value = email || "";
 	YAHOO.util.Dom.get("user_auth_names").value    = auth_names || "";
-
+	YAHOO.util.Dom.get("user_type").selectedIndex  = type || 0;
 	YAHOO.util.Dom.get("user_given_name").focus();
 
 	var submit_button = new YAHOO.widget.Button("submit_user", {label: "Save"});
@@ -686,6 +698,11 @@ function setup_users_tab(){
 		var lname = YAHOO.util.Dom.get("user_family_name").value;
 		var email = YAHOO.util.Dom.get("user_email_address").value;
 		var auth  = YAHOO.util.Dom.get("user_auth_names").value;
+		var type  = YAHOO.util.Dom.get("user_type").value;
+
+		if (! type ){
+		    type = "normal";
+		}
 
 		if (! fname || !lname){
 		    alert("You must specify a first and last name for this user.");
@@ -711,7 +728,7 @@ function setup_users_tab(){
 		url += "&first_name="+encodeURIComponent(fname);
 		url += "&family_name="+encodeURIComponent(lname);
 		url += "&email_address="+encodeURIComponent(email);
-
+		url += "&type="+encodeURIComponent(type);
 		var names = auth.split(",");
 
 		for (var i = 0; i < names.length; i++){
@@ -2441,7 +2458,8 @@ function makeUserTable(div_id,search_id){
                  {key: "first_name"},
                  {key: "family_name"},
                  {key: "email_address"},
-                 {key: "auth_name"}
+    {key: "auth_name"},
+    {key: "type"}
 		 ]
     };
 
@@ -2452,7 +2470,8 @@ function makeUserTable(div_id,search_id){
 	           },
 				   {key: "family_name",label:"Last Name", width: 100,sortable:true },
 				   {key: "auth_name", label: "Username", width: 175,sortable:true},
-				   {key: "email_address", label: "Email Address", width: 175,sortable:true}
+    {key: "email_address", label: "Email Address", width: 175,sortable:true},
+    {key: "type", label: "User Type", width: 90, sortable: true}
 	];
 
     var config = {
