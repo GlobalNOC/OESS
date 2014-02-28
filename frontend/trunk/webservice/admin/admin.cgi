@@ -160,7 +160,11 @@ sub main {
 	    $output = &edit_workgroup();
 	}case "get_topology"{
 	    $output = &gen_topology();
-	}
+	}case "decom_workgroup"{
+            $output = &decom_workgroup();
+        }case "decom_user"{
+            $output = &decom_user();
+        }
         else {
             $output = {
                 error => "Unknown action - $action"
@@ -872,6 +876,25 @@ sub edit_workgroup{
 	$results->{'error'} = $db->get_error();
     }
     return $results;
+}
+
+sub decom_workgroup{
+    my $workgroup_id = $cgi->param('workgroup_id');
+    my $results;
+
+    my $circuits = $db->get_circui
+}
+
+sub decom_user{
+    my $user_id = $cgi->param('user_id');
+    my $results;
+    if($db->decom_user( user_id => $user_id)){
+        $results->{'results'} = [{success => 1}];
+    }else{
+        $results->{'error'} = "Unable to decom user";
+    }
+    return $results;
+    
 }
 
 sub send_json {
