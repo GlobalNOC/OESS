@@ -302,6 +302,7 @@ var ds = new YAHOO.util.DataSource(dsString);
 		  fields: [
 			  {key: "circuit_id", parser: "number"},
 			  {key: "description"},
+      {key: "external_identifier"},
 			  {key: "bandwidth", parser: "number"},
 			  {key: "name"},
 			  {key: "endpoints"},
@@ -315,7 +316,7 @@ var ds = new YAHOO.util.DataSource(dsString);
 
     var columns = [
 
-		   {key: "description", label: "Description", sortable: true, width: 450
+		   {key: "description", label: "Description", sortable: true, width: 400
 
            },
 		   {key: "endpoints", label: "Endpoints", sortable: true, width: 280, formatter: function(el, rec, col, data){
@@ -350,6 +351,10 @@ var ds = new YAHOO.util.DataSource(dsString);
 
 
                el.innerHTML = "<center>"+data+"</center>";
+		       }
+		   },
+		   {key: "external_identifier", label: "GRI", sortable: true, width: 90, formatter: function(el, rec,col,data){
+			   el.innerHTML = "<enter>"+data+"</center>";
 		       }
 		   }
 		   ];
