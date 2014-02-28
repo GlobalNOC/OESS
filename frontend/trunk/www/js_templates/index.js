@@ -296,33 +296,30 @@ function build_circuitTable(){
             dsString +="&path_node_id="+pathSelector[x].value;
         }
     }
-    console.log(dsString);
 
-
-var ds = new YAHOO.util.DataSource(dsString);
-      ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-      ds.responseSchema = {
-		  resultsList: "results",
-		  fields: [
-			  {key: "circuit_id", parser: "number"},
-			  {key: "description"},
-      {key: "external_identifier"},
-			  {key: "bandwidth", parser: "number"},
-			  {key: "name"},
-			  {key: "endpoints"},
-			  {key: "workgroup.name"}
-		  ],
-		  metaFields: {
-			  error: "error"
-		  }
-	  };
-
+    
+    var ds = new YAHOO.util.DataSource(dsString);
+    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+    ds.responseSchema = {
+	resultsList: "results",
+	fields: [
+    {key: "circuit_id", parser: "number"},
+    {key: "description"},
+    {key: "external_identifier"},
+    {key: "bandwidth", parser: "number"},
+    {key: "name"},
+    {key: "endpoints"},
+    {key: "workgroup.name"}
+		 ],
+	metaFields: {
+	    error: "error"
+	}
+    };
+    
 
     var columns = [
-
-		   {key: "description", label: "Description", sortable: true, width: 400
-
-           },
+		   
+		   {key: "description", label: "Description", sortable: true, width: 400},
 		   {key: "endpoints", label: "Endpoints", sortable: true, width: 280, formatter: function(el, rec, col, data){
 
 			   var endpoints  = rec.getData('endpoints');
@@ -352,9 +349,7 @@ var ds = new YAHOO.util.DataSource(dsString);
 		       }
 		   },
 		   {key: "workgroup.name", label: "Owned By", sortable: true, width: 90, formatter: function(el, rec, col, data){
-
-
-               el.innerHTML = "<center>"+data+"</center>";
+			   el.innerHTML = "<center>"+data+"</center>";
 		       }
 		   },
 		   {key: "external_identifier", label: "GRI", sortable: true, width: 90, formatter: function(el, rec,col,data){
@@ -577,27 +572,32 @@ var ds = new YAHOO.util.DataSource(dsString);
     avail_resource_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     avail_resource_ds.responseSchema = {
 	resultsList: "results",
-	fields: ["node_name","interface_name","operational_state","description","vlan_tag_range","is_owner"]
+	fields: ["node_name","interface_name","operational_state","description","vlan_tag_range","is_owner", "owning_workgroup.name"]
     };
 
     var avail_resource_cols = [
     {key: "node_name",sortable: true, label: "Node", width: 250},
     {key: "interface_name", sortable: true, label: "Interface", width: 90},
     {key: "description", sortable: true,  label: "Description", width: 250},
-    {key: "vlan_tag_range", sortable: true,  label: "VLAN Range", width: 200, formatter: function(elLiner, oRec, oCol, oData){
+    {key: "vlan_tag_range", sortable: true,  label: "VLAN Range", width: 150, formatter: function(elLiner, oRec, oCol, oData){
 	    var string = oData.replace(/^-1/, "untagged");
 	    elLiner.innerHTML = string;
 	}},
-    {key: "is_owner", sortable: true, label: "Owned", formatter: function(elLiner, oRec, oCol, oData){
-	    if(oData == 1){
-		elLiner.innerHTML = "Yes";
-	    } else {
-		elLiner.innerHTML = "No";
-	    }
-	}}
+    {key: "owning_workgroup.name", sortable: true, label: "Owned By", width: 100}
+    
 			       ];
 
-    var avail_resource_table = new YAHOO.widget.ScrollingDataTable("available_resource_table",avail_resource_cols, avail_resource_ds, {height: '223px'});
+    var avail_resource_table_config = {
+	heigth: '223px',
+	formatRow: function (elTr, oRecord) {
+            if (oRecord.getData('is_owner') != 1){
+                Dom.addClass(elTr,'guest-workgroup');
+            }
+            return true;
+        }
+    }
+
+    var avail_resource_table = new YAHOO.widget.ScrollingDataTable("available_resource_table",avail_resource_cols, avail_resource_ds, avail_resource_table_config);
 
     // setup help stuff
     makeHelpPanel(["circuit_search", "circuit_search_label"], "Use this to filter the circuits table below. The table will filter as you type.");
