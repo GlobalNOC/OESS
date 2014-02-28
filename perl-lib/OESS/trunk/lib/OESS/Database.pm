@@ -109,7 +109,7 @@ information. This defauls to "/etc/oess/database.xml".
 
 =cut
 
-sub new{
+sub new {
     my $that  = shift;
     my $class = ref($that) || $that;
 
@@ -146,6 +146,9 @@ sub new{
     if (! $dbh){
 	return ;
     }
+
+    # set the defualt vlan range, if not defined in config default to 1-4096
+    $self->default_vlan_range(range => $config->{'default_vlan_range'} || '1-4096');
 
     $dbh->{'mysql_auto_reconnect'}   = 1;
     $self->{'admin_email'}           = $config->{'admin_email'};
@@ -1437,7 +1440,7 @@ sub get_workgroups {
 	push(@dbargs, $args{'user_id'});
     }
 
-    $sql .= " where w.status eq 'active'";
+    $sql .= " where w.status = 'active'";
     $sql .= " order by w.name";
     my $results = $self->_execute_query($sql,\@dbargs);
 
@@ -6112,7 +6115,7 @@ sub add_node{
 
     my $default_lat ="0.0";
     my $default_long="0.0";
-    my $res = $self->_execute_query("insert into node (name,latitude, longitude, operational_state,network_id,send_barrier_bulk) VALUES (?,?,?,?,?,?)",[$args{'name'},$default_lat,$default_long,$args{'operational_state'},$args{'network_id'},$send_barrier_bulk]);
+    my $res = $self->_execute_query("insert into node (name,latitude, longitude, operational_state,network_id,send_barrier_bulk, vlan_tag_range) VALUES (?,?,?,?,?,?,?)",[$args{'name'},$default_lat,$default_long,$args{'operational_state'},$args{'network_id'},$send_barrier_bulk, $self->default_vlan_range()]);
 
     if(!defined($res)){
 	$self->_set_error("Unable to create new node record");
@@ -7801,6 +7804,17 @@ sub mac_validate {
     }
 
     return 0;
+}
+
+=head2 default vlan_range
+ get/sets the default vlan range set on switches
+=cut
+sub default_vlan_range {
+    my ($self, %args) = @_;
+
+    $self->{'default_vlan_range'} = $args{'range'} if(defined($args{'range'}));
+
+    return $self->{'default_vlan_range'};
 }
 
 return 1;
