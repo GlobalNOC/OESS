@@ -66,9 +66,9 @@ sub main {
         return ( send_json($output) );
     }
 
-    my $user = $db->get_user_by_id( user_id => $user_id);
-    if($user->{'type'} eq 'read-only'){
-        return send_json({error => 'Error: you are a readonly user'});
+    my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
+    if(!defined($user)){
+	return send_json({error => "unable to find user"});
     }
 
     switch ($action) {
@@ -80,33 +80,63 @@ sub main {
             $output = &get_pending_links();
         }
         case "confirm_node" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
             $output = &confirm_node();
         }
         case "update_node" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
             $output = &update_node();
         }
         case "update_interface" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
 	    $output = &update_interface();
 	}
         case "decom_node" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
             $output = &decom_node();
         }
         case "confirm_link" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
             $output = &confirm_link();
         }
         case "update_link" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
             $output = &update_link();
         }
 	case "is_new_node_in_path"{
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
 	    $output = &is_new_node_in_path();
 	}
 	case "insert_node_in_path" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
 	    $output = &insert_node_in_path();
 	}
 	case "is_ok_to_decom_link" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
 	    $output = &is_ok_to_decom();
 	}
 	case "decom_link" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
             $output = &decom_link();
         }
         case "get_users" {
@@ -116,33 +146,60 @@ sub main {
             $output = &get_users_in_workgroup();
         }
         case "add_user" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
             $output = &add_user();
         }
         case "delete_user" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
             $output = &delete_user();
         }
         case "add_user_to_workgroup" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
             $output = &add_user_to_workgroup();
         }
         case "remove_user_from_workgroup" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
             $output = &remove_user_from_workgroup();
         }
         case "edit_user" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
             $output = &edit_user();
         }
         case "get_workgroups" {
             $output = &get_workgroups();
         }
         case "update_interface_owner" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
             $output = &update_interface_owner();
         }
         case "add_workgroup" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
             $output = &add_workgroup();
         }
         case "add_remote_link" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
             $output = &add_remote_link();
         }
         case "remove_remote_link" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
             $output = &remove_remote_link();
         }
         case "get_remote_links" {
@@ -155,6 +212,9 @@ sub main {
             $output = &get_remote_devices();
         }
         case "update_remote_device" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
             $output = &update_remote_device();
         }
         case "populate_remote_information" {
@@ -162,12 +222,21 @@ sub main {
         }case "get_circuits_on_interface" {
 	    $output = &get_circuits_on_interface();
 	}case "edit_workgroup"{
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
 	    $output = &edit_workgroup();
 	}case "get_topology"{
 	    $output = &gen_topology();
 	}case "decom_workgroup"{
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
             $output = &decom_workgroup();
         }case "decom_user"{
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
             $output = &decom_user();
         }
         else {

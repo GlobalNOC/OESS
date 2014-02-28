@@ -78,6 +78,11 @@ sub main{
     if(!defined($is_admin)){
 	$is_admin = 0;
     }
+    my $is_read_only =0;
+    my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
+    if($user->{'type'} eq 'read-only'){
+	$is_read_only = 1;
+    }
 	
     #-- What to pass to the TT and what http headers to send
     my ($vars, $output, $filename, $title, $breadcrumbs, $current_breadcrumb);
@@ -166,7 +171,8 @@ sub main{
     $vars->{'title'}              = $title;
     $vars->{'breadcrumbs'}        = $breadcrumbs;
     $vars->{'current_breadcrumb'} = $current_breadcrumb;
-    $vars->{'is_admin'}           = $is_admin;		       
+    $vars->{'is_admin'}           = $is_admin;		    
+    $vars->{'is_read_only'}       = $is_read_only;
     $vars->{'version'}            = OESS::Database::VERSION;
 
     
