@@ -1757,6 +1757,7 @@ sub get_available_resources {
                 "description"       => $interface->{'description'},
                 "vlan_tag_range"    => $vlan_tag_range,
                 "is_owner"          => $is_owner,
+		"owning_workgroup"  => $self->get_workgroup_by_id(workgroup_id => $interface->{'workgroup_id'})
             });
         }
     }
