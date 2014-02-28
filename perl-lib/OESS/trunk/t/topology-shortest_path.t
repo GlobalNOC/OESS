@@ -18,7 +18,9 @@ BEGIN {
 use lib "$cwd/../lib";
 use OESS::Topology;
 use OESS::Database;
+use Log::Log4perl;
 
+Log::Log4perl::init_and_watch('t/conf/logging.conf',10);
 #--- instantiate OESS DB to alter paths for testing
 my $db = OESS::Database->new(config => "$cwd/conf/database.xml");
 ok(defined($db));
@@ -32,29 +34,33 @@ my $topo = OESS::Topology->new(
 ok(defined($topo), "Topology object succesfully instantiated");
 
 # Verify path is determined by shortest hops when metrics are all 0
-my $path = $topo->find_path(
-                    nodes => ['Node 11','Node 51']
-                  );
-ok($path, "find_path() ran succesfully");
-is_deeply($path,['Link 181', 'Link 191']);
+#my $path = $topo->find_path(
+#                    nodes => ['Node 11','Node 51']
+#                  );
+#ok($path, "find_path() ran succesfully");
+#is_deeply($path,['Link 181', 'Link 191']);
 
 # Change metric of link in middle of previous path and verfiy it takes the longer route now
-my $return = $db->update_link(
-    link_id => 191,
-    metric  => 10,
-    name => 'Link 191'
-);
+#my $return = $db->update_link(
+#    link_id => 191,
+#    metric  => 10,
+#    name => 'Link 191'
+#);
 
-ok($return, "Link 191 sucessfully updated");
+#ok($return, "Link 191 sucessfully updated");
 
-$path = $topo->find_path(
-                nodes => ['Node 11','Node 51']
-               );
-ok($path, "find_path() ran succesfully");
-is_deeply($path,['Link 171','Link 151','Link 61','Link 91','Link 81']);
+#$path = $topo->find_path(
+#                nodes => ['Node 11','Node 51']
+#               );
+#ok($path, "find_path() ran succesfully");
+#is_deeply($path,['Link 171','Link 151','Link 61','Link 91','Link 81']);
 
-$return = $db->update_link(
-                              link_id => 191,
-                              metric  => 0,
-                              name => 'Link 191'
-                             );
+#$return = $db->update_link( link_id => 191,
+#                           metric  => 0,
+#                           name => 'Link 191'
+#    );
+
+
+my $path = $topo->find_path( nodes => ['sdn-sw.tuls.net.internet2.edu','sdn-sw.star.net.internet2.edu'] );
+
+warn Dumper($path);
