@@ -354,6 +354,9 @@ var ds = new YAHOO.util.DataSource(dsString);
 		       }
 		   },
 		   {key: "external_identifier", label: "GRI", sortable: true, width: 90, formatter: function(el, rec,col,data){
+			   if(data == null){
+			       data = "N/A";
+			   }
 			   el.innerHTML = "<enter>"+data+"</center>";
 		       }
 		   }
