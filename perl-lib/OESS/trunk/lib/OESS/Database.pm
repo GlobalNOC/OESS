@@ -7249,6 +7249,10 @@ sub can_modify_circuit{
 
     my $user_id = $self->get_user_id_by_auth_name( auth_name => $params{'username'});
 
+    my $user = $self->get_user_by_id( user_id => $user_id );
+    if($user->{'type'} eq ' read-only'){
+        return 0;
+    }
     my $authorization = $self->get_user_admin_status( 'user_id' => $user_id);
     #giving Admins permission to edit / reprovision / delete circuits ISSUE=7690
     if ( $authorization->[0]{'is_admin'} == 1 ) {
