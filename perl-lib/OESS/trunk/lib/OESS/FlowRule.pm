@@ -461,14 +461,14 @@ sub to_dbus{
 
 		    if(ref($action->{$key}) ne 'HASH'){
 			$out_port = $action->{$key};
-			$max_length = 0;
+			$max_length = 65535;
 		    }else{
 			$max_length = $action->{$key}->{'max_length'};
 			$out_port = $action->{$key}->{'port'};
 		    }
 
 		    if(!defined($max_length)){
-			$max_length = 0;
+			$max_length = 65535;
 		    }
 
 		    if(!defined($out_port)){
