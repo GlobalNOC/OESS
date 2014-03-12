@@ -83,7 +83,7 @@ use Net::DBus;
 use OESS::Topology;
 use DateTime;
 
-use constant VERSION => '1.1.2';
+use constant VERSION => '1.1.3';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant SHARE_DIR => "/usr/share/doc/perl-OESS-" . VERSION . "/";
@@ -1425,7 +1425,8 @@ Returns an array of hashes containing basic information for all workgroups.
 sub get_workgroups {
     my $self = shift;
 
-    my %args = ( 'user_id' => undef,
+    my %args = ( 
+        'user_id' => undef,
 		 @_,
 	);
 
@@ -1603,14 +1604,21 @@ sub get_workgroups_by_auth_name {
     my $auth_name = $args{'auth_name'};
 
     my $query = "select workgroup.name, workgroup.workgroup_id " .
-	        " from workgroup " .
-	        " join user_workgroup_membership on user_workgroup_membership.workgroup_id = workgroup.workgroup_id " .
+	        " from workgroup ";
+    my $results;
+    # if user is admin show all workgroups regardless of membership
+    my $user_id = $self->get_user_id_by_auth_name(auth_name => $auth_name);
+    if($self->get_user_admin_status( 'user_id' => $user_id)->[0]{'is_admin'}) {
+        $results = $self->_execute_query($query);
+    } else {
+        $query .= 
+	    " join user_workgroup_membership on user_workgroup_membership.workgroup_id = workgroup.workgroup_id " .
 		" join user on user.user_id = user_workgroup_membership.user_id " .
 		" join remote_auth on remote_auth.user_id = user.user_id " .
 		"  and remote_auth.auth_name = ? and workgroup.status = 'active'" .
 		" order by workgroup.name ";
-
-    my $results = $self->_execute_query($query, [$auth_name]);
+        $results = $self->_execute_query($query, [$auth_name]);
+    }
 
     if (! defined $results){
 	$self->_set_error("Internal error fetching user workgroups.");
@@ -5489,7 +5497,8 @@ sub provision_circuit {
 	return;
     }
 
-    if (! $self->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
+    my $is_admin = $self->get_user_admin_status( 'user_id' => $user_id)->[0]{'is_admin'};
+    if (!$is_admin && !$self->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
         $self->_set_error("Permission denied: user is not a part of the requested workgroup.");
         return;
     }
@@ -6372,7 +6381,8 @@ sub edit_circuit {
         $self->_set_error("Unknown workgroup.");
         return;
     }
-    if (! $self->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
+    my $is_admin = $self->get_user_admin_status( 'user_id' => $user_id)->[0]{'is_admin'};
+    if (!$is_admin && !$self->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
         $self->_set_error("Permission denied: user is not a part of the requested workgroup.");
         return;
     }
@@ -7255,7 +7265,7 @@ sub can_modify_circuit{
 
     my $user_id = $self->get_user_id_by_auth_name( auth_name => $params{'username'});
 
-    my $user = $self->get_user_by_id( user_id => $user_id );
+    my $user = $self->get_user_by_id( user_id => $user_id )->[0];
     if($user->{'type'} eq ' read-only'){
         return 0;
     }
