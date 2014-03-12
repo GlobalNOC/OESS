@@ -46,7 +46,7 @@ sub main {
 
     $user_id = $db->get_user_id_by_auth_name( 'auth_name' => $username );
 
-    my $user = $db->get_user_by_id( user_id => $user_id);
+    my $user = $db->get_user_by_id( user_id => $user_id)->[0];
     if($user->{'type'} eq 'read-only'){
         send_json({error => 'Error: you are a readonly user'});
     }

@@ -135,7 +135,6 @@ sub _send_add_command {
     }
 
     my $circuit_id = $args{'circuit_id'};
-
     my $result = $client->addVlan($circuit_id);
 
     #warn "ADD RESULT: $result";
@@ -231,7 +230,7 @@ sub provision_circuit {
 	return {error => 'The selected workgroup is decomissioned and unable to provision'};
     }
 
-    my $user = $db->get_user_by_id(user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}));
+    my $user = $db->get_user_by_id(user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
 
     if($user->{'type'} eq 'read-only'){
         return {error => 'You are a read-only user and unable to provision'};

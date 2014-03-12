@@ -47,6 +47,7 @@ Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
 my $cgi = new CGI;
 
 my $username = $ENV{'REMOTE_USER'};
+my $is_admin = $db->get_user_admin_status( 'username' => $username );
 
 $| = 1;
 
@@ -183,21 +184,10 @@ sub get_workgroup_interfaces {
     my $results;
 
     my $workgroup_id = $cgi->param('workgroup_id');
-    if ( !$workgroup_id ) {
-        my $is_admin = $db->get_user_admin_status( 'username' => $username );
-        if(!$is_admin) {
-            $results->{'error'} = "Error: no workgroup_id specified";
-            return $results;
-        }
-    }else {
-        my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
-        if(!$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
-            my $is_admin = $db->get_user_admin_status( 'username' => $username );
-            if(!$is_admin) {
-                $results->{'error'} = 'Error: you are not part of this workgroup';
-                return $results;
-            }
-        }
+    my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
+    if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
+        $results->{'error'} = 'Error: you are not part of this workgroup';
+        return $results;
     }
 
     my $acls = $db->get_workgroup_interfaces( workgroup_id => $workgroup_id );
@@ -393,15 +383,15 @@ sub get_existing_circuits {
     my @endpoint_nodes = $cgi->param('endpoint_node_id');
     my @path_nodes     = $cgi->param('path_node_id');
 
+    my $is_admin = $db->get_user_admin_status( 'username' => $username );
     if ( !$workgroup_id ) {
-        my $is_admin = $db->get_user_admin_status( 'username' => $username );
         if(!$is_admin) {
             $results->{'error'} = "Error: no workgroup_id specified";
             return $results;
         }
-   }else {
+    }else {
         my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
-        if(!$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
+        if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
             $results->{'error'} = 'Error: you are not part of this workgroup';
             return $results;
         }
@@ -502,18 +492,11 @@ sub get_maps {
 
     my $results;
     my $workgroup_id = $cgi->param('workgroup_id');
-    if ( !$workgroup_id ) {
-        my $is_admin = $db->get_user_admin_status( 'username' => $username );
-        if(!$is_admin) {
-            $results->{'error'} = "Error: no workgroup_id specified";
-            return $results;
-        }
-    }else {
-        my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
-        if(!$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
-            $results->{'error'} = 'Error: you are not part of this workgroup';
-            return $results;
-        }
+    
+    my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
+    if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
+        $results->{'error'} = 'Error: you are not part of this workgroup';
+        return $results;
     }
 
 
@@ -534,18 +517,10 @@ sub get_users_in_workgroup {
     my $results;
 
     my $workgroup_id = $cgi->param('workgroup_id');
-    if ( !$workgroup_id ) {
-        my $is_admin = $db->get_user_admin_status( 'username' => $username );
-        if(!$is_admin) {
-            $results->{'error'} = "Error: no workgroup_id specified";
-            return $results;
-        }
-    }else {
-        my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
-        if(!$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
-            $results->{'error'} = 'Error: you are not part of this workgroup';
-            return $results;
-        }
+    my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
+    if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
+        $results->{'error'} = 'Error: you are not part of this workgroup';
+        return $results;
     }
 
     my $users = $db->get_users_in_workgroup( workgroup_id => $workgroup_id );
@@ -615,19 +590,15 @@ sub get_all_resources {
     my $results;
 
     my $workgroup_id = $cgi->param('workgroup_id');
-    if ( !defined($workgroup_id) ) {
-        $results->{'error'}   = "Did not specify workgroup id";
+
+    my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
+    if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
+        $results->{'error'} = 'Error: you are not part of this workgroup';
         $results->{'results'} = [];
-    }else {
-        my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
-        if(!$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
-            $results->{'error'} = 'Error: you are not part of this workgroup';
-            return $results;
-        }
+        return $results;
     }
 
-    $results->{'results'} =
-    $db->get_available_resources( workgroup_id => $workgroup_id );
+    $results->{'results'} = $db->get_available_resources( workgroup_id => $workgroup_id );
     return $results;
 }
 
