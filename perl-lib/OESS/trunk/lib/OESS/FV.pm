@@ -60,7 +60,9 @@ sub new{
 	return;
     }
     $self->{'db'} = $db;
-    
+
+    $self->{'packet_in_count'} = 0;
+    $self->{'packet_out_count'} = 0;
     $self->_load_state();
     $self->_connect_to_dbus();
 
@@ -165,6 +167,7 @@ sub datapath_leave_callback{
     $self->{'logger'}->debug("Node: " .$dpid ." has left");
     $self->{'logger'}->warn("Node: " . $self->{'nodes'}->{$dpid}->{'name'} . " has left");
     $self->{'nodes'}->{$dpid}->{'status'} = OESS_NODE_DOWN;
+    
 }
 
 sub datapath_join_callback{
@@ -174,7 +177,7 @@ sub datapath_join_callback{
     $self->{'logger'}->debug("Node: " . $dpid . " has joined");
     $self->{'logger'}->warn("Node: " . $self->{'nodes'}->{$dpid}->{'name'} . " has joined");
     $self->{'nodes'}->{$dpid}->{'status'} = OESS_NODE_UP;
-
+    
 }
 
 sub link_event_callback{
@@ -185,7 +188,7 @@ sub link_event_callback{
     my $z_port = shift;
     my $status = shift;
 
-    
+    $self->_load_state();
     
 
 }
@@ -197,7 +200,8 @@ sub do_work{
 
 	$self->{'logger'}->debug("checking forwarding on links");
 	foreach my $link_name (keys(%{$self->{'links'}})){
-	    
+	   
+
 	    my $link = $self->{'links'}->{$link_name};
 	    
 	    $self->{'logger'}->debug("Checking Forwarding on link: " . $link->{'name'});
@@ -243,6 +247,7 @@ sub do_work{
 		    if($self->{'links'}->{$link->{'name'}}->{'status'} == OESS_LINK_DOWN){
 			$self->{'logger'}->warn("Link: " . $link->{'name'} . " forwarding restored!");
 			#fire link up
+			$self->_send_fwdctl_link_event(link_name => $link->{'name'} , state =>OESS_LINK_UP );
 		    }else{
 			$self->{'logger'}->debug("link " . $link->{'name'} . " is still up");
 		    }
@@ -253,21 +258,25 @@ sub do_work{
 		    if($self->{'link'}->{$link->{'name'}}->{'status'} == OESS_LINK_UP){
 			$self->{'logger'}->warn("LINK " . $link->{'name'} . " forwarding disrupted!!!! Considered DOWN!");
 			#fire link down
+			$self->_send_fwdctl_link_event( link_name => $link->{'name'} , state => OESS_LINK_DOWN );
 		    }else{
 			$self->{'logger'}->debug("Link " . $link->{'name'} . " is still down");
 		    }
 		}
 	    }else{
-		#uh oh the endpoints don't line up... update our db records (maybe a migration/node insertion happened) other wise we are busted
-		$self->{'logger'}->error("Uh Oh this shouldn't have happened");
+		#uh oh the endpoints don't line up... update our db records (maybe a migration/node insertion happened) other wise we are busted... things will timeout
+		$self->{'logger'}->error("packet are screwed up!@!@! This can't happen");
+		$self->_load_state();	
 	    }
+	    $self->{'logger'}->debug("Done processing link");
 	}
     }
+
     #ok now send out our packets
     foreach my $link_name (keys(%{$self->{'links'}})){
 
 	my $link = $self->{'links'}->{$link_name};
-
+	$self->{'logger'}->debug("Sending packets for link: " . $link_name);
         my $a_end = {node => $link->{'a_node'}, int => $link->{'a_port'}};
 	my $z_end = {node => $link->{'z_node'}, int => $link->{'z_port'}};
 
@@ -277,12 +286,14 @@ sub do_work{
 						  Net::DBus::dbus_uint64($z_end->{'node'}->{'dpid'}),
 						  Net::DBus::dbus_uint16($z_end->{'int'}->{'port_number'}),
                                                   Net::DBus::dbus_uint16($self->{'db'}->{'discovery_vlan'}));
-
+	$self->{'packet_out_count'}++;
 	$res    = $self->{'dbus'}->send_fv_packet(Net::DBus::dbus_uint64($z_end->{'node'}->{'dpid'}),
 						  Net::DBus::dbus_uint16($z_end->{'int'}->{'port_number'}),
 						  Net::DBus::dbus_uint64($a_end->{'node'}->{'dpid'}),
 						  Net::DBus::dbus_uint16($a_end->{'int'}->{'port_number'}),
                                                   Net::DBus::dbus_uint16($self->{'db'}->{'discovery_vlan'}));
+	$self->{'packet_out_count'}++;
+	$self->{'logger'}->debug("Done sending packets");
     }
 
 }
@@ -296,15 +307,19 @@ sub fv_packet_in_callback{
 
 
     $self->{'first_run'} = 0;
-#    $self->{'logger'}->debug("received a FV packet in!!!");
+    $self->{'logger'}->debug("FV Packet received!");
     my $string;
 
     #throw away the header because we don't care
-    for(my $i=0;$i<=27;$i++){
-	shift @$packet;
-    }
+    $self->{'packet_in_count'}++;
+    $self->{'logger'}->debug("Packet In Count: " . $self->{'packet_in_count'});
+    $self->{'logger'}->debug("Packet Out Count: " . $self->{'packet_out_count'});
+
+    splice (@$packet,0,28);
+    
     $string = pack("C*",@$packet);
     my $obj = decode_json($string);
+    $self->{'logger'}->debug("JSON: " . $string);
 
     if($obj->{'dst_dpid'} != $dpid){
 	$self->{'logger'}->error("Packet said it should have gone to " . $obj->{'dst_dpid'} . " but OpenFlow said it was from " . $dpid);
@@ -317,7 +332,40 @@ sub fv_packet_in_callback{
     
     $self->{'last_heard'}->{$dpid}->{$port} = {originator => {dpid => $obj->{'src_dpid'}, port_number => $obj->{'src_port_id'}},
 					       timestamp => $obj->{'timestamp'}};
+
+    $self->{'logger'}->debug("Done Processing Packet");
 }
 
+
+sub _send_fwdctl_link_event{
+    my $self = shift;
+    my %args = @_;
+
+    my $bus = Net::DBus->system;
+
+    my $link_name = $args{'link'};
+    my $state = $args{'state'};
+
+    my $client;
+    my $service;
+
+    eval {
+        $service = $bus->get_service("org.nddi.fwdctl");
+	$client  = $service->get_object("/controller1");
+    };
+
+    if ($@) {
+        $self->{'logger'}->error( "Error in _connect_to_fwdctl: $@");
+	return undef;
+    }
+
+    if ( !defined $client ) {
+        return;
+    }
+    
+    my $result = $client->fv_link_event( $link_name, $state );
+    return $result;
+
+}
 
 1;
