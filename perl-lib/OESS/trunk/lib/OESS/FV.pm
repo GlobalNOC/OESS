@@ -1,5 +1,3 @@
-#!/usr/bin/perl
-
 use strict;
 use warnings;
 
@@ -9,8 +7,8 @@ use Log::Log4perl;
 use Graph::Directed;
 use OESS::Database;
 use OESS::DBus;
-
-use NetPacket::Ethernet;
+use JSON::XS;
+use Time::HiRes;
 
 #link statuses
 use constant OESS_LINK_UP       => 1;
@@ -46,13 +44,14 @@ sub new{
 
     my %args = (
         interval => 500,
+	timeout => 1000,
 	@_
         );
 
     my $self = \%args;
 
     bless $self, $class;
-
+    $self->{'first_run'} = 1;
     $self->{'logger'} = $logger;
 
     my $db = OESS::Database->new();
@@ -61,7 +60,7 @@ sub new{
 	return;
     }
     $self->{'db'} = $db;
-    $self->{'vlan_id'} = 100;
+    
     $self->_load_state();
     $self->_connect_to_dbus();
 
@@ -76,7 +75,7 @@ sub _load_state(){
     my $nodes = $self->{'db'}->get_current_nodes();
     foreach my $node (@$nodes) {
         $nodes{$node->{'dpid'}} = $node;
-        if($node->{'status'} eq 'up'){
+        if($node->{'operational_state'} eq 'up'){
             $node->{'status'} = OESS_NODE_UP;
         }else{
 	    $node->{'status'} = OESS_NODE_DOWN;
@@ -107,7 +106,9 @@ sub _load_state(){
 	$link->{'z_port'} = $int_z;
         $links{$link->{'name'}} = $link;
     }
-
+    
+    $self->{'logger'}->debug("Node State: " . Data::Dumper::Dumper(\%nodes));
+    $self->{'logger'}->debug("Link State: " . Data::Dumper::Dumper(\%links));
     
     $self->{'nodes'} = \%nodes;
     $self->{'links'} = \%links;
@@ -127,10 +128,10 @@ sub _connect_to_dbus{
         die;
     }
 
-    $dbus->connect_to_signal("datapath_leave",$self->datapath_leave_callback);
-    $dbus->connect_to_signal("datapath_join",$self->datapath_join_callback);
-    $dbus->connect_to_signal("link_event", $self->link_event_callback);
-    $dbus->connect_to_signal("fv_packet_in", $self->fv_packet_in_callback);
+    $dbus->connect_to_signal("datapath_leave",sub{ $self->datapath_leave_callback(@_)});
+    $dbus->connect_to_signal("datapath_join",sub {$self->datapath_join_callback( @_ )});
+    $dbus->connect_to_signal("link_event",  sub { $self->link_event_callback( @_ )});
+    $dbus->connect_to_signal("fv_packet_in", sub { $self->fv_packet_in_callback( @_ ) });
     
     my $bus = Net::DBus->system;
 
@@ -140,6 +141,13 @@ sub _connect_to_dbus{
         $service = $bus->get_service("org.nddi.openflow");
         $client  = $service->get_object("/controller1");
     };
+
+    if ($@){
+        warn "Error in _conect_to_dbus: $@";
+        return undef;
+    }
+    
+    $client->register_for_fv_in( $self->{'db'}->{'discovery_vlan'} );
 
     $self->{'dbus'} = $client;
 
@@ -185,88 +193,96 @@ sub link_event_callback{
 sub do_work{
     my $self = shift;
 
-    $self->{'logger'}->debug("checking forwarding on links");
+    if($self->{'first_run'} != 1){
 
-    foreach my $link_name (keys(%{$self->{'links'}})){
-	
-        my $link = $self->{'links'}->{$link_name};
-
-        $self->{'logger'}->debug("Checking Forwarding on link: " . $link->{'name'});
-        my $a_end = {node => $link->{'a_node'}, int => $link->{'a_port'}};
-        my $z_end = {node => $link->{'z_node'}, int => $link->{'z_port'}};
-        
-        if(!defined($self->{'last_heard'}->{$a_end->{'node'}}->{$a_end->{'int'}}) ||
-           !defined($self->{'last_heard'}->{$z_end->{'node'}}->{$z_end->{'int'}})){
-            #we have never received it at least not since we were started...
-            if($self->{'links'}->{$link->{'name'}}->{'status'} == OESS_LINK_UP){
-                $self->{'logger'}->error("An error has occurred Forwarding Verification, considering link " . $link->{'name'} . " down");
-                #fire link down
-            }else{
-                $self->{'logger'}->error("Forwarding verification for link: " . $link->{'name'} . " is experiencing an error");
-            }
-            #no need to do more work... go to next one
-	    next;
-        }
-
-        if($self->{'node'}->{$a_end->{'node'}}->{'status'} == OESS_NODE_DOWN ||
-           $self->{'node'}->{$z_end->{'node'}}->{'status'} == OESS_NODE_DOWN){
-            $self->{'logger'}->debug("node is down for one side... not checking");
-            next;            
-        }
-        
-        #verify both ends came and went from the right nodes/interfaces
-        if($self->{'last_heard'}->{$a_end->{'node'}}->{$a_end->{'int'}}->{'originator'}->{'node'} eq $z_end->{'node'} &&
-           $self->{'last_heard'}->{$a_end->{'node'}}->{$a_end->{'int'}}->{'originator'}->{'int'} eq $z_end->{'int'} &&
-           $self->{'last_heard'}->{$a_end->{'node'}}->{$a_end->{'int'}}->{'originator'}->{'node'} eq $a_end->{'node'} &&
-           $self->{'last_heard'}->{$z_end->{'node'}}->{$z_end->{'int'}}->{'originator'}->{'int'} eq $a_end->{'int'}){
-            
-            $self->{'logger'}->debug("Packet origins/outputs line up with what we expected");
-            
-            #verify the last heard time is good
-            if($self->{'last_heard'}->{$z_end->{'node'}}->{$z_end->{'int'}}->{'ts'} + $self->{'timeout'} < time() && 
-               $self->{'last_heard'}->{$a_end->{'node'}}->{$a_end->{'int'}}->{'ts'} + $self->{'timeout'} < time() ){
-                $self->{'logger'}->debug("link " . $link->{'name'} . " is operating as expected");
-                #link is good
-                if($self->{'links'}->{$link->{'name'}}->{'status'} == OESS_LINK_DOWN){
-                    $self->{'logger'}->warn("Link: " . $link->{'name'} . " forwarding restored!");
-                    #fire link up
-                }else{
-                    $self->{'logger'}->debug("link " . $link->{'name'} . " is still up");
-                }
-            }else{
-                $self->{'logger'}->debug("Link: " . $link->{'name'} . " is not function properly");
-                #link is bad!
-                if($self->{'link'}->{$link->{'name'}}->{'status'} == OESS_LINK_UP){
-                    $self->{'logger'}->warn("LINK " . $link->{'name'} . " forwarding disrupted!!!! Considered DOWN!");
-                    #fire link down
-                }else{
-                    $self->{'logger'}->debug("Link " . $link->{'name'} . " is still down");
-                }
-            }
-        }else{
-            #uh oh the endpoints don't line up... update our db records (maybe a migration/node insertion happened) other wise we are busted
-            
-        }
+	$self->{'logger'}->debug("checking forwarding on links");
+	foreach my $link_name (keys(%{$self->{'links'}})){
+	    
+	    my $link = $self->{'links'}->{$link_name};
+	    
+	    $self->{'logger'}->debug("Checking Forwarding on link: " . $link->{'name'});
+	    my $a_end = {node => $link->{'a_node'}, int => $link->{'a_port'}};
+	    my $z_end = {node => $link->{'z_node'}, int => $link->{'z_port'}};
+	    
+	    if(!defined($self->{'last_heard'}->{$a_end->{'node'}->{'dpid'}}->{$a_end->{'int'}->{'port_number'}}) ||
+	       !defined($self->{'last_heard'}->{$z_end->{'node'}->{'dpid'}}->{$z_end->{'int'}->{'port_number'}})){
+		#we have never received it at least not since we were started...
+		if($self->{'links'}->{$link->{'name'}}->{'status'} == OESS_LINK_UP){
+		    $self->{'logger'}->error("An error has occurred Forwarding Verification, considering link " . $link->{'name'} . " down");
+		    #fire link down
+		}else{
+		    $self->{'logger'}->error("Forwarding verification for link: " . $link->{'name'} . " is experiencing an error");
+		}
+		#no need to do more work... go to next one
+		next;
+	    }
+	    
+	    if($self->{'nodes'}->{$a_end->{'node'}->{'dpid'}}->{'status'} == OESS_NODE_DOWN){
+		$self->{'logger'}->debug("node " . $a_end->{'node'}->{'name'} . " is down not checking link: " . $link->{'name'});
+		next;            
+	    }
+	    
+	    if($self->{'nodes'}->{$z_end->{'node'}->{'dpid'}}->{'status'} == OESS_NODE_DOWN){
+		$self->{'logger'}->debug("node " . $z_end->{'node'}->{'name'} . " is down not checking link: " . $link->{'name'});
+		next;
+	    }
+	    
+	    #verify both ends came and went from the right nodes/interfaces
+	    if($self->{'last_heard'}->{$a_end->{'node'}->{'dpid'}}->{$a_end->{'int'}->{'port_number'}}->{'originator'}->{'dpid'} eq $z_end->{'node'}->{'dpid'} &&
+	       $self->{'last_heard'}->{$a_end->{'node'}->{'dpid'}}->{$a_end->{'int'}->{'port_number'}}->{'originator'}->{'port_number'} eq $z_end->{'int'}->{'port_number'} &&
+	       $self->{'last_heard'}->{$z_end->{'node'}->{'dpid'}}->{$z_end->{'int'}->{'port_number'}}->{'originator'}->{'dpid'} eq $a_end->{'node'}->{'dpid'} &&
+	       $self->{'last_heard'}->{$z_end->{'node'}->{'dpid'}}->{$z_end->{'int'}->{'port_number'}}->{'originator'}->{'port_number'} eq $a_end->{'int'}->{'port_number'}){
+		
+		$self->{'logger'}->debug("Packet origins/outputs line up with what we expected");
+		
+		#verify the last heard time is good
+		if($self->{'last_heard'}->{$z_end->{'node'}->{'dpid'}}->{$z_end->{'int'}->{'port_number'}}->{'timestamp'} * 1000 + $self->{'timeout'} > (Time::HiRes::time() * 1000) && 
+		   $self->{'last_heard'}->{$a_end->{'node'}->{'dpid'}}->{$a_end->{'int'}->{'port_number'}}->{'timestamp'} * 1000 + $self->{'timeout'} > (Time::HiRes::time() * 1000) ){
+		    $self->{'logger'}->debug("link " . $link->{'name'} . " is operating as expected");
+		    #link is good
+		    if($self->{'links'}->{$link->{'name'}}->{'status'} == OESS_LINK_DOWN){
+			$self->{'logger'}->warn("Link: " . $link->{'name'} . " forwarding restored!");
+			#fire link up
+		    }else{
+			$self->{'logger'}->debug("link " . $link->{'name'} . " is still up");
+		    }
+		}else{
+		    $self->{'logger'}->debug($self->{'last_heard'}->{$z_end->{'node'}->{'dpid'}}->{$z_end->{'int'}->{'port_number'}}->{'timestamp'} . " vs " . Time::HiRes::time());
+		    $self->{'logger'}->debug("Link: " . $link->{'name'} . " is not function properly");
+		    #link is bad!
+		    if($self->{'link'}->{$link->{'name'}}->{'status'} == OESS_LINK_UP){
+			$self->{'logger'}->warn("LINK " . $link->{'name'} . " forwarding disrupted!!!! Considered DOWN!");
+			#fire link down
+		    }else{
+			$self->{'logger'}->debug("Link " . $link->{'name'} . " is still down");
+		    }
+		}
+	    }else{
+		#uh oh the endpoints don't line up... update our db records (maybe a migration/node insertion happened) other wise we are busted
+		$self->{'logger'}->error("Uh Oh this shouldn't have happened");
+	    }
+	}
     }
-
     #ok now send out our packets
     foreach my $link_name (keys(%{$self->{'links'}})){
 
 	my $link = $self->{'links'}->{$link_name};
 
-        $self->{'logger'}->debug("Checking Forwarding on link: " . $link->{'name'});
         my $a_end = {node => $link->{'a_node'}, int => $link->{'a_port'}};
 	my $z_end = {node => $link->{'z_node'}, int => $link->{'z_port'}};
 
-	my $res = $self->{'dbus'}->send_fv_packet($self->{'nodes'}->{$a_end->{'node'}}->{'dpid'},
-						  $a_end->{'int'}->{'port_no'},
-						  $self->{'nodes'}->{$z_end->{'node'}}->{'dpid'},
-						  $z_end->{'int'}->{'port_no'},$self->{'vlan_id'});
 
-	$res    = $self->{'dbus'}->send_fv_packet($self->{'nodes'}->{$z_end->{'node'}}->{'dpid'},
-						  $z_end->{'int'}->{'port_no'},
-						  $self->{'nodes'}->{$a_end->{'node'}}->{'dpid'},
-						  $a_end->{'int'}->{'port_no'},$self->{'vlan_id'});
+	my $res = $self->{'dbus'}->send_fv_packet(Net::DBus::dbus_uint64($a_end->{'node'}->{'dpid'}),
+						  Net::DBus::dbus_uint16($a_end->{'int'}->{'port_number'}),
+						  Net::DBus::dbus_uint64($z_end->{'node'}->{'dpid'}),
+						  Net::DBus::dbus_uint16($z_end->{'int'}->{'port_number'}),
+                                                  Net::DBus::dbus_uint16($self->{'db'}->{'discovery_vlan'}));
+
+	$res    = $self->{'dbus'}->send_fv_packet(Net::DBus::dbus_uint64($z_end->{'node'}->{'dpid'}),
+						  Net::DBus::dbus_uint16($z_end->{'int'}->{'port_number'}),
+						  Net::DBus::dbus_uint64($a_end->{'node'}->{'dpid'}),
+						  Net::DBus::dbus_uint16($a_end->{'int'}->{'port_number'}),
+                                                  Net::DBus::dbus_uint16($self->{'db'}->{'discovery_vlan'}));
     }
 
 }
@@ -278,9 +294,29 @@ sub fv_packet_in_callback{
     my $port = shift;
     my $packet = shift;
 
-    $self->{'logger'}->debug("received a FV packet in!!!");
+
+    $self->{'first_run'} = 0;
+#    $self->{'logger'}->debug("received a FV packet in!!!");
+    my $string;
+
+    #throw away the header because we don't care
+    for(my $i=0;$i<=27;$i++){
+	shift @$packet;
+    }
+    $string = pack("C*",@$packet);
+    my $obj = decode_json($string);
+
+    if($obj->{'dst_dpid'} != $dpid){
+	$self->{'logger'}->error("Packet said it should have gone to " . $obj->{'dst_dpid'} . " but OpenFlow said it was from " . $dpid);
+	return;
+    }
+    if($obj->{'dst_port_id'} != $port){
+	$self->{'logger'}->error("Packet said it should have gone to port " . $obj->{'dst_port_id'} . " but openflow said it was from " . $port);
+	return;
+    }
     
-    
+    $self->{'last_heard'}->{$dpid}->{$port} = {originator => {dpid => $obj->{'src_dpid'}, port_number => $obj->{'src_port_id'}},
+					       timestamp => $obj->{'timestamp'}};
 }
 
 
