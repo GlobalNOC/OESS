@@ -49,7 +49,8 @@ namespace vigil {
 static Vlog_module log("openflow");
 
 const int Reliable_openflow_connection::backoff_limit = 60;
-const int Openflow_connection::probe_interval = 15;
+const int Openflow_connection::probe_interval = 0;
+const int Openflow_connection::probe_interval_us = 500000;
 
 Openflow_connection::Openflow_connection()
     : ext_data_xid(UINT32_MAX),
@@ -123,7 +124,7 @@ Openflow_connection::s_recv_hello()
 		  state = S_SEND_ERROR;
 		else
 		  state = S_CONNECTED;
-                timeout = do_gettimeofday() + make_timeval(probe_interval, 0);
+                timeout = do_gettimeofday() + make_timeval(probe_interval, probe_interval_us);
                 fsm.wake();
             }
         } else {
@@ -280,7 +281,7 @@ Openflow_connection::run()
                             to_string().c_str(), probe_interval);
                     state = S_IDLE;
                     timeout = (do_gettimeofday()
-                               + make_timeval(probe_interval, 0));
+                               + make_timeval(probe_interval, probe_interval_us));
                     co_timer_wait(timeout, NULL);
                 } else if (retval == EAGAIN) {
                     send_openflow_wait();
@@ -339,7 +340,7 @@ Openflow_connection::recv_openflow(int& error, bool block)
                             to_string().c_str());
                     state = S_CONNECTED;
                 }
-                timeout = do_gettimeofday() + make_timeval(probe_interval, 0);
+                timeout = do_gettimeofday() + make_timeval(probe_interval, probe_interval_us);
             }
             assert((error == 0) == (b.get() != NULL));
             return b;

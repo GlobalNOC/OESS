@@ -26,6 +26,7 @@ from nox.lib.core import *
 from nox.lib.packet.ethernet     import NDP_MULTICAST
 from nox.lib.packet.ethernet     import ethernet
 from nox.lib.packet.packet_utils import mac_to_str, mac_to_int, array_to_octstr
+from nox.lib.packet.vlan              import vlan
 from nox.netapps.discovery.pylinkevent   import Link_event
 from nox.lib.netinet.netinet import c_ntohl
 
@@ -60,6 +61,7 @@ flowmod_callbacks = {}
 switches = []
 last_flow_stats = {}
 
+VLAN_ID = None
 
 class dBusEventGenRo(dbus.service.Object):
 
@@ -88,6 +90,12 @@ class dBusEventGen(dbus.service.Object):
        string = "port status change: "+str(dp_id)+" attrs "+ str(dict(attrs))
        logger.info(string)
 
+    @dbus.service.signal(dbus_interface=ifname,
+                         signature='tuay')
+    def fv_packet_in(self, dpid, port,packet):
+        string = "fv packet in: " + str(dpid) + " port " + str(port)
+        logger.info(string)
+        
     @dbus.service.signal(dbus_interface=ifname,
                          signature='tua{sv}')
     def topo_port_status(self,dp_id,reason,attrs):
@@ -118,6 +126,41 @@ class dBusEventGen(dbus.service.Object):
        string = "barrier_reply: "+str(dp_id)
        logger.info(string)
 
+    @dbus.service.method(dbus_interface=ifname,
+                         in_signature='tntnn',
+                         out_signature='i'
+                         )
+    def send_fv_packet(self, src_dpid, src_port_id, dst_dpid, dst_port_id, vlan_id):
+        packet = ethernet()
+        packet.src = '\x00' + struct.pack('!Q',src_dpid)[3:8]
+        packet.dst = NDP_MULTICAST
+        
+        fv_packet = ethernet()
+        fv_packet.eth_type = 0x88b6
+        fv_packet.set_payload("{\"src_dpid\": \"" + str(src_dpid) + "\", \"src_port_id\": \"" + str(src_port_id) + 
+                              "\", \"dst_dpid\": \"" + str(dst_dpid) + "\", \"dst_port_id\": \"" + str(dst_port_id) + 
+                              "\", \"timestamp\": \"" + str(time()) + "\"}") 
+
+        logger.info("Packet: " + fv_packet.tostring())
+
+        if(vlan_id != None and vlan_id != 65535):
+            vlan_packet = vlan()
+            vlan_packet.id = vlan_id
+            vlan_packet.c = 0
+            vlan_packet.eth_type = 0x88b6
+            vlan_packet.set_payload(fv_packet)
+            
+            packet.set_payload(vlan_packet)
+            packet.type = ethernet.VLAN_TYPE
+
+        else:
+            packet.set_payload(fv_packet)
+            packet.type = 0x88b6
+
+        inst.send_openflow_packet(src_dpid, packet.tostring(), int(src_port_id))
+        
+        return 1
+        
     @dbus.service.signal(dbus_interface=ifname,signature='tuquuay')
     def packet_in(self,dpid,in_port, reason, length, buffer_id, data):
        string =  "packet_in: "+str(dpid)+" :  "+str(in_port)
@@ -203,6 +246,28 @@ class dBusEventGen(dbus.service.Object):
         return xid
 
     @dbus.service.method(dbus_interface=ifname,
+                         in_signature='q',
+                         out_signature='q')
+    def register_for_fv_in(self, vlan):
+        #ether type 88b6 is experimental
+        #88b6 IEEE 802.1 IEEE Std 802 - Local Experimental
+
+        if(vlan == None):
+            match = {
+                DL_TYPE: 0x88b6,
+                DL_DST: array_to_octstr(array.array('B', NDP_MULTICAST))
+                }
+        else:
+            match = {
+                DL_TYPE: 0x88b6,
+                DL_DST: array_to_octstr(array.array('B',NDP_MULTICAST)),
+                DL_VLAN: vlan
+                }
+
+        inst.register_for_packet_match(lambda dpid, inport, reason, len, bid,packet : fv_packet_in_callback(self,dpid,inport,reason,len,bid,packet), 0xffff, match)
+        return 1
+
+    @dbus.service.method(dbus_interface=ifname,
                          in_signature='tq',
                          out_signature='t'
                          )
@@ -220,6 +285,17 @@ class dBusEventGen(dbus.service.Object):
         hard_timeout = 0
         xid = inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=None)
 
+        _do_install(dpid,xid,my_attrs,actions)
+
+        my_attrs = {}
+        my_attrs[DL_VLAN] = vlan
+        my_attrs[DL_TYPE] = 0x88b6 
+        actions = [[openflow.OFPAT_OUTPUT, [65535, openflow.OFPP_CONTROLLER]]]
+        
+        idle_timeout = 0
+        hard_timeout = 0
+        xid = inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=None)
+        
         _do_install(dpid,xid,my_attrs,actions)
 
         return xid
@@ -326,6 +402,9 @@ def port_status_callback(sg,dp_id, ofp_port_reason, attrs):
     attr_dict['hw_addr'] = dbus.UInt64(mac_to_int(attr_dict['hw_addr']))
     #--- generate signal   
     sg.port_status(dp_id,ofp_port_reason,attr_dict)
+
+def fv_packet_in_callback(sg,dp,inport,reason,len,bid,packet):
+    sg.fv_packet_in(dp,inport,packet.tostring())
 
 def link_event_callback(sg,info):
     sdp    = info.dpsrc
@@ -507,7 +586,7 @@ class nddi_dbus(Component):
 
 	self.register_for_port_status(lambda dpid, reason, port : 
                                        port_status_callback(self.sg,dpid, reason, port) )
-
+        
 	#--- this is a a special event generated by the discovery service, 
 	#---   which is why there isnt the handy register_for_* method
 	self.register_handler (Link_event.static_get_name(),

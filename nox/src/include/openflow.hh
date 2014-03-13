@@ -154,7 +154,7 @@ private:
 
     /* Number of seconds before a connected channel is considered idle. */
     static const int probe_interval;
-
+  static const int probe_interval_us;
     void s_connecting();
     void s_send_hello();
     void s_recv_hello();
