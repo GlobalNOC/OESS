@@ -436,7 +436,7 @@ sub connect_to_snapp{
 =cut
 
 sub get_flow_stats{
-    
+    warn "Fetching stats\n";
     my $nodes = $oess->get_current_nodes();
     foreach my $node (@$nodes){
 	my ($time,$flows) = $dbus->{'dbus'}->get_flow_stats($node->{'dpid'});
