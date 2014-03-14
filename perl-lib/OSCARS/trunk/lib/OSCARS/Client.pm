@@ -34,6 +34,28 @@ use HTTP::Headers;
 use Data::Dumper;
 use XML::XPath;
 use XML::LibXML;
+
+#constants found in https://oscars.es.net/repos/oscars/branches/common-anycast/oscars-client/src/main/java/net/es/oscars/client/OSCARSClient.java
+use constant {
+    STATUS_ACCEPTED => "ACCEPTED",       # createReservation is authorized, gri is assigned
+     STATUS_INPATHCALCULATION => "INPATHCALCULATION",   #start local path calculation
+     STATUS_PATHCALCULATED  => "PATHCALCULATED", # whole path calculation done
+     STATUS_INCOMMIT => "INCOMMIT",       # in commit phase for calculated path
+     STATUS_COMMITTED => "COMMITTED",     # whole path resources committed
+     STATUS_RESERVED => "RESERVED",       # all domains have committed resources
+     STATUS_INSETUP => "INSETUP",         # circuit setup has been started
+     STATUS_ACTIVE => "ACTIVE",           # entire circuit has been setup
+     STATUS_INTEARDOWN => "INTEARDOWN",   # circuit teardown has been started
+     STATUS_FINISHED => "FINISHED",       # reservation endtime reached with no errors, circuit has been torndown
+     STATUS_CANCELLED => "CANCELLED",     # complete reservation has been canceled, no circuit
+     STATUS_FAILED => "FAILED",           # reservation failed at some point, no circuit
+     STATUS_INMODIFY => "INMODIFY",       # reservation is being modified
+     STATUS_INCANCEL => "INCANCEL",       # reservation is being canceled
+     STATUS_OK => "Ok",
+     TOPIC_RESERVATION => "idc:RESERVATION",
+};
+
+
 =head1 NAME
 
 OSCARS-Client -Perl module for Talking to the OSCARS API (0.6)
@@ -63,6 +85,7 @@ example:
 
 
 =cut
+
 
 sub new{
     my $that = shift;
@@ -273,6 +296,63 @@ sub cancel_reservation{
     return ($gri,$gti)
 }
 
+
+=head2 list_reservations
+
+=cut
+
+sub list_reservations{
+
+    my $self=shift;
+    my %params = @_;
+    my $reservations;
+    my $soap_query;
+    #assumptions: all parameters will be 
+    my $parameter_map = {
+        status => 'resStatus',
+        start_time => 'startTime',
+        end_time => 'endTime',
+        vlan_tag => 'vlanTag',
+        offset => 'resOffset',
+        link_id => 'linkId',  
+    };
+
+    foreach my $key (keys %params){
+        unless ($parameter_map->{$key}){
+            next;
+        }
+        my $SOAP_parameter = $parameter_map->{$key};
+        #many of the params can take multiples, vlanTags,resStatus
+        if (ref($params{$key}) eq "ARRAY"){
+            foreach my $value (@${$params{$key}}){
+                $soap_query.='<ns3:'.$SOAP_parameter.'>'.$value.'</ns3:'.$SOAP_parameter.'>';
+            }
+           
+        }
+        else { 
+            my $value = $params{$key};
+            $soap_query.='<ns3:'.$SOAP_parameter.'>'.$value.'</ns3:'.$SOAP_parameter.'>';
+        }
+    }
+    my $body = '<ns3:listReservations xmlns:ns10="http://docs.oasis-open.org/wsn/b-2" xmlns:ns11="http://docs.oasis-open.org/wsrf/r-2" xmlns:ns2="urn:oasis:names:tc:SAML:2.0:assertion" xmlns:ns3="http://oscars.es.net/OSCARS/06" xmlns:ns4="http://oscars.es.net/OSCARS/common" xmlns:ns5="http://ogf.org/schema/network/topology/ctrlPlane/20080828/" xmlns:ns6="http://www.w3.org/2000/09/xmldsig#" xmlns:ns7="http://www.w3.org/2001/04/xmlenc#" xmlns:ns8="http://docs.oasis-open.org/wsrf/bf-2" xmlns:ns9="http://www.w3.org/2005/08/addressing">'.
+       $soap_query.  
+      '</ns3:listReservations>';
+
+    my $signed_xml = $self->_create_signed_doc($body);
+
+    my $messg = HTTP::Request->new('POST',$self->{'url'} , new HTTP::Headers, $signed_xml);
+    $messg->header( 'SOAPAction' => "http://oscars.es.net/OSCARS/listReservations");
+    $messg->content_type('text/xml');
+    $messg->content_length( length($signed_xml));
+    my $resp = $self->{'ua'}->request($messg);
+    warn ($resp->content);
+    my ($xpath,$result) = $self->_process_response($resp);
+    
+    #todo: filter result to reservations
+    $reservations = $result;
+    
+    return $reservations;
+}
 
 =head2 query_reservation
 
