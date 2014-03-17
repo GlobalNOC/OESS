@@ -93,7 +93,7 @@ class dBusEventGen(dbus.service.Object):
     @dbus.service.signal(dbus_interface=ifname,
                          signature='tuay')
     def fv_packet_in(self, dpid, port,packet):
-        string = "fv packet in: " + str(dpid) + " port " + str(port)
+        string = "fv packet in: " + str(dpid) + " port " + str(port) 
         logger.info(string)
         
     @dbus.service.signal(dbus_interface=ifname,
@@ -137,9 +137,9 @@ class dBusEventGen(dbus.service.Object):
         
         fv_packet = ethernet()
         fv_packet.eth_type = 0x88b6
-        fv_packet.set_payload("{\"src_dpid\": \"" + str(src_dpid) + "\", \"src_port_id\": \"" + str(src_port_id) + 
-                              "\", \"dst_dpid\": \"" + str(dst_dpid) + "\", \"dst_port_id\": \"" + str(dst_port_id) + 
-                              "\", \"timestamp\": \"" + str(time()) + "\"}") 
+        payload = "{\"src_dpid\": \"" + str(src_dpid) + "\", \"src_port_id\": \"" + str(src_port_id) + "\", \"dst_dpid\": \"" + str(dst_dpid) + "\", \"dst_port_id\": \"" + str(dst_port_id) + "\", \"timestamp\": \"" + str(time()) + "\"}"
+
+        fv_packet.set_payload(payload)
 
         logger.info("Packet: " + fv_packet.tostring())
 
@@ -147,6 +147,7 @@ class dBusEventGen(dbus.service.Object):
             vlan_packet = vlan()
             vlan_packet.id = vlan_id
             vlan_packet.c = 0
+            vlan_packet.pcp = 0
             vlan_packet.eth_type = 0x88b6
             vlan_packet.set_payload(fv_packet)
             

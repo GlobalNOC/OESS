@@ -49,7 +49,7 @@ namespace vigil {
 static Vlog_module log("openflow");
 
 const int Reliable_openflow_connection::backoff_limit = 60;
-const int Openflow_connection::probe_interval = 0;
+const int Openflow_connection::probe_interval = 5;
 const int Openflow_connection::probe_interval_us = 500000;
 
 Openflow_connection::Openflow_connection()

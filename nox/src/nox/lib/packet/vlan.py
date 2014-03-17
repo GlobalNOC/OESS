@@ -92,6 +92,8 @@ class vlan(packet_base):
 
         if self.eth_type in ethernet.type_parsers:
             self.next = ethernet.type_parsers[self.eth_type](arr=self.arr[vlan.MIN_LEN:],prev=self)
+        else:
+            self.next = self.arr[vlan.MIN_LEN:].tostring()#struct.pack("B*",self.arr[vlan.MIN_LEN:]) #''.join(self.arr[vlan.MIN_LEN:])
 
     def hdr(self):
         pcpid  = self.pcp << 13
