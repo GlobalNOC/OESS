@@ -245,7 +245,7 @@ sub port_status_callback{
 sub do_work{
     my $self = shift;
     
-    if($self->{'do_sleep'}){
+    if(-e '/var/run/oess_is_overloaded.lock'){
 	return;
     }
 
