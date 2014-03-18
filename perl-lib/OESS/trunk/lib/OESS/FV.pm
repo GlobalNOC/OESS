@@ -43,7 +43,7 @@ sub new{
     my $logger = Log::Log4perl->get_logger("OESS::FV");
 
     my %args = (
-        interval => 2000,
+        interval => 1000,
 	timeout => 15000,
 	@_
         );
@@ -77,15 +77,20 @@ sub _load_state(){
     my $nodes = $self->{'db'}->get_current_nodes();
     foreach my $node (@$nodes) {
         $nodes{$node->{'dpid'}} = $node;
-        if($node->{'operational_state'} eq 'up'){
-            $node->{'status'} = OESS_NODE_UP;
-        }else{
-	    $node->{'status'} = OESS_NODE_DOWN;
+        
+	if(defined($self->{'nodes'}->{$node->{'dpid'}})){
+	    $node->{'status'} = $self->{'nodes'}->{$node->{'dpid'}}->{'status'};
+	}else{
+	    if($node->{'operational_state'} eq 'up'){
+		$node->{'status'} = OESS_NODE_UP;
+	    }else{
+		$node->{'status'} = OESS_NODE_DOWN;
+	    }
 	}
-
-	$nodes{$node->{'name'}} = $node;
-	$nodes{$node->{'dpid'}} = $node;
+	
 	$nodes{$node->{'node_id'}} = $node;
+	$nodes{$node->{'dpid'}} = $node;
+
     }
 
     my %links;
@@ -102,10 +107,20 @@ sub _load_state(){
         my $int_a = $self->{'db'}->get_interface( interface_id => $link->{'interface_a_id'} );
         my $int_z = $self->{'db'}->get_interface( interface_id => $link->{'interface_z_id'} );
 
-	$link->{'a_node'} = $nodes{$int_a->{'node_id'}};
+	$link->{'a_node'} = $nodes{$nodes{$int_a->{'node_id'}}->{'dpid'}};
 	$link->{'a_port'} = $int_a;
-	$link->{'z_node'} = $nodes{$int_z->{'node_id'}};
+	$link->{'z_node'} = $nodes{$nodes{$int_z->{'node_id'}}->{'dpid'}};
 	$link->{'z_port'} = $int_z;
+	
+	if(defined($self->{'links'}->{$link->{'name'}})){
+	    $link->{'fv_status'} = $self->{'links'}->{$link->{'name'}}->{'fv_status'};
+	    $link->{'last_verified'} = $self->{'links'}->{$link->{'name'}}->{'last_verified'};
+	}else{
+	    $self->{'logger'}->warn("This should happen only first time");
+	    $link->{'last_verified'} = Time::HiRes::time() * 1000;
+	    $link->{'fv_status'} = OESS_LINK_UNKNOWN;
+	}
+
         $links{$link->{'name'}} = $link;
     }
     
@@ -163,7 +178,7 @@ sub _connect_to_dbus{
 sub datapath_leave_callback{
     my $self = shift;
     my $dpid = shift;
-    
+
     $self->{'logger'}->debug("Node: " .$dpid ." has left");
     $self->{'logger'}->warn("Node: " . $self->{'nodes'}->{$dpid}->{'name'} . " has left");
     $self->{'nodes'}->{$dpid}->{'status'} = OESS_NODE_DOWN;
@@ -190,91 +205,121 @@ sub link_event_callback{
 
     $self->_load_state();
     
-
 }
 
 sub do_work{
     my $self = shift;
+    
+    if($self->{'do_sleep'}){
+	return;
+    }
 
-    if($self->{'first_run'} != 1){
+    $self->{'logger'}->debug("checking forwarding on links");
+    foreach my $link_name (keys(%{$self->{'links'}})){
+		
+	my $link = $self->{'links'}->{$link_name};
+	
+	$self->{'logger'}->debug("Checking Forwarding on link: " . $link->{'name'});
+	my $a_end = {node => $link->{'a_node'}, int => $link->{'a_port'}};
+	my $z_end = {node => $link->{'z_node'}, int => $link->{'z_port'}};
+	
+	if($self->{'nodes'}->{$a_end->{'node'}->{'dpid'}}->{'status'} == OESS_NODE_DOWN){
+            $self->{'logger'}->info("node " . $a_end->{'node'}->{'name'} . " is down not checking link: " . $link->{'name'});
+	    $self->{'links'}->{$link->{'name'}}->{'fv_status'} = OESS_LINK_UNKNOWN;
+	    $self->{'links'}->{$link->{'name'}}->{'last_verified'} = Time::HiRes::time() * 1000;
+	    next;
+        }
 
-	$self->{'logger'}->debug("checking forwarding on links");
-	foreach my $link_name (keys(%{$self->{'links'}})){
-	   
+        if($self->{'nodes'}->{$z_end->{'node'}->{'dpid'}}->{'status'} == OESS_NODE_DOWN){
+            $self->{'logger'}->info("node " . $z_end->{'node'}->{'name'} . " is down not checking link: " . $link->{'name'});
+	    $self->{'links'}->{$link->{'name'}}->{'fv_status'} = OESS_LINK_UNKNOWN;
+	    $self->{'links'}->{$link->{'name'}}->{'last_verified'} = Time::HiRes::time() * 1000;
+            next;
+        }
 
-	    my $link = $self->{'links'}->{$link_name};
-	    
-	    $self->{'logger'}->debug("Checking Forwarding on link: " . $link->{'name'});
-	    my $a_end = {node => $link->{'a_node'}, int => $link->{'a_port'}};
-	    my $z_end = {node => $link->{'z_node'}, int => $link->{'z_port'}};
-	    
-	    if(!defined($self->{'last_heard'}->{$a_end->{'node'}->{'dpid'}}->{$a_end->{'int'}->{'port_number'}}) ||
-	       !defined($self->{'last_heard'}->{$z_end->{'node'}->{'dpid'}}->{$z_end->{'int'}->{'port_number'}})){
-		#we have never received it at least not since we were started...
-		if($self->{'links'}->{$link->{'name'}}->{'status'} == OESS_LINK_UP){
-		    $self->{'logger'}->error("An error has occurred Forwarding Verification, considering link " . $link->{'name'} . " down");
-		    #fire link down
+	if(!defined($self->{'last_heard'}->{$a_end->{'node'}->{'dpid'}}->{$a_end->{'int'}->{'port_number'}}) ||
+	   !defined($self->{'last_heard'}->{$z_end->{'node'}->{'dpid'}}->{$z_end->{'int'}->{'port_number'}})){
+	    #we have never received it at least not since we were started...
+	    if($self->{'links'}->{$link->{'name'}}->{'fv_status'} == OESS_LINK_UP){
+		$self->{'logger'}->error("An error has occurred Forwarding Verification, considering link " . $link->{'name'} . " down");
+		#fire link down
+		$self->_send_fwdctl_link_event(link_name => $link->{'name'} , state => OESS_LINK_DOWN );
+		$self->{'links'}->{$link->{'name'}}->{'fv_status'} = OESS_LINK_DOWN;
+		$self->{'links'}->{$link->{'name'}}->{'last_verified'} = Time::HiRes::time() * 1000;
+	    }elsif($self->{'links'}->{$link->{'name'}}->{'fv_status'} == OESS_LINK_UNKNOWN){
+		$self->{'logger'}->info("Last verified: " . ((Time::HiRes::time() * 1000) - $self->{'links'}->{$link->{'name'}}->{'last_verified'}) . " ms ago");
+		if(((Time::HiRes::time() * 1000) - $self->{'links'}->{$link->{'name'}}->{'last_verified'}) > $self->{'timeout'}){
+		    $self->{'logger'}->warn("Forwarding verification for link: " . $link->{'name'} . " has not been verified since load... timeout has passed considering down");
 		    $self->_send_fwdctl_link_event(link_name => $link->{'name'} , state =>OESS_LINK_DOWN );
-		    $self->{'links'}->{$link->{'name'}}->{'status'} = OESS_LINK_DOWN;
+		    $self->{'links'}->{$link->{'name'}}->{'fv_status'} = OESS_LINK_DOWN;
+		    $self->{'links'}->{$link->{'name'}}->{'last_verified'} = Time::HiRes::time() * 1000;
 		}else{
-		    $self->{'logger'}->error("Forwarding verification for link: " . $link->{'name'} . " is experiencing an error");
+		    $self->{'logger'}->warn("Forwarding verification for link: " . $link->{'name'} . " has not been verified yet... still unknown");
 		}
-		#no need to do more work... go to next one
-		next;
 	    }
+	    #no need to do more work... go to next one
+	    next;
+	}
+	
+	#verify both ends came and went from the right nodes/interfaces
+	if($self->{'last_heard'}->{$a_end->{'node'}->{'dpid'}}->{$a_end->{'int'}->{'port_number'}}->{'originator'}->{'dpid'} eq $z_end->{'node'}->{'dpid'} &&
+	   $self->{'last_heard'}->{$a_end->{'node'}->{'dpid'}}->{$a_end->{'int'}->{'port_number'}}->{'originator'}->{'port_number'} eq $z_end->{'int'}->{'port_number'} &&
+	   $self->{'last_heard'}->{$z_end->{'node'}->{'dpid'}}->{$z_end->{'int'}->{'port_number'}}->{'originator'}->{'dpid'} eq $a_end->{'node'}->{'dpid'} &&
+	   $self->{'last_heard'}->{$z_end->{'node'}->{'dpid'}}->{$z_end->{'int'}->{'port_number'}}->{'originator'}->{'port_number'} eq $a_end->{'int'}->{'port_number'}){
 	    
-	    if($self->{'nodes'}->{$a_end->{'node'}->{'dpid'}}->{'status'} == OESS_NODE_DOWN){
-		$self->{'logger'}->debug("node " . $a_end->{'node'}->{'name'} . " is down not checking link: " . $link->{'name'});
-		next;            
-	    }
+	    $self->{'logger'}->debug("Packet origins/outputs line up with what we expected");
 	    
-	    if($self->{'nodes'}->{$z_end->{'node'}->{'dpid'}}->{'status'} == OESS_NODE_DOWN){
-		$self->{'logger'}->debug("node " . $z_end->{'node'}->{'name'} . " is down not checking link: " . $link->{'name'});
-		next;
-	    }
+	    my $last_verified_a_z = ((Time::HiRes::time() * 1000) - ($self->{'last_heard'}->{$a_end->{'node'}->{'dpid'}}->{$a_end->{'int'}->{'port_number'}}->{'timestamp'} * 1000));
+	    my $last_verified_z_a = ((Time::HiRes::time() * 1000) - ($self->{'last_heard'}->{$z_end->{'node'}->{'dpid'}}->{$z_end->{'int'}->{'port_number'}}->{'timestamp'} * 1000));
 	    
-	    #verify both ends came and went from the right nodes/interfaces
-	    if($self->{'last_heard'}->{$a_end->{'node'}->{'dpid'}}->{$a_end->{'int'}->{'port_number'}}->{'originator'}->{'dpid'} eq $z_end->{'node'}->{'dpid'} &&
-	       $self->{'last_heard'}->{$a_end->{'node'}->{'dpid'}}->{$a_end->{'int'}->{'port_number'}}->{'originator'}->{'port_number'} eq $z_end->{'int'}->{'port_number'} &&
-	       $self->{'last_heard'}->{$z_end->{'node'}->{'dpid'}}->{$z_end->{'int'}->{'port_number'}}->{'originator'}->{'dpid'} eq $a_end->{'node'}->{'dpid'} &&
-	       $self->{'last_heard'}->{$z_end->{'node'}->{'dpid'}}->{$z_end->{'int'}->{'port_number'}}->{'originator'}->{'port_number'} eq $a_end->{'int'}->{'port_number'}){
-		
-		$self->{'logger'}->debug("Packet origins/outputs line up with what we expected");
-		
-		#verify the last heard time is good
-		if($self->{'last_heard'}->{$z_end->{'node'}->{'dpid'}}->{$z_end->{'int'}->{'port_number'}}->{'timestamp'} * 1000 + $self->{'timeout'} > (Time::HiRes::time() * 1000) && 
-		   $self->{'last_heard'}->{$a_end->{'node'}->{'dpid'}}->{$a_end->{'int'}->{'port_number'}}->{'timestamp'} * 1000 + $self->{'timeout'} > (Time::HiRes::time() * 1000) ){
-		    $self->{'logger'}->debug("link " . $link->{'name'} . " is operating as expected");
-		    #link is good
-		    if($self->{'links'}->{$link->{'name'}}->{'status'} == OESS_LINK_DOWN){
-			$self->{'logger'}->warn("Link: " . $link->{'name'} . " forwarding restored!");
-			#fire link up
-			$self->_send_fwdctl_link_event(link_name => $link->{'name'} , state =>OESS_LINK_UP );
-			$self->{'links'}->{$link->{'name'}}->{'status'} = OESS_LINK_UP;
-		    }else{
-			$self->{'logger'}->debug("link " . $link->{'name'} . " is still up");
-		    }
+	    $self->{'logger'}->info("Link: " . $link->{'name'} . " Z -> A last verified " . $last_verified_z_a . "ms ago");
+	    $self->{'logger'}->info("Link: " . $link->{'name'} . " A -> Z last verified " . $last_verified_a_z . "ms ago");
+	    
+	    #verify the last heard time is good
+	    if( $last_verified_a_z < $self->{'timeout'} && 
+	        $last_verified_z_a < $self->{'timeout'} ){
+		$self->{'logger'}->debug("link " . $link->{'name'} . " is operating as expected");
+		#link is good
+		if($self->{'links'}->{$link->{'name'}}->{'fv_status'} == OESS_LINK_DOWN){
+		    $self->{'logger'}->warn("Link: " . $link->{'name'} . " forwarding restored!");
+		    #fire link up
+		    $self->_send_fwdctl_link_event(link_name => $link->{'name'} , state =>OESS_LINK_UP );
+		    $self->{'links'}->{$link->{'name'}}->{'fv_status'} = OESS_LINK_UP;
+		    $self->{'links'}->{$link->{'name'}}->{'last_verified'} = Time::HiRes::time() * 1000;
 		}else{
-		    $self->{'logger'}->debug($self->{'last_heard'}->{$z_end->{'node'}->{'dpid'}}->{$z_end->{'int'}->{'port_number'}}->{'timestamp'} . " vs " . Time::HiRes::time());
-		    $self->{'logger'}->debug("Link: " . $link->{'name'} . " is not function properly");
-		    #link is bad!
-		    if($self->{'links'}->{$link->{'name'}}->{'status'} != OESS_LINK_DOWN){
-			$self->{'logger'}->warn("LINK " . $link->{'name'} . " forwarding disrupted!!!! Considered DOWN!");
-			#fire link down
-			$self->_send_fwdctl_link_event( link_name => $link->{'name'} , state => OESS_LINK_DOWN );
-			$self->{'links'}->{$link->{'name'}}->{'status'} = OESS_LINK_DOWN;
-		    }else{
-			$self->{'logger'}->debug("Link " . $link->{'name'} . " is still down");
-		    }
+		    $self->{'links'}->{$link->{'name'}}->{'fv_status'} = OESS_LINK_UP;
+		    $self->{'logger'}->debug("link " . $link->{'name'} . " is still up");
+		    $self->{'links'}->{$link->{'name'}}->{'last_verified'} = Time::HiRes::time() * 1000;
 		}
 	    }else{
-		#uh oh the endpoints don't line up... update our db records (maybe a migration/node insertion happened) other wise we are busted... things will timeout
+		$self->{'logger'}->debug("Link: " . $link->{'name'} . " is not function properly");
+		#link is bad!
+		if($self->{'links'}->{$link->{'name'}}->{'fv_status'} == OESS_LINK_UP){
+		    $self->{'logger'}->warn("LINK " . $link->{'name'} . " forwarding disrupted!!!! Considered DOWN!");
+		    #fire link down
+		    $self->_send_fwdctl_link_event( link_name => $link->{'name'} , state => OESS_LINK_DOWN );
+		    $self->{'links'}->{$link->{'name'}}->{'fv_status'} = OESS_LINK_DOWN;
+		}elsif($self->{'links'}->{$link->{'name'}}->{'fv_status'} == OESS_LINK_UNKNOWN){
+		    if(((Time::HiRes::time() * 1000) - $self->{'links'}->{$link->{'name'}}->{'last_verified'}) > $self->{'timeout'}){
+			$self->{'logger'}->warn("Forwarding verification for link: " . $link->{'name'} . " has not been verified since last unknown state... timeout has passed considering down");
+			$self->_send_fwdctl_link_event(link_name => $link->{'name'} , state =>OESS_LINK_DOWN );
+			$self->{'links'}->{$link->{'name'}}->{'fv_status'} = OESS_LINK_DOWN;
+			$self->{'links'}->{$link->{'name'}}->{'last_verified'} = Time::HiRes::time() * 1000;
+		    }else{
+			#still waiting for timeout
+		    }
+		}else{
+		    $self->{'logger'}->debug("Link " . $link->{'name'} . " is still down");
+		}
+	    }
+	}else{
+	    #uh oh the endpoints don't line up... update our db records (maybe a migration/node insertion happened) other wise we are busted... things will timeout
 		$self->{'logger'}->error("packet are screwed up!@!@! This can't happen");
 		$self->_load_state();	
-	    }
-	    $self->{'logger'}->debug("Done processing link");
 	}
+	$self->{'logger'}->debug("Done processing link");
     }
+
 
     #ok now send out our packets
     foreach my $link_name (keys(%{$self->{'links'}})){
