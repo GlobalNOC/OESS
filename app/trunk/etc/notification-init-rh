@@ -35,7 +35,7 @@ case "$1" in
   start)
         #start
 	IS_RUNNING=0
-	echo -n $"Starting oess-$name: "
+	echo -n $"Starting $name: "
 	if [[ -f $lockfile  && -f $PIDFILE ]];then
 	    MYPID=`head -n 1 $PIDFILE`
 	    TEST_RUNNING=`ps -p ${MYPID} | grep ${MYPID}`
@@ -80,13 +80,13 @@ case "$1" in
                 TEST_RUNNING=`ps -p ${MYPID} | grep ${MYPID}`
                 if [ -z "${TEST_RUNNING}" ]
                 then
-                    echo "oess-$name (pid `cat $PIDFILE`) is not running (but PID file exists)"
+                    echo "$name (pid `cat $PIDFILE`) is not running (but PID file exists)"
 		    exit 3
                 else
-                    echo "oess-$name (pid `cat $PIDFILE`) is running"
+                    echo "$name (pid `cat $PIDFILE`) is running"
                 fi
         else
-                echo "oess-$name is not running"
+                echo "$name is not running"
 		exit 3
         fi
         exit $?
