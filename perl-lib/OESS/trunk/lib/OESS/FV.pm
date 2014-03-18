@@ -43,8 +43,8 @@ sub new{
     my $logger = Log::Log4perl->get_logger("OESS::FV");
 
     my %args = (
-        interval => 500,
-	timeout => 1000,
+        interval => 2000,
+	timeout => 15000,
 	@_
         );
 
@@ -214,6 +214,8 @@ sub do_work{
 		if($self->{'links'}->{$link->{'name'}}->{'status'} == OESS_LINK_UP){
 		    $self->{'logger'}->error("An error has occurred Forwarding Verification, considering link " . $link->{'name'} . " down");
 		    #fire link down
+		    $self->_send_fwdctl_link_event(link_name => $link->{'name'} , state =>OESS_LINK_DOWN );
+		    $self->{'links'}->{$link->{'name'}}->{'status'} = OESS_LINK_DOWN;
 		}else{
 		    $self->{'logger'}->error("Forwarding verification for link: " . $link->{'name'} . " is experiencing an error");
 		}
@@ -248,6 +250,7 @@ sub do_work{
 			$self->{'logger'}->warn("Link: " . $link->{'name'} . " forwarding restored!");
 			#fire link up
 			$self->_send_fwdctl_link_event(link_name => $link->{'name'} , state =>OESS_LINK_UP );
+			$self->{'links'}->{$link->{'name'}}->{'status'} = OESS_LINK_UP;
 		    }else{
 			$self->{'logger'}->debug("link " . $link->{'name'} . " is still up");
 		    }
@@ -255,10 +258,11 @@ sub do_work{
 		    $self->{'logger'}->debug($self->{'last_heard'}->{$z_end->{'node'}->{'dpid'}}->{$z_end->{'int'}->{'port_number'}}->{'timestamp'} . " vs " . Time::HiRes::time());
 		    $self->{'logger'}->debug("Link: " . $link->{'name'} . " is not function properly");
 		    #link is bad!
-		    if($self->{'link'}->{$link->{'name'}}->{'status'} == OESS_LINK_UP){
+		    if($self->{'links'}->{$link->{'name'}}->{'status'} != OESS_LINK_DOWN){
 			$self->{'logger'}->warn("LINK " . $link->{'name'} . " forwarding disrupted!!!! Considered DOWN!");
 			#fire link down
 			$self->_send_fwdctl_link_event( link_name => $link->{'name'} , state => OESS_LINK_DOWN );
+			$self->{'links'}->{$link->{'name'}}->{'status'} = OESS_LINK_DOWN;
 		    }else{
 			$self->{'logger'}->debug("Link " . $link->{'name'} . " is still down");
 		    }
@@ -315,10 +319,27 @@ sub fv_packet_in_callback{
     $self->{'logger'}->debug("Packet In Count: " . $self->{'packet_in_count'});
     $self->{'logger'}->debug("Packet Out Count: " . $self->{'packet_out_count'});
 
+
+    $self->{'logger'}->debug("RAW PACKET: " . Data::Dumper::Dumper($packet));
     splice (@$packet,0,28);
+
+    if($packet->[0] == 0){
+	splice(@$packet,0,4);
+    }
     
     $string = pack("C*",@$packet);
-    my $obj = decode_json($string);
+    $self->{'logger'}->debug("RAW STRING: " . $string);
+    my $obj;
+
+    eval{
+	$obj = decode_json($string);
+    };
+
+    if(!defined($obj)){
+	$self->{'logger'}->error("Unable to parse JSON string: " . $string);
+	return;
+    }
+
     $self->{'logger'}->debug("JSON: " . $string);
 
     if($obj->{'dst_dpid'} != $dpid){
@@ -343,7 +364,7 @@ sub _send_fwdctl_link_event{
 
     my $bus = Net::DBus->system;
 
-    my $link_name = $args{'link'};
+    my $link_name = $args{'link_name'};
     my $state = $args{'state'};
 
     my $client;
@@ -356,16 +377,17 @@ sub _send_fwdctl_link_event{
 
     if ($@) {
         $self->{'logger'}->error( "Error in _connect_to_fwdctl: $@");
-	return undef;
+	return;
     }
 
     if ( !defined $client ) {
         return;
     }
     
-    my $result = $client->fv_link_event( $link_name, $state );
-    return $result;
-
+    eval{
+	my $result = $client->fv_link_event( $link_name, $state );
+	return $result;
+    }
 }
 
 1;
