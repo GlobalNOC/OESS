@@ -147,6 +147,7 @@ sub _connect_to_dbus{
     $dbus->connect_to_signal("datapath_leave",sub{ $self->datapath_leave_callback(@_)});
     $dbus->connect_to_signal("datapath_join",sub {$self->datapath_join_callback( @_ )});
     $dbus->connect_to_signal("link_event",  sub { $self->link_event_callback( @_ )});
+    $dbus->connect_to_signal("port_status", sub { $self->port_status_callback( @_ )});
     $dbus->connect_to_signal("fv_packet_in", sub { $self->fv_packet_in_callback( @_ ) });
     
     my $bus = Net::DBus->system;
@@ -203,6 +204,41 @@ sub link_event_callback{
     my $status = shift;
 
     $self->_load_state();
+    
+}
+
+
+sub port_status_callback{
+    my $self = shift;
+    my $dpid = shift;
+    my $reason = shift;
+    my $info = shift;
+
+
+    my $port_number = $info->{'port_no'};
+    my $link_status = $info->{'link'};
+
+    #if the link didn't go up ignore it!
+    if($link_status != 1){
+	return;
+    }
+
+    #ok link came up... is it a part of a link
+    foreach my $link_name (keys (%{$self->{'links'}})){
+	if($self->{'links'}->{$link_name}->{'a_node'}->{'dpid'} == $dpid && $self->{'links'}->{$link_name}->{'a_port'}->{'port_number'} == $port_number){
+	    $self->{'links'}->{$link_name}->{'fv_status'} = OESS_LINK_UNKNOWN;
+	    $self->{'links'}->{$link_name}->{'last_verified'} = Time::HiRes::time() * 1000;
+	    delete $self->{'last_heard'}->{$self->{'links'}->{$link_name}->{'a_node'}->{'dpid'}}->{$self->{'links'}->{$link_name}->{'a_port'}->{'port_number'}};
+	    delete $self->{'last_heard'}->{$self->{'links'}->{$link_name}->{'z_node'}->{'dpid'}}->{$self->{'links'}->{$link_name}->{'z_port'}->{'port_number'}};									 
+	}
+
+	if($self->{'links'}->{$link_name}->{'z_node'}->{'dpid'} == $dpid && $self->{'links'}->{$link_name}->{'z_port'}->{'port_number'} == $port_number){
+	    $self->{'links'}->{$link_name}->{'fv_status'} = OESS_LINK_UNKNOWN;
+            $self->{'links'}->{$link_name}->{'last_verified'} =Time::HiRes::time() * 1000;
+            delete $self->{'last_heard'}->{$self->{'links'}->{$link_name}->{'a_node'}->{'dpid'}}->{$self->{'links'}->{$link_name}->{'a_port'}->{'port_number'}};
+            delete $self->{'last_heard'}->{$self->{'links'}->{$link_name}->{'z_node'}->{'dpid'}}->{$self->{'links'}->{$link_name}->{'z_port'}->{'port_number'}};
+	}
+    }
     
 }
 
@@ -286,6 +322,9 @@ sub do_work{
 		    $self->{'links'}->{$link->{'name'}}->{'fv_status'} = OESS_LINK_UP;
 		    $self->{'links'}->{$link->{'name'}}->{'last_verified'} = Time::HiRes::time() * 1000;
 		}else{
+		    if($self->{'links'}->{$link->{'name'}}->{'fv_status'} == OESS_LINK_UNKNOWN){
+			$self->_send_fwdctl_link_event(link_name => $link->{'name'} , state => OESS_LINK_UP );
+		    }
 		    $self->{'links'}->{$link->{'name'}}->{'fv_status'} = OESS_LINK_UP;
 		    $self->{'logger'}->debug("link " . $link->{'name'} . " is still up");
 		    $self->{'links'}->{$link->{'name'}}->{'last_verified'} = Time::HiRes::time() * 1000;
