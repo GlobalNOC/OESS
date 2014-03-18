@@ -246,8 +246,9 @@ sub do_work{
     my $self = shift;
     
     if(-e '/var/run/oess_is_overloaded.lock'){
+	$self->{'logger'}->warn("OESS OVERLOADED file exists FVD is disabled");
 	foreach my $link_name (keys(%{$self->{'links'}})){
-	    $self->{'links'}->{$link_name}}->{'fv_status'} = OESS_LINK_UNKNOWN;
+	    $self->{'links'}->{$link_name}->{'fv_status'} = OESS_LINK_UNKNOWN;
             $self->{'links'}->{$link_name}->{'last_verified'} = Time::HiRes::time() * 1000;
 	}
 	return;
@@ -337,7 +338,7 @@ sub do_work{
 		$self->{'logger'}->debug("Link: " . $link->{'name'} . " is not function properly");
 		#link is bad!
 		if($self->{'links'}->{$link->{'name'}}->{'fv_status'} == OESS_LINK_UP){
-		    $self->{'logger'}->warn("LINK " . $link->{'name'} . " forwarding disrupted!!!! Considered DOWN!");
+		    $self->{'logger'}->warn("Link " . $link->{'name'} . " forwarding disrupted!!!! Considered DOWN!");
 		    #fire link down
 		    $self->_send_fwdctl_link_event( link_name => $link->{'name'} , state => OESS_LINK_DOWN );
 		    $self->{'links'}->{$link->{'name'}}->{'fv_status'} = OESS_LINK_DOWN;
