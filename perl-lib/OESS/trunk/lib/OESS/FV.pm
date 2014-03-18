@@ -116,7 +116,6 @@ sub _load_state(){
 	    $link->{'fv_status'} = $self->{'links'}->{$link->{'name'}}->{'fv_status'};
 	    $link->{'last_verified'} = $self->{'links'}->{$link->{'name'}}->{'last_verified'};
 	}else{
-	    $self->{'logger'}->warn("This should happen only first time");
 	    $link->{'last_verified'} = Time::HiRes::time() * 1000;
 	    $link->{'fv_status'} = OESS_LINK_UNKNOWN;
 	}
@@ -247,7 +246,7 @@ sub do_work{
 		$self->{'links'}->{$link->{'name'}}->{'fv_status'} = OESS_LINK_DOWN;
 		$self->{'links'}->{$link->{'name'}}->{'last_verified'} = Time::HiRes::time() * 1000;
 	    }elsif($self->{'links'}->{$link->{'name'}}->{'fv_status'} == OESS_LINK_UNKNOWN){
-		$self->{'logger'}->info("Last verified: " . ((Time::HiRes::time() * 1000) - $self->{'links'}->{$link->{'name'}}->{'last_verified'}) . " ms ago");
+		$self->{'logger'}->debug("Last verified: " . ((Time::HiRes::time() * 1000) - $self->{'links'}->{$link->{'name'}}->{'last_verified'}) . " ms ago");
 		if(((Time::HiRes::time() * 1000) - $self->{'links'}->{$link->{'name'}}->{'last_verified'}) > $self->{'timeout'}){
 		    $self->{'logger'}->warn("Forwarding verification for link: " . $link->{'name'} . " has not been verified since load... timeout has passed considering down");
 		    $self->_send_fwdctl_link_event(link_name => $link->{'name'} , state =>OESS_LINK_DOWN );
@@ -272,8 +271,8 @@ sub do_work{
 	    my $last_verified_a_z = ((Time::HiRes::time() * 1000) - ($self->{'last_heard'}->{$a_end->{'node'}->{'dpid'}}->{$a_end->{'int'}->{'port_number'}}->{'timestamp'} * 1000));
 	    my $last_verified_z_a = ((Time::HiRes::time() * 1000) - ($self->{'last_heard'}->{$z_end->{'node'}->{'dpid'}}->{$z_end->{'int'}->{'port_number'}}->{'timestamp'} * 1000));
 	    
-	    $self->{'logger'}->info("Link: " . $link->{'name'} . " Z -> A last verified " . $last_verified_z_a . "ms ago");
-	    $self->{'logger'}->info("Link: " . $link->{'name'} . " A -> Z last verified " . $last_verified_a_z . "ms ago");
+	    $self->{'logger'}->debug("Link: " . $link->{'name'} . " Z -> A last verified " . $last_verified_z_a . "ms ago");
+	    $self->{'logger'}->debug("Link: " . $link->{'name'} . " A -> Z last verified " . $last_verified_a_z . "ms ago");
 	    
 	    #verify the last heard time is good
 	    if( $last_verified_a_z < $self->{'timeout'} && 
