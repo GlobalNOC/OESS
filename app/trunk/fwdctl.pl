@@ -117,6 +117,7 @@ sub new {
     dbus_method("changeVlanPath", ["string"], ["string"]);
     dbus_method("topo_port_status",["uint64","uint32",["dict","string","string"]],["string"]);
     dbus_method("rules_per_switch",["uint64"],["uint32"]);
+    dbus_method("fv_link_event",["string","int32"],["int32"]);
     #for notification purposes
     dbus_signal("circuit_notification", [["dict","string",["variant"]]],['string']);
 
@@ -1070,6 +1071,48 @@ sub rules_per_switch{
     #    print STDERR Dumper(%node);
     print STDERR "Node: " . $dpid . " has " . $node{$dpid} . " flowmods";
     return $node{$dpid};
+}
+
+sub fv_link_event{
+    my $self = shift;
+    my $link_name = shift;
+    my $state = shift;
+    
+    my $link = $self->{'db'}->get_link( link_name => $link_name);
+
+    if(!defined($link)){
+	$self->{'logger'}->error("FV determined link " . $link_name . " is down but DB does not contain a link with that name");
+	return 0;
+    }
+
+    if ($state == OESS_LINK_DOWN) {
+
+	$self->{'logger'}->warn("FV determined link " . $link_name . " is down");
+
+	my $affected_circuits = $self->{'db'}->get_affected_circuits_by_link_id(link_id => $link->{'link_id'});
+
+	if (! defined $affected_circuits) {
+	    $self->{'logger'}->error("Error getting affected circuits: " . $self->{'db'}->get_error());
+	    return 0;
+	}
+	
+	$link_status{$link_name} = OESS_LINK_DOWN;
+	#fail over affected circuits
+	$self->_fail_over_circuits( circuits => $affected_circuits, link_name => $link_name );
+	$self->_cancel_restorations( link_id => $link->{'link_id'});
+	
+    }
+    #--- when a port comes back up determine if any circuits that are currently down
+    #--- can be restored by bringing it back up over to this path, we do not restore by default
+    else {
+	$self->{'logger'}->warn("FV has determined link $link_name is up");
+	$link_status{$link_name} = OESS_LINK_UP;
+	my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $link->{'link_id'});
+	$self->_restore_down_circuits( circuits => $circuits, link_name => $link_name );
+
+    }
+
+    return 1;
 }
 
 sub _process_stats_to_flows{
