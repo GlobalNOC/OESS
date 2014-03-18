@@ -436,6 +436,11 @@ sub connect_to_snapp{
 =cut
 
 sub get_flow_stats{
+
+    if(-e '/var/run/oess_is_overloaded.lock'){
+        return;
+    }
+
     warn "Fetching stats\n";
     my $nodes = $oess->get_current_nodes();
     foreach my $node (@$nodes){
