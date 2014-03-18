@@ -246,6 +246,10 @@ sub do_work{
     my $self = shift;
     
     if(-e '/var/run/oess_is_overloaded.lock'){
+	foreach my $link_name (keys(%{$self->{'links'}})){
+	    $self->{'links'}->{$link_name}}->{'fv_status'} = OESS_LINK_UNKNOWN;
+            $self->{'links'}->{$link_name}->{'last_verified'} = Time::HiRes::time() * 1000;
+	}
 	return;
     }
 
