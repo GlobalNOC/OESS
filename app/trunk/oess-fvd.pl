@@ -35,13 +35,13 @@ sub main{
         my $daemon;
         if ($verbose) {
             $daemon = Proc::Daemon->new(
-                                        pid_file => '/var/run/oess/bfd.pid',
-                                        child_STDOUT => '/var/log/oess/bfd.out',
-                                        child_STDERR => '/var/log/oess/bfd.log',
+                                        pid_file => '/var/run/oess/oess-fvd.pid',
+                                        child_STDOUT => '/var/log/oess/oess-fvd.out',
+                                        child_STDERR => '/var/log/oess/oess-fvd.log',
                 );
         } else {
             $daemon = Proc::Daemon->new(
-                                        pid_file => '/var/run/oess/bfd.pid'
+                                        pid_file => '/var/run/oess/oess-fvd.pid'
                 );
         }
         my $kid_pid = $daemon->Init;
@@ -50,7 +50,6 @@ sub main{
             return;
         }
         my $bfd = OESS::FV->new();
-
     }
     #not a deamon, just run the core;
     else {
