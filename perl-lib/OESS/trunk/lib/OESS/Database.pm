@@ -4003,6 +4003,35 @@ sub update_link_state{
     return 1;
 }
 
+=head2 update_link_fv_state
+
+=cut
+
+sub update_link_fv_state{
+    my $self = shift;
+    my %args = @_;
+
+    my $link_id = $args{'link_id'};
+    my $state = $args{'state'};
+
+    if(!defined($link_id)){
+        $self->_set_error("No Link ID specified");
+	return;
+    }
+
+    if(!defined($state)){
+        $state = 'down';
+    }
+
+    my $result = $self->_execute_query("update link set fv_status = ? where link_id = ?",[$state,$link_id]);
+    if($result != 1){
+        $self->_set_error("Error updating link state");
+	return;
+    }
+
+    return 1;
+}
+
 =head2 update_link
 
 =cut

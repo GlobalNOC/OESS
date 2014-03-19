@@ -63,7 +63,7 @@ sub new{
 
     if(defined($db->{'forwarding_verification'})){
 	$self->{'interval'} = $db->{'forwarding_verification'}->{'interval'};
-	$self->{'interval'} = $db->{'forwarding_verification'}->{'timeout'};
+	$self->{'timeout'} = $db->{'forwarding_verification'}->{'timeout'};
     }
 
     $self->{'packet_in_count'} = 0;
@@ -459,6 +459,20 @@ sub _send_fwdctl_link_event{
 
     my $link_name = $args{'link_name'};
     my $state = $args{'state'};
+
+    my $link = $self->{'db'}->get_link( link_name => $link_name);
+    if(defined($link)){
+	my $state_str = '';
+	if($state == OESS_LINK_UP){
+	    $state_str = 'up';
+	}elsif($state == OESS_LINK_DOWN){
+	    $state_str = 'down';
+	}else{
+	    $state_str = 'unknown';
+	}
+
+	$self->{'db'}->update_link_fv_state( link_id => $link->{'link_id'}, state => $state_str);
+    }
 
     my $client;
     my $service;
