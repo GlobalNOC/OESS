@@ -305,7 +305,7 @@ sub list_reservations{
 
     my $self=shift;
     my %params = @_;
-    my $reservations;
+    my $reservations = [];
     my $soap_query;
     #assumptions: all parameters will be 
     my $parameter_map = {
@@ -345,11 +345,24 @@ sub list_reservations{
     $messg->content_type('text/xml');
     $messg->content_length( length($signed_xml));
     my $resp = $self->{'ua'}->request($messg);
-    warn ($resp->content);
+
     my ($xpath,$result) = $self->_process_response($resp);
-    
+    #print $resp->content;
     #todo: filter result to reservations
-    $reservations = $result;
+
+    my $resDetails = $xpath->find('ns3:listReservationsResponse/ns3:resDetails', $result);
+    #warn $resDetails->to_literal();
+    foreach my $reservation (@$resDetails){
+        my $tmp = {};
+        warn $reservation->toString;
+        if ($reservation){
+            my $gri = $xpath->find('ns3:globalReservationId',$reservation);
+            $tmp->{'gri'} = $gri->string_value;
+            push (@$reservations, $tmp);
+        }
+    }
+
+    #$reservations = $result;
     
     return $reservations;
 }
@@ -562,7 +575,7 @@ sub _process_response{
 
     if($response->is_success){
 	warn "REsponse is successfull\n";
-	warn Dumper($response->content);
+	#warn Dumper($response->content);
 	my $xpath = XML::XPath->new(xml => $response->content);
 	$xpath->set_namespace("soap", "http://www.w3.org/2003/05/soap-envelope");
 	$xpath->set_namespace("ns3","http://oscars.es.net/OSCARS/06");
