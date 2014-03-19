@@ -58,6 +58,9 @@ sub upgrade{
     
     $str = "alter table user add column type enum('normal','read-only') NOT NULL default 'normal'";
     $dbh->do($str);
+
+    $str = "alter table link add fv_status enum('up','down','unknown') NOT NULL default 'unknown'";
+    $dbh->do($str);
     
     #ok done with the rest of the upgrade update our version
     $str = "update oess_version set version = '$version'";
