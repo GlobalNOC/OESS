@@ -450,16 +450,24 @@ function build_circuitTable(){
     link_status_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     link_status_ds.responseSchema = {
 	resultsList: "results",
-	fields: ["name","link_id","status","operational_state"]
+	fields: ["name","link_id","status","operational_state","fv_status"]
     };
 
     var link_status_columns = [
 			       {key: "name", label: "Link", width: 200},
 			       {key: "status", label: "Status", width: 40, formatter: function(elLiner, oRec, oCol, oData){
-				       if(oRec.getData('status') == 'up'){
-					   elLiner.innerHTML = "<font color='green'>up</font>";
+				       if(oRec.getData('fv_status') == 'down'){
+					   if(oRec.getData('status') == 'up'){
+					       elLiner.innerHTML = "<font color='red'>impared</font>";
+					   }else{
+					       elLiner.innerHTML = "<font color='red'>" + oRec.getData('status') + "</font>";
+					   }
 				       }else{
-					   elLiner.innerHTML = "<font color='red'>" + oRec.getData('status') + "</font>";
+					   if(oRec.getData('status') == 'up'){
+                                               elLiner.innerHTML = "<font color='green'>up</font>";
+                                           }else{
+                                               elLiner.innerHTML = "<font color='red'>" + oRec.getData('status') + "</font>";
+                                           }
 				       }
 				   }}
 			       ];
