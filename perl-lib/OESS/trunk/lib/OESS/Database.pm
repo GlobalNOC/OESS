@@ -157,7 +157,7 @@ sub new {
     $self->{'oscars'}                = $oscars_info;
 
     $self->{'discovery_vlan'}        = $config->{'discovery_vlan'} || -1;
-
+    $self->{'forwarding_verification'} = $config->{'forwarding_verification'};
     if (! defined $self->{'topo'}){
 	$self->{'topo'} = OESS::Topology->new(db => $self);
     }

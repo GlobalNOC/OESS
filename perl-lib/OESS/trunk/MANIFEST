@@ -6,6 +6,7 @@ lib/OESS/Circuit.pm
 lib/OESS/Database.pm
 lib/OESS/DBus.pm
 lib/OESS/FlowRule.pm
+lib/OESS/FV.pm
 lib/OESS/Measurement.pm
 lib/OESS/Notification.pm
 lib/OESS/Topology.pm
@@ -26,6 +27,7 @@ share/upgrade/oess-1.0.8-1.0.9
 share/upgrade/oess-1.0.9-1.0.10
 share/upgrade/oess-1.1.0-1.1.1
 share/upgrade/oess-1.1.1-1.1.2
+share/upgrade/oess-1.1.2-1.1.3
 t/00-load_base.t
 t/01-load_known_state.t
 t/02-pod.t

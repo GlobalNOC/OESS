@@ -61,6 +61,11 @@ sub new{
     }
     $self->{'db'} = $db;
 
+    if(defined($db->{'forwarding_verification'})){
+	$self->{'interval'} = $db->{'forwarding_verification'}->{'interval'};
+	$self->{'interval'} = $db->{'forwarding_verification'}->{'timeout'};
+    }
+
     $self->{'packet_in_count'} = 0;
     $self->{'packet_out_count'} = 0;
     $self->_load_state();
