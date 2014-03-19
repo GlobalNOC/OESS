@@ -354,7 +354,7 @@ sub list_reservations{
     #warn $resDetails->to_literal();
     foreach my $reservation (@$resDetails){
         my $tmp = {};
-        warn $reservation->toString;
+        
         if ($reservation){
             my $gri = $xpath->find('ns3:globalReservationId',$reservation);
             $tmp->{'gri'} = $gri->string_value;
