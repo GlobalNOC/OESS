@@ -377,7 +377,6 @@ sub do_work{
         my $a_end = {node => $link->{'a_node'}, int => $link->{'a_port'}};
 	my $z_end = {node => $link->{'z_node'}, int => $link->{'z_port'}};
 
-
 	my $res = $self->{'dbus'}->send_fv_packet(Net::DBus::dbus_uint64($a_end->{'node'}->{'dpid'}),
 						  Net::DBus::dbus_uint16($a_end->{'int'}->{'port_number'}),
 						  Net::DBus::dbus_uint64($z_end->{'node'}->{'dpid'}),
@@ -405,48 +404,44 @@ sub fv_packet_in_callback{
 
     $self->{'first_run'} = 0;
     $self->{'logger'}->debug("FV Packet received!");
-    my $string;
 
     #throw away the header because we don't care
     $self->{'packet_in_count'}++;
     $self->{'logger'}->debug("Packet In Count: " . $self->{'packet_in_count'});
     $self->{'logger'}->debug("Packet Out Count: " . $self->{'packet_out_count'});
 
+    my $string = pack('C*',@$packet);
+    $self->{'logger'}->debug("PACKET: " . $string);
+    my ($dst,$src,$type) = unpack('H12H12n',$string);
+    $self->{'logger'}->debug("SRC: " . $src . " DST: " . $dst . " Type: " . $type);
+    my ($dst_dpid,$dst_port_id,$src_dpid,$src_port_id,$timestamp,$eth_type,$tag,$junk1, $junk2, $junk3);
 
-    $self->{'logger'}->debug("RAW PACKET: " . Data::Dumper::Dumper($packet));
-    splice (@$packet,0,28);
-
-    if($packet->[0] == 0){
-	splice(@$packet,0,4);
-    }
-    
-    $string = pack("C*",@$packet);
-    $self->{'logger'}->debug("RAW STRING: " . $string);
-    my $obj;
-
-    eval{
-	$obj = decode_json($string);
-    };
-
-    if(!defined($obj)){
-	$self->{'logger'}->error("Unable to parse JSON string: " . $string);
-	return;
+    if($type == 33024){
+	#this is a tagged packet need to pull off another 4 bytes
+	$self->{'logger'}->debug("Packet: " . join('',map { sprintf("%02X", $_) } @$packet));
+	($dst,$src,$type,$tag,$eth_type,$junk1,$src_dpid,$src_port_id,$junk2,$dst_dpid,$dst_port_id,$junk3,$timestamp) = unpack('H12H12nnnB112QSH12QSH4f',$string);
+	$self->{'logger'}->debug("Tag: " . $tag . " Type: " . $eth_type);
+	
+    }else{
+	($dst,$src,$type,$junk1,$src_dpid,$src_port_id,$dst_dpid,$dst_port_id,$timestamp) = unpack('H12H12nB112QSH12QSH4f',$string);
     }
 
-    $self->{'logger'}->debug("JSON: " . $string);
+    $self->{'logger'}->debug("JUNK: " . $junk1);
+    $self->{'logger'}->debug("src_dpid: " . $src_dpid . " src_port: " . $src_port_id . " dst_dpid: " . $dst_dpid . " dst_port_id: " . $dst_port_id . " ts: " . $timestamp);
 
-    if($obj->{'dst_dpid'} != $dpid){
-	$self->{'logger'}->error("Packet said it should have gone to " . $obj->{'dst_dpid'} . " but OpenFlow said it was from " . $dpid);
-	return;
-    }
-    if($obj->{'dst_port_id'} != $port){
-	$self->{'logger'}->error("Packet said it should have gone to port " . $obj->{'dst_port_id'} . " but openflow said it was from " . $port);
+    if($dst_dpid != $dpid){
+	$self->{'logger'}->error("Packet said it should have gone to " . $dst_dpid . " but OpenFlow said it was from " . $dpid);
 	return;
     }
     
-    $self->{'last_heard'}->{$dpid}->{$port} = {originator => {dpid => $obj->{'src_dpid'}, port_number => $obj->{'src_port_id'}},
-					       timestamp => $obj->{'timestamp'}};
-
+    if($dst_port_id != $port){
+	$self->{'logger'}->error("Packet said it should have gone to port " . $dst_port_id . " but openflow said it was from " . $port);
+	return;
+    }
+    
+    $self->{'last_heard'}->{$dpid}->{$port} = {originator => {dpid => $src_dpid, port_number => $src_port_id},
+					       timestamp => $timestamp};
+    
     $self->{'logger'}->debug("Done Processing Packet");
 }
 
