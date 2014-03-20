@@ -127,20 +127,16 @@ class dBusEventGen(dbus.service.Object):
        logger.info(string)
 
     @dbus.service.method(dbus_interface=ifname,
-                         in_signature='tqtqn',
+                         in_signature='tqnay',
                          out_signature='i'
                          )
-    def send_fv_packet(self, src_dpid, src_port_id, dst_dpid, dst_port_id, vlan_id):
+    def send_fv_packet(self, dpid, port, vlan_id, byte_payload):
         packet = ethernet()
-        packet.src = '\x00' + struct.pack('!Q',src_dpid)[3:8]
+        packet.src = '\x00' + struct.pack('!Q',dpid)[3:8]
         packet.dst = NDP_MULTICAST
+        
+        payload = ''.join([chr(character) for character in byte_payload])
 
-        fv_packet = ethernet()
-        fv_packet.eth_type = 0x88b6
-        #logger.warn("src_dpid: " + str(src_dpid) + " dst_dpid: " + str(dst_dpid) + " src_port: " + str(src_port_id) + " dst_port: " + str(dst_port_id))
-        payload = struct.pack('QHQHf',src_dpid,src_port_id,dst_dpid,dst_port_id,time())
-
-        fv_packet.set_payload(payload)
 
         if(vlan_id != None and vlan_id != 65535):
             vlan_packet = vlan()
@@ -148,16 +144,16 @@ class dBusEventGen(dbus.service.Object):
             vlan_packet.c = 0
             vlan_packet.pcp = 0
             vlan_packet.eth_type = 0x88b6
-            vlan_packet.set_payload(fv_packet)
+            vlan_packet.set_payload(payload)
             
             packet.set_payload(vlan_packet)
             packet.type = ethernet.VLAN_TYPE
 
         else:
-            packet.set_payload(fv_packet)
+            packet.set_payload(payload)
             packet.type = 0x88b6
 
-        inst.send_openflow_packet(src_dpid, packet.tostring(), int(src_port_id))
+        inst.send_openflow_packet(dpid, packet.tostring(), int(port))
         
         return 1
         
