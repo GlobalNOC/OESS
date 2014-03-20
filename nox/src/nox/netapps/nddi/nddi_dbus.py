@@ -127,21 +127,20 @@ class dBusEventGen(dbus.service.Object):
        logger.info(string)
 
     @dbus.service.method(dbus_interface=ifname,
-                         in_signature='tntnn',
+                         in_signature='tqtqn',
                          out_signature='i'
                          )
     def send_fv_packet(self, src_dpid, src_port_id, dst_dpid, dst_port_id, vlan_id):
         packet = ethernet()
         packet.src = '\x00' + struct.pack('!Q',src_dpid)[3:8]
         packet.dst = NDP_MULTICAST
-        
+
         fv_packet = ethernet()
         fv_packet.eth_type = 0x88b6
-        payload = "{\"src_dpid\": \"" + str(src_dpid) + "\", \"src_port_id\": \"" + str(src_port_id) + "\", \"dst_dpid\": \"" + str(dst_dpid) + "\", \"dst_port_id\": \"" + str(dst_port_id) + "\", \"timestamp\": \"" + str(time()) + "\"}"
+        #logger.warn("src_dpid: " + str(src_dpid) + " dst_dpid: " + str(dst_dpid) + " src_port: " + str(src_port_id) + " dst_port: " + str(dst_port_id))
+        payload = struct.pack('QHQHf',src_dpid,src_port_id,dst_dpid,dst_port_id,time())
 
         fv_packet.set_payload(payload)
-
-        logger.info("Packet: " + fv_packet.tostring())
 
         if(vlan_id != None and vlan_id != 65535):
             vlan_packet = vlan()
