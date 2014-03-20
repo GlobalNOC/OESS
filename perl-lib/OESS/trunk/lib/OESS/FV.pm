@@ -3,6 +3,7 @@ use warnings;
 
 package OESS::FV;
 
+use bytes;
 use Log::Log4perl;
 use Graph::Directed;
 use OESS::Database;
@@ -314,12 +315,12 @@ sub do_work{
 	    
 	    $self->{'logger'}->debug("Packet origins/outputs line up with what we expected");
 	    
-	    my $last_verified_a_z = ((Time::HiRes::time() * 1000) - ($self->{'last_heard'}->{$a_end->{'node'}->{'dpid'}}->{$a_end->{'int'}->{'port_number'}}->{'timestamp'} * 1000));
-	    my $last_verified_z_a = ((Time::HiRes::time() * 1000) - ($self->{'last_heard'}->{$z_end->{'node'}->{'dpid'}}->{$z_end->{'int'}->{'port_number'}}->{'timestamp'} * 1000));
+	    my $last_verified_a_z = ((Time::HiRes::time() * 1000) - $self->{'last_heard'}->{$a_end->{'node'}->{'dpid'}}->{$a_end->{'int'}->{'port_number'}}->{'timestamp'});
+	    my $last_verified_z_a = ((Time::HiRes::time() * 1000) - $self->{'last_heard'}->{$z_end->{'node'}->{'dpid'}}->{$z_end->{'int'}->{'port_number'}}->{'timestamp'});
 	    
 	    $self->{'logger'}->debug("Link: " . $link->{'name'} . " Z -> A last verified " . $last_verified_z_a . "ms ago");
 	    $self->{'logger'}->debug("Link: " . $link->{'name'} . " A -> Z last verified " . $last_verified_a_z . "ms ago");
-	    
+	
 	    #verify the last heard time is good
 	    if( $last_verified_a_z < $self->{'timeout'} && 
 	        $last_verified_z_a < $self->{'timeout'} ){
@@ -339,7 +340,7 @@ sub do_work{
 		    $self->{'logger'}->debug("link " . $link->{'name'} . " is still up");
 		    $self->{'links'}->{$link->{'name'}}->{'last_verified'} = Time::HiRes::time() * 1000;
 		}
-	    }else{
+	}else{
 		$self->{'logger'}->debug("Link: " . $link->{'name'} . " is not function properly");
 		#link is bad!
 		if($self->{'links'}->{$link->{'name'}}->{'fv_status'} == OESS_LINK_UP){
@@ -377,17 +378,39 @@ sub do_work{
         my $a_end = {node => $link->{'a_node'}, int => $link->{'a_port'}};
 	my $z_end = {node => $link->{'z_node'}, int => $link->{'z_port'}};
 
+	my $payload = pack("QSQSq",$a_end->{'node'}->{'dpid'},$a_end->{'int'}->{'port_number'},$z_end->{'node'}->{'dpid'},$z_end->{'int'}->{'port_number'},Time::HiRes::time() * 1000);
+	
+	my @array = split //,  $payload;
+
+	my @array2 = ();
+
+	foreach my $byte (@array){
+	    push(@array2,Net::DBus::dbus_byte(ord($byte)));
+	}
+
 	my $res = $self->{'dbus'}->send_fv_packet(Net::DBus::dbus_uint64($a_end->{'node'}->{'dpid'}),
 						  Net::DBus::dbus_uint16($a_end->{'int'}->{'port_number'}),
-						  Net::DBus::dbus_uint64($z_end->{'node'}->{'dpid'}),
-						  Net::DBus::dbus_uint16($z_end->{'int'}->{'port_number'}),
-                                                  Net::DBus::dbus_uint16($self->{'db'}->{'discovery_vlan'}));
+						  Net::DBus::dbus_uint16($self->{'db'}->{'discovery_vlan'}),
+						  Net::DBus::dbus_array(\@array2));
+
 	$self->{'packet_out_count'}++;
-	$res    = $self->{'dbus'}->send_fv_packet(Net::DBus::dbus_uint64($z_end->{'node'}->{'dpid'}),
-						  Net::DBus::dbus_uint16($z_end->{'int'}->{'port_number'}),
-						  Net::DBus::dbus_uint64($a_end->{'node'}->{'dpid'}),
-						  Net::DBus::dbus_uint16($a_end->{'int'}->{'port_number'}),
-                                                  Net::DBus::dbus_uint16($self->{'db'}->{'discovery_vlan'}));
+	
+	$payload = pack("QSQSq",$z_end->{'node'}->{'dpid'},$z_end->{'int'}->{'port_number'},$a_end->{'node'}->{'dpid'},$a_end->{'int'}->{'port_number'},Time::HiRes::time() * 1000);
+	
+	@array = split //,  $payload;
+
+	@array2 = ();
+
+	foreach my $byte (@array){
+            push(@array2,Net::DBus::dbus_byte(ord($byte)));
+	}
+
+	$res = $self->{'dbus'}->send_fv_packet(Net::DBus::dbus_uint64($z_end->{'node'}->{'dpid'}),
+					       Net::DBus::dbus_uint16($z_end->{'int'}->{'port_number'}),
+					       Net::DBus::dbus_uint16($self->{'db'}->{'discovery_vlan'}),
+					       Net::DBus::dbus_array(\@array2));
+	
+
 	$self->{'packet_out_count'}++;
 	$self->{'logger'}->debug("Done sending packets");
     }
@@ -414,33 +437,39 @@ sub fv_packet_in_callback{
     $self->{'logger'}->debug("PACKET: " . $string);
     my ($dst,$src,$type) = unpack('H12H12n',$string);
     $self->{'logger'}->debug("SRC: " . $src . " DST: " . $dst . " Type: " . $type);
-    my ($dst_dpid,$dst_port_id,$src_dpid,$src_port_id,$timestamp,$eth_type,$tag,$junk1, $junk2, $junk3);
+    my ($tag,$eth_type,$src_dpid,$src_port_id,$dst_dpid,$dst_port_id,$timestamp);
 
     if($type == 33024){
+
 	#this is a tagged packet need to pull off another 4 bytes
 	$self->{'logger'}->debug("Packet: " . join('',map { sprintf("%02X", $_) } @$packet));
-	($dst,$src,$type,$tag,$eth_type,$junk1,$src_dpid,$src_port_id,$junk2,$dst_dpid,$dst_port_id,$junk3,$timestamp) = unpack('H12H12nnnB112QSH12QSH4f',$string);
-	$self->{'logger'}->debug("Tag: " . $tag . " Type: " . $eth_type);
+	($dst,$src,$type,$tag,$eth_type,$src_dpid,$src_port_id,$dst_dpid,$dst_port_id,$timestamp) = unpack('H12H12nnnQSQSq',$string);
+	$self->{'logger'}->debug("Tag: " . $tag . " Type: " . $eth_type . " TimeStamp: " . $timestamp );
 	
     }else{
-	($dst,$src,$type,$junk1,$src_dpid,$src_port_id,$dst_dpid,$dst_port_id,$timestamp) = unpack('H12H12nB112QSH12QSH4f',$string);
+
+	($dst,$src,$type,$src_dpid,$src_port_id,$dst_dpid,$dst_port_id,$timestamp) = unpack('H12H12nQSQSq',$string);
+
     }
 
-    $self->{'logger'}->debug("JUNK: " . $junk1);
-    $self->{'logger'}->debug("src_dpid: " . $src_dpid . " src_port: " . $src_port_id . " dst_dpid: " . $dst_dpid . " dst_port_id: " . $dst_port_id . " ts: " . $timestamp);
+    my $obj = {dst_dpid => $dst_dpid, 
+	       dst_port_id => $dst_port_id,
+	       src_dpid => $src_dpid,
+	       src_port_id => $src_port_id,
+	       timestamp => $timestamp};
 
-    if($dst_dpid != $dpid){
-	$self->{'logger'}->error("Packet said it should have gone to " . $dst_dpid . " but OpenFlow said it was from " . $dpid);
+    if($obj->{'dst_dpid'} != $dpid){
+	$self->{'logger'}->error("Packet said it should have gone to " . $obj->{'dst_dpid'} . " but OpenFlow said it was from " . $dpid);
 	return;
     }
     
-    if($dst_port_id != $port){
-	$self->{'logger'}->error("Packet said it should have gone to port " . $dst_port_id . " but openflow said it was from " . $port);
+    if($obj->{'dst_port_id'} != $port){
+	$self->{'logger'}->error("Packet said it should have gone to port " . $obj->{'dst_port_id'} . " but openflow said it was from " . $port);
 	return;
     }
     
-    $self->{'last_heard'}->{$dpid}->{$port} = {originator => {dpid => $src_dpid, port_number => $src_port_id},
-					       timestamp => $timestamp};
+    $self->{'last_heard'}->{$dpid}->{$port} = {originator => {dpid => $obj->{'src_dpid'}, port_number => $obj->{'src_port_id'}},
+					       timestamp => $obj->{'timestamp'}};
     
     $self->{'logger'}->debug("Done Processing Packet");
 }
