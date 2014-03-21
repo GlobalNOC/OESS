@@ -485,6 +485,7 @@ CREATE TABLE `workgroup` (
   `max_mac_address_per_end` int(10) DEFAULT '10',
   `max_circuits` int(10) DEFAULT '20',
   `max_circuit_endpoints` int(10) DEFAULT '10',
+  `status` enum('active','decom') NOT NULL DEFAULT 'active',
   PRIMARY KEY (`workgroup_id`),
   UNIQUE KEY `workgroups_idx` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
