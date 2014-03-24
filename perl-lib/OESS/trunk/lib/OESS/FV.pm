@@ -259,10 +259,9 @@ sub do_work{
 	}
 	return;
     }
-
-    $self->{'logger'}->debug("checking forwarding on links");
+    
     foreach my $link_name (keys(%{$self->{'links'}})){
-		
+	
 	my $link = $self->{'links'}->{$link_name};
 	
 	$self->{'logger'}->debug("Checking Forwarding on link: " . $link->{'name'});
@@ -275,14 +274,14 @@ sub do_work{
 	    $self->{'links'}->{$link->{'name'}}->{'last_verified'} = Time::HiRes::time() * 1000;
 	    next;
         }
-
+	
         if($self->{'nodes'}->{$z_end->{'node'}->{'dpid'}}->{'status'} == OESS_NODE_DOWN){
             $self->{'logger'}->info("node " . $z_end->{'node'}->{'name'} . " is down not checking link: " . $link->{'name'});
 	    $self->{'links'}->{$link->{'name'}}->{'fv_status'} = OESS_LINK_UNKNOWN;
 	    $self->{'links'}->{$link->{'name'}}->{'last_verified'} = Time::HiRes::time() * 1000;
             next;
         }
-
+	
 	if(!defined($self->{'last_heard'}->{$a_end->{'node'}->{'dpid'}}->{$a_end->{'int'}->{'port_number'}}) ||
 	   !defined($self->{'last_heard'}->{$z_end->{'node'}->{'dpid'}}->{$z_end->{'int'}->{'port_number'}})){
 	    #we have never received it at least not since we were started...
@@ -320,7 +319,7 @@ sub do_work{
 	    
 	    $self->{'logger'}->debug("Link: " . $link->{'name'} . " Z -> A last verified " . $last_verified_z_a . "ms ago");
 	    $self->{'logger'}->debug("Link: " . $link->{'name'} . " A -> Z last verified " . $last_verified_a_z . "ms ago");
-	
+	    
 	    #verify the last heard time is good
 	    if( $last_verified_a_z < $self->{'timeout'} && 
 	        $last_verified_z_a < $self->{'timeout'} ){
@@ -340,7 +339,7 @@ sub do_work{
 		    $self->{'logger'}->debug("link " . $link->{'name'} . " is still up");
 		    $self->{'links'}->{$link->{'name'}}->{'last_verified'} = Time::HiRes::time() * 1000;
 		}
-	}else{
+	    }else{
 		$self->{'logger'}->debug("Link: " . $link->{'name'} . " is not function properly");
 		#link is bad!
 		if($self->{'links'}->{$link->{'name'}}->{'fv_status'} == OESS_LINK_UP){
@@ -363,115 +362,69 @@ sub do_work{
 	    }
 	}else{
 	    #uh oh the endpoints don't line up... update our db records (maybe a migration/node insertion happened) other wise we are busted... things will timeout
-		$self->{'logger'}->error("packet are screwed up!@!@! This can't happen");
+	    $self->{'logger'}->error("packet are screwed up!@!@! This can't happen");
 		$self->_load_state();	
 	}
 	$self->{'logger'}->debug("Done processing link");
     }
+    
+    if(!defined($self->{'all_packets'})){
+	my @packet_array;
+	#ok now send out our packets
 
-
-    #ok now send out our packets
-    foreach my $link_name (keys(%{$self->{'links'}})){
-
-	my $link = $self->{'links'}->{$link_name};
-	$self->{'logger'}->debug("Sending packets for link: " . $link_name);
-        my $a_end = {node => $link->{'a_node'}, int => $link->{'a_port'}};
-	my $z_end = {node => $link->{'z_node'}, int => $link->{'z_port'}};
-
-	my $payload = pack("QSQSq",$a_end->{'node'}->{'dpid'},$a_end->{'int'}->{'port_number'},$z_end->{'node'}->{'dpid'},$z_end->{'int'}->{'port_number'},Time::HiRes::time() * 1000);
-	
-	my @array = split //,  $payload;
-
-	my @array2 = ();
-
-	foreach my $byte (@array){
-	    push(@array2,Net::DBus::dbus_byte(ord($byte)));
+	foreach my $link_name (keys(%{$self->{'links'}})){
+	    
+	    my $link = $self->{'links'}->{$link_name};
+	    $self->{'logger'}->debug("Sending packets for link: " . $link_name);
+	    
+	    my $a_end = {node => $link->{'a_node'}, int => $link->{'a_port'}};
+	    my $z_end = {node => $link->{'z_node'}, int => $link->{'z_port'}};
+	    
+	    if(!defined($self->{'links'}->{$link_name}->{'a_z_details'})){
+		
+		my $obj = [ Net::DBus::dbus_uint64($a_end->{'node'}->{'dpid'}),
+			    Net::DBus::dbus_uint64($a_end->{'int'}->{'port_number'}),
+			    Net::DBus::dbus_uint64($z_end->{'node'}->{'dpid'}),
+			    Net::DBus::dbus_uint64($z_end->{'int'}->{'port_number'})
+		    ];
+		
+		$self->{'links'}->{$link_name}->{'a_z_details'} = Net::DBus::dbus_array($obj);
+	    }
+	    
+	    push(@packet_array,$self->{'links'}->{$link_name}->{'a_z_details'});
+	    
+	    if(!defined($self->{'links'}->{$link_name}->{'z_a_details'})){
+		
+		my $obj= [	Net::DBus::dbus_uint64($z_end->{'node'}->{'dpid'}),
+				Net::DBus::dbus_uint64($z_end->{'int'}->{'port_number'}),
+				Net::DBus::dbus_uint64($a_end->{'node'}->{'dpid'}),
+				Net::DBus::dbus_uint64($a_end->{'int'}->{'port_number'})
+		    ];
+		
+		$self->{'links'}->{$link_name}->{'z_a_details'} = Net::DBus::dbus_array($obj);
+	    }
+	    
+	    push(@packet_array,$self->{'links'}->{$link_name}->{'z_a_details'});
+	    
 	}
-
-	my $res = $self->{'dbus'}->send_fv_packet(Net::DBus::dbus_uint64($a_end->{'node'}->{'dpid'}),
-						  Net::DBus::dbus_uint16($a_end->{'int'}->{'port_number'}),
-						  Net::DBus::dbus_uint16($self->{'db'}->{'discovery_vlan'}),
-						  Net::DBus::dbus_array(\@array2));
-
-	$self->{'packet_out_count'}++;
-	
-	$payload = pack("QSQSq",$z_end->{'node'}->{'dpid'},$z_end->{'int'}->{'port_number'},$a_end->{'node'}->{'dpid'},$a_end->{'int'}->{'port_number'},Time::HiRes::time() * 1000);
-	
-	@array = split //,  $payload;
-
-	@array2 = ();
-
-	foreach my $byte (@array){
-            push(@array2,Net::DBus::dbus_byte(ord($byte)));
-	}
-
-	$res = $self->{'dbus'}->send_fv_packet(Net::DBus::dbus_uint64($z_end->{'node'}->{'dpid'}),
-					       Net::DBus::dbus_uint16($z_end->{'int'}->{'port_number'}),
-					       Net::DBus::dbus_uint16($self->{'db'}->{'discovery_vlan'}),
-					       Net::DBus::dbus_array(\@array2));
-	
-
-	$self->{'packet_out_count'}++;
-	$self->{'logger'}->debug("Done sending packets");
+	$self->{'all_packets'} = Net::DBus::dbus_array(\@packet_array);
     }
 
+    $self->{'dbus'}->send_fv_packets($self->{'all_packets'}, Net::DBus::dbus_uint16($self->{'db'}->{'discovery_vlan'}));  
 }
 
     
 sub fv_packet_in_callback{
     my $self = shift;
-    my $dpid = shift;
-    my $port = shift;
-    my $packet = shift;
+    my $src_dpid = shift;
+    my $src_port = shift;
+    my $dst_dpid = shift;
+    my $dst_port = shift;
+    my $timestamp = shift;
 
-
-    $self->{'first_run'} = 0;
-    $self->{'logger'}->debug("FV Packet received!");
-
-    #throw away the header because we don't care
-    $self->{'packet_in_count'}++;
-    $self->{'logger'}->debug("Packet In Count: " . $self->{'packet_in_count'});
-    $self->{'logger'}->debug("Packet Out Count: " . $self->{'packet_out_count'});
-
-    my $string = pack('C*',@$packet);
-    $self->{'logger'}->debug("PACKET: " . $string);
-    my ($dst,$src,$type) = unpack('H12H12n',$string);
-    $self->{'logger'}->debug("SRC: " . $src . " DST: " . $dst . " Type: " . $type);
-    my ($tag,$eth_type,$src_dpid,$src_port_id,$dst_dpid,$dst_port_id,$timestamp);
-
-    if($type == 33024){
-
-	#this is a tagged packet need to pull off another 4 bytes
-	$self->{'logger'}->debug("Packet: " . join('',map { sprintf("%02X", $_) } @$packet));
-	($dst,$src,$type,$tag,$eth_type,$src_dpid,$src_port_id,$dst_dpid,$dst_port_id,$timestamp) = unpack('H12H12nnnQSQSq',$string);
-	$self->{'logger'}->debug("Tag: " . $tag . " Type: " . $eth_type . " TimeStamp: " . $timestamp );
-	
-    }else{
-
-	($dst,$src,$type,$src_dpid,$src_port_id,$dst_dpid,$dst_port_id,$timestamp) = unpack('H12H12nQSQSq',$string);
-
-    }
-
-    my $obj = {dst_dpid => $dst_dpid, 
-	       dst_port_id => $dst_port_id,
-	       src_dpid => $src_dpid,
-	       src_port_id => $src_port_id,
-	       timestamp => $timestamp};
-
-    if($obj->{'dst_dpid'} != $dpid){
-	$self->{'logger'}->error("Packet said it should have gone to " . $obj->{'dst_dpid'} . " but OpenFlow said it was from " . $dpid);
-	return;
-    }
+    $self->{'last_heard'}->{$dst_dpid}->{$dst_port} = {originator => {dpid => $src_dpid, port_number => $src_port},
+						       timestamp => $timestamp};
     
-    if($obj->{'dst_port_id'} != $port){
-	$self->{'logger'}->error("Packet said it should have gone to port " . $obj->{'dst_port_id'} . " but openflow said it was from " . $port);
-	return;
-    }
-    
-    $self->{'last_heard'}->{$dpid}->{$port} = {originator => {dpid => $obj->{'src_dpid'}, port_number => $obj->{'src_port_id'}},
-					       timestamp => $obj->{'timestamp'}};
-    
-    $self->{'logger'}->debug("Done Processing Packet");
 }
 
 
