@@ -89,12 +89,18 @@ class dBusEventGen(dbus.service.Object):
     def port_status(self,dp_id,reason,attrs):
        string = "port status change: "+str(dp_id)+" attrs "+ str(dict(attrs))
        logger.info(string)
-
+       
     @dbus.service.signal(dbus_interface=ifname,
-                         signature='tuay')
-    def fv_packet_in(self, dpid, port,packet):
-        string = "fv packet in: " + str(dpid) + " port " + str(port) 
+                         signature='tqtqt')
+    def fv_packet_in(self, src_dpid, src_port, dst_dpid, dst_port, timestamp):
+        string = "fv packet in"
         logger.info(string)
+
+#    @dbus.service.signal(dbus_interface=ifname,
+#                         signature='tuay')
+#    def fv_packet_in(self, dpid, port,packet):
+#        string = "fv packet in: " + str(dpid) + " port " + str(port) 
+#        logger.info(string)
         
     @dbus.service.signal(dbus_interface=ifname,
                          signature='tua{sv}')
@@ -127,35 +133,72 @@ class dBusEventGen(dbus.service.Object):
        logger.info(string)
 
     @dbus.service.method(dbus_interface=ifname,
-                         in_signature='tqnay',
-                         out_signature='i'
-                         )
-    def send_fv_packet(self, dpid, port, vlan_id, byte_payload):
-        packet = ethernet()
-        packet.src = '\x00' + struct.pack('!Q',dpid)[3:8]
-        packet.dst = NDP_MULTICAST
+                         in_signature='avt',
+                         out_signature='')
+    def send_fv_packets(self, packets, vlan_id):
         
-        payload = ''.join([chr(character) for character in byte_payload])
+        time_val = time() * 1000
 
+        for pkt in packets:
+        
+            logger.info("SRC DPID: " + str(pkt[0]))
+            logger.info("SRC PORT: " + str(pkt[1]))
 
-        if(vlan_id != None and vlan_id != 65535):
-            vlan_packet = vlan()
-            vlan_packet.id = vlan_id
-            vlan_packet.c = 0
-            vlan_packet.pcp = 0
-            vlan_packet.eth_type = 0x88b6
-            vlan_packet.set_payload(payload)
+            packet = ethernet()
+            packet.src = '\x00' + struct.pack('!Q',pkt[0])[3:8]
+            packet.dst = NDP_MULTICAST
             
-            packet.set_payload(vlan_packet)
-            packet.type = ethernet.VLAN_TYPE
+            payload = struct.pack('QHQHq',pkt[0],pkt[1],pkt[2],pkt[3],time_val)
+            
+            if(vlan_id != None and vlan_id != 65535):
+                vlan_packet = vlan()
+                vlan_packet.id = vlan_id
+                vlan_packet.c = 0
+                vlan_packet.pcp = 0
+                vlan_packet.eth_type = 0x88b6
+                vlan_packet.set_payload(payload)
+                
+                packet.set_payload(vlan_packet)
+                packet.type = ethernet.VLAN_TYPE
 
-        else:
-            packet.set_payload(payload)
-            packet.type = 0x88b6
+            else:
+                packet.set_payload(payload)
+                packet.type = 0x88b6
 
-        inst.send_openflow_packet(dpid, packet.tostring(), int(port))
-        
-        return 1
+            inst.send_openflow_packet(pkt[0], packet.tostring(), int(pkt[1]))
+                
+        return 
+
+#    @dbus.service.method(dbus_interface=ifname,
+#                         in_signature='tqnay',
+#                         out_signature='i'
+#                         )
+#    def send_fv_packet(self, dpid, port, vlan_id, byte_payload):
+#        packet = ethernet()
+#        packet.src = '\x00' + struct.pack('!Q',dpid)[3:8]
+#        packet.dst = NDP_MULTICAST
+#        
+#        payload = ''.join([chr(character) for character in byte_payload])
+#
+#
+#        if(vlan_id != None and vlan_id != 65535):
+#            vlan_packet = vlan()
+#            vlan_packet.id = vlan_id
+#            vlan_packet.c = 0
+#            vlan_packet.pcp = 0
+#            vlan_packet.eth_type = 0x88b6
+#            vlan_packet.set_payload(payload)
+#            
+#            packet.set_payload(vlan_packet)
+#            packet.type = ethernet.VLAN_TYPE
+#
+#        else:
+#            packet.set_payload(payload)
+#            packet.type = 0x88b6
+#
+#        inst.send_openflow_packet(dpid, packet.tostring(), int(port))
+#        
+#        return 1
         
     @dbus.service.signal(dbus_interface=ifname,signature='tuquuay')
     def packet_in(self,dpid,in_port, reason, length, buffer_id, data):
@@ -400,7 +443,22 @@ def port_status_callback(sg,dp_id, ofp_port_reason, attrs):
     sg.port_status(dp_id,ofp_port_reason,attr_dict)
 
 def fv_packet_in_callback(sg,dp,inport,reason,len,bid,packet):
-    sg.fv_packet_in(dp,inport,packet.tostring())
+    if(packet.type == ethernet.VLAN_TYPE):
+        packet = packet.next
+
+    string = packet.next
+    logger.info(string.encode('hex'))
+    (src_dpid,src_port,dst_dpid,dst_port,timestamp) = struct.unpack('QHQHq',string[:40])
+    
+    #verify the packet came in from expected node/port
+    if(dst_dpid != dp):
+        return
+    if(dst_port != inport):
+        return
+
+    sg.fv_packet_in(src_dpid,src_port,dst_dpid,dst_port,timestamp)
+    
+                        
 
 def link_event_callback(sg,info):
     sdp    = info.dpsrc
@@ -521,6 +579,7 @@ def run_glib ():
     """ Process glib events within NOX """
     context = gobject.MainLoop().get_context()
     def mainloop ():
+        logger.info("here")
         global high_water
       # Loop as long as events are being dispatched
         counter = 0;
