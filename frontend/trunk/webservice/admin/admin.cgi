@@ -426,7 +426,7 @@ sub add_remote_link {
 
 sub get_workgroups {
 
-    my %parameters = ( 'user_id' => $cgi->param('user_id')||undef, );
+    my %parameters = ( 'user_id' => $cgi->param('user_id') || undef );
 
     my $results;
     my $workgroups;
