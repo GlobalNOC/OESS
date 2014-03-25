@@ -177,7 +177,7 @@ CREATE TABLE `link` (
   `name` varchar(255) NOT NULL,
   `remote_urn` varchar(256) DEFAULT NULL,
   `status` enum('up','down','unknown') DEFAULT 'up',
-  `metric` int(11) DEFAULT '0',
+  `metric` int(11) DEFAULT '1',
   `fv_status` enum('up','down','unknown') NOT NULL DEFAULT 'unknown',
   PRIMARY KEY (`link_id`),
   UNIQUE KEY `links_idx` (`name`)

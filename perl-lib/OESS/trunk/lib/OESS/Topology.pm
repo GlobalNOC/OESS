@@ -392,20 +392,16 @@ sub find_path{
 	$g->set_edge_attribute($link->{'node_a_name'},$link->{'node_b_name'},"weight",$edge_weight);
 	$self->{'logger'}->debug("Edge: " . $link->{'node_a_name'} . "<->" . $link->{'node_b_name'} . " = " . $edge_weight);
 
-	$edge{$link->{'node_a_name'}}{$link->{'node_b_name'}}{'name'}=$link->{'name'};
-
+	push(@{$edge{$link->{'node_a_name'}}{$link->{'node_b_name'}}{'name'}},$link->{'name'});
     }
 
     #run Dijkstra on our graph
-#    my $graph = $g->SP_Dijkstra($nodes->[0]);
-
-
     my @link_list = ();
     foreach my $node_a_name (@$nodes){
 	foreach my $node_b_name (@$nodes){
 	    next if $node_a_name eq $node_b_name;
 	    #do the Shortest Path Calcualtion
-	    my @path=$g->SP_Dijkstra($node_a_name, $node_b_name);
+	    my @path = $g->SP_Dijkstra($node_a_name, $node_b_name);
             $self->{'logger'}->debug("Shortest path calc: for $node_a_name to $node_b_name " . Dumper(@path));
 	    if (!@path){
 		$self->_set_error("No Path found");
@@ -413,15 +409,15 @@ sub find_path{
 	    }
 
 	    for(my $i=0;$i<scalar(@path)-1;$i++){
-
-		my $link_name=$edge{$path[$i]}{$path[$i+1]}{'name'};
-		if(!$link_name){
-		    $link_name=$edge{$path[$i+1]}{$path[$i]}{'name'};
-		}
-		if($link_name){
-		    push(@link_list,$link_name);
-		    $self->{'logger'}->debug("Adding link name: " . $link_name);
-		}
+                
+#		my $link_name=$edge{$path[$i]}{$path[$i+1]}{'name'};
+#		if(!$link_name){
+#		    $link_name=$edge{$path[$i+1]}{$path[$i]}{'name'};
+#		}
+#		if($link_name){
+#		    push(@link_list,$link_name);
+#		    $self->{'logger'}->debug("Adding link name: " . $link_name);
+#		}
 	    }
 	}
     }
