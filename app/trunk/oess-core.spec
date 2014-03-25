@@ -61,7 +61,7 @@ rm -rf $RPM_BUILD_ROOT
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT/etc/cron.d/
 
 %{__install} etc/logging.conf $RPM_BUILD_ROOT%{_sysconfdir}/oess/
-
+%{__install} etc/watchdog.conf $RPM_BUILD_ROOT%{_sysconfdir}/oess/
 %{__install} etc/nddi-dbus.conf $RPM_BUILD_ROOT%{_sysconfdir}/dbus-1/system.d/
 
 %{__install} etc/fwdctl-init-rh  $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-fwdctl
