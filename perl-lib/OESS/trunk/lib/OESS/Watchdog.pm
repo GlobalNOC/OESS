@@ -189,7 +189,7 @@ sub monitor_process_cpu{
 
         if($self->_is_under(history => $self->{$process_name}->{'history'},
                             under_time => $self->{$process_name}->{'under_time'},
-                            under_vale => $self->{$process_name}->{'under_value'})){
+                            under_value => $self->{$process_name}->{'under_value'})){
             $self->{'logger'}->warn("Forwarding Verification is no longer considered overloaded... setting to recovered");
             $self->{$process_name}->{'status'} = OESS_LOAD_OK;
         }else{
