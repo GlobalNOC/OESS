@@ -47,6 +47,7 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} topo.pl %{buildroot}/%{_bindir}
 %{__install} fwdctl.pl %{buildroot}/%{_bindir}
 %{__install} oess-fvd.pl %{buildroot}/%{_bindir}
+%{__install} oess-watchdog.pl %{buildroot}/%{_bindir}
 %{__install} oess_scheduler.pl %{buildroot}/%{_bindir}
 %{__install} measurement/* %{buildroot}/%{_bindir}
 %{__install} notification/* %{buildroot}/%{_bindir}
@@ -65,6 +66,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %{__install} etc/fwdctl-init-rh  $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-fwdctl
 %{__install} etc/fvd-init-rh  $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-fvd
+%{__install} etc/watchdog-init-rh $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-watchdog
 %{__install} etc/topo-init-rh  $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-topo
 %{__install} etc/notification-init-rh $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-notification
 %{__install} etc/vlan_stats-init $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-vlan_stats
@@ -91,6 +93,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/fwdctl.pl
 %{_bindir}/oess-fvd.pl
 %{_bindir}/oess-notify.pl
+%{_bindir}/oess-watchdog.pl
 %{_bindir}/vlan_stats_d.pl
 %{_bindir}/snapp-config-gen
 %{_bindir}/perfSonar_gen
@@ -105,6 +108,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/init.d/oess-notification
 %{_sysconfdir}/init.d/oess-fvd
 %{_sysconfdir}/init.d/oess
+%{_sysconfdir}/init.d/oess-watchdog
 %{_sysconfdir}/oess/logging.conf
 %{docdir}/snapp.mysql.sql
 %{docdir}/snapp_base.mysql.sql
