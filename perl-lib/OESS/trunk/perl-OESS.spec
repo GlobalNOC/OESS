@@ -58,6 +58,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::Measurement.3pm.gz
 %doc %{_mandir}/man3/OESS::FlowRule.3pm.gz
 %doc %{_mandir}/man3/OESS::Notification.3pm.gz
+%doc %{_mandir}/man3/OESS::FV.3pm.gz
 %{template_dir}/notification_templates.tmpl
 %{template_dir}/notification_bulk.tmpl
 %{template_dir}/notification_bulk.tt.html
@@ -69,6 +70,9 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/Measurement.pm
 %{perl_vendorlib}/OESS/Circuit.pm
 %{perl_vendorlib}/OESS/FlowRule.pm
+%{perl_vendorlib}/OESS/FV.pm
+%{perl_vendorlib}/OESS/Watchdog.pm
+
 %{docdir}/share/nddi.sql
 %{docdir}/share/upgrade/*
 
