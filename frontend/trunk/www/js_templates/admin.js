@@ -1508,9 +1508,13 @@ function setup_network_tab(){
 		
             var url  = "../services/admin/admin.cgi?action=update_link&link_id="+link.link_id;
                 url += "&name="+encodeURIComponent(new_name);
-            if(new_metric){
-                url += "&metric="+encodeURIComponent(new_metric);
-            }
+                    if(new_metric == 0){
+                        new_metric = 1;
+                    }
+                    if(new_metric){
+                        url += "&metric="+encodeURIComponent(new_metric);
+                    }
+                    
            
 		    var ds = new YAHOO.util.DataSource(url);
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
