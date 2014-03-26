@@ -56,8 +56,6 @@ use Switch;
 use Data::Dumper;
 use Net::DBus;
 use Log::Log4perl;
-use Test::Deep::NoTest qw(eq_deeply);
-
 
 use constant OFPAT_OUTPUT       => 0;
 use constant OFPAT_SET_VLAN_VID => 1;
