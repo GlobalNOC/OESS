@@ -3,6 +3,54 @@ use warnings;
 
 package OESS::Watchdog;
 
+#------ NDDI OESS Database Interaction Module
+##-----
+##----- $HeadURL: svn+ssh://svn.grnoc.iu.edu/grnoc/oe-ss/perl-lib/OESS-Database/trunk/lib/OESS/Database.pm $
+##----- $Id$
+##----- $Date$
+##----- $LastChangedBy$
+##-----
+##----- Watches the OESS process for anything getting out of control
+##----- and raises the overloaded flag
+##-------------------------------------------------------------------------
+##
+## Copyright 2011 Trustees of Indiana University
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##  you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+#
+
+=head1 NAME
+
+OESS::Watchdog - Process watching daemone
+
+=head1 SYNOPSIS
+
+This module watches other OESS process and verifies that they are not
+using all of the available resources
+
+Some examples:
+
+    use OESS::Watchdog;
+
+    my $wd = new OESS::Watchdog();
+
+    while(1){
+      $wd->do_work();
+      sleep($wd->{'interval'});
+    }
+
+=cut
+
 use Log::Log4perl;
 use XML::Simple;
 use Proc::Daemon;
@@ -17,6 +65,9 @@ use constant OESS_LOAD_OK => 0;
 use constant OESS_LOAD_UNKNOWN => 2;
 use constant WATCHDOG_FILE => '/var/run/oess/oess_is_overloaded.lock';
 
+=head2 new
+
+=cut
 
 sub new{
     my $that = shift;
@@ -35,14 +86,16 @@ sub new{
     bless $self, $class;
     $self->{'logger'}    = $log;
     
-    $self->process_config("/etc/oess/watchdog.conf");
+    $self->_process_config("/etc/oess/watchdog.conf");
 
     $self->{'proc_table'} = new Proc::ProcessTable;
 
     return $self;
 }
 
-sub process_config{
+
+
+sub _process_config{
     my $self = shift;
     my $config_file = shift;
     my $config = XML::Simple::XMLin($config_file);
@@ -67,6 +120,13 @@ sub process_config{
     $self->{'vlan_stats'}->{'under_value'} = $config->{'monitoring'}->{'vlan_stats'}->{'under_value'};
     $self->{'vlan_stats'}->{'status'} = OESS_LOAD_UNKNOWN;
 }
+
+=head2 do_work
+
+does the actual monitoring and processing of each process and raises the
+is overloaded flag
+
+=cut
 
 sub do_work{
     my $self = shift;
@@ -127,6 +187,12 @@ sub do_work{
 }
 
 
+=head2 get_processes
+
+returns the processes that we are concerned about
+
+=cut
+
 sub get_processes{
     my $self = shift;
     my $table = $self->{'proc_table'}->table;
@@ -165,6 +231,13 @@ sub get_processes{
     }
 
 }
+
+=head2 monitor_process_cpu
+
+monitors a processes cpu utilization and sets the is overloaded flag for
+each process individually
+
+=cut
 
 
 sub monitor_process_cpu{

@@ -31,6 +31,7 @@ my $workgroup_details = $db->get_workgroup_by_id( workgroup_id => $workgroup);
 ok(defined($workgroup_details), "workgroup exists in db");
 cmp_deeply($workgroup_details, { workgroup_id => '262',
 				 name => 'foo',
+                                 status => 'active',
 				 type => 'normal',
 				 external_id => undef,
 				 description => '',
@@ -46,6 +47,7 @@ ok(defined($workgroup_details), "workgroup exists in db");
 cmp_deeply($workgroup_details,{ workgroup_id => '263',
 				name => 'bar',
 				type => 'admin',
+                                status => 'active',
 				external_id=> undef,
 				description => '',
                 max_mac_address_per_end => 10,
@@ -60,6 +62,7 @@ ok(defined($workgroup_details),"workgroup exists in db");
 cmp_deeply($workgroup_details,{ workgroup_id => '264',
 				name => 'foobar',
 				type => 'normal',
+                                status => 'active',
 				external_id => undef,
 				description => '',
                 max_mac_address_per_end=> 10,
@@ -73,6 +76,7 @@ $workgroup_details = $db->get_workgroup_by_id( workgroup_id => $workgroup);
 ok(defined($workgroup_details),"workgroup exists in db");
 cmp_deeply($workgroup_details,{ workgroup_id => '265',
 				name => 'barfoo',
+                                status => 'active',
 				type => 'admin',
 				external_id => 'asdfsdfs',
 				description => '',

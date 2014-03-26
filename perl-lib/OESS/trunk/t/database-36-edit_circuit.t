@@ -74,10 +74,12 @@ delete $res->{'internal_ids'};
 
 my $correct_result = {
           'static_mac' => 0,
+          'external_identifier' => undef,
           'last_modified_by' => {
                                   'email' => 'user_1@foo.net',
                                   'is_admin' => '0',
                                   'auth_id' => undef,
+                                  'type' => 'normal',
                                   'given_names' => 'User 1',
                                   'user_id' => undef,
                                   'family_name' => 'User 1',
@@ -148,9 +150,10 @@ my $correct_result = {
                            'workgroup_id' => '11',
                            'external_id' => undef,
                            'name' => 'Workgroup 11',
+                           'status' => 'active',
                            'type' => 'admin',
                            'description' => '',
-                           'max_circuits' => 43,
+                           'max_circuits' => 44,
                            'max_mac_address_per_end' => 10,
                            'max_circuit_endpoints' => 10
                          },
@@ -163,6 +166,7 @@ my $correct_result = {
                             'email' => 'user_201@foo.net',
                             'is_admin' => '0',
                             'auth_id' => '191',
+                            'type' => 'normal',
                             'given_names' => 'User 201',
                             'user_id' => '201',
                             'family_name' => 'User 201',

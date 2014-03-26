@@ -35,9 +35,11 @@ ok($res->{'circuit_id'} == 3731);
 warn Dumper($res);
 
 cmp_deeply($res,{
+    'external_identifier' => undef,
     'last_modified_by' => {
                                   'email' => 'user_221@foo.net',
                                   'is_admin' => '0',
+                                  'type' => 'normal',
                                   'auth_id' => '211',
                                   'given_names' => 'User 221',
                                   'user_id' => '221',
@@ -129,6 +131,7 @@ cmp_deeply($res,{
                            'max_circuits' => '20',
                            'workgroup_id' => '251',
                            'external_id' => '',
+                           'status' => 'active',
                            'name' => 'Workgroup 251',
                            'type' => 'normal',
                            'description' => '',

@@ -199,6 +199,12 @@ sub _connect_to_dbus {
 
 }
 
+=head2 datapath_leave_callback
+
+event that firest for when a node leaves
+
+=cut
+
 sub datapath_leave_callback {
     my $self = shift;
     my $dpid = shift;
@@ -209,6 +215,12 @@ sub datapath_leave_callback {
 
 }
 
+=head2 datapath_join_callback
+
+event that fires when a node joins
+
+=cut
+
 sub datapath_join_callback {
     my $self = shift;
     my $dpid = shift;
@@ -218,6 +230,12 @@ sub datapath_join_callback {
     $self->{'nodes'}->{$dpid}->{'status'} = OESS_NODE_UP;
 
 }
+
+=head2 link_event_callback
+
+event that fires when a link is added or removed
+
+=cut
 
 sub link_event_callback {
     my $self   = shift;
@@ -230,6 +248,12 @@ sub link_event_callback {
     $self->_load_state();
 
 }
+
+=head2 port_status_callback
+
+event that is fired when a port status changes
+
+=cut
 
 sub port_status_callback {
     my $self   = shift;
@@ -267,6 +291,12 @@ sub port_status_callback {
     }
 
 }
+
+=head2 do_work
+
+process all of the links and verifies their current status, and then sends packets via openflow
+
+=cut
 
 sub do_work {
     my $self = shift;
@@ -463,6 +493,13 @@ sub do_work {
 
     $self->{'dbus'}->send_fv_packets( $self->{'all_packets'}, Net::DBus::dbus_uint16( $self->{'db'}->{'discovery_vlan'} ) );
 }
+
+=head2 fv_packet_in_callback
+
+event that fires when a packet in event occurs and matches the
+forwarding verification deamon process
+
+=cut
 
 sub fv_packet_in_callback {
     my $self      = shift;

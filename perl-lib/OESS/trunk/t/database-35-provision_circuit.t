@@ -133,7 +133,7 @@ my $correct_result =  {
                            'name' => 'Workgroup 11',
                            'type' => 'admin',
                            'description' => '',
-			   'max_circuits' => 45,
+			   'max_circuits' => 44,
 			   'max_mac_address_per_end' => 10,
                'max_circuit_endpoints' => 10
                          },
