@@ -110,6 +110,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/init.d/oess
 %{_sysconfdir}/init.d/oess-watchdog
 %{_sysconfdir}/oess/logging.conf
+%{_sysconfdir}/oess/watchdog.conf
 %{docdir}/snapp.mysql.sql
 %{docdir}/snapp_base.mysql.sql
 %{docdir}/README
