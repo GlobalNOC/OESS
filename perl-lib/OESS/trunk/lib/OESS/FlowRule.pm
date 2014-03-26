@@ -870,7 +870,7 @@ sub merge_actions{
 sub parse_stat{
     my %params = @_;
 
-    my $logger = Log::Log4perl->get_logger("OESS::FlowRule");
+    my $logger = Log::Log4perl->get_logger("OESS.FlowRule");
     $logger->debug("Processing Stat to Flow Rule");
     my $dpid = $params{'dpid'};
     my $stat = $params{'stat'};

@@ -41,7 +41,7 @@ sub new {
     my $that = shift;
     my $class = ref($that) || $that;
 
-    my $logger = Log::Log4perl->get_logger("OESS::FV");
+    my $logger = Log::Log4perl->get_logger("OESS.FV");
 
     my %args = (
         interval => 1000,
