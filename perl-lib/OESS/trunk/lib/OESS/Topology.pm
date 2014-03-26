@@ -373,26 +373,52 @@ sub find_path{
         $self->{'logger'}->debug("Capacity left on link " . $link->{'name'} . ": " . $capacity_left);
         next if($capacity_left < 0);
 
+        my $edge_weight = $link->{'metric'};
+        #if the link is in our used list add the maximum weight
+        #to its weight to ensure it's chose only as a last resort
+        if($used_link_set->has($link->{'name'})){
+            #add one to the max weight in case the max weight is the same as this edges' weight
+            $self->{'logger'}->debug("Link " . $link->{'name'} . " was already used.. adding weight");
+            $edge_weight = $edge_weight + ($max_weight + 1);
+        }
 
-	$g->add_edge($link->{'node_a_name'},$link->{'node_b_name'});
-	$g->set_edge_attribute($link->{'node_a_name'},$link->{'node_b_name'},"name",$link->{'name'});
+        my $circuits = $db->get_circuits_on_link(link_id => $link->{'link_id'});
+
+        #it could be the case we have multiple links between the same 2 nodes
+        #in that case we want to put the lowest path metric and if this is choosen we will
+        #calculate which of the links is to be used
+        if(defined($edge{$link->{'node_a_name'}}{$link->{'node_b_name'}}) ||
+           defined($edge{$link->{'node_b_name'}}{$link->{'node_a_name'}})){
+            push(@{$edge{$link->{'node_a_name'}}{$link->{'node_b_name'}}},{name => $link->{'name'},
+                                                                           weight => $edge_weight,
+                                                                           circuits => $circuits });
+            push(@{$edge{$link->{'node_b_name'}}{$link->{'node_a_name'}}},{name => $link->{'name'},
+                                                                           weight => $edge_weight,
+                                                                           circuits => $circuits });
+            my $weight = $g->get_edge_attributes($link->{'node_a_name'},$link->{'node_b_name'},"weight");
+            if($edge_weight < $weight){
+                $g->set_edge_attribute($link->{'node_a_name'},$link->{'node_b_name'},"weight",$edge_weight);
+            }
+        
+            #don't try and add it to the graph
+            next;
+        }
+
+        $g->add_edge($link->{'node_a_name'},$link->{'node_b_name'});
 
 	if (not defined $reserved_bw){
             $reserved_bw=0;
-	}
-	my $edge_weight = $link->{'metric'};
-        #if the link is in our used list add the maximum weight
-        #to its weight to ensure it's chose only as a last resort
-	if($used_link_set->has($link->{'name'})){
-            #add one to the max weight in case the max weight is the same as this edges' weight
-            $self->{'logger'}->debug("Link " . $link->{'name'} . " was already used.. adding weight");
-	    $edge_weight= $edge_weight + ($max_weight + 1);
 	}
 
 	$g->set_edge_attribute($link->{'node_a_name'},$link->{'node_b_name'},"weight",$edge_weight);
 	$self->{'logger'}->debug("Edge: " . $link->{'node_a_name'} . "<->" . $link->{'node_b_name'} . " = " . $edge_weight);
 
-	push(@{$edge{$link->{'node_a_name'}}{$link->{'node_b_name'}}{'name'}},$link->{'name'});
+	push(@{$edge{$link->{'node_a_name'}}{$link->{'node_b_name'}}},{name => $link->{'name'},
+                                                                       weight => $edge_weight,
+                                                                       circuits => $circuits });
+        push(@{$edge{$link->{'node_b_name'}}{$link->{'node_a_name'}}},{name => $link->{'name'},
+                                                                       weight => $edge_weight,
+                                                                       circuits => $circuits });
     }
 
     #run Dijkstra on our graph
@@ -410,18 +436,30 @@ sub find_path{
 
 	    for(my $i=0;$i<scalar(@path)-1;$i++){
                 
-#		my $link_name=$edge{$path[$i]}{$path[$i+1]}{'name'};
-#		if(!$link_name){
-#		    $link_name=$edge{$path[$i+1]}{$path[$i]}{'name'};
-#		}
-#		if($link_name){
-#		    push(@link_list,$link_name);
-#		    $self->{'logger'}->debug("Adding link name: " . $link_name);
-#		}
-	    }
+		my $links = $edge{$path[$i]}{$path[$i+1]};
+                
+                my $choosen_link;
+
+                foreach my $link (@$links){
+
+                    if(!defined($choosen_link)){
+                        $choosen_link = $link;
+                        next;
+                    }
+
+                    if(($link->{'weight'} + $#{$link->{'circuits'}}) < ($choosen_link->{'weight'} + $#{$choosen_link->{'circuits'}})){
+                        $choosen_link = $link;
+                    }
+                    
+                }
+                
+                push(@link_list,$choosen_link->{'name'});
+                $self->{'logger'}->debug("Adding link name: " . $choosen_link->{'name'});
+                
+            }
 	}
     }
-
+    
     $self->{'logger'}->debug("link_list=".join(",",@link_list));
 
     @selected_links=uniq(@link_list);

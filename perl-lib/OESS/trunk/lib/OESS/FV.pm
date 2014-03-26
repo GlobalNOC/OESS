@@ -139,6 +139,8 @@ sub _load_state {
     $self->{'nodes'} = \%nodes;
     $self->{'links'} = \%links;
 
+    $self->{'all_packets'} = undef;
+
     return;
 
 }
@@ -269,7 +271,7 @@ sub port_status_callback {
 sub do_work {
     my $self = shift;
 
-    if ( -e '/var/run/oess_is_overloaded.lock' ) {
+    if ( -e '/var/run/oess/oess_is_overloaded.lock' ) {
         $self->{'logger'}->warn("OESS OVERLOADED file exists FVD is disabled");
         foreach my $link_name ( keys( %{ $self->{'links'} } ) ) {
             $self->{'links'}->{$link_name}->{'fv_status'}     = OESS_LINK_UNKNOWN;

@@ -15,7 +15,7 @@ use Switch;
 use constant OESS_OVERLOADED => 1;
 use constant OESS_LOAD_OK => 0;
 use constant OESS_LOAD_UNKNOWN => 2;
-use constant WATCHDOG_FILE => '/var/run/oess_is_overloaded.lock';
+use constant WATCHDOG_FILE => '/var/run/oess/oess_is_overloaded.lock';
 
 
 sub new{
