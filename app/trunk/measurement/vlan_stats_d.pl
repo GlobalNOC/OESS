@@ -437,7 +437,7 @@ sub connect_to_snapp{
 
 sub get_flow_stats{
 
-    if(-e '/var/run/oess_is_overloaded.lock'){
+    if(-e '/var/run/oess/oess_is_overloaded.lock'){
         return;
     }
 

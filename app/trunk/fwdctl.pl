@@ -81,7 +81,7 @@ my %node_info;
 sub _log {
     my $string = shift;
 
-    my $logger = Log::Log4perl->get_logger("OESS::FWDCTL")->warn($string);
+    my $logger = Log::Log4perl->get_logger("OESS.FWDCTL")->warn($string);
 
 }
 
@@ -110,7 +110,7 @@ sub new {
 
     $self->{'topo'} = $topo;
 
-    $self->{'logger'} = Log::Log4perl->get_logger('OESS::FWDCTL');
+    $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL');
     $self->{'circuit'} = {};
     dbus_method("addVlan", ["uint32"], ["string"]);
     dbus_method("deleteVlan", ["string"], ["string"]);
