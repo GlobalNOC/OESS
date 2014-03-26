@@ -22,7 +22,7 @@ sub new{
     my $that = shift;
     my $class = ref($that) || $that;
 
-    my $log = Log::Log4perl->get_logger("OESS::FV");
+    my $log = Log::Log4perl->get_logger("OESS.Watchdog");
 
     my %args = (
         interval => 1000,
@@ -182,7 +182,7 @@ sub monitor_process_cpu{
 
     my $usage = $self->_get_process_usage($self->{$process_name}->{'process'});
 
-    $self->{'logger'}->debug("FVD running at: " . $usage ." util");
+    $self->{'logger'}->debug($process_name . " running at: " . $usage ." util");
     push(@{$self->{$process_name}->{'history'}},$usage);
 
     if($self->{$process_name}->{'status'} == OESS_OVERLOADED){

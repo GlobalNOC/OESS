@@ -53,7 +53,7 @@ sub new{
     my $that  = shift;
     my $class = ref($that) || $that;
 
-    my $logger = Log::Log4perl->get_logger("OESS::Circuit");
+    my $logger = Log::Log4perl->get_logger("OESS.Circuit");
 
     my %args = (
 	details => undef,

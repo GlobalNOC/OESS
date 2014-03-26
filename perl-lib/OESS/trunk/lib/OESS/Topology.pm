@@ -118,7 +118,7 @@ Creates a new OESS-topology Object
 sub new {
     my $class = shift;
 
-    my $logger = Log::Log4perl->get_logger("OESS::Topology");
+    my $logger = Log::Log4perl->get_logger("OESS.Topology");
 
     my %args = (
 	config              => "/etc/oess/database.xml",

@@ -86,7 +86,7 @@ sub new {
     return if !defined( $self->{'config_file'} );
 
     $self->{'tt'} = Template->new(ABSOLUTE=>1);
-    $self->{'log'} = Log::Log4perl->get_logger("OESS::Notification");
+    $self->{'log'} = Log::Log4perl->get_logger("OESS.Notification");
 
     bless $self, $class;
 

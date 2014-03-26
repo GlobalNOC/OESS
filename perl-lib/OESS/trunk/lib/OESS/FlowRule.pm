@@ -101,7 +101,7 @@ sub new{
     my $self = \%args;
     bless $self, $class;
 
-    $self->{'logger'} = Log::Log4perl->get_logger("OESS::FlowRule");
+    $self->{'logger'} = Log::Log4perl->get_logger("OESS.FlowRule");
 
     if(!$self->_validate_flow()){
 	return undef;
