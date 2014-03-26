@@ -64,6 +64,7 @@ $res = $db->get_circuit_details(
 );
 delete $res->{'last_modified_by'};
 my $correct_result =  {
+          'external_identifier' => undef,
           'state' => 'deploying',
           'static_mac' => 0,
           'backup_links' => [],
@@ -128,10 +129,11 @@ my $correct_result =  {
           'workgroup' => {
                            'workgroup_id' => '11',
                            'external_id' => undef,
+                           'status' => 'active',
                            'name' => 'Workgroup 11',
                            'type' => 'admin',
                            'description' => '',
-			   'max_circuits' => 43,
+			   'max_circuits' => 45,
 			   'max_mac_address_per_end' => 10,
                'max_circuit_endpoints' => 10
                          },
@@ -154,5 +156,7 @@ my $correct_result =  {
 delete $res->{'name'};
 # delete last edited since that changes
 delete $res->{'last_edited'};
+
+warn Dumper($res);
 
 cmp_deeply($res, $correct_result, "values for circuit matches");

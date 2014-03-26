@@ -46,7 +46,10 @@ ok(!defined($user), "no value returned when family name and given name specified
 $user = $db->add_user( family_name => 'bar',
 		       given_name => 'foo',
 		       email_address => 'foo@bar.com',
-		       auth_names => 'foo');
+		       auth_names => 'foo',
+                       type => 'normal');
+
+warn Dumper($user);
 
 ok(defined($user) && $user == 922, "New user created with only 1 auth_name specified");
 
