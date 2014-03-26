@@ -33,10 +33,13 @@ my $res = $db->provision_circuit(
     'backup_links' => [],
     'nodes' => ['Node 11', 'Node 51'], 
     'interfaces' => ['e15/1', 'e15/1'],
-    'tags' => [1,1],
+    'tags' => [2,9],
     'user_name' => 'aragusa',
     'workgroup_id' => 11,
     'external_id' => undef
 );
+
+warn Dumper($res);
+
 ok(!$res, 'authorization check');
 is($db->get_error(),'Permission denied: workgroup is already at circuit limit.','correct error');
