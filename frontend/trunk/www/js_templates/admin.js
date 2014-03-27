@@ -1667,6 +1667,8 @@ function setup_network_tab(){
                 },
                 links: args[0].links,
                 feature: args[0].feature,
+                render_location: YAHOO.util.Dom.get("active_network_map"),
+                fixedcenter: false,
                 already_used_check: false
             });
         } else {

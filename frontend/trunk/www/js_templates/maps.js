@@ -893,7 +893,6 @@ function NDDIMap(div_id, interdomain_mode, options){
 	  for (var i = 0; i < links.length; i++){
 	    var link = links[i];
 
-	    //if (feature.geometry.element_name == link){
 	    if (this.compare_link_names(feature.geometry.element_name, link)){
 		this.changeLinkColor(feature, this.LINK_PRIMARY);
 
@@ -922,7 +921,7 @@ function NDDIMap(div_id, interdomain_mode, options){
 
 	    var link = backups[i];
 
-	    if (feature.geometry.element_name == link){
+        if (this.compare_link_names(feature.geometry.element_name, link)){
 	      // if this was previously selected, we have a doubly used link and should color
 	      if (was_selected){
 		  if (feature.secondary_path_feature){

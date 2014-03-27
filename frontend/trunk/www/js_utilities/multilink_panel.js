@@ -1,13 +1,14 @@
 var get_multilink_panel = function(container_id, options){
     var options = options || {};
     if( options.already_used_check === undefined) options.already_used_check = true;
+    if( options.fixedcenter === undefined) options.fixedcenter = true;
     $('body').append('<div id="'+container_id+'"></div>');
     $('#'+container_id).css('textAlign', 'left');
 
     var panel = new YAHOO.widget.Panel(container_id,{
         width: 360,
         modal: false,
-        fixedcenter: true,
+        fixedcenter: options.already_used_check,
         zIndex: 1005,
         draggable: false,
         close: false
