@@ -666,7 +666,6 @@ sub confirm_node {
     my $tx_delay_ms     = $cgi->param('tx_delay_ms');
     my $max_flows       = $cgi->param('max_flows');
     my $bulk_barrier    = $cgi->param('bulk_barrier');
-    warn "node_id: '$node_id', name: '$name', long: '$long', lat: '$lat', range: '$range', default_drop: '$default_drop', default_forward: $default_forward, tx_delay_ms: $tx_delay_ms, max_flows: $max_flows, bulk_barrier: $bulk_barrier";
 
     if ( $default_drop eq 'true' ) {
         $default_drop = 1;
