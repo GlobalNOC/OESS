@@ -312,7 +312,7 @@ function makePageLayout(nddi_map, options){
     var map_width   = options.map_width  || 700;
 
     var layout = new YAHOO.widget.Layout('layout',
-					 {height: 400,
+					 {height: 420,
 					  width: 950,
 					  units: 
 					  [{position: "left", id: "left", width: map_width, height: 400, resize: true, minWidth: 150, maxWidth: max_resize, gutter: "0px 9px 0px 0px"},

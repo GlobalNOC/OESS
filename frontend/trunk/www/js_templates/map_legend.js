@@ -24,6 +24,8 @@ function legend_init(map_object, include_active, use_non_important){
   YAHOO.util.Dom.get('legend_link_secondary').style.backgroundColor = map_object.LINK_SECONDARY;
   YAHOO.util.Dom.get('legend_link_unselected').style.backgroundColor = map_object.LINK_UP;
   YAHOO.util.Dom.get('legend_link_down').style.backgroundColor = map_object.LINK_DOWN;
+  YAHOO.util.Dom.get('legend_link_majority_up').style.backgroundColor = map_object.MAJORITY_LINK_UP;
+  YAHOO.util.Dom.get('legend_link_majority_down').style.backgroundColor = map_object.MAJORITY_LINK_DOWN;
   
 }
 
