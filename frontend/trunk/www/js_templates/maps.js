@@ -442,6 +442,8 @@ function NDDIMap(div_id, interdomain_mode, options){
 	  this._drawLink(from_node, to_node, link_name, state, capacity, link_id, draw_other_data);
 
       }
+      //need to do this so the initial link count label doesn't appear, if you don't it will get cached and that's what's used
+      this.map.layers[1].redraw(true);
   };
 
   this._drawLink = function(from_node, to_node, link_name, state, capacity, link_id, options){
