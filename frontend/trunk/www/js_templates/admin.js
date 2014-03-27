@@ -1,6 +1,7 @@
 <script type='text/javascript' src='../js_utilities/interface_acl_panel.js'></script>
 <script type='text/javascript' src='../js_utilities/datatable_utils.js'></script>
 <script type='text/javascript' src='../js_utilities/interface_acl_table.js'></script>
+<script type='text/javascript' src='../js_utilities/multilink_panel.js'></script>
 <script>
 function admin_init(){
 
@@ -303,7 +304,7 @@ function setup_remote_tab(){
 		    add_remote_p.hide();
 		});
 	    
-	    var map = new NDDIMap('remote_map');
+	    var map = new NDDIMap('remote_map', null, { node_label_status: false });
 	    
 	    map.on("loaded", function(){
 		    //this.showDefault();
@@ -1142,7 +1143,7 @@ function setup_workgroup_tab(){
 			    add_int_p.hide();
 			});
 
-		    var map = new NDDIMap('acl_map');
+		    var map = new NDDIMap('acl_map', null, { node_label_status: false });
 
 		    map.on("loaded", function(){
 			    //this.showDefault();
@@ -1457,7 +1458,7 @@ function setup_network_tab(){
     // clear out the old map if we have it (ie, might have confirmed something)
     YAHOO.util.Dom.get("active_network_map").innerHTML = "";
 
-    var map = new NDDIMap("active_network_map");
+    var map = new NDDIMap("active_network_map", null, { node_label_status: false } );
 
     map.on("loaded", function(){
 	    //this.showDefault();
@@ -1584,66 +1585,93 @@ function setup_network_tab(){
     map.on("clickLink", function(e, args){
         YAHOO.util.Dom.get("active_network_update_status").innerHTML = "";
 
-        this.clearAllSelected();
+        var self = this;
+
+        self.clearAllSelected();
 
         if (panel){
             panel.destroy();
             panel = null;
         }
 
-        var link_name = args[0].name;
-        var link_id   = args[0].link_id;
-        var feature   = args[0].feature;
+        var init_link_panel = function(args) {
 
-        this.changeLinkColor(feature, this.LINK_PRIMARY);
+            var link_name = args[0].name;
+            var link_id   = args[0].link_id;
+            var feature   = args[0].feature;
 
-        panel = new YAHOO.widget.Panel("link_details",{
-            width: 500,
-            draggable: false
-        });
-	    panel.render(YAHOO.util.Dom.get("active_element_details"));
+            self.changeLinkColor(feature, self.LINK_PRIMARY);
 
-        panel.setHeader("Details for Link: " + link_name);
-        panel.setBody("<p>Loading data...</p>");
+            panel = new YAHOO.widget.Panel("link_details",{
+                width: 500,
+                draggable: false
+            });
+            panel.render(YAHOO.util.Dom.get("active_element_details"));
 
-        panel.setFooter("<div id='save_active_link'></div>" +
-                        "<div id='delete_active_link'></div>");
+            panel.setHeader("Details for Link: " + link_name);
+            panel.setBody("<p>Loading data...</p>");
 
-        panel.hideEvent.subscribe(function(){
-            map.clearAllSelected();
-        });
+            panel.setFooter("<div id='save_active_link'></div>" +
+                            "<div id='delete_active_link'></div>");
 
-        save_button   = new YAHOO.widget.Button("save_active_link", {label: "Update Link"});
-        delete_button = new YAHOO.widget.Button("delete_active_link", {label: "Decomission Link"});
+            panel.hideEvent.subscribe(function(){
+                map.clearAllSelected();
+            });
 
-        var url =  "../services/data.cgi?action=get_link_by_name";
-            url += "&name="+ encodeURIComponent(link_name);
+            save_button   = new YAHOO.widget.Button("save_active_link", {label: "Update Link"});
+            delete_button = new YAHOO.widget.Button("delete_active_link", {label: "Decomission Link"});
 
-        var ds = new YAHOO.util.DataSource(url);
-        ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+            var url =  "../services/data.cgi?action=get_link_by_name";
+                url += "&name="+ encodeURIComponent(link_name);
 
-        ds.responseSchema = {
-            resultsList: "results",
-            fields: [
-                {key: "link_id"},
-                {key: "status"},
-                {key: "remote_urn"},
-                {key: "metric"},
-                {key: "name"}
-            ]
-        };
-        ds.sendRequest("",{
-            success: function(req, resp){
-                if (resp.results){
-                    _generate_link_panel(resp.results[0]);
-                }else{
-                    alert("Could not fetch link data.");
+            var ds = new YAHOO.util.DataSource(url);
+            ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+
+            ds.responseSchema = {
+                resultsList: "results",
+                fields: [
+                    {key: "link_id"},
+                    {key: "status"},
+                    {key: "remote_urn"},
+                    {key: "metric"},
+                    {key: "name"}
+                ]
+            };
+            ds.sendRequest("",{
+                success: function(req, resp){
+                    if (resp.results){
+                        _generate_link_panel(resp.results[0]);
+                    }else{
+                        alert("Could not fetch link data.");
+                    }
+                },
+                failure: function(req, resp){
+                    alert("Error while talking to server.");
                 }
-            },
-            failure: function(req, resp){
-                alert("Error while talking to server.");
-            }
-        });
+            });
+        };
+
+        if(args[0].links.length > 1) {
+            get_multilink_panel("multilink_panel", {
+                on_change: function(oArgs){
+                    var link_obj = [];
+                    for(var i=0; i<this.links.length; i++){
+                        if(this.links[i].link_name == oArgs.link) {
+                            link_obj[0] = this.links[i];
+                            link_obj[0].name = this.links[i].link_name;
+                            link_obj[0].feature = this.feature;
+                            break;
+                        }
+                    }
+                    init_link_panel( link_obj );
+                },
+                links: args[0].links,
+                feature: args[0].feature,
+                already_used_check: false
+            });
+        } else {
+            init_link_panel(args);
+        }
     });
 
     map.on("clickNode", function(e, args){

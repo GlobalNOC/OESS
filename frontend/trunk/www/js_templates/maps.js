@@ -1,16 +1,21 @@
 <script>
 
-function NDDIMap(div_id, interdomain_mode){
+function NDDIMap(div_id, interdomain_mode, options){
+  this.options = options || {};
+  if(this.options.node_label_status === undefined) this.options.node_label_status = true;
 
   this.UNSELECTED_IMAGE    = "[% path %]media/blue-circle.png";
   this.SELECTED_IMAGE      = "[% path %]media/orange-circle.png";
   this.ACTIVE_IMAGE        = "[% path %]media/yellow-circle.png";
   this.NON_IMPORTANT_IMAGE = "[% path %]media/gray-circle.png";
+  this.LINK_COUNT_IMAGE = "[% path %]media/gray-square.png";
 
-  this.LINK_UP        = "#3158a7";
-  this.LINK_DOWN      = "#b46253";
-  this.LINK_PRIMARY   = "#b7f33b";//"#DEA567";
-  this.LINK_SECONDARY = "#557416";//"#2b882c";
+  this.LINK_UP            = "#3158a7"; //blue
+  this.LINK_DOWN          = "#b46253"; //red
+  this.MAJORITY_LINK_UP   = "#CCD20F"; //yellow
+  this.MAJORITY_LINK_DOWN = "#E59916"; //orange
+  this.LINK_PRIMARY       = "#b7f33b";//"#DEA567";
+  this.LINK_SECONDARY     = "#557416";//"#2b882c";
 
   this.ACTIVE_HALO_COLOR   = "#f47e20";//"#FFFFCC";//"#DADADA";
   this.INACTIVE_HALO_COLOR = "#666666";
@@ -310,6 +315,7 @@ function NDDIMap(div_id, interdomain_mode){
       point.max_static_mac_flows = max_static_mac_flows;
       point.dpid = dpid;
 	  point.available_endpoints = avail_endpoints;
+      point.oess_point_type = "node";
       var pointFeature  = new OpenLayers.Feature.Vector(point,
 							null,
 							pointStyle
@@ -331,7 +337,8 @@ function NDDIMap(div_id, interdomain_mode){
 	  var feature = this.map.layers[1].features[i];
 
 	  // nodes only, not links
-	  if (feature.geometry.id.indexOf('Point') != -1){
+	  //if (feature.geometry.id.indexOf('Point') != -1){
+	  if (feature.geometry.oess_point_type == "node"){
 
 	      var lat = feature.geometry.element_lat;
 	      var lon = feature.geometry.element_lon;
@@ -471,6 +478,20 @@ function NDDIMap(div_id, interdomain_mode){
 
 	  }
 
+      // already have a link in between the two nodes
+      // need to modify the link to have a generic name and an option list of links when clicked
+      var link_data = {
+          from_node: from_node, 
+          to_node:   to_node, 
+          link_name: link_name, 
+          state: state, 
+          capacity: capacity, 
+          link_id: link_id, 
+          options: options
+      };
+
+      if( this.linkOverlaps( link_data ) ){ return };
+
 	  node_info       = node_info["node"];
 	  other_node_info = other_node_info["node"];
 
@@ -518,6 +539,8 @@ function NDDIMap(div_id, interdomain_mode){
 	  line.link_capacity   = capacity;
 	  line.link_state      = state;
 	  line.element_id      = link_id;
+      line.links           = [];
+
 
 	  var style = {
 	      strokeColor: (state == "down" ? this.LINK_DOWN : this.LINK_UP),
@@ -530,7 +553,6 @@ function NDDIMap(div_id, interdomain_mode){
 
 
 	  var feature = new OpenLayers.Feature.Vector(line, null, style);
-
 
 	  // now make the "halo" line below each line
 	  //
@@ -595,7 +617,8 @@ function NDDIMap(div_id, interdomain_mode){
 	  fat_feature.primary_feature = feature;
 
 	  // order is important! must make the feature sandwich
-	  this.map.layers[1].addFeatures([feature, halo_feature, secondary_path_feature, fat_feature]);
+      var features = [feature, halo_feature, secondary_path_feature, fat_feature];
+	  this.map.layers[1].addFeatures(features);
 
 	  if (options.active){
 	      this.changeLinkColor(feature, this.LINK_PRIMARY);
@@ -604,6 +627,104 @@ function NDDIMap(div_id, interdomain_mode){
 	      this.changeLinkWidth(feature, this.ACTIVE_LINK_WIDTH);
 	  }
 
+
+      // add link to our link overlap list
+      var nodes = [from_node, to_node];
+      nodes.sort();
+      if(this.linkOverlapList[nodes[0]] === undefined) this.linkOverlapList[nodes[0]] = {};
+      this.linkOverlapList[nodes[0]][nodes[1]] = {
+        features: features,
+        links:    [link_data]
+      };
+      
+  };
+
+  this.linkOverlaps = function ( link_data ){
+      //sort the nodes for a unique distinct hash
+      var nodes = [link_data.from_node, link_data.to_node];
+      nodes.sort();
+
+      //return false if there isn't a link defined for these ordered endpoints
+      if ( this.linkOverlapList[nodes[0]] === undefined ||
+           this.linkOverlapList[nodes[0]][nodes[1]] === undefined ) {
+          return false;
+      }
+      var data = this.linkOverlapList[nodes[0]][nodes[1]];
+
+      // push link_data onto link list
+      data.links.push(link_data);
+
+      // for each my
+      var html = "";
+      for(var i = 0; i < data.links.length; i++){
+          var link = data.links[i];
+          html += "<div>"+link.link_name+"</div>"
+      }
+      //overwrite the name on the main line feature so it includes all
+      //links colored according to their state
+      data.features[0].geometry.links = data.links;
+      link_name = "<div class='oess-multilink-map-label'>";
+      link_up_count = 0;
+      for(var i=0; i<data.links.length; i++){
+          //link_name += "<div style='text-shadow: 1px 1px 1px #FFF;color: ";
+          if(this.options.node_label_status == true) {
+              if(data.links[i].state == "up"){
+                  link_up_count++;
+                  link_name += "<div style='text-shadow: 1px 1px 1px #FFF;color: "+this.LINK_UP+";'>";
+              }else {
+                  link_name += "<div style='text-shadow: 1px 1px 1px #FFF;color: "+this.LINK_DOWN+";'>";
+              }
+          }else {
+              link_name += "<div>";
+          }
+          link_name += data.links[i].link_name+"</div>"
+      }
+      link_name += "</div>";
+      //data.features[0].geometry.element_name = "Multiple Links";
+      if(data.features[4] === undefined) {
+          var link_count_style = OpenLayers.Util.extend({}, OpenLayers.Feature.Vector.style['default']);
+
+          link_count_style.strokeColor      = "#00FF00";
+          link_count_style.fontColor        = "#FFFFFF";
+          link_count_style.fontSize         = 8;
+          link_count_style.fillOpacity      = 1;
+          link_count_style.strokeWidth      = 2;
+          link_count_style.pointRadius      = 5;
+          link_count_style.strokeDashstyle  = "solid";
+          link_count_style.cursor           = "hand";
+          link_count_style.externalGraphic  = this.LINK_COUNT_IMAGE;
+          link_count_style.graphicName      = "square";
+          link_count_style.graphicZIndex    = 10;
+          link_count_style.label            = 2;
+
+          var lol_lonlat = data.features[0].geometry.getBounds().getCenterLonLat();
+          var link_count_point = new OpenLayers.Geometry.Point(lol_lonlat.lon, lol_lonlat.lat);
+          link_count_point.oess_point_type == "link_count";
+          var link_count  = new OpenLayers.Feature.Vector(link_count_point, null, link_count_style);
+          data.features[4] = link_count;
+          this.map.layers[1].addFeatures([link_count])
+      }else {
+        data.features[4].style.label = (parseInt(data.features[4].style.label) +  1);
+      }
+      data.features[0].geometry.element_name = link_name;
+      data.features[0].data.popupContentHTML = html;
+
+      //determine the link status color based on majority of status
+      percent_up = (link_up_count / data.links.length) * 100;
+      var link_color;
+      if( percent_up == 100 ){ //green if all up
+          data.features[0].geometry.link_state = "up";
+      }else if( percent_up >= 50 ){ //yellow for majority up
+          data.features[0].geometry.link_state = "majority_up";
+      }else if( percent_up == 0 ){ //red if all down
+          data.features[0].geometry.link_state = "down";
+      }else { //orange if majority down
+          data.features[0].geometry.link_state = "majority_down";
+      }
+      data.features[0].style.strokeColor     = link_color; 
+      data.features[0].style.strokeDashstyle = "solid";
+
+      return true;
   };
 
   this.changeLinkWidth = function(link, width){
@@ -667,7 +788,8 @@ function NDDIMap(div_id, interdomain_mode){
 	  }
 
 	  // if this feature is a node, ie a point on the map
-	  if (feature.geometry.id.indexOf('Point') != -1){
+	  //if (feature.geometry.id.indexOf('Point') != -1){
+	  if (feature.geometry.oess_point_type == "node"){
 	      this.changeNodeImage(feature, this.UNSELECTED_IMAGE);
 	  }
 	  // otherwise this feature must be a link
@@ -690,10 +812,23 @@ function NDDIMap(div_id, interdomain_mode){
 
   };
 
+  this.compare_link_names = function(feature_link, other_link) {
+      if(feature_link.indexOf("oess-multilink-map-label") === -1){
+        return (feature_link == other_link);
+      }
+      //handle the case when there are multiple names
+      var e = $(feature_link);
+      for(var i=0; i < e.children().length; i++){
+          var link_name = e.children()[i].innerHTML;
+          if(link_name == other_link) return true;
+      };
+      return false;
+  };
   // convenience function to update the map based on what we've selected and have
   // stored in our session cookie
   this.updateMapFromSession = function(session, discolor_nodes){
-	  
+     
+    this.linkOverlapList = {};
     var endpoints   = session.data.endpoints || [];
     var links       = session.data.links || [];
     var backups     = session.data.backup_links || [];
@@ -719,7 +854,7 @@ function NDDIMap(div_id, interdomain_mode){
 	var was_selected = false, dual = false;
 
 	// if this feature is a node, ie a point on the map
-	if (feature.geometry.id.indexOf('Point') != -1){
+	if (feature.geometry.oess_point_type == "node"){
 
 	  for (var i = 0; i < endpoints.length; i++){
 
@@ -751,12 +886,13 @@ function NDDIMap(div_id, interdomain_mode){
 
 	}
 	// otherwise this feature must be a link
-	else{
+	else if( feature.geometry.id.indexOf('Point') == -1 ){
 
 	  for (var i = 0; i < links.length; i++){
 	    var link = links[i];
 
-	    if (feature.geometry.element_name == link){
+	    //if (feature.geometry.element_name == link){
+	    if (this.compare_link_names(feature.geometry.element_name, link)){
 		this.changeLinkColor(feature, this.LINK_PRIMARY);
 
 		if (active_path == "primary"){
@@ -830,8 +966,11 @@ function NDDIMap(div_id, interdomain_mode){
 	  if (! was_selected){
 	      if (feature.geometry.link_state == "down"){
 		  this.changeLinkColor(feature, this.LINK_DOWN);
-	      }
-	      else{
+	      }else if(feature.geometry.link_state == "majority_down"){
+		  this.changeLinkColor(feature, this.MAJORITY_LINK_DOWN);
+          }else if(feature.geometry.link_state == "majority_up"){
+		  this.changeLinkColor(feature, this.MAJORITY_LINK_UP);
+          }else{
 		  this.changeLinkColor(feature, this.LINK_UP);
 	      }
 
@@ -908,6 +1047,8 @@ function NDDIMap(div_id, interdomain_mode){
 
 
   this._getMapData = function(){
+    //reset our linkOverlapList
+    this.linkOverlapList = {};
 
     var url = "[% path %]services/data.cgi?action=get_maps";
 
@@ -955,7 +1096,7 @@ function NDDIMap(div_id, interdomain_mode){
 											  highlightOnly: true,
 											  renderIntent: 'temporary',
 											  eventListeners: {
-				                                                                featurehighlighted: function(e){
+				                              featurehighlighted: function(e){
 
 					                                                        for (var i = self.map.popups.length - 1; i > -1; i--){
 												    self.map.removePopup(self.map.popups[i]);
@@ -990,16 +1131,17 @@ function NDDIMap(div_id, interdomain_mode){
 																		   this.map.projection);
 
 												var lonlat = e.feature.geometry.getBounds().getCenterLonLat().add(offset.lon, offset.lat);
+                                                if(element.element_name) {
+                                                    var popup = new OpenLayers.Popup(e.feature.id,
+                                                                     lonlat,
+                                                                     new OpenLayers.Size(width + 10, height + 2),
+                                                                     "<div style='text-align: center;white-space:nowrap;'><b>"+element.element_name+"</b></div>"
+                                                                     );
 
-												var popup = new OpenLayers.Popup(e.feature.id,
-																 lonlat,
-																 new OpenLayers.Size(width + 10, height + 2),
-																 "<div style='text-align: center;white-space:nowrap;'><b>"+element.element_name+"</b></div>"
-																 );
+                                                    popup.setBackgroundColor("#EEEEEE");
 
-												popup.setBackgroundColor("#EEEEEE");
-
-												self.map.addPopup(popup);
+                                                    self.map.addPopup(popup);
+                                                }
 					                                                     },
 												featureunhighlighted: function(e){
 					                                                          // remove any popups on the map when we un-highlight
@@ -1036,7 +1178,8 @@ function NDDIMap(div_id, interdomain_mode){
 					  var geo = feature.geometry;
 
 					  // we're clicking on a Point, ie a node
-					  if (geo.id.indexOf("Point") != -1){
+					  //if (geo.id.indexOf("Point") != -1){
+					  if (geo.oess_point_type == "node"){
 					      var node    = geo.element_name;
 					      var lat     = geo.element_lat;
 					      var lon     = geo.element_lon;
@@ -1057,8 +1200,18 @@ function NDDIMap(div_id, interdomain_mode){
 					      var state    = geo.link_state;
 					      var capacity = geo.link_capacity;
 					      var link_id  = geo.element_id;
-
-					      self.events['clickLink'].fire({name: link, state: state, capacity: capacity, link_id: link_id, feature: feature});
+                          var links    = geo.links;
+                          
+                          //map.getControlsByClass("OpenLayers.Control.MousePosition‌​")[0]).lastXy    
+                          //var xy = map.getControlsByClass("OpenLayers.Control.MousePosition")[0].lastXy    
+					      self.events['clickLink'].fire({
+                              name: link, 
+                              state: state, 
+                              capacity: capacity, 
+                              link_id: link_id, 
+                              feature: feature,
+                              links: links 
+                          });
 					  }
 				      }
 				      catch(e){alert(e);}

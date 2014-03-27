@@ -1,3 +1,5 @@
+<script type='text/javascript' src='js_utilities/multilink_panel.js'></script>
+<script type='text/javascript' src='js_utilities/path_utils.js'></script>
 <script>
 
 function makePathTable(){
@@ -110,33 +112,8 @@ function init(){
   
 
   nddi_map.on("clickLink", function(e, args){
-
-		var link    = args[0].name;
-		
-		var feature = args[0].feature;
-
-		var was_previously_selected = -1;
-		
-		var records = path_table.getRecordSet().getRecords();
-		
-		for (var i = 0; i < records.length; i++){
-		  if (records[i].getData('link') == link){
-		    was_previously_selected = i;
-		    break;
-		  }
-		}
-		
-		// if it was previous selected, deselect and remove from table
-		if (was_previously_selected >= 0){
-		  path_table.deleteRow(was_previously_selected);
-		}
-		else{
-		  path_table.addRow({link: link});		  
-		}		
-
-		save_session();
-
-	      });
+      onClickLink(path_table, e, args, save_session);
+  });
   
   
   function save_session(){
