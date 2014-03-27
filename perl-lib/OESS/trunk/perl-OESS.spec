@@ -58,6 +58,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::Measurement.3pm.gz
 %doc %{_mandir}/man3/OESS::FlowRule.3pm.gz
 %doc %{_mandir}/man3/OESS::Notification.3pm.gz
+%doc %{_mandir}/man3/OESS::Watchdog.3pm.gz
 %doc %{_mandir}/man3/OESS::FV.3pm.gz
 %{template_dir}/notification_templates.tmpl
 %{template_dir}/notification_bulk.tmpl
