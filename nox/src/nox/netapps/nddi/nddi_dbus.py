@@ -60,7 +60,6 @@ ifname = 'org.nddi.openflow'
 flowmod_callbacks = {}
 switches = []
 last_flow_stats = {}
-registered_for_fv_in = 0
 fv_pkt_rate = 1
 packets = []
 VLAN_ID = None
@@ -89,6 +88,7 @@ class dBusEventGen(dbus.service.Object):
        self.collection_epoch = 0
        self.packets_out = 0
        self.packets_in = 0
+       self.registered_for_fv_in = 0
        self.fv_pkt_rate = 1
        self.packets = []
        self.VLAN_ID = None
@@ -135,7 +135,7 @@ class dBusEventGen(dbus.service.Object):
        logger.info(string)
 
     @dbus.service.method(dbus_interface=ifname,
-                         in_signature='itav',
+                         in_signature='itaat',
                          out_signature='')
     def send_fv_packets(self, rate, vlan, pkts):
         logger.info("Setting FV packets")
@@ -236,8 +236,10 @@ class dBusEventGen(dbus.service.Object):
     def register_for_fv_in(self, vlan):
         #ether type 88b6 is experimental
         #88b6 IEEE 802.1 IEEE Std 802 - Local Experimental
-        if(registered_for_fv_in == 1):
-            return
+        if(self.registered_for_fv_in == 1):
+            return 1
+        logger.info("Registered for packet in events for FV")
+
         if(vlan == None):
             match = {
                 DL_TYPE: 0x88b6,
@@ -400,8 +402,10 @@ def fv_packet_in_callback(sg,dp,inport,reason,len,bid,packet):
     
     #verify the packet came in from expected node/port
     if(dst_dpid != dp):
+        logger.warn("Packet was sent to dpid: " + str(dst_dpid) + " but came from: " + str(dp))
         return
     if(dst_port != inport):
+        logger.warn("Packet was sent to port: " + str(dst_port) + " but came from: " + str(inport))
         return
 
     sg.fv_packet_in(src_dpid,src_port,dst_dpid,dst_port,timestamp)
@@ -614,9 +618,9 @@ class nddi_dbus(Component):
 
             payload = struct.pack('QHQHq',pkt[0],pkt[1],pkt[2],pkt[3],time_val)
 
-            if(VLAN_ID != None and VLAN_ID != 65535):
+            if(self.sg.VLAN_ID != None and self.sg.VLAN_ID != 65535):
                 vlan_packet = vlan()
-                vlan_packet.id = VLAN_ID
+                vlan_packet.id = self.sg.VLAN_ID
                 vlan_packet.c = 0
                 vlan_packet.pcp = 0
                 vlan_packet.eth_type = 0x88b6
