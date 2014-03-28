@@ -1081,40 +1081,33 @@ sub get_map_layers {
     node.max_static_mac_flows as max_static_mac_flows,
     node_instantiation.dpid as dpid,
     to_node.name as to_node,
-	 link.name as link_name, if(intA.operational_state = 'up' && intB.operational_state = 'up', 'up', 'down') as link_state,
-     if(int_instA.capacity_mbps > int_instB.capacity_mbps, int_instB.capacity_mbps, int_instA.capacity_mbps) as capacity, link.link_id as link_id
+    link.remote_urn as remote_urn, link.name as link_name, if(intA.operational_state = 'up' && intB.operational_state = 'up', 'up', 'down') as link_state,
+    if(int_instA.capacity_mbps > int_instB.capacity_mbps, int_instB.capacity_mbps, int_instA.capacity_mbps) as capacity, link.link_id as link_id
 	from node
-	  join node_instantiation on node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active'
-	 join network on node.network_id = network.network_id and network.is_local = 1
-	 join interface intA on intA.node_id = node.node_id
-	 join interface_instantiation int_instA on int_instA.interface_id = intA.interface_id
-	  and int_instA.end_epoch = -1
-	 left join link_instantiation on link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active'
-	  and intA.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id)
-	 left join link on link.link_id = link_instantiation.link_id
-	 left join interface intB on intB.interface_id != intA.interface_id and intB.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id)
-	 left join interface_instantiation int_instB on int_instB.interface_id = intB.interface_id
-	  and int_instB.end_epoch = -1
-	 left join node to_node on to_node.node_id != node.node_id and to_node.node_id = intB.node_id
+        join node_instantiation on node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active'
+        join network on node.network_id = network.network_id and network.is_local = 1
+        join interface intA on intA.node_id = node.node_id
+        join interface_instantiation int_instA on int_instA.interface_id = intA.interface_id
+        and int_instA.end_epoch = -1
+        left join link_instantiation on link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active'
+        and intA.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id)
+        left join link on link.link_id = link_instantiation.link_id
+        left join interface intB on intB.interface_id != intA.interface_id and intB.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id)
+        left join interface_instantiation int_instB on int_instB.interface_id = intB.interface_id
+        and int_instB.end_epoch = -1
+        left join node to_node on to_node.node_id != node.node_id and to_node.node_id = intB.node_id
 HERE
-
-
-    #my $sth = $self->_prepare_query($query) or return;
-
-    #$sth->execute();
-
+        
     my $networks;
-
-    #while (my $row = $sth->fetchrow_hashref()){
-
-	my $rows = $self->_execute_query($query);
-
-	my $nodes_endpoints= {};
-
-
-
-   #default_count_endpoints for when there are no results, if we have no workgroup_id return 1.
-	my $default_endpoint_count=1;
+    
+    my $rows = $self->_execute_query($query);
+    
+    my $nodes_endpoints= {};
+    
+    
+    
+    #default_count_endpoints for when there are no results, if we have no workgroup_id return 1.
+    my $default_endpoint_count=1;
     if($workgroup_id){
         $default_endpoint_count=0;
         foreach my $row(@$rows){
@@ -1124,28 +1117,23 @@ HERE
                 show_down => 1
             );
             my $count = @$ints;
-		    $nodes_endpoints->{$row->{'network_name'}}{$row->{'node_name'}} = $count;
+            $nodes_endpoints->{$row->{'network_name'}}{$row->{'node_name'}} = $count;
         }
     }
 
-
-
-
-
-
-	foreach my $row(@$rows){
-
+    foreach my $row(@$rows){
+        
 	my $network_name = $row->{'network_name'};
 	my $node_name    = $row->{'node_name'};
 	my $avail_endpoints = ( defined($nodes_endpoints->{$network_name}->{$node_name})? $nodes_endpoints->{$network_name}->{$node_name} : $default_endpoint_count);
-
-
+        
+        
 	$networks->{$network_name}->{'meta'} = {"network_long" => $row->{'network_long'},
 						"network_lat"  => $row->{'network_lat'},
 						"network_name" => $network_name,
 						"local"        => 1
 	};
-
+        
 	$networks->{$network_name}->{'nodes'}->{$node_name} = {"node_name"    => $node_name,
 							       "node_lat"     => $row->{'node_lat'},
 							       "node_long"    => $row->{'node_long'},
@@ -1159,25 +1147,26 @@ HERE
 							       "dpid"         => sprintf("%x",$row->{'dpid'}),
 							       "barrier_bulk" => $row->{'barrier_bulk'},
 							       "number_available_endpoints" => $avail_endpoints
-														  };
-
+        };
+        
 	# make sure we have an array even if we never get any links for this node
 	if (! exists $networks->{$network_name}->{'links'}->{$node_name}){
 	    $networks->{$network_name}->{'links'}->{$node_name} = [];
 	}
-
+        
 	# possible that this row doesn't contain any link information on account of left joins (could be standalone node)
 	if ($row->{'link_name'}){
 	    push(@{$networks->{$network_name}->{'links'}->{$node_name}}, {"link_name"   => $row->{'link_name'},
 									  "link_state"  => $row->{'link_state'},
 									  "capacity"    => $row->{'capacity'},
-									  "to"          => $row->{'to_node'},
+                                                                          "remote_urn"  => $row->{'remote_urn'},
+                                                                          "to"          => $row->{'to_node'},
 									  "link_id"     => $row->{'link_id'}
-		                                                          }
+                 }
 		);
 	}
     }
-
+    
 
     # now grab the foreign networks (no instantiations, is_local = 0)
     $query = "select network.longitude as network_long, network.latitude as network_lat, network.name as network_name, network.network_id as network_id, " .
