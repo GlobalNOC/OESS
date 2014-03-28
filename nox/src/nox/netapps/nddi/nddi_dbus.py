@@ -60,8 +60,11 @@ ifname = 'org.nddi.openflow'
 flowmod_callbacks = {}
 switches = []
 last_flow_stats = {}
-
+registered_for_fv_in = 0
+fv_pkt_rate = 1
+packets = []
 VLAN_ID = None
+
 
 class dBusEventGenRo(dbus.service.Object):
 
@@ -84,6 +87,12 @@ class dBusEventGen(dbus.service.Object):
     def __init__(self, bus, path):
        dbus.service.Object.__init__(self, bus_name=bus, object_path=path)
        self.collection_epoch = 0
+       self.packets_out = 0
+       self.packets_in = 0
+       self.fv_pkt_rate = 1
+       self.packets = []
+       self.VLAN_ID = None
+
     @dbus.service.signal(dbus_interface=ifname,
                          signature='tua{sv}')
     def port_status(self,dp_id,reason,attrs):
@@ -93,14 +102,7 @@ class dBusEventGen(dbus.service.Object):
     @dbus.service.signal(dbus_interface=ifname,
                          signature='tqtqt')
     def fv_packet_in(self, src_dpid, src_port, dst_dpid, dst_port, timestamp):
-        string = "fv packet in"
-        logger.info(string)
-
-#    @dbus.service.signal(dbus_interface=ifname,
-#                         signature='tuay')
-#    def fv_packet_in(self, dpid, port,packet):
-#        string = "fv packet in: " + str(dpid) + " port " + str(port) 
-#        logger.info(string)
+        string = "fv packet in: " + str(self.packets_in)
         
     @dbus.service.signal(dbus_interface=ifname,
                          signature='tua{sv}')
@@ -133,72 +135,16 @@ class dBusEventGen(dbus.service.Object):
        logger.info(string)
 
     @dbus.service.method(dbus_interface=ifname,
-                         in_signature='avt',
+                         in_signature='itav',
                          out_signature='')
-    def send_fv_packets(self, packets, vlan_id):
-        
-        time_val = time() * 1000
-
-        for pkt in packets:
-        
-            logger.info("SRC DPID: " + str(pkt[0]))
-            logger.info("SRC PORT: " + str(pkt[1]))
-
-            packet = ethernet()
-            packet.src = '\x00' + struct.pack('!Q',pkt[0])[3:8]
-            packet.dst = NDP_MULTICAST
-            
-            payload = struct.pack('QHQHq',pkt[0],pkt[1],pkt[2],pkt[3],time_val)
-            
-            if(vlan_id != None and vlan_id != 65535):
-                vlan_packet = vlan()
-                vlan_packet.id = vlan_id
-                vlan_packet.c = 0
-                vlan_packet.pcp = 0
-                vlan_packet.eth_type = 0x88b6
-                vlan_packet.set_payload(payload)
-                
-                packet.set_payload(vlan_packet)
-                packet.type = ethernet.VLAN_TYPE
-
-            else:
-                packet.set_payload(payload)
-                packet.type = 0x88b6
-
-            inst.send_openflow_packet(pkt[0], packet.tostring(), int(pkt[1]))
-                
-        return 
-
-#    @dbus.service.method(dbus_interface=ifname,
-#                         in_signature='tqnay',
-#                         out_signature='i'
-#                         )
-#    def send_fv_packet(self, dpid, port, vlan_id, byte_payload):
-#        packet = ethernet()
-#        packet.src = '\x00' + struct.pack('!Q',dpid)[3:8]
-#        packet.dst = NDP_MULTICAST
-#        
-#        payload = ''.join([chr(character) for character in byte_payload])
-#
-#
-#        if(vlan_id != None and vlan_id != 65535):
-#            vlan_packet = vlan()
-#            vlan_packet.id = vlan_id
-#            vlan_packet.c = 0
-#            vlan_packet.pcp = 0
-#            vlan_packet.eth_type = 0x88b6
-#            vlan_packet.set_payload(payload)
-#            
-#            packet.set_payload(vlan_packet)
-#            packet.type = ethernet.VLAN_TYPE
-#
-#        else:
-#            packet.set_payload(payload)
-#            packet.type = 0x88b6
-#
-#        inst.send_openflow_packet(dpid, packet.tostring(), int(port))
-#        
-#        return 1
+    def send_fv_packets(self, rate, vlan, pkts):
+        logger.info("Setting FV packets")
+        self.fv_pkt_rate = (rate / 1000.0)
+        logger.info("Packet Our Rate: " + str(self.fv_pkt_rate))
+        self.VLAN_ID = vlan
+        logger.info("VLAN ID: " + str(VLAN_ID))
+        self.packets = pkts
+        return
         
     @dbus.service.signal(dbus_interface=ifname,signature='tuquuay')
     def packet_in(self,dpid,in_port, reason, length, buffer_id, data):
@@ -290,7 +236,8 @@ class dBusEventGen(dbus.service.Object):
     def register_for_fv_in(self, vlan):
         #ether type 88b6 is experimental
         #88b6 IEEE 802.1 IEEE Std 802 - Local Experimental
-
+        if(registered_for_fv_in == 1):
+            return
         if(vlan == None):
             match = {
                 DL_TYPE: 0x88b6,
@@ -304,6 +251,7 @@ class dBusEventGen(dbus.service.Object):
                 }
 
         inst.register_for_packet_match(lambda dpid, inport, reason, len, bid,packet : fv_packet_in_callback(self,dpid,inport,reason,len,bid,packet), 0xffff, match)
+        self.registered_for_fv_in = 1
         return 1
 
     @dbus.service.method(dbus_interface=ifname,
@@ -561,7 +509,7 @@ def packet_in_callback(sg, dpid,in_port,reason, length,buffer_id, data) :
 
 
 inst = None
-high_water = 0
+
 # send a barrier message with a reference to the actual function we want to run when the switch
 # has responded and told us that it is ready
 def _do_install(dpid,xid,match,actions):
@@ -573,34 +521,24 @@ def _do_install(dpid,xid,match,actions):
     
     return 1
 
-global high_water
-high_water = 0
 def run_glib ():
     """ Process glib events within NOX """
     context = gobject.MainLoop().get_context()
     def mainloop ():
-        logger.info("here")
-        global high_water
       # Loop as long as events are being dispatched
-        counter = 0;
         while context.pending():
             context.iteration(False)
-            counter += 1
-        if(counter > high_water):
-            high_water = counter
             #--- hack where by we poll the dbus reactor to see if there are events to work 
             #--- the rate of incoming requests we can process to something like 500/sec
             #--- this should have no effect on the rate that we send events out over the dbus
         inst.post_callback(0.001, mainloop) # Check again later
             
     def print_highwater():
-        string = "High Water Mark: " + counter
         logger.info(string)
         counter = 0
-        inst.post_callback(5000, print_highwater)
 
     mainloop() # Kick it off
-    inst.post_callback(5000, print_highwater)
+
 
     
 
@@ -615,6 +553,8 @@ class nddi_dbus(Component):
         self.ctxt = ctxt
         self.collection_epoch_duration = 10
         self.latest_flow_stats = {}
+        
+        
         
     def install(self):
 	#--- setup the dbus foo
@@ -649,6 +589,7 @@ class nddi_dbus(Component):
 
         self.register_for_flow_stats_in(self.flow_stats_in_handler)
 
+        self.fire_send_fv_packets()
         self.fire_flow_stats_timer()
 
     def fire_flow_stats_timer(self):
@@ -659,6 +600,38 @@ class nddi_dbus(Component):
             self.send_flow_stats_request(dpid, flow,0xff)
 
         self.post_callback(5, self.fire_flow_stats_timer)
+
+    def fire_send_fv_packets(self):
+
+        time_val = time() * 1000
+        logger.info("Sending FV Packets rate: " + str(self.sg.fv_pkt_rate) + " with vlan: " + str(self.sg.VLAN_ID) + " packets: " + str(len(self.sg.packets)))
+
+        for pkt in self.sg.packets:
+            logger.info("Packet:")
+            packet = ethernet()
+            packet.src = '\x00' + struct.pack('!Q',pkt[0])[3:8]
+            packet.dst = NDP_MULTICAST
+
+            payload = struct.pack('QHQHq',pkt[0],pkt[1],pkt[2],pkt[3],time_val)
+
+            if(VLAN_ID != None and VLAN_ID != 65535):
+                vlan_packet = vlan()
+                vlan_packet.id = VLAN_ID
+                vlan_packet.c = 0
+                vlan_packet.pcp = 0
+                vlan_packet.eth_type = 0x88b6
+                vlan_packet.set_payload(payload)
+
+                packet.set_payload(vlan_packet)
+                packet.type = ethernet.VLAN_TYPE
+
+            else:
+                packet.set_payload(payload)
+                packet.type = 0x88b6
+
+            inst.send_openflow_packet(pkt[0], packet.tostring(), int(pkt[1]))
+
+        self.post_callback(fv_pkt_rate, self.fire_send_fv_packets)
 
     def getInterface(self):
         return str(nddi_dbus)
