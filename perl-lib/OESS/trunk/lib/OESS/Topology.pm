@@ -382,20 +382,29 @@ sub find_path{
             $edge_weight = $edge_weight + ($max_weight + 1);
         }
 
+        $self->{'logger'}->debug("Link weight: " . $edge_weight);
+
         my $circuits = $db->get_circuits_on_link(link_id => $link->{'link_id'});
 
         #it could be the case we have multiple links between the same 2 nodes
         #in that case we want to put the lowest path metric and if this is choosen we will
         #calculate which of the links is to be used
+        $self->{'logger'}->debug("A " . $link->{'node_a_name'} . " to " . $link->{'node_b_name'});
+
         if(defined($edge{$link->{'node_a_name'}}{$link->{'node_b_name'}}) ||
            defined($edge{$link->{'node_b_name'}}{$link->{'node_a_name'}})){
+
+            $self->{'logger'}->debug("adding a link to: " . $link->{'node_a_name'} . " to " . $link->{'node_b_name'});
+
             push(@{$edge{$link->{'node_a_name'}}{$link->{'node_b_name'}}},{name => $link->{'name'},
                                                                            weight => $edge_weight,
                                                                            circuits => $circuits });
             push(@{$edge{$link->{'node_b_name'}}{$link->{'node_a_name'}}},{name => $link->{'name'},
                                                                            weight => $edge_weight,
                                                                            circuits => $circuits });
+
             my $weight = $g->get_edge_attributes($link->{'node_a_name'},$link->{'node_b_name'},"weight");
+
             if($edge_weight < $weight){
                 $g->set_edge_attribute($link->{'node_a_name'},$link->{'node_b_name'},"weight",$edge_weight);
             }
@@ -434,25 +443,27 @@ sub find_path{
 		return undef;
 	    }
 
-	    for(my $i=0;$i<scalar(@path)-1;$i++){
-                
+	    for(my $i=0;$i<scalar(@path);$i++){
 		my $links = $edge{$path[$i]}{$path[$i+1]};
                 
                 my $choosen_link;
-
                 foreach my $link (@$links){
-
+                    $self->{'logger'}->debug("Link: " . $link->{'name'});
                     if(!defined($choosen_link)){
                         $choosen_link = $link;
                         next;
                     }
+                    $self->{'logger'}->debug(Data::Dumper::Dumper($link));
 
+                    $self->{'logger'}->debug("Comparing " . ($link->{'weight'} + scalar($link->{'circuits'})) . " to " . ($choosen_link->{'weight'} + scalar($choosen_link->{'circuits'}))); 
                     if(($link->{'weight'} + $#{$link->{'circuits'}}) < ($choosen_link->{'weight'} + $#{$choosen_link->{'circuits'}})){
                         $choosen_link = $link;
                     }
                     
                 }
-                
+                if(!defined($choosen_link)){
+                    next;
+                }
                 push(@link_list,$choosen_link->{'name'});
                 $self->{'logger'}->debug("Adding link name: " . $choosen_link->{'name'});
                 

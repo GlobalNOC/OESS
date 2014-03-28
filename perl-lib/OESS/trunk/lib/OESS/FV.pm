@@ -67,16 +67,29 @@ sub new {
         $self->{'timeout'}  = $db->{'forwarding_verification'}->{'timeout'};
     }
 
-    $self->{'packet_in_count'}  = 0;
-    $self->{'packet_out_count'} = 0;
+    $self->_connect_to_dbus();    
     $self->_load_state();
-    $self->_connect_to_dbus();
+    
+    $self->{'oess_dbus'}->start_reactor(
+        timeouts => [
+            {
+                interval => 300000,
+                callback => Net::DBus::Callback->new( method => sub { $self->_load_state(); } )
+            },
+            {
+                interval => $self->{'interval'},
+                callback => Net::DBus::Callback->new( method => sub { $self->do_work(); } )
+            }
+        ]
+        );
 
     return $self;
 }
 
 sub _load_state {
     my $self  = shift;
+    $self->{'logger'}->debug("Loading the state");
+
     my $links = $self->{'db'}->get_current_links();
 
     my %nodes;
@@ -138,11 +151,31 @@ sub _load_state {
 
     $self->{'nodes'} = \%nodes;
     $self->{'links'} = \%links;
+    
+    my @packet_array;
+    #ok now send out our packets
+    
+    foreach my $link_name ( keys( %{ $self->{'links'} } ) ) {
+        
+        my $link = $self->{'links'}->{$link_name};
+        $self->{'logger'}->debug( "Sending packets for link: " . $link_name );
+        
+        my $a_end = { node => $link->{'a_node'}, int => $link->{'a_port'} };
+        my $z_end = { node => $link->{'z_node'}, int => $link->{'z_port'} };
+        
+        my @arr = ( Net::DBus::dbus_uint64( $a_end->{'node'}->{'dpid'} ), Net::DBus::dbus_uint64( $a_end->{'int'}->{'port_number'} ), Net::DBus::dbus_uint64( $z_end->{'node'}->{'dpid'} ), Net::DBus::dbus_uint64( $z_end->{'int'}->{'port_number'} ) );
+        $self->{'links'}->{$link_name}->{'a_z_details'} = Net::DBus::dbus_array(\@arr);        
+        push( @packet_array, $self->{'links'}->{$link_name}->{'a_z_details'} );
+        
+        @arr = ( Net::DBus::dbus_uint64( $z_end->{'node'}->{'dpid'} ), Net::DBus::dbus_uint64( $z_end->{'int'}->{'port_number'} ), Net::DBus::dbus_uint64( $a_end->{'node'}->{'dpid'} ), Net::DBus::dbus_uint64( $a_end->{'int'}->{'port_number'} ) );
+        $self->{'links'}->{$link_name}->{'z_a_details'} = Net::DBus::dbus_array(\@arr);
+        push( @packet_array, $self->{'links'}->{$link_name}->{'z_a_details'} );
+    }
 
-    $self->{'all_packets'} = undef;
-
-    return;
-
+    $self->{'all_packets'} = Net::DBus::dbus_array( \@packet_array );
+    $self->{'logger'}->debug("Send FV Packets");
+    $self->{'dbus'}->send_fv_packets(Net::DBus::dbus_int32($self->{'interval'}),Net::DBus::dbus_uint16($self->{'db'}->{'discovery_vlan'}),$self->{'all_packets'});
+    
 }
 
 sub _connect_to_dbus {
@@ -155,6 +188,7 @@ sub _connect_to_dbus {
         sleep_interval => .1,
         timeout        => -1
     );
+
     if ( !defined($dbus) ) {
         $self->{'logger'}->crit("Error unable to connect to DBus");
         die;
@@ -165,6 +199,8 @@ sub _connect_to_dbus {
     $dbus->connect_to_signal( "link_event",     sub { $self->link_event_callback(@_) } );
     $dbus->connect_to_signal( "port_status",    sub { $self->port_status_callback(@_) } );
     $dbus->connect_to_signal( "fv_packet_in",   sub { $self->fv_packet_in_callback(@_) } );
+
+    $self->{'oess_dbus'} = $dbus;
 
     my $bus = Net::DBus->system;
 
@@ -181,21 +217,9 @@ sub _connect_to_dbus {
     }
 
     $client->register_for_fv_in( $self->{'db'}->{'discovery_vlan'} );
+    #packets
 
     $self->{'dbus'} = $client;
-
-    $dbus->start_reactor(
-        timeouts => [
-            {
-                interval => 300000,
-                callback => Net::DBus::Callback->new( method => sub { $self->_load_state(); } )
-            },
-            {
-                interval => $self->{'interval'},
-                callback => Net::DBus::Callback->new( method => sub { $self->do_work(); } )
-            }
-        ]
-    );
 
 }
 
@@ -455,43 +479,6 @@ sub do_work {
         }
         $self->{'logger'}->debug("Done processing link");
     }
-
-    if ( !defined( $self->{'all_packets'} ) ) {
-        my @packet_array;
-
-        #ok now send out our packets
-
-        foreach my $link_name ( keys( %{ $self->{'links'} } ) ) {
-
-            my $link = $self->{'links'}->{$link_name};
-            $self->{'logger'}->debug( "Sending packets for link: " . $link_name );
-
-            my $a_end = { node => $link->{'a_node'}, int => $link->{'a_port'} };
-            my $z_end = { node => $link->{'z_node'}, int => $link->{'z_port'} };
-
-            if ( !defined( $self->{'links'}->{$link_name}->{'a_z_details'} ) ) {
-
-                my $obj = [ Net::DBus::dbus_uint64( $a_end->{'node'}->{'dpid'} ), Net::DBus::dbus_uint64( $a_end->{'int'}->{'port_number'} ), Net::DBus::dbus_uint64( $z_end->{'node'}->{'dpid'} ), Net::DBus::dbus_uint64( $z_end->{'int'}->{'port_number'} ) ];
-
-                $self->{'links'}->{$link_name}->{'a_z_details'} = Net::DBus::dbus_array($obj);
-            }
-
-            push( @packet_array, $self->{'links'}->{$link_name}->{'a_z_details'} );
-
-            if ( !defined( $self->{'links'}->{$link_name}->{'z_a_details'} ) ) {
-
-                my $obj = [ Net::DBus::dbus_uint64( $z_end->{'node'}->{'dpid'} ), Net::DBus::dbus_uint64( $z_end->{'int'}->{'port_number'} ), Net::DBus::dbus_uint64( $a_end->{'node'}->{'dpid'} ), Net::DBus::dbus_uint64( $a_end->{'int'}->{'port_number'} ) ];
-
-                $self->{'links'}->{$link_name}->{'z_a_details'} = Net::DBus::dbus_array($obj);
-            }
-
-            push( @packet_array, $self->{'links'}->{$link_name}->{'z_a_details'} );
-
-        }
-        $self->{'all_packets'} = Net::DBus::dbus_array( \@packet_array );
-    }
-
-    $self->{'dbus'}->send_fv_packets( $self->{'all_packets'}, Net::DBus::dbus_uint16( $self->{'db'}->{'discovery_vlan'} ) );
 }
 
 =head2 fv_packet_in_callback
@@ -508,6 +495,8 @@ sub fv_packet_in_callback {
     my $dst_dpid  = shift;
     my $dst_port  = shift;
     my $timestamp = shift;
+
+    $self->{'packets_in'}++;
 
     $self->{'last_heard'}->{$dst_dpid}->{$dst_port} = {
         originator => { dpid => $src_dpid, port_number => $src_port },

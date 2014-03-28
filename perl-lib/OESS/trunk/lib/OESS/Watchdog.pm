@@ -173,11 +173,12 @@ sub do_work{
         }
     }
 
-            #check for recovery
+    #check for recovery
     if($self->{'vlan_stats'}->{'status'} != OESS_OVERLOADED &&
        $self->{'fvd'}->{'status'} != OESS_OVERLOADED &&
        $self->{'nox'}->{'status'} != OESS_OVERLOADED){
-        if(-e '/var/run/oess_is_overloaded.lock'){
+        $self->{'logger'}->debug("System is in OK State.. verify no lock file exists");
+        if(-e WATCHDOG_FILE){
                 #we are recovered remove this file
             my $cmd = 'rm ' . WATCHDOG_FILE;
             `$cmd`;
