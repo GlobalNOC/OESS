@@ -164,16 +164,19 @@ sub _load_state {
         my $z_end = { node => $link->{'z_node'}, int => $link->{'z_port'} };
         
         my @arr = ( Net::DBus::dbus_uint64( $a_end->{'node'}->{'dpid'} ), Net::DBus::dbus_uint64( $a_end->{'int'}->{'port_number'} ), Net::DBus::dbus_uint64( $z_end->{'node'}->{'dpid'} ), Net::DBus::dbus_uint64( $z_end->{'int'}->{'port_number'} ) );
-        $self->{'links'}->{$link_name}->{'a_z_details'} = Net::DBus::dbus_array(\@arr);        
+        $self->{'links'}->{$link_name}->{'a_z_details'} = Net::DBus::dbus_array(\@arr);
         push( @packet_array, $self->{'links'}->{$link_name}->{'a_z_details'} );
         
-        @arr = ( Net::DBus::dbus_uint64( $z_end->{'node'}->{'dpid'} ), Net::DBus::dbus_uint64( $z_end->{'int'}->{'port_number'} ), Net::DBus::dbus_uint64( $a_end->{'node'}->{'dpid'} ), Net::DBus::dbus_uint64( $a_end->{'int'}->{'port_number'} ) );
-        $self->{'links'}->{$link_name}->{'z_a_details'} = Net::DBus::dbus_array(\@arr);
+        my @arr2 = ( Net::DBus::dbus_uint64( $z_end->{'node'}->{'dpid'} ), Net::DBus::dbus_uint64( $z_end->{'int'}->{'port_number'} ), Net::DBus::dbus_uint64( $a_end->{'node'}->{'dpid'} ), Net::DBus::dbus_uint64( $a_end->{'int'}->{'port_number'} ) );
+        $self->{'links'}->{$link_name}->{'z_a_details'} = Net::DBus::dbus_array(\@arr2);
         push( @packet_array, $self->{'links'}->{$link_name}->{'z_a_details'} );
     }
 
+
     $self->{'all_packets'} = Net::DBus::dbus_array( \@packet_array );
+    $self->{'logger'}->debug(Data::Dumper::Dumper($self->{'all_packets'}));
     $self->{'logger'}->debug("Send FV Packets");
+
     $self->{'dbus'}->send_fv_packets(Net::DBus::dbus_int32($self->{'interval'}),Net::DBus::dbus_uint16($self->{'db'}->{'discovery_vlan'}),$self->{'all_packets'});
     
 }
@@ -217,7 +220,6 @@ sub _connect_to_dbus {
     }
 
     $client->register_for_fv_in( $self->{'db'}->{'discovery_vlan'} );
-    #packets
 
     $self->{'dbus'} = $client;
 
@@ -496,12 +498,16 @@ sub fv_packet_in_callback {
     my $dst_port  = shift;
     my $timestamp = shift;
 
-    $self->{'packets_in'}++;
+    $self->{'logger'}->debug("FV Packet IN");
 
     $self->{'last_heard'}->{$dst_dpid}->{$dst_port} = {
         originator => { dpid => $src_dpid, port_number => $src_port },
         timestamp  => $timestamp
     };
+
+    $self->{'logger'}->debug("dpid: " . $dst_dpid . " port: " . $dst_port . " " . Data::Dumper::Dumper($self->{'last_heard'}->{$dst_dpid}->{$dst_port}));
+
+    
 
 }
 
