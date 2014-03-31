@@ -357,11 +357,11 @@ sub find_path{
     #used as a baseline to start the primary path weights at
     #when trying to determine the backup bath.
     my @weights;
+    my $max_weight=0;
     foreach my $link (@$links){ 
         push(@weights, $link->{'metric'});
+        $max_weight += $link->{'metric'};
     }
-
-    my $max_weight = (sort { $b <=> $a } @weights)[0] * 100;
     
     foreach my $link (@$links){
 	#add every link as an edge in our graph
