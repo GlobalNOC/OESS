@@ -361,8 +361,8 @@ sub find_path{
         push(@weights, $link->{'metric'});
     }
 
-    my $max_weight = (sort { $b <=> $a } @weights)[0];
-
+    my $max_weight = (sort { $b <=> $a } @weights)[0] * 100;
+    
     foreach my $link (@$links){
 	#add every link as an edge in our graph
         my $current_reserved_bandwidth = $link->{'reserved_bw_mbps'};
