@@ -458,7 +458,7 @@ function build_circuitTable(){
 			       {key: "status", label: "Status", width: 40, formatter: function(elLiner, oRec, oCol, oData){
 				       if(oRec.getData('fv_status') == 'down'){
 					   if(oRec.getData('status') == 'up'){
-					       elLiner.innerHTML = "<font color='red'>impared</font>";
+					       elLiner.innerHTML = "<font color='red'>impaired</font>";
 					   }else{
 					       elLiner.innerHTML = "<font color='red'>" + oRec.getData('status') + "</font>";
 					   }
