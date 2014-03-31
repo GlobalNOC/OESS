@@ -1,0 +1,27 @@
+#########################
+#			#
+# OESS Quickstart Guide	#
+#			#
+#########################
+
+1. install the code (oess-frontend, oess-core, oscars) there is a meta package oess contains all of these
+1a. Have Mysql and Apache running and know the mysql administrator password
+1b. SNAPP-collector needs to be installed, and you should know the location of the snapp.mysql.sql and 
+    base_example.sql files included by snapp-collector
+1c. Ports required:
+    By Default OpenFlow goes on port 6633
+    Apache will require 443 and 80
+
+2. run oess_setup.pl (RPM location /usr/bin/oess_setup.pl, tarball core/oess_setup.pl)
+   this will guide you through the initial configuration of OESS, including setting up the
+   databases and do some initial configuration
+2a. Start the OESS processes through the OESS init script (/etc/init.d/oess)
+
+3. Configure Apache and get it running (our apache config should get you most fo the way)
+
+4. Load the apache frontend administration section (https://localhost/oess/admin/admin_index.cgi)
+   this will get you to the admin section of OESS where you can do the final configuration pieces
+   like approving devices, and links, setting up users and work groups and configuring Remote Links
+
+5. Provision your circuit :)
+
