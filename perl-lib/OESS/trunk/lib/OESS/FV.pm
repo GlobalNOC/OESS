@@ -8,6 +8,7 @@ use Log::Log4perl;
 use Graph::Directed;
 use OESS::Database;
 use OESS::DBus;
+use Net::DBus::Annotation qw(:call);
 use JSON::XS;
 use Time::HiRes;
 
@@ -533,9 +534,8 @@ sub _send_fwdctl_link_event {
             $state_str = 'unknown';
         }
 
-        $self->{'db'}->update_link_fv_state(
-            link_id => $link->{'link_id'},
-            state   => $state_str
+        $self->{'db'}->update_link_fv_state(link_id => $link->{'link_id'},
+                                            state   => $state_str
         );
     }
 
@@ -557,8 +557,8 @@ sub _send_fwdctl_link_event {
     }
 
     eval {
-        my $result = $client->fv_link_event( $link_name, $state );
-        return $result;
+        my $result = $client->fv_link_event(dbus_call_async, $link_name, $state );
+#        return $result;
     };
 }
 
