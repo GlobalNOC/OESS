@@ -29,6 +29,7 @@ use strict;
 use Data::Dumper;
 use OESS::Database;
 use OESS::DBus;
+use Net::DBus::Annotation qw(:call);
 use Net::DBus::Exporter qw(org.nddi.openflow);
 use Switch;
 use Socket;
@@ -184,7 +185,7 @@ sub datapath_join_to_db{
 
 
 	#fire the topo_port_status_event
-	_send_topo_port_status($dpid,OFPPR_ADD,$port);
+	_send_topo_port_status(dbus_call_async,$dpid,OFPPR_ADD,$port);
 
     }
 
@@ -334,7 +335,7 @@ sub _send_topo_port_status{
 
     print_log(LOG_ERR, "trying to send topo_port_statu event");
     eval {
-	my $result = $client->topo_port_status($dpid,$reason,$info);
+	my $result = $client->topo_port_status(dbus_call_async,$dpid,$reason,$info);
     }
 
 }
