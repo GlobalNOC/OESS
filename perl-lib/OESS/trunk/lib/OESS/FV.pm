@@ -430,6 +430,7 @@ sub do_work {
                 }
                 else {
                     if ( $self->{'links'}->{ $link->{'name'} }->{'fv_status'} == OESS_LINK_UNKNOWN ) {
+                        $self->{'logger'}->warn( "Link: " . $link->{'name'} . " forwarding up" );
                         $self->_send_fwdctl_link_event(
                             link_name => $link->{'name'},
                             state     => OESS_LINK_UP
@@ -557,7 +558,8 @@ sub _send_fwdctl_link_event {
     }
 
     eval {
-        my $result = $client->fv_link_event(dbus_call_async, $link_name, $state );
+        #my $result = $client->fv_link_event(dbus_call_async, $link_name, $state );
+        my $result = $client->fv_link_event( $link_name, $state );
 #        return $result;
     };
 }

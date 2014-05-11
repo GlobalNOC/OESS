@@ -718,10 +718,12 @@ sub compare_match{
     my $self = shift;
     my %params = @_;
 
+    $self->{'logger'}->debug("compare match");
+
     my $other_rule = $params{'flow_rule'};
     
     return 0 if(!defined($other_rule));
-
+    $self->{'logger'}->debug("Comparing match: " . Data::Dumper::Dumper($other_rule));
     my $other_match = $other_rule->get_match();
     
     return 0 if(!defined($other_match));
@@ -864,6 +866,17 @@ sub merge_actions{
 =head2 parse_stat
 
 =cut
+
+sub to_canonical{
+    my $self = shift;
+    
+    my %obj;
+    $obj{'match'} = $self->{'match'};
+    $obj{'actions'} = $self->{'actions'};
+    $obj{'dpid'} = $self->{'dpid'};
+    $obj{'priority'} = $self->{'priority'};
+    return \%obj;
+}
 
 sub parse_stat{
     my %params = @_;

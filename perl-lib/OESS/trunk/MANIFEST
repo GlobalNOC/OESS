@@ -7,12 +7,15 @@ lib/OESS/Database.pm
 lib/OESS/DBus.pm
 lib/OESS/FlowRule.pm
 lib/OESS/FV.pm
+lib/OESS/FWDCTL.pm
 lib/OESS/Measurement.pm
 lib/OESS/Notification.pm
+lib/OESS/svn-commit.tmp
 lib/OESS/Topology.pm
 lib/OESS/Watchdog.pm
 Makefile.PL
 MANIFEST			This list of files
+pack_in_events.pcap
 perl-OESS.spec
 share/nddi.sql
 share/upgrade/oess-1.0.10-1.0.11
