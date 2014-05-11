@@ -100,16 +100,20 @@ sub new {
                                      
                                      $self->{'logger'}->warn("Processing Incoming Event");
                                      my $res = $self->process_event($body);
-                                     
+                                     $self->{'logger'}->warn("Sending reply: " . Data::Dumper::Dumper($res));
+
                                      $channel->publish( exchange => '',
-                                                                  routing_key => $props->{reply_to},
-                                                                  header => {
-                                                                      correlation_id => $props->{correlation_id}
-                                                                  },
-                                                                  body => to_json($res)
+                                                        routing_key => $props->{reply_to},
+                                                        header => {
+                                                            correlation_id => $props->{correlation_id}
+                                                        },
+                                                        body => to_json($res)
                                          );
+                                     $self->{'logger'}->warn("Reply Sent!");
                                      $channel->ack();
+                                     $self->{'logger'}->warn("ack sent!");
                                  });
+
     $self->{'channel'} = $channel;
     $self->{'logger'}->warn("Updating cache");
     
@@ -123,7 +127,6 @@ sub new {
                                         } );
     
     AnyEvent->condvar->recv;
-    
 }
 
 

@@ -148,6 +148,33 @@ sub new {
     #exported for the circuit notifier
     dbus_signal("circuit_notification", [["dict","string",["variant"]]],['string']);
 
+    my $conn = Net::RabbitFoot->new()->load_xml_spec()->connect(
+        host => 'localhost',
+        port => 5672,
+        user => 'guest',
+        pass => 'guest',
+        vhost => '/');
+
+    my $channel = $conn->open_channel();
+    my $result = $channel->declare_queue( exclusive => 1);
+    my $callback_queue = $result->{method_frame}->{queue};
+    $self->{'callback_queue'} = $callback_queue;
+
+    my $cv = AnyEvent->condvar;
+    $self->{'cv'} = $cv;
+
+    $channel->consume(
+        no_ack => 1,
+        on_consume => sub{
+            my $var = shift;
+            $self->{'logger'}->warn("Got back a response!");
+            my $body = $var->{body}->{payload};
+            $cv->send($body);
+        });
+    
+    $self->{'channel'} = $channel;
+            
+
     return $self;
 }
 
@@ -256,10 +283,29 @@ sub send_message_to_child{
     my $self = shift;
     my $dpid = shift;
     my $message = shift;
-
+    my $async = shift; 
+    if(!defined($async)){
+        $async = 1;
+    }
+    my $corr_id = $self->_generate_unique_event_id();
     
+    $self->{'channel'}->publish(
+        exchange => '',
+        routing_key => sprintf("%x",$dpid),
+        header => {
+            reply_to => $self->{'callback_queue'},
+            correlation_id => $corr_id
+        },
+        body => to_json($message)
+        );
 
-    return 1;
+    if($async){
+        $self->{'cv'}->cb( sub { $_[0]->recv });
+    }else{
+        return $self->{'cv'}->recv;
+    }
+    
+    return $corr_id;
 }
 
 sub check_child_status{
@@ -269,7 +315,7 @@ sub check_child_status{
         $self->{'logger'}->info("checking on child: " . $dpid);
         my $child = $self->{'children'}->{$dpid};
         if((kill 0, $child->{'pid'})){
-            my $corr_id = $self->send_message_to_child($dpid,{action => 'echo'});            
+            my $corr_id = $self->send_message_to_child($dpid,{action => 'echo'},0);            
         }
     }
 }
