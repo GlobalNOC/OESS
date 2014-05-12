@@ -137,15 +137,15 @@ sub new {
     $self->{'circuit'} = {};
 
     #remote method calls people can make to the master
-    dbus_method("addVlan", ["uint32"], ["string"]);
-    dbus_method("deleteVlan", ["string"], ["string"]);
-    dbus_method("changeVlanPath", ["string"], ["string"]);
+    dbus_method("addVlan", ["uint32"], ["int32","string"]);
+    dbus_method("deleteVlan", ["string"], ["int32","string"]);
+    dbus_method("changeVlanPath", ["string"], ["int32","string"]);
     dbus_method("topo_port_status",["uint64","uint32",["dict","string","string"]],["string"]);
     dbus_method("rules_per_switch",["uint64"],["uint32"]);
     dbus_method("fv_link_event",["string","int32"],["int32"]);
     dbus_method("update_cache",[],["int32"]);
     dbus_method("force_sync",["uint64"],["int32"]);
-    dbus_method("event_complete",[],["int32"]);
+    dbus_method("get_event_status",["string"],["int32"]);
     
     #exported for the circuit notifier
     dbus_signal("circuit_notification", [["dict","string",["variant"]]],['string']);
@@ -162,7 +162,7 @@ sub new{
     my %args = @_;
 
     $logger = Log::Log4perl->get_logger("OESS.FWDCTL.MASTER");
-    $logger->warn("Creating child with params: " . Data::Dumper::Dumper(%args));
+    $logger->info("Creating child with params: " . Data::Dumper::Dumper(%args));
     $switch = OESS::FWDCTL::Switch->new( dpid => $args{"dpid"},
                                         share_file => $args{"share_file"});
 }
@@ -171,7 +171,7 @@ sub run{
     my $fh = shift;
     my $message = shift;
 
-    $logger->warn("Received a message to start processing! " . Data::Dumper::Dumper($message));
+    $logger->debug("Received a message to start processing! " . Data::Dumper::Dumper($message));
     my $action;
     eval{
         $action = from_json($message);
@@ -197,6 +197,7 @@ sub _write_cache{
 
     my %circuits;
     foreach my $ckt_id (keys (%{$self->{'circuit'}})){
+        $self->{'logger'}->debug("writing circuit: " . $ckt_id . " to cache");
         my $ckt = $self->get_ckt_object($ckt_id);
         $circuits{$ckt_id} = {};
         $circuits{$ckt_id}{'details'} = $ckt->get_details();
@@ -204,19 +205,14 @@ sub _write_cache{
         foreach my $flow (@{$ckt->get_flows()}){
             push(@{$circuits{$ckt_id}{'flows'}{'current'}},$flow->to_canonical());
         }
-        foreach my $flow (@{$ckt->{'flows'}->{'endpoints'}{'primary'}}){
+
+        foreach my $flow (@{$ckt->{'flows'}->{'endpoint'}->{'primary'}}){
             push(@{$circuits{$ckt_id}{'flows'}{'endpoint'}{'primary'}},$flow->to_canonical());
         }
-        foreach my $flow (@{$ckt->{'flows'}->{'endpoints'}{'backup'}}){
+        foreach my $flow (@{$ckt->{'flows'}->{'endpoint'}->{'backup'}}){
             push(@{$circuits{$ckt_id}{'flows'}{'endpoint'}{'backup'}},$flow->to_canonical());
         }
 
-        foreach my $flow (@{$ckt->{'flows'}->{'path'}{'primary'}}){
-            push(@{$circuits{$ckt_id}{'flows'}{'path'}{'primary'}},$flow->to_canonical());
-        }
-        foreach my $flow (@{$ckt->{'flows'}->{'path'}{'backup'}}){
-            push(@{$circuits{$ckt_id}{'flows'}{'path'}{'backup'}},$flow->to_canonical());
-        }
         if(defined($ckt->{'flows'}->{'static_mac_addr'})){
             foreach my $flow (@{$ckt->{'flows'}->{'static_mac_addr'}->{'primary'}}){
                 push(@{$circuits{$ckt_id}{'flows'}{'static_mac_addr'}{'primary'}},$flow->to_canonical());
@@ -273,10 +269,10 @@ sub _sync_database_to_network {
 
     my $nodes = $self->{'db'}->get_current_nodes();
     foreach my $node (@$nodes) {
-        $node->{'full_diff'} = 1;
         $self->{'nodes_needing_diff'}{$node->{'dpid'}} = $node;
-        $node->{'dpid_str'} = sprintf("%x",$node->{'dpid'});
-	$node_info{$node->{'dpid'}} = $node;
+        my $details = $self->{'db'}->get_node_by_dpid(dpid => $node->{'dpid'});
+        $details->{'dpid_str'} = sprintf("%x",$node->{'dpid'});
+        $node_info{$node->{'dpid'}} = $details;
     }
 
     #write the cache for our children
@@ -295,24 +291,37 @@ sub send_message_to_child{
     my $self = shift;
     my $dpid = shift;
     my $message = shift;
- 
-    $self->{'logger'}->warn("Sending Message to Child: " . Data::Dumper::Dumper($message));
+    my $event_id = shift;
 
+    $self->{'logger'}->debug("Sending Message to Child: " . Data::Dumper::Dumper($message));
+    
     my $rpc = $self->{'children'}->{$dpid}->{'rpc'};
-
+    $self->{'pending_results'}->{$event_id}->{$dpid} = FWDCTL_WAITING;
     
     $rpc->(to_json($message), sub{
-        $self->{'logger'}->warn("Got a response: " . Data::Dumper::Dumper(@_));
+        my $resp = shift;
+        my $result;
+        eval{
+            $result = from_json($resp);
+        };
+        if(!defined($result)){
+            $self->{'logger'}->error("Something bad happened processing response from child: " . $resp);
+            $self->{'pending_results'}->{$event_id}->{$dpid} = FWDCTL_UNKNOWN;
+            return;
+        }
+        $self->{'pending_results'}->{$event_id}->{$dpid} = $result->{'success'};
+        $self->{'logger'}->debug("Got a response: " . Data::Dumper::Dumper($resp));
            });
 }
 
 sub check_child_status{
     my $self = shift;
     $self->{'logger'}->info("Checking on child status");
+    my $event_id = $self->_generate_unique_event_id();
     foreach my $dpid (keys %{$self->{'children'}}){
         $self->{'logger'}->info("checking on child: " . $dpid);
         my $child = $self->{'children'}->{$dpid};
-        my $corr_id = $self->send_message_to_child($dpid,{action => 'echo'});            
+        my $corr_id = $self->send_message_to_child($dpid,{action => 'echo'},$event_id);            
     }
 }
 
@@ -324,11 +333,11 @@ sub datapath_join_handler{
     my $dpid_str  = sprintf("%x",$dpid);
 
     $self->{'logger'}->warn("switch with dpid: " . $dpid_str . " has join");
-
+    my $event_id = $self->_generate_unique_event_id();
     if(defined($self->{'children'}->{$dpid}->{'pid'} && (kill 0, $self->{'children'}->{$dpid}->{'pid'}))){
         #process is running nothing to do!
         $self->{'logger'}->debug("Child already exists... send datapath join event");
-        my $corr_id = $self->send_message_to_child($dpid,{action => 'datapath_join'});
+        $self->send_message_to_child($dpid,{action => 'datapath_join'},$event_id);
     }else{
         $self->{'logger'}->debug("Child does not exist... creating");
         #sherpa will you make my babies!
@@ -348,17 +357,17 @@ sub make_baby{
     my $self = shift;
     my $dpid = shift;
     
-    $self->{'logger'}->warn("Before the fork");
+    $self->{'logger'}->debug("Before the fork");
     my %args;
     $args{'dpid'} = $dpid;
     $args{'share_file'} = $self->{'share_file'};
     my $proc = $self->{'child_template'}->fork->send_arg(%args)->AnyEvent::Fork::RPC::run("run",
                                                                    async => 1,
-                                                                   on_event => sub { $self->{'logger'}->warn("Received an Event!!!: " . Data::Dumper::Dumper(@_));},
+                                                                   on_event => sub { $self->{'logger'}->debug("Received an Event!!!: " . Data::Dumper::Dumper(@_));},
                                                                    on_error => sub { $self->{'logger'}->warn("REceive an error from child" . Data::Dumper::Dumper(@_))},
                                                                    on_destroy => sub { $self->{'logger'}->warn("OH NO!! CHILD DIED")},
                                                                    init => "new");
-    $self->{'logger'}->warn("After the fork" . Data::Dumper::Dumper($proc));
+    $self->{'logger'}->debug("After the fork" . Data::Dumper::Dumper($proc));
     $self->{'children'}->{$dpid}->{'rpc'} = $proc;
     return 1;
     
@@ -512,17 +521,10 @@ sub _restore_down_circuits{
     #signal all the children
 
     $self->{'logger'}->error("DPIDS: " . Data::Dumper::Dumper(%dpids));
-    my @pending_replies;
-    foreach my $dpid (keys %dpids){
-        $self->{'logger'}->warn("Telling child: " . $dpid . " that its time to work!");
-        my $corr_id = $self->send_child_message($dpid,{action => 'change_path', circuits => $dpids{$dpid}});
-        push(@pending_replies,$corr_id);
-    }
-    
-    my $res = $self->_standby_for_replies(\@pending_replies,$event_id);
 
-    if($result != FWDCTL_SUCCESS || $res != FWDCTL_SUCCESS){
-        $result = FWDCTL_FAILURE;
+    foreach my $dpid (keys %dpids){
+        $self->{'logger'}->debug("Telling child: " . $dpid . " that its time to work!");
+        $self->send_child_message($dpid,{action => 'change_path', circuits => $dpids{$dpid}},$event_id);
     }
 
 
@@ -645,21 +647,16 @@ sub _fail_over_circuits{
 
     #write the cache
     $self->_write_cache();
-    $self->{'logger'}->warn("DPIDs: " . Data::Dumper::Dumper(%dpids));
+
     my $result = FWDCTL_SUCCESS;
 
-    my @pending_replies;
     foreach my $dpid (keys %dpids){
-        $self->send_message_to_child($dpid,{action => 'change_path', circuits => $dpids{$dpid}});
+        $self->send_message_to_child($dpid,{action => 'change_path', circuits => $dpids{$dpid}}, $event_id);
     }
 
-    $self->{'logger'}->warn("Completed sending the requests");
-    my $res = $self->_standby_for_replies(\@pending_replies,$event_id);
+    $self->{'logger'}->debug("Completed sending the requests");
     
-    if($result != FWDCTL_SUCCESS || $res != FWDCTL_SUCCESS){
-        $result = FWDCTL_FAILURE;
-    }
-    
+        
     if ( $circuit_infos && scalar(@$circuit_infos) ) {
         $self->emit_signal("circuit_notification", { "type" => 'link_down',
                                                      "link_name" => $link_name,
@@ -785,7 +782,7 @@ sub topo_port_status{
     my $reason = shift;
     my $info   = shift;
 
-    $self->{'logger'}->warn("TOPO Port status");
+    $self->{'logger'}->debug("TOPO Port status");
 
     my $port_name   = $info->{'name'};
     my $port_number = $info->{'port_no'};
@@ -844,7 +841,7 @@ sub topo_port_status{
 	}
     }
 
-    $self->{'logger'}->warn("TOPO Port status complete");
+    $self->{'logger'}->debug("TOPO Port status complete");
 
     return 1;
 
@@ -927,19 +924,11 @@ sub addVlan {
     }
 
     my $event_id = $self->_generate_unique_event_id();
-    my @pending_replies;
 
     my $result = FWDCTL_SUCCESS;
     $self->{'logger'}->warn("DPIDs: " . Data::Dumper::Dumper(%dpids));
     foreach my $dpid (keys %dpids){
-        my $corr_id = $self->send_message_to_child($dpid,{action => 'add_vlan', circuit => $circuit_id});
-        push(@pending_replies,$corr_id);
-    }
-
-    my $res = $self->_standby_for_replies(\@pending_replies,$event_id);
-
-    if($result != FWDCTL_SUCCESS || $res != FWDCTL_SUCCESS){
-        $result = FWDCTL_FAILURE;
+        $self->send_message_to_child($dpid,{action => 'add_vlan', circuit => $circuit_id}, $event_id);
     }
 
     return ($result,$event_id);
@@ -975,20 +964,12 @@ sub deleteVlan {
     }
    
     my $event_id = $self->_generate_unique_event_id();
-    my @pending_replies;
 
     my $result = FWDCTL_SUCCESS;
     $self->{'logger'}->warn("DPIDs: " . Data::Dumper::Dumper(%dpids));
 
     foreach my $dpid (keys %dpids){
-        my $corr_id = $self->send_message_to_child($dpid,{action => 'remove_vlan', circuit => $circuit_id});
-        push(@pending_replies,$corr_id);
-    }
-
-    my $res = $self->_standby_for_replies(\@pending_replies,$event_id);
-
-    if($result != FWDCTL_SUCCESS || $res != FWDCTL_SUCCESS){
-        $result = FWDCTL_FAILURE;
+        $self->send_message_to_child($dpid,{action => 'remove_vlan', circuit => $circuit_id},$event_id);
     }
 
     return ($result,$event_id);
@@ -1013,61 +994,41 @@ sub changeVlanPath {
     }
     
     my $event_id = $self->_generate_unique_event_id();
-    my @pending_replies;
 
     $self->{'logger'}->warn("DPIDs: " . Data::Dumper::Dumper(%dpids));
 
     my $result = FWDCTL_SUCCESS;
     foreach my $dpid (keys %dpids){
-        my $corr_id = $self->send_message_to_child($dpid,{action => 'change_path', circuits => [$circuit_id]});
-        push(@pending_replies,$corr_id);
+        $self->send_message_to_child($dpid,{action => 'change_path', circuits => [$circuit_id]}, $event_id);
     }
-
-    my $res = $self->_standby_for_replies(\@pending_replies,$event_id);
-
-    if($result != FWDCTL_SUCCESS || $res != FWDCTL_SUCCESS){
-        $result = FWDCTL_FAILURE;
-    }
-    
+    $self->{'logger'}->warn("Event ID: " . $event_id);
     return ($result,$event_id);
-}
-
-sub _standby_for_replies{
-    my $self = shift;
-    my $pending_replies = shift;
-    my $event_id = shift;
-    
-    $self->{'events'}->{$event_id} = $pending_replies;
-    return FWDCTL_SUCCESS;
 }
 
 sub get_event_status{
     my $self = shift;
     my $event_id = shift;
 
-    if(defined($self->{'event'}->{$event_id})){
-        my $replies = $self->{'event'}->{$event_id};
+    $self->{'logger'}->warn("Looking for event: " . $event_id);
+    $self->{'logger'}->warn(Data::Dumper::Dumper($self->{'pending_results'}));
+    if(defined($self->{'pending_results'}->{$event_id})){
+        my $results = $self->{'pending_results'}->{$event_id};
 
-        foreach my $reply (@$replies){
-            
-            if($reply->is_ready){
-                my $res = $reply->get_result;
-                
-                if($res->[0] != FWDCTL_SUCCESS){
-                    #FAIL!
-                    return FWDCTL_FAILURE;
-                }
-                
-            }else{
-                #still waiting for someone
+        $self->{'logger'}->warn(Data::Dumper::Dumper($results));
+        
+        foreach my $dpid (keys %{$results}){
+            $self->{'logger'}->warn("DPID: " . $dpid . " reports status: " . $results->{$dpid});
+            if($results->{$dpid} == FWDCTL_WAITING){
+                $self->{'logger'}->warn("Event: $event_id dpid $dpid reports still waiting");
                 return FWDCTL_WAITING;
+            }elsif($results->{$dpid} == FWDCTL_FAILURE){
+                $self->{'logger'}->warn("Event : $event_id dpid $dpid reports error!");
+                return FWDCTL_FAILURE;
             }
         }
-        
-        #made it through all the other returns
-        #this means we were done and successful!
+        #done waiting and was success!
+        $self->{'logger'}->warn("Event $event_id is complete!!");
         return FWDCTL_SUCCESS;
-
     }else{
         #no known event by that ID
         return FWDCTL_UNKNOWN;
@@ -1091,7 +1052,7 @@ sub _get_endpoint_dpids{
 
 sub _generate_unique_event_id{
     my $self = shift;
-    return $self->{'uuid'}->create();
+    return $self->{'uuid'}->to_string($self->{'uuid'}->create());
 }
 
 

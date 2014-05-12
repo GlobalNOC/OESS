@@ -40,6 +40,11 @@ use OESS::Database;
 use OESS::Topology;
 use OESS::Circuit;
 
+use constant FWDCTL_WAITING     => 2;
+use constant FWDCTL_SUCCESS     => 1;
+use constant FWDCTL_FAILURE     => 0;
+use constant FWDCTL_UNKNOWN     => 3;
+
 my $db = new OESS::Database();
 
 my $cgi = new CGI;
@@ -105,11 +110,21 @@ sub _fail_over {
 
     my $circuit_id = $args{'circuit_id'};
 
-    my $result = $client->changeVlanPath($circuit_id);
+    my ($result,$event_id) = $client->changeVlanPath($circuit_id);
 
     warn "Failover RESULT: $result";
 
-    return $result;
+    my $final_res = FWDCTL_WAITING;
+
+    while($final_res == FWDCTL_WAITING){
+        sleep(1);
+        $final_res = $client->get_event_status($event_id);
+    }
+
+    #warn "ADD RESULT: $result";
+
+    return $final_res;
+
 }
 
 sub _send_add_command {
@@ -135,11 +150,18 @@ sub _send_add_command {
     }
 
     my $circuit_id = $args{'circuit_id'};
-    my $result = $client->addVlan($circuit_id);
+    my ($result,$event_id) = $client->addVlan($circuit_id);
+
+    my $final_res = FWDCTL_WAITING;
+
+    while($final_res == FWDCTL_WAITING){
+        sleep(1);
+        $final_res = $client->get_event_status($event_id);
+    }
 
     #warn "ADD RESULT: $result";
 
-    return $result;
+    return $final_res;
 }
 
 sub _send_remove_command {
@@ -166,11 +188,22 @@ sub _send_remove_command {
 
     my $circuit_id = $args{'circuit_id'};
 
-    my $result = $client->deleteVlan($circuit_id);
+    my ($result,$event_id) = $client->deleteVlan($circuit_id);
+
+    my $final_res = FWDCTL_WAITING;
+
+    while($final_res == FWDCTL_WAITING){
+        sleep(1);
+        $final_res = $client->get_event_status($event_id);
+    }
+
+    #warn "ADD RESULT: $result";
+
+    return $final_res;
 
     #warn "RESULT: " . Dumper($result);
 
-    return $result;
+    return $final_res;
 }
 
 sub provision_circuit {

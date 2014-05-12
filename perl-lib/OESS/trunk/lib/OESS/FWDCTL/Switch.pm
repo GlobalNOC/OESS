@@ -37,6 +37,8 @@ use Storable;
 use AnyEvent;
 use OESS::FlowRule;
 use OESS::DBus;
+use Net::DBus;
+
 use JSON;
 use Time::HiRes qw( usleep );
 
@@ -101,68 +103,58 @@ sub _update_cache{
     my $self = shift;
     $self->{'logger'}->debug("Retrieve file: " . $self->{'share_file'});
     my $data = retrieve($self->{'share_file'});
-    
+    $self->{'logger'}->debug("Fetched data!");
     my %ckts;
+
     
-    
-    foreach my $ckt (keys %{ $self->{'data'}->{'ckts'}}){
-        $ckts{$ckt}->{'details'} = $self->{'data'}->{'ckts'}->{$ckt}->{'details'};
-        
-        foreach my $obj (@{$$self->{'data'}->{'ckts'}->{$ckt}->{'current'}}){
+    foreach my $ckt (keys %{ $data->{'ckts'}}){
+
+        $self->{'logger'}->debug("processing cache for circuit: " . $ckt);
+        $ckts{$ckt}->{'details'} = $data->{'ckts'}->{$ckt}->{'details'};
+
+        foreach my $obj (@{$data->{'ckts'}->{$ckt}->{'flows'}->{'current'}}){
             my $flow = OESS::FlowRule->new( match => $obj->{'match'},
-                                            action => $obj->{'action'},
+                                            actions => $obj->{'actions'},
                                             dpid => $obj->{'dpid'},
                                             priority => $obj->{'priority'});
             push(@{$ckts{$ckt}->{'flows'}->{'current'}},$flow);
         }
 
-        foreach my $obj (@{$$self->{'data'}->{'ckts'}->{$ckt}->{'flows'}->{'endpoint'}->{'primary'}}){
+        foreach my $obj (@{$data->{'ckts'}->{$ckt}->{'flows'}->{'endpoint'}->{'primary'}}){
             my $flow = OESS::FlowRule->new( match => $obj->{'match'},
-                                            action => $obj->{'action'},
+                                            actions => $obj->{'actions'},
                                             dpid => $obj->{'dpid'},
                                             priority =>$obj->{'priority'});
             push(@{$ckts{$ckt}->{'flows'}->{'endpoint'}->{'primary'}},$flow);
         }
 
-        foreach my $obj (@{$$self->{'data'}->{'ckts'}->{$ckt}->{'flows'}->{'endpoint'}->{'backup'}}){
+        foreach my $obj (@{$data->{'ckts'}->{$ckt}->{'flows'}->{'endpoint'}->{'backup'}}){
             my $flow = OESS::FlowRule->new( match => $obj->{'match'},
-                                            action => $obj->{'action'},
+                                            actions => $obj->{'actions'},
                                             dpid => $obj->{'dpid'},
                                             priority =>$obj->{'priority'});
             push(@{$ckts{$ckt}->{'flows'}->{'endpoint'}->{'backup'}},$flow);
         }
         
-        foreach my $obj (@{$$self->{'data'}->{'ckts'}->{$ckt}->{'flows'}->{'path'}->{'primary'}}){
-            my $flow = OESS::FlowRule->new( match => $obj->{'match'},
-                                            action => $obj->{'action'},
-                                            dpid => $obj->{'dpid'},
-                                            priority =>$obj->{'priority'});
-            push(@{$ckts{$ckt}->{'flows'}->{'path'}->{'primary'}},$flow);
-        }
 
-        foreach my $obj (@{$$self->{'data'}->{'ckts'}->{$ckt}->{'flows'}->{'path'}->{'backup'}}){
+        foreach my $obj (@{$data->{'ckts'}->{$ckt}->{'flows'}->{'static_mac_addr'}}){
             my $flow = OESS::FlowRule->new( match => $obj->{'match'},
-                                            action => $obj->{'action'},
-                                            dpid => $obj->{'dpid'},
-                                            priority =>$obj->{'priority'});
-            push(@{$ckts{$ckt}->{'flows'}->{'path'}->{'backup'}},$flow);
-        }
-
-        foreach my $obj (@{$$self->{'data'}->{'ckts'}->{$ckt}->{'flows'}->{'static_mac_addr'}}){
-            my $flow = OESS::FlowRule->new( match => $obj->{'match'},
-                                            action => $obj->{'action'},
+                                            actions => $obj->{'actions'},
                                             dpid => $obj->{'dpid'},
                                             priority =>$obj->{'priority'});
             push(@{$ckts{$ckt}->{'flows'}->{'static_mac_addr'}},$flow);
         }
 
-
     }
     $self->{'data'} = {nodes => $data->{'nodes'},
                        ckts => \%ckts};
+
+    $self->{'logger'}->debug("Cache update for circuits: " . Data::Dumper::Dumper(keys (%ckts)));
+
     $self->{'ckts'} = \%ckts;
     $self->{'node'} = $data->{'nodes'}->{$self->{'dpid'}};
     $self->{'settings'} = $data->{'settings'};
+
 }
 
 sub _generate_commands{
@@ -170,33 +162,32 @@ sub _generate_commands{
     my $circuit_id = shift;
     my $action = shift;
     
-    $self->{'logger'}->debug("getting flows for circuit_id: " . $circuit_id);
+    $self->{'logger'}->warn("getting flows for circuit_id: " . $circuit_id);
     
-    if(!defined($self->{'data'}->{'ckts'}->{$circuit_id})){
+    if(!defined($self->{'ckts'}->{$circuit_id})){
         $self->{'logger'}->error("No circuit with id: " . $circuit_id . " found in the cache");
         return;
     }
     
     switch($action){
 	case (FWDCTL_ADD_VLAN){
-	    
-	    return $self->{'data'}->{'ckts'}->{$circuit_id}->{'flows'}->{'current'};
+	    return $self->{'ckts'}->{$circuit_id}->{'flows'}->{'current'};
 	    
 	}case (FWDCTL_REMOVE_VLAN){
 	    
-            return $self->{'data'}->{'ckts'}->{$circuit_id}->{'flows'}->{'current'};
+            return $self->{'ckts'}->{$circuit_id}->{'flows'}->{'current'};
 	    
 	}case (FWDCTL_CHANGE_PATH){
 	    
             my @commands;
 
-	    my $primary_flows = $self->{'data'}->{'ckts'}->{$circuit_id}->{'flows'}->{'endpoint'}->{'primary'};
-	    my $backup_flows =  $self->{'data'}->{'ckts'}->{$circuit_id}->{'flows'}->{'endpoint'}->{'backup'};
+	    my $primary_flows = $self->{'ckts'}->{$circuit_id}->{'flows'}->{'endpoint'}->{'primary'};
+	    my $backup_flows =  $self->{'ckts'}->{$circuit_id}->{'flows'}->{'endpoint'}->{'backup'};
 	    
             #we already performed the DB change so that means
             #whatever path is active is actually what we are moving to
 	    foreach my $flow (@$primary_flows){
-		if($self->{'data'}->{'ckts'}->{$circuit_id}->{'path'} eq 'primary'){
+		if($self->{'ckts'}->{$circuit_id}->{'active_path'} eq 'primary'){
 		    $flow->{'sw_act'} = FWDCTL_ADD_RULE;
 		}else{
 		    $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
@@ -205,7 +196,7 @@ sub _generate_commands{
 	    }
 	    
 	    foreach my $flow (@$backup_flows){
-		if($self->{'data'}->{'ckts'}->{$circuit_id}->{'path'} eq 'primary'){
+		if($self->{'ckts'}->{$circuit_id}->{'active_path'} eq 'primary'){
 		    $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
 		}else{
 		    $flow->{'sw_act'} = FWDCTL_ADD_RULE;
@@ -214,7 +205,9 @@ sub _generate_commands{
 	    }
 	    
 	    return \@commands;
-	}
+	}else{
+
+        }
     }
 }
 
@@ -232,8 +225,7 @@ sub process_event{
     my $self = shift;
     my $message = shift;
     
-    $self->{'logger'}->warn(Data::Dumper::Dumper($message));
-    $self->{'logger'}->error("PROCESSING EVENT!!!\n");
+    $self->{'logger'}->debug("Processing Event");
     
     switch ($message->{'action'}){
         case 'echo'{
@@ -261,18 +253,17 @@ sub change_path{
     my $self = shift;
     my $circuits = shift;
 
-    $self->_update_cache();
-
     my $res = FWDCTL_SUCCESS;
 
     foreach my $circuit (@$circuits){
         
-        my @commands = $self->generate_commands($circuit,FWDCTL_CHANGE_PATH);
-        
-        foreach my $command (@commands){
+        my $commands = $self->_generate_commands($circuit,FWDCTL_CHANGE_PATH);
+
+        foreach my $command (@$commands){
+            next unless defined($command);
             next unless ($command->get_dpid() == $self->{'dpid'});
             
-            if($command->{'sw_act'} == FWDCTL_REMOTE_RULE){
+            if($command->{'sw_act'} == FWDCTL_REMOVE_RULE){
                 
                 $self->{'logger'}->info("Removing Flow: " . $command->to_human());
                 $self->{'nox'}->delete_datapath_flow($command->to_dbus());
@@ -293,6 +284,7 @@ sub change_path{
             }
             #if not doing bulk barrier send a barrier and wait
             if(!$self->{'node'}->{'send_barrier_bulk'}){
+                $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
                 $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
                 my $result = $self->_poll_node_status();
                 if($result != FWDCTL_SUCCESS){
@@ -303,6 +295,7 @@ sub change_path{
     }
 
     #send our final barrier and wait for reply
+    $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
     $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
     my $result = $self->_poll_node_status();
     if($result != FWDCTL_SUCCESS){
@@ -324,14 +317,15 @@ sub add_vlan{
 
     $self->_update_cache();
 
-    my @commands = $self->generate_commands($circuit,FWDCTL_ADD_VLAN);
+    my $commands = $self->_generate_commands($circuit,FWDCTL_ADD_VLAN);
     
     my $res = FWDCTL_SUCCESS;
 
-    foreach my $command (@commands){
+    foreach my $command (@$commands){
         
         if($self->{'flows'} < $self->{'node'}->{'max_flows'}){
             $self->{'logger'}->info("Installing Flow: " . $command->to_human());
+            warn Dumper($command->to_dbus());
             $self->{'nox'}->install_datapath_flow($command->to_dbus());
             $self->{'flows'}++;
             
@@ -345,6 +339,7 @@ sub add_vlan{
 
         #if not doing bulk barrier send a barrier and wait
         if(!$self->{'node'}->{'send_barrier_bulk'}){
+            $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
             $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
             my $result = $self->_poll_node_status();
             if($result != FWDCTL_SUCCESS){
@@ -355,6 +350,7 @@ sub add_vlan{
     }
 
     #send our final barrier and wait for reply
+    $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
     $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
     my $result = $self->_poll_node_status();
     if($result != FWDCTL_SUCCESS){
@@ -375,11 +371,11 @@ sub remove_vlan{
 
     $self->_update_cache();
 
-    my @commands = $self->generate_commands($circuit,FWDCTL_REMOTE_VLAN);
+    my $commands = $self->_generate_commands($circuit,FWDCTL_REMOVE_VLAN);
     
     my $res = FWDCTL_SUCCESS;
 
-    foreach my $command (@commands){
+    foreach my $command (@$commands){
 
         $self->{'logger'}->info("Removing Flow: " . $command->to_human());
         $self->{'nox'}->delete_datapath_flow($command->to_dbus());
@@ -387,6 +383,7 @@ sub remove_vlan{
         
         #if not doing bulk barrier send a barrier and wait
         if(!$self->{'node'}->{'send_barrier_bulk'}){
+            $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
             $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
             my $result = $self->_poll_node_status();
             if($result != FWDCTL_SUCCESS){
@@ -397,6 +394,7 @@ sub remove_vlan{
     }    
 
     #send our final barrier and wait for reply
+    $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
     $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
     my $result = $self->_poll_node_status();
     if($result != FWDCTL_SUCCESS){
@@ -433,7 +431,7 @@ sub datapath_join_handler{
         $self->{'flows'}++;
         $self->{'flows'}++;
     }
-    
+    $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
     my $xid = $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
     my $result = $self->_poll_node_status();
     
@@ -484,8 +482,9 @@ sub _replace_flowmod{
         my $status = $self->{'nox'}->install_datapath_flow($commands->{'add'}->to_dbus());
 	
         # send the barrier if the bulk flag is not set
-        if ($self->{'node'}->{'send_barrier_bulk'}) {
-            my $xid = $self->{'nox'}->send_barrier(dbus_uint64($commands->{'add'}->get_dpid()));
+        if (!$self->{'node'}->{'send_barrier_bulk'}) {
+            $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
+            my $xid = $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($commands->{'add'}->get_dpid()));
             $self->{'logger'}->error("replace flowmod: send_barrier: with dpid: " . $commands->{'add'}->get_dpid());
             my $res = $self->_poll_node_status();
             if($res != FWDCTL_SUCCESS){
@@ -513,7 +512,7 @@ sub _do_diff{
 
     #--- process each ckt
     my @all_commands;
-    foreach my $circuit_id (keys %{ $self->{'data'}->{'ckts'} }){
+    foreach my $circuit_id (keys %{ $self->{'ckts'} }){
         #--- get the set of commands needed to create this vlan per design
         my $commands = $self->_generate_commands($circuit_id,FWDCTL_ADD_VLAN);
         foreach my $command (@$commands) {
@@ -525,12 +524,12 @@ sub _do_diff{
 	if(defined($self->{'settings'}->{'discovery_vlan'}) && $self->{'settings'}->{'discovery_vlan'} != -1){
 	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
 						    match => {'dl_type' => 35020,
-							      'dl_vlan' => $self->{'db'}->{'discovery_vlan'}},
+							      'dl_vlan' => $self->{'settings'}->{'discovery_vlan'}},
 						    actions => [{'output' => 65533}]));
 
 	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
 						    match => {'dl_type' => 34998,
-							      'dl_vlan' => $self->{'db'}->{'discovery_vlan'}},
+							      'dl_vlan' => $self->{'settings'}->{'discovery_vlan'}},
 						    actions => [{'output' => 65533}]));
 	}else{
 	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
@@ -557,7 +556,7 @@ sub _actual_diff{
     my $current_flows = shift;
     my $commands = shift;
 
-    $self->{'logger'}->debug("Staring diffing process");
+    $self->{'logger'}->warn("Staring diffing process... total flows expected: " . scalar(@$commands));
 
     my @rule_queue;         #--- temporary storage of forwarding rules
     my %stats = (
@@ -631,7 +630,7 @@ sub _actual_diff{
     }
 
     if($self->{'node'}->{'bulk_barrier'}){
-        my $xid = $self->{'nox'}->send_barrier(dbus_uint64($self->{'dpid'}));
+        my $xid = $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
         $self->{'logger'}->info("diff barrier with dpid: " . $self->{'dpid'});
         my $result = $self->_poll_node_status();
         if($result != FWDCTL_SUCCESS){
