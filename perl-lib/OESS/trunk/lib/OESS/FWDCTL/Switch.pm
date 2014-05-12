@@ -113,6 +113,7 @@ sub _update_cache{
         $ckts{$ckt}->{'details'} = $data->{'ckts'}->{$ckt}->{'details'};
 
         foreach my $obj (@{$data->{'ckts'}->{$ckt}->{'flows'}->{'current'}}){
+            next unless($obj->{'dpid'} == $self->{'dpid'});
             my $flow = OESS::FlowRule->new( match => $obj->{'match'},
                                             actions => $obj->{'actions'},
                                             dpid => $obj->{'dpid'},
@@ -121,6 +122,7 @@ sub _update_cache{
         }
 
         foreach my $obj (@{$data->{'ckts'}->{$ckt}->{'flows'}->{'endpoint'}->{'primary'}}){
+            next unless($obj->{'dpid'} == $self->{'dpid'});
             my $flow = OESS::FlowRule->new( match => $obj->{'match'},
                                             actions => $obj->{'actions'},
                                             dpid => $obj->{'dpid'},
@@ -129,6 +131,7 @@ sub _update_cache{
         }
 
         foreach my $obj (@{$data->{'ckts'}->{$ckt}->{'flows'}->{'endpoint'}->{'backup'}}){
+            next unless($obj->{'dpid'} == $self->{'dpid'});
             my $flow = OESS::FlowRule->new( match => $obj->{'match'},
                                             actions => $obj->{'actions'},
                                             dpid => $obj->{'dpid'},
@@ -138,6 +141,7 @@ sub _update_cache{
         
 
         foreach my $obj (@{$data->{'ckts'}->{$ckt}->{'flows'}->{'static_mac_addr'}}){
+            next unless($obj->{'dpid'} == $self->{'dpid'});
             my $flow = OESS::FlowRule->new( match => $obj->{'match'},
                                             actions => $obj->{'actions'},
                                             dpid => $obj->{'dpid'},

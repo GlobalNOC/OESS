@@ -91,7 +91,7 @@ sub _set_error{
            $self->{'error'}{'dbi_err'}  = undef;
         }
         #$self->{'error'}{'stacktrace'}  = longmess;
-        $self->{'logger'}-error( "an error occured: " .  $self->{'error'}{'message'} );
+        #$self->{'logger'}-error( "an error occured: " .  $self->{'error'}{'message'} );
 }
 
 =head2 get_error
