@@ -64,9 +64,20 @@ sub main{
                                             );
 
             my $res;
+            my $event_id;
             eval {
-                $res = $client->addVlan($output->{'circuit_id'});
+                ($res,$event_id) = $client->addVlan($output->{'circuit_id'});
+      
+                my $final_res = FWDCTL_WAITING;
+
+                while($final_res == FWDCTL_WAITING){
+                    sleep(1);
+                    $final_res = $client->get_event_status($event_id);
+                }
+
+                $res = $final-res;
             };
+            
             
             $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
             
@@ -82,8 +93,17 @@ sub main{
         } elsif($circuit_layout->{'action'} eq 'edit'){
             syslog(LOG_DEBUG,"Circuit " . $circuit_layout->{'name'} . ":" . $circuit_layout->{'circuit_id'} . " scheduled for edit NOW!");
             my $res;
+            my $event_id;
             eval {
-                $res = $client->deleteVlan($action->{'circuit_id'});
+                ($res,$event_id) = $client->deleteVlan($action->{'circuit_id'});
+                my $final_res = FWDCTL_WAITING;
+
+                while($final_res == FWDCTL_WAITING){
+                    sleep(1);
+                    $final_res = $client->get_event_status($event_id);
+                }
+
+                $res = $final_res;
             };
             
             my $ckt = $oess->get_circuit_by_id(circuit_id => $action->{'circuit_id'})->[0];
@@ -105,9 +125,17 @@ sub main{
                                             );
             
             $res = undef;
-            
+            $event_id = undef;;
             eval{
-                $res = $client->addVlan($output->{'circuit_id'});
+                ($res,$event_id) = $client->addVlan($output->{'circuit_id'});
+            
+                my $final_res = FWDCTL_WAITING;
+
+                while($final_res == FWDCTL_WAITING){
+                    sleep(1);
+                    $final_res = $client->get_event_status($event_id);
+                }
+                $res = $final_res;
             };
             
             $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
@@ -124,8 +152,18 @@ sub main{
         elsif($circuit_layout->{'action'} eq 'remove'){
             syslog(LOG_ERR, "Circuit " . $circuit_layout->{'name'} . ":" . $action->{'circuit_id'} . " scheduled for removal NOW!");
             my $res;
+            my $event_id;
             eval{
-                $res = $client->deleteVlan($action->{'circuit_id'});
+                ($res,$event_id) = $client->deleteVlan($action->{'circuit_id'});
+
+                my $final_res = FWDCTL_WAITING;
+
+                while($final_res == FWDCTL_WAITING){
+                    sleep(1);
+                    $final_res = $client->get_event_status($event_id);
+                }
+
+                $res = $final_res;
             };
 	    
             if(!defined($res)){
@@ -174,9 +212,18 @@ sub main{
                 my $success = $oess->switch_circuit_to_alternate_path( circuit_id => $action->{'circuit_id'} );
 		my $success = 1;
                 my $res;
+                my $event_id;
                 if($success){
                     eval{
-                        $res = $client->changeVlanPath($action->{'circuit_id'});
+                        ($res,$event_id) = $client->changeVlanPath($action->{'circuit_id'});
+                        my $final_res = FWDCTL_WAITING;
+
+                        while($final_res == FWDCTL_WAITING){
+                            sleep(1);
+                            $final_res = $client->get_event_status($event_id);
+                        }
+
+                        $res = $final_res;
                     };
                 }
 
