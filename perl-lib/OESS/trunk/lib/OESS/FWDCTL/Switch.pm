@@ -35,7 +35,6 @@ use Switch;
 use Storable;
 
 use AnyEvent;
-use Net::RabbitFoot;
 use OESS::FlowRule;
 use OESS::DBus;
 use JSON;
@@ -66,7 +65,9 @@ sub new {
     );
     
     if(!defined($args{'dpid'})){
-        die;
+        my $logger = Log::Log4perl->get_logger("OESS.FWDCTL.SWITCH");
+        $logger->error("no DPID specified!!!");
+        return;
     }
 
     my $nox = OESS::DBus->new( service => 'org.nddi.openflow', instance => '/controller1');
@@ -79,44 +80,6 @@ sub new {
     $self->{'logger'}->debug("I EXIST!!!");
     bless $self, $class;
     
-    my $conn = Net::RabbitFoot->new()->load_xml_spec()->connect(
-        host => 'localhost',
-        port => 5672,
-        user => 'guest',
-        pass => 'guest',
-        vhost => '/');
-    
-    my $channel = $conn->open_channel();
-    
-    $channel->declare_queue( queue => sprintf("%x",$self->{'dpid'}));
-    
-    $channel = $channel;
-    $channel->qos(prefetch_count => 1);
-    $channel->consume( on_consume => 
-                                 sub { 
-                                     my $var = shift;
-                                     my $body = $var->{body}->{payload};
-                                     my $props = $var->{header};
-                                     
-                                     $self->{'logger'}->warn("Processing Incoming Event");
-                                     my $res = $self->process_event($body);
-                                     $self->{'logger'}->warn("Sending reply: " . Data::Dumper::Dumper($res));
-
-                                     $channel->publish( exchange => '',
-                                                        routing_key => $props->{reply_to},
-                                                        header => {
-                                                            correlation_id => $props->{correlation_id}
-                                                        },
-                                                        body => to_json($res)
-                                         );
-                                     $self->{'logger'}->warn("Reply Sent!");
-                                     $channel->ack();
-                                     $self->{'logger'}->warn("ack sent!");
-                                 });
-
-    $self->{'channel'} = $channel;
-    $self->{'logger'}->warn("Updating cache");
-    
     $self->_update_cache();
     $self->datapath_join_handler();
     
@@ -125,8 +88,7 @@ sub new {
                                             $self->{'logger'}->warn("Processing timer event");
                                             $self->get_flow_stats();
                                         } );
-    
-    AnyEvent->condvar->recv;
+    return $self;
 }
 
 
@@ -268,18 +230,8 @@ sub force_sync{
 
 sub process_event{
     my $self = shift;
-    my $body = shift;
+    my $message = shift;
     
-    my $message;
-    eval{
-        $message = from_json($body);
-    };
-    
-    if(!defined($message)){
-        $self->{'logger'}->error("Message: " . $body . " is not valid JSON");
-        return {error => "Invalid body". success => 0, msg => "invalid json string"};
-    }
-
     $self->{'logger'}->warn(Data::Dumper::Dumper($message));
     $self->{'logger'}->error("PROCESSING EVENT!!!\n");
     
@@ -290,11 +242,11 @@ sub process_event{
             $self->datapath_join_handler();
             return {success => 1, msg => "default drop/forward installed, diffing scheduled"};
         }case 'change_path'{
-            return $self->changePath($message->{'circuits'});
+            return $self->change_path($message->{'circuits'});
         }case 'add_vlan'{
-            return $self->addVlan($message->{'circuit'});
+            return $self->add_vlan($message->{'circuit'});
         }case 'remove_vlan'{
-            return $self->removeVlan($message->{'circuit'});
+            return $self->remove_vlan($message->{'circuit'});
         }case 'force_diff'{
             $self->_update_cache();
             $self->{'need_diff'} = 1;
@@ -303,6 +255,160 @@ sub process_event{
             $self->{'logger'}->error("Received unsupported action type: " . $message->{'action'} . " continuing");
         }
     }
+}
+
+sub change_path{
+    my $self = shift;
+    my $circuits = shift;
+
+    $self->_update_cache();
+
+    my $res = FWDCTL_SUCCESS;
+
+    foreach my $circuit (@$circuits){
+        
+        my @commands = $self->generate_commands($circuit,FWDCTL_CHANGE_PATH);
+        
+        foreach my $command (@commands){
+            next unless ($command->get_dpid() == $self->{'dpid'});
+            
+            if($command->{'sw_act'} == FWDCTL_REMOTE_RULE){
+                
+                $self->{'logger'}->info("Removing Flow: " . $command->to_human());
+                $self->{'nox'}->delete_datapath_flow($command->to_dbus());
+                $self->{'flows'}--;
+                
+            }elsif($command->{'sw_act'} == FWDCTL_ADD_RULE){
+                
+                if($self->{'flows'} < $self->{'node'}->{'max_flows'}){
+                    $self->{'logger'}->info("Installing Flow: " . $command->to_human());
+                    $self->{'nox'}->install_datapath_flow($command->to_dbus());
+                }else{
+                    $self->{'logger'}->error("Node: " . $self->{'node'}->{'name'} . " is at or over its maximum flow mod limit, unable to send flow rule for circuit: " . $circuit);
+                    $res = FWDCTL_FAILURE;
+                }
+            }else{
+                $self->{'logger'}->error("Invalid Switch action: " . $command->{'sw_act'} . " in flow rule");
+                $res = FWDCTL_FAILURE;
+            }
+            #if not doing bulk barrier send a barrier and wait
+            if(!$self->{'node'}->{'send_barrier_bulk'}){
+                $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+                my $result = $self->_poll_node_status();
+                if($result != FWDCTL_SUCCESS){
+                    $res = FWDCTL_FAILURE;
+                }
+            }    
+        }
+    }
+
+    #send our final barrier and wait for reply
+    $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+    my $result = $self->_poll_node_status();
+    if($result != FWDCTL_SUCCESS){
+        $res = FWDCTL_FAILURE;
+    }
+
+    if($res == FWDCTL_SUCCESS){
+        return {success => 1, msg => "All Circuits successfully changed path"};
+    }else{
+        return {success => 0, msg => "Some circuits failed to change path"};
+    }
+        
+    
+}
+
+sub add_vlan{
+    my $self = shift;
+    my $circuit = shift;
+
+    $self->_update_cache();
+
+    my @commands = $self->generate_commands($circuit,FWDCTL_ADD_VLAN);
+    
+    my $res = FWDCTL_SUCCESS;
+
+    foreach my $command (@commands){
+        
+        if($self->{'flows'} < $self->{'node'}->{'max_flows'}){
+            $self->{'logger'}->info("Installing Flow: " . $command->to_human());
+            $self->{'nox'}->install_datapath_flow($command->to_dbus());
+            $self->{'flows'}++;
+            
+            
+        }else{
+ 
+           $self->{'logger'}->error("Node: " . $self->{'node'}->{'name'} . " is at or over its maximum flow mod limit, unable to send flow rule for circuit: " . $circuit);
+            $res = FWDCTL_FAILURE;
+
+        }
+
+        #if not doing bulk barrier send a barrier and wait
+        if(!$self->{'node'}->{'send_barrier_bulk'}){
+            $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+            my $result = $self->_poll_node_status();
+            if($result != FWDCTL_SUCCESS){
+                $res = FWDCTL_FAILURE;
+            }
+        }
+
+    }
+
+    #send our final barrier and wait for reply
+    $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+    my $result = $self->_poll_node_status();
+    if($result != FWDCTL_SUCCESS){
+        $res = FWDCTL_FAILURE;
+    }
+
+    if($res == FWDCTL_SUCCESS){
+        return {success => 1, msg => "Successfully added flows for circuit: $circuit"};
+    }else{
+        return {success => 0, msg => "Failed to add flows for circuit: $circuit"};
+    }
+
+}
+
+sub remove_vlan{
+    my $self = shift;
+    my $circuit = shift;
+
+    $self->_update_cache();
+
+    my @commands = $self->generate_commands($circuit,FWDCTL_REMOTE_VLAN);
+    
+    my $res = FWDCTL_SUCCESS;
+
+    foreach my $command (@commands){
+
+        $self->{'logger'}->info("Removing Flow: " . $command->to_human());
+        $self->{'nox'}->delete_datapath_flow($command->to_dbus());
+        $self->{'flows'}--;
+        
+        #if not doing bulk barrier send a barrier and wait
+        if(!$self->{'node'}->{'send_barrier_bulk'}){
+            $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+            my $result = $self->_poll_node_status();
+            if($result != FWDCTL_SUCCESS){
+                $res = FWDCTL_FAILURE;
+            }
+        }
+
+    }    
+
+    #send our final barrier and wait for reply
+    $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+    my $result = $self->_poll_node_status();
+    if($result != FWDCTL_SUCCESS){
+        $res = FWDCTL_FAILURE;
+    }
+
+    if($res == FWDCTL_SUCCESS){
+        return {success => 1, msg => "Successfully removed flows for: $circuit"};
+    }else{
+        return {success => 0, msg => "Failed to remove flows for circuit: $circuit"};
+    }
+    
 }
 
 

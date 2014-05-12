@@ -44,7 +44,9 @@ use OESS::Database;
 use OESS::Topology;
 use OESS::Circuit;
 use OESS::DBus;
-use Net::RabbitFoot;
+use AnyEvent::Fork;
+use AnyEvent::Fork::RPC;
+use AnyEvent;
 use JSON;
 use XML::Simple;
 use Time::HiRes qw( usleep );
@@ -148,32 +150,42 @@ sub new {
     #exported for the circuit notifier
     dbus_signal("circuit_notification", [["dict","string",["variant"]]],['string']);
 
-    my $conn = Net::RabbitFoot->new()->load_xml_spec()->connect(
-        host => 'localhost',
-        port => 5672,
-        user => 'guest',
-        pass => 'guest',
-        vhost => '/');
-
-    my $channel = $conn->open_channel();
-    my $result = $channel->declare_queue( exclusive => 1);
-    my $callback_queue = $result->{method_frame}->{queue};
-    $self->{'callback_queue'} = $callback_queue;
-
-    my $cv = AnyEvent->condvar;
-    $self->{'cv'} = $cv;
-
-    $channel->consume(
-        no_ack => 1,
-        on_consume => sub{
-            my $var = shift;
-            $self->{'logger'}->warn("Got back a response!");
-            my $body = $var->{body}->{payload};
-            $cv->send($body);
-        });
+    my $template = AnyEvent::Fork->new->require("AnyEvent::Fork::RPC::Async","OESS::FWDCTL::Switch","JSON")->eval(' 
+use strict;
+use warnings;
+use JSON;
+Log::Log4perl::init_and_watch("/etc/oess/logging.conf",10);
+my $switch;
+my $logger;
     
-    $self->{'channel'} = $channel;
-            
+sub new{
+    my %args = @_;
+
+    $logger = Log::Log4perl->get_logger("OESS.FWDCTL.MASTER");
+    $logger->warn("Creating child with params: " . Data::Dumper::Dumper(%args));
+    $switch = OESS::FWDCTL::Switch->new( dpid => $args{"dpid"},
+                                        share_file => $args{"share_file"});
+}
+
+sub run{
+    my $fh = shift;
+    my $message = shift;
+
+    $logger->warn("Received a message to start processing! " . Data::Dumper::Dumper($message));
+    my $action;
+    eval{
+        $action = from_json($message);
+    };
+    if(!defined($action)){
+        $logger->error("invalid JSON blob: " . $message);
+        return;
+    }
+    my $res = $switch->process_event($action);
+    $fh->(to_json($res));
+}
+');
+
+    $self->{'child_template'} = $template;   
 
     return $self;
 }
@@ -283,29 +295,15 @@ sub send_message_to_child{
     my $self = shift;
     my $dpid = shift;
     my $message = shift;
-    my $async = shift; 
-    if(!defined($async)){
-        $async = 1;
-    }
-    my $corr_id = $self->_generate_unique_event_id();
-    
-    $self->{'channel'}->publish(
-        exchange => '',
-        routing_key => sprintf("%x",$dpid),
-        header => {
-            reply_to => $self->{'callback_queue'},
-            correlation_id => $corr_id
-        },
-        body => to_json($message)
-        );
+ 
+    $self->{'logger'}->warn("Sending Message to Child: " . Data::Dumper::Dumper($message));
 
-    if($async){
-        $self->{'cv'}->cb( sub { $_[0]->recv });
-    }else{
-        return $self->{'cv'}->recv;
-    }
+    my $rpc = $self->{'children'}->{$dpid}->{'rpc'};
+
     
-    return $corr_id;
+    $rpc->(to_json($message), sub{
+        $self->{'logger'}->warn("Got a response: " . Data::Dumper::Dumper(@_));
+           });
 }
 
 sub check_child_status{
@@ -314,9 +312,7 @@ sub check_child_status{
     foreach my $dpid (keys %{$self->{'children'}}){
         $self->{'logger'}->info("checking on child: " . $dpid);
         my $child = $self->{'children'}->{$dpid};
-        if((kill 0, $child->{'pid'})){
-            my $corr_id = $self->send_message_to_child($dpid,{action => 'echo'},0);            
-        }
+        my $corr_id = $self->send_message_to_child($dpid,{action => 'echo'});            
     }
 }
 
@@ -352,49 +348,20 @@ sub make_baby{
     my $self = shift;
     my $dpid = shift;
     
+    $self->{'logger'}->warn("Before the fork");
+    my %args;
+    $args{'dpid'} = $dpid;
+    $args{'share_file'} = $self->{'share_file'};
+    my $proc = $self->{'child_template'}->fork->send_arg(%args)->AnyEvent::Fork::RPC::run("run",
+                                                                   async => 1,
+                                                                   on_event => sub { $self->{'logger'}->warn("Received an Event!!!: " . Data::Dumper::Dumper(@_));},
+                                                                   on_error => sub { $self->{'logger'}->warn("REceive an error from child" . Data::Dumper::Dumper(@_))},
+                                                                   on_destroy => sub { $self->{'logger'}->warn("OH NO!! CHILD DIED")},
+                                                                   init => "new");
+    $self->{'logger'}->warn("After the fork" . Data::Dumper::Dumper($proc));
+    $self->{'children'}->{$dpid}->{'rpc'} = $proc;
+    return 1;
     
-    my $sigset = POSIX::SigSet->new(POSIX::SIGINT);
-    POSIX::sigprocmask(POSIX::SIG_BLOCK,$sigset) or
-        die "Can't block SIGINT for fork: $!\n";
-
-    my $pid = fork();
-
-    if(!defined $pid){
-        $self->{'logger'}->error("Unable to fork, lets call it a day");
-        die "Cant fork: $!\n";
-    }
-
-    if($pid){
-        #--- parent
-        POSIX::sigprocmask(POSIX::SIG_UNBLOCK,$sigset) or
-            die "cant unblcock SIGINT for fork: $!\n";
-        return $pid;
-    }else{
-
-        $SIG{INT} = 'DEFAULT';
-        POSIX::sigprocmask(POSIX::SIG_UNBLOCK,$sigset) or
-            die "cant unblcock SIGINT for fork: $!\n";
-        my $openmax = POSIX::sysconf( &POSIX::_SC_OPEN_MAX );
-        if(!defined($openmax) || $openmax < 0){
-            $openmax = 64;
-        }
-        foreach my $i (0 .. $openmax) { POSIX::close($i); }
-
-        open(STDOUT,">",'/tmp/out-' . $dpid);
-        open(STDERR,">",'/tmp/error-' . $dpid);
-        
-        Log::Log4perl->reset();
-        Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
-        my $log = Log::Log4perl->get_logger("OESS.FWDCTL.MASTER");
-        $log->info("Delivered the Baby");
-
-        $log->debug("connected to nox");
-        $log->info("Creating the new switch instance");
-        my $switch = OESS::FWDCTL::Switch->new( share_file => $self->{'share_file'},
-                                                dpid => $dpid);
-        $log->error("Never should get here!!");
-    }
-
 }
 
 =head2 _restore_down_circuits
@@ -683,17 +650,7 @@ sub _fail_over_circuits{
 
     my @pending_replies;
     foreach my $dpid (keys %dpids){
-        my $dbus = $self->{'children'}->{$dpid}->{'dbus'};
-        if(!defined($dbus)){
-            $self->{'logger'}->error("unable to contact child process for dpid: " . $dpid);
-            $result = FWDCTL_FAILURE;
-            next;
-        }
-        
-        eval{
-            my $reply = $dbus->process_event(dbus_call_async);#,FWDCTL_ADD_VLAN,$dpids{$dpid});
-            push(@pending_replies,$reply);
-        }
+        $self->send_message_to_child($dpid,{action => 'change_path', circuits => $dpids{$dpid}});
     }
 
     $self->{'logger'}->warn("Completed sending the requests");
