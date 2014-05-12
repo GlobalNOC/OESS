@@ -89,6 +89,12 @@ use constant MIN_VLAN_TAG => 1;
 use constant SHARE_DIR => "/usr/share/doc/perl-OESS-" . VERSION . "/";
 use constant UNTAGGED => -1;
 use constant OSCARS_WG => 'OSCARS IDC';
+
+use constant FWDCTL_WAITING     => 2;
+use constant FWDCTL_SUCCESS     => 1;
+use constant FWDCTL_FAILURE     => 0;
+use constant FWDCTL_UNKNOWN     => 3;
+
 our $ENABLE_DEVEL=0;
 
 =head1 PUBLIC METHODS

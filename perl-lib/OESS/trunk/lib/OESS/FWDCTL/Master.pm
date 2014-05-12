@@ -545,7 +545,7 @@ sub _restore_down_circuits{
 
     foreach my $dpid (keys %dpids){
         $self->{'logger'}->debug("Telling child: " . $dpid . " that its time to work!");
-        $self->send_child_message($dpid,{action => 'change_path', circuits => $dpids{$dpid}},$event_id);
+        $self->send_message_to_child($dpid,{action => 'change_path', circuits => $dpids{$dpid}},$event_id);
     }
 
 
