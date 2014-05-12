@@ -39,6 +39,11 @@ use LWP::UserAgent;
 use OESS::Database;
 use OESS::Topology;
 
+use constant FWDCTL_WAITING     => 2;
+use constant FWDCTL_SUCCESS     => 1;
+use constant FWDCTL_FAILURE     => 0;
+use constant FWDCTL_UNKNOWN     => 3;
+
 my $db   = new OESS::Database();
 my $topo = new OESS::Topology();
 
@@ -270,8 +275,8 @@ sub get_circuits_on_interface{
 sub insert_node_in_path{
     my $results = $db->insert_node_in_path( link => $cgi->param('link_id'));
 
-    return {results =>  => [$results];
-
+    return {results =>  => [$results]};
+    
 }
 
 sub is_new_node_in_path{
@@ -729,11 +734,11 @@ sub confirm_node {
     }
 
     if ( !defined $client ) {
+        warn "Unable to connect to FWDCTL";
         return undef;
     }
 
-    my $circuit_id = $args{'circuit_id'};
-    my ($result,$event_id) = $client->update_cache($circuit_id);
+    my ($res,$event_id) = $client->update_cache();
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
@@ -742,8 +747,8 @@ sub confirm_node {
     }
 
 
-    return $final_res;
-}
+    return {results => [{success => $final_res}]};
+    }
 
 sub update_node {
     my $results;
@@ -826,8 +831,8 @@ sub update_node {
         return undef;
     }
 
-    my $circuit_id = $args{'circuit_id'};
-    my ($result,$event_id) = $client->update_cache($circuit_id);
+    
+    my ($res,$event_id) = $client->update_cache();
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
@@ -836,7 +841,7 @@ sub update_node {
     }
 
 
-    return $final_res;
+    return {results => [{success => $final_res}]};
 }
 
 sub update_interface {
@@ -906,8 +911,8 @@ sub decom_node {
         return undef;
     }
 
-    my $circuit_id = $args{'circuit_id'};
-    my ($result,$event_id) = $client->update_cache($circuit_id);
+    
+    my ($res,$event_id) = $client->update_cache();
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){

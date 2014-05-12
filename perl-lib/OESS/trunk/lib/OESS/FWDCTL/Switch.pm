@@ -153,6 +153,7 @@ sub _update_cache{
 
     $self->{'ckts'} = \%ckts;
     $self->{'node'} = $data->{'nodes'}->{$self->{'dpid'}};
+    $self->{'logger'}->info("Updating node info: " . Data::Dumper::Dumper($self->{'node'}));
     $self->{'settings'} = $data->{'settings'};
 
 }
@@ -239,12 +240,16 @@ sub process_event{
             return $self->add_vlan($message->{'circuit'});
         }case 'remove_vlan'{
             return $self->remove_vlan($message->{'circuit'});
-        }case 'force_diff'{
+        }case 'force_sync'{
             $self->_update_cache();
             $self->{'need_diff'} = 1;
             return {success => 1, msg => "diff scheduled!"};
+        }case 'update_cache'{
+            $self->_update_cache();
+            return {success => 1, msg => "cache updated"};
         }else{
             $self->{'logger'}->error("Received unsupported action type: " . $message->{'action'} . " continuing");
+            return {success => 0, msg => "unsupported event"};
         }
     }
 }
@@ -503,7 +508,7 @@ sub _do_diff{
     my $self = shift;
     my $current_flows = shift;
 
-    my $dpid          = $self->{'node'}->{'dpid'};
+    my $dpid          = $self->{'dpid'};
     my $dpid_str      = sprintf("%x",$dpid);
     my $node_info     = $self->{'node'};
     my $sw_name       = $node_info->{'name'};

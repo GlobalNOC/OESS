@@ -237,6 +237,7 @@ sub update_cache{
         $self->{'nodes_needing_diff'}{$node->{'dpid'}} = $node;
         my $details = $self->{'db'}->get_node_by_dpid(dpid => $node->{'dpid'});
         $details->{'dpid_str'} = sprintf("%x",$node->{'dpid'});
+        $details->{'name'} = $node->{'name'};
         $node_info{$node->{'dpid'}} = $details;
     }
 
