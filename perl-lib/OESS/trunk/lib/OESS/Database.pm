@@ -4197,10 +4197,12 @@ sub insert_node_in_path{
 	return;
     }
 
+    my @events;
+
     foreach my $circuit (@$circuits){
 	#first we need to connect to DBus and remove the circuit from the switch...
-	my $result = $client->deleteVlan($circuit->{'circuit_id'});
-
+	my ($result,$event_id) = $client->deleteVlan($circuit->{'circuit_id'});
+        push(@events,$event_id);
 
 	#ok now update the links
 	my $links = $self->_execute_query("select * from link_path_membership, path, path_instantiation where path.path_id = path_instantiation.path_id and path_instantiation.end_epoch = -1 and link_path_membership.path_id = path.path_id and path.circuit_id = ? and link_path_membership.end_epoch = -1",[$circuit->{'circuit_id'}]);
@@ -4226,7 +4228,17 @@ sub insert_node_in_path{
 	}
 
 	#re-add circuit
-	$result = $client->addVlan($circuit->{'circuit_id'});
+	($result,$event_id) = $client->addVlan($circuit->{'circuit_id'});
+        push(@events,$event_id);
+    }
+
+    while(scalar(@events) > 0){
+        for(my $i=0;$i< $#events;$i++){
+            my $res = $client->get_event_status($events[$i]);
+            if($res != FWDCTL_WAITING){
+                delete $events[$i];
+            }
+        }
     }
 
     return {success => 1};

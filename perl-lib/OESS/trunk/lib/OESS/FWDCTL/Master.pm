@@ -143,8 +143,8 @@ sub new {
     dbus_method("topo_port_status",["uint64","uint32",["dict","string","string"]],["string"]);
     dbus_method("rules_per_switch",["uint64"],["uint32"]);
     dbus_method("fv_link_event",["string","int32"],["int32"]);
-    dbus_method("update_cache",[],["int32"]);
-    dbus_method("force_sync",["uint64"],["int32"]);
+    dbus_method("update_cache",[],["int32", "string"]);
+    dbus_method("force_sync",["uint64"],["int32","string"]);
     dbus_method("get_event_status",["string"],["int32"]);
     
     #exported for the circuit notifier
@@ -162,7 +162,7 @@ sub new{
     my %args = @_;
 
     $logger = Log::Log4perl->get_logger("OESS.FWDCTL.MASTER");
-    $logger->info("Creating child with params: " . Data::Dumper::Dumper(%args));
+    $logger->info("Creating child for dpid: " . $args{"dpid"});
     $switch = OESS::FWDCTL::Switch->new( dpid => $args{"dpid"},
                                         share_file => $args{"share_file"});
 }
@@ -188,6 +188,67 @@ sub run{
     $self->{'child_template'} = $template;   
 
     return $self;
+}
+
+sub force_sync{
+    my $self = shift;
+    my $dpid = shift;
+
+    my $event_id = $self->_generate_unique_event_id();
+    $self->send_message_to_child($dpid,{action => 'force_sync'},$event_id);
+    return (FWDCTL_SUCCESS,$event_id);        
+}
+
+sub update_cache{
+    my $self = shift;
+    $self->{'logger'}->debug("Fetching State from the DB");
+    my $circuits = $self->{'db'}->get_current_circuits();
+    foreach my $circuit (@$circuits) {
+
+        my $ckt = OESS::Circuit->new( db => $self->{'db'},
+                                      circuit_id => $circuit->{'circuit_id'} );
+
+        $self->{'logger'}->trace("Ckt: " . Data::Dumper::Dumper($ckt));
+
+        $self->{'circuit'}->{ $ckt->get_id() } = $ckt;
+
+        if ($circuit->{'operational_state'} eq 'up') {
+            $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
+        } elsif ($circuit->{'operational_state'}  eq 'down') {
+            $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_DOWN;
+        } else {
+            $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UNKNOWN;
+        }
+    }
+
+    my $links = $self->{'db'}->get_current_links();
+    foreach my $link (@$links) {
+        if ($link->{'status'} eq 'up') {
+            $link_status{$link->{'name'}} = OESS_LINK_UP;
+        } elsif ($link->{'status'} eq 'down') {
+            $link_status{$link->{'name'}} = OESS_LINK_DOWN;
+        } else {
+            $link_status{$link->{'name'}} = OESS_LINK_UNKNOWN;
+        }
+    }
+
+    my $nodes = $self->{'db'}->get_current_nodes();
+    foreach my $node (@$nodes) {
+        $self->{'nodes_needing_diff'}{$node->{'dpid'}} = $node;
+        my $details = $self->{'db'}->get_node_by_dpid(dpid => $node->{'dpid'});
+        $details->{'dpid_str'} = sprintf("%x",$node->{'dpid'});
+        $node_info{$node->{'dpid'}} = $details;
+    }
+
+    #write the cache for our children
+    $self->_write_cache();
+    my $event_id = $self->_generate_unique_event_id();
+    foreach my $child (keys %{$self->{'children'}}){
+        $self->send_message_to_child($child,{action => 'update_cache'},$event_id);
+    }
+
+    return (FWDCTL_SUCCESS,$event_id);
+
 }
 
 sub _write_cache{
@@ -236,47 +297,7 @@ sub _write_cache{
 sub _sync_database_to_network {
     my $self = shift;
 
-    $self->{'logger'}->debug("Syncing state from the Database");
-    my $circuits = $self->{'db'}->get_current_circuits();
-    foreach my $circuit (@$circuits) {
-        
-        my $ckt = OESS::Circuit->new( db => $self->{'db'},
-                                      circuit_id => $circuit->{'circuit_id'} );
-        
-        $self->{'logger'}->trace("Ckt: " . Data::Dumper::Dumper($ckt));
-        
-        $self->{'circuit'}->{ $ckt->get_id() } = $ckt;
-        
-        if ($circuit->{'operational_state'} eq 'up') {
-            $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
-        } elsif ($circuit->{'operational_state'}  eq 'down') {
-            $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_DOWN;
-        } else {
-            $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UNKNOWN;
-        }
-    }
-    
-    my $links = $self->{'db'}->get_current_links();
-    foreach my $link (@$links) {
-        if ($link->{'status'} eq 'up') {
-            $link_status{$link->{'name'}} = OESS_LINK_UP;
-        } elsif ($link->{'status'} eq 'down') {
-            $link_status{$link->{'name'}} = OESS_LINK_DOWN;
-        } else {
-            $link_status{$link->{'name'}} = OESS_LINK_UNKNOWN;
-        }
-    }
-
-    my $nodes = $self->{'db'}->get_current_nodes();
-    foreach my $node (@$nodes) {
-        $self->{'nodes_needing_diff'}{$node->{'dpid'}} = $node;
-        my $details = $self->{'db'}->get_node_by_dpid(dpid => $node->{'dpid'});
-        $details->{'dpid_str'} = sprintf("%x",$node->{'dpid'});
-        $node_info{$node->{'dpid'}} = $details;
-    }
-
-    #write the cache for our children
-    $self->_write_cache();
+    $self->update_cache();
     
     foreach my $node (keys %node_info){
         #fire off the datapath join handler
@@ -316,10 +337,10 @@ sub send_message_to_child{
 
 sub check_child_status{
     my $self = shift;
-    $self->{'logger'}->info("Checking on child status");
+    $self->{'logger'}->debug("Checking on child status");
     my $event_id = $self->_generate_unique_event_id();
     foreach my $dpid (keys %{$self->{'children'}}){
-        $self->{'logger'}->info("checking on child: " . $dpid);
+        $self->{'logger'}->debug("checking on child: " . $dpid);
         my $child = $self->{'children'}->{$dpid};
         my $corr_id = $self->send_message_to_child($dpid,{action => 'echo'},$event_id);            
     }
@@ -931,6 +952,26 @@ sub addVlan {
         $self->send_message_to_child($dpid,{action => 'add_vlan', circuit => $circuit_id}, $event_id);
     }
 
+    my $details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
+
+
+    if ($details->{'state'} eq "deploying" || $details->{'state'} eq "scheduled") {
+        
+        my $state = $details->{'state'};
+        
+        $self->{'db'}->update_circuit_state(circuit_id          => $circuit_id,
+                                            old_state           => $state,
+                                            new_state           => 'active',
+                                            modified_by_user_id => $details->{'user_id'}
+            );
+    }
+
+    $self->{'db'}->update_circuit_path_state(circuit_id  => $circuit_id,
+                                             old_state   => 'deploying',
+                                             new_state   => 'active');
+    
+    $circuit_status{$circuit_id} = OESS_CIRCUIT_UP;
+
     return ($result,$event_id);
     
 }
@@ -1009,25 +1050,22 @@ sub get_event_status{
     my $self = shift;
     my $event_id = shift;
 
-    $self->{'logger'}->warn("Looking for event: " . $event_id);
-    $self->{'logger'}->warn(Data::Dumper::Dumper($self->{'pending_results'}));
+    $self->{'logger'}->debug("Looking for event: " . $event_id);
     if(defined($self->{'pending_results'}->{$event_id})){
         my $results = $self->{'pending_results'}->{$event_id};
-
-        $self->{'logger'}->warn(Data::Dumper::Dumper($results));
         
         foreach my $dpid (keys %{$results}){
-            $self->{'logger'}->warn("DPID: " . $dpid . " reports status: " . $results->{$dpid});
+            $self->{'logger'}->debug("DPID: " . $dpid . " reports status: " . $results->{$dpid});
             if($results->{$dpid} == FWDCTL_WAITING){
-                $self->{'logger'}->warn("Event: $event_id dpid $dpid reports still waiting");
+                $self->{'logger'}->debug("Event: $event_id dpid $dpid reports still waiting");
                 return FWDCTL_WAITING;
             }elsif($results->{$dpid} == FWDCTL_FAILURE){
-                $self->{'logger'}->warn("Event : $event_id dpid $dpid reports error!");
+                $self->{'logger'}->debug("Event : $event_id dpid $dpid reports error!");
                 return FWDCTL_FAILURE;
             }
         }
         #done waiting and was success!
-        $self->{'logger'}->warn("Event $event_id is complete!!");
+        $self->{'logger'}->debug("Event $event_id is complete!!");
         return FWDCTL_SUCCESS;
     }else{
         #no known event by that ID

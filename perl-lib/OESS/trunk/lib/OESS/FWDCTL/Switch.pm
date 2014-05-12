@@ -87,7 +87,7 @@ sub new {
     
     $self->{'timer'} = AnyEvent->timer( after => 10, interval => 10, 
                                         cb => sub { 
-                                            $self->{'logger'}->warn("Processing timer event");
+                                            $self->{'logger'}->debug("Processing FlowStat Timer event");
                                             $self->get_flow_stats();
                                         } );
     return $self;
@@ -187,7 +187,7 @@ sub _generate_commands{
             #we already performed the DB change so that means
             #whatever path is active is actually what we are moving to
 	    foreach my $flow (@$primary_flows){
-		if($self->{'ckts'}->{$circuit_id}->{'active_path'} eq 'primary'){
+		if($self->{'ckts'}->{$circuit_id}->{'details'}->{'active_path'} eq 'primary'){
 		    $flow->{'sw_act'} = FWDCTL_ADD_RULE;
 		}else{
 		    $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
@@ -196,7 +196,7 @@ sub _generate_commands{
 	    }
 	    
 	    foreach my $flow (@$backup_flows){
-		if($self->{'ckts'}->{$circuit_id}->{'active_path'} eq 'primary'){
+		if($self->{'ckts'}->{$circuit_id}->{'details'}->{'active_path'} eq 'primary'){
 		    $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
 		}else{
 		    $flow->{'sw_act'} = FWDCTL_ADD_RULE;
@@ -252,9 +252,11 @@ sub process_event{
 sub change_path{
     my $self = shift;
     my $circuits = shift;
-
+    
+    $self->_update_cache();
+    
     my $res = FWDCTL_SUCCESS;
-
+   
     foreach my $circuit (@$circuits){
         
         my $commands = $self->_generate_commands($circuit,FWDCTL_CHANGE_PATH);
@@ -325,7 +327,7 @@ sub add_vlan{
         
         if($self->{'flows'} < $self->{'node'}->{'max_flows'}){
             $self->{'logger'}->info("Installing Flow: " . $command->to_human());
-            warn Dumper($command->to_dbus());
+
             $self->{'nox'}->install_datapath_flow($command->to_dbus());
             $self->{'flows'}++;
             

@@ -268,9 +268,9 @@ sub get_circuits_on_interface{
 
 
 sub insert_node_in_path{
-    my $results;
+    my $results = $db->insert_node_in_path( link => $cgi->param('link_id'));
 
-    return {results => [$db->insert_node_in_path( link => $cgi->param('link_id'))]};
+    return {results =>  => [$results];
 
 }
 
@@ -712,7 +712,37 @@ sub confirm_node {
         $results->{'results'} = [ { "success" => 1 } ];
     }
 
-    return $results;
+    #send message to update the status
+    my $bus = Net::DBus->system;
+
+    my $client;
+    my $service;
+
+    eval {
+        $service = $bus->get_service("org.nddi.fwdctl");
+        $client  = $service->get_object("/controller1");
+    };
+
+    if ($@) {
+        warn "Error in _connect_to_fwdctl: $@";
+        return undef;
+    }
+
+    if ( !defined $client ) {
+        return undef;
+    }
+
+    my $circuit_id = $args{'circuit_id'};
+    my ($result,$event_id) = $client->update_cache($circuit_id);
+    my $final_res = FWDCTL_WAITING;
+
+    while($final_res == FWDCTL_WAITING){
+        sleep(1);
+        $final_res = $client->get_event_status($event_id);
+    }
+
+
+    return $final_res;
 }
 
 sub update_node {
@@ -776,7 +806,37 @@ sub update_node {
         $results->{'results'} = [ { "success" => 1 } ];
     }
 
-    return $results;
+    #send message to update the status
+    my $bus = Net::DBus->system;
+
+    my $client;
+    my $service;
+
+    eval {
+        $service = $bus->get_service("org.nddi.fwdctl");
+        $client  = $service->get_object("/controller1");
+    };
+
+    if ($@) {
+        warn "Error in _connect_to_fwdctl: $@";
+        return undef;
+    }
+
+    if ( !defined $client ) {
+        return undef;
+    }
+
+    my $circuit_id = $args{'circuit_id'};
+    my ($result,$event_id) = $client->update_cache($circuit_id);
+    my $final_res = FWDCTL_WAITING;
+
+    while($final_res == FWDCTL_WAITING){
+        sleep(1);
+        $final_res = $client->get_event_status($event_id);
+    }
+
+
+    return $final_res;
 }
 
 sub update_interface {
@@ -826,7 +886,38 @@ sub decom_node {
         $results->{'results'} = [ { "success" => 1 } ];
     }
 
-    return $results;
+    #send message to update the status
+    my $bus = Net::DBus->system;
+
+    my $client;
+    my $service;
+
+    eval {
+        $service = $bus->get_service("org.nddi.fwdctl");
+        $client  = $service->get_object("/controller1");
+    };
+
+    if ($@) {
+        warn "Error in _connect_to_fwdctl: $@";
+        return undef;
+    }
+
+    if ( !defined $client ) {
+        return undef;
+    }
+
+    my $circuit_id = $args{'circuit_id'};
+    my ($result,$event_id) = $client->update_cache($circuit_id);
+    my $final_res = FWDCTL_WAITING;
+
+    while($final_res == FWDCTL_WAITING){
+        sleep(1);
+        $final_res = $client->get_event_status($event_id);
+    }
+
+
+    return $final_res;
+
 }
 
 sub confirm_link {
