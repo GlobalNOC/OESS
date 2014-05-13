@@ -265,7 +265,8 @@ sub process_event{
             return $self->remove_vlan($message->{'circuit'});
         }case 'force_sync'{
             $self->_update_cache();
-            $self->{'need_diff'} = 1;
+            $self->{'logger'}->warn("received a force_sync command");
+            $self->{'needs_diff'} = 1;
             return {success => 1, msg => "diff scheduled!"};
         }case 'update_cache'{
             $self->_update_cache();

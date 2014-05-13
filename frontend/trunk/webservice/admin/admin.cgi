@@ -717,6 +717,8 @@ sub confirm_node {
         $results->{'results'} = [ { "success" => 1 } ];
     }
 
+    my $node = $db->get_node_by_id( node_id => $node_id);
+
     #send message to update the status
     my $bus = Net::DBus->system;
 
@@ -738,6 +740,7 @@ sub confirm_node {
         return undef;
     }
 
+
     my ($res,$event_id) = $client->update_cache();
     my $final_res = FWDCTL_WAITING;
 
@@ -746,9 +749,17 @@ sub confirm_node {
         $final_res = $client->get_event_status($event_id);
     }
 
+    ($res,$event_id) = $client->force_sync($node->{'dpid'});
+    $final_res = FWDCTL_WAITING;
+    
+    while($final_res == FWDCTL_WAITING){
+        sleep(1);
+        $final_res = $client->get_event_status($event_id);
+    }
+
 
     return {results => [{success => $final_res}]};
-    }
+}
 
 sub update_node {
     my $results;
@@ -831,9 +842,18 @@ sub update_node {
         return undef;
     }
 
-    
+    my $node = $db->get_node_by_id(node_id => $node_id);
+
     my ($res,$event_id) = $client->update_cache();
     my $final_res = FWDCTL_WAITING;
+
+    while($final_res == FWDCTL_WAITING){
+        sleep(1);
+        $final_res = $client->get_event_status($event_id);
+    }
+
+    ($res,$event_id) = $client->force_sync($node->{'dpid'});
+    $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
         sleep(1);
@@ -843,6 +863,7 @@ sub update_node {
 
     return {results => [{success => $final_res}]};
 }
+
 
 sub update_interface {
     my $results;

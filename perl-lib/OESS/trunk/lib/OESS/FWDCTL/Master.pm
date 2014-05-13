@@ -213,6 +213,7 @@ sub force_sync{
     my $dpid = shift;
 
     my $event_id = $self->_generate_unique_event_id();
+    $self->_write_cache();
     $self->send_message_to_child($dpid,{action => 'force_sync'},$event_id);
     return (FWDCTL_SUCCESS,$event_id);        
 }
