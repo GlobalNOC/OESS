@@ -863,7 +863,7 @@ sub merge_actions{
 }
 
 
-=head2 parse_stat
+=head2 to_canonical
 
 =cut
 
@@ -877,6 +877,10 @@ sub to_canonical{
     $obj{'priority'} = $self->{'priority'};
     return \%obj;
 }
+
+=head2 parse_stat
+
+=cut
 
 sub parse_stat{
     my %params = @_;

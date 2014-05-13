@@ -59,6 +59,14 @@ $| = 1;
 $Storable::Deparse = 1;
 $Storable::Eval = 1;
 
+=head1 NAME OESS::FWDCTL::Switch
+
+=cut
+
+=head2 new
+
+=cut
+
 sub new {
     my $class = shift;
     
@@ -93,6 +101,9 @@ sub new {
     return $self;
 }
 
+=head2 echo
+
+=cut
 
 sub echo{
     my $self = shift;
@@ -167,7 +178,7 @@ sub _generate_commands{
     my $circuit_id = shift;
     my $action = shift;
     
-    $self->{'logger'}->warn("getting flows for circuit_id: " . $circuit_id);
+    $self->{'logger'}->debug("getting flows for circuit_id: " . $circuit_id);
     
     if(!defined($self->{'ckts'}->{$circuit_id})){
         $self->{'logger'}->error("No circuit with id: " . $circuit_id . " found in the cache");
@@ -216,6 +227,10 @@ sub _generate_commands{
     }
 }
 
+=head2 force_sync
+
+=cut
+
 sub force_sync{
     my $self = shift;
 
@@ -225,6 +240,10 @@ sub force_sync{
     return FWDCTL_SUCCESS;
 
 }
+
+=head2 process_event
+
+=cut
 
 sub process_event{
     my $self = shift;
@@ -257,6 +276,10 @@ sub process_event{
         }
     }
 }
+
+=head2 change_path
+
+=cut
 
 sub change_path{
     my $self = shift;
@@ -322,6 +345,10 @@ sub change_path{
     
 }
 
+=head2 add_vlan
+
+=cut
+
 sub add_vlan{
     my $self = shift;
     my $circuit = shift;
@@ -376,6 +403,10 @@ sub add_vlan{
 
 }
 
+=head2 remove_vlan
+
+=cut
+
 sub remove_vlan{
     my $self = shift;
     my $circuit = shift;
@@ -420,6 +451,9 @@ sub remove_vlan{
     
 }
 
+=head2 datapath_join_handler
+
+=cut
 
 sub datapath_join_handler{
     my $self   = shift;
@@ -657,6 +691,10 @@ sub _actual_diff{
     return $res;
 }
 
+=head2 rules_per_switch
+
+=cut
+
 sub rules_per_switch{
     my $self = shift;
 
@@ -676,6 +714,10 @@ sub _process_stats_to_flows{
     return \@new_flows;
 
 }
+
+=head2 get_flow_stats
+
+=cut
 
 sub get_flow_stats{
     my $self = shift;

@@ -99,6 +99,18 @@ sub _log {
 
 }
 
+=head2 OFPPR_ADD
+=cut
+=head2 OFPPR_DELETE
+=cut
+
+
+=head2 new
+
+    create a new OESS Master process
+
+=cut
+
 sub new {
     my $class = shift;
     my $service = shift;
@@ -190,6 +202,12 @@ sub run{
     return $self;
 }
 
+=head2 force_sync
+
+method exported to dbus to force sync a node
+
+=cut
+
 sub force_sync{
     my $self = shift;
     my $dpid = shift;
@@ -198,6 +216,12 @@ sub force_sync{
     $self->send_message_to_child($dpid,{action => 'force_sync'},$event_id);
     return (FWDCTL_SUCCESS,$event_id);        
 }
+
+=head2 update_cache
+
+updates the cache for all of the children
+
+=cut
 
 sub update_cache{
     my $self = shift;
@@ -309,6 +333,13 @@ sub _sync_database_to_network {
 
 }
 
+
+=head2 send_message_to_child
+
+send a message to a child
+
+=cut
+
 sub send_message_to_child{
     my $self = shift;
     my $dpid = shift;
@@ -336,6 +367,12 @@ sub send_message_to_child{
            });
 }
 
+=head2 check_child_status
+
+    sends an echo request to the child
+
+=cut
+
 sub check_child_status{
     my $self = shift;
     $self->{'logger'}->debug("Checking on child status");
@@ -348,6 +385,10 @@ sub check_child_status{
 }
 
 
+=head2 datapath_join_handler
+
+=cut
+
 sub datapath_join_handler{
     my $self   = shift;
     my $dpid   = shift;
@@ -356,15 +397,14 @@ sub datapath_join_handler{
 
     $self->{'logger'}->warn("switch with dpid: " . $dpid_str . " has join");
     my $event_id = $self->_generate_unique_event_id();
-    if(defined($self->{'children'}->{$dpid}->{'pid'} && (kill 0, $self->{'children'}->{$dpid}->{'pid'}))){
+    if(defined($self->{'children'}->{$dpid}->{'rpc'})){
         #process is running nothing to do!
         $self->{'logger'}->debug("Child already exists... send datapath join event");
         $self->send_message_to_child($dpid,{action => 'datapath_join'},$event_id);
     }else{
         $self->{'logger'}->debug("Child does not exist... creating");
         #sherpa will you make my babies!
-        my $pid = $self->make_baby($dpid);        
-        $self->{'children'}->{$dpid}->{'pid'} = $pid;
+        $self->make_baby($dpid);
         $self->{'logger'}->debug("Baby was created!");
     }
 
@@ -372,9 +412,12 @@ sub datapath_join_handler{
 
 }
 
-#make baby is a throw back to sherpa...
-#have to give Ed the credit for most 
-#awesome function name ever
+=head2 make_baby
+make baby is a throw back to sherpa...
+have to give Ed the credit for most 
+awesome function name ever
+
+=cut
 sub make_baby{
     my $self = shift;
     my $dpid = shift;
@@ -387,11 +430,11 @@ sub make_baby{
                                                                    async => 1,
                                                                    on_event => sub { $self->{'logger'}->debug("Received an Event!!!: " . Data::Dumper::Dumper(@_));},
                                                                    on_error => sub { $self->{'logger'}->warn("REceive an error from child" . Data::Dumper::Dumper(@_))},
-                                                                   on_destroy => sub { $self->{'logger'}->warn("OH NO!! CHILD DIED")},
+                                                                   on_destroy => sub { $self->{'logger'}->warn("OH NO!! CHILD DIED"); $self->{'children'}->{$dpid}->{'rpc'} = undef; $self->datapath_join_handler($dpid);},
                                                                    init => "new");
-    $self->{'logger'}->debug("After the fork" . Data::Dumper::Dumper($proc));
+    $self->{'logger'}->debug("After the fork");
     $self->{'children'}->{$dpid}->{'rpc'} = $proc;
-    return 1;
+    return;
     
 }
 
@@ -798,6 +841,10 @@ sub _cancel_restorations{
 
 }
 
+=head2 topo_port_status
+
+=cut
+
 sub topo_port_status{
     my $self   = shift;
     my $dpid   = shift;
@@ -869,10 +916,17 @@ sub topo_port_status{
 
 }
 
+=head2 link_event
+
+=cut
+
 sub link_event{
 
 }
 
+=head2 fv_link_event
+
+=cut
 
 sub fv_link_event{
     my $self = shift;
@@ -916,8 +970,9 @@ sub fv_link_event{
     return 1;
 }
 
-#-----
-#dbus_method("addVlan", ["uint32"], ["string"]);
+=head2 addVlan
+
+=cut
 
 sub addVlan {
     my $self       = shift;
@@ -977,7 +1032,9 @@ sub addVlan {
     
 }
 
-#dbus_method("deleteVlan", ["string"], ["string"]);
+=head2 deleteVlan
+
+=cut
 
 sub deleteVlan {
     my $self = shift;
@@ -1018,6 +1075,10 @@ sub deleteVlan {
 }
 
 
+=head2 changeVlanPath
+
+=cut
+
 sub changeVlanPath {
     my $self = shift;
     my $circuit_id = shift;
@@ -1046,6 +1107,10 @@ sub changeVlanPath {
     $self->{'logger'}->warn("Event ID: " . $event_id);
     return ($result,$event_id);
 }
+
+=head2 get_event_status
+
+=cut
 
 sub get_event_status{
     my $self = shift;
@@ -1094,7 +1159,9 @@ sub _generate_unique_event_id{
     return $self->{'uuid'}->to_string($self->{'uuid'}->create());
 }
 
+=head2 get_ckt_object
 
+=cut
 
 sub get_ckt_object{
     my $self =shift;
