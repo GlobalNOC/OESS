@@ -193,18 +193,18 @@ sub _generate_commands{
             #whatever path is active is actually what we are moving to
 	    foreach my $flow (@$primary_flows){
 		if($self->{'ckts'}->{$circuit_id}->{'details'}->{'active_path'} eq 'primary'){
-		    $flow->{'sw_act'} = FWDCTL_ADD_RULE;
-		}else{
 		    $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
+		}else{
+		    $flow->{'sw_act'} = FWDCTL_ADD_RULE;
 		}
 		push(@commands,$flow);
 	    }
 	    
 	    foreach my $flow (@$backup_flows){
 		if($self->{'ckts'}->{$circuit_id}->{'details'}->{'active_path'} eq 'primary'){
-		    $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
-		}else{
 		    $flow->{'sw_act'} = FWDCTL_ADD_RULE;
+		}else{
+		    $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
 		}
 		push(@commands,$flow);
 	    }
