@@ -490,7 +490,7 @@ sub main{
     if(defined($dbus)){
 	$dbus->connect_to_signal("datapath_leave",\&datapath_leave_callback);
 	$dbus->connect_to_signal("datapath_join",\&datapath_join_callback);
-	$dbus->start_reactor( timeouts => [{interval => 10000, callback => Net::DBus::Callback->new(
+	$dbus->start_reactor( timeouts => [{interval => 30000, callback => Net::DBus::Callback->new(
 						method => sub { get_flow_stats(); })},
 					   {interval => 300000, callback => Net::DBus::Callback->new(
 						method => sub { _load_config(); })}]);
