@@ -616,34 +616,32 @@ sub _actual_diff{
         $self->{'logger'}->debug("Checking to see if " . $command->to_human() . " is on device");
         next if($command->get_dpid() != $self->{'dpid'});
 	my $found = 0;
+        my $match = $command->get_match();
+        if(defined($current_flows->{$match->{'in_port'}}->{$match->{'dl_vlan'}})){
+            
+            for(my $i=0;$i< $#{$current_flows->{$match->{'in_port'}}->{$match->{'dl_vlan'}}}; $i++){
+                my $flow = $current_flows->{$match->{'in_port'}}->{$match->{'dl_vlan'}}->[$i];
+                if($command->compare_match( flow_rule =>  $flow)){
+                    $found = 1;
+                    if($command->compare_actions( flow_rule => $flow)){
+                        #we found a matching flow! sweet do nothing!
+                        $self->{'logger'}->debug("it matches doing nothing");
+                        $self->{'flows'}++;
+                        delete $current_flows->{$match->{'in_port'}}->{$match->{'dl_vlan'}}->[$i];
+                    }else{
+                        #the matches match but the actions do not... replace
+                        $self->{'logger'}->debug("replacing with new flow");
+                        $stats{'mods'}++;
+                        $self->{'flows'}++;
+                        push(@rule_queue,{remove => $flow, add => $command});
+                        delete $current_flows->{$match->{'in_port'}}->{$match->{'dl_vlan'}}->[$i];
+                    }
+                }
+            }
+        }
 
-	for(my $i=0;$i<=$#{$current_flows};$i++){
-	    my $current_flow = $current_flows->[$i];
-            $self->{'logger'}->debug("comparing to flow " . Data::Dumper::Dumper($command) . " to " . Data::Dumper::Dumper($current_flow));
-	    if($command->compare_match( flow_rule => $current_flow)){
-                $self->{'logger'}->debug("dome comparing to match");
-		$found = 1;
-		if($command->compare_actions( flow_rule => $current_flow)){
-                    $self->{'logger'}->debug("it matches doing nothing");
-		    #woohoo we match
-                    $self->{'flows'}++;
-		    delete $current_flows->[$i];
-		    last;
-		}else{
-                    $self->{'logger'}->debug("replacing with new flow");
-		    #doh... we don't match... remove current flow, add the other flow
-		    $stats{'mods'}++;
-		    $self->{'flows'}++;
-		    push(@rule_queue,{remove => $current_flow, add => $command});
-		    delete $current_flows->[$i];
-		    last;
-		}
-	    }
-            $self->{'logger'}->debug("done comparing to flows");
-	}
-	
 	if(!$found){
-            $self->{'logger'}->debug("removing from switch");
+            $self->{'logger'}->debug("adding to the switch");
 	    #doh... add this rule
 	    $stats{'adds'}++;
 	    push(@rule_queue,{add => $command});
@@ -653,11 +651,15 @@ sub _actual_diff{
     $self->{'logger'}->debug("Done processing rules expected...");
 
     #if we have any flows remaining the must be removed!
-    foreach my $current_flow (@$current_flows){
-        next if(!defined($current_flow));
-        $self->{'flows'}++;
-	$stats{'rems'}++;
-	push(@rule_queue,{remove => $current_flow});
+    foreach my $port (keys %{$current_flows}){
+        foreach my $vlan (keys %{$current_flows->{$port}}){
+            foreach my $flow (@{$current_flows->{$port}->{$vlan}}){
+                next if(!defined($flow));
+                $self->{'flows'}++;
+                $stats{'rems'}++;
+                unshift(@rule_queue,{remove => $flow});
+            }
+        }
     }
     
     $self->{'logger'}->debug("Done processing what shouldn't be there");
@@ -706,13 +708,17 @@ sub _process_stats_to_flows{
     my $dpid = shift;
     my $flows = shift;
 
-    my @new_flows;
+    my %new_flows;
     foreach my $flow (@$flows){	
 	my $new_flow = OESS::FlowRule::parse_stat( dpid => $dpid, stat => $flow );
-	push(@new_flows,$new_flow);
+        my $match = $new_flow->get_match();
+        if(!defined($new_flows{$match->{'in_port'}}{$match->{'dl_vlan'}})){
+            $new_flows{$match->{'in_port'}}{$match->{'dl_vlan'}} = [];
+        }
+        push(@{$new_flows{$match->{'in_port'}}{$match->{'dl_vlan'}}},$new_flow);
     }
 
-    return \@new_flows;
+    return \%new_flows;
 
 }
 
