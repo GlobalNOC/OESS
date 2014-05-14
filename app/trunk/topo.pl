@@ -94,7 +94,7 @@ sub datapath_join_to_db{
     print_log(LOG_DEBUG,"Datapath Join event");
     $dbh->ping();
 
-    $dbh->begin_work();
+    $db->_start_transaction();
     my $node = $db->get_node_by_dpid(dpid => $dpid);
     my $node_id;
     if(defined($node)){
@@ -136,7 +136,7 @@ sub datapath_join_to_db{
 
 	$node_id = $db->add_node(name => $node_name, operational_state => 'up', network_id => $network_id);
 	if(!defined($node_id)){
-	    $dbh->rollback();
+	    $db->_rollback();
 	    return;
 	}
 	$db->create_node_instance(node_id => $node_id, ipv4_addr => $ip, admin_state => 'available', dpid => $dpid);
@@ -161,7 +161,7 @@ sub datapath_join_to_db{
 	my $int_id = $db->add_or_update_interface(node_id => $node_id,name => $port->{'name'}, description => $port->{'name'}, operational_state => $operational_state, port_num => $port->{'port_no'}, admin_state => $admin_state);
 
 	if(!defined($int_id)){
-	    $dbh->rollback();
+	    $db->_rollback();
 	    return undef;
 	}
 
@@ -183,13 +183,12 @@ sub datapath_join_to_db{
 	    #no link on this interface...
 	}
 
-
-	#fire the topo_port_status_event
+        #fire the topo_port_status_event
 	_send_topo_port_status(dbus_call_async,$dpid,OFPPR_ADD,$port);
 
     }
 
-    $dbh->commit();
+    $db->_commit();
 }
 
 
@@ -241,7 +240,7 @@ sub do_port_modify{
 
        $dbh->ping();
 
-       $dbh->begin_work() or die $dbh->errstr;
+       $db->_start_transaction() or die $dbh->errstr;
 
        my $operational_state = 'up';
        my $operational_state_num=(int($port_info->{'state'}) & 0x1);
@@ -264,17 +263,17 @@ sub do_port_modify{
 	   my $res = $db->add_or_update_interface(node_id => $node->{'node_id'}, name => $port_info->{'name'}, description => $port_info->{'name'}, operational_state => $operational_state, port_num => $port_info->{'port_no'}, admin_state => $admin_state);
 	   print_log(LOG_ERR,"Added new interface!");
 	   if(!defined($res)){
-	       $dbh->rollback();
+	       $db->_rollback();
 	       return;
 	   }
-	   $dbh->commit();
-	   return;
+           $db->_commit();
+           return;
        }
 
        #my $res = $db->update_interface_operational_state( operational_state => $operational_state, interface_id => $int->{'interface_id'});
        my $res = $db->add_or_update_interface(node_id => $int->{'node_id'}, name => $port_info->{'name'}, description => $port_info->{'name'}, operational_state => $operational_state, port_num => $port_info->{'port_no'}, admin_state => $admin_state);
 
-       $dbh->commit();
+       $db->_commit();
 
 }
 
@@ -393,14 +392,14 @@ sub db_link_add{
     my $z_port  = $args{'z_port'};
 
     $dbh->ping();
-    $dbh->begin_work();
+    $db->_start_transaction();
 
     my $interface_a = $db->get_interface_by_dpid_and_port( dpid => $a_dpid, port_number => $a_port);
     my $interface_z = $db->get_interface_by_dpid_and_port( dpid => $z_dpid, port_number => $z_port);
 
     if(!defined($interface_a) || !defined($interface_z)){
 	print_log(LOG_ERR,"Either the A or Z endpoint was not found in the database while trying to add a link");
-	$dbh->rollback();
+	$db->_rollback();
 	return undef;
     }
 
@@ -411,7 +410,7 @@ sub db_link_add{
 	##up the state?
 	print_log(LOG_DEBUG,"Link already exists, setting to up");
 	$db->update_link_state( link_id => $link_db_id, state => 'up');
-    $db->_commit();
+        $db->_commit();
     }else{
 	#first determine if any of the ports are currently used by another link... and connect to the same other node
 	my $links_a = $db->get_link_by_interface_id( interface_id => $interface_a->{'interface_id'}, show_decom => 0);
@@ -528,7 +527,7 @@ sub db_link_add{
 
 	    if(!defined($link_id)){
 		print_log(LOG_ERR,"Unable to add link!");
-		$dbh->rollback();
+		$db->_rollback();
 		return undef;
 	    }
 

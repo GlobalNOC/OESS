@@ -1,6 +1,6 @@
 Summary: OESS Perl Libraries
 Name: perl-OESS
-Version: 1.1.3
+Version: 1.1.4
 Release: 1
 License: APL 2.0
 Group: Network
@@ -10,7 +10,7 @@ BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildArch:noarch
 
 BuildRequires: perl
-Requires: perl(URI::Escape), dbus, dbus-libs, mysql-server, perl-XML-Simple, perl-XML-XPath, perl-Module-Build, perl-Module-Install, perl-Array-Utils, perl-File-ShareDir, perl-Net-DBus, perl-XML-Writer, perl-DateTime, perl-Test-Deep, perl-Set-Scalar, perl-Graph, perl-List-MoreUtils, perl-Log-Log4perl, perl-MIME-Lite-TT-HTML
+Requires: perl(URI::Escape), dbus, dbus-libs, mysql-server, perl-XML-Simple, perl-XML-XPath, perl-Module-Build, perl-Module-Install, perl-Array-Utils, perl-File-ShareDir, perl-Net-DBus, perl-XML-Writer, perl-DateTime, perl-Test-Deep, perl-Set-Scalar, perl-Graph, perl-List-MoreUtils, perl-Log-Log4perl, perl-MIME-Lite-TT-HTML, perl-AnyEvent, perl-AnyEvent-Fork, perl-AnyEvent-Fork-RPC
 Provides: perl-OESS-Circuit, perl-OESS-Database, perl-OESS-DBus, perl-OESS-Topology,perl-OESS-Measurement,perl-OESS-FlowRule
 Obsoletes: perl-OESS-Circuit, perl-OESS-Database, perl-OESS-DBus, perl-OESS-Topology,perl-OESS-Measurement,perl-OESS-FlowRule
 
@@ -59,6 +59,8 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::FlowRule.3pm.gz
 %doc %{_mandir}/man3/OESS::Notification.3pm.gz
 %doc %{_mandir}/man3/OESS::Watchdog.3pm.gz
+%doc %{_mandir}/man3/OESS::FWDCTL::Master.3pm.gz
+%doc %{_mandir}/man3/OESS::FWDCTL::Switch.3pm.gz
 %doc %{_mandir}/man3/OESS::FV.3pm.gz
 %{template_dir}/notification_templates.tmpl
 %{template_dir}/notification_bulk.tmpl
@@ -73,6 +75,8 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/FlowRule.pm
 %{perl_vendorlib}/OESS/FV.pm
 %{perl_vendorlib}/OESS/Watchdog.pm
+%{perl_vendorlib}/OESS/FWDCTL/Master.pm
+%{perl_vendorlib}/OESS/FWDCTL/Switch.pm
 
 %{docdir}/share/nddi.sql
 %{docdir}/share/upgrade/*
