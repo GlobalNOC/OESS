@@ -455,14 +455,17 @@ sub _restore_down_circuits{
 
     $self->{'logger'}->debug("In _restore_down_circuits with circuits: ".@$circuits);
     my $circuit_notification_data = [];
+
+    $self->{'db'}->_start_transaction();
+
     foreach my $circuit (@$circuits) {
 
-    my $ckt = $self->get_ckt_object( $circuit->{'circuit_id'});
-
-    if(!defined($ckt)){
-        $self->{'logger'}->error("No Circuit could be created or found for circuit: " . $circuit->{'circuit_id'});
-        next;
-    }
+        my $ckt = $self->get_ckt_object( $circuit->{'circuit_id'});
+        
+        if(!defined($ckt)){
+            $self->{'logger'}->error("No Circuit could be created or found for circuit: " . $circuit->{'circuit_id'});
+            next;
+        }
 
         if($ckt->has_backup_path()){
 
@@ -474,7 +477,7 @@ sub _restore_down_circuits{
 
                     if ($ckt->get_path_status( path => 'backup', link_status => \%link_status ) && $ckt->get_active_path() ne 'backup'){
                         #bring it back to this path
-                        my $success = $ckt->change_path();
+                        my $success = $ckt->change_path( do_commit => 0);
                         $self->{'logger'}->warn("vlan:" . $ckt->get_name() ." id:" . $ckt->get_id() . " affected by trunk:$link_name moving to alternate path");
 
                         if (! $success) {
@@ -544,7 +547,7 @@ sub _restore_down_circuits{
                             }
                         } else {
                             #ok the primary path is up and the backup is down and active... lets move now
-                            my $success = $ckt->change_path();
+                            my $success = $ckt->change_path( do_commit => 0);
                             $self->{'logger'}->warn("vlan:" . $ckt->get_id() ." id:" . $ckt->get_id() . " affected by trunk:$link_name moving to alternate path");
                             if (! $success) {
                                 $self->{'logger'}->error("vlan:" . $ckt->get_id() . " id:" . $ckt->get_id() . " affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $ckt->error());
@@ -579,21 +582,19 @@ sub _restore_down_circuits{
         }
     }
 
-
     my $event_id = $self->_generate_unique_event_id();
     #write the cache
     $self->_write_cache();
     my $result = FWDCTL_SUCCESS;
     #signal all the children
 
-    $self->{'logger'}->error("DPIDS: " . Data::Dumper::Dumper(%dpids));
-
     foreach my $dpid (keys %dpids){
         $self->{'logger'}->debug("Telling child: " . $dpid . " that its time to work!");
         $self->send_message_to_child($dpid,{action => 'change_path', circuits => $dpids{$dpid}},$event_id);
     }
 
-
+    #commit our changes to the database
+    $self->{'db'}->_commit();
     if ( $circuit_notification_data && scalar(@$circuit_notification_data) ){
         $self->emit_signal("circuit_notification", {
                                                     "type" => 'link_up',
@@ -602,11 +603,6 @@ sub _restore_down_circuits{
                                                    }
                           );
     }
-
-
-    #we don't need to wait for the children
-    #but we will accept their responses
-    
 }
 
 =head2 _fail_over_circuits
@@ -625,6 +621,8 @@ sub _fail_over_circuits{
     $self->{'logger'}->debug("in _fail_over_circuits with circuits: ".@$circuits);
     my $circuit_infos;
     
+    $self->{'db'}->_start_transaction();
+
     foreach my $circuit_info (@$circuits) {
         my $circuit_id   = $circuit_info->{'id'};
         my $circuit_name = $circuit_info->{'name'};
@@ -635,7 +633,7 @@ sub _fail_over_circuits{
             $self->{'logger'}->error("Unable to create or find a circuit object for $circuit_id");
             next;
         }
-        
+
         if($circuit->has_backup_path()){
             
             my $current_path = $circuit->get_active_path();
@@ -649,7 +647,7 @@ sub _fail_over_circuits{
             
             #check the alternate paths status
             if($circuit->get_path_status( path => $alternate_path, link_status => \%link_status)){
-                my $success = $circuit->change_path();
+                my $success = $circuit->change_path( do_commit => 0);
                 $self->{'logger'}->warn("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name moving to alternate path");
                 
                 #failed to move the path
@@ -708,7 +706,6 @@ sub _fail_over_circuits{
         }
         
     }
-    
     my $event_id = $self->_generate_unique_event_id();
 
     #write the cache
@@ -720,6 +717,7 @@ sub _fail_over_circuits{
         $self->send_message_to_child($dpid,{action => 'change_path', circuits => $dpids{$dpid}}, $event_id);
     }
 
+    $self->{'db'}->_commit();
     $self->{'logger'}->debug("Completed sending the requests");
     
         
@@ -1004,7 +1002,7 @@ sub addVlan {
     my $event_id = $self->_generate_unique_event_id();
 
     my $result = FWDCTL_SUCCESS;
-    $self->{'logger'}->warn("DPIDs: " . Data::Dumper::Dumper(%dpids));
+
     foreach my $dpid (keys %dpids){
         $self->send_message_to_child($dpid,{action => 'add_vlan', circuit => $circuit_id}, $event_id);
     }
@@ -1066,7 +1064,6 @@ sub deleteVlan {
     my $event_id = $self->_generate_unique_event_id();
 
     my $result = FWDCTL_SUCCESS;
-    $self->{'logger'}->warn("DPIDs: " . Data::Dumper::Dumper(%dpids));
 
     foreach my $dpid (keys %dpids){
         $self->send_message_to_child($dpid,{action => 'remove_vlan', circuit => $circuit_id},$event_id);
@@ -1098,8 +1095,6 @@ sub changeVlanPath {
     }
     
     my $event_id = $self->_generate_unique_event_id();
-
-    $self->{'logger'}->warn("DPIDs: " . Data::Dumper::Dumper(%dpids));
 
     my $result = FWDCTL_SUCCESS;
     foreach my $dpid (keys %dpids){

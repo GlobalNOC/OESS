@@ -109,8 +109,8 @@ sub _connect_to_object{
 
     while($timeout != 0){
         eval{
-            #my $bus = Net::DBus->system;
-            my $bus = Net::DBus->new(0,"unix:path=/var/run/dbus/system_bus_socket");
+            my $bus = Net::DBus->system;
+            #my $bus = Net::DBus->new(0,"unix:path=/var/run/dbus/system_bus_socket");
             my $srv = undef;
             $srv = $bus->get_service($self->{'service'});
             $obj = $srv->get_object($self->{'instance'});
