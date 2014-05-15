@@ -1762,6 +1762,17 @@ sub get_available_resources {
             if($workgroup_id == $interface->{'workgroup_id'}){
                 $is_owner = 1;
             } 
+            
+            my $links = $self->get_link_by_interface_id( interface_id =>  
+                                                         $interface->{'interface_id'});
+            my $remote_link = "";
+            foreach my $link (@$links){
+                if(defined($link->{'remote_urn'}) && $link->{'remote_urn'}  
+                           ne ''){
+                    $remote_link = $link->{'remote_urn'};
+                }
+            }
+            
             push(@$available_interfaces, {
                 "interface_id"      => $interface->{'interface_id'},
                 "interface_name"    => $interface->{'int_name'},
@@ -1769,6 +1780,7 @@ sub get_available_resources {
                 "node_name"         => $interface->{'node_name'},
                 "operational_state" => $interface->{'operational_state'},
                 "description"       => $interface->{'description'},
+                "remote_link"       => $remote_link,
                 "vlan_tag_range"    => $vlan_tag_range,
                 "is_owner"          => $is_owner,
 		"owning_workgroup"  => $self->get_workgroup_by_id(workgroup_id => $interface->{'workgroup_id'})

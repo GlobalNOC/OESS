@@ -117,6 +117,8 @@ sub _load_state {
 
     my %links;
     foreach my $link (@$links) {
+        next if (defined($link->{'remote_urn'}));
+
         if ( $link->{'status'} eq 'up' ) {
             $link->{'status'} = OESS_LINK_UP;
         }
