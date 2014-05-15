@@ -315,10 +315,12 @@ sub change_path{
                 if($self->{'flows'} < $self->{'node'}->{'max_flows'}){
                     $self->{'logger'}->info("Installing Flow: " . $command->to_human());
                     $self->{'nox'}->install_datapath_flow($command->to_dbus());
+                    $self->{'flows'}++;
                 }else{
                     $self->{'logger'}->error("Node: " . $self->{'node'}->{'name'} . " is at or over its maximum flow mod limit, unable to send flow rule for circuit: " . $circuit);
                     $res = FWDCTL_FAILURE;
                 }
+
             }else{
                 $self->{'logger'}->error("Invalid Switch action: " . $command->{'sw_act'} . " in flow rule");
                 $res = FWDCTL_FAILURE;
