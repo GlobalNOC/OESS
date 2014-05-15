@@ -5628,9 +5628,9 @@ sub provision_circuit {
 	my $node      = @$nodes[$i];
 	my $interface = @$interfaces[$i];
 	my $vlan      = @$tags[$i];
-    my $endpoint_mac_address_num = @$endpoint_mac_address_nums[$i];
-    my $circuit_edge_id;
-
+        my $endpoint_mac_address_num = @$endpoint_mac_address_nums[$i];
+        my $circuit_edge_id;
+        
 	$query = "select interface_id from interface " .
 	    " join node on node.node_id = interface.node_id " .
 	    " where node.name = ? and interface.name = ? ";
@@ -5639,20 +5639,20 @@ sub provision_circuit {
 
 	if (! $interface_id ){
 	    $self->_set_error("Unable to find interface '$interface' on node '$node'");
-        $self->_rollback();
+            $self->_rollback();
 	    return;
 	}
 
 	if (! $self->_validate_endpoint(interface_id => $interface_id, workgroup_id => $workgroup_id, vlan => $vlan)){
 	    $self->_set_error("Interface \"$interface\" on endpoint \"$node\" with VLAN tag \"$vlan\" is not allowed for this workgroup.");
-        $self->_rollback();
+            $self->_rollback();
 	    return;
 	}
 
 	# need to check to see if this external vlan is open on this interface first
 	if (! $self->is_external_vlan_available_on_interface(vlan => $vlan, interface_id => $interface_id) ){
 	    $self->_set_error("Vlan '$vlan' is currently in use by another circuit on interface '$interface' on endpoint '$node'");
-        $self->_rollback();
+            $self->_rollback();
 	    return;
 	}
 
@@ -5660,55 +5660,55 @@ sub provision_circuit {
 
 	$circuit_edge_id = $self->_execute_query($query, [$interface_id, $circuit_id, $vlan]);
 	if (! defined($circuit_edge_id) ){
-        #if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $vlan])){
+            #if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $vlan])){
 	    $self->_set_error("Unable to create circuit edge to interface '$interface' on endpoint '$node'");
-        $self->_rollback();
+            $self->_rollback();
 	    return;
 	}
-
-    # now add any static mac addresses if the static mac address flag was sent
-    if($static_mac){
         
-        # create an array of all the mac addresses for this endpoint
-        my @endpoint_mac_addresses;
-        for (my $j = 0; $j < $endpoint_mac_address_num; $j++){
-            my $mac_address = shift(@$mac_addresses);
-            push(@endpoint_mac_addresses, $mac_address);
-        }
-        
-        # check that the mac_addresses fall within the limits
-        my $result = $self->is_within_mac_limit(
-            mac_address  => \@endpoint_mac_addresses,
-            interface    => $interface,
-            node         => $node,
-            workgroup_id => $workgroup_id
-        );
-        if(!$result->{'verified'}){
-            $self->_set_error($result->{'explanation'});
-            $self->_rollback();
-            return;
-        }
-
-        # now add the mac addresses to the endpoint
-        $query = "insert into circuit_edge_mac_address values (?,?)";
-        foreach my $mac_address (@endpoint_mac_addresses){
-            if( ! mac_validate( $mac_address ) ){
-                $self->_set_error("$mac_address is not a valid mac address.");
+        # now add any static mac addresses if the static mac address flag was sent
+        if($static_mac){
+            
+            # create an array of all the mac addresses for this endpoint
+            my @endpoint_mac_addresses;
+            for (my $j = 0; $j < $endpoint_mac_address_num; $j++){
+                my $mac_address = shift(@$mac_addresses);
+                push(@endpoint_mac_addresses, $mac_address);
+            }
+            
+            # check that the mac_addresses fall within the limits
+            my $result = $self->is_within_mac_limit(
+                mac_address  => \@endpoint_mac_addresses,
+                interface    => $interface,
+                node         => $node,
+                workgroup_id => $workgroup_id
+                );
+            if(!$result->{'verified'}){
+                $self->_set_error($result->{'explanation'});
                 $self->_rollback();
                 return;
             }
-            $mac_address = mac_hex2num( $mac_address );
-            if( ! defined $self->_execute_query($query, [$circuit_edge_id, $mac_address]) ){
-                $self->_set_error("Unable to create mac address edge to interface '$interface' on endpoint '$node'");
-                $self->_rollback();
-                return;
+            
+            # now add the mac addresses to the endpoint
+            $query = "insert into circuit_edge_mac_address values (?,?)";
+            foreach my $mac_address (@endpoint_mac_addresses){
+                if( ! mac_validate( $mac_address ) ){
+                    $self->_set_error("$mac_address is not a valid mac address.");
+                    $self->_rollback();
+                    return;
+                }
+                $mac_address = mac_hex2num( $mac_address );
+                if( ! defined $self->_execute_query($query, [$circuit_edge_id, $mac_address]) ){
+                    $self->_set_error("Unable to create mac address edge to interface '$interface' on endpoint '$node'");
+                    $self->_rollback();
+                    return;
+                }
             }
+            
         }
-
+        
     }
-
-    }
-
+    
     # set up any remote_endpoints if we have them
     for (my $i = 0; $i < @$remote_endpoints; $i++){
 
@@ -5720,7 +5720,7 @@ sub provision_circuit {
 
 	if (! $interface_id){
 	    $self->_set_error("Unable to find interface associated with URN: $urn");
-        $self->_rollback();
+            $self->_rollback();
 	    return;
 	}
 
@@ -5729,7 +5729,7 @@ sub provision_circuit {
 
 	if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $tag])){
 	    $self->_set_error("Unable to create circuit edge to interface \"$urn\" with tag $tag.");
-        $self->_rollback();
+            $self->_rollback();
 	    return;
 	}
 
@@ -5754,7 +5754,7 @@ sub provision_circuit {
 
 	if (! $path_id){
 	    $self->_set_error("Error while creating path record.");
-        $self->_rollback();
+            $self->_rollback();
 	    return;
 	}
 
@@ -5772,7 +5772,7 @@ sub provision_circuit {
 
 	if (! defined $path_instantiation_id ){
 	    $self->_set_error("Error while instantiating path record.");
-        $self->_rollback();
+            $self->_rollback();
 	    return;
 	}
 
@@ -5783,7 +5783,7 @@ sub provision_circuit {
 
 	    if (! defined $info){
 		$self->_set_error("Unable to determine link with name \"$link\"");
-        $self->_rollback();
+                $self->_rollback();
 		return;
 	    }
 
@@ -5801,7 +5801,7 @@ sub provision_circuit {
 
 		if (! defined $internal_vlan){
 		    $self->_set_error("Internal error finding available internal id for node $endpoint->{'node_name'}.");
-            $self->_rollback();
+                    $self->_rollback();
 		    return;
 		}
 
@@ -5809,7 +5809,7 @@ sub provision_circuit {
 
 		if (! defined $self->_execute_query($query, [$path_instantiation_id, $node_id, $internal_vlan])){
 		    $self->_set_error("Error while creating path instantiation vlan tag.");
-            $self->_rollback();
+                    $self->_rollback();
 		    return;
 		}
 
@@ -5825,18 +5825,18 @@ sub provision_circuit {
 	    $query = "select link_id from link where name = ?";
 
 	    my $link_id = $self->_execute_query($query, [$link])->[0]->{'link_id'};
-
+            
 	    if (! $link_id){
 		$self->_set_error("Unable to find link '$link'");
-        $self->_rollback();
+                $self->_rollback();
 		return;
 	    }
-
+            
 	    $query = "insert into link_path_membership (link_id, path_id, end_epoch, start_epoch) values (?, ?, -1, unix_timestamp(NOW()))";
-
+            
 	    if (! defined $self->_execute_query($query, [$link_id, $path_id])){
 		$self->_set_error("Error adding link '$link' into path.");
-        $self->_rollback();
+                $self->_rollback();
 		return;
 	    }
 
@@ -5849,7 +5849,7 @@ sub provision_circuit {
 
     if (! $success){
 	$self->_set_error($error);
-    $self->_rollback();
+        $self->_rollback();
 	return;
     }
 
@@ -6721,6 +6721,16 @@ sub edit_circuit {
         }
 
     }
+
+    # now check to verify that the topology makes sense
+    my ($success, $error) = $self->{'topo'}->validate_paths(circuit_id => $circuit_id);
+
+    if (! $success){
+        $self->_set_error($error);
+        $self->_rollback();
+        return;
+    }
+
 
     $self->_commit();
 
