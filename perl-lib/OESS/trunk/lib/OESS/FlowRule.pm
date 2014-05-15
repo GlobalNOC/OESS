@@ -924,7 +924,12 @@ sub parse_stat{
 	$logger->debug("Key: " . $key . " = " . $match->{$key});
 	switch($key){
 	    case "dl_vlan"{
-		$new_match->{$key} = $match->{$key};
+                if($match->{$key} == 0){
+                    #this is really untagged
+                    $new_match->{$key} = -1;
+                }else{
+                    $new_match->{$key} = $match->{$key};
+                }
 	    }case "in_port"{
 		$new_match->{$key} = $match->{$key};
 	    }case "dl_dst"{

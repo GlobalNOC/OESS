@@ -253,27 +253,33 @@ sub process_event{
     
     switch ($message->{'action'}){
         case 'echo'{
-            return {success => 1, msg => "I'm alive!"};
+            return {success => 1, msg => "I'm alive!", total_rules => $self->{'flows'}};
         }case 'datapath_join'{
             $self->datapath_join_handler();
-            return {success => 1, msg => "default drop/forward installed, diffing scheduled"};
+            return {success => 1, msg => "default drop/forward installed, diffing scheduled", total_rules => $self->{'flows'}};
         }case 'change_path'{
-            return $self->change_path($message->{'circuits'});
+            my $res = $self->change_path($message->{'circuits'});
+            $res->{'total_rules'} = $self->{'flows'};
+            return $res;
         }case 'add_vlan'{
-            return $self->add_vlan($message->{'circuit'});
+            my $res = $self->add_vlan($message->{'circuit'});
+            $res->{'total_rules'} = $self->{'flows'};
+            return $res;
         }case 'remove_vlan'{
-            return $self->remove_vlan($message->{'circuit'});
+            my $res = $self->remove_vlan($message->{'circuit'});
+            $res->{'total_rules'} = $self->{'flows'};
+            return $res;
         }case 'force_sync'{
             $self->_update_cache();
             $self->{'logger'}->warn("received a force_sync command");
             $self->{'needs_diff'} = 1;
-            return {success => 1, msg => "diff scheduled!"};
+            return {success => 1, msg => "diff scheduled!", total_rules => $self->{'flows'}};
         }case 'update_cache'{
             $self->_update_cache();
-            return {success => 1, msg => "cache updated"};
+            return {success => 1, msg => "cache updated", total_rules => $self->{'flows'}};
         }else{
             $self->{'logger'}->error("Received unsupported action type: " . $message->{'action'} . " continuing");
-            return {success => 0, msg => "unsupported event"};
+            return {success => 0, msg => "unsupported event", total_rules => $self->{'flows'}};
         }
     }
 }
@@ -559,6 +565,8 @@ sub _do_diff{
     #--- process each ckt
     my @all_commands;
     foreach my $circuit_id (keys %{ $self->{'ckts'} }){
+        next unless ($self->{'ckts'}->{$circuit_id}->{'details'}->{'state'} eq 'active' || 
+                     $self->{'ckts'}->{$circuit_id}->{'details'}->{'state'} eq 'deploying');
         #--- get the set of commands needed to create this vlan per design
         my $commands = $self->_generate_commands($circuit_id,FWDCTL_ADD_VLAN);
         foreach my $command (@$commands) {
@@ -617,11 +625,14 @@ sub _actual_diff{
         next if($command->get_dpid() != $self->{'dpid'});
 	my $found = 0;
         my $match = $command->get_match();
+
         if(defined($current_flows->{$match->{'in_port'}}->{$match->{'dl_vlan'}})){
-            
-            for(my $i=0;$i< $#{$current_flows->{$match->{'in_port'}}->{$match->{'dl_vlan'}}}; $i++){
+            $self->{'logger'}->debug("Found flows for this match/vlan: " . Data::Dumper::Dumper($match));
+            for(my $i=0;$i<= $#{$current_flows->{$match->{'in_port'}}->{$match->{'dl_vlan'}}}; $i++){
                 my $flow = $current_flows->{$match->{'in_port'}}->{$match->{'dl_vlan'}}->[$i];
+                $self->{'logger'}->debug("Comparing to: " . $flow->to_human());
                 if($command->compare_match( flow_rule =>  $flow)){
+                    $self->{'logger'}->debug("Match matches!");
                     $found = 1;
                     if($command->compare_actions( flow_rule => $flow)){
                         #we found a matching flow! sweet do nothing!
@@ -705,6 +716,7 @@ sub rules_per_switch{
 }
 
 sub _process_stats_to_flows{
+    my $self = shift;
     my $dpid = shift;
     my $flows = shift;
 
@@ -712,6 +724,7 @@ sub _process_stats_to_flows{
     foreach my $flow (@$flows){	
 	my $new_flow = OESS::FlowRule::parse_stat( dpid => $dpid, stat => $flow );
         my $match = $new_flow->get_match();
+        $self->{'logger'}->debug("Adding flow with match to flow hash: " . Data::Dumper::Dumper($match));
         if(!defined($new_flows{$match->{'in_port'}}{$match->{'dl_vlan'}})){
             $new_flows{$match->{'in_port'}}{$match->{'dl_vlan'}} = [];
         }
@@ -735,17 +748,16 @@ sub get_flow_stats{
         if ($time == -1) {
             #we don't have flow data yet
             $self->{'logger'}->info("no flow stats cached yet for dpid: " . $self->{'dpid'});
-            next;
+            return;
         }
         
-        
+        $self->{'needs_diff'} = 0;
         #---process the flow_rules into a lookup hash
-        my $flows = _process_stats_to_flows( $self->{'dpid'}, $stats);
-        
+        my $flows = $self->_process_stats_to_flows( $self->{'dpid'}, $stats);
+
         #--- now that we have the lookup hash of flow_rules
         #--- do the diff
         $self->_do_diff($flows);
-        $self->{'needs_diff'} = 0;
     }
 }
 

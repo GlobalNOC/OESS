@@ -147,7 +147,7 @@ sub new {
 
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL');
     $self->{'circuit'} = {};
-
+    $self->{'node_rules'} = {};
     #remote method calls people can make to the master
     dbus_method("addVlan", ["uint32"], ["int32","string"]);
     dbus_method("deleteVlan", ["string"], ["int32","string"]);
@@ -200,6 +200,20 @@ sub run{
     $self->{'child_template'} = $template;   
 
     return $self;
+}
+
+
+=head2 rules_per_switch
+
+=cut
+
+sub rules_per_switch{
+    my $self = shift;
+    my $dpid = shift;
+    
+    if(defined($dpid) && defined($self->{'node_rules'}->{$dpid})){
+        return $self->{'node_rules'}->{$dpid};
+    }
 }
 
 =head2 force_sync
@@ -364,6 +378,7 @@ sub send_message_to_child{
             return;
         }
         $self->{'pending_results'}->{$event_id}->{$dpid} = $result->{'success'};
+        $self->{'node_rules'}->{$dpid} = $result->{'total_rules'};
         $self->{'logger'}->debug("Got a response: " . Data::Dumper::Dumper($resp));
            });
 }
