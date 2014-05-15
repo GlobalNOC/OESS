@@ -1679,15 +1679,26 @@ sub get_workgroup_interfaces {
 	$self->_set_error("Internal error fetching workgroup acls.");
 	return;
     }
+    
 
     foreach my $row (@$results){
+
+        my $links = $self->get_link_by_interface_id( interface_id => $row->{'interface_id'});
+        my $remote_link = "";
+        foreach my $link (@$links){
+            if(defined($link->{'remote_urn'}) && $link->{'remote_urn'} ne ''){
+                $remote_link = $link->{'remote_urn'};
+            }
+        }
+
 	push(@$interfaces, {"interface_id"   => $row->{'interface_id'},
-              "vlan_tag_range" => $row->{'vlan_tag_range'},
-		      "interface_name" => $row->{'int_name'},
-		      "node_id"        => $row->{'node_id'},
-		      "node_name"      => $row->{'node_name'},
-		      "operational_state" => $row->{'operational_state'},
-		      "description"    => $row->{'description'}
+                            "vlan_tag_range" => $row->{'vlan_tag_range'},
+                            "interface_name" => $row->{'int_name'},
+                            "node_id"        => $row->{'node_id'},
+                            "node_name"      => $row->{'node_name'},
+                            "remote_link"    => $remote_link,
+                            "operational_state" => $row->{'operational_state'},
+                            "description"    => $row->{'description'}
 	     });
     }
 
