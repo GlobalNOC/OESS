@@ -151,13 +151,22 @@ sub _update_cache{
         }
         
 
-        foreach my $obj (@{$data->{'ckts'}->{$ckt}->{'flows'}->{'static_mac_addr'}}){
+        foreach my $obj (@{$data->{'ckts'}->{$ckt}->{'flows'}->{'static_mac_addr'}->{'primary'}}){
             next unless($obj->{'dpid'} == $self->{'dpid'});
             my $flow = OESS::FlowRule->new( match => $obj->{'match'},
                                             actions => $obj->{'actions'},
                                             dpid => $obj->{'dpid'},
                                             priority =>$obj->{'priority'});
-            push(@{$ckts{$ckt}->{'flows'}->{'static_mac_addr'}},$flow);
+            push(@{$ckts{$ckt}->{'flows'}->{'static_mac_addr'}->{'primary'}},$flow);
+        }
+
+        foreach my $obj (@{$data->{'ckts'}->{$ckt}->{'flows'}->{'static_mac_addr'}->{'backup'}}){
+            next unless($obj->{'dpid'} == $self->{'dpid'});
+            my $flow = OESS::FlowRule->new( match => $obj->{'match'},
+                                            actions => $obj->{'actions'},
+                                            dpid => $obj->{'dpid'},
+                                            priority =>$obj->{'priority'});
+            push(@{$ckts{$ckt}->{'flows'}->{'static_mac_addr'}->{'backup'}},$flow);
         }
 
     }
@@ -199,7 +208,7 @@ sub _generate_commands{
 
 	    my $primary_flows = $self->{'ckts'}->{$circuit_id}->{'flows'}->{'endpoint'}->{'primary'};
 	    my $backup_flows =  $self->{'ckts'}->{$circuit_id}->{'flows'}->{'endpoint'}->{'backup'};
-	    
+
             #we already performed the DB change so that means
             #whatever path is active is actually what we are moving to
 	    foreach my $flow (@$primary_flows){
