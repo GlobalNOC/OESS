@@ -201,7 +201,38 @@ sub _send_remove_command {
 
     return $final_res;
 
-    #warn "RESULT: " . Dumper($result);
+}
+
+sub _send_update_cache{
+    my $bus = Net::DBus->system;
+
+    my $client;
+    my $service;
+
+    eval {
+        $service = $bus->get_service("org.nddi.fwdctl");
+        $client  = $service->get_object("/controller1");
+    };
+
+    if ($@) {
+        warn "Error in _connect_to_fwdctl: $@";
+        return undef;
+    }
+
+    if ( !defined $client ) {
+        return undef;
+    }
+
+    my ($result,$event_id) = $client->update_cache();
+
+    my $final_res = FWDCTL_WAITING;
+
+    while($final_res == FWDCTL_WAITING){
+        sleep(1);
+        $final_res = $client->get_event_status($event_id);
+    }
+
+    #warn "ADD RESULT: $result";
 
     return $final_res;
 }
@@ -484,6 +515,8 @@ sub remove_circuit {
                                      username     => $ENV{'REMOTE_USER'},
                                      workgroup_id => $workgroup_id
                                     );
+
+    _send_update_cache();
 
     #    print STDERR Dumper($output);
 
