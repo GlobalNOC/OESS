@@ -11,6 +11,11 @@ use URI::Escape;
 use OESS::Database;
 use OESS::DBus;
 
+use constant FWDCTL_WAITING     => 2;
+use constant FWDCTL_SUCCESS     => 1;
+use constant FWDCTL_FAILURE     => 0;
+use constant FWDCTL_UNKNOWN     => 3;
+
 $ENV{HTTPS_DEBUG}     = 0;
 $ENV{HTTPS_VERSION}   = '3';
 
@@ -104,9 +109,14 @@ sub setupReq{
 
 	my $circuit_id = $result->{'circuit_id'};
 	
-	my $output = $dbus->fire_signal("addVlan",$circuit_id);
-	
-	warn "fwdctl says: $output";
+        my ($res,$event_id) = $dbus->addVlan($circuit_id);
+        my $final_res = FWDCTL_WAITING;
+        while($final_res == FWDCTL_WAITING){
+            sleep(1);
+            $final_res = $dbus->get_event_status($event_id);
+        }
+
+	warn "fwdctl says: $final_res";
 
 	$writer2->startTag(["http://oscars.es.net/OSCARS/coord", "status"]);
 	$writer2->characters("SUCCESS");
@@ -188,10 +198,15 @@ sub modifyReq {
     else {
 
 	my $circuit_id = $circuit_info->{'circuit_id'};
+        
+        my ($res,$event_id) = $dbus->deleteVlan($circuit_id);
+        my $final_res = FWDCTL_WAITING;
+        while($final_res == FWDCTL_WAITING){
+            sleep(1);
+            $final_res = $dbus->get_event_status($event_id);
+        }
 
-	my $output = $dbus->fire_signal("deleteVlan", $circuit_info->{'circuit_id'});
-
-	warn "fwdctl says: $output";
+        warn "fwdctl says: $final_res";
 
 	my $result = $db->edit_circuit(circuit_id        => $circuit_id,
 	                               description       => $description,
@@ -221,9 +236,14 @@ sub modifyReq {
 	}
 	else {	   
 
-	    my $output = $dbus->fire_signal("addVlan",$circuit_id);
+            my ($res,$event_id) = $dbus->addVlan($circuit_id);
+            my $final_res = FWDCTL_WAITING;
+            while($final_res == FWDCTL_WAITING){
+                sleep(1);
+                $final_res = $dbus->get_event_status($event_id);
+            }
 
-	    warn "fwdctl says: $output";
+            warn "fwdctl says: $final_res";
 
 	    $writer2->startTag(["http://oscars.es.net/OSCARS/coord", "status"]);
 	    $writer2->characters("SUCCESS");
@@ -297,9 +317,14 @@ sub teardownReq {
     }
     else{
 
-	my $output = $dbus->fire_signal("deleteVlan", $circuit_info->{'circuit_id'});
-
-	warn "fwdctl says: $output";
+        my ($res,$event_id) = $dbus->deleteVlan($circuit_info->{'circuit_id'});
+        my $final_res = FWDCTL_WAITING;
+        while($final_res == FWDCTL_WAITING){
+            sleep(1);
+            $final_res = $dbus->get_event_status($event_id);
+        }
+        
+        warn "fwdctl says: $final_res";
 
 	my $result = $db->remove_circuit(circuit_id  => $circuit_info->{'circuit_id'},
 					 remove_time => -1,
