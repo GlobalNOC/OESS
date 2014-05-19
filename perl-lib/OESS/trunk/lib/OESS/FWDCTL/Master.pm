@@ -364,6 +364,16 @@ sub send_message_to_child{
     $self->{'logger'}->debug("Sending Message to Child: " . Data::Dumper::Dumper($message));
     
     my $rpc = $self->{'children'}->{$dpid}->{'rpc'};
+
+    if(!defined($rpc)){
+        $self->datapath_join_handler($dpid);
+        $rpc = $self->{'children'}->{$dpid}->{'rpc'};
+        if(!defined($rpc)){
+            $self->{'logger'}->error("Problem creating child for DPID: " . $dpid);
+        }
+    }
+
+
     $self->{'pending_results'}->{$event_id}->{$dpid} = FWDCTL_WAITING;
     
     $rpc->(to_json($message), sub{
