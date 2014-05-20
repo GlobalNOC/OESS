@@ -28,7 +28,6 @@ use warnings;
 package OESS::FWDCTL::Master;
 
 use strict;
-use Data::Dumper;
 use Net::DBus::Exporter qw(org.nddi.fwdctl);
 use Net::DBus qw(:typing);
 use Net::DBus::Annotation qw(:call);
@@ -37,7 +36,6 @@ use base qw(Net::DBus::Object);
 use POSIX;
 use Log::Log4perl;
 use Switch;
-use Storable;
 use OESS::FlowRule;
 use OESS::FWDCTL::Switch;
 use OESS::Database;
@@ -82,8 +80,6 @@ use constant OESS_CIRCUIT_UNKNOWN => 2;
 #SYSTEM USER
 use constant SYSTEM_USER        => 1;
 
-$Storable::Deparse = 1;
-$Storable::Eval = 1;
 
 $| = 1;
 
@@ -142,7 +138,7 @@ sub new {
     $self->{'uuid'} = new Data::UUID;
 
     if(!defined($self->{'share_file'})){
-        $self->{'share_file'} = '/var/run/oess_share.store';
+        $self->{'share_file'} = '/var/run/oess/share';
     }
 
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL');
@@ -161,43 +157,6 @@ sub new {
     
     #exported for the circuit notifier
     dbus_signal("circuit_notification", [["dict","string",["variant"]]],['string']);
-
-    my $template = AnyEvent::Fork->new->require("AnyEvent::Fork::RPC::Async","OESS::FWDCTL::Switch","JSON")->eval(' 
-use strict;
-use warnings;
-use JSON;
-Log::Log4perl::init_and_watch("/etc/oess/logging.conf",10);
-my $switch;
-my $logger;
-    
-sub new{
-    my %args = @_;
-
-    $logger = Log::Log4perl->get_logger("OESS.FWDCTL.MASTER");
-    $logger->info("Creating child for dpid: " . $args{"dpid"});
-    $switch = OESS::FWDCTL::Switch->new( dpid => $args{"dpid"},
-                                        share_file => $args{"share_file"});
-}
-
-sub run{
-    my $fh = shift;
-    my $message = shift;
-
-    $logger->debug("Received a message to start processing! " . Data::Dumper::Dumper($message));
-    my $action;
-    eval{
-        $action = from_json($message);
-    };
-    if(!defined($action)){
-        $logger->error("invalid JSON blob: " . $message);
-        return;
-    }
-    my $res = $switch->process_event($action);
-    $fh->(to_json($res));
-}
-');
-
-    $self->{'child_template'} = $template;   
 
     return $self;
 }
@@ -247,8 +206,6 @@ sub update_cache{
         my $ckt = OESS::Circuit->new( db => $self->{'db'},
                                       circuit_id => $circuit->{'circuit_id'} );
 
-        $self->{'logger'}->trace("Ckt: " . Data::Dumper::Dumper($ckt));
-
         $self->{'circuit'}->{ $ckt->get_id() } = $ckt;
 
         if ($circuit->{'operational_state'} eq 'up') {
@@ -293,44 +250,63 @@ sub update_cache{
 
 sub _write_cache{
     my $self = shift;
-    
-    my $data;
+    my $dpid = shift;
+
+    my %dpids;
 
     my %circuits;
     foreach my $ckt_id (keys (%{$self->{'circuit'}})){
+        my $found = 0;
         $self->{'logger'}->debug("writing circuit: " . $ckt_id . " to cache");
+
         my $ckt = $self->get_ckt_object($ckt_id);
+        my $details = $ckt->get_details();
+
         $circuits{$ckt_id} = {};
-        $circuits{$ckt_id}{'details'} = $ckt->get_details();
+
+        $circuits{$ckt_id}{'details'} = {active_path => $details->{'active_path'},
+                                         state => $details->{'state'},
+                                         name => $details->{'name'},
+                                         description => $details->{'description'}};
         
         foreach my $flow (@{$ckt->get_flows()}){
-            push(@{$circuits{$ckt_id}{'flows'}{'current'}},$flow->to_canonical());
+            push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'current'}},$flow->to_canonical());
         }
 
         foreach my $flow (@{$ckt->{'flows'}->{'endpoint'}->{'primary'}}){
-            push(@{$circuits{$ckt_id}{'flows'}{'endpoint'}{'primary'}},$flow->to_canonical());
+            push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'endpoint'}{'primary'}},$flow->to_canonical());
         }
         foreach my $flow (@{$ckt->{'flows'}->{'endpoint'}->{'backup'}}){
-            push(@{$circuits{$ckt_id}{'flows'}{'endpoint'}{'backup'}},$flow->to_canonical());
+            push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'endpoint'}{'backup'}},$flow->to_canonical());
         }
 
         if(defined($ckt->{'flows'}->{'static_mac_addr'})){
             foreach my $flow (@{$ckt->{'flows'}->{'static_mac_addr'}->{'primary'}}){
-                push(@{$circuits{$ckt_id}{'flows'}{'static_mac_addr'}{'primary'}},$flow->to_canonical());
+                push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'static_mac_addr'}{'primary'}},$flow->to_canonical());
             }
             foreach my $flow (@{$ckt->{'flows'}->{'static_mac_addr'}->{'backup'}}){
-                push(@{$circuits{$ckt_id}{'flows'}{'static_mac_addr'}{'backup'}},$flow->to_canonical());
+                push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'static_mac_addr'}{'backup'}},$flow->to_canonical());
             }
         }
     }
-
-
-    $data->{'ckts'} = \%circuits;
-    $data->{'nodes'} = \%node_info;
-    $data->{'settings'}->{'discovery_vlan'} = $self->{'db'}->{'discovery_vlan'};
-    $self->{'logger'}->debug("writing shared file");
-
-    store $data, $self->{'share_file'};
+    
+    foreach my $dpid (keys %dpids){
+        my $data;
+        my $ckts;
+        foreach my $ckt (keys %circuits){
+            $ckts->{$ckt} = $circuits{$ckt};
+            $ckts->{$ckt}->{'flows'} = $dpids{$dpid}->{$ckt}->{'flows'};
+        }
+        $data->{'ckts'} = $ckts;
+        $data->{'nodes'} = \%node_info;
+        $data->{'settings'}->{'discovery_vlan'} = $self->{'db'}->{'discovery_vlan'};
+        $self->{'logger'}->debug("writing shared file");
+        
+        my $file = $self->{'share_file'} . "." . sprintf("%x",$dpid);
+        open(my $fh, ">", $file);
+        print $fh to_json($data);
+        close($fh);
+    }
 
 }
 
@@ -361,8 +337,6 @@ sub send_message_to_child{
     my $message = shift;
     my $event_id = shift;
 
-    $self->{'logger'}->debug("Sending Message to Child: " . Data::Dumper::Dumper($message));
-    
     my $rpc = $self->{'children'}->{$dpid}->{'rpc'};
 
     if(!defined($rpc)){
@@ -389,7 +363,6 @@ sub send_message_to_child{
         }
         $self->{'pending_results'}->{$event_id}->{$dpid} = $result->{'success'};
         $self->{'node_rules'}->{$dpid} = $result->{'total_rules'};
-        $self->{'logger'}->debug("Got a response: " . Data::Dumper::Dumper($resp));
            });
 }
 
@@ -451,11 +424,45 @@ sub make_baby{
     $self->{'logger'}->debug("Before the fork");
     my %args;
     $args{'dpid'} = $dpid;
-    $args{'share_file'} = $self->{'share_file'};
-    my $proc = $self->{'child_template'}->fork->send_arg(%args)->AnyEvent::Fork::RPC::run("run",
+    $args{'share_file'} = $self->{'share_file'}. "." . sprintf("%x",$dpid);
+
+
+    my $proc = AnyEvent::Fork->new->require("AnyEvent::Fork::RPC::Async","OESS::FWDCTL::Switch","JSON")->eval('
+use strict;
+use warnings;
+use JSON;
+Log::Log4perl::init_and_watch("/etc/oess/logging.conf",10);
+my $switch;
+my $logger;
+
+sub new{
+    my %args = @_;
+
+    $logger = Log::Log4perl->get_logger("OESS.FWDCTL.MASTER");
+    $logger->info("Creating child for dpid: " . $args{"dpid"});
+    $switch = OESS::FWDCTL::Switch->new( dpid => $args{"dpid"},
+                                         share_file => $args{"share_file"});
+}
+
+sub run{
+    my $fh = shift;
+    my $message = shift;
+
+    my $action;
+    eval{
+        $action = from_json($message);
+    };
+    if(!defined($action)){
+        $logger->error("invalid JSON blob: " . $message);
+        return;
+    }
+    my $res = $switch->process_event($action);
+    $fh->(to_json($res));
+}
+')->fork->send_arg(%args)->AnyEvent::Fork::RPC::run("run",
                                                                    async => 1,
-                                                                   on_event => sub { $self->{'logger'}->debug("Received an Event!!!: " . Data::Dumper::Dumper(@_));},
-                                                                   on_error => sub { $self->{'logger'}->warn("REceive an error from child" . Data::Dumper::Dumper(@_))},
+                                                                   on_event => sub { $self->{'logger'}->debug("Received an Event!!!: " . $_[0]);},
+                                                                   on_error => sub { $self->{'logger'}->warn("Receive an error from child" . $_[0])},
                                                                    on_destroy => sub { $self->{'logger'}->warn("OH NO!! CHILD DIED"); $self->{'children'}->{$dpid}->{'rpc'} = undef; $self->datapath_join_handler($dpid);},
                                                                    init => "new");
     $self->{'logger'}->debug("After the fork");
@@ -499,7 +506,7 @@ sub _restore_down_circuits{
 
                 if ($ckt->get_path_status(path => 'primary', link_status => \%link_status ) == OESS_LINK_DOWN) {
                     #if the primary path is down and the backup path is up and is not active fail over
-
+                    
                     if ($ckt->get_path_status( path => 'backup', link_status => \%link_status ) && $ckt->get_active_path() ne 'backup'){
                         #bring it back to this path
                         my $success = $ckt->change_path( do_commit => 0);
@@ -933,6 +940,8 @@ sub topo_port_status{
             $self->port_status($dpid,$reason,$info);
 	}
     }
+
+    $self->force_sync($dpid);
 
     $self->{'logger'}->debug("TOPO Port status complete");
 

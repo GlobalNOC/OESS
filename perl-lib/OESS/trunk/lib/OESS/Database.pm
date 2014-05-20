@@ -76,7 +76,7 @@ package OESS::Database;
 
 use DBI;
 use XML::Simple;
-use Data::Dumper qw(Dumper);
+
 use Array::Utils qw(intersect);
 use XML::Writer;
 use Net::DBus;
@@ -984,7 +984,6 @@ sub get_node_interfaces {
 	    $query .= " and interface.workgroup_id = ?";
     }
 
-    #print STDERR "Query: " . $query . "\nARGS: " . Dumper(@query_args);
 
     my $rows = $self->_execute_query($query, \@query_args);
 
@@ -4299,7 +4298,7 @@ sub decom_link {
 	$self->_rollback();
     return;
     }
-    print STDERR "link_details: " . Dumper($link_details) . "\n";
+
     $self->_execute_query("insert into link_instantiation (end_epoch,start_epoch,link_state,link_id,interface_a_id,interface_z_id) VALUES (-1,unix_timestamp(NOW()),'decom',?,?,?)",[$link_details->{'link_id'},$link_details->{'interface_a_id'},$link_details->{'interface_z_id'}]);
 
     if($link_details->{'status'} eq 'down'){
@@ -5076,7 +5075,6 @@ sub add_remote_link {
 					    no_instantiation  => 1
 	                                    );
 
-    #warn Dumper($node_info);
 
     my $remote_node_id;
 
@@ -6900,7 +6898,6 @@ sub _execute_query {
     my $sth = $dbh->prepare($query);
 
     #warn "Query is: $query\n";
-    #warn "Args are: " . Dumper($args);
 
     if (! $sth){
 	warn "Error in prepare query: $DBI::errstr";

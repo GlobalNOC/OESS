@@ -28,11 +28,9 @@ use warnings;
 package OESS::FWDCTL::Switch;
 
 use strict;
-use Data::Dumper;
 
 use Log::Log4perl;
 use Switch;
-use Storable;
 
 use AnyEvent;
 use OESS::FlowRule;
@@ -40,7 +38,6 @@ use OESS::DBus;
 use Net::DBus;
 
 use JSON;
-use Time::HiRes qw( usleep );
 
 use constant FWDCTL_ADD_VLAN     => 0;
 use constant FWDCTL_REMOVE_VLAN  => 1;
@@ -55,9 +52,6 @@ use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
 
 $| = 1;
-
-$Storable::Deparse = 1;
-$Storable::Eval = 1;
 
 =head1 NAME OESS::FWDCTL::Switch
 
@@ -79,7 +73,7 @@ sub new {
         $logger->error("no DPID specified!!!");
         return;
     }
-
+    
     my $nox = OESS::DBus->new( service => 'org.nddi.openflow', instance => '/controller1');
 
     my $self = \%args;
@@ -89,7 +83,7 @@ sub new {
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL.Switch.' . sprintf("%x",$self->{'dpid'}));
     $self->{'logger'}->debug("I EXIST!!!");
     bless $self, $class;
-    
+    return $self;
     $self->_update_cache();
     $self->datapath_join_handler();
     
@@ -113,15 +107,29 @@ sub echo{
 sub _update_cache{
     my $self = shift;
     $self->{'logger'}->debug("Retrieve file: " . $self->{'share_file'});
-    my $data = retrieve($self->{'share_file'});
-    $self->{'logger'}->debug("Fetched data!");
-    my %ckts;
 
+    if(!-e $self->{'share_file'}){
+        $self->{'logger'}->error("No Cache file exists!!!");
+        return;
+    }
+    return;
+
+    my $str;
+    open(my $fh, "<", $self->{'share_file'});
+    while(my $line = <$fh>){
+        $str .= $line;
+    }
     
+    my $data = from_json($str);
+    $self->{'logger'}->debug("Fetched data!");
+    $self->{'node'} = $data->{'nodes'}->{$self->{'dpid'}};
+    $self->{'settings'} = $data->{'settings'};
+
     foreach my $ckt (keys %{ $data->{'ckts'}}){
 
         $self->{'logger'}->debug("processing cache for circuit: " . $ckt);
-        $ckts{$ckt}->{'details'} = $data->{'ckts'}->{$ckt}->{'details'};
+
+        $self->{'ckts'}->{$ckt}->{'details'} = $data->{'ckts'}->{$ckt}->{'details'};
 
         foreach my $obj (@{$data->{'ckts'}->{$ckt}->{'flows'}->{'current'}}){
             next unless($obj->{'dpid'} == $self->{'dpid'});
@@ -129,7 +137,7 @@ sub _update_cache{
                                             actions => $obj->{'actions'},
                                             dpid => $obj->{'dpid'},
                                             priority => $obj->{'priority'});
-            push(@{$ckts{$ckt}->{'flows'}->{'current'}},$flow);
+            push(@{$self->{'ckts'}->{$ckt}->{'flows'}->{'current'}},$flow);
         }
 
         foreach my $obj (@{$data->{'ckts'}->{$ckt}->{'flows'}->{'endpoint'}->{'primary'}}){
@@ -138,7 +146,7 @@ sub _update_cache{
                                             actions => $obj->{'actions'},
                                             dpid => $obj->{'dpid'},
                                             priority =>$obj->{'priority'});
-            push(@{$ckts{$ckt}->{'flows'}->{'endpoint'}->{'primary'}},$flow);
+            push(@{$self->{'ckts'}->{$ckt}->{'flows'}->{'endpoint'}->{'primary'}},$flow);
         }
 
         foreach my $obj (@{$data->{'ckts'}->{$ckt}->{'flows'}->{'endpoint'}->{'backup'}}){
@@ -147,7 +155,7 @@ sub _update_cache{
                                             actions => $obj->{'actions'},
                                             dpid => $obj->{'dpid'},
                                             priority =>$obj->{'priority'});
-            push(@{$ckts{$ckt}->{'flows'}->{'endpoint'}->{'backup'}},$flow);
+            push(@{$self->{'ckts'}->{$ckt}->{'flows'}->{'endpoint'}->{'backup'}},$flow);
         }
         
 
@@ -157,7 +165,7 @@ sub _update_cache{
                                             actions => $obj->{'actions'},
                                             dpid => $obj->{'dpid'},
                                             priority =>$obj->{'priority'});
-            push(@{$ckts{$ckt}->{'flows'}->{'static_mac_addr'}->{'primary'}},$flow);
+            push(@{$self->{'ckts'}->{$ckt}->{'flows'}->{'static_mac_addr'}->{'primary'}},$flow);
         }
 
         foreach my $obj (@{$data->{'ckts'}->{$ckt}->{'flows'}->{'static_mac_addr'}->{'backup'}}){
@@ -166,18 +174,12 @@ sub _update_cache{
                                             actions => $obj->{'actions'},
                                             dpid => $obj->{'dpid'},
                                             priority =>$obj->{'priority'});
-            push(@{$ckts{$ckt}->{'flows'}->{'static_mac_addr'}->{'backup'}},$flow);
+            push(@{$self->{'ckts'}->{$ckt}->{'flows'}->{'static_mac_addr'}->{'backup'}},$flow);
         }
 
     }
-    $self->{'data'} = {nodes => $data->{'nodes'},
-                       ckts => \%ckts};
 
-    $self->{'logger'}->debug("Cache update for circuits: " . Data::Dumper::Dumper(keys (%ckts)));
-
-    $self->{'ckts'} = \%ckts;
     $self->{'node'} = $data->{'nodes'}->{$self->{'dpid'}};
-    $self->{'logger'}->info("Updating node info: " . Data::Dumper::Dumper($self->{'node'}));
     $self->{'settings'} = $data->{'settings'};
 
 }
@@ -484,14 +486,12 @@ sub datapath_join_handler{
     my %xid_hash;
     
     if(!defined($self->{'node'} || $self->{'node'}->{'default_forward'} == 1)) {
-        my $status = $self->{'nox'}->install_default_forward(Net::DBus::dbus_uint64($self->{'dpid'}),$self->{'data'}->{'settings'}->{'discovery_vlan'});
+        my $status = $self->{'nox'}->install_default_forward(Net::DBus::dbus_uint64($self->{'dpid'}),$self->{'settings'}->{'discovery_vlan'});
 	$self->{'flows'}++;
     }
     
     if (!defined($self->{'node'}) || $self->{'node'}->{'default_drop'} == 1) {
         my $status = $self->{'nox'}->install_default_drop(Net::DBus::dbus_uint64($self->{'dpid'}));
-        #this actually installs 2 flows now
-        $self->{'flows'}++;
         $self->{'flows'}++;
     }
     $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
@@ -540,7 +540,6 @@ sub _replace_flowmod{
             $self->{'logger'}->error("sw: dpipd:" . $self->{'node'}->{'dpid_str'} . " exceeding max_flows:". $self->{'node'}->{'max_flows'} ." replace flowmod failed");
             return FWDCTL_FAILURE;
         }
-	$self->{'logger'}->trace("Flow: " . Data::Dumper::Dumper($commands->{'add'}));
 	$self->{'logger'}->info("Installing Flow: " . $commands->{'add'}->to_human());
         my $status = $self->{'nox'}->install_datapath_flow($commands->{'add'}->to_dbus());
 	
@@ -638,7 +637,6 @@ sub _actual_diff{
         my $match = $command->get_match();
 
         if(defined($current_flows->{$match->{'in_port'}}->{$match->{'dl_vlan'}})){
-            $self->{'logger'}->debug("Found flows for this match/vlan: " . Data::Dumper::Dumper($match));
             for(my $i=0;$i<= $#{$current_flows->{$match->{'in_port'}}->{$match->{'dl_vlan'}}}; $i++){
                 my $flow = $current_flows->{$match->{'in_port'}}->{$match->{'dl_vlan'}}->[$i];
                 $self->{'logger'}->debug("Comparing to: " . $flow->to_human());
@@ -735,7 +733,6 @@ sub _process_stats_to_flows{
     foreach my $flow (@$flows){	
 	my $new_flow = OESS::FlowRule::parse_stat( dpid => $dpid, stat => $flow );
         my $match = $new_flow->get_match();
-        $self->{'logger'}->debug("Adding flow with match to flow hash: " . Data::Dumper::Dumper($match));
         if(!defined($new_flows{$match->{'in_port'}}{$match->{'dl_vlan'}})){
             $new_flows{$match->{'in_port'}}{$match->{'dl_vlan'}} = [];
         }
@@ -755,7 +752,6 @@ sub get_flow_stats{
 
     if($self->{'needs_diff'}){
         my ($time,$stats) = $self->{'nox'}->get_flow_stats($self->{'dpid'});
-	$self->{'logger'}->debug("FlowStats: " . Dumper($stats));
         if ($time == -1) {
             #we don't have flow data yet
             $self->{'logger'}->info("no flow stats cached yet for dpid: " . $self->{'dpid'});

@@ -53,7 +53,6 @@ print $flow_rule->to_human_readible();
 use strict;
 use warnings;
 use Switch;
-use Data::Dumper;
 use Net::DBus;
 use Log::Log4perl;
 
@@ -444,7 +443,6 @@ sub to_dbus{
     for(my $i=0;$i<= $#{$self->{'actions'}};$i++){
 	my @tmp;
 	my $action = $self->{'actions'}->[$i];
-        $self->{'logger'}->trace("Processing Action: " . Data::Dumper::Dumper($action));
 
 	foreach my $key (keys (%$action)){
             $self->{'logger'}->trace("Processing action: " . $key . " " . $action->{$key});
@@ -510,7 +508,6 @@ sub to_dbus{
 	    }
 	    
 	    if(defined($tmp[0])){
-                $self->{'logger'}->trace("Adding: " . Data::Dumper::Dumper(@tmp)  . " to actions array ");
 		push(@actions,\@tmp);
 	    }
 	}
@@ -554,7 +551,6 @@ sub to_dbus{
     $command->{'attr'}{'IDLE_TIMEOUT'} = Net::DBus::dbus_uint16(int($self->{'idle_timeout'}));
 
     $self->{'logger'}->debug("returning the flow in dbus format");
-    $self->{'logger'}->trace("DBUS Data: " . Data::Dumper::Dumper($command));
 
     return (Net::DBus::dbus_uint64($self->{'dpid'}),$command->{'attr'},$command->{'action'});
 }
@@ -723,7 +719,6 @@ sub compare_match{
     my $other_rule = $params{'flow_rule'};
     
     return 0 if(!defined($other_rule));
-    $self->{'logger'}->debug("Comparing match: " . Data::Dumper::Dumper($other_rule));
     my $other_match = $other_rule->get_match();
     
     return 0 if(!defined($other_match));
@@ -840,11 +835,8 @@ sub merge_actions{
 
     #now loop through all the actions and add any that don't exist
     foreach my $other_action (@{$other_flow->get_actions()}){
-	$self->{'logger'}->trace("Actions: " . Data::Dumper::Dumper($self->{'actions'}));
         my $found =0;
         foreach my $action (@{$self->{'actions'}}){
-	    $self->{'logger'}->trace("processing action: " . Data::Dumper::Dumper($action));
-	    $self->{'logger'}->trace("comparing to action: " . Data::Dumper::Dumper($other_action));
             my $action_type = (keys (%$other_action))[0];
             if(defined($action->{$action_type})){
                 if($action->{$action_type} == $other_action->{$action_type}){
@@ -893,10 +885,9 @@ sub parse_stat{
     return if(!defined($stat));
     return if(!defined($dpid));
 
-    $logger->trace("Match: " . Data::Dumper::Dumper($stat->{'match'}));
+
     my $match = $stat->{'match'};
     
-    $logger->trace("Actions: " . Data::Dumper::Dumper($stat->{'actions'}));
     my $actions = $stat->{'actions'};
 
     $logger->trace("Byte Count: " . $stat->{'byte_count'});
@@ -921,7 +912,7 @@ sub parse_stat{
     
     my $new_match = {};
     foreach my $key (keys (%{$match})){
-	$logger->debug("Key: " . $key . " = " . $match->{$key});
+#	$logger->debug("Key: " . $key . " = " . $match->{$key});
 	switch($key){
 	    case "dl_vlan"{
                 if($match->{$key} == 0){

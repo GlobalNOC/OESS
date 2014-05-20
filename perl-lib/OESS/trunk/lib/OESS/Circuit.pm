@@ -312,7 +312,6 @@ sub _generate_static_mac_path_flows{
     
     #push our endpoints into the list of in_ports for each node
     foreach my $endpoint (@{$self->{'details'}->{'endpoints'}}){
-        $self->{'logger'}->debug("endpoint: " . Data::Dumper::Dumper($endpoint));
 
         if(!defined($node_ends{$endpoint->{'node'}})){
             $node_ends{$endpoint->{'node'}} = 0;
@@ -360,8 +359,6 @@ sub _generate_static_mac_path_flows{
 	$finder{$node_z}{$node_a} = $link;
     }
 
-    $self->{'logger'}->debug(" IN PORTS " . Data::Dumper::Dumper(%in_ports));
-
     my $path_vlan_ids = $self->{'vlan_ids'}->{$path};
 
     my @verts = $graph->vertices;
@@ -379,9 +376,7 @@ sub _generate_static_mac_path_flows{
 	
 	$self->{'logger'}->debug("Processing a complex node with more than 2 edges");
 	#complex node!!! take the endpoints and find the paths to each of them!
-	$self->{'logger'}->debug("Edges on verticie: " . Data::Dumper::Dumper($graph->edges_to($vert)));
 	my @edges = $graph->edges_to($vert);
-	$self->{'logger'}->debug("EDGES: " . Data::Dumper::Dumper(@edges));
 	foreach my $edge ($graph->edges_to($vert)){
 	    $self->{'logger'}->debug("Finding link between " . $edge->[0] . " and " . $edge->[1]);
 	    my $link = $finder{$edge->[0]}{$edge->[1]};
@@ -892,8 +887,6 @@ sub get_path_status{
     my %down_links;
     my %unknown_links;
     
-    $self->{'logger'}->debug("ckt: " . $self->get_id() . " in get path status '" . $path . "' for links: " . Data::Dumper::Dumper($link_status));
-
     if(!defined($link_status)){
         my $links = $self->{'db'}->get_current_links();
         
@@ -920,7 +913,6 @@ sub get_path_status{
 
     my $path_links = $self->get_path( path => $path );
 
-    $self->{'logger'}->debug("Path LInks: " . Data::Dumper::Dumper($path_links));
     foreach my $link (@$path_links){
 
         if( $down_links{ $link->{'name'} } ){
