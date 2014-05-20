@@ -84,7 +84,7 @@ sub new {
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL.Switch.' . sprintf("%x",$self->{'dpid'}));
     $self->{'logger'}->debug("I EXIST!!!");
     bless $self, $class;
-    return $self;
+
     $self->_update_cache();
     $self->datapath_join_handler();
     
@@ -124,6 +124,10 @@ sub _update_cache{
     $self->{'logger'}->debug("Fetched data!");
     $self->{'node'} = $data->{'nodes'}->{$self->{'dpid'}};
     $self->{'settings'} = $data->{'settings'};
+
+    foreach my $ckt (keys %{ $self->{'ckts'} }){
+        delete $self->{'ckts'}->{$ckt};
+    }
 
     foreach my $ckt (keys %{ $data->{'ckts'}}){
 
@@ -640,7 +644,9 @@ sub _actual_diff{
         if(defined($current_flows->{$match->{'in_port'}}->{$match->{'dl_vlan'}})){
             for(my $i=0;$i<= $#{$current_flows->{$match->{'in_port'}}->{$match->{'dl_vlan'}}}; $i++){
                 my $flow = $current_flows->{$match->{'in_port'}}->{$match->{'dl_vlan'}}->[$i];
+                next if(!defined($flow));
                 $self->{'logger'}->debug("Comparing to: " . $flow->to_human());
+                
                 if($command->compare_match( flow_rule =>  $flow)){
                     $self->{'logger'}->debug("Match matches!");
                     $found = 1;

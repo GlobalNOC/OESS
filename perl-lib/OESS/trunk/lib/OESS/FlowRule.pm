@@ -52,6 +52,7 @@ print $flow_rule->to_human_readible();
 
 use strict;
 use warnings;
+use Data::Dumper;
 use Switch;
 use Net::DBus;
 use Log::Log4perl;
@@ -685,7 +686,7 @@ sub to_human{
     }
     
     my $dpid_str = sprintf("%x",$self->{'dpid'});
-    return "OFFlowMod:\n DPID: " . $dpid_str . "\n Match: " . $match_str . "\n Actions: " . $action_str;
+    return "OFFlowMod:\n DPID: " . $dpid_str . "\n Priority: " . $self->{'priority'} . "\n Match: " . $match_str . "\n Actions: " . $action_str;
 
 }
 
@@ -885,10 +886,11 @@ sub parse_stat{
     return if(!defined($stat));
     return if(!defined($dpid));
 
-
+    
     my $match = $stat->{'match'};
     
     my $actions = $stat->{'actions'};
+    my $priority = $stat->{'priority'};
 
     $logger->trace("Byte Count: " . $stat->{'byte_count'});
     my $byte_count = $stat->{'byte_count'};
@@ -912,7 +914,7 @@ sub parse_stat{
     
     my $new_match = {};
     foreach my $key (keys (%{$match})){
-#	$logger->debug("Key: " . $key . " = " . $match->{$key});
+	$logger->debug("Key: " . $key . " = " . $match->{$key});
 	switch($key){
 	    case "dl_vlan"{
                 if($match->{$key} == 0){
@@ -932,12 +934,13 @@ sub parse_stat{
     }
 
     my $flow = OESS::FlowRule->new( 
+        priority => $priority,
         match => $new_match,
-		dpid => $dpid,
-		actions => \@new_actions,
+        dpid => $dpid,
+        actions => \@new_actions,
         byte_count => $byte_count,
         packet_count => $packet_count
-    );
+        );
 
     return $flow;
     

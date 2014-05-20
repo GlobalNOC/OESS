@@ -402,11 +402,11 @@ class Component:
                 xid = 8238
                 setattr(self, 'xid', xid + 1)
 
-        self.send_flow_command(dp_id, openflow.OFPFC_DELETE_STRICT, attrs,xid=xid)
+        self.send_flow_command(dp_id, openflow.OFPFC_DELETE, attrs,xid=xid)
         return xid
 
     def delete_strict_datapath_flow(self, dp_id, attrs,
-                        priority=openflow.OFP_DEFAULT_PRIORITY):
+                        priority=openflow.OFP_DEFAULT_PRIORITY,xid=None):
         """\brief Strictly delete the flow entry matching the passed in
         (potentially wildcarded) flow.
 
@@ -417,9 +417,18 @@ class Component:
         @param attrs the flow as a dictionary (described above)
         @param priority the priority of the entry to be deleted
           (only meaningful for entries with wildcards)
-        """
-        return self.send_flow_command(dp_id, openflow.OFPFC_DELETE_STRICT,
-                                      attrs, priority)
+          """
+        if xid == None:
+            if not hasattr(self, 'xid'):
+                xid = 8238
+            else:
+                xid = getattr(self, 'xid')
+                if xid >= 0xFFffFFfe:
+                    xid = 8238
+                    setattr(self, 'xid', xid + 1)
+        self.send_flow_command(dp_id, openflow.OFPFC_DELETE_STRICT,
+                               attrs, priority, xid=xid)
+        return xid
 
     def install_datapath_flow(self, dp_id, attrs, idle_timeout, hard_timeout,
                               actions, buffer_id=None, 

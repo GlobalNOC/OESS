@@ -267,7 +267,8 @@ sub _write_cache{
         $circuits{$ckt_id}{'details'} = {active_path => $details->{'active_path'},
                                          state => $details->{'state'},
                                          name => $details->{'name'},
-                                         description => $details->{'description'}};
+                                         description => $details->{'description'}
+        };
         
         foreach my $flow (@{$ckt->get_flows()}){
             push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'current'}},$flow->to_canonical());
@@ -289,8 +290,9 @@ sub _write_cache{
             }
         }
     }
-    
-    foreach my $dpid (keys %dpids){
+
+        
+    foreach my $dpid (keys %node_info){
         my $data;
         my $ckts;
         foreach my $ckt (keys %circuits){
@@ -300,10 +302,10 @@ sub _write_cache{
         $data->{'ckts'} = $ckts;
         $data->{'nodes'} = \%node_info;
         $data->{'settings'}->{'discovery_vlan'} = $self->{'db'}->{'discovery_vlan'};
-        $self->{'logger'}->debug("writing shared file");
+        $self->{'logger'}->info("writing shared file for dpid: " . $dpid);
         
         my $file = $self->{'share_file'} . "." . sprintf("%x",$dpid);
-        open(my $fh, ">", $file);
+        open(my $fh, ">", $file) or $self->{'logger'}->error("Unable to open $file " . $!);
         print $fh to_json($data);
         close($fh);
     }

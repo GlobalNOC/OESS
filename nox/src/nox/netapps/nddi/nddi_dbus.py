@@ -357,10 +357,12 @@ class dBusEventGen(dbus.service.Object):
             my_attrs[DL_DST]  = int(attrs['DL_DST'])
         if attrs.get("DL_TYPE"):
             my_attrs[DL_TYPE]  = int(attrs['DL_TYPE'])
+        if attrs.get("PRIORITY"):
+            priority = int(attrs["PRIORITY"])
 
         logger.info("removing flow")
         #--- first we check to make sure the switch is in a ready state to accept more flow mods
-        xid = inst.delete_datapath_flow(dpid, my_attrs)
+        xid = inst.delete_strict_datapath_flow(dpid, my_attrs, priority=priority)
         logger.info("flow removed xid: %d" % xid)
         actions = []
         _do_install(dpid,xid,my_attrs,actions)
