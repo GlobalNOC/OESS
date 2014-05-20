@@ -39,6 +39,7 @@ use Net::DBus;
 
 use JSON;
 
+use Time::HiRes qw( usleep );
 use constant FWDCTL_ADD_VLAN     => 0;
 use constant FWDCTL_REMOVE_VLAN  => 1;
 use constant FWDCTL_CHANGE_PATH  => 2;
@@ -112,7 +113,6 @@ sub _update_cache{
         $self->{'logger'}->error("No Cache file exists!!!");
         return;
     }
-    return;
 
     my $str;
     open(my $fh, "<", $self->{'share_file'});
@@ -459,6 +459,7 @@ sub remove_vlan{
     $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
     $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
     my $result = $self->_poll_node_status();
+    $self->{'logger'}->info("Got a barrier reply");
     if($result != FWDCTL_SUCCESS){
         $res = FWDCTL_FAILURE;
     }
