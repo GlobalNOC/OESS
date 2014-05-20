@@ -130,7 +130,6 @@ sub _update_cache{
     }
 
     foreach my $ckt (keys %{ $data->{'ckts'}}){
-
         $self->{'logger'}->debug("processing cache for circuit: " . $ckt);
 
         $self->{'ckts'}->{$ckt}->{'details'} = $data->{'ckts'}->{$ckt}->{'details'};
@@ -219,18 +218,18 @@ sub _generate_commands{
             #whatever path is active is actually what we are moving to
 	    foreach my $flow (@$primary_flows){
 		if($self->{'ckts'}->{$circuit_id}->{'details'}->{'active_path'} eq 'primary'){
-		    $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
-		}else{
 		    $flow->{'sw_act'} = FWDCTL_ADD_RULE;
+		}else{
+		    $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
 		}
 		push(@commands,$flow);
 	    }
 	    
 	    foreach my $flow (@$backup_flows){
 		if($self->{'ckts'}->{$circuit_id}->{'details'}->{'active_path'} eq 'primary'){
-		    $flow->{'sw_act'} = FWDCTL_ADD_RULE;
-		}else{
 		    $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
+		}else{
+		    $flow->{'sw_act'} = FWDCTL_ADD_RULE;
 		}
 		push(@commands,$flow);
 	    }
@@ -318,28 +317,13 @@ sub change_path{
         foreach my $command (@$commands){
             next unless defined($command);
             next unless ($command->get_dpid() == $self->{'dpid'});
+            next unless ($command->{'sw_act'} == FWDCTL_REMOVE_RULE);
+                
+            $self->{'logger'}->info("Removing Flow: " . $command->to_human());
+            $self->{'nox'}->delete_datapath_flow($command->to_dbus());
+            $self->{'flows'}--;
             
-            if($command->{'sw_act'} == FWDCTL_REMOVE_RULE){
-                
-                $self->{'logger'}->info("Removing Flow: " . $command->to_human());
-                $self->{'nox'}->delete_datapath_flow($command->to_dbus());
-                $self->{'flows'}--;
-                
-            }elsif($command->{'sw_act'} == FWDCTL_ADD_RULE){
-                
-                if($self->{'flows'} < $self->{'node'}->{'max_flows'}){
-                    $self->{'logger'}->info("Installing Flow: " . $command->to_human());
-                    $self->{'nox'}->install_datapath_flow($command->to_dbus());
-                    $self->{'flows'}++;
-                }else{
-                    $self->{'logger'}->error("Node: " . $self->{'node'}->{'name'} . " is at or over its maximum flow mod limit, unable to send flow rule for circuit: " . $circuit);
-                    $res = FWDCTL_FAILURE;
-                }
 
-            }else{
-                $self->{'logger'}->error("Invalid Switch action: " . $command->{'sw_act'} . " in flow rule");
-                $res = FWDCTL_FAILURE;
-            }
             #if not doing bulk barrier send a barrier and wait
             if(!$self->{'node'}->{'send_barrier_bulk'}){
                 $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
@@ -348,8 +332,38 @@ sub change_path{
                 if($result != FWDCTL_SUCCESS){
                     $res = FWDCTL_FAILURE;
                 }
-            }    
+            }
+            
+            usleep($self->{'node'}->{'tx_delay_ms'});
+            
         }
+
+        foreach my $command (@$commands){
+            next unless defined($command);
+            next unless ($command->get_dpid() == $self->{'dpid'});
+            next unless($command->{'sw_act'} == FWDCTL_ADD_RULE);
+                
+            if($self->{'flows'} < $self->{'node'}->{'max_flows'}){
+                $self->{'logger'}->info("Installing Flow: " . $command->to_human());
+                $self->{'nox'}->install_datapath_flow($command->to_dbus());
+                $self->{'flows'}++;
+            }else{
+                $self->{'logger'}->error("Node: " . $self->{'node'}->{'name'} . " is at or over its maximum flow mod limit, unable to send flow rule for circuit: " . $circuit);
+                $res = FWDCTL_FAILURE;
+            }
+          
+            #if not doing bulk barrier send a barrier and wait
+            if(!$self->{'node'}->{'send_barrier_bulk'}){
+                $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
+                $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+                my $result = $self->_poll_node_status();
+                if($result != FWDCTL_SUCCESS){
+                    $res = FWDCTL_FAILURE;
+                }
+            }
+            usleep($self->{'node'}->{'tx_delay_ms'});
+        }
+
     }
 
     #send our final barrier and wait for reply
@@ -408,7 +422,7 @@ sub add_vlan{
                 $res = FWDCTL_FAILURE;
             }
         }
-
+        usleep($self->{'node'}->{'tx_delay_ms'});
     }
 
     #send our final barrier and wait for reply
@@ -456,6 +470,8 @@ sub remove_vlan{
                 $res = FWDCTL_FAILURE;
             }
         }
+
+        usleep($self->{'node'}->{'tx_delay_ms'});
 
     }    
 
@@ -560,7 +576,7 @@ sub _replace_flowmod{
         }	
         $self->{'flows'}++;
     }
-    
+    usleep($self->{'node'}->{'tx_delay_ms'});
     return $state;
 }
 

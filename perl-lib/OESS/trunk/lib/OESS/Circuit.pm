@@ -845,7 +845,7 @@ sub change_path{
     }
 
     $self->{'active_path'} = $alternate_path;
-    $self->{'circuit_details'}->{'active_path'} = $alternate_path;
+    $self->{'details'}->{'active_path'} = $alternate_path;
     $self->{'logger'}->debug("Circuit " . $self->get_id() . " is now on " . $alternate_path);
     return 1;
 

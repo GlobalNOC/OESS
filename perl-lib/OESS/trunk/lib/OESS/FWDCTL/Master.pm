@@ -151,7 +151,7 @@ sub new {
     dbus_method("topo_port_status",["uint64","uint32",["dict","string","string"]],["string"]);
     dbus_method("rules_per_switch",["uint64"],["uint32"]);
     dbus_method("fv_link_event",["string","int32"],["int32"]);
-    dbus_method("update_cache",[],["int32", "string"]);
+    dbus_method("update_cache",["int32"],["int32", "string"]);
     dbus_method("force_sync",["uint64"],["int32","string"]);
     dbus_method("get_event_status",["string"],["int32"]);
     
@@ -199,58 +199,79 @@ updates the cache for all of the children
 
 sub update_cache{
     my $self = shift;
-    $self->{'logger'}->debug("Fetching State from the DB");
-    my $circuits = $self->{'db'}->get_current_circuits();
-    foreach my $circuit (@$circuits) {
+    my $circuit_id = shift;
 
-        my $ckt = OESS::Circuit->new( db => $self->{'db'},
-                                      circuit_id => $circuit->{'circuit_id'} );
-
-        $self->{'circuit'}->{ $ckt->get_id() } = $ckt;
-
-        if ($circuit->{'operational_state'} eq 'up') {
-            $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
-        } elsif ($circuit->{'operational_state'}  eq 'down') {
-            $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_DOWN;
-        } else {
-            $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UNKNOWN;
+    if(!defined($circuit_id) || $circuit_id == -1){
+        
+        $self->{'logger'}->debug("Fetching State from the DB");
+        my $circuits = $self->{'db'}->get_current_circuits();
+        
+        foreach my $ckt (keys %{$self->{'circuit'}}){
+            delete $self->{'circuit'}->{$ckt};
         }
-    }
-
-    my $links = $self->{'db'}->get_current_links();
-    foreach my $link (@$links) {
-        if ($link->{'status'} eq 'up') {
-            $link_status{$link->{'name'}} = OESS_LINK_UP;
-        } elsif ($link->{'status'} eq 'down') {
-            $link_status{$link->{'name'}} = OESS_LINK_DOWN;
-        } else {
-            $link_status{$link->{'name'}} = OESS_LINK_UNKNOWN;
+        
+        foreach my $circuit (@$circuits) {
+            
+            my $ckt = OESS::Circuit->new( db => $self->{'db'},
+                                          circuit_id => $circuit->{'circuit_id'} );
+            
+            $self->{'circuit'}->{ $ckt->get_id() } = $ckt;
+            
+            if ($circuit->{'operational_state'} eq 'up') {
+                $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
+            } elsif ($circuit->{'operational_state'}  eq 'down') {
+                $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_DOWN;
+            } else {
+                $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UNKNOWN;
+            }
         }
+        
+        my $links = $self->{'db'}->get_current_links();
+        foreach my $link (@$links) {
+            if ($link->{'status'} eq 'up') {
+                $link_status{$link->{'name'}} = OESS_LINK_UP;
+            } elsif ($link->{'status'} eq 'down') {
+                $link_status{$link->{'name'}} = OESS_LINK_DOWN;
+            } else {
+                $link_status{$link->{'name'}} = OESS_LINK_UNKNOWN;
+            }
+        }
+        
+        my $nodes = $self->{'db'}->get_current_nodes();
+        foreach my $node (@$nodes) {
+            $self->{'nodes_needing_diff'}{$node->{'dpid'}} = $node;
+            my $details = $self->{'db'}->get_node_by_dpid(dpid => $node->{'dpid'});
+            $details->{'dpid_str'} = sprintf("%x",$node->{'dpid'});
+            $details->{'name'} = $node->{'name'};
+            $node_info{$node->{'dpid'}} = $details;
+        }
+        
+        #write the cache for our children
+        $self->_write_cache();
+        my $event_id = $self->_generate_unique_event_id();
+        foreach my $child (keys %{$self->{'children'}}){
+            $self->send_message_to_child($child,{action => 'update_cache'},$event_id);
+        }
+        
+        return (FWDCTL_SUCCESS,$event_id);
+    }else{
+        my $event_id = $self->_generate_unique_event_id();
+        my $ckt = $self->get_ckt_obj($circuit_id);
+        if(!defined($ckt)){
+            return (FWDCTL_FAILURE,$event_id);   
+        }
+        
+        $ckt->update_circuit_details();
+        $self->_write_cache();
+        foreach my $child (keys %{$self->{'children'}}){
+            $self->send_message_to_child($child,{action => 'update_cache'},$event_id);
+        }
+
     }
-
-    my $nodes = $self->{'db'}->get_current_nodes();
-    foreach my $node (@$nodes) {
-        $self->{'nodes_needing_diff'}{$node->{'dpid'}} = $node;
-        my $details = $self->{'db'}->get_node_by_dpid(dpid => $node->{'dpid'});
-        $details->{'dpid_str'} = sprintf("%x",$node->{'dpid'});
-        $details->{'name'} = $node->{'name'};
-        $node_info{$node->{'dpid'}} = $details;
-    }
-
-    #write the cache for our children
-    $self->_write_cache();
-    my $event_id = $self->_generate_unique_event_id();
-    foreach my $child (keys %{$self->{'children'}}){
-        $self->send_message_to_child($child,{action => 'update_cache'},$event_id);
-    }
-
-    return (FWDCTL_SUCCESS,$event_id);
-
 }
 
 sub _write_cache{
     my $self = shift;
-    my $dpid = shift;
 
     my %dpids;
 
@@ -258,7 +279,7 @@ sub _write_cache{
     foreach my $ckt_id (keys (%{$self->{'circuit'}})){
         my $found = 0;
         $self->{'logger'}->debug("writing circuit: " . $ckt_id . " to cache");
-
+        
         my $ckt = $self->get_ckt_object($ckt_id);
         my $details = $ckt->get_details();
 
@@ -267,9 +288,10 @@ sub _write_cache{
         $circuits{$ckt_id}{'details'} = {active_path => $details->{'active_path'},
                                          state => $details->{'state'},
                                          name => $details->{'name'},
-                                         description => $details->{'description'}
-        };
+                                         description => $details->{'description'} };
         
+        $self->{'logger'}->error("Ckt: " . $ckt_id . " active path: " . $details->{'active_path'});
+
         foreach my $flow (@{$ckt->get_flows()}){
             push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'current'}},$flow->to_canonical());
         }
@@ -315,7 +337,7 @@ sub _write_cache{
 sub _sync_database_to_network {
     my $self = shift;
 
-    $self->update_cache();
+    $self->update_cache(-1);
     
     foreach my $node (keys %node_info){
         #fire off the datapath join handler
@@ -1087,6 +1109,7 @@ sub deleteVlan {
 	return FWDCTL_FAILURE;
     }
     
+
     #update the cache
     $self->_write_cache();
     
