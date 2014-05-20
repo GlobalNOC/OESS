@@ -290,8 +290,6 @@ sub _write_cache{
                                          name => $details->{'name'},
                                          description => $details->{'description'} };
         
-        $self->{'logger'}->error("Ckt: " . $ckt_id . " active path: " . $details->{'active_path'});
-
         foreach my $flow (@{$ckt->get_flows()}){
             push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'current'}},$flow->to_canonical());
         }
