@@ -506,7 +506,7 @@ sub datapath_join_handler{
     
     my %xid_hash;
     
-    if(!defined($self->{'node'} || $self->{'node'}->{'default_forward'} == 1)) {
+    if(!defined($self->{'node'}) || $self->{'node'}->{'default_forward'} == 1) {
         my $status = $self->{'nox'}->install_default_forward(Net::DBus::dbus_uint64($self->{'dpid'}),$self->{'settings'}->{'discovery_vlan'});
 	$self->{'flows'}++;
     }
