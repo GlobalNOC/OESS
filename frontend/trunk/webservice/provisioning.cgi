@@ -204,6 +204,10 @@ sub _send_remove_command {
 }
 
 sub _send_update_cache{
+    my %args = @_;
+    if(!defined($args{'circuit_id'})){
+        $args{'circuit_id'} = -1;
+    }
     my $bus = Net::DBus->system;
 
     my $client;
@@ -223,7 +227,7 @@ sub _send_update_cache{
         return undef;
     }
 
-    my ($result,$event_id) = $client->update_cache();
+    my ($result,$event_id) = $client->update_cache($args{'circuit_id'});
 
     my $final_res = FWDCTL_WAITING;
 
@@ -516,7 +520,7 @@ sub remove_circuit {
                                      workgroup_id => $workgroup_id
                                     );
 
-    _send_update_cache();
+    _send_update_cache($circuit_id);
 
     #    print STDERR Dumper($output);
 

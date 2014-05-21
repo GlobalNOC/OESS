@@ -741,7 +741,7 @@ sub confirm_node {
     }
 
 
-    my ($res,$event_id) = $client->update_cache();
+    my ($res,$event_id) = $client->update_cache(-1);
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
@@ -844,7 +844,7 @@ sub update_node {
 
     my $node = $db->get_node_by_id(node_id => $node_id);
 
-    my ($res,$event_id) = $client->update_cache();
+    my ($res,$event_id) = $client->update_cache(-1);
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
@@ -933,7 +933,7 @@ sub decom_node {
     }
 
     
-    my ($res,$event_id) = $client->update_cache();
+    my ($res,$event_id) = $client->update_cache(-1);
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
