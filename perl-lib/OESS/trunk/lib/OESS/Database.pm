@@ -4261,7 +4261,7 @@ sub insert_node_in_path{
     }
 
     while(scalar(@events) > 0){
-        for(my $i=0;$i< $#events;$i++){
+        for(my $i=0;$i <= $#events;$i++){
             my $res = $client->get_event_status($events[$i]);
             if($res != FWDCTL_WAITING){
                 delete $events[$i];

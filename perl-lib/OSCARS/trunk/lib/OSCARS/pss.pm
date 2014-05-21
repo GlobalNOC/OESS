@@ -24,7 +24,7 @@ my $IDC_WORKGROUP_NAME = "OSCARS IDC";
 
 my $db   = new OESS::Database();
 my $dbus = OESS::DBus->new( service => "org.nddi.fwdctl", instance => "/controller1");
-
+$dbus = $dbus->{'dbus'};
 my $LOCAL_DOMAIN = $db->get_local_domain_name();
 
 $ENV{HTTPS_CERT_FILE} = $db->get_oscars_cert();
