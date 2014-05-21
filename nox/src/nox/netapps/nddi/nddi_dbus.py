@@ -605,7 +605,7 @@ class nddi_dbus(Component):
             flow.wildcards = 0xffffffff
             self.send_flow_stats_request(dpid, flow,0xff)
 
-        self.post_callback(5, self.fire_flow_stats_timer)
+        self.post_callback(30, self.fire_flow_stats_timer)
 
     def fire_send_fv_packets(self):
 
