@@ -27,7 +27,7 @@ sub main{
         return undef;
     }
 
-	 my $log_svc;
+    my $log_svc;
      my $log_client;
 
     eval {
@@ -68,14 +68,14 @@ sub main{
             eval {
                 ($res,$event_id) = $client->addVlan($output->{'circuit_id'});
       
-                my $final_res = FWDCTL_WAITING;
+                my $final_res = OESS::Database::FWDCTL_WAITING;
 
-                while($final_res == FWDCTL_WAITING){
+                while($final_res == OESS::Database::FWDCTL_WAITING){
                     sleep(1);
                     $final_res = $client->get_event_status($event_id);
                 }
 
-                $res = $final-res;
+                $res = $final_res;
             };
             
             
@@ -96,9 +96,9 @@ sub main{
             my $event_id;
             eval {
                 ($res,$event_id) = $client->deleteVlan($action->{'circuit_id'});
-                my $final_res = FWDCTL_WAITING;
+                my $final_res = OESS::Database::FWDCTL_WAITING;
 
-                while($final_res == FWDCTL_WAITING){
+                while($final_res == OESS::Database::FWDCTL_WAITING){
                     sleep(1);
                     $final_res = $client->get_event_status($event_id);
                 }
@@ -129,9 +129,9 @@ sub main{
             eval{
                 ($res,$event_id) = $client->addVlan($output->{'circuit_id'});
             
-                my $final_res = FWDCTL_WAITING;
+                my $final_res = OESS::Database::FWDCTL_WAITING;
 
-                while($final_res == FWDCTL_WAITING){
+                while($final_res == OESS::Database::FWDCTL_WAITING){
                     sleep(1);
                     $final_res = $client->get_event_status($event_id);
                 }
@@ -156,9 +156,9 @@ sub main{
             eval{
                 ($res,$event_id) = $client->deleteVlan($action->{'circuit_id'});
 
-                my $final_res = FWDCTL_WAITING;
+                my $final_res = OESS::Database::FWDCTL_WAITING;
 
-                while($final_res == FWDCTL_WAITING){
+                while($final_res == OESS::Database::FWDCTL_WAITING){
                     sleep(1);
                     $final_res = $client->get_event_status($event_id);
                 }
@@ -216,9 +216,9 @@ sub main{
                 if($success){
                     eval{
                         ($res,$event_id) = $client->changeVlanPath($action->{'circuit_id'});
-                        my $final_res = FWDCTL_WAITING;
+                        my $final_res = OESS::Database::FWDCTL_WAITING;
 
-                        while($final_res == FWDCTL_WAITING){
+                        while($final_res == OESS::Database::FWDCTL_WAITING){
                             sleep(1);
                             $final_res = $client->get_event_status($event_id);
                         }
