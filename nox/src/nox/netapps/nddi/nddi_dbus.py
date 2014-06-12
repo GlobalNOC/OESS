@@ -178,7 +178,6 @@ class dBusEventGen(dbus.service.Object):
                          out_signature='iaa{sv}'
                          )
     def get_node_status(self, dpid):
-        
         if flowmod_callbacks.has_key(dpid):
             xids = flowmod_callbacks[dpid].keys()
             
@@ -191,12 +190,8 @@ class dBusEventGen(dbus.service.Object):
                 elif(flowmod_callbacks[dpid][xids[0]]["result"] == FWDCTL_WAITING):
                     return (FWDCTL_WAITING, [])
                 else:
-                    if(flowmod_callbacks[dpid][xids[0]].has_key("failed_flows")):
-                        failed_flows = flowmod_callbacks[dpid][xids[0]]["failed_flows"]
-                        del flowmod_callbacks[dpid][xids[0]]
-                        return ( FWDCTL_FAILURE, failed_flows )
-                    else:
-                        return ( FWDCTL_FAILURE, [])
+                    del flowmod_callbacks[dpid][xids[0]]
+                    return ( FWDCTL_FAILURE, [])
             else:
                 return (FWDCTL_WAITING, [])
             
@@ -357,12 +352,10 @@ class dBusEventGen(dbus.service.Object):
             my_attrs[DL_DST]  = int(attrs['DL_DST'])
         if attrs.get("DL_TYPE"):
             my_attrs[DL_TYPE]  = int(attrs['DL_TYPE'])
-        if attrs.get("PRIORITY"):
-            priority = int(attrs["PRIORITY"])
 
         logger.info("removing flow")
         #--- first we check to make sure the switch is in a ready state to accept more flow mods
-        xid = inst.delete_strict_datapath_flow(dpid, my_attrs, priority=priority)
+        xid = inst.delete_datapath_flow(dpid, my_attrs)
         logger.info("flow removed xid: %d" % xid)
         actions = []
         _do_install(dpid,xid,my_attrs,actions)
