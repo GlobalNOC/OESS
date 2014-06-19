@@ -254,6 +254,7 @@ sub update_cache{
         }
         
         return (FWDCTL_SUCCESS,$event_id);
+        
     }else{
         my $event_id = $self->_generate_unique_event_id();
         my $ckt = $self->get_ckt_obj($circuit_id);
@@ -266,7 +267,7 @@ sub update_cache{
         foreach my $child (keys %{$self->{'children'}}){
             $self->send_message_to_child($child,{action => 'update_cache'},$event_id);
         }
-
+        return (FWDCTL_SUCCESS, $event_id);
     }
 }
 
@@ -797,6 +798,8 @@ sub port_status{
     my $reason = shift;
     my $info   = shift;
 
+    $self->{'logger'}->error("Port Status event!");
+
     my $port_name   = $info->{'name'};
     my $port_number = $info->{'port_no'};
     my $link_status = $info->{'link'};
@@ -1036,14 +1039,16 @@ sub addVlan {
 
     $self->{'logger'}->info("addVlan: $circuit_id");
 
+    my $event_id = $self->_generate_unique_event_id();
+
     my $ckt = $self->get_ckt_object( $circuit_id );
     if(!defined($ckt)){
-        return FWDCTL_FAILURE;
+        return (FWDCTL_FAILURE,$event_id);
     }
 
     $ckt->update_circuit_details();
     if($ckt->{'details'}->{'state'} eq 'decom'){
-	return FWDCTL_FAILURE;
+	return (FWDCTL_FAILURE,$event_id);
     }
 
     $self->_write_cache();
@@ -1054,8 +1059,6 @@ sub addVlan {
     foreach my $flow (@$flows){
         $dpids{$flow->get_dpid()} = 1;
     }
-
-    my $event_id = $self->_generate_unique_event_id();
 
     my $result = FWDCTL_SUCCESS;
 
@@ -1096,15 +1099,15 @@ sub deleteVlan {
     my $circuit_id = shift;
 
     my $ckt = $self->get_ckt_object( $circuit_id );
-    
+    my $event_id = $self->_generate_unique_event_id();
     if(!defined($ckt)){
-        return FWDCTL_FAILURE;
+        return (FWDCTL_FAILURE,$event_id);
     }
     
     $ckt->update_circuit_details();
 
     if($ckt->{'details'}->{'state'} eq 'decom'){
-	return FWDCTL_FAILURE;
+	return (FWDCTL_FAILURE,$event_id);
     }
     
 
@@ -1118,8 +1121,6 @@ sub deleteVlan {
         $dpids{$flow->get_dpid()} = 1;
     }
    
-    my $event_id = $self->_generate_unique_event_id();
-
     my $result = FWDCTL_SUCCESS;
 
     foreach my $dpid (keys %dpids){
