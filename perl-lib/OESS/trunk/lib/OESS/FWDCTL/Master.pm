@@ -383,10 +383,10 @@ sub send_message_to_child{
         };
         if(!defined($result)){
             $self->{'logger'}->error("Something bad happened processing response from child: " . $resp);
-            $self->{'pending_results'}->{$event_id}->{$dpid} = FWDCTL_UNKNOWN;
+            $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = FWDCTL_UNKNOWN;
             return;
         }
-        $self->{'pending_results'}->{$event_id}->{$dpid} = $result->{'success'};
+        $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = $result->{'success'};
         $self->{'node_rules'}->{$dpid} = $result->{'total_rules'};
            });
 }
