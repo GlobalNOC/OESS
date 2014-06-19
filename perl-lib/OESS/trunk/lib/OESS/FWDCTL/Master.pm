@@ -50,6 +50,8 @@ use XML::Simple;
 use Time::HiRes qw( usleep );
 use Data::UUID;
 
+use constant TIMEOUT => 3600;
+
 use constant FWDCTL_ADD_VLAN     => 0;
 use constant FWDCTL_REMOVE_VLAN  => 1;
 use constant FWDCTL_CHANGE_PATH  => 2;
@@ -370,8 +372,8 @@ sub send_message_to_child{
         }
     }
 
-
-    $self->{'pending_results'}->{$event_id}->{$dpid} = FWDCTL_WAITING;
+    $self->{'pending_results'}->{$event_id}->{'ts'} = time();
+    $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = FWDCTL_WAITING;
     
     $rpc->(to_json($message), sub{
         my $resp = shift;
@@ -404,6 +406,25 @@ sub check_child_status{
         my $child = $self->{'children'}->{$dpid};
         my $corr_id = $self->send_message_to_child($dpid,{action => 'echo'},$event_id);            
     }
+}
+
+=head2 reap_old_events
+
+=cut
+
+sub reap_old_events{
+    my $self = shift;
+
+    my $time = time();
+    foreach my $event (keys (%{$self->{'pending_events'}})){
+
+        if($self->{'pending_events'}->{$event}->{'ts'} + TIMEOUT > $time){
+            delete $self->{'pending_events'}->{$event};
+        }
+
+    }
+
+
 }
 
 
@@ -1172,7 +1193,8 @@ sub get_event_status{
 
     $self->{'logger'}->debug("Looking for event: " . $event_id);
     if(defined($self->{'pending_results'}->{$event_id})){
-        my $results = $self->{'pending_results'}->{$event_id};
+
+        my $results = $self->{'pending_results'}->{$event_id}->{'dpids'};
         
         foreach my $dpid (keys %{$results}){
             $self->{'logger'}->debug("DPID: " . $dpid . " reports status: " . $results->{$dpid});
