@@ -26,7 +26,7 @@ fi
 [ ${NETWORKING} = "no" ] && exit 0
 name=topo
 exec_file=/usr/bin/$name.pl
-options=" -d"
+options=" "
 username=_oess
 lockfile=/var/lock/subsys/$name
 command="$exec_file -u $username $options"
@@ -64,6 +64,41 @@ case "$1" in
             fi
         fi
         ;;
+
+  start-instrument)
+         #start
+        IS_RUNNING=0
+        echo -n $"Starting oess-$name: "
+        if [[ -f $lockfile  && -f $PIDFILE ]];then
+            MYPID=`head -n 1 $PIDFILE`
+            TEST_RUNNING=`ps -p ${MYPID} | grep ${MYPID}`
+            if [ -z "${TEST_RUNNING}" ];
+            then
+               IS_RUNNING=0
+            else
+               IS_RUNNING=1
+            fi
+
+        fi
+        if [ $IS_RUNNING != 0 ];then
+            failure; echo
+        else
+            if [ -e /tmp/topo_cover/ ]; then
+                rm -rf /tmp/topo_cover/
+            fi
+            mkdir -p /tmp/topo_cover/cover_db
+            chmod 777 /tmp/topo_cover -R
+            /usr/bin/perl -MDevel::Cover=-dir,/tmp/topo_cover/,+select,OESS $command -f &
+
+            if [ $? -eq 0 ]; then
+                echo $! > $PIDFILE
+                touch $lockfile
+                success; echo
+            else
+                failure; echo
+            fi
+        fi
+        ;;
   stop)
         #stop
         if [ -f $PIDFILE ]; then
@@ -75,6 +110,18 @@ case "$1" in
         fi
         rm -rf $lockfile
         ;;
+  stop-instrument)
+        #stop
+        if [ -f $PIDFILE ]; then
+                action $"Stopping oess-${name}: " /bin/true
+                kill -HUP `cat $PIDFILE`
+                rm -f $PIDFILE
+        else
+                action $"Stopping oess-${name}: " /bin/false
+        fi
+        rm -rf $lockfile
+        ;;
+
   status)
         #status
         if [ -f $PIDFILE ]; then
@@ -102,7 +149,7 @@ case "$1" in
         exit $?
         ;;
   *)
-        echo $"Usage: $0 {start|stop|restart|reload|status|help}"
+        echo $"Usage: $0 {start|stop|restart|start-instrument|stop-instrument|reload|status|help}"
         exit 1
 
 esac

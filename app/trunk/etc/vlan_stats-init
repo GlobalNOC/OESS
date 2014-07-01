@@ -60,12 +60,56 @@ case "$1" in
         fi
         ;;
 
+  start-instrument)
+        #start
+        IS_RUNNING=0
+        echo -n $"Starting oess-$name: "
+        if [[ -f $lockfile  && -f $PIDFILE ]];then
+            MYPID=`head -n 1 $PIDFILE`
+            TEST_RUNNING=`ps -p ${MYPID} | grep ${MYPID}`
+            if [ -z "${TEST_RUNNING}" ];
+            then
+               IS_RUNNING=0
+            else
+               IS_RUNNING=1
+            fi
 
+        fi
+        if [ $IS_RUNNING != 0 ];then
+            failure; echo
+        else
+            if [ -e /tmp/vlanstats_cover/ ]; then
+                rm -rf /tmp/vlanstats_cover/
+            fi
+            mkdir -p /tmp/vlanstats_cover/cover_db
+            chmod 777 /tmp/vlanstats_cover -R
+            /usr/bin/perl -MDevel::Cover=-dir,/tmp/vlanstats_cover/,+select,OESS $command -f &
+
+                if [ $? -eq 0 ]; then
+                echo $! > $PIDFILE
+                touch $lockfile
+                success; echo
+            else
+                failure; echo
+            fi
+        fi
+        ;;
   stop)
         #stop
         if [ -f $PIDFILE ]; then
                 action $"Stopping oess-${name}: " /bin/true
                 kill -TERM `cat $PIDFILE`
+                rm -f $PIDFILE
+        else
+                action $"Stopping oess-${name}: " /bin/false
+        fi
+        rm -rf $lockfile
+        ;;
+  stop-instrument)
+        #stop
+        if [ -f $PIDFILE ]; then
+                action $"Stopping oess-${name}: " /bin/true
+                kill -HUP `cat $PIDFILE`
                 rm -f $PIDFILE
         else
                 action $"Stopping oess-${name}: " /bin/false
@@ -99,7 +143,7 @@ case "$1" in
         exit $?
         ;;
   *)
-        echo $"Usage: $0 {start|stop|restart|status|help}"
+        echo $"Usage: $0 {start|stop|start-instrument|stop-instrument|restart|status|help}"
         exit 1
 
 esac

@@ -61,6 +61,40 @@ case "$1" in
         fi
         ;;
 
+  start-instrument)
+  #start
+        IS_RUNNING=0
+        echo -n $"Starting oess-$name: "
+        if [[ -f $lockfile  && -f $PIDFILE ]];then
+            MYPID=`head -n 1 $PIDFILE`
+            TEST_RUNNING=`ps -p ${MYPID} | grep ${MYPID}`
+            if [ -z "${TEST_RUNNING}" ];
+            then
+               IS_RUNNING=0
+            else
+               IS_RUNNING=1
+            fi
+
+        fi
+        if [ $IS_RUNNING != 0 ];then
+            failure; echo
+        else
+            if [ -e /tmp/notify_cover/ ]; then
+                rm -rf /tmp/notify_cover/
+            fi
+            mkdir -p /tmp/notify_cover/cover_db
+            chmod 777 /tmp/notify_cover -R
+            /usr/bin/perl -MDevel::Cover=-dir,/tmp/notify_cover/,+select,OESS $command -f &
+
+            if [ $? -eq 0 ]; then
+                echo $! > $PIDFILE
+                touch $lockfile
+                success; echo
+            else
+                failure; echo
+            fi
+        fi
+        ;;
 
   stop)
         #stop
@@ -70,6 +104,18 @@ case "$1" in
                 rm -f $PIDFILE
         else
                 action $"Stopping ${name}: " /bin/false
+        fi
+        rm -rf $lockfile
+        ;;
+
+  stop-instrument)
+        #stop
+        if [ -f $PIDFILE ]; then
+                action $"Stopping oess-${name}: " /bin/true
+                kill -HUP `cat $PIDFILE`
+                rm -f $PIDFILE
+        else
+                action $"Stopping oess-${name}: " /bin/false
         fi
         rm -rf $lockfile
         ;;
@@ -100,7 +146,7 @@ case "$1" in
         exit $?
         ;;
   *)
-        echo $"Usage: $0 {start|stop|restart|status|help}"
+        echo $"Usage: $0 {start|stop|restart|start-instrument|stop-instrument|status|help}"
         exit 1
 
 esac
