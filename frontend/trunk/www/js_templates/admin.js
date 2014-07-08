@@ -593,7 +593,8 @@ function setup_users_tab(){
           "<div style='text-align:left;margin-top:5px;'>"+
           "   <label>Workgroup Membership:</label>"+
           "</div>"+
-		  "<div id='user_workgroup_table'></div>"
+		  "<div id='user_workgroup_table'></div>"+
+          "<div id='add_user_to_workgroup'></div>"
 		  );
 		
 	p.setFooter("<div id='submit_user'></div><div id='delete_user'></div>");
@@ -611,6 +612,8 @@ function setup_users_tab(){
 	}else{
 	    type = 1;
 	}
+
+        
 
 	YAHOO.util.Dom.get("user_given_name").value    = first_name  || "";
 	YAHOO.util.Dom.get("user_family_name").value   = family_name || "";
@@ -2618,6 +2621,151 @@ function makeUserWorkgroupTable(user_id,first_name,family_name) {
                    );
 
     });
+
+    var add_user_workgroup = new YAHOO.widget.Button('add_user_to_workgroup', {label: "Add User to Workgroup"});
+
+	// show user select
+	add_user_workgroup.on("click", function(){
+
+	    var region = YAHOO.util.Dom.getRegion("user_details");
+
+	    var new_wg_p = new YAHOO.widget.Panel("add_workgroup_user",
+						    {
+                                                        width:500,
+				                        xy: [region.left,
+							     region.top]
+						    }
+						   );
+
+	    new_wg_p.setHeader("Add User to Workgroup - Click to Add to Workgroup");
+	    new_wg_p.setBody("<center>" +
+			       "<div id='add_new_user_workgroup_table'></div>" +
+			       "<div id='add_new_user_workgroup_table_nav'></div>" +
+			       "<div id='add_result' class='soft_title confirmation'></div>" +
+			       "</center>" + 
+			       "<div style='text-align: right; font-size: 85%'>" + 
+			       "<div id='done_add_workgroup_user'></div>" + 
+			       "</div>"
+			      );
+
+	    new_wg_p.render("user_details");		    
+
+	    new_wg_p.hideEvent.subscribe(function(){
+		this.destroy();
+	    });
+
+	    var done_adding_users = new YAHOO.widget.Button('done_add_workgroup_user', {label: "Done Adding Workgroups"});
+
+            done_adding_users.on("click", function(){
+		new_wg_p.hide();
+	    });
+
+	    
+                var searchTimeout;
+                
+                /*var search = new YAHOO.util.Element(YAHOO.util.Dom.get('workgroup_search'));
+                  
+                  search.on('keyup', function(e){
+		  
+	          var search_value = this.get('element').value;
+		  
+	          if (e.keyCode == YAHOO.util.KeyListener.KEY.ENTER){
+		  clearTimeout(searchTimeout);
+		  table_filter.call(table,search_value);
+	          }
+	          else{
+		  if (searchTimeout) clearTimeout(searchTimeout);
+		  
+		  searchTimeout = setTimeout(function(){
+		  table_filter.call(table,search_value);
+		  }, 400);
+		  
+	          } 
+	          
+	          }
+	          );*/
+                
+	        
+                var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_workgroups");
+
+                ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                ds.responseSchema = {
+	            resultsList: "results",
+	            fields: [ {key: "workgroup_id", parser: "number"},
+                              {key: "name"},
+                              {key: "description"},
+                              {key: "external_id"},
+                              {key: "max_mac_address_per_end"},
+                              {key: "max_circuit_endpoints"},
+                              {key: "max_circuits"} 
+	                    ]};
+
+                var columns = [{key: "name", label: "Name", sortable:true,width: 180}
+		              ];
+
+                var config = {
+	            paginator: new YAHOO.widget.Paginator({rowsPerPage: 10,
+							   containers: ["add_new_user_workgroup_table_nav"]
+							  }),
+		    sortedBy:{key:'name',dir:'asc'}
+                };
+
+
+                var my_wg_table = new YAHOO.widget.DataTable("add_new_user_workgroup_table", columns, ds, config);
+
+            my_wg_table.subscribe("rowMouseoverEvent", my_wg_table.onEventHighlightRow);
+            my_wg_table.subscribe("rowMouseoutEvent", my_wg_table.onEventUnhighlightRow);
+            my_wg_table.subscribe("rowClickEvent", my_wg_table.onEventSelectRow);
+            
+	                  
+
+
+	    my_wg_table.subscribe("rowClickEvent", function(oArgs){
+
+		this.disable();
+
+		YAHOO.util.Dom.get('add_result').innerHTML = "";
+                
+		var record  = this.getRecord(oArgs.target);
+		//var user_id = record.getData('user_id');
+		//var first   = record.getData('first_name');
+		//var last    = record.getData('family_name');
+                var workgroup_id = record.getData('workgroup_id');
+		var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_user_to_workgroup&workgroup_id=" + workgroup_id + "&user_id="+ user_id);
+		ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+		ds.responseSchema = {
+		    resultsList: "results",
+		    fields: [{key: "success"}],
+		    metaFields: { 
+			error: "error"
+		    }
+		};
+
+		ds.sendRequest("", 
+			       {
+				   success: function(req, resp){
+				       my_wg_table.undisable();
+				       if (resp.meta.error){
+					   YAHOO.util.Dom.get('add_result').innerHTML = "Error while adding user: " + resp.meta.error;
+				       }
+				       else{
+					   YAHOO.util.Dom.get('add_result').innerHTML = "User added successfully.";
+                                           table.addRow({name:record.getData('name'),});
+				       }
+				   },
+				   failure: function(req, resp){
+				       my_wg_table.undisable();
+				       YAHOO.util.Dom.get('add_result').innerHTML = "Server error while adding user to workgroup.";
+				   }
+			       }
+			      );
+		
+
+	    });
+
+	});
+
+
                                                    
 
     return table;
