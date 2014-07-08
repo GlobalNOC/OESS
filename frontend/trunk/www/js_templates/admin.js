@@ -2,6 +2,7 @@
 <script type='text/javascript' src='../js_utilities/datatable_utils.js'></script>
 <script type='text/javascript' src='../js_utilities/interface_acl_table.js'></script>
 <script type='text/javascript' src='../js_utilities/multilink_panel.js'></script>
+
 <script>
 function admin_init(){
 
@@ -769,7 +770,7 @@ function setup_users_tab(){
 
 	    });
 
-        makeUserWorkgroupTable(user_id)
+        makeUserWorkgroupTable(user_id,first_name,family_name)
 
     };
 
@@ -972,6 +973,8 @@ function setup_workgroup_tab(){
 				);
 
 		});
+
+
 
 	    owned_interfaces_table.subscribe("cellClickEvent", function(oArgs){
 		    var col = this.getColumn(oArgs.target);
@@ -2416,8 +2419,8 @@ function makeOwnedInterfaceTable(id){
 				   {key: "interface_name", label: "Interface", width: 60 ,sortable:true},	  
                    {key: "description", label: "Description", width: 140},
 	           {label: "Remove", formatter: function(el, rec, col, data){
-			                           var b = new YAHOO.widget.Button({label: "Remove"});
-						   b.appendTo(el);
+		                           var b = new YAHOO.widget.Button({label: "Remove"});
+                                                  b.appendTo(el);
 		                                }
 		   }
 	           ];
@@ -2527,7 +2530,7 @@ function makeUserTable(div_id,search_id){
     return table;
 }
 
-function makeUserWorkgroupTable(user_id) {
+function makeUserWorkgroupTable(user_id,first_name,family_name) {
 
     var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_workgroups&user_id="+user_id);
 
@@ -2543,7 +2546,13 @@ function makeUserWorkgroupTable(user_id) {
         {key: "max_circuits"}
     ]};
 
-    var columns = [{key: "name", label: "Name", sortable:true,width: 180}];
+    var columns = [{key: "name", label: "Name", sortable:true,width: 180},
+                     {label: "Remove", formatter: function(el, rec, col, data){
+                                                   var b = new YAHOO.widget.Button({label: "Remove"});
+                                                   b.appendTo(el);
+                                                }
+                   }
+                  ];
 
     var config = {
         paginator: new YAHOO.widget.Paginator({
@@ -2558,7 +2567,59 @@ function makeUserWorkgroupTable(user_id) {
 
     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
-    
+   
+    table.subscribe("cellClickEvent", function(oArgs){
+        
+	var col = this.getColumn(oArgs.target);
+	var rec = this.getRecord(oArgs.target);
+        
+	var user    = first_name + " " + family_name;
+        var workgroup = rec.getData('name');
+        var workgroup_id = rec.getData('workgroup_id');
+        if (col.label != "Remove"){
+            return;
+        }
+
+        showConfirm("Are you sure you wish to remove user " + user + " from workgroup " +workgroup+ "\?",
+                    function(){
+                        table.disable();
+                        
+                        var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=remove_user_from_workgroup&user_id="+user_id+"&workgroup_id="+workgroup_id);
+                        ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                        ds.responseSchema = {
+                            resultsList: "results",
+                            fields: [{key: "success"}],
+                            metaFields: {
+                                error: "error"
+                            }
+                        };
+                        
+                        ds.sendRequest("",
+                                       {
+                                           success: function(req, resp){
+                                               table.undisable();
+                                               
+                                               if (resp.meta.error){
+                                                   alert("Error removing user: " + resp.meta.error);
+                                                           }
+                                               else{
+                                                   table.deleteRow(oArgs.target);
+                                               }
+                                           },
+                                           failure: function(req, resp){
+                                               table.undisable();
+                                               alert("Server error while removing user.");
+                                           }
+                                       }
+                                      );
+                    },
+                                
+                    function(){}
+                   );
+
+    });
+                                                   
+
     return table;
 }
 
