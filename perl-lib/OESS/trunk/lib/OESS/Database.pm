@@ -1,6 +1,4 @@
-
 #!/usr/bin/perl
-
 eval 'exec /usr/bin/perl  -S $0 ${1+"$@"}'
     if 0; # not running under some shell
 #------ NDDI OESS Database Interaction Module
@@ -27,7 +25,6 @@ eval 'exec /usr/bin/perl  -S $0 ${1+"$@"}'
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 #
-
 =head1 NAME
 
 OESS::Database - Database Interaction Module
@@ -82,6 +79,7 @@ use XML::Writer;
 use Net::DBus;
 use OESS::Topology;
 use DateTime;
+use Data::Dumper;
 
 use constant VERSION => '1.1.4';
 use constant MAX_VLAN_TAG => 4096;
@@ -124,7 +122,6 @@ sub new {
 	topo   => undef,
 	@_,
 	);
-
     my $self = \%args;
     bless $self, $class;
 
@@ -474,7 +471,6 @@ sub circuit_has_alternate_path {
     my %args = @_;
 
     my $circuit_id = $args{'circuit_id'};
-
     my $query  = "select path.path_id from path " .
 	         " join path_instantiation on path.path_id = path_instantiation.path_id " .
 		 "  and path_instantiation.path_state = 'available' and path_instantiation.end_epoch = -1 " .
@@ -627,12 +623,11 @@ sub is_external_vlan_available_on_interface {
 
 =cut
 
-sub get_user_by_id{
+sub get_user_by_id {
     my $self = shift;
     my %args = @_;
 
     my $user_id = $args{'user_id'};
-
     if(!defined($user_id)){
 	$self->_set_error("user_id was not defined");
 	return;

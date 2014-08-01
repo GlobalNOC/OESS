@@ -208,10 +208,9 @@ sub _validate_actions {
 
 =cut
 
-sub _validate_vlan_id{
+sub _validate_vlan_id { 
     my $self = shift;
     my $vlan_id = shift;
-
     if($vlan_id == 65535 || $vlan_id == -1 || $vlan_id == VLAN_WILDCARD || ($vlan_id > 0 && $vlan_id < 4096)){
 	return 1;
     }

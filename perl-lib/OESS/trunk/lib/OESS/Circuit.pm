@@ -8,7 +8,7 @@ package OESS::Circuit;
 use Log::Log4perl;
 use OESS::FlowRule;
 use Graph::Directed;
-
+use Data::Dumper;
 #link statuses
 use constant OESS_LINK_UP       => 1;
 use constant OESS_LINK_DOWN     => 0;
@@ -226,7 +226,6 @@ sub _create_flows{
         $primary_path{$node_z}{$link->{'port_no_z'}}{$self->{'details'}->{'internal_ids'}->{'primary'}{$node_z}} = $self->{'details'}->{'internal_ids'}->{'primary'}{$node_a};
     }
     $self->{'path'}->{'primary'} = \%primary_path;
-    
     if($self->has_backup_path()){
 	foreach my $link (@{$self->{'details'}->{'backup_links'}}) {
 	    my $node_a = $link->{'node_a'};
@@ -558,38 +557,65 @@ sub _generate_path_flows{
 
 sub get_flows{
     my $self = shift;
-
+    my %params = @_;	
     my @flows;
 
-    foreach my $flow (@{$self->{'flows'}->{'path'}->{'primary'}}){
-	push(@flows,$flow);
-    }
+    if (!defined($params{'path'})){
 
-    foreach my $flow (@{$self->{'flows'}->{'path'}->{'backup'}}){
-	push(@flows,$flow);
-    }
 
-    if($self->get_active_path() eq 'primary'){
+    	foreach my $flow (@{$self->{'flows'}->{'path'}->{'primary'}}){
+		push(@flows,$flow);
+    	}
+
+    	foreach my $flow (@{$self->{'flows'}->{'path'}->{'backup'}}){
+		push(@flows,$flow);
+    	}
+
+    	if($self->get_active_path() eq 'primary'){
         
-        foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{'primary'}}){
-            push(@flows,$flow);
-        }
+        	foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{'primary'}}){
+            	push(@flows,$flow);
+        	}
 
-	foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{'primary'}}){
-	    push(@flows,$flow);
+		foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{'primary'}}){
+	    	push(@flows,$flow);
+		}
+
+    	}else{
+
+        	foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{'backup'}}){
+            	push(@flows,$flow);
+        	}
+
+		foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{'backup'}}){
+	   	 push(@flows,$flow);
+		}
+
+    	}
+
 	}
 
-    }else{
-
-        foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{'backup'}}){
-            push(@flows,$flow);
-        }
-
-	foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{'backup'}}){
-	    push(@flows,$flow);
-	}
-
+else {
+	my $path = $params{'path'};
+	if($path ne 'primary' && $path ne 'backup'){
+        $self->{'logger'}->error("Path '$path' is invalid");
+        return;
     }
+
+	foreach my $flow (@{$self->{'flows'}->{'path'}->{$path}}){
+                push(@flows,$flow);
+        }
+
+	foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{$path}}){
+                push(@flows,$flow);
+                }
+
+	foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{$path}}){
+                push(@flows,$flow);
+                }
+
+
+}
 
     return $self->_dedup_flows(\@flows);
 }

@@ -23,7 +23,7 @@ use Data::Dumper;
 my $db = OESS::Database->new(config => OESSDatabaseTester::getConfigFilePath());
 
 my $res = $db->get_circuit_details_by_name();
-ok(!defined($res), "No value returned when no cirucuit name specified");
+ok(!defined($res), "No value returned when no circuit name specified");
 
 my $error = $db->get_error();
 ok(!defined($error), "No Params were passed and we got an error back");

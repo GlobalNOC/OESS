@@ -35,6 +35,9 @@ use XML::Simple;
 use OESS::Database;
 use Data::Dumper;
 use Exporter qw(import);
+use OESS::Circuit;
+use Sys::Syslog qw(:standard :macros);
+use GRNOC::Log;
 
 use constant BUILDING_FILE => -1;
 
@@ -45,38 +48,38 @@ our $ENABLE_DEVEL=0;
 =head2 new
 
 =cut
-sub new{
+sub new {
     my $that = shift;
     my $class = ref($that) || $that;
+    my %params = @_;
 
-
-    my $db = OESS::Database->new();
-
+    my $db = $params{'db'};
+    
+    if (!defined $db){
+        $db = OESS::Database->new();
+    }
+    
     if(!defined($db)){
         return undef;
     }
 
     my %args = (
-	config => $db->get_snapp_config_location(),
-	@_
-	);
-
+        config => $db->get_snapp_config_location(),
+        @_
+    );
 
     my $self = \%args;
     bless $self,$class;
 
     $self->{'db'} = $db;
-
     my $config_filename = $args{'config'};
     my $config = XML::Simple::XMLin($config_filename);
-
     my $username = $config->{'db'}->{'username'};
     my $password = $config->{'db'}->{'password'};
     my $database = $config->{'db'}->{'name'};
     my $dbh = DBI->connect("DBI:mysql:$database", $username, $password);
 
     $self->{'dbh'} = $dbh;
-
     return $self;
 
 }
@@ -92,7 +95,7 @@ sub _set_error {
 
 =cut
 
-sub get_error{
+sub get_error {
     my $self = shift;
 
     my $err = $self->{'error'};
@@ -104,7 +107,7 @@ sub get_error{
 
 =cut
 
-sub get_circuit_data{
+sub get_circuit_data {
     my $self = shift;
     my %params = @_;
 
@@ -113,11 +116,19 @@ sub get_circuit_data{
     my $end        = $params{'end_time'};
     my $node       = $params{'node'};
     my $interface  = $params{'interface'};
-
+    my $db         = $params{'db'};
+    
+    if (!defined($db)){
+        $db = OESS::Database->new();
+    }
     if(!defined $circuit_id){
         $self->_set_error("circuit_id is required");
         return undef;
     }
+
+    #get the path that is currently active for issue 7410
+    my $ckt        = OESS::Circuit->new(circuit_id => $circuit_id, db => $db);
+    my $active_path = $ckt->get_active_path();
 
     if(!defined $start){
         $self->_set_error("start_time is required and should be in epoch time");
@@ -127,7 +138,7 @@ sub get_circuit_data{
     # assume we mean "start to now"
     if(!defined $end){
         $end = time;
-    }
+    }    
 
     #find the base RRD dir
     my $rrd_dir;
@@ -137,47 +148,39 @@ sub get_circuit_data{
     if(my $row = $sth->fetchrow_hashref()){
         $rrd_dir = $row->{'value'};
     }
-
     my $circuit_details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
-
     my @interfaces;
-
     my $internal_ids = $circuit_details->{'internal_ids'};
+    #issue 7410 graphs not able to determine backup vs primary path data. 
 
-    foreach my $link (@{$circuit_details->{'links'}}){
-        my $node_a = $link->{'node_a'};
-        my $node_z = $link->{'node_z'};
+    my $inital_node_dpid_hash = $db->get_node_dpid_hash();
+    
+    my %repaired_node_dpid_hash = reverse %{$inital_node_dpid_hash};
+    
+    my %int_names;
+    foreach my $nodeName (keys (%{$inital_node_dpid_hash})){
 
-        push(@interfaces,{node => $node_a,
-                          int => $link->{'interface_a'},
-                          port_no => $link->{'port_no_a'},
-                          tag => $internal_ids->{'primary'}{$node_a}});
-        push(@interfaces,{node => $node_z,
-                          int => $link->{'interface_z'},
-                          port_no => $link->{'port_no_z'},
-                          tag => $internal_ids->{'primary'}{$node_z}});
+        my $int_name =  $db->get_node_interfaces('node'=> $nodeName, show_down => 1, show_trunk =>1);
+        
+        #$int_names{$nodeName} = $int_name;
+        foreach my $int (@{$int_name}){
+        
+            $int_names{$nodeName}->{$int->{'port_number'}} = $int->{'name'};
 
-    }
+        }
 
-    foreach my $link (@{$circuit_details->{'backup_links'}}){
-        my $node_a = $link->{'node_a'};
-        my $node_z = $link->{'node_z'};
-        push(@interfaces,{node => $node_a,
-                          int => $link->{'interface_a'},
-                          port_no => $link->{'port_no_a'},
-                          tag => $internal_ids->{'backup'}{$node_a}});
-        push(@interfaces,{node => $node_z,
-                          int => $link->{'interface_z'},
-                          port_no => $link->{'port_no_z'},
-                          tag => $internal_ids->{'backup'}{$node_z}});
-    }
+   }
+    
 
+    my $flows = $ckt->get_flows(path => $active_path);
     my %endpoint;
-    foreach my $endpoint (@{$circuit_details->{'endpoints'}}){
-        push(@interfaces,{node => $endpoint->{'node'},
-                          int => $endpoint->{'interface'},
-                          port_no => $endpoint->{'port_no'},
-                          tag => $endpoint->{'tag'}});
+    foreach my $flow (@{$flows}){
+	my $match = $flow->get_match();
+	push(@interfaces,{
+            node =>$repaired_node_dpid_hash{$flow->get_dpid()},
+            int =>$int_names{$repaired_node_dpid_hash{$flow->get_dpid()}}{$match->{'in_port'}},
+            port_no => $match->{'in_port'},
+            tag => $match->{'dl_vlan'}});
     }
 
 
@@ -199,7 +202,6 @@ sub get_circuit_data{
             }
         }
     }
-
     #now we have selected an interface and have a list of all the other interfaces on that node
     #generate our data
     return $self->get_data( interface => $selected, other_ints => \@interfaces_on_node, start_time => $start, end_time => $end);
@@ -216,7 +218,7 @@ sub get_circuit_data{
 
 =cut
 
-sub get_data{
+sub get_data {
     my $self = shift;
     my %params = @_;
 
@@ -234,30 +236,23 @@ sub get_data{
     if(!defined $end){
         $end = time;
     }
-
     #find the base RRD dir
     my $rrd_dir;
     my $query = "select value from global where name = 'rrddir'";
     my $sth = $self->{'dbh'}->prepare($query);
     $sth->execute();
     if(my $row = $sth->fetchrow_hashref()){
-	$rrd_dir = $row->{'value'};
+    $rrd_dir = $row->{'value'};
     }
-
     my $node = $self->{'db'}->get_node_by_name( name => $selected->{'node'});
-    #warn Dumper($node);
     #get all the host details for the interfaces host
     my $host = $self->get_host_by_external_id($node->{'node_id'});
-
     #find the collections RRD file in SNAPP
     my $collection = $self->_find_rrd_file_by_host_int_and_vlan($host->{'host_id'},$selected->{'port_no'},$selected->{'tag'});
-
     if(defined($collection)){
-
 	my $rrd_file = $rrd_dir . $collection->{'rrdfile'};
-	my $data;
+    my $data;
     my $input  = $self->get_rrd_file_data( file => $rrd_file, start_time => $start, end_time => $end);
-
     push(@{$data},{name => 'Input (Bps)',
                    data => $input});
 
@@ -266,7 +261,6 @@ sub get_data{
             my $other_collection = $self->_find_rrd_file_by_host_int_and_vlan($host->{'host_id'},$other_int->{'port_no'},$other_int->{'tag'});
             if(defined($other_collection)){
                 my $other_rrd_file = $rrd_dir . $collection->{'rrdfile'};
-
                 my $output = $self->get_rrd_file_data( file => $other_rrd_file, start_time => $start, end_time => $end);
                 $output_agg = aggregate_data($output_agg,$output);
             }
@@ -281,9 +275,7 @@ sub get_data{
 	foreach my $int (@$other_ints){
 	    push(@all_interfaces, $int->{'int'});
 	}
-
 	push(@all_interfaces, $selected->{'int'});
-
 	return {"node"       => $selected->{'node'},
 		"interface"  => $selected->{'int'},
 		"data"       => $data,
@@ -368,12 +360,11 @@ sub _find_rrd_file_by_host_and_int{
     my $self = shift;
     my $host_id = shift;
     my $int_name = shift;
-
     my $query = "select * from collection where host_id = ? and premap_oid_suffix = ?";
     my $sth = $self->{'dbh'}->prepare($query);
     $sth->execute($host_id,"Ethernet" . $int_name);
     if(my $row = $sth->fetchrow_hashref()){
-	return $row;
+    return $row;
     }else{
 	$self->_set_error("No Collection found with host_id $host_id and interface name $int_name\n");
 	return undef;
@@ -385,7 +376,6 @@ sub _find_rrd_file_by_host_int_and_vlan{
     my $host_id = shift;
     my $port = shift;
     my $vlan = shift;
-
     # openflow treats untagged as 0xFFFF so that's
     # what we'll need to look for
     if ($vlan eq -1){
@@ -398,7 +388,7 @@ sub _find_rrd_file_by_host_int_and_vlan{
     if(my $row = $sth->fetchrow_hashref()){
 	return $row;
     }else{
-	$self->_set_error("No Collection found for host host_id with interface and vlan $port - $vlan");
+    $self->_set_error("No Collection found for host host_id with interface and vlan $port - $vlan");
 	return undef;
     }
 }
@@ -414,7 +404,6 @@ sub _find_rrd_file_by_host_int_and_vlan{
 sub get_host_by_external_id{
     my $self = shift;
     my $id = shift;
-
     my $query = "select * from host where host.external_id = ?";
     my $sth = $self->{'dbh'}->prepare($query);
     $sth->execute($id);
@@ -461,9 +450,11 @@ sub get_rrd_file_data{
     }
 
     my ($start,$step,$names,$data) = RRDs::fetch($params{'file'},"AVERAGE","-s " . $params{'start_time'},"-e " . $params{'end_time'});
-
+   
     if (! defined $data){
-	return undef;
+	 
+        warn RRDs::error;
+        return undef;
     }
 
     my @results;

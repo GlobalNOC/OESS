@@ -34,3 +34,4 @@ ok($ckt->get_active_path() eq 'backup', "Circuit is now on backup path");
 ok($ckt->change_path(), "Circuit successfully changed path to primary");
 
 ok($ckt->get_active_path() eq 'primary', "Circuit is now on primary path");
+
