@@ -10,10 +10,9 @@ function init(){
 
     ds.sendRequest("", {
         success: function(req, resp){
-
             var details = resp.results[0];
-
             save_session_from_datasource(details);
+
             page_init();
         },
         failure: function(req, resp){
@@ -64,10 +63,8 @@ function save_session_from_datasource(details){
     session.data.passthrough  = [];
     session.data.restore_to_primary = details.restore_to_primary;
 
-
     for (var i = 0; i < details.endpoints.length; i++){
         var endpoint = details.endpoints[i];
-
         var endpoint_data = {
             node: endpoint.node,
             interface: endpoint.interface,
@@ -79,6 +76,7 @@ function save_session_from_datasource(details){
             mac_addrs: endpoint.mac_addrs,
             vlan_tag_range: endpoint.vlan_tag_range
         };
+
 
         if (endpoint.local == 0){
             session.data.interdomain = 1;
@@ -93,6 +91,7 @@ function save_session_from_datasource(details){
 
     }
 
+
     for (var i = 0; i < details.links.length; i++){
         var path_component = details.links[i];
         session.data.links.push(path_component.name);
@@ -106,14 +105,11 @@ function save_session_from_datasource(details){
     session.save();
 }
 
-function page_init(){
-  // defined in circuit_details_box.js
+function page_init(){ 
+    // defined in circuit_details_box.js
   var endpoint_table = summary_init();
-
   var nddi_map = new NDDIMap("map", session.data.interdomain == 1);
-
   //legend_init(nddi_map, false, true);
-
   //nddi_map.showDefault();
 
   nddi_map.on("loaded", function(){
@@ -158,7 +154,29 @@ function page_init(){
 						      alert('An error occured changing the path');
 						  }
 					      }else{
+                        
+						  /*
+						   *
+						   * reload the graph! VV
+						   *
+						   */
+
+						  var node = session.data.endpoints[0].node;
+						  var valid_node = false;
+
+						  if (graph.updating){
+						      clearTimeout(graph.updating);
+						  }
+						  
+						  graph.options.node      = node;
+						  graph.options.interface = null;
+						  graph.options.link      = null;
+						  
+						  graph.render(); 
+
+						  
 						  alert('Successfully changed the path');
+						  
 					      }
 					      change_path_button.set("disabled",false);					      
 					  },
@@ -200,7 +218,6 @@ function page_init(){
 	  }
 	  
 	  session.data.endpoints = endpoints;
-	  
 	  session.save();
 	  
 	  window.location = "?action=edit_details";
@@ -273,9 +290,7 @@ function page_init(){
 	  });
   }else{
 
-  }
-
-    
+  }  
 
   var tabs = new YAHOO.widget.TabView("details_tabs");
 
@@ -284,12 +299,12 @@ function page_init(){
   nddi_map.on("clickNode", function(e, args){
 
 		var node = args[0].name;
-
 		var valid_node = false;
 		// make sure this node is part of the circuit
 		for (var i = 0; i < session.data.endpoints.length; i++){
 		  if (session.data.endpoints[i].node == node){
-		    valid_node = true;
+       
+            valid_node = true;
 		  }
 		}
 
@@ -325,6 +340,7 @@ function page_init(){
 
   setupHistory();
   setupCLR();
+
   // we can poll the map to show intradomain status updates unless we're interdomain
   if (session.data.interdomain == 0){
       setInterval(function(){
@@ -333,7 +349,6 @@ function page_init(){
 
 	      ds.sendRequest("", {success: function(req, resp){
 			  var details = resp.results[0];
-
 			  save_session_from_datasource(details);
 
 			  for (var i = 0; i < session.data.endpoints.length; i++){

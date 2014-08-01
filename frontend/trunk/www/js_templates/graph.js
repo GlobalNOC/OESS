@@ -8,7 +8,7 @@ function MeasurementGraph(container, legend_container, options){
     this.graph            = null;
     this.panel            = null;
     this.updating         = null;
-    this.POLL_INTERVAL    = 10000;
+    this.POLL_INTERVAL    = 60000; // original value 10000
 
     var round = function(value){
 	return Math.round(value*100)/100;
@@ -246,15 +246,15 @@ function MeasurementGraph(container, legend_container, options){
 
       var url = "services/measurement.cgi?action=get_circuit_data&circuit_id="+this.options.circuit_id+"&start="+parseInt(this.options.start)+"&end="+parseInt(this.options.end)
 
-      if (this.options.node){
-	url += "&node="+encodeURIComponent(this.options.node);
+    if (this.options.node){
+	    url += "&node="+encodeURIComponent(this.options.node);
 
 	if (this.options.interface){
-	  url += "&interface="+encodeURIComponent(this.options.interface);
+	    url += "&interface="+encodeURIComponent(this.options.interface);
 	}
       }
       else if (this.options.link){
-	url += "&link="+encodeURIComponent(this.options.link);
+	    url += "&link="+encodeURIComponent(this.options.link);
       }
 
       var ds = new YAHOO.util.DataSource(url);
