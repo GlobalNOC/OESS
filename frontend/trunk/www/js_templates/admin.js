@@ -664,6 +664,7 @@ function setup_users_tab(){
 							       p.destroy();
 							       user_table.deleteRow(target.target);
 							       YAHOO.util.Dom.get("user_status").innerHTML = "User deleted successfully.";
+							       setup_users_tab();
 							   }
 						       },
 						       failure: function(req, resp){
@@ -726,6 +727,13 @@ function setup_users_tab(){
                     this.set("disabled", false);
 		    return;
 		}
+
+        if (fname.toLowerCase() == 'system'){
+            alert("You cannot use the word 'system', as a first name.");
+            this.set("label", "Save");
+                    this.set("disabled", false);
+            return;
+        }
 
 		url += "&first_name="+encodeURIComponent(fname);
 		url += "&family_name="+encodeURIComponent(lname);
