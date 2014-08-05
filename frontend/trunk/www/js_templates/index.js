@@ -596,7 +596,7 @@ function build_circuitTable(){
 			       ];
 
     var avail_resource_table_config = {
-	heigth: '223px',
+	height: '223px',
 	formatRow: function (elTr, oRecord) {
             if (oRecord.getData('is_owner') != 1){
                 Dom.addClass(elTr,'guest-workgroup');
