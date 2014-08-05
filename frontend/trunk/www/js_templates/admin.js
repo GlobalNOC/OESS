@@ -661,10 +661,9 @@ function setup_users_tab(){
 							       alert("Error delete user: " + resp.meta.error);
 							   }
 							   else{
-							       p.destroy();
+							       p.hide();
 							       user_table.deleteRow(target.target);
 							       YAHOO.util.Dom.get("user_status").innerHTML = "User deleted successfully.";
-							       setup_users_tab();
 							   }
 						       },
 						       failure: function(req, resp){
