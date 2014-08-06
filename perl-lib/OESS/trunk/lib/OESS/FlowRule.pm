@@ -116,11 +116,10 @@ validates that the flow_rule is valid
 
 =cut
 
-sub _validate_flow{
+sub _validate_flow {
     my $self = shift;
-
     if($self->_validate_match($self->{'match'}) && $self->_validate_actions($self->{'actions'}) && $self->_validate_priority($self->{'priority'}) && $self->_validate_dpid($self->{'dpid'}) && $self->_validate_byte_count($self->{'byte_count'}) && $self->_validate_packet_count($self->{'packet_count'})){
-	return 1;
+    return 1;
     }else{
 	return 0;
     }
@@ -142,12 +141,12 @@ sub _validate_match{
             case "in_port"{
 		if(!$self->_validate_port($match->{$key})){
 		    $self->{'logger'}->error("IN PORT: " . $match->{$key} . " is not supported");
-		    return 0;
+            return 0;
 		}
             }case "dl_vlan"{
 		if(!$self->_validate_vlan_id($match->{$key})){
 		    $self->{'logger'}->error("VLAN Tag " . $match->{$key} . " is not supported");
-		    return 0;
+            return 0;
 		}
 		#lets do a quick fix here... 65535 = -1
 		if($match->{$key} == 65535){
@@ -246,9 +245,7 @@ sub _validate_priority{
     if($priority > 0 && $priority <= 65535){
 	return 1;
     }
-
     $self->{'logger'}->error("Priority does not follow spec... must be an integer between 1 and 65535");
-
     return 0;
 }
 
@@ -881,16 +878,13 @@ sub parse_stat{
     $logger->debug("Processing Stat to Flow Rule");
     my $dpid = $params{'dpid'};
     my $stat = $params{'stat'};
-
     return if(!defined($stat));
     return if(!defined($dpid));
 
-    
     my $match = $stat->{'match'};
     
     my $actions = $stat->{'actions'};
     my $priority = $stat->{'priority'};
-
     $logger->trace("Byte Count: " . $stat->{'byte_count'});
     my $byte_count = $stat->{'byte_count'};
     
@@ -910,7 +904,6 @@ sub parse_stat{
 	    }
 	}
     }
-    
     my $new_match = {};
     foreach my $key (keys (%{$match})){
 	$logger->debug("Key: " . $key . " = " . $match->{$key});
@@ -931,7 +924,6 @@ sub parse_stat{
 	    }
 	}
     }
-
     my $flow = OESS::FlowRule->new( 
         priority => $priority,
         match => $new_match,
@@ -940,7 +932,7 @@ sub parse_stat{
         byte_count => $byte_count,
         packet_count => $packet_count
         );
-
+    
     return $flow;
     
 

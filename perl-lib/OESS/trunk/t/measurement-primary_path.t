@@ -19,11 +19,8 @@ use Data::Dumper;
 
 use Test::More tests => 1;
 use Test::Deep;
-my $timestamp  = 1406660160;
+my $timestamp  = 1407331920;
 my $db = OESS::Database->new( config => OESSDatabaseTester::getConfigFilePath() );
-my $db2 = OESS::Database->new(); #for testing purposes only. to be deleted later.
-my $measure = OESS::Measurement->new();
-my $ckt = OESS::Circuit->new( circuit_id => 1, db => $db);
-my $ckt = OESS::Circuit->new( circuit_id => 1, db => $db2);
-my $data_check = $measure->get_circuit_data('circuit_id'=> 1, 'start_time'=> $timestamp, 'end_time'=>$timestamp)->{'data'}[0]->{'data'}[0][1];
-ok($data_check eq '792.728233580018', "Interface has active flows");
+my $measure = OESS::Measurement->new(db => $db);
+my $data_check = $measure->get_circuit_data('circuit_id'=>4011, 'start_time'=> $timestamp, 'end_time'=> 1407331980, db => $db)->{'data'}[0]->{'data'}[0][1];
+ok($data_check eq '789.715075651453', "Interface has active flows");

@@ -30,7 +30,7 @@ my $res = $db->get_available_resources(
 ok($res, 'query ok');
 is(@$res, 4, 'count');
 
-warn Dumper($res);
+#warn Dumper($res);
 
 my $correct_result = [
     {
@@ -48,6 +48,7 @@ my $correct_result = [
                                     'max_mac_address_per_end' => '10'
             },
             'interface_id' => '45901',
+            'remote_link' => '',
             'description' => 'e15/1',
             'is_owner' => 0,
             'vlan_tag_range' => '-1,1-100,201-4095',
@@ -59,6 +60,7 @@ my $correct_result = [
             'node_name' => 'Node 11',
             'interface_id' => '321',
             'description' => 'e1/1',
+            'remote_link' => 'urn:ogf:network:domain=ion.internet2.edu:node=rtr.losa:port=ae1:link=al2s',
             'is_owner' => 1,
             'vlan_tag_range' => '1-4095',
             'node_id' => '11',
@@ -69,6 +71,7 @@ my $correct_result = [
             'node_name' => 'Node 11',
             'interface_id' => '391',
             'description' => 'e15/1',
+            'remote_link' => '',
             'is_owner' => 1,
             'vlan_tag_range' => '1-4095',
             'node_id' => '11',
@@ -79,12 +82,12 @@ my $correct_result = [
             'node_name' => 'Node 51',
             'interface_id' => '511',
             'description' => 'e15/1',
+            'remote_link' => '',
             'is_owner' => 1,
             'vlan_tag_range' => '1-4095',
             'node_id' => '51',
             'operational_state' => 'up'
     }
     ];
-
 
 cmp_deeply($res, $correct_result, "values for resources matches");

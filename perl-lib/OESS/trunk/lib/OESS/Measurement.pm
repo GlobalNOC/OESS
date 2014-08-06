@@ -67,7 +67,6 @@ sub new {
         config => $db->get_snapp_config_location(),
         @_
     );
-
     my $self = \%args;
     bless $self,$class;
 
@@ -156,19 +155,14 @@ sub get_circuit_data {
     my $inital_node_dpid_hash = $db->get_node_dpid_hash();
     
     my %repaired_node_dpid_hash = reverse %{$inital_node_dpid_hash};
-    
     my %int_names;
     foreach my $nodeName (keys (%{$inital_node_dpid_hash})){
 
         my $int_name =  $db->get_node_interfaces('node'=> $nodeName, show_down => 1, show_trunk =>1);
         
-        #$int_names{$nodeName} = $int_name;
         foreach my $int (@{$int_name}){
-        
             $int_names{$nodeName}->{$int->{'port_number'}} = $int->{'name'};
-
         }
-
    }
     
 
@@ -221,7 +215,6 @@ sub get_circuit_data {
 sub get_data {
     my $self = shift;
     my %params = @_;
-
     my $selected = $params{'interface'};
     my $other_ints = $params{'other_ints'};
     my $start      = $params{'start_time'};
@@ -408,7 +401,7 @@ sub get_host_by_external_id{
     my $sth = $self->{'dbh'}->prepare($query);
     $sth->execute($id);
     if(my $row = $sth->fetchrow_hashref()){
-	return $row;
+        return $row;
     }else{
 	$self->_set_error("No host found with external_id $id");
 	return undef;

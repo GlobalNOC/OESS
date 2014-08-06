@@ -126,9 +126,7 @@ sub new {
     bless $self, $class;
 
     my $config_filename = $args{'config'};
-
     my $config = XML::Simple::XMLin($config_filename);
-
     my $username = $config->{'credentials'}->{'username'};
     my $password = $config->{'credentials'}->{'password'};
     my $database = $config->{'credentials'}->{'database'};
@@ -6086,26 +6084,21 @@ The name of the node.
 sub get_node_by_name {
     my $self = shift;
     my %args = @_;
-
     my $name = $args{'name'};
-
     my $query;
 
     if ($args{'no_instantiation'}){
-	$query = "select * from node where name = ?";
+        $query = "select * from node where name = ?";
     }
-    else {
+       else {
 	$query = "select * from node join node_instantiation on node.node_id = node_instantiation.node_id ";
 	$query   .= " where node.name = ?";
-    }
-
+     }
     my $results = $self->_execute_query($query, [$name]);
-
     if (! defined $results){
 	$self->_set_error("Internal error fetching node information.");
 	return;
     }
-
     return @$results[0];
 }
 
@@ -6886,16 +6879,13 @@ sub _execute_query {
     my $self  = shift;
     my $query = shift;
     my $args  = shift;
-
     my $caller = ( caller(1) )[3];
     my $dbh = $self->{'dbh'};
-
     my $sth = $dbh->prepare($query);
-
     #warn "Query is: $query\n";
 
     if (! $sth){
-	warn "Error in prepare query: $DBI::errstr";
+    warn "Error in prepare query: $DBI::errstr";
 	$self->_set_error("Unable to prepare query: $DBI::errstr");
 	return;
     }
@@ -6907,14 +6897,13 @@ sub _execute_query {
     }
 
     if ($query =~ /^\s*select/i){
-	my @array;
-
+        my @array;
 	while (my $row = $sth->fetchrow_hashref()){
-	    push(@array, $row);
-	}
+        push(@array, $row);
+    }
 
 	#warn "Returning " . (scalar @array) . " rows";
-	return \@array;
+    return \@array;
     }
 
     if ($query =~ /^\s*insert/i){
@@ -6928,7 +6917,7 @@ sub _execute_query {
 	#warn "Updated / deleted $count rows";
 	return $count;
     }
-
+    
     return -1;
 
 }

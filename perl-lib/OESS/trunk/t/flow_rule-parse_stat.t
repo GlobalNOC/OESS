@@ -17,9 +17,9 @@ use Test::Deep;
 use Data::Dumper;
 
 my $flow_rule = OESS::FlowRule::parse_stat( dpid => 1235465768,
-    
                                             stat => {match => {'in_port' => 10,
                                                                'dl_vlan' => 100},
+                                                    priority => 32768,
                                                      actions => [{'type' => OESS::FlowRule::OFPAT_OUTPUT,
                                                                   'port' => 1},
                                                                  {'type' => OESS::FlowRule::OFPAT_SET_VLAN_VID,

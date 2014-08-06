@@ -43,7 +43,6 @@ sub resetSNAPPDB {
     my $cwd = $FindBin::Bin;
     $cwd =~ /(.*)/;
     $cwd = $1;
-    
     my $command = "/usr/bin/mysql -u $creds->{'user'} --password=$creds->{'pass'} snapp_test < $cwd/conf/snapp_known_state.sql";
     if (system($command)){
         return 0;
@@ -51,19 +50,15 @@ sub resetSNAPPDB {
 
     #this goes and sets up the snapp directory for the tests
 
-    $dbh->do("DROP TABLE IF EXISTS `global`;");
+    $dbh->do("use snapp_test");
+    $dbh->do("UPDATE global SET value='$cwd/conf/SNMP/snapp/db/' WHERE name = 'rrddir'");
 
-    $dbh->do("CREATE TABLE `global` (
-          `name` varchar(64) DEFAULT NULL,
-            `value` varchar(256) DEFAULT NULL,
-              KEY `k_ind` (`name`) USING BTREE
-              ) ENGINE=InnoDB DEFAULT CHARSET=latin1;");
-
-    $dbh->do("LOCK TABLES `global` WRITE;");
-    $dbh->do("INSERT INTO `global` VALUES ('rrddir','$cwd/conf/SNMP/snapp/db/');");
-
-    $dbh->do("UNLOCK TABLES;");
-
+    my $sth = $dbh->prepare("UPDATE global SET value ='$cwd/conf/SNMP/snapp/db/' WHERE name = 'rrddir'");
+    $sth->execute();
+    $sth = $dbh->prepare('SELECT value FROM global');
+    $sth->execute();
+    my $result = $sth->fetchrow_hashref();
+   
     $dbh->do("set foreign_key_checks = 1"); 
 
     return 1;
@@ -76,7 +71,8 @@ sub resetOESSDB {
     my $dbh = DBI->connect("DBI:mysql:dbname=;host=localhost;port=6633",$creds->{'user'},$creds->{'pass'},\%attr);
     $dbh->do("create database " . $creds->{'db'});
     $dbh->do("set foreign_key_checks = 0");
-    #reset the SNAPP DB this one does the schema
+
+   
     my $cwd = $FindBin::Bin;
     $cwd =~ /(.*)/;
     $cwd = $1;
