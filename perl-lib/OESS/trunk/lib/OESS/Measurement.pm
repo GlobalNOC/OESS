@@ -138,7 +138,6 @@ sub get_circuit_data {
     if(!defined $end){
         $end = time;
     }    
-
     #find the base RRD dir
     my $rrd_dir;
     my $query = "select value from global where name = 'rrddir'";
@@ -218,8 +217,7 @@ sub get_data {
     my $selected = $params{'interface'};
     my $other_ints = $params{'other_ints'};
     my $start      = $params{'start_time'};
-    my $end        = $params{'end'};
-
+    my $end        = $params{'end_time'};
     if(!defined $start){
         $self->_set_error("start_time is required and should be in epoch time");
 	return undef;
@@ -248,7 +246,6 @@ sub get_data {
     my $input  = $self->get_rrd_file_data( file => $rrd_file, start_time => $start, end_time => $end);
     push(@{$data},{name => 'Input (Bps)',
                    data => $input});
-
     my $output_agg;
         foreach my $other_int (@$other_ints){
             my $other_collection = $self->_find_rrd_file_by_host_int_and_vlan($host->{'host_id'},$other_int->{'port_no'},$other_int->{'tag'});
@@ -420,7 +417,7 @@ sub get_host_by_external_id{
 
 =cut
 
-sub get_rrd_file_data{
+sub get_rrd_file_data {
     my $self = shift;
     my %params = @_;
 
@@ -441,7 +438,6 @@ sub get_rrd_file_data{
     if(!defined($params{'h_size'})){
 	$params{'h_size'} = 300;
     }
-
     my ($start,$step,$names,$data) = RRDs::fetch($params{'file'},"AVERAGE","-s " . $params{'start_time'},"-e " . $params{'end_time'});
    
     if (! defined $data){
@@ -498,8 +494,6 @@ sub get_rrd_file_data{
 	}
 	push(@inputs,[$bucket->{'time'}, $bucket->{'input'}]);
     }
-
-
     return \@inputs;
 #    push(@results,{"name" => "Input (bps)",
 #		   "data" => \@inputs});

@@ -8,11 +8,14 @@ use DBI;
 
 $ENV{"PATH"} = "";
 
-sub getConfigFilePath{
+sub getConfigFilePath {
     my $cwd = $FindBin::Bin;
     $cwd =~ /(.*)/;
     $cwd = $1;
-    return "$cwd/conf/database.xml";
+    my $line;
+    my $database_config = "$cwd/conf/database.xml";
+   
+    return $database_config;
 }
 
 sub getConfig { 

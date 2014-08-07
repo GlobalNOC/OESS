@@ -1,4 +1,5 @@
 #!/usr/bin/perl -T
+#measurement-primary-path.t
 use strict;
 
 use FindBin;
@@ -23,4 +24,4 @@ my $timestamp  = 1407331920;
 my $db = OESS::Database->new( config => OESSDatabaseTester::getConfigFilePath() );
 my $measure = OESS::Measurement->new(db => $db);
 my $data_check = $measure->get_circuit_data('circuit_id'=>4011, 'start_time'=> $timestamp, 'end_time'=> 1407331980, db => $db)->{'data'}[0]->{'data'}[0][1];
-ok($data_check eq '791.135635317258', "Interface has active flows");
+ok($data_check eq '789.715075651453', "Interface has active flows");
