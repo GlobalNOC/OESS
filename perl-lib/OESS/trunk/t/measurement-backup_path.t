@@ -23,4 +23,4 @@ my $timestamp  = 1407331920;
 my $db = OESS::Database->new( config => OESSDatabaseTester::getConfigFilePath() );
 my $measure = OESS::Measurement->new(db => $db);
 my $data_check = $measure->get_circuit_data('circuit_id'=> 61, 'start_time'=> 1407346140, 'end_time'=> 1407346200, db => $db)->{'data'}[0]->{'data'}[0][1];
-ok($data_check eq '799.633153607747', "Interface has active flows");
+ok($data_check eq '797.138781320751', "Interface has active flows");
