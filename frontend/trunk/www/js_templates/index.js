@@ -454,8 +454,8 @@ function build_circuitTable(){
     };
 
     var link_status_columns = [
-			       {key: "name", label: "Link", width: 200},
-			       {key: "status", label: "Status", width: 40, formatter: function(elLiner, oRec, oCol, oData){
+			       {key: "name", label: "Link", sortable: true, width: 200},
+			       {key: "status", label: "Status", sortable: true, width: 40, formatter: function(elLiner, oRec, oCol, oData){
 				       if(oRec.getData('fv_status') == 'down'){
 					   if(oRec.getData('status') == 'up'){
 					       elLiner.innerHTML = "<font color='red'>impaired</font>";
