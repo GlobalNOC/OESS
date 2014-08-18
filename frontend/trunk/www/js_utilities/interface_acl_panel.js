@@ -110,8 +110,7 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
         var allow_deny   = $("#"+container_id+"_acl_panel_permission").chosen().val()
         var vlan_start   = $("#"+container_id+"_acl_panel_vlan_start").val();
         var vlan_end     = $("#"+container_id+"_acl_panel_vlan_end").val();
-        var notes        = $("#"+container_id+"_acl_panel_notes").val();
-
+        var notes        = encodeURIComponent($("#"+container_id+"_acl_panel_notes").val());
         //validate data then hide our panel        
         if(_validate_data({ 
             permission: allow_deny, 
