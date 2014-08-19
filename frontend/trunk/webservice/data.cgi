@@ -1,4 +1,4 @@
-#!/usr/bin/perl -T
+#!/usr/bin/perl 
 #
 ##----- NDDI OESS Data.cgi
 ##-----
@@ -383,7 +383,7 @@ sub get_existing_circuits {
     my @endpoint_nodes = $cgi->param('endpoint_node_id');
     my @path_nodes     = $cgi->param('path_node_id');
 
-    my $is_admin = $db->get_user_admin_status( 'username' => $username );
+    my $is_admin = $db->get_user_admin_status( 'username' => $username )->[0];
     if ( !$workgroup_id ) {
         if(!$is_admin) {
             $results->{'error'} = "Error: no workgroup_id specified";
