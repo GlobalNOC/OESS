@@ -5533,6 +5533,11 @@ sub provision_circuit {
     my $restore_to_primary = $args{'restore_to_primary'} || 0;
     my $static_mac       = $args{'static_mac'} || 0;
 
+    if($#{$interfaces} < 1){
+        $self->_set_error("Need at least 2 endpoints");
+        return;
+    }
+
     my $user_id        = $self->get_user_id_by_auth_name(auth_name => $user_name);
 
     if(!$user_id) {
