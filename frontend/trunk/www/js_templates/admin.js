@@ -806,7 +806,6 @@ function setup_users_tab(){
 function setup_workgroup_tab(){
 
 
-    var hideFinished = new YAHOO.util.CustomEvent("DoneButtonPressed");
 
     var wg_table = makeWorkgroupTable();
     
@@ -897,22 +896,6 @@ function setup_workgroup_tab(){
        var close_panel = new YAHOO.widget.Button("close_panel_button", {label: "Done"});
         close_panel.on("click", function(){
 
-                //destroy any remaining panel with extreme prejudice
-                if (wg_details_panel){
-                    wg_details_panel.destroy();
-                    wg_details_panel = undefined;
-                }
-
-                if (add_int_p){
-                    add_int_p.destroy(); 
-                    add_int_p = undefined;
-                }
-                if (new_user_p){
-                    new_user_p.destroy();
-                    new_user_p = undefined;
-                }
-
-                wg_panel.hide();
                 wg_panel.destroy();
 
 	    });
@@ -927,12 +910,12 @@ function setup_workgroup_tab(){
 								   height: 200,
 								   draggable: true,
 								   close: true,
-								   fixedcenter: true
+								   fixedcenter: true,
+                                   modal: true
 								  });
 
             wg_details_panel.hideEvent.subscribe(function(){
                     wg_details_panel.destroy();
-                    //wg_details_panel;
                 });
 
 		    wg_details_panel.setBody(
@@ -1114,7 +1097,8 @@ function setup_workgroup_tab(){
 		    new_user_p = new YAHOO.widget.Panel("add_workgroup_user",
 							    {
 				                  xy: [region.left + (region.width / 2) - 300,
-								  region.top + 75]
+								  region.top + 75],
+                                    modal: true
 							    }
 							    );
 
@@ -1203,7 +1187,8 @@ function setup_workgroup_tab(){
 							   {width: 850,
 							    height: 400,
 							    xy: [region.left, 
-								 region.top]
+								 region.top],
+                                 modal: true
 							   });
 
 		    add_int_p.setHeader("Add Interface to Workgroup");
@@ -1233,7 +1218,6 @@ function setup_workgroup_tab(){
 		    add_int_p.hideEvent.subscribe(function(){
 			    map.destroy();
 			    add_int_p.destroy();
-                //add_int_p;
 			});
 
 		    map.on("clickNode", function(e, args){
