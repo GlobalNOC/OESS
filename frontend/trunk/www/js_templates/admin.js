@@ -73,7 +73,9 @@ function setup_remote_dev_tab(){
 						    xy: [region.left, region.bottom],
 						    zIndex: 10
 						   });
-
+        panel.hideEvent.subscribe(function(){
+            this.destroy();
+        });
 	    panel.setHeader("Enter the Lat/Long Information");
 	    panel.setBody("<label for='remote_node_lat' class='soft_title'>Latitude:</label>" +
 			  "<input id='remote_node_lat' type='text' size='10' style='margin-left: 15px'>" + 
@@ -208,7 +210,9 @@ function setup_remote_tab(){
 
 	    view_topo_p.setHeader("Current Topology");
 	    view_topo_p.render("remote_content");
-
+        view_topo_p.hideEvent.subscribe(function(){
+            this.destroy();
+        });
 	    var topo_ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_topology");
 	    topo_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 	    topo_ds.responseSchema = {
@@ -497,8 +501,6 @@ function removeRemoteLink(link_id, button){
 
 
 function setup_users_tab(){
-
-	
 	 	
 
     var user_table = makeUserTable("user_table","search_users");
@@ -787,6 +789,7 @@ function setup_users_tab(){
     
     var add_user = new YAHOO.widget.Button("add_user_button", {label: "New User"});
 
+    
     add_user.on("click", function(){
 
 	    var region = YAHOO.util.Dom.getRegion("users_content");
@@ -802,43 +805,47 @@ function setup_users_tab(){
 
 function setup_workgroup_tab(){
 
-    var region = YAHOO.util.Dom.getRegion("workgroups_content");
 
-    var wg_panel = new YAHOO.widget.Panel("workgroup_details",
-					  {
-					      width: 850,
-					      height: 600,
-					      draggable: false,
-					      visible: false,
-					      close: false,
-					      xy: [region.left, region.top]
-					  }
-				   );
-
-    YAHOO.widget.Overlay.windowResizeEvent.subscribe(function(){ 
-	    var region = YAHOO.util.Dom.getRegion("workgroups_content");
-	    wg_panel.moveTo(region.left, region.top);
-	});
-
-    var wg_edit_button = new YAHOO.widget.Button("edit_workgroup_button",
-						 {label: "Edit Workgroup Details"});
-
-    wg_panel.render("workgroups_content");
-    var close_panel = new YAHOO.widget.Button("close_panel_button", {label: "Done"});
-    close_panel.on("click", function(){
-	    wg_panel.hide();
-	});
+    var hideFinished = new YAHOO.util.CustomEvent("DoneButtonPressed");
 
     var wg_table = makeWorkgroupTable();
-
-    wg_table.subscribe("rowClickEvent", function(oArgs){
-	    try{
-	    var record = this.getRecord(oArgs.target);
+    
+    wg_table.subscribe("rowClickEvent", function(oArgs){       
+            
+        var wg_details_panel; 
+        var new_user_p;
+        var add_int_p;
+        
+        var region = YAHOO.util.Dom.getRegion("workgroups_content");
+        
+        var record = this.getRecord(oArgs.target);
 
 	    if (! record){
 		return;
 	    }
 
+        var wg_panel = new YAHOO.widget.Panel("workgroup_details",
+					  {
+					      width: 875,
+					      height: 600,
+					      draggable: false,
+					      visible: true,
+					      close: false,
+					      xy: [region.left, region.top]
+					  }
+				   );
+        
+        wg_panel.hideEvent.subscribe(function(){
+
+            wg_panel.destroy(); 
+            
+            }); 
+
+        YAHOO.widget.Overlay.windowResizeEvent.subscribe(function(){ 
+	        region = YAHOO.util.Dom.getRegion("workgroups_content");
+	        wg_panel.moveTo(region.left, region.top);
+	    });
+	
 	    var workgroup_name = record.getData('name');
 	    var workgroup_id   = record.getData('workgroup_id');
 	    var workgroup_external = record.getData('external_id');
@@ -849,23 +856,84 @@ function setup_workgroup_tab(){
         var max_circuit_endpoints = record.getData('max_circuit_endpoints');
         var max_circuits = record.getData('max_circuits');
 
-	    YAHOO.util.Dom.get('workgroup_title').innerHTML = workgroup_name;
+	    //YAHOO.util.Dom.get('workgroup_title').innerHTML = workgroup_name;
+        
+        wg_panel.setBody(
+        "<div class='hd'></div>"+
+        "<div class='bd' style='overflow: auto; overflow-y: hidden;'>"+
+          "<center>"+
+        "<div style='margin:auto'>"+
+          "<div><p class='title' id='workgroup_title'>"+workgroup_name+"</p></div>"+
+          "<div id='edit_workgroup_button'></div>"+
+        "</div>"+
+        "<div style='width: 35%; float: left;'>"+
+          "<p class='soft_title'>Users in Workgroup</p>"+
+          "<div id='workgroup_user_table'></div>"+
+          "<div id='workgroup_user_table_nav'></div>"+
+          "<br>"+
+          "<div id='add_new_workgroup_user'></div>"+
+        "</div>"+
+        "<div style='width: 65%; float: left;'>"+
+          "<p class='soft_title'>Owned Interfaces</p>"+
+          "<div id='owned_interfaces_table'></div>" +
+          "<div id='owned_interfaces_table_nav'></div>" +
+          "<br>"+
+          "<div id='add_new_owned_interfaces'></div>"+
+        "</div>"+
+        "<br clear='both'>"+
+        "<div style='position: absolute; bottom: 10; right: 10;'>"+
+          "<div id='close_panel_button'></div>"+
+       "</div>"+
+          "</center>"+
+        "</div>"+
+      "</div>" 
+            );
 
-	    var region = YAHOO.util.Dom.getRegion("workgroups_content");	    
+       wg_panel.render("workgroups_content");
 
-	    wg_panel.moveTo(region.left, region.top);
+       var wg_edit_button = new YAHOO.widget.Button("edit_workgroup_button",
+						 {label: "Edit Workgroup Details"});
+        
+       var close_panel = new YAHOO.widget.Button("close_panel_button", {label: "Done"});
+        close_panel.on("click", function(){
 
-	    wg_edit_button.on("click",function(){
-		    var wg_details_panel = new YAHOO.widget.Panel("workgroup_details_p",
+                //destroy any remaining panel with extreme prejudice
+                if (wg_details_panel){
+                    wg_details_panel.destroy();
+                    wg_details_panel = undefined;
+                }
+
+                if (add_int_p){
+                    add_int_p.destroy(); 
+                    add_int_p = undefined;
+                }
+                if (new_user_p){
+                    new_user_p.destroy();
+                    new_user_p = undefined;
+                }
+
+                wg_panel.hide();
+                wg_panel.destroy();
+
+	    });
+        
+
+	   var add_new_user = new YAHOO.widget.Button("add_new_workgroup_user", {label: "Add User to Workgroup"});
+	   var add_new_owned_int = new YAHOO.widget.Button("add_new_owned_interfaces", {label: "Add Interface"});
+
+	   wg_edit_button.on("click",function(){
+		    wg_details_panel = new YAHOO.widget.Panel("workgroup_details_p",
 								  {width: 400,
-								   height: 170,
+								   height: 200,
 								   draggable: true,
 								   close: true,
 								   fixedcenter: true
 								  });
-            wg_details_panel.hide = function(){
-                this.destroy();
-            };
+
+            wg_details_panel.hideEvent.subscribe(function(){
+                    wg_details_panel.destroy();
+                    //wg_details_panel;
+                });
 
 		    wg_details_panel.setBody(
                 "<label>Workgroup Name:</label>"+
@@ -891,7 +959,7 @@ function setup_workgroup_tab(){
 		    //wg_details_panel.setFooter("<div id='submit_edit_workgroup'></div>");
             wg_details_panel.setHeader("Edit Workgroup Details");
 		    wg_details_panel.render("workgroups_content");
-		    var wg_submit_edit = new YAHOO.widget.Button("submit_edit_workgroup",
+            var wg_submit_edit = new YAHOO.widget.Button("submit_edit_workgroup",
 								 {label: "submit"});
 		    wg_submit_edit.on("click", function(){
                 max_mac_address_per_end = document.getElementById("workgroup_max_mac_address_per_end_edit").value;
@@ -1037,14 +1105,13 @@ function setup_workgroup_tab(){
 				);
 		});
 
-	    var add_new_user = new YAHOO.widget.Button("add_new_workgroup_user", {label: "Add User to Workgroup"});
-
-	    // show user select
+	    
+        // show user select
 	    add_new_user.on("click", function(){
 
 		    var region = YAHOO.util.Dom.getRegion("workgroups_content");
 
-		    var new_user_p = new YAHOO.widget.Panel("add_workgroup_user",
+		    new_user_p = new YAHOO.widget.Panel("add_workgroup_user",
 							    {
 				                  xy: [region.left + (region.width / 2) - 300,
 								  region.top + 75]
@@ -1061,16 +1128,16 @@ function setup_workgroup_tab(){
 				       "<div id='done_add_user'></div>" + 
 				       "</div>"
 				       );
-
 		    new_user_p.render("workgroups_content");		    
 
 		    new_user_p.hideEvent.subscribe(function(){
-			    this.destroy();
+			    new_user_p.destroy();
+                //new_user_p;
 			});
 
 		    var done_adding_users = new YAHOO.widget.Button('done_add_user', {label: "Done Adding Users"});
 		    done_adding_users.on("click", function(){
-			    new_user_p.hide();
+			    new_user_p.destroy();
 			});
 
 		    var user_table = makeUserTable('add_new_workgroup_user_table');
@@ -1124,15 +1191,15 @@ function setup_workgroup_tab(){
 		});
 
 
-	    var add_new_owned_int = new YAHOO.widget.Button("add_new_owned_interfaces", {label: "Add Interface"});
 
 
 	    // show map to pick node / endpoint
+
 	    add_new_owned_int.on("click", function(){
 
 		    var region = YAHOO.util.Dom.getRegion('workgroups_content');
 
-		    var add_int_p = new YAHOO.widget.Panel("add_int_p",
+		    add_int_p = new YAHOO.widget.Panel("add_int_p",
 							   {width: 850,
 							    height: 400,
 							    xy: [region.left, 
@@ -1153,7 +1220,7 @@ function setup_workgroup_tab(){
 
 		    var done_adding = new YAHOO.widget.Button("done_adding_edges", {label: "Done Adding Interfaces"});
 		    done_adding.on("click", function(){
-			    add_int_p.hide();
+			    add_int_p.destroy();
 			});
 
 		    var map = new NDDIMap('acl_map', null, { node_label_status: false });
@@ -1165,7 +1232,8 @@ function setup_workgroup_tab(){
 
 		    add_int_p.hideEvent.subscribe(function(){
 			    map.destroy();
-			    this.destroy();
+			    add_int_p.destroy();
+                //add_int_p;
 			});
 
 		    map.on("clickNode", function(e, args){
@@ -1287,8 +1355,6 @@ function setup_workgroup_tab(){
 		});
 
 
-	    wg_panel.show();	    
-	    }catch(e){alert(e);}
 	});
     
     
@@ -1310,6 +1376,9 @@ function setup_workgroup_tab(){
 					       modal: true
 					   }
 					   );
+        p.hideEvent.subscribe(function(){
+            this.destroy();
+        });
 
 	    p.setHeader("New Workgroup");
 	    p.setBody("Name: <input type='text' id='new_workgroup_name' size='38'>" +

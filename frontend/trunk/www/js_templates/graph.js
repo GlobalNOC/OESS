@@ -8,7 +8,7 @@ function MeasurementGraph(container, legend_container, options){
     this.graph            = null;
     this.panel            = null;
     this.updating         = null;
-    this.POLL_INTERVAL    = 60000; // original value 10000
+    this.POLL_INTERVAL    = 10000; // new value 60000
 
     var round = function(value){
 	return Math.round(value*100)/100;

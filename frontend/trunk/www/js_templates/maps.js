@@ -1088,7 +1088,6 @@ function NDDIMap(div_id, interdomain_mode, options){
 								      rendererOptions: {zIndexing: true}
 								  }
 								  );
-
 			  this.map.addLayer(layer);
 
 			  var clickControl = new OpenLayers.Control.SelectFeature(layer, {clickout: true, toggle: true});

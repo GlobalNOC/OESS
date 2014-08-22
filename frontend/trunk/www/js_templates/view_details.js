@@ -109,9 +109,9 @@ function page_init(){
     // defined in circuit_details_box.js
   var endpoint_table = summary_init();
   var nddi_map = new NDDIMap("map", session.data.interdomain == 1);
+
   //legend_init(nddi_map, false, true);
   //nddi_map.showDefault();
-
   nddi_map.on("loaded", function(){
           this.updateMapFromSession(session, session.data.interdomain == 1);
 
@@ -149,9 +149,9 @@ function page_init(){
 					      var data = Response.results;
 					      if(data[0].success == 0){
 						  if(data[0].alt_path_down == 1){
-						      alert('The alternate path is down, unable to change to it');
+						      alert('The alternate path is down, unable to change to it.');
 						  }else{
-						      alert('An error occured changing the path');
+						      alert('An error occured changing the path.');
 						  }
 					      }else{
                         
@@ -160,29 +160,24 @@ function page_init(){
 						   * reload the graph! VV
 						   *
 						   */
-
 						  var node = session.data.endpoints[0].node;
-						  var valid_node = false;
-
+                          var valid_node = false;
 						  if (graph.updating){
 						      clearTimeout(graph.updating);
 						  }
-						  
 						  graph.options.node      = node;
 						  graph.options.interface = null;
 						  graph.options.link      = null;
 						  
 						  graph.render(); 
-
-						  
-						  alert('Successfully changed the path');
-						  
-					      }
+					        	 
+						  alert('Successfully changed the path.');
+                          }
 					      change_path_button.set("disabled",false);					      
 					  },
 					      failure: function(Request, Response){
 					      change_path_button.set("disabled",false);
-					      alert('Unable to change to the backup path');
+					      alert('Unable to change to the backup path.');
 					  }},ds);
 				  
 			      },
@@ -272,13 +267,13 @@ function page_init(){
 			      ds.sendRequest("", { 
 				      success: function(req, resp){ 
 					  reprovision_button.set('disabled',false);
-					  alert("Successfully reprovisioned circuit");
+					  alert("Successfully reprovisioned circuit.");
 					  
 					  
 				      },
 					  failure: function(req, resp){
 					  reprovision_button.set('disabled',false);
-					  alert("Failed to reprovision circuit, please try again later or contact your systems administrator if this continues");
+					  alert("Failed to reprovision circuit, please try again later or contact your systems administrator if this continues.");
 				      }
 				  });
 			      
@@ -390,7 +385,7 @@ function setupMeasurementGraph(){
     var time_select = new YAHOO.util.Element(YAHOO.util.Dom.get("traffic_time"));
     time_select.on("change", function(){
 	    var new_start = this.get('element').options[this.get('element').selectedIndex].value;
-	    var date = new Date();
+        var date = new Date();
 	    graph.options.end   = date.valueOf() / 1000;
 	    graph.options.start = graph.options.end - new_start;
 	    graph.render();
