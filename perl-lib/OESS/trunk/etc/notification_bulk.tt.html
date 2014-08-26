@@ -412,11 +412,11 @@
                                 <strong>[%workgroup%]</strong></p><p>
                                [% SWITCH type %]
                                [% CASE 'link_down' %]
-                                                                 An outage on backbone link: <strong>[% link_name %]</strong><br />
+                                                                 An outage on backbone link: <strong>[% link_name %]</strong><br />  on [% human_time %].
                                                   has caused the <strong>[% circuits.size + circuits_on_owned_endpoints.size  %]</strong> circuits listed below to be affected.</p>
                                [% CASE 'link_up' %]
                                                                  Backbone link: <strong>[% link_name %]</strong><br />
-                                                                   has returned to service and the below circuits were returned to service:
+                                                                   has returned to service on [% human_time %], and the below circuits were returned to service:
                                [% END %]
                                                                  </p>
                                 <table border="0" cellpading="0" cellspacing="0">

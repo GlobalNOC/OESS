@@ -1,26 +1,26 @@
 Greetings workgroup [%workgroup%],
 [% SWITCH type %]
 [%  CASE 'provisioned' %]
-Circuit [% circuit_description %] has been provisioned by [% user %]
+Circuit [% circuit_description %] has been provisioned by [% user %] on [% human_time %].
 
 [% CASE 'removed' %]
-The circuit [%circuit_description%] has been decommissioned by [% user %]
+The circuit [%circuit_description%] has been decommissioned by [% user %] on [% human_time %].
 
 [% CASE 'modified' %]
-The circuit [% circuit_description %] has been edited by user [% user %].
+The circuit [% circuit_description %] has been edited by user [% user %] on [% human_time %].
 
 [% CASE 'change_path' %]
-The following circuit has successfully changed path to the [% active_path %] path because [% reason %]
+The following circuit has successfully changed path to the [% active_path %] path because [% reason %] on [% human_time %].
 
 [% CASE 'unknown' %]
-The following circuit is in an unknown state because [% reason %]
+The following circuit is in an unknown state because [% reason %] on [% human_time %].
 This circuit may currently be unavailable.
 
 [% CASE 'down' %]
-This circuit was affected by an outage however because it[% reason %] the circut is currently unavailable.
+This circuit was affected by an outage however because it[% reason %] on [% human_time %]. The circut is currently unavailable.
 
 [% CASE 'restored' %]
-This circuit has been restored because [% reason %]
+This circuit has been restored because [% reason %] on [% human_time %].
 
 [% END %]
 

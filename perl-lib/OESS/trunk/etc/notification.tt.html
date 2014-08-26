@@ -390,19 +390,19 @@
 <p>
 [% SWITCH type %]
 [%  CASE 'provisioned' %]
-Circuit [% circuit_description %] has been provisioned by [% last_modified_by %]
+Circuit [% circuit_description %] has been provisioned by [% last_modified_by %] on [% human_time %].
 
 [% CASE 'removed' %]
-The circuit:&nbsp;<b>[%circuit_description%]</b><br/> has been decommissioned by [% last_modified_by %]
+The circuit:&nbsp;<b>[%circuit_description%]</b><br/> has been decommissioned by [% last_modified_by %] on [% human_time %].
 
 [% CASE 'modified' %]
-The circuit:&nbsp;<b>[% circuit_description %]</b><br/> has been edited by user [% last_modified_by %].
+The circuit:&nbsp;<b>[% circuit_description %]</b><br/> has been edited by user [% last_modified_by %] on [% human_time %].
 
 [% CASE 'change_path' %]
-The following circuit has successfully changed path to the [% active_path %] path because [% reason %]
+The following circuit has successfully changed path to the [% active_path %] path because [% reason %] on [% human_time %].
 
 [% CASE 'restored' %]
-This circuit has been restored because [% reason %]
+This circuit has been restored because [% reason %] on [% human_time %].
 
 [% END %]
 </p>

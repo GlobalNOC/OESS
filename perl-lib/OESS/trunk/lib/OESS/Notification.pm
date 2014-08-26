@@ -238,7 +238,16 @@ sub _send_bulk_notification {
         }
 
 
-
+        my $current_time = time;
+        #make a human readable timestamp that goes with the epoch timestamp
+        
+        my @months = qw(January February March April May June July August September October November December);
+        my @days = qw(Sunday Monday Tuesday Wednesday Thursday Friday Saturday);
+        my ($sec, $min, $hour, $mday, $month, $year, $wday, $yday, $isdst) = localtime($current_time);
+        $year += 1900;
+        #append a zero to the front of hour, min or sec if it is less than ten
+        if ($hour < 10) {$hour = "0".$hour}; if($min < 10) {$min = "0".$min}; if($sec < 10){$sec = "0".$sec}; 
+        my $str_date = "$days[$wday], $months[$month] $mday, $year, at $hour:$min:$sec"; 
         my %vars = (
                     SUBJECT => $subject,
                     base_url => $self->{'base_url'},
@@ -249,7 +258,8 @@ sub _send_bulk_notification {
                     type => $dbus_data->{'type'},
                     circuits => $workgroup_circuits,
                     circuits_on_owned_endpoints => $circuits_on_owned_endpoints,
-                    image_base_url => $self->{'image_base_url'}
+                    image_base_url => $self->{'image_base_url'},
+                    human_time => $str_date
                    );
 
         my %tmpl_options = ( ABSOLUTE=>1,
@@ -319,6 +329,14 @@ sub send_notification {
     my @to_list     = ();
     my $desc        = $data->{'circuit'}->{'description'};
 
+    my $current_time = time;
+    #make a human readable timestamp that goes with the epoch timestamp
+    my @months = qw(January February March April May June July August September October November December);
+    my @days = qw(Sunday Monday Tuesday Wednesday Thursday Friday Saturday);
+    my ($sec, $min, $hour, $mday, $month, $year, $wday, $yday, $isdst) = localtime($current_time);
+    $year += 1900;
+    if ($hour < 10) {$hour = "0".$hour}; if($min < 10) {$min = "0".$min}; if($sec < 10){$sec = "0".$sec};
+    my $str_date = "$days[$wday], $months[$month] $mday, $year, at $hour:$min:$sec"; 
     my %vars = (
                 SUBJECT => $data->{'subject'},
                 base_url => $self->{'base_url'},
@@ -331,7 +349,8 @@ sub send_notification {
                 reason => $data->{'circuit'}->{'reason'},
                 active_path => $data->{'circuit'}->{'active_path'},
                 last_modified_by => "$data->{'last_modified_by'}{'given_names'} $data->{'last_modified_by'}{'family_name'}",
-                image_base_url => $self->{'image_base_url'}
+                image_base_url => $self->{'image_base_url'},
+                human_time => $str_date
                );
 
       my %tmpl_options = ( ABSOLUTE=>1,
@@ -466,7 +485,7 @@ sub _connect_services {
       my $owners = {};
       my $ckt = $args{'circuit'};
       my $username;
-
+        
       my $user_id;
       my $details = $db->get_circuit_details( circuit_id => $ckt->{'circuit_id'} );
       unless ($details) {
