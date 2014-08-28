@@ -161,7 +161,7 @@ function page_init(){
 						   *
 						   */
 						  var node = session.data.endpoints[0].node;
-                          var valid_node = false;
+						  var valid_node = false;
 						  if (graph.updating){
 						      clearTimeout(graph.updating);
 						  }
@@ -337,10 +337,14 @@ function page_init(){
   setupCLR();
 
   // we can poll the map to show intradomain status updates unless we're interdomain
+  
   if (session.data.interdomain == 0){
       setInterval(function(){
 
 	      var ds = make_circuit_details_datasource();
+          
+        //make sure we didn't upset the user's view.
+          var keep_map_position = true;
 
 	      ds.sendRequest("", {success: function(req, resp){
 			  var details = resp.results[0];
@@ -348,10 +352,10 @@ function page_init(){
 
 			  for (var i = 0; i < session.data.endpoints.length; i++){
 			      nddi_map.removeNode(session.data.endpoints[i].node);
-			  }
+			  } 
 
-			  nddi_map.updateMapFromSession(session, true);
-		      },
+			  nddi_map.updateMapFromSession(session, true, keep_map_position);
+              },
 			  failure: function(req, resp){
 
 		      }

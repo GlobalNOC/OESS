@@ -244,7 +244,7 @@ function NDDIMap(div_id, interdomain_mode, options){
   }
 
 
-  this.showNode = function(node_name, draw_other_data, node_info){
+  this.showNode = function(node_name, draw_other_data, node_info, keep_map_position){
 
       if (this.isFeatureDrawn(node_name)){
 	  return 1;
@@ -351,10 +351,12 @@ function NDDIMap(div_id, interdomain_mode, options){
 	  }
 
       }
-
-      // if we're not showing everything, try to show it!
-      if (current_extent && ! current_extent.containsBounds(bounds)){
-	  this.map.zoomToExtent(bounds);
+        
+      // if we're not showing everything, try to show it, unless keep_map_position is set to true
+      if (!keep_map_position){
+        if (current_extent && ! current_extent.containsBounds(bounds)){
+	        this.map.zoomToExtent(bounds);
+        }
       }
 
       return 1;
@@ -828,7 +830,7 @@ function NDDIMap(div_id, interdomain_mode, options){
   };
   // convenience function to update the map based on what we've selected and have
   // stored in our session cookie
-  this.updateMapFromSession = function(session, discolor_nodes){
+  this.updateMapFromSession = function(session, discolor_nodes, keep_map_position){
      
     this.linkOverlapList = {};
     var endpoints   = session.data.endpoints || [];
@@ -838,7 +840,7 @@ function NDDIMap(div_id, interdomain_mode, options){
 
     // show the nodes
     for (var i = 0; i < endpoints.length; i++){
-	this.showNode(endpoints[i].node);
+	this.showNode(endpoints[i].node,0, 0,  keep_map_position);
     }
 
     for (var j = 0; j < this.map.layers[1].features.length; j++){
