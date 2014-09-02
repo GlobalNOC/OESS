@@ -3,7 +3,6 @@
 <script type='text/javascript' src='js_utilities/interface_acl_table.js'></script>
 <script>
 
-
   function index_init(){
     session.clear();
     // set up the new circuit link
@@ -218,6 +217,73 @@
 	);
 	  $('.chzn-select').chosen({search_contains: true});
 
+
+    var vlan_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_existing_circuits&workgroup_id="+session.data.workgroup_id);
+        vlan_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+        vlan_ds.responseSchema = {
+                resultsList: "results",
+                fields: [
+                    {key: "endpoints"}
+                ],
+        metaFields: {
+            error: "error"
+        }
+    }; 
+
+
+    vlan_ds.sendRequest("",
+        {
+            success: function(req,resp){
+            var optionsfragment2 = document.createDocumentFragment();
+            var endpoints = [];
+
+            for (var i = 0; i < resp.results.length; i++){
+
+                for (var j = 0; j < resp.results[i].endpoints.length; j++){
+                       endpoints.push(resp.results[i].endpoints[j]);
+                }
+
+            }
+    
+            var tags = [];
+            for (var i = 0; i<endpoints.length; i++){
+               tags.push(endpoints[i].tag);
+            }            
+          
+            //get rid of duplicates 
+            var unique_tags = [];
+            $.each(tags, function(i,el){
+                    if($.inArray(el, unique_tags) === -1 ) unique_tags.push(el);
+            });
+
+            for (var i =0; i<unique_tags.length; i++){
+                var option= document.createElement('option');
+                option.setAttribute("value", unique_tags[i]);
+                option.innerHTML= unique_tags[i];
+                optionsfragment2.appendChild(option);
+            } 
+
+            var vlan_id = YAHOO.util.Dom.get("vlan_id_selector");
+            vlan_id.appendChild(optionsfragment2.cloneNode(true) );
+            $("#vlan_id_selector").trigger("liszt:updated");
+            
+            var vlan_id_el = new YAHOO.util.Element(vlan_id);
+            
+            $("#vlan_id_selector").chosen().change( function(){
+
+                ckt_table = build_circuitTable.apply(ckt_table,[]);
+            });
+
+        }, 
+         failure: function(req,resp){
+            throw("Error: fetching selections");
+        },
+        scope:this   
+        },
+        vlan_ds); 
+        
+
+
     var node_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_nodes");
 	  node_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 	  node_ds.responseSchema = {
@@ -230,12 +296,12 @@
 		  metaFields: {
 			  error: "error"
 		  }
-
+            
 	  };
 	  //get nodes for both option selectors
 
 	  node_ds.sendRequest("",
-					 {
+					 {          
 					     success: function(req, resp){
 						     var optionsfragment = document.createDocumentFragment();
 							 for (var i = 0; i < resp.results.length; i++){
@@ -244,24 +310,23 @@
 								 option.innerHTML= resp.results[i].name;
 								 optionsfragment.appendChild(option);
 							 }
+							
+                            var endpoint= YAHOO.util.Dom.get("endpoint_node_selector");
+							var path= YAHOO.util.Dom.get("path_node_selector");
+                            
+							endpoint.appendChild(optionsfragment.cloneNode(true) );
+							path.appendChild(optionsfragment.cloneNode(true) );
+							$("#endpoint_node_selector").trigger("liszt:updated");
+							$("#path_node_selector").trigger("liszt:updated");
+                            
+                            //set up subscriptions for events;
 
-							 var endpoint= YAHOO.util.Dom.get("endpoint_node_selector");
-							 var path= YAHOO.util.Dom.get("path_node_selector");
-							 endpoint.appendChild(optionsfragment.cloneNode(true) );
-							 path.appendChild(optionsfragment.cloneNode(true) );
-							 $("#endpoint_node_selector").trigger("liszt:updated");
-							 $("#path_node_selector").trigger("liszt:updated");
+                            var endpoint_el = new YAHOO.util.Element(endpoint);
+                            var path_el = new YAHOO.util.Element(path);
 
-                             //set up subscriptions for events;
+                            $("#endpoint_node_selector,#path_node_selector").chosen().change( function(){
 
-                             var endpoint_el = new YAHOO.util.Element(endpoint);
-                             var path_el = new YAHOO.util.Element(path);
-
-
-                             $("#endpoint_node_selector,#path_node_selector").chosen().change( function(){
-
-                                 ckt_table = build_circuitTable.apply(ckt_table,[]); } );
-
+                                ckt_table = build_circuitTable.apply(ckt_table,[]); } );
 
                          },
 						 failure: function(req, resp){
@@ -270,8 +335,6 @@
 						 scope: this
 					 },
 					 node_ds);
-
-
 
 
 function build_circuitTable(){
@@ -286,6 +349,8 @@ function build_circuitTable(){
     var endpointSelector= YAHOO.util.Dom.get("endpoint_node_selector");
 	var pathSelector= YAHOO.util.Dom.get("path_node_selector");
 
+    var vlanSelector = YAHOO.util.Dom.get("vlan_id_selector"); 
+
     for(x=0;x<endpointSelector.length; x++){
         if(endpointSelector[x].selected){
             dsString +="&endpoint_node_id="+endpointSelector[x].value;
@@ -296,6 +361,15 @@ function build_circuitTable(){
             dsString +="&path_node_id="+pathSelector[x].value;
         }
     }
+    
+    
+    selected_tags = [] 
+    for(x=0;x<vlanSelector.length; x++){
+        if(vlanSelector[x].selected){
+            selected_tags.push(vlanSelector[x].value);
+        }
+
+    } 
 
     
     var ds = new YAHOO.util.DataSource(dsString);
@@ -316,7 +390,6 @@ function build_circuitTable(){
 	}
     };
     
-
     var columns = [
 		   
 		   {key: "description", label: "Description", sortable: true, width: 400},
@@ -348,6 +421,33 @@ function build_circuitTable(){
 			   el.innerHTML = string;
 		       }
 		   },
+
+           {key: "endpoints", label: "VLAN Tags", sortable: true, width: 90, formatter: function(el,rec, col, data){
+                
+                var endpoints = rec.getData('endpoints');
+
+                var string = "";
+
+                if (endpoints.length <=2){
+
+                    for (var i =0; i < endpoints.length; i++){
+
+                        if (i > 0){
+                            string += "<br>";
+                        }
+                        string += endpoints[i].tag;
+                    }
+
+                }else{
+
+                        string +=endpoints[0].tag;
+                        string += "<br>amd " + (endpoints.length - 1) + " more";
+
+                    }
+                    el.innerHTML = string;
+
+                } 
+           },
 		   {key: "workgroup.name", label: "Owned By", sortable: true, width: 90, formatter: function(el, rec, col, data){
 			   el.innerHTML = "<center>"+data+"</center>";
 		       }
@@ -377,12 +477,69 @@ function build_circuitTable(){
     var circuit_table = new YAHOO.widget.DataTable("circuit_table", columns, ds, config);
 
     circuit_table.on("initEvent", function(){
-        var search = new YAHOO.util.Element(YAHOO.util.Dom.get('circuit_search'));
-        var search_value = search.get('element').value;
-	    table_filter.call(ckt_table,search_value);
-    }
+	    var search = new YAHOO.util.Element(YAHOO.util.Dom.get('circuit_search'));
+	    var search_value = search.get('element').value;
+	    
+	    //apply the vlan filter
+        table_filter.call(ckt_table,search_value);
+    
+        var rows_to_delete = [];
+	    if (selected_tags.length > 0){
+		// loop thru the rows. if the vlan we are searching for is found in a row record, keep the row
+		// otherwise, delete it.
+		    var records = circuit_table.getRecordSet().getRecords();
+		    var keep_this_row;
+		    for (var i =0; i < records.length; i++){
+		        keep_this_row = false;
+    
+	    	    for (var j = 0; j < records[i]._oData.endpoints.length; j++){
+        
+		    	    for (var k = 0; k < selected_tags.length; k++){
 
-                    );
+			            if (selected_tags[k] == records[i]._oData.endpoints[j].tag){
+                        
+				            keep_this_row = true;
+                        
+			            }
+
+			        }
+
+		        }
+		        if (keep_this_row === false){
+			        //put the offending rows into an array to delete in a bit.
+                    rows_to_delete.push(i);
+		        }
+		    }
+	    }
+        if (rows_to_delete.length > 0){
+		    for (var r = 0; r<rows_to_delete.length; r++){
+
+		        circuit_table.deleteRow(rows_to_delete[r]);
+                //decrement each entry of rows_to_delete by one
+                for (var i =0; i < rows_to_delete.length; i++){
+
+                    rows_to_delete[i] -= 1;
+
+                }
+
+		    }
+
+	        
+            //list out the number of circuits
+            YAHOO.util.Dom.get("total_workgroup_circuits").innerHTML = circuit_table.getRecordSet().getRecords().length;
+        
+            //note, this doesn't really do much until OpenFlow supports displaying bandwidth stats the way we need it. =(
+            var total_bandwidth;
+            for (var i = 0; i <circuit_table.getRecordSet().getRecords().length; i++){
+
+                total_bandwidth += circuit_table.getRecordSet().getRecords()[i]._oData.bandwidth;
+
+            }
+            YAHOO.util.Dom.get("total_workgroup_bandwidth").innerHTML = total_bandwidth;
+        }
+        
+	}
+	);
 
     circuit_table.subscribe("rowMouseoverEvent", circuit_table.onEventHighlightRow);
     circuit_table.subscribe("rowMouseoutEvent", circuit_table.onEventUnhighlightRow);
@@ -425,7 +582,6 @@ function build_circuitTable(){
 
 	    YAHOO.util.Dom.get("total_workgroup_bandwidth").innerHTML = total_bandwidth;
 	    YAHOO.util.Dom.get("total_workgroup_circuits").innerHTML = total_circuits;
-
 
 
         return oArgs;

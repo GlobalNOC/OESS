@@ -22,14 +22,19 @@
 
 
 	  <div style="display:inline-block;float:right; margin-right:95px;margin-top:8px;margin-bottom:8px;">
-	    <label for="endpoint_node_selector" id="endpoint_node_label" class="soft_title"> With Endpoints On:</label>
-	    <select multiple style="float:right; width:250px;"data-placeholder="Select Nodes" class="chzn-select" id="endpoint_node_selector">
+          <label for="endpoint_node_selector" id="endpoint_node_label" class="soft_title" style="margin-right:10px"> With Endpoints On:</label>
+	    <select multiple style="float:right; width:250px;"data-placeholder="Select Nodes" class="chzn-select" id="endpoint_node_selector"></select>
 
-	    </select>
-	    <div style="margin-top:4px;">
+        <div style="margin-top:4px;"> 
 	      <label for="path_node_selector" id="path_node_label" class="soft_title">Path Traverses:</label>
 	      <select multiple data-placeholder="Select Nodes" style="width:250px;" class="chzn-select" id="path_node_selector"></select>
-	    </div>
+            </div> 
+
+        <div style="margin-top:11px;">
+            <label for="vlan_id_selector" id="vlan_id_label" class="soft_title" style="margin-right:35px"> With VLAN IDs: </label>
+            <select multiple data-placeholder="Vlan ID" style="width:250px;" class="chzn-select" id="vlan_id_selector"></select>
+        </div>
+        
 	  </div>
 	  <div style="clear:both;"> </div>
 	  <center>
