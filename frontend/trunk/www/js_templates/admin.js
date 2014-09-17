@@ -2,6 +2,7 @@
 <script type='text/javascript' src='../js_utilities/datatable_utils.js'></script>
 <script type='text/javascript' src='../js_utilities/interface_acl_table.js'></script>
 <script type='text/javascript' src='../js_utilities/multilink_panel.js'></script>
+<script type='text/javascript' src='../js_utilities/misc_funcs.js'></script>
 
 <script>
 function admin_init(){
@@ -788,7 +789,6 @@ function setup_users_tab(){
 
     
     var add_user = new YAHOO.widget.Button("add_user_button", {label: "New User"});
-
     
     add_user.on("click", function(){
 
@@ -1764,7 +1764,7 @@ function setup_network_tab(){
 	    var default_forward = args[0].default_forward;
 	    var barrier_bulk = args[0].barrier_bulk;
 	    var feature = args[0].feature;
-	    var dpid = args[0].dpid;
+	    var dpid = convert_dpid_to_hex(args[0].dpid);
         var max_static_mac_flows = args[0].max_static_mac_flows;
       
         function show_interface_acl_panel(args){
@@ -2288,7 +2288,7 @@ function setup_discovery_tab(){
 
 	    this.details_panel = details_panel;
 
-	    this.details_panel.setHeader("Details for Device: " + record.getData('dpid'));
+	    this.details_panel.setHeader("Details for Device: " + convert_dpid_to_hex(record.getData('dpid')));
 
 	    this.details_panel.setBody("<table>" +
 				       "<tr>" + 
@@ -2917,7 +2917,13 @@ function makePendingNodeTable(){
     };
 
     var columns = [{key: "name", label: "Name", width: 205},
-		   {key: "dpid", label: "Datapath ID", width: 135},
+		   {key: "dpid", label: "Datapath ID", width: 135,
+            formatter: function(el, rec){
+                var dpid = rec.getData("dpid");
+                var formatted_dpid = convert_dpid_to_hex(dpid);
+                el.innerHTML = formatted_dpid;
+            }
+           },
 		   {key: "ip_address", label: "IPv4 Address", width: 100}
 		   ];
 
