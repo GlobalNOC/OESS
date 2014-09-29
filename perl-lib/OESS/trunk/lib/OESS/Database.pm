@@ -5337,7 +5337,6 @@ sub get_link_by_interface_id{
     if($#results >= 0){
 	return \@results;
     }else{
-	$self->_set_error("Unable to find links with interface_id $interface_id");
 	return;
     }
 
