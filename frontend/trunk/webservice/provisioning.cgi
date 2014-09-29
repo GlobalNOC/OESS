@@ -661,7 +661,6 @@ sub fail_over_circuit {
                 eval {
                     $circuit_details->{'status'} = 'down';
                     $circuit_details->{'reason'} = "user " . $ENV{'REMOTE_USER'} . " forced the circuit to change to the alternate path which is down!";
-                    $circuit_details->{'down'};
                     $log_client->circuit_notification( $circuit_details  );
                 };
                 warn $@ if $@;
