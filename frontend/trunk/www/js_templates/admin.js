@@ -1104,6 +1104,8 @@ function setup_workgroup_tab(){
 
 		    new_user_p.setHeader("Add User to Workgroup - Click to Add User");
 		    new_user_p.setBody("<center>" +
+                                       "<label for='add_new_wg_user_search' id='add_new_wg_user_search_label' class='soft_title'>Search:</label>" +
+                                       "<input id='add_new_wg_user_search' type='text' size='25'>" +
 				       "<div id='add_new_workgroup_user_table'></div>" +
 				       "<div id='add_new_workgroup_user_table_nav'></div>" +
 				       "<div id='add_result' class='soft_title confirmation'></div>" +
@@ -1126,6 +1128,28 @@ function setup_workgroup_tab(){
 
 		    var user_table = makeUserTable('add_new_workgroup_user_table');
 
+                    var wg_user_search = new YAHOO.util.Element(YAHOO.util.Dom.get('add_new_wg_user_search'));
+
+                    var wg_user_searchTimeout;
+                    wg_user_search.on('keyup', function(e){
+                            var search_value = this.get('element').value;
+
+                            if (e.keyCode == YAHOO.util.KeyListener.KEY.ENTER){
+                                clearTimeout(wg_user_searchTimeout);
+                                table_filter.call(user_table,search_value);
+                            }
+                            else{
+                                if (wg_user_searchTimeout) clearTimeout(user_searchTimeout);
+
+                                user_searchTimeout = setTimeout(function(){
+                                        table_filter.call(user_table,search_value);
+                                    }, 400);
+
+                            }
+
+                        });
+
+                    
 		    user_table.subscribe("rowClickEvent", function(oArgs){
 
 			    this.disable();
@@ -2721,9 +2745,9 @@ function makeUserWorkgroupTable(user_id,first_name,family_name) {
 	    });
 
 	    
-                var searchTimeout;
+            /*var searchTimeout;
                 
-                /*var search = new YAHOO.util.Element(YAHOO.util.Dom.get('workgroup_search'));
+                var search = new YAHOO.util.Element(YAHOO.util.Dom.get('workgroup_search'));
                   
                   search.on('keyup', function(e){
 		  
