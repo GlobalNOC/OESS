@@ -284,12 +284,17 @@ close(FILE);
     my ($pass, $confirm);
     if (yes_or_no_parameter("OESS Frontend requires a user, would you like to add a user via htpasswd file?  If using a different authentication mechanism choose n") eq "y"){
 	while (1){
+        ReadMode('noecho');
 	    $pass    = required_parameter("Password");
 	    print "\n";
 	    $confirm = required_parameter("Confirm Password");
 	    print "\n";
 
-	    last if ($pass eq $confirm);
+	    if ($pass eq $confirm){
+
+            ReadMode('normal');
+            last;
+        }   
 	    print "Passwords did not match, try again.\n";
 	}
 
