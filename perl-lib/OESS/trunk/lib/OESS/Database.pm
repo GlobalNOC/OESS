@@ -3067,6 +3067,16 @@ sub get_current_circuits {
     my $query = "select circuit.circuit_id, circuit.external_identifier, circuit.workgroup_id, circuit.name, circuit.description, circuit.circuit_id, circuit_instantiation.circuit_state ";
     $query   .= "from circuit ";
     $query   .= "join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id and circuit_instantiation.end_epoch = -1 and circuit_instantiation.circuit_state != 'decom' ";
+ 
+    if (@$endpoint_nodes || @$path_nodes ) {
+	if(@$circuit_id_filter ==0){
+	    return $results;
+	}
+	$query .= " and circuit.circuit_id in ( ?".",?" x (scalar(@$circuit_id_filter)-1) . ") ";
+	push(@to_pass, @$circuit_id_filter);
+    }
+
+
     $query   .= "left join circuit_edge_interface_membership on circuit.circuit_id = circuit_edge_interface_membership.circuit_id and circuit_edge_interface_membership.end_epoch = -1 ";
     $query   .= "left join interface on circuit_edge_interface_membership.interface_id = interface.interface_id";
 
@@ -3076,13 +3086,6 @@ sub get_current_circuits {
 		push(@to_pass, $workgroup_id);
     }
 
-    if (@$endpoint_nodes || @$path_nodes ) {
-	if(@$circuit_id_filter ==0){
-	    return $results;
-	}
-	$query .= " and circuit.circuit_id in ( ?".",?" x (scalar(@$circuit_id_filter)-1) . ") ";
-	push(@to_pass, @$circuit_id_filter);
-    }
 
     $query .= " group by circuit.circuit_id";
     my $rows = $self->_execute_query($query, \@to_pass);
@@ -7296,9 +7299,11 @@ sub get_current_actions{
 
 =cut
 
-sub can_modify_circuit{
+sub can_modify_circuit {
     my $self = shift;
     my %params = @_;
+
+
 
     if(!defined($params{'circuit_id'})){
 	$self->_set_error("can_modify_circuit requires a circuit_id");
