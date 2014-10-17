@@ -88,5 +88,45 @@ sub resetOESSDB {
     return 1;
 }
 
+# convenience method for bumping/saging those pesky workgroup limits
+sub workgroupLimits {
+    my %args = @_;
+    my $workgroup_id = $args{'workgroup_id'};
+    my $db           = $args{'db'};
+    my $circuit_num  = $args{'circuit_num'};
+    my $op           = $args{'op'} || '+';
+
+    # get workgroup
+    my $workgroup = $db->_execute_query(
+        'SELECT * from workgroup where workgroup_id = ?', 
+        [$workgroup_id]
+    )->[0];
+
+    # +/-= any defined limit variables
+    my $mac_addr_per_end = (defined($args{'mac_addr_endpoint_num'}))
+        ? eval($workgroup->{'max_mac_address_per_end'}." $op ".$args{'mac_addr_endpoint_num'})
+        : $workgroup->{'max_mac_address_per_end'};
+
+    my $max_ckts = (defined($args{'circuit_num'}))
+        ? eval($workgroup->{'max_circuits'}." $op ".$args{'circuit_num'})
+        : $workgroup->{'max_circuits'};
+        
+    my $max_ckt_endpoints = (defined($args{'circuit_endpoints_num'}))
+        ? eval($workgroup->{'max_circuit_endpoints'}." $op ".$args{'circuit_endpoints_num'})
+        : $workgroup->{'max_circuit_endpoints'};
+
+    # update that stuff
+    my $res = $db->update_workgroup(
+        workgroup_id             => $workgroup->{'workgroup_id'},
+        name                     => $workgroup->{'name'},
+        external_id              => $workgroup->{'external_id'},
+        max_mac_address_per_end  => $mac_addr_per_end,
+        max_circuits             => $max_ckts,
+        max_circuit_endpoints    => $max_ckt_endpoints 
+    );
+
+    warn Dumper($res);
+}
+
 
 1;

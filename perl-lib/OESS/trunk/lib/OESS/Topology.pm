@@ -252,32 +252,59 @@ sub validate_paths{
 
     if(defined $res->{'links'}){
 
-	if (! $self->path_is_loop_free($res->{'links'})){
-	    $self->_set_error("Primary path contains a loop");
-	    return (0,"Primary path contains a loop.");
-	}
+        if ( (!$self->path_is_loop_free($res->{'links'})) && (!$self->is_loopback($res->{'endpoints'})) ){
+            $self->_set_error("Primary path contains a loop");
+            return (0,"Primary path contains a loop.");
+        }
 
-	if (! $self->all_endpoints_connected_in_path($res->{'links'}, $res->{'endpoints'})){
-	    $self->_set_error("Primary path does not connect all endpoints.");
-	    return (0,"Primary path does not connect all endpoints.");
-	}
+        if (! $self->all_endpoints_connected_in_path($res->{'links'}, $res->{'endpoints'})){
+            $self->_set_error("Primary path does not connect all endpoints.");
+            return (0,"Primary path does not connect all endpoints.");
+        }
 
     }
 
     if(defined $res->{'backup_links'}){
 
-	if (! $self->path_is_loop_free($res->{'backup_links'})){
-	    $self->_set_error("Backup path contains a loop.");
-	    return (0,"Backup path contains a loop.");
-	}
+        if ( (!$self->path_is_loop_free($res->{'backup_links'})) && (!$self->is_loopback($res->{'endpoints'})) ){
+            $self->_set_error("Backup path contains a loop.");
+            return (0,"Backup path contains a loop.");
+        }
 
-	if (@{$res->{'backup_links'}} > 0 && ! $self->all_endpoints_connected_in_path($res->{'backup_links'}, $res->{'endpoints'})){
-	    $self->_set_error("Backup path does not connect all endpoints.");
-	    return (0,"Backup path does not connect all endpoints.");
-	}
+        if (@{$res->{'backup_links'}} > 0 && ! $self->all_endpoints_connected_in_path($res->{'backup_links'}, $res->{'endpoints'})){
+            $self->_set_error("Backup path does not connect all endpoints.");
+            return (0,"Backup path does not connect all endpoints.");
+        }
     }
 
     return 1;
+}
+
+=head2 is_loopback
+    Checks to see if the endpoints are the same but on different vlans.
+    If this returns true we should allow a path with a loop in it.    
+=cut
+sub is_loopback {
+    my ($self, $endpoints)     = @_;
+
+    # first ensure there are only two endpoints
+    return 0 if(@$endpoints != 2);
+
+    my $intf; # keeps the name of our interface
+    my $known_vlans = {}; # hash of vlans we've used in our endpoints
+    foreach my $endpoint (@$endpoints){
+        if(!%$known_vlans && !defined($intf)){
+            $intf = $endpoint->{'interface'};
+            $known_vlans->{$endpoint->{'tag'}} = 1;
+        }else {
+            # if our endpoints are not all on the same interface this is not a valid loopback path
+            return 0 if($intf ne $endpoint->{'interface'});
+            # if we have used the same vlan tag twice this is not a valid loopback path
+            return 0 if(defined($known_vlans->{$endpoint->{'tag'}}));
+        }
+    }
+
+    return 1; 
 }
 
 =head2 find_path
