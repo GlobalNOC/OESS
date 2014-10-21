@@ -818,8 +818,8 @@ sub add_link{
 	return;
     }
 
-    my $res = $self->_execute_query("insert into link (name, remote_urn,status) VALUES (?, ?,'up')",
-				    [$args{'name'}, $args{'remote_urn'}]);
+    my $res = $self->_execute_query("insert into link (name, remote_urn,status,vlan_tag_range) VALUES (?, ?,'up', ?)",
+				    [$args{'name'}, $args{'remote_urn'}, $args{'vlan_tag_range'}]);
 
     if(defined($res)){
 	return $res;
@@ -2425,6 +2425,41 @@ sub _check_vlan_range {
 
 	$self->_set_error("$vlan_range_string does not fall within the vlan tag range defined for the interface, $vlan_tag_range");
     return 0;
+}
+
+=head2 _get_vlan_range_intersection
+
+takes an array of vlan range strings and returns the intersection of each
+
+=cut
+sub _get_vlan_range_intersection {
+    my ($self, %args) = @_;
+
+    my $vlan_ranges   = $args{'vlan_ranges'};
+    my $oscars_format = $args{'oscars_format'} || 0;
+
+    # create an array of arrays from our range_strings
+    my $vlan_arrays = [];
+    foreach my $vlan_range (@$vlan_ranges){
+        my $tags = $self->_process_tag_string( $vlan_range, $oscars_format );
+        push(@$vlan_arrays, $tags);
+    }
+
+    # determine the intersection of the arrays of ranges
+    my @intersection = @{$vlan_arrays->[0]};
+    foreach my $vlan_array (@$vlan_arrays){
+        my @vlan_array = @$vlan_array;
+        @intersection = intersect(@intersection, @$vlan_array);
+    }
+
+    # create a hash from our array of ranges
+    my $intersection_hash = {};
+    foreach my $vlan (@intersection){
+        $intersection_hash->{$vlan} = 1;
+    }
+    my $intersection_string = $self->_vlan_range_hash2str( vlan_range_hash => $intersection_hash, oscars_format => $oscars_format );
+
+    return $intersection_string;
 }
 
 =head2 add_workgroup
@@ -4992,7 +5027,7 @@ sub get_remote_links {
     my $self = shift;
     my %args = @_;
 
-    my $query = "select link.link_id, link.remote_urn, node.name as node_name, interface.name as int_name from link " .
+    my $query = "select link.link_id, link.remote_urn, link.vlan_tag_range, node.name as node_name, interface.name as int_name from link " .
 	" join link_instantiation on link.link_id = link_instantiation.link_id " .
 	" join interface on interface.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id) " .
 	" join interface_instantiation on interface.interface_id = interface_instantiation.interface_id " .
@@ -5011,12 +5046,13 @@ sub get_remote_links {
     my @results;
 
     foreach my $row (@$rows){
-	push (@results, {"link_id"   => $row->{'link_id'},
-			 "node"      => $row->{'node_name'},
-			 "interface" => $row->{'int_name'},
-			 "urn"       => $row->{'remote_urn'}
-	                 }
-	    );
+        push (@results, {
+            "link_id"        => $row->{'link_id'},
+            "node"           => $row->{'node_name'},
+            "interface"      => $row->{'int_name'},
+            "urn"            => $row->{'remote_urn'},
+            "vlan_tag_range" => $row->{'vlan_tag_range'}
+        });
     }
 
     return \@results;
@@ -5032,6 +5068,7 @@ sub add_remote_link {
 
     my $urn                 = $args{'urn'};
     my $name                = $args{'name'};
+    my $vlan_tag_range      = $args{'vlan_tag_range'};
     my $local_interface_id  = $args{'local_interface_id'};
 
     if ($urn !~ /domain=(.+):node=(.+):port=(.+):link=(.+)$/){
@@ -5102,9 +5139,11 @@ sub add_remote_link {
     return;
     }
 
-    my $link_id = $self->add_link(name       => $name,
-				  remote_urn => $urn
-	                         );
+    my $link_id = $self->add_link(
+        name           => $name,
+		remote_urn     => $urn,
+        vlan_tag_range => $vlan_tag_range
+    );
 
     if (! defined $link_id){
 	$self->_set_error("Unable to create link $name: " . $self->get_error());
@@ -5322,7 +5361,7 @@ sub get_link_by_interface_id{
     }
 
 
-    my $select_link_by_interface = "select link.name as link_name,link.status, link.link_id,link.remote_urn, link_instantiation.interface_a_id, link_instantiation.interface_z_id, link_instantiation.link_state as state from link,link_instantiation where link.link_id = link_instantiation.link_id and link_instantiation.end_epoch = -1 and (link_instantiation.interface_a_id = ? or link_instantiation.interface_z_id = ?)";
+    my $select_link_by_interface = "select link.name as link_name,link.status, link.link_id,link.remote_urn, link.vlan_tag_range, link_instantiation.interface_a_id, link_instantiation.interface_z_id, link_instantiation.link_state as state from link,link_instantiation where link.link_id = link_instantiation.link_id and link_instantiation.end_epoch = -1 and (link_instantiation.interface_a_id = ? or link_instantiation.interface_z_id = ?)";
 
     if(!$show_decom){
 	$select_link_by_interface .= " and link_instantiation.link_state != 'decom'"
@@ -7011,11 +7050,17 @@ sub get_allowed_vlans {
 }
 
 sub _process_tag_string{
-    my $self = shift;
-    my $string = shift;
+    my $self          = shift;
+    my $string        = shift;
+    my $oscars_format = shift || 0;
+    my $MIN_VLAN_TAG  = ($oscars_format) ? 0 : MIN_VLAN_TAG;
 
     if(!defined($string)){
-	return;
+	    return;
+    }
+    if($oscars_format){
+        $string =~ s/^-1/0/g;
+        $string =~ s/,-1/0/g;
     }
 
     my @split = split(/,/, $string);
@@ -7027,7 +7072,7 @@ sub _process_tag_string{
 	    my $start = $1;
 	    my $end   = $2;
 
-	    if (($start < MIN_VLAN_TAG && $start != UNTAGGED)|| $end > MAX_VLAN_TAG){
+	    if (($start < $MIN_VLAN_TAG && $start != UNTAGGED)|| $end > MAX_VLAN_TAG){
 		return;
 	    }
 
@@ -7037,7 +7082,7 @@ sub _process_tag_string{
 
 	}elsif ($element =~ /^(\-?\d+)$/){
 	    my $tag_number = $1;
-	    if (($tag_number < MIN_VLAN_TAG && $tag_number != UNTAGGED) || $tag_number > MAX_VLAN_TAG){
+	    if (($tag_number < $MIN_VLAN_TAG && $tag_number != UNTAGGED) || $tag_number > MAX_VLAN_TAG){
 		return;
 	    }
 	    push (@tags, $1);
@@ -7164,9 +7209,9 @@ sub _vlan_range_hash2str {
     my $self = shift;
     my %args = @_;
     my $vlan_range_hash = $args{'vlan_range_hash'};
-
+    my $oscars_format   = $args{'oscars_format'} || 0;
     # delete zero if it exists since its an invalid tag
-    if(exists($vlan_range_hash->{'0'})){
+    if(!$oscars_format && exists($vlan_range_hash->{'0'})){
         delete $vlan_range_hash->{'0'};
     }
     # create an array of the allowed vlans and sort them
@@ -7454,27 +7499,27 @@ sub gen_topo{
         $node->{'vlan_tag_range'} =~ s/^-1/0/g;
         $node->{'vlan_tag_range'} =~ s/,-1/0/g;
 
-	my %interfaces;
-        my $ints = $self->get_node_interfaces( node => $node->{'name'}, workgroup_id => $workgroup->{'workgroup_id'}, show_down => 1);
+        my %interfaces;
+            my $ints = $self->get_node_interfaces( node => $node->{'name'}, workgroup_id => $workgroup->{'workgroup_id'}, show_down => 1);
 
-	foreach my $int (@$ints){
-	    $interfaces{$int->{'name'}} = $int;
-	}
+        foreach my $int (@$ints){
+            $interfaces{$int->{'name'}} = $int;
+        }
 
-	my $link_ints = $self->get_link_ints_on_node( node_id => $node->{'node_id'} );
+        my $link_ints = $self->get_link_ints_on_node( node_id => $node->{'node_id'} );
 
-	foreach my $int (@$link_ints){
-	    $interfaces{$int->{'name'}} = $int;
-	}
+        foreach my $int (@$link_ints){
+            $interfaces{$int->{'name'}} = $int;
+        }
 
         foreach my $int_name (keys (%interfaces)){
-	    my $int = $interfaces{$int_name};
-	    $int->{'name'} =~ s/ /+/g;
-	    if(!defined($int->{'capacity_mbps'})){
-		my $interface = $self->get_interface( interface_id => $int->{'interface_id'} );
-		my $speed = $self->get_interface_speed( interface_id => $int->{'interface_id'});
-		$int->{'capacity_mbps'} = $speed;
-	    }
+            my $int = $interfaces{$int_name};
+            $int->{'name'} =~ s/ /+/g;
+            if(!defined($int->{'capacity_mbps'})){
+                my $interface = $self->get_interface( interface_id => $int->{'interface_id'} );
+                my $speed = $self->get_interface_speed( interface_id => $int->{'interface_id'});
+                $int->{'capacity_mbps'} = $speed;
+            }
             $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","port"], id => "urn:ogf:network:domain=" . $domain . ":node=" . $node->{'name'} . ":port=" . $int->{'name'});
 
             $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","capacity"]);
@@ -7490,8 +7535,7 @@ sub gen_topo{
             $writer->characters(1000000);
             $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","granularity"]);
 
-            my $links = $self->get_link_by_interface_id( interface_id => $int->{'interface_id'},
-							 show_decom => 0 );
+            my $links = $self->get_link_by_interface_id( interface_id => $int->{'interface_id'}, show_decom => 0 );
             my $processed_link = 0;
 
             foreach my $link (@$links){
@@ -7534,64 +7578,76 @@ sub gen_topo{
                     $writer->characters($link->{'remote_urn'});
                     $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","remoteLinkId"]);
                 }
-		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","trafficEngineeringMetric"]);
+                $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","trafficEngineeringMetric"]);
 
-		if(defined($link->{'remote_urn'})){
-		    $writer->characters("100");
-		}else{
-		    $writer->characters("10");
-		}
+                if(defined($link->{'remote_urn'})){
+                    $writer->characters("100");
+                }else{
+                    $writer->characters("10");
+                }
 
-		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","trafficEngineeringMetric"]);
-		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","capacity"]);
-		$writer->characters($int->{'capacity_mbps'} * 1000000);
-		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","capacity"]);
+                $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","trafficEngineeringMetric"]);
+                $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","capacity"]);
+                $writer->characters($int->{'capacity_mbps'} * 1000000);
+                $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","capacity"]);
 
-		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","maximumReservableCapacity"]);
-		$writer->characters($int->{'capacity_mbps'} * 1000000);
-		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","maximumReservableCapacity"]);
-		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","minimumReservableCapacity"]);
-		$writer->characters(1000000);
-		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","minimumReservableCapacity"]);
-		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","granularity"]);
-		$writer->characters(1000000);
-		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","granularity"]);
+                $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","maximumReservableCapacity"]);
+                $writer->characters($int->{'capacity_mbps'} * 1000000);
+                $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","maximumReservableCapacity"]);
+                $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","minimumReservableCapacity"]);
+                $writer->characters(1000000);
+                $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","minimumReservableCapacity"]);
+                $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","granularity"]);
+                $writer->characters(1000000);
+                $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","granularity"]);
 
-		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","SwitchingCapabilityDescriptors"]);
-		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","switchingcapType"]);
-		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","switchingcapType"]);
-		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","encodingType"]);
-		$writer->characters("packet");
-		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","encodingType"]);
-		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","switchingCapabilitySpecificInfo"]);
-		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","capability"]);
-		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","capability"]);
-		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","interfaceMTU"]);
-		$writer->characters($int->{'mtu_bytes'});
-		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","interfaceMTU"]);
-		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
+                $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","SwitchingCapabilityDescriptors"]);
+                $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","switchingcapType"]);
+                $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","switchingcapType"]);
+                $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","encodingType"]);
+                $writer->characters("packet");
+                $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","encodingType"]);
+                $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","switchingCapabilitySpecificInfo"]);
+                $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","capability"]);
+                $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","capability"]);
+                $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","interfaceMTU"]);
+                $writer->characters($int->{'mtu_bytes'});
+                $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","interfaceMTU"]);
+                $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
 
                 #$writer->characters("2-4094");
-		if(defined($link->{'remote_urn'})){
-		    my $tag_range = $self->_validate_endpoint( workgroup_id => $workgroup->{'workgroup_id'}, interface_id => $int->{'interface_id'});
-		    $tag_range =~ s/^-1/0/g;
-		    $tag_range =~ s/,-1/0/g;
-		    $writer->characters( $tag_range );
-		}else{
-		    $writer->characters( $node->{'vlan_tag_range'} );
-		}
+                my $tag_range;
+                if(defined($link->{'remote_urn'})){
+                    $tag_range = $self->_validate_endpoint( workgroup_id => $workgroup->{'workgroup_id'}, interface_id => $int->{'interface_id'});
+                    $tag_range =~ s/^-1/0/g;
+                    $tag_range =~ s/,-1/0/g;
+                }else{
+                    $tag_range = $node->{'vlan_tag_range'};
+                }
+                # compute the intersection of the vlan tag range set on the link and our range as determined my the interface acl or the
+                # node's allowed vlan_range
+                if($link->{'vlan_tag_range'}){
+
+                    $tag_range = $self->_get_vlan_range_intersection( 
+                        vlan_ranges => [$tag_range,$link->{'vlan_tag_range'}], 
+                        oscars_format => 1 
+                    );
+                }
+
+                $writer->characters( $tag_range );
+
 
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
-		$writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanTranslation"]);
-		$writer->characters("true");
-		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanTranslation"]);
-		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","switchingCapabilitySpecificInfo"]);
-		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","SwitchingCapabilityDescriptors"]);
+                $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanTranslation"]);
+                $writer->characters("true");
+                $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanTranslation"]);
+                $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","switchingCapabilitySpecificInfo"]);
+                $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","SwitchingCapabilityDescriptors"]);
 
-		$writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","link"]);
-	    }
+                $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","link"]);
+            }
 
-	    if($int->{'role'} ne 'trunk' && $processed_link == 0){
+            if($int->{'role'} ne 'trunk' && $processed_link == 0){
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","link"], id => "urn:ogf:network:domain=" . $domain . ":node=" . $node->{'name'} . ":port=" . $int->{'name'} . ":link=*");
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","remoteLinkId"]);
                 $writer->characters("urn:ogf:network:domain=*:node=*:port=*:link=*");
@@ -7627,9 +7683,9 @@ sub gen_topo{
                 $writer->characters($int->{'mtu_bytes'});
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","interfaceMTU"]);
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
-		#replace -1 with 0 for OSCARS
-		$int->{'vlan_tag_range'} =~ s/^-1/0/g;
-		$int->{'vlan_tag_range'} =~ s/,-1/0/g;
+                #replace -1 with 0 for OSCARS
+                $int->{'vlan_tag_range'} =~ s/^-1/0/g;
+                $int->{'vlan_tag_range'} =~ s/,-1/0/g;
                 $writer->characters( $int->{'vlan_tag_range'} );
 
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);

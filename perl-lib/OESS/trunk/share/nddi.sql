@@ -179,6 +179,7 @@ CREATE TABLE `link` (
   `status` enum('up','down','unknown') DEFAULT 'up',
   `metric` int(11) DEFAULT '1',
   `fv_status` enum('up','down','unknown') NOT NULL DEFAULT 'unknown',
+  `vlan_tag_range` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`link_id`),
   UNIQUE KEY `links_idx` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
