@@ -5,6 +5,8 @@ use OESS::Database;
 use OESS::DBus;
 use XML::Simple;
 use Sys::Syslog qw(:standard :macros);
+use FindBin;
+use Fcntl qw(:flock);
 use Data::Dumper;
 
 sub main{
@@ -68,9 +70,9 @@ sub main{
             eval {
                 ($res,$event_id) = $client->addVlan($output->{'circuit_id'});
       
-                my $final_res = OESS::Database::FWDCTL_WAITING;
+                my $final_res = OESS::Database->FWDCTL_WAITING;
 
-                while($final_res == OESS::Database::FWDCTL_WAITING){
+                while($final_res == OESS::Database->FWDCTL_WAITING){
                     sleep(1);
                     $final_res = $client->get_event_status($event_id);
                 }
@@ -96,9 +98,9 @@ sub main{
             my $event_id;
             eval {
                 ($res,$event_id) = $client->deleteVlan($action->{'circuit_id'});
-                my $final_res = OESS::Database::FWDCTL_WAITING;
+                my $final_res = OESS::Database->FWDCTL_WAITING;
 
-                while($final_res == OESS::Database::FWDCTL_WAITING){
+                while($final_res == OESS::Database->FWDCTL_WAITING){
                     sleep(1);
                     $final_res = $client->get_event_status($event_id);
                 }
@@ -129,9 +131,9 @@ sub main{
             eval{
                 ($res,$event_id) = $client->addVlan($output->{'circuit_id'});
             
-                my $final_res = OESS::Database::FWDCTL_WAITING;
+                my $final_res = OESS::Database->FWDCTL_WAITING;
 
-                while($final_res == OESS::Database::FWDCTL_WAITING){
+                while($final_res == OESS::Database->FWDCTL_WAITING){
                     sleep(1);
                     $final_res = $client->get_event_status($event_id);
                 }
@@ -156,9 +158,9 @@ sub main{
             eval{
                 ($res,$event_id) = $client->deleteVlan($action->{'circuit_id'});
 
-                my $final_res = OESS::Database::FWDCTL_WAITING;
+                my $final_res = OESS::Database->FWDCTL_WAITING;
 
-                while($final_res == OESS::Database::FWDCTL_WAITING){
+                while($final_res == OESS::Database->FWDCTL_WAITING){
                     sleep(1);
                     $final_res = $client->get_event_status($event_id);
                 }
@@ -216,9 +218,9 @@ sub main{
                 if($success){
                     eval{
                         ($res,$event_id) = $client->changeVlanPath($action->{'circuit_id'});
-                        my $final_res = OESS::Database::FWDCTL_WAITING;
+                        my $final_res = OESS::Database->FWDCTL_WAITING;
 
-                        while($final_res == OESS::Database::FWDCTL_WAITING){
+                        while($final_res == OESS::Database->FWDCTL_WAITING){
                             sleep(1);
                             $final_res = $client->get_event_status($event_id);
                         }
@@ -258,6 +260,14 @@ sub main{
     }
 }
 
+#before we go into awesome update stuff, lets make sure we aren't already running, by getting a lock on ourself..
+
+open (my $fh, ">>", "$FindBin::RealBin/"."$FindBin::RealScript");
+
+flock($fh,LOCK_EX|LOCK_NB) or die ("Could not get lock, scheduler must still be running");
+
 main();
+
+flock($fh,LOCK_UN);
 
 
