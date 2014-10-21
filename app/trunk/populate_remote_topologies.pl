@@ -33,6 +33,8 @@ sub get_remote_topology {
     
     my $PS_TS = $db->get_oscars_topo();
     my $LOCAL_DOMAIN = $db->get_local_domain_name();
+
+
     my $workgroup_id = 1;
     # Make a SOAP envelope, use the XML file as the body.
     my $message = "";
@@ -100,7 +102,6 @@ sub get_remote_topology {
 	my @domains;
 
 	foreach my $domain_element (@$domain_elements){
-
 	    my $domain = $domain_element->getAttribute("id");
 
 	    $domain =~ /urn:ogf:network:domain=(.*)/;
@@ -129,8 +130,15 @@ sub get_remote_topology {
 		    foreach my $link_element (@$link_elements){
 
 			my $link = $link_element->getAttribute('id');
+            my $vlan_tag_range = $xpath->find(".".
+                "/ns1:SwitchingCapabilityDescriptors".
+                "/ns1:switchingCapabilitySpecificInfo".
+                "/ns1:vlanRangeAvailability", 
+                $link_element
+            )->string_value();
 
 			my $remote_link = $xpath->find("./ns1:remoteLinkId", $link_element);
+
 
 			my $remote_link_urn = @$remote_link[0]->getChildNodes()->[0]->getValue();
 
@@ -141,6 +149,7 @@ sub get_remote_topology {
 			$node_name =~ s/node=//g;
 			$port_name =~ s/port=//g;
 			$link_name =~ s/link=//g;
+           
 
 			if ($domain_name ne $LOCAL_DOMAIN){
 			    $node_name = $domain_name . "-" . $node_name;
@@ -172,18 +181,18 @@ sub get_remote_topology {
 
 			}
 
-			push(@links,{urn        => $link,
-                                 node       => $node_name,
-                                 port       => $port_name ,
-                                 link       => $link_name,
-                                 remote_urn => $remote_link_urn,
-				     latitude   => $latlong->{'latitude'},
-				     longitude  => $latlong->{'longitude'}
-			     });
+            push(@links,{
+                urn        => $link,
+                node       => $node_name,
+                port       => $port_name ,
+                link       => $link_name,
+                remote_urn => $remote_link_urn,
+                latitude   => $latlong->{'latitude'},
+                longitude  => $latlong->{'longitude'},
+                vlan_tag_range => $vlan_tag_range
+             });
 
-		    }
-		}
-	    }
+		}}}
 
 	    @links = sort {
 		if ($a->{'node'} eq $b->{'node'}){
@@ -200,8 +209,7 @@ sub get_remote_topology {
     }
     else{
         return {'error' => 'Error retreiving remote topologies'};
-    }
-}
+    } }
 
 
 sub process_topology{
@@ -228,13 +236,14 @@ sub process_topology{
 	
 	foreach my $link (@$links){
 	    
-	    my $link_name  = uri_unescape($link->{'link'});
-	    my $link_urn   = uri_unescape($link->{'urn'});
-	    my $node_name  = uri_unescape($link->{'node'});
-	    my $port       = uri_unescape($link->{'port'});
-	    my $remote_urn = uri_unescape($link->{'remote_urn'});	
+	    my $link_name      = uri_unescape($link->{'link'});
+	    my $link_urn       = uri_unescape($link->{'urn'});
+	    my $node_name      = uri_unescape($link->{'node'});
+	    my $port           = uri_unescape($link->{'port'});
+	    my $remote_urn     = uri_unescape($link->{'remote_urn'});	
+	    my $vlan_tag_range = uri_unescape($link->{'vlan_tag_range'});	
 	    
-	    &add_link($link_name, $link_urn, $node_name, $port, $remote_urn, $domain, $network_id);
+	    &add_link($link_name, $link_urn, $node_name, $port, $remote_urn, $domain, $network_id, $vlan_tag_range);
 	    
 	};
 	
@@ -245,33 +254,35 @@ sub process_topology{
 
 
 sub add_link {
-    my $link       = shift;
-    my $urn        = shift;
-    my $node       = shift;
-    my $port       = shift;
-    my $remote_urn = shift;
-    my $local_domain = shift;
-    my $network_id = shift;
+    my $link           = shift;
+    my $urn            = shift;
+    my $node           = shift;
+    my $port           = shift;
+    my $remote_urn     = shift;
+    my $local_domain   = shift;
+    my $network_id     = shift;
+    my $vlan_tag_range = shift;
+
 
     # figure out if node exists
-
     my $results = $db->_execute_query("select * from node where name = ? and network_id = ?", [$node, $network_id]);
 
     my $node_id;
 
+
     if (@$results > 0){
-	$node_id = @$results[0]->{'node_id'};
-	#ignore nodes that are part of our local network
-	next if(@$results[0]->{'network_id'} == 1);
+        $node_id = @$results[0]->{'node_id'};
+        #ignore nodes that are part of our local network
+        next if(@$results[0]->{'network_id'} == 1);
     }
     else {
-	$node_id = $db->_execute_query("insert into node (name, longitude, latitude, operational_state, network_id) values (?, ?, ?, ?, ?)",
-				       [$node, 0, 0, "unknown", $network_id]
-	    ) or die "Couldn't create node";
+        $node_id = $db->_execute_query(
+            "insert into node (name, longitude, latitude, operational_state, network_id) values (?, ?, ?, ?, ?)",
+            [$node, 0, 0, "unknown", $network_id]
+        ) or die "Couldn't create node";
     }
 
     
-
     # figure out the interface
 
     # we might have this interface before but didn't know about the URN, we can update it now
@@ -292,7 +303,6 @@ sub add_link {
     $results=$db->_execute_query("insert ignore into urn (urn, interface_id, last_update) values (?, ?, ?)",
                                             [$urn, $interface_id, time() ]);
     
-
 
     # urn:ogf:network:domain=nddi.net.internet2.edu:node=switch%202:port=s2-eth1:link=auto-3%3A2--2%3A1
     $urn =~ s/\n\s*//g;
@@ -317,7 +327,7 @@ sub add_link {
 
     # figure out the link if applicable
     $results = $db->_execute_query("select * from link where name = ?", [$urn]);
-    
+
     # new link, figure out how to hook it up   
     if (@$results < 1){	
 
@@ -330,7 +340,10 @@ sub add_link {
 
 	    my $interface_z = @$results[0]->{'interface_id'};
 
-	    my $link_id = $db->_execute_query("insert into link (name, remote_urn) values (?, ?)", [$urn, $remote_urn]) or die "Couldn't create link";
+	    my $link_id = $db->_execute_query(
+            "insert into link (name, remote_urn, vlan_tag_range) values (?, ?, ?)", 
+            [$urn, $remote_urn, $vlan_tag_range]
+        ) or die "Couldn't create link";
 
 	    my $inst_result = $db->_execute_query("insert into link_instantiation (link_id, end_epoch, start_epoch, interface_a_id, interface_z_id, link_state) values (?, ?, ?, ?, ?, ?)",
 						  [$link_id, -1, "UNIX_TIMETSTAMP(NOW())", $interface_id, $interface_z, "active"]);
