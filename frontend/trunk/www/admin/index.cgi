@@ -34,7 +34,7 @@ sub main {
     #-- What to pass to the TT and what http headers to send
     my ( $vars, $output, $filename, $title, $breadcrumbs, $current_breadcrumb );
 
-#-- Figure out what we're trying to templatize here or default to workgroups page.
+    #-- Figure out what we're trying to templatize here or default to workgroups page.
     my $action = "admin";
 
     if ( $cgi->param('action') && $cgi->param('action') =~ /^(\w+)$/ ) {

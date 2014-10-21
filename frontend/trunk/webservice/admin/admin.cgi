@@ -410,15 +410,17 @@ sub add_remote_link {
     my $urn                = $cgi->param('urn');
     my $name               = $cgi->param('name');
     my $local_interface_id = $cgi->param('interface_id');
+    my $vlan_tag_range     = $cgi->param('vlan_tag_range');
 
+    warn "add_remote_link: ".$vlan_tag_range;
     my $output = $db->add_remote_link(
         urn                => $urn,
         name               => $name,
-        local_interface_id => $local_interface_id
+        local_interface_id => $local_interface_id,
+        vlan_tag_range     => $vlan_tag_range
     );
 
     $results->{'results'} = [];
-
     if ( !defined $output ) {
         $results->{'error'} = $db->get_error();
     }

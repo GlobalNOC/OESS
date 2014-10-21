@@ -238,37 +238,38 @@ function setup_remote_tab(){
     var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_remote_links");
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
-	resultsList: "results",
-	fields: [{key: "link_id", parser: "number"},
-                 {key: "node"}, 
-                 {key: "interface"},
-                 {key: "urn"}
-		 ],
-	metaFields: {
-	    error: "error"
-	}
+        resultsList: "results",
+        fields: [
+            {key: "link_id", parser: "number"},
+            {key: "node"}, 
+            {key: "interface"},
+            {key: "urn"},
+            {key: "vlan_tag_range"}
+        ],
+        metaFields: {
+            error: "error"
+        }
     };
 
-    var columns = [{key: "node", label: "Endpoint", minWidth: 120, formatter: function(el, rec, col, data){
-		         el.innerHTML = rec.getData("node") + " - " + rec.getData("interface");
-	               }
-	            },
-		    {key: "urn", label: "URN"},
-		    {label: "Delete", formatter: function(el, rec, col, data){
-			    var b = new YAHOO.widget.Button({label: "Remove"});
-			    b.appendTo(el);
-			    b.on("click", function(){
-				    showConfirm("Are you sure you wish to remove link " + rec.getData("urn") + " from your topology?",
-						function(){
-						    removeRemoteLink(rec.getData("link_id"), b);
-						},
-						function(){}
-						);
-				});
-			}
-		     
-		    }
-		    ];
+    var columns = [
+        {key: "node", label: "Endpoint", minWidth: 120, formatter: function(el, rec, col, data){
+		    el.innerHTML = rec.getData("node") + " - " + rec.getData("interface");
+	    }},
+		{key: "urn", label: "URN"},
+		{key: "vlan_tag_range", label: "Vlan Range"},
+		{label: "Delete", formatter: function(el, rec, col, data){
+            var b = new YAHOO.widget.Button({label: "Remove"});
+            b.appendTo(el);
+            b.on("click", function(){
+                showConfirm("Are you sure you wish to remove link " + rec.getData("urn") + " from your topology?",
+                    function(){
+                        removeRemoteLink(rec.getData("link_id"), b);
+                    },
+                    function(){}
+                    );
+            });
+		}}
+	];
 
     var config = {
 	paginator:  new YAHOO.widget.Paginator({rowsPerPage: 10,
@@ -378,9 +379,11 @@ function setup_remote_tab(){
 
 			    urn_panel.setHeader("Enter the Remote URN for this Link:");
 			    urn_panel.setBody("<label for='remote_link_name' class='soft_title'>Name:</label>" +
-					      "<input id='remote_link_name' type='text' size='35' style='margin-left: 45px'>" + 
+					      "<input id='remote_link_name' type='text' size='35' style='margin-bottom: 2px; margin-left: 45px;'>" + 
 					      "<br><label for='remote_urn' class='soft_title'>Remote URN:</label>" +
-					      "<input id='remote_urn' type='text' size='35'>"
+					      "<input style='margin-left: 1px; margin-bottom: 2px;' id='remote_urn' type='text' size='35'>" +
+					      "<br><label for='remote_vlan_range' class='soft_title'>Vlan Range:</label>" +
+					      "<input style='margin-left: 10px' id='remote_vlan_range' type='text' size='35'>"
 					      );
 			    urn_panel.setFooter("<div id='save_urn'></div>");
 
@@ -390,22 +393,32 @@ function setup_remote_tab(){
 			    var save_button = new YAHOO.widget.Button("save_urn", {label: "Add"});
 
 			    save_button.on("click", function(){
-				    var urn  = YAHOO.util.Dom.get("remote_urn").value;
-				    var name = YAHOO.util.Dom.get("remote_link_name").value;
-                                    var regexp = new RegExp(/ /);
-                                    if(regexp.exec(name)){
-                                        alert("URN Names can not contain spaces");
-                                        return;
-                                    }
+				    var urn        = YAHOO.util.Dom.get("remote_urn").value;
+				    var name       = YAHOO.util.Dom.get("remote_link_name").value;
+                    var vlan_range = YAHOO.util.Dom.get("remote_vlan_range").value;
+                    var regexp = new RegExp(/ /);
+                    if(regexp.exec(name)){
+                        alert("URN Names can not contain spaces");
+                        return;
+                    }
+                    //validate vlan range
+                    var ranges = vlan_range.split(",");
+                    for (var i = 0; i < ranges.length; i++){
+                        var segment = ranges[i];
+                        if (! segment.match(/^\d+$/) && ! segment.match(/^\d+-\d+$/)){
+                            alert("You must specify a valid vlan range in the format \"1-3,5,7,8-10\"");
+                            return;
+                        }
+                    }
 
 				    if (! urn){
-					alert("You must specify a URN for this remote link.");
-					return;
+                        alert("You must specify a URN for this remote link.");
+                        return;
 				    }
 				    
 				    if (! name){
-					alert("You must specify a name for this link.");
-					return;
+                        alert("You must specify a name for this link.");
+                        return;
 				    }
 
 				    this.set("disabled", true);
@@ -414,7 +427,8 @@ function setup_remote_tab(){
 				    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_remote_link" +
 								       "&interface_id=" + interface_id +
 								       "&urn=" + encodeURIComponent(urn) + 
-								       "&name=" + encodeURIComponent(name)
+								       "&name=" + encodeURIComponent(name) +
+								       "&vlan_tag_range=" + encodeURIComponent(vlan_range)
 								       );
 
 				    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
@@ -1548,7 +1562,8 @@ function setup_network_tab(){
     // clear out the old map if we have it (ie, might have confirmed something)
     YAHOO.util.Dom.get("active_network_map").innerHTML = "";
 
-    var map = new NDDIMap("active_network_map", null, { node_label_status: false } );
+    //var map = new NDDIMap("active_network_map", null, { node_label_status: false } );
+    var map = new NDDIMap("active_network_map", null );
 
     map.on("loaded", function(){
 	    //this.showDefault();
