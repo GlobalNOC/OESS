@@ -1077,23 +1077,11 @@ sub get_map_layers {
     node.default_forward as default_forward,
     node.send_barrier_bulk as barrier_bulk,
     node.max_static_mac_flows as max_static_mac_flows,
-    node_instantiation.dpid as dpid,
-    to_node.name as to_node,
-    link.remote_urn as remote_urn, link.name as link_name, if(intA.operational_state = 'up' && intB.operational_state = 'up', 'up', 'down') as link_state,
-    if(int_instA.capacity_mbps > int_instB.capacity_mbps, int_instB.capacity_mbps, int_instA.capacity_mbps) as capacity, link.link_id as link_id
-	from node
-        join node_instantiation on node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active'
-        join network on node.network_id = network.network_id and network.is_local = 1
-        join interface intA on intA.node_id = node.node_id
-        join interface_instantiation int_instA on int_instA.interface_id = intA.interface_id
-        and int_instA.end_epoch = -1
-        left join link_instantiation on link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active'
-        and intA.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id)
-        left join link on link.link_id = link_instantiation.link_id
-        left join interface intB on intB.interface_id != intA.interface_id and intB.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id)
-        left join interface_instantiation int_instB on int_instB.interface_id = intB.interface_id
-        and int_instB.end_epoch = -1
-        left join node to_node on to_node.node_id != node.node_id and to_node.node_id = intB.node_id
+    node_instantiation.dpid as dpid
+    from node
+    join node_instantiation on node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 
+    and  node_instantiation.admin_state = 'active'
+    join network on node.network_id = network.network_id and network.is_local = 1
 HERE
         
     my $networks;
@@ -1119,9 +1107,11 @@ HERE
         }
     }
 
+    my $network_name = "";
+
     foreach my $row(@$rows){
         
-	my $network_name = $row->{'network_name'};
+	$network_name = $row->{'network_name'};
 	my $node_name    = $row->{'node_name'};
 	my $avail_endpoints = ( defined($nodes_endpoints->{$network_name}->{$node_name})? $nodes_endpoints->{$network_name}->{$node_name} : $default_endpoint_count);
         
@@ -1133,6 +1123,7 @@ HERE
 	};
         
 	$networks->{$network_name}->{'nodes'}->{$node_name} = {"node_name"    => $node_name,
+                                                               "node_id"      => $row->{'node_id'},
 							       "node_lat"     => $row->{'node_lat'},
 							       "node_long"    => $row->{'node_long'},
 							       "node_id"      => $row->{'node_id'},
@@ -1152,19 +1143,29 @@ HERE
 	    $networks->{$network_name}->{'links'}->{$node_name} = [];
 	}
         
-	# possible that this row doesn't contain any link information on account of left joins (could be standalone node)
-	if ($row->{'link_name'}){
-	    push(@{$networks->{$network_name}->{'links'}->{$node_name}}, {"link_name"   => $row->{'link_name'},
-									  "link_state"  => $row->{'link_state'},
-									  "capacity"    => $row->{'capacity'},
-                                                                          "remote_urn"  => $row->{'remote_urn'},
-                                                                          "to"          => $row->{'to_node'},
-									  "link_id"     => $row->{'link_id'}
-                 }
-		);
-	}
     }
     
+    my $links = $self->get_current_links();
+    foreach my $link (@$links){
+    
+        my $inta = $self->get_interface( interface_id => $link->{'interface_a_id'});
+        my $intb = $self->get_interface( interface_id => $link->{'interface_z_id'});
+
+        push(@{$networks->{$network_name}->{'links'}->{$inta->{'node_name'}}},{"link_name"   => $link->{'name'},
+                                                                               "link_state"  => $link->{'link_state'},
+                                                                               "link_capacity" => $intb->{'speed'},
+                                                                               "remote_urn"  => $link->{'remote_urn'},
+                                                                               "to"          => $intb->{'node_name'},
+                                                                               "link_id"     => $link->{'link_id'}});
+
+        push(@{$networks->{$network_name}->{'links'}->{$intb->{'node_name'}}},{"link_name"   => $link->{'name'},
+                                                                               "link_state"  => $link->{'link_state'},
+                                                                               "remote_urn"  => $link->{'remote_urn'},
+                                                                               "link_capacity" => $inta->{'speed'},
+                                                                               "to"          => $inta->{'node_name'},
+                                                                               "link_id"     => $link->{'link_id'}});
+    }
+  
 
     # now grab the foreign networks (no instantiations, is_local = 0)
     $query = "select network.longitude as network_long, network.latitude as network_lat, network.name as network_name, network.network_id as network_id, " .
@@ -3609,9 +3610,10 @@ sub get_interface {
 
     my $interface_id = $args{'interface_id'};
 
-    my $query = "select interface.interface_id, interface.name, interface.port_number, interface.description, interface.operational_state, interface.role, interface.node_id, interface.vlan_tag_range, workgroup.workgroup_id, workgroup.name as workgroup_name ";
-    $query   .= "from interface ";
+    my $query = "select interface.interface_id, interface.name,interface_instantiation.capacity_mbps as speed, interface.port_number, interface.description, interface.operational_state, interface.role, interface.node_id, interface.vlan_tag_range, workgroup.workgroup_id, workgroup.name as workgroup_name, node.name as node_name ";
+    $query   .= "from interface natural join interface_instantiation ";
     $query   .= "left join workgroup on interface.workgroup_id = workgroup.workgroup_id ";
+    $query   .= "left join node on node.node_id = interface.node_id ";
     $query   .= "where interface_id = ?";
 
     my $results = $self->_execute_query($query, [$interface_id]);
