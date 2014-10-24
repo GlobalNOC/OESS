@@ -60,7 +60,9 @@ sub new{
 	details => undef,
 	cicuit_id => undef,
 	db => undef,
-	@_
+	just_display => 0,
+        link_status => undef,
+        @_
         );
 
     my $self = \%args;
@@ -79,7 +81,9 @@ sub new{
 	return;
     }
 
-    $self->{'topo'} = OESS::Topology->new();
+    if(!defined($self->{'topo'})){
+        $self->{'topo'} = OESS::Topology->new( db => $self->{'db'});
+    }
 
     if(defined($self->{'details'})){
 	$self->_process_circuit_details();
@@ -137,7 +141,7 @@ sub update_circuit_details{
 sub _load_circuit_details{
     my $self = shift;
     $self->{'logger'}->debug("Loading Circuit data for circuit: " . $self->{'circuit_id'});
-    my $data = $self->{'db'}->get_circuit_details( circuit_id => $self->{'circuit_id'} );
+    my $data = $self->{'db'}->get_circuit_details( circuit_id => $self->{'circuit_id'}, link_status => $self->{'link_status'});
     $self->{'details'} = $data;
     $self->_process_circuit_details();
 }
@@ -164,8 +168,10 @@ sub _process_circuit_details{
         }
     }
 
-    $self->_create_graph();
-    $self->_create_flows();
+    if(!$self->{'just_display'}){       
+        $self->_create_graph();
+        $self->_create_flows();
+    }
 }
 
 

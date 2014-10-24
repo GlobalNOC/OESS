@@ -526,6 +526,7 @@ sub is_path_up{
     my %down_links;
     my %unknown_links;
 
+
     if(defined($args{'link_status'})){
 	my $link_status = $args{'link_status'};
 	foreach my $key (keys (%{$link_status})){
@@ -553,8 +554,10 @@ sub is_path_up{
         
     }
 
-    my $path_links = $self->{'db'}->get_path_links( path_id => $path );
-
+    my $path_links = $args{'links'};
+    if(!defined($path_links)){
+        $path_links = $self->{'db'}->get_path_links( path_id => $path );
+    }
 
     foreach my $link (@$path_links){
 

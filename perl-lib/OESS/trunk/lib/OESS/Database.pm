@@ -140,8 +140,7 @@ sub new {
     };
 
     my $dbh      = DBI->connect("DBI:mysql:$database", $username, $password,
-				{mysql_auto_reconnect => 1,
-				 }
+				{mysql_auto_reconnect => 1 }
 	                       );
 
     if (! $dbh){
@@ -1235,7 +1234,7 @@ HERE
 sub get_current_links{
     my $self = shift;
     #We don't set the end_epoch when a link is available or when it is decom, we only want active links ISSUE 5759
-    my $query = "select * from link, link_instantiation where link.link_id = link_instantiation.link_id and link_instantiation.end_epoch = -1 and link_state = 'active'";
+    my $query = "select * from link natural join link_instantiation where link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active'";
 
     my $res = $self->_execute_query($query,[]);
 
@@ -3063,7 +3062,7 @@ sub get_current_circuits {
 	chop($endpoint_node_sql);
 	$endpoint_node_sql .= ")";
 
-
+        warn "Endpoints sql: " . $endpoint_node_sql . "\n";
 	my $endpoint_results = $self->_execute_query($endpoint_node_sql ,$endpoint_nodes);
 
 
@@ -3085,7 +3084,7 @@ sub get_current_circuits {
 		join link_instantiation l on l.end_epoch = -1
 		and m.link_id = l.link_id join interface i on i.interface_id = interface_a_id or i.interface_id = interface_z_id
 		where i.node_id in ( $placeholders )";
-
+        warn "Path Node SQL: " . $path_node_sql  . "\n";
 	my $path_results = $self->_execute_query($path_node_sql, $path_nodes );
 
 	foreach my $row(@$path_results){
@@ -3124,6 +3123,7 @@ sub get_current_circuits {
 
 
     $query .= " group by circuit.circuit_id";
+    warn "Query: " . $query . "\n";
     my $rows = $self->_execute_query($query, \@to_pass);
 
     if (! defined $rows){
@@ -3134,14 +3134,13 @@ sub get_current_circuits {
     my $circuits;
     my @circuit_ids;
     foreach my $row (@$rows){
-	push(@circuit_ids,$row->{'circuit_id'});
-    }
-
-
-
-    foreach my $ckt (@circuit_ids){
-	my $circuit_details = $self->get_circuit_details( circuit_id => $ckt);
-	push(@{$results},$circuit_details);
+        warn "Creating circuit ID: " . $row->{'circuit_id'} . "\n";
+        push( @{$results}, OESS::Circuit->new( circuit_id => $row->{'circuit_id'},
+                                               db         => $self,
+                                               topo => $self->{'topo'},
+                                               just_display => 1,
+                                               link_status => $args{'link_status'}
+              ));
     }
 
     return $results;
@@ -3201,9 +3200,13 @@ sub get_circuit_paths{
 
     my $paths = $self->_execute_query($query, [$circuit_id]);
 
+
     foreach my $path (@$paths){
-	$path->{'status'} = $self->{'topo'}->is_path_up( path_id => $path->{'path_id'} );
-	$path->{'links'} = $self->get_path_links( path_id => $path->{'path_id'});
+        $path->{'links'} = $self->get_path_links( path_id => $path->{'path_id'});
+	$path->{'status'} = $self->{'topo'}->is_path_up( path_id => $path->{'path_id'},
+                                                         link_status => $args{'link_status'},
+                                                         links => $path->{'links'} );
+
     }
 
 
@@ -3233,6 +3236,8 @@ sub get_circuit_details {
 	return;
     }
 
+    
+
     my @bind_params = ($circuit_id);
 
     my $details;
@@ -3249,24 +3254,6 @@ sub get_circuit_details {
         " left join path as bu_p on bu_p.circuit_id = circuit.circuit_id and bu_p.path_type = 'backup' " .
         " left join path_instantiation as bu_pi on bu_pi.path_id = bu_p.path_id and bu_pi.end_epoch = -1 ".
 	" where circuit.circuit_id = ?";
-
-    # if ($args{'show_historical'}){
-
-    #     my $query = "select circuit.name, circuit.description, circuit.circuit_id, circuit_instantiation.modified_by_user_id, circuit.workgroup_id, " .
-    #       " circuit_instantiation.reserved_bandwidth_mbps, circuit_instantiation.circuit_state, circuit_instantiation.start_epoch  , " .
-    #       " if(bu_pi.path_state = 'active', 'backup', 'primary') as active_path " .
-    #       "from circuit " .
-    #       " join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id " .
-    #       "  and circuit_instantiation.end_epoch = -1 " .
-    #       "left join path as pr_p on pr_p.circuit_id = circuit.circuit_id and pr_p.path_type = 'primary' " .
-	#       "left join path_instantiation as pr_pi on pr_pi.path_id = pr_p.path_id and pr_pi.end_epoch = (select max(end_epoch) from path_instantiation where path_instantiation.path_id = pr_p.path_id) ".
-    #       " left join path as bu_p on bu_p.circuit_id = circuit.circuit_id and bu_p.path_type = 'backup' " .
-    #       " left join path_instantiation as bu_pi on bu_pi.path_id = bu_p.path_id and bu_pi.end_epoch = (select max(end_epoch) from path_instantiation where path_instantiation.path_id = bu_p.path_id) ".
-	#       " where circuit.circuit_id = ?";
-
-
-
-    # }
 
     my $sth = $self->_prepare_query($query) or return;
 
@@ -3319,30 +3306,29 @@ sub get_circuit_details {
 	$details->{'created_by'} = $self->get_user_by_id( user_id => $first_instantiation->{'modified_by_user_id'})->[0];
 	my $dt_create = DateTime->from_epoch( epoch => $first_instantiation->{'start_epoch'} );
 	$details->{'created_on'} = $dt_create->strftime('%m/%d/%Y %H:%M:%S');
-	#$details->{'created_on'} = $dt_create->month . "/" . $dt_create->day . "/" . $dt_create->year . " " . $dt_create->hour . ":" . $dt_create->min . ":" . $dt_create->second;
     }
 
+    my $paths = $self->get_circuit_paths( circuit_id => $circuit_id, 
+                                          show_historical => $show_historical, 
+                                          link_status => $args{'link_status'});
 
-    my $paths = $self->get_circuit_paths( circuit_id => $circuit_id, show_historical => $show_historical);
     foreach my $path (@$paths){
 	if($path->{'path_state'} eq 'active'){
-        #is_path_up can send 1 for up, 0 for down or 2 for unknown.
-	    if($self->{'topo'}->is_path_up( path_id => $path->{'path_id'} ) == 1){
-            $details->{'operational_state'} = 'up';
+	    if($path->{'status'} == 1){
+                $details->{'operational_state'} = 'up';
 	    }
-        elsif($self->{'topo'}->is_path_up( path_id => $path->{'path_id'} ) == 1){
-            $details->{'operational_state'} = 'unknown';
-        }
-        else{
-            $details->{'operational_state'} = 'down';
+            elsif($path->{'status'} == 1){
+                $details->{'operational_state'} = 'unknown';
+            }
+            else{
+                $details->{'operational_state'} = 'down';
 	    }
 	}
     }
-
+    
     if(!defined($details->{'operational_state'})){
 	$details->{'operational_state'} = 'unknown';
     }
-
 
     return $details;
 
@@ -3405,69 +3391,46 @@ sub get_circuit_endpoints {
     my $self = shift;
     my %args = @_;
 
-    # get the circuit info so we have the workgroup_id to get the vlan tag range later
-    my $sth0 = $self->_prepare_query("select * from circuit where circuit_id = ?") || return;
-    $sth0->execute($args{'circuit_id'});
-    my $circuit = $sth0->fetchrow_hashref();
-    my $workgroup_id = $circuit->{'workgroup_id'};
+    #my $query = "select * from circuit_edge_interface_membership where circuit_edge_interface_membership.circuit_id = ? and circuit_edge_interface_membership.end_epoch = -1";
+    my $query = "select circuit_edge_interface_membership.extern_vlan_id, circuit_edge_interface_membership.circuit_edge_id, interface.name as int_name,interface.description as interface_description, node.name as node_name, interface.interface_id, node.node_id as node_id, interface.port_number, interface.role, network.is_local, urn.urn from interface left join  interface_instantiation on interface.interface_id = interface_instantiation.interface_id and interface_instantiation.end_epoch = -1 join node on interface.node_id = node.node_id left join node_instantiation on node_instantiation.node_id = node.node_id and node_instantiation.end_epoch = -1 left join urn on urn.interface_id = interface.interface_id join network on node.network_id = network.network_id join circuit_edge_interface_membership on circuit_edge_interface_membership.interface_id = interface.interface_id where circuit_edge_interface_membership.circuit_id = ? and ";
 
-    my $query = "select * from circuit_edge_interface_membership where circuit_edge_interface_membership.circuit_id = ? and circuit_edge_interface_membership.end_epoch = -1";
     my @bind_values = ($args{'circuit_id'});
 
     if ($args{'show_historical'} ){
         #we set end_epoch in bulk, so it should be safe to get the set of edge_interfaces with the max end_epoch.
-        $query = "select * from circuit_edge_interface_membership where circuit_edge_interface_membership.circuit_id = ? and  end_epoch = (select max(end_epoch) from circuit_edge_interface_membership where circuit_id = ? )";
+        $query .= "circuit_edge_interface_membership.end_epoch = (select max(end_epoch) from circuit_edge_interface_membership where circuit_id = ? ))";
         push(@bind_values,$args{'circuit_id'});
+    }else{
+        $query .= "circuit_edge_interface_membership.end_epoch = -1";
     }
 
-    my $sth = $self->_prepare_query($query) or return;
 
-    $sth->execute(@bind_values);
-
-    #we now have a handle on all of the rows... we need to pull out the interface data
-    #because the same interface might be involved we have to break it up into 2 queries
-
-    $query = "select interface.name as int_name,interface.description as interface_description, node.name as node_name, interface.interface_id, node.node_id as node_id, interface.port_number, interface.role, network.is_local, urn.urn from interface left join interface_instantiation on interface.interface_id = interface_instantiation.interface_id and interface_instantiation.end_epoch = -1 join node on interface.node_id = node.node_id left join node_instantiation on node_instantiation.node_id = node.node_id and node_instantiation.end_epoch = -1 left join urn on urn.interface_id = interface.interface_id join network on node.network_id = network.network_id where interface.interface_id = ?";
-
-    my $sth2 = $self->_prepare_query($query) or return;
-
+    my $res = $self->_execute_query($query, \@bind_values);
     my $results;
-
-
-
-    while (my $row = $sth->fetchrow_hashref()){
-
-        $sth2->execute($row->{'interface_id'});
-
-        my $endpoint = $sth2->fetchrow_hashref();
-
-        my $mac_addrs = $self->_execute_query("select mac_address from circuit_edge_mac_address where circuit_edge_id = ?",[$row->{'circuit_edge_id'}]);
-
+    
+    foreach my $endpoint ( @$res ){
+        
+        my $mac_addrs = $self->_execute_query("select mac_address from circuit_edge_mac_address where circuit_edge_id = ?",[$endpoint->{'circuit_edge_id'}]);
+        
         foreach my $mac_addr (@$mac_addrs){
             $mac_addr->{'mac_address'} = mac_num2hex($mac_addr->{'mac_address'});
         }
-
-        # retrieve the vlan tag range
-#        my $vlan_tag_range = $self->_validate_endpoint(
-#            interface_id => $endpoint->{'interface_id'},
-#            workgroup_id => $workgroup_id
-#        );
-
+        
+        
         push (@$results, {'node'      => $endpoint->{'node_name'},
-                  'interface' => $endpoint->{'int_name'},
-                  'tag'       => $row->{'extern_vlan_id'},
-                  'node_id'   => $endpoint->{'node_id'},
-                  'port_no'   => $endpoint->{'port_number'},
-                  'local'     => $endpoint->{'is_local'},
-                  'role'      => $endpoint->{'role'},
-                  'interface_description' => $endpoint->{'interface_description'},
-                  'urn'       => $endpoint->{'urn'},
-                  'mac_addrs' => $mac_addrs#,
-                  #'vlan_tag_range' => $vlan_tag_range
-                         }
+                          'interface' => $endpoint->{'int_name'},
+                          'tag'       => $endpoint->{'extern_vlan_id'},
+                          'node_id'   => $endpoint->{'node_id'},
+                          'port_no'   => $endpoint->{'port_number'},
+                          'local'     => $endpoint->{'is_local'},
+                          'role'      => $endpoint->{'role'},
+                          'interface_description' => $endpoint->{'interface_description'},
+                          'urn'       => $endpoint->{'urn'},
+                          'mac_addrs' => $mac_addrs
+              }
             );
     }
-
+    
     return $results;
 
 }
