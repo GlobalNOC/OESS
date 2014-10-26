@@ -927,16 +927,16 @@ sub change_path{
     }    
 
         # point the internal vlan mappings from the old over to the new path instance
-    $query = "update path_instantiation_vlan_ids set path_instantiation_id = ? where path_instantiation_id = ?";
+    #$query = "update path_instantiation_vlan_ids set path_instantiation_id = ? where path_instantiation_id = ?";
     
-    $success = $self->{'db'}->_execute_query($query, [$new_available, $old_instantiation]);
+    #$success = $self->{'db'}->_execute_query($query, [$new_available, $old_instantiation]);
 
-    if (! defined $success){
-        $self->{'logger'}->error("Unable to move internal vlan id mappings over to new path instance");
-        $self->error("Unable to move internal vlan id mappings over to new path instance.");
-        $self->_rollback();
-        return;
-    }
+    #if (! defined $success){
+    #    $self->{'logger'}->error("Unable to move internal vlan id mappings over to new path instance");
+    #    $self->error("Unable to move internal vlan id mappings over to new path instance.");
+    #    $self->_rollback();
+    #    return;
+    #}
 
     # at this point, the old path instantiation has been decom'd by virtue of its end_epoch
     # being set and another one has been created in 'available' state based on it.

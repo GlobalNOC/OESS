@@ -31,11 +31,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 1.1.4
+Version 1.1.5
 
 =cut
 
-our $VERSION = '1.1.4';
+our $VERSION = '1.1.5';
 
 =head1 SYNOPSIS
 
@@ -81,7 +81,7 @@ use OESS::Topology;
 use DateTime;
 use Data::Dumper;
 
-use constant VERSION => '1.1.4';
+use constant VERSION => '1.1.5';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant SHARE_DIR => "/usr/share/doc/perl-OESS-" . VERSION . "/";
@@ -267,6 +267,9 @@ sub update_circuit_state{
 	return;
     }
 
+    $query = "update circuit set circuit_state= ? where circuit_id = ?";
+    $result = $self->_execute_query($query,[$new_state,$circuit_id]);
+
     $self->_commit();
 
     return 1;
@@ -358,94 +361,94 @@ The internal MySQL primary key int identifier for this circuit.
 
 =cut
 
-sub switch_circuit_to_alternate_path {
-    my $self = shift;
-    my %args = @_;
+# sub switch_circuit_to_alternate_path {
+#     my $self = shift;
+#     my %args = @_;
 
-    my $query;
+#     my $query;
 
-    my $circuit_id     = $args{'circuit_id'};
+#     my $circuit_id     = $args{'circuit_id'};
 
-    my $new_active_path_id = $self->circuit_has_alternate_path(circuit_id => $circuit_id );
+#     my $new_active_path_id = $self->circuit_has_alternate_path(circuit_id => $circuit_id );
 
-    if(!$new_active_path_id){
-	$self->_set_error("Circuit $circuit_id has no alternate path, refusing to try to switch to alternate.");
-	return;
-    }
+#     if(!$new_active_path_id){
+# 	$self->_set_error("Circuit $circuit_id has no alternate path, refusing to try to switch to alternate.");
+# 	return;
+#     }
 
-    $self->_start_transaction();
+#     $self->_start_transaction();
 
 
-    # grab the path_id of the one we're switching away from
-    $query = "select path_instantiation.path_id, path_instantiation.path_instantiation_id from path " .
-	     " join path_instantiation on path.path_id = path_instantiation.path_id " .
-	     " where path_instantiation.path_state = 'active' and path_instantiation.end_epoch = -1 " .
-	     " and path.circuit_id = ?";
+#     # grab the path_id of the one we're switching away from
+#     $query = "select path_instantiation.path_id, path_instantiation.path_instantiation_id from path " .
+# 	     " join path_instantiation on path.path_id = path_instantiation.path_id " .
+# 	     " where path_instantiation.path_state = 'active' and path_instantiation.end_epoch = -1 " .
+# 	     " and path.circuit_id = ?";
 
-    my $results = $self->_execute_query($query, [$circuit_id]);
+#     my $results = $self->_execute_query($query, [$circuit_id]);
 
-    if (! defined $results || @$results < 1){
-	$self->_set_error("Unable to find path_id for current path.");
-	$self->_rollback();
-	return;
-    }
+#     if (! defined $results || @$results < 1){
+# 	$self->_set_error("Unable to find path_id for current path.");
+# 	$self->_rollback();
+# 	return;
+#     }
 
-    my $old_active_path_id   = @$results[0]->{'path_id'};
-    my $old_instantiation    = @$results[0]->{'path_instantiation_id'};
+#     my $old_active_path_id   = @$results[0]->{'path_id'};
+#     my $old_instantiation    = @$results[0]->{'path_instantiation_id'};
 
-    # decom the current path instantiation
-    $query = "update path_instantiation set path_instantiation.end_epoch = unix_timestamp(NOW()) " .
-	     " where path_instantiation.path_id = ? and path_instantiation.end_epoch = -1";
+#     # decom the current path instantiation
+#     $query = "update path_instantiation set path_instantiation.end_epoch = unix_timestamp(NOW()) " .
+# 	     " where path_instantiation.path_id = ? and path_instantiation.end_epoch = -1";
 
-    my $success = $self->_execute_query($query, [$old_active_path_id]);
+#     my $success = $self->_execute_query($query, [$old_active_path_id]);
 
-    if (! $success ){
-	$self->_set_error("Unable to change path_instantiation of current path to inactive.");
-	$self->_rollback();
-	return;
-    }
+#     if (! $success ){
+# 	$self->_set_error("Unable to change path_instantiation of current path to inactive.");
+# 	$self->_rollback();
+# 	return;
+#     }
 
-    # create a new path instantiation of the old path
-    $query = "insert into path_instantiation (path_id, start_epoch, end_epoch, path_state) " .
-	     " values (?, unix_timestamp(NOW()), -1, 'available')";
+#     # create a new path instantiation of the old path
+#     $query = "insert into path_instantiation (path_id, start_epoch, end_epoch, path_state) " .
+# 	     " values (?, unix_timestamp(NOW()), -1, 'available')";
 
-    my $new_available = $self->_execute_query($query, [$old_active_path_id]);
+#     my $new_available = $self->_execute_query($query, [$old_active_path_id]);
 
-    if (! defined $new_available){
-	$self->_set_error("Unable to create new available path based on old instantiation.");
-	$self->_rollback();
-	return;
-    }
+#     if (! defined $new_available){
+# 	$self->_set_error("Unable to create new available path based on old instantiation.");
+# 	$self->_rollback();
+# 	return;
+#     }
 
-    # point the internal vlan mappings from the old over to the new path instance
-    $query = "update path_instantiation_vlan_ids set path_instantiation_id = ? where path_instantiation_id = ?";
+#     # point the internal vlan mappings from the old over to the new path instance
+#     #$query = "update path_instantiation_vlan_ids set path_instantiation_id = ? where path_instantiation_id = ?";
 
-    $success = $self->_execute_query($query, [$new_available, $old_instantiation]);
+#     #$success = $self->_execute_query($query, [$new_available, $old_instantiation]);
 
-    if (! defined $success){
-	$self->_set_error("Unable to move internal vlan id mappings over to new path instance.");
-	$self->_rollback();
-	return;
-    }
+#     if (! defined $success){
+# 	$self->_set_error("Unable to move internal vlan id mappings over to new path instance.");
+# 	$self->_rollback();
+# 	return;
+#     }
 
-    # at this point, the old path instantiation has been decom'd by virtue of its end_epoch
-    # being set and another one has been created in 'available' state based on it.
+#     # at this point, the old path instantiation has been decom'd by virtue of its end_epoch
+#     # being set and another one has been created in 'available' state based on it.
 
-    # now let's change the state of the old available one to active
-    $query = "update path_instantiation set path_state = 'active' where path_id = ? and end_epoch = -1";
+#     # now let's change the state of the old available one to active
+#     $query = "update path_instantiation set path_state = 'active' where path_id = ? and end_epoch = -1";
 
-    $success = $self->_execute_query($query, [$new_active_path_id]);
+#     $success = $self->_execute_query($query, [$new_active_path_id]);
 
-    if (! $success){
-	$self->_set_error("Unable to change state to active in alternate path.");
-	$self->_rollback();
-	return;
-    }
+#     if (! $success){
+# 	$self->_set_error("Unable to change state to active in alternate path.");
+# 	$self->_rollback();
+# 	return;
+#     }
 
-    $self->_commit();
+#     $self->_commit();
 
-    return 1;
-}
+#     return 1;
+# }
 
 =head2 circuit_has_alternate_path
 
@@ -894,7 +897,7 @@ sub decom_link_instantiation{
 sub get_edge_links{
     my $self = shift;
     my $reserved_bw = shift;
-    my $links = $self->_execute_query("select link.link_id, link.name,link.metric, link_instantiation.interface_a_id, link_instantiation.interface_z_id, node_a.name as node_a_name,node_b.name as node_b_name,least(interface_inst_a.capacity_mbps,interface_inst_b.capacity_mbps) as link_capacity, sum(reserved_bandwidth_mbps) as reserved_bw_mbps, link.metric from link_instantiation,interface as interface_a,interface as interface_b,node as node_a, node as node_b, interface_instantiation as interface_inst_a, interface_instantiation as interface_inst_b,link left join link_path_membership on link_path_membership.link_id=link.link_id and link_path_membership.end_epoch=-1  left join path on link_path_membership.path_id=path.path_id left join path_instantiation on path_instantiation.path_id=path.path_id and path_instantiation.end_epoch=-1 and path_state='active' left join circuit on path.circuit_id=circuit.circuit_id left join circuit_instantiation on circuit.circuit_id=circuit_instantiation.circuit_id and circuit_state='active' where link.link_id=link_instantiation.link_id and link_instantiation.link_state = 'active' and interface_inst_a.end_epoch=-1 and interface_inst_a.interface_id=interface_a.interface_id and link_instantiation.end_epoch=-1 and  interface_a.node_id=node_a.node_id and interface_b.node_id=node_b.node_id and link_instantiation.interface_a_id=interface_a.interface_id and link_instantiation.interface_z_id=interface_b.interface_id and interface_inst_b.end_epoch=-1 and interface_inst_b.interface_id=interface_b.interface_id and interface_a.operational_state = 'up' and interface_b.operational_state = 'up' group by link.link_id", []); # having (link_capacity-(IFNULL(reserved_bw_mbps,0)))>?",[$reserved_bw]);
+    my $links = $self->_execute_query("select link.link_id, link.name,link.metric, link_instantiation.interface_a_id, link_instantiation.interface_z_id, node_a.name as node_a_name,node_b.name as node_b_name,least(interface_inst_a.capacity_mbps,interface_inst_b.capacity_mbps) as link_capacity, sum(reserved_bandwidth_mbps) as reserved_bw_mbps, link.metric from link_instantiation,interface as interface_a,interface as interface_b,node as node_a, node as node_b, interface_instantiation as interface_inst_a, interface_instantiation as interface_inst_b,link left join link_path_membership on link_path_membership.link_id=link.link_id and link_path_membership.end_epoch=-1  left join path on link_path_membership.path_id=path.path_id left join path_instantiation on path_instantiation.path_id=path.path_id and path_instantiation.end_epoch=-1 and path_instantiation.path_state='active' left join circuit on path.circuit_id=circuit.circuit_id left join circuit_instantiation on circuit.circuit_id=circuit_instantiation.circuit_id and circuit_instantiation.circuit_state='active' where link.link_id=link_instantiation.link_id and link_instantiation.link_state = 'active' and interface_inst_a.end_epoch=-1 and interface_inst_a.interface_id=interface_a.interface_id and link_instantiation.end_epoch=-1 and  interface_a.node_id=node_a.node_id and interface_b.node_id=node_b.node_id and link_instantiation.interface_a_id=interface_a.interface_id and link_instantiation.interface_z_id=interface_b.interface_id and interface_inst_b.end_epoch=-1 and interface_inst_b.interface_id=interface_b.interface_id and interface_a.operational_state = 'up' and interface_b.operational_state = 'up' group by link.link_id", []); # having (link_capacity-(IFNULL(reserved_bw_mbps,0)))>?",[$reserved_bw]);
     # TEMPORARY HACK UNTIL OPENFLOW PROPERLY SUPPORTS QUEUING. WE CANT
     # DO BANDWIDTH RESERVATIONS SO FOR NOW ASSUME EVERYTHING HAS 0 BANDWIDTH RESERVED
     # AND EVERY LINK IS AVAILABLE
@@ -3344,13 +3347,31 @@ sub get_circuit_internal_ids {
 
     my $circuit_id = $args{'circuit_id'};
 
-    my $query = "select internal_vlan_id, node.node_id, node.name, path.path_type " .
-	" from path_instantiation_vlan_ids " .
-	" join path_instantiation on path_instantiation.path_instantiation_id = path_instantiation_vlan_ids.path_instantiation_id " .
-	" join path on path.path_id = path_instantiation.path_id " .
-	" join node on node.node_id = path_instantiation_vlan_ids.node_id " .
-	" where path.circuit_id = ? and path_instantiation.end_epoch = -1";
+#    my $query = "select internal_vlan_id, node.node_id, node.name, path.path_type " .
+#	" from path_instantiation_vlan_ids " .
+#	" join path_instantiation on path_instantiation.path_instantiation_id = path_instantiation_vlan_ids.path_instantiation_id " .
+#	" join path on path.path_id = path_instantiation.path_id " .
+#	" join node on node.node_id = path_instantiation_vlan_ids.node_id " .
+#s	" where path.circuit_id = ? and path_instantiation.end_epoch = -1";
 
+    my $query = "
+select link_instantiation.interface_a_id,link_instantiation.interface_z_id, 
+link_path_membership.interface_a_vlan_id, link_path_membership.interface_z_vlan_id, 
+node_a.node_id as node_a_id, node_a.name as node_a_name,
+node_z.node_id as node_z_id, node_z.name as node_z_name,
+ path.path_type
+from path
+join link_path_membership on (link_path_membership.path_id=path.path_id and path.circuit_id=? )
+join link on link_path_membership.link_id = link.link_id
+join link_instantiation 
+on link_instantiation.link_id = link.link_id
+and link_instantiation.end_epoch = -1
+and link_instantiation.link_state = 'active'
+join interface as int_a on link_instantiation.interface_a_id = int_a.interface_id
+join interface as int_z on link_instantiation.interface_z_id = int_z.interface_id
+join node as node_a on int_a.node_id=node_a.node_id
+join node as node_z on int_z.node_id=node_z.node_id
+";
     my $ids = $self->_execute_query($query, [$circuit_id]);
 
     if (! defined $ids){
@@ -3363,10 +3384,16 @@ sub get_circuit_internal_ids {
     foreach my $row (@$ids){
 
 	my $path_type = $row->{'path_type'};
-	my $tag       = $row->{'internal_vlan_id'};
-	my $node      = $row->{'name'};
-
-	$results->{$path_type}->{$node} = $tag;
+	my $interface_a       = $row->{'interface_a_id'};
+        my $vlan_a = $row->{'interface_a_vlan_id'};
+        my $interface_z       = $row->{'interface_z_id'};
+        my $vlan_z = $row->{'interface_z_vlan_id'};
+	my $node_a      = $row->{'node_a_name'};
+	my $node_z      = $row->{'node_z_name'};
+        
+	$results->{$path_type}->{$node_a} = $vlan_a;
+        $results->{$path_type}->{$node_z} = $vlan_z;
+        
     }
 
     return $results;
@@ -4156,7 +4183,7 @@ sub _find_new_path{
 	}
 
 	if($new_z_int->{'node_id'} == $new_a_int->{'node_id'}){
-	    return ([$a_link->{'link_id'},$z_link->{'link_id'}],$new_z_int->{'node_id'});
+	    return ([$a_link->{'link_id'},$z_link->{'link_id'}],$new_z_int->{'node_id'},$new_a_int,$new_z_int);
 	}
 
     }else{
@@ -4187,7 +4214,7 @@ sub insert_node_in_path{
 
 
     #find the 2 links that now make up this path
-    my ($new_path,$node_id) = $self->_find_new_path( link => $link_details);
+    my ($new_path,$node_id,$new_a_int,$new_z_int) = $self->_find_new_path( link => $link_details);
 
     if(!defined($new_path)){
 	return {error => "no new paths found"};
@@ -4200,7 +4227,8 @@ sub insert_node_in_path{
 
     $self->confirm_link(link_id => $new_path->[0], name => $link_details->{'name'} . "-1");
     $self->confirm_link(link_id => $new_path->[1], name => $link_details->{'name'} . "-2");
-
+    my $new_link_a_endpoints = $self->get_link_endpoints(link_id => $new_path->[0]); 
+    my $new_link_z_endpoints = $self->get_link_endpoints(link_id => $new_path->[1]); 
     my $service;
     my $client;
 
@@ -4236,18 +4264,49 @@ sub insert_node_in_path{
 
 	    if($link->{'link_id'} == $link_details->{'link_id'}){
 		#remove it and add 2 more
+                my $original_a_vlan_id = $link->{'interface_a_vlan_id'};
+                my $original_z_vlan_id = $link->{'interface_z_vlan_id'};
 		$self->_execute_query("update link_path_membership set end_epoch = unix_timestamp(NOW()) where link_id = ? and path_id = ? and end_epoch = -1",[$link->{'link_id'},$link->{'path_id'}]);
 
-		#add the new links to the path
-		$self->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",[$new_path->[0],$link->{'path_id'}]);
-		$self->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",[$new_path->[1],$link->{'path_id'}]);
 
-		#insert the path_instantiation_vlan_ids for this new device
-		my $internal_vlan = $self->_get_available_internal_vlan_id(node_id => $node_id);
-		if(!defined($internal_vlan)){
+                
+		#add the new links to the path #TODO 
+		my $new_internal_vlan_a = $self->_get_available_internal_vlan_id(node_id => $node_id,interface_id => $new_a_int->{'interface_id'});
+                my $new_internal_vlan_z = $self->_get_available_internal_vlan_id(node_id => $node_id,interface_id => $new_z_int->{'interface_id'});
+                
+                if(!defined($new_internal_vlan_a) || !defined($new_internal_vlan_z) ){
 		    return {success => 0, error => "Internal Error finding available internal vlan"};
 		}
-		$self->_execute_query("insert into path_instantiation_vlan_ids (path_instantiation_id, node_id, internal_vlan_id) values (?, ?, ?)", [$link->{'path_instantiation_id'},$node_id,$internal_vlan]);
+                                #figure out the correct insertion order for the new link_path_memberships (there is no requirement that the new endpoint be the z end of either link.
+                my $bindparams_a= [$new_path->[0],$link->{'path_id'}];
+                my $bindparams_z= [$new_path->[1],$link->{'path_id'}];
+
+                #$int_a is the new interface on the inserted node for link a, $int_z the same for new_link z
+
+                if($new_a_int->{'interface_id'} == $new_link_a_endpoints->{'interface_a_id'})
+                {
+                    #new added interface is a end
+                    push (@$bindparams_a , $new_internal_vlan_a,$original_a_vlan_id);
+                }
+                else{
+                    push (@$bindparams_a , $original_a_vlan_id, $new_internal_vlan_a);
+                }
+
+                if($new_z_int>{'interface_id'} == $new_link_z_endpoints->{'interface_a_id'})
+                {
+                    #new added interface is a end
+                    push (@$bindparams_z , $new_internal_vlan_z, $original_z_vlan_id);
+                }
+                else{
+                    push (@$bindparams_z , $original_z_vlan_id, $new_internal_vlan_z);
+                }
+                $self->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",$bindparams_a);
+		$self->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",$bindparams_z);
+                
+		#insert the path_instantiation_vlan_ids for this new device
+		
+		
+#		$self->_execute_query("insert into path_instantiation_vlan_ids (path_instantiation_id, node_id, internal_vlan_id) values (?, ?, ?)", [$link->{'path_instantiation_id'},$node_id,$internal_vlan]);
 	    }
 	}
 
@@ -4551,7 +4610,7 @@ sub get_link_endpoints {
 
     my $link_id = $args{'link_id'};
 
-    my $query = "select node.node_id, node.name as node_name, interface.interface_id, interface.name as interface_name, interface.port_number as port_number, interface.description, interface.operational_state, interface.role from node ";
+    my $query = "select node.node_id, node.name as node_name, interface.interface_id, interface.name as interface_name, interface.port_number as port_number, interface.description, interface.operational_state, interface.role,link_instantiation.interface_a_id,link_instantiation.interface_z_id from node ";
     $query   .= " join interface on interface.node_id = node.node_id " ;
     $query   .= " join link_instantiation on interface.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id) ";
     $query   .= "  and link_instantiation.end_epoch = -1 ";
@@ -5595,9 +5654,16 @@ sub provision_circuit {
 
     my $name = $workgroup_details->{'name'} . "-" . $uuid;
 
+        my $state;
+    if($provision_time > time()){
+        $state = "scheduled";
+    }else{
+        $state = "deploying";
+    }
+
     # create circuit record
-    my $circuit_id = $self->_execute_query("insert into circuit (name, description, workgroup_id, external_identifier, restore_to_primary, static_mac) values (?, ?, ?, ?, ?, ?)",
-					   [$name, $description, $workgroup_id, $external_id, $restore_to_primary, $static_mac]);
+    my $circuit_id = $self->_execute_query("insert into circuit (name, description, workgroup_id, external_identifier, restore_to_primary, static_mac,circuit_state) values (?, ?, ?, ?, ?, ?,?)",
+					   [$name, $description, $workgroup_id, $external_id, $restore_to_primary, $static_mac,$state]);
 
     if (! defined $circuit_id ){
         $self->_set_error("Unable to create circuit record.");
@@ -5605,12 +5671,7 @@ sub provision_circuit {
         return;
     }
 
-    my $state;
-    if($provision_time > time()){
-        $state = "scheduled";
-    }else{
-        $state = "deploying";
-    }
+
 
     #instantiate circuit
     $query = "insert into circuit_instantiation (circuit_id, reserved_bandwidth_mbps, circuit_state, modified_by_user_id, end_epoch, start_epoch) values (?, ?, ?, ?, -1, unix_timestamp(now()))";
@@ -5773,9 +5834,15 @@ sub provision_circuit {
 	next if(!defined(@$relevant_links) || !defined($relevant_links->[0]));
 
 	# create the primary path object
-	$query = "insert into path (path_type, circuit_id) values (?, ?)";
+	$query = "insert into path (path_type, circuit_id, path_state) values (?, ?, ?)";
 
-	my $path_id = $self->_execute_query($query, [$path_type, $circuit_id]);
+        my $path_state = "deploying";
+
+	if ($path_type eq "backup"){
+	    $path_state = "available";
+	}
+
+	my $path_id = $self->_execute_query($query, [$path_type, $circuit_id,$path_state]);
 
 	if (! $path_id){
 	    $self->_set_error("Error while creating path record.");
@@ -5787,11 +5854,7 @@ sub provision_circuit {
 	# instantiate path object
 	$query = "insert into path_instantiation (path_id, end_epoch, start_epoch, path_state) values (?, -1, unix_timestamp(NOW()), ?)";
 
-	my $path_state = "deploying";
-
-	if ($path_type eq "backup"){
-	    $path_state = "available";
-	}
+	
 
 	my $path_instantiation_id = $self->_execute_query($query, [$path_id, $path_state]);
 
@@ -5800,75 +5863,59 @@ sub provision_circuit {
             $self->_rollback();
 	    return;
 	}
-
+        
 	my %seen_endpoints;
 	# figure out all the nodes along this path so we can assign them an internal tag
 	foreach my $link (@$relevant_links){
 	    my $info      = $self->get_link_by_name(name => $link);
-
+            
 	    if (! defined $info){
 		$self->_set_error("Unable to determine link with name \"$link\"");
                 $self->_rollback();
 		return;
 	    }
+            my $link_id = $info->{'link_id'};
+	    my $endpoints = $self->get_link_endpoints(link_id => $link_id);
 
-	    my $endpoints = $self->get_link_endpoints(link_id => $info->{'link_id'});
+            #build set of endpoints
+            #note: this is not safe being parallelized with this schema.
+            my $interface_a_vlan_id;
+            my $interface_z_vlan_id;
 
 	    foreach my $endpoint (@$endpoints){
 		my $node_id = $endpoint->{'node_id'};
+                my $interface_id = $endpoint->{'interface_id'};
+                my $interface_a_id = $endpoint->{'interface_a_id'};
+                my $interface_z_id = $endpoint->{'interface_z_id'};
 
 		# make sure we don't double assign
-		next if ($seen_endpoints{$node_id});
-		$seen_endpoints{$node_id} = 1;
-
+		next if ($seen_endpoints{$interface_id});
+		$seen_endpoints{$interface_id} = 1;
+                
 		# figure out what internal ID we can use for this
-		my $internal_vlan = $self->_get_available_internal_vlan_id(node_id => $node_id);
+		my $internal_vlan = $self->_get_available_internal_vlan_id(node_id => $node_id,interface_id =>$interface_id);
 
 		if (! defined $internal_vlan){
 		    $self->_set_error("Internal error finding available internal id for node $endpoint->{'node_name'}.");
                     $self->_rollback();
 		    return;
 		}
-
-		$query = "insert into path_instantiation_vlan_ids (path_instantiation_id, node_id, internal_vlan_id) values (?, ?, ?)";
-
-		if (! defined $self->_execute_query($query, [$path_instantiation_id, $node_id, $internal_vlan])){
-		    $self->_set_error("Error while creating path instantiation vlan tag.");
-                    $self->_rollback();
-		    return;
-		}
-
+                if ($interface_a_id == $interface_id){
+                    $interface_a_vlan_id = $internal_vlan;
+                }
+                elsif ($interface_z_id == $interface_id){
+                    $interface_z_vlan_id = $internal_vlan;
+                }
 	    }
-
-	}
-
-	# now create the primary links into the primary path
-	for (my $i = 0; $i < @$relevant_links; $i++){
-
-	    my $link = @$relevant_links[$i];
-
-	    $query = "select link_id from link where name = ?";
-
-	    my $link_id = $self->_execute_query($query, [$link])->[0]->{'link_id'};
-            
-	    if (! $link_id){
-		$self->_set_error("Unable to find link '$link'");
-                $self->_rollback();
-		return;
-	    }
-            
-	    $query = "insert into link_path_membership (link_id, path_id, end_epoch, start_epoch) values (?, ?, -1, unix_timestamp(NOW()))";
-            
-	    if (! defined $self->_execute_query($query, [$link_id, $path_id])){
+            $query = "insert into link_path_membership (link_id, path_id, end_epoch, start_epoch,interface_a_vlan_id,interface_z_vlan_id) values (?, ?, -1, unix_timestamp(NOW()),?,?)";
+            if (!defined ($self->_execute_query($query, [$link_id, $path_id, $interface_a_vlan_id, $interface_z_vlan_id])) ){
 		$self->_set_error("Error adding link '$link' into path.");
                 $self->_rollback();
 		return;
 	    }
-
 	}
 
     }
-
     # now check to verify that the topology makes sense
     my ($success, $error) = $self->{'topo'}->validate_paths(circuit_id => $circuit_id);
 
@@ -6359,7 +6406,8 @@ sub add_or_update_interface{
 	    }
 	}
 
-    }else{
+    }
+    else{
 	#interface does not exist
 	#however we aren't guaranteed the same port number didn't already exist... lets check and verify
 	$int = $self->_execute_query("select * from interface where interface.node_id = ? and interface.port_number = ?",[$args{'node_id'},$args{'port_num'}]);
@@ -6622,7 +6670,7 @@ sub edit_circuit {
 	if (! $interface_id){
 	    $self->_set_error("Unable to find interface associated with URN: $urn");
 	    $self->_rollback();
-        return;
+            return;
 	}
 
 	$query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, end_epoch, start_epoch) values (?, ?, ?, -1, unix_timestamp(NOW()))";
@@ -6630,7 +6678,7 @@ sub edit_circuit {
 	if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $tag])){
 	    $self->_set_error("Unable to create circuit edge to interface \"$urn\" with tag $tag.");
 	    $self->_rollback();
-        return;
+            return;
 	}
 
     }
@@ -6650,18 +6698,19 @@ sub edit_circuit {
 	$query = "select * from path where circuit_id = ? and path_type = ?";
 	my $res = $self->_execute_query($query,[$circuit_id, $path_type]);
 	my $path_id;
-	if(!defined($res) || !defined(@{$res}[0])){
+	if( !defined($res) || !defined(@{$res}[0]) ){
 	    # create the primary path object
 	    $query = "insert into path (path_type, circuit_id) values (?, ?)";
 	    $path_id = $self->_execute_query($query, [$path_type, $circuit_id]);
-	}else{
+	}
+        else{
 	    $path_id = @{$res}[0]->{'path_id'};
 	}
 
-	if (! $path_id){
+	if (!$path_id){
 	    $self->_set_error("Error while creating path record.");
 	    $self->_rollback();
-        return;
+            return;
 	}
 
 	# instantiate path object
@@ -6678,74 +6727,60 @@ sub edit_circuit {
 	if (! defined $path_instantiation_id){
 	    $self->_set_error("Error while instantiating path record.");
 	    $self->_rollback();
-        return;
+            return;
 	}
 
 
 	my %seen_endpoints;
 	foreach my $link (@$relevant_links){
 	    my $info = $self->get_link_by_name(name => $link);
-
-	    my $endpoints = $self->get_link_endpoints(link_id => $info->{'link_id'});
+            my $link_id = $info->{'link_id'};
+	    my $endpoints = $self->get_link_endpoints(link_id => $link_id);
+            my $interface_a_vlan_id;
+            my $interface_z_vlan_id;
 
 	    foreach my $endpoint (@$endpoints){
 		my $node_id = $endpoint->{'node_id'};
+                my $interface_id = $endpoint->{'interface_id'};
+                my $interface_a_id = $endpoint->{'interface_a_id'};
+                my $interface_z_id = $endpoint->{'interface_z_id'};
 
-		next if ($seen_endpoints{$node_id});
-		$seen_endpoints{$node_id} = 1;
+		next if ($seen_endpoints{$interface_id});
+		$seen_endpoints{$interface_id} = 1;
 
 		# figure out what internal ID we can use for this
-		my $internal_vlan = $self->_get_available_internal_vlan_id(node_id => $node_id);
+		my $internal_vlan = $self->_get_available_internal_vlan_id(node_id => $node_id,interface_id => $interface_id);
 
 		if (! defined $internal_vlan){
 		    $self->_set_error("Internal error finding available internal id.");
 		    $self->_rollback();
-            return;
+                    return;
 		}
 
-		$query = "insert into path_instantiation_vlan_ids (path_instantiation_id, node_id, internal_vlan_id) values (?, ?, ?)";
-
-		if (! defined $self->_execute_query($query, [$path_instantiation_id, $node_id, $internal_vlan])){
-		    $self->_set_error("Error while creating path instantiation vlan tag.");
-		    $self->_rollback();
-            return;
-		}
-
+                if ($interface_a_id == $interface_id){
+                    $interface_a_vlan_id = $internal_vlan;
+                }
+                elsif ($interface_z_id == $interface_id){
+                    $interface_z_vlan_id = $internal_vlan;
+                }
 	    }
 
+            $query = "insert into link_path_membership (link_id, path_id, end_epoch, start_epoch,interface_a_vlan_id,interface_z_vlan_id) values (?, ?, -1, unix_timestamp(NOW()),?,?)";
+            if (!defined ($self->_execute_query($query, [$link_id, $path_id, $interface_a_vlan_id, $interface_z_vlan_id])) ){
+		$self->_set_error("Error adding link '$link' into path.");
+                $self->_rollback();
+		return;
+	    }
+
+
 	}
-
-        # now create the primary links into the primary path
-        for (my $i = 0; $i < @$relevant_links; $i++){
-
-            my $link = @$relevant_links[$i];
-
-            $query = "select link_id from link where name = ?";
-
-            my $link_id = $self->_execute_query($query, [$link])->[0]->{'link_id'};
-
-            if (! $link_id){
-                $self->_set_error("Unable to find link '$link'");
-                $self->_rollback();
-                return;
-            }
-
-            $query = "insert into link_path_membership (link_id, path_id, end_epoch, start_epoch) values (?, ?, -1, unix_timestamp(NOW()))";
-
-            if (! defined $self->_execute_query($query, [$link_id, $path_id])){
-                $self->_set_error("Error adding link '$link' into path.");
-                $self->_rollback();
-                return;
-            }
-
-        }
-
+    
     }
 
     # now check to verify that the topology makes sense
     my ($success, $error) = $self->{'topo'}->validate_paths(circuit_id => $circuit_id);
 
-    if (! $success){
+    if (!$success){
         $self->_set_error($error);
         $self->_rollback();
         return;
@@ -6756,6 +6791,8 @@ sub edit_circuit {
 
     return {"success" => 1, "circuit_id" => $circuit_id};
 }
+
+
 
 =head1 Internal Methods
 
@@ -6949,15 +6986,29 @@ sub _get_available_internal_vlan_id {
     my $self = shift;
     my %args = @_;
 
+    
     my $node_id = $args{'node_id'};
+    my $interface_id = $args{'interface_id'};
 
-    my $query = "select internal_vlan_id from path_instantiation_vlan_ids " .
-	" join path_instantiation on path_instantiation.path_instantiation_id = path_instantiation_vlan_ids.path_instantiation_id " .
-	"   where path_instantiation.end_epoch = -1 and path_instantiation_vlan_ids.node_id = ?";
+    #my $query = "select internal_vlan_id from path_instantiation_vlan_ids " .
+#	" join path_instantiation on path_instantiation.path_instantiation_id = path_instantiation_vlan_ids.path_instantiation_id " .
+#	"   where path_instantiation.end_epoch = -1 and path_instantiation_vlan_ids.node_id = ?";
+    my $query = 
+        "select CASE
+WHEN link_instantiation.interface_a_id = ? 
+THEN link_path_membership.interface_a_vlan_id 
+ELSE link_path_membership.interface_z_vlan_id 
+END as 'internal_vlan_id' 
+from link_path_membership
+join link on (link.link_id = link_path_membership.link_id)
+join link_instantiation 
+on link.link_id = link_instantiation.link_id
+and (link_instantiation.interface_a_id = ? or link_instantiation.interface_z_id = ?)
+";    
 
     my %used;
 
-    my $results = $self->_execute_query($query, [$node_id]);
+    my $results = $self->_execute_query($query, [$interface_id,$interface_id,$interface_id]);
 
     # something went wrong
     if (! defined $results){
@@ -7055,7 +7106,6 @@ sub _process_tag_string{
 	}else{
 
 	    return;
-
 	}
 
     }
@@ -7729,10 +7779,8 @@ sub is_within_circuit_limit {
 
     my $str = "SELECT COUNT(*) as circuit_num ".
         "FROM circuit ".
-        "JOIN circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id ".
         "WHERE workgroup_id = ? ".
-        "AND circuit_state != 'decom' ".
-        "AND end_epoch = -1";
+        "AND circuit.circuit_state != 'decom' ";
     my $rows = $self->_execute_query($str, [$workgroup_id]);
     my $circuit_num = $rows->[0]{'circuit_num'};
 
