@@ -206,13 +206,14 @@ sub main{
         }elsif($circuit_layout->{'action'} eq 'change_path'){
             syslog(LOG_ERR,"Found a change_path action!!\n");
             #verify the circuit has an alternate path
-            my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
+            my $circuit = OESS::Circuit->new( db=>$oess, circuit_id => $action->{'circuit_id'});
+            my $circuit_details = $circuit->{'details'};
             
             #if we are already on our scheduled path... don't change
             if($circuit_details->{'active_path'} ne $circuit_layout->{'path'}){
                 syslog(LOG_INFO,"Changing the patch of circuit " . $circuit_details->{'description'} . ":" . $circuit_details->{'circuit_id'});
-                my $success = $oess->switch_circuit_to_alternate_path( circuit_id => $action->{'circuit_id'} );
-		my $success = 1;
+                my $success = $circuit->change_path();
+		#my $success = 1;
                 my $res;
                 my $event_id;
                 if($success){
