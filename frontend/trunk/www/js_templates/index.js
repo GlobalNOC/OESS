@@ -108,7 +108,7 @@
 
             }
 
-		    var subject = "Please Add User to workgroup " + session.data.workgroup_name  + " (ID=" + session.data.workgroup_id + ")";
+            		    var subject = "Please Add User to workgroup " + session.data.workgroup_name  + " (ID=" + session.data.workgroup_id + ")";
 		    var body = "Details: <br><table><tr><td>Username:</td><td>" + username + "</td></tr><tr><td>Given Name:</td><td>" + given_name + "</td></tr><tr><td>Family Name:</td><td>" + family_name + "</td></tr><tr><td>Email Address:</td><td>" + email_address + "</td><td>Phone Number:</td><td>"+ phone_number + "</td></tr></table>";
 		    subject = encodeURI(subject);
 		    body = encodeURI(body);
@@ -125,9 +125,10 @@
 				failure: function(Req,Res){
 
 			    },
-				argument: ds},ds);
+			    argument: ds},ds);
                 });
-
+            
+            
             var cancel_user_add_button = new YAHOO.widget.Button('cancel_user_add');
 	    cancel_user_add_button.set('label','Cancel');
             cancel_user_add_button.on('click',function(){
@@ -135,7 +136,7 @@
                     panel.destroy();
                 });
 
-	});
+                });
 
     var send_feedback = new YAHOO.util.Element('send_feedback');
     send_feedback.on('click', function(){
@@ -407,13 +408,13 @@ function build_circuitTable(){
 				       string += "<br>";
 				   }
 
-				   string += endpoints[i].node + " - " + endpoints[i].interface;
+				   string += endpoints[i].node + " - " + endpoints[i].interface + " (" + endpoints[i].tag + ")";
 			       }
 
 			   }
 			   else{
 
-			       string += endpoints[0].node + " - " + endpoints[0].interface;
+			       string += endpoints[0].node + " - " + endpoints[0].interface + " (" + endpoints[0].tag + ")";
 			       string += "<br>and " + (endpoints.length - 1) + " more";
 
 			   }
@@ -422,7 +423,7 @@ function build_circuitTable(){
 		       }
 		   },
 
-           {key: "endpoints", label: "VLAN Tags", sortable: true, width: 90, formatter: function(el,rec, col, data){
+                   /*           {key: "vlan", label: "VLAN(s)", sortable: true, width: 70, formatter: function(el,rec, col, data){
                 
                 var endpoints = rec.getData('endpoints');
 
@@ -441,13 +442,13 @@ function build_circuitTable(){
                 }else{
 
                         string +=endpoints[0].tag;
-                        string += "<br>amd " + (endpoints.length - 1) + " more";
+                        string += " <br>and " + (endpoints.length - 1) + " more";
 
                     }
                     el.innerHTML = string;
 
                 } 
-           },
+                },*/
 		   {key: "workgroup.name", label: "Owned By", sortable: true, width: 90, formatter: function(el, rec, col, data){
 			   el.innerHTML = "<center>"+data+"</center>";
 		       }
