@@ -58,7 +58,7 @@ sub new{
 
     my %args = (
 	details => undef,
-	cicuit_id => undef,
+	circuit_id => undef,
 	db => undef,
 	just_display => 0,
         link_status => undef,
@@ -216,7 +216,8 @@ sub _create_flows{
 
     #create the flows    
     my $circuit_details = $self->{'details'};
-    
+    my $internal_ids= $self->{'details'}->{'internal_ids'};
+
     if (!defined $circuit_details) {
 	$self->{'logger'}->error("No Such Circuit circuit_id: " . $self->{'circuit_id'});
 	return undef;
@@ -229,18 +230,23 @@ sub _create_flows{
     my %backup_path;
     
     foreach my $link (@{$self->{'details'}->{'links'}}) {
+
         my $node_a = $link->{'node_a'};
+        my $interface_a = $link->{'interface_a_id'};
         my $node_z = $link->{'node_z'};
-        $primary_path{$node_a}{$link->{'port_no_a'}}{$self->{'details'}->{'internal_ids'}->{'primary'}{$node_a}} = $self->{'details'}->{'internal_ids'}->{'primary'}{$node_z};
-        $primary_path{$node_z}{$link->{'port_no_z'}}{$self->{'details'}->{'internal_ids'}->{'primary'}{$node_z}} = $self->{'details'}->{'internal_ids'}->{'primary'}{$node_a};
+        my $interface_z = $link->{'interface_z_id'};
+        $primary_path{$node_a}{$link->{'port_no_a'}}{$internal_ids->{'primary'}{$node_a}->{$interface_a}} = $internal_ids->{'primary'}{$node_z}{$interface_z};
+        $primary_path{$node_z}{$link->{'port_no_z'}}{$internal_ids->{'primary'}{$node_z}->{$interface_z}} = $internal_ids->{'primary'}{$node_a}{$interface_a};
     }
     $self->{'path'}->{'primary'} = \%primary_path;
     if($self->has_backup_path()){
 	foreach my $link (@{$self->{'details'}->{'backup_links'}}) {
 	    my $node_a = $link->{'node_a'};
 	    my $node_z = $link->{'node_z'};
-	    $backup_path{$node_a}{$link->{'port_no_a'}}{$self->{'details'}->{'internal_ids'}->{'backup'}{$node_a}} = $self->{'details'}->{'internal_ids'}->{'backup'}{$node_z};
-	    $backup_path{$node_z}{$link->{'port_no_z'}}{$self->{'details'}->{'internal_ids'}->{'backup'}{$node_z}} = $self->{'details'}->{'internal_ids'}->{'backup'}{$node_a};
+            my $interface_a = $link->{'interface_a_id'};
+            my $interface_z = $link->{'interface_z_id'};
+	    $backup_path{$node_a}{$link->{'port_no_a'}}{$internal_ids->{'backup'}{$node_a}{$interface_a}} = $self->{'details'}->{'internal_ids'}->{'backup'}{$node_z};
+	    $backup_path{$node_z}{$link->{'port_no_z'}}{$internal_ids->{'backup'}{$node_z}{$interface_z}} = $self->{'details'}->{'internal_ids'}->{'backup'}{$node_a};
 	}
 	$self->{'path'}->{'backup'} = \%backup_path;
     }
@@ -351,7 +357,9 @@ sub _generate_static_mac_path_flows{
     foreach my $link (@{$links}) {
 	my $node_a = $link->{'node_a'};
 	my $node_z = $link->{'node_z'};
-	
+	my $interface_a =$link->{'interface_a_id'};
+        my $interface_z = $link->{'interface_z_id'};
+
 	if(!defined($in_ports{$node_a})){
 	    $in_ports{$node_a} = ();
 	}
@@ -360,8 +368,8 @@ sub _generate_static_mac_path_flows{
             $in_ports{$node_z} = ();
         }
 
-	push(@{$in_ports{$node_a}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_a'}, tag => $internal_ids->{$path}{$node_z}});
-	push(@{$in_ports{$node_z}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_z'}, tag => $internal_ids->{$path}{$node_a}});
+	push(@{$in_ports{$node_a}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_a'}, tag => $internal_ids->{$path}{$node_z}{$interface_z}});
+	push(@{$in_ports{$node_z}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_z'}, tag => $internal_ids->{$path}{$node_a}{$interface_a}});
 	
 	$finder{$node_a}{$node_z} = $link;
 	$finder{$node_z}{$node_a} = $link;
@@ -406,10 +414,13 @@ sub _generate_static_mac_path_flows{
 		    $self->{'logger'}->debug("Its a link!");
 		    
 		    my $port;
+                    my $interface_id;
 		    if($link->{'node_a'} eq $vert){
 			$port = $link->{'port_no_a'};
+                        $interface_id = $link->{'interface_a_id'}
 		    }else{
 			$port = $link->{'port_no_z'};
+                        $interface_id = $link->{'interface_z_id'}
 		    }
 		    
 		    foreach my $in_port (@{$in_ports{$vert}}){
@@ -420,13 +431,13 @@ sub _generate_static_mac_path_flows{
 			foreach my $mac_addr (@{$endpoint->{'mac_addrs'}}){
 			    
 			    $self->{'logger'}->debug("Creating flow for mac_addr " . $mac_addr->{'mac_address'} . " on node " . $vert);
-			    $self->{'logger'}->debug("Next hop: " . $next_hop[1] . " and path: " . $path . " and vlan " . $internal_ids->{$path}{$next_hop[1]});
+			    $self->{'logger'}->debug("Next hop: " . $next_hop[1] . " and path: " . $path . " and vlan " . $internal_ids->{$path}{$next_hop[1]}{$interface_id});
 			    my $flow = OESS::FlowRule->new( match => {'dl_vlan' => $in_port->{'tag'},
 								      'in_port' => $in_port->{'port_no'},
 								      'dl_dst' => OESS::Database::mac_hex2num($mac_addr->{'mac_address'})},
 							    priority => 35000,
 							    dpid => $self->{'dpid_lookup'}->{$vert},
-							    actions => [{'set_vlan_vid' => $internal_ids->{$path}{$next_hop[1]}},
+							    actions => [{'set_vlan_vid' => $internal_ids->{$path}{$next_hop[1]}{$interface_id}},
 									{'output' => $port}]);
 			    
 			    push(@{$self->{'flows'}->{'static_mac_addr'}->{$path}},$flow);
@@ -475,7 +486,7 @@ sub _generate_endpoint_flows{
         return;
     }
 
-    my $internal_ids = $self->{'details'}->{'internal_ids'};
+    #my $internal_ids = $self->{'details'}->{'internal_ids'};
 
     foreach my $endpoint (@{$self->{'details'}->{'endpoints'}}) {
 
@@ -553,12 +564,21 @@ sub _generate_loopback_endpoint_flows {
     foreach my $l (@links){
         my $id;
         # pick either endpoints node (should be the same since its a loopback circuit)
-        $id = 'a' if( $l->{'node_a'} eq $endpoints[0]{'node'} );
-        $id = 'z' if( $l->{'node_z'} eq $endpoints[0]{'node'} );
+        my $interface_id;
+        if( $l->{'node_a'} eq $endpoints[0]{'node'} ){
+            $id='a';
+            $interface_id = $l->{'interface_a_id'};
+        }
+        
+        if( $l->{'node_z'} eq $endpoints[0]{'node'} ){
+            $id = 'z';
+            $interface_id = $l->{'interface_z_id'};
+        }
         if(defined($id)){
             push(@rules, {
-                vlan => $self->{'details'}{'internal_ids'}{$path}{$l->{"node_$id"}},
-                port => $l->{"port_no_$id"}
+                vlan => $self->{'details'}{'internal_ids'}{$path}{$l->{"node_$id"}{$interface_id}},
+                port => $l->{"port_no_$id"},
+                interface_id => $interface_id
             });
         }
     }
@@ -568,6 +588,7 @@ sub _generate_loopback_endpoint_flows {
         my $rule             = pop(@rules);
         my $port_to_adj_node = $rule->{'port'};
         my $adj_node_vlan    = $rule->{'vlan'};
+        my $interface_id = $rule->{'interface_id'};
 
         # create the rule coming from the edge interface out to an adjacent node
         push(@{$self->{'flows'}->{'endpoint'}->{$path}}, OESS::FlowRule->new(
@@ -585,7 +606,7 @@ sub _generate_loopback_endpoint_flows {
         # create the rule coming from an adjacent node into the edge interface
         push(@{$self->{'flows'}->{'endpoint'}->{$path}}, OESS::FlowRule->new(
             match => {
-                'dl_vlan' => $self->{'details'}{'internal_ids'}{$path}{$e->{'node'}},
+                'dl_vlan' => $self->{'details'}{'internal_ids'}{$path}{$e->{'node'}}{$interface_id},
                 'in_port' => $port_to_adj_node
             },
             dpid => $self->{'dpid_lookup'}->{$e->{'node'}},
@@ -605,7 +626,7 @@ sub _generate_path_flows{
 
     my $path = $params{'path'};
 
-    my $internal_ids = $self->{'details'}->{'internal_ids'};
+    #my $internal_ids = $self->{'details'}->{'internal_ids'};
     
     #--- get node by node and figure out the simple forwarding rules for this path
     foreach my $node (sort keys %{$self->{'path'}->{$path}}) {

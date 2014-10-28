@@ -3391,8 +3391,8 @@ join node as node_z on int_z.node_id=node_z.node_id
 	my $node_a      = $row->{'node_a_name'};
 	my $node_z      = $row->{'node_z_name'};
         
-	$results->{$path_type}->{$node_a} = $vlan_a;
-        $results->{$path_type}->{$node_z} = $vlan_z;
+	$results->{$path_type}->{$node_a}->{$interface_a} = $vlan_a;
+        $results->{$path_type}->{$node_z}->{$interface_z} = $vlan_z;
         
     }
 
@@ -3513,7 +3513,7 @@ sub get_circuit_links {
 
     my $dbh = $self->{'dbh'};
 
-    my $query = "select link.name, node_a.name as node_a, if_a.name as interface_a, if_a.port_number as port_no_a, node_z.name as node_z, if_z.name as interface_z, if_z.port_number as port_no_z from link " .
+    my $query = "select link.name, node_a.name as node_a, if_a.name as interface_a, if_a.interface_id and interface_a_id, if_a.port_number as port_no_a, node_z.name as node_z, if_z.name as interface_z, if_z.interface_id as interface_z_id, if_z.port_number as port_no_z from link " .
 	" join link_path_membership on link_path_membership.link_id = link.link_id " .
 	"  and link_path_membership.end_epoch = -1 " .
         " join link_instantiation link_inst on link.link_id = link_inst.link_id and link_inst.end_epoch = -1".
