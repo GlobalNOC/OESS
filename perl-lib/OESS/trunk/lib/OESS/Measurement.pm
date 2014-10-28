@@ -148,7 +148,7 @@ sub get_circuit_data {
     }
     my $circuit_details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
     my @interfaces;
-    my $internal_ids = $circuit_details->{'internal_ids'};
+    
     #issue 7410 graphs not able to determine backup vs primary path data. 
 
     my $inital_node_dpid_hash = $db->get_node_dpid_hash();
