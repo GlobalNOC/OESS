@@ -53,15 +53,112 @@ sub upgrade{
     my $str;
     my $sth;
 
+
+    
+
     # add vlan_tag_range to link field
-    my $str = "ALTER TABLE link ADD COLUMN vlan_tag_range varchar(255)";
-    my $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $str = "ALTER TABLE link ADD COLUMN vlan_tag_range varchar(255)";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
     $sth->execute() or die "Unable to update version\n";
 
 
+    $str = "ALTER TABLE `circuit` ADD COLUMN `circuit_state` enum('scheduled','deploying','active','decom') NOT NULL DEFAULT 'scheduled'";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+
+    $str = "ALTER TABLE `link_path_membership` ADD COLUMN `interface_a_vlan_id` int(11) NOT NULL";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+
+    $str = "ALTER TABLE `link_path_membership` ADD COLUMN `interface_z_vlan_id` int(11) NOT NULL";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+    $str = "ALTER TABLE `link_path_membership` DROP PRIMARY KEY, add primary key (`link_id`,`end_epoch`,`path_id`,`interface_a_vlan_id`,`interface_z_vlan_id`)";
+
+    $str = "ALTER TABLE `path_state` ADD COLUMN enum('active','available','deploying') NOT NULL DEFAULT 'active'";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+
+
+
+    #update path states
+    $str="select path_id,path_state from path_instantiation where end_epoch=-1";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+
+    
+    $str= "update path set path_state = ? where path_id = ?";
+    my $sth2 = $dbh->prepare($str);
+    while (my $path = $sth->fetchrow_hashref()){
+        my $path_id = $path->{'path_id'};
+        my $path_state = $path->{'path_state'};
+        
+        $sth2->execute($path_id,$path_state);
+    }
+    
+
+
+    #update circuit states
+    $str ="select circuit_id,circuit_state from circuit_instantiation where circuit_instantiation.end_epoch=-1 ";
+    $sth = $dbh->prepare($str) or die "unable to prepare circuit_instatiation select";
+    $sth->execute() or die "unable to execute circuit_instantiation";
+    
+    $str = "update circuit set circuit_state = ? where circuit_id = ?";
+    $sth2= $dbh->prepare($str) or die "unable to prepare update statement";
+    while (my $circuit = $sth->fetchrow_hashref()){
+        my $circuit_id = $circuit->{'circuit_id'};
+        my $circuit_state = $circuit->{'circuit_state'};
+        $sth2->execute($circuit_id,$circuit_state) or die "unable to update circuit";
+    }
+
+    #copy vlans from link_instantation_vlan_ids to link_path_membership;
+    $str =
+"select link_instantiation.link_id,link_path_membership.path_id,
+vlan_a.internal_vlan_id as interface_a_vlan_id,
+vlan_z.internal_vlan_id as interface_z_vlan_id
+from link_instantiation 
+join interface as interface_a 
+on (interface_a.interface_id = link_instantiation.interface_a_id 
+and link_instantiation.end_epoch =-1) 
+join node as node_a on interface_a.node_id = node_a.node_id
+join interface as interface_z 
+on (link_instantiation.interface_z_id = interface_z.interface_id 
+and link_instantiation.end_epoch =-1) 
+join node as node_z 
+on interface_z.node_id = node_z.node_id
+join link_path_membership 
+on link_instantiation.link_id= link_path_membership.link_id and link_path_membership.end_epoch =-1 
+join path_instantiation 
+on path_instantiation.path_id = link_path_membership.path_id and path_instantiation.end_epoch =-1
+join path_instantiation_vlan_ids as vlan_a
+on vlan_a.path_instantiation_id = path_instantiation.path_instantiation_id
+and vlan_a.node_id=node_a.node_id
+join path_instantiation_vlan_ids as vlan_z
+on vlan_z.path_instantiation_id = path_instantiation.path_instantiation_id
+and vlan_z.node_id=node_z.node_id";
+    
+
+    $sth = $dbh->prepare($str) or die "unable to prepare get vlan information";
+    $sth->execute() or die "unable to execute get current vlan information";
+
+    $str = "update link_path_membership set interface_a_vlan_id = ?, interface_z_vlan_id = ? where link_id = ? and path_id = ? and end_epoch=-1";
+
+    $sth2 = $dbh->prepare($str) or die "unable to prepare update link_path_membership";
+    while (my $link_info = $sth->fetchrow_hashref()){
+
+        my $interface_a_vlan = $link_info->{'interface_a_vlan_id'};
+        my $interface_z_vlan = $link_info->{'interface_z_vlan_id'};
+        my $link_id = $link_info->{'link_id'};
+        my $path_id = $link_info->{'path_id'};
+
+        $sth2->execute($interface_a_vlan,$interface_z_vlan,$link_id,$path_id) or die "unable to execute update of link_path_membership";
+
+    }
+
+#my $str = "
     #ok done with the rest of the upgrade update our version
-    my $str = "update oess_version set version = '$version'";
-    my $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $str = "update oess_version set version = '$version'";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
     $sth->execute() or die "Unable to update version\n";
 }
 
