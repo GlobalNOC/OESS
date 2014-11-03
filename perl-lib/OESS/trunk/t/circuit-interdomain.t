@@ -32,6 +32,8 @@ ok($ckt->is_interdomain(), "Circuit is interdomain");
 
 my $endpoints = $ckt->get_endpoints();
 
+warn Data::Dumper::Dumper($endpoints);
+
 ok(scalar(@$endpoints) == 3, "Has correct number of endpoints");
 
 cmp_deeply($endpoints->[0], {

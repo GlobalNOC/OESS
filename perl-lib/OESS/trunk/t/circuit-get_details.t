@@ -51,6 +51,8 @@ cmp_deeply($details,{'last_modified_by' => {
                 'port_no_a' => '2',
                 'node_a' => 'Node 81',
                 'name' => 'Link 41',
+                'interface_z_id' => '31',
+                'interface_a_id' => '131',
                 'interface_a' => 'e1/2'
             }
         ],
