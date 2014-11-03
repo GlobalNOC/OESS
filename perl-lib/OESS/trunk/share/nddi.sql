@@ -421,6 +421,7 @@ CREATE TABLE `urn` (
   `urn` varchar(255) NOT NULL,
   `interface_id` int(10) DEFAULT NULL,
   `last_update` int(10) NOT NULL,
+  `vlan_tag_range` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`urn_id`),
   UNIQUE KEY `urn_idx` (`urn`),
   KEY `urn_interface_fk` (`interface_id`),

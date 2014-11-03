@@ -52,8 +52,6 @@ sub upgrade{
     my $term = shift;
     my $str;
     my $sth;
-
-
     
 
     # add vlan_tag_range to link field
@@ -61,6 +59,9 @@ sub upgrade{
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
     $sth->execute() or die "Unable to update version\n";
 
+    $str = "ALTER table urn add column vlan_tag_range varchar(255)";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
 
     $str = "ALTER TABLE `circuit` ADD COLUMN `circuit_state` enum('scheduled','deploying','active','decom') NOT NULL DEFAULT 'scheduled'";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
