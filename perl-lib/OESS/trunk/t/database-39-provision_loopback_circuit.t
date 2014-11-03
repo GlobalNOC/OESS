@@ -29,7 +29,7 @@ my $workgroup_id = 11;
 &OESSDatabaseTester::workgroupLimits(
     db           => $db,
     workgroup_id => $workgroup_id,
-    circuit_num  => 1 
+    circuit_num  => 100
 );
 
 my $res = $db->provision_circuit(
