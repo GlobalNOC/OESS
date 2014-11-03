@@ -245,8 +245,8 @@ sub _create_flows{
 	    my $node_z = $link->{'node_z'};
             my $interface_a = $link->{'interface_a_id'};
             my $interface_z = $link->{'interface_z_id'};
-	    $backup_path{$node_a}{$link->{'port_no_a'}}{$internal_ids->{'backup'}{$node_a}{$interface_a}} = $self->{'details'}->{'internal_ids'}->{'backup'}{$node_z};
-	    $backup_path{$node_z}{$link->{'port_no_z'}}{$internal_ids->{'backup'}{$node_z}{$interface_z}} = $self->{'details'}->{'internal_ids'}->{'backup'}{$node_a};
+	    $backup_path{$node_a}{$link->{'port_no_a'}}{$internal_ids->{'backup'}{$node_a}{$interface_a}} = $internal_ids->{'backup'}{$node_z}{$interface_z};
+	    $backup_path{$node_z}{$link->{'port_no_z'}}{$internal_ids->{'backup'}{$node_z}{$interface_z}} = $internal_ids->{'backup'}{$node_a}{$interface_a};
 	}
 	$self->{'path'}->{'backup'} = \%backup_path;
     }
