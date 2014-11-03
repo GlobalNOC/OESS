@@ -3361,7 +3361,7 @@ node_a.node_id as node_a_id, node_a.name as node_a_name,
 node_z.node_id as node_z_id, node_z.name as node_z_name,
  path.path_type
 from path
-join link_path_membership on (link_path_membership.path_id=path.path_id and path.circuit_id=? )
+join link_path_membership on (link_path_membership.end_epoch =-1 and link_path_membership.path_id=path.path_id and path.circuit_id=? )
 join link on link_path_membership.link_id = link.link_id
 join link_instantiation 
 on link_instantiation.link_id = link.link_id
