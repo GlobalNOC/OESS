@@ -22,7 +22,7 @@ use Data::Dumper;
 my $db = OESS::Database->new(config => OESSDatabaseTester::getConfigFilePath());
 
 my $paths = $db->get_circuit_paths( circuit_id => 4011);
-
+warn Data::Dumper::Dumper($paths);
 ok($#{$paths} == 1, "Total number of paths match");
 
 cmp_deeply($paths->[0],{

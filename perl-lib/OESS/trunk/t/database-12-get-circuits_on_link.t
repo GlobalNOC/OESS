@@ -26,9 +26,12 @@ my $circuits = $db->get_circuits_on_link( link_id => 1);
 
 ok($#{$circuits} == 29, "Total number of circuits match " . $#{$circuits});
 
+warn Data::Dumper::Dumper($circuits->[0]);
+
 cmp_deeply($circuits->[0],{
           'path_id' => '81',
           'circuit_state' => 'active',
+          'static_mac' => '0',
           'circuit_id' => '61',
           'workgroup_id' => '11',
           'ci_end' => '-1',
@@ -38,12 +41,11 @@ cmp_deeply($circuits->[0],{
           'reserved_bandwidth_mbps' => '0',
           'description' => 'Circuit 61',
           'path_type' => 'primary',
-          'lpm_end' => '-1',
           'end_epoch' => '-1',
+          'lpm_end' => '-1',
+          'path_state' => 'active',
           'modified_by_user_id' => '1',
-	  'restore_to_primary' => '0',
-          'static_mac' => '0'
-	   }, "values for first circuit match");
+          'restore_to_primary' => '0' }, "values for first circuit match");
 
 my $is_ok=1;
 my %circuit_id_seen;

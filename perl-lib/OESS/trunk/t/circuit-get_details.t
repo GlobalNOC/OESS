@@ -98,11 +98,16 @@ cmp_deeply($details,{'last_modified_by' => {
                      },
                              'active_path' => 'primary',
                              'bandwidth' => '0',
+                             
                              'internal_ids' => {
                                  'primary' => {
-                                     'Node 81' => '100',
-                                     'Node 21' => '101'
-                                 }
+                                     'Node 21' => {
+                                         '31' => '101'
+                                     },
+                                     'Node 81' => {
+                                         '131' => '100'
+                                     }
+                                 },
                          },
                      'external_identifier' => undef,
                      'last_edited' => '09/30/2012 00:41:54',
