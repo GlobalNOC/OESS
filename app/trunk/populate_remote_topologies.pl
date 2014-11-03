@@ -300,8 +300,8 @@ sub add_link {
         }
     }
     #insert the urn with ignore!
-    $results=$db->_execute_query("insert ignore into urn (urn, interface_id, last_update) values (?, ?, ?)",
-                                            [$urn, $interface_id, time() ]);
+    $results=$db->_execute_query("insert ignore into urn (urn, interface_id, last_update, vlan_tag_range) values (?, ?, ?,?)",
+                                            [$urn, $interface_id, time(), $vlan_tag_range ]);
     
 
     # urn:ogf:network:domain=nddi.net.internet2.edu:node=switch%202:port=s2-eth1:link=auto-3%3A2--2%3A1
