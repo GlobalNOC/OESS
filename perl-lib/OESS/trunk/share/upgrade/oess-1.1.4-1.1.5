@@ -75,7 +75,7 @@ sub upgrade{
     $sth->execute() or die "Unable to update version\n";
     $str = "ALTER TABLE `link_path_membership` DROP PRIMARY KEY, add primary key (`link_id`,`end_epoch`,`path_id`,`interface_a_vlan_id`,`interface_z_vlan_id`)";
 
-    $str = "ALTER TABLE `path_state` ADD COLUMN enum('active','available','deploying') NOT NULL DEFAULT 'active'";
+    $str = "ALTER TABLE `path` ADD COLUMN `path_state` enum('active','available','deploying') NOT NULL DEFAULT 'active'";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
     $sth->execute() or die "Unable to update version\n";
 
