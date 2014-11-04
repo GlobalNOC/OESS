@@ -62,24 +62,24 @@ my $correct_endpoint_flows = [
  DPID: 24389f8f00
  Priority: 32768
  Match: VLAN: 2222, IN PORT: 673
- Actions: SET VLAN ID: 154
+ Actions: SET VLAN ID: 100
           OUTPUT: 2\n",
 "OFFlowMod:
  DPID: 24389f8f00
  Priority: 32768
- Match: VLAN: 154, IN PORT: 2
+ Match: VLAN: 100, IN PORT: 2
  Actions: SET VLAN ID: 2222
           OUTPUT: 673\n",
 "OFFlowMod:
  DPID: 24389f8f00
  Priority: 32768
  Match: VLAN: 2223, IN PORT: 673
- Actions: SET VLAN ID: 154
+ Actions: SET VLAN ID: 100
           OUTPUT: 97\n",
 "OFFlowMod:
  DPID: 24389f8f00
  Priority: 32768
- Match: VLAN: 154, IN PORT: 97
+ Match: VLAN: 100, IN PORT: 97
  Actions: SET VLAN ID: 2223
           OUTPUT: 673\n"
 ];
