@@ -300,7 +300,7 @@ sub add_link {
         }
     }
     #insert the urn with ignore!
-    $results=$db->_execute_query("insert ignore into urn (urn, interface_id, last_update, vlan_tag_range) values (?, ?, ?,?)",
+    $results=$db->_execute_query("insert into urn (urn, interface_id, last_update, vlan_tag_range) values (?, ?, ?,?) on duplicate key update vlan_tag_range=VALUES(vlan_tag_range)",
                                             [$urn, $interface_id, time(), $vlan_tag_range ]);
     
 
