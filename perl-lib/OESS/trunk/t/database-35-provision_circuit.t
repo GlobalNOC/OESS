@@ -22,6 +22,10 @@ use Data::Dumper;
 
 my $db = OESS::Database->new(config => OESSDatabaseTester::getConfigFilePath());
 
+#OESSDatabaseTester::workgroupLimits( workgroup_id => 11, 
+#                                     db => $db,
+#                                     circuit_num => 1);
+
 #my $res;
 # try provisioning a circuit when acl rules block you 
 my $res = $db->provision_circuit(
@@ -76,6 +80,8 @@ my $correct_result =  {
                          'port_no_a' => '97',
                          'node_a' => 'Node 61',
                          'name' => 'Link 181',
+                         'interface_z_id' => '851',
+                         'interface_a_id' => '161',
                          'interface_a' => 'e3/1'
                        },
                        {
@@ -85,6 +91,8 @@ my $correct_result =  {
                          'port_no_a' => '1',
                          'node_a' => 'Node 61',
                          'name' => 'Link 191',
+                         'interface_z_id' => '61',
+                         'interface_a_id' => '171',
                          'interface_a' => 'e1/1'
                        },
                        {
@@ -94,6 +102,8 @@ my $correct_result =  {
                          'port_no_a' => '97',
                          'node_a' => 'Node 5721',
                          'name' => 'Link 531',
+                         'interface_z_id' => '71',
+                         'interface_a_id' => '45781',
                          'interface_a' => 'e3/1'
                        }
                      ],
@@ -141,12 +151,23 @@ my $correct_result =  {
           'bandwidth' => '1337',
           'internal_ids' => {
                               'primary' => {
-                                             'Node 11' => '154',
-                                             'Node 5721' => '28',
-                                             'Node 61' => '135',
-                                             'Node 51' => '140'
-                                           }
-                            },
+                                  'Node 11' => {
+                                      '851' => '101'
+                                  },
+                                          'Node 5721' => {
+                                              '45781' => '28'
+                                      },
+                                                  'Node 61' => {
+                                                      '161' => '100',
+                                                      '171' => '101'
+                                              },
+                                                          'Node 51' => {
+                                                              '71' => '101',
+                                                              '61' => '100'
+                                                      }
+                              }
+      },
+
           'user_id' => '11',
           'restore_to_primary' => '0',
           'operational_state' => 'unknown'

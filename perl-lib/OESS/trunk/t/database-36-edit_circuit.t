@@ -96,6 +96,8 @@ my $correct_result = {
                          'port_no_a' => '97',
                          'node_a' => 'Node 61',
                          'name' => 'Link 181',
+                         'interface_z_id' => '851',
+                         'interface_a_id' => '161',
                          'interface_a' => 'e3/1'
                        },
                        {
@@ -105,6 +107,8 @@ my $correct_result = {
                          'port_no_a' => '1',
                          'node_a' => 'Node 61',
                          'name' => 'Link 191',
+                         'interface_z_id' => '61',
+                         'interface_a_id' => '171',
                          'interface_a' => 'e1/1'
                        },
                        {
@@ -114,6 +118,8 @@ my $correct_result = {
                          'port_no_a' => '97',
                          'node_a' => 'Node 5721',
                          'name' => 'Link 531',
+                         'interface_z_id' => '71',
+                         'interface_a_id' => '45781',
                          'interface_a' => 'e3/1'
                        }
                      ],
@@ -173,5 +179,7 @@ my $correct_result = {
                             'auth_name' => 'user_201@foo.net'
                           }
 };
+
+warn Dumper($res);
 
 cmp_deeply($res, $correct_result, "values for circuit matches");

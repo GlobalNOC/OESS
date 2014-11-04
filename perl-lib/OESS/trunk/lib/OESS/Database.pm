@@ -7799,9 +7799,9 @@ sub is_within_circuit_limit {
     my $workgroup_id = $args{'workgroup_id'}; 
 
     my $str = "SELECT COUNT(*) as circuit_num ".
-        "FROM circuit ".
-        "WHERE workgroup_id = ? ".
-        "AND circuit.circuit_state != 'decom' ";
+        "FROM circuit join circuit_instantiation on circuit_instantiation.circuit_id = circuit.circuit_id ".
+        "WHERE end_epoch = -1 and workgroup_id = ? ".
+        "AND circuit_instantiation.circuit_state != 'decom'";
     my $rows = $self->_execute_query($str, [$workgroup_id]);
     my $circuit_num = $rows->[0]{'circuit_num'};
 
