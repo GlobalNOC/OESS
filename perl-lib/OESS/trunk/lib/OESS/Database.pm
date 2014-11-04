@@ -3065,7 +3065,6 @@ sub get_current_circuits {
 	chop($endpoint_node_sql);
 	$endpoint_node_sql .= ")";
 
-        warn "Endpoints sql: " . $endpoint_node_sql . "\n";
 	my $endpoint_results = $self->_execute_query($endpoint_node_sql ,$endpoint_nodes);
 
 
@@ -3087,7 +3086,7 @@ sub get_current_circuits {
 		join link_instantiation l on l.end_epoch = -1
 		and m.link_id = l.link_id join interface i on i.interface_id = interface_a_id or i.interface_id = interface_z_id
 		where i.node_id in ( $placeholders )";
-        warn "Path Node SQL: " . $path_node_sql  . "\n";
+        
 	my $path_results = $self->_execute_query($path_node_sql, $path_nodes );
 
 	foreach my $row(@$path_results){
@@ -3126,7 +3125,7 @@ sub get_current_circuits {
 
 
     $query .= " group by circuit.circuit_id";
-    warn "Query: " . $query . "\n";
+
     my $rows = $self->_execute_query($query, \@to_pass);
 
     if (! defined $rows){
@@ -3137,7 +3136,7 @@ sub get_current_circuits {
     my $circuits;
     my @circuit_ids;
     foreach my $row (@$rows){
-        warn "Creating circuit ID: " . $row->{'circuit_id'} . "\n";
+
         push( @{$results}, OESS::Circuit->new( circuit_id => $row->{'circuit_id'},
                                                db         => $self,
                                                topo => $self->{'topo'},
@@ -3419,7 +3418,7 @@ sub get_circuit_endpoints {
     my %args = @_;
 
     #my $query = "select * from circuit_edge_interface_membership where circuit_edge_interface_membership.circuit_id = ? and circuit_edge_interface_membership.end_epoch = -1";
-    my $query = "select distinct(interface.interface_id), circuit_edge_interface_membership.extern_vlan_id, circuit_edge_interface_membership.circuit_edge_id, interface.name as int_name,interface.description as interface_description, node.name as node_name, node.node_id as node_id, interface.port_number, interface.role, network.is_local, urn.urn from interface left join  interface_instantiation on interface.interface_id = interface_instantiation.interface_id and interface_instantiation.end_epoch = -1 join node on interface.node_id = node.node_id left join node_instantiation on node_instantiation.node_id = node.node_id and node_instantiation.end_epoch = -1 left join urn on urn.interface_id = interface.interface_id join network on node.network_id = network.network_id join circuit_edge_interface_membership on circuit_edge_interface_membership.interface_id = interface.interface_id where circuit_edge_interface_membership.circuit_id = ? and ";
+    my $query = "select distinct(interface.interface_id), circuit_edge_interface_membership.extern_vlan_id, circuit_edge_interface_membership.circuit_edge_id, interface.name as int_name,interface.description as interface_description, node.name as node_name, node.node_id as node_id, interface.port_number, interface.role, network.is_local from interface left join  interface_instantiation on interface.interface_id = interface_instantiation.interface_id and interface_instantiation.end_epoch = -1 join node on interface.node_id = node.node_id left join node_instantiation on node_instantiation.node_id = node.node_id and node_instantiation.end_epoch = -1 join network on node.network_id = network.network_id join circuit_edge_interface_membership on circuit_edge_interface_membership.interface_id = interface.interface_id where circuit_edge_interface_membership.circuit_id = ? and ";
 
     my @bind_values = ($args{'circuit_id'});
 
@@ -3437,6 +3436,26 @@ sub get_circuit_endpoints {
     
     foreach my $endpoint ( @$res ){
         
+        my $urns = $self->_execute_query("select * from urn where interface_id = ?", [$endpoint->{'interface_id'}]);
+        if(scalar(@$urns) == 1){
+            $endpoint->{'urn'} = $urns->[0]->{'urn'};
+        }elsif(scalar(@$urns) > 1){
+            foreach my $urn (@$urns){
+                
+                my $tag_range = $self->_process_tag_string($urn->{'vlan_tag_range'});
+
+                foreach my $tag (@$tag_range){
+                    if($tag == $endpoint->{'extern_vlan_id'}){
+                        $endpoint->{'urn'} = $urn->{'urn'};
+                    }
+                }
+            }
+            #couldn't find it, so just use the first one
+            if(!defined($endpoint->{'urn'})){
+                $endpoint->{'urn'} = $urns->[0]->{'urn'};
+            }
+        }
+
         my $mac_addrs = $self->_execute_query("select mac_address from circuit_edge_mac_address where circuit_edge_id = ?",[$endpoint->{'circuit_edge_id'}]);
         
         foreach my $mac_addr (@$mac_addrs){
