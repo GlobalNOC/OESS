@@ -576,7 +576,7 @@ sub _generate_loopback_endpoint_flows {
         }
         if(defined($id)){
             push(@rules, {
-                vlan => $self->{'details'}{'internal_ids'}{$path}{$l->{"node_$id"}{$interface_id}},
+                vlan => $self->{'details'}{'internal_ids'}{$path}{$l->{"node_$id"}}{$interface_id},
                 port => $l->{"port_no_$id"},
                 interface_id => $interface_id
             });
