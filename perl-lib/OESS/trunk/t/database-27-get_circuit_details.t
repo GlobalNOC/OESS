@@ -49,54 +49,64 @@ cmp_deeply($res,{
           'static_mac' => 0,
           'state' => 'active',
           'backup_links' => [
-	      {
-                                'interface_z' => 'e1/2',
-                                'port_no_z' => '2',
-                                'node_z' => 'Node 21',
-                                'port_no_a' => '97',
-                                'node_a' => 'Node 31',
-                                'name' => 'Link 1',
-                                'interface_a' => 'e3/1'
-	      },
-	      {
-                                'interface_z' => 'e5/1',
-                                'port_no_z' => '193',
-                                'node_z' => 'Node 101',
-                                'port_no_a' => '97',
-                                'node_a' => 'Node 21',
-                                'name' => 'Link 21',
-                                'interface_a' => 'e3/1'
-	      },
-	      {
-                                'interface_z' => 'e3/2',
-                                'port_no_z' => '98',
-                                'node_z' => 'Node 111',
-                                'port_no_a' => '98',
-                                'node_a' => 'Node 91',
-                                'name' => 'Link 211',
-                                'interface_a' => 'e3/2'
-	      },
-	      {
-                                'interface_z' => 'e3/1',
-                                'port_no_z' => '97',
-                                'node_z' => 'Node 101',
-                                'port_no_a' => '97',
-                                'node_a' => 'Node 91',
-                                'name' => 'Link 231',
-                                'interface_a' => 'e3/1'
-	      }
-                            ],
-          'links' => [
-	      {
-                         'interface_z' => 'e1/1',
-                         'port_no_z' => '1',
-                         'node_z' => 'Node 111',
-                         'port_no_a' => '1',
-                         'node_a' => 'Node 31',
-                         'name' => 'Link 221',
-                         'interface_a' => 'e1/1'
-	      }
-                     ],
+              {
+                  'interface_z' => 'e1/2',
+                  'port_no_z' => '2',
+                  'node_z' => 'Node 21',
+                  'port_no_a' => '97',
+                  'node_a' => 'Node 31',
+                  'name' => 'Link 1',
+                  'interface_z_id' => '21',
+                  'interface_a_id' => '41',
+                  'interface_a' => 'e3/1'
+    },
+              {
+                  'interface_z' => 'e5/1',
+                  'port_no_z' => '193',
+                  'node_z' => 'Node 101',
+                  'port_no_a' => '97',
+                  'node_a' => 'Node 21',
+                  'name' => 'Link 21',
+                  'interface_z_id' => '221',
+                  'interface_a_id' => '361',
+                  'interface_a' => 'e3/1'
+    },
+              {
+                  'interface_z' => 'e3/2',
+                  'port_no_z' => '98',
+                  'node_z' => 'Node 111',
+                  'port_no_a' => '98',
+                  'node_a' => 'Node 91',
+                  'name' => 'Link 211',
+                  'interface_z_id' => '271',
+                  'interface_a_id' => '861',
+                  'interface_a' => 'e3/2'
+    },
+              {
+                  'interface_z' => 'e3/1',
+                  'port_no_z' => '97',
+                  'node_z' => 'Node 101',
+                  'port_no_a' => '97',
+                  'node_a' => 'Node 91',
+                  'name' => 'Link 231',
+                  'interface_z_id' => '231',
+                  'interface_a_id' => '211',
+                  'interface_a' => 'e3/1'
+              }
+          ],
+    'links' => [
+        {
+            'interface_z' => 'e1/1',
+            'port_no_z' => '1',
+            'node_z' => 'Node 111',
+            'port_no_a' => '1',
+            'node_a' => 'Node 31',
+            'name' => 'Link 221',
+            'interface_z_id' => '281',
+            'interface_a_id' => '871',
+            'interface_a' => 'e1/1'
+        }
+        ],
           'circuit_id' => 3731,
           'workgroup_id' => '251',
           'name' => 'Circuit 3731',
