@@ -27,6 +27,8 @@ my $db = OESS::Database->new( config => OESSDatabaseTester::getConfigFilePath() 
 
 my $ckt = OESS::Circuit->new( circuit_id => 4111, db => $db);
 
+warn $ckt->generate_clr();
+
 ok($ckt->has_backup_path(), "Circuit has backup path");
 
 my $flows = $ckt->get_flows();
@@ -41,15 +43,15 @@ my $flows = $ckt->get_flows();
 ok(scalar(@$flows) == 24, "Total number of flows match " . scalar(@$flows));
 
 
-my $expected_flows = [];
-push(@$expected_flows, OESS::FlowRule->new( dpid => 155569091328,
+my @expected_flows;
+push(@expected_flows, OESS::FlowRule->new( dpid => 155569091328,
                                        match => {'dl_vlan' => 157,
                                                  'in_port' => 193},
                                        actions => [{'set_vlan_vid' => 150},
                                                    {'output' => 1}]));
 
 
-push(@$expected_flows, OESS::FlowRule->new( dpid => 155568735232,
+push(@expected_flows, OESS::FlowRule->new( dpid => 155568735232,
                                        match => {'dl_vlan' => 150,
                                                  'in_port' => 97},
                                        actions => [{'set_vlan_vid' => 157},
@@ -57,7 +59,7 @@ push(@$expected_flows, OESS::FlowRule->new( dpid => 155568735232,
 
 
 
-push(@$expected_flows, OESS::FlowRule->new( dpid => 155568735232,
+push(@expected_flows, OESS::FlowRule->new( dpid => 155568735232,
                                        match => {'dl_vlan' => 150,
                                                  'in_port' => 1},
                                        actions => [{'set_vlan_vid' => 151},
@@ -65,21 +67,21 @@ push(@$expected_flows, OESS::FlowRule->new( dpid => 155568735232,
 
 
 
-push(@$expected_flows, OESS::FlowRule->new( dpid => 155568969984,
+push(@expected_flows, OESS::FlowRule->new( dpid => 155568969984,
                                       match => {'dl_vlan' => 134,
                                                 'in_port' => 1},
                                       actions => [{'set_vlan_vid' => 157},
                                                   {'output' => 2}]));
 
 
-push(@$expected_flows, OESS::FlowRule->new( dpid => 155568969984,
+push(@expected_flows, OESS::FlowRule->new( dpid => 155568969984,
                                       match => {'dl_vlan' => 134,
                                                 'in_port' => 2},
                                       actions => [{'set_vlan_vid' => 140},
                                                   {'output' => 1}]));
 
 
-push(@$expected_flows, OESS::FlowRule->new( dpid => 155568799232,
+push(@expected_flows, OESS::FlowRule->new( dpid => 155568799232,
                                   match => {'dl_vlan' => 151,
                                             'in_port' => 193},
                                   actions => [{'set_vlan_vid' => 145},
@@ -88,7 +90,7 @@ push(@$expected_flows, OESS::FlowRule->new( dpid => 155568799232,
                                                
 
 
-push(@$expected_flows, OESS::FlowRule->new( 'actions' => [
+push(@expected_flows, OESS::FlowRule->new( 'actions' => [
                                       {
                                           'set_vlan_vid' => '152'
                                       },
@@ -104,7 +106,7 @@ push(@$expected_flows, OESS::FlowRule->new( 'actions' => [
                                   }));
 
 
-push(@$expected_flows, OESS::FlowRule->new('actions' => [
+push(@expected_flows, OESS::FlowRule->new('actions' => [
                                      {
                                          'set_vlan_vid' => '129'
                                      },
@@ -120,7 +122,7 @@ push(@$expected_flows, OESS::FlowRule->new('actions' => [
                                  }));
 
 
-push(@$expected_flows, OESS::FlowRule->new(                 'actions' => [
+push(@expected_flows, OESS::FlowRule->new(                 'actions' => [
                                                        {
                                   'set_vlan_vid' => '134'
                                                        },
@@ -135,7 +137,7 @@ push(@$expected_flows, OESS::FlowRule->new(                 'actions' => [
                               'in_port' => 98
                                                    }));
 
-push(@$expected_flows, OESS::FlowRule->new('actions' => [
+push(@expected_flows, OESS::FlowRule->new('actions' => [
 				      {
 					  'set_vlan_vid' => '144'
 				      },
@@ -151,7 +153,7 @@ push(@$expected_flows, OESS::FlowRule->new('actions' => [
 				  }));
 
 
-push(@$expected_flows, OESS::FlowRule->new( 'actions' => [
+push(@expected_flows, OESS::FlowRule->new( 'actions' => [
 				       {
                                   'set_vlan_vid' => '141'
 				       },
@@ -166,7 +168,7 @@ push(@$expected_flows, OESS::FlowRule->new( 'actions' => [
                               'in_port' => 97
 				   }));
 
-push(@$expected_flows, OESS::FlowRule->new('actions' => [
+push(@expected_flows, OESS::FlowRule->new('actions' => [
 				      {
 					  'set_vlan_vid' => '24'
 				      },
@@ -181,7 +183,7 @@ push(@$expected_flows, OESS::FlowRule->new('actions' => [
 				      'in_port' => 1
 				  }));
 
-push(@$expected_flows, OESS::FlowRule->new( 'actions' => [
+push(@expected_flows, OESS::FlowRule->new( 'actions' => [
 				       {
 					   'set_vlan_vid' => '129'
 				       },
@@ -197,7 +199,7 @@ push(@$expected_flows, OESS::FlowRule->new( 'actions' => [
 				   }));
 
 
-push(@$expected_flows, OESS::FlowRule->new( 'actions' => [
+push(@expected_flows, OESS::FlowRule->new( 'actions' => [
                                 {
                                   'set_vlan_vid' => '133'
                                 },
@@ -213,7 +215,7 @@ push(@$expected_flows, OESS::FlowRule->new( 'actions' => [
                             }));
 
 
-push(@$expected_flows, OESS::FlowRule->new( 'actions' => [
+push(@expected_flows, OESS::FlowRule->new( 'actions' => [
 				       {
                                   'set_vlan_vid' => '145'
 				       },
@@ -228,7 +230,7 @@ push(@$expected_flows, OESS::FlowRule->new( 'actions' => [
                               'in_port' => 97
 				   }));
 
-push(@$expected_flows, OESS::FlowRule->new( 'actions' => [
+push(@expected_flows, OESS::FlowRule->new( 'actions' => [
 				       {
                                   'set_vlan_vid' => '144'
 				       },
@@ -244,7 +246,7 @@ push(@$expected_flows, OESS::FlowRule->new( 'actions' => [
 				   }));
 
 
-push(@$expected_flows, OESS::FlowRule->new( 'actions' => [
+push(@expected_flows, OESS::FlowRule->new( 'actions' => [
 				       {
                                   'set_vlan_vid' => '133'
 				       },
@@ -261,7 +263,7 @@ push(@$expected_flows, OESS::FlowRule->new( 'actions' => [
 
 #ok($flow_18->compare_flow( flow_rule => $flows->[17]), "Flow18 Matches");
 
-push(@$expected_flows, OESS::FlowRule->new('actions' => [
+push(@expected_flows, OESS::FlowRule->new('actions' => [
                                 {
                                   'set_vlan_vid' => '151'
                                 },
@@ -278,7 +280,7 @@ push(@$expected_flows, OESS::FlowRule->new('actions' => [
 
 #ok($flow_19->compare_flow( flow_rule => $flows->[18]), "Flow19 Matches");
 
-push(@$expected_flows, OESS::FlowRule->new( 'actions' => [
+push(@expected_flows, OESS::FlowRule->new( 'actions' => [
 				       {
                                   'set_vlan_vid' => '24'
 				       },
@@ -295,7 +297,7 @@ push(@$expected_flows, OESS::FlowRule->new( 'actions' => [
 
 #ok($flow_20->compare_flow( flow_rule => $flows->[19]), "Flow20 matches");
 
-push(@$expected_flows, OESS::FlowRule->new( 'actions' => [
+push(@expected_flows, OESS::FlowRule->new( 'actions' => [
 				       {
                                   'set_vlan_vid' => '150'
 				       },
@@ -312,7 +314,7 @@ push(@$expected_flows, OESS::FlowRule->new( 'actions' => [
 
 #ok($flow_21->compare_flow( flow_rule => $flows->[20]), "Flow21 matches");
 
-push(@$expected_flows, OESS::FlowRule->new('actions' => [
+push(@expected_flows, OESS::FlowRule->new('actions' => [
 				      {
                                   'set_vlan_vid' => '4090'
 				      },
@@ -329,7 +331,7 @@ push(@$expected_flows, OESS::FlowRule->new('actions' => [
 
 #ok($flow_22->compare_flow( flow_rule => $flows->[21]), "Flow22 matches");
 
-push(@$expected_flows, OESS::FlowRule->new( 'actions' => [
+push(@expected_flows, OESS::FlowRule->new( 'actions' => [
 				       {
                                   'set_vlan_vid' => '134'
 				       },
@@ -344,7 +346,7 @@ push(@$expected_flows, OESS::FlowRule->new( 'actions' => [
                               'in_port' => '676'
 				   }));
 
-push(@$expected_flows, OESS::FlowRule->new( 'actions' => [
+push(@expected_flows, OESS::FlowRule->new( 'actions' => [
 				       {
                                   'SET_VLAN_VID' => '2055'
 				       },
@@ -363,17 +365,24 @@ push(@$expected_flows, OESS::FlowRule->new( 'actions' => [
 my $failed_flow_compare = 0;
 foreach my $actual_flow (@$flows){
     my $found = 0;
-    foreach my $expected_flow (@$expected_flows){
-        if($expected_flow->compare_flow( flow_rule => $actual_flow)) {
-            $found = 1; 
+    for(my $i=0;$i < scalar(@expected_flows); $i++){
+
+        if($expected_flows[$i]->compare_flow( flow_rule => $actual_flow)) {
+            $found = 1;
+            splice(@expected_flows, $i,1);
             last;
         }
     }
     if(!$found){
         warn "actual_flow:   ".$actual_flow->to_human();
         $failed_flow_compare = 1;
-        last; 
+        #last; 
     }
 }
+
+foreach my $expected_flow (@expected_flows){
+    warn "Expected: " . $expected_flow->to_human();
+}
+
 ok(!$failed_flow_compare, "flows match!");
 
