@@ -46,23 +46,21 @@ my $res = $db->provision_circuit(
     'workgroup_id' => $workgroup_id,
     'external_id' => undef
 );
-
 #verify circuit was successfully added
 ok($res->{'success'}, "circuit successfully added");
-#print "Status: ".Dumper($res);
 
 
 # now create a OESS::Circuit object and verify the flowrules are what we'd expect for a loopback circuit
 my $ckt = new OESS::Circuit( circuit_id => $res->{'circuit_id'}, db => $db );
-my $endpoint_flows = $ckt->get_endpoint_flows( path => 'primary' );
 
+my $endpoint_flows = $ckt->get_endpoint_flows( path => 'primary' );
 
 my $correct_endpoint_flows = [
 "OFFlowMod:
  DPID: 24389f8f00
  Priority: 32768
  Match: VLAN: 2222, IN PORT: 673
- Actions: SET VLAN ID: 100
+ Actions: SET VLAN ID: 101
           OUTPUT: 2\n",
 "OFFlowMod:
  DPID: 24389f8f00

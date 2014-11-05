@@ -5819,131 +5819,132 @@ sub provision_circuit {
     # set up any remote_endpoints if we have them
     for (my $i = 0; $i < @$remote_endpoints; $i++){
 
-	my $urn = @$remote_endpoints[$i];
-	my $tag = @$remote_tags[$i];
+        my $urn = @$remote_endpoints[$i];
+        my $tag = @$remote_tags[$i];
 
-	$query = "select interface.interface_id from interface join urn on interface.interface_id=urn.interface_id where urn.urn = ?";
-	my $interface_id = $self->_execute_query($query, [$urn])->[0]->{'interface_id'};
+        $query = "select interface.interface_id from interface join urn on interface.interface_id=urn.interface_id where urn.urn = ?";
+        my $interface_id = $self->_execute_query($query, [$urn])->[0]->{'interface_id'};
 
-	if (! $interface_id){
-	    $self->_set_error("Unable to find interface associated with URN: $urn");
-            $self->_rollback();
-	    return;
-	}
+        if (! $interface_id){
+            $self->_set_error("Unable to find interface associated with URN: $urn");
+                $self->_rollback();
+            return;
+        }
 
 
-	$query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, end_epoch, start_epoch) values (?, ?, ?, -1, unix_timestamp(NOW()))";
+        $query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, end_epoch, start_epoch) values (?, ?, ?, -1, unix_timestamp(NOW()))";
 
-	if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $tag])){
-	    $self->_set_error("Unable to create circuit edge to interface \"$urn\" with tag $tag.");
-            $self->_rollback();
-	    return;
-	}
+        if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $tag])){
+            $self->_set_error("Unable to create circuit edge to interface \"$urn\" with tag $tag.");
+                $self->_rollback();
+            return;
+        }
 
     }
 
 
     # now set up links
-    my $link_lookup = {'primary' => $links,
-		       'backup'  => $backup_links
+    my $link_lookup = {
+        'primary' => $links,
+        'backup'  => $backup_links
     };
 
     foreach my $path_type (qw(primary backup)){
 
-	my $relevant_links = $link_lookup->{$path_type};
+        my $relevant_links = $link_lookup->{$path_type};
 
-	next if(!defined(@$relevant_links) || !defined($relevant_links->[0]));
+        next if(!defined(@$relevant_links) || !defined($relevant_links->[0]));
 
-	# create the primary path object
-	$query = "insert into path (path_type, circuit_id, path_state) values (?, ?, ?)";
+        # create the primary path object
+        $query = "insert into path (path_type, circuit_id, path_state) values (?, ?, ?)";
 
-        my $path_state = "deploying";
+            my $path_state = "deploying";
 
-	if ($path_type eq "backup"){
-	    $path_state = "available";
-	}
+        if ($path_type eq "backup"){
+            $path_state = "available";
+        }
 
-	my $path_id = $self->_execute_query($query, [$path_type, $circuit_id,$path_state]);
+        my $path_id = $self->_execute_query($query, [$path_type, $circuit_id,$path_state]);
 
-	if (! $path_id){
-	    $self->_set_error("Error while creating path record.");
-            $self->_rollback();
-	    return;
-	}
-
-
-	# instantiate path object
-	$query = "insert into path_instantiation (path_id, end_epoch, start_epoch, path_state) values (?, -1, unix_timestamp(NOW()), ?)";
-
-	
-
-	my $path_instantiation_id = $self->_execute_query($query, [$path_id, $path_state]);
-
-	if (! defined $path_instantiation_id ){
-	    $self->_set_error("Error while instantiating path record.");
-            $self->_rollback();
-	    return;
-	}
-        
-	my %seen_endpoints;
-	# figure out all the nodes along this path so we can assign them an internal tag
-	foreach my $link (@$relevant_links){
-	    my $info      = $self->get_link_by_name(name => $link);
-            
-	    if (! defined $info){
-		$self->_set_error("Unable to determine link with name \"$link\"");
+        if (! $path_id){
+            $self->_set_error("Error while creating path record.");
                 $self->_rollback();
-		return;
-	    }
+            return;
+        }
+
+
+        # instantiate path object
+        $query = "insert into path_instantiation (path_id, end_epoch, start_epoch, path_state) values (?, -1, unix_timestamp(NOW()), ?)";
+
+        
+
+        my $path_instantiation_id = $self->_execute_query($query, [$path_id, $path_state]);
+
+        if (! defined $path_instantiation_id ){
+            $self->_set_error("Error while instantiating path record.");
+            $self->_rollback();
+            return;
+        }
+        
+        my %seen_endpoints;
+        # figure out all the nodes along this path so we can assign them an internal tag
+        foreach my $link (@$relevant_links){
+            my $info      = $self->get_link_by_name(name => $link);
+
+            if (! defined $info){
+                $self->_set_error("Unable to determine link with name \"$link\"");
+                $self->_rollback();
+                return;
+            }
             my $link_id = $info->{'link_id'};
-	    my $endpoints = $self->get_link_endpoints(link_id => $link_id);
+            my $endpoints = $self->get_link_endpoints(link_id => $link_id);
 
             #build set of endpoints
             #note: this is not safe being parallelized with this schema.
             my $interface_a_vlan_id;
             my $interface_z_vlan_id;
 
-	    foreach my $endpoint (@$endpoints){
-		my $node_id = $endpoint->{'node_id'};
+            foreach my $endpoint (@$endpoints){
+                my $node_id = $endpoint->{'node_id'};
                 my $interface_id = $endpoint->{'interface_id'};
                 my $interface_a_id = $endpoint->{'interface_a_id'};
                 my $interface_z_id = $endpoint->{'interface_z_id'};
 
-		# make sure we don't double assign
-		next if ($seen_endpoints{$interface_id});
-		$seen_endpoints{$interface_id} = 1;
-                
-		# figure out what internal ID we can use for this
-		my $internal_vlan = $self->_get_available_internal_vlan_id(node_id => $node_id,interface_id =>$interface_id);
+                # make sure we don't double assign
+                next if ($seen_endpoints{$interface_id});
+                $seen_endpoints{$interface_id} = 1;
+                        
+                # figure out what internal ID we can use for this
+                my $internal_vlan = $self->_get_available_internal_vlan_id(node_id => $node_id,interface_id =>$interface_id);
 
-		if (! defined $internal_vlan){
-		    $self->_set_error("Internal error finding available internal id for node $endpoint->{'node_name'}.");
-                    $self->_rollback();
-		    return;
-		}
+                if (! defined $internal_vlan){
+                $self->_set_error("Internal error finding available internal id for node $endpoint->{'node_name'}.");
+                $self->_rollback();
+                return;
+                }
                 if ($interface_a_id == $interface_id){
                     $interface_a_vlan_id = $internal_vlan;
                 }
                 elsif ($interface_z_id == $interface_id){
                     $interface_z_vlan_id = $internal_vlan;
                 }
-	    }
+            }
             $query = "insert into link_path_membership (link_id, path_id, end_epoch, start_epoch,interface_a_vlan_id,interface_z_vlan_id) values (?, ?, -1, unix_timestamp(NOW()),?,?)";
             if (!defined ($self->_execute_query($query, [$link_id, $path_id, $interface_a_vlan_id, $interface_z_vlan_id])) ){
-		$self->_set_error("Error adding link '$link' into path.");
+                $self->_set_error("Error adding link '$link' into path.");
                 $self->_rollback();
-		return;
-	    }
-	}
+                return;
+            }
+        }
 
     }
     # now check to verify that the topology makes sense
     my ($success, $error) = $self->{'topo'}->validate_paths(circuit_id => $circuit_id);
 
     if (! $success){
-	$self->_set_error($error);
+        $self->_set_error($error);
         $self->_rollback();
-	return;
+        return;
     }
 
     $self->_commit();
