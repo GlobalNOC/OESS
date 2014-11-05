@@ -16,7 +16,7 @@ use OESS::Database;
 use OESS::Circuit;
 use OESSDatabaseTester;
 
-use Test::More tests =>26;
+use Test::More tests =>3;
 use Test::Deep;
 use Data::Dumper;
 use Log::Log4perl;
@@ -27,23 +27,22 @@ my $db = OESS::Database->new( config => OESSDatabaseTester::getConfigFilePath() 
 
 my $ckt = OESS::Circuit->new( circuit_id => 4111, db => $db);
 
-warn $ckt->generate_clr();
 
 ok($ckt->has_backup_path(), "Circuit has backup path");
 
 my $flows = $ckt->get_flows();
 
-#my $index = 0;
-#foreach my $flow (@$flows){
-#    print "flow $index: ".$flow->to_human()."\n";
-#    $index++;
-#}
-#exit;
 
 ok(scalar(@$flows) == 24, "Total number of flows match " . scalar(@$flows));
 
-
 my @expected_flows;
+
+push(@expected_flows, OESS::FlowRule->new( dpid => 155569091328,
+                                           match => {'dl_vlan' => 157,
+                                                     'in_port' => 1},
+                                           actions => [{'set_vlan_vid' => 134},
+                                                       {'output' => 193}]));
+
 push(@expected_flows, OESS::FlowRule->new( dpid => 155569091328,
                                        match => {'dl_vlan' => 157,
                                                  'in_port' => 193},
@@ -329,39 +328,35 @@ push(@expected_flows, OESS::FlowRule->new('actions' => [
                               'in_port' => '2'
 				  }));
 
-#ok($flow_22->compare_flow( flow_rule => $flows->[21]), "Flow22 matches");
-
 push(@expected_flows, OESS::FlowRule->new( 'actions' => [
 				       {
-                                  'set_vlan_vid' => '134'
+                                           'set_vlan_vid' => '134'
 				       },
-				       {
-                                  'output' => '2'
-				       }
-                              ],
-                 'idle_timeout' => 0,
-                 'dpid' => '155568668928',
-				   'match' => {
-                              'dl_vlan' => 2055,
-                              'in_port' => '676'
-				   }));
+                                               {
+                                                   'output' => '2'
+                                               }
+                                           ],
+                                           'idle_timeout' => 0,
+                                           'dpid' => '155568668928',
+                                           'match' => {
+                                               'dl_vlan' => 2055,
+                                               'in_port' => '676'
+                                           }));
 
 push(@expected_flows, OESS::FlowRule->new( 'actions' => [
-				       {
-                                  'SET_VLAN_VID' => '2055'
-				       },
-				       {
-                                  'OUTPUT' => '676'
-				       }
-                              ],
-                 'IDLE_TIMEOUT' => 0,
-                 'DPID' => '155568668928',
-				   'MATCH' => {
-                              'DL_VLAN' => 140,
-                              'IN_PORT' => '2'
-				   }));
+                                               {'set_vlan_vid' => '2055'
+                                               },
+                                               {
+                                                   'output' => '676'
+                                               }
+                                           ],
+                                           'idle_timeout' => 0,
+                                           'dpid' => '155568668928',
+                                           'match' => {
+                                               'dl_vlan' => 140,
+                                               'in_port' => '2'
+                                           }));
 
-#ok($flow_24->compare_flow( flow_rule => $flows->[23]), "Flow24 Matches");
 my $failed_flow_compare = 0;
 foreach my $actual_flow (@$flows){
     my $found = 0;
