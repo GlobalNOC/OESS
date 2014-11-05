@@ -507,6 +507,45 @@ sub _generate_endpoint_flows {
         my $e_port = $endpoint->{'port_no'};
         my $e_vlan = $endpoint->{'tag'};
 
+        # handle interswitch circuit
+        foreach my $other_endpoint (@{$self->{'details'}->{'endpoints'}}){
+            # only want endpoints on the same node
+            next if( $endpoint->{'node'} ne $other_endpoint->{'node'} );
+            # only want local endpoints
+            next if( ($endpoint->{'local'} == 0) || ($other_endpoint->{'local'} == 0) );
+            # only want endpoints on the same node on a different interface
+            next if( $endpoint->{'port_no'} eq $other_endpoint->{'port_no'} );
+
+            # if we've gotten here we have an interswitch circuit and le rules for it 
+            my $other_e_port = $other_endpoint->{'port_no'};
+            my $other_e_vlan = $other_endpoint->{'tag'};
+
+            # coming in endpoint going out to other_endpoint
+            push(@{$self->{'flows'}{'endpoint'}{$path}}, OESS::FlowRule->new(
+                dpid  => $e_dpid,
+                match => {
+                    dl_vlan => $e_vlan,
+                    in_port => $e_port
+                },
+                actions => [
+                    {'set_vlan_vid' => $other_e_vlan},
+                    {'output'       => $other_e_port}
+                ]
+            ));
+            # coming in other_endpoint going out endpoint
+            push(@{$self->{'flows'}{'endpoint'}{$path}}, OESS::FlowRule->new(
+                dpid  => $e_dpid,
+                match => {
+                    dl_vlan => $other_e_vlan,
+                    in_port => $other_e_port
+                },
+                actions => [
+                    {'set_vlan_vid' => $e_vlan},
+                    {'output'       => $e_port}
+                ]
+            ));
+        }
+
         foreach my $node_exit (@{$path_dict->{$e_node}}){
             # rule for data coming from the endpoint out to the circuit path
             my $from_endpoint = OESS::FlowRule->new(
