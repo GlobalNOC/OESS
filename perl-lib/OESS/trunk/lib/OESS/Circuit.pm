@@ -5,7 +5,6 @@ use warnings;
 
 package OESS::Circuit;
 
-use Storable qw(dclone);
 use Log::Log4perl;
 use OESS::FlowRule;
 use Graph::Directed;
@@ -502,42 +501,41 @@ sub _generate_endpoint_flows {
     # otherwise generate rules normally 
     # get a hash of all of the ways we know how to exit a node on our path
     my $path_dict  = $self->{'path'}{$path};
-    my $node_exits = dclone($path_dict);
     foreach my $endpoint (@{$self->{'details'}->{'endpoints'}}) {
         my $e_node = $endpoint->{'node'};
         my $e_dpid = $self->{'dpid_lookup'}{$e_node};
         my $e_port = $endpoint->{'port_no'};
         my $e_vlan = $endpoint->{'tag'};
 
-        my $node_exit = pop(@{$node_exits->{$e_node}});
-
-        # rule for data coming from the endpoint out to the circuit path
-        my $from_endpoint = OESS::FlowRule->new( 
-            dpid  => $e_dpid, 
-            match => {
-                dl_vlan => $e_vlan, 
-                in_port => $e_port
-            },
-            actions => [
-                {'set_vlan_vid' => $node_exit->{'remote_port_vlan'}},
-                {'output'       => $node_exit->{'port'}}
-            ]
-        );
-        # rule for data coming from inside to circuit path to the endpoint
-        my $to_endpoint = OESS::FlowRule->new(
-            dpid  => $e_dpid, 
-            match => {
-                dl_vlan => $node_exit->{'port_vlan'},
-                in_port => $node_exit->{'port'}
-            },
-            actions => [
-                {'set_vlan_vid' => $e_vlan},
-                {'output'       => $e_port}
-            ]
-        );
-        # push our rules onto our endpoint rule hash
-        push(@{$self->{'flows'}{'endpoint'}{$path}},$from_endpoint);
-        push(@{$self->{'flows'}{'endpoint'}{$path}},$to_endpoint);
+        foreach my $node_exit (@{$path_dict->{$e_node}}){
+            # rule for data coming from the endpoint out to the circuit path
+            my $from_endpoint = OESS::FlowRule->new(
+                dpid  => $e_dpid,
+                match => {
+                    dl_vlan => $e_vlan,
+                    in_port => $e_port
+                },
+                actions => [
+                    {'set_vlan_vid' => $node_exit->{'remote_port_vlan'}},
+                    {'output'       => $node_exit->{'port'}}
+                ]
+            );
+            # rule for data coming from inside to circuit path to the endpoint
+            my $to_endpoint = OESS::FlowRule->new(
+                dpid  => $e_dpid,
+                match => {
+                    dl_vlan => $node_exit->{'port_vlan'},
+                    in_port => $node_exit->{'port'}
+                },
+                actions => [
+                    {'set_vlan_vid' => $e_vlan},
+                    {'output'       => $e_port}
+                ]
+            );
+            # push our rules onto our endpoint rule hash
+            push(@{$self->{'flows'}{'endpoint'}{$path}},$from_endpoint);
+            push(@{$self->{'flows'}{'endpoint'}{$path}},$to_endpoint);
+        }
     }
 }
 
