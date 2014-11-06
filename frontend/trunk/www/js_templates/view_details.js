@@ -381,7 +381,8 @@ function setupMeasurementGraph(){
 					 title:      session.data.description,
 					 title_div:    YAHOO.util.Dom.get("traffic_title"),
 					 circuit_id: session.data.circuit_id,
-					 start:      then,
+                                         timeframe:  600,
+                                         start:      then,
 					 end:        now
 				     }
 				     );
@@ -389,8 +390,9 @@ function setupMeasurementGraph(){
     var time_select = new YAHOO.util.Element(YAHOO.util.Dom.get("traffic_time"));
     time_select.on("change", function(){
 	    var new_start = this.get('element').options[this.get('element').selectedIndex].value;
-        var date = new Date();
-	    graph.options.end   = date.valueOf() / 1000;
+            graph.options.timeframe = new_start;
+            var date = new Date();
+            graph.options.end   = date.valueOf() / 1000;
 	    graph.options.start = graph.options.end - new_start;
 	    graph.render();
 	});

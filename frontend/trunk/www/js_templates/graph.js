@@ -10,6 +10,8 @@ function MeasurementGraph(container, legend_container, options){
     this.updating         = null;
     this.POLL_INTERVAL    = 10000; // testing value 60000
 
+    this.options.start = (Date.now() / 1000) - this.options.timeframe;
+    this.options.end = Date.now() / 1000;
     var round = function(value){
 	return Math.round(value*100)/100;
     }
@@ -199,8 +201,9 @@ function MeasurementGraph(container, legend_container, options){
 
 	this.updating = setInterval(function(self){
 		return function(){
-                    self.options.start += (self.POLL_INTERVAL / 1000);
-                    self.options.end   += (self.POLL_INTERVAL / 1000);
+                    var time = Date.now() / 1000;
+                    self.options.start = time - self.options.timeframe;
+                    self.options.end   = time;
 		    self.render(true);
 		}
 	    }(this), this.POLL_INTERVAL);
