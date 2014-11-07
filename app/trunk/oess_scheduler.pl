@@ -3,6 +3,7 @@
 use strict;
 use OESS::Database;
 use OESS::DBus;
+use OESS::Circuit;
 use XML::Simple;
 use Sys::Syslog qw(:standard :macros);
 use FindBin;
