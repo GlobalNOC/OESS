@@ -259,7 +259,8 @@ sub update_cache{
         
     }else{
         my $event_id = $self->_generate_unique_event_id();
-        my $ckt = $self->get_ckt_obj($circuit_id);
+        
+        my $ckt = $self->get_ckt_object($circuit_id);
         if(!defined($ckt)){
             return (FWDCTL_FAILURE,$event_id);   
         }

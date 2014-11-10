@@ -443,7 +443,7 @@ sub to_dbus{
 
 	foreach my $key (keys (%$action)){
             $self->{'logger'}->trace("Processing action: " . $key . " " . $action->{$key});
-	    switch ($key){
+	    switch (lc($key)){
 		case "output" {
 		    #look at OF1.0 spec when sending ofp_action_output
 		    #it takes a max_length and a port
@@ -499,7 +499,6 @@ sub to_dbus{
 		    
 		}else{
                     $self->{'logger'}->error("Error unsupported action: " . $key . "\n");
-		    $self->{'logger'}->error("Error unsupported action: " . $key . "\n");
 		    return;
 		}
 	    }
@@ -624,7 +623,7 @@ sub to_human{
             if($action_str ne ''){
 		$action_str .= '          ';
 	    }
-	    switch ($key){
+	    switch (lc($key)){
                 case "output" {
                     #look at OF1.0 spec when sending ofp_action_output
                     #it takes a max_length and a port

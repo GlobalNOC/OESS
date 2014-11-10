@@ -365,31 +365,30 @@ sub _generate_static_mac_path_flows{
     }else{
 	$links = $self->{'details'}->{'backup_links'};
     }    
-    
+
     #need to setup some data structures to get the data we want
     foreach my $link (@{$links}) {
-	my $node_a = $link->{'node_a'};
-	my $node_z = $link->{'node_z'};
-	my $interface_a =$link->{'interface_a_id'};
+        my $node_a = $link->{'node_a'};
+        my $node_z = $link->{'node_z'};
+        my $interface_a =$link->{'interface_a_id'};
         my $interface_z = $link->{'interface_z_id'};
 
-	if(!defined($in_ports{$node_a})){
-	    $in_ports{$node_a} = ();
-	}
-	
+        if(!defined($in_ports{$node_a})){
+            $in_ports{$node_a} = ();
+        }
+        
         if(!defined($in_ports{$node_z})){
             $in_ports{$node_z} = ();
         }
 
-	push(@{$in_ports{$node_a}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_a'}, tag => $internal_ids->{$path}{$node_z}{$interface_z}});
-	push(@{$in_ports{$node_z}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_z'}, tag => $internal_ids->{$path}{$node_a}{$interface_a}});
-	
-	$finder{$node_a}{$node_z} = $link;
-	$finder{$node_z}{$node_a} = $link;
+        push(@{$in_ports{$node_a}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_a'}, tag => $internal_ids->{$path}{$node_z}{$interface_z}});
+        push(@{$in_ports{$node_z}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_z'}, tag => $internal_ids->{$path}{$node_a}{$interface_a}});
+        
+        $finder{$node_a}{$node_z} = $link;
+        $finder{$node_z}{$node_a} = $link;
     }
 
-    my $path_vlan_ids = $self->{'vlan_ids'}->{$path};
-
+    
     my @verts = $graph->vertices;
     
     
@@ -406,11 +405,11 @@ sub _generate_static_mac_path_flows{
 	$self->{'logger'}->debug("Processing a complex node with more than 2 edges");
 	#complex node!!! take the endpoints and find the paths to each of them!
 	my @edges = $graph->edges_to($vert);
+
 	foreach my $edge ($graph->edges_to($vert)){
 	    $self->{'logger'}->debug("Finding link between " . $edge->[0] . " and " . $edge->[1]);
-	    my $link = $finder{$edge->[0]}{$edge->[1]};
-	    
-	    #this will process
+	    #my $link = $finder{$edge->[0]}{$edge->[1]};
+            #this will process
 	    foreach my $endpoint (@{$self->{'details'}->{'endpoints'}}){
 		$self->{'logger'}->debug("Finding shortest path between " . $vert . " and " . $endpoint->{'node'});
 		
@@ -422,24 +421,26 @@ sub _generate_static_mac_path_flows{
 		
 		    if(!defined($link)){
 			$self->{'logger'}->error("Couldn't find the link... but there should be one!");
-			    next;
+                        next;
 		    }
-		    $self->{'logger'}->debug("Its a link!");
-		    
+                    warn "LINK: " . Data::Dumper::Dumper($link);
 		    my $port;
                     my $interface_id;
 		    if($link->{'node_a'} eq $vert){
 			$port = $link->{'port_no_a'};
-                        $interface_id = $link->{'interface_a_id'}
+                        $interface_id = $link->{'interface_z_id'}
 		    }else{
 			$port = $link->{'port_no_z'};
-                        $interface_id = $link->{'interface_z_id'}
+                        $interface_id = $link->{'interface_a_id'}
 		    }
 		    
 		    foreach my $in_port (@{$in_ports{$vert}}){
 			#if the in port matches the out port go on to next
 			next if($in_port->{'port_no'} == $port);
-			
+
+                        warn "INTERFACE_ID: " . Data::Dumper::Dumper($interface_id);
+                        warn "STATIC MAC PATH FLOW: " . Data::Dumper::Dumper($internal_ids->{$path}{$next_hop[1]});
+			warn "SET_VLAN_VID: " . $internal_ids->{$path}{$next_hop[1]}{$interface_id} . "\n";
 			#for each mac addr
 			foreach my $mac_addr (@{$endpoint->{'mac_addrs'}}){
 			    
@@ -466,7 +467,6 @@ sub _generate_static_mac_path_flows{
 
 			#if the in port matches the out port go on to next
 			next if($in_port->{'port_no'} == $endpoint->{'port_no'});
-			
 			#for each mac addr
 			foreach my $mac_addr (@{$endpoint->{'mac_addrs'}}){
 			    
@@ -474,7 +474,7 @@ sub _generate_static_mac_path_flows{
 			    my $flow = OESS::FlowRule->new( match => {'dl_vlan' => $in_port->{'tag'},
 								      'in_port' => $in_port->{'port_no'},
 								      'dl_dst' => OESS::Database::mac_hex2num($mac_addr->{'mac_address'})},
-							    priority =>35000,
+							    priority =>35001,
 							    dpid => $self->{'dpid_lookup'}->{$vert},
 							    actions => [{'set_vlan_vid' => $endpoint->{'tag'}},
 									{'output' => $endpoint->{'port_no'}}]);

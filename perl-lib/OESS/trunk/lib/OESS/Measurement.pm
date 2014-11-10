@@ -190,11 +190,16 @@ sub get_circuit_data {
         if($int->{'node'} eq $node){
             if( ( !defined($interface) && !defined($selected) ) || $int->{'int'} eq $interface){
                 $selected = $int;
+                push(@interfaces_on_node,$int);
             }else{
                 push(@interfaces_on_node,$int);
             }
         }
     }
+
+    warn "Selected: " . Data::Dumper::Dumper($selected);
+    
+    warn "Interfaces: " . Data::Dumper::Dumper(@interfaces_on_node);
     #now we have selected an interface and have a list of all the other interfaces on that node
     #generate our data
     return $self->get_data( interface => $selected, other_ints => \@interfaces_on_node, start_time => $start, end_time => $end);
@@ -233,20 +238,24 @@ sub get_data {
     my $sth = $self->{'dbh'}->prepare($query);
     $sth->execute();
     if(my $row = $sth->fetchrow_hashref()){
-    $rrd_dir = $row->{'value'};
+        $rrd_dir = $row->{'value'};
     }
     my $node = $self->{'db'}->get_node_by_name( name => $selected->{'node'});
     #get all the host details for the interfaces host
     my $host = $self->get_host_by_external_id($node->{'node_id'});
+    warn Data::Dumper::Dumper($host);
     #find the collections RRD file in SNAPP
+    warn "Looking for collection\n";
+    warn Data::Dumper::Dumper($selected);
     my $collection = $self->_find_rrd_file_by_host_int_and_vlan($host->{'host_id'},$selected->{'port_no'},$selected->{'tag'});
     if(defined($collection)){
+        warn "Collection Found!!\n";
 	my $rrd_file = $rrd_dir . $collection->{'rrdfile'};
-    my $data;
-    my $input  = $self->get_rrd_file_data( file => $rrd_file, start_time => $start, end_time => $end);
-    push(@{$data},{name => 'Input (Bps)',
-                   data => $input});
-    my $output_agg;
+        my $data;
+        my $input  = $self->get_rrd_file_data( file => $rrd_file, start_time => $start, end_time => $end);
+        push(@{$data},{name => 'Input (Bps)',
+                       data => $input});
+        my $output_agg;
         foreach my $other_int (@$other_ints){
             my $other_collection = $self->_find_rrd_file_by_host_int_and_vlan($host->{'host_id'},$other_int->{'port_no'},$other_int->{'tag'});
             if(defined($other_collection)){
@@ -255,7 +264,7 @@ sub get_data {
                 $output_agg = aggregate_data($output_agg,$output);
             }
         }
-
+        
         push(@{$data},{name => 'Output (Bps)',
                        data => $output_agg});
 

@@ -3424,7 +3424,7 @@ sub get_circuit_endpoints {
 
     if ($args{'show_historical'} ){
         #we set end_epoch in bulk, so it should be safe to get the set of edge_interfaces with the max end_epoch.
-        $query .= "circuit_edge_interface_membership.end_epoch = (select max(end_epoch) from circuit_edge_interface_membership where circuit_id = ? ))";
+        $query .= "circuit_edge_interface_membership.end_epoch = (select max(end_epoch) from circuit_edge_interface_membership where circuit_id = ? )";
         push(@bind_values,$args{'circuit_id'});
     }else{
         $query .= "circuit_edge_interface_membership.end_epoch = -1";
