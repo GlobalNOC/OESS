@@ -30,7 +30,7 @@ use strict;
 use warnings;
 
 use CGI;
-use JSON;
+use JSON::XS;
 use Switch;
 use Data::Dumper;
 
@@ -40,6 +40,11 @@ use OESS::Database;
 use OESS::Topology;
 use OESS::Circuit;
 use Log::Log4perl;
+
+#link statuses
+use constant OESS_LINK_UP       => 1;
+use constant OESS_LINK_DOWN     => 0;
+use constant OESS_LINK_UNKNOWN  => 2;
 
 my $db   = new OESS::Database();
 my $topo = new OESS::Topology();
@@ -397,26 +402,38 @@ sub get_existing_circuits {
         }
     }
 
+    my %link_status;
+    my $links = $db->get_current_links();
+    foreach my $link (@$links){
+        if($link->{'status'} eq 'up'){
+            $link_status{$link->{'name'}} = OESS_LINK_UP;
+        }elsif($link->{'status'} eq 'down'){
+            $link_status{$link->{'name'}} = OESS_LINK_DOWN;
+        }else{
+            $link_status{$link->{'name'}} = OESS_LINK_UNKNOWN;
+        }
+    }
+
+    my $link_status = 
+
     my $circuits = $db->get_current_circuits(
         workgroup_id   => $workgroup_id,
         endpoint_nodes => \@endpoint_nodes,
-        path_nodes     => \@path_nodes
+        path_nodes     => \@path_nodes,
+        link_status    => \%link_status
     );
 
     my @res;
 
     foreach my $circuit (@$circuits) {
-        my $ckt = OESS::Circuit->new( circuit_id => $circuit->{'circuit_id'}, db => $db);
-        my $circuit_details = $ckt->get_details();
-        $circuit->{'details'} = $circuit_details;
-        push( @res, $circuit );
+        push( @res, $circuit->get_details() );
     }
 
     if ( !defined $circuits ) {
         $results->{'error'} = $db->get_error();
     }
     else {
-        $results->{'results'} = $circuits;
+        $results->{'results'} = \@res;
     }
 
     return $results;
