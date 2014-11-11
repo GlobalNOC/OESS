@@ -423,7 +423,7 @@ sub _generate_static_mac_path_flows{
 			$self->{'logger'}->error("Couldn't find the link... but there should be one!");
                         next;
 		    }
-                    warn "LINK: " . Data::Dumper::Dumper($link);
+
 		    my $port;
                     my $interface_id;
 		    if($link->{'node_a'} eq $vert){
@@ -438,9 +438,6 @@ sub _generate_static_mac_path_flows{
 			#if the in port matches the out port go on to next
 			next if($in_port->{'port_no'} == $port);
 
-                        warn "INTERFACE_ID: " . Data::Dumper::Dumper($interface_id);
-                        warn "STATIC MAC PATH FLOW: " . Data::Dumper::Dumper($internal_ids->{$path}{$next_hop[1]});
-			warn "SET_VLAN_VID: " . $internal_ids->{$path}{$next_hop[1]}{$interface_id} . "\n";
 			#for each mac addr
 			foreach my $mac_addr (@{$endpoint->{'mac_addrs'}}){
 			    
@@ -522,6 +519,7 @@ sub _generate_endpoint_flows {
 
             # coming in endpoint going out to other_endpoint
             push(@{$self->{'flows'}{'endpoint'}{$path}}, OESS::FlowRule->new(
+                priority => 301,
                 dpid  => $e_dpid,
                 match => {
                     dl_vlan => $e_vlan,
@@ -534,6 +532,7 @@ sub _generate_endpoint_flows {
             ));
             # coming in other_endpoint going out endpoint
             push(@{$self->{'flows'}{'endpoint'}{$path}}, OESS::FlowRule->new(
+                priority => 302,
                 dpid  => $e_dpid,
                 match => {
                     dl_vlan => $other_e_vlan,
@@ -544,11 +543,13 @@ sub _generate_endpoint_flows {
                     {'output'       => $e_port}
                 ]
             ));
+
         }
 
         foreach my $node_exit (@{$path_dict->{$e_node}}){
             # rule for data coming from the endpoint out to the circuit path
             my $from_endpoint = OESS::FlowRule->new(
+                priority => 303,
                 dpid  => $e_dpid,
                 match => {
                     dl_vlan => $e_vlan,
@@ -561,6 +562,7 @@ sub _generate_endpoint_flows {
             );
             # rule for data coming from inside to circuit path to the endpoint
             my $to_endpoint = OESS::FlowRule->new(
+                priority => 304,
                 dpid  => $e_dpid,
                 match => {
                     dl_vlan => $node_exit->{'port_vlan'},
@@ -606,62 +608,88 @@ sub _generate_loopback_endpoint_flows {
     # get the info we need to get to/from the adjacent nodes from our loop endpoint
     my @rules    = ();
     my @links = sort({ $a->{'name'} cmp $b->{'name'} } @{$self->{'details'}{$link_type}});
-    foreach my $l (@links){
-        my $id;
-        # pick either endpoints node (should be the same since its a loopback circuit)
-        my $interface_id;
-        if( $l->{'node_a'} eq $endpoints[0]{'node'} ){
-            $id='a';
-            $interface_id = $l->{'interface_a_id'};
+
+    if(scalar(@links) == 0){
+        #endpoint to endpoint rules
+
+        for(my $i=0;$i<scalar(@endpoints);$i++){
+            my $e  = $endpoints[$i];
+            my @actions;
+            for(my $j=0;$j<scalar(@endpoints);$j++){
+                next if($i==$j);
+                my $remote_port = $endpoints[$j];
+                
+                push(@actions,{'set_vlan_vid' => $remote_port->{'tag'}});
+                push(@actions,{'output' => $remote_port->{'port_no'}});
+            }
+            
+            
+            push(@{$self->{'flows'}->{'endpoint'}->{$path}}, OESS::FlowRule->new(
+                     match => {
+                         'dl_vlan' => $e->{'tag'},
+                         'in_port' => $e->{'port_no'}
+                     },
+                     dpid => $self->{'dpid_lookup'}->{$e->{'node'}},
+                     actions => \@actions
+                 ));    
         }
-        
-        if( $l->{'node_z'} eq $endpoints[0]{'node'} ){
-            $id = 'z';
-            $interface_id = $l->{'interface_z_id'};
+
+    }else{
+    
+        foreach my $l (@links){
+            my $id;
+            # pick either endpoints node (should be the same since its a loopback circuit)
+            my $interface_id;
+            if( $l->{'node_a'} eq $endpoints[0]{'node'} ){
+                $id='a';
+                $interface_id = $l->{'interface_a_id'};
+            }
+            
+            if( $l->{'node_z'} eq $endpoints[0]{'node'} ){
+                $id = 'z';
+                $interface_id = $l->{'interface_z_id'};
+            }
+            if(defined($id)){
+                my $port_dict = &$get_port_dict( $l->{"node_$id"}, $l->{"port_no_$id"} );
+                push(@rules, { remote_port_vlan => $port_dict->{'remote_port_vlan'}, 
+                               port => $l->{"port_no_$id"},
+                               port_vlan => $port_dict->{'port_vlan'}
+                     });
+            }
         }
-        if(defined($id)){
-            my $port_dict = &$get_port_dict( $l->{"node_$id"}, $l->{"port_no_$id"} );
-            push(@rules, {
-                remote_port_vlan => $port_dict->{'remote_port_vlan'}, 
-                port => $l->{"port_no_$id"},
-                port_vlan => $port_dict->{'port_vlan'}
-            });
+
+        foreach my $e (@endpoints){
+            my $rule             = pop(@rules);
+            my $port_to_adj_node = $rule->{'port'};
+            my $remote_port_vlan = $rule->{'remote_port_vlan'};
+            my $port_vlan        = $rule->{'port_vlan'};
+            
+            # create the rule coming from the edge interface out to an adjacent node
+            push(@{$self->{'flows'}->{'endpoint'}->{$path}}, OESS::FlowRule->new(
+                     match => {
+                         'dl_vlan' => $e->{'tag'},
+                         'in_port' => $e->{'port_no'}
+                     },
+                     dpid => $self->{'dpid_lookup'}->{$e->{'node'}},
+                     actions => [
+                         {'set_vlan_vid' => $remote_port_vlan },
+                         {'output' => $port_to_adj_node }
+                     ]
+                 ));
+            
+            # create the rule coming from an adjacent node into the edge interface
+            push(@{$self->{'flows'}->{'endpoint'}->{$path}}, OESS::FlowRule->new(
+                     match => {
+                         'dl_vlan' => $port_vlan,
+                         'in_port' => $port_to_adj_node
+                     },
+                     dpid => $self->{'dpid_lookup'}->{$e->{'node'}},
+                     actions => [
+                         {'set_vlan_vid' => $e->{'tag'}},
+                         {'output' => $e->{'port_no'}}
+                     ]
+                 ));
         }
-    }
-
-
-    foreach my $e (@endpoints){
-        my $rule             = pop(@rules);
-        my $port_to_adj_node = $rule->{'port'};
-        my $remote_port_vlan = $rule->{'remote_port_vlan'};
-        my $port_vlan        = $rule->{'port_vlan'};
-
-        # create the rule coming from the edge interface out to an adjacent node
-        push(@{$self->{'flows'}->{'endpoint'}->{$path}}, OESS::FlowRule->new(
-            match => {
-                'dl_vlan' => $e->{'tag'},
-                'in_port' => $e->{'port_no'}
-            },
-            dpid => $self->{'dpid_lookup'}->{$e->{'node'}},
-            actions => [
-                #{'set_vlan_vid' => $adj_node_vlan },
-                {'set_vlan_vid' => $remote_port_vlan },
-                {'output' => $port_to_adj_node }
-            ]
-        ));
-
-        # create the rule coming from an adjacent node into the edge interface
-        push(@{$self->{'flows'}->{'endpoint'}->{$path}}, OESS::FlowRule->new(
-            match => {
-                'dl_vlan' => $port_vlan,
-                'in_port' => $port_to_adj_node
-            },
-            dpid => $self->{'dpid_lookup'}->{$e->{'node'}},
-            actions => [
-                {'set_vlan_vid' => $e->{'tag'}},
-                {'output' => $e->{'port_no'}}
-            ]
-        ));
     }
 }
 sub _generate_path_flows {
@@ -694,6 +722,7 @@ sub _generate_path_flows {
                 next if($enter->{'port'} eq $exit->{'port'});
 
                 push(@{$self->{'flows'}{'path'}{$path}}, OESS::FlowRule->new(
+                    priority => 300,
                     match => {
                         dl_vlan => $enter->{'port_vlan'},
                         in_port => $enter->{'port'}
