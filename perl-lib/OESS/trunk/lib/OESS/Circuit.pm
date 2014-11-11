@@ -471,7 +471,7 @@ sub _generate_static_mac_path_flows{
 			    my $flow = OESS::FlowRule->new( match => {'dl_vlan' => $in_port->{'tag'},
 								      'in_port' => $in_port->{'port_no'},
 								      'dl_dst' => OESS::Database::mac_hex2num($mac_addr->{'mac_address'})},
-							    priority =>35001,
+							    priority =>35000,
 							    dpid => $self->{'dpid_lookup'}->{$vert},
 							    actions => [{'set_vlan_vid' => $endpoint->{'tag'}},
 									{'output' => $endpoint->{'port_no'}}]);
@@ -519,7 +519,6 @@ sub _generate_endpoint_flows {
 
             # coming in endpoint going out to other_endpoint
             push(@{$self->{'flows'}{'endpoint'}{$path}}, OESS::FlowRule->new(
-                priority => 301,
                 dpid  => $e_dpid,
                 match => {
                     dl_vlan => $e_vlan,
@@ -532,7 +531,6 @@ sub _generate_endpoint_flows {
             ));
             # coming in other_endpoint going out endpoint
             push(@{$self->{'flows'}{'endpoint'}{$path}}, OESS::FlowRule->new(
-                priority => 302,
                 dpid  => $e_dpid,
                 match => {
                     dl_vlan => $other_e_vlan,
@@ -549,7 +547,6 @@ sub _generate_endpoint_flows {
         foreach my $node_exit (@{$path_dict->{$e_node}}){
             # rule for data coming from the endpoint out to the circuit path
             my $from_endpoint = OESS::FlowRule->new(
-                priority => 303,
                 dpid  => $e_dpid,
                 match => {
                     dl_vlan => $e_vlan,
@@ -562,7 +559,6 @@ sub _generate_endpoint_flows {
             );
             # rule for data coming from inside to circuit path to the endpoint
             my $to_endpoint = OESS::FlowRule->new(
-                priority => 304,
                 dpid  => $e_dpid,
                 match => {
                     dl_vlan => $node_exit->{'port_vlan'},
@@ -722,7 +718,6 @@ sub _generate_path_flows {
                 next if($enter->{'port'} eq $exit->{'port'});
 
                 push(@{$self->{'flows'}{'path'}{$path}}, OESS::FlowRule->new(
-                    priority => 300,
                     match => {
                         dl_vlan => $enter->{'port_vlan'},
                         in_port => $enter->{'port'}
