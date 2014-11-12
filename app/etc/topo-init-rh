@@ -54,7 +54,7 @@ case "$1" in
         if [ $IS_RUNNING != 0 ];then
             failure; echo
         else
-            $command
+            $command -d
 
             if [ $? -eq 0 ]; then
                 touch $lockfile
