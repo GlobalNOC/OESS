@@ -7025,7 +7025,10 @@ from link_path_membership
 join link on (link.link_id = link_path_membership.link_id)
 join link_instantiation 
 on link.link_id = link_instantiation.link_id
+and link_instantiation.end_epoch=-1
 and (link_instantiation.interface_a_id = ? or link_instantiation.interface_z_id = ?)
+join path_instantiation on link_path_membership.path_id = path_instantiation.path_id
+and path_instantiation.end_epoch = -1
 ";    
 
     my %used;
