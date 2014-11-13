@@ -25,7 +25,7 @@ import logging
 import struct
 import time
 import socket
-
+import array
 from ryu import cfg
 from ryu.base import app_manager
 from ryu.controller import ofp_event
@@ -39,7 +39,7 @@ from ryu.lib import dpid as dpid_lib
 from ryu.app.wsgi import ControllerBase, WSGIApplication, route
 from ryu.lib.packet import packet
 from ryu.lib.packet import ethernet
-
+from ryu.lib.packet import vlan
 import logging
 import dbus
 import dbus.service
@@ -58,6 +58,7 @@ FWDCTL_UNKNOWN = 3
 PENDING  = 0
 ANSWERED = 1
 
+NDP_MULTICAST = '012320000001'
 FORMAT = '%(asctime)-15s  %(message)s'
 logging.basicConfig(format=FORMAT)
 logger = logging.getLogger('org.nddi.openflow')
@@ -102,7 +103,7 @@ class dBusEventGen(dbus.service.Object):
     @dbus.service.signal(dbus_interface=ifname,
                          signature='tqtqt')
     def fv_packet_in(self, src_dpid, src_port, dst_dpid, dst_port, timestamp):
-        string = "fv packet in: " + str(self.packets_in)
+        logger.info("FV Packet IN!!")
         
     @dbus.service.signal(dbus_interface=ifname,
                          signature='tqtqs')
@@ -149,12 +150,11 @@ class dBusEventGen(dbus.service.Object):
                          in_signature='t',
                          out_signature='iaa{sv}'
                          )
-    def get_flow_stats(self, dpid):
-        print "Get Flow Stats!!!!!"
-        string = "get_flow_stats: " + str(dpid)
-        logger.info(string)
+    def get_flow_stats(self, dpid_uint):
+        dpid = "%016x" % dpid_uint
+        logger.info("get_flow_stats: " + dpid)
+
         if last_flow_stats.has_key(dpid):
-            #build an array of DBus Dicts
             flow_stats = []
             for item in last_flow_stats[dpid]["flows"]:
                 match = dbus.Dictionary(item['match'], signature='sv', variant_level = 2)
@@ -163,10 +163,12 @@ class dBusEventGen(dbus.service.Object):
                 flow_stats.append(dict)
 
             return (last_flow_stats[dpid]["time"],flow_stats)
+
         else:
+
             logger.info("No Flow stats cached for dpid: " + str(dpid))
             return (-1, [{"flows": "not yet cached"}])
-            
+           
 
     @dbus.service.method(dbus_interface=ifname,
                          in_signature='t',
@@ -395,13 +397,17 @@ def port_status_callback(sg, dp_id, ofp_port_reason, attrs):
     #--- generate signal   
     sg.port_status(dp_id,ofp_port_reason,attr_dict)
 
-def fv_packet_in_callback(sg,dp,inport,reason,len,packet):
-    if(packet.type == ethernet.VLAN_TYPE):
-        packet = packet.next
+def fv_packet_in_callback(sg,dp,inport,reason,len,pkt):
+    packet = pkt.get_protocol(ethernet.ethernet)
+    header_len = ethernet.ethernet._MIN_LEN
+    if(packet.ethertype == ether.ETH_TYPE_8021Q):
+        packet = pkt.get_protocol(vlan.vlan)
+        header_len += vlan.vlan._MIN_LEN
 
-    string = packet.next
-    logger.info(string.encode('hex'))
-    (src_dpid,src_port,dst_dpid,dst_port,timestamp) = struct.unpack('QHQHq',string[:40])
+    
+    string = pkt.data.tostring()
+
+    (src_dpid,src_port,dst_dpid,dst_port,timestamp) = struct.unpack('QHQHq',string[header_len: header_len + 40])
     
     #verify the packet came in from expected node/port
     if(dst_dpid != dp):
@@ -534,7 +540,7 @@ class oess_dbus(app_manager.RyuApp):
                     [HANDSHAKE_DISPATCHER, CONFIG_DISPATCHER, MAIN_DISPATCHER])
     def _error_handler(self, ev):
         msg = ev.msg
-        pprint.pprint(msg)
+        #logger.error("Received an OpenFlow Error: %s %d %d" % ev.msg.datapath.id, msg.type, msg.code)
         error_callback(self.sg, ev.msg.datapath.id, msg.type, msg.code, msg.data, ev.msg.xid)
 
     @set_ev_cls(ofp_event.EventOFPStateChange,
@@ -544,7 +550,6 @@ class oess_dbus(app_manager.RyuApp):
 
         if ev.state == MAIN_DISPATCHER:
             if not datapath.id in self.datapaths:
-                print "Node Joined!!"
                 self.logger.debug('register datapath: %016x', datapath.id)
                 dpid = "%016x" % datapath.id
                 self.datapaths[dpid] = datapath
@@ -552,7 +557,7 @@ class oess_dbus(app_manager.RyuApp):
 
         elif ev.state == DEAD_DISPATCHER:
             if datapath.id in self.datapaths:
-                print "Node Left"
+                logger.info("Node: %016x has left" % datapath.id)
                 self.logger.debug('unregister datapath: %016x', datapath.id)
                 del self.datapaths[datapath.id]
                 datapath_leave_callback(self, self.sg, datapath.id)
@@ -590,22 +595,34 @@ class oess_dbus(app_manager.RyuApp):
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def _packet_in_handler(self, ev):
+        self.logger.info("Packet In received!!")
         msg = ev.msg
+        
+        pkt = packet.Packet(array.array('B', ev.msg.data))
         datapath = msg.datapath
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
-        in_port = msg.match['in_port']
-        dl_type = msg.match['dl_type']
-        dl_vlan = msg.match['dl_vlan']
-        pkt = packet.Packet(msg.data)
+        in_port = msg.in_port
+
+        eth_pkt = pkt.get_protocol(ethernet.ethernet)
+        dl_src = eth_pkt.src
+        dl_dst = eth_pkt.dst
+        dl_vlan = None
+        if(eth_pkt.ethertype == ether.ETH_TYPE_8021Q):
+            vlan_pkt = pkt.get_protocol(vlan.vlan)
+            dl_vlan = vlan_pkt.vid
+            dl_type = vlan_pkt.ethertype
+        else:
+            dl_type = eth_pkt.ethertype
+        
         dpid = datapath.id
-        self.logger.info("packet in %s %s %s %s", dpid, src, dst, in_port)
-        if(dl_vlan == self.VLAN_ID and dl_type == 34998):
-            fv_packet_in_callback(self.sg,dpid,in_port,len(pkt),pkt)
+        self.logger.info("packet in %s %s %s %s", dpid, dl_src, dl_dst, in_port)
+        if(dl_vlan == self.sg.VLAN_ID and dl_type == 34998):
+            fv_packet_in_callback(self.sg,dpid,in_port,msg.reason,len(pkt),pkt)
 
     def _flow_stat_request(self):
         while True:
-            print "Requesting Flow Stats"
+            logger.debug("Requesting Flow Stats")
             for datapath in self.datapaths.keys():
                 self._request_stats(self.datapaths[datapath])
             hub.sleep(30)
@@ -618,31 +635,39 @@ class oess_dbus(app_manager.RyuApp):
                         " packets: " + str(len(self.sg.packets)))
 
             for pkt in self.sg.packets:
-                logger.info("Packet:")
-                packet = ethernet()
-                packet.src = '\x00' + struct.pack('!Q',pkt[0])[3:8]
-                packet.dst = NDP_MULTICAST
-                
-                payload = struct.pack('QHQHq',pkt[0],pkt[1],pkt[2],pkt[3],time_val)
-                
-                if(self.sg.VLAN_ID != None and self.sg.VLAN_ID != 65535):
-                    vlan_packet = vlan()
-                    vlan_packet.id = self.sg.VLAN_ID
-                    vlan_packet.c = 0
-                    vlan_packet.pcp = 0
-                    vlan_packet.eth_type = 0x88b6
-                    vlan_packet.set_payload(payload)
-                    
-                    packet.set_payload(vlan_packet)
-                    packet.type = ethernet.VLAN_TYPE
-                    
-                else:
-                    packet.set_payload(payload)
-                    packet.type = 0x88b6
-                    
+                p = packet.Packet()              
+                source = '\x00' + struct.pack('!Q',pkt[0])[3:8]
+                source = source.encode('hex')
+                dpid = "%016x" % pkt[0]
+                if(dpid in self.datapaths.keys()):                    
+                    e = ethernet.ethernet( dst = NDP_MULTICAST, src = source, ethertype = ether.ETH_TYPE_8021Q)
+                    payload = struct.pack('QHQHq',pkt[0],pkt[1],pkt[2],pkt[3],time_val)
+                    p.data = payload
+                    #e.serialize(payload, None)
+                    if(self.sg.VLAN_ID != None and self.sg.VLAN_ID != 65535):
+                        v = vlan.vlan(pcp=0,vid=self.sg.VLAN_ID, ethertype=34998)
+                        p.add_protocol(e)
+                        p.add_protocol(v)
+                        logger.error("Sending with VLAN")
+                        
+                    else:
+                        logger.error("Sending without VLAN")
+                        p.add_protocol(e)
+
+
+                    p.serialize()
+                    datapath = self.datapaths[dpid]
+                    ofp    = datapath.ofproto
+                    parser = datapath.ofproto_parser
                     actions = [parser.OFPActionOutput(int(pkt[1]))]
-                    out = parser.OFPPacketOut(datapath=datapath, actions=actions, data=packet)
+                    out = parser.OFPPacketOut(datapath=datapath, actions=actions,
+                                              data=p.data + payload, buffer_id=ofp.OFP_NO_BUFFER,
+                                              in_port=65535)
+                    logger.info("Sending Packets!")
                     datapath.send_msg(out)
+                else:
+                    logger.error("Node %s is not currently connected, not sending FV packets" % source)
+
             hub.sleep(self.sg.fv_pkt_rate)
 
     @set_ev_cls(ofp_event.EventOFPFlowStatsReply, MAIN_DISPATCHER)
@@ -657,6 +682,12 @@ class oess_dbus(app_manager.RyuApp):
             match = stat.match.__dict__
             wildcards = stat.match.wildcards
             
+            if(match['dl_dst'] == '\x00\x00\x00\x00\x00\x00'):
+                del match['dl_dst']
+                
+            if(match['dl_src'] == '\x00\x00\x00\x00\x00\x00'):
+                del match['dl_src']
+
             flows.append({'match': match,
                           'wildcards': wildcards,
                           'packet_count': stat.packet_count
