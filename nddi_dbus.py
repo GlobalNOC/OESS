@@ -27,6 +27,7 @@ import time
 import socket
 import array
 from ryu import cfg
+from ryu.topology import event
 from ryu.base import app_manager
 from ryu.controller import ofp_event
 from ryu.controller.handler import MAIN_DISPATCHER, DEAD_DISPATCHER, CONFIG_DISPATCHER, HANDSHAKE_DISPATCHER
@@ -561,6 +562,20 @@ class oess_dbus(app_manager.RyuApp):
                 self.logger.debug('unregister datapath: %016x', datapath.id)
                 del self.datapaths[datapath.id]
                 datapath_leave_callback(self, self.sg, datapath.id)
+
+    @set_ev_cls(event.EventLinkDelete, MAIN_DISPATCHER)
+    def _link_delete_event(self, ev):
+        logger.error("Received Link delete event!")
+        logger.info("SRC DPID: %016x port_no: %d" % (ev.link.src.dpid, ev.link.src.port_no))
+        logger.info("DST DPID: %016x port_no: %d " % (ev.link.dst.dpid, ev.link.dst.port_no))
+        self.sg.link_event(ev.link.src.dpid, ev.link.src.port_no, ev.link.dst.dpid, ev.link.dst.port_no, "remove")
+
+    @set_ev_cls(event.EventLinkAdd, MAIN_DISPATCHER)
+    def _link_add_event(self, ev):
+        logger.error("Received Link ADD event!")
+        logger.info("SRC DPID: %016x port_no: %d " % (ev.link.src.dpid, ev.link.src.port_no))
+        logger.info("DST DPID: %016x port_no: %d " % (ev.link.dst.dpid, ev.link.dst.port_no))
+        self.sg.link_event(ev.link.src.dpid, ev.link.src.port_no, ev.link.dst.dpid, ev.link.dst.port_no, "add")
 
 
     @set_ev_cls(ofp_event.EventOFPBarrierReply, MAIN_DISPATCHER)
