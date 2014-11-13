@@ -45,7 +45,6 @@ import logging
 import dbus
 import dbus.service
 import gobject
-import pprint
 import struct
 from time import time
 
@@ -104,7 +103,7 @@ class dBusEventGen(dbus.service.Object):
     @dbus.service.signal(dbus_interface=ifname,
                          signature='tqtqt')
     def fv_packet_in(self, src_dpid, src_port, dst_dpid, dst_port, timestamp):
-        logger.info("FV Packet IN!!")
+        logger.debug("FV Packet IN!!")
         
     @dbus.service.signal(dbus_interface=ifname,
                          signature='tqtqs')
@@ -153,7 +152,7 @@ class dBusEventGen(dbus.service.Object):
                          )
     def get_flow_stats(self, dpid_uint):
         dpid = "%016x" % dpid_uint
-        logger.info("get_flow_stats: " + dpid)
+        logger.debug("get_flow_stats: " + dpid)
 
         if last_flow_stats.has_key(dpid):
             flow_stats = []
@@ -370,7 +369,7 @@ class dBusEventGen(dbus.service.Object):
     def send_barrier(self, dpid_uint):
 
         dpid = "%016x" % dpid_uint
-        logger.info("Sending barrier for %s" % dpid)
+        logger.debug("Sending barrier for %s" % dpid)
         
         if(dpid in self.controller.datapaths.keys()):
             datapath = self.controller.datapaths[dpid]
@@ -566,14 +565,14 @@ class oess_dbus(app_manager.RyuApp):
 
     @set_ev_cls(event.EventLinkDelete, MAIN_DISPATCHER)
     def _link_delete_event(self, ev):
-        logger.error("Received Link delete event!")
+        logger.info("Received Link delete event!")
         logger.info("SRC DPID: %016x port_no: %d" % (ev.link.src.dpid, ev.link.src.port_no))
         logger.info("DST DPID: %016x port_no: %d " % (ev.link.dst.dpid, ev.link.dst.port_no))
         self.sg.link_event(ev.link.src.dpid, ev.link.src.port_no, ev.link.dst.dpid, ev.link.dst.port_no, "remove")
 
     @set_ev_cls(event.EventLinkAdd, MAIN_DISPATCHER)
     def _link_add_event(self, ev):
-        logger.error("Received Link ADD event!")
+        logger.info("Received Link ADD event!")
         logger.info("SRC DPID: %016x port_no: %d " % (ev.link.src.dpid, ev.link.src.port_no))
         logger.info("DST DPID: %016x port_no: %d " % (ev.link.dst.dpid, ev.link.dst.port_no))
         self.sg.link_event(ev.link.src.dpid, ev.link.src.port_no, ev.link.dst.dpid, ev.link.dst.port_no, "add")
@@ -611,7 +610,7 @@ class oess_dbus(app_manager.RyuApp):
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def _packet_in_handler(self, ev):
-        self.logger.info("Packet In received!!")
+        self.logger.debug("Packet In received!!")
         msg = ev.msg
         
         pkt = packet.Packet(array.array('B', ev.msg.data))
@@ -632,7 +631,7 @@ class oess_dbus(app_manager.RyuApp):
             dl_type = eth_pkt.ethertype
         
         dpid = datapath.id
-        self.logger.info("packet in %s %s %s %s", dpid, dl_src, dl_dst, in_port)
+        self.logger.debug("packet in %s %s %s %s", dpid, dl_src, dl_dst, in_port)
         if(dl_vlan == self.sg.VLAN_ID and dl_type == 34998):
             fv_packet_in_callback(self.sg,dpid,in_port,msg.reason,len(pkt),pkt)
 
@@ -646,7 +645,7 @@ class oess_dbus(app_manager.RyuApp):
     def _start_fv_packets(self):
         while True:
             time_val = time() * 1000
-            logger.info("Sending FV Packets rate: " + str(self.sg.fv_pkt_rate)
+            logger.debug("Sending FV Packets rate: " + str(self.sg.fv_pkt_rate)
                         + " with vlan: " + str(self.sg.VLAN_ID) + 
                         " packets: " + str(len(self.sg.packets)))
 
@@ -664,10 +663,7 @@ class oess_dbus(app_manager.RyuApp):
                         v = vlan.vlan(pcp=0,vid=self.sg.VLAN_ID, ethertype=34998)
                         p.add_protocol(e)
                         p.add_protocol(v)
-                        logger.error("Sending with VLAN")
-                        
                     else:
-                        logger.error("Sending without VLAN")
                         p.add_protocol(e)
 
 
@@ -679,7 +675,7 @@ class oess_dbus(app_manager.RyuApp):
                     out = parser.OFPPacketOut(datapath=datapath, actions=actions,
                                               data=p.data + payload, buffer_id=ofp.OFP_NO_BUFFER,
                                               in_port=65535)
-                    logger.info("Sending Packets!")
+                    logger.debug("Sending Packets!")
                     datapath.send_msg(out)
                 else:
                     logger.error("Node %s is not currently connected, not sending FV packets" % source)
@@ -743,7 +739,6 @@ class oess_dbus(app_manager.RyuApp):
             self.flow_stats[dpid] = None
 
     def _request_stats(self,datapath):
-        print "Requested Stats"
         ofp    = datapath.ofproto
         parser = datapath.ofproto_parser
         

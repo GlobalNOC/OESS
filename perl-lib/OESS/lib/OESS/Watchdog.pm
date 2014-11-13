@@ -108,11 +108,11 @@ sub _process_config{
     $self->{'fvd'}->{'under_value'} = $config->{'monitoring'}->{'fvd'}->{'under_value'};
     $self->{'fvd'}->{'status'} = OESS_LOAD_UNKNOWN;
 
-    $self->{'nox'}->{'over_time'} = $config->{'monitoring'}->{'nox'}->{'over_seconds'};
-    $self->{'nox'}->{'over_value'} = $config->{'monitoring'}->{'nox'}->{'over_value'};
-    $self->{'nox'}->{'under_time'} = $config->{'monitoring'}->{'nox'}->{'under_seconds'};
-    $self->{'nox'}->{'under_value'} = $config->{'monitoring'}->{'nox'}->{'under_value'};
-    $self->{'nox'}->{'status'} = OESS_LOAD_UNKNOWN;
+    $self->{'ryu'}->{'over_time'} = $config->{'monitoring'}->{'ryu'}->{'over_seconds'};
+    $self->{'ryu'}->{'over_value'} = $config->{'monitoring'}->{'ryu'}->{'over_value'};
+    $self->{'ryu'}->{'under_time'} = $config->{'monitoring'}->{'ryu'}->{'under_seconds'};
+    $self->{'ryu'}->{'under_value'} = $config->{'monitoring'}->{'ryu'}->{'under_value'};
+    $self->{'ryu'}->{'status'} = OESS_LOAD_UNKNOWN;
 
     $self->{'vlan_stats'}->{'over_time'} = $config->{'monitoring'}->{'vlan_stats'}->{'over_seconds'};
     $self->{'vlan_stats'}->{'over_value'} = $config->{'monitoring'}->{'vlan_stats'}->{'over_value'};
@@ -138,7 +138,7 @@ sub do_work{
     #do some work
     $self->monitor_process_cpu('fvd');
     $self->monitor_process_cpu('vlan_stats');
-    $self->monitor_process_cpu('nox');
+    $self->monitor_process_cpu('ryu-manager');
     
     #check the resulting status
     if($self->{'fvd'}->{'status'} == OESS_OVERLOADED){
@@ -163,11 +163,11 @@ sub do_work{
     }
     
         #check the resulting status
-    if($self->{'nox'}->{'status'} == OESS_OVERLOADED){
+    if($self->{'ryu'}->{'status'} == OESS_OVERLOADED){
         if(-e WATCHDOG_FILE){
             $self->{'logger'}->debug("system is already signaled overloaded");
         }else{
-            $self->{'logger'}->warn("NOX determined to be overloaded!");
+            $self->{'logger'}->warn("Ryu determined to be overloaded!");
             my $cmd = 'touch ' . WATCHDOG_FILE;
             `$cmd`;
         }
@@ -176,7 +176,7 @@ sub do_work{
     #check for recovery
     if($self->{'vlan_stats'}->{'status'} != OESS_OVERLOADED &&
        $self->{'fvd'}->{'status'} != OESS_OVERLOADED &&
-       $self->{'nox'}->{'status'} != OESS_OVERLOADED){
+       $self->{'ryu'}->{'status'} != OESS_OVERLOADED){
         $self->{'logger'}->debug("System is in OK State.. verify no lock file exists");
         if(-e WATCHDOG_FILE){
                 #we are recovered remove this file
@@ -199,7 +199,7 @@ sub get_processes{
     my $table = $self->{'proc_table'}->table;
     $self->{'fvd'}->{'process'} = undef;
     $self->{'vlan_stats'}->{'process'} = undef;
-    $self->{'nox'}->{'process'} = undef;
+    $self->{'ryu'}->{'process'} = undef;
     foreach my $process (@$table){
         
         $self->{'logger'}->debug("Process: " . Data::Dumper::Dumper($process));
@@ -211,8 +211,8 @@ sub get_processes{
             case 'vlan_stats_d.pl'{
                 $self->{'vlan_stats'}->{'process'} = $process;
             }
-            case 'nox_core'{
-                $self->{'nox'}->{'process'} = $process;
+            case 'ryu-manager'{
+                $self->{'ryu'}->{'process'} = $process;
             }else{
                 next;
             }
@@ -223,8 +223,8 @@ sub get_processes{
         $self->{'logger'}->error("Unable to find a process called 'vlan_stats_d.pl'");
     }
 
-    if(!defined($self->{'nox'}->{'process'})){
-        $self->{'logger'}->error("Unable to find a process called 'nox_cored'");
+    if(!defined($self->{'ryu'}->{'process'})){
+        $self->{'logger'}->error("Unable to find a process called 'ryu'");
     }
 
     if(!defined($self->{'fvd'}->{'process'})){
