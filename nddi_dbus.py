@@ -37,6 +37,8 @@ from ryu.controller import dpset
 from ryu.lib import hub
 from ryu.lib import dpid as dpid_lib
 from ryu.app.wsgi import ControllerBase, WSGIApplication, route
+from ryu.lib.packet import packet
+from ryu.lib.packet import ethernet
 
 import logging
 import dbus
@@ -63,18 +65,14 @@ logger = logging.getLogger('org.nddi.openflow')
 ifname = 'org.nddi.openflow'
 
 flowmod_callbacks = {}
-switches = []
 last_flow_stats = {}
-fv_pkt_rate = 1
-packets = []
-VLAN_ID = None
-
 
 class dBusEventGenRo(dbus.service.Object):
 
     def __init__(self,bus,path,controller):
         dbus.service.Object.__init__(self,bus_name=bus, object_path=path)
         self.collection_epoch = 0
+
     @dbus.service.method(dbus_interface=ifname,
                          in_signature='t',
                          out_signature='b'
@@ -91,6 +89,9 @@ class dBusEventGen(dbus.service.Object):
     def __init__(self, bus, path,controller):
        dbus.service.Object.__init__(self, bus_name=bus, object_path=path)
        self.controller = controller
+       self.fv_pkt_rate = 1
+       self.VLAN_ID = None
+       self.packets = []
 
     @dbus.service.signal(dbus_interface=ifname,
                          signature='tua{sv}')
@@ -135,7 +136,7 @@ class dBusEventGen(dbus.service.Object):
         self.fv_pkt_rate = (rate / 1000.0)
         logger.info("Packet Our Rate: " + str(self.fv_pkt_rate))
         self.VLAN_ID = vlan
-        logger.info("VLAN ID: " + str(VLAN_ID))
+        logger.info("VLAN ID: " + str(self.VLAN_ID))
         self.packets = pkts
         return
         
@@ -149,6 +150,7 @@ class dBusEventGen(dbus.service.Object):
                          out_signature='iaa{sv}'
                          )
     def get_flow_stats(self, dpid):
+        print "Get Flow Stats!!!!!"
         string = "get_flow_stats: " + str(dpid)
         logger.info(string)
         if last_flow_stats.has_key(dpid):
@@ -217,24 +219,8 @@ class dBusEventGen(dbus.service.Object):
     def register_for_fv_in(self, vlan):
         #ether type 88b6 is experimental
         #88b6 IEEE 802.1 IEEE Std 802 - Local Experimental
-#        if(self.registered_for_fv_in == 1):
-#            return 1
-#        logger.info("Registered for packet in events for FV")
-#
-#        if(vlan == None):
-#            match = {
-#                DL_TYPE: 0x88b6,
-#                DL_DST: array_to_octstr(array.array('B', NDP_MULTICAST))
-#                }
-#        else:
-#            match = {
-#                DL_TYPE: 0x88b6,
-#                DL_DST: array_to_octstr(array.array('B',NDP_MULTICAST)),
-#                DL_VLAN: vlan
-#                }
-#
-#        inst.register_for_packet_match(lambda dpid, inport, reason, len, bid,packet : fv_packet_in_callback(self,dpid,inport,reason,len,bid,packet), 0xffff, match)
-#        self.registered_for_fv_in = 1
+        
+        
         return 1
 
     @dbus.service.method(dbus_interface=ifname,
@@ -335,7 +321,7 @@ class dBusEventGen(dbus.service.Object):
                          in_signature='ta{sv}a(qv)',
                          out_signature='t'
                          )
-    def delete_datapath_flow(self,dpid, attrs, actions ):
+    def delete_datapath_flow(self,dpid_uint, attrs, actions ):
         dpid = "%016x" % dpid_uint
 
         if not dpid in self.controller.datapaths.keys():
@@ -369,7 +355,7 @@ class dBusEventGen(dbus.service.Object):
 
         logger.info("Removed Flow Mod")
 
-        _do_install(dpid,xid,my_attrs,actions)
+        _do_install(dpid,xid,match,[])
 
         return xid
 
@@ -395,7 +381,7 @@ class dBusEventGen(dbus.service.Object):
             flowmod_callbacks[dpid][xid] = {"result": FWDCTL_WAITING}
             return xid
         else:
-            logger.error("No nod with dpid: %s" % dpid)
+            logger.error("No node with dpid: %s" % dpid)
             return -1
 
 #--- series of callbacks to glue the reception of NoX events to the generation of D-Bus events
@@ -409,7 +395,7 @@ def port_status_callback(sg, dp_id, ofp_port_reason, attrs):
     #--- generate signal   
     sg.port_status(dp_id,ofp_port_reason,attr_dict)
 
-def fv_packet_in_callback(sg,dp,inport,reason,len,bid,packet):
+def fv_packet_in_callback(sg,dp,inport,reason,len,packet):
     if(packet.type == ethernet.VLAN_TYPE):
         packet = packet.next
 
@@ -473,23 +459,21 @@ def datapath_leave_callback(sg,dp_id):
     sg.datapath_leave(dp_id)
 
 def barrier_reply_callback(sg,dp_id,xid):
-
-    intxid = c_ntohl(xid)
-
+    
     if flowmod_callbacks.has_key(dp_id):
         flows = flowmod_callbacks[dp_id]
-        if(flows.has_key(intxid)):
-            flows[intxid]["status"] = ANSWERED
-            flows[intxid]["result"] = FWDCTL_SUCCESS
-            if not flows[intxid].has_key("failed_flows"):
-                flows[intxid]["failed_flows"] = []
-            flows[intxid]["failed_flows"] = []
+        if(flows.has_key(xid)):
+            flows[xid]["status"] = ANSWERED
+            flows[xid]["result"] = FWDCTL_SUCCESS
+            if not flows[xid].has_key("failed_flows"):
+                flows[xid]["failed_flows"] = []
+            flows[xid]["failed_flows"] = []
             xids = flows.keys()
             for x in xids:
-                if(x < intxid):
+                if(x < xid):
                     if(flows[x]["result"] == FWDCTL_FAILURE):
-                        flows[intxid]["result"] = FWDCTL_FAILURE
-                        flows[intxid]["failed_flows"].append(flows[x])
+                        flows[xid]["result"] = FWDCTL_FAILURE
+                        flows[xid]["failed_flows"].append(flows[x])
                     del flows[x]
     sg.barrier_reply(dp_id,xid)
 
@@ -497,21 +481,17 @@ def barrier_reply_callback(sg,dp_id,xid):
 def error_callback(sg, dpid, error_type, code, data, xid):
     
     logger.error("handling error from %s, xid = %d" % (dpid, xid))
-    intxid = c_ntohl(xid)
     if flowmod_callbacks.has_key(dpid):
         flows = flowmod_callbacks[dpid]
-        if(flows.has_key(intxid)):
-            flows[intxid]["result"] = FWDCTL_FAILURE
-            flows[intxid]["error"] = {}
-            flows[intxid]["error"]["type"] = error_type
-            flows[intxid]["error"]["code"] = code
+        if(flows.has_key(xid)):
+            flows[xid]["result"] = FWDCTL_FAILURE
+            flows[xid]["error"] = {}
+            flows[xid]["error"]["type"] = error_type
+            flows[xid]["error"]["code"] = code
             
 
 def packet_in_callback(sg, dpid,in_port,reason, length,buffer_id, data) :
     sg.packet_in(dpid,in_port,reason, length,buffer_id, data.arr)
-
-
-inst = None
 
 # send a barrier message with a reference to the actual function we want to run when the switch
 # has responded and told us that it is ready
@@ -528,20 +508,21 @@ class oess_dbus(app_manager.RyuApp):
 
     def __init__(self, *args, **kwargs):
         super(oess_dbus,self).__init__(*args,**kwargs)
+
+        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+        bus               = dbus.SystemBus()
+        name              = dbus.service.BusName(ifname, bus)
+        self.sg           = dBusEventGen(name,"/controller1",self)
+        self.sg_ro        = dBusEventGenRo(name,"/controller_ro",self)
         self.collection_epoch_duration = 10
         self.latest_flow_stats = {}
-        self.datapaths = {}
-        self.flow_stats = {}
+        self.datapaths    = {}
+        self.flow_stats   = {}
         self.stats_thread = hub.spawn(self._flow_stat_request)
-        self.dbus_thread = hub.spawn(self._start_dbus_loop)
-#        self.fv_thread = hub.spawn(self._start_fv_packets)
+        self.dbus_thread  = hub.spawn(self._start_dbus_loop)
+        self.fv_thread    = hub.spawn(self._start_fv_packets)
 
     def _start_dbus_loop(self):
-        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-        bus = dbus.SystemBus()
-        name = dbus.service.BusName(ifname, bus)
-        self.sg = dBusEventGen(name,"/controller1",self)
-        self.sg_ro = dBusEventGenRo(name,"/controller_ro",self)
         context = gobject.MainLoop().get_context()
         while True:
             while context.pending():
@@ -554,7 +535,7 @@ class oess_dbus(app_manager.RyuApp):
     def _error_handler(self, ev):
         msg = ev.msg
         pprint.pprint(msg)
-        #error_callback(self.sg, ev.datapath.id, msg.type, msg.code, msg.data, ev.msg.xid)
+        error_callback(self.sg, ev.msg.datapath.id, msg.type, msg.code, msg.data, ev.msg.xid)
 
     @set_ev_cls(ofp_event.EventOFPStateChange,
                  [MAIN_DISPATCHER, DEAD_DISPATCHER])
@@ -575,6 +556,11 @@ class oess_dbus(app_manager.RyuApp):
                 self.logger.debug('unregister datapath: %016x', datapath.id)
                 del self.datapaths[datapath.id]
                 datapath_leave_callback(self, self.sg, datapath.id)
+
+
+    @set_ev_cls(ofp_event.EventOFPBarrierReply, MAIN_DISPATCHER)
+    def _barrier_reply(self, ev):
+        barrier_reply_callback(self.sg, ev.msg.datapath.id, ev.msg.xid)
 
     @set_ev_cls(ofp_event.EventOFPPortStatus,
                 MAIN_DISPATCHER)
@@ -602,58 +588,72 @@ class oess_dbus(app_manager.RyuApp):
 
         self.sg.port_status(ev.datapath.id, reason, attr_dict)
 
+    @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
+    def _packet_in_handler(self, ev):
+        msg = ev.msg
+        datapath = msg.datapath
+        ofproto = datapath.ofproto
+        parser = datapath.ofproto_parser
+        in_port = msg.match['in_port']
+        dl_type = msg.match['dl_type']
+        dl_vlan = msg.match['dl_vlan']
+        pkt = packet.Packet(msg.data)
+        dpid = datapath.id
+        self.logger.info("packet in %s %s %s %s", dpid, src, dst, in_port)
+        if(dl_vlan == self.VLAN_ID and dl_type == 34998):
+            fv_packet_in_callback(self.sg,dpid,in_port,len(pkt),pkt)
 
     def _flow_stat_request(self):
-        while 1:
-            for datapath in self.datapaths.values():
-                self._request_stats(datapath)
+        while True:
+            print "Requesting Flow Stats"
+            for datapath in self.datapaths.keys():
+                self._request_stats(self.datapaths[datapath])
             hub.sleep(30)
 
-#    def fire_send_fv_packets(self):
-#
-#        time_val = time() * 1000
-#        logger.info("Sending FV Packets rate: " + str(self.sg.fv_pkt_rate) + " with vlan: " + str(self.sg.VLAN_ID) + " packets: " + str(len(self.sg.packets)))
-#
-#        for pkt in self.sg.packets:
-#            logger.info("Packet:")
-#            packet = ethernet()
-#            packet.src = '\x00' + struct.pack('!Q',pkt[0])[3:8]
-#            packet.dst = NDP_MULTICAST
-#
-#            payload = struct.pack('QHQHq',pkt[0],pkt[1],pkt[2],pkt[3],time_val)
-#
-#            if(self.sg.VLAN_ID != None and self.sg.VLAN_ID != 65535):
-#                vlan_packet = vlan()
-#                vlan_packet.id = self.sg.VLAN_ID
-#                vlan_packet.c = 0
-#                vlan_packet.pcp = 0
-#                vlan_packet.eth_type = 0x88b6
-#                vlan_packet.set_payload(payload)
-#
-#                packet.set_payload(vlan_packet)
-#                packet.type = ethernet.VLAN_TYPE
-#
-#            else:
-#                packet.set_payload(payload)
-#                packet.type = 0x88b6
-#
-#            inst.send_openflow_packet(pkt[0], packet.tostring(), int(pkt[1]))
-#
-#        self.post_callback(fv_pkt_rate, self.fire_send_fv_packets)
+    def _start_fv_packets(self):
+        while True:
+            time_val = time() * 1000
+            logger.info("Sending FV Packets rate: " + str(self.sg.fv_pkt_rate)
+                        + " with vlan: " + str(self.sg.VLAN_ID) + 
+                        " packets: " + str(len(self.sg.packets)))
+
+            for pkt in self.sg.packets:
+                logger.info("Packet:")
+                packet = ethernet()
+                packet.src = '\x00' + struct.pack('!Q',pkt[0])[3:8]
+                packet.dst = NDP_MULTICAST
+                
+                payload = struct.pack('QHQHq',pkt[0],pkt[1],pkt[2],pkt[3],time_val)
+                
+                if(self.sg.VLAN_ID != None and self.sg.VLAN_ID != 65535):
+                    vlan_packet = vlan()
+                    vlan_packet.id = self.sg.VLAN_ID
+                    vlan_packet.c = 0
+                    vlan_packet.pcp = 0
+                    vlan_packet.eth_type = 0x88b6
+                    vlan_packet.set_payload(payload)
+                    
+                    packet.set_payload(vlan_packet)
+                    packet.type = ethernet.VLAN_TYPE
+                    
+                else:
+                    packet.set_payload(payload)
+                    packet.type = 0x88b6
+                    
+                    actions = [parser.OFPActionOutput(int(pkt[1]))]
+                    out = parser.OFPPacketOut(datapath=datapath, actions=actions, data=packet)
+                    datapath.send_msg(out)
+            hub.sleep(self.sg.fv_pkt_rate)
 
     @set_ev_cls(ofp_event.EventOFPFlowStatsReply, MAIN_DISPATCHER)
     def flow_stats_in_handler(self, ev):
-        print "Recieved FlowStats!"
  
-        dpid = ev.msg.datapath.id
+        dpid = "%016x" % ev.msg.datapath.id
         body = ev.msg.body
         ofproto = ev.msg.datapath.ofproto
         
-        pp = pprint.PrettyPrinter(indent=4)
-
+        flows = []
         for stat in body:
-
-            pp.pprint(stat)
             match = stat.match.__dict__
             wildcards = stat.match.wildcards
             
@@ -662,42 +662,41 @@ class oess_dbus(app_manager.RyuApp):
                           'packet_count': stat.packet_count
                           })
             
-#        if dpid in self.flow_stats:
-#            if self.flow_stats[dpid] == None:
-#                self.flow_stats[dpid] = {"time": int(time()) , "flows": flows}
-#            else:
-#                self.flow_stats[dpid]["flows"].extend(flows)
-#        else:
-#            self.flow_stats[dpid] = {"time": int(time()) , "flows": flows}
-#
-#        if done == False:
-#            if self.flow_stats[dpid]:     
-#
-#                # get rid of rules that don't have matches on them because we can't key off
-#                # port / vlan to get info that we need
-#                for row in reversed(self.flow_stats[dpid]["flows"]):                    
-#
-#                    if row.has_key("cookie"):
-#                        del row["cookie"]
-#
-#                    if row.has_key("actions"):
-#                        if len(row["actions"]) == 0:
-#                            self.flow_stats[dpid]["flows"].remove(row)
-#                            continue
-#
-#                    if row.has_key("match"):
-#                        if not row["match"]:
-#                            self.flow_stats[dpid]["flows"].remove(row)
-#                            continue
-#
-#                # update our cache with the latest flow stats
-#                if self.flow_stats[dpid]:
-#                    last_flow_stats[dpid] = self.flow_stats[dpid]
-#
-#            self.flow_stats[dpid] = None
+        if dpid in self.flow_stats:
+            if self.flow_stats[dpid] == None:
+                self.flow_stats[dpid] = {"time": int(time()) , "flows": flows}
+            else:
+                self.flow_stats[dpid]["flows"].extend(flows)
+        else:
+            self.flow_stats[dpid] = {"time": int(time()) , "flows": flows}
+
+        if self.flow_stats[dpid]:     
+            
+            # get rid of rules that don't have matches on them because we can't key off
+            # port / vlan to get info that we need
+            for row in reversed(self.flow_stats[dpid]["flows"]):                    
+                
+                if row.has_key("cookie"):
+                    del row["cookie"]
+                    
+                if row.has_key("actions"):
+                    if len(row["actions"]) == 0:
+                        self.flow_stats[dpid]["flows"].remove(row)
+                        continue
+
+                if row.has_key("match"):
+                    if not row["match"]:
+                        self.flow_stats[dpid]["flows"].remove(row)
+                        continue
+                    
+            # update our cache with the latest flow stats
+            if self.flow_stats[dpid]:
+                last_flow_stats[dpid] = self.flow_stats[dpid]
+
+            self.flow_stats[dpid] = None
 
     def _request_stats(self,datapath):
-        print "Requesting Stats"
+        print "Requested Stats"
         ofp    = datapath.ofproto
         parser = datapath.ofproto_parser
         
