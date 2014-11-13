@@ -175,7 +175,8 @@ class dBusEventGen(dbus.service.Object):
                          in_signature='t',
                          out_signature='iaa{sv}'
                          )
-    def get_node_status(self, dpid):
+    def get_node_status(self, dpid_uint):
+        dpid = "%016x" % dpid_uint
         if flowmod_callbacks.has_key(dpid):
             xids = flowmod_callbacks[dpid].keys()
             
@@ -378,10 +379,10 @@ class dBusEventGen(dbus.service.Object):
             barrier  = parser.OFPBarrierRequest(datapath)
             datapath.set_xid(barrier)
             xid      = barrier.xid
-            datapath.send_msg(barrier)
             if not flowmod_callbacks.has_key(dpid):
                 flowmod_callbacks[dpid] = {}
             flowmod_callbacks[dpid][xid] = {"result": FWDCTL_WAITING}
+            datapath.send_msg(barrier)
             return xid
         else:
             logger.error("No node with dpid: %s" % dpid)
@@ -465,10 +466,10 @@ def datapath_join_callback(ref,sg,dpid,ip_address,ports):
 def datapath_leave_callback(sg,dp_id):
     sg.datapath_leave(dp_id)
 
-def barrier_reply_callback(sg,dp_id,xid):
-    
-    if flowmod_callbacks.has_key(dp_id):
-        flows = flowmod_callbacks[dp_id]
+def barrier_reply_callback(sg,dpid_uint,xid):
+    dpid = "%016x" % dpid_uint
+    if flowmod_callbacks.has_key(dpid):
+        flows = flowmod_callbacks[dpid]
         if(flows.has_key(xid)):
             flows[xid]["status"] = ANSWERED
             flows[xid]["result"] = FWDCTL_SUCCESS
@@ -482,11 +483,11 @@ def barrier_reply_callback(sg,dp_id,xid):
                         flows[xid]["result"] = FWDCTL_FAILURE
                         flows[xid]["failed_flows"].append(flows[x])
                     del flows[x]
-    sg.barrier_reply(dp_id,xid)
+    sg.barrier_reply(dpid_uint,xid)
 
 
-def error_callback(sg, dpid, error_type, code, data, xid):
-    
+def error_callback(sg, dpid_uint, error_type, code, data, xid):
+    dpid = "%016x" % dpid_uint
     logger.error("handling error from %s, xid = %d" % (dpid, xid))
     if flowmod_callbacks.has_key(dpid):
         flows = flowmod_callbacks[dpid]
