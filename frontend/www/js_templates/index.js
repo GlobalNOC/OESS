@@ -689,7 +689,7 @@ function build_circuitTable(){
 	}, 30000);
 
     // build the users table
-    var user_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_workgroup_members&workgroup_id="+session.data.workgroup_id);
+    var user_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_workgroup_members&order_by=auth_name&workgroup_id="+session.data.workgroup_id);
     user_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     user_ds.responseSchema = {
 	resultsList: "results",
@@ -705,16 +705,16 @@ function build_circuitTable(){
     };
 
     var user_columns = [
-
-                   {key: "auth_name", label: "Username(s)", width: 150},
-                   {key: "first_name", label: "Given Name", width: 150},
-                   {key: "family_name", label: "Last Name", width: 150},
-		   {key: "email_address", label: "Email Address", width: 150}
-                   ];
+        {key: "auth_name", label: "Username(s)", width: 150, sortable: true },
+        {key: "first_name", label: "Given Name", width: 150, sortable: true },
+        {key: "family_name", label: "Last Name", width: 150, sortable: true },
+        {key: "email_address", label: "Email Address", width: 150, sortable: true }
+    ];
 
     var user_config = {
-	paginator: new YAHOO.widget.Paginator({rowsPerPage: 10,
-					       containers: ["user_table_nav"]
+        paginator: new YAHOO.widget.Paginator({
+            rowsPerPage: 10,
+            containers: ["user_table_nav"]
 	    })
     };
 
