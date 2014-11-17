@@ -802,7 +802,7 @@ sub get_node_dpid_hash {
 sub get_current_nodes{
     my $self = shift;
 
-    my $nodes = $self->_execute_query("select node.max_flows, node.name, node_instantiation.dpid,node.operational_state,node.node_id, node.send_barrier_bulk from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active'",[]);
+    my $nodes = $self->_execute_query("select node.max_flows, node.name, node_instantiation.dpid,node.operational_state,node.node_id, node.send_barrier_bulk from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active' order by node.name",[]);
 
     return $nodes;
 }
@@ -1237,7 +1237,7 @@ HERE
 sub get_current_links{
     my $self = shift;
     #We don't set the end_epoch when a link is available or when it is decom, we only want active links ISSUE 5759
-    my $query = "select * from link natural join link_instantiation where link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active'";
+    my $query = "select * from link natural join link_instantiation where link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active' order by link.name";
 
     my $res = $self->_execute_query($query,[]);
 
@@ -2568,6 +2568,7 @@ sub get_users_in_workgroup {
     my %args = @_;
 
     my $workgroup_id = $args{'workgroup_id'};
+    my $order_by     = $args{'order_by'};
 
     my $users;
 
@@ -2585,26 +2586,33 @@ sub get_users_in_workgroup {
 
     foreach my $row (@$results){
 
-	my $data = {'first_name'    => $row->{'given_names'},
-		    'family_name'   => $row->{'family_name'},
-		    'email_address' => $row->{'email'},
-		    'user_id'       => $row->{'user_id'},
-		    'auth_name'     => []
-	};
+        my $data = {
+            'first_name'    => $row->{'given_names'},
+            'family_name'   => $row->{'family_name'},
+            'email_address' => $row->{'email'},
+            'user_id'       => $row->{'user_id'},
+            'auth_name'     => []
+        };
 
-	my $auth_results = $self->_execute_query("select auth_name from remote_auth where user_id = ?", [$row->{'user_id'}]);
+        my $auth_results = $self->_execute_query(
+            "select auth_name from remote_auth where user_id = ? order by auth_name", 
+            [$row->{'user_id'}]
+        );
+        if (! defined $auth_results){
+            $self->_set_error("Internal error fetching remote_auth");
+            return;
+        }
 
-	if (! defined $auth_results){
-	    $self->_set_error("Internal error fetching remote_auth");
-	    return;
-	}
+        foreach my $auth_row (@$auth_results){
+            push(@{$data->{'auth_name'}}, $auth_row->{'auth_name'});
+        }
 
-	foreach my $auth_row (@$auth_results){
-	    push(@{$data->{'auth_name'}}, $auth_row->{'auth_name'});
-	}
+        push(@$users, $data);
 
-	push(@$users, $data);
+    }
 
+    if($order_by eq 'auth_name'){
+        @$users = sort { join(',',@{$a->{'auth_name'}}) cmp join(',',@{$b->{'auth_name'}}) } @$users;
     }
 
     return $users;
@@ -3124,7 +3132,7 @@ sub get_current_circuits {
     }
 
 
-    $query .= " group by circuit.circuit_id";
+    $query .= " group by circuit.circuit_id order by circuit.description";
 
     my $rows = $self->_execute_query($query, \@to_pass);
 
@@ -5079,7 +5087,8 @@ sub get_remote_links {
 	"  and interface_instantiation.end_epoch = -1 and interface_instantiation.admin_state != 'down' " .
 	" join node on node.node_id = interface.node_id " .
 	" join network on network.network_id = node.network_id and network.is_local = 1" .
-	" where link.remote_urn is not null";
+	" where link.remote_urn is not null ".
+    " order by link.remote_urn ";
 
     my $rows = $self->_execute_query($query, []);
 
