@@ -163,6 +163,29 @@ div#workgroup_tabs .yui-content {
     font-size: 90%;
 }
 
+.popup_box_error {
+    color: #a94442; 
+}
+.popup_box_error.yui-panel .bd {
+    background-color: #f2dede;
+}
+.popup_box_error.yui-panel .bd button {
+    background-color: rgba(255,0,0,.5);
+    border-radius: 10px;
+    -webkit-border-radius: 10px; 
+    -moz-border-radius: 10px; 
+}
+.popup_box_error.yui-panel .bd button:hover {
+    background-color: rgba(255,0,0,.2);
+}
+.popup_box_error.yui-panel .hd {
+    border-bottom-color: #d43f3a;
+    color: #a94442; 
+}
+.yui-skin-sam .yui-panel.popup_box_error {
+    border-color: #d43f3a;
+}
+
 
 div.active_workgroup_container {
     float: right; 
