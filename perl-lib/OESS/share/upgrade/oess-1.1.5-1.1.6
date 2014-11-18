@@ -1,0 +1,115 @@
+#!/usr/bin/perl
+#-------------------------------------------------------------------
+#----- OESS 1.0.12 - 1.1.0 upgrade module                         
+#-----                                                               
+#----- Copyright(C) 2010 The Trustees of Indiana University          
+#--------------------------------------------------------------------
+#----- $HeadURL: $                                                   
+#----- $Id: $                                                        
+#-----                                                               
+#----- This is run when upgrading the database from     
+#----- version 1.1.5 to version 1.1.6                              
+#-------------------------------------------------------------------- 
+
+use strict;
+use warnings;
+use OESS::Database;
+
+my $prev_version = "1.1.5";
+my $version = "1.1.6";
+
+sub main {
+
+    print "*******************************************************************\n";
+    print "*********             OESS DB UPGRADE           ************\n";
+    print "*******************************************************************\n";
+    print "********* This will upgrade from $prev_version to $version **********\n";
+    print "********* of the OESS DB any other version will not work ************\n";
+    
+    continue_parameter("Do you wish to continue");
+    
+    my $dbq = new OESS::Database();
+    my $current_version = $dbq->get_oess_schema_version();    
+    
+    if($current_version eq $prev_version){
+        $dbq->{'dbh'}->begin_work();
+        upgrade($dbq->{'dbh'});
+        $dbq->{'dbh'}->commit();
+    }else{
+        print "Wrong version of OESS DB\n";
+        print "This script only upgrades from version $prev_version to $version\n";
+        exit;
+    }
+    
+    print STDERR "Upgrade Successful!!\n";
+    
+}
+
+
+sub upgrade {
+    my $dbh = shift;
+    my $term = shift;
+    my $str;
+    my $sth;
+    
+    # add edge_interface_move_maintenance table
+    $str = "CREATE TABLE edge_interface_move_maintenance ( ".
+           "  edge_interface_move_maintenance_id int(10) NOT NULL AUTO_INCREMENT, ".
+           "  name varchar(255) NOT NULL, ".
+           "  orig_interface_id int(10) NOT NULL, ".
+           "  temp_interface_id int(10) NOT NULL, ".
+           "  start_epoch int(10) NOT NULL, ".
+           "  end_epoch int(10) DEFAULT NULL, ".
+           "  PRIMARY KEY (edge_interface_move_maintenance_id), ".
+           "  CONSTRAINT FOREIGN KEY (orig_interface_id) REFERENCES interface (interface_id), ".
+           "  CONSTRAINT FOREIGN KEY (temp_interface_id) REFERENCES interface (interface_id) ".
+           ") ENGINE=InnoDB DEFAULT CHARSET=utf8";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+
+    #add edge_interface_move_maintenance_circuit_membership table
+    $str = "CREATE TABLE edge_interface_move_maintenance_circuit_membership ( ".
+           "  edge_interface_move_maintenance_id int(10) NOT NULL, ".
+           "  circuit_id int(10) NOT NULL, ".
+           "  CONSTRAINT FOREIGN KEY (edge_interface_move_maintenance_id) REFERENCES edge_interface_move_maintenance (edge_interface_move_maintenance_id) ON DELETE CASCADE, ".
+           "  CONSTRAINT FOREIGN KEY (circuit_id) REFERENCES circuit (circuit_id) ON DELETE CASCADE ".
+           ") ENGINE=InnoDB DEFAULT CHARSET=utf8";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+
+    
+    #ok done with the rest of the upgrade update our version
+    $str = "update oess_version set version = '$version'";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+}
+
+main();
+
+sub continue_parameter {
+
+    my $name = shift;
+
+    print "$name [y/n]: ";
+    my $yes_or_no = <>;
+    chomp($yes_or_no);
+
+    exit(0) if ($yes_or_no !~ /y/i || $yes_or_no =~ /n/i);
+}
+
+
+sub required_parameter {
+
+    my $name = shift;
+
+    while (1) {
+
+	print "$name (required): ";
+        my $response = <>;
+	chomp($response);
+
+        return $response if ($response);
+
+	print "\nThis option is required!\n\n";
+    }
+}
