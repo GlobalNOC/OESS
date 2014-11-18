@@ -54,13 +54,13 @@ sub upgrade {
     
     # add edge_interface_move_maintenance table
     $str = "CREATE TABLE edge_interface_move_maintenance ( ".
-           "  edge_interface_move_maintenance_id int(10) NOT NULL AUTO_INCREMENT, ".
+           "  maintenance_id int(10) NOT NULL AUTO_INCREMENT, ".
            "  name varchar(255) NOT NULL, ".
            "  orig_interface_id int(10) NOT NULL, ".
            "  temp_interface_id int(10) NOT NULL, ".
            "  start_epoch int(10) NOT NULL, ".
-           "  end_epoch int(10) DEFAULT NULL, ".
-           "  PRIMARY KEY (edge_interface_move_maintenance_id), ".
+           "  end_epoch int(10) DEFAULT -1, ".
+           "  PRIMARY KEY (maintenance_id), ".
            "  CONSTRAINT FOREIGN KEY (orig_interface_id) REFERENCES interface (interface_id), ".
            "  CONSTRAINT FOREIGN KEY (temp_interface_id) REFERENCES interface (interface_id) ".
            ") ENGINE=InnoDB DEFAULT CHARSET=utf8";
@@ -69,9 +69,9 @@ sub upgrade {
 
     #add edge_interface_move_maintenance_circuit_membership table
     $str = "CREATE TABLE edge_interface_move_maintenance_circuit_membership ( ".
-           "  edge_interface_move_maintenance_id int(10) NOT NULL, ".
+           "  maintenance_id int(10) NOT NULL, ".
            "  circuit_id int(10) NOT NULL, ".
-           "  CONSTRAINT FOREIGN KEY (edge_interface_move_maintenance_id) REFERENCES edge_interface_move_maintenance (edge_interface_move_maintenance_id) ON DELETE CASCADE, ".
+           "  CONSTRAINT FOREIGN KEY (maintenance_id) REFERENCES edge_interface_move_maintenance (maintenance_id) ON DELETE CASCADE, ".
            "  CONSTRAINT FOREIGN KEY (circuit_id) REFERENCES circuit (circuit_id) ON DELETE CASCADE ".
            ") ENGINE=InnoDB DEFAULT CHARSET=utf8";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";

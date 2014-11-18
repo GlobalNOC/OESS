@@ -6259,6 +6259,37 @@ sub get_node_by_dpid{
     }
 }
 
+=head2 get_node_by_interface
+
+=cut
+
+sub get_node_by_interface_id {
+    my ($self, %args) = @_;
+    my $interface_id = $args{'interface_id'};
+    if(!defined($interface_id)){
+        $self->_set_error("interface_id was not defined");
+        return;
+    }
+
+    # node_id from interface
+    my $query = "SELECT node_id ".
+                "FROM interface ".
+                "WHERE interface_id = ?";
+    my $res = $self->_execute_query($query,[$interface_id]) || return;
+    my $node_id = $res->[0]{'node_id'};
+    if(!$node_id){
+        $self->_set_error("No records for interface_id $interface_id");
+        return;
+    }
+
+    # get node record
+    $query = "SELECT * ".
+             "FROM node ".
+             "WHERE node_id = ?";
+    $res = $self->_execute_query($query,[$node_id]) || return;
+
+    return $res->[0];
+}
 
 =head2 add_node
 
@@ -7822,6 +7853,265 @@ sub update_circuit_owner{
     my $str = "update circuit set workgroup_id = ? where circuit_id = ?";
     my $success = $self->_execute_query($str,[$args{'workgroup_id'},$args{'circuit_id'}]);
     return 1;
+}
+=head2 add_edge_interface_move_maintenance 
+
+=cut
+sub get_edge_interface_move_maintenances {
+    my ($self, %args) = @_;
+    my $show_history        = $args{'show_history'} || 0;
+    my $show_moved_circuits = $args{'show_moved_circuits'} || 0;
+    my $maintenance_id      = $args{'maintenance_id'}; 
+
+    # first retrieve all the edge interface records
+    my $params = [];
+    my $query  = "SELECT * ".
+                 "FROM edge_interface_move_maintenance";
+
+    # build where clause
+    my $where = "";
+    if($maintenance_id) {
+        $where .= " maintenance_id = ?";
+        push(@$params, $maintenance_id);
+    }
+    if(!$show_history){
+        $where .= " AND " if($where ne "");
+        $where .= " end_epoch = -1";
+    }
+    if($where ne ""){
+        $query .= " WHERE $where";
+    }
+
+    my $maintenances = $self->_execute_query($query, $params) || return;
+
+    # append all the moved circuit info if they've asked for it
+    if($show_moved_circuits){
+        foreach my $maintenance (@$maintenances){
+            $query  = "SELECT circuit.circuit_id AS circuit_id, ".
+                            " circuit.name AS circuit_name, ".
+                            " circuit.description AS circuit_description ".
+                      "FROM edge_interface_move_maintenance_circuit_membership ".
+                      "JOIN circuit ".
+                      "ON edge_interface_move_maintenance_circuit_membership.circuit_id = circuit.circuit_id ".
+                      "WHERE maintenance_id = ?";
+            my $circuits = $self->_execute_query($query, [$maintenance->{'maintenance_id'}]) || return;
+            $maintenance->{'moved_circuits'} = $circuits;
+        }
+    }
+
+    return $maintenances; 
+}
+
+=head2 add_edge_interface_move_maintenance 
+
+=cut
+sub add_edge_interface_move_maintenance {
+    my ($self, %args) = @_;
+    my $name              = $args{'name'};
+    my $orig_interface_id = $args{'orig_interface_id'};     
+    my $temp_interface_id = $args{'temp_interface_id'};     
+
+    $self->_start_transaction();
+
+    # first insert the maintenance record
+    my $query = "INSERT INTO edge_interface_move_maintenance ( ".
+                "  name, ".
+                "  orig_interface_id, ". 
+                "  temp_interface_id, ". 
+                "  start_epoch ) ". 
+                "VALUES (?,?,?,UNIX_TIMESTAMP(NOW()))";
+    my $maintenance_id = $self->_execute_query($query,[
+        $name,
+        $orig_interface_id,
+        $temp_interface_id
+    ]);
+    if(!defined($maintenance_id)){
+	    $self->_set_error("Unable to add edge_interface_move_maintenance.");
+	    $self->_rollback();
+        return;
+    }
+
+    # now move the circuits from the original interface to the temporary one
+    my $moved_circuit_ids = $self->move_edge_interface_circuits(
+        orig_interface_id => $orig_interface_id,
+        new_interface_id  => $temp_interface_id,
+        do_commit    => 0
+    );
+    if(!defined($moved_circuit_ids)){
+	    $self->_rollback();
+        return;
+    }
+
+    # now create edge_interface_move_maintenance_circuit_membership records for each moved circuit
+    foreach my $circuit_id (@$moved_circuit_ids){
+        my $query = "INSERT INTO edge_interface_move_maintenance_circuit_membership ( ".
+                    "  maintenance_id, ".
+                    "  circuit_id ) ". 
+                    "VALUES (?,?)";
+        my $res = $self->_execute_query($query,[
+            $maintenance_id,
+            $circuit_id
+        ]);
+        if(!defined($res)){
+            $self->_set_error("Unable to add edge_interface_move_maintenance_circuit_membership.".$self->{'dbh'}->errstr);
+            $self->_rollback();
+            return;
+        }
+    }
+
+    $self->_commit();
+    return $maintenance_id;
+}
+
+=head2 revert_edge_interface_move_maintenance 
+
+=cut
+sub revert_edge_interface_move_maintenance {
+    my ($self, %args) = @_;
+    my $maintenance_id = $args{'maintenance_id'};
+    my $do_commit = (defined($args{'do_commit'})) ? $args{'do_commit'} : 1;
+
+    #sanity checks
+    if(!defined($maintenance_id)){
+	    $self->_set_error("maintenance_id must be defined");
+        return;
+    }
+    
+    # get our maintenance
+    my $maints = $self->get_edge_interface_move_maintenances(
+        maintenance_id      => $maintenance_id,
+        show_moved_circuits => 1
+    );
+    if(!defined($maints) || @$maints < 1){
+	    $self->_set_error("Error retrieving maintenance with maintenance_id $maintenance_id");
+        return;
+    }
+
+    # get the circuits it moved
+    my @circuit_ids = map { $_->{'circuit_id'} } @{ $maints->[0]{'moved_circuits'} };
+
+    $self->_start_transaction() if($do_commit);
+
+    # move the circuits back
+    my $moved_circuits = $self->move_edge_interface_circuits(
+        orig_interface_id => $maints->[0]{'temp_interface_id'},
+        new_interface_id  => $maints->[0]{'orig_interface_id'},
+        circuit_ids       => \@circuit_ids,
+        do_commit         => 0
+    );
+    if(!$moved_circuits){
+	    $self->_set_error("Error moving circuits back to original interface");
+	    $self->_rollback() if($do_commit);
+        return;
+    }
+
+    # now set the end_epoch time on the maintenance record
+    my $query = "UPDATE edge_interface_move_maintenance ".
+                "SET end_epoch = UNIX_TIMESTAMP(NOW()) ".
+                "WHERE maintenance_id = ?";
+    my $recs = $self->_execute_query($query, [$maintenance_id]);
+    if(!$recs){
+        $self->_rollback() if($do_commit);
+        return;
+    }
+
+    $self->_commit() if($do_commit);
+
+    return $maintenance_id;
+}
+
+=head2 move_circuit_edge_interface
+
+=cut
+sub move_edge_interface_circuits {
+    my ($self, %args) = @_;
+    my $orig_interface_id = $args{'orig_interface_id'};
+    my $new_interface_id  = $args{'new_interface_id'};
+    my $circuit_ids       = $args{'circuit_ids'};
+    my $do_commit    = (defined($args{'do_commit'})) ? $args{'do_commit'} : 1;
+
+    #sanity checks
+    if(!defined($orig_interface_id)){
+	    $self->_set_error("Must pass in orig_interface_id.");
+        return;
+    }
+    if(!defined($new_interface_id)){
+	    $self->_set_error("Must pass in new_interface_id.");
+        return;
+    }
+    my $orig_int_node = $self->get_node_by_interface_id( interface_id => $orig_interface_id ) || return;
+    my $new_int_node  = $self->get_node_by_interface_id( interface_id => $new_interface_id ) || return;
+    if($orig_int_node->{'name'} ne $new_int_node->{'name'}){
+	    $self->_set_error("You can only move circuits between edge interfaces on the same node.");
+        return;
+    }
+
+    # start work
+    $self->_start_transaction() if($do_commit);
+    
+    # first retrieve all the edge interface records
+    my $params = [$orig_interface_id];
+    my $query = "SELECT * ".
+                "FROM circuit_edge_interface_membership ".
+                "WHERE interface_id = ?  ".
+                "AND end_epoch = -1";
+
+    if($circuit_ids){
+        $query .= " AND circuit_id IN (".(join(',', ('?') x @$circuit_ids)).")";
+        push(@$params, @$circuit_ids);
+    }
+
+
+    my $edge_interface_recs = $self->_execute_query($query, $params);
+    if(!$edge_interface_recs){
+	    $self->_rollback() if($do_commit);
+        return;
+    }
+    
+    # now loop through each of the records
+    my $now = time();
+    my %moved_circuits;
+    foreach my $edge_int_rec (@$edge_interface_recs){
+        # set the old edge record's end_epoch time
+        $query = "UPDATE circuit_edge_interface_membership ".
+                 "SET end_epoch = ? ".
+                 "WHERE circuit_edge_id = ?";
+        my $recs = $self->_execute_query($query, [
+            $now,
+            $edge_int_rec->{'circuit_edge_id'}
+        ]);
+        if(!$recs){
+            $self->_rollback() if($do_commit);
+            return;
+        }
+
+        # insert a new edge record with the new interface_id
+        $query = "INSERT INTO circuit_edge_interface_membership (".
+                 "  interface_id, ".
+                 "  circuit_id, ".
+                 "  start_epoch, ".
+                 "  end_epoch, ".
+                 "  extern_vlan_id ) ".
+                 "VALUES( ?,?,?,?,? )";
+        $recs = $self->_execute_query($query, [
+            $new_interface_id, 
+            $edge_int_rec->{'circuit_id'},
+            $now,
+            -1,
+            $edge_int_rec->{'extern_vlan_id'},
+        ]);
+        if(!$recs){
+            $self->_rollback() if($do_commit);
+            return;
+        }
+        $moved_circuits{$edge_int_rec->{'circuit_id'}} = 1;
+    }
+    $self->_commit() if($do_commit);
+
+
+    my @moved_circuits = keys %moved_circuits;
+
+    return \@moved_circuits;
 }
 
 =head2 is_within_circuit_limit
