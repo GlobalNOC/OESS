@@ -7932,15 +7932,16 @@ sub add_edge_interface_move_maintenance {
     }
 
     # now move the circuits from the original interface to the temporary one
-    my $moved_circuit_ids = $self->move_edge_interface_circuits(
+    my $res = $self->move_edge_interface_circuits(
         orig_interface_id => $orig_interface_id,
         new_interface_id  => $temp_interface_id,
         do_commit    => 0
     );
-    if(!defined($moved_circuit_ids)){
+    if(!defined($res)){
 	    $self->_rollback();
         return;
     }
+    my $moved_circuit_ids = $res->{'moved_circuits'};
 
     # now create edge_interface_move_maintenance_circuit_membership records for each moved circuit
     foreach my $circuit_id (@$moved_circuit_ids){
@@ -7993,13 +7994,13 @@ sub revert_edge_interface_move_maintenance {
     $self->_start_transaction() if($do_commit);
 
     # move the circuits back
-    my $moved_circuits = $self->move_edge_interface_circuits(
+    my $res = $self->move_edge_interface_circuits(
         orig_interface_id => $maints->[0]{'temp_interface_id'},
         new_interface_id  => $maints->[0]{'orig_interface_id'},
         circuit_ids       => \@circuit_ids,
         do_commit         => 0
     );
-    if(!$moved_circuits){
+    if(!$res){
 	    $self->_set_error("Error moving circuits back to original interface");
 	    $self->_rollback() if($do_commit);
         return;
@@ -8018,6 +8019,27 @@ sub revert_edge_interface_move_maintenance {
     $self->_commit() if($do_commit);
 
     return $maintenance_id;
+}
+=head2 get_circuit_edge_interface_memberships
+
+=cut
+sub get_circuit_edge_interface_memberships {
+    my ($self, %args) = @_;
+    my $interface_id  = $args{'interface_id'};
+    my $circuit_ids   = $args{'circuit_ids'};
+
+    my $params = [$interface_id];
+    my $query = "SELECT * ".
+                "FROM circuit_edge_interface_membership ".
+                "WHERE interface_id = ?  ".
+                "AND end_epoch = -1";
+    if($circuit_ids){
+        $query .= " AND circuit_id IN (".(join(',', ('?') x @$circuit_ids)).")";
+        push(@$params, @$circuit_ids);
+    }
+    my $edge_interface_recs = $self->_execute_query($query, $params) || return;
+
+    return $edge_interface_recs;
 }
 
 =head2 move_circuit_edge_interface
@@ -8045,35 +8067,40 @@ sub move_edge_interface_circuits {
 	    $self->_set_error("You can only move circuits between edge interfaces on the same node.");
         return;
     }
+   
+    # first retrieve all of the edge records that we're moving 
+    my $src_edge_interface_recs = $self->get_circuit_edge_interface_memberships(
+        interface_id => $orig_interface_id,
+        circuit_ids  => $circuit_ids
+    ) || return;
+
+    # now retrieve all the edge interface records we're moving to.
+    # we'll use these to create a hash of vlan tags already used
+    # so we know which circuits can not be moved 
+    my $dst_edge_interface_recs = $self->get_circuit_edge_interface_memberships(
+        interface_id => $new_interface_id 
+    ) || return;
+    my %used_vlans;
+    foreach my $edge_int_rec (@$dst_edge_interface_recs){
+        $used_vlans{$edge_int_rec->{'extern_vlan_id'}} = 1;
+    }
 
     # start work
     $self->_start_transaction() if($do_commit);
     
-    # first retrieve all the edge interface records
-    my $params = [$orig_interface_id];
-    my $query = "SELECT * ".
-                "FROM circuit_edge_interface_membership ".
-                "WHERE interface_id = ?  ".
-                "AND end_epoch = -1";
-
-    if($circuit_ids){
-        $query .= " AND circuit_id IN (".(join(',', ('?') x @$circuit_ids)).")";
-        push(@$params, @$circuit_ids);
-    }
-
-
-    my $edge_interface_recs = $self->_execute_query($query, $params);
-    if(!$edge_interface_recs){
-	    $self->_rollback() if($do_commit);
-        return;
-    }
-    
-    # now loop through each of the records
+    # now loop through each of the records we're moving 
     my $now = time();
     my %moved_circuits;
-    foreach my $edge_int_rec (@$edge_interface_recs){
+    my %unmoved_circuits;
+    foreach my $edge_int_rec (@$src_edge_interface_recs){
+        # first check to see if the vlan is already used
+        if($used_vlans{$edge_int_rec->{'extern_vlan_id'}}){
+            $unmoved_circuits{$edge_int_rec->{'circuit_id'}} = 1;
+            next;
+        }
+
         # set the old edge record's end_epoch time
-        $query = "UPDATE circuit_edge_interface_membership ".
+        my $query = "UPDATE circuit_edge_interface_membership ".
                  "SET end_epoch = ? ".
                  "WHERE circuit_edge_id = ?";
         my $recs = $self->_execute_query($query, [
@@ -8108,10 +8135,11 @@ sub move_edge_interface_circuits {
     }
     $self->_commit() if($do_commit);
 
+    my @moved_circuits   = keys %moved_circuits;
+    my @unmoved_circuits = keys %unmoved_circuits;
 
-    my @moved_circuits = keys %moved_circuits;
-
-    return \@moved_circuits;
+    return { moved_circuits   => \@moved_circuits,
+             unmoved_circuits => \@unmoved_circuits };
 }
 
 =head2 is_within_circuit_limit

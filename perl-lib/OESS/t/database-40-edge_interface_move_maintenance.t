@@ -15,24 +15,31 @@ use lib "$path";
 use OESSDatabaseTester;
 
 use Data::Dumper;
-use Test::More tests => 16;
+use Test::More tests => 17;
 use Test::Deep::NoTest;
 use OESS::Database;
 use OESS::Circuit;
 use OESSDatabaseTester;
 
-my $orig_interface_id = 321;
-my $temp_interface_id = 401;
+#my $orig_interface_id = 321;
+#my $temp_interface_id = 401;
+my $orig_interface_id = 551;
+my $temp_interface_id = 571;
 my $db = OESS::Database->new(config => OESSDatabaseTester::getConfigFilePath());
 
 sub main {
     # get the circuit edge records before doing any tests 
-    my $edge_recs_orig = _get_edge_recs( $orig_interface_id ); 
-    my $edge_recs_temp = _get_edge_recs( $temp_interface_id ); 
+    my $edge_recs_orig = $db->get_circuit_edge_interface_memberships( interface_id => $orig_interface_id ); 
+    my $edge_recs_temp = $db->get_circuit_edge_interface_memberships( interface_id => $temp_interface_id ); 
+
+    # get the count of overlapping vlans
+    my $vlan_overlap_count = _get_overlap_count( $edge_recs_temp, $edge_recs_orig );
+    ok($vlan_overlap_count > 0, "test is checking overlap prevention");
 
     my $maintenance_id = test_maintenance_add(
         before_edge_recs_orig => $edge_recs_orig, 
-        before_edge_recs_temp => $edge_recs_temp
+        before_edge_recs_temp => $edge_recs_temp,
+        vlan_overlap_count    => $vlan_overlap_count
     );
 
     test_maintenance_revert(
@@ -46,6 +53,7 @@ sub test_maintenance_add {
     my %args = @_;
     my $before_edge_recs_orig = $args{'before_edge_recs_orig'}; 
     my $before_edge_recs_temp = $args{'before_edge_recs_temp'}; 
+    my $vlan_overlap_count    = $args{'vlan_overlap_count'};
 
     # add maintenance 
     my $maintenance_id = $db->add_edge_interface_move_maintenance (
@@ -59,17 +67,17 @@ sub test_maintenance_add {
     ok(defined($maintenance_id), "maintenance successfully added") or diag("DB ERROR: ".$db->get_error()); 
 
     #verify counts are what we would expect
-    my $after_edge_recs_orig = _get_edge_recs( $orig_interface_id ); 
-    my $after_edge_recs_temp = _get_edge_recs( $temp_interface_id ); 
+    my $after_edge_recs_orig = $db->get_circuit_edge_interface_memberships( interface_id => $orig_interface_id ); 
+    my $after_edge_recs_temp = $db->get_circuit_edge_interface_memberships( interface_id => $temp_interface_id ); 
 
-    # original interface should not have any edge records associated with it
+    # original interface should only have overlapping vlans associated with it
     my $orig_count_after     = scalar(@$after_edge_recs_orig);
-    my $orig_count_after_exp = 0;
+    my $orig_count_after_exp = $vlan_overlap_count;
     is($orig_count_after, $orig_count_after_exp, "count on orig int is correct");
 
-    # temporary interface should have it's intial records plus the original interfaces records
+    # temporary interface should have it's intial records plus the original interfaces records minus any overlapping vlans
     my $temp_count_after     = scalar(@$after_edge_recs_temp);
-    my $temp_count_after_exp = scalar(@$before_edge_recs_orig) + scalar(@$before_edge_recs_temp);
+    my $temp_count_after_exp = scalar(@$before_edge_recs_orig) + scalar(@$before_edge_recs_temp) - $vlan_overlap_count;
     is($temp_count_after, $temp_count_after_exp, "count on temp int is correct");
 
     # get maintence record and verify it looks correct
@@ -92,7 +100,7 @@ sub test_maintenance_add {
     foreach my $edge_rec (@$before_edge_recs_orig){
         $circuit_ids->{$edge_rec->{'circuit_id'}} = 1;
     }
-    is(scalar(keys %$circuit_ids), scalar(@{$maint->{'moved_circuits'}}), "circuit count correct");
+    is(scalar(keys %$circuit_ids) - $vlan_overlap_count, scalar(@{$maint->{'moved_circuits'}}), "circuit count correct");
 
     # verify correct circuit were moved
     my $found_all_circuits = 1;
@@ -119,8 +127,8 @@ sub test_maintenance_revert {
     ok(defined($res), "maintenance successfully reverted") or diag("DB ERROR: ".$db->get_error()); 
 
     #verify counts are what we would expect
-    my $after_edge_recs_orig = _get_edge_recs( $orig_interface_id );
-    my $after_edge_recs_temp = _get_edge_recs( $temp_interface_id );
+    my $after_edge_recs_orig = $db->get_circuit_edge_interface_memberships( interface_id => $orig_interface_id );
+    my $after_edge_recs_temp = $db->get_circuit_edge_interface_memberships( interface_id => $temp_interface_id );
 
     # original interface should be returned to its initial count
     my $orig_count_after     = scalar(@$after_edge_recs_orig);
@@ -141,16 +149,24 @@ sub test_maintenance_revert {
     
 }
 
-sub _get_edge_recs {
-    my $interface_id = shift;
+sub _get_overlap_count {
+    my $edge_recs_temp = shift; 
+    my $edge_recs_orig = shift; 
 
-    my $ckt_edge_recs_query = 'SELECT * '.
-                              'FROM circuit_edge_interface_membership '.
-                              'WHERE end_epoch = -1 '.
-                              'AND interface_id = ?';
+    my %temp_vlans;
+    foreach my $rec (@$edge_recs_temp){
+        $temp_vlans{$rec->{'extern_vlan_id'}} = 1;
+    }
+    my %orig_vlans;
+    foreach my $rec (@$edge_recs_orig){
+        $orig_vlans{$rec->{'extern_vlan_id'}} = 1;
+    }
+    my $total_count = scalar(keys %temp_vlans) + scalar(keys %orig_vlans);
+    my %combn_vlans = (%temp_vlans, %orig_vlans);
+    my $combn_count = scalar(keys %combn_vlans);
 
-    return $db->_execute_query($ckt_edge_recs_query, [$interface_id]);
+    return $total_count - $combn_count;
+
 }
-
 
 main();
