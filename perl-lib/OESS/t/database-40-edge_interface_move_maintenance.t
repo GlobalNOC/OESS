@@ -56,7 +56,7 @@ sub test_maintenance_add {
     my $vlan_overlap_count    = $args{'vlan_overlap_count'};
 
     # add maintenance 
-    my $maintenance_id = $db->add_edge_interface_move_maintenance (
+    my $res = $db->add_edge_interface_move_maintenance (
         name              => "Test Maintenance",
         orig_interface_id => $orig_interface_id,
         temp_interface_id => $temp_interface_id
@@ -64,7 +64,8 @@ sub test_maintenance_add {
 
 
     #verify maintenance was successfully added
-    ok(defined($maintenance_id), "maintenance successfully added") or diag("DB ERROR: ".$db->get_error()); 
+    ok(defined($res), "maintenance successfully added") or diag("DB ERROR: ".$db->get_error()); 
+    my $maintenance_id = $res->{'maintenance_id'};
 
     #verify counts are what we would expect
     my $after_edge_recs_orig = $db->get_circuit_edge_interface_memberships( interface_id => $orig_interface_id ); 

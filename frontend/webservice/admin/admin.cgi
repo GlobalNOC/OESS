@@ -80,6 +80,9 @@ sub main {
         case "get_edge_interface_move_maintenances" {
             $output = &get_edge_interface_move_maintenances();
         }
+        case "add_edge_interface_move_maintenance" {
+            $output = &add_edge_interface_move_maintenance();
+        }
         case "get_pending_nodes" {
             $output = &get_pending_nodes();
         }
@@ -655,6 +658,30 @@ sub get_edge_interface_move_maintenances {
         $results->{'error'} = $db->get_error();
     }else {
         $results->{'results'} = $maints;
+    }
+
+    return $results;
+}
+
+sub add_edge_interface_move_maintenance {
+    my $results;
+    my $name               = ($cgi->param("name") eq '') ? undef : $cgi->param("name");
+    my $orig_interface_id  = $cgi->param("orig_interface_id");
+    my $temp_interface_id  = $cgi->param("temp_interface_id");
+
+
+    my $res = $db->add_edge_interface_move_maintenance(
+        name => $name,
+        orig_interface_id => $orig_interface_id,
+        temp_interface_id => $temp_interface_id
+    );
+
+    if ( !defined $res ) {
+        warn "error: ".$db->get_error();
+        $results->{'error'}   = $db->get_error();
+        $results->{'results'} = []; 
+    }else {
+        $results->{'results'} = [$res];
     }
 
     return $results;

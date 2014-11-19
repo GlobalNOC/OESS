@@ -2506,12 +2506,19 @@ function setup_discovery_tab(){
 }
 
 function setup_maintenance_tab(){    
+    //create the table
+    var table = makeIntMoveMaintTable();
+
     //setup add maint button
     var maint_add_button = new YAHOO.widget.Button('maint_add_button', {
         label: "Add Maintenance"
     });
     maint_add_button.on("click", function(){
-        makeIntMoveMaintAddPanel();
+        var obj = makeIntMoveMaintAddPanel();
+        obj.saveSuccess.subscribe(function(){
+            table.destroy();
+            table = makeIntMoveMaintTable()
+        });
         //alert("Adding Maintenance LAwl!");
         /*
         var region = YAHOO.util.Dom.getRegion("user_details");
@@ -2523,8 +2530,6 @@ function setup_maintenance_tab(){
         */
     });
     
-    //create the table
-    var table = makeIntMoveMaintTable();
 }
 
 //callback when a maintenance is completed
@@ -2586,14 +2591,17 @@ function makeIntMoveMaintTable(){
 }
 
 function makeIntMoveMaintAddPanel(){
-    var region = YAHOO.util.Dom.getRegion("user_details");
+    var obj = {};
 
+    var width = 450;
+    var region = YAHOO.util.Dom.getRegion("edge_int_maint_table");
     var move_int_form = getMoveIntForm("add_int_move_maint_panel");
     var panel = new YAHOO.widget.Panel("add_int_move_maint_panel",{
-        width:500,
-        xy: [region.left,
-        region.top]
+        width: width,
+        xy: [(region.right - width),region.top]
     });
+
+    obj.saveSuccess = new YAHOO.util.CustomEvent("saveSuccess");
 
     panel.setHeader("Add Edge Interface Move Maintenance");
     panel.setBody(
@@ -2606,12 +2614,60 @@ function makeIntMoveMaintAddPanel(){
     "</div>"
     );
 
+    panel.setFooter("<div id='add_eim_maint'></div>");
     panel.render("maintenance_content");
+    //hook up maint submission
+    var add_button = new YAHOO.widget.Button("add_eim_maint", {label: "Add"});
+    add_button.on('click', function(){
+		var url = "../services/admin/admin.cgi?action=add_edge_interface_move_maintenance"+
+                  "&name="+$('#intm_maint_name').val()+
+                  "&orig_interface_id="+move_int_form.val().orig_interface_id+
+                  "&temp_interface_id="+move_int_form.val().new_interface_id;
+        var ds = new YAHOO.util.DataSource(url);
+        ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+        ds.responseSchema = {
+            resultsList: "results",
+            fields: [
+                {key: "maintenance_id"}, 
+                {key: "moved_circuits"}, 
+                {key: "unmoved_circuits"}
+            ],
+            metaFields: {
+                error: "error"
+            }
+        };
+        ds.sendRequest("",{
+            success: function(req, resp){
+                if (resp.meta.error){
+                    alert("Error adding maintenance: " + resp.meta.error, null, {error: true});
+                    return;
+                }
+                var res = resp.results[0];
+                var msg = "<div class='success'>"+
+                          res.moved_circuits.length+" circuits moved"+
+                          "</div>";
+                if(res.unmoved_circuits.length > 0){
+                    msg += "<div class='warning'>"+
+                           res.unmoved_circuits.length+" unmoved circuits due to vlan conflicts"+
+                           "</div>";
+                }
+                panel.destroy();
+                alert(msg);
+                obj.saveSuccess.fire();
+            },
+            failure: function(req, resp){
+                alert("Server error adding maintenance", null, {error: true});
+            }
+        });
+    });
+
     move_int_form.init();
 
     panel.hideEvent.subscribe(function(){
         this.destroy();
     });
+
+    return obj;
 }
 
 function getMoveIntForm(container_id){
@@ -2675,11 +2731,11 @@ function getMoveIntForm(container_id){
         ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
         ds.responseSchema = {
             resultsList: "results",
-                fields: [
-                    {key: obj.fields.name},
-                    {key: obj.fields.value}
-                ],
-                metaFields: {
+            fields: [
+                {key: obj.fields.name},
+                {key: obj.fields.value}
+            ],
+            metaFields: {
                 error: "error"
             }
         };
@@ -2712,8 +2768,8 @@ function getMoveIntForm(container_id){
 
     var val  = function(){
         return {
-            orig_interface_id: $('#'+selector_ids.oint).chosen.val()
-            new_interface_id:  $('#'+selector_ids.nint).chosen.val()
+            orig_interface_id: $('#'+selector_ids.oint).chosen().val(),
+            new_interface_id:  $('#'+selector_ids.nint).chosen().val()
         };
     };
 

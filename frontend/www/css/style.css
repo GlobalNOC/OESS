@@ -1,3 +1,21 @@
+.success,
+.warning {
+    color: #fff;
+    border-radius: 2px;
+    -webkit-border-radius: 2px; 
+    -moz-border-radius: 2px; 
+    margin-bottom: 5px;
+}
+
+.success {
+    background-color: #5cb85c;
+    border-color: #4cae4c;
+}
+.warning {
+    background-color: #f0ad4e;
+    border-color: #eea236;
+}
+
 div.main_page_container {
     background: url(../media/oess-frame-body.png) repeat-y bottom;
     width: 1024px;

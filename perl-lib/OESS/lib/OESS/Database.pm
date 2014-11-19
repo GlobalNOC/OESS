@@ -7920,6 +7920,12 @@ sub add_edge_interface_move_maintenance {
     my $orig_interface_id = $args{'orig_interface_id'};     
     my $temp_interface_id = $args{'temp_interface_id'};     
 
+    # sanity checks 
+    if(!defined($name)){
+	    $self->_set_error("Must pass in name for maintenance.");
+        return;
+    }
+
     $self->_start_transaction();
 
     # first insert the maintenance record
@@ -7950,7 +7956,8 @@ sub add_edge_interface_move_maintenance {
 	    $self->_rollback();
         return;
     }
-    my $moved_circuit_ids = $res->{'moved_circuits'};
+    my $moved_circuit_ids   = $res->{'moved_circuits'};
+    my $unmoved_circuit_ids = $res->{'unmoved_circuits'};
 
     # now create edge_interface_move_maintenance_circuit_membership records for each moved circuit
     foreach my $circuit_id (@$moved_circuit_ids){
@@ -7970,7 +7977,11 @@ sub add_edge_interface_move_maintenance {
     }
 
     $self->_commit();
-    return $maintenance_id;
+    return { 
+        maintenance_id   => $maintenance_id,
+        moved_circuits   => $res->{'moved_circuits'},
+        unmoved_circuits => $res->{'unmoved_circuits'}
+    };
 }
 
 =head2 revert_edge_interface_move_maintenance 
@@ -8070,6 +8081,11 @@ sub move_edge_interface_circuits {
 	    $self->_set_error("Must pass in new_interface_id.");
         return;
     }
+    if($orig_interface_id == $new_interface_id){
+	    $self->_set_error("Original interface and new interface must be different.");
+        return;
+    }
+
     my $orig_int_node = $self->get_node_by_interface_id( interface_id => $orig_interface_id ) || return;
     my $new_int_node  = $self->get_node_by_interface_id( interface_id => $new_interface_id ) || return;
     if($orig_int_node->{'name'} ne $new_int_node->{'name'}){
@@ -8082,6 +8098,12 @@ sub move_edge_interface_circuits {
         interface_id => $orig_interface_id,
         circuit_ids  => $circuit_ids
     ) || return;
+
+    # stop right here if there are no circuits on this interface
+    if(@$src_edge_interface_recs < 1){
+	    $self->_set_error("No circuits on original interface, nothing to do.");
+        return;
+    }
 
     # now retrieve all the edge interface records we're moving to.
     # we'll use these to create a hash of vlan tags already used
@@ -8146,6 +8168,9 @@ sub move_edge_interface_circuits {
 
     my @moved_circuits   = keys %moved_circuits;
     my @unmoved_circuits = keys %unmoved_circuits;
+
+    warn "moved_circuits: ".Dumper(\@moved_circuits);
+    warn "unmoved_circuits: ".Dumper(\@unmoved_circuits);
 
     return { moved_circuits   => \@moved_circuits,
              unmoved_circuits => \@unmoved_circuits };
