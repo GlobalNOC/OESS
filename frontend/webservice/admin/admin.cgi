@@ -77,7 +77,9 @@ sub main {
     }
 
     switch ($action) {
-
+        case "get_edge_interface_move_maintenances" {
+            $output = &get_edge_interface_move_maintenances();
+        }
         case "get_pending_nodes" {
             $output = &get_pending_nodes();
         }
@@ -640,6 +642,19 @@ sub edit_user {
     }
     else {
         $results->{'results'} = [ { success => 1 } ];
+    }
+
+    return $results;
+}
+
+sub get_edge_interface_move_maintenances {
+    my $results;
+    my $maints = $db->get_edge_interface_move_maintenances();
+
+    if ( !defined $maints ) {
+        $results->{'error'} = $db->get_error();
+    }else {
+        $results->{'results'} = $maints;
     }
 
     return $results;

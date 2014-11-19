@@ -406,3 +406,51 @@ table.circuit_summary_table tr{
     list-style-type: disc !important;
     list-style-position: outside !important;
 }
+
+
+/* admin maintenance tab */
+#maintenance_content {
+    width: 90%;
+    margin: 0 auto;
+}
+.maintenance_container {
+    text-align: center;
+}
+#edge_int_maint_table table {
+    min-width: 100%;
+}
+.maint_actions_holder {
+    text-align: right;
+    margin-bottom: 5px;
+}
+.maint_actions_holder > label {
+    float: left;
+    color: grey;
+    margin-top: 10px;
+}
+.move_edge_int_form .chzn-container {
+    vertical-align: bottom;
+    width: 175px !important;
+}
+
+/*.move_edge_int_form .chzn-drop > * {*/
+.move_edge_int_form select {
+    width: 175px;
+}
+.move_edge_int_form > div > div,
+.move_edge_int_form > div > select,
+.move_edge_int_maint_name_input > * {
+    display: inline-block; 
+}
+    
+.move_edge_int_maint_name_input > div,
+.move_edge_int_form > div > div {
+    width: 110px;
+}
+.move_edge_int_maint_name_input,
+.move_edge_int_form > div {
+    margin-bottom: 5px;
+}
+
+/* end admin maintenance tab */
+

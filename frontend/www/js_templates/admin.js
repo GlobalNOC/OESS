@@ -20,6 +20,8 @@ function admin_init(){
     setup_remote_tab();
 
     setup_remote_dev_tab();
+
+    setup_maintenance_tab();
 }
 
 function setup_remote_dev_tab(){
@@ -2501,6 +2503,259 @@ function setup_discovery_tab(){
 
 	});
 
+}
+
+function setup_maintenance_tab(){    
+    //setup add maint button
+    var maint_add_button = new YAHOO.widget.Button('maint_add_button', {
+        label: "Add Maintenance"
+    });
+    maint_add_button.on("click", function(){
+        makeIntMoveMaintAddPanel();
+        //alert("Adding Maintenance LAwl!");
+        /*
+        var region = YAHOO.util.Dom.getRegion("user_details");
+        var new_wg_p = new YAHOO.widget.Panel("add_workgroup_user",{
+            width:500,
+            xy: [region.left,
+            region.top]
+        });
+        */
+    });
+    
+    //create the table
+    var table = makeIntMoveMaintTable();
+}
+
+//callback when a maintenance is completed
+function maintComplete(maintenance_id){
+    alert("Completing Maintenance! Lawl!"); 
+}
+
+function makeIntMoveMaintTable(){
+    var url = "../services/admin/admin.cgi?action=get_edge_interface_move_maintenances";
+    var ds  = new YAHOO.util.DataSource(url);
+    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+    ds.responseSchema = {
+        resultsList: "results",
+        fields: [
+            {key: "name"},
+            {key: "orig_interface_name"},
+            {key: "temp_interface_name"},
+            {key: "start_epoch", parser: "number"},
+            {key: "maintenance_id", parser: "number"},
+        ]
+    };
+
+    var columns = [
+        {key: "name", label: "Name", width: 180 ,sortable:true},
+        {key: "orig_interface_name", label: "Original Interface", sortable:true },
+        {key: "temp_interface_name", label: "Temporary Interface", sortable:true },
+        {key: "start_epoch", label: "Activated On", formatter: function(el, rec, col, data){
+            el.innerHTML = new Date(data * 1000 ).toLocaleString(); 
+        }, sortable: true},
+        {label: "Complete", formatter: function(el, rec, col, data){
+            var b = new YAHOO.widget.Button({label: "Complete"});
+            b.appendTo(el);
+            b.on("click", function(){
+                var msg = "Clicking complete will restore all circuits, moved from the original "+
+                          "interface to the temporary interface, back to the original interface "+
+                          "Are you sure this is what you want to do?";
+                showConfirm(msg,
+                    function(){
+                        maintComplete(rec.getData("maintenance_id"));
+                    },
+                    function(){}
+                );
+            });
+        }, sortable: true}
+    ];
+
+    var config = {
+        paginator:  new YAHOO.widget.Paginator({
+            rowsPerPage: 10,
+            containers: ["owned_interfaces_table_nav"]
+        })
+    };
+
+    var table = new YAHOO.widget.DataTable("edge_int_maint_table", columns, ds, config);
+    table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
+    table.subscribe("rowMouseoutEvent",  table.onEventUnhighlightRow);
+
+    return table;
+}
+
+function makeIntMoveMaintAddPanel(){
+    var region = YAHOO.util.Dom.getRegion("user_details");
+
+    var move_int_form = getMoveIntForm("add_int_move_maint_panel");
+    var panel = new YAHOO.widget.Panel("add_int_move_maint_panel",{
+        width:500,
+        xy: [region.left,
+        region.top]
+    });
+
+    panel.setHeader("Add Edge Interface Move Maintenance");
+    panel.setBody(
+    "<div class='move_edge_int_maint_form'>" +
+        "<div class='move_edge_int_maint_name_input'>"+
+            "<div for='intm_maint_name'>Name:</div>" +
+            "<input type='text' id='intm_maint_name' size='38'>"+
+        "</div>"+
+        move_int_form.markup()+
+    "</div>"
+    );
+
+    panel.render("maintenance_content");
+    move_int_form.init();
+
+    panel.hideEvent.subscribe(function(){
+        this.destroy();
+    });
+}
+
+function getMoveIntForm(container_id){
+    var selector_ids = {
+        node: container_id+'_mei_node_selector',
+        oint: container_id+'_mei_oint_selector',
+        nint: container_id+'_mei_nint_selector'
+    };
+
+    var markup = function(){
+        return "<div class='move_edge_int_form'>"+
+                 "<div>"+
+                    "<div>Node:</div>"+
+                    "<select id='"+selector_ids.node+"'></select>"+
+                 "</div>"+
+                 "<div>"+
+                    "<div>Original Interface:</div>"+
+                    "<select id='"+selector_ids.oint+"'></select>"+
+                 "</div>"+
+                 "<div>"+
+                    "<div>New Interface:</div>"+
+                    "<select id='"+selector_ids.nint+"'></select>"+
+                 "</div>"+
+               "</div>";
+    };
+
+    var updatePlaceholder = function(selector_type, msg, disable){
+        disable = disable || false;
+        $('#'+selector_ids[selector_type]).attr('data-placeholder', msg);
+        $('#'+selector_ids[selector_type]).prop('disable', disable);
+        $('#'+selector_ids[selector_type]).trigger("liszt:updated");
+    };
+
+    var addOptions = function(selector_type, options){
+        //if null was passed in for the options set loading message and clear 
+        //current options
+        if(options === null){
+            $('#'+selector_ids[selector_type]).empty();
+            updatePlaceholder(selector_type, "Loading...");
+        }else {
+            $.each(options, function(i, option){
+                var opt = '<option value="'+option.value+'">'+option.name+'</option>';
+                $('#'+selector_ids[selector_type]).append(opt);
+            });
+            updatePlaceholder(selector_type, "Choose One");
+        }
+        $('#'+selector_ids[selector_type]).trigger("change");
+    };
+
+    var getOptions = function(selector_types, obj){
+        var url;
+        if(selector_types.length === 1){
+            url = "../services/data.cgi?action=get_nodes";
+        }else {
+            url = "../services/data.cgi?action=get_node_interfaces"+
+                  "&show_down=0"+
+                  "&show_trunk=0"+
+                  "&node="+obj.node;
+        }
+        var ds = new YAHOO.util.DataSource(url);
+        ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+        ds.responseSchema = {
+            resultsList: "results",
+                fields: [
+                    {key: obj.fields.name},
+                    {key: obj.fields.value}
+                ],
+                metaFields: {
+                error: "error"
+            }
+        };
+        ds.sendRequest("",{
+            success: function(req, resp){
+                if (resp.meta.error){
+                    $.each(selector_types, function(i, selector_type){ 
+                        updatePlaceholder(selector_type, "Data Error");
+                    });
+                    return;
+                }
+                var options = [];
+                $.each(resp.results, function(i, result){
+                    options.push({
+                        value: result[obj.fields.value],
+                        name:  result[obj.fields.name]
+                    });
+                });
+                $.each(selector_types, function(i, selector_type){ 
+                    addOptions(selector_type, options);
+                });
+            },
+            failure: function(req, resp){
+                $.each(selector_types, function(i, selector_type){ 
+                    updatePlaceholder(selector_type, "Data Error");
+                });
+            }
+        });
+    };
+
+    var val  = function(){
+        return {
+            orig_interface_id: $('#'+selector_ids.oint).chosen.val()
+            new_interface_id:  $('#'+selector_ids.nint).chosen.val()
+        };
+    };
+
+    var init = function(){
+        //set loading messages and init chosen selectors
+        $.each(selector_ids, function(type, selector_id){
+            updatePlaceholder(type, "Loading...", true);
+            $('#'+selector_id).chosen();
+        });
+
+        //on node change event fetch interface options
+        $('#'+selector_ids.node).on('change', function(){
+            var types = ['oint', 'nint'];
+            //clear current options
+            $.each(types, function(i, type){
+                addOptions(type, null);
+            });
+
+            //fetch new ones
+            getOptions(types, {
+                node: $('#'+selector_ids.node).chosen().val(),
+                fields:  { 
+                    name:  'name',
+                    value: 'interface_id'
+                }
+            });
+        });
+    
+        //get the node options
+        getOptions(['node'], {
+            fields: {
+                name:  'name',
+                value: 'name'
+            }        
+        });
+    };
+
+    return {
+        markup: markup,
+        init:   init,
+        val:    val
+    }
 }
 
 function makeOwnedInterfaceTable(id){

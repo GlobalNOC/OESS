@@ -7865,18 +7865,27 @@ sub get_edge_interface_move_maintenances {
 
     # first retrieve all the edge interface records
     my $params = [];
-    my $query  = "SELECT * ".
-                 "FROM edge_interface_move_maintenance";
+    my $query  = "SELECT maint.maintenance_id, ".
+                 "       maint.name, ".
+                 "       maint.orig_interface_id, ".
+                 "       maint.temp_interface_id, ".
+                 "       maint.start_epoch, ".
+                 "       maint.end_epoch, ".
+                 "       orig_int.name AS orig_interface_name, ".
+                 "       temp_int.name AS temp_interface_name ".
+                 "FROM edge_interface_move_maintenance as maint ".
+                 "JOIN interface AS orig_int ON maint.orig_interface_id = orig_int.interface_id ".
+                 "JOIN interface AS temp_int ON maint.temp_interface_id = temp_int.interface_id";
 
     # build where clause
     my $where = "";
     if($maintenance_id) {
-        $where .= " maintenance_id = ?";
+        $where .= " maint.maintenance_id = ?";
         push(@$params, $maintenance_id);
     }
     if(!$show_history){
         $where .= " AND " if($where ne "");
-        $where .= " end_epoch = -1";
+        $where .= " maint.end_epoch = -1";
     }
     if($where ne ""){
         $query .= " WHERE $where";
