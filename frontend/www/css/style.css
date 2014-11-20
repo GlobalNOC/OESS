@@ -470,5 +470,33 @@ table.circuit_summary_table tr{
     margin-bottom: 5px;
 }
 
+.move_edge_int_form .yui-buttongroup {
+    margin-top: 10px;
+}
+
+.move_edge_int_form .ckt_table_holder {
+    display: none;
+    background-color: #DADADA;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px darkgrey solid;
+}
+.move_edge_int_form .ckt_table_holder > div {
+    margin-bottom: 5px;
+}
+.move_edge_int_form .ckt_table_holder p {
+    color: dimgrey;
+}
+
+.move_edge_int_form .yui-dt {
+    display: block;
+}
+
+.move_edge_int_form .yui-dt,
+.move_edge_int_form .yui-dt table {
+    width: 100% !important;
+}
+
+
 /* end admin maintenance tab */
 

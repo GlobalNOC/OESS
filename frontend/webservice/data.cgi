@@ -90,6 +90,9 @@ sub main {
         case "get_existing_circuits" {
             $output = &get_existing_circuits();
         }
+        case "get_circuits_by_interface_id" {
+            $output = &get_circuits_by_interface_id();
+        }
         case "get_circuit_details" {
             $output = &get_circuit_details();
         }
@@ -162,6 +165,21 @@ sub get_workgroups {
     }
     else {
         $results->{'results'} = $workgroups;
+    }
+
+    return $results;
+}
+
+sub get_circuits_by_interface_id {
+    my $interface_id = $cgi->param('interface_id');
+
+    my $results = { results => [] };
+    my $circuits = $db->get_circuits_by_interface_id( interface_id => $interface_id );
+    if ( !defined $circuits ) {
+        $results->{'error'} = $db->get_error();
+    }
+    else {
+        $results->{'results'} = $circuits;
     }
 
     return $results;

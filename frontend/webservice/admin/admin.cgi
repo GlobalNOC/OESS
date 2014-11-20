@@ -671,12 +671,13 @@ sub add_edge_interface_move_maintenance {
     my $name               = ($cgi->param("name") eq '') ? undef : $cgi->param("name");
     my $orig_interface_id  = $cgi->param("orig_interface_id");
     my $temp_interface_id  = $cgi->param("temp_interface_id");
-
+    my @circuit_ids        = $cgi->param("circuit_id");
 
     my $res = $db->add_edge_interface_move_maintenance(
         name => $name,
         orig_interface_id => $orig_interface_id,
-        temp_interface_id => $temp_interface_id
+        temp_interface_id => $temp_interface_id,
+        circuit_ids       => (@circuit_ids > 0) ? \@circuit_ids : undef
     );
 
     if ( !defined $res ) {

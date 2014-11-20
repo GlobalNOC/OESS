@@ -5511,7 +5511,7 @@ sub get_circuit_by_external_identifier {
 }
 
 
-=head2 get_circuit_by_interface_id
+=head2 get_circuits_by_interface_id
 
 Returns an array of hashes containing circuit information of all active circuits that have the interface identified by $interface_id as an endpoint.
 
@@ -5525,27 +5525,27 @@ The internal MySQL primary key int identifier for this interface.
 
 =cut
 
-sub get_circuit_by_interface_id{
+sub get_circuits_by_interface_id {
     my $self = shift;
     my %args = @_;
 
     my $interface_id = $args{'interface_id'};
 
-    my $select_circuit = "select circuit.name,circuit.description from circuit_edge_interface_membership,circuit_instantiation,circuit where circuit.circuit_id = circuit_edge_interface_membership.circuit_id, circuit_instantiation.cicuit_id = circuit.circuit_id and circuit_instantiation.circuit_state = 'active' and circuit_instantiation.end_epoch = -1 and circuit_edge_interface_membeship.interface_id = ? and circuit_edge_interface_membership.end_epcoh = -1";
-    my $select_circuit_sth = $self->_prepare_query($select_circuit);
-    $select_circuit_sth->execute($interface_id);
-    my @results;
+    my $query = "SELECT ".
+                "  circuit.circuit_id, ".
+                "  circuit.name, ".
+                "  circuit.description ".
+                "FROM circuit_edge_interface_membership AS ce ".
+                "JOIN circuit ON circuit.circuit_id = ce.circuit_id ".
+                "JOIN circuit_instantiation AS ci ON circuit.circuit_id = ci.circuit_id ".
+                "WHERE ci.circuit_state = 'active' ".
+                "AND ci.end_epoch = -1 ".
+                "AND ce.end_epoch = -1 ".
+                "AND ce.interface_id = ?";
 
-    while(my $row = $select_circuit_sth->fetchrow_hasref()){
-	push(@results,$row);
-    }
+    my $circuits = $self->_execute_query($query, [$interface_id]) || return;
 
-    if($#results > 0){
-	return \@results;
-    }else{
-	$self->_set_error("Unable to find circuits with interface_id $interface_id");
-	return;
-    }
+	return $circuits;
 }
 
 =head2 schedule_path_change
@@ -7919,6 +7919,7 @@ sub add_edge_interface_move_maintenance {
     my $name              = $args{'name'};
     my $orig_interface_id = $args{'orig_interface_id'};     
     my $temp_interface_id = $args{'temp_interface_id'};     
+    my $circuit_ids       = $args{'circuit_ids'};     
 
     # sanity checks 
     if(!defined($name)){
@@ -7950,7 +7951,8 @@ sub add_edge_interface_move_maintenance {
     my $res = $self->move_edge_interface_circuits(
         orig_interface_id => $orig_interface_id,
         new_interface_id  => $temp_interface_id,
-        do_commit    => 0
+        circuit_ids       => $circuit_ids,
+        do_commit         => 0
     );
     if(!defined($res)){
 	    $self->_rollback();
