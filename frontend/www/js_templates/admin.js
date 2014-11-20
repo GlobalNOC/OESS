@@ -2514,27 +2514,9 @@ function setup_maintenance_tab(){
         label: "Add Maintenance"
     });
     maint_add_button.on("click", function(){
-        var obj = makeIntMoveMaintAddPanel();
-        obj.saveSuccess.subscribe(function(){
-            table.destroy();
-            table = makeIntMoveMaintTable()
-        });
-        //alert("Adding Maintenance LAwl!");
-        /*
-        var region = YAHOO.util.Dom.getRegion("user_details");
-        var new_wg_p = new YAHOO.widget.Panel("add_workgroup_user",{
-            width:500,
-            xy: [region.left,
-            region.top]
-        });
-        */
+        var obj = makeIntMoveMaintAddPanel(table);
     });
     
-}
-
-//callback when a maintenance is completed
-function maintComplete(maintenance_id){
-    alert("Completing Maintenance! Lawl!"); 
 }
 
 function makeIntMoveMaintTable(){
@@ -2561,18 +2543,52 @@ function makeIntMoveMaintTable(){
         }, sortable: true},
         {label: "Complete", formatter: function(el, rec, col, data){
             var b = new YAHOO.widget.Button({label: "Complete"});
+            var bid = b.get('id');
             b.appendTo(el);
             b.on("click", function(){
-                var msg = "Clicking complete will restore all circuits, moved from the original "+
+                var maintComplete = function(maintenance_id, table){
+                    b.set('label', 'Submitting...');
+                    var url = "../services/admin/admin.cgi?action=revert_edge_interface_move_maintenance"+
+                              "&maintenance_id="+maintenance_id;
+                    var ds = new YAHOO.util.DataSource(url);
+                    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                    ds.responseSchema = {
+                        resultsList: "results",
+                        fields: [
+                            {key: "maintenance_id"}
+                        ],
+                        metaFields: {
+                            error: "error"
+                        }
+                    };
+                    ds.sendRequest("",{
+                        success: function(req, resp){
+                            b.set('label', 'Complete');
+                            if (resp.meta.error){
+                                alert("Error submitting maintenance completion: " + resp.meta.error, null, {error: true});
+                                return;
+                            }
+                            var res = resp.results[0];
+                            var msg = "<div>Maintenance successfully completed.</div>";
+                            alert(msg);
+                            table.load();
+                        },
+                        failure: function(req, resp){
+                            b.set('label', 'Complete');
+                            alert("Server error submitting maintenance completion", null, {error: true});
+                        }
+                    });
+                };
+                var msg = "This will restore all circuits, moved from the original "+
                           "interface to the temporary interface, back to the original interface "+
                           "Are you sure this is what you want to do?";
                 showConfirm(msg,
-                    function(){
-                        maintComplete(rec.getData("maintenance_id"));
-                    },
+                    $.proxy(function(){
+                        maintComplete(rec.getData("maintenance_id"), this);
+                    },this),
                     function(){}
                 );
-            });
+            },null,this);
         }, sortable: true}
     ];
 
@@ -2590,7 +2606,7 @@ function makeIntMoveMaintTable(){
     return table;
 }
 
-function makeIntMoveMaintAddPanel(){
+function makeIntMoveMaintAddPanel(table){
     var obj = {};
 
     var width = 450;
@@ -2601,7 +2617,7 @@ function makeIntMoveMaintAddPanel(){
         xy: [(region.right - width),region.top]
     });
 
-    obj.saveSuccess = new YAHOO.util.CustomEvent("saveSuccess");
+    //obj.saveSuccess = new YAHOO.util.CustomEvent("saveSuccess");
 
     panel.setHeader("Add Edge Interface Move Maintenance");
     panel.setBody(
@@ -2619,46 +2635,57 @@ function makeIntMoveMaintAddPanel(){
     //hook up maint submission
     var add_button = new YAHOO.widget.Button("add_eim_maint", {label: "Add"});
     add_button.on('click', function(){
-		var url = "../services/admin/admin.cgi?action=add_edge_interface_move_maintenance"+
-                  "&name="+$('#intm_maint_name').val()+
-                  "&orig_interface_id="+move_int_form.val().orig_interface_id+
-                  "&temp_interface_id="+move_int_form.val().new_interface_id;
-        var ds = new YAHOO.util.DataSource(url);
-        ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-        ds.responseSchema = {
-            resultsList: "results",
-            fields: [
-                {key: "maintenance_id"}, 
-                {key: "moved_circuits"}, 
-                {key: "unmoved_circuits"}
-            ],
-            metaFields: {
-                error: "error"
-            }
+        var add_eim_maint = function(){ 
+            add_button.set('label', 'Submitting...');
+            var url = "../services/admin/admin.cgi?action=add_edge_interface_move_maintenance"+
+                      "&name="+$('#intm_maint_name').val()+
+                      "&orig_interface_id="+move_int_form.val().orig_interface_id+
+                      "&temp_interface_id="+move_int_form.val().new_interface_id;
+            var ds = new YAHOO.util.DataSource(url);
+            ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+            ds.responseSchema = {
+                resultsList: "results",
+                fields: [
+                    {key: "maintenance_id"}, 
+                    {key: "moved_circuits"}, 
+                    {key: "unmoved_circuits"}
+                ],
+                metaFields: {
+                    error: "error"
+                }
+            };
+            ds.sendRequest("",{
+                success: function(req, resp){
+                    add_button.set('label', 'Add');
+                    if (resp.meta.error){
+                        alert("Error adding maintenance: " + resp.meta.error, null, {error: true});
+                        return;
+                    }
+                    var res = resp.results[0];
+                    var msg = "<div>Maintenance successfully added.</div>"+
+                              "<div class='success'>"+
+                              res.moved_circuits.length+" circuits moved"+
+                              "</div>";
+                    if(res.unmoved_circuits.length > 0){
+                        msg += "<div class='warning'>"+
+                               res.unmoved_circuits.length+" unmoved circuits due to vlan conflicts"+
+                               "</div>";
+                    }
+                    panel.destroy();
+                    alert(msg);
+                    table.load();
+                    //obj.saveSuccess.fire();
+                },
+                failure: function(req, resp){
+                    add_button.set('label', 'Add');
+                    alert("Server error adding maintenance", null, {error: true});
+                }
+            });
         };
-        ds.sendRequest("",{
-            success: function(req, resp){
-                if (resp.meta.error){
-                    alert("Error adding maintenance: " + resp.meta.error, null, {error: true});
-                    return;
-                }
-                var res = resp.results[0];
-                var msg = "<div class='success'>"+
-                          res.moved_circuits.length+" circuits moved"+
-                          "</div>";
-                if(res.unmoved_circuits.length > 0){
-                    msg += "<div class='warning'>"+
-                           res.unmoved_circuits.length+" unmoved circuits due to vlan conflicts"+
-                           "</div>";
-                }
-                panel.destroy();
-                alert(msg);
-                obj.saveSuccess.fire();
-            },
-            failure: function(req, resp){
-                alert("Server error adding maintenance", null, {error: true});
-            }
-        });
+        var msg = "This will cause all circuits on the original interface to be moved to the "+
+                  "temporary interface. Circuits with conflicting vlans will remain unmoved."+
+                  "Are you sure this is what you want to do?";
+        showConfirm(msg,add_eim_maint, function(){});
     });
 
     move_int_form.init();
