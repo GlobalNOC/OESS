@@ -45,6 +45,7 @@ sub main {
         exit(1);
     }
 
+    my $init_logger = Log::Log4perl->init_and_watch('/etc/oess/logging.conf'); 
     $user_id = $db->get_user_id_by_auth_name( 'auth_name' => $username );
 
     my $user = $db->get_user_by_id( user_id => $user_id)->[0];
@@ -130,7 +131,6 @@ sub add_acl {
     my $interface_name = $db->get_interface(interface_id => $cgi->param("interface_id"))->{'name'};
     my $vlan_start = $cgi->param("vlan_start");
     my $vlan_end = $cgi->param("vlan_end");
-    my $init_logger = Log::Log4perl->init_and_watch('/etc/oess/logging.conf'); 
     my $logger = Log::Log4perl->get_logger("OESS.ACL");
     $logger->debug("Initiating creation of ACL at <time> for ");    
     my $acl_id = $db->add_acl( 
@@ -198,7 +198,6 @@ sub update_acl {
     my $interface_name = $db->get_interface(interface_id => $cgi->param("interface_id"))->{'name'}; 
     my $vlan_start = $cgi->param("vlan_start");
     my $vlan_end = $cgi->param("vlan_end");
-    my $init_logger = Log::Log4perl->init_and_watch('/etc/oess/logging.conf'); 
     my $logger = Log::Log4perl->get_logger("OESS.ACL");
     
     if ( !defined $success ) {
@@ -267,7 +266,6 @@ sub update_acl {
 
 sub remove_acl {
     my $results;
-    my $init_logger = Log::Log4perl->init_and_watch('/etc/oess/logging.conf');
     my $logger = Log::Log4perl->get_logger("OESS.ACL");
  
     my $interface_acl_id   = $cgi->param('interface_acl_id');
