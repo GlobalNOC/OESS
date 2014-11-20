@@ -144,14 +144,12 @@ sub add_acl {
         user_id       => $user_id
     );
     if ( !defined $acl_id ) {
-        my $time = localtime();
-        $logger->error("Error creating ACL at $time for $workgroup_name, on $interface_name from vlans $vlan_start to $vlan_end. Action was initiated by $username");
+        $logger->error("Error creating ACL at ". localtime(). " for $workgroup_name, on $interface_name from vlans $vlan_start to $vlan_end. Action was initiated by $username");
         $results->{'error'} = $db->get_error();
         $results->{'results'} = [ { success => 0 } ];
     }
     else {
-        my $time = localtime();
-        $logger->info("Created ACL with id $acl_id at $time for $workgroup_name on $interface_name from vlans $vlan_start to $vlan_end, Action was initiated by $username");
+        $logger->info("Created ACL with id $acl_id at " .localtime(). " for $workgroup_name on $interface_name from vlans $vlan_start to $vlan_end, Action was initiated by $username");
         $results->{'results'} = [{ 
             success => 1, 
             interface_acl_id => $acl_id 
@@ -201,8 +199,7 @@ sub update_acl {
     my $logger = Log::Log4perl->get_logger("OESS.ACL");
     
     if ( !defined $success ) {
-        my $time = localtime();
-        $logger->info("Failed to update acl with id $acl_id, at $time on $interface_name. Action was initiated by $username."); 
+        $logger->info("Failed to update acl with id $acl_id, at ". localtime() . " on $interface_name. Action was initiated by $username."); 
         $results->{'error'}   = $db->get_error();
         $results->{'results'} = [];
     }
@@ -213,50 +210,32 @@ sub update_acl {
         my $passed_values_hash;
         foreach my $passed_value (@passed_values) {
 
-            #we don't need the action param
+            #we don't need the action param or notes
             if ($passed_value eq "action" || $passed_value eq "notes") {
                 next;
             }
             $passed_values_hash->{$passed_value} = $cgi->param($passed_value);
         }
-
-        #we don't need certain key-values in the original hash
-        delete $original_values->{'interface_name'}; delete $original_values->{'owner_workgroup_name'}; delete $original_values->{'interface_acl_id'}; delete $original_values->{'workgroup_name'};
-        delete $original_values->{'notes'}; delete $original_values->{'owner_workgroup_id'};
-
-        #nor do we need certain values in the passed value hash
-        delete $passed_values_hash->{'interface_acl_id'};
-        
-        #delete values from both hashes that didn't change.
-        foreach my $key ( sort keys %$original_values ) {
-            
-            #if we are keeping the workgroup set to all
-            if (!defined $original_values->{$key} && !$passed_values_hash->{$key}){
-            
-                delete($original_values->{$key});
-                delete($passed_values_hash->{$key});
-            }
-            #if we are changing the workgroup TO all
-            if (defined $original_values->{$key} && !$passed_values_hash->{$key}){
-                $passed_values_hash->{'workgroup id'} = "All workgroups";
-            }
-            if ($original_values->{$key} eq $passed_values_hash->{$key}){
-    
-                delete($original_values->{$key});
-                delete($passed_values_hash->{$key});
-
-               }
-          }
-
-        my @original_array = _convert_hash_to_array($original_values, $original_interface_name, $original_workgroup_name);
-        my @updated_array = _convert_hash_to_array($passed_values_hash, $interface_name, $workgroup_name);
-
-        my $time = localtime();
-        $logger->info("Updated ACL with id $acl_id, at $time on $interface_name. Action was initiated by $username.");
+        $logger->info("Updated ACL with id $acl_id, at ". localtime() ." on $interface_name. Action was initiated by $username.");
         
         #now compare and contrast values
-        $logger->info("Original values for the ACL were: " . _print_formatted_array(@original_array));
-        $logger->info("New values for the ACL were: " . _print_formatted_array(@updated_array));
+        my $output_string = "Changed: ";  
+        if( $original_values->{'vlan_start'} != $passed_values_hash->{'vlan_start'}) {
+            $output_string .= "vlan start from " . $original_values->{'vlan_start'} . " to " . $passed_values_hash->{'vlan_start'};
+        }
+
+        if( $original_values->{'vlan_end'} != $passed_values_hash->{'vlan_end'}){
+            $output_string .= " vlan end from " . $original_values->{'vlan_end'} . " to " . $passed_values_hash->{'vlan_end'};
+        }  
+        if( $original_values->{'allow_deny'} != $passed_values_hash->{'allow_deny'}) {
+            $output_string .= " permission from " . $original_values->{'allow_deny'} . " to ". $passed_values_hash->{'allow_deny'}; 
+        }
+
+        if( $original_values->{'workgroup_id'} != $passed_values_hash->{'workgroup_id'}) {
+            $output_string .= " workgroup from $original_workgroup_name to $workgroup_name. ";
+        }
+
+        $logger->info($output_string);
         $results->{'results'} = [ { success => 1 } ];
     }
 
@@ -276,14 +255,12 @@ sub remove_acl {
     );
 
     if ( !defined $result ) {
-        my $time = localtime();
-        $logger->info("Failed to delete ACL with id $interface_acl_id at $time.  Action was initiated by $username.");
+        $logger->info("Failed to delete ACL with id $interface_acl_id at ". localtime() ." Action was initiated by $username.");
         $results->{'error'}   = $db->get_error();
         $results->{'results'} = [];
     }
     else {
-        my $time = localtime();
-        $logger->info("Deleted ACL with id $interface_acl_id at $time.  Action was initiated by $username.");
+        $logger->info("Deleted ACL with id $interface_acl_id at ". localtime() . " Action was initiated by $username.");
         $results->{'results'} = [ { success => 1 } ];
     }
 
@@ -308,60 +285,6 @@ sub parse_results {
 sub send_json {
     my $output = shift;
     print "Content-type: text/plain\n\n" . encode_json($output);
-}
-
-
-sub _convert_hash_to_array {
-    my($hash, $interface_name, $wkgroup_name) = @_;
-    my $convert_interface_id =0;
-    my $convert_workgroup_id=0;
-    my @array;
-    foreach my $key (%$hash) {
-        if ($convert_workgroup_id){
-            $key = $wkgroup_name;    
-            $convert_workgroup_id =0; 
-        }
-        if ($key eq "workgroup_id"){
-            $key = "workgroup";
-            #next value will be the workgroup ID, so turn on the flag, and handle it when it comes.
-            $convert_workgroup_id = 1;
-        }
-
-        if($convert_interface_id){
-            $key = $interface_name;
-            $convert_interface_id = 0;
-        }
-
-        if ($key eq "interface_id"){
-            $key = "Interface";
-            $convert_interface_id = 1;
-        }
-
-        push (@array, $key);
-
-    }
-    return @array;
-}
-
-#this formats the original value and new value arrays into a format that looks pretty for the logs.
-sub _print_formatted_array {
-
-    my @array = @_;
-    my $string;
-    my $count = 0;
-    foreach my $element (@array){
-        #if the count is on an even number, we are on a value name, so we format it like so. 
-        if (0 == $count % 2) {
-            $string .= "$element->";
-        }
-        #other wise, it is the value itself, so we format it like this.
-        else {
-            $string .= "$element ";
-        }
-        $count = $count + 1;
-    }
-    return $string;
-
 }
 
 main();
