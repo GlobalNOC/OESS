@@ -839,7 +839,6 @@ sub add_link{
 sub create_link_instantiation{
     my $self = shift;
     my %args = @_;
-
     if(!defined($args{'link_id'})){
 	$self->_set_error("Link ID was not specified");
 	return;
@@ -4471,7 +4470,7 @@ sub get_pending_links {
     my $self = shift;
     my %args = @_;
 
-    my $sth = $self->_prepare_query("select link.link_id, link.name as link_name, nodeA.name as nodeA, nodeB.name as nodeB, intA.name as intA, intB.name as intB " .
+    my $sth = $self->_prepare_query("select link.link_id, link.name as link_name, nodeA.name as nodeA, nodeB.name as nodeB, intA.name as intA, intB.name as intB, intA.interface_id as int_a_id, intB.interface_id as int_b_id " .
 				    " from link join link_instantiation on link.link_id = link_instantiation.link_id " .
 				    " join interface intA on intA.interface_id = link_instantiation.interface_a_id " .
 				    "  join interface_instantiation iiA on intA.interface_id = iiA.interface_id " .
@@ -4485,7 +4484,7 @@ sub get_pending_links {
 				    " join node nodeB on nodeB.node_id = intB.node_id " .
 				    "  join node_instantiation niB on nodeB.node_id = niB.node_id and niB.end_epoch = -1 " .
 				    "   and niB.admin_state = 'active' " .
-				    " where link_instantiation.link_state = 'available'"
+				    " where link_instantiation.link_state = 'available' and link_instantiation.end_epoch = -1"
 	                           ) or return;
 
     $sth->execute();
@@ -4497,10 +4496,12 @@ sub get_pending_links {
 	push(@$links, {'link_id'   => $row->{'link_id'},
 		       'name'      => $row->{'link_name'},
 		       'endpoints' => [{'node'      => $row->{'nodeA'},
-					'interface' => $row->{'intA'}
+					'interface' => $row->{'intA'},
+                    'interface_id' => $row->{'int_a_id'}
 				       },
 				       {'node'      => $row->{'nodeB'},
-					'interface' => $row->{'intB'}
+					'interface' => $row->{'intB'},
+                    'interface_id' => $row->{'int_b_id'}
 				       }
 			              ]
 	             }
