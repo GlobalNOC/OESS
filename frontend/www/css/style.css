@@ -446,6 +446,9 @@ table.circuit_summary_table tr{
     color: grey;
     margin-top: 10px;
 }
+.move_edge_int_form {
+    text-align: left;
+}
 .move_edge_int_form .chzn-container {
     vertical-align: bottom;
     width: 175px !important;
@@ -499,4 +502,17 @@ table.circuit_summary_table tr{
 
 
 /* end admin maintenance tab */
-
+#node_interface_table .yuimenu .bd {
+    padding: 0px;
+    border-width: 1px;
+}
+/*
+#node_interface_table .yuimenu.visible {
+    position: relative !important;
+    display: inline-block;
+    float: right;
+}
+*/
+#int_move_panel .ft {
+    text-align: right;
+}

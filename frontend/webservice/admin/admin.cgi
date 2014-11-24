@@ -86,6 +86,9 @@ sub main {
         case "revert_edge_interface_move_maintenance" {
             $output = &revert_edge_interface_move_maintenance();
         }
+        case "move_edge_interface_circuits" {
+            $output = &move_edge_interface_circuits();
+        }
         case "get_pending_nodes" {
             $output = &get_pending_nodes();
         }
@@ -696,6 +699,27 @@ sub revert_edge_interface_move_maintenance {
 
     my $res = $db->revert_edge_interface_move_maintenance(
         maintenance_id => $maintenance_id
+    );
+    if ( !defined $res ) {
+        $results->{'error'}   = $db->get_error();
+        $results->{'results'} = [];
+    }else {
+        $results->{'results'} = [$res];
+    }
+
+    return $results;
+}
+
+sub move_edge_interface_circuits {
+    my $results;
+    my $orig_interface_id  = $cgi->param("orig_interface_id");
+    my $new_interface_id   = $cgi->param("new_interface_id");
+    my @circuit_ids        = $cgi->param("circuit_id");
+
+    my $res = $db->move_edge_interface_circuits(
+        orig_interface_id => $orig_interface_id,
+        new_interface_id  => $new_interface_id,
+        circuit_ids       => (@circuit_ids > 0) ? \@circuit_ids : undef
     );
     if ( !defined $res ) {
         $results->{'error'}   = $db->get_error();
