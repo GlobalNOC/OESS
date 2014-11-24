@@ -4304,7 +4304,7 @@ sub insert_node_in_path{
 
                 #$int_a is the new interface on the inserted node for link a, $int_z the same for new_link z
 
-                if($new_a_int->{'interface_id'} == $new_link_a_endpoints->{'interface_a_id'})
+                if($new_a_int->{'interface_id'} == $new_link_a_endpoints->[0]->{'interface_id'})
                 {
                     #new added interface is a end
                     push (@$bindparams_a , $new_internal_vlan_a,$original_a_vlan_id);
@@ -4313,7 +4313,7 @@ sub insert_node_in_path{
                     push (@$bindparams_a , $original_a_vlan_id, $new_internal_vlan_a);
                 }
 
-                if($new_z_int>{'interface_id'} == $new_link_z_endpoints->{'interface_a_id'})
+                if($new_z_int>{'interface_id'} == $new_link_z_endpoints->[0]->{'interface_id'})
                 {
                     #new added interface is a end
                     push (@$bindparams_z , $new_internal_vlan_z, $original_z_vlan_id);
@@ -4321,13 +4321,8 @@ sub insert_node_in_path{
                 else{
                     push (@$bindparams_z , $original_z_vlan_id, $new_internal_vlan_z);
                 }
-                $self->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",$bindparams_a);
-		$self->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",$bindparams_z);
-                
-		#insert the path_instantiation_vlan_ids for this new device
-		
-		
-#		$self->_execute_query("insert into path_instantiation_vlan_ids (path_instantiation_id, node_id, internal_vlan_id) values (?, ?, ?)", [$link->{'path_instantiation_id'},$node_id,$internal_vlan]);
+                $self->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch,interface_a_vlan_id,interface_z_vlan_id) VALUES (-1,?,?,unix_timestamp(NOW()),?,?)",$bindparams_a);
+                $self->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch,interface_a_vlan_id,interface_z_vlan_id) VALUES (-1,?,?,unix_timestamp(NOW()),?,?)",$bindparams_z);
 	    }
 	}
 
