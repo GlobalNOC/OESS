@@ -30,14 +30,14 @@ package OESS::Measurement;
 use strict;
 use warnings;
 
+use Log::Log4perl;
 use RRDs;
 use XML::Simple;
 use OESS::Database;
 use Data::Dumper;
 use Exporter qw(import);
 use OESS::Circuit;
-use Sys::Syslog qw(:standard :macros);
-use GRNOC::Log;
+
 
 use constant BUILDING_FILE => -1;
 

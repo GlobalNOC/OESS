@@ -1680,9 +1680,12 @@ sub get_workgroup_interfaces {
 
         my $links = $self->get_link_by_interface_id( interface_id => $row->{'interface_id'});
         my $remote_link = "";
+        my @remote_links;
         foreach my $link (@$links){
             if(defined($link->{'remote_urn'}) && $link->{'remote_urn'} ne ''){
-                $remote_link = $link->{'remote_urn'};
+                #$remote_link = $link->{'remote_urn'};
+                push(@remote_links, {remote_urn => $link->{'remote_urn'},
+                                     vlan_tag_range => $link->{'vlan_tag_range'}});
             }
         }
 
@@ -1691,7 +1694,7 @@ sub get_workgroup_interfaces {
                             "interface_name" => $row->{'int_name'},
                             "node_id"        => $row->{'node_id'},
                             "node_name"      => $row->{'node_name'},
-                            "remote_link"    => $remote_link,
+                            "remote_links"    => \@remote_links,
                             "operational_state" => $row->{'operational_state'},
                             "description"    => $row->{'description'}
 	     });
@@ -1760,11 +1763,11 @@ sub get_available_resources {
             
             my $links = $self->get_link_by_interface_id( interface_id =>  
                                                          $interface->{'interface_id'});
-            my $remote_link = "";
+            my @remote_links;
             foreach my $link (@$links){
-                if(defined($link->{'remote_urn'}) && $link->{'remote_urn'}  
-                           ne ''){
-                    $remote_link = $link->{'remote_urn'};
+                if(defined($link->{'remote_urn'}) && $link->{'remote_urn'} ne ''){
+                    push(@remote_links, {remote_urn => $link->{'remote_urn'},
+                                         vlan_tag_range => $link->{'vlan_tag_range'}});
                 }
             }
             
@@ -1775,7 +1778,7 @@ sub get_available_resources {
                 "node_name"         => $interface->{'node_name'},
                 "operational_state" => $interface->{'operational_state'},
                 "description"       => $interface->{'description'},
-                "remote_link"       => $remote_link,
+                "remote_links"      => \@remote_links,
                 "vlan_tag_range"    => $vlan_tag_range,
                 "is_owner"          => $is_owner,
 		"owning_workgroup"  => $self->get_workgroup_by_id(workgroup_id => $interface->{'workgroup_id'})
@@ -4312,7 +4315,7 @@ sub insert_node_in_path{
 
                 #$int_a is the new interface on the inserted node for link a, $int_z the same for new_link z
 
-                if($new_a_int->{'interface_id'} == $new_link_a_endpoints->{'interface_a_id'})
+                if($new_a_int->{'interface_id'} == $new_link_a_endpoints->[0]->{'interface_id'})
                 {
                     #new added interface is a end
                     push (@$bindparams_a , $new_internal_vlan_a,$original_a_vlan_id);
@@ -4321,7 +4324,7 @@ sub insert_node_in_path{
                     push (@$bindparams_a , $original_a_vlan_id, $new_internal_vlan_a);
                 }
 
-                if($new_z_int>{'interface_id'} == $new_link_z_endpoints->{'interface_a_id'})
+                if($new_z_int>{'interface_id'} == $new_link_z_endpoints->[0]->{'interface_id'})
                 {
                     #new added interface is a end
                     push (@$bindparams_z , $new_internal_vlan_z, $original_z_vlan_id);
@@ -4329,13 +4332,8 @@ sub insert_node_in_path{
                 else{
                     push (@$bindparams_z , $original_z_vlan_id, $new_internal_vlan_z);
                 }
-                $self->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",$bindparams_a);
-		$self->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch) VALUES (-1,?,?,unix_timestamp(NOW()))",$bindparams_z);
-                
-		#insert the path_instantiation_vlan_ids for this new device
-		
-		
-#		$self->_execute_query("insert into path_instantiation_vlan_ids (path_instantiation_id, node_id, internal_vlan_id) values (?, ?, ?)", [$link->{'path_instantiation_id'},$node_id,$internal_vlan]);
+                $self->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch,interface_a_vlan_id,interface_z_vlan_id) VALUES (-1,?,?,unix_timestamp(NOW()),?,?)",$bindparams_a);
+                $self->_execute_query("insert into link_path_membership (end_epoch,link_id,path_id,start_epoch,interface_a_vlan_id,interface_z_vlan_id) VALUES (-1,?,?,unix_timestamp(NOW()),?,?)",$bindparams_z);
 	    }
 	}
 
