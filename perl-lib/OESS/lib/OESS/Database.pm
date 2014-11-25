@@ -6259,7 +6259,7 @@ sub get_node_by_dpid{
     }
 }
 
-=head2 get_node_by_interface
+=head2 get_node_by_interface_id
 
 =cut
 
@@ -7854,9 +7854,11 @@ sub update_circuit_owner{
     my $success = $self->_execute_query($str,[$args{'workgroup_id'},$args{'circuit_id'}]);
     return 1;
 }
-=head2 add_edge_interface_move_maintenance 
+
+=head2 get_edge_interface_move_maintenances
 
 =cut
+
 sub get_edge_interface_move_maintenances {
     my ($self, %args) = @_;
     my $show_history        = $args{'show_history'} || 0;
@@ -8042,9 +8044,11 @@ sub revert_edge_interface_move_maintenance {
 
     return $maintenance_id;
 }
+
 =head2 get_circuit_edge_interface_memberships
 
 =cut
+
 sub get_circuit_edge_interface_memberships {
     my ($self, %args) = @_;
     my $interface_id  = $args{'interface_id'};
@@ -8064,9 +8068,10 @@ sub get_circuit_edge_interface_memberships {
     return $edge_interface_recs;
 }
 
-=head2 move_circuit_edge_interface
+=head2 move_edge_interface_circuits
 
 =cut
+
 sub move_edge_interface_circuits {
     my ($self, %args) = @_;
     my $orig_interface_id = $args{'orig_interface_id'};
