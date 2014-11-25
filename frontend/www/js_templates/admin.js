@@ -3073,7 +3073,7 @@ function makePendingLinkTable(){
 				       "</table>"
 				       );
 
-	    this.details_panel.setFooter("<div id='confirm_link'></div>");
+	    this.details_panel.setFooter("<div id='confirm_link'></div> <div id='deny_link'></div>");
 
 	    this.details_panel.render(document.body);
 
@@ -3084,7 +3084,46 @@ function makePendingLinkTable(){
 	    }
 
 	    var confirm_button = new YAHOO.widget.Button("confirm_link", {label: "Confirm Link"});
+        var deny_button = new YAHOO.widget.Button("deny_link", {label: "Deny Link"});
+        deny_button.on("click", function(e){
+            
+		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=deny_link&link_id=" + record.getData('link_id') + "&interface_a_id="+ record.getData('endpoints')[0].interface_id + "&interface_z_id=" + record.getData('endpoints')[1].interface_id);
+		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+		 
+		    ds.responseSchema = {
+			resultsList: "results",
+			fields: [{key: "success"}]
+		    };
+         
+		    deny_button.set("disabled", true);
+		    deny_button.set("label", "Denying link...");
 
+		    YAHOO.util.Dom.get("link_confirm_status").innerHTML = "";
+		    YAHOO.util.Dom.get("node_confirm_status").innerHTML = "";
+            ds.sendRequest("", {success: function(req, resp){
+
+				deny_button.set("disabled", false);
+				deny_button.set("label", "Deny Link");
+
+				if (resp.results && resp.results[0].success == 1){
+				    YAHOO.util.Dom.get("link_confirm_status").innerHTML = "Link successfully denied.";
+				    table.deleteRow(record);
+				    details_panel.hide();
+				    setup_network_tab();
+				}
+				else{
+				    alert("Link denial unsuccessful.")
+				}
+			    },
+			    failure: function(req, resp){
+				deny_button.set("disabled", false);
+				deny_button.set("label", "Deny Link");
+
+				alert("Server error while denying link.");
+			    }
+			});
+
+        }); 
 	    confirm_button.on("click", function(e){
 
 		    var name = YAHOO.util.Dom.get('link_name').value;

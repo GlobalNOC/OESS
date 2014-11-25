@@ -138,6 +138,13 @@ sub main {
 	    }
 	    $output = &is_ok_to_decom();
 	}
+
+	case "deny_link" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
+            $output = &deny_link();
+        }
 	case "decom_link" {
 	    if($user->{'type'} eq 'read-only'){
 		return send_json({error => 'Error: you are a readonly user'});
@@ -986,6 +993,43 @@ sub update_link {
         name    => $name,
         metric  => $metric
     );
+
+    if ( !defined $result ) {
+        $results->{'results'} = [
+            {
+                "error"   => $db->get_error(),
+                "success" => 0
+            }
+        ];
+    }
+    else {
+        $results->{'results'} = [ { "success" => 1 } ];
+    }
+
+    return $results;
+}
+
+sub deny_link {
+    my $results;
+
+    my $link_id = $cgi->param('link_id');
+    my $int_a_id = $cgi->param('interface_a_id');
+    my $int_z_id = $cgi->param('interface_z_id');
+    my $result = $db->decom_link_instantiation( link_id => $link_id );
+ 
+    if ( !defined $result ) {
+        $results->{'results'} = [
+            {
+                "error"   => $db->get_error(),
+                "success" => 0
+            }
+        ];
+    }
+    else {
+        $results->{'results'} = [ { "success" => 1 } ];
+    }
+
+    $result = $db->create_link_instantiation( link_id => $link_id, interface_a_id => $int_a_id, interface_z_id => $int_z_id, state => "decom" );
 
     if ( !defined $result ) {
         $results->{'results'} = [
