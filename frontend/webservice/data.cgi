@@ -534,13 +534,14 @@ sub get_users_in_workgroup {
     my $results;
 
     my $workgroup_id = $cgi->param('workgroup_id');
+    my $order_by     = $cgi->param('order_by');
     my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
     if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
         $results->{'error'} = 'Error: you are not part of this workgroup';
         return $results;
     }
 
-    my $users = $db->get_users_in_workgroup( workgroup_id => $workgroup_id );
+    my $users = $db->get_users_in_workgroup( workgroup_id => $workgroup_id, order_by => $order_by );
 
     if ( !defined $users ) {
         $results->{'error'}   = $db->get_error();
