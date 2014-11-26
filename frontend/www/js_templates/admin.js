@@ -2908,6 +2908,7 @@ function getMoveIntForm(container_id, config){
                     });
                 });
                 $.each(selector_types, function(i, selector_type){ 
+                    addOptions(selector_type, null);
                     addOptions(selector_type, options);
                 });
             },

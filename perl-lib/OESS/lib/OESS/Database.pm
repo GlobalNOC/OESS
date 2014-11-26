@@ -6283,7 +6283,9 @@ sub get_node_by_interface_id {
     # get node record
     $query = "SELECT * ".
              "FROM node ".
-             "WHERE node_id = ?";
+             "JOIN node_instantiation on node.node_id = node_instantiation.node_id ".
+             "WHERE node.node_id = ? ".
+             "AND node_instantiation.end_epoch = -1";
     $res = $self->_execute_query($query,[$node_id]) || return;
 
     return $res->[0];
@@ -7920,6 +7922,7 @@ sub add_edge_interface_move_maintenance {
     my $orig_interface_id = $args{'orig_interface_id'};     
     my $temp_interface_id = $args{'temp_interface_id'};     
     my $circuit_ids       = $args{'circuit_ids'};     
+    my $do_commit         = (defined($args{'do_commit'})) ? $args{'do_commit'} : 1;
 
     # sanity checks 
     if(!defined($name)){
@@ -7927,7 +7930,7 @@ sub add_edge_interface_move_maintenance {
         return;
     }
 
-    $self->_start_transaction();
+    $self->_start_transaction() if($do_commit);
 
     # first insert the maintenance record
     my $query = "INSERT INTO edge_interface_move_maintenance ( ".
@@ -7943,7 +7946,7 @@ sub add_edge_interface_move_maintenance {
     ]);
     if(!defined($maintenance_id)){
 	    $self->_set_error("Unable to add edge_interface_move_maintenance.");
-	    $self->_rollback();
+	    $self->_rollback() if($do_commit);
         return;
     }
 
@@ -7955,7 +7958,7 @@ sub add_edge_interface_move_maintenance {
         do_commit         => 0
     );
     if(!defined($res)){
-	    $self->_rollback();
+	    $self->_rollback() if($do_commit);
         return;
     }
     my $moved_circuit_ids   = $res->{'moved_circuits'};
@@ -7973,16 +7976,17 @@ sub add_edge_interface_move_maintenance {
         ]);
         if(!defined($res)){
             $self->_set_error("Unable to add edge_interface_move_maintenance_circuit_membership.".$self->{'dbh'}->errstr);
-            $self->_rollback();
+            $self->_rollback() if($do_commit);
             return;
         }
     }
 
-    $self->_commit();
+    $self->_commit() if($do_commit);
     return { 
         maintenance_id   => $maintenance_id,
         moved_circuits   => $res->{'moved_circuits'},
-        unmoved_circuits => $res->{'unmoved_circuits'}
+        unmoved_circuits => $res->{'unmoved_circuits'},
+        dpid             => $res->{'dpid'}
     };
 }
 
@@ -8040,7 +8044,12 @@ sub revert_edge_interface_move_maintenance {
 
     $self->_commit() if($do_commit);
 
-    return $maintenance_id;
+    return { 
+        maintenance_id   => $maintenance_id,
+        moved_circuits   => $res->{'moved_circuits'},
+        unmoved_circuits => $res->{'unmoved_circuits'},
+        dpid             => $res->{'dpid'}
+    };
 }
 
 =head2 get_circuit_edge_interface_memberships
@@ -8097,6 +8106,7 @@ sub move_edge_interface_circuits {
 	    $self->_set_error("You can only move circuits between edge interfaces on the same node.");
         return;
     }
+    my $dpid = $orig_int_node->{'dpid'};
    
     # first retrieve all of the edge records that we're moving 
     my $src_edge_interface_recs = $self->get_circuit_edge_interface_memberships(
@@ -8174,11 +8184,11 @@ sub move_edge_interface_circuits {
     my @moved_circuits   = keys %moved_circuits;
     my @unmoved_circuits = keys %unmoved_circuits;
 
-    warn "moved_circuits: ".Dumper(\@moved_circuits);
-    warn "unmoved_circuits: ".Dumper(\@unmoved_circuits);
-
-    return { moved_circuits   => \@moved_circuits,
-             unmoved_circuits => \@unmoved_circuits };
+    return { 
+        moved_circuits   => \@moved_circuits,
+        unmoved_circuits => \@unmoved_circuits,
+        dpid             => $dpid
+    };
 }
 
 =head2 is_within_circuit_limit

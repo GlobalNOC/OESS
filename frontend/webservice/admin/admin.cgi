@@ -670,7 +670,7 @@ sub get_edge_interface_move_maintenances {
 }
 
 sub add_edge_interface_move_maintenance {
-    my $results;
+    my $results = { 'results' => [] };
     my $name               = ($cgi->param("name") eq '') ? undef : $cgi->param("name");
     my $orig_interface_id  = $cgi->param("orig_interface_id");
     my $temp_interface_id  = $cgi->param("temp_interface_id");
@@ -685,16 +685,20 @@ sub add_edge_interface_move_maintenance {
 
     if ( !defined $res ) {
         $results->{'error'}   = $db->get_error();
-        $results->{'results'} = []; 
-    }else {
-        $results->{'results'} = [$res];
+        return $results;
+    }
+    $results->{'results'} = [$res];
+
+    # now diff node
+    if(!_update_cache_and_sync_node($res->{'dpid'})){
+        $results->{'error'}   = "Issue diffing node";
     }
 
     return $results;
 }
 
 sub revert_edge_interface_move_maintenance {
-    my $results;
+    my $results = { 'results' => [] };
     my $maintenance_id  = $cgi->param("maintenance_id");
 
     my $res = $db->revert_edge_interface_move_maintenance(
@@ -702,16 +706,20 @@ sub revert_edge_interface_move_maintenance {
     );
     if ( !defined $res ) {
         $results->{'error'}   = $db->get_error();
-        $results->{'results'} = [];
-    }else {
-        $results->{'results'} = [$res];
+        return $results;
+    }
+    $results->{'results'} = [$res];
+
+    # now diff node
+    if(!_update_cache_and_sync_node($res->{'dpid'})){
+        $results->{'error'}   = "Issue diffing node";
     }
 
     return $results;
 }
 
 sub move_edge_interface_circuits {
-    my $results;
+    my $results = { 'results' => [] };
     my $orig_interface_id  = $cgi->param("orig_interface_id");
     my $new_interface_id   = $cgi->param("new_interface_id");
     my @circuit_ids        = $cgi->param("circuit_id");
@@ -723,9 +731,12 @@ sub move_edge_interface_circuits {
     );
     if ( !defined $res ) {
         $results->{'error'}   = $db->get_error();
-        $results->{'results'} = [];
-    }else {
-        $results->{'results'} = [$res];
+    }
+    $results->{'results'} = [$res];
+
+    # now diff node
+    if(!_update_cache_and_sync_node($res->{'dpid'})){
+        $results->{'error'}   = "Issue diffing node";
     }
 
     return $results;
@@ -1182,6 +1193,44 @@ sub send_json {
     my $output = shift;
 
     print "Content-type: text/plain\n\n" . encode_json($output);
+}
+
+sub _update_cache_and_sync_node {
+    my $dpid = shift;    
+
+    # connect to dbus
+    my $client;
+    my $service;
+    my $bus = Net::DBus->system;
+    eval {
+        $service = $bus->get_service("org.nddi.fwdctl");
+        $client  = $service->get_object("/controller1");
+    };
+    if ($@) {
+        warn "Error in _connect_to_fwdctl: $@";
+        return;
+    }
+    if ( !defined $client ) {
+        warn "Issue communicating with fwdctl";
+        return;
+    }
+
+    # first update fwdctl's cache
+    my ($res,$event_id) = $client->update_cache(-1);
+    my $final_res = FWDCTL_WAITING;
+    while($final_res == FWDCTL_WAITING){
+        sleep(1);
+        $final_res = $client->get_event_status($event_id);
+    }
+    # now sync the node
+    ($res,$event_id) = $client->force_sync($dpid);
+    my $final_res = FWDCTL_WAITING;
+    while($final_res == FWDCTL_WAITING){
+        sleep(1);
+        $final_res = $client->get_event_status($event_id);
+    }
+
+    return 1;
 }
 
 main();
