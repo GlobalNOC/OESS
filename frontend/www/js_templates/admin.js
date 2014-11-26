@@ -822,7 +822,7 @@ function setup_workgroup_tab(){
 
 
     var wg_table = makeWorkgroupTable();
-    
+    var new_workgroup_panel; 
     wg_table.subscribe("rowClickEvent", function(oArgs){       
             
         var wg_details_panel; 
@@ -1384,6 +1384,11 @@ function setup_workgroup_tab(){
 
     add_workgroup.on("click", function(){
 
+        if (new_workgroup_panel) {
+            new_workgroup_panel.destroy();
+            new_workgroup_panel = undefined;
+        }
+
 	    var region = YAHOO.util.Dom.getRegion("workgroups_content");
 	    
 	    // get the popup nice and centered
@@ -1412,7 +1417,8 @@ function setup_workgroup_tab(){
 				  "</select>");
 	    p.setFooter("<div id='submit_new_workgroup'></div>");
 
-	    p.render(document.body);
+        new_workgroup_panel = p;
+	    new_workgroup_panel.render(document.body);
 
 	    YAHOO.util.Dom.get('new_workgroup_name').focus();
 
@@ -1455,7 +1461,7 @@ function setup_workgroup_tab(){
 					   }
 					   else {
 					       YAHOO.util.Dom.get("workgroup_status").innerHTML = "Workgroup created successfully.";
-					       p.destroy();
+					       new_workgroup_panel.destroy();
 					       setup_workgroup_tab();
 					   }
 				       },
