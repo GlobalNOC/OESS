@@ -33,6 +33,7 @@ share/upgrade/oess-1.1.0-1.1.1
 share/upgrade/oess-1.1.1-1.1.2
 share/upgrade/oess-1.1.2-1.1.3
 share/upgrade/oess-1.1.3-1.1.4
+share/upgrade/oess-1.1.4-1.1.5
 t/00-load_base.t
 t/01-load_known_state.t
 t/02-pod.t
@@ -53,6 +54,10 @@ t/conf/database.xml
 t/conf/logging.conf
 t/conf/oess_known_state.sql
 t/conf/oess_known_state.sql.new
+t/conf/snapp_known_state.sql
+t/conf/SNMP/snapp/db/per_flow/111/111-1-145.rrd
+t/conf/SNMP/snapp/db/per_flow/31/31-674-101.rrd
+t/conf/SNMP/snapp/snapp_config.xml
 t/database-02-get_workgroups.t
 t/database-03-get_users.t
 t/database-04-get_workgroup_users.t
@@ -90,6 +95,7 @@ t/database-35-provision_circuit.t
 t/database-36-edit_circuit.t
 t/database-37-get_available_resources.t
 t/database-38-workgroup_circuit_limit.t
+t/database-39-provision_loopback_circuit.t
 t/dbus-timeout.t
 t/dbus-timeout_callback.t
 t/flow_rule-compare_actions.t
@@ -102,8 +108,18 @@ t/flow_rule-validate_flow.t
 t/fwdctl-failover.t
 t/fwdctl-topo_port_status.t
 t/get_user_admin_status.t
+t/measurement-backup_path.t
+t/measurement-primary_path.t
 t/notification-send_notification.t
 t/OESSDatabaseTester.pm
 t/TEST
 t/topology-is_path_up.t
 t/topology-shortest_path.t
+tap/t/00-load_base.t
+tap/t/01-load_known_state.t
+tap/t/02-pod.t
+tap/t/03-pod_coverage.t
+tap/t/circuit-backup_path_flows.t
+tap/t/circuit-change_path.t
+tap/t/circuit-create.t
+tap/t/circuit-endpoint_flows.t
