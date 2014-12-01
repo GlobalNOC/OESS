@@ -1875,7 +1875,26 @@ sub update_interface_owner {
     # insert default rule if were adding a workgroup or changing workgroups
     if(defined($args{'workgroup_id'})) {
         $query = "insert into interface_acl (interface_id, allow_deny, eval_position, vlan_start, vlan_end, notes) values (?,?,?,?,?,?)";
-        my $query_args = [$interface_id, 'allow', 10, -1, 4095, 'Default ACL Rule' ];
+
+        my $vlan_tag_range = $self->get_interface(interface_id => $interface_id)->{'vlan_tag_range'};
+        my $vlan_end;
+        my $vlan_start;
+        if ($vlan_tag_range =~ /(^-?[0-9]*),?([0-9]*)-([0-9]*)/){
+            
+            #if the vlan range doesn't have a -1 in it, (i.e. it's something like 400-4032, rather than -1,1-4000) only grab the first and third capture groups.
+            if ($2 eq ''){
+                $vlan_start = $1;
+                $vlan_end = $3;
+            }
+            #otherwise, just grab the first and third.
+            else{
+                $vlan_start = $1;
+                $vlan_end = $3;
+            }
+        }    
+ 
+        my $query_args = [$interface_id, 'allow', 10, $vlan_start, $vlan_end, 'Default ACL Rule' ];
+        #my $query_args = [$interface_id, 'allow', 10, -1, 4095, 'Default ACL Rule' ];
         my $success = $self->_execute_query($query, $query_args);
         if (! defined $success ){
 	        $self->_set_error("Internal error while adding default acl rule.");
