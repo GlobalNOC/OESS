@@ -187,34 +187,41 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
         var remove_acl_button = new YAHOO.widget.Button(container_id+'_remove_acl_panel');
         remove_acl_button.set('label','Remove');
         remove_acl_button.on('click',function(){
-
-            var url = "services/workgroup_manage.cgi?action=remove_acl";
-            if(options.url_prefix){
-                url = options.url_prefix + url;
-            }
-            url += "&interface_acl_id="+rec.getData("interface_acl_id");
-
-            var ds = new YAHOO.util.DataSource(url);
-            ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-            ds.responseSchema = {
-                resultsList: "results",
-                fields: ["success"]
-            };
-
-            ds.sendRequest("",{
-                success: function(req, resp){
-                    if(resp.results.length <= 0){
-                        alert("Error removing acl data");
-                    }else {
-                        panel.hide();
-                        options.on_remove_success();
+            showConfirm("You are about to remove an acl. This CANNOT be undone. Are you sure you want to proceed?",
+                function(){
+                    var url = "services/workgroup_manage.cgi?action=remove_acl";
+                    if(options.url_prefix){
+                        url = options.url_prefix + url;
                     }
+                    url += "&interface_acl_id="+rec.getData("interface_acl_id");
+
+                    var ds = new YAHOO.util.DataSource(url);
+                    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                    ds.responseSchema = {
+                        resultsList: "results",
+                        fields: ["success"]
+                    };
+
+                    ds.sendRequest("",{
+                        success: function(req, resp){
+                        if(resp.results.length <= 0){
+                            alert("Error removing acl data");
+                        }else {
+                            panel.hide();
+                            options.on_remove_success();
+                        }
+                    },
+                    failure: function(req, resp){
+                        alert("Error removing acl data");
+                    },
+                        scope: this
+                    },ds);
+                
                 },
-                failure: function(req, resp){
-                    alert("Error removing acl data");
-                },
-                scope: this
-            },ds);
+                function(){
+                            return;
+                }
+            );    
         });
     }else {
         $('#'+container_id+'_remove_acl_panel').css('display', 'none');
