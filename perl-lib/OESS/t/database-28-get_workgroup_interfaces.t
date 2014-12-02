@@ -37,7 +37,7 @@ cmp_deeply($res,[
             'node_name' => 'Node 1',
             'interface_id' => '45911',
             'description' => 'e3/2',
-            'remote_link' => '',
+            'remote_links' => [],
             'vlan_tag_range' => '-1,1-4095',
             'node_id' => '1',
             'operational_state' => 'up'
@@ -47,7 +47,7 @@ cmp_deeply($res,[
             'node_name' => 'Node 21',
             'interface_id' => '45901',
             'description' => 'e15/1',
-            'remote_link' => '',
+            'remote_links' => [],
             'vlan_tag_range' => '1-4095',
             'node_id' => '21',
             'operational_state' => 'up'
