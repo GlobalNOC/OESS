@@ -33,7 +33,7 @@ from ryu.controller import ofp_event
 from ryu.controller.handler import MAIN_DISPATCHER, DEAD_DISPATCHER, CONFIG_DISPATCHER, HANDSHAKE_DISPATCHER
 from ryu.controller.handler import set_ev_cls
 from ryu.ofproto import ether
-from ryu.ofproto import ofproto_v1_0
+from ryu.ofproto import ofproto_v1_3,ofproto_v1_0
 from ryu.controller import dpset
 from ryu.lib import hub
 from ryu.lib import dpid as dpid_lib
@@ -41,6 +41,7 @@ from ryu.app.wsgi import ControllerBase, WSGIApplication, route
 from ryu.lib.packet import packet
 from ryu.lib.packet import ethernet
 from ryu.lib.packet import vlan
+from ryu.lib import mac
 import logging
 import dbus
 import dbus.service
@@ -67,6 +68,10 @@ ifname = 'org.nddi.openflow'
 
 flowmod_callbacks = {}
 last_flow_stats = {}
+
+UINT64_MAX = (1 << 64) - 1
+UINT32_MAX = (1 << 32) - 1
+UINT16_MAX = (1 << 16) - 1
 
 class dBusEventGenRo(dbus.service.Object):
 
@@ -154,20 +159,20 @@ class dBusEventGen(dbus.service.Object):
         dpid = "%016x" % dpid_uint
         logger.debug("get_flow_stats: " + dpid)
 
-        if last_flow_stats.has_key(dpid):
-            flow_stats = []
-            for item in last_flow_stats[dpid]["flows"]:
-                match = dbus.Dictionary(item['match'], signature='sv', variant_level = 2)
-                item['match'] = match
-                dict = dbus.Dictionary(item, signature='sv' , variant_level=3)
-                flow_stats.append(dict)
+#        if last_flow_stats.has_key(dpid):
+#            flow_stats = []
+#            for item in last_flow_stats[dpid]["flows"]:
+#                match = dbus.Dictionary(item['match'], signature='sv', variant_level = 2)
+#                item['match'] = match
+#                dict = dbus.Dictionary(item, signature='sv' , variant_level=3)
+#                flow_stats.append(dict)
+#
+#            return (last_flow_stats[dpid]["time"],flow_stats)
+#
+#        else:
 
-            return (last_flow_stats[dpid]["time"],flow_stats)
-
-        else:
-
-            logger.info("No Flow stats cached for dpid: " + str(dpid))
-            return (-1, [{"flows": "not yet cached"}])
+        logger.info("No Flow stats cached for dpid: " + str(dpid))
+        return (-1, [{"flows": "not yet cached"}])
            
 
     @dbus.service.method(dbus_interface=ifname,
@@ -206,14 +211,14 @@ class dBusEventGen(dbus.service.Object):
         if not dpid in self.controller.datapaths.keys():
             return 0;
 
-        my_attrs           = {}
-        my_attrs[PRIORITY] = 1
-        actions            = []
+        my_attrs             = {}
+        my_attrs['PRIORITY'] = 1
+        actions              = []
         
         xid = self.install_datapath_flow( dpid_uint,
                                           my_attrs,
                                           actions)
-        
+       
         return xid
 
     @dbus.service.method(dbus_interface=ifname,
@@ -272,24 +277,52 @@ class dBusEventGen(dbus.service.Object):
         datapath = self.controller.datapaths[dpid]
         ofp      = datapath.ofproto
         parser   = datapath.ofproto_parser
+        logger.info(attrs)
+        match = parser.OFPMatch()
+        if(attrs.get('DL_VLAN') != None):
+            logger.info("Setting DL_VLAN")
+            attrs['DL_VLAN'] = int(attrs['DL_VLAN'])
+            if(attrs.get('DL_VLAN') == 65535 or attrs.get('DL_VLAN') == -1):
+                logger.info("Setting untagged to VID NONE")
+                match.set_vlan_vid(0x1fff|ofp.OFPVID_PRESENT)
+            else:
+                match.set_vlan_vid(int(attrs['DL_VLAN'])|ofp.OFPVID_PRESENT)
+                
+        if(attrs.get('IN_PORT') != None):
+            logger.info("Setting IN PORT")
+            match.set_in_port(int(attrs.get('IN_PORT')))
 
-        match = parser.OFPMatch( in_port = attrs.get('IN_PORT'),
-                                 dl_type = attrs.get('DL_TYPE'),
-                                 dl_vlan = attrs.get('DL_VLAN'),
-                                 dl_dst  = attrs.get('DL_DST'))
+        if(attrs.get('DL_DST') != None):
+            logger.info("setting DL_DST")
+            match.set_dl_dst(attrs.get('DL_DST'))
+
+        if(attrs.get('DL_TYPE') != None):
+            logger.info("Setting DL TYPE")
+            match.set_dl_type(int(attrs.get('DL_TYPE')))
 
         of_actions = []
 
         for action in actions:
             act_type = action[0]
-            if(act_type == ofp.OFPAT_STRIP_VLAN):
-                of_actions.append(parser.OFPActionStripVlan())
-            elif(act_type == ofp.OFPAT_SET_VLAN_VID):
-                of_actions.append(parser.OFPActionVlanVid(action[1]))
-            elif(act_type == ofp.OFPAT_OUTPUT):
-                of_actions.append(parser.OFPActionOutput(action[1][1],action[1][0]))
-            else:
-                logger.error("Unsupported Action Type")
+            if ofp.OFP_VERSION == ofproto_v1_0.OFP_VERSION:
+                if(act_type == ofp.OFPAT_STRIP_VLAN):
+                    of_actions.append(parser.OFPActionStripVlan())
+                elif(act_type == ofp.OFPAT_SET_VLAN_VID):
+                    of_actions.append(parser.OFPActionVlanVid(action[1]))
+                elif(act_type == ofp.OFPAT_OUTPUT):
+                    of_actions.append(parser.OFPActionOutput(action[1][1],action[1][0]))
+                else:
+                    logger.error("Unsupported Action Type")
+
+            elif ofp.OFP_VERSION == ofproto_v1_3.OFP_VERSION:
+                if(act_type == ofproto_v1_0.OFPAT_STRIP_VLAN):
+                    of_actions.append(parser.OFPActionPopVLAN())
+                elif(act_type == ofproto_v1_0.OFPAT_SET_VLAN_VID):
+                    of_actions.append(parser.OFPActionSetField(vlan_vid = int(action[1])|ofp.OFPVID_PRESENT))
+                elif(act_type == ofp.OFPAT_OUTPUT):
+                    of_actions.append(parser.OFPActionOutput(int(action[1][1]),int(action[1][0])))
+                else:
+                    logger.error("Unsupproted Action Type")
 
         if(attrs.get('PRIORITY') == None):
             attrs['PRIORITY'] = 32768
@@ -300,22 +333,43 @@ class dBusEventGen(dbus.service.Object):
         if(attrs.get('HARD_TIMEOUT') ==None):
             attrs['HARD_TIMEOUT'] = 0
 
-        mod = parser.OFPFlowMod( datapath = datapath,
-                                 priority = attrs.get('PRIORITY'),
-                                 match    = match,
-                                 cookie   = 0,
-                                 command  = ofp.OFPFC_ADD,
-                                 actions  = of_actions,
-                                 idle_timeout = attrs.get('IDLE_TIMEOUT'),
-                                 hard_timeout = attrs.get('HARD_TIMEOUT'))
+        mod = None
+
+        if ofp.OFP_VERSION == ofproto_v1_0.OFP_VERSION:
+            mod = parser.OFPFlowMod( datapath = datapath,
+                                     priority = attrs.get('PRIORITY'),
+                                     match    = match,
+                                     cookie   = 0,
+                                     command  = ofp.OFPFC_ADD,
+                                     actions  = of_actions,
+                                     idle_timeout = attrs.get('IDLE_TIMEOUT'),
+                                     hard_timeout = attrs.get('HARD_TIMEOUT'))
+
+        elif ofp.OFP_VERSION == ofproto_v1_3.OFP_VERSION:
+            inst = [parser.OFPInstructionActions(ofp.OFPIT_APPLY_ACTIONS,
+                                                 of_actions)]
+            logger.info(inst)
+            mod = parser.OFPFlowMod( datapath,
+                                     cookie = 0,
+                                     cookie_mask = 0,
+                                     priority = attrs.get('PRIORITY'),
+                                     buffer_id = ofp.OFP_NO_BUFFER,
+                                     match    = match,
+                                     command  = ofp.OFPFC_ADD,
+                                     instructions  = inst,
+                                     idle_timeout = attrs.get('IDLE_TIMEOUT'),
+                                     hard_timeout = attrs.get('HARD_TIMEOUT'),
+                                     out_port = ofp.OFPP_ANY,
+                                     out_group = ofp.OFPG_ANY)
 
         datapath.set_xid(mod)
         xid = mod.xid
+
         datapath.send_msg(mod)
         
         logger.info("Added Flow Mod!")
 
-        _do_install(dpid,xid,match,actions)
+        _do_install(dpid,xid,mod)
 
         return xid
 
@@ -334,31 +388,70 @@ class dBusEventGen(dbus.service.Object):
         ofp      = datapath.ofproto
         parser   = datapath.ofproto_parser
 
-        match = parser.OFPMatch( in_port = attrs.get('IN_PORT'),
-                                 dl_type = attrs.get('DL_TYPE'),
-                                 dl_vlan = attrs.get('DL_VLAN'),
-                                 dl_dst  = attrs.get('DL_DST'))
+        if 'DL_DST' in attrs.keys():
+            logger.info("DL_DST: %d " % attrs.get('DL_DST'))
+            foo = hex(long(attrs.get('DL_DST')))
+            attrs['DL_DST'] = foo[2:4] + ":" + foo[5:7] + ":" + foo[8:10] + ":" + foo[11:13] + ":" + foo[14:16]
+        else:
+            attrs['DL_DST'] = '00:00:00:00:00:00'
+
+        match = parser.OFPMatch()
+        if(attrs.get('DL_VLAN') != None):
+            logger.info("Setting DL_VLAN")
+            attrs['DL_VLAN'] = int(attrs['DL_VLAN'])
+            if(attrs.get('DL_VLAN') == 65535 or attrs.get('DL_VLAN') == -1):
+                logger.info("Setting untagged to VID NONE")
+                attrs['DL_VLAN'] = ofp.OFPVID_NONE
+            match.set_vlan_vid(attrs['DL_VLAN'])
+
+        if(attrs.get('IN_PORT') != None):
+            logger.info("Setting IN PORT")
+            match.set_in_port(attrs.get('IN_PORT'))
+
+        if(attrs.get('DL_DST') != None):
+            logger.info("setting DL_DST")
+            match.set_dl_dst(attrs.get('DL_DST'))
+
+        if(attrs.get('DL_TYPE') != None):
+            logger.info("Setting DL TYPE")
+            match.set_dl_type(attrs.get('DL_TYPE'))
 
         logger.info("removing flow")
 
         if(attrs.get('PRIORITY') == None):
             attrs['PRIORITY'] = 32768
 
-        mod = parser.OFPFlowMod( datapath = datapath,
-                                 priority = attrs.get('PRIORITY'),
-                                 match    = match,
-                                 cookie   = 0,
-                                 command  = ofp.OFPFC_DELETE_STRICT,
-                                 actions  = [],
-                                 idle_timeout = attrs.get('IDLE_TIMEOUT'),
-                                 hard_timeout = attrs.get('HARD_TIMEOUT'))
+        mod = None
+        if ofp.OFP_VERSION == ofproto_v1_0.OFP_VERSION:
+            mod = parser.OFPFlowMod( datapath = datapath,
+                                     priority = attrs.get('PRIORITY'),
+                                     match    = match,
+                                     cookie   = 0,
+                                     command  = ofp.OFPFC_DELETE_STRICT,
+                                     idle_timeout = attrs.get('IDLE_TIMEOUT'),
+                                     hard_timeout = attrs.get('HARD_TIMEOUT'))
+
+        elif ofp.OFP_VERSION == ofproto_v1_3.OFP_VERSION:
+                mod = parser.OFPFlowMod( datapath,
+                                         cookie = 0,
+                                         cookie_mask = 0,
+                                         priority = attrs.get('PRIORITY'),
+                                         buffer_id = ofp.OFP_NO_BUFFER,
+                                         match    = match,
+                                         command  = ofp.OFPFC_DELETE_STRICT,
+                                         idle_timeout = attrs.get('IDLE_TIMEOUT'),
+                                         hard_timeout = attrs.get('HARD_TIMEOUT'),
+                                         out_port = ofp.OFPP_ANY,
+                                         out_group = ofp.OFPG_ANY,
+                                         flags = ofp.OFPFF_SEND_FLOW_REM)
+                
         datapath.set_xid(mod)
         xid = mod.xid
         datapath.send_msg(mod)
 
         logger.info("Removed Flow Mod")
 
-        _do_install(dpid,xid,match,[])
+        _do_install(dpid,xid,mod)
 
         return xid
 
@@ -445,19 +538,20 @@ def datapath_join_callback(ref,sg,dpid,ip_address,ports):
 
     for p in ports:
         p_info = ports[p]
-
-        port = {}
-        port['name']    = p_info.name
-        port['port_no'] = dbus.UInt16(p_info.port_no)
-        
-        port['hw_addr'] = dbus.UInt64(int(p_info.hw_addr.replace(':',''),16))
-        port['state']   = dbus.UInt32(p_info.state)
-        port['curr']    = dbus.UInt32(p_info.curr)
-        port['config']  = dbus.UInt32(p_info.config)
-        port['supported'] = dbus.UInt32(p_info.supported)
-        port['advertised'] = dbus.UInt32(p_info.advertised)
-        port['peer']    = dbus.UInt32(p_info.peer)
-        port_list.append(port)
+        if int(p_info.port_no) > 0:
+            logger.info(p_info)
+            port = {}
+            port['name']    = p_info.name
+            port['port_no'] = dbus.UInt32(int(p_info.port_no))
+            
+            port['hw_addr'] = dbus.UInt64(int(p_info.hw_addr.replace(':',''),16))
+            port['state']   = dbus.UInt32(p_info.state)
+            port['curr']    = dbus.UInt32(p_info.curr)
+            port['config']  = dbus.UInt32(p_info.config)
+            port['supported'] = dbus.UInt32(p_info.supported)
+            port['advertised'] = dbus.UInt32(p_info.advertised)
+            port['peer']    = dbus.UInt32(p_info.peer)
+            port_list.append(port)
 
     sg.datapath_join(dpid,ip_address,port_list)
     
@@ -502,17 +596,17 @@ def packet_in_callback(sg, dpid,in_port,reason, length,buffer_id, data) :
 
 # send a barrier message with a reference to the actual function we want to run when the switch
 # has responded and told us that it is ready
-def _do_install(dpid,xid,match,actions):
+def _do_install(dpid,xid,mod):
     
     if not flowmod_callbacks.has_key(dpid):
         flowmod_callbacks[dpid] = {}
     
-    flowmod_callbacks[dpid][xid] = {"result": FWDCTL_WAITING, "match": match, "actions": actions}
+    flowmod_callbacks[dpid][xid] = {"result": FWDCTL_WAITING, "mod": mod}
     
     return 1
 
 class oess_dbus(app_manager.RyuApp):
-
+    OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION, ofproto_v1_0.OFP_VERSION]
     def __init__(self, *args, **kwargs):
         super(oess_dbus,self).__init__(*args,**kwargs)
 
@@ -603,8 +697,8 @@ class oess_dbus(app_manager.RyuApp):
             return
         
         attr_dict = {}
-        if attrs:
-            attr_dict = dbus.Dictionary(attrs, signature='sv')
+#        if attrs:
+#            attr_dict = dbus.Dictionary(attrs, signature='sv')
 
         self.sg.port_status(ev.datapath.id, reason, attr_dict)
 
@@ -692,17 +786,37 @@ class oess_dbus(app_manager.RyuApp):
         flows = []
         for stat in body:
             match = stat.match.__dict__
-            wildcards = stat.match.wildcards
-            
-            if(match['dl_dst'] == '\x00\x00\x00\x00\x00\x00'):
-                del match['dl_dst']
+            #wildcards = stat.match.wildcards
+            if(ofproto.OFP_VERSION == ofproto_v1_0.OFP_VERSION):
+
+                if(match['dl_dst'] == '\x00\x00\x00\x00\x00\x00'):
+                    del match['dl_dst']
                 
-            if(match['dl_src'] == '\x00\x00\x00\x00\x00\x00'):
-                del match['dl_src']
+                if(match['dl_src'] == '\x00\x00\x00\x00\x00\x00'):
+                    del match['dl_src']
+            
+                if 'dl_dst' in match.keys() and match['dl_dst'] != '':
+                    match['dl_dst'] = long(match['dl_dst'].encode('hex'),16)
+
+                if 'dl_src'in match.keys() and match['dl_src'] != '':
+                    match['dl_src'] = long(match['dl_src'].encode('hex'),16)
+            elif (ofproto.OFP_VERSION == ofproto_v1_3.OFP_VERSION):
+                if( 'eth_dst' in match.keys() and match['eth_dst'] == '\x00\x00\x00\x00\x00\x00'):
+                    del match['eth_dst']
+
+                if( 'eth_src' in match.keys() and match['eth_src'] == '\x00\x00\x00\x00\x00\x00'):
+                    del match['eth_src']
+
+                if 'eth_dst' in match.keys() and match['eth_dst'] != '':
+                    match['eth_dst'] = long(match['eth_dst'].encode('hex'),16)
+
+                if 'eth_src'in match.keys() and match['eth_src'] != '':
+                    match['eth_src'] = long(match['eth_src'].encode('hex'),16)
 
             flows.append({'match': match,
-                          'wildcards': wildcards,
-                          'packet_count': stat.packet_count
+                          #'wildcards': wildcards,
+                          'packet_count': stat.packet_count,
+                          'priority':stat.priority
                           })
             
         if dpid in self.flow_stats:
@@ -745,13 +859,13 @@ class oess_dbus(app_manager.RyuApp):
         cookie = cookie_mask = 0
         match  = parser.OFPMatch()
         req    = parser.OFPFlowStatsRequest(datapath, 
-                                            0,
-                                            match,
-                                            0xff,
-                                            ofp.OFPP_NONE)
+                                            flags=0,
+                                            match=match,
+                                            table_id=0xff)
+
         datapath.send_msg(req)
         
-        req = parser.OFPPortStatsRequest(datapath, 0, ofp.OFPP_NONE)
+        req = parser.OFPPortStatsRequest(datapath, 0, ofp.OFPP_ALL)
         datapath.send_msg(req)
 
 
