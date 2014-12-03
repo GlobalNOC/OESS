@@ -4457,7 +4457,7 @@ sub get_pending_nodes {
     my $sth = $self->_prepare_query("select node.node_id, node_instantiation.dpid, inet_ntoa(node_instantiation.management_addr_ipv4) as address, " .
 				    " node.name, node.longitude, node.latitude, node.vlan_tag_range, node.send_barrier_bulk " .
 				    " from node join node_instantiation on node.node_id = node_instantiation.node_id " .
-				    " where node_instantiation.admin_state = 'available'"
+				    " where node_instantiation.admin_state = 'available' and node_instantiation.end_epoch = -1"
 	                           ) or return;
 
     $sth->execute();
