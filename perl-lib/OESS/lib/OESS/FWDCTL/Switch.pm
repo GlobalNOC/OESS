@@ -524,8 +524,8 @@ sub datapath_join_handler{
     } else {
         $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." installed default drop rule and lldp forward rule");
     }
-    
     $self->{'needs_diff'} = 1;
+    $self->get_flow_stats();
     
 }
 
@@ -609,22 +609,22 @@ sub _do_diff{
 	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
 						    match => {'dl_type' => 35020,
 							      'dl_vlan' => $self->{'settings'}->{'discovery_vlan'}},
-						    actions => [{'output' => 65533}]));
+						    actions => [{'output' => 65535}]));
 
 	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
 						    match => {'dl_type' => 34998,
 							      'dl_vlan' => $self->{'settings'}->{'discovery_vlan'}},
-						    actions => [{'output' => 65533}]));
+						    actions => [{'output' => 65535}]));
 	}else{
 	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
 						    match => {'dl_type' => 35020,
 							      'dl_vlan' => -1},
-						    actions => [{'output' => 65533}]));
+						    actions => [{'output' => 65535}]));
 	    
 	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
                                                     match => {'dl_type' => 34998,
 							      'dl_vlan' => -1},
-                                                    actions => [{'output' => 65533}]));
+                                                    actions => [{'output' => 65535}]));
 	}
     }
     
@@ -653,6 +653,7 @@ sub _actual_diff{
         #---ignore rules not for this dpid
         $self->{'logger'}->debug("Checking to see if " . $command->to_human() . " is on device");
         next if($command->get_dpid() != $self->{'dpid'});
+        $self->{'logger'}->debug("Should be on this device");
 	my $found = 0;
         my $match = $command->get_match();
 
@@ -773,21 +774,26 @@ sub get_flow_stats{
     my $self = shift;
 
     if($self->{'needs_diff'}){
-        my ($time,$stats) = $self->{'nox'}->get_flow_stats($self->{'dpid'});
-        if ($time == -1) {
-            #we don't have flow data yet
-            $self->{'logger'}->info("no flow stats cached yet for dpid: " . $self->{'dpid'});
-            return;
-        }
+#        my ($time,$stats) = $self->{'nox'}->get_flow_stats($self->{'dpid'});
+#        if ($time == -1) {
+#            #we don't have flow data yet
+#            $self->{'logger'}->info("no flow stats cached yet for dpid: " . $self->{'dpid'});
+#            return;
+#        }
         
         $self->{'needs_diff'} = 0;
         #---process the flow_rules into a lookup hash
-        my $flows = $self->_process_stats_to_flows( $self->{'dpid'}, $stats);
-
+        #we just add all flows
+        #my $flows = $self->_process_stats_to_flows( $self->{'dpid'}, $stats);
+        my $flows = {};
         #--- now that we have the lookup hash of flow_rules
         #--- do the diff
         $self->_do_diff($flows);
     }
+}
+
+sub push_all_flows{
+    
 }
 
 sub _poll_node_status{

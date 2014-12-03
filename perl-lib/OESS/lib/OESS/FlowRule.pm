@@ -70,7 +70,7 @@ use constant OFPAT_SET_TP_SRC   => 9;
 use constant OFPAT_SET_TP_DST   => 10;
 use constant OFPAT_ENQUEUE      => 11;
 use constant OFPAT_VENDOR       => 65535;
-use constant OFPP_CONTROLLER    => 65533;
+use constant OFPP_CONTROLLER    => 65535;
 
 use constant VLAN_WILDCARD      => 0;
 use constant PORT_WILDCARD      => 0;
@@ -901,7 +901,9 @@ sub parse_stat{
 		push(@new_actions,{'set_vlan_id' => $action->{'vlan_vid'}});
 	    }case (OFPAT_STRIP_VLAN){
 		push(@new_actions,{'set_vlan_id' => UNTAGGED});
-	    }
+	    }else{
+                $logger->error("UNKNOWN ACTION!!!");
+            }
 	}
     }
     my $new_match = {};

@@ -174,9 +174,12 @@ class dBusEventGen(dbus.service.Object):
                 dbus_match = dbus.Dictionary(match, signature='sv', variant_level = 1)
                 item['match'] = dbus_match
 
+                
                 if match:
                     dict = dbus.Dictionary(item, signature='sv' , variant_level=2)
                     flow_stats.append(dict)
+
+                
                     
             return (last_flow_stats[dpid]["time"],flow_stats)
 
@@ -658,6 +661,20 @@ class oess_dbus(app_manager.RyuApp):
                 self.logger.debug('register datapath: %016x', datapath.id)
                 dpid = "%016x" % datapath.id
                 self.datapaths[dpid] = datapath
+                
+                #delete all flows
+                ofp      = datapath.ofproto
+                parser   = datapath.ofproto_parser
+                match = parser.OFPMatch()
+                mod = parser.OFPFlowMod( datapath,
+                                         match    = match,
+                                         command  = ofp.OFPFC_DELETE,
+                                         out_port = ofp.OFPP_ANY,
+                                         out_group = ofp.OFPG_ANY)
+
+                datapath.set_xid(mod)
+                xid = mod.xid
+                datapath.send_msg(mod)
                 datapath_join_callback(self, self.sg,datapath.id, datapath.socket.getpeername(), datapath.ports )
 
         elif ev.state == DEAD_DISPATCHER:
