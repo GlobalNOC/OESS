@@ -875,6 +875,7 @@ sub parse_stat{
 
     my $logger = Log::Log4perl->get_logger("OESS.FlowRule");
     $logger->debug("Processing Stat to Flow Rule");
+    warn Data::Dumper::Dumper(%params);
     my $dpid = $params{'dpid'};
     my $stat = $params{'stat'};
     return if(!defined($stat));

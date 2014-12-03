@@ -159,20 +159,31 @@ class dBusEventGen(dbus.service.Object):
         dpid = "%016x" % dpid_uint
         logger.debug("get_flow_stats: " + dpid)
 
-#        if last_flow_stats.has_key(dpid):
-#            flow_stats = []
-#            for item in last_flow_stats[dpid]["flows"]:
-#                match = dbus.Dictionary(item['match'], signature='sv', variant_level = 2)
-#                item['match'] = match
-#                dict = dbus.Dictionary(item, signature='sv' , variant_level=3)
-#                flow_stats.append(dict)
-#
-#            return (last_flow_stats[dpid]["time"],flow_stats)
-#
-#        else:
+        if last_flow_stats.has_key(dpid):
+            flow_stats = []
+            for item in last_flow_stats[dpid]["flows"]:
+                flow = item['flow']
+                del item['flow']
+                match = {}
 
-        logger.info("No Flow stats cached for dpid: " + str(dpid))
-        return (-1, [{"flows": "not yet cached"}])
+                for field in flow['_fields2']:
+                    logger.info(field)
+                    match[field[0]] = field[1]
+
+                #logger.info(match)
+                dbus_match = dbus.Dictionary(match, signature='sv', variant_level = 1)
+                item['match'] = dbus_match
+
+                if match:
+                    dict = dbus.Dictionary(item, signature='sv' , variant_level=2)
+                    flow_stats.append(dict)
+                    
+            return (last_flow_stats[dpid]["time"],flow_stats)
+
+        else:
+
+            logger.info("No Flow stats cached for dpid: " + str(dpid))
+            return (-1, [{"flows": "not yet cached"}])
            
 
     @dbus.service.method(dbus_interface=ifname,
@@ -316,8 +327,10 @@ class dBusEventGen(dbus.service.Object):
 
             elif ofp.OFP_VERSION == ofproto_v1_3.OFP_VERSION:
                 if(act_type == ofproto_v1_0.OFPAT_STRIP_VLAN):
-                    of_actions.append(parser.OFPActionPopVLAN())
+                    of_actions.append(parser.OFPActionPopVlan())
                 elif(act_type == ofproto_v1_0.OFPAT_SET_VLAN_VID):
+                    if('vlan_vid' in match and match['vlan_vid'] == ofp.OFPVID_NONE):
+                        of_actions.append(parser.OFPActionPushVlan())
                     of_actions.append(parser.OFPActionSetField(vlan_vid = int(action[1])|ofp.OFPVID_PRESENT))
                 elif(act_type == ofp.OFPAT_OUTPUT):
                     of_actions.append(parser.OFPActionOutput(int(action[1][1]),int(action[1][0])))
@@ -400,9 +413,16 @@ class dBusEventGen(dbus.service.Object):
             logger.info("Setting DL_VLAN")
             attrs['DL_VLAN'] = int(attrs['DL_VLAN'])
             if(attrs.get('DL_VLAN') == 65535 or attrs.get('DL_VLAN') == -1):
-                logger.info("Setting untagged to VID NONE")
-                attrs['DL_VLAN'] = ofp.OFPVID_NONE
-            match.set_vlan_vid(attrs['DL_VLAN'])
+                if(ofp.OFP_VERSION == ofproto_v1_0.OFP_VERSION):
+                    match.set_vlan_vid(-1)
+                else:
+                    logger.info("Setting untagged to VID NONE")
+                    match.set_vlan_vid(0x1fff|ofp.OFPVID_PRESENT)
+            else:
+                if(ofp.OFP_VERSION == ofproto_v1_0.OFP_VERSION):
+                    match.set_vlan_vid(int(attrs['DL_VLAN']))
+                else:
+                    match.set_vlan_vid(int(attrs['DL_VLAN'])|ofp.OFPVID_PRESENT)
 
         if(attrs.get('IN_PORT') != None):
             logger.info("Setting IN PORT")
@@ -813,8 +833,7 @@ class oess_dbus(app_manager.RyuApp):
                 if 'eth_src'in match.keys() and match['eth_src'] != '':
                     match['eth_src'] = long(match['eth_src'].encode('hex'),16)
 
-            flows.append({'match': match,
-                          #'wildcards': wildcards,
+            flows.append({'flow': match,
                           'packet_count': stat.packet_count,
                           'priority':stat.priority
                           })
