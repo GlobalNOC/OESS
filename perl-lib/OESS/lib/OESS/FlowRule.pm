@@ -921,7 +921,14 @@ sub parse_stat{
 		$new_match->{$key} = $match->{$key};
 	    }case "dl_type"{
 		$new_match->{$key} = $match->{$key};
-	    }
+                #supoport for 1.3
+	    }case "eth_type"{
+                $new_match->{"dl_type"} = $match->{$key};
+            }case "vlan_vid"{
+                $new_match->{'dl_vlan'} = $match->{$key} - 4096;
+            }case "eth_dst"{
+                #$new_match->{'dl_dst'} = $match->{$key};
+            }
 	}
     }
     my $flow = OESS::FlowRule->new( 

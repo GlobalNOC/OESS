@@ -290,6 +290,7 @@ class dBusEventGen(dbus.service.Object):
         parser   = datapath.ofproto_parser
         logger.info(attrs)
         match = parser.OFPMatch()
+
         if(attrs.get('DL_VLAN') != None):
             logger.info("Setting DL_VLAN")
             attrs['DL_VLAN'] = int(attrs['DL_VLAN'])
@@ -400,33 +401,21 @@ class dBusEventGen(dbus.service.Object):
         datapath = self.controller.datapaths[dpid]
         ofp      = datapath.ofproto
         parser   = datapath.ofproto_parser
-
-        if 'DL_DST' in attrs.keys():
-            logger.info("DL_DST: %d " % attrs.get('DL_DST'))
-            foo = hex(long(attrs.get('DL_DST')))
-            attrs['DL_DST'] = foo[2:4] + ":" + foo[5:7] + ":" + foo[8:10] + ":" + foo[11:13] + ":" + foo[14:16]
-        else:
-            attrs['DL_DST'] = '00:00:00:00:00:00'
-
+        logger.info(attrs)
         match = parser.OFPMatch()
+
         if(attrs.get('DL_VLAN') != None):
             logger.info("Setting DL_VLAN")
             attrs['DL_VLAN'] = int(attrs['DL_VLAN'])
             if(attrs.get('DL_VLAN') == 65535 or attrs.get('DL_VLAN') == -1):
-                if(ofp.OFP_VERSION == ofproto_v1_0.OFP_VERSION):
-                    match.set_vlan_vid(-1)
-                else:
-                    logger.info("Setting untagged to VID NONE")
-                    match.set_vlan_vid(0x1fff|ofp.OFPVID_PRESENT)
+                logger.info("Setting untagged to VID NONE")
+                match.set_vlan_vid(0x1fff|ofp.OFPVID_PRESENT)
             else:
-                if(ofp.OFP_VERSION == ofproto_v1_0.OFP_VERSION):
-                    match.set_vlan_vid(int(attrs['DL_VLAN']))
-                else:
-                    match.set_vlan_vid(int(attrs['DL_VLAN'])|ofp.OFPVID_PRESENT)
+                match.set_vlan_vid(int(attrs['DL_VLAN'])|ofp.OFPVID_PRESENT)
 
         if(attrs.get('IN_PORT') != None):
             logger.info("Setting IN PORT")
-            match.set_in_port(attrs.get('IN_PORT'))
+            match.set_in_port(int(attrs.get('IN_PORT')))
 
         if(attrs.get('DL_DST') != None):
             logger.info("setting DL_DST")
@@ -434,43 +423,44 @@ class dBusEventGen(dbus.service.Object):
 
         if(attrs.get('DL_TYPE') != None):
             logger.info("Setting DL TYPE")
-            match.set_dl_type(attrs.get('DL_TYPE'))
+            match.set_dl_type(int(attrs.get('DL_TYPE')))
 
         logger.info("removing flow")
 
         if(attrs.get('PRIORITY') == None):
             attrs['PRIORITY'] = 32768
 
+        if(attrs.get('IDLE_TIMEOUT') == None):
+            attrs['IDLE_TIMEOUT'] = 0
+
+        if(attrs.get('HARD_TIMEOUT') ==None):
+                    attrs['HARD_TIMEOUT'] = 0
+        
+        logger.info(match)
+
         mod = None
         if ofp.OFP_VERSION == ofproto_v1_0.OFP_VERSION:
             mod = parser.OFPFlowMod( datapath = datapath,
                                      priority = attrs.get('PRIORITY'),
                                      match    = match,
-                                     cookie   = 0,
                                      command  = ofp.OFPFC_DELETE_STRICT,
                                      idle_timeout = attrs.get('IDLE_TIMEOUT'),
                                      hard_timeout = attrs.get('HARD_TIMEOUT'))
 
         elif ofp.OFP_VERSION == ofproto_v1_3.OFP_VERSION:
                 mod = parser.OFPFlowMod( datapath,
-                                         cookie = 0,
-                                         cookie_mask = 0,
                                          priority = attrs.get('PRIORITY'),
-                                         buffer_id = ofp.OFP_NO_BUFFER,
                                          match    = match,
-                                         command  = ofp.OFPFC_DELETE_STRICT,
+                                         command  = ofp.OFPFC_DELETE,
                                          idle_timeout = attrs.get('IDLE_TIMEOUT'),
                                          hard_timeout = attrs.get('HARD_TIMEOUT'),
                                          out_port = ofp.OFPP_ANY,
-                                         out_group = ofp.OFPG_ANY,
-                                         flags = ofp.OFPFF_SEND_FLOW_REM)
-                
+                                         out_group = ofp.OFPG_ANY)
+
         datapath.set_xid(mod)
         xid = mod.xid
         datapath.send_msg(mod)
-
         logger.info("Removed Flow Mod")
-
         _do_install(dpid,xid,mod)
 
         return xid

@@ -24,7 +24,7 @@ fi
 
 # Check that networking is up.
 [ ${NETWORKING} = "no" ] && exit 0
-name=fvd
+name=fvd1
 exec_file=/usr/bin/oess-$name.pl
 options=" "
 username=_oess
