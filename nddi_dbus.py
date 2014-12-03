@@ -498,7 +498,7 @@ class dBusEventGen(dbus.service.Object):
             return xid
         else:
             logger.error("No node with dpid: %s" % dpid)
-            return -1
+            return 0
 
 #--- series of callbacks to glue the reception of NoX events to the generation of D-Bus events
 def port_status_callback(sg, dp_id, ofp_port_reason, attrs):
@@ -731,7 +731,10 @@ class oess_dbus(app_manager.RyuApp):
         datapath = msg.datapath
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
-        in_port = msg.in_port
+        if(ofproto.OFP_VERSION == ofproto_v1_0.OFP_VERSION):
+            in_port = msg.in_port
+        else:
+            in_port = msg.match['in_port']
 
         eth_pkt = pkt.get_protocol(ethernet.ethernet)
         dl_src = eth_pkt.src
