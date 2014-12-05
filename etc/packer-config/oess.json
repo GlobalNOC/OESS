@@ -1,7 +1,7 @@
 {
 	"variables": {
-		   "oess_version":"1.1.4",
-		   "oess_version_friendly_name":"1.1.4a"
+		   "oess_version":"1.1.5",
+		   "oess_version_friendly_name":"1.1.5"
 	},	
     "builders":[
 	{
