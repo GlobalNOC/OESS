@@ -609,22 +609,22 @@ sub _do_diff{
 	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
 						    match => {'dl_type' => 35020,
 							      'dl_vlan' => $self->{'settings'}->{'discovery_vlan'}},
-						    actions => [{'output' => 65535}]));
+						    actions => [{'output' => 65533}]));
 
 	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
 						    match => {'dl_type' => 34998,
 							      'dl_vlan' => $self->{'settings'}->{'discovery_vlan'}},
-						    actions => [{'output' => 65535}]));
+						    actions => [{'output' => 65533}]));
 	}else{
 	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
 						    match => {'dl_type' => 35020,
 							      'dl_vlan' => -1},
-						    actions => [{'output' => 65535}]));
+						    actions => [{'output' => 65533}]));
 	    
 	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
                                                     match => {'dl_type' => 34998,
 							      'dl_vlan' => -1},
-                                                    actions => [{'output' => 65535}]));
+                                                    actions => [{'output' => 65533}]));
 	}
     }
     

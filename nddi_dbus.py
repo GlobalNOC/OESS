@@ -363,8 +363,17 @@ class dBusEventGen(dbus.service.Object):
                                      hard_timeout = attrs.get('HARD_TIMEOUT'))
 
         elif ofp.OFP_VERSION == ofproto_v1_3.OFP_VERSION:
+            meter_id = 1
+            #create a meter
+            drop_band = parser.OFPMeterBandDrop(rate = 1000, burst_size=100)
+            meter_mod = parser.OFPMeterMod(datapath,meter_id = meter_id, bands=[drop_band])
+            datapath.set_xid(meter_mod)
+            xid = meter_mod.xid
+            datapath.send_msg(meter_mod)
+
             inst = [parser.OFPInstructionActions(ofp.OFPIT_APPLY_ACTIONS,
-                                                 of_actions)]
+                                                 of_actions),
+                    parser.OFPInstructionMeter(meter_id)]
             logger.info(inst)
             mod = parser.OFPFlowMod( datapath,
                                      cookie = 0,
@@ -593,6 +602,8 @@ def barrier_reply_callback(sg,dpid_uint,xid):
 
 
 def error_callback(sg, dpid_uint, error_type, code, data, xid):
+    if(dpid_uint == None):
+        return
     dpid = "%016x" % dpid_uint
     logger.error("handling error from %s, xid = %d" % (dpid, xid))
     if flowmod_callbacks.has_key(dpid):
