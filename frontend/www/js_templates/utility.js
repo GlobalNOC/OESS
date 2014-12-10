@@ -4,7 +4,7 @@ window.originalAlert = window.alert;
 
 // override the default alert so we can make it prettier / standardized
 window.alert = function(text, callback, options){
-
+    options = options || {};
     var width  = YAHOO.util.Dom.getClientWidth();
 
     var alert_box = new YAHOO.widget.Panel("alert", {
