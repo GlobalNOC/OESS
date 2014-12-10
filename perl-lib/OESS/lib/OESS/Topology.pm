@@ -473,7 +473,6 @@ sub find_path {
             return undef;
         }
 
-        $self->{'logger'}->info("mvcp nodes($node_a_name, $node_b_name)");
         my $links_added = 0;
         for(my $i=0;$i<scalar(@path);$i++){
             my $links = $edge{$path[$i]}{$path[$i+1]};
@@ -498,7 +497,6 @@ sub find_path {
             }
             push(@link_list,$choosen_link->{'name'});
             $self->{'logger'}->debug("Adding link name: " . $choosen_link->{'name'});
-            $self->{'logger'}->info("mvcp Adding link name: " . $choosen_link->{'name'});
             $links_added = 1;
         }
         last if($links_added);
