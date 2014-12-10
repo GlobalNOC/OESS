@@ -149,7 +149,12 @@ sub main {
 	    }
 	    $output = &is_ok_to_decom();
 	}
-
+    case "deny_device" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
+        $output = &deny_device();
+    }
 	case "deny_link" {
 	    if($user->{'type'} eq 'read-only'){
 		return send_json({error => 'Error: you are a readonly user'});
@@ -1090,6 +1095,42 @@ sub update_link {
         name    => $name,
         metric  => $metric
     );
+
+    if ( !defined $result ) {
+        $results->{'results'} = [
+            {
+                "error"   => $db->get_error(),
+                "success" => 0
+            }
+        ];
+    }
+    else {
+        $results->{'results'} = [ { "success" => 1 } ];
+    }
+
+    return $results;
+}
+
+sub deny_device {
+    my $results;
+    my $node_id = $cgi->param('node_id');
+    my $ipv4_addr = $cgi->param('ipv4_addr');
+    my $dpid = $cgi->param('dpid');
+
+    my $result = $db->decom_node(node_id => $node_id);
+
+    if ( !defined $result ) {
+        $results->{'results'} = [
+            {
+                "error"   => $db->get_error(),
+                "success" => 0
+            }
+        ];
+    }
+    else {
+        $results->{'results'} = [ { "success" => 1 } ];
+    }
+    $result = $db->create_node_instance(node_id => $node_id,ipv4_addr => $ipv4_addr,admin_state => "decom", dpid => $dpid);
 
     if ( !defined $result ) {
         $results->{'results'} = [

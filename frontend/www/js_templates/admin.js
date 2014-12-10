@@ -824,7 +824,7 @@ function setup_workgroup_tab(){
 
 
     var wg_table = makeWorkgroupTable();
-    
+    var new_workgroup_panel; 
     wg_table.subscribe("rowClickEvent", function(oArgs){       
             
         var wg_details_panel; 
@@ -1386,6 +1386,11 @@ function setup_workgroup_tab(){
 
     add_workgroup.on("click", function(){
 
+        if (new_workgroup_panel) {
+            new_workgroup_panel.destroy();
+            new_workgroup_panel = undefined;
+        }
+
 	    var region = YAHOO.util.Dom.getRegion("workgroups_content");
 	    
 	    // get the popup nice and centered
@@ -1414,7 +1419,8 @@ function setup_workgroup_tab(){
 				  "</select>");
 	    p.setFooter("<div id='submit_new_workgroup'></div>");
 
-	    p.render(document.body);
+        new_workgroup_panel = p;
+	    new_workgroup_panel.render(document.body);
 
 	    YAHOO.util.Dom.get('new_workgroup_name').focus();
 
@@ -1457,7 +1463,7 @@ function setup_workgroup_tab(){
 					   }
 					   else {
 					       YAHOO.util.Dom.get("workgroup_status").innerHTML = "Workgroup created successfully.";
-					       p.destroy();
+					       new_workgroup_panel.destroy();
 					       setup_workgroup_tab();
 					   }
 				       },
@@ -2460,7 +2466,7 @@ function setup_discovery_tab(){
 				       "</table>"
 				       );
 
-	    this.details_panel.setFooter("<div id='confirm_node'></div>");
+	    this.details_panel.setFooter("<div id='confirm_node'></div><div id='deny_node'></div>");
 
 	    this.details_panel.render(document.body);
 
@@ -2503,6 +2509,47 @@ function setup_discovery_tab(){
 	    YAHOO.util.Dom.get("node_name").focus();
 
 	    var confirm_button = new YAHOO.widget.Button("confirm_node", {label: "Confirm Device"});
+        var deny_button = new YAHOO.widget.Button("deny_node", {label: "Deny Device"});
+
+        deny_button.on("click", function(e){
+            
+		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=deny_device&node_id=" + record.getData('node_id') + "&ipv4_addr="+ record.getData('ip_address') + "&dpid=" + record.getData('dpid'));
+		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+		 
+		    ds.responseSchema = {
+			resultsList: "results",
+			fields: [{key: "success"}]
+		    };
+         
+		    deny_button.set("disabled", true);
+		    deny_button.set("label", "Denying device...");
+
+		    YAHOO.util.Dom.get("node_confirm_status").innerHTML = "";
+		    YAHOO.util.Dom.get("node_confirm_status").innerHTML = "";
+            ds.sendRequest("", {success: function(req, resp){
+
+				deny_button.set("disabled", false);
+				deny_button.set("label", "Deny Device");
+
+				if (resp.results && resp.results[0].success == 1){
+				    YAHOO.util.Dom.get("node_confirm_status").innerHTML = "Device successfully denied.";
+				    node_table.deleteRow(record);
+				    details_panel.hide();
+				    setup_network_tab();
+				}
+				else{
+				    alert("Device denial unsuccessful.")
+				}
+			    },
+			    failure: function(req, resp){
+				deny_button.set("disabled", false);
+				deny_button.set("label", "Deny Device");
+
+				alert("Server error while denying device.");
+			    }
+			});
+
+        }); 
 
 	    confirm_button.on("click", function(e){
 
