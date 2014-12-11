@@ -24,13 +24,13 @@ fi
 
 # Check that networking is up.
 [ ${NETWORKING} = "no" ] && exit 0
-name=fvd
+name=fvd1
 exec_file=/usr/bin/oess-$name.pl
 options=" "
 username=_oess
 lockfile=/var/lock/subsys/$name
 command="$exec_file -u $username $options"
-PIDFILE=/var/run/oess/$name.pid
+PIDFILE=/var/run/oess/oess-$name.pid
 
 #see how we were called.
 case "$1" in

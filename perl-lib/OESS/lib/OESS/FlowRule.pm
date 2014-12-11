@@ -70,7 +70,7 @@ use constant OFPAT_SET_TP_SRC   => 9;
 use constant OFPAT_SET_TP_DST   => 10;
 use constant OFPAT_ENQUEUE      => 11;
 use constant OFPAT_VENDOR       => 65535;
-use constant OFPP_CONTROLLER    => 65533;
+use constant OFPP_CONTROLLER    => 65535;
 
 use constant VLAN_WILDCARD      => 0;
 use constant PORT_WILDCARD      => 0;
@@ -875,6 +875,7 @@ sub parse_stat{
 
     my $logger = Log::Log4perl->get_logger("OESS.FlowRule");
     $logger->debug("Processing Stat to Flow Rule");
+    warn Data::Dumper::Dumper(%params);
     my $dpid = $params{'dpid'};
     my $stat = $params{'stat'};
     return if(!defined($stat));
@@ -900,7 +901,9 @@ sub parse_stat{
 		push(@new_actions,{'set_vlan_id' => $action->{'vlan_vid'}});
 	    }case (OFPAT_STRIP_VLAN){
 		push(@new_actions,{'set_vlan_id' => UNTAGGED});
-	    }
+	    }else{
+                $logger->error("UNKNOWN ACTION!!!");
+            }
 	}
     }
     my $new_match = {};
@@ -920,7 +923,14 @@ sub parse_stat{
 		$new_match->{$key} = $match->{$key};
 	    }case "dl_type"{
 		$new_match->{$key} = $match->{$key};
-	    }
+                #supoport for 1.3
+	    }case "eth_type"{
+                $new_match->{"dl_type"} = $match->{$key};
+            }case "vlan_vid"{
+                $new_match->{'dl_vlan'} = $match->{$key} - 4096;
+            }case "eth_dst"{
+                #$new_match->{'dl_dst'} = $match->{$key};
+            }
 	}
     }
     my $flow = OESS::FlowRule->new( 

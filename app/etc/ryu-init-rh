@@ -2,7 +2,7 @@
 # chkconfig: 123456 90 10
 #
 
-options=" /usr/lib/python2.6/site-packages/oess/nddi_dbus.py /usr/lib/python2.6/site-packages/ryu/topology/switches.py --ofp-tcp-listen-port=6636 --lldp-vlan-id=2001 --observe-links --use-syslog --nouse-stderr"
+options=" /usr/lib/python2.6/site-packages/oess/nddi_dbus.py /usr/lib/python2.6/site-packages/ryu/topology/switches.py --ofp-tcp-listen-port=6636 --lldp-vlan-id=200 --observe-links --use-syslog --nouse-stderr"
 
 CMD="ryu-manager $options"
  
