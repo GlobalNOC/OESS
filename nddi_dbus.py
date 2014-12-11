@@ -363,18 +363,8 @@ class dBusEventGen(dbus.service.Object):
                                      hard_timeout = attrs.get('HARD_TIMEOUT'))
 
         elif ofp.OFP_VERSION == ofproto_v1_3.OFP_VERSION:
-            meter_id = 1
-            #create a meter
-            drop_band = parser.OFPMeterBandDrop(rate = 1000, burst_size=100)
-            meter_mod = parser.OFPMeterMod(datapath,meter_id = meter_id, bands=[drop_band])
-            datapath.set_xid(meter_mod)
-            xid = meter_mod.xid
-            datapath.send_msg(meter_mod)
-
             inst = [parser.OFPInstructionActions(ofp.OFPIT_APPLY_ACTIONS,
-                                                 of_actions),
-                    parser.OFPInstructionMeter(meter_id)]
-            logger.info(inst)
+                                                 of_actions)]
             mod = parser.OFPFlowMod( datapath,
                                      cookie = 0,
                                      cookie_mask = 0,
@@ -390,9 +380,7 @@ class dBusEventGen(dbus.service.Object):
 
         datapath.set_xid(mod)
         xid = mod.xid
-
         datapath.send_msg(mod)
-        
         logger.info("Added Flow Mod!")
 
         _do_install(dpid,xid,mod)
