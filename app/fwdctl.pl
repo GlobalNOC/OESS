@@ -134,6 +134,7 @@ sub main{
         my $kid_pid = $daemon->Init;
 
         if ($kid_pid) {
+            `chmod 0644 /var/run/oess/fwdctl.pid`;
             return;
         }
 

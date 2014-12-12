@@ -693,6 +693,7 @@ sub main(){
           die();
        }
        #this is the parent process
+       `chmod 0644 /var/run/oess/topo.pid`;
        sleep(2);
        if (0 == $daemon->Status()){
          die(); ##exit failure
