@@ -4557,6 +4557,48 @@ sub get_link_ints_on_node{
     }
     return $ints;
 }
+=head2 get_traceroute_transactions
+
+get currently running traceroute transactions
+
+=cut
+
+sub get_traceroute_transactions {
+    my $self = shift;
+    my %args = (
+        circuit_id => undef,
+        mac_addr => undef,
+        @_
+        );
+    my $results;
+    if ($args{circuit_id}){
+
+    }
+    elsif ($args{mac_addr}){
+
+    }
+
+    return $results;
+}
+
+=head2 add_traceroute_transaction
+
+documents a new traceroute transaction
+
+=cut
+
+sub add_traceroute_transaction {
+    my $self - shift;
+    my %args = (circuit_id => undef,
+                source_port => undef,
+                remaining_endpoints => 0
+                cycle_count => 2,
+                @_
+        );
+
+    return 1;
+}
+
 
 =head2 get_link
 
