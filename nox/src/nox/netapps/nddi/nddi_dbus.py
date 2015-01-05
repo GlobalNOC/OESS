@@ -632,6 +632,37 @@ class nddi_dbus(Component):
 
         self.post_callback(fv_pkt_rate, self.fire_send_fv_packets)
 
+    def send_traceroute_packets(self):
+        #todo, modify from send_fv_packet
+        time_val = time() * 1000
+
+
+        for pkt in self.sg.packets:
+            logger.info("Packet:")
+            packet = ethernet()
+            packet.src = '\x00' + struct.pack('!Q',pkt[0])[3:8]
+            packet.dst = NDP_MULTICAST
+
+            payload = struct.pack('QHQHq',pkt[0],pkt[1],pkt[2],pkt[3],time_val)
+
+            if(self.sg.VLAN_ID != None and self.sg.VLAN_ID != 65535):
+                vlan_packet = vlan()
+                vlan_packet.id = self.sg.VLAN_ID
+                vlan_packet.c = 0
+                vlan_packet.pcp = 0
+                vlan_packet.eth_type = 0x88b6
+                vlan_packet.set_payload(payload)
+
+                packet.set_payload(vlan_packet)
+                packet.type = ethernet.VLAN_TYPE
+
+            else:
+                packet.set_payload(payload)
+                packet.type = 0x88b6
+
+            inst.send_openflow_packet(pkt[0], packet.tostring(), int(pkt[1]))
+
+
     def getInterface(self):
         return str(nddi_dbus)
 

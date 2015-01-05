@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 use strict;
-use OESS::TraceRoute;
+use OESS::Traceroute;
 use Getopt::Long;
 use Proc::Daemon;
 use Data::Dumper;
@@ -48,13 +48,13 @@ sub main{
             return;
         }
         my $logger = Log::Log4perl->init_and_watch('/etc/oess/logging.conf');
-        my $traceroute = OESS::TraceRoute->new();
+        my $traceroute = OESS::Traceroute->new();
     }
     #not a deamon, just run the core;
     else {
         $SIG{HUP} = sub{ exit(0); };
         my $logger = Log::Log4perl->init_and_watch('/etc/oess/logging.conf');
-        my $traceroute = OESS::TraceRoute->new();
+        my $traceroute = OESS::Traceroute->new();
     }
 
 }

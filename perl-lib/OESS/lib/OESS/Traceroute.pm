@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-package OESS::FV;
+package OESS::Traceroute;
 
 use bytes;
 use Log::Log4perl;
