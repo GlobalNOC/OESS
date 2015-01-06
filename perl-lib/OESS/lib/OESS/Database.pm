@@ -3327,7 +3327,7 @@ sub get_circuit_details {
 	                                                 ) || [];
 
     $details->{'workgroup'} = $self->get_workgroup_by_id( workgroup_id => $details->{'workgroup_id'} );
-    $details->{'last_modified_by'} = $self->get_user_by_id( user_id => $details->{'user_id'} )->[0];
+    #$details->{'last_modified_by'} = $self->get_user_by_id( user_id => $details->{'user_id'} )->[0];
 
     $query = "select * from circuit_instantiation where circuit_id = ? and end_epoch = (select min(end_epoch) from circuit_instantiation where circuit_id = ? and end_epoch > 0)";
 
@@ -4579,24 +4579,6 @@ sub get_traceroute_transactions {
     }
 
     return $results;
-}
-
-=head2 add_traceroute_transaction
-
-documents a new traceroute transaction
-
-=cut
-
-sub add_traceroute_transaction {
-    my $self - shift;
-    my %args = (circuit_id => undef,
-                source_port => undef,
-                remaining_endpoints => 0
-                cycle_count => 2,
-                @_
-        );
-
-    return 1;
 }
 
 

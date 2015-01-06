@@ -307,23 +307,69 @@ sub is_loopback {
     return 1; 
 }
 
-=head2 build_graph
+=head2 find_path
 
+    Attempts to find a path to the given nodes
+    Here are the steps to complete
+
+    step 0 -> sanity (at least two nodes).
+    step 1 get nodes
+    step 2 get links with available bandwidth
+    step 3 build the graph
+    step 4 make sure they can be connected
+    step 5 select the root (and reoder the nodes?)
+    step 6 (iterate for shortest path from the root for the rest).
 
 =cut
 
-
-sub build_graph {
-    #now put the nodes into the graph
+sub find_path{
     my $self = shift;
-    my $db = $self->get_database();
-    my @db_nodes = map {$_->{'name'} } @{$db->get_current_nodes()};
+    my %args = 	@_;
 
+    $self->{'logger'}->debug("Finding shortest path");
+
+    my @selected_links = ();
+
+
+    my $reserved_bw = $args{'reserved_bw'};
+    if(!defined($reserved_bw)){
+	$reserved_bw = 0;
+    }
+
+    my $nodes = $args{'nodes'};
+    my $try_avoid = $args{'used_links'};
+
+    my $db = $self->get_database();
+    my $g = Graph::Undirected->new;
+
+    #now the acutal implementation, step0 sanity
+    if(scalar(@$nodes) < 2){
+	$self->_set_error("Not enough nodes specified in find path: " . join(",",@$nodes));
+        return undef;
+    }
+
+    #step1 (get nodes);
+    my @tmp = @{$db->get_current_nodes()};
+    
+
+    my @db_nodes;
+    foreach my $tmp_node (@tmp){
+	push(@db_nodes, $tmp_node->{'name'});
+    }
 
     $self->{'logger'}->debug("db_nodes=" . join(",",@db_nodes));
-    my $g = Graph::Undirected->new;
-    
-    foreach my $vertex (@$db_nodes){
+
+    #Sanity check2 make sure the nodes are a subset of the nodes on the db
+    my $db_node_set    =Set::Scalar->new(@db_nodes);
+    my $input_node_set =Set::Scalar->new(@$nodes);
+
+    if(not $input_node_set <= $db_node_set){
+	$self->_set_error("Bad inputs: " . join(",",@$nodes));
+        return undef;
+    }
+
+    #now put the nodes into the graph
+    foreach my $vertex (@db_nodes){
         $g->add_vertex($vertex);
     }
 
@@ -410,76 +456,7 @@ sub build_graph {
                                                                        weight => $edge_weight,
                                                                        circuits => $circuits });
     }
-## done building graph
-    return ($g);
-}
 
-
-=head2 find_path
-
-    Attempts to find a path to the given nodes
-    Here are the steps to complete
-
-    step 0 -> sanity (at least two nodes).
-    step 1 get nodes
-    step 2 get links with available bandwidth
-    step 3 build the graph
-    step 4 make sure they can be connected
-    step 5 select the root (and reoder the nodes?)
-    step 6 (iterate for shortest path from the root for the rest).
-
-=cut
-
-sub find_path{
-    my $self = shift;
-    my %args = 	@_;
-
-    $self->{'logger'}->debug("Finding shortest path");
-
-    my @selected_links = ();
-
-
-    my $reserved_bw = $args{'reserved_bw'};
-    if(!defined($reserved_bw)){
-	$reserved_bw = 0;
-    }
-
-    my $nodes = $args{'nodes'};
-    my $try_avoid = $args{'used_links'};
-
-    my $db = $self->get_database();
-    #my $g = Graph::Undirected->new;
-
-    #now the acutal implementation, step0 sanity
-    if(scalar(@$nodes) < 2){
-	$self->_set_error("Not enough nodes specified in find path: " . join(",",@$nodes));
-        return undef;
-    }
-
-    #step1 (get nodes);
-    my @tmp = @{$db->get_current_nodes()};
-    
-
-    my @db_nodes;
-    foreach my $tmp_node (@tmp){
-	push(@db_nodes, $tmp_node->{'name'});
-    }
-
-    $self->{'logger'}->debug("db_nodes=" . join(",",@db_nodes));
-
-    #Sanity check2 make sure the nodes are a subset of the nodes on the db
-    my $db_node_set    =Set::Scalar->new(@db_nodes);
-    my $input_node_set =Set::Scalar->new(@$nodes);
-
-    if(not $input_node_set <= $db_node_set){
-	$self->_set_error("Bad inputs: " . join(",",@$nodes));
-        return undef;
-    }
-
-    #building graph
-    
-    my $g = build_graph;
-    
     #run Dijkstra on our graph
     my @link_list = ();
     foreach my $node_a_name (@$nodes){
