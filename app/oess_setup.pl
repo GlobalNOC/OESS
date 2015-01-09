@@ -7,6 +7,7 @@ use DBI;
 use OESS::Database;
 use Sys::Hostname;
 use Data::Dumper;
+use File::Path qw(make_path);
 use CPAN;
 sub main{
 
@@ -126,6 +127,8 @@ sub main{
     $handle->do("GRANT ALL ON oess.* to 'oess'\@'localhost' identified by '$oess_pass'") or die DBI::errstr;
     $handle->do("GRANT ALL ON snapp.* to 'snapp'\@'localhost' identified by '$snapp_pass'") or die DBI::errstr;
     $handle->do("flush privileges");
+	
+    my $discovery_vlan = optional_parameter("Discovery VLAN Tag: ","untagged");
 
     #put all of this into a config file
     print "Creating Configuration file (/etc/oess/database.xml)\n";
@@ -136,11 +139,10 @@ sub main{
   <credentials username="oess" password="$oess_pass" database="oess" />
   <oscars host="$oscars_host" cert="$my_cert" key="$my_key" topo="$topo_host"/>
   <smtp from_address="$from_address" image_base_url="$image_base_url" from_name="$from_name" />
-
-</config>
 END
-
-close(FILE);
+    print FILE "  <discovery_vlan>$discovery_vlan</discovery_vlan>\n" if($discovery_vlan ne 'untagged');
+    print FILE "</config>";
+    close(FILE);
     print "\nInstalling the OESS Schema\n";
     my $db = OESS::Database->new();
     $OESS::Database::ENABLE_DEVEL=1;
@@ -297,10 +299,11 @@ close(FILE);
         }   
 	    print "Passwords did not match, try again.\n";
 	}
-
-	open(FILE, "> /usr/share/oess-frontend/www/.htpasswd");
-	print FILE $user . ":" . crypt($pass,$pass) . "\n";
-	close(FILE);
+    make_path('/usr/share/oess-frontend/www/', { mode => 0755 });
+	open(my $fh, "> /usr/share/oess-frontend/www/.htpasswd");
+	print $fh $user . ":" . crypt($pass,$pass) . "\n";
+    chmod(0755, $fh);
+	close($fh);
     }
 
     #now add the user to the DB
