@@ -8,12 +8,19 @@ use Log::Log4perl;
 use Graph::Directed;
 use OESS::Database;
 use OESS::DBus;
+
 use OESS::Circuit;
 use OESS::Topology;
 use Net::DBus::Annotation qw(:call);
+use Net::DBus::Exporter qw (org.nddi.traceroute);
+use Net::DBus qw(:typing);
+use base qw(Net::DBus::Object);
+
 use JSON::XS;
 use Time::HiRes;
 use Data::Dumper;
+
+
 #link statuses
 use constant OESS_LINK_UP      => 1;
 use constant OESS_LINK_DOWN    => 0;
@@ -42,10 +49,11 @@ this is a module used by oess-traceroute to manage the addition of traceroute ru
 
 sub new {
     my $that = shift;
+    my $service = shift;
     my $class = ref($that) || $that;
-
+    
     my $logger = Log::Log4perl->get_logger("OESS.Traceroute");
-
+    
     my %args = (
         interval => 1000,
         timeout  => 15000,
@@ -53,141 +61,51 @@ sub new {
         @_
     );
 
-    my $self = \%args;
+    my $self = $class->SUPER::new($service,"/controller1");
+    
+    foreach my $key (keys %args){
+        $self->{$key} = $args{$key};
+    }
 
     bless $self, $class;
     $self->{'first_run'} = 1;
     $self->{'logger'}    = $logger;
     $self->{'mac_address'} = OESS::Database::mac_hex2num('06:a2:90:26:50:09');
     $self->{transactions} = {};
-    warn "db".Dumper ($args{'db'});
+    #warn "db".Dumper ($args{'db'});
     
-    if (defined $args{'db'}){
+    if ($args{'db'}){
         $self->{'db'} = $args{'db'};
+        warn "Set DB via arg";
     }
     else {
         $self->{'db'} = OESS::Database->new();
+        warn "Set DB via new object";
     }
     if ( !defined($self->{'db'}) ) {
         $self->{'logger'}->error("error creating database object");
-        return;
+        return 0;
     }
     #$self->{'db'} = $db;
     $self->{'topo'} = OESS::Topology->new( db => $self->{'db'});
     $self->_connect_to_dbus();    
     
-    #$self->{'oess_dbus'}->start_reactor(
-    #    timeouts => [
-    #        {
-    #            interval => 300000,
-    #            callback => Net::DBus::Callback->new( method => sub { $self->_load_state(); } )
-    #        },
-    #        {
-    #            interval => $self->{'interval'},
-    #            callback => Net::DBus::Callback->new( method => sub { $self->do_work(); } )
-    #        }
-    #    ]
-    #    );
+    dbus_method("init_circuit_trace",["uint32","uint32"],["int32"]);
+    dbus_method("get_traceroute_transactions",[ [ "dict", "string", ["variant"] ] ]
+,[ [ "dict", "string", ["variant"] ] ]);
+
+    $self->{'nox'}->start_reactor(
+        timeouts => [
+            {
+                interval => 10000,
+                callback => Net::DBus::Callback->new( method => sub { $self->_timeout_traceroutes() } )
+            },
+
+        ]
+        );
 
     return $self;
 }
-
-# sub _load_state {
-#     my $self  = shift;
-#     $self->{'logger'}->debug("Loading the state");
-
-#     my $links = $self->{'db'}->get_current_links();
-
-#     my %nodes;
-#     my $nodes = $self->{'db'}->get_current_nodes();
-#     foreach my $node (@$nodes) {
-#         $nodes{ $node->{'dpid'} } = $node;
-
-#         if ( defined( $self->{'nodes'}->{ $node->{'dpid'} } ) ) {
-#             $node->{'status'} = $self->{'nodes'}->{ $node->{'dpid'} }->{'status'};
-#         }
-#         else {
-#             if ( $node->{'operational_state'} eq 'up' ) {
-#                 $node->{'status'} = OESS_NODE_UP;
-#             }
-#             else {
-#                 $node->{'status'} = OESS_NODE_DOWN;
-#             }
-#         }
-
-#         $nodes{ $node->{'node_id'} } = $node;
-#         $nodes{ $node->{'dpid'} }    = $node;
-
-#     }
-
-#     my %links;
-#     foreach my $link (@$links) {
-#         next if (defined($link->{'remote_urn'}));
-
-#         if ( $link->{'status'} eq 'up' ) {
-#             $link->{'status'} = OESS_LINK_UP;
-#         }
-#         elsif ( $link->{'status'} eq 'down' ) {
-#             $link->{'status'} = OESS_LINK_DOWN;
-#         }
-#         else {
-#             $link->{'status'} = OESS_LINK_UNKNOWN;
-#         }
-
-#         my $int_a = $self->{'db'}->get_interface( interface_id => $link->{'interface_a_id'} );
-#         my $int_z = $self->{'db'}->get_interface( interface_id => $link->{'interface_z_id'} );
-
-#         $link->{'a_node'} = $nodes{ $nodes{ $int_a->{'node_id'} }->{'dpid'} };
-#         $link->{'a_port'} = $int_a;
-#         $link->{'z_node'} = $nodes{ $nodes{ $int_z->{'node_id'} }->{'dpid'} };
-#         $link->{'z_port'} = $int_z;
-
-#         if ( defined( $self->{'links'}->{ $link->{'name'} } ) ) {
-#             $link->{'fv_status'}     = $self->{'links'}->{ $link->{'name'} }->{'fv_status'};
-#             $link->{'last_verified'} = $self->{'links'}->{ $link->{'name'} }->{'last_verified'};
-#         }
-#         else {
-#             $link->{'last_verified'} = Time::HiRes::time() * 1000;
-#             $link->{'fv_status'}     = OESS_LINK_UNKNOWN;
-#         }
-
-#         $links{ $link->{'name'} } = $link;
-#     }
-
-#     $self->{'logger'}->debug( "Node State: " . Data::Dumper::Dumper( \%nodes ) );
-#     $self->{'logger'}->debug( "Link State: " . Data::Dumper::Dumper( \%links ) );
-
-#     $self->{'nodes'} = \%nodes;
-#     $self->{'links'} = \%links;
-    
-#     my @packet_array;
-#     #ok now send out our packets
-    
-#     foreach my $link_name ( keys( %{ $self->{'links'} } ) ) {
-        
-#         my $link = $self->{'links'}->{$link_name};
-#         $self->{'logger'}->debug( "Sending packets for link: " . $link_name );
-        
-#         my $a_end = { node => $link->{'a_node'}, int => $link->{'a_port'} };
-#         my $z_end = { node => $link->{'z_node'}, int => $link->{'z_port'} };
-        
-#         my @arr = ( Net::DBus::dbus_uint64( $a_end->{'node'}->{'dpid'} ), Net::DBus::dbus_uint64( $a_end->{'int'}->{'port_number'} ), Net::DBus::dbus_uint64( $z_end->{'node'}->{'dpid'} ), Net::DBus::dbus_uint64( $z_end->{'int'}->{'port_number'} ) );
-#         $self->{'links'}->{$link_name}->{'a_z_details'} = Net::DBus::dbus_array(\@arr);
-#         push( @packet_array, $self->{'links'}->{$link_name}->{'a_z_details'} );
-        
-#         my @arr2 = ( Net::DBus::dbus_uint64( $z_end->{'node'}->{'dpid'} ), Net::DBus::dbus_uint64( $z_end->{'int'}->{'port_number'} ), Net::DBus::dbus_uint64( $a_end->{'node'}->{'dpid'} ), Net::DBus::dbus_uint64( $a_end->{'int'}->{'port_number'} ) );
-#         $self->{'links'}->{$link_name}->{'z_a_details'} = Net::DBus::dbus_array(\@arr2);
-#         push( @packet_array, $self->{'links'}->{$link_name}->{'z_a_details'} );
-#     }
-
-
-#     $self->{'all_packets'} = Net::DBus::dbus_array( \@packet_array );
-#     $self->{'logger'}->debug(Data::Dumper::Dumper($self->{'all_packets'}));
-#     $self->{'logger'}->debug("Send FV Packets");
-
-#     $self->{'dbus'}->send_fv_packets(Net::DBus::dbus_int32($self->{'interval'}),Net::DBus::dbus_uint16($self->{'db'}->{'discovery_vlan'}),$self->{'all_packets'});
-    
-# }
 
 
 
@@ -195,11 +113,12 @@ sub _connect_to_dbus {
     my $self = shift;
 
     $self->{'logger'}->debug("Connecting to DBus");
+   
     my $dbus = OESS::DBus->new(
         service        => "org.nddi.openflow",
         instance       => "/controller1",
-        #sleep_interval => .1,
-        #timeout        => -1
+        sleep_interval => .1,
+        timeout        => -1
     );
 
     if ( !defined($dbus) ) {
@@ -207,31 +126,33 @@ sub _connect_to_dbus {
         die;
     }
 
+   
+
 #    $dbus->connect_to_signal( "datapath_leave", sub { $self->datapath_leave_callback(@_) } );
 #    $dbus->connect_to_signal( "datapath_join",  sub { $self->datapath_join_callback(@_) } );
-#    $dbus->connect_to_signal( "link_event",     sub { $self->link_event_callback(@_) } );
+     $dbus->connect_to_signal( "link_event",     sub { $self->link_event_callback(@_) } );
 #    $dbus->connect_to_signal( "port_status",    sub { $self->port_status_callback(@_) } );
 #    $dbus->connect_to_signal( "fv_packet_in",   sub { $self->fv_packet_in_callback(@_) } );
 
-    $self->{'nox'} = $dbus->{'dbus'};
+    $self->{'nox'} = $dbus;
 
-#    my $bus = Net::DBus->system;
+    my $bus = Net::DBus->system;
 
-    #my $client;
-    #Bmy $service;
- #   eval {
-  #      $service = $bus->get_service("org.nddi.openflow");
-  #      $client  = $service->get_object("/controller1");
-  #  };
-
+    my $client;
+    my $service;
+    eval {
+        $service = $bus->get_service("org.nddi.openflow");
+        $client  = $service->get_object("/controller1");
+    };
     if ($@) {
         warn "Error in _conect_to_dbus: $@";
         return;
     }
 
+#    $client->register_for_traceroute_in();
     #$client->register_for_fv_in( $self->{'db'}->{'discovery_vlan'} );
 
-    #$self->{'dbus'} = $client;
+    $self->{'dbus'} = $client;
 
 }
 
@@ -243,39 +164,61 @@ handles bootstrapping of setting up a traceroute request record, documenting ori
 sub init_circuit_trace {
 
     my $self = shift;
-    my ($circuit_id, $endpoint_interface) = shift;
+    my ($circuit_id, $endpoint_interface) = @_;
     my $db = $self->{'db'};
+    warn Dumper ($db);
     my $circuit = OESS::Circuit->new(db => $db,
                                      topo => $self->{'topo'},
                                      circuit_id => $circuit_id
         );
     
+    my $endpoint_dpid;
+    my $endpoint_port_no;
+    #get dpid,port_no from endpoint_interface_id;
+    my $interface = $db->get_interface(interface_id => $endpoint_interface);
+
+    if (!$interface){
+        warn "could not find interface with interace_id $endpoint_interface";
+        return 0;
+    }
+    
+    my $node = $db->get_node_by_name(node_name => $interface->{'node_name'});
+    $endpoint_dpid= $node->{'dpid'};
+    $endpoint_port_no = $interface->{'port_number'};
     #verify there isn't already a traceroute running for this vlan
-    if ($self->get_traceroute_transactions(circuit_id => $circuit_id,
-                                           status => 'active'
-        ) ){
+    my $active_transaction = $self->get_traceroute_transactions({circuit_id => $circuit_id,
+                                                                 status => 'active'});
+    if ($active_transaction&& defined($active_transaction->{'status'}) ){
         #set_error..
-      return;
+        warn "traceroute transaction for this circuit already active";
+        warn Dumper ($active_transaction);
+      return 0;
     }
     
     #create a new tracelog entry in the database
-    $db->add_traceroute_transaction( circuit_id=> $circuit_id,
-                                     source_endpoint => $endpoint_interface,
+    my $success =$self->add_traceroute_transaction( circuit_id=> $circuit_id,
+                                     source_endpoint => {dpid => $endpoint_dpid, port_no => $endpoint_port_no},
                                      remaining_endpoints => ( @{$circuit->{'endpoints'}} -1),
                                      ttl => 30 #todo make based on config
         );
+    if (!$success){
+        warn "did not add traceroute transaction";
+        return 0;
+    }
    #will have transaction_id,ttl,source_port left of current traceroute
    
-    my $transaction = $self->get_traceroute_transactions(circuit_id => $circuit_id);
+    my $transaction = $self->get_traceroute_transactions({circuit_id => $circuit_id});
     #add all rules
     my $rules=    $self->build_trace_rules($circuit_id);
     
     #should this send to fwdctl or straight to NOX?
-    foreach my $rule (@$rules){
-        $self->{'nox'}->install_datapath_flow($rule->to_dbus());
-    }
+    #foreach my $rule (@$rules){
+    #    $self->{'nox'}->install_datapath_flow($rule->to_dbus());
+    #}
     
-    $self->send_trace_packet($transaction);
+    #$self->send_trace_packet($transaction);
+
+    return 1;
 
 }
 
@@ -298,7 +241,7 @@ sub build_trace_rules {
         );
     #warn Dumper $circuit;
     my $current_flows = $circuit->get_flows();#path => $circuit->get_active_path );
-    warn Dumper ($current_flows);
+    #warn Dumper ($current_flows);
     foreach my $flow( @$current_flows){
     
         #TODO if flow match isn't on a trunk port, skip it;
@@ -352,7 +295,7 @@ sub process_trace_packet {
     my $transaction;
     # get transaction based on circuit_id
     foreach my $circuit (@$circuits){
-        my $candidate_transaction = $self->get_traceroute_transactions(circuit_id => $circuit->{'circuit_id'}, status=>'active');
+        my $candidate_transaction = $self->get_traceroute_transactions({circuit_id => $circuit->{'circuit_id'}, status=>'active'});
         if ($candidate_transaction){
             #we've got an active transaction for this circuit, now verify this is actually the right traceroute, we may have multiple circuits over the same link 
             $circuit_details = OESS::Circuit->new(db => $db,
@@ -406,14 +349,17 @@ sub process_trace_packet {
 #   $transaction = $self->get_traceroute_transaction(circuit_id => $circuit_id);
         
     if ($transaction->{'remaining_endpoints'} < 1){
-                               #we're done!
+        #we're done!
         $transaction->{'status'} = 'Complete';
-        }
+        #remove all flows from the switches
+    }
     elsif ($transaction->{'ttl'} < 1){
             $transaction->{'status'} = 'timeout';
+            #remove all flows from the switches
     }
     else {
         $self->send_trace_packet($transaction);
+        #remove all flows from the switches
     }
  
     }
@@ -444,29 +390,51 @@ sub get_traceroute_transactions {
     #                                             nodes_traversed = []
     #                             }               }
     
-
+    my $results = {};
     my $self = shift;
+    #because dbus we can't pass as a hash, this has to be a hashref.
+    my $hash_ref = shift;
+
     my %args = ( circuit_id => undef,
                  status => undef,
-                 @_
-        );
+               );
+    
+    while ((my $k, my $v) = each %$hash_ref){
+        $args{$k} = $v;
+    }
+    #warn Dumper \%args;
     my $transactions = $self->{'transactions'};
-    if ($args{'circuit_id'}){     
-        if ($args{status}){
-            if ($self->{'transactions'}->{'circuit_id'}->{'status'} eq $args{'status'}){
-                return $self->{'transactions'}->{$args{'circuit_id'}};
+
+    my $circuit_id = $args{'circuit_id'};
+    if ( defined( $circuit_id ) ){     
+
+        if (defined($args {'status'})){
+            if ($self->{'transactions'}->{$circuit_id} &&
+                $self->{'transactions'}->{$circuit_id}->{'status'} eq $args{'status'}){
+                $results = $self->{'transactions'}->{$circuit_id} || {};
+                return $results;
             }
-            return;
+            $results = {};
+            return $results;
         }
         else {
-            return $self->{'transactions'}->{$args{'circuit_id'}};
+            $results = $self->{'transactions'}->{$circuit_id} || {};
+            return $results;
+#return $self->{'transactions'}->{$circuit_id};
         }
     }
-    elsif ($args{status}){
-        return (grep { $self->{'transactions'}->{$_}->{'status'} eq $args{status} } keys %${$self->{'transactions'}} );
+    elsif (defined($args{'status'})){
+        my $transactions = $self->{'transactions'};
+        foreach my $circuit_id (keys %$transactions){
+            if ($transactions->{$circuit_id} && $transactions->{$circuit_id}->{'status'} eq $args{'status'}){
+                $results->{$circuit_id}= $transactions->{$circuit_id};
+            }
+        }
+        return $results;
+      #return (grep { $self->{'transactions'}->{$_}->{'status'} eq $args{'status'} } keys %$transactions );
     }
     else {
-        return $self->{'transactions'};
+        return $transactions;
     }
 
 }
@@ -500,7 +468,8 @@ sub add_traceroute_transaction {
         return;
     }
 
-    $self->{'transactions'}->{ $args{circuit_id} } = {
+    $self->{'transactions'}->{ $args{circuit_id} } =
+    {
         ttl => $args{ttl},
         remaining_endpoints => $args{remaining_endpoints},
         nodes_traversed => [],
@@ -511,6 +480,25 @@ sub add_traceroute_transaction {
     #warn Dumper $self->{'transactions'};
     return 1;
 }
+
+sub remove_traceroute_rules {
+    my $self = shift;
+    my %args = (
+        circuit_id => undef,
+        
+        @_);
+    #get rules
+    my $rules = $self->build_trace_rules(circuit_id => $args{circuit_id});
+    
+    #optimization: rules for nodes we've already traced through should have been deleted already, we could skip them.
+    foreach my $rule (@$rules){
+        $self->{'nox'}->delete_datapath_flow($rule->to_dbus());
+    }
+
+
+                                        
+}
+
 
 sub clear_traceroute_transaction {
     my $self = shift;
@@ -523,5 +511,65 @@ sub clear_traceroute_transaction {
     delete $self->{'transactions'}->{ $args{circuit_id} };
     return;
 }
+
+sub _timeout_traceroutes {
+    my $self = shift;
+    #look for transactions that started more than 30 seconds ago.
+    my $threshold = time() - 30;
+    my $reap_threshold = time() - (60*2);
+
+    my $transactions = $self->get_traceroute_transactions();
+
+    foreach my $circuit_id (keys %$transactions){
+
+        my $transaction = $transactions->{$circuit_id};
+        warn "transaction: ".Dumper ($transaction);
+        warn "threshold: $threshold";
+        warn "transact : $transaction->{'start_epoch'}";
+          
+        if ($transaction && $transaction->{'status'} eq 'active' && $transaction->{'start_epoch'} <= $threshold) {
+            #set transaction to timeout, remove rules
+            $self->{'transactions'}->{$circuit_id}->{'status'} = 'timed out';
+            $self->{'transactions'}->{$circuit_id}->{'end_epoch'} = time();
+            #$self->remove_traceroute_rules(circuit_id => $circuit_id);
+        }
+        # if the end epoch is more than 5 minutes old, lets remove it from memory, to try and limit memory balooning?
+        if ($transaction && $transaction->{'end_epoch'}&& $transaction->{'end_epoch'} <= $reap_threshold){
+            delete $self->{'transactions'}->{$circuit_id};
+        }
+
+    }
+    
+}
+
+sub link_event_callback {
+    my $self   = shift;
+    my $a_dpid = shift;
+    my $a_port = shift;
+    my $z_dpid = shift;
+    my $z_port = shift;
+    my $status = shift;
+    my $db = $self->{'db'};
+    
+    if ($status != OESS_LINK_UP){
+        #we don't do anything with link up, but down or unknown, we want to know what circuits were on this link.
+        
+        my $interface = $db->get_interface_by_dpid_and_port(dpid => $a_dpid, port_number => $a_port);
+        my $link = $db->get_link_by_interface_id(interface_id => $interface->{'interface_id'});
+        my $circuits = $db->get_affected_circuits_by_link_id( link_id => $link->{'link_id'});
+        my $transactions = $self->get_traceroute_transactions({status => 'active'});
+
+        foreach my $circuit (@$circuits){
+            #we have an active traceroute on an impacted transaction
+            if ($transactions->{$circuit->{'circuit_id'} }) {
+                $transactions->{$circuit->{'circuit_id'} }->{'status'}  = 'invalidated';
+                $self->remove_traceroute_rules(circuit_id => $circuit->{'circuit_id'});
+            }
+        }
+
+    }
+    return;
+}
+
 
 1;

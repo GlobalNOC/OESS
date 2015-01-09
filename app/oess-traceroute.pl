@@ -1,13 +1,15 @@
 #!/usr/bin/perl
 
 use strict;
+
+use lib "/home/gmcnaugh/OESS/perl-lib/OESS/lib/";
 use OESS::Traceroute;
 use Getopt::Long;
 use Proc::Daemon;
 use Data::Dumper;
 use English;
 use Log::Log4perl;
-
+#use Carp::Always;
 sub main{
 
     my $is_daemon = 0;
@@ -48,13 +50,19 @@ sub main{
             return;
         }
         my $logger = Log::Log4perl->init_and_watch('/etc/oess/logging.conf');
-        my $traceroute = OESS::Traceroute->new();
+        my $bus = Net::DBus->system;
+        my $service = $bus->export_service("org.nddi.traceroute");
+        my $traceroute = OESS::Traceroute->new($service);
     }
     #not a deamon, just run the core;
     else {
         $SIG{HUP} = sub{ exit(0); };
         my $logger = Log::Log4perl->init_and_watch('/etc/oess/logging.conf');
-        my $traceroute = OESS::Traceroute->new();
+
+        my $bus = Net::DBus->system;
+        my $service = $bus->export_service("org.nddi.traceroute");
+
+        my $traceroute = OESS::Traceroute->new($service);
     }
 
 }
