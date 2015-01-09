@@ -213,13 +213,13 @@ class dBusEventGen(dbus.service.Object):
         idle_timeout = 0
         hard_timeout = 0
 
-        xid = inst.install_datapath_flow( dp_id=dpid,
-                                          attrs=my_attrs,
-                                          idle_timeout=idle_timeout,
-                                          hard_timeout=hard_timeout,
-                                          actions=actions,
-                                          priority=0x0001,
-                                          inport=None)
+        xid = inst.send_datapath_flow( dp_id=dpid,
+                                       attrs=my_attrs,
+                                       idle_timeout=idle_timeout,
+                                       hard_timeout=hard_timeout,
+                                       actions=actions,
+                                       priority=0x0001,
+                                       inport=None)
         
         _do_install(dpid,xid,my_attrs,actions)
 
@@ -267,7 +267,7 @@ class dBusEventGen(dbus.service.Object):
         
         idle_timeout = 0
         hard_timeout = 0
-        xid = inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=None)
+        xid = inst.send_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=None)
 
         _do_install(dpid,xid,my_attrs,actions)
 
@@ -278,90 +278,12 @@ class dBusEventGen(dbus.service.Object):
         
         idle_timeout = 0
         hard_timeout = 0
-        xid = inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=None)
+        xid = inst.send_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=None)
         
         _do_install(dpid,xid,my_attrs,actions)
 
         return xid
 
-    @dbus.service.method(dbus_interface=ifname,
-                         in_signature='ta{sv}a(qv)',
-                         out_signature='t'
-                         )
-    def install_datapath_flow(self,dpid,attrs,actions):
-
-        if not dpid in switches:
-          return 0; 
-
-        #--- here goes nothing
-        my_attrs = {}
-        priority = 32768
-        idle_timeout = 0
-        hard_timeout = 0
-        if attrs.get("DL_VLAN"):
-            my_attrs[DL_VLAN] = int(attrs['DL_VLAN'])        
-        if attrs.get("IN_PORT"):
-            my_attrs[IN_PORT] = int(attrs['IN_PORT'])
-        if attrs.get("DL_TYPE"):
-            my_attrs[DL_TYPE] = int(attrs["DL_TYPE"])
-        if attrs.get("PRIORITY"):
-            priority = int(attrs["PRIORITY"])
-        if attrs.get("DL_DST"):
-            my_attrs[DL_DST] = int(attrs["DL_DST"])
-        if attrs.get("IDLE_TIMEOUT"):
-            idle_timeout = int(attrs["IDLE_TIMEOUT"])
-        if attrs.get("HARD_TIMEOUT"):
-            hard_timeout = int(attrs["HARD_TIMEOUT"])
-        #--- this is less than ideal. to make dbus happy we need to pass extra arguments in the
-        #--- strip vlan case, but NOX won't be happy with them so we remove them here
-        for i in range(len(actions)):
-            action = actions[i];
-            if action[0] == openflow.OFPAT_STRIP_VLAN and len(action) > 1:
-                new_action = dbus.Struct((dbus.UInt16(openflow.OFPAT_STRIP_VLAN),))
-                actions.remove(action)
-                actions.insert(i, new_action)
-
-        #--- first we check to make sure the switch is in a ready state to accept more flow mods.
-        if (my_attrs.get("IN_PORT")):
-            xid = inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,priority=priority,inport=my_attrs[IN_PORT])
-        else:
-            xid = inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,priority=priority,inport=None)
-        logger.info("Flow XID: %d" % xid)
-        _do_install(dpid,xid,my_attrs,actions)
-
-        return xid
-
-
-    @dbus.service.method(dbus_interface=ifname,
-                         in_signature='ta{sv}a(qv)',
-                         out_signature='t'
-                         )
-    def delete_datapath_flow(self,dpid, attrs, actions ):
-
-        if not dpid in switches:
-          return 0;
-
-        logger.info("removing flow")
-
-        my_attrs = {}
-        if attrs.get("DL_VLAN"):
-            my_attrs[DL_VLAN] = int(attrs['DL_VLAN'])
-        if attrs.get("IN_PORT"):
-            my_attrs[IN_PORT] = int(attrs['IN_PORT'])
-        if attrs.get("DL_DST"):
-            my_attrs[DL_DST]  = int(attrs['DL_DST'])
-        if attrs.get("DL_TYPE"):
-            my_attrs[DL_TYPE]  = int(attrs['DL_TYPE'])
-
-        logger.info("removing flow")
-        #--- first we check to make sure the switch is in a ready state to accept more flow mods
-        xid = inst.delete_datapath_flow(dpid, my_attrs)
-        logger.info("flow removed xid: %d" % xid)
-        actions = []
-        _do_install(dpid,xid,my_attrs,actions)
-
-        return xid
-    
     @dbus.service.method(dbus_interface=ifname,
                          in_signature='ta{sv}a(qv)',
                          out_signature='t'
