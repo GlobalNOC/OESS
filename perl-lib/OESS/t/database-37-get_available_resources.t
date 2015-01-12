@@ -69,7 +69,7 @@ my $correct_result = [
                                     'max_mac_address_per_end' => '10'
                                   },
             'interface_id' => '51',
-            'remote_link' => '',
+            'remote_links' => [],
             'description' => 'e3/1',
             'is_owner' => 0,
             'vlan_tag_range' => '1-4095',
