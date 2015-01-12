@@ -331,15 +331,15 @@ class Component:
         if m == None:
             return False
 
-        if command == openflow.OFPFC_ADD:
+        if command == openflow.OFPFC_DELETE or command == openflow.OFPFC_DELETE_STRICT:
+            idle_timeout = 0
+            oactions = ""
+            buffer_id = UINT32_MAX
+        else:
             (idle_timeout, actions, buffer_id) = add_args
             oactions = self.make_action_array(actions)
             if oactions == None:
                 return False
-        else:
-            idle_timeout = 0
-            oactions = ""
-            buffer_id = UINT32_MAX
  
         cookie = 0
         return self.ctxt.send_flow_command(dp_id, command, m, idle_timeout, hard_timeout, oactions, buffer_id, priority, cookie, xid)
@@ -478,6 +478,38 @@ class Component:
         self.send_flow_command(dp_id, openflow.OFPFC_ADD, attrs, priority,
                                (idle_timeout, actions, buffer_id), hard_timeout, xid)
         
+        if buffer_id == UINT32_MAX and packet != None:
+            for action in actions:
+                if action[0] == openflow.OFPAT_OUTPUT:
+                    if type(action[1]) == int or type(action[1]) == long:
+                        self.send_openflow_packet(dp_id, packet, action[1], inport)
+                    else:
+                        self.send_openflow_packet(dp_id, packet, action[1][1], inport)
+                else:
+                    raise NotImplementedError
+
+        return xid
+
+    def send_datapath_flow(self, dp_id, attrs, idle_timeout, hard_timeout,
+                           actions, buffer_id=None,
+                           priority=openflow.OFP_DEFAULT_PRIORITY,
+                           inport=None, command=openflow.OFPFC_ADD, packet=None, xid=None):
+        if xid == None:
+            if not hasattr(self, 'xid'):
+                xid = 8238
+            else:
+                xid = getattr(self, 'xid')
+            if xid >= 0xFFffFFfe:
+                xid = 8238
+                setattr(self, 'xid', xid + 1)
+
+        if buffer_id == None:
+            buffer_id = UINT32_MAX
+        
+        self.send_flow_command(dp_id, command, attrs, priority,
+                               (idle_timeout, actions, buffer_id), hard_timeout, xid)
+
+
         if buffer_id == UINT32_MAX and packet != None:
             for action in actions:
                 if action[0] == openflow.OFPAT_OUTPUT:
