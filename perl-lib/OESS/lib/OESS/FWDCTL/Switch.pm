@@ -47,6 +47,12 @@ use constant FWDCTL_CHANGE_PATH  => 2;
 use constant FWDCTL_ADD_RULE     => 0;
 use constant FWDCTL_REMOVE_RULE  => 1;
 
+use constant OFPFC_ADD           => 0;
+use constant OFPFC_MODIFY        => 1;
+use constant OFPFC_MODIFY_STRICT => 2;
+use constant OFPFC_DELETE        => 3;
+use constant OFPFC_DELETE_STRICT => 4;
+
 use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
@@ -187,55 +193,31 @@ sub _update_cache{
 
 }
 
-sub _generate_commands{
-    my $self = shift;
+sub _generate_commands {
+    my $self       = shift;
     my $circuit_id = shift;
-    my $action = shift;
+    my $action     = shift;
     
     $self->{'logger'}->debug("getting flows for circuit_id: " . $circuit_id);
-    
+
     if(!defined($self->{'ckts'}->{$circuit_id})){
         $self->{'logger'}->error("No circuit with id: " . $circuit_id . " found in the cache");
         return;
     }
     
     switch($action){
-	case (FWDCTL_ADD_VLAN){
-	    return $self->{'ckts'}->{$circuit_id}->{'flows'}->{'current'};
-	    
-	}case (FWDCTL_REMOVE_VLAN){
-	    
+        case (FWDCTL_ADD_VLAN){
             return $self->{'ckts'}->{$circuit_id}->{'flows'}->{'current'};
-	    
-	}case (FWDCTL_CHANGE_PATH){
-	    
-            my @commands;
-
-	    my $primary_flows = $self->{'ckts'}->{$circuit_id}->{'flows'}->{'endpoint'}->{'primary'};
-	    my $backup_flows =  $self->{'ckts'}->{$circuit_id}->{'flows'}->{'endpoint'}->{'backup'};
-
+        }case (FWDCTL_REMOVE_VLAN){
+            return $self->{'ckts'}->{$circuit_id}->{'flows'}->{'current'};
+        }case (FWDCTL_CHANGE_PATH){
             #we already performed the DB change so that means
             #whatever path is active is actually what we are moving to
-	    foreach my $flow (@$primary_flows){
-		if($self->{'ckts'}->{$circuit_id}->{'details'}->{'active_path'} eq 'primary'){
-		    $flow->{'sw_act'} = FWDCTL_ADD_RULE;
-		}else{
-		    $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
-		}
-		push(@commands,$flow);
-	    }
-	    
-	    foreach my $flow (@$backup_flows){
-		if($self->{'ckts'}->{$circuit_id}->{'details'}->{'active_path'} eq 'primary'){
-		    $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
-		}else{
-		    $flow->{'sw_act'} = FWDCTL_ADD_RULE;
-		}
-		push(@commands,$flow);
-	    }
-	    
-	    return \@commands;
-	}else{
+            my $active_path     = $self->{'ckts'}{$circuit_id}{'details'}{'active_path'};
+            my $endpoint_flows  = $self->{'ckts'}{$circuit_id}{'flows'}{'endpoint'}{$active_path};
+
+            return $endpoint_flows;
+        }else{
 
         }
     }
@@ -312,17 +294,14 @@ sub change_path{
    
     foreach my $circuit (@$circuits){
         
-        my $commands = $self->_generate_commands($circuit,FWDCTL_CHANGE_PATH);
+        my $commands    = $self->_generate_commands($circuit,FWDCTL_CHANGE_PATH);
+        my $active_path = $self->{'ckts'}{$circuit}{'details'}{'active_path'};
 
         foreach my $command (@$commands){
             next unless defined($command);
             next unless ($command->get_dpid() == $self->{'dpid'});
-            next unless ($command->{'sw_act'} == FWDCTL_REMOVE_RULE);
-                
-            $self->{'logger'}->info("Removing Flow: " . $command->to_human());
-            $self->{'nox'}->delete_datapath_flow($command->to_dbus());
-            $self->{'flows'}--;
-            
+            $self->{'logger'}->info("Modifying endpoint flow to $active_path path: " . $command->to_human());
+            $self->{'nox'}->send_datapath_flow($command->to_dbus( command => OFPFC_MODIFY ));
 
             #if not doing bulk barrier send a barrier and wait
             if(!$self->{'node'}->{'send_barrier_bulk'}){
@@ -335,35 +314,7 @@ sub change_path{
             }
             
             usleep($self->{'node'}->{'tx_delay_ms'});
-            
         }
-
-        foreach my $command (@$commands){
-            next unless defined($command);
-            next unless ($command->get_dpid() == $self->{'dpid'});
-            next unless($command->{'sw_act'} == FWDCTL_ADD_RULE);
-                
-            if($self->{'flows'} < $self->{'node'}->{'max_flows'}){
-                $self->{'logger'}->info("Installing Flow: " . $command->to_human());
-                $self->{'nox'}->install_datapath_flow($command->to_dbus());
-                $self->{'flows'}++;
-            }else{
-                $self->{'logger'}->error("Node: " . $self->{'node'}->{'name'} . " is at or over its maximum flow mod limit, unable to send flow rule for circuit: " . $circuit);
-                $res = FWDCTL_FAILURE;
-            }
-          
-            #if not doing bulk barrier send a barrier and wait
-            if(!$self->{'node'}->{'send_barrier_bulk'}){
-                $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-                $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
-                my $result = $self->_poll_node_status();
-                if($result != FWDCTL_SUCCESS){
-                    $res = FWDCTL_FAILURE;
-                }
-            }
-            usleep($self->{'node'}->{'tx_delay_ms'});
-        }
-
     }
 
     #send our final barrier and wait for reply
@@ -375,7 +326,7 @@ sub change_path{
     }
 
     if($res == FWDCTL_SUCCESS){
-        return {success => 1, msg => "All Circuits successfully changed path"};
+        return {success => 1, msg => "All circuits successfully changed path"};
     }else{
         return {success => 0, msg => "Some circuits failed to change path"};
     }
@@ -402,7 +353,7 @@ sub add_vlan{
         if($self->{'flows'} < $self->{'node'}->{'max_flows'}){
             $self->{'logger'}->info("Installing Flow: " . $command->to_human());
 
-            $self->{'nox'}->install_datapath_flow($command->to_dbus());
+            $self->{'nox'}->send_datapath_flow($command->to_dbus( command => OFPFC_ADD ));
             $self->{'flows'}++;
             
             
@@ -458,7 +409,7 @@ sub remove_vlan{
     foreach my $command (@$commands){
 
         $self->{'logger'}->info("Removing Flow: " . $command->to_human());
-        $self->{'nox'}->delete_datapath_flow($command->to_dbus());
+        $self->{'nox'}->send_datapath_flow($command->to_dbus( command => OFPFC_DELETE ));
         $self->{'flows'}--;
         
         #if not doing bulk barrier send a barrier and wait
@@ -541,17 +492,17 @@ sub _replace_flowmod{
 
     if (defined($commands->{'remove'})) {
         #delete this flowmod
-	$self->{'logger'}->info("Deleting flow: " . $commands->{'remove'}->to_human());
-	my $status = $self->{'nox'}->delete_datapath_flow($commands->{'remove'}->to_dbus());
+        $self->{'logger'}->info("Deleting flow: " . $commands->{'remove'}->to_human());
+        my $status = $self->{'nox'}->send_datapath_flow($commands->{'remove'}->to_dbus( command => OFPFC_DELETE ));
 
-	if(!$self->{'node'}->{'send_barrier_bulk'}){
-	    my $xid = $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($commands->{'remove'}->get_dpid()));
-	    $self->{'logger'}->debug("replace flowmod: send_barrier: with dpid: " . $commands->{'remove'}->get_dpid());
+        if(!$self->{'node'}->{'send_barrier_bulk'}){
+            my $xid = $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($commands->{'remove'}->get_dpid()));
+            $self->{'logger'}->debug("replace flowmod: send_barrier: with dpid: " . $commands->{'remove'}->get_dpid());
             my $res = $self->_poll_node_status();
             if($res != FWDCTL_SUCCESS){
                 $state = FWDCTL_FAILURE;
             }
-	}
+        }
         $self->{'flows'}--;
     }
     
@@ -560,8 +511,8 @@ sub _replace_flowmod{
             $self->{'logger'}->error("sw: dpipd:" . $self->{'node'}->{'dpid_str'} . " exceeding max_flows:". $self->{'node'}->{'max_flows'} ." replace flowmod failed");
             return FWDCTL_FAILURE;
         }
-	$self->{'logger'}->info("Installing Flow: " . $commands->{'add'}->to_human());
-        my $status = $self->{'nox'}->install_datapath_flow($commands->{'add'}->to_dbus());
+	    $self->{'logger'}->info("Installing Flow: " . $commands->{'add'}->to_human());
+        my $status = $self->{'nox'}->send_datapath_flow($commands->{'add'}->to_dbus( command => OFPFC_ADD ));
 	
         # send the barrier if the bulk flag is not set
         if (!$self->{'node'}->{'send_barrier_bulk'}) {
