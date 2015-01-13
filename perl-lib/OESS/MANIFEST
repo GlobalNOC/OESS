@@ -16,7 +16,6 @@ lib/OESS/Traceroute.pm
 lib/OESS/Watchdog.pm
 Makefile.PL
 MANIFEST			This list of files
-pack_in_events.pcap
 perl-OESS.spec
 share/nddi.sql
 share/upgrade/oess-1.0.10-1.0.11
@@ -55,7 +54,6 @@ t/circuit-static_mac_addr_simple.t
 t/conf/database.xml
 t/conf/logging.conf
 t/conf/oess_known_state.sql
-t/conf/oess_known_state.sql.new
 t/conf/snapp_known_state.sql
 t/conf/SNMP/snapp/db/per_flow/111/111-1-145.rrd
 t/conf/SNMP/snapp/db/per_flow/31/31-674-101.rrd
@@ -119,4 +117,5 @@ t/OESSDatabaseTester.pm
 t/TEST
 t/topology-is_path_up.t
 t/topology-shortest_path.t
+t/traceroute_send_to_nox.t
 t/traceroute_test.t
