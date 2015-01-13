@@ -156,7 +156,7 @@ class dBusEventGen(dbus.service.Object):
     @dbus.service.method(dbus_interface=ifname,
                          in_signature='titt',
                          out_signature='')
-    def send_traceroute_packets(self,dpid,vlan,out_port,data):
+    def send_traceroute_packet(self,dpid,vlan,out_port,data):
         #build ethernet packet
         packet = ethernet()
         packet.src = '\x00' + struct.pack('!Q',dpid)[3:8]
@@ -290,7 +290,7 @@ class dBusEventGen(dbus.service.Object):
         return 1
 
     @dbus.service.method(dbus_interface=ifname,
-                         in_signature='q',
+                         in_signature='',
                          out_signature='q')
     def register_for_traceroute_in(self):
         #ether type 88b6 is experimental

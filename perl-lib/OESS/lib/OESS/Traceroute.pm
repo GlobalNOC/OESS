@@ -149,7 +149,7 @@ sub _connect_to_dbus {
         return;
     }
 
-#    $client->register_for_traceroute_in();
+    $client->register_for_traceroute_in();
     #$client->register_for_fv_in( $self->{'db'}->{'discovery_vlan'} );
 
     $self->{'dbus'} = $client;
@@ -171,7 +171,7 @@ sub init_circuit_trace {
                                      topo => $self->{'topo'},
                                      circuit_id => $circuit_id
         );
-    
+    my $active_path = $circuit->get_active_path;
     my $endpoint_dpid;
     my $endpoint_port_no;
     #get dpid,port_no from endpoint_interface_id;
@@ -185,6 +185,10 @@ sub init_circuit_trace {
     my $node = $db->get_node_by_name(node_name => $interface->{'node_name'});
     $endpoint_dpid= $node->{'dpid'};
     $endpoint_port_no = $interface->{'port_number'};
+    my $exit_ports = [];
+    foreach my $exit_port (@$circuit->{'path'}{$active_path}->{ $interface->{'node_name'} } ){
+        push (@$exit_ports, {vlan => $exit_port->{'remote_port_vlan'}, port => $exit_port->{'port'}});
+    } 
     #verify there isn't already a traceroute running for this vlan
     my $active_transaction = $self->get_traceroute_transactions({circuit_id => $circuit_id,
                                                                  status => 'active'});
@@ -197,7 +201,7 @@ sub init_circuit_trace {
     
     #create a new tracelog entry in the database
     my $success =$self->add_traceroute_transaction( circuit_id=> $circuit_id,
-                                     source_endpoint => {dpid => $endpoint_dpid, port_no => $endpoint_port_no},
+                                     source_endpoint => {dpid => $endpoint_dpid,exit_ports =>$exit_ports},
                                      remaining_endpoints => ( @{$circuit->{'endpoints'}} -1),
                                      ttl => 30 #todo make based on config
         );
@@ -212,11 +216,11 @@ sub init_circuit_trace {
     my $rules=    $self->build_trace_rules($circuit_id);
     
     #should this send to fwdctl or straight to NOX?
-    #foreach my $rule (@$rules){
-    #    $self->{'nox'}->install_datapath_flow($rule->to_dbus());
-    #}
+    foreach my $rule (@$rules){
+        $self->{'nox'}->install_datapath_flow($rule->to_dbus());
+    }
     
-    #$self->send_trace_packet($transaction);
+    $self->send_trace_packet($transaction);
 
     return 1;
 
@@ -274,92 +278,75 @@ processes a trace packet that has been returned from the switch, determines what
 sub process_trace_packet {
     my $self=shift;
     my $src_dpid = shift;
-    my $dst_dpid = shift;
     my $src_port = shift;
-    my $dst_port = shift;
-    my $port_vlan = shift;
-    my $packet = shift;
+    my $circuit_id = shift;
 
     my $db = $self->{'db'};
-    my $node = $db->get_node_by_dpid($dst_dpid);
+    my $node = $db->get_node_by_dpid($src_dpid);
 
     # get_link based on dst port, dst dpid:
-    my $link = $db->get_link_by_dpid_and_port(dpid=>$dst_dpid,port=>$dst_port);
-    
+    my $link = $db->get_link_by_dpid_and_port(dpid=>$src_dpid,port=>$src_port);
     
 
     # get circuits based on link
-    my $circuits = $db->get_circuits_by_link(link_id =>$link->{'link_id'});
-    my $circuit_id;
-    my $circuit_details;
-    my $transaction;
-    # get transaction based on circuit_id
-    foreach my $circuit (@$circuits){
-        my $candidate_transaction = $self->get_traceroute_transactions({circuit_id => $circuit->{'circuit_id'}, status=>'active'});
-        if ($candidate_transaction){
-            #we've got an active transaction for this circuit, now verify this is actually the right traceroute, we may have multiple circuits over the same link 
-            $circuit_details = OESS::Circuit->new(db => $db,
-                                                     topo => $self->{'topo'},
-                                                     circuit_id => $circuit->{'circuit_id'}
+#    my $circuits = $db->get_circuits_by_link(link_id =>$link->{'link_id'});
+#    my $circuit_id;
+    my $circuit_details  = OESS::Circuit->new(db => $db,
+                                              topo => $self->{'topo'},
+                                              circuit_id => $circuit_id
                 );
+    my $transaction = $self->get_traceroute_transactions({circuit_id => $circuit_id, status=>'active'});
+#        if ($candidate_transaction){
+            #we've got an active transaction for this circuit, now verify this is actually the right traceroute, we may have multiple circuits over the same link 
             #get circuit_details, and validate this was tagged with the vlan we would have expected inbound
-            my $internal_ids = $circuit_details->{'details'}->{'internal_ids'};
-            $internal_ids = $internal_ids->{$circuit_details->get_active_path };
-            #TODO fix
-            if($internal_ids->{$node->{node_name} }{$dst_port} eq $port_vlan ){
-                #this is the correct transaction / circuit combination.
-                $transaction = $candidate_transaction;
-                $circuit_id = $circuit_details->{'circuit_id'};
-                last;
-            }
-          
-        }
-    }
     
     if ($transaction){  
         
     #remove flow rule from dst_dpid,dst_port
     foreach my $flow_rule ($self->build_trace_rules($circuit_id) ) {
 
-        if ($flow_rule->{'matches'}->{'in_port'} = $src_port ) {
+        if ($flow_rule->{'matches'}->{'in_port'} == $src_port ) {
             $self->{'nox'}->delete_datapath_flow($flow_rule->to_dbus() );
         }
         # is this a rule that is on the same node as edge ports other than the originating edge port? if so, decrement edge_ports
-        foreach my $endpoint (@{$circuit_details->{'details'}->{'endpoints'} }){
+        foreach my $endpoint (@{$circuit_details->{'details'}->{'endpoints'} }) {
+           
             my $e_node = $endpoint->{'node'};
-            my $e_dpid = $self->{'dpid_lookup'}{$e_node};
-            my $e_port = $endpoint->{'port_no'};
-            my $e_interface_id = $endpoint->{'interface_id'};
-            if ($e_interface_id == $transaction->{'orig_endpoint'}){
+            my $e_dpid = $circuit_details->{'dpid_lookup'}->{$e_node};
+            
+            if ( $e_dpid == $transaction->{'source_port'}->{'dpid'} ) {
                 next;
             }
-            if ($e_interface_id == $src_port ){
+
+            if ($e_dpid == $src_dpid ){
                 #decrement 
                 $transaction->{remaining_endpoints} -= 1;
-                
             }
                      
             
         }
     }
-                           
-
-   $transaction->{ttl} -= 1;
+                        
+    push (@{$transaction->{nodes_traversed}}, $src_dpid);
+    $transaction->{ttl} -= 1;
    #get transaction from db again:
-#   $transaction = $self->get_traceroute_transaction(circuit_id => $circuit_id);
+
         
     if ($transaction->{'remaining_endpoints'} < 1){
         #we're done!
         $transaction->{'status'} = 'Complete';
         #remove all flows from the switches
+        $self->remove_traceroute_rules(circuit_id => $circuit_id);
     }
     elsif ($transaction->{'ttl'} < 1){
             $transaction->{'status'} = 'timeout';
             #remove all flows from the switches
+            $self->remove_traceroute_rules(circuit_id => $circuit_id);
     }
     else {
         $self->send_trace_packet($transaction);
-        #remove all flows from the switches
+        
+        
     }
  
     }
@@ -375,10 +362,13 @@ sub send_trace_packet {
     #build packets
     my $circuit_id = $transaction->{'circuit_id'};
     my $source_port = $transaction->{'source_port'};
+    
     my $packet_out;
 
     #each packet will always be set to send out the links of the edge_interface
-    
+    foreach my $exit_port (@{$source_port->{exit_ports} }){
+        $self->{'nox'}->send_traceroute_packet(Net::DBus::dbus_uint64($source_port->{'dpid'}),Net::DBus::dbus_uint16($exit_port->{'vlan'}),Net::DBus::dbus_uint64($exit_port->{'port'}),Net::DBus::dbus_uint64($circuit_id));
+    }
 }
 
 sub get_traceroute_transactions {
@@ -402,7 +392,7 @@ sub get_traceroute_transactions {
     while ((my $k, my $v) = each %$hash_ref){
         $args{$k} = $v;
     }
-    #warn Dumper \%args;
+    #warn Dmper \%args;
     my $transactions = $self->{'transactions'};
 
     my $circuit_id = $args{'circuit_id'};
@@ -473,6 +463,7 @@ sub add_traceroute_transaction {
         ttl => $args{ttl},
         remaining_endpoints => $args{remaining_endpoints},
         nodes_traversed => [],
+        source_endpoint => $args{source_endpoint},
         status => 'active',
         start_epoch => time(),
         end_epoch => undef
