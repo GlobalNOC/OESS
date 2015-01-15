@@ -1,3 +1,4 @@
+#!/usr/bin/perl
 use strict;
 use warnings;
 
@@ -19,6 +20,14 @@ use base qw(Net::DBus::Object);
 use JSON::XS;
 use Time::HiRes;
 use Data::Dumper;
+
+
+#temporary until add/delete is moved to FWDCTL.
+use constant OFPFC_ADD           => 0;
+use constant OFPFC_MODIFY        => 1;
+use constant OFPFC_MODIFY_STRICT => 2;
+use constant OFPFC_DELETE        => 3;
+use constant OFPFC_DELETE_STRICT => 4;
 
 
 #link statuses
@@ -92,7 +101,7 @@ sub new {
     
     dbus_method("init_circuit_trace",["uint32","uint32"],["int32"]);
     dbus_method("get_traceroute_transactions",[ [ "dict", "string", ["variant"] ] ]
-,[ [ "dict", "string", ["variant"] ] ]);
+                ,[ [ "dict", "string", ["variant"] ] ]);
 
     $self->{'nox'}->start_reactor(
         timeouts => [
@@ -130,9 +139,9 @@ sub _connect_to_dbus {
 
 #    $dbus->connect_to_signal( "datapath_leave", sub { $self->datapath_leave_callback(@_) } );
 #    $dbus->connect_to_signal( "datapath_join",  sub { $self->datapath_join_callback(@_) } );
-     $dbus->connect_to_signal( "link_event",     sub { $self->link_event_callback(@_) } );
+    $dbus->connect_to_signal( "link_event",     sub { $self->link_event_callback(@_) } );
 #    $dbus->connect_to_signal( "port_status",    sub { $self->port_status_callback(@_) } );
-#    $dbus->connect_to_signal( "fv_packet_in",   sub { $self->fv_packet_in_callback(@_) } );
+    $dbus->connect_to_signal( "traceroute_packet_in",   sub { $self->process_trace_packet(@_) } );
 
     $self->{'nox'} = $dbus;
 
@@ -182,11 +191,13 @@ sub init_circuit_trace {
         return 0;
     }
     
-    my $node = $db->get_node_by_name(node_name => $interface->{'node_name'});
+    my $node = $db->get_node_by_name(name => $interface->{'node_name'});
+    warn Dumper ($node);
     $endpoint_dpid= $node->{'dpid'};
     $endpoint_port_no = $interface->{'port_number'};
     my $exit_ports = [];
-    foreach my $exit_port (@$circuit->{'path'}{$active_path}->{ $interface->{'node_name'} } ){
+
+    foreach my $exit_port (@{$circuit->{'path'}{$active_path}->{ $interface->{'node_name'} } } ){
         push (@$exit_ports, {vlan => $exit_port->{'remote_port_vlan'}, port => $exit_port->{'port'}});
     } 
     #verify there isn't already a traceroute running for this vlan
@@ -217,10 +228,10 @@ sub init_circuit_trace {
     
     #should this send to fwdctl or straight to NOX?
     foreach my $rule (@$rules){
-        $self->{'nox'}->install_datapath_flow($rule->to_dbus());
+        $self->{'dbus'}->send_datapath_flow($rule->to_dbus( command => OFPFC_ADD));
     }
     
-    $self->send_trace_packet($transaction);
+    $self->send_trace_packet($circuit_id,$transaction);
 
     return 1;
 
@@ -280,9 +291,9 @@ sub process_trace_packet {
     my $src_dpid = shift;
     my $src_port = shift;
     my $circuit_id = shift;
-
+    warn "processing trace packet on dpid:$src_dpid port:$src_port for circuit_id $circuit_id";
     my $db = $self->{'db'};
-    my $node = $db->get_node_by_dpid($src_dpid);
+    my $node = $db->get_node_by_dpid(dpid =>$src_dpid);
 
     # get_link based on dst port, dst dpid:
     my $link = $db->get_link_by_dpid_and_port(dpid=>$src_dpid,port=>$src_port);
@@ -303,27 +314,32 @@ sub process_trace_packet {
     if ($transaction){  
         
     #remove flow rule from dst_dpid,dst_port
-    foreach my $flow_rule ($self->build_trace_rules($circuit_id) ) {
+    foreach my $flow_rule (@{$self->build_trace_rules($circuit_id)} ) {
+        warn "Flow Rule dpid: $flow_rule->get_dpid()";
+        warn "Flow Rule Match:".Dumper($flow_rule->{match});
+        
 
-        if ($flow_rule->{'matches'}->{'in_port'} == $src_port ) {
-            $self->{'nox'}->delete_datapath_flow($flow_rule->to_dbus() );
-        }
-        # is this a rule that is on the same node as edge ports other than the originating edge port? if so, decrement edge_ports
-        foreach my $endpoint (@{$circuit_details->{'details'}->{'endpoints'} }) {
+        if (  $flow_rule->get_dpid() == $src_dpid && $flow_rule->{'match'}->{'in_port'} == $src_port ) {
+            warn "found rule match, removing from switch";
+            $self->{'dbus'}->send_datapath_flow($flow_rule->to_dbus(command => OFPFC_DELETE_STRICT) );
+        
+        #is this a rule that is on the same node as edge ports other than the originating edge port? if so, decrement edge_ports
+            foreach my $endpoint (@{$circuit_details->{'details'}->{'endpoints'} }) {
            
-            my $e_node = $endpoint->{'node'};
-            my $e_dpid = $circuit_details->{'dpid_lookup'}->{$e_node};
+                my $e_node = $endpoint->{'node'};
+                my $e_dpid = $circuit_details->{'dpid_lookup'}->{$e_node};
             
-            if ( $e_dpid == $transaction->{'source_port'}->{'dpid'} ) {
-                next;
-            }
+                if ( $e_dpid == $transaction->{'source_endpoint'}->{'dpid'} ) {
+                    next;
+                }
 
-            if ($e_dpid == $src_dpid ){
-                #decrement 
-                $transaction->{remaining_endpoints} -= 1;
-            }
+                if ($e_dpid == $src_dpid ){
+                    #decrement 
+                    $transaction->{remaining_endpoints} -= 1;
+                }
                      
             
+        }
         }
     }
                         
@@ -336,15 +352,17 @@ sub process_trace_packet {
         #we're done!
         $transaction->{'status'} = 'Complete';
         #remove all flows from the switches
+        $transaction->{'end_epoch'} = time();
         $self->remove_traceroute_rules(circuit_id => $circuit_id);
     }
     elsif ($transaction->{'ttl'} < 1){
             $transaction->{'status'} = 'timeout';
+            $transaction->{'end_epoch'} = time();
             #remove all flows from the switches
             $self->remove_traceroute_rules(circuit_id => $circuit_id);
     }
     else {
-        $self->send_trace_packet($transaction);
+        $self->send_trace_packet($circuit_id,$transaction);
         
         
     }
@@ -358,16 +376,17 @@ sub process_trace_packet {
 
 sub send_trace_packet {
     my $self = shift;
+    my $circuit_id = shift;
     my $transaction = shift;
     #build packets
-    my $circuit_id = $transaction->{'circuit_id'};
-    my $source_port = $transaction->{'source_port'};
+
+    my $source_port = $transaction->{'source_endpoint'};
     
     my $packet_out;
 
     #each packet will always be set to send out the links of the edge_interface
     foreach my $exit_port (@{$source_port->{exit_ports} }){
-        $self->{'nox'}->send_traceroute_packet(Net::DBus::dbus_uint64($source_port->{'dpid'}),Net::DBus::dbus_uint16($exit_port->{'vlan'}),Net::DBus::dbus_uint64($exit_port->{'port'}),Net::DBus::dbus_uint64($circuit_id));
+        $self->{'dbus'}->send_traceroute_packet(Net::DBus::dbus_uint64($source_port->{'dpid'}),Net::DBus::dbus_uint16($exit_port->{'vlan'}),Net::DBus::dbus_uint64($exit_port->{'port'}),Net::DBus::dbus_uint64($circuit_id));
     }
 }
 
@@ -396,35 +415,41 @@ sub get_traceroute_transactions {
     my $transactions = $self->{'transactions'};
 
     my $circuit_id = $args{'circuit_id'};
+    
     if ( defined( $circuit_id ) ){     
 
-        if (defined($args {'status'})){
+        if (defined($args{'status'})){
+            $results = {};
             if ($self->{'transactions'}->{$circuit_id} &&
                 $self->{'transactions'}->{$circuit_id}->{'status'} eq $args{'status'}){
-                $results = $self->{'transactions'}->{$circuit_id} || {};
+                $results = $transactions->{$circuit_id} || {};
+                warn "circuit and status defined: returning ".Dumper($results);
                 return $results;
             }
-            $results = {};
+            
             return $results;
         }
         else {
-            $results = $self->{'transactions'}->{$circuit_id} || {};
+            $results = $transactions->{$circuit_id} || {};
+            warn "only circuit returned returning ".Dumper($results);
             return $results;
 #return $self->{'transactions'}->{$circuit_id};
         }
     }
     elsif (defined($args{'status'})){
-        my $transactions = $self->{'transactions'};
+        #my $transactions = $self->{'transactions'};
+        
         foreach my $circuit_id (keys %$transactions){
             if ($transactions->{$circuit_id} && $transactions->{$circuit_id}->{'status'} eq $args{'status'}){
-                $results->{$circuit_id}= $transactions->{$circuit_id};
+                $results->{$circuit_id} = $transactions->{$circuit_id};
             }
         }
         return $results;
       #return (grep { $self->{'transactions'}->{$_}->{'status'} eq $args{'status'} } keys %$transactions );
     }
     else {
-        return $transactions;
+        $results = $transactions|| {};
+        return $results;
     }
 
 }
@@ -483,7 +508,7 @@ sub remove_traceroute_rules {
     
     #optimization: rules for nodes we've already traced through should have been deleted already, we could skip them.
     foreach my $rule (@$rules){
-        $self->{'nox'}->delete_datapath_flow($rule->to_dbus());
+        $self->{'dbus'}->send_datapath_flow($rule->to_dbus(OFPFC_DELETE_STRICT));
     }
 
 

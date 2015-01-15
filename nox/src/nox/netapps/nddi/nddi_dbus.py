@@ -48,6 +48,8 @@ FWDCTL_SUCCESS = 1
 FWDCTL_FAILURE = 0
 FWDCTL_UNKNOWN = 3
 
+TRACEROUTE_MAC= '\x06\xa2\x90\x26\x50\x09' 
+
 PENDING  = 0
 ANSWERED = 1
 
@@ -156,17 +158,17 @@ class dBusEventGen(dbus.service.Object):
     @dbus.service.method(dbus_interface=ifname,
                          in_signature='titt',
                          out_signature='')
-    def send_traceroute_packet(self,dpid,vlan,out_port,data):
+    def send_traceroute_packet(self,dpid,my_vlan,out_port,data):
         #build ethernet packet
         packet = ethernet()
         packet.src = '\x00' + struct.pack('!Q',dpid)[3:8]
-        packet.dst = mac_to_int("06:a2:90:26:50:09")
+        packet.dst = TRACEROUTE_MAC
         #pack circuit_id into payload
         payload = struct.pack('I',data)
         
-        if(vlan != None and vlan != 65535):
+        if(my_vlan != None and my_vlan != 65535):
             vlan_packet = vlan()
-            vlan_packet.id = vlan
+            vlan_packet.id = my_vlan
             vlan_packet.c = 0
             vlan_packet.pcp = 0
             vlan_packet.eth_type = 0x88b5
@@ -179,7 +181,7 @@ class dBusEventGen(dbus.service.Object):
             packet.set_payload(payload)
             packet.type = 0x88b5
         
-        inst.send_openflow_packet(dpid, packet.tostring(), out_port)
+        inst.send_openflow_packet(int(dpid), packet.tostring(),int(out_port))
 
         return
 
@@ -301,7 +303,7 @@ class dBusEventGen(dbus.service.Object):
 
         match = {
             DL_TYPE: 0x88b5,
-            DL_DST: mac_to_int("06:a2:90:26:50:09")
+            DL_DST: TRACEROUTE_MAC
             }
         
         inst.register_for_packet_match(lambda dpid, inport, reason, len, bid,packet : traceroute_packet_in_callback(self,dpid,inport,reason,len,bid,packet), 0xffff, match)
@@ -547,8 +549,8 @@ def traceroute_packet_in_callback(sg,dp,inport,reason,len,bid,packet):
     logger.info(string.encode('hex'))
     #get circuit_id
     (circuit_id) = struct.unpack('I',string[:8])
-    
-    sg.traceroute_packet_in(dp,inport,circuit_id)
+    #struct.pack always returns a tuple, return the first element of the tuple
+    sg.traceroute_packet_in(dp,inport,circuit_id[0])
 
     
                         
