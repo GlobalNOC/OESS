@@ -93,6 +93,10 @@ sub main{
     if ($cgi->param('action') =~ /^(\w+)$/){
 	$action = $1;
     }
+
+    if ($user->{'status'} eq 'decom') {
+        $action = "error";
+    }
     
     switch ($action) {
 

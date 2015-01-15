@@ -1309,7 +1309,7 @@ sub _update_cache_and_sync_node {
     }
     # now sync the node
     ($res,$event_id) = $client->force_sync($dpid);
-    my $final_res = FWDCTL_WAITING;
+    $final_res = FWDCTL_WAITING;
     while($final_res == FWDCTL_WAITING){
         sleep(1);
         $final_res = $client->get_event_status($event_id);

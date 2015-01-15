@@ -2549,6 +2549,7 @@ sub get_users {
 		    'email_address' => $row->{'email'},
 		    'user_id'       => $row->{'user_id'},
 		    'type'          => $row->{'type'},
+            'status'        => $row->{'status'},
 		    'auth_name'     => []
 	};
 
@@ -2957,7 +2958,8 @@ sub edit_user {
     my $email       = $args{'email_address'};
     my $auth_names  = $args{'auth_names'};
     my $type        = $args{'type'};
-
+    my $status      = $args{'status_of_user'};
+    
     if ($given_name =~ /^system$/ || $family_name =~ /^system$/){
 	$self->_set_error("User 'system' is reserved.");
 	return;
@@ -2965,9 +2967,9 @@ sub edit_user {
 
     $self->_start_transaction();
 
-    my $query = "update user set email = ?, given_names = ?, family_name = ?, type =?  where user_id = ?";
+    my $query = "update user set email = ?, given_names = ?, family_name = ?, type =?, status =?  where user_id = ?";
 
-    my $result = $self->_execute_query($query, [$email, $given_name, $family_name,$type, $user_id]);
+    my $result = $self->_execute_query($query, [$email, $given_name, $family_name,$type, $status, $user_id]);
 
     if (! defined $user_id || $result == 0){
 	$self->_set_error("Unable to edit user - does this user actually exist?");
@@ -7491,6 +7493,10 @@ sub can_modify_circuit {
     if($user->{'type'} eq 'read-only'){
         return 0;
     }
+    elsif($user->{'status'} eq 'decom'){
+        return 0;
+    }
+
     my $authorization = $self->get_user_admin_status( 'user_id' => $user_id);
     #giving Admins permission to edit / reprovision / delete circuits ISSUE=7690
     if ( $authorization->[0]{'is_admin'} == 1 ) {

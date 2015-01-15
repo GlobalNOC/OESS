@@ -31,6 +31,7 @@ ok(defined($details), "Circuit details was defined");
 ok($details->{'circuit_id'} == 101, "Circuit id matched what we expected");
 warn Dumper($details);
 cmp_deeply($details,{'last_modified_by' => {
+    'status' => 'active',
     'email' => 'user_1@foo.net',
     'is_admin' => '0',
     'type' => 'normal',
@@ -117,6 +118,7 @@ cmp_deeply($details,{'last_modified_by' => {
                      'restore_to_primary' => '0',
                      'operational_state' => 'up',
                      'created_by' => {
+                         'status' => 'active',
                          'email' => 'user_201@foo.net',
                          'is_admin' => '0',
                          'auth_id' => '191',

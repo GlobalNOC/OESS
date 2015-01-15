@@ -616,7 +616,7 @@ function setup_users_tab(){
           "<div id='add_user_to_workgroup'></div>"
 		  );
 		
-	p.setFooter("<div id='submit_user'></div><div id='delete_user'></div>");
+	p.setFooter("<div id='submit_user'></div><div id='delete_user'></div><div id='decom_user'></div>");
 
 	p.render(document.body);
 		
@@ -632,8 +632,6 @@ function setup_users_tab(){
 	    type = 1;
 	}
 
-        
-
 	YAHOO.util.Dom.get("user_given_name").value    = first_name  || "";
 	YAHOO.util.Dom.get("user_family_name").value   = family_name || "";
 	YAHOO.util.Dom.get("user_email_address").value = email || "";
@@ -642,10 +640,10 @@ function setup_users_tab(){
 	YAHOO.util.Dom.get("user_given_name").focus();
 
 	var submit_button = new YAHOO.widget.Button("submit_user", {label: "Save"});
-
+    
 	if (user_id){
 	    var delete_button = new YAHOO.widget.Button("delete_user", {label: "Delete"});
-
+        var decom_button = new YAHOO.widget.Button("decom_user", {label: "Decom User"});
 	    delete_button.on("click", function(){
 
 		    YAHOO.util.Dom.get("user_status").innerHTML = "";
@@ -700,6 +698,25 @@ function setup_users_tab(){
 				);
 
 		});
+
+        decom_button.on("click", function() {
+                
+		    YAHOO.util.Dom.get("user_status").innerHTML = "";
+
+		    var fname = YAHOO.util.Dom.get("user_given_name").value;
+		    var lname = YAHOO.util.Dom.get("user_family_name").value;
+            showConfirm("Are you sure you want to decom user \"" + fname + " " + lname + "\"? Note that this action will disable the user from using any OESS resources.",
+
+                function(){
+		        YAHOO.util.Dom.get("user_status").innerHTML = "";
+
+		        var fname = YAHOO.util.Dom.get("user_given_name").value;
+		        var lname = YAHOO.util.Dom.get("user_family_name").value;
+                },
+                function(){}
+                );
+
+        });
 	}
 
 	submit_button.on("click", function(){
