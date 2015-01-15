@@ -149,6 +149,7 @@ sub init_circuit_traceroute {
 }
 
 sub get_circuit_traceroute {
+    
     my $results;
 
     $results->{'results'} = [];
@@ -195,16 +196,20 @@ sub get_circuit_traceroute {
         return $results;
     }
 
-        
-    my $result = $traceroute_client->get_traceroute_transactions({circuit_id =>$circuit_id});
-    
+    #dbus is fighting me, this is suboptimal, but dbus does not like the signature changing.    
+    my $result = $traceroute_client->get_traceroute_transactions({});
+    if ($result && $result->{$circuit_id}){
+        $result = $result->{$circuit_id};
+        delete $result->{source_endpoint};
+        my @tmp_nodes = split(",",$result->{nodes_traversed});
+        $result->{nodes_traversed} = \@tmp_nodes;
+
+        push (@{$results->{results}}, $result);
+    }
     if (!defined($result)){
         $results->{'error'} = "No traceroute data found for this circuit";
     }
-    else{
 
-        $results->{'results'} = [$result];
-    }
 
     return $results;
 }

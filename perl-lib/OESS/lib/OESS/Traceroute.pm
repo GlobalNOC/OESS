@@ -18,7 +18,7 @@ use Net::DBus qw(:typing);
 use base qw(Net::DBus::Object);
 
 use JSON::XS;
-use Time::HiRes;
+use Time::HiRes qw(usleep);
 use Data::Dumper;
 
 
@@ -28,6 +28,11 @@ use constant OFPFC_MODIFY        => 1;
 use constant OFPFC_MODIFY_STRICT => 2;
 use constant OFPFC_DELETE        => 3;
 use constant OFPFC_DELETE_STRICT => 4;
+
+use constant FWDCTL_WAITING     => 2;
+use constant FWDCTL_SUCCESS     => 1;
+use constant FWDCTL_FAILURE     => 0;
+use constant FWDCTL_UNKNOWN     => 3;
 
 
 #link statuses
@@ -81,7 +86,8 @@ sub new {
     $self->{'logger'}    = $logger;
     $self->{'mac_address'} = OESS::Database::mac_hex2num('06:a2:90:26:50:09');
     $self->{transactions} = {};
-    #warn "db".Dumper ($args{'db'});
+    $self->{pending_packets} = {};
+#warn "db".Dumper ($args{'db'});
     
     if ($args{'db'}){
         $self->{'db'} = $args{'db'};
@@ -109,6 +115,13 @@ sub new {
                 interval => 10000,
                 callback => Net::DBus::Callback->new( method => sub { $self->_timeout_traceroutes() } )
             },
+            {
+                interval => 500,
+
+                callback => Net::DBus::Callback->new (method => sub {
+                 $self->_send_pending_traceroute_packets();   
+                                                     } )
+            }
 
         ]
         );
@@ -175,7 +188,7 @@ sub init_circuit_trace {
     my $self = shift;
     my ($circuit_id, $endpoint_interface) = @_;
     my $db = $self->{'db'};
-    warn Dumper ($db);
+    #warn Dumper ($db);
     my $circuit = OESS::Circuit->new(db => $db,
                                      topo => $self->{'topo'},
                                      circuit_id => $circuit_id
@@ -184,6 +197,7 @@ sub init_circuit_trace {
     my $endpoint_dpid;
     my $endpoint_port_no;
     #get dpid,port_no from endpoint_interface_id;
+    
     my $interface = $db->get_interface(interface_id => $endpoint_interface);
 
     if (!$interface){
@@ -192,7 +206,7 @@ sub init_circuit_trace {
     }
     
     my $node = $db->get_node_by_name(name => $interface->{'node_name'});
-    warn Dumper ($node);
+    
     $endpoint_dpid= $node->{'dpid'};
     $endpoint_port_no = $interface->{'port_number'};
     my $exit_ports = [];
@@ -203,10 +217,11 @@ sub init_circuit_trace {
     #verify there isn't already a traceroute running for this vlan
     my $active_transaction = $self->get_traceroute_transactions({circuit_id => $circuit_id,
                                                                  status => 'active'});
+    
     if ($active_transaction&& defined($active_transaction->{'status'}) ){
         #set_error..
         warn "traceroute transaction for this circuit already active";
-        warn Dumper ($active_transaction);
+        
       return 0;
     }
     
@@ -223,6 +238,7 @@ sub init_circuit_trace {
    #will have transaction_id,ttl,source_port left of current traceroute
    
     my $transaction = $self->get_traceroute_transactions({circuit_id => $circuit_id});
+
     #add all rules
     my $rules=    $self->build_trace_rules($circuit_id);
     
@@ -259,7 +275,7 @@ sub build_trace_rules {
     #warn Dumper ($current_flows);
     foreach my $flow( @$current_flows){
     
-        #TODO if flow match isn't on a trunk port, skip it;
+        
 
         #first upgrade priority on flow higher
         $flow->{'priority'} +=1;
@@ -270,8 +286,10 @@ sub build_trace_rules {
         $flow->set_match($matches);
         
         #only action: output to controller
-        $flow->set_actions([{output => OESS::FlowRule::OFPP_CONTROLLER}]);
-        #warn Dumper ($flow);
+        my $actions = []; #$flow->get_actions;
+        push(@$actions, {output => OESS::FlowRule::OFPP_CONTROLLER});
+        $flow->set_actions($actions);
+        
         push(@rules,$flow);
     }
 
@@ -300,28 +318,28 @@ sub process_trace_packet {
     
 
     # get circuits based on link
-#    my $circuits = $db->get_circuits_by_link(link_id =>$link->{'link_id'});
-#    my $circuit_id;
+
     my $circuit_details  = OESS::Circuit->new(db => $db,
                                               topo => $self->{'topo'},
                                               circuit_id => $circuit_id
                 );
     my $transaction = $self->get_traceroute_transactions({circuit_id => $circuit_id, status=>'active'});
-#        if ($candidate_transaction){
+    
             #we've got an active transaction for this circuit, now verify this is actually the right traceroute, we may have multiple circuits over the same link 
             #get circuit_details, and validate this was tagged with the vlan we would have expected inbound
     
     if ($transaction){  
-        
+
     #remove flow rule from dst_dpid,dst_port
+
     foreach my $flow_rule (@{$self->build_trace_rules($circuit_id)} ) {
-        warn "Flow Rule dpid: $flow_rule->get_dpid()";
-        warn "Flow Rule Match:".Dumper($flow_rule->{match});
+        #warn "Flow Rule dpid: ".$flow_rule->get_dpid();
+        #warn "Flow Rule Match:".Dumper($flow_rule->{match});
         
 
         if (  $flow_rule->get_dpid() == $src_dpid && $flow_rule->{'match'}->{'in_port'} == $src_port ) {
-            warn "found rule match, removing from switch";
-            $self->{'dbus'}->send_datapath_flow($flow_rule->to_dbus(command => OFPFC_DELETE_STRICT) );
+            warn "found rule match, removing from switch dpid ".$flow_rule->get_dpid();
+            my $xid = $self->{'dbus'}->send_datapath_flow($flow_rule->to_dbus(command => OFPFC_DELETE) );
         
         #is this a rule that is on the same node as edge ports other than the originating edge port? if so, decrement edge_ports
             foreach my $endpoint (@{$circuit_details->{'details'}->{'endpoints'} }) {
@@ -339,35 +357,42 @@ sub process_trace_packet {
                 }
                      
             
+            }
         }
-        }
-    }
-                        
-    push (@{$transaction->{nodes_traversed}}, $src_dpid);
+    
+    }              
+    my @tmp_nodes_traversed = split (',',$transaction->{nodes_traversed});
+    push (@tmp_nodes_traversed , $src_dpid);
+    $transaction->{nodes_traversed} = join(",",@tmp_nodes_traversed);
     $transaction->{ttl} -= 1;
-   #get transaction from db again:
+        #get transaction from db again:
 
         
-    if ($transaction->{'remaining_endpoints'} < 1){
-        #we're done!
-        $transaction->{'status'} = 'Complete';
-        #remove all flows from the switches
-        $transaction->{'end_epoch'} = time();
-        $self->remove_traceroute_rules(circuit_id => $circuit_id);
-    }
-    elsif ($transaction->{'ttl'} < 1){
+        if ($transaction->{'remaining_endpoints'} < 1){
+            #we're done!
+            $transaction->{'status'} = 'Complete';
+            #remove all flows from the switches
+            $transaction->{'end_epoch'} = time();
+            $self->remove_traceroute_rules(circuit_id => $circuit_id);
+        }
+        elsif ($transaction->{'ttl'} < 1){
             $transaction->{'status'} = 'timeout';
             $transaction->{'end_epoch'} = time();
             #remove all flows from the switches
             $self->remove_traceroute_rules(circuit_id => $circuit_id);
-    }
-    else {
-        $self->send_trace_packet($circuit_id,$transaction);
+        }
+        else {
+            
+            $self->{pending_packets}->{$circuit_id} = { dpid => $src_dpid,
+                                                        timeout => time() + 15,
+                                                      }
+                                                            
+            #$self->send_trace_packet($circuit_id,$transaction);
         
-        
+        }
+    
     }
- 
-    }
+
    return;
 }
 
@@ -394,7 +419,7 @@ sub get_traceroute_transactions {
 
     # $status object:
     # $self->{'transactions'} =  { $circuit_id => { status => 'active|timeout|invalidated|complete'
-    #                                             ttl => 30,
+    #                                             ttl => 100,
     #                                             remaining_endpoints => 3,
     #                                             nodes_traversed = []
     #                             }               }
@@ -411,7 +436,7 @@ sub get_traceroute_transactions {
     while ((my $k, my $v) = each %$hash_ref){
         $args{$k} = $v;
     }
-    #warn Dmper \%args;
+    
     my $transactions = $self->{'transactions'};
 
     my $circuit_id = $args{'circuit_id'};
@@ -433,19 +458,19 @@ sub get_traceroute_transactions {
             $results = $transactions->{$circuit_id} || {};
             warn "only circuit returned returning ".Dumper($results);
             return $results;
-#return $self->{'transactions'}->{$circuit_id};
+
         }
     }
     elsif (defined($args{'status'})){
         #my $transactions = $self->{'transactions'};
         
-        foreach my $circuit_id (keys %$transactions){
-            if ($transactions->{$circuit_id} && $transactions->{$circuit_id}->{'status'} eq $args{'status'}){
-                $results->{$circuit_id} = $transactions->{$circuit_id};
+        foreach my $transaction_circuit_id (keys %$transactions){
+            if ($transactions->{$transaction_circuit_id} && $transactions->{$transaction_circuit_id}->{'status'} eq $args{'status'}){
+                $results= $transactions->{$transaction_circuit_id};
             }
         }
         return $results;
-      #return (grep { $self->{'transactions'}->{$_}->{'status'} eq $args{'status'} } keys %$transactions );
+
     }
     else {
         $results = $transactions|| {};
@@ -458,12 +483,13 @@ sub get_traceroute_transactions {
 
 sub add_traceroute_transaction {
     my $self = shift;
+    
     my %args = ( circuit_id => undef,
                  ttl =>0,
                  remaining_endpoints => 0,
                  source_endpoint => undef,
                  #nodes_traversed => [],
-               @_
+                 @_
         );
     
     if(!defined($args{circuit_id}) ){
@@ -487,7 +513,7 @@ sub add_traceroute_transaction {
     {
         ttl => $args{ttl},
         remaining_endpoints => $args{remaining_endpoints},
-        nodes_traversed => [],
+        nodes_traversed => "",
         source_endpoint => $args{source_endpoint},
         status => 'active',
         start_epoch => time(),
@@ -504,11 +530,11 @@ sub remove_traceroute_rules {
         
         @_);
     #get rules
-    my $rules = $self->build_trace_rules(circuit_id => $args{circuit_id});
+    my $rules = $self->build_trace_rules($args{circuit_id});
     
     #optimization: rules for nodes we've already traced through should have been deleted already, we could skip them.
     foreach my $rule (@$rules){
-        $self->{'dbus'}->send_datapath_flow($rule->to_dbus(OFPFC_DELETE_STRICT));
+        $self->{'dbus'}->send_datapath_flow($rule->to_dbus(command => OFPFC_DELETE));
     }
 
 
@@ -539,9 +565,9 @@ sub _timeout_traceroutes {
     foreach my $circuit_id (keys %$transactions){
 
         my $transaction = $transactions->{$circuit_id};
-        warn "transaction: ".Dumper ($transaction);
-        warn "threshold: $threshold";
-        warn "transact : $transaction->{'start_epoch'}";
+        #warn "transaction: ".Dumper ($transaction);
+        #warn "threshold: $threshold";
+        #warn "transact : $transaction->{'start_epoch'}";
           
         if ($transaction && $transaction->{'status'} eq 'active' && $transaction->{'start_epoch'} <= $threshold) {
             #set transaction to timeout, remove rules
@@ -558,6 +584,36 @@ sub _timeout_traceroutes {
     
 }
 
+#checks the status of the dpid from the last traceroute send, and if complete or timed out, sends the packet anyways.
+
+sub _send_pending_traceroute_packets {
+    my $self = shift;
+
+    my $now = time();
+    
+    foreach my $circuit_id  (keys %{$self->{pending_packets}}){
+        my $transaction = $self->{transactions}->{$circuit_id};
+        my $pending_packet = $self->{pending_packets}->{$circuit_id};
+        if ($transaction && $transaction->{'status'} ne "active"){
+            delete $self->{pending_packets}->{$circuit_id};
+            next;
+        }
+        
+        my $dpid = $pending_packet->{'dpid'};
+        my $timeout = $pending_packet->{'timeout'};
+        if ($timeout < $now ){
+            #give up waiting, send packet anyways
+            warn "got tired of waiting on dpid $dpid, sending trace packet for $circuit_id";
+            $self->send_trace_packet($circuit_id,$transaction);
+        }
+        elsif ($self->{'dbus'}->get_node_status($dpid) != FWDCTL_WAITING){
+            $self->send_trace_packet($circuit_id,$transaction);
+        }
+        
+    }
+    return;
+}
+
 sub link_event_callback {
     my $self   = shift;
     my $a_dpid = shift;
@@ -572,17 +628,18 @@ sub link_event_callback {
         
         my $interface = $db->get_interface_by_dpid_and_port(dpid => $a_dpid, port_number => $a_port);
         my $link = $db->get_link_by_interface_id(interface_id => $interface->{'interface_id'});
-        my $circuits = $db->get_affected_circuits_by_link_id( link_id => $link->{'link_id'});
-        my $transactions = $self->get_traceroute_transactions({status => 'active'});
+        if ($link){
+            my $circuits = $db->get_affected_circuits_by_link_id( link_id => $link->{'link_id'} );
+            my $transactions = $self->get_traceroute_transactions({status => 'active'});
 
-        foreach my $circuit (@$circuits){
-            #we have an active traceroute on an impacted transaction
-            if ($transactions->{$circuit->{'circuit_id'} }) {
-                $transactions->{$circuit->{'circuit_id'} }->{'status'}  = 'invalidated';
-                $self->remove_traceroute_rules(circuit_id => $circuit->{'circuit_id'});
+            foreach my $circuit (@$circuits){
+                #we have an active traceroute on an impacted transaction
+                if ($transactions->{$circuit->{'circuit_id'} }) {
+                    $transactions->{$circuit->{'circuit_id'} }->{'status'}  = 'invalidated';
+                    $self->remove_traceroute_rules(circuit_id => $circuit->{'circuit_id'});
+                }
             }
         }
-
     }
     return;
 }
