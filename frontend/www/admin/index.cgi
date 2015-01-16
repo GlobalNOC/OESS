@@ -36,7 +36,7 @@ sub main {
 
     #-- Figure out what we're trying to templatize here or default to workgroups page.
     my $action = "admin";
-    
+    my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0]; 
     if($user->{'status'} eq 'decom'){
         $action = 'denied';
     } 
