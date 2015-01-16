@@ -26,6 +26,7 @@
       
 package OSCARS::Client;
 
+$ENV{CRYPT_SSLEAY_CIPHER} = 'ALL';
 use strict;
 use warnings;
 use LWP::UserAgent;
