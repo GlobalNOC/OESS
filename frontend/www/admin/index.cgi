@@ -36,7 +36,10 @@ sub main {
 
     #-- Figure out what we're trying to templatize here or default to workgroups page.
     my $action = "admin";
-
+    
+    if($user->{'status'} eq 'decom'){
+        $action = 'denied';
+    } 
     if ( $cgi->param('action') && $cgi->param('action') =~ /^(\w+)$/ ) {
         $action = $1;
     }

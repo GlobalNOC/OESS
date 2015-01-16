@@ -701,19 +701,54 @@ function setup_users_tab(){
 
         decom_button.on("click", function() {
                 
-		    YAHOO.util.Dom.get("user_status").innerHTML = "";
-
 		    var fname = YAHOO.util.Dom.get("user_given_name").value;
 		    var lname = YAHOO.util.Dom.get("user_family_name").value;
             showConfirm("Are you sure you want to decom user \"" + fname + " " + lname + "\"? Note that this action will disable the user from using any OESS resources.",
 
                 function(){
-		        YAHOO.util.Dom.get("user_status").innerHTML = "";
-
-		        var fname = YAHOO.util.Dom.get("user_given_name").value;
-		        var lname = YAHOO.util.Dom.get("user_family_name").value;
+                
+				    decom_button.set("label", "Decoming...");
+				    decom_button.set("disabled", true);
+				    submit_button.set("disabled", true);
+				    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=decom_user&user_id="+user_id);
+				    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+				    ds.responseSchema = {
+					resultsList: "results",
+					fields: [{key: "success"}],
+					metaFields: {
+					    error: "error"
+					}
+				    };
+				    
+				    ds.sendRequest("",
+						   {
+						       success: function(req, resp){
+							   decom_button.set("label", "Decom User");
+							   decom_button.set("disabled", false);
+							   submit_button.set("disabled", false);			
+			   
+							   if (resp.meta.error){
+							       alert("Error decoming user: " + resp.meta.error);
+							   }
+							   else{
+							       p.hide();
+                                   setup_users_tab();
+							       YAHOO.util.Dom.get("user_status").innerHTML = "User decommed successfully.";
+							   }
+						       },
+						       failure: function(req, resp){
+							   decom_button.set("label", "Decom User");
+							   decom_button.set("disabled", false);
+							   submit_button.set("disabled", false);
+							   							   
+							   alert("Server error while decomming user.");
+						       }
+						   }
+						   );
+                
                 },
                 function(){}
+
                 );
 
         });
@@ -3282,7 +3317,8 @@ function makeUserTable(div_id,search_id){
                  {key: "family_name"},
                  {key: "email_address"},
     {key: "auth_name"},
-    {key: "type"}
+    {key: "type"},
+    {key: "status"}
 		 ]
     };
 
@@ -3294,8 +3330,9 @@ function makeUserTable(div_id,search_id){
 				   {key: "family_name",label:"Last Name", width: 100,sortable:true },
 				   {key: "auth_name", label: "Username", width: 175,sortable:true},
     {key: "email_address", label: "Email Address", width: 175,sortable:true},
-    {key: "type", label: "User Type", width: 90, sortable: true}
-	];
+    {key: "type", label: "User Type", width: 90, sortable: true},
+    {key: "status", label: "User Status", wdith: 90, sortable: true}
+    ];
 
     var config = {
 		sortedBy: {key:'first_name', dir:'asc'},

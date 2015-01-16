@@ -64,6 +64,11 @@ sub main {
 
     my $authorization = $db->get_user_admin_status( 'username' => $remote_user);
 
+    my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
+    
+    if($user->{'status'} eq 'decom'){
+        return send_json({error => "Decommed users cannot use webservices."});
+    }
     if ( $authorization->[0]{'is_admin'} != 1 ) {
         $output = {
             error => "User $remote_user does not have admin privileges",
@@ -71,11 +76,10 @@ sub main {
         return ( send_json($output) );
     }
 
-    my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
     if(!defined($user)){
 	return send_json({error => "unable to find user"});
     }
-
+    
     switch ($action) {
         case "get_edge_interface_move_maintenances" {
             $output = &get_edge_interface_move_maintenances();

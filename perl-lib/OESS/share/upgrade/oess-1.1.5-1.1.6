@@ -30,7 +30,6 @@ sub main {
     
     my $dbq = new OESS::Database();
     my $current_version = $dbq->get_oess_schema_version();    
-    
     if($current_version eq $prev_version){
         $dbq->{'dbh'}->begin_work();
         upgrade($dbq->{'dbh'});

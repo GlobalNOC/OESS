@@ -40,3 +40,4 @@ cmp_deeply($users->[0], {
             'first_name' => 'User 11',
             'status' => 'active'
           }, "first user in workgroup data matches");
+      

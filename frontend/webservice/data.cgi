@@ -64,7 +64,11 @@ sub main {
     }
 
     my $action = $cgi->param('action');
-
+    
+    my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
+    if ($user->{'status'} eq "decom") {
+        $action = "error";
+    }
     my $output;
 
     switch ($action) {
@@ -143,6 +147,10 @@ sub main {
         }
         case "get_vlan_tag_range" {
             $output = &get_vlan_tag_range();
+        }
+        case "error" {
+            $output->{'error'} = "Decom users cannot use webservices.";
+            $output->{'results'} = [];
         }
         else {
             $output->{'error'}   = "Error: No Action specified";

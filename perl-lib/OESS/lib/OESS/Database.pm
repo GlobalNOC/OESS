@@ -2613,6 +2613,7 @@ sub get_users_in_workgroup {
             'family_name'   => $row->{'family_name'},
             'email_address' => $row->{'email'},
             'user_id'       => $row->{'user_id'},
+            'status'        => $row->{'status'},
             'auth_name'     => []
         };
 
@@ -2983,6 +2984,44 @@ sub edit_user {
 	$query = "insert into remote_auth (auth_name, user_id) values (?, ?)";
 
 	$self->_execute_query($query, [$name, $user_id]);
+    }
+
+    $self->_commit();
+
+    return 1;
+}
+
+=head2 decom_user
+    
+Decoms the user with the passed user id.
+
+=over
+
+=item user_id
+
+The id of the user to decom
+
+=back
+
+=cut
+
+sub decom_user {
+    my $self = shift;
+    my %args = @_;
+
+    my $user_id = $args{'user_id'};
+    my $status = "decom";
+
+    $self->_start_transaction();
+
+    my $query = "update user set status = 'decom' where user_id = ?";
+
+    my $result = $self->_execute_query($query, [$user_id]);
+
+    if (! defined $user_id || $result == 0){
+        $self->_set_error("Unable to decom user - does this user actually exist?");
+        $self->_rollback();
+        return;
     }
 
     $self->_commit();
