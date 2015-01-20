@@ -30,7 +30,7 @@ my $res = $db->get_available_resources(
 ok($res, 'query ok');
 is(@$res, 5, 'count');
 
-#warn Dumper($res);
+warn Dumper($res);
 my $correct_result = [
           {
             'interface_name' => 'e15/1',

@@ -619,13 +619,23 @@ sub flow_removed_callback{
 }
 
 sub core{
+
    $db  = OESS::Database->new(config => $config_filename) or die();
    $dbh = $db->{'dbh'};
    if (not defined $dbh){
       print_log(LOG_ERR,"cannot connect to the database\n");
       return;
    }
+    
+   #get current nodes
+    my $nodes = $db->get_current_nodes();
+    foreach my $node (@$nodes) {
 
+        $db->update_node_operational_state(node_id => $node->{'node_id'}, state => 'down');
+
+    }
+
+   #set operational status to 'down';   
 
    $dbus = OESS::DBus->new( service => "org.nddi.openflow", instance => "/controller1", timeout => -1, sleep_interval => .1);
    if(defined($dbus)){
@@ -693,6 +703,7 @@ sub main(){
           die();
        }
        #this is the parent process
+       `chmod 0644 /var/run/oess/topo.pid`;
        sleep(2);
        if (0 == $daemon->Status()){
          die(); ##exit failure
