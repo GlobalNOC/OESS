@@ -85,21 +85,47 @@ sub init_circuit_traceroute {
     #workgroup_id, circuit_id, source_interface, are all required;
     my $workgroup_id = $cgi->param('workgroup_id');
     my $circuit_id  = $cgi->param('circuit_id');
-    my $source_interface = $cgi->param('interface_id');
+    my $source_node = $cgi->param('node');
+    my $source_intf = $cgi->param('interface');
+   
+    my $interface_id = $db->get_interface_id_by_names (node => $source_node,
+                                                       interface => $source_intf
+        );
+
+
+    my $source_interface = $interface_id;
+
     if (!defined ($workgroup_id)) {
         return {error => "workgroup_id is required" }
     }
     if (!defined ($circuit_id)) {
         return {error => "circuit_id is required" }
     }
-    if (!defined ($source_interface)) {
-        return {error => "interface_id is required" }
+    
+   if (!defined ($source_interface)) {
+        return {error => "Could not find source interface" }
     }
 
+    my $ckt = OESS::Circuit->new( circuit_id => $circuit_id, db => $db);
+    if (!$ckt || $ckt->{'status'} != 'active'){
+        return { error =>             "User and workgroup do not have permission to traceroute this circuit" }
+    }
 
     my $endpoints = $db->get_circuit_endpoints(circuit_id => $circuit_id);
+    warn Dumper ($endpoints);
+    if (!$endpoints){
 
-    if ( grep /$_->{'interface_id'} == $source_interface/, @$endpoints ){
+    }
+    my $source_interface_is_endpoint=0;
+    
+    foreach my $endpoint (@$endpoints){
+        if ($endpoint->{'interface'} eq $source_intf &&$endpoint->{'node'} eq $source_node ){
+            $source_interface_is_endpoint =1;
+            last;
+        }
+    }
+    
+    if ( !$source_interface_is_endpoint ){
         return {error => "interface $source_interface is not an endpoint of circuit $circuit_id"}
     }
     
@@ -111,7 +137,9 @@ sub init_circuit_traceroute {
         $traceroute_client = $traceroute_svc->get_object("/controller1");
     };
     warn $@ if $@;
-
+    if (!$traceroute_svc|| !$traceroute_client ){
+        return {error => 'unable to talk to traceroute service'};
+    }
     my $workgroup = $db->get_workgroup_by_id( workgroup_id => $workgroup_id );
 
     if(!defined($workgroup)){
@@ -198,10 +226,23 @@ sub get_circuit_traceroute {
 
     #dbus is fighting me, this is suboptimal, but dbus does not like the signature changing.    
     my $result = $traceroute_client->get_traceroute_transactions({});
+    
     if ($result && $result->{$circuit_id}){
+        my $node_dpid_hash = $db->get_node_dpid_hash;
+        my $dpid_node_hash = {};
+        #invert the hash, because we can
+        foreach my $node_name (keys %$node_dpid_hash){
+            $dpid_node_hash->{ $node_dpid_hash->{$node_name} } = $node_name;
+        }
         $result = $result->{$circuit_id};
         delete $result->{source_endpoint};
         my @tmp_nodes = split(",",$result->{nodes_traversed});
+
+        # replace dpid with node name
+        foreach my $dpid (@tmp_nodes){
+            $dpid = $dpid_node_hash->{$dpid};
+        }
+        
         $result->{nodes_traversed} = \@tmp_nodes;
 
         push (@{$results->{results}}, $result);
