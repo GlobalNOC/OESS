@@ -58,7 +58,6 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::Measurement.3pm.gz
 %doc %{_mandir}/man3/OESS::FlowRule.3pm.gz
 %doc %{_mandir}/man3/OESS::Notification.3pm.gz
-%doc %{_mandir}/man3/OESS::Traceroute.3pm.gz
 %doc %{_mandir}/man3/OESS::Watchdog.3pm.gz
 %doc %{_mandir}/man3/OESS::FWDCTL::Master.3pm.gz
 %doc %{_mandir}/man3/OESS::FWDCTL::Switch.3pm.gz
@@ -68,7 +67,6 @@ rm -rf $RPM_BUILD_ROOT
 %{template_dir}/notification_bulk.tt.html
 %{template_dir}/notification.tt.html
 %{perl_vendorlib}/OESS/Notification.pm
-%{perl_vendorlib}/OESS/Traceroute.pm
 %{perl_vendorlib}/OESS/DBus.pm
 %{perl_vendorlib}/OESS/Database.pm
 %{perl_vendorlib}/OESS/Topology.pm

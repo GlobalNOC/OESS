@@ -51,9 +51,6 @@ sub upgrade {
     my $str;
     my $sth;
     
-
-    # add traceroute_log table
-
     # add edge_interface_move_maintenance table
     $str = "CREATE TABLE edge_interface_move_maintenance ( ".
            "  maintenance_id int(10) NOT NULL AUTO_INCREMENT, ".
