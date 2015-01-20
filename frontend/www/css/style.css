@@ -1,3 +1,21 @@
+.success,
+.warning {
+    color: #fff;
+    border-radius: 2px;
+    -webkit-border-radius: 2px; 
+    -moz-border-radius: 2px; 
+    margin-bottom: 5px;
+}
+
+.success {
+    background-color: #5cb85c;
+    border-color: #4cae4c;
+}
+.warning {
+    background-color: #f0ad4e;
+    border-color: #eea236;
+}
+
 div.main_page_container {
     background: url(../media/oess-frame-body.png) repeat-y bottom;
     width: 1024px;
@@ -161,6 +179,29 @@ div#workgroup_tabs .yui-content {
     width: 50px;
     text-align: center;
     font-size: 90%;
+}
+
+.popup_box_error {
+    color: #a94442; 
+}
+.popup_box_error.yui-panel .bd {
+    background-color: #f2dede;
+}
+.popup_box_error.yui-panel .bd button {
+    background-color: rgba(255,0,0,.5);
+    border-radius: 10px;
+    -webkit-border-radius: 10px; 
+    -moz-border-radius: 10px; 
+}
+.popup_box_error.yui-panel .bd button:hover {
+    background-color: rgba(255,0,0,.2);
+}
+.popup_box_error.yui-panel .hd {
+    border-bottom-color: #d43f3a;
+    color: #a94442; 
+}
+.yui-skin-sam .yui-panel.popup_box_error {
+    border-color: #d43f3a;
 }
 
 
@@ -382,4 +423,96 @@ table.circuit_summary_table tr{
 .features_errors li {
     list-style-type: disc !important;
     list-style-position: outside !important;
+}
+
+
+/* admin maintenance tab */
+#maintenance_content {
+    width: 90%;
+    margin: 0 auto;
+}
+.maintenance_container {
+    text-align: center;
+}
+#edge_int_maint_table table {
+    min-width: 100%;
+}
+.maint_actions_holder {
+    text-align: right;
+    margin-bottom: 5px;
+}
+.maint_actions_holder > label {
+    float: left;
+    color: grey;
+    margin-top: 10px;
+}
+.move_edge_int_form {
+    text-align: left;
+}
+.move_edge_int_form .chzn-container {
+    vertical-align: bottom;
+    width: 175px !important;
+}
+
+/*.move_edge_int_form .chzn-drop > * {*/
+.move_edge_int_form select {
+    width: 175px;
+}
+.move_edge_int_form > div > div,
+.move_edge_int_form > div > select,
+.move_edge_int_maint_name_input > * {
+    display: inline-block; 
+}
+    
+.move_edge_int_maint_name_input > div,
+.move_edge_int_form > div > div {
+    width: 110px;
+}
+.move_edge_int_maint_name_input,
+.move_edge_int_form > div {
+    margin-bottom: 5px;
+}
+
+.move_edge_int_form .yui-buttongroup {
+    margin-top: 10px;
+}
+
+.move_edge_int_form .ckt_table_holder {
+    display: none;
+    background-color: #DADADA;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px darkgrey solid;
+}
+.move_edge_int_form .ckt_table_holder > div {
+    margin-bottom: 5px;
+}
+.move_edge_int_form .ckt_table_holder p {
+    color: dimgrey;
+}
+
+.move_edge_int_form .yui-dt {
+    display: block;
+}
+
+.move_edge_int_form .yui-dt,
+.move_edge_int_form .yui-dt table {
+    width: 100% !important;
+}
+
+
+/* end admin maintenance tab */
+#node_interface_table .yuimenu .bd {
+    padding: 0px;
+    border-width: 1px;
+}
+/*
+#node_interface_table .yuimenu.visible {
+    position: relative !important;
+    display: inline-block;
+    float: right;
+}
+*/
+#int_move_panel .ft {
+    text-align: right;
 }

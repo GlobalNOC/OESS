@@ -114,5 +114,6 @@ else {
         }
         main();
     }
+    `chmod 0644 /var/run/oess/oess-notify.pid`;
 }
 

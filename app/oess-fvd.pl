@@ -45,6 +45,7 @@ sub main{
         my $kid_pid = $daemon->Init;
 
         if ($kid_pid) {
+            `chmod 0644 /var/run/oess/oess-fvd.pid`;
             return;
         }
         my $logger = Log::Log4perl->init_and_watch('/etc/oess/logging.conf');

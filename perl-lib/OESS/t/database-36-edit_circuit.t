@@ -83,7 +83,8 @@ my $correct_result = {
                                   'given_names' => 'User 1',
                                   'user_id' => undef,
                                   'family_name' => 'User 1',
-                                  'auth_name' => undef
+                                  'auth_name' => undef,
+                                  'status' => 'active'
                                 },
           'state' => 'active',
           'backup_links' => [],
@@ -176,7 +177,8 @@ my $correct_result = {
                             'given_names' => 'User 201',
                             'user_id' => '201',
                             'family_name' => 'User 201',
-                            'auth_name' => 'user_201@foo.net'
+                            'auth_name' => 'user_201@foo.net',
+                            'status' => 'active'
                           }
 };
 

@@ -540,4 +540,5 @@ if($opt_f){
 	}
 	main();
     }
+    `chmod 0644 /var/run/oess/vlan_stats_d.pid`;
 }
