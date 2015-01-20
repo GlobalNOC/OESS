@@ -516,15 +516,3 @@ table.circuit_summary_table tr{
 #int_move_panel .ft {
     text-align: right;
 }
-#traceroute_results_table {
-    margin-top:5px;
-    margin-bottom:5px;
-    margin-left:auto;
-    margin-right:auto;
-}
-#traceroute_results {
-    margin-top:5px;
-}
-#traceroute_endpoint_table {
-    margin-bottom: 10px;
-}

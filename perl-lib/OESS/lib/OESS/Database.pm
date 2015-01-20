@@ -3368,7 +3368,7 @@ sub get_circuit_details {
 	                                                 ) || [];
 
     $details->{'workgroup'} = $self->get_workgroup_by_id( workgroup_id => $details->{'workgroup_id'} );
-    #$details->{'last_modified_by'} = $self->get_user_by_id( user_id => $details->{'user_id'} )->[0];
+    $details->{'last_modified_by'} = $self->get_user_by_id( user_id => $details->{'user_id'} )->[0];
 
     $query = "select * from circuit_instantiation where circuit_id = ? and end_epoch = (select min(end_epoch) from circuit_instantiation where circuit_id = ? and end_epoch > 0)";
 
@@ -4598,30 +4598,6 @@ sub get_link_ints_on_node{
     }
     return $ints;
 }
-=head2 get_traceroute_transactions
-
-get currently running traceroute transactions
-
-=cut
-
-sub get_traceroute_transactions {
-    my $self = shift;
-    my %args = (
-        circuit_id => undef,
-        mac_addr => undef,
-        @_
-        );
-    my $results;
-    if ($args{circuit_id}){
-
-    }
-    elsif ($args{mac_addr}){
-
-    }
-
-    return $results;
-}
-
 
 =head2 get_link
 
