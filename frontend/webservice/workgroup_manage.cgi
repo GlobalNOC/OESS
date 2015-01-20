@@ -49,11 +49,13 @@ sub main {
     $user_id = $db->get_user_id_by_auth_name( 'auth_name' => $username );
 
     my $user = $db->get_user_by_id( user_id => $user_id)->[0];
-
+    
     my $action = $cgi->param('action');
 
     my $output;
-
+    if ($user->{'status'} eq 'decom') {
+        $action = "error";
+    }
     switch ($action) {
         case "get_all_workgroups" {
             $output = &get_all_workgroups();
@@ -78,6 +80,11 @@ sub main {
                 send_json({error => 'Error: you are a readonly user'});
             }
             $output = &remove_acl();
+        }
+        case "error" {
+
+            $output->{'error'}   = "Decommed users cannot use webservices.";
+            $output->{'results'} = [];
         }
         else {
             $output->{'error'}   = "Error: No Action specified";

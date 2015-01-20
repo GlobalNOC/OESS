@@ -27,6 +27,7 @@ my $db = OESS::Database->new( config => OESSDatabaseTester::getConfigFilePath() 
 
 my $ckt = OESS::Circuit->new( circuit_id => 4111, db => $db);
 
+my $nodes = $db->get_current_nodes();
 
 ok($ckt->has_backup_path(), "Circuit has backup path");
 

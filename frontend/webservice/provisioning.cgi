@@ -61,7 +61,10 @@ sub main {
     my $action = $cgi->param('action');
     print STDERR "action " . $action;
     my $output;
-
+    my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
+    if ($user->{'status'} eq 'decom') {
+        $action = "error";
+    }
     switch ($action) {
 
         case "provision_circuit" {
@@ -75,7 +78,11 @@ sub main {
                                      }
               case "reprovision_circuit"{
                                          $output = &reprovision_circuit();
-                                        } else {
+                                        }
+        case "error" {
+            $output = { error => "Decommed users cannot use webservices."};
+        } 
+                                        else {
                                             $output = {
                                                        error => "Unknown action - $action"
                                                       };
