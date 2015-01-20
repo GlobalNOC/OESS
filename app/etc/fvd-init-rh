@@ -30,7 +30,7 @@ options=" "
 username=_oess
 lockfile=/var/lock/subsys/$name
 command="$exec_file -u $username $options"
-PIDFILE=/var/run/oess/$name.pid
+PIDFILE=/var/run/oess/oess-$name.pid
 
 #see how we were called.
 case "$1" in
