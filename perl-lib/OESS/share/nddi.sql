@@ -186,6 +186,8 @@ CREATE TABLE `link` (
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+
+
 --
 -- Table structure for table `link_instantiation`
 --
@@ -408,6 +410,7 @@ CREATE TABLE `schema_version` (
   `version` varchar(100) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
 
 --
 -- Table structure for table `urn`

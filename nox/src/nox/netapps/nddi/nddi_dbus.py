@@ -48,6 +48,8 @@ FWDCTL_SUCCESS = 1
 FWDCTL_FAILURE = 0
 FWDCTL_UNKNOWN = 3
 
+TRACEROUTE_MAC= '\x06\xa2\x90\x26\x50\x09' 
+
 PENDING  = 0
 ANSWERED = 1
 
@@ -89,6 +91,7 @@ class dBusEventGen(dbus.service.Object):
        self.packets_out = 0
        self.packets_in = 0
        self.registered_for_fv_in = 0
+       self.registered_for_traceroute_in = 0
        self.fv_pkt_rate = 1
        self.packets = []
        self.VLAN_ID = None
@@ -103,6 +106,12 @@ class dBusEventGen(dbus.service.Object):
                          signature='tqtqt')
     def fv_packet_in(self, src_dpid, src_port, dst_dpid, dst_port, timestamp):
         string = "fv packet in: " + str(self.packets_in)
+    
+    @dbus.service.signal(dbus_interface=ifname,
+                         signature='tqt')
+    def traceroute_packet_in(self, src_dpid, src_port, circuit_id):
+        string = "traceroute packet in for circuit_id" + str(circuit_id)
+        logger.info(string)
         
     @dbus.service.signal(dbus_interface=ifname,
                          signature='tua{sv}')
@@ -145,6 +154,37 @@ class dBusEventGen(dbus.service.Object):
         logger.info("VLAN ID: " + str(VLAN_ID))
         self.packets = pkts
         return
+
+    @dbus.service.method(dbus_interface=ifname,
+                         in_signature='titt',
+                         out_signature='')
+    def send_traceroute_packet(self,dpid,my_vlan,out_port,data):
+        #build ethernet packet
+        packet = ethernet()
+        packet.src = '\x00' + struct.pack('!Q',dpid)[3:8]
+        packet.dst = TRACEROUTE_MAC
+        #pack circuit_id into payload
+        payload = struct.pack('I',data)
+        
+        if(my_vlan != None and my_vlan != 65535):
+            vlan_packet = vlan()
+            vlan_packet.id = my_vlan
+            vlan_packet.c = 0
+            vlan_packet.pcp = 0
+            vlan_packet.eth_type = 0x88b5
+            vlan_packet.set_payload(payload)
+
+            packet.set_payload(vlan_packet)
+            packet.type = ethernet.VLAN_TYPE
+            
+        else:
+            packet.set_payload(payload)
+            packet.type = 0x88b5
+        
+        inst.send_openflow_packet(int(dpid), packet.tostring(),int(out_port))
+
+        return
+
         
     @dbus.service.signal(dbus_interface=ifname,signature='tuquuay')
     def packet_in(self,dpid,in_port, reason, length, buffer_id, data):
@@ -250,6 +290,27 @@ class dBusEventGen(dbus.service.Object):
         inst.register_for_packet_match(lambda dpid, inport, reason, len, bid,packet : fv_packet_in_callback(self,dpid,inport,reason,len,bid,packet), 0xffff, match)
         self.registered_for_fv_in = 1
         return 1
+
+    @dbus.service.method(dbus_interface=ifname,
+                         in_signature='',
+                         out_signature='q')
+    def register_for_traceroute_in(self):
+        #ether type 88b6 is experimental
+        #88b6 IEEE 802.1 IEEE Std 802 - Local Experimental
+        if(self.registered_for_traceroute_in == 1):
+            return 1
+        logger.info("Registered for packet in events for Traceroute")
+
+        match = {
+            DL_TYPE: 0x88b5,
+            DL_DST: TRACEROUTE_MAC
+            }
+        
+        inst.register_for_packet_match(lambda dpid, inport, reason, len, bid,packet : traceroute_packet_in_callback(self,dpid,inport,reason,len,bid,packet), 0xffff, match)
+        self.registered_for_traceroute_in = 1
+        return 1
+
+
 
     @dbus.service.method(dbus_interface=ifname,
                          in_signature='tq',
@@ -401,6 +462,18 @@ def fv_packet_in_callback(sg,dp,inport,reason,len,bid,packet):
         return
 
     sg.fv_packet_in(src_dpid,src_port,dst_dpid,dst_port,timestamp)
+
+def traceroute_packet_in_callback(sg,dp,inport,reason,len,bid,packet):
+    if(packet.type == ethernet.VLAN_TYPE):
+        packet = packet.next
+
+    string = packet.next
+    logger.info(string.encode('hex'))
+    #get circuit_id
+    (circuit_id) = struct.unpack('I',string[:8])
+    #struct.pack always returns a tuple, return the first element of the tuple
+    sg.traceroute_packet_in(dp,inport,circuit_id[0])
+
     
                         
 
@@ -628,6 +701,8 @@ class nddi_dbus(Component):
             inst.send_openflow_packet(pkt[0], packet.tostring(), int(pkt[1]))
 
         self.post_callback(fv_pkt_rate, self.fire_send_fv_packets)
+
+    
 
     def getInterface(self):
         return str(nddi_dbus)
