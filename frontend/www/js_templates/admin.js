@@ -25,6 +25,7 @@ function admin_init(){
 }
 
 function setup_remote_dev_tab(){
+
     var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_remote_devices");
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
