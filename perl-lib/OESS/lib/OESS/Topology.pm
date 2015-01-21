@@ -290,17 +290,20 @@ sub is_loopback {
     # first ensure there are only two endpoints
     return 0 if(@$endpoints != 2);
 
+    my $node;
     my $intf; # keeps the name of our interface
     my $known_vlans = {}; # hash of vlans we've used in our endpoints
     foreach my $endpoint (@$endpoints){
         if(!%$known_vlans && !defined($intf)){
             $intf = $endpoint->{'interface'};
             $known_vlans->{$endpoint->{'tag'}} = 1;
+            $node = $endpoint->{'node'};
         }else {
             # if our endpoints are not all on the same interface this is not a valid loopback path
             return 0 if($intf ne $endpoint->{'interface'});
             # if we have used the same vlan tag twice this is not a valid loopback path
             return 0 if(defined($known_vlans->{$endpoint->{'tag'}}));
+            return 0 if($node ne $endpoint->{'node'});
         }
     }
 
