@@ -516,6 +516,11 @@ table.circuit_summary_table tr{
 #int_move_panel .ft {
     text-align: right;
 }
+#traceroute_endpoint_table{
+    margin-top:5px;
+    margin-left:auto;
+    margin-right:auto;
+}
 #traceroute_results_table {
     margin-top:5px;
     margin-bottom:5px;
@@ -527,4 +532,27 @@ table.circuit_summary_table tr{
 }
 #traceroute_endpoint_table {
     margin-bottom: 10px;
+}
+.yui-skin-sam .yui-dt tr.spinnerRow, 
+.yui-skin-sam .yui-dt tr.spinnerRow td.yui-dt-asc, 
+.yui-skin-sam .yui-dt tr.spinnerRow td.yui-dt-desc, 
+.yui-skin-sam .yui-dt tr.spinnerRow td.yui-dt-asc, 
+.yui-skin-sam .yui-dt tr.spinnerRow td.yui-dt-desc {
+    background-color: #a33; 
+    background-image: url("media/loading.gif");
+    background-repeat: no-repeat;
+    background-position: right center;
+    background-size: auto 50%;
+}
+p.timedout {
+  font-weight:bold;
+}
+p.complete {
+  font-weight:bold;
+}
+p.timedout {
+  font-weight:bold;
+}
+p.invalidated {
+    font-weight:bold;
 }

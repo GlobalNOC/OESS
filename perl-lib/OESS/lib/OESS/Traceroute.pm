@@ -69,8 +69,6 @@ sub new {
     my $logger = Log::Log4perl->get_logger("OESS.Traceroute");
     
     my %args = (
-        interval => 1000,
-        timeout  => 15000,
         db => undef,
         @_
     );
@@ -352,7 +350,8 @@ sub process_trace_packet {
             $self->{'logger'}->info("found rule match, removing from switch dpid ".$flow_rule->get_dpid() );
             my $xid = $self->{'dbus'}->send_datapath_flow($flow_rule->to_dbus(command => OFPFC_DELETE) );
             $self->{'dbus'}->send_barrier($flow_rule->get_dpid());
-        #is this a rule that is on the same node as edge ports other than the originating edge port? if so, decrement edge_ports
+            
+            #is this a rule that is on the same node as edge ports other than the originating edge port? if so, decrement edge_ports
             foreach my $endpoint (@{$circuit_details->{'details'}->{'endpoints'} }) {
            
                 my $e_node = $endpoint->{'node'};
