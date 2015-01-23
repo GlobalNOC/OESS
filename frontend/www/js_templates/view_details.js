@@ -18,6 +18,7 @@ function init(){
         failure: function(req, resp){
             alert("Error loading circuit details.");
         }
+
     });
 
 }
@@ -191,7 +192,7 @@ function page_init(){
       
       
       var edit_button = new YAHOO.widget.Button("edit_button", {label: "Edit Circuit"});
-      
+      var start_button;
       edit_button.on("click", function(){
 	      
 	  session.data.interdomain = 0;
@@ -284,6 +285,52 @@ function page_init(){
 			  );
 	  });
   }else{
+      var traceroute_panel;
+      var traceroute_button = new YAHOO.widget.Button("traceroute_button", {label: "Trace Circuit Path" });
+
+
+      traceroute_button.on("click", function(){
+          traceroute_button.set('disabled',true);
+          var region = YAHOO.util.Dom.getRegion("main_page");
+          var xy = [region.left + (region.width/2)-350,
+                    region.top+ (region.height/2)-200];
+          var p = new YAHOO.widget.Panel("trace_circuit",
+                                         {
+                                             width: 550,
+                                             xy: xy,
+                                             modal: true
+                                         }
+                                        );
+          
+          p.hideEvent.subscribe(function(){
+              traceroute_button.set('disabled',false);
+              this.destroy();
+          });
+          
+          p.setHeader("Traceroute");
+          p.setBody("<p class='title summary'>Select Starting Endpoint:</p>"+
+              start_button.set("disabled",true);
+                                      var cols = [{key: "node", label:"Nodes Traversed", 
+                                                   width: 150                                                   
+                                                  } ];
+                                      var configs = {
+                                          height: "100px",
+                                          MSG_EMPTY: "<img height='32px' width='32px' style='width:32px;height:32px;margin-left:60px;margin-right:auto'src='media/loading.gif'></img> ",
+                                          MSG_LOADING: "<img height='32px' width='32px' style='width:32px;height:32px;margin-left:60px;margin-right:auto'src='media/loading.gif'></img> ",
+                                          formatRow: function(elTr, oRecord) {  
+                                                       if (oRecord.getData("isLast") == 1)
+                                                       {
+                                                           YAHOO.util.Dom.addClass(elTr, 'spinnerRow');
+                                                       }
+                                                       return true;
+                                                   }
+                                      };
+                                      pollTracerouteStatus(traceroute_results,start_button);
+                                  },
+                                                     failure: function(req, resp){
+                                                         alert("Error starting Traceroute, please try again or if this continues please contact the OESS System Administrator");
+                                                     }
+
 
   }  
 
@@ -367,6 +414,42 @@ function page_init(){
 
 }
 
+function pollTracerouteStatus(status_table,start_button){
+                                                                var help_text = { active:"",
+                                                                                  Complete: "Traceroute has reached all endpoints successfully",
+                                                                                  invalidated: "A Network event has caused a disruption in the traceroute, please try again.",
+                                                                                  "timed out": "The traceroute was unable to complete traversal of the circuit in the time alotted"
+                                                                                  }
+                                                                trace_status.innerHTML="<p class='"+(results.status.replace(/ /g,'').toLowerCase())+"'>"+
+                                                                    results.status+"</p>"+"<p class='helptext'>"+help_text[results.status]+"</p>";
+                                                                if (nodes_traversed.length > 0){
+                                                                    var nodes_array = [];
+                                                                    status_table.deleteRows(0, status_table.getRecordSet().getRecords().length);
+                                                                    for (var i=0; i < nodes_traversed.length; i++){
+                                                                        nodes_array[i] ={
+                                                                          node: nodes_traversed[i] ,
+                                                                            isLast:0
+                                                                        };
+                                                                        if (i == nodes_traversed.length && results.status=="active"){
+                                                                            nodes_array[i].isLast=1;
+                                                                        }
+                                                                    }
+                                                                    status_table.addRows(nodes_array);
+                                                                }
+                                                                    setTimeout(pollTracerouteStatus(status_table,start_button),1000);
+                                                                }
+                                                                else{ 
+                                                                    start_button.set("disabled",false);
+                                                                    if (results.nodes_traversed.length ==0){
+                                                                        //set MSG_EMPTY to "no nodes traversed";
+                                                                        //status_table.configs.MSG_EMPTY= "No Nodes Traversed";
+                                                                        //status_table.configs.MSG_LOADING= "No Nodes Traversed";
+
+                                                                    }
+                                                                    if (results.status != "Complete"){
+                                                                        status_table.addRow({node:"Path Not Found"});
+                                                                    }
+                                                                };
 function setupMeasurementGraph(){
 
     var date = new Date();
