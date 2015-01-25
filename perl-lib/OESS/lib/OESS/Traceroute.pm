@@ -348,7 +348,7 @@ sub process_trace_packet {
 
         if (  $flow_rule->get_dpid() == $src_dpid && $flow_rule->{'match'}->{'in_port'} == $src_port ) {
             $self->{'logger'}->info("found rule match, removing from switch dpid ".$flow_rule->get_dpid() );
-            my $xid = $self->{'dbus'}->send_datapath_flow($flow_rule->to_dbus(command => OFPFC_DELETE) );
+            my $xid = $self->{'dbus'}->send_datapath_flow($flow_rule->to_dbus(command => OFPFC_DELETE_STRICT) );
             $self->{'dbus'}->send_barrier($flow_rule->get_dpid());
             
             #is this a rule that is on the same node as edge ports other than the originating edge port? if so, decrement edge_ports
@@ -543,7 +543,7 @@ sub remove_traceroute_rules {
     my @dpids = ();
     #optimization: rules for nodes we've already traced through should have been deleted already, we could skip them.
     foreach my $rule (@$rules){
-        $self->{'dbus'}->send_datapath_flow($rule->to_dbus(command => OFPFC_DELETE));
+        $self->{'dbus'}->send_datapath_flow($rule->to_dbus(command => OFPFC_DELETE_STRICT));
         push (@dpids,$rule->get_dpid());
     }
     foreach my $dpid (@dpids){
