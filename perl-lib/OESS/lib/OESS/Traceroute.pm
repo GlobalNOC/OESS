@@ -406,7 +406,11 @@ sub process_trace_packet {
    return;
 }
 
+=head2 send_trace_packet
 
+handles sending traceroute packet to nox dbus for each output port. Takes circuit_id, and current transaction;
+
+=cut
 
 
 sub send_trace_packet {
@@ -424,6 +428,12 @@ sub send_trace_packet {
         $self->{'dbus'}->send_traceroute_packet(Net::DBus::dbus_uint64($source_port->{'dpid'}),Net::DBus::dbus_uint16($exit_port->{'vlan'}),Net::DBus::dbus_uint64($exit_port->{'port'}),Net::DBus::dbus_uint64($circuit_id));
     }
 }
+
+=head2 get_traceroute_transactions
+
+gets traceroute transactions from memory, optionally filtering by circuit_id and/or status
+
+=cut
 
 sub get_traceroute_transactions {
 
@@ -488,6 +498,11 @@ sub get_traceroute_transactions {
 
 }
 
+=head2
+
+adds entry into the in-memory hash for new traceroute.
+
+=cut
 
 
 sub add_traceroute_transaction {
@@ -532,6 +547,12 @@ sub add_traceroute_transaction {
     return 1;
 }
 
+=head2 remove_traceroute_rules
+
+Sends removal requests for all traceroute rules for a circuit
+
+=cut
+
 sub remove_traceroute_rules {
     my $self = shift;
     my %args = (
@@ -553,6 +574,12 @@ sub remove_traceroute_rules {
                                         
 }
 
+=head2 clear_traceroute_transaction
+
+deletes a transaction from the in-memory transaction object.
+
+=cut
+
 
 sub clear_traceroute_transaction {
     my $self = shift;
@@ -565,6 +592,9 @@ sub clear_traceroute_transaction {
     delete $self->{'transactions'}->{ $args{circuit_id} };
     return;
 }
+
+
+
 
 sub _timeout_traceroutes {
     my $self = shift;
@@ -626,6 +656,13 @@ sub _send_pending_traceroute_packets {
     }
     return;
 }
+
+=head2 link_event_callback
+
+on link events, invalidate any traceroutes that were currently running over the impacted link.
+
+=cut
+
 
 sub link_event_callback {
     my $self   = shift;

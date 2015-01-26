@@ -4557,29 +4557,6 @@ sub get_link_ints_on_node{
     }
     return $ints;
 }
-=head2 get_traceroute_transactions
-
-get currently running traceroute transactions
-
-=cut
-
-sub get_traceroute_transactions {
-    my $self = shift;
-    my %args = (
-        circuit_id => undef,
-        mac_addr => undef,
-        @_
-        );
-    my $results;
-    if ($args{circuit_id}){
-
-    }
-    elsif ($args{mac_addr}){
-
-    }
-
-    return $results;
-}
 
 
 =head2 get_link
