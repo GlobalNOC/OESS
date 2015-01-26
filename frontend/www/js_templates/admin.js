@@ -5,6 +5,7 @@
 <script type='text/javascript' src='../js_utilities/misc_funcs.js'></script>
 
 <script>
+     var remote_link_table;
 function admin_init(){
 
     var tabs = new YAHOO.widget.TabView("admin_tabs", {orientation: "left"});
@@ -122,16 +123,16 @@ function setup_remote_dev_tab(){
 			fields: [{key: "success"}]
 		    };
 
-		    this.set("disabled", true);
-		    this.set("label", "Saving...");
+		    //this.set("disabled", true);
+		    //this.set("label", "Saving...");
 
 		    YAHOO.util.Dom.get("remote_dev_update_status").innerHTML = "";
 
 		    ds.sendRequest("",
 				   {
 				       success: function(req, resp){
-					   this.set("disabled", false);
-					   this.set("label", "Save");
+					   //this.set("disabled", false);
+					   //this.set("label", "Save");
 
 					   if (resp.results && resp.results[0].success == 1){
 					       YAHOO.util.Dom.get("remote_dev_update_status").innerHTML = "Remote Device Update Successful.";
@@ -143,8 +144,8 @@ function setup_remote_dev_tab(){
 					   }
 				       },
 				       failure: function(req, resp){
-					   this.set("disabled", false);
-					   this.set("label", "Save");
+					   //this.set("disabled", false);
+					   //this.set("label", "Save");
 
 					   alert("Error while talking to server.");
 				       },
@@ -280,7 +281,7 @@ function setup_remote_tab(){
 	    })
     };
 
-    var remote_link_table = new YAHOO.widget.DataTable("remote_link_table", columns, ds, config);
+    remote_link_table = new YAHOO.widget.DataTable("remote_link_table", columns, ds, config);
 
     var new_button = new YAHOO.widget.Button("add_new_remote_link", {label: "New Remote Link"});
 
@@ -293,7 +294,8 @@ function setup_remote_tab(){
 						    width: 750,
 						    height: 435,
 						    xy: [region.left, 
-							 region.top]
+							 region.top],
+                                                    zIndex: 100
 						   });
 	    
 	    add_remote_p.setHeader("New Remote Link");
@@ -311,7 +313,8 @@ function setup_remote_tab(){
 	    
 	    var done_adding = new YAHOO.widget.Button("done_adding_remote", {label: "Done Adding Remote Links"});
 	    done_adding.on("click", function(){
-		    add_remote_p.hide();
+      		    add_remote_p.hide();
+                    add_remote_p.destroy();
 		});
 	    
 	    var map = new NDDIMap('remote_map', null, { node_label_status: false });
@@ -322,7 +325,7 @@ function setup_remote_tab(){
 		});
 	    
 	    add_remote_p.hideEvent.subscribe(function(){
-		    map.destroy();
+             	    map.destroy();
 		    this.destroy();
 		});
 	    
@@ -398,30 +401,30 @@ function setup_remote_tab(){
 			    save_button.on("click", function(){
 				    var urn        = YAHOO.util.Dom.get("remote_urn").value;
 				    var name       = YAHOO.util.Dom.get("remote_link_name").value;
-                    var vlan_range = YAHOO.util.Dom.get("remote_vlan_range").value;
-                    var regexp = new RegExp(/ /);
-                    if(regexp.exec(name)){
-                        alert("URN Names can not contain spaces");
-                        return;
-                    }
-                    //validate vlan range
-                    var ranges = vlan_range.split(",");
-                    for (var i = 0; i < ranges.length; i++){
-                        var segment = ranges[i];
-                        if (! segment.match(/^\d+$/) && ! segment.match(/^\d+-\d+$/)){
-                            alert("You must specify a valid vlan range in the format \"1-3,5,7,8-10\"");
-                            return;
-                        }
-                    }
+                                    var vlan_range = YAHOO.util.Dom.get("remote_vlan_range").value;
+                                    var regexp = new RegExp(/ /);
+                                    if(regexp.exec(name)){
+                                        alert("URN Names can not contain spaces");
+                                        return;
+                                    }
+                                    //validate vlan range
+                                    var ranges = vlan_range.split(",");
+                                    for (var i = 0; i < ranges.length; i++){
+                                        var segment = ranges[i];
+                                        if (! segment.match(/^\d+$/) && ! segment.match(/^\d+-\d+$/)){
+                                            alert("You must specify a valid vlan range in the format \"1-3,5,7,8-10\"");
+                                            return;
+                                        }
+                                    }
 
 				    if (! urn){
-                        alert("You must specify a URN for this remote link.");
-                        return;
+                                        alert("You must specify a URN for this remote link.");
+                                        return;
 				    }
 				    
 				    if (! name){
-                        alert("You must specify a name for this link.");
-                        return;
+                                        alert("You must specify a name for this link.");
+                                        return;
 				    }
 
 				    this.set("disabled", true);
@@ -505,8 +508,8 @@ function removeRemoteLink(link_id, button){
 			       return;
 			   }
 
-			   setup_remote_tab();
-
+			   //setup_remote_tab();
+                           remote_link_table.getDataSource().sendRequest('', { success: remote_link_table.onDataReturnInitializeTable, scope: remote_link_table });
 		       },
 		       failure: function(req, resp){
 			   button.set("label", "Remove");
