@@ -309,6 +309,101 @@ function page_init(){
           
           p.setHeader("Traceroute");
           p.setBody("<p class='title summary'>Select Starting Endpoint:</p>"+
+                    "<div id='traceroute_endpoint_table'></div>"+
+                    "<div id='start_traceroute_button'></div>" +
+                    "<div style='display:none' id='traceroute_results'><p class='title summary'>Results:</p>"
+                    +"<div id='traceroute_results_table'> </div><p class='title summary'>Traceroute Status : <div id='trace_status'></div></p></div>");
+          
+
+          traceroute_panel = p;
+          traceroute_panel.render(document.body);
+
+          start_button = new YAHOO.widget.Button("start_traceroute_button", {label: "Start Traceroute", disabled: true });
+
+          var cols = [
+              {key: "interface", width: 250, label: "Interface", formatter: 
+               function(el, rec, col, data){
+                   el.innerHTML = rec.getData('node') + ' - ' + rec.getData('interface');
+               }
+               
+              },
+              {key:"description", width: 150, label: "Interface Description" , formatter: 
+               function(el,rec,col,data){
+                   el.innerHTML = rec.getData('interface_description');
+                   //console.log(data);
+
+               }
+              },
+              {key: "tag", width: 30, label: "VLAN", formatter: function(el, rec, col, data){
+                  if (data == -1){
+                      el.innerHTML = "<span style='font-size: 74%;'>Untagged</span>";
+                  }
+                  else {
+                      el.innerHTML = data;
+                  }
+              }
+              }
+              
+          ];
+          
+          var configs = {
+              //height: '130px'
+              selectionMode:'single'
+          };
+          
+
+
+          var ds = new YAHOO.util.DataSource([]);
+          ds.responseType = YAHOO.util.DataSource.TYPE_JSARRAY;
+
+          var endpoints = session.data.endpoints || [];
+
+          var traceroute_table = new YAHOO.widget.ScrollingDataTable("traceroute_endpoint_table",cols,ds,configs);
+
+          traceroute_table.subscribe("rowMouseoverEvent", traceroute_table.onEventHighlightRow);
+          traceroute_table.subscribe("rowMouseoutEvent", traceroute_table.onEventUnhighlightRow);
+          traceroute_table.subscribe("rowClickEvent", function (e){
+
+              var row = this.getTrEl(e.target);
+              var rec = this.getRecord(row);
+              if (row && rec){
+                  
+                  if (this.isSelected(rec)){
+                      this.unselectRow(rec);
+                      start_button.set("disabled",true);
+                  }
+                  else {
+                      var rows= this.getSelectedRows();
+                      for ( var i =0; i < rows.length; i++){
+                          var rowrec= this.getRecord(rows[i]);
+                          this.unselectRow(rowrec);
+                      }
+                      this.selectRow(rec);
+                      start_button.set("disabled",false);
+                  }
+             
+              }                                              
+          }
+                                                                  );
+
+
+          for (var i = 0; i < endpoints.length; i++){
+              
+              traceroute_table.addRow({
+                  interface: endpoints[i].interface, 
+                  interface_description: endpoints[i].interface_description, 
+                  node: endpoints[i].node, 
+                  tag: endpoints[i].tag, 
+                  urn: endpoints[i].urn,
+                  mac_addrs: endpoints[i].mac_addrs,
+                  vlan_tag_range: endpoints[i].vlan_tag_range,
+              });    
+
+          }
+
+          start_button.on("click", function(){
+              //first get circuit_id, node and interface name.
+
               start_button.set("disabled",true);
                                       var cols = [{key: "node", label:"Nodes Traversed", 
                                                    width: 150                                                   
@@ -325,6 +420,14 @@ function page_init(){
                                                        return true;
                                                    }
                                       };
+
+                                      var tmp_ds = new YAHOO.util.DataSource([]);
+                                      tmp_ds.responseType = YAHOO.util.DataSource.TYPE_JSARRAY;
+                                      var traceroute= YAHOO.util.Dom.get("traceroute_results_table");
+
+                                      var traceroute_results =  new YAHOO.widget.ScrollingDataTable('traceroute_results_table',cols,tmp_ds,configs);
+                                      
+                                      //successful request, lets start polling the status of the trace
                                       pollTracerouteStatus(traceroute_results,start_button);
                                   },
                                                      failure: function(req, resp){
