@@ -256,11 +256,11 @@ function setup_remote_tab(){
     };
 
     var columns = [
-        {key: "node", label: "Endpoint", minWidth: 120, sortable: true, formatter: function(el, rec, col, data){
+                   {key: "node", label: "Endpoint", minWidth: 120,maxWidth: 200, sortable: true, formatter: function(el, rec, col, data){
 		    el.innerHTML = rec.getData("node") + " - " + rec.getData("interface");
 	    }},
-		{key: "urn", label: "URN", sortable: true},
-		{key: "vlan_tag_range", label: "Vlan Range", sortable: true},
+        {key: "urn", label: "URN", width: 400, sortable: true},
+                   {key: "vlan_tag_range", label: "Vlan Range", maxWidth: 300, sortable: true},
 		{label: "Delete", formatter: function(el, rec, col, data){
             var b = new YAHOO.widget.Button({label: "Remove"});
             b.appendTo(el);
