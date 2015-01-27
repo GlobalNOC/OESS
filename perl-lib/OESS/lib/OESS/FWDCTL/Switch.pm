@@ -682,7 +682,9 @@ sub _actual_diff{
     if ($res == FWDCTL_SUCCESS) {
         $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} . " diff completed $total changes");
     } else {
+        $self->{'needs_diff'} = 1;
         $self->{'logger'}->error("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} . " diff did not complete");
+       
     }
     return $res;
 }
