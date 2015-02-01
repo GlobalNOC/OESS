@@ -37,8 +37,11 @@ cmp_deeply($users->[0], {
             'type' => 'normal',
             'family_name' => 'User 1',
             'auth_name' => [],
-            'first_name' => 'User 1'
+            'first_name' => 'User 1',
+            'status' => 'active'
           }, "User1 data matches");
+
+warn Dumper $users->[2];
 
 #find a user with a remote_auth set
 cmp_deeply($users->[2], {
@@ -49,5 +52,6 @@ cmp_deeply($users->[2], {
             'auth_name' => [
                              'aragusa'
                            ],
-            'first_name' => 'User 11'
+            'first_name' => 'User 11',
+            'status' => 'active'
 	   }, "User 11 data matches");

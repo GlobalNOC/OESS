@@ -64,7 +64,11 @@ sub main {
     }
 
     my $action = $cgi->param('action');
-
+    
+    my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
+    if ($user->{'status'} eq "decom") {
+        $action = "error";
+    }
     my $output;
 
     switch ($action) {
@@ -89,6 +93,9 @@ sub main {
         }
         case "get_existing_circuits" {
             $output = &get_existing_circuits();
+        }
+        case "get_circuits_by_interface_id" {
+            $output = &get_circuits_by_interface_id();
         }
         case "get_circuit_details" {
             $output = &get_circuit_details();
@@ -141,6 +148,10 @@ sub main {
         case "get_vlan_tag_range" {
             $output = &get_vlan_tag_range();
         }
+        case "error" {
+            $output->{'error'} = "Decom users cannot use webservices.";
+            $output->{'results'} = [];
+        }
         else {
             $output->{'error'}   = "Error: No Action specified";
             $output->{'results'} = [];
@@ -162,6 +173,21 @@ sub get_workgroups {
     }
     else {
         $results->{'results'} = $workgroups;
+    }
+
+    return $results;
+}
+
+sub get_circuits_by_interface_id {
+    my $interface_id = $cgi->param('interface_id');
+
+    my $results = { results => [] };
+    my $circuits = $db->get_circuits_by_interface_id( interface_id => $interface_id );
+    if ( !defined $circuits ) {
+        $results->{'error'} = $db->get_error();
+    }
+    else {
+        $results->{'results'} = $circuits;
     }
 
     return $results;
@@ -534,13 +560,14 @@ sub get_users_in_workgroup {
     my $results;
 
     my $workgroup_id = $cgi->param('workgroup_id');
+    my $order_by     = $cgi->param('order_by');
     my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
     if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
         $results->{'error'} = 'Error: you are not part of this workgroup';
         return $results;
     }
 
-    my $users = $db->get_users_in_workgroup( workgroup_id => $workgroup_id );
+    my $users = $db->get_users_in_workgroup( workgroup_id => $workgroup_id, order_by => $order_by );
 
     if ( !defined $users ) {
         $results->{'error'}   = $db->get_error();

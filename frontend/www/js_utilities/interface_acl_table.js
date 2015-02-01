@@ -80,14 +80,14 @@
             fields: ["success"],
             onSuccess: function(req, resp, index){
                 if(resp.results.length <= 0){
-                    alert("Save Unsuccessful");
+                    alert("Save Unsuccessful", null, { error: true });
                 }
                 var new_options = options;
                 new_options.enableDragDrop = interface_acl_table._dragDrop;
                 get_interface_acl_table(container_id, interface_id, new_options);
             },
             onFailure: function(req, resp, index) {
-                alert("Save Unsuccessful");
+                alert("Save Unsuccessful", null, { error: true });
                 var new_options = options;
                 new_options.enableDragDrop = interface_acl_table._dragDrop;
                 get_interface_acl_table(container_id, interface_id, new_options);

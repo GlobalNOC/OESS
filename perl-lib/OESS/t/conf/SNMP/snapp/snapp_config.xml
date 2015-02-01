@@ -1,5 +1,5 @@
 <snapp-config>
-  <db type="mysql" name="snapp_test" username="root" password="foobar" port="3306" host="localhost" collection_class_name="PerVlanPerInterface">
+  <db type="mysql" name="snapp_test" username="root" password="rcracer1" port="3306" host="localhost" collection_class_name="PerVlanPerInterface">
   </db>
   <control port="9967" enable_password="control-caos"></control>
 </snapp-config>

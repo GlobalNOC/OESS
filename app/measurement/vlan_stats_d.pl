@@ -246,9 +246,9 @@ sub create_rrd_file{
     my @rrd_str;
     push(@rrd_str,"-s " . $coll_class->{'collection_interval'});
     push(@rrd_str,"DS:input:DERIVE:" . $coll_class->{'collection_interval'} * 3 . ":0:11811160064");
-    push(@rrd_str,"DS:output:DERIVE:" . $coll_class->{'collection_interval'} * 3 . ":0:11811160064");
+    #push(@rrd_str,"DS:output:DERIVE:" . $coll_class->{'collection_interval'} * 3 . ":0:11811160064");
     push(@rrd_str,"DS:inUcast:DERIVE:" . $coll_class->{'collection_interval'} * 3 . ":0:11811160064");
-    push(@rrd_str,"DS:outUcast:DERIVE:" . $coll_class->{'collection_interval'} * 3 . ":0:11811160064");
+    #push(@rrd_str,"DS:outUcast:DERIVE:" . $coll_class->{'collection_interval'} * 3 . ":0:11811160064");
     
     foreach my $rra (@rras){
 	my $rows = ($rra->{'num_days'} * 60 * 60 * 24) / $coll_class->{'collection_interval'} / $rra->{'step'};
@@ -540,4 +540,5 @@ if($opt_f){
 	}
 	main();
     }
+    `chmod 0644 /var/run/oess/vlan_stats_d.pid`;
 }
