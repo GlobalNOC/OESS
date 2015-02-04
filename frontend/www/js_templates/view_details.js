@@ -317,7 +317,7 @@ function page_init(){
           traceroute_panel.render(document.body);
 
           start_button = new YAHOO.widget.Button("start_traceroute_button", {label: "Start Traceroute", disabled: true });
-          console.log("before cols");
+          
 
           var cols = [
               {key: "interface", width: 250, label: "Interface", formatter: 
@@ -329,8 +329,7 @@ function page_init(){
               {key:"description", width: 150, label: "Interface Description" , formatter: 
                function(el,rec,col,data){
                    el.innerHTML = rec.getData('interface_description');
-                   //console.log(data);
-                   console.log(rec);
+
                }
               },
               {key: "tag", width: 30, label: "VLAN", formatter: function(el, rec, col, data){
@@ -457,7 +456,7 @@ function page_init(){
                                       var tmp_ds = new YAHOO.util.DataSource([]);
                                       tmp_ds.responseType = YAHOO.util.DataSource.TYPE_JSARRAY;
                                       var traceroute= YAHOO.util.Dom.get("traceroute_results_table");
-                                      console.log(traceroute);
+
                                       var traceroute_results =  new YAHOO.widget.ScrollingDataTable('traceroute_results_table',cols,tmp_ds,configs);
                                       
                                       //successful request, lets start polling the status of the trace
