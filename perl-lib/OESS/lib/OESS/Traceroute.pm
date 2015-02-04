@@ -498,7 +498,7 @@ sub get_traceroute_transactions {
 
 }
 
-=head2
+=head2 add_traceroute_transaction
 
 adds entry into the in-memory hash for new traceroute.
 

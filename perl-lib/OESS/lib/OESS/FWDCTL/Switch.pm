@@ -718,10 +718,6 @@ sub _actual_diff{
     return $res;
 }
 
-sub compare_flowrules {
-    my $self = shift;
-
-}
 
 =head2 rules_per_switch
 
