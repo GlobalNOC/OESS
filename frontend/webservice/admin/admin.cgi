@@ -605,12 +605,13 @@ sub add_user {
     my $family_name = $cgi->param("family_name");
     my $email       = $cgi->param("email_address");
     my @auth_names  = $cgi->param("auth_name");
-
+    my $type         = $cgi->param("type");
     my $new_user_id = $db->add_user(
         given_name    => $given_name,
         family_name   => $family_name,
         email_address => $email,
-        auth_names    => \@auth_names
+        auth_names    => \@auth_names,
+        type          => $type
     );
 
     if ( !defined $new_user_id ) {

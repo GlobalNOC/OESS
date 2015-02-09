@@ -2819,6 +2819,7 @@ sub add_user {
     my $family_name = $args{'family_name'};
     my $email       = $args{'email_address'};
     my $auth_names  = $args{'auth_names'};
+    my $type        = $args{'type'};
 
     if(!defined($given_name) || !defined($family_name) || !defined($email) || !defined($auth_names)){
 	$self->_set_error("Invalid parameters to add user, please provide a given name, family name, email, and auth names");
@@ -2832,9 +2833,9 @@ sub add_user {
 
     $self->_start_transaction();
 
-    my $query = "insert into user (email, given_names, family_name) values (?, ?, ?)";
+    my $query = "insert into user (email, given_names, family_name, type) values (?, ?, ?, ?)";
 
-    my $user_id = $self->_execute_query($query, [$email, $given_name, $family_name]);
+    my $user_id = $self->_execute_query($query, [$email, $given_name, $family_name, $type]);
 
     if (! defined $user_id){
 	$self->_set_error("Unable to create new user.");
@@ -2959,7 +2960,6 @@ sub edit_user {
     my $email       = $args{'email_address'};
     my $auth_names  = $args{'auth_names'};
     my $type        = $args{'type'};
-    my $status      = $args{'status_of_user'};
     
     if ($given_name =~ /^system$/ || $family_name =~ /^system$/){
 	$self->_set_error("User 'system' is reserved.");
