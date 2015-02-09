@@ -5,6 +5,7 @@
 <script type='text/javascript' src='../js_utilities/misc_funcs.js'></script>
 
 <script>
+var add_new_user_to_workgroup = 0;
 function admin_init(){
 
     var tabs = new YAHOO.widget.TabView("admin_tabs", {orientation: "left"});
@@ -820,7 +821,10 @@ function setup_users_tab(){
 		ds.responseType   = YAHOO.util.DataSource.TYPE_JSON;
 		ds.responseSchema = {
 		    resultsList: "results",
-		    fields: [{key: "success"}],
+            fields: [
+			    {key: "success"},
+                {key: "user_id"}
+		    ],
 		    metaFields: {
 			error: "error"
 		    }
@@ -836,11 +840,60 @@ function setup_users_tab(){
 				       }
 				       else{
 					   YAHOO.util.Dom.get("user_status").innerHTML = "User saved successfully.";
-				       }
+                       user_id = resp.results[0].user_id;
+                       
 
-				       p.destroy();
+                       if (!add_new_user_to_workgroup) {
+				        p.destroy();
+				        setup_users_tab();
+                       }
 
-				       setup_users_tab();
+                       else{
+
+                                var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_user_to_workgroup&workgroup_id=" + add_new_user_to_workgroup + "&user_id="+ user_id);
+                                ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                                ds.responseSchema = {
+                                resultsList: "results",
+                                fields: [{key: "success"}],
+                                metaFields: { 
+                                        error: "error"
+                                }
+                                };
+                                
+                                ds.sendRequest("", 
+                                       {
+                                           success: function(req, resp){
+                                           //user_table.undisable();
+                                           if (resp.meta.error){
+                                               //YAHOO.util.Dom.get('add_result').innerHTML = "Error while adding user: " + resp.meta.error;
+                                               alert("User created, but error adding to workgroup requested.");
+                                               setup_users_tab();
+                                               p.destroy();
+                                               add_new_user_to_workgroup;
+                                           }
+                                           else{
+                                               //YAHOO.util.Dom.get('add_result').innerHTML = "User added successfully.";
+                                                p.destroy();
+                                                setup_users_tab();
+
+                                                add_new_user_to_workgroup = 0;
+                                           }
+                                           },
+                                           failure: function(req, resp){
+                                           
+                                            alert("User created, but server error in adding to workgroup requested.");
+
+                                            setup_users_tab();
+                                            p.destroy();
+                                            add_new_user_to_workgroup;
+                                            //user_table.undisable();
+                                           //YAHOO.util.Dom.get('add_result').innerHTML = "Server error while adding user to workgroup.";
+                                           }
+                                       }
+                                       );
+            
+                            }
+                        }
 				   },
 				   failure: function(reqp, resp){
 				       this.set("label", "Save");
@@ -849,6 +902,7 @@ function setup_users_tab(){
 				   },
 				   scope: this
 			       });
+
 
 	    });
 
@@ -1240,28 +1294,27 @@ function setup_workgroup_tab(){
 				}
 			    };
 
-			    ds.sendRequest("", 
-					   {
-					       success: function(req, resp){
-						   user_table.undisable();
-						   if (resp.meta.error){
-						       YAHOO.util.Dom.get('add_result').innerHTML = "Error while adding user: " + resp.meta.error;
-						   }
-						   else{
-						       YAHOO.util.Dom.get('add_result').innerHTML = "User added successfully.";
-						       workgroup_user_table.addRow({user_id: user_id,
-								                    first_name: first,
-								                    family_name: last
-								                    });
-						   }
-					       },
-					       failure: function(req, resp){
-						   user_table.undisable();
-						   YAHOO.util.Dom.get('add_result').innerHTML = "Server error while adding user to workgroup.";
-					       }
-					   }
-					   );
-							       
+                    ds.sendRequest("", 
+                           {
+                               success: function(req, resp){
+                               user_table.undisable();
+                               if (resp.meta.error){
+                                   YAHOO.util.Dom.get('add_result').innerHTML = "Error while adding user: " + resp.meta.error;
+                               }
+                               else{
+                                   YAHOO.util.Dom.get('add_result').innerHTML = "User added successfully.";
+                                   workgroup_user_table.addRow({user_id: user_id,
+                                                        first_name: first,
+                                                        family_name: last
+                                                        });
+                               }
+                               },
+                               failure: function(req, resp){
+                               user_table.undisable();
+                               YAHOO.util.Dom.get('add_result').innerHTML = "Server error while adding user to workgroup.";
+                               }
+                           }
+                           );
 
 			});
 
@@ -3482,32 +3535,6 @@ function makeUserWorkgroupTable(user_id,first_name,family_name) {
 		new_wg_p.hide();
 	    });
 
-	    
-            /*var searchTimeout;
-                
-                var search = new YAHOO.util.Element(YAHOO.util.Dom.get('workgroup_search'));
-                  
-                  search.on('keyup', function(e){
-		  
-	          var search_value = this.get('element').value;
-		  
-	          if (e.keyCode == YAHOO.util.KeyListener.KEY.ENTER){
-		  clearTimeout(searchTimeout);
-		  table_filter.call(table,search_value);
-	          }
-	          else{
-		  if (searchTimeout) clearTimeout(searchTimeout);
-		  
-		  searchTimeout = setTimeout(function(){
-		  table_filter.call(table,search_value);
-		  }, 400);
-		  
-	          } 
-	          
-	          }
-	          );*/
-                
-	        
                 var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_workgroups");
 
                 ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
@@ -3533,7 +3560,7 @@ function makeUserWorkgroupTable(user_id,first_name,family_name) {
                 };
 
 
-                var my_wg_table = new YAHOO.widget.DataTable("add_new_user_workgroup_table", columns, ds, config);
+            var my_wg_table = new YAHOO.widget.DataTable("add_new_user_workgroup_table", columns, ds, config);
 
             my_wg_table.subscribe("rowMouseoverEvent", my_wg_table.onEventHighlightRow);
             my_wg_table.subscribe("rowMouseoutEvent", my_wg_table.onEventUnhighlightRow);
@@ -3563,26 +3590,31 @@ function makeUserWorkgroupTable(user_id,first_name,family_name) {
 		    }
 		};
 
-		ds.sendRequest("", 
-			       {
-				   success: function(req, resp){
-				       my_wg_table.undisable();
-				       if (resp.meta.error){
-					   YAHOO.util.Dom.get('add_result').innerHTML = "Error while adding user: " + resp.meta.error;
-				       }
-				       else{
-					   YAHOO.util.Dom.get('add_result').innerHTML = "User added successfully.";
-                                           table.addRow({name:record.getData('name'),});
-				       }
-				   },
-				   failure: function(req, resp){
-				       my_wg_table.undisable();
-				       YAHOO.util.Dom.get('add_result').innerHTML = "Server error while adding user to workgroup.";
-				   }
-			       }
-			      );
+        if (!user_id){
+        add_new_user_to_workgroup =  workgroup_id;
+        YAHOO.util.Dom.get('add_result').innerHTML = "Workgroup request received. User will be added to workgroup when user is created."
+        }
+        else {
+            ds.sendRequest("", 
+                       {
+                       success: function(req, resp){
+                           my_wg_table.undisable();
+                           if (resp.meta.error){
+                           YAHOO.util.Dom.get('add_result').innerHTML = "Error while adding user: " + resp.meta.error;
+                           }
+                           else{
+                           YAHOO.util.Dom.get('add_result').innerHTML = "User added successfully.";
+                                               table.addRow({name:record.getData('name'),});
+                           }
+                       },
+                       failure: function(req, resp){
+                           my_wg_table.undisable();
+                           YAHOO.util.Dom.get('add_result').innerHTML = "Server error while adding user to workgroup.";
+                       }
+                       }
+                      );
 		
-
+        }
 	    });
 
 	});

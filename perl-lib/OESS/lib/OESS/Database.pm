@@ -2709,7 +2709,6 @@ sub add_user_to_workgroup {
 
     my $user_id      = $args{'user_id'};
     my $workgroup_id = $args{'workgroup_id'};
-
     if(!defined($user_id)){
 	return;
     }

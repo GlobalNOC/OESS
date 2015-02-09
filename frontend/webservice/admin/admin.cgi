@@ -559,7 +559,6 @@ sub add_user_to_workgroup {
 
     my $user_id = $cgi->param('user_id');
     my $wg_id   = $cgi->param('workgroup_id');
-
     my $result = $db->add_user_to_workgroup(
         user_id      => $user_id,
         workgroup_id => $wg_id
