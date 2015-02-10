@@ -5138,7 +5138,7 @@ sub get_remote_links {
     my $self = shift;
     my %args = @_;
 
-    my $query = "select link.link_id, link.remote_urn, link.vlan_tag_range, node.name as node_name, interface.name as int_name from link " .
+    my $query = "select link.link_id, link.name as link_name, link.remote_urn, link.vlan_tag_range, node.name as node_name, interface.name as int_name, interface.interface_id as int_id from link " .
 	" join link_instantiation on link.link_id = link_instantiation.link_id " .
 	" join interface on interface.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id) " .
 	" join interface_instantiation on interface.interface_id = interface_instantiation.interface_id " .
@@ -5160,8 +5160,10 @@ sub get_remote_links {
     foreach my $row (@$rows){
         push (@results, {
             "link_id"        => $row->{'link_id'},
+            "link_name"      => $row->{'link_name'},
             "node"           => $row->{'node_name'},
             "interface"      => $row->{'int_name'},
+            "interface_id"   => $row->{'int_id'},
             "urn"            => $row->{'remote_urn'},
             "vlan_tag_range" => $row->{'vlan_tag_range'}
         });

@@ -97,7 +97,7 @@ configuration details.  The config file should look like this...
   topo="http://ndb7.net.internet2.edu:8012/perfSONAR_PS/services/topology"/>
 </config>
 
-At this point OESS is configured, but services like 
+At this point OESS is configured, but services like SNAPP are not. 
 
 
 
@@ -116,7 +116,7 @@ V  \
         `. `-_     ``--..''       _.-' ,'
           `-_ `-.___        __,--'   ,'
              `-.__  `----"""    __.-'
-hh                `--..____..--' _
+                  `--..____..--' _
 
 
 7. Where to go for Help

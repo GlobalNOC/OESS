@@ -425,27 +425,24 @@ function setup_remote_tab(){
                         return;
 				    }
 
-				    this.set("disabled", true);
-				    this.set("label", "Adding Remote URN...");
+                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_remote_links");
+                    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                    ds.responseSchema = {
+                        resultsList: "results",
+                        fields: [
+                            {key: "link_id", parser: "number"},
+                            {key: "node"}, 
+                            {key: "interface"},
+                            {key: "interface_id"},
+                            {key: "urn"},
+                            {key: "vlan_tag_range"},
+                            {key: "link_name"}
+                        ],
+                        metaFields: {
+                            error: "error"
+                        }
+                    };
 
-				    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_remote_link" +
-								       "&interface_id=" + interface_id +
-								       "&urn=" + encodeURIComponent(urn) + 
-								       "&name=" + encodeURIComponent(name) +
-								       "&vlan_tag_range=" + encodeURIComponent(vlan_range)
-								       );
-
-				    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-				    ds.responseSchema = {
-					resultsList: "results",
-					fields: [{key: "success"}],
-					metaFields: {
-					    error: "error"
-					}
-				    };
-
-				    YAHOO.util.Dom.get("add_remote_status").innerHTML = "";
-				    
 				    ds.sendRequest("",
 						   {
 						       success: function(req, resp){
@@ -453,24 +450,120 @@ function setup_remote_tab(){
 							   this.set("disabled", false);	
 
 							   if (resp.meta.error){
-							       YAHOO.util.Dom.get("add_remote_status").innerHTML = "Error: " + resp.meta.error;
 							   }
 							   else {
-							       YAHOO.util.Dom.get("add_remote_status").innerHTML = "Remote URN saved successfully.";
-							       urn_panel.destroy();
-							       remote_link_table.getDataSource().sendRequest("", {success: remote_link_table.onDataReturnInitializeTable, scope: remote_link_table});
-							   }
-						       },
-						       failure: function(req, resp){
-							   this.set("label", "Add");
-							   this.set("disabled", false);
-							   alert("Server error while adding remote link.");
-						       },
-						       scope: this
-						   }
-						   );
+                                    var index;
+                                    var alert_same;
+                                    var name_conflict;
+                                    var alert_message = "Warning! Duplicate remote link information found on interface " + interface_name + "!<br/><br/>";
+                                    for (index = 0; index < resp.results.length; ++index){
+                                        if (resp.results[index].vlan_tag_range == vlan_range && resp.results[index].interface_id == interface_id){
+                                            alert_same = 1;
+                                            alert_message += "Link '" + name + "' has the same vlan_range as the link you are trying to create!<br/>"
+                                        }
+                                        if (resp.results[index].urn == urn && resp.results[index].interface_id == interface_id){
+                                            alert_same =1;
+                                            alert_message += "Link '" + name + "' has the same urn as the link you are trying to create!<br/>";
+                                        }
 
-				});
+                                        if (resp.results[index].link_name ==name && resp.results[index].interface_id == interface_id){
+                                            name_conflict = 1;
+                                        }
+
+                                    }
+
+                                    
+                                    if (alert_same){
+
+
+                                        if (name_conflict){
+                                            name_conflict = 0;
+                                            alert("You cannot create a link with this name: '" + name + "' <br/>Duplicate name found.");
+                                        }
+                                        else{
+                                            alert_message += "Are you sure you want to create this link with duplicate information?";
+                                            showConfirm(alert_message, 
+                                                   function(){
+
+                                                        add_the_link(save_button);
+                                                   }, 
+                                                   function(){
+                                                   });
+                                        }
+                                    }
+                                    else {
+                                        if (name_conflict){
+                                            name_conflict = 0;
+                                            alert("You cannot create a link with this name: '" + name + "' <br/>Duplicate name found.");
+                                        }
+                                        else{
+                                            add_the_link(save_button);
+                                        }
+                                    }
+
+                                    function add_the_link(save_button){ 
+                                        save_button.set("disabled", true);
+                                        save_button.set("label", "Adding Remote URN...");
+
+                                        var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_remote_link" +
+                                                           "&interface_id=" + interface_id +
+                                                           "&urn=" + encodeURIComponent(urn) + 
+                                                           "&name=" + encodeURIComponent(name) +
+                                                           "&vlan_tag_range=" + encodeURIComponent(vlan_range)
+                                                           );
+
+                                        ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                                        ds.responseSchema = {
+                                        resultsList: "results",
+                                        fields: [{key: "success"}],
+                                        metaFields: {
+                                            error: "error"
+                                        }
+                                        };
+
+                                        YAHOO.util.Dom.get("add_remote_status").innerHTML = "";
+                                        
+                                        ds.sendRequest("",
+                                               {
+                                                   success: function(req, resp){
+                                                   save_button.set("label", "Add");
+                                                   save_button.set("disabled", false);	
+
+                                                   if (resp.meta.error){
+                                                       YAHOO.util.Dom.get("add_remote_status").innerHTML = "Error: " + resp.meta.error;
+                                                       alert_same = 0;
+                                                   }
+                                                   else {
+                                                       YAHOO.util.Dom.get("add_remote_status").innerHTML = "Remote URN saved successfully.";
+                                                       urn_panel.destroy();
+                                                       remote_link_table.getDataSource().sendRequest("", {success: remote_link_table.onDataReturnInitializeTable, scope: remote_link_table});
+                                                       alert_same = 0;
+                                                   }
+                                                   },
+                                                   failure: function(req, resp){
+                                                   save_button.set("label", "Add");
+                                                   save_button.set("disabled", false);
+                                                   alert("Server error while adding remote link.");
+                                                   alert_same=0;
+                                                   },
+                                                   scope: save_button
+                                               }
+                                               );
+
+                                               }
+                                                }
+                                               },
+                                               failure: function(req, resp){
+                                               save_button.set("label", "Add");
+                                               save_button.set("disabled", false);
+                                               alert("Server error while checking for remote link conflicts.");
+                                               },
+                                               scope: save_button
+                                           }
+                                           );
+
+
+				    });
 			    
 			    urn_panel.show();			    
 
