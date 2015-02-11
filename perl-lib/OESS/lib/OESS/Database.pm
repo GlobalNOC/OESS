@@ -2709,7 +2709,6 @@ sub add_user_to_workgroup {
 
     my $user_id      = $args{'user_id'};
     my $workgroup_id = $args{'workgroup_id'};
-
     if(!defined($user_id)){
 	return;
     }
@@ -2819,6 +2818,7 @@ sub add_user {
     my $family_name = $args{'family_name'};
     my $email       = $args{'email_address'};
     my $auth_names  = $args{'auth_names'};
+    my $type        = $args{'type'};
 
     if(!defined($given_name) || !defined($family_name) || !defined($email) || !defined($auth_names)){
 	$self->_set_error("Invalid parameters to add user, please provide a given name, family name, email, and auth names");
@@ -2832,9 +2832,9 @@ sub add_user {
 
     $self->_start_transaction();
 
-    my $query = "insert into user (email, given_names, family_name) values (?, ?, ?)";
+    my $query = "insert into user (email, given_names, family_name, type) values (?, ?, ?, ?)";
 
-    my $user_id = $self->_execute_query($query, [$email, $given_name, $family_name]);
+    my $user_id = $self->_execute_query($query, [$email, $given_name, $family_name, $type]);
 
     if (! defined $user_id){
 	$self->_set_error("Unable to create new user.");
@@ -2959,7 +2959,6 @@ sub edit_user {
     my $email       = $args{'email_address'};
     my $auth_names  = $args{'auth_names'};
     my $type        = $args{'type'};
-    my $status      = $args{'status_of_user'};
     
     if ($given_name =~ /^system$/ || $family_name =~ /^system$/){
 	$self->_set_error("User 'system' is reserved.");
@@ -2968,9 +2967,9 @@ sub edit_user {
 
     $self->_start_transaction();
 
-    my $query = "update user set email = ?, given_names = ?, family_name = ?, type =?, status =?  where user_id = ?";
+    my $query = "update user set email = ?, given_names = ?, family_name = ?, type =?  where user_id = ?";
 
-    my $result = $self->_execute_query($query, [$email, $given_name, $family_name,$type, $status, $user_id]);
+    my $result = $self->_execute_query($query, [$email, $given_name, $family_name,$type,  $user_id]);
 
     if (! defined $user_id || $result == 0){
 	$self->_set_error("Unable to edit user - does this user actually exist?");
@@ -5139,7 +5138,7 @@ sub get_remote_links {
     my $self = shift;
     my %args = @_;
 
-    my $query = "select link.link_id, link.remote_urn, link.vlan_tag_range, node.name as node_name, interface.name as int_name from link " .
+    my $query = "select link.link_id, link.name as link_name, link.remote_urn, link.vlan_tag_range, node.name as node_name, interface.name as int_name, interface.interface_id as int_id from link " .
 	" join link_instantiation on link.link_id = link_instantiation.link_id " .
 	" join interface on interface.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id) " .
 	" join interface_instantiation on interface.interface_id = interface_instantiation.interface_id " .
@@ -5161,8 +5160,10 @@ sub get_remote_links {
     foreach my $row (@$rows){
         push (@results, {
             "link_id"        => $row->{'link_id'},
+            "link_name"      => $row->{'link_name'},
             "node"           => $row->{'node_name'},
             "interface"      => $row->{'int_name'},
+            "interface_id"   => $row->{'int_id'},
             "urn"            => $row->{'remote_urn'},
             "vlan_tag_range" => $row->{'vlan_tag_range'}
         });

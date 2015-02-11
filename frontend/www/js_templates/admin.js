@@ -5,7 +5,8 @@
 <script type='text/javascript' src='../js_utilities/misc_funcs.js'></script>
 
 <script>
-     var remote_link_table;
+var add_new_user_to_workgroup = 0;
+var remote_link_table;
 function admin_init(){
 
     var tabs = new YAHOO.widget.TabView("admin_tabs", {orientation: "left"});
@@ -427,27 +428,24 @@ function setup_remote_tab(){
                                         return;
 				    }
 
-				    this.set("disabled", true);
-				    this.set("label", "Adding Remote URN...");
+                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_remote_links");
+                    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                    ds.responseSchema = {
+                        resultsList: "results",
+                        fields: [
+                            {key: "link_id", parser: "number"},
+                            {key: "node"}, 
+                            {key: "interface"},
+                            {key: "interface_id"},
+                            {key: "urn"},
+                            {key: "vlan_tag_range"},
+                            {key: "link_name"}
+                        ],
+                        metaFields: {
+                            error: "error"
+                        }
+                    };
 
-				    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_remote_link" +
-								       "&interface_id=" + interface_id +
-								       "&urn=" + encodeURIComponent(urn) + 
-								       "&name=" + encodeURIComponent(name) +
-								       "&vlan_tag_range=" + encodeURIComponent(vlan_range)
-								       );
-
-				    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-				    ds.responseSchema = {
-					resultsList: "results",
-					fields: [{key: "success"}],
-					metaFields: {
-					    error: "error"
-					}
-				    };
-
-				    YAHOO.util.Dom.get("add_remote_status").innerHTML = "";
-				    
 				    ds.sendRequest("",
 						   {
 						       success: function(req, resp){
@@ -455,24 +453,120 @@ function setup_remote_tab(){
 							   this.set("disabled", false);	
 
 							   if (resp.meta.error){
-							       YAHOO.util.Dom.get("add_remote_status").innerHTML = "Error: " + resp.meta.error;
 							   }
 							   else {
-							       YAHOO.util.Dom.get("add_remote_status").innerHTML = "Remote URN saved successfully.";
-							       urn_panel.destroy();
-							       remote_link_table.getDataSource().sendRequest("", {success: remote_link_table.onDataReturnInitializeTable, scope: remote_link_table});
-							   }
-						       },
-						       failure: function(req, resp){
-							   this.set("label", "Add");
-							   this.set("disabled", false);
-							   alert("Server error while adding remote link.");
-						       },
-						       scope: this
-						   }
-						   );
+                                    var index;
+                                    var alert_same;
+                                    var name_conflict;
+                                    var alert_message = "Warning! Duplicate remote link information found on interface " + interface_name + "!<br/><br/>";
+                                    for (index = 0; index < resp.results.length; ++index){
+                                        if (resp.results[index].vlan_tag_range == vlan_range && resp.results[index].interface_id == interface_id){
+                                            alert_same = 1;
+                                            alert_message += "Link '" + name + "' has the same vlan_range as the link you are trying to create!<br/>"
+                                        }
+                                        if (resp.results[index].urn == urn && resp.results[index].interface_id == interface_id){
+                                            alert_same =1;
+                                            alert_message += "Link '" + name + "' has the same urn as the link you are trying to create!<br/>";
+                                        }
 
-				});
+                                        if (resp.results[index].link_name ==name && resp.results[index].interface_id == interface_id){
+                                            name_conflict = 1;
+                                        }
+
+                                    }
+
+                                    
+                                    if (alert_same){
+
+
+                                        if (name_conflict){
+                                            name_conflict = 0;
+                                            alert("You cannot create a link with this name: '" + name + "' <br/>Duplicate name found.");
+                                        }
+                                        else{
+                                            alert_message += "Are you sure you want to create this link with duplicate information?";
+                                            showConfirm(alert_message, 
+                                                   function(){
+
+                                                        add_the_link(save_button);
+                                                   }, 
+                                                   function(){
+                                                   });
+                                        }
+                                    }
+                                    else {
+                                        if (name_conflict){
+                                            name_conflict = 0;
+                                            alert("You cannot create a link with this name: '" + name + "' <br/>Duplicate name found.");
+                                        }
+                                        else{
+                                            add_the_link(save_button);
+                                        }
+                                    }
+
+                                    function add_the_link(save_button){ 
+                                        save_button.set("disabled", true);
+                                        save_button.set("label", "Adding Remote URN...");
+
+                                        var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_remote_link" +
+                                                           "&interface_id=" + interface_id +
+                                                           "&urn=" + encodeURIComponent(urn) + 
+                                                           "&name=" + encodeURIComponent(name) +
+                                                           "&vlan_tag_range=" + encodeURIComponent(vlan_range)
+                                                           );
+
+                                        ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                                        ds.responseSchema = {
+                                        resultsList: "results",
+                                        fields: [{key: "success"}],
+                                        metaFields: {
+                                            error: "error"
+                                        }
+                                        };
+
+                                        YAHOO.util.Dom.get("add_remote_status").innerHTML = "";
+                                        
+                                        ds.sendRequest("",
+                                               {
+                                                   success: function(req, resp){
+                                                   save_button.set("label", "Add");
+                                                   save_button.set("disabled", false);	
+
+                                                   if (resp.meta.error){
+                                                       YAHOO.util.Dom.get("add_remote_status").innerHTML = "Error: " + resp.meta.error;
+                                                       alert_same = 0;
+                                                   }
+                                                   else {
+                                                       YAHOO.util.Dom.get("add_remote_status").innerHTML = "Remote URN saved successfully.";
+                                                       urn_panel.destroy();
+                                                       remote_link_table.getDataSource().sendRequest("", {success: remote_link_table.onDataReturnInitializeTable, scope: remote_link_table});
+                                                       alert_same = 0;
+                                                   }
+                                                   },
+                                                   failure: function(req, resp){
+                                                   save_button.set("label", "Add");
+                                                   save_button.set("disabled", false);
+                                                   alert("Server error while adding remote link.");
+                                                   alert_same=0;
+                                                   },
+                                                   scope: save_button
+                                               }
+                                               );
+
+                                               }
+                                                }
+                                               },
+                                               failure: function(req, resp){
+                                               save_button.set("label", "Add");
+                                               save_button.set("disabled", false);
+                                               alert("Server error while checking for remote link conflicts.");
+                                               },
+                                               scope: save_button
+                                           }
+                                           );
+
+
+				    });
 			    
 			    urn_panel.show();			    
 
@@ -823,7 +917,10 @@ function setup_users_tab(){
 		ds.responseType   = YAHOO.util.DataSource.TYPE_JSON;
 		ds.responseSchema = {
 		    resultsList: "results",
-		    fields: [{key: "success"}],
+            fields: [
+			    {key: "success"},
+                {key: "user_id"}
+		    ],
 		    metaFields: {
 			error: "error"
 		    }
@@ -839,11 +936,60 @@ function setup_users_tab(){
 				       }
 				       else{
 					   YAHOO.util.Dom.get("user_status").innerHTML = "User saved successfully.";
-				       }
+                       user_id = resp.results[0].user_id;
+                       
 
-				       p.destroy();
+                       if (!add_new_user_to_workgroup) {
+				        p.destroy();
+				        setup_users_tab();
+                       }
 
-				       setup_users_tab();
+                       else{
+
+                                var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_user_to_workgroup&workgroup_id=" + add_new_user_to_workgroup + "&user_id="+ user_id);
+                                ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                                ds.responseSchema = {
+                                resultsList: "results",
+                                fields: [{key: "success"}],
+                                metaFields: { 
+                                        error: "error"
+                                }
+                                };
+                                
+                                ds.sendRequest("", 
+                                       {
+                                           success: function(req, resp){
+                                           //user_table.undisable();
+                                           if (resp.meta.error){
+                                               //YAHOO.util.Dom.get('add_result').innerHTML = "Error while adding user: " + resp.meta.error;
+                                               alert("User created, but error adding to workgroup requested.");
+                                               setup_users_tab();
+                                               p.destroy();
+                                               add_new_user_to_workgroup;
+                                           }
+                                           else{
+                                               //YAHOO.util.Dom.get('add_result').innerHTML = "User added successfully.";
+                                                p.destroy();
+                                                setup_users_tab();
+
+                                                add_new_user_to_workgroup = 0;
+                                           }
+                                           },
+                                           failure: function(req, resp){
+                                           
+                                            alert("User created, but server error in adding to workgroup requested.");
+
+                                            setup_users_tab();
+                                            p.destroy();
+                                            add_new_user_to_workgroup;
+                                            //user_table.undisable();
+                                           //YAHOO.util.Dom.get('add_result').innerHTML = "Server error while adding user to workgroup.";
+                                           }
+                                       }
+                                       );
+            
+                            }
+                        }
 				   },
 				   failure: function(reqp, resp){
 				       this.set("label", "Save");
@@ -852,6 +998,7 @@ function setup_users_tab(){
 				   },
 				   scope: this
 			       });
+
 
 	    });
 
@@ -1243,28 +1390,27 @@ function setup_workgroup_tab(){
 				}
 			    };
 
-			    ds.sendRequest("", 
-					   {
-					       success: function(req, resp){
-						   user_table.undisable();
-						   if (resp.meta.error){
-						       YAHOO.util.Dom.get('add_result').innerHTML = "Error while adding user: " + resp.meta.error;
-						   }
-						   else{
-						       YAHOO.util.Dom.get('add_result').innerHTML = "User added successfully.";
-						       workgroup_user_table.addRow({user_id: user_id,
-								                    first_name: first,
-								                    family_name: last
-								                    });
-						   }
-					       },
-					       failure: function(req, resp){
-						   user_table.undisable();
-						   YAHOO.util.Dom.get('add_result').innerHTML = "Server error while adding user to workgroup.";
-					       }
-					   }
-					   );
-							       
+                    ds.sendRequest("", 
+                           {
+                               success: function(req, resp){
+                               user_table.undisable();
+                               if (resp.meta.error){
+                                   YAHOO.util.Dom.get('add_result').innerHTML = "Error while adding user: " + resp.meta.error;
+                               }
+                               else{
+                                   YAHOO.util.Dom.get('add_result').innerHTML = "User added successfully.";
+                                   workgroup_user_table.addRow({user_id: user_id,
+                                                        first_name: first,
+                                                        family_name: last
+                                                        });
+                               }
+                               },
+                               failure: function(req, resp){
+                               user_table.undisable();
+                               YAHOO.util.Dom.get('add_result').innerHTML = "Server error while adding user to workgroup.";
+                               }
+                           }
+                           );
 
 			});
 
@@ -3485,32 +3631,6 @@ function makeUserWorkgroupTable(user_id,first_name,family_name) {
 		new_wg_p.hide();
 	    });
 
-	    
-            /*var searchTimeout;
-                
-                var search = new YAHOO.util.Element(YAHOO.util.Dom.get('workgroup_search'));
-                  
-                  search.on('keyup', function(e){
-		  
-	          var search_value = this.get('element').value;
-		  
-	          if (e.keyCode == YAHOO.util.KeyListener.KEY.ENTER){
-		  clearTimeout(searchTimeout);
-		  table_filter.call(table,search_value);
-	          }
-	          else{
-		  if (searchTimeout) clearTimeout(searchTimeout);
-		  
-		  searchTimeout = setTimeout(function(){
-		  table_filter.call(table,search_value);
-		  }, 400);
-		  
-	          } 
-	          
-	          }
-	          );*/
-                
-	        
                 var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_workgroups");
 
                 ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
@@ -3536,7 +3656,7 @@ function makeUserWorkgroupTable(user_id,first_name,family_name) {
                 };
 
 
-                var my_wg_table = new YAHOO.widget.DataTable("add_new_user_workgroup_table", columns, ds, config);
+            var my_wg_table = new YAHOO.widget.DataTable("add_new_user_workgroup_table", columns, ds, config);
 
             my_wg_table.subscribe("rowMouseoverEvent", my_wg_table.onEventHighlightRow);
             my_wg_table.subscribe("rowMouseoutEvent", my_wg_table.onEventUnhighlightRow);
@@ -3566,26 +3686,31 @@ function makeUserWorkgroupTable(user_id,first_name,family_name) {
 		    }
 		};
 
-		ds.sendRequest("", 
-			       {
-				   success: function(req, resp){
-				       my_wg_table.undisable();
-				       if (resp.meta.error){
-					   YAHOO.util.Dom.get('add_result').innerHTML = "Error while adding user: " + resp.meta.error;
-				       }
-				       else{
-					   YAHOO.util.Dom.get('add_result').innerHTML = "User added successfully.";
-                                           table.addRow({name:record.getData('name'),});
-				       }
-				   },
-				   failure: function(req, resp){
-				       my_wg_table.undisable();
-				       YAHOO.util.Dom.get('add_result').innerHTML = "Server error while adding user to workgroup.";
-				   }
-			       }
-			      );
+        if (!user_id){
+        add_new_user_to_workgroup =  workgroup_id;
+        YAHOO.util.Dom.get('add_result').innerHTML = "Workgroup request received. User will be added to workgroup when user is created."
+        }
+        else {
+            ds.sendRequest("", 
+                       {
+                       success: function(req, resp){
+                           my_wg_table.undisable();
+                           if (resp.meta.error){
+                           YAHOO.util.Dom.get('add_result').innerHTML = "Error while adding user: " + resp.meta.error;
+                           }
+                           else{
+                           YAHOO.util.Dom.get('add_result').innerHTML = "User added successfully.";
+                                               table.addRow({name:record.getData('name'),});
+                           }
+                       },
+                       failure: function(req, resp){
+                           my_wg_table.undisable();
+                           YAHOO.util.Dom.get('add_result').innerHTML = "Server error while adding user to workgroup.";
+                       }
+                       }
+                      );
 		
-
+        }
 	    });
 
 	});
