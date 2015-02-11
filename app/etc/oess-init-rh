@@ -26,11 +26,11 @@ fi
 case "$1" in
   start)
         #start
-	/etc/init.d/oess-topo start && /etc/init.d/oess-vlan_stats start && /etc/init.d/nox_cored start && /etc/init.d/oess-fwdctl start && /etc/init.d/oess-notification start && /etc/init.d/oess-fvd start && /etc/init.d/oess-watchdog start
+	/etc/init.d/oess-topo start && /etc/init.d/oess-vlan_stats start && /etc/init.d/nox_cored start && /etc/init.d/oess-fwdctl start && /etc/init.d/oess-notification start && /etc/init.d/oess-fvd start && /etc/init.d/oess-watchdog start &&/etc/init.d/oess-traceroute start
         ;;
   stop)
         #stop
-	/etc/init.d/oess-topo stop && /etc/init.d/oess-vlan_stats stop && /etc/init.d/nox_cored stop &&	/etc/init.d/oess-fwdctl stop &&	/etc/init.d/oess-notification stop && /etc/init.d/oess-fvd stop && /etc/init.d/oess-watchdog stop
+	/etc/init.d/oess-topo stop && /etc/init.d/oess-vlan_stats stop && /etc/init.d/nox_cored stop &&	/etc/init.d/oess-fwdctl stop &&	/etc/init.d/oess-notification stop && /etc/init.d/oess-fvd stop && /etc/init.d/oess-watchdog stop &&/etc/init.d/oess-traceroute stop
         ;;
   status)
         #status p0f
@@ -41,6 +41,7 @@ case "$1" in
 	/etc/init.d/oess-notification status
 	/etc/init.d/oess-fvd status
         /etc/init.d/oess-watchdog status
+        /etc/init.d/oess-traceroute status
         ;;
 
   restart)

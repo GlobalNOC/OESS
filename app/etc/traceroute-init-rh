@@ -1,10 +1,10 @@
 #!/bin/bash
 #
-# Startup script for the OESS Forwarding Controller
+# Startup script for the OESS Traceroute Daemon
 #
 # chkconfig: 2345 81 30
-# description: OE-SS Fowarding Verification daemon - it listens to events from NOX and other applications to determine forwarding state of backbone links
-# processname: /usr/bin/oess-fvd.pl
+# description: OE-SS Traceroute Daemon - it listens for requests to trace the path of a circuit and injects rules and flow rules to mimic traceroute functionality.
+# processname: /usr/bin/oess-traceroute.pl
 
 #THIS FILE REQUIRES EDITING FOR CORRECT OPERATION
 #EDIT the variables name and basedir!
@@ -24,9 +24,9 @@ fi
 
 # Check that networking is up.
 [ ${NETWORKING} = "no" ] && exit 0
-name=fvd
+name=traceroute
 exec_file=/usr/bin/oess-$name.pl
-options=" "
+options="-d"
 username=_oess
 lockfile=/var/lock/subsys/$name
 command="$exec_file -u $username $options"

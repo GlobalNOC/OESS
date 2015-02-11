@@ -97,7 +97,34 @@ configuration details.  The config file should look like this...
   topo="http://ndb7.net.internet2.edu:8012/perfSONAR_PS/services/topology"/>
 </config>
 
-At this point OESS is configured, but services like SNAPP are not. 
+At this point OESS is configured, but services like SNAPP are not. To set them up, you'll need 
+to first set up the snapp database.  The SQL file for this will be located in /usr/share/oess-core/ 
+and will be called snapp.mysql.sql.  Insert it into a database called snapp. If you don't already,
+create a user called snapp for the database, and within SQL, run:
+
+    `GRANT ALL PRIVILEGES ON snapp.* to 'snapp'\@'localhost'`
+
+Afterwards, you will need to go and create a config file for SNAPP. Run these commands:
+
+    `/bin/mkdir -p /SNMP/snapp`
+
+Then with your favorite text editor, create an xml file at this location:
+
+    `/SNMP/snapp/snapp_config.xml`
+
+Add this in there for the configuration.  Don't forget to replace the password field with your database password!
+
+<snapp-config>
+  <db type="mysql" name="snapp" username="snapp" password="$snapp_pass" port="3306" host="localhost" collection_class_name="PerVlanPerInterface">
+    </db>
+      <control port="9967" enable_password="control-caos"></control>
+</snapp-config>
+
+Now, for SNAPP to be of any use to you, you will need to set up a location for the rrd files.  To set that up, run these commands.
+
+    `/bin/mkdir /SNMP/snapp/db/`
+
+    `/bin/chown _snapp:_snapp /SNMP/snapp/db/ -R`
 
 
 

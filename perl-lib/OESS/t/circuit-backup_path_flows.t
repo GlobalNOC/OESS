@@ -34,7 +34,7 @@ ok($ckt->has_backup_path(), "Circuit has backup path");
 my $flows = $ckt->get_flows();
 
 
-ok(scalar(@$flows) == 24, "Total number of flows match " . scalar(@$flows));
+ok(scalar(@$flows) == 26, "Total number of flows match " . scalar(@$flows));
 
 my @expected_flows;
 
@@ -357,6 +357,32 @@ push(@expected_flows, OESS::FlowRule->new( 'actions' => [
                                                'dl_vlan' => 140,
                                                'in_port' => '2'
                                            }));
+
+push(@expected_flows, OESS::FlowRule->new(
+    'actions' => [
+        {'set_vlan_vid' => '4090'},
+        {'output' => '677'}
+    ],
+    'idle_timeout' => 0,
+    'dpid' => '155569080320',
+    'match' => {
+        'dl_vlan' => 152,
+        'in_port' => '97'
+    }
+));
+
+push(@expected_flows, OESS::FlowRule->new(
+    'actions' => [
+        {'set_vlan_vid' => '2055'},
+        {'output' => '676'}
+    ],
+    'idle_timeout' => 0,
+    'dpid' => '155568668928',
+    'match' => {
+        'dl_vlan' => 141,
+        'in_port' => '1'
+    }
+));
 
 my $failed_flow_compare = 0;
 foreach my $actual_flow (@$flows){
