@@ -1466,13 +1466,13 @@ function setup_workgroup_tab(){
         });
 
 	    p.setHeader("New Workgroup");
-	    p.setBody("Name: <input type='text' id='new_workgroup_name' size='38'>" +
-				  "External ID: <input type='text' id='new_workgroup_external_id' size='33'>"+
+	    p.setBody("Name: <input type='text' id='new_workgroup_name' size='38'><br /><br />" +
+				  "External ID: <input type='text' id='new_workgroup_external_id' size='33'><br /><br />"+
 				  "Workgroup Type: <select id='new_workgroup_type'>"+
 				  "<option value=\"normal\">Normal</option>"+
 				  "<option value=\"demo\">Demo</option>"+
 				  "<option value=\"admin\">Admin</option>"+
-				  "</select>");
+				  "</select><br />");
 	    p.setFooter("<div id='submit_new_workgroup'></div>");
 
         new_workgroup_panel = p;
