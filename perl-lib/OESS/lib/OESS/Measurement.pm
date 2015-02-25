@@ -274,7 +274,8 @@ sub get_data {
 	foreach my $int (@$other_ints){
 	    push(@all_interfaces, $int->{'int'});
 	}
-	push(@all_interfaces, $selected->{'int'});
+        
+	
 	return {"node"       => $selected->{'node'},
 		"interface"  => $selected->{'int'},
 		"data"       => $data,
