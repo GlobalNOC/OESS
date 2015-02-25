@@ -444,7 +444,15 @@ sub get_flow_stats{
     warn "Fetching stats\n";
     my $nodes = $oess->get_current_nodes();
     foreach my $node (@$nodes){
-	my ($time,$flows) = $dbus->{'dbus'}->get_flow_stats($node->{'dpid'});
+	my $time;
+        my $flows;
+        eval {
+            ($time,$flows) = $dbus->{'dbus'}->get_flow_stats($node->{'dpid'});
+        };
+        syslog(LOG_ERR, "error getting flow stats: $@") if $@;
+        if (!$time || !$flows){
+            return;
+        }
 	process_flow_stats($time,$node->{'dpid'},$flows);
     }
 
