@@ -215,7 +215,7 @@ function summary_init(options){
         function(el,rec,col,data){
            el.innerHTML = rec.getData('interface_description');
            //console.log(data);
-           console.log(rec);
+           //console.log(rec);
         }
         },
         {key: "tag", width: 30, label: "VLAN", formatter: function(el, rec, col, data){
@@ -260,7 +260,7 @@ function summary_init(options){
     });*/
 
     var endpoints = session.data.endpoints || [];
-    console.log(endpoints);
+    //console.log(endpoints);
     for (var i = 0; i < endpoints.length; i++){
         endpoint_table.addRow({
             interface: endpoints[i].interface, 

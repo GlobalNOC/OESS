@@ -188,7 +188,7 @@
 
           var tabset = tabs.get('tabs');
           for (var i = 0; i < tabset.length; i++) {
-              console.log(tabset[i].get('href'));
+              //console.log(tabset[i].get('href'));
               if (tabset[i].get('href') == '#' + tab_fragment) {
                   tabs.selectTab(tabs.getTabIndex(tabset[i]) );
                   break;
