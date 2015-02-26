@@ -243,16 +243,16 @@ sub get_data {
     my $node = $self->{'db'}->get_node_by_name( name => $selected->{'node'});
     #get all the host details for the interfaces host
     my $host = $self->get_host_by_external_id($node->{'node_id'});
-    warn Data::Dumper::Dumper($host);
+    
     #find the collections RRD file in SNAPP
     warn "Looking for collection\n";
-    warn Data::Dumper::Dumper($selected);
+    
     my $collection = $self->_find_rrd_file_by_host_int_and_vlan($host->{'host_id'},$selected->{'port_no'},$selected->{'tag'});
     if(defined($collection)){
         warn "Collection Found!!\n";
 	my $rrd_file = $rrd_dir . $collection->{'rrdfile'};
-        my $data;
-        my $input  = $self->get_rrd_file_data( file => $rrd_file, start_time => $start, end_time => $end);
+        my $data= [];
+        my $input  = $self->get_rrd_file_data( file => $rrd_file, start_time => $start, end_time => $end) || [];
         push(@{$data},{name => 'Input (Bps)',
                        data => $input});
         my $output_agg;
@@ -261,7 +261,7 @@ sub get_data {
             if(defined($other_collection)){
                 my $other_rrd_file = $rrd_dir . $collection->{'rrdfile'};
                 my $output = $self->get_rrd_file_data( file => $other_rrd_file, start_time => $start, end_time => $end);
-                $output_agg = aggregate_data($output_agg,$output);
+                $output_agg = aggregate_data($output_agg,$output) || [];
             }
         }
         
@@ -274,7 +274,8 @@ sub get_data {
 	foreach my $int (@$other_ints){
 	    push(@all_interfaces, $int->{'int'});
 	}
-	push(@all_interfaces, $selected->{'int'});
+        
+	
 	return {"node"       => $selected->{'node'},
 		"interface"  => $selected->{'int'},
 		"data"       => $data,
