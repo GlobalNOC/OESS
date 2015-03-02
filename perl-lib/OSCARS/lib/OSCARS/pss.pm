@@ -16,6 +16,7 @@ use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
 
+$ENV{CRYPT_SSLEAY_CIPHER} = 'ALL';
 $ENV{HTTPS_DEBUG}     = 0;
 $ENV{HTTPS_VERSION}   = '3';
 
