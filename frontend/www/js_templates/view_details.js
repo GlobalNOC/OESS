@@ -507,8 +507,17 @@ function page_init(){
 	      });
 
   nddi_map.on("clickLink", function(e, args){
-		var link = args[0].name;
-
+		var links = args[0].links;
+                var link = args[0].name;
+                if (links && links.length > 0){
+                    var link_id = args[0].link_id;
+                    for (i=0; i< links.length; i++){
+                        if (links[i].link_id=link_id){
+                            link = links[i].link_name;
+                            break;
+                        }
+                    }
+                }
 		if (graph.updating){
 		  clearTimeout(graph.updating);
 		}

@@ -166,10 +166,15 @@ function MeasurementGraph(container, legend_container, options){
 	var shown_data = [];
 
 	for (var i = 0; i < results.length; i++){
-
+            
 	    var name   = results[i].name;
 
 	    var data = results[i].data;
+            if (!data || data.length ===0 ){
+                data = [];        
+                this._showError();
+                return;
+            }
 
 	    var setup = {data: data,
 			 control: "time",
