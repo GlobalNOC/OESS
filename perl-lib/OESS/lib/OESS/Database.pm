@@ -5193,7 +5193,7 @@ sub get_remote_links {
             "link_name"      => $row->{'link_name'},
             "node"           => $row->{'node_name'},
             "interface"      => $row->{'int_name'},
-            "int_id"         => $row->{'int_id'},
+            "interface_id"   => $row->{'int_id'},
             "urn"            => $row->{'remote_urn'},
             "vlan_tag_range" => $row->{'vlan_tag_range'}
         });

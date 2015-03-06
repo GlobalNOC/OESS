@@ -249,7 +249,7 @@ function setup_remote_tab(){
             {key: "link_name"},
             {key: "node"}, 
             {key: "interface"},
-            {key: "int_id"},
+            {key: "interface_id"},
             {key: "urn"},
             {key: "vlan_tag_range"}
         ], 
@@ -281,7 +281,7 @@ function setup_remote_tab(){
             var b = new YAHOO.widget.Button({label: "Edit"});
             b.appendTo(el);
             b.on("click", function(){
-                        editRemoteLink(rec.getData("link_id"), rec.getData("link_name"), rec.getData("urn"),rec.getData("vlan_tag_range"),rec.getData("interface"),rec.getData("int_id"), b);
+                        editRemoteLink(rec.getData("link_id"), rec.getData("link_name"), rec.getData("urn"),rec.getData("vlan_tag_range"),rec.getData("interface"),rec.getData("interface_id"), b);
             });
 		}}
 	];
