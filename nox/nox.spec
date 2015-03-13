@@ -38,11 +38,12 @@ rm -rf %{buildroot}
 make install DESTDIR=%{buildroot}
 
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT/etc/init.d/
+%__mkdir -p -m 0755 $RPM_BUILD_ROOT/etc/sysconfig/
 #%__install -p -m 0644 src/nox.info $RPM_BUILD_ROOT/var/lib/nox
 
 
 %{__install} -Dp -m0755 init/nox_cored                 %{buildroot}/etc/init.d/
-
+%{__install} -Dp -m0755 init/sysconfig/nox_cored        %{buildroot}/etc/sysconfig/
 
 
 
@@ -55,6 +56,7 @@ rm -rf %{buildroot}
 #%{_sbindir}/nox_core
 #   /var/lib/nox/nox.info
    /etc/init.d/nox_cored
+   /etc/sysconfig/nox_cored
    /etc/nox/nox.json
    /etc/nox/noxca.cert
    /etc/nox/noxca.key.insecure
