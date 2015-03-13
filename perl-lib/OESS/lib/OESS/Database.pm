@@ -4307,7 +4307,7 @@ sub insert_node_in_path{
 
                 #$int_a is the new interface on the inserted node for link a, $int_z the same for new_link z
 
-                if($new_a_int->{'interface_id'} == $new_link_a_endpoints->[0]->{'interface_id'})
+                if($new_a_int->{'interface_id'} == $new_link_a_endpoints->[0]->{'interface_a_id'})
                 {
                     #new added interface is a end
                     push (@$bindparams_a , $new_internal_vlan_a,$original_a_vlan_id);
@@ -4316,7 +4316,7 @@ sub insert_node_in_path{
                     push (@$bindparams_a , $original_a_vlan_id, $new_internal_vlan_a);
                 }
 
-                if($new_z_int>{'interface_id'} == $new_link_z_endpoints->[0]->{'interface_id'})
+                if($new_z_int->{'interface_id'} == $new_link_z_endpoints->[0]->{'interface_a_id'})
                 {
                     #new added interface is a end
                     push (@$bindparams_z , $new_internal_vlan_z, $original_z_vlan_id);
@@ -7020,7 +7020,7 @@ THEN link_path_membership.interface_a_vlan_id
 ELSE link_path_membership.interface_z_vlan_id 
 END as 'internal_vlan_id' 
 from link_path_membership
-join link on (link.link_id = link_path_membership.link_id)
+join link on (link.link_id = link_path_membership.link_id and link_path_membership.end_epoch = -1)
 join link_instantiation 
 on link.link_id = link_instantiation.link_id
 and link_instantiation.end_epoch=-1
