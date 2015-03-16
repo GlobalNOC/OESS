@@ -529,6 +529,7 @@ sub _generate_endpoint_flows {
                     {'output'       => $other_e_port}
                 ]
             ));
+
             # coming in other_endpoint going out endpoint
             push(@{$self->{'flows'}{'endpoint'}{$path}}, OESS::FlowRule->new(
                 dpid  => $e_dpid,
@@ -741,8 +742,7 @@ sub _generate_path_flows {
             );
             # push flows to the endpoint onto both paths for resilency if
             # the network state gets confused about which is the primary path
-            push(@{$self->{'flows'}{'path'}{'primary'}},$to_endpoint);
-            push(@{$self->{'flows'}{'path'}{'backup'}}, $to_endpoint);
+            push(@{$self->{'flows'}{'path'}{$path}},$to_endpoint);
         }
     }
 
