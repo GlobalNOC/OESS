@@ -36,7 +36,7 @@ ok(!$acl_id, 'vlan_range sanity check 1');
 is($db->get_error(),'vlan_start must be a numeric value','correct error');
 
 
-my $acl_id = $db->add_acl(
+$acl_id = $db->add_acl(
     user_id       => 11,
     workgroup_id  => 31,
     interface_id  => 45851,
@@ -49,7 +49,7 @@ my $acl_id = $db->add_acl(
 ok(!$acl_id, 'vlan_range sanity check 1');
 is($db->get_error(),'vlan_end must be a numeric value or undefined','correct error');
 
-my $acl_id = $db->add_acl(
+$acl_id = $db->add_acl(
     user_id       => 11,
     workgroup_id  => 31,
     interface_id  => 45851,

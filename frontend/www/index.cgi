@@ -93,6 +93,10 @@ sub main{
     if ($cgi->param('action') =~ /^(\w+)$/){
 	$action = $1;
     }
+
+    if ($user->{'status'} eq 'decom') {
+        $action = "decom";
+    }
     
     switch ($action) {
 
@@ -157,6 +161,11 @@ sub main{
 				     $breadcrumbs        = $REMOVE_BREADCRUMBS;
 				     $current_breadcrumb = "Provisioning";				     
 	                           }
+    case "decom" 
+    {
+                $filename           = "html_templates/denied.html";
+                $title              = "Access Denied";
+    }
 	case "about"         { $filename           = "html_templates/splash.html";
 						   $title              = "About";
 	                     }

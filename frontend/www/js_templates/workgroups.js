@@ -9,6 +9,7 @@ function workgroups_init(){
 
     var table = make_workgroups_table();
 
+
     table.subscribe("rowClickEvent", function(oArgs){
 
 	    var record = this.getRecord(oArgs.target);
@@ -26,7 +27,6 @@ function workgroups_init(){
 	    window.location = "?action=index";
 	    
 	});
-
     makeHelpPanel("workgroups_table", "This is the list of all workgroups that you are currently a part of. Each workgroup has access to a different set of edge ports and circuits.");
 
 }
@@ -48,15 +48,41 @@ function make_workgroups_table(){
     var cols = [{key: "name", label: "Workgroup", sortable:true, width: 300}
 		];
 
+        
     var config = {
 	sortedBy:{key:"name", dir:"asc"},
 	height: '200px'
     }
-
+    
     var dt = new YAHOO.widget.ScrollingDataTable("workgroups_table", cols, ds, config);
+
+    var search = new YAHOO.util.Element(YAHOO.util.Dom.get('workgroup_search'));
+    var searchTimeout;
+    search.on('keyup', function(e){
+
+        var search_value = this.get('element').value;
+
+        if (e.keyCode == YAHOO.util.KeyListener.KEY.ENTER){
+        clearTimeout(searchTimeout);
+            table_filter.call(dt,search_value);
+        }
+        else{
+        if (searchTimeout) clearTimeout(searchTimeout);
+
+            searchTimeout = setTimeout(function(){
+            table_filter.call(dt,search_value);
+            }, 400);
+
+        }  
+    });
 
     dt.subscribe("rowMouseoverEvent", dt.onEventHighlightRow);
     dt.subscribe("rowMouseoutEvent", dt.onEventUnhighlightRow);
+
+    dt.on("dataReturnEvent", function(oArgs){     
+        this.cache = oArgs.response;
+        return oArgs;
+    }); 
 
     return dt;
 }
