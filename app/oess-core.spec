@@ -1,5 +1,5 @@
 Name:		oess-core		
-Version:	1.1.5b
+Version:	1.1.6
 Release:	1%{?dist}
 Summary:	The core oess service provides
 
@@ -19,7 +19,11 @@ Requires(rpmlib): rpmlib(CompressedFileNames) <= 3.0.4-1 rpmlib(PayloadFilesHave
 Requires(post): /bin/sh
 Requires: /bin/bash /usr/bin/perl perl(CGI) perl(DBI) perl(Data::Dumper) perl(English) perl(FindBin) perl(Getopt::Long) perl(Getopt::Std) perl(HTML::Entities) perl(LockFile::Simple) perl(Net::DBus) perl(Net::DBus::Exporter) perl(Proc::Daemon) perl(RRDs) perl(Socket) perl(Switch) perl(Sys::Hostname) perl(Sys::Syslog) perl(URI::Escape) perl(XML::Simple) perl(XML::Writer) perl(XML::XPath) perl(base) perl(constant) perl(strict) perl(warnings) perl(Term::ReadKey) perl(CPAN)
 Requires: perl-OESS >= 1.1.5b
+<<<<<<< HEAD
 BuildArch: noarch
+=======
+BuildArch:	noarch
+>>>>>>> 41fc5f09ee1e7ac70324d1c1fc3bfda47c3515e7
 AutoreqProv: no
 %description
 
