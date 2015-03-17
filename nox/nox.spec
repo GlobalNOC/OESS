@@ -56,7 +56,7 @@ rm -rf %{buildroot}
 #%{_sbindir}/nox_core
 #   /var/lib/nox/nox.info
    /etc/init.d/nox_cored
-   /etc/sysconfig/nox_cored
+%config(noreplace)   /etc/sysconfig/nox_cored
    /etc/nox/nox.json
    /etc/nox/noxca.cert
    /etc/nox/noxca.key.insecure
