@@ -45,7 +45,7 @@ use OESS::DBus;
 use AnyEvent::Fork;
 use AnyEvent::Fork::RPC;
 use AnyEvent;
-use JSON;
+use JSON::XS;
 use XML::Simple;
 use Time::HiRes qw( usleep );
 use Data::UUID;
@@ -330,7 +330,7 @@ sub _write_cache{
         
         my $file = $self->{'share_file'} . "." . sprintf("%x",$dpid);
         open(my $fh, ">", $file) or $self->{'logger'}->error("Unable to open $file " . $!);
-        print $fh to_json($data);
+        print $fh encode_json($data);
         close($fh);
     }
 
@@ -376,11 +376,11 @@ sub send_message_to_child{
     $self->{'pending_results'}->{$event_id}->{'ts'} = time();
     $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = FWDCTL_WAITING;
     
-    $rpc->(to_json($message), sub{
+    $rpc->(encode_json($message), sub{
         my $resp = shift;
         my $result;
         eval{
-            $result = from_json($resp);
+            $result = decode_json($resp);
         };
         if(!defined($result)){
             $self->{'logger'}->error("Something bad happened processing response from child: " . $resp);
@@ -475,7 +475,7 @@ sub make_baby{
     my $proc = AnyEvent::Fork->new->require("AnyEvent::Fork::RPC::Async","OESS::FWDCTL::Switch","JSON")->eval('
 use strict;
 use warnings;
-use JSON;
+use JSON::XS;
 Log::Log4perl::init_and_watch("/etc/oess/logging.conf",10);
 my $switch;
 my $logger;
@@ -495,14 +495,14 @@ sub run{
 
     my $action;
     eval{
-        $action = from_json($message);
+        $action = decode_json($message);
     };
     if(!defined($action)){
         $logger->error("invalid JSON blob: " . $message);
         return;
     }
     my $res = $switch->process_event($action);
-    $fh->(to_json($res));
+    $fh->(encode_json($res));
 }
 ')->fork->send_arg(%args)->AnyEvent::Fork::RPC::run("run",
                                                                    async => 1,
@@ -901,6 +901,8 @@ sub _cancel_restorations{
 
     my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $args{'link_id'} , path => 'primary');
 
+    $self->{'db'}->_start_transaction();
+
     foreach my $circuit (@$circuits) {
         my $scheduled_events = $self->{'db'}->get_circuit_scheduled_events( circuit_id => $circuit->{'circuit_id'},
                                                                             show_completed => 0 );
@@ -916,6 +918,8 @@ sub _cancel_restorations{
             }
         }
     }
+
+    $self->{'db'}->_commit();
 
 }
 
