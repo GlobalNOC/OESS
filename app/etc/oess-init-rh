@@ -26,7 +26,7 @@ fi
 case "$1" in
   start)
         #start
-	/etc/init.d/oess-topo start && /etc/init.d/oess-vlan_stats start && /etc/init.d/nox_cored start && /etc/init.d/oess-fwdctl start && /etc/init.d/oess-notification start && /etc/init.d/oess-fvd start && /etc/init.d/oess-watchdog start &&/etc/init.d/oess-traceroute start
+	/etc/init.d/oess-topo start && /etc/init.d/oess-vlan_stats start && /etc/init.d/nox_cored start && /etc/init.d/oess-fwdctl start && /etc/init.d/oess-notification start && /etc/init.d/oess-fvd1 start && /etc/init.d/oess-watchdog start &&/etc/init.d/oess-traceroute start
         ;;
   stop)
         #stop
