@@ -189,6 +189,9 @@ sub _update_cache{
     }
 
     $self->{'node'} = $data->{'nodes'}->{$self->{'dpid'}};
+
+    $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL.Switch.' . $self->{'node'}->{'name'}) if($self->{'node'}->{'name'});
+
     $self->{'settings'} = $data->{'settings'};
 
 }
