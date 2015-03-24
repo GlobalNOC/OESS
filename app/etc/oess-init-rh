@@ -69,8 +69,33 @@ sub main{
         }
 
         #check NOX
-        
-        
+        eval {
+            $service = $bus->get_service("org.nddi.openflow");
+            $client  = $service->get_object("/controller1");
+        };
+
+        if ($@) {
+            warn "Error in _connect_to_nox: $@";
+            exit(1);
+        }
+
+        if ( !defined $client ) {
+            exit(1);
+        }
+
+        $result;
+        eval{
+            $result = $client->echo();
+        };
+
+        if($result != 1){
+            exit(1);
+        }else{
+            print "NOX replied to our echo request, it is working!\n";
+        }
+        #made it here!!!
+        exit(0);
+
     }elsif($option eq 'restart'){
         my $res1 = stop();
         my $res2 = start();

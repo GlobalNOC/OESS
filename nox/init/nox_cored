@@ -31,12 +31,12 @@ if [ -n "$vlan" ];
 then
     if [ "$vlan" -ne "-1" ];
     then
-	options=" -d -i ptcp:6634 discovery=15,$vlan nddi_dbus -n /var/log/nox/nox.info"
+	options=" -d -i ptcp:6634 discovery=30,$vlan nddi_dbus -n /var/log/nox/nox.info"
     else
-	options=" -d -i ptcp:6634 nddi_dbus -n /var/log/nox/nox.info"
+	options=" -d -i ptcp:6634 discovery=30 nddi_dbus -n /var/log/nox/nox.info"
     fi
 else
-    options=" -d -i ptcp:6634 nddi_dbus -n /var/log/nox/nox.info"
+    options=" -d -i ptcp:6634 discovery=30 nddi_dbus -n /var/log/nox/nox.info"
 fi
 
 username=_oess
