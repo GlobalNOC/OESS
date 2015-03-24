@@ -1,61 +1,252 @@
-#!/bin/bash
-#
-# Startup script for all OE-SS parts (fwdctl, topo, vlan_stats, syslogger)
-#
-# chkconfig: 2345 81 30
-# description: Starts all OE-SS daemons in the proper order
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use OESS::Database;
 
 
-# Source function library
-if [ -f /etc/rc.d/init.d/functions ]; then
-. /etc/rc.d/init.d/functions
-elif [ -f /etc/init.d/functions ]; then
-. /etc/init.d/functions
-elif [ -f /etc/rc.d/functions ]; then
-. /etc/rc.d/functions
-fi
+sub main{
+    my $option = shift;
 
-# Source networking configuration.
-. /etc/sysconfig/network
+    if($option eq 'stop'){
+        exit(stop());
+    }elsif($option eq 'start'){
+        exit(start());
+    }elsif($option eq 'status'){
+        my $status = status();
+        exit($status);
+    }elsif($option eq 'restart'){
+        my $res1 = stop();
+        my $res2 = start();
+        exit($res2);
+    }elsif($option eq 'monitor'){
+        my $status = status();
+        if($status == 3){
+            exit(7);
+        }elsif($status != 0){
+            exit(1);
+        }else{
+            exit(0);
+        }
+    }elsif($option eq 'meta-data'){
+        my $str = << 'END';
+<!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
+<resource-agent name="OESS" version="0.1">
+  <version>1.1.6</version>
+  <longdesc lang="en">
+This is a Resource Agent for managing OESS and its components
+  </longdesc>
+  <shortdesc lang="en">This isa Resource Agent for managing OESS and its components</shortdesc>
+  <actions>
+    <action name="start"        timeout="20" />
+    <action name="stop"         timeout="20" />
+    <action name="monitor"      timeout="20"
+                                interval="10" depth="0" />
+    <action name="restart"      timeout="20" />
+    <action name="meta-data"    timeout="5" />
+  </actions>
+</resource-agent>
+END
+print $str . "\n";
+        exit(0);
 
-# Check that networking is up.
-[ ${NETWORKING} = "no" ] && exit 0
+    }else{
+        usage();
+    }
+    
+}
+
+sub status{
+    
+    my $db = OESS::Database->new();
+    my $result = 0;
+    if($db->is_topo_enabled()){
+        my $res =  system("/etc/init.d/oess-topo status");
+        if($res != 0){
+            $result = $res;
+        }
+    }
+    if($db->is_vlan_stats_enabled()){
+        my $res = system("/etc/init.d/oess-vlan_stats status");
+        if($res != 0){
+            $result = $res;
+        }
+    }
+    if($db->is_nox_enabled()){
+        my $res = system("/etc/init.d/nox_cored status");
+        if($res != 0){
+            $result = $res;
+        }
+    }
+    if($db->is_fwdctl_enabled()){
+        my $res = system("/etc/init.d/oess-fwdctl status");
+        if($res != 0){
+            $result = $res;
+        }
+    }
+    if($db->is_fvd_enabled()){
+        my $res = system("/etc/init.d/oess-fvd status");
+        if($res != 0){
+            $result = $res;
+        }
+    }
+
+    if($db->is_notification_enabled()){
+        my $res = system("/etc/init.d/oess-notification status");
+        if($res != 0){
+            $result = $res;
+        }
+    }
+
+    if($db->is_watchdog_enabled()){
+        my $res = system("/etc/init.d/oess-watchdog status");
+        if($res != 0){
+            $result = $res;
+        }
+    }
+
+    if($db->is_traceroute_enabled()){
+        my $res = system("/etc/init.d/oess-traceroute status");
+        if($res != 0){
+            $result = $res;
+        }
+    }
+
+    #cause this is how wait work?
+    return $result / 256;
+
+}
+
+sub stop{
+    my $db = OESS::Database->new();
+    my $result = 0;
+
+    if($db->is_topo_enabled()){
+        my $res = system("/etc/init.d/oess-topo stop");
+        if($res != 0){
+            $result = $res;
+        }
+    }
+    if($db->is_vlan_stats_enabled()){
+        my $res = system("/etc/init.d/oess-vlan_stats stop");
+        if($res != 0){
+            $result = $res;;
+        }
+    }
+    if($db->is_nox_enabled()){
+        my $res = system("/etc/init.d/nox_cored stop");
+        if($res != 0){
+            $result = $res;;
+        }
+    }
+    if($db->is_fwdctl_enabled()){
+        my $res = system("/etc/init.d/oess-fwdctl stop");
+        if($res != 0){
+            $result = $res;;
+        }
+    }
+    if($db->is_fvd_enabled()){
+        my $res = system("/etc/init.d/oess-fvd stop");
+        if($res != 0){
+            $result = $res;;
+        }
+    }
+
+    if($db->is_notification_enabled()){
+        my $res = system("/etc/init.d/oess-notification stop");
+        if($res != 0){
+            $result = $res;;
+        }
+    }
+
+    if($db->is_watchdog_enabled()){
+        my $res = system("/etc/init.d/oess-watchdog stop");
+        if($res != 0){
+            $result = $res;;
+        }
+    }
+
+    if($db->is_traceroute_enabled()){
+        my $res = system("/etc/init.d/oess-traceroute stop");
+        if($res != 0){
+            $result = $res;;
+        }
+    }
+
+    #cause this is how wait work?
+    return $result / 256;
 
 
-#see how we were called.
-case "$1" in
-  start)
-        #start
-	/etc/init.d/oess-topo start && /etc/init.d/oess-vlan_stats start && /etc/init.d/nox_cored start && /etc/init.d/oess-fwdctl start && /etc/init.d/oess-notification start && /etc/init.d/oess-fvd1 start && /etc/init.d/oess-watchdog start &&/etc/init.d/oess-traceroute start
-        ;;
-  stop)
-        #stop
-	/etc/init.d/oess-topo stop && /etc/init.d/oess-vlan_stats stop && /etc/init.d/nox_cored stop &&	/etc/init.d/oess-fwdctl stop &&	/etc/init.d/oess-notification stop && /etc/init.d/oess-fvd stop && /etc/init.d/oess-watchdog stop &&/etc/init.d/oess-traceroute stop
-        ;;
-  status)
-        #status p0f
-	/etc/init.d/oess-topo status
-	/etc/init.d/oess-vlan_stats status
-	/etc/init.d/nox_cored status
-	/etc/init.d/oess-fwdctl status
-	/etc/init.d/oess-notification status
-	/etc/init.d/oess-fvd status
-        /etc/init.d/oess-watchdog status
-        /etc/init.d/oess-traceroute status
-        ;;
+}
 
-  restart)
-        $0 stop
-        #wee need to sleep to make sure the deamon has enoth time to shutdown
-        sleep 3
-        $0 start
-        exit $?
-        ;;
-  *)
-        echo $"Usage: $0 {start|stop|restart||status|help}"
-        exit 1
+sub start{
+    my $db = OESS::Database->new();
+    
+    my $result = 0;
 
-esac
+    if($db->is_topo_enabled()){
+        my $res = system("/etc/init.d/oess-topo start");
+        if($res != 0){
+            $result = $res;;
+        }
+    }
+    if($db->is_vlan_stats_enabled()){
+        my $res = system("/etc/init.d/oess-vlan_stats start");
+        if($res != 0){
+            $result = $res;;
+        }
+    }
+    if($db->is_nox_enabled()){
+        my $res = system("/etc/init.d/nox_cored start");
+        if($res != 0){
+            $result = $res;;
+        }
+    }
+    if($db->is_fwdctl_enabled()){
+        my $res = system("/etc/init.d/oess-fwdctl start");
+        if($res != 0){
+            $result = $res;;
+        }
+    }
+    if($db->is_fvd_enabled()){
+        my $res = system("/etc/init.d/oess-fvd start");
+        if($res != 0){
+            $result = $res;;
+        }
+    }
 
-exit $RETVAL
+    if($db->is_notification_enabled()){
+        my $res = system("/etc/init.d/oess-notification start");
+        if($res != 0){
+            $result = $res;;
+        }
+    }
 
+    if($db->is_watchdog_enabled()){
+        my $res = system("/etc/init.d/oess-watchdog start");
+        if($res != 0){
+            $result = $res;;
+        }
+    }
+
+    if($db->is_traceroute_enabled()){
+        my $res = system("/etc/init.d/oess-traceroute start");
+        if($res != 0){
+            $result = $res;;
+        }
+    }
+    #cause this is how wait work?
+    return $result / 256;
+}
+
+sub usage{
+    print "Usage: $0 [start|stop|restart|status|monitor|meta-data]\n";
+    exit(1);
+}
+
+my $option = $ARGV[0];
+
+usage() if (!defined($option));
+
+main($option);

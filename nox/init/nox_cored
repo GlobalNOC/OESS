@@ -31,12 +31,12 @@ if [ -n "$vlan" ];
 then
     if [ "$vlan" -ne "-1" ];
     then
-	options=" -d -i ptcp: discovery=15,$vlan nddi_dbus -n /var/log/nox/nox.info"
+	options=" -d -i ptcp:6634 discovery=15,$vlan nddi_dbus -n /var/log/nox/nox.info"
     else
-	options=" -d -i ptcp: nddi_dbus -n /var/log/nox/nox.info"
+	options=" -d -i ptcp:6634 nddi_dbus -n /var/log/nox/nox.info"
     fi
 else
-    options=" -d -i ptcp: nddi_dbus -n /var/log/nox/nox.info"
+    options=" -d -i ptcp:6634 nddi_dbus -n /var/log/nox/nox.info"
 fi
 
 username=_oess
@@ -62,9 +62,8 @@ case "$1" in
 		if [ -z "${TEST_RUNNING}" ]; then
 			echo -n " ready to start"
 		else
-			echo -n "already running"
-			success; echo
-			exit 0
+			echo -n "already running"; /usr/bin/false
+                        exit 1;
 		fi
 	fi
 
@@ -76,6 +75,7 @@ case "$1" in
             success; echo
         else
             failure; echo
+            exit 1;
         fi
         ;;
   stop)
@@ -86,6 +86,7 @@ case "$1" in
                 rm -f $PIDFILE
         else
                 action $"Stopping ${name}: " /bin/false
+                exit 1;
         fi
         rm -rf $lockfile
         ;;

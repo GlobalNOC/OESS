@@ -51,6 +51,7 @@ case "$1" in
         fi
         if [ $IS_RUNNING != 0 ];then
             failure; echo
+            exit 1;
         else
             $command -d
 
@@ -59,6 +60,7 @@ case "$1" in
                 success; echo
             else
                 failure; echo
+                exit 1;
             fi
         fi
         ;;
@@ -104,6 +106,7 @@ case "$1" in
                 rm -f $PIDFILE
         else
                 action $"Stopping ${name}: " /bin/false
+                exit 1;
         fi
         rm -rf $lockfile
         ;;
