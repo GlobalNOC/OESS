@@ -58,8 +58,6 @@ use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
 
-use Data::Dumper;
-
 $| = 1;
 
 =head1 NAME OESS::FWDCTL::Switch
