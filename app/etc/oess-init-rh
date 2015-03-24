@@ -4,7 +4,11 @@ use strict;
 use warnings;
 
 use OESS::Database;
-
+use OESS::DBus;
+use constant FWDCTL_WAITING     => 2;
+use constant FWDCTL_SUCCESS     => 1;
+use constant FWDCTL_FAILURE     => 0;
+use constant FWDCTL_UNKNOWN     => 3;
 
 sub main{
     my $option = shift;
@@ -18,7 +22,55 @@ sub main{
         exit($status);
     }elsif($option eq 'validate-all'){
         my $status = status();
-        exit($status);
+        #short circuit if status saysit isn't running no reason to go any further
+        if($status != 0){
+            exit($status);
+        }
+        #check FWDCTL
+        my $bus = Net::DBus->system;
+
+        my $client;
+        my $service;
+
+        eval {
+            $service = $bus->get_service("org.nddi.fwdctl");
+            $client  = $service->get_object("/controller1");
+        };
+
+        if ($@) {
+            warn "Error in _connect_to_fwdctl: $@";
+            exit(1);
+        }
+
+        if ( !defined $client ) {
+            exit(1);
+        }
+        
+        my $result;
+        my $event_id;
+        eval{
+            ($result,$event_id) = $client->check_child_status();
+        };
+
+        my $final_res = FWDCTL_WAITING;
+
+        my $timeout = 0;
+        while($final_res == FWDCTL_WAITING && $timeout < 30){
+            sleep(1);
+            $final_res = $client->get_event_status($event_id);
+            $timeout++;
+        }
+
+        if($final_res != FWDCTL_SUCCESS){
+            print "FWDCTL failed to reply with success\n";
+            exit(1);
+        }else{
+            print "FWDCTL responded and all children are working!\n";
+        }
+
+        #check NOX
+        
+        
     }elsif($option eq 'restart'){
         my $res1 = stop();
         my $res2 = start();

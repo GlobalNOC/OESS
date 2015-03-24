@@ -56,6 +56,7 @@ case "$1" in
         echo -n $"Starting $name Controller: "
 #so nox is retarted and writes it PID file even when it fails to start,
 #so we need to write a workaround here
+        IS_RUNNING=0
 	if [ -f $PIDFILE ]; then
 		MYPID=`head -n 1 $PIDFILE`
 		TEST_RUNNING=`ps -p ${MYPID} | grep ${MYPID}`
@@ -69,7 +70,7 @@ case "$1" in
 
         if [ $IS_RUNNING != 0 ];then
             failure; echo
-	else
+        else
 	    cd /usr/bin
             sudo -u $username $command
 

@@ -156,6 +156,7 @@ sub new {
     dbus_method("update_cache",["int32"],["int32", "string"]);
     dbus_method("force_sync",["uint64"],["int32","string"]);
     dbus_method("get_event_status",["string"],["int32"]);
+    dbus_method("check_child_status",[],["int32","string"]);
     
     #exported for the circuit notifier
     dbus_signal("circuit_notification", [["dict","string",["variant"]]],['string']);
@@ -407,6 +408,7 @@ sub check_child_status{
         my $child = $self->{'children'}->{$dpid};
         my $corr_id = $self->send_message_to_child($dpid,{action => 'echo'},$event_id);            
     }
+    return (1,$event_id);
 }
 
 =head2 reap_old_events
