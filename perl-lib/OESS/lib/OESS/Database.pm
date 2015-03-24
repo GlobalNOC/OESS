@@ -162,7 +162,8 @@ sub new {
 	$self->{'topo'} = OESS::Topology->new(db => $self);
     }
 
-
+    $self->{'processes'} = $config->{'process'};
+    
     return $self;
 }
 
@@ -8445,5 +8446,101 @@ sub default_vlan_range {
 
     return $self->{'default_vlan_range'};
 }
+
+sub is_topo_enabled{
+    my $self = shift;
+    
+    return 1 if(!defined($self->{'processes'}->{'topo'}));
+    
+    if($self->{'processes'}->{'topo'}->{'status'} eq 'enabled'){
+        return 1;
+    }else{
+        return 0;
+    }
+    
+}
+
+sub is_fwdctl_enabled{
+    my $self = shift;
+    
+    return 1 if(!defined($self->{'processes'}->{'fwdctl'}));
+
+    if($self->{'processes'}->{'fwdctl'}->{'status'} eq 'enabled'){
+        return 1;
+    }else{
+        return 0;
+    }
+}
+
+sub is_vlan_stats_enabled{
+    my $self = shift;
+
+    return 1 if(!defined($self->{'processes'}->{'vlan_stats'}));
+
+    if($self->{'processes'}->{'vlan_stats'}->{'status'} eq 'enabled'){
+        return 1;
+    }else{
+        return 0;
+    }
+}
+
+sub is_nox_enabled{
+    my $self = shift;
+
+    return 1 if(!defined($self->{'processes'}->{'nox'}));
+
+    if($self->{'processes'}->{'nox'}->{'status'} eq 'enabled'){
+        return 1;
+    }else{
+        return 0;
+    }
+
+}
+
+sub is_notification_enabled{
+    my $self = shift;
+    return 1 if(!defined($self->{'processes'}->{'notification'}));
+
+    if($self->{'processes'}->{'notification'}->{'status'} eq 'enabled'){
+        return 1;
+    }else{
+        return 0;
+    }
+}
+
+sub is_watchdog_enabled{
+    my $self = shift;
+    return 1 if(!defined($self->{'processes'}->{'watchdog'}));
+
+    if($self->{'processes'}->{'watchdog'}->{'status'} eq 'enabled'){
+        return 1;
+    }else{
+        return 0;
+    }
+}
+
+sub is_fvd_enabled{
+    my $self = shift;
+    return 1 if(!defined($self->{'processes'}->{'fvd'}));
+
+    if($self->{'processes'}->{'fvd'}->{'status'} eq 'enabled'){
+        return 1;
+    }else{
+        return 0;
+    }
+}
+
+sub is_traceroute_enabled{
+    my $self = shift;
+
+    return 1 if(!defined($self->{'processes'}->{'traceroute'}));
+
+    if($self->{'processes'}->{'traceroute'}->{'status'} eq 'enabled'){
+        return 1;
+    }else{
+        return 0;
+    }
+}
+
 
 return 1;
