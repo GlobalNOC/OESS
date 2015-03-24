@@ -58,62 +58,66 @@ sub upgrade {
 
     $str = "select * from link join link_instantiation on link.link_id = link_instantiation.link_id";
     my $links = $dbq->_execute_query($str,[]);
-    
-    foreach my $link (@$links){
-        #need the node for a and z side
-        my $a_node = $dbq->get_node_by_interface_id( interface_id => $link->{'interface_a_id'});
-        my $z_node = $dbq->get_node_by_interface_id( interface_id => $link->{'interface_z_id'});
-
-        my $str = "select end_epoch from link_path_membership where link_id = ?";
-        my $end_epochs = $dbq->_execute_query($str,[$link->{'link_id'}]);
-        foreach my $end_epoch (@$end_epochs){
-            my $ee = $end_epoch->{'end_epoch'};
-            my $new_ee = $ee;
-            $new_ee++;
-            #get a count of all the current paths a vlan_id 
-            $str = "select count(*),interface_a_vlan_id from link_path_membership where link_id = ? and end_epoch = ? group by interface_a_vlan_id";
-            my $rows = $dbq->_execute_query($str,[$link->{'link_id'}, $ee]);
-            foreach my $row (@$rows){
-                #if more than 2 then there is a problem
-                if($row->{'count(*)'} > 1 ){
-                    #get the paths that are screwed up and fix one of them
-                    $str = "select path.circuit_id,path.path_id from path join link_path_membership on path.path_id = link_path_membership.path_id where link_path_membership.link_id = ? and link_path_membership.end_epoch = ? and link_path_membership.interface_a_vlan_id = ?";
-                    my $busted_circuits = $dbq->_execute_query($str, [$link->{'link_id'},$ee, $row->{'interface_a_vlan_id'}]);
-                    
-                    my $new_tag = $dbq->_get_available_internal_vlan_id(node_id => $a_node->{'node_id'},interface_id => $link->{'interface_a_id'});
-                    if($end_epoch == -1){
-                        $str = "update link_path_membership set interface_a_vlan_id = ? where link_id = ? and end_epoch = ? and path_id = ?";
-                        $dbq->_execute_query($str,[$new_tag, $link->{'link_id'},$ee, $busted_circuits->[0]->{'path_id'}]);
-                    }else{
-                        $str = "update link_path_membership set end_epoch = ? where link_id = ? and end_epoch = ? and path_id = ?";
-                        $dbq->_execute_query($str,[$new_ee++, $link->{'link_id'},$ee, $busted_circuits->[0]->{'path_id'}]);
-                    }
-                    
-                }
-            }
+    my $made_changes = 1;
+    while($made_changes){
+        $made_changes = 0;
+        foreach my $link (@$links){
+            #need the node for a and z side
+            my $a_node = $dbq->get_node_by_interface_id( interface_id => $link->{'interface_a_id'});
+            my $z_node = $dbq->get_node_by_interface_id( interface_id => $link->{'interface_z_id'});
             
-            #get a count of all the current paths z vlan_id
-            $str = "select count(*),interface_z_vlan_id from link_path_membership where link_id = ? and end_epoch = ? group by interface_z_vlan_id";
-            my $rows = $dbq->_execute_query($str,[$link->{'link_id'}, $ee]);
-            foreach my $row (@$rows){
-                #if more than 1 then there is a problem
-
-                if($row->{'count(*)'} > 1 ){
-                    #get the paths that are screwed up and fix one of them
-                    $str = "select path.circuit_id,path.path_id from path join link_path_membership on path.path_id = link_path_membership.path_id where link_path_membership.link_id = ? and link_path_membership.end_epoch = ? and link_path_membership.interface_z_vlan_id = ?";
-                    my $busted_circuits = $dbq->_execute_query($str, [$link->{'link_id'},$ee, $row->{'interface_z_vlan_id'}]);
-                    
-                    my $new_tag = $dbq->_get_available_internal_vlan_id(node_id => $z_node->{'node_id'},interface_id => $link->{'interface_z_id'});
-                    if($end_epoch == -1){
-                        $str = "update link_path_membership set interface_z_vlan_id = ? where link_id = ? and end_epoch = ? and path_id = ?";
-                        $dbq->_execute_query($str,[$new_tag, $link->{'link_id'},$ee, $busted_circuits->[0]->{'path_id'}]);
-                    }else{
-                        $str = "update link_path_membership set end_epoch = ? where link_id = ? and end_epoch = ? and path_id = ?";
-                        $dbq->_execute_query($str,[$new_ee++, $link->{'link_id'},$ee, $busted_circuits->[0]->{'path_id'}]);
+            my $str = "select end_epoch from link_path_membership where link_id = ?";
+            my $end_epochs = $dbq->_execute_query($str,[$link->{'link_id'}]);
+            foreach my $end_epoch (@$end_epochs){
+                my $ee = $end_epoch->{'end_epoch'};
+                my $new_ee = $ee;
+                $new_ee++;
+                #get a count of all the current paths a vlan_id 
+                $str = "select count(*),interface_a_vlan_id from link_path_membership where link_id = ? and end_epoch = ? group by interface_a_vlan_id";
+                my $rows = $dbq->_execute_query($str,[$link->{'link_id'}, $ee]);
+                foreach my $row (@$rows){
+                    #if more than 2 then there is a problem
+                    if($row->{'count(*)'} > 1 ){
+                        $made_changes = 1;
+                        #get the paths that are screwed up and fix one of them
+                        $str = "select path.circuit_id,path.path_id from path join link_path_membership on path.path_id = link_path_membership.path_id where link_path_membership.link_id = ? and link_path_membership.end_epoch = ? and link_path_membership.interface_a_vlan_id = ?";
+                        my $busted_circuits = $dbq->_execute_query($str, [$link->{'link_id'},$ee, $row->{'interface_a_vlan_id'}]);
+                        
+                        my $new_tag = $dbq->_get_available_internal_vlan_id(node_id => $a_node->{'node_id'},interface_id => $link->{'interface_a_id'});
+                        if($end_epoch == -1){
+                            $str = "update link_path_membership set interface_a_vlan_id = ? where link_id = ? and end_epoch = ? and path_id = ?";
+                            $dbq->_execute_query($str,[$new_tag, $link->{'link_id'},$ee, $busted_circuits->[0]->{'path_id'}]);
+                        }else{
+                            $str = "update link_path_membership set end_epoch = ? where link_id = ? and end_epoch = ? and path_id = ?";
+                            $dbq->_execute_query($str,[$new_ee++, $link->{'link_id'},$ee, $busted_circuits->[0]->{'path_id'}]);
+                        }
+                        
                     }
                 }
+                
+                #get a count of all the current paths z vlan_id
+                $str = "select count(*),interface_z_vlan_id from link_path_membership where link_id = ? and end_epoch = ? group by interface_z_vlan_id";
+                my $rows = $dbq->_execute_query($str,[$link->{'link_id'}, $ee]);
+                foreach my $row (@$rows){
+                    #if more than 1 then there is a problem
+                    
+                    if($row->{'count(*)'} > 1 ){
+                        $made_changes = 1;
+                        #get the paths that are screwed up and fix one of them
+                        $str = "select path.circuit_id,path.path_id from path join link_path_membership on path.path_id = link_path_membership.path_id where link_path_membership.link_id = ? and link_path_membership.end_epoch = ? and link_path_membership.interface_z_vlan_id = ?";
+                        my $busted_circuits = $dbq->_execute_query($str, [$link->{'link_id'},$ee, $row->{'interface_z_vlan_id'}]);
+                        
+                        my $new_tag = $dbq->_get_available_internal_vlan_id(node_id => $z_node->{'node_id'},interface_id => $link->{'interface_z_id'});
+                        if($end_epoch == -1){
+                            $str = "update link_path_membership set interface_z_vlan_id = ? where link_id = ? and end_epoch = ? and path_id = ?";
+                            $dbq->_execute_query($str,[$new_tag, $link->{'link_id'},$ee, $busted_circuits->[0]->{'path_id'}]);
+                        }else{
+                            $str = "update link_path_membership set end_epoch = ? where link_id = ? and end_epoch = ? and path_id = ?";
+                            $dbq->_execute_query($str,[$new_ee++, $link->{'link_id'},$ee, $busted_circuits->[0]->{'path_id'}]);
+                        }
+                    }
+                }           
             }
-            
         }
     }
 
