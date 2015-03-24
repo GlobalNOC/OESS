@@ -58,6 +58,8 @@ use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
 
+use Data::Dumper;
+
 $| = 1;
 
 =head1 NAME OESS::FWDCTL::Switch
@@ -189,6 +191,9 @@ sub _update_cache{
     }
 
     $self->{'node'} = $data->{'nodes'}->{$self->{'dpid'}};
+
+    $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL.Switch.' . $self->{'node'}->{'name'}) if($self->{'node'}->{'name'});
+
     $self->{'settings'} = $data->{'settings'};
 
 }
