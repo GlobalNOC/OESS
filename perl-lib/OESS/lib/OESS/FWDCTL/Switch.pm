@@ -94,7 +94,7 @@ sub new {
     $self->_update_cache();
     $self->datapath_join_handler();
     
-    $self->{'timer'} = AnyEvent->timer( after => 10, interval => 10, 
+    $self->{'timer'} = AnyEvent->timer( after => 10, interval => 60, 
                                         cb => sub { 
                                             $self->{'logger'}->debug("Processing FlowStat Timer event");
                                             $self->get_flow_stats();
@@ -316,7 +316,7 @@ sub change_path{
                 }
             }
             
-            usleep($self->{'node'}->{'tx_delay_ms'});
+            usleep($self->{'node'}->{'tx_delay_ms'} * 1000);
         }
     }
 
@@ -380,7 +380,7 @@ sub add_vlan{
                 $res = FWDCTL_FAILURE;
             }
         }
-        usleep($self->{'node'}->{'tx_delay_ms'});
+        usleep($self->{'node'}->{'tx_delay_ms'} * 1000);
     }
 
     #send our final barrier and wait for reply
@@ -418,7 +418,7 @@ sub remove_vlan{
     foreach my $command (@$commands){
 
         $self->{'logger'}->info("Removing Flow: " . $command->to_human());
-        $self->{'nox'}->send_datapath_flow($command->to_dbus( command => OFPFC_DELETE ));
+        $self->{'nox'}->send_datapath_flow($command->to_dbus( command => OFPFC_DELETE_STRICT ));
         $self->{'flows'}--;
         
         #if not doing bulk barrier send a barrier and wait
@@ -433,7 +433,7 @@ sub remove_vlan{
             }
         }
 
-        usleep($self->{'node'}->{'tx_delay_ms'});
+        usleep($self->{'node'}->{'tx_delay_ms'} * 1000);
 
     }    
 
@@ -507,7 +507,7 @@ sub _replace_flowmod{
     if (defined($commands->{'remove'})) {
         #delete this flowmod
         $self->{'logger'}->info("Deleting flow: " . $commands->{'remove'}->to_human());
-        my $status = $self->{'nox'}->send_datapath_flow($commands->{'remove'}->to_dbus( command => OFPFC_DELETE ));
+        my $status = $self->{'nox'}->send_datapath_flow($commands->{'remove'}->to_dbus( command => OFPFC_DELETE_STRICT ));
 
         if(!$self->{'node'}->{'send_barrier_bulk'}){
             my $xid = $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($commands->{'remove'}->get_dpid()));
@@ -544,7 +544,7 @@ sub _replace_flowmod{
         }	
         $self->{'flows'}++;
     }
-    usleep($self->{'node'}->{'tx_delay_ms'});
+    usleep($self->{'node'}->{'tx_delay_ms'} * 1000 );
     return $state;
 }
 
@@ -626,8 +626,6 @@ sub _actual_diff{
 	my $found = 0;
         my $match = $command->get_match();
         
-
-
         if(defined($current_flows->{$match->{'in_port'}}->{$match->{'dl_vlan'}})){
             for(my $i=0;$i<= $#{$current_flows->{$match->{'in_port'}}->{$match->{'dl_vlan'}}}; $i++){
                 my $flow = $current_flows->{$match->{'in_port'}}->{$match->{'dl_vlan'}}->[$i];
@@ -695,6 +693,7 @@ sub _actual_diff{
         if (defined($new_result) && ($new_result != FWDCTL_SUCCESS)) {
             $res = $new_result;
         }
+        usleep($self->{'node'}->{'tx_delay_ms'} * 1000);
     }
 
     if($self->{'node'}->{'bulk_barrier'}){

@@ -224,6 +224,8 @@ CREATE TABLE `link_path_membership` (
   `interface_a_vlan_id` int(11) NOT NULL,
   `interface_z_vlan_id` int(11) NOT NULL,        
   PRIMARY KEY (`link_id`,`end_epoch`,`path_id`,`interface_a_vlan_id`,`interface_z_vlan_id`),
+  UNIQUE KEY `unique_vlan_a` (`link_id`,`end_epoch`,`interface_a_vlan_id`),
+  UNIQUE KEY `unique_vlan_z` (`link_id`,`end_epoch`,`interface_z_vlan_id`),
   KEY `path_link_path_membership_fk` (`path_id`),
   CONSTRAINT `links_link_path_membership_fk` FOREIGN KEY (`link_id`) REFERENCES `link` (`link_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `path_link_path_membership_fk` FOREIGN KEY (`path_id`) REFERENCES `path` (`path_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
