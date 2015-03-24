@@ -16,6 +16,9 @@ sub main{
     }elsif($option eq 'status'){
         my $status = status();
         exit($status);
+    }elsif($option eq 'validate-all'){
+        my $status = status();
+        exit($status);
     }elsif($option eq 'restart'){
         my $res1 = stop();
         my $res2 = start();
@@ -28,7 +31,7 @@ sub main{
             exit(1);
         }else{
             exit(0);
-        }
+        }            
     }elsif($option eq 'meta-data'){
         my $str = << 'END';
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
@@ -44,6 +47,7 @@ This is a Resource Agent for managing OESS and its components
     <action name="monitor"      timeout="20"
                                 interval="10" depth="0" />
     <action name="restart"      timeout="20" />
+    <action name="validate-all" timeout="30" />
     <action name="meta-data"    timeout="5" />
   </actions>
 </resource-agent>
@@ -241,8 +245,8 @@ sub start{
 }
 
 sub usage{
-    print "Usage: $0 [start|stop|restart|status|monitor|meta-data]\n";
-    exit(1);
+    print "Usage: $0 [start|stop|restart|status|monitor|meta-data|validate-all]\n";
+    exit(3);
 }
 
 my $option = $ARGV[0];

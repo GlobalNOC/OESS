@@ -59,23 +59,26 @@ case "$1" in
 	if [ -f $PIDFILE ]; then
 		MYPID=`head -n 1 $PIDFILE`
 		TEST_RUNNING=`ps -p ${MYPID} | grep ${MYPID}`
-		if [ -z "${TEST_RUNNING}" ]; then
-			echo -n " ready to start"
-		else
-			echo -n "already running"; /usr/bin/false
-                        exit 1;
-		fi
-	fi
+                if [ -z "${TEST_RUNNING}" ];
+                then
+                    IS_RUNNING=0
+                else
+                    IS_RUNNING=1
+                fi
+        fi
 
-	cd /usr/bin
-        sudo -u $username $command
-
-        if [ $? -eq 0 ]; then
-            touch $lockfile
-            success; echo
-        else
+        if [ $IS_RUNNING != 0 ];then
             failure; echo
-            exit 1;
+	else
+	    cd /usr/bin
+            sudo -u $username $command
+
+            if [ $? -eq 0 ]; then
+                touch $lockfile
+                success; echo
+            else
+                failure; echo
+            fi
         fi
         ;;
   stop)
@@ -86,7 +89,6 @@ case "$1" in
                 rm -f $PIDFILE
         else
                 action $"Stopping ${name}: " /bin/false
-                exit 1;
         fi
         rm -rf $lockfile
         ;;
@@ -99,10 +101,10 @@ case "$1" in
 		TEST_RUNNING=`ps -p ${MYPID} | grep ${MYPID}`
 		if [ -z "${TEST_RUNNING}" ]
 		then
-			echo "oess-$name (pid `cat $PIDFILE`) is not running (but PID file exists)"
+			echo "$name (pid `cat $PIDFILE`) is not running (but PID file exists)"
 			exit 3
 		else
-			echo "oess-$name (pid `cat $PIDFILE`) is running"
+			echo "$name (pid `cat $PIDFILE`) is running"
 		fi
 	else
 		echo "oess-$name is not running"
