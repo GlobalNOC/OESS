@@ -833,6 +833,32 @@ sub add_link{
 
 }
 
+
+=head2 edit_link
+
+=cut
+
+sub edit_link {
+    my $self = shift;
+    my %args = @_;
+    my $link_id = $args{'link_id'};
+    warn Dumper %args;
+    if (!defined($args{'link_id'})) {
+        $self->_set_error("No Link id was defined");
+        return;
+    }
+    my $res = $self->_execute_query("update link set name = ?, remote_urn =?, status= ?, vlan_tag_range = ? where link_id = ?",
+        [$args{'name'}, $args{'remote_urn'}, $args{'status'}, $args{'vlan_tag_range'}, $link_id]);
+
+    if(defined($res)){
+        return $res;
+    }
+
+    $self->_set_error("Problem editing link");
+    return;
+
+}
+
 =head2 create_link_instantiation
 
 =cut
@@ -2820,6 +2846,10 @@ sub add_user {
     my $email       = $args{'email_address'};
     my $auth_names  = $args{'auth_names'};
     my $type        = $args{'type'};
+    
+    if (!defined ($type)){
+        $type = "normal";
+    }
 
     if(!defined($given_name) || !defined($family_name) || !defined($email) || !defined($auth_names)){
 	$self->_set_error("Invalid parameters to add user, please provide a given name, family name, email, and auth names");
@@ -5280,6 +5310,101 @@ sub add_remote_link {
 
     $self->_commit();
 
+    return 1;
+}
+
+sub edit_remote_link {
+    my $self = shift;
+    my %args = @_;
+
+    my $urn                 = $args{'urn'};
+    my $name                = $args{'name'};
+    my $vlan_tag_range      = $args{'vlan_tag_range'};
+    my $link_id             = $args{'link_id'}; 
+
+    if ($urn !~ /domain=(.+):node=(.+):port=(.+):link=(.+)$/){
+	$self->_set_error("Unable to deconstruct URN to determine elements. Expected format was urn:ogf:network:domain=foo:node=bar:port=biz:link=bam");
+	return;
+    }
+
+    $urn =~ /domain=(.+):node=(.+):port=(.+):link=(.+)$/;
+
+    my $remote_domain = $1;
+    my $remote_node   = $2;
+    my $remote_port   = $3;
+    my $remote_link   = $4;
+
+    $self->_start_transaction();
+
+    my $remote_network_id = $self->get_network_by_name(network => $remote_domain);
+
+    if (! $remote_network_id){
+	$remote_network_id = $self->add_network(name      => $remote_domain,
+						longitude => 0,
+						latitude  => 0,
+						is_local  => 0
+	                                       );
+    }
+
+    if (! defined $remote_network_id){
+	$self->_set_error("Unable to determine network id: " . $self->get_error());
+	$self->_rollback();
+    return;
+    }
+
+    # remote are stored internally as $domain-$node
+    $remote_node = $remote_domain . "-" . $remote_node;
+
+    my $node_info = $self->get_node_by_name(name              => $remote_node,
+					    no_instantiation  => 1
+	                                    );
+
+
+    my $remote_node_id;
+
+    # couldn't find this remote node, let's add it
+    if (! $node_info){
+	$remote_node_id = $self->add_node(name              => $remote_node,
+					  operational_state => "up",
+					  network_id        => $remote_network_id
+	                                  );
+    }
+    else {
+	$remote_node_id = $node_info->{'node_id'};
+    }
+
+    if (! defined $remote_node_id){
+	$self->_set_error("Unable to determine node id: " . $self->get_error());
+	$self->_rollback();
+    return;
+    }
+
+    my $remote_interface_id = $self->add_or_update_interface(node_id          => $remote_node_id,
+							     name             => $remote_port,
+							     no_instantiation => 1
+	                                                    );
+
+    if (! defined $remote_interface_id){
+	$self->_set_error("Unable to determine interface id: " . $self->get_error());
+	$self->_rollback();
+    return;
+    }
+
+    my $update_link = $self->edit_link(
+            link_id => $link_id,
+            name => $name,
+            remote_urn => $urn,
+            vlan_tag_range => $vlan_tag_range,
+            status          => 'up'
+    );
+
+    if (!defined($update_link)) {
+        $self->_set_error("Unable to update link.");
+        $self->_rollback();
+        return;
+    }
+
+    $self->_commit();
     return 1;
 }
 

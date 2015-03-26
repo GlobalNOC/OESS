@@ -190,7 +190,6 @@ sub get_circuit_data {
         if($int->{'node'} eq $node){
             if( ( !defined($interface) && !defined($selected) ) || $int->{'int'} eq $interface){
                 $selected = $int;
-                push(@interfaces_on_node,$int);
             }else{
                 push(@interfaces_on_node,$int);
             }
