@@ -240,38 +240,53 @@ sub all_endpoints_connected_in_path {
 #--- might want to have anothe varient that
 #--- takes an arbtrary path so that we can do this in the ui
 
-sub validate_paths{
-    my $self  = shift;
-    my %args  = (
-	circuit_id => undef,
-	@_,
-    );
+sub validate_paths {
+    my ( $self, %args ) = @_;
 
     #-- get the circuit info
-    my $res = $self->{'db'}->get_circuit_details(circuit_id=>$args{'circuit_id'});
+    my $links;
+    my $backup_links;
+    my $endpoints;
+    if($args{'circuit_id'}){
+        my $res = $self->{'db'}->get_circuit_details( circuit_id=> $args{'circuit_id'} );
+        $links = $res->{'links'};
+        $backup_links = $res->{'backup_links'};
+        $endpoints = $res->{'endpoints'}
+    }elsif( ($args{'links'} || $args{'backup_links'}) && $args{'endpoints'}){
+        $links        = $self->{'db'}->get_links_details_by_name( names => $args{'links'} );
+        if(!$links){
+            $self->_set_error($self->{'db'}->get_error());
+        }
+        $backup_links = $self->{'db'}->get_links_details_by_name( names => $args{'backup_links'} );
+        if(!$backup_links){
+            $self->_set_error($self->{'db'}->get_error());
+        }
+        $endpoints = $args{'endpoints'};
+    }else {
+        $self->_set_error("Must pass in a circuit_id, a list or links, or a list of backup_links");
+        return;
+    }
 
-    if(defined $res->{'links'}){
-
-        if ( (!$self->path_is_loop_free($res->{'links'})) && (!$self->is_loopback($res->{'endpoints'})) ){
+    if(defined $links){
+        if ( (!$self->path_is_loop_free($links)) && (!$self->is_loopback($endpoints)) ){
             $self->_set_error("Primary path contains a loop");
             return (0,"Primary path contains a loop.");
         }
 
-        if (! $self->all_endpoints_connected_in_path($res->{'links'}, $res->{'endpoints'})){
+        if (! $self->all_endpoints_connected_in_path($links, $endpoints)){
             $self->_set_error("Primary path does not connect all endpoints.");
             return (0,"Primary path does not connect all endpoints.");
         }
-
     }
 
-    if(defined $res->{'backup_links'}){
+    if(defined $backup_links){
 
-        if ( (!$self->path_is_loop_free($res->{'backup_links'})) && (!$self->is_loopback($res->{'endpoints'})) ){
+        if ( (!$self->path_is_loop_free($backup_links)) && (!$self->is_loopback($endpoints)) ){
             $self->_set_error("Backup path contains a loop.");
             return (0,"Backup path contains a loop.");
         }
 
-        if (@{$res->{'backup_links'}} > 0 && ! $self->all_endpoints_connected_in_path($res->{'backup_links'}, $res->{'endpoints'})){
+        if (@{$backup_links} > 0 && ! $self->all_endpoints_connected_in_path($backup_links, $endpoints)){
             $self->_set_error("Backup path does not connect all endpoints.");
             return (0,"Backup path does not connect all endpoints.");
         }
