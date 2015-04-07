@@ -36,8 +36,9 @@ use AnyEvent;
 use OESS::FlowRule;
 use OESS::DBus;
 use Net::DBus;
-
 use JSON;
+
+use Data::Dumper;
 
 use Time::HiRes qw( usleep );
 use constant FWDCTL_ADD_VLAN     => 0;
@@ -473,12 +474,14 @@ sub datapath_join_handler{
     
     my %xid_hash;
     
-    if(!defined($self->{'node'}) || $self->{'node'}->{'default_forward'} == 1) {
+    if(!defined($self->{'node'}->{'default_forward'}) || $self->{'node'}->{'default_forward'} == 1) {
+        $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." pushing lldp forwarding rule");
         my $status = $self->{'nox'}->install_default_forward(Net::DBus::dbus_uint64($self->{'dpid'}),$self->{'settings'}->{'discovery_vlan'});
 	$self->{'flows'}++;
     }
-    
-    if (!defined($self->{'node'}) || $self->{'node'}->{'default_drop'} == 1) {
+
+    if (!defined($self->{'node'}->{'default_drop'}) || $self->{'node'}->{'default_drop'} == 1) {
+        $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." pushing default drop rule");
         my $status = $self->{'nox'}->install_default_drop(Net::DBus::dbus_uint64($self->{'dpid'}));
         $self->{'flows'}++;
     }
