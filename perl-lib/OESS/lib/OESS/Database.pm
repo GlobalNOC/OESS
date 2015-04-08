@@ -8447,6 +8447,10 @@ sub default_vlan_range {
     return $self->{'default_vlan_range'};
 }
 
+=head2 is_topo_enabled
+
+=cut
+
 sub is_topo_enabled{
     my $self = shift;
     
@@ -8460,6 +8464,10 @@ sub is_topo_enabled{
     
 }
 
+=head2 is_fwdctl_enabled
+
+=cut
+
 sub is_fwdctl_enabled{
     my $self = shift;
     
@@ -8472,6 +8480,10 @@ sub is_fwdctl_enabled{
     }
 }
 
+=head2 is_vlan_stats_enabled
+
+=cut
+
 sub is_vlan_stats_enabled{
     my $self = shift;
 
@@ -8483,6 +8495,10 @@ sub is_vlan_stats_enabled{
         return 0;
     }
 }
+
+=head2 is_nox_enabled
+
+=cut
 
 sub is_nox_enabled{
     my $self = shift;
@@ -8497,6 +8513,10 @@ sub is_nox_enabled{
 
 }
 
+=head2 is_notification_enabled
+
+=cut
+
 sub is_notification_enabled{
     my $self = shift;
     return 1 if(!defined($self->{'processes'}->{'notification'}));
@@ -8507,6 +8527,10 @@ sub is_notification_enabled{
         return 0;
     }
 }
+
+=head2 is_watchdog_enabled
+
+=cut
 
 sub is_watchdog_enabled{
     my $self = shift;
@@ -8519,6 +8543,10 @@ sub is_watchdog_enabled{
     }
 }
 
+=head2 is_fvd_enabled
+
+=cut
+
 sub is_fvd_enabled{
     my $self = shift;
     return 1 if(!defined($self->{'processes'}->{'fvd'}));
@@ -8529,6 +8557,10 @@ sub is_fvd_enabled{
         return 0;
     }
 }
+
+=head2 is_traceroute_enabled
+
+=cut
 
 sub is_traceroute_enabled{
     my $self = shift;
