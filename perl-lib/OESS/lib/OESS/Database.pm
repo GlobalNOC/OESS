@@ -5355,6 +5355,10 @@ sub add_remote_link {
     return 1;
 }
 
+=head2 edit_remote_link
+
+=cut
+
 sub edit_remote_link {
     my $self = shift;
     my %args = @_;
