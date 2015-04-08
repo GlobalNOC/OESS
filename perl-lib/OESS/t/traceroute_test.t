@@ -3,6 +3,8 @@ use strict;
 use FindBin;
 use Carp::Always;
 use Data::Dumper;
+use Test::More skip_all => 'Need to try using Dbus::MockObject / MockService';
+
 my $path;
 
 BEGIN {
@@ -16,7 +18,7 @@ use lib "$path/../lib/";
 use OESS::Traceroute;
 use OESS::Circuit;
 use OESSDatabaseTester;
-use Test::More skip_all => 'Need to try using Dbus::MockObject / MockService';
+
 my $circuit_id = 101;
 
 Log::Log4perl::init_and_watch('t/conf/logging.conf',10);
