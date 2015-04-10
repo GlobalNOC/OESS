@@ -146,6 +146,12 @@ class dBusEventGen(dbus.service.Object):
         self.packets = pkts
         return
         
+    @dbus.service.method(dbus_interface=ifname,
+                         in_signature='',
+                         out_signature='i')
+    def echo(self, rate, vlan, pkts):
+        return 1
+
     @dbus.service.signal(dbus_interface=ifname,signature='tuquuay')
     def packet_in(self,dpid,in_port, reason, length, buffer_id, data):
        string =  "packet_in: "+str(dpid)+" :  "+str(in_port)

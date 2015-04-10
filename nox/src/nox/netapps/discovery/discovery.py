@@ -167,9 +167,14 @@ class discovery(Component):
 
         elif arg_len == 2:
             try:
+                val = float(configuration['arguments'][0])
+                self.lldp_send_period = val;
+                lg.debug("Setting LLDP send timer to " + str(val))
+
                 val = int(configuration['arguments'][1])
                 self.vlan_id = val;
                 lg.debug("Setting LLDP VLAN to " + str(val))
+
             except Exception, e:
                 lg.error("unable to convert arg to integer " + configuration['arguments'][0])
     

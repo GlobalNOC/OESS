@@ -310,7 +310,8 @@ close(FILE);
     my $user_id = $db->add_user( given_name => $first,
 				 family_name => $last,
 				 email_address => $email,
-				 auth_names => [$user]);
+				 auth_names => [$user],
+                 type => 'normal');
 
     #add the user to the admin workgroup
     $db->add_user_to_workgroup( user_id => $user_id,

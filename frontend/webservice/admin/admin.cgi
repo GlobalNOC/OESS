@@ -228,6 +228,12 @@ sub main {
 	    }
             $output = &add_remote_link();
         }
+        case "edit_remote_link" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
+            $output = &edit_remote_link();
+        }
         case "remove_remote_link" {
 	    if($user->{'type'} eq 'read-only'){
 		return send_json({error => 'Error: you are a readonly user'});
@@ -438,7 +444,7 @@ sub add_remote_link {
     my $name               = $cgi->param('name');
     my $local_interface_id = $cgi->param('interface_id');
     my $vlan_tag_range     = $cgi->param('vlan_tag_range');
-
+    
     warn "add_remote_link: ".$vlan_tag_range;
     my $output = $db->add_remote_link(
         urn                => $urn,
@@ -456,6 +462,33 @@ sub add_remote_link {
     }
 
     return $results;
+}
+
+sub edit_remote_link {
+    my $results;
+    
+    my $urn                = $cgi->param('urn');
+    my $name               = $cgi->param('name');
+    my $vlan_tag_range     = $cgi->param('vlan_tag_range');
+    my $link_id            = $cgi->param('link_id');
+    warn "updating_remote_link: ".$vlan_tag_range;
+    my $output = $db->edit_remote_link(
+        link_id            => $link_id,
+        urn                => $urn,
+        name               => $name,
+        vlan_tag_range     => $vlan_tag_range
+    );
+
+    $results->{'results'} = [];
+    if ( !defined $output ) {
+        $results->{'error'} = $db->get_error();
+    }
+    else {
+        $results->{'results'} = [ { "success" => 1 } ];
+    }
+
+    return $results;
+
 }
 
 sub get_workgroups {
@@ -559,7 +592,6 @@ sub add_user_to_workgroup {
 
     my $user_id = $cgi->param('user_id');
     my $wg_id   = $cgi->param('workgroup_id');
-
     my $result = $db->add_user_to_workgroup(
         user_id      => $user_id,
         workgroup_id => $wg_id
@@ -605,12 +637,13 @@ sub add_user {
     my $family_name = $cgi->param("family_name");
     my $email       = $cgi->param("email_address");
     my @auth_names  = $cgi->param("auth_name");
-
+    my $type         = $cgi->param("type");
     my $new_user_id = $db->add_user(
         given_name    => $given_name,
         family_name   => $family_name,
         email_address => $email,
-        auth_names    => \@auth_names
+        auth_names    => \@auth_names,
+        type          => $type
     );
 
     if ( !defined $new_user_id ) {

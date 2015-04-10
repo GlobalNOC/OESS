@@ -1,5 +1,9 @@
 Name:		oess-core		
+<<<<<<< HEAD
 Version:	1.1.5b
+=======
+Version:	1.1.6
+>>>>>>> 1b91fbcb90fba95628e12bbc17ed3bb9a75b8640
 Release:	1%{?dist}
 Summary:	The core oess service provides
 
@@ -11,13 +15,14 @@ BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 BuildRequires:	perl
 Requires:       perl(Net::DBus), dbus, dbus-libs, mysql-server
-Requires:       nox >= 0.10.5
+Requires:       nox >= 0.10.6
 Requires:		xmlsec1-devel
 Requires:		xmlsec1-openssl-devel
 Requires(interp): /bin/sh
 Requires(rpmlib): rpmlib(CompressedFileNames) <= 3.0.4-1 rpmlib(PayloadFilesHavePrefix) <= 4.0-1
 Requires(post): /bin/sh
 Requires: /bin/bash /usr/bin/perl perl(CGI) perl(DBI) perl(Data::Dumper) perl(English) perl(FindBin) perl(Getopt::Long) perl(Getopt::Std) perl(HTML::Entities) perl(LockFile::Simple) perl(Net::DBus) perl(Net::DBus::Exporter) perl(Proc::Daemon) perl(RRDs) perl(Socket) perl(Switch) perl(Sys::Hostname) perl(Sys::Syslog) perl(URI::Escape) perl(XML::Simple) perl(XML::Writer) perl(XML::XPath) perl(base) perl(constant) perl(strict) perl(warnings) perl(Term::ReadKey) perl(CPAN)
+<<<<<<< HEAD
 Requires: perl-OESS >= 1.1.5b
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -25,6 +30,9 @@ BuildArch: noarch
 =======
 =======
 >>>>>>> d43a355a5fc2277cd885eb7aed1ed88d62ec6bdd
+=======
+Requires: perl-OESS >= 1.1.6
+>>>>>>> 1b91fbcb90fba95628e12bbc17ed3bb9a75b8640
 BuildArch:	noarch
 >>>>>>> 41fc5f09ee1e7ac70324d1c1fc3bfda47c3515e7
 AutoreqProv: no
@@ -54,6 +62,7 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} topo.pl %{buildroot}/%{_bindir}
 %{__install} fwdctl.pl %{buildroot}/%{_bindir}
 %{__install} oess-fvd.pl %{buildroot}/%{_bindir}
+%{__install} oess-traceroute.pl %{buildroot}/%{_bindir}
 %{__install} oess-watchdog.pl %{buildroot}/%{_bindir}
 %{__install} oess_scheduler.pl %{buildroot}/%{_bindir}
 %{__install} measurement/* %{buildroot}/%{_bindir}
@@ -76,6 +85,7 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} etc/watchdog-init-rh $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-watchdog
 %{__install} etc/topo-init-rh  $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-topo
 %{__install} etc/notification-init-rh $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-notification
+%{__install} etc/traceroute-init-rh $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-traceroute
 %{__install} etc/vlan_stats-init $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-vlan_stats
 %{__install} etc/oess-init-rh $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess
 
@@ -99,6 +109,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/topo.pl
 %{_bindir}/fwdctl.pl
 %{_bindir}/oess-fvd.pl
+%{_bindir}/oess-traceroute.pl
 %{_bindir}/oess-notify.pl
 %{_bindir}/oess-watchdog.pl
 %{_bindir}/vlan_stats_d.pl
@@ -114,6 +125,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/init.d/oess-vlan_stats
 %{_sysconfdir}/init.d/oess-notification
 %{_sysconfdir}/init.d/oess-fvd
+%{_sysconfdir}/init.d/oess-traceroute
 %{_sysconfdir}/init.d/oess
 %{_sysconfdir}/init.d/oess-watchdog
 %{_sysconfdir}/oess/logging.conf

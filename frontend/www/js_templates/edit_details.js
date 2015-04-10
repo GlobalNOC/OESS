@@ -35,27 +35,30 @@ function makeSlider(){
 function init(){
   
     var restore_to_primary = new YAHOO.widget.Button("restore_to_primary_button",{ 
-        type: "checkbox",
+        type: "button",
         label: "Off"
     });
-    restore_to_primary.on('checkedChange', function(){
-        if(this.get("checked")){
-            document.getElementById("restore_to_primary_holder").style.display = "inline";
-            this.set('label','On');
-        }else{
+    restore_to_primary.on('click', function(){
+        if(document.getElementById("restore_to_primary_holder").style.display == "inline"){
             document.getElementById("restore_to_primary_holder").style.display = "none";
+            document.getElementById('restore_to_primary').value = 0;
             this.set('label','Off');
         }
+        else{
+            document.getElementById("restore_to_primary_holder").style.display = "inline";
+            this.set('label','On');
+        }
+        
 	});
     var static_mac_routing = new YAHOO.widget.Button("static_mac_routing_button",{ 
-        type: "checkbox",
+        type: "button",
         label: "Off"
     });
-    static_mac_routing.on('checkedChange', function(){
-        if(this.get("checked")){
-            this.set('label','On');
-        }else{
+    static_mac_routing.on('click', function(){
+        if(this.get("label") == "On"){
             this.set('label','Off');
+        }else{
+            this.set('label','On');
         }
 	});
 
@@ -106,12 +109,13 @@ function init(){
   YAHOO.util.Dom.get('description').value = session.data.description || "";
   YAHOO.util.Dom.get('restore_to_primary').value = session.data.restore_to_primary || 0;
   if(YAHOO.util.Dom.get('restore_to_primary').value > 0){
-      restore_to_primary.set('checked',true);
+      restore_to_primary.set('label','On');
+      document.getElementById("restore_to_primary_holder").style.display = "inline";
   }
   
   YAHOO.util.Dom.get('static_mac_routing_button').value = session.data.static_mac_routing || 0;
   if(YAHOO.util.Dom.get('static_mac_routing_button').value > 0){
-      static_mac_routing.set('checked',true);
+      static_mac_routing.set('label','On');
   }
 
 
@@ -195,7 +199,7 @@ function init(){
     session.data.restore_to_primary = restore_to_primary;
 
     var static_mac = 0;
-    if(static_mac_routing.get("checked")){
+    if(static_mac_routing.get("label") == 'On'){
     	static_mac = 1;
     }
     session.data.static_mac_routing = static_mac;

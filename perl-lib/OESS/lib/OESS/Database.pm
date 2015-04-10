@@ -31,11 +31,19 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
+<<<<<<< HEAD
 Version 1.1.5b
 
 =cut
 
 our $VERSION = '1.1.5b';
+=======
+Version 1.1.6
+
+=cut
+
+our $VERSION = '1.1.6';
+>>>>>>> 1b91fbcb90fba95628e12bbc17ed3bb9a75b8640
 
 =head1 SYNOPSIS
 
@@ -81,7 +89,11 @@ use OESS::Topology;
 use DateTime;
 use Data::Dumper;
 
+<<<<<<< HEAD
 use constant VERSION => '1.1.5b';
+=======
+use constant VERSION => '1.1.6';
+>>>>>>> 1b91fbcb90fba95628e12bbc17ed3bb9a75b8640
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant SHARE_DIR => "/usr/share/doc/perl-OESS-" . VERSION . "/";
@@ -162,7 +174,8 @@ sub new {
 	$self->{'topo'} = OESS::Topology->new(db => $self);
     }
 
-
+    $self->{'processes'} = $config->{'process'};
+    
     return $self;
 }
 
@@ -828,6 +841,32 @@ sub add_link{
     }
 
     $self->_set_error("Problem creating link");
+    return;
+
+}
+
+
+=head2 edit_link
+
+=cut
+
+sub edit_link {
+    my $self = shift;
+    my %args = @_;
+    my $link_id = $args{'link_id'};
+    warn Dumper %args;
+    if (!defined($args{'link_id'})) {
+        $self->_set_error("No Link id was defined");
+        return;
+    }
+    my $res = $self->_execute_query("update link set name = ?, remote_urn =?, status= ?, vlan_tag_range = ? where link_id = ?",
+        [$args{'name'}, $args{'remote_urn'}, $args{'status'}, $args{'vlan_tag_range'}, $link_id]);
+
+    if(defined($res)){
+        return $res;
+    }
+
+    $self->_set_error("Problem editing link");
     return;
 
 }
@@ -2709,7 +2748,6 @@ sub add_user_to_workgroup {
 
     my $user_id      = $args{'user_id'};
     my $workgroup_id = $args{'workgroup_id'};
-
     if(!defined($user_id)){
 	return;
     }
@@ -2819,6 +2857,11 @@ sub add_user {
     my $family_name = $args{'family_name'};
     my $email       = $args{'email_address'};
     my $auth_names  = $args{'auth_names'};
+    my $type        = $args{'type'};
+    
+    if (!defined ($type)){
+        $type = "normal";
+    }
 
     if(!defined($given_name) || !defined($family_name) || !defined($email) || !defined($auth_names)){
 	$self->_set_error("Invalid parameters to add user, please provide a given name, family name, email, and auth names");
@@ -2832,9 +2875,9 @@ sub add_user {
 
     $self->_start_transaction();
 
-    my $query = "insert into user (email, given_names, family_name) values (?, ?, ?)";
+    my $query = "insert into user (email, given_names, family_name, type) values (?, ?, ?, ?)";
 
-    my $user_id = $self->_execute_query($query, [$email, $given_name, $family_name]);
+    my $user_id = $self->_execute_query($query, [$email, $given_name, $family_name, $type]);
 
     if (! defined $user_id){
 	$self->_set_error("Unable to create new user.");
@@ -2959,7 +3002,6 @@ sub edit_user {
     my $email       = $args{'email_address'};
     my $auth_names  = $args{'auth_names'};
     my $type        = $args{'type'};
-    my $status      = $args{'status_of_user'};
     
     if ($given_name =~ /^system$/ || $family_name =~ /^system$/){
 	$self->_set_error("User 'system' is reserved.");
@@ -2968,9 +3010,9 @@ sub edit_user {
 
     $self->_start_transaction();
 
-    my $query = "update user set email = ?, given_names = ?, family_name = ?, type =?, status =?  where user_id = ?";
+    my $query = "update user set email = ?, given_names = ?, family_name = ?, type =?  where user_id = ?";
 
-    my $result = $self->_execute_query($query, [$email, $given_name, $family_name,$type, $status, $user_id]);
+    my $result = $self->_execute_query($query, [$email, $given_name, $family_name,$type,  $user_id]);
 
     if (! defined $user_id || $result == 0){
 	$self->_set_error("Unable to edit user - does this user actually exist?");
@@ -4647,6 +4689,48 @@ sub get_link_by_name{
 
 }
 
+=head2 get_links_details_by_name
+
+=cut
+
+sub get_links_details_by_name {
+    my $self = shift;
+    my %args = @_;
+
+    my $links = [];
+    foreach my $name (@{$args{'names'}}){
+        my $link = $self->get_link_details( name => $name );
+        if(!$link){
+            $self->_set_error("Error getting link, ".$name);
+            return;
+        }
+        push(@$links, $link); 
+    }
+
+    return $links;
+}
+
+=head2 get_link_details
+
+=cut
+
+sub get_link_details {
+    my ($self, %args) = @_;
+
+    my $query = "select link.name, node_a.name as node_a, if_a.name as interface_a, if_a.interface_id as interface_a_id, if_a.port_number as port_no_a, node_z.name as node_z, if_z.name as interface_z, if_z.interface_id as interface_z_id, if_z.port_number as port_no_z from link " .
+    " join link_instantiation link_inst on link.link_id = link_inst.link_id and link_inst.end_epoch = -1".
+	" join interface if_a on link_inst.interface_a_id = if_a.interface_id ".
+ 	" join interface if_z on link_inst.interface_z_id = if_z.interface_id ".
+	" join node node_a on if_a.node_id = node_a.node_id ".
+	" join node node_z on if_z.node_id = node_z.node_id ".
+    " where link.name = ?";
+    
+    my $link = $self->_execute_query($query,[$args{'name'}])->[0];
+
+    return $link;
+}
+
+
 =head2 get_link_by_dpid_and_port
 
 Returns a hash with link information for a link identified on the node with $dpid and the specified port number.
@@ -5139,7 +5223,7 @@ sub get_remote_links {
     my $self = shift;
     my %args = @_;
 
-    my $query = "select link.link_id, link.remote_urn, link.vlan_tag_range, node.name as node_name, interface.name as int_name from link " .
+    my $query = "select link.link_id, link.name as link_name, link.remote_urn, link.vlan_tag_range, node.name as node_name, interface.name as int_name, interface.interface_id as int_id from link " .
 	" join link_instantiation on link.link_id = link_instantiation.link_id " .
 	" join interface on interface.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id) " .
 	" join interface_instantiation on interface.interface_id = interface_instantiation.interface_id " .
@@ -5161,8 +5245,10 @@ sub get_remote_links {
     foreach my $row (@$rows){
         push (@results, {
             "link_id"        => $row->{'link_id'},
+            "link_name"      => $row->{'link_name'},
             "node"           => $row->{'node_name'},
             "interface"      => $row->{'int_name'},
+            "interface_id"   => $row->{'int_id'},
             "urn"            => $row->{'remote_urn'},
             "vlan_tag_range" => $row->{'vlan_tag_range'}
         });
@@ -5278,6 +5364,105 @@ sub add_remote_link {
 
     $self->_commit();
 
+    return 1;
+}
+
+=head2 edit_remote_link
+
+=cut
+
+sub edit_remote_link {
+    my $self = shift;
+    my %args = @_;
+
+    my $urn                 = $args{'urn'};
+    my $name                = $args{'name'};
+    my $vlan_tag_range      = $args{'vlan_tag_range'};
+    my $link_id             = $args{'link_id'}; 
+
+    if ($urn !~ /domain=(.+):node=(.+):port=(.+):link=(.+)$/){
+	$self->_set_error("Unable to deconstruct URN to determine elements. Expected format was urn:ogf:network:domain=foo:node=bar:port=biz:link=bam");
+	return;
+    }
+
+    $urn =~ /domain=(.+):node=(.+):port=(.+):link=(.+)$/;
+
+    my $remote_domain = $1;
+    my $remote_node   = $2;
+    my $remote_port   = $3;
+    my $remote_link   = $4;
+
+    $self->_start_transaction();
+
+    my $remote_network_id = $self->get_network_by_name(network => $remote_domain);
+
+    if (! $remote_network_id){
+	$remote_network_id = $self->add_network(name      => $remote_domain,
+						longitude => 0,
+						latitude  => 0,
+						is_local  => 0
+	                                       );
+    }
+
+    if (! defined $remote_network_id){
+	$self->_set_error("Unable to determine network id: " . $self->get_error());
+	$self->_rollback();
+    return;
+    }
+
+    # remote are stored internally as $domain-$node
+    $remote_node = $remote_domain . "-" . $remote_node;
+
+    my $node_info = $self->get_node_by_name(name              => $remote_node,
+					    no_instantiation  => 1
+	                                    );
+
+
+    my $remote_node_id;
+
+    # couldn't find this remote node, let's add it
+    if (! $node_info){
+	$remote_node_id = $self->add_node(name              => $remote_node,
+					  operational_state => "up",
+					  network_id        => $remote_network_id
+	                                  );
+    }
+    else {
+	$remote_node_id = $node_info->{'node_id'};
+    }
+
+    if (! defined $remote_node_id){
+	$self->_set_error("Unable to determine node id: " . $self->get_error());
+	$self->_rollback();
+    return;
+    }
+
+    my $remote_interface_id = $self->add_or_update_interface(node_id          => $remote_node_id,
+							     name             => $remote_port,
+							     no_instantiation => 1
+	                                                    );
+
+    if (! defined $remote_interface_id){
+	$self->_set_error("Unable to determine interface id: " . $self->get_error());
+	$self->_rollback();
+    return;
+    }
+
+    my $update_link = $self->edit_link(
+            link_id => $link_id,
+            name => $name,
+            remote_urn => $urn,
+            vlan_tag_range => $vlan_tag_range,
+            status          => 'up'
+    );
+
+    if (!defined($update_link)) {
+        $self->_set_error("Unable to update link.");
+        $self->_rollback();
+        return;
+    }
+
+    $self->_commit();
     return 1;
 }
 
@@ -6611,70 +6796,45 @@ sub edit_circuit {
     my $mac_addresses    = $args{'mac_addresses'};
     my $endpoint_mac_address_nums = $args{'endpoint_mac_address_nums'};
     my $static_mac       = $args{'static_mac'} || 0;
-
+    my $do_commit = defined($args{'do_commit'}) ? $args{'do_commit'} : 1;
+    my $do_sanity_check = defined($args{'do_sanity_check'}) ? $args{'do_sanity_check'} : 1;
 
     # whether this edit should only edit everything or just local bits
     my $do_external    = $args{'do_external'} || 0;
 
-    my $user_id        = $self->get_user_id_by_auth_name(auth_name => $user_name);
-    if (! $user_id ){
-        $self->_set_error("Unknown user '$user_name'");
-        return;
-    }
-    my $workgroup_details = $self->get_workgroup_details(workgroup_id => $workgroup_id);
-    if (! defined $workgroup_details){
-        $self->_set_error("Unknown workgroup.");
-        return;
-    }
-    my $is_admin = $self->get_user_admin_status( 'user_id' => $user_id)->[0]{'is_admin'};
-    if (!$is_admin && !$self->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
-        $self->_set_error("Permission denied: user is not a part of the requested workgroup.");
-        return;
-    }
-
-
-
-    # makes sure this workgroup hasn't gone over their endpoint limit
-    my $endpoint_num = @$nodes;
-    my $within_limit = $self->is_within_circuit_endpoint_limit( 
-        workgroup_id => $workgroup_id,
-        endpoint_num => $endpoint_num
-    );
-    if(!$within_limit){
-        $self->_set_error("Permission denied: $endpoint_num endpoints exceeds the limit of endpoints per circuit placed on this workgroup.");
+    # do a quick check on arguments passed in
+    if($do_sanity_check && !$self->circuit_sanity_check(%args)){
         return;
     }
 
     my $query;
-
-    $self->_start_transaction();
-
+    $self->_start_transaction() if($do_commit);
     my $circuit = $self->get_circuit_by_id(circuit_id => $circuit_id);
     if(!defined($circuit)){
-	$self->_set_error("Unable to find circuit by id $circuit_id");
-	$self->_rollback();
-	return;
+        $self->_set_error("Unable to find circuit by id $circuit_id");
+        $self->_rollback()if($do_commit);
+        return;
     }
 
     if ($provision_time > time()){
-	$args{'user_id'} = $user_id;
+        my $user_id = $self->get_user_id_by_auth_name(auth_name => $user_name);
+        $args{'user_id'} = $user_id;
 
-	my $success = $self->_add_event(\%args);
+        my $success = $self->_add_event(\%args);
 
-	if (! defined $success){
-	    $self->_rollback();
-	    return;
-	}
-	$self->_commit();
-	return {'success' => 1, 'circuit_id' => $circuit_id};
+        if (! defined $success){
+            $self->_rollback() if($do_commit);
+            return;
+        }
+        $self->_commit() if($do_commit);
+        return {'success' => 1, 'circuit_id' => $circuit_id};
     }
 
     my $result = $self->_execute_query("update circuit set description = ?, restore_to_primary = ?, static_mac = ? where circuit_id = ?", [$description,$restore_to_primary,$static_mac,$circuit_id]);
-
     if (! defined $result){
-	$self->_set_error("Unable to update circuit description.");
-	$self->_rollback();
-	return;
+        $self->_set_error("Unable to update circuit description.");
+        $self->_rollback() if($do_commit);
+        return;
     }
 
     # daldoyle - no need to instantiation on circuit edit, causes conflicts with the scheduler and other tools since
@@ -6688,14 +6848,14 @@ sub edit_circuit {
 
     #first decom everything
     if ($do_external){
-	$query = "update circuit_edge_interface_membership set end_epoch = unix_timestamp(now()) where circuit_id = ? and end_epoch = -1";
+        $query = "update circuit_edge_interface_membership set end_epoch = unix_timestamp(now()) where circuit_id = ? and end_epoch = -1";
     }
     else{
-	$query = "update circuit_edge_interface_membership " .
-	    " join interface on interface.interface_id = circuit_edge_interface_membership.interface_id " .
-	    " join node on node.node_id = interface.node_id " .
-	    " join network on network.network_id = node.network_id and network.is_local = 1 " .
-	    " set end_epoch = unix_timestamp(now()) where circuit_id = ? and end_epoch = -1";
+        $query = "update circuit_edge_interface_membership " .
+            " join interface on interface.interface_id = circuit_edge_interface_membership.interface_id " .
+            " join node on node.node_id = interface.node_id " .
+            " join network on network.network_id = node.network_id and network.is_local = 1 " .
+            " set end_epoch = unix_timestamp(now()) where circuit_id = ? and end_epoch = -1";
     }
     $self->_execute_query($query, [$circuit_id]);
 
@@ -6703,10 +6863,10 @@ sub edit_circuit {
     my $paths = $self->_execute_query($query, [$circuit_id]);
 
     foreach my $path (@$paths){
-	$query = "update path_instantiation set end_epoch = unix_timestamp(now()) where path_id = ? and end_epoch = -1";
-	$self->_execute_query($query, [$path->{'path_id'}]);
-	$query = "update link_path_membership set end_epoch = unix_timestamp(now()) where path_id = ? and end_epoch = -1";
-	$self->_execute_query($query, [$path->{'path_id'}]);
+        $query = "update path_instantiation set end_epoch = unix_timestamp(now()) where path_id = ? and end_epoch = -1";
+        $self->_execute_query($query, [$path->{'path_id'}]);
+        $query = "update link_path_membership set end_epoch = unix_timestamp(now()) where path_id = ? and end_epoch = -1";
+        $self->_execute_query($query, [$path->{'path_id'}]);
     }
 
     #re-instantiate
@@ -6722,27 +6882,7 @@ sub edit_circuit {
         $query = "select interface_id from interface " .
             " join node on node.node_id = interface.node_id " .
             " where node.name = ? and interface.name = ? ";
-
         my $interface_id = $self->_execute_query($query, [$node, $interface])->[0]->{'interface_id'};
-
-        if (! $interface_id ){
-            $self->_set_error("Unable to find interface '$interface' on node '$node'");
-            $self->_rollback();
-            return;
-        }
-
-        if (! $self->_validate_endpoint(interface_id => $interface_id, workgroup_id => $workgroup_id, vlan => $vlan)){
-            $self->_set_error("Interface \"$interface\" on endpoint \"$node\" with VLAN tag \"$vlan\" is not allowed for this workgroup.");
-            $self->_rollback();
-            return;
-        }
-
-        # need to check to see if this external vlan is open on this interface first
-        if (! $self->is_external_vlan_available_on_interface(vlan => $vlan, interface_id => $interface_id) ){
-            $self->_set_error("Vlan '$vlan' is currently in use by another circuit on interface '$interface' on endpoint '$node'");
-            $self->_rollback();
-            return;
-        }
 
         $query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, end_epoch, start_epoch) values (?, ?, ?, -1, unix_timestamp(NOW()))";
 
@@ -6750,7 +6890,7 @@ sub edit_circuit {
         if (! defined($circuit_edge_id) ){
 
             $self->_set_error("Unable to create circuit edge to interface '$interface'");
-            $self->_rollback();
+            $self->_rollback() if($do_commit);
             return;
         }
 
@@ -6765,138 +6905,113 @@ sub edit_circuit {
                 push(@endpoint_mac_addresses, $mac_address);
             }
 
-            # check that the mac_addresses fall within the limits
-            my $result = $self->is_within_mac_limit(
-                mac_address  => \@endpoint_mac_addresses,
-                interface    => $interface,
-                node         => $node,
-                workgroup_id => $workgroup_id
-            );
-            if(!$result->{'verified'}){
-                $self->_set_error($result->{'explanation'});
-                $self->_rollback();
-                return;
-            }
-
             # now add the mac addresses to the endpoint
             $query = "insert into circuit_edge_mac_address values (?,?)";
             foreach my $mac_address (@endpoint_mac_addresses){
-                if( ! mac_validate( $mac_address ) ){
-                    $self->_set_error("$mac_address is not a valid mac address.");
-                    $self->_rollback();
-                    return;
-                }
-
                 $mac_address = mac_hex2num( $mac_address );
                 if( ! defined $self->_execute_query($query, [$circuit_edge_id, $mac_address]) ){
                     $self->_set_error("Unable to create mac address edge to interface '$interface' on endpoint '$node'");
-                    $self->_rollback();
+                    $self->_rollback() if($do_commit);
                     return;
                 }
             }
-
         }
-
     }
 
     # set up any remote_endpoints if we have them
     for (my $i = 0; $i < @$remote_endpoints; $i++){
+        my $urn = @$remote_endpoints[$i];
+        my $tag = @$remote_tags[$i];
 
-	my $urn = @$remote_endpoints[$i];
-	my $tag = @$remote_tags[$i];
-
-	$query = "select interface.interface_id from interface join urn on interface.interface_id=urn.interface_id where urn.urn = ?";
-	my $interface_id = $self->_execute_query($query, [$urn])->[0]->{'interface_id'};
-
-	if (! $interface_id){
-	    $self->_set_error("Unable to find interface associated with URN: $urn");
-	    $self->_rollback();
+        $query = "select interface.interface_id from interface join urn on interface.interface_id=urn.interface_id where urn.urn = ?";
+        my $interface_id = $self->_execute_query($query, [$urn])->[0]->{'interface_id'};
+        if (! $interface_id){
+            $self->_set_error("Unable to find interface associated with URN: $urn");
+            $self->_rollback() if($do_commit);
             return;
-	}
-
-	$query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, end_epoch, start_epoch) values (?, ?, ?, -1, unix_timestamp(NOW()))";
-
-	if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $tag])){
-	    $self->_set_error("Unable to create circuit edge to interface \"$urn\" with tag $tag.");
-	    $self->_rollback();
+        }
+        $query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, end_epoch, start_epoch) values (?, ?, ?, -1, unix_timestamp(NOW()))";
+        if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $tag])){
+            $self->_set_error("Unable to create circuit edge to interface \"$urn\" with tag $tag.");
+            $self->_rollback() if($do_commit);
             return;
-	}
+        }
 
     }
 
-
-    my $link_lookup = {'primary' => $links,
-                       'backup'  => $backup_links
+    my $link_lookup = {
+        'primary' => $links,
+        'backup'  => $backup_links
     };
 
     foreach my $path_type (qw(primary backup)){
 
         my $relevant_links = $link_lookup->{$path_type};
 
-	next if(!defined(@$relevant_links) || !defined($relevant_links->[0]));
+        next if(!defined(@$relevant_links) || !defined($relevant_links->[0]));
 
-	#try to find the path first
-	$query = "select * from path where circuit_id = ? and path_type = ?";
-	my $res = $self->_execute_query($query,[$circuit_id, $path_type]);
-	my $path_id;
-	if( !defined($res) || !defined(@{$res}[0]) ){
-	    # create the primary path object
-	    $query = "insert into path (path_type, circuit_id) values (?, ?)";
-	    $path_id = $self->_execute_query($query, [$path_type, $circuit_id]);
-	}
+        #try to find the path first
+        $query = "select * from path where circuit_id = ? and path_type = ?";
+        my $res = $self->_execute_query($query,[$circuit_id, $path_type]);
+        my $path_id;
+        if( !defined($res) || !defined(@{$res}[0]) ){
+            # create the primary path object
+            $query = "insert into path (path_type, circuit_id) values (?, ?)";
+            $path_id = $self->_execute_query($query, [$path_type, $circuit_id]);
+        }
         else{
-	    $path_id = @{$res}[0]->{'path_id'};
-	}
+            $path_id = @{$res}[0]->{'path_id'};
+        }
 
-	if (!$path_id){
-	    $self->_set_error("Error while creating path record.");
-	    $self->_rollback();
+        if (!$path_id){
+            $self->_set_error("Error while creating path record.");
+            $self->_rollback() if($do_commit);
             return;
-	}
+        }
 
-	# instantiate path object
-	$query = "insert into path_instantiation (path_id, end_epoch, start_epoch, path_state) values (?, -1, unix_timestamp(NOW()), ?)";
+        # instantiate path object
+        $query = "insert into path_instantiation (path_id, end_epoch, start_epoch, path_state) values (?, -1, unix_timestamp(NOW()), ?)";
 
-	my $path_state = "deploying";
+        my $path_state = "deploying";
 
-	if ($path_type eq "backup"){
-	    $path_state = "available";
-	}
+        if ($path_type eq "backup"){
+            $path_state = "available";
+        }
 
-	my $path_instantiation_id = $self->_execute_query($query, [$path_id, $path_state]);
+        my $path_instantiation_id = $self->_execute_query($query, [$path_id, $path_state]);
 
-	if (! defined $path_instantiation_id){
-	    $self->_set_error("Error while instantiating path record.");
-	    $self->_rollback();
+        if (! defined $path_instantiation_id){
+            $self->_set_error("Error while instantiating path record.");
+            $self->_rollback() if($do_commit);
             return;
-	}
+        }
 
 
-	my %seen_endpoints;
-	foreach my $link (@$relevant_links){
-	    my $info = $self->get_link_by_name(name => $link);
+        my %seen_endpoints;
+        foreach my $link (@$relevant_links){
+            my $info = $self->get_link_by_name(name => $link);
             my $link_id = $info->{'link_id'};
-	    my $endpoints = $self->get_link_endpoints(link_id => $link_id);
+            my $endpoints = $self->get_link_endpoints(link_id => $link_id);
             my $interface_a_vlan_id;
             my $interface_z_vlan_id;
 
-	    foreach my $endpoint (@$endpoints){
-		my $node_id = $endpoint->{'node_id'};
+            foreach my $endpoint (@$endpoints){
+                my $node_id = $endpoint->{'node_id'};
                 my $interface_id = $endpoint->{'interface_id'};
                 my $interface_a_id = $endpoint->{'interface_a_id'};
                 my $interface_z_id = $endpoint->{'interface_z_id'};
 
-		next if ($seen_endpoints{$interface_id});
-		$seen_endpoints{$interface_id} = 1;
+                next if ($seen_endpoints{$interface_id});
+                $seen_endpoints{$interface_id} = 1;
 
-		# figure out what internal ID we can use for this
-		my $internal_vlan = $self->_get_available_internal_vlan_id(node_id => $node_id,interface_id => $interface_id);
+                # figure out what internal ID we can use for this
+                my $internal_vlan = $self->_get_available_internal_vlan_id(node_id => $node_id,interface_id => $interface_id);
 
-		if (! defined $internal_vlan){
-		    $self->_set_error("Internal error finding available internal id.");
-		    $self->_rollback();
-                    return;
-		}
+                if (! defined $internal_vlan){
+                    $self->_set_error("Internal error finding available internal id.");
+                    $self->_rollback() if($do_commit);
+                            return;
+                }
 
                 if ($interface_a_id == $interface_id){
                     $interface_a_vlan_id = $internal_vlan;
@@ -6904,31 +7019,18 @@ sub edit_circuit {
                 elsif ($interface_z_id == $interface_id){
                     $interface_z_vlan_id = $internal_vlan;
                 }
-	    }
+            }
 
             $query = "insert into link_path_membership (link_id, path_id, end_epoch, start_epoch,interface_a_vlan_id,interface_z_vlan_id) values (?, ?, -1, unix_timestamp(NOW()),?,?)";
             if (!defined ($self->_execute_query($query, [$link_id, $path_id, $interface_a_vlan_id, $interface_z_vlan_id])) ){
-		$self->_set_error("Error adding link '$link' into path.");
-                $self->_rollback();
-		return;
-	    }
-
-
-	}
-    
+                $self->_set_error("Error adding link '$link' into path.");
+                $self->_rollback() if($do_commit);
+                return;
+            }
+        }
     }
 
-    # now check to verify that the topology makes sense
-    my ($success, $error) = $self->{'topo'}->validate_paths(circuit_id => $circuit_id);
-
-    if (!$success){
-        $self->_set_error($error);
-        $self->_rollback();
-        return;
-    }
-
-
-    $self->_commit();
+    $self->_commit() if($do_commit);
 
     return {"success" => 1, "circuit_id" => $circuit_id};
 }
@@ -7510,23 +7612,32 @@ sub can_modify_circuit {
 
 
     if(!defined($params{'circuit_id'})){
-	$self->_set_error("can_modify_circuit requires a circuit_id");
-	return;
+        $self->_set_error("can_modify_circuit requires a circuit_id");
+        return;
     }
 
     if(!defined($params{'username'})){
-	$self->_set_error("can_modify_circuit requires a username");
-	return;
+        $self->_set_error("can_modify_circuit requires a username");
+        return;
     }
 
     if(!defined($params{'workgroup_id'})){
-	$self->_set_error("can_modify_circuit requires a workgroup_id");
-	return;
+        $self->_set_error("can_modify_circuit requires a workgroup_id");
+        return;
     }
 
     my $workgroup = $self->get_workgroup_by_id( workgroup_id => $params{'workgroup_id'});
+    if (! defined $workgroup){
+        $self->_set_error("Unknown workgroup.");
+        return;
+    }
 
     my $user_id = $self->get_user_id_by_auth_name( auth_name => $params{'username'});
+    if (! $user_id ){
+        $self->_set_error("Unknown user '".$params{'username'}."'");
+        return;
+    }
+
 
     my $user = $self->get_user_by_id( user_id => $user_id )->[0];
     if($user->{'type'} eq 'read-only'){
@@ -7541,31 +7652,190 @@ sub can_modify_circuit {
     if ( $authorization->[0]{'is_admin'} == 1 ) {
         return 1;
     }
-    my $is_user_in_workgroup = $self->is_user_in_workgroup( workgroup_id => $params{'workgroup_id'},
-							    user_id => $user_id);
+    my $is_user_in_workgroup = $self->is_user_in_workgroup( 
+        workgroup_id => $params{'workgroup_id'},
+        user_id => $user_id
+    );
     
     if(!$is_user_in_workgroup){
-	return 0;
+        return 0;
     }
 
     my $query = "select workgroup_id from circuit where circuit_id = ?";
     my $res = $self->_execute_query($query,[$params{'circuit_id'}])->[0];
     if(!defined($res)){
-	$self->_set_error("Unable to find circuit with id " . $params{'circuit_id'});
-	return;
+        $self->_set_error("Unable to find circuit with id " . $params{'circuit_id'});
+        return;
     }
 
     if($res->{'workgroup_id'} == $params{'workgroup_id'}){
-	return 0 if $workgroup->{'type'} eq 'demo';
+        return 0 if $workgroup->{'type'} eq 'demo';
         return 0 if $workgroup->{'status'} eq 'decom';
-	return 1 if $workgroup->{'type'} eq 'normal' || $workgroup->{'type'} eq 'admin';
+        return 1 if $workgroup->{'type'} eq 'normal' || $workgroup->{'type'} eq 'admin';
     }
 
     if($workgroup->{'type'} eq 'admin'){
-	return 1;
+        return 1;
     }
 
     return 0;
+}
+
+=head2 validate_endpoints
+    validates circuit endpoints passed in
+
+=cut
+
+sub validate_endpoints {
+    my ($self, %args) = @_;
+
+    my $nodes          = $args{'nodes'};
+    my $interfaces     = $args{'interfaces'};
+    my $tags           = $args{'tags'};
+    my $workgroup_id   = $args{'workgroup_id'};
+    my $mac_addresses  = $args{'mac_addresses'};
+    my $static_mac     = $args{'static_mac'} || 0; 
+    my $endpoint_mac_address_nums = $args{'endpoint_mac_address_nums'};
+
+    for (my $i = 0; $i < @$nodes; $i++){
+        my $node      = @$nodes[$i];
+        my $interface = @$interfaces[$i];
+        my $vlan      = @$tags[$i];
+        my $endpoint_mac_address_num = @$endpoint_mac_address_nums[$i];
+
+        my $query = "select interface_id from interface " .
+                    " join node on node.node_id = interface.node_id " .
+                    " where node.name = ? and interface.name = ? ";
+        my $interface_id = $self->_execute_query($query, [$node, $interface])->[0]->{'interface_id'};
+
+        if (! $interface_id ){
+            $self->_set_error("Unable to find interface '$interface' on node '$node'");
+            return;
+        }
+
+        if (! $self->_validate_endpoint(interface_id => $interface_id, workgroup_id => $workgroup_id, vlan => $vlan)){
+            $self->_set_error("Interface \"$interface\" on endpoint \"$node\" with VLAN tag \"$vlan\" is not allowed for this workgroup.");
+            return;
+        }
+
+        # need to check to see if this external vlan is open on this interface first
+        if (! $self->is_external_vlan_available_on_interface(vlan => $vlan, interface_id => $interface_id) ){
+            $self->_set_error("Vlan '$vlan' is currently in use by another circuit on interface '$interface' on endpoint '$node'");
+            return;
+        }
+
+        # now add any static mac addresses if the static mac address flag was sent
+        if($static_mac){
+            # create an array of all the mac addresses for this endpoint
+            my @endpoint_mac_addresses;
+            for (my $j = 0; $j < $endpoint_mac_address_num; $j++){
+                my $mac_address = shift(@$mac_addresses);
+                push(@endpoint_mac_addresses, $mac_address);
+            }
+
+            # check that the mac_addresses fall within the limits
+            my $result = $self->is_within_mac_limit(
+                mac_address  => \@endpoint_mac_addresses,
+                interface    => $interface,
+                node         => $node,
+                workgroup_id => $workgroup_id
+            );
+            if(!$result->{'verified'}){
+                $self->_set_error($result->{'explanation'});
+                return;
+            }
+
+            # now make sure the mac_addresses are valid
+            foreach my $mac_address (@endpoint_mac_addresses){
+                if( ! mac_validate( $mac_address ) ){
+                    $self->_set_error("$mac_address is not a valid mac address.");
+                    return;
+                }
+            }
+
+        }
+    }
+
+    return 1;
+}
+
+=head2 validate_paths
+
+validates paths set on circuit before its provisioned
+
+=cut
+
+sub validate_paths {
+    my ($self, %args) = @_;
+
+    my $nodes          = $args{'nodes'};
+    my $interfaces     = $args{'interfaces'};
+    my $tags           = $args{'tags'};
+    my $links          = $args{'links'};
+    my $backup_links   = $args{'backup_links'};
+
+    my $endpoints = [];
+    for (my $i = 0; $i < @$nodes; $i++){
+        my $node      = 
+        my $interface = 
+        my $vlan      = 
+        push(@$endpoints, {
+            node => @$nodes[$i],
+            interface => @$interfaces[$i],
+            vlan => @$tags[$i]
+        });        
+    }
+
+    # now check to verify that the topology makes sense
+    my ($success, $error) = $self->{'topo'}->validate_paths(
+        links        => $links,
+        backup_links => $backup_links,
+        endpoints    => $endpoints
+    );
+    if (! $success){
+        $self->_set_error($error);
+        return;
+    }
+
+    return 1;
+}
+
+=head2 circuit_sanity_check
+
+performs a preflight check on circuit parameters
+
+=cut
+
+sub circuit_sanity_check {
+    my ($self, %args) = @_;
+
+    # make sure user passed in can modify circuit
+    if(!$self->can_modify_circuit(username => $args{'user_name'}, %args)){
+        return;
+    }
+
+    # makes sure this workgroup hasn't gone over their endpoint limit
+    my $endpoint_num = @{$args{'nodes'}};
+    my $within_limit = $self->is_within_circuit_endpoint_limit( 
+        workgroup_id => $args{'workgroup_id'},
+        endpoint_num => $endpoint_num
+    );
+    if(!$within_limit){
+        $self->_set_error("Permission denied: $endpoint_num endpoints exceeds the limit of endpoints per circuit placed on this workgroup.");
+        return;
+    }
+
+    # make sure endpoints pass validation
+    if(!$self->validate_endpoints(%args)){
+        return;
+    }
+    
+    # make sure paths make sense
+    if(!$self->validate_paths(%args)){
+        return;
+    }
+
+    return 1;
 }
 
 
@@ -8444,5 +8714,133 @@ sub default_vlan_range {
 
     return $self->{'default_vlan_range'};
 }
+
+=head2 is_topo_enabled
+
+=cut
+
+sub is_topo_enabled{
+    my $self = shift;
+    
+    return 1 if(!defined($self->{'processes'}->{'topo'}));
+    
+    if($self->{'processes'}->{'topo'}->{'status'} eq 'enabled'){
+        return 1;
+    }else{
+        return 0;
+    }
+    
+}
+
+=head2 is_fwdctl_enabled
+
+=cut
+
+sub is_fwdctl_enabled{
+    my $self = shift;
+    
+    return 1 if(!defined($self->{'processes'}->{'fwdctl'}));
+
+    if($self->{'processes'}->{'fwdctl'}->{'status'} eq 'enabled'){
+        return 1;
+    }else{
+        return 0;
+    }
+}
+
+=head2 is_vlan_stats_enabled
+
+=cut
+
+sub is_vlan_stats_enabled{
+    my $self = shift;
+
+    return 1 if(!defined($self->{'processes'}->{'vlan_stats'}));
+
+    if($self->{'processes'}->{'vlan_stats'}->{'status'} eq 'enabled'){
+        return 1;
+    }else{
+        return 0;
+    }
+}
+
+=head2 is_nox_enabled
+
+=cut
+
+sub is_nox_enabled{
+    my $self = shift;
+
+    return 1 if(!defined($self->{'processes'}->{'nox'}));
+
+    if($self->{'processes'}->{'nox'}->{'status'} eq 'enabled'){
+        return 1;
+    }else{
+        return 0;
+    }
+
+}
+
+=head2 is_notification_enabled
+
+=cut
+
+sub is_notification_enabled{
+    my $self = shift;
+    return 1 if(!defined($self->{'processes'}->{'notification'}));
+
+    if($self->{'processes'}->{'notification'}->{'status'} eq 'enabled'){
+        return 1;
+    }else{
+        return 0;
+    }
+}
+
+=head2 is_watchdog_enabled
+
+=cut
+
+sub is_watchdog_enabled{
+    my $self = shift;
+    return 1 if(!defined($self->{'processes'}->{'watchdog'}));
+
+    if($self->{'processes'}->{'watchdog'}->{'status'} eq 'enabled'){
+        return 1;
+    }else{
+        return 0;
+    }
+}
+
+=head2 is_fvd_enabled
+
+=cut
+
+sub is_fvd_enabled{
+    my $self = shift;
+    return 1 if(!defined($self->{'processes'}->{'fvd'}));
+
+    if($self->{'processes'}->{'fvd'}->{'status'} eq 'enabled'){
+        return 1;
+    }else{
+        return 0;
+    }
+}
+
+=head2 is_traceroute_enabled
+
+=cut
+
+sub is_traceroute_enabled{
+    my $self = shift;
+
+    return 1 if(!defined($self->{'processes'}->{'traceroute'}));
+
+    if($self->{'processes'}->{'traceroute'}->{'status'} eq 'enabled'){
+        return 1;
+    }else{
+        return 0;
+    }
+}
+
 
 return 1;
