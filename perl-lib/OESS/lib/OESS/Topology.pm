@@ -240,38 +240,53 @@ sub all_endpoints_connected_in_path {
 #--- might want to have anothe varient that
 #--- takes an arbtrary path so that we can do this in the ui
 
-sub validate_paths{
-    my $self  = shift;
-    my %args  = (
-	circuit_id => undef,
-	@_,
-    );
+sub validate_paths {
+    my ( $self, %args ) = @_;
 
     #-- get the circuit info
-    my $res = $self->{'db'}->get_circuit_details(circuit_id=>$args{'circuit_id'});
+    my $links;
+    my $backup_links;
+    my $endpoints;
+    if($args{'circuit_id'}){
+        my $res = $self->{'db'}->get_circuit_details( circuit_id=> $args{'circuit_id'} );
+        $links = $res->{'links'};
+        $backup_links = $res->{'backup_links'};
+        $endpoints = $res->{'endpoints'}
+    }elsif( ($args{'links'} || $args{'backup_links'}) && $args{'endpoints'}){
+        $links        = $self->{'db'}->get_links_details_by_name( names => $args{'links'} );
+        if(!$links){
+            $self->_set_error($self->{'db'}->get_error());
+        }
+        $backup_links = $self->{'db'}->get_links_details_by_name( names => $args{'backup_links'} );
+        if(!$backup_links){
+            $self->_set_error($self->{'db'}->get_error());
+        }
+        $endpoints = $args{'endpoints'};
+    }else {
+        $self->_set_error("Must pass in a circuit_id, a list or links, or a list of backup_links");
+        return;
+    }
 
-    if(defined $res->{'links'}){
-
-        if ( (!$self->path_is_loop_free($res->{'links'})) && (!$self->is_loopback($res->{'endpoints'})) ){
+    if(defined $links){
+        if ( (!$self->path_is_loop_free($links)) && (!$self->is_loopback($endpoints)) ){
             $self->_set_error("Primary path contains a loop");
             return (0,"Primary path contains a loop.");
         }
 
-        if (! $self->all_endpoints_connected_in_path($res->{'links'}, $res->{'endpoints'})){
+        if (! $self->all_endpoints_connected_in_path($links, $endpoints)){
             $self->_set_error("Primary path does not connect all endpoints.");
             return (0,"Primary path does not connect all endpoints.");
         }
-
     }
 
-    if(defined $res->{'backup_links'}){
+    if(defined $backup_links){
 
-        if ( (!$self->path_is_loop_free($res->{'backup_links'})) && (!$self->is_loopback($res->{'endpoints'})) ){
+        if ( (!$self->path_is_loop_free($backup_links)) && (!$self->is_loopback($endpoints)) ){
             $self->_set_error("Backup path contains a loop.");
             return (0,"Backup path contains a loop.");
         }
 
-        if (@{$res->{'backup_links'}} > 0 && ! $self->all_endpoints_connected_in_path($res->{'backup_links'}, $res->{'endpoints'})){
+        if (@{$backup_links} > 0 && ! $self->all_endpoints_connected_in_path($backup_links, $endpoints)){
             $self->_set_error("Backup path does not connect all endpoints.");
             return (0,"Backup path does not connect all endpoints.");
         }
@@ -325,18 +340,17 @@ sub is_loopback {
 
 =cut
 
-sub find_path{
+sub find_path {
     my $self = shift;
-    my %args = 	@_;
+    my %args = @_;
 
     $self->{'logger'}->debug("Finding shortest path");
 
     my @selected_links = ();
 
-
     my $reserved_bw = $args{'reserved_bw'};
     if(!defined($reserved_bw)){
-	$reserved_bw = 0;
+        $reserved_bw = 0;
     }
 
     my $nodes = $args{'nodes'};
@@ -347,7 +361,7 @@ sub find_path{
 
     #now the acutal implementation, step0 sanity
     if(scalar(@$nodes) < 2){
-	$self->_set_error("Not enough nodes specified in find path: " . join(",",@$nodes));
+        $self->_set_error("Not enough nodes specified in find path: " . join(",",@$nodes));
         return undef;
     }
 
@@ -357,17 +371,17 @@ sub find_path{
 
     my @db_nodes;
     foreach my $tmp_node (@tmp){
-	push(@db_nodes, $tmp_node->{'name'});
+        push(@db_nodes, $tmp_node->{'name'});
     }
 
     $self->{'logger'}->debug("db_nodes=" . join(",",@db_nodes));
 
     #Sanity check2 make sure the nodes are a subset of the nodes on the db
-    my $db_node_set    =Set::Scalar->new(@db_nodes);
-    my $input_node_set =Set::Scalar->new(@$nodes);
+    my $db_node_set    = Set::Scalar->new(@db_nodes);
+    my $input_node_set = Set::Scalar->new(@$nodes);
 
     if(not $input_node_set <= $db_node_set){
-	$self->_set_error("Bad inputs: " . join(",",@$nodes));
+        $self->_set_error("Bad inputs: " . join(",",@$nodes));
         return undef;
     }
 
@@ -381,7 +395,7 @@ sub find_path{
     my $links = $db->get_edge_links($reserved_bw);
     $self->{'logger'}->debug("edge links: " . Dumper($links));
     my %edge;
-    my $used_link_set=Set::Scalar->new(@$try_avoid);
+    my $used_link_set = Set::Scalar->new(@$try_avoid);
 
     #--- determine the max weight
     #used as a baseline to start the primary path weights at
@@ -394,11 +408,11 @@ sub find_path{
     }
     
     foreach my $link (@$links){
-	#add every link as an edge in our graph
+        #add every link as an edge in our graph
         my $current_reserved_bandwidth = $link->{'reserved_bw_mbps'};
 
         #--- determine how much capacity will be left on this link after our requested circuit runs through it
-	my $capacity_left = $link->{'link_capacity'} * 1.0 - $current_reserved_bandwidth - $reserved_bw;
+        my $capacity_left = $link->{'link_capacity'} * 1.0 - $current_reserved_bandwidth - $reserved_bw;
         #--- if the remaining capacity is less than zero we can't use this link so don't add it to the graph
         $self->{'logger'}->debug("Capacity left on link " . $link->{'name'} . ": " . $capacity_left);
         next if($capacity_left < 0);
@@ -445,61 +459,66 @@ sub find_path{
 
         $g->add_edge($link->{'node_a_name'},$link->{'node_b_name'});
 
-	if (not defined $reserved_bw){
+        if (not defined $reserved_bw){
             $reserved_bw=0;
-	}
+        }
 
-	$g->set_edge_attribute($link->{'node_a_name'},$link->{'node_b_name'},"weight",$edge_weight);
-	$self->{'logger'}->debug("Edge: " . $link->{'node_a_name'} . "<->" . $link->{'node_b_name'} . " = " . $edge_weight);
+        $g->set_edge_attribute($link->{'node_a_name'},$link->{'node_b_name'},"weight",$edge_weight);
+        $self->{'logger'}->debug("Edge: " . $link->{'node_a_name'} . "<->" . $link->{'node_b_name'} . " = " . $edge_weight);
 
-	push(@{$edge{$link->{'node_a_name'}}{$link->{'node_b_name'}}},{name => $link->{'name'},
-                                                                       weight => $edge_weight,
-                                                                       circuits => $circuits });
-        push(@{$edge{$link->{'node_b_name'}}{$link->{'node_a_name'}}},{name => $link->{'name'},
-                                                                       weight => $edge_weight,
-                                                                       circuits => $circuits });
+        push(@{$edge{$link->{'node_a_name'}}{$link->{'node_b_name'}}},{
+            name => $link->{'name'},
+            weight => $edge_weight,
+            circuits => $circuits 
+        });
+        push(@{$edge{$link->{'node_b_name'}}{$link->{'node_a_name'}}},{
+            name => $link->{'name'},
+            weight => $edge_weight,
+            circuits => $circuits
+        });
     }
 
     #run Dijkstra on our graph
     my @link_list = ();
     foreach my $node_a_name (@$nodes){
-	foreach my $node_b_name (@$nodes){
-	    next if $node_a_name eq $node_b_name;
-	    #do the Shortest Path Calcualtion
-	    my @path = $g->SP_Dijkstra($node_a_name, $node_b_name);
-            $self->{'logger'}->debug("Shortest path calc: for $node_a_name to $node_b_name " . Dumper(@path));
-	    if (!@path){
-		$self->_set_error("No Path found");
-		return undef;
-	    }
+    foreach my $node_b_name (@$nodes){
+        next if $node_a_name eq $node_b_name;
+        #do the Shortest Path Calcualtion
+        my @path = $g->SP_Dijkstra($node_a_name, $node_b_name);
+        $self->{'logger'}->debug("Shortest path calc: for $node_a_name to $node_b_name " . Dumper(@path));
+        if (!@path){
+            $self->_set_error("No Path found");
+            return undef;
+        }
 
-	    for(my $i=0;$i<scalar(@path);$i++){
-		my $links = $edge{$path[$i]}{$path[$i+1]};
-                
-                my $choosen_link;
-                foreach my $link (@$links){
-                    $self->{'logger'}->debug("Link: " . $link->{'name'});
-                    if(!defined($choosen_link)){
-                        $choosen_link = $link;
-                        next;
-                    }
-                    $self->{'logger'}->debug(Data::Dumper::Dumper($link));
-
-                    $self->{'logger'}->debug("Comparing " . ($link->{'weight'} + scalar($link->{'circuits'})) . " to " . ($choosen_link->{'weight'} + scalar($choosen_link->{'circuits'}))); 
-                    if(($link->{'weight'} + $#{$link->{'circuits'}}) < ($choosen_link->{'weight'} + $#{$choosen_link->{'circuits'}})){
-                        $choosen_link = $link;
-                    }
-                    
-                }
+        my $links_added = 0;
+        for(my $i=0;$i<scalar(@path);$i++){
+            my $links = $edge{$path[$i]}{$path[$i+1]};
+            
+            my $choosen_link;
+            foreach my $link (@$links){
+                $self->{'logger'}->debug("Link: " . $link->{'name'});
                 if(!defined($choosen_link)){
+                    $choosen_link = $link;
                     next;
                 }
-                push(@link_list,$choosen_link->{'name'});
-                $self->{'logger'}->debug("Adding link name: " . $choosen_link->{'name'});
+                $self->{'logger'}->debug(Data::Dumper::Dumper($link));
+
+                $self->{'logger'}->debug("Comparing " . ($link->{'weight'} + scalar($link->{'circuits'})) . " to " . ($choosen_link->{'weight'} + scalar($choosen_link->{'circuits'}))); 
+                if(($link->{'weight'} + $#{$link->{'circuits'}}) < ($choosen_link->{'weight'} + $#{$choosen_link->{'circuits'}})){
+                    $choosen_link = $link;
+                }
                 
             }
-	}
-    }
+            if(!defined($choosen_link)){
+                next;
+            }
+            push(@link_list,$choosen_link->{'name'});
+            $self->{'logger'}->debug("Adding link name: " . $choosen_link->{'name'});
+            $links_added = 1;
+        }
+        last if($links_added);
+    }}
     
     $self->{'logger'}->debug("link_list=".join(",",@link_list));
 

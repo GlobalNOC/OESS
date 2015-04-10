@@ -82,18 +82,18 @@ use constant OF_UNTAGGED        => 65535;
 
 =cut
 
-sub new{
+sub new {
     my $that = shift;
     my $class = ref($that) || $that;
 
     my %args = (
-	priority => 32768,
-	match => {},
-	actions => [],
-	dpid => undef,
-	idle_timeout => 0,
-	hard_timeout => 0,
-	@_
+        priority => 32768,
+        match => {},
+        actions => [],
+        dpid => undef,
+        idle_timeout => 0,
+        hard_timeout => 0,
+        @_
 	);
 
     my $self = \%args;
@@ -428,8 +428,8 @@ sub set_dpid{
 
 =cut
 
-sub to_dbus{
-    my $self = shift;
+sub to_dbus {
+    my ($self, %args) = @_;
 
     $self->{'logger'}->debug("Processing flow to DBus");
 
@@ -438,53 +438,44 @@ sub to_dbus{
     my @actions;
     $self->{'logger'}->debug("Processing Actions");
     for(my $i=0;$i<= $#{$self->{'actions'}};$i++){
-	my @tmp;
-	my $action = $self->{'actions'}->[$i];
+        my @tmp;
+        my $action = $self->{'actions'}->[$i];
 
-	foreach my $key (keys (%$action)){
+        foreach my $key (keys (%$action)){
             $self->{'logger'}->trace("Processing action: " . $key . " " . $action->{$key});
-	    switch (lc($key)){
-		case "output" {
-		    #look at OF1.0 spec when sending ofp_action_output
-		    #it takes a max_length and a port
-		    #max length is only used when forwarding to controller
-		    #max_length defaults to 0 if not specified
-		    my $max_length;
-		    my $out_port;
+            switch (lc($key)){
+                case "output" {
+                    #look at OF1.0 spec when sending ofp_action_output
+                    #it takes a max_length and a port
+                    #max length is only used when forwarding to controller
+                    #max_length defaults to 0 if not specified
+                    my $max_length;
+                    my $out_port;
 
-		    if(ref($action->{$key}) ne 'HASH'){
-			$out_port = $action->{$key};
-			$max_length = 65535;
-		    }else{
-			$max_length = $action->{$key}->{'max_length'};
-			$out_port = $action->{$key}->{'port'};
-		    }
+                    if(ref($action->{$key}) ne 'HASH'){
+                        $out_port = $action->{$key};
+                        $max_length = 65535;
+                    }else{
+                        $max_length = $action->{$key}->{'max_length'};
+                        $out_port = $action->{$key}->{'port'};
+                    }
 
-		    if(!defined($max_length)){
-			$max_length = 65535;
-		    }
+                    if(!defined($max_length)){
+                        $max_length = 65535;
+                    }
 
-		    if(!defined($out_port)){
+                    if(!defined($out_port)){
                         $self->{'logger'}->error("Error no out_port specified in output action");
-			return;
-		    }
+                        return;
+                    }
 
-		    $tmp[0] = Net::DBus::dbus_uint16(OFPAT_OUTPUT);
-		    $tmp[1][0] = Net::DBus::dbus_uint16(int($max_length));
-		    $tmp[1][1] = Net::DBus::dbus_uint16(int($out_port));
-		}
+                    $tmp[0] = Net::DBus::dbus_uint16(OFPAT_OUTPUT);
+                    $tmp[1][0] = Net::DBus::dbus_uint16(int($max_length));
+                    $tmp[1][1] = Net::DBus::dbus_uint16(int($out_port));
+                }
 
-		case "set_vlan_vid" {
-		    if(!defined($action->{$key}) || $action->{$key} == UNTAGGED || $action->{$key} == 65535){
-			#untagged
-			$tmp[0] = Net::DBus::dbus_uint16(OFPAT_STRIP_VLAN);
-			$tmp[1] = Net::DBus::dbus_uint16(0);
-		    } else {
-			$tmp[0] = Net::DBus::dbus_uint16(OFPAT_SET_VLAN_VID);
-			$tmp[1] = Net::DBus::dbus_uint16(int($action->{$key}));
-		    }
-		}case "set_vlan_id"{
-		    if(!defined($action->{$key}) || $action->{$key} == UNTAGGED || $action->{$key} == 65535){
+                case "set_vlan_vid" {
+                    if(!defined($action->{$key}) || $action->{$key} == UNTAGGED || $action->{$key} == 65535){
                         #untagged
                         $tmp[0] = Net::DBus::dbus_uint16(OFPAT_STRIP_VLAN);
                         $tmp[1] = Net::DBus::dbus_uint16(0);
@@ -492,21 +483,29 @@ sub to_dbus{
                         $tmp[0] = Net::DBus::dbus_uint16(OFPAT_SET_VLAN_VID);
                         $tmp[1] = Net::DBus::dbus_uint16(int($action->{$key}));
                     }
-		}
+                }case "set_vlan_id"{
+                    if(!defined($action->{$key}) || $action->{$key} == UNTAGGED || $action->{$key} == 65535){
+                        #untagged
+                        $tmp[0] = Net::DBus::dbus_uint16(OFPAT_STRIP_VLAN);
+                        $tmp[1] = Net::DBus::dbus_uint16(0);
+                    } else {
+                        $tmp[0] = Net::DBus::dbus_uint16(OFPAT_SET_VLAN_VID);
+                        $tmp[1] = Net::DBus::dbus_uint16(int($action->{$key}));
+                    }
+                }
 
-		case "drop"{
-		    #no actions... ie... do nothing
-		    
-		}else{
-                    $self->{'logger'}->error("Error unsupported action: " . $key . "\n");
-		    return;
-		}
-	    }
-	    
-	    if(defined($tmp[0])){
-		push(@actions,\@tmp);
-	    }
-	}
+                case "drop"{
+                    #no actions... ie... do nothing
+                    
+                }else{
+                            $self->{'logger'}->error("Error unsupported action: " . $key . "\n");
+                    return;
+                }
+            }
+            if(defined($tmp[0])){
+                push(@actions,\@tmp);
+            }
+        }
     }
 
     #push the actions on to the object
@@ -515,36 +514,44 @@ sub to_dbus{
     $self->{'logger'}->debug("Processing Match");
     foreach my $key (keys (%{$self->{'match'}})){
         $self->{'logger'}->trace("Processing Match Key: " . $key . " value: " . $self->{'match'}->{$key});
-	switch ($key){
-	    case "in_port"{
-		$command->{'attr'}{'IN_PORT'} = Net::DBus::dbus_uint16(int($self->{'match'}->{$key}));
-	    }case "dl_vlan"{
-		$command->{'attr'}{'DL_VLAN'} = Net::DBus::dbus_uint16(int($self->{'match'}->{$key}));
-	    }case "dl_type"{
-		$command->{'attr'}{'DL_TYPE'} = Net::DBus::dbus_uint16(int($self->{'match'}->{$key}));
-	    }case "dl_dst"{
-		$command->{'attr'}{'DL_DST'} = Net::DBus::dbus_uint64(int($self->{'match'}->{$key}));
-	    }case "dl_vlan_pcp"{
-		#not supported
+        switch ($key){
+            case "in_port"{
+                $command->{'attr'}{'IN_PORT'} = Net::DBus::dbus_uint16(int($self->{'match'}->{$key}));
+            }case "dl_vlan"{
+                $command->{'attr'}{'DL_VLAN'} = Net::DBus::dbus_uint16(int($self->{'match'}->{$key}));
+            }case "dl_type"{
+                $command->{'attr'}{'DL_TYPE'} = Net::DBus::dbus_uint16(int($self->{'match'}->{$key}));
+            }case "dl_dst"{
+                $command->{'attr'}{'DL_DST'}  = Net::DBus::dbus_uint64(int($self->{'match'}->{$key}));
+            }case "dl_vlan_pcp"{
+                #not supported
             }case "nw_proto"{
-		#not supported
+                #not supported
             }case "tp_src"{
-		#not supported
+                #not supported
             }case "nw_tos"{
-		#not supported
+                #not supported
             }case "tp_dst"{
-		#not supported
-	    }else{
+                #not supported
+            }else{
                 $self->{'logger'}->error("To Dbus: Unsupported match attribute: " . $key . "\n");
-		return;
-	    }
-	}
+                return;
+            }
+        }
     }
     
     #these are all set by default
-    $command->{'attr'}{'PRIORITY'} = Net::DBus::dbus_uint16(int($self->{'priority'}));
+    $command->{'attr'}{'PRIORITY'}     = Net::DBus::dbus_uint16(int($self->{'priority'}));
     $command->{'attr'}{'HARD_TIMEOUT'} = Net::DBus::dbus_uint16(int($self->{'hard_timeout'}));
     $command->{'attr'}{'IDLE_TIMEOUT'} = Net::DBus::dbus_uint16(int($self->{'idle_timeout'}));
+
+    #set the command if it was defined
+    if(defined($args{'command'})){
+        $command->{'attr'}{'COMMAND'} = Net::DBus::dbus_uint16(int($args{'command'}));
+        $self->{'logger'}->debug("flow converted to dbus with OFPFC of :". $command->{'attr'}{'COMMAND'});
+    } else {
+        $self->{'logger'}->error("no command sent with to_dbus command!");
+    }
 
     $self->{'logger'}->debug("returning the flow in dbus format");
 
@@ -579,34 +586,34 @@ sub get_actions{
 
 =cut
 
-sub to_human{
+sub to_human {
     my $self = shift;
 
     my $match_str = "";
     foreach my $key (keys (%{$self->{'match'}})){
-        $self->{'logger'}->trace("Processing Match Key: " . $key . " value: " . $self->{'match'}->{$key});
-	if($match_str ne ''){	    
-	    $match_str .= ", ";
-	}
+        $self->{'logger'}->trace("Processing Match Key: ".$key." value: ".$self->{'match'}->{$key});
+        if($match_str ne ''){
+            $match_str .= ", ";
+        }
         switch ($key){
             case "in_port"{
                 $match_str .= "IN PORT: " . $self->{'match'}->{$key};
             }case "dl_vlan"{
                 $match_str .= "VLAN: " . $self->{'match'}->{$key};
             }case "dl_type"{
-		$match_str .= "TYPE: " . $self->{'match'}->{$key};
+                $match_str .= "TYPE: " . $self->{'match'}->{$key};
             }case "dl_dst"{
-		$match_str .= "DST MAC: " . $self->{'match'}->{$key};
+                $match_str .= "DST MAC: " . $self->{'match'}->{$key};
             }case "dl_vlan_pcp"{
-		$match_str .= "VLAN PCP: " . $self->{'match'}->{$key};
-	    }case "nw_proto"{
-		$match_str .= "NW PROTO: " . $self->{'match'}->{$key};
+                $match_str .= "VLAN PCP: " . $self->{'match'}->{$key};
+            }case "nw_proto"{
+                $match_str .= "NW PROTO: " . $self->{'match'}->{$key};
             }case "tp_src"{
-		$match_str .= "TP SRC: " . $self->{'match'}->{$key};
+                $match_str .= "TP SRC: " . $self->{'match'}->{$key};
             }case "nw_tos"{
-		$match_str .= "NW TOS: " . $self->{'match'}->{$key};
+                $match_str .= "NW TOS: " . $self->{'match'}->{$key};
             }case "tp_dst"{
-		$match_str .= "TP DST: " . $self->{'match'}->{$key};
+                $match_str .= "TP DST: " . $self->{'match'}->{$key};
             }else{
                 $self->{'logger'}->error("Unsupported match attribute: " . $key . "\n");
                 return;
@@ -619,11 +626,11 @@ sub to_human{
     for(my $i=0;$i<= $#{$self->{'actions'}};$i++){
         my @tmp;
         my $action = $self->{'actions'}->[$i];
-	foreach my $key (keys (%$action)){
+        foreach my $key (keys (%$action)){
             if($action_str ne ''){
-		$action_str .= '          ';
-	    }
-	    switch (lc($key)){
+                $action_str .= '          ';
+            }
+            switch (lc($key)){
                 case "output" {
                     #look at OF1.0 spec when sending ofp_action_output
                     #it takes a max_length and a port
@@ -649,25 +656,25 @@ sub to_human{
                         return;
                     }
 
-		    $action_str .= "OUTPUT: " . $out_port . "\n";
+                    $action_str .= "OUTPUT: " . $out_port . "\n";
                 }
 
                 case "set_vlan_vid" {
                     if(!defined($action->{$key}) || $action->{$key} == UNTAGGED){
                         #untagged
-			$action_str .= "STRIP VLAN VID\n";
-                    } else {
-			$action_str .= "SET VLAN ID: " . $action->{$key} . "\n";
-                    }
-                }
-		case "set_vlan_id" {
-                    if(!defined($action->{$key}) || $action->{$key} == UNTAGGED){
-			#untagged
                         $action_str .= "STRIP VLAN VID\n";
                     } else {
                         $action_str .= "SET VLAN ID: " . $action->{$key} . "\n";
                     }
-		}
+                }
+                case "set_vlan_id" {
+                    if(!defined($action->{$key}) || $action->{$key} == UNTAGGED){
+                        #untagged
+                        $action_str .= "STRIP VLAN VID\n";
+                    } else {
+                        $action_str .= "SET VLAN ID: " . $action->{$key} . "\n";
+                    }
+                }
                 case "drop"{
                     #no actions... ie... do nothing
                     
@@ -677,12 +684,17 @@ sub to_human{
                 }
             }
             
-	}
+        }
     }
     
-    my $dpid_str = sprintf("%x",$self->{'dpid'});
-    return "OFFlowMod:\n DPID: " . $dpid_str . "\n Priority: " . $self->{'priority'} . "\n Match: " . $match_str . "\n Actions: " . $action_str;
+    my $dpid_str    = sprintf("%x",$self->{'dpid'});
+    my $str = "OFFlowMod:\n".
+              " DPID: " . $dpid_str . "\n".
+              " Priority: " . $self->{'priority'} . "\n".
+              " Match: " . $match_str . "\n".
+              " Actions: " . $action_str;
 
+    return $str;
 }
 
 

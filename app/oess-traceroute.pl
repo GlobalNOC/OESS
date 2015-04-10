@@ -1,13 +1,15 @@
 #!/usr/bin/perl
 
 use strict;
-use OESS::FV;
+
+use lib "/home/gmcnaugh/OESS/perl-lib/OESS/lib/";
+use OESS::Traceroute;
 use Getopt::Long;
 use Proc::Daemon;
 use Data::Dumper;
 use English;
 use Log::Log4perl;
-
+#use Carp::Always;
 sub main{
 
     my $is_daemon = 0;
@@ -33,29 +35,34 @@ sub main{
         my $daemon;
         if ($verbose) {
             $daemon = Proc::Daemon->new(
-                                        pid_file => '/var/run/oess/oess-fvd.pid',
-                                        child_STDOUT => '/var/log/oess/oess-fvd.out',
-                                        child_STDERR => '/var/log/oess/oess-fvd.log',
+                                        pid_file => '/var/run/oess/oess-traceroute.pid',
+                                        child_STDOUT => '/var/log/oess/oess-traceroute.out',
+                                        child_STDERR => '/var/log/oess/oess-traceroute.log',
                 );
         } else {
             $daemon = Proc::Daemon->new(
-                                        pid_file => '/var/run/oess/oess-fvd.pid'
+                                        pid_file => '/var/run/oess/oess-traceroute.pid'
                 );
         }
         my $kid_pid = $daemon->Init;
 
         if ($kid_pid) {
-            `chmod 0644 /var/run/oess/oess-fvd.pid`;
             return;
         }
         my $logger = Log::Log4perl->init_and_watch('/etc/oess/logging.conf');
-        my $bfd = OESS::FV->new();
+        my $bus = Net::DBus->system;
+        my $service = $bus->export_service("org.nddi.traceroute");
+        my $traceroute = OESS::Traceroute->new($service);
     }
     #not a deamon, just run the core;
     else {
         $SIG{HUP} = sub{ exit(0); };
         my $logger = Log::Log4perl->init_and_watch('/etc/oess/logging.conf');
-        my $bfd = OESS::FV->new();
+
+        my $bus = Net::DBus->system;
+        my $service = $bus->export_service("org.nddi.traceroute");
+
+        my $traceroute = OESS::Traceroute->new($service);
     }
 
 }

@@ -1020,10 +1020,21 @@ function NDDIMap(div_id, interdomain_mode, options){
 
 								      var z = this.map.getZoom();
 
+                                      
 								      if (x >= 0 && y >= 0) {
-									  return "[% path %]tiles/1.0.0/OESS_background/" + z + "/" + x + "/" + y + "." + this.type;
+                                        
+                                        if (z <=2 && (y >= 4)) {
+                                            y = y -1;
+                                        }
+
+                                        if (z <=2 && (x >= 4)) {
+                                            x = x - 1;
+                                        }
+                                    
+
+                                        return "[% path %]tiles/1.0.0/OESS_background/" + z + "/" + x + "/" + y + "." + this.type;
 								      } else {
-									  return "http://www.maptiler.org/img/none.png";
+									    return "[% path %]media/none.png";
 								      }
 								  }
 							  },
