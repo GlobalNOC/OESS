@@ -558,9 +558,9 @@ sub link_event_to_db{
 	    my $interface_z = $db->get_interface_by_dpid_and_port( dpid => $z_dpid, port_number => $z_port);
 	    my ($link_id, $link_state) = get_active_link_id_by_connectors( interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'} );
 	    if($interface_a->{'state'} eq 'up' && $interface_z->{'state'} eq 'up'){
-		$db->update_link_state( link_id => $link_id, state => 'unknown');
+#		$db->update_link_state( link_id => $link_id, state => 'unknown');
 	    }else{
-		$db->update_link_state( link_id => $link_id, state => 'down');
+#		$db->update_link_state( link_id => $link_id, state => 'down');
 	    }
 
 	}else{
