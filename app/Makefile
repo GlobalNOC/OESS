@@ -1,9 +1,5 @@
 NAME= oess-core
-<<<<<<< HEAD
-VERSION = 1.1.5b
-=======
 VERSION = 1.1.6
->>>>>>> 1b91fbcb90fba95628e12bbc17ed3bb9a75b8640
 
 rpm:	dist
 	rpmbuild -ta dist/$(NAME)-$(VERSION).tar.gz
