@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests => 7;
+use Test::More tests => 8;
 
 BEGIN {
         use_ok( 'OESS::Database' );
@@ -10,6 +10,7 @@ BEGIN {
         use_ok( 'OESS::Circuit' );
         use_ok( 'OESS::Measurement' );
         use_ok( 'OESS::Notification' );
+        use_ok( 'OESS::Traceroute');
 }
 
 

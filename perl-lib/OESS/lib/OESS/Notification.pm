@@ -342,7 +342,7 @@ sub send_notification {
         base_url => $self->{'base_url'},
         circuit_id          => $data->{'circuit'}->{'circuit_id'},
         workgroup           => $data->{'workgroup'},
-        workgroup_id        => $data->{'workgroup_id'}
+        workgroup_id        => $data->{'workgroup_id'},
         circuit_description => $data->{'circuit'}->{'description'},
         clr                 => $data->{'clr'},
         from_signature_name => $self->{'from_name'},
