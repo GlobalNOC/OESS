@@ -338,21 +338,22 @@ sub send_notification {
     if ($hour < 10) {$hour = "0".$hour}; if($min < 10) {$min = "0".$min}; if($sec < 10){$sec = "0".$sec};
     my $str_date = "$days[$wday], $months[$month] $mday, $year, at $hour:$min:$sec"; 
     my %vars = (
-                SUBJECT => $data->{'subject'},
-                base_url => $self->{'base_url'},
-                circuit_id          => $data->{'circuit'}->{'circuit_id'},
-                workgroup           => $data->{'workgroup'},
-                circuit_description => $data->{'circuit'}->{'description'},
-                clr                 => $data->{'clr'},
-                from_signature_name => $self->{'from_name'},
-                type => $data->{'circuit'}->{'type'},
-                reason => $data->{'circuit'}->{'reason'},
-                active_path => $data->{'circuit'}->{'active_path'},
-                last_modified_by => "$data->{'last_modified_by'}{'given_names'} $data->{'last_modified_by'}{'family_name'}",
-                image_base_url => $self->{'image_base_url'},
-                human_time => $str_date
-               );
-
+        SUBJECT => $data->{'subject'},
+        base_url => $self->{'base_url'},
+        circuit_id          => $data->{'circuit'}->{'circuit_id'},
+        workgroup           => $data->{'workgroup'},
+        workgroup_id        => $data->{'workgroup_id'}
+        circuit_description => $data->{'circuit'}->{'description'},
+        clr                 => $data->{'clr'},
+        from_signature_name => $self->{'from_name'},
+        type => $data->{'circuit'}->{'type'},
+        reason => $data->{'circuit'}->{'reason'},
+        active_path => $data->{'circuit'}->{'active_path'},
+        last_modified_by => "$data->{'last_modified_by'}{'given_names'} $data->{'last_modified_by'}{'family_name'}",
+        image_base_url => $self->{'image_base_url'},
+        human_time => $str_date
+        );
+    
       my %tmpl_options = ( ABSOLUTE=>1,
                            RELATIVE=>0,
                          );
@@ -543,15 +544,15 @@ sub _connect_services {
       $details->{'type'} = $ckt->{'type'};
       return (
               {
-               'username'       => $username,
-               'last_modified'  => $details->{'last_edited'},
-               'last_modified_by'=> $details->{'last_modified_by'},
-               'clr'            => $clr,
-               'endpoint_owners' => $owners,
-               'workgroup'      => $details->{'workgroup'}->{'name'},
-               'workgroup_id'      => $details->{'workgroup_id'},
-               'affected_users' => $workgroup_members,
-               'circuit'        => $details
+               'username'         => $username,
+               'last_modified'    => $details->{'last_edited'},
+               'last_modified_by' => $details->{'last_modified_by'},
+               'clr'              => $clr,
+               'endpoint_owners'  => $owners,
+               'workgroup'        => $details->{'workgroup'}->{'name'},
+               'workgroup_id'     => $details->{'workgroup_id'},
+               'affected_users'   => $workgroup_members,
+               'circuit'          => $details
               }
              );
   }
