@@ -409,7 +409,7 @@
                               Greetings, [%user%]
                               <p>You are receiving a notification because you are a member of workgroup:
 
-                                <strong>[%workgroup%]</strong></p><p>
+                                <strong>[% workgroup %]</strong></p><p>
                                [% SWITCH type %]
                                [% CASE 'link_down' %]
                                                                  An outage on backbone link: <strong>[% link_name %]</strong><br />  on [% human_time %].
@@ -421,7 +421,7 @@
                                                                  </p>
                                 <table border="0" cellpading="0" cellspacing="0">
                                                   <tr>
-                                                    <td width="350px"><h4 class="h4">Circuits in [%workgroup%]:</h4></td>
+                                                    <td width="350px"><h4 class="h4">Circuits in [% workgroup %]:</h4></td>
                                                     <td width="190px">
 
                                                     </td>
@@ -448,7 +448,7 @@
                                                   <tr style="background-color:#FbFbFb;">
 						                          [% END %]
 						                          <td valign="top" class="dataTableContent" >
-                                                    <a href="[% base_url %]/index.cgi?action=view_details&circuit_id=[% circuit.circuit_id%]"> [% circuit.description %]</a>
+                                                    <a href="[% base_url %]/index.cgi?action=view_details&circuit_id=[% circuit.circuit_id%]&workgroup_id=[% workgroup_id %]"> [% circuit.description %]</a>
                                                   </td>
                                                   <td valign="top" class="dataTableContent" mc:edit="data_table_content01">
                                                     [% circuit.reason %]
@@ -502,7 +502,7 @@
                                                   <tr style="background-color:#FbFbFb;">
 						                          [% END %]
 						                          <td valign="top" class="dataTableContent" >
-									    <a href="[% base_url %]/index.cgi?action=view_details&circuit_id=[% circuit.circuit_id%]"> [% circuit.description %]</a>
+									    <a href="[% base_url %]/index.cgi?action=view_details&circuit_id=[% circuit.circuit_id%]&workgroup_id=[% workgroup_id %]"> [% circuit.description %]</a>
 									  </td>
                                                   <td valign="top" class="dataTableContent" mc:edit="data_table_content01">
                                                     [% circuit.reason %]
