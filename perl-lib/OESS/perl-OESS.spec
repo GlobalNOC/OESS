@@ -61,6 +61,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::Watchdog.3pm.gz
 %doc %{_mandir}/man3/OESS::FWDCTL::Master.3pm.gz
 %doc %{_mandir}/man3/OESS::FWDCTL::Switch.3pm.gz
+%doc ${_mandir}/man3/OESS::Traceroute.3pm.gz
 %doc %{_mandir}/man3/OESS::FV.3pm.gz
 %{template_dir}/notification_templates.tmpl
 %{template_dir}/notification_bulk.tmpl
@@ -77,7 +78,7 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/Watchdog.pm
 %{perl_vendorlib}/OESS/FWDCTL/Master.pm
 %{perl_vendorlib}/OESS/FWDCTL/Switch.pm
-
+%{perl_vendorlib}/OESS/Traceroute.pm
 %{docdir}/share/nddi.sql
 %{docdir}/share/upgrade/*
 
