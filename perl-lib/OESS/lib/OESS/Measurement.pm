@@ -258,7 +258,7 @@ sub get_data {
         foreach my $other_int (@$other_ints){
             my $other_collection = $self->_find_rrd_file_by_host_int_and_vlan($host->{'host_id'},$other_int->{'port_no'},$other_int->{'tag'});
             if(defined($other_collection)){
-                my $other_rrd_file = $rrd_dir . $collection->{'rrdfile'};
+                my $other_rrd_file = $rrd_dir . $other_collection->{'rrdfile'};
                 my $output = $self->get_rrd_file_data( file => $other_rrd_file, start_time => $start, end_time => $end);
                 $output_agg = aggregate_data($output_agg,$output) || [];
             }
