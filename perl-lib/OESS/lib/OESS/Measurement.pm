@@ -274,6 +274,7 @@ sub get_data {
 	    push(@all_interfaces, $int->{'int'});
 	}
         
+        push(@interfaces, $selected->{'int'});
 	
 	return {"node"       => $selected->{'node'},
 		"interface"  => $selected->{'int'},
