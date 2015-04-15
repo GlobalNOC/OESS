@@ -4543,7 +4543,7 @@ sub get_pending_nodes {
 
     while (my $row = $sth->fetchrow_hashref()){
 	push (@$results, {"node_id"    => $row->{'node_id'},
-			  "dpid"       => $row->{'dpid'},
+			  "dpid"       => sprintf("%x",$row->{'dpid'}),
 			  "ip_address" => $row->{'address'},
 			  "name"       => $row->{'name'},
 			  "longitude"  => $row->{'longitude'},
