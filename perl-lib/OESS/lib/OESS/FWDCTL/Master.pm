@@ -441,6 +441,13 @@ sub datapath_join_handler{
 
     my $dpid_str  = sprintf("%x",$dpid);
 
+    $self->update_cache(-1);
+
+    if(!$node_info{$dpid}){
+        $node_info{$dpid}->{'dpid_str'} = sprintf("%x",$dpid);
+        $self->_write_cache();
+    }
+
     $self->{'logger'}->warn("switch with dpid: " . $dpid_str . " has join");
     my $event_id = $self->_generate_unique_event_id();
     if(defined($self->{'children'}->{$dpid}->{'rpc'})){
