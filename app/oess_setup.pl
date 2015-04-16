@@ -225,7 +225,7 @@ close(FILE);
     my $sth3 = $handle->prepare("update global set value = ? where name = 'rrddir'");
     $sth3->execute($base_path);
 
-    my $step = optional_parameter("What interval do you want to collect per VLAN per Interface statistics?",10);
+    my $step = optional_parameter("What interval do you want to collect per VLAN per Interface statistics?",30);
 
     $sth = $handle->prepare("insert into collection_class (name,description,collection_interval,default_cf,default_class) VALUES ('PerVlanPerInterface','FlowStats',?,'AVERAGE',0)");
     $sth->execute($step);
