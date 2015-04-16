@@ -86,6 +86,9 @@ sub new {
 
     my $self = \%args;
 
+    #--- set a default discovery vlan that can be overridden later if needed.
+    $self->{'settings'}->{'discovery_vlan'} = -1;
+
     $self->{'nox'} = $nox->{'dbus'};
 
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL.Switch.' . sprintf("%x",$self->{'dpid'}));
@@ -100,6 +103,8 @@ sub new {
                                             $self->{'logger'}->debug("Processing FlowStat Timer event");
                                             $self->get_flow_stats();
                                         } );
+
+
     return $self;
 }
 
@@ -466,7 +471,7 @@ sub remove_vlan{
 
 sub datapath_join_handler{
     my $self   = shift;
-    
+ 
     #--- first push the default "forward to controller" rule to this node. This enables
     #--- discovery to work properly regardless of whether the switch's implementation does it by default
     #--- or not
@@ -475,9 +480,19 @@ sub datapath_join_handler{
     my %xid_hash;
     
     if(!defined($self->{'node'}->{'default_forward'}) || $self->{'node'}->{'default_forward'} == 1) {
-        $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." pushing lldp forwarding rule");
-        my $status = $self->{'nox'}->install_default_forward(Net::DBus::dbus_uint64($self->{'dpid'}),$self->{'settings'}->{'discovery_vlan'});
-	$self->{'flows'}++;
+        my $status;
+
+        #--- make sure there is a discovery vlan set. else send -1.
+        if($self->{'settings'}->{'discovery_vlan'}){ 
+            $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." pushing lldp forwarding rule for vlan $self->{'settings'}->{'discovery_vlan'}");
+            $status = $self->{'nox'}->install_default_forward(Net::DBus::dbus_uint64($self->{'dpid'}),$self->{'settings'}->{'discovery_vlan'});
+        }
+        else{
+            $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." pushing lldp forwarding rule for vlan -1");
+            $status = $self->{'nox'}->install_default_forward(Net::DBus::dbus_uint64($self->{'dpid'}),-1);
+        }
+
+        $self->{'flows'}++;
     }
 
     if (!defined($self->{'node'}->{'default_drop'}) || $self->{'node'}->{'default_drop'} == 1) {
@@ -579,33 +594,33 @@ sub _do_diff{
         }
     }
 
-    if (!defined($node_info) || $node_info->{'default_forward'} == 1) {
-	if(defined($self->{'settings'}->{'discovery_vlan'}) && $self->{'settings'}->{'discovery_vlan'} != -1){
-	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
-						    match => {'dl_type' => 35020,
-							      'dl_vlan' => $self->{'settings'}->{'discovery_vlan'}},
-						    actions => [{'output' => 65533}]));
-
-	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
-						    match => {'dl_type' => 34998,
-							      'dl_vlan' => $self->{'settings'}->{'discovery_vlan'}},
-						    actions => [{'output' => 65533}]));
-	}else{
-	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
-						    match => {'dl_type' => 35020,
-							      'dl_vlan' => -1},
-						    actions => [{'output' => 65533}]));
-	    
-	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
-                                                    match => {'dl_type' => 34998,
-							      'dl_vlan' => -1},
+    if (!defined($node_info->{'default_forward'}) || $node_info->{'default_forward'} == 1) {
+        if(defined($self->{'settings'}->{'discovery_vlan'}) && $self->{'settings'}->{'discovery_vlan'} != -1){
+            push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
+                                                    match => {'dl_type' => 35020,
+                                                              'dl_vlan' => $self->{'settings'}->{'discovery_vlan'}},
                                                     actions => [{'output' => 65533}]));
-	}
+            
+            push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
+                                                    match => {'dl_type' => 34998,
+                                                              'dl_vlan' => $self->{'settings'}->{'discovery_vlan'}},
+                                                    actions => [{'output' => 65533}]));
+        }else{
+            push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
+                                                    match => {'dl_type' => 35020,
+                                                              'dl_vlan' => -1},
+                                                    actions => [{'output' => 65533}]));
+            
+            push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
+                                                    match => {'dl_type' => 34998,
+                                                              'dl_vlan' => -1},
+                                                    actions => [{'output' => 65533}]));
+        }
     }
     
     #start at one for the default drop and the fvd
     $self->{'flows'} = 1;
-
+    
     return $self->_actual_diff($current_flows, \@all_commands);
 }
 
