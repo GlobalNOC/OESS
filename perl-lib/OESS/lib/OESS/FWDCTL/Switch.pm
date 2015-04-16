@@ -240,7 +240,7 @@ sub force_sync{
     my $self = shift;
 
     $self->_update_cache();
-    $self->{'needs_diff'} = 1;
+    $self->{'needs_diff'} = time();
 
     return FWDCTL_SUCCESS;
 
@@ -277,7 +277,7 @@ sub process_event{
         }case 'force_sync'{
             $self->_update_cache();
             $self->{'logger'}->warn("received a force_sync command");
-            $self->{'needs_diff'} = 1;
+            $self->{'needs_diff'} = time();
             return {success => 1, msg => "diff scheduled!", total_rules => $self->{'flows'}};
         }case 'update_cache'{
             $self->_update_cache();
@@ -317,7 +317,7 @@ sub change_path{
                 $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
                 $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
                 #assume failure , use diff to be resilient to failure
-                $self->{'needs_diff'} = 1;
+                $self->{'needs_diff'} = time();
                 
                 my $result = $self->_poll_node_status();
                 if($result != FWDCTL_SUCCESS){
@@ -333,7 +333,7 @@ sub change_path{
     $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
     $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
     #assume failure , use diff to be resilient to failure
-    $self->{'needs_diff'} = 1;
+    $self->{'needs_diff'} = time();
     my $result = $self->_poll_node_status();
     if($result != FWDCTL_SUCCESS){
         $res = FWDCTL_FAILURE;
@@ -383,7 +383,7 @@ sub add_vlan{
             $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
             $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
             #assume failure , use diff to be resilient to failure
-            $self->{'needs_diff'} = 1;
+            $self->{'needs_diff'} = time();
             my $result = $self->_poll_node_status();
             if($result != FWDCTL_SUCCESS){
                 $res = FWDCTL_FAILURE;
@@ -396,7 +396,7 @@ sub add_vlan{
     $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
     $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
     #assume failure , use diff to be resilient to failure
-    $self->{'needs_diff'} = 1;
+    $self->{'needs_diff'} = time();
     my $result = $self->_poll_node_status();
     if($result != FWDCTL_SUCCESS){
         $res = FWDCTL_FAILURE;
@@ -435,7 +435,7 @@ sub remove_vlan{
             $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
             $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
             #assume failure , use diff to be resilient to failure
-            $self->{'needs_diff'} = 1;
+            $self->{'needs_diff'} = time();
             my $result = $self->_poll_node_status();
             if($result != FWDCTL_SUCCESS){
                 $res = FWDCTL_FAILURE;
@@ -450,7 +450,7 @@ sub remove_vlan{
     $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
     $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
     #assume failure , use diff to be resilient to failure
-    $self->{'needs_diff'} = 1;
+    $self->{'needs_diff'} = time();
     my $result = $self->_poll_node_status();
     $self->{'logger'}->info("Got a barrier reply");
     if($result != FWDCTL_SUCCESS){
@@ -511,7 +511,7 @@ sub datapath_join_handler{
         $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." installed default drop rule and lldp forward rule");
     }
     
-    $self->{'needs_diff'} = 1;
+    $self->{'needs_diff'} = time();
     
 }
 
@@ -534,7 +534,7 @@ sub _replace_flowmod{
             my $xid = $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($commands->{'remove'}->get_dpid()));
             $self->{'logger'}->debug("replace flowmod: send_barrier: with dpid: " . $commands->{'remove'}->get_dpid());
             #assume failure , use diff to be resilient to failure
-            $self->{'needs_diff'} = 1;
+            $self->{'needs_diff'} = time();
             my $res = $self->_poll_node_status();
             if($res != FWDCTL_SUCCESS){
                 $state = FWDCTL_FAILURE;
@@ -556,7 +556,7 @@ sub _replace_flowmod{
             $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
             my $xid = $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($commands->{'add'}->get_dpid()));
             #assume failure , use diff to be resilient to failure
-            $self->{'needs_diff'} = 1;
+            $self->{'needs_diff'} = time();
             $self->{'logger'}->error("replace flowmod: send_barrier: with dpid: " . $commands->{'add'}->get_dpid());
             my $res = $self->_poll_node_status();
             if($res != FWDCTL_SUCCESS){
@@ -786,14 +786,16 @@ sub get_flow_stats{
             $self->{'logger'}->info("no flow stats cached yet for dpid: " . $self->{'dpid'});
             return;
         }
-        
-        #$self->{'needs_diff'} = 0;
-        #---process the flow_rules into a lookup hash
-        my $flows = $self->_process_stats_to_flows( $self->{'dpid'}, $stats);
 
-        #--- now that we have the lookup hash of flow_rules
-        #--- do the diff
-        $self->_do_diff($flows);
+        if($time > $self->{'needs_diff'}){
+            #$self->{'needs_diff'} = 0;
+            #---process the flow_rules into a lookup hash
+            my $flows = $self->_process_stats_to_flows( $self->{'dpid'}, $stats);
+            
+            #--- now that we have the lookup hash of flow_rules
+            #--- do the diff
+            $self->_do_diff($flows);
+        }
     }
 }
 
