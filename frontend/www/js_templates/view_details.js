@@ -645,6 +645,66 @@ function pollTracerouteStatus(status_table,start_button){
 
 }
 
+function pollTracerouteStatus(status_table){
+
+    var ds = new YAHOO.util.DataSource("services/traceroute.cgi?action=get_circuit_traceroute&circuit_id=" + session.data.circuit_id + "&workgroup_id=" + session.data.workgroup_id); 
+                                      ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+				  
+				      ds.connTimeout    = 30 * 1000; // 30 seconds
+                                      				  ds.responseSchema = {
+				      resultsList: "results",
+				      fields: [{key: "remaining_endpoints", parser: "number"},
+                                               {key: "nodes_traversed"},
+                                               {key: "status" }
+	
+					       ],
+				      metaFields: {
+				          error: "error",
+				          warning: "warning"
+				      }
+				  };
+
+                                  ds.sendRequest("",
+                                                        {
+
+                                                            success: function (req, resp){
+
+                                                                var results = resp.results[0];                                       
+                                                                
+                                                                //set status
+                                                                var trace_status = YAHOO.util.Dom.get("trace_status");
+                                                                trace_status.innerHTML=results.status;
+                                                                var nodes_traversed = results.nodes_traversed;
+
+                                                                //rebuild results table from nodes_traversed;
+                                                                //clear current rows
+                                                                
+                                                                //status_table.deleteRows(0,status_table.getRows.length);
+                                                                var nodes_array = [];
+                                                                status_table.deleteRows(0, status_table.getRecordSet().getRecords().length);
+                                                                for (var i=0; i < nodes_traversed.length; i++){
+                                                                    
+                                                                    
+                                                                    nodes_array[i] ={
+                                                                        node: nodes_traversed[i]
+                                                                    };
+                                                                    
+                                                                }
+                                                                
+                                                                status_table.addRows(nodes_array);
+                                                                
+                                                                if (results.status == "active" ){
+                                                                    setTimeout(pollTracerouteStatus(status_table),1000);
+                                                                }
+                                                            }
+
+                                                        }
+
+                                                );
+
+
+}
+
 function setupMeasurementGraph(){
 
     var date = new Date();
