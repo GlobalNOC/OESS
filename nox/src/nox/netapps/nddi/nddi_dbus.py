@@ -476,7 +476,7 @@ def traceroute_packet_in_callback(sg,dp,inport,reason,len,bid,packet):
     string = packet.next
     logger.info(string.encode('hex'))
     #get circuit_id
-    (circuit_id) = struct.unpack('I',string[:8])
+    (circuit_id) = struct.unpack('I',string[:4])
     #struct.pack always returns a tuple, return the first element of the tuple
     sg.traceroute_packet_in(dp,inport,circuit_id[0])
 
