@@ -107,8 +107,9 @@ sub init_circuit_traceroute {
     }
 
     my $ckt = OESS::Circuit->new( circuit_id => $circuit_id, db => $db);
-    if (!$ckt || $ckt->{'status'} != 'active'){
-        return { error =>             "User and workgroup do not have permission to traceroute this circuit" }
+    warn Data::Dumper::Dumper($ckt);
+    if (!$ckt || $ckt->{'details'}->{'state'} ne 'active'){
+        return { error => "User and workgroup do not have permission to traceroute this circuit" }
     }
 
     my $endpoints = $db->get_circuit_endpoints(circuit_id => $circuit_id);
