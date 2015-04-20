@@ -219,6 +219,9 @@ sub create_rrd_file{
     #make the path if it doesn't exist
     `mkdir -p $path`;
 
+    #set the proper perms
+    chmod 0755, $path;
+
     my $sth = $snapp_dbh->prepare("select * from collection_class where collection_class.name = ?") or handle_error();
     if(!defined($sth)){
 	return 0;
@@ -262,6 +265,9 @@ sub create_rrd_file{
 	syslog(LOG_ERR,"Error trying to create rrdfile: " . $file . "\n$error");
 	return 0;
     }
+
+    #set the proper file perms
+    chmod 0644, $file;
 
     return 1;
 }
