@@ -923,7 +923,7 @@ function setup_users_tab(){
           "<div id='add_user_to_workgroup'></div>"
 		  );
 		
-	p.setFooter("<div id='submit_user'></div><div id='delete_user'></div><div id='decom_user'></div>");
+	p.setFooter("<div id='submit_user'></div><div id='decom_user'></div>");
 
 	p.render(document.body);
 		
@@ -949,71 +949,17 @@ function setup_users_tab(){
 	var submit_button = new YAHOO.widget.Button("submit_user", {label: "Save"});
     
 	if (user_id){
-	    var delete_button = new YAHOO.widget.Button("delete_user", {label: "Delete"});
-        var decom_button = new YAHOO.widget.Button("decom_user", {label: "Decom User"});
-	    delete_button.on("click", function(){
-
-		    YAHOO.util.Dom.get("user_status").innerHTML = "";
-
-		    var fname = YAHOO.util.Dom.get("user_given_name").value;
-		    var lname = YAHOO.util.Dom.get("user_family_name").value;
+	    
+	    var decom_button = new YAHOO.widget.Button("decom_user", {label: "Decom User"});
+	    
+	    decom_button.on("click", function() {
 		    
-		    showConfirm("Are you sure you wish to delete user \"" + fname + " " + lname + "\"? Note that this action cannot be undone.",
-				function(){
-				    delete_button.set("label", "Deleting...");
-				    delete_button.set("disabled", true);
-				    submit_button.set("disabled", true);
-
-				    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=delete_user&user_id="+user_id);
-				    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-				    ds.responseSchema = {
-					resultsList: "results",
-					fields: [{key: "success"}],
-					metaFields: {
-					    error: "error"
-					}
-				    };
-				    
-				    ds.sendRequest("",
-						   {
-						       success: function(req, resp){
-							   delete_button.set("label", "Delete");
-							   delete_button.set("disabled", false);
-							   submit_button.set("disabled", false);			
-			   
-							   if (resp.meta.error){
-							       alert("Error delete user: " + resp.meta.error);
-							   }
-							   else{
-							       p.hide();
-							       user_table.deleteRow(target.target);
-							       YAHOO.util.Dom.get("user_status").innerHTML = "User deleted successfully.";
-							   }
-						       },
-						       failure: function(req, resp){
-							   delete_button.set("label", "Delete");
-							   delete_button.set("disabled", false);
-							   submit_button.set("disabled", false);
-							   							   
-							   alert("Server error while removing user.");
-						       }
-						   }
-						   );
-			
-				},
-				function(){}
-				);
-
-		});
-
-        decom_button.on("click", function() {
-                
 		    var fname = YAHOO.util.Dom.get("user_given_name").value;
 		    var lname = YAHOO.util.Dom.get("user_family_name").value;
-            showConfirm("Are you sure you want to decom user \"" + fname + " " + lname + "\"? Note that this action will disable the user from using any OESS resources.",
-
-                function(){
-                
+		    showConfirm("Are you sure you want to decom user \"" + fname + " " + lname + "\"? Note that this action will disable the user from using any OESS resources.",
+				
+				function(){
+				    
 				    decom_button.set("label", "Decoming...");
 				    decom_button.set("disabled", true);
 				    submit_button.set("disabled", true);
