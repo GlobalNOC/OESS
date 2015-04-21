@@ -328,6 +328,7 @@ sub process_trace_packet {
 
     # get_link based on dst port, dst dpid:
     my $link = $db->get_link_by_dpid_and_port(dpid=>$src_dpid,port=>$src_port);
+    my $interface = $db->get_interface_by_dpid_and_port(dpid=>$src_dpid,port=>$src_port);
     
 
     # get circuits based on link
@@ -350,7 +351,7 @@ sub process_trace_packet {
         
 
         if (  $flow_rule->get_dpid() == $src_dpid && $flow_rule->{'match'}->{'in_port'} == $src_port ) {
-            $self->{'logger'}->info("found rule match, removing from switch dpid ".$flow_rule->get_dpid() );
+            $self->{'logger'}->info("Received traceroute flow from node: $node->{'name'} interface: $interface->{'name'} ".$flow_rule->get_dpid() );
             my $xid = $self->{'dbus'}->send_datapath_flow($flow_rule->to_dbus(command => OFPFC_DELETE_STRICT) );
             $self->{'dbus'}->send_barrier($flow_rule->get_dpid());
             
@@ -375,8 +376,11 @@ sub process_trace_packet {
     
     }              
     my @tmp_nodes_traversed = split (',',$transaction->{nodes_traversed});
+    my @tmp_intfs_traversed = split (',',$transaction->{interfaces_traversed});
     push (@tmp_nodes_traversed , $src_dpid);
+    push (@tmp_intfs_traversed , $interface->{'name'});
     $transaction->{nodes_traversed} = join(",",@tmp_nodes_traversed);
+    $transaction->{interfaces_traversed} = join(",",@tmp_intfs_traversed);
     $transaction->{ttl} -= 1;
         #get transaction from db again:
 
@@ -541,6 +545,7 @@ sub add_traceroute_transaction {
         ttl => $args{ttl},
         remaining_endpoints => $args{remaining_endpoints},
         nodes_traversed => "",
+        interfaces_traversed =>"",
         source_endpoint => $args{source_endpoint},
         status => 'active',
         start_epoch => time(),
@@ -614,6 +619,7 @@ sub _timeout_traceroutes {
           
         if ($transaction && $transaction->{'status'} eq 'active' && $transaction->{'start_epoch'} <= $threshold) {
             #set transaction to timeout, remove rules
+            $self->{'logger'}->info("Timed out transaction for circuit: $circuit_id");
             $self->{'transactions'}->{$circuit_id}->{'status'} = 'timed out';
             $self->{'transactions'}->{$circuit_id}->{'end_epoch'} = time();
             $self->remove_traceroute_rules(circuit_id => $circuit_id);
