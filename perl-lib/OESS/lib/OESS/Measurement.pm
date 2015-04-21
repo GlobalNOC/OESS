@@ -196,9 +196,9 @@ sub get_circuit_data {
         }
     }
 
-    warn "Selected: " . Data::Dumper::Dumper($selected);
+    #warn "Selected: " . Data::Dumper::Dumper($selected);
     
-    warn "Interfaces: " . Data::Dumper::Dumper(@interfaces_on_node);
+    #warn "Interfaces: " . Data::Dumper::Dumper(@interfaces_on_node);
     #now we have selected an interface and have a list of all the other interfaces on that node
     #generate our data
     return $self->get_data( interface => $selected, other_ints => \@interfaces_on_node, start_time => $start, end_time => $end);
@@ -244,11 +244,11 @@ sub get_data {
     my $host = $self->get_host_by_external_id($node->{'node_id'});
     
     #find the collections RRD file in SNAPP
-    warn "Looking for collection\n";
+    #warn "Looking for collection\n";
     
     my $collection = $self->_find_rrd_file_by_host_int_and_vlan($host->{'host_id'},$selected->{'port_no'},$selected->{'tag'});
     if(defined($collection)){
-        warn "Collection Found!!\n";
+        #warn "Collection Found!!\n";
 	my $rrd_file = $rrd_dir . $collection->{'rrdfile'};
         my $data= [];
         my $input  = $self->get_rrd_file_data( file => $rrd_file, start_time => $start, end_time => $end) || [];
