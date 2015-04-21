@@ -257,8 +257,11 @@ sub init_circuit_trace {
     foreach my $dpid (@dpids){
         $self->{'dbus'}->send_barrier($dpid);
     }
-
-    $self->send_trace_packet($circuit_id,$transaction);
+    $self->{pending_packets}->{$circuit_id} = { dpid => $endpoint_dpid,
+                                                timeout => time() + 15,
+    };
+    
+    #$self->send_trace_packet($circuit_id,$transaction);
 
     return 1;
 
@@ -394,7 +397,7 @@ sub process_trace_packet {
         else {
             
             $self->{pending_packets}->{$circuit_id} = { dpid => $src_dpid,
-                                                        timeout => time() + 7,
+                                                        timeout => time() + 15,
                                                       }
                                                             
             #$self->send_trace_packet($circuit_id,$transaction);
@@ -613,7 +616,7 @@ sub _timeout_traceroutes {
             #set transaction to timeout, remove rules
             $self->{'transactions'}->{$circuit_id}->{'status'} = 'timed out';
             $self->{'transactions'}->{$circuit_id}->{'end_epoch'} = time();
-            #$self->remove_traceroute_rules(circuit_id => $circuit_id);
+            $self->remove_traceroute_rules(circuit_id => $circuit_id);
         }
         # if the end epoch is more than 5 minutes old, lets remove it from memory, to try and limit memory balooning?
         if ($transaction && $transaction->{'end_epoch'}&& $transaction->{'end_epoch'} <= $reap_threshold){
