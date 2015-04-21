@@ -238,14 +238,14 @@ sub get_circuit_traceroute {
         $result = $result->{$circuit_id};
         delete $result->{source_endpoint};
         my @tmp_nodes = split(",",$result->{nodes_traversed});
-
+        my @tmp_interfaces = split(",",$result->{'interfaces_traversed'});
         # replace dpid with node name
         foreach my $dpid (@tmp_nodes){
             $dpid = $dpid_node_hash->{$dpid};
         }
         
         $result->{nodes_traversed} = \@tmp_nodes;
-
+        $result->{interfaces_traversed} = \@tmp_interfaces;
         push (@{$results->{results}}, $result);
     }
     if (!defined($result)){
