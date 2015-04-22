@@ -328,7 +328,7 @@ sub process_trace_packet {
 
     # get_link based on dst port, dst dpid:
     my $link = $db->get_link_by_dpid_and_port(dpid=>$src_dpid,port=>$src_port);
-    my $interface = $db->get_interface_by_dpid_and_port(dpid=>$src_dpid,port=>$src_port);
+    my $interface = $db->get_interface_by_dpid_and_port(dpid=>$src_dpid,port_number=>$src_port);
     
 
     # get circuits based on link
