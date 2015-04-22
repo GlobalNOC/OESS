@@ -369,13 +369,12 @@ sub add_vlan{
 
             $self->{'nox'}->send_datapath_flow($command->to_dbus( command => OFPFC_ADD ));
             $self->{'flows'}++;
-            
-            
+                        
         }else{
  
-           $self->{'logger'}->error("Node: " . $self->{'node'}->{'name'} . " is at or over its maximum flow mod limit, unable to send flow rule for circuit: " . $circuit);
+            $self->{'logger'}->error("Node: " . $self->{'node'}->{'name'} . " is at or over its maximum flow mod limit, unable to send flow rule for circuit: " . $circuit);
             $res = FWDCTL_FAILURE;
-
+            
         }
 
         #if not doing bulk barrier send a barrier and wait

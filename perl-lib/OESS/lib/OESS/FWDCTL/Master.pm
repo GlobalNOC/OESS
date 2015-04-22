@@ -1097,10 +1097,6 @@ sub addVlan {
 
     my $result = FWDCTL_SUCCESS;
 
-    foreach my $dpid (keys %dpids){
-        $self->send_message_to_child($dpid,{action => 'add_vlan', circuit => $circuit_id}, $event_id);
-    }
-
     my $details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
 
 
@@ -1120,6 +1116,10 @@ sub addVlan {
                                              new_state   => 'active');
     
     $circuit_status{$circuit_id} = OESS_CIRCUIT_UP;
+
+    foreach my $dpid (keys %dpids){
+        $self->send_message_to_child($dpid,{action => 'add_vlan', circuit => $circuit_id}, $event_id);
+    }
 
     return ($result,$event_id);
     
