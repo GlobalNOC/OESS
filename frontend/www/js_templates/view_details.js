@@ -575,6 +575,7 @@ function pollTracerouteStatus(status_table,start_button){
 				      resultsList: "results",
 				      fields: [{key: "remaining_endpoints", parser: "number"},
                                                {key: "nodes_traversed"},
+                                               {key: "interfaces_traversed"},
                                                {key: "status" }
 	
 					       ],
@@ -601,7 +602,7 @@ function pollTracerouteStatus(status_table,start_button){
                                                                 trace_status.innerHTML="<p class='"+(results.status.replace(/ /g,'').toLowerCase())+"'>"+
                                                                     results.status+"</p>"+"<p class='helptext'>"+help_text[results.status]+"</p>";
                                                                 var nodes_traversed = results.nodes_traversed;
-
+                                                                var interfaces_traversed = results.interfaces_traversed;
                                                                 //rebuild results table from nodes_traversed;
                                                                 //clear current rows
                                                                 
@@ -610,7 +611,7 @@ function pollTracerouteStatus(status_table,start_button){
                                                                     status_table.deleteRows(0, status_table.getRecordSet().getRecords().length);
                                                                     for (var i=0; i < nodes_traversed.length; i++){
                                                                         nodes_array[i] ={
-                                                                          node: nodes_traversed[i] ,
+                                                                          node: nodes_traversed[i]+" interface: "+interfaces_traversed[i] ,
                                                                             isLast:0
                                                                         };
                                                                         if (i == nodes_traversed.length && results.status=="active"){
