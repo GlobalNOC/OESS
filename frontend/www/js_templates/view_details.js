@@ -439,6 +439,9 @@ function page_init(){
                                       
                                       var cols = [{key: "node", label:"Nodes Traversed", 
                                                    width: 150                                                   
+                                                   },
+                                                  {key: "interface", label:"Interface", 
+                                                   width: 100                                                   
                                                   } ];
                                       var configs = {
                                           height: "100px",
@@ -611,7 +614,8 @@ function pollTracerouteStatus(status_table,start_button){
                                                                     status_table.deleteRows(0, status_table.getRecordSet().getRecords().length);
                                                                     for (var i=0; i < nodes_traversed.length; i++){
                                                                         nodes_array[i] ={
-                                                                          node: nodes_traversed[i]+" interface: "+interfaces_traversed[i] ,
+                                                                          node: nodes_traversed[i],
+                                                                          interface: interfaces_traversed[i],
                                                                             isLast:0
                                                                         };
                                                                         if (i == nodes_traversed.length && results.status=="active"){
@@ -656,6 +660,7 @@ function pollTracerouteStatus(status_table){
 				      resultsList: "results",
 				      fields: [{key: "remaining_endpoints", parser: "number"},
                                                {key: "nodes_traversed"},
+                                               {key: "interfaces_traversed"},
                                                {key: "status" }
 	
 					       ],
@@ -676,7 +681,7 @@ function pollTracerouteStatus(status_table){
                                                                 var trace_status = YAHOO.util.Dom.get("trace_status");
                                                                 trace_status.innerHTML=results.status;
                                                                 var nodes_traversed = results.nodes_traversed;
-
+                                                                var interfaces_traversed = results.interfaces_traversed;
                                                                 //rebuild results table from nodes_traversed;
                                                                 //clear current rows
                                                                 
@@ -687,7 +692,8 @@ function pollTracerouteStatus(status_table){
                                                                     
                                                                     
                                                                     nodes_array[i] ={
-                                                                        node: nodes_traversed[i]
+                                                                        node: nodes_traversed[i],
+                                                                        interface: interfaces_traversed[i]
                                                                     };
                                                                     
                                                                 }
