@@ -257,7 +257,7 @@ sub init_circuit_trace {
     foreach my $dpid (@dpids){
         $self->{'dbus'}->send_barrier($dpid);
     }
-    $self->{pending_packets}->{$circuit_id} = { dpid => $endpoint_dpid,
+    $self->{pending_packets}->{$circuit_id} = { dpid => @dpids,
                                                 timeout => time() + 15,
     };
     
@@ -400,7 +400,7 @@ sub process_trace_packet {
         }
         else {
             
-            $self->{pending_packets}->{$circuit_id} = { dpid => $src_dpid,
+            $self->{pending_packets}->{$circuit_id} = { dpid => [$src_dpid],
                                                         timeout => time() + 15,
                                                       }
                                                             
@@ -539,7 +539,7 @@ sub add_traceroute_transaction {
         $self->{'logger'}->warn("no source_endpoint");
         return;
     }
-
+    $self->{'logger'}->info("adding record of start of traceroute for circuit ".$args{circuit_id}); 
     $self->{'transactions'}->{ $args{circuit_id} } =
     {
         ttl => $args{ttl},
@@ -572,6 +572,7 @@ sub remove_traceroute_rules {
     my @dpids = ();
     #optimization: rules for nodes we've already traced through should have been deleted already, we could skip them.
     foreach my $rule (@$rules){
+        $self->{'logger'}->debug("removing traceroute rule for circuit_id $args{'circuit_id'} on switch ". sprintf("%x",$rule->get_dpid()));
         $self->{'dbus'}->send_datapath_flow($rule->to_dbus(command => OFPFC_DELETE_STRICT));
         push (@dpids,$rule->get_dpid());
     }
@@ -648,18 +649,28 @@ sub _send_pending_traceroute_packets {
             next;
         }
         
-        my $dpid = $pending_packet->{'dpid'};
+        my $dpids = $pending_packet->{'dpid'};
         my $timeout = $pending_packet->{'timeout'};
         if ($timeout < $now ){
             #give up waiting, send packet anyways
-            $self->{'logger'}->info("got tired of waiting on dpid $dpid, sending trace packet for circuit $circuit_id");
+            $self->{'logger'}->info("sending trace packet for circuit $circuit_id, even though last check of barriers came back FWDCTL_WAITING");
             delete $self->{pending_packets}->{$circuit_id};
             $self->send_trace_packet($circuit_id,$transaction);
         }
-        elsif ($self->{'dbus'}->get_node_status($dpid) != FWDCTL_WAITING){
-            delete $self->{pending_packets}->{$circuit_id};
-            $self->send_trace_packet($circuit_id,$transaction);
-            
+        else{
+            my $all_dpids_ok=1;
+            foreach my $dpid (@$dpids){
+                if ($self->{'dbus'}->get_node_status($dpid) == FWDCTL_WAITING){
+                    $self->{'logger'}->debug("switch ".sprintf("%x",$dpid)." is still in FWDCTL_WAITING, skipping sending for circuit $circuit_id");
+                    $all_dpids_ok=0;
+                    last;
+                }
+            }
+            if ($all_dpids_ok){
+                $self->{'logger'}->info("all switches returned from FWDCTL_WAITING sending trace packet for circuit $circuit_id");
+                delete $self->{pending_packets}->{$circuit_id};
+                $self->send_trace_packet($circuit_id,$transaction);
+            }
         }
         
     }
