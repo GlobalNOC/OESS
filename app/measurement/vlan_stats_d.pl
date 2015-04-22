@@ -60,7 +60,7 @@ sub process_flow_stats{
 	# might be some other rules or default forwarding or something, we can't match this to a 
 	# vlan / port so skip
 	next if (!defined $rule->{'match'});
-
+	next if ($rule->{'match'}->{'dl_type'} eq '34997');
 	if(!defined($switch->{$rule->{'match'}->{'in_port'}})){
 	    $switch->{$rule->{'match'}->{'in_port'}} = {};
 	}
