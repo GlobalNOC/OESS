@@ -568,6 +568,7 @@ sub is_external_vlan_available_on_interface {
 
     my $vlan_tag     = $args{'vlan'};
     my $interface_id = $args{'interface_id'};
+    my $circuit_id = $args{'circuit_id'};
 
     if(!defined($interface_id)){
 	$self->_set_error("No Interface ID Specified");
@@ -613,8 +614,16 @@ sub is_external_vlan_available_on_interface {
 
     #verify no other circuit is using it
     if (@$result > 0){
-	print STDERR "In Use on another circuit\n";
-	return 0;
+	if(defined($circuit_id)){
+	    for(my $circuit (@$result)){
+		if($circuit->{'circuit_id'} == $circuit_id){
+		    #no problem here, we are editing the circuit
+		}else{
+		    print STDERR "In Use on another circuit\n";
+		    return 0;
+		}
+	    }
+	}
     }
 
     return 1;
@@ -7677,6 +7686,7 @@ sub can_modify_circuit {
 sub validate_endpoints {
     my ($self, %args) = @_;
 
+    my $circuit_id     = $args{'circuit_id'};
     my $nodes          = $args{'nodes'};
     my $interfaces     = $args{'interfaces'};
     my $tags           = $args{'tags'};
@@ -7707,7 +7717,7 @@ sub validate_endpoints {
         }
 
         # need to check to see if this external vlan is open on this interface first
-        if (! $self->is_external_vlan_available_on_interface(vlan => $vlan, interface_id => $interface_id) ){
+        if (! $self->is_external_vlan_available_on_interface(vlan => $vlan, interface_id => $interface_id, circuit_id => $circuit_id) ){
             $self->_set_error("Vlan '$vlan' is currently in use by another circuit on interface '$interface' on endpoint '$node'");
             return;
         }
