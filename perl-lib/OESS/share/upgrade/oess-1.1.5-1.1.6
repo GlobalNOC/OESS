@@ -1,0 +1,193 @@
+#!/usr/bin/perl
+#-------------------------------------------------------------------
+#----- OESS 1.0.12 - 1.1.0 upgrade module                         
+#-----                                                               
+#----- Copyright(C) 2010 The Trustees of Indiana University          
+#--------------------------------------------------------------------
+#----- $HeadURL: $                                                   
+#----- $Id: $                                                        
+#-----                                                               
+#----- This is run when upgrading the database from     
+#----- version 1.1.5 to version 1.1.6                              
+#-------------------------------------------------------------------- 
+
+use strict;
+use warnings;
+use OESS::Database;
+
+my $prev_version = "1.1.5";
+my $version = "1.1.6";
+
+sub main {
+
+    print "*******************************************************************\n";
+    print "*********             OESS DB UPGRADE           ************\n";
+    print "*******************************************************************\n";
+    print "********* This will upgrade from $prev_version to $version **********\n";
+    print "********* of the OESS DB any other version will not work ************\n";
+    
+    continue_parameter("Do you wish to continue");
+    
+    my $dbq = new OESS::Database();
+    my $current_version = $dbq->get_oess_schema_version();    
+    if($current_version eq $prev_version){
+        $dbq->{'dbh'}->begin_work();
+        upgrade($dbq);
+        $dbq->{'dbh'}->commit();
+    }else{
+        print "Wrong version of OESS DB\n";
+        print "This script only upgrades from version $prev_version to $version\n";
+        exit;
+    }
+    
+    print STDERR "Upgrade Successful!!\n";
+    
+}
+
+
+sub upgrade {
+    my $dbq = shift;
+    my $term = shift;
+    my $dbh = $dbq->{'dbh'};
+    my $str;
+    my $sth;
+
+    #fix broken circuits
+    #there is the possiblity for some circuits to be broken
+    #we need to fix them first!
+
+    $str = "select * from link join link_instantiation on link.link_id = link_instantiation.link_id";
+    my $links = $dbq->_execute_query($str,[]);
+    my $made_changes = 1;
+    while($made_changes){
+        $made_changes = 0;
+        foreach my $link (@$links){
+            #need the node for a and z side
+            my $a_node = $dbq->get_node_by_interface_id( interface_id => $link->{'interface_a_id'});
+            my $z_node = $dbq->get_node_by_interface_id( interface_id => $link->{'interface_z_id'});
+            
+            my $str = "select end_epoch from link_path_membership where link_id = ?";
+            my $end_epochs = $dbq->_execute_query($str,[$link->{'link_id'}]);
+            foreach my $end_epoch (@$end_epochs){
+                my $ee = $end_epoch->{'end_epoch'};
+                my $new_ee = $ee;
+                $new_ee++;
+                #get a count of all the current paths a vlan_id 
+                $str = "select count(*),interface_a_vlan_id from link_path_membership where link_id = ? and end_epoch = ? group by interface_a_vlan_id";
+                my $rows = $dbq->_execute_query($str,[$link->{'link_id'}, $ee]);
+                foreach my $row (@$rows){
+                    #if more than 2 then there is a problem
+                    if($row->{'count(*)'} > 1 ){
+                        $made_changes = 1;
+                        #get the paths that are screwed up and fix one of them
+                        $str = "select path.circuit_id,path.path_id from path join link_path_membership on path.path_id = link_path_membership.path_id where link_path_membership.link_id = ? and link_path_membership.end_epoch = ? and link_path_membership.interface_a_vlan_id = ?";
+                        my $busted_circuits = $dbq->_execute_query($str, [$link->{'link_id'},$ee, $row->{'interface_a_vlan_id'}]);
+                        
+                        my $new_tag = $dbq->_get_available_internal_vlan_id(node_id => $a_node->{'node_id'},interface_id => $link->{'interface_a_id'});
+                        if($end_epoch == -1){
+                            $str = "update link_path_membership set interface_a_vlan_id = ? where link_id = ? and end_epoch = ? and path_id = ?";
+                            $dbq->_execute_query($str,[$new_tag, $link->{'link_id'},$ee, $busted_circuits->[0]->{'path_id'}]);
+                        }else{
+                            $str = "update link_path_membership set end_epoch = ? where link_id = ? and end_epoch = ? and path_id = ?";
+                            $dbq->_execute_query($str,[$new_ee++, $link->{'link_id'},$ee, $busted_circuits->[0]->{'path_id'}]);
+                        }
+                        
+                    }
+                }
+                
+                #get a count of all the current paths z vlan_id
+                $str = "select count(*),interface_z_vlan_id from link_path_membership where link_id = ? and end_epoch = ? group by interface_z_vlan_id";
+                my $rows = $dbq->_execute_query($str,[$link->{'link_id'}, $ee]);
+                foreach my $row (@$rows){
+                    #if more than 1 then there is a problem
+                    
+                    if($row->{'count(*)'} > 1 ){
+                        $made_changes = 1;
+                        #get the paths that are screwed up and fix one of them
+                        $str = "select path.circuit_id,path.path_id from path join link_path_membership on path.path_id = link_path_membership.path_id where link_path_membership.link_id = ? and link_path_membership.end_epoch = ? and link_path_membership.interface_z_vlan_id = ?";
+                        my $busted_circuits = $dbq->_execute_query($str, [$link->{'link_id'},$ee, $row->{'interface_z_vlan_id'}]);
+                        
+                        my $new_tag = $dbq->_get_available_internal_vlan_id(node_id => $z_node->{'node_id'},interface_id => $link->{'interface_z_id'});
+                        if($end_epoch == -1){
+                            $str = "update link_path_membership set interface_z_vlan_id = ? where link_id = ? and end_epoch = ? and path_id = ?";
+                            $dbq->_execute_query($str,[$new_tag, $link->{'link_id'},$ee, $busted_circuits->[0]->{'path_id'}]);
+                        }else{
+                            $str = "update link_path_membership set end_epoch = ? where link_id = ? and end_epoch = ? and path_id = ?";
+                            $dbq->_execute_query($str,[$new_ee++, $link->{'link_id'},$ee, $busted_circuits->[0]->{'path_id'}]);
+                        }
+                    }
+                }           
+            }
+        }
+    }
+
+    #ok now we can add our constraint
+    $str = "alter table link_path_membership add constraint unique_vlan_a UNIQUE (link_id, end_epoch, interface_a_vlan_id)";
+    $dbh->do($str);
+    $str = "alter table link_path_membership add constraint unique_vlan_z UNIQUE (link_id, end_epoch, interface_z_vlan_id)";
+    $dbh->do($str);
+
+    # add edge_interface_move_maintenance table
+    $str = "CREATE TABLE edge_interface_move_maintenance ( ".
+           "  maintenance_id int(10) NOT NULL AUTO_INCREMENT, ".
+           "  name varchar(255) NOT NULL, ".
+           "  orig_interface_id int(10) NOT NULL, ".
+           "  temp_interface_id int(10) NOT NULL, ".
+           "  start_epoch int(10) NOT NULL, ".
+           "  end_epoch int(10) DEFAULT -1, ".
+           "  PRIMARY KEY (maintenance_id), ".
+           "  CONSTRAINT FOREIGN KEY (orig_interface_id) REFERENCES interface (interface_id), ".
+           "  CONSTRAINT FOREIGN KEY (temp_interface_id) REFERENCES interface (interface_id) ".
+           ") ENGINE=InnoDB DEFAULT CHARSET=utf8";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+
+    #add edge_interface_move_maintenance_circuit_membership table
+    $str = "CREATE TABLE edge_interface_move_maintenance_circuit_membership ( ".
+           "  maintenance_id int(10) NOT NULL, ".
+           "  circuit_id int(10) NOT NULL, ".
+           "  CONSTRAINT FOREIGN KEY (maintenance_id) REFERENCES edge_interface_move_maintenance (maintenance_id) ON DELETE CASCADE, ".
+           "  CONSTRAINT FOREIGN KEY (circuit_id) REFERENCES circuit (circuit_id) ON DELETE CASCADE ".
+           ") ENGINE=InnoDB DEFAULT CHARSET=utf8";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+
+    $str = "ALTER TABLE user ADD COLUMN status enum('active','decom') NOT NULL"; 
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+    
+    #ok done with the rest of the upgrade update our version
+    $str = "update oess_version set version = '$version'";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+}
+
+main();
+
+sub continue_parameter {
+
+    my $name = shift;
+
+    print "$name [y/n]: ";
+    my $yes_or_no = <>;
+    chomp($yes_or_no);
+
+    exit(0) if ($yes_or_no !~ /y/i || $yes_or_no =~ /n/i);
+}
+
+
+sub required_parameter {
+
+    my $name = shift;
+
+    while (1) {
+
+	print "$name (required): ";
+        my $response = <>;
+	chomp($response);
+
+        return $response if ($response);
+
+	print "\nThis option is required!\n\n";
+    }
+}

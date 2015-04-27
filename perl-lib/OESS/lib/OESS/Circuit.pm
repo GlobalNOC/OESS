@@ -529,6 +529,7 @@ sub _generate_endpoint_flows {
                     {'output'       => $other_e_port}
                 ]
             ));
+
             # coming in other_endpoint going out endpoint
             push(@{$self->{'flows'}{'endpoint'}{$path}}, OESS::FlowRule->new(
                 dpid  => $e_dpid,
@@ -557,21 +558,8 @@ sub _generate_endpoint_flows {
                     {'output'       => $node_exit->{'port'}}
                 ]
             );
-            # rule for data coming from inside to circuit path to the endpoint
-            my $to_endpoint = OESS::FlowRule->new(
-                dpid  => $e_dpid,
-                match => {
-                    dl_vlan => $node_exit->{'port_vlan'},
-                    in_port => $node_exit->{'port'}
-                },
-                actions => [
-                    {'set_vlan_vid' => $e_vlan},
-                    {'output'       => $e_port}
-                ]
-            );
-            # push our rules onto our endpoint rule hash
+            # push our rule onto our endpoint rule hash
             push(@{$self->{'flows'}{'endpoint'}{$path}},$from_endpoint);
-            push(@{$self->{'flows'}{'endpoint'}{$path}},$to_endpoint);
         }
     }
 }
@@ -607,7 +595,6 @@ sub _generate_loopback_endpoint_flows {
 
     if(scalar(@links) == 0){
         #endpoint to endpoint rules
-
         for(my $i=0;$i<scalar(@endpoints);$i++){
             my $e  = $endpoints[$i];
             my @actions;
@@ -619,19 +606,16 @@ sub _generate_loopback_endpoint_flows {
                 push(@actions,{'output' => $remote_port->{'port_no'}});
             }
             
-            
             push(@{$self->{'flows'}->{'endpoint'}->{$path}}, OESS::FlowRule->new(
-                     match => {
-                         'dl_vlan' => $e->{'tag'},
-                         'in_port' => $e->{'port_no'}
-                     },
-                     dpid => $self->{'dpid_lookup'}->{$e->{'node'}},
-                     actions => \@actions
-                 ));    
+                 match => {
+                     'dl_vlan' => $e->{'tag'},
+                     'in_port' => $e->{'port_no'}
+                 },
+                 dpid => $self->{'dpid_lookup'}->{$e->{'node'}},
+                 actions => \@actions
+             ));    
         }
-
-    }else{
-    
+    } else {
         foreach my $l (@links){
             my $id;
             # pick either endpoints node (should be the same since its a loopback circuit)
@@ -647,10 +631,11 @@ sub _generate_loopback_endpoint_flows {
             }
             if(defined($id)){
                 my $port_dict = &$get_port_dict( $l->{"node_$id"}, $l->{"port_no_$id"} );
-                push(@rules, { remote_port_vlan => $port_dict->{'remote_port_vlan'}, 
-                               port => $l->{"port_no_$id"},
-                               port_vlan => $port_dict->{'port_vlan'}
-                     });
+                push(@rules, { 
+                    remote_port_vlan => $port_dict->{'remote_port_vlan'}, 
+                    port => $l->{"port_no_$id"},
+                    port_vlan => $port_dict->{'port_vlan'}
+                });
             }
         }
 
@@ -674,17 +659,20 @@ sub _generate_loopback_endpoint_flows {
                  ));
             
             # create the rule coming from an adjacent node into the edge interface
-            push(@{$self->{'flows'}->{'endpoint'}->{$path}}, OESS::FlowRule->new(
-                     match => {
-                         'dl_vlan' => $port_vlan,
-                         'in_port' => $port_to_adj_node
-                     },
-                     dpid => $self->{'dpid_lookup'}->{$e->{'node'}},
-                     actions => [
-                         {'set_vlan_vid' => $e->{'tag'}},
-                         {'output' => $e->{'port_no'}}
-                     ]
-                 ));
+            # push these onto both paths
+            my $to_endpoint = OESS::FlowRule->new( 
+                 match => {
+                     'dl_vlan' => $port_vlan,
+                     'in_port' => $port_to_adj_node
+                 },
+                 dpid => $self->{'dpid_lookup'}->{$e->{'node'}},
+                 actions => [
+                     {'set_vlan_vid' => $e->{'tag'}},
+                     {'output' => $e->{'port_no'}}
+                 ]
+            );
+            push(@{$self->{'flows'}->{'endpoint'}->{'primary'}}, $to_endpoint);
+            push(@{$self->{'flows'}->{'endpoint'}->{'backup'}},  $to_endpoint);
         }
     }
 }
@@ -729,6 +717,32 @@ sub _generate_path_flows {
                     ]
                 ));
             }
+        }
+    }
+
+    # now handle rules on the path going to the endpoint
+    foreach my $endpoint (@{$self->{'details'}->{'endpoints'}}) {
+        my $e_node = $endpoint->{'node'};
+        my $e_dpid = $self->{'dpid_lookup'}{$e_node};
+        my $e_port = $endpoint->{'port_no'};
+        my $e_vlan = $endpoint->{'tag'};
+
+        foreach my $node_exit (@{$path_dict->{$e_node}}){
+            # rule for data coming from inside to circuit path to the endpoint
+            my $to_endpoint = OESS::FlowRule->new(
+                dpid  => $e_dpid,
+                match => {
+                    dl_vlan => $node_exit->{'port_vlan'},
+                    in_port => $node_exit->{'port'}
+                },
+                actions => [
+                    {'set_vlan_vid' => $e_vlan},
+                    {'output'       => $e_port}
+                ]
+            );
+            # push flows to the endpoint onto both paths for resilency if
+            # the network state gets confused about which is the primary path
+            push(@{$self->{'flows'}{'path'}{$path}},$to_endpoint);
         }
     }
 
@@ -799,8 +813,12 @@ else {
 
 
 }
-
-    return $self->_dedup_flows(\@flows);
+    #if the number of endpoints is more than 2 and it is not interdomain
+    if(scalar(@{$self->get_endpoints()}) > 2 && $self->is_interdomain()){
+        return $self->_dedup_flows(\@flows);
+    }else{
+        return \@flows;
+    }
 }
 
 =head2 get_endpoint_flows
@@ -948,7 +966,7 @@ sub get_active_path{
 
 =cut
 
-sub change_path{
+sub change_path {
     my $self = shift;
     my %params = @_;
 

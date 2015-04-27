@@ -55,7 +55,10 @@ sub main {
     }    
 
     my $action = $cgi->param('action');
-
+    my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
+    if ($user->{'status'} eq 'decom') {
+        $action = "error";
+    }
     my $output;
 
     switch ($action){
@@ -65,6 +68,10 @@ sub main {
 	}case "get_rules_on_node"{
 	    $output = &get_rules_on_node();
 	}
+    case "error" {
+        $output = {error => "Decom users cannot use webservices."};
+    }
+
 	else{
 	    $output = {error => "Unknown action - $action"};
 	}

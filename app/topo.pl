@@ -558,9 +558,9 @@ sub link_event_to_db{
 	    my $interface_z = $db->get_interface_by_dpid_and_port( dpid => $z_dpid, port_number => $z_port);
 	    my ($link_id, $link_state) = get_active_link_id_by_connectors( interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'} );
 	    if($interface_a->{'state'} eq 'up' && $interface_z->{'state'} eq 'up'){
-		$db->update_link_state( link_id => $link_id, state => 'unknown');
+#		$db->update_link_state( link_id => $link_id, state => 'unknown');
 	    }else{
-		$db->update_link_state( link_id => $link_id, state => 'down');
+#		$db->update_link_state( link_id => $link_id, state => 'down');
 	    }
 
 	}else{
@@ -619,13 +619,23 @@ sub flow_removed_callback{
 }
 
 sub core{
+
    $db  = OESS::Database->new(config => $config_filename) or die();
    $dbh = $db->{'dbh'};
    if (not defined $dbh){
       print_log(LOG_ERR,"cannot connect to the database\n");
       return;
    }
+    
+   #get current nodes
+    my $nodes = $db->get_current_nodes();
+    foreach my $node (@$nodes) {
 
+        $db->update_node_operational_state(node_id => $node->{'node_id'}, state => 'down');
+
+    }
+
+   #set operational status to 'down';   
 
    $dbus = OESS::DBus->new( service => "org.nddi.openflow", instance => "/controller1", timeout => -1, sleep_interval => .1);
    if(defined($dbus)){
@@ -693,6 +703,7 @@ sub main(){
           die();
        }
        #this is the parent process
+       `chmod 0644 /var/run/oess/topo.pid`;
        sleep(2);
        if (0 == $daemon->Status()){
          die(); ##exit failure

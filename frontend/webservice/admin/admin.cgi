@@ -64,6 +64,11 @@ sub main {
 
     my $authorization = $db->get_user_admin_status( 'username' => $remote_user);
 
+    my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
+    
+    if($user->{'status'} eq 'decom'){
+        return send_json({error => "Decommed users cannot use webservices."});
+    }
     if ( $authorization->[0]{'is_admin'} != 1 ) {
         $output = {
             error => "User $remote_user does not have admin privileges",
@@ -71,13 +76,23 @@ sub main {
         return ( send_json($output) );
     }
 
-    my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
     if(!defined($user)){
 	return send_json({error => "unable to find user"});
     }
-
+    
     switch ($action) {
-
+        case "get_edge_interface_move_maintenances" {
+            $output = &get_edge_interface_move_maintenances();
+        }
+        case "add_edge_interface_move_maintenance" {
+            $output = &add_edge_interface_move_maintenance();
+        }
+        case "revert_edge_interface_move_maintenance" {
+            $output = &revert_edge_interface_move_maintenance();
+        }
+        case "move_edge_interface_circuits" {
+            $output = &move_edge_interface_circuits();
+        }
         case "get_pending_nodes" {
             $output = &get_pending_nodes();
         }
@@ -138,6 +153,18 @@ sub main {
 	    }
 	    $output = &is_ok_to_decom();
 	}
+    case "deny_device" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
+        $output = &deny_device();
+    }
+	case "deny_link" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
+            $output = &deny_link();
+        }
 	case "decom_link" {
 	    if($user->{'type'} eq 'read-only'){
 		return send_json({error => 'Error: you are a readonly user'});
@@ -200,6 +227,12 @@ sub main {
 		return send_json({error => 'Error: you are a readonly user'});
 	    }
             $output = &add_remote_link();
+        }
+        case "edit_remote_link" {
+	    if($user->{'type'} eq 'read-only'){
+		return send_json({error => 'Error: you are a readonly user'});
+	    }
+            $output = &edit_remote_link();
         }
         case "remove_remote_link" {
 	    if($user->{'type'} eq 'read-only'){
@@ -411,7 +444,7 @@ sub add_remote_link {
     my $name               = $cgi->param('name');
     my $local_interface_id = $cgi->param('interface_id');
     my $vlan_tag_range     = $cgi->param('vlan_tag_range');
-
+    
     warn "add_remote_link: ".$vlan_tag_range;
     my $output = $db->add_remote_link(
         urn                => $urn,
@@ -429,6 +462,33 @@ sub add_remote_link {
     }
 
     return $results;
+}
+
+sub edit_remote_link {
+    my $results;
+    
+    my $urn                = $cgi->param('urn');
+    my $name               = $cgi->param('name');
+    my $vlan_tag_range     = $cgi->param('vlan_tag_range');
+    my $link_id            = $cgi->param('link_id');
+    warn "updating_remote_link: ".$vlan_tag_range;
+    my $output = $db->edit_remote_link(
+        link_id            => $link_id,
+        urn                => $urn,
+        name               => $name,
+        vlan_tag_range     => $vlan_tag_range
+    );
+
+    $results->{'results'} = [];
+    if ( !defined $output ) {
+        $results->{'error'} = $db->get_error();
+    }
+    else {
+        $results->{'results'} = [ { "success" => 1 } ];
+    }
+
+    return $results;
+
 }
 
 sub get_workgroups {
@@ -532,7 +592,6 @@ sub add_user_to_workgroup {
 
     my $user_id = $cgi->param('user_id');
     my $wg_id   = $cgi->param('workgroup_id');
-
     my $result = $db->add_user_to_workgroup(
         user_id      => $user_id,
         workgroup_id => $wg_id
@@ -578,12 +637,13 @@ sub add_user {
     my $family_name = $cgi->param("family_name");
     my $email       = $cgi->param("email_address");
     my @auth_names  = $cgi->param("auth_name");
-
+    my $type         = $cgi->param("type");
     my $new_user_id = $db->add_user(
         given_name    => $given_name,
         family_name   => $family_name,
         email_address => $email,
-        auth_names    => \@auth_names
+        auth_names    => \@auth_names,
+        type          => $type
     );
 
     if ( !defined $new_user_id ) {
@@ -640,6 +700,92 @@ sub edit_user {
     }
     else {
         $results->{'results'} = [ { success => 1 } ];
+    }
+
+    return $results;
+}
+
+sub get_edge_interface_move_maintenances {
+    my $results;
+    my $maints = $db->get_edge_interface_move_maintenances();
+
+    if ( !defined $maints ) {
+        $results->{'error'} = $db->get_error();
+    }else {
+        $results->{'results'} = $maints;
+    }
+
+    return $results;
+}
+
+sub add_edge_interface_move_maintenance {
+    my $results = { 'results' => [] };
+    my $name               = ($cgi->param("name") eq '') ? undef : $cgi->param("name");
+    my $orig_interface_id  = $cgi->param("orig_interface_id");
+    my $temp_interface_id  = $cgi->param("temp_interface_id");
+    my @circuit_ids        = $cgi->param("circuit_id");
+
+    my $res = $db->add_edge_interface_move_maintenance(
+        name => $name,
+        orig_interface_id => $orig_interface_id,
+        temp_interface_id => $temp_interface_id,
+        circuit_ids       => (@circuit_ids > 0) ? \@circuit_ids : undef
+    );
+
+    if ( !defined $res ) {
+        $results->{'error'}   = $db->get_error();
+        return $results;
+    }
+    $results->{'results'} = [$res];
+
+    # now diff node
+    if(!_update_cache_and_sync_node($res->{'dpid'})){
+        $results->{'error'}   = "Issue diffing node";
+    }
+
+    return $results;
+}
+
+sub revert_edge_interface_move_maintenance {
+    my $results = { 'results' => [] };
+    my $maintenance_id  = $cgi->param("maintenance_id");
+
+    my $res = $db->revert_edge_interface_move_maintenance(
+        maintenance_id => $maintenance_id
+    );
+    if ( !defined $res ) {
+        $results->{'error'}   = $db->get_error();
+        return $results;
+    }
+    $results->{'results'} = [$res];
+
+    # now diff node
+    if(!_update_cache_and_sync_node($res->{'dpid'})){
+        $results->{'error'}   = "Issue diffing node";
+    }
+
+    return $results;
+}
+
+sub move_edge_interface_circuits {
+    my $results = { 'results' => [] };
+    my $orig_interface_id  = $cgi->param("orig_interface_id");
+    my $new_interface_id   = $cgi->param("new_interface_id");
+    my @circuit_ids        = $cgi->param("circuit_id");
+
+    my $res = $db->move_edge_interface_circuits(
+        orig_interface_id => $orig_interface_id,
+        new_interface_id  => $new_interface_id,
+        circuit_ids       => (@circuit_ids > 0) ? \@circuit_ids : undef
+    );
+    if ( !defined $res ) {
+        $results->{'error'}   = $db->get_error();
+    }
+    $results->{'results'} = [$res];
+
+    # now diff node
+    if(!_update_cache_and_sync_node($res->{'dpid'})){
+        $results->{'error'}   = "Issue diffing node";
     }
 
     return $results;
@@ -1002,6 +1148,79 @@ sub update_link {
     return $results;
 }
 
+sub deny_device {
+    my $results;
+    my $node_id = $cgi->param('node_id');
+    my $ipv4_addr = $cgi->param('ipv4_addr');
+    my $dpid = $cgi->param('dpid');
+
+    my $result = $db->decom_node(node_id => $node_id);
+
+    if ( !defined $result ) {
+        $results->{'results'} = [
+            {
+                "error"   => $db->get_error(),
+                "success" => 0
+            }
+        ];
+    }
+    else {
+        $results->{'results'} = [ { "success" => 1 } ];
+    }
+    $result = $db->create_node_instance(node_id => $node_id,ipv4_addr => $ipv4_addr,admin_state => "decom", dpid => $dpid);
+
+    if ( !defined $result ) {
+        $results->{'results'} = [
+            {
+                "error"   => $db->get_error(),
+                "success" => 0
+            }
+        ];
+    }
+    else {
+        $results->{'results'} = [ { "success" => 1 } ];
+    }
+
+    return $results;
+}
+
+sub deny_link {
+    my $results;
+
+    my $link_id = $cgi->param('link_id');
+    my $int_a_id = $cgi->param('interface_a_id');
+    my $int_z_id = $cgi->param('interface_z_id');
+    my $result = $db->decom_link_instantiation( link_id => $link_id );
+ 
+    if ( !defined $result ) {
+        $results->{'results'} = [
+            {
+                "error"   => $db->get_error(),
+                "success" => 0
+            }
+        ];
+    }
+    else {
+        $results->{'results'} = [ { "success" => 1 } ];
+    }
+
+    $result = $db->create_link_instantiation( link_id => $link_id, interface_a_id => $int_a_id, interface_z_id => $int_z_id, state => "decom" );
+
+    if ( !defined $result ) {
+        $results->{'results'} = [
+            {
+                "error"   => $db->get_error(),
+                "success" => 0
+            }
+        ];
+    }
+    else {
+        $results->{'results'} = [ { "success" => 1 } ];
+    }
+
+    return $results;
+}
+
 sub decom_link {
     my $results;
 
@@ -1096,6 +1315,44 @@ sub send_json {
     my $output = shift;
 
     print "Content-type: text/plain\n\n" . encode_json($output);
+}
+
+sub _update_cache_and_sync_node {
+    my $dpid = shift;    
+
+    # connect to dbus
+    my $client;
+    my $service;
+    my $bus = Net::DBus->system;
+    eval {
+        $service = $bus->get_service("org.nddi.fwdctl");
+        $client  = $service->get_object("/controller1");
+    };
+    if ($@) {
+        warn "Error in _connect_to_fwdctl: $@";
+        return;
+    }
+    if ( !defined $client ) {
+        warn "Issue communicating with fwdctl";
+        return;
+    }
+
+    # first update fwdctl's cache
+    my ($res,$event_id) = $client->update_cache(-1);
+    my $final_res = FWDCTL_WAITING;
+    while($final_res == FWDCTL_WAITING){
+        sleep(1);
+        $final_res = $client->get_event_status($event_id);
+    }
+    # now sync the node
+    ($res,$event_id) = $client->force_sync($dpid);
+    $final_res = FWDCTL_WAITING;
+    while($final_res == FWDCTL_WAITING){
+        sleep(1);
+        $final_res = $client->get_event_status($event_id);
+    }
+
+    return 1;
 }
 
 main();

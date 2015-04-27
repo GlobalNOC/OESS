@@ -224,6 +224,8 @@ CREATE TABLE `link_path_membership` (
   `interface_a_vlan_id` int(11) NOT NULL,
   `interface_z_vlan_id` int(11) NOT NULL,        
   PRIMARY KEY (`link_id`,`end_epoch`,`path_id`,`interface_a_vlan_id`,`interface_z_vlan_id`),
+  UNIQUE KEY `unique_vlan_a` (`link_id`,`end_epoch`,`interface_a_vlan_id`),
+  UNIQUE KEY `unique_vlan_z` (`link_id`,`end_epoch`,`interface_z_vlan_id`),
   KEY `path_link_path_membership_fk` (`path_id`),
   CONSTRAINT `links_link_path_membership_fk` FOREIGN KEY (`link_id`) REFERENCES `link` (`link_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `path_link_path_membership_fk` FOREIGN KEY (`path_id`) REFERENCES `path` (`path_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
@@ -511,6 +513,43 @@ CREATE TABLE `workgroup_node_membership` (
   KEY `node_workgroup_host_membership_fk` (`node_id`),
   CONSTRAINT `node_workgroup_host_membership_fk` FOREIGN KEY (`node_id`) REFERENCES `node` (`node_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `workgroups_workgroup_host_membership_fk` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `edge_interface_move_maintenance`
+--
+
+DROP TABLE IF EXISTS `edge_interface_move_maintenance`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `edge_interface_move_maintenance` (
+  `maintenance_id` int(10) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `orig_interface_id` int(10) NOT NULL,
+  `temp_interface_id` int(10) NOT NULL,
+  `start_epoch` int(10) NOT NULL,
+  `end_epoch` int(10) DEFAULT '-1',
+  PRIMARY KEY (`maintenance_id`),
+  KEY `orig_interface_id` (`orig_interface_id`),
+  KEY `temp_interface_id` (`temp_interface_id`),
+  CONSTRAINT `edge_interface_move_maintenance_ibfk_1` FOREIGN KEY (`orig_interface_id`) REFERENCES `interface` (`interface_id`),
+  CONSTRAINT `edge_interface_move_maintenance_ibfk_2` FOREIGN KEY (`temp_interface_id`) REFERENCES `interface` (`interface_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `edge_interface_move_maintenance_circuit_membership`
+--
+
+DROP TABLE IF EXISTS `edge_interface_move_maintenance_circuit_membership`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `edge_interface_move_maintenance_circuit_membership` (
+  `maintenance_id` int(10) NOT NULL,
+  `circuit_id` int(10) NOT NULL,
+  KEY `maintenance_id` (`maintenance_id`),
+  KEY `circuit_id` (`circuit_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

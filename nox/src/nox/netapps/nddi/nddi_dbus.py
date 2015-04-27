@@ -48,6 +48,8 @@ FWDCTL_SUCCESS = 1
 FWDCTL_FAILURE = 0
 FWDCTL_UNKNOWN = 3
 
+TRACEROUTE_MAC= '\x06\xa2\x90\x26\x50\x09' 
+
 PENDING  = 0
 ANSWERED = 1
 
@@ -89,6 +91,7 @@ class dBusEventGen(dbus.service.Object):
        self.packets_out = 0
        self.packets_in = 0
        self.registered_for_fv_in = 0
+       self.registered_for_traceroute_in = 0
        self.fv_pkt_rate = 1
        self.packets = []
        self.VLAN_ID = None
@@ -103,6 +106,12 @@ class dBusEventGen(dbus.service.Object):
                          signature='tqtqt')
     def fv_packet_in(self, src_dpid, src_port, dst_dpid, dst_port, timestamp):
         string = "fv packet in: " + str(self.packets_in)
+    
+    @dbus.service.signal(dbus_interface=ifname,
+                         signature='tqt')
+    def traceroute_packet_in(self, src_dpid, src_port, circuit_id):
+        string = "traceroute packet in for circuit_id" + str(circuit_id)
+        logger.info(string)
         
     @dbus.service.signal(dbus_interface=ifname,
                          signature='tua{sv}')
@@ -145,7 +154,44 @@ class dBusEventGen(dbus.service.Object):
         logger.info("VLAN ID: " + str(VLAN_ID))
         self.packets = pkts
         return
+
+    @dbus.service.method(dbus_interface=ifname,
+                         in_signature='titt',
+                         out_signature='')
+    def send_traceroute_packet(self,dpid,my_vlan,out_port,data):
+        #build ethernet packet
+        packet = ethernet()
+        packet.src = '\x00' + struct.pack('!Q',dpid)[3:8]
+        packet.dst = TRACEROUTE_MAC
+        #pack circuit_id into payload
+        payload = struct.pack('I',data)
         
+        if(my_vlan != None and my_vlan != 65535):
+            vlan_packet = vlan()
+            vlan_packet.id = my_vlan
+            vlan_packet.c = 0
+            vlan_packet.pcp = 0
+            vlan_packet.eth_type = 0x88b5
+            vlan_packet.set_payload(payload)
+
+            packet.set_payload(vlan_packet)
+            packet.type = ethernet.VLAN_TYPE
+            
+        else:
+            packet.set_payload(payload)
+            packet.type = 0x88b5
+        
+        inst.send_openflow_packet(int(dpid), packet.tostring(),int(out_port))
+
+        return
+
+        
+    @dbus.service.method(dbus_interface=ifname,
+                         in_signature='',
+                         out_signature='i')
+    def echo(self, rate, vlan, pkts):
+        return 1
+
     @dbus.service.signal(dbus_interface=ifname,signature='tuquuay')
     def packet_in(self,dpid,in_port, reason, length, buffer_id, data):
        string =  "packet_in: "+str(dpid)+" :  "+str(in_port)
@@ -213,13 +259,13 @@ class dBusEventGen(dbus.service.Object):
         idle_timeout = 0
         hard_timeout = 0
 
-        xid = inst.install_datapath_flow( dp_id=dpid,
-                                          attrs=my_attrs,
-                                          idle_timeout=idle_timeout,
-                                          hard_timeout=hard_timeout,
-                                          actions=actions,
-                                          priority=0x0001,
-                                          inport=None)
+        xid = inst.send_datapath_flow( dp_id=dpid,
+                                       attrs=my_attrs,
+                                       idle_timeout=idle_timeout,
+                                       hard_timeout=hard_timeout,
+                                       actions=actions,
+                                       priority=0x0001,
+                                       inport=None)
         
         _do_install(dpid,xid,my_attrs,actions)
 
@@ -252,6 +298,27 @@ class dBusEventGen(dbus.service.Object):
         return 1
 
     @dbus.service.method(dbus_interface=ifname,
+                         in_signature='',
+                         out_signature='q')
+    def register_for_traceroute_in(self):
+        #ether type 88b6 is experimental
+        #88b6 IEEE 802.1 IEEE Std 802 - Local Experimental
+        if(self.registered_for_traceroute_in == 1):
+            return 1
+        logger.info("Registered for packet in events for Traceroute")
+
+        match = {
+            DL_TYPE: 0x88b5,
+            DL_DST: TRACEROUTE_MAC
+            }
+        
+        inst.register_for_packet_match(lambda dpid, inport, reason, len, bid,packet : traceroute_packet_in_callback(self,dpid,inport,reason,len,bid,packet), 0xffff, match)
+        self.registered_for_traceroute_in = 1
+        return 1
+
+
+
+    @dbus.service.method(dbus_interface=ifname,
                          in_signature='tq',
                          out_signature='t'
                          )
@@ -267,7 +334,7 @@ class dBusEventGen(dbus.service.Object):
         
         idle_timeout = 0
         hard_timeout = 0
-        xid = inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=None)
+        xid = inst.send_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=None)
 
         _do_install(dpid,xid,my_attrs,actions)
 
@@ -278,7 +345,7 @@ class dBusEventGen(dbus.service.Object):
         
         idle_timeout = 0
         hard_timeout = 0
-        xid = inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=None)
+        xid = inst.send_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=None)
         
         _do_install(dpid,xid,my_attrs,actions)
 
@@ -288,30 +355,45 @@ class dBusEventGen(dbus.service.Object):
                          in_signature='ta{sv}a(qv)',
                          out_signature='t'
                          )
-    def install_datapath_flow(self,dpid,attrs,actions):
-
+    def send_datapath_flow(self,dpid,attrs,actions):
         if not dpid in switches:
-          return 0; 
-
-	#--- here goes nothing
- 	my_attrs = {}
+          return 0;
+        
+        #--- here goes nothing
+        my_attrs = {}
         priority = 32768
         idle_timeout = 0
         hard_timeout = 0
+        command      = None
+        packet       = None
+        xid          = None
+        buffer_id    = None
+
+        logger.info("sending OFPFC: %d" % attrs.get("COMMAND", "No Command Set!"))
+
         if attrs.get("DL_VLAN"):
-            my_attrs[DL_VLAN] = int(attrs['DL_VLAN'])        
+            my_attrs[DL_VLAN] = int(attrs['DL_VLAN'])
         if attrs.get("IN_PORT"):
             my_attrs[IN_PORT] = int(attrs['IN_PORT'])
+        if attrs.get("DL_DST"):
+            my_attrs[DL_DST]  = int(attrs['DL_DST'])
         if attrs.get("DL_TYPE"):
-            my_attrs[DL_TYPE] = int(attrs["DL_TYPE"])
+            my_attrs[DL_TYPE] = int(attrs['DL_TYPE'])
         if attrs.get("PRIORITY"):
             priority = int(attrs["PRIORITY"])
-        if attrs.get("DL_DST"):
-            my_attrs[DL_DST] = int(attrs["DL_DST"])
         if attrs.get("IDLE_TIMEOUT"):
             idle_timeout = int(attrs["IDLE_TIMEOUT"])
         if attrs.get("HARD_TIMEOUT"):
             hard_timeout = int(attrs["HARD_TIMEOUT"])
+        if "COMMAND" in attrs:
+            command = int(attrs["COMMAND"])
+        if attrs.get("XID"):
+            xid = int(attrs["XID"])
+        if attrs.get("PACKET"):
+            packet = int(attrs["PACKET"])
+        if attrs.get("BUFFER_ID"):
+            buffer_id = int(attrs["BUFFER_ID"])
+
         #--- this is less than ideal. to make dbus happy we need to pass extra arguments in the
         #--- strip vlan case, but NOX won't be happy with them so we remove them here
         for i in range(len(actions)):
@@ -321,46 +403,28 @@ class dBusEventGen(dbus.service.Object):
                 actions.remove(action)
                 actions.insert(i, new_action)
 
-        #--- first we check to make sure the switch is in a ready state to accept more flow mods.
-        if (my_attrs.get("IN_PORT")):
-            xid = inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,priority=priority,inport=my_attrs[IN_PORT])
-        else:
-            xid = inst.install_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,priority=priority,inport=None)
-        logger.info("Flow XID: %d" % xid)
-        _do_install(dpid,xid,my_attrs,actions)
-
-        return xid
-
-
-    @dbus.service.method(dbus_interface=ifname,
-                         in_signature='ta{sv}a(qv)',
-                         out_signature='t'
-                         )
-    def delete_datapath_flow(self,dpid, attrs, actions ):
-
-        if not dpid in switches:
-          return 0;
-
-        logger.info("removing flow")
-
- 	my_attrs = {}
-        if attrs.get("DL_VLAN"):
-            my_attrs[DL_VLAN] = int(attrs['DL_VLAN'])
-        if attrs.get("IN_PORT"):
-            my_attrs[IN_PORT] = int(attrs['IN_PORT'])
-        if attrs.get("DL_DST"):
-            my_attrs[DL_DST]  = int(attrs['DL_DST'])
-        if attrs.get("DL_TYPE"):
-            my_attrs[DL_TYPE]  = int(attrs['DL_TYPE'])
-
-        logger.info("removing flow")
         #--- first we check to make sure the switch is in a ready state to accept more flow mods
-        xid = inst.delete_datapath_flow(dpid, my_attrs)
-        logger.info("flow removed xid: %d" % xid)
-        actions = []
+        xid = inst.send_datapath_flow(
+            dpid, 
+            my_attrs,
+            idle_timeout,
+            hard_timeout,
+            actions,
+            buffer_id,
+            priority,
+            my_attrs.get("IN_PORT"),
+            command,
+            packet, 
+            xid
+        )
+
+
+        logger.info("sent OFPFC: {0}, xid: {1}".format(command, xid))
+        actions = [] if actions == None else actions
         _do_install(dpid,xid,my_attrs,actions)
 
         return xid
+
 
     @dbus.service.method(dbus_interface=ifname,
                          in_signature='t',
@@ -404,6 +468,18 @@ def fv_packet_in_callback(sg,dp,inport,reason,len,bid,packet):
         return
 
     sg.fv_packet_in(src_dpid,src_port,dst_dpid,dst_port,timestamp)
+
+def traceroute_packet_in_callback(sg,dp,inport,reason,len,bid,packet):
+    if(packet.type == ethernet.VLAN_TYPE):
+        packet = packet.next
+
+    string = packet.next
+    logger.info(string.encode('hex'))
+    #get circuit_id
+    (circuit_id) = struct.unpack('I',string[:4])
+    #struct.pack always returns a tuple, return the first element of the tuple
+    sg.traceroute_packet_in(dp,inport,circuit_id[0])
+
     
                         
 
@@ -631,6 +707,8 @@ class nddi_dbus(Component):
             inst.send_openflow_packet(pkt[0], packet.tostring(), int(pkt[1]))
 
         self.post_callback(fv_pkt_rate, self.fire_send_fv_packets)
+
+    
 
     def getInterface(self):
         return str(nddi_dbus)

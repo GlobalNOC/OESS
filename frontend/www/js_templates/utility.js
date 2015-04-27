@@ -3,41 +3,44 @@
 window.originalAlert = window.alert;
 
 // override the default alert so we can make it prettier / standardized
-window.alert = function(text, callback){
+window.alert = function(text, callback, options){
+    options = options || {};
+    var width  = YAHOO.util.Dom.getClientWidth();
 
-     var width  = YAHOO.util.Dom.getClientWidth();
+    var alert_box = new YAHOO.widget.Panel("alert", {
+        width: 350,
+        close: false,
+        draggable: false,
+        zindex: 9999999,
+        visible: false,
+        underlay: 'shadow',
+        xy: [(width / 2) - 175, 175]
+    });
 
-     var alert_box = new YAHOO.widget.Panel("alert", 
-                                            {
-						width: 350,
-						close: false,
-						draggable: false,
-						zindex: 9999999,
-						visible: false,
-						underlay: 'shadow',
-						xy: [(width / 2) - 175, 175]
-					    });
+    alert_box.setHeader("Notice");
+    alert_box.setBody(
+        "<center>"+text+"</center>" + 
+        "<div style='text-align: right;'><div id='close_alert'></div></div>"
+    );
 
-     alert_box.setHeader("Notice");
-     alert_box.setBody("<center>"+text+"</center>" + 
-		       "<div style='text-align: right;'><div id='close_alert'></div></div>"
-		       );
+    alert_box.render(document.body);
 
-     alert_box.render(document.body);
+    var close_button = new YAHOO.widget.Button('close_alert', {label: "Ok"});
 
-     var close_button = new YAHOO.widget.Button('close_alert', {label: "Ok"});
+    close_button.on("click", function(){
+        alert_box.destroy();
+        if (callback) callback();
+    });
 
-     close_button.on("click", function(){
-	     alert_box.destroy();
+    alert_box.show();
 
-	     if (callback) callback();
-	 });
+    close_button.focus();
 
-     alert_box.show();
 
-     close_button.focus();
-
-     YAHOO.util.Dom.addClass("alert", "popup_box");
+    YAHOO.util.Dom.addClass("alert", "popup_box");
+    if(options.error){
+        YAHOO.util.Dom.addClass("alert", "popup_box_error");
+    }
 
 };
 

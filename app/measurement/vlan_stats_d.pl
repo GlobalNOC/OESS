@@ -60,7 +60,7 @@ sub process_flow_stats{
 	# might be some other rules or default forwarding or something, we can't match this to a 
 	# vlan / port so skip
 	next if (!defined $rule->{'match'});
-
+	next if ($rule->{'match'}->{'dl_type'} eq '34997');
 	if(!defined($switch->{$rule->{'match'}->{'in_port'}})){
 	    $switch->{$rule->{'match'}->{'in_port'}} = {};
 	}
@@ -219,6 +219,9 @@ sub create_rrd_file{
     #make the path if it doesn't exist
     `mkdir -p $path`;
 
+    #set the proper perms
+    chmod 0755, $path;
+
     my $sth = $snapp_dbh->prepare("select * from collection_class where collection_class.name = ?") or handle_error();
     if(!defined($sth)){
 	return 0;
@@ -246,9 +249,9 @@ sub create_rrd_file{
     my @rrd_str;
     push(@rrd_str,"-s " . $coll_class->{'collection_interval'});
     push(@rrd_str,"DS:input:DERIVE:" . $coll_class->{'collection_interval'} * 3 . ":0:11811160064");
-    push(@rrd_str,"DS:output:DERIVE:" . $coll_class->{'collection_interval'} * 3 . ":0:11811160064");
+    #push(@rrd_str,"DS:output:DERIVE:" . $coll_class->{'collection_interval'} * 3 . ":0:11811160064");
     push(@rrd_str,"DS:inUcast:DERIVE:" . $coll_class->{'collection_interval'} * 3 . ":0:11811160064");
-    push(@rrd_str,"DS:outUcast:DERIVE:" . $coll_class->{'collection_interval'} * 3 . ":0:11811160064");
+    #push(@rrd_str,"DS:outUcast:DERIVE:" . $coll_class->{'collection_interval'} * 3 . ":0:11811160064");
     
     foreach my $rra (@rras){
 	my $rows = ($rra->{'num_days'} * 60 * 60 * 24) / $coll_class->{'collection_interval'} / $rra->{'step'};
@@ -262,6 +265,9 @@ sub create_rrd_file{
 	syslog(LOG_ERR,"Error trying to create rrdfile: " . $file . "\n$error");
 	return 0;
     }
+
+    #set the proper file perms
+    chmod 0644, $file;
 
     return 1;
 }
@@ -444,7 +450,15 @@ sub get_flow_stats{
     warn "Fetching stats\n";
     my $nodes = $oess->get_current_nodes();
     foreach my $node (@$nodes){
-	my ($time,$flows) = $dbus->{'dbus'}->get_flow_stats($node->{'dpid'});
+	my $time;
+        my $flows;
+        eval {
+            ($time,$flows) = $dbus->{'dbus'}->get_flow_stats($node->{'dpid'});
+        };
+        syslog(LOG_ERR, "error getting flow stats: $@") if $@;
+        if (!$time || !$flows){
+            return;
+        }
 	process_flow_stats($time,$node->{'dpid'},$flows);
     }
 
@@ -540,4 +554,5 @@ if($opt_f){
 	}
 	main();
     }
+    `chmod 0644 /var/run/oess/vlan_stats_d.pid`;
 }

@@ -61,6 +61,7 @@ case "$1" in
                 success; echo
             else
                 failure; echo
+
             fi
         fi
         ;;
@@ -107,6 +108,7 @@ case "$1" in
                 rm -f $PIDFILE
         else
                 action $"Stopping oess-${name}: " /bin/false
+ 
         fi
         rm -rf $lockfile
         ;;

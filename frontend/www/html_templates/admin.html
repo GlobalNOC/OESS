@@ -11,6 +11,7 @@
       <li><a href="#tab4"><em>Workgroups</em></a></li>
       <li><a href="#tab5"><em>Remote Links</em></a></li>
       <li><a href="#tab6"><em>Remote Devices</em></a></li>
+      <li><a href="#tab7"><em>Maintenances</em></a></li>
     </ul>
 
     <div class="yui-content">
@@ -83,10 +84,10 @@
 	  <input id="user_search" type="text" size="25">
         </div>
 	<br>
-	<p style="float:left; margin-left:28px;" class="soft_title">Existing Users</p>
+	<p style="float:left; margin-left:65px;" class="soft_title">Existing Users</p>
 	<br>
 	<center>
-	  <div id="user_table"></div>
+	  <div id="user_table" style="margin-left:25px;inline-block;float:center;"></div>
 	  <div id="user_table_nav"></div>
           
 	  <br>
@@ -150,7 +151,7 @@
       </div>
 
       <br clear="both">
-
+      <br>
       <div id="remote_link_table"></div>
       <div id="remote_link_table_nav"></div>
       <br>
@@ -170,7 +171,19 @@
       <div id="remote_dev_table_nav"></div>
 
     </center>
-      </div>
+    </div>
+    <!-- Maintenances -->
+    <div id="maintenance_content">
+        <div class="maintenance_container">
+            <p class="title">Maintenances</p>
+            <!--<p class="subtitle">Active Maintenances</p>-->
+            <div class="maint_actions_holder">
+                <label class='subtitle'>Edge Interface Move Maintenances</label>
+                <div id="maint_add_button"></div>
+            </div>
+            <div id="edge_int_maint_table"></div>
+        </div>
+    </div>
 
     </div>
     

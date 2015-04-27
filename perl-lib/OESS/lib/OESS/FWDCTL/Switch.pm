@@ -36,8 +36,9 @@ use AnyEvent;
 use OESS::FlowRule;
 use OESS::DBus;
 use Net::DBus;
-
 use JSON;
+
+use Data::Dumper;
 
 use Time::HiRes qw( usleep );
 use constant FWDCTL_ADD_VLAN     => 0;
@@ -46,6 +47,12 @@ use constant FWDCTL_CHANGE_PATH  => 2;
 
 use constant FWDCTL_ADD_RULE     => 0;
 use constant FWDCTL_REMOVE_RULE  => 1;
+
+use constant OFPFC_ADD           => 0;
+use constant OFPFC_MODIFY        => 1;
+use constant OFPFC_MODIFY_STRICT => 2;
+use constant OFPFC_DELETE        => 3;
+use constant OFPFC_DELETE_STRICT => 4;
 
 use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
@@ -79,6 +86,9 @@ sub new {
 
     my $self = \%args;
 
+    #--- set a default discovery vlan that can be overridden later if needed.
+    $self->{'settings'}->{'discovery_vlan'} = -1;
+
     $self->{'nox'} = $nox->{'dbus'};
 
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL.Switch.' . sprintf("%x",$self->{'dpid'}));
@@ -88,11 +98,13 @@ sub new {
     $self->_update_cache();
     $self->datapath_join_handler();
     
-    $self->{'timer'} = AnyEvent->timer( after => 10, interval => 10, 
+    $self->{'timer'} = AnyEvent->timer( after => 10, interval => 60, 
                                         cb => sub { 
                                             $self->{'logger'}->debug("Processing FlowStat Timer event");
                                             $self->get_flow_stats();
                                         } );
+
+
     return $self;
 }
 
@@ -183,59 +195,38 @@ sub _update_cache{
     }
 
     $self->{'node'} = $data->{'nodes'}->{$self->{'dpid'}};
+
+    $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL.Switch.' . $self->{'node'}->{'name'}) if($self->{'node'}->{'name'});
+
     $self->{'settings'} = $data->{'settings'};
 
 }
 
-sub _generate_commands{
-    my $self = shift;
+sub _generate_commands {
+    my $self       = shift;
     my $circuit_id = shift;
-    my $action = shift;
+    my $action     = shift;
     
     $self->{'logger'}->debug("getting flows for circuit_id: " . $circuit_id);
-    
+
     if(!defined($self->{'ckts'}->{$circuit_id})){
         $self->{'logger'}->error("No circuit with id: " . $circuit_id . " found in the cache");
         return;
     }
     
     switch($action){
-	case (FWDCTL_ADD_VLAN){
-	    return $self->{'ckts'}->{$circuit_id}->{'flows'}->{'current'};
-	    
-	}case (FWDCTL_REMOVE_VLAN){
-	    
+        case (FWDCTL_ADD_VLAN){
             return $self->{'ckts'}->{$circuit_id}->{'flows'}->{'current'};
-	    
-	}case (FWDCTL_CHANGE_PATH){
-	    
-            my @commands;
-
-	    my $primary_flows = $self->{'ckts'}->{$circuit_id}->{'flows'}->{'endpoint'}->{'primary'};
-	    my $backup_flows =  $self->{'ckts'}->{$circuit_id}->{'flows'}->{'endpoint'}->{'backup'};
-
+        }case (FWDCTL_REMOVE_VLAN){
+            return $self->{'ckts'}->{$circuit_id}->{'flows'}->{'current'};
+        }case (FWDCTL_CHANGE_PATH){
             #we already performed the DB change so that means
             #whatever path is active is actually what we are moving to
-	    foreach my $flow (@$primary_flows){
-		if($self->{'ckts'}->{$circuit_id}->{'details'}->{'active_path'} eq 'primary'){
-		    $flow->{'sw_act'} = FWDCTL_ADD_RULE;
-		}else{
-		    $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
-		}
-		push(@commands,$flow);
-	    }
-	    
-	    foreach my $flow (@$backup_flows){
-		if($self->{'ckts'}->{$circuit_id}->{'details'}->{'active_path'} eq 'primary'){
-		    $flow->{'sw_act'} = FWDCTL_REMOVE_RULE;
-		}else{
-		    $flow->{'sw_act'} = FWDCTL_ADD_RULE;
-		}
-		push(@commands,$flow);
-	    }
-	    
-	    return \@commands;
-	}else{
+            my $active_path     = $self->{'ckts'}{$circuit_id}{'details'}{'active_path'};
+            my $endpoint_flows  = $self->{'ckts'}{$circuit_id}{'flows'}{'endpoint'}{$active_path};
+
+            return $endpoint_flows;
+        }else{
 
         }
     }
@@ -249,7 +240,7 @@ sub force_sync{
     my $self = shift;
 
     $self->_update_cache();
-    $self->{'needs_diff'} = 1;
+    $self->{'needs_diff'} = time();
 
     return FWDCTL_SUCCESS;
 
@@ -286,7 +277,7 @@ sub process_event{
         }case 'force_sync'{
             $self->_update_cache();
             $self->{'logger'}->warn("received a force_sync command");
-            $self->{'needs_diff'} = 1;
+            $self->{'needs_diff'} = time();
             return {success => 1, msg => "diff scheduled!", total_rules => $self->{'flows'}};
         }case 'update_cache'{
             $self->_update_cache();
@@ -312,70 +303,44 @@ sub change_path{
    
     foreach my $circuit (@$circuits){
         
-        my $commands = $self->_generate_commands($circuit,FWDCTL_CHANGE_PATH);
+        my $commands    = $self->_generate_commands($circuit,FWDCTL_CHANGE_PATH);
+        my $active_path = $self->{'ckts'}{$circuit}{'details'}{'active_path'};
 
         foreach my $command (@$commands){
             next unless defined($command);
             next unless ($command->get_dpid() == $self->{'dpid'});
-            next unless ($command->{'sw_act'} == FWDCTL_REMOVE_RULE);
-                
-            $self->{'logger'}->info("Removing Flow: " . $command->to_human());
-            $self->{'nox'}->delete_datapath_flow($command->to_dbus());
-            $self->{'flows'}--;
-            
+            $self->{'logger'}->info("Modifying endpoint flow to $active_path path: " . $command->to_human());
+            $self->{'nox'}->send_datapath_flow($command->to_dbus( command => OFPFC_MODIFY ));
 
             #if not doing bulk barrier send a barrier and wait
             if(!$self->{'node'}->{'send_barrier_bulk'}){
                 $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
                 $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+                #assume failure , use diff to be resilient to failure
+                $self->{'needs_diff'} = time();
+                
                 my $result = $self->_poll_node_status();
                 if($result != FWDCTL_SUCCESS){
                     $res = FWDCTL_FAILURE;
                 }
             }
             
-            usleep($self->{'node'}->{'tx_delay_ms'});
-            
+            usleep($self->{'node'}->{'tx_delay_ms'} * 1000);
         }
-
-        foreach my $command (@$commands){
-            next unless defined($command);
-            next unless ($command->get_dpid() == $self->{'dpid'});
-            next unless($command->{'sw_act'} == FWDCTL_ADD_RULE);
-                
-            if($self->{'flows'} < $self->{'node'}->{'max_flows'}){
-                $self->{'logger'}->info("Installing Flow: " . $command->to_human());
-                $self->{'nox'}->install_datapath_flow($command->to_dbus());
-                $self->{'flows'}++;
-            }else{
-                $self->{'logger'}->error("Node: " . $self->{'node'}->{'name'} . " is at or over its maximum flow mod limit, unable to send flow rule for circuit: " . $circuit);
-                $res = FWDCTL_FAILURE;
-            }
-          
-            #if not doing bulk barrier send a barrier and wait
-            if(!$self->{'node'}->{'send_barrier_bulk'}){
-                $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-                $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
-                my $result = $self->_poll_node_status();
-                if($result != FWDCTL_SUCCESS){
-                    $res = FWDCTL_FAILURE;
-                }
-            }
-            usleep($self->{'node'}->{'tx_delay_ms'});
-        }
-
     }
 
     #send our final barrier and wait for reply
     $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
     $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+    #assume failure , use diff to be resilient to failure
+    $self->{'needs_diff'} = time();
     my $result = $self->_poll_node_status();
     if($result != FWDCTL_SUCCESS){
         $res = FWDCTL_FAILURE;
     }
 
     if($res == FWDCTL_SUCCESS){
-        return {success => 1, msg => "All Circuits successfully changed path"};
+        return {success => 1, msg => "All circuits successfully changed path"};
     }else{
         return {success => 0, msg => "Some circuits failed to change path"};
     }
@@ -402,32 +367,35 @@ sub add_vlan{
         if($self->{'flows'} < $self->{'node'}->{'max_flows'}){
             $self->{'logger'}->info("Installing Flow: " . $command->to_human());
 
-            $self->{'nox'}->install_datapath_flow($command->to_dbus());
+            $self->{'nox'}->send_datapath_flow($command->to_dbus( command => OFPFC_ADD ));
             $self->{'flows'}++;
-            
-            
+                        
         }else{
  
-           $self->{'logger'}->error("Node: " . $self->{'node'}->{'name'} . " is at or over its maximum flow mod limit, unable to send flow rule for circuit: " . $circuit);
+            $self->{'logger'}->error("Node: " . $self->{'node'}->{'name'} . " is at or over its maximum flow mod limit, unable to send flow rule for circuit: " . $circuit);
             $res = FWDCTL_FAILURE;
-
+            
         }
 
         #if not doing bulk barrier send a barrier and wait
         if(!$self->{'node'}->{'send_barrier_bulk'}){
             $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
             $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+            #assume failure , use diff to be resilient to failure
+            $self->{'needs_diff'} = time();
             my $result = $self->_poll_node_status();
             if($result != FWDCTL_SUCCESS){
                 $res = FWDCTL_FAILURE;
             }
         }
-        usleep($self->{'node'}->{'tx_delay_ms'});
+        usleep($self->{'node'}->{'tx_delay_ms'} * 1000);
     }
 
     #send our final barrier and wait for reply
     $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
     $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+    #assume failure , use diff to be resilient to failure
+    $self->{'needs_diff'} = time();
     my $result = $self->_poll_node_status();
     if($result != FWDCTL_SUCCESS){
         $res = FWDCTL_FAILURE;
@@ -458,26 +426,30 @@ sub remove_vlan{
     foreach my $command (@$commands){
 
         $self->{'logger'}->info("Removing Flow: " . $command->to_human());
-        $self->{'nox'}->delete_datapath_flow($command->to_dbus());
+        $self->{'nox'}->send_datapath_flow($command->to_dbus( command => OFPFC_DELETE_STRICT ));
         $self->{'flows'}--;
         
         #if not doing bulk barrier send a barrier and wait
         if(!$self->{'node'}->{'send_barrier_bulk'}){
             $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
             $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+            #assume failure , use diff to be resilient to failure
+            $self->{'needs_diff'} = time();
             my $result = $self->_poll_node_status();
             if($result != FWDCTL_SUCCESS){
                 $res = FWDCTL_FAILURE;
             }
         }
 
-        usleep($self->{'node'}->{'tx_delay_ms'});
+        usleep($self->{'node'}->{'tx_delay_ms'} * 1000);
 
     }    
 
     #send our final barrier and wait for reply
     $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
     $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+    #assume failure , use diff to be resilient to failure
+    $self->{'needs_diff'} = time();
     my $result = $self->_poll_node_status();
     $self->{'logger'}->info("Got a barrier reply");
     if($result != FWDCTL_SUCCESS){
@@ -498,7 +470,7 @@ sub remove_vlan{
 
 sub datapath_join_handler{
     my $self   = shift;
-    
+ 
     #--- first push the default "forward to controller" rule to this node. This enables
     #--- discovery to work properly regardless of whether the switch's implementation does it by default
     #--- or not
@@ -506,27 +478,39 @@ sub datapath_join_handler{
     
     my %xid_hash;
     
-    if(!defined($self->{'node'}) || $self->{'node'}->{'default_forward'} == 1) {
-        my $status = $self->{'nox'}->install_default_forward(Net::DBus::dbus_uint64($self->{'dpid'}),$self->{'settings'}->{'discovery_vlan'});
-	$self->{'flows'}++;
+    if(!defined($self->{'node'}->{'default_forward'}) || $self->{'node'}->{'default_forward'} == 1) {
+        my $status;
+
+        #--- make sure there is a discovery vlan set. else send -1.
+        if($self->{'settings'}->{'discovery_vlan'}){ 
+            $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." pushing lldp forwarding rule for vlan $self->{'settings'}->{'discovery_vlan'}");
+            $status = $self->{'nox'}->install_default_forward(Net::DBus::dbus_uint64($self->{'dpid'}),$self->{'settings'}->{'discovery_vlan'});
+        }
+        else{
+            $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." pushing lldp forwarding rule for vlan -1");
+            $status = $self->{'nox'}->install_default_forward(Net::DBus::dbus_uint64($self->{'dpid'}),-1);
+        }
+
+        $self->{'flows'}++;
     }
-    
-    if (!defined($self->{'node'}) || $self->{'node'}->{'default_drop'} == 1) {
+
+    if (!defined($self->{'node'}->{'default_drop'}) || $self->{'node'}->{'default_drop'} == 1) {
+        $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." pushing default drop rule");
         my $status = $self->{'nox'}->install_default_drop(Net::DBus::dbus_uint64($self->{'dpid'}));
         $self->{'flows'}++;
     }
     $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
     my $xid = $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+
     my $result = $self->_poll_node_status();
     
     if ($result != FWDCTL_SUCCESS) {
         $self->{'logger'}->error("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} . " failed to install default drop or lldp forward rules, may cause traffic to flood controller or discovery to fail");
-        return;
     } else {
         $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." installed default drop rule and lldp forward rule");
     }
     
-    $self->{'needs_diff'} = 1;
+    $self->{'needs_diff'} = time();
     
 }
 
@@ -542,17 +526,19 @@ sub _replace_flowmod{
 
     if (defined($commands->{'remove'})) {
         #delete this flowmod
-	$self->{'logger'}->info("Deleting flow: " . $commands->{'remove'}->to_human());
-	my $status = $self->{'nox'}->delete_datapath_flow($commands->{'remove'}->to_dbus());
+        $self->{'logger'}->info("Deleting flow: " . $commands->{'remove'}->to_human());
+        my $status = $self->{'nox'}->send_datapath_flow($commands->{'remove'}->to_dbus( command => OFPFC_DELETE_STRICT ));
 
-	if(!$self->{'node'}->{'send_barrier_bulk'}){
-	    my $xid = $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($commands->{'remove'}->get_dpid()));
-	    $self->{'logger'}->debug("replace flowmod: send_barrier: with dpid: " . $commands->{'remove'}->get_dpid());
+        if(!$self->{'node'}->{'send_barrier_bulk'}){
+            my $xid = $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($commands->{'remove'}->get_dpid()));
+            $self->{'logger'}->debug("replace flowmod: send_barrier: with dpid: " . $commands->{'remove'}->get_dpid());
+            #assume failure , use diff to be resilient to failure
+            $self->{'needs_diff'} = time();
             my $res = $self->_poll_node_status();
             if($res != FWDCTL_SUCCESS){
                 $state = FWDCTL_FAILURE;
             }
-	}
+        }
         $self->{'flows'}--;
     }
     
@@ -561,13 +547,15 @@ sub _replace_flowmod{
             $self->{'logger'}->error("sw: dpipd:" . $self->{'node'}->{'dpid_str'} . " exceeding max_flows:". $self->{'node'}->{'max_flows'} ." replace flowmod failed");
             return FWDCTL_FAILURE;
         }
-	$self->{'logger'}->info("Installing Flow: " . $commands->{'add'}->to_human());
-        my $status = $self->{'nox'}->install_datapath_flow($commands->{'add'}->to_dbus());
+	    $self->{'logger'}->info("Installing Flow: " . $commands->{'add'}->to_human());
+        my $status = $self->{'nox'}->send_datapath_flow($commands->{'add'}->to_dbus( command => OFPFC_ADD ));
 	
         # send the barrier if the bulk flag is not set
         if (!$self->{'node'}->{'send_barrier_bulk'}) {
             $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
             my $xid = $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($commands->{'add'}->get_dpid()));
+            #assume failure , use diff to be resilient to failure
+            $self->{'needs_diff'} = time();
             $self->{'logger'}->error("replace flowmod: send_barrier: with dpid: " . $commands->{'add'}->get_dpid());
             my $res = $self->_poll_node_status();
             if($res != FWDCTL_SUCCESS){
@@ -576,7 +564,7 @@ sub _replace_flowmod{
         }	
         $self->{'flows'}++;
     }
-    usleep($self->{'node'}->{'tx_delay_ms'});
+    usleep($self->{'node'}->{'tx_delay_ms'} * 1000 );
     return $state;
 }
 
@@ -605,33 +593,33 @@ sub _do_diff{
         }
     }
 
-    if (!defined($node_info) || $node_info->{'default_forward'} == 1) {
-	if(defined($self->{'settings'}->{'discovery_vlan'}) && $self->{'settings'}->{'discovery_vlan'} != -1){
-	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
-						    match => {'dl_type' => 35020,
-							      'dl_vlan' => $self->{'settings'}->{'discovery_vlan'}},
-						    actions => [{'output' => 65533}]));
-
-	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
-						    match => {'dl_type' => 34998,
-							      'dl_vlan' => $self->{'settings'}->{'discovery_vlan'}},
-						    actions => [{'output' => 65533}]));
-	}else{
-	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
-						    match => {'dl_type' => 35020,
-							      'dl_vlan' => -1},
-						    actions => [{'output' => 65533}]));
-	    
-	    push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
-                                                    match => {'dl_type' => 34998,
-							      'dl_vlan' => -1},
+    if (!defined($node_info->{'default_forward'}) || $node_info->{'default_forward'} == 1) {
+        if(defined($self->{'settings'}->{'discovery_vlan'}) && $self->{'settings'}->{'discovery_vlan'} != -1){
+            push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
+                                                    match => {'dl_type' => 35020,
+                                                              'dl_vlan' => $self->{'settings'}->{'discovery_vlan'}},
                                                     actions => [{'output' => 65533}]));
-	}
+            
+            push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
+                                                    match => {'dl_type' => 34998,
+                                                              'dl_vlan' => $self->{'settings'}->{'discovery_vlan'}},
+                                                    actions => [{'output' => 65533}]));
+        }else{
+            push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
+                                                    match => {'dl_type' => 35020,
+                                                              'dl_vlan' => -1},
+                                                    actions => [{'output' => 65533}]));
+            
+            push(@all_commands,OESS::FlowRule->new( dpid => $dpid,
+                                                    match => {'dl_type' => 34998,
+                                                              'dl_vlan' => -1},
+                                                    actions => [{'output' => 65533}]));
+        }
     }
     
-    #start at one for the default drop
+    #start at one for the default drop and the fvd
     $self->{'flows'} = 1;
-
+    
     return $self->_actual_diff($current_flows, \@all_commands);
 }
 
@@ -654,14 +642,16 @@ sub _actual_diff{
         #---ignore rules not for this dpid
         $self->{'logger'}->debug("Checking to see if " . $command->to_human() . " is on device");
         next if($command->get_dpid() != $self->{'dpid'});
+        
 	my $found = 0;
         my $match = $command->get_match();
-
+        
         if(defined($current_flows->{$match->{'in_port'}}->{$match->{'dl_vlan'}})){
             for(my $i=0;$i<= $#{$current_flows->{$match->{'in_port'}}->{$match->{'dl_vlan'}}}; $i++){
                 my $flow = $current_flows->{$match->{'in_port'}}->{$match->{'dl_vlan'}}->[$i];
                 next if(!defined($flow));
                 $self->{'logger'}->debug("Comparing to: " . $flow->to_human());
+                        #skip diffing traceroute related flowrules
                 
                 if($command->compare_match( flow_rule =>  $flow)){
                     $self->{'logger'}->debug("Match matches!");
@@ -710,6 +700,11 @@ sub _actual_diff{
     my $total = $stats{'mods'} + $stats{'adds'} + $stats{'rems'};
     $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} . " diff plan $total changes.  mods:".$stats{'mods'}. " adds:".$stats{'adds'}. " removals:".$stats{'rems'});
     
+    if ($total == 0){
+        $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ."has 0 changes, returning FWDCTL_SUCCESS" );
+        $self->{'needs_diff'} = 0;
+        return FWDCTL_SUCCESS;
+    }
     #--- process the rule_queue
     my $res = FWDCTL_SUCCESS;
     $self->{'logger'}->debug("before calling _replace_flowmod in loop with rule_queue:". @rule_queue);
@@ -718,24 +713,30 @@ sub _actual_diff{
         if (defined($new_result) && ($new_result != FWDCTL_SUCCESS)) {
             $res = $new_result;
         }
+        usleep($self->{'node'}->{'tx_delay_ms'} * 1000);
     }
 
     if($self->{'node'}->{'bulk_barrier'}){
         my $xid = $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
         $self->{'logger'}->info("diff barrier with dpid: " . $self->{'dpid'});
         my $result = $self->_poll_node_status();
+        $self->{'logger'}->debug("node_status");
         if($result != FWDCTL_SUCCESS){
             $res = $result;
         }
     }
 
-    if ($res == FWDCTL_SUCCESS) {
+    
+
+    if ($res == FWDCTL_SUCCESS) {       
         $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} . " diff completed $total changes");
     } else {
         $self->{'logger'}->error("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} . " diff did not complete");
+       
     }
     return $res;
 }
+
 
 =head2 rules_per_switch
 
@@ -756,6 +757,10 @@ sub _process_stats_to_flows{
     foreach my $flow (@$flows){	
 	my $new_flow = OESS::FlowRule::parse_stat( dpid => $dpid, stat => $flow );
         my $match = $new_flow->get_match();
+        #Allow Traceroute to manage its own flow rules
+        if ($match->{'dl_type'} && $match->{'dl_type'} == 34997){
+                    next;
+        }
         if(!defined($new_flows{$match->{'in_port'}}{$match->{'dl_vlan'}})){
             $new_flows{$match->{'in_port'}}{$match->{'dl_vlan'}} = [];
         }
@@ -780,14 +785,16 @@ sub get_flow_stats{
             $self->{'logger'}->info("no flow stats cached yet for dpid: " . $self->{'dpid'});
             return;
         }
-        
-        $self->{'needs_diff'} = 0;
-        #---process the flow_rules into a lookup hash
-        my $flows = $self->_process_stats_to_flows( $self->{'dpid'}, $stats);
 
-        #--- now that we have the lookup hash of flow_rules
-        #--- do the diff
-        $self->_do_diff($flows);
+        if($time > $self->{'needs_diff'}){
+            #$self->{'needs_diff'} = 0;
+            #---process the flow_rules into a lookup hash
+            my $flows = $self->_process_stats_to_flows( $self->{'dpid'}, $stats);
+            
+            #--- now that we have the lookup hash of flow_rules
+            #--- do the diff
+            $self->_do_diff($flows);
+        }
     }
 }
 
@@ -800,7 +807,7 @@ sub _poll_node_status{
     while (time() < $timeout) {
         
         my ($output,$failed_flows) = $self->{'nox'}->get_node_status(Net::DBus::dbus_uint64($self->{'dpid'}));
-        $self->{'logger'}->debug($output);
+        $self->{'logger'}->debug("poll node status output: $output");
         #-- pending, retry later
         $self->{'logger'}->trace("Status of node: " . $self->{'node'}->{'name'} . " DPID: " . $self->{'node'}->{'dpid_str'} . " is " . $output);
         if ($output != FWDCTL_WAITING){
@@ -811,7 +818,8 @@ sub _poll_node_status{
         #--- if we got here lets take a short nap
         usleep(100);
     }
-
+    
+    $result = FWDCTL_UNKNOWN;
     $self->{'logger'}->warn("Switch: " . $self->{'node'}->{'name'} . " DPID: " . $self->{'node'}->{'dpid_str'} . " did not respond before the timout");
     return $result;
 }

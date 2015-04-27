@@ -61,7 +61,10 @@ sub main {
     my $action = $cgi->param('action');
     print STDERR "action " . $action;
     my $output;
-
+    my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
+    if ($user->{'status'} eq 'decom') {
+        $action = "error";
+    }
     switch ($action) {
 
         case "provision_circuit" {
@@ -75,7 +78,11 @@ sub main {
                                      }
               case "reprovision_circuit"{
                                          $output = &reprovision_circuit();
-                                        } else {
+                                        }
+        case "error" {
+            $output = { error => "Decommed users cannot use webservices."};
+        } 
+                                        else {
                                             $output = {
                                                        error => "Unknown action - $action"
                                                       };
@@ -362,70 +369,63 @@ sub provision_circuit {
 
     } else {
 
+        my %edit_circuit_args = (
+            circuit_id     => $circuit_id,
+            description    => $description,
+            bandwidth      => $bandwidth,
+            provision_time => $provision_time,
+            restore_to_primary => $restore_to_primary,
+            remove_time    => $remove_time,
+            links          => \@links,
+            backup_links   => \@backup_links,
+            nodes          => \@nodes,
+            interfaces     => \@interfaces,
+            tags           => \@tags,
+            mac_addresses  => \@mac_addresses,
+            endpoint_mac_address_nums  => \@endpoint_mac_address_nums,
+            user_name      => $ENV{'REMOTE_USER'},
+            workgroup_id   => $workgroup_id,
+            do_external    => 0,
+            static_mac => $static_mac,
+            do_sanity_check => 0
+        );
+
         ##Edit Existing Circuit
+        
         # verify is allowed to modify circuit ISSUE=7690
-        
-        my $can_edit = $db->can_modify_circuit(
-                                             circuit_id   => $circuit_id,
-                                             username     => $ENV{'REMOTE_USER'},
-                                             workgroup_id => $workgroup_id
-                                            );
-
-
-        if ( $can_edit < 1 ) {
-            $results->{'error'} =
-                "User and workgroup do not have permission to remove this circuit";
-            return $results;
+        # and perform all other sanity checks on circuit 10278
+        if(!$db->circuit_sanity_check(%edit_circuit_args)){
+            return {'results' => [], 'error' => $db->get_error() };
         }
-
-        
+       
+        # remove flows on switch 
         my $result = _send_remove_command( circuit_id => $circuit_id );
-
         if ( !$result ) {
             $output->{'warning'} =
               "Unable to talk to fwdctl service - is it running?";
             return;
         }
-
         if ( $result == 0 ) {
             $results->{'error'} =
               "Unable to remove circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been left in the database.";
             return $results;
         }
 
-        $output = $db->edit_circuit(
-                                    circuit_id     => $circuit_id,
-                                    description    => $description,
-                                    bandwidth      => $bandwidth,
-                                    provision_time => $provision_time,
-                                    restore_to_primary => $restore_to_primary,
-                                    remove_time    => $remove_time,
-                                    links          => \@links,
-                                    backup_links   => \@backup_links,
-                                    nodes          => \@nodes,
-                                    interfaces     => \@interfaces,
-                                    tags           => \@tags,
-                                    mac_addresses  => \@mac_addresses,
-                                    endpoint_mac_address_nums  => \@endpoint_mac_address_nums,
-                                    user_name      => $ENV{'REMOTE_USER'},
-                                    workgroup_id   => $workgroup_id,
-                                    do_external    => 0,
-                                    static_mac => $static_mac
-                                   );
+        # modify database entry
+        $output = $db->edit_circuit(%edit_circuit_args);
         if (!$output) {
             return {
-                    'error'   =>  $db->get_error(),
-                    'results' => []
-                   };
+                'error'   =>  $db->get_error(),
+                'results' => []
+            };
         }
 
+        # add flows on switch
         $result = _send_add_command( circuit_id => $output->{'circuit_id'} );
-
         if ( !defined $result ) {
             $output->{'warning'} =
               "Unable to talk to fwdctl service - is it running?";
         }
-
         if ( $result == 0 ) {
             $results->{'error'} =
               "Unable to edit circuit. Please check your logs or contact your server adminstrator for more information. Circuit is likely not live on the network anymore.";
