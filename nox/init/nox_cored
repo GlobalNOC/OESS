@@ -77,8 +77,7 @@ case "$1" in
         if [ $IS_RUNNING != 0 ];then
             failure; echo
         else
-	    cd /usr/bin
-            sudo -u $username $command
+	    su - $username -c "cd /usr/bin; $command"
 
             if [ $? -eq 0 ]; then
                 touch $lockfile
