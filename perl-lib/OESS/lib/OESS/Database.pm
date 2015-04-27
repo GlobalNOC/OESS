@@ -615,7 +615,7 @@ sub is_external_vlan_available_on_interface {
     #verify no other circuit is using it
     if (@$result > 0){
 	if(defined($circuit_id)){
-	    for(my $circuit (@$result)){
+	    foreach my $circuit (@$result){
 		if($circuit->{'circuit_id'} == $circuit_id){
 		    #no problem here, we are editing the circuit
 		}else{
