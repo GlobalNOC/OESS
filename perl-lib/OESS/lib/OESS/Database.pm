@@ -580,7 +580,7 @@ sub is_external_vlan_available_on_interface {
 	return undef
     }
 
-    my $query = "select circuit.name from circuit join circuit_edge_interface_membership " .
+    my $query = "select circuit.name, circuit.circuit_id from circuit join circuit_edge_interface_membership " .
 	        " on circuit.circuit_id = circuit_edge_interface_membership.circuit_id " .
 		" where circuit_edge_interface_membership.interface_id = ? " .
 		"  and circuit_edge_interface_membership.extern_vlan_id = ? " .
