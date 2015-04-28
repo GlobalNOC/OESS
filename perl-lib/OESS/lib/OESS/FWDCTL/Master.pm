@@ -367,11 +367,9 @@ sub send_message_to_child{
     my $rpc = $self->{'children'}->{$dpid}->{'rpc'};
 
     if(!defined($rpc)){
-        $self->datapath_join_handler($dpid);
-        $rpc = $self->{'children'}->{$dpid}->{'rpc'};
-        if(!defined($rpc)){
-            $self->{'logger'}->error("Problem creating child for DPID: " . $dpid);
-        }
+        $self->{'logger'}->error("No RPC exists for DPID: " sprintf("%x", $dpid));
+	$self->make_baby($dpid);
+	return;
     }
 
     $self->{'pending_results'}->{$event_id}->{'ts'} = time();
