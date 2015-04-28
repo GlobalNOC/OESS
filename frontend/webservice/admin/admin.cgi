@@ -1090,7 +1090,7 @@ sub decom_node {
     }
 
 
-    return $final_res;
+    return $results;
 
 }
 
