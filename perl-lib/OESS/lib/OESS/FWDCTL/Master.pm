@@ -367,7 +367,7 @@ sub send_message_to_child{
     my $rpc = $self->{'children'}->{$dpid}->{'rpc'};
 
     if(!defined($rpc)){
-        $self->{'logger'}->error("No RPC exists for DPID: " sprintf("%x", $dpid));
+        $self->{'logger'}->error("No RPC exists for DPID: " . sprintf("%x", $dpid));
 	$self->make_baby($dpid);
 	return;
     }
