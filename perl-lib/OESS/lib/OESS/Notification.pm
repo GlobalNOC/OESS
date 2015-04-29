@@ -11,6 +11,7 @@ use Data::Dumper;
 use MIME::Lite::TT::HTML;
 #use Template;
 use Switch;
+use DateTime;
 use Net::DBus::Exporter qw (org.nddi.notification);
 use Net::DBus qw(:typing);
 use OESS::Circuit;
@@ -122,7 +123,10 @@ sub circuit_notification {
     my $self    = shift;
     my $dbus_data = shift;
     my $circuit;
+    $self->{'log'}->debug("Sending Circuit Notification: " . Data::Dumper::Dumper($dbus_data));
+
     if ($dbus_data->{'type'} eq 'link_down' || $dbus_data->{'type'} eq 'link_up' ) {
+	$self->{'log'}->debug("Sending bulk notifications");
         $self->_send_bulk_notification($dbus_data);
         return;
     }
@@ -131,45 +135,50 @@ sub circuit_notification {
     my $circuit_notification_data = $self->get_notification_data( circuit => $circuit );
     if (!defined($circuit_notification_data)) {
         $self->{'log'}->error("Unable to get circuit data for circuit: " . $circuit->{'circuit_id'});
-          return;
+	return;
     }
+
     my $subject = "OESS Notification: Circuit '" . $circuit_notification_data->{'circuit'}->{'description'} . "' ";
     my $workgroup = $circuit_notification_data->{'workgroup'};
 
+    $self->{'log'}->debug("Sending circuit with subject: " . $subject);
+    $self->{'log'}->debug("Sending to workgroup: " . $workgroup);
+    $self->{'log'}->debug("Type: " . $circuit->{'type'});
+
     switch($circuit->{'type'} ) {
         case "provisioned"{
-                           $subject .= "has been provisioned in workgroup: $workgroup ";
-                           $self->emit_signal( "circuit_provision", $circuit );
-                          }
-          case "removed" {
-                          $subject .= "has been removed from workgroup: $workgroup";
-                          $self->emit_signal( "circuit_removed", $circuit );
-                         }
-          case "modified" {
-                             $subject .= "has been edited in workgroup: $workgroup";
-                             $self->emit_signal( "circuit_modified", $circuit );
-                            }
-          case "change_path" {
-                                  $subject .= "has changed to " . $circuit_notification_data->{'circuit'}->{'active_path'} . " path in workgroup: $workgroup";
-                                  $self->emit_signal( "circuit_change_path", $circuit );
-                             }
-          case "restored" {
-                           $subject .= "has been restored for workgroup: $workgroup";
-                           $self->emit_signal( "circuit_restored", $circuit );
-                          }
-          case "down" {
-                       $subject .= "is down for workgroup: $workgroup";
-                       $self->emit_signal( "circuit_down", $circuit );
-                      }
-          case "unknown" {
-                          $subject .= "is in an unknown state in workgroup: $workgroup";
-                          $self->emit_signal( "circuit_unknown", $circuit );
-                         }
+	    $subject .= "has been provisioned in workgroup: $workgroup ";
+	    $self->emit_signal( "circuit_provision", $circuit );
+	}
+	case "removed" {
+	    $subject .= "has been removed from workgroup: $workgroup";
+	    $self->emit_signal( "circuit_removed", $circuit );
+	}
+	case "modified" {
+	    $subject .= "has been edited in workgroup: $workgroup";
+	    $self->emit_signal( "circuit_modified", $circuit );
+	}
+	case "change_path" {
+	    $subject .= "has changed to " . $circuit_notification_data->{'circuit'}->{'active_path'} . " path in workgroup: $workgroup";
+	    $self->emit_signal( "circuit_change_path", $circuit );
+	}
+	case "restored" {
+	    $subject .= "has been restored for workgroup: $workgroup";
+	    $self->emit_signal( "circuit_restored", $circuit );
+	}
+	case "down" {
+	    $subject .= "is down for workgroup: $workgroup";
+	    $self->emit_signal( "circuit_down", $circuit );
+	}
+	case "unknown" {
+	    $subject .= "is in an unknown state in workgroup: $workgroup";
+	    $self->emit_signal( "circuit_unknown", $circuit );
+	}
       }
 
     $circuit_notification_data->{'subject'} = $subject;
     $self->send_notification( $circuit_notification_data );
-
+    
 }
 
 sub _send_bulk_notification {
@@ -238,16 +247,10 @@ sub _send_bulk_notification {
         }
 
 
-        my $current_time = time;
-        #make a human readable timestamp that goes with the epoch timestamp
-        
-        my @months = qw(January February March April May June July August September October November December);
-        my @days = qw(Sunday Monday Tuesday Wednesday Thursday Friday Saturday);
-        my ($sec, $min, $hour, $mday, $month, $year, $wday, $yday, $isdst) = localtime($current_time);
-        $year += 1900;
-        #append a zero to the front of hour, min or sec if it is less than ten
-        if ($hour < 10) {$hour = "0".$hour}; if($min < 10) {$min = "0".$min}; if($sec < 10){$sec = "0".$sec}; 
-        my $str_date = "$days[$wday], $months[$month] $mday, $year, at $hour:$min:$sec"; 
+	my $dt = DateTime->now;	
+	my $str_date = $dt->day_name() . ", " . $dt->month_name() . " " . $dt->day() . ", " . $dt->year() . ", at " . $dt->hms();
+	$self->{'log'}->debug("Using Time String: " . $str_date);
+	
         my %vars = (
                     SUBJECT => $subject,
                     base_url => $self->{'base_url'},
@@ -261,6 +264,7 @@ sub _send_bulk_notification {
                     image_base_url => $self->{'image_base_url'},
                     human_time => $str_date
                    );
+	$self->{'log'}->debug("using VARS: " . Data::Dumper::Dumper(%vars));
 
         my %tmpl_options = ( ABSOLUTE=>1,
                              RELATIVE=>0,
@@ -278,23 +282,30 @@ sub _send_bulk_notification {
 	if($to_string eq ''){
 	    return;
 	}
-
-        my $message = MIME::Lite::TT::HTML->new(
-                                                From    => $self->{'from_address'},
-                                                To      => $to_string,
-                                                Subject => $subject,
-                                                Encoding    => 'quoted-printable',
-                                                Timezone => 'UTC',
-                                                Template => {
-                                                             html => "$self->{'template_path'}/notification_bulk.tt.html",
-                                                             text => "$self->{'template_path'}/notification_bulk.tmpl"
-                                                            },
-                                                TmplParams => \%vars,
-                                                TmplOptions => \%tmpl_options,
-                                               );
-
-
-        $message->send( 'smtp', 'localhost' );
+	
+	#we determined that there are several cases that can cause
+	#send to cause a die
+	eval{
+	    my $message = MIME::Lite::TT::HTML->new(
+		From    => $self->{'from_address'},
+		To      => $to_string,
+		Subject => $subject,
+		Encoding    => 'quoted-printable',
+		Timezone => 'UTC',
+		Template => {
+		    html => $self->{'template_path'} . "/notification_bulk.tt.html",
+		    text => $self->{'template_path'} . "/notification_bulk.tmpl"
+		},
+		TmplParams => \%vars,
+		TmplOptions => \%tmpl_options,
+		);
+	    
+	    
+	    $message->send( 'smtp', 'localhost' );
+	};
+	if($@){
+	    $self->{'log'}->error("Error sending Notification: " . $@);
+	}
     }
 
 }
@@ -326,17 +337,15 @@ sub send_notification {
     my $self = shift;
     my $data = shift;
 
+    $self->{'log'}->debug("send notification: " . Data::Dumper::Dumper($data));
+
     my @to_list     = ();
     my $desc        = $data->{'circuit'}->{'description'};
 
-    my $current_time = time;
-    #make a human readable timestamp that goes with the epoch timestamp
-    my @months = qw(January February March April May June July August September October November December);
-    my @days = qw(Sunday Monday Tuesday Wednesday Thursday Friday Saturday);
-    my ($sec, $min, $hour, $mday, $month, $year, $wday, $yday, $isdst) = localtime($current_time);
-    $year += 1900;
-    if ($hour < 10) {$hour = "0".$hour}; if($min < 10) {$min = "0".$min}; if($sec < 10){$sec = "0".$sec};
-    my $str_date = "$days[$wday], $months[$month] $mday, $year, at $hour:$min:$sec"; 
+    my $dt = DateTime->now;
+    my $str_date = $dt->day_name() . ", " . $dt->month_name() . " " . $dt->day() . ", " . $dt->year() . ", at " . $dt->hms();
+    $self->{'log'}->debug("Using Time String: " . $str_date);
+
     my %vars = (
         SUBJECT => $data->{'subject'},
         base_url => $self->{'base_url'},
@@ -354,35 +363,41 @@ sub send_notification {
         human_time => $str_date
         );
     
-      my %tmpl_options = ( ABSOLUTE=>1,
-                           RELATIVE=>0,
-                         );
-      my $body;
+    my %tmpl_options = ( ABSOLUTE=>1,
+			 RELATIVE=>0,
+	);
+    my $body;
+    
+    #$self->{'tt'}->process( "$self->{'template_path'}/notification_templates.tmpl", $vars, \$body ) ||  warn $self->{'tt'}->error();
+    
+    foreach my $user ( @{ $data->{'affected_users'} } ) {
+	push( @to_list, $user->{'email_address'} );
+    }
+    
+    my $to_string = join( ",", @to_list );
+    
+    eval{
+	my $message = MIME::Lite::TT::HTML->new(
+	    From    => $self->{'from_address'},
+	    To      => $to_string,
+	    Subject => $data->{'subject'},
+	    Encoding    => 'quoted-printable',
+	    Timezone => 'UTC',
+	    Template => {
+		html => $self->{'template_path'} . "/notification.tt.html",
+		text => $self->{'template_path'} . "/notification_templates.tmpl"
+	    },
+	    TmplParams => \%vars,
+	    TmplOptions => \%tmpl_options,
+	    );
+	
+	
+	$message->send( 'smtp', 'localhost' );
+    };
 
-      #$self->{'tt'}->process( "$self->{'template_path'}/notification_templates.tmpl", $vars, \$body ) ||  warn $self->{'tt'}->error();
-
-      foreach my $user ( @{ $data->{'affected_users'} } ) {
-          push( @to_list, $user->{'email_address'} );
-      }
-
-      my $to_string = join( ",", @to_list );
-
-      my $message = MIME::Lite::TT::HTML->new(
-                                              From    => $self->{'from_address'},
-                                              To      => $to_string,
-                                              Subject => $data->{'subject'},
-                                              Encoding    => 'quoted-printable',
-                                              Timezone => 'UTC',
-                                              Template => {
-                                                           html => "$self->{'template_path'}/notification.tt.html",
-                                                           text => "$self->{'template_path'}/notification_templates.tmpl"
-                                                          },
-                                              TmplParams => \%vars,
-                                              TmplOptions => \%tmpl_options,
-                                             );
-
-
-    $message->send( 'smtp', 'localhost' );
+    if($@){
+	$self->{'log'}->error("Error sending Notification: " . $@);
+    }
 
     my $owners = $data->{'endpoint_owners'};
     if ($owners) {
@@ -398,35 +413,31 @@ sub send_notification {
 
             $to_string = join( ",", @owner_to_list );
 
-
-            my $message = MIME::Lite::TT::HTML->new(
-                                                      From    => $self->{'from_address'},
-                                                      To      => $to_string,
-                                                      Subject => $data->{'subject'},
-                                                      Encoding    => 'quoted-printable',
-                                                      Timezone => 'UTC',
-                                                      Template => {
-                                                                   html => "$self->{'template_path'}/notification.tt.html",
-                                                                   text => "$self->{'template_path'}/notification_templates.tmpl"
-                                                                  },
-                                                      TmplParams => \%vars,
-                                                      TmplOptions => \%tmpl_options,
-                                                     );
-
-
-            $message->send( 'smtp', 'localhost' );
-
+	    eval{
+		my $message = MIME::Lite::TT::HTML->new(
+		    From    => $self->{'from_address'},
+		    To      => $to_string,
+		    Subject => $data->{'subject'},
+		    Encoding    => 'quoted-printable',
+		    Timezone => 'UTC',
+		    Template => {
+			html => "$self->{'template_path'}/notification.tt.html",
+			text => "$self->{'template_path'}/notification_templates.tmpl"
+		    },
+		    TmplParams => \%vars,
+		    TmplOptions => \%tmpl_options,
+		    );
+		
+		
+		$message->send( 'smtp', 'localhost' );
+	    };
+	    if($@){
+		$self->{'log'}->error("Error sending Notification: " . $@);
+	    }
         }
-      }
+    }
 
-
-      #$self->_send_notification(
-      #   to      => $to_string,
-      #   body    => $body,
-      #   subject => $data->{'subject'},
-
-      #);
-      return 1;
+    return 1;
 }
 
 
@@ -487,25 +498,26 @@ sub _connect_services {
       my $ckt = $args{'circuit'};
       my $username;
         
+      $self->{'log'}->debug("get_notification_data: " . $ckt->{'circuit_id'});
       my $user_id;
       my $details = $db->get_circuit_details( circuit_id => $ckt->{'circuit_id'} );
       unless ($details) {
           $self->{'log'}->error("No circuit details found, returning");
           return;
       }
-
+      $self->{'log'}->debug("Circuit Details: " . Data::Dumper::Dumper($details));
       $user_id = $details->{'user_id'};
       my $ockt = OESS::Circuit->new( circuit_id => $ckt->{'circuit_id'}, db => $db);
       my $clr = $ockt->generate_clr();
       unless ($clr) {
           $self->{'log'}->error("No CLR for $ckt->{'circuit_id'} ?");
+	  return;
       }
 
       my $email_address;
-
       my $workgroup_members = $db->get_users_in_workgroup(
-                                                          workgroup_id => $details->{'workgroup_id'}
-                                                         );
+	  workgroup_id => $details->{'workgroup_id'}
+	  );
 
       unless ($workgroup_members) {
           $self->{'log'}->error( "No workgroup members found, returning");
@@ -521,6 +533,11 @@ sub _connect_services {
       foreach my $endpoint ( @{ $details->{'endpoints'} }  ) {
 
           my $interface_id = $db->get_interface_id_by_names(node =>$endpoint->{'node'} ,interface => $endpoint->{'interface'} );
+
+
+	  if(!defined($interface_id)){
+
+	  }
           my $interface = $db->get_interface(interface_id =>$interface_id);
           my $workgroup_name = $interface->{'workgroup_name'};
           #if the creator of the circuit is the same as the owner of the
