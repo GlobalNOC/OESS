@@ -7727,7 +7727,7 @@ sub validate_endpoints {
             # create an array of all the mac addresses for this endpoint
             my @endpoint_mac_addresses;
             for (my $j = 0; $j < $endpoint_mac_address_num; $j++){
-                my $mac_address = shift(@$mac_addresses);
+                my $mac_address = $mac_addresses->[$j];
                 push(@endpoint_mac_addresses, $mac_address);
             }
 
@@ -7750,7 +7750,6 @@ sub validate_endpoints {
                     return;
                 }
             }
-
         }
     }
 
@@ -7827,7 +7826,7 @@ sub circuit_sanity_check {
     if(!$self->validate_endpoints(%args)){
         return;
     }
-    
+
     # make sure paths make sense
     if(!$self->validate_paths(%args)){
         return;
