@@ -31,7 +31,7 @@ sub main{
     }
 
     my $log_svc;
-     my $log_client;
+    my $log_client;
 
     eval {
         $log_svc    = $bus->get_service("org.nddi.notification");
@@ -42,9 +42,9 @@ sub main{
     my $actions = $oess->get_current_actions();
 
     foreach my $action (@$actions){
-	
+        
         my $circuit_layout = XMLin($action->{'circuit_layout'}, forcearray => 1);
-	
+        
         if($circuit_layout->{'action'} eq 'provision'){
             syslog(LOG_DEBUG,"Circuit " . $circuit_layout->{'name'} . ":" . $circuit_layout->{'circuit_id'} . " scheduled for activation NOW!");
             my $user = $oess->get_user_by_id( user_id => $action->{'user_id'} )->[0];
@@ -64,13 +64,13 @@ sub main{
                                              user_name      => $user->{'auth_name'},
                                              workgroup_id   => $action->{'workgroup_id'},
                                              description    => $ckt->{'description'}
-                                            );
+                );
 
             my $res;
             my $event_id;
             eval {
                 ($res,$event_id) = $client->addVlan($output->{'circuit_id'});
-      
+                
                 my $final_res = OESS::Database->FWDCTL_WAITING;
 
                 while($final_res == OESS::Database->FWDCTL_WAITING){
@@ -85,10 +85,10 @@ sub main{
             $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
             
             eval {
-		my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
-		$circuit_details->{'status'} = 'up';
-		$circuit_details->{'type'} = 'provisioned';
-		$circuit_details->{'reason'} = ' scheduled circuit provisioning';
+                my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
+                $circuit_details->{'status'} = 'up';
+                $circuit_details->{'type'} = 'provisioned';
+                $circuit_details->{'reason'} = ' scheduled circuit provisioning';
                 $log_client->circuit_notification( $circuit_details );
             };
             
@@ -125,13 +125,13 @@ sub main{
                                              username => $user->{'auth_name'},
                                              workgroup_id => $action->{'workgroup_id'},
                                              description => $ckt->{'description'}
-                                            );
+                );
             
             $res = undef;
             $event_id = undef;;
             eval{
                 ($res,$event_id) = $client->addVlan($output->{'circuit_id'});
-            
+                
                 my $final_res = OESS::Database->FWDCTL_WAITING;
 
                 while($final_res == OESS::Database->FWDCTL_WAITING){
@@ -144,7 +144,7 @@ sub main{
             $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
             
             eval{
-		my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
+                my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
                 $circuit_details->{'status'} = 'up';
                 $circuit_details->{'type'} = 'modified';
                 $circuit_details->{'reason'} = ' scheduled circuit modification';
@@ -168,17 +168,16 @@ sub main{
 
                 $res = $final_res;
             };
-	    
+            
             if(!defined($res)){
                 syslog(LOG_ERR,"Res was not defined");
             }
-	    
+            
             syslog(LOG_DEBUG,"Res: '" . $res . "'");
             my $user = $oess->get_user_by_id( user_id => $action->{'user_id'} )->[0];
             $res = $oess->remove_circuit( circuit_id => $action->{'circuit_id'}, remove_time => time(), username => $user->{'auth_name'});
             
-	    
-	    
+            
             if(!defined($res)){
                 syslog(LOG_ERR,"unable to remove circuit");
                 $oess->_rollback();
@@ -186,22 +185,40 @@ sub main{
             }else{
                 
                 $res = $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
-		
-		
+                
+                
                 if(!defined($res)){
                     syslog(LOG_ERR,"Unable to complete action");
                     $oess->_rollback();
                 }
             }
-        
+
+            #--- signal fwdctl to update caches
+            eval{
+                my ($result,$event_id) = $client->update_cache($action->{'circuit_id'});
+
+                my $update_cache_result = OESS::Database->FWDCTL_WAITING;
+                
+                while($update_cache_result == OESS::Database->FWDCTL_WAITING){
+                    sleep(1);
+                    $update_cache_result = $client->get_event_status($event_id);
+                }
+
+                $res = $update_cache_result;
+            };
+            
+            if(!defined $res || $res != OESS::Database->FWDCTL_SUCCESS){
+                syslog(LOG_ERR,"Error updating cache after scheduled vlan removal.");
+            }
+
             #Delete is complete and successful, send event on DBUS Channel Notification listens on.
-		
             eval {
-		my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
-                $circuit_details->{'status'} = 'up';
+                syslog(LOG_DEBUG,"sending circuit decommission");
+                my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
+                $circuit_details->{'status'} = 'removed';
                 $circuit_details->{'type'} = 'removed';
                 $circuit_details->{'reason'} = ' scheduled circuit removal';
-                $log_client->circuit_decommission({ circuit_id    => $action->{'circuit_id'} });
+                $log_client->circuit_notification($circuit_details);
             };
 
         }elsif($circuit_layout->{'action'} eq 'change_path'){
@@ -214,7 +231,7 @@ sub main{
             if($circuit_details->{'active_path'} ne $circuit_layout->{'path'}){
                 syslog(LOG_INFO,"Changing the patch of circuit " . $circuit_details->{'description'} . ":" . $circuit_details->{'circuit_id'});
                 my $success = $circuit->change_path();
-		#my $success = 1;
+                #my $success = 1;
                 my $res;
                 my $event_id;
                 if($success){
@@ -231,21 +248,21 @@ sub main{
                     };
                 }
 
-		$res = $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
+                $res = $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
 
                 if(!defined($res)){
                     syslog(LOG_ERR,"Unable to complete action");
                     $oess->_rollback();
                 }
 
-		eval{
-		    my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
-		    $circuit_details->{'status'} = 'up';
-		    $circuit_details->{'reason'} = $circuit_layout->{'reason'};
-		    $circuit_details->{'type'} = 'change_path';
-		    warn "Attempting to send notification\n";
-		    $log_client->circuit_notification( $circuit_details );
-		}
+                eval{
+                    my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
+                    $circuit_details->{'status'} = 'up';
+                    $circuit_details->{'reason'} = $circuit_layout->{'reason'};
+                    $circuit_details->{'type'} = 'change_path';
+                    warn "Attempting to send notification\n";
+                    $log_client->circuit_notification( $circuit_details );
+                }
 
             }else{
                 #already done... nothing to do... complete the scheduled action
@@ -257,7 +274,7 @@ sub main{
                     $oess->_rollback();
                 }
             }
-	    
+            
         }
     }
 }
