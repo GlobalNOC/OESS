@@ -814,7 +814,7 @@ else {
 
 }
     #if the number of endpoints is more than 2 and it is not interdomain
-    if(scalar(@{$self->get_endpoints()}) > 2 && $self->is_interdomain()){
+    if(scalar(@{$self->get_endpoints()}) > 2 && !$self->is_interdomain()){
         return $self->_dedup_flows(\@flows);
     }else{
         return \@flows;
