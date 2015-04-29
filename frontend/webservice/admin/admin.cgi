@@ -85,12 +85,21 @@ sub main {
             $output = &get_edge_interface_move_maintenances();
         }
         case "add_edge_interface_move_maintenance" {
+	    if($user->{'type'} eq 'read-only'){
+                return send_json({error => 'Error: you are a readonly user'});
+            }
             $output = &add_edge_interface_move_maintenance();
         }
         case "revert_edge_interface_move_maintenance" {
+	    if($user->{'type'} eq 'read-only'){
+                return send_json({error => 'Error: you are a readonly user'});
+            }
             $output = &revert_edge_interface_move_maintenance();
         }
         case "move_edge_interface_circuits" {
+	    if($user->{'type'} eq 'read-only'){
+                return send_json({error => 'Error: you are a readonly user'});
+            }
             $output = &move_edge_interface_circuits();
         }
         case "get_pending_nodes" {
