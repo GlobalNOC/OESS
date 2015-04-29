@@ -536,10 +536,18 @@ sub _connect_services {
 
 
 	  if(!defined($interface_id)){
-
+	      $self->{'log'}->error("Unable to find interface in DB: " . $endpoint->{'node'} . ":" . $endpoint->{'interface'});
+	      return;
 	  }
           my $interface = $db->get_interface(interface_id =>$interface_id);
+	  if(!defined($interface)){
+	      $self->{'log'}->error("unable to find an interface with ID: " . $interface_id);
+	      return;
+	  }
           my $workgroup_name = $interface->{'workgroup_name'};
+	  if(!defined($workgroup_name)){
+	      $self->{'log'}->error("No workgroup assigned to interface " . $interface->{'name'});
+	  }
           #if the creator of the circuit is the same as the owner of the
           #edge port we won't document them here, and if we already have the workgroup, skip it.
           if ($interface->{'workgroup_id'} == $details->{'workgroup_id'} || $owners->{ $interface->{'workgroup_id'} } ) {
