@@ -84,6 +84,25 @@ sub main{
             
             $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
             
+
+            #--- signal fwdctl to update caches
+            eval{
+                my ($result,$event_id) = $client->update_cache($action->{'circuit_id'});
+
+		my $update_cache_result = OESS::Database->FWDCTL_WAITING;
+
+		while($update_cache_result == OESS::Database->FWDCTL_WAITING){
+		    sleep(1);
+                    $update_cache_result = $client->get_event_status($event_id);
+                }
+
+                $res = $update_cache_result;
+            };
+
+            if(!defined $res || $res != OESS::Database->FWDCTL_SUCCESS){
+                syslog(LOG_ERR,"Error updating cache after scheduled vlan removal.");
+            }
+
             eval {
                 my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
                 $circuit_details->{'status'} = 'up';
@@ -143,6 +162,24 @@ sub main{
             
             $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
             
+            #--- signal fwdctl to update caches
+            eval{
+                my ($result,$event_id) = $client->update_cache($action->{'circuit_id'});
+
+		my $update_cache_result = OESS::Database->FWDCTL_WAITING;
+
+		while($update_cache_result == OESS::Database->FWDCTL_WAITING){
+		    sleep(1);
+                    $update_cache_result = $client->get_event_status($event_id);
+                }
+
+                $res = $update_cache_result;
+            };
+
+            if(!defined $res || $res != OESS::Database->FWDCTL_SUCCESS){
+                syslog(LOG_ERR,"Error updating cache after scheduled vlan removal.");
+            }
+
             eval{
                 my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
                 $circuit_details->{'status'} = 'up';
