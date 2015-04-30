@@ -249,7 +249,6 @@ sub _send_update_cache{
 }
 
 sub provision_circuit {
-
     my $results;
 
     $results->{'results'} = [];
@@ -311,7 +310,7 @@ sub provision_circuit {
         return {error => 'You are a read-only user and unable to provision'};
     }
 
-    if ( !$circuit_id || $circuit_id eq -1 ) {
+    if ( !$circuit_id || $circuit_id == -1 ) {
         #Register with DB
         $output = $db->provision_circuit(
                                          description    => $description,
