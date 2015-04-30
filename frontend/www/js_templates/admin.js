@@ -112,7 +112,7 @@ function setup_remote_dev_tab(){
 			return;
 		    }
 
-		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_node&node_id="+node_id+
+		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_remote_device&node_id="+node_id+
 						       "&name="+ encodeURIComponent(rec.getData("name")) +
 						       "&latitude=" + new_lat +
 						       "&longitude="+ new_lon
