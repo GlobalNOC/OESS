@@ -1320,6 +1320,16 @@ sub decom_user{
     
 }
 
+sub update_remote_device{
+    my $node_id = $cgi->param('node_id');
+    my $latitude = $cgi->param('latitude');
+    my $longitude = $cgi->param('longitude');
+
+    my $res = $db->update_remote_device(node_id => $node_id, lat => $latitude, lon => $longitude);
+    
+    return {results => $res};
+}
+
 sub send_json {
     my $output = shift;
 

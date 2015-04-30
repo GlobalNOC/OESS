@@ -8654,6 +8654,45 @@ sub is_within_mac_limit {
     return $result;
 }
 
+
+=head2 update_remote_device
+
+=cut
+
+sub update_remote_device{
+    my $self = shift;
+    my %params = @_;
+
+    my $node_id = $params{'node_id'};
+    my $lat = $params{'lat'};
+    my $lon = $params{'lon'};
+    
+    if(!defined($node_id) || !defined($lat) || !defined($lon)){
+	return {error => "Node_id latitude and longitude are required"};
+    }
+
+    my $query = "select * from node where node_id = ?";
+    my $node = $self->_execute_query($query, [$node_id])->[0];
+    if(!defined($node)){
+	return {error => "unable to find node with id: " . $node_id};
+    }
+
+    if($node->{'network_id'} == 1){
+	return {error => "not a remote node!"};
+    }
+
+    if($lat > 90 || $lat < -90){
+	return {error => "invalid latitue, must be between 90 and -90"};
+    }
+
+    if($lon > 180 || $lon < -180){
+	return {error => "invalid longitude, must be between 180 and -180"};
+    }
+
+    my $res = $self->_execute_query("update node set latitude = ?, longitude = ? where node_id = ?",[ $lat, $lon, $node_id]);
+    return {success => $res};
+}
+
 =head2 mac_hex2num
 
 =cut
