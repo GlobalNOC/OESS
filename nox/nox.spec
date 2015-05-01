@@ -649,15 +649,14 @@ if [ $1 -eq 1 ]; then
 
   #add the tdor user
   /usr/sbin/groupadd _oess
-  /usr/sbin/useradd  -r -m  -c "NOX User" -d /var/log/nox -s /dev/null -g _oess _oess
+  /usr/sbin/useradd  -r -m  -c "NOX User" -d /var/log/nox -s /bin/bash -g _oess _oess
 
 
 fi
 
 
 if [ $1 -ge 2 ]; then
-        # do not create anything, snapp users is already there
-echo "nothing here"
+   /usr/sbin/usermod -s /bin/bash _oess
 fi
 
 touch /usr/bin/nox.info
