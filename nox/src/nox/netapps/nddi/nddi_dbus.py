@@ -379,6 +379,19 @@ class dBusEventGen(dbus.service.Object):
             my_attrs[DL_DST]  = int(attrs['DL_DST'])
         if attrs.get("DL_TYPE"):
             my_attrs[DL_TYPE] = int(attrs['DL_TYPE'])
+        if attrs.get("NW_SRC"):
+            my_attrs[NW_SRC] = int(attrs['NW_SRC'])
+        if attrs.get("NW_SRC_N_WILD"):
+            my_attrs[NW_SRC_N_WILD] = int(attrs['NW_SRC_N_WILD'])
+        if attrs.get("NW_DST"):
+            my_attrs[NW_DST] = int(attrs['NW_DST'])
+        if attrs.get("NW_DST_N_WILD"):
+            my_attrs[NW_DST_N_WILD] = int(attrs['NW_DST_N_WILD'])
+        if attrs.get("NW_PROTO"):
+            my_attrs[NW_PROTO] = int(attrs['NW_PROTO'])
+        if attrs.get("wildcards"):
+            my_attrs[wildcards] = int(attrs['wildcards'])
+
         if attrs.get("PRIORITY"):
             priority = int(attrs["PRIORITY"])
         if attrs.get("IDLE_TIMEOUT"):
@@ -393,6 +406,7 @@ class dBusEventGen(dbus.service.Object):
             packet = int(attrs["PACKET"])
         if attrs.get("BUFFER_ID"):
             buffer_id = int(attrs["BUFFER_ID"])
+            
 
         #--- this is less than ideal. to make dbus happy we need to pass extra arguments in the
         #--- strip vlan case, but NOX won't be happy with them so we remove them here

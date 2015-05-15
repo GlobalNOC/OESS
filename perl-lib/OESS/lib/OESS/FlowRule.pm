@@ -152,7 +152,33 @@ sub _validate_match{
 		if($match->{$key} == 65535){
 		    $match->{$key} = -1;
 		}
-            }case "dl_type"{
+            }
+	    case "nw_src"{
+		if($match->{$key} < 0 || $match > 4294967296){
+		    return 0;
+		}
+	    }
+	    case "nw_src_n_wild"{
+		if($match->{$key} < 0 || $match > 32){
+		    return 0;
+		}
+	    }
+	    case "wildcards"{
+		if($match->{$key} < 0 || $match > 4294967296){
+		    return 0;
+		}
+	    }
+	    case "nw_dst"{
+		if($match->{$key} < 0 || $match > 4294967296){
+		    return 0;
+		}
+	    }
+	    case "nw_dst_n_wild"{
+		if($match->{$key} < 0 || $match > 32){
+		    return 0;
+		}
+	    }
+	    case "dl_type"{
 		
             }case "dl_dst"{
 
@@ -493,7 +519,7 @@ sub to_dbus {
                         $tmp[1] = Net::DBus::dbus_uint16(int($action->{$key}));
                     }
                 }
-
+		
                 case "drop"{
                     #no actions... ie... do nothing
                     
@@ -526,8 +552,26 @@ sub to_dbus {
             }case "dl_vlan_pcp"{
                 #not supported
             }case "nw_proto"{
-                #not supported
-            }case "tp_src"{
+                $command->{'attr'}{'NW_PROTO'} = Net::DBus::dbus_uint16(int($self->{'match'}->{$key}));
+            }
+	    case "nw_src"{
+		$command->{'attr'}{'NW_SRC'} = Net::DBus::dbus_uint32(int($self->{'match'}->{$key}));
+	    }
+	    case "nw_src_n_wild"{
+		$command->{'attr'}{'NW_SRC_N_WILD'} = Net::DBus::dbus_uint16(int($self->{'match'}->{$key}));
+	    }
+	    case "wildcards" {
+		$command->{'attr'}{'wildcards'} = Net::DBus::dbus_uint32(int($self->{'match'}->{$key}));
+	    }
+	    case "nw_dst"{
+		$command->{'attr'}{'NW_DST'} = Net::DBus::dbus_uint32(int($self->{'match'}->{$key}));
+
+	    }
+	    case "nw_dst_n_wild"{
+		$command->{'attr'}{'NW_DST_N_WILD'} = Net::DBus::dbus_uint16(int($self->{'match'}->{$key}));
+
+	    }
+	    case "tp_src"{
                 #not supported
             }case "nw_tos"{
                 #not supported
