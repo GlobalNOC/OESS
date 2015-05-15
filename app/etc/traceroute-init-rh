@@ -80,15 +80,15 @@ case "$1" in
         if [ $IS_RUNNING != 0 ];then
             failure; echo
         else
-            if [ -e /tmp/fvd_cover/ ]; then
-                rm -rf /tmp/fvd_cover/
+            if [ -e /tmp/traceroute_cover/ ]; then
+                rm -rf /tmp/traceroute_cover/
             fi
-            mkdir -p /tmp/fvd_cover/cover_db
-            chmod 777 /tmp/fvd_cover -R
-            /usr/bin/perl -MDevel::Cover=-dir,/tmp/fvd_cover/,+select,OESS $command &
+            mkdir -p /tmp/traceroute_cover/cover_db
+            chmod 777 /tmp/traceroute_cover -R
+            /usr/bin/perl -MDevel::Cover=-dir,/tmp/traceroute_cover/,+select,OESS $command &
 
             if [ $? -eq 0 ]; then
-                echo $! > /var/run/oess/fvd.pid
+                echo $! > /var/run/oess/traceroute.pid
                 touch $lockfile
                 success; echo
             else

@@ -26,13 +26,17 @@ use strict;
 use OESS::DBus;
 use OESS::Notification;
 use Proc::Daemon;
-use Sys::Syslog qw(:standard :macros);
+use Log::Log4perl;
 use Getopt::Long;
 use Data::Dumper;
 
 #OESS Notification Daemon.
+my $log;
 
 sub connect_to_dbus {
+
+    Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
+    $log = Log::Log4perl->get_logger("NOTIFY");
 
     my $fwdctl_dbus = OESS::DBus->new(
         service  => 'org.nddi.fwdctl',

@@ -85,12 +85,21 @@ sub main {
             $output = &get_edge_interface_move_maintenances();
         }
         case "add_edge_interface_move_maintenance" {
+	    if($user->{'type'} eq 'read-only'){
+                return send_json({error => 'Error: you are a readonly user'});
+            }
             $output = &add_edge_interface_move_maintenance();
         }
         case "revert_edge_interface_move_maintenance" {
+	    if($user->{'type'} eq 'read-only'){
+                return send_json({error => 'Error: you are a readonly user'});
+            }
             $output = &revert_edge_interface_move_maintenance();
         }
         case "move_edge_interface_circuits" {
+	    if($user->{'type'} eq 'read-only'){
+                return send_json({error => 'Error: you are a readonly user'});
+            }
             $output = &move_edge_interface_circuits();
         }
         case "get_pending_nodes" {
@@ -1090,7 +1099,7 @@ sub decom_node {
     }
 
 
-    return $final_res;
+    return $results;
 
 }
 
@@ -1309,6 +1318,16 @@ sub decom_user{
     }
     return $results;
     
+}
+
+sub update_remote_device{
+    my $node_id = $cgi->param('node_id');
+    my $latitude = $cgi->param('latitude');
+    my $longitude = $cgi->param('longitude');
+
+    my $res = $db->update_remote_device(node_id => $node_id, lat => $latitude, lon => $longitude);
+    
+    return {results => $res};
 }
 
 sub send_json {

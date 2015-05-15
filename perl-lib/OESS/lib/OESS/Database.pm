@@ -568,6 +568,7 @@ sub is_external_vlan_available_on_interface {
 
     my $vlan_tag     = $args{'vlan'};
     my $interface_id = $args{'interface_id'};
+    my $circuit_id = $args{'circuit_id'};
 
     if(!defined($interface_id)){
 	$self->_set_error("No Interface ID Specified");
@@ -579,7 +580,7 @@ sub is_external_vlan_available_on_interface {
 	return undef
     }
 
-    my $query = "select circuit.name from circuit join circuit_edge_interface_membership " .
+    my $query = "select circuit.name, circuit.circuit_id from circuit join circuit_edge_interface_membership " .
 	        " on circuit.circuit_id = circuit_edge_interface_membership.circuit_id " .
 		" where circuit_edge_interface_membership.interface_id = ? " .
 		"  and circuit_edge_interface_membership.extern_vlan_id = ? " .
@@ -613,8 +614,16 @@ sub is_external_vlan_available_on_interface {
 
     #verify no other circuit is using it
     if (@$result > 0){
-	print STDERR "In Use on another circuit\n";
-	return 0;
+	if(defined($circuit_id)){
+	    foreach my $circuit (@$result){
+		if($circuit->{'circuit_id'} == $circuit_id){
+		    #no problem here, we are editing the circuit
+		}else{
+		    print STDERR "In Use on another circuit\n";
+		    return 0;
+		}
+	    }
+	}
     }
 
     return 1;
@@ -7677,6 +7686,7 @@ sub can_modify_circuit {
 sub validate_endpoints {
     my ($self, %args) = @_;
 
+    my $circuit_id     = $args{'circuit_id'};
     my $nodes          = $args{'nodes'};
     my $interfaces     = $args{'interfaces'};
     my $tags           = $args{'tags'};
@@ -7707,7 +7717,7 @@ sub validate_endpoints {
         }
 
         # need to check to see if this external vlan is open on this interface first
-        if (! $self->is_external_vlan_available_on_interface(vlan => $vlan, interface_id => $interface_id) ){
+        if (! $self->is_external_vlan_available_on_interface(vlan => $vlan, interface_id => $interface_id, circuit_id => $circuit_id) ){
             $self->_set_error("Vlan '$vlan' is currently in use by another circuit on interface '$interface' on endpoint '$node'");
             return;
         }
@@ -7717,7 +7727,7 @@ sub validate_endpoints {
             # create an array of all the mac addresses for this endpoint
             my @endpoint_mac_addresses;
             for (my $j = 0; $j < $endpoint_mac_address_num; $j++){
-                my $mac_address = shift(@$mac_addresses);
+                my $mac_address = $mac_addresses->[$j];
                 push(@endpoint_mac_addresses, $mac_address);
             }
 
@@ -7740,7 +7750,6 @@ sub validate_endpoints {
                     return;
                 }
             }
-
         }
     }
 
@@ -7817,7 +7826,7 @@ sub circuit_sanity_check {
     if(!$self->validate_endpoints(%args)){
         return;
     }
-    
+
     # make sure paths make sense
     if(!$self->validate_paths(%args)){
         return;
@@ -8643,6 +8652,45 @@ sub is_within_mac_limit {
     };
 
     return $result;
+}
+
+
+=head2 update_remote_device
+
+=cut
+
+sub update_remote_device{
+    my $self = shift;
+    my %params = @_;
+
+    my $node_id = $params{'node_id'};
+    my $lat = $params{'lat'};
+    my $lon = $params{'lon'};
+    
+    if(!defined($node_id) || !defined($lat) || !defined($lon)){
+	return {error => "Node_id latitude and longitude are required"};
+    }
+
+    my $query = "select * from node where node_id = ?";
+    my $node = $self->_execute_query($query, [$node_id])->[0];
+    if(!defined($node)){
+	return {error => "unable to find node with id: " . $node_id};
+    }
+
+    if($node->{'network_id'} == 1){
+	return {error => "not a remote node!"};
+    }
+
+    if($lat > 90 || $lat < -90){
+	return {error => "invalid latitue, must be between 90 and -90"};
+    }
+
+    if($lon > 180 || $lon < -180){
+	return {error => "invalid longitude, must be between 180 and -180"};
+    }
+
+    my $res = $self->_execute_query("update node set latitude = ?, longitude = ? where node_id = ?",[ $lat, $lon, $node_id]);
+    return {success => $res};
 }
 
 =head2 mac_hex2num

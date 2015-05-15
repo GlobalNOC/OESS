@@ -257,7 +257,7 @@ sub init_circuit_trace {
     foreach my $dpid (@dpids){
         $self->{'dbus'}->send_barrier($dpid);
     }
-    $self->{pending_packets}->{$circuit_id} = { dpid => @dpids,
+    $self->{pending_packets}->{$circuit_id} = { dpid => \@dpids,
                                                 timeout => time() + 15,
     };
     
