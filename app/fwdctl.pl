@@ -46,12 +46,12 @@ sub core{
 
     $srv_object = OESS::FWDCTL::Master->new($service);
 
-    #--- on creation we need to resync the database out to the network as the switches
-    #--- might not be in the same state (emergency mode maybe) and there might be
-    #--- pending circuits created when this wasn't running
-    $srv_object->_sync_database_to_network();
-
     my $dbus = OESS::DBus->new( service => "org.nddi.openflow", instance => "/controller1");
+
+
+    sub sync_db_to_net{
+        $srv_object->_sync_database_to_network();
+    }
 
     #--- listen for topo events ----
     sub datapath_join_callback{
@@ -91,8 +91,10 @@ sub core{
     $dbus->connect_to_signal("port_status",\&port_status_callback);
     $dbus->connect_to_signal("link_event",\&link_event_callback);
 
+
     my $timer = AnyEvent->timer( after => 10, interval => 10, cb => \&check_child_status);
     my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => \&reap_stale_events);
+    my $initial_sync = AnyEvent->timer(after => 2, cb => \&sync_db_to_net);
 
     AnyEvent->condvar->recv;
 
