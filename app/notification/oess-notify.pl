@@ -40,7 +40,9 @@ sub connect_to_dbus {
 
     my $fwdctl_dbus = OESS::DBus->new(
         service  => 'org.nddi.fwdctl',
-        instance => '/controller1'
+        instance => '/controller1',
+        timeout => -1,
+        sleep_interval => .1
     );
 
     my $dbus = OESS::DBus->new(
