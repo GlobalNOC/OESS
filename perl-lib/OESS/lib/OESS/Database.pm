@@ -4338,12 +4338,6 @@ sub insert_node_in_path{
 
     my $link_details = $self->get_link( link_id => $link);
 
-    if($link_details->{'status'} eq 'up'){
-        #short circuit here
-	#if the link is up then no way that there is a node in the path
-        return {results => [{link => $link_details, node_in_path => 'false'}]};
-    }
-
 
     #find the 2 links that now make up this path
     my ($new_path,$node_id,$new_a_int,$new_z_int) = $self->_find_new_path( link => $link_details);
