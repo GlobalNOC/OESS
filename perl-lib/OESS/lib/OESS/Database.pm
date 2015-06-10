@@ -619,11 +619,14 @@ sub is_external_vlan_available_on_interface {
 		if($circuit->{'circuit_id'} == $circuit_id){
 		    #no problem here, we are editing the circuit
 		}else{
-		    print STDERR "In Use on another circuit\n";
+		    warn "In Use on another circuit\n";
+                    $self->_set_error("VLAN Tag already in use on another circuit");
 		    return 0;
 		}
 	    }
 	}else{
+            warn "In Use on another circuit\n";
+            $self->_set_error("VLAN Tag already in use on another circuit");
             return 0;
         }
     }
