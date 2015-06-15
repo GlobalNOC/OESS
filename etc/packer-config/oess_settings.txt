@@ -17,6 +17,7 @@ oess
 oess
 snapp
 snapp
+untagged
 wrondomain.test.com
 /usr/share/oess-core/snapp.mysql.sql
 /usr/share/oess-core/snapp_base.mysql.sql
