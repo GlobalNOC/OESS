@@ -2,29 +2,31 @@
 
 function Cookie(){
 
-  this.data = {};
+    this.data = {};
 
   this.storage = true;
-  if(typeof(Storage) !== "undefined"){
-      
+
+  if(typeof(Storage) !== "undefined"){     
   }else{
       this.storage = false;
   }
 
   this.load = function(){
 
+      var workgroup_id = YAHOO.util.History.getQueryStringParameter('workgroup_id');
+      var circuit_id = YAHOO.util.History.getQueryStringParameter('circuit_id');
+
       if(this.storage){
-	  this.data = sessionStorage.data;
+
+	  this.data = JSON.parse(decodeURIComponent(sessionStorage.data));
+	  
       }else{
 
 	  var cookies = document.cookie.split("; ");
-	  var workgroup_id = YAHOO.util.History.getQueryStringParameter('workgroup_id');
-	  
-	  var circuit_id = YAHOO.util.History.getQueryStringParameter('circuit_id');
+
 	  for (var i = 0; i < cookies.length; i++){
 	      
-	      var candidate = cookies[i];
-	      
+	      var candidate = cookies[i];	      
 	      var kvpair = candidate.split("=");
 	      
 	      if (kvpair[0] == "data"){
@@ -32,21 +34,22 @@ function Cookie(){
 	      }
 	      
 	  }
+      }
+      
 	  
+      if (location.href.match(/action=index/ && workgroup_id) ){
+	  this.data.workgroup_id = workgroup_id;
 	  
-	  if (location.href.match(/action=index/ && workgroup_id) ){
-	      this.data.workgroup_id = workgroup_id;
-	      
-	      var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_workgroups");
-	      ds.responseType   = YAHOO.util.DataSource.TYPE_JSON;
-	      ds.responseSchema = {
-		  resultsList: "results",
-		  fields: [{key: "name"},
-	                   {key: "workgroup_id"}
-			   ],
-		  metafields: {
-		      error: "error"
-		  }
+	  var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_workgroups");
+	  ds.responseType   = YAHOO.util.DataSource.TYPE_JSON;
+	  ds.responseSchema = {
+	      resultsList: "results",
+	      fields: [{key: "name"},
+	               {key: "workgroup_id"}
+		       ],
+	      metafields: {
+		  error: "error"
+	      }
             };
             ds.sendRequest("",{
 		    success: function(req, resp){
@@ -64,45 +67,45 @@ function Cookie(){
 			}
 		
 		);
-	      
-	  }
-	  if (location.href.match(/action=view_details/ && circuit_id) ) {
-	      this.data.circuit_id= circuit_id;
-	      
-	      if(workgroup_id){
-		  this.data.workgroup_id = workgroup_id;
-		  ds.sendRequest("",
-				 {
-				     success: function(req, resp){
-					 for (var i =0; i < resp.results.length; i++){
-					     if(resp.results[i].workgroup_id == workgroup_id){
-						 this.data.workgroup_name = resp.results[i].name;
-						 YAHOO.util.Dom.get("active_workgroup_name").innerHTML = this.data.workgroup_name;
-						 break;
-					     }
+	  
+      }
+      if (location.href.match(/action=view_details/ && circuit_id) ) {
+	  this.data.circuit_id= circuit_id;
+	  
+	  if(workgroup_id){
+	      this.data.workgroup_id = workgroup_id;
+	      ds.sendRequest("",
+			     {
+				 success: function(req, resp){
+				     for (var i =0; i < resp.results.length; i++){
+					 if(resp.results[i].workgroup_id == workgroup_id){
+					     this.data.workgroup_name = resp.results[i].name;
+					     YAHOO.util.Dom.get("active_workgroup_name").innerHTML = this.data.workgroup_name;
+					     break;
 					 }
-					 
-				     },
-					 scope: this
-					 
-					 }
-				 
-				 );
-		  
-	      }
+				     }
+				     
+				 },
+				     scope: this
+				     
+				     }
+			     
+			     );
 	      
 	  }
 	  
-	  if (this.data){
-	      console.log(this.data);
-	      return;
-	  }
-	  // we don't have a cookie and we're not at the workgroups page and we're not in the admin
-	  // section, so kick them back to workgroups
-	  if (! location.href.match(/action=workgroups/) && ! location.href.match(/admin/)){
-	      location.href = "?action=workgroups";
-	  }
-
+      }
+      
+      if (this.data){
+	  console.log(this.data);
+	  return;
+      }
+      // we don't have a cookie and we're not at the workgroups page and we're not in the admin
+      // section, so kick them back to workgroups
+      if (! location.href.match(/action=workgroups/) && ! location.href.match(/admin/)){
+	  location.href = "?action=workgroups";
+      }
+      
   };
 
   this.clear = function(workgroup_too){
@@ -123,7 +126,7 @@ function Cookie(){
 
   this.save = function(){
       if(this.storage){
-	  sessionStorage.data = this.data;
+	  sessionStorage.data = encodeURIComponent(JSON.stringify(this.data));
       }else{
 	  var expires = new Date();
 	  expires.setDate(expires.getDate() + 1);
