@@ -31,11 +31,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 1.1.6
+Version 1.1.6a
 
 =cut
 
-our $VERSION = '1.1.6';
+our $VERSION = '1.1.6a';
 
 =head1 SYNOPSIS
 
@@ -81,7 +81,7 @@ use OESS::Topology;
 use DateTime;
 use Data::Dumper;
 
-use constant VERSION => '1.1.6';
+use constant VERSION => '1.1.6a';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant SHARE_DIR => "/usr/share/doc/perl-OESS-" . VERSION . "/";
@@ -619,11 +619,16 @@ sub is_external_vlan_available_on_interface {
 		if($circuit->{'circuit_id'} == $circuit_id){
 		    #no problem here, we are editing the circuit
 		}else{
-		    print STDERR "In Use on another circuit\n";
+		    warn "In Use on another circuit\n";
+                    $self->_set_error("VLAN Tag already in use on another circuit");
 		    return 0;
 		}
 	    }
-	}
+	}else{
+            warn "In Use on another circuit\n";
+            $self->_set_error("VLAN Tag already in use on another circuit");
+            return 0;
+        }
     }
 
     return 1;
@@ -4335,12 +4340,6 @@ sub insert_node_in_path{
     }
 
     my $link_details = $self->get_link( link_id => $link);
-
-    if($link_details->{'status'} eq 'up'){
-        #short circuit here
-	#if the link is up then no way that there is a node in the path
-        return {results => [{link => $link_details, node_in_path => 'false'}]};
-    }
 
 
     #find the 2 links that now make up this path
