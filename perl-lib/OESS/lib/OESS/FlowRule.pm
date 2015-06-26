@@ -931,7 +931,7 @@ sub _get_set_action_types {
 
     my %set_action_types;
     foreach my $action (@$actions){
-        my $action_type = each(%$action); 
+        my $action_type = (keys(%$action))[0]; 
         # currently only do set_vlan_vid
         next if( $action_type ne 'set_vlan_id' );
         $set_action_types{$action_type} = 1;
