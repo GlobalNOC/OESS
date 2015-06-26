@@ -35,7 +35,7 @@ CREATE TABLE `circuit` (
   UNIQUE KEY `circuit_idx` (`name`),
   KEY `workgroup_id` (`workgroup_id`),
   CONSTRAINT `circuit_ibfk_1` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4182 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=4183 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -371,6 +371,7 @@ INSERT INTO `circuit` VALUES (4151,'Circuit 4151','Circuit 4151',241,NULL,0,0,'s
 INSERT INTO `circuit` VALUES (4161,'Circuit 4161','Circuit 4161',241,NULL,0,0,'scheduled');
 INSERT INTO `circuit` VALUES (4171,'Circuit 4171','Circuit 4171',191,NULL,0,0,'scheduled');
 INSERT INTO `circuit` VALUES (4181,'Workgroup 11-f966a7b6-5c2d-11e3-88bd-782bcb48ff73','static mac addr',11,NULL,0,1,'scheduled');
+INSERT INTO `circuit` VALUES (4182,'Workgroup 11-f38fca5a-1b50-11e5-9736-00163e213263','circuit-multipoint_flows1',11,NULL,0,0,'deploying');
 /*!40000 ALTER TABLE `circuit` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -393,7 +394,7 @@ CREATE TABLE `circuit_edge_interface_membership` (
   KEY `circuit_circuit_interface_membership_fk` (`circuit_id`),
   CONSTRAINT `circuit_edge_interface_membership_ibfk_1` FOREIGN KEY (`circuit_id`) REFERENCES `circuit` (`circuit_id`),
   CONSTRAINT `circuit_edge_interface_membership_ibfk_2` FOREIGN KEY (`interface_id`) REFERENCES `interface` (`interface_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=10661 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=10666 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1320,6 +1321,11 @@ INSERT INTO `circuit_edge_interface_membership` VALUES (45861,4161,1362143960,13
 INSERT INTO `circuit_edge_interface_membership` VALUES (391,4181,-1,1386083827,200,10631);
 INSERT INTO `circuit_edge_interface_membership` VALUES (511,4181,-1,1386083827,2,10641);
 INSERT INTO `circuit_edge_interface_membership` VALUES (321,4181,-1,1386083827,2,10651);
+INSERT INTO `circuit_edge_interface_membership` VALUES (321,4182,-1,1435247020,4,10661);
+INSERT INTO `circuit_edge_interface_membership` VALUES (511,4182,-1,1435247020,4,10662);
+INSERT INTO `circuit_edge_interface_membership` VALUES (511,4182,-1,1435247020,5,10663);
+INSERT INTO `circuit_edge_interface_membership` VALUES (511,4182,-1,1435247020,6,10664);
+INSERT INTO `circuit_edge_interface_membership` VALUES (511,4182,-1,1435247020,7,10665);
 /*!40000 ALTER TABLE `circuit_edge_interface_membership` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1708,6 +1714,7 @@ INSERT INTO `circuit_instantiation` VALUES (-1,4151,0,1361994688,'active',1);
 INSERT INTO `circuit_instantiation` VALUES (-1,4161,0,1361994728,'active',1);
 INSERT INTO `circuit_instantiation` VALUES (-1,4171,0,1362091613,'active',1);
 INSERT INTO `circuit_instantiation` VALUES (-1,4181,0,1386083827,'active',11);
+INSERT INTO `circuit_instantiation` VALUES (-1,4182,1337,1435247020,'deploying',31);
 INSERT INTO `circuit_instantiation` VALUES (1348842872,1,0,1348842871,'deploying',11);
 INSERT INTO `circuit_instantiation` VALUES (1348855218,11,0,1348855217,'deploying',11);
 INSERT INTO `circuit_instantiation` VALUES (1348857518,21,0,1348857517,'deploying',11);
@@ -8951,6 +8958,7 @@ INSERT INTO `link_path_membership` VALUES (181,-1,5461,1361994643,131,147);
 INSERT INTO `link_path_membership` VALUES (181,-1,5481,1362144220,132,149);
 INSERT INTO `link_path_membership` VALUES (181,-1,5501,1362143960,133,151);
 INSERT INTO `link_path_membership` VALUES (181,-1,5531,1386083827,134,152);
+INSERT INTO `link_path_membership` VALUES (181,-1,5542,1435247020,100,101);
 INSERT INTO `link_path_membership` VALUES (181,1349098689,251,1349098624,0,0);
 INSERT INTO `link_path_membership` VALUES (181,1349106919,271,1349106722,0,0);
 INSERT INTO `link_path_membership` VALUES (181,1349112733,311,1349106993,0,0);
@@ -9140,6 +9148,7 @@ INSERT INTO `link_path_membership` VALUES (191,-1,5461,1361994643,131,135);
 INSERT INTO `link_path_membership` VALUES (191,-1,5481,1362144220,132,136);
 INSERT INTO `link_path_membership` VALUES (191,-1,5501,1362143960,133,137);
 INSERT INTO `link_path_membership` VALUES (191,-1,5531,1386083827,134,138);
+INSERT INTO `link_path_membership` VALUES (191,-1,5542,1435247020,101,100);
 INSERT INTO `link_path_membership` VALUES (191,1349098689,251,1349098624,0,0);
 INSERT INTO `link_path_membership` VALUES (191,1349106919,271,1349106722,0,0);
 INSERT INTO `link_path_membership` VALUES (191,1349112733,311,1349106993,0,0);
@@ -10826,7 +10835,7 @@ CREATE TABLE `path` (
   UNIQUE KEY `path_idx` (`path_type`,`circuit_id`),
   KEY `circuit_path_fk` (`circuit_id`),
   CONSTRAINT `circuit_path_fk` FOREIGN KEY (`circuit_id`) REFERENCES `circuit` (`circuit_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=5542 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=5543 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -11368,6 +11377,7 @@ INSERT INTO `path` VALUES (5511,'primary',4171,'active');
 INSERT INTO `path` VALUES (5521,'backup',4171,'active');
 INSERT INTO `path` VALUES (5531,'primary',4181,'active');
 INSERT INTO `path` VALUES (5541,'backup',4181,'active');
+INSERT INTO `path` VALUES (5542,'primary',4182,'deploying');
 /*!40000 ALTER TABLE `path` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -11387,7 +11397,7 @@ CREATE TABLE `path_instantiation` (
   PRIMARY KEY (`path_instantiation_id`),
   KEY `end_epoch_path` (`path_id`,`end_epoch`),
   CONSTRAINT `path_path_instantiaiton_fk` FOREIGN KEY (`path_id`) REFERENCES `path` (`path_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=9932 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=9933 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -12368,6 +12378,7 @@ INSERT INTO `path_instantiation` VALUES (9901,5511,-1,'available',1362164614);
 INSERT INTO `path_instantiation` VALUES (9911,5231,-1,'available',1362437681);
 INSERT INTO `path_instantiation` VALUES (9921,5531,-1,'deploying',1386083827);
 INSERT INTO `path_instantiation` VALUES (9931,5541,-1,'available',1386083827);
+INSERT INTO `path_instantiation` VALUES (9932,5542,-1,'deploying',1435247020);
 /*!40000 ALTER TABLE `path_instantiation` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -15698,7 +15709,7 @@ CREATE TABLE `scheduled_action` (
   CONSTRAINT `circuit_scheduled_actions_fk` FOREIGN KEY (`circuit_id`) REFERENCES `circuit` (`circuit_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `user_scheduled_actions_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `workgroups_scheduled_actions_fk` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -15707,6 +15718,7 @@ CREATE TABLE `scheduled_action` (
 
 LOCK TABLES `scheduled_action` WRITE;
 /*!40000 ALTER TABLE `scheduled_action` DISABLE KEYS */;
+INSERT INTO `scheduled_action` VALUES (1,31,11,4182,1435247020,1380308981,-1,'<opt name=\"\" action=\"remove\" version=\"1.0\" />\n');
 /*!40000 ALTER TABLE `scheduled_action` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -21128,7 +21140,96 @@ CREATE TABLE `user` (
 
 LOCK TABLES `user` WRITE;
 /*!40000 ALTER TABLE `user` DISABLE KEYS */;
-INSERT INTO `user` VALUES (1,'user_1@foo.net','User 1','User 1',0,'normal','active'),(11,'user_11@foo.net','User 11','User 11',0,'normal','active'),(21,'user_21@foo.net','User 21','User 21',0,'normal','active'),(31,'user_31@foo.net','User 31','User 31',0,'normal','active'),(41,'user_41@foo.net','User 41','User 41',0,'normal','active'),(51,'user_51@foo.net','User 51','User 51',0,'normal','active'),(61,'user_61@foo.net','User 61','User 61',0,'normal','active'),(71,'user_71@foo.net','User 71','User 71',0,'normal','active'),(81,'user_81@foo.net','User 81','User 81',0,'normal','active'),(91,'user_91@foo.net','User 91','User 91',0,'normal','active'),(101,'user_101@foo.net','User 101','User 101',0,'normal','active'),(111,'user_111@foo.net','User 111','User 111',0,'normal','active'),(121,'user_121@foo.net','User 121','User 121',0,'normal','active'),(131,'user_131@foo.net','User 131','User 131',0,'normal','active'),(141,'user_141@foo.net','User 141','User 141',0,'normal','active'),(151,'user_151@foo.net','User 151','User 151',0,'normal','active'),(161,'user_161@foo.net','User 161','User 161',0,'normal','active'),(171,'user_171@foo.net','User 171','User 171',0,'normal','active'),(181,'user_181@foo.net','User 181','User 181',0,'normal','active'),(191,'user_191@foo.net','User 191','User 191',0,'normal','active'),(201,'user_201@foo.net','User 201','User 201',0,'normal','active'),(211,'user_211@foo.net','User 211','User 211',0,'normal','active'),(221,'user_221@foo.net','User 221','User 221',0,'normal','active'),(241,'user_241@foo.net','User 241','User 241',0,'normal','active'),(251,'user_251@foo.net','User 251','User 251',1,'normal','active'),(261,'user_261@foo.net','User 261','User 261',0,'normal','active'),(271,'user_271@foo.net','User 271','User 271',0,'normal','active'),(281,'user_281@foo.net','User 281','User 281',0,'normal','active'),(291,'user_291@foo.net','User 291','User 291',0,'normal','active'),(301,'user_301@foo.net','User 301','User 301',0,'normal','active'),(311,'user_311@foo.net','User 311','User 311',0,'normal','active'),(321,'user_321@foo.net','User 321','User 321',0,'normal','active'),(341,'user_341@foo.net','User 341','User 341',0,'normal','active'),(351,'user_351@foo.net','User 351','User 351',0,'normal','active'),(361,'user_361@foo.net','User 361','User 361',0,'normal','active'),(371,'user_371@foo.net','User 371','User 371',0,'normal','active'),(381,'user_381@foo.net','User 381','User 381',0,'normal','active'),(391,'user_391@foo.net','User 391','User 391',0,'normal','active'),(401,'user_401@foo.net','User 401','User 401',0,'normal','active'),(411,'user_411@foo.net','User 411','User 411',0,'normal','active'),(421,'user_421@foo.net','User 421','User 421',0,'normal','active'),(431,'user_431@foo.net','User 431','User 431',0,'normal','active'),(441,'user_441@foo.net','User 441','User 441',0,'normal','active'),(451,'user_451@foo.net','User 451','User 451',0,'normal','active'),(461,'user_461@foo.net','User 461','User 461',0,'normal','active'),(471,'user_471@foo.net','User 471','User 471',0,'normal','active'),(481,'user_481@foo.net','User 481','User 481',0,'normal','active'),(491,'user_491@foo.net','User 491','User 491',0,'normal','active'),(501,'user_501@foo.net','User 501','User 501',0,'normal','active'),(511,'user_511@foo.net','User 511','User 511',0,'normal','active'),(521,'user_521@foo.net','User 521','User 521',0,'normal','active'),(531,'user_531@foo.net','User 531','User 531',0,'normal','active'),(541,'user_541@foo.net','User 541','User 541',0,'normal','active'),(551,'user_551@foo.net','User 551','User 551',0,'normal','active'),(561,'user_561@foo.net','User 561','User 561',0,'normal','active'),(571,'user_571@foo.net','User 571','User 571',0,'normal','active'),(581,'user_581@foo.net','User 581','User 581',0,'normal','active'),(591,'user_591@foo.net','User 591','User 591',0,'normal','active'),(601,'user_601@foo.net','User 601','User 601',0,'normal','active'),(611,'user_611@foo.net','User 611','User 611',0,'normal','active'),(621,'user_621@foo.net','User 621','User 621',0,'normal','active'),(631,'user_631@foo.net','User 631','User 631',0,'normal','active'),(641,'user_641@foo.net','User 641','User 641',0,'normal','active'),(651,'user_651@foo.net','User 651','User 651',0,'normal','active'),(661,'user_661@foo.net','User 661','User 661',0,'normal','active'),(671,'user_671@foo.net','User 671','User 671',0,'normal','active'),(691,'user_691@foo.net','User 691','User 691',0,'normal','active'),(701,'user_701@foo.net','User 701','User 701',0,'normal','active'),(711,'user_711@foo.net','User 711','User 711',0,'normal','active'),(721,'user_721@foo.net','User 721','User 721',0,'normal','active'),(731,'user_731@foo.net','User 731','User 731',0,'normal','active'),(741,'user_741@foo.net','User 741','User 741',0,'normal','active'),(751,'user_751@foo.net','User 751','User 751',0,'normal','active'),(761,'user_761@foo.net','User 761','User 761',0,'normal','active'),(771,'user_771@foo.net','User 771','User 771',0,'normal','active'),(781,'user_781@foo.net','User 781','User 781',0,'normal','active'),(791,'user_791@foo.net','User 791','User 791',0,'normal','active'),(801,'user_801@foo.net','User 801','User 801',0,'normal','active'),(811,'user_811@foo.net','User 811','User 811',0,'normal','active'),(821,'user_821@foo.net','User 821','User 821',0,'normal','active'),(831,'user_831@foo.net','User 831','User 831',0,'normal','active'),(841,'user_841@foo.net','User 841','User 841',0,'normal','active'),(851,'user_851@foo.net','User 851','User 851',0,'normal','active'),(861,'user_861@foo.net','User 861','User 861',0,'normal','active'),(871,'user_871@foo.net','User 871','User 871',0,'normal','active'),(881,'user_881@foo.net','User 881','User 881',0,'normal','active'),(891,'user_891@foo.net','User 891','User 891',0,'normal','active'),(901,'user_901@foo.net','User 901','User 901',0,'normal','active'),(911,'user_911@foo.net','User 911','User 911',0,'normal','active'),(921,'user_921@foo.net','User 921','User 921',0,'normal','decom');
+INSERT INTO `user` VALUES (1,'user_1@foo.net','User 1','User 1',0,'normal','active');
+INSERT INTO `user` VALUES (11,'user_11@foo.net','User 11','User 11',0,'normal','active');
+INSERT INTO `user` VALUES (21,'user_21@foo.net','User 21','User 21',0,'normal','active');
+INSERT INTO `user` VALUES (31,'user_31@foo.net','User 31','User 31',0,'normal','active');
+INSERT INTO `user` VALUES (41,'user_41@foo.net','User 41','User 41',0,'normal','active');
+INSERT INTO `user` VALUES (51,'user_51@foo.net','User 51','User 51',0,'normal','active');
+INSERT INTO `user` VALUES (61,'user_61@foo.net','User 61','User 61',0,'normal','active');
+INSERT INTO `user` VALUES (71,'user_71@foo.net','User 71','User 71',0,'normal','active');
+INSERT INTO `user` VALUES (81,'user_81@foo.net','User 81','User 81',0,'normal','active');
+INSERT INTO `user` VALUES (91,'user_91@foo.net','User 91','User 91',0,'normal','active');
+INSERT INTO `user` VALUES (101,'user_101@foo.net','User 101','User 101',0,'normal','active');
+INSERT INTO `user` VALUES (111,'user_111@foo.net','User 111','User 111',0,'normal','active');
+INSERT INTO `user` VALUES (121,'user_121@foo.net','User 121','User 121',0,'normal','active');
+INSERT INTO `user` VALUES (131,'user_131@foo.net','User 131','User 131',0,'normal','active');
+INSERT INTO `user` VALUES (141,'user_141@foo.net','User 141','User 141',0,'normal','active');
+INSERT INTO `user` VALUES (151,'user_151@foo.net','User 151','User 151',0,'normal','active');
+INSERT INTO `user` VALUES (161,'user_161@foo.net','User 161','User 161',0,'normal','active');
+INSERT INTO `user` VALUES (171,'user_171@foo.net','User 171','User 171',0,'normal','active');
+INSERT INTO `user` VALUES (181,'user_181@foo.net','User 181','User 181',0,'normal','active');
+INSERT INTO `user` VALUES (191,'user_191@foo.net','User 191','User 191',0,'normal','active');
+INSERT INTO `user` VALUES (201,'user_201@foo.net','User 201','User 201',0,'normal','active');
+INSERT INTO `user` VALUES (211,'user_211@foo.net','User 211','User 211',0,'normal','active');
+INSERT INTO `user` VALUES (221,'user_221@foo.net','User 221','User 221',0,'normal','active');
+INSERT INTO `user` VALUES (241,'user_241@foo.net','User 241','User 241',0,'normal','active');
+INSERT INTO `user` VALUES (251,'user_251@foo.net','User 251','User 251',1,'normal','active');
+INSERT INTO `user` VALUES (261,'user_261@foo.net','User 261','User 261',0,'normal','active');
+INSERT INTO `user` VALUES (271,'user_271@foo.net','User 271','User 271',0,'normal','active');
+INSERT INTO `user` VALUES (281,'user_281@foo.net','User 281','User 281',0,'normal','active');
+INSERT INTO `user` VALUES (291,'user_291@foo.net','User 291','User 291',0,'normal','active');
+INSERT INTO `user` VALUES (301,'user_301@foo.net','User 301','User 301',0,'normal','active');
+INSERT INTO `user` VALUES (311,'user_311@foo.net','User 311','User 311',0,'normal','active');
+INSERT INTO `user` VALUES (321,'user_321@foo.net','User 321','User 321',0,'normal','active');
+INSERT INTO `user` VALUES (341,'user_341@foo.net','User 341','User 341',0,'normal','active');
+INSERT INTO `user` VALUES (351,'user_351@foo.net','User 351','User 351',0,'normal','active');
+INSERT INTO `user` VALUES (361,'user_361@foo.net','User 361','User 361',0,'normal','active');
+INSERT INTO `user` VALUES (371,'user_371@foo.net','User 371','User 371',0,'normal','active');
+INSERT INTO `user` VALUES (381,'user_381@foo.net','User 381','User 381',0,'normal','active');
+INSERT INTO `user` VALUES (391,'user_391@foo.net','User 391','User 391',0,'normal','active');
+INSERT INTO `user` VALUES (401,'user_401@foo.net','User 401','User 401',0,'normal','active');
+INSERT INTO `user` VALUES (411,'user_411@foo.net','User 411','User 411',0,'normal','active');
+INSERT INTO `user` VALUES (421,'user_421@foo.net','User 421','User 421',0,'normal','active');
+INSERT INTO `user` VALUES (431,'user_431@foo.net','User 431','User 431',0,'normal','active');
+INSERT INTO `user` VALUES (441,'user_441@foo.net','User 441','User 441',0,'normal','active');
+INSERT INTO `user` VALUES (451,'user_451@foo.net','User 451','User 451',0,'normal','active');
+INSERT INTO `user` VALUES (461,'user_461@foo.net','User 461','User 461',0,'normal','active');
+INSERT INTO `user` VALUES (471,'user_471@foo.net','User 471','User 471',0,'normal','active');
+INSERT INTO `user` VALUES (481,'user_481@foo.net','User 481','User 481',0,'normal','active');
+INSERT INTO `user` VALUES (491,'user_491@foo.net','User 491','User 491',0,'normal','active');
+INSERT INTO `user` VALUES (501,'user_501@foo.net','User 501','User 501',0,'normal','active');
+INSERT INTO `user` VALUES (511,'user_511@foo.net','User 511','User 511',0,'normal','active');
+INSERT INTO `user` VALUES (521,'user_521@foo.net','User 521','User 521',0,'normal','active');
+INSERT INTO `user` VALUES (531,'user_531@foo.net','User 531','User 531',0,'normal','active');
+INSERT INTO `user` VALUES (541,'user_541@foo.net','User 541','User 541',0,'normal','active');
+INSERT INTO `user` VALUES (551,'user_551@foo.net','User 551','User 551',0,'normal','active');
+INSERT INTO `user` VALUES (561,'user_561@foo.net','User 561','User 561',0,'normal','active');
+INSERT INTO `user` VALUES (571,'user_571@foo.net','User 571','User 571',0,'normal','active');
+INSERT INTO `user` VALUES (581,'user_581@foo.net','User 581','User 581',0,'normal','active');
+INSERT INTO `user` VALUES (591,'user_591@foo.net','User 591','User 591',0,'normal','active');
+INSERT INTO `user` VALUES (601,'user_601@foo.net','User 601','User 601',0,'normal','active');
+INSERT INTO `user` VALUES (611,'user_611@foo.net','User 611','User 611',0,'normal','active');
+INSERT INTO `user` VALUES (621,'user_621@foo.net','User 621','User 621',0,'normal','active');
+INSERT INTO `user` VALUES (631,'user_631@foo.net','User 631','User 631',0,'normal','active');
+INSERT INTO `user` VALUES (641,'user_641@foo.net','User 641','User 641',0,'normal','active');
+INSERT INTO `user` VALUES (651,'user_651@foo.net','User 651','User 651',0,'normal','active');
+INSERT INTO `user` VALUES (661,'user_661@foo.net','User 661','User 661',0,'normal','active');
+INSERT INTO `user` VALUES (671,'user_671@foo.net','User 671','User 671',0,'normal','active');
+INSERT INTO `user` VALUES (691,'user_691@foo.net','User 691','User 691',0,'normal','active');
+INSERT INTO `user` VALUES (701,'user_701@foo.net','User 701','User 701',0,'normal','active');
+INSERT INTO `user` VALUES (711,'user_711@foo.net','User 711','User 711',0,'normal','active');
+INSERT INTO `user` VALUES (721,'user_721@foo.net','User 721','User 721',0,'normal','active');
+INSERT INTO `user` VALUES (731,'user_731@foo.net','User 731','User 731',0,'normal','active');
+INSERT INTO `user` VALUES (741,'user_741@foo.net','User 741','User 741',0,'normal','active');
+INSERT INTO `user` VALUES (751,'user_751@foo.net','User 751','User 751',0,'normal','active');
+INSERT INTO `user` VALUES (761,'user_761@foo.net','User 761','User 761',0,'normal','active');
+INSERT INTO `user` VALUES (771,'user_771@foo.net','User 771','User 771',0,'normal','active');
+INSERT INTO `user` VALUES (781,'user_781@foo.net','User 781','User 781',0,'normal','active');
+INSERT INTO `user` VALUES (791,'user_791@foo.net','User 791','User 791',0,'normal','active');
+INSERT INTO `user` VALUES (801,'user_801@foo.net','User 801','User 801',0,'normal','active');
+INSERT INTO `user` VALUES (811,'user_811@foo.net','User 811','User 811',0,'normal','active');
+INSERT INTO `user` VALUES (821,'user_821@foo.net','User 821','User 821',0,'normal','active');
+INSERT INTO `user` VALUES (831,'user_831@foo.net','User 831','User 831',0,'normal','active');
+INSERT INTO `user` VALUES (841,'user_841@foo.net','User 841','User 841',0,'normal','active');
+INSERT INTO `user` VALUES (851,'user_851@foo.net','User 851','User 851',0,'normal','active');
+INSERT INTO `user` VALUES (861,'user_861@foo.net','User 861','User 861',0,'normal','active');
+INSERT INTO `user` VALUES (871,'user_871@foo.net','User 871','User 871',0,'normal','active');
+INSERT INTO `user` VALUES (881,'user_881@foo.net','User 881','User 881',0,'normal','active');
+INSERT INTO `user` VALUES (891,'user_891@foo.net','User 891','User 891',0,'normal','active');
+INSERT INTO `user` VALUES (901,'user_901@foo.net','User 901','User 901',0,'normal','active');
+INSERT INTO `user` VALUES (911,'user_911@foo.net','User 911','User 911',0,'normal','active');
+INSERT INTO `user` VALUES (921,'user_921@foo.net','User 921','User 921',0,'normal','decom');
 /*!40000 ALTER TABLE `user` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -21356,7 +21457,7 @@ CREATE TABLE `workgroup` (
 LOCK TABLES `workgroup` WRITE;
 /*!40000 ALTER TABLE `workgroup` DISABLE KEYS */;
 INSERT INTO `workgroup` VALUES (1,'','Workgroup 1',NULL,'normal',10,20,10,'active');
-INSERT INTO `workgroup` VALUES (11,'','Workgroup 11',NULL,'admin',10,43,10,'active');
+INSERT INTO `workgroup` VALUES (11,'','Workgroup 11',NULL,'admin',10,44,10,'active');
 INSERT INTO `workgroup` VALUES (21,'','Workgroup 21',NULL,'normal',10,20,10,'active');
 INSERT INTO `workgroup` VALUES (31,'','Workgroup 31',NULL,'demo',10,20,10,'active');
 INSERT INTO `workgroup` VALUES (51,'','Workgroup 51',NULL,'normal',10,20,10,'active');
@@ -21606,4 +21707,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2015-01-12 19:36:57
+-- Dump completed on 2015-06-25 15:43:50

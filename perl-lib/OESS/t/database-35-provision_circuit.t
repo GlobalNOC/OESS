@@ -107,7 +107,6 @@ my $correct_result =  {
                          'interface_a' => 'e3/1'
                        }
                      ],
-          'circuit_id' => '4183',
           'workgroup_id' => '11',
           'description' => 'Test',
           'endpoints' => [
@@ -143,7 +142,7 @@ my $correct_result =  {
                            'name' => 'Workgroup 11',
                            'type' => 'admin',
                            'description' => '',
-			   'max_circuits' => 43,
+			   'max_circuits' => 44,
 			   'max_mac_address_per_end' => 10,
                'max_circuit_endpoints' => 10
                          },
@@ -152,18 +151,18 @@ my $correct_result =  {
           'internal_ids' => {
                               'primary' => {
                                   'Node 11' => {
-                                      '851' => '101'
+                                      '851' => '102'
                                   },
                                           'Node 5721' => {
                                               '45781' => '28'
                                       },
                                                   'Node 61' => {
-                                                      '161' => '100',
-                                                      '171' => '101'
+                                                      '161' => '104',
+                                                      '171' => '105'
                                               },
                                                           'Node 51' => {
                                                               '71' => '101',
-                                                              '61' => '100'
+                                                              '61' => '102'
                                                       }
                               }
       },
@@ -177,6 +176,8 @@ my $correct_result =  {
 delete $res->{'name'};
 # delete last edited since that changes
 delete $res->{'last_edited'};
+# delete the circuit_id since that's liable to change with the addition of tests
+delete $res->{'circuit_id'};
 
 warn Dumper($res);
 

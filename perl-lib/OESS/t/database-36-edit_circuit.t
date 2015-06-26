@@ -160,7 +160,7 @@ my $correct_result = {
                            'status' => 'active',
                            'type' => 'admin',
                            'description' => '',
-                           'max_circuits' => 43,
+                           'max_circuits' => 44,
                            'max_mac_address_per_end' => 10,
                            'max_circuit_endpoints' => 10
                          },
