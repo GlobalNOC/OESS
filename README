@@ -126,7 +126,81 @@ Now, for SNAPP to be of any use to you, you will need to set up a location for t
 
     `/bin/chown _snapp:_snapp /SNMP/snapp/db/ -R`
 
+Now, open up MYSQL and run these commands:
 
+    `use snapp`
+
+    `update global set value = '/SNMP/snapp/db/' where name = 'rrddir'`
+
+For the next command, replace the ? with the interval you want OESS to collect VLAN per Interface statistics. (By default, oess_setup.pl will set this to 10)
+
+    `insert into collection_class (name,description,collection_interval,default_cf,default_class) VALUES ('PerVlanPerInterface','FlowStats',?,'AVERAGE',0)` 
+
+Take note of the id created from the last command. You'll need it in the next step.
+
+Run this command:
+
+    `select * from oid_collection where name = 'in-octets' or name = 'out-octets' or name = 'in-packets' or name = 'out-packets'`
+
+Several rows should be returned to you. For each row returned, do an insert command like so:
+
+    `insert into oid_collection_class_map (collection_class_id,oid_collection_id,order_val,ds_name) VALUES (<collection_class_id_I_told_you_to_get_above>,<oid_collection_id_from_group_of_rows_from_above_select_command>,20,<name_from_above_select_command>)`
+
+The next step is to set up RRA handling.  Two questions to answer here before the mysql command needed for this:
+
+How many data points do I want consolidated? (Default is one with the oess setup);
+
+How long do I want to retain RRD data? (Default is 100 days)
+
+With these in mind, run this command.
+
+    `insert into rra (collection_class_id,step,cf,num_days,xff) VALUES (<the_collection_class_id_told_you_to_save,<how_many_data_points_you_want_consolidated>,'AVERAGE',<number_of_days_you_put_in>,0.8)`;
+
+Repeat the above steps if you want another RRA.  Otherwise, move on.
+
+
+You will now need to create an admin workgroup. Run these commands to do so:
+
+    `use oess` (or whatever you decided to name your oess database)
+
+    `insert into workgroup (name,type) values ('admin','admin')`;
+
+
+We now need to make a frontend user for OESS.  Assuming you are using htpasswd for auth:
+
+    If it doesn't exist already, make a path /usr/share/oess-frontend/www/ with octal permission of 755
+
+    In the www directory, run this command:
+
+    htpasswd -c <user_name_of_your_choice>
+
+The command will prompt you for a password. Type it in, and the password file should be good to go.
+
+
+Ideally, using the same username you used for the htpasswd file, go back in MYSQL, and run these commands to create an admin user:
+
+    `use oess` (or whatever you decided to name your oess database)
+
+    `insert into user (email, given_names, family_name, type) values ('<your_email>', '<your_given_name>', '<your_family_or_last_name>', 'admin')`;
+
+    `select * from user` and take note of the user id it returns for the user you created.  With that in hand:
+
+    insert into remote_auth (auth_name, user_id) values ('<user_name_in_htpasswd_file>',<user_id_from_above_select_command>)`
+
+
+Now we need to associate the new user with the admin workgroup. To do that:
+
+    `select * from workgroup`;
+
+Take note of the id of the admin workgroup I had you create:
+
+    `insert into user_workgroup_membership (workgroup_id, user_id) values (<workgroup_id>, <user_id>)`;
+
+Exit MySQL, and if you want to jump right into working with OESS, run this command: 
+
+    `/etc/init.d/oess start`
+
+And OESS should be good to go!
 
 6. Banana
 
