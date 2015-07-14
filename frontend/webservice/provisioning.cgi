@@ -519,7 +519,7 @@ sub remove_circuit {
                                      workgroup_id => $workgroup_id
                                     );
 
-    _send_update_cache($circuit_id);
+    _send_update_cache( circuit_id => $circuit_id);
 
     #    print STDERR Dumper($output);
 
