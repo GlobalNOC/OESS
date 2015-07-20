@@ -679,7 +679,6 @@ function editRemoteLink(link_id,name, urn, vlan_tag_range,interface_name,interfa
                             alert_message += "Link '" + name + "' has the same urn as you are trying to assign to this link<br/>";
                         }
                         if (resp.results[index].link_name == name && resp.results[index].interface_id != interface_id) {
-			    /* Interfaces must have unique names. */
                             name_conflict = 1;
                         }
                     }
