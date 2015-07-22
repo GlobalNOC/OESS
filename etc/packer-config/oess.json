@@ -1,7 +1,7 @@
 {
 	"variables": {
-		   "oess_version":"1.1.5",
-		   "oess_version_friendly_name":"1.1.5"
+		   "oess_version":"1.1.6",
+		   "oess_version_friendly_name":"1.1.6"
 	},	
     "builders":[
 	{
@@ -72,6 +72,7 @@
 		"sudo yum -y install wget",
 		"sudo useradd -r _snapp",
 		"wget http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm",
+		"sudo yum -y update",
 		"sudo rpm -Uvh epel-release-6*.rpm",
 		"wget http://globalnoc.iu.edu/sdn/oess/oess-releases/oess-{{user `oess_version`}}.tar.gz",
 		"tar -xzf oess-{{user `oess_version`}}.tar.gz",
