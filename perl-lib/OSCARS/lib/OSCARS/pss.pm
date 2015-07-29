@@ -332,6 +332,14 @@ sub teardownReq {
 					 username   => $username
 	                                );
 
+        #we missed this cache update and this caused problems
+        my ($result,$event_id) = $dbus->update_cache($circuit_info->{'circuit_id'});
+        my $final_res = FWDCTL_WAITING;
+        while($final_res == FWDCTL_WAITING){
+            sleep(1);
+            $final_res = $dbus->get_event_status($event_id);
+        }
+
 	if (! defined $result){
 	    $writer2->startTag(["http://oscars.es.net/OSCARS/coord", "status"]);
 	    $writer2->characters("FAILED");
