@@ -87,21 +87,21 @@ push(@$expected_flows, OESS::FlowRule->new( dpid => 155569068800,
 
 
 push(@$expected_flows, OESS::FlowRule->new( dpid => 155569068800,
-                                            priority => 65535,
+                                            priority => 36000,
                                             match => {'dl_vlan' => 115,
                                                       'in_port' => 2},
                                             actions => [{'set_vlan_vid' => 157},
                                                         {'output' => 2}]));
 
 push(@$expected_flows, OESS::FlowRule->new( dpid => 155569068800,
-                                            priority => 65535,
+                                            priority => 36000,
                                             match => {'dl_vlan' => 116,
                                                       'in_port' => 97},
                                             actions => [{'set_vlan_vid' => 154},
                                                         {'output' => 97}]));
 
 push(@$expected_flows, OESS::FlowRule->new( dpid => 155569068800,
-                                            priority => 65535,
+                                            priority => 36000,
                                             match => {'dl_vlan' => 1750,
                                                       'in_port' => 679},
                                             actions => [{'output' => 679}]));
