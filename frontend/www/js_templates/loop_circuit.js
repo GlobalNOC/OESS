@@ -81,7 +81,7 @@ function init(){
         document.getElementById("loop_status").innerHTML = "Attemping to Loop Circuit.";
 
 
-        var ds = new YAHOO.util.DataSource("services/provisioning.cgi?);
+        var ds = new YAHOO.util.DataSource("services/provisioning.cgi?");
         ds.connMethodPost = true;
         ds.connTimeout    = 30 * 1000; // 30 seconds
         ds.responseType   = YAHOO.util.DataSource.TYPE_JSON;
