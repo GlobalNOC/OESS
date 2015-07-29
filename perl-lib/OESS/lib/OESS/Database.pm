@@ -35,7 +35,7 @@ Version 1.1.6a
 
 =cut
 
-our $VERSION = '1.1.6a';
+our $VERSION = '1.1.7';
 
 =head1 SYNOPSIS
 
@@ -81,7 +81,7 @@ use OESS::Topology;
 use DateTime;
 use Data::Dumper;
 
-use constant VERSION => '1.1.6a';
+use constant VERSION => '1.1.7';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant SHARE_DIR => "/usr/share/doc/perl-OESS-" . VERSION . "/";
@@ -3359,7 +3359,7 @@ sub get_circuit_details {
     my $details;
 
     # basic circuit info
-    my $query = "select circuit.restore_to_primary, circuit.external_identifier, circuit.name, circuit.description, circuit.circuit_id, circuit.static_mac, circuit_instantiation.modified_by_user_id, circuit.workgroup_id, " .
+    my $query = "select circuit.restore_to_primary, circuit.external_identifier, circuit.name, circuit.description, circuit.circuit_id, circuit.static_mac, circuit_instantiation.modified_by_user_id, circuit_instantiation.loop_node, circuit.workgroup_id, " .
 	" circuit_instantiation.reserved_bandwidth_mbps, circuit_instantiation.circuit_state, circuit_instantiation.start_epoch  , " .
 	" if(bu_pi.path_state = 'active', 'backup', 'primary') as active_path " .
 	"from circuit " .
@@ -3383,6 +3383,7 @@ sub get_circuit_details {
         $details = {'circuit_id'             => $circuit_id,
                     'name'                   => $row->{'name'},
                     'description'            => $row->{'description'},
+                    'loop_node'              => $row->{'loop_node'},
                     'bandwidth'              => $row->{'reserved_bandwidth_mbps'},
                     'state'                  => $row->{'circuit_state'},
                     'active_path'            => $row->{'active_path'},
