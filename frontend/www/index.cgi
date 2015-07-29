@@ -64,7 +64,7 @@ my $HOME_BREADCRUMBS = [{title => "Workgroups",   url => "?action=workgroups"},
 
 my $DETAILS_BREADCRUMBS = [{title => "Workgroups",      url => "?action=workgroups"},,
 			   {title => "Home",            url => "?action=index"},
-			   {title => "Circuit Details", url => "?action=view_details"}
+			   {title => "Circuit Details", url => "?action=view_details"},
                           ];
 
 
@@ -114,6 +114,12 @@ sub main{
 			       $title              = "Details";
 			       $breadcrumbs        = $ADD_BREADCRUMBS;
 			       $current_breadcrumb = "Details"; 
+			     }
+
+	case "loop_circuit"  { $filename           = "html_templates/loop_circuit.html"; 
+			       $title              = "Loop Circuit";
+			       $breadcrumbs        = $DETAILS_BREADCRUMBS;
+			       $current_breadcrumb = "Loop Circuit"; 
 			     }
 	case "view_details"  { $filename           = "html_templates/view_details.html"; 
 			       $title              = "Circuit Details";

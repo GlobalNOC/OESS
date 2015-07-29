@@ -369,7 +369,7 @@ function handleLocalSuccess(request, response){
 	}
     }
     else {
-	alert("Unknown return value in provisioning.");
+	    alert("Unknown return value in provisioning.");
     }
 }
 

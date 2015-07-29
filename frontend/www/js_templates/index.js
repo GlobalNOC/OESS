@@ -384,7 +384,8 @@ function build_circuitTable(){
     {key: "bandwidth", parser: "number"},
     {key: "name"},
     {key: "endpoints"},
-    {key: "workgroup.name"}
+    {key: "workgroup.name"},
+
 		 ],
 	metaFields: {
 	    error: "error"
@@ -459,7 +460,8 @@ function build_circuitTable(){
 			   }
 			   el.innerHTML = "<enter>"+data+"</center>";
 		       }
-		   }
+		   },
+           {key: "", label: "", sortable: true, width: 150},
 		   ];
 
     var config = {

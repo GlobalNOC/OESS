@@ -6788,6 +6788,7 @@ sub edit_circuit {
     my $state          = $args{'state'} || "active";
     my $user_name      = $args{'user_name'};
     my $workgroup_id   = $args{'workgroup_id'};
+    my $loop_node       = $args{'loop_node'};
     my $remote_endpoints = $args{'remote_endpoints'} || [];
     my $remote_tags      = $args{'remote_tags'} || [];
     my $restore_to_primary = $args{'restore_to_primary'} || 0;
@@ -6848,8 +6849,8 @@ sub edit_circuit {
         return
     }
 
-    $query = "insert into circuit_instantiation (circuit_id, reserved_bandwidth_mbps, circuit_state, modified_by_user_id, end_epoch, start_epoch) values (?, ?, ?, ?, -1, unix_timestamp(now()))";
-    if(!defined($self->_execute_query($query, [$circuit_id, $bandwidth,$state, $user_id]))){
+    $query = "insert into circuit_instantiation (circuit_id, reserved_bandwidth_mbps, circuit_state, modified_by_user_id, end_epoch, start_epoch, loop_node) values (?, ?, ?, ?, -1, unix_timestamp(now()), ?)";
+    if(!defined($self->_execute_query($query, [$circuit_id, $bandwidth,$state, $user_id, $loop_node]))){
         $self->_set_error("Unable to create new circuit instantiation.");
         $self->_rollback() if($do_commit);
         return
