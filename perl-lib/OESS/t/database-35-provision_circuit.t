@@ -72,6 +72,7 @@ my $correct_result =  {
           'state' => 'deploying',
           'static_mac' => 0,
           'backup_links' => [],
+          'loop_node' => undef,
           'links' => [
                        {
                          'interface_z' => 'e3/2',

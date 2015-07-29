@@ -24,10 +24,11 @@ my $db = OESS::Database->new(config => OESSDatabaseTester::getConfigFilePath());
 my $active_circuits = $db->get_circuits_by_state( state => 'active' );
 
 
-is(@$active_circuits, 100, "Total number of circuits match");
+is(@$active_circuits, 99, "Total number of circuits match");
 
 cmp_deeply($active_circuits->[0],{
     'circuit_state' => 'active',
+    'loop_node' => undef,
     'circuit_id' => '11',
     'workgroup_id' => '11',
     'start_epoch' => '1348855218',
@@ -45,6 +46,7 @@ cmp_deeply($active_circuits->[0],{
 cmp_deeply($active_circuits->[1],{
           'circuit_state' => 'active',
           'circuit_id' => '51',
+          'loop_node' => undef,
           'workgroup_id' => '11',
           'start_epoch' => '1348963870',
           'external_identifier' => undef,

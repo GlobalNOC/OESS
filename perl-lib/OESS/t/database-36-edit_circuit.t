@@ -45,6 +45,7 @@ is($db->get_error(),'Interface "e15/1" on endpoint "Node 11" with VLAN tag "1" i
 $res = $db->edit_circuit(
     'circuit_id' => 51,
     'description' => "Test",
+    'loop_node' => undef,
     'bandwidth' => 1337,
     'provision_time' => 1377716981,
     'remove_time' => 1380308981,
@@ -87,6 +88,7 @@ my $correct_result = {
                                   'status' => 'active'
                                 },
           'state' => 'active',
+          'loop_node' => undef,
           'backup_links' => [],
           'created_on' => '09/30/2012 00:11:09',
           'links' => [
