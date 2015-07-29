@@ -136,7 +136,7 @@ function handleLocalSuccess(request, response){
     else{
         alert("Circuit successfully Looped.",
           function(){
-              window.location = "?action=index";
+              window.location = "?action=view_details";
           }
           );
     }
