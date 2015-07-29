@@ -39,6 +39,7 @@ cmp_deeply($circuits->[0],{
           'external_identifier' => undef,
           'name' => 'Circuit 61',
           'reserved_bandwidth_mbps' => '0',
+          'loop_node' => undef,
           'description' => 'Circuit 61',
           'path_type' => 'primary',
           'end_epoch' => '-1',
