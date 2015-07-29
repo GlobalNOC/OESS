@@ -541,7 +541,7 @@ function page_init(){
                 postVars += "&backup_link="+encodeURIComponent(backups[i]);
             }
 
-            var ds = new YAHOO.util.DataSource("services/provisioning.cgi?" + postVars);
+            var ds = new YAHOO.util.DataSource("services/provisioning.cgi");
             ds.connMethodPost = true;
             ds.connTimeout    = 30 * 1000; // 30 seconds
             ds.responseType   = YAHOO.util.DataSource.TYPE_JSON;
@@ -556,13 +556,12 @@ function page_init(){
             }
             };
 
-            ds.sendRequest("",{success: handleLocalSuccess, failure: handleLocalFailure, scope: this});
+            ds.sendRequest(postVars,{success: handleLocalSuccess, failure: handleLocalFailure, scope: this});
 
             }
               else {
                 window.location = "?action=loop_circuit";
                 }
-                //alert("hey that tickles");
 
         });
   }

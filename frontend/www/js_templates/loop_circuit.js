@@ -81,7 +81,7 @@ function init(){
         document.getElementById("loop_status").innerHTML = "Attemping to Loop Circuit.";
 
 
-        var ds = new YAHOO.util.DataSource("services/provisioning.cgi?" + postVars);
+        var ds = new YAHOO.util.DataSource("services/provisioning.cgi?);
         ds.connMethodPost = true;
         ds.connTimeout    = 30 * 1000; // 30 seconds
         ds.responseType   = YAHOO.util.DataSource.TYPE_JSON;
@@ -96,12 +96,8 @@ function init(){
         }   
         };  
 
-        ds.sendRequest("",{success: handleLocalSuccess, failure: handleLocalFailure, scope: this});
+        ds.sendRequest(postVars,{success: handleLocalSuccess, failure: handleLocalFailure, scope: this});
          
-/*
-        var ds = new YAHOO.util.DataSource("services/provisioning.cgi?action=add_remove_loopback&circuit_id=" + session.data.circuit_id + "&workgroup_id=" + session.data.workgroup_id + "&node_id=" + node_id + "&description=" + description + "&bandwidth=" + bandwidth + "&provision_time=" + provision_time
-        + "&remove_time=" + remove_time + "&restore_to_primary=" + restore_to_primary + "&provision_time=" + provision_time + "&remove_time=" + "&endpoints=" );
-*/
     });
 
 }
