@@ -5,6 +5,8 @@ function init(){
 
     setPageSummary("Circuit Loopback", "");
 
+    var endpoint_table = summary_init();
+
     var nddi_map = new NDDIMap("map");
 
 
