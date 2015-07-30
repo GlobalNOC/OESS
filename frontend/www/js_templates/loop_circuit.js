@@ -3,13 +3,36 @@
   
 function init(){  
 
-    setPageSummary("Loop Circuit","Pick a node in which you want to loop the circuit on.");
+    setPageSummary("Diagnostic Circuit Loopback", "");
 
     var nddi_map = new NDDIMap("map");
 
-    var layout = makePageLayout(nddi_map, {map_width: 540,
-                     max_resize: 700});
 
+    var layout = new YAHOO.widget.Layout('layout',
+                     {height: 420,
+                      width: 550,
+                      units: 
+                      [{position: "left", id: "left", width: 550, height: 400, resize: true, minWidth: 150, maxWidth: 500, gutter: "0px 9px 25px 0px"},
+                                           {position: "center", id: "center", gutter: "0px 0px 0px 3px"},
+                       ]   
+                     }   
+                     );  
+
+  
+
+   layout.on("resize", function(){
+
+      nddi_map.map.updateSize();
+
+      var region = YAHOO.util.Dom.getRegion(this.getUnitByPosition('left'));
+
+      session.data.map_width = region.width;
+
+      nddi_map.map.zoomTo(nddi_map.calculateZoomLevel(region.width));
+
+      }); 
+
+  layout.render();
 
     legend_init(nddi_map, true);
 
@@ -20,7 +43,9 @@ function init(){
           });
 
     nddi_map.on("clickNode", function(e, args){	  
-   
+  
+        showConfirm("Are you sure you want to loop this node?  Traffic on this circuit will be impacted while it is in place.",
+        function(){
         var description = session.data.description;
         var bandwidth   = parseInt(session.data.bandwidth / (1000 * 1000));
         var provision_time = session.data.provision_time;
@@ -97,7 +122,9 @@ function init(){
         };  
 
         ds.sendRequest(postVars,{success: handleLocalSuccess, failure: handleLocalFailure, scope: this});
-         
+    },
+       function(){} 
+    );
     });
 
 }
@@ -136,7 +163,7 @@ function handleLocalSuccess(request, response){
     else{
         alert("Circuit successfully Looped.",
           function(){
-              window.location = "?action=index";
+              window.location = "?action=view_details";
           }
           );
     }
