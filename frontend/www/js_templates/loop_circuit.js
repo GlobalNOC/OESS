@@ -1,6 +1,6 @@
 <script>
   
-  
+var node_name;  
 function init(){  
 
     setPageSummary("Circuit Loopback", "");
@@ -20,8 +20,6 @@ function init(){
                      }   
                      );  
 
-  
-
    layout.on("resize", function(){
 
       nddi_map.map.updateSize();
@@ -33,10 +31,10 @@ function init(){
       nddi_map.map.zoomTo(nddi_map.calculateZoomLevel(region.width));
 
       }); 
+  
+    layout.render();
 
-  layout.render();
-
-    legend_init(nddi_map, true);
+    legend_init(nddi_map, true,false,true);
 
     //nddi_map.showDefault();
 
@@ -46,6 +44,8 @@ function init(){
 
     nddi_map.on("clickNode", function(e, args){	  
   
+        //first, let's make sure the node is actually part of the circuit.
+
         showConfirm("Are you sure you want to loop this node?  Traffic on this circuit will be impacted while it is in place.",
         function(){
         var description = session.data.description;
@@ -72,7 +72,7 @@ function init(){
         var circuit_id = session.data.circuit_id;
 
         var node_id    = args[0].node_id;
-
+        node_name  = args[0].name;
 
         var postVars = "action=provision_circuit&circuit_id="+encodeURIComponent(circuit_id)
                +"&description="+encodeURIComponent(description)
@@ -115,7 +115,9 @@ function init(){
         ds.responseSchema = { 
         resultsList: "results",
         fields: [{key: "success", parser: "number"},
-                     {key: "circuit_id", parser: "number"}    
+                     {key: "circuit_id", parser: "number"},
+
+                     {key: "loop_node", parser: "number"}    
              ],  
         metaFields: {
             error: "error",
@@ -147,7 +149,7 @@ function handleLocalSuccess(request, response){
 
     if (provision_time == -1){
         session.clear();
-        session.data.circuit_id = results[0].circuit_id;
+        session.data.loop_node = node_name;
         session.save();
 
         var warning = "";
@@ -169,9 +171,12 @@ function handleLocalSuccess(request, response){
           }
           );
     }
+
+        session.data.loop_node = node_name;
+        session.save();
     }
     else {
-    alert("Unknown return value in looping.");
+        alert("Unknown return value in looping.");
     }
 }
 

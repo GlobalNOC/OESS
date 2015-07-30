@@ -1,6 +1,6 @@
 <script>
   
-function legend_init(map_object, include_active, use_non_important){
+function legend_init(map_object, include_active, use_non_important, include_looped){
   
   YAHOO.util.Dom.get('legend_node_selected').src = map_object.SELECTED_IMAGE;
 
@@ -20,6 +20,12 @@ function legend_init(map_object, include_active, use_non_important){
       YAHOO.util.Dom.get('legend_node_active').parentNode.style.display = "none";
   }
   
+  if (include_looped){
+      YAHOO.util.Dom.get('legend_node_looped').src = map_object.LOOPED_IMAGE;
+  }
+  else{
+      YAHOO.util.Dom.get('legend_node_looped').parentNode.style.display = "none";
+  }
   YAHOO.util.Dom.get('legend_link_primary').style.backgroundColor = map_object.LINK_PRIMARY;
   YAHOO.util.Dom.get('legend_link_secondary').style.backgroundColor = map_object.LINK_SECONDARY;
   YAHOO.util.Dom.get('legend_link_unselected').style.backgroundColor = map_object.LINK_UP;

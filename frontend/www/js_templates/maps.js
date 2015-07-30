@@ -9,6 +9,7 @@ function NDDIMap(div_id, interdomain_mode, options){
   this.ACTIVE_IMAGE        = "[% path %]media/yellow-circle.png";
   this.NON_IMPORTANT_IMAGE = "[% path %]media/gray-circle.png";
   this.LINK_COUNT_IMAGE = "[% path %]media/gray-square.png";
+  this.LOOPED_IMAGE = "[% path %]media/purple-circle.png";
 
   this.LINK_UP            = "#3158a7"; //blue
   this.LINK_DOWN          = "#b46253"; //red
@@ -855,6 +856,7 @@ function NDDIMap(div_id, interdomain_mode, options){
     var links       = session.data.links || [];
     var backups     = session.data.backup_links || [];
     var active_path = session.data.active_path || "none";
+    var loop_node   = session.data.loop_node || null;
 
     // show the nodes
     for (var i = 0; i < endpoints.length; i++){
@@ -889,6 +891,15 @@ function NDDIMap(div_id, interdomain_mode, options){
 	    }
 
 	  }
+
+        if (loop_node) {
+
+	    if (feature.geometry.element_name == loop_node){
+	      this.changeNodeImage(feature, this.LOOPED_IMAGE);
+	      was_selected = true;
+	    }
+
+        }
 
 	  if (! was_selected){
 	      if (discolor_nodes){
