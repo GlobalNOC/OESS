@@ -7056,7 +7056,14 @@ sub edit_circuit {
 
     $self->_commit() if($do_commit);
 
-    return {"success" => 1, "circuit_id" => $circuit_id};
+    if (defined $loop_node) {
+
+        return {"success" => 1, "circuit_id" => $circuit_id, "loop_node" => $loop_node};
+    }
+    else {
+
+        return {"success" => 1, "circuit_id" => $circuit_id};
+    }
 }
 
 
