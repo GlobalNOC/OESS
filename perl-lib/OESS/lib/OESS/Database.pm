@@ -35,7 +35,7 @@ Version 1.1.6a
 
 =cut
 
-our $VERSION = '1.1.6a';
+our $VERSION = '1.1.7';
 
 =head1 SYNOPSIS
 
@@ -81,7 +81,7 @@ use OESS::Topology;
 use DateTime;
 use Data::Dumper;
 
-use constant VERSION => '1.1.6a';
+use constant VERSION => '1.1.7';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant SHARE_DIR => "/usr/share/doc/perl-OESS-" . VERSION . "/";
@@ -138,10 +138,10 @@ sub new {
 	cert => $config->{'oscars'}->{'cert'},
 	topo => $config->{'oscars'}->{'topo'}
     };
-
+    
     my $dbh      = DBI->connect("DBI:mysql:$database", $username, $password,
 				{mysql_auto_reconnect => 1 }
-	                       );
+        );
 
     if (! $dbh){
 	return ;
@@ -3359,7 +3359,7 @@ sub get_circuit_details {
     my $details;
 
     # basic circuit info
-    my $query = "select circuit.restore_to_primary, circuit.external_identifier, circuit.name, circuit.description, circuit.circuit_id, circuit.static_mac, circuit_instantiation.modified_by_user_id, circuit.workgroup_id, " .
+    my $query = "select circuit.restore_to_primary, circuit.external_identifier, circuit.name, circuit.description, circuit.circuit_id, circuit.static_mac, circuit_instantiation.modified_by_user_id, circuit_instantiation.loop_node, circuit.workgroup_id, " .
 	" circuit_instantiation.reserved_bandwidth_mbps, circuit_instantiation.circuit_state, circuit_instantiation.start_epoch  , " .
 	" if(bu_pi.path_state = 'active', 'backup', 'primary') as active_path " .
 	"from circuit " .
@@ -3383,6 +3383,7 @@ sub get_circuit_details {
         $details = {'circuit_id'             => $circuit_id,
                     'name'                   => $row->{'name'},
                     'description'            => $row->{'description'},
+                    'loop_node'              => $row->{'loop_node'},
                     'bandwidth'              => $row->{'reserved_bandwidth_mbps'},
                     'state'                  => $row->{'circuit_state'},
                     'active_path'            => $row->{'active_path'},
@@ -6784,8 +6785,10 @@ sub edit_circuit {
     my $nodes          = $args{'nodes'};
     my $interfaces     = $args{'interfaces'};
     my $tags           = $args{'tags'};
+    my $state          = $args{'state'} || "active";
     my $user_name      = $args{'user_name'};
     my $workgroup_id   = $args{'workgroup_id'};
+    my $loop_node       = $args{'loop_node'};
     my $remote_endpoints = $args{'remote_endpoints'} || [];
     my $remote_tags      = $args{'remote_tags'} || [];
     my $restore_to_primary = $args{'restore_to_primary'} || 0;
@@ -6812,9 +6815,10 @@ sub edit_circuit {
         return;
     }
 
+    my $user_id = $self->get_user_id_by_auth_name(auth_name => $user_name);
+    $args{'user_id'} = $user_id;
+
     if ($provision_time > time()){
-        my $user_id = $self->get_user_id_by_auth_name(auth_name => $user_name);
-        $args{'user_id'} = $user_id;
 
         my $success = $self->_add_event(\%args);
 
@@ -6835,12 +6839,23 @@ sub edit_circuit {
 
     # daldoyle - no need to instantiation on circuit edit, causes conflicts with the scheduler and other tools since
     # things happen in sub 1 second
-    #instantiate circuit
-    #$query = "update circuit_instantiation set end_epoch = UNIX_TIMESTAMP(NOW()) where circuit_id = ? and end_epoch = -1";
-    #$self->_execute_query($query, [$circuit_id]);
 
-    #$query = "insert into circuit_instantiation (circuit_id, reserved_bandwidth_mbps, circuit_state, modified_by_user_id, end_epoch, start_epoch) values (?, ?, 'deploying', ?, -1, unix_timestamp(now()))";
-    #$self->_execute_query($query, [$circuit_id, $bandwidth, $user_id]);
+    #aragusa - its been too long lets fix it!
+    #instantiate circuit
+    $query = "update circuit_instantiation set end_epoch = UNIX_TIMESTAMP(NOW()) where circuit_id = ? and end_epoch = -1";
+    if(!defined($self->_execute_query($query, [$circuit_id]))){
+        $self->_set_error("Unable to decom old circuit instantiation.");
+        $self->_rollback() if($do_commit);
+        return
+    }
+
+    $query = "insert into circuit_instantiation (circuit_id, reserved_bandwidth_mbps, circuit_state, modified_by_user_id, end_epoch, start_epoch, loop_node) values (?, ?, ?, ?, -1, unix_timestamp(now()), ?)";
+    if(!defined($self->_execute_query($query, [$circuit_id, $bandwidth,$state, $user_id, $loop_node]))){
+        $self->_set_error("Unable to create new circuit instantiation.");
+        $self->_rollback() if($do_commit);
+        return
+
+    }
 
     #first decom everything
     if ($do_external){
@@ -6853,16 +6868,29 @@ sub edit_circuit {
             " join network on network.network_id = node.network_id and network.is_local = 1 " .
             " set end_epoch = unix_timestamp(now()) where circuit_id = ? and end_epoch = -1";
     }
-    $self->_execute_query($query, [$circuit_id]);
+
+    if(!defined($self->_execute_query($query, [$circuit_id]))){
+        $self->_set_error("Unable to decom circuit_edge_interface_membership.");
+        $self->_rollback() if($do_commit);
+        return
+    }
 
     $query = "select * from path where circuit_id = ?";
     my $paths = $self->_execute_query($query, [$circuit_id]);
 
     foreach my $path (@$paths){
         $query = "update path_instantiation set end_epoch = unix_timestamp(now()) where path_id = ? and end_epoch = -1";
-        $self->_execute_query($query, [$path->{'path_id'}]);
+        if(!defined($self->_execute_query($query, [$path->{'path_id'}]))){
+            $self->_set_error("Unable to decom path_instantiations");
+            $self->_rollback() if($do_commit);
+            return
+        }
         $query = "update link_path_membership set end_epoch = unix_timestamp(now()) where path_id = ? and end_epoch = -1";
-        $self->_execute_query($query, [$path->{'path_id'}]);
+        if(!defined($self->_execute_query($query, [$path->{'path_id'}]))){
+            $self->_set_error("Unable to decom link_path_membership");
+            $self->_rollback() if($do_commit);
+            return
+        }
     }
 
     #re-instantiate
@@ -7006,7 +7034,7 @@ sub edit_circuit {
                 if (! defined $internal_vlan){
                     $self->_set_error("Internal error finding available internal id.");
                     $self->_rollback() if($do_commit);
-                            return;
+                    return;
                 }
 
                 if ($interface_a_id == $interface_id){

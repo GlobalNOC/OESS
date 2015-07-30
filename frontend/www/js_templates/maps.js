@@ -12,6 +12,7 @@ function NDDIMap(div_id, interdomain_mode, options){
 
   this.LINK_UP            = "#3158a7"; //blue
   this.LINK_DOWN          = "#b46253"; //red
+  this.LINK_LOOPED        = "#9c1cb4"; //purple
   this.MAJORITY_LINK_UP   = "#CCD20F"; //yellow
   this.MAJORITY_LINK_DOWN = "#E59916"; //orange
   this.LINK_PRIMARY       = "#b7f33b";//"#DEA567";
@@ -545,9 +546,22 @@ function NDDIMap(div_id, interdomain_mode, options){
 	  line.element_id      = link_id;
       line.links           = [];
 
+      var stroke_Color;
+
+      if (state == "down") {
+            stroke_Color = this.LINK_DOWN;
+        }
+
+      else if( state =="looped") {
+        stroke_Color = this.LINK_LOOPED;
+      }
+      else {
+        stroke_Color =this.LINK_UP;
+      }
 
 	  var style = {
-	      strokeColor: (state == "down" ? this.LINK_DOWN : this.LINK_UP),
+          strokeColor: stroke_Color,
+	      //strokeColor: (state == "down" ? this.LINK_DOWN : this.LINK_UP),
 	      strokeOpacity: 1.0,
 	      strokeDashstyle: (state == "down" ? "dot" : "solid"),
 	      strokeWidth: 3.5,
@@ -675,7 +689,11 @@ function NDDIMap(div_id, interdomain_mode, options){
               if(data.links[i].state == "up"){
                   link_up_count++;
                   link_name += "<div style='text-shadow: 1px 1px 1px #FFF;color: "+this.LINK_UP+";'>";
-              }else {
+              }
+              else if(data.links[i].state == "looped") {
+                link_name += "<div style='text-shadow: 1px 1px 1px #FFF;color: "+this.LINK_LOOPED+";'>";
+            }
+              else {
                   link_name += "<div style='text-shadow: 1px 1px 1px #FFF;color: "+this.LINK_DOWN+";'>";
               }
           }else {

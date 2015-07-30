@@ -384,7 +384,8 @@ function build_circuitTable(){
     {key: "bandwidth", parser: "number"},
     {key: "name"},
     {key: "endpoints"},
-    {key: "workgroup.name"}
+    {key: "workgroup.name"},
+    {key: "loop_node"}
 		 ],
 	metaFields: {
 	    error: "error"
@@ -393,8 +394,8 @@ function build_circuitTable(){
     
     var columns = [
 		   
-		   {key: "description", label: "Description", sortable: true, width: 400},
-		   {key: "endpoints", label: "Endpoints", sortable: true, width: 280, formatter: function(el, rec, col, data){
+		   {key: "description", label: "Description", sortable: true, width: 350},
+		   {key: "endpoints", label: "Endpoints", sortable: true, width: 270, formatter: function(el, rec, col, data){
 
 			   var endpoints  = rec.getData('endpoints');
 
@@ -459,7 +460,16 @@ function build_circuitTable(){
 			   }
 			   el.innerHTML = "<enter>"+data+"</center>";
 		       }
-		   }
+		   }/*,
+           {key: "loop_node", label: "In Loop", sortable: true, width: 150, formatter: function(el,rec,col,data) {
+                if (data) {
+
+                    el.innerHTML = "Looped";
+                }
+                else {
+                    el.innerHTML = "No Loop";
+                }
+                                                                                                                   }}*/
 		   ];
 
     var config = {
@@ -656,22 +666,39 @@ function build_circuitTable(){
     circuit_status_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     circuit_status_ds.responseSchema = {
 	resultsList: "results",
-	fields: ["description","name","operational_state","active_path"]
+	fields: ["description","name","operational_state","active_path", "state"]
     };
 
     var circuit_status_cols = [
-			       {key: "description", label: "name",sortable:true, width: 200},
+			       {key: "description", label: "Name",sortable:true, width: 200},
 			       {key: "status", label: "Status",sortable:true, width: 100,sortable: true, formatter: function(elLiner, oRec, oColumn, oData){
 				       if(oRec.getData('operational_state') == 'down'){
 					   elLiner.innerHTML = "<font color='red'>down</font>";
-				       }else{
-					   if(oRec.getData('active_path') == 'primary'){
-					       elLiner.innerHTML = "<font color='green'>primary</font>";
-					   }else{
-					       elLiner.innerHTML = "<font color='orange'>backup</font>";
-					   }
 				       }
-				   }}
+                       else{
+					   if(oRec.getData('active_path') == 'primary'){
+                           if (oRec.getData('state') == 'looped') {
+
+
+					            elLiner.innerHTML = "<font color='green'>Primary (Looped)</font>";
+                            }
+                           else {
+
+					            elLiner.innerHTML = "<font color='green'>Primary</font>";
+                            }
+					   }
+                       else{
+
+                           if (oRec.getData('state') == 'looped') {
+					            elLiner.innerHTML = "<font color='orange'>Backup(Looped)</font>";
+                           }
+                           else {
+
+					            elLiner.innerHTML = "<font color='orange'>Backup</font>";
+                            }
+					   }
+
+				   }}}
 			       ];
 
     var circuit_status_table = new YAHOO.widget.ScrollingDataTable("circuit_status_table",circuit_status_cols, circuit_status_ds,{height: '480px'});

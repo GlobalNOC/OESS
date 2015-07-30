@@ -128,5 +128,34 @@ sub workgroupLimits {
     warn Dumper($res);
 }
 
+sub flows_match {
+    my %args = @_;
+    my $actual_flows   = $args{'actual_flows'};
+    my $expected_flows = $args{'expected_flows'};
+    my $failed_flow_compare = 0;
+    foreach my $actual_flow (@$actual_flows){
+        my $found = 0;
+        for(my $i=0;$i < scalar(@$expected_flows); $i++){
+
+            if($expected_flows->[$i]->compare_flow( flow_rule => $actual_flow)) {
+                $found = 1;
+                splice(@$expected_flows, $i,1);
+                last;
+            }
+        }
+        if(!$found){
+            warn "Didn't find actual_flow:   ".$actual_flow->to_human();
+            $failed_flow_compare = 1;
+            #last;
+        }
+    }
+
+    foreach my $expected_flow (@$expected_flows){
+        $failed_flow_compare = 1;
+        warn "Didn't find expected_flow: " . $expected_flow->to_human();
+    }
+    return !$failed_flow_compare;
+} 
+
 
 1;
