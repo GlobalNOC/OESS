@@ -3,7 +3,7 @@
   
 function init(){  
 
-    setPageSummary("Diagnostic Circuit Loopback", "");
+    setPageSummary("Circuit Loopback", "");
 
     var nddi_map = new NDDIMap("map");
 
