@@ -70,6 +70,7 @@ function save_session_from_datasource(details){
         var endpoint = details.endpoints[i];
         var endpoint_data = {
             node: endpoint.node,
+            node_id: endpoint.node_id,
             interface: endpoint.interface,
             interface_description: endpoint.interface_description,
             tag: endpoint.tag,
