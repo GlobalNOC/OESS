@@ -83,7 +83,9 @@ function init(){
                +"&restore_to_primary="+restore_to_primary
                +"&static_mac="+static_mac
                +"&loop_node="+node_id
-               +"&state=" +state; 
+               +"&state=" +state 
+               +"&loop_node=" + node_id
+               +"&node_name=" + node_name;
 
         for (var i = 0; i < endpoints.length; i++){
             postVars += "&node=" + encodeURIComponent(endpoints[i].node);
@@ -116,8 +118,7 @@ function init(){
         resultsList: "results",
         fields: [{key: "success", parser: "number"},
                      {key: "circuit_id", parser: "number"},
-
-                     {key: "loop_node", parser: "number"}    
+                     {key: "loop_node", parser: "number"}
              ],  
         metaFields: {
             error: "error",
@@ -160,6 +161,9 @@ function handleLocalSuccess(request, response){
 
         alert("Circuit successfully Looped.<br>" + warning,
           function(){
+
+        session.data.loop_node = node_name;
+        session.save();
               window.location = "?action=view_details";
           }
           );
@@ -167,13 +171,14 @@ function handleLocalSuccess(request, response){
     else{
         alert("Circuit successfully Looped.",
           function(){
+
+        session.data.loop_node = node_name;
+        session.save();
               window.location = "?action=view_details";
           }
           );
     }
 
-        session.data.loop_node = node_name;
-        session.save();
     }
     else {
         alert("Unknown return value in looping.");

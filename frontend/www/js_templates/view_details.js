@@ -39,6 +39,7 @@ function make_circuit_details_datasource(){
     {key: "state"},
     {key: "active_path"},
     {key: "restore_to_primary"},
+    {key: "loop_node"},
     {key: "static_mac"} //TODO change to perma-name
 	]
     };
@@ -63,6 +64,7 @@ function save_session_from_datasource(details){
     session.data.backup_links = [];
     session.data.passthrough  = [];
     session.data.restore_to_primary = details.restore_to_primary;
+    session.data.loop_node = details.loop_node;
 
     for (var i = 0; i < details.endpoints.length; i++){
         var endpoint = details.endpoints[i];
@@ -1022,7 +1024,7 @@ function handleLocalSuccess(request, response){
     else{
         alert("Circuit Loop removed.",
           function(){
-              window.location = "?action=index";
+              window.location = "?action=view_details";
           }
           );
     }
