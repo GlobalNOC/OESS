@@ -844,6 +844,7 @@ function setup_users_tab(){
 	    var email      = record.getData('email_address');
 	    var auth_names = (record.getData('auth_name') || []).join(",");
 	    var type       = record.getData('type');
+        var status     = record.getData('status');
 	    	    
 	    var region = YAHOO.util.Dom.getRegion(oArgs.target);
 
@@ -854,307 +855,265 @@ function setup_users_tab(){
 	    }
 	    
 
-	    showUserInfoPanel.call(this, user_id, first, family, email, auth_names, type, [region.left, region.bottom], oArgs);
+	    showUserInfoPanel.call(this, user_id, first, family, email, auth_names, type, status, [region.left, region.bottom], oArgs);
 	});
 
-    function showUserInfoPanel(user_id, first_name, family_name, email, auth_names,type, xy, target){
-
-	if (this.user_panel){
-	    this.user_panel.destroy();
-	    this.user_panel = null;
-	}
-	
-	var p = new YAHOO.widget.Panel("user_details",{
-        width: 450,
-		xy: xy,
-		modal: true
-	});
-	
-	this.user_panel = p;
-	
-	p.setHeader("User Details");					    
-	
-	p.setBody("<table>" + 
-		  "<tr>" +
-		  "<td>First Name:</td>" +
-		  "<td><input type='text' id='user_given_name' size='38'></td>" +
-		  "</tr>" +
-		  "<tr>" +
-		  "<td>Last Name:</td>" +
-		  "<td><input type='text' id='user_family_name' size='38'></td>" +
-		  "</tr>" +
-		  "<tr>" +
-		  "<td>Email Address:</td>" +
-		  "<td><input type='text' id='user_email_address' size='38'></td>" +
-		  "</tr>" +
-		  "<tr>" +
-		  "<td>Username(s)<br>(comma separated)</td>" +
-		  "<td><input type='text' id='user_auth_names' size='38'></td>" +
-		  "</tr>"+
-		  "<tr>" +
-		  "<td>User Type</td>" +
-		  "<td><select id='user_type'><option value='normal'>Normal</option><option value='read-only'>Read-Only</option></select></td>" +
-		  "</tr>" +
-		  "</table>"+
-          "<div style='text-align:left;margin-top:5px;'>"+
-          "   <label>Workgroup Membership:</label>"+
-          "</div>"+
-		  "<div id='user_workgroup_table'></div>"+
-          "<div id='add_user_to_workgroup'></div>"
-		  );
-		
-	p.setFooter("<div id='submit_user'></div><div id='decom_user'></div>");
-
-	p.render(document.body);
-		
-	makeHelpPanel("user_given_name", "This is the user's first name(s).");
-	makeHelpPanel("user_family_name", "This is the user's last, or family, name(s).");
-	makeHelpPanel("user_email_address", "This is the user's email address. This will be used to notify the user about events that happen to circuits in this workgroup.");
-	makeHelpPanel("user_auth_names", "These are the usernames that this user is identified by. These are typically what the REMOTE_USER field will be set to for whatever authentication method you are using. If multiple values would like to be used, just separate them with a comma.");
-	makeHelpPanel("user_type", "Specifies either a normal user or a read-only user.  If a user is a read-only user then they can view everything that every user can see in their workgroup, however they are unable to affect any changes on the system.  A normal user can make changes that affect the system.");
-
-	if(type == 'normal'){
-	    type = 0;
-	}else{
-	    type = 1;
-	}
-
-	YAHOO.util.Dom.get("user_given_name").value    = first_name  || "";
-	YAHOO.util.Dom.get("user_family_name").value   = family_name || "";
-	YAHOO.util.Dom.get("user_email_address").value = email || "";
-	YAHOO.util.Dom.get("user_auth_names").value    = auth_names || "";
-	YAHOO.util.Dom.get("user_type").selectedIndex  = type || 0;
-	YAHOO.util.Dom.get("user_given_name").focus();
-
-	var submit_button = new YAHOO.widget.Button("submit_user", {label: "Save"});
-    
-	if (user_id){
+    function showUserInfoPanel(user_id, first_name, family_name, email, auth_names, type, status, xy, target){
+        
+	    if (this.user_panel){
+	        this.user_panel.destroy();
+	        this.user_panel = null;
+	    }
 	    
-	    var decom_button = new YAHOO.widget.Button("decom_user", {label: "Decom User"});
+	    var p = new YAHOO.widget.Panel("user_details",{
+            width: 450,
+		    xy: xy,
+		    modal: true
+	    });
 	    
-	    decom_button.on("click", function() {
-		    
+	    this.user_panel = p;
+	    
+	    p.setHeader("User Details");					    
+	    
+	    p.setBody("<table>" + 
+		          "<tr>" +
+		          "<td>First Name:</td>" +
+		          "<td><input type='text' id='user_given_name' size='38'></td>" +
+		          "</tr>" +
+		          "<tr>" +
+		          "<td>Last Name:</td>" +
+		          "<td><input type='text' id='user_family_name' size='38'></td>" +
+		          "</tr>" +
+		          "<tr>" +
+		          "<td>Email Address:</td>" +
+		          "<td><input type='text' id='user_email_address' size='38'></td>" +
+		          "</tr>" +
+		          "<tr>" +
+		          "<td>Username(s)<br>(comma separated)</td>" +
+		          "<td><input type='text' id='user_auth_names' size='38'></td>" +
+		          "</tr>"+
+		          "<tr>" +
+		          "<td>User Type</td>" +
+		          "<td><select id='user_type'><option value='normal'>Normal</option><option value='read-only'>Read-Only</option></select></td>" +
+		          "</tr>" +
+		          "<tr>" +
+		          "<td>Status</td>" +
+		          "<td><select id='user_admin_status'><option value='active'>Active</option><option value='decom'>Decom</option></select></td>" +
+		          "</tr>" +
+		          "</table>"+
+                  "<div style='text-align:left;margin-top:5px;'>"+
+                  "   <label>Workgroup Membership:</label>"+
+                  "</div>"+
+		          "<div id='user_workgroup_table'></div>"+
+                  "<div id='add_user_to_workgroup'></div>"
+		         );
+		
+	    p.setFooter("<div id='submit_user'></div>");
+        
+	    p.render(document.body);
+		
+	    makeHelpPanel("user_given_name", "This is the user's first name(s).");
+	    makeHelpPanel("user_family_name", "This is the user's last, or family, name(s).");
+	    makeHelpPanel("user_email_address", "This is the user's email address. This will be used to notify the user about events that happen to circuits in this workgroup.");
+	    makeHelpPanel("user_auth_names", "These are the usernames that this user is identified by. These are typically what the REMOTE_USER field will be set to for whatever authentication method you are using. If multiple values would like to be used, just separate them with a comma.");
+	    makeHelpPanel("user_type", "Specifies either a normal user or a read-only user.  If a user is a read-only user then they can view everything that every user can see in their workgroup, however they are unable to affect any changes on the system.  A normal user can make changes that affect the system.");
+	    makeHelpPanel("user_admin_status", "Specifies the administrative status of the user. Active users may use OESS as their permissions allow. Decom users are prevented from using OESS at all.");
+        
+	    if(type == 'normal'){
+	        type = 0;
+	    }else{
+	        type = 1;
+	    }
+
+        if(status == 'active'){
+            YAHOO.util.Dom.get("user_admin_status").selectedIndex  = 0;
+        }
+        else if(status == 'decom'){
+            YAHOO.util.Dom.get("user_admin_status").selectedIndex  = 1;
+        }
+        else {
+            YAHOO.util.Dom.get("user_admin_status").selectedIndex  = 0;
+        }
+        
+	    YAHOO.util.Dom.get("user_given_name").value    = first_name  || "";
+	    YAHOO.util.Dom.get("user_family_name").value   = family_name || "";
+	    YAHOO.util.Dom.get("user_email_address").value = email || "";
+	    YAHOO.util.Dom.get("user_auth_names").value    = auth_names || "";
+	    YAHOO.util.Dom.get("user_type").selectedIndex  = type || 0;
+	    YAHOO.util.Dom.get("user_given_name").focus();
+        
+	    var submit_button = new YAHOO.widget.Button("submit_user", {label: "Save"});
+        
+	    submit_button.on("click", function(){
+		    this.set("label", "Saving...");
+		    this.set("disabled", true);
+            
+		    var url = "../services/admin/admin.cgi?"
+            
+		    if (! user_id){
+		        url += "action=add_user";
+		    }
+		    else{
+		        url += "action=edit_user&user_id="+user_id;
+		    }
+            
 		    var fname = YAHOO.util.Dom.get("user_given_name").value;
 		    var lname = YAHOO.util.Dom.get("user_family_name").value;
-		    showConfirm("Are you sure you want to decom user \"" + fname + " " + lname + "\"? Note that this action will disable the user from using any OESS resources.",
-				
-				function(){
-				    
-				    decom_button.set("label", "Decoming...");
-				    decom_button.set("disabled", true);
-				    submit_button.set("disabled", true);
-				    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=decom_user&user_id="+user_id);
-				    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-				    ds.responseSchema = {
-					resultsList: "results",
-					fields: [{key: "success"}],
-					metaFields: {
-					    error: "error"
-					}
-				    };
-				    
-				    ds.sendRequest("",
-						   {
-						       success: function(req, resp){
-							   decom_button.set("label", "Decom User");
-							   decom_button.set("disabled", false);
-							   submit_button.set("disabled", false);			
-			   
-							   if (resp.meta.error){
-							       alert("Error decoming user: " + resp.meta.error);
-							   }
-							   else{
-							       p.hide();
-                                   setup_users_tab();
-							       YAHOO.util.Dom.get("user_status").innerHTML = "User decommed successfully.";
-							   }
-						       },
-						       failure: function(req, resp){
-							   decom_button.set("label", "Decom User");
-							   decom_button.set("disabled", false);
-							   submit_button.set("disabled", false);
-							   							   
-							   alert("Server error while decomming user.");
-						       }
-						   }
-						   );
-                
-                },
-                function(){}
-
-                );
-
-        });
-	}
-
-	submit_button.on("click", function(){
-		this.set("label", "Saving...");
-		this.set("disabled", true);
-
-		var url = "../services/admin/admin.cgi?"
-
-		if (! user_id){
-		    url += "action=add_user";
-		}
-		else{
-		    url += "action=edit_user&user_id="+user_id;
-		}
-
-		var fname = YAHOO.util.Dom.get("user_given_name").value;
-		var lname = YAHOO.util.Dom.get("user_family_name").value;
-		var email = YAHOO.util.Dom.get("user_email_address").value;
-		var auth  = YAHOO.util.Dom.get("user_auth_names").value;
-		var type  = YAHOO.util.Dom.get("user_type").value;
-
-		if (! type ){
-		    type = "normal";
-		}
-
-		if (! fname || !lname){
-		    alert("You must specify a first and last name for this user.");
-		    this.set("label", "Save");
-		    this.set("disabled", false);
-		    return;
-		}
-
-		if (! email){
-		    alert("You must specify an email address for this user.");
-		    this.set("label", "Save");
-                    this.set("disabled", false);
-		    return;
-		}
-
-		if (! auth){
-		    alert("You must specify at least one username for this user.");
-		    this.set("label", "Save");
-                    this.set("disabled", false);
-		    return;
-		}
-
-        if (fname.toLowerCase() == 'system'){
-            alert("You cannot use the word 'system', as a first name.");
-            this.set("label", "Save");
-                    this.set("disabled", false);
-            return;
-        }
-
-		url += "&first_name="+encodeURIComponent(fname);
-		url += "&family_name="+encodeURIComponent(lname);
-		url += "&email_address="+encodeURIComponent(email);
-		url += "&type="+encodeURIComponent(type);
-		var names = auth.split(",");
-
-		for (var i = 0; i < names.length; i++){
-		    url += "&auth_name="+encodeURIComponent(names[i]);
-		}
-
-		var ds = new YAHOO.util.DataSource(url);
-		ds.responseType   = YAHOO.util.DataSource.TYPE_JSON;
-		ds.responseSchema = {
-		    resultsList: "results",
-            fields: [
-			    {key: "success"},
-                {key: "user_id"}
-		    ],
-		    metaFields: {
-			error: "error"
-		    }
-		};
-
-		YAHOO.util.Dom.get("user_status").innerHTML = "";
-
-		ds.sendRequest("", 
-			       {
-				   success: function(req, resp){
-				       if (resp.meta.error){
-					   YAHOO.util.Dom.get("user_status").innerHTML = "Error saving user: " + resp.meta.error;
-				       }
-				       else{
-					   YAHOO.util.Dom.get("user_status").innerHTML = "User saved successfully.";
-                       user_id = resp.results[0].user_id;
-                       
-
-                       if (!add_new_user_to_workgroup) {
-				        p.destroy();
-				        setup_users_tab();
-                       }
-
-                       else{
-
-                                var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_user_to_workgroup&workgroup_id=" + add_new_user_to_workgroup + "&user_id="+ user_id);
-                                ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-                                ds.responseSchema = {
-                                resultsList: "results",
-                                fields: [{key: "success"}],
-                                metaFields: { 
-                                        error: "error"
-                                }
-                                };
-                                
-                                ds.sendRequest("", 
-                                       {
-                                           success: function(req, resp){
-                                           //user_table.undisable();
-                                           if (resp.meta.error){
-                                               //YAHOO.util.Dom.get('add_result').innerHTML = "Error while adding user: " + resp.meta.error;
-                                               alert("User created, but error adding to workgroup requested.");
-                                               setup_users_tab();
-                                               p.destroy();
-                                               add_new_user_to_workgroup;
-                                           }
-                                           else{
-                                               //YAHOO.util.Dom.get('add_result').innerHTML = "User added successfully.";
-                                                p.destroy();
-                                                setup_users_tab();
-
-                                                add_new_user_to_workgroup = 0;
-                                           }
-                                           },
-                                           failure: function(req, resp){
-                                           
-                                            alert("User created, but server error in adding to workgroup requested.");
-
-                                            setup_users_tab();
-                                            p.destroy();
-                                            add_new_user_to_workgroup;
-                                            //user_table.undisable();
-                                           //YAHOO.util.Dom.get('add_result').innerHTML = "Server error while adding user to workgroup.";
-                                           }
-                                       }
-                                       );
+		    var email = YAHOO.util.Dom.get("user_email_address").value;
+		    var auth  = YAHOO.util.Dom.get("user_auth_names").value;
+		    var type  = YAHOO.util.Dom.get("user_type").value;
+		    var status  = YAHOO.util.Dom.get("user_admin_status").value;
             
-                            }
-                        }
-				   },
-				   failure: function(reqp, resp){
-				       this.set("label", "Save");
-				       this.set("disabled", false);
-				       alert("Server error while saving user.");
-				   },
-				   scope: this
-			       });
-
-
+		    if (! type ){
+		        type = "normal";
+		    }
+            
+		    if (! fname || !lname){
+		        alert("You must specify a first and last name for this user.");
+		        this.set("label", "Save");
+		        this.set("disabled", false);
+		        return;
+		    }
+            
+		    if (! email){
+		        alert("You must specify an email address for this user.");
+		        this.set("label", "Save");
+                this.set("disabled", false);
+		        return;
+		    }
+            
+		    if (! auth){
+		        alert("You must specify at least one username for this user.");
+		        this.set("label", "Save");
+                this.set("disabled", false);
+		        return;
+		    }
+            
+            if (fname.toLowerCase() == 'system'){
+                alert("You cannot use the word 'system', as a first name.");
+                this.set("label", "Save");
+                this.set("disabled", false);
+                return;
+            }
+            
+		    url += "&first_name="+encodeURIComponent(fname);
+		    url += "&family_name="+encodeURIComponent(lname);
+		    url += "&email_address="+encodeURIComponent(email);
+		    url += "&type="+encodeURIComponent(type);
+            url += "&status="+encodeURIComponent(status);
+		    var names = auth.split(",");
+            
+		    for (var i = 0; i < names.length; i++){
+		        url += "&auth_name="+encodeURIComponent(names[i]);
+		    }
+            
+		    var ds = new YAHOO.util.DataSource(url);
+		    ds.responseType   = YAHOO.util.DataSource.TYPE_JSON;
+		    ds.responseSchema = {
+		        resultsList: "results",
+                fields: [
+			        {key: "success"},
+                    {key: "user_id"}
+		        ],
+		        metaFields: {
+			        error: "error"
+		        }
+		    };
+            
+		    YAHOO.util.Dom.get("user_status").innerHTML = "";
+            
+		    ds.sendRequest("", 
+			               {
+				               success: function(req, resp){
+				                   if (resp.meta.error){
+					                   YAHOO.util.Dom.get("user_status").innerHTML = "Error saving user: " + resp.meta.error;
+				                   }
+				                   else{
+					                   YAHOO.util.Dom.get("user_status").innerHTML = "User saved successfully.";
+                                       user_id = resp.results[0].user_id;
+                                       
+                                       
+                                       if (!add_new_user_to_workgroup) {
+				                           p.destroy();
+				                           setup_users_tab();
+                                       }
+                                       
+                                       else{
+                                           
+                                           var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_user_to_workgroup&workgroup_id=" + add_new_user_to_workgroup + "&user_id="+ user_id);
+                                           ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                                           ds.responseSchema = {
+                                               resultsList: "results",
+                                               fields: [{key: "success"}],
+                                               metaFields: { 
+                                                   error: "error"
+                                               }
+                                           };
+                                           
+                                           ds.sendRequest("", 
+                                                          {
+                                                              success: function(req, resp){
+                                                                  //user_table.undisable();
+                                                                  if (resp.meta.error){
+                                                                      //YAHOO.util.Dom.get('add_result').innerHTML = "Error while adding user: " + resp.meta.error;
+                                                                      alert("User created, but error adding to workgroup requested.");
+                                                                      setup_users_tab();
+                                                                      p.destroy();
+                                                                      add_new_user_to_workgroup;
+                                                                  }
+                                                                  else{
+                                                                      //YAHOO.util.Dom.get('add_result').innerHTML = "User added successfully.";
+                                                                      p.destroy();
+                                                                      setup_users_tab();
+                                                                      
+                                                                      add_new_user_to_workgroup = 0;
+                                                                  }
+                                                              },
+                                                              failure: function(req, resp){
+                                                                  
+                                                                  alert("User created, but server error in adding to workgroup requested.");
+                                                                  
+                                                                  setup_users_tab();
+                                                                  p.destroy();
+                                                                  add_new_user_to_workgroup;
+                                                                  //user_table.undisable();
+                                                                  //YAHOO.util.Dom.get('add_result').innerHTML = "Server error while adding user to workgroup.";
+                                                              }
+                                                          }
+                                                         );
+                                           
+                                       }
+                                   }
+				               },
+				               failure: function(reqp, resp){
+				                   this.set("label", "Save");
+				                   this.set("disabled", false);
+				                   alert("Server error while saving user.");
+				               },
+				               scope: this
+			               });
+            
+            
 	    });
-
+        
         makeUserWorkgroupTable(user_id,first_name,family_name)
-
+        
     };
-
+    
     
     var add_user = new YAHOO.widget.Button("add_user_button", {label: "New User"});
     
     add_user.on("click", function(){
-
+        
 	    var region = YAHOO.util.Dom.getRegion("users_content");
 	    
 	    // get the popup nice and centered
 	    var xy = [region.left + (region.width / 2) - 225,
-		      region.top + (region.height / 2) - 75];
-
-	    showUserInfoPanel.call(user_table, null, null, null, null, null, xy);
+		          region.top + (region.height / 2) - 75];
+        
+	    showUserInfoPanel.call(user_table, null, null, null, null, null, null, xy);
 	});
-
+    
 }
 
 function setup_workgroup_tab(){
@@ -3622,42 +3581,42 @@ function makeWorkgroupUserTable(id){
 function makeUserTable(div_id,search_id){
     
     var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_users");
-    	
+    
     
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
-	resultsList: "results",
-	fields: [{key: "user_id", parser: "number"},
+	    resultsList: "results",
+	    fields: [{key: "user_id", parser: "number"},
                  {key: "first_name"},
                  {key: "family_name"},
                  {key: "email_address"},
-    {key: "auth_name"},
-    {key: "type"},
-    {key: "status"}
-		 ]
+                 {key: "auth_name"},
+                 {key: "type"},
+                 {key: "status"}
+		        ]
     };
-
+    
     var columns = [{key: "first_name", label: "First Name", width: 100,sortable:true
-		    /*formatter: function(el, rec, col, data){
-		                    el.innerHTML = rec.getData("first_name") + " " + rec.getData("family_name");
-	                       }*/
-	           },
+		            /*formatter: function(el, rec, col, data){
+		              el.innerHTML = rec.getData("first_name") + " " + rec.getData("family_name");
+	                  }*/
+	               },
 				   {key: "family_name",label:"Last Name", width: 100,sortable:true },
 				   {key: "auth_name", label: "Username", width: 175,sortable:true},
-    {key: "email_address", label: "Email Address", width: 175,sortable:true},
-    {key: "type", label: "User Type", width: 90, sortable: true},
-    {key: "status", label: "User Status", wdith: 90, sortable: true}
-    ];
-
+                   {key: "email_address", label: "Email Address", width: 175,sortable:true},
+                   {key: "type", label: "User Type", width: 90, sortable: true},
+                   {key: "status", label: "User Status", wdith: 90, sortable: true}
+                  ];
+    
     var config = {
 		sortedBy: {key:'first_name', dir:'asc'},
-	paginator:  new YAHOO.widget.Paginator({rowsPerPage: 10,
-						containers: [div_id + "_nav"]
-	    })
+	    paginator:  new YAHOO.widget.Paginator({rowsPerPage: 10,
+						                        containers: [div_id + "_nav"]
+	                                           })
     };
-
+    
     var table = new YAHOO.widget.DataTable(div_id, columns, ds, config);
-
+    
     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
     table.subscribe("rowClickEvent", table.onEventSelectRow);
