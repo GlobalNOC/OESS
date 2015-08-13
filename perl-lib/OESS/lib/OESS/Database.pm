@@ -2860,9 +2860,14 @@ sub add_user {
     my $email       = $args{'email_address'};
     my $auth_names  = $args{'auth_names'};
     my $type        = $args{'type'};
+    my $status      = $args{'status'};
     
     if (!defined ($type)){
         $type = "normal";
+    }
+
+    if(!defined($status)){
+        $status = 'active';
     }
 
     if(!defined($given_name) || !defined($family_name) || !defined($email) || !defined($auth_names)){
@@ -2877,9 +2882,9 @@ sub add_user {
 
     $self->_start_transaction();
 
-    my $query = "insert into user (email, given_names, family_name, type) values (?, ?, ?, ?)";
+    my $query = "insert into user (email, given_names, family_name, type, status) values (?, ?, ?, ?, ?)";
 
-    my $user_id = $self->_execute_query($query, [$email, $given_name, $family_name, $type]);
+    my $user_id = $self->_execute_query($query, [$email, $given_name, $family_name, $type, $status]);
 
     if (! defined $user_id){
 	$self->_set_error("Unable to create new user.");
@@ -2990,6 +2995,10 @@ The user's email address.
 
 An array of usernames that this user may validate under. This is typically only 1, but could be more if using some sort of federated authentication mechanism without requiring multiple user entries.
 
+=item status
+
+The administrative status of the user (active|decom).
+
 =back
 
 =cut
@@ -3004,72 +3013,36 @@ sub edit_user {
     my $email       = $args{'email_address'};
     my $auth_names  = $args{'auth_names'};
     my $type        = $args{'type'};
-    
+    my $status      = $args{'status'};
+
+
     if ($given_name =~ /^system$/ || $family_name =~ /^system$/){
-	$self->_set_error("User 'system' is reserved.");
-	return;
+        $self->_set_error("User 'system' is reserved.");
+        return;
     }
-
-    $self->_start_transaction();
-
-    my $query = "update user set email = ?, given_names = ?, family_name = ?, type =?  where user_id = ?";
-
-    my $result = $self->_execute_query($query, [$email, $given_name, $family_name,$type,  $user_id]);
-
-    if (! defined $user_id || $result == 0){
-	$self->_set_error("Unable to edit user - does this user actually exist?");
-	$self->_rollback();
-    return;
-    }
-
-    $self->_execute_query("delete from remote_auth where user_id = ?", [$user_id]);
-
-    foreach my $name (@$auth_names){
-	$query = "insert into remote_auth (auth_name, user_id) values (?, ?)";
-
-	$self->_execute_query($query, [$name, $user_id]);
-    }
-
-    $self->_commit();
-
-    return 1;
-}
-
-=head2 decom_user
     
-Decoms the user with the passed user id.
-
-=over
-
-=item user_id
-
-The id of the user to decom
-
-=back
-
-=cut
-
-sub decom_user {
-    my $self = shift;
-    my %args = @_;
-
-    my $user_id = $args{'user_id'};
-    my $status = "decom";
-
     $self->_start_transaction();
-
-    my $query = "update user set status = 'decom' where user_id = ?";
-
-    my $result = $self->_execute_query($query, [$user_id]);
-
+    
+    my $query = "update user set email = ?, given_names = ?, family_name = ?, type = ?, status = ?  where user_id = ?";
+    
+    my $result = $self->_execute_query($query, [$email, $given_name, $family_name, $type, $status,  $user_id]);
+    
     if (! defined $user_id || $result == 0){
-        $self->_set_error("Unable to decom user - does this user actually exist?");
+        $self->_set_error("Unable to edit user - does this user actually exist?");
         $self->_rollback();
         return;
     }
-
+    
+    $self->_execute_query("delete from remote_auth where user_id = ?", [$user_id]);
+    
+    foreach my $name (@$auth_names){
+        $query = "insert into remote_auth (auth_name, user_id) values (?, ?)";
+        
+        $self->_execute_query($query, [$name, $user_id]);
+    }
+    
     $self->_commit();
-
+    
     return 1;
 }
 

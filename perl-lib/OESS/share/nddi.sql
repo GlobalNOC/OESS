@@ -457,7 +457,7 @@ CREATE TABLE `user` (
 
 LOCK TABLES `user` WRITE;
 /*!40000 ALTER TABLE `user` DISABLE KEYS */;
-INSERT INTO `user` VALUES (1,'system@localhost','system','system',0,'normal');
+INSERT INTO `user` VALUES (1,'system@localhost','system','system',0,'normal','active');
 /*!40000 ALTER TABLE `user` ENABLE KEYS */;
 UNLOCK TABLES;
 
