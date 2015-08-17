@@ -110,7 +110,7 @@ sub _fail_over {
     if ($@) {
         warn "Error in _connect_to_fwdctl: $@";
     }
-
+        
     if ( !defined($client) ) {
         return;
     }
@@ -290,6 +290,7 @@ sub provision_circuit {
     my @mac_addresses = $cgi->param('mac_address');
     my @endpoint_mac_address_nums = $cgi->param('endpoint_mac_address_num');
     my $loop_node   =$cgi->param('loop_node');
+    #my $loop_name = $cgi->param('loop_name');
     my $state = $cgi->param('state') || 'active';
 
     my @remote_nodes = $cgi->param('remote_node');
@@ -388,10 +389,11 @@ sub provision_circuit {
             static_mac => $static_mac,
             do_sanity_check => 0,
             loop_node => $loop_node,
-            state  => $state
+            state  => $state#,
+            #loop_name => $loop_name
         );
+
         ##Edit Existing Circuit
-        
         # verify is allowed to modify circuit ISSUE=7690
         # and perform all other sanity checks on circuit 10278
         if(!$db->circuit_sanity_check(%edit_circuit_args)){
@@ -403,7 +405,9 @@ sub provision_circuit {
         if ( !$result ) {
             $output->{'warning'} =
               "Unable to talk to fwdctl service - is it running?";
-            return;
+              $results->{'error'} = "Unable to talk to fwdctl service - is it running?";
+
+            return $results;
         }
         if ( $result == 0 ) {
             $results->{'error'} =
@@ -584,77 +588,6 @@ sub reprovision_circuit {
 
     return $results;
 }
-
-=head
-sub add_remove_loopback {
-
-    my $results;
-
-    my $circuit_id = $cgi->param('circuit_id');
-    my $node_id    = $cgi->param('node_id');
-    my $workgroup_id = $cgi->param('workgroup_id');
-        
-
-    $results->{'results'} = [];
-
-    my $can_remove = $db->can_modify_circuit(
-                                             circuit_id   => $circuit_id,
-                                             username     => $ENV{'REMOTE_USER'},
-                                             workgroup_id => $workgroup_id
-                                            );
-
-    my $bus = Net::DBus->system;
-    my $log_svc;
-    my $log_client;
-
-    eval {
-        $log_svc    = $bus->get_service("org.nddi.notification");
-        $log_client = $log_svc->get_object("/controller1");
-    };
-    warn $@ if $@;
-
-    #first, let's make sure that we can touch this circuit.
-    if ( !defined $can_remove ) {
-        $results->{'error'} = $db->get_error();
-        return $results;
-    }
-
-    #if we can't touch it, bounce the user.
-    if ( $can_remove < 1 ) {
-        $results->{'error'} =
-          "Users and workgroup do not have permission to remove this circuit";
-        return $results;
-    }
-
-    #otherwise, proceed.
-
-    my %edit_circuit_args = ( 
-            circuit_id     => $circuit_id,
-            description    => $description,
-            bandwidth      => $bandwidth,
-            provision_time => $provision_time,
-            restore_to_primary => $restore_to_primary,
-            remove_time    => $remove_time,
-            links          => \@links,
-            backup_links   => \@backup_links,
-            nodes          => \@nodes,
-            interfaces     => \@interfaces,
-            tags           => \@tags,
-            mac_addresses  => \@mac_addresses,
-            endpoint_mac_address_nums  => \@endpoint_mac_address_nums,
-            user_name      => $ENV{'REMOTE_USER'},
-            workgroup_id   => $workgroup_id,
-            do_external    => 0,
-            static_mac => $static_mac,
-            do_sanity_check => 0
-        );
-
-    my $update_ckt = $db->edit_circuit(%edit_circuit_args);
-    
-    #my $update_ckt = $db->edit_circuit(circuit_id => $circuit_id 
-
-}
-=cut
 
 sub fail_over_circuit {
     my $results;

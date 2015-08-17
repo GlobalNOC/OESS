@@ -31,7 +31,7 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 1.1.6a
+Version 1.1.7
 
 =cut
 
