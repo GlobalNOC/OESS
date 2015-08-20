@@ -2635,12 +2635,13 @@ sub get_users_in_workgroup {
 
     my $users;
 
-    my $results = $self->_execute_query("select user.* from user " .
-					" join user_workgroup_membership on user.user_id = user_workgroup_membership.user_id " .
-					" where user_workgroup_membership.workgroup_id = ?" .
-					" order by given_names ",
-					[$workgroup_id]
-	                                );
+    my $results = $self->_execute_query("select user.* from user" .
+                                        " join user_workgroup_membership on user.user_id = user_workgroup_membership.user_id" .
+                                        " where user_workgroup_membership.workgroup_id = ?" .
+                                        " and user.status = 'active'" .
+                                        " order by given_names",
+                                        [$workgroup_id]
+        );
 
     if (! defined $results){
 	$self->_set_error("Internal error fetching users.");
