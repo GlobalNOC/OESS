@@ -184,8 +184,7 @@ sub datapath_join_to_db{
 	}
 
         #fire the topo_port_status_event
-	_send_topo_port_status(dbus_call_async,$dpid,OFPPR_ADD,$port);
-
+        _send_topo_port_status($dpid, OFPPR_ADD, $port);
     }
 
     $db->_commit();
@@ -316,35 +315,35 @@ sub _send_topo_port_status{
     my $dpid = shift;
     my $reason = shift;
     my $info = shift;
-
-    print_log(LOG_ERR, "attempting to send topo port add event");
+    print_log(LOG_ERR, "Preparing to send topo_port_status event.");
 
     my $bus = Net::DBus->system;
-
     my $client;
     my $service;
     eval {
 	$service = $bus->get_service("org.nddi.fwdctl");
 	$client  = $service->get_object("/controller1");
     };
-
     if ($@){
-	print_log(LOG_ERR, "unable to connect to fwdctl");
+	print_log(LOG_ERR, "Could not connect to DBus service org.nddi.fwdctl.");
 	warn "Error in _connect_to_fwdctl: $@";
 	return undef;
     }
 
-
-    if (! defined $client){
-	print_log(LOG_ERR, "unable to get fwdctl instance");
+    if (! defined $client) {
+	print_log(LOG_ERR, "Couldn't get DBus object from org.nddi.fwdctl.")
 	return undef;
     }
 
-    print_log(LOG_ERR, "trying to send topo_port_statu event");
+    print_log(LOG_ERR, "Sending topo_port_status event");
     eval {
-	my $result = $client->topo_port_status(dbus_call_async,$dpid,$reason,$info);
+	$client->topo_port_status(dbus_call_async, $dpid, $reason, $info);
+    };
+    if ($@) {
+	print_log(LOG_ERR, "Dropped topo_port_status event: $@");
+    } else {
+	print_log(LOG_ERR, "Sent topo_port_status event.");
     }
-
 }
 
 sub port_status_callback{

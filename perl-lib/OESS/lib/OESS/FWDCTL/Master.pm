@@ -214,18 +214,18 @@ sub update_cache{
         }
         
         foreach my $circuit (@$circuits) {
-            
+            my $id = $circuit->{'circuit_id'};
             my $ckt = OESS::Circuit->new( db => $self->{'db'},
-                                          circuit_id => $circuit->{'circuit_id'} );
-            
+                                          circuit_id => $id );
             $self->{'circuit'}->{ $ckt->get_id() } = $ckt;
             
-            if ($circuit->{'operational_state'} eq 'up') {
-                $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
-            } elsif ($circuit->{'operational_state'}  eq 'down') {
-                $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_DOWN;
+            my $operational_state = $circuit->{'details'}->{'operational_state'};
+            if ($operational_state eq 'up') {
+                $circuit_status{$id} = OESS_CIRCUIT_UP;
+            } elsif ($operational_state  eq 'down') {
+                $circuit_status{$id} = OESS_CIRCUIT_DOWN;
             } else {
-                $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UNKNOWN;
+                $circuit_status{$id} = OESS_CIRCUIT_UNKNOWN;
             }
         }
         
@@ -967,7 +967,7 @@ sub topo_port_status{
 	#add case
 	case OFPPR_ADD {
             if (defined($link_id) && defined($link_name)) {
-                _log("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name has been added");
+                $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name has been added");
                 
                 #update all circuits involving this link.
                 my $circuits = $self->{'db'}->get_circuits_on_link(link_id => $link_id);
@@ -986,9 +986,9 @@ sub topo_port_status{
 
 	}case OFPPR_DELETE {
             if (defined($link_id) && defined($link_name)) {
-                _log("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name has been removed");
+                $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name has been removed");
             } else {
-                _log("sw:$sw_name dpid:$dpid_str port $port_name has been removed");
+                $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port $port_name has been removed");
             }
             #diff here!!
             $reason = OFPPR_MODIFY;
