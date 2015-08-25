@@ -267,26 +267,26 @@ sub update_cache{
                     # the link.
                     my $inta = $self->{'db'}->get_interface( interface_id => $link->{'interface_a_id'});
                     if (defined $inta) {
-                        $self->{'logger'}->warn("circuit link inta" . Data::Dumper::Dumper($inta));
+                        $self->{'logger'}->warn("Re-syncing interface $inta->{'name'}.");
                         my $iface_parent = $self->{'db'}->get_node_by_id($inta->{'node_id'});
-                        my %info = {
+                        my $info = {
                             "name" => $inta->{'name'},
                             "port_no" => $inta->{'port_number'},
                             "link" => $inta->{'operational_state'}
                         };
-                        $self->port_status($iface_parent->{'dpid'}, OFPPR_MODIFY, %info);
+                        $self->port_status($iface_parent->{'dpid'}, OFPPR_MODIFY, $info);
                     }
 
                     my $intb = $self->{'db'}->get_interface( interface_id => $link->{'interface_z_id'});
                     if (defined $intb) {
-                        $self->{'logger'}->warn("circuit link inta" . Data::Dumper::Dumper($intb));
+                        $self->{'logger'}->warn("Re-syncing interface $intb->{'name'}.");
                         my $iface_parent = $self->{'db'}->get_node_by_id($intb->{'node_id'});
-                        my %info = {
+                        my $info = {
                             "name" => $intb->{'name'},
                             "port_no" => $intb->{'port_number'},
                             "link" => $intb->{'operational_state'}
                         };
-                        $self->port_status($iface_parent->{'dpid'}, OFPPR_MODIFY, %info);
+                        $self->port_status($iface_parent->{'dpid'}, OFPPR_MODIFY, $info);
                     }
                 }
             }
