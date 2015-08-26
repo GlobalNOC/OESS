@@ -331,7 +331,7 @@ sub _send_topo_port_status{
     }
 
     if (! defined $client) {
-	print_log(LOG_ERR, "Couldn't get DBus object from org.nddi.fwdctl.");
+	print_log(LOG_ERR, "Couldn't get DBus object from org.nddi.fwdctl.")
 	return undef;
     }
 

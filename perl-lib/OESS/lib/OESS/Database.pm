@@ -1189,10 +1189,10 @@ HERE
     
     my $links = $self->get_current_links();
     foreach my $link (@$links){
+    
         my $inta = $self->get_interface( interface_id => $link->{'interface_a_id'});
         my $intb = $self->get_interface( interface_id => $link->{'interface_z_id'});
 
-        # TODO: Verify interfaces are valid before storing in hash.
         push(@{$networks->{$network_name}->{'links'}->{$inta->{'node_name'}}},{"link_name"   => $link->{'name'},
                                                                                "link_state"  => $link->{'link_state'},
                                                                                "link_capacity" => $intb->{'speed'},
@@ -3716,13 +3716,13 @@ sub get_interface {
     $query   .= "where interface_id = ?";
 
     my $results = $self->_execute_query($query, [$interface_id]);
-    my $iface   = @$results[0];
 
-    if (! defined $iface){
+    if (! defined $results){
 	$self->_set_error("Internal error getting interface information.");
 	return;
     }
-    return $iface
+
+    return @$results[0];
 }
 
 =head2 get_interface_by_dpid_and_port

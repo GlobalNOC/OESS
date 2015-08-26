@@ -36,7 +36,6 @@ use Data::Dumper;
 
 use LWP::UserAgent;
 
-use OESS::DBus;
 use OESS::Database;
 use OESS::Topology;
 
@@ -981,12 +980,15 @@ sub update_node {
 
     #send message to update the status
     my $bus = Net::DBus->system;
+
     my $client;
     my $service;
+
     eval {
         $service = $bus->get_service("org.nddi.fwdctl");
         $client  = $service->get_object("/controller1");
     };
+
     if ($@) {
         warn "Error in _connect_to_fwdctl: $@";
         return undef;
@@ -995,18 +997,12 @@ sub update_node {
     if ( !defined $client ) {
         return undef;
     }
+
     my $node = $db->get_node_by_id(node_id => $node_id);
 
-    my $res;
-    my $event_id;
-    eval {
-        ($res, $event_id) = $client->update_cache(-1);
-    };
-    if ($@) {
-        warn "$@";
-    }
-
+    my ($res,$event_id) = $client->update_cache(-1);
     my $final_res = FWDCTL_WAITING;
+
     while($final_res == FWDCTL_WAITING){
         sleep(1);
         $final_res = $client->get_event_status($event_id);

@@ -49,7 +49,6 @@ use JSON::XS;
 use XML::Simple;
 use Time::HiRes qw( usleep );
 use Data::UUID;
-use Data::Dumper;
 
 use constant TIMEOUT => 3600;
 
@@ -206,7 +205,8 @@ sub update_cache{
     my $circuit_id = shift;
 
     if(!defined($circuit_id) || $circuit_id == -1){
-        $self->{'logger'}->debug("Fetching circuit state from database.");
+        
+        $self->{'logger'}->debug("Fetching State from the DB");
         my $circuits = $self->{'db'}->get_current_circuits();
         
         foreach my $ckt (keys %{$self->{'circuit'}}){
@@ -230,68 +230,15 @@ sub update_cache{
         }
         
         my $links = $self->{'db'}->get_current_links();
-        if (!%link_status) {
-            $self->{'logger'}->info("Syncing empty circuit link cache with database.");
-            foreach my $link (@$links) {
-                my $link_name = $link->{'name'};
-                my $link_state = $link->{'status'};
-                my $verified_link_status = OESS_LINK_UNKNOWN;
-                
-                if ($link_state eq 'up') {
-                    $verified_link_status = OESS_LINK_UP;
-                }
-                if ($link_state eq 'down') {
-                    $verified_link_status = OESS_LINK_DOWN;
-                }
-                $link_status{$link_name} = $verified_link_status;
-            }
-        } else {
-            $self->{'logger'}->info("Syncing circuit link cache with database.");
-            foreach my $link (@$links) {
-                # Update internal link cache, and validate against database
-                # to ensure consistency in case of lost port status events.
-                my $link_name = $link->{'name'};
-                my $link_state = $link->{'status'};
-                my $verified_link_status = OESS_LINK_UNKNOWN;
-                
-                if ($link_state eq 'up') {
-                    $verified_link_status = OESS_LINK_UP;
-                }
-                if ($link_state eq 'down') {
-                    $verified_link_status = OESS_LINK_DOWN;
-                }
-                
-                if ($link_status{$link_name} != $verified_link_status) {
-                    # If the link cache is not in sync with the database,
-                    # trigger port status event messages for each interface on
-                    # the link.
-                    my $inta = $self->{'db'}->get_interface( interface_id => $link->{'interface_a_id'});
-                    if (defined $inta) {
-                        $self->{'logger'}->warn("Re-syncing interface $inta->{'name'}.");
-                        my $iface_parent = $self->{'db'}->get_node_by_id($inta->{'node_id'});
-                        my $info = {
-                            "name" => $inta->{'name'},
-                            "port_no" => $inta->{'port_number'},
-                            "link" => $inta->{'operational_state'}
-                        };
-                        $self->port_status($iface_parent->{'dpid'}, OFPPR_MODIFY, $info);
-                    }
-
-                    my $intb = $self->{'db'}->get_interface( interface_id => $link->{'interface_z_id'});
-                    if (defined $intb) {
-                        $self->{'logger'}->warn("Re-syncing interface $intb->{'name'}.");
-                        my $iface_parent = $self->{'db'}->get_node_by_id($intb->{'node_id'});
-                        my $info = {
-                            "name" => $intb->{'name'},
-                            "port_no" => $intb->{'port_number'},
-                            "link" => $intb->{'operational_state'}
-                        };
-                        $self->port_status($iface_parent->{'dpid'}, OFPPR_MODIFY, $info);
-                    }
-                }
+        foreach my $link (@$links) {
+            if ($link->{'status'} eq 'up') {
+                $link_status{$link->{'name'}} = OESS_LINK_UP;
+            } elsif ($link->{'status'} eq 'down') {
+                $link_status{$link->{'name'}} = OESS_LINK_DOWN;
+            } else {
+                $link_status{$link->{'name'}} = OESS_LINK_UNKNOWN;
             }
         }
-        $self->{'logger'}->info("Syncing circuit link cache complete.");
         
         my $nodes = $self->{'db'}->get_current_nodes();
         foreach my $node (@$nodes) {
