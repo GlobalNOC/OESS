@@ -60,19 +60,19 @@ sub main {
         case "nodes" {
             $output = &node_maintenances();
         }
-        case "node_start" {
+        case "start_node" {
             $output = &start_node_maintenance();
         }
-        case "node_end" {
+        case "end_node" {
             $output = &end_node_maintenance();
         }
         case "links" {
             $output = &link_maintenances();
         }
-        case "link_start" {
+        case "start_link" {
             $output = &start_link_maintenance();
         }
-        case "link_end"{
+        case "end_link"{
             $output = &end_link_maintenance();
         }
         case "error" {
@@ -81,9 +81,9 @@ sub main {
             $output = { error => $message };
         } 
         else {
-            $output = {
-                error => "Unknown action - $action"
-            };
+            my $message = "Unknown action - $action";
+            warn $message;
+            $output = { error => $message };
         }
     }
     send_json($output);
@@ -112,13 +112,6 @@ sub node_maintenances {
     return $results;
 }
 
-# {
-#   "maintenance_id": 117,
-#   "node"          : "sdn-sw.alba.net.internet2.edu"
-#   "description"   : "What is the matrix?",
-#   "start_epoch"   : 123456789,
-#   "end_epoch"     : -1
-# }
 sub start_node_maintenance {
     my $results;
     my $node_id = $cgi->param('node_id');
@@ -159,37 +152,57 @@ sub end_node_maintenance {
 
 sub link_maintenances {
     my $results;
-    $results->{'results'} = [];
-
     my $link_id = $cgi->param('link_id');
-    if (!defined $link_id) {
-        return { error => "Failed to retrieve links under maintenance." };
+
+    my $data;
+    if (defined $link_id) {
+        $data = $db->get_link_maintenance($link_id);
+    } else {
+        $data = $db->get_link_maintenances();
     }
 
+    if (!defined $data) {
+        return { error => "Failed to retrieve links under maintenance." };
+    }
+    $results->{'results'} = $data;
     return $results;
 }
 
 sub start_link_maintenance {
     my $results;
-    $results->{'results'} = {};
-
     my $link_id = $cgi->param('link_id');
+    my $description = $cgi->param('description');
+
     if (!defined $link_id) {
         return { error => "Parameter link_id must be provided." };
     }
+    
+    if (!defined $description) {
+        $description = "";
+    }
 
+    my $data = $db->start_link_maintenance($link_id, $description);
+    if (!defined $data) {
+        return { error => "Failed to put link into maintenance mode." };
+    }
+    $results->{'results'} = $data;
     return $results;
 }
 
 sub end_link_maintenance {
     my $results;
-    $results->{'results'} = {};
-
     my $link_id = $cgi->param('link_id');
     if (!defined $link_id) {
         return { error => "Parameter link_id must be provided." };
+        return $results;
+    }
+    
+    my $data = $db->end_link_maintenance($link_id);
+    if (!defined $data) {
+        return { error => "Failed to take link out of maintenance mode." };
     }
 
+    $results->{'results'} = $data;
     return $results;
 }
 
