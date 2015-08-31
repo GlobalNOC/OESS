@@ -1983,6 +1983,155 @@ sub get_all_workgroups {
     return $workgroups;
 }
 
+# =head2 start_node_maintenance
+
+# =cut
+sub start_node_maintenance {
+    my $self = shift;
+    my $node_id = shift;
+    my $description = shift;
+
+    # Validate node exists, and grab relevant data.
+    my $sql = "SELECT node.name FROM node where node_id = ?";
+    my $nodes = $self->_execute_query($sql, [$node_id]);
+    if (!defined @$nodes[0]) {
+        return;
+    }
+
+    $self->_start_transaction();
+    my $sql2 = "INSERT into maintenance (description, start_epoch, end_epoch) ";
+    $sql2   .= "VALUES (?, unix_timestamp(NOW()), -1)";
+    my $maintenance_id = $self->_execute_query($sql2, [$description]);
+    if (!defined $maintenance_id) {
+        $self->_rollback();
+        $self->_set_error("Could not insert row into maintenance table.");
+        return;
+    }
+
+    my $sql3 = "INSERT into node_maintenance (node_id, maintenance_id) ";
+    $sql3   .= "VALUES (?, ?)";
+    my $node_maintenance_id = $self->_execute_query($sql3, [$node_id, $maintenance_id]);
+    if (!defined $node_maintenance_id) {
+        $self->_rollback();
+        $self->_set_error("Could not insert row into node_maintenance table.");
+        return;
+    }
+    $self->_commit();
+
+    my $m = $self->get_node_maintenance($node_id);
+    if (!defined $m) {
+        $self->_set_error("Could not retrieve node maintenance.");
+        return;
+    }
+    my $result = {
+        maintenance_id => $maintenance_id,
+        node           => { name => @$nodes[0]->{'name'}, id => $node_id },
+        description    => $description,
+        start_epoch    => $m->{'start_epoch'},
+        end_epoch      => $m->{'end_epoch'}
+    };
+    return $result;
+}
+
+# =head2 end_node_maintenance
+
+# =cut
+sub end_node_maintenance {
+    my $self = shift;
+    my $node_id = shift;
+    
+    my $m = $self->get_node_maintenance($node_id);
+    if (!defined $m) {
+        return;
+    }
+    
+    my $sql = "update maintenance SET end_epoch = unix_timestamp(NOW()) WHERE id = ?";
+    my $result = $self->_execute_query($sql, [$m->{'maintenance_id'}]);
+    if (!defined $result) {
+        $self->_set_error("Internal error while ending node maintenance.");
+        return;
+    }
+    $self->_commit();
+    return $result;
+}
+
+# =head2 get_node_maintenance
+#
+# create table maintenance (
+#   id int not null auto_increment,
+#   primary key (id),
+#   description varchar(255),
+#   start_epoch int,
+#   end_epoch int default -1
+# );
+#
+# create table node_maintenance (
+# id int not null auto_increment,
+# primary key (id),
+# node_id int not null,
+# maintenance_id int not null
+# );
+# =cut
+sub get_node_maintenance {
+    my $self = shift;
+    my $node_id = shift;
+
+    my $sql = "select m.id, m.description, node.name, node.node_id, m.start_epoch, m.end_epoch ";
+    $sql   .= "FROM maintenance as m, node as node, node_maintenance as info ";
+    $sql   .= "WHERE m.id = info.maintenance_id ";
+    $sql   .= "AND info.node_id = node.node_id ";
+    $sql   .= "AND node.node_id = ? ";
+    $sql   .= "AND m.end_epoch = -1";
+
+    my $maintenance = $self->_execute_query($sql, [$node_id]);
+    my $m = @$maintenance[0];
+    if (!defined $m) {
+        $self->_set_error("Internal error while fetching node maintenance.");
+        return;
+    }
+    
+    my $result = {
+        maintenance_id => $m->{'id'},
+        node           => { name => $m->{'name'}, id => $m->{'node_id'} },
+        description    => $m->{'description'},
+        start_epoch    => $m->{'start_epoch'},
+        end_epoch      => $m->{'end_epoch'}
+    };
+    return $result;
+}
+
+# =head2 get_node_maintenances
+
+# =cut
+sub get_node_maintenances {
+    my $self = shift;
+
+    my $sql = "select m.id, m.description, node.name, node.node_id, m.start_epoch, m.end_epoch ";
+    $sql   .= "FROM maintenance as m, node as node, node_maintenance as info ";
+    $sql   .= "WHERE m.id = info.maintenance_id ";
+    $sql   .= "AND info.node_id = node.node_id ";
+    $sql   .= "AND m.end_epoch = -1";
+
+    my $maintenances = $self->_execute_query($sql, []);
+    if (!defined @$maintenances[0]) {
+        $self->_set_error("Internal error while fetching node maintenance.");
+        return;
+    }
+
+    my $result = [];
+    foreach my $m (@$maintenances){
+        push (@$result,
+              {
+                  maintenance_id => $m->{'id'},
+                  node           => { name => $m->{'name'}, id => $m->{'node_id'} },
+                  description    => $m->{'description'},
+                  start_epoch    => $m->{'start_epoch'},
+                  end_epoch      => $m->{'end_epoch'}
+              });
+    }
+    return $result;
+}
+
 =head2 add_acl
 
 Adds acl information to an interface
@@ -7076,7 +7225,7 @@ sub _start_transaction {
 
     my $dbh = $self->{'dbh'};
 
-    $dbh->begin_work();
+    $dbh->begin_work() or die $dbh->errstr;
 }
 
 sub _rollback{
