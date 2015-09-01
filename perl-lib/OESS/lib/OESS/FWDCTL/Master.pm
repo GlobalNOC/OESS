@@ -33,6 +33,7 @@ use Net::DBus qw(:typing);
 use Net::DBus::Annotation qw(:call);
 use base qw(Net::DBus::Object);
 
+use Data::Dumper;
 use POSIX;
 use Log::Log4perl;
 use Switch;
@@ -89,6 +90,7 @@ my %node;
 my %link_status;
 my %circuit_status;
 my %node_info;
+my %interface_maintenance;
 
 sub _log {
     my $string = shift;
@@ -157,6 +159,8 @@ sub new {
     dbus_method("force_sync",["uint64"],["int32","string"]);
     dbus_method("get_event_status",["string"],["int32"]);
     dbus_method("check_child_status",[],["int32","string"]);
+    dbus_method("node_maintenance", ["int32", "string"], ["int32"]);
+    dbus_method("link_maintenance", ["int32", "string"], ["int32"]);
     
     #exported for the circuit notifier
     dbus_signal("circuit_notification", [["dict","string",["variant"]]],['string']);
@@ -164,6 +168,88 @@ sub new {
     return $self;
 }
 
+
+=head2 node_maintenance
+Given a datapath_id and maintenance state of 'start' or 'end', configure
+each interface of every link on the given datapath. If state is 'start'
+trigger port_status events signaling that the interfaces have went down.
+If the state is 'end' trigger force_sync to sync with the actual device
+state on the device.
+=cut
+sub node_maintenance {
+    my $self  = shift;
+    my $node_id  = shift;
+    my $state = shift;
+
+    my $links = $self->{'db'}->get_links_by_node($node_id);
+    if (!defined $links) {
+        return 0;
+    }
+    foreach my $link (@$links) {
+        $self->link_maintenance($link->{'link_id'}, $state);
+    }
+    return 1;
+}
+
+=head2
+Given a link_id and maintenance state of 'start' or 'end' configure
+each interface of a link. If state is 'start' trigger port_status events
+signaling the the interfaces have went down, and store the interface_ids
+in $interface_maintenance. If the state is 'end' remove the
+interface_ids from $interface_maintenance.
+=cut
+sub link_maintenance {
+    my $self    = shift;
+    my $link_id = shift;
+    my $state   = shift;
+
+    my $endpoints = $self->{'db'}->get_link_endpoints(link_id => $link_id);
+    my $e1 = {
+        id          => @$endpoints[0]->{'interface_id'},
+        port_name   => @$endpoints[0]->{'interface_name'},
+        port_number => @$endpoints[0]->{'port_number'},
+        link_status => OESS_LINK_DOWN
+    };
+    my $node1 = $self->{'db'}->get_node_by_interface_id(interface_id => $e1->{'id'});
+    if (!defined $node1) {
+        $self->{'logger'}->warn("Link maintenance can't be performed. Interface has no known node.");
+        return 0;
+    }
+
+    my $e2 = {
+        id          => @$endpoints[1]->{'interface_id'},
+        port_name   => @$endpoints[1]->{'interface_name'},
+        port_number => @$endpoints[1]->{'port_number'},
+        link_status => OESS_LINK_DOWN
+    };
+    my $node2 = $self->{'db'}->get_node_by_interface_id(interface_id => $e2->{'id'});
+    if (!defined $node2) {
+        $self->{'logger'}->warn("Link maintenance can't be performed. Interface has no known node.");
+        return 0;
+    }
+    
+    # Sync internal port state with physical node state when maintenance
+    # is ended.
+    # OR
+    # Trigger artificial port status messages to move circuits off any
+    # links using this link. Store interface in $interface_maintenance
+    # so that any other port status events are ignored.
+    if ($state eq "end") {
+        delete $interface_maintenance{$e1->{'id'}};
+        delete $interface_maintenance{$e2->{'id'}};
+
+        #$self->force_sync($node1->{'dpid'});
+        #$self->force_sync($node2->{'dpid'});
+    } else {
+        $interface_maintenance{$e1->{'id'}} = 1;
+        $interface_maintenance{$e2->{'id'}} = 1;
+
+        #$self->port_status($node1->{'dpid'}, OFPPR_MODIFY, $e1);
+        #$self->port_status($node2->{'dpid'}, OFPPR_MODIFY, $e2);
+    }
+    $self->{'logger'}->warn("Link $link_id maintenance mode has changed to $state.");
+    return 1;
+}
 
 =head2 rules_per_switch
 

@@ -6791,12 +6791,17 @@ sub get_node_by_interface_id {
     my $query = "SELECT node_id ".
                 "FROM interface ".
                 "WHERE interface_id = ?";
-    my $res = $self->_execute_query($query,[$interface_id]) || return;
-    my $node_id = $res->[0]{'node_id'};
-    if(!$node_id){
-        $self->_set_error("No records for interface_id $interface_id");
+    my $res = $self->_execute_query($query, [$interface_id]) || return;
+    if (!defined @$res[0]) {
+        $self->_set_error("No records for interface_id $interface_id were found.");
         return;
     }
+
+    my $node_id = @$res[0]->{'node_id'};
+    # if(!$node_id){
+    #     $self->_set_error("No records for interface_id $interface_id");
+    #     return;
+    # }
 
     # get node record
     $query = "SELECT * ".
@@ -6804,9 +6809,8 @@ sub get_node_by_interface_id {
              "JOIN node_instantiation on node.node_id = node_instantiation.node_id ".
              "WHERE node.node_id = ? ".
              "AND node_instantiation.end_epoch = -1";
-    $res = $self->_execute_query($query,[$node_id]) || return;
-
-    return $res->[0];
+    $res = $self->_execute_query($query, [$node_id]) || return;
+    return @$res[0];
 }
 
 =head2 add_node

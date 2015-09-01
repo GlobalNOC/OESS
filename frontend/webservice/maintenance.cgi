@@ -94,6 +94,30 @@ sub send_json {
     print "Content-type: text/plain\n\n" . encode_json($output);
 }
 
+sub _execute_node_maintenance {
+    my $node_id = shift;
+    my $state = shift;
+
+    my $client;
+    my $service;
+    my $bus = Net::DBus->system;
+    eval {
+        $service = $bus->get_service("org.nddi.fwdctl");
+        $client  = $service->get_object("/controller1");
+    };
+    if ($@) {
+        warn "Error in _connect_to_fwdctl: $@";
+        return;
+    }
+    if (!defined $client) {
+        warn "Issue communicating with fwdctl";
+        return;
+    }
+
+    $client->node_maintenance($node_id, $state);
+    return 1;
+}
+
 sub node_maintenances {
     my $results;
     my $node_id = $cgi->param('node_id');
@@ -129,6 +153,8 @@ sub start_node_maintenance {
     if (!defined $data) {
         return { error => "Failed to put node into maintenance mode." };
     }
+    _execute_node_maintenance($node_id, "start");
+
     $results->{'results'} = $data;
     return $results;
 }
@@ -145,9 +171,34 @@ sub end_node_maintenance {
     if (!defined $data) {
         return { error => "Failed to take node out of maintenance mode." };
     }
+    _execute_node_maintenance($node_id, "end");
 
     $results->{'results'} = $data;
     return $results;
+}
+
+sub _execute_link_maintenance {
+    my $link_id = shift;
+    my $state = shift;
+
+    my $client;
+    my $service;
+    my $bus = Net::DBus->system;
+    eval {
+        $service = $bus->get_service("org.nddi.fwdctl");
+        $client  = $service->get_object("/controller1");
+    };
+    if ($@) {
+        warn "Error in _connect_to_fwdctl: $@";
+        return;
+    }
+    if (!defined $client) {
+        warn "Issue communicating with fwdctl";
+        return;
+    }
+
+    $client->link_maintenance($link_id, $state);
+    return 1;
 }
 
 sub link_maintenances {
@@ -185,6 +236,8 @@ sub start_link_maintenance {
     if (!defined $data) {
         return { error => "Failed to put link into maintenance mode." };
     }
+    _execute_link_maintenance($link_id, "start");
+
     $results->{'results'} = $data;
     return $results;
 }
@@ -201,6 +254,7 @@ sub end_link_maintenance {
     if (!defined $data) {
         return { error => "Failed to take link out of maintenance mode." };
     }
+    _execute_link_maintenance($link_id, "start");
 
     $results->{'results'} = $data;
     return $results;
