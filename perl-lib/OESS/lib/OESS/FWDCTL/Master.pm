@@ -90,7 +90,7 @@ my %node;
 my %link_status;
 my %circuit_status;
 my %node_info;
-my %interface_maintenance;
+my %link_maintenance;
 
 sub _log {
     my $string = shift;
@@ -170,11 +170,9 @@ sub new {
 
 
 =head2 node_maintenance
-Given a datapath_id and maintenance state of 'start' or 'end', configure
-each interface of every link on the given datapath. If state is 'start'
-trigger port_status events signaling that the interfaces have went down.
-If the state is 'end' trigger force_sync to sync with the actual device
-state on the device.
+Given a node_id and maintenance state of 'start' or 'end', configure
+each interface of every link on the given datapath by calling
+link_maintenance.
 =cut
 sub node_maintenance {
     my $self  = shift;
@@ -191,7 +189,7 @@ sub node_maintenance {
     return 1;
 }
 
-=head2
+=head2 link_maintenance
 Given a link_id and maintenance state of 'start' or 'end' configure
 each interface of a link. If state is 'start' trigger port_status events
 signaling the the interfaces have went down, and store the interface_ids
@@ -202,7 +200,21 @@ sub link_maintenance {
     my $self    = shift;
     my $link_id = shift;
     my $state   = shift;
+    
+    if ($state eq "end") {
+        # Once maintenance has ended remove $link_id from our
+        # link_maintenance hash. This will allow future fv_link_event
+        # calls to recover affected links.
+        if (exists $link_maintenance{$link_id}) {
+            delete $link_maintenance{$link_id};
+        }
+        $self->{'logger'}->warn("Link $link_id maintenance has ended.");
+        return 1;
+    }
 
+    # Trigger artificial port status messages to move circuits off
+    # any ports using $link_id. Store $link_id in $link_maintenance
+    # so that link events are ignored while under maintenance.
     my $endpoints = $self->{'db'}->get_link_endpoints(link_id => $link_id);
     my $e1 = {
         id          => @$endpoints[0]->{'interface_id'},
@@ -212,7 +224,7 @@ sub link_maintenance {
     };
     my $node1 = $self->{'db'}->get_node_by_interface_id(interface_id => $e1->{'id'});
     if (!defined $node1) {
-        $self->{'logger'}->warn("Link maintenance can't be performed. Interface has no known node.");
+        $self->{'logger'}->warn("Link maintenance can't be performed. Could not find link endpoint.");
         return 0;
     }
 
@@ -224,30 +236,16 @@ sub link_maintenance {
     };
     my $node2 = $self->{'db'}->get_node_by_interface_id(interface_id => $e2->{'id'});
     if (!defined $node2) {
-        $self->{'logger'}->warn("Link maintenance can't be performed. Interface has no known node.");
+        $self->{'logger'}->warn("Link maintenance can't be performed on remote links.");
         return 0;
     }
-    
-    # Sync internal port state with physical node state when maintenance
-    # is ended.
-    # OR
-    # Trigger artificial port status messages to move circuits off any
-    # links using this link. Store interface in $interface_maintenance
-    # so that any other port status events are ignored.
-    if ($state eq "end") {
-        delete $interface_maintenance{$e1->{'id'}};
-        delete $interface_maintenance{$e2->{'id'}};
 
-        #$self->force_sync($node1->{'dpid'});
-        #$self->force_sync($node2->{'dpid'});
-    } else {
-        $interface_maintenance{$e1->{'id'}} = 1;
-        $interface_maintenance{$e2->{'id'}} = 1;
+    $link_maintenance{$link_id} = 1;
 
-        #$self->port_status($node1->{'dpid'}, OFPPR_MODIFY, $e1);
-        #$self->port_status($node2->{'dpid'}, OFPPR_MODIFY, $e2);
-    }
-    $self->{'logger'}->warn("Link $link_id maintenance mode has changed to $state.");
+    $self->port_status($node1->{'dpid'}, OFPPR_MODIFY, $e1);
+    $self->port_status($node2->{'dpid'}, OFPPR_MODIFY, $e2);
+
+    $self->{'logger'}->warn("Link $link_id maintenance has begun.");
     return 1;
 }
 
@@ -1047,7 +1045,12 @@ sub topo_port_status{
     
     my $sw_name   = $node->{'name'};
     my $dpid_str  = sprintf("%x",$dpid);
-    
+
+    # If the affected link is under maintenance ignore the port status.
+    if (exists $link_maintenance{$link_id}) {
+        $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port:$port_name port status change will be ignored.");
+        return 1;
+    }
     
     switch ($reason) {
 	#add case
@@ -1114,6 +1117,12 @@ sub fv_link_event{
     if(!defined($link)){
 	$self->{'logger'}->error("FV determined link " . $link_name . " is down but DB does not contain a link with that name");
 	return 0;
+    }
+
+    # If the affected link is under maintenance ignore status change.
+    if (exists $link_maintenance{$link->{'link_id'}}) {
+        $self->{'logger'}->warn("link:$link_name status change will be ignored.");
+        return 1;
     }
 
     if ($state == OESS_LINK_DOWN) {

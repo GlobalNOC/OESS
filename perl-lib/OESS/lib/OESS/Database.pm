@@ -2028,12 +2028,10 @@ sub start_node_maintenance {
         return;
     }
 
-    $self->_start_transaction();
     my $sql2 = "INSERT into maintenance (description, start_epoch, end_epoch) ";
     $sql2   .= "VALUES (?, unix_timestamp(NOW()), -1)";
     my $maintenance_id = $self->_execute_query($sql2, [$description]);
     if (!defined $maintenance_id) {
-        $self->_rollback();
         $self->_set_error("Could not insert row into maintenance table.");
         return;
     }
@@ -2042,11 +2040,9 @@ sub start_node_maintenance {
     $sql3   .= "VALUES (?, ?)";
     my $node_maintenance_id = $self->_execute_query($sql3, [$node_id, $maintenance_id]);
     if (!defined $node_maintenance_id) {
-        $self->_rollback();
         $self->_set_error("Could not insert row into node_maintenance table.");
         return;
     }
-    $self->_commit();
 
     my $m = $self->get_node_maintenance($node_id);
     if (!defined $m) {
@@ -2080,7 +2076,6 @@ sub end_node_maintenance {
         $self->_set_error("Internal error while ending node maintenance.");
         return;
     }
-    $self->_commit();
     return $result;
 }
 
@@ -2168,12 +2163,10 @@ sub start_link_maintenance {
         return;
     }
 
-    $self->_start_transaction();
     my $sql2 = "INSERT into maintenance (description, start_epoch, end_epoch) ";
     $sql2   .= "VALUES (?, unix_timestamp(NOW()), -1)";
     my $maintenance_id = $self->_execute_query($sql2, [$description]);
     if (!defined $maintenance_id) {
-        $self->_rollback();
         $self->_set_error("Could not insert row into maintenance table.");
         return;
     }
@@ -2182,11 +2175,9 @@ sub start_link_maintenance {
     $sql3   .= "VALUES (?, ?)";
     my $link_maintenance_id = $self->_execute_query($sql3, [$link_id, $maintenance_id]);
     if (!defined $link_maintenance_id) {
-        $self->_rollback();
         $self->_set_error("Could not insert row into link_maintenance table.");
         return;
     }
-    $self->_commit();
 
     my $m = $self->get_link_maintenance($link_id);
     if (!defined $m) {
@@ -2220,7 +2211,6 @@ sub end_link_maintenance {
         $self->_set_error("Internal error while ending link maintenance.");
         return;
     }
-    $self->_commit();
     return $result;
 }
 

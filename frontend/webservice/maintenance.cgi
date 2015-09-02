@@ -114,8 +114,7 @@ sub _execute_node_maintenance {
         return;
     }
 
-    $client->node_maintenance($node_id, $state);
-    return 1;
+    return $client->node_maintenance($node_id, $state);
 }
 
 sub node_maintenances {
@@ -149,11 +148,19 @@ sub start_node_maintenance {
         $description = "";
     }
 
+    $db->_start_transaction();
     my $data = $db->start_node_maintenance($node_id, $description);
     if (!defined $data) {
+        $db->_rollback();
         return { error => "Failed to put node into maintenance mode." };
     }
-    _execute_node_maintenance($node_id, "start");
+
+    my $res = _execute_node_maintenance($node_id, "start");
+    if ($res != 1) {
+        $db->_rollback();
+        return { error => "Failed to put node into maintenance mode." };
+    }
+    $db->_commit();
 
     $results->{'results'} = $data;
     return $results;
@@ -197,8 +204,7 @@ sub _execute_link_maintenance {
         return;
     }
 
-    $client->link_maintenance($link_id, $state);
-    return 1;
+    return $client->link_maintenance($link_id, $state);
 }
 
 sub link_maintenances {
@@ -232,11 +238,19 @@ sub start_link_maintenance {
         $description = "";
     }
 
+    $db->_start_transaction();
     my $data = $db->start_link_maintenance($link_id, $description);
     if (!defined $data) {
+        $db->_rollback();
         return { error => "Failed to put link into maintenance mode." };
     }
-    _execute_link_maintenance($link_id, "start");
+
+    my $res = _execute_link_maintenance($link_id, "start");
+    if ($res != 1) {
+        $db->_rollback();
+        return { error => "Failed to put link into maintenance mode." };
+    }
+    $db->_commit();
 
     $results->{'results'} = $data;
     return $results;
@@ -254,7 +268,7 @@ sub end_link_maintenance {
     if (!defined $data) {
         return { error => "Failed to take link out of maintenance mode." };
     }
-    _execute_link_maintenance($link_id, "start");
+    _execute_link_maintenance($link_id, "end");
 
     $results->{'results'} = $data;
     return $results;
