@@ -3009,7 +3009,7 @@ function setup_discovery_tab(){
 }
 
 function setup_maintenance_tab(){    
-    //create the table
+    //create the edge table
     var table = makeIntMoveMaintTable();
 
     //setup add maint button
@@ -3019,7 +3019,175 @@ function setup_maintenance_tab(){
     maint_add_button.on("click", function(){
         var obj = makeIntMoveMaintAddPanel(table);
     });
-    
+
+    var link_table = makeLinkMaintenanceTable();   
+
+    var node_table = makeNodeMaintenanceTable(); 
+}
+
+function makeNodeMaintenanceTable(){
+    var url = "../services/maintenance.cgi?action=nodes";
+    var ds  = new YAHOO.util.DataSource(url);
+    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+    ds.responseSchema = {
+        resultsList: "results",
+        fields: [
+            {key: "node"},
+            {key: "description", parser: "number"},
+            {key: "start_epoch", parser: "number"},
+            {key: "end_epoch", parser: "number"},
+            {key: "maintenance_id", parser: "number"},
+        ]
+    };
+
+    var columns = [
+        {key: "name", label: "Name", width: 180 ,sortable:true},
+        {key: "node", label: "Node", sortable:true },
+        {key: "description", label: "Description", sortable:true },
+        {key: "start_epoch", label: "Activated On", formatter: function(el, rec, col, data){
+            el.innerHTML = new Date(data * 1000 ).toLocaleString(); 
+        }, sortable: true},
+        {label: "Complete", formatter: function(el, rec, col, data){
+            var b = new YAHOO.widget.Button({label: "Complete"});
+            var bid = b.get('id');
+            b.appendTo(el);
+            b.on("click", function(){
+                var maintComplete = function(link_id, table){
+                    b.set('label', 'Submitting...');
+                    var url = "../services/maintenance.cgi?action=end_node_maintenance"+
+                              "&maintenance_id="+link_id;
+                    var ds = new YAHOO.util.DataSource(url);
+                    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                    ds.responseSchema = {
+                        resultsList: "results",
+                        fields: [
+                            {key: "maintenance_id"}
+                        ],
+                        metaFields: {
+                            error: "error"
+                        }
+                    };
+                    ds.sendRequest("",{
+                        success: function(req, resp){
+                            if (resp.meta.error){
+                                b.set('label', 'Complete');
+                                alert("Error submitting maintenance completion: " + resp.meta.error, null, {error: true});
+                                return;
+                            }
+                            var res = resp.results[0];
+                            table.load();
+                        },
+                        failure: function(req, resp){
+                            b.set('label', 'Complete');
+                            alert("Server error submitting maintenance completion", null, {error: true});
+                        }
+                    });
+                };
+                var msg = "This will end the node maintenance for this node. Are you sure you wish to do this?";
+                showConfirm(msg,
+                    $.proxy(function(){
+                        maintComplete(rec.getData("maintenance_id"), this);
+                    },this),
+                    function(){}
+                );
+            },null,this);
+        }, sortable: true}
+    ];
+
+    var config = {
+        paginator:  new YAHOO.widget.Paginator({
+            rowsPerPage: 10,
+            containers: ["owned_interfaces_table_nav"]
+        })
+    };
+
+    var table = new YAHOO.widget.DataTable("link_maint_table", columns, ds, config);
+    table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
+    table.subscribe("rowMouseoutEvent",  table.onEventUnhighlightRow);
+
+    return table;
+}
+function makeLinkMaintenanceTable(){
+    var url = "../services/maintenance.cgi?action=links";
+    var ds  = new YAHOO.util.DataSource(url);
+    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+    ds.responseSchema = {
+        resultsList: "results",
+        fields: [
+            {key: "link"},
+            {key: "description", parser: "number"},
+            {key: "start_epoch", parser: "number"},
+            {key: "end_epoch", parser: "number"},
+            {key: "maintenance_id", parser: "number"},
+        ]
+    };
+
+    var columns = [
+        {key: "name", label: "Name", width: 180 ,sortable:true},
+        {key: "link", label: "Link", sortable:true },
+        {key: "description", label: "Description", sortable:true },
+        {key: "start_epoch", label: "Activated On", formatter: function(el, rec, col, data){
+            el.innerHTML = new Date(data * 1000 ).toLocaleString(); 
+        }, sortable: true},
+        {label: "Complete", formatter: function(el, rec, col, data){
+            var b = new YAHOO.widget.Button({label: "Complete"});
+            var bid = b.get('id');
+            b.appendTo(el);
+            b.on("click", function(){
+                var maintComplete = function(link_id, table){
+                    b.set('label', 'Submitting...');
+                    var url = "../services/maintenance.cgi?action=end_link_maintenance"+
+                              "&maintenance_id="+link_id;
+                    var ds = new YAHOO.util.DataSource(url);
+                    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                    ds.responseSchema = {
+                        resultsList: "results",
+                        fields: [
+                            {key: "maintenance_id"}
+                        ],
+                        metaFields: {
+                            error: "error"
+                        }
+                    };
+                    ds.sendRequest("",{
+                        success: function(req, resp){
+                            if (resp.meta.error){
+                                b.set('label', 'Complete');
+                                alert("Error submitting maintenance completion: " + resp.meta.error, null, {error: true});
+                                return;
+                            }
+                            var res = resp.results[0];
+                            table.load();
+                        },
+                        failure: function(req, resp){
+                            b.set('label', 'Complete');
+                            alert("Server error submitting maintenance completion", null, {error: true});
+                        }
+                    });
+                };
+                var msg = "This will end the link maintenance for this link. Are you sure you wish to do this?";
+                showConfirm(msg,
+                    $.proxy(function(){
+                        maintComplete(rec.getData("maintenance_id"), this);
+                    },this),
+                    function(){}
+                );
+            },null,this);
+        }, sortable: true}
+    ];
+
+    var config = {
+        paginator:  new YAHOO.widget.Paginator({
+            rowsPerPage: 10,
+            containers: ["owned_interfaces_table_nav"]
+        })
+    };
+
+    var table = new YAHOO.widget.DataTable("link_maint_table", columns, ds, config);
+    table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
+    table.subscribe("rowMouseoutEvent",  table.onEventUnhighlightRow);
+
+    return table;
 }
 
 function makeIntMoveMaintTable(){
@@ -3095,8 +3263,7 @@ function makeIntMoveMaintTable(){
 
     var config = {
         paginator:  new YAHOO.widget.Paginator({
-            rowsPerPage: 10,
-            containers: ["owned_interfaces_table_nav"]
+            rowsPerPage: 10
         })
     };
 

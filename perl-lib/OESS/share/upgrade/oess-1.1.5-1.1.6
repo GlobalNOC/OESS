@@ -27,7 +27,6 @@ sub main {
     print "********* of the OESS DB any other version will not work ************\n";
     
     continue_parameter("Do you wish to continue");
-    
     my $dbq = new OESS::Database();
     my $current_version = $dbq->get_oess_schema_version();    
     if($current_version eq $prev_version){
@@ -55,7 +54,6 @@ sub upgrade {
     #fix broken circuits
     #there is the possiblity for some circuits to be broken
     #we need to fix them first!
-
     $str = "select * from link join link_instantiation on link.link_id = link_instantiation.link_id";
     my $links = $dbq->_execute_query($str,[]);
     my $made_changes = 1;
@@ -65,7 +63,7 @@ sub upgrade {
             #need the node for a and z side
             my $a_node = $dbq->get_node_by_interface_id( interface_id => $link->{'interface_a_id'});
             my $z_node = $dbq->get_node_by_interface_id( interface_id => $link->{'interface_z_id'});
-            
+           
             my $str = "select end_epoch from link_path_membership where link_id = ?";
             my $end_epochs = $dbq->_execute_query($str,[$link->{'link_id'}]);
             foreach my $end_epoch (@$end_epochs){
@@ -120,7 +118,7 @@ sub upgrade {
             }
         }
     }
-
+    
     #ok now we can add our constraint
     $str = "alter table link_path_membership add constraint unique_vlan_a UNIQUE (link_id, end_epoch, interface_a_vlan_id)";
     $dbh->do($str);
