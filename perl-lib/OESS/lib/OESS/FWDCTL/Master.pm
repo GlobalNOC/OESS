@@ -424,15 +424,25 @@ sub _write_cache{
 sub _sync_database_to_network {
     my $self = shift;
 
+    $self->{'logger'}->info("Init starting!");
     $self->update_cache(-1);
     
+    my $node_maintenances = $self->{'db'}->get_node_maintenances();
+    foreach my $maintenance (@$node_maintenances) {
+        $self->node_maintenance($maintenance->{'node'}->{'id'});
+    }
+
+    my $link_maintenances = $self->{'db'}->get_link_maintenances();
+    foreach my $maintenance (@$link_maintenances) {
+        $self->node_maintenance($maintenance->{'link'}->{'id'});
+    }
+
     foreach my $node (keys %node_info){
         #fire off the datapath join handler
         $self->datapath_join_handler($node);
     }
 
-    $self->{'logger'}->debug("Init complete!");
-
+    $self->{'logger'}->info("Init complete!");
 }
 
 
@@ -943,17 +953,18 @@ sub port_status{
                 $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name is down");
 
                 my $affected_circuits = $self->{'db'}->get_affected_circuits_by_link_id(link_id => $link_id);
-
-                if (! defined $affected_circuits) {
+                if (!defined $affected_circuits) {
                     $self->{'logger'}->error("Error getting affected circuits: " . $self->{'db'}->get_error());
                     return;
                 }
 
                 $link_status{$link_name} = OESS_LINK_DOWN;
-                #fail over affected circuits
-                $self->_fail_over_circuits( circuits => $affected_circuits, link_name => $link_name );
-                $self->_cancel_restorations( link_id => $link_id);
 
+                # Fail over affected circuits if link is not in maintenance mode.
+                if (!exists $link_maintenance{$link_id}) {
+                    $self->_fail_over_circuits( circuits => $affected_circuits, link_name => $link_name );
+                    $self->_cancel_restorations( link_id => $link_id);
+                }
             }
 
             #--- when a port comes back up determine if any circuits that are currently down
@@ -961,9 +972,12 @@ sub port_status{
             else {
                 $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name is up");
                 $link_status{$link_name} = OESS_LINK_UP;
-                my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $link_id);
-                $self->_restore_down_circuits( circuits => $circuits, link_name => $link_name );
 
+                # Restore affected circuits if link is not in maintenance mode.
+                if (!exists $link_maintenance{$link_id}) {
+                    my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $link_id);
+                    $self->_restore_down_circuits( circuits => $circuits, link_name => $link_name );
+                }
             }
         }
         case(OFPPR_DELETE){
