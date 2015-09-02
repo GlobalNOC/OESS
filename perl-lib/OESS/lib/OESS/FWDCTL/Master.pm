@@ -189,7 +189,6 @@ sub force_sync{
     my $dpid = shift;
 
     my $event_id = $self->_generate_unique_event_id();
-    $self->_write_cache();
     $self->send_message_to_child($dpid,{action => 'force_sync'},$event_id);
     return (FWDCTL_SUCCESS,$event_id);        
 }
@@ -295,7 +294,8 @@ sub _write_cache{
                                          name => $details->{'name'},
                                          description => $details->{'description'} };
         
-        foreach my $flow (@{$ckt->get_flows()}){
+        my @flows = @{$ckt->get_flows()};
+        foreach my $flow (@flows){
             push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'current'}},$flow->to_canonical());
         }
 
@@ -441,9 +441,8 @@ sub datapath_join_handler{
 
     if(!$node_info{$dpid}){
         $node_info{$dpid}->{'dpid_str'} = sprintf("%x",$dpid);
+        $self->_write_cache();
     }
-
-    $self->_write_cache();
 
     $self->{'logger'}->warn("switch with dpid: " . $dpid_str . " has join");
     my $event_id = $self->_generate_unique_event_id();
@@ -974,15 +973,21 @@ sub topo_port_status{
                 foreach my $circuit (@$circuits) {
                     my $circuit_id = $circuit->{'circuit_id'};
                     my $ckt = $self->get_ckt_object( $circuit_id );
-                    $ckt->update_circuit_details();
+                    $ckt->update_circuit_details( link_status => );
                 }
-                
+                $self->force_sync($dpid);
             } else {
                 $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port $port_name has been added");
             }
-            $reason = OFPPR_MODIFY;
-            $self->port_status($dpid,$reason,$info);
-            #diff here!!
+
+            if($link_status{$link_name} != $link_status){
+
+                $reason = OFPPR_MODIFY;
+                $self->port_status($dpid,$reason,$info);
+                #diff here!!
+            }else{
+                #do nothing... everything already lines up
+            }
 
 	}case OFPPR_DELETE {
             if (defined($link_id) && defined($link_name)) {
@@ -997,8 +1002,6 @@ sub topo_port_status{
             $self->port_status($dpid,$reason,$info);
 	}
     }
-
-    $self->force_sync($dpid);
 
     $self->{'logger'}->debug("TOPO Port status complete");
 
