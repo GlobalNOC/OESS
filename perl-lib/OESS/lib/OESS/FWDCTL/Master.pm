@@ -33,6 +33,7 @@ use Net::DBus qw(:typing);
 use Net::DBus::Annotation qw(:call);
 use base qw(Net::DBus::Object);
 
+use Data::Dumper;
 use POSIX;
 use Log::Log4perl;
 use Switch;
@@ -89,6 +90,7 @@ my %node;
 my %link_status;
 my %circuit_status;
 my %node_info;
+my %link_maintenance;
 
 sub _log {
     my $string = shift;
@@ -157,6 +159,8 @@ sub new {
     dbus_method("force_sync",["uint64"],["int32","string"]);
     dbus_method("get_event_status",["string"],["int32"]);
     dbus_method("check_child_status",[],["int32","string"]);
+    dbus_method("node_maintenance", ["int32", "string"], ["int32"]);
+    dbus_method("link_maintenance", ["int32", "string"], ["int32"]);
     
     #exported for the circuit notifier
     dbus_signal("circuit_notification", [["dict","string",["variant"]]],['string']);
@@ -164,6 +168,86 @@ sub new {
     return $self;
 }
 
+
+=head2 node_maintenance
+Given a node_id and maintenance state of 'start' or 'end', configure
+each interface of every link on the given datapath by calling
+link_maintenance.
+=cut
+sub node_maintenance {
+    my $self  = shift;
+    my $node_id  = shift;
+    my $state = shift;
+
+    my $links = $self->{'db'}->get_links_by_node($node_id);
+    if (!defined $links) {
+        return 0;
+    }
+    foreach my $link (@$links) {
+        $self->link_maintenance($link->{'link_id'}, $state);
+    }
+    return 1;
+}
+
+=head2 link_maintenance
+Given a link_id and maintenance state of 'start' or 'end' configure
+each interface of a link. If state is 'start' trigger port_status events
+signaling the the interfaces have went down, and store the interface_ids
+in $interface_maintenance. If the state is 'end' remove the
+interface_ids from $interface_maintenance.
+=cut
+sub link_maintenance {
+    my $self    = shift;
+    my $link_id = shift;
+    my $state   = shift;
+    
+    if ($state eq "end") {
+        # Once maintenance has ended remove $link_id from our
+        # link_maintenance hash. This will allow future fv_link_event
+        # calls to recover affected links.
+        if (exists $link_maintenance{$link_id}) {
+            delete $link_maintenance{$link_id};
+        }
+        $self->{'logger'}->warn("Link $link_id maintenance has ended.");
+        return 1;
+    }
+
+    # Trigger artificial port status messages to move circuits off
+    # any ports using $link_id. Store $link_id in $link_maintenance
+    # so that link events are ignored while under maintenance.
+    my $endpoints = $self->{'db'}->get_link_endpoints(link_id => $link_id);
+    my $e1 = {
+        id          => @$endpoints[0]->{'interface_id'},
+        port_name   => @$endpoints[0]->{'interface_name'},
+        port_number => @$endpoints[0]->{'port_number'},
+        link_status => OESS_LINK_DOWN
+    };
+    my $node1 = $self->{'db'}->get_node_by_interface_id(interface_id => $e1->{'id'});
+    if (!defined $node1) {
+        $self->{'logger'}->warn("Link maintenance can't be performed. Could not find link endpoint.");
+        return 0;
+    }
+
+    my $e2 = {
+        id          => @$endpoints[1]->{'interface_id'},
+        port_name   => @$endpoints[1]->{'interface_name'},
+        port_number => @$endpoints[1]->{'port_number'},
+        link_status => OESS_LINK_DOWN
+    };
+    my $node2 = $self->{'db'}->get_node_by_interface_id(interface_id => $e2->{'id'});
+    if (!defined $node2) {
+        $self->{'logger'}->warn("Link maintenance can't be performed on remote links.");
+        return 0;
+    }
+
+    $link_maintenance{$link_id} = 1;
+
+    $self->port_status($node1->{'dpid'}, OFPPR_MODIFY, $e1);
+    $self->port_status($node2->{'dpid'}, OFPPR_MODIFY, $e2);
+
+    $self->{'logger'}->warn("Link $link_id maintenance has begun.");
+    return 1;
+}
 
 =head2 rules_per_switch
 
@@ -214,18 +298,18 @@ sub update_cache{
         }
         
         foreach my $circuit (@$circuits) {
-            
+            my $id = $circuit->{'circuit_id'};
             my $ckt = OESS::Circuit->new( db => $self->{'db'},
-                                          circuit_id => $circuit->{'circuit_id'} );
-            
+                                          circuit_id => $id );
             $self->{'circuit'}->{ $ckt->get_id() } = $ckt;
             
-            if ($circuit->{'operational_state'} eq 'up') {
-                $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
-            } elsif ($circuit->{'operational_state'}  eq 'down') {
-                $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_DOWN;
+            my $operational_state = $circuit->{'details'}->{'operational_state'};
+            if ($operational_state eq 'up') {
+                $circuit_status{$id} = OESS_CIRCUIT_UP;
+            } elsif ($operational_state  eq 'down') {
+                $circuit_status{$id} = OESS_CIRCUIT_DOWN;
             } else {
-                $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UNKNOWN;
+                $circuit_status{$id} = OESS_CIRCUIT_UNKNOWN;
             }
         }
         
@@ -961,13 +1045,18 @@ sub topo_port_status{
     
     my $sw_name   = $node->{'name'};
     my $dpid_str  = sprintf("%x",$dpid);
-    
+
+    # If the affected link is under maintenance ignore the port status.
+    if (exists $link_maintenance{$link_id}) {
+        $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port:$port_name port status change will be ignored.");
+        return 1;
+    }
     
     switch ($reason) {
 	#add case
 	case OFPPR_ADD {
             if (defined($link_id) && defined($link_name)) {
-                _log("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name has been added");
+                $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name has been added");
                 
                 #update all circuits involving this link.
                 my $circuits = $self->{'db'}->get_circuits_on_link(link_id => $link_id);
@@ -986,9 +1075,9 @@ sub topo_port_status{
 
 	}case OFPPR_DELETE {
             if (defined($link_id) && defined($link_name)) {
-                _log("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name has been removed");
+                $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name has been removed");
             } else {
-                _log("sw:$sw_name dpid:$dpid_str port $port_name has been removed");
+                $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port $port_name has been removed");
             }
             #diff here!!
             $reason = OFPPR_MODIFY;
@@ -1028,6 +1117,12 @@ sub fv_link_event{
     if(!defined($link)){
 	$self->{'logger'}->error("FV determined link " . $link_name . " is down but DB does not contain a link with that name");
 	return 0;
+    }
+
+    # If the affected link is under maintenance ignore status change.
+    if (exists $link_maintenance{$link->{'link_id'}}) {
+        $self->{'logger'}->warn("link:$link_name status change will be ignored.");
+        return 1;
     }
 
     if ($state == OESS_LINK_DOWN) {

@@ -31,7 +31,7 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 1.1.6a
+Version 1.1.7
 
 =cut
 
@@ -1983,6 +1983,297 @@ sub get_all_workgroups {
     return $workgroups;
 }
 
+# create table maintenance (
+#   id int not null auto_increment,
+#   primary key (id),
+#   description varchar(255),
+#   start_epoch int,
+#   end_epoch int default -1
+# ) ENGINE=InnoDB;
+
+# create table node_maintenance (
+#   id int not null auto_increment,
+#   primary key (id),
+#   node_id int not null,
+#   maintenance_id int not null
+# ) ENGINE=InnoDB;
+
+# create table link_maintenance (
+#   id int not null auto_increment,
+#   primary key (id),
+#   link_id int not null,
+#   maintenance_id int not null
+# ) ENGINE=InnoDB;
+#
+# =head2 start_node_maintenance
+# =cut
+sub start_node_maintenance {
+    my $self = shift;
+    my $node_id = shift;
+    my $description = shift;
+
+    # Validate node exists, and grab relevant data.
+    my $sql = "SELECT node.name FROM node where node_id = ?";
+    my $nodes = $self->_execute_query($sql, [$node_id]);
+    if (!defined @$nodes[0]) {
+        $self->_set_error("Node doesn't exist.");
+        return;
+    }
+
+    # Check if the node is already under maintenance.
+    my $sql1 = "SELECT m.id FROM maintenance as m, node_maintenance as n where m.id = n.maintenance_id AND m.end_epoch = -1 AND n.node_id = ?";
+    my $node_maintenance = $self->_execute_query($sql1, [$node_id]);
+    if (defined @$node_maintenance[0]) {
+        $self->_set_error("Node is already in maintenance mode.");
+        return;
+    }
+
+    my $sql2 = "INSERT into maintenance (description, start_epoch, end_epoch) ";
+    $sql2   .= "VALUES (?, unix_timestamp(NOW()), -1)";
+    my $maintenance_id = $self->_execute_query($sql2, [$description]);
+    if (!defined $maintenance_id) {
+        $self->_set_error("Could not insert row into maintenance table.");
+        return;
+    }
+
+    my $sql3 = "INSERT into node_maintenance (node_id, maintenance_id) ";
+    $sql3   .= "VALUES (?, ?)";
+    my $node_maintenance_id = $self->_execute_query($sql3, [$node_id, $maintenance_id]);
+    if (!defined $node_maintenance_id) {
+        $self->_set_error("Could not insert row into node_maintenance table.");
+        return;
+    }
+
+    my $m = $self->get_node_maintenance($node_id);
+    if (!defined $m) {
+        $self->_set_error("Could not retrieve node maintenance.");
+        return;
+    }
+    my $result = {
+        maintenance_id => $maintenance_id,
+        node           => { name => @$nodes[0]->{'name'}, id => $node_id },
+        description    => $description,
+        start_epoch    => $m->{'start_epoch'},
+        end_epoch      => $m->{'end_epoch'}
+    };
+    return $result;
+}
+
+# =head2 end_node_maintenance
+# =cut
+sub end_node_maintenance {
+    my $self = shift;
+    my $node_id = shift;
+    
+    my $m = $self->get_node_maintenance($node_id);
+    if (!defined $m) {
+        return;
+    }
+    
+    my $sql = "UPDATE maintenance SET end_epoch = unix_timestamp(NOW()) WHERE id = ?";
+    my $result = $self->_execute_query($sql, [$m->{'maintenance_id'}]);
+    if (!defined $result) {
+        $self->_set_error("Internal error while ending node maintenance.");
+        return;
+    }
+    return $result;
+}
+
+# =head2 get_node_maintenance
+# =cut
+sub get_node_maintenance {
+    my $self = shift;
+    my $node_id = shift;
+
+    my $sql = "SELECT m.id, m.description, node.name, node.node_id, m.start_epoch, m.end_epoch ";
+    $sql   .= "FROM maintenance as m, node as node, node_maintenance as info ";
+    $sql   .= "WHERE m.id = info.maintenance_id ";
+    $sql   .= "AND info.node_id = node.node_id ";
+    $sql   .= "AND node.node_id = ? ";
+    $sql   .= "AND m.end_epoch = -1";
+
+    my $maintenance = $self->_execute_query($sql, [$node_id]);
+    my $m = @$maintenance[0];
+    if (!defined $m) {
+        $self->_set_error("Internal error while fetching node maintenance.");
+        return;
+    }
+    
+    my $result = {
+        maintenance_id => $m->{'id'},
+        node           => { name => $m->{'name'}, id => $m->{'node_id'} },
+        description    => $m->{'description'},
+        start_epoch    => $m->{'start_epoch'},
+        end_epoch      => $m->{'end_epoch'}
+    };
+    return $result;
+}
+
+# =head2 get_node_maintenances
+
+# =cut
+sub get_node_maintenances {
+    my $self = shift;
+
+    my $sql = "SELECT m.id, m.description, node.name, node.node_id, m.start_epoch, m.end_epoch ";
+    $sql   .= "FROM maintenance as m, node as node, node_maintenance as info ";
+    $sql   .= "WHERE m.id = info.maintenance_id ";
+    $sql   .= "AND info.node_id = node.node_id ";
+    $sql   .= "AND m.end_epoch = -1";
+
+    my $maintenances = $self->_execute_query($sql, []);
+    if (!defined @$maintenances[0]) {
+        return [];
+    }
+
+    my $result = [];
+    foreach my $m (@$maintenances){
+        push (@$result,
+              {
+                  maintenance_id => $m->{'id'},
+                  node           => { name => $m->{'name'}, id => $m->{'node_id'} },
+                  description    => $m->{'description'},
+                  start_epoch    => $m->{'start_epoch'},
+                  end_epoch      => $m->{'end_epoch'}
+              });
+    }
+    return $result;
+}
+
+=head2 start_link_maintenance
+=cut
+sub start_link_maintenance {
+    my $self = shift;
+    my $link_id = shift;
+    my $description = shift;
+
+    # Validate link exists, and grab relevant data.
+    my $sql = "SELECT link.name FROM link where link_id = ?";
+    my $links = $self->_execute_query($sql, [$link_id]);
+    if (!defined @$links[0]) {
+        $self->_set_error("Link doesn't exist.");
+        return;
+    }
+
+    # Check if the link is already under maintenance.
+    my $sql1 = "SELECT m.id FROM maintenance as m, link_maintenance as n where m.id = n.maintenance_id AND m.end_epoch = -1 AND n.link_id = ?";
+    my $link_maintenance = $self->_execute_query($sql1, [$link_id]);
+    if (defined @$link_maintenance[0]) {
+        $self->_set_error("Link is already in maintenance mode.");
+        return;
+    }
+
+    my $sql2 = "INSERT into maintenance (description, start_epoch, end_epoch) ";
+    $sql2   .= "VALUES (?, unix_timestamp(NOW()), -1)";
+    my $maintenance_id = $self->_execute_query($sql2, [$description]);
+    if (!defined $maintenance_id) {
+        $self->_set_error("Could not insert row into maintenance table.");
+        return;
+    }
+
+    my $sql3 = "INSERT into link_maintenance (link_id, maintenance_id) ";
+    $sql3   .= "VALUES (?, ?)";
+    my $link_maintenance_id = $self->_execute_query($sql3, [$link_id, $maintenance_id]);
+    if (!defined $link_maintenance_id) {
+        $self->_set_error("Could not insert row into link_maintenance table.");
+        return;
+    }
+
+    my $m = $self->get_link_maintenance($link_id);
+    if (!defined $m) {
+        $self->_set_error("Could not retrieve link maintenance.");
+        return;
+    }
+    my $result = {
+        maintenance_id => $maintenance_id,
+        link           => { name => @$links[0]->{'name'}, id => $link_id },
+        description    => $description,
+        start_epoch    => $m->{'start_epoch'},
+        end_epoch      => $m->{'end_epoch'}
+    };
+    return $result;
+}
+
+=head2 end_link_maintenance
+=cut
+sub end_link_maintenance {
+    my $self = shift;
+    my $link_id = shift;
+    
+    my $m = $self->get_link_maintenance($link_id);
+    if (!defined $m) {
+        return;
+    }
+    
+    my $sql = "UPDATE maintenance SET end_epoch = unix_timestamp(NOW()) WHERE id = ?";
+    my $result = $self->_execute_query($sql, [$m->{'maintenance_id'}]);
+    if (!defined $result) {
+        $self->_set_error("Internal error while ending link maintenance.");
+        return;
+    }
+    return $result;
+}
+
+# =head2 get_link_maintenance
+# =cut
+sub get_link_maintenance {
+    my $self = shift;
+    my $link_id = shift;
+
+    my $sql = "SELECT m.id, m.description, link.name, link.link_id, m.start_epoch, m.end_epoch ";
+    $sql   .= "FROM maintenance as m, link as link, link_maintenance as info ";
+    $sql   .= "WHERE m.id = info.maintenance_id ";
+    $sql   .= "AND info.link_id = link.link_id ";
+    $sql   .= "AND link.link_id = ? ";
+    $sql   .= "AND m.end_epoch = -1";
+
+    my $maintenance = $self->_execute_query($sql, [$link_id]);
+    my $m = @$maintenance[0];
+    if (!defined $m) {
+        $self->_set_error("Internal error while fetching link maintenance.");
+        return;
+    }
+    
+    my $result = {
+        maintenance_id => $m->{'id'},
+        link           => { name => $m->{'name'}, id => $m->{'link_id'} },
+        description    => $m->{'description'},
+        start_epoch    => $m->{'start_epoch'},
+        end_epoch      => $m->{'end_epoch'}
+    };
+    return $result;
+}
+
+# =head2 get_link_maintenances
+# =cut
+sub get_link_maintenances {
+    my $self = shift;
+
+    my $sql = "SELECT m.id, m.description, link.name, link.link_id, m.start_epoch, m.end_epoch ";
+    $sql   .= "FROM maintenance as m, link as link, link_maintenance as info ";
+    $sql   .= "WHERE m.id = info.maintenance_id ";
+    $sql   .= "AND info.link_id = link.link_id ";
+    $sql   .= "AND m.end_epoch = -1";
+
+    my $maintenances = $self->_execute_query($sql, []);
+    if (!defined @$maintenances[0]) {
+        return [];
+    }
+
+    my $result = [];
+    foreach my $m (@$maintenances){
+        push (@$result,
+              {
+                  maintenance_id => $m->{'id'},
+                  link           => { name => $m->{'name'}, id => $m->{'link_id'} },
+                  description    => $m->{'description'},
+                  start_epoch    => $m->{'start_epoch'},
+                  end_epoch      => $m->{'end_epoch'}
+              });
+    }
+    return $result;
+}
+
 =head2 add_acl
 
 Adds acl information to an interface
@@ -2635,12 +2926,13 @@ sub get_users_in_workgroup {
 
     my $users;
 
-    my $results = $self->_execute_query("select user.* from user " .
-					" join user_workgroup_membership on user.user_id = user_workgroup_membership.user_id " .
-					" where user_workgroup_membership.workgroup_id = ?" .
-					" order by given_names ",
-					[$workgroup_id]
-	                                );
+    my $results = $self->_execute_query("select user.* from user" .
+                                        " join user_workgroup_membership on user.user_id = user_workgroup_membership.user_id" .
+                                        " where user_workgroup_membership.workgroup_id = ?" .
+                                        " and user.status = 'active'" .
+                                        " order by given_names",
+                                        [$workgroup_id]
+        );
 
     if (! defined $results){
 	$self->_set_error("Internal error fetching users.");
@@ -2860,9 +3152,14 @@ sub add_user {
     my $email       = $args{'email_address'};
     my $auth_names  = $args{'auth_names'};
     my $type        = $args{'type'};
+    my $status      = $args{'status'};
     
     if (!defined ($type)){
         $type = "normal";
+    }
+
+    if(!defined($status)){
+        $status = 'active';
     }
 
     if(!defined($given_name) || !defined($family_name) || !defined($email) || !defined($auth_names)){
@@ -2877,9 +3174,9 @@ sub add_user {
 
     $self->_start_transaction();
 
-    my $query = "insert into user (email, given_names, family_name, type) values (?, ?, ?, ?)";
+    my $query = "insert into user (email, given_names, family_name, type, status) values (?, ?, ?, ?, ?)";
 
-    my $user_id = $self->_execute_query($query, [$email, $given_name, $family_name, $type]);
+    my $user_id = $self->_execute_query($query, [$email, $given_name, $family_name, $type, $status]);
 
     if (! defined $user_id){
 	$self->_set_error("Unable to create new user.");
@@ -2990,6 +3287,10 @@ The user's email address.
 
 An array of usernames that this user may validate under. This is typically only 1, but could be more if using some sort of federated authentication mechanism without requiring multiple user entries.
 
+=item status
+
+The administrative status of the user (active|decom).
+
 =back
 
 =cut
@@ -3004,72 +3305,36 @@ sub edit_user {
     my $email       = $args{'email_address'};
     my $auth_names  = $args{'auth_names'};
     my $type        = $args{'type'};
-    
+    my $status      = $args{'status'};
+
+
     if ($given_name =~ /^system$/ || $family_name =~ /^system$/){
-	$self->_set_error("User 'system' is reserved.");
-	return;
+        $self->_set_error("User 'system' is reserved.");
+        return;
     }
-
-    $self->_start_transaction();
-
-    my $query = "update user set email = ?, given_names = ?, family_name = ?, type =?  where user_id = ?";
-
-    my $result = $self->_execute_query($query, [$email, $given_name, $family_name,$type,  $user_id]);
-
-    if (! defined $user_id || $result == 0){
-	$self->_set_error("Unable to edit user - does this user actually exist?");
-	$self->_rollback();
-    return;
-    }
-
-    $self->_execute_query("delete from remote_auth where user_id = ?", [$user_id]);
-
-    foreach my $name (@$auth_names){
-	$query = "insert into remote_auth (auth_name, user_id) values (?, ?)";
-
-	$self->_execute_query($query, [$name, $user_id]);
-    }
-
-    $self->_commit();
-
-    return 1;
-}
-
-=head2 decom_user
     
-Decoms the user with the passed user id.
-
-=over
-
-=item user_id
-
-The id of the user to decom
-
-=back
-
-=cut
-
-sub decom_user {
-    my $self = shift;
-    my %args = @_;
-
-    my $user_id = $args{'user_id'};
-    my $status = "decom";
-
     $self->_start_transaction();
-
-    my $query = "update user set status = 'decom' where user_id = ?";
-
-    my $result = $self->_execute_query($query, [$user_id]);
-
+    
+    my $query = "update user set email = ?, given_names = ?, family_name = ?, type = ?, status = ?  where user_id = ?";
+    
+    my $result = $self->_execute_query($query, [$email, $given_name, $family_name, $type, $status,  $user_id]);
+    
     if (! defined $user_id || $result == 0){
-        $self->_set_error("Unable to decom user - does this user actually exist?");
+        $self->_set_error("Unable to edit user - does this user actually exist?");
         $self->_rollback();
         return;
     }
-
+    
+    $self->_execute_query("delete from remote_auth where user_id = ?", [$user_id]);
+    
+    foreach my $name (@$auth_names){
+        $query = "insert into remote_auth (auth_name, user_id) values (?, ?)";
+        
+        $self->_execute_query($query, [$name, $user_id]);
+    }
+    
     $self->_commit();
-
+    
     return 1;
 }
 
@@ -6516,12 +6781,17 @@ sub get_node_by_interface_id {
     my $query = "SELECT node_id ".
                 "FROM interface ".
                 "WHERE interface_id = ?";
-    my $res = $self->_execute_query($query,[$interface_id]) || return;
-    my $node_id = $res->[0]{'node_id'};
-    if(!$node_id){
-        $self->_set_error("No records for interface_id $interface_id");
+    my $res = $self->_execute_query($query, [$interface_id]) || return;
+    if (!defined @$res[0]) {
+        $self->_set_error("No records for interface_id $interface_id were found.");
         return;
     }
+
+    my $node_id = @$res[0]->{'node_id'};
+    # if(!$node_id){
+    #     $self->_set_error("No records for interface_id $interface_id");
+    #     return;
+    # }
 
     # get node record
     $query = "SELECT * ".
@@ -6529,9 +6799,8 @@ sub get_node_by_interface_id {
              "JOIN node_instantiation on node.node_id = node_instantiation.node_id ".
              "WHERE node.node_id = ? ".
              "AND node_instantiation.end_epoch = -1";
-    $res = $self->_execute_query($query,[$node_id]) || return;
-
-    return $res->[0];
+    $res = $self->_execute_query($query, [$node_id]) || return;
+    return @$res[0];
 }
 
 =head2 add_node
@@ -7102,7 +7371,7 @@ sub _start_transaction {
 
     my $dbh = $self->{'dbh'};
 
-    $dbh->begin_work();
+    $dbh->begin_work() or die $dbh->errstr;
 }
 
 sub _rollback{

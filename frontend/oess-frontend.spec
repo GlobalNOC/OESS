@@ -1,5 +1,5 @@
 Name:		oess-frontend
-Version:	1.1.6a
+Version:	1.1.7
 Release:	1%{?dist}
 Summary:	The core oess service provides
 

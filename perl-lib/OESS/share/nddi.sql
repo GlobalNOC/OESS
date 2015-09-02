@@ -89,6 +89,7 @@ CREATE TABLE `circuit_instantiation` (
   `start_epoch` int(10) NOT NULL,
   `circuit_state` enum('scheduled','deploying','active','decom') NOT NULL DEFAULT 'scheduled',
   `modified_by_user_id` int(10) NOT NULL,
+  `loop_node` int(11) DEFAULT NULL,
   PRIMARY KEY (`end_epoch`,`circuit_id`),
   KEY `user_circuit_instantiaiton_fk` (`modified_by_user_id`),
   KEY `circuit_circuit_instantiaiton_fk` (`circuit_id`),
@@ -457,7 +458,7 @@ CREATE TABLE `user` (
 
 LOCK TABLES `user` WRITE;
 /*!40000 ALTER TABLE `user` DISABLE KEYS */;
-INSERT INTO `user` VALUES (1,'system@localhost','system','system',0,'normal');
+INSERT INTO `user` VALUES (1,'system@localhost','system','system',0,'normal','active');
 /*!40000 ALTER TABLE `user` ENABLE KEYS */;
 UNLOCK TABLES;
 

@@ -29,7 +29,7 @@ function NDDIMap(div_id, interdomain_mode, options){
   this.ACTIVE_LINK_OPACITY   = 1.0;
   this.INACTIVE_LINK_OPACITY = 1.0;
   this._initialized = false;
-
+  var name_of_loop; 
   // keep a reference to ourselves to use in various callbacks
   var self = this;
 
@@ -246,7 +246,7 @@ function NDDIMap(div_id, interdomain_mode, options){
   }
 
 
-  this.showNode = function(node_name, draw_other_data, node_info, keep_map_position){
+  this.showNode = function(node_name, draw_other_data, node_info, keep_map_position, loop_node){
 
       if (this.isFeatureDrawn(node_name)){
 	  return 1;
@@ -298,6 +298,12 @@ function NDDIMap(div_id, interdomain_mode, options){
 		  pointStyle.externalGraphic = this.NON_IMPORTANT_IMAGE;
 	  }
 	  
+      //if (loop_node != undefined && loop_node == node_id) {
+
+      if (session.data.loop_node == node_id) {
+
+            name_of_loop = node_name; 
+        } 
 
       var lonlat = new OpenLayers.LonLat(node_long, node_lat).transform(this.map.displayProjection,
 									this.map.projection);
@@ -360,6 +366,8 @@ function NDDIMap(div_id, interdomain_mode, options){
 	        this.map.zoomToExtent(bounds);
         }
       }
+
+
 
       return 1;
   };
@@ -860,8 +868,9 @@ function NDDIMap(div_id, interdomain_mode, options){
 
     // show the nodes
     for (var i = 0; i < endpoints.length; i++){
-	this.showNode(endpoints[i].node,0, 0,  keep_map_position);
+	    this.showNode(endpoints[i].node,0, 0,  keep_map_position, loop_node);
     }
+
 
     for (var j = 0; j < this.map.layers[1].features.length; j++){
 
@@ -891,13 +900,12 @@ function NDDIMap(div_id, interdomain_mode, options){
 	    }
 
 	  }
+        if (name_of_loop) {
 
-        if (loop_node) {
-
-	    if (feature.geometry.element_name == loop_node){
-	      this.changeNodeImage(feature, this.LOOPED_IMAGE);
-	      was_selected = true;
-	    }
+            if (feature.geometry.element_name == name_of_loop){
+              this.changeNodeImage(feature, this.LOOPED_IMAGE);
+              was_selected = true;
+            }
 
         }
 
