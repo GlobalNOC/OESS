@@ -217,10 +217,10 @@ sub link_maintenance {
     # so that link events are ignored while under maintenance.
     my $endpoints = $self->{'db'}->get_link_endpoints(link_id => $link_id);
     my $e1 = {
-        id          => @$endpoints[0]->{'interface_id'},
-        port_name   => @$endpoints[0]->{'interface_name'},
-        port_number => @$endpoints[0]->{'port_number'},
-        link_status => OESS_LINK_DOWN
+        id      => @$endpoints[0]->{'interface_id'},
+        name    => @$endpoints[0]->{'interface_name'},
+        port_no => @$endpoints[0]->{'port_number'},
+        link    => OESS_LINK_DOWN
     };
     my $node1 = $self->{'db'}->get_node_by_interface_id(interface_id => $e1->{'id'});
     if (!defined $node1) {
@@ -229,10 +229,10 @@ sub link_maintenance {
     }
 
     my $e2 = {
-        id          => @$endpoints[1]->{'interface_id'},
-        port_name   => @$endpoints[1]->{'interface_name'},
-        port_number => @$endpoints[1]->{'port_number'},
-        link_status => OESS_LINK_DOWN
+        id      => @$endpoints[1]->{'interface_id'},
+        name    => @$endpoints[1]->{'interface_name'},
+        port_no => @$endpoints[1]->{'port_number'},
+        link    => OESS_LINK_DOWN
     };
     my $node2 = $self->{'db'}->get_node_by_interface_id(interface_id => $e2->{'id'});
     if (!defined $node2) {
@@ -240,11 +240,10 @@ sub link_maintenance {
         return 0;
     }
 
-    $link_maintenance{$link_id} = 1;
-
     $self->port_status($node1->{'dpid'}, OFPPR_MODIFY, $e1);
     $self->port_status($node2->{'dpid'}, OFPPR_MODIFY, $e2);
 
+    $link_maintenance{$link_id} = 1;
     $self->{'logger'}->warn("Link $link_id maintenance has begun.");
     return 1;
 }
@@ -961,6 +960,7 @@ sub port_status{
                 $link_status{$link_name} = OESS_LINK_DOWN;
 
                 # Fail over affected circuits if link is not in maintenance mode.
+                # Ignore traffic migration when in maintenance mode.
                 if (!exists $link_maintenance{$link_id}) {
                     $self->_fail_over_circuits( circuits => $affected_circuits, link_name => $link_name );
                     $self->_cancel_restorations( link_id => $link_id);
@@ -974,6 +974,7 @@ sub port_status{
                 $link_status{$link_name} = OESS_LINK_UP;
 
                 # Restore affected circuits if link is not in maintenance mode.
+                # Ignore traffic migration when in maintenance mode.
                 if (!exists $link_maintenance{$link_id}) {
                     my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $link_id);
                     $self->_restore_down_circuits( circuits => $circuits, link_name => $link_name );
