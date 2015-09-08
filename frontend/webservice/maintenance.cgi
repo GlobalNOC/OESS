@@ -171,9 +171,7 @@ sub end_node_maintenance {
     my $node_id = $cgi->param('node_id');
     if (!defined $node_id) {
         return { error => "Parameter node_id must be provided." };
-        return $results;
     }
-    
     my $data = $db->end_node_maintenance($node_id);
     if (!defined $data) {
         return { error => "Failed to take node out of maintenance mode." };
@@ -244,7 +242,6 @@ sub start_link_maintenance {
         $db->_rollback();
         return { error => "Failed to put link into maintenance mode." };
     }
-
     my $res = _execute_link_maintenance($link_id, "start");
     if ($res != 1) {
         $db->_rollback();

@@ -856,7 +856,6 @@ sub edit_link {
     my $self = shift;
     my %args = @_;
     my $link_id = $args{'link_id'};
-    warn Dumper %args;
     if (!defined($args{'link_id'})) {
         $self->_set_error("No Link id was defined");
         return;
@@ -1107,6 +1106,7 @@ sub get_map_layers {
     select network.longitude as network_long,
     network.latitude as network_lat,
     network.name as network_name,
+    node_maintenance.node_id as maint_node,
     node.longitude as node_long,
     node.max_flows,
     node.tx_delay_ms,
@@ -1119,11 +1119,14 @@ sub get_map_layers {
     node.default_forward as default_forward,
     node.send_barrier_bulk as barrier_bulk,
     node.max_static_mac_flows as max_static_mac_flows,
-    node_instantiation.dpid as dpid
+    node_instantiation.dpid as dpid,
+    maintenance.end_epoch 
     from node
     join node_instantiation on node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 
     and  node_instantiation.admin_state = 'active'
     join network on node.network_id = network.network_id and network.is_local = 1
+    left join  node_maintenance on node.node_id = node_maintenance.node_id
+    left join  maintenance on node_maintenance.maintenance_id = maintenance.id
 HERE
         
     my $networks;
@@ -1152,60 +1155,73 @@ HERE
     my $network_name = "";
 
     foreach my $row(@$rows){
-        
-	$network_name = $row->{'network_name'};
-	my $node_name    = $row->{'node_name'};
-	my $avail_endpoints = ( defined($nodes_endpoints->{$network_name}->{$node_name})? $nodes_endpoints->{$network_name}->{$node_name} : $default_endpoint_count);
-        
-        
-	$networks->{$network_name}->{'meta'} = {"network_long" => $row->{'network_long'},
-						"network_lat"  => $row->{'network_lat'},
-						"network_name" => $network_name,
-						"local"        => 1
-	};
-        
-	$networks->{$network_name}->{'nodes'}->{$node_name} = {"node_name"    => $node_name,
-                                                               "node_id"      => $row->{'node_id'},
-							       "node_lat"     => $row->{'node_lat'},
-							       "node_long"    => $row->{'node_long'},
-							       "node_id"      => $row->{'node_id'},
-							       "vlan_range"   => $row->{'vlan_tag_range'},
-							       "default_drop" => $row->{'default_drop'},
-							       "default_forward" => $row->{'default_forward'},
-							       "max_static_mac_flows" => $row->{'max_static_mac_flows'},
-							       "max_flows"    => $row->{'max_flows'},
-							       "tx_delay_ms" => $row->{'tx_delay_ms'},
-							       "dpid"         => sprintf("%x",$row->{'dpid'}),
-							       "barrier_bulk" => $row->{'barrier_bulk'},
-							       "number_available_endpoints" => $avail_endpoints
+            
+        $network_name = $row->{'network_name'};
+        my $node_name    = $row->{'node_name'};
+        my $avail_endpoints = ( defined($nodes_endpoints->{$network_name}->{$node_name})? $nodes_endpoints->{$network_name}->{$node_name} : $default_endpoint_count);
+            
+            
+        $networks->{$network_name}->{'meta'} = {"network_long" => $row->{'network_long'},
+                            "network_lat"  => $row->{'network_lat'},
+                            "network_name" => $network_name,
+                            "local"        => 1
         };
-        
-	# make sure we have an array even if we never get any links for this node
-	if (! exists $networks->{$network_name}->{'links'}->{$node_name}){
-	    $networks->{$network_name}->{'links'}->{$node_name} = [];
-	}
+            
+        $networks->{$network_name}->{'nodes'}->{$node_name} = {"node_name"    => $node_name,
+                                                                   "node_id"      => $row->{'node_id'},
+                                       "node_lat"     => $row->{'node_lat'},
+                                       "node_long"    => $row->{'node_long'},
+                                       "node_id"      => $row->{'node_id'},
+                                       "vlan_range"   => $row->{'vlan_tag_range'},
+                                       "default_drop" => $row->{'default_drop'},
+                                       "default_forward" => $row->{'default_forward'},
+                                       "max_static_mac_flows" => $row->{'max_static_mac_flows'},
+                                       "max_flows"    => $row->{'max_flows'},
+                                       "tx_delay_ms" => $row->{'tx_delay_ms'},
+                                       "dpid"         => sprintf("%x",$row->{'dpid'}),
+                                       "barrier_bulk" => $row->{'barrier_bulk'},
+                                       "end_epoch"   => $row->{"end_epoch"},
+                                       "number_available_endpoints" => $avail_endpoints
+            };
+            
+        # make sure we have an array even if we never get any links for this node
+        if (! exists $networks->{$network_name}->{'links'}->{$node_name}){
+            $networks->{$network_name}->{'links'}->{$node_name} = [];
+        }
         
     }
     
     my $links = $self->get_current_links();
+
+    my $link_maintenances = $self->get_link_maintenances();
     foreach my $link (@$links){
     
         my $inta = $self->get_interface( interface_id => $link->{'interface_a_id'});
         my $intb = $self->get_interface( interface_id => $link->{'interface_z_id'});
+        my $maint_results = $self->get_link_maintenance($link->{'link_id'});
+        my $maint_epoch;
+        foreach my $link_maintenance (@$link_maintenances) {
+            if ($link->{'link_id'} == $link_maintenance->{'link'}->{'id'}) {
+                $maint_epoch = $link_maintenance->{'end_epoch'};
+            }
+            
+        }
 
         push(@{$networks->{$network_name}->{'links'}->{$inta->{'node_name'}}},{"link_name"   => $link->{'name'},
                                                                                "link_state"  => $link->{'link_state'},
                                                                                "link_capacity" => $intb->{'speed'},
                                                                                "remote_urn"  => $link->{'remote_urn'},
                                                                                "to"          => $intb->{'node_name'},
-                                                                               "link_id"     => $link->{'link_id'}});
+                                                                               "link_id"     => $link->{'link_id'},
+                                                                               "maint_epoch" => $maint_epoch});
 
         push(@{$networks->{$network_name}->{'links'}->{$intb->{'node_name'}}},{"link_name"   => $link->{'name'},
                                                                                "link_state"  => $link->{'link_state'},
                                                                                "remote_urn"  => $link->{'remote_urn'},
                                                                                "link_capacity" => $inta->{'speed'},
                                                                                "to"          => $inta->{'node_name'},
-                                                                               "link_id"     => $link->{'link_id'}});
+                                                                               "link_id"     => $link->{'link_id'},
+                                                                                "maint_epoch" => $maint_epoch});
     }
   
 
@@ -1231,30 +1247,30 @@ HERE
 
     foreach my $row (@$rows){
 
-	my $node_id      = $row->{'node_id'};
-	my $network_id   = $row->{'network_id'};
-	my $network_name = $row->{'network_name'};
-	my $node_name    = $row->{'node_name'};
-	my $avail_endpoints = ( defined($nodes_endpoints->{$network_name}->{$node_name})? $nodes_endpoints->{$network_name}->{$node_name} : $default_endpoint_count);
-	$networks->{$network_name}->{'meta'} = {"network_long" => $row->{'network_long'},
-						"network_lat"  => $row->{'network_lat'},
-						"network_name" => $network_name,
-						"local"        => 0
-	};
+        my $node_id      = $row->{'node_id'};
+        my $network_id   = $row->{'network_id'};
+        my $network_name = $row->{'network_name'};
+        my $node_name    = $row->{'node_name'};
+        my $avail_endpoints = ( defined($nodes_endpoints->{$network_name}->{$node_name})? $nodes_endpoints->{$network_name}->{$node_name} : $default_endpoint_count);
+        $networks->{$network_name}->{'meta'} = {"network_long" => $row->{'network_long'},
+                            "network_lat"  => $row->{'network_lat'},
+                            "network_name" => $network_name,
+                            "local"        => 0
+        };
 
-	my $node_lat = $row->{'node_lat'};
-	my $node_lon = $row->{'node_long'};
+        my $node_lat = $row->{'node_lat'};
+        my $node_lon = $row->{'node_long'};
 
-	if ($node_lat eq 0 && $node_lon eq 0){
-	    $node_lat  = $row->{'network_lat'};
-	    $node_lon  = $row->{'network_long'};
-	}
+        if ($node_lat eq 0 && $node_lon eq 0){
+            $node_lat  = $row->{'network_lat'};
+            $node_lon  = $row->{'network_long'};
+        }
 
-	$networks->{$network_name}->{'nodes'}->{$node_name} = {"node_name"    => $node_name,
-							       "node_lat"     => $node_lat,
-							       "node_long"    => $node_lon,
-							       "number_available_endpoints" => $avail_endpoints
-	};
+        $networks->{$network_name}->{'nodes'}->{$node_name} = {"node_name"    => $node_name,
+                                       "node_lat"     => $node_lat,
+                                       "node_long"    => $node_lon,
+                                       "number_available_endpoints" => $avail_endpoints
+        };
 
     }
 
@@ -1274,10 +1290,11 @@ HERE
 
 =cut
 
-sub get_current_links{
+sub get_current_links {
     my $self = shift;
     #We don't set the end_epoch when a link is available or when it is decom, we only want active links ISSUE 5759
     my $query = "select * from link natural join link_instantiation where link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active' order by link.name";
+    #my $query = "select *, maintenance.end_epoch as maint_epoch from link natural join link_instantiation left join link_maintenance on link.link_id = link_maintenance.link_id left join maintenance on link_maintenance.maintenance_id = maintenance.id where link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active' order by link.name";
 
     my $res = $self->_execute_query($query,[]);
 
@@ -2228,12 +2245,13 @@ sub get_link_maintenance {
     $sql   .= "AND m.end_epoch = -1";
 
     my $maintenance = $self->_execute_query($sql, [$link_id]);
-    my $m = @$maintenance[0];
-    if (!defined $m) {
+    
+    if (!defined $maintenance) {
         $self->_set_error("Internal error while fetching link maintenance.");
         return;
     }
-    
+    my $m = @$maintenance[0];
+
     my $result = {
         maintenance_id => $m->{'id'},
         link           => { name => $m->{'name'}, id => $m->{'link_id'} },
@@ -2256,8 +2274,9 @@ sub get_link_maintenances {
     $sql   .= "AND m.end_epoch = -1";
 
     my $maintenances = $self->_execute_query($sql, []);
-    if (!defined @$maintenances[0]) {
-        return [];
+    if (!defined $maintenances) {
+        $self->_set_error("Internal error while fetching link maintenances.");
+        return;
     }
 
     my $result = [];
