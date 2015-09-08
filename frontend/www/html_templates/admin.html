@@ -59,7 +59,9 @@
 	  <br><br>
 
 	  <div id="active_network_update_status" class="soft_title confirmation"></div>
-	  <div id="active_network_map" class="openlayers smaller"></div>	  
+      <div id="active_network_map" class="openlayers smaller"></div>	 
+
+        [% INCLUDE html_templates/map_legend.html %]
 	  <br>
 	  <div id="active_element_details" style="position:relative;z-index:8999; top:-300px;width: 510px"></div>
 
@@ -184,7 +186,12 @@
             <div id="edge_int_maint_table"></div>
                 <div class="maint_actions_holder">
             </div>
+            </br>
+                <label class='subtitle'>Link Maintenances</label>
             <div id="link_maint_table"></div>
+            <br/>
+                <label class='subtitle'>Node Maintenances</label>
+            <div id="node_maint_table"></div>
         </div>
     </div>
 

@@ -352,16 +352,16 @@ function setup_remote_tab(){
 		    var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_node_interfaces&node="+encodeURIComponent(node) + "&show_down=1");
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 		    ds.responseSchema = {
-			resultsList: "results",
-			fields: [
-		    {key: "name"},
-		    {key: "description"},
-		    {key: "vlan_tag_range"},
-		    {key: "interface_id", parser: "number"}
-				 ],
-			metaFields: {
-			    error: "error"
-			}
+                resultsList: "results",
+                fields: [
+                {key: "name"},
+                {key: "description"},
+                {key: "vlan_tag_range"},
+                {key: "interface_id", parser: "number"}
+                     ],
+                metaFields: {
+                    error: "error"
+                }
 		    };
 			    
 		    var cols = [{key: "name", label: "Local Interface", width: 220}];
@@ -1874,7 +1874,9 @@ function setup_network_tab(){
 	    this.clearAllSelected();
 	});
 
-    var panel, save_button, delete_button;
+    legend_init(map,false,false,true,true);
+
+    var panel, save_button, delete_button, maint_button;
     var _generate_link_panel = function(link) {
 	    panel.setBody(
             "<table>" +
@@ -2021,7 +2023,8 @@ function setup_network_tab(){
             panel.setBody("<p>Loading data...</p>");
 
             panel.setFooter("<div id='save_active_link'></div>" +
-                            "<div id='delete_active_link'></div>");
+                            "<div id='delete_active_link'></div>" +
+                            "<div id='maint_link'></div>");
 
             panel.hideEvent.subscribe(function(){
                 map.clearAllSelected();
@@ -2029,6 +2032,54 @@ function setup_network_tab(){
 
             save_button   = new YAHOO.widget.Button("save_active_link", {label: "Update Link"});
             delete_button = new YAHOO.widget.Button("delete_active_link", {label: "Decomission Link"});
+            maint_button    = new YAHOO.widget.Button("maint_link", {label: "Put Link into Maintenance"});
+
+            if (args[0].feature.geometry.maint_epoch) {
+                maint_button.set("disabled",true);
+            }
+
+            maint_button.on("click", function() {
+                showConfirm("Putting the link into maintenance state will cause all circuits with an alternate path to change to that alternate path, causing a small forwarding disruption.  Circuits without an alternate path will continue to forward on this path while the link is up.  No restore to primary events will occur until the link is up and the maintenance has been completed. Are you sure you want to do this?",
+                    function() {
+                    maint_button.set("disabled",true);
+                    var ds = new YAHOO.util.DataSource("../services/maintenance.cgi?action=start_link&link_id=" + link_id);
+                    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+
+                    ds.responseSchema = {
+                        resultsList: "results",
+                        fields: [{key: "maintenance_id"}]
+                        }; 
+
+                    ds.sendRequest("", 
+                           {
+                               success: function(req, resp){
+                               maint_button.set("disabled", false);
+                               maint_button.set("label", "Put Link in Maintenance");
+
+                               if (resp.results && resp.results[0].maintenance_id){
+                                   map.reinitialize();
+                                   panel.destroy();
+                                   panel = null;
+                                   YAHOO.util.Dom.get("active_network_update_status").innerHTML = "Link successfully put into maintenance.";
+                               }
+                               else{
+                                   alert("Link maintenance unsuccessful.");
+                               }
+                               
+                               },
+                               failure: function(req, resp){
+                                   save_button.set("disabled", false);
+                                   delete_button.set("disabled", false);
+                                   delete_button.set("label", "Put Link in Maintenance");
+                                   alert("Error while talking to server.");
+                                }
+                    }); 
+                    
+                    },
+                    function(){}
+                    );
+
+            });
 
             var url =  "../services/data.cgi?action=get_link_by_name";
                 url += "&name="+ encodeURIComponent(link_name);
@@ -2109,7 +2160,8 @@ function setup_network_tab(){
 	    var feature = args[0].feature;
 	    var dpid = convert_dpid_to_hex(args[0].dpid);
         var max_static_mac_flows = args[0].max_static_mac_flows;
-      
+        var end_epoch = args[0].feature.geometry.end_epoch;
+
         function show_interface_acl_panel(args){
             var interface_id = args.interface_id;
             var interface_name = args.interface_name;
@@ -2195,7 +2247,6 @@ function setup_network_tab(){
                 orig_interface_id: params.orig_interface_id,
                 node: params.node
             });
-            //var panel = new YAHOO.widget.Panel(container_id,{
             var panel = new YAHOO.widget.Panel(container_id,{
                 width: width,
                 centered: true//,
@@ -2538,7 +2589,8 @@ function setup_network_tab(){
         "<div id='node_interface_table' style='margin-top:8px;'> </div>");
 
 	    panel.setFooter("<div id='save_active_node'></div>" + 
-			    "<div id='delete_active_node'></div>");
+			    "<div id='delete_active_node'></div>" +
+                "<div id='maint_node'></div>");
 
 	    panel.hideEvent.subscribe(function(){
 		    map.clearAllSelected();
@@ -2586,8 +2638,13 @@ function setup_network_tab(){
 
 	    var save_button   = new YAHOO.widget.Button("save_active_node", {label: "Update Device"});
 	    var delete_button = new YAHOO.widget.Button("delete_active_node", {label: "Decomission Device"});
+	    var maint_button = new YAHOO.widget.Button("maint_node", {label: "Put Device in Maintenance"});
+	   
+        if (end_epoch == -1) {
+           maint_button.set("disabled",true); 
+        }
 
-	    save_button.on("click", function(){
+        save_button.on("click", function(){
 		    var new_name  = YAHOO.util.Dom.get('active_node_name').value;
 		    var new_lat   = YAHOO.util.Dom.get('active_node_lat').value;
 		    var new_lon   = YAHOO.util.Dom.get('active_node_lon').value;
@@ -2659,10 +2716,10 @@ function setup_network_tab(){
 
 				       },
 				       failure: function(req, resp){
-					   delete_button.set("disabled", false);
-					   save_button.set("disabled", false);
-					   save_button.set("label", "Update Device");
-					   alert("Error while talking to server.");
+                           delete_button.set("disabled", false);
+                           save_button.set("disabled", false);
+                           save_button.set("label", "Update Device");
+                           alert("Error while talking to server.");
 				       }
 				   });
 
@@ -2704,10 +2761,10 @@ function setup_network_tab(){
 							   
 						       },
 						       failure: function(req, resp){
-							   save_button.set("disabled", false);
-							   delete_button.set("disabled", false);
-							   delete_button.set("label", "Decomission Device");
-							   alert("Error while talking to server.");
+                                   save_button.set("disabled", false);
+                                   delete_button.set("disabled", false);
+                                   delete_button.set("label", "Decomission Device");
+                                   alert("Error while talking to server.");
 						       }
 						   }); 
 				    
@@ -2716,6 +2773,51 @@ function setup_network_tab(){
 				);
 
 		});
+
+        maint_button.on("click", function() {
+            showConfirm("Putting the node into maintenance will have the links it is connected to have their associated circuits change to that alternative path, causing a small forwarding disruption. Circuits without an alternate path will continue to forward on this path while the link is up. No restore to primary events will occur until the link is up and the maintenance has been completed. Are you sure you want to do this?",
+                function() {
+
+                    var ds = new YAHOO.util.DataSource("../services/maintenance.cgi?action=start_node&node_id=" + node_id);
+                    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+
+                    ds.responseSchema = {
+                        resultsList: "results",
+                        fields: [{key: "maintenance_id"}]
+                        }; 
+
+                    ds.sendRequest("", 
+                           {
+                               success: function(req, resp){
+                               maint_button.set("disabled", false);
+                               maint_button.set("label", "Put Device in Maintenance");
+                               save_button.set("disabled", false);
+
+                               if (resp.results && resp.results[0].maintenance_id){
+                                   map.reinitialize();
+                                   panel.destroy();
+                                   panel = null;
+                                   YAHOO.util.Dom.get("active_network_update_status").innerHTML = "Device successfully put into maintenance.";
+                               }
+                               else{
+                                   alert("Device maintenance unsuccessful.");
+                               }
+                               
+                               },
+                               failure: function(req, resp){
+                                   save_button.set("disabled", false);
+                                   delete_button.set("disabled", false);
+                                   delete_button.set("label", "Put Device in Maintenance");
+                                   alert("Error while talking to server.");
+                                }
+                }); 
+                
+                },
+                function(){}
+                );
+
+        });
+
 	});
 
 }
@@ -2968,6 +3070,7 @@ function setup_discovery_tab(){
 }
 
 function setup_maintenance_tab(){    
+    
     //create the edge table
     var table = makeIntMoveMaintTable();
 
@@ -2984,7 +3087,8 @@ function setup_maintenance_tab(){
     var node_table = makeNodeMaintenanceTable(); 
 }
 
-function makeNodeMaintenanceTable(){
+function makeNodeMaintenanceTable() {
+
     var url = "../services/maintenance.cgi?action=nodes";
     var ds  = new YAHOO.util.DataSource(url);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
@@ -3000,8 +3104,12 @@ function makeNodeMaintenanceTable(){
     };
 
     var columns = [
-        {key: "name", label: "Name", width: 180 ,sortable:true},
-        {key: "node", label: "Node", sortable:true },
+        {key: "node", label: "Node", sortable:true, formatter: function(el,rec,col,data) {
+                if (rec) {
+                    el.innerHTML = rec._oData.node.name;
+                } 
+        }                
+        },
         {key: "description", label: "Description", sortable:true },
         {key: "start_epoch", label: "Activated On", formatter: function(el, rec, col, data){
             el.innerHTML = new Date(data * 1000 ).toLocaleString(); 
@@ -3011,10 +3119,13 @@ function makeNodeMaintenanceTable(){
             var bid = b.get('id');
             b.appendTo(el);
             b.on("click", function(){
-                var maintComplete = function(link_id, table){
+                var maintComplete = function(node, table){
+                    var node_id = node.id;
                     b.set('label', 'Submitting...');
-                    var url = "../services/maintenance.cgi?action=end_node_maintenance"+
-                              "&maintenance_id="+link_id;
+				    b.set("enable", true);
+                    var url = "../services/maintenance.cgi?action=end_node"+
+                              "&node_id="+node_id;
+                      
                     var ds = new YAHOO.util.DataSource(url);
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                     ds.responseSchema = {
@@ -3030,14 +3141,17 @@ function makeNodeMaintenanceTable(){
                         success: function(req, resp){
                             if (resp.meta.error){
                                 b.set('label', 'Complete');
+                                b.set("enabled", true);
                                 alert("Error submitting maintenance completion: " + resp.meta.error, null, {error: true});
                                 return;
                             }
                             var res = resp.results[0];
+				            setup_network_tab();
                             table.load();
                         },
                         failure: function(req, resp){
                             b.set('label', 'Complete');
+                            b.set('enabled',"true");
                             alert("Server error submitting maintenance completion", null, {error: true});
                         }
                     });
@@ -3045,7 +3159,7 @@ function makeNodeMaintenanceTable(){
                 var msg = "This will end the node maintenance for this node. Are you sure you wish to do this?";
                 showConfirm(msg,
                     $.proxy(function(){
-                        maintComplete(rec.getData("maintenance_id"), this);
+                        maintComplete(rec.getData("node"), this);
                     },this),
                     function(){}
                 );
@@ -3060,12 +3174,13 @@ function makeNodeMaintenanceTable(){
         })
     };
 
-    var table = new YAHOO.widget.DataTable("link_maint_table", columns, ds, config);
+    var table = new YAHOO.widget.DataTable("node_maint_table", columns, ds, config);
     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
     table.subscribe("rowMouseoutEvent",  table.onEventUnhighlightRow);
 
     return table;
 }
+
 function makeLinkMaintenanceTable(){
     var url = "../services/maintenance.cgi?action=links";
     var ds  = new YAHOO.util.DataSource(url);
@@ -3082,9 +3197,12 @@ function makeLinkMaintenanceTable(){
     };
 
     var columns = [
-        {key: "name", label: "Name", width: 180 ,sortable:true},
-        {key: "link", label: "Link", sortable:true },
-        {key: "description", label: "Description", sortable:true },
+        {key: "link", label: "Link", sortable:true, formatter: function(el,rec,col,data) { 
+                if (rec) {
+                    el.innerHTML = rec._oData.link.name;
+                } 
+        }                
+        },
         {key: "start_epoch", label: "Activated On", formatter: function(el, rec, col, data){
             el.innerHTML = new Date(data * 1000 ).toLocaleString(); 
         }, sortable: true},
@@ -3093,10 +3211,12 @@ function makeLinkMaintenanceTable(){
             var bid = b.get('id');
             b.appendTo(el);
             b.on("click", function(){
-                var maintComplete = function(link_id, table){
+                var maintComplete = function(link, table){
+                    var link_id = link.id;
                     b.set('label', 'Submitting...');
-                    var url = "../services/maintenance.cgi?action=end_link_maintenance"+
-                              "&maintenance_id="+link_id;
+                    b.set('enabled',"false");
+                    var url = "../services/maintenance.cgi?action=end_link"+
+                              "&link_id="+link_id;
                     var ds = new YAHOO.util.DataSource(url);
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                     ds.responseSchema = {
@@ -3113,13 +3233,16 @@ function makeLinkMaintenanceTable(){
                             if (resp.meta.error){
                                 b.set('label', 'Complete');
                                 alert("Error submitting maintenance completion: " + resp.meta.error, null, {error: true});
+                                 b.set('enabled',"true");
                                 return;
                             }
                             var res = resp.results[0];
+				            setup_network_tab();
                             table.load();
                         },
                         failure: function(req, resp){
                             b.set('label', 'Complete');
+                            b.set('enabled',"true");
                             alert("Server error submitting maintenance completion", null, {error: true});
                         }
                     });
@@ -3127,7 +3250,7 @@ function makeLinkMaintenanceTable(){
                 var msg = "This will end the link maintenance for this link. Are you sure you wish to do this?";
                 showConfirm(msg,
                     $.proxy(function(){
-                        maintComplete(rec.getData("maintenance_id"), this);
+                        maintComplete(rec.getData("link"), this);
                     },this),
                     function(){}
                 );

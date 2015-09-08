@@ -610,7 +610,7 @@ function build_circuitTable(){
 }
 
 
-      var ckt_table = build_circuitTable();
+    var ckt_table = build_circuitTable();
 
 
     var link_status_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_all_link_status");

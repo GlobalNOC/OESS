@@ -61,7 +61,7 @@ function init(){
 					 max_resize: 700});
 
   
-  legend_init(nddi_map, true);
+  legend_init(nddi_map, true, false, false, true);
     
   //nddi_map.showDefault();
   
