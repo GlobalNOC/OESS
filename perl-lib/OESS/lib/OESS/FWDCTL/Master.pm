@@ -200,27 +200,20 @@ sub link_maintenance {
     my $self    = shift;
     my $link_id = shift;
     my $state   = shift;
-    
-    if ($state eq "end") {
-        # Once maintenance has ended remove $link_id from our
-        # link_maintenance hash. This will allow future fv_link_event
-        # calls to recover affected links.
-        if (exists $link_maintenance{$link_id}) {
-            delete $link_maintenance{$link_id};
-        }
-        $self->{'logger'}->warn("Link $link_id maintenance has ended.");
-        return 1;
-    }
 
-    # Trigger artificial port status messages to move circuits off
-    # any ports using $link_id. Store $link_id in $link_maintenance
-    # so that link events are ignored while under maintenance.
     my $endpoints = $self->{'db'}->get_link_endpoints(link_id => $link_id);
+    my $link_state;
+    if (@$endpoints[0]->{'operational_state'} eq 'up' && @$endpoints[1]->{'operational_state'} eq 'up') {
+        $link_state = OESS_LINK_UP;
+    } else {
+        $link_state = OESS_LINK_DOWN;
+    }
+    
     my $e1 = {
         id      => @$endpoints[0]->{'interface_id'},
         name    => @$endpoints[0]->{'interface_name'},
         port_no => @$endpoints[0]->{'port_number'},
-        link    => OESS_LINK_DOWN
+        link    => $link_state
     };
     my $node1 = $self->{'db'}->get_node_by_interface_id(interface_id => $e1->{'id'});
     if (!defined $node1) {
@@ -232,7 +225,7 @@ sub link_maintenance {
         id      => @$endpoints[1]->{'interface_id'},
         name    => @$endpoints[1]->{'interface_name'},
         port_no => @$endpoints[1]->{'port_number'},
-        link    => OESS_LINK_DOWN
+        link    => $link_state
     };
     my $node2 = $self->{'db'}->get_node_by_interface_id(interface_id => $e2->{'id'});
     if (!defined $node2) {
@@ -240,11 +233,31 @@ sub link_maintenance {
         return 0;
     }
 
-    $self->port_status($node1->{'dpid'}, OFPPR_MODIFY, $e1);
-    $self->port_status($node2->{'dpid'}, OFPPR_MODIFY, $e2);
+    if ($state eq 'end') {
+        # Once maintenance has ended remove $link_id from our
+        # link_maintenance hash, and call port_status including the true
+        # link state.
+        if (exists $link_maintenance{$link_id}) {
+            delete $link_maintenance{$link_id};
+        }
 
-    $link_maintenance{$link_id} = 1;
-    $self->{'logger'}->warn("Link $link_id maintenance has begun.");
+        $self->port_status($node1->{'dpid'}, OFPPR_MODIFY, $e1);
+        $self->port_status($node2->{'dpid'}, OFPPR_MODIFY, $e2);
+        $self->{'logger'}->warn("Link $link_id maintenance has ended.");
+    } else {
+        # Simulate link down event by passing false link state to
+        # port_status.
+        $e1->{'link'} = OESS_LINK_DOWN;
+        $e2->{'link'} = OESS_LINK_DOWN;
+
+        my $link_name;
+        $link_name = $self->port_status($node1->{'dpid'}, OFPPR_MODIFY, $e1);
+        $link_name = $self->port_status($node2->{'dpid'}, OFPPR_MODIFY, $e2);
+
+        $link_maintenance{$link_id} = 1;
+        $link_status{$link_name} = $link_state; # Record true link state.
+        $self->{'logger'}->warn("Link $link_id maintenance has begun.");
+    }
     return 1;
 }
 
@@ -428,12 +441,12 @@ sub _sync_database_to_network {
     
     my $node_maintenances = $self->{'db'}->get_node_maintenances();
     foreach my $maintenance (@$node_maintenances) {
-        $self->node_maintenance($maintenance->{'node'}->{'id'});
+        $self->node_maintenance($maintenance->{'node'}->{'id'}, "start");
     }
 
     my $link_maintenances = $self->{'db'}->get_link_maintenances();
     foreach my $maintenance (@$link_maintenances) {
-        $self->node_maintenance($maintenance->{'link'}->{'id'});
+        $self->link_maintenance($maintenance->{'link'}->{'id'}, "start");
     }
 
     foreach my $node (keys %node_info){
@@ -1060,12 +1073,6 @@ sub topo_port_status{
     my $sw_name   = $node->{'name'};
     my $dpid_str  = sprintf("%x",$dpid);
 
-    # If the affected link is under maintenance ignore the port status.
-    if (exists $link_maintenance{$link_id}) {
-        $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port:$port_name port status change will be ignored.");
-        return 1;
-    }
-    
     switch ($reason) {
 	#add case
 	case OFPPR_ADD {
@@ -1137,12 +1144,6 @@ sub fv_link_event{
 	return 0;
     }
 
-    # If the affected link is under maintenance ignore status change.
-    if (exists $link_maintenance{$link->{'link_id'}}) {
-        $self->{'logger'}->warn("link:$link_name status change will be ignored.");
-        return 1;
-    }
-
     if ($state == OESS_LINK_DOWN) {
 
 	$self->{'logger'}->warn("FV determined link " . $link_name . " is down");
@@ -1156,18 +1157,23 @@ sub fv_link_event{
 	
 	$link_status{$link_name} = OESS_LINK_DOWN;
 	#fail over affected circuits
-	$self->_fail_over_circuits( circuits => $affected_circuits, link_name => $link_name );
-	$self->_cancel_restorations( link_id => $link->{'link_id'});
-	$self->{'logger'}->warn("FV Link down complete!");
+        if (!exists $link_maintenance{$link->{'link_id'}}) {
+            $self->_fail_over_circuits( circuits => $affected_circuits, link_name => $link_name );
+            $self->_cancel_restorations( link_id => $link->{'link_id'});
+            $self->{'logger'}->warn("FV Link down complete!");
+        }
     }
     #--- when a port comes back up determine if any circuits that are currently down
     #--- can be restored by bringing it back up over to this path, we do not restore by default
     else {
 	$self->{'logger'}->warn("FV has determined link $link_name is up");
 	$link_status{$link_name} = OESS_LINK_UP;
-	my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $link->{'link_id'});
-	$self->_restore_down_circuits( circuits => $circuits, link_name => $link_name );
-        $self->{'logger'}->warn("FV Link Up completed");
+
+        if (!exists $link_maintenance{$link->{'link_id'}}) {
+            my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $link->{'link_id'});
+            $self->_restore_down_circuits( circuits => $circuits, link_name => $link_name );
+            $self->{'logger'}->warn("FV Link Up completed");
+        }
     }
 
     return 1;
