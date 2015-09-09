@@ -132,10 +132,27 @@ sub get_restore_to_primary{
 
 sub update_circuit_details{
     my $self = shift;
+    my %params = @_;
+
+    if(defined($params{'link_status'})){
+        $self->{'link_status'} = $params{'link_status'};
+    }
+
     $self->{'graph'} = {};
     $self->{'endpoints'} = {};
     $self->{'flows'} = {};
+
     $self->_load_circuit_details();
+}
+
+sub set_link_status{
+    my $self = shift;
+    my %params = @_;
+    if(!defined($params{'link_status'})){
+        return;
+    }else{
+        $self->{'link_status'} = $params{'link_status'};
+    }
 }
 
 sub _load_circuit_details{
