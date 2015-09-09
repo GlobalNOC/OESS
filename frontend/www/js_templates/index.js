@@ -624,7 +624,7 @@ function build_circuitTable(){
 			       {key: "name", label: "Link", sortable: true, width: 200},
 			       {key: "status", label: "Status", sortable: true, width: 40, formatter: function(elLiner, oRec, oCol, oData){
                         if (oRec.getData('in_maint') == 'yes') {
-                            elLiner.innerHTML = "<font color='teal'>In Maintenance</font>";
+                            elLiner.innerHTML = "<font color='teal'>Maintenance</font>";
                         }
                         else {
 				       if(oRec.getData('fv_status') == 'down'){
@@ -658,7 +658,7 @@ function build_circuitTable(){
 				 {key: "name", label: "Switch",sortable: true, width: 200},
 				 {key: "operational_state", sortable: true, label: "Status", width: 40, formatter: function(elLiner, oRec, oCol, oData){
                     if (oRec.getData('in_maint') == 'yes') {
-                        elLiner.innerHTML = "<font color='teal'>In Maintenance</font>";
+                        elLiner.innerHTML = "<font color='teal'>Maintenance</font>";
                     }
                     else if(oRec.getData('operational_state') == 'up'){
 					     elLiner.innerHTML = "<font color='green'>up</font>";
