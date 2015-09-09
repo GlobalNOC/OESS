@@ -179,13 +179,15 @@ sub node_maintenance {
     my $node_id  = shift;
     my $state = shift;
 
-    my $links = $self->{'db'}->get_links_by_node($node_id);
+    my $links = $self->{'db'}->get_links_by_node(node_id => $node_id);
     if (!defined $links) {
         return 0;
     }
+
     foreach my $link (@$links) {
         $self->link_maintenance($link->{'link_id'}, $state);
     }
+    $self->{'logger'}->warn("Node $node_id maintenance state is $state.");
     return 1;
 }
 
