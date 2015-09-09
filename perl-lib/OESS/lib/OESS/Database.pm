@@ -2211,7 +2211,7 @@ sub start_link_maintenance {
     }
 
     my $sql4 = "UPDATE link set in_maint = 'yes' where link_id = ?";
-    my $update = $self->_execute_query($sql, [$link_id]);
+    my $update = $self->_execute_query($sql4, [$link_id]);
     if (!defined $update) {
         $self->_set_error("Could not put link into maintenance.");
         return;
