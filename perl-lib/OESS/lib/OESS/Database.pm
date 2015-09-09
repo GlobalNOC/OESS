@@ -817,7 +817,7 @@ sub get_node_dpid_hash {
 sub get_current_nodes{
     my $self = shift;
 
-    my $nodes = $self->_execute_query("select node.max_flows, node.name, node_instantiation.dpid,node.operational_state,node.node_id, node.send_barrier_bulk from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active' order by node.name",[]);
+    my $nodes = $self->_execute_query("select node.max_flows, node.in_maint, node.name, node_instantiation.dpid,node.operational_state,node.node_id, node.send_barrier_bulk from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active' order by node.name",[]);
 
     return $nodes;
 }
@@ -1120,6 +1120,7 @@ sub get_map_layers {
     node.send_barrier_bulk as barrier_bulk,
     node.max_static_mac_flows as max_static_mac_flows,
     node_instantiation.dpid as dpid,
+    node.in_maint,
     maintenance.end_epoch 
     from node
     join node_instantiation on node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 
@@ -1294,7 +1295,6 @@ sub get_current_links {
     my $self = shift;
     #We don't set the end_epoch when a link is available or when it is decom, we only want active links ISSUE 5759
     my $query = "select * from link natural join link_instantiation where link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active' order by link.name";
-    #my $query = "select *, maintenance.end_epoch as maint_epoch from link natural join link_instantiation left join link_maintenance on link.link_id = link_maintenance.link_id left join maintenance on link_maintenance.maintenance_id = maintenance.id where link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active' order by link.name";
 
     my $res = $self->_execute_query($query,[]);
 
@@ -2061,11 +2061,19 @@ sub start_node_maintenance {
         return;
     }
 
+    my $sql4 = "UPDATE node set in_maint = 'yes' where node_id = ?";
+    my $update = $self->_execute_query($sql4, [$node_id]);
+    if (!defined $update) {
+        $self->_set_error("Could not put node into maintenance.");
+        return;
+    }
+    
     my $m = $self->get_node_maintenance($node_id);
     if (!defined $m) {
         $self->_set_error("Could not retrieve node maintenance.");
         return;
     }
+
     my $result = {
         maintenance_id => $maintenance_id,
         node           => { name => @$nodes[0]->{'name'}, id => $node_id },
@@ -2091,6 +2099,12 @@ sub end_node_maintenance {
     my $result = $self->_execute_query($sql, [$m->{'maintenance_id'}]);
     if (!defined $result) {
         $self->_set_error("Internal error while ending node maintenance.");
+        return;
+    }
+    $sql = "UPDATE node set in_maint = 'no' where node_id = ?";
+    my $update = $self->_execute_query($sql, [$node_id]);
+    if (!defined $update) {
+        $self->_set_error("Could not remove node from maintenance.");
         return;
     }
     return $result;
@@ -2196,6 +2210,12 @@ sub start_link_maintenance {
         return;
     }
 
+    my $sql4 = "UPDATE link set in_maint = 'yes' where link_id = ?";
+    my $update = $self->_execute_query($sql, [$link_id]);
+    if (!defined $update) {
+        $self->_set_error("Could not put link into maintenance.");
+        return;
+    }
     my $m = $self->get_link_maintenance($link_id);
     if (!defined $m) {
         $self->_set_error("Could not retrieve link maintenance.");
@@ -2222,7 +2242,13 @@ sub end_link_maintenance {
         return;
     }
     
-    my $sql = "UPDATE maintenance SET end_epoch = unix_timestamp(NOW()) WHERE id = ?";
+    my $sql = "UPDATE link set in_maint = 'no' where link_id = ?";
+    my $update = $self->_execute_query($sql, [$link_id]);
+    if (!defined $update) {
+        $self->_set_error("Could not remove link from maintenance.");
+        return;
+    }
+    $sql = "UPDATE maintenance SET end_epoch = unix_timestamp(NOW()) WHERE id = ?";
     my $result = $self->_execute_query($sql, [$m->{'maintenance_id'}]);
     if (!defined $result) {
         $self->_set_error("Internal error while ending link maintenance.");

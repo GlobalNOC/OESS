@@ -3085,15 +3085,15 @@ function setup_maintenance_tab(){
     int_move_maint_table = makeIntMoveMaintTable();
 
     if (maint_add_button) {
-        maint_add_button  =undefined;
+        maint_add_button  = undefined;
     }
 
     //setup add maint button
     maint_add_button = new YAHOO.widget.Button('maint_add_button', {
-        label: "Add Maintenance"
+        label: "Add Edge Interface Maintenace"
     });
     maint_add_button.on("click", function(){
-        var obj = makeIntMoveMaintAddPanel(table);
+        var obj = makeIntMoveMaintAddPanel(int_move_maint_table);
     });
 
     if (link_maint_table) {
@@ -3144,7 +3144,7 @@ function makeNodeMaintenanceTable() {
                 var maintComplete = function(node, table){
                     var node_id = node.id;
                     b.set('label', 'Submitting...');
-				    b.set("enable", true);
+				    b.set("enable", false);
                     var url = "../services/maintenance.cgi?action=end_node"+
                               "&node_id="+node_id;
                       

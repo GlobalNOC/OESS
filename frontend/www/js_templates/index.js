@@ -646,13 +646,16 @@ function build_circuitTable(){
     switch_status_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     switch_status_ds.responseSchema = {
 	resultsList: "results",
-	fields: ["name","node_id","operational_state"]
+	fields: ["name","node_id","operational_state", "in_maint"]
     };
 
     var switch_status_columns = [
 				 {key: "name", label: "Switch",sortable: true, width: 200},
 				 {key: "operational_state", sortable: true, label: "Status", width: 40, formatter: function(elLiner, oRec, oCol, oData){
-					 if(oRec.getData('operational_state') == 'up'){
+                    if (oRec.getData('in_maint') == 'yes') {
+                        elLiner.innerHTML = "<font color='teal'>In Maintenance</font>";
+                    }
+                    else if(oRec.getData('operational_state') == 'up'){
 					     elLiner.innerHTML = "<font color='green'>up</font>";
 					 }else{
 					     elLiner.innerHTML = "<font color='red'>" + oRec.getData('operational_state') + "</font>";
@@ -703,6 +706,7 @@ function build_circuitTable(){
 
     var circuit_status_table = new YAHOO.widget.ScrollingDataTable("circuit_status_table",circuit_status_cols, circuit_status_ds,{height: '480px'});
     circuit_status_ds.setInterval(30000);
+    //legend_init(nddi_map, true, false, false, true);
     var nddi_map = new NDDIMap("network_status_map", session.data.interdomain == 0);
 
     //nddi_map.showDefault();
