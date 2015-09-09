@@ -87,6 +87,14 @@ sub upgrade {
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
     $sth->execute() or die "Unable to update version\n";
 
+    $str = "alter table link add in_maint enum('yes', 'no') DEFAULT 'no' not null";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+    
+    $str = "alter table node add in_maint enum('yes', 'no') DEFAULT 'no' not null";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+
     #ok done with the rest of the upgrade update our version
     $str = "update oess_version set version = '$version'";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";

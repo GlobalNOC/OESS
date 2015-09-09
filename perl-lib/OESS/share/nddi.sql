@@ -182,6 +182,7 @@ CREATE TABLE `link` (
   `metric` int(11) DEFAULT '1',
   `fv_status` enum('up','down','unknown') NOT NULL DEFAULT 'unknown',
   `vlan_tag_range` varchar(255) DEFAULT NULL,
+  `in_maint` enum('yes','no') NOT NULL DEFAULT 'no',
   PRIMARY KEY (`link_id`),
   UNIQUE KEY `links_idx` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
@@ -272,6 +273,7 @@ CREATE TABLE `node` (
   `tx_delay_ms` int(11) DEFAULT '0',
   `send_barrier_bulk` tinyint(1) DEFAULT '1',
   `max_static_mac_flows` int(10) DEFAULT '0',
+  `in_maint` enum('yes','no') NOT NULL DEFAULT 'no', 
   PRIMARY KEY (`node_id`),
   UNIQUE KEY `node_idx` (`name`),
   KEY `network_node_fk` (`network_id`),
