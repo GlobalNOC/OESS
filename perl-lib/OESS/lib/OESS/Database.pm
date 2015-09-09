@@ -6563,7 +6563,7 @@ sub remove_circuit {
     if (! defined $results){
 	$self->_set_error("Unable to decom path instantiations.");
 	$self->_rollback();
-    return;
+        return;
     }
 
     $results = $self->_execute_query("update link_path_membership " .
@@ -6576,7 +6576,7 @@ sub remove_circuit {
     if (! defined $results){
 	$self->_set_error("Unable to decom link membership.");
 	$self->_rollback();
-    return;
+        return;
     }
 
 
