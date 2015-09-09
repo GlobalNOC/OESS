@@ -290,7 +290,7 @@ function NDDIMap(div_id, interdomain_mode, options){
       pointStyle.pointRadius      = 6;
       pointStyle.strokeDashstyle  = "solid";
       pointStyle.cursor           = "hand";
-      if (end_epoch !== -1) {
+      if (end_epoch != -1) {
         pointStyle.externalGraphic  = this.UNSELECTED_IMAGE;
       }
       else {
@@ -946,8 +946,12 @@ function NDDIMap(div_id, interdomain_mode, options){
 				  this.changeNodeImage(feature, this.NON_IMPORTANT_IMAGE);
 			  }
 			  else {
-				  this.changeNodeImage(feature, this.UNSELECTED_IMAGE);
-	      
+                  if (feature.geometry.end_epoch == -1) { 
+                    this.changeNodeImage(feature, this.MAINT_IMAGE);
+                  }
+                  else {
+				    this.changeNodeImage(feature, this.UNSELECTED_IMAGE);
+	              }
 			  }
 		  }
 	  }

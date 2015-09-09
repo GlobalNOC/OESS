@@ -617,12 +617,16 @@ function build_circuitTable(){
     link_status_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     link_status_ds.responseSchema = {
 	resultsList: "results",
-	fields: ["name","link_id","status","operational_state","fv_status"]
+	fields: ["name","link_id","status","operational_state","fv_status", "in_maint"]
     };
 
     var link_status_columns = [
 			       {key: "name", label: "Link", sortable: true, width: 200},
 			       {key: "status", label: "Status", sortable: true, width: 40, formatter: function(elLiner, oRec, oCol, oData){
+                        if (oRec.getData('in_maint') == 'yes') {
+                            elLiner.innerHTML = "<font color='teal'>Maintenance</font>";
+                        }
+                        else {
 				       if(oRec.getData('fv_status') == 'down'){
 					   if(oRec.getData('status') == 'up'){
 					       elLiner.innerHTML = "<font color='red'>impaired</font>";
@@ -636,6 +640,7 @@ function build_circuitTable(){
                                                elLiner.innerHTML = "<font color='red'>" + oRec.getData('status') + "</font>";
                                            }
 				       }
+                    }
 				   }}
 			       ];
     var link_table = new YAHOO.widget.ScrollingDataTable("link_status_table",link_status_columns, link_status_ds,{height: '210px'});
@@ -646,13 +651,16 @@ function build_circuitTable(){
     switch_status_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     switch_status_ds.responseSchema = {
 	resultsList: "results",
-	fields: ["name","node_id","operational_state"]
+	fields: ["name","node_id","operational_state", "in_maint"]
     };
 
     var switch_status_columns = [
 				 {key: "name", label: "Switch",sortable: true, width: 200},
 				 {key: "operational_state", sortable: true, label: "Status", width: 40, formatter: function(elLiner, oRec, oCol, oData){
-					 if(oRec.getData('operational_state') == 'up'){
+                    if (oRec.getData('in_maint') == 'yes') {
+                        elLiner.innerHTML = "<font color='teal'>Maintenance</font>";
+                    }
+                    else if(oRec.getData('operational_state') == 'up'){
 					     elLiner.innerHTML = "<font color='green'>up</font>";
 					 }else{
 					     elLiner.innerHTML = "<font color='red'>" + oRec.getData('operational_state') + "</font>";
@@ -666,13 +674,14 @@ function build_circuitTable(){
     circuit_status_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     circuit_status_ds.responseSchema = {
 	resultsList: "results",
-	fields: ["description","name","operational_state","active_path", "state"]
+	fields: ["description","name","operational_state","active_path", "state", "in_maint"]
     };
 
     var circuit_status_cols = [
 			       {key: "description", label: "Name",sortable:true, width: 200},
 			       {key: "status", label: "Status",sortable:true, width: 100,sortable: true, formatter: function(elLiner, oRec, oColumn, oData){
-				       if(oRec.getData('operational_state') == 'down'){
+                    
+                    if(oRec.getData('operational_state') == 'down'){
 					   elLiner.innerHTML = "<font color='red'>down</font>";
 				       }
                        else{
@@ -704,7 +713,7 @@ function build_circuitTable(){
     var circuit_status_table = new YAHOO.widget.ScrollingDataTable("circuit_status_table",circuit_status_cols, circuit_status_ds,{height: '480px'});
     circuit_status_ds.setInterval(30000);
     var nddi_map = new NDDIMap("network_status_map", session.data.interdomain == 0);
-
+    legend_init(nddi_map, true, false, false, true);
     //nddi_map.showDefault();
 
     nddi_map.on("loaded", function(){

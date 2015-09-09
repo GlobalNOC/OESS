@@ -7,6 +7,10 @@
 <script>
 var add_new_user_to_workgroup = 0;
 var remote_link_table;
+var link_maint_table;
+var node_maint_table;
+var int_move_maint_table;
+var maint_add_button;
 function admin_init(){
 
     var tabs = new YAHOO.widget.TabView("admin_tabs", {orientation: "left"});
@@ -2061,6 +2065,7 @@ function setup_network_tab(){
                                    panel.destroy();
                                    panel = null;
                                    YAHOO.util.Dom.get("active_network_update_status").innerHTML = "Link successfully put into maintenance.";
+                                   setup_maintenance_tab();
                                }
                                else{
                                    alert("Link maintenance unsuccessful.");
@@ -2798,6 +2803,7 @@ function setup_network_tab(){
                                    panel.destroy();
                                    panel = null;
                                    YAHOO.util.Dom.get("active_network_update_status").innerHTML = "Device successfully put into maintenance.";
+                                   setup_maintenance_tab();
                                }
                                else{
                                    alert("Device maintenance unsuccessful.");
@@ -2806,6 +2812,7 @@ function setup_network_tab(){
                                },
                                failure: function(req, resp){
                                    save_button.set("disabled", false);
+                                   setup_maintenance_tab();
                                    delete_button.set("disabled", false);
                                    delete_button.set("label", "Put Device in Maintenance");
                                    alert("Error while talking to server.");
@@ -3070,21 +3077,36 @@ function setup_discovery_tab(){
 }
 
 function setup_maintenance_tab(){    
-    
+  
+    if (int_move_maint_table) {
+        int_move_maint_table = undefined;
+    } 
     //create the edge table
-    var table = makeIntMoveMaintTable();
+    int_move_maint_table = makeIntMoveMaintTable();
+
+    if (maint_add_button) {
+        maint_add_button  = undefined;
+    }
 
     //setup add maint button
-    var maint_add_button = new YAHOO.widget.Button('maint_add_button', {
-        label: "Add Maintenance"
+    maint_add_button = new YAHOO.widget.Button('maint_add_button', {
+        label: "Add Edge Interface Maintenace"
     });
     maint_add_button.on("click", function(){
-        var obj = makeIntMoveMaintAddPanel(table);
+        var obj = makeIntMoveMaintAddPanel(int_move_maint_table);
     });
 
-    var link_table = makeLinkMaintenanceTable();   
+    if (link_maint_table) {
+        link_maint_table = undefined;
+    }
 
-    var node_table = makeNodeMaintenanceTable(); 
+    link_maint_table = makeLinkMaintenanceTable();   
+
+    if (node_maint_table) { 
+        node_maint_table = undefined;
+    }
+
+    node_maint_table = makeNodeMaintenanceTable(); 
 }
 
 function makeNodeMaintenanceTable() {
@@ -3122,7 +3144,7 @@ function makeNodeMaintenanceTable() {
                 var maintComplete = function(node, table){
                     var node_id = node.id;
                     b.set('label', 'Submitting...');
-				    b.set("enable", true);
+				    b.set("enable", false);
                     var url = "../services/maintenance.cgi?action=end_node"+
                               "&node_id="+node_id;
                       
