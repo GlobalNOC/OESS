@@ -222,6 +222,10 @@ The state that the new circuit instantiation should be in.
 
 The internal MySQL primary key int identifier for the user performing this update.
 
+=item no_transact
+
+If defined, rollback, commi, and transaction functions are ignored.
+
 =back
 
 =cut
@@ -234,45 +238,57 @@ sub update_circuit_state{
     my $old_state   = $args{'old_state'};
     my $new_state   = $args{'new_state'};
     my $user_id     = $args{'modified_by_user_id'};
+    my $no_transact = $args{'no_transact'};
 
-    $self->_start_transaction();
+    if (!defined $no_transact) {
+        $self->_start_transaction();
+    }
 
     my $details = $self->get_circuit_details(circuit_id => $circuit_id);
-
-    if (! defined $details){
+    if (!defined $details){
 	$self->_set_error("Unable to find circuit information for circuit $circuit_id");
-	$self->_rollback();
-	return ;
+        if (!defined $no_transact) {
+            $self->_rollback();
+        }
+	return;
     }
 
     my $bandwidth = $details->{'bandwidth'};
 
     my $query = "update circuit_instantiation set end_epoch = unix_timestamp(NOW()) " .
 	" where circuit_id = ? and end_epoch = -1";
-
     my $result = $self->_execute_query($query, [$circuit_id]);
-
-    if (! defined $result){
+    if (!defined $result){
 	$self->_set_error("Unable to decom old circuit instantiation.");
-	$self->{'dbq'}->rollback();
-	return ;
+        if (!defined $no_transact) {
+            $self->{'dbq'}->rollback();
+        }
+	return;
     }
 
     $query = "insert into circuit_instantiation (circuit_id, end_epoch, start_epoch, reserved_bandwidth_mbps, circuit_state, modified_by_user_id) values (?, -1, unix_timestamp(now()), ?, ?, ?)";
-
     $result = $self->_execute_query($query, [$circuit_id, $bandwidth, $new_state, $user_id]);
-
-    if (! defined $result){
+    if (!defined $result){
+        if (!defined $no_transact) {
+            $self->_rollback();
+        }
 	$self->_set_error("Unable to create new circuit instantiation record.");
-	$self->_rollback();
 	return;
     }
 
     $query = "update circuit set circuit_state= ? where circuit_id = ?";
-    $result = $self->_execute_query($query,[$new_state,$circuit_id]);
+    $result = $self->_execute_query($query, [$new_state, $circuit_id]);
+    if (!defined $result){
+        if (!defined $no_transact) {
+            $self->_rollback();
+        }
+	$self->_set_error("Unable to set state of new circuit record.");
+	return;
+    }
 
-    $self->_commit();
-
+    if (!defined $no_transact) {
+        $self->_commit();
+    }
     return 1;
 }
 
@@ -6559,8 +6575,7 @@ sub remove_circuit {
     my $user_name   = $args{'username'};
 
     my $user_id = $self->get_user_id_by_auth_name(auth_name => $user_name);
-
-    if (! $user_id){
+    if (!$user_id){
 	$self->_set_error("Unknown user \"$user_name\"");
 	return;
     }
@@ -6572,12 +6587,17 @@ sub remove_circuit {
     }
 
     $self->_start_transaction();
-
-    $self->update_circuit_state(circuit_id          => $circuit_id,
-				old_state           => 'active',
-				new_state           => 'decom',
-				modified_by_user_id => $user_id
+    my $update_result = $self->update_circuit_state(
+        circuit_id          => $circuit_id,
+        old_state           => 'active',
+        new_state           => 'decom',
+        modified_by_user_id => $user_id,
+        no_transact         => 1
 	);
+    if (!defined $update_result) {
+        $self->_rollback();
+        return;
+    }
 
     my $results = $self->_execute_query("update path_instantiation " .
 					" join path on path.path_id = path_instantiation.path_id " .
@@ -6585,8 +6605,7 @@ sub remove_circuit {
 					" where end_epoch = -1 and path.circuit_id = ?",
 					[$circuit_id]
 	                                );
-
-    if (! defined $results){
+    if (!defined $results){
 	$self->_set_error("Unable to decom path instantiations.");
 	$self->_rollback();
         return;
@@ -6598,26 +6617,22 @@ sub remove_circuit {
 				     " where end_epoch = -1 and path.circuit_id = ?",
 				     [$circuit_id]
 	                            );
-
-    if (! defined $results){
+    if (!defined $results){
 	$self->_set_error("Unable to decom link membership.");
 	$self->_rollback();
         return;
     }
-
 
     $results = $self->_execute_query("update circuit_edge_interface_membership " .
 				     "set end_epoch = unix_timestamp(NOW()) " .
 				     " where end_epoch = -1 and circuit_id = ?",
 				     [$circuit_id]
 	                            );
-
-    if (! defined $results){
+    if (!defined $results){
 	$self->_set_error("Unable to decom edge membership.");
 	$self->_rollback();
-    return;
+        return;
     }
-
     $self->_commit();
 
     return {success => 1, circuit_id => $circuit_id};
