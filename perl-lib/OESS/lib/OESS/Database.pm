@@ -1122,7 +1122,6 @@ sub get_map_layers {
     select network.longitude as network_long,
     network.latitude as network_lat,
     network.name as network_name,
-    node_maintenance.node_id as maint_node,
     node.longitude as node_long,
     node.max_flows,
     node.tx_delay_ms,
