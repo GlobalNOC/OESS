@@ -1143,7 +1143,7 @@ sub get_map_layers {
     and  node_instantiation.admin_state = 'active'
     join network on node.network_id = network.network_id and network.is_local = 1
     left join  node_maintenance on node.node_id = node_maintenance.node_id
-    left join  maintenance on node_maintenance.maintenance_id = maintenance.id
+    left join  maintenance on node_maintenance.maintenance_id = maintenance.maintenance_id
 HERE
         
     my $networks;
@@ -2016,28 +2016,6 @@ sub get_all_workgroups {
     return $workgroups;
 }
 
-# create table maintenance (
-#   id int not null auto_increment,
-#   primary key (id),
-#   description varchar(255),
-#   start_epoch int,
-#   end_epoch int default -1
-# ) ENGINE=InnoDB;
-
-# create table node_maintenance (
-#   id int not null auto_increment,
-#   primary key (id),
-#   node_id int not null,
-#   maintenance_id int not null
-# ) ENGINE=InnoDB;
-
-# create table link_maintenance (
-#   id int not null auto_increment,
-#   primary key (id),
-#   link_id int not null,
-#   maintenance_id int not null
-# ) ENGINE=InnoDB;
-#
 # =head2 start_node_maintenance
 # =cut
 sub start_node_maintenance {
@@ -2054,7 +2032,7 @@ sub start_node_maintenance {
     }
 
     # Check if the node is already under maintenance.
-    my $sql1 = "SELECT m.id FROM maintenance as m, node_maintenance as n where m.id = n.maintenance_id AND m.end_epoch = -1 AND n.node_id = ?";
+    my $sql1 = "SELECT m.maintenance_id FROM maintenance as m, node_maintenance as n where m.maintenance_id = n.maintenance_id AND m.end_epoch = -1 AND n.node_id = ?";
     my $node_maintenance = $self->_execute_query($sql1, [$node_id]);
     if (defined @$node_maintenance[0]) {
         $self->_set_error("Node is already in maintenance mode.");
@@ -2111,7 +2089,7 @@ sub end_node_maintenance {
         return;
     }
     
-    my $sql = "UPDATE maintenance SET end_epoch = unix_timestamp(NOW()) WHERE id = ?";
+    my $sql = "UPDATE maintenance SET end_epoch = unix_timestamp(NOW()) WHERE maintenance_id = ?";
     my $result = $self->_execute_query($sql, [$m->{'maintenance_id'}]);
     if (!defined $result) {
         $self->_set_error("Internal error while ending node maintenance.");
@@ -2132,9 +2110,9 @@ sub get_node_maintenance {
     my $self = shift;
     my $node_id = shift;
 
-    my $sql = "SELECT m.id, m.description, node.name, node.node_id, m.start_epoch, m.end_epoch ";
+    my $sql = "SELECT m.maintenance_id, m.description, node.name, node.node_id, m.start_epoch, m.end_epoch ";
     $sql   .= "FROM maintenance as m, node as node, node_maintenance as info ";
-    $sql   .= "WHERE m.id = info.maintenance_id ";
+    $sql   .= "WHERE m.maintenance_id = info.maintenance_id ";
     $sql   .= "AND info.node_id = node.node_id ";
     $sql   .= "AND node.node_id = ? ";
     $sql   .= "AND m.end_epoch = -1";
@@ -2147,7 +2125,7 @@ sub get_node_maintenance {
     }
     
     my $result = {
-        maintenance_id => $m->{'id'},
+        maintenance_id => $m->{'maintenance_id'},
         node           => { name => $m->{'name'}, id => $m->{'node_id'} },
         description    => $m->{'description'},
         start_epoch    => $m->{'start_epoch'},
@@ -2162,9 +2140,9 @@ sub get_node_maintenance {
 sub get_node_maintenances {
     my $self = shift;
 
-    my $sql = "SELECT m.id, m.description, node.name, node.node_id, m.start_epoch, m.end_epoch ";
+    my $sql = "SELECT m.maintenance_id, m.description, node.name, node.node_id, m.start_epoch, m.end_epoch ";
     $sql   .= "FROM maintenance as m, node as node, node_maintenance as info ";
-    $sql   .= "WHERE m.id = info.maintenance_id ";
+    $sql   .= "WHERE m.maintenance_id = info.maintenance_id ";
     $sql   .= "AND info.node_id = node.node_id ";
     $sql   .= "AND m.end_epoch = -1";
 
@@ -2177,7 +2155,7 @@ sub get_node_maintenances {
     foreach my $m (@$maintenances){
         push (@$result,
               {
-                  maintenance_id => $m->{'id'},
+                  maintenance_id => $m->{'maintenance_id'},
                   node           => { name => $m->{'name'}, id => $m->{'node_id'} },
                   description    => $m->{'description'},
                   start_epoch    => $m->{'start_epoch'},
@@ -2203,7 +2181,7 @@ sub start_link_maintenance {
     }
 
     # Check if the link is already under maintenance.
-    my $sql1 = "SELECT m.id FROM maintenance as m, link_maintenance as n where m.id = n.maintenance_id AND m.end_epoch = -1 AND n.link_id = ?";
+    my $sql1 = "SELECT m.maintenance_id FROM maintenance as m, link_maintenance as n where m.maintenance_id = n.maintenance_id AND m.end_epoch = -1 AND n.link_id = ?";
     my $link_maintenance = $self->_execute_query($sql1, [$link_id]);
     if (defined @$link_maintenance[0]) {
         $self->_set_error("Link is already in maintenance mode.");
@@ -2264,7 +2242,8 @@ sub end_link_maintenance {
         $self->_set_error("Could not remove link from maintenance.");
         return;
     }
-    $sql = "UPDATE maintenance SET end_epoch = unix_timestamp(NOW()) WHERE id = ?";
+
+    $sql = "UPDATE maintenance SET end_epoch = unix_timestamp(NOW()) WHERE maintenance_id = ?";
     my $result = $self->_execute_query($sql, [$m->{'maintenance_id'}]);
     if (!defined $result) {
         $self->_set_error("Internal error while ending link maintenance.");
@@ -2279,15 +2258,14 @@ sub get_link_maintenance {
     my $self = shift;
     my $link_id = shift;
 
-    my $sql = "SELECT m.id, m.description, link.name, link.link_id, m.start_epoch, m.end_epoch ";
+    my $sql = "SELECT m.maintenance_id, m.description, link.name, link.link_id, m.start_epoch, m.end_epoch ";
     $sql   .= "FROM maintenance as m, link as link, link_maintenance as info ";
-    $sql   .= "WHERE m.id = info.maintenance_id ";
+    $sql   .= "WHERE m.maintenance_id = info.maintenance_id ";
     $sql   .= "AND info.link_id = link.link_id ";
     $sql   .= "AND link.link_id = ? ";
     $sql   .= "AND m.end_epoch = -1";
 
     my $maintenance = $self->_execute_query($sql, [$link_id]);
-    
     if (!defined $maintenance) {
         $self->_set_error("Internal error while fetching link maintenance.");
         return;
@@ -2295,7 +2273,7 @@ sub get_link_maintenance {
     my $m = @$maintenance[0];
 
     my $result = {
-        maintenance_id => $m->{'id'},
+        maintenance_id => $m->{'maintenance_id'},
         link           => { name => $m->{'name'}, id => $m->{'link_id'} },
         description    => $m->{'description'},
         start_epoch    => $m->{'start_epoch'},
@@ -2309,9 +2287,9 @@ sub get_link_maintenance {
 sub get_link_maintenances {
     my $self = shift;
 
-    my $sql = "SELECT m.id, m.description, link.name, link.link_id, m.start_epoch, m.end_epoch ";
+    my $sql = "SELECT m.maintenance_id, m.description, link.name, link.link_id, m.start_epoch, m.end_epoch ";
     $sql   .= "FROM maintenance as m, link as link, link_maintenance as info ";
-    $sql   .= "WHERE m.id = info.maintenance_id ";
+    $sql   .= "WHERE m.maintenance_id = info.maintenance_id ";
     $sql   .= "AND info.link_id = link.link_id ";
     $sql   .= "AND m.end_epoch = -1";
 
@@ -2325,7 +2303,7 @@ sub get_link_maintenances {
     foreach my $m (@$maintenances){
         push (@$result,
               {
-                  maintenance_id => $m->{'id'},
+                  maintenance_id => $m->{'maintenance_id'},
                   link           => { name => $m->{'name'}, id => $m->{'link_id'} },
                   description    => $m->{'description'},
                   start_epoch    => $m->{'start_epoch'},
