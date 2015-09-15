@@ -60,7 +60,7 @@ sub upgrade {
 
     # Maintenance mode for links and nodes.
     $str = "create table maintenance ( ".
-        "  id int not null auto_increment, ".
+        "  maintenance_id int not null auto_increment, ".
         "  primary key (id), ".
         "  description varchar(255), ".
         "  start_epoch int, ".
@@ -70,7 +70,7 @@ sub upgrade {
     $sth->execute() or die "Unable to update version\n";
 
     $str = "create table node_maintenance ( ".
-        "  id int not null auto_increment, ".
+        "  node_maintenance_id int not null auto_increment, ".
         "  primary key (id), ".
         "  node_id int not null, ".
         "  maintenance_id int not null ".
@@ -79,7 +79,7 @@ sub upgrade {
     $sth->execute() or die "Unable to update version\n";
 
     $str = "create table link_maintenance ( ".
-        "  id int not null auto_increment, ".
+        "  link_maintenance_id int not null auto_increment, ".
         "  primary key (id), ".
         "  link_id int not null, ".
         "  maintenance_id int not null ".
