@@ -57,8 +57,8 @@ sub main {
         send_json( { "error" => "Unable to connect to database." } );
         exit(1);
     }
-
     my $action = $cgi->param('action');
+    warn Dumper $action;
     print STDERR "action " . $action;
     my $output;
     my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
@@ -70,23 +70,23 @@ sub main {
         case "provision_circuit" {
                                   $output = &provision_circuit();
                                  }
-          case "remove_circuit" {
-                                 $output = &remove_circuit();
-                                }
-            case "fail_over_circuit" {
+        case "remove_circuit" {
+                            $output = &remove_circuit();
+                            }
+        case "fail_over_circuit" {
                                       $output = &fail_over_circuit();
-                                     }
-              case "reprovision_circuit"{
-                                         $output = &reprovision_circuit();
-                                        }
+                                }
+        case "reprovision_circuit"{
+                                    $output = &reprovision_circuit();
+                                    }
         case "error" {
             $output = { error => "Decommed users cannot use webservices."};
         } 
-                                        else {
-                                            $output = {
-                                                       error => "Unknown action - $action"
-                                                      };
-                                        }
+        else {
+            $output = {
+                       error => "Unknown action - $action"
+                      };
+        }
 
     }
 
@@ -110,7 +110,7 @@ sub _fail_over {
     if ($@) {
         warn "Error in _connect_to_fwdctl: $@";
     }
-
+        
     if ( !defined($client) ) {
         return;
     }
@@ -183,7 +183,6 @@ sub _send_remove_command {
         $service = $bus->get_service("org.nddi.fwdctl");
         $client  = $service->get_object("/controller1");
     };
-
     if ($@) {
         warn "Error in _connect_to_fwdctl: $@";
         return undef;
@@ -290,6 +289,9 @@ sub provision_circuit {
     my @tags          = $cgi->param('tag');
     my @mac_addresses = $cgi->param('mac_address');
     my @endpoint_mac_address_nums = $cgi->param('endpoint_mac_address_num');
+    my $loop_node   =$cgi->param('loop_node');
+    #my $loop_name = $cgi->param('loop_name');
+    my $state = $cgi->param('state') || 'active';
 
     my @remote_nodes = $cgi->param('remote_node');
     my @remote_tags  = $cgi->param('remote_tag');
@@ -309,7 +311,6 @@ sub provision_circuit {
     if($user->{'type'} eq 'read-only'){
         return {error => 'You are a read-only user and unable to provision'};
     }
-
     if ( !$circuit_id || $circuit_id == -1 ) {
         #Register with DB
         $output = $db->provision_circuit(
@@ -386,11 +387,13 @@ sub provision_circuit {
             workgroup_id   => $workgroup_id,
             do_external    => 0,
             static_mac => $static_mac,
-            do_sanity_check => 0
+            do_sanity_check => 0,
+            loop_node => $loop_node,
+            state  => $state#,
+            #loop_name => $loop_name
         );
 
         ##Edit Existing Circuit
-        
         # verify is allowed to modify circuit ISSUE=7690
         # and perform all other sanity checks on circuit 10278
         if(!$db->circuit_sanity_check(%edit_circuit_args)){
@@ -402,14 +405,15 @@ sub provision_circuit {
         if ( !$result ) {
             $output->{'warning'} =
               "Unable to talk to fwdctl service - is it running?";
-            return;
+              $results->{'error'} = "Unable to talk to fwdctl service - is it running?";
+
+            return $results;
         }
         if ( $result == 0 ) {
             $results->{'error'} =
               "Unable to remove circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been left in the database.";
             return $results;
         }
-
         # modify database entry
         $output = $db->edit_circuit(%edit_circuit_args);
         if (!$output) {
@@ -418,7 +422,6 @@ sub provision_circuit {
                 'results' => []
             };
         }
-
         # add flows on switch
         $result = _send_add_command( circuit_id => $output->{'circuit_id'} );
         if ( !defined $result ) {
@@ -678,7 +681,6 @@ sub fail_over_circuit {
 
 sub send_json {
     my $output = shift;
-
     print "Content-type: text/plain\n\n" . encode_json($output);
 }
 

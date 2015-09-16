@@ -95,6 +95,7 @@ cmp_deeply($res,{
                   'interface_a' => 'e3/1'
               }
           ],
+    'loop_node' => undef,
     'links' => [
         {
             'interface_z' => 'e1/1',

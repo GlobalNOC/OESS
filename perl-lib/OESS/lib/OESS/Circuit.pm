@@ -132,10 +132,27 @@ sub get_restore_to_primary{
 
 sub update_circuit_details{
     my $self = shift;
+    my %params = @_;
+
+    if(defined($params{'link_status'})){
+        $self->{'link_status'} = $params{'link_status'};
+    }
+
     $self->{'graph'} = {};
     $self->{'endpoints'} = {};
     $self->{'flows'} = {};
+
     $self->_load_circuit_details();
+}
+
+sub set_link_status{
+    my $self = shift;
+    my %params = @_;
+    if(!defined($params{'link_status'})){
+        return;
+    }else{
+        $self->{'link_status'} = $params{'link_status'};
+    }
 }
 
 sub _load_circuit_details{
@@ -148,7 +165,9 @@ sub _load_circuit_details{
 
 sub _process_circuit_details{
     my $self = shift;
+    $self->{'state'} = $self->{'details'}->{'state'};
     $self->{'circuit_id'} = $self->{'details'}->{'circuit_id'};
+    $self->{'loop_node'} = $self->{'details'}->{'loop_node'};
     $self->{'logger'}->debug("Processing circuit " . $self->{'circuit_id'});
     $self->{'active_path'} = $self->{'details'}->{'active_path'};
     $self->{'logger'}->debug("Active path: " . $self->get_active_path());
@@ -226,6 +245,13 @@ sub _create_flows{
     my $dpid_lookup  = $self->{'db'}->get_node_dpid_hash();
     $self->{'dpid_lookup'} = $dpid_lookup;
     
+    my $nodes = $self->{'db'}->get_current_nodes();
+
+    $self->{'node_id_lookup'} = {};
+    foreach my $node (@$nodes){
+        $self->{'node_id_lookup'}->{$node->{'name'}} = $node->{'node_id'};
+    }
+
     sub _process_links {
         my $links        = shift;
         my $internal_ids = shift;
@@ -295,6 +321,61 @@ sub _create_flows{
     $self->{'flows'}->{'endpoint'}->{'primary'} = $self->_dedup_flows($self->{'flows'}->{'endpoint'}->{'primary'});
     $self->{'flows'}->{'endpoint'}->{'backup'} = $self->_dedup_flows($self->{'flows'}->{'endpoint'}->{'backup'});
 
+    if($self->{'state'} eq 'looped'){
+        warn "CIRCUIT IS LOOPED!!!\n";
+        if(defined($self->{'loop_node'})){
+            if($self->has_backup_path()){
+                $self->_generate_loop_node_flows( path => 'backup', node => $self->{'loop_node'});
+            }
+            $self->_generate_loop_node_flows( path => 'primary', node => $self->{'loop_node'});
+        }
+    }
+
+}
+
+
+sub _generate_loop_node_flows{
+    my $self = shift;
+    my %params = @_;
+    
+    my $path      = $params{'path'};
+    my $path_dict = $self->{'path'}{$path};
+
+    foreach my $node (keys %$path_dict) {
+        my $node_id = $self->{'node_id_lookup'}->{$node};
+        warn "Comparing " . $node_id . " to " . $params{'node'} . "\n";
+        next if $node_id != $params{'node'};
+        #ok we found our node
+        
+        my $dpid = $self->{'dpid_lookup'}->{$node};
+        foreach my $enter (@{$path_dict->{$node}}){
+            
+            push(@{$self->{'flows'}{'path'}{$path}}, OESS::FlowRule->new( 
+                     priority => 36000,
+                     match => {dl_vlan => $enter->{'port_vlan'},
+                               in_port => $enter->{'port'}},
+                     dpid => $dpid,
+                     actions => [{'set_vlan_vid' => ,$enter->{'remote_port_vlan'}},
+                                 {'output' => $enter->{'port'}}]));
+            
+        }
+    }
+
+    foreach my $endpoint (@{$self->{'details'}->{'endpoints'}}){
+        warn "Comparing " . $self->{'node_id_lookup'}->{$endpoint->{'node'}} . " to " . $params{'node'} . "\n";
+        next if ($self->{'node_id_lookup'}->{$endpoint->{'node'}} != $params{'node'});
+        next if ($endpoint->{'local'} == 0);
+        my $e_dpid = $self->{'dpid_lookup'}{$endpoint->{'node'}};
+        
+        push(@{$self->{'flows'}->{'endpoint'}{$path}}, 
+             OESS::FlowRule->new( 
+                 priority => 36000,
+                 dpid => $e_dpid,
+                 match => {dl_vlan => $endpoint->{'tag'},
+                           in_port => $endpoint->{'port_no'}},
+                 actions => [{'output' => $endpoint->{'port_no'}}]));
+        
+    }
 }
 
 

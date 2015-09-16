@@ -9,9 +9,11 @@ function NDDIMap(div_id, interdomain_mode, options){
   this.ACTIVE_IMAGE        = "[% path %]media/yellow-circle.png";
   this.NON_IMPORTANT_IMAGE = "[% path %]media/gray-circle.png";
   this.LINK_COUNT_IMAGE = "[% path %]media/gray-square.png";
+  this.LOOPED_IMAGE = "[% path %]media/purple-circle.png";
 
   this.LINK_UP            = "#3158a7"; //blue
   this.LINK_DOWN          = "#b46253"; //red
+  this.LINK_LOOPED        = "#9c1cb4"; //purple
   this.MAJORITY_LINK_UP   = "#CCD20F"; //yellow
   this.MAJORITY_LINK_DOWN = "#E59916"; //orange
   this.LINK_PRIMARY       = "#b7f33b";//"#DEA567";
@@ -27,7 +29,7 @@ function NDDIMap(div_id, interdomain_mode, options){
   this.ACTIVE_LINK_OPACITY   = 1.0;
   this.INACTIVE_LINK_OPACITY = 1.0;
   this._initialized = false;
-
+  var name_of_loop; 
   // keep a reference to ourselves to use in various callbacks
   var self = this;
 
@@ -244,7 +246,7 @@ function NDDIMap(div_id, interdomain_mode, options){
   }
 
 
-  this.showNode = function(node_name, draw_other_data, node_info, keep_map_position){
+  this.showNode = function(node_name, draw_other_data, node_info, keep_map_position, loop_node){
 
       if (this.isFeatureDrawn(node_name)){
 	  return 1;
@@ -296,6 +298,12 @@ function NDDIMap(div_id, interdomain_mode, options){
 		  pointStyle.externalGraphic = this.NON_IMPORTANT_IMAGE;
 	  }
 	  
+      //if (loop_node != undefined && loop_node == node_id) {
+
+      if (session.data.loop_node == node_id) {
+
+            name_of_loop = node_name; 
+        } 
 
       var lonlat = new OpenLayers.LonLat(node_long, node_lat).transform(this.map.displayProjection,
 									this.map.projection);
@@ -358,6 +366,8 @@ function NDDIMap(div_id, interdomain_mode, options){
 	        this.map.zoomToExtent(bounds);
         }
       }
+
+
 
       return 1;
   };
@@ -545,9 +555,22 @@ function NDDIMap(div_id, interdomain_mode, options){
 	  line.element_id      = link_id;
       line.links           = [];
 
+      var stroke_Color;
+
+      if (state == "down") {
+            stroke_Color = this.LINK_DOWN;
+        }
+
+      else if( state =="looped") {
+        stroke_Color = this.LINK_LOOPED;
+      }
+      else {
+        stroke_Color =this.LINK_UP;
+      }
 
 	  var style = {
-	      strokeColor: (state == "down" ? this.LINK_DOWN : this.LINK_UP),
+          strokeColor: stroke_Color,
+	      //strokeColor: (state == "down" ? this.LINK_DOWN : this.LINK_UP),
 	      strokeOpacity: 1.0,
 	      strokeDashstyle: (state == "down" ? "dot" : "solid"),
 	      strokeWidth: 3.5,
@@ -675,7 +698,11 @@ function NDDIMap(div_id, interdomain_mode, options){
               if(data.links[i].state == "up"){
                   link_up_count++;
                   link_name += "<div style='text-shadow: 1px 1px 1px #FFF;color: "+this.LINK_UP+";'>";
-              }else {
+              }
+              else if(data.links[i].state == "looped") {
+                link_name += "<div style='text-shadow: 1px 1px 1px #FFF;color: "+this.LINK_LOOPED+";'>";
+            }
+              else {
                   link_name += "<div style='text-shadow: 1px 1px 1px #FFF;color: "+this.LINK_DOWN+";'>";
               }
           }else {
@@ -837,11 +864,13 @@ function NDDIMap(div_id, interdomain_mode, options){
     var links       = session.data.links || [];
     var backups     = session.data.backup_links || [];
     var active_path = session.data.active_path || "none";
+    var loop_node   = session.data.loop_node || null;
 
     // show the nodes
     for (var i = 0; i < endpoints.length; i++){
-	this.showNode(endpoints[i].node,0, 0,  keep_map_position);
+	    this.showNode(endpoints[i].node,0, 0,  keep_map_position, loop_node);
     }
+
 
     for (var j = 0; j < this.map.layers[1].features.length; j++){
 
@@ -871,6 +900,14 @@ function NDDIMap(div_id, interdomain_mode, options){
 	    }
 
 	  }
+        if (name_of_loop) {
+
+            if (feature.geometry.element_name == name_of_loop){
+              this.changeNodeImage(feature, this.LOOPED_IMAGE);
+              was_selected = true;
+            }
+
+        }
 
 	  if (! was_selected){
 	      if (discolor_nodes){

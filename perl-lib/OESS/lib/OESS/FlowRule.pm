@@ -56,6 +56,8 @@ use Data::Dumper;
 use Switch;
 use Net::DBus;
 use Log::Log4perl;
+use List::Compare;
+use Storable qw(dclone);
 
 use constant OFPAT_OUTPUT       => 0;
 use constant OFPAT_SET_VLAN_VID => 1;
@@ -822,43 +824,128 @@ sub compare_flow{
 
 =head2 merge_actions
 
-merges another flow_mods actions into this one, and if any actions are the same removes them
+Determines if another flow's actions can be merged into this one. And merges them if so.
+If the other flow's complete action set is already in our's, do nothing.
 
 return 1 if successful
 returns 0 on error
+
 =cut
 
-sub merge_actions{
-    my $self = shift;
-    my %params = @_;
+sub merge_actions {
+    my ( $self, %args ) = @_;
+    my $other_flow      = $args{'flow_rule'};
 
-    my $other_flow = $params{'flow_rule'};
-    #flow rule not defined can't merge flows
-    return 0 if(!defined($other_flow));
+    # get the uniquye list of 'set actions' from our action list and the action list
+    # of the flow we're merging
+    my @set_action_types       = $self->_get_set_action_types( $self->get_actions() );
+    my @other_set_action_types = $self->_get_set_action_types( $other_flow->get_actions() );
 
-    #no actions to merge invalid flow rule
-    return 0 if(!defined($other_flow->get_actions()));    
+    # figure out which 'set actions' one list has that the other doesn't
+    my $lc = List::Compare->new( \@set_action_types, \@other_set_action_types );
+    my @actions_only_in_ours  = $lc->get_unique();
+    my @actions_only_in_other = $lc->get_complement(); 
 
-    $self->{'logger'}->debug("Attempting to merge flow actions");
+    # if each flow has a 'set action' that other does not have
+    # they can not be merged as the original intent of one of one
+    # actions will be changed
+    if( @actions_only_in_ours > 0 && @actions_only_in_other > 0 ){
+        $self->{'logger'}->error("Actions can not be merged due to incompatible 'set actions'");
+        return 0;
+    }
+    # if our flow has 'set actions' that are not in the other's list
+    # unshift the other flow's actions onto the front of our action list
+    elsif( @actions_only_in_ours > 0 ){
+        foreach my $action (@$other_flow->get_actions()){
+            unshift(@{$self->{'actions'}}, $action);
+        }
+        return 1;
+    }
+    # if the other flow has 'set actions' that are not in our
+    # actions list, push the other flow's actions on the end of our list
+    elsif( @actions_only_in_other > 0 ){
+        foreach my $action (@$other_flow->get_actions()){
+            push(@{$self->{'actions'}}, $action);
+        }
+        return 1;
+    }
+    # if the set actions are equal check the action lists for equality
+    elsif( @actions_only_in_ours == @actions_only_in_other ){
+        # don't merge, we already do what this flows' actions are doing
+        return 1 if( $self->compare_actions( flow_rule => $other_flow ) );
 
-    #now loop through all the actions and add any that don't exist
-    foreach my $other_action (@{$other_flow->get_actions()}){
-        my $found =0;
-        foreach my $action (@{$self->{'actions'}}){
-            my $action_type = (keys (%$other_action))[0];
-            if(defined($action->{$action_type})){
-                if($action->{$action_type} == $other_action->{$action_type}){
-                    $found = 1;
-                }
+        # check if we already perform the same actions, in the same order,
+        # without any 'set actions' in between
+        my $other_actions      = dclone($other_flow->get_actions());
+        my $other_action       = shift(@$other_actions);
+        my $different_outcome  = 0;
+        my $found_action_count = 0;
+        my $other_action_type  = (keys(%$other_action))[0];
+        foreach my $action (@{$self->get_actions()}){
+            my $action_type = (keys(%$action))[0];
+            
+            # if actions are the same increment found action cound and continue
+            if( $other_action_type eq $action_type &&
+                $action->{$action_type} eq $other_action->{$other_action_type} ){
+                $found_action_count += 1;
+                # if we've found all our actions we are done
+                last if( $found_action_count == @{$other_flow->get_actions()} );
+                # shift the next action off the list of actions we're looking for
+                $other_action      = shift(@$other_actions);
+                $other_action_type = (keys(%$other_action))[0];
+                # continue looking for other_flow's actions
+                next;
             }
+            # if we hit a set action before we found all of the other flow's actions the outcome will
+            # not be the same, 
+            if( $found_action_count && $self->_is_set_action($action_type) ){
+                $different_outcome = 1;
+                last;
+            }
+        } 
+        return 1 if( !$different_outcome && ($found_action_count == @{$other_flow->get_actions()}));
+
+        # other wise just push it on the end of our actions
+        # since the set actions are the same both actions set
+        # will be able to keep their original intent
+        foreach my $action (@{$other_flow->get_actions()}){
+            push(@{$self->{'actions'}}, $action);
         }
-        if(!$found){
-            push(@{$self->{'actions'}},$other_action);
-        }
+        return 1;
     }
 
+    # shouldn't be possible to hit this 
+    $self->{'logger'}->error("Actions could not be merged for unknown reason");
+    return 0;
+}
 
-    return 1;
+=head2 _get_set_action_types
+
+Returns a list of the unique 'set action' types, i.e. any action that 
+modifies the packet
+
+=cut
+
+sub _get_set_action_types {
+    my ($self, $actions) = @_;
+
+    my %set_action_types;
+    foreach my $action (@$actions){
+        my $action_type = (keys(%$action))[0]; 
+        # currently only do set_vlan_vid
+        next if( $action_type ne 'set_vlan_id' );
+        $set_action_types{$action_type} = 1;
+    }
+
+    return keys(%set_action_types);
+}
+
+sub _is_set_action {
+    my ($self, $action_type) = @_;
+        
+    return 1 if( $action_type eq 'set_vlan_id' );
+
+    return 0;
 
 }
 

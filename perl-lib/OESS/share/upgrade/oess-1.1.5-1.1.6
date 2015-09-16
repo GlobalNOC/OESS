@@ -126,7 +126,7 @@ sub upgrade {
     $dbh->do($str);
     $str = "alter table link_path_membership add constraint unique_vlan_z UNIQUE (link_id, end_epoch, interface_z_vlan_id)";
     $dbh->do($str);
-
+    
     # add edge_interface_move_maintenance table
     $str = "CREATE TABLE edge_interface_move_maintenance ( ".
            "  maintenance_id int(10) NOT NULL AUTO_INCREMENT, ".

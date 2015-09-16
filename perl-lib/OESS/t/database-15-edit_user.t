@@ -37,6 +37,6 @@ ok(!defined($user), "No value returned when only family name specified");
 $user = $db->edit_user( email_address => 'user_11');
 ok(!defined($user), "No value returned when only email address specified");
 
-$user = $db->edit_user( user_id => '11', given_name => 'Hari', family_name => 'User 11', email_address => 'user_11', auth_names => ['aragusa'] );
+$user = $db->edit_user( user_id => '11', given_name => 'Hari', family_name => 'User 11', email_address => 'user_11', auth_names => ['aragusa'], status => 'decom' );
                         
 ok(defined($user), "User updated");
