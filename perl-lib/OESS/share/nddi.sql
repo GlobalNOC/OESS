@@ -182,6 +182,7 @@ CREATE TABLE `link` (
   `metric` int(11) DEFAULT '1',
   `fv_status` enum('up','down','unknown') NOT NULL DEFAULT 'unknown',
   `vlan_tag_range` varchar(255) DEFAULT NULL,
+  `in_maint` enum('yes','no') NOT NULL DEFAULT 'no',
   PRIMARY KEY (`link_id`),
   UNIQUE KEY `links_idx` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
@@ -272,6 +273,7 @@ CREATE TABLE `node` (
   `tx_delay_ms` int(11) DEFAULT '0',
   `send_barrier_bulk` tinyint(1) DEFAULT '1',
   `max_static_mac_flows` int(10) DEFAULT '0',
+  `in_maint` enum('yes','no') NOT NULL DEFAULT 'no', 
   PRIMARY KEY (`node_id`),
   UNIQUE KEY `node_idx` (`name`),
   KEY `network_node_fk` (`network_id`),
@@ -556,6 +558,52 @@ CREATE TABLE `edge_interface_move_maintenance_circuit_membership` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `maintenance`
+--
+
+DROP TABLE IF EXISTS `maintenance`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `maintenance` (
+  `maintenance_id` int(10) NOT NULL AUTO_INCREMENT,
+  `description` varchar(255),
+  `start_epoch` int(10),
+  `end_epoch` int(10) DEFAULT -1,
+  PRIMARY KEY (`maintenance_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `node_maintenance`
+--
+
+DROP TABLE IF EXISTS `node_maintenance`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `node_maintenance` (
+  `node_maintenance_id` int(10) NOT NULL AUTO_INCREMENT,
+  `node_id` int(10) NOT NULL,
+  `maintenance_id` int(10) NOT NULL,
+  PRIMARY KEY (`node_maintenance_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `node_maintenance`
+--
+
+DROP TABLE IF EXISTS `link_maintenance`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `link_maintenance` (
+  `link_maintenance_id` int(10) NOT NULL AUTO_INCREMENT,
+  `link_id` int(10) NOT NULL,
+  `maintenance_id` int(10) NOT NULL,
+  PRIMARY KEY (`link_maintenance_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `oess_version`
 --
 
@@ -573,7 +621,7 @@ CREATE TABLE `oess_version` (
 
 LOCK TABLES `oess_version` WRITE;
 /*!40000 ALTER TABLE `oess_version` DISABLE KEYS */;
-INSERT INTO `oess_version` VALUES ('1.1.4');
+INSERT INTO `oess_version` VALUES ('1.1.7');
 /*!40000 ALTER TABLE `oess_version` ENABLE KEYS */;
 UNLOCK TABLES;
 

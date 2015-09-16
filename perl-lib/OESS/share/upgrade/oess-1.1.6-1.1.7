@@ -58,6 +58,43 @@ sub upgrade {
     $str = "alter table circuit_instantiation modify circuit_state enum('scheduled','deploying','active','decom','looped') NOT NULL DEFAULT 'scheduled'";
     $dbh->do($str);
 
+    # Maintenance mode for links and nodes.
+    $str = "create table maintenance ( ".
+        "  maintenance_id int not null auto_increment, ".
+        "  primary key (id), ".
+        "  description varchar(255), ".
+        "  start_epoch int, ".
+        "  end_epoch int default -1 ".
+        " ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+
+    $str = "create table node_maintenance ( ".
+        "  node_maintenance_id int not null auto_increment, ".
+        "  primary key (id), ".
+        "  node_id int not null, ".
+        "  maintenance_id int not null ".
+        " ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+
+    $str = "create table link_maintenance ( ".
+        "  link_maintenance_id int not null auto_increment, ".
+        "  primary key (id), ".
+        "  link_id int not null, ".
+        "  maintenance_id int not null ".
+        " ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+
+    $str = "alter table link add in_maint enum('yes', 'no') DEFAULT 'no' not null";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+    
+    $str = "alter table node add in_maint enum('yes', 'no') DEFAULT 'no' not null";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+
     #ok done with the rest of the upgrade update our version
     $str = "update oess_version set version = '$version'";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
