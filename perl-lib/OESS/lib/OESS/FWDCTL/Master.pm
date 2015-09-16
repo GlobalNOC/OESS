@@ -184,8 +184,23 @@ sub node_maintenance {
         return 0;
     }
 
+    # It is possible for a link to be in maintenace, and connected to a
+    # node under maintenance. When node maintenance has ended but one
+    # of the links was separately placed in maintenance, do not modify
+    # forwarding behavior on that link.
+    my %store;
+    my $maintenances = $self->{'db'}->get_link_maintenances();
+    foreach my $maintenance (@$maintenances) {
+        $self->{'logger'}->warn("Link $maintenance->{'link'}->{'id'} in maintenance.");
+        $store{$maintenance->{'link'}->{'id'}} = 1;
+    }
+
     foreach my $link (@$links) {
-        $self->link_maintenance($link->{'link_id'}, $state);
+        if ($state eq 'end' && defined $store{$link->{'link_id'}}) {
+            $self->{'logger'}->warn("Link $link->{'link_id'} will remain under maintenance.");
+        } else {
+            $self->link_maintenance($link->{'link_id'}, $state);
+        }
     }
     $self->{'logger'}->warn("Node $node_id maintenance state is $state.");
     return 1;
@@ -236,6 +251,19 @@ sub link_maintenance {
     }
 
     if ($state eq 'end') {
+        # It is possible for a link to be in maintenance, and connected
+        # to a node under maintenance. When link maintenance has ended
+        # but node maintenance has not, forwarding behavior should not
+        # be modified.
+        my $maintenances = $self->{'db'}->get_node_maintenances();
+        foreach my $maintenance (@$maintenances) {
+            my $node_id = $maintenance->{'node'}->{'id'};
+            if (@$endpoints[0]->{'node_id'} == $node_id || @$endpoints[1]->{'node_id'} == $node_id) {
+                $self->{'logger'}->warn("Link $link_id will remain under maintenance.");
+                return 1;
+            }
+        }
+
         # Once maintenance has ended remove $link_id from our
         # link_maintenance hash, and call port_status including the true
         # link state.
