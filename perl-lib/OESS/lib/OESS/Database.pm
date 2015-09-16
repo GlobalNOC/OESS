@@ -817,7 +817,7 @@ sub get_node_dpid_hash {
 sub get_current_nodes{
     my $self = shift;
 
-    my $nodes = $self->_execute_query("select node.max_flows, node.name, node_instantiation.dpid,node.operational_state,node.node_id, node.send_barrier_bulk from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active' order by node.name",[]);
+    my $nodes = $self->_execute_query("select node.max_flows, node.in_maint, node.name, node_instantiation.dpid,node.operational_state,node.node_id, node.send_barrier_bulk from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active' order by node.name",[]);
 
     return $nodes;
 }
@@ -856,7 +856,6 @@ sub edit_link {
     my $self = shift;
     my %args = @_;
     my $link_id = $args{'link_id'};
-    warn Dumper %args;
     if (!defined($args{'link_id'})) {
         $self->_set_error("No Link id was defined");
         return;
@@ -1107,6 +1106,7 @@ sub get_map_layers {
     select network.longitude as network_long,
     network.latitude as network_lat,
     network.name as network_name,
+    node_maintenance.node_id as maint_node,
     node.longitude as node_long,
     node.max_flows,
     node.tx_delay_ms,
@@ -1119,11 +1119,15 @@ sub get_map_layers {
     node.default_forward as default_forward,
     node.send_barrier_bulk as barrier_bulk,
     node.max_static_mac_flows as max_static_mac_flows,
-    node_instantiation.dpid as dpid
+    node_instantiation.dpid as dpid,
+    node.in_maint,
+    maintenance.end_epoch 
     from node
     join node_instantiation on node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 
     and  node_instantiation.admin_state = 'active'
     join network on node.network_id = network.network_id and network.is_local = 1
+    left join  node_maintenance on node.node_id = node_maintenance.node_id
+    left join  maintenance on node_maintenance.maintenance_id = maintenance.id
 HERE
         
     my $networks;
@@ -1152,60 +1156,73 @@ HERE
     my $network_name = "";
 
     foreach my $row(@$rows){
-        
-	$network_name = $row->{'network_name'};
-	my $node_name    = $row->{'node_name'};
-	my $avail_endpoints = ( defined($nodes_endpoints->{$network_name}->{$node_name})? $nodes_endpoints->{$network_name}->{$node_name} : $default_endpoint_count);
-        
-        
-	$networks->{$network_name}->{'meta'} = {"network_long" => $row->{'network_long'},
-						"network_lat"  => $row->{'network_lat'},
-						"network_name" => $network_name,
-						"local"        => 1
-	};
-        
-	$networks->{$network_name}->{'nodes'}->{$node_name} = {"node_name"    => $node_name,
-                                                               "node_id"      => $row->{'node_id'},
-							       "node_lat"     => $row->{'node_lat'},
-							       "node_long"    => $row->{'node_long'},
-							       "node_id"      => $row->{'node_id'},
-							       "vlan_range"   => $row->{'vlan_tag_range'},
-							       "default_drop" => $row->{'default_drop'},
-							       "default_forward" => $row->{'default_forward'},
-							       "max_static_mac_flows" => $row->{'max_static_mac_flows'},
-							       "max_flows"    => $row->{'max_flows'},
-							       "tx_delay_ms" => $row->{'tx_delay_ms'},
-							       "dpid"         => sprintf("%x",$row->{'dpid'}),
-							       "barrier_bulk" => $row->{'barrier_bulk'},
-							       "number_available_endpoints" => $avail_endpoints
+            
+        $network_name = $row->{'network_name'};
+        my $node_name    = $row->{'node_name'};
+        my $avail_endpoints = ( defined($nodes_endpoints->{$network_name}->{$node_name})? $nodes_endpoints->{$network_name}->{$node_name} : $default_endpoint_count);
+            
+            
+        $networks->{$network_name}->{'meta'} = {"network_long" => $row->{'network_long'},
+                            "network_lat"  => $row->{'network_lat'},
+                            "network_name" => $network_name,
+                            "local"        => 1
         };
-        
-	# make sure we have an array even if we never get any links for this node
-	if (! exists $networks->{$network_name}->{'links'}->{$node_name}){
-	    $networks->{$network_name}->{'links'}->{$node_name} = [];
-	}
+            
+        $networks->{$network_name}->{'nodes'}->{$node_name} = {"node_name"    => $node_name,
+                                                                   "node_id"      => $row->{'node_id'},
+                                       "node_lat"     => $row->{'node_lat'},
+                                       "node_long"    => $row->{'node_long'},
+                                       "node_id"      => $row->{'node_id'},
+                                       "vlan_range"   => $row->{'vlan_tag_range'},
+                                       "default_drop" => $row->{'default_drop'},
+                                       "default_forward" => $row->{'default_forward'},
+                                       "max_static_mac_flows" => $row->{'max_static_mac_flows'},
+                                       "max_flows"    => $row->{'max_flows'},
+                                       "tx_delay_ms" => $row->{'tx_delay_ms'},
+                                       "dpid"         => sprintf("%x",$row->{'dpid'}),
+                                       "barrier_bulk" => $row->{'barrier_bulk'},
+                                       "end_epoch"   => $row->{"end_epoch"},
+                                       "number_available_endpoints" => $avail_endpoints
+            };
+            
+        # make sure we have an array even if we never get any links for this node
+        if (! exists $networks->{$network_name}->{'links'}->{$node_name}){
+            $networks->{$network_name}->{'links'}->{$node_name} = [];
+        }
         
     }
     
     my $links = $self->get_current_links();
+
+    my $link_maintenances = $self->get_link_maintenances();
     foreach my $link (@$links){
     
         my $inta = $self->get_interface( interface_id => $link->{'interface_a_id'});
         my $intb = $self->get_interface( interface_id => $link->{'interface_z_id'});
+        my $maint_results = $self->get_link_maintenance($link->{'link_id'});
+        my $maint_epoch;
+        foreach my $link_maintenance (@$link_maintenances) {
+            if ($link->{'link_id'} == $link_maintenance->{'link'}->{'id'}) {
+                $maint_epoch = $link_maintenance->{'end_epoch'};
+            }
+            
+        }
 
         push(@{$networks->{$network_name}->{'links'}->{$inta->{'node_name'}}},{"link_name"   => $link->{'name'},
                                                                                "link_state"  => $link->{'link_state'},
                                                                                "link_capacity" => $intb->{'speed'},
                                                                                "remote_urn"  => $link->{'remote_urn'},
                                                                                "to"          => $intb->{'node_name'},
-                                                                               "link_id"     => $link->{'link_id'}});
+                                                                               "link_id"     => $link->{'link_id'},
+                                                                               "maint_epoch" => $maint_epoch});
 
         push(@{$networks->{$network_name}->{'links'}->{$intb->{'node_name'}}},{"link_name"   => $link->{'name'},
                                                                                "link_state"  => $link->{'link_state'},
                                                                                "remote_urn"  => $link->{'remote_urn'},
                                                                                "link_capacity" => $inta->{'speed'},
                                                                                "to"          => $inta->{'node_name'},
-                                                                               "link_id"     => $link->{'link_id'}});
+                                                                               "link_id"     => $link->{'link_id'},
+                                                                                "maint_epoch" => $maint_epoch});
     }
   
 
@@ -1231,30 +1248,30 @@ HERE
 
     foreach my $row (@$rows){
 
-	my $node_id      = $row->{'node_id'};
-	my $network_id   = $row->{'network_id'};
-	my $network_name = $row->{'network_name'};
-	my $node_name    = $row->{'node_name'};
-	my $avail_endpoints = ( defined($nodes_endpoints->{$network_name}->{$node_name})? $nodes_endpoints->{$network_name}->{$node_name} : $default_endpoint_count);
-	$networks->{$network_name}->{'meta'} = {"network_long" => $row->{'network_long'},
-						"network_lat"  => $row->{'network_lat'},
-						"network_name" => $network_name,
-						"local"        => 0
-	};
+        my $node_id      = $row->{'node_id'};
+        my $network_id   = $row->{'network_id'};
+        my $network_name = $row->{'network_name'};
+        my $node_name    = $row->{'node_name'};
+        my $avail_endpoints = ( defined($nodes_endpoints->{$network_name}->{$node_name})? $nodes_endpoints->{$network_name}->{$node_name} : $default_endpoint_count);
+        $networks->{$network_name}->{'meta'} = {"network_long" => $row->{'network_long'},
+                            "network_lat"  => $row->{'network_lat'},
+                            "network_name" => $network_name,
+                            "local"        => 0
+        };
 
-	my $node_lat = $row->{'node_lat'};
-	my $node_lon = $row->{'node_long'};
+        my $node_lat = $row->{'node_lat'};
+        my $node_lon = $row->{'node_long'};
 
-	if ($node_lat eq 0 && $node_lon eq 0){
-	    $node_lat  = $row->{'network_lat'};
-	    $node_lon  = $row->{'network_long'};
-	}
+        if ($node_lat eq 0 && $node_lon eq 0){
+            $node_lat  = $row->{'network_lat'};
+            $node_lon  = $row->{'network_long'};
+        }
 
-	$networks->{$network_name}->{'nodes'}->{$node_name} = {"node_name"    => $node_name,
-							       "node_lat"     => $node_lat,
-							       "node_long"    => $node_lon,
-							       "number_available_endpoints" => $avail_endpoints
-	};
+        $networks->{$network_name}->{'nodes'}->{$node_name} = {"node_name"    => $node_name,
+                                       "node_lat"     => $node_lat,
+                                       "node_long"    => $node_lon,
+                                       "number_available_endpoints" => $avail_endpoints
+        };
 
     }
 
@@ -1274,7 +1291,7 @@ HERE
 
 =cut
 
-sub get_current_links{
+sub get_current_links {
     my $self = shift;
     #We don't set the end_epoch when a link is available or when it is decom, we only want active links ISSUE 5759
     my $query = "select * from link natural join link_instantiation where link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active' order by link.name";
@@ -1981,6 +1998,325 @@ sub get_all_workgroups {
     }
 
     return $workgroups;
+}
+
+# create table maintenance (
+#   id int not null auto_increment,
+#   primary key (id),
+#   description varchar(255),
+#   start_epoch int,
+#   end_epoch int default -1
+# ) ENGINE=InnoDB;
+
+# create table node_maintenance (
+#   id int not null auto_increment,
+#   primary key (id),
+#   node_id int not null,
+#   maintenance_id int not null
+# ) ENGINE=InnoDB;
+
+# create table link_maintenance (
+#   id int not null auto_increment,
+#   primary key (id),
+#   link_id int not null,
+#   maintenance_id int not null
+# ) ENGINE=InnoDB;
+#
+# =head2 start_node_maintenance
+# =cut
+sub start_node_maintenance {
+    my $self = shift;
+    my $node_id = shift;
+    my $description = shift;
+
+    # Validate node exists, and grab relevant data.
+    my $sql = "SELECT node.name FROM node where node_id = ?";
+    my $nodes = $self->_execute_query($sql, [$node_id]);
+    if (!defined @$nodes[0]) {
+        $self->_set_error("Node doesn't exist.");
+        return;
+    }
+
+    # Check if the node is already under maintenance.
+    my $sql1 = "SELECT m.id FROM maintenance as m, node_maintenance as n where m.id = n.maintenance_id AND m.end_epoch = -1 AND n.node_id = ?";
+    my $node_maintenance = $self->_execute_query($sql1, [$node_id]);
+    if (defined @$node_maintenance[0]) {
+        $self->_set_error("Node is already in maintenance mode.");
+        return;
+    }
+
+    my $sql2 = "INSERT into maintenance (description, start_epoch, end_epoch) ";
+    $sql2   .= "VALUES (?, unix_timestamp(NOW()), -1)";
+    my $maintenance_id = $self->_execute_query($sql2, [$description]);
+    if (!defined $maintenance_id) {
+        $self->_set_error("Could not insert row into maintenance table.");
+        return;
+    }
+
+    my $sql3 = "INSERT into node_maintenance (node_id, maintenance_id) ";
+    $sql3   .= "VALUES (?, ?)";
+    my $node_maintenance_id = $self->_execute_query($sql3, [$node_id, $maintenance_id]);
+    if (!defined $node_maintenance_id) {
+        $self->_set_error("Could not insert row into node_maintenance table.");
+        return;
+    }
+
+    my $sql4 = "UPDATE node set in_maint = 'yes' where node_id = ?";
+    my $update = $self->_execute_query($sql4, [$node_id]);
+    if (!defined $update) {
+        $self->_set_error("Could not put node into maintenance.");
+        return;
+    }
+    
+    my $m = $self->get_node_maintenance($node_id);
+    if (!defined $m) {
+        $self->_set_error("Could not retrieve node maintenance.");
+        return;
+    }
+
+    my $result = {
+        maintenance_id => $maintenance_id,
+        node           => { name => @$nodes[0]->{'name'}, id => $node_id },
+        description    => $description,
+        start_epoch    => $m->{'start_epoch'},
+        end_epoch      => $m->{'end_epoch'}
+    };
+    return $result;
+}
+
+# =head2 end_node_maintenance
+# =cut
+sub end_node_maintenance {
+    my $self = shift;
+    my $node_id = shift;
+    
+    my $m = $self->get_node_maintenance($node_id);
+    if (!defined $m) {
+        return;
+    }
+    
+    my $sql = "UPDATE maintenance SET end_epoch = unix_timestamp(NOW()) WHERE id = ?";
+    my $result = $self->_execute_query($sql, [$m->{'maintenance_id'}]);
+    if (!defined $result) {
+        $self->_set_error("Internal error while ending node maintenance.");
+        return;
+    }
+    $sql = "UPDATE node set in_maint = 'no' where node_id = ?";
+    my $update = $self->_execute_query($sql, [$node_id]);
+    if (!defined $update) {
+        $self->_set_error("Could not remove node from maintenance.");
+        return;
+    }
+    return $result;
+}
+
+# =head2 get_node_maintenance
+# =cut
+sub get_node_maintenance {
+    my $self = shift;
+    my $node_id = shift;
+
+    my $sql = "SELECT m.id, m.description, node.name, node.node_id, m.start_epoch, m.end_epoch ";
+    $sql   .= "FROM maintenance as m, node as node, node_maintenance as info ";
+    $sql   .= "WHERE m.id = info.maintenance_id ";
+    $sql   .= "AND info.node_id = node.node_id ";
+    $sql   .= "AND node.node_id = ? ";
+    $sql   .= "AND m.end_epoch = -1";
+
+    my $maintenance = $self->_execute_query($sql, [$node_id]);
+    my $m = @$maintenance[0];
+    if (!defined $m) {
+        $self->_set_error("Internal error while fetching node maintenance.");
+        return;
+    }
+    
+    my $result = {
+        maintenance_id => $m->{'id'},
+        node           => { name => $m->{'name'}, id => $m->{'node_id'} },
+        description    => $m->{'description'},
+        start_epoch    => $m->{'start_epoch'},
+        end_epoch      => $m->{'end_epoch'}
+    };
+    return $result;
+}
+
+# =head2 get_node_maintenances
+
+# =cut
+sub get_node_maintenances {
+    my $self = shift;
+
+    my $sql = "SELECT m.id, m.description, node.name, node.node_id, m.start_epoch, m.end_epoch ";
+    $sql   .= "FROM maintenance as m, node as node, node_maintenance as info ";
+    $sql   .= "WHERE m.id = info.maintenance_id ";
+    $sql   .= "AND info.node_id = node.node_id ";
+    $sql   .= "AND m.end_epoch = -1";
+
+    my $maintenances = $self->_execute_query($sql, []);
+    if (!defined @$maintenances[0]) {
+        return [];
+    }
+
+    my $result = [];
+    foreach my $m (@$maintenances){
+        push (@$result,
+              {
+                  maintenance_id => $m->{'id'},
+                  node           => { name => $m->{'name'}, id => $m->{'node_id'} },
+                  description    => $m->{'description'},
+                  start_epoch    => $m->{'start_epoch'},
+                  end_epoch      => $m->{'end_epoch'}
+              });
+    }
+    return $result;
+}
+
+=head2 start_link_maintenance
+=cut
+sub start_link_maintenance {
+    my $self = shift;
+    my $link_id = shift;
+    my $description = shift;
+
+    # Validate link exists, and grab relevant data.
+    my $sql = "SELECT link.name FROM link where link_id = ?";
+    my $links = $self->_execute_query($sql, [$link_id]);
+    if (!defined @$links[0]) {
+        $self->_set_error("Link doesn't exist.");
+        return;
+    }
+
+    # Check if the link is already under maintenance.
+    my $sql1 = "SELECT m.id FROM maintenance as m, link_maintenance as n where m.id = n.maintenance_id AND m.end_epoch = -1 AND n.link_id = ?";
+    my $link_maintenance = $self->_execute_query($sql1, [$link_id]);
+    if (defined @$link_maintenance[0]) {
+        $self->_set_error("Link is already in maintenance mode.");
+        return;
+    }
+
+    my $sql2 = "INSERT into maintenance (description, start_epoch, end_epoch) ";
+    $sql2   .= "VALUES (?, unix_timestamp(NOW()), -1)";
+    my $maintenance_id = $self->_execute_query($sql2, [$description]);
+    if (!defined $maintenance_id) {
+        $self->_set_error("Could not insert row into maintenance table.");
+        return;
+    }
+
+    my $sql3 = "INSERT into link_maintenance (link_id, maintenance_id) ";
+    $sql3   .= "VALUES (?, ?)";
+    my $link_maintenance_id = $self->_execute_query($sql3, [$link_id, $maintenance_id]);
+    if (!defined $link_maintenance_id) {
+        $self->_set_error("Could not insert row into link_maintenance table.");
+        return;
+    }
+
+    my $sql4 = "UPDATE link set in_maint = 'yes' where link_id = ?";
+    my $update = $self->_execute_query($sql4, [$link_id]);
+    if (!defined $update) {
+        $self->_set_error("Could not put link into maintenance.");
+        return;
+    }
+    my $m = $self->get_link_maintenance($link_id);
+    if (!defined $m) {
+        $self->_set_error("Could not retrieve link maintenance.");
+        return;
+    }
+    my $result = {
+        maintenance_id => $maintenance_id,
+        link           => { name => @$links[0]->{'name'}, id => $link_id },
+        description    => $description,
+        start_epoch    => $m->{'start_epoch'},
+        end_epoch      => $m->{'end_epoch'}
+    };
+    return $result;
+}
+
+=head2 end_link_maintenance
+=cut
+sub end_link_maintenance {
+    my $self = shift;
+    my $link_id = shift;
+    
+    my $m = $self->get_link_maintenance($link_id);
+    if (!defined $m) {
+        return;
+    }
+    
+    my $sql = "UPDATE link set in_maint = 'no' where link_id = ?";
+    my $update = $self->_execute_query($sql, [$link_id]);
+    if (!defined $update) {
+        $self->_set_error("Could not remove link from maintenance.");
+        return;
+    }
+    $sql = "UPDATE maintenance SET end_epoch = unix_timestamp(NOW()) WHERE id = ?";
+    my $result = $self->_execute_query($sql, [$m->{'maintenance_id'}]);
+    if (!defined $result) {
+        $self->_set_error("Internal error while ending link maintenance.");
+        return;
+    }
+    return $result;
+}
+
+# =head2 get_link_maintenance
+# =cut
+sub get_link_maintenance {
+    my $self = shift;
+    my $link_id = shift;
+
+    my $sql = "SELECT m.id, m.description, link.name, link.link_id, m.start_epoch, m.end_epoch ";
+    $sql   .= "FROM maintenance as m, link as link, link_maintenance as info ";
+    $sql   .= "WHERE m.id = info.maintenance_id ";
+    $sql   .= "AND info.link_id = link.link_id ";
+    $sql   .= "AND link.link_id = ? ";
+    $sql   .= "AND m.end_epoch = -1";
+
+    my $maintenance = $self->_execute_query($sql, [$link_id]);
+    
+    if (!defined $maintenance) {
+        $self->_set_error("Internal error while fetching link maintenance.");
+        return;
+    }
+    my $m = @$maintenance[0];
+
+    my $result = {
+        maintenance_id => $m->{'id'},
+        link           => { name => $m->{'name'}, id => $m->{'link_id'} },
+        description    => $m->{'description'},
+        start_epoch    => $m->{'start_epoch'},
+        end_epoch      => $m->{'end_epoch'}
+    };
+    return $result;
+}
+
+# =head2 get_link_maintenances
+# =cut
+sub get_link_maintenances {
+    my $self = shift;
+
+    my $sql = "SELECT m.id, m.description, link.name, link.link_id, m.start_epoch, m.end_epoch ";
+    $sql   .= "FROM maintenance as m, link as link, link_maintenance as info ";
+    $sql   .= "WHERE m.id = info.maintenance_id ";
+    $sql   .= "AND info.link_id = link.link_id ";
+    $sql   .= "AND m.end_epoch = -1";
+
+    my $maintenances = $self->_execute_query($sql, []);
+    if (!defined $maintenances) {
+        $self->_set_error("Internal error while fetching link maintenances.");
+        return;
+    }
+
+    my $result = [];
+    foreach my $m (@$maintenances){
+        push (@$result,
+              {
+                  maintenance_id => $m->{'id'},
+                  link           => { name => $m->{'name'}, id => $m->{'link_id'} },
+                  description    => $m->{'description'},
+                  start_epoch    => $m->{'start_epoch'},
+                  end_epoch      => $m->{'end_epoch'}
+              });
+    }
+    return $result;
 }
 
 =head2 add_acl
@@ -6253,7 +6589,7 @@ sub remove_circuit {
     if (! defined $results){
 	$self->_set_error("Unable to decom path instantiations.");
 	$self->_rollback();
-    return;
+        return;
     }
 
     $results = $self->_execute_query("update link_path_membership " .
@@ -6266,7 +6602,7 @@ sub remove_circuit {
     if (! defined $results){
 	$self->_set_error("Unable to decom link membership.");
 	$self->_rollback();
-    return;
+        return;
     }
 
 
@@ -6490,12 +6826,17 @@ sub get_node_by_interface_id {
     my $query = "SELECT node_id ".
                 "FROM interface ".
                 "WHERE interface_id = ?";
-    my $res = $self->_execute_query($query,[$interface_id]) || return;
-    my $node_id = $res->[0]{'node_id'};
-    if(!$node_id){
-        $self->_set_error("No records for interface_id $interface_id");
+    my $res = $self->_execute_query($query, [$interface_id]) || return;
+    if (!defined @$res[0]) {
+        $self->_set_error("No records for interface_id $interface_id were found.");
         return;
     }
+
+    my $node_id = @$res[0]->{'node_id'};
+    # if(!$node_id){
+    #     $self->_set_error("No records for interface_id $interface_id");
+    #     return;
+    # }
 
     # get node record
     $query = "SELECT * ".
@@ -6503,9 +6844,8 @@ sub get_node_by_interface_id {
              "JOIN node_instantiation on node.node_id = node_instantiation.node_id ".
              "WHERE node.node_id = ? ".
              "AND node_instantiation.end_epoch = -1";
-    $res = $self->_execute_query($query,[$node_id]) || return;
-
-    return $res->[0];
+    $res = $self->_execute_query($query, [$node_id]) || return;
+    return @$res[0];
 }
 
 =head2 add_node
@@ -7076,7 +7416,7 @@ sub _start_transaction {
 
     my $dbh = $self->{'dbh'};
 
-    $dbh->begin_work();
+    $dbh->begin_work() or die $dbh->errstr;
 }
 
 sub _rollback{

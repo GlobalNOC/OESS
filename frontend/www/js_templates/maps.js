@@ -4,6 +4,7 @@ function NDDIMap(div_id, interdomain_mode, options){
   this.options = options || {};
   if(this.options.node_label_status === undefined) this.options.node_label_status = true;
 
+  this.MAINT_IMAGE    = "[% path %]media/teal-circle.png";
   this.UNSELECTED_IMAGE    = "[% path %]media/blue-circle.png";
   this.SELECTED_IMAGE      = "[% path %]media/orange-circle.png";
   this.ACTIVE_IMAGE        = "[% path %]media/yellow-circle.png";
@@ -18,6 +19,7 @@ function NDDIMap(div_id, interdomain_mode, options){
   this.MAJORITY_LINK_DOWN = "#E59916"; //orange
   this.LINK_PRIMARY       = "#b7f33b";//"#DEA567";
   this.LINK_SECONDARY     = "#557416";//"#2b882c";
+  this.LINK_MAINT         = "#00ABA9";     //teal
 
   this.ACTIVE_HALO_COLOR   = "#f47e20";//"#FFFFCC";//"#DADADA";
   this.INACTIVE_HALO_COLOR = "#666666";
@@ -162,7 +164,7 @@ function NDDIMap(div_id, interdomain_mode, options){
 		  name = nodeZ + " <=> " + nodeA;
 	      }
 
-	      this._drawLink(nodeA, nodeZ, name, "up", 0, -1, {"active": true});
+	      this._drawLink(nodeA, nodeZ, name, "up", 0, -1, null, {"active": true});
 
 	  }
 
@@ -270,6 +272,7 @@ function NDDIMap(div_id, interdomain_mode, options){
       var node_long  = parseFloat(node_info.node_long);
       var node_id    = parseInt(node_info.node_id || -1);
       var vlan_range = node_info.vlan_range;
+      var end_epoch  = node_info.end_epoch
       var default_drop = node_info.default_drop;
       var default_forward = node_info.default_forward;
       var tx_delay_ms = node_info.tx_delay_ms;
@@ -287,7 +290,12 @@ function NDDIMap(div_id, interdomain_mode, options){
       pointStyle.pointRadius      = 6;
       pointStyle.strokeDashstyle  = "solid";
       pointStyle.cursor           = "hand";
-      pointStyle.externalGraphic  = this.UNSELECTED_IMAGE;
+      if (end_epoch != -1) {
+        pointStyle.externalGraphic  = this.UNSELECTED_IMAGE;
+      }
+      else {
+        pointStyle.externalGraphic = this.MAINT_IMAGE;
+      }
       pointStyle.graphicZIndex    = 10;
 
 	  if (avail_endpoints < 1 || avail_endpoints === undefined){
@@ -324,6 +332,7 @@ function NDDIMap(div_id, interdomain_mode, options){
       point.dpid = dpid;
 	  point.available_endpoints = avail_endpoints;
       point.oess_point_type = "node";
+      point.end_epoch = end_epoch;
       var pointFeature  = new OpenLayers.Feature.Vector(point,
 							null,
 							pointStyle
@@ -440,25 +449,26 @@ function NDDIMap(div_id, interdomain_mode, options){
 
 	  var link_data = links[j];
 
-	  var from_node = node_name;
-	  var to_node   = link_data['to'];
-	  var state     = link_data['link_state'];
-	  var capacity  = link_data['capacity'];
-	  var link_name = link_data['link_name'];
-	  var link_id   = link_data['link_id'];
+	  var from_node     = node_name;
+	  var to_node       = link_data['to'];
+	  var state         = link_data['link_state'];
+	  var capacity      = link_data['capacity'];
+	  var link_name     = link_data['link_name'];
+	  var link_id       = link_data['link_id'];
+      var maint_epoch   = link_data['maint_epoch']; 
 
 	  if (node_name == to_node){
 	      continue;
 	  }
 
-	  this._drawLink(from_node, to_node, link_name, state, capacity, link_id, draw_other_data);
+	  this._drawLink(from_node, to_node, link_name, state, capacity, link_id, maint_epoch, draw_other_data);
 
       }
       //need to do this so the initial link count label doesn't appear, if you don't it will get cached and that's what's used
       this.map.layers[1].redraw(true);
   };
 
-  this._drawLink = function(from_node, to_node, link_name, state, capacity, link_id, options){
+  this._drawLink = function(from_node, to_node, link_name, state, capacity, link_id, maint_epoch, options){
 
           options = options || {};
 
@@ -500,7 +510,8 @@ function NDDIMap(div_id, interdomain_mode, options){
           link_name: link_name, 
           state: state, 
           capacity: capacity, 
-          link_id: link_id, 
+          link_id: link_id,
+          maint_epoch: maint_epoch, 
           options: options
       };
 
@@ -553,6 +564,7 @@ function NDDIMap(div_id, interdomain_mode, options){
 	  line.link_capacity   = capacity;
 	  line.link_state      = state;
 	  line.element_id      = link_id;
+      line.maint_epoch     = maint_epoch;
       line.links           = [];
 
       var stroke_Color;
@@ -565,7 +577,12 @@ function NDDIMap(div_id, interdomain_mode, options){
         stroke_Color = this.LINK_LOOPED;
       }
       else {
-        stroke_Color =this.LINK_UP;
+        if (maint_epoch == -1) {
+            stroke_Color =this.LINK_MAINT;
+        }
+        else {
+            stroke_Color =this.LINK_UP;
+        }
       }
 
 	  var style = {
@@ -821,11 +838,21 @@ function NDDIMap(div_id, interdomain_mode, options){
 	  // if this feature is a node, ie a point on the map
 	  //if (feature.geometry.id.indexOf('Point') != -1){
 	  if (feature.geometry.oess_point_type == "node"){
-	      this.changeNodeImage(feature, this.UNSELECTED_IMAGE);
+          if (feature.geometry.end_epoch == -1) { 
+	        this.changeNodeImage(feature, this.MAINT_IMAGE);
+          }
+          else {
+	        this.changeNodeImage(feature, this.UNSELECTED_IMAGE);
+            }
 	  }
 	  // otherwise this feature must be a link
 	  else{
-	      this.changeLinkColor(feature, this.LINK_UP);
+          if (feature.geometry.maint_epoch == -1) {
+            this.changeLinkColor(feature, this.LINK_MAINT);
+          }
+          else {
+	        this.changeLinkColor(feature, this.LINK_UP);
+          }
 	      this.changeLinkDash(feature, "solid");
 	  }
       }
@@ -919,8 +946,12 @@ function NDDIMap(div_id, interdomain_mode, options){
 				  this.changeNodeImage(feature, this.NON_IMPORTANT_IMAGE);
 			  }
 			  else {
-				  this.changeNodeImage(feature, this.UNSELECTED_IMAGE);
-	      
+                  if (feature.geometry.end_epoch == -1) { 
+                    this.changeNodeImage(feature, this.MAINT_IMAGE);
+                  }
+                  else {
+				    this.changeNodeImage(feature, this.UNSELECTED_IMAGE);
+	              }
 			  }
 		  }
 	  }
@@ -1011,7 +1042,12 @@ function NDDIMap(div_id, interdomain_mode, options){
           }else if(feature.geometry.link_state == "majority_up"){
 		  this.changeLinkColor(feature, this.MAJORITY_LINK_UP);
           }else{
-		  this.changeLinkColor(feature, this.LINK_UP);
+              if (feature.geometry.maint_epoch == -1) {
+                this.changeLinkColor(feature, this.LINK_MAINT);
+              }
+              else {
+                this.changeLinkColor(feature, this.LINK_UP);
+              }
 	      }
 
 	      if (feature.secondary_path_feature){

@@ -1,6 +1,6 @@
 <script>
   
-function legend_init(map_object, include_active, use_non_important, include_looped){
+function legend_init(map_object, include_active, use_non_important, include_looped, include_maint){
   
   YAHOO.util.Dom.get('legend_node_selected').src = map_object.SELECTED_IMAGE;
 
@@ -26,12 +26,21 @@ function legend_init(map_object, include_active, use_non_important, include_loop
   else{
       YAHOO.util.Dom.get('legend_node_looped').parentNode.style.display = "none";
   }
+
+  if (include_maint) {
+      YAHOO.util.Dom.get('legend_node_maint').src = map_object.MAINT_IMAGE;
+  }
+  else {
+      YAHOO.util.Dom.get('legend_node_maint').parentNode.style.display = "none";
+  }
+
   YAHOO.util.Dom.get('legend_link_primary').style.backgroundColor = map_object.LINK_PRIMARY;
   YAHOO.util.Dom.get('legend_link_secondary').style.backgroundColor = map_object.LINK_SECONDARY;
   YAHOO.util.Dom.get('legend_link_unselected').style.backgroundColor = map_object.LINK_UP;
   YAHOO.util.Dom.get('legend_link_down').style.backgroundColor = map_object.LINK_DOWN;
   YAHOO.util.Dom.get('legend_link_majority_up').style.backgroundColor = map_object.MAJORITY_LINK_UP;
   YAHOO.util.Dom.get('legend_link_majority_down').style.backgroundColor = map_object.MAJORITY_LINK_DOWN;
+  YAHOO.util.Dom.get('legend_link_maint').style.backgroundColor = map_object.LINK_MAINT;
   
 }
 
