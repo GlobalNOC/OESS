@@ -281,6 +281,7 @@ function NDDIMap(div_id, interdomain_mode, options){
       var barrier_bulk = node_info.barrier_bulk;
       var max_static_mac_flows = node_info.max_static_mac_flows;
       var dpid = node_info.dpid;
+      var in_maint = node_info.in_maint;
       var pointStyle = OpenLayers.Util.extend({}, OpenLayers.Feature.Vector.style['default']);
 	  
       pointStyle.strokeColor      = "#00FF00";
@@ -290,7 +291,7 @@ function NDDIMap(div_id, interdomain_mode, options){
       pointStyle.pointRadius      = 6;
       pointStyle.strokeDashstyle  = "solid";
       pointStyle.cursor           = "hand";
-      if (end_epoch != -1) {
+      if (in_maint == 'no') {
         pointStyle.externalGraphic  = this.UNSELECTED_IMAGE;
       }
       else {

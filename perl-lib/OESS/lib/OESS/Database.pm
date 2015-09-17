@@ -1197,7 +1197,8 @@ HERE
                                        "dpid"         => sprintf("%x",$row->{'dpid'}),
                                        "barrier_bulk" => $row->{'barrier_bulk'},
                                        "end_epoch"   => $row->{"end_epoch"},
-                                       "number_available_endpoints" => $avail_endpoints
+                                       "number_available_endpoints" => $avail_endpoints,
+                                       "in_maint"   => $row->{"in_maint"}
             };
             
         # make sure we have an array even if we never get any links for this node
@@ -1309,7 +1310,7 @@ HERE
 sub get_current_links {
     my $self = shift;
     #We don't set the end_epoch when a link is available or when it is decom, we only want active links ISSUE 5759
-    my $query = "select * from link natural join link_instantiation where link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active' order by link.name";
+    my $query = "select * from link natural join link_instantiation where link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active' and link.remote_urn is NULL order by link.name";
 
     my $res = $self->_execute_query($query,[]);
 
