@@ -2015,8 +2015,8 @@ sub get_all_workgroups {
     return $workgroups;
 }
 
-# =head2 start_node_maintenance
-# =cut
+=head2 start_node_maintenance
+=cut
 sub start_node_maintenance {
     my $self = shift;
     my $node_id = shift;
@@ -2077,8 +2077,8 @@ sub start_node_maintenance {
     return $result;
 }
 
-# =head2 end_node_maintenance
-# =cut
+=head2 end_node_maintenance
+=cut
 sub end_node_maintenance {
     my $self = shift;
     my $node_id = shift;
@@ -2103,8 +2103,8 @@ sub end_node_maintenance {
     return $result;
 }
 
-# =head2 get_node_maintenance
-# =cut
+=head2 get_node_maintenance
+=cut
 sub get_node_maintenance {
     my $self = shift;
     my $node_id = shift;
@@ -2133,9 +2133,8 @@ sub get_node_maintenance {
     return $result;
 }
 
-# =head2 get_node_maintenances
-
-# =cut
+=head2 get_node_maintenances
+=cut
 sub get_node_maintenances {
     my $self = shift;
 
@@ -2251,8 +2250,8 @@ sub end_link_maintenance {
     return $result;
 }
 
-# =head2 get_link_maintenance
-# =cut
+=head2 get_link_maintenance
+=cut
 sub get_link_maintenance {
     my $self = shift;
     my $link_id = shift;
@@ -2281,8 +2280,8 @@ sub get_link_maintenance {
     return $result;
 }
 
-# =head2 get_link_maintenances
-# =cut
+=head2 get_link_maintenances
+=cut
 sub get_link_maintenances {
     my $self = shift;
 

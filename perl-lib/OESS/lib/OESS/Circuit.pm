@@ -145,6 +145,8 @@ sub update_circuit_details{
     $self->_load_circuit_details();
 }
 
+=head2 set_link_status
+=cut
 sub set_link_status{
     my $self = shift;
     my %params = @_;
