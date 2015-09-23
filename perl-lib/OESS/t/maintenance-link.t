@@ -14,21 +14,19 @@ use lib "$path";
 use OESS::Database;
 use OESSDatabaseTester;
 
-use Test::More tests => 3;
+use Test::More tests => 9;
 use Test::Deep;
 use Data::Dumper;
 
 
 my $db = OESS::Database->new( config => OESSDatabaseTester::getConfigFilePath() );
 
-my $link_id = 1;
-
-
+my $link_id = 71;
 my $link = $db->get_link(link_id => $link_id);
 my $description = "description";
 
 $db->_start_transaction();
-my $maintenance = $db->start_link_maintenance($link_id, $description);
+my $maintenance = $db->start_link_maintenance($link->{'link_id'}, $description);
 $db->_commit();
 
 ok($maintenance->{'link'}->{'name'} eq $link->{'name'}, "Expected link name retrieved.");

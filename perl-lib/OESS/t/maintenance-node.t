@@ -14,7 +14,7 @@ use lib "$path";
 use OESS::Database;
 use OESSDatabaseTester;
 
-use Test::More tests => 3;
+use Test::More tests => 9;
 use Test::Deep;
 use Data::Dumper;
 

@@ -14,13 +14,24 @@ BEGIN {
 use lib "$path";
 use OESSDatabaseTester;
 
-use Test::More tests => 4;
+use Test::More tests => 5;
 use Test::Deep;
 use OESS::Database;
 use OESSDatabaseTester;
 use Data::Dumper;
 
 my $db = OESS::Database->new(config => OESSDatabaseTester::getConfigFilePath());
+
+# Ensure user is active.
+my $user = $db->edit_user(user_id => '11',
+                          given_name => 'User 11',
+                          family_name => 'User 11',
+                          email_address => 'user_11@foo.net',
+                          auth_names => ['aragusa'],
+                          status => 'active',
+                          type => 'normal');
+                        
+ok(defined($user), "User updated");
 
 #OESSDatabaseTester::workgroupLimits( workgroup_id => 11, 
 #                                     db => $db,
@@ -178,8 +189,9 @@ delete $res->{'name'};
 # delete last edited since that changes
 delete $res->{'last_edited'};
 # delete the circuit_id since that's liable to change with the addition of tests
+warn $res->{'circuit_id'};
 delete $res->{'circuit_id'};
 
-warn Dumper($res);
-
+warn Data::Dumper::Dumper($correct_result);
+warn Data::Dumper::Dumper($res);
 cmp_deeply($res, $correct_result, "values for circuit matches");

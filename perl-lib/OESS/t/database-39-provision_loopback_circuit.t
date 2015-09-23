@@ -32,6 +32,18 @@ my $workgroup_id = 11;
     circuit_num  => 100
 );
 
+# Allow for interface modification
+$db->add_acl(
+    user_id       => 11,
+    workgroup_id  => $workgroup_id,
+    interface_id  => 391,
+    allow_deny    => 'allow',
+    eval_position => 40,
+    vlan_start    => 1,
+    vlan_end      => 4095,
+    notes         => 'database-39'
+);
+
 my $res = $db->provision_circuit(
     'description' => "test_loopback",
     'bandwidth' => 1337,

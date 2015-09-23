@@ -35,7 +35,7 @@ CREATE TABLE `circuit` (
   UNIQUE KEY `circuit_idx` (`name`),
   KEY `workgroup_id` (`workgroup_id`),
   CONSTRAINT `circuit_ibfk_1` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4183 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=4184 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -372,6 +372,7 @@ INSERT INTO `circuit` VALUES (4161,'Circuit 4161','Circuit 4161',241,NULL,0,0,'s
 INSERT INTO `circuit` VALUES (4171,'Circuit 4171','Circuit 4171',191,NULL,0,0,'scheduled');
 INSERT INTO `circuit` VALUES (4181,'Workgroup 11-f966a7b6-5c2d-11e3-88bd-782bcb48ff73','static mac addr',11,NULL,0,1,'scheduled');
 INSERT INTO `circuit` VALUES (4182,'Workgroup 11-f38fca5a-1b50-11e5-9736-00163e213263','circuit-multipoint_flows1',11,NULL,0,0,'decom');
+INSERT INTO `circuit` VALUES (4183,'Workgroup 11-985c3bfa-622c-11e5-8470-fa163e341ea2','multipoint',11,NULL,0,0,'active');
 /*!40000 ALTER TABLE `circuit` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -394,7 +395,7 @@ CREATE TABLE `circuit_edge_interface_membership` (
   KEY `circuit_circuit_interface_membership_fk` (`circuit_id`),
   CONSTRAINT `circuit_edge_interface_membership_ibfk_1` FOREIGN KEY (`circuit_id`) REFERENCES `circuit` (`circuit_id`),
   CONSTRAINT `circuit_edge_interface_membership_ibfk_2` FOREIGN KEY (`interface_id`) REFERENCES `interface` (`interface_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=10666 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=10671 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1326,6 +1327,11 @@ INSERT INTO `circuit_edge_interface_membership` VALUES (511,4182,1442517482,1435
 INSERT INTO `circuit_edge_interface_membership` VALUES (511,4182,1442517482,1435247020,5,10663);
 INSERT INTO `circuit_edge_interface_membership` VALUES (511,4182,1442517482,1435247020,6,10664);
 INSERT INTO `circuit_edge_interface_membership` VALUES (511,4182,1442517482,1435247020,7,10665);
+INSERT INTO `circuit_edge_interface_membership` VALUES (321,4183,-1,1443037937,4,10666);
+INSERT INTO `circuit_edge_interface_membership` VALUES (511,4183,-1,1443037937,4,10667);
+INSERT INTO `circuit_edge_interface_membership` VALUES (511,4183,-1,1443037937,5,10668);
+INSERT INTO `circuit_edge_interface_membership` VALUES (511,4183,-1,1443037937,6,10669);
+INSERT INTO `circuit_edge_interface_membership` VALUES (511,4183,-1,1443037937,7,10670);
 /*!40000 ALTER TABLE `circuit_edge_interface_membership` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1716,6 +1722,7 @@ INSERT INTO `circuit_instantiation` VALUES (-1,4161,0,1361994728,'active',1,NULL
 INSERT INTO `circuit_instantiation` VALUES (-1,4171,0,1362091613,'looped',1,81);
 INSERT INTO `circuit_instantiation` VALUES (-1,4181,0,1386083827,'active',11,NULL);
 INSERT INTO `circuit_instantiation` VALUES (-1,4182,1337,1442517482,'decom',31,NULL);
+INSERT INTO `circuit_instantiation` VALUES (-1,4183,0,1443037938,'active',41,NULL);
 INSERT INTO `circuit_instantiation` VALUES (1348842872,1,0,1348842871,'deploying',11,NULL);
 INSERT INTO `circuit_instantiation` VALUES (1348855218,11,0,1348855217,'deploying',11,NULL);
 INSERT INTO `circuit_instantiation` VALUES (1348857518,21,0,1348857517,'deploying',11,NULL);
@@ -2264,6 +2271,7 @@ INSERT INTO `circuit_instantiation` VALUES (1361994688,4151,0,1361994688,'deploy
 INSERT INTO `circuit_instantiation` VALUES (1361994728,4161,0,1361994728,'deploying',221,NULL);
 INSERT INTO `circuit_instantiation` VALUES (1362091613,4171,0,1362091612,'deploying',471,NULL);
 INSERT INTO `circuit_instantiation` VALUES (1442517482,4182,1337,1435247020,'deploying',31,NULL);
+INSERT INTO `circuit_instantiation` VALUES (1443037938,4183,0,1443037937,'deploying',41,NULL);
 /*!40000 ALTER TABLE `circuit_instantiation` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -8985,6 +8993,7 @@ INSERT INTO `link_path_membership` VALUES (181,-1,5461,1361994643,131,147);
 INSERT INTO `link_path_membership` VALUES (181,-1,5481,1362144220,132,149);
 INSERT INTO `link_path_membership` VALUES (181,-1,5501,1362143960,133,151);
 INSERT INTO `link_path_membership` VALUES (181,-1,5531,1386083827,134,152);
+INSERT INTO `link_path_membership` VALUES (181,-1,5543,1443037937,100,101);
 INSERT INTO `link_path_membership` VALUES (181,1349098689,251,1349098624,0,0);
 INSERT INTO `link_path_membership` VALUES (181,1349106919,271,1349106722,0,0);
 INSERT INTO `link_path_membership` VALUES (181,1349112733,311,1349106993,0,0);
@@ -9175,6 +9184,7 @@ INSERT INTO `link_path_membership` VALUES (191,-1,5461,1361994643,131,135);
 INSERT INTO `link_path_membership` VALUES (191,-1,5481,1362144220,132,136);
 INSERT INTO `link_path_membership` VALUES (191,-1,5501,1362143960,133,137);
 INSERT INTO `link_path_membership` VALUES (191,-1,5531,1386083827,134,138);
+INSERT INTO `link_path_membership` VALUES (191,-1,5543,1443037937,101,100);
 INSERT INTO `link_path_membership` VALUES (191,1349098689,251,1349098624,0,0);
 INSERT INTO `link_path_membership` VALUES (191,1349106919,271,1349106722,0,0);
 INSERT INTO `link_path_membership` VALUES (191,1349112733,311,1349106993,0,0);
@@ -10912,7 +10922,7 @@ CREATE TABLE `path` (
   UNIQUE KEY `path_idx` (`path_type`,`circuit_id`),
   KEY `circuit_path_fk` (`circuit_id`),
   CONSTRAINT `circuit_path_fk` FOREIGN KEY (`circuit_id`) REFERENCES `circuit` (`circuit_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=5543 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=5544 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -11455,6 +11465,7 @@ INSERT INTO `path` VALUES (5521,'backup',4171,'active');
 INSERT INTO `path` VALUES (5531,'primary',4181,'active');
 INSERT INTO `path` VALUES (5541,'backup',4181,'active');
 INSERT INTO `path` VALUES (5542,'primary',4182,'deploying');
+INSERT INTO `path` VALUES (5543,'primary',4183,'deploying');
 /*!40000 ALTER TABLE `path` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -11474,7 +11485,7 @@ CREATE TABLE `path_instantiation` (
   PRIMARY KEY (`path_instantiation_id`),
   KEY `end_epoch_path` (`path_id`,`end_epoch`),
   CONSTRAINT `path_path_instantiaiton_fk` FOREIGN KEY (`path_id`) REFERENCES `path` (`path_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=9933 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=9934 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -12456,6 +12467,7 @@ INSERT INTO `path_instantiation` VALUES (9911,5231,-1,'available',1362437681);
 INSERT INTO `path_instantiation` VALUES (9921,5531,-1,'deploying',1386083827);
 INSERT INTO `path_instantiation` VALUES (9931,5541,-1,'available',1386083827);
 INSERT INTO `path_instantiation` VALUES (9932,5542,1442517482,'deploying',1435247020);
+INSERT INTO `path_instantiation` VALUES (9933,5543,-1,'active',1443037937);
 /*!40000 ALTER TABLE `path_instantiation` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -15674,7 +15686,7 @@ LOCK TABLES `remote_auth` WRITE;
 INSERT INTO `remote_auth` VALUES (1,'aragusa',11);
 INSERT INTO `remote_auth` VALUES (11,'ckloote@grnoc.iu.edu',21);
 INSERT INTO `remote_auth` VALUES (21,'bgeels',31);
-INSERT INTO `remote_auth` VALUES (31,'user_41@foo.net',41);
+INSERT INTO `remote_auth` VALUES (31,'jonstout',41);
 INSERT INTO `remote_auth` VALUES (41,'user_51@foo.net',51);
 INSERT INTO `remote_auth` VALUES (51,'user_61@foo.net',61);
 INSERT INTO `remote_auth` VALUES (61,'user_71@foo.net',71);
@@ -21784,4 +21796,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2015-09-17 19:23:07
+-- Dump completed on 2015-09-23 19:55:17

@@ -106,7 +106,6 @@ sub new {
     if(!$self->_validate_flow()){
 	return undef;
     }
-    
     return $self;
     
 }
@@ -593,7 +592,7 @@ sub to_human {
 
     my $match_str = "";
     foreach my $key (keys (%{$self->{'match'}})){
-        $self->{'logger'}->trace("Processing Match Key: ".$key." value: ".$self->{'match'}->{$key});
+        $self->{'logger'}->trace("Processing Match Key: " . $key . " value: " . $self->{'match'}->{$key});
         if($match_str ne ''){
             $match_str .= ", ";
         }
