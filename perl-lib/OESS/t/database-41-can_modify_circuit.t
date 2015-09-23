@@ -32,7 +32,7 @@ my $can_mod_value = $db->can_modify_circuit(circuit_id   => 1,
 my @username = ($username);
 ok($can_mod_value == 1, 'is the initial value of the user one?');
 #set the user's status to decom
-$db->decom_user(user_id => 21); #, status_of_user => 'decom', 'given_names' => $results->[0]{'given_names'}, 'type' => $results->[0]{'type'}, 'auth_names' => \@username,  'email' => $results->[0]{'email'}, 'family_name' => $results->[0]{'family_name'});
+$db->edit_user(user_id => 21, status => 'decom', given_name => $results->[0]{'given_names'}, type => $results->[0]{'type'}, auth_names => \@username,  email => $results->[0]{'email'}, family_name => $results->[0]{'family_name'});
 
 $can_mod_value = $db->can_modify_circuit(circuit_id   => 1,
                         username     => $username,

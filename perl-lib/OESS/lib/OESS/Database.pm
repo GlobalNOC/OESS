@@ -3698,11 +3698,9 @@ sub get_circuit_details {
                     'external_identifier'    => $row->{'external_identifier'}
                    };
         if ( $row->{'circuit_state'} eq 'decom' ){
-            $show_historical =1;
+            $show_historical = 1;
         }
-
     }
-
 
     $details->{'internal_ids'} = $self->get_circuit_internal_ids(circuit_id => $circuit_id) || {};
 
@@ -3764,13 +3762,6 @@ sub get_circuit_internal_ids {
 
     my $circuit_id = $args{'circuit_id'};
 
-#    my $query = "select internal_vlan_id, node.node_id, node.name, path.path_type " .
-#	" from path_instantiation_vlan_ids " .
-#	" join path_instantiation on path_instantiation.path_instantiation_id = path_instantiation_vlan_ids.path_instantiation_id " .
-#	" join path on path.path_id = path_instantiation.path_id " .
-#	" join node on node.node_id = path_instantiation_vlan_ids.node_id " .
-#s	" where path.circuit_id = ? and path_instantiation.end_epoch = -1";
-
     my $query = "
 select link_instantiation.interface_a_id,link_instantiation.interface_z_id, 
 link_path_membership.interface_a_vlan_id, link_path_membership.interface_z_vlan_id, 
@@ -3790,8 +3781,7 @@ join node as node_a on int_a.node_id=node_a.node_id
 join node as node_z on int_z.node_id=node_z.node_id
 ";
     my $ids = $self->_execute_query($query, [$circuit_id]);
-
-    if (! defined $ids){
+    if (!defined $ids){
 	$self->_set_error("Internal error while fetching circuit internal vlan ids.");
 	return;
     }
@@ -3799,7 +3789,6 @@ join node as node_z on int_z.node_id=node_z.node_id
     my $results;
 
     foreach my $row (@$ids){
-
 	my $path_type = $row->{'path_type'};
 	my $interface_a       = $row->{'interface_a_id'};
         my $vlan_a = $row->{'interface_a_vlan_id'};
@@ -3961,18 +3950,14 @@ sub get_circuit_links {
 	" join node node_a on if_a.node_id = node_a.node_id ".
 	" join node node_z on if_z.node_id = node_z.node_id ";
 
- if ($args{'show_historical'}){
-     #warn( "Getting Historical Data");
-      $query =
-
-        "select link.name, node_a.name as node_a, if_a.name as interface_a, if_a.port_number as port_no_a, node_z.name as node_z, if_z.name as interface_z, if_z.port_number as port_no_z ".
- "from path join link_path_membership on path.path_id = link_path_membership.path_id ".
-"and path.circuit_id = ? and path.path_type= ? and link_path_membership.end_epoch= (select max(end_epoch) from link_path_membership m where m.path_id = path.path_id) ".
-"join link on link_path_membership.link_id = link.link_id ".
-"join link_instantiation link_inst on link.link_id = link_inst.link_id and link_inst.end_epoch = -1 ".
-"join interface if_a on link_inst.interface_a_id = if_a.interface_id ".
-"join interface if_z on link_inst.interface_z_id = if_z.interface_id  join node node_a on if_a.node_id = node_a.node_id  join node node_z on if_z.node_id = node_z.node_id ";
-
+ if ($args{'show_historical'} == 1) { # For some reason this is evaluating to true
+     $query = "select link.name, node_a.name as node_a, if_a.name as interface_a, if_a.port_number as port_no_a, node_z.name as node_z, if_z.name as interface_z, if_z.port_number as port_no_z ".
+         "from path join link_path_membership on path.path_id = link_path_membership.path_id ".
+         "and path.circuit_id = ? and path.path_type= ? and link_path_membership.end_epoch= (select max(end_epoch) from link_path_membership m where m.path_id = path.path_id) ".
+         "join link on link_path_membership.link_id = link.link_id ".
+         "join link_instantiation link_inst on link.link_id = link_inst.link_id and link_inst.end_epoch = -1 ".
+         "join interface if_a on link_inst.interface_a_id = if_a.interface_id ".
+         "join interface if_z on link_inst.interface_z_id = if_z.interface_id  join node node_a on if_a.node_id = node_a.node_id  join node node_z on if_z.node_id = node_z.node_id ";
     }
     my $sth = $self->_prepare_query($query) or return;
 
@@ -7978,9 +7963,11 @@ sub can_modify_circuit {
 
     my $user = $self->get_user_by_id( user_id => $user_id )->[0];
     if($user->{'type'} eq 'read-only'){
+        $self->_set_error("User '" . $params{'username'} . "' has read-only permissions.");
         return 0;
     }
     elsif($user->{'status'} eq 'decom'){
+        $self->_set_error("User '" . $params{'username'} . "' has been decommissioned.");
         return 0;
     }
 

@@ -77,7 +77,6 @@ sub new {
     my $password = $config->{'db'}->{'password'};
     my $database = $config->{'db'}->{'name'};
     my $dbh = DBI->connect("DBI:mysql:$database", $username, $password);
-
     $self->{'dbh'} = $dbh;
     return $self;
 

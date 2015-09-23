@@ -25,7 +25,7 @@ my $db = OESS::Database->new(config => OESSDatabaseTester::getConfigFilePath());
 my $workgroups = $db->get_workgroups();
 
 ok(defined($workgroups), "returned a value from get_workgroups with no params");
-ok($#{$workgroups} == 24, "Total number of workgroups was 24");
+ok($#{$workgroups} == 24, "Total number of workgroups was $#{$workgroups}. Expecting 24.");
 
 #warn Data::Dumper->Dump([\$workgroups], ['workgroups']);
 cmp_deeply($workgroups->[0],{

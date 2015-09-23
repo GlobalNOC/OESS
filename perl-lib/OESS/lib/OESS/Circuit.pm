@@ -236,7 +236,6 @@ sub _create_flows{
     #create the flows    
     my $circuit_details = $self->{'details'};
     my $internal_ids= $self->{'details'}->{'internal_ids'};
-
     if (!defined $circuit_details) {
         $self->{'logger'}->error("No Such Circuit circuit_id: " . $self->{'circuit_id'});
         return undef;
@@ -260,8 +259,8 @@ sub _create_flows{
         foreach my $link (@$links){
             my $node_a = $link->{'node_a'};
             my $node_z = $link->{'node_z'};
-            my $port_a = $link->{'port_no_a'}; 
-            my $port_z = $link->{'port_no_z'}; 
+            my $port_a = $link->{'port_no_a'};
+            my $port_z = $link->{'port_no_z'};
             my $vlan_a = $internal_ids->{$node_a}{$link->{'interface_a_id'}};
             my $vlan_z = $internal_ids->{$node_z}{$link->{'interface_z_id'}};
 
@@ -839,65 +838,61 @@ sub get_flows{
     my @flows;
 
     if (!defined($params{'path'})){
-
-
-    	foreach my $flow (@{$self->{'flows'}->{'path'}->{'primary'}}){
-		push(@flows,$flow);
-    	}
-
-    	foreach my $flow (@{$self->{'flows'}->{'path'}->{'backup'}}){
-		push(@flows,$flow);
-    	}
-
-    	if($self->get_active_path() eq 'primary'){
         
-        	foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{'primary'}}){
-            	push(@flows,$flow);
-        	}
-
-		foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{'primary'}}){
-	    	push(@flows,$flow);
-		}
-
-    	}else{
-
-        	foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{'backup'}}){
-            	push(@flows,$flow);
-        	}
-
-		foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{'backup'}}){
-	   	 push(@flows,$flow);
-		}
-
+    	foreach my $flow (@{$self->{'flows'}->{'path'}->{'primary'}}){
+            push(@flows,$flow);
     	}
-
-	}
-
-else {
+        
+    	foreach my $flow (@{$self->{'flows'}->{'path'}->{'backup'}}){
+            push(@flows,$flow);
+    	}
+        
+    	if($self->get_active_path() eq 'primary'){
+            
+            foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{'primary'}}){
+            	push(@flows,$flow);
+            }
+            
+            foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{'primary'}}){
+	    	push(@flows,$flow);
+            }
+            
+    	} else {
+            
+            foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{'backup'}}){
+            	push(@flows,$flow);
+            }
+            
+            foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{'backup'}}){
+                push(@flows,$flow);
+            }
+            
+    	}
+        
+    } else {
 	my $path = $params{'path'};
 	if($path ne 'primary' && $path ne 'backup'){
-        $self->{'logger'}->error("Path '$path' is invalid");
-        return;
+            $self->{'logger'}->error("Path '$path' is invalid");
+            return;
+        }
+        
+	foreach my $flow (@{$self->{'flows'}->{'path'}->{$path}}){
+            push(@flows,$flow);
+        }
+        
+	foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{$path}}){
+            push(@flows,$flow);
+        }
+        
+	foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{$path}}){
+            push(@flows,$flow);
+        }
     }
 
-	foreach my $flow (@{$self->{'flows'}->{'path'}->{$path}}){
-                push(@flows,$flow);
-        }
-
-	foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{$path}}){
-                push(@flows,$flow);
-                }
-
-	foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{$path}}){
-                push(@flows,$flow);
-                }
-
-
-}
     #if the number of endpoints is more than 2 and it is not interdomain
-    if(scalar(@{$self->get_endpoints()}) > 2 && !$self->is_interdomain()){
+    if (scalar(@{$self->get_endpoints()}) > 2 && !$self->is_interdomain()){
         return $self->_dedup_flows(\@flows);
-    }else{
+    } else {
         return \@flows;
     }
 }

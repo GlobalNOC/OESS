@@ -14,7 +14,7 @@ BEGIN {
 use lib "$path";
 use OESSDatabaseTester;
 
-use Test::More tests => 3;
+use Test::More tests => 4;
 use Test::Deep;
 use OESS::Database;
 use OESSDatabaseTester;
@@ -32,5 +32,11 @@ is($db->get_error(), 'Access Denied', 'correct error');
 $count = $db->remove_acl(
     user_id => 11,
     interface_acl_id => 7
+);
+is($count, 1,'1 acl deleted');
+
+$count = $db->remove_acl(
+    user_id => 11,
+    interface_acl_id => 12
 );
 is($count, 1,'1 acl deleted');
