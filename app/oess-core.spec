@@ -133,5 +133,27 @@ chmod a+rw /var/log/oess/
 chmod a+rw /var/run/oess/
 chmod 644 /etc/cron.d/nddi-scheduler.cron
 
+if [[ ! -L "/usr/lib/ocf/resource.d/grnoc/oess" ]]
+    then
+        if [[ ! -d "/usr/lib/ocf/" ]]
+            then 
+                mkdir /usr/lib/ocf;
+                mkdir /usr/lib/ocf/resource.d;
+                mkdir /usr/lib/ocf/resource.d/grnoc;
+            fi; 
+        if [[ ! -d "/usr/lib/ocf/resource.d" ]]
+            then
+                mkdir /usr/lib/ocf/resource.d;
+                mkdir /usr/lib/ocf/resource.d/grnoc;
+            fi; 
+        if [[ ! -d "/usr/lib/ocf/resource.d/grnoc" ]]
+            then
+                mkdir /usr/lib/ocf/resource.d/grnoc
+            fi; 
+
+        ln -s /etc/init.d/oess /usr/lib/ocf/resource.d/grnoc/
+
+fi
+
 %changelog
 
