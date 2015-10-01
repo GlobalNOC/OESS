@@ -589,7 +589,16 @@ sub get_actions{
 =cut
 
 sub to_human {
-    my $self = shift;
+    my ( $self, %args ) = @_;
+    
+    my $node_name;
+    if ($args{'db'}) {
+        
+        my $results = $args{'db'}->get_node_by_dpid(dpid => $self->{'dpid'}); 
+        $node_name = $results->{'name'}
+
+
+    }
 
     my $match_str = "";
     foreach my $key (keys (%{$self->{'match'}})){
@@ -599,7 +608,19 @@ sub to_human {
         }
         switch ($key){
             case "in_port"{
-                $match_str .= "IN PORT: " . $self->{'match'}->{$key};
+
+                if ($args{'db'}) {
+
+                    my $results = $args{'db'}->get_interface_by_dpid_and_port(dpid => $self->{'dpid'}, port_number => $self->{'match'}->{$key});
+                    
+                    my $port_name  = $results->{'name'}; 
+
+                    $match_str .= "IN PORT: " . $self->{'match'}->{$key} . " ($port_name)";
+                }
+                else {
+                    $match_str .= "IN PORT: " . $self->{'match'}->{$key};
+                }
+
             }case "dl_vlan"{
                 $match_str .= "VLAN: " . $self->{'match'}->{$key};
             }case "dl_type"{
@@ -658,7 +679,15 @@ sub to_human {
                         return;
                     }
 
-                    $action_str .= "OUTPUT: " . $out_port . "\n";
+                    if ($args{'db'}) { 
+                        my $results = $args{'db'}->get_interface_by_dpid_and_port(dpid => $self->{'dpid'}, port_number => $out_port);
+                        my $port_name = $results->{'name'}; 
+                        $action_str .= "OUTPUT: " . $out_port . " ($port_name) \n";
+                    }
+                    else {
+                        $action_str .= "OUTPUT: " . $out_port . "\n";
+                    }
+
                 }
 
                 case "set_vlan_vid" {
@@ -680,7 +709,7 @@ sub to_human {
                 case "drop"{
                     #no actions... ie... do nothing
                     
-                }else{
+            }else{
                     $self->{'logger'}->error("Error unsupported action: " . $key . "\n");
                     return;
                 }
@@ -691,7 +720,7 @@ sub to_human {
     
     my $dpid_str    = sprintf("%x",$self->{'dpid'});
     my $str = "OFFlowMod:\n".
-              " DPID: " . $dpid_str . "\n".
+              " DPID: " . $dpid_str . " ($node_name)\n".
               " Priority: " . $self->{'priority'} . "\n".
               " Match: " . $match_str . "\n".
               " Actions: " . $action_str;

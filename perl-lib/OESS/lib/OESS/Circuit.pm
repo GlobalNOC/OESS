@@ -983,7 +983,7 @@ sub generate_clr_raw{
     my $str = "";
 
     foreach my $flow (@$flows){
-        $str .= $flow->to_human() . "\n";
+        $str .= $flow->to_human(db => $self->{'db'}) . "\n";
     }
 
     return $str;
