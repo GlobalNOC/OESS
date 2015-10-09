@@ -1,6 +1,6 @@
 Summary: OESS Perl Libraries
 Name: perl-OESS
-Version: 1.1.7
+Version: 1.1.8
 Release: 1
 License: APL 2.0
 Group: Network
@@ -10,7 +10,7 @@ BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildArch:noarch
 
 BuildRequires: perl
-Requires: perl(URI::Escape), dbus, dbus-libs, mysql-server, perl-XML-Simple, perl-XML-XPath, perl-Module-Build, perl-Module-Install, perl-Array-Utils, perl-File-ShareDir, perl-Net-DBus, perl-XML-Writer, perl-DateTime, perl-Test-Deep, perl-Set-Scalar, perl-Graph, perl-List-MoreUtils, perl-Log-Log4perl, perl-MIME-Lite-TT-HTML, perl-AnyEvent, perl-AnyEvent-Fork, perl-AnyEvent-Fork-RPC, perl-AnyEvent-DBus, perl-Proc-FastSpawn
+Requires: perl(URI::Escape), dbus, dbus-libs, mysql-server, perl-XML-Simple, perl-XML-XPath, perl-Module-Build, perl-Module-Install, perl-Array-Utils, perl-File-ShareDir, perl-Net-DBus, perl-XML-Writer, perl-DateTime, perl-Test-Deep, perl-Set-Scalar, perl-Graph, perl-List-MoreUtils, perl-Log-Log4perl, perl-MIME-Lite-TT-HTML, perl-AnyEvent, perl-AnyEvent-Fork, perl-AnyEvent-Fork-RPC, perl-AnyEvent-DBus, perl-Proc-FastSpawn perl-SOAP-Lite
 Provides: perl-OESS-Circuit, perl-OESS-Database, perl-OESS-DBus, perl-OESS-Topology,perl-OESS-Measurement,perl-OESS-FlowRule
 Obsoletes: perl-OESS-Circuit, perl-OESS-Database, perl-OESS-DBus, perl-OESS-Topology,perl-OESS-Measurement,perl-OESS-FlowRule
 
@@ -64,6 +64,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::FWDCTL::Switch.3pm.gz
 %doc %{_mandir}/man3/OESS::Traceroute.3pm.gz
 %doc %{_mandir}/man3/OESS::FV.3pm.gz
+%doc %{_mandir}/man3/OESS::NSI::Server.3pm.gz
 %{template_dir}/notification_templates.tmpl
 %{template_dir}/notification_bulk.tmpl
 %{template_dir}/notification_bulk.tt.html
@@ -81,6 +82,7 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/FWDCTL/Master.pm
 %{perl_vendorlib}/OESS/FWDCTL/Switch.pm
 %{perl_vendorlib}/OESS/Traceroute.pm
+%{perl_vendorlib}/OESS/NSI/Server.pm
 %{docdir}/share/nddi.sql
 %{docdir}/share/upgrade/*
 
