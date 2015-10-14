@@ -706,6 +706,7 @@ class oess_dbus(app_manager.RyuApp):
                 MAIN_DISPATCHER)
     def _port_status_handler(self, ev):
         msg        = ev.msg
+        dp         = msg.datapath
         reason     = msg.reason
         port_no    = msg.desc.port_no
         link_state = msg.desc.state
@@ -726,7 +727,7 @@ class oess_dbus(app_manager.RyuApp):
 #        if attrs:
 #            attr_dict = dbus.Dictionary(attrs, signature='sv')
 
-        self.sg.port_status(ev.datapath.id, reason, attr_dict)
+        self.sg.port_status(dp.id, reason, attr_dict)
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def _packet_in_handler(self, ev):
