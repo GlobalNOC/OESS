@@ -12,6 +12,10 @@ sub _send_to_daemon{
     my $method = shift;
     my $data = shift;
 
+    warn "Method: " . $method;
+    warn Data::Dumper::Dumper($data);
+    return;
+
     my $bus = Net::DBus->system;
 
     my $client;
@@ -102,10 +106,10 @@ sub _parse_p2ps{
         $destSTP = $destSTP->value;
     }
 
-    return { capacity => $cap,
+    return Net::DBus::dbus_dict({ capacity => $cap,
              directionality => $dir,
              sourceSTP => $sourceSTP,
-             destSTP => $destSTP};
+             destSTP => $destSTP});
 }
 
 =head2 _parse_schedule{
@@ -125,8 +129,8 @@ sub _parse_schedule{
         $endTime = $endTime->value;
     }
 
-    return { startTime => $startTime,
-             endTime => $endTime};
+    return Net::DBus::dbus_dict({ startTime => $startTime,
+             endTime => $endTime});
 }
 
 =head2 _parse_serviceType
@@ -149,9 +153,9 @@ sub _parse_serviceType{
 sub _parse_criteria{
     my $envelope = shift;
 
-    return {schedule => _parse_schedule($envelope),
+    return Net::DBus::dbus_dict({schedule => _parse_schedule($envelope),
             p2ps => _parse_p2ps($envelope),
-            serviceType => _parse_serviceType($envelope) };
+            serviceType => _parse_serviceType($envelope) });
 
 }
 
@@ -166,15 +170,21 @@ sub reserve{
 
     my $header = _parse_header($envelope);
     my $connectionId = $envelope->dataof("//reserve/connectionId");
+    if(defined($connectionId)){
+        $connectionId = $connectionId->value;
+    }
     my $gri = $envelope->dataof("//reserve/globalReservationId");
+    if(defined($gri)){
+        $gri = $gri->value;
+    }
     my $description = $envelope->dataof("//reserve/description")->value;
     my $criteria = _parse_criteria($envelope);
 
-    my $res = _send_to_daemon("reserve",{ connectionId => $connectionId,
+    my $res = _send_to_daemon("reserve",Net::DBus::dbus_dict({ connectionId => $connectionId,
 					  globalReservationId => $gri,
 					  description => $description,
 					  criteria => $criteria,
-					  header => $header }  );
+					  header => $header }  ));
 
 
     my $header = SOAP::Header->name( 'header:nsiHeader' => \SOAP::Data->value(
@@ -199,6 +209,10 @@ sub reserveAbort{
 
 
     my $connectionId = $envelope->dataof("//reserveAbort/connectionId");
+    if(defined($connectionId)){
+        $connectionId =$connectionId->value;
+    }
+
     my $header = _parse_header($envelope);
 
     my $res = _send_to_daemon("reserveAbort",{ connectionId => $connectionId,
@@ -216,6 +230,10 @@ sub reserveCommit{
     my $envelope = pop;
 
     my $connectionId = $envelope->dataof("//reserveCommit/connectionId");
+    if(defined($connectionId)){
+        $connectionId =$connectionId->value;
+    }
+
     my $header = _parse_header($envelope);
 
     my $res = _send_to_daemon("reserveCommit",{ connectionId => $connectionId,
@@ -234,6 +252,10 @@ sub provision{
     my $envelope = pop;
 
     my $connectionId = $envelope->dataof("//provision/connectionId");
+    if(defined($connectionId)){
+        $connectionId =$connectionId->value;
+    }
+
     my $header = _parse_header($envelope);
 
     my $res = _send_to_daemon("provision",{ connectionId => $connectionId,
@@ -252,6 +274,10 @@ sub release{
     my $envelope = pop;
 
     my $connectionId = $envelope->dataof("//release/connectionId");
+    if(defined($connectionId)){
+        $connectionId =$connectionId->value;
+    }
+
     my $header = _parse_header($envelope);
     my $res = _send_to_daemon("release",{ connectionId => $connectionId,
 					  header => $header});
@@ -269,6 +295,10 @@ sub terminate{
     my $envelope = pop;
 
     my $connectionId = $envelope->dataof("//terminate/connectionId");
+    if(defined($connectionId)){
+        $connectionId =$connectionId->value;
+    }
+
     my $header = _parse_header($envelope);
 
     my $res = _send_to_daemon("terminate",{ connectionId => $connectionId,
@@ -287,7 +317,15 @@ sub queryRecursive{
     my $envelope = pop;
 
     my $connectionId = $envelope->dataof("//queryRecursive/connectionId");
+    if(defined($connectionId)){
+        $connectionId =$connectionId->value;
+    }
+
     my $gri = $envelope->dataof("//queryRecursive/globalReservationId");
+    if(defined($gri)){
+        $gri = $gri->value;
+    }
+
     my $header = _parse_header($envelope);
 
     my $res = _send_to_daemon("queryRecursive", { connectionId => $connectionId,
@@ -306,7 +344,15 @@ sub querySummary{
     my $envelope = pop;
 
     my $connectionId = $envelope->dataof("//querySummary/connectionId");
+    if(defined($connectionId)){
+        $connectionId =$connectionId->value;
+    }
+
     my $gri = $envelope->dataof("//querySummary/globalReservationId");
+    if(defined($gri)){
+        $gri = $gri->value;
+    }
+
     my $header = _parse_header($envelope);
 
     my $res = _send_to_daemon("querySummary", { connectionId => $connectionId,
@@ -336,8 +382,19 @@ sub queryNotification{
     my $envelope = pop;
 
     my $connectionId = $envelope->dataof("//queryNotification/connectionId");
+    if(defined($connectionId)){
+        $connectionId =$connectionId->value;
+    }
+
     my $startNotificationId = $envelope->dataof("//queryNotification/startNotificationId");
+    if(defined($startNotificationId)){
+        $startNotificationId = $startNotificationId->value;
+    }
+
     my $endNotificationId = $envelope->dataof("//queryNotification/endNotificationId");
+    if(defined($endNotificationId)){
+        $endNotificationId = $endNotificationId->value;
+    }
 
     my $header = _parse_header($envelope);
 
@@ -369,8 +426,20 @@ sub queryResult{
     my $envelope = pop;
 
     my $connectionId = $envelope->dataof("//queryNotification/connectionId");
+    if(defined($connectionId)){
+        $connectionId =$connectionId->value;
+    }
+
     my $startResultId = $envelope->dataof("//queryResult/startResultId");
+    if(defined($startResultId)){
+        $startResultId = $startResultId->value;
+    }
+
     my $endResultId = $envelope->dataof("//queryResult/endResultId");
+    if(defined($endResultId)){
+        $endResultId = $endResultId->value;
+    }
+
 
     my $header = _parse_header($envelope);
 
