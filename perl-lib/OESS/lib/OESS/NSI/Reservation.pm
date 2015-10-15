@@ -24,7 +24,7 @@ package OESS::NSI::Reservation;
 use strict;
 use warnings;
 
-use SOAP::Lite;
+use SOAP::Lite on_action => sub { sprintf '"http://schemas.ogf.org/nsi/2013/12/connection/service/%s"', $_[1]};
 
 use GRNOC::Log;
 use GRNOC::Config;
@@ -74,6 +74,13 @@ sub reserve {
     return 100;
 }
 
+sub reserveCommit{
+    my ($self, $args) = @_;
+    
+    push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_COMMIT_CONFIRMED, connection_id => 100, args => $args});
+
+}
+
 sub process_queue {
     my ($self) = @_;
 
@@ -95,28 +102,93 @@ sub process_queue {
 
             $self->_reserve_failed($message->{'args'});
             next;
+        }elsif($type == OESS::NSI::Constant::RESERVATION_COMMIT_CONFIRMED){
+            log_debug("handling reservation commit success");
+            
+            $self->_reserve_commit_confirmed($message->{'args'});
+            next;
+        }elsif($type == OESS::NSI::Constant::RELEASE_SUCCESS){
+            log_debug("handling release success");
+
+            $self->_release_confirmed($message->{'args'});
         }
     }
+}
+
+sub release{
+    my ($self, $args) = @_;
+
+    push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RELEASE_SUCCESS, args => $args});
+}
+
+sub _build_p2ps{
+    my $p2ps = shift;
+    
+    return SOAP::Data->name( p2ps => \SOAP::Data->value( SOAP::Data->name( capacity => $p2ps->{'capacity'} ),
+                                                         SOAP::Data->name( directionality => $p2ps->{'directionality'} ),
+                                                         SOAP::Data->name( sourceSTP => $p2ps->{'sourceSTP'} ),
+                                                         SOAP::Data->name( destSTP => $p2ps->{'destSTP'} )))->uri('http://schemas.ogf.org/nsi/2013/12/services/point2point');
+    
+}
+
+sub _build_schedule{
+    my $schedule = shift;
+    if($schedule->{'startTime'} ne ''){
+        return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( startTime => $schedule->{'startTime'})->type('ftypes:DateTimeType'),
+                                                                 SOAP::Data->name( endTime => $schedule->{'endTime'})->type('ftypes:DateTimeType')));
+    }
+
+    return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( endTime => $schedule->{'endTime'} )->type('ftypes:DateTimeType')));
+}
+
+sub _build_criteria{
+    my $criteria = shift;
+    
+    return SOAP::Data->name(criteria => 
+                            \SOAP::Data->value( _build_schedule( $criteria->{'schedule'}),
+                                                SOAP::Data->name( serviceType => $criteria->{'serviceType'}->{'type'}),
+                                                _build_p2ps( $criteria->{'p2ps'} )
+                            ))->attr({ version => $criteria->{'version'}->{'version'}++});
+    
+
 }
 
 sub _reserve_confirmed {
     my ($self, $data, $connection_id) = @_;
 
     log_debug("Sending Reservation Confirmation");
+    warn Data::Dumper::Dumper($data);
+    my $soap = SOAP::Lite->new->proxy($data->{'header'}->{'replyTo'})->ns('http://schemas.ogf.org/sni/2013/12/framework/types','ftypes')->ns('http://schemas.ogf.org/nsi/2013/12/framework/headers','header')->ns('http://schemas.ogf.org/nsi/2013/12/connection/types','ctypes');
 
-    my $soap = SOAP::Lite->new()->proxy($data->{'header'}->{'replyTo'})->uri('http://schemas.ogf.org/nsi/2013/12/connection/types')->ns('http://schemas.ogf.org/nsi/2013/12/framework/headers','header')->ns('http://schemas.ogf.org/nsi/2013/12/connection/types','ctypes');
-    my $header = SOAP::Header->name(nsiHeader => \SOAP::Data->value(
+    my $header = SOAP::Header->name("header:nsiHeader" => \SOAP::Data->value(
                                         SOAP::Data->name(protocolVersion => $data->{'header'}->{'protocolVersion'}),
                                         SOAP::Data->name(correlationId => $data->{'header'}->{'correlationId'}),
                                         SOAP::Data->name(requesterNSA => $data->{'header'}->{'requesterNSA'}),
                                         SOAP::Data->name(providerNSA => $data->{'header'}->{'providerNSA'})
-                                    )->type("header:nsiHeader"));
+                                    ));
 
-    my $soap_response = $soap->reserveConfirmed(
-        $header,
-        SOAP::Data->name(connectionId => $connectionId),
-        SOAP::Data->name(criteria => )
+    my $soap_response = $soap->reserveConfirmed($header, SOAP::Data->name(connectionId => $connection_id),
+                                                SOAP::Data->name(globalReservationId => $data->{'globalReservationId'}),
+                                                SOAP::Data->name(description => $data->{'description'}),
+                                                _build_criteria($data->{'criteria'}) 
         );
+                                                
+}
+
+sub _reserve_commit_confirmed{
+    my ($self, $data) = @_;
+
+
+    my $soap = SOAP::Lite->new->proxy($data->{'header'}->{'replyTo'})->ns('http://schemas.ogf.org/sni/2013/12/framework/types','ftypes')->ns('http://schemas.ogf.org/nsi/2013/12/framework/headers','header')->ns('http://schemas.ogf.org/nsi/2013/12/connection/types','ctypes');    
+    my $header = SOAP::Header->name("header:nsiHeader" => \SOAP::Data->value(
+                                        SOAP::Data->name(protocolVersion => $data->{'header'}->{'protocolVersion'}),
+                                        SOAP::Data->name(correlationId => $data->{'header'}->{'correlationId'}),
+                                        SOAP::Data->name(requesterNSA => $data->{'header'}->{'requesterNSA'}),
+                                        SOAP::Data->name(providerNSA => $data->{'header'}->{'providerNSA'})
+                                    ));
+
+    my $soap_response = $soap->reserveCommitConfirmed($header, SOAP::Data->name(connectionId => $data->{'connectionId'}));
+    
 }
 
 sub _reserve_failed {
@@ -157,6 +229,20 @@ sub _init {
     $self->{'workgroup_id'} = $self->{'config'}->get('/config/oess-service/@workgroup-id');
 
     $self->{'reservation_queue'} = [];
+}
+
+sub _release_confirmed{
+    my ($self, $data) = @_;
+
+    my $soap = SOAP::Lite->new->proxy($data->{'header'}->{'replyTo'})->ns('http://schemas.ogf.org/sni/2013/12/framework/types','ftypes')->ns('http://schemas.ogf.org/nsi/2013/12/framework/headers','header')->ns('http://schemas.ogf.org/nsi/2013/12/connection/types','ctypes');
+    my $header = SOAP::Header->name("header:nsiHeader" => \SOAP::Data->value(
+                                        SOAP::Data->name(protocolVersion => $data->{'header'}->{'protocolVersion'}),
+                                        SOAP::Data->name(correlationId => $data->{'header'}->{'correlationId'}),
+                                        SOAP::Data->name(requesterNSA => $data->{'header'}->{'requesterNSA'}),
+                                        SOAP::Data->name(providerNSA => $data->{'header'}->{'providerNSA'})
+                                    ));
+
+    my $soap_response = $soap->releaseConfirmed($header, SOAP::Data->name(connectionId => $data->{'connectionId'}));
 }
 
 1;

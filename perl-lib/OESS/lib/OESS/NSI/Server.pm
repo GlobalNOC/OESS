@@ -252,6 +252,7 @@ sub reserveAbort{
 
 
     my $connectionId = $envelope->dataof("//reserveAbort/connectionId");
+
     if(defined($connectionId)){
         $connectionId =$connectionId->value;
     }
