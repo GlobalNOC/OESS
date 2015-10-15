@@ -1,0 +1,22 @@
+#!/usr/bin/perl
+
+package OESS::NSI::Constant;
+
+use strict;
+use warnings;
+
+use base "Exporter";
+
+use constant ERROR => 0;
+use constant SUCCESS => -1;
+use constant UNKNOWN_ERROR => -2;
+use constant UNKNOWN_REQUEST => -3;
+use constant INVALID_REQUEST_PARAMETERS => -4;
+use constant MISSING_REQUEST_PARAMETERS => -5;
+use constant RESERVATION_SUCCESS => -6;
+use constant RESERVATION_FAIL => -7;
+
+our @EXPORT_OK = ('ERROR','SUCCESS','UNKNOWN_ERROR', 'UNKNOWN_REQUEST', 'INVALID_REQUEST_PARAMETERS', 'MISSING_REQUEST_PARAMETERS','RSERVATION_SUCCESS','RESERVATION_FAIL');
+our %EXPORT_TAGS = ( all => ['ERROR','SUCCESS','UNKNOWN_ERROR', 'UNKNOWN_REQUEST', 'INVALID_REQUEST_PARAMETERS', 'MISSING_REQUEST_PARAMETERS','RSERVATION_SUCCESS','RESERVATION_FAIL']);
+
+1;

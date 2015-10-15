@@ -12,9 +12,9 @@ sub _send_to_daemon{
     my $method = shift;
     my $data = shift;
 
-    warn "Method: " . $method;
+#    warn "Method: " . $method;
     warn Data::Dumper::Dumper($data);
-    return;
+#    return;
 
     my $bus = Net::DBus->system;
 
@@ -53,30 +53,41 @@ sub _parse_header{
     my $correlationId = $envelope->dataof("///Header/nsiHeader/correlationId");
     if(defined($correlationId)){
         $correlationId = $correlationId->value;
+    }else{
+	$correlationId = '';
     }
     my $requesterNSA = $envelope->dataof("//Header/nsiHeader/requestorNSA");
     if(defined($requesterNSA)){
         $requesterNSA = $requesterNSA->value;
+    }else{
+	$requesterNSA = '';
     }
     my $providerNSA = $envelope->dataof("//Header/nsiHeader/providerNSA");
     if(defined($providerNSA)){
         $providerNSA = $providerNSA->value;
+    }else{
+	$providerNSA = '';
     }
     my $replyTo = $envelope->dataof("//Header/nsiHeader/replyTo");
     if(defined($replyTo)){
         $replyTo = $replyTo->value;
+    }else{
+	$replyTo = '';
     }
+
     my $sessionSecurityAttr = $envelope->dataof("//Header/nsiHeader/sessionSecurityAttr");
     if(defined($sessionSecurityAttr)){
         $sessionSecurityAttr = $sessionSecurityAttr->value;
+    }else{
+	$sessionSecurityAttr = '';
     }
 
     return { protocolVersion => $protocolVersion,
-             correlationId => $correlationId,
-             requesterNSA => $requesterNSA,
-             providerNSA => $providerNSA,
-             replyTo => $replyTo,
-             sessionSecurityAttr => $sessionSecurityAttr };
+	     correlationId => $correlationId,
+	     requesterNSA => $requesterNSA,
+	     providerNSA => $providerNSA,
+	     replyTo => $replyTo,
+	     sessionSecurityAttr => $sessionSecurityAttr };
 }
 
 =head2 _parse_p2ps
@@ -106,10 +117,10 @@ sub _parse_p2ps{
         $destSTP = $destSTP->value;
     }
 
-    return Net::DBus::dbus_dict({ capacity => $cap,
-             directionality => $dir,
-             sourceSTP => $sourceSTP,
-             destSTP => $destSTP});
+    return{ capacity => $cap,
+	    directionality => $dir,
+	    sourceSTP => $sourceSTP,
+	    destSTP => $destSTP}
 }
 
 =head2 _parse_schedule{
@@ -122,15 +133,21 @@ sub _parse_schedule{
     my $startTime = $env->dataof('//reserve/criteria/schedule/startTime');
     if(defined($startTime)){
         $startTime = $startTime->value;
+    }else{
+	$startTime = '';
     }
 
     my $endTime = $env->dataof('//reserve/criteria/schedule/endTime');
     if(defined($endTime)){
         $endTime = $endTime->value;
+    }else{
+	$endTime = '';
     }
 
-    return Net::DBus::dbus_dict({ startTime => $startTime,
-             endTime => $endTime});
+    my $obj = {startTime => $startTime,
+	       endTime => $endTime};
+
+    return $obj;
 }
 
 =head2 _parse_serviceType
@@ -143,7 +160,26 @@ sub _parse_serviceType{
     my $serviceType = $env->dataof('//reserve/criteria/serviceType');
     if(defined($serviceType)){
         return $serviceType->value;
+    }else{
+	return '';
     }
+}
+
+=head2 _parse_version
+
+=cut
+
+sub _parse_version{
+    my $env = shift;
+    
+    my $version = $env->dataof('//reserve/criteria');
+    if(defined($version)){
+	
+	$version = $version->attr();
+    }else{
+        $version= '';
+    }
+    return $version;
 }
 
 =head2 _parse_criteria
@@ -153,10 +189,12 @@ sub _parse_serviceType{
 sub _parse_criteria{
     my $envelope = shift;
 
-    return Net::DBus::dbus_dict({schedule => _parse_schedule($envelope),
-            p2ps => _parse_p2ps($envelope),
-            serviceType => _parse_serviceType($envelope) });
-
+    return {schedule => _parse_schedule($envelope),
+	    p2ps => _parse_p2ps($envelope),
+	    serviceType => {type => _parse_serviceType($envelope)},
+	    version => _parse_version($envelope)
+    };
+    
 }
 
 
@@ -172,20 +210,25 @@ sub reserve{
     my $connectionId = $envelope->dataof("//reserve/connectionId");
     if(defined($connectionId)){
         $connectionId = $connectionId->value;
+    }else{
+	$connectionId = '';
     }
     my $gri = $envelope->dataof("//reserve/globalReservationId");
     if(defined($gri)){
         $gri = $gri->value;
+    }else{
+	$gri = '';
     }
     my $description = $envelope->dataof("//reserve/description")->value;
     my $criteria = _parse_criteria($envelope);
 
-    my $res = _send_to_daemon("reserve",Net::DBus::dbus_dict({ connectionId => $connectionId,
-					  globalReservationId => $gri,
-					  description => $description,
-					  criteria => $criteria,
-					  header => $header }  ));
-
+    my $res = _send_to_daemon("reserve", { connectionId => $connectionId,
+					   globalReservationId => $gri,
+					   description => $description,
+					   criteria => $criteria,
+					   header => $header 
+			      });
+    
 
     my $header = SOAP::Header->name( 'header:nsiHeader' => \SOAP::Data->value(
                                          SOAP::Data->name(protocolVersion => $header->{'protocolVersion'}),
