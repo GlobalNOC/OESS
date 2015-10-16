@@ -68,8 +68,8 @@ sub main {
     switch ($action) {
 
         case "provision_circuit" {
-                                  $output = &provision_circuit();
-                                 }
+	    $output = &provision_circuit();
+	}
         case "remove_circuit" {
                             $output = &remove_circuit();
                             }
@@ -329,9 +329,10 @@ sub provision_circuit {
                                          workgroup_id   => $workgroup_id,
                                          external_id    => $external_id,
                                          restore_to_primary => $restore_to_primary,
-                                         static_mac => $static_mac
+                                         static_mac => $static_mac,
+	                                 state => $state
                                         );
-        if ( defined $output && $provision_time <= time() ) {
+        if ( defined $output && $provision_time <= time() && $state eq 'active' ) {
 
             my $result =
               _send_add_command( circuit_id => $output->{'circuit_id'} );

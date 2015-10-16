@@ -24,15 +24,15 @@ package OESS::NSI::Provisioning;
 use strict;
 use warnings;
 
+use DateTime;
 use SOAP::Lite on_action => sub { sprintf '"http://schemas.ogf.org/nsi/2013/12/connection/service/%s"', $_[1]};
+use Data::Dumper;
 
 use GRNOC::Log;
 use GRNOC::Config;
 use GRNOC::WebService::Client;
 
 use OESS::NSI::Constant;
-
-use Data::Dumper;
 
 sub new {
     my $caller = shift;
@@ -94,9 +94,63 @@ sub provision{
         warn "FAILED!\n";
         return OESS::NSI::Constant::MISSING_REQUEST_PARAMETERS;
     }
+
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "/data.cgi");
     
-    push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::PROVISIONING_SUCCESS, args => $args});
+
+    my $circuit = $self->{'websvc'}->foo( action => "get_circuit_details",
+					  circuit_id => $connection_id);
+
+    if(!defined($circuit) && !defined($circuit->{'results'})){
+	return OESS::NSI::Constant::ERROR;
+    }
+
+    $circuit = $circuit->{'results'};
     
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "/provisioning.cgi");
+
+    my @links = ();
+    foreach my $link (@{$circuit->{'links'}}){
+	push(@links, $link->{'name'});
+    }
+
+    my @backup_links = ();
+    foreach my $link (@{$circuit->{'backup_links'}}){
+	push(@backup_links, $link->{'name'});
+    }
+
+    my @nodes = ();
+    my @ints = ();
+    my @tags = ();
+
+    foreach my $ep (@{$circuit->{'endpoints'}}){
+	push(@nodes,$ep->{'node'});
+	push(@ints,$ep->{'interface'});
+	push(@tags,$ep->{'tag'});
+    }
+
+    my $res = $self->{'websvc'}->foo( action => 'provision_circuit',
+				      state => 'active',
+				      circuit_id => $connection_id,
+				      workgroup_id => $self->{'workgroup_id'},
+				      description => $circuit->{'description'},
+				      name => $circuit->{'name'},
+				      link => \@links,
+				      backup_link => \@backup_links,
+				      bandwidth => $circuit->{'bandwidth'},
+				      provision_time => -1,#$circuit->{'provision_time'},
+				      remove_time => undef,#$circuit->{'remove_time'},
+				      node => \@nodes,
+				      interface => \@ints,
+				      tag => \@tags);
+    
+    if(defined($res) && defined($res->{'results'})){
+	push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::PROVISIONING_SUCCESS, args => $args});
+	return OESS::NSI::Constant::SUCCESS;
+    }
+
+    log_error("Error provisioning circuit: " . $res->{'error'});
+    push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::PROVISIONING_FAILED, args => $args});
     return OESS::NSI::Constant::SUCCESS;
 }    
 
@@ -112,10 +166,22 @@ sub terminate{
         return OESS::NSI::Constant::MISSING_REQUEST_PARAMETERS;
     }
 
-    push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::TERMINATION_SUCCESS, args => $args});
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "/provisioning.cgi");
+    my $res = $self->{'websvc'}->foo( action => "remove_circuit",
+				      circuit_id => $connection_id,
+				      workgroup_id => $self->{'workgroup_id'},
+				      remove_time => -1);
 
-    return OESS::NSI::Constant::SUCCESS;
-    
+    if(defined($res) && defined($res->{'results'})){
+
+	push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::TERMINATION_SUCCESS, args => $args});
+	
+	return OESS::NSI::Constant::SUCCESS;
+    }
+
+    log_error("Unable to remove circuit: " . $res->{'error'});
+    push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::TERMINATION_FAILED, args => $args});
+    return OESS::NSI::Constant::ERROR;
 }
 
 sub _provisioning_success{
@@ -166,6 +232,8 @@ sub _init {
         'debug' => $self->{'debug'}
         );
 
+    $websvc->{'debug'} = 1;
+
     $self->{'websvc'} = $websvc;
 
     $self->{'websvc_user'}     = $self->{'config'}->get('/config/oess-service/@username');
@@ -175,7 +243,8 @@ sub _init {
 
     $self->{'websvc'}->set_credentials(
         'uid' => $self->{'websvc_user'},
-        'passwd' => $self->{'websvc_pass'}
+        'passwd' => $self->{'websvc_pass'},
+	'realm' => $self->{'websvc_realm'}
         );
 
     $self->{'workgroup_id'} = $self->{'config'}->get('/config/oess-service/@workgroup-id');

@@ -38,8 +38,8 @@ sub new {
 sub process_request {
     my ($self, $request, $data) = @_;
 
-    log_debug("Received method call: $request");
-
+    log_error("Received method call: $request");
+    warn "HERE!\n";
 
     if($request =~ /^reserve$/){
         return $self->{'reservation'}->reserve($data);
