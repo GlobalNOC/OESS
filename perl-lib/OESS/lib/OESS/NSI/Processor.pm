@@ -15,7 +15,7 @@ use GRNOC::WebService::Client;
 
 use OESS::NSI::Constant;
 use OESS::NSI::Reservation;
-
+use OESS::NSI::Provisioning;
 use Data::Dumper;
 
 sub new {
@@ -43,6 +43,14 @@ sub process_request {
 
     if($request =~ /^reserve$/){
         return $self->{'reservation'}->reserve($data);
+    }elsif($request =~ /^reserveCommit$/){
+        return $self->{'reservation'}->reserveCommit($data);
+    }elsif($request =~ /^provision$/){
+        return $self->{'provisioning'}->provision($data);
+    }elsif($request =~ /^terminate$/){
+        return $self->{'provisioning'}->terminate($data);
+    }elsif($request =~ /^release$/){
+        return $self->{'reservation'}->release($data);
     }
 
     return OESS::NSI::Constant::UNKNOWN_REQUEST;
@@ -52,12 +60,15 @@ sub process_queues {
     my ($self) = @_;
 
     $self->{'reservation'}->process_queue();
+    $self->{'provisioning'}->process_queue();
 }
 
 sub _init {
     my ($self) = @_;
 
     $self->{'reservation'} = new OESS::NSI::Reservation(config_file => $self->{'config_file'});
+    $self->{'provisioning'} = new OESS::NSI::Provisioning(config_file => $self->{'config_file'});
+
 }
 
 1;
