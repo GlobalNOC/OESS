@@ -66,6 +66,8 @@ sub reserve {
     my $capacity = $args->{'criteria'}->{'p2ps'}->{'capacity'};
     my $reply_to = $args->{'header'}->{'replyTo'};
     
+    warn "IN RESERVE!\n";
+
     if(!$description || !$source_stp || !$dest_stp || !$reply_to){
         return OESS::NSI::Constant::MISSING_REQUEST_PARAMETERS;
     }
@@ -80,7 +82,6 @@ sub reserve {
         log_error("Unable to find destSTP: " . $dest_stp . " in OESS");
         return OESS::NSI::Constant::RESERVATION_FAIL;
     }
-    
 
     if(!$self->validate_endpoint($ep1)){
         log_error("sourceSTP is not allowed for NSI");
@@ -98,11 +99,13 @@ sub reserve {
         log_error("Unable to connect the source and dest STPs");
         return OESS::NSI::Constant::RESERVATION_FAIL;
     }
-    my $backup_path = $self->get_shorest_path($ep1, $ep2, $primary_path);
     
-    $self->{'websvc'}->url($self->{'websvc_location'} . "provisioning.cgi");
+    my $backup_path = $self->get_shortest_path($ep1, $ep2, $primary_path);
     
-    my $res = $self->{'websvc'}->foo( action => "reserve_circuit",
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "provisioning.cgi");
+    
+    my $res = $self->{'websvc'}->foo( action => "provision_circuit",
+				      status => 'reserved',
                                       workgroup_id => $self->{'workgroup_id'},
                                       external_identifier => $gri,
                                       description => $description,
@@ -112,8 +115,8 @@ sub reserve {
                                       link => $primary_path,
                                       backup_link => $backup_path,
                                       node => [$ep1->{'node'}, $ep2->{'node'}],
-                                      interface => [$ep1->{'interface'}, $ep2->{'interface'}],
-                                      tag => [$ep1->{'tag'}, $ep2->{'tag'}]);
+                                      interface => [$ep1->{'port'}, $ep2->{'port'}],
+                                      tag => [$ep1->{'vlan'}, $ep2->{'vlan'}]);
     
     if(defined($res->{'results'}) && $res->{'results'}->{'success'} == 1){
         push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_SUCCESS, connection_id => $res->{'results'}->{'circuit_id'}, args => $args});
@@ -165,6 +168,8 @@ sub validate_endpoint{
     #need to verify this is part of our network and actually exists and that we have permission!
 
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "data.cgi");
+
+    print STDOUT Data::Dumper::Dumper($ep);
     
     my $res = $self->{'websvc'}->foo( action => "get_all_resources_for_workgroup",
                                       workgroup_id => $self->{'workgroup_id'});
@@ -178,9 +183,11 @@ sub validate_endpoint{
                     my $valid_tag = $self->{'websvc'}->foo( action => "is_vlan_tag_available",
                                                             interface => $ep->{'port'},
                                                             node => $ep->{'node'},
-                                                            vlan_tag => $ep->{'tag'});
+                                                            vlan => $ep->{'vlan'},
+							    workgroup_id => $self->{'workgroup_id'});
                     if(defined($valid_tag) && $valid_tag->{'results'}){
-                        if($valid_tag->{'results'}->[0]->{'avialable'} == 1){
+                        warn Data::Dumper::Dumper($valid_tag);
+			if($valid_tag->{'results'}->[0]->{'available'} == 1){
                             return 1;
                         }
                     }
@@ -209,8 +216,13 @@ sub get_shortest_path{
                                                 node => [$ep1->{'node'},$ep2->{'node'}],
                                                 link => $links);
     
+    warn Data::Dumper::Dumper($shortest_path);
     if(defined($shortest_path) && defined($shortest_path->{'results'})){
-        return $shortest_path->{'results'};
+	my @links = ();
+	foreach my $link (@{$shortest_path->{'results'}}){
+	    push(@links,$link->{'link'});
+	}
+	return \@links;
     }
 
     return;
@@ -229,7 +241,7 @@ sub process_queue {
     my ($self) = @_;
 
     log_debug("Processing Reservation Queue.");
-
+    warn "Reservation Queue1: " . Data::Dumper::Dumper($self->{'reservation_queue'});
     while(my $message = shift(@{$self->{'reservation_queue'}})){
         my $type = $message->{'type'};
 
@@ -358,6 +370,8 @@ sub _init {
         'debug' => $self->{'debug'}
         );
 
+    $websvc->{'debug'} = 1;
+
     $self->{'websvc'} = $websvc;
 
     $self->{'websvc_user'}     = $self->{'config'}->get('/config/oess-service/@username');
@@ -365,9 +379,12 @@ sub _init {
     $self->{'websvc_realm'}    = $self->{'config'}->get('/config/oess-service/@realm');
     $self->{'websvc_location'} = $self->{'config'}->get('/config/oess-service/@web-service');
 
+    warn Data::Dumper::Dumper($self);
+
     $self->{'websvc'}->set_credentials(
         'uid' => $self->{'websvc_user'},
-        'passwd' => $self->{'websvc_pass'}
+        'passwd' => $self->{'websvc_pass'},
+	'realm' => $self->{'websvc_realm'}
         );
 
     $self->{'workgroup_id'} = $self->{'config'}->get('/config/oess-service/@workgroup-id');
