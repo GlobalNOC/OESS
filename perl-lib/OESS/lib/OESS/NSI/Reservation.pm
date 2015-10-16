@@ -105,7 +105,7 @@ sub reserve {
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "provisioning.cgi");
     
     my $res = $self->{'websvc'}->foo( action => "provision_circuit",
-				      status => 'reserved',
+				      state  => 'reserved',
                                       workgroup_id => $self->{'workgroup_id'},
                                       external_identifier => $gri,
                                       description => $description,
@@ -378,8 +378,6 @@ sub _init {
     $self->{'websvc_pass'}     = $self->{'config'}->get('/config/oess-service/@password');
     $self->{'websvc_realm'}    = $self->{'config'}->get('/config/oess-service/@realm');
     $self->{'websvc_location'} = $self->{'config'}->get('/config/oess-service/@web-service');
-
-    warn Data::Dumper::Dumper($self);
 
     $self->{'websvc'}->set_credentials(
         'uid' => $self->{'websvc_user'},

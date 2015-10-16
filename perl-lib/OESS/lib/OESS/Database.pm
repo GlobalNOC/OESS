@@ -6174,6 +6174,7 @@ sub provision_circuit {
     my $remote_tags      = $args{'remote_tags'} || [];
     my $restore_to_primary = $args{'restore_to_primary'} || 0;
     my $static_mac       = $args{'static_mac'} || 0;
+    my $state            = $args{'state'} || 'active';
 
     if($#{$interfaces} < 1){
         $self->_set_error("Need at least 2 endpoints");
@@ -6231,11 +6232,12 @@ sub provision_circuit {
 
     my $name = $workgroup_details->{'name'} . "-" . $uuid;
 
-        my $state;
-    if($provision_time > time()){
-        $state = "scheduled";
-    }else{
-        $state = "deploying";
+    if(!defined($state)){
+	if($provision_time > time()){
+	    $state = "scheduled";
+	}else{
+	    $state = "deploying";
+	}
     }
 
     # create circuit record
