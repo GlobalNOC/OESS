@@ -56,6 +56,7 @@ sub reserve {
     my ($self, $args) = @_;
 
     my $connection_id = $args->{'connectionId'};
+    my $gri = $args->{'gri'};
     my $description = $args->{'description'};
     my $start_time = $args->{'criteria'}->{'schedule'}->{'startTime'};
     my $end_time = $args->{'criteria'}->{'schedule'}->{'endTime'};
@@ -68,10 +69,153 @@ sub reserve {
     if(!$description || !$source_stp || !$dest_stp || !$reply_to){
         return OESS::NSI::Constant::MISSING_REQUEST_PARAMETERS;
     }
+    
+    my $ep1 = $self->get_endpoint(stp => $source_stp);
+    if(!defined($ep1)){
+        log_error("Unable to find sourceSTP: " . $source_stp . " in OESS");
+        return OESS::NSI::Constant::RESERVATION_FAIL;
+    }
+    my $ep2 = $self->get_endpoint(stp => $dest_stp);
+    if(!defined($ep2)){
+        log_error("Unable to find destSTP: " . $dest_stp . " in OESS");
+        return OESS::NSI::Constant::RESERVATION_FAIL;
+    }
+    
 
-    push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_SUCCESS, connection_id => 100, args => $args});
+    if(!$self->validate_endpoint($ep1)){
+        log_error("sourceSTP is not allowed for NSI");
+        return OESS::NSI::Constant::RESERVATION_FAIL;
+    }
 
-    return 100;
+    if(!$self->validate_endpoint($ep2)){
+        log_error("destSTP is not allowed for NSI");
+        return OESS::NSI::Constant::RESERVATION_FAIL;
+    }
+    
+
+    my $primary_path = $self->get_shortest_path($ep1, $ep2, []);
+    if(!defined($primary_path)){
+        log_error("Unable to connect the source and dest STPs");
+        return OESS::NSI::Constant::RESERVATION_FAIL;
+    }
+    my $backup_path = $self->get_shorest_path($ep1, $ep2, $primary_path);
+    
+    $self->{'websvc'}->url($self->{'websvc_location'} . "provisioning.cgi");
+    
+    my $res = $self->{'websvc'}->foo( action => "reserve_circuit",
+                                      workgroup_id => $self->{'workgroup_id'},
+                                      external_identifier => $gri,
+                                      description => $description,
+                                      bandwidth => $capacity,
+                                      provision_time => $start_time,
+                                      remove_time => $end_time,
+                                      link => $primary_path,
+                                      backup_link => $backup_path,
+                                      node => [$ep1->{'node'}, $ep2->{'node'}],
+                                      interface => [$ep1->{'interface'}, $ep2->{'interface'}],
+                                      tag => [$ep1->{'tag'}, $ep2->{'tag'}]);
+    
+    if(defined($res->{'results'}) && $res->{'results'}->{'success'} == 1){
+        push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_SUCCESS, connection_id => $res->{'results'}->{'circuit_id'}, args => $args});
+        return $res->{'results'}->{'circuit_id'};
+    }else{
+        log_error("Unable to reserve circuit: " . $res->{'error'});
+        return OESS::NSI::Constant::RESERVATION_FAIL;
+    }
+}
+
+sub get_endpoint{
+    my $self = shift;
+    my %params = @_;
+
+    if(!defined($params{'stp'})){
+        return;
+    }
+
+    my $stp = $params{'stp'};
+    #example URN urn:ogf:network:domain=al2s.net.internet2.edu:node=sdn-sw.elpa.net.internet2.edu:port=eth1/2:link=I2-DENV-ELPA-100GE-07748
+    my @parts = split(':',$stp);
+    my $domain = $parts[3];
+    my $node = $parts[4];
+    my $interface = $parts[5];
+    my $link = $parts[6];
+    
+    $domain =~ /domain\=(.*)/;
+    $domain = $1;
+    $node =~ /node\=(.*)/;
+    $node = $1;
+    $interface =~ /port\=(.*)/;
+    $interface = $1;
+    $link =~ /\?vlan=(\d+)/;
+    my $vlan = $1;
+
+    if(!defined($domain) || !defined($node) || !defined($interface) || !defined($vlan)){
+        log_error("Error processing URN, missing some important pieces");
+        return;
+    }
+
+    return { node => $node, port => $interface, vlan => $vlan, domain => $domain };
+        
+}
+
+sub validate_endpoint{
+    my $self = shift;
+    my $ep = shift;
+    
+    #need to verify this is part of our network and actually exists and that we have permission!
+
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "data.cgi");
+    
+    my $res = $self->{'websvc'}->foo( action => "get_all_resources_for_workgroup",
+                                      workgroup_id => $self->{'workgroup_id'});
+
+    if(defined($res) && defined($res->{'results'})){
+        foreach my $resource (@{$res->{'results'}}){
+            if($resource->{'node_name'} eq $ep->{'node'}){
+                if($resource->{'interface_name'} eq $ep->{'port'}){
+                    
+                    #made it this far!
+                    my $valid_tag = $self->{'websvc'}->foo( action => "is_vlan_tag_available",
+                                                            interface => $ep->{'port'},
+                                                            node => $ep->{'node'},
+                                                            vlan_tag => $ep->{'tag'});
+                    if(defined($valid_tag) && $valid_tag->{'results'}){
+                        if($valid_tag->{'results'}->[0]->{'avialable'} == 1){
+                            return 1;
+                        }
+                    }
+                    return;
+
+                }
+            }
+        }
+    }else{
+        log_error("Unable to fetch workgroup resources");
+        return;
+    }
+    
+    
+
+}
+
+sub get_shortest_path{
+    my $self = shift;
+    my $ep1 = shift;
+    my $ep2 = shift;
+    my $links = shift;
+
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "data.cgi");
+    my $shortest_path = $self->{'websvc'}->foo( action => "get_shortest_path",
+                                                node => [$ep1->{'node'},$ep2->{'node'}],
+                                                link => $links);
+    
+    if(defined($shortest_path) && defined($shortest_path->{'results'})){
+        return $shortest_path->{'results'};
+    }
+
+    return;
+                                                
+    
 }
 
 sub reserveCommit{
