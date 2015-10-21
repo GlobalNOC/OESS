@@ -9182,6 +9182,21 @@ sub is_watchdog_enabled{
     }
 }
 
+=head2 is_nsi_enabled
+
+=cut
+
+sub is_nsi_enabled{
+    my $self = shift;
+    return 1 if(!defined($self->{'processes'}->{'nsi'}));
+
+    if($self->{'processes'}->{'nsi'}->{'status'} eq 'enabled'){
+        return 1;
+    }else{
+        return 0;
+    }
+}
+
 =head2 is_fvd_enabled
 
 =cut
