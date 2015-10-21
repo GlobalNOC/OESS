@@ -99,11 +99,14 @@ sub new_handler{
                 if $@;
 
         my $method_response = shift(@results);
-
+        $self->serializer->encodingStyle('');
         my $result = $self->serializer
             ->prefix('s') # distinguish generated element names between client and server
             ->uri($method_uri)
             ->envelope(response => $method_name . $method_response, @results);
+
+#        warn Data::Dumper::Dumper($result);
+#        $result =~ s/soap:encodingStyle=\"http:\/\/schemas.xmlsoap.org\/soap\/encoding\/\"//g;
         return $result;
     };
 

@@ -33,6 +33,7 @@ use GRNOC::Config;
 use GRNOC::WebService::Client;
 
 use OESS::NSI::Constant;
+use OESS::NSI::Utils;
 
 sub new {
     my $caller = shift;
@@ -219,14 +220,11 @@ sub _provisioning_success{
                                     SSL_key_file => $self->{'ssl'}->{'key'});
     }
 
-    my $header = SOAP::Header->name("header:nsiHeader" => \SOAP::Data->value(
-                                        SOAP::Data->name(protocolVersion => $data->{'header'}->{'protocolVersion'}),
-                                        SOAP::Data->name(correlationId => $data->{'header'}->{'correlationId'}),
-                                        SOAP::Data->name(requesterNSA => $data->{'header'}->{'requesterNSA'}),
-                                        SOAP::Data->name(providerNSA => $data->{'header'}->{'providerNSA'})
-                                    ));
+    my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
 
-    my $soap_response = $soap->provisionConfirmed($header, SOAP::Data->name(connectionId => $data->{'connectionId'}));
+    eval{
+        my $soap_response = $soap->provisionConfirmed($nsiheader, SOAP::Data->name(connectionId => $data->{'connectionId'}));
+    };
 }
 
 sub _terminate_success{
@@ -240,15 +238,11 @@ sub _terminate_success{
                                     SSL_key_file => $self->{'ssl'}->{'key'});
     }
 
-    my $header = SOAP::Header->name("header:nsiHeader" => \SOAP::Data->value(
-                                        SOAP::Data->name(protocolVersion => $data->{'header'}->{'protocolVersion'}),
-                                        SOAP::Data->name(correlationId => $data->{'header'}->{'correlationId'}),
-                                        SOAP::Data->name(requesterNSA => $data->{'header'}->{'requesterNSA'}),
-                                        SOAP::Data->name(providerNSA => $data->{'header'}->{'providerNSA'})
-                                    ));
+    my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
 
-    my $soap_response = $soap->terminateConfirmed($header, SOAP::Data->name(connectionId => $data->{'connectionId'}));
-
+    eval{
+        my $soap_response = $soap->terminateConfirmed($nsiheader, SOAP::Data->name(connectionId => $data->{'connectionId'}));
+    };
 }
 
 
