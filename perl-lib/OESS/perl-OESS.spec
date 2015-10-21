@@ -65,6 +65,12 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::Traceroute.3pm.gz
 %doc %{_mandir}/man3/OESS::FV.3pm.gz
 %doc %{_mandir}/man3/OESS::NSI::Server.3pm.gz
+%doc %{_mandir}/man3/OESS::NSI::Constant.3pm.gz
+%doc %{_mandir}/man3/OESS::NSI::Daemon.3pm.gz
+%doc %{_mandir}/man3/OESS::NSI::Processor.3pm.gz
+%doc %{_mandir}/man3/OESS::NSI::Provisioning.3pm.gz
+%doc %{_mandir}/man3/OESS::NSI::Query.3pm.gz
+%doc %{_mandir}/man3/OESS::NSI::Reservation.3pm.gz
 %{template_dir}/notification_templates.tmpl
 %{template_dir}/notification_bulk.tmpl
 %{template_dir}/notification_bulk.tt.html
@@ -83,9 +89,14 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/FWDCTL/Switch.pm
 %{perl_vendorlib}/OESS/Traceroute.pm
 %{perl_vendorlib}/OESS/NSI/Server.pm
+%{perl_vendorlib}/OESS/NSI/Constant.pm
+%{perl_vendorlib}/OESS/NSI/Daemon.pm
+%{perl_vendorlib}/OESS/NSI/Processor.pm
+%{perl_vendorlib}/OESS/NSI/Provisioning.pm
+%{perl_vendorlib}/OESS/NSI/Query.pm
+%{perl_vendorlib}/OESS/NSI/Reservation.pm
 %{docdir}/share/nddi.sql
 %{docdir}/share/upgrade/*
-
 %changelog
 * Thu Dec  5 2013 AJ Ragusa <aragusa@grnoc.iu.edu> - OESS Perl Libs
 - Initial build.
