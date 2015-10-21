@@ -241,7 +241,7 @@ sub reserve{
                                          SOAP::Data->name(sessionSecurityAttr => $header->{'sessionSecurityAttr'})))->attr({ 'xmlns:header' => 'http://schemas.ogf.org/nsi/2013/12/framework/headers'});
     my $result = SOAP::Data->name( connectionId => $res);
 
-    return ($header, $result);
+    return ("Response",$header, $result);
 }
 
 =head2 reserveAbort
@@ -264,7 +264,7 @@ sub reserveAbort{
     my $res = _send_to_daemon("reserveAbort",{ connectionId => $connectionId,
 					       header => $header});
 
-    return $res;
+    return ("Response",$res);
 }
 
 =head2 reserveCommit
@@ -285,7 +285,7 @@ sub reserveCommit{
     my $res = _send_to_daemon("reserveCommit",{ connectionId => $connectionId,
 						header => $header});
 
-    return $res;
+    return ("Response",$res);
 
 }
 
@@ -307,7 +307,7 @@ sub provision{
     my $res = _send_to_daemon("provision",{ connectionId => $connectionId,
 					    header => $header});
 
-    return $res;
+    return ("Response",$res);
     
 }
 
@@ -328,7 +328,7 @@ sub release{
     my $res = _send_to_daemon("release",{ connectionId => $connectionId,
 					  header => $header});
 
-    return $res;
+    return ("Response",$res);
 
 }
 
@@ -350,7 +350,7 @@ sub terminate{
     my $res = _send_to_daemon("terminate",{ connectionId => $connectionId,
 					    header => $header});
 
-    return $res;
+    return ("Response",$res);
 
 }
 
@@ -378,7 +378,7 @@ sub queryRecursive{
 						  globalReservationId => $gri,
 						  header => $header});
 
-    return $res;
+    return ("Response",$res);
 }
 
 =head2 querySummary
@@ -415,7 +415,7 @@ sub querySummary{
                                          SOAP::Data->name(replyTo => undef),
                                          SOAP::Data->name(sessionSecurityAttr => $header->{'sessionSecurityAttr'})))->attr({ 'xmlns:header' => 'http://schemas.ogf.org/nsi/2013/12/framework/headers'});
     
-    return ($header, $res);
+    return ("Response",$header, $res);
 
 }
 
@@ -459,7 +459,7 @@ sub querySummarySync{
     
     my $res = $query->do_query_summarysync({ header => $header, connectionIds => \@conIds, gris => \@gris});
     
-    return ($header,$res);
+    return ("Confirmed",$header,$res);
     
 }
 
@@ -493,7 +493,7 @@ sub queryNotification{
                                                      endNotificationId => $endNotificationId,
                                                      header => $header});
     
-    return $res;
+    return ("Response",$res);
 
 }
 
@@ -550,6 +550,3 @@ sub queryResultSync{
     return;
 }
 
-sub handle_requeset{
-    
-}

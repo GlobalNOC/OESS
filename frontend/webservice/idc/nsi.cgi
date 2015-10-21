@@ -9,18 +9,8 @@ use Data::Dumper;
 use SOAP::Lite;
 use SOAP::Transport::HTTP;
 
-#my $soap = SOAP::Transport::HTTP::CGI->dispatch_with({'http://schemas.ogf.org/nsi/2013/12/connection/types' => 'OESS::NSI::Server'})->on_action(
-#    sub {
-#        (my $action = shift) =~ s/^("?)(.+)\1$/$2/;
-#        return $action;
-#    })->on_dispatch(sub {
-#        warn Data::Dumper::Dumper(@_);
-#        return;
-#})->handle;
-
 sub new_handler{
 
-    warn "OMG YES IT WORKED!!! FUCKING HELL THIS WAS STPUID\n";
     SOAP::Trace::trace('()');
     my $self = shift;
     $self = $self->new if !ref $self; # inits the server when called in a static context
@@ -108,10 +98,12 @@ sub new_handler{
                 : SOAP::Fault->faultcode($SOAP::Constants::FAULT_SERVER)->faultstring($@)
                 if $@;
 
+        my $method_response = shift(@results);
+
         my $result = $self->serializer
             ->prefix('s') # distinguish generated element names between client and server
             ->uri($method_uri)
-            ->envelope(response => $method_name . 'Confirmed', @results);
+            ->envelope(response => $method_name . $method_response, @results);
         return $result;
     };
 

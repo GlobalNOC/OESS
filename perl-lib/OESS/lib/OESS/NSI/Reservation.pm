@@ -413,6 +413,8 @@ sub _reserve_failed {
                                     SSL_key_file => $self->{'ssl'}->{'key'});
     }
 
+    warn Data::Dumper::Dumper($data);
+
     my $header = SOAP::Header->name("header:nsiHeader" => \SOAP::Data->value(
                                         SOAP::Data->name(protocolVersion => $data->{'header'}->{'protocolVersion'}),
                                         SOAP::Data->name(correlationId => $data->{'header'}->{'correlationId'}),
