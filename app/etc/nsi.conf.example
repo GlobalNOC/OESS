@@ -1,0 +1,4 @@
+<config>
+        <logging config-file='/etc/oess/logging.conf' />
+        <oess-service username='' password='' realm='OESS' web-service='' workgroup-id='' />
+</config>

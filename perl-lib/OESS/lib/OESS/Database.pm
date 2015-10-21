@@ -31,11 +31,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 1.1.7
+Version 1.1.8
 
 =cut
 
-our $VERSION = '1.1.7';
+our $VERSION = '1.1.8';
 
 =head1 SYNOPSIS
 
@@ -81,7 +81,7 @@ use OESS::Topology;
 use DateTime;
 use Data::Dumper;
 
-use constant VERSION => '1.1.7';
+use constant VERSION => '1.1.8';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant SHARE_DIR => "/usr/share/doc/perl-OESS-" . VERSION . "/";
@@ -6174,6 +6174,7 @@ sub provision_circuit {
     my $remote_tags      = $args{'remote_tags'} || [];
     my $restore_to_primary = $args{'restore_to_primary'} || 0;
     my $static_mac       = $args{'static_mac'} || 0;
+    my $state            = $args{'state'} || 'active';
 
     if($#{$interfaces} < 1){
         $self->_set_error("Need at least 2 endpoints");
@@ -6231,11 +6232,12 @@ sub provision_circuit {
 
     my $name = $workgroup_details->{'name'} . "-" . $uuid;
 
-        my $state;
-    if($provision_time > time()){
-        $state = "scheduled";
-    }else{
-        $state = "deploying";
+    if(!defined($state)){
+	if($provision_time > time()){
+	    $state = "scheduled";
+	}else{
+	    $state = "deploying";
+	}
     }
 
     # create circuit record
@@ -8230,9 +8232,15 @@ Generates an XML representation of the OESS database designed to be compliant OS
 
 sub gen_topo{
     my $self   = shift;
+    my $wg = shift || OSCARS_WG;
+    my $domain_prefix = shift;
 
-    my $workgroup = $self->get_workgroup_details_by_name( name => OSCARS_WG );
+    my $workgroup = $self->get_workgroup_details_by_name( name => $wg );
     my $domain = $self->get_local_domain_name();
+
+    if(defined($domain_prefix)){
+        $domain = "$domain_prefix." . $domain;
+    }
 
     my $xml = "";
     my $writer = new XML::Writer(OUTPUT => \$xml, DATA_INDENT => 2, DATA_MODE => 1, NAMESPACES => 1);
