@@ -235,6 +235,10 @@ sub _create_graph{
 sub _create_flows{
     my $self = shift;
 
+    if($self->{'details'}->{'state'} eq 'reserved'){
+        return;
+    }
+
     #create the flows    
     my $circuit_details = $self->{'details'};
     my $internal_ids= $self->{'details'}->{'internal_ids'};
@@ -839,6 +843,10 @@ sub get_flows{
     my %params = @_;	
     my @flows;
 
+    if($self->{'details'}->{'state'} eq 'reserved'){
+        return [];
+    }
+
     if (!defined($params{'path'})){
         
     	foreach my $flow (@{$self->{'flows'}->{'path'}->{'primary'}}){
@@ -906,6 +914,10 @@ sub get_flows{
 sub get_endpoint_flows{
     my $self = shift;
     my %params = @_;
+
+    if($self->{'details'}->{'state'} eq 'reserved'){
+        return [];
+    }
 
     my $path = $params{'path'};
 
