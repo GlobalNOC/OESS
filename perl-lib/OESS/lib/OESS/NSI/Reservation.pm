@@ -75,21 +75,29 @@ sub reserve {
     my $ep1 = $self->get_endpoint(stp => $source_stp);
     if(!defined($ep1)){
         log_error("Unable to find sourceSTP: " . $source_stp . " in OESS");
+        $args->{'fail_text'} = "Unable to parse source STP";
+        push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_FAIL, connection_id => 9999999, args => $args});
         return OESS::NSI::Constant::RESERVATION_FAIL;
     }
     my $ep2 = $self->get_endpoint(stp => $dest_stp);
     if(!defined($ep2)){
         log_error("Unable to find destSTP: " . $dest_stp . " in OESS");
+        $args->{'fail_text'} = "Unable to parse dest STP";
+        push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_FAIL, connection_id => 9999999, args => $args});
         return OESS::NSI::Constant::RESERVATION_FAIL;
     }
 
     if(!$self->validate_endpoint($ep1)){
         log_error("sourceSTP is not allowed for NSI");
+        $args->{'fail_text'} = "Source STP not allowed for NSI workgroup";
+        push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_FAIL, connection_id => 9999999, args => $args});
         return OESS::NSI::Constant::RESERVATION_FAIL;
     }
 
     if(!$self->validate_endpoint($ep2)){
         log_error("destSTP is not allowed for NSI");
+        $args->{'fail_text'} = "destSTP is not allowed for NSI workgroup";
+        push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_FAIL, connection_id => 9999999, args => $args});
         return OESS::NSI::Constant::RESERVATION_FAIL;
     }
     
@@ -97,6 +105,8 @@ sub reserve {
     my $primary_path = $self->get_shortest_path($ep1, $ep2, []);
     if(!defined($primary_path)){
         log_error("Unable to connect the source and dest STPs");
+        $args->{'fail_text'} = "no path exists connecting both source and destination STP";
+        push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_FAIL, connection_id => 9999999, args => $args});
         return OESS::NSI::Constant::RESERVATION_FAIL;
     }
     
@@ -110,8 +120,8 @@ sub reserve {
                                       external_identifier => $gri,
                                       description => $description,
                                       bandwidth => $capacity,
-                                      provision_time => $start_time,
-                                      remove_time => $end_time,
+                                      provision_time => undef,#$start_time,
+                                      remove_time => undef,#$end_time,
                                       link => $primary_path,
                                       backup_link => $backup_path,
                                       node => [$ep1->{'node'}, $ep2->{'node'}],
@@ -123,6 +133,8 @@ sub reserve {
         return $res->{'results'}->{'circuit_id'};
     }else{
         log_error("Unable to reserve circuit: " . $res->{'error'});
+        $args->{'fail_text'} = "Error creating reservation record: " . $res->{'error'};
+        push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_FAIL, connection_id => 9999999, args => $args});
         return OESS::NSI::Constant::RESERVATION_FAIL;
     }
 }
@@ -143,12 +155,12 @@ sub get_endpoint{
     my $interface = $parts[5];
     my $link = $parts[6];
     
-    $domain =~ /domain\=(.*)/;
-    $domain = $1;
-    $node =~ /node\=(.*)/;
-    $node = $1;
-    $interface =~ /port\=(.*)/;
-    $interface = $1;
+#    $domain =~ /domain\=(.*)/;
+#    $domain = $1;
+#    $node =~ /node\=(.*)/;
+#    $node = $1;
+#    $interface =~ /port\=(.*)/;
+#    $interface = $1;
     $link =~ /\?vlan=(\d+)/;
     my $vlan = $1;
 
@@ -174,6 +186,8 @@ sub validate_endpoint{
     my $res = $self->{'websvc'}->foo( action => "get_all_resources_for_workgroup",
                                       workgroup_id => $self->{'workgroup_id'});
 
+    warn Data::Dumper::Dumper($res);
+
     if(defined($res) && defined($res->{'results'})){
         foreach my $resource (@{$res->{'results'}}){
             if($resource->{'node_name'} eq $ep->{'node'}){
@@ -191,15 +205,17 @@ sub validate_endpoint{
                             return 1;
                         }
                     }
-                    return;
+                    return 0;
 
                 }
             }
         }
     }else{
         log_error("Unable to fetch workgroup resources");
-        return;
+        return 0;
     }
+    log_error("not a valid endpoint, or not allowed via NSI workgroup");
+    return 0;
     
     
 
@@ -316,6 +332,11 @@ sub _reserve_confirmed {
     warn Data::Dumper::Dumper($data);
     my $soap = SOAP::Lite->new->proxy($data->{'header'}->{'replyTo'})->ns('http://schemas.ogf.org/sni/2013/12/framework/types','ftypes')->ns('http://schemas.ogf.org/nsi/2013/12/framework/headers','header')->ns('http://schemas.ogf.org/nsi/2013/12/connection/types','ctypes');
 
+    if($self->{'ssl'}->{'enabled'}){
+        $soap->transport->ssl_opts( SSL_cert_file => $self->{'ssl'}->{'cert'},
+                                    SSL_key_file => $self->{'ssl'}->{'key'});
+    }
+
     my $header = SOAP::Header->name("header:nsiHeader" => \SOAP::Data->value(
                                         SOAP::Data->name(protocolVersion => $data->{'header'}->{'protocolVersion'}),
                                         SOAP::Data->name(correlationId => $data->{'header'}->{'correlationId'}),
@@ -335,7 +356,13 @@ sub _reserve_commit_confirmed{
     my ($self, $data) = @_;
 
 
-    my $soap = SOAP::Lite->new->proxy($data->{'header'}->{'replyTo'})->ns('http://schemas.ogf.org/sni/2013/12/framework/types','ftypes')->ns('http://schemas.ogf.org/nsi/2013/12/framework/headers','header')->ns('http://schemas.ogf.org/nsi/2013/12/connection/types','ctypes');    
+    my $soap = SOAP::Lite->new->proxy($data->{'header'}->{'replyTo'})->ns('http://schemas.ogf.org/sni/2013/12/framework/types','ftypes')->ns('http://schemas.ogf.org/nsi/2013/12/framework/headers','header')->ns('http://schemas.ogf.org/nsi/2013/12/connection/types','ctypes');
+
+    if($self->{'ssl'}->{'enabled'}){
+        $soap->transport->ssl_opts( SSL_cert_file => $self->{'ssl'}->{'cert'},
+                                    SSL_key_file => $self->{'ssl'}->{'key'});
+    }
+    
     my $header = SOAP::Header->name("header:nsiHeader" => \SOAP::Data->value(
                                         SOAP::Data->name(protocolVersion => $data->{'header'}->{'protocolVersion'}),
                                         SOAP::Data->name(correlationId => $data->{'header'}->{'correlationId'}),
@@ -347,8 +374,64 @@ sub _reserve_commit_confirmed{
     
 }
 
+sub _build_service_exception{
+    my $self = shift;
+    my %params = @_;
+    
+    my $exception = SOAP::Data->name( serviceException => \SOAP::Data->value(
+                                          SOAP::Data->name( nsaId => $params{'nsaid'}),
+                                          SOAP::Data->name( connectionId => $params{'connectionId'}),
+                                          SOAP::Data->name( serviceType => $params{'serviceType'}),
+                                          SOAP::Data->name( errorId => $params{'errorId'}),
+                                          SOAP::Data->name( text => $params{'text'})));
+    
+    return $exception;
+}
+
+sub _build_connection_states{
+    my $self = shift;
+    my %params = @_;
+    
+    my $connection_state = SOAP::Data->name( connectionStates => \SOAP::Data->value(
+                                                 SOAP::Data->name( reservationState => $params{'reservationState'}),
+                                                 SOAP::Data->name( provisionState => $params{'provisionState'}),
+                                                 SOAP::Data->name( lifecycleState => $params{'lifecycleState'}),
+                                                 SOAP::Data->name( dataPlaneStatus => \SOAP::Data->value( SOAP::Data->name( active => $params{'dataPlaneStatus'}->{'active'}),
+                                                                                                         SOAP::Data->name( version => $params{'dataPlaneStatus'}->{'version'}),
+                                                                                                         SOAP::Data->name( versionConsistent => $params{'dataPlaneStatus'}->{'versionConsistent'})))));
+    return $connection_state;
+
+}
+
 sub _reserve_failed {
     my ($self, $data) = @_;
+
+    my $soap = SOAP::Lite->new->proxy($data->{'header'}->{'replyTo'})->ns('http://schemas.ogf.org/sni/2013/12/framework/types','ftypes')->ns('http://schemas.ogf.org/nsi/2013/12/framework/headers','header')->ns('http://schemas.ogf.org/nsi/2013/12/connection/types','ctypes');
+
+    if($self->{'ssl'}->{'enabled'}){
+        $soap->transport->ssl_opts( SSL_cert_file => $self->{'ssl'}->{'cert'},
+                                    SSL_key_file => $self->{'ssl'}->{'key'});
+    }
+
+    my $header = SOAP::Header->name("header:nsiHeader" => \SOAP::Data->value(
+                                        SOAP::Data->name(protocolVersion => $data->{'header'}->{'protocolVersion'}),
+                                        SOAP::Data->name(correlationId => $data->{'header'}->{'correlationId'}),
+                                        SOAP::Data->name(requesterNSA => $data->{'header'}->{'requesterNSA'}),
+                                        SOAP::Data->name(providerNSA => $data->{'header'}->{'providerNSA'})
+                                    ));
+
+    my $soap_response = $soap->reserveFailed($header, SOAP::Data->name(connectionId => $data->{'connectionId'}),
+                                             $self->_build_service_exception( nsaId => $data->{'header'}->{'providerNSI'},
+                                                                              connectionId => $data->{'connectionId'},
+                                                                              serviceType => $data->{'criteria'}->{'serviceType'},
+                                                                              errorId => 999,
+                                                                              text => $data->{'fail_text'}),
+                                             $self->_build_connection_states( reservationState => 'ReserveFailed',
+                                                                              provisionState => 'released',
+                                                                              lifecycleState => 'Created',
+                                                                              dataPlaneStatus => { active => 'false',
+                                                                                                   version => $data->{'criteria'}->{'version'}->{'version'},
+                                                                                                   versionConsistent => 'true'})   );
 
     log_debug("Sending Reservation Failure");
 }
@@ -385,6 +468,13 @@ sub _init {
 	'realm' => $self->{'websvc_realm'}
         );
 
+    $self->{'ssl'}->{'enabled'} = $self->{'config'}->get('/config/ssl/@enabled');
+    if(defined($self->{'ssl'}->{'enabled'}) && $self->{'ssl'}->{'enabled'} ne '' && $self->{'ssl'}->{'enabled'} eq 'true'){
+        $self->{'ssl'}->{'enabled'} = 1;
+        $self->{'ssl'}->{'cert'} = $self->{'config'}->get('/config/ssl/@cert');
+        $self->{'ssl'}->{'key'} = $self->{'config'}->get('/config/ssl/@key');
+    }
+
     $self->{'workgroup_id'} = $self->{'config'}->get('/config/oess-service/@workgroup-id');
 
     $self->{'reservation_queue'} = [];
@@ -394,6 +484,12 @@ sub _release_confirmed{
     my ($self, $data) = @_;
 
     my $soap = SOAP::Lite->new->proxy($data->{'header'}->{'replyTo'})->ns('http://schemas.ogf.org/sni/2013/12/framework/types','ftypes')->ns('http://schemas.ogf.org/nsi/2013/12/framework/headers','header')->ns('http://schemas.ogf.org/nsi/2013/12/connection/types','ctypes');
+
+    if($self->{'ssl'}->{'enabled'}){
+        $soap->transport->ssl_opts( SSL_cert_file => $self->{'ssl'}->{'cert'},
+                                    SSL_key_file => $self->{'ssl'}->{'key'});
+    }
+
     my $header = SOAP::Header->name("header:nsiHeader" => \SOAP::Data->value(
                                         SOAP::Data->name(protocolVersion => $data->{'header'}->{'protocolVersion'}),
                                         SOAP::Data->name(correlationId => $data->{'header'}->{'correlationId'}),

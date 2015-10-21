@@ -66,16 +66,25 @@ sub process_queue {
 
             $self->_provisioning_success($message->{'args'});
             next;
-        }
-        elsif($type == OESS::NSI::Constant::PROVISIONING_FAILED){
-            log_debug("Handling Reservation Fail Message");
-
+        }elsif($type == OESS::NSI::Constant::DO_PROVISIONING){
+            log_debug("Actually provisioning");
+            $self->_do_provisioning($message->{'args'});
+            next;
+        }elsif($type == OESS::NSI::Constant::DO_TERMINATE){
+            log_debug("Actually terminating");
+            $self->_do_terminate($message->{'args'});
+            next;
+        }elsif($type == OESS::NSI::Constant::PROVISIONING_FAILED){
+            log_debug("Handling provisioning Fail Message");
             $self->_provisioning_failed($message->{'args'});
             next;
         }elsif($type == OESS::NSI::Constant::TERMINATION_SUCCESS){
-            log_debug("handling reservation commit success");
-
+            log_debug("handling terminate success");
             $self->_terminate_success($message->{'args'});
+            next;
+        }elsif($type == OESS::NSI::Constant::TERMINATION_FAILED){
+            log_debug("handling termination failed!");
+            $self->_terminate_failure($message->{'args'});
             next;
         }
 
@@ -84,9 +93,7 @@ sub process_queue {
 
 sub provision{
     my ($self, $args) = @_;
-    warn "PROVISIONING\n";
-    
-    warn Data::Dumper::Dumper($args);
+
     my $connection_id = $args->{'connectionId'};
     
     if(!defined($connection_id) || $connection_id eq ''){
@@ -94,6 +101,17 @@ sub provision{
         warn "FAILED!\n";
         return OESS::NSI::Constant::MISSING_REQUEST_PARAMETERS;
     }
+
+    push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::DO_PROVISIONING, args => $args});
+    return OESS::NSI::Constant::SUCCESS;
+
+}
+
+sub _do_provisioning{
+    my ($self, $args) = @_;
+    
+    my $connection_id = $args->{'connectionId'};
+
 
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "/data.cgi");
     
@@ -166,6 +184,15 @@ sub terminate{
         return OESS::NSI::Constant::MISSING_REQUEST_PARAMETERS;
     }
 
+    push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::DO_TERMINATE, args => $args});
+    return OESS::NSI::Constant::SUCCESS;
+}
+    
+sub _do_terminate{
+    my ($self, $args) = @_;
+
+    my $connection_id = $args->{'connectionId'};
+
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "/provisioning.cgi");
     my $res = $self->{'websvc'}->foo( action => "remove_circuit",
 				      circuit_id => $connection_id,
@@ -173,10 +200,8 @@ sub terminate{
 				      remove_time => -1);
 
     if(defined($res) && defined($res->{'results'})){
-
 	push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::TERMINATION_SUCCESS, args => $args});
-	
-	return OESS::NSI::Constant::SUCCESS;
+        return OESS::NSI::Constant::SUCCESS;
     }
 
     log_error("Unable to remove circuit: " . $res->{'error'});
@@ -188,6 +213,12 @@ sub _provisioning_success{
     my ($self, $data) = @_;
 
     my $soap = SOAP::Lite->new->proxy($data->{'header'}->{'replyTo'})->ns('http://schemas.ogf.org/sni/2013/12/framework/types','ftypes')->ns('http://schemas.ogf.org/nsi/2013/12/framework/headers','header')->ns('http://schemas.ogf.org/nsi/2013/12/connection/types','ctypes');
+
+    if($self->{'ssl'}->{'enabled'}){
+        $soap->transport->ssl_opts( SSL_cert_file => $self->{'ssl'}->{'cert'},
+                                    SSL_key_file => $self->{'ssl'}->{'key'});
+    }
+
     my $header = SOAP::Header->name("header:nsiHeader" => \SOAP::Data->value(
                                         SOAP::Data->name(protocolVersion => $data->{'header'}->{'protocolVersion'}),
                                         SOAP::Data->name(correlationId => $data->{'header'}->{'correlationId'}),
@@ -203,6 +234,12 @@ sub _terminate_success{
     my ($self, $data) = @_;
 
     my $soap = SOAP::Lite->new->proxy($data->{'header'}->{'replyTo'})->ns('http://schemas.ogf.org/sni/2013/12/framework/types','ftypes')->ns('http://schemas.ogf.org/nsi/2013/12/framework/headers','header')->ns('http://schemas.ogf.org/nsi/2013/12/connection/types','ctypes');
+
+    if($self->{'ssl'}->{'enabled'}){
+        $soap->transport->ssl_opts( SSL_cert_file => $self->{'ssl'}->{'cert'},
+                                    SSL_key_file => $self->{'ssl'}->{'key'});
+    }
+
     my $header = SOAP::Header->name("header:nsiHeader" => \SOAP::Data->value(
                                         SOAP::Data->name(protocolVersion => $data->{'header'}->{'protocolVersion'}),
                                         SOAP::Data->name(correlationId => $data->{'header'}->{'correlationId'}),
@@ -246,6 +283,13 @@ sub _init {
         'passwd' => $self->{'websvc_pass'},
 	'realm' => $self->{'websvc_realm'}
         );
+
+    $self->{'ssl'}->{'enabled'} = $self->{'config'}->get('/config/ssl/@enabled');
+    if(defined($self->{'ssl'}->{'enabled'}) && $self->{'ssl'}->{'enabled'} ne '' && $self->{'ssl'}->{'enabled'} eq 'true'){
+        $self->{'ssl'}->{'enabled'} = 1;
+        $self->{'ssl'}->{'cert'} = $self->{'config'}->get('/config/ssl/@cert');
+        $self->{'ssl'}->{'key'} = $self->{'config'}->get('/config/ssl/@key');
+    }
 
     $self->{'workgroup_id'} = $self->{'config'}->get('/config/oess-service/@workgroup-id');
 

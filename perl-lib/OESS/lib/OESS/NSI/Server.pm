@@ -1,19 +1,21 @@
 package OESS::NSI::Server;
+
 use vars qw(@ISA);
 @ISA = qw(Exporter SOAP::Server::Parameters);
 use SOAP::Lite;
 
 use strict;
+
 use Data::Dumper;
 use OESS::DBus;
-
+use OESS::NSI::Query;
 
 sub _send_to_daemon{
     my $method = shift;
     my $data = shift;
 
 #    warn "Method: " . $method;
-    warn Data::Dumper::Dumper($data);
+#    warn Data::Dumper::Dumper($data);
 #    return;
 
     my $bus = Net::DBus->system;
@@ -386,6 +388,8 @@ sub queryRecursive{
 sub querySummary{
     my $self = shift;
     my $envelope = pop;
+    
+    warn "Handling querySummary!!\n";
 
     my $connectionId = $envelope->dataof("//querySummary/connectionId");
     if(defined($connectionId)){
@@ -400,21 +404,63 @@ sub querySummary{
     my $header = _parse_header($envelope);
 
     my $res = _send_to_daemon("querySummary", { connectionId => $connectionId,
-                                                  globalReservationId => $gri,
-						  header => $header});
-
-    return $res;
+                                                globalReservationId => $gri,
+                                                header => $header});
+    
+    my $header = SOAP::Header->name( 'header:nsiHeader' => \SOAP::Data->value(
+                                         SOAP::Data->name(protocolVersion => $header->{'protocolVersion'}),
+                                         SOAP::Data->name(correlationId => $header->{'correlationId'}),
+                                         SOAP::Data->name(requesterNSA => $header->{'requesterNSA'}),
+                                         SOAP::Data->name(providerNSA => $header->{'providerNSA'}),
+                                         SOAP::Data->name(replyTo => undef),
+                                         SOAP::Data->name(sessionSecurityAttr => $header->{'sessionSecurityAttr'})))->attr({ 'xmlns:header' => 'http://schemas.ogf.org/nsi/2013/12/framework/headers'});
+    
+    return ($header, $res);
 
 }
 
 =head2 querySummarySync
 
-Unimplemented
 
 =cut
 
 sub querySummarySync{
-    return;
+    my $self = shift;
+    my $envelope = pop;
+
+
+    my $header = _parse_header($envelope);
+
+    warn "Query Summary Sync!!\n";
+
+    #my $query = new OESS::NSI::Query(config_file => '/etc/oess/nsi.conf');
+    my @conIds;
+    my $connectionId = $envelope->dataof("//querySummarySync/connectionId");
+    if(defined($connectionId)){
+        @conIds = $connectionId->value;
+    }
+    my @gris;
+    my $gri = $envelope->dataof("//querySummarySync/globalReservationId");
+    if(defined($gri)){
+        @gris = $gri->value;
+    }
+
+    my $query = new OESS::NSI::Query(config_file => '/etc/oess/nsi.conf');
+    
+    my $header = SOAP::Header->name( 'header:nsiHeader' => \SOAP::Data->value(
+                                         SOAP::Data->name(protocolVersion => $header->{'protocolVersion'}),
+                                         SOAP::Data->name(correlationId => $header->{'correlationId'}),
+                                         SOAP::Data->name(requesterNSA => $header->{'requesterNSA'}),
+                                         SOAP::Data->name(providerNSA => $header->{'providerNSA'}),
+                                         SOAP::Data->name(replyTo => undef),
+                                         SOAP::Data->name(sessionSecurityAttr => $header->{'sessionSecurityAttr'})))->attr({ 'xmlns:header' => 'http://schemas.ogf.org/nsi/2013/12/framework/headers'});
+    
+    
+    
+    my $res = $query->do_query_summarysync({ header => $header, connectionIds => \@conIds, gris => \@gris});
+    
+    return ($header,$res);
+    
 }
 
 =head2 queryNotification
@@ -502,4 +548,8 @@ Unimplemented
 =cut
 sub queryResultSync{
     return;
+}
+
+sub handle_requeset{
+    
 }

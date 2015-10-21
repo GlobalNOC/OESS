@@ -8232,9 +8232,15 @@ Generates an XML representation of the OESS database designed to be compliant OS
 
 sub gen_topo{
     my $self   = shift;
+    my $wg = shift || OSCARS_WG;
+    my $domain_prefix = shift;
 
-    my $workgroup = $self->get_workgroup_details_by_name( name => OSCARS_WG );
+    my $workgroup = $self->get_workgroup_details_by_name( name => $wg );
     my $domain = $self->get_local_domain_name();
+
+    if(defined($domain_prefix)){
+        $domain = "$domain_prefix." . $domain;
+    }
 
     my $xml = "";
     my $writer = new XML::Writer(OUTPUT => \$xml, DATA_INDENT => 2, DATA_MODE => 1, NAMESPACES => 1);

@@ -13,9 +13,11 @@ lib/OESS/Measurement.pm
 lib/OESS/Notification.pm
 lib/OESS/NSI/Constant.pm
 lib/OESS/NSI/Daemon.pm
+lib/OESS/NSI/Error.pm
 lib/OESS/NSI/LifeCycle.pm
 lib/OESS/NSI/Processor.pm
 lib/OESS/NSI/Provisioning.pm
+lib/OESS/NSI/Query.pm
 lib/OESS/NSI/Reservation.pm
 lib/OESS/NSI/Server.pm
 lib/OESS/Topology.pm
@@ -46,6 +48,7 @@ share/upgrade/oess-1.1.3-1.1.4
 share/upgrade/oess-1.1.4-1.1.5
 share/upgrade/oess-1.1.5-1.1.6
 share/upgrade/oess-1.1.6-1.1.7
+share/upgrade/oess-1.1.7-oess-1.1.8
 t/00-load_base.t
 t/01-load_known_state.t
 t/02-pod.t
