@@ -213,12 +213,7 @@ sub _do_terminate{
 sub _provisioning_success{
     my ($self, $data) = @_;
 
-    my $soap = SOAP::Lite->new->proxy($data->{'header'}->{'replyTo'})->ns('http://schemas.ogf.org/sni/2013/12/framework/types','ftypes')->ns('http://schemas.ogf.org/nsi/2013/12/framework/headers','header')->ns('http://schemas.ogf.org/nsi/2013/12/connection/types','ctypes');
-
-    if($self->{'ssl'}->{'enabled'}){
-        $soap->transport->ssl_opts( SSL_cert_file => $self->{'ssl'}->{'cert'},
-                                    SSL_key_file => $self->{'ssl'}->{'key'});
-    }
+    my $soap = OESS::NSI::Utils::build_client( proxy =>$data->{'header'}->{'replyTo'},ssl => $self->{'ssl'});
 
     my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
 
@@ -231,15 +226,9 @@ sub _terminate_success{
 
     my ($self, $data) = @_;
 
-    my $soap = SOAP::Lite->new->proxy($data->{'header'}->{'replyTo'})->ns('http://schemas.ogf.org/sni/2013/12/framework/types','ftypes')->ns('http://schemas.ogf.org/nsi/2013/12/framework/headers','header')->ns('http://schemas.ogf.org/nsi/2013/12/connection/types','ctypes');
-
-    if($self->{'ssl'}->{'enabled'}){
-        $soap->transport->ssl_opts( SSL_cert_file => $self->{'ssl'}->{'cert'},
-                                    SSL_key_file => $self->{'ssl'}->{'key'});
-    }
+    my $soap = OESS::NSI::Utils::build_client( proxy =>$data->{'header'}->{'replyTo'},ssl => $self->{'ssl'});
 
     my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
-
     eval{
         my $soap_response = $soap->terminateConfirmed($nsiheader, SOAP::Data->name(connectionId => $data->{'connectionId'}));
     };

@@ -159,17 +159,9 @@ sub _do_query_summary{
 
     my @summaryRes = $self->do_query_summarysync($args);
 
-    my $soap = SOAP::Lite->new->proxy($args->{'header'}->{'replyTo'})
-        ->ns('http://schemas.ogf.org/sni/2013/12/framework/types','ftypes')
-        ->ns('http://schemas.ogf.org/nsi/2013/12/framework/headers','header')
-        ->ns('http://schemas.ogf.org/nsi/2013/12/connection/types','ctypes');
-    
-    if($self->{'ssl'}->{'enabled'}){
-        $soap->transport->ssl_opts( SSL_cert_file => $self->{'ssl'}->{'cert'},
-                                    SSL_key_file => $self->{'ssl'}->{'key'});
-    }
-    
-    my $nsiheader = OESS::NSI::Utils::build_header($args->{'header'});
+    my $soap = OESS::NSI::Utils::build_client( proxy =>$data->{'header'}->{'replyTo'},ssl => $self->{'ssl'});
+
+    my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
     eval{
         $soap->querySummaryConfirmed($nsiheader,SOAP::Data->name( reserved => \@summaryRes));
     };
