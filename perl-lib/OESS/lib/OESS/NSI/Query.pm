@@ -144,11 +144,13 @@ sub do_query_summarysync{
     }
     
     my $resp = new SOAP::Data;
+    $resp->type('');
     foreach my $ckt (@ckts){
-        $resp->value($resp->value(),$self->_build_summary_response($ckt, $args->{'header'}));
+        my $value = $self->_build_summary_response($ckt, $args->{'header'});
+        $value->type('');
+        $resp->value($resp->value,$value);
     }
-    
-    $resp->type("{http://schemas.ogf.org/nsi/2013/12/connection/types}QuerySummaryConfirmedType");
+    $resp->type('');
 
     return $resp;
 }
@@ -159,9 +161,9 @@ sub _do_query_summary{
 
     my @summaryRes = $self->do_query_summarysync($args);
 
-    my $soap = OESS::NSI::Utils::build_client( proxy =>$data->{'header'}->{'replyTo'},ssl => $self->{'ssl'});
+    my $soap = OESS::NSI::Utils::build_client( proxy => $args->{'header'}->{'replyTo'},ssl => $self->{'ssl'});
 
-    my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
+    my $nsiheader = OESS::NSI::Utils::build_header($args->{'header'});
     eval{
         $soap->querySummaryConfirmed($nsiheader,SOAP::Data->name( reserved => \@summaryRes));
     };
@@ -203,12 +205,12 @@ sub _build_connectionStates{
     }
 
     my $connection_state = SOAP::Data->name( connectionStates => \SOAP::Data->value(
-                                                 SOAP::Data->name( reservationState => $reservationState),
-                                                 SOAP::Data->name( provisionState => $provisionState),
-                                                 SOAP::Data->name( lifecycleState => $lifecycleState),
-                                                 SOAP::Data->name( dataPlaneStatus => \SOAP::Data->value( SOAP::Data->name( active => $active),
-                                                                                                          SOAP::Data->name( version => $version),
-                                                                                                          SOAP::Data->name( versionConsistent => $versionConsistent)))));
+                                                 SOAP::Data->name( reservationState => $reservationState)->type(''),
+                                                 SOAP::Data->name( provisionState => $provisionState)->type(''),
+                                                 SOAP::Data->name( lifecycleState => $lifecycleState)->type(''),
+                                                 SOAP::Data->name( dataPlaneStatus => \SOAP::Data->value( SOAP::Data->name( active => $active)->type(''),
+                                                                                                          SOAP::Data->name( version => $version)->type(''),
+                                                                                                          SOAP::Data->name( versionConsistent => $versionConsistent)->type('')))));
     return $connection_state;
     
 }
@@ -234,9 +236,10 @@ sub _build_p2ps{
     my $ep2 = $ckt->{'endpoints'}->[1];
 
     return SOAP::Data->name( p2ps => \SOAP::Data->value( SOAP::Data->name( capacity => $ckt->{'bandwidth'} )->type(''),
-                                                         SOAP::Data->name( directionality => 'bidirectional')-type(''),
+                                                         SOAP::Data->name( directionality => 'bidirectional' )->type(''),
                                                          SOAP::Data->name( sourceSTP => $self->_build_urn( $ep1) )->type(''),
-                                                         SOAP::Data->name( destSTP => $self->_build_urn($ep2))->type('')))->uri('http://schemas.ogf.org/nsi/2013/12/services/point2point');
+                                                         SOAP::Data->name( destSTP => $self->_build_urn($ep2) )->type('')
+                             ))->uri('http://schemas.ogf.org/nsi/2013/12/services/point2point');
 
 }
 
@@ -245,11 +248,11 @@ sub _build_schedule{
     my $ckt = shift;
 
     if($ckt->{'start_time'} ne ''){
-        return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( startTime => $ckt->{'start_time'})->type('ftypes:DateTimeType'),
-                                                                 SOAP::Data->name( endTime => $ckt->{'remove_time'})->type('ftypes:DateTimeType')));
+        return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( startTime => $ckt->{'start_time'})->type(''),
+                                                                 SOAP::Data->name( endTime => $ckt->{'remove_time'})->type('')));
     }
 
-    return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( endTime => $ckt->{'remove_time'} )->type('ftypes:DateTimeType')));
+    return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( endTime => $ckt->{'remove_time'} )->type('')));
 }
 
 sub _build_criteria{
@@ -257,9 +260,10 @@ sub _build_criteria{
     my $ckt = shift;
     
     return SOAP::Data->name(criteria =>
-                            \SOAP::Data->value( $self->_build_schedule( $ckt ),
+                            \SOAP::Data->value( #$self->_build_schedule( $ckt ),
                                                 SOAP::Data->name( serviceType => '')->type(''),
-                                                $self->_build_p2ps( $ckt )))->attr({ version => 0});
+                                                $self->_build_p2ps( $ckt )
+                            ))->attr({ version => 0});
     
 }
 
@@ -276,7 +280,7 @@ sub _build_summary_response{
                                                                     SOAP::Data->name( requesterNSA => $header->{'requesterNSA'})->type(''),
                                                                     $self->_build_connectionStates( $ckt ),
                                                                     SOAP::Data->name( notificationId => 1)->type(''),
-                                                                    SOAP::Data->name( resultId => 1)->type('')))->type("{http://schemas.ogf.org/nsi/2013/12/connection/types}QuerySummaryResultType");
+                                                                    SOAP::Data->name( resultId => 1)->type('')))->type('');
                                                    
     return $resp;
 

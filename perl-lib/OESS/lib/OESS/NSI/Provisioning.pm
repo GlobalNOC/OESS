@@ -218,7 +218,7 @@ sub _provisioning_success{
     my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
 
     eval{
-        my $soap_response = $soap->provisionConfirmed($nsiheader, SOAP::Data->name(connectionId => $data->{'connectionId'}));
+        my $soap_response = $soap->provisionConfirmed($nsiheader, SOAP::Data->name(connectionId => $data->{'connectionId'})->type(''));
     };
 }
 
@@ -230,7 +230,7 @@ sub _terminate_success{
 
     my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
     eval{
-        my $soap_response = $soap->terminateConfirmed($nsiheader, SOAP::Data->name(connectionId => $data->{'connectionId'}));
+        my $soap_response = $soap->terminateConfirmed($nsiheader, SOAP::Data->name(connectionId => $data->{'connectionId'})->type(''));
     };
 }
 

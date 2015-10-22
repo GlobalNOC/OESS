@@ -140,6 +140,48 @@ sub reserve {
     }
 }
 
+sub reserveAbort{
+    my ($self, $args) = @_;
+
+    my $connection_id = $args->{'connectionId'};
+
+    if(!defined($connection_id) || $connection_id eq ''){
+        return OESS::NSI::Constant::MISSING_REQUEST_PARAMETERS;
+    }
+    
+    push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::DO_RESERVE_ABORT, args => $args});
+    return OESS::NSI::Constant::SUCCESS;
+}
+
+sub _do_reserve_abort{
+    my ($self, $data) = @_;
+
+    my $connection_id = $data->{'connectionId'};
+    
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "/provisioning.cgi");
+    my $res = $self->{'websvc'}->foo( action => "remove_circuit",
+                                      circuit_id => $connection_id,
+                                      workgroup_id => $self->{'workgroup_id'},
+                                      remove_time => -1);
+    
+    if(defined($res) && defined($res->{'results'})){
+        
+        my $soap = OESS::NSI::Utils::build_client( proxy => $data->{'header'}->{'replyTo'}, ssl => $self->{'ssl'});
+        
+        my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
+        
+        eval{
+            my $soap_response = $soap->reserveAbortConfirmed($nsiheader, SOAP::Data->name(connectionId => $connection_id)->type(''));
+        };
+
+    }
+
+    log_error("Unable to remove circuit: " . $res->{'error'});
+    return OESS::NSI::Constant::ERROR;
+
+}
+
+
 sub get_endpoint{
     my $self = shift;
     my %params = @_;
@@ -250,7 +292,7 @@ sub get_shortest_path{
 sub reserveCommit{
     my ($self, $args) = @_;
     
-    push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_COMMIT_CONFIRMED, connection_id => 100, args => $args});
+    push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_COMMIT_CONFIRMED, args => $args});
 
 }
 
@@ -327,21 +369,21 @@ sub release{
 sub _build_p2ps{
     my $p2ps = shift;
     
-    return SOAP::Data->name( p2ps => \SOAP::Data->value( SOAP::Data->name( capacity => $p2ps->{'capacity'} ),
-                                                         SOAP::Data->name( directionality => $p2ps->{'directionality'} ),
-                                                         SOAP::Data->name( sourceSTP => $p2ps->{'sourceSTP'} ),
-                                                         SOAP::Data->name( destSTP => $p2ps->{'destSTP'} )))->uri('http://schemas.ogf.org/nsi/2013/12/services/point2point');
+    return SOAP::Data->name( p2ps => \SOAP::Data->value( SOAP::Data->name( capacity => $p2ps->{'capacity'} )->type(''),
+                                                         SOAP::Data->name( directionality => $p2ps->{'directionality'} )->type(''),
+                                                         SOAP::Data->name( sourceSTP => $p2ps->{'sourceSTP'} )->type(''),
+                                                         SOAP::Data->name( destSTP => $p2ps->{'destSTP'} )->type('')))->uri('http://schemas.ogf.org/nsi/2013/12/services/point2point');
     
 }
 
 sub _build_schedule{
     my $schedule = shift;
     if($schedule->{'startTime'} ne ''){
-        return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( startTime => $schedule->{'startTime'})->type('ftypes:DateTimeType'),
-                                                                 SOAP::Data->name( endTime => $schedule->{'endTime'})->type('ftypes:DateTimeType')));
+        return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( startTime => $schedule->{'startTime'})->type(''),
+                                                                 SOAP::Data->name( endTime => $schedule->{'endTime'})->type('')));
     }
 
-    return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( endTime => $schedule->{'endTime'} )->type('ftypes:DateTimeType')));
+    return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( endTime => $schedule->{'endTime'} )->type('')));
 }
 
 sub _build_criteria{
@@ -375,11 +417,14 @@ sub _reserve_confirmed {
 
 sub _reserve_commit_confirmed{
     my ($self, $data) = @_;
+
+    warn "Sending RESERVE COMMIT CONFIRMED!!!" . Data::Dumper::Dumper($data);
+
     my $soap = OESS::NSI::Utils::build_client( proxy =>$data->{'header'}->{'replyTo'},ssl => $self->{'ssl'});
 
     my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
     eval{
-            my $soap_response = $soap->reserveCommitConfirmed($nsiheader, SOAP::Data->name(connectionId => $data->{'connectionId'}));
+        my $soap_response = $soap->reserveCommitConfirmed($nsiheader, SOAP::Data->name(connectionId => $data->{'connectionId'})->type(''));
     }
 }
 
