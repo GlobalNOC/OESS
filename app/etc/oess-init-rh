@@ -173,6 +173,13 @@ sub status{
         }
     }
 
+    if($db->is_nsi_enabled()){
+        my $res = system("/ec/init.d/oess-nsi status");
+        if($res != 0){
+            $result = $res;
+        }
+    }
+
     if($db->is_notification_enabled()){
         my $res = system("/etc/init.d/oess-notification status");
         if($res != 0){
@@ -241,6 +248,13 @@ sub stop{
         }
     }
 
+    if($db->is_nsi_enabled()){
+        my $res = system("/etc/init.d/oess-nsi stop");
+        if($res != 0){
+            $result = $res;
+        }
+    }
+
     if($db->is_watchdog_enabled()){
         my $res = system("/etc/init.d/oess-watchdog stop");
         if($res != 0){
@@ -300,7 +314,14 @@ sub start{
     if($db->is_notification_enabled()){
         my $res = system("/etc/init.d/oess-notification start");
         if($res != 0){
-            $result = $res;;
+            $result = $res;
+        }
+    }
+
+    if($db->is_nsi_enabled()){
+        my $res = system("/etc/init.d/oess-nsi start");
+        if($res != 0){
+            $result = $res;
         }
     }
 
