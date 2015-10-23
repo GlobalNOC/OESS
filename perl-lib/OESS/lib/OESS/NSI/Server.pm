@@ -241,7 +241,7 @@ sub reserve{
     }else{
         $result = SOAP::Data->name( connectionId => $res )->type("");
     }
-    return ("Response",$header, $result);
+    return ("reserveResponse",$header, $result);
 }
 
 =head2 reserveAbort
@@ -266,7 +266,7 @@ sub reserveAbort{
 
     my $nsiheader = OESS::NSI::Utils::build_header($header);
 
-    return ("Ack",$nsiheader);
+    return ("acknowledgment",$nsiheader);
 }
 
 =head2 reserveCommit
@@ -289,7 +289,7 @@ sub reserveCommit{
 
     my $nsiheader = OESS::NSI::Utils::build_header($header);
 
-    return ("Ack",$nsiheader);
+    return ("acknowledgment",$nsiheader);
 
 }
 
@@ -313,7 +313,7 @@ sub provision{
 
     my $nsiheader = OESS::NSI::Utils::build_header($header);
 
-    return ("Ack",$nsiheader);
+    return ("acknowledgment",$nsiheader);
     
 }
 
@@ -336,7 +336,7 @@ sub release{
 
     my $nsiheader = OESS::NSI::Utils::build_header($header);
 
-    return ("Ack",$nsiheader);
+    return ("acknowledgment",$nsiheader);
 
 }
 
@@ -359,7 +359,7 @@ sub terminate{
 					    header => $header});
 
     my $nsiheader = OESS::NSI::Utils::build_header($header);
-    return ("Ack",$nsiheader);
+    return ("acknowledgment",$nsiheader);
 
 }
 
@@ -389,7 +389,7 @@ sub queryRecursive{
 
     my $nsiheader = OESS::NSI::Utils::build_header($header);
 
-    return ("Response",$nsiheader);
+    return ("queryRecursiveResponse",$nsiheader);
 }
 
 =head2 querySummary
@@ -419,7 +419,7 @@ sub querySummary{
                                                 header => $header});
     
     my $nsiheader = OESS::NSI::Utils::build_header($header);
-    return ("Ack",$nsiheader);
+    return ("acknowledgment",$nsiheader);
 
 }
 
@@ -455,7 +455,7 @@ sub querySummarySync{
     my $res = $query->do_query_summarysync({ header => $header, connectionIds => \@conIds, gris => \@gris});
     warn "SummarySYnc: " . Data::Dumper::Dumper($res);    
     
-    return ("Confirmed",$nsiheader,$res);
+    return ("querySummarySyncConfirmed",$nsiheader,$res);
     
 }
 
@@ -491,7 +491,7 @@ sub queryNotification{
 
     my $nsiheader = OESS::NSI::Utils::build_header($header);    
 
-    return ("Ack",$nsiheader);
+    return ("acknowledgment",$nsiheader);
 
 }
 
@@ -536,7 +536,7 @@ sub queryResult{
                                                endResultId => $endResultId,
                                                header => $header});
     my $nsiheader = OESS::NSI::Utils::build_header($header);
-    return ("Ack",$nsiheader,$res);
+    return ("acknowledgment",$nsiheader);
 }
 
 =head2 queryResultSync
@@ -545,6 +545,28 @@ Unimplemented
 
 =cut
 sub queryResultSync{
-    return;
+    my $self = shift;
+    my $envelope = pop;
+
+    my $connectionId = $envelope->dataof("//queryNotification/connectionId");
+    if(defined($connectionId)){
+        $connectionId =$connectionId->value;
+    }
+
+    my $startResultId = $envelope->dataof("//queryResult/startResultId");
+    if(defined($startResultId)){
+        $startResultId = $startResultId->value;
+    }
+
+    my $endResultId = $envelope->dataof("//queryResult/endResultId");
+    if(defined($endResultId)){
+        $endResultId = $endResultId->value;
+    }
+
+
+    my $header = _parse_header($envelope);
+
+    my $nsiheader = OESS::NSI::Utils::build_header($header);
+    return ("queryResultSyncConfirmed",$nsiheader);;
 }
 

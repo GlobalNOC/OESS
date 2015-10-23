@@ -46,6 +46,7 @@ sub main{
         my $circuit_layout = XMLin($action->{'circuit_layout'}, forcearray => 1);
         
         if($circuit_layout->{'action'} eq 'provision'){
+
             syslog(LOG_DEBUG,"Circuit " . $circuit_layout->{'name'} . ":" . $circuit_layout->{'circuit_id'} . " scheduled for activation NOW!");
             my $user = $oess->get_user_by_id( user_id => $action->{'user_id'} )->[0];
             my $ckt = $oess->get_circuit_by_id( circuit_id => $action->{'circuit_id'})->[0];
@@ -54,13 +55,13 @@ sub main{
                                              name           => $circuit_layout->{'name'},
                                              bandwidth      => $circuit_layout->{'bandwidth'},
                                              provision_time => time(),
-                                             remove_time    => -1,
+                                             remove_time    => $circuit_layout->{'remove_time'},
                                              links          => $circuit_layout->{'links'},
                                              backup_links   => $circuit_layout->{'backup_links'},
                                              nodes          => $circuit_layout->{'nodes'},
                                              interfaces     => $circuit_layout->{'interfaces'},
                                              tags           => $circuit_layout->{'tags'},
-                                             status         => 'active',
+                                             state          => $circuit_layout->{'state'},
                                              user_name      => $user->{'auth_name'},
                                              workgroup_id   => $action->{'workgroup_id'},
                                              description    => $ckt->{'description'}
@@ -130,17 +131,18 @@ sub main{
             
             my $ckt = $oess->get_circuit_by_id(circuit_id => $action->{'circuit_id'})->[0];
             my $user = $oess->get_user_by_id( user_id => $action->{'user_id'} )->[0];
+
             my $output = $oess->edit_circuit(circuit_id => $action->{'circuit_id'},
                                              name => $circuit_layout->{'name'},
                                              bandwidth => $circuit_layout->{'bandwidth'},
                                              provision_time => time(),
-                                             remove_time => -1,
+                                             remove_time => $circuit_layout->{'remove_time'},
                                              links => $circuit_layout->{'links'},
                                              backup_links => $circuit_layout->{'backup_links'},
                                              nodes => $circuit_layout->{'nodes'},
                                              interfaces => $circuit_layout->{'interfaces'},
                                              tags => $circuit_layout->{'tags'},
-                                             status => 'active',
+                                             state => $circuit_layout->{'state'},
                                              username => $user->{'auth_name'},
                                              workgroup_id => $action->{'workgroup_id'},
                                              description => $ckt->{'description'}
@@ -149,15 +151,18 @@ sub main{
             $res = undef;
             $event_id = undef;;
             eval{
-                ($res,$event_id) = $client->addVlan($output->{'circuit_id'});
-                
-                my $final_res = OESS::Database->FWDCTL_WAITING;
+                if($circuit_layout->{'state'} eq 'active' ){
 
-                while($final_res == OESS::Database->FWDCTL_WAITING){
-                    sleep(1);
-                    $final_res = $client->get_event_status($event_id);
+                    ($res,$event_id) = $client->addVlan($output->{'circuit_id'});
+                    
+                    my $final_res = OESS::Database->FWDCTL_WAITING;
+                    
+                    while($final_res == OESS::Database->FWDCTL_WAITING){
+                        sleep(1);
+                        $final_res = $client->get_event_status($event_id);
+                    }
+                    $res = $final_res;
                 }
-                $res = $final_res;
             };
             
             $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});

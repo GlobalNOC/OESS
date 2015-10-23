@@ -1,8 +1,8 @@
 #!/usr/bin/perl
 #
-##----- D-Bus OESS NSI Reservation State Machine
+##----- D-Bus OESS NSI Provisioning State Machine
 ##-----
-##----- Handles NSI Reservation Requests
+##----- Handles NSI Provisioning Requests
 #---------------------------------------------------------------------
 #
 # Copyright 2015 Trustees of Indiana University
@@ -63,8 +63,7 @@ sub process_queue {
         my $type = $message->{'type'};
 
         if($type == OESS::NSI::Constant::PROVISIONING_SUCCESS){
-            log_debug("Handling Reservation Success Message");
-
+            log_debug("Handling Provisioning Success Message");
             $self->_provisioning_success($message->{'args'});
             next;
         }elsif($type == OESS::NSI::Constant::DO_PROVISIONING){
@@ -113,12 +112,49 @@ sub _do_provisioning{
     
     my $connection_id = $args->{'connectionId'};
 
+    my $ckt = $self->_get_circuit_details($connection_id);
+
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "/provisioning.cgi");
+
+    my $res = $self->{'websvc'}->foo( action => 'provision_circuit',
+                                      state => 'reserved',
+                                      circuit_id => $connection_id,
+                                      workgroup_id => $self->{'workgroup_id'},
+                                      description => $ckt->{'description'},
+                                      name => $ckt->{'name'},
+                                      link => $ckt->{'links'},
+                                      backup_link => $ckt->{'backup_links'},
+                                      bandwidth => $ckt->{'bandwidth'},
+                                      provision_time => $ckt->{'provision_time'},
+                                      remove_time => $ckt->{'remove_time'},
+                                      node => $ckt->{'nodes'},
+                                      interface => $ckt->{'ints'},
+                                      tag => $ckt->{'tags'} );
+
+    if(defined($res) && defined($res->{'results'})){
+        push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::PROVISIONING_SUCCESS, args => $args});
+        return OESS::NSI::Constant::SUCCESS;
+    }
+
+    log_error("Error provisioning circuit: " . $res->{'error'});
+    push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::PROVISIONING_FAILED, args => $args});
+    return OESS::NSI::Constant::SUCCESS;
+}
+
+sub _get_circuit_details{
+    my $self = shift;
+    my $circuit_id = shift;
 
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "/data.cgi");
     
 
     my $circuit = $self->{'websvc'}->foo( action => "get_circuit_details",
-					  circuit_id => $connection_id);
+					  circuit_id => $circuit_id);
+
+    my $scheduled_actions = $self->{'websvc'}->foo( action => "get_circuit_scheduled_events",
+                                                    circuit_id => $circuit_id);
+
+    warn Data::Dumper::Dumper($scheduled_actions);
 
     if(!defined($circuit) && !defined($circuit->{'results'})){
 	return OESS::NSI::Constant::ERROR;
@@ -126,8 +162,6 @@ sub _do_provisioning{
 
     $circuit = $circuit->{'results'};
     
-    $self->{'websvc'}->set_url($self->{'websvc_location'} . "/provisioning.cgi");
-
     my @links = ();
     foreach my $link (@{$circuit->{'links'}}){
 	push(@links, $link->{'name'});
@@ -147,32 +181,26 @@ sub _do_provisioning{
 	push(@ints,$ep->{'interface'});
 	push(@tags,$ep->{'tag'});
     }
-
-    my $res = $self->{'websvc'}->foo( action => 'provision_circuit',
-				      state => 'active',
-				      circuit_id => $connection_id,
-				      workgroup_id => $self->{'workgroup_id'},
-				      description => $circuit->{'description'},
-				      name => $circuit->{'name'},
-				      link => \@links,
-				      backup_link => \@backup_links,
-				      bandwidth => $circuit->{'bandwidth'},
-				      provision_time => -1,#$circuit->{'provision_time'},
-				      remove_time => undef,#$circuit->{'remove_time'},
-				      node => \@nodes,
-				      interface => \@ints,
-				      tag => \@tags);
     
-    if(defined($res) && defined($res->{'results'})){
-	push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::PROVISIONING_SUCCESS, args => $args});
-	return OESS::NSI::Constant::SUCCESS;
-    }
+    my $ckt = { state => $circuit->{'state'},
+                circuit_id => $circuit->{'circuit_id'},
+                workgroup_id => $circuit->{'workgroup'}->{'workgroup_id'},
+                description => $circuit->{'description'},
+                name => $circuit->{'name'},
+                link => \@links,
+                backup_link => \@backup_links,
+                bandwidth => $circuit->{'bandwidth'},
+                provision_time => $circuit->{'provision_time'},
+                remove_time => $circuit->{'remove_time'},
+                node => \@nodes,
+                interface => \@ints,
+                tag => \@tags
+    };
 
-    log_error("Error provisioning circuit: " . $res->{'error'});
-    push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::PROVISIONING_FAILED, args => $args});
-    return OESS::NSI::Constant::SUCCESS;
-}    
+    return $ckt;
 
+
+}
 
 sub terminate{
     my ($self, $args) = @_;
@@ -277,6 +305,56 @@ sub _init {
     $self->{'workgroup_id'} = $self->{'config'}->get('/config/oess-service/@workgroup-id');
 
     $self->{'provisioning_queue'} = [];
+}
+
+
+sub _release_failed{
+    my ($self, $args) = @_;
+
+    warn "RELEASE FAILED!!\n";
+}
+
+sub _do_release{
+    my ($self, $args) = @_;
+
+    my $connection_id = $args->{'connectionId'};
+
+    my $ckt = $self->_get_circuit_details($connection_id);
+
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "/provisioning.cgi");
+
+    my $res = $self->{'websvc'}->foo( action => 'provision_circuit',
+                                      state => 'reserved',
+                                      circuit_id => $connection_id,
+                                      workgroup_id => $self->{'workgroup_id'},
+                                      description => $ckt->{'description'},
+                                      name => $ckt->{'name'},
+                                      link => $ckt->{'links'},
+                                      backup_link => $ckt->{'backup_links'},
+                                      bandwidth => $ckt->{'bandwidth'},
+                                      provision_time => $ckt->{'provision_time'},
+                                      remove_time => $ckt->{'remove_time'},
+                                      node => $ckt->{'nodes'},
+                                      interface => $ckt->{'ints'},
+                                      tag => $ckt->{'tags'});
+    
+    if(defined($res) && defined($res->{'results'})){
+        warn "RELEASE SUCCESS!\n";
+        push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RELEASE_SUCCESS, args => $args});
+        return OESS::NSI::Constant::SUCCESS;
+    }
+
+    log_error("Unable to remove circuit: " . $res->{'error'});
+    warn "RELEASE FALIED!\n";
+    push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RELEASE_FAILED, args => $args});
+    return OESS::NSI::Constant::ERROR;
+
+}
+
+sub release{
+    my ($self, $args) = @_;
+    push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::DO_RELEASE, args => $args});
+    return OESS::NSI::Constant::SUCCESS;
 }
 
 1;

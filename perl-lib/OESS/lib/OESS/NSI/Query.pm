@@ -143,16 +143,19 @@ sub do_query_summarysync{
         }
     }
     
-    my $resp = new SOAP::Data;
-    $resp->type('');
+    my $resp;
     foreach my $ckt (@ckts){
         my $value = $self->_build_summary_response($ckt, $args->{'header'});
-        $value->type('');
-        $resp->value($resp->value,$value);
-    }
-    $resp->type('');
 
-    return $resp;
+        warn "VALUE: " . Data::Dumper::Dumper($value);
+        if(!defined($resp)){
+            $resp = SOAP::Data->value( $value);
+        }else{
+            $resp->value( \SOAP::Data->value( $resp->value, $value));
+        }
+    }
+    
+    return $resp->value;
 }
 
 sub _do_query_summary{
@@ -239,7 +242,7 @@ sub _build_p2ps{
                                                          SOAP::Data->name( directionality => 'bidirectional' )->type(''),
                                                          SOAP::Data->name( sourceSTP => $self->_build_urn( $ep1) )->type(''),
                                                          SOAP::Data->name( destSTP => $self->_build_urn($ep2) )->type('')
-                             ))->uri('http://schemas.ogf.org/nsi/2013/12/services/point2point');
+                             ))->type('');
 
 }
 
@@ -249,10 +252,10 @@ sub _build_schedule{
 
     if($ckt->{'start_time'} ne ''){
         return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( startTime => $ckt->{'start_time'})->type(''),
-                                                                 SOAP::Data->name( endTime => $ckt->{'remove_time'})->type('')));
+                                                                 SOAP::Data->name( endTime => $ckt->{'remove_time'})->type('')))->type('');
     }
 
-    return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( endTime => $ckt->{'remove_time'} )->type('')));
+    return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( endTime => $ckt->{'remove_time'} )->type('')))->type('');
 }
 
 sub _build_criteria{
@@ -280,7 +283,8 @@ sub _build_summary_response{
                                                                     SOAP::Data->name( requesterNSA => $header->{'requesterNSA'})->type(''),
                                                                     $self->_build_connectionStates( $ckt ),
                                                                     SOAP::Data->name( notificationId => 1)->type(''),
-                                                                    SOAP::Data->name( resultId => 1)->type('')))->type('');
+                                                                    SOAP::Data->name( resultId => 1)->type('')
+                                 ));#->type('');
                                                    
     return $resp;
 

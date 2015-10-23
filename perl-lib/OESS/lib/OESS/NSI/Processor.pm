@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 package OESS::NSI::Processor;
-
+$ENV{CRYPT_SSLEAY_CIPHER} = 'ALL';
 use strict;
 use warnings;
 
