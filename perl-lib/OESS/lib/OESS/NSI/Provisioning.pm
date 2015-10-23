@@ -86,6 +86,15 @@ sub process_queue {
             log_debug("handling termination failed!");
             $self->_terminate_failure($message->{'args'});
             next;
+        }elsif($type == OESS::NSI::Constant::DO_RELEASE){
+            $self->_do_release($message->{'args'});
+            next;
+        }elsif($type == OESS::NSI::Constant::RELEASE_FAILED){
+            $self->_release_failed($message->{'args'});
+            next;
+        }elsif($type == OESS::NSI::Constant::RELEASE_SUCCESS){
+            log_debug("handling release success");
+            $self->_release_confirmed($message->{'args'});
         }
 
     }
@@ -117,19 +126,21 @@ sub _do_provisioning{
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "/provisioning.cgi");
 
     my $res = $self->{'websvc'}->foo( action => 'provision_circuit',
-                                      state => 'reserved',
+                                      state => 'provisioned',
                                       circuit_id => $connection_id,
                                       workgroup_id => $self->{'workgroup_id'},
                                       description => $ckt->{'description'},
                                       name => $ckt->{'name'},
-                                      link => $ckt->{'links'},
-                                      backup_link => $ckt->{'backup_links'},
+                                      link => $ckt->{'link'},
+                                      backup_link => $ckt->{'backup_link'},
                                       bandwidth => $ckt->{'bandwidth'},
-                                      provision_time => $ckt->{'provision_time'},
-                                      remove_time => $ckt->{'remove_time'},
-                                      node => $ckt->{'nodes'},
-                                      interface => $ckt->{'ints'},
-                                      tag => $ckt->{'tags'} );
+                                      provision_time => -1,
+                                      remove_time => 1,
+                                      node => $ckt->{'node'},
+                                      interface => $ckt->{'interface'},
+                                      tag => $ckt->{'tag'} );
+
+    warn Data::Dumper::Dumper($res);
 
     if(defined($res) && defined($res->{'results'})){
         push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::PROVISIONING_SUCCESS, args => $args});
@@ -197,6 +208,8 @@ sub _get_circuit_details{
                 tag => \@tags
     };
 
+    warn Data::Dumper::Dumper($ckt);
+
     return $ckt;
 
 
@@ -227,6 +240,8 @@ sub _do_terminate{
 				      circuit_id => $connection_id,
 				      workgroup_id => $self->{'workgroup_id'},
 				      remove_time => -1);
+
+    warn Data::Dumper::Dumper($res);
 
     if(defined($res) && defined($res->{'results'})){
 	push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::TERMINATION_SUCCESS, args => $args});
@@ -329,32 +344,54 @@ sub _do_release{
                                       workgroup_id => $self->{'workgroup_id'},
                                       description => $ckt->{'description'},
                                       name => $ckt->{'name'},
-                                      link => $ckt->{'links'},
-                                      backup_link => $ckt->{'backup_links'},
+                                      link => $ckt->{'link'},
+                                      backup_link => $ckt->{'backup_link'},
                                       bandwidth => $ckt->{'bandwidth'},
                                       provision_time => $ckt->{'provision_time'},
                                       remove_time => $ckt->{'remove_time'},
-                                      node => $ckt->{'nodes'},
-                                      interface => $ckt->{'ints'},
-                                      tag => $ckt->{'tags'});
+                                      node => $ckt->{'node'},
+                                      interface => $ckt->{'interface'},
+                                      tag => $ckt->{'tag'});
     
     if(defined($res) && defined($res->{'results'})){
         warn "RELEASE SUCCESS!\n";
-        push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RELEASE_SUCCESS, args => $args});
+        push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::RELEASE_SUCCESS, args => $args});
         return OESS::NSI::Constant::SUCCESS;
     }
 
     log_error("Unable to remove circuit: " . $res->{'error'});
     warn "RELEASE FALIED!\n";
-    push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RELEASE_FAILED, args => $args});
+    push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::RELEASE_FAILED, args => $args});
     return OESS::NSI::Constant::ERROR;
 
 }
 
 sub release{
     my ($self, $args) = @_;
-    push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::DO_RELEASE, args => $args});
+    push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::DO_RELEASE, args => $args});
     return OESS::NSI::Constant::SUCCESS;
+}
+
+sub _release_confirmed{
+    my ($self, $data) = @_;
+
+    warn "Release confirmed!\n";
+
+    my $soap = SOAP::Lite->new->proxy($data->{'header'}->{'replyTo'})->ns('http://schemas.ogf.org/sni/2013/12/framework/types','ftypes')->ns('http://schemas.ogf.org/nsi/2013/12/framework/headers','header')->ns('http://schemas.ogf.org/nsi/2013/12/connection/types','ctypes');
+
+    if($self->{'ssl'}->{'enabled'}){
+        $soap->transport->ssl_opts( SSL_cert_file => $self->{'ssl'}->{'cert'},
+                                    SSL_key_file => $self->{'ssl'}->{'key'});
+    }
+
+    my $header = SOAP::Header->name("header:nsiHeader" => \SOAP::Data->value(
+                                        SOAP::Data->name(protocolVersion => $data->{'header'}->{'protocolVersion'}),
+                                        SOAP::Data->name(correlationId => $data->{'header'}->{'correlationId'}),
+                                        SOAP::Data->name(requesterNSA => $data->{'header'}->{'requesterNSA'}),
+                                        SOAP::Data->name(providerNSA => $data->{'header'}->{'providerNSA'})
+                                    ));
+
+    my $soap_response = $soap->releaseConfirmed($header, SOAP::Data->name(connectionId => $data->{'connectionId'}));
 }
 
 1;

@@ -372,53 +372,8 @@ sub process_queue {
             log_debug("handling reservation commit success");
             $self->_reserve_commit_confirmed($message->{'args'});
             next;
-        }elsif($type == OESS::NSI::Constant::DO_RELEASE){
-            $self->_do_release($message->{'args'});
-            next;
-        }elsif($type == OESS::NSI::Constant::RELEASE_FAILED){
-            $self->_release_failed($message->{'args'});
-            next;
-        }elsif($type == OESS::NSI::Constant::RELEASE_SUCCESS){
-            log_debug("handling release success");
-            $self->_release_confirmed($message->{'args'});
         }
     }
-}
-
-sub _release_failed{
-    my ($self, $args) = @_;
-
-    warn "RELEASE FAILED!!\n";
-}
-
-sub _do_release{
-    my ($self, $args) = @_;
-
-    my $connection_id = $args->{'connectionId'};
-
-    $self->{'websvc'}->set_url($self->{'websvc_location'} . "/provisioning.cgi");
-    my $res = $self->{'websvc'}->foo( action => "remove_circuit",
-                                      circuit_id => $connection_id,
-                                      workgroup_id => $self->{'workgroup_id'},
-                                      remove_time => -1);
-
-    if(defined($res) && defined($res->{'results'})){
-        warn "RELEASE SUCCESS!\n";
-        push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RELEASE_SUCCESS, args => $args});
-        return OESS::NSI::Constant::SUCCESS;
-    }
-
-    log_error("Unable to remove circuit: " . $res->{'error'});
-    warn "RELEASE FALIED!\n";
-    push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RELEASE_FAILED, args => $args});
-    return OESS::NSI::Constant::ERROR;
-
-}
-
-sub release{
-    my ($self, $args) = @_;
-    push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::DO_RELEASE, args => $args});
-    return OESS::NSI::Constant::SUCCESS;
 }
 
 sub _build_p2ps{

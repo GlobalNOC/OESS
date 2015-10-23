@@ -235,7 +235,9 @@ sub _create_graph{
 sub _create_flows{
     my $self = shift;
 
-    if($self->{'details'}->{'state'} eq 'reserved'){
+    $self->{'logger'}->error( Data::Dumper::Dumper($self->{'details'}->{'state'}));
+
+    if($self->{'details'}->{'state'} eq 'reserved' || $self->{'details'}->{'state'} eq 'provisioned' ){
         return;
     }
 

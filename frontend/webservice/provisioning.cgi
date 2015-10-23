@@ -2,11 +2,6 @@
 #
 ##----- NDDI OESS provisioning.cgi
 ##-----
-##----- $HeadURL: svn+ssh://svn.grnoc.iu.edu/grnoc/oe-ss/frontend/trunk/webservice/provisioning.cgi $
-##----- $Id$
-##----- $Date$
-##----- $LastChangedBy$
-##-----
 ##----- Provides a WebAPI to allow for provisioning/decoming of circuits
 ##
 ##-------------------------------------------------------------------------
@@ -332,10 +327,10 @@ sub provision_circuit {
                                          static_mac => $static_mac,
 	                                 state => $state
                                         );
-        if ( defined $output && $provision_time <= time() && $state eq 'active' ) {
 
-            my $result =
-              _send_add_command( circuit_id => $output->{'circuit_id'} );
+        if ( defined $output && $provision_time <= time() && ($state eq 'active')) {
+
+            my $result = _send_add_command( circuit_id => $output->{'circuit_id'} );
 
             if ( !defined $result ) {
                 $output->{'warning'} =
