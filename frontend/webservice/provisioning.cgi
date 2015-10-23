@@ -290,7 +290,10 @@ sub provision_circuit {
 
     my @remote_nodes = $cgi->param('remote_node');
     my @remote_tags  = $cgi->param('remote_tag');
-
+    
+    my $remote_url   = $cgi->param('remote_url');
+    my $remote_requester = $cgi->param('remote_requester');
+    
     my $workgroup = $db->get_workgroup_by_id( workgroup_id => $workgroup_id );
 
     if(!defined($workgroup)){
@@ -309,24 +312,26 @@ sub provision_circuit {
     if ( !$circuit_id || $circuit_id == -1 ) {
         #Register with DB
         $output = $db->provision_circuit(
-                                         description    => $description,
-                                         bandwidth      => $bandwidth,
-                                         provision_time => $provision_time,
-                                         remove_time    => $remove_time,
-                                         links          => \@links,
-                                         backup_links   => \@backup_links,
-                                         nodes          => \@nodes,
-                                         interfaces     => \@interfaces,
-                                         tags           => \@tags,
-                                         mac_addresses  => \@mac_addresses,
-                                         endpoint_mac_address_nums  => \@endpoint_mac_address_nums,
-                                         user_name      => $ENV{'REMOTE_USER'},
-                                         workgroup_id   => $workgroup_id,
-                                         external_id    => $external_id,
-                                         restore_to_primary => $restore_to_primary,
-                                         static_mac => $static_mac,
-	                                 state => $state
-                                        );
+            description    => $description,
+            remote_url => $remote_url,
+            remote_requester => $remote_requester,
+            bandwidth      => $bandwidth,
+            provision_time => $provision_time,
+            remove_time    => $remove_time,
+            links          => \@links,
+            backup_links   => \@backup_links,
+            nodes          => \@nodes,
+            interfaces     => \@interfaces,
+            tags           => \@tags,
+            mac_addresses  => \@mac_addresses,
+            endpoint_mac_address_nums  => \@endpoint_mac_address_nums,
+            user_name      => $ENV{'REMOTE_USER'},
+            workgroup_id   => $workgroup_id,
+            external_id    => $external_id,
+            restore_to_primary => $restore_to_primary,
+            static_mac => $static_mac,
+            state => $state
+            );
 
         if ( defined $output && $provision_time <= time() && ($state eq 'active')) {
 

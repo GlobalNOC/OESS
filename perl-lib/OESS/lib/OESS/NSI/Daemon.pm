@@ -114,9 +114,16 @@ sub _run {
     my $bus = Net::DBus->system;
     my $service = $bus->export_service("org.nddi.nsi");
 
+    my $dbus = OESS::DBus->new( service => "org.nddi.notification", instance => "/controller1");
+    
     $self->{'processor'} = new OESS::NSI::Processor($service, $self->{'config_file'});
 
+    $dbus->connect_to_signal("circuit_provision", sub { $self->{'processor'}->circuit_provision(@_)} );
+    $dbus->connect_to_signal("circuit_modified", sub { $self->{'processor'}->circuit_modified(@_)} );
+    $dbus->connect_to_signal("circuit_removed", sub { $self->{'processor'}->circuit_removed(@_)} );
+
     $self->{'dbus_reactor'} = Net::DBus::Reactor->main();
+    
     $self->{'dbus_reactor'}->add_timeout(10000, Net::DBus::Callback->new( method => sub { $self->_process_queues(@_); } ));
     $self->{'dbus_reactor'}->run();
 }

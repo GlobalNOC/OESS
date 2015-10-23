@@ -59,6 +59,13 @@ sub upgrade {
     $str = "alter table circuit_instantiation modify circuit_state enum('scheduled','deploying','active','decom','looped','reserved','provisioned') NOT NULL DEFAULT 'scheduled'";
     $dbh->do($str);
 
+    $str = "alter table circuit add column remote_requester varchar(255) default null";
+    $dbh->do($str);
+
+    $str = "alter table circuit add column remote_url varchar(255) default null";
+    $dbh->do($str);
+
+
     #ok done with the rest of the upgrade update our version
     $str = "update oess_version set version = '$version'";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";

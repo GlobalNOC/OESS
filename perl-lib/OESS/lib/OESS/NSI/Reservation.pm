@@ -186,6 +186,8 @@ sub reserve {
                                       remove_time => $end_time,
                                       link => $primary_path,
                                       backup_link => $backup_path,
+                                      remote_url => $args->{'header'}->{'replyTo'},
+                                      remote_requester => $args->{'header'}->{'requesterNSA'},
                                       node => [$ep1->{'node'}, $ep2->{'node'}],
                                       interface => [$ep1->{'port'}, $ep2->{'port'}],
                                       tag => [$ep1->{'vlan'}, $ep2->{'vlan'}]);

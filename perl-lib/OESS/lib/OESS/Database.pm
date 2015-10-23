@@ -3663,6 +3663,7 @@ sub get_circuit_details {
 
     # basic circuit info
     my $query = "select circuit.restore_to_primary, circuit.external_identifier, circuit.name, circuit.description, circuit.circuit_id, circuit.static_mac, circuit_instantiation.modified_by_user_id, circuit_instantiation.loop_node, circuit.workgroup_id, " .
+        " circuit.remote_url, circuit.remote_requester, " . 
 	" circuit_instantiation.reserved_bandwidth_mbps, circuit_instantiation.circuit_state, circuit_instantiation.start_epoch  , " .
 	" if(bu_pi.path_state = 'active', 'backup', 'primary') as active_path " .
 	"from circuit " .
@@ -3695,7 +3696,9 @@ sub get_circuit_details {
                     'workgroup_id'           => $row->{'workgroup_id'},
 		    'restore_to_primary'     => $row->{'restore_to_primary'},
 		    'static_mac'             => $row->{'static_mac'},
-                    'external_identifier'    => $row->{'external_identifier'}
+                    'external_identifier'    => $row->{'external_identifier'},
+                    'remote_requester'       => $row->{'remote_requester'},
+                    'remote_url'             => $row->{'remote_url'}
                    };
         if ( $row->{'circuit_state'} eq 'decom' ){
             $show_historical = 1;
@@ -6175,6 +6178,9 @@ sub provision_circuit {
     my $restore_to_primary = $args{'restore_to_primary'} || 0;
     my $static_mac       = $args{'static_mac'} || 0;
     my $state            = $args{'state'} || 'active';
+    my $remote_url       = $args{'remote_url'};
+    my $remote_requester = $args{'remote_requester'};
+
 
     if($#{$interfaces} < 1){
         $self->_set_error("Need at least 2 endpoints");
@@ -6241,8 +6247,8 @@ sub provision_circuit {
     }
 
     # create circuit record
-    my $circuit_id = $self->_execute_query("insert into circuit (name, description, workgroup_id, external_identifier, restore_to_primary, static_mac,circuit_state) values (?, ?, ?, ?, ?, ?,?)",
-					   [$name, $description, $workgroup_id, $external_id, $restore_to_primary, $static_mac,$state]);
+    my $circuit_id = $self->_execute_query("insert into circuit (name, description, workgroup_id, external_identifier, restore_to_primary, static_mac,circuit_state, remote_url, remote_requester) values (?, ?, ?, ?, ?, ?,?,?,?)",
+					   [$name, $description, $workgroup_id, $external_id, $restore_to_primary, $static_mac,$state, $remote_url, $remote_requester]);
 
     if (! defined $circuit_id ){
         $self->_set_error("Unable to create circuit record.");
