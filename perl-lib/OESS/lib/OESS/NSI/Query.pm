@@ -120,6 +120,22 @@ sub query_summary{
     return OESS::NSI::Constant::SUCCESS;
 }
 
+sub get_current_circuits{
+    my $self = shift;
+
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "data.cgi");
+    my $current_circuits = $self->{'websvc'}->foo( action => "get_existing_circuits",
+                                                   workgroup_id => $self->{'workgroup_id'});
+
+    if(defined($current_circuits) && defined($current_circuits->{'results'})){
+        return $current_circuits->{'results'};
+    }
+
+    log_error("Unable to fetch current circuits for NSI workgroup");
+    return;
+    
+}
+
 sub do_query_summarysync{
     my $self = shift;
     my $args = shift;

@@ -167,6 +167,8 @@ sub _load_circuit_details{
 
 sub _process_circuit_details{
     my $self = shift;
+    $self->{'remote_url'} = $self->{'details'}->{'remote_url'};
+    $self->{'remote_requester'} = $self->{'details'}->{'remote_requester'};
     $self->{'state'} = $self->{'details'}->{'state'};
     $self->{'circuit_id'} = $self->{'details'}->{'circuit_id'};
     $self->{'loop_node'} = $self->{'details'}->{'loop_node'};
@@ -235,7 +237,7 @@ sub _create_graph{
 sub _create_flows{
     my $self = shift;
 
-    $self->{'logger'}->error( Data::Dumper::Dumper($self->{'details'}->{'state'}));
+    #$self->{'logger'}->error( Data::Dumper::Dumper($self->{'details'}->{'state'}));
 
     if($self->{'details'}->{'state'} eq 'reserved' || $self->{'details'}->{'state'} eq 'provisioned' ){
         return;

@@ -35,6 +35,8 @@ use GRNOC::WebService::Client;
 use OESS::NSI::Constant;
 use OESS::NSI::Utils;
 
+use Data::UUID;
+
 sub new {
     my $caller = shift;
 
@@ -198,6 +200,8 @@ sub _get_circuit_details{
                 workgroup_id => $circuit->{'workgroup'}->{'workgroup_id'},
                 description => $circuit->{'description'},
                 name => $circuit->{'name'},
+                remote_url => $circuit->{'remote_url'},
+                remote_requester => $circuit->{'remote_requester'},
                 link => \@links,
                 backup_link => \@backup_links,
                 bandwidth => $circuit->{'bandwidth'},
@@ -319,6 +323,8 @@ sub _init {
 
     $self->{'workgroup_id'} = $self->{'config'}->get('/config/oess-service/@workgroup-id');
 
+    $self->{'ug'} = Data::UUID->new;
+
     $self->{'provisioning_queue'} = [];
 }
 
@@ -372,26 +378,60 @@ sub release{
     return OESS::NSI::Constant::SUCCESS;
 }
 
+sub _build_dataPlaneStatus{
+    my $circuit_details = shift;
+    
+    my $active = 'false';
+    if($circuit_details->{'state'} eq 'active'){
+        $active = 'true';
+    }
+
+    return SOAP::Data->name( dataPlaneStatus => \SOAP::Data->value( SOAP::Data->name( active => $active)->type(''),
+                                                                    SOAP::Data->name( version => 0)->type(''),
+                                                                    SOAP::Data->name( versionConsistent => 'true')->type('')));
+                      
+}
+
+sub dataPlaneStateChange{
+    my $self = shift;
+    my $circuit = shift;
+
+    my $ckt = $self->_get_circuit_details($circuit);
+
+    if(!defined($ckt->{'remote_url'}) || !defined($ckt->{'remote_requester'})){
+        log_error("Circuit in NSI workgroup, did not have remote_url or remote_requester specified!\n");
+        return;
+    }
+
+    my $soap = OESS::NSI::Utils::build_client( proxy => $ckt->{'remote_url'}, ssl => $self->{'ssl'});
+
+    my $nsiheader = OESS::NSI::Utils::build_header({ requesterNSA => $ckt->{'remote_requester'} });
+    eval{
+        my $resp = $soap->dataPlaneStateChange($nsiheader, SOAP::Data->name( connectionId => $circuit)->type(''),
+                                               SOAP::Data->name( notificationId => 1)->type(''),
+                                               SOAP::Data->name( timeStamp => _timestampNow() )->type(''),
+                                               _build_dataPlaneStatus($ckt ));
+        
+    };
+    warn $@ if $@;
+    return;
+}
+
+sub _timestampNow{
+    
+    my $dt = DateTime->now();
+    return $dt->strftime( "%F" ) . "T" . $dt->strftime( "%T" ) . "Z";
+
+}
+
 sub _release_confirmed{
     my ($self, $data) = @_;
 
     warn "Release confirmed!\n";
 
-    my $soap = SOAP::Lite->new->proxy($data->{'header'}->{'replyTo'})->ns('http://schemas.ogf.org/sni/2013/12/framework/types','ftypes')->ns('http://schemas.ogf.org/nsi/2013/12/framework/headers','header')->ns('http://schemas.ogf.org/nsi/2013/12/connection/types','ctypes');
-
-    if($self->{'ssl'}->{'enabled'}){
-        $soap->transport->ssl_opts( SSL_cert_file => $self->{'ssl'}->{'cert'},
-                                    SSL_key_file => $self->{'ssl'}->{'key'});
-    }
-
-    my $header = SOAP::Header->name("header:nsiHeader" => \SOAP::Data->value(
-                                        SOAP::Data->name(protocolVersion => $data->{'header'}->{'protocolVersion'}),
-                                        SOAP::Data->name(correlationId => $data->{'header'}->{'correlationId'}),
-                                        SOAP::Data->name(requesterNSA => $data->{'header'}->{'requesterNSA'}),
-                                        SOAP::Data->name(providerNSA => $data->{'header'}->{'providerNSA'})
-                                    ));
-
-    my $soap_response = $soap->releaseConfirmed($header, SOAP::Data->name(connectionId => $data->{'connectionId'}));
+    my $soap = OESS::NSI::Utils::build_client( proxy =>$data->{'header'}->{'replyTo'},ssl => $self->{'ssl'});
+    my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
+    my $soap_response = $soap->releaseConfirmed($nsiheader, SOAP::Data->name(connectionId => $data->{'connectionId'}));
 }
 
 1;

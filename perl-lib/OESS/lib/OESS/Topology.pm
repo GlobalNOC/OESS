@@ -344,6 +344,7 @@ sub find_path {
     my $self = shift;
     my %args = @_;
 
+    warn "Finding the shortest path\n";
     $self->{'logger'}->debug("Finding shortest path");
 
     my @selected_links = ();
@@ -362,6 +363,7 @@ sub find_path {
     #now the acutal implementation, step0 sanity
     if(scalar(@$nodes) < 2){
         $self->_set_error("Not enough nodes specified in find path: " . join(",",@$nodes));
+        warn "Not enough nodes specified in the path\n";
         return undef;
     }
 
@@ -381,6 +383,7 @@ sub find_path {
     my $input_node_set = Set::Scalar->new(@$nodes);
 
     if(not $input_node_set <= $db_node_set){
+        warn "Bad Inputs!\n";
         $self->_set_error("Bad inputs: " . join(",",@$nodes));
         return undef;
     }
@@ -478,6 +481,8 @@ sub find_path {
         });
     }
 
+    warn Data::Dumper::Dumper($g);
+
     #run Dijkstra on our graph
     my @link_list = ();
     foreach my $node_a_name (@$nodes){
@@ -487,6 +492,7 @@ sub find_path {
         my @path = $g->SP_Dijkstra($node_a_name, $node_b_name);
         $self->{'logger'}->debug("Shortest path calc: for $node_a_name to $node_b_name " . Dumper(@path));
         if (!@path){
+            warn "Unable to find path!\n";
             $self->_set_error("No Path found");
             return undef;
         }
@@ -526,6 +532,7 @@ sub find_path {
 
     $self->{'logger'}->debug("selected_links=".join(",",@selected_links));
 
+    warn "SELECTED LINKS" . Data::Dumper::Dumper(@selected_links);
     return \@selected_links;
 
 }

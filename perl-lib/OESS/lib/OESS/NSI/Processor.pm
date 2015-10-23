@@ -28,6 +28,7 @@ sub new {
     bless($self,$class);
 
     $self->{'config_file'} = $config_file;
+    $self->{'watched_circuits'} = [];
     $self->_init();
 
     #-- dbus methods
@@ -36,13 +37,48 @@ sub new {
     return $self;
 }
 
+sub circuit_provision{
+    my ($self, $circuit) = @_;
+
+    foreach my $ckt_id (@{$self->{'watched_circuits'}}){
+        if($circuit->{'circuit_id'} == $ckt_id){
+            ##fire event!
+        }
+    }
+}
+
+sub circuit_modified{
+    my ($self, $circuit) = @_;
+    foreach my $ckt_id (@{$self->{'watched_circuits'}}){
+        if($circuit->{'circuit_id'} == $ckt_id){
+            warn "Found a circuit that was modified!\n";
+            $self->{'provisioning'}->dataPlaneStateChange($ckt_id);
+        }
+    }
+}
+
+sub circuit_removed{
+    my ($self, $circuit) = @_;
+    foreach my $ckt_id (@{$self->{'watched_circuits'}}){
+        warn "Found a circuit that was removed!\n";
+        if($circuit->{'circuit_id'} == $ckt_id){
+            $self->{'provisioning'}->dataPlaneStateChange($ckt_id);
+        }
+    }
+}
+
 sub process_request {
     my ($self, $request, $data) = @_;
 
     log_error("Received method call: $request");
 
     if($request =~ /^reserve$/){
-        return $self->{'reservation'}->reserve($data);
+        my $circuit = $self->{'reservation'}->reserve($data);
+        if($circuit > 0 && $circuit < 99999){
+            push(@{$self->{'watched_circuits'}},$circuit);
+        }
+        warn "WATCHED CIRCUIT: " . Data::Dumper::Dumper($self->{'watched_circuits'});
+        return $circuit;
     }elsif($request =~ /^reserveCommit$/){
         return $self->{'reservation'}->reserveCommit($data);
     }elsif($request =~ /^provision$/){
@@ -72,6 +108,13 @@ sub _init {
     $self->{'reservation'} = new OESS::NSI::Reservation(config_file => $self->{'config_file'});
     $self->{'provisioning'} = new OESS::NSI::Provisioning(config_file => $self->{'config_file'});
     $self->{'query'} = new OESS::NSI::Query(config_file => $self->{'config_file'} );
+
+    my $circuits = $self->{'query'}->get_current_circuits();
+
+    foreach my $circuit (@$circuits){
+        push(@{$self->{'watched_circuits'}},$circuit->{'circuit_id'});
+    }
+
 }
 
 1;
