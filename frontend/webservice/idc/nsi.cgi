@@ -99,11 +99,16 @@ sub new_handler{
                 if $@;
 
         my $method_response = shift(@results);
-
+        $self->serializer->encodingStyle('');
+        $self->serializer->register_ns("http://schemas.ogf.org/nsi/2013/12/connection/types","ctypes");
         my $result = $self->serializer
             ->prefix('s') # distinguish generated element names between client and server
-            ->uri($method_uri)
-            ->envelope(response => $method_name . $method_response, @results);
+            #->uri($method_uri)
+            ->envelope(response => "ctypes:" . $method_response, @results);
+
+        
+        $result =~ s/xsi:nil=\"true\"//g;
+        
         return $result;
     };
 

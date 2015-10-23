@@ -8,6 +8,7 @@ use strict;
 
 use Data::Dumper;
 use OESS::DBus;
+use OESS::NSI::Utils;
 use OESS::NSI::Query;
 
 sub _send_to_daemon{
@@ -58,7 +59,7 @@ sub _parse_header{
     }else{
 	$correlationId = '';
     }
-    my $requesterNSA = $envelope->dataof("//Header/nsiHeader/requestorNSA");
+    my $requesterNSA = $envelope->dataof("//Header/nsiHeader/requesterNSA");
     if(defined($requesterNSA)){
         $requesterNSA = $requesterNSA->value;
     }else{
@@ -232,16 +233,15 @@ sub reserve{
 			      });
     
 
-    my $header = SOAP::Header->name( 'header:nsiHeader' => \SOAP::Data->value(
-                                         SOAP::Data->name(protocolVersion => $header->{'protocolVersion'}),
-                                         SOAP::Data->name(correlationId => $header->{'correlationId'}),
-                                         SOAP::Data->name(requesterNSA => $header->{'requesterNSA'}),
-                                         SOAP::Data->name(providerNSA => $header->{'providerNSA'}),
-                                         SOAP::Data->name(replyTo => undef),
-                                         SOAP::Data->name(sessionSecurityAttr => $header->{'sessionSecurityAttr'})))->attr({ 'xmlns:header' => 'http://schemas.ogf.org/nsi/2013/12/framework/headers'});
-    my $result = SOAP::Data->name( connectionId => $res);
+    my $header = OESS::NSI::Utils::build_header($header);
 
-    return ("Response",$header, $result);
+    my $result;
+    if($res < 0){
+        $result = SOAP::Data->name( connectionId => 9999999 )->type("");
+    }else{
+        $result = SOAP::Data->name( connectionId => $res )->type("");
+    }
+    return ("reserveResponse",$header, $result);
 }
 
 =head2 reserveAbort
@@ -264,7 +264,9 @@ sub reserveAbort{
     my $res = _send_to_daemon("reserveAbort",{ connectionId => $connectionId,
 					       header => $header});
 
-    return ("Response",$res);
+    my $nsiheader = OESS::NSI::Utils::build_header($header);
+
+    return ("acknowledgment",$nsiheader);
 }
 
 =head2 reserveCommit
@@ -285,7 +287,9 @@ sub reserveCommit{
     my $res = _send_to_daemon("reserveCommit",{ connectionId => $connectionId,
 						header => $header});
 
-    return ("Response",$res);
+    my $nsiheader = OESS::NSI::Utils::build_header($header);
+
+    return ("acknowledgment",$nsiheader);
 
 }
 
@@ -307,7 +311,9 @@ sub provision{
     my $res = _send_to_daemon("provision",{ connectionId => $connectionId,
 					    header => $header});
 
-    return ("Response",$res);
+    my $nsiheader = OESS::NSI::Utils::build_header($header);
+
+    return ("acknowledgment",$nsiheader);
     
 }
 
@@ -328,7 +334,9 @@ sub release{
     my $res = _send_to_daemon("release",{ connectionId => $connectionId,
 					  header => $header});
 
-    return ("Response",$res);
+    my $nsiheader = OESS::NSI::Utils::build_header($header);
+
+    return ("acknowledgment",$nsiheader);
 
 }
 
@@ -350,7 +358,8 @@ sub terminate{
     my $res = _send_to_daemon("terminate",{ connectionId => $connectionId,
 					    header => $header});
 
-    return ("Response",$res);
+    my $nsiheader = OESS::NSI::Utils::build_header($header);
+    return ("acknowledgment",$nsiheader);
 
 }
 
@@ -378,7 +387,9 @@ sub queryRecursive{
 						  globalReservationId => $gri,
 						  header => $header});
 
-    return ("Response",$res);
+    my $nsiheader = OESS::NSI::Utils::build_header($header);
+
+    return ("queryRecursiveResponse",$nsiheader);
 }
 
 =head2 querySummary
@@ -407,15 +418,8 @@ sub querySummary{
                                                 globalReservationId => $gri,
                                                 header => $header});
     
-    my $header = SOAP::Header->name( 'header:nsiHeader' => \SOAP::Data->value(
-                                         SOAP::Data->name(protocolVersion => $header->{'protocolVersion'}),
-                                         SOAP::Data->name(correlationId => $header->{'correlationId'}),
-                                         SOAP::Data->name(requesterNSA => $header->{'requesterNSA'}),
-                                         SOAP::Data->name(providerNSA => $header->{'providerNSA'}),
-                                         SOAP::Data->name(replyTo => undef),
-                                         SOAP::Data->name(sessionSecurityAttr => $header->{'sessionSecurityAttr'})))->attr({ 'xmlns:header' => 'http://schemas.ogf.org/nsi/2013/12/framework/headers'});
-    
-    return ("Response",$header, $res);
+    my $nsiheader = OESS::NSI::Utils::build_header($header);
+    return ("acknowledgment",$nsiheader);
 
 }
 
@@ -445,21 +449,13 @@ sub querySummarySync{
         @gris = $gri->value;
     }
 
-    my $query = new OESS::NSI::Query(config_file => '/etc/oess/nsi.conf');
-    
-    my $header = SOAP::Header->name( 'header:nsiHeader' => \SOAP::Data->value(
-                                         SOAP::Data->name(protocolVersion => $header->{'protocolVersion'}),
-                                         SOAP::Data->name(correlationId => $header->{'correlationId'}),
-                                         SOAP::Data->name(requesterNSA => $header->{'requesterNSA'}),
-                                         SOAP::Data->name(providerNSA => $header->{'providerNSA'}),
-                                         SOAP::Data->name(replyTo => undef),
-                                         SOAP::Data->name(sessionSecurityAttr => $header->{'sessionSecurityAttr'})))->attr({ 'xmlns:header' => 'http://schemas.ogf.org/nsi/2013/12/framework/headers'});
-    
-    
-    
+    my $query = new OESS::NSI::Query(config_file => '/etc/oess/nsi.conf');    
+    my $nsiheader = OESS::NSI::Utils::build_header($header);    
+    warn "HERE!\n";
     my $res = $query->do_query_summarysync({ header => $header, connectionIds => \@conIds, gris => \@gris});
+    warn "SummarySYnc: " . Data::Dumper::Dumper($res);    
     
-    return ("Confirmed",$header,$res);
+    return ("querySummarySyncConfirmed",$nsiheader,$res);
     
 }
 
@@ -492,8 +488,10 @@ sub queryNotification{
                                                      startNotificationId => $startNotificationId,
                                                      endNotificationId => $endNotificationId,
                                                      header => $header});
-    
-    return ("Response",$res);
+
+    my $nsiheader = OESS::NSI::Utils::build_header($header);    
+
+    return ("acknowledgment",$nsiheader);
 
 }
 
@@ -537,8 +535,8 @@ sub queryResult{
                                                startResultId => $startResultId,
                                                endResultId => $endResultId,
                                                header => $header});
-    
-    return $res;
+    my $nsiheader = OESS::NSI::Utils::build_header($header);
+    return ("acknowledgment",$nsiheader);
 }
 
 =head2 queryResultSync
@@ -547,6 +545,28 @@ Unimplemented
 
 =cut
 sub queryResultSync{
-    return;
+    my $self = shift;
+    my $envelope = pop;
+
+    my $connectionId = $envelope->dataof("//queryNotification/connectionId");
+    if(defined($connectionId)){
+        $connectionId =$connectionId->value;
+    }
+
+    my $startResultId = $envelope->dataof("//queryResult/startResultId");
+    if(defined($startResultId)){
+        $startResultId = $startResultId->value;
+    }
+
+    my $endResultId = $envelope->dataof("//queryResult/endResultId");
+    if(defined($endResultId)){
+        $endResultId = $endResultId->value;
+    }
+
+
+    my $header = _parse_header($envelope);
+
+    my $nsiheader = OESS::NSI::Utils::build_header($header);
+    return ("queryResultSyncConfirmed",$nsiheader);;
 }
 

@@ -21,6 +21,7 @@
 
 package OESS::NSI::Reservation;
 
+$ENV{CRYPT_SSLEAY_CIPHER} = 'ALL';
 use strict;
 use warnings;
 
@@ -31,6 +32,8 @@ use GRNOC::Config;
 use GRNOC::WebService::Client;
 
 use OESS::NSI::Constant;
+use OESS::NSI::Utils;
+use DateTime;
 
 use Data::Dumper;
 
@@ -52,23 +55,82 @@ sub new {
     return $self;
 }
 
+sub _parseTime{
+    my $time = shift;
+    
+    if(!defined($time) || $time eq ''){
+        return -1;
+    }
+    
+    warn Data::Dumper::Dumper($time);
+    #2015-08-15T10:30:10.000Z
+    #2015-10-22T20:33:00.000-07:00
+    $time =~ /(\d\d\d\d)-(\d\d)-(\d\d)T(\d\d)\:(\d\d):(\d\d)\.\d\d\d(.*)/;
+
+    my $year = $1;
+    my $month = $2;
+    my $day = $3;
+    my $hour = $4;
+    my $min = $5;
+    my $sec = $6;
+
+    warn "Time: " . $year . "-" . $month . "-" . $day . "T" . $hour . ":" . $min . "\n";
+
+    my $tz = $7;
+    
+    warn "TZ: " . $tz . "\n";
+
+    if($tz eq 'Z'){
+        $tz = "UTC";
+    }else{
+        $tz =~ s/\://g;
+    }
+
+    warn "TZ: " . $tz . "\n";
+
+    warn "about to create date time object\n";
+    
+    my $dt;
+    eval{
+        $dt = DateTime->new(
+            year      => $year,
+            month     => $month,
+            day       => $day,
+            hour      => $hour,
+            minute    => $min,
+            time_zone => $tz
+            );
+    };
+    warn() if $@;
+    warn "date time object created!\n";
+
+    warn Data::Dumper::Dumper($dt);
+
+    return $dt->epoch();
+}
+
 sub reserve {
     my ($self, $args) = @_;
 
     my $connection_id = $args->{'connectionId'};
     my $gri = $args->{'gri'};
     my $description = $args->{'description'};
-    my $start_time = $args->{'criteria'}->{'schedule'}->{'startTime'};
-    my $end_time = $args->{'criteria'}->{'schedule'}->{'endTime'};
+    my $start_time = _parseTime($args->{'criteria'}->{'schedule'}->{'startTime'});
+    my $end_time = _parseTime($args->{'criteria'}->{'schedule'}->{'endTime'});
     my $source_stp = $args->{'criteria'}->{'p2ps'}->{'sourceSTP'};
     my $dest_stp = $args->{'criteria'}->{'p2ps'}->{'destSTP'};
     my $directionality = $args->{'criteria'}->{'p2ps'}->{'directionality'};
     my $capacity = $args->{'criteria'}->{'p2ps'}->{'capacity'};
     my $reply_to = $args->{'header'}->{'replyTo'};
+
+    warn "Start and End Times!\n";
+    warn Data::Dumper::Dumper($start_time);
+    warn Data::Dumper::Dumper($end_time);
     
     warn "IN RESERVE!\n";
 
     if(!$description || !$source_stp || !$dest_stp || !$reply_to){
+        push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_FAIL, connection_id => 9999999, args => $args});
         return OESS::NSI::Constant::MISSING_REQUEST_PARAMETERS;
     }
     
@@ -120,8 +182,8 @@ sub reserve {
                                       external_identifier => $gri,
                                       description => $description,
                                       bandwidth => $capacity,
-                                      provision_time => undef,#$start_time,
-                                      remove_time => undef,#$end_time,
+                                      provision_time => $start_time,
+                                      remove_time => $end_time,
                                       link => $primary_path,
                                       backup_link => $backup_path,
                                       node => [$ep1->{'node'}, $ep2->{'node'}],
@@ -139,6 +201,48 @@ sub reserve {
     }
 }
 
+sub reserveAbort{
+    my ($self, $args) = @_;
+
+    my $connection_id = $args->{'connectionId'};
+
+    if(!defined($connection_id) || $connection_id eq ''){
+        return OESS::NSI::Constant::MISSING_REQUEST_PARAMETERS;
+    }
+    
+    push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::DO_RESERVE_ABORT, args => $args});
+    return OESS::NSI::Constant::SUCCESS;
+}
+
+sub _do_reserve_abort{
+    my ($self, $data) = @_;
+
+    my $connection_id = $data->{'connectionId'};
+    
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "/provisioning.cgi");
+    my $res = $self->{'websvc'}->foo( action => "remove_circuit",
+                                      circuit_id => $connection_id,
+                                      workgroup_id => $self->{'workgroup_id'},
+                                      remove_time => -1);
+    
+    if(defined($res) && defined($res->{'results'})){
+        
+        my $soap = OESS::NSI::Utils::build_client( proxy => $data->{'header'}->{'replyTo'}, ssl => $self->{'ssl'});
+        
+        my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
+        
+        eval{
+            my $soap_response = $soap->reserveAbortConfirmed($nsiheader, SOAP::Data->name(connectionId => $connection_id)->type(''));
+        };
+
+    }
+
+    log_error("Unable to remove circuit: " . $res->{'error'});
+    return OESS::NSI::Constant::ERROR;
+
+}
+
+
 sub get_endpoint{
     my $self = shift;
     my %params = @_;
@@ -148,19 +252,13 @@ sub get_endpoint{
     }
 
     my $stp = $params{'stp'};
-    #example URN urn:ogf:network:domain=al2s.net.internet2.edu:node=sdn-sw.elpa.net.internet2.edu:port=eth1/2:link=I2-DENV-ELPA-100GE-07748
+    #example URN urn:ogf:network:nsi.nddi-dev.bldc.net.internet2.edu:2013::s1:1-0:+
     my @parts = split(':',$stp);
     my $domain = $parts[3];
-    my $node = $parts[4];
-    my $interface = $parts[5];
-    my $link = $parts[6];
+    my $node = $parts[6];
+    my $interface = $parts[7];
+    my $link = $parts[8];
     
-#    $domain =~ /domain\=(.*)/;
-#    $domain = $1;
-#    $node =~ /node\=(.*)/;
-#    $node = $1;
-#    $interface =~ /port\=(.*)/;
-#    $interface = $1;
     $link =~ /\?vlan=(\d+)/;
     my $vlan = $1;
 
@@ -249,7 +347,7 @@ sub get_shortest_path{
 sub reserveCommit{
     my ($self, $args) = @_;
     
-    push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_COMMIT_CONFIRMED, connection_id => 100, args => $args});
+    push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_COMMIT_CONFIRMED, args => $args});
 
 }
 
@@ -274,73 +372,28 @@ sub process_queue {
             log_debug("handling reservation commit success");
             $self->_reserve_commit_confirmed($message->{'args'});
             next;
-        }elsif($type == OESS::NSI::Constant::DO_RELEASE){
-            $self->_do_release($message->{'args'});
-            next;
-        }elsif($type == OESS::NSI::Constant::RELEASE_FAILED){
-            $self->_release_failed($message->{'args'});
-            next;
-        }elsif($type == OESS::NSI::Constant::RELEASE_SUCCESS){
-            log_debug("handling release success");
-            $self->_release_confirmed($message->{'args'});
         }
     }
-}
-
-sub _release_failed{
-    my ($self, $args) = @_;
-
-    warn "RELEASE FAILED!!\n";
-}
-
-sub _do_release{
-    my ($self, $args) = @_;
-
-    my $connection_id = $args->{'connectionId'};
-
-    $self->{'websvc'}->set_url($self->{'websvc_location'} . "/provisioning.cgi");
-    my $res = $self->{'websvc'}->foo( action => "remove_circuit",
-                                      circuit_id => $connection_id,
-                                      workgroup_id => $self->{'workgroup_id'},
-                                      remove_time => -1);
-
-    if(defined($res) && defined($res->{'results'})){
-        warn "RELEASE SUCCESS!\n";
-        push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RELEASE_SUCCESS, args => $args});
-        return OESS::NSI::Constant::SUCCESS;
-    }
-
-    log_error("Unable to remove circuit: " . $res->{'error'});
-    warn "RELEASE FALIED!\n";
-    push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RELEASE_FAILED, args => $args});
-    return OESS::NSI::Constant::ERROR;
-
-}
-
-sub release{
-    my ($self, $args) = @_;
-    push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::DO_RELEASE, args => $args});
-    return OESS::NSI::Constant::SUCCESS;
 }
 
 sub _build_p2ps{
     my $p2ps = shift;
     
-    return SOAP::Data->name( p2ps => \SOAP::Data->value( SOAP::Data->name( capacity => $p2ps->{'capacity'} ),
-                                                         SOAP::Data->name( directionality => $p2ps->{'directionality'} ),
-                                                         SOAP::Data->name( sourceSTP => $p2ps->{'sourceSTP'} ),
-                                                         SOAP::Data->name( destSTP => $p2ps->{'destSTP'} )))->uri('http://schemas.ogf.org/nsi/2013/12/services/point2point');
+    return SOAP::Data->name( p2ps => \SOAP::Data->value( SOAP::Data->name( capacity => $p2ps->{'capacity'} )->type(''),
+                                                         SOAP::Data->name( directionality => $p2ps->{'directionality'} )->type(''),
+                                                         SOAP::Data->name( sourceSTP => $p2ps->{'sourceSTP'} )->type(''),
+                                                         SOAP::Data->name( destSTP => $p2ps->{'destSTP'} )->type('')))->uri('http://schemas.ogf.org/nsi/2013/12/services/point2point');
     
 }
 
 sub _build_schedule{
     my $schedule = shift;
     if($schedule->{'startTime'} ne ''){
-        return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( startTime => $schedule->{'startTime'})->type('ftypes:DateTimeType'),
-                                                                 SOAP::Data->name( endTime => $schedule->{'endTime'})->type('ftypes:DateTimeType')));
+        return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( startTime => $schedule->{'startTime'})->type(''),
+                                                                 SOAP::Data->name( endTime => $schedule->{'endTime'})->type('')));
     }
 
-    return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( endTime => $schedule->{'endTime'} )->type('ftypes:DateTimeType')));
+    return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( endTime => $schedule->{'endTime'} )->type('')));
 }
 
 sub _build_criteria{
@@ -348,7 +401,7 @@ sub _build_criteria{
     
     return SOAP::Data->name(criteria => 
                             \SOAP::Data->value( _build_schedule( $criteria->{'schedule'}),
-                                                SOAP::Data->name( serviceType => $criteria->{'serviceType'}->{'type'}),
+                                                SOAP::Data->name( serviceType => $criteria->{'serviceType'}->{'type'})->type(''),
                                                 _build_p2ps( $criteria->{'p2ps'} )
                             ))->attr({ version => $criteria->{'version'}->{'version'}++});
     
@@ -359,49 +412,34 @@ sub _reserve_confirmed {
     my ($self, $data, $connection_id) = @_;
 
     log_debug("Sending Reservation Confirmation");
-    warn Data::Dumper::Dumper($data);
-    my $soap = SOAP::Lite->new->proxy($data->{'header'}->{'replyTo'})->ns('http://schemas.ogf.org/sni/2013/12/framework/types','ftypes')->ns('http://schemas.ogf.org/nsi/2013/12/framework/headers','header')->ns('http://schemas.ogf.org/nsi/2013/12/connection/types','ctypes');
 
-    if($self->{'ssl'}->{'enabled'}){
-        $soap->transport->ssl_opts( SSL_cert_file => $self->{'ssl'}->{'cert'},
-                                    SSL_key_file => $self->{'ssl'}->{'key'});
-    }
+    warn Data::Dumper::Dumper($self->{'ssl'});
 
-    my $header = SOAP::Header->name("header:nsiHeader" => \SOAP::Data->value(
-                                        SOAP::Data->name(protocolVersion => $data->{'header'}->{'protocolVersion'}),
-                                        SOAP::Data->name(correlationId => $data->{'header'}->{'correlationId'}),
-                                        SOAP::Data->name(requesterNSA => $data->{'header'}->{'requesterNSA'}),
-                                        SOAP::Data->name(providerNSA => $data->{'header'}->{'providerNSA'})
-                                    ));
+    my $soap = OESS::NSI::Utils::build_client( proxy => $data->{'header'}->{'replyTo'}, ssl => $self->{'ssl'});
 
-    my $soap_response = $soap->reserveConfirmed($header, SOAP::Data->name(connectionId => $connection_id),
-                                                SOAP::Data->name(globalReservationId => $data->{'globalReservationId'}),
-                                                SOAP::Data->name(description => $data->{'description'}),
-                                                _build_criteria($data->{'criteria'}) 
-        );
-                                                
+    my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
+
+    eval{
+        my $soap_response = $soap->reserveConfirmed($nsiheader, SOAP::Data->name(connectionId => $connection_id)->type(''),
+                                                    SOAP::Data->name(globalReservationId => $data->{'globalReservationId'})->type(''),
+                                                    SOAP::Data->name(description => $data->{'description'})->type(''),
+                                                    _build_criteria($data->{'criteria'}) 
+            );
+
+    };
 }
 
 sub _reserve_commit_confirmed{
     my ($self, $data) = @_;
 
+    warn "Sending RESERVE COMMIT CONFIRMED!!!" . Data::Dumper::Dumper($data);
 
-    my $soap = SOAP::Lite->new->proxy($data->{'header'}->{'replyTo'})->ns('http://schemas.ogf.org/sni/2013/12/framework/types','ftypes')->ns('http://schemas.ogf.org/nsi/2013/12/framework/headers','header')->ns('http://schemas.ogf.org/nsi/2013/12/connection/types','ctypes');
+    my $soap = OESS::NSI::Utils::build_client( proxy =>$data->{'header'}->{'replyTo'},ssl => $self->{'ssl'});
 
-    if($self->{'ssl'}->{'enabled'}){
-        $soap->transport->ssl_opts( SSL_cert_file => $self->{'ssl'}->{'cert'},
-                                    SSL_key_file => $self->{'ssl'}->{'key'});
+    my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
+    eval{
+        my $soap_response = $soap->reserveCommitConfirmed($nsiheader, SOAP::Data->name(connectionId => $data->{'connectionId'})->type(''));
     }
-    
-    my $header = SOAP::Header->name("header:nsiHeader" => \SOAP::Data->value(
-                                        SOAP::Data->name(protocolVersion => $data->{'header'}->{'protocolVersion'}),
-                                        SOAP::Data->name(correlationId => $data->{'header'}->{'correlationId'}),
-                                        SOAP::Data->name(requesterNSA => $data->{'header'}->{'requesterNSA'}),
-                                        SOAP::Data->name(providerNSA => $data->{'header'}->{'providerNSA'})
-                                    ));
-
-    my $soap_response = $soap->reserveCommitConfirmed($header, SOAP::Data->name(connectionId => $data->{'connectionId'}));
-    
 }
 
 sub _build_service_exception{
@@ -409,11 +447,11 @@ sub _build_service_exception{
     my %params = @_;
     
     my $exception = SOAP::Data->name( serviceException => \SOAP::Data->value(
-                                          SOAP::Data->name( nsaId => $params{'nsaid'}),
-                                          SOAP::Data->name( connectionId => $params{'connectionId'}),
-                                          SOAP::Data->name( serviceType => $params{'serviceType'}),
-                                          SOAP::Data->name( errorId => $params{'errorId'}),
-                                          SOAP::Data->name( text => $params{'text'})));
+                                          SOAP::Data->name( nsaId => $params{'nsaid'})->type(''),
+                                          SOAP::Data->name( connectionId => $params{'connectionId'})->type(''),
+                                          SOAP::Data->name( serviceType => $params{'serviceType'}->{'type'})->type(''),
+                                          SOAP::Data->name( errorId => $params{'errorId'})->type(''),
+                                          SOAP::Data->name( text => $params{'text'})->type('')));
     
     return $exception;
 }
@@ -423,12 +461,12 @@ sub _build_connection_states{
     my %params = @_;
     
     my $connection_state = SOAP::Data->name( connectionStates => \SOAP::Data->value(
-                                                 SOAP::Data->name( reservationState => $params{'reservationState'}),
-                                                 SOAP::Data->name( provisionState => $params{'provisionState'}),
-                                                 SOAP::Data->name( lifecycleState => $params{'lifecycleState'}),
-                                                 SOAP::Data->name( dataPlaneStatus => \SOAP::Data->value( SOAP::Data->name( active => $params{'dataPlaneStatus'}->{'active'}),
-                                                                                                         SOAP::Data->name( version => $params{'dataPlaneStatus'}->{'version'}),
-                                                                                                         SOAP::Data->name( versionConsistent => $params{'dataPlaneStatus'}->{'versionConsistent'})))));
+                                                 SOAP::Data->name( reservationState => $params{'reservationState'})->type(''),
+                                                 SOAP::Data->name( provisionState => $params{'provisionState'})->type(''),
+                                                 SOAP::Data->name( lifecycleState => $params{'lifecycleState'})->type(''),
+                                                 SOAP::Data->name( dataPlaneStatus => \SOAP::Data->value( SOAP::Data->name( active => $params{'dataPlaneStatus'}->{'active'})->type(''),
+                                                                                                         SOAP::Data->name( version => $params{'dataPlaneStatus'}->{'version'})->type(''),
+                                                                                                         SOAP::Data->name( versionConsistent => $params{'dataPlaneStatus'}->{'versionConsistent'})->type('')))));
     return $connection_state;
 
 }
@@ -436,35 +474,27 @@ sub _build_connection_states{
 sub _reserve_failed {
     my ($self, $data) = @_;
 
-    my $soap = SOAP::Lite->new->proxy($data->{'header'}->{'replyTo'})->ns('http://schemas.ogf.org/sni/2013/12/framework/types','ftypes')->ns('http://schemas.ogf.org/nsi/2013/12/framework/headers','header')->ns('http://schemas.ogf.org/nsi/2013/12/connection/types','ctypes');
+    log_error("Sending reserve Failed!\n");
 
-    if($self->{'ssl'}->{'enabled'}){
-        $soap->transport->ssl_opts( SSL_cert_file => $self->{'ssl'}->{'cert'},
-                                    SSL_key_file => $self->{'ssl'}->{'key'});
-    }
+    my $soap = OESS::NSI::Utils::build_client( proxy =>$data->{'header'}->{'replyTo'},ssl => $self->{'ssl'});
+    my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
 
-    warn Data::Dumper::Dumper($data);
+    eval{
 
-    my $header = SOAP::Header->name("header:nsiHeader" => \SOAP::Data->value(
-                                        SOAP::Data->name(protocolVersion => $data->{'header'}->{'protocolVersion'}),
-                                        SOAP::Data->name(correlationId => $data->{'header'}->{'correlationId'}),
-                                        SOAP::Data->name(requesterNSA => $data->{'header'}->{'requesterNSA'}),
-                                        SOAP::Data->name(providerNSA => $data->{'header'}->{'providerNSA'})
-                                    ));
+        my $soap_response = $soap->reserveFailed($nsiheader, SOAP::Data->name(connectionId => $data->{'connectionId'})->type(''),
+                                                 $self->_build_service_exception( nsaId => $data->{'header'}->{'providerNSI'},
+                                                                                  connectionId => $data->{'connectionId'},
+                                                                                  serviceType => $data->{'criteria'}->{'serviceType'},
+                                                                                  errorId => 999,
+                                                                                  text => $data->{'fail_text'}),
+                                                 $self->_build_connection_states( reservationState => 'ReserveFailed',
+                                                                                  provisionState => 'released',
+                                                                                  lifecycleState => 'Created',
+                                                                                  dataPlaneStatus => { active => 'false',
+                                                                                                       version => $data->{'criteria'}->{'version'}->{'version'},
+                                                                                                       versionConsistent => 'true'}));
 
-    my $soap_response = $soap->reserveFailed($header, SOAP::Data->name(connectionId => $data->{'connectionId'}),
-                                             $self->_build_service_exception( nsaId => $data->{'header'}->{'providerNSI'},
-                                                                              connectionId => $data->{'connectionId'},
-                                                                              serviceType => $data->{'criteria'}->{'serviceType'},
-                                                                              errorId => 999,
-                                                                              text => $data->{'fail_text'}),
-                                             $self->_build_connection_states( reservationState => 'ReserveFailed',
-                                                                              provisionState => 'released',
-                                                                              lifecycleState => 'Created',
-                                                                              dataPlaneStatus => { active => 'false',
-                                                                                                   version => $data->{'criteria'}->{'version'}->{'version'},
-                                                                                                   versionConsistent => 'true'})   );
-
+    };
     log_debug("Sending Reservation Failure");
 }
 
@@ -500,11 +530,10 @@ sub _init {
 	'realm' => $self->{'websvc_realm'}
         );
 
-    $self->{'ssl'}->{'enabled'} = $self->{'config'}->get('/config/ssl/@enabled');
+    $self->{'ssl'} = $self->{'config'}->get('/config/ssl');
+    warn Data::Dumper::Dumper($self->{'ssl'});
     if(defined($self->{'ssl'}->{'enabled'}) && $self->{'ssl'}->{'enabled'} ne '' && $self->{'ssl'}->{'enabled'} eq 'true'){
         $self->{'ssl'}->{'enabled'} = 1;
-        $self->{'ssl'}->{'cert'} = $self->{'config'}->get('/config/ssl/@cert');
-        $self->{'ssl'}->{'key'} = $self->{'config'}->get('/config/ssl/@key');
     }
 
     $self->{'workgroup_id'} = $self->{'config'}->get('/config/oess-service/@workgroup-id');
@@ -517,21 +546,12 @@ sub _release_confirmed{
 
     warn "Release confirmed!\n";
 
-    my $soap = SOAP::Lite->new->proxy($data->{'header'}->{'replyTo'})->ns('http://schemas.ogf.org/sni/2013/12/framework/types','ftypes')->ns('http://schemas.ogf.org/nsi/2013/12/framework/headers','header')->ns('http://schemas.ogf.org/nsi/2013/12/connection/types','ctypes');
+    my $soap = OESS::NSI::Utils::build_client( proxy =>$data->{'header'}->{'replyTo'},ssl => $self->{'ssl'});
 
-    if($self->{'ssl'}->{'enabled'}){
-        $soap->transport->ssl_opts( SSL_cert_file => $self->{'ssl'}->{'cert'},
-                                    SSL_key_file => $self->{'ssl'}->{'key'});
-    }
-
-    my $header = SOAP::Header->name("header:nsiHeader" => \SOAP::Data->value(
-                                        SOAP::Data->name(protocolVersion => $data->{'header'}->{'protocolVersion'}),
-                                        SOAP::Data->name(correlationId => $data->{'header'}->{'correlationId'}),
-                                        SOAP::Data->name(requesterNSA => $data->{'header'}->{'requesterNSA'}),
-                                        SOAP::Data->name(providerNSA => $data->{'header'}->{'providerNSA'})
-                                    ));
-
-    my $soap_response = $soap->releaseConfirmed($header, SOAP::Data->name(connectionId => $data->{'connectionId'}));
+    my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
+    eval{
+        my $soap_response = $soap->releaseConfirmed($nsiheader, SOAP::Data->name(connectionId => $data->{'connectionId'})->type(''));
+    };
 }
 
 1;

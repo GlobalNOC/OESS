@@ -20,7 +20,7 @@
 #   limitations under the License.
 
 package OESS::NSI::Daemon;
-
+$ENV{CRYPT_SSLEAY_CIPHER} = 'ALL';
 use strict;
 use warnings;
 

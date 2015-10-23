@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 package OESS::NSI::Processor;
-
+$ENV{CRYPT_SSLEAY_CIPHER} = 'ALL';
 use strict;
 use warnings;
 
@@ -50,7 +50,7 @@ sub process_request {
     }elsif($request =~ /^terminate$/){
         return $self->{'provisioning'}->terminate($data);
     }elsif($request =~ /^release$/){
-        return $self->{'reservation'}->release($data);
+        return $self->{'provisioning'}->release($data);
     }elsif($request =~ /^querySummary$/){
         return $self->{'query'}->querySummary($data);
     }
