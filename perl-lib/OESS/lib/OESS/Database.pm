@@ -31,11 +31,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 1.1.8
+Version 1.1.7
 
 =cut
 
-our $VERSION = '1.1.8';
+our $VERSION = '1.1.7';
 
 =head1 SYNOPSIS
 
@@ -81,7 +81,7 @@ use OESS::Topology;
 use DateTime;
 use Data::Dumper;
 
-use constant VERSION => '1.1.8';
+use constant VERSION => '1.1.7';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant SHARE_DIR => "/usr/share/doc/perl-OESS-" . VERSION . "/";
@@ -6174,7 +6174,6 @@ sub provision_circuit {
     my $remote_tags      = $args{'remote_tags'} || [];
     my $restore_to_primary = $args{'restore_to_primary'} || 0;
     my $static_mac       = $args{'static_mac'} || 0;
-    my $state            = $args{'state'} || 'active';
 
     if($#{$interfaces} < 1){
         $self->_set_error("Need at least 2 endpoints");
@@ -6232,12 +6231,11 @@ sub provision_circuit {
 
     my $name = $workgroup_details->{'name'} . "-" . $uuid;
 
-    if(!defined($state)){
-	if($provision_time > time()){
-	    $state = "scheduled";
-	}else{
-	    $state = "deploying";
-	}
+        my $state;
+    if($provision_time > time()){
+        $state = "scheduled";
+    }else{
+        $state = "deploying";
     }
 
     # create circuit record
@@ -6256,7 +6254,7 @@ sub provision_circuit {
     $query = "insert into circuit_instantiation (circuit_id, reserved_bandwidth_mbps, circuit_state, modified_by_user_id, end_epoch, start_epoch) values (?, ?, ?, ?, -1, unix_timestamp(now()))";
     $self->_execute_query($query, [$circuit_id, $bandwidth, $state, $user_id]);
 
-    if($state eq 'scheduled' || $state eq 'reserved'){
+    if($state eq 'scheduled'){
 
         $args{'user_id'}    = $user_id;
         $args{'circuit_id'} = $circuit_id;
@@ -6268,9 +6266,9 @@ sub provision_circuit {
             return;
         }
 
-#        $self->_commit();
+        $self->_commit();
 
-#        return {"success" => 1, "circuit_id" => $circuit_id};
+        return {"success" => 1, "circuit_id" => $circuit_id};
     }
     #handle when an event isn't scheduled to be built, but does have a scheduled removal date.
     if($remove_time != -1){
@@ -6385,7 +6383,7 @@ sub provision_circuit {
 
         if (! $interface_id){
             $self->_set_error("Unable to find interface associated with URN: $urn");
-            $self->_rollback();
+                $self->_rollback();
             return;
         }
 
@@ -6394,7 +6392,7 @@ sub provision_circuit {
 
         if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $tag])){
             $self->_set_error("Unable to create circuit edge to interface \"$urn\" with tag $tag.");
-            $self->_rollback();
+                $self->_rollback();
             return;
         }
 
@@ -6416,7 +6414,7 @@ sub provision_circuit {
         # create the primary path object
         $query = "insert into path (path_type, circuit_id, path_state) values (?, ?, ?)";
 
-        my $path_state = "deploying";
+            my $path_state = "deploying";
 
         if ($path_type eq "backup"){
             $path_state = "available";
@@ -6681,49 +6679,6 @@ sub _add_remove_event {
     if (! defined $result){
 	$self->_set_error("Error creating scheduled removal.");
 	return;
-    }
-
-    return 1;
-}
-
-=head2 _add_remove_event
-
-=cut
-
-sub _add_edit_event {
-    my $self   = shift;
-    my $params = shift;
-
-    my $tmp;
-    $tmp->{'version'}       = "1.0";
-    $tmp->{'action'}        = "edit";
-    $tmp->{'state'}         = $params->{'state'};
-    $tmp->{'name'}          = $params->{'name'};
-    $tmp->{'bandwidth'}     = $params->{'bandwidth'};
-    $tmp->{'links'}         = $params->{'links'};
-    $tmp->{'backup_links'}  = $params->{'backup_links'};
-    $tmp->{'nodes'}         = $params->{'nodes'};
-    $tmp->{'interfaces'}    = $params->{'interfaces'};
-    $tmp->{'tags'}          = $params->{'tags'};
-    $tmp->{'start_time'}    = $params->{'start_time'};
-    $tmp->{'end_time'}      = $params->{'end_time'};
-
-
-    my $circuit_layout = XMLout($tmp);
-
-    my $query = "insert into scheduled_action (user_id,workgroup_id,circuit_id,registration_epoch,activation_epoch,circuit_layout,completion_epoch) VALUES (?,?,?,?,?,?,-1)";
-
-    my $result = $self->_execute_query($query,[$params->{'user_id'},
-                                               $params->{'workgroup_id'},
-                                               $params->{'circuit_id'},
-                                               time(),
-                                               $params->{'edit_time'},
-                                               $circuit_layout
-                                               ]);
-
-    if (! defined $result){
-        $self->_set_error("Error creating scheduled removal.");
-        return;
     }
 
     return 1;
@@ -7111,31 +7066,31 @@ sub edit_circuit {
     my $self = shift;
     my %args = @_;
 
-    my $circuit_id                = $args{'circuit_id'};
-    my $description               = $args{'description'};
-    my $bandwidth                 = $args{'bandwidth'};
-    my $provision_time            = $args{'provision_time'};
-    my $remove_time               = $args{'remove_time'};
-    my $links                     = $args{'links'};
-    my $backup_links              = $args{'backup_links'};
-    my $nodes                     = $args{'nodes'};
-    my $interfaces                = $args{'interfaces'};
-    my $tags                      = $args{'tags'};
-    my $state                     = $args{'state'} || "active";
-    my $user_name                 = $args{'user_name'};
-    my $workgroup_id              = $args{'workgroup_id'};
-    my $loop_node                 = $args{'loop_node'};
-    my $remote_endpoints          = $args{'remote_endpoints'} || [];
-    my $remote_tags               = $args{'remote_tags'} || [];
-    my $restore_to_primary        = $args{'restore_to_primary'} || 0;
-    my $mac_addresses             = $args{'mac_addresses'};
+    my $circuit_id     = $args{'circuit_id'};
+    my $description    = $args{'description'};
+    my $bandwidth      = $args{'bandwidth'};
+    my $provision_time = $args{'provision_time'};
+    my $remove_time    = $args{'remove_time'};
+    my $links          = $args{'links'};
+    my $backup_links   = $args{'backup_links'};
+    my $nodes          = $args{'nodes'};
+    my $interfaces     = $args{'interfaces'};
+    my $tags           = $args{'tags'};
+    my $state          = $args{'state'} || "active";
+    my $user_name      = $args{'user_name'};
+    my $workgroup_id   = $args{'workgroup_id'};
+    my $loop_node       = $args{'loop_node'};
+    my $remote_endpoints = $args{'remote_endpoints'} || [];
+    my $remote_tags      = $args{'remote_tags'} || [];
+    my $restore_to_primary = $args{'restore_to_primary'} || 0;
+    my $mac_addresses    = $args{'mac_addresses'};
     my $endpoint_mac_address_nums = $args{'endpoint_mac_address_nums'};
-    my $static_mac                = $args{'static_mac'} || 0;
-    my $do_commit                 = defined($args{'do_commit'}) ? $args{'do_commit'} : 1;
-    my $do_sanity_check           = defined($args{'do_sanity_check'}) ? $args{'do_sanity_check'} : 1;
+    my $static_mac       = $args{'static_mac'} || 0;
+    my $do_commit = defined($args{'do_commit'}) ? $args{'do_commit'} : 1;
+    my $do_sanity_check = defined($args{'do_sanity_check'}) ? $args{'do_sanity_check'} : 1;
 
     # whether this edit should only edit everything or just local bits
-    my $do_external               = $args{'do_external'} || 0;
+    my $do_external    = $args{'do_external'} || 0;
 
     # do a quick check on arguments passed in
     if($do_sanity_check && !$self->circuit_sanity_check(%args)){
@@ -8275,15 +8230,9 @@ Generates an XML representation of the OESS database designed to be compliant OS
 
 sub gen_topo{
     my $self   = shift;
-    my $wg = shift || OSCARS_WG;
-    my $domain_prefix = shift;
 
-    my $workgroup = $self->get_workgroup_details_by_name( name => $wg );
+    my $workgroup = $self->get_workgroup_details_by_name( name => OSCARS_WG );
     my $domain = $self->get_local_domain_name();
-
-    if(defined($domain_prefix)){
-        $domain = "$domain_prefix." . $domain;
-    }
 
     my $xml = "";
     my $writer = new XML::Writer(OUTPUT => \$xml, DATA_INDENT => 2, DATA_MODE => 1, NAMESPACES => 1);
@@ -9219,21 +9168,6 @@ sub is_watchdog_enabled{
     return 1 if(!defined($self->{'processes'}->{'watchdog'}));
 
     if($self->{'processes'}->{'watchdog'}->{'status'} eq 'enabled'){
-        return 1;
-    }else{
-        return 0;
-    }
-}
-
-=head2 is_nsi_enabled
-
-=cut
-
-sub is_nsi_enabled{
-    my $self = shift;
-    return 1 if(!defined($self->{'processes'}->{'nsi'}));
-
-    if($self->{'processes'}->{'nsi'}->{'status'} eq 'enabled'){
         return 1;
     }else{
         return 0;
