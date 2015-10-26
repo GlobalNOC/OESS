@@ -42,7 +42,8 @@ sub circuit_provision{
 
     foreach my $ckt_id (@{$self->{'watched_circuits'}}){
         if($circuit->{'circuit_id'} == $ckt_id){
-            ##fire event!
+            warn "Found a circuit that was modified!\n";
+            $self->{'provisioning'}->dataPlaneStateChange($ckt_id);
         }
     }
 }
