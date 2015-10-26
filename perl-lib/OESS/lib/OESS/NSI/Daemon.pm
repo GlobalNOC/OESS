@@ -34,7 +34,7 @@ use GRNOC::WebService::Client;
 use Proc::Daemon;
 use Data::Dumper;
 
-use constant DEFAULT_PID_FILE => '/var/run/oess-nsi-daemon.pid';
+use constant DEFAULT_PID_FILE => '/var/run/oess/oess-nsi.pid';
 
 our $VERSION = '0.0.1';
 
@@ -125,6 +125,7 @@ sub _run {
     $self->{'dbus_reactor'} = Net::DBus::Reactor->main();
     
     $self->{'dbus_reactor'}->add_timeout(10000, Net::DBus::Callback->new( method => sub { $self->_process_queues(@_); } ));
+    log_debug("Starting Reactor!");
     $self->{'dbus_reactor'}->run();
 }
 

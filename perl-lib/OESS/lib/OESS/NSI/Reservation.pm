@@ -62,10 +62,12 @@ sub _parseTime{
         return -1;
     }
     
-    warn Data::Dumper::Dumper($time);
+    log_debug("parsingTime: " . $time);
+
+    #here are some examples
     #2015-08-15T10:30:10.000Z
     #2015-10-22T20:33:00.000-07:00
-    $time =~ /(\d\d\d\d)-(\d\d)-(\d\d)T(\d\d)\:(\d\d):(\d\d)\.\d\d\d(.*)/;
+    $time =~ /(\d\d\d\d)-(\d\d)-(\d\d)T(\d\d)\:(\d\d):(\d\d)(.*)/; #\.\d\d\d(.*)/;
 
     my $year = $1;
     my $month = $2;
@@ -74,22 +76,23 @@ sub _parseTime{
     my $min = $5;
     my $sec = $6;
 
-    warn "Time: " . $year . "-" . $month . "-" . $day . "T" . $hour . ":" . $min . "\n";
+    log_debug("Time: " . $year . "-" . $month . "-" . $day . "T" . $hour . ":" . $min);
 
     my $tz = $7;
-    
-    warn "TZ: " . $tz . "\n";
 
+    log_debug("TZ: " . $tz);
+
+    #handle the ms if they exist...
+    $tz =~ s/\.\d\d\d//g;
+    
     if($tz eq 'Z'){
         $tz = "UTC";
     }else{
         $tz =~ s/\://g;
     }
 
-    warn "TZ: " . $tz . "\n";
+    log_debug("Cleaned TZ: " .$tz);
 
-    warn "about to create date time object\n";
-    
     my $dt;
     eval{
         $dt = DateTime->new(
@@ -102,9 +105,8 @@ sub _parseTime{
             );
     };
     warn() if $@;
-    warn "date time object created!\n";
 
-    warn Data::Dumper::Dumper($dt);
+    log_debug("DateTime object created!");
 
     return $dt->epoch();
 }
@@ -123,13 +125,10 @@ sub reserve {
     my $capacity = $args->{'criteria'}->{'p2ps'}->{'capacity'};
     my $reply_to = $args->{'header'}->{'replyTo'};
 
-    warn "Start and End Times!\n";
-    warn Data::Dumper::Dumper($start_time);
-    warn Data::Dumper::Dumper($end_time);
-    
-    warn "IN RESERVE!\n";
+    log_info("new reservation request: Requester " . $args->{'header'}->{'requesterNSA'} . " sourceSTP: " . $source_stp . " destSTP: " . $dest_stp . " description: " . $description . " gri: " . $gri);
 
     if(!$description || !$source_stp || !$dest_stp || !$reply_to){
+        log_info("reservation request missing some parameters!");
         push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_FAIL, connection_id => 9999999, args => $args});
         return OESS::NSI::Constant::MISSING_REQUEST_PARAMETERS;
     }
@@ -150,15 +149,15 @@ sub reserve {
     }
 
     if(!$self->validate_endpoint($ep1)){
-        log_error("sourceSTP is not allowed for NSI");
-        $args->{'fail_text'} = "Source STP not allowed for NSI workgroup";
+        log_error("sourceSTP $source_stp is not allowed for NSI");
+        $args->{'fail_text'} = "Source STP $source_stp not allowed for NSI workgroup";
         push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_FAIL, connection_id => 9999999, args => $args});
         return OESS::NSI::Constant::RESERVATION_FAIL;
     }
 
     if(!$self->validate_endpoint($ep2)){
-        log_error("destSTP is not allowed for NSI");
-        $args->{'fail_text'} = "destSTP is not allowed for NSI workgroup";
+        log_error("destSTP $dest_stp is not allowed for NSI");
+        $args->{'fail_text'} = "destSTP $dest_stp is not allowed for NSI workgroup";
         push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_FAIL, connection_id => 9999999, args => $args});
         return OESS::NSI::Constant::RESERVATION_FAIL;
     }
@@ -166,14 +165,14 @@ sub reserve {
 
     my $primary_path = $self->get_shortest_path($ep1, $ep2, []);
     if(!defined($primary_path)){
-        log_error("Unable to connect the source and dest STPs");
+        log_error("Unable to connect $source_stp and $dest_stp");
         $args->{'fail_text'} = "no path exists connecting both source and destination STP";
         push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_FAIL, connection_id => 9999999, args => $args});
         return OESS::NSI::Constant::RESERVATION_FAIL;
     }
     
     my $backup_path = $self->get_shortest_path($ep1, $ep2, $primary_path);
-    
+
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "provisioning.cgi");
     
     my $res = $self->{'websvc'}->foo( action => "provision_circuit",
@@ -193,6 +192,7 @@ sub reserve {
                                       tag => [$ep1->{'vlan'}, $ep2->{'vlan'}]);
     
     if(defined($res->{'results'}) && $res->{'results'}->{'success'} == 1){
+        log_info("Successfully created reservation, connectionId: " . $res->{'results'}->{'circuit_id'});
         push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_SUCCESS, connection_id => $res->{'results'}->{'circuit_id'}, args => $args});
         return $res->{'results'}->{'circuit_id'};
     }else{
@@ -221,6 +221,8 @@ sub _do_reserve_abort{
 
     my $connection_id = $data->{'connectionId'};
     
+    log_info("reservationAbort: connectionId: " . $connection_id);
+
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "/provisioning.cgi");
     my $res = $self->{'websvc'}->foo( action => "remove_circuit",
                                       circuit_id => $connection_id,
@@ -228,15 +230,16 @@ sub _do_reserve_abort{
                                       remove_time => -1);
     
     if(defined($res) && defined($res->{'results'})){
-        
+        log_info("reservationAbort successfull: connectionId: " . $connection_id);
         my $soap = OESS::NSI::Utils::build_client( proxy => $data->{'header'}->{'replyTo'}, ssl => $self->{'ssl'});
-        
         my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
-        
+        my $soap_response;
         eval{
-            my $soap_response = $soap->reserveAbortConfirmed($nsiheader, SOAP::Data->name(connectionId => $connection_id)->type(''));
+            $soap_response = $soap->reserveAbortConfirmed($nsiheader, SOAP::Data->name(connectionId => $connection_id)->type(''));
         };
-
+        log_debug("Response: " . Data::Dumper::Dumper($soap_response));
+        log_error("Error sending SOAP confirmation: " . Data::Dumper::Dumper($soap_response) . " " . Data::Dumper::Dumper($@)) if defined($@);
+        return;
     }
 
     log_error("Unable to remove circuit: " . $res->{'error'});
@@ -250,6 +253,7 @@ sub get_endpoint{
     my %params = @_;
 
     if(!defined($params{'stp'})){
+        log_error("get_endpoint: stp is undefined");
         return;
     }
 
@@ -265,7 +269,7 @@ sub get_endpoint{
     my $vlan = $1;
 
     if(!defined($domain) || !defined($node) || !defined($interface) || !defined($vlan)){
-        log_error("Error processing URN, missing some important pieces");
+        log_error("Error processing URN $stp, missing some important pieces");
         return;
     }
 
@@ -281,26 +285,28 @@ sub validate_endpoint{
 
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "data.cgi");
 
-    print STDOUT Data::Dumper::Dumper($ep);
+    log_debug("Checking validity of EP: " . Data::Dumper::Dumper($ep));
     
+    log_debug("requesting all resources for NSI workgroup");
     my $res = $self->{'websvc'}->foo( action => "get_all_resources_for_workgroup",
                                       workgroup_id => $self->{'workgroup_id'});
 
-    warn Data::Dumper::Dumper($res);
 
-    if(defined($res) && defined($res->{'results'})){
+    if(defined($res) && defined($res->{'results'})){        
         foreach my $resource (@{$res->{'results'}}){
             if($resource->{'node_name'} eq $ep->{'node'}){
                 if($resource->{'interface_name'} eq $ep->{'port'}){
-                    
+                    log_debug("Found interface for requested EP, requesting VLAN availability");
                     #made it this far!
                     my $valid_tag = $self->{'websvc'}->foo( action => "is_vlan_tag_available",
                                                             interface => $ep->{'port'},
                                                             node => $ep->{'node'},
                                                             vlan => $ep->{'vlan'},
 							    workgroup_id => $self->{'workgroup_id'});
+                    
+                    log_debug("Results from is valid tag: " . Data::Dumper::Dumper($valid_tag));
                     if(defined($valid_tag) && $valid_tag->{'results'}){
-                        warn Data::Dumper::Dumper($valid_tag);
+                        log_debug("results from is_vlan_tag_available: " . Data::Dumper::Dumper($valid_tag->{'results'}));
 			if($valid_tag->{'results'}->[0]->{'available'} == 1){
                             return 1;
                         }
@@ -311,7 +317,7 @@ sub validate_endpoint{
             }
         }
     }else{
-        log_error("Unable to fetch workgroup resources");
+        log_error("Unable to fetch workgroup resources" . Data::Dumper::Dumper($res));
         return 0;
     }
     log_error("not a valid endpoint, or not allowed via NSI workgroup");
@@ -332,7 +338,7 @@ sub get_shortest_path{
                                                 node => [$ep1->{'node'},$ep2->{'node'}],
                                                 link => $links);
     
-    warn Data::Dumper::Dumper($shortest_path);
+    log_debug("Shortest path: " . Data::Dumper::Dumper($shortest_path));
     if(defined($shortest_path) && defined($shortest_path->{'results'})){
 	my @links = ();
 	foreach my $link (@{$shortest_path->{'results'}}){
@@ -340,15 +346,15 @@ sub get_shortest_path{
 	}
 	return \@links;
     }
-
+    log_error("unable to find path");
     return;
-                                                
-    
 }
 
 sub reserveCommit{
     my ($self, $args) = @_;
     
+    log_info("reserveCommit: connectionId: " . $args->{'connectionId'});
+
     push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_COMMIT_CONFIRMED, args => $args});
 
 }
@@ -356,8 +362,7 @@ sub reserveCommit{
 sub process_queue {
     my ($self) = @_;
 
-    log_debug("Processing Reservation Queue.");
-    warn "Reservation Queue1: " . Data::Dumper::Dumper($self->{'reservation_queue'});
+    log_debug("Processing Reservation Queue");
     while(my $message = shift(@{$self->{'reservation_queue'}})){
         my $type = $message->{'type'};
 
@@ -373,6 +378,13 @@ sub process_queue {
         }elsif($type == OESS::NSI::Constant::RESERVATION_COMMIT_CONFIRMED){
             log_debug("handling reservation commit success");
             $self->_reserve_commit_confirmed($message->{'args'});
+            next;
+        }elsif($type == OESS::NSI::Constant::DO_RESERVE_ABORT,){
+            log_debug("handling reservation abort");
+            $self->_do_reserve_abort($message->{'args'});
+            next;            
+        }else{
+            log_error("Unknown message type: " . $type);
             next;
         }
     }
@@ -415,8 +427,6 @@ sub _reserve_confirmed {
 
     log_debug("Sending Reservation Confirmation");
 
-    warn Data::Dumper::Dumper($self->{'ssl'});
-
     my $soap = OESS::NSI::Utils::build_client( proxy => $data->{'header'}->{'replyTo'}, ssl => $self->{'ssl'});
 
     my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
@@ -427,21 +437,22 @@ sub _reserve_confirmed {
                                                     SOAP::Data->name(description => $data->{'description'})->type(''),
                                                     _build_criteria($data->{'criteria'}) 
             );
-
+        
     };
+    log_error("Error sending reserveConfirmed message: " .Data::Dumper::Dumper($@)) if $@;
+
 }
 
 sub _reserve_commit_confirmed{
     my ($self, $data) = @_;
-
-    warn "Sending RESERVE COMMIT CONFIRMED!!!" . Data::Dumper::Dumper($data);
 
     my $soap = OESS::NSI::Utils::build_client( proxy =>$data->{'header'}->{'replyTo'},ssl => $self->{'ssl'});
 
     my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
     eval{
         my $soap_response = $soap->reserveCommitConfirmed($nsiheader, SOAP::Data->name(connectionId => $data->{'connectionId'})->type(''));
-    }
+    };
+    log_error("Error sending reserveCommitConfirmed message: " .Data::Dumper::Dumper($@)) if $@;
 }
 
 sub _build_service_exception{
@@ -476,7 +487,9 @@ sub _build_connection_states{
 sub _reserve_failed {
     my ($self, $data) = @_;
 
-    log_error("Sending reserve Failed!\n");
+    log_debug("Sending reserve Failed!\n");
+
+    log_error("Error reserving circuit... sending reserveFailed message");
 
     my $soap = OESS::NSI::Utils::build_client( proxy =>$data->{'header'}->{'replyTo'},ssl => $self->{'ssl'});
     my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
@@ -497,7 +510,7 @@ sub _reserve_failed {
                                                                                                        versionConsistent => 'true'}));
 
     };
-    log_debug("Sending Reservation Failure");
+    log_error("Error sending reserveFailed: " . Data::Dumper::Dumper($@)) if $@;
 }
 
 sub _init {
@@ -517,8 +530,6 @@ sub _init {
         'debug' => $self->{'debug'}
         );
 
-    $websvc->{'debug'} = 1;
-
     $self->{'websvc'} = $websvc;
 
     $self->{'websvc_user'}     = $self->{'config'}->get('/config/oess-service/@username');
@@ -533,7 +544,6 @@ sub _init {
         );
 
     $self->{'ssl'} = $self->{'config'}->get('/config/ssl');
-    warn Data::Dumper::Dumper($self->{'ssl'});
     if(defined($self->{'ssl'}->{'enabled'}) && $self->{'ssl'}->{'enabled'} ne '' && $self->{'ssl'}->{'enabled'} eq 'true'){
         $self->{'ssl'}->{'enabled'} = 1;
     }
@@ -546,7 +556,7 @@ sub _init {
 sub _release_confirmed{
     my ($self, $data) = @_;
 
-    warn "Release confirmed!\n";
+    log_info(" releaseConfirmed: connectionId" . $data->{'connectionId'});
 
     my $soap = OESS::NSI::Utils::build_client( proxy =>$data->{'header'}->{'replyTo'},ssl => $self->{'ssl'});
 
@@ -554,6 +564,7 @@ sub _release_confirmed{
     eval{
         my $soap_response = $soap->releaseConfirmed($nsiheader, SOAP::Data->name(connectionId => $data->{'connectionId'})->type(''));
     };
+    log_error("Error sending releaseConfirmed: " . Data::Dumper::Dumper($@)) if $@;
 }
 
 1;
