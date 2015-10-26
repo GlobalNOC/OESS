@@ -25,7 +25,7 @@ use warnings;
 use OESS::NSI::Daemon;
 use GRNOC::Log;
 use GRNOC::Config;
-
+use English;
 use Getopt::Long;
 use Data::Dumper;
 
@@ -35,8 +35,10 @@ my $config_file = DEFAULT_CONFIG_FILE;
 my $nofork = 0;
 my $debug = 0;
 my $help;
+my $username; 
 
 GetOptions(
+    'user|u=s' => \$username,
     'config=s' => \$config_file,
     'nofork' => \$nofork,
     'debug|d' => \$debug,
@@ -44,6 +46,13 @@ GetOptions(
 );
 
 usage() if($help);
+
+if (defined $username) {
+    my $new_uid=getpwnam($username);
+    my $new_gid=getgrnam($username);
+    $EGID=$new_gid;
+    $EUID=$new_uid;
+}
 
 my $config = new GRNOC::Config(
     'config_file' => $config_file,

@@ -4,7 +4,7 @@
 #
 # chkconfig: 2345 81 30
 # description: Starts the OE-SS NSI daemon - listens for NSI requests and handles them
-# processname: /usr/bin/oess-nsi.pl
+# processname: /usr/bin/oess-nsi
 
 # Source function library
 if [ -f /etc/rc.d/init.d/functions ]; then
@@ -21,10 +21,10 @@ fi
 # Check that networking is up.
 [ ${NETWORKING} = "no" ] && exit 0
 name=oess-nsi
-exec_file=/usr/bin/$name.pl
+exec_file=/usr/bin/$name
 log_file=/var/log/$name.log
 options=
-username=_snapp
+username=_oess
 lockfile=/var/lock/subsys/$name
 command="$exec_file -u $username $options"
 PIDFILE=/var/run/oess/$name.pid
@@ -98,7 +98,7 @@ case "$1" in
         #stop
         if [ -f $PIDFILE ]; then
                 action $"Stopping ${name}: " /bin/true
-                kill -TERM `cat $PIDFILE`
+                kill -9 `cat $PIDFILE`
                 rm -f $PIDFILE
         else
                 action $"Stopping ${name}: " /bin/false

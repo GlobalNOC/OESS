@@ -34,7 +34,7 @@ use GRNOC::WebService::Client;
 use Proc::Daemon;
 use Data::Dumper;
 
-use constant DEFAULT_PID_FILE => '/var/run/oess-nsi-daemon.pid';
+use constant DEFAULT_PID_FILE => '/var/run/oess/oess-nsi.pid';
 
 our $VERSION = '0.0.1';
 
