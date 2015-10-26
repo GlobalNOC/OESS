@@ -53,8 +53,6 @@ sub _init {
         'debug' => $self->{'debug'}
         );
 
-    $websvc->{'debug'} = 1;
-
     $self->{'websvc'} = $websvc;
 
     $self->{'websvc_user'}     = $self->{'config'}->get('/config/oess-service/@username');
@@ -68,11 +66,9 @@ sub _init {
         'realm' => $self->{'websvc_realm'}
         );
 
-    $self->{'ssl'}->{'enabled'} = $self->{'config'}->get('/config/ssl/@enabled');
+    $self->{'ssl'} = $self->{'config'}->get('/config/ssl');
     if(defined($self->{'ssl'}->{'enabled'}) && $self->{'ssl'}->{'enabled'} ne '' && $self->{'ssl'}->{'enabled'} eq 'true'){
         $self->{'ssl'}->{'enabled'} = 1;
-        $self->{'ssl'}->{'cert'} = $self->{'config'}->get('/config/ssl/@cert');
-        $self->{'ssl'}->{'key'} = $self->{'config'}->get('/config/ssl/@key');
     }
 
     $self->{'workgroup_id'} = $self->{'config'}->get('/config/oess-service/@workgroup-id');

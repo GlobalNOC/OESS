@@ -15,10 +15,6 @@ sub _send_to_daemon{
     my $method = shift;
     my $data = shift;
 
-#    warn "Method: " . $method;
-#    warn Data::Dumper::Dumper($data);
-#    return;
-
     my $bus = Net::DBus->system;
 
     my $client;
@@ -263,9 +259,9 @@ sub reserveAbort{
 
     my $res = _send_to_daemon("reserveAbort",{ connectionId => $connectionId,
 					       header => $header});
-
+    
     my $nsiheader = OESS::NSI::Utils::build_header($header);
-
+    
     return ("acknowledgment",$nsiheader);
 }
 

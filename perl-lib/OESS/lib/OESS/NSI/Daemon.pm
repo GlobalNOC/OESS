@@ -125,6 +125,7 @@ sub _run {
     $self->{'dbus_reactor'} = Net::DBus::Reactor->main();
     
     $self->{'dbus_reactor'}->add_timeout(10000, Net::DBus::Callback->new( method => sub { $self->_process_queues(@_); } ));
+    log_debug("Starting Reactor!");
     $self->{'dbus_reactor'}->run();
 }
 
