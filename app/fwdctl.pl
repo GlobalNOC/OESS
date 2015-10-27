@@ -36,6 +36,7 @@ use Data::Dumper;
 my $log;
 
 my $srv_object = undef;
+my $pid_file = "/var/run/oess/fwdctl.pid";
 
 sub core{
     Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
@@ -105,6 +106,24 @@ sub main{
     my $verbose;
     my $username;
 
+    #--- see if the pid file exists. if not then just continue running.
+    if(-e $pid_file){
+        #--- read the file to get the PID
+        my $pid = `head -n 1 $pid_file`;
+        chomp $pid;
+
+        my $run_test = `ps -p $pid | grep $pid`;
+
+        #--- if run test is empty then the pid didn't exist. If it isn't empty then the process is already running.
+        if($run_test){
+            print "Found $0 process: $pid already running. Aborting.\n";
+            exit(0);
+        }
+        else{
+            print "Pid File: $pid_file already exists but it looks like process $pid is dead. Continuing startup.\n";
+        }
+    }
+
     my $result = GetOptions (
                              "user|u=s"  => \$username,
                              "verbose"   => \$verbose,
@@ -124,19 +143,19 @@ sub main{
         my $daemon;
         if ($verbose) {
             $daemon = Proc::Daemon->new(
-                                        pid_file => '/var/run/oess/fwdctl.pid',
+                                        pid_file => $pid_file,
                                         child_STDOUT => '/var/log/oess/fwdctl.out',
                                         child_STDERR => '/var/log/oess/fwdctl.log',
                                        );
         } else {
             $daemon = Proc::Daemon->new(
-                                        pid_file => '/var/run/oess/fwdctl.pid'
+                                        pid_file => $pid_file
                                        );
         }
         my $kid_pid = $daemon->Init;
 
         if ($kid_pid) {
-            `chmod 0644 /var/run/oess/fwdctl.pid`;
+            `chmod 0644 $pid_file`;
             return;
         }
 
@@ -144,7 +163,7 @@ sub main{
     }
     #not a deamon, just run the core;
     else {
-    $SIG{HUP} = sub{ exit(0); };
+        $SIG{HUP} = sub{ exit(0); };
         core();
     }
 
