@@ -1,4 +1,4 @@
 <config snapp_config_location="t/conf/SNMP/snapp/snapp_config.xml" host="127.0.0.1" port="3306" admin_email="foo@bar.com">
-  <credentials username="root" password="openflow123" database="oess_test" />
+  <credentials username="root" password="rcracer1" database="oess_test" />
   <oscars host="https://nddi-dev.bldc.net.internet2.edu" cert="mycert.crt" key="mykey.key" topo="http://ndb7.net.internet2.edu:8012/perfSONAR_PS/services/topology"/>
 </config>
