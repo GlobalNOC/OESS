@@ -6,9 +6,13 @@ use LWP::UserAgent;
 
 
 sub main{
+    my $wg_name = shift;
+    my $prefix = shift;
+    
 
     my $db = OESS::Database->new();
-    my $topology_xml = $db->gen_topo();
+    my $topology_xml = $db->gen_topo( $wg_name, $prefix);
+    warn "TOPOLOGY: " . $topology_xml . "\n";
     my $httpEndpoint = $db->get_oscars_topo();
 
     my $results;
@@ -52,5 +56,5 @@ sub main{
 }
 
 main();
-
+main("NSI","nsi");
 

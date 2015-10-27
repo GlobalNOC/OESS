@@ -40,6 +40,7 @@ ok(defined($user), "User updated");
 #my $res;
 # try provisioning a circuit when acl rules block you 
 my $res = $db->provision_circuit(
+    'state' => 'reserved',
     'description' => "Test",
     'bandwidth' => 1337,
     'provision_time' => 1377716981,
@@ -57,6 +58,7 @@ ok(!$res, 'authorization check');
 is($db->get_error(),'Interface "e15/1" on endpoint "Node 11" with VLAN tag "1" is not allowed for this workgroup.','correct error');
 
 $res = $db->provision_circuit(
+    'state' => 'reserved',
     'description' => "Test",
     'bandwidth' => 1337,
     'provision_time' => 1377716981,
@@ -65,7 +67,7 @@ $res = $db->provision_circuit(
     'backup_links' => [],
     'nodes' => ['Node 11', 'Node 51'], 
     'interfaces' => ['e1/1', 'e15/1'],
-    'tags' => [1,1],
+    'tags' => [10,10],
     'user_name' => 'aragusa',
     'workgroup_id' => 11,
     'external_id' => undef
@@ -80,7 +82,7 @@ $res = $db->get_circuit_details(
 delete $res->{'last_modified_by'};
 my $correct_result =  {
           'external_identifier' => undef,
-          'state' => 'active',
+          'state' => 'reserved',
           'remote_requester' => undef,
           'remote_url' => undef,
           'static_mac' => 0,
@@ -132,7 +134,7 @@ my $correct_result =  {
                              'node_id' => '11',
                              'urn' => undef,
                              'interface' => 'e1/1',
-                             'tag' => '1',
+                             'tag' => '10',
                              'role' => 'unknown',
                              'mac_addrs' => []
                            },
@@ -144,7 +146,7 @@ my $correct_result =  {
                              'node_id' => '51',
                              'urn' => undef,
                              'interface' => 'e15/1',
-                             'tag' => '1',
+                             'tag' => '10',
                              'role' => 'unknown',
                              'mac_addrs' => []
                            }
@@ -156,31 +158,30 @@ my $correct_result =  {
                            'name' => 'Workgroup 11',
                            'type' => 'admin',
                            'description' => '',
-			   'max_circuits' => 44,
+			   'max_circuits' => 144,
 			   'max_mac_address_per_end' => 10,
                'max_circuit_endpoints' => 10
                          },
-          'active_path' => 'primary',
-          'bandwidth' => '1337',
-          'internal_ids' => {
-                              'primary' => {
-                                  'Node 11' => {
-                                      '851' => '102'
-                                  },
-                                          'Node 5721' => {
-                                              '45781' => '28'
-                                      },
-                                                  'Node 61' => {
-                                                      '161' => '104',
-                                                      '171' => '105'
-                                              },
-                                                          'Node 51' => {
-                                                              '71' => '101',
-                                                              '61' => '102'
-                                                      }
-                              }
-      },
-
+                   'active_path' => 'primary',
+                   'bandwidth' => '1337',
+                   'internal_ids' => {
+                       'primary' => {
+                           'Node 11' => {
+                               '851' => '105'
+                           },
+                                   'Node 5721' => {
+                                       '45781' => '29'
+                               },
+                                           'Node 61' => {
+                                               '161' => '135',
+                                               '171' => '108'
+                                       },
+                                                   'Node 51' => {
+                                                       '71' => '102',
+                                                       '61' => '105'
+                                               }
+                       }
+               },
           'user_id' => '11',
           'restore_to_primary' => '0',
           'operational_state' => 'unknown'

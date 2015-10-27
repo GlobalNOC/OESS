@@ -14,7 +14,7 @@ BEGIN {
 use lib "$path";
 use OESSDatabaseTester;
 
-use Test::More tests => 5;
+use Test::More tests => 4;
 use Test::Deep;
 use OESS::Database;
 use OESSDatabaseTester;
@@ -22,24 +22,10 @@ use Data::Dumper;
 
 my $db = OESS::Database->new(config => OESSDatabaseTester::getConfigFilePath());
 
-# Ensure user is active.
-my $user = $db->edit_user(user_id => '11',
-                          given_name => 'User 11',
-                          family_name => 'User 11',
-                          email_address => 'user_11@foo.net',
-                          auth_names => ['aragusa'],
-                          status => 'active',
-                          type => 'normal');
-                        
-ok(defined($user), "User updated");
-
-#OESSDatabaseTester::workgroupLimits( workgroup_id => 11, 
-#                                     db => $db,
-#                                     circuit_num => 1);
-
 #my $res;
-# try provisioning a circuit when acl rules block you 
-my $res = $db->provision_circuit(
+# try editing a circuit when acl rule will block you
+my $res = $db->edit_circuit(
+    'circuit_id' => 51,
     'description' => "Test",
     'bandwidth' => 1337,
     'provision_time' => 1377716981,
@@ -56,8 +42,11 @@ my $res = $db->provision_circuit(
 ok(!$res, 'authorization check');
 is($db->get_error(),'Interface "e15/1" on endpoint "Node 11" with VLAN tag "1" is not allowed for this workgroup.','correct error');
 
-$res = $db->provision_circuit(
+$res = $db->edit_circuit(
+    'circuit_id' => 51,
+    'state' => 'reserved',
     'description' => "Test",
+    'loop_node' => undef,
     'bandwidth' => 1337,
     'provision_time' => 1377716981,
     'remove_time' => 1380308981,
@@ -65,27 +54,46 @@ $res = $db->provision_circuit(
     'backup_links' => [],
     'nodes' => ['Node 11', 'Node 51'], 
     'interfaces' => ['e1/1', 'e15/1'],
-    'tags' => [1,1],
+    'tags' => [9,9],
     'user_name' => 'aragusa',
     'workgroup_id' => 11,
     'external_id' => undef
 );
 
-ok($res->{'success'}, "circuit successfully added");
-#print "Status: ".Dumper($res);
+ok($res->{'success'}, "circuit successfully edited");
 
 $res = $db->get_circuit_details(
     circuit_id => $res->{'circuit_id'},
 );
-delete $res->{'last_modified_by'};
-my $correct_result =  {
-          'external_identifier' => undef,
-          'state' => 'active',
+
+
+# delete the name since that's randomly generated
+delete $res->{'name'};
+# delete last edited since that changes
+delete $res->{'last_edited'};
+# delete internal ids
+delete $res->{'internal_ids'};
+
+my $correct_result = {
+          'static_mac' => 0,
           'remote_requester' => undef,
           'remote_url' => undef,
-          'static_mac' => 0,
-          'backup_links' => [],
+          'external_identifier' => undef,
+          'last_modified_by' => {
+                                  'email' => 'user_11@foo.net',
+                                  'is_admin' => '0',
+                                  'auth_id' => 973,
+                                  'type' => 'normal',
+                                  'given_names' => 'User 11',
+                                  'user_id' => 11,
+                                  'family_name' => 'User 11',
+                                  'auth_name' => 'aragusa',
+                                  'status' => 'active'
+                                },
+          'state' => 'reserved',
           'loop_node' => undef,
+          'backup_links' => [],
+          'created_on' => '09/30/2012 00:11:09',
           'links' => [
                        {
                          'interface_z' => 'e3/2',
@@ -121,6 +129,7 @@ my $correct_result =  {
                          'interface_a' => 'e3/1'
                        }
                      ],
+          'circuit_id' => 51,
           'workgroup_id' => '11',
           'description' => 'Test',
           'endpoints' => [
@@ -132,7 +141,7 @@ my $correct_result =  {
                              'node_id' => '11',
                              'urn' => undef,
                              'interface' => 'e1/1',
-                             'tag' => '1',
+                             'tag' => '9',
                              'role' => 'unknown',
                              'mac_addrs' => []
                            },
@@ -144,7 +153,7 @@ my $correct_result =  {
                              'node_id' => '51',
                              'urn' => undef,
                              'interface' => 'e15/1',
-                             'tag' => '1',
+                             'tag' => '9',
                              'role' => 'unknown',
                              'mac_addrs' => []
                            }
@@ -152,48 +161,32 @@ my $correct_result =  {
           'workgroup' => {
                            'workgroup_id' => '11',
                            'external_id' => undef,
-                           'status' => 'active',
                            'name' => 'Workgroup 11',
+                           'status' => 'active',
                            'type' => 'admin',
                            'description' => '',
-			   'max_circuits' => 44,
-			   'max_mac_address_per_end' => 10,
-               'max_circuit_endpoints' => 10
+                           'max_circuits' => 144,
+                           'max_mac_address_per_end' => 10,
+                           'max_circuit_endpoints' => 10
                          },
           'active_path' => 'primary',
-          'bandwidth' => '1337',
-          'internal_ids' => {
-                              'primary' => {
-                                  'Node 11' => {
-                                      '851' => '102'
-                                  },
-                                          'Node 5721' => {
-                                              '45781' => '28'
-                                      },
-                                                  'Node 61' => {
-                                                      '161' => '104',
-                                                      '171' => '105'
-                                              },
-                                                          'Node 51' => {
-                                                              '71' => '101',
-                                                              '61' => '102'
-                                                      }
-                              }
-      },
-
+          'bandwidth' => 1337,
           'user_id' => '11',
           'restore_to_primary' => '0',
-          'operational_state' => 'unknown'
+          'operational_state' => 'unknown',
+          'created_by' => {
+                            'email' => 'user_201@foo.net',
+                            'is_admin' => '0',
+                            'auth_id' => '191',
+                            'type' => 'normal',
+                            'given_names' => 'User 201',
+                            'user_id' => '201',
+                            'family_name' => 'User 201',
+                            'auth_name' => 'user_201@foo.net',
+                            'status' => 'active'
+                          }
 };
 
-# delete the name since that's randomly generated
-delete $res->{'name'};
-# delete last edited since that changes
-delete $res->{'last_edited'};
-# delete the circuit_id since that's liable to change with the addition of tests
-warn $res->{'circuit_id'};
-delete $res->{'circuit_id'};
+warn Dumper($res);
 
-warn Data::Dumper::Dumper($correct_result);
-warn Data::Dumper::Dumper($res);
 cmp_deeply($res, $correct_result, "values for circuit matches");
