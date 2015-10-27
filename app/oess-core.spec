@@ -50,6 +50,7 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} oess-traceroute.pl %{buildroot}/%{_bindir}
 %{__install} oess-watchdog.pl %{buildroot}/%{_bindir}
 %{__install} oess_scheduler.pl %{buildroot}/%{_bindir}
+%{__install} oess-nsi %{buildroot}/%{_bindir}
 %{__install} measurement/* %{buildroot}/%{_bindir}
 %{__install} notification/* %{buildroot}/%{_bindir}
 %{__install} populate_remote_topologies.pl %{buildroot}/%{_bindir}
@@ -61,7 +62,7 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} etc/logging.conf $RPM_BUILD_ROOT%{_sysconfdir}/oess/
 %{__install} etc/watchdog.conf $RPM_BUILD_ROOT%{_sysconfdir}/oess/
 %{__install} etc/nddi-dbus.conf $RPM_BUILD_ROOT%{_sysconfdir}/dbus-1/system.d/
-
+%{__install} etc/nsi.conf.example $RPM_BUILD_ROOT%{_sysconfdir}/oess/nsi.conf
 %{__install} etc/fwdctl-init-rh  $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-fwdctl
 %{__install} etc/fvd-init-rh  $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-fvd
 %{__install} etc/watchdog-init-rh $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-watchdog
@@ -91,7 +92,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/oess-notify.pl
 %{_bindir}/oess-watchdog.pl
 %{_bindir}/vlan_stats_d.pl
-%{_bindir}/oess-nsi.pl
+%{_bindir}/oess-nsi
 %{_bindir}/snapp-config-gen
 %{_bindir}/perfSonar_gen
 %{_bindir}/oess_setup.pl
@@ -106,6 +107,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/init.d/oess-fvd
 %{_sysconfdir}/init.d/oess-traceroute
 %{_sysconfdir}/init.d/oess
+%{_sysconfdir}/init.d/oess-nsi
 %{_sysconfdir}/init.d/oess-watchdog
 %{docdir}/snapp.mysql.sql
 %{docdir}/snapp_base.mysql.sql
