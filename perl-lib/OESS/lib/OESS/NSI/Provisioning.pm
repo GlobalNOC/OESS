@@ -37,6 +37,10 @@ use OESS::NSI::Utils;
 
 use Data::UUID;
 
+=head2 new
+
+=cut
+
 sub new {
     my $caller = shift;
 
@@ -55,6 +59,10 @@ sub new {
     return $self;
 }
 
+
+=head2 process_queue
+
+=cut
 
 sub process_queue {
     my ($self) = @_;
@@ -104,6 +112,10 @@ sub process_queue {
 
     }
 }
+
+=head2 provision
+
+=cut
 
 sub provision{
     my ($self, $args) = @_;
@@ -231,6 +243,10 @@ sub _get_circuit_details{
 
 
 }
+
+=head2 terminate
+
+=cut
 
 sub terminate{
     my ($self, $args) = @_;
@@ -389,6 +405,10 @@ sub _do_release{
 
 }
 
+=head2 release
+
+=cut
+
 sub release{
     my ($self, $args) = @_;
     log_info("release connectionId: " . $args->{'connectionId'});
@@ -409,6 +429,10 @@ sub _build_dataPlaneStatus{
                                                                     SOAP::Data->name( versionConsistent => 'true')->type('')));
                       
 }
+
+=head2 dataPlaneStateChange
+
+=cut
 
 sub dataPlaneStateChange{
     my $self = shift;

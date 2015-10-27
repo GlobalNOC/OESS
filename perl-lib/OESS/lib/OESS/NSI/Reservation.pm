@@ -37,6 +37,10 @@ use DateTime;
 
 use Data::Dumper;
 
+=head2 new
+
+=cut
+
 sub new {
     my $caller = shift;
 
@@ -110,6 +114,10 @@ sub _parseTime{
 
     return $dt->epoch();
 }
+
+=head2 reserve
+
+=cut
 
 sub reserve {
     my ($self, $args) = @_;
@@ -203,6 +211,10 @@ sub reserve {
     }
 }
 
+=head2 reserveAbort
+
+=cut
+
 sub reserveAbort{
     my ($self, $args) = @_;
 
@@ -247,6 +259,10 @@ sub _do_reserve_abort{
 
 }
 
+=head2 get_endpoint
+
+=cut
+
 
 sub get_endpoint{
     my $self = shift;
@@ -276,6 +292,10 @@ sub get_endpoint{
     return { node => $node, port => $interface, vlan => $vlan, domain => $domain };
         
 }
+
+=head2 validate_endpoint
+
+=cut
 
 sub validate_endpoint{
     my $self = shift;
@@ -327,6 +347,10 @@ sub validate_endpoint{
 
 }
 
+=head2 get_shortest_path
+
+=cut
+
 sub get_shortest_path{
     my $self = shift;
     my $ep1 = shift;
@@ -350,6 +374,10 @@ sub get_shortest_path{
     return;
 }
 
+=head2 reserveCommit
+
+=cut
+
 sub reserveCommit{
     my ($self, $args) = @_;
     
@@ -358,6 +386,10 @@ sub reserveCommit{
     push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_COMMIT_CONFIRMED, args => $args});
 
 }
+
+=head2 process_queue
+
+=cut
 
 sub process_queue {
     my ($self) = @_;

@@ -80,7 +80,9 @@ $res = $db->get_circuit_details(
 delete $res->{'last_modified_by'};
 my $correct_result =  {
           'external_identifier' => undef,
-          'state' => 'deploying',
+          'state' => 'active',
+          'remote_requester' => undef,
+          'remote_url' => undef,
           'static_mac' => 0,
           'backup_links' => [],
           'loop_node' => undef,

@@ -111,6 +111,8 @@ cmp_deeply($res,{
         ],
           'circuit_id' => 3731,
           'workgroup_id' => '251',
+    'remote_requester' => undef,
+    'remote_url' => undef,
           'name' => 'Circuit 3731',
           'description' => 'Circuit 3731',
           'endpoints' => [

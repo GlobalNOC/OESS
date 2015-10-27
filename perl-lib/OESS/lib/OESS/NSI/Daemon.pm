@@ -38,6 +38,10 @@ use constant DEFAULT_PID_FILE => '/var/run/oess/oess-nsi.pid';
 
 our $VERSION = '0.0.1';
 
+=head2 new
+
+=cut
+
 sub new {
     my $caller = shift;
 
@@ -57,6 +61,11 @@ sub new {
 
     return $self;
 }
+
+=head2 start
+
+=cut
+
 
 sub start {
     my ($self) = shift;
@@ -89,11 +98,19 @@ sub start {
     }
 }
 
+=head2 stop
+
+=cut
+
 sub stop {
     my ($self) = @_;
 
     log_info("Stopping");
 }
+
+=head2 hup
+
+=cut
 
 sub hup {
     my ($self) = @_;

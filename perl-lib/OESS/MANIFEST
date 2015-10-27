@@ -20,6 +20,7 @@ lib/OESS/NSI/Provisioning.pm
 lib/OESS/NSI/Query.pm
 lib/OESS/NSI/Reservation.pm
 lib/OESS/NSI/Server.pm
+lib/OESS/NSI/Utils.pm
 lib/OESS/Topology.pm
 lib/OESS/Traceroute.pm
 lib/OESS/Watchdog.pm
