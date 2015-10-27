@@ -105,7 +105,6 @@ sub new_handler{
             ->prefix('s') # distinguish generated element names between client and server
             #->uri($method_uri)
             ->envelope(response => "ctypes:" . $method_response, @results);
-
         
         $result =~ s/xsi:nil=\"true\"//g;
         
