@@ -71,6 +71,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::NSI::Provisioning.3pm.gz
 %doc %{_mandir}/man3/OESS::NSI::Query.3pm.gz
 %doc %{_mandir}/man3/OESS::NSI::Reservation.3pm.gz
+%doc %{_mandir}/man3/OESS::NSI::Utils.3pm.gz
 %{template_dir}/notification_templates.tmpl
 %{template_dir}/notification_bulk.tmpl
 %{template_dir}/notification_bulk.tt.html
@@ -95,6 +96,7 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/NSI/Provisioning.pm
 %{perl_vendorlib}/OESS/NSI/Query.pm
 %{perl_vendorlib}/OESS/NSI/Reservation.pm
+%{perl_vendorlib}/OESS/NSI/Utils.pm
 %{docdir}/share/nddi.sql
 %{docdir}/share/upgrade/*
 %changelog
