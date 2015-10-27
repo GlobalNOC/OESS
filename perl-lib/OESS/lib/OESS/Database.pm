@@ -987,13 +987,18 @@ sub get_node_interfaces {
     my $self = shift;
     my %args = @_;
 
-    my $node_name    = $args{'node'};
-    my $workgroup_id = $args{'workgroup_id'};
-    my $show_down    = $args{'show_down'};
-    my $show_trunk   = $args{'show_trunk'} || 0;
+    my $node_name       = $args{'node'};
+    my $workgroup_id    = $args{'workgroup_id'};
+    my $show_down       = $args{'show_down'};
+    my $show_trunk      = $args{'show_trunk'} || 0;
+    my $null_workgroups = $args{'null_workgroups'};
 
     if(!defined($show_down)){
-	$show_down = 0;
+        $show_down = 0;
+    }
+
+    if(!defined($null_workgroups)){
+        $null_workgroups = 1;
     }
     my @query_args;
 
@@ -1014,11 +1019,14 @@ sub get_node_interfaces {
         "    and interface_instantiation.end_epoch = -1" .
         "  join node on node.node_id = interface.node_id " .
         "  join node_instantiation on node.node_id = node_instantiation.node_id " .
-        "    and node_instantiation.end_epoch = -1 " .
-        " where (interface_acl.workgroup_id = ? " .
-        " or interface_acl.workgroup_id IS NULL) " .
-        " and node.name = ? ";
+        "    and node_instantiation.end_epoch = -1 ".
+        " where (interface_acl.workgroup_id = ? " ;
+    
+    if($null_workgroups){
+        $acl_query .= " or interface_acl.workgroup_id IS NULL ";
+    }
 
+    $acl_query .= ") and node.name = ? ";
 
     if ($show_trunk == 0){
         $query     .= " where interface.role != 'trunk' ";
@@ -4915,16 +4923,16 @@ sub get_link_ints_on_node{
     my $self = shift;
     my %args = @_;
 
-    my $str = "select interface.* from link, link_instantiation, interface where link.link_id = link_instantiation.link_id and link_instantiation.end_epoch = -1 and link_instantiation.interface_a_id = interface.interface_id and interface.node_id = ?";
+    my $str = "select interface.* from link, link_instantiation, interface where link.link_id = link_instantiation.link_id and link_instantiation.end_epoch = -1 and link_instantiation.interface_a_id = interface.interface_id and interface.node_id = ? and link_instantiation.link_state != 'decom'";
 
     my $ints = $self->_execute_query($str,[$args{'node_id'}]);
 
-    $str = "select interface.* from link, link_instantiation, interface where link.link_id = link_instantiation.link_id and link_instantiation.end_epoch = -1 and link_instantiation.interface_z_id = interface.interface_id and interface.node_id = ?";
+    $str = "select interface.* from link, link_instantiation, interface where link.link_id = link_instantiation.link_id and link_instantiation.end_epoch = -1 and link_instantiation.interface_z_id = interface.interface_id and interface.node_id = ? and link_instantiation.link_state != 'decom'";
 
     my $ints2 = $self->_execute_query($str,[$args{'node_id'}]);
 
     foreach my $int (@$ints2){
-	push(@$ints,$int);
+        push(@$ints,$int);
     }
     return $ints;
 }
@@ -5172,8 +5180,8 @@ sub get_links_by_node {
     my $results = $self->_execute_query($query, [$node_id]);
 
     if (! defined $results){
-	$self->_set_error("Internal error getting links for node");
-	return;
+        $self->_set_error("Internal error getting links for node");
+        return;
     }
 
     return $results;
@@ -5266,7 +5274,6 @@ sub add_into{
 			      });
 
     my $db_dump = $xs->XMLin($filename) or die;
-
 
     #users->
     my $users      = $db_dump->{'user'};
@@ -8291,6 +8298,13 @@ sub gen_topo{
         $domain = "$domain_prefix." . $domain;
     }
 
+    my $workgroup = $self->get_workgroup_details_by_name( name => OSCARS_WG );
+    
+    if(!$workgroup){
+        $self->_set_error("Workgroup '" . $wg . "' does not exist. Therefore no topology can be generated.");
+        return;
+    }
+
     my $xml = "";
     my $writer = new XML::Writer(OUTPUT => \$xml, DATA_INDENT => 2, DATA_MODE => 1, NAMESPACES => 1);
     $writer->startTag("topology", id=> $domain);
@@ -8298,34 +8312,34 @@ sub gen_topo{
     $writer->characters($domain);
     $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","idcId"]);
     $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","domain"], id => $domain);
-
+    
     #generate the topology
     my $nodes = $self->get_nodes_by_admin_state(admin_state => "active");
-
+    
     foreach my $node (@$nodes){
-    $node->{'name'} =~ s/ /+/g;
+        $node->{'name'} =~ s/ /+/g;
         $node->{'name'} =~ s/ /+/g;
         $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","node"], id => "urn:ogf:network:domain=" . $domain . ":node=" . $node->{'name'});
         $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","address"]);
         $writer->characters($node->{'management_addr_ipv4'});
         $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","address"]);
-
+        
         $node->{'vlan_tag_range'} =~ s/^-1/0/g;
         $node->{'vlan_tag_range'} =~ s/,-1/0/g;
-
+        
         my %interfaces;
-            my $ints = $self->get_node_interfaces( node => $node->{'name'}, workgroup_id => $workgroup->{'workgroup_id'}, show_down => 1);
-
+        my $ints = $self->get_node_interfaces( node => $node->{'name'}, workgroup_id => $workgroup->{'workgroup_id'}, show_down => 1);
+        
         foreach my $int (@$ints){
             $interfaces{$int->{'name'}} = $int;
         }
-
+        
         my $link_ints = $self->get_link_ints_on_node( node_id => $node->{'node_id'} );
 
         foreach my $int (@$link_ints){
             $interfaces{$int->{'name'}} = $int;
         }
-
+        
         foreach my $int_name (keys (%interfaces)){
             my $int = $interfaces{$int_name};
             $int->{'name'} =~ s/ /+/g;
@@ -8335,7 +8349,7 @@ sub gen_topo{
                 $int->{'capacity_mbps'} = $speed;
             }
             $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","port"], id => "urn:ogf:network:domain=" . $domain . ":node=" . $node->{'name'} . ":port=" . $int->{'name'});
-
+            
             $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","capacity"]);
             $writer->characters($int->{'capacity_mbps'} * 1000000);
             $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","capacity"]);
@@ -8348,20 +8362,20 @@ sub gen_topo{
             $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","granularity"]);
             $writer->characters(1000000);
             $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","granularity"]);
-
+            
             my $links = $self->get_link_by_interface_id( 
                 interface_id => $int->{'interface_id'}, 
                 force_active => 1 
-            );
+                );
             my $processed_link = 0;
-
+            
             foreach my $link (@$links){
                 # only show links we know about that are trunked (this is actually the interface role)
                 $processed_link = 1;
                 if(!defined($link->{'remote_urn'})){
                     $link->{'link_name'} =~ s/ /+/g;
                     $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","link"], id => "urn:ogf:network:domain=" . $domain . ":node=" . $node->{'name'} . ":port=" . $int->{'name'} . ":link=" . $link->{'link_name'});
-
+                    
                     my $link_endpoints = $self->get_link_endpoints(link_id => $link->{'link_id'});
                     my $remote_int;
                     foreach my $link_endpoint (@$link_endpoints){
@@ -8369,21 +8383,21 @@ sub gen_topo{
                             $remote_int = $link_endpoint;
                         }
                     }
-
+                    
                     my $remote_node = $self->get_node_by_id( node_id => $remote_int->{'node_id'});
-
+                    
                     if(!defined($remote_node->{'name'})){
                         $remote_node->{'name'} = "*";
                     }
-
+                    
                     if(!defined($remote_int->{'interface_name'})){
                         $remote_int->{'interface_name'} = "*";
                     }
-
+                    
                     if(!defined($link->{'link_name'})){
                         $link->{'link_name'} = "*";
                     }
-
+                    
                     $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","remoteLinkId"]);
                     $writer->characters("urn:ogf:network:domain=" . $domain . ":node=" . $remote_node->{'name'} . ":port=" . $remote_int->{'interface_name'} . ":link=" . $link->{'link_name'});
                     $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","remoteLinkId"]);
@@ -8396,18 +8410,18 @@ sub gen_topo{
                     $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","remoteLinkId"]);
                 }
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","trafficEngineeringMetric"]);
-
+                
                 if(defined($link->{'remote_urn'})){
                     $writer->characters("100");
                 }else{
                     $writer->characters("10");
                 }
-
+                
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","trafficEngineeringMetric"]);
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","capacity"]);
                 $writer->characters($int->{'capacity_mbps'} * 1000000);
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","capacity"]);
-
+                
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","maximumReservableCapacity"]);
                 $writer->characters($int->{'capacity_mbps'} * 1000000);
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","maximumReservableCapacity"]);
@@ -8417,7 +8431,7 @@ sub gen_topo{
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","granularity"]);
                 $writer->characters(1000000);
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","granularity"]);
-
+                
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","SwitchingCapabilityDescriptors"]);
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","switchingcapType"]);
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","switchingcapType"]);
@@ -8431,7 +8445,7 @@ sub gen_topo{
                 $writer->characters($int->{'mtu_bytes'});
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","interfaceMTU"]);
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
-
+                
                 #$writer->characters("2-4094");
                 my $tag_range;
                 if(defined($link->{'remote_urn'})){
@@ -8444,39 +8458,39 @@ sub gen_topo{
                 # compute the intersection of the vlan tag range set on the link and our range as determined my the interface acl or the
                 # node's allowed vlan_range
                 if($link->{'vlan_tag_range'}){
-
+                    
                     $tag_range = $self->_get_vlan_range_intersection( 
                         vlan_ranges => [$tag_range,$link->{'vlan_tag_range'}], 
                         oscars_format => 1 
-                    );
+                        );
                 }
-
+                
                 $writer->characters( $tag_range );
-
-
+                
+                
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanTranslation"]);
                 $writer->characters("true");
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanTranslation"]);
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","switchingCapabilitySpecificInfo"]);
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","SwitchingCapabilityDescriptors"]);
-
+                
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","link"]);
             }
-
+            
             if($int->{'role'} ne 'trunk' && $processed_link == 0){
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","link"], id => "urn:ogf:network:domain=" . $domain . ":node=" . $node->{'name'} . ":port=" . $int->{'name'} . ":link=*");
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","remoteLinkId"]);
                 $writer->characters("urn:ogf:network:domain=*:node=*:port=*:link=*");
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","remoteLinkId"]);
-
+                
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","trafficEngineeringMetric"]);
                 $writer->characters("10");
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","trafficEngineeringMetric"]);
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","capacity"]);
                 $writer->characters($int->{'capacity_mbps'} * 1000000);
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","capacity"]);
-
+                
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","maximumReservableCapacity"]);
                 $writer->characters($int->{'capacity_mbps'} * 1000000);
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","maximumReservableCapacity"]);
@@ -8486,7 +8500,7 @@ sub gen_topo{
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","granularity"]);
                 $writer->characters(1000000);
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","granularity"]);
-
+                
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","SwitchingCapabilityDescriptors"]);
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","switchingcapType"]);
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","switchingcapType"]);
@@ -8504,25 +8518,25 @@ sub gen_topo{
                 $int->{'vlan_tag_range'} =~ s/^-1/0/g;
                 $int->{'vlan_tag_range'} =~ s/,-1/0/g;
                 $writer->characters( $int->{'vlan_tag_range'} );
-
+                
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanRangeAvailability"]);
-
+                
                 $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanTranslation"]);
                 $writer->characters("true");
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","vlanTranslation"]);
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","switchingCapabilitySpecificInfo"]);
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","SwitchingCapabilityDescriptors"]);
-
+                
                 $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","link"]);
-
+                
             }
-
+            
             $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","port"]);
         }
-
+        
         $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","node"]);
     }
-
+    
     #end do stuff
     $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","domain"]);
     $writer->endTag("topology");
@@ -8531,7 +8545,7 @@ sub gen_topo{
 }
 
 =head2 get_admin_email
-
+    
 =cut
 sub get_admin_email{
     my $self = shift;
