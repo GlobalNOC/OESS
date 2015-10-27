@@ -19,6 +19,10 @@ use OESS::NSI::Provisioning;
 use OESS::NSI::Query;
 use Data::Dumper;
 
+=head2 new
+
+=cut
+
 sub new {
     my $class = shift;
     my $service = shift;
@@ -37,6 +41,10 @@ sub new {
     return $self;
 }
 
+=head2 circuit_provision
+
+=cut
+
 sub circuit_provision{
     my ($self, $circuit) = @_;
 
@@ -48,6 +56,10 @@ sub circuit_provision{
     }
 }
 
+=head2 circuit_modified
+
+=cut
+
 sub circuit_modified{
     my ($self, $circuit) = @_;
     foreach my $ckt_id (@{$self->{'watched_circuits'}}){
@@ -58,6 +70,10 @@ sub circuit_modified{
     }
 }
 
+=head2 circuit_removed
+
+=cut
+
 sub circuit_removed{
     my ($self, $circuit) = @_;
     foreach my $ckt_id (@{$self->{'watched_circuits'}}){
@@ -67,6 +83,10 @@ sub circuit_removed{
         }
     }
 }
+
+=head2 process_request
+
+=cut
 
 sub process_request {
     my ($self, $request, $data) = @_;
@@ -96,6 +116,10 @@ sub process_request {
     log_error("Unknown Request Type: " . $request);
     return OESS::NSI::Constant::UNKNOWN_REQUEST;
 }
+
+=head2 process_queues
+
+=cut
 
 sub process_queues {
     my ($self) = @_;

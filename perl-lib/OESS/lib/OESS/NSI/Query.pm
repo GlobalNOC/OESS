@@ -16,6 +16,10 @@ use OESS::Database;
 
 use Data::Dumper;
 
+=head2 new
+
+=cut
+
 sub new {
     my $caller = shift;
 
@@ -78,6 +82,10 @@ sub _init {
     $self->{'query_queue'} = [];
 }
 
+=head2 process_queue
+
+=cut
+
 sub process_queue {
     my ($self) = @_;
 
@@ -109,12 +117,20 @@ sub process_queue {
     }
 }
 
+=head2 query_summary
+
+=cut
+
 sub query_summary{
     my $self = shift;
     my $args = shift;
     push(@{$self->{'query_queue'}}, {type => OESS::NSI::Constant::QUERY_SUMMARY, args => $args});
     return OESS::NSI::Constant::SUCCESS;
 }
+
+=head2 get_current_circuits
+
+=cut
 
 sub get_current_circuits{
     my $self = shift;
@@ -131,6 +147,10 @@ sub get_current_circuits{
     return;
     
 }
+
+=head2 do_query_summarysync
+
+=cut
 
 sub do_query_summarysync{
     my $self = shift;
