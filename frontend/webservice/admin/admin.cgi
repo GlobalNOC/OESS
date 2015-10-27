@@ -1269,7 +1269,15 @@ sub get_pending_links {
 sub gen_topology{
     my $topo = $db->gen_topo();
     my $results;
-    $results->{'results'} = [{'topo' => $topo}];
+
+    if(!$topo){
+        $results->{'results'} = [];
+        $results->{'error'} = 1;
+        $results->{'error_text'} = $db->get_error();
+    }
+    else{
+        $results->{'results'} = [{'topo' => $topo}];
+    }
     return $results;
 }
 

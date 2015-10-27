@@ -18,11 +18,10 @@ my $flow_mod = OESS::FlowRule->new( match => {'dl_vlan' => 100,
 						{'set_vlan_vid' => 101},
 						{'output' => 1},
 						{'set_vlan_vid' => 101}],
-				    dpid => 1111111111);
+				    dpid => 155568807680);
 
 my $str = $flow_mod->to_human();
-ok(defined($str), "FLow Mod string was defined");
-
+ok(defined($str), "Flow Mod string was defined");
 $flow_mod->set_actions( [{'output' => 679},
                          {'set_vlan_vid' => 101},
                          {'output' => 1},
