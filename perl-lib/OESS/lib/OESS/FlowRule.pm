@@ -718,12 +718,16 @@ sub to_human {
     }
     
     my $dpid_str    = sprintf("%x",$self->{'dpid'});
-    my $str = "OFFlowMod:\n".
-              " DPID: " . $dpid_str . " ($node_name)\n".
-              " Priority: " . $self->{'priority'} . "\n".
-              " Match: " . $match_str . "\n".
-              " Actions: " . $action_str;
-
+    my $str = "OFFlowMod:\n";
+    if(defined($node_name) && $node_name ne ''){
+        $str .= " DPID: " . $dpid_str . " ($node_name)\n";
+    }else{
+        $str .= " DPID: " . $dpid_str . "\n";
+    }
+    $str .= " Priority: " . $self->{'priority'} . "\n".
+        " Match: " . $match_str . "\n".
+        " Actions: " . $action_str;
+    
     return $str;
 }
 

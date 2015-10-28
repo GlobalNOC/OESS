@@ -8298,7 +8298,6 @@ sub gen_topo{
         $domain = "$domain_prefix." . $domain;
     }
 
-    my $workgroup = $self->get_workgroup_details_by_name( name => OSCARS_WG );
     
     if(!$workgroup){
         $self->_set_error("Workgroup '" . $wg . "' does not exist. Therefore no topology can be generated.");
