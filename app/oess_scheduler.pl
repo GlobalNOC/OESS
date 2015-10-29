@@ -42,14 +42,25 @@ sub main{
     my $actions = $oess->get_current_actions();
 
     foreach my $action (@$actions){
-        
+        my $ckt = $oess->get_circuit_by_id( circuit_id => $action->{'circuit_id'})->[0];
         my $circuit_layout = XMLin($action->{'circuit_layout'}, forcearray => 1);
-        
+
         if($circuit_layout->{'action'} eq 'provision'){
+
+            if($ckt->{'circuit_state'} eq 'reserved'){
+                #if the circuit goes into provisioned state, we'll execute...
+                next;
+            }
+
+            if($ckt->{'circuit_state'} eq 'decom'){
+                $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
+                #circuit is decom remove from queue!
+                next;
+            }
 
             syslog(LOG_DEBUG,"Circuit " . $circuit_layout->{'name'} . ":" . $circuit_layout->{'circuit_id'} . " scheduled for activation NOW!");
             my $user = $oess->get_user_by_id( user_id => $action->{'user_id'} )->[0];
-            my $ckt = $oess->get_circuit_by_id( circuit_id => $action->{'circuit_id'})->[0];
+
             #edit the circuit to make it active
             my $output = $oess->edit_circuit(circuit_id     => $action->{'circuit_id'},
                                              name           => $circuit_layout->{'name'},
@@ -129,7 +140,17 @@ sub main{
                 $res = $final_res;
             };
             
-            my $ckt = $oess->get_circuit_by_id(circuit_id => $action->{'circuit_id'})->[0];
+            #same as provision
+            if($ckt->{'circuit_state'} eq 'reserved'){
+                #if the circuit goes into provisioned state, we'll execute...
+                next;
+            }
+
+            if($ckt->{'circuit_state'} eq 'decom'){
+                $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
+                #circuit is decom remove from queue!
+            }
+
             my $user = $oess->get_user_by_id( user_id => $action->{'user_id'} )->[0];
 
             my $output = $oess->edit_circuit(circuit_id => $action->{'circuit_id'},
@@ -151,7 +172,7 @@ sub main{
             $res = undef;
             $event_id = undef;;
             eval{
-                if($circuit_layout->{'state'} eq 'active' ){
+                if($circuit_layout->{'state'} eq 'active'){
 
                     ($res,$event_id) = $client->addVlan($output->{'circuit_id'});
                     

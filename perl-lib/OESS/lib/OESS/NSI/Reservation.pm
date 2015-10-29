@@ -414,11 +414,12 @@ sub process_queue {
         my $type = $message->{'type'};
 
         #this is now a scheduler... skip the action if it has a time and we aren't past it yet
-        if($message->{'time'} && $message->{'time'} < time()){            
+        if(defined($message->{'time'}) && time() < $message->{'time'}){            
+            #log_error("TIME: " . $message->{'time'} . " vs. " . time());
             push(@still_needs_to_be_done, $message);
             next;
         }
-
+        
         #ok pull it off the array
         
 
@@ -678,7 +679,7 @@ sub _reserve_timeout{
     eval{
         my $soap_response = $soap->reserveTimeout($nsiheader, _build_timeout_message($data));
     };
-    log_error("Error sending releaseConfirmed: " . Data::Dumper::Dumper($@)) if $@;
+    log_error("Error sending reserveTimeout: " . Data::Dumper::Dumper($@)) if $@;
         
 }
 
