@@ -34,6 +34,7 @@ use GRNOC::WebService::Client;
 use OESS::NSI::Constant;
 use OESS::NSI::Utils;
 use DateTime;
+use OESS::Database;
 
 use Data::Dumper;
 
@@ -201,7 +202,9 @@ sub reserve {
     
     if(defined($res->{'results'}) && $res->{'results'}->{'success'} == 1){
         log_info("Successfully created reservation, connectionId: " . $res->{'results'}->{'circuit_id'});
+        $args->{'connection_id'} = $res->{'results'}->{'circuit_id'};
         push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_SUCCESS, connection_id => $res->{'results'}->{'circuit_id'}, args => $args});
+        push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_TIMEOUT, connection_id => $res->{'results'}->{'circuit_id'}, args => $args, time => time() + OESS::NSI::Constant::RESERVATION_TIMEOUT_SEC});
         return $res->{'results'}->{'circuit_id'};
     }else{
         log_error("Unable to reserve circuit: " . $res->{'error'});
@@ -383,7 +386,16 @@ sub reserveCommit{
     
     log_info("reserveCommit: connectionId: " . $args->{'connectionId'});
 
-    push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_COMMIT_CONFIRMED, args => $args});
+    my $i=0;
+    foreach my $event (@{$self->{'reservation_queue'}}){
+        if($event->{'type'} == OESS::NSI::Constant::RESERVATION_TIMEOUT && $event->{'connection_id'} == $args->{'connectionId'}){
+            my $res = splice(@{$self->{'reservation_queue'}}, $i, 1);
+            push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_COMMIT_CONFIRMED, args => $args});
+        }
+        $i++;
+    }
+
+    push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_COMMIT_FAILED, args => $args});
 
 }
 
@@ -395,8 +407,20 @@ sub process_queue {
     my ($self) = @_;
 
     log_debug("Processing Reservation Queue");
+
+    my @still_needs_to_be_done;
+
     while(my $message = shift(@{$self->{'reservation_queue'}})){
         my $type = $message->{'type'};
+
+        #this is now a scheduler... skip the action if it has a time and we aren't past it yet
+        if($message->{'time'} && $message->{'time'} < time()){            
+            push(@still_needs_to_be_done, $message);
+            next;
+        }
+
+        #ok pull it off the array
+        
 
         if($type == OESS::NSI::Constant::RESERVATION_SUCCESS){
             log_debug("Handling Reservation Success Message");
@@ -407,11 +431,18 @@ sub process_queue {
             log_debug("Handling Reservation Fail Message");
             $self->_reserve_failed($message->{'args'});
             next;
+        }elsif($type == OESS::NSI::Constant::RESERVATION_TIMEOUT){
+            log_info("Reservation Timeout: " . $message->{'connection_id'});
+            $self->_reserve_timeout($message->{'args'});        
         }elsif($type == OESS::NSI::Constant::RESERVATION_COMMIT_CONFIRMED){
             log_debug("handling reservation commit success");
             $self->_reserve_commit_confirmed($message->{'args'});
             next;
-        }elsif($type == OESS::NSI::Constant::DO_RESERVE_ABORT,){
+        }elsif($type == OESS::NSI::Constant::RESERVATION_COMMIT_FAILED){
+            log_debug("handling reservation commit failed");
+            $self->_reserve_commit_failed($message->{'args'});
+            next;
+        }elsif($type == OESS::NSI::Constant::DO_RESERVE_ABORT){
             log_debug("handling reservation abort");
             $self->_do_reserve_abort($message->{'args'});
             next;            
@@ -420,6 +451,39 @@ sub process_queue {
             next;
         }
     }
+
+    #anything that still needs to be done is pushed back onto the stack
+    foreach my $event (@still_needs_to_be_done){
+        push(@{$self->{'reservation_queue'}}, $event);
+    }
+
+}
+
+sub _reserve_commit_failed{
+    my ($self, $data) = @_;
+
+    
+    log_error("Error commiting reservation");
+    
+    my $soap = OESS::NSI::Utils::build_client( proxy => $data->{'header'}->{'replyTo'}, ssl => $self->{'ssl'});
+    my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
+
+    eval{
+        my $soap_response = $soap->reserveCommitFailed($nsiheader, SOAP::Data->name(connectionId => $data->{'connection_id'})->type(''),
+                                                       $self->_build_connection_states( reservationState => 'ReserveFailed',
+                                                                                        provisionState => 'released',
+                                                                                        lifecycleState => 'Created',
+                                                                                        dataPlaneStatus => { active => 'false',
+                                                                                                             version => $data->{'criteria'}->{'version'}->{'version'},
+                                                                                                             versionConsistent => 'true'}),
+                                                       $self->_build_service_exception( nsaId => $data->{'header'}->{'providerNSI'},
+                                                                                        connectionId => $data->{'connectionId'},
+                                                                                        serviceType => $data->{'criteria'}->{'serviceType'},
+                                                                                        errorId => 999,
+                                                                                        text => "reservation has already expired!"));
+    };
+    log_error("Error sending reserveCommitFailed message: " . Data::Dumper::Dumper($@)) if $@;
+        
 }
 
 sub _build_p2ps{
@@ -597,6 +661,48 @@ sub _release_confirmed{
         my $soap_response = $soap->releaseConfirmed($nsiheader, SOAP::Data->name(connectionId => $data->{'connectionId'})->type(''));
     };
     log_error("Error sending releaseConfirmed: " . Data::Dumper::Dumper($@)) if $@;
+}
+
+sub _reserve_timeout{
+    my ($self, $data) = @_;
+    
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "provisioning.cgi");
+
+    my $res = $self->{'websvc'}->foo( action => "remove_circuit",
+                                      circuit_id => $data->{'connection_id'},
+                                      workgroup_id => $self->{'workgroup_id'});
+
+
+    my $soap = OESS::NSI::Utils::build_client( proxy =>$data->{'header'}->{'replyTo'},ssl => $self->{'ssl'});
+    my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
+    eval{
+        my $soap_response = $soap->reserveTimeout($nsiheader, _build_timeout_message($data));
+    };
+    log_error("Error sending releaseConfirmed: " . Data::Dumper::Dumper($@)) if $@;
+        
+}
+
+sub _build_timeout_message{
+    my $data = shift;
+
+    my $db = OESS::Database->new();
+    my $dn = $db->get_local_domain_name();
+    my $providerNSA = "nsi" . $dn . ":2013:nsa";
+
+    return SOAP::Data->value( SOAP::Data->name( connectionId => $data->{'connection_id'})->type(''),
+                              SOAP::Data->name( notificationId => 0)->type(''),
+                              SOAP::Data->name( timeStamp => _timestampNow() )->type(''),
+                              SOAP::Data->name( originatingConnectionId => $data->{'connection_id'})->type(''),
+                              SOAP::Data->name( originatingNSA => $providerNSA)->type(''));
+    
+
+}
+
+sub _timestampNow{
+
+    my $dt = DateTime->now();
+    return $dt->strftime( "%F" ) . "T" . $dt->strftime( "%T" ) . "Z";
+
 }
 
 1;
