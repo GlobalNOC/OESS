@@ -264,7 +264,7 @@ sub _do_reserve_abort{
 
 }
 
-=head build_stp
+=head2 build_stp
 
 =cut
 
