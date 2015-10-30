@@ -203,6 +203,8 @@ sub reserve {
     if(defined($res->{'results'}) && $res->{'results'}->{'success'} == 1){
         log_info("Successfully created reservation, connectionId: " . $res->{'results'}->{'circuit_id'});
         $args->{'connection_id'} = $res->{'results'}->{'circuit_id'};
+        $args->{'criteria'}->{'p2ps'}->{'sourceSTP'} = $self->build_stp($ep1);
+        $args->{'criteria'}->{'p2ps'}->{'destSTP'} = $self->build_stp($ep2);
         push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_SUCCESS, connection_id => $res->{'results'}->{'circuit_id'}, args => $args});
         push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_TIMEOUT, connection_id => $res->{'results'}->{'circuit_id'}, args => $args, time => time() + OESS::NSI::Constant::RESERVATION_TIMEOUT_SEC});
         return $res->{'results'}->{'circuit_id'};
@@ -262,10 +264,24 @@ sub _do_reserve_abort{
 
 }
 
-=head2 get_endpoint
+=head build_stp
 
 =cut
 
+sub build_stp{
+    my $self = shift;
+    my $ep = shift;
+    #example urn:ogf:network:nsi.nddi-dev.bldc.net.internet2.edu:2013::s1:1-0:+
+
+    my $str = "urn:ogf:network:nsi.";
+    $str .= $self->{'db'}->get_local_domain_name();
+    $str .= ":2013::" . $ep->{'node'} . ":" . $ep->{'port'} . ":" . $ep->{'link'} . "?vlan=" . $ep->{'vlan'};
+    return $str;
+}
+
+=head2 get_endpoint
+
+=cut
 
 sub get_endpoint{
     my $self = shift;
@@ -284,15 +300,41 @@ sub get_endpoint{
     my $interface = $parts[7];
     my $link = $parts[8];
     
-    $link =~ /\?vlan=(\d+)/;
-    my $vlan = $1;
+    $link =~ /(.*)\?vlan=(.*)/;
+    $link = $1;
+    my $vlan = $2;
 
-    if(!defined($domain) || !defined($node) || !defined($interface) || !defined($vlan)){
+    #lots of options here
+    #1-2000,3000-4000
+    my @vlans = split(',',$vlan);
+    my @tags;
+
+    foreach my $vlan (@vlans){
+        if($vlan =~ /(\d+)-(\d+)/){
+            my $start = $1;
+            my $end = $2;
+
+            if($end > 4095){
+                log_error("VLAN tag " . $end . " is > max VLAN tag 4095");
+                return;
+            }
+            for(my $i=$start;$i<=$end;$i++){
+                push(@tags,int($i));
+            }
+        }else{
+            log_error("VLAN: " . $vlan);
+            push(@tags, int($vlan));
+        }
+    }
+
+    log_debug("Tags: " . Data::Dumper::Dumper(@tags));
+
+    if(!defined($domain) || !defined($node) || !defined($interface) || scalar(@tags) < 0){
         log_error("Error processing URN $stp, missing some important pieces");
         return;
     }
 
-    return { node => $node, port => $interface, vlan => $vlan, domain => $domain };
+    return { node => $node, port => $interface, tags => \@tags, domain => $domain, link => $link };
         
 }
 
@@ -321,19 +363,25 @@ sub validate_endpoint{
                 if($resource->{'interface_name'} eq $ep->{'port'}){
                     log_debug("Found interface for requested EP, requesting VLAN availability");
                     #made it this far!
-                    my $valid_tag = $self->{'websvc'}->foo( action => "is_vlan_tag_available",
-                                                            interface => $ep->{'port'},
-                                                            node => $ep->{'node'},
-                                                            vlan => $ep->{'vlan'},
-							    workgroup_id => $self->{'workgroup_id'});
-                    
-                    log_debug("Results from is valid tag: " . Data::Dumper::Dumper($valid_tag));
-                    if(defined($valid_tag) && $valid_tag->{'results'}){
-                        log_debug("results from is_vlan_tag_available: " . Data::Dumper::Dumper($valid_tag->{'results'}));
-			if($valid_tag->{'results'}->[0]->{'available'} == 1){
-                            return 1;
+                    foreach my $tag (@{$ep->{'tags'}}){
+                        
+                        my $valid_tag = $self->{'websvc'}->foo( action    => "is_vlan_tag_available",
+                                                                interface => $ep->{'port'},
+                                                                node      => $ep->{'node'},
+                                                                vlan      => $tag,
+                                                                workgroup_id => $self->{'workgroup_id'});
+                        
+                        log_debug("Results from is valid tag: " . Data::Dumper::Dumper($valid_tag));
+                        
+                        if(defined($valid_tag) && $valid_tag->{'results'}){
+                            log_debug("results from is_vlan_tag_available: " . Data::Dumper::Dumper($valid_tag->{'results'}));
+                            if($valid_tag->{'results'}->[0]->{'available'} == 1){
+                                $ep->{'vlan'} = $tag;
+                                return 1;
+                            }
                         }
                     }
+
                     return 0;
 
                 }
@@ -412,7 +460,7 @@ sub process_queue {
 
     while(my $message = shift(@{$self->{'reservation_queue'}})){
         my $type = $message->{'type'};
-
+        warn Data::Dumper::Dumper($message);
         #this is now a scheduler... skip the action if it has a time and we aren't past it yet
         if(defined($message->{'time'}) && time() < $message->{'time'}){            
             #log_error("TIME: " . $message->{'time'} . " vs. " . time());
@@ -645,6 +693,8 @@ sub _init {
         $self->{'ssl'}->{'enabled'} = 1;
     }
 
+    $self->{'db'} = OESS::Database->new();
+
     $self->{'workgroup_id'} = $self->{'config'}->get('/config/oess-service/@workgroup-id');
 
     $self->{'reservation_queue'} = [];
@@ -677,26 +727,14 @@ sub _reserve_timeout{
     my $soap = OESS::NSI::Utils::build_client( proxy =>$data->{'header'}->{'replyTo'},ssl => $self->{'ssl'});
     my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
     eval{
-        my $soap_response = $soap->reserveTimeout($nsiheader, _build_timeout_message($data));
+        my $soap_response = $soap->reserveTimeout($nsiheader, SOAP::Data->name( connectionId => $data->{'connection_id'})->type(''),
+                                                  SOAP::Data->name( notificationId => 0)->type(''),
+                                                  SOAP::Data->name( timeStamp => _timestampNow() )->type(''),
+                                                  SOAP::Data->name( originatingConnectionId => $data->{'connection_id'})->type(''),
+                                                  SOAP::Data->name( originatingNSA => $data->{'header'}->{'providerNSA'})->type(''));
     };
     log_error("Error sending reserveTimeout: " . Data::Dumper::Dumper($@)) if $@;
         
-}
-
-sub _build_timeout_message{
-    my $data = shift;
-
-    my $db = OESS::Database->new();
-    my $dn = $db->get_local_domain_name();
-    my $providerNSA = "nsi" . $dn . ":2013:nsa";
-
-    return SOAP::Data->value( SOAP::Data->name( connectionId => $data->{'connection_id'})->type(''),
-                              SOAP::Data->name( notificationId => 0)->type(''),
-                              SOAP::Data->name( timeStamp => _timestampNow() )->type(''),
-                              SOAP::Data->name( originatingConnectionId => $data->{'connection_id'})->type(''),
-                              SOAP::Data->name( originatingNSA => $providerNSA)->type(''));
-    
-
 }
 
 sub _timestampNow{
