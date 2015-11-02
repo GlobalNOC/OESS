@@ -42,8 +42,8 @@ ok(defined($user), "User updated");
 my $res = $db->provision_circuit(
     'description' => "Test",
     'bandwidth' => 1337,
-    'provision_time' => 1377716981,
-    'remove_time' => 1380308981,
+    'provision_time' => -1,
+    'remove_time' => -1,
     'links' => ['Link 181', 'Link 191', 'Link 531'],
     'backup_links' => [],
     'nodes' => ['Node 11', 'Node 51'], 
@@ -59,8 +59,8 @@ is($db->get_error(),'Interface "e15/1" on endpoint "Node 11" with VLAN tag "1" i
 $res = $db->provision_circuit(
     'description' => "Test",
     'bandwidth' => 1337,
-    'provision_time' => 1377716981,
-    'remove_time' => 1380308981,
+    'provision_time' => -1,
+    'remove_time' => -1,
     'links' => ['Link 181', 'Link 191', 'Link 531'],
     'backup_links' => [],
     'nodes' => ['Node 11', 'Node 51'], 
