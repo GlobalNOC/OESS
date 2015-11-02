@@ -6189,7 +6189,9 @@ sub provision_circuit {
     my $remote_requester = $args{'remote_requester'};
 
 
-    if($provision_time <= time() && $state eq 'active'){
+    if($provision_time != -1 && $provision_time <= time() && $state eq 'active'){
+        warn "Provision Time: " . $provision_time . "\n";
+        warn "Setting state to scheduled!\n";
         $state = 'scheduled';
     }
 
