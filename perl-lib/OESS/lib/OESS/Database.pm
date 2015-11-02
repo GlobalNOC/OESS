@@ -6189,6 +6189,10 @@ sub provision_circuit {
     my $remote_requester = $args{'remote_requester'};
 
 
+    if($provision_time <= time() && $state eq 'active'){
+        $state = 'scheduled';
+    }
+
     if($#{$interfaces} < 1){
         $self->_set_error("Need at least 2 endpoints");
         return;
@@ -6246,7 +6250,7 @@ sub provision_circuit {
     my $name = $workgroup_details->{'name'} . "-" . $uuid;
 
     if(!defined($state)){
-	if($provision_time > time()){
+	if($provision_time < time()){
 	    $state = "scheduled";
 	}else{
 	    $state = "deploying";
@@ -6281,9 +6285,6 @@ sub provision_circuit {
             return;
         }
 
-#        $self->_commit();
-
-#        return {"success" => 1, "circuit_id" => $circuit_id};
     }
     #handle when an event isn't scheduled to be built, but does have a scheduled removal date.
     if($remove_time != -1){

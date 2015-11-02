@@ -333,7 +333,7 @@ sub provision_circuit {
             state => $state
             );
 
-        if(defined($output) && ($provision_time <= time()) && ($state eq 'active' || $state eq 'provisioned')) {
+        if(defined($output) && ($provision_time <= time()) && ($state eq 'active' || $state eq 'scheduled' || $state eq 'provisioned')) {
 
             my $result = _send_add_command( circuit_id => $output->{'circuit_id'} );
 
