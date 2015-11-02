@@ -174,7 +174,7 @@ sub status{
     }
 
     if($db->is_nsi_enabled()){
-        my $res = system("/ec/init.d/oess-nsi status");
+        my $res = system("/etc/init.d/oess-nsi status");
         if($res != 0){
             $result = $res;
         }
