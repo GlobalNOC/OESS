@@ -6,7 +6,7 @@ use OESS::FlowRule;
 
 use Data::Dumper;
 use Storable qw( dclone );
-use Test::More tests => 5;
+use Test::More tests => 6;
 use Test::Deep;
 
 # initialize our base flow rule
@@ -50,6 +50,31 @@ ok( $fr->compare_actions(
 ), "Merged action with different set and output appears at the end of the list" );
 
 
+my $fr = OESS::FlowRule->new( %match,
+                              actions => [{set_vlan_id => 2},
+                                          {output => 2}]);
+
+$fr->merge_actions( flow_rule => OESS::FlowRule->new( %match,
+                                                      actions => [{set_vlan_id => 2},
+                                                                  {output => 3}]));
+
+$fr->merge_actions( flow_rule => OESS::FlowRule->new( %match,
+                                                      actions => [{set_vlan_id => 2},
+                                                                  {output => 4}]));
+
+$fr->merge_actions( flow_rule => OESS::FlowRule->new( %match,
+                                                      actions => [{set_vlan_id => 2},
+                                                                  {output => 4}]));
+
+ok( $fr->compare_actions( flow_rule => OESS::FlowRule->new( %match,
+                                                            actions => [{set_vlan_id => 2},
+                                                                        {output => 2},
+                                                                        {set_vlan_id => 2},
+                                                                        {output => 3},
+                                                                        {set_vlan_id => 2},
+                                                                        {output => 4}])),
+"Multiple merge actions with the same set of actions did not duplicate actions");
+                                                            
 sub same_as_orig {
     return OESS::FlowRule->new( %match,
         actions => [{
