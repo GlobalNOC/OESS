@@ -1099,7 +1099,9 @@ sub topo_port_status{
 	$link_id   = @$link_info[0]->{'link_id'};
 	$link_name = @$link_info[0]->{'name'};
     }
-    
+
+    my $ep = $self->{'db'}->get_link_endpoints( link_id => $link_id);
+
     my $sw_name   = $node->{'name'};
     my $dpid_str  = sprintf("%x",$dpid);
 
@@ -1116,7 +1118,13 @@ sub topo_port_status{
                     my $ckt = $self->get_ckt_object( $circuit_id );
                     $ckt->update_circuit_details( link_status => );
                 }
-                $self->force_sync($dpid);
+		$self->_write_cache();
+
+		my $node_a = $self->{'db'}->get_node_by_interface_id( interface_id => $ep->[0]->{'interface_id'} );
+		my $node_z = $self->{'db'}->get_node_by_interface_id( interface_id => $ep->[1]->{'interface_id'} );
+
+                $self->force_sync($node_a->{'dpid'});
+		$self->force_sync($node_z->{'dpid'});
             } else {
                 $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port $port_name has been added");
             }
