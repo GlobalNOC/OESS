@@ -200,6 +200,8 @@ sub reserve {
                                       interface => [$ep1->{'port'}, $ep2->{'port'}],
                                       tag => [$ep1->{'vlan'}, $ep2->{'vlan'}]);
     
+    log_error("Results of provision: " . Data::Dumper::Dumper($res));
+
     if(defined($res->{'results'}) && $res->{'results'}->{'success'} == 1){
         log_info("Successfully created reservation, connectionId: " . $res->{'results'}->{'circuit_id'});
         $args->{'connection_id'} = $res->{'results'}->{'circuit_id'};
@@ -439,7 +441,8 @@ sub reserveCommit{
         if($event->{'type'} == OESS::NSI::Constant::RESERVATION_TIMEOUT && $event->{'connection_id'} == $args->{'connectionId'}){
             my $res = splice(@{$self->{'reservation_queue'}}, $i, 1);
             push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_COMMIT_CONFIRMED, args => $args});
-        }
+	    return OESS::NSI::Constant::SUCCESS;
+	}
         $i++;
     }
 
