@@ -158,6 +158,12 @@ sub datapath_join_to_db{
             $admin_state = 'down';
         }
 
+        if($operational_state eq 'up'){
+            $port->{'link'} = 1;
+        }else{
+            $port->{'link'} = 0;
+        }
+
         my $int_id = $db->add_or_update_interface(node_id => $node_id,name => $port->{'name'}, description => $port->{'name'}, operational_state => $operational_state, port_num => $port->{'port_no'}, admin_state => $admin_state);
 
         if(!defined($int_id)){
