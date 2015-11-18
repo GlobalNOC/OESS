@@ -115,11 +115,11 @@ sub new {
     my $class = shift;
     my %params = @_;
     my $service = $params{'service'};
-    my $config = $params{'service'};
+    my $config  = $params{'config'}; 
     my $self = $class->SUPER::new($service, '/controller1');
     bless $self, $class;
 
-    my $config = shift;
+    #my $config = shift;
     if(!defined($config)){
         $config = "/etc/oess/database.xml";
     }
