@@ -1,6 +1,6 @@
 Summary: OESS Perl Libraries
 Name: perl-OESS
-Version: 1.1.8a
+Version: 1.1.8b
 Release: 1
 License: APL 2.0
 Group: Network
