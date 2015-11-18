@@ -113,7 +113,9 @@ sub _log {
 
 sub new {
     my $class = shift;
-    my $service = shift;
+    my %params = @_;
+    my $service = $params{'service'};
+    my $config = $params{'service'};
     my $self = $class->SUPER::new($service, '/controller1');
     bless $self, $class;
 
@@ -148,6 +150,19 @@ sub new {
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL');
     $self->{'circuit'} = {};
     $self->{'node_rules'} = {};
+
+    if(!defined($params{'cache'})){
+        $self->{'logger'}->crit("NO CACHE SPECIFIED!!! Possible race condition... dying");
+        die;
+    }
+
+    $self->{'circuit'} = $params{'cache'}->{'circuit'};
+    %link_status = %{$params{'cache'}->{'link_status'}};
+    %node_info = %{$params{'cache'}->{'node_info'}};
+    %circuit_status = %{$params{'cache'}->{'circuit_status'}};
+
+    
+
     #remote method calls people can make to the master
     dbus_method("addVlan", ["uint32"], ["int32","string"]);
     dbus_method("deleteVlan", ["string"], ["int32","string"]);
@@ -467,7 +482,12 @@ sub _sync_database_to_network {
     my $self = shift;
 
     $self->{'logger'}->info("Init starting!");
-    $self->update_cache(-1);
+
+    $self->_write_cache();
+    my $event_id = $self->_generate_unique_event_id();
+    foreach my $child (keys %{$self->{'children'}}){
+	$self->send_message_to_child($child,{action => 'update_cache'},$event_id);
+    }
     
     my $node_maintenances = $self->{'db'}->get_node_maintenances();
     foreach my $maintenance (@$node_maintenances) {
