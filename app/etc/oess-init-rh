@@ -142,6 +142,14 @@ sub status{
     
     my $db = OESS::Database->new();
     my $result = 0;
+
+    if($db->is_fwdctl_enabled()){
+        my $res = system("/etc/init.d/oess-fwdctl status");
+        if($res != 0){
+            $result = $res;
+        }
+    }
+
     if($db->is_topo_enabled()){
         my $res =  system("/etc/init.d/oess-topo status");
         if($res != 0){
@@ -160,12 +168,7 @@ sub status{
             $result = $res;
         }
     }
-    if($db->is_fwdctl_enabled()){
-        my $res = system("/etc/init.d/oess-fwdctl status");
-        if($res != 0){
-            $result = $res;
-        }
-    }
+
     if($db->is_fvd_enabled()){
         my $res = system("/etc/init.d/oess-fvd status");
         if($res != 0){
@@ -210,6 +213,13 @@ sub stop{
     my $db = OESS::Database->new();
     my $result = 0;
 
+    if($db->is_fwdctl_enabled()){
+        my $res = system("/etc/init.d/oess-fwdctl stop");
+        if($res != 0){
+            $result = $res;;
+        }
+    }
+
     if($db->is_topo_enabled()){
         my $res = system("/etc/init.d/oess-topo stop");
         if($res != 0){
@@ -228,12 +238,7 @@ sub stop{
             $result = $res;;
         }
     }
-    if($db->is_fwdctl_enabled()){
-        my $res = system("/etc/init.d/oess-fwdctl stop");
-        if($res != 0){
-            $result = $res;;
-        }
-    }
+
     if($db->is_fvd_enabled()){
         my $res = system("/etc/init.d/oess-fvd stop");
         if($res != 0){
@@ -280,6 +285,13 @@ sub start{
     
     my $result = 0;
 
+    if($db->is_fwdctl_enabled()){
+        my $res = system("/etc/init.d/oess-fwdctl start");
+        if($res != 0){
+            $result = $res;;
+        }
+    }
+
     if($db->is_topo_enabled()){
         my $res = system("/etc/init.d/oess-topo start");
         if($res != 0){
@@ -294,12 +306,6 @@ sub start{
     }
     if($db->is_nox_enabled()){
         my $res = system("/etc/init.d/nox_cored start");
-        if($res != 0){
-            $result = $res;;
-        }
-    }
-    if($db->is_fwdctl_enabled()){
-        my $res = system("/etc/init.d/oess-fwdctl start");
         if($res != 0){
             $result = $res;;
         }

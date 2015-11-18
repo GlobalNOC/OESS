@@ -33,27 +33,80 @@ use Getopt::Long;
 use Proc::Daemon;
 use Data::Dumper;
 
+#link statuses
+use constant OESS_LINK_UP       => 1;
+use constant OESS_LINK_DOWN     => 0;
+use constant OESS_LINK_UNKNOWN  => 2;
+
+#circuit statuses
+use constant OESS_CIRCUIT_UP    => 1;
+use constant OESS_CIRCUIT_DOWN  => 0;
+use constant OESS_CIRCUIT_UNKNOWN => 2;
+
+use strict;
+
 my $log;
 
-my $srv_object = undef;
 my $pid_file = "/var/run/oess/fwdctl.pid";
 
+sub build_cache{
+
+    my %cache;
+
+    my $db = OESS::Database->new();
+    my $circuits = $db->get_current_circuits();
+        
+    foreach my $circuit (@$circuits) {
+	my $id = $circuit->{'circuit_id'};
+	my $ckt = OESS::Circuit->new( db => $db,
+				      circuit_id => $id );
+
+	$cache{'circuit'}{$ckt->get_id()} = $ckt;
+	my $operational_state = $circuit->{'details'}->{'operational_state'};
+	if ($operational_state eq 'up') {
+	    $cache{'circuit_status'}{$id} = OESS_CIRCUIT_UP;
+	} elsif ($operational_state  eq 'down') {
+	    $cache{'circuit_status'}{$id} = OESS_CIRCUIT_DOWN;
+	} else {
+	    $cache{'circuit_status'}{$id} = OESS_CIRCUIT_UNKNOWN;
+	}
+    }
+        
+    my $links = $db->get_current_links();
+    foreach my $link (@$links) {
+	if ($link->{'status'} eq 'up') {
+	    $cache{'link_status'}{$link->{'name'}} = OESS_LINK_UP;
+	} elsif ($link->{'status'} eq 'down') {
+	    $cache{'link_status'}{$link->{'name'}} = OESS_LINK_DOWN;
+	} else {
+	    $cache{'link_status'}{$link->{'name'}} = OESS_LINK_UNKNOWN;
+	}
+    }
+        
+    my $nodes = $db->get_current_nodes();
+    foreach my $node (@$nodes) {
+	my $details = $db->get_node_by_dpid(dpid => $node->{'dpid'});
+	$details->{'dpid_str'} = sprintf("%x",$node->{'dpid'});
+	$details->{'name'} = $node->{'name'};
+	$cache{'node_info'}{$node->{'dpid'}} = $details;
+    }
+
+    return \%cache;
+
+}
+
 sub core{
+    my $cache = shift;
+
     Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
     $log = Log::Log4perl->get_logger("FWDCTL");
 
     my $bus = Net::DBus->system;
     my $service = $bus->export_service("org.nddi.fwdctl");
 
-    $srv_object = OESS::FWDCTL::Master->new($service);
+    my $srv_object = OESS::FWDCTL::Master->new(service => $service, cache => $cache);
 
-    my $dbus = OESS::DBus->new( service => "org.nddi.openflow", instance => "/controller1");
-
-
-    sub sync_db_to_net{
-        $srv_object->_sync_database_to_network();
-    }
-
+    my $dbus = OESS::DBus->new( service => "org.nddi.openflow", instance => "/controller1", timeout => -1, sleep_interval => .1);
     #--- listen for topo events ----
     sub datapath_join_callback{
         my $dpid   = shift;
@@ -95,7 +148,8 @@ sub core{
 
     my $timer = AnyEvent->timer( after => 10, interval => 10, cb => \&check_child_status);
     my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => \&reap_stale_events);
-    my $initial_sync = AnyEvent->timer(after => 2, cb => \&sync_db_to_net);
+
+    $srv_object->_sync_database_to_network();
 
     AnyEvent->condvar->recv;
 
@@ -152,19 +206,23 @@ sub main{
                                         pid_file => $pid_file
                                        );
         }
-        my $kid_pid = $daemon->Init;
 
+	my $cache = build_cache();
+	
+        my $kid_pid = $daemon->Init;
+	
         if ($kid_pid) {
             `chmod 0644 $pid_file`;
             return;
         }
 
-        core();
+	core($cache);
     }
     #not a deamon, just run the core;
     else {
         $SIG{HUP} = sub{ exit(0); };
-        core();
+	my $cache = build_cache();
+	core($cache);
     }
 
 }
