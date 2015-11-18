@@ -149,6 +149,8 @@ sub core{
     my $timer = AnyEvent->timer( after => 10, interval => 10, cb => \&check_child_status);
     my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => \&reap_stale_events);
 
+    $srv_object->_sync_database_to_network();
+
     AnyEvent->condvar->recv;
 
 }
