@@ -38,21 +38,24 @@ my $log;
 my $srv_object = undef;
 my $pid_file = "/var/run/oess/fwdctl.pid";
 
+sub sync_to_db{
+    my $bus = Net::DBus->system;
+    my $service = $bus->export_service("org.nddi.fwdctl");
+    
+    $srv_object = OESS::FWDCTL::Master->new($service);
+    $srv_object->_sync_database_to_network();
+
+    return $srv_object;
+}
+
+
 sub core{
+    my $srv_object = shift;
+
     Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
     $log = Log::Log4perl->get_logger("FWDCTL");
 
-    my $bus = Net::DBus->system;
-    my $service = $bus->export_service("org.nddi.fwdctl");
-
-    $srv_object = OESS::FWDCTL::Master->new($service);
-
     my $dbus = OESS::DBus->new( service => "org.nddi.openflow", instance => "/controller1");
-
-
-    sub sync_db_to_net{
-        $srv_object->_sync_database_to_network();
-    }
 
     #--- listen for topo events ----
     sub datapath_join_callback{
@@ -95,7 +98,6 @@ sub core{
 
     my $timer = AnyEvent->timer( after => 10, interval => 10, cb => \&check_child_status);
     my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => \&reap_stale_events);
-    my $initial_sync = AnyEvent->timer(after => 2, cb => \&sync_db_to_net);
 
     AnyEvent->condvar->recv;
 
@@ -141,6 +143,7 @@ sub main{
 
     if ($is_daemon != 0) {
         my $daemon;
+        sync_to_db();
         if ($verbose) {
             $daemon = Proc::Daemon->new(
                                         pid_file => $pid_file,
@@ -159,11 +162,13 @@ sub main{
             return;
         }
 
+        #start listening for events!
         core();
     }
     #not a deamon, just run the core;
     else {
         $SIG{HUP} = sub{ exit(0); };
+        sync_to_db();
         core();
     }
 
