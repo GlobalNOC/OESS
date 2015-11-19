@@ -343,7 +343,7 @@ sub _send_topo_port_status{
     
     print_log(LOG_ERR, "Sending topo_port_status event");
     eval {
-        $client->topo_port_status(dbus_call_async, $dpid, $reason, $info);
+        $client->topo_port_status(dbus_call_noreply, $dpid, $reason, $info);
     };
     if ($@) {
         print_log(LOG_ERR, "Dropped topo_port_status event: $@");
