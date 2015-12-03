@@ -168,6 +168,24 @@ sub new {
 }
 
 
+=head2 compare_versions
+
+=cut
+
+sub compare_versions{
+    my $self = shift;
+    
+    my $query = "select version from oess_version";
+    my $res = $self->_execute_query($query,[]);
+    
+    if($res->{'version'} eq $VERSION){
+        return 1;
+    }
+
+    return 0;
+
+}
+
 =head2 get_error
 
 A simple method that returns a string detailing what the last error was. Usually this
