@@ -368,6 +368,9 @@ sub update_cache{
 
 =head2 build_cache
 
+    a static method that builds the cache and is used by fwdctl.pl as well as
+    called internally by FWDCTL::Master.
+
 =cut
 
 sub build_cache{
@@ -1130,6 +1133,11 @@ sub topo_port_status{
     my $port_number = $info->{'port_no'};
     my $link_status = $info->{'link'};
 
+    #basic assertions
+    $self->{'logger'}->error("invalid port number") && $self->{'logger'}->logconfess() if(!defined($port_number) || $port_number > 65535 || $port_number < 0);
+    $self->{'logger'}->error("dpid was not defined") && $self->{'logger'}->logconfess() if(!defined($dpid));
+    $self->{'logger'}->error("invalid port status reason") && $self->{'logger'}->logconfess() if($reason < 0 || $reason > 2);
+    $self->{'logger'}->error("invalid link status") && $self->{'logger'}->logconfess() if(!defined($link_status) || $link_status < 0 || $link_status <= 1);
 
     my $interface = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $dpid,
                                                                    port_number => $port_number);
@@ -1171,17 +1179,18 @@ sub topo_port_status{
 
                 $self->force_sync($node_a->{'dpid'});
 		$self->force_sync($node_z->{'dpid'});
+
+                if($self->{'link_status'}->{$link_name} != $link_status){
+                    $reason = OFPPR_MODIFY;
+                    $self->port_status($dpid,$reason,$info);
+                }else{
+                    #do nothing... everything already lines up
+                }
+
             } else {
                 $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port $port_name has been added");
-            }
-
-            if($self->{'link_status'}->{$link_name} != $link_status){
-
-                $reason = OFPPR_MODIFY;
-                $self->port_status($dpid,$reason,$info);
-                #diff here!!
-            }else{
-                #do nothing... everything already lines up
+                #need to signal a diff of the node...
+                $self->force_sync($dpid);
             }
 
 	}case OFPPR_DELETE {
@@ -1190,11 +1199,13 @@ sub topo_port_status{
             } else {
                 $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port $port_name has been removed");
             }
-            #diff here!!
             $reason = OFPPR_MODIFY;
             $self->port_status($dpid,$reason,$info);
+            $self->force_sync($dpid);
 	} else {
+            #we should never get here!
             $self->port_status($dpid,$reason,$info);
+            $self->force_sync($dpid);
 	}
     }
 
@@ -1270,7 +1281,8 @@ sub fv_link_event{
 sub addVlan {
     my $self       = shift;
     my $circuit_id = shift;
-    my $dpid       = shift;
+
+    $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
 
     $self->{'logger'}->info("addVlan: $circuit_id");
 
@@ -1311,6 +1323,7 @@ sub addVlan {
             );
     }
 
+    #TODO: WHY IS THERE HERE??? Seems like we can remove this...
     $self->{'db'}->update_circuit_path_state(circuit_id  => $circuit_id,
                                              old_state   => 'deploying',
                                              new_state   => 'active');
@@ -1332,6 +1345,8 @@ sub addVlan {
 sub deleteVlan {
     my $self = shift;
     my $circuit_id = shift;
+
+    $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
 
     my $ckt = $self->get_ckt_object( $circuit_id );
     my $event_id = $self->_generate_unique_event_id();
@@ -1373,6 +1388,8 @@ sub deleteVlan {
 sub changeVlanPath {
     my $self = shift;
     my $circuit_id = shift;
+
+    $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
 
     my $ckt = $self->get_ckt_object( $circuit_id );
     
