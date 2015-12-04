@@ -164,6 +164,19 @@ sub new {
 
     $self->{'processes'} = $config->{'process'};
     
+    $self->{'override_version_check'} = 0;
+    if(defined($config->{'override_version_check'})){
+        if($config->{'override_version_check'} == 'true'){
+            $self->{'logger'}->warn("Override Version Check set to true!");
+            $self->{'override_version_check'} = 1;
+        }elsif($config->{'override_version_check'} == 'false'){
+            $self->{'override_version_check'} = 0;
+        }else{
+            $self->{'logger'}->error("Invalid override_version_check value must be either 'true' or 'false' defaulting to false");
+            $self->{'override_version_check'} = 0;
+        }
+    }
+
     return $self;
 }
 
@@ -176,12 +189,17 @@ sub compare_versions{
     my $self = shift;
     
     my $query = "select version from oess_version";
-    my $res = $self->_execute_query($query,[]);
-    
+    my $res = $self->_execute_query($query,[])->[0];
     if($res->{'version'} eq $VERSION){
         return 1;
     }
 
+    if($self->{'override_version_check'}){
+        $self->{'logger'}->error("Schema versions do not match, but override version check was specified");
+        return 1;
+    }
+
+    $self->{'logger'}->error("Invalid Schema Version detected!  Schema version '" . $res->{'version'} . "' but library version is '" . $VERSION . "'");
     return 0;
 
 }

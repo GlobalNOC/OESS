@@ -383,8 +383,8 @@ sub build_cache{
     die if(!defined($logger));
 
     #basic assertions
-    $logger->error("DB was not defined") && $logger->logconfess() if !defined($db);
-    $logger->error("DB Version does not match expected version") && $logger->logconfess() if !$db->compare_version();
+    $logger->error("DB was not defined") && $logger->logcluck() && exit 1 if !defined($db);
+    $logger->error("DB Version does not match expected version") && $logger->logcluck() && exit 1 if !$db->compare_versions();
     
     
     $logger->debug("Fetching State from the DB");
@@ -1009,15 +1009,15 @@ sub port_status{
     my $link_status = $info->{'link'};
 
     #basic assertions
-    $self->{'logger'}->error("invalid port number") && $self->{'logger'}->logconfess() if(!defined($port_number) || $port_number > 65535 || $port_number < 0);
-    $self->{'logger'}->error("dpid was not defined") && $self->{'logger'}->logconfess() if(!defined($dpid));
-    $self->{'logger'}->error("invalid port status reason") && $self->{'logger'}->logconfess() if($reason < 0 || $reason > 2);
-    $self->{'logger'}->error("invalid link status") && $self->{'logger'}->logconfess() if(!defined($link_status) || $link_status < 0 || $link_status <= 1);
+    $self->{'logger'}->error("invalid port number") && $self->{'logger'}->logcluck() && exit 1 if(!defined($port_number) || $port_number > 65535 || $port_number < 0);
+    $self->{'logger'}->error("dpid was not defined") && $self->{'logger'}->logcluck() && exit 1 if(!defined($dpid));
+    $self->{'logger'}->error("invalid port status reason") && $self->{'logger'}->logcluck() && exit 1 if($reason < 0 || $reason > 2);
+    $self->{'logger'}->error("invalid link status: '$link_status'") && $self->{'logger'}->logcluck() && exit 1 if(!defined($link_status) || $link_status < 0 || $link_status > 1);
 
     my $node_details = $self->{'db'}->get_node_by_dpid( dpid => $dpid );
 
     #assert we found the node in the db, its really bad if it isn't there!
-    $self->{'logger'}->error("node with DPID: " . $dpid . " was not found in the DB") && $self->{'logger'}->logconfess() if(!defined($node_details));
+    $self->{'logger'}->error("node with DPID: " . $dpid . " was not found in the DB") && $self->{'logger'}->logcluck() && exit 1 if(!defined($node_details));
     
     my $link_info   = $self->{'db'}->get_link_by_dpid_and_port(dpid => $dpid,
                                                                port => $port_number);
@@ -1134,10 +1134,10 @@ sub topo_port_status{
     my $link_status = $info->{'link'};
 
     #basic assertions
-    $self->{'logger'}->error("invalid port number") && $self->{'logger'}->logconfess() if(!defined($port_number) || $port_number > 65535 || $port_number < 0);
-    $self->{'logger'}->error("dpid was not defined") && $self->{'logger'}->logconfess() if(!defined($dpid));
-    $self->{'logger'}->error("invalid port status reason") && $self->{'logger'}->logconfess() if($reason < 0 || $reason > 2);
-    $self->{'logger'}->error("invalid link status") && $self->{'logger'}->logconfess() if(!defined($link_status) || $link_status < 0 || $link_status <= 1);
+    $self->{'logger'}->error("invalid port number") && $self->{'logger'}->logcluck() && exit 1 if(!defined($port_number) || $port_number > 65535 || $port_number < 0);
+    $self->{'logger'}->error("dpid was not defined") && $self->{'logger'}->logcluck() && exit 1 if(!defined($dpid));
+    $self->{'logger'}->error("invalid port status reason") && $self->{'logger'}->logcluck() && exit 1 && die if($reason < 0 || $reason > 2);
+    $self->{'logger'}->error("invalid link status '$link_status'") && $self->{'logger'}->logcluck() && exit 1 if(!defined($link_status) || $link_status < 0 || $link_status > 1);
 
     my $interface = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $dpid,
                                                                    port_number => $port_number);
