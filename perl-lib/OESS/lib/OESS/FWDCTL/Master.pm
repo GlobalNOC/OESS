@@ -86,12 +86,6 @@ use constant SYSTEM_USER        => 1;
 
 $| = 1;
 
-my %node;
-my %link_status;
-my %circuit_status;
-my %node_info;
-my %link_maintenance;
-
 sub _log {
     my $string = shift;
 
@@ -130,7 +124,6 @@ sub new {
         $self->{'logger'}->fatal("Could not make database object");
         exit(1);
     }
-    $self->{'nodes_needing_diff'} = {};
     $self->{'db'} = $db;
 
     my $topo = OESS::Topology->new( db => $self->{'db'} );
@@ -150,18 +143,18 @@ sub new {
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL');
     $self->{'circuit'} = {};
     $self->{'node_rules'} = {};
+    $self->{'link_status'} = {};
+    $self->{'circuit_status'} = {};
+    $self->{'node_info'} = {};
+    $self->{'link_maintenance'} = {};
 
-    if(!defined($params{'cache'})){
-        $self->{'logger'}->crit("NO CACHE SPECIFIED!!! Possible race condition... dying");
-        die;
-    }
+    $self->{'logger'}->error("No cache specified! Possible race condition... dying") && $self->{'logger'}->logconfess() if(!defined($params{'cache'}));
 
     $self->{'circuit'} = $params{'cache'}->{'circuit'};
-    %link_status = %{$params{'cache'}->{'link_status'}};
-    %node_info = %{$params{'cache'}->{'node_info'}};
-    %circuit_status = %{$params{'cache'}->{'circuit_status'}};
-
-    
+    $self->{'link_status'} = $params{'cache'}->{'link_status'};
+    $self->{'node_info'} = $params{'cache'}->{'node_info'};
+    $self->{'circuit_status'} = $params{'cache'}->{'circuit_status'};
+   
 
     #remote method calls people can make to the master
     dbus_method("addVlan", ["uint32"], ["int32","string"]);
@@ -282,8 +275,8 @@ sub link_maintenance {
         # Once maintenance has ended remove $link_id from our
         # link_maintenance hash, and call port_status including the true
         # link state.
-        if (exists $link_maintenance{$link_id}) {
-            delete $link_maintenance{$link_id};
+        if (exists $self->{'link_maintenance'}->{$link_id}) {
+            delete $self->{'link_maintenance'}->{$link_id};
         }
 
         $self->port_status($node1->{'dpid'}, OFPPR_MODIFY, $e1);
@@ -299,8 +292,8 @@ sub link_maintenance {
         $link_name = $self->port_status($node1->{'dpid'}, OFPPR_MODIFY, $e1);
         $link_name = $self->port_status($node2->{'dpid'}, OFPPR_MODIFY, $e2);
 
-        $link_maintenance{$link_id} = 1;
-        $link_status{$link_name} = $link_state; # Record true link state.
+        $self->{'link_maintenance'}->{$link_id} = 1;
+        $self->{'link_status'}->{$link_name} = $link_state; # Record true link state.
         $self->{'logger'}->warn("Link $link_id maintenance has begun.");
     }
     return 1;
@@ -345,75 +338,102 @@ sub update_cache{
     my $circuit_id = shift;
 
     if(!defined($circuit_id) || $circuit_id == -1){
-        
-        $self->{'logger'}->debug("Fetching State from the DB");
-        my $circuits = $self->{'db'}->get_current_circuits();
-        
-        foreach my $ckt (keys %{$self->{'circuit'}}){
-            delete $self->{'circuit'}->{$ckt};
-        }
-        
-        foreach my $circuit (@$circuits) {
-            my $id = $circuit->{'circuit_id'};
-            my $ckt = OESS::Circuit->new( db => $self->{'db'},
-                                          circuit_id => $id );
-            $self->{'circuit'}->{ $ckt->get_id() } = $ckt;
-            
-            my $operational_state = $circuit->{'details'}->{'operational_state'};
-            if ($operational_state eq 'up') {
-                $circuit_status{$id} = OESS_CIRCUIT_UP;
-            } elsif ($operational_state  eq 'down') {
-                $circuit_status{$id} = OESS_CIRCUIT_DOWN;
-            } else {
-                $circuit_status{$id} = OESS_CIRCUIT_UNKNOWN;
-            }
-        }
-        
-        my $links = $self->{'db'}->get_current_links();
-        foreach my $link (@$links) {
-            if ($link->{'status'} eq 'up') {
-                $link_status{$link->{'name'}} = OESS_LINK_UP;
-            } elsif ($link->{'status'} eq 'down') {
-                $link_status{$link->{'name'}} = OESS_LINK_DOWN;
-            } else {
-                $link_status{$link->{'name'}} = OESS_LINK_UNKNOWN;
-            }
-        }
-        
-        my $nodes = $self->{'db'}->get_current_nodes();
-        foreach my $node (@$nodes) {
-            $self->{'nodes_needing_diff'}{$node->{'dpid'}} = $node;
-            my $details = $self->{'db'}->get_node_by_dpid(dpid => $node->{'dpid'});
-            $details->{'dpid_str'} = sprintf("%x",$node->{'dpid'});
-            $details->{'name'} = $node->{'name'};
-            $node_info{$node->{'dpid'}} = $details;
-        }
-        
-        #write the cache for our children
-        $self->_write_cache();
-        my $event_id = $self->_generate_unique_event_id();
-        foreach my $child (keys %{$self->{'children'}}){
-            $self->send_message_to_child($child,{action => 'update_cache'},$event_id);
-        }
-        
-        return (FWDCTL_SUCCESS,$event_id);
-        
+        $self->{'logger'}->debug("Updating Cache for entire network");
+        my $res = build_cache(db => $self->{'db'}, logger => $self->{'logger'});
+        $self->{'circuit'} = $res->{'ckts'};
+        $self->{'link_status'} = $res->{'link_status'};
+        $self->{'circuit_status'} = $res->{'circuit_status'};
+        $self->{'node_info'} = $res->{'node_info'};
+        $self->{'logger'}->debug("Cache update complete");
+
     }else{
-        my $event_id = $self->_generate_unique_event_id();
-        
+        $self->{'logger'}->debug("Updating cache for circuit: " . $circuit_id);
         my $ckt = $self->get_ckt_object($circuit_id);
         if(!defined($ckt)){
-            return (FWDCTL_FAILURE,$event_id);   
+            return (FWDCTL_FAILURE,$self->_generate_unique_event_id());
         }
-        
         $ckt->update_circuit_details();
-        $self->_write_cache();
-        foreach my $child (keys %{$self->{'children'}}){
-            $self->send_message_to_child($child,{action => 'update_cache'},$event_id);
-        }
-        return (FWDCTL_SUCCESS, $event_id);
+        $self->{'logger'}->debug("Updating cache for circuit: " . $circuit_id . " complete");
     }
+
+    #write the cache for our children
+    $self->_write_cache();
+    my $event_id = $self->_generate_unique_event_id();
+    foreach my $child (keys %{$self->{'children'}}){
+            $self->send_message_to_child($child,{action => 'update_cache'},$event_id);
+    }
+    
+    return (FWDCTL_SUCCESS,$event_id);
 }
+
+=head2 build_cache
+
+    a static method that builds the cache and is used by fwdctl.pl as well as
+    called internally by FWDCTL::Master.
+
+=cut
+
+sub build_cache{
+    my %params = @_;
+    
+    
+    my $db = $params{'db'};
+    my $logger = $params{'logger'};
+
+    die if(!defined($logger));
+
+    #basic assertions
+    $logger->error("DB was not defined") && $logger->logcluck() && exit 1 if !defined($db);
+    $logger->error("DB Version does not match expected version") && $logger->logcluck() && exit 1 if !$db->compare_versions();
+    
+    
+    $logger->debug("Fetching State from the DB");
+    my $circuits = $db->get_current_circuits();
+
+    #init our objects
+    my %ckts;
+    my %circuit_status;
+    my %link_status;
+    my %node_info;
+    foreach my $circuit (@$circuits) {
+        my $id = $circuit->{'circuit_id'};
+        my $ckt = OESS::Circuit->new( db => $db,
+                                      circuit_id => $id );
+        $ckts{ $ckt->get_id() } = $ckt;
+        
+        my $operational_state = $circuit->{'details'}->{'operational_state'};
+        if ($operational_state eq 'up') {
+            $circuit_status{$id} = OESS_CIRCUIT_UP;
+        } elsif ($operational_state  eq 'down') {
+            $circuit_status{$id} = OESS_CIRCUIT_DOWN;
+        } else {
+            $circuit_status{$id} = OESS_CIRCUIT_UNKNOWN;
+        }
+    }
+        
+    my $links = $db->get_current_links();
+    foreach my $link (@$links) {
+        if ($link->{'status'} eq 'up') {
+            $link_status{$link->{'name'}} = OESS_LINK_UP;
+        } elsif ($link->{'status'} eq 'down') {
+            $link_status{$link->{'name'}} = OESS_LINK_DOWN;
+        } else {
+            $link_status{$link->{'name'}} = OESS_LINK_UNKNOWN;
+        }
+    }
+        
+    my $nodes = $db->get_current_nodes();
+    foreach my $node (@$nodes) {
+        my $details = $db->get_node_by_dpid(dpid => $node->{'dpid'});
+        $details->{'dpid_str'} = sprintf("%x",$node->{'dpid'});
+        $details->{'name'} = $node->{'name'};
+        $node_info{$node->{'dpid'}} = $details;
+    }
+
+    return {ckts => \%ckts, circuit_status => \%circuit_status, link_status => \%link_status, node_info => \%node_info};
+
+}
+        
 
 sub _write_cache{
     my $self = shift;
@@ -458,7 +478,7 @@ sub _write_cache{
     }
 
         
-    foreach my $dpid (keys %node_info){
+    foreach my $dpid (keys %{$self->{'node_info'}}){
         my $data;
         my $ckts;
         foreach my $ckt (keys %circuits){
@@ -466,7 +486,7 @@ sub _write_cache{
             $ckts->{$ckt}->{'flows'} = $dpids{$dpid}->{$ckt}->{'flows'};
         }
         $data->{'ckts'} = $ckts;
-        $data->{'nodes'} = \%node_info;
+        $data->{'nodes'} = $self->{'node_info'};
         $data->{'settings'}->{'discovery_vlan'} = $self->{'db'}->{'discovery_vlan'};
         $self->{'logger'}->info("writing shared file for dpid: " . $dpid);
         
@@ -499,7 +519,7 @@ sub _sync_database_to_network {
         $self->link_maintenance($maintenance->{'link'}->{'id'}, "start");
     }
 
-    foreach my $node (keys %node_info){
+    foreach my $node (keys %{$self->{'node_info'}}){
         #fire off the datapath join handler
         $self->datapath_join_handler($node);
     }
@@ -595,8 +615,9 @@ sub datapath_join_handler{
 
     my $dpid_str  = sprintf("%x",$dpid);
 
-    if(!$node_info{$dpid}){
-        $node_info{$dpid}->{'dpid_str'} = sprintf("%x",$dpid);
+    if(!$self->{'node_info'}->{$dpid}){
+        $self->{'node_info'}->{$dpid}->{'dpid_str'} = sprintf("%x",$dpid);
+        $self->{'logger'}->warn("Detected a new unconfigured switch with DPID: " . $dpid . " initializing... ");
         $self->_write_cache();
     }
 
@@ -710,10 +731,10 @@ sub _restore_down_circuits{
             #if the restored path is the backup
             if ($circuit->{'path_type'} eq 'backup') {
 
-                if ($ckt->get_path_status(path => 'primary', link_status => \%link_status ) == OESS_LINK_DOWN) {
+                if ($ckt->get_path_status(path => 'primary', link_status => $self->{'link_status'} ) == OESS_LINK_DOWN) {
                     #if the primary path is down and the backup path is up and is not active fail over
                     
-                    if ($ckt->get_path_status( path => 'backup', link_status => \%link_status ) && $ckt->get_active_path() ne 'backup'){
+                    if ($ckt->get_path_status( path => 'backup', link_status => $self->{'link_status'} ) && $ckt->get_active_path() ne 'backup'){
                         #bring it back to this path
                         my $success = $ckt->change_path( do_commit => 0);
                         $self->{'logger'}->warn("vlan:" . $ckt->get_name() ." id:" . $ckt->get_id() . " affected by trunk:$link_name moving to alternate path");
@@ -728,24 +749,24 @@ sub _restore_down_circuits{
                             push(@{$dpids{$dpid}},$ckt->get_id());
                         }
 
-                        $circuit_status{$ckt->get_id()} = OESS_CIRCUIT_UP;
+                        $self->{'circuit_status'}->{$ckt->get_id()} = OESS_CIRCUIT_UP;
                         #send notification
                         $circuit->{'status'} = 'up';
                         $circuit->{'reason'} = 'the backup path has been restored';
                         $circuit->{'type'} = 'restored';
                         #$self->emit_signal("circuit_notification", $circuit );
                         push (@$circuit_notification_data, $circuit)
-                    } elsif ($ckt->get_path_status(path => 'backup', link_status => \%link_status) && $ckt->get_active_path() eq 'backup'){
+                    } elsif ($ckt->get_path_status(path => 'backup', link_status => $self->{'link_status'}) && $ckt->get_active_path() eq 'backup'){
                         #circuit was on backup path, and backup path is now up
                         $self->{'logger'}->warn("vlan:" . $ckt->get_name() ." id:" . $ckt->get_id() . " affected by trunk:$link_name was restored");
-                        next if $circuit_status{$circuit->{'circuit_id'}} == OESS_CIRCUIT_UP;
+                        next if $self->{'circuit_status'}->{$circuit->{'circuit_id'}} == OESS_CIRCUIT_UP;
                         #send notification on restore
                         $circuit->{'status'} = 'up';
                         $circuit->{'reason'} = 'the backup path has been restored';
                         $circuit->{'type'} = 'restored';
                         #$self->emit_signal("circuit_notification", $circuit);
                         push (@$circuit_notification_data, $circuit);
-                        $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
+                        $self->{'circuit_status'}->{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
                 } else {
                         #both paths are down...
                         #do not do anything
@@ -758,8 +779,8 @@ sub _restore_down_circuits{
                 if ($ckt->get_active_path() eq 'primary'){
                     #nothing to do here as we are already on the primary path
                     $self->{'logger'}->debug("ckt:" . $circuit->{'circuit_id'} . " primary path restored and we were alread on it");
-                    next if($circuit_status{$circuit->{'circuit_id'}} == OESS_CIRCUIT_UP);
-                    $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
+                    next if($self->{'circuit_status'}{$circuit->{'circuit_id'}} == OESS_CIRCUIT_UP);
+                    $self->{'circuit_status'}->{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
                     #send notifcation on restore
                     $circuit->{'status'} = 'up';
                     $circuit->{'reason'} = 'the primary path has been restored';
@@ -768,8 +789,8 @@ sub _restore_down_circuits{
                     push (@$circuit_notification_data, $circuit)
                 } else {
 
-                    if ($ckt->get_path_status( path => 'primary', link_status => \%link_status )) {
-                        if ($ckt->get_path_status(path => 'backup', link_status => \%link_status)) {
+                    if ($ckt->get_path_status( path => 'primary', link_status => $self->{'link_status'} )) {
+                        if ($ckt->get_path_status(path => 'backup', link_status => $self->{'link_status'})) {
                             #ok the backup path is up and active... and restore to primary is not 0
                             if ($ckt->get_restore_to_primary() > 0) {
                                 #schedule the change path
@@ -797,7 +818,7 @@ sub _restore_down_circuits{
                                 push(@{$dpids{$dpid}},$ckt->get_id());
                             }
 
-                            $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
+                            $self->{'circuit_status'}->{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
                             #send restore notification
                             $circuit->{'status'} = 'up';
                             $circuit->{'reason'} = 'the primary path has been restored';
@@ -809,8 +830,8 @@ sub _restore_down_circuits{
                 }
             }
         } else {
-            next if($circuit_status{$circuit->{'circuit_id'}} == OESS_CIRCUIT_UP);
-            $circuit_status{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
+            next if($self->{'circuit_status'}->{$circuit->{'circuit_id'}} == OESS_CIRCUIT_UP);
+            $self->{'circuit_status'}->{$circuit->{'circuit_id'}} = OESS_CIRCUIT_UP;
             #send restore notification
             $circuit->{'status'} = 'up';
             $circuit->{'reason'} = 'the primary path has been restored';
@@ -884,7 +905,7 @@ sub _fail_over_circuits{
             }
             
             #check the alternate paths status
-            if($circuit->get_path_status( path => $alternate_path, link_status => \%link_status)){
+            if($circuit->get_path_status( path => $alternate_path, link_status => $self->{'link_status'})){
                 my $success = $circuit->change_path( do_commit => 0);
                 $self->{'logger'}->warn("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name moving to alternate path");
                 
@@ -896,7 +917,7 @@ sub _fail_over_circuits{
                     $self->{'logger'}->error("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $circuit->error());
                     #$self->emit_signal("circuit_notification", $circuit_info );
                     push(@$circuit_infos, $circuit_info);
-                    $circuit_status{$circuit_id} = OESS_CIRCUIT_UNKNOWN;
+                    $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UNKNOWN;
                     next;
                 }
                 
@@ -910,7 +931,7 @@ sub _fail_over_circuits{
                 $circuit_info->{'reason'} = "Failed to Alternate Path";
                 $circuit_info->{'circuit_id'} = $circuit_info->{'id'};
                 push (@$circuit_infos, $circuit_info);
-                $circuit_status{$circuit_id} = OESS_CIRCUIT_UP;
+                $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UP;
                 
             }
             else{
@@ -919,10 +940,10 @@ sub _fail_over_circuits{
                 $circuit_info->{'status'} = "down";
                 $circuit_info->{'reason'} = "Attempted to fail to alternate path, however the primary and backup path are both down";
                 $circuit_info->{'circuit_id'} = $circuit_info->{'id'};
-                next if($circuit_status{$circuit_id} == OESS_CIRCUIT_DOWN);
+                next if($self->{'circuit_status'}->{$circuit_id} == OESS_CIRCUIT_DOWN);
                 #$self->emit_signal("circuit_notification", $circuit_info );
                 push (@$circuit_infos, $circuit_info);
-                $circuit_status{$circuit_id} = OESS_CIRCUIT_DOWN;
+                $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_DOWN;
                 next;
                 
             }
@@ -936,10 +957,10 @@ sub _fail_over_circuits{
             $circuit_info->{'reason'} = "Could not fail over: no backup path configured";
             
             $circuit_info->{'circuit_id'} = $circuit_info->{'id'};
-            next if($circuit_status{$circuit_id} == OESS_CIRCUIT_DOWN);
+            next if($self->{'circuit_status'}->{$circuit_id} == OESS_CIRCUIT_DOWN);
             #$self->emit_signal("circuit_notification", $circuit_info);
             push (@$circuit_infos, $circuit_info);
-            $circuit_status{$circuit_id} = OESS_CIRCUIT_DOWN;
+            $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_DOWN;
             
         }
         
@@ -987,9 +1008,17 @@ sub port_status{
     my $port_number = $info->{'port_no'};
     my $link_status = $info->{'link'};
 
+    #basic assertions
+    $self->{'logger'}->error("invalid port number") && $self->{'logger'}->logcluck() && exit 1 if(!defined($port_number) || $port_number > 65535 || $port_number < 0);
+    $self->{'logger'}->error("dpid was not defined") && $self->{'logger'}->logcluck() && exit 1 if(!defined($dpid));
+    $self->{'logger'}->error("invalid port status reason") && $self->{'logger'}->logcluck() && exit 1 if($reason < 0 || $reason > 2);
+    $self->{'logger'}->error("invalid link status: '$link_status'") && $self->{'logger'}->logcluck() && exit 1 if(!defined($link_status) || $link_status < 0 || $link_status > 1);
+
     my $node_details = $self->{'db'}->get_node_by_dpid( dpid => $dpid );
 
-
+    #assert we found the node in the db, its really bad if it isn't there!
+    $self->{'logger'}->error("node with DPID: " . $dpid . " was not found in the DB") && $self->{'logger'}->logcluck() && exit 1 if(!defined($node_details));
+    
     my $link_info   = $self->{'db'}->get_link_by_dpid_and_port(dpid => $dpid,
                                                                port => $port_number);
 
@@ -1019,11 +1048,11 @@ sub port_status{
                     return;
                 }
 
-                $link_status{$link_name} = OESS_LINK_DOWN;
+                $self->{'link_status'}->{$link_name} = OESS_LINK_DOWN;
 
                 # Fail over affected circuits if link is not in maintenance mode.
                 # Ignore traffic migration when in maintenance mode.
-                if (!exists $link_maintenance{$link_id}) {
+                if (!exists $self->{'link_maintenance'}->{$link_id}) {
                     $self->_fail_over_circuits( circuits => $affected_circuits, link_name => $link_name );
                     $self->_cancel_restorations( link_id => $link_id);
                 }
@@ -1033,11 +1062,11 @@ sub port_status{
             #--- can be restored by bringing it back up over to this path, we do not restore by default
             else {
                 $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name is up");
-                $link_status{$link_name} = OESS_LINK_UP;
+                $self->{'link_status'}->{$link_name} = OESS_LINK_UP;
 
                 # Restore affected circuits if link is not in maintenance mode.
                 # Ignore traffic migration when in maintenance mode.
-                if (!exists $link_maintenance{$link_id}) {
+                if (!exists $self->{'link_maintenance'}->{$link_id}) {
                     my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $link_id);
                     $self->_restore_down_circuits( circuits => $circuits, link_name => $link_name );
                 }
@@ -1049,8 +1078,6 @@ sub port_status{
             } else {
                 $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port $port_name has been removed");
             }
-            $self->{'nodes_needing_diff'}{$dpid} = {full_diff => 1, dpid => $dpid};
-            #note that this will cause the flow_stats_in handler to handle this data
         } else {
             #this is the add case and we don't want to do anything here, as TOPO will tell us
 
@@ -1105,6 +1132,13 @@ sub topo_port_status{
     my $port_name   = $info->{'name'};
     my $port_number = $info->{'port_no'};
     my $link_status = $info->{'link'};
+
+    #basic assertions
+    $self->{'logger'}->error("invalid port number") && $self->{'logger'}->logcluck() && exit 1 if(!defined($port_number) || $port_number > 65535 || $port_number < 0);
+    $self->{'logger'}->error("dpid was not defined") && $self->{'logger'}->logcluck() && exit 1 if(!defined($dpid));
+    $self->{'logger'}->error("invalid port status reason") && $self->{'logger'}->logcluck() && exit 1 && die if($reason < 0 || $reason > 2);
+    $self->{'logger'}->error("invalid link status '$link_status'") && $self->{'logger'}->logcluck() && exit 1 if(!defined($link_status) || $link_status < 0 || $link_status > 1);
+
     my $interface = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $dpid,
                                                                    port_number => $port_number);
     my $node = $self->{'db'}->get_node_by_dpid( dpid => $dpid );
@@ -1136,7 +1170,7 @@ sub topo_port_status{
                 foreach my $circuit (@$circuits) {
                     my $circuit_id = $circuit->{'circuit_id'};
                     my $ckt = $self->get_ckt_object( $circuit_id );
-                    $ckt->update_circuit_details( link_status => );
+                    $ckt->update_circuit_details( link_status => $self->{'link_status'});
                 }
 		$self->_write_cache();
 
@@ -1145,17 +1179,18 @@ sub topo_port_status{
 
                 $self->force_sync($node_a->{'dpid'});
 		$self->force_sync($node_z->{'dpid'});
+
+                if($self->{'link_status'}->{$link_name} != $link_status){
+                    $reason = OFPPR_MODIFY;
+                    $self->port_status($dpid,$reason,$info);
+                }else{
+                    #do nothing... everything already lines up
+                }
+
             } else {
                 $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port $port_name has been added");
-            }
-
-            if($link_status{$link_name} != $link_status){
-
-                $reason = OFPPR_MODIFY;
-                $self->port_status($dpid,$reason,$info);
-                #diff here!!
-            }else{
-                #do nothing... everything already lines up
+                #need to signal a diff of the node...
+                $self->force_sync($dpid);
             }
 
 	}case OFPPR_DELETE {
@@ -1164,11 +1199,13 @@ sub topo_port_status{
             } else {
                 $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port $port_name has been removed");
             }
-            #diff here!!
             $reason = OFPPR_MODIFY;
             $self->port_status($dpid,$reason,$info);
+            $self->force_sync($dpid);
 	} else {
+            #we should never get here!
             $self->port_status($dpid,$reason,$info);
+            $self->force_sync($dpid);
 	}
     }
 
@@ -1213,9 +1250,9 @@ sub fv_link_event{
 	    return 0;
 	}
 	
-	$link_status{$link_name} = OESS_LINK_DOWN;
+	$self->{'link_status'}->{$link_name} = OESS_LINK_DOWN;
 	#fail over affected circuits
-        if (!exists $link_maintenance{$link->{'link_id'}}) {
+        if (!exists $self->{'link_maintenance'}->{$link->{'link_id'}}) {
             $self->_fail_over_circuits( circuits => $affected_circuits, link_name => $link_name );
             $self->_cancel_restorations( link_id => $link->{'link_id'});
             $self->{'logger'}->warn("FV Link down complete!");
@@ -1225,9 +1262,9 @@ sub fv_link_event{
     #--- can be restored by bringing it back up over to this path, we do not restore by default
     else {
 	$self->{'logger'}->warn("FV has determined link $link_name is up");
-	$link_status{$link_name} = OESS_LINK_UP;
+	$self->{'link_status'}->{$link_name} = OESS_LINK_UP;
 
-        if (!exists $link_maintenance{$link->{'link_id'}}) {
+        if (!exists $self->{'link_maintenance'}->{$link->{'link_id'}}) {
             my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $link->{'link_id'});
             $self->_restore_down_circuits( circuits => $circuits, link_name => $link_name );
             $self->{'logger'}->warn("FV Link Up completed");
@@ -1244,7 +1281,8 @@ sub fv_link_event{
 sub addVlan {
     my $self       = shift;
     my $circuit_id = shift;
-    my $dpid       = shift;
+
+    $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
 
     $self->{'logger'}->info("addVlan: $circuit_id");
 
@@ -1285,11 +1323,12 @@ sub addVlan {
             );
     }
 
+    #TODO: WHY IS THERE HERE??? Seems like we can remove this...
     $self->{'db'}->update_circuit_path_state(circuit_id  => $circuit_id,
                                              old_state   => 'deploying',
                                              new_state   => 'active');
     
-    $circuit_status{$circuit_id} = OESS_CIRCUIT_UP;
+    $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UP;
 
     foreach my $dpid (keys %dpids){
         $self->send_message_to_child($dpid,{action => 'add_vlan', circuit => $circuit_id}, $event_id);
@@ -1306,6 +1345,8 @@ sub addVlan {
 sub deleteVlan {
     my $self = shift;
     my $circuit_id = shift;
+
+    $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
 
     my $ckt = $self->get_ckt_object( $circuit_id );
     my $event_id = $self->_generate_unique_event_id();
@@ -1347,6 +1388,8 @@ sub deleteVlan {
 sub changeVlanPath {
     my $self = shift;
     my $circuit_id = shift;
+
+    $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
 
     my $ckt = $self->get_ckt_object( $circuit_id );
     

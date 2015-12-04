@@ -31,11 +31,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 1.1.8b
+Version 1.1.8c
 
 =cut
 
-our $VERSION = '1.1.8b';
+our $VERSION = '1.1.8c';
 
 =head1 SYNOPSIS
 
@@ -81,7 +81,7 @@ use OESS::Topology;
 use DateTime;
 use Data::Dumper;
 
-use constant VERSION => '1.1.8b';
+use constant VERSION => '1.1.8c';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant SHARE_DIR => "/usr/share/doc/perl-OESS-" . VERSION . "/";
@@ -164,9 +164,45 @@ sub new {
 
     $self->{'processes'} = $config->{'process'};
     
+    $self->{'override_version_check'} = 0;
+    if(defined($config->{'override_version_check'})){
+        if($config->{'override_version_check'} == 'true'){
+            $self->{'logger'}->warn("Override Version Check set to true!");
+            $self->{'override_version_check'} = 1;
+        }elsif($config->{'override_version_check'} == 'false'){
+            $self->{'override_version_check'} = 0;
+        }else{
+            $self->{'logger'}->error("Invalid override_version_check value must be either 'true' or 'false' defaulting to false");
+            $self->{'override_version_check'} = 0;
+        }
+    }
+
     return $self;
 }
 
+
+=head2 compare_versions
+
+=cut
+
+sub compare_versions{
+    my $self = shift;
+    
+    my $query = "select version from oess_version";
+    my $res = $self->_execute_query($query,[])->[0];
+    if($res->{'version'} eq $VERSION){
+        return 1;
+    }
+
+    if($self->{'override_version_check'}){
+        $self->{'logger'}->error("Schema versions do not match, but override version check was specified");
+        return 1;
+    }
+
+    $self->{'logger'}->error("Invalid Schema Version detected!  Schema version '" . $res->{'version'} . "' but library version is '" . $VERSION . "'");
+    return 0;
+
+}
 
 =head2 get_error
 

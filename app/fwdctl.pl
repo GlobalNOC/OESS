@@ -45,8 +45,6 @@ use constant OESS_CIRCUIT_UNKNOWN => 2;
 
 use strict;
 
-my $log;
-
 my $pid_file = "/var/run/oess/fwdctl.pid";
 
 sub build_cache{
@@ -54,52 +52,19 @@ sub build_cache{
     my %cache;
 
     my $db = OESS::Database->new();
-    my $circuits = $db->get_current_circuits();
-        
-    foreach my $circuit (@$circuits) {
-	my $id = $circuit->{'circuit_id'};
-	my $ckt = OESS::Circuit->new( db => $db,
-				      circuit_id => $id );
-
-	$cache{'circuit'}{$ckt->get_id()} = $ckt;
-	my $operational_state = $circuit->{'details'}->{'operational_state'};
-	if ($operational_state eq 'up') {
-	    $cache{'circuit_status'}{$id} = OESS_CIRCUIT_UP;
-	} elsif ($operational_state  eq 'down') {
-	    $cache{'circuit_status'}{$id} = OESS_CIRCUIT_DOWN;
-	} else {
-	    $cache{'circuit_status'}{$id} = OESS_CIRCUIT_UNKNOWN;
-	}
-    }
-        
-    my $links = $db->get_current_links();
-    foreach my $link (@$links) {
-	if ($link->{'status'} eq 'up') {
-	    $cache{'link_status'}{$link->{'name'}} = OESS_LINK_UP;
-	} elsif ($link->{'status'} eq 'down') {
-	    $cache{'link_status'}{$link->{'name'}} = OESS_LINK_DOWN;
-	} else {
-	    $cache{'link_status'}{$link->{'name'}} = OESS_LINK_UNKNOWN;
-	}
-    }
-        
-    my $nodes = $db->get_current_nodes();
-    foreach my $node (@$nodes) {
-	my $details = $db->get_node_by_dpid(dpid => $node->{'dpid'});
-	$details->{'dpid_str'} = sprintf("%x",$node->{'dpid'});
-	$details->{'name'} = $node->{'name'};
-	$cache{'node_info'}{$node->{'dpid'}} = $details;
-    }
-
-    return \%cache;
+    Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
+    my $log = Log::Log4perl->get_logger("FWDCTL");
+    my $res = OESS::FWDCTL::Master::build_cache( db => $db, logger => $log);
+    
+    return {circuit => $res->{'ckts'}, link_status => $res->{'link_status'}, node_info => $res->{'node_info'}, circuit_status => $res->{'circuit_status'}};
 
 }
 
 sub core{
     my $cache = shift;
-
+    
     Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
-    $log = Log::Log4perl->get_logger("FWDCTL");
+    my $log = Log::Log4perl->get_logger("FWDCTL");
 
     my $bus = Net::DBus->system;
     my $service = $bus->export_service("org.nddi.fwdctl");
