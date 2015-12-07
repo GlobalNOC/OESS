@@ -72,6 +72,7 @@ use warnings;
 package OESS::Database;
 
 use DBI;
+use Log::Log4perl;
 use XML::Simple;
 
 use Array::Utils qw(intersect);
@@ -125,6 +126,8 @@ sub new {
     my $self = \%args;
     bless $self, $class;
 
+    $self->{'logger'} = Log::Log4perl->get_logger('OESS.Database');
+
     my $config_filename = $args{'config'};
     my $config = XML::Simple::XMLin($config_filename);
     my $username = $config->{'credentials'}->{'username'};
@@ -144,7 +147,7 @@ sub new {
         );
 
     if (! $dbh){
-	return ;
+      return ;
     }
 
     # set the defualt vlan range, if not defined in config default to 1-4096

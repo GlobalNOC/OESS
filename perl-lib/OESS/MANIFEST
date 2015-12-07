@@ -29,6 +29,7 @@ MANIFEST			This list of files
 pack_in_events.pcap
 perl-OESS-1.1.7.tar.gz
 perl-OESS-1.1.8.tar.gz
+perl-OESS-1.1.8c.tar.gz
 perl-OESS.spec
 share/nddi.sql
 share/upgrade/oess-1.0.10-1.0.11
@@ -49,7 +50,8 @@ share/upgrade/oess-1.1.3-1.1.4
 share/upgrade/oess-1.1.4-1.1.5
 share/upgrade/oess-1.1.5-1.1.6
 share/upgrade/oess-1.1.6-1.1.7
-share/upgrade/oess-1.1.7-oess-1.1.8
+share/upgrade/oess-1.1.7-1.1.8
+share/upgrade/oess-1.1.8-1.1.8c
 t/00-load_base.t
 t/01-load_known_state.t
 t/02-pod.t
@@ -67,6 +69,7 @@ t/circuit-interdomain_flows.t
 t/circuit-loop.t
 t/circuit-multipoint_flows.t
 t/circuit-simple_flows.t
+t/circuit-static_mac_addr.t
 t/circuit-static_mac_addr_simple.t
 t/conf/database.xml
 t/conf/logging.conf
@@ -74,7 +77,18 @@ t/conf/oess_known_state.sql
 t/conf/oess_known_state.sql.new
 t/conf/snapp_config.xml
 t/conf/snapp_known_state.sql
+t/conf/SNMP/snapp/db/per_flow/1/1--65535.rrd
+t/conf/SNMP/snapp/db/per_flow/1/1-1-1.rrd
+t/conf/SNMP/snapp/db/per_flow/1/1-2-1.rrd
 t/conf/SNMP/snapp/db/per_flow/111/111-1-145.rrd
+t/conf/SNMP/snapp/db/per_flow/2/2--65535.rrd
+t/conf/SNMP/snapp/db/per_flow/2/2-1-10.rrd
+t/conf/SNMP/snapp/db/per_flow/2/2-2-1.rrd
+t/conf/SNMP/snapp/db/per_flow/2/2-3-1.rrd
+t/conf/SNMP/snapp/db/per_flow/3/3--65535.rrd
+t/conf/SNMP/snapp/db/per_flow/3/3-1-10.rrd
+t/conf/SNMP/snapp/db/per_flow/3/3-2-1.rrd
+t/conf/SNMP/snapp/db/per_flow/3/3-3-1.rrd
 t/conf/SNMP/snapp/db/per_flow/31/31-674-101.rrd
 t/conf/SNMP/snapp/snapp_config.xml
 t/database-02-get_workgroups.t
