@@ -34,6 +34,7 @@ use GRNOC::WebService::Client;
 use OESS::NSI::Constant;
 use OESS::NSI::Utils;
 use DateTime;
+use OESS::Database;
 
 use Data::Dumper;
 
@@ -199,9 +200,15 @@ sub reserve {
                                       interface => [$ep1->{'port'}, $ep2->{'port'}],
                                       tag => [$ep1->{'vlan'}, $ep2->{'vlan'}]);
     
+    log_error("Results of provision: " . Data::Dumper::Dumper($res));
+
     if(defined($res->{'results'}) && $res->{'results'}->{'success'} == 1){
         log_info("Successfully created reservation, connectionId: " . $res->{'results'}->{'circuit_id'});
+        $args->{'connection_id'} = $res->{'results'}->{'circuit_id'};
+        $args->{'criteria'}->{'p2ps'}->{'sourceSTP'} = $self->build_stp($ep1);
+        $args->{'criteria'}->{'p2ps'}->{'destSTP'} = $self->build_stp($ep2);
         push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_SUCCESS, connection_id => $res->{'results'}->{'circuit_id'}, args => $args});
+        push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_TIMEOUT, connection_id => $res->{'results'}->{'circuit_id'}, args => $args, time => time() + OESS::NSI::Constant::RESERVATION_TIMEOUT_SEC});
         return $res->{'results'}->{'circuit_id'};
     }else{
         log_error("Unable to reserve circuit: " . $res->{'error'});
@@ -259,10 +266,24 @@ sub _do_reserve_abort{
 
 }
 
-=head2 get_endpoint
+=head2 build_stp
 
 =cut
 
+sub build_stp{
+    my $self = shift;
+    my $ep = shift;
+    #example urn:ogf:network:nsi.nddi-dev.bldc.net.internet2.edu:2013::s1:1-0:+
+
+    my $str = "urn:ogf:network:nsi.";
+    $str .= $self->{'db'}->get_local_domain_name();
+    $str .= ":2013::" . $ep->{'node'} . ":" . $ep->{'port'} . ":" . $ep->{'link'} . "?vlan=" . $ep->{'vlan'};
+    return $str;
+}
+
+=head2 get_endpoint
+
+=cut
 
 sub get_endpoint{
     my $self = shift;
@@ -281,15 +302,41 @@ sub get_endpoint{
     my $interface = $parts[7];
     my $link = $parts[8];
     
-    $link =~ /\?vlan=(\d+)/;
-    my $vlan = $1;
+    $link =~ /(.*)\?vlan=(.*)/;
+    $link = $1;
+    my $vlan = $2;
 
-    if(!defined($domain) || !defined($node) || !defined($interface) || !defined($vlan)){
+    #lots of options here
+    #1-2000,3000-4000
+    my @vlans = split(',',$vlan);
+    my @tags;
+
+    foreach my $vlan (@vlans){
+        if($vlan =~ /(\d+)-(\d+)/){
+            my $start = $1;
+            my $end = $2;
+
+            if($end > 4095){
+                log_error("VLAN tag " . $end . " is > max VLAN tag 4095");
+                return;
+            }
+            for(my $i=$start;$i<=$end;$i++){
+                push(@tags,int($i));
+            }
+        }else{
+            log_error("VLAN: " . $vlan);
+            push(@tags, int($vlan));
+        }
+    }
+
+    log_debug("Tags: " . Data::Dumper::Dumper(@tags));
+
+    if(!defined($domain) || !defined($node) || !defined($interface) || scalar(@tags) < 0){
         log_error("Error processing URN $stp, missing some important pieces");
         return;
     }
 
-    return { node => $node, port => $interface, vlan => $vlan, domain => $domain };
+    return { node => $node, port => $interface, tags => \@tags, domain => $domain, link => $link };
         
 }
 
@@ -318,19 +365,25 @@ sub validate_endpoint{
                 if($resource->{'interface_name'} eq $ep->{'port'}){
                     log_debug("Found interface for requested EP, requesting VLAN availability");
                     #made it this far!
-                    my $valid_tag = $self->{'websvc'}->foo( action => "is_vlan_tag_available",
-                                                            interface => $ep->{'port'},
-                                                            node => $ep->{'node'},
-                                                            vlan => $ep->{'vlan'},
-							    workgroup_id => $self->{'workgroup_id'});
-                    
-                    log_debug("Results from is valid tag: " . Data::Dumper::Dumper($valid_tag));
-                    if(defined($valid_tag) && $valid_tag->{'results'}){
-                        log_debug("results from is_vlan_tag_available: " . Data::Dumper::Dumper($valid_tag->{'results'}));
-			if($valid_tag->{'results'}->[0]->{'available'} == 1){
-                            return 1;
+                    foreach my $tag (@{$ep->{'tags'}}){
+                        
+                        my $valid_tag = $self->{'websvc'}->foo( action    => "is_vlan_tag_available",
+                                                                interface => $ep->{'port'},
+                                                                node      => $ep->{'node'},
+                                                                vlan      => $tag,
+                                                                workgroup_id => $self->{'workgroup_id'});
+                        
+                        log_debug("Results from is valid tag: " . Data::Dumper::Dumper($valid_tag));
+                        
+                        if(defined($valid_tag) && $valid_tag->{'results'}){
+                            log_debug("results from is_vlan_tag_available: " . Data::Dumper::Dumper($valid_tag->{'results'}));
+                            if($valid_tag->{'results'}->[0]->{'available'} == 1){
+                                $ep->{'vlan'} = $tag;
+                                return 1;
+                            }
                         }
                     }
+
                     return 0;
 
                 }
@@ -383,7 +436,17 @@ sub reserveCommit{
     
     log_info("reserveCommit: connectionId: " . $args->{'connectionId'});
 
-    push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_COMMIT_CONFIRMED, args => $args});
+    my $i=0;
+    foreach my $event (@{$self->{'reservation_queue'}}){
+        if($event->{'type'} == OESS::NSI::Constant::RESERVATION_TIMEOUT && $event->{'connection_id'} == $args->{'connectionId'}){
+            my $res = splice(@{$self->{'reservation_queue'}}, $i, 1);
+            push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_COMMIT_CONFIRMED, args => $args});
+	    return OESS::NSI::Constant::SUCCESS;
+	}
+        $i++;
+    }
+
+    push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_COMMIT_FAILED, args => $args});
 
 }
 
@@ -395,8 +458,21 @@ sub process_queue {
     my ($self) = @_;
 
     log_debug("Processing Reservation Queue");
+
+    my @still_needs_to_be_done;
+
     while(my $message = shift(@{$self->{'reservation_queue'}})){
         my $type = $message->{'type'};
+        warn Data::Dumper::Dumper($message);
+        #this is now a scheduler... skip the action if it has a time and we aren't past it yet
+        if(defined($message->{'time'}) && time() < $message->{'time'}){            
+            #log_error("TIME: " . $message->{'time'} . " vs. " . time());
+            push(@still_needs_to_be_done, $message);
+            next;
+        }
+        
+        #ok pull it off the array
+        
 
         if($type == OESS::NSI::Constant::RESERVATION_SUCCESS){
             log_debug("Handling Reservation Success Message");
@@ -407,11 +483,18 @@ sub process_queue {
             log_debug("Handling Reservation Fail Message");
             $self->_reserve_failed($message->{'args'});
             next;
+        }elsif($type == OESS::NSI::Constant::RESERVATION_TIMEOUT){
+            log_info("Reservation Timeout: " . $message->{'connection_id'});
+            $self->_reserve_timeout($message->{'args'});        
         }elsif($type == OESS::NSI::Constant::RESERVATION_COMMIT_CONFIRMED){
             log_debug("handling reservation commit success");
             $self->_reserve_commit_confirmed($message->{'args'});
             next;
-        }elsif($type == OESS::NSI::Constant::DO_RESERVE_ABORT,){
+        }elsif($type == OESS::NSI::Constant::RESERVATION_COMMIT_FAILED){
+            log_debug("handling reservation commit failed");
+            $self->_reserve_commit_failed($message->{'args'});
+            next;
+        }elsif($type == OESS::NSI::Constant::DO_RESERVE_ABORT){
             log_debug("handling reservation abort");
             $self->_do_reserve_abort($message->{'args'});
             next;            
@@ -420,6 +503,39 @@ sub process_queue {
             next;
         }
     }
+
+    #anything that still needs to be done is pushed back onto the stack
+    foreach my $event (@still_needs_to_be_done){
+        push(@{$self->{'reservation_queue'}}, $event);
+    }
+
+}
+
+sub _reserve_commit_failed{
+    my ($self, $data) = @_;
+
+    
+    log_error("Error commiting reservation");
+    
+    my $soap = OESS::NSI::Utils::build_client( proxy => $data->{'header'}->{'replyTo'}, ssl => $self->{'ssl'});
+    my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
+
+    eval{
+        my $soap_response = $soap->reserveCommitFailed($nsiheader, SOAP::Data->name(connectionId => $data->{'connection_id'})->type(''),
+                                                       $self->_build_connection_states( reservationState => 'ReserveFailed',
+                                                                                        provisionState => 'released',
+                                                                                        lifecycleState => 'Created',
+                                                                                        dataPlaneStatus => { active => 'false',
+                                                                                                             version => $data->{'criteria'}->{'version'}->{'version'},
+                                                                                                             versionConsistent => 'true'}),
+                                                       $self->_build_service_exception( nsaId => $data->{'header'}->{'providerNSI'},
+                                                                                        connectionId => $data->{'connectionId'},
+                                                                                        serviceType => $data->{'criteria'}->{'serviceType'},
+                                                                                        errorId => 999,
+                                                                                        text => "reservation has already expired!"));
+    };
+    log_error("Error sending reserveCommitFailed message: " . Data::Dumper::Dumper($@)) if $@;
+        
 }
 
 sub _build_p2ps{
@@ -580,6 +696,8 @@ sub _init {
         $self->{'ssl'}->{'enabled'} = 1;
     }
 
+    $self->{'db'} = OESS::Database->new();
+
     $self->{'workgroup_id'} = $self->{'config'}->get('/config/oess-service/@workgroup-id');
 
     $self->{'reservation_queue'} = [];
@@ -597,6 +715,36 @@ sub _release_confirmed{
         my $soap_response = $soap->releaseConfirmed($nsiheader, SOAP::Data->name(connectionId => $data->{'connectionId'})->type(''));
     };
     log_error("Error sending releaseConfirmed: " . Data::Dumper::Dumper($@)) if $@;
+}
+
+sub _reserve_timeout{
+    my ($self, $data) = @_;
+    
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "provisioning.cgi");
+
+    my $res = $self->{'websvc'}->foo( action => "remove_circuit",
+                                      circuit_id => $data->{'connection_id'},
+                                      workgroup_id => $self->{'workgroup_id'});
+
+
+    my $soap = OESS::NSI::Utils::build_client( proxy =>$data->{'header'}->{'replyTo'},ssl => $self->{'ssl'});
+    my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
+    eval{
+        my $soap_response = $soap->reserveTimeout($nsiheader, SOAP::Data->name( connectionId => $data->{'connection_id'})->type(''),
+                                                  SOAP::Data->name( notificationId => 0)->type(''),
+                                                  SOAP::Data->name( timeStamp => _timestampNow() )->type(''),
+                                                  SOAP::Data->name( originatingConnectionId => $data->{'connection_id'})->type(''),
+                                                  SOAP::Data->name( originatingNSA => $data->{'header'}->{'providerNSA'})->type(''));
+    };
+    log_error("Error sending reserveTimeout: " . Data::Dumper::Dumper($@)) if $@;
+        
+}
+
+sub _timestampNow{
+
+    my $dt = DateTime->now();
+    return $dt->strftime( "%F" ) . "T" . $dt->strftime( "%T" ) . "Z";
+
 }
 
 1;

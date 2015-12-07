@@ -333,7 +333,7 @@ sub provision_circuit {
             state => $state
             );
 
-        if ( defined $output && $provision_time <= time() && ($state eq 'active')) {
+        if(defined($output) && ($provision_time <= time()) && ($state eq 'active' || $state eq 'scheduled' || $state eq 'provisioned')) {
 
             my $result = _send_add_command( circuit_id => $output->{'circuit_id'} );
 
@@ -423,15 +423,17 @@ sub provision_circuit {
             };
         }
         # add flows on switch
-        $result = _send_add_command( circuit_id => $output->{'circuit_id'} );
-        if ( !defined $result ) {
-            $output->{'warning'} =
-              "Unable to talk to fwdctl service - is it running?";
-        }
-        if ( $result == 0 ) {
-            $results->{'error'} =
-              "Unable to edit circuit. Please check your logs or contact your server adminstrator for more information. Circuit is likely not live on the network anymore.";
-            return $results;
+        if($state eq 'active'){
+            $result = _send_add_command( circuit_id => $output->{'circuit_id'} );
+            if ( !defined $result ) {
+                $output->{'warning'} =
+                    "Unable to talk to fwdctl service - is it running?";
+            }
+            if ( $result == 0 ) {
+                $results->{'error'} =
+                    "Unable to edit circuit. Please check your logs or contact your server adminstrator for more information. Circuit is likely not live on the network anymore.";
+                return $results;
+            }
         }
 
         #Send Edit to Syslogger DBUS

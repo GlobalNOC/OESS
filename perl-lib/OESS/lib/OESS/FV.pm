@@ -560,7 +560,7 @@ sub _send_fwdctl_link_event {
     }
 
     eval {
-        my $result = $client->fv_link_event(dbus_call_async, $link_name, $state );
+        my $result = $client->fv_link_event(dbus_call_noreply, $link_name, $state );
         return $result;
     };
 }

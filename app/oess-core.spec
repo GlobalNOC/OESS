@@ -1,5 +1,5 @@
 Name:		oess-core		
-Version:	1.1.8
+Version:	1.1.8c
 Release:	1%{?dist}
 Summary:	The core oess service provides
 
@@ -18,7 +18,7 @@ Requires(interp): /bin/sh
 Requires(rpmlib): rpmlib(CompressedFileNames) <= 3.0.4-1 rpmlib(PayloadFilesHavePrefix) <= 4.0-1
 Requires(post): /bin/sh
 Requires: /bin/bash /usr/bin/perl perl(CGI) perl(DBI) perl(Data::Dumper) perl(English) perl(FindBin) perl(Getopt::Long) perl(Getopt::Std) perl(HTML::Entities) perl(LockFile::Simple) perl(Net::DBus) perl(Net::DBus::Exporter) perl(Proc::Daemon) perl(RRDs) perl(Socket) perl(Switch) perl(Sys::Hostname) perl(Sys::Syslog) perl(URI::Escape) perl(XML::Simple) perl(XML::Writer) perl(XML::XPath) perl(base) perl(constant) perl(strict) perl(warnings) perl(Term::ReadKey) perl(CPAN)
-Requires: perl-OESS >= 1.1.8
+Requires: perl-OESS >= 1.1.8c
 BuildArch: noarch
 AutoreqProv: no
 %description
@@ -54,6 +54,7 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} measurement/* %{buildroot}/%{_bindir}
 %{__install} notification/* %{buildroot}/%{_bindir}
 %{__install} populate_remote_topologies.pl %{buildroot}/%{_bindir}
+%{__install} oess_topology_submitter.pl %{buildroot}/%{_bindir}
 
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{_sysconfdir}/dbus-1/system.d/
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{_sysconfdir}/init.d/
@@ -98,6 +99,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/oess_setup.pl
 %{_bindir}/oess_scheduler.pl
 %{_bindir}/populate_remote_topologies.pl
+%{_bindir}/oess_topology_submitter.pl
 
 %{_sysconfdir}/dbus-1/system.d/nddi-dbus.conf
 %{_sysconfdir}/init.d/oess-fwdctl
@@ -125,6 +127,28 @@ mkdir -p /var/log/oess/
 chmod a+rw /var/log/oess/
 chmod a+rw /var/run/oess/
 chmod 644 /etc/cron.d/nddi-scheduler.cron
+
+if [[ ! -L "/usr/lib/ocf/resource.d/grnoc/oess" ]]
+    then
+        if [[ ! -d "/usr/lib/ocf/" ]]
+            then 
+                mkdir /usr/lib/ocf;
+                mkdir /usr/lib/ocf/resource.d;
+                mkdir /usr/lib/ocf/resource.d/grnoc;
+            fi; 
+        if [[ ! -d "/usr/lib/ocf/resource.d" ]]
+            then
+                mkdir /usr/lib/ocf/resource.d;
+                mkdir /usr/lib/ocf/resource.d/grnoc;
+            fi; 
+        if [[ ! -d "/usr/lib/ocf/resource.d/grnoc" ]]
+            then
+                mkdir /usr/lib/ocf/resource.d/grnoc
+            fi; 
+
+        ln -s /etc/init.d/oess /usr/lib/ocf/resource.d/grnoc/
+
+fi
 
 %changelog
 

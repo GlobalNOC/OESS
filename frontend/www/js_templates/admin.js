@@ -229,15 +229,23 @@ function setup_remote_tab(){
 		resultsList: "results",
 		fields: [{key: "topo"}],
 		metaFields: {
-		    error: "error"
+		    error: "error",
+            error_text: "error_text"
 		}
 	    };
 
 	    topo_ds.sendRequest("",{ success: function(Request,Response){
-			view_topo_p.setBody("<div style='overflow: scroll; height: 100%; width: 100%'><pre>" + Response.results[0].topo + "</pre></div>");
+            var text = "Error Fetching Topology";
+            if(!Response.meta.error){
+			    text = Response.results[0].topo;
+            }
+            else if(Response.meta.error){
+                text = Response.meta.error_text;
+            }
+            view_topo_p.setBody("<div style='overflow: scroll; height: 100%; width: 100%'><pre>" + text + "</pre></div>");
 		    }, 
 			failure: function(Request,Response){
-			
+			    view_topo_p.setBody("<div style='overflow: scroll; height: 100%; width: 100%'><pre>Error Fetching Topology</pre></div>");
 		    },
 			scope: topo_ds});
 	    
