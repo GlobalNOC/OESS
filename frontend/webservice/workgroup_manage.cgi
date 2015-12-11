@@ -56,6 +56,7 @@ sub main {
     if ($user->{'status'} eq 'decom') {
         $action = "error";
     }
+    
     switch ($action) {
         case "get_all_workgroups" {
             $output = &get_all_workgroups();
@@ -64,36 +65,37 @@ sub main {
             $output = &get_acls();
         }
         case "add_acl" {
-            if($user->{'type'} eq 'read-only'){
-                send_json({error => 'Error: you are a readonly user'});
+            if ($user->{'type'} eq 'read-only') {
+              $output = {error => 'Error: you are a readonly user'};
+            } else {
+              $output = &add_acl();
             }
-            $output = &add_acl();
         }
         case "update_acl" {
-            if($user->{'type'} eq 'read-only'){
-                send_json({error => 'Error: you are a readonly user'});
+            if ($user->{'type'} eq 'read-only') {
+              $output = {error => 'Error: you are a readonly user'};
+            } else {
+              $output = &update_acl();
             }
-            $output = &update_acl();
         }
         case "remove_acl" {
-            if($user->{'type'} eq 'read-only'){
-                send_json({error => 'Error: you are a readonly user'});
+            if ($user->{'type'} eq 'read-only') {
+              $output = {error => 'Error: you are a readonly user'};
+            } else {
+              $output = &remove_acl();
             }
-            $output = &remove_acl();
         }
         case "error" {
-
             $output->{'error'}   = "Decommed users cannot use webservices.";
             $output->{'results'} = [];
         }
         else {
             $output->{'error'}   = "Error: No Action specified";
             $output->{'results'} = [];
-        }
-    }
+          }
+      }
 
     send_json($output);
-
 }
 
 sub get_all_workgroups {
