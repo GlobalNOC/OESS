@@ -61,19 +61,35 @@ sub main {
             $output = &node_maintenances();
         }
         case "start_node" {
-            $output = &start_node_maintenance();
+            if ($user->{'type'} eq 'read-only') {
+              $output = {error => 'You are a read-only user and unable start or end maintenance.'};
+            } else {
+              $output = &start_node_maintenance();
+            }
         }
         case "end_node" {
-            $output = &end_node_maintenance();
+            if ($user->{'type'} eq 'read-only') {
+              $output = {error => 'You are a read-only user and unable start or end maintenance.'};
+            } else {
+              $output = &end_node_maintenance();
+            }
         }
         case "links" {
             $output = &link_maintenances();
         }
         case "start_link" {
-            $output = &start_link_maintenance();
+            if ($user->{'type'} eq 'read-only') {
+              $output = {error => 'You are a read-only user and unable start or end maintenance.'};
+            } else {
+              $output = &start_link_maintenance();
+            }
         }
         case "end_link"{
-            $output = &end_link_maintenance();
+            if ($user->{'type'} eq 'read-only') {
+              $output = {error => 'You are a read-only user and unable start or end maintenance.'};
+            } else {
+              $output = &end_link_maintenance();
+            }
         }
         case "error" {
             my $message = "Decommed users cannot use webservices.";
