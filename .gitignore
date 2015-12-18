@@ -1,1 +1,7 @@
 *~
+*.old
+app/dist
+frontend/dist
+perl-lib/OESS/Makefile
+perl-lib/OESS/MANIFEST.bak
+perl-lib/OESS/t/conf/SNMP/*
