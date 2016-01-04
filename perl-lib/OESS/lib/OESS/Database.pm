@@ -31,11 +31,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 1.1.8c
+Version 1.1.9
 
 =cut
 
-our $VERSION = '1.1.8c';
+our $VERSION = '1.1.9';
 
 =head1 SYNOPSIS
 

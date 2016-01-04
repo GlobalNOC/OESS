@@ -52,6 +52,7 @@ share/upgrade/oess-1.1.5-1.1.6
 share/upgrade/oess-1.1.6-1.1.7
 share/upgrade/oess-1.1.7-1.1.8
 share/upgrade/oess-1.1.8-1.1.8c
+share/upgrade/oess-1.1.8c-1.1.9
 t/00-load_base.t
 t/01-load_known_state.t
 t/02-pod.t
