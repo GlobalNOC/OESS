@@ -1526,167 +1526,179 @@ function setup_workgroup_tab(){
 
 
             // show map to pick node / endpoint
-
             add_new_owned_int.on("click", function(){
+              var region = YAHOO.util.Dom.getRegion('workgroups_content');
 
-                    var region = YAHOO.util.Dom.getRegion('workgroups_content');
+              add_int_p = new YAHOO.widget.Panel("add_int_p", {
+                width: 850,
+                height: 400,
+                xy: [
+                  region.left, 
+                  region.top
+                ],
+                modal: true
+              });
+              add_int_p.setHeader("Add Interface to Workgroup");
+              add_int_p.setBody("<div id='acl_map' class='openlayers smaller' style='float: left;'></div>" + 
+                                "<div id='new_interface_table' style='float: right;'></div>" +
+                                "<br clear='both'><br>" +
+                                "<center><div id='add_int_status' class='soft_title confirmation'></div></center>" + 
+                                "<div style='text-align: right; font-size: 85%'>" + 
+                                "<div id='done_adding_edges'></div>" + 
+                                "</div>");
+              add_int_p.render('workgroups_content');
 
-                    add_int_p = new YAHOO.widget.Panel("add_int_p",
-                                                           {width: 850,
-                                                            height: 400,
-                                                            xy: [region.left, 
-                                                                 region.top],
-                                 modal: true
-                                                           });
+              var done_adding = new YAHOO.widget.Button("done_adding_edges", {label: "Done Adding Interfaces"});
+              done_adding.on("click", function(){
+                add_int_p.destroy();
+              });
 
-                    add_int_p.setHeader("Add Interface to Workgroup");
-                    add_int_p.setBody("<div id='acl_map' class='openlayers smaller' style='float: left;'></div>" + 
-                                      "<div id='new_interface_table' style='float: right;'></div>" +
-                                      "<br clear='both'><br>" +
-                                      "<center><div id='add_int_status' class='soft_title confirmation'></div></center>" + 
-                                      "<div style='text-align: right; font-size: 85%'>" + 
-                                      "<div id='done_adding_edges'></div>" + 
-                                      "</div>"
-                                      );
+              var map = new NDDIMap('acl_map', null, { node_label_status: false });
+              map.on("loaded", function(){
+                //this.showDefault();
+                this.clearAllSelected();
+              });
 
-                    add_int_p.render('workgroups_content');
+              add_int_p.hideEvent.subscribe(function(){
+                map.destroy();
+                add_int_p.destroy();
+              });
 
-                    var done_adding = new YAHOO.widget.Button("done_adding_edges", {label: "Done Adding Interfaces"});
-                    done_adding.on("click", function(){
-                            add_int_p.destroy();
-                        });
+              map.on("clickNode", function(e, args){
+                this.clearAllSelected();
 
-                    var map = new NDDIMap('acl_map', null, { node_label_status: false });
+                var feature = args[0].feature;
+                var node    = args[0].name;
 
-                    map.on("loaded", function(){
-                            //this.showDefault();
-                            this.clearAllSelected();
-                        });
+                this.changeNodeImage(feature, this.ACTIVE_IMAGE);
 
-                    add_int_p.hideEvent.subscribe(function(){
-                            map.destroy();
-                            add_int_p.destroy();
-                        });
-
-                    map.on("clickNode", function(e, args){
-
-                            this.clearAllSelected();
-
-                            var feature = args[0].feature;
-                            var node    = args[0].name;
-
-                            this.changeNodeImage(feature, this.ACTIVE_IMAGE);
-
+                var url = "../services/data.cgi?action=get_node_interfaces&node=" + encodeURIComponent(node) + "&show_down=1";
+                if (workgroup_name === "admin") {
+                  url = url + "&show_trunk=1";
+                }
                 
-
-                            var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_node_interfaces&show_down=1&node="+encodeURIComponent(node));
-                            ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-                            ds.responseSchema = {
-                                resultsList: "results",
-                                fields: [
-                                         {key: "name"},
-                                         {key: "description"},
-                                         {key: "interface_id", parser: "number"}
-                                         ],
-                                metaFields: {
-                                    error: "error"
-                                }
-                            };
+                var ds = new YAHOO.util.DataSource(url);
+                ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                ds.responseSchema = {
+                  resultsList: "results",
+                  fields: [
+                    {key: "name"},
+                    {key: "description"},
+                    {key: "int_role"},
+                    {key: "interface_id", parser: "number"}
+                  ],
+                  metaFields: {
+                    error: "error"
+                  }
+                };
                             
-                            var cols = [{key: "name", label: "Interface", width: 80},
-                            {key: "description", label: "Description", width: 220}];
+                var cols = [
+                  {key: "name", label: "Interface", width: 80},
+                  {key: "description", label: "Description", width: 160},
+                  {key: "int_role", label: "Role", width: 50, formatter: function(elLiner, oRec, oCol, oData) {
+                    if (oData === "unknown") {
+                      elLiner.innerHTML = "Endpoint";
+                    } else {
+                      elLiner.innerHTML = "Trunk";
+                    }
+                  }}
+                ];
+
+                // Removes role column from table when not working with
+                // the 'admin' workgroup. Assumes role is stored in
+                // third column from the left.
+                if (workgroup_name !== "admin") {
+                  ds.responseSchema.fields.splice(2, 1);
+                  cols.splice(2, 1);
+                }
   
-                            var configs = {
-                                height: "277px"
-                            };
+                var configs = {
+                  height: "277px"
+                };
                             
-                            var table = new YAHOO.widget.ScrollingDataTable("new_interface_table", cols, ds, configs);
-                            
-                            table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
-                            table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
-                            
-                            table.subscribe("rowClickEvent", function(oArgs){
-                                    this.onEventSelectRow(oArgs);
+                var table = new YAHOO.widget.ScrollingDataTable("new_interface_table", cols, ds, configs);
+                console.log(table);
+                table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
+                table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
+                table.subscribe("rowClickEvent", function(oArgs){
+                  this.onEventSelectRow(oArgs);
 
-                                    YAHOO.util.Dom.get('add_int_status').innerHTML = "";
+                  YAHOO.util.Dom.get('add_int_status').innerHTML = "";
 
-                                    var rec = this.getRecord(oArgs.target);
+                  var rec = this.getRecord(oArgs.target);
+                  if (!rec) {
+                    return;
+                  }
 
-                                    if (! rec){
-                                        return;
-                                    }
+                  var interface_id = rec.getData('interface_id');
 
-                                    var interface_id = rec.getData('interface_id');
-
-                    //first check to see if this interface is already owned by another work group
-                                    var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_interface&interface_id="+interface_id);
-                                    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-                                    ds.responseSchema = {
-                                        resultsList: "results",
-                                        fields: [{key: "workgroup_id",
-                              key: "workgroup_name"
-                             }],
-                                        metaFields: {
-                                            error: "error"
-                                        }
-                                    };
-                                    
-                    ds.sendRequest("",{
-                        success: function(req,resp){
-                            if(!resp.results){
-                                throw("Error fetching interface");
-                            }else {
-                                var workgroup_name = resp.results[0].workgroup_name;
-                                var update_interface_owner = function() {
-                                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_interface_owner&workgroup_id="+workgroup_id+"&interface_id="+interface_id);
-                                    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-                                    ds.responseSchema = {
-                                    resultsList: "results",
-                                    fields: [{key: "success"}],
-                                    metaFields: {
-                                        error: "error"
-                                    }
-                                    };
-             
-                                    table.disable();
-             
-                                    ds.sendRequest("",{
-                                        success: function(req, resp){
-                                            table.undisable();
-                                            if (resp.meta.error){
-                                                YAHOO.util.Dom.get('add_int_status').innerHTML = "Error adding interface: " + resp.meta.error;
-                                            }
-                                            else{
-                                                YAHOO.util.Dom.get('add_int_status').innerHTML = "Interface added successfully.";
-                                                owned_interfaces_table.getDataSource().sendRequest("", {success: owned_interfaces_table.onDataReturnInitializeTable,scope:owned_interfaces_table});
-                                            }
-                                        },
-                                        failure: function(req, resp){
-                                            table.undisable();
-                                            YAHOO.util.Dom.get('add_int_status').innerHTML = "Server error while adding new edge interface.";
-                                        }
-                                    }, this);
-                                }
-                                if(workgroup_name) {
-                                    showConfirm("This interface is already owned by workgroup, "+workgroup_name+". Changing the workgroup will removed all of the acl rules that "+workgroup_name+" has associated to it. Are you sure you want to change the owner?", update_interface_owner, function(){ return; } );
-                                }else {
-                                    update_interface_owner();
-                                }
+                  //first check to see if this interface is already owned by another work group
+                  var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_interface&interface_id="+interface_id);
+                  ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                  ds.responseSchema = {
+                    resultsList: "results",
+                    fields: [
+                      {
+                        key: "workgroup_id",
+                        key: "workgroup_name"
+                      }
+                    ],
+                    metaFields: {
+                      error: "error"
+                    }
+                  };
+                  ds.sendRequest("", {
+                    success: function(req,resp){
+                      if(!resp.results){
+                        throw("Error fetching interface");
+                      } else {
+                        var workgroup_name = resp.results[0].workgroup_name;
+                        var update_interface_owner = function() {
+                          var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_interface_owner&workgroup_id="+workgroup_id+"&interface_id="+interface_id);
+                          ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                          ds.responseSchema = {
+                            resultsList: "results",
+                            fields: [
+                              {key: "success"}
+                            ],
+                            metaFields: {
+                              error: "error"
                             }
-                        },
-                        failure: function(req,resp){
-                            throw("Error fetching interface");
+                          };
+             
+                          table.disable();
+
+                          ds.sendRequest("", {
+                            success: function(req, resp){
+                              table.undisable();
+                              if (resp.meta.error){
+                                YAHOO.util.Dom.get('add_int_status').innerHTML = "Error adding interface: " + resp.meta.error;
+                              } else{
+                                YAHOO.util.Dom.get('add_int_status').innerHTML = "Interface added successfully.";
+                                owned_interfaces_table.getDataSource().sendRequest("", {success: owned_interfaces_table.onDataReturnInitializeTable,scope:owned_interfaces_table});
+                              }
+                            },
+                            failure: function(req, resp){
+                              table.undisable();
+                              YAHOO.util.Dom.get('add_int_status').innerHTML = "Server error while adding new edge interface.";
+                            }
+                          }, this);
                         }
-                    }, this); 
-
-                                }); //end row click
-                            
-
-                        });
-
-                });
-
-
+                        
+                        if(workgroup_name) {
+                          showConfirm("This interface is already owned by workgroup, "+workgroup_name+". Changing the workgroup will removed all of the acl rules that "+workgroup_name+" has associated to it. Are you sure you want to change the owner?", update_interface_owner, function(){ return; } );
+                        } else {
+                          update_interface_owner();
+                        }
+                      }
+                    },
+                    failure: function(req,resp){
+                      throw("Error fetching interface");
+                    }
+                  }, this);
+                }); //end row click
+              });
+            });
         });
     
     
