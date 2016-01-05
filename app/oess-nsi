@@ -1,0 +1,77 @@
+#!/usr/bin/perl
+#
+##----- D-Bus OESS NSI Daemon
+##-----
+##----- Handles NSI Requests
+#---------------------------------------------------------------------
+#
+# Copyright 2015 Trustees of Indiana University
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+
+use strict;
+use warnings;
+
+use OESS::NSI::Daemon;
+use GRNOC::Log;
+use GRNOC::Config;
+use English;
+use Getopt::Long;
+use Data::Dumper;
+
+use constant DEFAULT_CONFIG_FILE => '/etc/oess/nsi.conf';
+
+my $config_file = DEFAULT_CONFIG_FILE;
+my $nofork = 0;
+my $debug = 0;
+my $help;
+my $username; 
+
+GetOptions(
+    'user|u=s' => \$username,
+    'config=s' => \$config_file,
+    'nofork' => \$nofork,
+    'debug|d' => \$debug,
+    'help|h' => \$help
+);
+
+usage() if($help);
+
+if (defined $username) {
+    my $new_uid=getpwnam($username);
+    my $new_gid=getgrnam($username);
+    $EGID=$new_gid;
+    $EUID=$new_uid;
+}
+
+my $config = new GRNOC::Config(
+    'config_file' => $config_file,
+    'force_array' => 0
+    );
+
+my $grnoc_log = new GRNOC::Log(
+    'config' => $config->get('/config/logging/@config-file')
+    );
+
+my $nsi_daemon = new OESS::NSI::Daemon(
+    'config_file' => $config_file,
+    'daemonize' => !$nofork,
+    'debug' => $debug
+    );
+
+$nsi_daemon->start();
+
+sub usage {
+    print "$0 [--config <config file>] [--nofork] [--debug] [--help]\n";
+    exit(1);
+}
