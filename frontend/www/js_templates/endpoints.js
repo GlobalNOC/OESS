@@ -1,11 +1,15 @@
 <script>
   
 function makeInterfacesTable(node){
-
   var node_name_holder = document.getElementById('node_name_holder');
   node_name_holder.innerHTML = "<center><h2><b>" + node + "</b></h2></center>";
+
+  var url = "services/data.cgi?action=get_node_interfaces&node=" + encodeURIComponent(node) + "&workgroup_id=" + session.data.workgroup_id + "&show_down=1";
+  if (session.data.workgroup_name === "admin") {
+    url = url + "&show_trunk=1";
+  }
   
-  var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_node_interfaces&node="+encodeURIComponent(node)+"&workgroup_id="+session.data.workgroup_id + "&show_down=1");
+  var ds = new YAHOO.util.DataSource(url);
   ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
   ds.responseSchema = {
     resultsList: "results",
@@ -13,6 +17,7 @@ function makeInterfacesTable(node){
       {key: "name"},
       {key: "description"},
       {key: "status"},
+      {key: "int_role"},
       {key: "vlan_tag_range"}
     ],
     metaFields: {
@@ -24,6 +29,13 @@ function makeInterfacesTable(node){
     {key: "name", label: "Interface"},
     {key: "description", label: "Description", width: 120},
     {key: "status", label: "Status"},
+    {key: "int_role", label: "Role", formatter: function(elLiner, oRec, oCol, oData) {
+      if (oData === "unknown") {
+        elLiner.innerHTML = "Endpoint";
+      } else {
+        elLiner.innerHTML = "Trunk";
+      }
+    }},
     {key: "vlan_tag_range", label: "VLAN Tag Range", formatter: function(elLiner, oRec, oCol, oData){
       if(oData === null){
         elLiner.innerHTML = "None Available";
@@ -33,20 +45,25 @@ function makeInterfacesTable(node){
       }
     }}
   ];
+
+  // Removes role column from table when not in 'admin' workgroup.
+  // Assumes role is stored in fourth column from the left.
+  if (session.data.workgroup_name !== "admin") {
+    ds.responseSchema.fields.splice(3, 1);
+    cols.splice(3, 1);
+  }
   
   var configs = {
     height: "337px"
   };
   
   var table = new YAHOO.widget.ScrollingDataTable("add_interface_table", cols, ds, configs);
-
   table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
   table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
   table.subscribe("rowClickEvent", table.onEventSelectRow);
-
   return table;
-}  
-  
+}
+
 function init(){  
 
   setPageSummary("Intradomain Endpoints","Pick at least two endpoints from the map below.");
