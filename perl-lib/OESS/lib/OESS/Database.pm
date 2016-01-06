@@ -1950,7 +1950,7 @@ sub update_interface_owner {
     my $workgroup;
     my $workgroup_id = $args{'workgroup_id'};
 
-    my $query  = "select 1 from interface where interface_id = ?";
+    my $query  = "select * from interface where interface_id = ?";
     my $result = $self->_execute_query($query, [$interface_id]);
     if (@{$result} < 1) {
         $self->_set_error("Could not find specified interface.");
@@ -1965,7 +1965,7 @@ sub update_interface_owner {
     }
 
     if (defined $workgroup_id) {
-        $query  = "select 1 from workgroup where workgroup_id = ?";
+        $query  = "select * from workgroup where workgroup_id = ?";
         $result = $self->_execute_query($query, [$workgroup_id]);
         if (@{$result} < 1) {
             $self->_set_error("Could not find the specified workgroup.");
