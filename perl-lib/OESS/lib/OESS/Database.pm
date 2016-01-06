@@ -1928,7 +1928,9 @@ The internal MySQL primary key int identifier for the interface.
 
 =item workgroup_id
 
-The internal MySQL primary key int identifier for this workgroup.
+The internal MySQL primary key int identifier for this workgroup. If
+workgroup_id is undef the interface will no longer be associated with a
+workgroup and all existing interface ACLs will be deleted.
 
 =back
 
@@ -1939,96 +1941,96 @@ sub update_interface_owner {
     my %args = @_;
 
     if(!defined($args{'interface_id'}) || !exists($args{'workgroup_id'})){
-	$self->_set_error("Invalid parameters to add workgroup, please provide a workgroup_id and an interface_id");
-    return;
+	$self->_set_error("Invalid parameters to update_interface_owner: Requires interface_id, and workgroup_id");
+        return;
     }
+
+    my $interface;
     my $interface_id = $args{'interface_id'};
+    my $workgroup;
     my $workgroup_id = $args{'workgroup_id'};
 
-    my $query;
-    if(defined($args{'workgroup_id'})){
-        $query = "select 1 from interface where workgroup_id = ? and interface_id = ?";
-        my $results = $self->_execute_query($query, [$workgroup_id, $interface_id]);
-        if (@$results > 0){
-	    $self->_set_error("Interface already belongs to this workgroup.");
-	    return;
-        }
-    }
-    else {
-        $query = "select 1 from interface where workgroup_id IS NOT NULL and interface_id = ?";
-        my $results = $self->_execute_query($query, [$interface_id]);
-
-        if (@$results < 1){
-        $self->_set_error("Interface does not currently belong to a workgroup.");
+    my $query  = "select 1 from interface where interface_id = ?";
+    my $result = $self->_execute_query($query, [$interface_id]);
+    if (@{$result} < 1) {
+        $self->_set_error("Could not find specified interface.");
         return;
+    } else {
+        $interface = @{$result}[0];
+
+        if ($interface->{'workgroup_id'} == $workgroup_id) {
+            $self->_set_error("Interface is already associated with the specified workgroup.");
+            return;
         }
     }
 
-    # determine if the workgroup is moving from one to another
-    my $changing_workgroup = 0;
-    $query = "select 1 from interface where workgroup_id IS NOT NULL and workgroup_id != ? and interface_id = ?";
-    my $results = $self->_execute_query($query, [$workgroup_id, $interface_id]);
-    if (@$results > 0){
-        $changing_workgroup = 1;
-    }
+    if (defined $workgroup_id) {
+        $query  = "select 1 from workgroup where workgroup_id = ?";
+        $result = $self->_execute_query($query, [$workgroup_id]);
+        if (@{$result} < 1) {
+            $self->_set_error("Could not find the specified workgroup.");
+            return;
+        }
+        $workgroup = @{$result}[0];
 
+        if ($interface->{'role'} eq 'trunk' && $workgroup->{'type'} ne 'admin') {
+            $self->_set_error("Trunk interfaces may only be owned by admin workgroups.");
+            return;
+        }
+    }
 
     $self->_start_transaction();
 
     $query = "update interface set workgroup_id = ? where interface_id = ?";
     my $success = $self->_execute_query($query, [$workgroup_id, $interface_id]);
-
-    if (! defined $success ){
-	$self->_set_error("Internal error while adding edge port to workgroup ACL.");
+    if (!defined $success ) {
+	$self->_set_error("Internal error while adding interface to the specified workgroup.");
 	$self->_rollback();
 	return;
     }
 
-
-    # remove prior acl rules since those were set by the old workgroup
-    if(!defined($args{'workgroup_id'}) || $changing_workgroup) {
+    # Configure proper ACL rules
+    if(!defined $workgroup_id) {
+        # Remove existing ACL rules when setting an interface's workgroup to undef
         $query = "delete from interface_acl where interface_id = ?";
         my $success = $self->_execute_query($query, [$interface_id]);
-        if (! defined $success ){
-	        $self->_set_error("Internal error while removing edge port to workgroup ACL.");
-	        $self->_rollback();
-	        return;
+        if (!defined $success ){
+            $self->_set_error("Internal error while removing edge port to workgroup ACL.");
+            $self->_rollback();
+            return;
         }
-    }
-
-    # insert default rule if were adding a workgroup or changing workgroups
-    if(defined($args{'workgroup_id'})) {
+    } else {
+        # Insert default rule if were adding a workgroup or changing workgroups
         $query = "insert into interface_acl (interface_id, allow_deny, eval_position, vlan_start, vlan_end, notes) values (?,?,?,?,?,?)";
 
-        my $vlan_tag_range = $self->get_interface(interface_id => $interface_id)->{'vlan_tag_range'};
+        my $vlan_tag_range = $interface->{'vlan_tag_range'};
         my $vlan_end;
         my $vlan_start;
-        if ($vlan_tag_range =~ /(^-?[0-9]*),?([0-9]*)-([0-9]*)/){
-            
-            #if the vlan range doesn't have a -1 in it, (i.e. it's something like 400-4032, rather than -1,1-4000) only grab the first and third capture groups.
+        if ($vlan_tag_range =~ /(^-?[0-9]*),?([0-9]*)-([0-9]*)/) {
             if ($2 eq ''){
+                # If the vlan range doesn't have a -1 in it, (i.e. it's
+                # something like 400-4032, rather than -1,1-4000) only grab
+                # the first and third capture groups.
                 $vlan_start = $1;
                 $vlan_end = $3;
             }
-            #otherwise, just grab the first and third.
-            else{
+            else {
+                # Otherwise, just grab the first and third.
                 $vlan_start = $1;
                 $vlan_end = $3;
             }
-        }    
- 
+        }
+
         my $query_args = [$interface_id, 'allow', 10, $vlan_start, $vlan_end, 'Default ACL Rule' ];
-        #my $query_args = [$interface_id, 'allow', 10, -1, 4095, 'Default ACL Rule' ];
         my $success = $self->_execute_query($query, $query_args);
-        if (! defined $success ){
-	        $self->_set_error("Internal error while adding default acl rule.");
-	        $self->_rollback();
-	        return;
+        if (!defined $success ){
+            $self->_set_error("Internal error while adding default acl rule.");
+            $self->_rollback();
+            return;
         }
     }
 
     $self->_commit();
-
     return 1;
 }
 
