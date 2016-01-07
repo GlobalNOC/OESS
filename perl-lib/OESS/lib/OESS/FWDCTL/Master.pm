@@ -736,7 +736,7 @@ sub _restore_down_circuits{
                     
                     if ($ckt->get_path_status( path => 'backup', link_status => $self->{'link_status'} ) && $ckt->get_active_path() ne 'backup'){
                         #bring it back to this path
-                        my $success = $ckt->change_path( do_commit => 0);
+                        my $success = $ckt->change_path( do_commit => 0, user_id => SYSTEM_USER, reason => "CHANGE PATH: restored trunk:$link_name moving to backup path");
                         $self->{'logger'}->warn("vlan:" . $ckt->get_name() ." id:" . $ckt->get_id() . " affected by trunk:$link_name moving to alternate path");
 
                         if (! $success) {
@@ -806,7 +806,7 @@ sub _restore_down_circuits{
                             }
                         } else {
                             #ok the primary path is up and the backup is down and active... lets move now
-                            my $success = $ckt->change_path( do_commit => 0);
+                            my $success = $ckt->change_path( do_commit => 0, user_id => SYSTEM_USER, reason => "CHANGE PATH: restored trunk:$link_name moving to primary path");
                             $self->{'logger'}->warn("vlan:" . $ckt->get_id() ." id:" . $ckt->get_id() . " affected by trunk:$link_name moving to alternate path");
                             if (! $success) {
                                 $self->{'logger'}->error("vlan:" . $ckt->get_id() . " id:" . $ckt->get_id() . " affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $ckt->error());
@@ -906,7 +906,7 @@ sub _fail_over_circuits{
             
             #check the alternate paths status
             if($circuit->get_path_status( path => $alternate_path, link_status => $self->{'link_status'})){
-                my $success = $circuit->change_path( do_commit => 0);
+                my $success = $circuit->change_path( do_commit => 0, user_id => SYSTEM_USER, reason => "CHANGE PATH: affected by trunk:$link_name moving to $alternate_path path");
                 $self->{'logger'}->warn("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name moving to alternate path");
                 
                 #failed to move the path
@@ -1316,11 +1316,13 @@ sub addVlan {
         
         my $state = $details->{'state'};
         
-        $self->{'db'}->update_circuit_state(circuit_id          => $circuit_id,
-                                            old_state           => $state,
-                                            new_state           => 'active',
-                                            modified_by_user_id => $details->{'user_id'}
-            );
+#        $self->{'db'}->update_circuit_state(circuit_id          => $circuit_id,
+#                                            old_state           => $state,
+#                                            new_state           => 'active',
+#                                            modified_by_user_id => SYSTEM_USER,
+#                                            reason              => 'Circuit successfully provisioned' );
+
+        $self->{'logger'}->error($self->{'db'}->get_error());
     }
 
     #TODO: WHY IS THERE HERE??? Seems like we can remove this...

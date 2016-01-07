@@ -1072,6 +1072,13 @@ sub change_path {
         $do_commit = $params{'do_commit'};
     }
 
+    if(!defined($params{'user_id'})){
+        #if this isn't defined set the system user
+        $params{'user_id'} = 1;
+    }
+    my $user_id = $params{'user_id'};
+    my $reason = $params{'reason'};
+
     #change the path
 
     if(!$self->has_backup_path()){
@@ -1084,7 +1091,7 @@ sub change_path {
     if($current_path eq 'primary'){
 	$alternate_path = 'backup';
     }
-    $self->{'logger'}->debug("Circuit ". $self->get_name()  . " is failing over to " . $alternate_path);
+    $self->{'logger'}->debug("Circuit ". $self->get_name()  . " is changing to " . $alternate_path);
 
      my $query  = "select path.path_id from path " .
                  " join path_instantiation on path.path_id = path_instantiation.path_id " .
@@ -1121,7 +1128,7 @@ sub change_path {
 
     if (! $success ){
         $self->error("Unable to change path_instantiation of current path to inactive.");
-        $self->_rollback();
+        $self->{'db'}->_rollback();
         return;
     }
 
@@ -1133,7 +1140,7 @@ sub change_path {
 
     if (! defined $new_available){
         $self->error("Unable to create new available path based on old instantiation.");
-        $self->_rollback();
+        $self->{'db'}->_rollback();
         return;
     }    
 
@@ -1163,6 +1170,39 @@ sub change_path {
         $self->{'db'}->_rollback();
         return;
     }
+
+    #now to add the history
+    $self->{'logger'}->error("HERE!");
+    $query = "select * from circuit_instantiation where circuit_id = ? and end_epoch = -1";
+    my $circuit_instantiation = $self->{'db'}->_execute_query($query,[$self->{'circuit_id'}])->[0];
+    if(!defined($circuit_instantiation)){
+        $self->error("Unable to fetch current circuit instantiation");
+        $self->{'db'}->_rollback();
+        return;
+    }
+    $self->{'logger'}->error("HERE2");
+    $query = "update circuit_instantiation set end_epoch = UNIX_TIMESTAMP(NOW()) where circuit_id = ? and end_epoch = -1";
+    if(!defined($self->{'db'}->_execute_query($query, [$self->{'circuit_id'}]))){
+        $self->error("Unable to decom old circuit instantiation.");
+        $self->{'db'}->_rollback() if($do_commit);
+        return
+    }
+
+    $self->{'logger'}->error("HERE3");
+    $query = "insert into circuit_instantiation (circuit_id, reserved_bandwidth_mbps, circuit_state, modified_by_user_id, end_epoch, start_epoch, loop_node, reason) values (?, ?, ?, ?, -1, unix_timestamp(now()),?,?)";
+    if(!defined( $self->{'db'}->_execute_query($query, [ $self->{'circuit_id'}, 
+                                                         $circuit_instantiation->{'reserved_bandwidth_mbps'},
+                                                         $circuit_instantiation->{'circuit_state'},
+                                                         $params{'user_id'}, 
+                                                         $circuit_instantiation->{'loop_node'},
+                                                         $params{'reason'} ] ))){
+        $self->{'logger'}->error("Unable to create new circuit instantiation");
+        $self->error("Unable to create new circuit instantiation.");
+        $self->{'db'}->_rollback() if($do_commit);
+        return;
+    }
+
+    $self->{'logger'}->error("HERE4");
     
     if($do_commit){
         $self->{'db'}->_commit();

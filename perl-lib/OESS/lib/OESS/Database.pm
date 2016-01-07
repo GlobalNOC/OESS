@@ -277,6 +277,7 @@ sub update_circuit_state{
     my $old_state   = $args{'old_state'};
     my $new_state   = $args{'new_state'};
     my $user_id     = $args{'modified_by_user_id'};
+    my $reason      = $args{'reason'};
     my $no_transact = $args{'no_transact'};
 
     if (!defined $no_transact) {
@@ -305,8 +306,8 @@ sub update_circuit_state{
 	return;
     }
 
-    $query = "insert into circuit_instantiation (circuit_id, end_epoch, start_epoch, reserved_bandwidth_mbps, circuit_state, modified_by_user_id) values (?, -1, unix_timestamp(now()), ?, ?, ?)";
-    $result = $self->_execute_query($query, [$circuit_id, $bandwidth, $new_state, $user_id]);
+    $query = "insert into circuit_instantiation (circuit_id, end_epoch, start_epoch, reserved_bandwidth_mbps, circuit_state, modified_by_user_id,reason) values (?, -1, unix_timestamp(now()), ?, ?, ?, ?)";
+    $result = $self->_execute_query($query, [$circuit_id, $bandwidth, $new_state, $user_id, $reason]);
     if (!defined $result){
         if (!defined $no_transact) {
             $self->_rollback();
@@ -1496,14 +1497,14 @@ sub get_circuit_history {
     my $circuit_id = $args{'circuit_id'};
 
     # figure out past instantiations during this circuit's life
-    my $query = "select remote_auth.auth_name, concat(user.given_names, ' ', user.family_name) as full_name, " .
+    my $query = "select remote_auth.auth_name, concat(user.given_names, ' ', user.family_name) as full_name, circuit_instantiation.reason, " .
 	     " from_unixtime(circuit_instantiation.end_epoch) as end_time, " .
 	     " from_unixtime(circuit_instantiation.start_epoch) as start_time " .
 	     " from circuit " .
 	     " join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id " .
 	     " join user on user.user_id = circuit_instantiation.modified_by_user_id " .
 	     " left join remote_auth on remote_auth.user_id = user.user_id " .
-	     "where circuit.circuit_id = ?";
+	     "where circuit.circuit_id = ? order by circuit_instantiation.start_epoch DESC";
 
     my $results = $self->_execute_query($query, [$circuit_id]);
 
@@ -1518,7 +1519,8 @@ sub get_circuit_history {
 			 "scheduled" => -1,
 			 "activated" => $row->{'start_time'},
 			 "layout"    => "",
-			 "completed" => $row->{'end_time'}
+                         "reason"    => $row->{'reason'},
+			 "ended" => $row->{'end_time'}
 	      }
 	    );
     }
@@ -3709,7 +3711,7 @@ sub get_circuit_details {
     my $details;
 
     # basic circuit info
-    my $query = "select circuit.restore_to_primary, circuit.external_identifier, circuit.name, circuit.description, circuit.circuit_id, circuit.static_mac, circuit_instantiation.modified_by_user_id, circuit_instantiation.loop_node, circuit.workgroup_id, " .
+    my $query = "select circuit.restore_to_primary, circuit.external_identifier, circuit.name, circuit.description, circuit.circuit_id, circuit.static_mac, circuit_instantiation.modified_by_user_id, circuit_instantiation.loop_node,circuit_instantiation.reason, circuit.workgroup_id, " .
         " circuit.remote_url, circuit.remote_requester, " . 
 	" circuit_instantiation.reserved_bandwidth_mbps, circuit_instantiation.circuit_state, circuit_instantiation.start_epoch  , " .
 	" if(bu_pi.path_state = 'active', 'backup', 'primary') as active_path " .
@@ -5470,7 +5472,7 @@ sub add_into{
     my $insert_circuit_query = "insert into circuit (name,description) VALUES (?,?)";
     my $insert_circuit_sth   = $self->_prepare_query($insert_circuit_query) or return;
 
-    my $insert_circuit_instantiation_query = "insert into circuit_instantiation (circuit_id,end_epoch,start_epoch,reserved_bandwidth_mbps,circuit_state,modified_by_user_id) VALUES ((select circuit_id from circuit where name=?),-1,unix_timestamp(now()),?,?,?)";
+    my $insert_circuit_instantiation_query = "insert into circuit_instantiation (circuit_id,end_epoch,start_epoch,reserved_bandwidth_mbps,circuit_state,modified_by_user_id,reason) VALUES ((select circuit_id from circuit where name=?),-1,unix_timestamp(now()),?,?,?,'Circuit Creation')";
     my $insert_circuit_instantiation_sth   = $self->_prepare_query($insert_circuit_instantiation_query) or return;
 
     my $insert_path_query = "insert into path (path_type,circuit_id) VALUES (?,(select circuit_id from circuit where name=?))";
@@ -6311,8 +6313,8 @@ sub provision_circuit {
 
 
     #instantiate circuit
-    $query = "insert into circuit_instantiation (circuit_id, reserved_bandwidth_mbps, circuit_state, modified_by_user_id, end_epoch, start_epoch) values (?, ?, ?, ?, -1, unix_timestamp(now()))";
-    $self->_execute_query($query, [$circuit_id, $bandwidth, $state, $user_id]);
+    $query = "insert into circuit_instantiation (circuit_id, reserved_bandwidth_mbps, circuit_state, modified_by_user_id, end_epoch, start_epoch,reason) values (?, ?, ?, ?, -1, unix_timestamp(now()),?)";
+    $self->_execute_query($query, [$circuit_id, $bandwidth, $state, $user_id, "Circuit Creation"]);
 
     if($state eq 'scheduled' || $state eq 'reserved'){
 
@@ -6611,7 +6613,8 @@ sub remove_circuit {
         old_state           => 'active',
         new_state           => 'decom',
         modified_by_user_id => $user_id,
-        no_transact         => 1
+        no_transact         => 1,
+        reason              => "User requested remove of circuit"
 	);
     if (!defined $update_result) {
         $self->_rollback();
@@ -7188,6 +7191,8 @@ sub edit_circuit {
     my $static_mac                = $args{'static_mac'} || 0;
     my $do_commit                 = defined($args{'do_commit'}) ? $args{'do_commit'} : 1;
     my $do_sanity_check           = defined($args{'do_sanity_check'}) ? $args{'do_sanity_check'} : 1;
+    my $reason                    = $args{'reason'} || "User requested circuit edit";
+
 
     # whether this edit should only edit everything or just local bits
     my $do_external               = $args{'do_external'} || 0;
@@ -7240,8 +7245,8 @@ sub edit_circuit {
         return
     }
 
-    $query = "insert into circuit_instantiation (circuit_id, reserved_bandwidth_mbps, circuit_state, modified_by_user_id, end_epoch, start_epoch, loop_node) values (?, ?, ?, ?, -1, unix_timestamp(now()), ?)";
-    if(!defined($self->_execute_query($query, [$circuit_id, $bandwidth,$state, $user_id, $loop_node]))){
+    $query = "insert into circuit_instantiation (circuit_id, reserved_bandwidth_mbps, circuit_state, modified_by_user_id, end_epoch, start_epoch, loop_node, reason) values (?, ?, ?, ?, -1, unix_timestamp(now()), ?,?)";
+    if(!defined($self->_execute_query($query, [$circuit_id, $bandwidth,$state, $user_id, $loop_node,$reason]))){
         $self->_set_error("Unable to create new circuit instantiation.");
         $self->_rollback() if($do_commit);
         return

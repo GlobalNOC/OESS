@@ -194,6 +194,10 @@ sub _send_bulk_notification {
         #build workgroup buckets
         my $circuit_details = $self->get_notification_data(circuit => $circuit);
 
+        if(!defined($circuit_details)){
+            return;
+        }
+
         my $owners = $circuit_details->{'endpoint_owners'};
 
         foreach my $owner (keys %$owners) {
