@@ -62,7 +62,7 @@ function save_session_from_datasource(details){
     session.data.backup_links = [];
     session.data.restore_to_primary = details.restore_to_primary;
     session.data.loop_node = details.loop_node;
-    console.log(details.endpoints);
+
     for (var i = 0; i < details.endpoints.length; i++){
         var endpoint = details.endpoints[i];
         var endpoint_data = {
