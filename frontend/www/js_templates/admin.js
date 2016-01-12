@@ -1169,10 +1169,11 @@ function setup_workgroup_tab(){
                 region = YAHOO.util.Dom.getRegion("workgroups_content");
                 wg_panel.moveTo(region.left, region.top);
             });
-        
-            var workgroup_name = record.getData('name');
-            var workgroup_id   = record.getData('workgroup_id');
-            var workgroup_external = record.getData('external_id');
+        console.log(record);
+        var workgroup_name = record.getData('name');
+        var workgroup_type = record.getData('type');
+        var workgroup_id   = record.getData('workgroup_id');
+        var workgroup_external = record.getData('external_id');
         if(workgroup_external === null){
             workgroup_external = "";
         }
@@ -1573,7 +1574,7 @@ function setup_workgroup_tab(){
                 this.changeNodeImage(feature, this.ACTIVE_IMAGE);
 
                 var url = "../services/data.cgi?action=get_node_interfaces&node=" + encodeURIComponent(node) + "&show_down=1";
-                if (workgroup_name === "admin") {
+                if (workgroup_type === "admin") {
                   url = url + "&show_trunk=1";
                 }
                 
@@ -1607,7 +1608,7 @@ function setup_workgroup_tab(){
                 // Removes role column from table when not working with
                 // the 'admin' workgroup. Assumes role is stored in
                 // third column from the left.
-                if (workgroup_name !== "admin") {
+                if (workgroup_type !== "admin") {
                   ds.responseSchema.fields.splice(2, 1);
                   cols.splice(2, 1);
                 }
@@ -4179,69 +4180,66 @@ function makeUserWorkgroupTable(user_id,first_name,family_name) {
 
 function makeWorkgroupTable(){
 
-        var searchTimeout;
+    var searchTimeout;
     
     var search = new YAHOO.util.Element(YAHOO.util.Dom.get('workgroup_search'));
-    
     search.on('keyup', function(e){
-                
-            var search_value = this.get('element').value;
-                
-            if (e.keyCode == YAHOO.util.KeyListener.KEY.ENTER){
-                clearTimeout(searchTimeout);
-                        table_filter.call(table,search_value);
-            }
-            else{
-                if (searchTimeout) clearTimeout(searchTimeout);
-                
-                searchTimeout = setTimeout(function(){
-                        table_filter.call(table,search_value);
-                    }, 400);
-                
-            } 
-            
+        
+        var search_value = this.get('element').value;
+        
+        if (e.keyCode == YAHOO.util.KeyListener.KEY.ENTER){
+            clearTimeout(searchTimeout);
+            table_filter.call(table,search_value);
         }
-        );
-    
+        else{
+            if (searchTimeout) clearTimeout(searchTimeout);
+                
+            searchTimeout = setTimeout(function(){
+                table_filter.call(table,search_value);
+            }, 400);
+            
+        } 
+        
+    });
         
     var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_workgroups");
-
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
         resultsList: "results",
-        fields: [ {key: "workgroup_id", parser: "number"},
-        {key: "name"},
-        {key: "description"},
-        {key: "external_id"},
-        {key: "max_mac_address_per_end"},
-        {key: "max_circuit_endpoints"},
-        {key: "max_circuits"} 
+        fields: [
+            {key: "workgroup_id", parser: "number"},
+            {key: "name"},
+            {key: "type"},
+            {key: "description"},
+            {key: "external_id"},
+            {key: "max_mac_address_per_end"},
+            {key: "max_circuit_endpoints"},
+            {key: "max_circuits"} 
         ]};
 
-    var columns = [{key: "name", label: "Name", sortable:true,width: 180}
-                   ];
+    var columns = [
+        {
+            key: "name",
+            label: "Name", sortable:true,width: 180
+        }
+    ];
 
     var config = {
-        paginator: new YAHOO.widget.Paginator({rowsPerPage: 10,
-                                                                                   containers: ["workgroup_table_nav"]
-                                                                                  }),
-                sortedBy:{key:'name',dir:'asc'}
+        paginator: new YAHOO.widget.Paginator({
+            rowsPerPage: 10,
+            containers: ["workgroup_table_nav"]
+        }),
+        sortedBy:{key:'name',dir:'asc'}
     };
 
-
     var table = new YAHOO.widget.DataTable("workgroup_table", columns, ds, config);
-
     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
     table.subscribe("rowClickEvent", table.onEventSelectRow);
-
-        table.on("dataReturnEvent", function(oArgs){                                 
-            this.cache = oArgs.response;
-            return oArgs;
+    table.on("dataReturnEvent", function(oArgs){
+        this.cache = oArgs.response;
+        return oArgs;
     });
-    
-
-
     return table;
 }
 

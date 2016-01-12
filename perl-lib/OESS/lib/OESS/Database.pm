@@ -626,62 +626,59 @@ sub is_external_vlan_available_on_interface {
     my $circuit_id = $args{'circuit_id'};
 
     if(!defined($interface_id)){
-	$self->_set_error("No Interface ID Specified");
-	return undef
+        $self->_set_error("No Interface ID Specified");
+        return undef;
     }
 
     if(!defined($vlan_tag)){
-	$self->_set_error("No VLAN Tag specified");
-	return undef
+        $self->_set_error("No VLAN Tag specified");
+        return undef;
     }
 
     my $query = "select circuit.name, circuit.circuit_id from circuit join circuit_edge_interface_membership " .
-	        " on circuit.circuit_id = circuit_edge_interface_membership.circuit_id " .
-		" where circuit_edge_interface_membership.interface_id = ? " .
-		"  and circuit_edge_interface_membership.extern_vlan_id = ? " .
-		"  and circuit_edge_interface_membership.end_epoch = -1";
+                " on circuit.circuit_id = circuit_edge_interface_membership.circuit_id " .
+                " where circuit_edge_interface_membership.interface_id = ? " .
+                "  and circuit_edge_interface_membership.extern_vlan_id = ? " .
+                "  and circuit_edge_interface_membership.end_epoch = -1";
 
     my $result = $self->_execute_query($query, [$interface_id, $vlan_tag]);
-
-    if (! defined $result){
-	$self->_set_error("Internal error while finding available external vlan tags.");
-	return;
+    if (!defined $result) {
+        $self->_set_error("Internal error while finding available external vlan tags.");
+        return;
     }
 
     $query = "select * from interface where interface.interface_id = ?";
-
     my $interface = $self->_execute_query( $query, [$interface_id])->[0];
 
+    # Verify $vlan_tag is within the interface's available tag range
     my $tags = $self->_process_tag_string($interface->{'vlan_tag_range'});
 
-
-    #first verify tag is in available range
-    my $found = 0;
-    foreach my $tag (@$tags){
-	if($tag == $vlan_tag){
-	    $found = 1;
-	}
+    my $available_vlan = 0;
+    foreach my $tag (@{$tags}){
+        if ($tag == $vlan_tag) {
+            $available_vlan = 1;
+        }
     }
 
-    if(!$found){
-	return 0;
+    if ($available_vlan == 0) {
+        $self->_set_error("VLAN $vlan_tag is not within the default VLAN range.");
+        return 0;
     }
 
-    #verify no other circuit is using it
-    if (@$result > 0){
-	if(defined($circuit_id)){
-	    foreach my $circuit (@$result){
-		if($circuit->{'circuit_id'} == $circuit_id){
-		    #no problem here, we are editing the circuit
-		}else{
-		    warn "In Use on another circuit\n";
-                    $self->_set_error("VLAN Tag already in use on another circuit");
-		    return 0;
-		}
-	    }
-	}else{
-            warn "In Use on another circuit\n";
-            $self->_set_error("VLAN Tag already in use on another circuit");
+    # Verify no other circuit is using $vlan_tag on $interface_id
+    my $err = "VLAN $vlan_tag already in use on another circuit\n";
+    if (@{$result} > 0) {
+        if (defined $circuit_id) {
+            foreach my $circuit (@{$result}) {
+                if ($circuit->{'circuit_id'} == $circuit_id) {
+                    # There's no problem here; We are editing the circuit.
+                } else {
+                    $self->_set_error($err);
+                    return 0;
+                }
+            }
+        } else {
+            $self->_set_error($err);
             return 0;
         }
     }
@@ -7511,8 +7508,6 @@ sub _set_error {
     my $err  = shift;
 
     $self->{'logger'}->warn("Setting error to $err\n");
-    warn "Setting error to $err\n";
-
     $self->{'error'} = $err;
 }
 
@@ -7844,19 +7839,46 @@ sub _validate_endpoint {
        $query .= " and (interface_acl.workgroup_id = ? or interface_acl.workgroup_id IS NULL) order by eval_position";
 
     my $results = $self->_execute_query($query, [$interface_id, $workgroup_id]);
-
-    if (! defined $results){
+    if (!defined $results) {
 	$self->_set_error("Internal error validating endpoint.");
 	return;
     }
 
+    if (@{$results}[0]->{'role'} eq 'trunk') {
+        # Endpoints on trunk interfaces must use VLANs outside the range
+        # assigned to each node. Interface ACLs are also ignored.
+        my $query = "SELECT node.vlan_tag_range " .
+          "FROM node " .
+          "JOIN interface ON node.node_id = interface.node_id " .
+          "WHERE interface.interface_id = ?";
+
+        my $results = $self->_execute_query($query, [$interface_id]);
+        if (!defined $results) {
+            $self->_set_error("Could not perform VLAN validation against node for trunk interface.");
+            return;
+        }
+
+        my $vlan_tag_range = @{$results}[0]->{'vlan_tag_range'};
+        if (!defined $vlan) {
+            return $vlan_tag_range;
+        }
+        
+        my $vlan_tags = $self->_process_tag_string($vlan_tag_range);
+        foreach my $vlan_tag (@{$vlan_tags}) {
+            if ($vlan_tag == $vlan) {
+                my $err = "VLAN $vlan_tag can not be used with trunk interfaces on this node.";
+                $self->_set_error($err);
+                return 0;
+            }
+        }
+        return 1;
+    }
 
     my $vlan_range_hash;
-    foreach my $result (@$results) {
+    foreach my $result (@{$results}) {
         my $permission = $result->{'allow_deny'};
         my $vlan_start = $result->{'vlan_start'};
         my $vlan_end   = $result->{'vlan_end'} || $vlan_start;
-
 
         # if vlan is not defined determine what ranges are available
         if(!defined($vlan)) {
