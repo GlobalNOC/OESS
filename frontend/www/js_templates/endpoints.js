@@ -4,10 +4,10 @@ function makeInterfacesTable(node){
   var node_name_holder = document.getElementById('node_name_holder');
   node_name_holder.innerHTML = "<center><h2><b>" + node + "</b></h2></center>";
 
-  var url = "services/data.cgi?action=get_node_interfaces&node=" + encodeURIComponent(node) + "&workgroup_id=" + session.data.workgroup_id + "&show_down=1";
-  if (session.data.workgroup_name === "admin") {
-    url = url + "&show_trunk=1";
-  }
+    var url = "services/data.cgi?action=get_node_interfaces&node=" + encodeURIComponent(node) + "&workgroup_id=" + session.data.workgroup_id + "&show_down=1";
+    if (session.data.workgroup_type === "admin") {
+        url = url + "&show_trunk=1";
+    }
   
   var ds = new YAHOO.util.DataSource(url);
   ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
@@ -46,12 +46,12 @@ function makeInterfacesTable(node){
     }}
   ];
 
-  // Removes role column from table when not in 'admin' workgroup.
-  // Assumes role is stored in fourth column from the left.
-  if (session.data.workgroup_name !== "admin") {
-    ds.responseSchema.fields.splice(3, 1);
-    cols.splice(3, 1);
-  }
+    // Removes role column from table when not in 'admin' workgroup.
+    // Assumes role is stored in fourth column from the left.
+    if (session.data.workgroup_type !== "admin") {
+        ds.responseSchema.fields.splice(3, 1);
+        cols.splice(3, 1);
+    }
   
   var configs = {
     height: "337px"
@@ -74,8 +74,12 @@ function init(){
 
   var nddi_map = new NDDIMap("map");
 
-  var layout = makePageLayout(nddi_map, {map_width: 540,
-                                         max_resize: 700});
+    var w = 540;
+    if (session.data.workgroup_type === 'admin') {
+        w = 470;
+    }
+    var layout = makePageLayout(nddi_map, {map_width: w,
+                                           max_resize: 700});
 
   
   legend_init(nddi_map, true, false, false, true);

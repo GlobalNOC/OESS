@@ -1710,7 +1710,7 @@ sub get_workgroups_by_auth_name {
 
     my $auth_name = $args{'auth_name'};
 
-    my $query = "select workgroup.name, workgroup.workgroup_id " .
+    my $query = "select workgroup.name, workgroup.workgroup_id, workgroup.type " .
 	        " from workgroup ";
     my $results;
     # if user is admin show all workgroups regardless of membership
@@ -1736,7 +1736,8 @@ sub get_workgroups_by_auth_name {
 
     foreach my $row (@$results){
 	push(@workgroups, {"name"         => $row->{'name'},
-			   "workgroup_id" => $row->{'workgroup_id'}
+			   "workgroup_id" => $row->{'workgroup_id'},
+                           "type"         => $row->{'type'}
 	                  }
 	    );
     }
