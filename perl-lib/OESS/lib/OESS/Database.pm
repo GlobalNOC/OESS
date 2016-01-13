@@ -1958,6 +1958,7 @@ sub update_interface_owner {
 
         if (!defined $interface->{'workgroup_id'} && !defined $workgroup_id) {
             $self->_set_error("Interface is already NOT associated with a workgroup.");
+            return;
         }
     }
 
@@ -1970,7 +1971,7 @@ sub update_interface_owner {
         }
         $workgroup = @{$result}[0];
 
-        if ($interface->{'workgroup_id'} == $workgroup_id) {
+        if (defined $interface->{'workgroup_id'} && $interface->{'workgroup_id'} == $workgroup_id) {
             $self->_set_error("Interface is already associated with the specified workgroup.");
             return;
         }
@@ -6362,36 +6363,28 @@ sub provision_circuit {
         my $interface_id = $result->{'interface_id'};
         my $interface_role = $result->{'role'};
         my $node_id = $result->{'node_id'};
-        my $vlan_tag_range = $result->{'vlan_tag_range'};
-
-        # Determine if $vlan has been enabled for this instance of OESS
-        my $vlan_tags = $self->_process_tag_string($vlan_tag_range);
-        my $is_oess_vlan = 0;
-        foreach my $vlan_tag (@{$vlan_tags}) {
-            if ($vlan == $vlan_tag) {
-                $is_oess_vlan = 1;
-                last;
-            }
-        }
 
         # When using a trunk interface as an endpoint, verify that $vlan
-        # is NOT in this node's $vlan_tag_range. All other interface
-        # types must use a proper OESS VLAN.
+        # is NOT in this node's $vlan_tag_range.
         # Additionally ACL rules are not applied against circuits on
         # trunk interfaces.
         if ($interface_role eq 'trunk') {
+            my $vlan_tag_range = $result->{'vlan_tag_range'};
+            my $vlan_tags = $self->_process_tag_string($vlan_tag_range);
+            my $is_oess_vlan = 0;
+            foreach my $vlan_tag (@{$vlan_tags}) {
+                if ($vlan == $vlan_tag) {
+                    $is_oess_vlan = 1;
+                    last;
+                }
+            }
+
             if ($is_oess_vlan) {
                 $self->_set_error("Trunk interface \"$interface\" on endpoint \"$node\" with VLAN tag \"$vlan\" is not allowed for this workgroup.");
                 $self->_rollback();
                 return;
             }
         } else {
-            if (!$is_oess_vlan) {
-                $self->_set_error("Interface \"$interface\" on endpoint \"$node\" with VLAN tag \"$vlan\" is not allowed for this workgroup.");
-                $self->_rollback();
-                return;
-            }
-
             # Verify requested endpoint parameters adhere to current ACLs
             if (! $self->_validate_endpoint(interface_id => $interface_id, workgroup_id => $workgroup_id, vlan => $vlan)){
                 $self->_set_error("Interface \"$interface\" on endpoint \"$node\" with VLAN tag \"$vlan\" is not allowed for this workgroup.");
