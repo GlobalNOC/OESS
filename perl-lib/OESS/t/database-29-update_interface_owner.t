@@ -52,13 +52,14 @@ is($res->[0]{'vlan_start'},-1,'vlan_start correct in default rule');
 is($res->[0]{'vlan_end'},4095,'vlan_end correct in default rule');
 is($res->[0]{'notes'},'Default ACL Rule','notes correct in default rule');
 
-#make a default interface rule that does NOT support tagging ISSUE=9287
+# Make a default interface rule that does NOT support tagging ISSUE=9287
+# Changed from 51 to 34561; 51 was a trunk interface, and ACL rules do
+# not apply to trunk interfaces.
 $success = $db->update_interface_owner( 
-    interface_id => 51,
-	workgroup_id => 1,
+    interface_id => 45571,
+    workgroup_id => 1,
 );
-
-$res = $db->get_acls( interface_id => 51 );
+$res = $db->get_acls( interface_id => 45571 );
 is($res->[0]{'vlan_start'},1,'vlan_start correct in default rule');
 is($res->[0]{'vlan_end'},4095,'vlan_end correct in default rule');
 
