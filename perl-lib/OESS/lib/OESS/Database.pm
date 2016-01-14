@@ -7826,14 +7826,12 @@ sub _validate_endpoint {
     my $workgroup_id = $args{'workgroup_id'};
     my $vlan         = $args{'vlan'};
 
-    my $query  = "select * ";
-       $query .= " from interface_acl ";
-       $query .= " join interface on interface_acl.interface_id = interface.interface_id ";
-       $query .= " where interface_acl.interface_id = ? ";
-       $query .= " and (interface_acl.workgroup_id = ? or interface_acl.workgroup_id IS NULL) order by eval_position";
+    my $query = "SELECT interface.role " .
+      "FROM interface " .
+      "WHERE interface.interface_id = ?";
 
-    my $results = $self->_execute_query($query, [$interface_id, $workgroup_id]);
-    if (!defined $results) {
+    my $results = $self->_execute_query($query, [$interface_id]);
+    if (!defined $results || !defined @{$results}[0]) {
 	$self->_set_error("Internal error validating endpoint.");
 	return;
     }
@@ -7844,10 +7842,10 @@ sub _validate_endpoint {
         my $query = "SELECT node.vlan_tag_range " .
           "FROM node " .
           "JOIN interface ON node.node_id = interface.node_id " .
-          "WHERE interface.interface_id = ?";
+          "WHERE interface.interface_id = ? AND interface.workgroup_id = ?";
 
-        my $results = $self->_execute_query($query, [$interface_id]);
-        if (!defined $results) {
+        my $results = $self->_execute_query($query, [$interface_id, $workgroup_id]);
+        if (!defined $results || !defined @{$results}[0]) {
             $self->_set_error("Could not perform VLAN validation against node for trunk interface.");
             return;
         }
@@ -7860,14 +7858,24 @@ sub _validate_endpoint {
         my $vlan_tags = $self->_process_tag_string($vlan_tag_range);
         foreach my $vlan_tag (@{$vlan_tags}) {
             if ($vlan_tag == $vlan) {
-                my $err = "VLAN $vlan_tag can not be used with trunk interfaces on this node.";
-                $self->_set_error($err);
                 return 0;
             }
         }
         return 1;
     }
 
+    $query  = "select * ";
+    $query .= " from interface_acl ";
+    $query .= " join interface on interface_acl.interface_id = interface.interface_id ";
+    $query .= " where interface_acl.interface_id = ? ";
+    $query .= " and (interface_acl.workgroup_id = ? or interface_acl.workgroup_id IS NULL) order by eval_position";
+
+    $results = $self->_execute_query($query, [$interface_id, $workgroup_id]);
+    if (!defined $results) {
+	$self->_set_error("Internal error validating endpoint.");
+	return;
+    }
+    
     my $vlan_range_hash;
     foreach my $result (@{$results}) {
         my $permission = $result->{'allow_deny'};
