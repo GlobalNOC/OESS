@@ -6384,13 +6384,13 @@ sub provision_circuit {
                 $self->_rollback();
                 return;
             }
-        } else {
-            # Verify requested endpoint parameters adhere to current ACLs
-            if (! $self->_validate_endpoint(interface_id => $interface_id, workgroup_id => $workgroup_id, vlan => $vlan)){
-                $self->_set_error("Interface \"$interface\" on endpoint \"$node\" with VLAN tag \"$vlan\" is not allowed for this workgroup.");
-                $self->_rollback();
-                return;
-            }
+        }
+
+        # Verify requested endpoint parameters adhere to current ACLs
+        if (! $self->_validate_endpoint(interface_id => $interface_id, workgroup_id => $workgroup_id, vlan => $vlan)){
+            $self->_set_error("Interface \"$interface\" on endpoint \"$node\" with VLAN tag \"$vlan\" is not allowed for this workgroup.");
+            $self->_rollback();
+            return;
         }
 
 	# Verify that $vlan is not already in use on this interface
