@@ -31,8 +31,7 @@ ok($res, 'query ok');
 is(@$res, 5, 'count');
 
 warn Dumper($res);
-my $correct_result = [
-          {
+my $correct_result = [ {
             'interface_name' => 'e15/1',
             'node_name' => 'Node 21',
             'owning_workgroup' => {
@@ -55,26 +54,26 @@ my $correct_result = [
             'operational_state' => 'up'
           },
           {
-            'interface_name' => 'e3/1',
-            'node_name' => 'Node 51',
-            'owning_workgroup' => {
-                                    'workgroup_id' => '1',
-                                    'status' => 'active',
-                                    'name' => 'Workgroup 1',
-                                    'max_circuit_endpoints' => '10',
-                                    'description' => '',
-                                    'max_circuits' => '20',
-                                    'external_id' => undef,
-                                    'type' => 'normal',
-                                    'max_mac_address_per_end' => '10'
-                                  },
-            'interface_id' => '51',
-            'remote_links' => [],
-            'description' => 'e3/1',
-            'is_owner' => 0,
-            'vlan_tag_range' => '1-4095',
-            'node_id' => '51',
-            'operational_state' => 'up'
+                       'interface_name' => 'e15/7',
+                       'remote_links' => [],
+                       'node_name' => 'Node 81',
+                       'owning_workgroup' => {
+                                              'workgroup_id' => '1',
+                                              'status' => 'active',
+                                              'name' => 'Workgroup 1',
+                                              'max_circuit_endpoints' => '10',
+                                              'description' => '',
+                                              'max_circuits' => '20',
+                                              'external_id' => undef,
+                                              'type' => 'normal',
+                                              'max_mac_address_per_end' => '10'
+                                             },
+                       'interface_id' => '45571',
+                       'description' => 'e15/7',
+                       'is_owner' => 0,
+                       'vlan_tag_range' => '1-4095',
+                       'node_id' => '81',
+                       'operational_state' => 'up'
           },
           {
             'interface_name' => 'e1/1',
