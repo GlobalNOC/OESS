@@ -237,8 +237,6 @@ sub _create_graph{
 sub _create_flows{
     my $self = shift;
 
-    #$self->{'logger'}->error( Data::Dumper::Dumper($self->{'details'}->{'state'}));
-
     if($self->{'details'}->{'state'} eq 'reserved' || $self->{'details'}->{'state'} eq 'provisioned' ){
         return;
     }
@@ -392,26 +390,25 @@ sub _dedup_flows{
     my $self = shift;
     
     my $flows = shift;
-    
     my @deduped = ();
 
     foreach my $flow (@$flows){
-	my $matched = 0;
-	foreach my $de_duped_flow (@deduped){
-            if(!defined($flow) || !defined($de_duped_flow)){
-                next;
+        my $matched = 0;
+        foreach my $de_duped_flow (@deduped){
+                if(!defined($flow) || !defined($de_duped_flow)){
+                    next;
+                }
+                if($de_duped_flow->get_dpid() != $flow->get_dpid()){
+                    next;
+                }
+            if($de_duped_flow->compare_match( flow_rule => $flow)){
+            $de_duped_flow->merge_actions( flow_rule => $flow);
+            $matched = 1;
             }
-            if($de_duped_flow->get_dpid() != $flow->get_dpid()){
-                next;
-            }
-	    if($de_duped_flow->compare_match( flow_rule => $flow)){
-		$de_duped_flow->merge_actions( flow_rule => $flow);
-		$matched = 1;
-	    }
-	}
-	if($matched == 0){
-	    push(@deduped,$flow);
-	}
+        }
+        if($matched == 0){
+            push(@deduped,$flow);
+        }
     }
 
     return \@deduped;
@@ -544,7 +541,7 @@ sub _generate_static_mac_path_flows{
 							    actions => [{'set_vlan_vid' => $internal_ids->{$path}{$next_hop[1]}{$interface_id}},
 									{'output' => $port}]);
 			    
-			    push(@{$self->{'flows'}->{'static_mac_addr'}->{$path}},$flow);
+                            push(@{$self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{$path}},$flow);
 			    
 			}
 		    }
@@ -568,7 +565,7 @@ sub _generate_static_mac_path_flows{
 							    dpid => $self->{'dpid_lookup'}->{$vert},
 							    actions => [{'set_vlan_vid' => $endpoint->{'tag'}},
 									{'output' => $endpoint->{'port_no'}}]);
-			    push(@{$self->{'flows'}->{'static_mac_addr'}->{$path}},$flow);
+                            push(@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{$path}},$flow);
 			}
 		    }
 		}
@@ -849,6 +846,7 @@ sub get_flows{
     my $self = shift;
     my %params = @_;	
     my @flows;
+    my @static_flows = ();
 
     if($self->{'details'}->{'state'} eq 'reserved'){
         return [];
@@ -863,6 +861,15 @@ sub get_flows{
     	foreach my $flow (@{$self->{'flows'}->{'path'}->{'backup'}}){
             push(@flows,$flow);
     	}
+
+        foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{'primary'}}){
+            push(@static_flows,$static_flow);
+        }
+        
+        foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{'backup'}}){
+            push(@static_flows,$static_flow);
+        }
+
         
     	if($self->get_active_path() eq 'primary'){
             
@@ -870,21 +877,22 @@ sub get_flows{
             	push(@flows,$flow);
             }
             
-            foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{'primary'}}){
-	    	push(@flows,$flow);
+            foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'primary'}}){
+	    	push(@static_flows,$static_flow);
             }
             
+                       
     	} else {
             
             foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{'backup'}}){
             	push(@flows,$flow);
             }
             
-            foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{'backup'}}){
-                push(@flows,$flow);
+            foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'backup'}}){
+                push(@static_flows,$static_flow);
             }
             
-    	}
+	}
         
     } else {
 	my $path = $params{'path'};
@@ -901,14 +909,29 @@ sub get_flows{
             push(@flows,$flow);
         }
         
-	foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{$path}}){
-            push(@flows,$flow);
+	foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{$path}}){
+            push(@static_flows,$static_flow);
         }
+        
+        foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{$path}}){
+            push(@static_flows,$static_flow);
+        }
+
     }
 
     #if the number of endpoints is more than 2 and it is not interdomain
     if (scalar(@{$self->get_endpoints()}) > 2 && !$self->is_interdomain()){
-        return $self->_dedup_flows(\@flows);
+        if ($self->is_static_mac()) {
+            my $dedup_flows = $self->_dedup_flows(\@flows);
+            foreach my $static_flow (@static_flows) {
+                push(@$dedup_flows, $static_flow);
+            }
+            return $dedup_flows;
+        }
+	else {
+	    return $self->_dedup_flows(\@flows);
+	}
+	
     } else {
         return \@flows;
     }
