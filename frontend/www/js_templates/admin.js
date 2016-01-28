@@ -1,4 +1,4 @@
-<script type='text/javascript' src='../js_utilities/interface_acl_panel.js'></script>
+o<script type='text/javascript' src='../js_utilities/interface_acl_panel.js'></script>
 <script type='text/javascript' src='../js_utilities/datatable_utils.js'></script>
 <script type='text/javascript' src='../js_utilities/interface_acl_table.js'></script>
 <script type='text/javascript' src='../js_utilities/multilink_panel.js'></script>
@@ -2658,54 +2658,56 @@ function setup_network_tab(){
         }
 
         save_button.on("click", function(){
-		    var new_name  = YAHOO.util.Dom.get('active_node_name').value;
-		    var new_lat   = YAHOO.util.Dom.get('active_node_lat').value;
-		    var new_lon   = YAHOO.util.Dom.get('active_node_lon').value;
-		    var new_range = YAHOO.util.Dom.get('active_node_vlan_range').value;
-		    var new_max_flows = YAHOO.util.Dom.get('active_max_flows').value;
-		    var new_tx_delay_ms = YAHOO.util.Dom.get('active_tx_delay_ms').value;
-		    var new_default_drop = YAHOO.util.Dom.get('active_node_default_drop').checked;
-		    var new_default_forward = YAHOO.util.Dom.get('active_node_default_forward').checked;
-		    var new_barrier_bulk = YAHOO.util.Dom.get('active_barrier_bulk').checked;
-		    var new_max_static_mac_flows = YAHOO.util.Dom.get('active_max_static_mac_flows').value;
-		    if (! new_name){
-			alert("You must specify a name for this device.");
-			return;
-		    }
-		   
-		    if (! new_lat || ! new_lat.match(/^\-?\d+(\.\d+)?$/) || new_lat < -90 || new_lat > 90){
-			alert("You must specify a valid latitude at which this device will be visualized on the map.");
-			return;
-		    }
+		showConfirm("Are you sure you want to update the device. The new values will take effect immediatly.",
+			    function(){
+				var new_name  = YAHOO.util.Dom.get('active_node_name').value;
+				var new_lat   = YAHOO.util.Dom.get('active_node_lat').value;
+				var new_lon   = YAHOO.util.Dom.get('active_node_lon').value;
+				var new_range = YAHOO.util.Dom.get('active_node_vlan_range').value;
+				var new_max_flows = YAHOO.util.Dom.get('active_max_flows').value;
+				var new_tx_delay_ms = YAHOO.util.Dom.get('active_tx_delay_ms').value;
+				var new_default_drop = YAHOO.util.Dom.get('active_node_default_drop').checked;
+				var new_default_forward = YAHOO.util.Dom.get('active_node_default_forward').checked;
+				var new_barrier_bulk = YAHOO.util.Dom.get('active_barrier_bulk').checked;
+				var new_max_static_mac_flows = YAHOO.util.Dom.get('active_max_static_mac_flows').value;
+				if (! new_name){
+				    alert("You must specify a name for this device.");
+				    return;
+				}
+				
+				if (! new_lat || ! new_lat.match(/^\-?\d+(\.\d+)?$/) || new_lat < -90 || new_lat > 90){
+				    alert("You must specify a valid latitude at which this device will be visualized on the map.");
+				    return;
+				}
 		    
-		    if (! new_lon || ! new_lon.match(/^\-?\d+(\.\d+)?$/) || new_lon < -180 || new_lon > 180){
-			alert("You must specify a valid longitude at which this device will be visualized on the map.");
-			return;
-		    }
+				if (! new_lon || ! new_lon.match(/^\-?\d+(\.\d+)?$/) || new_lon < -180 || new_lon > 180){
+				    alert("You must specify a valid longitude at which this device will be visualized on the map.");
+				    return;
+				}
             
-            if(! new_max_static_mac_flows || ! new_max_static_mac_flows.match(/\d+/) ) {
-                alert("The max mac rules limit must be an integer.");
-                return;
-            }
+				if(! new_max_static_mac_flows || ! new_max_static_mac_flows.match(/\d+/) ) {
+				    alert("The max mac rules limit must be an integer.");
+				    return;
+				}
+				
+				var ranges = new_range.split(",");
+				
+				for (var i = 0; i < ranges.length; i++){
+				    var segment = ranges[i];
+				    if (! segment.match(/^\d+$/) && ! segment.match(/^\d+-\d+$/)){
+					alert("You must specify a valid vlan range in the format \"1-3,5,7,8-10\"");
+					return;
+				    }				
+				}
 
-		    var ranges = new_range.split(",");
-
-		    for (var i = 0; i < ranges.length; i++){
-		    	var segment = ranges[i];
-		    	if (! segment.match(/^\d+$/) && ! segment.match(/^\d+-\d+$/)){
-			   alert("You must specify a valid vlan range in the format \"1-3,5,7,8-10\"");
-			   return;
-			}				
-		    }
-
-		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_node&node_id="+node_id+"&name="+encodeURIComponent(new_name)+"&latitude="+new_lat+"&longitude="+new_lon+"&vlan_range="+encodeURIComponent(new_range) + "&default_drop=" + encodeURIComponent(new_default_drop) + "&default_forward=" + encodeURIComponent(new_default_forward) + "&max_flows=" + encodeURIComponent(new_max_flows) + "&tx_delay_ms=" + encodeURIComponent(new_tx_delay_ms) + "&bulk_barrier=" + encodeURIComponent(new_barrier_bulk) + "&max_static_mac_flows=" + new_max_static_mac_flows);
+				var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_node&node_id="+node_id+"&name="+encodeURIComponent(new_name)+"&latitude="+new_lat+"&longitude="+new_lon+"&vlan_range="+encodeURIComponent(new_range) + "&default_drop=" + encodeURIComponent(new_default_drop) + "&default_forward=" + encodeURIComponent(new_default_forward) + "&max_flows=" + encodeURIComponent(new_max_flows) + "&tx_delay_ms=" + encodeURIComponent(new_tx_delay_ms) + "&bulk_barrier=" + encodeURIComponent(new_barrier_bulk) + "&max_static_mac_flows=" + new_max_static_mac_flows);
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-
+		    
 		    ds.responseSchema = {
 			resultsList: "results",
 			fields: [{key: "success"}]
 		    };
-
+		    
 		    delete_button.set("disabled", true);
 		    save_button.set("disabled", true);
 		    save_button.set("label", "Updating Device...");
@@ -2728,16 +2730,19 @@ function setup_network_tab(){
 					   }
 
 				       },
-				       failure: function(req, resp){
-                           delete_button.set("disabled", false);
-                           save_button.set("disabled", false);
-                           save_button.set("label", "Update Device");
-                           alert("Error while talking to server.");
+					   failure: function(req, resp){
+					   delete_button.set("disabled", false);
+					   save_button.set("disabled", false);
+					   save_button.set("label", "Update Device");
+					   alert("Error while talking to server.");
 				       }
 				   });
-
-		});
-
+		    
+		    
+			    },
+			    function(){}
+			    );
+	    });
 	    delete_button.on("click", function(){
 
 		    showConfirm("Decomissioning this device will remove it and all links going to it. This will not impact existing circuits going across it presently, but you will not be able to add any more circuits that traverse this device. Are you sure you wish to continue?", 
