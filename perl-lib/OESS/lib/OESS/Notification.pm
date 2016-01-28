@@ -280,7 +280,8 @@ sub _send_bulk_notification {
         my $to_string = join( ",", @to_list );
 
 	if($to_string eq ''){
-	    return;
+		$self->{'log'}->error("INFO: send_bulk_notification: No notification to send as there are no users in workgroup. ");
+	    	return 0;
 	}
 	
 	#we determined that there are several cases that can cause
@@ -369,12 +370,18 @@ sub send_notification {
     my $body;
     
     #$self->{'tt'}->process( "$self->{'template_path'}/notification_templates.tmpl", $vars, \$body ) ||  warn $self->{'tt'}->error();
-    
+  
     foreach my $user ( @{ $data->{'affected_users'} } ) {
 	push( @to_list, $user->{'email_address'} );
     }
     
     my $to_string = join( ",", @to_list );
+
+    if($to_string eq ''){
+    	$self->{'log'}->error("INFO: send_notification: No notification to send as there are no users in workgroup. ");
+    	return 0;
+    }
+
     
     eval{
 	my $message = MIME::Lite::TT::HTML->new(
@@ -519,10 +526,11 @@ sub _connect_services {
 	  workgroup_id => $details->{'workgroup_id'}
 	  );
 
-      unless ($workgroup_members) {
-          $self->{'log'}->error( "No workgroup members found, returning");
-          return;
-      }
+      #unless ($workgroup_members) {
+      #    $self->{'log'}->error( "No workgroup members found, returning");
+      #    return;
+      #}
+
 
       foreach my $member (@$workgroup_members) {
           if ( $member->{'user_id'} == $user_id ) {
