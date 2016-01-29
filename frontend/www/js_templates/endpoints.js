@@ -1,19 +1,24 @@
 <script>
   
 function makeInterfacesTable(node){
+  var node_name_holder = document.getElementById('node_name_holder');
+  node_name_holder.innerHTML = "<center><h2><b>" + node + "</b></h2></center>";
 
-    var node_name_holder = document.getElementById('node_name_holder');
-    node_name_holder.innerHTML = "<center><h2><b>" + node + "</b></h2></center>";
+    var url = "services/data.cgi?action=get_node_interfaces&node=" + encodeURIComponent(node) + "&workgroup_id=" + session.data.workgroup_id + "&show_down=1";
+    if (session.data.workgroup_type === "admin") {
+        url = url + "&show_trunk=1";
+    }
   
-  var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_node_interfaces&node="+encodeURIComponent(node)+"&workgroup_id="+session.data.workgroup_id + "&show_down=1");
+  var ds = new YAHOO.util.DataSource(url);
   ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
   ds.responseSchema = {
     resultsList: "results",
     fields: [
-        {key: "name"},
-        {key: "description"},
-        {key: "status"},
-        {key: "vlan_tag_range"}
+      {key: "name"},
+      {key: "description"},
+      {key: "status"},
+      {key: "int_role"},
+      {key: "vlan_tag_range"}
     ],
     metaFields: {
       error: "error"
@@ -22,31 +27,43 @@ function makeInterfacesTable(node){
   
   var cols = [
     {key: "name", label: "Interface"},
-	{key: "description", label: "Description", width: 120},
+    {key: "description", label: "Description", width: 120},
     {key: "status", label: "Status"},
+    {key: "int_role", label: "Role", formatter: function(elLiner, oRec, oCol, oData) {
+      if (oData === "unknown") {
+        elLiner.innerHTML = "Endpoint";
+      } else {
+        elLiner.innerHTML = "Trunk";
+      }
+    }},
     {key: "vlan_tag_range", label: "VLAN Tag Range", formatter: function(elLiner, oRec, oCol, oData){
-        if(oData === null){
-            elLiner.innerHTML = "None Available";
-        }else {
-            var string = oData.replace(/^-1/, "untagged");
-            elLiner.innerHTML = string;
-        }
+      if(oData === null){
+        elLiner.innerHTML = "None Available";
+      }else {
+        var string = oData.replace(/^-1/, "untagged");
+        elLiner.innerHTML = string;
+      }
     }}
   ];
+
+    // Removes role column from table when not in 'admin' workgroup.
+    // Assumes role is stored in fourth column from the left.
+    if (session.data.workgroup_type !== "admin") {
+        ds.responseSchema.fields.splice(3, 1);
+        cols.splice(3, 1);
+    }
   
   var configs = {
     height: "337px"
   };
   
   var table = new YAHOO.widget.ScrollingDataTable("add_interface_table", cols, ds, configs);
-
   table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
   table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
   table.subscribe("rowClickEvent", table.onEventSelectRow);
-
   return table;
-}  
-  
+}
+
 function init(){  
 
   setPageSummary("Intradomain Endpoints","Pick at least two endpoints from the map below.");
@@ -57,8 +74,12 @@ function init(){
 
   var nddi_map = new NDDIMap("map");
 
-  var layout = makePageLayout(nddi_map, {map_width: 540,
-					 max_resize: 700});
+    var w = 540;
+    if (session.data.workgroup_type === 'admin') {
+        w = 470;
+    }
+    var layout = makePageLayout(nddi_map, {map_width: w,
+                                           max_resize: 700});
 
   
   legend_init(nddi_map, true, false, false, true);
@@ -66,29 +87,29 @@ function init(){
   //nddi_map.showDefault();
   
   nddi_map.on("loaded", function(){
-		this.updateMapFromSession(session);
-	      });
+                this.updateMapFromSession(session);
+              });
 
   endpoint_table.subscribe("rowDeleteEvent", function(){
-	  save_session();
+          save_session();
       });
 
-  nddi_map.on("clickNode", function(e, args){	  
+  nddi_map.on("clickNode", function(e, args){
 
-		var node   = args[0].name;
-		
-		var feature = args[0].feature;
+                var node   = args[0].name;
 
-		if (this.table){
-		  this.table.destroy();
-		  save_session();
-		}
+                var feature = args[0].feature;
 
-		this.changeNodeImage(feature, this.ACTIVE_IMAGE);
-		
-		this.table = makeInterfacesTable(node);		
-		
-		this.table.subscribe("rowClickEvent", function(args){
+                if (this.table){
+                  this.table.destroy();
+                  save_session();
+                }
+
+                this.changeNodeImage(feature, this.ACTIVE_IMAGE);
+
+                this.table = makeInterfacesTable(node);
+
+                this.table.subscribe("rowClickEvent", function(args){
 
             var rec = this.getRecord(args.target);
             var tag_range = rec.getData('vlan_tag_range');
@@ -174,14 +195,12 @@ function init(){
 
             this.vlan_panel.show();
 
-			new YAHOO.util.KeyListener(vlan_input,
+                        new YAHOO.util.KeyListener(vlan_input,
                     {keys: 13},
                     {fn: verify_and_add_endpoint}
             ).enable();
 
         });
-		
-		
   });
   
   function save_session(){

@@ -142,6 +142,14 @@ sub status{
     
     my $db = OESS::Database->new();
     my $result = 0;
+
+    if($db->is_fwdctl_enabled()){
+        my $res = system("/etc/init.d/oess-fwdctl status");
+        if($res != 0){
+            $result = $res;
+        }
+    }
+
     if($db->is_topo_enabled()){
         my $res =  system("/etc/init.d/oess-topo status");
         if($res != 0){
@@ -160,14 +168,16 @@ sub status{
             $result = $res;
         }
     }
-    if($db->is_fwdctl_enabled()){
-        my $res = system("/etc/init.d/oess-fwdctl status");
+
+    if($db->is_fvd_enabled()){
+        my $res = system("/etc/init.d/oess-fvd status");
         if($res != 0){
             $result = $res;
         }
     }
-    if($db->is_fvd_enabled()){
-        my $res = system("/etc/init.d/oess-fvd status");
+
+    if($db->is_nsi_enabled()){
+        my $res = system("/etc/init.d/oess-nsi status");
         if($res != 0){
             $result = $res;
         }
@@ -203,6 +213,13 @@ sub stop{
     my $db = OESS::Database->new();
     my $result = 0;
 
+    if($db->is_fwdctl_enabled()){
+        my $res = system("/etc/init.d/oess-fwdctl stop");
+        if($res != 0){
+            $result = $res;;
+        }
+    }
+
     if($db->is_topo_enabled()){
         my $res = system("/etc/init.d/oess-topo stop");
         if($res != 0){
@@ -221,12 +238,7 @@ sub stop{
             $result = $res;;
         }
     }
-    if($db->is_fwdctl_enabled()){
-        my $res = system("/etc/init.d/oess-fwdctl stop");
-        if($res != 0){
-            $result = $res;;
-        }
-    }
+
     if($db->is_fvd_enabled()){
         my $res = system("/etc/init.d/oess-fvd stop");
         if($res != 0){
@@ -238,6 +250,13 @@ sub stop{
         my $res = system("/etc/init.d/oess-notification stop");
         if($res != 0){
             $result = $res;;
+        }
+    }
+
+    if($db->is_nsi_enabled()){
+        my $res = system("/etc/init.d/oess-nsi stop");
+        if($res != 0){
+            $result = $res;
         }
     }
 
@@ -266,6 +285,13 @@ sub start{
     
     my $result = 0;
 
+    if($db->is_fwdctl_enabled()){
+        my $res = system("/etc/init.d/oess-fwdctl start");
+        if($res != 0){
+            $result = $res;;
+        }
+    }
+
     if($db->is_topo_enabled()){
         my $res = system("/etc/init.d/oess-topo start");
         if($res != 0){
@@ -284,12 +310,6 @@ sub start{
             $result = $res;;
         }
     }
-    if($db->is_fwdctl_enabled()){
-        my $res = system("/etc/init.d/oess-fwdctl start");
-        if($res != 0){
-            $result = $res;;
-        }
-    }
     if($db->is_fvd_enabled()){
         my $res = system("/etc/init.d/oess-fvd start");
         if($res != 0){
@@ -300,7 +320,14 @@ sub start{
     if($db->is_notification_enabled()){
         my $res = system("/etc/init.d/oess-notification start");
         if($res != 0){
-            $result = $res;;
+            $result = $res;
+        }
+    }
+
+    if($db->is_nsi_enabled()){
+        my $res = system("/etc/init.d/oess-nsi start");
+        if($res != 0){
+            $result = $res;
         }
     }
 
