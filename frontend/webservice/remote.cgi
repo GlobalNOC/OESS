@@ -495,6 +495,9 @@ sub modify_reservation{
 sub send_json{
     my $output = shift;
 
+    if (!defined($output) || !$output) {
+        $output =  { "error" => "Server error in accessing webservices." };
+    }
     print "Content-type: text/plain\n\n" . encode_json($output);
 }
 
