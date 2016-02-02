@@ -25,9 +25,7 @@ my $active_circuits = $db->get_circuits_by_state( state => 'active' );
 
 
 is(@$active_circuits, 98, "Total number of circuits match");
-foreach my $c (@{$active_circuits}) {
-    print  $c->{'name'} . "\n";
-}
+
 cmp_deeply($active_circuits->[0],{
     'circuit_state' => 'active',
     'loop_node' => undef,

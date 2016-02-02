@@ -1200,7 +1200,6 @@ sub change_path {
     }
 
     #now to add the history
-    $self->{'logger'}->error("HERE!");
     $query = "select * from circuit_instantiation where circuit_id = ? and end_epoch = -1";
     my $circuit_instantiation = $self->{'db'}->_execute_query($query,[$self->{'circuit_id'}])->[0];
     if(!defined($circuit_instantiation)){
@@ -1208,7 +1207,7 @@ sub change_path {
         $self->{'db'}->_rollback();
         return;
     }
-    $self->{'logger'}->error("HERE2");
+
     $query = "update circuit_instantiation set end_epoch = UNIX_TIMESTAMP(NOW()) where circuit_id = ? and end_epoch = -1";
     if(!defined($self->{'db'}->_execute_query($query, [$self->{'circuit_id'}]))){
         $self->error("Unable to decom old circuit instantiation.");
@@ -1216,7 +1215,6 @@ sub change_path {
         return
     }
 
-    $self->{'logger'}->error("HERE3");
     $query = "insert into circuit_instantiation (circuit_id, reserved_bandwidth_mbps, circuit_state, modified_by_user_id, end_epoch, start_epoch, loop_node, reason) values (?, ?, ?, ?, -1, unix_timestamp(now()),?,?)";
     if(!defined( $self->{'db'}->_execute_query($query, [ $self->{'circuit_id'}, 
                                                          $circuit_instantiation->{'reserved_bandwidth_mbps'},
@@ -1229,7 +1227,6 @@ sub change_path {
         $self->{'db'}->_rollback() if($do_commit);
         return;
     }
-    $self->{'logger'}->error("HERE4");
     
     if($do_commit){
         $self->{'db'}->_commit();
