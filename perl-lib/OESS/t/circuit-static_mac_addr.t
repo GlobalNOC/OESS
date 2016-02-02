@@ -1144,6 +1144,8 @@ ok(OESSDatabaseTester::flows_match(
 
 #Testing Fail-over
 ok($ckt->get_active_path() eq 'primary', "Circuit is on primary path");
+sleep 1;
+
 ok($ckt->change_path(), "Circuit successfully changed path to backup");
 ok($ckt->get_active_path() eq 'backup', "Circuit is now on backup path");
 

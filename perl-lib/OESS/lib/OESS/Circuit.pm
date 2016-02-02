@@ -1229,7 +1229,6 @@ sub change_path {
         $self->{'db'}->_rollback() if($do_commit);
         return;
     }
-
     $self->{'logger'}->error("HERE4");
     
     if($do_commit){
