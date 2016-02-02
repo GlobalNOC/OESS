@@ -942,18 +942,19 @@ function setupHistory(){
                  {key: "scheduled"},
                  {key: "activated"},
                  {key: "layout"},
-                 {key: "completed"}
+    {key: "completed"},
+    {key: "reason"}
 		 ]
     };
 
-    var cols = [{key: "fullname", label: "By", width: 121},
-		{key: "activated", label: "Scheduled On", width: 142},
-		{key: "completed", label: "Done On", width: 141},
-		{key: "event", label: "Event", width: 140}
+    var cols = [{key: "fullname", label: "By", width: 200},
+		{key: "activated", label: "Date/Time", width: 142},
+                //		{key: "completed", label: "Done On", width: 141},
+		{key: "reason", label: "Event", width: 520}
 		];
 
     var config = {
-	height: "255px"
+	height: "300px"
     };
 
     var table = new YAHOO.widget.ScrollingDataTable("history_table", cols, ds, config);

@@ -19,7 +19,6 @@ my $prev_version = "1.1.8c";
 my $version = "1.1.9";
 
 sub main{
-
     print "*******************************************************************\n";
     print "*********             OESS DB UPGRADE           ************\n";
     print "*******************************************************************\n";
@@ -27,19 +26,17 @@ sub main{
     print "********* of the OESS DB any other version will not work ************\n";
     
     continue_parameter("Do you wish to continue");
-
     
     my $dbq = new OESS::Database();
     my $current_version = $dbq->get_oess_schema_version();    
-    
     if($current_version eq $prev_version){
-	$dbq->{'dbh'}->begin_work();
-	upgrade($dbq->{'dbh'});
-	$dbq->{'dbh'}->commit();
+        $dbq->{'dbh'}->begin_work();
+        upgrade($dbq);
+        $dbq->{'dbh'}->commit();
     }else{
-	print "Wrong version of OESS DB\n";
-	print "This script only upgrades from version $prev_version to $version\n";
-	exit;
+        print "Wrong version of OESS DB\n";
+        print "This script only upgrades from version $prev_version to $version\n";
+        exit;
     }
     
     print STDERR "Upgrade Successful!!\n";
