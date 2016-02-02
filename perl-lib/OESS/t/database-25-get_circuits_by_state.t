@@ -36,6 +36,7 @@ cmp_deeply($active_circuits->[0],{
     'start_epoch' => '1348855218',
     'external_identifier' => undef,
     'name' => 'Circuit 11',
+    'reason' => undef,
     'reserved_bandwidth_mbps' => '0',
     'description' => 'Circuit 11',
     'end_epoch' => '-1',
@@ -43,7 +44,6 @@ cmp_deeply($active_circuits->[0],{
     'restore_to_primary' => '0',
     'static_mac' => 0
 }, "values for first circuit matches");
-
 
 cmp_deeply($active_circuits->[1],{
           'circuit_state' => 'active',
@@ -55,6 +55,7 @@ cmp_deeply($active_circuits->[1],{
           'start_epoch' => '1348963870',
           'external_identifier' => undef,
           'name' => 'Circuit 51',
+          'reason' => undef,
           'reserved_bandwidth_mbps' => '0',
           'description' => 'Circuit 51',
           'end_epoch' => '-1',
@@ -80,6 +81,7 @@ cmp_deeply($reserved_circuits->[0],{
           'start_epoch' => '1361994404',
           'external_identifier' => undef,
           'name' => 'Circuit 4091',
+          'reason' => undef,
           'reserved_bandwidth_mbps' => '0',
           'description' => 'Circuit 4091',
           'end_epoch' => '-1',
@@ -101,6 +103,7 @@ cmp_deeply($provisioned_circuits->[0],{
           'start_epoch' => '1361994356',
           'external_identifier' => undef,
           'name' => 'Circuit 4081',
+          'reason' => undef,
           'reserved_bandwidth_mbps' => '0',
           'description' => 'Circuit 4081',
           'end_epoch' => '-1',
