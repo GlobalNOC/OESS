@@ -112,13 +112,14 @@ function Cookie(){
 
       var id   = this.data.workgroup_id;
       var name = this.data.workgroup_name;
-
+      var wtype = this.data.workgroup_type;
       this.data = {};
 
       // if we're only flushing data, keep the workgroup info
       if (! workgroup_too){
 	  this.data.workgroup_id   = id;
 	  this.data.workgroup_name = name;
+          this.data.workgroup_type = wtype;
       }
 
       this.save();

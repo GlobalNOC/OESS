@@ -14,7 +14,7 @@ BEGIN {
 use lib "$path";
 use OESSDatabaseTester;
 
-use Test::More tests => 19;
+use Test::More tests => 27;
 use Test::Deep;
 use OESS::Database;
 use OESSDatabaseTester;
@@ -52,25 +52,51 @@ is($res->[0]{'vlan_start'},-1,'vlan_start correct in default rule');
 is($res->[0]{'vlan_end'},4095,'vlan_end correct in default rule');
 is($res->[0]{'notes'},'Default ACL Rule','notes correct in default rule');
 
-#make a default interface rule that does NOT support tagging ISSUE=9287
-$success = $db->update_interface_owner( 
-    interface_id => 51,
-	workgroup_id => 1,
-);
-
-$res = $db->get_acls( interface_id => 51 );
+# Make a default interface rule that does NOT support tagging ISSUE=9287
+$success = $db->update_interface_owner(interface_id => 45571, workgroup_id => 1);
+$res = $db->get_acls( interface_id => 45571 );
 is($res->[0]{'vlan_start'},1,'vlan_start correct in default rule');
 is($res->[0]{'vlan_end'},4095,'vlan_end correct in default rule');
 
-$success = $db->update_interface_owner( 
-    interface_id => 45881,
-	workgroup_id => undef,
-);
+# Check that an error is thrown when attepting to associate a second
+# time.
+$success = $db->update_interface_owner(interface_id => 45571, workgroup_id => 1);
+$error = $db->get_error();
+ok(!defined $success, "Interface could not associate a second time.");
+ok(defined $error, "Error was received.");
 
+# 51 is a trunk interface, and cannot be associated with non-admin
+# workgroups.
+$success = $db->update_interface_owner(interface_id => 51,
+                                       workgroup_id => 1);
+$error = $db->get_error();
+ok(!defined $success, "Trunk interface wasn't associated with non-admin workgroup.");
+ok(defined $error, "Error was received.");
+
+# $success = $db->update_interface_owner(interface_id => 51,
+#                                        workgroup_id => 263);
+# ok(defined $success, "Trunk interface was associated with admin workgroup.");
+
+# $success = $db->update_interface_owner(interface_id => 51, workgroup_id => undef);
+# ok($success, "workgroup acl was successfully removed");
+
+# Check that proper error is received when non-existent workgroup is used
+$success = $db->update_interface_owner(interface_id => 45881, workgroup_id => 999);
+$error = $db->get_error();
+ok(!defined $success, "Interface could not be associated with non-existent workgroup.");
+ok(defined $error, "Error was received.");
+
+$success = $db->update_interface_owner(interface_id => 45881, workgroup_id => undef);
 ok($success, "workgroup acl was successfully removed");
 
-$res = $db->get_interface( interface_id => 45881 );
+# Check that an error is thrown when attepting to dis-associate a
+# second time.
+$success = $db->update_interface_owner(interface_id => 45881, workgroup_id => undef);
+$error = $db->get_error();
+ok(!defined $success, "Interface could not dis-associate a second time.");
+ok(defined $error, "Error was received.");
 
+$res = $db->get_interface( interface_id => 45881 );
 is($res->{'workgroup_id'}, undef, 'interface removed from workgroup');
 $res = $db->get_acls( interface_id => 45881 );
 is(@$res, 0, 'acl rules removed');

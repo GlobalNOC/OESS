@@ -636,7 +636,9 @@ sub fail_over_circuit {
 
         if ( $is_up || $forced ) {
 
-            $ckt->change_path();
+            my $user_id = $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'});
+
+            $ckt->change_path( user_id => $user_id, reason => "CHANGE PATH: User requested");
             my $result =
               _fail_over( circuit_id => $circuit_id, workgroup_id => $workgroup_id );
             if ( !defined($result) ) {
@@ -682,6 +684,9 @@ sub fail_over_circuit {
 
 sub send_json {
     my $output = shift;
+    if (!defined($output) || !$output) {
+        $output =  { "error" => "Server error in accessing webservices." };
+    }
     print "Content-type: text/plain\n\n" . encode_json($output);
 }
 

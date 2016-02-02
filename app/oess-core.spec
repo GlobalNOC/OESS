@@ -1,5 +1,5 @@
 Name:		oess-core		
-Version:	1.1.8c
+Version:	1.1.9
 Release:	1%{?dist}
 Summary:	The core oess service provides
 
