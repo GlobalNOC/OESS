@@ -45,12 +45,16 @@ sub main{
 
 
 sub upgrade{
-    my $dbh = shift;
+    my $dbq = shift;
     my $term = shift;
+    my $dbh = $dbq->{'dbh'};
     my $str;
     my $sth;
-        
-    #ok done with the rest of the upgrade update our version
+
+    $str = "alter table circuit_instantiation add column reason varchar(255) DEFAULT NULL";
+    $dbh->do($str);
+
+    # Done with the rest of the upgrade update our version
     $str = "update oess_version set version = '$version'";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
     $sth->execute() or die "Unable to update version\n";
