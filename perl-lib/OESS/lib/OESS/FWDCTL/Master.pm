@@ -474,6 +474,13 @@ sub _write_cache{
             foreach my $flow (@{$ckt->{'flows'}->{'static_mac_addr'}->{'backup'}}){
                 push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'static_mac_addr'}{'backup'}},$flow->to_canonical());
             }
+            foreach my $flow (@{$ckt->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'primary'}}){
+                push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'endpoint'}{'primary'}},$flow->to_canonical());
+            }
+            foreach my $flow (@{$ckt->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'backup'}}){
+                push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'endpoint'}{'backup'}},$flow->to_canonical());
+            }
+
         }
     }
 

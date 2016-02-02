@@ -49,8 +49,6 @@ function make_circuit_details_datasource(){
 
 function save_session_from_datasource(details){
     session.clear();
-            
-
     session.data.circuit_id   = details.circuit_id;
     session.data.description  = details.description;
     session.data.bandwidth    = details.bandwidth * 1000000;
@@ -62,7 +60,6 @@ function save_session_from_datasource(details){
     session.data.endpoints    = [];
     session.data.links        = [];
     session.data.backup_links = [];
-    session.data.passthrough  = [];
     session.data.restore_to_primary = details.restore_to_primary;
     session.data.loop_node = details.loop_node;
 
@@ -81,18 +78,11 @@ function save_session_from_datasource(details){
             vlan_tag_range: endpoint.vlan_tag_range
         };
 
-
         if (endpoint.local == 0){
             session.data.interdomain = 1;
         }
 
-        if (endpoint.role == "trunk"){
-            session.data.passthrough.push(endpoint_data);
-        }
-        else{
-            session.data.endpoints.push(endpoint_data);
-        }
-
+        session.data.endpoints.push(endpoint_data);
     }
 
 
@@ -201,18 +191,9 @@ function page_init(){
 	  session.data.interdomain = 0;
 	  
 	  var endpoints = [];
-	  
 	  for (var i = 0; i < session.data.endpoints.length; i++){
 	      if (session.data.endpoints[i].local == 1){
 		  endpoints.push(session.data.endpoints[i]);
-	      }
-	  }
-	  
-	  if (endpoints.length < 2){
-	      for (var i = 0; i < session.data.passthrough.length; i++){
-		  if (session.data.passthrough[i].local == 1){
-		      endpoints.push(session.data.passthrough[i]);
-		  }
 	      }
 	  }
 	  

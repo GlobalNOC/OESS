@@ -8,7 +8,7 @@
 #----- $Id: $                                                        
 #-----                                                               
 #----- This is run when upgrading the database from     
-#----- version 1.1.7 to version 1.1.8                             
+#----- version 1.1.8c to version 1.1.9                               
 #-------------------------------------------------------------------- 
 
 use strict;
@@ -18,8 +18,7 @@ use OESS::Database;
 my $prev_version = "1.1.8c";
 my $version = "1.1.9";
 
-sub main {
-
+sub main{
     print "*******************************************************************\n";
     print "*********             OESS DB UPGRADE           ************\n";
     print "*******************************************************************\n";
@@ -45,16 +44,13 @@ sub main {
 }
 
 
-sub upgrade {
-    my $dbq = shift;
+sub upgrade{
+    my $dbh = shift;
     my $term = shift;
-    my $dbh = $dbq->{'dbh'};
     my $str;
     my $sth;
-
-    $str = "alter table circuit_instantiation add column reason varchar(255) DEFAULT NULL";
-    $dbh->do($str);
-
+        
+    #ok done with the rest of the upgrade update our version
     $str = "update oess_version set version = '$version'";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
     $sth->execute() or die "Unable to update version\n";

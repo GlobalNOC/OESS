@@ -31,11 +31,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 1.1.8c
+Version 1.1.9
 
 =cut
 
-our $VERSION = '1.1.8c';
+our $VERSION = '1.1.9';
 
 =head1 SYNOPSIS
 
@@ -82,7 +82,7 @@ use OESS::Topology;
 use DateTime;
 use Data::Dumper;
 
-use constant VERSION => '1.1.8c';
+use constant VERSION => '1.1.9';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant SHARE_DIR => "/usr/share/doc/perl-OESS-" . VERSION . "/";
@@ -627,62 +627,59 @@ sub is_external_vlan_available_on_interface {
     my $circuit_id = $args{'circuit_id'};
 
     if(!defined($interface_id)){
-	$self->_set_error("No Interface ID Specified");
-	return undef
+        $self->_set_error("No Interface ID Specified");
+        return undef;
     }
 
     if(!defined($vlan_tag)){
-	$self->_set_error("No VLAN Tag specified");
-	return undef
+        $self->_set_error("No VLAN Tag specified");
+        return undef;
     }
 
     my $query = "select circuit.name, circuit.circuit_id from circuit join circuit_edge_interface_membership " .
-	        " on circuit.circuit_id = circuit_edge_interface_membership.circuit_id " .
-		" where circuit_edge_interface_membership.interface_id = ? " .
-		"  and circuit_edge_interface_membership.extern_vlan_id = ? " .
-		"  and circuit_edge_interface_membership.end_epoch = -1";
+                " on circuit.circuit_id = circuit_edge_interface_membership.circuit_id " .
+                " where circuit_edge_interface_membership.interface_id = ? " .
+                "  and circuit_edge_interface_membership.extern_vlan_id = ? " .
+                "  and circuit_edge_interface_membership.end_epoch = -1";
 
     my $result = $self->_execute_query($query, [$interface_id, $vlan_tag]);
-
-    if (! defined $result){
-	$self->_set_error("Internal error while finding available external vlan tags.");
-	return;
+    if (!defined $result) {
+        $self->_set_error("Internal error while finding available external vlan tags.");
+        return;
     }
 
     $query = "select * from interface where interface.interface_id = ?";
-
     my $interface = $self->_execute_query( $query, [$interface_id])->[0];
 
+    # Verify $vlan_tag is within the interface's available tag range
     my $tags = $self->_process_tag_string($interface->{'vlan_tag_range'});
 
-
-    #first verify tag is in available range
-    my $found = 0;
-    foreach my $tag (@$tags){
-	if($tag == $vlan_tag){
-	    $found = 1;
-	}
+    my $available_vlan = 0;
+    foreach my $tag (@{$tags}){
+        if ($tag == $vlan_tag) {
+            $available_vlan = 1;
+        }
     }
 
-    if(!$found){
-	return 0;
+    if ($available_vlan == 0) {
+        $self->_set_error("VLAN $vlan_tag is not within the default VLAN range.");
+        return 0;
     }
 
-    #verify no other circuit is using it
-    if (@$result > 0){
-	if(defined($circuit_id)){
-	    foreach my $circuit (@$result){
-		if($circuit->{'circuit_id'} == $circuit_id){
-		    #no problem here, we are editing the circuit
-		}else{
-		    warn "In Use on another circuit\n";
-                    $self->_set_error("VLAN Tag already in use on another circuit");
-		    return 0;
-		}
-	    }
-	}else{
-            warn "In Use on another circuit\n";
-            $self->_set_error("VLAN Tag already in use on another circuit");
+    # Verify no other circuit is using $vlan_tag on $interface_id
+    my $err = "VLAN $vlan_tag already in use on another circuit\n";
+    if (@{$result} > 0) {
+        if (defined $circuit_id) {
+            foreach my $circuit (@{$result}) {
+                if ($circuit->{'circuit_id'} == $circuit_id) {
+                    # There's no problem here; We are editing the circuit.
+                } else {
+                    $self->_set_error($err);
+                    return 0;
+                }
+            }
+        } else {
+            $self->_set_error($err);
             return 0;
         }
     }
@@ -1715,7 +1712,7 @@ sub get_workgroups_by_auth_name {
 
     my $auth_name = $args{'auth_name'};
 
-    my $query = "select workgroup.name, workgroup.workgroup_id " .
+    my $query = "select workgroup.name, workgroup.workgroup_id, workgroup.type " .
 	        " from workgroup ";
     my $results;
     # if user is admin show all workgroups regardless of membership
@@ -1741,7 +1738,8 @@ sub get_workgroups_by_auth_name {
 
     foreach my $row (@$results){
 	push(@workgroups, {"name"         => $row->{'name'},
-			   "workgroup_id" => $row->{'workgroup_id'}
+			   "workgroup_id" => $row->{'workgroup_id'},
+                           "type"         => $row->{'type'}
 	                  }
 	    );
     }
@@ -1930,7 +1928,9 @@ The internal MySQL primary key int identifier for the interface.
 
 =item workgroup_id
 
-The internal MySQL primary key int identifier for this workgroup.
+The internal MySQL primary key int identifier for this workgroup. If
+workgroup_id is undef the interface will no longer be associated with a
+workgroup and all existing interface ACLs will be deleted.
 
 =back
 
@@ -1941,96 +1941,101 @@ sub update_interface_owner {
     my %args = @_;
 
     if(!defined($args{'interface_id'}) || !exists($args{'workgroup_id'})){
-	$self->_set_error("Invalid parameters to add workgroup, please provide a workgroup_id and an interface_id");
-    return;
+	$self->_set_error("Invalid parameters to update_interface_owner: Requires interface_id, and workgroup_id");
+        return;
     }
+
+    my $interface;
     my $interface_id = $args{'interface_id'};
+    my $workgroup;
     my $workgroup_id = $args{'workgroup_id'};
 
-    my $query;
-    if(defined($args{'workgroup_id'})){
-        $query = "select 1 from interface where workgroup_id = ? and interface_id = ?";
-        my $results = $self->_execute_query($query, [$workgroup_id, $interface_id]);
-        if (@$results > 0){
-	    $self->_set_error("Interface already belongs to this workgroup.");
-	    return;
-        }
-    }
-    else {
-        $query = "select 1 from interface where workgroup_id IS NOT NULL and interface_id = ?";
-        my $results = $self->_execute_query($query, [$interface_id]);
-
-        if (@$results < 1){
-        $self->_set_error("Interface does not currently belong to a workgroup.");
+    my $query  = "select * from interface where interface_id = ?";
+    my $result = $self->_execute_query($query, [$interface_id]);
+    if (@{$result} < 1) {
+        $self->_set_error("Could not find specified interface.");
         return;
+    } else {
+        $interface = @{$result}[0];
+
+        if (!defined $interface->{'workgroup_id'} && !defined $workgroup_id) {
+            $self->_set_error("Interface is already NOT associated with a workgroup.");
+            return;
         }
     }
 
-    # determine if the workgroup is moving from one to another
-    my $changing_workgroup = 0;
-    $query = "select 1 from interface where workgroup_id IS NOT NULL and workgroup_id != ? and interface_id = ?";
-    my $results = $self->_execute_query($query, [$workgroup_id, $interface_id]);
-    if (@$results > 0){
-        $changing_workgroup = 1;
-    }
+    if (defined $workgroup_id) {
+        $query  = "select * from workgroup where workgroup_id = ?";
+        $result = $self->_execute_query($query, [$workgroup_id]);
+        if (@{$result} < 1) {
+            $self->_set_error("Could not find the specified workgroup.");
+            return;
+        }
+        $workgroup = @{$result}[0];
 
+        if (defined $interface->{'workgroup_id'} && $interface->{'workgroup_id'} == $workgroup_id) {
+            $self->_set_error("Interface is already associated with the specified workgroup.");
+            return;
+        }
+
+        if ($interface->{'role'} eq 'trunk' && $workgroup->{'type'} ne 'admin') {
+            $self->_set_error("Trunk interfaces may only be owned by admin workgroups.");
+            return;
+        }
+    }
 
     $self->_start_transaction();
 
     $query = "update interface set workgroup_id = ? where interface_id = ?";
     my $success = $self->_execute_query($query, [$workgroup_id, $interface_id]);
-
-    if (! defined $success ){
-	$self->_set_error("Internal error while adding edge port to workgroup ACL.");
+    if (!defined $success ) {
+	$self->_set_error("Internal error while adding interface to the specified workgroup.");
 	$self->_rollback();
 	return;
     }
 
-
-    # remove prior acl rules since those were set by the old workgroup
-    if(!defined($args{'workgroup_id'}) || $changing_workgroup) {
+    # Configure proper ACL rules
+    if(!defined $workgroup_id) {
+        # Remove existing ACL rules when setting an interface's workgroup to undef
         $query = "delete from interface_acl where interface_id = ?";
         my $success = $self->_execute_query($query, [$interface_id]);
-        if (! defined $success ){
-	        $self->_set_error("Internal error while removing edge port to workgroup ACL.");
-	        $self->_rollback();
-	        return;
+        if (!defined $success ){
+            $self->_set_error("Internal error while removing edge port to workgroup ACL.");
+            $self->_rollback();
+            return;
         }
-    }
-
-    # insert default rule if were adding a workgroup or changing workgroups
-    if(defined($args{'workgroup_id'})) {
+    } else {
+        # Insert default rule if were adding a workgroup or changing workgroups
         $query = "insert into interface_acl (interface_id, allow_deny, eval_position, vlan_start, vlan_end, notes) values (?,?,?,?,?,?)";
 
-        my $vlan_tag_range = $self->get_interface(interface_id => $interface_id)->{'vlan_tag_range'};
+        my $vlan_tag_range = $interface->{'vlan_tag_range'};
         my $vlan_end;
         my $vlan_start;
-        if ($vlan_tag_range =~ /(^-?[0-9]*),?([0-9]*)-([0-9]*)/){
-            
-            #if the vlan range doesn't have a -1 in it, (i.e. it's something like 400-4032, rather than -1,1-4000) only grab the first and third capture groups.
+        if ($vlan_tag_range =~ /(^-?[0-9]*),?([0-9]*)-([0-9]*)/) {
             if ($2 eq ''){
+                # If the vlan range doesn't have a -1 in it, (i.e. it's
+                # something like 400-4032, rather than -1,1-4000) only grab
+                # the first and third capture groups.
                 $vlan_start = $1;
                 $vlan_end = $3;
             }
-            #otherwise, just grab the first and third.
-            else{
+            else {
+                # Otherwise, just grab the first and third.
                 $vlan_start = $1;
                 $vlan_end = $3;
             }
-        }    
- 
+        }
+
         my $query_args = [$interface_id, 'allow', 10, $vlan_start, $vlan_end, 'Default ACL Rule' ];
-        #my $query_args = [$interface_id, 'allow', 10, -1, 4095, 'Default ACL Rule' ];
         my $success = $self->_execute_query($query, $query_args);
-        if (! defined $success ){
-	        $self->_set_error("Internal error while adding default acl rule.");
-	        $self->_rollback();
-	        return;
+        if (!defined $success ){
+            $self->_set_error("Internal error while adding default acl rule.");
+            $self->_rollback();
+            return;
         }
     }
 
     $self->_commit();
-
     return 1;
 }
 
@@ -2765,6 +2770,7 @@ sub _authorize_interface_acl {
     }
 
 }
+
 =head2 _check_vlan_range
 
 Checks to make sure vlan start is less than vlan end and they fall withing the interface's range
@@ -6229,7 +6235,6 @@ sub provision_circuit {
     my $remote_url       = $args{'remote_url'};
     my $remote_requester = $args{'remote_requester'};
 
-
     if($provision_time != -1 && $provision_time <= time() && $state eq 'active'){
         warn "Provision Time: " . $provision_time . "\n";
         warn "Setting state to scheduled!\n";
@@ -6242,14 +6247,12 @@ sub provision_circuit {
     }
 
     my $user_id        = $self->get_user_id_by_auth_name(auth_name => $user_name);
-
     if(!$user_id) {
 	$self->_set_error("Unknown user '$user_name'");
 	return;
     }
 
     my $workgroup_details = $self->get_workgroup_details(workgroup_id => $workgroup_id);
-
     if (! defined $workgroup_details){
 	$self->_set_error("Unknown workgroup.");
 	return;
@@ -6281,11 +6284,9 @@ sub provision_circuit {
     
 
     my $query;
-
     $self->_start_transaction();
 
     my $uuid = $self->_get_uuid();
-
     if (! defined $uuid){
         return;
     }
@@ -6343,35 +6344,58 @@ sub provision_circuit {
     }
 
     #not a scheduled event ie.. do it now
-
     # first set up endpoints
     for (my $i = 0; $i < @$nodes; $i++){
-
 	my $node      = @$nodes[$i];
 	my $interface = @$interfaces[$i];
 	my $vlan      = @$tags[$i];
         my $endpoint_mac_address_num = @$endpoint_mac_address_nums[$i];
         my $circuit_edge_id;
         
-	$query = "select interface_id from interface " .
-	    " join node on node.node_id = interface.node_id " .
-	    " where node.name = ? and interface.name = ? ";
+	my $query = "SELECT interface.interface_id, interface.role, node.node_id, node.vlan_tag_range " .
+          "FROM interface JOIN node ON node.node_id = interface.node_id " .
+          "WHERE node.name = ? and interface.name = ?";
 
-	my $interface_id = $self->_execute_query($query, [$node, $interface])->[0]->{'interface_id'};
-
-	if (! $interface_id ){
-	    $self->_set_error("Unable to find interface '$interface' on node '$node'");
+        my $result = $self->_execute_query($query, [$node, $interface])->[0];
+        if (!$result) {
+            $self->_set_error("Unable to find interface '$interface' on node '$node'");
             $self->_rollback();
 	    return;
 	}
+        my $interface_id = $result->{'interface_id'};
+        my $interface_role = $result->{'role'};
+        my $node_id = $result->{'node_id'};
 
-	if (! $self->_validate_endpoint(interface_id => $interface_id, workgroup_id => $workgroup_id, vlan => $vlan)){
-	    $self->_set_error("Interface \"$interface\" on endpoint \"$node\" with VLAN tag \"$vlan\" is not allowed for this workgroup.");
+        # When using a trunk interface as an endpoint, verify that $vlan
+        # is NOT in this node's $vlan_tag_range.
+        # Additionally ACL rules are not applied against circuits on
+        # trunk interfaces.
+        if ($interface_role eq 'trunk') {
+            my $vlan_tag_range = $result->{'vlan_tag_range'};
+            my $vlan_tags = $self->_process_tag_string($vlan_tag_range);
+            my $is_oess_vlan = 0;
+            foreach my $vlan_tag (@{$vlan_tags}) {
+                if ($vlan == $vlan_tag) {
+                    $is_oess_vlan = 1;
+                    last;
+                }
+            }
+
+            if ($is_oess_vlan) {
+                $self->_set_error("Trunk interface \"$interface\" on endpoint \"$node\" with VLAN tag \"$vlan\" is not allowed for this workgroup.");
+                $self->_rollback();
+                return;
+            }
+        }
+
+        # Verify requested endpoint parameters adhere to current ACLs
+        if (! $self->_validate_endpoint(interface_id => $interface_id, workgroup_id => $workgroup_id, vlan => $vlan)){
+            $self->_set_error("Interface \"$interface\" on endpoint \"$node\" with VLAN tag \"$vlan\" is not allowed for this workgroup.");
             $self->_rollback();
-	    return;
-	}
+            return;
+        }
 
-	# need to check to see if this external vlan is open on this interface first
+	# Verify that $vlan is not already in use on this interface
 	if (! $self->is_external_vlan_available_on_interface(vlan => $vlan, interface_id => $interface_id) ){
 	    $self->_set_error("Vlan '$vlan' is currently in use by another circuit on interface '$interface' on endpoint '$node'");
             $self->_rollback();
@@ -7482,8 +7506,7 @@ sub _set_error {
     my $self = shift;
     my $err  = shift;
 
-    warn "Setting error to $err\n";
-
+    $self->{'logger'}->warn("Setting error to $err\n");
     $self->{'error'} = $err;
 }
 
@@ -7808,26 +7831,61 @@ sub _validate_endpoint {
     my $workgroup_id = $args{'workgroup_id'};
     my $vlan         = $args{'vlan'};
 
-    my $query  = "select * ";
-       $query .= " from interface_acl ";
-       $query .= " join interface on interface_acl.interface_id = interface.interface_id ";
-       $query .= " where interface_acl.interface_id = ? ";
-       $query .= " and (interface_acl.workgroup_id = ? or interface_acl.workgroup_id IS NULL) order by eval_position";
+    my $query = "SELECT interface.role " .
+      "FROM interface " .
+      "WHERE interface.interface_id = ?";
 
-    my $results = $self->_execute_query($query, [$interface_id, $workgroup_id]);
-
-    if (! defined $results){
+    my $results = $self->_execute_query($query, [$interface_id]);
+    if (!defined $results || !defined @{$results}[0]) {
 	$self->_set_error("Internal error validating endpoint.");
 	return;
     }
 
+    if (@{$results}[0]->{'role'} eq 'trunk') {
+        # Endpoints on trunk interfaces must use VLANs outside the range
+        # assigned to each node. Interface ACLs are also ignored.
+        my $query = "SELECT node.vlan_tag_range " .
+          "FROM node " .
+          "JOIN interface ON node.node_id = interface.node_id " .
+          "WHERE interface.interface_id = ? AND interface.workgroup_id = ?";
 
+        my $results = $self->_execute_query($query, [$interface_id, $workgroup_id]);
+        if (!defined $results || !defined @{$results}[0]) {
+            $self->_set_error("Could not perform VLAN validation against node for trunk interface.");
+            return;
+        }
+
+        my $vlan_tag_range = @{$results}[0]->{'vlan_tag_range'};
+        if (!defined $vlan) {
+            return $vlan_tag_range;
+        }
+        
+        my $vlan_tags = $self->_process_tag_string($vlan_tag_range);
+        foreach my $vlan_tag (@{$vlan_tags}) {
+            if ($vlan_tag == $vlan) {
+                return 0;
+            }
+        }
+        return 1;
+    }
+
+    $query  = "select * ";
+    $query .= " from interface_acl ";
+    $query .= " join interface on interface_acl.interface_id = interface.interface_id ";
+    $query .= " where interface_acl.interface_id = ? ";
+    $query .= " and (interface_acl.workgroup_id = ? or interface_acl.workgroup_id IS NULL) order by eval_position";
+
+    $results = $self->_execute_query($query, [$interface_id, $workgroup_id]);
+    if (!defined $results) {
+	$self->_set_error("Internal error validating endpoint.");
+	return;
+    }
+    
     my $vlan_range_hash;
-    foreach my $result (@$results) {
+    foreach my $result (@{$results}) {
         my $permission = $result->{'allow_deny'};
         my $vlan_start = $result->{'vlan_start'};
         my $vlan_end   = $result->{'vlan_end'} || $vlan_start;
-
 
         # if vlan is not defined determine what ranges are available
         if(!defined($vlan)) {
