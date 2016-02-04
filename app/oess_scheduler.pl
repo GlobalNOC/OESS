@@ -293,7 +293,7 @@ sub main{
             #if we are already on our scheduled path... don't change
             if($circuit_details->{'active_path'} ne $circuit_layout->{'path'}){
                 syslog(LOG_INFO,"Changing the patch of circuit " . $circuit_details->{'description'} . ":" . $circuit_details->{'circuit_id'});
-                my $success = $circuit->change_path();
+                my $success = $circuit->change_path( user_id => 1, reason => $circuit_layout->{'reason'});
                 #my $success = 1;
                 my $res;
                 my $event_id;

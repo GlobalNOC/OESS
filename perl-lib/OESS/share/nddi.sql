@@ -92,6 +92,7 @@ CREATE TABLE `circuit_instantiation` (
   `circuit_state` enum('scheduled','deploying','active','decom','looped','reserved','provisioned') NOT NULL DEFAULT 'scheduled',
   `modified_by_user_id` int(10) NOT NULL,
   `loop_node` int(11) DEFAULT NULL,
+  `reason` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`end_epoch`,`circuit_id`),
   KEY `user_circuit_instantiaiton_fk` (`modified_by_user_id`),
   KEY `circuit_circuit_instantiaiton_fk` (`circuit_id`),
@@ -623,7 +624,7 @@ CREATE TABLE `oess_version` (
 
 LOCK TABLES `oess_version` WRITE;
 /*!40000 ALTER TABLE `oess_version` DISABLE KEYS */;
-INSERT INTO `oess_version` VALUES ('1.1.8c');
+INSERT INTO `oess_version` VALUES ('1.1.9');
 /*!40000 ALTER TABLE `oess_version` ENABLE KEYS */;
 UNLOCK TABLES;
 

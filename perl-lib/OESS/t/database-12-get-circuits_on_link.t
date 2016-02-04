@@ -40,6 +40,7 @@ cmp_deeply($circuits->[0],{
           'remote_requester' => undef,
           'remote_url' => undef,
           'name' => 'Circuit 61',
+          'reason' => undef,
           'reserved_bandwidth_mbps' => '0',
           'loop_node' => undef,
           'description' => 'Circuit 61',

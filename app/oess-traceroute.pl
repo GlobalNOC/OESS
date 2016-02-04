@@ -2,7 +2,6 @@
 
 use strict;
 
-use lib "/home/gmcnaugh/OESS/perl-lib/OESS/lib/";
 use OESS::Traceroute;
 use Getopt::Long;
 use Proc::Daemon;
