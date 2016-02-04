@@ -33,5 +33,5 @@ ok($ckt->is_static_mac(), "Circuit is a static mac circuit");
 my $flows = $ckt->get_flows();
 
 ok(defined($flows), "Flows are defined");
-is(scalar(@$flows), 58, "The flow count matches " . scalar(@$flows));
+is(scalar(@$flows), 98, "The flow count matches " . scalar(@$flows));
 
