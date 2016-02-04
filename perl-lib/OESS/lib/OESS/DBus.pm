@@ -85,7 +85,7 @@ sub new{
 =cut
 
 
-sub start_reactor{
+sub start_reactor {
     my $self = shift;
     my %params = @_;
     
@@ -93,9 +93,16 @@ sub start_reactor{
 
     #add any timeouts
     if(defined($params{'timeouts'})){
-	foreach my $timeout (@{$params{'timeouts'}}){
-	    $self->{'reactor'}->add_timeout($timeout->{'interval'},$timeout->{'callback'});
-	}
+        foreach my $timeout (@{$params{'timeouts'}}){
+            $self->{'reactor'}->add_timeout($timeout->{'interval'},$timeout->{'callback'});
+        }
+    }
+    
+    #add any hooks
+    if(defined($params{'hooks'})){
+        foreach my $hook (@{$params{'hooks'}}){
+            $self->{'reactor'}->add_hook($hook->{'callback'});
+        }
     }
 
     $self->{'reactor'}->run();
