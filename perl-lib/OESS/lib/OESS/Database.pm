@@ -4000,7 +4000,7 @@ sub get_circuit_links {
 	" join node node_a on if_a.node_id = node_a.node_id ".
 	" join node node_z on if_z.node_id = node_z.node_id ";
 
-    if ($args{'show_historical'} && $args{'show_historical'} == 1) { # For some reason this is evaluating to true
+    if ($args{'show_historical'} && $args{'show_historical'} == 1) { #For some reason this is evaluating to true
      $query = "select link.name, node_a.name as node_a, if_a.name as interface_a, if_a.port_number as port_no_a, node_z.name as node_z, if_z.name as interface_z, if_z.port_number as port_no_z ".
          "from path join link_path_membership on path.path_id = link_path_membership.path_id ".
          "and path.circuit_id = ? and path.path_type= ? and link_path_membership.end_epoch= (select max(end_epoch) from link_path_membership m where m.path_id = path.path_id) ".
