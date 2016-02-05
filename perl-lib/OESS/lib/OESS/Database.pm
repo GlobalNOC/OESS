@@ -1042,21 +1042,21 @@ sub get_node_interfaces {
     push(@query_args, $node_name);
 
     my $query = "select interface.role,interface.vlan_tag_range,interface.port_number,interface.operational_state, interface.name, interface.description, interface.interface_id, interface.workgroup_id, workgroup.name as workgroup_name from interface " .
-	        " join node on node.name = ? and node.node_id = interface.node_id " .
-            " left join workgroup on interface.workgroup_id = workgroup.workgroup_id " .
-		" join interface_instantiation on interface_instantiation.end_epoch = -1 and interface_instantiation.interface_id = interface.interface_id ";
+        " join node on node.name = ? and node.node_id = interface.node_id " .
+        " left join workgroup on interface.workgroup_id = workgroup.workgroup_id " .
+        " join interface_instantiation on interface_instantiation.end_epoch = -1 and interface_instantiation.interface_id = interface.interface_id ";
 
     # get all the interfaces that have an acl rule that applies to this workgroup
     # only used if workgroup_id is passed in
     my $acl_query = "select interface.role, interface.port_number, interface.description,interface.operational_state as operational_state, interface.name as int_name, interface.interface_id, node.name as node_name, node.node_id, interface_acl.vlan_start, interface_acl.vlan_end, interface.workgroup_id, workgroup.name as workgroup_name " .
-            " from interface_acl " .
-        "  join interface on interface.interface_id = interface_acl.interface_id " .
-        "  left join workgroup on interface.workgroup_id = workgroup.workgroup_id " .
-        "  join interface_instantiation on interface.interface_id = interface_instantiation.interface_id " .
-        "    and interface_instantiation.end_epoch = -1" .
-        "  join node on node.node_id = interface.node_id " .
-        "  join node_instantiation on node.node_id = node_instantiation.node_id " .
-        "    and node_instantiation.end_epoch = -1 ".
+        " from interface_acl " .
+        " join interface on interface.interface_id = interface_acl.interface_id " .
+        " left join workgroup on interface.workgroup_id = workgroup.workgroup_id " .
+        " join interface_instantiation on interface.interface_id = interface_instantiation.interface_id " .
+        " and interface_instantiation.end_epoch = -1" .
+        " join node on node.node_id = interface.node_id " .
+        " join node_instantiation on node.node_id = node_instantiation.node_id " .
+        " and node_instantiation.end_epoch = -1 ".
         " where (interface_acl.workgroup_id = ? " ;
     
     if($null_workgroups){
@@ -1106,14 +1106,14 @@ sub get_node_interfaces {
             if($vlan_tag_range) {
                 push(@results, {
                     "name"           => $available_interface->{'int_name'},
-			        "description"    => $available_interface->{'description'},
-			        "interface_id"   => $available_interface->{'interface_id'},
-			        "port_number"    => $available_interface->{'port_number'},
-			        "status"         => $available_interface->{'operational_state'},
-			        "vlan_tag_range" => $vlan_tag_range,
-			        "int_role"       => $available_interface->{'role'},
+                    "description"    => $available_interface->{'description'},
+                    "interface_id"   => $available_interface->{'interface_id'},
+                    "port_number"    => $available_interface->{'port_number'},
+                    "status"         => $available_interface->{'operational_state'},
+                    "vlan_tag_range" => $vlan_tag_range,
+                    "int_role"       => $available_interface->{'role'},
                     "workgroup_id"   => $available_interface->{'workgroup_id'},
-                    "workgroup_name"   => $available_interface->{'workgroup_name'}
+                    "workgroup_name" => $available_interface->{'workgroup_name'}
 	            });
             }
         }
@@ -1133,15 +1133,15 @@ sub get_node_interfaces {
         }
 
 	    push(@results, {
-            "name"           => $row->{'name'},
-			"description"    => $row->{'description'},
-			"interface_id"   => $row->{'interface_id'},
-			"port_number"    => $row->{'port_number'},
-			"status"         => $row->{'operational_state'},
-			"vlan_tag_range" => $vlan_tag_range,
-			"int_role"       => $row->{'role'},
-            "workgroup_id"   => $row->{'workgroup_id'},
-            "workgroup_name" => $row->{'workgroup_name'}
+                "name"           => $row->{'name'},
+                "description"    => $row->{'description'},
+                "interface_id"   => $row->{'interface_id'},
+                "port_number"    => $row->{'port_number'},
+                "status"         => $row->{'operational_state'},
+                "vlan_tag_range" => $vlan_tag_range,
+                "int_role"       => $row->{'role'},
+                "workgroup_id"   => $row->{'workgroup_id'},
+                "workgroup_name" => $row->{'workgroup_name'}
 	    });
     }
 
@@ -7832,6 +7832,10 @@ sub _validate_endpoint {
     my $workgroup_id = $args{'workgroup_id'};
     my $vlan         = $args{'vlan'};
 
+    my $vlan_range_hash;
+    my $vlan_tag_range;
+    my $additional_vlan_range;
+
     my $query = "SELECT interface.role " .
       "FROM interface " .
       "WHERE interface.interface_id = ?";
@@ -7844,30 +7848,28 @@ sub _validate_endpoint {
 
     if (@{$results}[0]->{'role'} eq 'trunk') {
         # Endpoints on trunk interfaces must use VLANs outside the range
-        # assigned to each node. Interface ACLs are also ignored.
+        # assigned to each node. Interface ACL[s are also ignored.
         my $query = "SELECT node.vlan_tag_range " .
           "FROM node " .
           "JOIN interface ON node.node_id = interface.node_id " .
-          "WHERE interface.interface_id = ? AND interface.workgroup_id = ?";
+          "WHERE interface.interface_id = ?";
 
-        my $results = $self->_execute_query($query, [$interface_id, $workgroup_id]);
+        my $results = $self->_execute_query($query, [$interface_id]);
         if (!defined $results || !defined @{$results}[0]) {
             $self->_set_error("Could not perform VLAN validation against node for trunk interface.");
             return;
         }
 
-        my $vlan_tag_range = @{$results}[0]->{'vlan_tag_range'};
-        if (!defined $vlan) {
-            return $vlan_tag_range;
-        }
-        
-        my $vlan_tags = $self->_process_tag_string($vlan_tag_range);
-        foreach my $vlan_tag (@{$vlan_tags}) {
-            if ($vlan_tag == $vlan) {
-                return 0;
+        $vlan_tag_range = @{$results}[0]->{'vlan_tag_range'};
+
+        if(defined($vlan)){
+            my $vlan_tags = $self->_process_tag_string($vlan_tag_range);
+            foreach my $vlan_tag (@{$vlan_tags}) {
+                if ($vlan_tag == $vlan) {
+                    return 0;
+                }
             }
         }
-        return 1;
     }
 
     $query  = "select * ";
@@ -7881,8 +7883,21 @@ sub _validate_endpoint {
 	$self->_set_error("Internal error validating endpoint.");
 	return;
     }
+ 
+    my $tags = $self->_process_tag_string($vlan_tag_range);
+   
+    foreach my $tag (@$tags){
+        warn "Not allowing tag: " . $tag . "\n";
+        $vlan_range_hash = $self->_set_vlan_range_allow_deny(
+            vlan_range_hash  => $vlan_range_hash,
+            vlan_start       => $tag,
+            vlan_end         => $tag,
+            allow_deny       => 0
+            );
+    }
+
+
     
-    my $vlan_range_hash;
     foreach my $result (@{$results}) {
         my $permission = $result->{'allow_deny'};
         my $vlan_start = $result->{'vlan_start'};
@@ -7905,6 +7920,7 @@ sub _validate_endpoint {
                     allow_deny       => 1
                 );
             }
+
         }
         # otherwise if our vlan falls within this rules range determine if it is allow
         # or deny

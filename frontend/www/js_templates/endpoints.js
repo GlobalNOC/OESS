@@ -4,10 +4,7 @@ function makeInterfacesTable(node){
   var node_name_holder = document.getElementById('node_name_holder');
   node_name_holder.innerHTML = "<center><h2><b>" + node + "</b></h2></center>";
 
-    var url = "services/data.cgi?action=get_node_interfaces&node=" + encodeURIComponent(node) + "&workgroup_id=" + session.data.workgroup_id + "&show_down=1";
-    if (session.data.workgroup_type === "admin") {
-        url = url + "&show_trunk=1";
-    }
+    var url = "services/data.cgi?action=get_node_interfaces&node=" + encodeURIComponent(node) + "&workgroup_id=" + session.data.workgroup_id + "&show_down=1" + "&show_trunk=1";
   
   var ds = new YAHOO.util.DataSource(url);
   ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
