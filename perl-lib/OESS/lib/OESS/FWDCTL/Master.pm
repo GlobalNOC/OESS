@@ -1055,11 +1055,10 @@ sub port_status{
                     return;
                 }
 
-                $self->{'link_status'}->{$link_name} = OESS_LINK_DOWN;
-
                 # Fail over affected circuits if link is not in maintenance mode.
                 # Ignore traffic migration when in maintenance mode.
                 if (!exists $self->{'link_maintenance'}->{$link_id}) {
+                    $self->{'link_status'}->{$link_name} = OESS_LINK_DOWN;
                     $self->_fail_over_circuits( circuits => $affected_circuits, link_name => $link_name );
                     $self->_cancel_restorations( link_id => $link_id);
                 }
@@ -1069,11 +1068,11 @@ sub port_status{
             #--- can be restored by bringing it back up over to this path, we do not restore by default
             else {
                 $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name is up");
-                $self->{'link_status'}->{$link_name} = OESS_LINK_UP;
 
                 # Restore affected circuits if link is not in maintenance mode.
                 # Ignore traffic migration when in maintenance mode.
                 if (!exists $self->{'link_maintenance'}->{$link_id}) {
+                    $self->{'link_status'}->{$link_name} = OESS_LINK_UP;
                     my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $link_id);
                     $self->_restore_down_circuits( circuits => $circuits, link_name => $link_name );
                 }
