@@ -35,7 +35,7 @@ my $basic_vlan_tag_range = "1-4096";
 
 my $trunk_interface_id = 51;
 my $trunk_workgroup_id = 263; # Admin workgroup
-my $trunk_vlan_tag_range = "100-4094";
+my $trunk_vlan_tag_range = "1-99,4095";
 
 # TODO Add validation for basic / regular endpoint validation
 
@@ -44,7 +44,8 @@ $success = $db->_validate_endpoint(interface_id => $trunk_interface_id,
                                    workgroup_id => 11,
                                    vlan => undef);
 $error = $db->get_error();
-ok(!defined $success, "Trunk interface wasn't owned by requesting workgroup.");
+warn Data::Dumper::Dumper($success);
+ok($success eq "1-99,4095", "returned the proper values");
 ok(defined $error, "Error: $error");
 
 $success = $db->_validate_endpoint(interface_id => $trunk_interface_id,
