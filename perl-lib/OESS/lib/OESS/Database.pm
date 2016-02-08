@@ -7887,7 +7887,6 @@ sub _validate_endpoint {
     my $tags = $self->_process_tag_string($vlan_tag_range);
    
     foreach my $tag (@$tags){
-        warn "Not allowing tag: " . $tag . "\n";
         $vlan_range_hash = $self->_set_vlan_range_allow_deny(
             vlan_range_hash  => $vlan_range_hash,
             vlan_start       => $tag,
