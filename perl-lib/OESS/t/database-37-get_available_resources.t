@@ -28,10 +28,10 @@ my $res = $db->get_available_resources(
     'workgroup_id' => 21,
 );
 ok($res, 'query ok');
-is(@$res, 5, 'count');
+is(@$res, 6, 'count');
 
 warn Dumper($res);
-my $correct_result = [ 
+my $correct_result = [                                                                                                                
     {
             'interface_name' => 'e15/1',
             'remote_links' => [],
@@ -54,14 +54,36 @@ my $correct_result = [
             'node_id' => '21',
             'operational_state' => 'up'
     },
-    {
-            'interface_name' => 'e15/5',
+{                                                                                                               
+            'interface_name' => 'e3/1',
             'remote_links' => [],
-            'node_name' => 'Node 21',
+            'node_name' => 'Node 51',
             'owning_workgroup' => {
-                                    'workgroup_id' => '51',
+                                    'workgroup_id' => '11',
                                     'status' => 'active',
-                                    'name' => 'Workgroup 51',
+                                    'name' => 'Workgroup 11',
+                                    'max_circuit_endpoints' => '10',
+                                    'description' => '',
+                                    'max_circuits' => '44',
+                                    'external_id' => undef,
+                                    'type' => 'admin',
+                                    'max_mac_address_per_end' => '10'
+            },
+            'interface_id' => '51',
+            'description' => 'e3/1',
+            'is_owner' => 0,
+            'vlan_tag_range' => '1-99,4095',
+            'node_id' => '51',
+            'operational_state' => 'up'
+},
+{                                                                                                               
+            'interface_name' => 'e15/7',
+            'remote_links' => [],
+            'node_name' => 'Node 81',
+            'owning_workgroup' => {
+                                    'workgroup_id' => '1',
+                                    'status' => 'active',
+                                    'name' => 'Workgroup 1',
                                     'max_circuit_endpoints' => '10',
                                     'description' => '',
                                     'max_circuits' => '20',
@@ -69,14 +91,14 @@ my $correct_result = [
                                     'type' => 'normal',
                                     'max_mac_address_per_end' => '10'
             },
-            'interface_id' => '45811',
-            'description' => 'e15/5',
+            'interface_id' => '45571',
+            'description' => 'e15/7',
             'is_owner' => 0,
-            'vlan_tag_range' => '100',
-            'node_id' => '21',
+            'vlan_tag_range' => '1-4095',
+            'node_id' => '81',
             'operational_state' => 'up'
-    },
-    {                                                                                                              
+},
+{                                                                                                              
             'interface_name' => 'e1/1',
             'remote_links' => [
                 {
@@ -91,8 +113,8 @@ my $correct_result = [
             'vlan_tag_range' => '1-4095',
             'node_id' => '11',
             'operational_state' => 'up'
-    },
-    {                                                                                                              
+},
+{
             'interface_name' => 'e15/1',
             'remote_links' => [],
             'node_name' => 'Node 11',
@@ -102,8 +124,8 @@ my $correct_result = [
             'vlan_tag_range' => '1-4095',
             'node_id' => '11',
             'operational_state' => 'up'
-    },
-    {
+},
+{
             'interface_name' => 'e15/1',
             'remote_links' => [],
             'node_name' => 'Node 51',
@@ -113,7 +135,7 @@ my $correct_result = [
             'vlan_tag_range' => '1-4095',
             'node_id' => '51',
             'operational_state' => 'up'
-    }
+}
     ];
 
 cmp_deeply($res, $correct_result, "values for resources matches");

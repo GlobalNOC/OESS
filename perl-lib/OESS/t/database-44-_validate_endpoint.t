@@ -44,9 +44,9 @@ $success = $db->_validate_endpoint(interface_id => $trunk_interface_id,
                                    workgroup_id => 11,
                                    vlan => undef);
 $error = $db->get_error();
-warn Data::Dumper::Dumper($success);
+#warn Data::Dumper::Dumper($success);
 ok($success eq "1-99,4095", "returned the proper values");
-ok(defined $error, "Error: $error");
+ok(!defined $error, "Error: $error");
 
 $success = $db->_validate_endpoint(interface_id => $trunk_interface_id,
                                    workgroup_id => $trunk_workgroup_id,
