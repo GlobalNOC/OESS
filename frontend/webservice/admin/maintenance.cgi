@@ -57,8 +57,8 @@ sub main {
 
     my $authorization = $db->get_user_admin_status( 'username' => $ENV{'REMOTE_USER'});
     if ( $authorization->[0]{'is_admin'} != 1 ) {
-        $output = {
-            error => "User $remote_user does not have admin privileges",
+        my $output = {
+            error => "User " . $ENV{'REMOTE_USER'} . " does not have admin privileges",
         };
         return ( send_json($output) );
     }
