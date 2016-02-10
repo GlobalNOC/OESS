@@ -55,6 +55,18 @@ sub main {
         $action = "error";
     }
 
+    my $authorization = $db->get_user_admin_status( 'username' => $ENV{'REMOTE_USER'});
+    if ( $authorization->[0]{'is_admin'} != 1 ) {
+        my $output = {
+            error => "User " . $ENV{'REMOTE_USER'} . " does not have admin privileges",
+        };
+        return ( send_json($output) );
+    }
+
+    if(!defined($user)){
+        return send_json({error => "unable to find user"});
+    }
+
     my $output;
     switch ($action) {
         case "nodes" {
