@@ -423,7 +423,7 @@ sub provision_circuit {
             };
         }
         # add flows on switch
-        if($state eq 'active'){
+        if($state eq 'active' || $state eq 'looped'){
             $result = _send_add_command( circuit_id => $output->{'circuit_id'} );
             if ( !defined $result ) {
                 $output->{'warning'} =
