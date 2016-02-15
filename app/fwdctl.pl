@@ -56,7 +56,7 @@ sub build_cache{
     my $log = Log::Log4perl->get_logger("FWDCTL");
     my $res = OESS::FWDCTL::Master::build_cache( db => $db, logger => $log);
     
-    return {circuit => $res->{'ckts'}, link_status => $res->{'link_status'}, node_info => $res->{'node_info'}, circuit_status => $res->{'circuit_status'}};
+    return {circuit => $res->{'ckts'}, link_status => $res->{'link_status'}, node_info => $res->{'node_info'}, circuit_status => $res->{'circuit_status'}, db => $db};
 
 }
 
