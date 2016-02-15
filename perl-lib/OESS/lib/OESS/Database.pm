@@ -134,6 +134,8 @@ sub new {
     my $password = $config->{'credentials'}->{'password'};
     my $database = $config->{'credentials'}->{'database'};
 
+    $self->{'config'} = $config;
+
     my $snapp_config_location = $config->{'snapp_config_location'};
     my $oscars_info = {
 	host => $config->{'oscars'}->{'host'},
@@ -183,6 +185,27 @@ sub new {
     return $self;
 }
 
+=head2 reconnect
+
+=cut
+
+sub reconnect{
+    my $self = shift;
+
+    $self->{'logger'}->error("Atteping to reconnect to the database");
+    $self->{'logger'}->error("CONFIG: " . Data::Dumper::Dumper($self->{'config'}));
+
+    my $dbh      = DBI->connect("DBI:mysql:" . $self->{'config'}->{'credentials'}->{'database'}, $self->{'config'}->{'credentials'}->{'username'}, $self->{'config'}->{'credentials'}->{'password'},
+                                {mysql_auto_reconnect => 1 });
+
+    if (! $dbh){
+        $self->{'logger'}->error("Unable to reconnect to the database");
+    }
+
+    $dbh->{'mysql_auto_reconnect'}   = 1;
+    $self->{'dbh'}                   = $dbh;
+
+}
 
 =head2 compare_versions
 

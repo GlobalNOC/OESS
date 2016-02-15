@@ -117,8 +117,9 @@ sub new {
     if(!defined($config)){
         $config = "/etc/oess/database.xml";
     }
-    
-    my $db = OESS::Database->new(config => $config);
+
+    my $db = $params{'cache'}->{'db'};
+    $db->reconnect();
 
     if (! $db) {
         $self->{'logger'}->fatal("Could not make database object");
@@ -155,12 +156,11 @@ sub new {
     $self->{'node_info'} = $params{'cache'}->{'node_info'};
     $self->{'circuit_status'} = $params{'cache'}->{'circuit_status'};
    
-
     #remote method calls people can make to the master
     dbus_method("addVlan", ["uint32"], ["int32","string"]);
     dbus_method("deleteVlan", ["string"], ["int32","string"]);
     dbus_method("changeVlanPath", ["string"], ["int32","string"]);
-    dbus_method("topo_port_status",["uint64","uint32",["dict","string","string"]],["string"]);
+    dbus_method("topo_port_status",["uint64","uint32",["dict","string","string"]]);
     dbus_method("rules_per_switch",["uint64"],["uint32"]);
     dbus_method("fv_link_event",["string","int32"],["int32"]);
     dbus_method("update_cache",["int32"],["int32", "string"]);
@@ -1217,7 +1217,7 @@ sub topo_port_status{
 
     $self->{'logger'}->debug("TOPO Port status complete");
 
-    return 1;
+    return;
 
 }
 
