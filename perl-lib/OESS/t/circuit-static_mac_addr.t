@@ -36,1103 +36,388 @@ if ($ckt->get_active_path() eq "backup") {
 
 my $flows = $ckt->get_flows();
 ok(defined($flows), "Flows are defined");
-is(scalar(@$flows), 98, "The flow count matches " . scalar(@$flows));
+is(scalar(@$flows), 78, "The flow count matches " . scalar(@$flows));
 my @actual_3way_flows;
 
 foreach my $flow (@$flows){
-    if($flow->get_dpid() == 155569035008){
+    if($flow->get_dpid() == 155568969984){
         push(@actual_3way_flows, $flow);
     }
 }
+
 my @expected_3way_flows;
 
-
 push(@expected_3way_flows, OESS::FlowRule->new(
          'hard_timeout' => 0,
          'priority' => 32768,
          'actions' => [
              {
-                 'set_vlan_id' => 105
-             },
-             {
-                 'output' => '1'
-             },
-             {
-                 'set_vlan_id' => 28
-             },
-             {
-                 'output' => '98'
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 100,
-             'in_port' => 97
-         }
-
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 32768,
-         'actions' => [
-             {
-                 'set_vlan_id' => 101
-             },
-             {
-                 'output' => '97'
-             },
-             {
-                 'set_vlan_id' => 28
-             },
-             {
-                 'output' => '98'
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 102,
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 32768,
-         'actions' => [
-             {
-                 'set_vlan_id' => 101
-             },
-             {
-                 'output' => '97'
-             },
-             {
-                 'set_vlan_id' => 105
-             },
-             {
-                 'output' => '1'
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 101,
-             'in_port' => 98
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485683',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485684',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485685',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485683',
-             'in_port' => 98
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485684',
-             'in_port' => 98
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485685',
-             'in_port' => 98
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485173',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485173',
-             'in_port' => 98
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '28'
-             },
-             {
-                 'output' => 98
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485440',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '28'
-             },
-             {
-                 'output' => 98
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485441',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '28'
-             },
-             {
-                 'output' => 98
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 102,
-             'dl_dst' => '132129489485440',
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '28'
-             },
-             {
-                 'output' => 98
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 102,
-             'dl_dst' => '132129489485441',
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
+                 'set_vlan_id' => 100
              },
              {
                  'output' => 97
+             },
+             {
+                 'set_vlan_id' => 100
+             },
+             {
+                 'output' => 2
              }
          ],
          'idle_timeout' => 0,
-         'dpid' => '155569035008',
+         'dpid' => '155568969984',
          'match' => {
-             'dl_vlan' => 102,
-             'dl_dst' => '132129489485456',
+             'dl_vlan' => 100,
              'in_port' => 1
          }
-         
      ));
 
 push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
+          'hard_timeout' => 0,
+                 'priority' => 32768,
+                 'actions' => [
+                     {
+                                  'set_vlan_id' => 101
+                     },
+                     {
+                                  'output' => '1'
+                     },
+                     {
+                                  'set_vlan_id' => 100
+                     },
+                     {
+                                  'output' => '2'
+                     }
+                              ],
+                 'idle_timeout' => 0,
+                 'dpid' => '155568969984',
          'match' => {
-             'dl_vlan' => 102,
-             'dl_dst' => '132129489485457',
-             'in_port' => 1
-         }
-         
-     ));
+                              'dl_vlan' => 100,
+                              'in_port' => 97
+         }));
+
+push(@expected_3way_flows, OESS::FlowRule->new(
+'hard_timeout' => 0,
+                 'priority' => 32768,
+                 'actions' => [
+                     {
+                                  'set_vlan_id' => 101
+                     },
+                     {
+                                  'output' => '1'
+                     },
+                     {
+                                  'set_vlan_id' => 100
+                     },
+                     {
+                                  'output' => '97'
+                     }
+                              ],
+                 'idle_timeout' => 0,
+                 'dpid' => '155568969984',
+         'match' => {
+                              'dl_vlan' => 101,
+                              'in_port' => 2
+         }));
+
+push(@expected_3way_flows, OESS::FlowRule->new(
+'hard_timeout' => 0,
+                 'priority' => 35000,
+                 'actions' => [
+                     {
+                                  'set_vlan_id' => '101'
+                     },
+                     {
+                                  'output' => 1
+                     }
+                              ],
+                 'idle_timeout' => 0,
+                 'dpid' => '155568969984',
+         'match' => {
+                              'dl_vlan' => 100,
+                              'dl_dst' => '132129489485683',
+                              'in_port' => 97
+         }));
+push(@expected_3way_flows, OESS::FlowRule->new(
+'hard_timeout' => 0,
+                 'priority' => 35000,
+                 'actions' => [
+                     {
+                                  'set_vlan_id' => '101'
+                     },
+                     {
+                                  'output' => 1
+                     }
+                              ],
+                 'idle_timeout' => 0,
+                 'dpid' => '155568969984',
+         'match' => {
+                              'dl_vlan' => 100,
+                              'dl_dst' => '132129489485684',
+                              'in_port' => 97
+         }));
+push(@expected_3way_flows, OESS::FlowRule->new(
+'hard_timeout' => 0,
+                 'priority' => 35000,
+                 'actions' => [
+                     {
+                                  'set_vlan_id' => '101'
+                     },
+                     {
+                                  'output' => 1
+                     }
+                              ],
+                 'idle_timeout' => 0,
+                 'dpid' => '155568969984',
+         'match' => {
+                              'dl_vlan' => 100,
+                              'dl_dst' => '132129489485685',
+                              'in_port' => 97
+         }));
+push(@expected_3way_flows, OESS::FlowRule->new(
+'hard_timeout' => 0,
+                 'priority' => 35000,
+                 'actions' => [
+                     {
+                                  'set_vlan_id' => '101'
+                     },
+                     {
+                                  'output' => 1
+                     }
+                              ],
+                 'idle_timeout' => 0,
+                 'dpid' => '155568969984',
+         'match' => {
+                              'dl_vlan' => 101,
+                              'dl_dst' => '132129489485683',
+                              'in_port' => 2
+         }));
+push(@expected_3way_flows, OESS::FlowRule->new(
+ 'hard_timeout' => 0,
+                 'priority' => 35000,
+                 'actions' => [
+                     {
+                                  'set_vlan_id' => '101'
+                     },
+                     {
+                                  'output' => 1
+                     }
+                              ],
+                 'idle_timeout' => 0,
+                 'dpid' => '155568969984',
+         'match' => {
+                              'dl_vlan' => 101,
+                              'dl_dst' => '132129489485684',
+                              'in_port' => 2
+         }));
+
+push(@expected_3way_flows, OESS::FlowRule->new(
+'hard_timeout' => 0,
+                 'priority' => 35000,
+                 'actions' => [
+                     {
+                                  'set_vlan_id' => '101'
+                     },
+                     {
+                                  'output' => 1
+                     }
+                              ],
+                 'idle_timeout' => 0,
+                 'dpid' => '155568969984',
+         'match' => {
+                              'dl_vlan' => 101,
+                              'dl_dst' => '132129489485685',
+                              'in_port' => 2
+         }));
+
+push(@expected_3way_flows, OESS::FlowRule->new(
+'hard_timeout' => 0,
+                  'priority' => 35000,
+                  'actions' => [
+                      {
+                                   'set_vlan_id' => '101'
+                      },
+                      {
+                                   'output' => 1
+                      }
+                               ],
+                  'idle_timeout' => 0,
+                  'dpid' => '155568969984',
+         'match' => {
+                               'dl_vlan' => 100,
+                               'dl_dst' => '132129489485173',
+                               'in_port' => 97
+         }));
+
+push(@expected_3way_flows, OESS::FlowRule->new(
+'hard_timeout' => 0,
+                  'priority' => 35000,
+                  'actions' => [
+                      {
+                                   'set_vlan_id' => '101'
+                      },
+                      {
+                                   'output' => 1
+                      }
+                               ],
+                  'idle_timeout' => 0,
+                  'dpid' => '155568969984',
+         'match' => {
+                               'dl_vlan' => 101,
+                               'dl_dst' => '132129489485173',
+                               'in_port' => 2
+         }));
+
+push(@expected_3way_flows, OESS::FlowRule->new(
+'hard_timeout' => 0,
+                  'priority' => 35000,
+                  'actions' => [
+                      {
+                                   'set_vlan_id' => '100'
+                      },
+                      {
+                                   'output' => 2
+                      }
+                               ],
+                  'idle_timeout' => 0,
+                  'dpid' => '155568969984',
+         'match' => {
+                               'dl_vlan' => 100,
+                               'dl_dst' => '132129489485440',
+                               'in_port' => 1
+         }));
+push(@expected_3way_flows, OESS::FlowRule->new(
+         'hard_timeout' => 0,
+                  'priority' => 35000,
+                  'actions' => [
+                      {
+                                   'set_vlan_id' => '100'
+                      },
+                      {
+                                   'output' => 2
+                      }
+                               ],
+                  'idle_timeout' => 0,
+                  'dpid' => '155568969984',
+         'match' => {
+                               'dl_vlan' => 100,
+                               'dl_dst' => '132129489485441',
+                               'in_port' => 1
+         }));
 
 push(@expected_3way_flows, OESS::FlowRule->new(
          'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
+                  'priority' => 35000,
+                  'actions' => [
+                      {
+                                   'set_vlan_id' => '100'
+                      },
+                      {
+                                   'output' => 2
+                      }
+                               ],
+                  'idle_timeout' => 0,
+                  'dpid' => '155568969984',
          'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485456',
-             'in_port' => 98
-         }
-         
-     ));
+                               'dl_vlan' => 100,
+                               'dl_dst' => '132129489485440',
+                               'in_port' => 97
+         }));
 
 push(@expected_3way_flows, OESS::FlowRule->new(
          'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
+                  'priority' => 35000,
+                  'actions' => [
+                      {
+                                   'set_vlan_id' => '100'
+                      },
+                      {
+                                   'output' => 2
+                      }
+                               ],
+                  'idle_timeout' => 0,
+                  'dpid' => '155568969984',
          'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485457',
-             'in_port' => 98
-         }
-         
-     ));
+                               'dl_vlan' => 100,
+                               'dl_dst' => '132129489485441',
+                               'in_port' => 97
+         }));
+push(@expected_3way_flows, OESS::FlowRule->new(
+         'hard_timeout' => 0,
+                  'priority' => 35000,
+                  'actions' => [
+                      {
+                                   'set_vlan_id' => '100'
+                      },
+                      {
+                                   'output' => 97
+                      }
+                               ],
+                  'idle_timeout' => 0,
+                  'dpid' => '155568969984',
+         'match' => {
+                               'dl_vlan' => 100,
+                               'dl_dst' => '132129489485456',
+                               'in_port' => 1
+         }));
+push(@expected_3way_flows, OESS::FlowRule->new(
+         'hard_timeout' => 0,
+                  'priority' => 35000,
+                  'actions' => [
+                      {
+                                   'set_vlan_id' => '100'
+                      },
+                      {
+                                   'output' => 97
+                      }
+                               ],
+                  'idle_timeout' => 0,
+                  'dpid' => '155568969984',
+         'match' => {
+                               'dl_vlan' => 100,
+                               'dl_dst' => '132129489485457',
+                               'in_port' => 1
+         }));
+push(@expected_3way_flows, OESS::FlowRule->new(
+         'hard_timeout' => 0,
+                  'priority' => 35000,
+                  'actions' => [
+                      {
+                                   'set_vlan_id' => '100'
+                      },
+                      {
+                                   'output' => 97
+                      }
+                               ],
+                  'idle_timeout' => 0,
+                  'dpid' => '155568969984',
+         'match' => {
+                               'dl_vlan' => 101,
+                               'dl_dst' => '132129489485456',
+                               'in_port' => 2
+         }));
 
 push(@expected_3way_flows, OESS::FlowRule->new(
          'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
+                  'priority' => 35000,
+                  'actions' => [
+                      {
+                                   'set_vlan_id' => '100'
+                      },
+                      {
+                                   'output' => 97
+                      }
+                               ],
+                  'idle_timeout' => 0,
+                  'dpid' => '155568969984',
          'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485683',
-             'in_port' => 97
-         }
-         
-     ));
+                               'dl_vlan' => 101,
+                               'dl_dst' => '132129489485457',
+                               'in_port' => 2
+         }));
 
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485684',
-             'in_port' => 97
-         }
-         
-     ));
 
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485685',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485683',
-             'in_port' => 98
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485684',
-             'in_port' => 98
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485685',
-             'in_port' => 98
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485173',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485173',
-             'in_port' => 98
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '28'
-             },
-             {
-                 'output' => 98
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485440',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '28'
-             },
-             {
-                 'output' => 98
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485441',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '28'
-             },
-             {
-                 'output' => 98
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 102,
-             'dl_dst' => '132129489485440',
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '28'
-             },
-             {
-                 'output' => 98
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 102,
-             'dl_dst' => '132129489485441',
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 102,
-             'dl_dst' => '132129489485456',
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 102,
-             'dl_dst' => '132129489485457',
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485456',
-             'in_port' => 98
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485457',
-             'in_port' => 98
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485683',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485684',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485685',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485683',
-             'in_port' => 98
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485684',
-             'in_port' => 98
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485685',
-             'in_port' => 98
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485173',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '105'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485173',
-             'in_port' => 98
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '28'
-             },
-             {
-                 'output' => 98
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485440',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '28'
-             },
-             {
-                 'output' => 98
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485441',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '28'
-             },
-             {
-                 'output' => 98
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 102,
-             'dl_dst' => '132129489485440',
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '28'
-             },
-             {
-                 'output' => 98
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 102,
-             'dl_dst' => '132129489485441',
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 102,
-             'dl_dst' => '132129489485456',
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 102,
-             'dl_dst' => '132129489485457',
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485456',
-             'in_port' => 98
-         }
-         
-     ));
-
-push(@expected_3way_flows, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155569035008',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485457',
-             'in_port' => 98
-         }
-         
-     ));
-
+my @expected_3way_flows_backup = @expected_3way_flows;
 
 ok($#expected_3way_flows == $#actual_3way_flows ,"expected 3way flows match actual 3way flows");
 
@@ -1151,9 +436,6 @@ ok($ckt->get_active_path() eq 'backup', "Circuit is now on backup path");
 
 $flows = $ckt->get_flows();
 
-ok(defined($flows), "Flows are defined");
-is(scalar(@$flows), 98, "The flow count matches " . scalar(@$flows));
-
 my @actual_3way_flows_backup;
 
 foreach my $flow (@$flows){
@@ -1162,1092 +444,9 @@ foreach my $flow (@$flows){
     }
 }
 
-my @expected_3way_flows_backup;
+ok(defined($flows), "Flows are defined");
+is(scalar(@$flows), 78, "The flow count matches " . scalar(@$flows));
 
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 32768,
-         'actions' => [
-             {
-                 'set_vlan_id' => 100
-             },
-             {
-                 'output' => 97
-             },
-             {
-                 'set_vlan_id' => 100
-             },
-             {
-                 'output' => 2
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'in_port' => 1
-         }
-
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 32768,
-         'actions' => [
-             {
-                 'set_vlan_id' => 101
-             },
-             {
-                 'output' => '1'
-             },
-             {
-                 'set_vlan_id' => 100
-             },
-             {
-                 'output' => '2'
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'in_port' => 97
-         }
-
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 32768,
-         'actions' => [
-             {
-                 'set_vlan_id' => 101
-             },
-             {
-                 'output' => '1'
-             },
-             {
-                 'set_vlan_id' => 100
-             },
-             {
-                 'output' => '97'
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 101,
-             'in_port' => 2
-         }
-
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485683',
-             'in_port' => 97
-         }
-
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485684',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485685',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485683',
-             'in_port' => 2
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485684',
-             'in_port' => 2
-         }
-
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485685',
-             'in_port' => 2
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485173',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485173',
-             'in_port' => 2
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 2
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485440',
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 2
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485441',
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 2
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485440',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 2
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485441',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485456',
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485457',
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485456',
-             'in_port' => 2
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485457',
-             'in_port' => 2
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485683',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485684',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485685',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485683',
-             'in_port' => 2
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485684',
-             'in_port' => 2
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485685',
-             'in_port' => 2
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485173',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485173',
-             'in_port' => 2
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 2
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485440',
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 2
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485441',
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 2
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485440',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 2
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485441',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485456',
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485457',
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485456',
-             'in_port' => 2
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485457',
-             'in_port' => 2
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485683',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485684',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485685',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485683',
-             'in_port' => 2
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485684',
-             'in_port' => 2
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485685',
-             'in_port' => 2
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485173',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '101'
-             },
-             {
-                 'output' => 1
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485173',
-             'in_port' => 2
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 2
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485440',
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 2
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485441',
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 2
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485440',
-             'in_port' => 97
-         }
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 2
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485441',
-             'in_port' => 97
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485456',
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 100,
-             'dl_dst' => '132129489485457',
-             'in_port' => 1
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485456',
-             'in_port' => 2
-         }
-         
-     ));
-
-push(@expected_3way_flows_backup, OESS::FlowRule->new(
-         'hard_timeout' => 0,
-         'priority' => 35000,
-         'actions' => [
-             {
-                 'set_vlan_id' => '100'
-             },
-             {
-                 'output' => 97
-             }
-         ],
-         'idle_timeout' => 0,
-         'dpid' => '155568969984',
-         'match' => {
-             'dl_vlan' => 101,
-             'dl_dst' => '132129489485457',
-             'in_port' => 2
-         }
-         
-     ));
 
 ok($#expected_3way_flows_backup == $#actual_3way_flows_backup ,"expected 3way backup flows match actual 3way backup flows");
 
@@ -2255,5 +454,3 @@ ok(OESSDatabaseTester::flows_match(
        actual_flows   => \@actual_3way_flows_backup,
        expected_flows => \@expected_3way_flows_backup
    ), "Backup Flows are as expected");
-
-

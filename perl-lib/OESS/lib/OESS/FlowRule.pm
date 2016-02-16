@@ -765,6 +765,8 @@ sub compare_match{
     
     return 0 if(!defined($other_match));
 
+    return 0 if($self->{'priority'} != $other_rule->{'priority'});
+
     foreach my $key (keys (%{$self->{'match'}})){
         return 0 if(!defined($other_match->{$key}));
         if($other_match->{$key} != $self->{'match'}->{$key}){
@@ -867,6 +869,9 @@ returns 0 on error
 sub merge_actions {
     my ( $self, %args ) = @_;
     my $other_flow      = $args{'flow_rule'};
+
+    warn "Self: " . Data::Dumper::Dumper($self);
+    warn "OTHER: " . Data::Dumper::Dumper($other_flow);
 
     # get the uniquye list of 'set actions' from our action list and the action list
     # of the flow we're merging
