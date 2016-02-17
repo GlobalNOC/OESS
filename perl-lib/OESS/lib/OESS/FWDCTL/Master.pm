@@ -113,25 +113,25 @@ sub new {
     my $self = $class->SUPER::new($service, '/controller1');
     bless $self, $class;
 
-
-    $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL');
+    $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL.MASTER');
     #my $config = shift;
     if(!defined($config)){
         $config = "/etc/oess/database.xml";
     }
-    my $db = OESS::Database->new();
+
+    if(!defined($params{'cache'})){
+        die;
+    }
+
+    my $db = $params{'cache'}->{'db'};
+
+    $self->{'logger'}->error(Data::Dumper::Dumper($db));
 
     if (! $db) {
         $self->{'logger'}->fatal("Could not make database object");
         exit(1);
     }
     $self->{'db'} = $db;
-
-    #file handles were closed... fix it
-    foreach my $ckt (keys (%{$params{'cache'}->{'circuit'}})){
-        $params{'cache'}->{'circuit'}->{$ckt}->{'logger'} = Log::Log4perl->get_logger('OESS.Circuit');
-        $params{'cache'}->{'circuit'}->{$ckt}->{'db'} = $db;
-    }
 
     my $topo = OESS::Topology->new( db => $self->{'db'} );
     if (! $topo) {
@@ -160,7 +160,7 @@ sub new {
     $self->{'link_status'} = $params{'cache'}->{'link_status'};
     $self->{'node_info'} = $params{'cache'}->{'node_info'};
     $self->{'circuit_status'} = $params{'cache'}->{'circuit_status'};
-   
+
     #remote method calls people can make to the master
     dbus_method("addVlan", ["uint32"], ["int32","string"]);
     dbus_method("deleteVlan", ["string"], ["int32","string"]);
@@ -572,6 +572,7 @@ sub send_message_to_child{
 
 sub check_child_status{
     my $self = shift;
+
     $self->{'logger'}->debug("Checking on child status");
     my $event_id = $self->_generate_unique_event_id();
     foreach my $dpid (keys %{$self->{'children'}}){

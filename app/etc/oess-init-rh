@@ -4,7 +4,9 @@ use strict;
 use warnings;
 
 use OESS::Database;
-use OESS::DBus;
+use AnyEvent;
+use AnyEvent::DBus;
+use Net::DBus::Annotation qw(:call);
 use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
@@ -26,74 +28,17 @@ sub main{
         if($status != 0){
             exit($status);
         }
-        #check FWDCTL
-        my $bus = Net::DBus->system;
-
-        my $client;
-        my $service;
-
-        eval {
-            $service = $bus->get_service("org.nddi.fwdctl");
-            $client  = $service->get_object("/controller1");
-        };
-
-        if ($@) {
-            warn "Error in _connect_to_fwdctl: $@";
-            exit(1);
+        $status = check_fwdctl();
+        if($status != 0){
+            exit($status);
         }
 
-        if ( !defined $client ) {
-            exit(1);
-        }
-        
-        my $result;
-        my $event_id;
-        eval{
-            ($result,$event_id) = $client->check_child_status();
-        };
-
-        my $final_res = FWDCTL_WAITING;
-
-        my $timeout = 0;
-        while($final_res == FWDCTL_WAITING && $timeout < 30){
-            sleep(1);
-            $final_res = $client->get_event_status($event_id);
-            $timeout++;
+        $status = check_nox();
+        if($status != 0){
+            exit($status);
         }
 
-        if($final_res != FWDCTL_SUCCESS){
-            print "FWDCTL failed to reply with success\n";
-            exit(1);
-        }else{
-            print "FWDCTL responded and all children are working!\n";
-        }
-
-        #check NOX
-        eval {
-            $service = $bus->get_service("org.nddi.openflow");
-            $client  = $service->get_object("/controller1");
-        };
-
-        if ($@) {
-            warn "Error in _connect_to_nox: $@";
-            exit(1);
-        }
-
-        if ( !defined $client ) {
-            exit(1);
-        }
-
-        $result;
-        eval{
-            $result = $client->echo();
-        };
-
-        if($result != 1){
-            exit(1);
-        }else{
-            print "NOX replied to our echo request, it is working!\n";
-        }
-        #made it here!!!
+        print "Everything is working properly\n";
         exit(0);
 
     }elsif($option eq 'restart'){
@@ -292,6 +237,14 @@ sub start{
         }
     }
 
+    print "Waiting for FWDCTL to signal Ready\n";
+
+    my $fwdctl_status =1;
+    while($fwdctl_status == 1){
+        $fwdctl_status = connect_fwdctl();
+        sleep(1);
+    }
+
     if($db->is_topo_enabled()){
         my $res = system("/etc/init.d/oess-topo start");
         if($res != 0){
@@ -346,6 +299,102 @@ sub start{
     }
     #cause this is how wait work?
     return $result / 256;
+}
+
+sub connect_fwdctl{
+
+    #check FWDCTL
+    my $bus = Net::DBus->system;
+
+    my $client;
+    my $service;
+
+    eval {
+        $service = $bus->get_service("org.nddi.fwdctl");
+        $client  = $service->get_object("/controller1");
+    };
+
+    if ($@) {
+        return 1;
+    }
+
+    if ( !defined $client ) {
+        return 1;
+    }
+
+    return $client;
+}
+
+sub check_fwdctl{
+    my $client = connect_fwdctl();
+
+    my $result;
+    my $event_id;
+
+    eval{
+        ($result,$event_id) = $client->check_child_status();
+    };
+
+    if(!defined($result) || $result != 1 || !defined($event_id)){
+        #basically means not ready
+        return 1;
+    }
+
+    my $final_res = FWDCTL_WAITING;
+
+    my $timeout = 0;
+    while($final_res == FWDCTL_WAITING && $timeout < 30){
+        sleep(1);
+        $final_res = $client->get_event_status($event_id);
+        $timeout++;
+    }
+
+    if($final_res != FWDCTL_SUCCESS){
+        print "FWDCTL failed to reply with success\n";
+        return 1;
+    }else{
+        print "FWDCTL responded and all children are working!\n";
+        return 0;
+    }
+
+}
+
+sub check_nox{
+
+    #check FWDCTL
+    my $bus = Net::DBus->system;
+
+    my $client;
+    my $service;
+
+    #check NOX
+    eval {
+        $service = $bus->get_service("org.nddi.openflow");
+        $client  = $service->get_object("/controller1");
+    };
+
+    if ($@) {
+        warn "Error in _connect_to_nox: $@";
+        return 1;
+    }
+
+    if ( !defined $client ) {
+        return 1;
+    }
+
+    my $result;
+    eval{
+        $result = $client->echo();
+    };
+
+    if($result != 1){
+        return 1;
+    }else{
+        print "NOX replied to our echo request, it is working!\n";
+    }
+
+    return 0;
+
 }
 
 sub usage{
