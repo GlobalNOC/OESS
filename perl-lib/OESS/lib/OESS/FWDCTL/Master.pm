@@ -113,12 +113,15 @@ sub new {
     my $self = $class->SUPER::new($service, '/controller1');
     bless $self, $class;
 
+
+    $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL');
     #my $config = shift;
     if(!defined($config)){
         $config = "/etc/oess/database.xml";
     }
 
     my $db = $params{'cache'}->{'db'};
+    $db->{'logger'} = Log::Log4perl->get_logger('OESS.Database');    
     $db->reconnect();
 
     if (! $db) {
@@ -133,6 +136,10 @@ sub new {
         exit(1);
     }
 
+    foreach my $ckt (keys (%{$params{'cache'}->{'circuit'}})){
+        $params{'cache'}->{'circuit'}->{$ckt}->{'logger'} = Log::Log4perl->get_logger('OESS.Circuit');
+    }
+
     $self->{'topo'} = $topo;
 
     $self->{'uuid'} = new Data::UUID;
@@ -141,7 +148,6 @@ sub new {
         $self->{'share_file'} = '/var/run/oess/share';
     }
 
-    $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL');
     $self->{'circuit'} = {};
     $self->{'node_rules'} = {};
     $self->{'link_status'} = {};
@@ -467,21 +473,6 @@ sub _write_cache{
             push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'endpoint'}{'backup'}},$flow->to_canonical());
         }
 
-        if(defined($ckt->{'flows'}->{'static_mac_addr'})){
-            foreach my $flow (@{$ckt->{'flows'}->{'static_mac_addr'}->{'primary'}}){
-                push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'static_mac_addr'}{'primary'}},$flow->to_canonical());
-            }
-            foreach my $flow (@{$ckt->{'flows'}->{'static_mac_addr'}->{'backup'}}){
-                push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'static_mac_addr'}{'backup'}},$flow->to_canonical());
-            }
-            foreach my $flow (@{$ckt->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'primary'}}){
-                push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'endpoint'}{'primary'}},$flow->to_canonical());
-            }
-            foreach my $flow (@{$ckt->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'backup'}}){
-                push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'endpoint'}{'backup'}},$flow->to_canonical());
-            }
-
-        }
     }
 
         

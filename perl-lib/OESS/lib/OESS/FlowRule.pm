@@ -765,6 +765,8 @@ sub compare_match{
     
     return 0 if(!defined($other_match));
 
+    return 0 if($self->{'priority'} != $other_rule->{'priority'});
+
     foreach my $key (keys (%{$self->{'match'}})){
         return 0 if(!defined($other_match->{$key}));
         if($other_match->{$key} != $self->{'match'}->{$key}){

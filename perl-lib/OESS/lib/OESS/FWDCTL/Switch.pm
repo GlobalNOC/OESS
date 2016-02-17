@@ -174,24 +174,6 @@ sub _update_cache{
         }
         
 
-        foreach my $obj (@{$data->{'ckts'}->{$ckt}->{'flows'}->{'static_mac_addr'}->{'primary'}}){
-            next unless($obj->{'dpid'} == $self->{'dpid'});
-            my $flow = OESS::FlowRule->new( match => $obj->{'match'},
-                                            actions => $obj->{'actions'},
-                                            dpid => $obj->{'dpid'},
-                                            priority =>$obj->{'priority'});
-            push(@{$self->{'ckts'}->{$ckt}->{'flows'}->{'static_mac_addr'}->{'primary'}},$flow);
-        }
-
-        foreach my $obj (@{$data->{'ckts'}->{$ckt}->{'flows'}->{'static_mac_addr'}->{'backup'}}){
-            next unless($obj->{'dpid'} == $self->{'dpid'});
-            my $flow = OESS::FlowRule->new( match => $obj->{'match'},
-                                            actions => $obj->{'actions'},
-                                            dpid => $obj->{'dpid'},
-                                            priority =>$obj->{'priority'});
-            push(@{$self->{'ckts'}->{$ckt}->{'flows'}->{'static_mac_addr'}->{'backup'}},$flow);
-        }
-
     }
 
     $self->{'node'} = $data->{'nodes'}->{$self->{'dpid'}};
