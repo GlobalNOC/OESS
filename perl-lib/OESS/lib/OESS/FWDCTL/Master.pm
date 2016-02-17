@@ -465,10 +465,10 @@ sub _write_cache{
             push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'current'}},$flow->to_canonical());
         }
 
-        foreach my $flow (@{$ckt->{'flows'}->{'endpoint'}->{'primary'}}){
+        foreach my $flow (@{$ckt->get_endpoint_flows( path => 'primary')}){
             push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'endpoint'}{'primary'}},$flow->to_canonical());
         }
-        foreach my $flow (@{$ckt->{'flows'}->{'endpoint'}->{'backup'}}){
+        foreach my $flow (@{$ckt->get_endpoint_flows( path => 'backup')}){
             push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'endpoint'}{'backup'}},$flow->to_canonical());
         }
 
