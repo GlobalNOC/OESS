@@ -47,31 +47,27 @@ use strict;
 
 my $pid_file = "/var/run/oess/fwdctl.pid";
 
-sub build_cache{
-
-    my %cache;
-
-    my $db = OESS::Database->new();
-    Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
-    my $log = Log::Log4perl->get_logger("FWDCTL");
-    my $res = OESS::FWDCTL::Master::build_cache( db => $db, logger => $log);
-    
-    return {circuit => $res->{'ckts'}, link_status => $res->{'link_status'}, node_info => $res->{'node_info'}, circuit_status => $res->{'circuit_status'}, db => $db};
-
-}
-
 sub core{
-    my $cache = shift;
-    
+
+    #basic init stuffs
     Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
     my $log = Log::Log4perl->get_logger("FWDCTL");
+    my $db = OESS::Database->new();
+
+    #build the cache
+    my $res = OESS::FWDCTL::Master::build_cache( db => $db, logger => $log);
+    my $cache =  {circuit => $res->{'ckts'},
+                  link_status => $res->{'link_status'},
+                  node_info => $res->{'node_info'},
+                  circuit_status => $res->{'circuit_status'},
+                  db => $db};
 
     my $bus = Net::DBus->system;
     my $service = $bus->export_service("org.nddi.fwdctl");
 
     my $srv_object = OESS::FWDCTL::Master->new(service => $service, cache => $cache);
-
     my $dbus = OESS::DBus->new( service => "org.nddi.openflow", instance => "/controller1", timeout => -1, sleep_interval => .1);
+
     #--- listen for topo events ----
     sub datapath_join_callback{
         my $dpid   = shift;
@@ -86,7 +82,6 @@ sub core{
         my $info   = shift;
         $srv_object->port_status($dpid,$reason,$info);
     }
-
 
     sub check_child_status{
         $srv_object->check_child_status();
@@ -105,11 +100,9 @@ sub core{
         $srv_object->reap_old_events();
     }
 
-
     $dbus->connect_to_signal("datapath_join",\&datapath_join_callback);
     $dbus->connect_to_signal("port_status",\&port_status_callback);
     $dbus->connect_to_signal("link_event",\&link_event_callback);
-
 
     my $timer = AnyEvent->timer( after => 10, interval => 10, cb => \&check_child_status);
     my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => \&reap_stale_events);
@@ -124,6 +117,8 @@ sub main{
     my $is_daemon = 0;
     my $verbose;
     my $username;
+
+    #remove the ready file
 
     #--- see if the pid file exists. if not then just continue running.
     if(-e $pid_file){
@@ -149,7 +144,6 @@ sub main{
                              "daemon|d"  => \$is_daemon,
                             );
 
-
     #now change username/
     if (defined $username) {
         my $new_uid=getpwnam($username);
@@ -172,22 +166,20 @@ sub main{
                                        );
         }
 
-	my $cache = build_cache();
-	
         my $kid_pid = $daemon->Init;
 	
         if ($kid_pid) {
             `chmod 0644 $pid_file`;
+            #how to wait until the child process is ready...
             return;
         }
 
-	core($cache);
+	core();
     }
     #not a deamon, just run the core;
     else {
         $SIG{HUP} = sub{ exit(0); };
-	my $cache = build_cache();
-	core($cache);
+	core();
     }
 
 }
