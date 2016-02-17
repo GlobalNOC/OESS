@@ -120,9 +120,12 @@ sub new {
         $config = "/etc/oess/database.xml";
     }
 
-    my $db = $params{'cache'}->{'db'};
-    $db->{'logger'} = Log::Log4perl->get_logger('OESS.Database');    
-    $db->reconnect();
+#    my $db = $params{'cache'}->{'db'};
+#    $db->{'logger'} = Log::Log4perl->get_logger('OESS.Database');
+#    $db->{'topo'}->{'logger'} = Log::Log4perl->get_logger('OESS.Topology');
+#    $db->reconnect();
+
+    my $db = OESS::Database->new();
 
     if (! $db) {
         $self->{'logger'}->fatal("Could not make database object");
@@ -130,14 +133,15 @@ sub new {
     }
     $self->{'db'} = $db;
 
+    foreach my $ckt (keys (%{$params{'cache'}->{'circuit'}})){
+        $params{'cache'}->{'circuit'}->{$ckt}->{'logger'} = Log::Log4perl->get_logger('OESS.Circuit');
+        $params{'cache'}->{'circuit'}->{$ckt}->{'db'} = $db;
+    }
+
     my $topo = OESS::Topology->new( db => $self->{'db'} );
     if (! $topo) {
         $self->{'logger'}->fatal("Could not initialize topo library");
         exit(1);
-    }
-
-    foreach my $ckt (keys (%{$params{'cache'}->{'circuit'}})){
-        $params{'cache'}->{'circuit'}->{$ckt}->{'logger'} = Log::Log4perl->get_logger('OESS.Circuit');
     }
 
     $self->{'topo'} = $topo;

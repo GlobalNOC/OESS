@@ -134,7 +134,7 @@ sub new {
     my $password = $config->{'credentials'}->{'password'};
     my $database = $config->{'credentials'}->{'database'};
 
-    $self->{'config'} = $config;
+    $self->{'configuration'} = $config;
 
     my $snapp_config_location = $config->{'snapp_config_location'};
     my $oscars_info = {
@@ -193,9 +193,11 @@ sub reconnect{
     my $self = shift;
 
     $self->{'logger'}->error("Atteping to reconnect to the database");
-    $self->{'logger'}->error("CONFIG: " . Data::Dumper::Dumper($self->{'config'}));
+    $self->{'logger'}->error("CONFIG: " . Data::Dumper::Dumper($self->{'configuration'}));
 
-    my $dbh      = DBI->connect("DBI:mysql:" . $self->{'config'}->{'credentials'}->{'database'}, $self->{'config'}->{'credentials'}->{'username'}, $self->{'config'}->{'credentials'}->{'password'},
+    my $dbh      = DBI->connect("DBI:mysql:" . $self->{'configuration'}->{'credentials'}->{'database'}, 
+                                $self->{'configuration'}->{'credentials'}->{'username'}, 
+                                $self->{'configuration'}->{'credentials'}->{'password'},
                                 {mysql_auto_reconnect => 1 });
 
     if (! $dbh){
@@ -5290,11 +5292,15 @@ sub reset_database{
 
     my $dbh      = $self->{'dbh'};
 
-    my $xml = XML::Simple::XMLin($self->{'config'});
+    #my $xml = XML::Simple::XMLin($self->{'config'});
 
-    my $username = $xml->{'credentials'}->{'username'};
-    my $password = $xml->{'credentials'}->{'password'};
-    my $database = $xml->{'credentials'}->{'database'};
+    #my $username = $xml->{'credentials'}->{'username'};
+    #my $password = $xml->{'credentials'}->{'password'};
+    #my $database = $xml->{'credentials'}->{'database'};
+
+    my $username = $self->{'configuration'}->{'credentials'}->{'username'};
+    my $password = $self->{'configuration'}->{'credentials'}->{'password'};
+    my $database = $self->{'configuration'}->{'credentials'}->{'database'};
 
     #my $import_filename = File::ShareDir::dist_file('OESS-Database','nddi.sql');
     my $import_filename = SHARE_DIR . "/share/nddi.sql";
