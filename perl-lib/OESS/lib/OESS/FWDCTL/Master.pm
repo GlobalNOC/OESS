@@ -119,12 +119,6 @@ sub new {
     if(!defined($config)){
         $config = "/etc/oess/database.xml";
     }
-
-#    my $db = $params{'cache'}->{'db'};
-#    $db->{'logger'} = Log::Log4perl->get_logger('OESS.Database');
-#    $db->{'topo'}->{'logger'} = Log::Log4perl->get_logger('OESS.Topology');
-#    $db->reconnect();
-
     my $db = OESS::Database->new();
 
     if (! $db) {
@@ -133,6 +127,7 @@ sub new {
     }
     $self->{'db'} = $db;
 
+    #file handles were closed... fix it
     foreach my $ckt (keys (%{$params{'cache'}->{'circuit'}})){
         $params{'cache'}->{'circuit'}->{$ckt}->{'logger'} = Log::Log4perl->get_logger('OESS.Circuit');
         $params{'cache'}->{'circuit'}->{$ckt}->{'db'} = $db;
