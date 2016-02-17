@@ -113,6 +113,8 @@ sub new {
     my $self = $class->SUPER::new($service, '/controller1');
     bless $self, $class;
 
+
+    $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL');
     #my $config = shift;
     if(!defined($config)){
         $config = "/etc/oess/database.xml";
@@ -141,7 +143,6 @@ sub new {
         $self->{'share_file'} = '/var/run/oess/share';
     }
 
-    $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL');
     $self->{'circuit'} = {};
     $self->{'node_rules'} = {};
     $self->{'link_status'} = {};
@@ -467,20 +468,6 @@ sub _write_cache{
             push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'endpoint'}{'backup'}},$flow->to_canonical());
         }
 
-        if(defined($ckt->{'flows'}->{'static_mac_addr'})){
-            foreach my $flow (@{$ckt->{'flows'}->{'static_mac_addr'}->{'path'}->{'primary'}}){
-                push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'current'}},$flow->to_canonical());
-            }
-            foreach my $flow (@{$ckt->{'flows'}->{'static_mac_addr'}->{'path'}->{'backup'}}){
-                push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'current'}},$flow->to_canonical());
-            }
-            foreach my $flow (@{$ckt->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'primary'}}){
-                push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'endpoint'}{'primary'}},$flow->to_canonical());
-            }
-            foreach my $flow (@{$ckt->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'backup'}}){
-                push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'endpoint'}{'backup'}},$flow->to_canonical());
-            }
-        }
     }
 
         

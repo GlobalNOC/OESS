@@ -328,20 +328,15 @@ sub _create_flows{
     $self->{'flows'}->{'endpoint'}->{'primary'} = $self->_dedup_flows($self->{'flows'}->{'endpoint'}->{'primary'});
     $self->{'flows'}->{'endpoint'}->{'backup'} = $self->_dedup_flows($self->{'flows'}->{'endpoint'}->{'backup'});
 
-    if($self->is_static_mac()){
-        #remove duplicates here...
-        $self->{'flows'}->{'static_mac_addr'}->{'path'}->{'primary'} = $self->_dedup_flows($self->{'flows'}->{'static_mac_addr'}->{'path'}->{'primary'});
-        $self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'primary'} = $self->_dedup_flows($self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'primary'});
+    #remove duplicates here...
+    $self->{'flows'}->{'static_mac_addr'}->{'path'}->{'primary'} = $self->_dedup_flows($self->{'flows'}->{'static_mac_addr'}->{'path'}->{'primary'});
+    $self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'primary'} = $self->_dedup_flows($self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'primary'});
 
-        if($self->has_backup_path()){
-            $self->{'flows'}->{'static_mac_addr'}->{'path'}->{'backup'} = $self->_dedup_flows($self->{'flows'}->{'static_mac_addr'}->{'path'}->{'backup'});
-            $self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'backup'} = $self->_dedup_flows($self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'backup'});
-        }
-    }
+    $self->{'flows'}->{'static_mac_addr'}->{'path'}->{'backup'} = $self->_dedup_flows($self->{'flows'}->{'static_mac_addr'}->{'path'}->{'backup'});
+    $self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'backup'} = $self->_dedup_flows($self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'backup'});
 
 
     if($self->{'state'} eq 'looped'){
-        warn "CIRCUIT IS LOOPED!!!\n";
         if(defined($self->{'loop_node'})){
             if($self->has_backup_path()){
                 $self->_generate_loop_node_flows( path => 'backup', node => $self->{'loop_node'});
@@ -553,16 +548,24 @@ sub _generate_static_mac_path_flows{
 							    actions => [{'set_vlan_vid' => $internal_ids->{$path}{$next_hop[1]}{$interface_id}},
 									{'output' => $port}]);
 			    
-                            if($node_ends{$vert} > 0){
-                                push(@{$self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{$path}}, $flow);
-                            }else{
+                            #is this path or endpoint side?
+                            if($node_ends{$vert} == 0){
+                                #path flow
                                 push(@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{$path}},$flow);
+                            }else{
+                                if($vert eq 'Node 51'){
+                                    warn "IN PORT: " . Data::Dumper::Dumper($in_port);
+                                    warn "NODE: " . $vert . "\n";
+                                    warn "ENDPOINT FLOW: \n";
+                                    warn Data::Dumper::Dumper($flow);
+                                }
+                                #this is an endpoint fow
+                                push(@{$self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{$path}}, $flow);
                             }
                         }
 		    }
 		    
 		}else{
-		    
 		    #endpoint must be on this node... but this is the path side...
 		    foreach my $in_port (@{$in_ports{$vert}}){
 
@@ -579,7 +582,18 @@ sub _generate_static_mac_path_flows{
 							    dpid => $self->{'dpid_lookup'}->{$vert},
 							    actions => [{'set_vlan_vid' => $endpoint->{'tag'}},
 									{'output' => $endpoint->{'port_no'}}]);
-                            push(@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{$path}},$flow);
+                            #now the question is... are these 2 ports on the same switch that are endpoints?
+                            if(defined($in_port->{'link_id'})){
+                                #this is the link -> ep rule
+                                #it was generated in the one above... ignore it now
+                                push(@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{$path}}, $flow);
+                            }else{
+                                #this is ep -> ep rule
+                                #only do this for primary (because back and primary are gonna be the same)
+                                if($path eq 'primary'){
+                                    push(@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{$path}},$flow);
+                                }
+                            }
 			}
 		    }
 		}
@@ -874,19 +888,14 @@ sub get_flows{
     	foreach my $flow (@{$self->{'flows'}->{'path'}->{'backup'}}){
             push(@flows,$flow);
     	}
-
-        if($self->is_static_mac()){
-
-            foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{'primary'}}){
-                push(@flows,$static_flow);
-            }
-            
-            foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{'backup'}}){
-                push(@flows,$static_flow);
-            }
-
+        
+        foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{'primary'}}){
+            push(@flows,$static_flow);
         }
-
+        
+        foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{'backup'}}){
+            push(@flows,$static_flow);
+        }
         
     	if($self->get_active_path() eq 'primary'){
             
@@ -894,11 +903,10 @@ sub get_flows{
             	push(@flows,$flow);
             }
          
-            if($self->is_static_mac()){   
-                foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'primary'}}){
-                    push(@flows,$static_flow);
-                }
+            foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'primary'}}){
+                push(@flows,$static_flow);
             }
+            
             
                        
     	} else {
@@ -907,10 +915,8 @@ sub get_flows{
             	push(@flows,$flow);
             }
             
-            if($self->is_static_mac()){
-                foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'backup'}}){
-                    push(@flows,$static_flow);
-                }
+            foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'backup'}}){
+                push(@flows,$static_flow);
             }
 	}
         
@@ -933,21 +939,18 @@ sub get_flows{
             push(@flows,$flow);
         }
         
-        if($self->is_static_mac()){
-            
-            foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{'primary'}}){
-                push(@flows,$static_flow);
-            }
-            
-            foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{'backup'}}){
-                push(@flows,$static_flow);
-            }
-            
-            foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{$path}}){
-                push(@flows,$static_flow);
-            }
+        foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{'primary'}}){
+            push(@flows,$static_flow);
         }
-
+        
+        foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{'backup'}}){
+            push(@flows,$static_flow);
+        }
+        
+        foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{$path}}){
+            push(@flows,$static_flow);
+        }
+    
     }
 
     return $self->_dedup_flows(\@flows);

@@ -36,7 +36,7 @@ if ($ckt->get_active_path() eq "backup") {
 
 my $flows = $ckt->get_flows();
 ok(defined($flows), "Flows are defined");
-is(scalar(@$flows), 78, "The flow count matches " . scalar(@$flows));
+is(scalar(@$flows), 74, "The flow count matches " . scalar(@$flows));
 my @actual_3way_flows;
 
 foreach my $flow (@$flows){
@@ -445,7 +445,7 @@ foreach my $flow (@$flows){
 }
 
 ok(defined($flows), "Flows are defined");
-is(scalar(@$flows), 78, "The flow count matches " . scalar(@$flows));
+is(scalar(@$flows), 74, "The flow count matches " . scalar(@$flows));
 
 
 ok($#expected_3way_flows_backup == $#actual_3way_flows_backup ,"expected 3way backup flows match actual 3way backup flows");

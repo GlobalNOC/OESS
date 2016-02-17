@@ -870,9 +870,6 @@ sub merge_actions {
     my ( $self, %args ) = @_;
     my $other_flow      = $args{'flow_rule'};
 
-    warn "Self: " . Data::Dumper::Dumper($self);
-    warn "OTHER: " . Data::Dumper::Dumper($other_flow);
-
     # get the uniquye list of 'set actions' from our action list and the action list
     # of the flow we're merging
     my @set_action_types       = $self->_get_set_action_types( $self->get_actions() );
