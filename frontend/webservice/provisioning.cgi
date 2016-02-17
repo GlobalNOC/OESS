@@ -53,8 +53,6 @@ sub main {
         exit(1);
     }
     my $action = $cgi->param('action');
-    warn Dumper $action;
-    print STDERR "action " . $action;
     my $output;
     my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
     if ($user->{'status'} eq 'decom') {

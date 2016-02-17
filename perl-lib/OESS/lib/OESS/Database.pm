@@ -8876,7 +8876,7 @@ sub revert_edge_interface_move_maintenance {
 
     #sanity checks
     if(!defined($maintenance_id)){
-	    $self->_set_error("maintenance_id must be defined");
+        $self->_set_error("maintenance_id must be defined");
         return;
     }
     
@@ -8886,8 +8886,35 @@ sub revert_edge_interface_move_maintenance {
         show_moved_circuits => 1
     );
     if(!defined($maints) || @$maints < 1){
-	    $self->_set_error("Error retrieving maintenance with maintenance_id $maintenance_id");
+        $self->_set_error("Error retrieving maintenance with maintenance_id $maintenance_id");
         return;
+    }
+
+    # Covers an edge case where a maintenance was started, but no
+    # circuits were moved.
+    if (@{$maints->[0]->{'moved_circuits'}} == 0) {
+        $self->_start_transaction() if($do_commit);
+
+        my $query = "UPDATE edge_interface_move_maintenance " .
+          "SET end_epoch = UNIX_TIMESTAMP(NOW()) " .
+          "WHERE maintenance_id = ?";
+        my $recs = $self->_execute_query($query, [$maintenance_id]);
+        if(!$recs){
+            $self->_rollback() if($do_commit);
+            return;
+        }
+
+        my $node = $self->get_node_by_interface_id(interface_id => $maints->[0]->{'orig_interface_id'});
+        if (!$node) {
+            $self->_rollback() if($do_commit);
+            return;
+        }
+
+        $self->_commit() if($do_commit);
+        return  { maintenance_id   => $maintenance_id,
+                  moved_circuits   => [],
+                  unmoved_circuits => [],
+                  dpid             => $node->{'dpid'} };
     }
 
     # get the circuits it moved
