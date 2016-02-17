@@ -357,7 +357,6 @@ sub _generate_loop_node_flows{
 
     foreach my $node (keys %$path_dict) {
         my $node_id = $self->{'node_id_lookup'}->{$node};
-        warn "Comparing " . $node_id . " to " . $params{'node'} . "\n";
         next if $node_id != $params{'node'};
         #ok we found our node
         
@@ -376,7 +375,6 @@ sub _generate_loop_node_flows{
     }
 
     foreach my $endpoint (@{$self->{'details'}->{'endpoints'}}){
-        warn "Comparing " . $self->{'node_id_lookup'}->{$endpoint->{'node'}} . " to " . $params{'node'} . "\n";
         next if ($self->{'node_id_lookup'}->{$endpoint->{'node'}} != $params{'node'});
         next if ($endpoint->{'local'} == 0);
         my $e_dpid = $self->{'dpid_lookup'}{$endpoint->{'node'}};
@@ -553,12 +551,6 @@ sub _generate_static_mac_path_flows{
                                 #path flow
                                 push(@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{$path}},$flow);
                             }else{
-                                if($vert eq 'Node 51'){
-                                    warn "IN PORT: " . Data::Dumper::Dumper($in_port);
-                                    warn "NODE: " . $vert . "\n";
-                                    warn "ENDPOINT FLOW: \n";
-                                    warn Data::Dumper::Dumper($flow);
-                                }
                                 #this is an endpoint fow
                                 push(@{$self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{$path}}, $flow);
                             }

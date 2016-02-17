@@ -120,8 +120,8 @@ sub new {
         $config = "/etc/oess/database.xml";
     }
 
-    $db->{'logger'} = Log::Log4perl->get_logger('OESS.Database');    
     my $db = $params{'cache'}->{'db'};
+    $db->{'logger'} = Log::Log4perl->get_logger('OESS.Database');    
     $db->reconnect();
 
     if (! $db) {
