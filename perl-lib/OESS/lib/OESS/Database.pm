@@ -192,9 +192,6 @@ sub new {
 sub reconnect{
     my $self = shift;
 
-    $self->{'logger'}->error("Atteping to reconnect to the database");
-    $self->{'logger'}->error("CONFIG: " . Data::Dumper::Dumper($self->{'configuration'}));
-
     my $dbh      = DBI->connect("DBI:mysql:" . $self->{'configuration'}->{'credentials'}->{'database'}, 
                                 $self->{'configuration'}->{'credentials'}->{'username'}, 
                                 $self->{'configuration'}->{'credentials'}->{'password'},
