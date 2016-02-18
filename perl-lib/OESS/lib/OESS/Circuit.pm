@@ -440,6 +440,8 @@ sub _generate_static_mac_path_flows{
         if(!defined($in_ports{$endpoint->{'node'}})){
             $in_ports{$endpoint->{'node'}} = ();
         }
+
+        $endpoint->{'is_endpoint'} = 1;
         push(@{$in_ports{$endpoint->{'node'}}},$endpoint);
     }
     
@@ -474,9 +476,9 @@ sub _generate_static_mac_path_flows{
         }
 
         push(@{$in_ports{$node_a}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_a'}, 
-                                    tag => $internal_ids->{$path}{$node_a}{$interface_a}});
+                                    tag => $internal_ids->{$path}{$node_a}{$interface_a}, is_endpoint => 0});
         push(@{$in_ports{$node_z}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_z'}, 
-                                    tag => $internal_ids->{$path}{$node_z}{$interface_z}});
+                                    tag => $internal_ids->{$path}{$node_z}{$interface_z}, is_endpoint => 0});
         
         $finder{$node_a}{$node_z} = $link;
         $finder{$node_z}{$node_a} = $link;
@@ -547,7 +549,7 @@ sub _generate_static_mac_path_flows{
 									{'output' => $port}]);
 			    
                             #is this path or endpoint side?
-                            if($node_ends{$vert} == 0){
+                            if(! $in_port->{'is_endpoint'} ){
                                 #path flow
                                 push(@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{$path}},$flow);
                             }else{
@@ -575,13 +577,13 @@ sub _generate_static_mac_path_flows{
 							    actions => [{'set_vlan_vid' => $endpoint->{'tag'}},
 									{'output' => $endpoint->{'port_no'}}]);
                             #now the question is... are these 2 ports on the same switch that are endpoints?
-                            if(defined($in_port->{'link_id'})){
+                            if(! $in_port->{'is_endpoint'} ){
                                 #this is the link -> ep rule
                                 #it was generated in the one above... ignore it now
                                 push(@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{$path}}, $flow);
                             }else{
                                 #this is ep -> ep rule
-                                #only do this for primary (because back and primary are gonna be the same)
+                                #don't dupe this because it doesn't change this is s1:p1 to s1:p2 and vise versa
                                 if($path eq 'primary'){
                                     push(@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{$path}},$flow);
                                 }
