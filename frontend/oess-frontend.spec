@@ -1,6 +1,6 @@
 Name:		oess-frontend
 Version:	1.1.9
-Release:	1%{?dist}
+Release:	2%{?dist}
 Summary:	The core oess service provides
 
 Group:		Network
@@ -11,7 +11,7 @@ BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 BuildRequires:	perl
 Requires:	perl-OESS >= 1.1.9, perl(Net::DBus),dbus,dbus-libs,mysql-server,oess-core
-Requires:       nox >= 0.10.8
+Requires:       nox >= 0.10.9
 Requires:       yui2
 Requires:       httpd, mod_ssl
 Requires:       nddi-tiles
