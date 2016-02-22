@@ -28,24 +28,23 @@ use warnings;
 package OESS::FWDCTL::Master;
 
 use strict;
-use Net::DBus::Exporter qw(org.nddi.fwdctl);
-use Net::DBus qw(:typing);
-use Net::DBus::Annotation qw(:call);
-use base qw(Net::DBus::Object);
 
 use Data::Dumper;
 use POSIX;
 use Log::Log4perl;
 use Switch;
+
 use OESS::FlowRule;
 use OESS::FWDCTL::Switch;
 use OESS::Database;
 use OESS::Topology;
 use OESS::Circuit;
-use OESS::DBus;
+
+use AnyEvent::RabbitMQ;
 use AnyEvent::Fork;
 use AnyEvent::Fork::RPC;
 use AnyEvent;
+
 use JSON::XS;
 use XML::Simple;
 use Time::HiRes qw( usleep );
@@ -86,13 +85,6 @@ use constant SYSTEM_USER        => 1;
 
 $| = 1;
 
-sub _log {
-    my $string = shift;
-
-    my $logger = Log::Log4perl->get_logger("OESS.FWDCTL.MASTER")->warn($string);
-
-}
-
 =head2 OFPPR_ADD
 =cut
 =head2 OFPPR_DELETE
@@ -108,30 +100,113 @@ sub _log {
 sub new {
     my $class = shift;
     my %params = @_;
-    my $service = $params{'service'};
-    my $config  = $params{'config'}; 
-    my $self = $class->SUPER::new($service, '/controller1');
+    my $self = \%params;
     bless $self, $class;
 
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL.MASTER');
-    #my $config = shift;
-    if(!defined($config)){
-        $config = "/etc/oess/database.xml";
+
+    if(!defined($self->{'config'})){
+        $self->{'config'} = "/etc/oess/database.xml";
     }
 
-    if(!defined($params{'cache'})){
-        die;
-    }
+    $self->{'db'} = OESS::Database->new( config_file => $self->{'config'} );
 
-    my $db = $params{'cache'}->{'db'};
+    my $cv = AnyEvent->condvar;
+    my $rabbit_mq;
+    my $ar = AnyEvent::RabbitMQ->new->load_xml_spec()->connect(
+	host => $self->{'db'}->{'rabbitMQ'}->{'host'},
+	port => $self->{'db'}->{'rabbitMQ'}->{'port'},
+	user => $self->{'db'}->{'rabbitMQ'}->{'user'},
+	pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
+	vhost => $self->{'db'}->{'rabbitMQ'}->{'vhost'},
+	timeout => 1,
+	tls => 0,
+	on_success => sub {
+	    my $ar = shift;
+	    $ar->open_channel(
+		on_success => sub {
+		    my $channel = shift;
+		    $rabbit_mq = $channel;
+		    $channel->declare_exchange(
+			exchange   => 'OESS',
+			type => 'topic',
+			on_success => sub {
+			    $cv->send();
+			},
+			on_failure => $cv,
+			);
+		},
+		on_failure => $cv,
+		on_close   => sub {
+		    print "WTF WHY DID THIS CLOSE!!\n";
+		},
+		);
+	},
+	on_failure => $cv,
+	on_read_failure => sub { die @_ },
+	on_return  => sub {
+	    my $frame = shift;
+	    die "Unable to deliver ", Dumper($frame);
+	},
+	on_close   => sub {
+	    my $why = shift;
+	    if (ref($why)) {
+		my $method_frame = $why->method_frame;
+		die $method_frame->reply_code, ": ", $method_frame->reply_text;
+	    }
+	    else {
+		die $why;
+	    }
+	},
+	);
 
-    $self->{'logger'}->error(Data::Dumper::Dumper($db));
+    #synchronize
+    $cv->recv;
 
-    if (! $db) {
-        $self->{'logger'}->fatal("Could not make database object");
-        exit(1);
-    }
-    $self->{'db'} = $db;
+    $self->{'ar'} = $ar;
+    $self->{'rabbit_mq'} = $rabbit_mq;
+    $self->{'rabbit_mq'}->declare_queue( queue => "OF.FWDCTL",
+					 on_success => sub {
+					     $cv->send();
+					 });
+    #synchronized
+    $cv->recv;
+
+    $self->{'rabbit_mq'}->bind_queue( queue => 'OF.FWDCTL',
+				      exchange => 'OESS',
+				      routing_key => 'OF.FWDCTL.*',
+				      on_success => sub {
+					  $cv->send();
+				      });
+
+    $cv->recv;
+
+    $self->{'rabbit_mq'}->declare_queue( queue => "OF.NOX",
+                                         on_success => sub {
+                                             $cv->send();
+                                         });
+
+    $cv->recv;
+
+    $self->{'rabbit_mq'}->bind_queue( queue => 'OF.NOX',
+                                      exchange => 'OESS',
+                                      routing_key => 'OF.NOX.*',
+                                      on_success => sub {
+                                          $cv->send();
+                                      });
+
+    my $fwdctl = $self;
+    $self->{'rabbit_mq'}->consume( queue => "OF.FWDCTL",
+				   on_consume => sub { my $message = shift; 
+						       $fwdctl->_handle_rpc( $message)
+				   });
+
+    $self->{'rabbit_mq'}->consume( queue => "OF.NOX",
+                                   on_consume => sub { my $message = shift;
+                                                       $fwdctl->_handle_event( $message)
+                                   });
+
+    $self->{'logger'}->info("RabbitMQ ready to go!");
 
     my $topo = OESS::Topology->new( db => $self->{'db'} );
     if (! $topo) {
@@ -154,31 +229,222 @@ sub new {
     $self->{'node_info'} = {};
     $self->{'link_maintenance'} = {};
 
-    $self->{'logger'}->error("No cache specified! Possible race condition... dying") && $self->{'logger'}->logconfess() if(!defined($params{'cache'}));
-
-    $self->{'circuit'} = $params{'cache'}->{'circuit'};
-    $self->{'link_status'} = $params{'cache'}->{'link_status'};
-    $self->{'node_info'} = $params{'cache'}->{'node_info'};
-    $self->{'circuit_status'} = $params{'cache'}->{'circuit_status'};
-
-    #remote method calls people can make to the master
-    dbus_method("addVlan", ["uint32"], ["int32","string"]);
-    dbus_method("deleteVlan", ["string"], ["int32","string"]);
-    dbus_method("changeVlanPath", ["string"], ["int32","string"]);
-    dbus_method("topo_port_status",["uint64","uint32",["dict","string","string"]]);
-    dbus_method("rules_per_switch",["uint64"],["uint32"]);
-    dbus_method("fv_link_event",["string","int32"],["int32"]);
-    dbus_method("update_cache",["int32"],["int32", "string"]);
-    dbus_method("force_sync",["uint64"],["int32","string"]);
-    dbus_method("get_event_status",["string"],["int32"]);
-    dbus_method("check_child_status",[],["int32","string"]);
-    dbus_method("node_maintenance", ["int32", "string"], ["int32"]);
-    dbus_method("link_maintenance", ["int32", "string"], ["int32"]);
-    
-    #exported for the circuit notifier
-    dbus_signal("circuit_notification", [["dict","string",["variant"]]],['string']);
+    $self->update_cache(-1);
 
     return $self;
+}
+
+sub _handle_event{
+    my $self = shift;
+    my $var = shift;
+
+    $self->{'logger'}->debug("Handling Event");
+    my $method = $var->{'deliver'}->{'method_frame'}->{'routing_key'};
+    $self->{'logger'}->debug("Method: " . $method);
+    my $body = $var->{'body'}->{'payload'};
+    $self->{'logger'}->debug("PayLoad: " . $body);
+
+    my $json;
+    eval{
+        $json = decode_json($body);
+    };
+
+    if(!defined($json)){
+        $self->{'logger'}->error("Recieved an Invalid event: " . $method . " BODY: " . $body);
+	return;
+    }
+
+    $method =~ /OF.NOX.(\S+)/;
+    my $name = $1;
+
+    switch( $name ){
+	case "datapath_join"{
+	    my $dpid = $json->{'dpid'};
+	    my $ip = $json->{'ip'};
+	    my $ports = $json->{'ports'};
+
+	    if(!defined($dpid)){
+		return;
+	    }
+	    $self->datapath_join_handler( $dpid );
+	    
+	}
+	case "datapath_leave"{
+
+	    my $dpid = $json->{'dpid'};
+	    #no op right now
+	    
+	}
+	case "port_status"{
+	    my $dpid = $json->{'dpid'};
+	    my $reason = $json->{'reason'};
+	    my $info = $json->{'info'};
+
+	    if(!defined($dpid) || !defined($reason) || !defined($info)){
+		return;
+	    }
+
+	    $self->port_status( $dpid, $reason, $info );
+	}
+	else{
+	    
+	}
+    }
+}
+
+sub _handle_rpc{
+    my $self = shift;
+    my $var = shift;
+
+    $self->{'logger'}->debug("Handling RPC message");
+    my $method = $var->{'deliver'}->{'method_frame'}->{'routing_key'};
+    my $props = $var->{'header'};
+    $self->{'logger'}->debug("Method: " . $method);
+    my $body = $var->{'body'}->{'payload'};
+    $self->{'logger'}->debug("PayLoad: " . $body);
+
+    my $json;
+    eval{
+	$json = decode_json($body);
+    };
+
+    if(!defined($json)){
+	$self->{'logger'}->error("Recieved an Invalid request: " . $method . " BODY: " . $body);
+	my $response = {error => "Invalid JSON blob: " . $body};
+	
+	$self->{'rabbit_mq'}->publish(
+	    exchange => 'OESS',
+	    routing_key => $props->{'reply_to'},
+	    header => { correlation_id => $props->{'correlation_id'} },
+	    body => encode_json($response) );
+	
+	$self->{'rabbit_mq'}->ack();
+	return;
+    }
+
+    my $results;
+
+    $method =~ /OF.FWDCTL.(\S+)/;
+    my $name = $1;
+
+    switch( $name ){
+	case "addVlan" {
+	    
+	    my $ckt_id = $json->{'circuit_id'};	    
+	    if(!defined($ckt_id)){
+		$results = {success => 0, error => "No circuit ID specified"};
+	    }else{
+		my ($status, $event_id)  = $self->addVlan( $ckt_id );
+		$results = {success => $status, event_id => $event_id};
+	    }
+	}
+	case "deleteVlan"{	    
+            my $ckt_id = $json->{'circuit_id'};
+            if(!defined($ckt_id)){
+                $results = {success => 0, error => "No circuit ID specified"};
+            }else{
+		my ($status, $event_id) = $self->deleteVlan( $ckt_id );	    
+		$results = {success => $status, event_id => $event_id };
+	    }
+	}
+	case "changeVlanPath"{
+	    
+            my $ckt_id = $json->{'circuit_id'};
+            if(!defined($ckt_id)){
+                $results = {success => 0, error => "No circuit ID specified"};
+            }else{
+		my ($status, $event_id) = $self->changeVlanPath( $ckt_id );	
+		$results = {success => $status, event_d => $event_id };
+	    }
+	}
+	case "topo_port_status"{
+	    my $dpid = $json->{'dpid'};
+	    my $port_id = $json->{'port_id'};
+	    
+	}
+	case "rules_per_switch"{
+	    
+	    my $dpid = $json->{'dpid'};
+            if(!defined($dpid)){
+                $results = {success => 0, error => "No DPID specified"};
+            }else{	    
+		my $rules = $self->rules_per_switch( $dpid );
+		$results = {succcess => 1, rules => $rules, dpid => $dpid };
+	    }
+	}
+	case "fv_link_event"{
+	    
+	    my $link_name = $json->{'link_name'};
+	    my $state = $json->{'state'};
+            if(!defined($link_name) || !defined($state)){
+                $results = {success => 0, error => "No Link name or State specified"};
+            }else{
+		my $status = $self->fv_link_event( $link_name, $state);
+		$results = {success => $status};
+	    }
+	    
+	}
+	case "update_cache"{
+            my $ckt_id = $json->{'circuit_id'};
+	    my ($status, $event_id) = $self->update_cache($ckt_id);
+	    $results = {success => $status, event_id => $event_id};
+	}
+	case "force_sync"{
+	    my $dpid = $json->{'dpid'};
+            if(!defined($dpid)){
+                $results = {success => 0, error => "No DPID specified"};
+            }else{
+		my ($status, $event_id) = $self->force_sync($dpid);
+		$results = {success => $status, event_id => $event_id};
+	    }
+	}
+	case "get_event_status"{
+	    my $event_id = $json->{'event_id'};
+	    my $status = $self->get_event_status( $event_id );
+	    $results = { success => $status, event_id => $event_id };
+	}
+	case "check_child_status"{
+	    
+	    my ($status, $event_id) = $self->check_child_status();
+	    $results =  {success => $status, event_id => $event_id };
+
+	}
+	case "node_maintenance"{
+	    
+	    my $node_id = $json->{'node_id'};
+	    my $state = $json->{'state'};
+            if(!defined($node_id) || !defined($state)){
+                $results = {success => 0, error => "No node_id or state was specified"};
+            }else{
+		my $status = $self->node_maintenance( $node_id, $state );
+		$results = {success => $status};
+	    }
+	} 
+	case "link_maintenance"{
+	    
+	    my $link_id = $json->{'link_id'};
+	    my $state = $json->{'state'};
+            if(!defined($link_id) || !defined($state)){
+                $results = {success => 0, error => "No Link_id or state was specified"};
+            }else{
+		my $status = $self->link_maintenance( $link_id, $state);
+		$results = {success => $status};
+	    }
+	}
+	else{
+	    $results = {success => 0, error => "No method by name: " . $method . " available at this FWDCTL instance"};
+	}
+    }
+    
+
+    #send our actual results back!
+    $self->{'rabbit_mq'}->publish(
+	exchange => 'OESS',
+	routing_key => $props->{'reply_to'},
+	header => { correlation_id => $props->{'correlation_id'} },
+	body => encode_json($results));
+    
+    $self->{'rabbit_mq'}->ack();
 }
 
 
