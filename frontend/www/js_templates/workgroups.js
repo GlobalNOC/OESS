@@ -18,11 +18,12 @@ function workgroups_init(){
 
 	    var workgroup_id = record.getData('workgroup_id');
 	    var name         = record.getData('name');
+        var wtype = record.getData('type');
 
 	    session.data.workgroup_id   = workgroup_id;
 	    session.data.workgroup_name = name;
-
-	    session.save();
+        session.data.workgroup_type = wtype;
+	session.save();
 
 	    window.location = "?action=index";
 	    
@@ -38,7 +39,8 @@ function make_workgroups_table(){
     ds.responseSchema = {
 	resultsList: "results",
 	fields: [{key: "name"},
-                 {key: "workgroup_id"}
+                 {key: "workgroup_id"},
+                 {key: "type"}
 		 ],
 	metafields: {
 	    error: "error"

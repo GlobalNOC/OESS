@@ -75,6 +75,8 @@ delete $res->{'internal_ids'};
 
 my $correct_result = {
           'static_mac' => 0,
+          'remote_requester' => undef,
+          'remote_url' => undef,
           'external_identifier' => undef,
           'last_modified_by' => {
                                   'email' => 'user_11@foo.net',

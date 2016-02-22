@@ -1,0 +1,152 @@
+#!/bin/bash
+#
+# OESS-NSI        Startup script for the OESS NSI daemon
+#
+# chkconfig: 2345 81 30
+# description: Starts the OE-SS NSI daemon - listens for NSI requests and handles them
+# processname: /usr/bin/oess-nsi
+
+# Source function library
+if [ -f /etc/rc.d/init.d/functions ]; then
+. /etc/rc.d/init.d/functions
+elif [ -f /etc/init.d/functions ]; then
+. /etc/init.d/functions
+elif [ -f /etc/rc.d/functions ]; then
+. /etc/rc.d/functions
+fi
+
+# Source networking configuration.
+. /etc/sysconfig/network
+
+# Check that networking is up.
+[ ${NETWORKING} = "no" ] && exit 0
+name=oess-nsi
+exec_file=/usr/bin/$name
+log_file=/var/log/$name.log
+options=
+username=_oess
+lockfile=/var/lock/subsys/$name
+command="$exec_file -u $username $options"
+PIDFILE=/var/run/oess/$name.pid
+
+#see how we were called.
+case "$1" in
+  start)
+        #start
+	IS_RUNNING=0
+	echo -n $"Starting $name: "
+	if [[ -f $lockfile  && -f $PIDFILE ]];then
+	    MYPID=`head -n 1 $PIDFILE`
+	    TEST_RUNNING=`ps -p ${MYPID} | grep ${MYPID}`
+	    if [ -z "${TEST_RUNNING}" ];
+	    then
+	       IS_RUNNING=0
+	    else
+	       IS_RUNNING=1
+	    fi
+	fi
+
+        if [ $IS_RUNNING != 0 ];then
+            failure; echo
+        else
+            $command
+
+            if [ $? -eq 0 ]; then
+                touch $lockfile
+                success; echo
+            else
+                failure; echo
+            fi
+        fi
+        ;;
+
+  start-instrument)
+        #start
+        IS_RUNNING=0
+        echo -n $"Starting $name: "
+        if [[ -f $lockfile  && -f $PIDFILE ]];then
+            MYPID=`head -n 1 $PIDFILE`
+            TEST_RUNNING=`ps -p ${MYPID} | grep ${MYPID}`
+            if [ -z "${TEST_RUNNING}" ];
+            then
+               IS_RUNNING=0
+            else
+               IS_RUNNING=1
+            fi
+
+        fi
+        if [ $IS_RUNNING != 0 ];then
+            failure; echo
+        else
+            if [ -e /tmp/nsi_cover/ ]; then
+                rm -rf /tmp/nsi_cover/
+            fi
+            mkdir -p /tmp/nsi_cover/cover_db
+            chmod 777 /tmp/nsi_cover -R
+            /usr/bin/perl -MDevel::Cover=-dir,/tmp/nsi_cover/,+select,OESS $command -f &
+
+                if [ $? -eq 0 ]; then
+                echo $! > $PIDFILE
+                touch $lockfile
+                success; echo
+            else
+                failure; echo
+            fi
+        fi
+        ;;
+  stop)
+        #stop
+        if [ -f $PIDFILE ]; then
+                action $"Stopping ${name}: " /bin/true
+                kill -9 `cat $PIDFILE`
+                rm -f $PIDFILE
+        else
+                action $"Stopping ${name}: " /bin/false
+        fi
+        rm -rf $lockfile
+        ;;
+  stop-instrument)
+        #stop
+        if [ -f $PIDFILE ]; then
+                action $"Stopping ${name}: " /bin/true
+                kill -HUP `cat $PIDFILE`
+                rm -f $PIDFILE
+        else
+                action $"Stopping ${name}: " /bin/false
+        fi
+        rm -rf $lockfile
+        ;;
+  status)
+        #status p0f
+        if [ -f $PIDFILE ]; then
+                MYPID=`head -n 1 $PIDFILE`
+                TEST_RUNNING=`ps -p ${MYPID} | grep ${MYPID}`
+                if [ -z "${TEST_RUNNING}" ]
+                then
+                    echo "$name (pid `cat $PIDFILE`) is not running (but PID file exists)"
+		    exit 3
+                else
+                    echo "$name (pid `cat $PIDFILE`) is running"
+                fi
+        else
+                echo "$name is not running"
+		exit 3
+        fi
+        exit $?
+        ;;
+
+  restart)
+        $0 stop
+        #wee need to sleep to make sure the deamon has enoth time to shutdown
+        sleep 3
+        $0 start
+        exit $?
+        ;;
+  *)
+        echo $"Usage: $0 {start|stop|start-instrument|stop-instrument|restart|status|help}"
+        exit 1
+
+esac
+
+exit $RETVAL
+

@@ -174,24 +174,6 @@ sub _update_cache{
         }
         
 
-        foreach my $obj (@{$data->{'ckts'}->{$ckt}->{'flows'}->{'static_mac_addr'}->{'primary'}}){
-            next unless($obj->{'dpid'} == $self->{'dpid'});
-            my $flow = OESS::FlowRule->new( match => $obj->{'match'},
-                                            actions => $obj->{'actions'},
-                                            dpid => $obj->{'dpid'},
-                                            priority =>$obj->{'priority'});
-            push(@{$self->{'ckts'}->{$ckt}->{'flows'}->{'static_mac_addr'}->{'primary'}},$flow);
-        }
-
-        foreach my $obj (@{$data->{'ckts'}->{$ckt}->{'flows'}->{'static_mac_addr'}->{'backup'}}){
-            next unless($obj->{'dpid'} == $self->{'dpid'});
-            my $flow = OESS::FlowRule->new( match => $obj->{'match'},
-                                            actions => $obj->{'actions'},
-                                            dpid => $obj->{'dpid'},
-                                            priority =>$obj->{'priority'});
-            push(@{$self->{'ckts'}->{$ckt}->{'flows'}->{'static_mac_addr'}->{'backup'}},$flow);
-        }
-
     }
 
     $self->{'node'} = $data->{'nodes'}->{$self->{'dpid'}};
@@ -224,7 +206,6 @@ sub _generate_commands {
             #whatever path is active is actually what we are moving to
             my $active_path     = $self->{'ckts'}{$circuit_id}{'details'}{'active_path'};
             my $endpoint_flows  = $self->{'ckts'}{$circuit_id}{'flows'}{'endpoint'}{$active_path};
-
             return $endpoint_flows;
         }else{
 
@@ -310,7 +291,7 @@ sub change_path{
             next unless defined($command);
             next unless ($command->get_dpid() == $self->{'dpid'});
             $self->{'logger'}->info("Modifying endpoint flow to $active_path path: " . $command->to_human());
-            $self->{'nox'}->send_datapath_flow($command->to_dbus( command => OFPFC_MODIFY ));
+            $self->{'nox'}->send_datapath_flow($command->to_dbus( command => OFPFC_MODIFY_STRICT ));
 
             #if not doing bulk barrier send a barrier and wait
             if(!$self->{'node'}->{'send_barrier_bulk'}){

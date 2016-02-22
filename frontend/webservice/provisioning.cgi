@@ -2,11 +2,6 @@
 #
 ##----- NDDI OESS provisioning.cgi
 ##-----
-##----- $HeadURL: svn+ssh://svn.grnoc.iu.edu/grnoc/oe-ss/frontend/trunk/webservice/provisioning.cgi $
-##----- $Id$
-##----- $Date$
-##----- $LastChangedBy$
-##-----
 ##----- Provides a WebAPI to allow for provisioning/decoming of circuits
 ##
 ##-------------------------------------------------------------------------
@@ -58,8 +53,6 @@ sub main {
         exit(1);
     }
     my $action = $cgi->param('action');
-    warn Dumper $action;
-    print STDERR "action " . $action;
     my $output;
     my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
     if ($user->{'status'} eq 'decom') {
@@ -68,17 +61,17 @@ sub main {
     switch ($action) {
 
         case "provision_circuit" {
-                                  $output = &provision_circuit();
-                                 }
+	    $output = &provision_circuit();
+	}
         case "remove_circuit" {
-                            $output = &remove_circuit();
-                            }
+            $output = &remove_circuit();
+        }
         case "fail_over_circuit" {
-                                      $output = &fail_over_circuit();
-                                }
+            $output = &fail_over_circuit();
+        }
         case "reprovision_circuit"{
-                                    $output = &reprovision_circuit();
-                                    }
+            $output = &reprovision_circuit();
+        }
         case "error" {
             $output = { error => "Decommed users cannot use webservices."};
         } 
@@ -295,7 +288,10 @@ sub provision_circuit {
 
     my @remote_nodes = $cgi->param('remote_node');
     my @remote_tags  = $cgi->param('remote_tag');
-
+    
+    my $remote_url   = $cgi->param('remote_url');
+    my $remote_requester = $cgi->param('remote_requester');
+    
     my $workgroup = $db->get_workgroup_by_id( workgroup_id => $workgroup_id );
 
     if(!defined($workgroup)){
@@ -314,27 +310,30 @@ sub provision_circuit {
     if ( !$circuit_id || $circuit_id == -1 ) {
         #Register with DB
         $output = $db->provision_circuit(
-                                         description    => $description,
-                                         bandwidth      => $bandwidth,
-                                         provision_time => $provision_time,
-                                         remove_time    => $remove_time,
-                                         links          => \@links,
-                                         backup_links   => \@backup_links,
-                                         nodes          => \@nodes,
-                                         interfaces     => \@interfaces,
-                                         tags           => \@tags,
-                                         mac_addresses  => \@mac_addresses,
-                                         endpoint_mac_address_nums  => \@endpoint_mac_address_nums,
-                                         user_name      => $ENV{'REMOTE_USER'},
-                                         workgroup_id   => $workgroup_id,
-                                         external_id    => $external_id,
-                                         restore_to_primary => $restore_to_primary,
-                                         static_mac => $static_mac
-                                        );
-        if ( defined $output && $provision_time <= time() ) {
+            description    => $description,
+            remote_url => $remote_url,
+            remote_requester => $remote_requester,
+            bandwidth      => $bandwidth,
+            provision_time => $provision_time,
+            remove_time    => $remove_time,
+            links          => \@links,
+            backup_links   => \@backup_links,
+            nodes          => \@nodes,
+            interfaces     => \@interfaces,
+            tags           => \@tags,
+            mac_addresses  => \@mac_addresses,
+            endpoint_mac_address_nums  => \@endpoint_mac_address_nums,
+            user_name      => $ENV{'REMOTE_USER'},
+            workgroup_id   => $workgroup_id,
+            external_id    => $external_id,
+            restore_to_primary => $restore_to_primary,
+            static_mac => $static_mac,
+            state => $state
+            );
 
-            my $result =
-              _send_add_command( circuit_id => $output->{'circuit_id'} );
+        if(defined($output) && ($provision_time <= time()) && ($state eq 'active' || $state eq 'scheduled' || $state eq 'provisioned')) {
+
+            my $result = _send_add_command( circuit_id => $output->{'circuit_id'} );
 
             if ( !defined $result ) {
                 $output->{'warning'} =
@@ -389,8 +388,7 @@ sub provision_circuit {
             static_mac => $static_mac,
             do_sanity_check => 0,
             loop_node => $loop_node,
-            state  => $state#,
-            #loop_name => $loop_name
+            state  => $state
         );
 
         ##Edit Existing Circuit
@@ -423,15 +421,17 @@ sub provision_circuit {
             };
         }
         # add flows on switch
-        $result = _send_add_command( circuit_id => $output->{'circuit_id'} );
-        if ( !defined $result ) {
-            $output->{'warning'} =
-              "Unable to talk to fwdctl service - is it running?";
-        }
-        if ( $result == 0 ) {
-            $results->{'error'} =
-              "Unable to edit circuit. Please check your logs or contact your server adminstrator for more information. Circuit is likely not live on the network anymore.";
-            return $results;
+        if($state eq 'active' || $state eq 'looped'){
+            $result = _send_add_command( circuit_id => $output->{'circuit_id'} );
+            if ( !defined $result ) {
+                $output->{'warning'} =
+                    "Unable to talk to fwdctl service - is it running?";
+            }
+            if ( $result == 0 ) {
+                $results->{'error'} =
+                    "Unable to edit circuit. Please check your logs or contact your server adminstrator for more information. Circuit is likely not live on the network anymore.";
+                return $results;
+            }
         }
 
         #Send Edit to Syslogger DBUS
@@ -543,7 +543,6 @@ sub remove_circuit {
         };
         warn $@ if $@;
 
-
     }
 
     $results->{'results'} = [ { success => 1 } ];
@@ -635,7 +634,9 @@ sub fail_over_circuit {
 
         if ( $is_up || $forced ) {
 
-            $ckt->change_path();
+            my $user_id = $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'});
+
+            $ckt->change_path( user_id => $user_id, reason => "CHANGE PATH: User requested");
             my $result =
               _fail_over( circuit_id => $circuit_id, workgroup_id => $workgroup_id );
             if ( !defined($result) ) {

@@ -588,7 +588,16 @@ sub get_actions{
 =cut
 
 sub to_human {
-    my $self = shift;
+    my ( $self, %args ) = @_;
+    
+    my $node_name;
+    if ($args{'db'}) {
+        
+        my $results = $args{'db'}->get_node_by_dpid(dpid => $self->{'dpid'}); 
+        $node_name = $results->{'name'}
+
+
+    }
 
     my $match_str = "";
     foreach my $key (keys (%{$self->{'match'}})){
@@ -598,7 +607,19 @@ sub to_human {
         }
         switch ($key){
             case "in_port"{
-                $match_str .= "IN PORT: " . $self->{'match'}->{$key};
+
+                if ($args{'db'}) {
+
+                    my $results = $args{'db'}->get_interface_by_dpid_and_port(dpid => $self->{'dpid'}, port_number => $self->{'match'}->{$key});
+                    
+                    my $port_name  = $results->{'name'}; 
+
+                    $match_str .= "IN PORT: " . $self->{'match'}->{$key} . " ($port_name)";
+                }
+                else {
+                    $match_str .= "IN PORT: " . $self->{'match'}->{$key};
+                }
+
             }case "dl_vlan"{
                 $match_str .= "VLAN: " . $self->{'match'}->{$key};
             }case "dl_type"{
@@ -657,7 +678,15 @@ sub to_human {
                         return;
                     }
 
-                    $action_str .= "OUTPUT: " . $out_port . "\n";
+                    if ($args{'db'}) { 
+                        my $results = $args{'db'}->get_interface_by_dpid_and_port(dpid => $self->{'dpid'}, port_number => $out_port);
+                        my $port_name = $results->{'name'}; 
+                        $action_str .= "OUTPUT: " . $out_port . " ($port_name) \n";
+                    }
+                    else {
+                        $action_str .= "OUTPUT: " . $out_port . "\n";
+                    }
+
                 }
 
                 case "set_vlan_vid" {
@@ -679,7 +708,7 @@ sub to_human {
                 case "drop"{
                     #no actions... ie... do nothing
                     
-                }else{
+            }else{
                     $self->{'logger'}->error("Error unsupported action: " . $key . "\n");
                     return;
                 }
@@ -689,12 +718,16 @@ sub to_human {
     }
     
     my $dpid_str    = sprintf("%x",$self->{'dpid'});
-    my $str = "OFFlowMod:\n".
-              " DPID: " . $dpid_str . "\n".
-              " Priority: " . $self->{'priority'} . "\n".
-              " Match: " . $match_str . "\n".
-              " Actions: " . $action_str;
-
+    my $str = "OFFlowMod:\n";
+    if(defined($node_name) && $node_name ne ''){
+        $str .= " DPID: " . $dpid_str . " ($node_name)\n";
+    }else{
+        $str .= " DPID: " . $dpid_str . "\n";
+    }
+    $str .= " Priority: " . $self->{'priority'} . "\n".
+        " Match: " . $match_str . "\n".
+        " Actions: " . $action_str;
+    
     return $str;
 }
 
@@ -731,6 +764,8 @@ sub compare_match{
     my $other_match = $other_rule->get_match();
     
     return 0 if(!defined($other_match));
+
+    return 0 if($self->{'priority'} != $other_rule->{'priority'});
 
     foreach my $key (keys (%{$self->{'match'}})){
         return 0 if(!defined($other_match->{$key}));
@@ -873,48 +908,72 @@ sub merge_actions {
         # don't merge, we already do what this flows' actions are doing
         return 1 if( $self->compare_actions( flow_rule => $other_flow ) );
 
-        # check if we already perform the same actions, in the same order,
-        # without any 'set actions' in between
-        my $other_actions      = dclone($other_flow->get_actions());
-        my $other_action       = shift(@$other_actions);
-        my $different_outcome  = 0;
-        my $found_action_count = 0;
-        my $other_action_type  = (keys(%$other_action))[0];
-        foreach my $action (@{$self->get_actions()}){
-            my $action_type = (keys(%$action))[0];
-            
-            # if actions are the same increment found action cound and continue
-            if( $other_action_type eq $action_type &&
-                $action->{$action_type} eq $other_action->{$other_action_type} ){
-                $found_action_count += 1;
-                # if we've found all our actions we are done
-                last if( $found_action_count == @{$other_flow->get_actions()} );
-                # shift the next action off the list of actions we're looking for
-                $other_action      = shift(@$other_actions);
-                $other_action_type = (keys(%$other_action))[0];
-                # continue looking for other_flow's actions
-                next;
-            }
-            # if we hit a set action before we found all of the other flow's actions the outcome will
-            # not be the same, 
-            if( $found_action_count && $self->_is_set_action($action_type) ){
-                $different_outcome = 1;
-                last;
-            }
-        } 
-        return 1 if( !$different_outcome && ($found_action_count == @{$other_flow->get_actions()}));
+	#don't merge if we already have an equivilent set of actions
+	return 1 if( $self->_has_equivilent_actions( flow_rule => $other_flow));
+	
+	#we made it this far so its safe to just add the actions to my flows...
+	foreach my $action (@{$other_flow->get_actions()}){
+	    push(@{$self->{'actions'}}, $action);
+	}
 
-        # other wise just push it on the end of our actions
-        # since the set actions are the same both actions set
-        # will be able to keep their original intent
-        foreach my $action (@{$other_flow->get_actions()}){
-            push(@{$self->{'actions'}}, $action);
-        }
         return 1;
     }
 
     # shouldn't be possible to hit this 
     $self->{'logger'}->error("Actions could not be merged for unknown reason");
+    return 0;
+}
+
+=head2 _has_equivilent_actions
+
+=cut
+
+sub _has_equivilent_actions{
+    my $self = shift;
+    my %params = @_;
+    
+    $self->{'logger'}->trace("Checking for equivilent actions before merging");
+
+    if(!defined($params{'flow_rule'})){
+	return 0;
+    }
+
+    my $actions = $self->get_actions();
+    my $other_actions = $params{'flow_rule'}->get_actions();
+
+    $self->{'logger'}->trace("Checking for equivilency between " . Data::Dumper::Dumper($actions) . " and " . Data::Dumper::Dumper($other_actions));
+
+    #it isn't possible for us to have equivilent actions if there are more actions in the one to be merged into us...
+    if(scalar(@$actions) < scalar(@$other_actions)){
+	return 0;
+    }
+
+    my $j=0;
+    for(my $i=0;$i < scalar(@$actions) ; $i++){
+	my $action = $actions->[$i];
+	my $action_type = (keys(%$action))[0];
+
+	#compare the values... if they are the same keep going	
+	if(defined($other_actions->[$j]) && defined($other_actions->[$j]->{$action_type})){
+	    if($action->{$action_type} == $other_actions->[$j]->{$action_type}){
+		#are we at the end of our other actions list?
+		if($j == $#{$other_actions}){
+		    #our action is already represented...
+		    $self->{'logger'}->trace("actions are already in this flow rule");
+		    return 1;
+		}else{
+		    #we are only so far... keep going
+		    $j++;
+		}
+	    }else{
+		#ok well that one failed... keep going and reset..
+		$j=0;
+	    }
+	}else{
+	    $j=0;
+	}
+    }
+    #nope didn't match
     return 0;
 }
 

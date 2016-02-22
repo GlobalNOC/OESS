@@ -14,7 +14,7 @@ BEGIN {
 use lib "$path";
 use OESSDatabaseTester;
 
-use Test::More tests => 5;
+use Test::More tests => 13;
 use Test::Deep;
 use OESS::Database;
 use OESSDatabaseTester;
@@ -29,21 +29,216 @@ my $user = $db->edit_user(user_id => '11',
                           email_address => 'user_11@foo.net',
                           auth_names => ['aragusa'],
                           status => 'active',
-                          type => 'normal');
-                        
+                          type => 'normal');                        
 ok(defined($user), "User updated");
 
-#OESSDatabaseTester::workgroupLimits( workgroup_id => 11, 
-#                                     db => $db,
-#                                     circuit_num => 1);
 
-#my $res;
+#
+# BEGIN Trunk: provision_circuit tests
+#
+
+
+my $valid_vlan = 99;
+my $invalid_vlan = 150;
+
+my $trunk_iface = 'e3/1';
+my $trunk_iface_id = 51;
+my $trunk_iface_node = 'Node 51';
+my $trunk_iface_node_id = 51;
+my $trunk_iface_workgroup_id = 11;
+
+my $user_id = 11;
+$user = $db->get_user_by_id(user_id => $user_id)->[0];
+
+# Try provisioning a circuit when node VLAN rules block you
+my $res = $db->provision_circuit('description' => "Trunk test",
+                                 'bandwidth' => 1337,
+                                 'provision_time' => -1,
+                                 'remove_time' => -1,
+                                 'links' => ['Link 181', 'Link 191', 'Link 531'],
+                                 'backup_links' => [],
+                                 'nodes' => ['Node 11', $trunk_iface_node], 
+                                 'interfaces' => ['e1/1', $trunk_iface],
+                                 'tags' => [1, $invalid_vlan],
+                                 'user_name' => $user->{'auth_name'},
+                                 'workgroup_id' => $trunk_iface_workgroup_id,
+                                 'external_id' => undef);
+my $err = $db->get_error();
+ok(!$res, "Authorization check");
+ok(defined $err, "Error: $err");
+
+# Try provisioning a circuit when workgroup doesn't own trunk interface
+$res = $db->provision_circuit('description' => "Trunk test",
+                              'bandwidth' => 1337,
+                              'provision_time' => -1,
+                              'remove_time' => -1,
+                              'links' => ['Link 181', 'Link 191', 'Link 531'],
+                              'backup_links' => [],
+                              'nodes' => ['Node 11', $trunk_iface_node], 
+                              'interfaces' => ['e1/1', $trunk_iface],
+                              'tags' => [1, $valid_vlan],
+                              'user_name' => $user->{'auth_name'},
+                              'workgroup_id' => $trunk_iface_workgroup_id,
+                              'external_id' => undef);
+$err = $db->get_error();
+ok(!$res, "Authorization check");
+ok(defined $err, "Error: $err");
+
+$db->update_interface_owner(interface_id =>$trunk_iface_id,
+                            workgroup_id => $trunk_iface_workgroup_id);
+
+# Provision trunk circuit using valid VLANs and credentials
+$res = $db->provision_circuit('description' => "Trunk test",
+                              'bandwidth' => 1337,
+                              'provision_time' => -1,
+                              'remove_time' => -1,
+                              'links' => ['Link 181', 'Link 191', 'Link 531'],
+                              'backup_links' => [],
+                              'nodes' => ['Node 11', $trunk_iface_node], 
+                              'interfaces' => ['e1/1', $trunk_iface],
+                              'tags' => [1, $valid_vlan],
+                              'user_name' => $user->{'auth_name'},
+                              'workgroup_id' => $trunk_iface_workgroup_id,
+                              'external_id' => undef);
+$err = $db->get_error();
+ok($res, "Trunk circuit provisioned.");
+
+my $trunk_circuit_id = $res->{'circuit_id'};
+
+$res = $db->get_circuit_details(circuit_id => $trunk_circuit_id);
+ok($res, "Retreived trunk circuit.");
+
+delete $res->{'last_modified_by'};
+delete $res->{'name'};
+delete $res->{'last_edited'};
+delete $res->{'circuit_id'};
+
+my $correct_trunk_result = {
+                            'remote_requester' => undef,
+                            'external_identifier' => undef,
+                            'state' => 'active',
+                            'backup_links' => [],
+                            'remote_url' => undef,
+                            'loop_node' => undef,
+                            'links' => [
+                                        {
+                                         'interface_z' => 'e3/2',
+                                         'port_no_z' => '98',
+                                         'node_z' => 'Node 11',
+                                         'port_no_a' => '97',
+                                         'node_a' => 'Node 61',
+                                         'name' => 'Link 181',
+                                         'interface_z_id' => '851',
+                                         'interface_a_id' => '161',
+                                         'interface_a' => 'e3/1'
+                                        },
+                                        {
+                                         'interface_z' => 'e1/1',
+                                         'port_no_z' => '1',
+                                         'node_z' => 'Node 51',
+                                         'port_no_a' => '1',
+                                         'node_a' => 'Node 61',
+                                         'name' => 'Link 191',
+                                         'interface_z_id' => '61',
+                                         'interface_a_id' => '171',
+                                         'interface_a' => 'e1/1'
+                                        },
+                                        {
+                                         'interface_z' => 'e3/2',
+                                         'port_no_z' => '98',
+                                         'node_z' => 'Node 51',
+                                         'port_no_a' => '97',
+                                         'node_a' => 'Node 5721',
+                                         'name' => 'Link 531',
+                                         'interface_z_id' => '71',
+                                         'interface_a_id' => '45781',
+                                         'interface_a' => 'e3/1'
+                                        }
+                                       ],
+                            'static_mac' => '0',
+                            'workgroup_id' => '11',
+                            'description' => 'Trunk test',
+                            'endpoints' => [
+                                            {
+                                             'local' => '1',
+                                             'node' => 'Node 11',
+                                             'mac_addrs' => [],
+                                             'interface_description' => 'e1/1',
+                                             'port_no' => '1',
+                                             'node_id' => '11',
+                                             'urn' => undef,
+                                             'interface' => 'e1/1',
+                                             'tag' => '1',
+                                             'role' => 'unknown'
+                                            },
+                                            {
+                                             'local' => '1',
+                                             'node' => 'Node 51',
+                                             'mac_addrs' => [],
+                                             'interface_description' => 'e3/1',
+                                             'port_no' => '97',
+                                             'node_id' => '51',
+                                             'urn' => undef,
+                                             'interface' => 'e3/1',
+                                             'tag' => '99',
+                                             'role' => 'trunk'
+                                            }
+                                           ],
+                            'workgroup' => {
+                                            'workgroup_id' => '11',
+                                            'status' => 'active',
+                                            'name' => 'Workgroup 11',
+                                            'max_circuit_endpoints' => '10',
+                                            'description' => '',
+                                            'max_circuits' => '44',
+                                            'external_id' => undef,
+                                            'type' => 'admin',
+                                            'max_mac_address_per_end' => '10'
+                                           },
+                            'active_path' => 'primary',
+                            'bandwidth' => '1337',
+                            'internal_ids' => {
+                                               'primary' => {
+                                                             'Node 11' => {
+                                                                           '851' => '104'
+                                                                          },
+                                                             'Node 5721' => {
+                                                                             '45781' => '29'
+                                                                            },
+                                                             'Node 61' => {
+                                                                           '161' => '107',
+                                                                           '171' => '106'
+                                                                          },
+                                                             'Node 51' => {
+                                                                           '71' => '102',
+                                                                           '61' => '104'
+                                                                          }
+                                                            }
+                                              },
+                            'user_id' => '11',
+                            'restore_to_primary' => '0',
+                            'operational_state' => 'unknown'
+                           };
+cmp_deeply($res, $correct_trunk_result, "Values for trunk circuit matches");
+
+# Clean up trunk circuit
+$res = $db->remove_circuit(circuit_id => $trunk_circuit_id,
+                           remove_time => -1,
+                           username => $user->{'auth_name'});
+ok($res, "Trunk circuit removed.");
+
+
+#
+# BEGIN: provision_circuit tests
+#
+
+
 # try provisioning a circuit when acl rules block you 
-my $res = $db->provision_circuit(
+$res = $db->provision_circuit(
     'description' => "Test",
     'bandwidth' => 1337,
-    'provision_time' => 1377716981,
-    'remove_time' => 1380308981,
+    'provision_time' => -1,
+    'remove_time' => -1,
     'links' => ['Link 181', 'Link 191', 'Link 531'],
     'backup_links' => [],
     'nodes' => ['Node 11', 'Node 51'], 
@@ -59,8 +254,8 @@ is($db->get_error(),'Interface "e15/1" on endpoint "Node 11" with VLAN tag "1" i
 $res = $db->provision_circuit(
     'description' => "Test",
     'bandwidth' => 1337,
-    'provision_time' => 1377716981,
-    'remove_time' => 1380308981,
+    'provision_time' => -1,
+    'remove_time' => -1,
     'links' => ['Link 181', 'Link 191', 'Link 531'],
     'backup_links' => [],
     'nodes' => ['Node 11', 'Node 51'], 
@@ -72,15 +267,17 @@ $res = $db->provision_circuit(
 );
 
 ok($res->{'success'}, "circuit successfully added");
-#print "Status: ".Dumper($res);
 
 $res = $db->get_circuit_details(
     circuit_id => $res->{'circuit_id'},
-);
+                               );
 delete $res->{'last_modified_by'};
+
 my $correct_result =  {
           'external_identifier' => undef,
-          'state' => 'deploying',
+          'state' => 'active',
+          'remote_requester' => undef,
+          'remote_url' => undef,
           'static_mac' => 0,
           'backup_links' => [],
           'loop_node' => undef,
@@ -163,18 +360,18 @@ my $correct_result =  {
           'internal_ids' => {
                               'primary' => {
                                   'Node 11' => {
-                                      '851' => '102'
+                                      '851' => '104'
                                   },
                                           'Node 5721' => {
-                                              '45781' => '28'
+                                              '45781' => '29'
                                       },
                                                   'Node 61' => {
-                                                      '161' => '104',
-                                                      '171' => '105'
+                                                      '161' => '107',
+                                                      '171' => '106'
                                               },
                                                           'Node 51' => {
-                                                              '71' => '101',
-                                                              '61' => '102'
+                                                              '71' => '102',
+                                                              '61' => '104'
                                                       }
                               }
       },
@@ -192,6 +389,6 @@ delete $res->{'last_edited'};
 warn $res->{'circuit_id'};
 delete $res->{'circuit_id'};
 
-warn Data::Dumper::Dumper($correct_result);
-warn Data::Dumper::Dumper($res);
+#warn Data::Dumper::Dumper($correct_result);
+#warn Data::Dumper::Dumper($res);
 cmp_deeply($res, $correct_result, "values for circuit matches");

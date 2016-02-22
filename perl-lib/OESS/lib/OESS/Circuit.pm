@@ -167,6 +167,8 @@ sub _load_circuit_details{
 
 sub _process_circuit_details{
     my $self = shift;
+    $self->{'remote_url'} = $self->{'details'}->{'remote_url'};
+    $self->{'remote_requester'} = $self->{'details'}->{'remote_requester'};
     $self->{'state'} = $self->{'details'}->{'state'};
     $self->{'circuit_id'} = $self->{'details'}->{'circuit_id'};
     $self->{'loop_node'} = $self->{'details'}->{'loop_node'};
@@ -234,6 +236,10 @@ sub _create_graph{
 
 sub _create_flows{
     my $self = shift;
+
+    if($self->{'details'}->{'state'} eq 'reserved' || $self->{'details'}->{'state'} eq 'provisioned' ){
+        return;
+    }
 
     #create the flows    
     my $circuit_details = $self->{'details'};
@@ -322,8 +328,15 @@ sub _create_flows{
     $self->{'flows'}->{'endpoint'}->{'primary'} = $self->_dedup_flows($self->{'flows'}->{'endpoint'}->{'primary'});
     $self->{'flows'}->{'endpoint'}->{'backup'} = $self->_dedup_flows($self->{'flows'}->{'endpoint'}->{'backup'});
 
+    #remove duplicates here...
+    $self->{'flows'}->{'static_mac_addr'}->{'path'}->{'primary'} = $self->_dedup_flows($self->{'flows'}->{'static_mac_addr'}->{'path'}->{'primary'});
+    $self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'primary'} = $self->_dedup_flows($self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'primary'});
+
+    $self->{'flows'}->{'static_mac_addr'}->{'path'}->{'backup'} = $self->_dedup_flows($self->{'flows'}->{'static_mac_addr'}->{'path'}->{'backup'});
+    $self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'backup'} = $self->_dedup_flows($self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'backup'});
+
+
     if($self->{'state'} eq 'looped'){
-        warn "CIRCUIT IS LOOPED!!!\n";
         if(defined($self->{'loop_node'})){
             if($self->has_backup_path()){
                 $self->_generate_loop_node_flows( path => 'backup', node => $self->{'loop_node'});
@@ -344,14 +357,13 @@ sub _generate_loop_node_flows{
 
     foreach my $node (keys %$path_dict) {
         my $node_id = $self->{'node_id_lookup'}->{$node};
-        warn "Comparing " . $node_id . " to " . $params{'node'} . "\n";
         next if $node_id != $params{'node'};
         #ok we found our node
         
         my $dpid = $self->{'dpid_lookup'}->{$node};
         foreach my $enter (@{$path_dict->{$node}}){
             
-            push(@{$self->{'flows'}{'path'}{$path}}, OESS::FlowRule->new( 
+            push(@{$self->{'flows'}->{'path'}->{$path}}, OESS::FlowRule->new( 
                      priority => 36000,
                      match => {dl_vlan => $enter->{'port_vlan'},
                                in_port => $enter->{'port'}},
@@ -363,12 +375,11 @@ sub _generate_loop_node_flows{
     }
 
     foreach my $endpoint (@{$self->{'details'}->{'endpoints'}}){
-        warn "Comparing " . $self->{'node_id_lookup'}->{$endpoint->{'node'}} . " to " . $params{'node'} . "\n";
         next if ($self->{'node_id_lookup'}->{$endpoint->{'node'}} != $params{'node'});
         next if ($endpoint->{'local'} == 0);
         my $e_dpid = $self->{'dpid_lookup'}{$endpoint->{'node'}};
         
-        push(@{$self->{'flows'}->{'endpoint'}{$path}}, 
+        push(@{$self->{'flows'}->{'endpoint'}->{$path}}, 
              OESS::FlowRule->new( 
                  priority => 36000,
                  dpid => $e_dpid,
@@ -384,26 +395,25 @@ sub _dedup_flows{
     my $self = shift;
     
     my $flows = shift;
-    
     my @deduped = ();
 
     foreach my $flow (@$flows){
-	my $matched = 0;
-	foreach my $de_duped_flow (@deduped){
+        my $matched = 0;
+        foreach my $de_duped_flow (@deduped){
             if(!defined($flow) || !defined($de_duped_flow)){
                 next;
             }
             if($de_duped_flow->get_dpid() != $flow->get_dpid()){
                 next;
             }
-	    if($de_duped_flow->compare_match( flow_rule => $flow)){
-		$de_duped_flow->merge_actions( flow_rule => $flow);
-		$matched = 1;
-	    }
-	}
-	if($matched == 0){
-	    push(@deduped,$flow);
-	}
+            if($de_duped_flow->compare_match( flow_rule => $flow)){
+                $de_duped_flow->merge_actions( flow_rule => $flow);
+                $matched = 1;
+            }
+        }
+        if($matched == 0){
+            push(@deduped,$flow);
+        }
     }
 
     return \@deduped;
@@ -430,6 +440,8 @@ sub _generate_static_mac_path_flows{
         if(!defined($in_ports{$endpoint->{'node'}})){
             $in_ports{$endpoint->{'node'}} = ();
         }
+
+        $endpoint->{'is_endpoint'} = 1;
         push(@{$in_ports{$endpoint->{'node'}}},$endpoint);
     }
     
@@ -463,8 +475,10 @@ sub _generate_static_mac_path_flows{
             $in_ports{$node_z} = ();
         }
 
-        push(@{$in_ports{$node_a}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_a'}, tag => $internal_ids->{$path}{$node_z}{$interface_z}});
-        push(@{$in_ports{$node_z}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_z'}, tag => $internal_ids->{$path}{$node_a}{$interface_a}});
+        push(@{$in_ports{$node_a}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_a'}, 
+                                    tag => $internal_ids->{$path}{$node_a}{$interface_a}, is_endpoint => 0});
+        push(@{$in_ports{$node_z}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_z'}, 
+                                    tag => $internal_ids->{$path}{$node_z}{$interface_z}, is_endpoint => 0});
         
         $finder{$node_a}{$node_z} = $link;
         $finder{$node_z}{$node_a} = $link;
@@ -489,7 +503,7 @@ sub _generate_static_mac_path_flows{
 	my @edges = $graph->edges_to($vert);
 
 	foreach my $edge ($graph->edges_to($vert)){
-	    $self->{'logger'}->debug("Finding link between " . $edge->[0] . " and " . $edge->[1]);
+	    #$self->{'logger'}->debug("Finding link between " . $edge->[0] . " and " . $edge->[1]);
 	    #my $link = $finder{$edge->[0]}{$edge->[1]};
             #this will process
 	    foreach my $endpoint (@{$self->{'details'}->{'endpoints'}}){
@@ -525,6 +539,7 @@ sub _generate_static_mac_path_flows{
 			    
 			    $self->{'logger'}->debug("Creating flow for mac_addr " . $mac_addr->{'mac_address'} . " on node " . $vert);
 			    $self->{'logger'}->debug("Next hop: " . $next_hop[1] . " and path: " . $path . " and vlan " . $internal_ids->{$path}{$next_hop[1]}{$interface_id});
+                            $self->{'logger'}->debug("In Port: " . $in_port->{'port_no'} . " tag: " . $in_port->{'tag'});
 			    my $flow = OESS::FlowRule->new( match => {'dl_vlan' => $in_port->{'tag'},
 								      'in_port' => $in_port->{'port_no'},
 								      'dl_dst' => OESS::Database::mac_hex2num($mac_addr->{'mac_address'})},
@@ -533,15 +548,19 @@ sub _generate_static_mac_path_flows{
 							    actions => [{'set_vlan_vid' => $internal_ids->{$path}{$next_hop[1]}{$interface_id}},
 									{'output' => $port}]);
 			    
-			    push(@{$self->{'flows'}->{'static_mac_addr'}->{$path}},$flow);
-			    
-			}
+                            #is this path or endpoint side?
+                            if(! $in_port->{'is_endpoint'} ){
+                                #path flow
+                                push(@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{$path}},$flow);
+                            }else{
+                                #this is an endpoint fow
+                                push(@{$self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{$path}}, $flow);
+                            }
+                        }
 		    }
 		    
 		}else{
-		    
-		    $self->{'logger'}->debug("not a link");
-		    #endpoint must be on this node
+		    #endpoint must be on this node... but this is the path side...
 		    foreach my $in_port (@{$in_ports{$vert}}){
 
 			#if the in port matches the out port go on to next
@@ -553,11 +572,22 @@ sub _generate_static_mac_path_flows{
 			    my $flow = OESS::FlowRule->new( match => {'dl_vlan' => $in_port->{'tag'},
 								      'in_port' => $in_port->{'port_no'},
 								      'dl_dst' => OESS::Database::mac_hex2num($mac_addr->{'mac_address'})},
-							    priority =>35000,
+							    priority => 35000,
 							    dpid => $self->{'dpid_lookup'}->{$vert},
 							    actions => [{'set_vlan_vid' => $endpoint->{'tag'}},
 									{'output' => $endpoint->{'port_no'}}]);
-			    push(@{$self->{'flows'}->{'static_mac_addr'}->{$path}},$flow);
+                            #now the question is... are these 2 ports on the same switch that are endpoints?
+                            if(! $in_port->{'is_endpoint'} ){
+                                #this is the link -> ep rule
+                                #it was generated in the one above... ignore it now
+                                push(@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{$path}}, $flow);
+                            }else{
+                                #this is ep -> ep rule
+                                #don't dupe this because it doesn't change this is s1:p1 to s1:p2 and vise versa
+                                if($path eq 'primary'){
+                                    push(@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{$path}},$flow);
+                                }
+                            }
 			}
 		    }
 		}
@@ -838,9 +868,13 @@ sub get_flows{
     my $self = shift;
     my %params = @_;	
     my @flows;
+    my @static_flows = ();
+
+    if($self->{'details'}->{'state'} eq 'reserved'){
+        return [];
+    }
 
     if (!defined($params{'path'})){
-        
     	foreach my $flow (@{$self->{'flows'}->{'path'}->{'primary'}}){
             push(@flows,$flow);
     	}
@@ -849,27 +883,36 @@ sub get_flows{
             push(@flows,$flow);
     	}
         
+        foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{'primary'}}){
+            push(@flows,$static_flow);
+        }
+        
+        foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{'backup'}}){
+            push(@flows,$static_flow);
+        }
+        
     	if($self->get_active_path() eq 'primary'){
             
             foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{'primary'}}){
             	push(@flows,$flow);
             }
-            
-            foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{'primary'}}){
-	    	push(@flows,$flow);
+         
+            foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'primary'}}){
+                push(@flows,$static_flow);
             }
             
+            
+                       
     	} else {
             
             foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{'backup'}}){
             	push(@flows,$flow);
             }
             
-            foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{'backup'}}){
-                push(@flows,$flow);
+            foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'backup'}}){
+                push(@flows,$static_flow);
             }
-            
-    	}
+	}
         
     } else {
 	my $path = $params{'path'};
@@ -878,25 +921,33 @@ sub get_flows{
             return;
         }
         
-	foreach my $flow (@{$self->{'flows'}->{'path'}->{$path}}){
+	foreach my $flow (@{$self->{'flows'}->{'path'}->{'primary'}}){
             push(@flows,$flow);
         }
-        
+
+        foreach my $flow (@{$self->{'flows'}->{'path'}->{'backup'}}){
+            push(@flows,$flow);
+        }
+
 	foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{$path}}){
             push(@flows,$flow);
         }
         
-	foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{$path}}){
-            push(@flows,$flow);
+        foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{'primary'}}){
+            push(@flows,$static_flow);
         }
+        
+        foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{'backup'}}){
+            push(@flows,$static_flow);
+        }
+        
+        foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{$path}}){
+            push(@flows,$static_flow);
+        }
+    
     }
 
-    #if the number of endpoints is more than 2 and it is not interdomain
-    if (scalar(@{$self->get_endpoints()}) > 2 && !$self->is_interdomain()){
-        return $self->_dedup_flows(\@flows);
-    } else {
-        return \@flows;
-    }
+    return $self->_dedup_flows(\@flows);
 }
 
 =head2 get_endpoint_flows
@@ -906,6 +957,10 @@ sub get_flows{
 sub get_endpoint_flows{
     my $self = shift;
     my %params = @_;
+
+    if($self->{'details'}->{'state'} eq 'reserved'){
+        return [];
+    }
 
     my $path = $params{'path'};
 
@@ -919,7 +974,12 @@ sub get_endpoint_flows{
 	return;
     }
 
-    return $self->{'flows'}->{'endpoint'}->{$path};    
+    my $flows = $self->{'flows'}->{'endpoint'}->{$path};
+    foreach my $flow (@{$self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{$path}}){
+        push(@$flows, $flow);
+    }
+    return $flows;
+
 }
 
 
@@ -980,7 +1040,7 @@ sub generate_clr_raw{
     my $str = "";
 
     foreach my $flow (@$flows){
-        $str .= $flow->to_human() . "\n";
+        $str .= $flow->to_human(db => $self->{'db'}) . "\n";
     }
 
     return $str;
@@ -1053,6 +1113,13 @@ sub change_path {
         $do_commit = $params{'do_commit'};
     }
 
+    if(!defined($params{'user_id'})){
+        #if this isn't defined set the system user
+        $params{'user_id'} = 1;
+    }
+    my $user_id = $params{'user_id'};
+    my $reason = $params{'reason'};
+
     #change the path
 
     if(!$self->has_backup_path()){
@@ -1065,7 +1132,7 @@ sub change_path {
     if($current_path eq 'primary'){
 	$alternate_path = 'backup';
     }
-    $self->{'logger'}->debug("Circuit ". $self->get_name()  . " is failing over to " . $alternate_path);
+    $self->{'logger'}->debug("Circuit ". $self->get_name()  . " is changing to " . $alternate_path);
 
      my $query  = "select path.path_id from path " .
                  " join path_instantiation on path.path_id = path_instantiation.path_id " .
@@ -1102,7 +1169,7 @@ sub change_path {
 
     if (! $success ){
         $self->error("Unable to change path_instantiation of current path to inactive.");
-        $self->_rollback();
+        $self->{'db'}->_rollback();
         return;
     }
 
@@ -1114,7 +1181,7 @@ sub change_path {
 
     if (! defined $new_available){
         $self->error("Unable to create new available path based on old instantiation.");
-        $self->_rollback();
+        $self->{'db'}->_rollback();
         return;
     }    
 
@@ -1142,6 +1209,35 @@ sub change_path {
         $self->{'logger'}->error("Unable to change state to active in alternate path");
         $self->error("Unable to change state to active in alternate path.");
         $self->{'db'}->_rollback();
+        return;
+    }
+
+    #now to add the history
+    $query = "select * from circuit_instantiation where circuit_id = ? and end_epoch = -1";
+    my $circuit_instantiation = $self->{'db'}->_execute_query($query,[$self->{'circuit_id'}])->[0];
+    if(!defined($circuit_instantiation)){
+        $self->error("Unable to fetch current circuit instantiation");
+        $self->{'db'}->_rollback();
+        return;
+    }
+
+    $query = "update circuit_instantiation set end_epoch = UNIX_TIMESTAMP(NOW()) where circuit_id = ? and end_epoch = -1";
+    if(!defined($self->{'db'}->_execute_query($query, [$self->{'circuit_id'}]))){
+        $self->error("Unable to decom old circuit instantiation.");
+        $self->{'db'}->_rollback() if($do_commit);
+        return
+    }
+
+    $query = "insert into circuit_instantiation (circuit_id, reserved_bandwidth_mbps, circuit_state, modified_by_user_id, end_epoch, start_epoch, loop_node, reason) values (?, ?, ?, ?, -1, unix_timestamp(now()),?,?)";
+    if(!defined( $self->{'db'}->_execute_query($query, [ $self->{'circuit_id'}, 
+                                                         $circuit_instantiation->{'reserved_bandwidth_mbps'},
+                                                         $circuit_instantiation->{'circuit_state'},
+                                                         $params{'user_id'}, 
+                                                         $circuit_instantiation->{'loop_node'},
+                                                         $params{'reason'} ] ))){
+        $self->{'logger'}->error("Unable to create new circuit instantiation");
+        $self->error("Unable to create new circuit instantiation.");
+        $self->{'db'}->_rollback() if($do_commit);
         return;
     }
     
