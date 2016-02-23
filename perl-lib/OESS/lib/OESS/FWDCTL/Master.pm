@@ -296,6 +296,8 @@ sub _handle_rpc{
     my $self = shift;
     my $var = shift;
 
+    warn "handing message: " . Data::Dumper::Dumper($var);
+
     $self->{'logger'}->debug("Handling RPC message");
     my $method = $var->{'deliver'}->{'method_frame'}->{'routing_key'};
     my $props = $var->{'header'};
@@ -307,6 +309,8 @@ sub _handle_rpc{
     eval{
 	$json = decode_json($body);
     };
+
+    
 
     if(!defined($json)){
 	$self->{'logger'}->error("Recieved an Invalid request: " . $method . " BODY: " . $body);
