@@ -40,7 +40,8 @@ use OESS::Database;
 use OESS::Topology;
 use OESS::Circuit;
 
-use AnyEvent::RabbitMQ;
+use GRNOC::RabbitMQ::Method;
+use GRNOC::RabbitMQ::Dispatcher;
 use AnyEvent::Fork;
 use AnyEvent::Fork::RPC;
 use AnyEvent;
@@ -111,100 +112,26 @@ sub new {
 
     $self->{'db'} = OESS::Database->new( config_file => $self->{'config'} );
 
-    my $cv = AnyEvent->condvar;
-    my $rabbit_mq;
-    my $ar = AnyEvent::RabbitMQ->new->load_xml_spec()->connect(
-	host => $self->{'db'}->{'rabbitMQ'}->{'host'},
-	port => $self->{'db'}->{'rabbitMQ'}->{'port'},
-	user => $self->{'db'}->{'rabbitMQ'}->{'user'},
-	pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
-	vhost => $self->{'db'}->{'rabbitMQ'}->{'vhost'},
-	timeout => 1,
-	tls => 0,
-	on_success => sub {
-	    my $ar = shift;
-	    $ar->open_channel(
-		on_success => sub {
-		    my $channel = shift;
-		    $rabbit_mq = $channel;
-		    $channel->declare_exchange(
-			exchange   => 'OESS',
-			type => 'topic',
-			on_success => sub {
-			    $cv->send();
-			},
-			on_failure => $cv,
-			);
-		},
-		on_failure => $cv,
-		on_close   => sub {
-		    print "WTF WHY DID THIS CLOSE!!\n";
-		},
-		);
-	},
-	on_failure => $cv,
-	on_read_failure => sub { die @_ },
-	on_return  => sub {
-	    my $frame = shift;
-	    die "Unable to deliver ", Dumper($frame);
-	},
-	on_close   => sub {
-	    my $why = shift;
-	    if (ref($why)) {
-		my $method_frame = $why->method_frame;
-		die $method_frame->reply_code, ": ", $method_frame->reply_text;
-	    }
-	    else {
-		die $why;
-	    }
-	},
-	);
+    my $fwdctl_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbit_mq'}->{'host'},
+							      port => $self->{'db'}->{'rabbit_mq'}->{'port'},
+							      user => $self->{'db'}->{'rabbit_mq'}->{'user'},
+							      pass => $self->{'db'}->{'rabbit_mq'}->{'pass'},
+							      exchange => 'OESS',
+							      queue => 'OF.FWDCTL');
 
-    #synchronize
-    $cv->recv;
+    $self->register_rpc_methods( $fwdctl_dispatcher );
 
-    $self->{'ar'} = $ar;
-    $self->{'rabbit_mq'} = $rabbit_mq;
-    $self->{'rabbit_mq'}->declare_queue( queue => "OF.FWDCTL",
-					 on_success => sub {
-					     $cv->send();
-					 });
-    #synchronized
-    $cv->recv;
+    
 
-    $self->{'rabbit_mq'}->bind_queue( queue => 'OF.FWDCTL',
-				      exchange => 'OESS',
-				      routing_key => 'OF.FWDCTL.*',
-				      on_success => sub {
-					  $cv->send();
-				      });
+    my $nox_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbit_mq'}->{'host'},
+							   port => $self->{'db'}->{'rabbit_mq'}->{'port'},
+							   user => $self->{'db'}->{'rabbit_mq'}->{'user'},
+							   pass => $self->{'db'}->{'rabbit_mq'}->{'pass'},
+							   exchange => 'OESS',
+							   queue => 'OF.NOX');
 
-    $cv->recv;
-
-    $self->{'rabbit_mq'}->declare_queue( queue => "OF.NOX",
-                                         on_success => sub {
-                                             $cv->send();
-                                         });
-
-    $cv->recv;
-
-    $self->{'rabbit_mq'}->bind_queue( queue => 'OF.NOX',
-                                      exchange => 'OESS',
-                                      routing_key => 'OF.NOX.*',
-                                      on_success => sub {
-                                          $cv->send();
-                                      });
-
-    my $fwdctl = $self;
-    $self->{'rabbit_mq'}->consume( queue => "OF.FWDCTL",
-				   on_consume => sub { my $message = shift; 
-						       $fwdctl->_handle_rpc( $message)
-				   });
-
-    $self->{'rabbit_mq'}->consume( queue => "OF.NOX",
-                                   on_consume => sub { my $message = shift;
-                                                       $fwdctl->_handle_event( $message)
-                                   });
+    $self->register_nox_events( $nox_dispatcher );
+    
 
     $self->{'logger'}->info("RabbitMQ ready to go!");
 
@@ -233,6 +160,136 @@ sub new {
 
     return $self;
 }
+
+sub register_nox_events{
+    my $self = shift;
+    my $d = shift;
+
+}
+
+sub register_rpc_methods{
+    my $self = shift;
+    my $d = shift;
+
+    my $method = GRNOC::RabbitMQ::Method->new( name => "addVlan",
+					       callback => $self->addVlan,
+					       description => "adds a VLAN to the network that exists in OESS DB");
+
+    $method->set_schema_validator( schema => { "type" => "object",
+					       "required" =>  ["circuit_id"],
+					       "properties" => { 'circuit_id' => { 'type' => 'number'}}});
+
+    $d->register_method($method);
+    
+    $method = GRNOC::RabbitMQ::Method->new( name => "deletelan",
+					    callback => $self->addVlan,
+					    description => "deletes a VLAN to the network that exists in OESS DB");
+    
+    $method->set_schema_validator( schema => { "type" => "object",
+                                               "required" =>  ["circuit_id"],
+                                               "properties" => { 'circuit_id' => { 'type' => 'number'}}});
+    
+    $d->register_method($method);
+    
+    
+    $method = GRNOC::RabbitMQ::Method->new( name => "changeVlanPath",
+					    callback => $self->addVlan,
+					    description => "changes a vlan to alternate path");
+    
+    $method->set_schema_validator( schema => { "type" => "object",
+                                               "required" =>  ["circuit_id"],
+                                               "properties" => { 'circuit_id' => { 'type' => 'number'}}});
+    
+    $d->register_method($method);
+
+    $method = GRNOC::RabbitMQ::Method->new( name => "topo_port_status",
+                                            callback => $self->topo_port_status,
+                                            description => "topo_port_status");
+
+    $method->set_schema_validator( schema => { "type" => "object",
+                                               "required" =>  ["dpid", "reason", "info"],
+                                               "properties" => { 'dpid_id' => { 'type' => 'number'},
+								 'reason'  => { 'type' => 'number'},
+								 'info'    => { 'type' => 'object',
+										'properties' => {'port_no'     => {'type' => 'number'},
+												 'link'        => {'type' => 'number'},
+												 'admin_state' => {'type' => 'string'},
+												 'status'      => {'type' => 'string'}}}}});
+
+    
+    
+    $d->register_method($method);    
+
+    $method = GRNOC::RabbitMQ::Method->new( name => 'rules_per_switch',
+					    callback => $self->rules_per_switch,
+					    description => "Returns the total number of flow rules currently installed on this switch");
+    
+    $method->set_schema_validator( schema => { "type" => "object",
+                                               "required" =>  ["dpid"],
+                                               "properties" => { 'dpid' => { 'type' => 'number'}}});
+
+    $method = GRNOC::RabbitMQ::Method->new( name => 'fv_link_event',
+					    callback => $self->fv_link_event,
+					    description => "Handles Forwarding Verfiication LInk events");
+    
+    $method->set_schema_validator( schema => { "type" => "object",
+                                               "required" =>  ["link_name", "state"],
+                                               "properties" => { 'link_name' => { 'type' => 'string'},
+								 'state'     => { 'type' => 'string'}}});
+
+    $method = GRNOC::RabbitMQ::Method->new( name => 'update_cache',
+					    callback => $self->update_cache,
+					    description => 'Updates the circuit cache');
+
+    $method->set_schema_validator( schema => { "type" => "object",
+                                               "required" =>  ["circui_id"],
+                                               "properties" => { 'circuit_id' => { 'type' => 'number'}}});
+
+
+    $method = GRNOC::RabbitMQ::Method->new( name => 'force_sync',
+					    callback => $self->force_sync,
+					    description => "Forces a synchronization of the device to the cache");
+
+    $method->set_schema_validator( schema => { "type" => "object",
+                                               "required" =>  ["dpid"],
+                                               "properties" => { 'dpid' => { 'type' => 'number'}}});
+
+
+    $method = GRNOC::RabbitMQ::Method->new( name => 'get_event_status',
+					    callback => $self->get_event_status,
+					    description => "Returns the current status of the event");
+
+    $method->set_schema_validator( schema => { "type" => "object",
+                                               "required" =>  ["event_id"],
+                                               "properties" => { 'event_id' => { 'type' => 'string'}}});
+    
+    $method = GRNOC::RabbitMQ::Method->new( name => 'check_child_status',
+                                            callback => $self->check_child_status,
+					    description => "Returns an event id which will return the final status of all children");
+    
+    $method->set_schema_validator( schema => { } );
+
+    $method = GRNOC::RabbitMQ::Method->new( name => 'node_maintenance',
+                                            callback => $self->node_maintenance,
+                                            description => "Returns an event id which will return the final status of all children");
+
+    $method->set_schema_validator( schema => { "type" => "object",
+                                               "required" =>  ["node_id", "state"],
+                                               "properties" => { 'node_id' => { 'type' => 'number'},
+								 'state' => {'type' => 'string'}}});
+
+    $method = GRNOC::RabbitMQ::Method->new( name => 'link_maintenance',
+                                            callback => $self->link_maintenance,
+                                            description => "Returns an event id which will return the final status of all children");
+
+    $method->set_schema_validator( schema => { "type" => "object",
+                                               "required" =>  ["link_id", "state"],
+                                               "properties" => { 'link_id' => { 'type' => 'number'},
+                                                                 'state' => {'type' => 'string'}}});
+}
+
+
+
 
 sub _handle_event{
     my $self = shift;
@@ -290,165 +347,6 @@ sub _handle_event{
 	    
 	}
     }
-}
-
-sub _handle_rpc{
-    my $self = shift;
-    my $var = shift;
-
-    warn "handing message: " . Data::Dumper::Dumper($var);
-
-    $self->{'logger'}->debug("Handling RPC message");
-    my $method = $var->{'deliver'}->{'method_frame'}->{'routing_key'};
-    my $props = $var->{'header'};
-    $self->{'logger'}->debug("Method: " . $method);
-    my $body = $var->{'body'}->{'payload'};
-    $self->{'logger'}->debug("PayLoad: " . $body);
-
-    my $json;
-    eval{
-	$json = decode_json($body);
-    };
-
-    
-
-    if(!defined($json)){
-	$self->{'logger'}->error("Recieved an Invalid request: " . $method . " BODY: " . $body);
-	my $response = {error => "Invalid JSON blob: " . $body};
-	
-	$self->{'rabbit_mq'}->publish(
-	    exchange => 'OESS',
-	    routing_key => $props->{'reply_to'},
-	    header => { correlation_id => $props->{'correlation_id'} },
-	    body => encode_json($response) );
-	
-	$self->{'rabbit_mq'}->ack();
-	return;
-    }
-
-    my $results;
-
-    $method =~ /OF.FWDCTL.(\S+)/;
-    my $name = $1;
-
-    switch( $name ){
-	case "addVlan" {
-	    
-	    my $ckt_id = $json->{'circuit_id'};	    
-	    if(!defined($ckt_id)){
-		$results = {success => 0, error => "No circuit ID specified"};
-	    }else{
-		my ($status, $event_id)  = $self->addVlan( $ckt_id );
-		$results = {success => $status, event_id => $event_id};
-	    }
-	}
-	case "deleteVlan"{	    
-            my $ckt_id = $json->{'circuit_id'};
-            if(!defined($ckt_id)){
-                $results = {success => 0, error => "No circuit ID specified"};
-            }else{
-		my ($status, $event_id) = $self->deleteVlan( $ckt_id );	    
-		$results = {success => $status, event_id => $event_id };
-	    }
-	}
-	case "changeVlanPath"{
-	    
-            my $ckt_id = $json->{'circuit_id'};
-            if(!defined($ckt_id)){
-                $results = {success => 0, error => "No circuit ID specified"};
-            }else{
-		my ($status, $event_id) = $self->changeVlanPath( $ckt_id );	
-		$results = {success => $status, event_d => $event_id };
-	    }
-	}
-	case "topo_port_status"{
-	    my $dpid = $json->{'dpid'};
-	    my $port_id = $json->{'port_id'};
-	    
-	}
-	case "rules_per_switch"{
-	    
-	    my $dpid = $json->{'dpid'};
-            if(!defined($dpid)){
-                $results = {success => 0, error => "No DPID specified"};
-            }else{	    
-		my $rules = $self->rules_per_switch( $dpid );
-		$results = {succcess => 1, rules => $rules, dpid => $dpid };
-	    }
-	}
-	case "fv_link_event"{
-	    
-	    my $link_name = $json->{'link_name'};
-	    my $state = $json->{'state'};
-            if(!defined($link_name) || !defined($state)){
-                $results = {success => 0, error => "No Link name or State specified"};
-            }else{
-		my $status = $self->fv_link_event( $link_name, $state);
-		$results = {success => $status};
-	    }
-	    
-	}
-	case "update_cache"{
-            my $ckt_id = $json->{'circuit_id'};
-	    my ($status, $event_id) = $self->update_cache($ckt_id);
-	    $results = {success => $status, event_id => $event_id};
-	}
-	case "force_sync"{
-	    my $dpid = $json->{'dpid'};
-            if(!defined($dpid)){
-                $results = {success => 0, error => "No DPID specified"};
-            }else{
-		my ($status, $event_id) = $self->force_sync($dpid);
-		$results = {success => $status, event_id => $event_id};
-	    }
-	}
-	case "get_event_status"{
-	    my $event_id = $json->{'event_id'};
-	    my $status = $self->get_event_status( $event_id );
-	    $results = { success => $status, event_id => $event_id };
-	}
-	case "check_child_status"{
-	    
-	    my ($status, $event_id) = $self->check_child_status();
-	    $results =  {success => $status, event_id => $event_id };
-
-	}
-	case "node_maintenance"{
-	    
-	    my $node_id = $json->{'node_id'};
-	    my $state = $json->{'state'};
-            if(!defined($node_id) || !defined($state)){
-                $results = {success => 0, error => "No node_id or state was specified"};
-            }else{
-		my $status = $self->node_maintenance( $node_id, $state );
-		$results = {success => $status};
-	    }
-	} 
-	case "link_maintenance"{
-	    
-	    my $link_id = $json->{'link_id'};
-	    my $state = $json->{'state'};
-            if(!defined($link_id) || !defined($state)){
-                $results = {success => 0, error => "No Link_id or state was specified"};
-            }else{
-		my $status = $self->link_maintenance( $link_id, $state);
-		$results = {success => $status};
-	    }
-	}
-	else{
-	    $results = {success => 0, error => "No method by name: " . $method . " available at this FWDCTL instance"};
-	}
-    }
-    
-
-    #send our actual results back!
-    $self->{'rabbit_mq'}->publish(
-	exchange => 'OESS',
-	routing_key => $props->{'reply_to'},
-	header => { correlation_id => $props->{'correlation_id'} },
-	body => encode_json($results));
-    
-    $self->{'rabbit_mq'}->ack();
 }
 
 
