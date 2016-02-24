@@ -82,10 +82,13 @@ sub new {
     
     my $self = \%args;
 
-    my $ar = GRNOC::RabbitMQ::Client->new( host => $self->{'rabbit_mq'}->{'host'},
-					   user => $self->{'rabbit_mq'}->{'user'},
-					   pass => $self->{'rabbit_mq'}->{'user'},
-					   vhost => $self->{'rabbit_mq'}->{'user'},
+    $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL.Switch.' . sprintf("%x",$self->{'dpid'}));
+    $self->{'logger'}->error("I EXIST!!!");
+
+    my $ar = GRNOC::RabbitMQ::Client->new( host => $self->{'rabbitMQ'}->{'host'},
+					   user => $self->{'rabbitMQ'}->{'user'},
+					   pass => $self->{'rabbitMQ'}->{'pass'},
+					   vhost => $self->{'rabbitMQ'}->{'vhost'},
 					   queue => 'OF.NOX',
 					   exchange => 'OESS');
     $self->{'rabbit_mq'} = $ar;
@@ -93,8 +96,6 @@ sub new {
     #--- set a default discovery vlan that can be overridden later if needed.
     $self->{'settings'}->{'discovery_vlan'} = -1;
 
-    $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL.Switch.' . sprintf("%x",$self->{'dpid'}));
-    $self->{'logger'}->debug("I EXIST!!!");
     bless $self, $class;
 
     $self->_update_cache();

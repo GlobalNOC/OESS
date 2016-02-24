@@ -235,19 +235,21 @@ sub register_rpc_methods{
 					       callback => sub { $self->addVlan(@_) },
 					       description => "adds a VLAN to the network that exists in OESS DB");
 
-    $method->set_schema_validator( schema => { "type" => "object",
-					       "required" =>  ["circuit_id"],
-					       "properties" => { 'circuit_id' => { 'type' => 'number'}}});
+    $method->add_input_parameter( name => "circuit_id",
+				  description => "the circuit ID to add",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::INTEGER);
 
     $d->register_method($method);
     
-    $method = GRNOC::RabbitMQ::Method->new( name => "deletelan",
+    $method = GRNOC::RabbitMQ::Method->new( name => "deleteVlan",
 					    callback => sub { $self->deleteVlan(@_) },
 					    description => "deletes a VLAN to the network that exists in OESS DB");
     
-    $method->set_schema_validator( schema => { "type" => "object",
-                                               "required" =>  ["circuit_id"],
-                                               "properties" => { 'circuit_id' => { 'type' => 'number'}}});
+    $method->add_input_parameter( name => "circuit_id",
+                                  description => "the circuit ID to delete",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);
     
     $d->register_method($method);
     
@@ -256,27 +258,35 @@ sub register_rpc_methods{
 					    callback => sub { $self->changeVlanPath(@_) },
 					    description => "changes a vlan to alternate path");
     
-    $method->set_schema_validator( schema => { "type" => "object",
-                                               "required" =>  ["circuit_id"],
-                                               "properties" => { 'circuit_id' => { 'type' => 'number'}}});
-    
+    $method->add_input_parameter( name => "circuit_id",
+                                  description => "the circuit ID to changePaths on",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);    
     $d->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name => "topo_port_status",
                                             callback => sub { $self->topo_port_status(@_) },
                                             description => "topo_port_status");
-
-    $method->set_schema_validator( schema => { "type" => "object",
-                                               "required" =>  ["dpid", "reason", "info"],
-                                               "properties" => { 'dpid_id' => { 'type' => 'number'},
-								 'reason'  => { 'type' => 'number'},
-								 'info'    => { 'type' => 'object',
-										'properties' => {'port_no'     => {'type' => 'number'},
-												 'link'        => {'type' => 'number'},
-												 'admin_state' => {'type' => 'string'},
-												 'status'      => {'type' => 'string'}}}}});
-
     
+    $method->add_input_parameter( name => "dpid",
+				  description => "the id of the node to put in maintenance",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::NAME);
+    
+    $method->add_input_parameter( name => "reason",
+                                  description => "the reason for the topo port status event",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);
+    
+    $method->add_input_parameter( name => "port",
+                                  description => "details on the current port",
+                                  required => 1,
+				  schema => { 'type' => 'object',
+					      'properties' => {'port_no'     => {'type' => 'number'},
+							       'link'        => {'type' => 'number'},
+							       'admin_state' => {'type' => 'string'},
+							       'status'      => {'type' => 'string'}}});
+
     
     $d->register_method($method);    
 
@@ -284,9 +294,11 @@ sub register_rpc_methods{
 					    callback => sub { $self->rules_per_switch(@_) },
 					    description => "Returns the total number of flow rules currently installed on this switch");
     
-    $method->set_schema_validator( schema => { "type" => "object",
-                                               "required" =>  ["dpid"],
-                                               "properties" => { 'dpid' => { 'type' => 'number'}}});
+
+    $method->add_input_parameter( name => "dpid",
+                                  description => "dpid of the switch to fetch the number of rules on",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);
 
     $d->register_method($method);
 
@@ -294,10 +306,16 @@ sub register_rpc_methods{
 					    callback => sub { $self->fv_link_event(@_) },
 					    description => "Handles Forwarding Verfiication LInk events");
     
-    $method->set_schema_validator( schema => { "type" => "object",
-                                               "required" =>  ["link_name", "state"],
-                                               "properties" => { 'link_name' => { 'type' => 'string'},
-								 'state'     => { 'type' => 'string'}}});
+    $method->add_input_parameter( name => "link_name",
+				  description => "the name of the link for the forwarding event",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::NAME);
+
+    $method->add_input_parameter( name => "state",
+                                  description => "the current state of the specified link",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);
+
 
     $d->register_method($method);
 
@@ -305,9 +323,11 @@ sub register_rpc_methods{
 					    callback => sub { $self->update_cache(@_) },
 					    description => 'Updates the circuit cache');
 
-    $method->set_schema_validator( schema => { "type" => "object",
-                                               "required" =>  ["circui_id"],
-                                               "properties" => { 'circuit_id' => { 'type' => 'number'}}});
+    
+    $method->add_input_parameter( name => "circuit_id",
+                                  description => "the circuit ID to delete",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);
 
     $d->register_method($method);
 
@@ -316,37 +336,42 @@ sub register_rpc_methods{
 					    callback => sub { $self->force_sync(@_) },
 					    description => "Forces a synchronization of the device to the cache");
 
-    $method->set_schema_validator( schema => { "type" => "object",
-                                               "required" =>  ["dpid"],
-                                               "properties" => { 'dpid' => { 'type' => 'number'}}});
+    $method->add_input_parameter( name => "dpid",
+                                  description => "the DPID to force sync",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);
     $d->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name => 'get_event_status',
 					    callback => sub { $self->get_event_status(@_) },
 					    description => "Returns the current status of the event");
 
-    $method->set_schema_validator( schema => { "type" => "object",
-                                               "required" =>  ["event_id"],
-                                               "properties" => { 'event_id' => { 'type' => 'string'}}});
-    
+    $method->add_input_parameter( name => "event_id",
+                                  description => "the event id to fetch the current state of",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::NAME);
+
     $d->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name => 'check_child_status',
                                             callback => sub { $self->check_child_status(@_) },
 					    description => "Returns an event id which will return the final status of all children");
     
-    $method->set_schema_validator( schema => { } );
-
     $d->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name => 'node_maintenance',
                                             callback => sub { $self->node_maintenance(@_) },
                                             description => "Returns an event id which will return the final status of all children");
 
-    $method->set_schema_validator( schema => { "type" => "object",
-                                               "required" =>  ["node_id", "state"],
-                                               "properties" => { 'node_id' => { 'type' => 'number'},
-								 'state' => {'type' => 'string'}}});
+    $method->add_input_parameter( name => "node_id",
+                                  description => "the id of the node to put in maintenance",
+                                  required => 1,
+				  pattern => $GRNOC::WebService::Regex::INTEGER);
+    
+    $method->add_input_parameter( name => "state",
+                                  description => "the current state of the specified link",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);
 
     $d->register_method($method);
 
@@ -354,10 +379,16 @@ sub register_rpc_methods{
                                             callback => sub { $self->link_maintenance(@_) },
                                             description => "Returns an event id which will return the final status of all children");
 
-    $method->set_schema_validator( schema => { "type" => "object",
-                                               "required" =>  ["link_id", "state"],
-                                               "properties" => { 'link_id' => { 'type' => 'number'},
-                                                                 'state' => {'type' => 'string'}}});
+    $method->add_input_parameter( name => "link_id",
+                                  description => "the id of the link to put in maintenance",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);
+
+    $method->add_input_parameter( name => "state",
+                                  description => "the current state of the specified link",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);
+
     $d->register_method($method);
 
 }
@@ -370,12 +401,15 @@ link_maintenance.
 =cut
 sub node_maintenance {
     my $self  = shift;
-    my $node_id  = shift;
-    my $state = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+    
+    my $node_id  = $p_ref->{'node_id'}{'value'};
+    my $state = $p_ref->{'state'}{'value'};;
 
     my $links = $self->{'db'}->get_links_by_node(node_id => $node_id);
     if (!defined $links) {
-        return 0;
+        return {status => 0};
     }
 
     # It is possible for a link to be in maintenace, and connected to a
@@ -397,7 +431,7 @@ sub node_maintenance {
         }
     }
     $self->{'logger'}->warn("Node $node_id maintenance state is $state.");
-    return 1;
+    return {status => 1};
 }
 
 =head2 link_maintenance
@@ -409,8 +443,11 @@ interface_ids from $interface_maintenance.
 =cut
 sub link_maintenance {
     my $self    = shift;
-    my $link_id = shift;
-    my $state   = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    my $link_id = $p_ref->{'link_id'}{'value'};
+    my $state = $p_ref->{'state'}{'value'};
 
     my $endpoints = $self->{'db'}->get_link_endpoints(link_id => $link_id);
     my $link_state;
@@ -429,7 +466,7 @@ sub link_maintenance {
     my $node1 = $self->{'db'}->get_node_by_interface_id(interface_id => $e1->{'id'});
     if (!defined $node1) {
         $self->{'logger'}->warn("Link maintenance can't be performed. Could not find link endpoint.");
-        return 0;
+        return {status => 0};
     }
 
     my $e2 = {
@@ -441,7 +478,7 @@ sub link_maintenance {
     my $node2 = $self->{'db'}->get_node_by_interface_id(interface_id => $e2->{'id'});
     if (!defined $node2) {
         $self->{'logger'}->warn("Link maintenance can't be performed on remote links.");
-        return 0;
+        return {status => 0};
     }
 
     if ($state eq 'end') {
@@ -454,7 +491,7 @@ sub link_maintenance {
             my $node_id = $maintenance->{'node'}->{'id'};
             if (@$endpoints[0]->{'node_id'} == $node_id || @$endpoints[1]->{'node_id'} == $node_id) {
                 $self->{'logger'}->warn("Link $link_id will remain under maintenance.");
-                return 1;
+                return {status => 1};
             }
         }
 
@@ -482,7 +519,7 @@ sub link_maintenance {
         $self->{'link_status'}->{$link_name} = $link_state; # Record true link state.
         $self->{'logger'}->warn("Link $link_id maintenance has begun.");
     }
-    return 1;
+    return {status => 1};
 }
 
 =head2 rules_per_switch
@@ -491,11 +528,17 @@ sub link_maintenance {
 
 sub rules_per_switch{
     my $self = shift;
-    my $dpid = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+    my $state = shift;
+
+    my $dpid = $p_ref->{'dpid'}{'value'};
     
     if(defined($dpid) && defined($self->{'node_rules'}->{$dpid})){
-        return $self->{'node_rules'}->{$dpid};
+        return {dpid => $dpid, rules_on_switch => $self->{'node_rules'}->{$dpid}};
     }
+
+    return {error => "Unable to find DPID: " . $dpid};
 }
 
 =head2 force_sync
@@ -510,7 +553,7 @@ sub force_sync{
 
     my $event_id = $self->_generate_unique_event_id();
     $self->send_message_to_child($dpid,{action => 'force_sync'},$event_id);
-    return (FWDCTL_SUCCESS,$event_id);        
+    return { status => FWDCTL_SUCCESS, event_id => $event_id };
 }
 
 =head2 update_cache
@@ -536,7 +579,7 @@ sub update_cache{
         $self->{'logger'}->debug("Updating cache for circuit: " . $circuit_id);
         my $ckt = $self->get_ckt_object($circuit_id);
         if(!defined($ckt)){
-            return (FWDCTL_FAILURE,$self->_generate_unique_event_id());
+            return {status => FWDCTL_FAILURE, event_id => $self->_generate_unique_event_id()};
         }
         $ckt->update_circuit_details();
         $self->{'logger'}->debug("Updating cache for circuit: " . $circuit_id . " complete");
@@ -549,7 +592,7 @@ sub update_cache{
             $self->send_message_to_child($child,{action => 'update_cache'},$event_id);
     }
     
-    return (FWDCTL_SUCCESS,$event_id);
+    return { status => FWDCTL_SUCCESS, event_id => $event_id };
 }
 
 =head2 build_cache
@@ -632,6 +675,10 @@ sub _write_cache{
         $self->{'logger'}->debug("writing circuit: " . $ckt_id . " to cache");
         
         my $ckt = $self->get_ckt_object($ckt_id);
+        if(!defined($ckt)){
+            $self->{'logger'}->error("No Circuit could be created or found for circuit: " . $ckt_id);
+            next;
+        }
         my $details = $ckt->get_details();
 
         $circuits{$ckt_id} = {};
@@ -835,7 +882,7 @@ sub make_baby{
     my %args;
     $args{'dpid'} = $dpid;
     $args{'share_file'} = $self->{'share_file'}. "." . sprintf("%x",$dpid);
-
+    $args{'rabbitMQ'} = $self->{'db'}->{'rabbitMQ'};
 
     my $proc = AnyEvent::Fork->new->require("AnyEvent::Fork::RPC::Async","OESS::FWDCTL::Switch","JSON")->eval('
 use strict;
@@ -851,6 +898,7 @@ sub new{
     $logger = Log::Log4perl->get_logger("OESS.FWDCTL.MASTER");
     $logger->info("Creating child for dpid: " . $args{"dpid"});
     $switch = OESS::FWDCTL::Switch->new( dpid => $args{"dpid"},
+					 rabbitMQ => $args{"rabbitMQ"},
                                          share_file => $args{"share_file"});
 }
 
@@ -873,7 +921,10 @@ sub run{
                                                                    async => 1,
                                                                    on_event => sub { $self->{'logger'}->debug("Received an Event!!!: " . $_[0]);},
                                                                    on_error => sub { $self->{'logger'}->warn("Receive an error from child" . $_[0])},
-                                                                   on_destroy => sub { $self->{'logger'}->warn("OH NO!! CHILD DIED"); $self->{'children'}->{$dpid}->{'rpc'} = undef; $self->datapath_join_handler($dpid);},
+                                                                   on_destroy => sub { $self->{'logger'}->warn("OH NO!! CHILD DIED "); 
+                                                                                       $self->{'children'}->{$args{'dpid'}}->{'rpc'} = undef; 
+                                                                                       $self->datapath_join_handler(undef,{'dpid' => {'value' => $args{'dpid'}}}, undef);
+                                                                                     },
                                                                    init => "new");
     $self->{'logger'}->debug("After the fork");
     $self->{'children'}->{$dpid}->{'rpc'} = $proc;
@@ -1311,9 +1362,13 @@ sub _cancel_restorations{
 
 sub topo_port_status{
     my $self   = shift;
-    my $dpid   = shift;
-    my $reason = shift;
-    my $info   = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+    my $state = shift;
+
+    my $dpid = $p_ref->{'dpid'}{'value'};
+    my $reason = $p_ref->{'reason'}{'value'};
+    my $info   = $p_ref->{'port'}{'value'};
 
     $self->{'logger'}->debug("TOPO Port status");
 
@@ -1358,6 +1413,10 @@ sub topo_port_status{
                 foreach my $circuit (@$circuits) {
                     my $circuit_id = $circuit->{'circuit_id'};
                     my $ckt = $self->get_ckt_object( $circuit_id );
+		    if(!defined($ckt)){
+			$self->{'logger'}->error("No Circuit could be created or found for circuit: " . $circuit->{'circuit_id'});
+			next;
+		    }
                     $ckt->update_circuit_details( link_status => $self->{'link_status'});
                 }
 		$self->_write_cache();
@@ -1424,7 +1483,7 @@ sub fv_link_event{
 
     if(!defined($link)){
 	$self->{'logger'}->error("FV determined link " . $link_name . " is down but DB does not contain a link with that name");
-	return 0;
+	return {status => 0};
     }
 
     if ($state == OESS_LINK_DOWN) {
@@ -1435,7 +1494,7 @@ sub fv_link_event{
 
 	if (! defined $affected_circuits) {
 	    $self->{'logger'}->error("Error getting affected circuits: " . $self->{'db'}->get_error());
-	    return 0;
+	    return {status => 0};
 	}
 	
 	$self->{'link_status'}->{$link_name} = OESS_LINK_DOWN;
@@ -1459,7 +1518,7 @@ sub fv_link_event{
         }
     }
 
-    return 1;
+    return {status => 1};
 }
 
 =head2 addVlan
@@ -1481,12 +1540,12 @@ sub addVlan {
 
     my $ckt = $self->get_ckt_object( $circuit_id );
     if(!defined($ckt)){
-        return (FWDCTL_FAILURE,$event_id);
+        return {status => FWDCTL_FAILURE, event_id => $event_id};
     }
 
     $ckt->update_circuit_details();
     if($ckt->{'details'}->{'state'} eq 'decom'){
-	return (FWDCTL_FAILURE,$event_id);
+	return {status => FWDCTL_FAILURE, event_id => $event_id};
     }
 
     $self->_write_cache();
@@ -1527,7 +1586,7 @@ sub addVlan {
         $self->send_message_to_child($dpid,{action => 'add_vlan', circuit => $circuit_id}, $event_id);
     }
 
-    return ($result,$event_id);
+    return {status => $result, status => $event_id};
     
 }
 
@@ -1537,20 +1596,24 @@ sub addVlan {
 
 sub deleteVlan {
     my $self = shift;
-    my $circuit_id = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+    my $state = shift;
+
+    my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
     $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
 
     my $ckt = $self->get_ckt_object( $circuit_id );
     my $event_id = $self->_generate_unique_event_id();
     if(!defined($ckt)){
-        return (FWDCTL_FAILURE,$event_id);
+        return {status => FWDCTL_FAILURE, event_id => $event_id};
     }
     
     $ckt->update_circuit_details();
 
     if($ckt->{'details'}->{'state'} eq 'decom'){
-	return (FWDCTL_FAILURE,$event_id);
+	return {status => FWDCTL_FAILURE, event_id => $event_id};
     }
     
 
@@ -1570,7 +1633,7 @@ sub deleteVlan {
         $self->send_message_to_child($dpid,{action => 'remove_vlan', circuit => $circuit_id},$event_id);
     }
 
-    return ($result,$event_id);
+    return {status => $result,event_id => $event_id};
 }
 
 
@@ -1580,12 +1643,19 @@ sub deleteVlan {
 
 sub changeVlanPath {
     my $self = shift;
-    my $circuit_id = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+    my $state = shift;
+
+    my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
     $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
 
     my $ckt = $self->get_ckt_object( $circuit_id );
-    
+    if(!defined($ckt)){
+	$self->{'logger'}->error("No Circuit could be created or found for circuit: " . $circuit_id);
+	next;
+    }
     #update the ckt model (for us and the share)
     $ckt->update_circuit_details();
     $self->_write_cache();
@@ -1604,7 +1674,7 @@ sub changeVlanPath {
         $self->send_message_to_child($dpid,{action => 'change_path', circuits => [$circuit_id]}, $event_id);
     }
     $self->{'logger'}->warn("Event ID: " . $event_id);
-    return ($result,$event_id);
+    return {status => $result, event_id => $event_id};
 }
 
 =head2 get_event_status
@@ -1613,7 +1683,11 @@ sub changeVlanPath {
 
 sub get_event_status{
     my $self = shift;
-    my $event_id = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+    my $state = shift;
+
+    my $event_id = $p_ref->{'event_id'}{'value'};
 
     $self->{'logger'}->debug("Looking for event: " . $event_id);
     if(defined($self->{'pending_results'}->{$event_id})){
@@ -1624,18 +1698,18 @@ sub get_event_status{
             $self->{'logger'}->debug("DPID: " . $dpid . " reports status: " . $results->{$dpid});
             if($results->{$dpid} == FWDCTL_WAITING){
                 $self->{'logger'}->debug("Event: $event_id dpid $dpid reports still waiting");
-                return FWDCTL_WAITING;
+                return {status => FWDCTL_WAITING};
             }elsif($results->{$dpid} == FWDCTL_FAILURE){
                 $self->{'logger'}->debug("Event : $event_id dpid $dpid reports error!");
-                return FWDCTL_FAILURE;
+                return {status => FWDCTL_FAILURE};
             }
         }
         #done waiting and was success!
         $self->{'logger'}->debug("Event $event_id is complete!!");
-        return FWDCTL_SUCCESS;
+        return {status => FWDCTL_SUCCESS};
     }else{
         #no known event by that ID
-        return FWDCTL_UNKNOWN;
+        return {status => FWDCTL_UNKNOWN};
     }
 }
 
@@ -1643,7 +1717,10 @@ sub _get_endpoint_dpids{
     my $self = shift;
     my $ckt_id = shift;
     my $ckt = $self->get_ckt_object($ckt_id);
-    
+    if(!defined($ckt)){
+	$self->{'logger'}->error("No Circuit could be created or found for circuit: " . $ckt_id);
+	return;
+    }
     my $endpoint_flows = $ckt->get_endpoint_flows(path => 'primary');
     my %dpids;
     foreach my $flow (@$endpoint_flows){
@@ -1671,7 +1748,11 @@ sub get_ckt_object{
     
     if(!defined($ckt)){
         $ckt = OESS::Circuit->new( circuit_id => $ckt_id, db => $self->{'db'});
-        $self->{'circuit'}->{$ckt->get_id()} = $ckt;
+        
+	if(!defined($ckt)){
+	    return;
+	}
+	$self->{'circuit'}->{$ckt->get_id()} = $ckt;
     }
     
     if(!defined($ckt)){
