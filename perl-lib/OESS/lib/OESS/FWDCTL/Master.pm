@@ -112,10 +112,10 @@ sub new {
 
     $self->{'db'} = OESS::Database->new( config_file => $self->{'config'} );
 
-    my $fwdctl_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbit_mq'}->{'host'},
-							      port => $self->{'db'}->{'rabbit_mq'}->{'port'},
-							      user => $self->{'db'}->{'rabbit_mq'}->{'user'},
-							      pass => $self->{'db'}->{'rabbit_mq'}->{'pass'},
+    my $fwdctl_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
+							      port => $self->{'db'}->{'rabbitMQ'}->{'port'},
+							      user => $self->{'db'}->{'rabbitMQ'}->{'user'},
+							      pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
 							      exchange => 'OESS',
 							      queue => 'OF.FWDCTL');
 
@@ -123,10 +123,10 @@ sub new {
 
     
 
-    my $nox_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbit_mq'}->{'host'},
-							   port => $self->{'db'}->{'rabbit_mq'}->{'port'},
-							   user => $self->{'db'}->{'rabbit_mq'}->{'user'},
-							   pass => $self->{'db'}->{'rabbit_mq'}->{'pass'},
+    my $nox_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
+							   port => $self->{'db'}->{'rabbitMQ'}->{'port'},
+							   user => $self->{'db'}->{'rabbitMQ'}->{'user'},
+							   pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
 							   exchange => 'OESS',
 							   queue => 'OF.NOX');
 
@@ -165,6 +165,65 @@ sub register_nox_events{
     my $self = shift;
     my $d = shift;
 
+    my $method = GRNOC::RabbitMQ::Method->new( name => "datapath_join",
+					       callback => sub { $self->datapath_join_handler(@_) },
+					       description => "signals a node has joined the controller");
+
+    $method->add_input_parameter( name => "dpid",
+				  description => "The DPID of the switch which joined",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::NUMBER_ID);
+
+    $method->add_input_parameter( name => "ip",
+				  description => "The IP of the swich which has joined",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::NUMBER_ID);
+
+    $method->add_input_parameter( name => "ports",
+				  description => "A list of ports that exist on the node, and their details",
+				  required => 1,
+				  schema => {'type' => 'array',
+					     'items' => [
+						 'type' => 'object',
+						 'properites' => {
+						     'port_no#' => {'type' => 'number'},
+						     'operational_state' => {'type' => 'string'},
+						     'state' => {'type' => 'number'},
+						     'admin_state' => {'type' => 'string'},
+						     'config' => {'type' => 'number'},
+						     'link' => {'type' => 'number'},
+						     'name' => {'type' => 'string'}}]} );
+
+
+    $d->register_method($method);
+    
+    $method = GRNOC::RabbitMQ::Method->new( name => "port_status",
+					    callback => sub { $self->port_status(@_) },
+					    description => "signals a port status event has happened");
+    
+    $method->add_input_parameter( name => "dpid",
+				  description => "The DPID of the switch which fired the port status event",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::NAME_ID);
+
+    $method->add_input_parameter( name => "reason",
+				  description => "The reason for the port status must be one of OFPPR_ADD OFPPR_DELETE OFPPR_MODIFY",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::INTEGER	);
+
+    $method->add_input_parameter( name => "port",
+				  description => "Details about the port that had the port status message generated on it",
+				  required => 1,
+				  schema => { 'type' => 'object',
+					      'properties' => {'port_no'     => {'type' => 'number'},
+							       'link'        => {'type' => 'number'},
+							       'name'        => {'type' => 'string'},
+							       'admin_state' => {'type' => 'string'},
+							       'status'      => {'type' => 'string'}}});
+				  
+    $d->register_method($method);
+    
+    
 }
 
 sub register_rpc_methods{
@@ -172,7 +231,7 @@ sub register_rpc_methods{
     my $d = shift;
 
     my $method = GRNOC::RabbitMQ::Method->new( name => "addVlan",
-					       callback => $self->addVlan,
+					       callback => sub { $self->addVlan(@_) },
 					       description => "adds a VLAN to the network that exists in OESS DB");
 
     $method->set_schema_validator( schema => { "type" => "object",
@@ -182,7 +241,7 @@ sub register_rpc_methods{
     $d->register_method($method);
     
     $method = GRNOC::RabbitMQ::Method->new( name => "deletelan",
-					    callback => $self->addVlan,
+					    callback => sub { $self->deleteVlan(@_) },
 					    description => "deletes a VLAN to the network that exists in OESS DB");
     
     $method->set_schema_validator( schema => { "type" => "object",
@@ -193,7 +252,7 @@ sub register_rpc_methods{
     
     
     $method = GRNOC::RabbitMQ::Method->new( name => "changeVlanPath",
-					    callback => $self->addVlan,
+					    callback => sub { $self->changeVlanPath(@_) },
 					    description => "changes a vlan to alternate path");
     
     $method->set_schema_validator( schema => { "type" => "object",
@@ -203,7 +262,7 @@ sub register_rpc_methods{
     $d->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name => "topo_port_status",
-                                            callback => $self->topo_port_status,
+                                            callback => sub { $self->topo_port_status(@_) },
                                             description => "topo_port_status");
 
     $method->set_schema_validator( schema => { "type" => "object",
@@ -221,15 +280,17 @@ sub register_rpc_methods{
     $d->register_method($method);    
 
     $method = GRNOC::RabbitMQ::Method->new( name => 'rules_per_switch',
-					    callback => $self->rules_per_switch,
+					    callback => sub { $self->rules_per_switch(@_) },
 					    description => "Returns the total number of flow rules currently installed on this switch");
     
     $method->set_schema_validator( schema => { "type" => "object",
                                                "required" =>  ["dpid"],
                                                "properties" => { 'dpid' => { 'type' => 'number'}}});
 
+    $d->register_method($method);
+
     $method = GRNOC::RabbitMQ::Method->new( name => 'fv_link_event',
-					    callback => $self->fv_link_event,
+					    callback => sub { $self->fv_link_event(@_) },
 					    description => "Handles Forwarding Verfiication LInk events");
     
     $method->set_schema_validator( schema => { "type" => "object",
@@ -237,40 +298,48 @@ sub register_rpc_methods{
                                                "properties" => { 'link_name' => { 'type' => 'string'},
 								 'state'     => { 'type' => 'string'}}});
 
+    $d->register_method($method);
+
     $method = GRNOC::RabbitMQ::Method->new( name => 'update_cache',
-					    callback => $self->update_cache,
+					    callback => sub { $self->update_cache(@_) },
 					    description => 'Updates the circuit cache');
 
     $method->set_schema_validator( schema => { "type" => "object",
                                                "required" =>  ["circui_id"],
                                                "properties" => { 'circuit_id' => { 'type' => 'number'}}});
 
+    $d->register_method($method);
+
 
     $method = GRNOC::RabbitMQ::Method->new( name => 'force_sync',
-					    callback => $self->force_sync,
+					    callback => sub { $self->force_sync(@_) },
 					    description => "Forces a synchronization of the device to the cache");
 
     $method->set_schema_validator( schema => { "type" => "object",
                                                "required" =>  ["dpid"],
                                                "properties" => { 'dpid' => { 'type' => 'number'}}});
-
+    $d->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name => 'get_event_status',
-					    callback => $self->get_event_status,
+					    callback => sub { $self->get_event_status(@_) },
 					    description => "Returns the current status of the event");
 
     $method->set_schema_validator( schema => { "type" => "object",
                                                "required" =>  ["event_id"],
                                                "properties" => { 'event_id' => { 'type' => 'string'}}});
     
+    $d->register_method($method);
+
     $method = GRNOC::RabbitMQ::Method->new( name => 'check_child_status',
-                                            callback => $self->check_child_status,
+                                            callback => sub { $self->check_child_status(@_) },
 					    description => "Returns an event id which will return the final status of all children");
     
     $method->set_schema_validator( schema => { } );
 
+    $d->register_method($method);
+
     $method = GRNOC::RabbitMQ::Method->new( name => 'node_maintenance',
-                                            callback => $self->node_maintenance,
+                                            callback => sub { $self->node_maintenance(@_) },
                                             description => "Returns an event id which will return the final status of all children");
 
     $method->set_schema_validator( schema => { "type" => "object",
@@ -278,75 +347,18 @@ sub register_rpc_methods{
                                                "properties" => { 'node_id' => { 'type' => 'number'},
 								 'state' => {'type' => 'string'}}});
 
+    $d->register_method($method);
+
     $method = GRNOC::RabbitMQ::Method->new( name => 'link_maintenance',
-                                            callback => $self->link_maintenance,
+                                            callback => sub { $self->link_maintenance(@_) },
                                             description => "Returns an event id which will return the final status of all children");
 
     $method->set_schema_validator( schema => { "type" => "object",
                                                "required" =>  ["link_id", "state"],
                                                "properties" => { 'link_id' => { 'type' => 'number'},
                                                                  'state' => {'type' => 'string'}}});
-}
+    $d->register_method($method);
 
-
-
-
-sub _handle_event{
-    my $self = shift;
-    my $var = shift;
-
-    $self->{'logger'}->debug("Handling Event");
-    my $method = $var->{'deliver'}->{'method_frame'}->{'routing_key'};
-    $self->{'logger'}->debug("Method: " . $method);
-    my $body = $var->{'body'}->{'payload'};
-    $self->{'logger'}->debug("PayLoad: " . $body);
-
-    my $json;
-    eval{
-        $json = decode_json($body);
-    };
-
-    if(!defined($json)){
-        $self->{'logger'}->error("Recieved an Invalid event: " . $method . " BODY: " . $body);
-	return;
-    }
-
-    $method =~ /OF.NOX.(\S+)/;
-    my $name = $1;
-
-    switch( $name ){
-	case "datapath_join"{
-	    my $dpid = $json->{'dpid'};
-	    my $ip = $json->{'ip'};
-	    my $ports = $json->{'ports'};
-
-	    if(!defined($dpid)){
-		return;
-	    }
-	    $self->datapath_join_handler( $dpid );
-	    
-	}
-	case "datapath_leave"{
-
-	    my $dpid = $json->{'dpid'};
-	    #no op right now
-	    
-	}
-	case "port_status"{
-	    my $dpid = $json->{'dpid'};
-	    my $reason = $json->{'reason'};
-	    my $info = $json->{'info'};
-
-	    if(!defined($dpid) || !defined($reason) || !defined($info)){
-		return;
-	    }
-
-	    $self->port_status( $dpid, $reason, $info );
-	}
-	else{
-	    
-	}
-    }
 }
 
 
@@ -748,7 +760,7 @@ sub check_child_status{
         my $child = $self->{'children'}->{$dpid};
         my $corr_id = $self->send_message_to_child($dpid,{action => 'echo'},$event_id);            
     }
-    return (1,$event_id);
+    return {status => 1, event_id => $event_id};
 }
 
 =head2 reap_old_events
@@ -1164,9 +1176,15 @@ sub _fail_over_circuits{
 
 sub port_status{
     my $self   = shift;
-    my $dpid   = shift;
-    my $reason = shift;
-    my $info   = shift;
+    #GRNOC::RabbitMQ::Method params
+    my $m_ref = shift;
+    my $p_ref = shift;
+    my $state_ref = shift;
+
+    #all of our params are stored in the p_ref!
+    my $dpid = $p_ref->{'dpid'}{'value'};
+    my $reason = $p_ref->{'reason'}{'value'};
+    my $info = $p_ref->{'info'}{'value'};
 
     $self->{'logger'}->error("Port Status event!");
 
@@ -1445,10 +1463,13 @@ sub fv_link_event{
 
 sub addVlan {
     my $self       = shift;
-    my $circuit_id = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+    my $state = shift;
+    
+    my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
     $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
-
     $self->{'logger'}->info("addVlan: $circuit_id");
 
     my $event_id = $self->_generate_unique_event_id();
