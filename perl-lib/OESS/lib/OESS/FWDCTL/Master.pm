@@ -29,6 +29,7 @@ package OESS::FWDCTL::Master;
 
 use strict;
 
+use GRNOC::WebService::Regex;
 use Data::Dumper;
 use POSIX;
 use Log::Log4perl;
@@ -789,7 +790,11 @@ sub reap_old_events{
 
 sub datapath_join_handler{
     my $self   = shift;
-    my $dpid   = shift;
+    my $method_ref = shift;
+    my $p_ref = shift;
+    my $state = shift;
+
+    my $dpid = $p_ref->{'dpid'}{'value'};
 
     my $dpid_str  = sprintf("%x",$dpid);
 
