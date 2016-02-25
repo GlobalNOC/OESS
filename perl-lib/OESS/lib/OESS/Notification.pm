@@ -85,7 +85,7 @@ sub new {
     $self->{'template_path'} = $args{'template_path'};
     
     return if !defined( $self->{'config_file'} );
-
+    
     if(!defined($self->{'config'})){
         $self->{'config'} = "/etc/oess/database.xml";
     }
@@ -106,6 +106,27 @@ sub new {
     #dbus_signal( "circuit_unknown", [['dict', 'string', ["variant"]]],['string']);
     
     #dbus_method( "circuit_notification", [["dict","string",["variant"]]],["string"]);
+    
+    my $notification_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
+                                                                    port => $self->{'db'}->{'rabbitMQ'}->{'port'},
+                                                                    user => $self->{'db'}->{'rabbitMQ'}->{'user'},
+                                                                    pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
+                                                                    exchange => 'OESS',
+                                                                    queue => 'OF.Notification.RPC');
+
+    $self->register_rpc_methods( $notification_dispatcher );
+
+    $self->{'notification_dispatcher'} = $notification_dispatcher;
+
+    my $notification_events = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
+                                                                port => $self->{'db'}->{'rabbitMQ'}->{'port'},
+                                                                user => $self->{'db'}->{'rabbitMQ'}->{'user'},
+                                                                pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
+                                                                exchange => 'OESS',
+                                                                queue => 'OF.Notification.event');
+
+    $self->{'notification_events'} = $notification_events
+
     return $self;
 }
 
@@ -117,28 +138,37 @@ sub register_rpc_methods{
     my $method = GRNOC::RabbitMQ::Method->new( name => "circuit_notification",
                                                callback => $self->circuit_notification,
                                                description => "Send circuit notification");
+
+    $method->add_input_parameter( name => "type",
+                                  description => "the type of circuit notification event",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::TEXT);
+
+    $d->register_method($method);
+
+    $method->add_input_parameter( name => "link_name",
+                                  description => "Name of the link",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::TEXT);
     
-    $method->set_schema_validator( schema => { "type" => "object",
-                                               "required" =>  ["dbus_data"],
-                                               "properties" => { 'dbus_data' => { 'type' => 'string'}}});
+    $d->register_method($method);
+
+    $method->add_input_parameter( name => "affected_circuits",
+                                  description => "List of circuits affected by the event",
+                                  required => 1,
+                                  schema => { 'type' => 'array'});
+    
+    $d->register_method($method);
+
+    $method->add_input_parameter( name => "no_reply",
+                                  description => "",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);
     
     $d->register_method($method);
 }
 
 
-sub register_notification_events{
-    my $self = shift;
-    my $d = shift;
-
-    my $method = GRNOC::RabbitMQ::Method->new( name => "circuit_notification",
-                                               callback => sub { $self->circuit_notification(@_) },
-                                               description => "signals a change in state of circuit");
-    
-    $method->add_input_parameter( name => "dbus_data",
-                                  description => "",
-                                  required => 1,
-                                  schema => {'type' => 'string'}
-}
 =head2 C<circuit_notification()>
 
 dbus_method circuit_provision, sends a notification, and emits a signal that circuit has been provisioned
@@ -155,21 +185,28 @@ hashref containing circuit data, minimally at least the circuit_id
 
 sub circuit_notification {
     my $self    = shift;
-    my $dbus_data = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    my $type = $p_ref->{'type'}{'value'};
+    my $link_name= $p_ref->{'link_name'}{'value'};
+    my $affected_circuits= $p_ref->{'affected_circuits'}{'value'};
+    my $no_reply= $p_ref->{'no_reply'}{'value'};
+
     my $circuit;
-    $self->{'log'}->debug("Sending Circuit Notification: " . Data::Dumper::Dumper($dbus_data));
+    $self->{'log'}->debug("Sending Circuit Notification: " . Data::Dumper::Dumper($p_ref));
     
-    if ($dbus_data->{'type'} eq 'link_down' || $dbus_data->{'type'} eq 'link_up' ) {
+    if ($type eq 'link_down' || $type eq 'link_up' ) {
 	$self->{'log'}->debug("Sending bulk notifications");
-        $self->_send_bulk_notification($dbus_data);
+        $self->_send_bulk_notification($p_ref);
         return;
     }
 
-    $circuit = $dbus_data;
+    $circuit = $p_ref;
     my $circuit_notification_data = $self->get_notification_data( circuit => $circuit );
     if (!defined($circuit_notification_data)) {
         $self->{'log'}->error("Unable to get circuit data for circuit: " . $circuit->{'circuit_id'});
-	return;
+	return {status => 0};;
     }
 
     my $subject = "OESS Notification: Circuit '" . $circuit_notification_data->{'circuit'}->{'description'} . "' ";
@@ -182,31 +219,31 @@ sub circuit_notification {
     switch($circuit->{'type'} ) {
         case "provisioned"{
 	    $subject .= "has been provisioned in workgroup: $workgroup ";
-	    $self->emit_signal( "circuit_provision", $circuit );
+	    $self->{'notification_events'}( type => "circuit_provision", circuit => $circuit );
 	}
 	case "removed" {
 	    $subject .= "has been removed from workgroup: $workgroup";
-	    $self->emit_signal( "circuit_removed", $circuit );
+	    $self->{'notification_events'}( type => "circuit_removed", circuit => $circuit );
 	}
 	case "modified" {
 	    $subject .= "has been edited in workgroup: $workgroup";
-	    $self->emit_signal( "circuit_modified", $circuit );
+	    $self->{'notification_events'}( type => "circuit_modified", circuit => $circuit );
 	}
 	case "change_path" {
 	    $subject .= "has changed to " . $circuit_notification_data->{'circuit'}->{'active_path'} . " path in workgroup: $workgroup";
-	    $self->emit_signal( "circuit_change_path", $circuit );
+	    $self->{'notification_events'}( type => "circuit_change_path", circuit => $circuit );
 	}
 	case "restored" {
 	    $subject .= "has been restored for workgroup: $workgroup";
-	    $self->emit_signal( "circuit_restored", $circuit );
+	    $self->{'notification_events'}( type => "circuit_restored", circuit => $circuit );
 	}
 	case "down" {
 	    $subject .= "is down for workgroup: $workgroup";
-	    $self->emit_signal( "circuit_down", $circuit );
+	    $self->{'notification_events'}( type => "circuit_down", circuit => $circuit );
 	}
 	case "unknown" {
 	    $subject .= "is in an unknown state in workgroup: $workgroup";
-	    $self->emit_signal( "circuit_unknown", $circuit );
+	    $self->{'notification_events'}( type => "circuit_unknown", circuit => $circuit );
 	}
       }
 
@@ -516,15 +553,6 @@ sub _connect_services {
     my $self = shift;
     
     $self->{'db'} = OESS::Database->new( config_file => $self->{'config'} );
-    
-    my $notification_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbit_mq'}->{'host'},
-                                                                    port => $self->{'db'}->{'rabbit_mq'}->{'port'},
-                                                                    user => $self->{'db'}->{'rabbit_mq'}->{'user'},
-                                                                    pass => $self->{'db'}->{'rabbit_mq'}->{'pass'},
-                                                                    exchange => 'OESS',
-                                                                    queue => 'OF.FWDCTL');
-    
-    $self->register_rpc_methods( $notification_dispatcher );
     
 }
 
