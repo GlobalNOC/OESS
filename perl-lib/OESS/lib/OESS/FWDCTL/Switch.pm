@@ -32,10 +32,8 @@ use strict;
 use Log::Log4perl;
 use Switch;
 
-use AnyEvent;
+use GRNOC::RabbitMQ::Client;
 use OESS::FlowRule;
-use OESS::DBus;
-use Net::DBus;
 use JSON;
 
 use Data::Dumper;
@@ -82,17 +80,22 @@ sub new {
         return;
     }
     
-    my $nox = OESS::DBus->new( service => 'org.nddi.openflow', instance => '/controller1');
-
     my $self = \%args;
+
+    $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL.Switch.' . sprintf("%x",$self->{'dpid'}));
+    $self->{'logger'}->error("I EXIST!!!");
+
+    my $ar = GRNOC::RabbitMQ::Client->new( host => $self->{'rabbitMQ'}->{'host'},
+					   user => $self->{'rabbitMQ'}->{'user'},
+					   pass => $self->{'rabbitMQ'}->{'pass'},
+					   vhost => $self->{'rabbitMQ'}->{'vhost'},
+					   queue => 'OF.NOX.RPC',
+					   exchange => 'OESS');
+    $self->{'rabbit_mq'} = $ar;
 
     #--- set a default discovery vlan that can be overridden later if needed.
     $self->{'settings'}->{'discovery_vlan'} = -1;
 
-    $self->{'nox'} = $nox->{'dbus'};
-
-    $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL.Switch.' . sprintf("%x",$self->{'dpid'}));
-    $self->{'logger'}->debug("I EXIST!!!");
     bless $self, $class;
 
     $self->_update_cache();
@@ -291,12 +294,14 @@ sub change_path{
             next unless defined($command);
             next unless ($command->get_dpid() == $self->{'dpid'});
             $self->{'logger'}->info("Modifying endpoint flow to $active_path path: " . $command->to_human());
-            $self->{'nox'}->send_datapath_flow($command->to_dbus( command => OFPFC_MODIFY_STRICT ));
+	    $self->{'rabbit_mq'}->send_datapath_flow( flow => $command->to_json( command => OFPFC_MODIFY_STRICT) );
 
             #if not doing bulk barrier send a barrier and wait
             if(!$self->{'node'}->{'send_barrier_bulk'}){
                 $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-                $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+
+		$self->{'rabbit_mq'}->send_barrier( dpid => $self->{'dpid'} );	
+
                 #assume failure , use diff to be resilient to failure
                 $self->{'needs_diff'} = time();
                 
@@ -312,7 +317,8 @@ sub change_path{
 
     #send our final barrier and wait for reply
     $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-    $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+    $self->{'rabbit_mq'}->send_barrier(dpid => $self->{'dpid'});
+    
     #assume failure , use diff to be resilient to failure
     $self->{'needs_diff'} = time();
     my $result = $self->_poll_node_status();
@@ -347,10 +353,11 @@ sub add_vlan{
         
         if($self->{'flows'} < $self->{'node'}->{'max_flows'}){
             $self->{'logger'}->info("Installing Flow: " . $command->to_human());
-
-            $self->{'nox'}->send_datapath_flow($command->to_dbus( command => OFPFC_ADD ));
-            $self->{'flows'}++;
-                        
+	    
+	    $self->{'rabbit_mq'}->send_datapath_flow( flow => $command->to_json( OFPFC_ADD ));
+	    
+	    $self->{'flows'}++;
+	    
         }else{
  
             $self->{'logger'}->error("Node: " . $self->{'node'}->{'name'} . " is at or over its maximum flow mod limit, unable to send flow rule for circuit: " . $circuit);
@@ -361,7 +368,7 @@ sub add_vlan{
         #if not doing bulk barrier send a barrier and wait
         if(!$self->{'node'}->{'send_barrier_bulk'}){
             $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-            $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+	    $self->{'rabbit_mq'}->send_barrier(dpid => $self->{'dpid'});
             #assume failure , use diff to be resilient to failure
             $self->{'needs_diff'} = time();
             my $result = $self->_poll_node_status();
@@ -374,7 +381,7 @@ sub add_vlan{
 
     #send our final barrier and wait for reply
     $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-    $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+    $self->{'rabbit_mq'}->send_barrier( dpid => $self->{'dpid'});
     #assume failure , use diff to be resilient to failure
     $self->{'needs_diff'} = time();
     my $result = $self->_poll_node_status();
@@ -407,13 +414,14 @@ sub remove_vlan{
     foreach my $command (@$commands){
 
         $self->{'logger'}->info("Removing Flow: " . $command->to_human());
-        $self->{'nox'}->send_datapath_flow($command->to_dbus( command => OFPFC_DELETE_STRICT ));
+
+	$self->{'rabbit_mq'}->send_datapath_flow(flow => $command->to_json( command => OFPFC_DELETE_STRICT));
         $self->{'flows'}--;
         
         #if not doing bulk barrier send a barrier and wait
         if(!$self->{'node'}->{'send_barrier_bulk'}){
             $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-            $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+	    $self->{'rabbit_mq'}->send_barrier( dpid => $self->{'dpid'});
             #assume failure , use diff to be resilient to failure
             $self->{'needs_diff'} = time();
             my $result = $self->_poll_node_status();
@@ -428,7 +436,7 @@ sub remove_vlan{
 
     #send our final barrier and wait for reply
     $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-    $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+    $self->{'rabbit_mq'}->send_barrier( dpid => $self->{'dpid'} );
     #assume failure , use diff to be resilient to failure
     $self->{'needs_diff'} = time();
     my $result = $self->_poll_node_status();
@@ -465,11 +473,13 @@ sub datapath_join_handler{
         #--- make sure there is a discovery vlan set. else send -1.
         if($self->{'settings'}->{'discovery_vlan'}){ 
             $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." pushing lldp forwarding rule for vlan $self->{'settings'}->{'discovery_vlan'}");
-            $status = $self->{'nox'}->install_default_forward(Net::DBus::dbus_uint64($self->{'dpid'}),$self->{'settings'}->{'discovery_vlan'});
+            $status = $self->{'rabbit_mq'}->install_default_forward( dpid => $self->{'dpid'}, 
+								     discovery_vlan => $self->{'settings'}->{'discovery_vlan'});
         }
         else{
             $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." pushing lldp forwarding rule for vlan -1");
-            $status = $self->{'nox'}->install_default_forward(Net::DBus::dbus_uint64($self->{'dpid'}),-1);
+            $status = $self->{'rabbit_mq'}->install_default_forward(dpid => $self->{'dpid'},
+								    discovery_vlan => -1);
         }
 
         $self->{'flows'}++;
@@ -477,11 +487,11 @@ sub datapath_join_handler{
 
     if (!defined($self->{'node'}->{'default_drop'}) || $self->{'node'}->{'default_drop'} == 1) {
         $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." pushing default drop rule");
-        my $status = $self->{'nox'}->install_default_drop(Net::DBus::dbus_uint64($self->{'dpid'}));
+        my $status = $self->{'rabbit_mq'}->install_default_drop( dpid => $self->{'dpid'});
         $self->{'flows'}++;
     }
     $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-    my $xid = $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+    $self->{'rabbit_mq'}->send_barreri(dpid => $self->{'dpid'});
 
     my $result = $self->_poll_node_status();
     
@@ -508,10 +518,10 @@ sub _replace_flowmod{
     if (defined($commands->{'remove'})) {
         #delete this flowmod
         $self->{'logger'}->info("Deleting flow: " . $commands->{'remove'}->to_human());
-        my $status = $self->{'nox'}->send_datapath_flow($commands->{'remove'}->to_dbus( command => OFPFC_DELETE_STRICT ));
+	$self->{'rabbit_mq'}->send_datapath_flow( flow => $commands->{'remove'}->to_json( command => OFPFC_DELETE_STRICT) );
 
         if(!$self->{'node'}->{'send_barrier_bulk'}){
-            my $xid = $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($commands->{'remove'}->get_dpid()));
+	    $self->{'rabbit_mq'}->send_barrier(dpid => $self->{'dpid'});
             $self->{'logger'}->debug("replace flowmod: send_barrier: with dpid: " . $commands->{'remove'}->get_dpid());
             #assume failure , use diff to be resilient to failure
             $self->{'needs_diff'} = time();
@@ -528,13 +538,13 @@ sub _replace_flowmod{
             $self->{'logger'}->error("sw: dpipd:" . $self->{'node'}->{'dpid_str'} . " exceeding max_flows:". $self->{'node'}->{'max_flows'} ." replace flowmod failed");
             return FWDCTL_FAILURE;
         }
-	    $self->{'logger'}->info("Installing Flow: " . $commands->{'add'}->to_human());
-        my $status = $self->{'nox'}->send_datapath_flow($commands->{'add'}->to_dbus( command => OFPFC_ADD ));
+
+	$self->{'rabbit_mq'}->send_datapath_flow(flow => $commands->{'add'}->to_json( command => OFPFC_ADD));
 	
         # send the barrier if the bulk flag is not set
         if (!$self->{'node'}->{'send_barrier_bulk'}) {
             $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-            my $xid = $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($commands->{'add'}->get_dpid()));
+	    $self->{'rabbit_mq'}->send_barrier(dpid => $self->{'dpid'} );
             #assume failure , use diff to be resilient to failure
             $self->{'needs_diff'} = time();
             $self->{'logger'}->error("replace flowmod: send_barrier: with dpid: " . $commands->{'add'}->get_dpid());
@@ -698,7 +708,7 @@ sub _actual_diff{
     }
 
     if($self->{'node'}->{'bulk_barrier'}){
-        my $xid = $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+	$self->{'rabbit_mq'}->send_barrier( dpid => $self->{'dpid'} );
         $self->{'logger'}->info("diff barrier with dpid: " . $self->{'dpid'});
         my $result = $self->_poll_node_status();
         $self->{'logger'}->debug("node_status");
@@ -760,7 +770,7 @@ sub get_flow_stats{
     my $self = shift;
 
     if($self->{'needs_diff'}){
-        my ($time,$stats) = $self->{'nox'}->get_flow_stats($self->{'dpid'});
+        my ($time,$stats) = $self->{'rabbit_mq'}->get_flow_stats( dpid => $self->{'dpid'} );
         if ($time == -1) {
             #we don't have flow data yet
             $self->{'logger'}->info("no flow stats cached yet for dpid: " . $self->{'dpid'});
@@ -787,7 +797,9 @@ sub _poll_node_status{
 
     while (time() < $timeout) {
         
-        my ($output,$failed_flows) = $self->{'nox'}->get_node_status(Net::DBus::dbus_uint64($self->{'dpid'}));
+	
+
+	my $output = $self->{'rabbit_mq'}->get_node_status(dpid => $self->{'dpid'} );
         $self->{'logger'}->debug("poll node status output: $output");
         #-- pending, retry later
         $self->{'logger'}->trace("Status of node: " . $self->{'node'}->{'name'} . " DPID: " . $self->{'node'}->{'dpid_str'} . " is " . $output);
