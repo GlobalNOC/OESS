@@ -23,7 +23,6 @@
 #
 
 use strict;
-use AnyEvent::RabbitMQ;
 use OESS::Notification;
 use Proc::Daemon;
 use Log::Log4perl;

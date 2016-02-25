@@ -123,21 +123,24 @@ sub new {
                                                                 user => $self->{'db'}->{'rabbitMQ'}->{'user'},
                                                                 pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
                                                                 exchange => 'OESS',
-                                                                queue => 'OF.Notification.event');
+                                                                queue => 'OF.FWDCTL.event');
 
-    $self->{'notification_events'} = $notification_events
+    $self->register_notification_events( $notification_events );
 
+    $self->{'notification_events'} = $notification_events;
+    
     return $self;
+
 }
 
 
-sub register_rpc_methods{
+sub register_notification_events{
     my $self = shift;
     my $d = shift;
     
     my $method = GRNOC::RabbitMQ::Method->new( name => "circuit_notification",
                                                callback => sub {$self->circuit_notification(@_) },
-                                               description => "Sends circuit notification");
+                                               description => "Signals circuit notification event");
 
     $method->add_input_parameter( name => "type",
                                   description => "the type of circuit notification event",
@@ -165,6 +168,39 @@ sub register_rpc_methods{
                                   required => 1,
                                   pattern => $GRNOC::WebService::Regex::INTEGER);
     
+    $d->register_method($method);
+}
+
+
+sub register_rpc_methods{
+    my $self = shift;
+    my $d = shift;
+    
+    my $method = GRNOC::RabbitMQ::Method->new( name => "circuit_notification",
+                                               callback => sub {$self->circuit_notification(@_) },
+                                               description => "Sends circuit notification");
+
+
+    $method->add_input_parameter( name => "status",
+                                  description => "Status of the circuit",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::TEXT);
+                                  
+
+    $d->register_method($method);
+
+    $method->add_input_parameter( name => "removed_by",
+                                  description => "User who generated the circuit notification",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::TEXT);
+
+    $d->register_method($method);
+
+    $method->add_input_parameter( name => "type",
+                                  description => "the type of circuit notification event",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::TEXT);
+
     $d->register_method($method);
 }
 
