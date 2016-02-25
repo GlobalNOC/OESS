@@ -23,7 +23,7 @@
 #
 
 use strict;
-use OESS::DBus;
+use AnyEvent::RabbitMQ;
 use OESS::Notification;
 use Proc::Daemon;
 use Log::Log4perl;
@@ -38,48 +38,8 @@ sub connect_to_dbus {
     Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
     $log = Log::Log4perl->get_logger("NOTIFY");
 
-    my $fwdctl_dbus = OESS::DBus->new(
-        service  => 'org.nddi.fwdctl',
-        instance => '/controller1',
-        timeout => -1,
-        sleep_interval => .1
-    );
-
-    my $dbus = OESS::DBus->new(
-        service  => 'org.nddi.openflow',
-        instance => '/controller1'
-    );
-
-    ##dbus registers events to listen for on creation / scheduled
-    my $bus     = Net::DBus->system;
-    my $service = $bus->export_service("org.nddi.notification");
-
-    #OESS::Notification listens on 'org.nddi.notification'
-    my $notification = OESS::Notification->new(
-        service     => $service,
-        config_file => '/etc/oess/database.xml'
-    );
-
-    if ( !defined $notification ) {    
-        die("could not export org.nddi.notification service");
-    }
-
-    #closure allows us to have notification object in scope when fwdctl events fire
-    my $callback = sub {
-        my ($circuit) = @_;
-        $notification->circuit_notification($circuit);
-    };
-
-    if ( defined($fwdctl_dbus) ) {
-        warn "connecting to signal_circuit_failover signal";
-        $fwdctl_dbus->connect_to_signal( "circuit_notification", $callback );
-    }
-    else {
-        die;
-    }
-
-    $fwdctl_dbus->start_reactor();
-
+    my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => sub { $FWDCTL->reap_old_events() } );
+    AnyEvent->condvar->recv;
 }
 
 sub main {

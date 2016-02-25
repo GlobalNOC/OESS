@@ -35,7 +35,7 @@ Version 1.1.9
 
 =cut
 
-our $VERSION = '1.1.9';
+our $VERSION = '1.2.0';
 
 =head1 SYNOPSIS
 
@@ -82,7 +82,7 @@ use OESS::Topology;
 use DateTime;
 use Data::Dumper;
 
-use constant VERSION => '1.1.9';
+use constant VERSION => '1.2.0';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant SHARE_DIR => "/usr/share/doc/perl-OESS-" . VERSION . "/";
@@ -136,6 +136,7 @@ sub new {
 
     $self->{'configuration'} = $config;
 
+    $self->{'rabbitMQ'} = $config->{'rabbitMQ'};
     my $snapp_config_location = $config->{'snapp_config_location'};
     my $oscars_info = {
 	host => $config->{'oscars'}->{'host'},
