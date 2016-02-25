@@ -31,6 +31,7 @@ use strict;
 
 use GRNOC::WebService::Regex;
 use Data::Dumper;
+use Socket;
 use POSIX;
 use Log::Log4perl;
 use Switch;
@@ -838,6 +839,7 @@ sub _update_node_database_state{
     my $p_ref = shift;
 
     my $dpid = $p_ref->{'dpid'}{'value'};    
+    my $ip = $p_ref->{'ip'}{'value'};
 
     $self->{'db'}->_start_transaction();
     my $node = $self->{'db'}->get_node_by_dpid(dpid => $dpid);
@@ -850,7 +852,7 @@ sub _update_node_database_state{
         #update admin state if it is planned (now it exists and we have some data to back this assertion)
         if ( $node->{'admin_state'} =~ /planned/){
             ##update old, create new
-            $db->create_node_instance(node_id => $node->{'node_id'}, ipv4_addr => $ip ,admin_state => 'available',dpid => $dpid);
+            $self->{'db'}->create_node_instance(node_id => $node->{'node_id'}, ipv4_addr => $ip ,admin_state => 'available',dpid => $dpid);
         }
         $node_id = $node->{'node_id'};
 
@@ -878,9 +880,10 @@ sub _update_node_database_state{
             $node_name="unnamed-".$dpid;
         }
 
-        $node_id = $self->{'db'}->add_node(name => $node_name, operational_state => 'up', network_id => $network_id);
+	#newtork_id 1 = local domain ALWAYS
+        $node_id = $self->{'db'}->add_node(name => $node_name, operational_state => 'up', network_id => 1);
         if(!defined($node_id)){
-            $db->_rollback();
+            $self->{'db'}->_rollback();
             return;
         }
         $self->{'db'}->create_node_instance(node_id => $node_id, ipv4_addr => $ip, admin_state => 'available', dpid => $dpid);
@@ -913,10 +916,10 @@ sub _update_node_database_state{
         my $int_id = $self->{'db'}->add_or_update_interface(node_id => $node_id,name => $port->{'name'}, description => $port->{'name'}, operational_state => $operational_state, port_num => $port->{'port_no'}, admin_state => $admin_state);
 	
 	my $link_info   = $self->{'db'}->get_link_by_dpid_and_port(dpid => $dpid,
-								   port => $port_number);
+								   port => $port->{'port_no'});
 	if (defined(@$link_info[0])) {
-	    $link_id   = @$link_info[0]->{'link_id'};
-	    $link_name = @$link_info[0]->{'name'};
+	    my $link_id   = @$link_info[0]->{'link_id'};
+	    my $link_name = @$link_info[0]->{'name'};
 	    if($self->{'link_status'}->{$link_name} != $port->{'link'}){
 		$self->port_status(undef,{dpid => $$dpid,
 				          reason => OFPPR_MODIFY,
@@ -1342,20 +1345,21 @@ sub _update_port_status{
     }else{
 	$self->{'db'}->_start_transaction();
 	my $operational_state = 'up';
-	my $operational_state_num=(int($port_info->{'state'}) & 0x1);
+	my $operational_state_num=(int($info->{'state'}) & 0x1);
 	if(1 == $operational_state_num){
 	    $operational_state = 'down';
 	}
 	
 	my $admin_state = 'up';
-	my $admin_state_num = (int($port_info->{'config'}) & 0x1);
+	my $admin_state_num = (int($info->{'config'}) & 0x1);
 	
 	if(1 == $admin_state_num){
 	    $admin_state = 'down';
 	}
 	
+	my $node = $self->{'db'}->get_node_by_dpid(dpid => $dpid);
 	
-	my $res = $self->{'db'}->add_or_update_interface(node_id => $node_details->{'node_id'}, name => $info->{'name'},
+	my $res = $self->{'db'}->add_or_update_interface(node_id => $node->{'node_id'}, name => $info->{'name'},
 							 description => $info->{'name'}, operational_state => $operational_state,
 							 port_num => $info->{'port_no'}, admin_state => $admin_state);
 	
@@ -1401,7 +1405,7 @@ sub port_status{
 
     #assert we found the node in the db, its really bad if it isn't there!
     $self->{'logger'}->error("node with DPID: " . $dpid . " was not found in the DB") && $self->{'logger'}->logcluck() && exit 1 if(!defined($node_details));
-    
+    my $dpid_str  = sprintf("%x",$dpid);
     switch($reason){
 
         #port status was modified (either up or down)
@@ -1534,8 +1538,11 @@ sub link_event{
     my $m_ref = shift;
     my $p_ref = shift;
     
-    my $a_end = $p_ref->{'a_end'}{'value'};
-    my $z_end = $p_ref->{'z_end'}{'value'};
+    my $a_dpid = $p_ref->{'a_dpid'}{'value'};
+    my $z_dpid = $p_ref->{'z_dpid'}{'value'};
+
+    my $a_port = $p_ref->{'a_port'}{'value'};
+    my $z_port = $p_ref->{'z_port'}{'value'};
 
     my $status = $p_ref->{'status'}{'value'};
 
@@ -1603,13 +1610,13 @@ sub link_event{
 		    if($old_z == $interface_a->{'interface_id'}){
 			$old_z = $link->{'interface_z_id'};
 		    }
-		    my $old_z_interface = $db->get_interface( interface_id => $old_z);
+		    my $old_z_interface = $self->{'db'}->get_interface( interface_id => $old_z);
 		    $self->{'db'}->decom_link_instantiation( link_id => $link->{'link_id'} );
 		    $self->{'db'}->create_link_instantiation( link_id => $link->{'link_id'}, interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'}, state => $link->{'state'} );
 		    $self->{'db'}->_commit();
 		    #do admin notify
 		    
-		    my $circuits = $self->{'db'}->get_circuits_on_link(link_id => $link_id);
+		    my $circuits = $self->{'db'}->get_circuits_on_link(link_id => $link->{'link_id'});
 		    foreach my $circuit (@$circuits) {
 			my $circuit_id = $circuit->{'circuit_id'};
 			my $ckt = $self->get_ckt_object( $circuit_id );
@@ -1625,21 +1632,21 @@ sub link_event{
 		    return;
 			
 		}elsif(defined($a_links->[0])){
-		    print_log(LOG_WARNING,"LINK has changed interface on z side");
+		    $self->{'logger'}->warn("LINK has changed interface on z side");
 		    #easy case update link_a so that it is now on the new interfaces
 		    my $link = $a_links->[0];
 		    my $old_z =$link->{'interface_a_id'};
 		    if($old_z == $interface_a->{'interface_id'}){
 			$old_z = $link->{'interface_z_id'};
 		    }
-		    my $old_z_interface= $db->get_interface( interface_id => $old_z);
+		    my $old_z_interface= $self->{'db'}->get_interface( interface_id => $old_z);
 		    #if its in the links_a that means the z end changed...
 		    $self->{'db'}->decom_link_instantiation( link_id => $link->{'link_id'} );
 		    $self->{'db'}->create_link_instantiation( link_id => $link->{'link_id'}, interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'}, state => $link->{'state'} );
 		    $self->{'db'}->_commit();
 		    #do admin notification
 
-                    my $circuits = $self->{'db'}->get_circuits_on_link(link_id => $link_id);
+                    my $circuits = $self->{'db'}->get_circuits_on_link(link_id => $link->{'link_id'});
                     foreach my $circuit (@$circuits) {
                         my $circuit_id = $circuit->{'circuit_id'};
                         my $ckt = $self->get_ckt_object( $circuit_id );
@@ -1655,21 +1662,21 @@ sub link_event{
 		    return;
 		}elsif(defined($z_links->[0])){
 		    #easy case update link_a so that it is now on the new interfaces
-		    print_log(LOG_WARNING,"Link has changed ports on the A side");
+		    $self->{'logger'}->warn("Link has changed ports on the A side");
 		    my $link = $z_links->[0];
 
 		    my $old_a =$link->{'interface_a_id'};
 		    if($old_a == $interface_z->{'interface_id'}){
 			$old_a = $link->{'interface_z_id'};
 		    }
-		    my $old_a_interface= $db->get_interface( interface_id => $old_a);
+		    my $old_a_interface= $self->{'db'}->get_interface( interface_id => $old_a);
 
 		    $self->{'db'}->decom_link_instantiation( link_id => $link->{'link_id'});
 		    $self->{'db'}->create_link_instantiation( link_id => $link->{'link_id'}, interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'}, state => $link->{'state'});
 		    $self->{'db'}->_commit();
 		    #do admin notification
 		    
-                    my $circuits = $self->{'db'}->get_circuits_on_link(link_id => $link_id);
+                    my $circuits = $self->{'db'}->get_circuits_on_link(link_id => $link->{'link_id'});
                     foreach my $circuit (@$circuits) {
                         my $circuit_id = $circuit->{'circuit_id'};
                         my $ckt = $self->get_ckt_object( $circuit_id );
@@ -1684,9 +1691,8 @@ sub link_event{
                     $self->force_sync($node_z->{'dpid'});
 		    return;
 		}else{
-		    print_log(LOG_WARNING,"This is not part of any other link... making a new instance");
+		    $self->{'logger'}->warn("This is not part of any other link... making a new instance");
 		    ##create a new one link as none of the interfaces were part of any link
-		    print_log(LOG_DEBUG,"Adding a new link");
 		    
 		    my $link_name = "auto-" . $a_dpid . "-" . $a_port . "--" . $z_dpid . "-" . $z_port;
 		    my $link = $self->{'db'}->get_link_by_name(name => $link_name);
@@ -1699,7 +1705,7 @@ sub link_event{
 		    }
 
 		    if(!defined($link_id)){
-			print_log(LOG_ERR,"Unable to add link!");
+			$self->{'logger'}->error("Had a problem creating new link record");
 			$self->{'db'}->_rollback();
 			return undef;
 		    }
