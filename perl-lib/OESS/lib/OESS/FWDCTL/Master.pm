@@ -118,20 +118,30 @@ sub new {
 							      user => $self->{'db'}->{'rabbitMQ'}->{'user'},
 							      pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
 							      exchange => 'OESS',
-							      queue => 'OF.FWDCTL');
+							      queue => 'OF.FWDCTL.RPC');
 
     $self->register_rpc_methods( $fwdctl_dispatcher );
 
-    
+    $self->{'fwdctl_dispatcher'} = $fwdctl_dispatcher;
 
     my $nox_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
 							   port => $self->{'db'}->{'rabbitMQ'}->{'port'},
 							   user => $self->{'db'}->{'rabbitMQ'}->{'user'},
 							   pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
 							   exchange => 'OESS',
-							   queue => 'OF.NOX');
+							   queue => 'OF.NOX.event');
 
     $self->register_nox_events( $nox_dispatcher );
+    
+    $self->{'nox_dispatcher'} = $nox_dispatcher;
+
+    $self->{'fwdctl_events'} = GRNOC::RabbitMQ::Client->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
+							     port => $self->{'db'}->{'rabbitMQ'}->{'port'},
+							     user => $self->{'db'}->{'rabbitMQ'}->{'user'},
+							     pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
+							     exchange => 'OESS',
+							     queue => 'OF.FWDCTL.event');
+
     
 
     $self->{'logger'}->info("RabbitMQ ready to go!");
@@ -1089,12 +1099,10 @@ sub _restore_down_circuits{
     #commit our changes to the database
     $self->{'db'}->_commit();
     if ( $circuit_notification_data && scalar(@$circuit_notification_data) ){
-        $self->emit_signal("circuit_notification", {
-                                                    "type" => 'link_up',
-                                                    "link_name" => $link_name,
-                                                    "affected_circuits" => $circuit_notification_data
-                                                   }
-                          );
+        $self->{'fwdctl_events'}->circuit_notification( type      => 'link_up',
+							link_name => $link_name,
+							affected_circuits => $circuit_notification_data,
+							no_reply  => 1);
     }
 }
 
@@ -1149,7 +1157,7 @@ sub _fail_over_circuits{
                     $circuit_info->{'reason'} = "Attempted to switch to alternate path, however an unknown error occured.";
                     $circuit_info->{'circuit_id'} = $circuit_info->{'id'};
                     $self->{'logger'}->error("vlan:$circuit_name id:$circuit_id affected by trunk:$link_name has NOT been moved to alternate path due to error: " . $circuit->error());
-                    #$self->emit_signal("circuit_notification", $circuit_info );
+                    #$self->{'fwdctl_events'}->circuit_notification", $circuit_info );
                     push(@$circuit_infos, $circuit_info);
                     $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UNKNOWN;
                     next;
@@ -1175,7 +1183,7 @@ sub _fail_over_circuits{
                 $circuit_info->{'reason'} = "Attempted to fail to alternate path, however the primary and backup path are both down";
                 $circuit_info->{'circuit_id'} = $circuit_info->{'id'};
                 next if($self->{'circuit_status'}->{$circuit_id} == OESS_CIRCUIT_DOWN);
-                #$self->emit_signal("circuit_notification", $circuit_info );
+                #$self->{'fwdctl_events'}->circuit_notification", $circuit_info );
                 push (@$circuit_infos, $circuit_info);
                 $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_DOWN;
                 next;
@@ -1192,7 +1200,7 @@ sub _fail_over_circuits{
             
             $circuit_info->{'circuit_id'} = $circuit_info->{'id'};
             next if($self->{'circuit_status'}->{$circuit_id} == OESS_CIRCUIT_DOWN);
-            #$self->emit_signal("circuit_notification", $circuit_info);
+            #$self->{'fwdctl_events'}->circuit_notification", $circuit_info);
             push (@$circuit_infos, $circuit_info);
             $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_DOWN;
             
@@ -1215,10 +1223,9 @@ sub _fail_over_circuits{
     
         
     if ( $circuit_infos && scalar(@$circuit_infos) ) {
-        $self->emit_signal("circuit_notification", { "type" => 'link_down',
-                                                     "link_name" => $link_name,
-                                                     "affected_circuits" => $circuit_infos
-                           });
+        $self->{'fwdctl_events'}->circuit_notification( type => 'link_down',
+                                                        link_name => $link_name,
+                                                        affected_circuits => $circuit_infos );
     }
     
 }

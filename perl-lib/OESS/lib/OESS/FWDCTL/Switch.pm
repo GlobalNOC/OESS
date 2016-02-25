@@ -89,7 +89,7 @@ sub new {
 					   user => $self->{'rabbitMQ'}->{'user'},
 					   pass => $self->{'rabbitMQ'}->{'pass'},
 					   vhost => $self->{'rabbitMQ'}->{'vhost'},
-					   queue => 'OF.NOX',
+					   queue => 'OF.NOX.RPC',
 					   exchange => 'OESS');
     $self->{'rabbit_mq'} = $ar;
 
