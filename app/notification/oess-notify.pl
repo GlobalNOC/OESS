@@ -38,8 +38,6 @@ sub connect_to_dbus {
     Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
     $log = Log::Log4perl->get_logger("NOTIFY");
 
-    my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => sub { $FWDCTL->reap_old_events() } );
-    AnyEvent->condvar->recv;
 }
 
 sub main {
