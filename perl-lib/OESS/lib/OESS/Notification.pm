@@ -136,8 +136,8 @@ sub register_rpc_methods{
     my $d = shift;
     
     my $method = GRNOC::RabbitMQ::Method->new( name => "circuit_notification",
-                                               callback => $self->circuit_notification,
-                                               description => "Send circuit notification");
+                                               callback => sub {$self->circuit_notification(@_) },
+                                               description => "Sends circuit notification");
 
     $method->add_input_parameter( name => "type",
                                   description => "the type of circuit notification event",
@@ -254,12 +254,12 @@ sub circuit_notification {
 
 sub _send_bulk_notification {
     my $self = shift;
-    my $dbus_data = shift;
+    my $data = shift;
     my $db = $self->{'db'};
-    my $circuits = $dbus_data->{'affected_circuits'};
-    my $link_name = $dbus_data->{'link_name'};
+    my $circuits = $data->{'affected_circuits'};
+    my $link_name = $data->{'link_name'};
     my $workgroup_notifications={};
-    my $type = $dbus_data->{'type'};
+    my $type = $data->{'type'};
 
     foreach my $circuit (@$circuits) {
         #build workgroup buckets
@@ -333,7 +333,7 @@ sub _send_bulk_notification {
                     workgroup_id => $workgroup_notifications->{$workgroup }{'workgroup_id'},
                     from_signature_name => $self->{'from_name'},
                     link_name => $link_name,
-                    type => $dbus_data->{'type'},
+                    type => $data->{'type'},
                     circuits => $workgroup_circuits,
                     circuits_on_owned_endpoints => $circuits_on_owned_endpoints,
                     image_base_url => $self->{'image_base_url'},
