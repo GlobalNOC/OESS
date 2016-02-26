@@ -44,7 +44,6 @@ rm -rf $RPM_BUILD_ROOT
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{_sysconfdir}/oess/
 
 %{__install} oess_setup.pl %{buildroot}/%{_bindir}
-%{__install} topo.pl %{buildroot}/%{_bindir}
 %{__install} fwdctl.pl %{buildroot}/%{_bindir}
 %{__install} oess-fvd.pl %{buildroot}/%{_bindir}
 %{__install} oess-traceroute.pl %{buildroot}/%{_bindir}
@@ -67,7 +66,6 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} etc/fwdctl-init-rh  $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-fwdctl
 %{__install} etc/fvd-init-rh  $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-fvd
 %{__install} etc/watchdog-init-rh $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-watchdog
-%{__install} etc/topo-init-rh  $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-topo
 %{__install} etc/notification-init-rh $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-notification
 %{__install} etc/traceroute-init-rh $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-traceroute
 %{__install} etc/vlan_stats-init $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-vlan_stats
@@ -86,7 +84,6 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root,-)
-%{_bindir}/topo.pl
 %{_bindir}/fwdctl.pl
 %{_bindir}/oess-fvd.pl
 %{_bindir}/oess-traceroute.pl
@@ -103,7 +100,6 @@ rm -rf $RPM_BUILD_ROOT
 
 %{_sysconfdir}/dbus-1/system.d/nddi-dbus.conf
 %{_sysconfdir}/init.d/oess-fwdctl
-%{_sysconfdir}/init.d/oess-topo
 %{_sysconfdir}/init.d/oess-vlan_stats
 %{_sysconfdir}/init.d/oess-notification
 %{_sysconfdir}/init.d/oess-fvd
