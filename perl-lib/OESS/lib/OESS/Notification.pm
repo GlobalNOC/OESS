@@ -14,6 +14,7 @@ use Switch;
 use DateTime;
 use GRNOC::RabbitMQ::Method;
 use GRNOC::RabbitMQ::Dispatcher;
+use GRNOC::WebService::Regex;
 use OESS::Circuit;
 use Log::Log4perl;
 
@@ -66,21 +67,14 @@ path to the notification template file, defaults to absolute path /usr/share/oes
 sub new {
     my $that = shift;
     my $class = ref($that) || $that;
-
-    #my $service = shift;
+    
     my %args    = (
-        config_file => 'etc/oess/database.xml',
+        config_file => '/etc/oess/database.xml',
         service => undef,
         template_path => '/usr/share/oess-core/',
         @_,
         );
     
-
-    #my $service = $args{'service'};
-
-    #my $self  = \%args;
-
-    #my $self = $class->SUPER::new( $service, "/controller1" );
     $self->{'config_file'} = $args{'config_file'};
     $self->{'template_path'} = $args{'template_path'};
     
@@ -97,16 +91,7 @@ sub new {
 
     $self->_process_config_file();
     $self->_connect_services();
-    #dbus_signal( "circuit_provision",[ [ "dict", "string", ["variant"] ] ],['string'] );
-    #dbus_signal( "circuit_modified", [ [ "dict", "string", ["variant"] ] ] );
-    #dbus_signal( "circuit_removed", [ [ "dict", "string", ["variant"] ] ], ['string'] );
-    #dbus_signal( "circuit_change_path", [ [ "dict", "string", ["variant"] ] ], ['string'] );
-    #dbus_signal( "circuit_restored", [['dict', 'string', ["variant"]]],['string']);
-    #dbus_signal( "circuit_down", [['dict', 'string', ["variant"]]],['string']);
-    #dbus_signal( "circuit_unknown", [['dict', 'string', ["variant"]]],['string']);
-    
-    #dbus_method( "circuit_notification", [["dict","string",["variant"]]],["string"]);
-    
+        
     my $notification_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
                                                                     port => $self->{'db'}->{'rabbitMQ'}->{'port'},
                                                                     user => $self->{'db'}->{'rabbitMQ'}->{'user'},
@@ -138,6 +123,7 @@ sub register_notification_events{
     my $self = shift;
     my $d = shift;
     
+    $self->{'log'}->debug("Register Notification events");
     my $method = GRNOC::RabbitMQ::Method->new( name => "circuit_notification",
                                                callback => sub {$self->circuit_notification(@_) },
                                                description => "Signals circuit notification event");
@@ -176,6 +162,8 @@ sub register_rpc_methods{
     my $self = shift;
     my $d = shift;
     
+    $self->{'log'}->debug("Registering Notification RPC");
+
     my $method = GRNOC::RabbitMQ::Method->new( name => "circuit_notification",
                                                callback => sub {$self->circuit_notification(@_) },
                                                description => "Sends circuit notification");
