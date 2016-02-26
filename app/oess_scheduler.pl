@@ -10,35 +10,36 @@ use FindBin;
 use Fcntl qw(:flock);
 use Data::Dumper;
 
+use GRNOC::RabbitMQ::Client;
+
 sub main{
     openlog("oess_scheduler.pl", 'cons,pid', LOG_DAEMON);
     my $time = time();
 
     my $oess = OESS::Database->new();
-    
-    my $bus = Net::DBus->system;
-    my $service;
-    my $client;
 
-    eval {
-        $service = $bus->get_service("org.nddi.fwdctl");
-        $client  = $service->get_object("/controller1");
-    };
+    my $client  = new GRNOC::RabbitMQ::Client(
+        queue => 'OF.FWDCTL.RPC',
+        exchange => 'OESS',
+        user => 'guest',
+        pass => 'guest'
+    );
 
-    if ($@){
-        syslog(LOG_ERR,"Error in _connect_to_fwdctl: $@");
-        return undef;
+    if ( !defined($client) ) {
+        return;
     }
 
-    my $log_svc;
-    my $log_client;
+    my $log_client  = new GRNOC::RabbitMQ::Client(
+        queue => 'OF.Notification.event',
+        exchange => 'OESS',
+        user => 'guest',
+        pass => 'guest'
+    );
 
-    eval {
-        $log_svc    = $bus->get_service("org.nddi.notification");
-        $log_client = $log_svc->get_object("/controller1");
-    };
-
-
+    if ( !defined($log_client) ) {
+        return;
+    }
+    
     my $actions = $oess->get_current_actions();
 
     foreach my $action (@$actions){
@@ -79,15 +80,22 @@ sub main{
                 );
 
             my $res;
+            my $result;
             my $event_id;
             eval {
-                ($res,$event_id) = $client->addVlan($output->{'circuit_id'});
+                $result = $client->addVlan(circuit_id => $output->{'circuit_id'});
                 
+                if($result->{'error'} || !$result->{'results'}->{'event_id'}){
+                    return;
+                }
+
+                $event_id = $result->{'results'}->{'event_id'};
+
                 my $final_res = OESS::Database->FWDCTL_WAITING;
 
                 while($final_res == OESS::Database->FWDCTL_WAITING){
                     sleep(1);
-                    $final_res = $client->get_event_status($event_id);
+                    $final_res = $client->get_event_status(event_id => $event_id)->{'event_id'}->{'status'};
                 }
 
                 $res = $final_res;
@@ -99,15 +107,21 @@ sub main{
 
             #--- signal fwdctl to update caches
             eval{
-                my ($result,$event_id) = $client->update_cache($action->{'circuit_id'});
-
-		my $update_cache_result = OESS::Database->FWDCTL_WAITING;
-
-		while($update_cache_result == OESS::Database->FWDCTL_WAITING){
-		    sleep(1);
-                    $update_cache_result = $client->get_event_status($event_id);
+                $result = $client->update_cache($action->{'circuit_id'});
+                
+                if($result->{'error'} || !$result->{'results'}->{'event_id'}){
+                    return;
                 }
 
+                $event_id = $result->{'results'}->{'event_id'};
+
+                my $update_cache_result = OESS::Database->FWDCTL_WAITING;
+                
+                while($update_cache_result == OESS::Database->FWDCTL_WAITING){
+                    sleep(1);
+                    $update_cache_result = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
+                }
+                
                 $res = $update_cache_result;
             };
 
@@ -127,14 +141,20 @@ sub main{
         } elsif($circuit_layout->{'action'} eq 'edit'){
             syslog(LOG_DEBUG,"Circuit " . $circuit_layout->{'name'} . ":" . $circuit_layout->{'circuit_id'} . " scheduled for edit NOW!");
             my $res;
+            my $result;
             my $event_id;
             eval {
-                ($res,$event_id) = $client->deleteVlan($action->{'circuit_id'});
+                $result = $client->deleteVlan(circuit_id => $action->{'circuit_id'});
+                if($result->{'error'} || !$result->{'results'}->{'event_id'}){
+                    return;
+                }
+
+                $event_id = $result->{'results'}->{'event_id'};
                 my $final_res = OESS::Database->FWDCTL_WAITING;
 
                 while($final_res == OESS::Database->FWDCTL_WAITING){
                     sleep(1);
-                    $final_res = $client->get_event_status($event_id);
+                    $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
                 }
 
                 $res = $final_res;
@@ -170,17 +190,24 @@ sub main{
                 );
             
             $res = undef;
+            $result = undef;
             $event_id = undef;;
             eval{
                 if($circuit_layout->{'state'} eq 'active'){
 
-                    ($res,$event_id) = $client->addVlan($output->{'circuit_id'});
+                    $result = $client->addVlan(circuit_id => $output->{'circuit_id'});
                     
+                    if($result->{'error'} || !$result->{'results'}->{'event_id'}){
+                        return;
+                    }
+                    
+                    $event_id = $result->{'results'}->{'event_id'};
+
                     my $final_res = OESS::Database->FWDCTL_WAITING;
                     
                     while($final_res == OESS::Database->FWDCTL_WAITING){
                         sleep(1);
-                        $final_res = $client->get_event_status($event_id);
+                        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
                     }
                     $res = $final_res;
                 }
@@ -190,15 +217,21 @@ sub main{
             
             #--- signal fwdctl to update caches
             eval{
-                my ($result,$event_id) = $client->update_cache($action->{'circuit_id'});
-
-		my $update_cache_result = OESS::Database->FWDCTL_WAITING;
-
-		while($update_cache_result == OESS::Database->FWDCTL_WAITING){
-		    sleep(1);
-                    $update_cache_result = $client->get_event_status($event_id);
+                $result = $client->update_cache($action->{'circuit_id'});
+                
+                if($result->{'error'} || !$result->{'results'}->{'event_id'}){
+                    return;
                 }
+                
+                $event_id = $result->{'results'}->{'event_id'};
 
+                my $update_cache_result = OESS::Database->FWDCTL_WAITING;
+                
+                while($update_cache_result == OESS::Database->FWDCTL_WAITING){
+                    sleep(1);
+                    $update_cache_result = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
+                }
+                
                 $res = $update_cache_result;
             };
 
@@ -218,15 +251,22 @@ sub main{
         elsif($circuit_layout->{'action'} eq 'remove'){
             syslog(LOG_ERR, "Circuit " . $circuit_layout->{'name'} . ":" . $action->{'circuit_id'} . " scheduled for removal NOW!");
             my $res;
+            my $result;
             my $event_id;
             eval{
-                ($res,$event_id) = $client->deleteVlan($action->{'circuit_id'});
+                $result = $client->deleteVlan(circuit_id => $action->{'circuit_id'});
+
+                if($result->{'error'} || !$result->{'results'}->{'event_id'}){
+                    return;
+                }
+                
+                $event_id = $result->{'results'}->{'event_id'};
 
                 my $final_res = OESS::Database->FWDCTL_WAITING;
 
                 while($final_res == OESS::Database->FWDCTL_WAITING){
                     sleep(1);
-                    $final_res = $client->get_event_status($event_id);
+                    $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
                 }
 
                 $res = $final_res;
@@ -258,13 +298,19 @@ sub main{
 
             #--- signal fwdctl to update caches
             eval{
-                my ($result,$event_id) = $client->update_cache($action->{'circuit_id'});
+                my $result = $client->update_cache($action->{'circuit_id'});
+
+                if($result->{'error'} || !$result->{'results'}->{'event_id'}){
+                    return;
+                }
+                
+                $event_id = $result->{'results'}->{'event_id'};
 
                 my $update_cache_result = OESS::Database->FWDCTL_WAITING;
                 
                 while($update_cache_result == OESS::Database->FWDCTL_WAITING){
                     sleep(1);
-                    $update_cache_result = $client->get_event_status($event_id);
+                    $update_cache_result = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
                 }
 
                 $res = $update_cache_result;
@@ -296,15 +342,22 @@ sub main{
                 my $success = $circuit->change_path( user_id => 1, reason => $circuit_layout->{'reason'});
                 #my $success = 1;
                 my $res;
+                my $result;
                 my $event_id;
                 if($success){
                     eval{
-                        ($res,$event_id) = $client->changeVlanPath($action->{'circuit_id'});
+                        $result = $client->changeVlanPath(circuit_id => $action->{'circuit_id'});
+
+                        if($result->{'error'} || !$result->{'results'}->{'event_id'}){
+                            return;
+                        }
+                        
+                        $event_id = $result->{'results'}->{'event_id'};
                         my $final_res = OESS::Database->FWDCTL_WAITING;
 
                         while($final_res == OESS::Database->FWDCTL_WAITING){
                             sleep(1);
-                            $final_res = $client->get_event_status($event_id);
+                            $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
                         }
 
                         $res = $final_res;
