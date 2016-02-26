@@ -95,12 +95,6 @@ sub status{
         }
     }
 
-    if($db->is_topo_enabled()){
-        my $res =  system("/etc/init.d/oess-topo status");
-        if($res != 0){
-            $result = $res;
-        }
-    }
     if($db->is_vlan_stats_enabled()){
         my $res = system("/etc/init.d/oess-vlan_stats status");
         if($res != 0){
@@ -165,12 +159,6 @@ sub stop{
         }
     }
 
-    if($db->is_topo_enabled()){
-        my $res = system("/etc/init.d/oess-topo stop");
-        if($res != 0){
-            $result = $res;
-        }
-    }
     if($db->is_vlan_stats_enabled()){
         my $res = system("/etc/init.d/oess-vlan_stats stop");
         if($res != 0){
@@ -237,20 +225,6 @@ sub start{
         }
     }
 
-    print "Waiting for FWDCTL to signal Ready\n";
-
-    my $fwdctl_status =1;
-    while($fwdctl_status == 1){
-        $fwdctl_status = connect_fwdctl();
-        sleep(1);
-    }
-
-    if($db->is_topo_enabled()){
-        my $res = system("/etc/init.d/oess-topo start");
-        if($res != 0){
-            $result = $res;;
-        }
-    }
     if($db->is_vlan_stats_enabled()){
         my $res = system("/etc/init.d/oess-vlan_stats start");
         if($res != 0){
