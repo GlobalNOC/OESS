@@ -85,10 +85,10 @@ sub new {
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL.Switch.' . sprintf("%x",$self->{'dpid'}));
     $self->{'logger'}->error("I EXIST!!!");
 
-    my $ar = GRNOC::RabbitMQ::Client->new( host => $self->{'rabbitMQ'}->{'host'},
-					   user => $self->{'rabbitMQ'}->{'user'},
-					   pass => $self->{'rabbitMQ'}->{'pass'},
-					   vhost => $self->{'rabbitMQ'}->{'vhost'},
+    my $ar = GRNOC::RabbitMQ::Client->new( host => $args{'rabbitMQ_host'},
+					   port => $args{'rabbitMQ_port'},
+					   user => $args{'rabbitMQ_user'},
+					   pass => $args{'rabbitMQ_pass'},
 					   queue => 'OF.NOX.RPC',
 					   exchange => 'OESS');
     $self->{'rabbit_mq'} = $ar;
