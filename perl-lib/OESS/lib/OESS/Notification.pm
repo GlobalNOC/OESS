@@ -243,31 +243,45 @@ sub circuit_notification {
     switch($circuit->{'type'} ) {
         case "provisioned"{
 	    $subject .= "has been provisioned in workgroup: $workgroup ";
-	    $self->{'notification_events'}( type => "circuit_provision", circuit => $circuit );
+	    $self->{'notification_events'}->publish( exchange => 'OESS',
+                                                     routing_key => 'OF.Notification.event.circuit_provision',
+                                                     body => {circuit => $circuit} );
 	}
 	case "removed" {
 	    $subject .= "has been removed from workgroup: $workgroup";
-	    $self->{'notification_events'}( type => "circuit_removed", circuit => $circuit );
+	    $self->{'notification_events'}->publish(exchange => 'OESS',
+                                                    routing_key => 'OF.Notification.event.circuit.remove',
+                                                    body => { circuit => $circuit} );
 	}
 	case "modified" {
 	    $subject .= "has been edited in workgroup: $workgroup";
-	    $self->{'notification_events'}( type => "circuit_modified", circuit => $circuit );
+	    $self->{'notification_events'}->publish( exchange => 'OESS',
+                                                     routing_key => 'OF.Notification.event.circuit_modify'
+                                                     body => {circuit => $circuit} );
 	}
 	case "change_path" {
 	    $subject .= "has changed to " . $circuit_notification_data->{'circuit'}->{'active_path'} . " path in workgroup: $workgroup";
-	    $self->{'notification_events'}( type => "circuit_change_path", circuit => $circuit );
+	    $self->{'notification_events'}->publish(exchange => 'OESS',
+                                                    routing_key => 'OF.Notification.event.circuit_change_path',
+                                                    body => {circuit => $circuit} );
 	}
 	case "restored" {
 	    $subject .= "has been restored for workgroup: $workgroup";
-	    $self->{'notification_events'}( type => "circuit_restored", circuit => $circuit );
+	    $self->{'notification_events'}->publish( exchange => 'OESS',
+                                                     routing_key => OF.Notification.event.circuit_restore,
+                                                     body => { circuit => $circuit} );
 	}
 	case "down" {
 	    $subject .= "is down for workgroup: $workgroup";
-	    $self->{'notification_events'}( type => "circuit_down", circuit => $circuit );
+	    $self->{'notification_events'}->publish( exchange => 'OESS',
+                                                     routing_key => OF.Notification.event.circuit_down,
+                                                     body => {circuit => $circuit} );
 	}
 	case "unknown" {
 	    $subject .= "is in an unknown state in workgroup: $workgroup";
-	    $self->{'notification_events'}( type => "circuit_unknown", circuit => $circuit );
+	    $self->{'notification_events'}->publish( exchange => 'OESS',
+                                                     routing_key => OF.Notification.event.circuit_unknown,
+                                                     body => {circuit => $circuit } );
 	}
       }
 
