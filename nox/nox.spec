@@ -606,7 +606,7 @@ rm -rf %{buildroot}
    /usr/bin/nox/netapps/user_event_log/user_event_log_test2.so.0.0.0
    /usr/bin/nox/netapps/nddi/__init__.pyc
    /usr/bin/nox/netapps/nddi/meta.json
-   /usr/bin/nox/netapps/nddi/nddi_dbus.pyc
+   /usr/bin/nox/netapps/nddi/nddi_rabbitmq.pyc
    /usr/bin/nox/webapps/__init__.pyc
    /usr/bin/nox/webapps/miscws/__init__.pyc
    /usr/bin/nox/webapps/miscws/cpustats.pyc

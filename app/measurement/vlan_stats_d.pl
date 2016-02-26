@@ -38,7 +38,7 @@ sub handle_error{
 
 =head2 flow_stats_in_callback
 
-    handle the flow_stats_in event, one thing to note is that this even is fired through nddi_dbus nddi_dbus handles all cases where
+    handle the flow_stats_in event, one thing to note is that this even is fired through nddi_rabbitmq nddi_rabbitmq handles all cases where
     there a multiple packets with this data.  flow_stats_in expects to have all the data returned in the rules variable
 
     expects a dpid, and an array of rules and their in_bytes/in_packets

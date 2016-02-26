@@ -37,12 +37,12 @@ if [ -n "$vlan" ];
 then
     if [ "$vlan" -ne "-1" ];
     then
-	    options=" -d -i ptcp:$NOX_CONTROLLER_IP:$NOX_CONTROLLER_PORT discovery=$NOX_DISCOVERY_INTERVAL,$vlan nddi_dbus -n /var/log/nox/nox.info"
+	    options=" -d -i ptcp:$NOX_CONTROLLER_IP:$NOX_CONTROLLER_PORT discovery=$NOX_DISCOVERY_INTERVAL,$vlan nddi_rabbitmq -n /var/log/nox/nox.info"
     else
-	    options=" -d -i ptcp:$NOX_CONTROLLER_IP:$NOX_CONTROLLER_PORT discovery=$NOX_DISCOVERY_INTERVAL nddi_dbus -n /var/log/nox/nox.info"
+	    options=" -d -i ptcp:$NOX_CONTROLLER_IP:$NOX_CONTROLLER_PORT discovery=$NOX_DISCOVERY_INTERVAL nddi_rabbitmq -n /var/log/nox/nox.info"
     fi
 else
-    options=" -d -i ptcp:$NOX_CONTROLLER_IP:$NOX_CONTROLLER_PORT discovery=$NOX_DISCOVERY_INTERVAL nddi_dbus -n /var/log/nox/nox.info"
+    options=" -d -i ptcp:$NOX_CONTROLLER_IP:$NOX_CONTROLLER_PORT discovery=$NOX_DISCOVERY_INTERVAL nddi_rabbitmq -n /var/log/nox/nox.info"
 fi
 
 username=_oess
