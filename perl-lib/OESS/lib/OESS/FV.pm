@@ -75,6 +75,8 @@ sub new {
     $self->{'mqueue'}->on_link_event( $self->link_event_callback );
     $self->{'mqueue'}->on_port_status( $self->port_status_callback );
     $self->{'mqueue'}->on_fv_packet_in( $self->fv_packet_in_callback );
+
+    $self->{'mqueue'}->register_for_fv_in( $self->{'db'}->{'discovery_vlan'} );
     # $self->{'mqueue'}->start();
     return $self;
 }

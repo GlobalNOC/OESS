@@ -42,9 +42,9 @@ sub start {
 
 sub register_for_fv_in {
     my $self = shift;
-    my $dpid = shift;
+    my $discovery_vlan = shift;
 
-    $self->{'nox'}->register_for_fv_in(dpid => $dpid);
+    $self->{'nox'}->register_for_fv_in(discovery_vlan => $discovery_vlan);
 }
 
 sub send_fv_link_event {
