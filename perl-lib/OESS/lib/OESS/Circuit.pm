@@ -91,6 +91,12 @@ sub new{
 	$self->_load_circuit_details();
     }
 
+    if(!defined($self->{'details'})){
+	$self->{'logger'}->error("NO CIRCUIT FOUND!");
+	return;
+    }
+    
+
     return $self;
 }
 
@@ -161,12 +167,17 @@ sub _load_circuit_details{
     my $self = shift;
     $self->{'logger'}->debug("Loading Circuit data for circuit: " . $self->{'circuit_id'});
     my $data = $self->{'db'}->get_circuit_details( circuit_id => $self->{'circuit_id'}, link_status => $self->{'link_status'});
+    if(!defined($data)){
+	$self->{'logger'}->error("NO DATA FOR THIS CIRCUIT!!! " . $self->{'circuit_id'});
+	return;
+    }
     $self->{'details'} = $data;
     $self->_process_circuit_details();
 }
 
 sub _process_circuit_details{
     my $self = shift;
+
     $self->{'remote_url'} = $self->{'details'}->{'remote_url'};
     $self->{'remote_requester'} = $self->{'details'}->{'remote_requester'};
     $self->{'state'} = $self->{'details'}->{'state'};
