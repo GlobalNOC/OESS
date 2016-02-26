@@ -67,7 +67,7 @@ path to the notification template file, defaults to absolute path /usr/share/oes
 sub new {
     my $that = shift;
     my $class = ref($that) || $that;
-    
+    my $self;
     my %args    = (
         config_file => '/etc/oess/database.xml',
         service => undef,
@@ -150,7 +150,7 @@ sub register_notification_events{
     $d->register_method($method);
 
     $method->add_input_parameter( name => "no_reply",
-                                  description => "",
+                                  description => "Caller expects a reply or not",
                                   required => 1,
                                   pattern => $GRNOC::WebService::Regex::INTEGER);
     
@@ -256,7 +256,7 @@ sub circuit_notification {
 	case "modified" {
 	    $subject .= "has been edited in workgroup: $workgroup";
 	    $self->{'notification_events'}->publish( exchange => 'OESS',
-                                                     routing_key => 'OF.Notification.event.circuit_modify'
+                                                     routing_key => 'OF.Notification.event.circuit_modify',
                                                      body => {circuit => $circuit} );
 	}
 	case "change_path" {
@@ -268,22 +268,22 @@ sub circuit_notification {
 	case "restored" {
 	    $subject .= "has been restored for workgroup: $workgroup";
 	    $self->{'notification_events'}->publish( exchange => 'OESS',
-                                                     routing_key => OF.Notification.event.circuit_restore,
+                                                     routing_key => 'OF.Notification.event.circuit_restore',
                                                      body => { circuit => $circuit} );
 	}
 	case "down" {
 	    $subject .= "is down for workgroup: $workgroup";
 	    $self->{'notification_events'}->publish( exchange => 'OESS',
-                                                     routing_key => OF.Notification.event.circuit_down,
+                                                     routing_key => 'OF.Notification.event.circuit_down',
                                                      body => {circuit => $circuit} );
 	}
 	case "unknown" {
 	    $subject .= "is in an unknown state in workgroup: $workgroup";
 	    $self->{'notification_events'}->publish( exchange => 'OESS',
-                                                     routing_key => OF.Notification.event.circuit_unknown,
+                                                     routing_key => 'OF.Notification.event.circuit_unknown',
                                                      body => {circuit => $circuit } );
 	}
-      }
+    }
 
     $circuit_notification_data->{'subject'} = $subject;
     $self->send_notification( $circuit_notification_data );
