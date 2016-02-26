@@ -987,7 +987,11 @@ sub make_baby{
     my %args;
     $args{'dpid'} = $dpid;
     $args{'share_file'} = $self->{'share_file'}. "." . sprintf("%x",$dpid);
-    $args{'rabbitMQ'} = $self->{'db'}->{'rabbitMQ'};
+    $args{'rabbitMQ_host'} = $self->{'db'}->{'rabbitMQ'}->{'host'}; 
+    $args{'rabbitMQ_port'} = $self->{'db'}->{'rabbitMQ'}->{'port'};
+    $args{'rabbitMQ_user'} = $self->{'db'}->{'rabbitMQ'}->{'user'};
+    $args{'rabbitMQ_pass'} = $self->{'db'}->{'rabbitMQ'}->{'pass'};
+    $args{'rabbitMQ_vhost'} = $self->{'db'}->{'rabbitMQ'}->{'vhost'};
 
     my $proc = AnyEvent::Fork->new->require("AnyEvent::Fork::RPC::Async","OESS::FWDCTL::Switch","JSON")->eval('
 use strict;
@@ -1003,7 +1007,10 @@ sub new{
     $logger = Log::Log4perl->get_logger("OESS.FWDCTL.MASTER");
     $logger->info("Creating child for dpid: " . $args{"dpid"});
     $switch = OESS::FWDCTL::Switch->new( dpid => $args{"dpid"},
-					 rabbitMQ => $args{"rabbitMQ"},
+					 rabbitMQ_host => $args{"rabbitMQ_host"},
+					 rabbitMQ_port => $args{"rabbitMQ_port"},
+					 rabbitMQ_user => $args{"rabbitMQ_user"},
+					 rabbitMQ_pass => $args{"rabbitMQ_pass"},
                                          share_file => $args{"share_file"});
 }
 
