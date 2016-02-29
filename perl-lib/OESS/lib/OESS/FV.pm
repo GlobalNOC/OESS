@@ -4,6 +4,7 @@ use warnings;
 package OESS::FV;
 
 use bytes;
+use Data::Dumper;
 use Log::Log4perl;
 use Graph::Directed;
 use GRNOC::RabbitMQ::Method;
@@ -70,14 +71,14 @@ sub new {
     }
 
     $self->{'mqueue'} = OESS::RabbitMQ::FV->new( $self->{'db'} );
-    $self->{'mqueue'}->on_datapath_join( $self->datapath_join_callback );
-    $self->{'mqueue'}->on_datapath_leave( $self->datapath_leave_callback );
-    $self->{'mqueue'}->on_link_event( $self->link_event_callback );
-    $self->{'mqueue'}->on_port_status( $self->port_status_callback );
-    $self->{'mqueue'}->on_fv_packet_in( $self->fv_packet_in_callback );
+    $self->{'mqueue'}->on_datapath_join( sub { $self->datapath_join_callback(@_) } );
+    $self->{'mqueue'}->on_datapath_leave( sub { $self->datapath_leave_callback(@_) } );
+    $self->{'mqueue'}->on_link_event( sub { $self->link_event_callback(@_) } );
+    $self->{'mqueue'}->on_port_status( sub { $self->port_status_callback(@_) } );
+    $self->{'mqueue'}->on_fv_packet_in( sub { $self->fv_packet_in_callback(@_) } );
 
     $self->{'mqueue'}->register_for_fv_in( $self->{'db'}->{'discovery_vlan'} );
-    # $self->{'mqueue'}->start();
+    $self->{'mqueue'}->start();
     return $self;
 }
 
@@ -184,7 +185,10 @@ event that firest for when a node leaves
 
 sub datapath_leave_callback {
     my $self = shift;
-    my $dpid = shift;
+    my $method  = shift;
+    my $message = shift;
+
+    my $dpid = $message->{'dpid'}->{'value'};
 
     $self->{'logger'}->debug( "Node: " . $dpid . " has left" );
     $self->{'logger'}->warn( "Node: " . $self->{'nodes'}->{$dpid}->{'name'} . " has left" );
@@ -198,9 +202,12 @@ event that fires when a node joins
 =cut
 
 sub datapath_join_callback {
-    my $self = shift;
-    my $dpid = shift;
+    my $self    = shift;
+    my $method  = shift;
+    my $message = shift;
 
+    my $dpid = $message->{'dpid'}->{'value'};
+    
     $self->{'logger'}->debug( "Node: " . $dpid . " has joined" );
     $self->{'logger'}->warn( "Node: " . $self->{'nodes'}->{$dpid}->{'name'} . " has joined" );
     $self->{'nodes'}->{$dpid}->{'status'} = OESS_NODE_UP;
@@ -213,12 +220,15 @@ event that fires when a link is added or removed
 =cut
 
 sub link_event_callback {
-    my $self   = shift;
-    my $a_dpid = shift;
-    my $a_port = shift;
-    my $z_dpid = shift;
-    my $z_port = shift;
-    my $status = shift;
+    my $self    = shift;
+    my $method  = shift;
+    my $message = shift;
+
+    my $a_dpid = $message->{'a_dpid'}->{'value'};
+    my $a_port = $message->{'a_port'}->{'value'};
+    my $z_dpid = $message->{'z_dpid'}->{'value'};
+    my $z_port = $message->{'z_port'}->{'value'};
+    my $status = $message->{'status'}->{'value'};
 
     $self->_load_state();
 }
@@ -231,12 +241,19 @@ event that is fired when a port status changes
 
 sub port_status_callback {
     my $self   = shift;
-    my $dpid   = shift;
-    my $reason = shift;
-    my $info   = shift;
+    my $method  = shift;
+    my $message = shift;
+
+    my $dpid   = $message->{'dpid'}->{'value'};
+    my $reason = $message->{'reason'}->{'value'};
+    my $info   = $message->{'info'}->{'value'};
 
     my $port_number = $info->{'port_no'};
     my $link_status = $info->{'link'};
+    my $port_name   = $info->{'name'};
+    my $admin_state = $info->{'admin_state'};
+    my $port_status = $info->{'status'};
+
 
     #if the link didn't go up ignore it!
     if ( $link_status != 1 ) {
@@ -440,11 +457,14 @@ forwarding verification deamon process
 
 sub fv_packet_in_callback {
     my $self      = shift;
-    my $src_dpid  = shift;
-    my $src_port  = shift;
-    my $dst_dpid  = shift;
-    my $dst_port  = shift;
-    my $timestamp = shift;
+    my $method  = shift;
+    my $message = shift;
+
+    my $src_dpid  = $message->{'src_dpid'}->{'value'};
+    my $src_port  = $message->{'src_port'}->{'value'};
+    my $dst_dpid  = $message->{'dst_dpid'}->{'value'};
+    my $dst_port  = $message->{'dst_port'}->{'value'};
+    my $timestamp = $message->{'timestamp'}->{'value'};
 
     $self->{'logger'}->debug("FV Packet IN");
 
@@ -480,8 +500,7 @@ sub _send_fwdctl_link_event {
                                             state   => $state_str );
     }
 
-    my $results = $self->{'mqueue'}->send_fv_link_event( link_name => $link_name,
-                                                         state     => $state );
+    my $results = $self->{'mqueue'}->send_fv_link_event( $link_name, $state );
     return $results;
 }
 
