@@ -119,22 +119,14 @@ sub new {
 							      user => $self->{'db'}->{'rabbitMQ'}->{'user'},
 							      pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
 							      exchange => 'OESS',
-							      queue => 'OF.FWDCTL.RPC');
+							      queue => 'OF-FWDCTL',
+							      topic => "OF.FWDCTL.RPC");
 
     $self->register_rpc_methods( $fwdctl_dispatcher );
-
+    $self->register_nox_events( $fwdctl_dispatcher );
+    
     $self->{'fwdctl_dispatcher'} = $fwdctl_dispatcher;
 
-    my $nox_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
-							   port => $self->{'db'}->{'rabbitMQ'}->{'port'},
-							   user => $self->{'db'}->{'rabbitMQ'}->{'user'},
-							   pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
-							   exchange => 'OESS',
-							   queue => 'OF.NOX.event');
-
-    $self->register_nox_events( $nox_dispatcher );
-    
-    $self->{'nox_dispatcher'} = $nox_dispatcher;
 
     $self->{'fwdctl_events'} = GRNOC::RabbitMQ::Client->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
 							     port => $self->{'db'}->{'rabbitMQ'}->{'port'},
@@ -182,8 +174,9 @@ sub new {
 sub register_nox_events{
     my $self = shift;
     my $d = shift;
-
+    
     my $method = GRNOC::RabbitMQ::Method->new( name => "datapath_join",
+					       topic => "OF.NOX.event",
 					       callback => sub { $self->datapath_join_handler(@_) },
 					       description => "signals a node has joined the controller");
 
@@ -216,6 +209,7 @@ sub register_nox_events{
     $d->register_method($method);
     
     $method = GRNOC::RabbitMQ::Method->new( name => "port_status",
+					    topic => "OF.NOX.event",
 					    callback => sub { $self->port_status(@_) },
 					    description => "signals a port status event has happened");
     
