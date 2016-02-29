@@ -61,10 +61,11 @@ function saveRemoteCircuit(){
 
     var provision_time = session.data.provision_time;
     var remove_time    = session.data.remove_time;
-
+    var circuit_state = "active";
     // get the times from milli into seconds
     if (provision_time != -1){
 	provision_time = parseInt(provision_time / 1000);
+        circuit_state = 'scheduled';
     }
 
     if (remove_time != -1){
@@ -100,6 +101,7 @@ function saveRemoteCircuit(){
 
     postVars += "&src_vlan=" + encodeURIComponent(src_tag);
     postVars += "&dst_vlan=" + encodeURIComponent(dst_tag);
+    postVars += "&state=" + encodeURIComponent(circuit_state);
 
     ds.sendRequest(postVars, 
 		   {
@@ -260,9 +262,11 @@ function saveLocalCircuit(){
     var provision_time = session.data.provision_time;
     var remove_time    = session.data.remove_time;
     var restore_to_primary = session.data.restore_to_primary;
+    var circuit_state = 'active';
     // get the times from milli into seconds
     if (provision_time != -1){
 	provision_time = parseInt(provision_time / 1000);
+        circuit_state = 'scheduled';
     }
 
     if (remove_time != -1){
@@ -292,15 +296,15 @@ function saveLocalCircuit(){
     };
 
     var postVars = "action=provision_circuit&circuit_id="+encodeURIComponent(circuit_id)
-	           +"&description="+encodeURIComponent(description)
-	           +"&bandwidth="+encodeURIComponent(bandwidth)
-	           +"&provision_time="+encodeURIComponent(provision_time)
-	           +"&remove_time="+encodeURIComponent(remove_time)
-	           +"&workgroup_id="+workgroup_id
-	           +"&restore_to_primary="+restore_to_primary
-               +"&static_mac="+static_mac;
+        +"&description="+encodeURIComponent(description)
+        +"&bandwidth="+encodeURIComponent(bandwidth)
+        +"&provision_time="+encodeURIComponent(provision_time)
+        +"&remove_time="+encodeURIComponent(remove_time)
+        +"&workgroup_id="+workgroup_id
+        +"&restore_to_primary="+restore_to_primary
+        +"&static_mac="+static_mac
+        +"&state=" + circuit_state;
     
-
     for (var i = 0; i < endpoints.length; i++){
         postVars += "&node=" + encodeURIComponent(endpoints[i].node);
         postVars += "&interface=" + encodeURIComponent(endpoints[i].interface);

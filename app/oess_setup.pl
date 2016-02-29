@@ -141,6 +141,8 @@ sub main{
   <smtp from_address="$from_address" image_base_url="$image_base_url" from_name="$from_name" />
 END
     print FILE "  <discovery_vlan>$discovery_vlan</discovery_vlan>\n" if($discovery_vlan ne 'untagged');
+    print FILE "  <process name='fvd' status='disabled' />\n";
+    print FILE "  <process name='watchdog' status='disabled' />\n";
     print FILE "</config>";
     close(FILE);
     print "\nInstalling the OESS Schema\n";

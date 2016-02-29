@@ -60,6 +60,8 @@ cmp_deeply($details,{
                 }
             ],
     'circuit_id' => 101,
+    'remote_url' => undef,
+    'remote_requester' => undef,
     'static_mac' => '0',
     'workgroup_id' => '11',
     'name' => 'Circuit 101',

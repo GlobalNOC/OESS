@@ -2,11 +2,6 @@
 #
 ##----- NDDI OESS provisioning.cgi
 ##-----
-##----- $HeadURL: svn+ssh://svn.grnoc.iu.edu/grnoc/oe-ss/frontend/trunk/webservice/provisioning.cgi $
-##----- $Id$
-##----- $Date$
-##----- $LastChangedBy$
-##-----
 ##----- Provides a WebAPI to allow for provisioning/decoming of circuits
 ##
 ##-------------------------------------------------------------------------
@@ -36,6 +31,8 @@ use Switch;
 #use Net::DBus::Exporter qw(org.nddi.fwdctl);
 use Data::Dumper;
 
+use GRNOC::RabbitMQ::Client;
+
 use OESS::Database;
 use OESS::Topology;
 use OESS::Circuit;
@@ -52,14 +49,12 @@ my $cgi = new CGI;
 $| = 1;
 
 sub main {
-
+    
     if ( !$db ) {
         send_json( { "error" => "Unable to connect to database." } );
         exit(1);
     }
     my $action = $cgi->param('action');
-    warn Dumper $action;
-    print STDERR "action " . $action;
     my $output;
     my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
     if ($user->{'status'} eq 'decom') {
@@ -68,17 +63,17 @@ sub main {
     switch ($action) {
 
         case "provision_circuit" {
-                                  $output = &provision_circuit();
-                                 }
+	    $output = &provision_circuit();
+        }
         case "remove_circuit" {
-                            $output = &remove_circuit();
-                            }
+            $output = &remove_circuit();
+        }
         case "fail_over_circuit" {
-                                      $output = &fail_over_circuit();
-                                }
+            $output = &fail_over_circuit();
+        }
         case "reprovision_circuit"{
-                                    $output = &reprovision_circuit();
-                                    }
+            $output = &reprovision_circuit();
+        }
         case "error" {
             $output = { error => "Decommed users cannot use webservices."};
         } 
@@ -97,76 +92,79 @@ sub main {
 sub _fail_over {
     my %args = @_;
 
-    my $bus = Net::DBus->system;
+    my $client  = new GRNOC::RabbitMQ::Client(
+        queue => 'OF.FWDCTL.RPC',
+        exchange => 'OESS',
+        user => 'guest',
+        pass => 'guest'
+        );
 
-    my $client;
-    my $service;
-
-    eval {
-        $service = $bus->get_service("org.nddi.fwdctl");
-        $client  = $service->get_object("/controller1");
-    };
-
-    if ($@) {
-        warn "Error in _connect_to_fwdctl: $@";
-    }
-        
     if ( !defined($client) ) {
         return;
     }
 
     my $circuit_id = $args{'circuit_id'};
 
-    my ($result,$event_id) = $client->changeVlanPath($circuit_id);
+    my $result = $client->changeVlanPath(circuit_id => $circuit_id);
 
-    warn "Failover RESULT: $result";
+    if($result->{'error'} || !($result->{'results'})){
+        return;
+    }
+
+    my $event_id = $result->{'results'}->{'event_id'};
 
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
         sleep(1);
-        $final_res = $client->get_event_status($event_id);
+        my $res = $client->get_event_status(event_id => $event_id);
+
+        if($res->{'error'} || $res->{'results'}){
+            return;
+        }
+
+        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
     }
 
-    #warn "ADD RESULT: $result";
-
     return $final_res;
-
 }
 
 sub _send_add_command {
     my %args = @_;
 
-    my $bus = Net::DBus->system;
+    my $client  = new GRNOC::RabbitMQ::Client(
+        queue => 'OF.FWDCTL.RPC',
+        exchange => 'OESS',
+        user => 'guest',
+        pass => 'guest'
+        );
 
-    my $client;
-    my $service;
-
-    eval {
-        $service = $bus->get_service("org.nddi.fwdctl");
-        $client  = $service->get_object("/controller1");
-    };
-
-    if ($@) {
-        warn "Error in _connect_to_fwdctl: $@";
-        return undef;
-    }
-
-    if ( !defined $client ) {
-        return undef;
+    if ( !defined($client) ) {
+        return;
     }
 
     my $circuit_id = $args{'circuit_id'};
-    my ($result,$event_id) = $client->addVlan($circuit_id);
+
+    my $result = $client->addVlan(circuit_id => $circuit_id);
+
+    if($result->{'error'} || !($result->{'results'})){
+        return;
+    }
+
+    my $event_id = $result->{'results'}->{'event_id'};
 
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
         sleep(1);
-        $final_res = $client->get_event_status($event_id);
-    }
+        my $res = $client->get_event_status(event_id => $event_id);
 
-    #warn "ADD RESULT: $result";
+        if($res->{'error'} || $res->{'results'}){
+            return;
+        }
+
+        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
+    }
 
     return $final_res;
 }
@@ -174,39 +172,41 @@ sub _send_add_command {
 sub _send_remove_command {
     my %args = @_;
 
-    my $bus = Net::DBus->system;
+    my $client  = new GRNOC::RabbitMQ::Client(
+        queue => 'OF.FWDCTL.RPC',
+        exchange => 'OESS',
+        user => 'guest',
+        pass => 'guest'
+        );
 
-    my $client;
-    my $service;
-
-    eval {
-        $service = $bus->get_service("org.nddi.fwdctl");
-        $client  = $service->get_object("/controller1");
-    };
-    if ($@) {
-        warn "Error in _connect_to_fwdctl: $@";
-        return undef;
-    }
-
-    if ( !defined $client ) {
-        return undef;
+    if ( !defined($client) ) {
+        return;
     }
 
     my $circuit_id = $args{'circuit_id'};
 
-    my ($result,$event_id) = $client->deleteVlan($circuit_id);
+    my $result = $client->deleteVlan(circuit_id => $circuit_id);
+
+    if($result->{'error'} || !($result->{'results'})){
+        return;
+    }
+
+    my $event_id = $result->{'results'}->{'event_id'};
 
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
         sleep(1);
-        $final_res = $client->get_event_status($event_id);
+        my $res = $client->get_event_status(event_id => $event_id);
+
+        if($res->{'error'} || $res->{'results'}){
+            return;
+        }
+
+        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
     }
 
-    #warn "ADD RESULT: $result";
-
     return $final_res;
-
 }
 
 sub _send_update_cache{
@@ -214,35 +214,38 @@ sub _send_update_cache{
     if(!defined($args{'circuit_id'})){
         $args{'circuit_id'} = -1;
     }
-    my $bus = Net::DBus->system;
 
-    my $client;
-    my $service;
+    my $client  = new GRNOC::RabbitMQ::Client(
+        queue => 'OF.FWDCTL.RPC',
+        exchange => 'OESS',
+        user => 'guest',
+        pass => 'guest'
+        );
 
-    eval {
-        $service = $bus->get_service("org.nddi.fwdctl");
-        $client  = $service->get_object("/controller1");
-    };
-
-    if ($@) {
-        warn "Error in _connect_to_fwdctl: $@";
-        return undef;
+    if ( !defined($client) ) {
+        return;
     }
 
-    if ( !defined $client ) {
-        return undef;
+    my $result = $client->update_cache(circuit_id => $args{'circuit_id'});
+
+    if($result->{'error'} || !($result->{'results'})){
+        return;
     }
 
-    my ($result,$event_id) = $client->update_cache($args{'circuit_id'});
+    my $event_id = $result->{'results'}->{'event_id'};
 
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
         sleep(1);
-        $final_res = $client->get_event_status($event_id);
-    }
+        my $res = $client->get_event_status(event_id => $event_id);
 
-    #warn "ADD RESULT: $result";
+        if($res->{'error'} || $res->{'results'}){
+            return;
+        }
+
+        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
+    }
 
     return $final_res;
 }
@@ -251,7 +254,6 @@ sub provision_circuit {
     my $results;
 
     $results->{'results'} = [];
-
 
     my $output;
 
@@ -272,16 +274,6 @@ sub provision_circuit {
     my $restore_to_primary = $cgi->param('restore_to_primary');
     my $static_mac = $cgi->param('static_mac');
 
-    my $bus = Net::DBus->system;
-    my $log_svc;
-    my $log_client;
-    eval {
-        $log_svc    = $bus->get_service("org.nddi.notification");
-        $log_client = $log_svc->get_object("/controller1");
-    };
-    warn $@ if $@;
-
-
     my @links         = $cgi->param('link');
     my @backup_links  = $cgi->param('backup_link');
     my @nodes         = $cgi->param('node');
@@ -295,6 +287,20 @@ sub provision_circuit {
 
     my @remote_nodes = $cgi->param('remote_node');
     my @remote_tags  = $cgi->param('remote_tag');
+    
+    my $remote_url   = $cgi->param('remote_url');
+    my $remote_requester = $cgi->param('remote_requester');
+    
+    my $log_client  = new GRNOC::RabbitMQ::Client(
+        queue => 'OF.Notification.event',
+        exchange => 'OESS',
+        user => 'guest',
+        pass => 'guest'
+        );
+
+    if ( !defined($log_client) ) {
+        return;
+    }
 
     my $workgroup = $db->get_workgroup_by_id( workgroup_id => $workgroup_id );
 
@@ -314,27 +320,30 @@ sub provision_circuit {
     if ( !$circuit_id || $circuit_id == -1 ) {
         #Register with DB
         $output = $db->provision_circuit(
-                                         description    => $description,
-                                         bandwidth      => $bandwidth,
-                                         provision_time => $provision_time,
-                                         remove_time    => $remove_time,
-                                         links          => \@links,
-                                         backup_links   => \@backup_links,
-                                         nodes          => \@nodes,
-                                         interfaces     => \@interfaces,
-                                         tags           => \@tags,
-                                         mac_addresses  => \@mac_addresses,
-                                         endpoint_mac_address_nums  => \@endpoint_mac_address_nums,
-                                         user_name      => $ENV{'REMOTE_USER'},
-                                         workgroup_id   => $workgroup_id,
-                                         external_id    => $external_id,
-                                         restore_to_primary => $restore_to_primary,
-                                         static_mac => $static_mac
-                                        );
-        if ( defined $output && $provision_time <= time() ) {
+            description    => $description,
+            remote_url => $remote_url,
+            remote_requester => $remote_requester,
+            bandwidth      => $bandwidth,
+            provision_time => $provision_time,
+            remove_time    => $remove_time,
+            links          => \@links,
+            backup_links   => \@backup_links,
+            nodes          => \@nodes,
+            interfaces     => \@interfaces,
+            tags           => \@tags,
+            mac_addresses  => \@mac_addresses,
+            endpoint_mac_address_nums  => \@endpoint_mac_address_nums,
+            user_name      => $ENV{'REMOTE_USER'},
+            workgroup_id   => $workgroup_id,
+            external_id    => $external_id,
+            restore_to_primary => $restore_to_primary,
+            static_mac => $static_mac,
+            state => $state
+            );
 
-            my $result =
-              _send_add_command( circuit_id => $output->{'circuit_id'} );
+        if(defined($output) && ($provision_time <= time()) && ($state eq 'active' || $state eq 'scheduled' || $state eq 'provisioned')) {
+
+            my $result = _send_add_command( circuit_id => $output->{'circuit_id'} );
 
             if ( !defined $result ) {
                 $output->{'warning'} =
@@ -389,8 +398,7 @@ sub provision_circuit {
             static_mac => $static_mac,
             do_sanity_check => 0,
             loop_node => $loop_node,
-            state  => $state#,
-            #loop_name => $loop_name
+            state  => $state
         );
 
         ##Edit Existing Circuit
@@ -423,15 +431,17 @@ sub provision_circuit {
             };
         }
         # add flows on switch
-        $result = _send_add_command( circuit_id => $output->{'circuit_id'} );
-        if ( !defined $result ) {
-            $output->{'warning'} =
-              "Unable to talk to fwdctl service - is it running?";
-        }
-        if ( $result == 0 ) {
-            $results->{'error'} =
-              "Unable to edit circuit. Please check your logs or contact your server adminstrator for more information. Circuit is likely not live on the network anymore.";
-            return $results;
+        if($state eq 'active' || $state eq 'looped'){
+            $result = _send_add_command( circuit_id => $output->{'circuit_id'} );
+            if ( !defined $result ) {
+                $output->{'warning'} =
+                    "Unable to talk to fwdctl service - is it running?";
+            }
+            if ( $result == 0 ) {
+                $results->{'error'} =
+                    "Unable to edit circuit. Please check your logs or contact your server adminstrator for more information. Circuit is likely not live on the network anymore.";
+                return $results;
+            }
         }
 
         #Send Edit to Syslogger DBUS
@@ -470,15 +480,17 @@ sub remove_circuit {
                                              workgroup_id => $workgroup_id
                                             );
 
-    my $bus = Net::DBus->system;
-    my $log_svc;
-    my $log_client;
 
-    eval {
-        $log_svc    = $bus->get_service("org.nddi.notification");
-        $log_client = $log_svc->get_object("/controller1");
-    };
-    warn $@ if $@;
+    my $log_client  = new GRNOC::RabbitMQ::Client(
+        queue => 'OF.Notification.event',
+        exchange => 'OESS',
+        user => 'guest',
+        pass => 'guest'
+        );
+
+    if ( !defined($log_client) ) {
+        return;
+    }
 
     if ( !defined $can_remove ) {
         $results->{'error'} = $db->get_error();
@@ -543,7 +555,6 @@ sub remove_circuit {
         };
         warn $@ if $@;
 
-
     }
 
     $results->{'results'} = [ { success => 1 } ];
@@ -596,14 +607,16 @@ sub fail_over_circuit {
     my $workgroup_id = $cgi->param('workgroup_id');
     my $forced = $cgi->param('force') || undef;
 
-    my $bus = Net::DBus->system;
-    my $log_svc;
-    my $log_client;
-    eval {
-        $log_svc    = $bus->get_service("org.nddi.notification");
-        $log_client = $log_svc->get_object("/controller1");
-    };
-    warn $@ if $@;
+    my $log_client  = new GRNOC::RabbitMQ::Client(
+        queue => 'OF.Notification.event',
+        exchange => 'OESS',
+        user => 'guest',
+        pass => 'guest'
+        );
+
+    if ( !defined($log_client) ) {
+        return;
+    }
 
     my $can_fail_over = $db->can_modify_circuit(
                                                 circuit_id   => $circuit_id,
@@ -635,7 +648,9 @@ sub fail_over_circuit {
 
         if ( $is_up || $forced ) {
 
-            $ckt->change_path();
+            my $user_id = $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'});
+
+            $ckt->change_path( user_id => $user_id, reason => "CHANGE PATH: User requested");
             my $result =
               _fail_over( circuit_id => $circuit_id, workgroup_id => $workgroup_id );
             if ( !defined($result) ) {
@@ -681,6 +696,9 @@ sub fail_over_circuit {
 
 sub send_json {
     my $output = shift;
+    if (!defined($output) || !$output) {
+        $output =  { "error" => "Server error in accessing webservices." };
+    }
     print "Content-type: text/plain\n\n" . encode_json($output);
 }
 

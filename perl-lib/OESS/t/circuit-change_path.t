@@ -28,10 +28,10 @@ ok($ckt->has_backup_path(),"Circuit has backup path");
 ok($ckt->get_active_path() eq 'primary', "Circuit is on primary path");
 
 ok($ckt->change_path(), "Circuit successfully changed path to backup");
-
 ok($ckt->get_active_path() eq 'backup', "Circuit is now on backup path");
-
+# Circuit time stamps are on a per-second granularity. Need at least 1 second
+# betwen multiple fail-overs.
+sleep(1);
 ok($ckt->change_path(), "Circuit successfully changed path to primary");
-
 ok($ckt->get_active_path() eq 'primary', "Circuit is now on primary path");
 
