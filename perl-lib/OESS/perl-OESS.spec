@@ -14,6 +14,8 @@ BuildRequires: perl
 Provides: perl-OESS-Circuit, perl-OESS-Database, perl-OESS-DBus, perl-OESS-Topology,perl-OESS-Measurement,perl-OESS-FlowRule
 Obsoletes: perl-OESS-Circuit, perl-OESS-Database, perl-OESS-DBus, perl-OESS-Topology,perl-OESS-Measurement,perl-OESS-FlowRule
 
+AutoReq: no
+
 %description
 
 %define docdir /usr/share/doc/%{name}-%{version}/
@@ -86,6 +88,7 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/Watchdog.pm
 %{perl_vendorlib}/OESS/FWDCTL/Master.pm
 %{perl_vendorlib}/OESS/FWDCTL/Switch.pm
+%{perl_vendorlib}/OESS/RabbitMQ/FV.pm
 %{perl_vendorlib}/OESS/Traceroute.pm
 %{perl_vendorlib}/OESS/NSI/Server.pm
 %{perl_vendorlib}/OESS/NSI/Constant.pm
