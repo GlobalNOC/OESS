@@ -34,14 +34,17 @@ import nox.lib.openflow as openflow
 import nox.lib.pyopenflow as of
 
 import logging
-#import gobject
+
 import pprint
 import struct
 from time import time
 
+# hacktastic import of our local lib, should figure out how to 
+# expose this through nox.lib or something similar at some point
 import os
 import sys
 sys.path.append("{0}/lib/grnoc".format(os.getcwd()))
+sys.path.append("/usr/bin/nox/netapps/nddi/lib")
 from grnoc.rabbitmq.rmqi import RMQI
 
 FWDCTL_WAITING = 2
@@ -54,8 +57,6 @@ TRACEROUTE_MAC= '\x06\xa2\x90\x26\x50\x09'
 PENDING  = 0
 ANSWERED = 1
 
-FORMAT = '%(asctime)-15s  %(message)s'
-logging.basicConfig(format=FORMAT)
 logger = logging.getLogger('org.nddi.openflow')
 
 ifname = 'org.nddi.openflow'
@@ -67,391 +68,13 @@ fv_pkt_rate_interval = 1
 packets = []
 VLAN_ID = None
 
-
-class dBusEventGenRo(dbus.service.Object):
-
-    def __init__(self,bus,path):
-        dbus.service.Object.__init__(self,bus_name=bus, object_path=path)
-        self.collection_epoch = 0
-    @dbus.service.method(dbus_interface=ifname,
-                         in_signature='t',
-                         out_signature='b'
-                         )
-    def get_node_connect_status(self, status_dpid):
-        for dpid in switches:
-            if dpid == status_dpid:
-                return True
-        return False
-
-#--- this is a a wrapper class that defineds the dbus interface
-class dBusEventGen(dbus.service.Object):
-
-    def __init__(self, bus, path):
-       dbus.service.Object.__init__(self, bus_name=bus, object_path=path)
-       self.collection_epoch = 0
-       self.packets_out = 0
-       self.packets_in = 0
-       self.registered_for_fv_in = 0
-       self.registered_for_traceroute_in = 0
-       self.fv_pkt_rate = 1
-       self.packets = []
-       self.VLAN_ID = None
-
-    @dbus.service.signal(dbus_interface=ifname,
-                         signature='tua{sv}')
-    def port_status(self,dp_id,reason,attrs):
-       string = "port status change: "+str(dp_id)+" attrs "+ str(dict(attrs))
-       logger.info(string)
-       
-    @dbus.service.signal(dbus_interface=ifname,
-                         signature='tqtqt')
-    def fv_packet_in(self, src_dpid, src_port, dst_dpid, dst_port, timestamp):
-        string = "fv packet in: " + str(self.packets_in)
-    
-    @dbus.service.signal(dbus_interface=ifname,
-                         signature='tqt')
-    def traceroute_packet_in(self, src_dpid, src_port, circuit_id):
-        string = "traceroute packet in for circuit_id" + str(circuit_id)
-        logger.info(string)
-        
-    @dbus.service.signal(dbus_interface=ifname,
-                         signature='tua{sv}')
-    def topo_port_status(self,dp_id,reason,attrs):
-        string = "Topo Port Status Change: " + str(dp_id)+" attr " + str(dict(attrs))
-        logger.info(string)
-
-    @dbus.service.signal(dbus_interface=ifname,
-                         signature='tqtqs')
-    def link_event(self,sdp,sport,ddp,dport,action):
-       string = "link_event: "+str(sdp)+" port "+str(sport)+" -->  "+str(ddp)+" port "+str(dport)+" is "+str(action)
-       logger.info(string)
-
-    @dbus.service.signal(dbus_interface=ifname,
-                         signature='tuaa{sv}') 
-    def datapath_join(self,dp_id,ip_address,port_list):
-       string = "datapath join: "+str(dp_id)+str(ip_address)+str(port_list)
-       logger.info(string)
-
-    @dbus.service.signal(dbus_interface=ifname,
-                         signature='t')
-    def datapath_leave(self,dp_id):
-       string = "datapath leave: "+str(dp_id)
-       logger.info(string)
-
-    @dbus.service.signal(dbus_interface=ifname,
-                         signature='tu')
-    def barrier_reply(self,dp_id,xid):
-       string = "barrier_reply: "+str(dp_id)
-       logger.info(string)
-
-#    @dbus.service.method(dbus_interface=ifname,
-#                         in_signature='itaat',
-#                         out_signature='')
-#    def send_fv_packets(self, rate, vlan, pkts):
-#        logger.info("Setting FV packets")
-#        self.fv_pkt_rate = (rate / 1000.0)
-#        logger.info("Packet Our Rate: " + str(self.fv_pkt_rate))
-#        self.VLAN_ID = vlan
-#        logger.info("VLAN ID: " + str(VLAN_ID))
-#        self.packets = pkts
-#        return
-#
-#    @dbus.service.method(dbus_interface=ifname,
-#                         in_signature='titt',
-#                         out_signature='')
-#    def send_traceroute_packet(self,dpid,my_vlan,out_port,data):
-#        #build ethernet packet
-#        packet = ethernet()
-#        packet.src = '\x00' + struct.pack('!Q',dpid)[3:8]
-#        packet.dst = TRACEROUTE_MAC
-#        #pack circuit_id into payload
-#        payload = struct.pack('I',data)
-#        
-#        if(my_vlan != None and my_vlan != 65535):
-#            vlan_packet = vlan()
-#            vlan_packet.id = my_vlan
-#            vlan_packet.c = 0
-#            vlan_packet.pcp = 0
-#            vlan_packet.eth_type = 0x88b5
-#            vlan_packet.set_payload(payload)
-#
-#            packet.set_payload(vlan_packet)
-#            packet.type = ethernet.VLAN_TYPE
-#            
-#        else:
-#            packet.set_payload(payload)
-#            packet.type = 0x88b5
-#        
-#        inst.send_openflow_packet(int(dpid), packet.tostring(),int(out_port))
-#
-#        return
-#
-#        
-#    @dbus.service.method(dbus_interface=ifname,
-#                         in_signature='',
-#                         out_signature='i')
-#    def echo(self, rate, vlan, pkts):
-#        return 1
-#
-#    @dbus.service.signal(dbus_interface=ifname,signature='tuquuay')
-#    def packet_in(self,dpid,in_port, reason, length, buffer_id, data):
-#       string =  "packet_in: "+str(dpid)+" :  "+str(in_port)
-#       logger.info(string)
-#
-#    @dbus.service.method(dbus_interface=ifname,
-#                         in_signature='t',
-#                         out_signature='iaa{sv}'
-#                         )
-#    def get_flow_stats(self, dpid):
-#        string = "get_flow_stats: " + str(dpid)
-#        logger.info(string)
-#        if last_flow_stats.has_key(dpid):
-#            #build an array of DBus Dicts
-#            flow_stats = []
-#            for item in last_flow_stats[dpid]["flows"]:
-#                match = dbus.Dictionary(item['match'], signature='sv', variant_level = 2)
-#                item['match'] = match
-#                dict = dbus.Dictionary(item, signature='sv' , variant_level=3)
-#                flow_stats.append(dict)
-#
-#            return (last_flow_stats[dpid]["time"],flow_stats)
-#        else:
-#            logger.info("No Flow stats cached for dpid: " + str(dpid))
-#            return (-1, [{"flows": "not yet cached"}])
-#            
-#
-#    @dbus.service.method(dbus_interface=ifname,
-#                         in_signature='t',
-#                         out_signature='iaa{sv}'
-#                         )
-#    def get_node_status(self, dpid):
-#        if flowmod_callbacks.has_key(dpid):
-#            xids = flowmod_callbacks[dpid].keys()
-#            
-#            if(len(xids) == 1):
-#
-#                if(flowmod_callbacks[dpid][xids[0]]["result"] == FWDCTL_SUCCESS):
-#                    del flowmod_callbacks[dpid][xids[0]]
-#                    return ( FWDCTL_SUCCESS, [])
-#
-#                elif(flowmod_callbacks[dpid][xids[0]]["result"] == FWDCTL_WAITING):
-#                    return (FWDCTL_WAITING, [])
-#                else:
-#                    del flowmod_callbacks[dpid][xids[0]]
-#                    return ( FWDCTL_FAILURE, [])
-#            else:
-#                return (FWDCTL_WAITING, [])
-#            
-#        return (FWDCTL_UNKNOWN,[])
-#
-#
-#    @dbus.service.method(dbus_interface=ifname,
-#                         in_signature='t',
-#                         out_signature='t'
-#                         )
-#    def install_default_drop(self, dpid):
-#
-#        if not dpid in switches:
-#          return 0;
-#
-#        my_attrs          = {}
-#        actions           = []
-#        
-#        idle_timeout = 0
-#        hard_timeout = 0
-#
-#        xid = inst.send_datapath_flow( dp_id=dpid,
-#                                       attrs=my_attrs,
-#                                       idle_timeout=idle_timeout,
-#                                       hard_timeout=hard_timeout,
-#                                       actions=actions,
-#                                       priority=0x0001,
-#                                       inport=None)
-#        
-#        _do_install(dpid,xid,my_attrs,actions)
-#
-#        return xid
-#
-#    @dbus.service.method(dbus_interface=ifname,
-#                         in_signature='q',
-#                         out_signature='q')
-#    def register_for_fv_in(self, vlan):
-#        #ether type 88b6 is experimental
-#        #88b6 IEEE 802.1 IEEE Std 802 - Local Experimental
-#        if(self.registered_for_fv_in == 1):
-#            return 1
-#        logger.info("Registered for packet in events for FV")
-#
-#        if(vlan == None):
-#            match = {
-#                DL_TYPE: 0x88b6,
-#                DL_DST: array_to_octstr(array.array('B', NDP_MULTICAST))
-#                }
-#        else:
-#            match = {
-#                DL_TYPE: 0x88b6,
-#                DL_DST: array_to_octstr(array.array('B',NDP_MULTICAST)),
-#                DL_VLAN: vlan
-#                }
-#
-#        inst.register_for_packet_match(lambda dpid, inport, reason, len, bid,packet : fv_packet_in_callback(self,dpid,inport,reason,len,bid,packet), 0xffff, match)
-#        self.registered_for_fv_in = 1
-#        return 1
-#
-#    @dbus.service.method(dbus_interface=ifname,
-#                         in_signature='',
-#                         out_signature='q')
-#    def register_for_traceroute_in(self):
-#        #ether type 88b6 is experimental
-#        #88b6 IEEE 802.1 IEEE Std 802 - Local Experimental
-#        if(self.registered_for_traceroute_in == 1):
-#            return 1
-#        logger.info("Registered for packet in events for Traceroute")
-#
-#        match = {
-#            DL_TYPE: 0x88b5,
-#            DL_DST: TRACEROUTE_MAC
-#            }
-#        
-#        inst.register_for_packet_match(lambda dpid, inport, reason, len, bid,packet : traceroute_packet_in_callback(self,dpid,inport,reason,len,bid,packet), 0xffff, match)
-#        self.registered_for_traceroute_in = 1
-#        return 1
-#
-#
-#
-#    @dbus.service.method(dbus_interface=ifname,
-#                         in_signature='tq',
-#                         out_signature='t'
-#                         )
-#    def install_default_forward(self, dpid, vlan):
-#
-#        if not dpid in switches:
-#          return 0;
-#
-#        my_attrs          = {}
-#        my_attrs[DL_TYPE] = 0x88cc       
-#        my_attrs[DL_VLAN] = vlan
-#        actions = [[openflow.OFPAT_OUTPUT, [65535, openflow.OFPP_CONTROLLER]]]
-#        
-#        idle_timeout = 0
-#        hard_timeout = 0
-#        xid = inst.send_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=None)
-#
-#        _do_install(dpid,xid,my_attrs,actions)
-#
-#        my_attrs = {}
-#        my_attrs[DL_VLAN] = vlan
-#        my_attrs[DL_TYPE] = 0x88b6 
-#        actions = [[openflow.OFPAT_OUTPUT, [65535, openflow.OFPP_CONTROLLER]]]
-#        
-#        idle_timeout = 0
-#        hard_timeout = 0
-#        xid = inst.send_datapath_flow(dp_id=dpid, attrs=my_attrs, idle_timeout=idle_timeout, hard_timeout=hard_timeout,actions=actions,inport=None)
-#        
-#        _do_install(dpid,xid,my_attrs,actions)
-#
-#        return xid
-#
-#    @dbus.service.method(dbus_interface=ifname,
-#                         in_signature='ta{sv}a(qv)',
-#                         out_signature='t'
-#                         )
-#    def send_datapath_flow(self,dpid,attrs,actions):
-#        if not dpid in switches:
-#          return 0;
-#        
-#        #--- here goes nothing
-#        my_attrs = {}
-#        priority = 32768
-#        idle_timeout = 0
-#        hard_timeout = 0
-#        command      = None
-#        packet       = None
-#        xid          = None
-#        buffer_id    = None
-#
-#        logger.info("sending OFPFC: %d" % attrs.get("COMMAND", "No Command Set!"))
-#
-#        if attrs.get("DL_VLAN"):
-#            my_attrs[DL_VLAN] = int(attrs['DL_VLAN'])
-#        if attrs.get("IN_PORT"):
-#            my_attrs[IN_PORT] = int(attrs['IN_PORT'])
-#        if attrs.get("DL_DST"):
-#            my_attrs[DL_DST]  = int(attrs['DL_DST'])
-#        if attrs.get("DL_TYPE"):
-#            my_attrs[DL_TYPE] = int(attrs['DL_TYPE'])
-#        if attrs.get("PRIORITY"):
-#            priority = int(attrs["PRIORITY"])
-#        if attrs.get("IDLE_TIMEOUT"):
-#            idle_timeout = int(attrs["IDLE_TIMEOUT"])
-#        if attrs.get("HARD_TIMEOUT"):
-#            hard_timeout = int(attrs["HARD_TIMEOUT"])
-#        if "COMMAND" in attrs:
-#            command = int(attrs["COMMAND"])
-#        if attrs.get("XID"):
-#            xid = int(attrs["XID"])
-#        if attrs.get("PACKET"):
-#            packet = int(attrs["PACKET"])
-#        if attrs.get("BUFFER_ID"):
-#            buffer_id = int(attrs["BUFFER_ID"])
-#
-#        #--- this is less than ideal. to make dbus happy we need to pass extra arguments in the
-#        #--- strip vlan case, but NOX won't be happy with them so we remove them here
-#        for i in range(len(actions)):
-#            action = actions[i];
-#            if action[0] == openflow.OFPAT_STRIP_VLAN and len(action) > 1:
-#                new_action = dbus.Struct((dbus.UInt16(openflow.OFPAT_STRIP_VLAN),))
-#                actions.remove(action)
-#                actions.insert(i, new_action)
-#
-#        #--- first we check to make sure the switch is in a ready state to accept more flow mods
-#        xid = inst.send_datapath_flow(
-#            dpid, 
-#            my_attrs,
-#            idle_timeout,
-#            hard_timeout,
-#            actions,
-#            buffer_id,
-#            priority,
-#            my_attrs.get("IN_PORT"),
-#            command,
-#            packet, 
-#            xid
-#        )
-#
-#
-#        logger.info("sent OFPFC: {0}, xid: {1}".format(command, xid))
-#        actions = [] if actions == None else actions
-#        _do_install(dpid,xid,my_attrs,actions)
-#
-#        return xid
-#
-#
-#    @dbus.service.method(dbus_interface=ifname,
-#                         in_signature='t',
-#                         out_signature='t'
-#                         )
-#    def send_barrier(self, dpid):
-#        logger.info("Sending barrier for %s" % dpid)
-#        
-#        xid = inst.send_barrier(dpid)
-#
-#        if not flowmod_callbacks.has_key(dpid):
-#            flowmod_callbacks[dpid] = {}
-#        flowmod_callbacks[dpid][xid] = {"result": FWDCTL_WAITING}
-#        return xid
-
-#--- series of callbacks to glue the reception of NoX events to the generation of D-Bus events
+#--- series of callbacks to glue the reception of NoX events to the generation of rabbit events
 def port_status_callback(nddi, dp_id, ofp_port_reason, attrs):
-    attr_dict = {}
-    if attrs:
-      attr_dict = dbus.Dictionary(attrs, signature='sv')
+    attr_dict = attrs
     
     #--- convert mac 
-    attr_dict['hw_addr'] = dbus.UInt64(mac_to_int(attr_dict['hw_addr']))
-
+    attr_dict['hw_addr'] = mac_to_int(attrs['hw_addr'])
     #--- generate signal   
-    #sg.port_status(dp_id,ofp_port_reason,attr_dict)
     nddi.rmqi_event.emit_signal('port_status',
         dpid=dp_id,
         ofp_port_reason=ofp_port_reason,
@@ -474,7 +97,6 @@ def fv_packet_in_callback(nddi, dp, inport, reason, len, bid, packet):
         logger.warn("Packet was sent to port: " + str(dst_port) + " but came from: " + str(inport))
         return
 
-    #sg.fv_packet_in(src_dpid,src_port,dst_dpid,dst_port,timestamp)
     nddi.rmqi_event.emit_signal('fv_packet_in',
         src_dpid=src_dpid,
         src_port=src_port,
@@ -489,10 +111,9 @@ def traceroute_packet_in_callback(nddi, dp, inport, reason, len, bid, packet):
 
     string = packet.next
     logger.info(string.encode('hex'))
+
     #get circuit_id
     (circuit_id) = struct.unpack('I',string[:4])
-    #struct.pack always returns a tuple, return the first element of the tuple
-    #sg.traceroute_packet_in(dp,inport,circuit_id[0])
 
     nddi.rmqi_event.emit_signal('traceroute_packet_in',
         dpid=dp,
@@ -510,8 +131,6 @@ def link_event_callback(nddi, info):
     sport  = info.sport
     dport  = info.dport
     action = info.action
-
-    #sg.link_event(sdp,sport,ddp,dport,str(action))
 
     nddi.rmqi_event.emit_signal('link_event',
         dpsrc=sdp,
@@ -540,35 +159,18 @@ def datapath_join_callback(nddi, dp_id, ip_address, stats):
     flow = of.ofp_match()
     flow.wildcards = 0xffffffff
     nddi.send_flow_stats_request(dp_id, flow,0xff)
-
+    
     port_list = []
-    for i in range(0, len(ports)):
-      port = {}#ports[i]
-      port['name']    = ports[i]['name']
-      port['hw_addr'] = dbus.UInt64(mac_to_int(ports[i]['hw_addr']))
-      port['port_no'] = dbus.UInt16(ports[i]['port_no'])
-
-      #assert(ports[i]['state'] <= 4294967295)
-      port['config']      = ports[i]['config'] #dbus.UInt32(ports[i]['config'])
-      port['state']       = dbus.UInt32(ports[i]['state'])
-      port['curr']        = dbus.UInt32(ports[i]['curr'])
-      port['advertised']  = dbus.UInt32(ports[i]['advertised'])
-      port['supported']   = dbus.UInt32(ports[i]['supported'])
-      port['peer']        = dbus.UInt32(ports[i]['peer'])
-      #print str(port['config']) +  " vs " + str(ports[i]['config'])
-      port_dict = dbus.Dictionary(port, signature='sv') 
-      port_list.append(port)
-
+    for p in ports:
+        port = p
+        port['hw_addr'] = mac_to_int(p['hw_addr'])
+        port_list.append(port)
     #print str(port_list)
-    #sg.datapath_join(dp_id,ip_address,port_list)
     nddi.rmqi_event.emit_signal('datapath_join',
         dpid=dp_id,
-        ip_address=ip_address,
-        ports=port_list
+        ip=ip_address,
+        ports=ports
     )
-
-        
-    
 
 def datapath_leave_callback(nddi, dp_id):
     if dp_id in switches:
@@ -578,7 +180,6 @@ def datapath_leave_callback(nddi, dp_id):
     if dp_id in flowmod_callbacks:
         del flowmod_callbacks[dp_id]
 
-    #sg.datapath_leave(dp_id)
     nddi.rmqi_event.emit_signal('datapath_leave',
         dpid=dp_id
     )
@@ -602,7 +203,7 @@ def barrier_reply_callback(nddi, dp_id, xid):
                         flows[intxid]["result"] = FWDCTL_FAILURE
                         flows[intxid]["failed_flows"].append(flows[x])
                     del flows[x]
-    #sg.barrier_reply(dp_id,xid)
+
     nddi.rmqi_event.emit_signal('barrier_reply',
         dpid=dp_id
     )
@@ -621,7 +222,6 @@ def error_callback(nddi, dpid, error_type, code, data, xid):
             
 
 def packet_in_callback(nddi, dpid,in_port,reason, length,buffer_id, data) :
-    #sg.packet_in(dpid,in_port,reason, length,buffer_id, data.arr)
     nddi.rmqi_event.emit_signal('packet_in',
         dpid=dpid,
         in_port=in_port,
@@ -644,24 +244,6 @@ def _do_install(dpid,xid,match,actions):
     flowmod_callbacks[dpid][xid] = {"result": FWDCTL_WAITING, "match": match, "actions": actions}
     
     return 1
-
-#def run_glib ():
-#    """ Process glib events within NOX """
-#    context = gobject.MainLoop().get_context()
-#    def mainloop ():
-#      # Loop as long as events are being dispatched
-#        while context.pending():
-#            context.iteration(False)
-#            #--- hack where by we poll the dbus reactor to see if there are events to work 
-#            #--- the rate of incoming requests we can process to something like 500/sec
-#            #--- this should have no effect on the rate that we send events out over the dbus
-#        inst.post_callback(0.001, mainloop) # Check again later
-#            
-#    def print_highwater():
-#        logger.info(string)
-#        counter = 0
-#
-#    mainloop() # Kick it off
 
 class nddi_rabbitmq(Component):
 
@@ -690,21 +272,9 @@ class nddi_rabbitmq(Component):
             queue='OF.NOX.event'
         )
 
-        # register rabbitmq rpc callbacks
-        self.rmqi_rpc.subscribe_to_signal(method=self.send_fv_packets)
-        self.rmqi_rpc.subscribe_to_signal(method=self.send_traceroute_packet)
-        self.rmqi_rpc.subscribe_to_signal(method=self.echo)
-        self.rmqi_rpc.subscribe_to_signal(method=self.get_flow_stats)
-        self.rmqi_rpc.subscribe_to_signal(method=self.get_node_status)
-        self.rmqi_rpc.subscribe_to_signal(method=self.install_default_drop)
-        self.rmqi_rpc.subscribe_to_signal(method=self.register_for_fv_in)
-        self.rmqi_rpc.subscribe_to_signal(method=self.register_for_traceroute_in)
-        self.rmqi_rpc.subscribe_to_signal(method=self.install_default_forward)
-        self.rmqi_rpc.subscribe_to_signal(method=self.send_datapath_flow)
-        self.rmqi_rpc.subscribe_to_signal(method=self.send_barrier)
-        self.rmqi_rpc.subscribe_to_signal(method=self.get_node_connect_status)
-        
     def install(self):
+
+        print "in install"
         #gobject.threads_init()
         #run_glib()
         self.flow_stats = {}
@@ -730,9 +300,9 @@ class nddi_rabbitmq(Component):
             port_status_callback(self, dpid, reason, port)
         )
         
-	    #--- this is a a special event generated by the discovery service, 
-	    #---   which is why there isnt the handy register_for_* method
-	    self.register_handler(Link_event.static_get_name(), lambda  info : 
+        #--- this is a a special event generated by the discovery service, 
+        #---   which is why there isnt the handy register_for_* method
+        self.register_handler(Link_event.static_get_name(), lambda  info : 
             link_event_callback(self, info )
         )
 
@@ -741,6 +311,28 @@ class nddi_rabbitmq(Component):
         #TODO come back to this method
         self.fire_send_fv_packets()
         self.fire_flow_stats_timer()
+    
+        # register rabbitmq rpc callbacks
+        print "subscribing callbacks"
+        self.rmqi_rpc.subscribe_to_signal(method=self.send_fv_packets)
+        self.rmqi_rpc.subscribe_to_signal(method=self.send_traceroute_packet)
+        self.rmqi_rpc.subscribe_to_signal(method=self.echo)
+        self.rmqi_rpc.subscribe_to_signal(method=self.get_flow_stats)
+        self.rmqi_rpc.subscribe_to_signal(method=self.get_node_status)
+        self.rmqi_rpc.subscribe_to_signal(method=self.install_default_drop)
+        self.rmqi_rpc.subscribe_to_signal(method=self.register_for_fv_in)
+        self.rmqi_rpc.subscribe_to_signal(method=self.register_for_traceroute_in)
+        self.rmqi_rpc.subscribe_to_signal(method=self.install_default_forward)
+        self.rmqi_rpc.subscribe_to_signal(method=self.send_datapath_flow)
+        self.rmqi_rpc.subscribe_to_signal(method=self.send_barrier)
+        self.rmqi_rpc.subscribe_to_signal(method=self.get_node_connect_status)
+        
+
+        print "starting rpc listener thread"
+        self.rmqi_rpc.start()
+        # the event emitter doesn't actually need to be a thread
+        # we should revisit this and make it its own class that doesn't extend the threading module
+        self.rmqi_event.start()
 
     def fire_flow_stats_timer(self):
         for dpid in switches:
@@ -908,23 +500,32 @@ class nddi_rabbitmq(Component):
 
     # rmqi rpc method get_flow_stats
     def get_flow_stats(self, **kwargs):
+
+        #sys.exit(1)
+        logger.warn("in get_flow_stats")
         dpid = kwargs.get('dpid')
 
-        string = "get_flow_stats: " + str(dpid)
-        logger.info(string)
+        logger.warn("get_flow_stats: ".format(dpid))
+
         if last_flow_stats.has_key(dpid):
             #build an array of DBus Dicts
+            logger.warn('getting flow stats for dpid: {0}'.format(dpid))
             flow_stats = []
             for item in last_flow_stats[dpid]["flows"]:
-                match = dbus.Dictionary(item['match'], signature='sv', variant_level = 2)
+                match = item['match']
                 item['match'] = match
-                dict = dbus.Dictionary(item, signature='sv' , variant_level=3)
-                flow_stats.append(dict)
+                flow_stats.append(item)
 
-            return (last_flow_stats[dpid]["time"],flow_stats)
+            return {
+                'timestamp': last_flow_stats[dpid]["time"],
+                'flow_stats': flow_stats
+            }
         else:
-            logger.info("No Flow stats cached for dpid: " + str(dpid))
-            return (-1, [{"flows": "not yet cached"}])
+            logger.warn("No Flow stats cached for dpid: " + str(dpid))
+            return {
+                'timestamp': -1,
+                'flow_stats': [] 
+            }
 
     # rmqi rpc method get_node_status
     def get_node_status(self, **kwargs):
@@ -1016,7 +617,7 @@ class nddi_rabbitmq(Component):
         match = {
             DL_TYPE: 0x88b5,
             DL_DST: TRACEROUTE_MAC
-            }
+        }
         
         inst.register_for_packet_match(lambda dpid, inport, reason, len, bid,packet : 
             traceroute_packet_in_callback(self, dpid, inport, reason, len, bid, packet),
@@ -1028,7 +629,7 @@ class nddi_rabbitmq(Component):
     # rmqi rpc method install_default_foward
     def install_default_forward(self, **kwargs):
         dpid = kwargs.get('dpid')
-        vlan = kwargs.get('vlan')
+        vlan = kwargs.get('discovery_vlan')
 
         if not dpid in switches:
           return 0;
@@ -1073,9 +674,9 @@ class nddi_rabbitmq(Component):
 
     # rmqi rpc method send_datapath_flow
     def send_datapath_flow(self, **kwargs):
-        dpid    = kwargs.get('dpid')
-        attrs   = kwargs.get('attrs')
-        actions = kwargs.get('actions')
+        flow    = kwargs.get('flow')
+        attrs   = flow.attrs
+        actions = flow.actions
   
         if not dpid in switches:
           return 0;
@@ -1120,7 +721,8 @@ class nddi_rabbitmq(Component):
         for i in range(len(actions)):
             action = actions[i];
             if action[0] == openflow.OFPAT_STRIP_VLAN and len(action) > 1:
-                new_action = dbus.Struct((dbus.UInt16(openflow.OFPAT_STRIP_VLAN),))
+                #new_action = dbus.Struct((dbus.UInt16(openflow.OFPAT_STRIP_VLAN),))
+                new_action = openflow.OFPAT_STRIP_VLAN
                 actions.remove(action)
                 actions.insert(i, new_action)
 
