@@ -41,6 +41,18 @@ sub start {
     $self->{'dispatch'}->start_consuming();
 }
 
+=head2 register_for_fv_in
+
+Publishes a message to OF.NOX.register_for_fv_in to enable the
+generation of fv_packet_in messages on OF.NOX.fv_packet_in.
+
+=over 1
+
+=item $discovery_vlan VLAN on which discovery packets will be sent.
+
+=back
+
+=cut
 sub register_for_fv_in {
     my $self = shift;
     my $discovery_vlan = shift;
@@ -48,24 +60,53 @@ sub register_for_fv_in {
     $self->{'nox'}->register_for_fv_in(discovery_vlan => $discovery_vlan);
 }
 
+=head2 send_fv_link_event
+
+Generates a link event to the OF.FV.fv_link_event topic.
+
+=over 1
+
+=item $link_name  Name of link that triggered an event
+
+=item $link_state State of the link identified by link_name
+
+=back
+
+=cut
 sub send_fv_link_event {
     my $self       = shift;
     my $link_name  = shift;
     my $link_state = shift;
  
-    $self->{'fv'}->fv_link_event( link_name => $link_name,
-                                  state     => $link_state );
+    $self->{'nox'}->fv_link_event( link_name => $link_name,
+                                   state     => $link_state,
+                                   no_reply  => 1 );
 }
 
+=head2 send_fv_packets
+
+Sends an array of packets to $discovery_valn every $interval.
+
+=over 1
+
+=item $interval       Interval by which $packets will be sent
+
+=item $discovery_vlan VLAN to which discovery packets must be sent.
+
+=item $packets        Array reference of packets to send
+
+=back
+
+=cut
 sub send_fv_packets {
     my $self           = shift;
     my $interval       = shift;
     my $discovery_vlan = shift;
     my $packets        = shift;
 
-    $self->{'fv'}->send_fv_packets( interval       => $interval,
-                                    discovery_vlan => $discovery_vlan,
-                                    packets        => $packets );
+    $self->{'nox'}->send_fv_packets( interval       => $interval,
+                                     discovery_vlan => $discovery_vlan,
+                                     packets        => $packets );
 }
 
 sub on_datapath_join {
