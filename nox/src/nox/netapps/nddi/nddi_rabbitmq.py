@@ -327,12 +327,12 @@ class nddi_rabbitmq(Component):
         self.rmqi_rpc.subscribe_to_signal(method=self.send_barrier)
         self.rmqi_rpc.subscribe_to_signal(method=self.get_node_connect_status)
         
-
-        print "starting rpc listener thread"
-        self.rmqi_rpc.start()
         # the event emitter doesn't actually need to be a thread
         # we should revisit this and make it its own class that doesn't extend the threading module
         self.rmqi_event.start()
+
+        print "starting rpc listener thread"
+        self.rmqi_rpc.start()
 
     def fire_flow_stats_timer(self):
         for dpid in switches:
