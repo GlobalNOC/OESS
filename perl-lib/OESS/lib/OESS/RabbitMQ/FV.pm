@@ -117,7 +117,7 @@ sub on_datapath_join {
     $method->add_input_parameter( name => "ip",
                                   description => "IP Address of node that has joined",
                                   required => 1,
-                                  pattern  => $GRNOC::WebService::Regex::INTEGER );
+                                  pattern  => $GRNOC::WebService::Regex::NUMBER_ID );
     $method->add_input_parameter( name => "ports",
                                   description => "Array of OpenFlow port structs",
                                   required => 1,
@@ -146,12 +146,13 @@ sub on_datapath_leave {
     my $self = shift;
     my $func = shift;
     my $method = GRNOC::RabbitMQ::Method->new( name        => "datapath_leave",
+                                               topic       => "OF.NOX.event",
                                                callback    => $func,
                                                description => "Removes datapath to FV's internal nodes" );
     $method->add_input_parameter( name => "dpid",
-                                  description => "Removes datapath from FV's internal nodes",
+                                  description => "Datapath ID of node that has joined",
                                   required => 1,
-                                  pattern  => $GRNOC::WebService::Regex::NAME_ID );
+                                  pattern  => $GRNOC::WebService::Regex::NUMBER_ID );
 
     $self->{'dispatch'}->register_method($method);
 }
@@ -160,28 +161,29 @@ sub on_link_event {
     my $self = shift;
     my $func = shift;
     my $method = GRNOC::RabbitMQ::Method->new( name        => "link_event",
+                                               topic       => "OF.NOX.event",
                                                callback    => $func,
                                                description => "Notifies FV of any link event." );
-    $method->add_input_parameter( name => "a_dpid",
+    $method->add_input_parameter( name => "dpdst",
                                   description => "DPID of one node on the link",
                                   required => 1,
                                   pattern  => $GRNOC::WebService::Regex::NAME_ID );
-    $method->add_input_parameter( name => "a_port",
+    $method->add_input_parameter( name => "dport",
                                   description => "Port of node a on the link",
                                   required => 1,
                                   pattern  => $GRNOC::WebService::Regex::INTEGER );
-    $method->add_input_parameter( name => "z_dpid",
+    $method->add_input_parameter( name => "dpsrc",
                                   description => "DPID of one node on the link",
                                   required => 1,
                                   pattern  => $GRNOC::WebService::Regex::NAME_ID );
-    $method->add_input_parameter( name => "z_port",
+    $method->add_input_parameter( name => "sport",
                                   description => "Port of node z on the link",
                                   required => 1,
                                   pattern  => $GRNOC::WebService::Regex::INTEGER );
-    $method->add_input_parameter( name => "status",
+    $method->add_input_parameter( name => "action",
                                   description => "Status of the link",
                                   required => 1,
-                                  pattern  => $GRNOC::WebService::Regex::INTEGER );
+                                  pattern  => $GRNOC::WebService::Regex::TEXT );
 
     $self->{'dispatch'}->register_method($method);
 }
@@ -190,9 +192,9 @@ sub on_port_status {
     my $self = shift;
     my $func = shift;
     my $method = GRNOC::RabbitMQ::Method->new( name        => "port_status",
+                                               topic       => "OF.NOX.event",
                                                callback    => $func,
                                                description => "Notifies FV of any port status change." );
-    
     $method->add_input_parameter( name => "dpid",
                                   description => "The DPID of the switch which fired the port status event",
                                   required => 1,
