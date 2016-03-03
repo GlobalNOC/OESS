@@ -73,7 +73,10 @@ class RMQI(threading.Thread):
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
-    def _encode_json(self, result):
+    def _encode_json(self, result, signal=False):
+        if signal: # Signals must have no 'results' array
+            return json.JSONEncoder().encode(result)
+
         # if a result is returned try to decode it otherwise just send an 
         # empty result object back
         json_result = '{ "results": [] }'
@@ -94,7 +97,7 @@ class RMQI(threading.Thread):
         self.channel.basic_publish(
             exchange=self.exchange,
             routing_key='{0}.{1}'.format(self.queue, signal_name),
-            body=self._encode_json(kwargs),
+            body=self._encode_json(kwargs, signal=True),
             properties=pika.BasicProperties(
                 headers={
                     'no_reply': 1
