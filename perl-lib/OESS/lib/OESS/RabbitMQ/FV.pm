@@ -107,12 +107,38 @@ sub on_datapath_join {
     my $self = shift;
     my $func = shift;
     my $method = GRNOC::RabbitMQ::Method->new( name        => "datapath_join",
+                                               topic       => "OF.NOX.event",
                                                callback    => $func,
-                                               description => "Adds datapath to FV's internal nodes" );
+                                               description => "Signals a node has joined the controller" );
     $method->add_input_parameter( name => "dpid",
-                                  description => "Adds datapath to FV's internal nodes",
+                                  description => "Datapath ID of node that has joined",
                                   required => 1,
-                                  pattern  => $GRNOC::WebService::Regex::NAME_ID );
+                                  pattern  => $GRNOC::WebService::Regex::NUMBER_ID );
+    $method->add_input_parameter( name => "ip",
+                                  description => "IP Address of node that has joined",
+                                  required => 1,
+                                  pattern  => $GRNOC::WebService::Regex::INTEGER );
+    $method->add_input_parameter( name => "ports",
+                                  description => "Array of OpenFlow port structs",
+                                  required => 1,
+                                  schema => { 'type'  => 'array',
+                                              'items' => [ 'type' => 'object',
+                                                           'properties' => { 'hw_addr'    => {'type' => 'number'},
+                                                                             'curr'       => {'type' => 'number'},
+                                                                             'name'       => {'type' => 'string'},
+                                                                             'speed'      => {'type' => 'number'},
+                                                                             'supported'  => {'type' => 'number'},
+                                                                             'enabled'    => {'type' => 'number'}, # bool
+                                                                             'flood'      => {'type' => 'number'}, # bool
+                                                                             'state'      => {'type' => 'number'},
+                                                                             'link'       => {'type' => 'number'}, # bool
+                                                                             'advertised' => {'type' => 'number'},
+                                                                             'peer'       => {'type' => 'number'},
+                                                                             'config'     => {'type' => 'number'},
+                                                                             'port_no'    => {'type' => 'number'}
+                                                                           }
+                                                         ]
+                                            } );
     $self->{'dispatch'}->register_method($method);
 }
 

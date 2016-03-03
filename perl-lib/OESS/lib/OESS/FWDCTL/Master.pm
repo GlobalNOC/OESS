@@ -191,21 +191,26 @@ sub register_nox_events{
 				  pattern => $GRNOC::WebService::Regex::NUMBER_ID);
 
     $method->add_input_parameter( name => "ports",
-				  description => "A list of ports that exist on the node, and their details",
-				  required => 1,
-				  schema => {'type' => 'array',
-					     'items' => [
-						 'type' => 'object',
-						 'properites' => {
-						     'port_no#' => {'type' => 'number'},
-						     'operational_state' => {'type' => 'string'},
-						     'state' => {'type' => 'number'},
-						     'admin_state' => {'type' => 'string'},
-						     'config' => {'type' => 'number'},
-						     'link' => {'type' => 'number'},
-						     'name' => {'type' => 'string'}}]} );
-
-
+                                  description => "Array of OpenFlow port structs",
+                                  required => 1,
+                                  schema => { 'type'  => 'array',
+                                              'items' => [ 'type' => 'object',
+                                                           'properties' => { 'hw_addr'    => {'type' => 'number'},
+                                                                             'curr'       => {'type' => 'number'},
+                                                                             'name'       => {'type' => 'string'},
+                                                                             'speed'      => {'type' => 'number'},
+                                                                             'supported'  => {'type' => 'number'},
+                                                                             'enabled'    => {'type' => 'number'}, # bool
+                                                                             'flood'      => {'type' => 'number'}, # bool
+                                                                             'state'      => {'type' => 'number'},
+                                                                             'link'       => {'type' => 'number'}, # bool
+                                                                             'advertised' => {'type' => 'number'},
+                                                                             'peer'       => {'type' => 'number'},
+                                                                             'config'     => {'type' => 'number'},
+                                                                             'port_no'    => {'type' => 'number'}
+                                                                           }
+                                                         ]
+                                            } );
     $d->register_method($method);
     
     $method = GRNOC::RabbitMQ::Method->new( name => "port_status",
