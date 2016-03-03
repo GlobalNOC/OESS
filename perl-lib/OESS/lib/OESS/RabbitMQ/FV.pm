@@ -15,24 +15,18 @@ sub new {
     bless $self, $class;
     
     $self->{'logger'} = Log::Log4perl->get_logger("OESS.RabbitMQ.FV");
-    $self->{'fv'}     = GRNOC::RabbitMQ::Client->new( host => $config->{'rabbitMQ'}->{'host'},
-                                                      port => $config->{'rabbitMQ'}->{'port'},
-                                                      user => $config->{'rabbitMQ'}->{'user'},
-                                                      pass => $config->{'rabbitMQ'}->{'pass'},
-                                                      exchange => 'OESS',
-                                                      queue => 'OF.FV' );
     $self->{'nox'}    = GRNOC::RabbitMQ::Client->new( host => $config->{'rabbitMQ'}->{'host'},
                                                       port => $config->{'rabbitMQ'}->{'port'},
                                                       user => $config->{'rabbitMQ'}->{'user'},
                                                       pass => $config->{'rabbitMQ'}->{'pass'},
                                                       exchange => 'OESS',
-                                                      queue => 'OF.NOX' );
+                                                      topic => 'OF.NOX' );
     $self->{'dispatch'} = GRNOC::RabbitMQ::Dispatcher->new( host => $config->{'rabbitMQ'}->{'host'},
                                                             port => $config->{'rabbitMQ'}->{'port'},
                                                             user => $config->{'rabbitMQ'}->{'user'},
                                                             pass => $config->{'rabbitMQ'}->{'pass'},
                                                             exchange => 'OESS',
-                                                            queue => 'OF.NOX' );
+                                                            topic => 'OF.NOX' );
     return $self;
 }
 
