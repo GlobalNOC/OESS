@@ -63,6 +63,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::Watchdog.3pm.gz
 %doc %{_mandir}/man3/OESS::FWDCTL::Master.3pm.gz
 %doc %{_mandir}/man3/OESS::FWDCTL::Switch.3pm.gz
+%doc %{_mandir}/man3/OESS::RabbitMQ::FV.3pm.gz
 %doc %{_mandir}/man3/OESS::Traceroute.3pm.gz
 %doc %{_mandir}/man3/OESS::FV.3pm.gz
 %doc %{_mandir}/man3/OESS::NSI::Server.3pm.gz
