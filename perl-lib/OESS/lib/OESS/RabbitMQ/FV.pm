@@ -20,7 +20,7 @@ sub new {
                                                       user => $config->{'rabbitMQ'}->{'user'},
                                                       pass => $config->{'rabbitMQ'}->{'pass'},
                                                       exchange => 'OESS',
-                                                      topic => 'OF.NOX' );
+                                                      topic => 'OF.NOX.RPC' );
     $self->{'dispatch'} = GRNOC::RabbitMQ::Dispatcher->new( host => $config->{'rabbitMQ'}->{'host'},
                                                             port => $config->{'rabbitMQ'}->{'port'},
                                                             user => $config->{'rabbitMQ'}->{'user'},
@@ -51,7 +51,7 @@ sub register_for_fv_in {
     my $self = shift;
     my $discovery_vlan = shift;
 
-    $self->{'nox'}->register_for_fv_in(discovery_vlan => $discovery_vlan);
+    $self->{'nox'}->register_for_fv_in(vlan => int($discovery_vlan));
 }
 
 =head2 send_fv_link_event
@@ -98,9 +98,9 @@ sub send_fv_packets {
     my $discovery_vlan = shift;
     my $packets        = shift;
 
-    $self->{'nox'}->send_fv_packets( interval       => $interval,
-                                     discovery_vlan => $discovery_vlan,
-                                     packets        => $packets );
+    $self->{'nox'}->send_fv_packets( interval => int($interval),
+                                     vlan     => int($discovery_vlan),
+                                     packets  => $packets );
 }
 
 sub on_datapath_join {
@@ -222,6 +222,7 @@ sub on_fv_packet_in {
     my $self = shift;
     my $func = shift;
     my $method = GRNOC::RabbitMQ::Method->new( name        => "fv_packet_in",
+                                               topic       => "OF.NOX.event",
                                                callback    => $func,
                                                description => "Notifies FV of any received FV packet." );
     $method->add_input_parameter( name => "src_dpid",

@@ -97,7 +97,7 @@ sub new {
                                                                     user => $self->{'db'}->{'rabbitMQ'}->{'user'},
                                                                     pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
                                                                     exchange => 'OESS',
-                                                                    queue => 'OF.Notification.RPC');
+                                                                    topic => 'OF.Notification.RPC');
 
     $self->register_rpc_methods( $notification_dispatcher );
 
@@ -108,7 +108,7 @@ sub new {
                                                                 user => $self->{'db'}->{'rabbitMQ'}->{'user'},
                                                                 pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
                                                                 exchange => 'OESS',
-                                                                queue => 'OF.FWDCTL.event');
+                                                                topic => 'OF.FWDCTL.event');
 
     $self->register_notification_events( $notification_events );
 

@@ -259,7 +259,8 @@ class nddi_rabbitmq(Component):
         self.collection_epoch          = 0
         self.latest_flow_stats         = {}
         self.collection_epoch_duration = 10
-
+        self.registered_for_fv_in      = 0
+        
         # instantiate rabbitmq rpc interface
         self.rmqi_rpc = RMQI(
             exchange='OESS',
@@ -445,15 +446,15 @@ class nddi_rabbitmq(Component):
 
     # rmqi rpc method send_fv_packets
     def send_fv_packets(self, **kwargs):
-        rate = kwargs.get('rate')
+        rate = kwargs.get('interval')
         vlan = kwargs.get('vlan')
-        pkts = kwargs.get('pkts')
+        pkts = kwargs.get('packets')
 
         logger.info("Setting FV packets")
         self.fv_pkt_rate = (rate / 1000.0)
         logger.info("Packet Our Rate: " + str(self.fv_pkt_rate))
         self.FV_VLAN_ID = vlan
-        logger.info("FV VLAN ID: " + str(FV_VLAN_ID))
+        logger.info("FV VLAN ID: " + str(self.FV_VLAN_ID))
         self.packets = pkts
         return
 
@@ -753,7 +754,7 @@ class nddi_rabbitmq(Component):
 
         logger.info("Sending barrier for %s" % dpid)
         
-        xid = inst.send_barrier(dpid)
+        xid = Component.send_barrier(self, dpid)
 
         if not flowmod_callbacks.has_key(dpid):
             flowmod_callbacks[dpid] = {}
