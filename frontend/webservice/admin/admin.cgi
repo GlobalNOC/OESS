@@ -34,6 +34,8 @@ use JSON;
 use Switch;
 use Data::Dumper;
 
+use GRNOC::RabbitMQ::Client;
+
 use LWP::UserAgent;
 
 use OESS::Database;
@@ -876,10 +878,12 @@ sub confirm_node {
     my $node = $db->get_node_by_id( node_id => $node_id);
 
     my $client  = new GRNOC::RabbitMQ::Client(
-        queue => 'OF.FWDCTL.RPC',
+        topic => 'OF.FWDCTL.RPC',
         exchange => 'OESS',
         user => 'guest',
-        pass => 'guest'
+        pass => 'guest',
+        host => 'localhost',
+        port => 5672
         );
     
     if ( !defined($client) ) {
@@ -982,10 +986,12 @@ sub update_node {
     }
 
     my $client  = new GRNOC::RabbitMQ::Client(
-        queue => 'OF.FWDCTL.RPC',
+        topic => 'OF.FWDCTL.RPC',
         exchange => 'OESS',
         user => 'guest',
-        pass => 'guest'
+        pass => 'guest',
+        host => 'localhost',
+        port => 5672
         );
 
     if ( !defined($client) ) {
@@ -994,7 +1000,7 @@ sub update_node {
 
     my $node = $db->get_node_by_id(node_id => $node_id);
 
-    my $cache_result = $client->update_cache(-1);
+    my $cache_result = $client->update_cache(circuit_id => -1);
 
     if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
         return;
@@ -1009,7 +1015,7 @@ sub update_node {
         $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
     }
 
-    $cache_result = $client->force_sync($node->{'dpid'});
+    $cache_result = $client->force_sync(dpid => $node->{'dpid'});
 
     if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
         return;
@@ -1076,10 +1082,12 @@ sub decom_node {
     }
 
     my $client  = new GRNOC::RabbitMQ::Client(
-        queue => 'OF.FWDCTL.RPC',
+        topic => 'OF.FWDCTL.RPC',
         exchange => 'OESS',
         user => 'guest',
-        pass => 'guest'
+        pass => 'guest',
+        host => 'localhost',
+        port => 5672
     );
 
     if ( !defined($client) ) {
@@ -1341,10 +1349,12 @@ sub _update_cache_and_sync_node {
     my $dpid = shift;    
 
     my $client  = new GRNOC::RabbitMQ::Client(
-        queue => 'OF.FWDCTL.RPC',
+        topic => 'OF.FWDCTL.RPC',
         exchange => 'OESS',
         user => 'guest',
-        pass => 'guest'
+        pass => 'guest',
+        host => 'localhost',
+        port => 5672
     );
 
     if ( !defined($client) ) {

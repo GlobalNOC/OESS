@@ -93,10 +93,12 @@ sub _fail_over {
     my %args = @_;
 
     my $client  = new GRNOC::RabbitMQ::Client(
-        queue => 'OF.FWDCTL.RPC',
+        topic => 'OF.FWDCTL.RPC',
         exchange => 'OESS',
         user => 'guest',
-        pass => 'guest'
+        pass => 'guest',
+        host => 'localhost',
+        port => 5672
         );
 
     if ( !defined($client) ) {
@@ -133,10 +135,12 @@ sub _send_add_command {
     my %args = @_;
 
     my $client  = new GRNOC::RabbitMQ::Client(
-        queue => 'OF.FWDCTL.RPC',
+        topic => 'OF.FWDCTL.RPC',
         exchange => 'OESS',
         user => 'guest',
-        pass => 'guest'
+        pass => 'guest',
+        host => 'localhost',
+        port => 5672
         );
 
     if ( !defined($client) ) {
@@ -173,10 +177,12 @@ sub _send_remove_command {
     my %args = @_;
 
     my $client  = new GRNOC::RabbitMQ::Client(
-        queue => 'OF.FWDCTL.RPC',
+        topic => 'OF.FWDCTL.RPC',
         exchange => 'OESS',
         user => 'guest',
-        pass => 'guest'
+        pass => 'guest',
+        host => 'localhost',
+        port => 5672
         );
 
     if ( !defined($client) ) {
@@ -216,10 +222,12 @@ sub _send_update_cache{
     }
 
     my $client  = new GRNOC::RabbitMQ::Client(
-        queue => 'OF.FWDCTL.RPC',
+        topic => 'OF.FWDCTL.RPC',
         exchange => 'OESS',
         user => 'guest',
-        pass => 'guest'
+        pass => 'guest',
+        host => 'localhost',
+        port => 5672
         );
 
     if ( !defined($client) ) {

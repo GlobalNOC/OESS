@@ -372,7 +372,7 @@ class nddi_rabbitmq(Component):
                 packet.set_payload(payload)
                 packet.type = 0x88b6
 
-            inst.send_openflow_packet(pkt[0], packet.tostring(), int(pkt[1]))
+            Component.send_openflow_packet(pkt[0], packet.tostring(), int(pkt[1]))
 
         self.post_callback(fv_pkt_rate_interval, self.fire_send_fv_packets)
 
@@ -487,7 +487,7 @@ class nddi_rabbitmq(Component):
             packet.set_payload(payload)
             packet.type = 0x88b5
         
-        inst.send_openflow_packet(int(dpid), packet.tostring(),int(out_port))
+        Component.send_openflow_packet(self, int(dpid), packet.tostring(),int(out_port))
 
         return
         
@@ -564,7 +564,8 @@ class nddi_rabbitmq(Component):
         idle_timeout = 0
         hard_timeout = 0
 
-        xid = inst.send_datapath_flow( 
+        xid = Component.send_datapath_flow(
+            self,
             dp_id=dpid,
             attrs=my_attrs,
             idle_timeout=idle_timeout,
@@ -642,7 +643,8 @@ class nddi_rabbitmq(Component):
         
         idle_timeout = 0
         hard_timeout = 0
-        xid = inst.send_datapath_flow(
+        xid = Component.send_datapath_flow(
+            self,
             dp_id=dpid,
             attrs=my_attrs,
             idle_timeout=idle_timeout,
@@ -660,7 +662,8 @@ class nddi_rabbitmq(Component):
         
         idle_timeout = 0
         hard_timeout = 0
-        xid = inst.send_datapath_flow(
+        xid = Component.send_datapath_flow(
+            self,
             dp_id=dpid,
             attrs=my_attrs,
             idle_timeout=idle_timeout,
@@ -728,7 +731,8 @@ class nddi_rabbitmq(Component):
                 actions.insert(i, new_action)
 
         #--- first we check to make sure the switch is in a ready state to accept more flow mods
-        xid = inst.send_datapath_flow(
+        xid = Component.send_datapath_flow(
+            self,
             dpid, 
             my_attrs,
             idle_timeout,
