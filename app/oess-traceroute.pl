@@ -49,19 +49,25 @@ sub main{
             return;
         }
         my $logger = Log::Log4perl->init_and_watch('/etc/oess/logging.conf');
-        my $bus = Net::DBus->system;
-        my $service = $bus->export_service("org.nddi.traceroute");
-        my $traceroute = OESS::Traceroute->new($service);
+
+
+#        my $bus = Net::DBus->system;
+#        my $service = $bus->export_service("org.nddi.traceroute");
+#        my $traceroute = OESS::Traceroute->new($service);
+
+	my $traceroute = OESS::Traceroute->new();
+
     }
     #not a deamon, just run the core;
     else {
         $SIG{HUP} = sub{ exit(0); };
         my $logger = Log::Log4perl->init_and_watch('/etc/oess/logging.conf');
 
-        my $bus = Net::DBus->system;
-        my $service = $bus->export_service("org.nddi.traceroute");
+#        my $bus = Net::DBus->system;
+#        my $service = $bus->export_service("org.nddi.traceroute");
+#        my $traceroute = OESS::Traceroute->new($service);
 
-        my $traceroute = OESS::Traceroute->new($service);
+	my $traceroute = OESS::Traceroute->new();
     }
 
 }
