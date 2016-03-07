@@ -129,23 +129,20 @@ sub _execute_node_maintenance {
     my $node_id = shift;
     my $state = shift;
 
-    my $client;
-    my $service;
-    my $bus = Net::DBus->system;
-    eval {
-        $service = $bus->get_service("org.nddi.fwdctl");
-        $client  = $service->get_object("/controller1");
-    };
-    if ($@) {
-        warn "Error in _connect_to_fwdctl: $@";
-        return;
-    }
-    if (!defined $client) {
-        warn "Issue communicating with fwdctl";
+    my $client  = new GRNOC::RabbitMQ::Client(
+        topic => 'OF.FWDCTL.RPC',
+        exchange => 'OESS',
+        user => 'guest',
+        pass => 'guest',
+        host => 'localhost',
+        port => 5672
+    );
+    if ( !defined($client) ) {
+        warn "Could not communicate with FWDCTL. Please check rabbitmq-server."
         return;
     }
 
-    return $client->node_maintenance($node_id, $state);
+    return $client->node_maintenance(node_id => int($node_id), state => int($state));
 }
 
 sub node_maintenances {
@@ -217,23 +214,20 @@ sub _execute_link_maintenance {
     my $link_id = shift;
     my $state = shift;
 
-    my $client;
-    my $service;
-    my $bus = Net::DBus->system;
-    eval {
-        $service = $bus->get_service("org.nddi.fwdctl");
-        $client  = $service->get_object("/controller1");
-    };
-    if ($@) {
-        warn "Error in _connect_to_fwdctl: $@";
-        return;
-    }
-    if (!defined $client) {
-        warn "Issue communicating with fwdctl";
+    my $client  = new GRNOC::RabbitMQ::Client(
+        topic => 'OF.FWDCTL.RPC',
+        exchange => 'OESS',
+        user => 'guest',
+        pass => 'guest',
+        host => 'localhost',
+        port => 5672
+    );
+
+    if ( !defined($client) ) {
         return;
     }
 
-    return $client->link_maintenance($link_id, $state);
+    return $client->link_maintenance(link_id => int($link_id), state => int($state));
 }
 
 sub link_maintenances {

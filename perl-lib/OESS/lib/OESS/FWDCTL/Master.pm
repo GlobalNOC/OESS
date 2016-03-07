@@ -426,11 +426,13 @@ sub node_maintenance {
 }
 
 =head2 link_maintenance
+
 Given a link_id and maintenance state of 'start' or 'end' configure
 each interface of a link. If state is 'start' trigger port_status events
 signaling the the interfaces have went down, and store the interface_ids
 in $interface_maintenance. If the state is 'end' remove the
 interface_ids from $interface_maintenance.
+
 =cut
 sub link_maintenance {
     my $self    = shift;
