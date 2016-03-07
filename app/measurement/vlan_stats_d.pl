@@ -3,12 +3,15 @@
 use strict;
 use English;
 use Proc::Daemon;
+use AnyEvent;
 use OESS::Database;
-use OESS::DBus;
+use GRNOC::Log;
+use GRNOC::RabbitMQ::Dispatcher;
+use GRNOC::RabbitMQ::Client;
+use GRNOC::RabbitMQ::Method;
 use Data::Dumper;
 use strict;
 use Getopt::Long;
-use Sys::Syslog qw(:standard :macros);
 use FindBin;
 use RRDs;
 
@@ -22,7 +25,7 @@ my $base_path;
 my $collection_class_name;
 my $node_hash;
 my $hosts;
-my $dbus;
+my $rabbit_mq_client;
 
 =head2 handle_error
 
@@ -33,7 +36,8 @@ the behavior we only need to change it in once place
 
 sub handle_error{
     my $error = shift;
-    syslog(LOG_ERR,"vlan_stats_d experienced an error: " . Dumper($error));
+    
+    log_error("vlan_stats_d experienced an error: " . Dumper($error));
 }
 
 =head2 flow_stats_in_callback
@@ -154,7 +158,7 @@ sub update_rrd{
     #filename =  node_id/node_id-port-vlan.rrd
     
     if(!defined($node)){
-	syslog(LOG_ERR,"Unable to find NODE DPID: " . $params{'dpid'});
+	log_error("Unable to find NODE DPID: " . $params{'dpid'});
 	return;
     }
 
@@ -197,7 +201,7 @@ sub update_rrd{
     RRDs::update($base_path . $file,"--template",$template,$value);
     my $error = RRDs::error();
     if(defined($error)){
-	syslog(LOG_ERR,"There was an error updating RRD file $file: " . $error);
+	log_error("There was an error updating RRD file $file: " . $error);
     }
 }
 
@@ -262,7 +266,7 @@ sub create_rrd_file{
     RRDs::create($file,@rrd_str);
     my $error = RRDs::error();
     if(defined($error)){
-	syslog(LOG_ERR,"Error trying to create rrdfile: " . $file . "\n$error");
+	log_error("Error trying to create rrdfile: " . $file . "\n$error");
 	return 0;
     }
 
@@ -359,7 +363,7 @@ sub add_snapp{
 	}
 	my $collection_id = $sth->{'mysql_insertid'};
 	if(!defined($collection_id)){
-	    syslog(LOG_ERR,"Unable to add collection: $!");
+	    log_error("Unable to add collection: $!");
 	    return;
 	}
 	$sth = $snapp_dbh->prepare("insert into collection_instantiation (collection_id,end_epoch,start_epoch,threshold,description) VALUES (?,-1,NOW(),0,'')") or handle_error($!);
@@ -452,10 +456,14 @@ sub get_flow_stats{
     foreach my $node (@$nodes){
 	my $time;
         my $flows;
+	my $results;
         eval {
-            ($time,$flows) = $dbus->{'dbus'}->get_flow_stats($node->{'dpid'});
+            $results = $rabbit_mq_client->get_flow_stats( dpid => $node->{'dpid'});
         };
-        syslog(LOG_ERR, "error getting flow stats: $@") if $@;
+        log_error( "error getting flow stats: $@") if $@;
+
+	$time = $results->[0]->{'time'};
+	$flows = $results->[0]->{'flows'};
         if (!$time || !$flows){
             return;
         }
@@ -465,27 +473,29 @@ sub get_flow_stats{
 }
 =head2 main
 
-    Basically connects to syslog, SNAPP DB, OESS-DB, and Net::DBus and connects the flow_stats_in callback to the 
+    Basically connects to SNAPP DB, OESS-DB, and Net::DBus and connects the flow_stats_in callback to the 
     flow_stats_in event
 
 =cut
 
 sub main{
-    openlog("OESS-vlan_stats_d","ndelay,pid","local0");
-    syslog(LOG_NOTICE, "Starting vlan_stats_d");
+
+    GRNOC::Log->new( config => '/etc/oess/logging.conf' );
+    my $logger = GRNOC::Log->get_logger();
+    log_info("Starting vlan_stats_d");
 
     my $oess_config = "/etc/oess/database.xml";
     $oess = OESS::Database->new(config => $oess_config);
 
     if (! defined $oess){
-	syslog(LOG_ERR, "Unable to connect to OESS database");
+	log_error( "Unable to connect to OESS database");
 	die;
     }
 
     $snapp_dbh = connect_to_snapp($oess->get_snapp_config_location());
 
     if (! defined $snapp_dbh){
-	syslog(LOG_ERR, "Unable to connect to snapp database.");
+	log_error("Unable to connect to snapp database.");
 	die;
     }
     
@@ -493,25 +503,68 @@ sub main{
     $sth->execute();
     $base_path = $sth->fetchrow_hashref()->{'value'};
     if(!defined($base_path)){
-	syslog(LOG_ERR, "Unable to find base RRD directory from snapp database.");
+	log_error("Unable to find base RRD directory from snapp database.");
 	die;
     }
 
     _load_config();
 
-    $dbus = OESS::DBus->new( service => "org.nddi.openflow",
-			     instance => "/controller1", sleep_interval => .1, timeout => -1);
-    if(defined($dbus)){
-	$dbus->connect_to_signal("datapath_leave",\&datapath_leave_callback);
-	$dbus->connect_to_signal("datapath_join",\&datapath_join_callback);
-	$dbus->start_reactor( timeouts => [{interval => 30000, callback => Net::DBus::Callback->new(
-						method => sub { get_flow_stats(); })},
-					   {interval => 300000, callback => Net::DBus::Callback->new(
-						method => sub { _load_config(); })}]);
-    }else{
-	syslog(LOG_ERR,"Unable to connect to dbus");
-	die;
-    }
+    my $rabbit_mq_client = GRNOC::RabbitMQ::Client->new( host => $oess->{'rabbitMQ'}->{'host'},
+						      port => $oess->{'rabbitMQ'}->{'port'},
+						      vhost => $oess->{'rabbitMQ'}->{'vhost'},
+						      user => $oess->{'rabbitMQ'}->{'user'},
+						      pass => $oess->{'rabbitMQ'}->{'pass'},
+						      topic => 'OF.NOX.RPC',
+						      timeout => 100);
+
+    my $rabbit_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $oess->{'rabbitMQ'}->{'host'},
+							      port => $oess->{'rabbitMQ'}->{'port'},
+							      vhost => $oess->{'rabbitMQ'}->{'vhost'},
+							      user => $oess->{'rabbitMQ'}->{'user'},
+							      pass => $oess->{'rabbitMQ'}->{'pass'},
+							      topic => 'OF.NOX.event');
+
+    my $method = GRNOC::RabbitMQ::Method->new( name => 'datapath_join',
+					       callback => sub { datapatch_join_callback(@_) },
+					       description => "Datapath Join callback when a device joins");
+
+    $method->add_input_parameter( name => "dpid",
+                                  description => "The DPID of the switch which joined",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::NUMBER_ID);
+
+    $method->add_input_parameter( name => "ip",
+                                  description => "The IP of the swich which has joined",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::NUMBER_ID);
+
+    $method->add_input_parameter( name => "ports",
+                                  description => "A list of ports that exist on the node, and their details",
+                                  required => 1,
+                                  schema => {'type' => 'array',
+                                             'items' => [
+                                                 'type' => 'object',
+                                                 'properites' => {
+                                                     'port_no#' => {'type' => 'number'},
+                                                     'operational_state' => {'type' => 'string'},
+                                                     'state' => {'type' => 'number'},
+                                                     'admin_state' => {'type' => 'string'},
+                                                     'config' => {'type' => 'number'},
+                                                     'link' => {'type' => 'number'},
+                                                     'name' => {'type' => 'string'}}]} );    
+
+    $rabbit_dispatcher->register_method($method);
+
+    my $collector_interval = AnyEvent->timer( after => 30000,
+					      interval => 30000,
+					      cb => sub{ get_flow_stats();});   
+    
+    my $config_reload_interval = AnyEvent->timer( after => 300000,
+						  interval => 300000,
+						  cb => sub{ _load_config(); });
+    
+    $rabbit_dispatcher->start_consuming();
+
 }
 
 

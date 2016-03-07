@@ -97,25 +97,22 @@ sub new {
                                                                     user => $self->{'db'}->{'rabbitMQ'}->{'user'},
                                                                     pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
                                                                     exchange => 'OESS',
-                                                                    topic => 'OF.Notification.RPC');
+                                                                    topic => 'OF.Notification.RPC',
+								    queue => 'OF.Notification');
 
     $self->register_rpc_methods( $notification_dispatcher );
-
+    $self->register_notification_events( $notification_dispatcher);
     $self->{'notification_dispatcher'} = $notification_dispatcher;
 
-    my $notification_events = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
-                                                                port => $self->{'db'}->{'rabbitMQ'}->{'port'},
-                                                                user => $self->{'db'}->{'rabbitMQ'}->{'user'},
-                                                                pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
-                                                                exchange => 'OESS',
-                                                                topic => 'OF.FWDCTL.event');
-
-    $self->register_notification_events( $notification_events );
-
-    $self->{'notification_events'} = $notification_events;
+    my $emitter = GRNOC::RabbitMQ::Client->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
+						    port => $self->{'db'}->{'rabbitMQ'}->{'port'},
+						    user => $self->{'db'}->{'rabbitMQ'}->{'user'},
+						    pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
+						    exchange => 'OESS',
+						    topic => 'OF.Notification.event');
+    $self->{'notification_events'} = $emitter;
     
     return $self;
-
 }
 
 
@@ -125,6 +122,7 @@ sub register_notification_events{
     
     $self->{'log'}->debug("Register Notification events");
     my $method = GRNOC::RabbitMQ::Method->new( name => "circuit_notification",
+					       topic => 'OF.FWDCTL.event',
                                                callback => sub {$self->circuit_notification(@_) },
                                                description => "Signals circuit notification event");
 
@@ -243,45 +241,31 @@ sub circuit_notification {
     switch($circuit->{'type'} ) {
         case "provisioned"{
 	    $subject .= "has been provisioned in workgroup: $workgroup ";
-	    $self->{'notification_events'}->publish( exchange => 'OESS',
-                                                     routing_key => 'OF.Notification.event.circuit_provision',
-                                                     body => {circuit => $circuit} );
+	    $self->{'notification_events'}->circuit_provision( circuit => $circuit );
 	}
 	case "removed" {
 	    $subject .= "has been removed from workgroup: $workgroup";
-	    $self->{'notification_events'}->publish(exchange => 'OESS',
-                                                    routing_key => 'OF.Notification.event.circuit.remove',
-                                                    body => { circuit => $circuit} );
+	    $self->{'notification_events'}->circuit_remove(circuit => $circuit );
 	}
 	case "modified" {
 	    $subject .= "has been edited in workgroup: $workgroup";
-	    $self->{'notification_events'}->publish( exchange => 'OESS',
-                                                     routing_key => 'OF.Notification.event.circuit_modify',
-                                                     body => {circuit => $circuit} );
+	    $self->{'notification_events'}->circuit_modify(circuit => $circuit);
 	}
 	case "change_path" {
 	    $subject .= "has changed to " . $circuit_notification_data->{'circuit'}->{'active_path'} . " path in workgroup: $workgroup";
-	    $self->{'notification_events'}->publish(exchange => 'OESS',
-                                                    routing_key => 'OF.Notification.event.circuit_change_path',
-                                                    body => {circuit => $circuit} );
+	    $self->{'notification_events'}->circuit_change_path( circuit => $circuit );
 	}
 	case "restored" {
 	    $subject .= "has been restored for workgroup: $workgroup";
-	    $self->{'notification_events'}->publish( exchange => 'OESS',
-                                                     routing_key => 'OF.Notification.event.circuit_restore',
-                                                     body => { circuit => $circuit} );
+	    $self->{'notification_events'}->circuit_restore(circuit => $circuit );
 	}
 	case "down" {
 	    $subject .= "is down for workgroup: $workgroup";
-	    $self->{'notification_events'}->publish( exchange => 'OESS',
-                                                     routing_key => 'OF.Notification.event.circuit_down',
-                                                     body => {circuit => $circuit} );
+	    $self->{'notification_events'}->circuit_down( circuit => $circuit );
 	}
 	case "unknown" {
 	    $subject .= "is in an unknown state in workgroup: $workgroup";
-	    $self->{'notification_events'}->publish( exchange => 'OESS',
-                                                     routing_key => 'OF.Notification.event.circuit_unknown',
-                                                     body => {circuit => $circuit } );
+	    $self->{'notification_events'}->circuit_unknown( circuit => $circuit );
 	}
     }
 
