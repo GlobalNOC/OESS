@@ -878,19 +878,19 @@ sub confirm_node {
     my $node = $db->get_node_by_id( node_id => $node_id);
 
     my $client  = new GRNOC::RabbitMQ::Client(
-        topic => 'OF.FWDCTL.RPC',
-        exchange => 'OESS',
-        user => 'guest',
-        pass => 'guest',
-        host => 'localhost',
-        port => 5672
+                                              topic => 'OF.FWDCTL.RPC',
+                                              exchange => 'OESS',
+                                              user => 'guest',
+                                              pass => 'guest',
+                                              host => 'localhost',
+                                              port => 5672,
+                                              timeout => 15
         );
-    
     if ( !defined($client) ) {
         return;
     }
 
-    my $cache_result = $client->update_cache(-1);
+    my $cache_result = $client->update_cache(circuit_id => -1);
     
     if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
         return;
@@ -905,7 +905,7 @@ sub confirm_node {
         $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
     }
 
-    $cache_result = $client->force_sync($node->{'dpid'});
+    $cache_result = $client->force_sync(dpid => int($node->{'dpid'}));
 
     if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
         return;
@@ -1094,7 +1094,7 @@ sub decom_node {
         return;
     }
     
-    my $cache_result = $client->update_cache(-1);
+    my $cache_result = $client->update_cache(circuit_id => -1);
 
     if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
         return;
@@ -1362,7 +1362,7 @@ sub _update_cache_and_sync_node {
     }
 
     # first update fwdctl's cache
-    my $result = $client->update_cache(-1);
+    my $result = $client->update_cache(circuit_id => -1);
 
     if($result->{'error'} || !$result->{'results'}->{'event_id'}){
         return;
@@ -1376,7 +1376,7 @@ sub _update_cache_and_sync_node {
         $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
     }
     # now sync the node
-    $result = $client->force_sync($dpid);
+    $result = $client->force_sync(dpid => int($dpid));
 
     if($result->{'error'} || !$result->{'results'}->{'event_id'}){
         return;

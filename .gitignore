@@ -1,5 +1,8 @@
 *~
+*.pyc
 *.old
+#*
+.#*
 app/dist
 frontend/dist
 perl-lib/OESS/Makefile

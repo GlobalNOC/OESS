@@ -340,7 +340,7 @@ sub register_rpc_methods{
     $method->add_input_parameter( name => "event_id",
                                   description => "the event id to fetch the current state of",
                                   required => 1,
-                                  pattern => $GRNOC::WebService::Regex::NAME);
+                                  pattern => $GRNOC::WebService::Regex::NAME_ID);
 
     $d->register_method($method);
 
@@ -771,7 +771,12 @@ sub send_message_to_child{
     if(!defined($rpc)){
         $self->{'logger'}->error("No RPC exists for DPID: " . sprintf("%x", $dpid));
 	$self->make_baby($dpid);
-	return;
+        $rpc = $self->{'children'}->{$dpid}->{'rpc'};
+    }
+
+    if(!defined($rpc)){
+        $self->{'logger'}->error("OMG I couldn't create babies!!!!");
+        return;
     }
 
     $self->{'pending_results'}->{$event_id}->{'ts'} = time();
@@ -1947,9 +1952,10 @@ sub get_event_status{
     my $p_ref = shift;
     my $state = shift;
 
-    my $event_id = $p_ref->{'event_id'}{'value'};
+    my $event_id = $p_ref->{'event_id'}->{'value'};
 
-    $self->{'logger'}->debug("Looking for event: " . $event_id);
+    $self->{'logger'}->error("Looking for event: " . $event_id);
+    $self->{'logger'}->debug("Pending Results: " . Data::Dumper::Dumper($self->{'pending_results'}));
     if(defined($self->{'pending_results'}->{$event_id})){
 
         my $results = $self->{'pending_results'}->{$event_id}->{'dpids'};
