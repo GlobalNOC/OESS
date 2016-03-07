@@ -32,18 +32,13 @@ use Data::Dumper;
 #OESS Notification Daemon.
 my $log;
 
-sub connect_to_dbus {
-
-    Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
-    $log = Log::Log4perl->get_logger("NOTIFY");
-
-    my $notification = OESS::Notification->new(config_file => '/etc/oess/database.xml');
+sub main{
+    
+    my $notify = OESS::Notification->new( config_file => '/etc/oess/database.xml');
+    
 
 }
 
-sub main {
-    connect_to_dbus;
-}
 
 our ( $opt_f, $opt_u );
 my $result = GetOptions(
