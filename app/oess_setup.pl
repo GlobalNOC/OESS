@@ -143,6 +143,7 @@ END
     print FILE "  <discovery_vlan>$discovery_vlan</discovery_vlan>\n" if($discovery_vlan ne 'untagged');
     print FILE "  <process name='fvd' status='disabled' />\n";
     print FILE "  <process name='watchdog' status='disabled' />\n";
+    print FILE "  <rabbitMQ user='guest' pass='guest' host='localhost' port='5672' vhost='/' />\n";
     print FILE "</config>";
     close(FILE);
     print "\nInstalling the OESS Schema\n";

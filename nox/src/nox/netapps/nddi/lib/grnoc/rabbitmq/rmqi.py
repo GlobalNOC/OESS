@@ -37,6 +37,7 @@ class RMQI(threading.Thread):
         self.closing      = False
         self.consumer_tag = None
         self.queue_declared = False
+        self.connected      = False
 
     def on_request(self, ch, method, props, body):
         routing_key = method.routing_key
@@ -290,7 +291,7 @@ class RMQI(threading.Thread):
         :param pika.frame.Method method_frame: The Queue.DeclareOk frame
 
         """
-        logger.warn('Queue, {0}, successfully declared'.format(self.exchange, self.queue))
+        logger.warn('Exchange: {0} Queue {1}, successfully declared'.format(self.exchange, self.queue))
 
         for routing_key in self.signal_callbacks:
             logger.warn("Binding to {0}:{1}:{2}".format(self.exchange, self.queue, routing_key))

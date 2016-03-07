@@ -37,7 +37,7 @@ import logging
 
 import pprint
 import struct
-from time import time
+import time
 
 # hacktastic import of our local lib, should figure out how to 
 # expose this through nox.lib or something similar at some point
@@ -331,10 +331,16 @@ class nddi_rabbitmq(Component):
         # the event emitter doesn't actually need to be a thread
         # we should revisit this and make it its own class that doesn't extend the threading module
         self.rmqi_event.start()
-
+        while self.rmqi_event.connected is False:
+            logger.warn("rmqi_event connecting...")
+            time.sleep(1)
+        
         print "starting rpc listener thread"
         self.rmqi_rpc.start()
-
+        while self.rmqi_rpc.queue_declared is False:
+            logger.warn("rmqi_queue connecting...")
+            time.sleep(1)
+        
     def fire_flow_stats_timer(self):
         for dpid in switches:
             self.collection_epoch += 1
@@ -346,7 +352,7 @@ class nddi_rabbitmq(Component):
 
     def fire_send_fv_packets(self):
 
-        time_val = time() * 1000
+        time_val = time.time() * 1000
         logger.info("Sending FV Packets rate: " + str(self.fv_pkt_rate) + " with vlan: " + str(self.FV_VLAN_ID) + " packets: " + str(len(self.packets)))
 
         for pkt in self.packets:
@@ -383,11 +389,11 @@ class nddi_rabbitmq(Component):
 
         if dpid in self.flow_stats:
             if self.flow_stats[dpid] == None:
-                self.flow_stats[dpid] = {"time": int(time()) , "flows": flows}
+                self.flow_stats[dpid] = {"time": int(time.time()) , "flows": flows}
             else:
                 self.flow_stats[dpid]["flows"].extend(flows)
         else:
-            self.flow_stats[dpid] = {"time": int(time()) , "flows": flows}
+            self.flow_stats[dpid] = {"time": int(time.time()) , "flows": flows}
 
         if done == False:
             if self.flow_stats[dpid]:     
