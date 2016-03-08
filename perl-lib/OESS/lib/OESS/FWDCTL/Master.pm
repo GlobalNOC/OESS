@@ -212,6 +212,33 @@ sub register_nox_events{
                                                          ]
                                             } );
     $d->register_method($method);
+
+    
+    $method = GRNOC::RabbitMQ::Method->new( name => "link_event",
+					    topic => "OF.NOX.event",
+					    callback => sub { $self->link_event(@_) },
+					    description => "signals a link event has happened");
+    $method->add_input_parameter( name => "dpsrc",
+				  description => "The DPID of the switch which fired the link event",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::NAME_ID);
+    $method->add_input_parameter( name => "dpdst",
+				  description => "The DPID of the switch which fired the link event",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::NAME_ID);
+    $method->add_input_parameter( name => "dport",
+				  description => "The port id of the dst port which fired the link event",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::INTEGER);
+    $method->add_input_parameter( name => "sport",
+				  description => "The port id of the src port which fired the link event",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::INTEGER);
+    $method->add_input_parameter( name => "action",
+				  description => "The reason of the link event",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::TEXT);
+    $d->register_method($method); 
     
     $method = GRNOC::RabbitMQ::Method->new( name => "port_status",
 					    topic => "OF.NOX.event",
@@ -550,7 +577,10 @@ method exported to dbus to force sync a node
 
 sub force_sync{
     my $self = shift;
-    my $dpid = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+    
+    my $dpid = $p_ref->{'dpid'}->{'value'};
 
     my $event_id = $self->_generate_unique_event_id();
     $self->send_message_to_child($dpid,{action => 'force_sync'},$event_id);
@@ -565,7 +595,10 @@ updates the cache for all of the children
 
 sub update_cache{
     my $self = shift;
-    my $circuit_id = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+    
+    my $circuit_id = $p_ref->{'circuit_id'}->{'value'};
 
     if(!defined($circuit_id) || $circuit_id == -1){
         $self->{'logger'}->debug("Updating Cache for entire network");
@@ -1551,31 +1584,33 @@ sub link_event{
     my $m_ref = shift;
     my $p_ref = shift;
     
-    my $a_dpid = $p_ref->{'a_dpid'}{'value'};
-    my $z_dpid = $p_ref->{'z_dpid'}{'value'};
+    my $a_dpid = $p_ref->{'dpsrc'}{'value'};
+    my $z_dpid = $p_ref->{'dpdst'}{'value'};
 
-    my $a_port = $p_ref->{'a_port'}{'value'};
-    my $z_port = $p_ref->{'z_port'}{'value'};
+    my $a_port = $p_ref->{'sport'}{'value'};
+    my $z_port = $p_ref->{'dport'}{'value'};
 
-    my $status = $p_ref->{'status'}{'value'};
-
+    my $status = $p_ref->{'action'}{'value'};
+    $self->{'logger'}->error("$status");
     switch($status){
 	case "add"{
-	    my $interface_a = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $a_dpid, port_number => $a_port);
-	    my $interface_z = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $z_dpid, port_number => $z_port);
+                   my $interface_a = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $a_dpid, port_number => $a_port);
+                   my $interface_z = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $z_dpid, port_number => $z_port);
 	    if(!defined($interface_a) || !defined($interface_z)){
 		$self->{'logger'}->error("Either the A or Z endpoint was not found in the database while trying to add a link");
 		$self->{'db'}->_rollback();
 		return undef;
 	    }
-	    
+                   $self->{'logger'}->error(Dumper($interface_a) . "\n\n" . Dumper($interface_z));
+
 	    my ($link_db_id, $link_db_state) = $self->{'db'}->get_active_link_id_by_connectors( interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'} );
 
 	    if($link_db_id){
 		##up the state?
-		$self->{'logger'}->debug("Link already exists doing nothing...");
+		$self->{'logger'}->error("Link already exists doing nothing...");
 		return;
 	    }else{
+                $self->{'logger'}->error("Doesn't match existing links");
 		#first determine if any of the ports are currently used by another link... and connect to the same other node
 		my $links_a = $self->{'db'}->get_link_by_interface_id( interface_id => $interface_a->{'interface_id'}, show_decom => 0);
 		my $links_z = $self->{'db'}->get_link_by_interface_id( interface_id => $interface_z->{'interface_id'}, show_decom => 0);
@@ -1851,7 +1886,7 @@ sub addVlan {
         $self->send_message_to_child($dpid,{action => 'add_vlan', circuit => $circuit_id}, $event_id);
     }
 
-    return {status => $result, status => $event_id};
+    return {status => $result, event_id => $event_id};
     
 }
 

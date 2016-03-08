@@ -121,11 +121,11 @@ sub _fail_over {
         sleep(1);
         my $res = $client->get_event_status(event_id => $event_id);
 
-        if($res->{'error'} || $res->{'results'}){
+        if($res->{'error'} || !defined($res->{'results'}) || !defined($res->{'results'}->{'status'})){
             return;
         }
 
-        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
+        $final_res = $res->{'results'}->{'status'};
     }
 
     return $final_res;
@@ -151,7 +151,7 @@ sub _send_add_command {
 
     my $result = $client->addVlan(circuit_id => $circuit_id);
 
-    if($result->{'error'} || !($result->{'results'})){
+    if($result->{'error'} || !defined $result->{'results'}){
         return;
     }
 
@@ -160,14 +160,15 @@ sub _send_add_command {
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
+        
         sleep(1);
         my $res = $client->get_event_status(event_id => $event_id);
 
-        if($res->{'error'} || $res->{'results'}){
+        if($res->{'error'} || !defined($res->{'results'}) || !defined($res->{'results'}->{'status'})){
             return;
         }
 
-        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
+        $final_res = $res->{'results'}->{'status'};
     }
 
     return $final_res;
