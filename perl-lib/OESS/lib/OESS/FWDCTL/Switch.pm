@@ -97,8 +97,8 @@ sub new {
 						       port => $args{'rabbitMQ_port'},
 						       user => $args{'rabbitMQ_user'},
 						       pass => $args{'rabbitMQ_pass'},
-						       topic => 'OF.FWDCTL.Switch.' . $args{'dpid'},
-						       queue => 'OF.FWDCTL.Switch.' . $args{'dpid'},
+						       topic => 'OF.FWDCTL.Switch.' . sprintf("%x", $self->{'dpid'}),
+						       queue => 'OF.FWDCTL.Switch.' . sprintf("%x", $self->{'dpid'}),
 						       exchange => 'OESS');
 
     my $method = GRNOC::RabbitMQ::Method->new( name => "add_vlan",

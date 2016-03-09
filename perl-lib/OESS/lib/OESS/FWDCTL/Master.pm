@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-#------ NDDI OESS Forwarding Control
+##------ NDDI OESS Forwarding Control
 ##-----
 ##----- $HeadURL:
 ##----- $Id:
@@ -43,6 +43,7 @@ use OESS::Topology;
 use OESS::Circuit;
 
 use GRNOC::RabbitMQ::Method;
+use GRNOC::RabbitMQ::Client;
 use GRNOC::RabbitMQ::Dispatcher;
 use AnyEvent;
 use AnyEvent::Fork;
@@ -133,7 +134,7 @@ sub new {
 							     user => $self->{'db'}->{'rabbitMQ'}->{'user'},
 							     pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
 							     exchange => 'OESS',
-							     queue => 'OF.FWDCTL.event');
+							     topic => 'OF.FWDCTL.event');
 
     
 
@@ -787,6 +788,26 @@ sub _sync_database_to_network {
 }
 
 
+sub message_callback {
+    my $self     = shift;
+    my $dpid     = shift;
+    my $event_id = shift;
+
+    return sub {
+        my $results = shift;
+        $self->{'logger'}->error("Received a response from child: " . $dpid . " for event: " . $event_id);
+        $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = FWDCTL_UNKNOWN;
+        if (!defined $results) {
+            $self->{'logger'}->error("Undefined result received in message_callback.");
+            
+        } elsif (defined $results->{'error'}) {
+            $self->{'logger'}->error($results->{'error'});
+        }
+        $self->{'node_rules'}->{$dpid} = $results->{'total_rules'};
+        $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = $results->{'status'};
+    }
+}
+
 =head2 send_message_to_child
 
 send a message to a child
@@ -799,8 +820,7 @@ sub send_message_to_child{
     my $message = shift;
     my $event_id = shift;
 
-    my $rpc = $self->{'children'}->{$dpid}->{'rpc'};
-
+    my $rpc    = $self->{'children'}->{$dpid}->{'rpc'};
     if(!defined($rpc)){
         $self->{'logger'}->error("No RPC exists for DPID: " . sprintf("%x", $dpid));
 	$self->make_baby($dpid);
@@ -812,23 +832,15 @@ sub send_message_to_child{
         return;
     }
 
+    my $method_name = $message->{'action'};
+    delete $message->{'action'};
+    $message->{'async_callback'} = $self->message_callback($dpid, $event_id);
+
+    $self->{'ar'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
+    $self->{'ar'}->$method_name($message);
+
     $self->{'pending_results'}->{$event_id}->{'ts'} = time();
     $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = FWDCTL_WAITING;
-    
-    $rpc->(encode_json($message), sub{
-        my $resp = shift;
-        my $result;
-        eval{
-            $result = decode_json($resp);
-        };
-        if(!defined($result)){
-            $self->{'logger'}->error("Something bad happened processing response from child: " . $resp);
-            $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = FWDCTL_UNKNOWN;
-            return;
-        }
-        $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = $result->{'success'};
-        $self->{'node_rules'}->{$dpid} = $result->{'total_rules'};
-           });
 }
 
 =head2 check_child_status
@@ -1023,6 +1035,7 @@ sub make_baby{
     my $dpid = shift;
     
     $self->{'logger'}->debug("Before the fork");
+    
     my %args;
     $args{'dpid'} = $dpid;
     $args{'share_file'} = $self->{'share_file'}. "." . sprintf("%x",$dpid);
@@ -1032,22 +1045,31 @@ sub make_baby{
     $args{'rabbitMQ_pass'} = $self->{'db'}->{'rabbitMQ'}->{'pass'};
     $args{'rabbitMQ_vhost'} = $self->{'db'}->{'rabbitMQ'}->{'vhost'};
 
-
-    my $proc = AnyEvent::Fork->new->require("OESS::FWDCTL::Switch")->eval('
-	use strict;
-	use warnings;
-	my $switch;
-	my $logger;
-	sub run{
-	    my %args = @_;
-	    $logger = Log::Log4perl->get_logger("OESS.FWDCTL.MASTER");
-	    $logger->info("Creating child for dpid: " . $args{"dpid"});
-	    $switch = OESS::FWDCTL::Switch->new( dpid => $args{"dpid"},
-						 share_file => $args{"share_file"});
-	}
-	')->fork->send_arg(%args)->run("run");
     
-    $self->{'children'}->{$dpid}->{'rpc'} = $proc;
+    #AnyEvent::Fork->new->require("OESS::FWDCTL::Switch","GRNOC::Log","Log::Log4perl")->eval('
+    #    sub run {
+    #        use GRNOC::Log;
+    #        use Log::Log4perl;
+    #        use OESS::FWDCTL::Switch;
+    #        my %args = @_;
+    #        my $logger = Log::Log4perl->get_logger("OESS.FWDCTL.MASTER_CREATOR");
+    #        $logger->info("Creating child for dpid: " . $args{"dpid"});
+    #        $logger->error("HELLO THIS IS A NEW PROCESS!!!!");
+    #        my $switch = OESS::FWDCTL::Switch->new( %args );
+    #    }
+    #    ')->send_arg(%args)->run("run");
+
+    AnyEvent::Fork->new->require("GRNOC::Log")->eval('
+          sub run{
+              GRNOC::Log->new( config => "/etc/oess/logging.conf" );
+              GRNOC::Log->get_logger();
+              while(1){
+                  log_error("HELLO FROM A BRAND NEW PROCESS");
+              }
+          }')->run("run");
+    
+    $self->{'children'}->{$dpid}->{'rpc'} = 1;
+    $self->{'logger'}->debug("Baby made");
 }
 
 =head2 _restore_down_circuits
