@@ -101,13 +101,11 @@ sub new {
     $self->_update_cache();
     $self->datapath_join_handler();
     
-#    $self->{'timer'} = AnyEvent->timer( after => 10, interval => 60, 
-#                                        cb => sub { 
-#                                            $self->{'logger'}->debug("Processing FlowStat Timer event");
-#                                            $self->get_flow_stats();
-#                                        } );
-
-
+   $self->{'timer'} = AnyEvent->timer( after => 10, interval => 60,
+                                       cb => sub {
+                                           $self->{'logger'}->debug("Processing FlowStat Timer event");
+                                           $self->get_flow_stats();
+                                       } );
     return $self;
 }
 
