@@ -89,9 +89,83 @@ sub new {
 					   port => $args{'rabbitMQ_port'},
 					   user => $args{'rabbitMQ_user'},
 					   pass => $args{'rabbitMQ_pass'},
-					   queue => 'OF.NOX.RPC',
+					   topic => 'OF.NOX.RPC',
 					   exchange => 'OESS');
     $self->{'rabbit_mq'} = $ar;
+    
+    my $dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $args{'rabbitMQ_host'},
+						       port => $args{'rabbitMQ_port'},
+						       user => $args{'rabbitMQ_user'},
+						       pass => $args{'rabbitMQ_pass'},
+						       topic => 'OF.FWDCTL.Switch.' . $args{'dpid'},
+						       queue => 'OF.FWDCTL.Switch.' . $args{'dpid'},
+						       exchange => 'OESS');
+
+    my $method = GRNOC::RabbitMQ::Method->new( name => "add_vlan",
+					       description => "adds a vlan for this switch",
+					       callback => sub { $self->add_vlan(@_) }	);
+
+    $method->add_input_parameter( name => "circuit_id",
+				  description => "circuit ID to add",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::NUMBER_ID);
+
+
+    $dispatcher->register_method($method);
+    
+    $method = GRNOC::RabbitMQ::Method->new( name => "remove_vlan",
+					    description => "removes a vlan for this switch",
+					    callback => sub { $self->remove_vlan(@_) }     );
+    
+    $method->add_input_parameter( name => "circuit_id",
+                                  description => "circuit_id to be removed",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::NUMBER_ID);
+
+
+    $dispatcher->register_method($method);
+
+    $method = GRNOC::RabbitMQ::Method->new( name => "change_path",
+					    description => "changes the path on the specified circuits",
+					    callback => sub { $self->change_path(@_) }     );
+    
+    $method->add_input_parameter( name => "circuit_id",
+                                  description => "The message and paramteres to be run by the child",
+                                  required => 1,
+				  multiple => 1,
+                                  pattern => $GRNOC::WebService::Regex::NUMBER_ID);
+
+
+    $dispatcher->register_method($method);
+
+
+    $method = GRNOC::RabbitMQ::Method->new( name => "echo",
+					    description => " just an echo to check to see if we are aliave",
+					    callback => sub { return {success => 1, msg => "I'm alive!", total_rules => $self->{'flows'}}});
+
+    $dispatcher->register_method($method);
+
+    $method = GRNOC::RabbitMQ::Method->new( name => "datapath_join",
+                                            description => " handle datapath join event",
+					    callback => sub { $self->datapath_join_handler(); return {success => 1, msg => "default drop/forward installed, diffing scheduled", total_rules => $self->{'flows'}}});
+
+    $dispatcher->register_method($method);
+
+    $method = GRNOC::RabbitMQ::Method->new( name => "force_sync",
+                                            description => " handle force_sync event",
+					    callback => sub { $self->_update_cache();
+							      $self->{'logger'}->warn("received a force_sync command");
+							      $self->{'needs_diff'} = time();
+							      return {success => 1, msg => "diff scheduled!", total_rules => $self->{'flows'}}; });
+
+    $dispatcher->register_method($method);
+
+    $method = GRNOC::RabbitMQ::Method->new( name => "update_cache",
+                                            description => " handle thes update cahce call",
+                                            callback => sub { $self->_update_cache();
+							      return {success => 1, msg => "cache updated", total_rules => $self->{'flows'}}});
+
+    $dispatcher->register_method($method);
 
     #--- set a default discovery vlan that can be overridden later if needed.
     $self->{'settings'}->{'discovery_vlan'} = -1;
@@ -106,6 +180,8 @@ sub new {
                                             $self->{'logger'}->debug("Processing FlowStat Timer event");
                                             $self->get_flow_stats();
                                         } );
+
+    AnyEvent->condvar->recv;
 
 
     return $self;
@@ -279,7 +355,11 @@ sub process_event{
 
 sub change_path{
     my $self = shift;
-    my $circuits = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+
+    my $circuits = $p_ref->{'circuit_id'}{'value'};
     
     $self->_update_cache();
     
@@ -341,7 +421,10 @@ sub change_path{
 
 sub add_vlan{
     my $self = shift;
-    my $circuit = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    my $circuit = $p_ref->{'circuit'}{'value'};
 
     $self->_update_cache();
 
@@ -403,7 +486,10 @@ sub add_vlan{
 
 sub remove_vlan{
     my $self = shift;
-    my $circuit = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    my $circuit = $p_ref->{'circuit_id'}{'value'};
 
     $self->_update_cache();
 
