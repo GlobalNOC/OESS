@@ -44,9 +44,9 @@ use OESS::Circuit;
 
 use GRNOC::RabbitMQ::Method;
 use GRNOC::RabbitMQ::Dispatcher;
-use AnyEvent::Fork;
-use AnyEvent::Fork::RPC;
 use AnyEvent;
+use AnyEvent::Fork;
+
 
 use JSON::XS;
 use XML::Simple;
@@ -987,55 +987,22 @@ sub make_baby{
     $args{'rabbitMQ_pass'} = $self->{'db'}->{'rabbitMQ'}->{'pass'};
     $args{'rabbitMQ_vhost'} = $self->{'db'}->{'rabbitMQ'}->{'vhost'};
 
-    my $proc = AnyEvent::Fork->new->require("AnyEvent::Fork::RPC::Async","OESS::FWDCTL::Switch","JSON")->eval('
-use strict;
-use warnings;
-use JSON::XS;
-Log::Log4perl::init_and_watch("/etc/oess/logging.conf",10);
-my $switch;
-my $logger;
 
-sub new{
-    my %args = @_;
-
-    $logger = Log::Log4perl->get_logger("OESS.FWDCTL.MASTER");
-    $logger->info("Creating child for dpid: " . $args{"dpid"});
-    $switch = OESS::FWDCTL::Switch->new( dpid => $args{"dpid"},
-					 rabbitMQ_host => $args{"rabbitMQ_host"},
-					 rabbitMQ_port => $args{"rabbitMQ_port"},
-					 rabbitMQ_user => $args{"rabbitMQ_user"},
-					 rabbitMQ_pass => $args{"rabbitMQ_pass"},
-                                         share_file => $args{"share_file"});
-}
-
-sub run{
-    my $fh = shift;
-    my $message = shift;
-
-    my $action;
-    eval{
-        $action = decode_json($message);
-    };
-    if(!defined($action)){
-        $logger->error("invalid JSON blob: " . $message);
-        return;
-    }
-    my $res = $switch->process_event($action);
-    $fh->(encode_json($res));
-}
-')->fork->send_arg(%args)->AnyEvent::Fork::RPC::run("run",
-                                                                   async => 1,
-                                                                   on_event => sub { $self->{'logger'}->debug("Received an Event!!!: " . $_[0]);},
-                                                                   on_error => sub { $self->{'logger'}->warn("Receive an error from child" . $_[0])},
-                                                                   on_destroy => sub { $self->{'logger'}->warn("OH NO!! CHILD DIED "); 
-                                                                                       $self->{'children'}->{$args{'dpid'}}->{'rpc'} = undef; 
-                                                                                       $self->datapath_join_handler(undef,{'dpid' => {'value' => $args{'dpid'}}}, undef);
-                                                                                     },
-                                                                   init => "new");
-    $self->{'logger'}->debug("After the fork");
-    $self->{'children'}->{$dpid}->{'rpc'} = $proc;
-    return;
+    my $proc = AnyEvent::Fork->new->require("OESS::FWDCTL::Switch")->eval('
+	use strict;
+	use warnings;
+	my $switch;
+	my $logger;
+	sub run{
+	    my %args = @_;
+	    $logger = Log::Log4perl->get_logger("OESS.FWDCTL.MASTER");
+	    $logger->info("Creating child for dpid: " . $args{"dpid"});
+	    $switch = OESS::FWDCTL::Switch->new( dpid => $args{"dpid"},
+						 share_file => $args{"share_file"});
+	}
+	')->fork->send_arg(%args)->run("run");
     
+    $self->{'children'}->{$dpid}->{'rpc'} = $proc;
 }
 
 =head2 _restore_down_circuits
