@@ -458,7 +458,7 @@ sub get_flow_stats{
         my $flows;
 	my $results;
         eval {
-            $results = $rabbit_mq_client->get_flow_stats( dpid => $node->{'dpid'});
+            $results = $rabbit_mq_client->get_flow_stats( dpid => int($node->{'dpid'}) );
         };
         log_error( "error getting flow stats: $@") if $@;
 
@@ -471,6 +471,7 @@ sub get_flow_stats{
     }
 
 }
+
 =head2 main
 
     Basically connects to SNAPP DB, OESS-DB, and Net::DBus and connects the flow_stats_in callback to the 
@@ -510,50 +511,55 @@ sub main{
     _load_config();
 
     my $rabbit_mq_client = GRNOC::RabbitMQ::Client->new( host => $oess->{'rabbitMQ'}->{'host'},
-						      port => $oess->{'rabbitMQ'}->{'port'},
-						      vhost => $oess->{'rabbitMQ'}->{'vhost'},
-						      user => $oess->{'rabbitMQ'}->{'user'},
-						      pass => $oess->{'rabbitMQ'}->{'pass'},
-						      topic => 'OF.NOX.RPC',
-						      timeout => 100);
+                                                         port => $oess->{'rabbitMQ'}->{'port'},
+                                                         user => $oess->{'rabbitMQ'}->{'user'},
+                                                         pass => $oess->{'rabbitMQ'}->{'pass'},
+                                                         exchange => 'OESS',
+                                                         topic => 'OF.NOX.RPC',
+                                                         timeout => 100);
 
     my $rabbit_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $oess->{'rabbitMQ'}->{'host'},
 							      port => $oess->{'rabbitMQ'}->{'port'},
-							      vhost => $oess->{'rabbitMQ'}->{'vhost'},
 							      user => $oess->{'rabbitMQ'}->{'user'},
 							      pass => $oess->{'rabbitMQ'}->{'pass'},
+                                                              exchange => 'OESS',
 							      topic => 'OF.NOX.event');
 
-    my $method = GRNOC::RabbitMQ::Method->new( name => 'datapath_join',
-					       callback => sub { datapatch_join_callback(@_) },
+    my $method = GRNOC::RabbitMQ::Method->new( name        => 'datapath_join',
+                                               topic       => "OF.NOX.event",
+					       callback    => sub { datapatch_join_callback(@_) },
 					       description => "Datapath Join callback when a device joins");
-
     $method->add_input_parameter( name => "dpid",
                                   description => "The DPID of the switch which joined",
                                   required => 1,
                                   pattern => $GRNOC::WebService::Regex::NUMBER_ID);
-
     $method->add_input_parameter( name => "ip",
                                   description => "The IP of the swich which has joined",
                                   required => 1,
                                   pattern => $GRNOC::WebService::Regex::NUMBER_ID);
-
     $method->add_input_parameter( name => "ports",
                                   description => "A list of ports that exist on the node, and their details",
                                   required => 1,
-                                  schema => {'type' => 'array',
-                                             'items' => [
-                                                 'type' => 'object',
-                                                 'properites' => {
-                                                     'port_no#' => {'type' => 'number'},
-                                                     'operational_state' => {'type' => 'string'},
-                                                     'state' => {'type' => 'number'},
-                                                     'admin_state' => {'type' => 'string'},
-                                                     'config' => {'type' => 'number'},
-                                                     'link' => {'type' => 'number'},
-                                                     'name' => {'type' => 'string'}}]} );    
-
+                                  schema => { 'type'  => 'array',
+                                              'items' => [ 'type' => 'object',
+                                                           'properties' => { 'hw_addr'    => {'type' => 'number'},
+                                                                             'curr'       => {'type' => 'number'},
+                                                                             'name'       => {'type' => 'string'},
+                                                                             'speed'      => {'type' => 'number'},
+                                                                             'supported'  => {'type' => 'number'},
+                                                                             'enabled'    => {'type' => 'number'}, # bool
+                                                                             'flood'      => {'type' => 'number'}, # bool
+                                                                             'state'      => {'type' => 'number'},
+                                                                             'link'       => {'type' => 'number'}, # bool
+                                                                             'advertised' => {'type' => 'number'},
+                                                                             'peer'       => {'type' => 'number'},
+                                                                             'config'     => {'type' => 'number'},
+                                                                             'port_no'    => {'type' => 'number'}
+                                                                           }
+                                                         ]
+                                            } );
     $rabbit_dispatcher->register_method($method);
+    log_info("Rabbit setup vlan_stats_d");
 
     my $collector_interval = AnyEvent->timer( after => 30000,
 					      interval => 30000,
@@ -562,9 +568,8 @@ sub main{
     my $config_reload_interval = AnyEvent->timer( after => 300000,
 						  interval => 300000,
 						  cb => sub{ _load_config(); });
-    
-    $rabbit_dispatcher->start_consuming();
 
+    $rabbit_dispatcher->start_consuming();
 }
 
 
