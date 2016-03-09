@@ -33,10 +33,8 @@ use Data::Dumper;
 my $log;
 
 sub main{
-    
-    my $notify = OESS::Notification->new( config_file => '/etc/oess/database.xml');
-    
-
+    my $notify = OESS::Notification->new( config_file => '/etc/oess/database.xml' );
+    $notify->start();
 }
 
 
