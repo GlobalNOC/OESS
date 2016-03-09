@@ -101,11 +101,11 @@ sub new {
     $self->_update_cache();
     $self->datapath_join_handler();
     
-    $self->{'timer'} = AnyEvent->timer( after => 10, interval => 60, 
-                                        cb => sub { 
-                                            $self->{'logger'}->debug("Processing FlowStat Timer event");
-                                            $self->get_flow_stats();
-                                        } );
+#    $self->{'timer'} = AnyEvent->timer( after => 10, interval => 60, 
+#                                        cb => sub { 
+#                                            $self->{'logger'}->debug("Processing FlowStat Timer event");
+#                                            $self->get_flow_stats();
+#                                        } );
 
 
     return $self;
@@ -352,10 +352,9 @@ sub add_vlan{
     foreach my $command (@$commands){
         
         if($self->{'flows'} < $self->{'node'}->{'max_flows'}){
-            $self->{'logger'}->info("Installing Flow: " . $command->to_human());
-	    
-	    $self->{'rabbit_mq'}->send_datapath_flow( flow => $command->to_json( OFPFC_ADD ));
-	    
+            $self->{'logger'}->debug("Installing Flow: " . $command->to_human());
+            my $r = $self->{'rabbit_mq'}->send_datapath_flow( flow => $command->to_dict( command => OFPFC_ADD ));
+            $self->{'logger'}->debug("Installed Flows: " . Dumper($r));
 	    $self->{'flows'}++;
 	    
         }else{
@@ -413,9 +412,9 @@ sub remove_vlan{
 
     foreach my $command (@$commands){
 
-        $self->{'logger'}->info("Removing Flow: " . $command->to_human());
-
-	$self->{'rabbit_mq'}->send_datapath_flow(flow => $command->to_json( command => OFPFC_DELETE_STRICT));
+        $self->{'logger'}->debug("Removing Flow: " . $command->to_human());
+        my $r = $self->{'rabbit_mq'}->send_datapath_flow(flow => $command->to_dict( command => OFPFC_DELETE_STRICT));
+        $self->{'logger'}->debug("Removed Flows: " . Dumper($r));
         $self->{'flows'}--;
         
         #if not doing bulk barrier send a barrier and wait
@@ -796,10 +795,9 @@ sub _poll_node_status{
     my $timeout = time() + 15;
 
     while (time() < $timeout) {
-        
-	
-
+        $self->{'logger'}->debug("_poll_node_status: " . $self->{'dpid'});
 	my $output = $self->{'rabbit_mq'}->get_node_status(dpid => int($self->{'dpid'}) );
+        $output = int($output->{'results'}->[0]->{'status'});
         $self->{'logger'}->debug("poll node status output: $output");
         #-- pending, retry later
         $self->{'logger'}->trace("Status of node: " . $self->{'node'}->{'name'} . " DPID: " . $self->{'node'}->{'dpid_str'} . " is " . $output);
