@@ -32,6 +32,8 @@ use strict;
 use Log::Log4perl;
 use Switch;
 
+use GRNOC::RabbitMQ::Dispatcher;
+use GRNOC::RabbitMQ::Method;
 use GRNOC::RabbitMQ::Client;
 use OESS::FlowRule;
 use JSON;
