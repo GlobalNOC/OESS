@@ -8,14 +8,13 @@ use bytes;
 use Log::Log4perl;
 use Graph::Directed;
 use OESS::Database;
-use OESS::DBus;
-
+use GRNOC::WebService::Regex;
 use OESS::Circuit;
 use OESS::Topology;
-use Net::DBus::Annotation qw(:call);
-use Net::DBus::Exporter qw (org.nddi.traceroute);
-use Net::DBus qw(:typing);
-use base qw(Net::DBus::Object);
+#use Net::DBus::Annotation qw(:call);
+#use Net::DBus::Exporter qw (org.nddi.traceroute);
+#use Net::DBus qw(:typing);
+#use base qw(Net::DBus::Object);
 
 use JSON::XS;
 use Time::HiRes qw(usleep);
@@ -101,28 +100,56 @@ sub new {
     }
     #$self->{'db'} = $db;
     $self->{'topo'} = OESS::Topology->new( db => $self->{'db'});
-    $self->_connect_to_dbus();    
+ 
     
-    dbus_method("init_circuit_trace",["uint32","uint32"],["int32"]);
-    dbus_method("get_traceroute_transactions",[ [ "dict", "string", ["variant"] ] ]
-                ,[ [ "dict", "string", ["variant"] ] ]);
+    my $rabbit_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
+							      port => $self->{'db'}->{'rabbitMQ'}->{'port'},
+							      user => $self->{'db'}->{'rabbitMQ'}->{'user'},
+							      pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
+							      vhost => $self->{'db'}->{'rabbitMQ'}->{'vhost'},
+							      topic => 'OF.Traceroute.RPC');
+    
+    my $method = GRNOC::RabbitMQ::Method->new( name => 'init_circuit_trace',
+					       callback => sub { $self->init_circuit_trace(@_) },
+					       description => "Initializes a circuit trace");
+    
+    $method->add_input_parameter( name => 'circuit_id',
+				  description => "the circuit ID to add",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::INTEGER);
+    $method->add_input_parameter( name => 'interface_id', 
+				  description => "the interface id of the interface to start at",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::INTEGER);
+    
+    $rabbit_dispatcher->register_method($method);
 
-    $self->{'nox'}->start_reactor(
-        timeouts => [
-            {
-                interval => 10000,
-                callback => Net::DBus::Callback->new( method => sub { $self->_timeout_traceroutes() } )
-            },
-            {
-                interval => 500,
+    $method = GRNOC::RabbitMQ::Method->new( name => 'get_traceroute_transactions',
+					    callback => sub { $self->get_traceroute_transactions( @_ ) },
+					    description => "Get current traceroute transactions");
 
-                callback => Net::DBus::Callback->new (method => sub {
-                 $self->_send_pending_traceroute_packets();   
-                                                     } )
-            }
+    $method->add_input_parameter( name => 'circuit_id',
+                                  description => "the circuit ID to add",
+                                  required => 0,
+				  pattern => $GRNOC::WebService::Regex::INTEGER);
+    $method->add_input_parameter( name => 'status',
+                                  description => "the interface id of the interface to start at",
+                                  required => 0,
+                                  pattern => $GRNOC::WebService::Regex::TEXT);
 
-        ]
-        );
+    $rabbit_dispatcher->register_method($method);
+    
+    
+    my $collector_interval = AnyEvent->timer( after => 10000,
+                                              interval => 10000,
+                                              cb => sub { $self->_timeout_traceroutes() });
+
+    my $config_reload_interval = AnyEvent->timer( after => 500,
+                                                  interval => 500,
+                                                  cb => sub{ $self->_send_pending_traceroute_packets(); });
+
+
+    $rabbit_dispatcher->start_consuming();
 
     return $self;
 }
@@ -182,15 +209,20 @@ handles bootstrapping of setting up a traceroute request record, documenting ori
 =cut
 
 sub init_circuit_trace {
-
     my $self = shift;
-    my ($circuit_id, $endpoint_interface) = @_;
+    my $method_ref = shift;
+    my $p_ref = shift;
+
+    my $circuit_id = $p_ref->{'circuit_id'}{'value'};
+    my $endpoint_interface = $p_ref->{'interface_id'}{'value'};
+    
     my $db = $self->{'db'};
 
     my $circuit = OESS::Circuit->new(db => $db,
                                      topo => $self->{'topo'},
                                      circuit_id => $circuit_id
         );
+
     my $active_path = $circuit->get_active_path;
     my $endpoint_dpid;
     my $endpoint_port_no;
@@ -443,37 +475,22 @@ gets traceroute transactions from memory, optionally filtering by circuit_id and
 =cut
 
 sub get_traceroute_transactions {
-
-    # $status object:
-    # $self->{'transactions'} =  { $circuit_id => { status => 'active|timeout|invalidated|complete'
-    #                                             ttl => 100,
-    #                                             remaining_endpoints => 3,
-    #                                             nodes_traversed = []
-    #                             }               }
-    
-    my $results = {};
     my $self = shift;
-    #because dbus we can't pass as a hash, this has to be a hashref.
-    my $hash_ref = shift;
+    my $method_ref = shift;
+    my $p_ref = shift;
 
-    my %args = ( circuit_id => undef,
-                 status => undef,
-               );
-    
-    while ((my $k, my $v) = each %$hash_ref){
-        $args{$k} = $v;
-    }
-    
+    my $results = {};
     my $transactions = $self->{'transactions'};
-    
-    my $circuit_id = $args{'circuit_id'};
+
+    my $circuit_id = $p_ref->{'circuit_id'}{'value'};
+    my $status = $p_ref->{'status'}{'value'};
     
     if ( defined( $circuit_id ) ){     
 
-        if (defined($args{'status'})){
+        if (defined($status)){
             $results = {};
             if ($self->{'transactions'}->{$circuit_id} &&
-                $self->{'transactions'}->{$circuit_id}->{'status'} eq $args{'status'}){
+                $self->{'transactions'}->{$circuit_id}->{'status'} eq $status){
                 $results = $transactions->{$circuit_id} || {};
                 
                 return $results;
@@ -487,11 +504,11 @@ sub get_traceroute_transactions {
 
         }
     }
-    elsif (defined($args{'status'})){
+    elsif (defined($status)){
         #my $transactions = $self->{'transactions'};
         
         foreach my $transaction_circuit_id (keys %$transactions){
-            if ($transactions->{$transaction_circuit_id} && $transactions->{$transaction_circuit_id}->{'status'} eq $args{'status'}){
+            if ($transactions->{$transaction_circuit_id} && $transactions->{$transaction_circuit_id}->{'status'} eq $status){
                 $results->{$transaction_circuit_id}= $transactions->{$transaction_circuit_id};
             }
         }

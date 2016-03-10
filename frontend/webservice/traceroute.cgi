@@ -28,7 +28,7 @@ use warnings;
 use CGI;
 use JSON;
 use Switch;
-#use Net::DBus::Exporter qw(org.nddi.fwdctl);
+use GRNOC::RabbitMQ::Client;
 use Data::Dumper;
 
 use OESS::Database;
@@ -129,20 +129,20 @@ sub init_circuit_traceroute {
     if ( !$source_interface_is_endpoint ){
         return {error => "interface $source_interface is not an endpoint of circuit $circuit_id"}
     }
-    
-    my $bus = Net::DBus->system;
-    my $traceroute_svc;
-    my $traceroute_client;
-    eval {
-        $traceroute_svc    = $bus->get_service("org.nddi.traceroute");
-        $traceroute_client = $traceroute_svc->get_object("/controller1");
-    };
-    warn $@ if $@;
-    if (!$traceroute_svc|| !$traceroute_client ){
+
+    my $traceroute_client  = new GRNOC::RabbitMQ::Client(
+        topic => 'OF.NDDI.RPC',
+        exchange => 'OESS',
+        user => 'guest',
+        pass => 'guest',
+        host => 'localhost',
+        port => 5672
+    );
+    if ( !defined($traceroute_client) ) {
         return {error => 'unable to talk to traceroute service'};
     }
-    my $workgroup = $db->get_workgroup_by_id( workgroup_id => $workgroup_id );
 
+    my $workgroup = $db->get_workgroup_by_id( workgroup_id => $workgroup_id );
     if(!defined($workgroup)){
     return {error => 'unable to find workgroup $workgroup_id'};
     }
@@ -167,7 +167,6 @@ sub init_circuit_traceroute {
 
         
     my $result = $traceroute_client->init_circuit_trace($circuit_id,$source_interface);
-    
     if ($result){
         $results->{'results'} = [{success => '1'}];
         
@@ -188,21 +187,20 @@ sub get_circuit_traceroute {
 
     my $workgroup_id = $cgi->param('workgroup_id');
     my $circuit_id  = $cgi->param('circuit_id');
-    
-    my $bus = Net::DBus->system;
-    my $traceroute_svc;
-    my $traceroute_client;
-    eval {
-        $traceroute_svc    = $bus->get_service("org.nddi.traceroute");
-        $traceroute_client = $traceroute_svc->get_object("/controller1");
-    };
-    if ($@){
-        if(!defined($traceroute_client)){
-            return {error => "unable to fetch traceroute data" }
-        }
-    }
-    my $workgroup = $db->get_workgroup_by_id( workgroup_id => $workgroup_id );
 
+    my $traceroute_client  = new GRNOC::RabbitMQ::Client(
+        topic => 'OF.NDDI.RPC',
+        exchange => 'OESS',
+        user => 'guest',
+        pass => 'guest',
+        host => 'localhost',
+        port => 5672
+    );
+    if ( !defined($traceroute_client) ) {
+        return {error => 'unable to talk to traceroute service'};
+    }
+
+    my $workgroup = $db->get_workgroup_by_id( workgroup_id => $workgroup_id );
     if(!defined($workgroup)){
     return {error => "unable to find workgroup $workgroup_id"};
     }
