@@ -9471,4 +9471,40 @@ sub is_traceroute_enabled{
 }
 
 
+sub get_active_link_id_by_connectors{
+    my $self = shift;
+
+    my %args = @_;
+    my $a_dpid  = $args{'a_dpid'};
+    my $a_port  = $args{'a_port'};
+    my $z_dpid  = $args{'z_dpid'};
+    my $z_port  = $args{'z_port'};
+    my $interface_a_id = $args{'interface_a_id'};
+    my $interface_z_id = $args{'interface_z_id'};
+
+    if(defined $interface_a_id){
+
+    }else{
+        $interface_a_id = $self->get_interface_by_dpid_and_port( dpid => $a_dpid, port_number => $a_port);
+    }
+
+    if(defined $interface_z_id){
+
+    }else{
+        $interface_z_id = $self->get_interface_by_dpid_and_port( dpid => $z_dpid, port_number => $z_port);
+    }
+
+    #find current link if any
+    my $link = $self->get_link_by_a_or_z_end( interface_a_id => $interface_a_id, interface_z_id => $interface_z_id);
+    print STDERR "Found LInk: " . Dumper($link);
+    if(defined($link) && defined(@{$link})){
+        $link = @{$link}[0];
+        print STDERR "Returning LinkID: " . $link->{'link_id'} . "\n";
+        return ($link->{'link_id'},$link->{''});
+    }
+
+    return undef;
+}
+
 return 1;
+

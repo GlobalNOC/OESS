@@ -207,7 +207,7 @@ sub datapath_join_callback {
     my $message = shift;
 
     my $dpid = $message->{'dpid'}->{'value'};
-    
+
     $self->{'logger'}->debug( "Node: " . $dpid . " has joined" );
     $self->{'logger'}->warn( "Node: " . $self->{'nodes'}->{$dpid}->{'name'} . " has joined" );
     $self->{'nodes'}->{$dpid}->{'status'} = OESS_NODE_UP;
@@ -224,11 +224,11 @@ sub link_event_callback {
     my $method  = shift;
     my $message = shift;
 
-    my $a_dpid = $message->{'a_dpid'}->{'value'};
-    my $a_port = $message->{'a_port'}->{'value'};
-    my $z_dpid = $message->{'z_dpid'}->{'value'};
-    my $z_port = $message->{'z_port'}->{'value'};
-    my $status = $message->{'status'}->{'value'};
+    my $a_dpid = $message->{'dpdst'}->{'value'};
+    my $a_port = $message->{'dport'}->{'value'};
+    my $z_dpid = $message->{'dpsrc'}->{'value'};
+    my $z_port = $message->{'sport'}->{'value'};
+    my $status = $message->{'action'}->{'value'};
 
     $self->_load_state();
 }

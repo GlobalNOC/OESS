@@ -97,8 +97,8 @@ sub new {
 						       port => $args{'rabbitMQ_port'},
 						       user => $args{'rabbitMQ_user'},
 						       pass => $args{'rabbitMQ_pass'},
-						       topic => 'OF.FWDCTL.Switch.' . $args{'dpid'},
-						       queue => 'OF.FWDCTL.Switch.' . $args{'dpid'},
+						       topic => 'OF.FWDCTL.Switch.' . sprintf("%x", $self->{'dpid'}),
+						       queue => 'OF.FWDCTL.Switch.' . sprintf("%x", $self->{'dpid'}),
 						       exchange => 'OESS');
 
     my $method = GRNOC::RabbitMQ::Method->new( name => "add_vlan",
@@ -182,8 +182,6 @@ sub new {
                                         } );
 
     AnyEvent->condvar->recv;
-
-
     return $self;
 }
 
@@ -380,7 +378,7 @@ sub change_path{
             if(!$self->{'node'}->{'send_barrier_bulk'}){
                 $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
 
-		$self->{'rabbit_mq'}->send_barrier( dpid => $self->{'dpid'} );	
+		$self->{'rabbit_mq'}->send_barrier( dpid => int($self->{'dpid'}) );
 
                 #assume failure , use diff to be resilient to failure
                 $self->{'needs_diff'} = time();
@@ -397,7 +395,7 @@ sub change_path{
 
     #send our final barrier and wait for reply
     $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-    $self->{'rabbit_mq'}->send_barrier(dpid => $self->{'dpid'});
+    $self->{'rabbit_mq'}->send_barrier(dpid => int($self->{'dpid'}) );
     
     #assume failure , use diff to be resilient to failure
     $self->{'needs_diff'} = time();
@@ -435,10 +433,9 @@ sub add_vlan{
     foreach my $command (@$commands){
         
         if($self->{'flows'} < $self->{'node'}->{'max_flows'}){
-            $self->{'logger'}->info("Installing Flow: " . $command->to_human());
-	    
-	    $self->{'rabbit_mq'}->send_datapath_flow( flow => $command->to_json( OFPFC_ADD ));
-	    
+            $self->{'logger'}->debug("Installing Flow: " . $command->to_human());
+            my $r = $self->{'rabbit_mq'}->send_datapath_flow( flow => $command->to_dict( command => OFPFC_ADD ));
+            $self->{'logger'}->debug("Installed Flows: " . Dumper($r));
 	    $self->{'flows'}++;
 	    
         }else{
@@ -451,7 +448,7 @@ sub add_vlan{
         #if not doing bulk barrier send a barrier and wait
         if(!$self->{'node'}->{'send_barrier_bulk'}){
             $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-	    $self->{'rabbit_mq'}->send_barrier(dpid => $self->{'dpid'});
+	    $self->{'rabbit_mq'}->send_barrier(dpid => int($self->{'dpid'}) );
             #assume failure , use diff to be resilient to failure
             $self->{'needs_diff'} = time();
             my $result = $self->_poll_node_status();
@@ -464,7 +461,7 @@ sub add_vlan{
 
     #send our final barrier and wait for reply
     $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-    $self->{'rabbit_mq'}->send_barrier( dpid => $self->{'dpid'});
+    $self->{'rabbit_mq'}->send_barrier( dpid => int($self->{'dpid'}) );
     #assume failure , use diff to be resilient to failure
     $self->{'needs_diff'} = time();
     my $result = $self->_poll_node_status();
@@ -499,15 +496,15 @@ sub remove_vlan{
 
     foreach my $command (@$commands){
 
-        $self->{'logger'}->info("Removing Flow: " . $command->to_human());
-
-	$self->{'rabbit_mq'}->send_datapath_flow(flow => $command->to_json( command => OFPFC_DELETE_STRICT));
+        $self->{'logger'}->debug("Removing Flow: " . $command->to_human());
+        my $r = $self->{'rabbit_mq'}->send_datapath_flow(flow => $command->to_dict( command => OFPFC_DELETE_STRICT));
+        $self->{'logger'}->debug("Removed Flows: " . Dumper($r));
         $self->{'flows'}--;
         
         #if not doing bulk barrier send a barrier and wait
         if(!$self->{'node'}->{'send_barrier_bulk'}){
             $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-	    $self->{'rabbit_mq'}->send_barrier( dpid => $self->{'dpid'});
+	    $self->{'rabbit_mq'}->send_barrier( dpid => int($self->{'dpid'}) );
             #assume failure , use diff to be resilient to failure
             $self->{'needs_diff'} = time();
             my $result = $self->_poll_node_status();
@@ -522,7 +519,7 @@ sub remove_vlan{
 
     #send our final barrier and wait for reply
     $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-    $self->{'rabbit_mq'}->send_barrier( dpid => $self->{'dpid'} );
+    $self->{'rabbit_mq'}->send_barrier( dpid => int($self->{'dpid'}) );
     #assume failure , use diff to be resilient to failure
     $self->{'needs_diff'} = time();
     my $result = $self->_poll_node_status();
@@ -559,8 +556,8 @@ sub datapath_join_handler{
         #--- make sure there is a discovery vlan set. else send -1.
         if($self->{'settings'}->{'discovery_vlan'}){ 
             $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." pushing lldp forwarding rule for vlan $self->{'settings'}->{'discovery_vlan'}");
-            $status = $self->{'rabbit_mq'}->install_default_forward( dpid => $self->{'dpid'}, 
-								     discovery_vlan => $self->{'settings'}->{'discovery_vlan'});
+            $status = $self->{'rabbit_mq'}->install_default_forward( dpid => int($self->{'dpid'}), 
+								     discovery_vlan => int($self->{'settings'}->{'discovery_vlan'}) );
         }
         else{
             $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." pushing lldp forwarding rule for vlan -1");
@@ -573,11 +570,11 @@ sub datapath_join_handler{
 
     if (!defined($self->{'node'}->{'default_drop'}) || $self->{'node'}->{'default_drop'} == 1) {
         $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." pushing default drop rule");
-        my $status = $self->{'rabbit_mq'}->install_default_drop( dpid => $self->{'dpid'});
+        my $status = $self->{'rabbit_mq'}->install_default_drop( dpid => int($self->{'dpid'}) );
         $self->{'flows'}++;
     }
     $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-    $self->{'rabbit_mq'}->send_barreri(dpid => $self->{'dpid'});
+    $self->{'rabbit_mq'}->send_barrier(dpid => int($self->{'dpid'}) );
 
     my $result = $self->_poll_node_status();
     
@@ -607,7 +604,7 @@ sub _replace_flowmod{
 	$self->{'rabbit_mq'}->send_datapath_flow( flow => $commands->{'remove'}->to_json( command => OFPFC_DELETE_STRICT) );
 
         if(!$self->{'node'}->{'send_barrier_bulk'}){
-	    $self->{'rabbit_mq'}->send_barrier(dpid => $self->{'dpid'});
+	    $self->{'rabbit_mq'}->send_barrier(dpid => int($self->{'dpid'}) );
             $self->{'logger'}->debug("replace flowmod: send_barrier: with dpid: " . $commands->{'remove'}->get_dpid());
             #assume failure , use diff to be resilient to failure
             $self->{'needs_diff'} = time();
@@ -630,7 +627,7 @@ sub _replace_flowmod{
         # send the barrier if the bulk flag is not set
         if (!$self->{'node'}->{'send_barrier_bulk'}) {
             $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-	    $self->{'rabbit_mq'}->send_barrier(dpid => $self->{'dpid'} );
+	    $self->{'rabbit_mq'}->send_barrier(dpid => int($self->{'dpid'}) );
             #assume failure , use diff to be resilient to failure
             $self->{'needs_diff'} = time();
             $self->{'logger'}->error("replace flowmod: send_barrier: with dpid: " . $commands->{'add'}->get_dpid());
@@ -794,7 +791,7 @@ sub _actual_diff{
     }
 
     if($self->{'node'}->{'bulk_barrier'}){
-	$self->{'rabbit_mq'}->send_barrier( dpid => $self->{'dpid'} );
+	$self->{'rabbit_mq'}->send_barrier( dpid => int($self->{'dpid'}) );
         $self->{'logger'}->info("diff barrier with dpid: " . $self->{'dpid'});
         my $result = $self->_poll_node_status();
         $self->{'logger'}->debug("node_status");
@@ -856,7 +853,7 @@ sub get_flow_stats{
     my $self = shift;
 
     if($self->{'needs_diff'}){
-        my ($time,$stats) = $self->{'rabbit_mq'}->get_flow_stats( dpid => $self->{'dpid'} );
+        my ($time,$stats) = $self->{'rabbit_mq'}->get_flow_stats( dpid => int($self->{'dpid'}) );
         if ($time == -1) {
             #we don't have flow data yet
             $self->{'logger'}->info("no flow stats cached yet for dpid: " . $self->{'dpid'});
@@ -882,10 +879,9 @@ sub _poll_node_status{
     my $timeout = time() + 15;
 
     while (time() < $timeout) {
-        
-	
-
-	my $output = $self->{'rabbit_mq'}->get_node_status(dpid => $self->{'dpid'} );
+        $self->{'logger'}->debug("_poll_node_status: " . $self->{'dpid'});
+	my $output = $self->{'rabbit_mq'}->get_node_status(dpid => int($self->{'dpid'}) );
+        $output = int($output->{'results'}->[0]->{'status'});
         $self->{'logger'}->debug("poll node status output: $output");
         #-- pending, retry later
         $self->{'logger'}->trace("Status of node: " . $self->{'node'}->{'name'} . " DPID: " . $self->{'node'}->{'dpid_str'} . " is " . $output);

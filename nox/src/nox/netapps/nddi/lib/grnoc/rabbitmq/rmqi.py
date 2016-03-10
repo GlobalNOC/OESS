@@ -37,6 +37,7 @@ class RMQI(threading.Thread):
         self.closing      = False
         self.consumer_tag = None
         self.queue_declared = False
+        self.connected      = False
 
     def on_request(self, ch, method, props, body):
         routing_key = method.routing_key
@@ -44,7 +45,7 @@ class RMQI(threading.Thread):
         logger.warn("in on_request with body: {0}".format(body))
 
         if(self.signal_callbacks[routing_key] is None):
-            logger.info("No callbacks registered for, {0}".format(routing_key))
+            logger.warn("No callbacks registered for, {0}".format(routing_key))
 
         # get our result back from the callback corresponding to this routing_key
         result = None
@@ -73,7 +74,10 @@ class RMQI(threading.Thread):
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
-    def _encode_json(self, result):
+    def _encode_json(self, result, signal=False):
+        if signal: # Signals must have no 'results' array
+            return json.JSONEncoder().encode(result)
+
         # if a result is returned try to decode it otherwise just send an 
         # empty result object back
         json_result = '{ "results": [] }'
@@ -91,10 +95,11 @@ class RMQI(threading.Thread):
 
     def emit_signal(self, signal_name, **kwargs):
         print "Emitting signal!!!! with: {0}".format(kwargs)
+        logger.warn("Emitting signal: {0}.{1}".format(self.queue, signal_name))
         self.channel.basic_publish(
             exchange=self.exchange,
             routing_key='{0}.{1}'.format(self.queue, signal_name),
-            body=self._encode_json(kwargs),
+            body=self._encode_json(kwargs, signal=True),
             properties=pika.BasicProperties(
                 headers={
                     'no_reply': 1
@@ -126,7 +131,7 @@ class RMQI(threading.Thread):
         :rtype: pika.SelectConnection
 
         """
-        logger.info('RMQI Connecting to RabbitMQ...')
+        logger.warn('RMQI Connecting to RabbitMQ...')
         print "about to connect..."
 
         self.connection = pika.SelectConnection(
@@ -146,7 +151,7 @@ class RMQI(threading.Thread):
 
         """
         print "established connection"
-        logger.info('Connection opened')
+        logger.warn('Connection opened')
         self.add_on_connection_close_callback()
         self.open_channel()
         self.connected = True
@@ -156,7 +161,7 @@ class RMQI(threading.Thread):
         when RabbitMQ closes the connection to the publisher unexpectedly.
 
         """
-        logger.info('Adding connection close callback')
+        logger.warn('Adding connection close callback')
         self.connection.add_on_close_callback(self.on_connection_closed)
 
     def on_connection_closed(self, connection, reply_code, reply_text):
@@ -199,7 +204,7 @@ class RMQI(threading.Thread):
         on_channel_open callback will be invoked by pika.
 
         """
-        logger.info('Creating a new channel')
+        logger.warn('Creating a new channel')
         self.connection.channel(on_open_callback=self.on_channel_open)
 
     def on_channel_open(self, channel):
@@ -211,7 +216,7 @@ class RMQI(threading.Thread):
         :param pika.channel.Channel channel: The channel object
 
         """
-        logger.info('Channel opened')
+        logger.warn('Channel opened')
         print "channel opened"
         self.channel = channel
         self.add_on_channel_close_callback()
@@ -222,7 +227,7 @@ class RMQI(threading.Thread):
         RabbitMQ unexpectedly closes the channel.
 
         """
-        logger.info('Adding channel close callback')
+        logger.warn('Adding channel close callback')
         self.channel.add_on_close_callback(self.on_channel_closed)
 
     def on_channel_closed(self, channel, reply_code, reply_text):
@@ -249,7 +254,7 @@ class RMQI(threading.Thread):
         :param str|unicode exchange_name: The name of the exchange to declare
 
         """
-        logger.info('Declaring exchange %s', exchange_name)
+        logger.warn('Declaring exchange %s', exchange_name)
         self.channel.exchange_declare(self.on_exchange_declareok,
                                        exchange_name,
                                        self.exchange_type)
@@ -261,7 +266,7 @@ class RMQI(threading.Thread):
         :param pika.Frame.Method unused_frame: Exchange.DeclareOk response frame
 
         """
-        logger.info('Exchange declared')
+        logger.warn('Exchange declared')
         self.setup_queue(self.queue)
 
     def setup_queue(self, queue_name):
@@ -272,7 +277,7 @@ class RMQI(threading.Thread):
         :param str|unicode queue_name: The name of the queue to declare.
 
         """
-        logger.info('Declaring queue %s', queue_name)
+        logger.warn('Declaring queue %s', queue_name)
         print "Setting up queue"
         self.channel.queue_declare(self.on_queue_declareok, queue_name)
 
@@ -286,10 +291,10 @@ class RMQI(threading.Thread):
         :param pika.frame.Method method_frame: The Queue.DeclareOk frame
 
         """
-        logger.info('Queue, {0}, successfully declared'.format(self.exchange, self.queue))
+        logger.warn('Exchange: {0} Queue {1}, successfully declared'.format(self.exchange, self.queue))
 
         for routing_key in self.signal_callbacks:
-            logger.info("Binding to {0}:{1}:{2}".format(self.exchange, self.queue, routing_key))
+            logger.warn("Binding to {0}:{1}:{2}".format(self.exchange, self.queue, routing_key))
             self.channel.queue_bind(self.on_bindok, self.queue, self.exchange,
                 routing_key=routing_key
             )
@@ -303,7 +308,7 @@ class RMQI(threading.Thread):
         :param pika.frame.Method unused_frame: The Queue.BindOk response frame
 
         """
-        logger.info('Queue bound')
+        logger.warn('Queue bound')
         self.queue_declared = True
         self.consumer_tag = self.channel.basic_consume(self.on_request, self.queue)
 
@@ -313,7 +318,7 @@ class RMQI(threading.Thread):
         on_consumer_cancelled will be invoked by pika.
 
         """
-        logger.info('Adding consumer cancellation callback')
+        logger.warn('Adding consumer cancellation callback')
         self.channel.add_on_cancel_callback(self.on_consumer_cancelled)
 
     def on_consumer_cancelled(self, method_frame):
@@ -323,7 +328,7 @@ class RMQI(threading.Thread):
         :param pika.frame.Method method_frame: The Basic.Cancel frame
 
         """
-        logger.info('Consumer was cancelled remotely, shutting down: %r',
+        logger.warn('Consumer was cancelled remotely, shutting down: %r',
                     method_frame)
         if self.channel:
             self.channel.close()
@@ -335,7 +340,7 @@ class RMQI(threading.Thread):
         :param int delivery_tag: The delivery tag from the Basic.Deliver frame
 
         """
-        logger.info('Acknowledging message %s', delivery_tag)
+        logger.warn('Acknowledging message %s', delivery_tag)
         self.channel.basic_ack(delivery_tag)
 
     def stop_consuming(self):
@@ -344,7 +349,7 @@ class RMQI(threading.Thread):
 
         """
         if self.channel:
-            logger.info('Sending a Basic.Cancel RPC command to RabbitMQ')
+            logger.warn('Sending a Basic.Cancel RPC command to RabbitMQ')
             self.channel.basic_cancel(self.on_cancelok, self.consumer_tag)
 
     def on_cancelok(self, unused_frame):
@@ -356,7 +361,7 @@ class RMQI(threading.Thread):
         :param pika.frame.Method unused_frame: The Basic.CancelOk frame
 
         """
-        logger.info('RabbitMQ acknowledged the cancellation of the consumer')
+        logger.warn('RabbitMQ acknowledged the cancellation of the consumer')
         self.close_channel()
 
     def close_channel(self):
@@ -364,7 +369,7 @@ class RMQI(threading.Thread):
         Channel.Close RPC command.
 
         """
-        logger.info('Closing the channel')
+        logger.warn('Closing the channel')
         self.channel.close()
 
     def run(self):
@@ -381,14 +386,14 @@ class RMQI(threading.Thread):
         the IOLoop will be buffered but not processed.
 
         """
-        logger.info('Stopping')
+        logger.warn('Stopping')
         self.closing = True
         self.stop_consuming()
         self.connection.ioloop.start()
-        logger.info('Stopped')
+        logger.warn('Stopped')
 
     def close_connection(self):
         """This method closes the connection to RabbitMQ."""
-        logger.info('Closing connection')
+        logger.warn('Closing connection')
         self.connection.close()
 

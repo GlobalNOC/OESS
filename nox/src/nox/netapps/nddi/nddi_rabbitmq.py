@@ -37,7 +37,7 @@ import logging
 
 import pprint
 import struct
-from time import time
+import time
 
 # hacktastic import of our local lib, should figure out how to 
 # expose this through nox.lib or something similar at some point
@@ -259,7 +259,8 @@ class nddi_rabbitmq(Component):
         self.collection_epoch          = 0
         self.latest_flow_stats         = {}
         self.collection_epoch_duration = 10
-
+        self.registered_for_fv_in      = 0
+        
         # instantiate rabbitmq rpc interface
         self.rmqi_rpc = RMQI(
             exchange='OESS',
@@ -330,10 +331,16 @@ class nddi_rabbitmq(Component):
         # the event emitter doesn't actually need to be a thread
         # we should revisit this and make it its own class that doesn't extend the threading module
         self.rmqi_event.start()
-
+        while self.rmqi_event.connected is False:
+            logger.warn("rmqi_event connecting...")
+            time.sleep(1)
+        
         print "starting rpc listener thread"
         self.rmqi_rpc.start()
-
+        while self.rmqi_rpc.queue_declared is False:
+            logger.warn("rmqi_queue connecting...")
+            time.sleep(1)
+        
     def fire_flow_stats_timer(self):
         for dpid in switches:
             self.collection_epoch += 1
@@ -345,7 +352,7 @@ class nddi_rabbitmq(Component):
 
     def fire_send_fv_packets(self):
 
-        time_val = time() * 1000
+        time_val = time.time() * 1000
         logger.info("Sending FV Packets rate: " + str(self.fv_pkt_rate) + " with vlan: " + str(self.FV_VLAN_ID) + " packets: " + str(len(self.packets)))
 
         for pkt in self.packets:
@@ -371,7 +378,7 @@ class nddi_rabbitmq(Component):
                 packet.set_payload(payload)
                 packet.type = 0x88b6
 
-            inst.send_openflow_packet(pkt[0], packet.tostring(), int(pkt[1]))
+            Component.send_openflow_packet(pkt[0], packet.tostring(), int(pkt[1]))
 
         self.post_callback(fv_pkt_rate_interval, self.fire_send_fv_packets)
 
@@ -382,11 +389,11 @@ class nddi_rabbitmq(Component):
 
         if dpid in self.flow_stats:
             if self.flow_stats[dpid] == None:
-                self.flow_stats[dpid] = {"time": int(time()) , "flows": flows}
+                self.flow_stats[dpid] = {"time": int(time.time()) , "flows": flows}
             else:
                 self.flow_stats[dpid]["flows"].extend(flows)
         else:
-            self.flow_stats[dpid] = {"time": int(time()) , "flows": flows}
+            self.flow_stats[dpid] = {"time": int(time.time()) , "flows": flows}
 
         if done == False:
             if self.flow_stats[dpid]:     
@@ -445,15 +452,15 @@ class nddi_rabbitmq(Component):
 
     # rmqi rpc method send_fv_packets
     def send_fv_packets(self, **kwargs):
-        rate = kwargs.get('rate')
+        rate = kwargs.get('interval')
         vlan = kwargs.get('vlan')
-        pkts = kwargs.get('pkts')
+        pkts = kwargs.get('packets')
 
         logger.info("Setting FV packets")
         self.fv_pkt_rate = (rate / 1000.0)
         logger.info("Packet Our Rate: " + str(self.fv_pkt_rate))
         self.FV_VLAN_ID = vlan
-        logger.info("FV VLAN ID: " + str(FV_VLAN_ID))
+        logger.info("FV VLAN ID: " + str(self.FV_VLAN_ID))
         self.packets = pkts
         return
 
@@ -486,7 +493,7 @@ class nddi_rabbitmq(Component):
             packet.set_payload(payload)
             packet.type = 0x88b5
         
-        inst.send_openflow_packet(int(dpid), packet.tostring(),int(out_port))
+        Component.send_openflow_packet(self, int(dpid), packet.tostring(),int(out_port))
 
         return
         
@@ -531,24 +538,27 @@ class nddi_rabbitmq(Component):
     def get_node_status(self, **kwargs):
         dpid = kwargs.get('dpid')
 
+        result = {'status': FWDCTL_FAILURE, 'flows': []}
         if flowmod_callbacks.has_key(dpid):
             xids = flowmod_callbacks[dpid].keys()
             
             if(len(xids) == 1):
-
                 if(flowmod_callbacks[dpid][xids[0]]["result"] == FWDCTL_SUCCESS):
                     del flowmod_callbacks[dpid][xids[0]]
-                    return ( FWDCTL_SUCCESS, [])
-
+                    result["status"] = FWDCTL_SUCCESS
+                    return result
                 elif(flowmod_callbacks[dpid][xids[0]]["result"] == FWDCTL_WAITING):
-                    return (FWDCTL_WAITING, [])
+                    result["status"] = FWDCTL_WAITING
+                    return result
                 else:
                     del flowmod_callbacks[dpid][xids[0]]
-                    return ( FWDCTL_FAILURE, [])
+                    return result
             else:
-                return (FWDCTL_WAITING, [])
-            
-        return (FWDCTL_UNKNOWN,[])
+                result["status"] = FWDCTL_WAITING
+                return result
+
+        result["status"] = FWDCTL_UNKNOWN
+        return result
 
     # rmqi rpc method install_default_drop
     def install_default_drop(self, **kwargs):
@@ -563,7 +573,8 @@ class nddi_rabbitmq(Component):
         idle_timeout = 0
         hard_timeout = 0
 
-        xid = inst.send_datapath_flow( 
+        xid = Component.send_datapath_flow(
+            self,
             dp_id=dpid,
             attrs=my_attrs,
             idle_timeout=idle_timeout,
@@ -641,7 +652,8 @@ class nddi_rabbitmq(Component):
         
         idle_timeout = 0
         hard_timeout = 0
-        xid = inst.send_datapath_flow(
+        xid = Component.send_datapath_flow(
+            self,
             dp_id=dpid,
             attrs=my_attrs,
             idle_timeout=idle_timeout,
@@ -659,7 +671,8 @@ class nddi_rabbitmq(Component):
         
         idle_timeout = 0
         hard_timeout = 0
-        xid = inst.send_datapath_flow(
+        xid = Component.send_datapath_flow(
+            self,
             dp_id=dpid,
             attrs=my_attrs,
             idle_timeout=idle_timeout,
@@ -675,8 +688,9 @@ class nddi_rabbitmq(Component):
     # rmqi rpc method send_datapath_flow
     def send_datapath_flow(self, **kwargs):
         flow    = kwargs.get('flow')
-        attrs   = flow.attrs
-        actions = flow.actions
+        dpid    = int(flow["dpid"])
+        attrs   = flow["match"]
+        actions = flow["actions"]
   
         if not dpid in switches:
           return 0;
@@ -691,30 +705,30 @@ class nddi_rabbitmq(Component):
         xid          = None
         buffer_id    = None
 
-        logger.info("sending OFPFC: %d" % attrs.get("COMMAND", "No Command Set!"))
+        logger.info("sending OFPFC: %d" % flow.get("command", "No Command Set!"))
 
-        if attrs.get("DL_VLAN"):
-            my_attrs[DL_VLAN] = int(attrs['DL_VLAN'])
-        if attrs.get("IN_PORT"):
-            my_attrs[IN_PORT] = int(attrs['IN_PORT'])
-        if attrs.get("DL_DST"):
-            my_attrs[DL_DST]  = int(attrs['DL_DST'])
-        if attrs.get("DL_TYPE"):
-            my_attrs[DL_TYPE] = int(attrs['DL_TYPE'])
-        if attrs.get("PRIORITY"):
-            priority = int(attrs["PRIORITY"])
-        if attrs.get("IDLE_TIMEOUT"):
-            idle_timeout = int(attrs["IDLE_TIMEOUT"])
-        if attrs.get("HARD_TIMEOUT"):
-            hard_timeout = int(attrs["HARD_TIMEOUT"])
-        if "COMMAND" in attrs:
-            command = int(attrs["COMMAND"])
-        if attrs.get("XID"):
-            xid = int(attrs["XID"])
-        if attrs.get("PACKET"):
-            packet = int(attrs["PACKET"])
-        if attrs.get("BUFFER_ID"):
-            buffer_id = int(attrs["BUFFER_ID"])
+        if attrs.get("dl_vlan"):
+            my_attrs[DL_VLAN] = int(attrs['dl_vlan'])
+        if attrs.get("in_port"):
+            my_attrs[IN_PORT] = int(attrs['in_port'])
+        if attrs.get("dl_dst"):
+            my_attrs[DL_DST]  = int(attrs['dl_dst'])
+        if attrs.get("dl_type"):
+            my_attrs[DL_TYPE] = int(attrs['dl_type'])
+        if flow.get("priority"):
+            priority = int(flow["priority"])
+        if flow.get("idle_timeout"):
+            idle_timeout = int(flow["idle_timeout"])
+        if flow.get("hard_timeout"):
+            hard_timeout = int(flow["hard_timeout"])
+        if "command" in flow:
+            command = int(flow["command"])
+        if flow.get("xid"):
+            xid = int(flow["xid"])
+        if flow.get("packet"):
+            packet = int(flow["packet"])
+        if attrs.get("buffer_id"):
+            buffer_id = int(flow["buffer_id"])
 
         #--- this is less than ideal. to make dbus happy we need to pass extra arguments in the
         #--- strip vlan case, but NOX won't be happy with them so we remove them here
@@ -727,7 +741,8 @@ class nddi_rabbitmq(Component):
                 actions.insert(i, new_action)
 
         #--- first we check to make sure the switch is in a ready state to accept more flow mods
-        xid = inst.send_datapath_flow(
+        xid = Component.send_datapath_flow(
+            self,
             dpid, 
             my_attrs,
             idle_timeout,
@@ -735,7 +750,7 @@ class nddi_rabbitmq(Component):
             actions,
             buffer_id,
             priority,
-            my_attrs.get("IN_PORT"),
+            my_attrs.get(IN_PORT),
             command,
             packet, 
             xid
@@ -753,7 +768,7 @@ class nddi_rabbitmq(Component):
 
         logger.info("Sending barrier for %s" % dpid)
         
-        xid = inst.send_barrier(dpid)
+        xid = Component.send_barrier(self, dpid)
 
         if not flowmod_callbacks.has_key(dpid):
             flowmod_callbacks[dpid] = {}

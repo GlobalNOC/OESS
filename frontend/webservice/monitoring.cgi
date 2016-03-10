@@ -35,7 +35,7 @@ use Switch;
 use Data::Dumper;
 
 use OESS::Database;
-use Net::DBus::Exporter qw(org.nddi.fwdctl);
+use GRNOC::RabbitMQ::Client;
 use OESS::Topology;
 
 my $db   = new OESS::Database();
@@ -85,23 +85,16 @@ sub main {
 sub get_node_status{
     my $results;
 
-    my $bus = Net::DBus->system;
-
-    my $client;
-    my $service;
-
-    eval {
-        $service = $bus->get_service("org.nddi.openflow");
-        $client  = $service->get_object("/controller_ro");
-    };
-
-    if ($@){
-        warn "Error in _connect_to_nox: $@";
-        return undef;
-    }
-
-    if (! defined $client){
-        return undef;
+    my $client  = new GRNOC::RabbitMQ::Client(
+        topic => 'OF.NOX.RPC',
+        exchange => 'OESS',
+        user => 'guest',
+        pass => 'guest',
+        host => 'localhost',
+        port => 5672
+    );
+    if ( !defined($client) ) {
+        return;
     }
 
     my $node_name = $cgi->param('node');
@@ -112,8 +105,8 @@ sub get_node_status{
 	return {error => "Unable to find node - $node_name "};
     }
     
-    my $result = $client->get_node_connect_status($node->{'dpid'});
-    $result = int($result);
+    my $result = $client->get_node_connect_status(dpid => int($node->{'dpid'}));
+    $result = int($result->{'results'}->[0]);
     my $tmp;
     $tmp->{'results'} = {node => $node_name, status => $result};
 
@@ -123,23 +116,16 @@ sub get_node_status{
 sub get_rules_on_node{
     my $results;
 
-    my $bus = Net::DBus->system;
-
-    my $client;
-    my $service;
-
-    eval {
-        $service = $bus->get_service("org.nddi.fwdctl");
-        $client  = $service->get_object("/controller1");
-    };
-
-    if ($@){
-        warn "Error in _connect_to_nox: $@";
-        return undef;
-    }
-
-    if (! defined $client){
-        return undef;
+    my $client  = new GRNOC::RabbitMQ::Client(
+        topic => 'OF.FWDCTL.RPC',
+        exchange => 'OESS',
+        user => 'guest',
+        pass => 'guest',
+        host => 'localhost',
+        port => 5672
+    );
+    if ( !defined($client) ) {
+        return;
     }
 
     my $node_name = $cgi->param('node');
@@ -149,11 +135,11 @@ sub get_rules_on_node{
         warn "Unable to find node named $node_name\n";
         return {error => "Unable to find node - $node_name "};
     }
-    my $result = $client->rules_per_switch($node->{'dpid'});
+    my $result = $client->rules_per_switch(dpid => int($node->{'dpid'}));
 
     #print STDERR Dumper($result);
 
-    $result = int($result);
+    $result = int($result->{'results'});
     my $tmp;
     $tmp->{'results'} = {node => $node_name, rules_currently_on_switch => $result, maximum_allowed_rules_on_switch => $node->{'max_flows'}};
 

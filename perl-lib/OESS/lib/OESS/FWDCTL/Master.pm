@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-#------ NDDI OESS Forwarding Control
+##------ NDDI OESS Forwarding Control
 ##-----
 ##----- $HeadURL:
 ##----- $Id:
@@ -43,6 +43,7 @@ use OESS::Topology;
 use OESS::Circuit;
 
 use GRNOC::RabbitMQ::Method;
+use GRNOC::RabbitMQ::Client;
 use GRNOC::RabbitMQ::Dispatcher;
 use AnyEvent;
 use AnyEvent::Fork;
@@ -133,7 +134,7 @@ sub new {
 							     user => $self->{'db'}->{'rabbitMQ'}->{'user'},
 							     pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
 							     exchange => 'OESS',
-							     queue => 'OF.FWDCTL.event');
+							     topic => 'OF.FWDCTL.event');
 
     
 
@@ -191,22 +192,54 @@ sub register_nox_events{
 				  pattern => $GRNOC::WebService::Regex::NUMBER_ID);
 
     $method->add_input_parameter( name => "ports",
-				  description => "A list of ports that exist on the node, and their details",
-				  required => 1,
-				  schema => {'type' => 'array',
-					     'items' => [
-						 'type' => 'object',
-						 'properites' => {
-						     'port_no#' => {'type' => 'number'},
-						     'operational_state' => {'type' => 'string'},
-						     'state' => {'type' => 'number'},
-						     'admin_state' => {'type' => 'string'},
-						     'config' => {'type' => 'number'},
-						     'link' => {'type' => 'number'},
-						     'name' => {'type' => 'string'}}]} );
-
-
+                                  description => "Array of OpenFlow port structs",
+                                  required => 1,
+                                  schema => { 'type'  => 'array',
+                                              'items' => [ 'type' => 'object',
+                                                           'properties' => { 'hw_addr'    => {'type' => 'number'},
+                                                                             'curr'       => {'type' => 'number'},
+                                                                             'name'       => {'type' => 'string'},
+                                                                             'speed'      => {'type' => 'number'},
+                                                                             'supported'  => {'type' => 'number'},
+                                                                             'enabled'    => {'type' => 'number'}, # bool
+                                                                             'flood'      => {'type' => 'number'}, # bool
+                                                                             'state'      => {'type' => 'number'},
+                                                                             'link'       => {'type' => 'number'}, # bool
+                                                                             'advertised' => {'type' => 'number'},
+                                                                             'peer'       => {'type' => 'number'},
+                                                                             'config'     => {'type' => 'number'},
+                                                                             'port_no'    => {'type' => 'number'}
+                                                                           }
+                                                         ]
+                                            } );
     $d->register_method($method);
+
+    
+    $method = GRNOC::RabbitMQ::Method->new( name => "link_event",
+					    topic => "OF.NOX.event",
+					    callback => sub { $self->link_event(@_) },
+					    description => "signals a link event has happened");
+    $method->add_input_parameter( name => "dpsrc",
+				  description => "The DPID of the switch which fired the link event",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::NAME_ID);
+    $method->add_input_parameter( name => "dpdst",
+				  description => "The DPID of the switch which fired the link event",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::NAME_ID);
+    $method->add_input_parameter( name => "dport",
+				  description => "The port id of the dst port which fired the link event",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::INTEGER);
+    $method->add_input_parameter( name => "sport",
+				  description => "The port id of the src port which fired the link event",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::INTEGER);
+    $method->add_input_parameter( name => "action",
+				  description => "The reason of the link event",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::TEXT);
+    $d->register_method($method); 
     
     $method = GRNOC::RabbitMQ::Method->new( name => "port_status",
 					    topic => "OF.NOX.event",
@@ -335,7 +368,7 @@ sub register_rpc_methods{
     $method->add_input_parameter( name => "event_id",
                                   description => "the event id to fetch the current state of",
                                   required => 1,
-                                  pattern => $GRNOC::WebService::Regex::NAME);
+                                  pattern => $GRNOC::WebService::Regex::NAME_ID);
 
     $d->register_method($method);
 
@@ -421,11 +454,13 @@ sub node_maintenance {
 }
 
 =head2 link_maintenance
+
 Given a link_id and maintenance state of 'start' or 'end' configure
 each interface of a link. If state is 'start' trigger port_status events
 signaling the the interfaces have went down, and store the interface_ids
 in $interface_maintenance. If the state is 'end' remove the
 interface_ids from $interface_maintenance.
+
 =cut
 sub link_maintenance {
     my $self    = shift;
@@ -543,7 +578,10 @@ method exported to dbus to force sync a node
 
 sub force_sync{
     my $self = shift;
-    my $dpid = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+    
+    my $dpid = $p_ref->{'dpid'}->{'value'};
 
     my $event_id = $self->_generate_unique_event_id();
     $self->send_message_to_child($dpid,{action => 'force_sync'},$event_id);
@@ -558,7 +596,10 @@ updates the cache for all of the children
 
 sub update_cache{
     my $self = shift;
-    my $circuit_id = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+    
+    my $circuit_id = $p_ref->{'circuit_id'}->{'value'};
 
     if(!defined($circuit_id) || $circuit_id == -1){
         $self->{'logger'}->debug("Updating Cache for entire network");
@@ -747,6 +788,26 @@ sub _sync_database_to_network {
 }
 
 
+sub message_callback {
+    my $self     = shift;
+    my $dpid     = shift;
+    my $event_id = shift;
+
+    return sub {
+        my $results = shift;
+        $self->{'logger'}->error("Received a response from child: " . $dpid . " for event: " . $event_id);
+        $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = FWDCTL_UNKNOWN;
+        if (!defined $results) {
+            $self->{'logger'}->error("Undefined result received in message_callback.");
+            
+        } elsif (defined $results->{'error'}) {
+            $self->{'logger'}->error($results->{'error'});
+        }
+        $self->{'node_rules'}->{$dpid} = $results->{'total_rules'};
+        $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = $results->{'status'};
+    }
+}
+
 =head2 send_message_to_child
 
 send a message to a child
@@ -759,31 +820,27 @@ sub send_message_to_child{
     my $message = shift;
     my $event_id = shift;
 
-    my $rpc = $self->{'children'}->{$dpid}->{'rpc'};
-
+    my $rpc    = $self->{'children'}->{$dpid}->{'rpc'};
     if(!defined($rpc)){
         $self->{'logger'}->error("No RPC exists for DPID: " . sprintf("%x", $dpid));
 	$self->make_baby($dpid);
-	return;
+        $rpc = $self->{'children'}->{$dpid}->{'rpc'};
     }
+
+    if(!defined($rpc)){
+        $self->{'logger'}->error("OMG I couldn't create babies!!!!");
+        return;
+    }
+
+    my $method_name = $message->{'action'};
+    delete $message->{'action'};
+    $message->{'async_callback'} = $self->message_callback($dpid, $event_id);
+
+    $self->{'ar'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
+    $self->{'ar'}->$method_name($message);
 
     $self->{'pending_results'}->{$event_id}->{'ts'} = time();
     $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = FWDCTL_WAITING;
-    
-    $rpc->(encode_json($message), sub{
-        my $resp = shift;
-        my $result;
-        eval{
-            $result = decode_json($resp);
-        };
-        if(!defined($result)){
-            $self->{'logger'}->error("Something bad happened processing response from child: " . $resp);
-            $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = FWDCTL_UNKNOWN;
-            return;
-        }
-        $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = $result->{'success'};
-        $self->{'node_rules'}->{$dpid} = $result->{'total_rules'};
-           });
 }
 
 =head2 check_child_status
@@ -978,6 +1035,7 @@ sub make_baby{
     my $dpid = shift;
     
     $self->{'logger'}->debug("Before the fork");
+    
     my %args;
     $args{'dpid'} = $dpid;
     $args{'share_file'} = $self->{'share_file'}. "." . sprintf("%x",$dpid);
@@ -987,22 +1045,31 @@ sub make_baby{
     $args{'rabbitMQ_pass'} = $self->{'db'}->{'rabbitMQ'}->{'pass'};
     $args{'rabbitMQ_vhost'} = $self->{'db'}->{'rabbitMQ'}->{'vhost'};
 
-
-    my $proc = AnyEvent::Fork->new->require("OESS::FWDCTL::Switch")->eval('
-	use strict;
-	use warnings;
-	my $switch;
-	my $logger;
-	sub run{
-	    my %args = @_;
-	    $logger = Log::Log4perl->get_logger("OESS.FWDCTL.MASTER");
-	    $logger->info("Creating child for dpid: " . $args{"dpid"});
-	    $switch = OESS::FWDCTL::Switch->new( dpid => $args{"dpid"},
-						 share_file => $args{"share_file"});
-	}
-	')->fork->send_arg(%args)->run("run");
     
-    $self->{'children'}->{$dpid}->{'rpc'} = $proc;
+    #AnyEvent::Fork->new->require("OESS::FWDCTL::Switch","GRNOC::Log","Log::Log4perl")->eval('
+    #    sub run {
+    #        use GRNOC::Log;
+    #        use Log::Log4perl;
+    #        use OESS::FWDCTL::Switch;
+    #        my %args = @_;
+    #        my $logger = Log::Log4perl->get_logger("OESS.FWDCTL.MASTER_CREATOR");
+    #        $logger->info("Creating child for dpid: " . $args{"dpid"});
+    #        $logger->error("HELLO THIS IS A NEW PROCESS!!!!");
+    #        my $switch = OESS::FWDCTL::Switch->new( %args );
+    #    }
+    #    ')->send_arg(%args)->run("run");
+
+    AnyEvent::Fork->new->require("GRNOC::Log")->eval('
+          sub run{
+              GRNOC::Log->new( config => "/etc/oess/logging.conf" );
+              GRNOC::Log->get_logger();
+              while(1){
+                  log_error("HELLO FROM A BRAND NEW PROCESS");
+              }
+          }')->run("run");
+    
+    $self->{'children'}->{$dpid}->{'rpc'} = 1;
+    $self->{'logger'}->debug("Baby made");
 }
 
 =head2 _restore_down_circuits
@@ -1506,31 +1573,33 @@ sub link_event{
     my $m_ref = shift;
     my $p_ref = shift;
     
-    my $a_dpid = $p_ref->{'a_dpid'}{'value'};
-    my $z_dpid = $p_ref->{'z_dpid'}{'value'};
+    my $a_dpid = $p_ref->{'dpsrc'}{'value'};
+    my $z_dpid = $p_ref->{'dpdst'}{'value'};
 
-    my $a_port = $p_ref->{'a_port'}{'value'};
-    my $z_port = $p_ref->{'z_port'}{'value'};
+    my $a_port = $p_ref->{'sport'}{'value'};
+    my $z_port = $p_ref->{'dport'}{'value'};
 
-    my $status = $p_ref->{'status'}{'value'};
-
+    my $status = $p_ref->{'action'}{'value'};
+    $self->{'logger'}->error("$status");
     switch($status){
 	case "add"{
-	    my $interface_a = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $a_dpid, port_number => $a_port);
-	    my $interface_z = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $z_dpid, port_number => $z_port);
+                   my $interface_a = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $a_dpid, port_number => $a_port);
+                   my $interface_z = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $z_dpid, port_number => $z_port);
 	    if(!defined($interface_a) || !defined($interface_z)){
 		$self->{'logger'}->error("Either the A or Z endpoint was not found in the database while trying to add a link");
 		$self->{'db'}->_rollback();
 		return undef;
 	    }
-	    
+                   $self->{'logger'}->error(Dumper($interface_a) . "\n\n" . Dumper($interface_z));
+
 	    my ($link_db_id, $link_db_state) = $self->{'db'}->get_active_link_id_by_connectors( interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'} );
 
 	    if($link_db_id){
 		##up the state?
-		$self->{'logger'}->debug("Link already exists doing nothing...");
+		$self->{'logger'}->error("Link already exists doing nothing...");
 		return;
 	    }else{
+                $self->{'logger'}->error("Doesn't match existing links");
 		#first determine if any of the ports are currently used by another link... and connect to the same other node
 		my $links_a = $self->{'db'}->get_link_by_interface_id( interface_id => $interface_a->{'interface_id'}, show_decom => 0);
 		my $links_z = $self->{'db'}->get_link_by_interface_id( interface_id => $interface_z->{'interface_id'}, show_decom => 0);
@@ -1806,7 +1875,7 @@ sub addVlan {
         $self->send_message_to_child($dpid,{action => 'add_vlan', circuit => $circuit_id}, $event_id);
     }
 
-    return {status => $result, status => $event_id};
+    return {status => $result, event_id => $event_id};
     
 }
 
@@ -1907,9 +1976,10 @@ sub get_event_status{
     my $p_ref = shift;
     my $state = shift;
 
-    my $event_id = $p_ref->{'event_id'}{'value'};
+    my $event_id = $p_ref->{'event_id'}->{'value'};
 
-    $self->{'logger'}->debug("Looking for event: " . $event_id);
+    $self->{'logger'}->error("Looking for event: " . $event_id);
+    $self->{'logger'}->debug("Pending Results: " . Data::Dumper::Dumper($self->{'pending_results'}));
     if(defined($self->{'pending_results'}->{$event_id})){
 
         my $results = $self->{'pending_results'}->{$event_id}->{'dpids'};

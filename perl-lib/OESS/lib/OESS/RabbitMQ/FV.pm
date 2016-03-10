@@ -15,24 +15,18 @@ sub new {
     bless $self, $class;
     
     $self->{'logger'} = Log::Log4perl->get_logger("OESS.RabbitMQ.FV");
-    $self->{'fv'}     = GRNOC::RabbitMQ::Client->new( host => $config->{'rabbitMQ'}->{'host'},
-                                                      port => $config->{'rabbitMQ'}->{'port'},
-                                                      user => $config->{'rabbitMQ'}->{'user'},
-                                                      pass => $config->{'rabbitMQ'}->{'pass'},
-                                                      exchange => 'OESS',
-                                                      queue => 'OF.FV' );
     $self->{'nox'}    = GRNOC::RabbitMQ::Client->new( host => $config->{'rabbitMQ'}->{'host'},
                                                       port => $config->{'rabbitMQ'}->{'port'},
                                                       user => $config->{'rabbitMQ'}->{'user'},
                                                       pass => $config->{'rabbitMQ'}->{'pass'},
                                                       exchange => 'OESS',
-                                                      queue => 'OF.NOX' );
+                                                      topic => 'OF.NOX.RPC' );
     $self->{'dispatch'} = GRNOC::RabbitMQ::Dispatcher->new( host => $config->{'rabbitMQ'}->{'host'},
                                                             port => $config->{'rabbitMQ'}->{'port'},
                                                             user => $config->{'rabbitMQ'}->{'user'},
                                                             pass => $config->{'rabbitMQ'}->{'pass'},
                                                             exchange => 'OESS',
-                                                            queue => 'OF.NOX' );
+                                                            topic => 'OF.NOX' );
     return $self;
 }
 
@@ -57,7 +51,7 @@ sub register_for_fv_in {
     my $self = shift;
     my $discovery_vlan = shift;
 
-    $self->{'nox'}->register_for_fv_in(discovery_vlan => $discovery_vlan);
+    $self->{'nox'}->register_for_fv_in(vlan => int($discovery_vlan));
 }
 
 =head2 send_fv_link_event
@@ -104,21 +98,47 @@ sub send_fv_packets {
     my $discovery_vlan = shift;
     my $packets        = shift;
 
-    $self->{'nox'}->send_fv_packets( interval       => $interval,
-                                     discovery_vlan => $discovery_vlan,
-                                     packets        => $packets );
+    $self->{'nox'}->send_fv_packets( interval => int($interval),
+                                     vlan     => int($discovery_vlan),
+                                     packets  => $packets );
 }
 
 sub on_datapath_join {
     my $self = shift;
     my $func = shift;
     my $method = GRNOC::RabbitMQ::Method->new( name        => "datapath_join",
+                                               topic       => "OF.NOX.event",
                                                callback    => $func,
-                                               description => "Adds datapath to FV's internal nodes" );
+                                               description => "Signals a node has joined the controller" );
     $method->add_input_parameter( name => "dpid",
-                                  description => "Adds datapath to FV's internal nodes",
+                                  description => "Datapath ID of node that has joined",
                                   required => 1,
-                                  pattern  => $GRNOC::WebService::Regex::NAME_ID );
+                                  pattern  => $GRNOC::WebService::Regex::NUMBER_ID );
+    $method->add_input_parameter( name => "ip",
+                                  description => "IP Address of node that has joined",
+                                  required => 1,
+                                  pattern  => $GRNOC::WebService::Regex::NUMBER_ID );
+    $method->add_input_parameter( name => "ports",
+                                  description => "Array of OpenFlow port structs",
+                                  required => 1,
+                                  schema => { 'type'  => 'array',
+                                              'items' => [ 'type' => 'object',
+                                                           'properties' => { 'hw_addr'    => {'type' => 'number'},
+                                                                             'curr'       => {'type' => 'number'},
+                                                                             'name'       => {'type' => 'string'},
+                                                                             'speed'      => {'type' => 'number'},
+                                                                             'supported'  => {'type' => 'number'},
+                                                                             'enabled'    => {'type' => 'number'}, # bool
+                                                                             'flood'      => {'type' => 'number'}, # bool
+                                                                             'state'      => {'type' => 'number'},
+                                                                             'link'       => {'type' => 'number'}, # bool
+                                                                             'advertised' => {'type' => 'number'},
+                                                                             'peer'       => {'type' => 'number'},
+                                                                             'config'     => {'type' => 'number'},
+                                                                             'port_no'    => {'type' => 'number'}
+                                                                           }
+                                                         ]
+                                            } );
     $self->{'dispatch'}->register_method($method);
 }
 
@@ -126,12 +146,13 @@ sub on_datapath_leave {
     my $self = shift;
     my $func = shift;
     my $method = GRNOC::RabbitMQ::Method->new( name        => "datapath_leave",
+                                               topic       => "OF.NOX.event",
                                                callback    => $func,
                                                description => "Removes datapath to FV's internal nodes" );
     $method->add_input_parameter( name => "dpid",
-                                  description => "Removes datapath from FV's internal nodes",
+                                  description => "Datapath ID of node that has joined",
                                   required => 1,
-                                  pattern  => $GRNOC::WebService::Regex::NAME_ID );
+                                  pattern  => $GRNOC::WebService::Regex::NUMBER_ID );
 
     $self->{'dispatch'}->register_method($method);
 }
@@ -140,28 +161,29 @@ sub on_link_event {
     my $self = shift;
     my $func = shift;
     my $method = GRNOC::RabbitMQ::Method->new( name        => "link_event",
+                                               topic       => "OF.NOX.event",
                                                callback    => $func,
                                                description => "Notifies FV of any link event." );
-    $method->add_input_parameter( name => "a_dpid",
+    $method->add_input_parameter( name => "dpdst",
                                   description => "DPID of one node on the link",
                                   required => 1,
                                   pattern  => $GRNOC::WebService::Regex::NAME_ID );
-    $method->add_input_parameter( name => "a_port",
+    $method->add_input_parameter( name => "dport",
                                   description => "Port of node a on the link",
                                   required => 1,
                                   pattern  => $GRNOC::WebService::Regex::INTEGER );
-    $method->add_input_parameter( name => "z_dpid",
+    $method->add_input_parameter( name => "dpsrc",
                                   description => "DPID of one node on the link",
                                   required => 1,
                                   pattern  => $GRNOC::WebService::Regex::NAME_ID );
-    $method->add_input_parameter( name => "z_port",
+    $method->add_input_parameter( name => "sport",
                                   description => "Port of node z on the link",
                                   required => 1,
                                   pattern  => $GRNOC::WebService::Regex::INTEGER );
-    $method->add_input_parameter( name => "status",
+    $method->add_input_parameter( name => "action",
                                   description => "Status of the link",
                                   required => 1,
-                                  pattern  => $GRNOC::WebService::Regex::INTEGER );
+                                  pattern  => $GRNOC::WebService::Regex::TEXT );
 
     $self->{'dispatch'}->register_method($method);
 }
@@ -170,9 +192,9 @@ sub on_port_status {
     my $self = shift;
     my $func = shift;
     my $method = GRNOC::RabbitMQ::Method->new( name        => "port_status",
+                                               topic       => "OF.NOX.event",
                                                callback    => $func,
                                                description => "Notifies FV of any port status change." );
-    
     $method->add_input_parameter( name => "dpid",
                                   description => "The DPID of the switch which fired the port status event",
                                   required => 1,
@@ -200,6 +222,7 @@ sub on_fv_packet_in {
     my $self = shift;
     my $func = shift;
     my $method = GRNOC::RabbitMQ::Method->new( name        => "fv_packet_in",
+                                               topic       => "OF.NOX.event",
                                                callback    => $func,
                                                description => "Notifies FV of any received FV packet." );
     $method->add_input_parameter( name => "src_dpid",
