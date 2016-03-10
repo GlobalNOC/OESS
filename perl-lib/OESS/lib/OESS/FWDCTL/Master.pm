@@ -45,6 +45,7 @@ use OESS::Circuit;
 use GRNOC::RabbitMQ::Method;
 use GRNOC::RabbitMQ::Client;
 use GRNOC::RabbitMQ::Dispatcher;
+use GRNOC::RabbitMQ::Client;
 use AnyEvent;
 use AnyEvent::Fork;
 
@@ -168,6 +169,8 @@ sub new {
     $self->{'link_maintenance'} = {};
 
     $self->update_cache(-1);
+
+    $self->{'logger'}->error("FWDCTL INIT COMPLETE");
 
     return $self;
 }
@@ -1045,31 +1048,25 @@ sub make_baby{
     $args{'rabbitMQ_pass'} = $self->{'db'}->{'rabbitMQ'}->{'pass'};
     $args{'rabbitMQ_vhost'} = $self->{'db'}->{'rabbitMQ'}->{'vhost'};
 
+    my $proc = AnyEvent::Fork->new->require("Log::Log4perl", "OESS::FWDCTL::Switch")->eval('
+	use strict;
+	use warnings;
+        use Data::Dumper;
+	my $switch;
+	my $logger;
+        Log::Log4perl::init_and_watch("/etc/oess/logging.conf",10);
+	sub run{
+	    my $fh = shift;
+	    my %args = @_;
+	    $logger = Log::Log4perl->get_logger("OESS.FWDCTL.MASTER");
+	    $logger->info("Creating child for dpid: " . $args{"dpid"});
+	    $switch = OESS::FWDCTL::Switch->new( %args );
+	}
+	')->fork->send_arg( %args )->run("run");
     
-    #AnyEvent::Fork->new->require("OESS::FWDCTL::Switch","GRNOC::Log","Log::Log4perl")->eval('
-    #    sub run {
-    #        use GRNOC::Log;
-    #        use Log::Log4perl;
-    #        use OESS::FWDCTL::Switch;
-    #        my %args = @_;
-    #        my $logger = Log::Log4perl->get_logger("OESS.FWDCTL.MASTER_CREATOR");
-    #        $logger->info("Creating child for dpid: " . $args{"dpid"});
-    #        $logger->error("HELLO THIS IS A NEW PROCESS!!!!");
-    #        my $switch = OESS::FWDCTL::Switch->new( %args );
-    #    }
-    #    ')->send_arg(%args)->run("run");
 
-    AnyEvent::Fork->new->require("GRNOC::Log")->eval('
-          sub run{
-              GRNOC::Log->new( config => "/etc/oess/logging.conf" );
-              GRNOC::Log->get_logger();
-              while(1){
-                  log_error("HELLO FROM A BRAND NEW PROCESS");
-              }
-          }')->run("run");
-    
-    $self->{'children'}->{$dpid}->{'rpc'} = 1;
-    $self->{'logger'}->debug("Baby made");
+    $self->{'children'}->{$dpid}->{'rpc'} = $proc;
+
 }
 
 =head2 _restore_down_circuits
