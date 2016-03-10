@@ -85,7 +85,6 @@ sub new {
     my $self = \%args;
 
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL.Switch.' . sprintf("%x",$self->{'dpid'}));
-    $self->{'logger'}->error("I EXIST!!!");
 
     my $ar = GRNOC::RabbitMQ::Client->new( host => $args{'rabbitMQ_host'},
 					   port => $args{'rabbitMQ_port'},
@@ -182,6 +181,8 @@ sub new {
                                             $self->{'logger'}->debug("Processing FlowStat Timer event");
                                             $self->get_flow_stats();
                                         } );
+
+    $self->{'logger'}->error("Switch process: " . $self->{'dpid'} . " is ready to go!");
 
     AnyEvent->condvar->recv;
 
@@ -858,7 +859,19 @@ sub get_flow_stats{
     my $self = shift;
 
     if($self->{'needs_diff'}){
-        my ($time,$stats) = $self->{'rabbit_mq'}->get_flow_stats( dpid => $self->{'dpid'} );
+        $self->{'rabbit_mq'}->get_flow_stats( dpid => $self->{'dpid'}, async_callback => $self->flow_stats_callback() );
+    }
+}
+
+sub flow_stats_callback{
+    my $self = shift;
+
+    return sub {
+	my $results = shift;
+	
+	my $time = $results->[0]->{'time'};
+	my $stats = $results->[0]->{'flows'}; 
+
         if ($time == -1) {
             #we don't have flow data yet
             $self->{'logger'}->info("no flow stats cached yet for dpid: " . $self->{'dpid'});
@@ -866,7 +879,6 @@ sub get_flow_stats{
         }
 
         if($time > $self->{'needs_diff'}){
-            #$self->{'needs_diff'} = 0;
             #---process the flow_rules into a lookup hash
             my $flows = $self->_process_stats_to_flows( $self->{'dpid'}, $stats);
             

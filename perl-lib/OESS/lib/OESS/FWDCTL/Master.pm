@@ -44,6 +44,7 @@ use OESS::Circuit;
 
 use GRNOC::RabbitMQ::Method;
 use GRNOC::RabbitMQ::Dispatcher;
+use GRNOC::RabbitMQ::Client;
 use AnyEvent;
 use AnyEvent::Fork;
 
@@ -167,6 +168,8 @@ sub new {
     $self->{'link_maintenance'} = {};
 
     $self->update_cache(-1);
+
+    $self->{'logger'}->error("FWDCTL INIT COMPLETE");
 
     return $self;
 }
@@ -988,20 +991,23 @@ sub make_baby{
     $args{'rabbitMQ_vhost'} = $self->{'db'}->{'rabbitMQ'}->{'vhost'};
 
 
-    my $proc = AnyEvent::Fork->new->require("OESS::FWDCTL::Switch")->eval('
+    my $proc = AnyEvent::Fork->new->require("Log::Log4perl", "OESS::FWDCTL::Switch")->eval('
 	use strict;
 	use warnings;
+        use Data::Dumper;
 	my $switch;
 	my $logger;
+        Log::Log4perl::init_and_watch("/etc/oess/logging.conf",10);
 	sub run{
+	    my $fh = shift;
 	    my %args = @_;
 	    $logger = Log::Log4perl->get_logger("OESS.FWDCTL.MASTER");
 	    $logger->info("Creating child for dpid: " . $args{"dpid"});
-	    $switch = OESS::FWDCTL::Switch->new( dpid => $args{"dpid"},
-						 share_file => $args{"share_file"});
+	    $switch = OESS::FWDCTL::Switch->new( %args );
 	}
-	')->fork->send_arg(%args)->run("run");
+	')->fork->send_arg( %args )->run("run");
     
+
     $self->{'children'}->{$dpid}->{'rpc'} = $proc;
 }
 
