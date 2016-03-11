@@ -526,12 +526,12 @@ sub link_maintenance {
             delete $self->{'link_maintenance'}->{$link_id};
         }
 
-        $self->port_status(undef, {dpid => $node1->{'dpid'},,
-				   reason => OFPPR_MODIFY,
-				   port => $e1}, undef);
-        $self->port_status(undef, {dpid => $node2->{'dpid'},
-				   reason => OFPPR_MODIFY,
-				   port => $e2}, undef);
+        $self->port_status(undef, {dpid => { 'value' => $node1->{'dpid'} },
+				   reason => { 'value' => OFPPR_MODIFY } ,
+				   port =>  { 'value' => $e1 } }, undef);
+        $self->port_status(undef, {dpid => { 'value' => $node2->{'dpid'} } ,
+				   reason => { 'value' => OFPPR_MODIFY },
+				   port => { 'value' => $e2 } }, undef);
         $self->{'logger'}->warn("Link $link_id maintenance has ended.");
     } else {
         # Simulate link down event by passing false link state to
@@ -540,12 +540,12 @@ sub link_maintenance {
         $e2->{'link'} = OESS_LINK_DOWN;
 
         my $link_name;
-        $link_name = $self->port_status(undef, {dpid => $node1->{'dpid'},
-						reason => OFPPR_MODIFY,
-						port => $e1}, undef);
-        $link_name = $self->port_status(undef, {dpid => $node2->{'dpid'}, 
-						reason => OFPPR_MODIFY,
-						port => $e2}, undef);
+        $link_name = $self->port_status(undef, {dpid => { 'value' => $node1->{'dpid'} } ,
+						reason => { 'value' => OFPPR_MODIFY } , 
+						port => { 'value' => $e1 } }, undef);
+        $link_name = $self->port_status(undef, {dpid => { 'value' => $node2->{'dpid'} }, 
+						reason => { 'value' => OFPPR_MODIFY },
+						port => { 'value' => $e2 } }, undef);
 
         $self->{'link_maintenance'}->{$link_id} = 1;
         $self->{'link_status'}->{$link_name} = $link_state; # Record true link state.
@@ -839,8 +839,8 @@ sub send_message_to_child{
     delete $message->{'action'};
     $message->{'async_callback'} = $self->message_callback($dpid, $event_id);
 
-    $self->{'ar'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
-    $self->{'ar'}->$method_name($message);
+    $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
+    $self->{'fwdctl_events'}->$method_name($message);
 
     $self->{'pending_results'}->{$event_id}->{'ts'} = time();
     $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = FWDCTL_WAITING;
@@ -975,9 +975,9 @@ sub _update_node_database_state{
 	    my $link_id   = @$link_info[0]->{'link_id'};
 	    my $link_name = @$link_info[0]->{'name'};
 	    if($self->{'link_status'}->{$link_name} != $port->{'link'}){
-		$self->port_status(undef,{dpid => $$dpid,
-				          reason => OFPPR_MODIFY,
-				          port => $port },undef);
+		$self->port_status(undef,{dpid => {value => $dpid},
+				          reason => {'value' => OFPPR_MODIFY},
+				          port => {'value' => $port }},undef);
 	    }
 	}
     }
@@ -1065,7 +1065,7 @@ sub make_baby{
 	')->fork->send_arg( %args )->run("run");
     
 
-    $self->{'children'}->{$dpid}->{'rpc'} = $proc;
+    $self->{'children'}->{$dpid}->{'rpc'} = 1;
 
 }
 
@@ -1415,6 +1415,7 @@ sub port_status{
     my $state_ref = shift;
 
     #all of our params are stored in the p_ref!
+    warn "p_ref: ".Dumper($p_ref);
     my $dpid = $p_ref->{'dpid'}{'value'};
     my $reason = $p_ref->{'reason'}{'value'};
     my $info = $p_ref->{'port'}{'value'};

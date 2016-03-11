@@ -549,6 +549,7 @@ sub datapath_join_handler{
     #--- first push the default "forward to controller" rule to this node. This enables
     #--- discovery to work properly regardless of whether the switch's implementation does it by default
     #--- or not
+    warn "node: ".Dumper($self->{'node'});
     $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} . " datapath join");
     
     my %xid_hash;
@@ -865,9 +866,10 @@ sub flow_stats_callback{
 
     return sub {
 	my $results = shift;
-	
-	my $time = $results->[0]->{'time'};
-	my $stats = $results->[0]->{'flows'}; 
+
+        
+	my $time = $results->{'results'}[0]->{'time'};
+	my $stats = $results->{'results'}[0]->{'flow_stats'}; 
 
         if ($time == -1) {
             #we don't have flow data yet
