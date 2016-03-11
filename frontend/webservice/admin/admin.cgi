@@ -891,6 +891,8 @@ sub confirm_node {
     }
 
     my $cache_result = $client->update_cache(circuit_id => -1);
+
+    warn Data::Dumper::Dumper($cache_result);
     
     if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
         return;

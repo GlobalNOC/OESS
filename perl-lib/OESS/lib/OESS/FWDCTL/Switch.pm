@@ -94,12 +94,16 @@ sub new {
 					   exchange => 'OESS');
     $self->{'rabbit_mq'} = $ar;
     
+    my $topic = 'OF.FWDCTL.Switch.' . sprintf("%x", $self->{'dpid'});
+
+    $self->{'logger'}->error("Listening to topic: " . $topic);
+
     my $dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $args{'rabbitMQ_host'},
 						       port => $args{'rabbitMQ_port'},
 						       user => $args{'rabbitMQ_user'},
 						       pass => $args{'rabbitMQ_pass'},
-						       topic => 'OF.FWDCTL.Switch.' . sprintf("%x", $self->{'dpid'}),
-						       queue => 'OF.FWDCTL.Switch.' . sprintf("%x", $self->{'dpid'}),
+						       topic => $topic,
+						       queue => $topic,
 						       exchange => 'OESS');
 
     my $method = GRNOC::RabbitMQ::Method->new( name => "add_vlan",
@@ -154,8 +158,8 @@ sub new {
 
     $method = GRNOC::RabbitMQ::Method->new( name => "force_sync",
                                             description => " handle force_sync event",
-					    callback => sub { $self->_update_cache();
-							      $self->{'logger'}->warn("received a force_sync command");
+					    callback => sub { $self->{'logger'}->warn("received a force_sync command");
+							      $self->_update_cache();
 							      $self->{'needs_diff'} = time();
 							      return {success => 1, msg => "diff scheduled!", total_rules => $self->{'flows'}}; });
 

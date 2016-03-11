@@ -630,6 +630,8 @@ sub update_cache{
             $self->send_message_to_child($child,{action => 'update_cache'},$event_id);
     }
     
+    $self->{'logger'}->error("Completed sending message to children!");
+
     return { status => FWDCTL_SUCCESS, event_id => $event_id };
 }
 
@@ -835,12 +837,14 @@ sub send_message_to_child{
         return;
     }
 
+    $message->{'async_callback'} = $self->message_callback($dpid, $event_id);
     my $method_name = $message->{'action'};
     delete $message->{'action'};
-    $message->{'async_callback'} = $self->message_callback($dpid, $event_id);
+
+    warn Data::Dumper::Dumper($message);
 
     $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
-    $self->{'fwdctl_events'}->$method_name($message);
+    $self->{'fwdctl_events'}->$method_name( %$message );
 
     $self->{'pending_results'}->{$event_id}->{'ts'} = time();
     $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = FWDCTL_WAITING;
