@@ -135,6 +135,7 @@ t/database-40-edge_interface_move_maintenance.t
 t/database-41-can_modify_circuit.t
 t/database-42-provision_reserved_circuit.t
 t/database-43-edit_circuit_state.t
+t/database-44-_validate_endpoint.t
 t/dbus-timeout.t
 t/dbus-timeout_callback.t
 t/flow_rule-compare_actions.t
