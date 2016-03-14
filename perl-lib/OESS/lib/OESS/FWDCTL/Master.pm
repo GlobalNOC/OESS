@@ -800,16 +800,16 @@ sub message_callback {
 
     return sub {
         my $results = shift;
-        $self->{'logger'}->error("Received a response from child: " . $dpid . " for event: " . $event_id);
+        $self->{'logger'}->error("Received a response from child: " . $dpid . " for event: " . $event_id . " Dumper: " . Data::Dumper::Dumper($results));
         $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = FWDCTL_UNKNOWN;
         if (!defined $results) {
             $self->{'logger'}->error("Undefined result received in message_callback.");
-            
         } elsif (defined $results->{'error'}) {
             $self->{'logger'}->error($results->{'error'});
         }
-        $self->{'node_rules'}->{$dpid} = $results->{'total_rules'};
-        $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = $results->{'status'};
+        $self->{'node_rules'}->{$dpid} = $results->{'results'}->{'total_rules'};
+	$self->{'logger'}->error("Event: $event_id for DPID: " . $event_id . " status: " . $results->{'results'}->{'status'});
+        $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = $results->{'results'}->{'status'};
     }
 }
 
@@ -1067,7 +1067,6 @@ sub make_baby{
 	    $switch = OESS::FWDCTL::Switch->new( %args );
 	}
 	')->fork->send_arg( %args )->run("run");
-    
 
     $self->{'children'}->{$dpid}->{'rpc'} = 1;
 
@@ -1874,7 +1873,7 @@ sub addVlan {
     $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UP;
 
     foreach my $dpid (keys %dpids){
-        $self->send_message_to_child($dpid,{action => 'add_vlan', circuit => $circuit_id}, $event_id);
+        $self->send_message_to_child($dpid,{action => 'add_vlan', circuit_id => $circuit_id}, $event_id);
     }
 
     return {status => $result, event_id => $event_id};
@@ -1921,7 +1920,7 @@ sub deleteVlan {
     my $result = FWDCTL_SUCCESS;
 
     foreach my $dpid (keys %dpids){
-        $self->send_message_to_child($dpid,{action => 'remove_vlan', circuit => $circuit_id},$event_id);
+        $self->send_message_to_child($dpid,{action => 'remove_vlan', circuit_id => $circuit_id},$event_id);
     }
 
     return {status => $result,event_id => $event_id};
