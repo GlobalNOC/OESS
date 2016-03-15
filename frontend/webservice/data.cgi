@@ -78,12 +78,8 @@ sub main {
     #register the WebService Methods
     register_webservice_methods();
 
-    my $output;
-    
-    $output = $svc->handle_request();
-
-    return $output;
-
+    $svc->handle_request();
+        
 }
 
 sub register_webservice_methods {
@@ -218,6 +214,7 @@ sub register_webservice_methods {
         name            => 'node',
         pattern         => $GRNOC::WebService::Regex::TEXT,
         required        => 1,
+	multiple        => 1,
         description     => "An array of node names to connect together with the shortest path."
         );
 
@@ -226,6 +223,7 @@ sub register_webservice_methods {
         name            => 'link',
         pattern         => $GRNOC::WebService::Regex::TEXT,
         required        => 1,
+	multiple        => 1,
         description     => "A list of links to avoid when doing the shortest path calculation"
         );
     
@@ -252,6 +250,7 @@ sub register_webservice_methods {
         name            => 'path_node_id',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 0,
+	multiple        => 1,
         description     => "Filters the results for circuits that traverse the node of the node_id given"
         );
 
@@ -260,6 +259,7 @@ sub register_webservice_methods {
         name            => 'endpoint_node_id',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 0,
+	multiple        => 1,
         description     => "Filters the results to circuits that terminate on the specified node_id"
         );
 
@@ -553,6 +553,7 @@ sub register_webservice_methods {
         name            => 'mac_address',
         pattern         => $GRNOC::WebService::Regex::MAC_ADDRESS,
         required        => 1,
+	multiple        => 1,
         description     => "List of mac addresses that may need to added."
 	);
 
@@ -673,16 +674,18 @@ sub get_workgroups {
         $results->{'results'} = $workgroups;
     }
 
+    
     return $results;
 }
 
 sub get_circuits_by_interface_id {
     
     my ( $method, $args ) = @_ ;
-    my $interface_id = $args->{'interface_id'};
+    my $interface_id = $args->{'interface_id'}{'value'};
 
     my $results = { results => [] };
     my $circuits = $db->get_circuits_by_interface_id( interface_id => $interface_id );
+    
     if ( !defined $circuits ) {
         #$results->{'error'} = $db->get_error();
 	$method->set_error( $db->get_error() ) ;
@@ -700,7 +703,7 @@ sub get_interface {
     my ( $method, $args ) = @_ ;
     my $results;
 
-    my $interface_id = $args->{'interface_id'};
+    my $interface_id = $args->{'interface_id'}{'value'};
 
     my $interface = $db->get_interface( interface_id => $interface_id );
 
@@ -722,13 +725,13 @@ sub get_workgroup_interfaces {
     my ( $method, $args ) = @_ ;
     my $results;
 
-    my $workgroup_id = $args->{'workgroup_id'};
+    my $workgroup_id = $args->{'workgroup_id'}{'value'};
     my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
     if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
         #$results->{'error'} = 'Error: you are not part of this workgroup';
         #return $results;
 	$method->set_error('Error: you are not part of this workgroup');
-	return;
+	return undef;
     }
 
     my $acls = $db->get_workgroup_interfaces( workgroup_id => $workgroup_id );
@@ -742,7 +745,7 @@ sub get_workgroup_interfaces {
     else {
         $results->{'results'} = $acls;
     }
-
+    
     return $results;
 }
 
@@ -753,10 +756,10 @@ sub is_vlan_tag_available {
 
     $results->{'results'} = [];
 
-    my $interface    = $args->{'interface'};
-    my $node         = $args->{'node'};
-    my $vlan_tag     = $args->{'vlan'};
-    my $workgroup_id = $args->{'workgroup_id'};
+    my $interface    = $args->{'interface'}{'value'};
+    my $node         = $args->{'node'}{'value'};
+    my $vlan_tag     = $args->{'vlan'}{'value'};
+    my $workgroup_id = $args->{'workgroup_id'}{'value'};
 
     my $interface_id = $db->get_interface_id_by_names(
         node      => $node,
@@ -807,9 +810,9 @@ sub is_vlan_tag_available {
 sub get_vlan_tag_range {
 
     my ( $method, $args ) = @_ ;
-    my $node = $args->{'node'};
-    my $interface = $args->{'interface'};
-    my $workgroup_id = $args->{'workgroup_id'};
+    my $node = $args->{'node'}{'value'};
+    my $interface = $args->{'interface'}{'value'};
+    my $workgroup_id = $args->{'workgroup_id'}{'value'};
 
     my $interface_id = $db->get_interface_id_by_names(
         interface => $interface,
@@ -836,7 +839,7 @@ sub get_link_by_name {
 
     $results->{'results'} = [];
     
-    my $name = $args->{'name'};
+    my $name = $args->{'name'}{'value'};
     
     my $link = $db->get_link_by_name( name => $name );
     
@@ -857,7 +860,7 @@ sub get_circuit_scheduled_events {
     my ( $method, $args ) = @_ ;
     my $results;
 
-    my $circuit_id = $args->{'circuit_id'};
+    my $circuit_id = $args->{'circuit_id'}{'value'};
 
     my $events = $db->get_circuit_scheduled_events( circuit_id => $circuit_id );
 
@@ -878,7 +881,7 @@ sub get_circuit_history {
     my ( $method, $args ) = @_ ;
     my $results;
 
-    my $circuit_id = $args->{'circuit_id'};
+    my $circuit_id = $args->{'circuit_id'}{'value'};
 
     my $events = $db->get_circuit_history( circuit_id => $circuit_id );
 
@@ -898,7 +901,7 @@ sub get_circuit_details {
     my $results;
 
     my ( $method, $args ) = @_ ;
-    my $circuit_id = $args->{'circuit_id'};
+    my $circuit_id = $args->{'circuit_id'}{'value'};
 
     my $ckt = OESS::Circuit->new( circuit_id => $circuit_id, db => $db);
     my $details = $ckt->get_details();
@@ -920,7 +923,7 @@ sub get_circuit_details_by_external_identifier {
     my ( $method, $args ) = @_ ;
     my $results;
 
-    my $external_id = $args->{'external_identifier'};
+    my $external_id = $args->{'external_identifier'}{'value'};
 
     my $info = $db->get_circuit_by_external_identifier(
         external_identifier => $external_id );
@@ -952,9 +955,10 @@ sub get_existing_circuits {
     my ( $method, $args ) = @_ ;
     my $results;
 
-    my $workgroup_id   = $args->{'workgroup_id'};
-    my @endpoint_nodes = $args->{'endpoint_node_id'};
-    my @path_nodes     = $args->{'path_node_id'};
+    my $workgroup_id   = $args->{'workgroup_id'}{'value'};
+    my @endpoint_nodes = $args->{'endpoint_node_id'}{'value'} || [];
+    my @path_nodes     = $args->{'path_node_id'}{'value'} || [];
+
 
     my $is_admin = $db->get_user_admin_status( 'username' => $username )->[0];
     if ( !$workgroup_id ) {
@@ -986,15 +990,14 @@ sub get_existing_circuits {
         }
     }
 
-    my $link_status = 
-
     my $circuits = $db->get_current_circuits(
         workgroup_id   => $workgroup_id,
-        endpoint_nodes => \@endpoint_nodes,
-        path_nodes     => \@path_nodes,
+        endpoint_nodes => @endpoint_nodes,
+        path_nodes     => @path_nodes,
         link_status    => \%link_status
     );
 
+    
     my @res;
 
     foreach my $circuit (@$circuits) {
@@ -1022,11 +1025,11 @@ sub get_shortest_path {
     $results->{'results'} = [];
 
     my @nodes = $args->{'node'}{'value'};
-    my @links_to_avoid = $args->{'link'};
+    my @links_to_avoid = $args->{'link'}{'value'};
 
     my $sp_links = $topo->find_path(
-        nodes      => \@nodes,
-        used_links => \@links_to_avoid
+        nodes      => @nodes,
+        used_links => @links_to_avoid
     );
 
     if ( !defined $sp_links ) {
@@ -1064,10 +1067,10 @@ sub get_node_interfaces {
     my ( $method, $args ) = @_ ;
     my $results;
 
-    my $node         = $args->{'node'};
-    my $workgroup_id = $args->{'workgroup_id'};
-    my $show_down    = $args->{'show_down'} || 0;
-    my $show_trunk   = $args->{'show_trunk'} || 0;
+    my $node         = $args->{'node'}{'value'};
+    my $workgroup_id = $args->{'workgroup_id'}{'value'};
+    my $show_down    = $args->{'show_down'}{'value'} || 0;
+    my $show_trunk   = $args->{'show_trunk'}{'value'} || 0;
     my $interfaces   = $db->get_node_interfaces(
         node         => $node,
         workgroup_id => $workgroup_id,
@@ -1092,7 +1095,7 @@ sub get_maps {
 
     my ( $method, $args ) = @_ ;
     my $results;
-    my $workgroup_id = $args->{'workgroup_id'};
+    my $workgroup_id = $args->{'workgroup_id'}{'value'};
     
     my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
     if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
@@ -1123,8 +1126,8 @@ sub get_users_in_workgroup {
     my ( $method, $args ) = @_ ;
     my $results;
 
-    my $workgroup_id = $args->{'workgroup_id'};
-    my $order_by     = $args->{'order_by'};
+    my $workgroup_id = $args->{'workgroup_id'}{'value'};
+    my $order_by     = $args->{'order_by'}{'value'};
     my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
     if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
         #$results->{'error'} = 'Error: you are not part of this workgroup';
@@ -1136,7 +1139,7 @@ sub get_users_in_workgroup {
     my $users = $db->get_users_in_workgroup( workgroup_id => $workgroup_id, order_by => $order_by );
 
     if ( !defined $users ) {
-        $method->set_error( $db->get_error() );
+	$method->set_error( $db->get_error() );
 	return;
 	#$results->{'error'}   = $db->get_error();
         #$results->{'results'} = [];
@@ -1153,7 +1156,7 @@ sub generate_clr {
     my ( $method, $args ) = @_ ;
     my $results;
 
-    my $circuit_id = $args->{'circuit_id'};
+    my $circuit_id = $args->{'circuit_id'}{'value'};
 
     if ( !defined($circuit_id) ) {
 	$method->set_error( "No Circuit ID Specified" );
@@ -1165,7 +1168,7 @@ sub generate_clr {
     my $ckt = OESS::Circuit->new( circuit_id => $circuit_id, db => $db);
 
     my $circuit_clr;
-    if( $args->{'raw'} ){
+    if( $args->{'raw'}{'value'} ){
         $circuit_clr = $ckt->generate_clr_raw();
     }else {
         $circuit_clr = $ckt->generate_clr();
@@ -1212,7 +1215,7 @@ sub get_all_resources {
     my ( $method, $args ) = @_ ;
     my $results;
 
-    my $workgroup_id = $args->{'workgroup_id'};
+    my $workgroup_id = $args->{'workgroup_id'}{'value'};
 
     my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
     if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
@@ -1230,7 +1233,7 @@ sub get_all_resources {
 sub is_within_circuit_limit {
     
     my ( $method, $args ) = @_ ;
-    my $workgroup_id   = $args->{'workgroup_id'};
+    my $workgroup_id   = $args->{'workgroup_id'}{'value'};
     
     if(!$workgroup_id){
 	$method->set_error( "Must send workgroup_id" );
@@ -1256,8 +1259,8 @@ sub is_within_circuit_limit {
 sub is_within_circuit_endpoint_limit {
     
     my ( $method, $args ) = @_ ;
-    my $workgroup_id   = $args->{'workgroup_id'};
-    my $endpoint_num   = $args->{'endpoint_num'};
+    my $workgroup_id   = $args->{'workgroup_id'}{'value'};
+    my $endpoint_num   = $args->{'endpoint_num'}{'value'};
 
     if(!defined($workgroup_id) || !defined($endpoint_num)){
 	$method->set_error("Must send workgroup_id and endpoint_num" );
@@ -1283,10 +1286,10 @@ sub is_within_circuit_endpoint_limit {
 sub is_within_mac_limit {
 
     my ( $method, $args ) = @_ ;
-    my @mac_addresses  = $args->{'mac_address'};
-    my $interface      = $args->{'interface'};
-    my $node           = $args->{'node'};
-    my $workgroup_id   = $args->{'workgroup_id'};
+    my @mac_addresses  = $args->{'mac_address'}{'value'};
+    my $interface      = $args->{'interface'}{'value'};
+    my $node           = $args->{'node'}{'value'};
+    my $workgroup_id   = $args->{'workgroup_id'}{'value'};
 
     if(!@mac_addresses || !$interface || !$node || !$workgroup_id){
 	$method->set_error( "Must send mac_address, interface, node, and workgroup_id" );
@@ -1298,7 +1301,7 @@ sub is_within_mac_limit {
     }
 
     my $return = $db->is_within_mac_limit(
-        mac_address  => \@mac_addresses,
+        mac_address  => @mac_addresses,
         interface    => $interface,
         node         => $node,
         workgroup_id => $workgroup_id 
@@ -1316,8 +1319,8 @@ sub send_message {
     my ( $method, $args ) = @_ ;
     my $results;
 
-    my $subject = $args->{'subject'};
-    my $body    = $args->{'body'};
+    my $subject = $args->{'subject'}{'value'};
+    my $body    = $args->{'body'}{'value'};
 
     my $username = $ENV{'REMOTE_USER'};
 

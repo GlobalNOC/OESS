@@ -215,7 +215,7 @@ function pollForStatus(gri, status_panel){
 
 function getCircuitIdFromGRI(gri){
 
-    var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_circuit_details_by_external_identifier&external_identifier="+encodeURIComponent(gri));
+    var ds = new YAHOO.util.DataSource("services/data.cgi?method=get_circuit_details_by_external_identifier&external_identifier="+encodeURIComponent(gri));
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
 	resultsList: "results",

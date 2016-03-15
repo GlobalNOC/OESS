@@ -577,7 +577,7 @@ function makeTagSelectPanel(coordinates, options ){
             tag_verified = true;
         } else {
             var tag_ds = new YAHOO.util.DataSource(
-                "services/data.cgi?action=is_vlan_tag_available"+
+                "services/data.cgi?method=is_vlan_tag_available"+
                 "&vlan="+new_tag+
                 "&interface="+encodeURIComponent(options.interface)+
                 "&node="+encodeURIComponent(options.node)+
@@ -641,7 +641,7 @@ function makeTagSelectPanel(coordinates, options ){
             }
 
             var mac_ds = new YAHOO.util.DataSource(
-                "services/data.cgi?action=is_within_mac_limit"+
+                "services/data.cgi?method=is_within_mac_limit"+
                 mac_address_string+
                 "&interface="+encodeURIComponent(options.interface)+
                 "&node="+encodeURIComponent(options.node)+

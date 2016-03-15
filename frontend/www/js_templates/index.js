@@ -22,7 +22,7 @@
         }
 
         new_circuit.set("innerHTML","Checking Circuit Limit...");
-        var circuit_limit_ds = new YAHOO.util.DataSource("services/data.cgi?action=is_within_circuit_limit&workgroup_id=" + session.data.workgroup_id );
+        var circuit_limit_ds = new YAHOO.util.DataSource("services/data.cgi?method=is_within_circuit_limit&workgroup_id=" + session.data.workgroup_id );
 
 
         circuit_limit_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
@@ -112,7 +112,7 @@
 		    var body = "Details: <br><table><tr><td>Username:</td><td>" + username + "</td></tr><tr><td>Given Name:</td><td>" + given_name + "</td></tr><tr><td>Family Name:</td><td>" + family_name + "</td></tr><tr><td>Email Address:</td><td>" + email_address + "</td><td>Phone Number:</td><td>"+ phone_number + "</td></tr></table>";
 		    subject = encodeURI(subject);
 		    body = encodeURI(body);
-		    var ds = new YAHOO.util.DataSource("services/data.cgi?action=send_email&subject=" + subject + "&body=" + body );
+		    var ds = new YAHOO.util.DataSource("services/data.cgi?method=send_email&subject=" + subject + "&body=" + body );
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 		    ds.responseSchema = {
 			resultsList: "results",
@@ -219,7 +219,7 @@
 	  $('.chzn-select').chosen({search_contains: true});
 
 
-    var vlan_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_existing_circuits&workgroup_id="+session.data.workgroup_id);
+    var vlan_ds = new YAHOO.util.DataSource("services/data.cgi?method=get_existing_circuits&workgroup_id="+session.data.workgroup_id);
         vlan_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
         vlan_ds.responseSchema = {
                 resultsList: "results",
@@ -285,7 +285,7 @@
         
 
 
-    var node_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_nodes");
+    var node_ds = new YAHOO.util.DataSource("services/data.cgi?method=get_nodes");
 	  node_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 	  node_ds.responseSchema = {
 
@@ -345,7 +345,7 @@ function build_circuitTable(){
     };
 
 
-    var dsString="services/data.cgi?action=get_existing_circuits&workgroup_id="+session.data.workgroup_id;
+    var dsString="services/data.cgi?method=get_existing_circuits&workgroup_id="+session.data.workgroup_id;
 
     var endpointSelector= YAHOO.util.Dom.get("endpoint_node_selector");
 	var pathSelector= YAHOO.util.Dom.get("path_node_selector");
@@ -613,7 +613,7 @@ function build_circuitTable(){
     var ckt_table = build_circuitTable();
 
 
-    var link_status_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_all_link_status");
+    var link_status_ds = new YAHOO.util.DataSource("services/data.cgi?method=get_all_link_status");
     link_status_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     link_status_ds.responseSchema = {
 	resultsList: "results",
@@ -647,7 +647,7 @@ function build_circuitTable(){
     link_status_ds.setInterval(30000);
 
     //build the switch status table
-    var switch_status_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_all_node_status");
+    var switch_status_ds = new YAHOO.util.DataSource("services/data.cgi?method=get_all_node_status");
     switch_status_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     switch_status_ds.responseSchema = {
 	resultsList: "results",
@@ -670,7 +670,7 @@ function build_circuitTable(){
 
     var switch_table = new YAHOO.widget.ScrollingDataTable("switch_status_table",switch_status_columns, switch_status_ds,{height: '210px'});
     switch_status_ds.setInterval(30000);
-      var circuit_status_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_existing_circuits&workgroup_id="+session.data.workgroup_id);
+      var circuit_status_ds = new YAHOO.util.DataSource("services/data.cgi?method=get_existing_circuits&workgroup_id="+session.data.workgroup_id);
     circuit_status_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     circuit_status_ds.responseSchema = {
 	resultsList: "results",
@@ -725,7 +725,7 @@ function build_circuitTable(){
 	}, 30000);
 
     // build the users table
-    var user_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_workgroup_members&order_by=auth_name&workgroup_id="+session.data.workgroup_id);
+    var user_ds = new YAHOO.util.DataSource("services/data.cgi?method=get_workgroup_members&order_by=auth_name&workgroup_id="+session.data.workgroup_id);
     user_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     user_ds.responseSchema = {
 	resultsList: "results",
@@ -769,7 +769,7 @@ function build_circuitTable(){
 	    nddi_map.render("network_status_map");
 	});
 
-    var avail_resource_ds = new YAHOO.util.DataSource("services/data.cgi?action=get_all_resources_for_workgroup&workgroup_id=" + session.data.workgroup_id);
+    var avail_resource_ds = new YAHOO.util.DataSource("services/data.cgi?method=get_all_resources_for_workgroup&workgroup_id=" + session.data.workgroup_id);
     avail_resource_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     avail_resource_ds.responseSchema = {
 	resultsList: "results",
@@ -844,7 +844,7 @@ function build_circuitTable(){
             this.destroy();
         };
 
-        var dsString="services/data.cgi?action=get_workgroup_interfaces&workgroup_id="+session.data.workgroup_id;
+        var dsString="services/data.cgi?method=get_workgroup_interfaces&workgroup_id="+session.data.workgroup_id;
 
         var ds = new YAHOO.util.DataSource(dsString);
         ds.responseType = YAHOO.util.DataSource.TYPE_JSON;

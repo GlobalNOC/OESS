@@ -34,7 +34,7 @@ function workgroups_init(){
 
 function make_workgroups_table(){
 
-    var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_workgroups");
+    var ds = new YAHOO.util.DataSource("services/data.cgi?method=get_workgroups");
     ds.responseType   = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
 	resultsList: "results",
