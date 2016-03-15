@@ -383,7 +383,8 @@ sub provision_circuit {
                     $circuit_details->{'status'} = 'up';
                     $circuit_details->{'reason'} = 'provisioned';
                     $circuit_details->{'type'} = 'provisioned';
-                    $log_client->circuit_notification( circuit => $circuit_details  );
+                    $log_client->circuit_notification( circuit => $circuit_details,
+						       no_reply => 1);
                 };
                 warn $@ if $@;
             }
@@ -464,7 +465,8 @@ sub provision_circuit {
                 $circuit_details->{'status'} = 'up';
                 $circuit_details->{'reason'} = 'edited';
                 $circuit_details->{'type'} = 'modified';
-                $log_client->circuit_notification( circuit => $circuit_details  );
+                $log_client->circuit_notification( circuit => $circuit_details,
+						   no_reply => 1);
             };
             warn $@ if $@;
         }
@@ -564,7 +566,8 @@ sub remove_circuit {
             $circuit_details->{'status'} = 'removed';
             $circuit_details->{'reason'} = 'removed by ' . $ENV{'REMOTE_USER'};
             $circuit_details->{'type'} = 'removed';
-            $log_client->circuit_notification( circuit => $circuit_details );
+            $log_client->circuit_notification( circuit => $circuit_details, 
+		no_reply => 1,);
         };
         warn $@ if $@;
 
@@ -683,7 +686,8 @@ sub fail_over_circuit {
                     $circuit_details->{'status'} = 'up';
                     $circuit_details->{'reason'} = "user " . $ENV{'REMOTE_USER'} . " forced the circuit to change to the alternate path";
                     $circuit_details->{'type'} = 'change_path';
-                    $log_client->circuit_notification( circuit => $circuit_details );
+                    $log_client->circuit_notification( circuit => $circuit_details,
+			no_reply => 1);
 
                 };
                 warn $@ if $@;
@@ -691,7 +695,8 @@ sub fail_over_circuit {
                 eval {
                     $circuit_details->{'status'} = 'down';
                     $circuit_details->{'reason'} = "user " . $ENV{'REMOTE_USER'} . " forced the circuit to change to the alternate path which is down!";
-                    $log_client->circuit_notification( circuit => $circuit_details  );
+                    $log_client->circuit_notification( circuit => $circuit_details,
+						       no_reply => 1);
                 };
                 warn $@ if $@;
             }
