@@ -254,20 +254,30 @@ sub register_nox_events{
 				  required => 1,
 				  pattern => $GRNOC::WebService::Regex::NAME_ID);
 
-    $method->add_input_parameter( name => "reason",
+    $method->add_input_parameter( name => "ofp_port_reason",
 				  description => "The reason for the port status must be one of OFPPR_ADD OFPPR_DELETE OFPPR_MODIFY",
 				  required => 1,
 				  pattern => $GRNOC::WebService::Regex::INTEGER	);
 
-    $method->add_input_parameter( name => "port",
+    $method->add_input_parameter( name => "attrs",
 				  description => "Details about the port that had the port status message generated on it",
 				  required => 1,
 				  schema => { 'type' => 'object',
-					      'properties' => {'port_no'     => {'type' => 'number'},
-							       'link'        => {'type' => 'number'},
-							       'name'        => {'type' => 'string'},
-							       'admin_state' => {'type' => 'string'},
-							       'status'      => {'type' => 'string'}}});
+					      'properties' => { 'hw_addr'     => {'type' => 'number'},
+								'curr'        => {'type' => 'number'},
+								'port_no'     => {'type' => 'number'},
+								'link'        => {'type' => 'number'},
+								'name'        => {'type' => 'string'},
+								'speed'       => {'type' => 'number'},
+								'supported'   => {'type' => 'number'},
+								'enabled'     => {'type' => 'boolean'},
+								'state'       => {'type' => 'number'},
+								'link'        => {'type' => 'boolean'},
+								'advertised'  => {'type' => 'number'},
+								'peer'        => {'type' => 'number'},
+								'config'      => {'type' => 'number'},
+								'admin_state' => {'type' => 'string'},
+								'status'      => {'type' => 'string'}}});
 				  
     $d->register_method($method);
     
@@ -527,11 +537,11 @@ sub link_maintenance {
         }
 
         $self->port_status(undef, {dpid => { 'value' => $node1->{'dpid'} },
-				   reason => { 'value' => OFPPR_MODIFY } ,
-				   port =>  { 'value' => $e1 } }, undef);
+				   ofp_port_reason => { 'value' => OFPPR_MODIFY } ,
+				   attr =>  { 'value' => $e1 } }, undef);
         $self->port_status(undef, {dpid => { 'value' => $node2->{'dpid'} } ,
-				   reason => { 'value' => OFPPR_MODIFY },
-				   port => { 'value' => $e2 } }, undef);
+				   ofp_port_reason => { 'value' => OFPPR_MODIFY },
+				   attr => { 'value' => $e2 } }, undef);
         $self->{'logger'}->warn("Link $link_id maintenance has ended.");
     } else {
         # Simulate link down event by passing false link state to
@@ -541,11 +551,11 @@ sub link_maintenance {
 
         my $link_name;
         $link_name = $self->port_status(undef, {dpid => { 'value' => $node1->{'dpid'} } ,
-						reason => { 'value' => OFPPR_MODIFY } , 
-						port => { 'value' => $e1 } }, undef);
+						ofp_port_reason => { 'value' => OFPPR_MODIFY } , 
+						attr => { 'value' => $e1 } }, undef);
         $link_name = $self->port_status(undef, {dpid => { 'value' => $node2->{'dpid'} }, 
-						reason => { 'value' => OFPPR_MODIFY },
-						port => { 'value' => $e2 } }, undef);
+						ofp_port_reason => { 'value' => OFPPR_MODIFY },
+						attr => { 'value' => $e2 } }, undef);
 
         $self->{'link_maintenance'}->{$link_id} = 1;
         $self->{'link_status'}->{$link_name} = $link_state; # Record true link state.
@@ -800,16 +810,16 @@ sub message_callback {
 
     return sub {
         my $results = shift;
-        $self->{'logger'}->error("Received a response from child: " . $dpid . " for event: " . $event_id);
+        $self->{'logger'}->error("Received a response from child: " . $dpid . " for event: " . $event_id . " Dumper: " . Data::Dumper::Dumper($results));
         $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = FWDCTL_UNKNOWN;
         if (!defined $results) {
             $self->{'logger'}->error("Undefined result received in message_callback.");
-            
         } elsif (defined $results->{'error'}) {
             $self->{'logger'}->error($results->{'error'});
         }
-        $self->{'node_rules'}->{$dpid} = $results->{'total_rules'};
-        $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = $results->{'status'};
+        $self->{'node_rules'}->{$dpid} = $results->{'results'}->{'total_rules'};
+	$self->{'logger'}->error("Event: $event_id for DPID: " . $event_id . " status: " . $results->{'results'}->{'status'});
+        $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = $results->{'results'}->{'status'};
     }
 }
 
@@ -979,9 +989,9 @@ sub _update_node_database_state{
 	    my $link_id   = @$link_info[0]->{'link_id'};
 	    my $link_name = @$link_info[0]->{'name'};
 	    if($self->{'link_status'}->{$link_name} != $port->{'link'}){
-		$self->port_status(undef,{dpid => {value => $dpid},
-				          reason => {'value' => OFPPR_MODIFY},
-				          port => {'value' => $port }},undef);
+		$self->port_status(undef,{dpid => {'value' => $dpid},
+				          ofp_port_reason => {'value' => OFPPR_MODIFY},
+				          attrs => {'value' => $port }},undef);
 	    }
 	}
     }
@@ -1067,7 +1077,6 @@ sub make_baby{
 	    $switch = OESS::FWDCTL::Switch->new( %args );
 	}
 	')->fork->send_arg( %args )->run("run");
-    
 
     $self->{'children'}->{$dpid}->{'rpc'} = 1;
 
@@ -1224,12 +1233,13 @@ sub _restore_down_circuits{
 
     foreach my $dpid (keys %dpids){
         $self->{'logger'}->debug("Telling child: " . $dpid . " that its time to work!");
-        $self->send_message_to_child($dpid,{action => 'change_path', circuits => $dpids{$dpid}},$event_id);
+        $self->send_message_to_child($dpid,{action => 'change_path', circuit_id => $dpids{$dpid}},$event_id);
     }
 
     #commit our changes to the database
     $self->{'db'}->_commit();
     if ( $circuit_notification_data && scalar(@$circuit_notification_data) ){
+	$self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.event";
         $self->{'fwdctl_events'}->circuit_notification( type      => 'link_up',
 							link_name => $link_name,
 							affected_circuits => $circuit_notification_data,
@@ -1346,7 +1356,7 @@ sub _fail_over_circuits{
     my $result = FWDCTL_SUCCESS;
 
     foreach my $dpid (keys %dpids){
-        $self->send_message_to_child($dpid,{action => 'change_path', circuits => $dpids{$dpid}}, $event_id);
+        $self->send_message_to_child($dpid,{action => 'change_path', circuit_id => $dpids{$dpid}}, $event_id);
     }
 
     $self->{'db'}->_commit();
@@ -1354,10 +1364,14 @@ sub _fail_over_circuits{
     
         
     if ( $circuit_infos && scalar(@$circuit_infos) ) {
+	$self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.event";
         $self->{'fwdctl_events'}->circuit_notification( type => 'link_down',
                                                         link_name => $link_name,
-                                                        affected_circuits => $circuit_infos );
+                                                        affected_circuits => $circuit_infos,
+							no_reply => 1 );
     }
+
+    $self->{'logger'}->error("Notification complete!");
     
 }
 
@@ -1371,8 +1385,8 @@ sub _update_port_status{
     my $p_ref = shift;
 
     my $dpid = $p_ref->{'dpid'}{'value'};
-    my $info = $p_ref->{'port'}{'value'};
-    my $reason = $p_ref->{'port'}{'value'};
+    my $info = $p_ref->{'attrs'}{'value'};
+    my $reason = $p_ref->{'ofp_port_reason'}{'value'};
 
 
     if($reason == OFPPR_DELETE){
@@ -1421,10 +1435,12 @@ sub port_status{
     #all of our params are stored in the p_ref!
     warn "p_ref: ".Dumper($p_ref);
     my $dpid = $p_ref->{'dpid'}{'value'};
-    my $reason = $p_ref->{'reason'}{'value'};
-    my $info = $p_ref->{'port'}{'value'};
+    my $reason = $p_ref->{'ofp_port_reason'}{'value'};
+    my $info = $p_ref->{'attrs'}{'value'};
 
     $self->{'logger'}->error("Port Status event!");
+
+    $self->{'logger'}->error("INFO: " . Data::Dumper::Dumper($info));
 
     my $port_name   = $info->{'name'};
     my $port_number = $info->{'port_no'};
@@ -1477,6 +1493,7 @@ sub port_status{
 			}
 			$self->{'db'}->update_link_state( link_id => $link_id, state => 'down');
 		    }
+		    $self->{'logger'}->error("done handling port down!");
 		}
 		
 		#--- when a port comes back up determine if any circuits that are currently down
@@ -1495,6 +1512,7 @@ sub port_status{
 		}
 	    }
 
+	    $self->{'logger'}->error("update_port_status");
 	    $self->_update_port_status($p_ref);
 
 	}
@@ -1524,7 +1542,7 @@ sub port_status{
 	}
 	case(OFPPR_ADD) {
 	    #just force sync the node and update the status!
-	    $self->force_sync($dpid);
+	    $self->force_sync(undef,{dpid => {'value' => $dpid}} );
 	    $self->_update_port_status($p_ref);
 	}else{
 	    #uh we should not be able to get here!
@@ -1585,17 +1603,17 @@ sub link_event{
     $self->{'logger'}->error("$status");
     switch($status){
 	case "add"{
-                   my $interface_a = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $a_dpid, port_number => $a_port);
-                   my $interface_z = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $z_dpid, port_number => $z_port);
+	    my $interface_a = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $a_dpid, port_number => $a_port);
+	    my $interface_z = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $z_dpid, port_number => $z_port);
 	    if(!defined($interface_a) || !defined($interface_z)){
 		$self->{'logger'}->error("Either the A or Z endpoint was not found in the database while trying to add a link");
 		$self->{'db'}->_rollback();
 		return undef;
 	    }
-                   $self->{'logger'}->error(Dumper($interface_a) . "\n\n" . Dumper($interface_z));
-
+	    $self->{'logger'}->error(Dumper($interface_a) . "\n\n" . Dumper($interface_z));
+	    
 	    my ($link_db_id, $link_db_state) = $self->{'db'}->get_active_link_id_by_connectors( interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'} );
-
+	    
 	    if($link_db_id){
 		##up the state?
 		$self->{'logger'}->error("Link already exists doing nothing...");
@@ -1665,9 +1683,12 @@ sub link_event{
 		    
 		    my $node_a = $self->{'db'}->get_node_by_interface_id( interface_id => $interface_a->{'interface_id'} );
 		    my $node_z = $self->{'db'}->get_node_by_interface_id( interface_id => $interface_z->{'interface_id'});
+                    $self->{'logger'}->debug("About to diff: " . Dumper($node_a));
+                    $self->{'logger'}->debug("About to diff: " . Dumper($node_z));
+
 		    #diff
-		    $self->force_sync($node_a->{'dpid'});
-		    $self->force_sync($node_z->{'dpid'});
+		    $self->force_sync(undef, {dpid => {'value' => $node_a->{'dpid'}}});
+		    $self->force_sync(undef, {dpid => {'value' => $node_z->{'dpid'}}});
 		    return;
 			
 		}elsif(defined($a_links->[0])){
@@ -1693,11 +1714,12 @@ sub link_event{
                     }
                     $self->_write_cache();
 
-                    my $node_a = $self->{'db'}->get_node_by_interface_id( interface_id => $interface_a->{'interface_id'} );
+                    my $node_a = $self->{'db'}->get_node_by_interface_id( interface_id => $interface_a->{'interface_id'});
                     my $node_z = $self->{'db'}->get_node_by_interface_id( interface_id => $interface_z->{'interface_id'});
+
                     #diff
-                    $self->force_sync($node_a->{'dpid'});
-                    $self->force_sync($node_z->{'dpid'});
+                    $self->force_sync(undef, {dpid => {'value' => $node_a->{'dpid'}}});
+                    $self->force_sync(undef, {dpid => {'value' => $node_z->{'dpid'}}});
 		    return;
 		}elsif(defined($z_links->[0])){
 		    #easy case update link_a so that it is now on the new interfaces
@@ -1725,9 +1747,10 @@ sub link_event{
 
                     my $node_a = $self->{'db'}->get_node_by_interface_id( interface_id => $interface_a->{'interface_id'} );
                     my $node_z = $self->{'db'}->get_node_by_interface_id( interface_id => $interface_z->{'interface_id'});
+
                     #diff
-                    $self->force_sync($node_a->{'dpid'});
-                    $self->force_sync($node_z->{'dpid'});
+                    $self->force_sync(undef, {dpid => {'value' => $node_a->{'dpid'}}});
+                    $self->force_sync(undef, {dpid => {'value' => $node_z->{'dpid'}}});
 		    return;
 		}else{
 		    $self->{'logger'}->warn("This is not part of any other link... making a new instance");
@@ -1874,7 +1897,7 @@ sub addVlan {
     $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UP;
 
     foreach my $dpid (keys %dpids){
-        $self->send_message_to_child($dpid,{action => 'add_vlan', circuit => $circuit_id}, $event_id);
+        $self->send_message_to_child($dpid,{action => 'add_vlan', circuit_id => $circuit_id}, $event_id);
     }
 
     return {status => $result, event_id => $event_id};
@@ -1921,7 +1944,7 @@ sub deleteVlan {
     my $result = FWDCTL_SUCCESS;
 
     foreach my $dpid (keys %dpids){
-        $self->send_message_to_child($dpid,{action => 'remove_vlan', circuit => $circuit_id},$event_id);
+        $self->send_message_to_child($dpid,{action => 'remove_vlan', circuit_id => $circuit_id},$event_id);
     }
 
     return {status => $result,event_id => $event_id};
