@@ -810,7 +810,7 @@ sub message_callback {
 
     return sub {
         my $results = shift;
-        $self->{'logger'}->error("Received a response from child: " . $dpid . " for event: " . $event_id . " Dumper: " . Data::Dumper::Dumper($results));
+        $self->{'logger'}->debug("Received a response from child: " . $dpid . " for event: " . $event_id . " Dumper: " . Data::Dumper::Dumper($results));
         $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = FWDCTL_UNKNOWN;
         if (!defined $results) {
             $self->{'logger'}->error("Undefined result received in message_callback.");
@@ -818,7 +818,7 @@ sub message_callback {
             $self->{'logger'}->error($results->{'error'});
         }
         $self->{'node_rules'}->{$dpid} = $results->{'results'}->{'total_rules'};
-	$self->{'logger'}->error("Event: $event_id for DPID: " . $event_id . " status: " . $results->{'results'}->{'status'});
+	$self->{'logger'}->debug("Event: $event_id for DPID: " . $event_id . " status: " . $results->{'results'}->{'status'});
         $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = $results->{'results'}->{'status'};
     }
 }
@@ -1371,7 +1371,7 @@ sub _fail_over_circuits{
 							no_reply => 1 );
     }
 
-    $self->{'logger'}->error("Notification complete!");
+    $self->{'logger'}->debug("Notification complete!");
     
 }
 
@@ -1433,14 +1433,13 @@ sub port_status{
     my $state_ref = shift;
 
     #all of our params are stored in the p_ref!
-    warn "p_ref: ".Dumper($p_ref);
     my $dpid = $p_ref->{'dpid'}{'value'};
     my $reason = $p_ref->{'ofp_port_reason'}{'value'};
     my $info = $p_ref->{'attrs'}{'value'};
 
-    $self->{'logger'}->error("Port Status event!");
+    $self->{'logger'}->debug("Port Status event!");
 
-    $self->{'logger'}->error("INFO: " . Data::Dumper::Dumper($info));
+    $self->{'logger'}->debug("INFO: " . Data::Dumper::Dumper($info));
 
     my $port_name   = $info->{'name'};
     my $port_number = $info->{'port_no'};
@@ -1481,7 +1480,7 @@ sub port_status{
 		    
 		    my $affected_circuits = $self->{'db'}->get_affected_circuits_by_link_id(link_id => $link_id);
 		    if (!defined $affected_circuits) {
-			$self->{'logger'}->error("Error getting affected circuits: " . $self->{'db'}->get_error());
+			$self->{'logger'}->debug("Error getting affected circuits: " . $self->{'db'}->get_error());
 		    }else{
 			
 			# Fail over affected circuits if link is not in maintenance mode.
@@ -1493,7 +1492,7 @@ sub port_status{
 			}
 			$self->{'db'}->update_link_state( link_id => $link_id, state => 'down');
 		    }
-		    $self->{'logger'}->error("done handling port down!");
+		    $self->{'logger'}->debug("done handling port down!");
 		}
 		
 		#--- when a port comes back up determine if any circuits that are currently down
@@ -1512,7 +1511,7 @@ sub port_status{
 		}
 	    }
 
-	    $self->{'logger'}->error("update_port_status");
+	    $self->{'logger'}->debug("update_port_status");
 	    $self->_update_port_status($p_ref);
 
 	}
@@ -1600,7 +1599,7 @@ sub link_event{
     my $z_port = $p_ref->{'dport'}{'value'};
 
     my $status = $p_ref->{'action'}{'value'};
-    $self->{'logger'}->error("$status");
+
     switch($status){
 	case "add"{
 	    my $interface_a = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $a_dpid, port_number => $a_port);
@@ -1610,7 +1609,7 @@ sub link_event{
 		$self->{'db'}->_rollback();
 		return undef;
 	    }
-	    $self->{'logger'}->error(Dumper($interface_a) . "\n\n" . Dumper($interface_z));
+
 	    
 	    my ($link_db_id, $link_db_state) = $self->{'db'}->get_active_link_id_by_connectors( interface_a_id => $interface_a->{'interface_id'}, interface_z_id => $interface_z->{'interface_id'} );
 	    

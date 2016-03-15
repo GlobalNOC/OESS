@@ -143,12 +143,12 @@ sub _validate_match{
             case "in_port"{
 		if(!$self->_validate_port($match->{$key})){
 		    $self->{'logger'}->error("IN PORT: " . $match->{$key} . " is not supported");
-            return 0;
+		    return 0;
 		}
             }case "dl_vlan"{
 		if(!$self->_validate_vlan_id($match->{$key})){
 		    $self->{'logger'}->error("VLAN Tag " . $match->{$key} . " is not supported");
-            return 0;
+		    return 0;
 		}
 		#lets do a quick fix here... 65535 = -1
 		if($match->{$key} == 65535){
@@ -648,7 +648,7 @@ sub to_dict {
                 }
             }
 
-            $self->{'logger'}->error("Action array: ".Dumper(\@tmp));
+            $self->{'logger'}->debug("Action array: ".Dumper(\@tmp));
             if (defined $tmp[0]) {
                 push(@actions, \@tmp);
             }

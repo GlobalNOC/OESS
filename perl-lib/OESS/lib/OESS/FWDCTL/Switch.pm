@@ -841,7 +841,7 @@ sub flow_stats_callback{
 
     return sub {
 	my $results = shift;
-	$self->{'logger'}->error("Flow stats callback!!!!");
+	$self->{'logger'}->debug("Flow stats callback!!!!");
         
 	my $time = $results->{'results'}->[0]->{'timestamp'};
 	my $stats = $results->{'results'}->[0]->{'flow_stats'}; 
@@ -853,7 +853,7 @@ sub flow_stats_callback{
         }
 
         if($time > $self->{'needs_diff'}){
-	    $self->{'logger'}->error("About to diff");
+	    $self->{'logger'}->debug("About to diff");
             #---process the flow_rules into a lookup hash
             my $flows = $self->_process_stats_to_flows( $self->{'dpid'}, $stats);
             
@@ -861,7 +861,7 @@ sub flow_stats_callback{
             #--- do the diff
             $self->_do_diff($flows);
         }else{
-	    $self->{'logger'}->error("need to re-schedule the diff!");
+	    $self->{'logger'}->debug("need to re-schedule the diff!");
 	}
     }
 }
