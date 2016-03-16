@@ -36,6 +36,8 @@ use POSIX;
 use Log::Log4perl;
 use Switch;
 
+use Time::HiRes qw(gettimeofday tv_interval);
+
 use OESS::FlowRule;
 use OESS::FWDCTL::Switch;
 use OESS::Database;
@@ -1844,6 +1846,8 @@ sub addVlan {
     my $p_ref = shift;
     my $state = shift;
     
+    my $start = [gettimeofday];
+
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
     $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
@@ -1899,6 +1903,8 @@ sub addVlan {
         $self->send_message_to_child($dpid,{action => 'add_vlan', circuit_id => $circuit_id}, $event_id);
     }
 
+    $self->{'logger'}->info("Elapsed time add_vlan: " . tv_interval( $start, [gettimeofday]));
+
     return {status => $result, event_id => $event_id};
     
 }
@@ -1912,6 +1918,8 @@ sub deleteVlan {
     my $m_ref = shift;
     my $p_ref = shift;
     my $state = shift;
+
+    my $start = [gettimeofday];
 
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
@@ -1945,6 +1953,8 @@ sub deleteVlan {
     foreach my $dpid (keys %dpids){
         $self->send_message_to_child($dpid,{action => 'remove_vlan', circuit_id => $circuit_id},$event_id);
     }
+
+    $self->{'logger'}->info("Elapsed Time deleteVlan: " . tv_interval( $start, [gettimeofday]));
 
     return {status => $result,event_id => $event_id};
 }
@@ -2002,7 +2012,7 @@ sub get_event_status{
 
     my $event_id = $p_ref->{'event_id'}->{'value'};
 
-    $self->{'logger'}->error("Looking for event: " . $event_id);
+    $self->{'logger'}->debug("Looking for event: " . $event_id);
     $self->{'logger'}->debug("Pending Results: " . Data::Dumper::Dumper($self->{'pending_results'}));
     if(defined($self->{'pending_results'}->{$event_id})){
 
