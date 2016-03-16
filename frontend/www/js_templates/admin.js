@@ -2671,7 +2671,7 @@ function setup_network_tab(){
         }
 
         save_button.on("click", function(){
-		showConfirm("Are you sure you want to update the device. The new values will take effect immediatly.",
+		showConfirm("The new values will take effect immediately.Are you sure you want to update the device?",
 			    function(){
 				var new_name  = YAHOO.util.Dom.get('active_node_name').value;
 				var new_lat   = YAHOO.util.Dom.get('active_node_lat').value;
