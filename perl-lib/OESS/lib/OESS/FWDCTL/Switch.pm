@@ -479,10 +479,13 @@ sub send_flows{
 
     if($cmd == OFPFC_ADD){
 	$self->{'flows'}++;
+	$self->{'logger'}->info("Installing Flow: " . $flow->to_human());
     }elsif($cmd == OFPFC_DELETE_STRICT || $cmd == OFPFC_DELETE){
 	$self->{'flows'}--;
+	$self->{'logger'}->info("Deleting Flow: " . $flow->to_human());
     }else{
 	#must be modify, in other words no del/or add
+	$self->{'logger'}->info("Modifying Flow: " . $flow->to_human());
     }
     
     if($self->{'flows'} > $self->{'node'}->{'max_flows'}){
