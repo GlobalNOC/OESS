@@ -52,7 +52,6 @@ my $topo = new OESS::Topology();
 my $svc = GRNOC::WebService::Dispatcher->new();
 
 Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
-#my $cgi = new CGI;
 
 my $username = $ENV{'REMOTE_USER'};
 my $is_admin = $db->get_user_admin_status( 'username' => $username );
@@ -78,6 +77,7 @@ sub main {
     #register the WebService Methods
     register_webservice_methods();
 
+    #handle the WebService request.
     $svc->handle_request();
         
 }
@@ -666,7 +666,6 @@ sub get_workgroups {
     my $workgroups = $db->get_workgroups_by_auth_name( auth_name => $username );
 
     if ( !defined $workgroups ) {
-        #$results->{'error'} = $db->get_error();
 	$method->set_error =( $db->get_error() );
 	return;
     }
@@ -687,7 +686,6 @@ sub get_circuits_by_interface_id {
     my $circuits = $db->get_circuits_by_interface_id( interface_id => $interface_id );
     
     if ( !defined $circuits ) {
-        #$results->{'error'} = $db->get_error();
 	$method->set_error( $db->get_error() ) ;
 	return;
     }
@@ -708,8 +706,6 @@ sub get_interface {
     my $interface = $db->get_interface( interface_id => $interface_id );
 
     if ( !defined $interface ) {
-        #$results->{'error'}   = $db->get_error();
-        #$results->{'results'} = [];
 	$method->set_error( $db->get_error() );
 	return;
     }
@@ -728,17 +724,13 @@ sub get_workgroup_interfaces {
     my $workgroup_id = $args->{'workgroup_id'}{'value'};
     my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
     if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
-        #$results->{'error'} = 'Error: you are not part of this workgroup';
-        #return $results;
 	$method->set_error('Error: you are not part of this workgroup');
-	return undef;
+	return;
     }
 
     my $acls = $db->get_workgroup_interfaces( workgroup_id => $workgroup_id );
 
     if ( !defined $acls ) {
-        #$results->{'error'}   = $db->get_error();
-        #$results->{'results'} = [];
 	$method->set_error( $db->get_error() );
 	return;
     }
@@ -767,9 +759,6 @@ sub is_vlan_tag_available {
     );
 
     if ( !defined $interface_id ) {
-        #$results->{'error'} =
-        #  "Unable to find interface '$interface' on endpoint '$node'";
-        #return $results;
 	$method->set_error( "Unable to find interface '$interface' on endpoint '$node'" );
 	return;
     }
@@ -781,10 +770,6 @@ sub is_vlan_tag_available {
     );
     if(!$is_vlan_tag_accessible) {
         if(!defined($is_vlan_tag_accessible)){
-            #return {
-            #    results => [],
-            #    error   => $db->get_error()
-             #};
 	    $method->set_error( $db->get_error() );
 	    return;
         } else {
@@ -846,7 +831,6 @@ sub get_link_by_name {
     if ( !defined $link ) {
 	$method->set_error( $db->get_error() );
 	return;
-        #$results->{'error'} = $db->get_error();
     }
     else {
         $results->{'results'} = $link;
@@ -867,7 +851,6 @@ sub get_circuit_scheduled_events {
     if ( !defined $events ) {
 	$method->set_error( $db->get_error() );
 	return;
-        #$results->{'error'} = $db->get_error();
     }
     else {
         $results->{'results'} = $events;
@@ -888,7 +871,6 @@ sub get_circuit_history {
     if ( !defined $events ) {
 	$method->set_error( $db->get_error() );
 	return;
-        #$results->{'error'} = $db->get_error();
     }
     else {
         $results->{'results'} = $events;
@@ -909,7 +891,6 @@ sub get_circuit_details {
     if ( !defined $details ) {
 	$method->set_error( $db->get_error() );
 	return;
-        #$results->{'error'} = $db->get_error();
     }
     else {
         $results->{'results'} = $details;
@@ -931,8 +912,6 @@ sub get_circuit_details_by_external_identifier {
     if ( !defined $info ) {
 	$method->set_error( $db->get_error() );
         return;
-	#$results->{'error'} = $db->get_error();
-        #return $results;
     }
 
     my $ckt = OESS::Circuit->new( circuit_id => $info->{'circuit_id'}, db => $db);
@@ -941,7 +920,6 @@ sub get_circuit_details_by_external_identifier {
     if ( !defined $details ) {
 	$method->set_error( $db->get_error() );
 	return;
-        #$results->{'error'} = $db->get_error();
     }
     else {
         $results->{'results'} = $details;
@@ -965,17 +943,13 @@ sub get_existing_circuits {
         if(!$is_admin) {
 	    $method->set_error( "Error: no workgroup_id specified" );
 	    return;
-            #$results->{'error'} = "Error: no workgroup_id specified";
-            #return $results;
-        }
+	}
     }else {
         my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
         if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
             $method->set_error( 'Error: you are not part of this workgroup' );
 	    return;
-	    #$results->{'error'} = 'Error: you are not part of this workgroup';
-            #return $results;
-        }
+	}
     }
 
     my %link_status;
@@ -1005,8 +979,6 @@ sub get_existing_circuits {
     }
     
     if ( !defined $circuits ) {
-        #$results->{'error'} = $db->get_error();
-
 	$method->set_error( $db->get_error() );
 	return;
     }
@@ -1033,9 +1005,6 @@ sub get_shortest_path {
     );
 
     if ( !defined $sp_links ) {
-        #$results->{'results'} = [];
-        #$results->{'error'}   = "No path found.";
-        #return $results;
 	$method->set_error( "No path found" );
 	return;
     }
@@ -1056,7 +1025,6 @@ sub get_nodes {
     if ( !defined($nodes) ) {
 	$method->set_error( $db->get_error() );
 	return;
-        #return ( { 'error' => $db->get_error() } );
     }
     return ( { results => $nodes } );
 
@@ -1082,7 +1050,6 @@ sub get_node_interfaces {
     if ( !defined $interfaces ) {
 	$method->set_error( $db->get_error() );
 	return;
-        #$results->{'error'} = $db->get_error();
     }
     else {
         $results->{'results'} = $interfaces;
@@ -1099,8 +1066,6 @@ sub get_maps {
     
     my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
     if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
-        #$results->{'error'} = 'Error: you are not part of this workgroup';
-        #return $results;
 	$method->set_error( 'Error: you are not part of this workgroup' );
 	return;
     }
@@ -1109,7 +1074,6 @@ sub get_maps {
     my $layers = $db->get_map_layers( workgroup_id => $workgroup_id );
 
     if ( !defined $layers ) {
-        #$results->{'error'} = $db->get_error();
 	$method->set_error( $db->get_error() );
 	return;
     }
@@ -1130,8 +1094,6 @@ sub get_users_in_workgroup {
     my $order_by     = $args->{'order_by'}{'value'};
     my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
     if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
-        #$results->{'error'} = 'Error: you are not part of this workgroup';
-        #return $results;
 	$method->set_error( 'Error: you are not part of this workgroup' );
 	return;
     }
@@ -1141,8 +1103,6 @@ sub get_users_in_workgroup {
     if ( !defined $users ) {
 	$method->set_error( $db->get_error() );
 	return;
-	#$results->{'error'}   = $db->get_error();
-        #$results->{'results'} = [];
     }
     else {
         $results->{'results'} = $users;
@@ -1160,9 +1120,6 @@ sub generate_clr {
 
     if ( !defined($circuit_id) ) {
 	$method->set_error( "No Circuit ID Specified" );
-        #$results->{'error'}   = "No Circuit ID Specified";
-        #$results->{'results'} = [];
-        #return $results;
     }
 
     my $ckt = OESS::Circuit->new( circuit_id => $circuit_id, db => $db);
@@ -1177,8 +1134,6 @@ sub generate_clr {
     if ( !defined($circuit_clr) ) {
 	$method->set_error( $db->get_error() );
 	return;
-	#$results->{'error'}   = $db->get_error();
-	#$results->{'results'} = [];
     }
     else {
 	$results->{'results'} = { clr => $circuit_clr };
@@ -1221,9 +1176,6 @@ sub get_all_resources {
     if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
 	$method->set_error( 'Error: you are not part of this workgroup' );
 	return;
-	#$results->{'error'} = 'Error: you are not part of this workgroup';
-        #$results->{'results'} = [];
-        #return $results;
     }
 
     $results->{'results'} = $db->get_available_resources( workgroup_id => $workgroup_id );
@@ -1238,10 +1190,6 @@ sub is_within_circuit_limit {
     if(!$workgroup_id){
 	$method->set_error( "Must send workgroup_id" );
 	return;
-	#return {
-        #    error => "Must send workgroup_id",
-        #    results => []
-        #}; 
     }
     my $return = $db->is_within_circuit_limit(
         workgroup_id => $workgroup_id
@@ -1265,10 +1213,6 @@ sub is_within_circuit_endpoint_limit {
     if(!defined($workgroup_id) || !defined($endpoint_num)){
 	$method->set_error("Must send workgroup_id and endpoint_num" );
 	return;
-	#return {
-        #   error => "Must send workgroup_id and endpoint_num",
-        #    results => []
-        #};
     }
     my $return = $db->is_within_circuit_endpoint_limit(
         workgroup_id => $workgroup_id,
@@ -1294,10 +1238,6 @@ sub is_within_mac_limit {
     if(!@mac_addresses || !$interface || !$node || !$workgroup_id){
 	$method->set_error( "Must send mac_address, interface, node, and workgroup_id" );
 	return;
-	#return {
-        #    error => "Must send mac_address, interface, node, and workgroup_id",
-        #    results => []
-        #}; 
     }
 
     my $return = $db->is_within_mac_limit(
