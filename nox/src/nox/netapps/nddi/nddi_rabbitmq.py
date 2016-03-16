@@ -75,7 +75,7 @@ def port_status_callback(nddi, dp_id, ofp_port_reason, attrs):
     #--- convert mac 
     attr_dict['hw_addr'] = mac_to_int(attrs['hw_addr'])
     #--- generate signal   
-    nddi.rmqi_event.emit_signal('port_status',
+    nddi.rmqi_rpc.emit_signal('port_status','OF.NOX.event',
         dpid=dp_id,
         ofp_port_reason=ofp_port_reason,
         attrs=attr_dict
@@ -97,7 +97,7 @@ def fv_packet_in_callback(nddi, dp, inport, reason, len, bid, packet):
         logger.warn("Packet was sent to port: " + str(dst_port) + " but came from: " + str(inport))
         return
 
-    nddi.rmqi_event.emit_signal('fv_packet_in',
+    nddi.rmqi_topic.emit_signal('fv_packet_in','OF.NOX.event',
         src_dpid=src_dpid,
         src_port=src_port,
         dst_dpid=dst_dpid,
@@ -115,7 +115,7 @@ def traceroute_packet_in_callback(nddi, dp, inport, reason, len, bid, packet):
     #get circuit_id
     (circuit_id) = struct.unpack('I',string[:4])
 
-    nddi.rmqi_event.emit_signal('traceroute_packet_in',
+    nddi.rmqi_rpc.emit_signal('traceroute_packet_in','OF.NOX.event',
         dpid=dp,
         in_port=inport,
         circuit_id=circuit_id[0]
@@ -132,7 +132,7 @@ def link_event_callback(nddi, info):
     dport  = info.dport
     action = info.action
 
-    nddi.rmqi_event.emit_signal('link_event',
+    nddi.rmqi_rpc.emit_signal('link_event','OF.NOX.event',
         dpsrc=sdp,
         dpdst=ddp,
         sport=sport,
@@ -166,7 +166,7 @@ def datapath_join_callback(nddi, dp_id, ip_address, stats):
         port['hw_addr'] = mac_to_int(p['hw_addr'])
         port_list.append(port)
     #print str(port_list)
-    nddi.rmqi_event.emit_signal('datapath_join',
+    nddi.rmqi_rpc.emit_signal('datapath_join','OF.NOX.event',
         dpid=dp_id,
         ip=ip_address,
         ports=ports
@@ -180,7 +180,7 @@ def datapath_leave_callback(nddi, dp_id):
     if dp_id in flowmod_callbacks:
         del flowmod_callbacks[dp_id]
 
-    nddi.rmqi_event.emit_signal('datapath_leave',
+    nddi.rmqi_rpc.emit_signal('datapath_leave','OF.NOX.event',
         dpid=dp_id
     )
 
@@ -204,7 +204,7 @@ def barrier_reply_callback(nddi, dp_id, xid):
                         flows[intxid]["failed_flows"].append(flows[x])
                     del flows[x]
 
-    nddi.rmqi_event.emit_signal('barrier_reply',
+    nddi.rmqi_rpc.emit_signal('barrier_reply','OF.NOX.event',
         dpid=dp_id
     )
 
@@ -222,7 +222,7 @@ def error_callback(nddi, dpid, error_type, code, data, xid):
             
 
 def packet_in_callback(nddi, dpid,in_port,reason, length,buffer_id, data) :
-    nddi.rmqi_event.emit_signal('packet_in',
+    nddi.rmqi_rpc.emit_signal('packet_in','OF.NOX.event',
         dpid=dpid,
         in_port=in_port,
         reason=reason,
@@ -245,6 +245,15 @@ def _do_install(dpid,xid,match,actions):
     
     return 1
 
+
+def run(rabbit):
+    
+    def mainloop():
+        rabbit.fetch()
+        inst.post_callback(0.001, mainloop)
+        
+    mainloop()
+
 class nddi_rabbitmq(Component):
 
     def __init__(self, ctxt):
@@ -264,20 +273,17 @@ class nddi_rabbitmq(Component):
         # instantiate rabbitmq rpc interface
         self.rmqi_rpc = RMQI(
             exchange='OESS',
-            queue='OF.NOX.RPC'
+            queue='OF-NOX',
+            topic='OF.NOX.RPC'
         )
 
-        # instatiate rabbitmq event interface
-        self.rmqi_event = RMQI(
-            exchange='OESS',
-            queue='OF.NOX.event'
-        )
 
     def install(self):
 
         print "in install"
-        #gobject.threads_init()
-        #run_glib()
+
+        run(self.rmqi_rpc)
+
         self.flow_stats = {}
 
         #--- register for nox events 
@@ -327,19 +333,6 @@ class nddi_rabbitmq(Component):
         self.rmqi_rpc.subscribe_to_signal(method=self.send_datapath_flow)
         self.rmqi_rpc.subscribe_to_signal(method=self.send_barrier)
         self.rmqi_rpc.subscribe_to_signal(method=self.get_node_connect_status)
-        
-        # the event emitter doesn't actually need to be a thread
-        # we should revisit this and make it its own class that doesn't extend the threading module
-        self.rmqi_event.start()
-        while self.rmqi_event.connected is False:
-            logger.warn("rmqi_event connecting...")
-            time.sleep(1)
-        
-        print "starting rpc listener thread"
-        self.rmqi_rpc.start()
-        while self.rmqi_rpc.queue_declared is False:
-            logger.warn("rmqi_queue connecting...")
-            time.sleep(1)
         
     def fire_flow_stats_timer(self):
         for dpid in switches:
@@ -687,6 +680,7 @@ class nddi_rabbitmq(Component):
 
     # rmqi rpc method send_datapath_flow
     def send_datapath_flow(self, **kwargs):
+        stime = time.time() * 1000.0
         flow    = kwargs.get('flow')
         dpid    = int(flow["dpid"])
         attrs   = flow["match"]
@@ -740,6 +734,8 @@ class nddi_rabbitmq(Component):
                 actions.remove(action)
                 actions.insert(i, new_action)
 
+        parse_time = time.time() * 1000
+
         #--- first we check to make sure the switch is in a ready state to accept more flow mods
         xid = Component.send_datapath_flow(
             self,
@@ -756,9 +752,24 @@ class nddi_rabbitmq(Component):
             xid
         )
 
+        initial_send_time = time.time() * 1000
+
         logger.info("sent OFPFC: {0}, xid: {1}".format(command, xid))
         actions = [] if actions == None else actions
         _do_install(dpid,xid,my_attrs,actions)
+
+        etime = time.time() * 1000.0
+        
+        total_parse_time = parse_time - stime
+        logger.warn("Took: %f ms to parse flow" % total_parse_time)
+
+        send_time = initial_send_time - parse_time
+        logger.warn("Send Time: %f ms to send flow" % send_time)
+
+
+        total_time = etime - stime
+        logger.warn("Took: %f mss to send flow" % total_time)
+        
 
         return xid
 

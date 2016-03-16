@@ -41,7 +41,7 @@ use JSON;
 
 use Data::Dumper;
 
-use Time::HiRes qw( usleep );
+use Time::HiRes qw( usleep gettimeofday tv_interval);
 use constant FWDCTL_ADD_VLAN     => 0;
 use constant FWDCTL_REMOVE_VLAN  => 1;
 use constant FWDCTL_CHANGE_PATH  => 2;
@@ -412,6 +412,8 @@ sub add_vlan{
     my $m_ref = shift;
     my $p_ref = shift;
 
+    my $start = [gettimeofday];
+
     $self->{'logger'}->debug("in add_vlan");
 
     my $circuit = $p_ref->{'circuit_id'}{'value'};
@@ -420,16 +422,33 @@ sub add_vlan{
 
     $self->_update_cache();
 
+    my $after_update_cache = [gettimeofday];
+
+    $self->{'logger'}->info("Elapsed time to update cache: " . tv_interval( $start, $after_update_cache));
+
     my $commands = $self->_generate_commands($circuit,FWDCTL_ADD_VLAN);
+
+    my $after_create_flows = [gettimeofday];
+
+    $self->{'logger'}->info("Time to create flows: " . tv_interval( $after_update_cache, $after_create_flows));
     
     my $res = FWDCTL_SUCCESS;
 
     $self->send_flows( flows => $commands,
                        command => OFPFC_ADD,
                        cb => sub {
+			   my $barrier_start = [gettimeofday];
+			   $self->{'logger'}->info("Time to complete sending flows: " . tv_interval( $after_create_flows, $barrier_start));
                            $self->{'rabbit_mq'}->send_barrier( dpid => int($self->{'dpid'}),
                                                                async_callback => sub {
-                                                                   $self->get_node_status( cb =>  $m_ref->{'success_callback'} )
+                                                                   $self->get_node_status( cb =>  sub { my $res = shift; 
+													my $end = [gettimeofday];
+													$self->{'logger'}->info("Elapsed Time add_vlan: " . tv_interval( $start, $end ));
+													$self->{'logger'}->info("Time waiting on barrier: " . tv_interval( $barrier_start, $end));
+													my $cb = $m_ref->{'success_callback'};
+													&$cb($res);
+											   });
+								       
                                                                });
                        });
 
@@ -460,10 +479,13 @@ sub send_flows{
 
     if($cmd == OFPFC_ADD){
 	$self->{'flows'}++;
+	$self->{'logger'}->info("Installing Flow: " . $flow->to_human());
     }elsif($cmd == OFPFC_DELETE_STRICT || $cmd == OFPFC_DELETE){
 	$self->{'flows'}--;
+	$self->{'logger'}->info("Deleting Flow: " . $flow->to_human());
     }else{
 	#must be modify, in other words no del/or add
+	$self->{'logger'}->info("Modifying Flow: " . $flow->to_human());
     }
     
     if($self->{'flows'} > $self->{'node'}->{'max_flows'}){
@@ -841,7 +863,7 @@ sub flow_stats_callback{
 
     return sub {
 	my $results = shift;
-	$self->{'logger'}->error("Flow stats callback!!!!");
+	$self->{'logger'}->debug("Flow stats callback!!!!");
         
 	my $time = $results->{'results'}->[0]->{'timestamp'};
 	my $stats = $results->{'results'}->[0]->{'flow_stats'}; 
@@ -853,7 +875,7 @@ sub flow_stats_callback{
         }
 
         if($time > $self->{'needs_diff'}){
-	    $self->{'logger'}->error("About to diff");
+	    $self->{'logger'}->debug("About to diff");
             #---process the flow_rules into a lookup hash
             my $flows = $self->_process_stats_to_flows( $self->{'dpid'}, $stats);
             
@@ -861,7 +883,7 @@ sub flow_stats_callback{
             #--- do the diff
             $self->_do_diff($flows);
         }else{
-	    $self->{'logger'}->error("need to re-schedule the diff!");
+	    $self->{'logger'}->debug("need to re-schedule the diff!");
 	}
     }
 }
@@ -894,6 +916,7 @@ sub get_node_status{
 					       my $results = shift;
 					       if($results->{'results'}->[0]->{'status'} == FWDCTL_WAITING){
 						   $self->{'logger'}->debug("fetching node status again");
+						   usleep(100);
 						   $self->get_node_status( cb => $cb,
 									   timeout => $timeout );
 						   return;

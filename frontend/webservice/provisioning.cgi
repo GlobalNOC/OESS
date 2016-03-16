@@ -32,10 +32,11 @@ use Switch;
 use Data::Dumper;
 
 use GRNOC::RabbitMQ::Client;
-
+use Time::HiRes qw(usleep);
 use OESS::Database;
 use OESS::Topology;
 use OESS::Circuit;
+use Time::HiRes qw(gettimeofday tv_interval);
 
 use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
@@ -118,7 +119,7 @@ sub _fail_over {
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
-        sleep(1);
+        usleep(100);
         my $res = $client->get_event_status(event_id => $event_id);
 
         if($res->{'error'} || !defined($res->{'results'}) || !defined($res->{'results'}->{'status'})){
@@ -159,17 +160,14 @@ sub _send_add_command {
 
     my $final_res = FWDCTL_WAITING;
     while($final_res == FWDCTL_WAITING){
-        sleep(1);
+        usleep(100);
         my $res = $client->get_event_status(event_id => $event_id);
-
-        warn "RES: " . Data::Dumper::Dumper($res);
 
         if(defined($res->{'error'}) || !defined($res->{'results'})){
             return;
         }
 
         $final_res = $res->{'results'}->{'status'};
-        warn "Status: " . $res->{'results'}->{'status'} . "\n";
     }
 
     return $final_res;
@@ -204,17 +202,14 @@ sub _send_remove_command {
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
-        sleep(1);
+        usleep(100);
         my $res = $client->get_event_status(event_id => $event_id);
-
-	warn "RES: " . Data::Dumper::Dumper($res);
 
         if(defined($res->{'error'}) || !defined($res->{'results'})){
             return;
         }
 
         $final_res = $res->{'results'}->{'status'};
-	warn "Status: " . $res->{'results'}->{'status'} . "\n";
     }
 
     return $final_res;
@@ -250,7 +245,7 @@ sub _send_update_cache{
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
-        sleep(1);
+        usleep(100);
         my $res = $client->get_event_status(event_id => $event_id);
 
         if($res->{'error'} || $res->{'results'}){
@@ -265,6 +260,8 @@ sub _send_update_cache{
 
 sub provision_circuit {
     my $results;
+
+    my $start = [gettimeofday];
 
     $results->{'results'} = [];
 
@@ -304,12 +301,18 @@ sub provision_circuit {
     my $remote_url   = $cgi->param('remote_url');
     my $remote_requester = $cgi->param('remote_requester');
     
+    my $rabbit_mq_start = [gettimeofday];
+
     my $log_client  = new GRNOC::RabbitMQ::Client(
         topic => 'OF.Notification.event',
         exchange => 'OESS',
         user => 'guest',
         pass => 'guest'
         );
+
+    my $after_rabbit_mq = [gettimeofday];
+
+    warn "Time to create rabbitMQ: " . tv_interval( $rabbit_mq_start, $after_rabbit_mq);
 
     if ( !defined($log_client) ) {
         return;
@@ -332,6 +335,9 @@ sub provision_circuit {
     }
     if ( !$circuit_id || $circuit_id == -1 ) {
         #Register with DB
+
+	my $before_provision = [gettimeofday];
+
         $output = $db->provision_circuit(
             description    => $description,
             remote_url => $remote_url,
@@ -354,9 +360,19 @@ sub provision_circuit {
             state => $state
             );
 
+	my $after_provision = [gettimeofday];
+
+	warn "Time in DB: " . tv_interval( $before_provision, $after_provision);
+
         if(defined($output) && ($provision_time <= time()) && ($state eq 'active' || $state eq 'scheduled' || $state eq 'provisioned')) {
 
+	    my $before_add_command = [gettimeofday];
+
             my $result = _send_add_command( circuit_id => $output->{'circuit_id'} );
+
+	    my $after_add_command = [gettimeofday];
+
+	    warn "Time waiting for add: " . tv_interval( $before_add_command, $after_add_command);
 
             if ( !defined $result ) {
                 $output->{'warning'} =

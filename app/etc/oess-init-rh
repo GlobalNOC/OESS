@@ -95,6 +95,7 @@ sub status{
         }
     }
 
+
     if($db->is_vlan_stats_enabled()){
         my $res = system("/etc/init.d/oess-vlan_stats status");
         if($res != 0){
@@ -158,6 +159,7 @@ sub stop{
             $result = $res;;
         }
     }
+
 
     if($db->is_vlan_stats_enabled()){
         my $res = system("/etc/init.d/oess-vlan_stats stop");
