@@ -52,7 +52,7 @@ function init(){
 	                    this.set('disabled', true);
 			    this.set('label', 'Calculating shortest path...');
 			    
-			    var url = "services/data.cgi?action=get_shortest_path";
+			    var url = "services/data.cgi?method=get_shortest_path";
 			    
 			    for (var i = 0; i < session.data.endpoints.length; i++){
 			      var node = session.data.endpoints[i].node;

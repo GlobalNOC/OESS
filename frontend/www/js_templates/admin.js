@@ -361,7 +361,7 @@ function setup_remote_tab(){
                     
                     this.changeNodeImage(feature, this.ACTIVE_IMAGE);
 
-                    var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_node_interfaces&node="+encodeURIComponent(node) + "&show_down=1");
+                    var ds = new YAHOO.util.DataSource("../services/data.cgi?method=get_node_interfaces&node="+encodeURIComponent(node) + "&show_down=1");
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                     ds.responseSchema = {
                 resultsList: "results",
@@ -1573,7 +1573,7 @@ function setup_workgroup_tab(){
 
                 this.changeNodeImage(feature, this.ACTIVE_IMAGE);
 
-                var url = "../services/data.cgi?action=get_node_interfaces&node=" + encodeURIComponent(node) + "&show_down=1";
+                var url = "../services/data.cgi?method=get_node_interfaces&node=" + encodeURIComponent(node) + "&show_down=1";
                 if (workgroup_type === "admin") {
                   url = url + "&show_trunk=1";
                 }
@@ -1634,7 +1634,7 @@ function setup_workgroup_tab(){
                   var interface_id = rec.getData('interface_id');
 
                   //first check to see if this interface is already owned by another work group
-                  var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_interface&interface_id="+interface_id);
+                  var ds = new YAHOO.util.DataSource("../services/data.cgi?method=get_interface&interface_id="+interface_id);
                   ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                   ds.responseSchema = {
                     resultsList: "results",
@@ -2107,7 +2107,7 @@ function setup_network_tab(){
 
             });
 
-            var url =  "../services/data.cgi?action=get_link_by_name";
+            var url =  "../services/data.cgi?method=get_link_by_name";
                 url += "&name="+ encodeURIComponent(link_name);
 
             var ds = new YAHOO.util.DataSource(url);
@@ -2363,7 +2363,7 @@ function setup_network_tab(){
         }
         
         function make_node_intf_table(){
-            var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_node_interfaces&show_down=1&show_trunk=1&node="+encodeURIComponent(node) );
+            var ds = new YAHOO.util.DataSource("../services/data.cgi?method=get_node_interfaces&show_down=1&show_trunk=1&node="+encodeURIComponent(node) );
             
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                     ds.responseSchema = {
@@ -3584,9 +3584,9 @@ function getMoveIntForm(container_id, config){
     var getOptions = function(selector_types, obj){
         var url;
         if((selector_types.length === 1) && (selector_types[0] === "node")){
-            url = "../services/data.cgi?action=get_nodes";
+            url = "../services/data.cgi?method=get_nodes";
         }else {
-            url = "../services/data.cgi?action=get_node_interfaces"+
+            url = "../services/data.cgi?method=get_node_interfaces"+
                   "&show_down=0"+
                   "&show_trunk=0"+
                   "&node="+obj.node;
@@ -3682,7 +3682,7 @@ function getMoveIntForm(container_id, config){
         // callback for when original interface selector changes
         var changeInterface = function(interface_id){ 
             if(!interface_id){ return; }
-            var url = "../services/data.cgi?action=get_circuits_by_interface_id"+
+            var url = "../services/data.cgi?method=get_circuits_by_interface_id"+
                       "&interface_id="+interface_id;                   
             var ds  = new YAHOO.util.DataSource(url);
             ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
@@ -3836,7 +3836,7 @@ function getMoveIntForm(container_id, config){
 }
 
 function makeOwnedInterfaceTable(id){
-    var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_workgroup_interfaces&workgroup_id="+id);
+    var ds = new YAHOO.util.DataSource("../services/data.cgi?method=get_workgroup_interfaces&workgroup_id="+id);
 
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
