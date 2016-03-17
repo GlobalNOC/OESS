@@ -143,6 +143,12 @@ sub new {
 
     $self->{'logger'}->info("RabbitMQ ready to go!");
 
+    # When this process receives sigterm send an event to notify all
+    # children to exit cleanly.
+    $SIG{TERM} = sub {
+        $self->stop();
+    };
+
     #from TOPO startup
     my $nodes = $self->{'db'}->get_current_nodes();
     foreach my $node (@$nodes) {
@@ -425,6 +431,10 @@ sub register_rpc_methods{
 
     $d->register_method($method);
 
+    $method = GRNOC::RabbitMQ::Method->new( name => 'echo',
+                                            callback => sub { $self->echo(@_) },
+                                            description => "Always returns 1" );
+    $d->register_method($method);
 }
 
 
@@ -2084,6 +2094,30 @@ sub get_ckt_object{
     }
 
     return $ckt;
+}
+
+=head2 echo
+
+Always returns 1.
+
+=cut
+sub echo {
+    my $self = shift;
+    return {status => 1};
+}
+
+=head2 stop
+
+Sends a shutdown signal on OF.FWDCTL.event.stop. Child processes
+should listen for this signal and cleanly exit when received.
+
+=cut
+sub stop {
+    my $self = shift;
+
+    $self->{'logger'}->info("Sending OF.FWDCTL.event.stop to listeners");
+    $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.event";
+    $self->{'fwdctl_events'}->stop();
 }
 
 1;
