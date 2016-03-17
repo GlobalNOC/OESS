@@ -24,7 +24,7 @@ function init(){
 }
 
 function make_circuit_details_datasource(){
-    var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_circuit_details&circuit_id="+session.data.circuit_id);
+    var ds = new YAHOO.util.DataSource("services/data.cgi?method=get_circuit_details&circuit_id="+session.data.circuit_id);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
 	resultsList: "results",
@@ -822,7 +822,7 @@ function setupMeasurementGraph(){
 function setupScheduledEvents(){
 
 
-    var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_circuit_scheduled_events&circuit_id="+session.data.circuit_id);
+    var ds = new YAHOO.util.DataSource("services/data.cgi?method=get_circuit_scheduled_events&circuit_id="+session.data.circuit_id);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
     ds.responseSchema = {
@@ -889,7 +889,7 @@ function setupScheduledEvents(){
 }
 
 function setupCLR(){
-    var ds = new YAHOO.util.DataSource("services/data.cgi?action=generate_clr&circuit_id=" + session.data.circuit_id);
+    var ds = new YAHOO.util.DataSource("services/data.cgi?method=generate_clr&circuit_id=" + session.data.circuit_id);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     
     ds.responseSchema = {
@@ -909,7 +909,7 @@ function setupCLR(){
 		//do something
 	    }});
 
-    var ds2 = new YAHOO.util.DataSource("services/data.cgi?action=generate_clr&circuit_id=" + session.data.circuit_id + "&raw=1");
+    var ds2 = new YAHOO.util.DataSource("services/data.cgi?method=generate_clr&circuit_id=" + session.data.circuit_id + "&raw=1");
     ds2.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
     ds2.responseSchema = {
@@ -933,7 +933,7 @@ function setupCLR(){
 
 function setupHistory(){
 
-    var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_circuit_history&circuit_id=" + session.data.circuit_id);
+    var ds = new YAHOO.util.DataSource("services/data.cgi?method=get_circuit_history&circuit_id=" + session.data.circuit_id);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
     ds.responseSchema = {

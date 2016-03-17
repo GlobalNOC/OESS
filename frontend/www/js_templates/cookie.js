@@ -40,7 +40,7 @@ function Cookie(){
       if (location.href.match(/action=index/ && workgroup_id) ){
 	  this.data.workgroup_id = workgroup_id;
 	  
-	  var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_workgroups");
+	  var ds = new YAHOO.util.DataSource("services/data.cgi?method=get_workgroups");
 	  ds.responseType   = YAHOO.util.DataSource.TYPE_JSON;
 	  ds.responseSchema = {
 	      resultsList: "results",
