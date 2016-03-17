@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-
+# chkconfig: 2345 81 30
 use strict;
 use warnings;
 
