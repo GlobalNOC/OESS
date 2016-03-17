@@ -52,14 +52,12 @@ sub core{
     my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => sub { $FWDCTL->reap_old_events() } );
 
     AnyEvent->condvar->recv;
-
 }
 
 sub main{
     my $is_daemon = 0;
     my $verbose;
     my $username;
-
     #remove the ready file
 
     #--- see if the pid file exists. if not then just continue running.
@@ -108,15 +106,18 @@ sub main{
                                        );
         }
 
+        # Init returns the PID (scalar) of the daemon to the parent, or
+        # the PIDs (array) of the daemons created if exec_command has
+        # more then one program to execute.
+        # 
+        # Init returns 0 to the child (daemon).
         my $kid_pid = $daemon->Init;
-	
         if ($kid_pid) {
-            `chmod 0644 $pid_file`;
-            #how to wait until the child process is ready...
+            `chmod 0644 $pid_file`; # How to wait until the child process is ready.
             return;
+        } else {
+            core();
         }
-
-	core();
     }
     #not a deamon, just run the core;
     else {

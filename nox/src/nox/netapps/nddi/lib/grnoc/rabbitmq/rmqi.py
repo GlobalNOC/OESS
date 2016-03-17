@@ -117,10 +117,10 @@ class RMQI():
 
     def emit_signal(self, signal_name, topic, **kwargs):
         print "Emitting signal!!!! with: {0}".format(kwargs)
-        logger.warn("Emitting signal: {0}.{1}".format(self.queue, signal_name))
+        logger.warn("Emitting signal: {0}.{1}".format(topic, signal_name))
         self.channel.basic_publish(
             self.exchange,
-            '{0}.{1}'.format(self.queue, signal_name),
+            '{0}.{1}'.format(topic, signal_name),
             self._encode_json(kwargs, signal=True),
             properties=pika.BasicProperties(
                 headers={
