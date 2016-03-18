@@ -138,7 +138,7 @@ sub _execute_node_maintenance {
         port => 5672
     );
     if ( !defined($client) ) {
-        warn "Could not communicate with FWDCTL. Please check rabbitmq-server."
+        warn "Could not communicate with FWDCTL. Please check rabbitmq-server.";
         return;
     }
 
