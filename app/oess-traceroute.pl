@@ -21,7 +21,6 @@ sub main{
                              "daemon|d"  => \$is_daemon,
         );
 
-
     #now change username/
     if (defined $username) {
         my $new_uid=getpwnam($username);
@@ -30,6 +29,8 @@ sub main{
         $EUID=$new_uid;
     }
 
+    my $logger = Log::Log4perl->init_and_watch('/etc/oess/logging.conf');
+    
     if ($is_daemon != 0) {
         my $daemon;
         if ($verbose) {
@@ -44,32 +45,15 @@ sub main{
                 );
         }
         my $kid_pid = $daemon->Init;
-
         if ($kid_pid) {
             return;
         }
-        my $logger = Log::Log4perl->init_and_watch('/etc/oess/logging.conf');
-
-
-#        my $bus = Net::DBus->system;
-#        my $service = $bus->export_service("org.nddi.traceroute");
-#        my $traceroute = OESS::Traceroute->new($service);
-
-	my $traceroute = OESS::Traceroute->new();
-
-    }
-    #not a deamon, just run the core;
-    else {
+    } else { # Not a deamon, just run the core;
         $SIG{HUP} = sub{ exit(0); };
-        my $logger = Log::Log4perl->init_and_watch('/etc/oess/logging.conf');
-
-#        my $bus = Net::DBus->system;
-#        my $service = $bus->export_service("org.nddi.traceroute");
-#        my $traceroute = OESS::Traceroute->new($service);
-
-	my $traceroute = OESS::Traceroute->new();
     }
 
+    my $traceroute = OESS::Traceroute->new();
+    $traceroute->start();
 }
 
 main();
