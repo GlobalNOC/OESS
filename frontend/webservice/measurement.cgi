@@ -81,7 +81,7 @@ sub register_webservice_methods {
     #get_circuit_data()
     $method = GRNOC::WebService::Method->new(
 	name            => "get_circuit_data",
-	description     => "returns a list of workgroups the logged in user has access to",
+	description     => "returns JSON formatted usage statistics for a circuit from start time to end time, and for a specific node or interface in the circuit.",
 	callback        => sub { get_circuit_data( @_ ) }
 	);
 
