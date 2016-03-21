@@ -25,7 +25,7 @@
 use strict;
 use warnings;
 
-use CGI;
+
 use JSON;
 use Switch;
 #use Net::DBus::Exporter qw(org.nddi.fwdctl);
@@ -34,7 +34,7 @@ use Data::Dumper;
 use OESS::Database;
 use OESS::Topology;
 use OESS::Circuit;
-
+use GRNOC::WebService;
 use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
@@ -42,7 +42,8 @@ use constant FWDCTL_UNKNOWN     => 3;
 
 my $db = new OESS::Database();
 
-my $cgi = new CGI;
+#register web service dispatcher
+my $svc = GRNOC::WebService::Dispatcher->new();
 
 $| = 1;
 
@@ -52,38 +53,315 @@ sub main {
         send_json( { "error" => "Unable to connect to database." } );
         exit(1);
     }
-    my $action = $cgi->param('action');
-    my $output;
+
+    if ( !$svc ){
+	send_json( {"error" => "Unable to access GRNOC::WebService" });
+	exit(1);
+    }
+    
     my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
     if ($user->{'status'} eq 'decom') {
         $action = "error";
     }
-    switch ($action) {
 
-        case "provision_circuit" {
-	    $output = &provision_circuit();
-	}
-        case "remove_circuit" {
-            $output = &remove_circuit();
-        }
-        case "fail_over_circuit" {
-            $output = &fail_over_circuit();
-        }
-        case "reprovision_circuit"{
-            $output = &reprovision_circuit();
-        }
-        case "error" {
-            $output = { error => "Decommed users cannot use webservices."};
-        } 
-        else {
-            $output = {
-                       error => "Unknown action - $action"
-                      };
-        }
+    #register the WebService Methods
+    register_webservice_methods();
 
-    }
+    #handle the WebService request.
+    $svc->handle_request();
+        
+}
 
-    send_json($output);
+sub register_webservice_methods {
+    
+    my $method;
+    
+    #provision circuit
+    $method = GRNOC::WebService::Method->new(
+	name            => "provision_circuit",
+	description     => "Adds or modifies a circuit on the network",
+	callback        => sub { provision_circuit( @_ ) }
+	);
+
+    #add the required input parameter workgroup_id
+    $method->add_input_parameter(
+	name            => 'workgroup_id',
+	pattern         => $GRNOC::WebService::Regex::INTEGER,
+	required        => 1,
+	description     => "The workgroup_id with permission to build the circuit, the user must be a member of this workgroup."
+	); 
+    
+    #add the optional input parameter external_identifier
+     $method->add_input_parameter(
+	 name            => 'external_identifier',
+	 pattern         => $GRNOC::WebService::Regex::TEXT,
+	 required        => 0,
+	 description     => "External Identifier of the circuit"
+	 ); 
+
+
+    #add the optional input parameter circuit_id
+     $method->add_input_parameter(
+	 name            => 'circuit_id',
+	 pattern         => $GRNOC::WebService::Regex::INTEGER,
+	 required        => 0,
+	 description     => "---1 or undefined indicated circuit is to be added."
+	 ); 
+    
+    #add the required input parameter description
+     $method->add_input_parameter(
+	 name            => 'description',
+	 pattern         => $GRNOC::WebService::Regex::INTEGER,
+	 required        => 1,
+	 description     => "The description of the circuit."
+	 ); 
+
+    #add the optional input parameter bandwidth
+     $method->add_input_parameter(
+	 name            => 'bandwidth',
+	 pattern         => $GRNOC::WebService::Regex::INTEGER,
+	 required        => 0,
+	 description     => "The dedicated bandwidth of the circuit in Mbps."
+	 ); 
+
+    #add the required input parameter provision_time
+    $method->add_input_parameter(
+	name            => 'provision_time',
+	pattern         => '^(\d+)$'
+	required        => 1,
+	description     => "Timestamp of when circuit should be created in epoch time format. - 1 means now."
+	); 
+
+    #add the required input parameter remove_time
+     $method->add_input_parameter(
+	 name            => 'remove_time',
+	 pattern         => '^(\d+)$'
+	 required        => 1,
+	 description     => "The time the circuit should be removed from the network in epoch time format. ---1 means never."
+	 ); 
+    
+    #add the optional input parameter restore_to_primary
+    $method->add_input_parameter(
+	name            => 'restore_to_primary',
+	pattern         => $GRNOC::WebService::Regex::INTEGER,
+	required        => 0,
+	description     => "Time in minutes to restore to primary (setting to 0 disables restore to primary)."
+	); 
+
+    #add the optional input parameter static_mac
+    $method->add_input_parameter(
+	name            => 'static_mac',
+	pattern         => $GRNOC::WebService::Regex::BOOLEAN,
+	required        => 1,
+	description     => "Specifies if a circuit to beprovisioned is static_mac or not. Default is ‘0’."
+	); 
+
+    #add the required input parameter link
+    $method->add_input_parameter(
+	name            => 'link',
+	pattern         => $GRNOC::WebService::Regex::TEXT,
+	required        => 1,
+	multiple        => 1,
+	description     => "Array of names of links to be used in the primary path."
+	); 
+
+    #add the required input parameter backup_link
+    $method->add_input_parameter(
+	name            => 'backup_link',
+        pattern         => $GRNOC::WebService::Regex::TEXT,
+        required        => 1,
+        multiple        => 1,
+        description     => "Array of names of links to be used in the backup path."
+	);
+
+    #add the required input parameter node
+    $method->add_input_parameter(
+        name            => 'node',
+        pattern         => $GRNOC::WebService::Regex::TEXT,
+        required        => 1,
+        multiple        => 1,
+        description     => "Array of nodes to be used."
+	);
+
+    #add the required input parameter interface
+    $method->add_input_parameter(
+        name            => 'interface',
+        pattern         => $GRNOC::WebService::Regex::TEXT,
+        required        => 1,
+        multiple        => 1,
+        description     => "Array of interfaces to be used. Note that interface[0] is on node[0]."
+	);
+
+    #add the required input parameter tag
+    $method->add_input_parameter(
+        name            => 'tag',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        multiple        => 1,
+        description     => "An array of vlan tags to be used on each interface. Note that tag[0] is on interface[0] and tag[1] is on interface[1]."
+	);
+
+    #add the optional paramter loop_node
+    $method->add_input_parameter(
+        name            => 'loop_node',
+        pattern         => $GRNOC::WebService::Regex::TEXT,
+        required        => 0,
+        description     => "The node to be included when the circuit is looped."
+	);
+
+    #add the optional input parameter mac_addressess
+    $method->add_input_parameter(
+        name            => 'mac_address',
+        pattern         => $GRNOC::WebService::Regex::MAC_ADDRESS,
+        required        => 0,
+        multiple        => 1,
+        description     => "Array of mac address of endpoints for static mac circuits."
+	);
+
+    #add the optional input parameter endpoint_mac_address_num
+    $method->add_input_parameter(
+        name            => 'endpoint_mac_address_num',
+        pattern         => $GRNOC::WebService::Regex::MAC_ADDRESS,
+        required        => 0,
+        multiple        => 1,
+        description     => "Array of mac address of endpoints for static mac circuits."
+        );
+
+    #add the optional input parameter state
+    $method->add_input_parameter(
+	name            => 'state',
+	pattern         => $GRNOC::WebService::Regex::TEXT,
+	required        => 0,
+	description     => "The state of the circuit."
+	); 
+
+    #add the optional input parameter remote_node
+    $method->add_input_parameter(
+	name            => 'remote_node',
+	pattern         => $GRNOC::WebService::Regex::TEXT,
+	required        => 0,
+	multiple        => 1,
+	description     => "Array of OSCARS URNs to use as endpoints for IDC based circuits."
+	); 
+
+    #add the optional input parameter remote_tag
+    $method->add_input_parameter(
+        name            => 'remote_tag',
+        pattern         => $GRNOC::WebService::Regex::TEXT,
+        required        =>  0,
+	multiple        =>  1,
+        description     => "VLAN tags to be used on the IDC endpoints."
+	);
+
+    #add the optional input parameter remote_url
+    $method->add_input_parameter(
+        name            => 'remote_url',
+        pattern         => $GRNOC::WebService::Regex::TEXT,
+        required        => 0,
+        description     => "The remote URL for the IDC"
+	);
+
+    #add the optiona input parameter remote_requester
+    $method->add_input_parameter(
+        name            => 'remote_requester',
+        pattern         => $GRNOC::WebService::Regex::TEXT,
+        required        => 0,
+        description     => "The remote requester."
+	);
+
+    #register the provision_circuit() method
+    $svc->register_method($method);
+
+    #remove_circuit()
+    $method = GRNOC::WebService::Method->new(
+	name            => "remove_circuit",
+	description     => "Removes a circuit from the network, and returns success if the circuit has been removed successfully or scheduled for removal from the network."
+	callback        => sub { remove_circuit( @_ ) }
+	);
+
+    #add the required input parameter circuit_id
+    $method->add_input_parameter(
+        name            => 'circuit_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "The id of the circuit to be removed."
+        );
+    
+    #add the required input parameter remove_time
+    $method->add_input_parameter(
+        name            => 'remove_time',
+        pattern         => '^(\d+)$'
+        required        => 1,
+        description     => "The time for the circuit to be removed in epoch time. ---1 means now."
+        );
+    #add the required input paramater workgroup_id
+    $method->add_input_parameter(
+        name            => 'workgroup_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "The workgroup ID that the circuit belongs to."
+        );
+    
+    #register the remove_circuit() method
+    $svc->register_method($method);
+
+    #fail_over_circuit()
+     $method = GRNOC::WebService::Method->new(
+	 name            => "fail_over_circuit",
+	 description     => "Changes a circuit over to its backup path (if it has one)",
+	 callback        => sub {  fail_over_circuit( @_ ) }
+	 );
+
+    #register the required input parameter circuit_id
+    $method->add_input_parameter(
+        name            => 'circuit_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "The id of the circuit to be failed over."
+        );
+    #register the required input parameter workgroup_id
+    $method->add_input_parameter(
+        name            => 'workgroup_id',
+	pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+	description     => "The workgroup ID that the circuit belongs to."
+	);
+
+    #register the optional input parameter forced
+    $method->add_input_parameter(
+        name            => 'force',
+        pattern         => $GRNOC::WebService::Regex::BOOLEAN,
+        required        => 0,
+        description     => "If the circuit has to be forcefully failed over even if alternate path is down."
+        );
+
+    #register the fail_over_circuit() method
+    $svc->register_method($method);
+
+    #reprovision_circuit 
+    $method = GRNOC::WebService::Method->new(
+	name            => "reprovision_circuit ",
+	description     => "Removes and re---installs all flow rules related to a circuit on the network.",
+	callback        => sub {  reprovision_circuit ( @_ ) }
+	);
+
+    #register the required input parameter circuit_id
+    $method->add_input_parameter(
+        name            => 'circuit_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "The id of the circuit to be re-provisioned."
+        );
+    #register the required input parameter workgroup_id
+    $method->add_input_parameter(
+        name            => 'workgroup_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "The workgroup ID that the circuit belongs to."
+        );
+
+    #register the reprovision_circuit()  method
+    $svc->register_method($method);
 
 }
 
