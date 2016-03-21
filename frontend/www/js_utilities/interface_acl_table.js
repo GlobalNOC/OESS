@@ -4,7 +4,7 @@
         }
         var options = options || {};
 
-        var dsString="services/workgroup_manage.cgi?action=get_acls&interface_id="+interface_id;
+        var dsString="services/workgroup_manage.cgi?method=get_acls&interface_id="+interface_id;
         if(options.url_prefix){
             dsString = options.url_prefix + dsString;
         }
@@ -60,7 +60,7 @@
 
 
         //make drag drop
-        var url = "services/workgroup_manage.cgi?action=update_acl";
+        var url = "services/workgroup_manage.cgi?method=update_acl";
         if(options.url_prefix){
             url = options.url_prefix + url;
         }
