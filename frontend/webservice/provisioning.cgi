@@ -1,4 +1,4 @@
-#!/usr/bin/perl -T
+#!/usr/bin/perl -T 
 #
 ##----- NDDI OESS provisioning.cgi
 ##-----
@@ -61,7 +61,8 @@ sub main {
     
     my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
     if ($user->{'status'} eq 'decom') {
-        $action = "error";
+        send_json("error");
+	exit(1);
     }
 
     #register the WebService Methods
@@ -111,7 +112,7 @@ sub register_webservice_methods {
     #add the required input parameter description
      $method->add_input_parameter(
 	 name            => 'description',
-	 pattern         => $GRNOC::WebService::Regex::INTEGER,
+	 pattern         => $GRNOC::WebService::Regex::TEXT,
 	 required        => 1,
 	 description     => "The description of the circuit."
 	 ); 
@@ -127,7 +128,7 @@ sub register_webservice_methods {
     #add the required input parameter provision_time
     $method->add_input_parameter(
 	name            => 'provision_time',
-	pattern         => '^(\d+)$'
+	pattern         => $GRNOC::WebService::Regex::TEXT,
 	required        => 1,
 	description     => "Timestamp of when circuit should be created in epoch time format. - 1 means now."
 	); 
@@ -135,7 +136,7 @@ sub register_webservice_methods {
     #add the required input parameter remove_time
      $method->add_input_parameter(
 	 name            => 'remove_time',
-	 pattern         => '^(\d+)$'
+	 pattern         => $GRNOC::WebService::Regex::TEXT,
 	 required        => 1,
 	 description     => "The time the circuit should be removed from the network in epoch time format. ---1 means never."
 	 ); 
@@ -152,7 +153,7 @@ sub register_webservice_methods {
     $method->add_input_parameter(
 	name            => 'static_mac',
 	pattern         => $GRNOC::WebService::Regex::BOOLEAN,
-	required        => 1,
+	required        => 0,
 	description     => "Specifies if a circuit to beprovisioned is static_mac or not. Default is ‘0’."
 	); 
 
@@ -169,7 +170,7 @@ sub register_webservice_methods {
     $method->add_input_parameter(
 	name            => 'backup_link',
         pattern         => $GRNOC::WebService::Regex::TEXT,
-        required        => 1,
+        required        => 0,
         multiple        => 1,
         description     => "Array of names of links to be used in the backup path."
 	);
@@ -212,7 +213,7 @@ sub register_webservice_methods {
     #add the optional input parameter mac_addressess
     $method->add_input_parameter(
         name            => 'mac_address',
-        pattern         => $GRNOC::WebService::Regex::MAC_ADDRESS,
+        pattern         => $GRNOC::WebService::Regex::TEXT,
         required        => 0,
         multiple        => 1,
         description     => "Array of mac address of endpoints for static mac circuits."
@@ -221,7 +222,7 @@ sub register_webservice_methods {
     #add the optional input parameter endpoint_mac_address_num
     $method->add_input_parameter(
         name            => 'endpoint_mac_address_num',
-        pattern         => $GRNOC::WebService::Regex::MAC_ADDRESS,
+        pattern         => $GRNOC::WebService::Regex::TEXT,
         required        => 0,
         multiple        => 1,
         description     => "Array of mac address of endpoints for static mac circuits."
@@ -275,7 +276,7 @@ sub register_webservice_methods {
     #remove_circuit()
     $method = GRNOC::WebService::Method->new(
 	name            => "remove_circuit",
-	description     => "Removes a circuit from the network, and returns success if the circuit has been removed successfully or scheduled for removal from the network."
+	description     => "Removes a circuit from the network, and returns success if the circuit has been removed successfully or scheduled for removal from the network.",
 	callback        => sub { remove_circuit( @_ ) }
 	);
 
@@ -290,7 +291,7 @@ sub register_webservice_methods {
     #add the required input parameter remove_time
     $method->add_input_parameter(
         name            => 'remove_time',
-        pattern         => '^(\d+)$'
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 1,
         description     => "The time for the circuit to be removed in epoch time. ---1 means now."
         );
@@ -300,6 +301,14 @@ sub register_webservice_methods {
         pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 1,
         description     => "The workgroup ID that the circuit belongs to."
+        );
+    
+    #add the optional input parameter force
+    $method->add_input_parameter(
+        name            => 'force',
+        pattern         => $GRNOC::WebService::Regex::BOOLEAN,
+        required        => 0,
+        description     => "Clear the database regardless of whether fwdctl reported success or not."
         );
     
     #register the remove_circuit() method
@@ -362,7 +371,7 @@ sub register_webservice_methods {
 
     #register the reprovision_circuit()  method
     $svc->register_method($method);
-
+    
 }
 
 sub _fail_over {
@@ -519,29 +528,30 @@ sub _send_update_cache{
 }
 
 sub provision_circuit {
+
+    
+    my ( $method, $args ) = @_ ;
     my $results;
 
     $results->{'results'} = [];
 
-
     my $output;
 
-    my $workgroup_id = $cgi->param('workgroup_id');
-    my $external_id  = $cgi->param('external_identifier');
+    my $workgroup_id = $args->{'workgroup_id'}{'value'};
+    my $external_id  = $args->{'external_identifier'}{'value'} || undef;
 
-    my $circuit_id  = $cgi->param('circuit_id');
-    my $description = $cgi->param('description');
-    my $bandwidth   = $cgi->param('bandwidth');
+    my $circuit_id  = $args->{'circuit_id'}{'value'} || undef;
+    my $description = $args->{'description'}{'value'};
 
     # TEMPORARY HACK UNTIL OPENFLOW PROPERLY SUPPORTS QUEUING. WE CANT
     # DO BANDWIDTH RESERVATIONS SO FOR NOW ASSUME EVERYTHING HAS 0 BANDWIDTH RESERVED
-    $bandwidth = 0;
+    my $bandwidth   = $args->{'bandwidth'} || 0;
 
-    my $provision_time = $cgi->param('provision_time');
-    my $remove_time    = $cgi->param('remove_time');
+    my $provision_time = $args->{'provision_time'}{'value'};
+    my $remove_time    = $args->{'remove_time'}{'value'};
 
-    my $restore_to_primary = $cgi->param('restore_to_primary');
-    my $static_mac = $cgi->param('static_mac');
+    my $restore_to_primary = $args->{'restore_to_primary'}{'value'} || 0;
+    my $static_mac = $args->{'static_mac'}{'value'} || 0;
 
     my $bus = Net::DBus->system;
     my $log_svc;
@@ -553,37 +563,40 @@ sub provision_circuit {
     warn $@ if $@;
 
 
-    my @links         = $cgi->param('link');
-    my @backup_links  = $cgi->param('backup_link');
-    my @nodes         = $cgi->param('node');
-    my @interfaces    = $cgi->param('interface');
-    my @tags          = $cgi->param('tag');
-    my @mac_addresses = $cgi->param('mac_address');
-    my @endpoint_mac_address_nums = $cgi->param('endpoint_mac_address_num');
-    my $loop_node   =$cgi->param('loop_node');
+    my @links         = $args->{'link'}{'value'};
+    my @backup_links  = $args->{'backup_link'}{'value'};
+    my @nodes         = $args->{'node'}{'value'};
+    my @interfaces    = $args->{'interface'}{'value'};
+    my @tags          = $args->{'tag'}{'value'};
+    my @mac_addresses = $args->{'mac_address'}{'value'};
+    my @endpoint_mac_address_nums = $args->{'endpoint_mac_address_num'}{'value'};
+    my $loop_node   =$args->{'loop_node'}{'value'};
     #my $loop_name = $cgi->param('loop_name');
-    my $state = $cgi->param('state') || 'active';
-
-    my @remote_nodes = $cgi->param('remote_node');
-    my @remote_tags  = $cgi->param('remote_tag');
+    my $state = $args->{'state'}{'value'} || 'active';
     
-    my $remote_url   = $cgi->param('remote_url');
-    my $remote_requester = $cgi->param('remote_requester');
+    my @remote_nodes = $args->{'remote_node'}{'value'};
+    my @remote_tags  = $args->{'remote_tag'}{'value'};
+    
+    my $remote_url   = $args->{'remote_url'}{'value'};
+    my $remote_requester = $args->{'remote_requester'}{'value'};
     
     my $workgroup = $db->get_workgroup_by_id( workgroup_id => $workgroup_id );
 
     if(!defined($workgroup)){
-	return {error => 'unable to find workgroup $workgroup_id'};
+	$method->set_error("unable to find workgroup $workgroup_id");
+	return;
     }elsif ( $workgroup->{'name'} eq 'Demo' ) {
-        return { error => 'sorry this is a demo account, and can not actually provision' };
+        $method->set_error('sorry this is a demo account, and can not actually provision');
+	return;
     }elsif($workgroup->{'status'} eq 'decom'){
-	return {error => 'The selected workgroup is decomissioned and unable to provision'};
+	$method->set_error('The selected workgroup is decomissioned and unable to provision');
+	return;
     }
 
     my $user = $db->get_user_by_id(user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
 
     if($user->{'type'} eq 'read-only'){
-        return {error => 'You are a read-only user and unable to provision'};
+        $method->set_error('You are a read-only user and unable to provision');
     }
     if ( !$circuit_id || $circuit_id == -1 ) {
         #Register with DB
@@ -594,13 +607,13 @@ sub provision_circuit {
             bandwidth      => $bandwidth,
             provision_time => $provision_time,
             remove_time    => $remove_time,
-            links          => \@links,
-            backup_links   => \@backup_links,
-            nodes          => \@nodes,
-            interfaces     => \@interfaces,
-            tags           => \@tags,
-            mac_addresses  => \@mac_addresses,
-            endpoint_mac_address_nums  => \@endpoint_mac_address_nums,
+            links          => @links,
+            backup_links   => @backup_links,
+            nodes          => @nodes,
+            interfaces     => @interfaces,
+            tags           => @tags,
+            mac_addresses  => @mac_addresses,
+            endpoint_mac_address_nums  => @endpoint_mac_address_nums,
             user_name      => $ENV{'REMOTE_USER'},
             workgroup_id   => $workgroup_id,
             external_id    => $external_id,
@@ -620,15 +633,16 @@ sub provision_circuit {
 
             # failure, remove the circuit now
             if ( $result == 0 ) {
-                $cgi->param( 'circuit_id',  $output->{'circuit_id'} );
-                $cgi->param( 'remove_time', -1 );
-                $cgi->param( 'force',       1 );
-                my $removal = remove_circuit();
+		my $removal = remove_circuit(
+		    circuit_id => $output->{'circuit_id'},
+		    remove_time => -1,
+		    force => 1,
+		    workgroup_id => $workgroup_id
+		    );
 
                 #warn "Removal status: " . Data::Dumper::Dumper($removal);
-                $results->{'error'} =
-                  "Unable to provision circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been removed.";
-                return $results;
+                $method->set_error("Unable to provision circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been removed.");
+		return;
             }
 
             #if we're here we've successfully provisioned onto the network, so log notification.
@@ -653,13 +667,13 @@ sub provision_circuit {
             provision_time => $provision_time,
             restore_to_primary => $restore_to_primary,
             remove_time    => $remove_time,
-            links          => \@links,
-            backup_links   => \@backup_links,
-            nodes          => \@nodes,
-            interfaces     => \@interfaces,
-            tags           => \@tags,
-            mac_addresses  => \@mac_addresses,
-            endpoint_mac_address_nums  => \@endpoint_mac_address_nums,
+            links          => @links,
+            backup_links   => @backup_links,
+            nodes          => @nodes,
+            interfaces     => @interfaces,
+            tags           => @tags,
+            mac_addresses  => @mac_addresses,
+            endpoint_mac_address_nums  => @endpoint_mac_address_nums,
             user_name      => $ENV{'REMOTE_USER'},
             workgroup_id   => $workgroup_id,
             do_external    => 0,
@@ -680,23 +694,20 @@ sub provision_circuit {
         my $result = _send_remove_command( circuit_id => $circuit_id );
         if ( !$result ) {
             $output->{'warning'} =
-              "Unable to talk to fwdctl service - is it running?";
-              $results->{'error'} = "Unable to talk to fwdctl service - is it running?";
+		"Unable to talk to fwdctl service - is it running?";
+	    $method->set_error("Unable to talk to fwdctl service - is it running?");
 
-            return $results;
+            return;
         }
         if ( $result == 0 ) {
-            $results->{'error'} =
-              "Unable to remove circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been left in the database.";
-            return $results;
+            $method->set_error("Unable to remove circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been left in the database.");
+            return;
         }
         # modify database entry
         $output = $db->edit_circuit(%edit_circuit_args);
         if (!$output) {
-            return {
-                'error'   =>  $db->get_error(),
-                'results' => []
-            };
+            $method->set_error( db->get_error() );
+	    return;
         }
         # add flows on switch
         if($state eq 'active' || $state eq 'looped'){
@@ -706,9 +717,8 @@ sub provision_circuit {
                     "Unable to talk to fwdctl service - is it running?";
             }
             if ( $result == 0 ) {
-                $results->{'error'} =
-                    "Unable to edit circuit. Please check your logs or contact your server adminstrator for more information. Circuit is likely not live on the network anymore.";
-                return $results;
+                $method->set_error("Unable to edit circuit. Please check your logs or contact your server adminstrator for more information. Circuit is likely not live on the network anymore.");
+                return;
             }
         }
 
@@ -726,7 +736,8 @@ sub provision_circuit {
     }
 
     if ( !defined $output ) {
-        $results->{'error'} = $db->get_error();
+        $method->set_error( $db->get_error() );
+	return;
     } else {
         $results->{'results'} = $output;
     }
@@ -735,18 +746,20 @@ sub provision_circuit {
 }
 
 sub remove_circuit {
+
+    my ( $method, $args ) = @_ ;
     my $results;
 
-    my $circuit_id   = $cgi->param('circuit_id');
-    my $remove_time  = $cgi->param('remove_time');
-    my $workgroup_id = $cgi->param('workgroup_id');
+    my $circuit_id   = $args->{'circuit_id'}{'value'};
+    my $remove_time  = $args->{'remove_time'}{'value'};
+    my $workgroup_id = $args->{'workgroup_id'}{'value'};
     $results->{'results'} = [];
 
     my $can_remove = $db->can_modify_circuit(
-                                             circuit_id   => $circuit_id,
-                                             username     => $ENV{'REMOTE_USER'},
-                                             workgroup_id => $workgroup_id
-                                            );
+	circuit_id   => $circuit_id,
+	username     => $ENV{'REMOTE_USER'},
+	workgroup_id => $workgroup_id
+    );
 
     my $bus = Net::DBus->system;
     my $log_svc;
@@ -759,14 +772,13 @@ sub remove_circuit {
     warn $@ if $@;
 
     if ( !defined $can_remove ) {
-        $results->{'error'} = $db->get_error();
-        return $results;
+        $method->set_error( $db->get_error() );
+	return;
     }
 
     if ( $can_remove < 1 ) {
-        $results->{'error'} =
-          "Users and workgroup do not have permission to remove this circuit";
-        return $results;
+	$method->set_error('Users and workgroup do not have permission to remove this circuit');
+	return;
     }
 
     # removing it now, otherwise we'll just schedule it for later
@@ -774,18 +786,16 @@ sub remove_circuit {
         my $result = _send_remove_command( circuit_id => $circuit_id );
 
         if ( !defined $result ) {
-            $results->{'error'} =
-              "Unable to talk to fwdctl service - is it running?";
-            return $results;
+            $method->set_error("Unable to talk to fwdctl service - is it running?");
+            return;
         }
 
         if ( $result == 0 ) {
-            $results->{'error'} =
-              "Unable to remove circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been left in the database.";
+            $method->set_error("Unable to remove circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been left in the database");
 
             # if force is sent, it will clear it from the database regardless of whether fwdctl reported success or not
-            if ( !$cgi->param('force') ) {
-                return $results;
+            if ( !$args->{'force'}{'value'} ) {
+                return;
             }
         }
 
@@ -794,19 +804,19 @@ sub remove_circuit {
     }
 
     my $output = $db->remove_circuit(
-                                     circuit_id   => $circuit_id,
-                                     remove_time  => $remove_time,
-                                     username     => $ENV{'REMOTE_USER'},
-                                     workgroup_id => $workgroup_id
-                                    );
+	circuit_id   => $circuit_id,
+	remove_time  => $remove_time,
+	username     => $ENV{'REMOTE_USER'},
+	workgroup_id => $workgroup_id
+    );
 
     _send_update_cache( circuit_id => $circuit_id);
 
     #    print STDERR Dumper($output);
 
     if ( !defined $output ) {
-        $results->{'error'} = $db->get_error();
-        return $results;
+        $method->set_error( $db->get_error() );
+	return;
     } elsif ($remove_time <= time() ) {
         #only send removal event if it happened now, not if it was scheduled to happen later.
         #DBUS Log removal event
@@ -830,36 +840,37 @@ sub remove_circuit {
 
 sub reprovision_circuit {
 
+    my ( $method, $args ) = @_ ;
     #removes and then re-adds circuit for
     my $results;
 
-    my $circuit_id = $cgi->param('circuit_id');
-    my $workgroup_id = $cgi->param('workgroup_id');
+    my $circuit_id = $args->{'circuit_id'}{'value'};
+    my $workgroup_id = $args->{'workgroup_id'}{'value'};
 
     my $can_reprovision = $db->can_modify_circuit(
-                                                  circuit_id => $circuit_id,
-                                                  username => $ENV{'REMOTE_USER'},
-                                                  workgroup_id => $workgroup_id
-                                                 );
+	circuit_id => $circuit_id,
+	username => $ENV{'REMOTE_USER'},
+	workgroup_id => $workgroup_id
+	);
     if ( !defined $can_reprovision ) {
-        $results->{'error'} = $db->get_error();
-        return $results;
+        $method->set_error( $db->get_error() );
+	return;
     }
     if ( $can_reprovision < 1 ) {
-        $results->{'error'} =
-          "Users and workgroup do not have permission to remove this circuit";
-        return $results;
+        $method->set_error("Users and workgroup do not have permission to remove this circuit");
+	return;
     }
 
     my $success= _send_remove_command(circuit_id => $circuit_id);
     if (!$success) {
-        $results->{'error'} = "Error sending circuit removal request to controller, please try again or contact your Systems Administrator";
-        return $results;
+        $method->set_error('Error sending circuit removal request to controller, please try again or contact your Systems Administrator');
+	return;
     }
     my $add_success = _send_add_command(circuit_id => $circuit_id);
     if (!$add_success) {
-        $results->{'error'} = "Error sending circuit provision request to controller, please try again or contact your Systems Administrator";
-        return $results;
+        $method->set_error('Error sending circuit provision request to controller, please try again or contact your Systems Administrator');
+	return;
+	
     }
     $results->{'results'} = [ {success => 1 } ];
 
@@ -867,11 +878,13 @@ sub reprovision_circuit {
 }
 
 sub fail_over_circuit {
+    
+    my ( $method, $args ) = @_ ;
     my $results;
 
-    my $circuit_id   = $cgi->param('circuit_id');
-    my $workgroup_id = $cgi->param('workgroup_id');
-    my $forced = $cgi->param('force') || undef;
+    my $circuit_id   = $args->{'circuit_id'}{'value'};
+    my $workgroup_id = $args->{'workgroup_id'}{'value'};
+    my $forced = $args->{'force'}{'value'} || undef;
 
     my $bus = Net::DBus->system;
     my $log_svc;
@@ -883,20 +896,19 @@ sub fail_over_circuit {
     warn $@ if $@;
 
     my $can_fail_over = $db->can_modify_circuit(
-                                                circuit_id   => $circuit_id,
-                                                username     => $ENV{'REMOTE_USER'},
-                                                workgroup_id => $workgroup_id
-                                               );
-
+	circuit_id   => $circuit_id,
+	username     => $ENV{'REMOTE_USER'},
+	workgroup_id => $workgroup_id
+	);
+    
     if ( !defined $can_fail_over ) {
-        $results->{'error'} = $db->get_error();
-        return $results;
+        $method->set_error( $db->get_error() );
+	return;
     }
 
     if ( $can_fail_over < 1 ) {
-        $results->{'error'} =
-          "Users and workgroup do not have permission to remove this circuit";
-        return $results;
+	$method->set_error( "Users and workgroup do not have permission to remove this circuit" );
+	return;
     }
 
     my $ckt = OESS::Circuit->new( circuit_id => $circuit_id, db => $db);
@@ -918,13 +930,13 @@ sub fail_over_circuit {
             my $result =
               _fail_over( circuit_id => $circuit_id, workgroup_id => $workgroup_id );
             if ( !defined($result) ) {
-                $results->{'error'} = "Unable to change the path";
-                $results->{'results'} = [ { success => 0 } ];
+                $method->set_error('Unable to change the path');
+		return;
             }
 
             if ( $result == 0 ) {
-                $results->{'error'} = "Unable to change the path";
-                $results->{'results'} = [ { success => 0 } ];
+                $method->set_error('Unable to change the path');
+                return;
             }
 
             my $circuit_details = $db->get_circuit_details( circuit_id => $circuit_id );

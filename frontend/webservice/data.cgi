@@ -109,7 +109,7 @@ sub register_webservice_methods {
     $method->add_input_parameter(
 	name            => 'workgroup_id',
 	pattern         => $GRNOC::WebService::Regex::INTEGER,
-	required        => 1,
+	required        => 0,
 	description     => "The workgroup ID that the user is currently participating in."
 	); 
     
@@ -145,7 +145,7 @@ sub register_webservice_methods {
     $method->add_input_parameter(
         name            => 'workgroup_id',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
-        required        => 1,
+        required        => 0,
         description     => "The workgroup ID that the user is currently participating in."
         );
 	
@@ -224,7 +224,7 @@ sub register_webservice_methods {
     $method->add_input_parameter(
         name            => 'link',
         pattern         => $GRNOC::WebService::Regex::TEXT,
-        required        => 1,
+        required        => 0,
 	multiple        => 1,
         description     => "A list of links to avoid when doing the shortest path calculation"
         );

@@ -120,7 +120,7 @@ function init(){
                         var node_id    = args[0].node_id;
                         node_name  = args[0].name;
 
-                        var postVars = "action=provision_circuit&circuit_id="+encodeURIComponent(circuit_id)
+                        var postVars = "method=provision_circuit&circuit_id="+encodeURIComponent(circuit_id)
                                +"&description="+encodeURIComponent(description)
                                +"&bandwidth="+encodeURIComponent(bandwidth)
                                +"&provision_time="+encodeURIComponent(provision_time)

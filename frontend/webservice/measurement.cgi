@@ -203,6 +203,6 @@ sub send_json{
     }
 
     print "Content-type: text/plain\n\n" . encode_json($output);
-
+}
 main();
 
