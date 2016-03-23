@@ -401,7 +401,7 @@ function page_init(){
                   var node = encodeURIComponent(rec.getData('node'));
                   var interface = encodeURIComponent(rec.getData('interface'));
                   //submit to traceroute.cgi
-                   var ds = new YAHOO.util.DataSource("services/traceroute.cgi?action=init_circuit_traceroute&circuit_id=" + session.data.circuit_id 
+                   var ds = new YAHOO.util.DataSource("services/traceroute.cgi?method=init_circuit_traceroute&circuit_id=" + session.data.circuit_id 
                                                       + "&workgroup_id=" + session.data.workgroup_id
                                                       + "&node="+ node + "&interface="+interface
                                                      );
