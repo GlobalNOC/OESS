@@ -98,7 +98,6 @@ sub new {
 
     $self->{'topo'} = OESS::Topology->new( db => $self->{'db'});
 
-    $self->{'logger'}->error(Dumper($self->{'db'}));
     $self->{'dispatcher'} = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
 							      port => $self->{'db'}->{'rabbitMQ'}->{'port'},
 							      user => $self->{'db'}->{'rabbitMQ'}->{'user'},
@@ -596,15 +595,14 @@ sub remove_traceroute_rules {
     my $rules = $self->build_trace_rules($args{circuit_id});
     my @dpids = ();
     #optimization: rules for nodes we've already traced through should have been deleted already, we could skip them.
+    $self->{'rabbitmq'}->{'topic'} = "OF.NOX.RPC";
     foreach my $rule (@$rules){
         $self->{'logger'}->debug("removing traceroute rule for circuit_id $args{'circuit_id'} on switch ". sprintf("%x",$rule->get_dpid()));
-        # TODO
-        $self->{'dbus'}->send_datapath_flow($rule->to_dbus(command => OFPFC_DELETE_STRICT));
+        $self->{'rabbitmq'}->send_datapath_flow(flow => $rule->to_dict(command => OFPFC_DELETE_STRICT));
         push (@dpids,$rule->get_dpid());
     }
     foreach my $dpid (@dpids){
-        # TODO
-        $self->{'dbus'}->send_barrier($dpid);
+        $self->{'rabbitmq'}->send_barrier(dpid => int($dpid));
     }
 }
 
@@ -685,8 +683,9 @@ sub _send_pending_traceroute_packets {
         else{
             my $all_dpids_ok=1;
             foreach my $dpid (@$dpids){
-                # TODO
-                if ($self->{'dbus'}->get_node_status($dpid) == FWDCTL_WAITING){
+                $self->{'rabbitmq'}->{'topic'} = "OF.NOX.RPC";
+                my $status = $self->{'rabbitmq'}->get_node_status(dpid => int($dpid));
+                if ($status->{'status'} == FWDCTL_WAITING) {
                     $self->{'logger'}->debug("switch ".sprintf("%x",$dpid)." is still in FWDCTL_WAITING, skipping sending for circuit $circuit_id");
                     $all_dpids_ok=0;
                     last;
