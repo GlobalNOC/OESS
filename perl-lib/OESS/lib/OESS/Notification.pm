@@ -66,15 +66,18 @@ path to the notification template file, defaults to absolute path /usr/share/oes
 =cut
 
 sub new {
-    my $that = shift;
+    my $that  = shift;
     my $class = ref($that) || $that;
-    my $self;
-    my %args    = (
+
+    my %args  = (
         config_file => '/etc/oess/database.xml',
         service => undef,
         template_path => '/usr/share/oess-core/',
         @_,
         );
+
+    my $self  = \%args;
+    bless $self, $class;
     
     $self->{'config_file'} = $args{'config_file'};
     $self->{'template_path'} = $args{'template_path'};
@@ -88,24 +91,22 @@ sub new {
     $self->{'tt'} = Template->new(ABSOLUTE=>1);
     $self->{'log'} = Log::Log4perl->get_logger("OESS.Notification");
 
-    bless $self, $class;
-
     $self->_process_config_file();
     $self->_connect_services();
         
-    my $notification_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
-                                                                    port => $self->{'db'}->{'rabbitMQ'}->{'port'},
-                                                                    user => $self->{'db'}->{'rabbitMQ'}->{'user'},
-                                                                    pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
+    my $notification_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'rabbit_config'}->{'host'},
+                                                                    port => $self->{'rabbit_config'}->{'port'},
+                                                                    user => $self->{'rabbit_config'}->{'user'},
+                                                                    pass => $self->{'rabbit_config'}->{'pass'},
                                                                     exchange => 'OESS',
                                                                     topic => 'OF.FWDCTL.RPC' );
-    $self->register_notification_events( $notification_dispatcher);
+    $self->register_notification_events($notification_dispatcher);
     $self->{'notification_dispatcher'} = $notification_dispatcher;
 
-    my $emitter = GRNOC::RabbitMQ::Client->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
-                                                port => $self->{'db'}->{'rabbitMQ'}->{'port'},
-                                                user => $self->{'db'}->{'rabbitMQ'}->{'user'},
-                                                pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
+    my $emitter = GRNOC::RabbitMQ::Client->new( host => $self->{'rabbit_config'}->{'host'},
+                                                port => $self->{'rabbit_config'}->{'port'},
+                                                user => $self->{'rabbit_config'}->{'user'},
+                                                pass => $self->{'rabbit_config'}->{'pass'},
                                                 exchange => 'OESS',
                                                 topic => 'OF.Notification.event');
     $self->{'notification_events'} = $emitter;
@@ -115,6 +116,7 @@ sub new {
 
 sub start {
     my $self = shift;
+    $self->{'log'}->info("Notification.pm is now consuming.");
     $self->{'notification_dispatcher'}->start_consuming();
 }
 
@@ -127,7 +129,6 @@ sub register_notification_events{
 					       topic => 'OF.FWDCTL.event',
                                                callback => sub {$self->circuit_notification(@_) },
                                                description => "Signals circuit notification event");
-
     $method->add_input_parameter( name => "type",
                                   description => "the type of circuit notification event",
                                   required => 1,
@@ -514,6 +515,7 @@ sub _process_config_file {
     #my $config = GRNOC::Config->new( config_file => $self->{'config_file'} );
     my $config = XML::Simple::XMLin($self->{'config_file'});
 
+    $self->{'rabbit_config'} = $config->{'rabbitMQ'};
     $self->{'from_name'}    = $config->{'smtp'}->{'from_name'};
     $self->{'from_address'} = $config->{'smtp'}->{'from_address'};
     $self->{'image_base_url'} = $config->{'smtp'}->{'image_base_url'};
@@ -665,13 +667,10 @@ subject of email
 =cut
 
 sub _send_notification {
-
     my $self = shift;
     my %args = @_;
 
     my $body = $args{'body'};
-
-
 }
 
 

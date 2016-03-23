@@ -109,7 +109,7 @@ sub register_webservice_methods {
     $method->add_input_parameter(
 	name            => 'workgroup_id',
 	pattern         => $GRNOC::WebService::Regex::INTEGER,
-	required        => 1,
+	required        => 0,
 	description     => "The workgroup ID that the user is currently participating in."
 	); 
     
@@ -145,7 +145,7 @@ sub register_webservice_methods {
     $method->add_input_parameter(
         name            => 'workgroup_id',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
-        required        => 1,
+        required        => 0,
         description     => "The workgroup ID that the user is currently participating in."
         );
 	

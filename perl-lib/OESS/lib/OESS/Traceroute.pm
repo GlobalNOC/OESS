@@ -10,11 +10,10 @@ use Graph::Directed;
 use OESS::Database;
 use GRNOC::WebService::Regex;
 use OESS::Circuit;
+use GRNOC::RabbitMQ::Client;
+use GRNOC::RabbitMQ::Dispatcher;
+use GRNOC::RabbitMQ::Method;
 use OESS::Topology;
-#use Net::DBus::Annotation qw(:call);
-#use Net::DBus::Exporter qw (org.nddi.traceroute);
-#use Net::DBus qw(:typing);
-#use base qw(Net::DBus::Object);
 
 use JSON::XS;
 use Time::HiRes qw(usleep);
@@ -62,7 +61,6 @@ this is a module used by oess-traceroute to manage the addition of traceroute ru
 
 sub new {
     my $that = shift;
-    my $service = shift;
     my $class = ref($that) || $that;
     
     my $logger = Log::Log4perl->get_logger("OESS.Traceroute");
@@ -72,7 +70,8 @@ sub new {
         @_
     );
 
-    my $self = $class->SUPER::new($service,"/controller1");
+    my $self  = \%args;
+    bless $self, $class;
     
     foreach my $key (keys %args){
         $self->{$key} = $args{$key};
@@ -89,30 +88,26 @@ sub new {
     if ($args{'db'}){
         $self->{'db'} = $args{'db'};
        
-    }
-    else {
+    } else {
         $self->{'db'} = OESS::Database->new();
-       
     }
     if ( !defined($self->{'db'}) ) {
         $self->{'logger'}->error("error creating database object");
         return 0;
     }
-    #$self->{'db'} = $db;
+
     $self->{'topo'} = OESS::Topology->new( db => $self->{'db'});
- 
-    
-    my $rabbit_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
+
+    $self->{'dispatcher'} = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
 							      port => $self->{'db'}->{'rabbitMQ'}->{'port'},
 							      user => $self->{'db'}->{'rabbitMQ'}->{'user'},
 							      pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
-							      vhost => $self->{'db'}->{'rabbitMQ'}->{'vhost'},
-							      topic => 'OF.Traceroute.RPC');
+                                                              exchange => 'OESS',
+							      topic    => 'OF.NOX.RPC');
     
     my $method = GRNOC::RabbitMQ::Method->new( name => 'init_circuit_trace',
 					       callback => sub { $self->init_circuit_trace(@_) },
 					       description => "Initializes a circuit trace");
-    
     $method->add_input_parameter( name => 'circuit_id',
 				  description => "the circuit ID to add",
 				  required => 1,
@@ -121,13 +116,11 @@ sub new {
 				  description => "the interface id of the interface to start at",
 				  required => 1,
 				  pattern => $GRNOC::WebService::Regex::INTEGER);
-    
-    $rabbit_dispatcher->register_method($method);
+    $self->{'dispatcher'}->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name => 'get_traceroute_transactions',
 					    callback => sub { $self->get_traceroute_transactions( @_ ) },
 					    description => "Get current traceroute transactions");
-
     $method->add_input_parameter( name => 'circuit_id',
                                   description => "the circuit ID to add",
                                   required => 0,
@@ -136,9 +129,60 @@ sub new {
                                   description => "the interface id of the interface to start at",
                                   required => 0,
                                   pattern => $GRNOC::WebService::Regex::TEXT);
-
-    $rabbit_dispatcher->register_method($method);
+    $self->{'dispatcher'}->register_method($method);
     
+
+    $method = GRNOC::RabbitMQ::Method->new( name => "link_event",
+					    topic => "OF.NOX.event",
+					    callback => sub { $self->link_event_callback(@_) },
+					    description => "signals a link event has happened");
+    $method->add_input_parameter( name => "dpsrc",
+				  description => "The DPID of the switch which fired the link event",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::NAME_ID);
+    $method->add_input_parameter( name => "dpdst",
+				  description => "The DPID of the switch which fired the link event",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::NAME_ID);
+    $method->add_input_parameter( name => "dport",
+				  description => "The port id of the dst port which fired the link event",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::INTEGER);
+    $method->add_input_parameter( name => "sport",
+				  description => "The port id of the src port which fired the link event",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::INTEGER);
+    $method->add_input_parameter( name => "action",
+				  description => "The reason of the link event",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::TEXT);
+    $self->{'dispatcher'}->register_method($method);
+
+
+    $method = GRNOC::RabbitMQ::Method->new( name => "traceroute_packet_in",
+					    topic => "OF.NOX.event",
+					    callback => sub { $self->process_trace_packet(@_) },
+					    description => "Traceroute packet was received");
+    $method->add_input_parameter( name => "dpid",
+				  description => "The DPID of the switch which received the packet",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::NAME_ID);
+    $method->add_input_parameter( name => "in_port",
+				  description => "The port of the switch which received the packet",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::INTEGER);
+    $method->add_input_parameter( name => "circuit_id",
+				  description => "ID of the circuit that was traced",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::INTEGER);
+    $self->{'dispatcher'}->register_method($method);
+    
+    $self->{'rabbitmq'} = GRNOC::RabbitMQ::Client->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
+                                                        port => $self->{'db'}->{'rabbitMQ'}->{'port'},
+                                                        user => $self->{'db'}->{'rabbitMQ'}->{'user'},
+                                                        pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
+                                                        exchange => 'OESS',
+                                                        topic => 'OF.Traceroute.event');
     
     my $collector_interval = AnyEvent->timer( after => 10000,
                                               interval => 10000,
@@ -147,60 +191,19 @@ sub new {
     my $config_reload_interval = AnyEvent->timer( after => 500,
                                                   interval => 500,
                                                   cb => sub{ $self->_send_pending_traceroute_packets(); });
-
-
-    $rabbit_dispatcher->start_consuming();
-
     return $self;
 }
 
+=head2 start
 
+Start listening for messages on RabbitMQ
 
-sub _connect_to_dbus {
+=cut
+sub start {
     my $self = shift;
-
-    $self->{'logger'}->debug("Connecting to DBus");
-   
-    my $dbus = OESS::DBus->new(
-        service        => "org.nddi.openflow",
-        instance       => "/controller1",
-        sleep_interval => .1,
-        timeout        => -1
-    );
-
-    if ( !defined($dbus) ) {
-        $self->{'logger'}->crit("Error unable to connect to DBus");
-        die;
-    }
-
-   
-
-#    $dbus->connect_to_signal( "datapath_leave", sub { $self->datapath_leave_callback(@_) } );
-#    $dbus->connect_to_signal( "datapath_join",  sub { $self->datapath_join_callback(@_) } );
-    $dbus->connect_to_signal( "link_event",     sub { $self->link_event_callback(@_) } );
-#    $dbus->connect_to_signal( "port_status",    sub { $self->port_status_callback(@_) } );
-    $dbus->connect_to_signal( "traceroute_packet_in",   sub { $self->process_trace_packet(@_) } );
-
-    $self->{'nox'} = $dbus;
-
-    my $bus = Net::DBus->system;
-
-    my $client;
-    my $service;
-    eval {
-        $service = $bus->get_service("org.nddi.openflow");
-        $client  = $service->get_object("/controller1");
-    };
-    if ($@) {
-        $self->{'logger'}->warn( "Error in _conect_to_dbus: $@");
-        return;
-    }
-
-    $client->register_for_traceroute_in();
-    #$client->register_for_fv_in( $self->{'db'}->{'discovery_vlan'} );
-
-    $self->{'dbus'} = $client;
-
+    
+    $self->{'logger'}->error("Calling Traceroute->start");
+    $self->{'dispatcher'}->start_consuming();
 }
 
 =head2 init_circuit_trace
@@ -281,13 +284,14 @@ sub init_circuit_trace {
     my $rules=    $self->build_trace_rules($circuit_id);
     
     #should this send to fwdctl or straight to NOX?
+    $self->{'rabbitmq'}->{'topic'} = "OF.NOX.RPC";
     my @dpids = ();
     foreach my $rule (@$rules){
-        $self->{'dbus'}->send_datapath_flow($rule->to_dbus( command => OFPFC_ADD));
+        $self->{'rabbitmq'}->send_datapath_flow(flow => $rule->to_dict( command => OFPFC_ADD));
         push(@dpids, $rule->get_dpid() );
     }
     foreach my $dpid (@dpids){
-        $self->{'dbus'}->send_barrier($dpid);
+        $self->{'rabbitmq'}->send_barrier(dpid => int($dpid));
     }
     $self->{pending_packets}->{$circuit_id} = { dpid => \@dpids,
                                                 timeout => time() + 15,
@@ -296,7 +300,6 @@ sub init_circuit_trace {
     #$self->send_trace_packet($circuit_id,$transaction);
 
     return 1;
-
 }
 
 # handles packet that is returned to controller by the traceroute rules. 
@@ -384,8 +387,9 @@ sub process_trace_packet {
 
         if (  $flow_rule->get_dpid() == $src_dpid && $flow_rule->{'match'}->{'in_port'} == $src_port ) {
             $self->{'logger'}->info("Received traceroute flow from node: $node->{'name'} interface: $interface->{'name'} ".$flow_rule->get_dpid() );
-            my $xid = $self->{'dbus'}->send_datapath_flow($flow_rule->to_dbus(command => OFPFC_DELETE_STRICT) );
-            $self->{'dbus'}->send_barrier($flow_rule->get_dpid());
+            $self->{'rabbitmq'}->{'topic'} = "OF.NOX.RPC";
+            my $xid = $self->{'rabbitmq'}->send_datapath_flow(flow => $flow_rule->to_dict(command => OFPFC_DELETE_STRICT));
+            $self->{'rabbitmq'}->send_barrier(dpid => int($flow_rule->get_dpid()));
             
             #is this a rule that is on the same node as edge ports other than the originating edge port? if so, decrement edge_ports
             foreach my $endpoint (@{$circuit_details->{'details'}->{'endpoints'} }) {
@@ -451,7 +455,6 @@ handles sending traceroute packet to nox dbus for each output port. Takes circui
 
 =cut
 
-
 sub send_trace_packet {
     my $self = shift;
     my $circuit_id = shift;
@@ -463,8 +466,12 @@ sub send_trace_packet {
     my $packet_out;
 
     #each packet will always be set to send out the links of the edge_interface
+    $self->{'rabbitmq'}->{'topic'} = "OF.NOX.RPC";
     foreach my $exit_port (@{$source_port->{exit_ports} }){
-        $self->{'dbus'}->send_traceroute_packet(Net::DBus::dbus_uint64($source_port->{'dpid'}),Net::DBus::dbus_uint16($exit_port->{'vlan'}),Net::DBus::dbus_uint64($exit_port->{'port'}),Net::DBus::dbus_uint64($circuit_id));
+        $self->{'rabbitmq'}->send_traceroute_packet( dpid       => int($source_port->{'dpid'}),
+                                                     vlan       => int($exit_port->{'vlan'}),
+                                                     port       => int($exit_port->{'port'}),
+                                                     circuit_id => int($circuit_id) );
     }
 }
 
@@ -588,16 +595,15 @@ sub remove_traceroute_rules {
     my $rules = $self->build_trace_rules($args{circuit_id});
     my @dpids = ();
     #optimization: rules for nodes we've already traced through should have been deleted already, we could skip them.
+    $self->{'rabbitmq'}->{'topic'} = "OF.NOX.RPC";
     foreach my $rule (@$rules){
         $self->{'logger'}->debug("removing traceroute rule for circuit_id $args{'circuit_id'} on switch ". sprintf("%x",$rule->get_dpid()));
-        $self->{'dbus'}->send_datapath_flow($rule->to_dbus(command => OFPFC_DELETE_STRICT));
+        $self->{'rabbitmq'}->send_datapath_flow(flow => $rule->to_dict(command => OFPFC_DELETE_STRICT));
         push (@dpids,$rule->get_dpid());
     }
     foreach my $dpid (@dpids){
-        $self->{'dbus'}->send_barrier($dpid);
+        $self->{'rabbitmq'}->send_barrier(dpid => int($dpid));
     }
-
-                                        
 }
 
 =head2 clear_traceroute_transaction
@@ -677,7 +683,9 @@ sub _send_pending_traceroute_packets {
         else{
             my $all_dpids_ok=1;
             foreach my $dpid (@$dpids){
-                if ($self->{'dbus'}->get_node_status($dpid) == FWDCTL_WAITING){
+                $self->{'rabbitmq'}->{'topic'} = "OF.NOX.RPC";
+                my $status = $self->{'rabbitmq'}->get_node_status(dpid => int($dpid));
+                if ($status->{'status'} == FWDCTL_WAITING) {
                     $self->{'logger'}->debug("switch ".sprintf("%x",$dpid)." is still in FWDCTL_WAITING, skipping sending for circuit $circuit_id");
                     $all_dpids_ok=0;
                     last;
