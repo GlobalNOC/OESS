@@ -90,7 +90,6 @@ sub new {
        
     } else {
         $self->{'db'} = OESS::Database->new();
-       
     }
     if ( !defined($self->{'db'}) ) {
         $self->{'logger'}->error("error creating database object");
