@@ -224,7 +224,7 @@ sub register_webservice_methods {
     $method->add_input_parameter(
         name            => 'link',
         pattern         => $GRNOC::WebService::Regex::TEXT,
-        required        => 1,
+        required        => 0,
 	multiple        => 1,
         description     => "A list of links to avoid when doing the shortest path calculation"
         );
@@ -384,7 +384,7 @@ sub register_webservice_methods {
 
     #add the required input paramter vlan_tag
     $method->add_input_parameter(
-        name            => 'vlan_tag',
+        name            => 'vlan',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 1,
         description     => "The vlan tag to check the availability of on the node/interface combination."
