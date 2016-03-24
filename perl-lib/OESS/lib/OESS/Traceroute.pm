@@ -723,6 +723,11 @@ sub link_event_callback {
         #we don't do anything with link up, but down or unknown, we want to know what circuits were on this link.
         
         my $interface = $db->get_interface_by_dpid_and_port(dpid => $a_dpid, port_number => $a_port);
+        if (!defined $interface) {
+            $self->{'logger'}->error("Could not get interface for Switch: $a_dpid Port: $a_port");
+            return;
+        }
+
         my $link = $db->get_link_by_interface_id(interface_id => $interface->{'interface_id'});
 
         
