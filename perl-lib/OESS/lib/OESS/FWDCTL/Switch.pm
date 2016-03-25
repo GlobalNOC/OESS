@@ -492,6 +492,11 @@ sub send_flows{
     my $cmd = $params{'command'};
     my $cb = $params{'cb'};
 
+    if(!defined($cmd)){
+        $self->{'logger'}->error("No Command specified for send_flows");
+        return;
+    }
+    
     if(scalar(@$flows) == 0){
 	&$cb();
 	return;
@@ -566,7 +571,7 @@ sub remove_vlan{
     my $commands = $self->_generate_commands($circuit,FWDCTL_REMOVE_VLAN);
     
     $self->send_flows( flows => $commands,
-		       commnad => OFPFC_DELETE_STRICT,
+		       command => OFPFC_DELETE_STRICT,
 		       cb => sub {
 			   $self->{'rabbit_mq'}->send_barrier( dpid => int($self->{'dpid'}),
 							       async_callback => sub {
