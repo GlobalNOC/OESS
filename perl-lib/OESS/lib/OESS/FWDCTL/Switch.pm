@@ -39,6 +39,7 @@ use GRNOC::RabbitMQ::Client;
 use OESS::FlowRule;
 use JSON;
 
+use AnyEvent;
 use Data::Dumper;
 
 use Time::HiRes qw( usleep gettimeofday tv_interval);
@@ -94,7 +95,28 @@ sub new {
 					   topic => 'OF.NOX.RPC',
 					   exchange => 'OESS');
     $self->{'rabbit_mq'} = $ar;
-    
+
+    $self->{'fwdctl'} = GRNOC::RabbitMQ::Client->new( host => $args{'rabbitMQ_host'},
+                                                      port => $args{'rabbitMQ_port'},
+                                                      user => $args{'rabbitMQ_user'},
+                                                      pass => $args{'rabbitMQ_pass'},
+                                                      topic => 'OF.FWDCTL.RPC',
+                                                      exchange => 'OESS');
+    # Contact FWDCTL once every minute to verify the process is still
+    # up. If not close this process.
+    my $fwdctl_poll = AnyEvent->timer( after    => 60,
+                                       interval => 60,
+                                       cb       => sub {
+                                           $self->{'logger'}->error("SENDING ECHO");
+                                           my $result = $self->{'fwdctl'}->echo( async_callback => sub {
+                                                                                     my $result = shift;
+                                                                                     if (defined $result->{'error'}) {
+                                                                                         $self->{'logger'}->warn("Could not contact FWDCTL; Now exiting.");
+                                                                                         $self->stop();
+                                                                                     }
+                                                                                 });
+                                       } );
+
     my $topic = 'OF.FWDCTL.Switch.' . sprintf("%x", $self->{'dpid'});
 
     $self->{'logger'}->error("Listening to topic: " . $topic);
@@ -106,59 +128,48 @@ sub new {
 						       topic => $topic,
 						       queue => $topic,
 						       exchange => 'OESS');
-
+    
     my $method = GRNOC::RabbitMQ::Method->new( name => "add_vlan",
 					       async => 1,
 					       description => "adds a vlan for this switch",
 					       callback => sub { $self->add_vlan(@_) }	);
-
     $method->add_input_parameter( name => "circuit_id",
                                   description => "circuit_id to be added",
                                   required => 1,
                                   pattern => $GRNOC::WebService::Regex::NUMBER_ID);
-
     $dispatcher->register_method($method);
     
     $method = GRNOC::RabbitMQ::Method->new( name => "remove_vlan",
 					    async => 1,
 					    description => "removes a vlan for this switch",
 					    callback => sub { $self->remove_vlan(@_) }     );
-    
     $method->add_input_parameter( name => "circuit_id",
                                   description => "circuit_id to be removed",
                                   required => 1,
                                   pattern => $GRNOC::WebService::Regex::NUMBER_ID);
-
-
-
     $dispatcher->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name => "change_path",
 					    description => "changes the path on the specified circuits",
 					    async => 1,
 					    callback => sub { $self->change_path(@_) }     );
-    
     $method->add_input_parameter( name => "circuit_id",
                                   description => "The message and paramteres to be run by the child",
                                   required => 1,
 				  multiple => 1,
 				  async => 1,
                                   pattern => $GRNOC::WebService::Regex::NUMBER_ID);
-
-
     $dispatcher->register_method($method);
 
 
     $method = GRNOC::RabbitMQ::Method->new( name => "echo",
 					    description => " just an echo to check to see if we are aliave",
 					    callback => sub { return {status => 1, msg => "I'm alive!", total_rules => $self->{'flows'}}});
-
     $dispatcher->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name => "datapath_join",
                                             description => " handle datapath join event",
 					    callback => sub { $self->datapath_join_handler(); return {status => 1, msg => "default drop/forward installed, diffing scheduled", total_rules => $self->{'flows'}}});
-
     $dispatcher->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name => "force_sync",
@@ -167,14 +178,21 @@ sub new {
 							      $self->_update_cache();
 							      $self->{'needs_diff'} = time();
 							      return {status => 1, msg => "diff scheduled!", total_rules => $self->{'flows'}}; });
-
     $dispatcher->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name => "update_cache",
                                             description => " handle thes update cahce call",
                                             callback => sub { $self->_update_cache();
 							      return {status => 1, msg => "cache updated", total_rules => $self->{'flows'}}});
+    $dispatcher->register_method($method);
 
+    $method = GRNOC::RabbitMQ::Method->new( name        => "stop",
+                                            callback    => sub {
+                                                $self->stop();
+                                                $self->{'logger'}->info("FWDCTL has stopped; Now exiting.");
+                                            },
+                                            description => "Notification that FWDCTL has exited",
+                                            topic       => "OF.FWDCTL.event" );
     $dispatcher->register_method($method);
 
     #--- set a default discovery vlan that can be overridden later if needed.
@@ -195,6 +213,14 @@ sub new {
 
     AnyEvent->condvar->recv;
     return $self;
+}
+
+=head2 stop
+
+=cut
+sub stop {
+    my $self = shift;
+    exit 0;
 }
 
 =head2 echo
@@ -466,6 +492,11 @@ sub send_flows{
     my $cmd = $params{'command'};
     my $cb = $params{'cb'};
 
+    if(!defined($cmd)){
+        $self->{'logger'}->error("No Command specified for send_flows");
+        return;
+    }
+    
     if(scalar(@$flows) == 0){
 	&$cb();
 	return;
@@ -540,7 +571,7 @@ sub remove_vlan{
     my $commands = $self->_generate_commands($circuit,FWDCTL_REMOVE_VLAN);
     
     $self->send_flows( flows => $commands,
-		       commnad => OFPFC_DELETE_STRICT,
+		       command => OFPFC_DELETE_STRICT,
 		       cb => sub {
 			   $self->{'rabbit_mq'}->send_barrier( dpid => int($self->{'dpid'}),
 							       async_callback => sub {
