@@ -141,10 +141,6 @@ sub register_notification_events{
                                   description => "List of circuits affected by the event",
                                   required => 1,
                                   schema => { 'type' => 'array'});
-    $method->add_input_parameter( name => "no_reply",
-                                  description => "Caller expects a reply or not",
-                                  required => 1,
-                                  pattern => $GRNOC::WebService::Regex::INTEGER);
     $d->register_method($method);
 }
 
@@ -170,7 +166,7 @@ sub circuit_notification {
     my $type = $p_ref->{'type'}{'value'};
     my $link_name= $p_ref->{'link_name'}{'value'};
     my $affected_circuits= $p_ref->{'affected_circuits'}{'value'};
-    my $no_reply= $p_ref->{'no_reply'}{'value'};
+
 
     my $circuit;
     $self->{'log'}->debug("Sending Circuit Notification: " . Data::Dumper::Dumper($p_ref));
