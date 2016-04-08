@@ -411,7 +411,7 @@ sub register_rpc_methods{
     $method->add_input_parameter( name => "state",
                                   description => "the current state of the specified link",
                                   required => 1,
-                                  pattern => $GRNOC::WebService::Regex::INTEGER);
+                                  pattern => $GRNOC::WebService::Regex::TEXT);
 
     $d->register_method($method);
 
@@ -427,7 +427,7 @@ sub register_rpc_methods{
     $method->add_input_parameter( name => "state",
                                   description => "the current state of the specified link",
                                   required => 1,
-                                  pattern => $GRNOC::WebService::Regex::INTEGER);
+                                  pattern => $GRNOC::WebService::Regex::TEXT);
 
     $d->register_method($method);
 
@@ -439,9 +439,11 @@ sub register_rpc_methods{
 
 
 =head2 node_maintenance
+
 Given a node_id and maintenance state of 'start' or 'end', configure
 each interface of every link on the given datapath by calling
 link_maintenance.
+
 =cut
 sub node_maintenance {
     my $self  = shift;
@@ -471,7 +473,15 @@ sub node_maintenance {
         if ($state eq 'end' && defined $store{$link->{'link_id'}}) {
             $self->{'logger'}->warn("Link $link->{'link_id'} will remain under maintenance.");
         } else {
-            $self->link_maintenance($link->{'link_id'}, $state);
+            # Insert hack here:
+            # With dbus we could call methods directly. This meant that
+            # dbus called functions the same way that any other code
+            # would. RabbitMQ passes structs to each method. So here we
+            # simulate a RabbitMQ struct to allow us to reuse
+            # $self->link_maintenance.
+            my $p_ref = { link_id => { value => $link->{'link_id'} },
+                          state   => { value => $state } };
+            $self->link_maintenance(undef, $p_ref);
         }
     }
     $self->{'logger'}->warn("Node $node_id maintenance state is $state.");
@@ -488,12 +498,14 @@ interface_ids from $interface_maintenance.
 
 =cut
 sub link_maintenance {
-    my $self    = shift;
+    my $self  = shift;
     my $m_ref = shift;
     my $p_ref = shift;
 
     my $link_id = $p_ref->{'link_id'}{'value'};
-    my $state = $p_ref->{'state'}{'value'};
+    my $state   = $p_ref->{'state'}{'value'};
+
+    $self->{'logger'}->info("Calling link_maintenance $state on link $link_id.");
 
     my $endpoints = $self->{'db'}->get_link_endpoints(link_id => $link_id);
     my $link_state;
@@ -512,7 +524,7 @@ sub link_maintenance {
     my $node1 = $self->{'db'}->get_node_by_interface_id(interface_id => $e1->{'id'});
     if (!defined $node1) {
         $self->{'logger'}->warn("Link maintenance can't be performed. Could not find link endpoint.");
-        return {status => 0};
+        return { status => 0 };
     }
 
     my $e2 = {
@@ -524,10 +536,12 @@ sub link_maintenance {
     my $node2 = $self->{'db'}->get_node_by_interface_id(interface_id => $e2->{'id'});
     if (!defined $node2) {
         $self->{'logger'}->warn("Link maintenance can't be performed on remote links.");
-        return {status => 0};
+        return { status => 0 };
     }
 
     if ($state eq 'end') {
+        $self->{'logger'}->debug("Simulating link down on endpoints $e1->{'id'} and $e2->{'id'}.");
+        
         # It is possible for a link to be in maintenance, and connected
         # to a node under maintenance. When link maintenance has ended
         # but node maintenance has not, forwarding behavior should not
@@ -548,32 +562,51 @@ sub link_maintenance {
             delete $self->{'link_maintenance'}->{$link_id};
         }
 
-        $self->port_status(undef, {dpid => { 'value' => $node1->{'dpid'} },
-				   ofp_port_reason => { 'value' => OFPPR_MODIFY } ,
-				   attr =>  { 'value' => $e1 } }, undef);
-        $self->port_status(undef, {dpid => { 'value' => $node2->{'dpid'} } ,
-				   ofp_port_reason => { 'value' => OFPPR_MODIFY },
-				   attr => { 'value' => $e2 } }, undef);
-        $self->{'logger'}->warn("Link $link_id maintenance has ended.");
+        $self->port_status(undef,
+                           {
+                             dpid            => { 'value' => $node1->{'dpid'} },
+                             ofp_port_reason => { 'value' => OFPPR_MODIFY } ,
+                             attrs           => { 'value' => $e1 }
+                           },
+                           undef);
+        $self->port_status(undef,
+                           {
+                             dpid            => { 'value' => $node2->{'dpid'} } ,
+                             ofp_port_reason => { 'value' => OFPPR_MODIFY },
+                             attrs           => { 'value' => $e2 }
+                           },
+                           undef);
+        $self->{'logger'}->info("Link $link_id maintenance has ended.");
     } else {
+        $self->{'logger'}->debug("Simulating link down on endpoints $e1->{'id'} and $e2->{'id'}.");
+        
         # Simulate link down event by passing false link state to
         # port_status.
         $e1->{'link'} = OESS_LINK_DOWN;
         $e2->{'link'} = OESS_LINK_DOWN;
 
         my $link_name;
-        $link_name = $self->port_status(undef, {dpid => { 'value' => $node1->{'dpid'} } ,
-						ofp_port_reason => { 'value' => OFPPR_MODIFY } , 
-						attr => { 'value' => $e1 } }, undef);
-        $link_name = $self->port_status(undef, {dpid => { 'value' => $node2->{'dpid'} }, 
-						ofp_port_reason => { 'value' => OFPPR_MODIFY },
-						attr => { 'value' => $e2 } }, undef);
+        $link_name = $self->port_status(undef,
+                                        {
+                                          dpid            => { 'value' => $node1->{'dpid'} },
+                                          ofp_port_reason => { 'value' => OFPPR_MODIFY },
+                                          attrs           => { 'value' => $e1 }
+                                        },
+                                        undef);
+        $link_name = $self->port_status(undef,
+                                        {
+                                          dpid            => { 'value' => $node2->{'dpid'} },
+                                          ofp_port_reason => { 'value' => OFPPR_MODIFY },
+                                          attrs           => { 'value' => $e2 }
+                                        },
+                                        undef);
 
         $self->{'link_maintenance'}->{$link_id} = 1;
         $self->{'link_status'}->{$link_name} = $link_state; # Record true link state.
-        $self->{'logger'}->warn("Link $link_id maintenance has begun.");
+        $self->{'logger'}->info("Link $link_id maintenance has begun.");
     }
-    return {status => 1};
+
+    return { status => 1 };
 }
 
 =head2 rules_per_switch
@@ -811,6 +844,7 @@ sub _sync_database_to_network {
         $self->datapath_join_handler($node);
     }
 
+    # Change me
     $self->{'logger'}->info("Init complete!");
 }
 
@@ -1439,19 +1473,17 @@ sub _update_port_status{
 
 sub port_status{
     my $self   = shift;
-    #GRNOC::RabbitMQ::Method params
-    my $m_ref = shift;
-    my $p_ref = shift;
+    my $m_ref  = shift;
+    my $p_ref  = shift;
     my $state_ref = shift;
 
     #all of our params are stored in the p_ref!
-    my $dpid = $p_ref->{'dpid'}{'value'};
+    my $dpid   = $p_ref->{'dpid'}{'value'};
     my $reason = $p_ref->{'ofp_port_reason'}{'value'};
-    my $info = $p_ref->{'attrs'}{'value'};
+    my $info   = $p_ref->{'attrs'}{'value'};
 
-    $self->{'logger'}->debug("Port Status event!");
-
-    $self->{'logger'}->debug("INFO: " . Data::Dumper::Dumper($info));
+    $self->{'logger'}->info("Calling port_status $reason on switch $dpid.");
+    $self->{'logger'}->debug("Calling port_status with port attributes: " . Data::Dumper::Dumper($info));
 
     my $port_name   = $info->{'name'};
     my $port_number = $info->{'port_no'};
@@ -1474,7 +1506,6 @@ sub port_status{
 
         #port status was modified (either up or down)
         case(OFPPR_MODIFY){
-	    
 	    my $link_info   = $self->{'db'}->get_link_by_dpid_and_port(dpid => $dpid,
 								       port => $port_number);
 	    
@@ -1528,7 +1559,6 @@ sub port_status{
 
 	}
         case(OFPPR_DELETE){
-	    
 	    my $link_info   = $self->{'db'}->get_link_by_dpid_and_port(dpid => $dpid,
 								       port => $port_number);
 	    
@@ -1548,12 +1578,10 @@ sub port_status{
 	    }
 
 	    $self->_update_port_status($p_ref);
-	    
-
 	}
 	case(OFPPR_ADD) {
 	    #just force sync the node and update the status!
-	    $self->force_sync(undef,{dpid => {'value' => $dpid}} );
+	    $self->force_sync(undef, { dpid => {'value' => $dpid} });
 	    $self->_update_port_status($p_ref);
 	}else{
 	    #uh we should not be able to get here!

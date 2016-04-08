@@ -142,7 +142,7 @@ sub _execute_node_maintenance {
         return;
     }
 
-    return $client->node_maintenance(node_id => int($node_id), state => int($state));
+    return $client->node_maintenance(node_id => int($node_id), state => $state);
 }
 
 sub node_maintenances {
@@ -227,7 +227,7 @@ sub _execute_link_maintenance {
         return;
     }
 
-    return $client->link_maintenance(link_id => int($link_id), state => int($state));
+    return $client->link_maintenance(link_id => int($link_id), state => $state);
 }
 
 sub link_maintenances {
@@ -267,8 +267,14 @@ sub start_link_maintenance {
         $db->_rollback();
         return { error => "Failed to put link into maintenance mode." };
     }
+
     my $res = _execute_link_maintenance($link_id, "start");
-    if ($res != 1) {
+    if (!defined $res) {
+        $db->_rollback();
+        return { error => "Failed to put link into maintenance mode." };
+    }
+
+    if ($res->{'results'}->{'status'} != 1) {
         $db->_rollback();
         return { error => "Failed to put link into maintenance mode." };
     }
