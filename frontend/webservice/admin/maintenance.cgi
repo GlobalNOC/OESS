@@ -137,11 +137,11 @@ sub _execute_node_maintenance {
         host => 'localhost',
         port => 5672
     );
-    if ( !defined($client) ) {
+
+    if (!defined $client ) {
         warn "Could not communicate with FWDCTL. Please check rabbitmq-server.";
         return;
     }
-
     return $client->node_maintenance(node_id => int($node_id), state => $state);
 }
 
@@ -180,15 +180,20 @@ sub start_node_maintenance {
     my $data = $db->start_node_maintenance($node_id, $description);
     if (!defined $data) {
         $db->_rollback();
-        return { error => "Failed to put node into maintenance mode." };
-    }
-
-    my $res = _execute_node_maintenance($node_id, "start");
-    if ($res != 1) {
-        $db->_rollback();
-        return { error => "Failed to put node into maintenance mode." };
+        return { error => "Failed to put node into maintenance mode; Database error occurred." };
     }
     $db->_commit();
+    
+    my $res = _execute_node_maintenance($node_id, "start");
+    if (!defined $res) {
+        $db->end_node_maintenance($node_id);
+        return { error => "Failed to put node into maintenance mode; Message queue error occurred." };
+    }
+
+    if ($res->{'results'}->{'status'} != 1) {
+        $db->end_node_maintenance($node_id);
+        return { error => "Failed to put node into maintenance mode." };
+    }
 
     $results->{'results'} = $data;
     return $results;
@@ -214,19 +219,19 @@ sub _execute_link_maintenance {
     my $link_id = shift;
     my $state = shift;
 
-    my $client  = new GRNOC::RabbitMQ::Client(
+    my $client = new GRNOC::RabbitMQ::Client(
         topic => 'OF.FWDCTL.RPC',
         exchange => 'OESS',
         user => 'guest',
         pass => 'guest',
         host => 'localhost',
-        port => 5672
+        port => 5672,
+        timeout => 60
     );
 
-    if ( !defined($client) ) {
+    if (!defined $client) {
         return;
     }
-
     return $client->link_maintenance(link_id => int($link_id), state => $state);
 }
 
@@ -249,8 +254,8 @@ sub link_maintenances {
 }
 
 sub start_link_maintenance {
-    my $results;
-    my $link_id = $cgi->param('link_id');
+    my $results     = {};
+    my $link_id     = $cgi->param('link_id');
     my $description = $cgi->param('description');
 
     if (!defined $link_id) {
@@ -265,20 +270,20 @@ sub start_link_maintenance {
     my $data = $db->start_link_maintenance($link_id, $description);
     if (!defined $data) {
         $db->_rollback();
-        return { error => "Failed to put link into maintenance mode." };
+        return { error => "Failed to put link into maintenance mode; Database error occurred." };
     }
+    $db->_commit();
 
     my $res = _execute_link_maintenance($link_id, "start");
     if (!defined $res) {
-        $db->_rollback();
-        return { error => "Failed to put link into maintenance mode." };
+        $db->end_link_maintenance($link_id);
+        return { error => "Failed to put link into maintenance mode; Message queue error occurred." };
     }
 
     if ($res->{'results'}->{'status'} != 1) {
-        $db->_rollback();
+        $db->end_link_maintenance($link_id);
         return { error => "Failed to put link into maintenance mode." };
     }
-    $db->_commit();
 
     $results->{'results'} = $data;
     return $results;

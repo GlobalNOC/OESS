@@ -1301,14 +1301,14 @@ sub _fail_over_circuits{
     my $self = shift;
     my %params = @_;
 
-    my $circuits = $params{'circuits'};
-    my $link_name = $params{'link_name'};
-
+    my $circuits    = $params{'circuits'};
+    my $link_name   = $params{'link_name'};
+    
     my %dpids;
 
-    $self->{'logger'}->debug("in _fail_over_circuits with circuits: ".@$circuits);
+    $self->{'logger'}->debug("Calling _fail_over_circuits on link $link_name with circuits: " . @{$circuits});
     my $circuit_infos;
-    
+
     $self->{'db'}->_start_transaction();
 
     foreach my $circuit_info (@$circuits) {
@@ -1390,26 +1390,27 @@ sub _fail_over_circuits{
             #$self->{'fwdctl_events'}->circuit_notification", $circuit_info);
             push (@$circuit_infos, $circuit_info);
             $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_DOWN;
-            
         }
-        
     }
     my $event_id = $self->_generate_unique_event_id();
 
     #write the cache
+    $self->{'logger'}->debug("Writing cache in _fail_over_circuits.");
     $self->_write_cache();
 
     my $result = FWDCTL_SUCCESS;
 
     foreach my $dpid (keys %dpids){
-        $self->send_message_to_child($dpid,{action => 'change_path', circuit_id => $dpids{$dpid}}, $event_id);
+        $self->{'logger'}->debug("Notifying children of path change in _fail_over_circuits.");
+        $self->send_message_to_child($dpid, { action => 'change_path', circuit_id => $dpids{$dpid} }, $event_id);
     }
 
     $self->{'db'}->_commit();
+    $self->{'logger'}->debug("Committed path changes to the database in _fail_over_circuits.");
     $self->{'logger'}->debug("Completed sending the requests");
     
         
-    if ( $circuit_infos && scalar(@$circuit_infos) ) {
+    if ($circuit_infos && scalar(@{$circuit_infos})) {
 	$self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.event";
         $self->{'fwdctl_events'}->circuit_notification( type => 'link_down',
                                                         link_name => $link_name,
@@ -1417,8 +1418,7 @@ sub _fail_over_circuits{
 							no_reply => 1 );
     }
 
-    $self->{'logger'}->debug("Notification complete!");
-    
+    $self->{'logger'}->debug("Leaving _fail_over_circuits. Notification complete!");
 }
 
 =head2
@@ -1434,12 +1434,14 @@ sub _update_port_status{
     my $info = $p_ref->{'attrs'}{'value'};
     my $reason = $p_ref->{'ofp_port_reason'}{'value'};
 
+    $self->{'logger'}->info("Calling _update_port_status $reason on switch $dpid.");
 
-    if($reason == OFPPR_DELETE){
-	#currently do nothing...
-	
-    }else{
-	$self->{'db'}->_start_transaction();
+    
+    if ($reason == OFPPR_DELETE) {
+	# Currently do nothing...
+    } else {
+        $self->{'db'}->_start_transaction();
+
 	my $operational_state = 'up';
 	my $operational_state_num=(int($info->{'state'}) & 0x1);
 	if(1 == $operational_state_num){
@@ -1458,9 +1460,10 @@ sub _update_port_status{
 	my $res = $self->{'db'}->add_or_update_interface(node_id => $node->{'node_id'}, name => $info->{'name'},
 							 description => $info->{'name'}, operational_state => $operational_state,
 							 port_num => $info->{'port_no'}, admin_state => $admin_state);
-	
-	$self->{'db'}->_commit();
+        $self->{'db'}->_commit();
     }
+
+    $self->{'logger'}->info("Leaving _update_port_status.");
 }
 
 
@@ -1530,7 +1533,7 @@ sub port_status{
 			# Ignore traffic migration when in maintenance mode.
 			if (!exists $self->{'link_maintenance'}->{$link_id}) {
 			    $self->{'link_status'}->{$link_name} = OESS_LINK_DOWN;
-			    $self->_fail_over_circuits( circuits => $affected_circuits, link_name => $link_name );
+			    $self->_fail_over_circuits( circuits => $affected_circuits, link_name => $link_name);
 			    $self->_cancel_restorations( link_id => $link_id);
 			}
 			$self->{'db'}->update_link_state( link_id => $link_id, state => 'down');
@@ -1587,22 +1590,29 @@ sub port_status{
 	    #uh we should not be able to get here!
 	}
     }
+    $self->{'logger'}->info("Leaving port_status for switch $dpid.");
 }
 
 sub _cancel_restorations{
     my $self = shift;
     my %args = @_;
 
-    if (!defined($args{'link_id'})) {
+    my $link_id     = $args{'link_id'};
+
+    if (!defined $link_id) {
+        $self->{'logger'}->error("Bailing on _cancel_restorations. Argument link_id is undefined.");
         return;
     }
+    
+    $self->{'logger'}->debug("Calling _cancel_restorations on link $link_id.");
 
     my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $args{'link_id'} , path => 'primary');
 
     $self->{'db'}->_start_transaction();
 
-    foreach my $circuit (@$circuits) {
-        my $scheduled_events = $self->{'db'}->get_circuit_scheduled_events( circuit_id => $circuit->{'circuit_id'},
+    foreach my $circuit (@{$circuits}) {
+        $self->{'logger'}->debug("Getting scheduled events for circuit $circuit->{'circuit_id'} in _cancel_restorations.");
+        my $scheduled_events = $self->{'db'}->get_circuit_scheduled_events( circuit_id     => $circuit->{'circuit_id'},
                                                                             show_completed => 0 );
 
         foreach my $event (@$scheduled_events) {
@@ -1612,13 +1622,13 @@ sub _cancel_restorations{
                 next if $xml->{'action'} ne 'change_path';
                 next if $xml->{'path'} ne 'primary';
                 $self->{'db'}->cancel_scheduled_action( scheduled_action_id => $event->{'scheduled_action_id'} );
-                $self->{'logger'}->warn("Canceling restore to primary for circuit: " . $circuit->{'circuit_id'} . " because primary path is down");
+                $self->{'logger'}->warn("Canceling restore to primary for circuit: " . $circuit->{'circuit_id'} . " because primary path is down in _cancel_restorations.");
             }
         }
     }
 
     $self->{'db'}->_commit();
-
+    $self->{'logger'}->debug("Leaving _cancel_restorations.");
 }
 
 

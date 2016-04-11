@@ -2219,6 +2219,7 @@ sub get_node_maintenance {
 }
 
 =head2 get_node_maintenances
+
 =cut
 sub get_node_maintenances {
     my $self = shift;
@@ -2249,6 +2250,7 @@ sub get_node_maintenances {
 }
 
 =head2 start_link_maintenance
+
 =cut
 sub start_link_maintenance {
     my $self = shift;
@@ -2309,6 +2311,7 @@ sub start_link_maintenance {
 }
 
 =head2 end_link_maintenance
+
 =cut
 sub end_link_maintenance {
     my $self = shift;
@@ -2336,6 +2339,7 @@ sub end_link_maintenance {
 }
 
 =head2 get_link_maintenance
+
 =cut
 sub get_link_maintenance {
     my $self = shift;
@@ -4544,16 +4548,16 @@ sub update_link_state{
 
     if(!defined($link_id)){
 	$self->_set_error("No Link ID specified");
-    return;
+        return;
     }
 
     if(!defined($state)){
 	$state = 'down';
     }
 
-    my $result = $self->_execute_query("update link set status = ? where link_id = ?",[$state,$link_id]);
+    my $result = $self->_execute_query("update link set status = ? where link_id = ?", [$state, $link_id]);
     if($result != 1){
-	$self->_set_error("Error updating link state");
+	$self->_set_error("Could not update state of link $link_id to $state.");
     return;
     }
 
