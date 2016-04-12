@@ -858,7 +858,7 @@ sub confirm_node {
         vlan_range      => $range,
         default_forward => $default_forward,
         default_drop    => $default_drop,
-	    tx_delay_ms     => $tx_delay_ms,
+        tx_delay_ms     => $tx_delay_ms,
         max_flows       => $max_flows,
         bulk_barrier    => $bulk_barrier
         );
@@ -895,6 +895,7 @@ sub confirm_node {
     warn Data::Dumper::Dumper($cache_result);
     
     if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
+        warn "Cache result error: $cache_result->{'error'}";
         return;
     }
 
@@ -910,6 +911,7 @@ sub confirm_node {
     $cache_result = $client->force_sync(dpid => int($node->{'dpid'}));
 
     if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
+        warn "Failure occurred in force_sync against dpid: $node->{'dpid'}";
         return;
     }
 

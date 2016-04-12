@@ -7,10 +7,11 @@ use bytes;
 use Data::Dumper;
 use Log::Log4perl;
 use Graph::Directed;
-use GRNOC::RabbitMQ::Method;
+use GRNOC::RabbitMQ::Client;
 use GRNOC::RabbitMQ::Dispatcher;
+use GRNOC::RabbitMQ::Method;
+use GRNOC::WebService::Regex;
 use OESS::Database;
-use OESS::RabbitMQ::FV;
 use JSON::XS;
 use Time::HiRes;
 
@@ -70,16 +71,218 @@ sub new {
         $self->{'timeout'}  = $db->{'forwarding_verification'}->{'timeout'};
     }
 
-    $self->{'mqueue'} = OESS::RabbitMQ::FV->new( $self->{'db'} );
-    $self->{'mqueue'}->on_datapath_join( sub { $self->datapath_join_callback(@_) } );
-    $self->{'mqueue'}->on_datapath_leave( sub { $self->datapath_leave_callback(@_) } );
-    $self->{'mqueue'}->on_link_event( sub { $self->link_event_callback(@_) } );
-    $self->{'mqueue'}->on_port_status( sub { $self->port_status_callback(@_) } );
-    $self->{'mqueue'}->on_fv_packet_in( sub { $self->fv_packet_in_callback(@_) } );
 
-    $self->{'mqueue'}->register_for_fv_in( $self->{'db'}->{'discovery_vlan'} );
-    $self->{'mqueue'}->start();
+    $self->{'nox'} = GRNOC::RabbitMQ::Client->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
+                                                   port => $self->{'db'}->{'rabbitMQ'}->{'port'},
+                                                   user => $self->{'db'}->{'rabbitMQ'}->{'user'},
+                                                   pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
+                                                   exchange => 'OESS',
+                                                   topic => 'OF.NOX.RPC' );
+
+    $self->{'dispatch'} = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
+                                                            port => $self->{'db'}->{'rabbitMQ'}->{'port'},
+                                                            user => $self->{'db'}->{'rabbitMQ'}->{'user'},
+                                                            pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
+                                                            exchange => 'OESS',
+                                                            topic => 'OF.NOX' );
+    $self->_register_callbacks();
+    $self->{'dispatch'}->start_consuming();
+    
     return $self;
+}
+
+sub _register_callbacks {
+    my $self = shift;
+
+    my $method = GRNOC::RabbitMQ::Method->new( name        => "datapath_join",
+                                               topic       => "OF.NOX.event",
+                                               callback    => sub { $self->datapath_join_callback(@_) },
+                                               description => "Signals a node has joined the controller" );
+    $method->add_input_parameter( name => "dpid",
+                                  description => "Datapath ID of node that has joined",
+                                  required => 1,
+                                  pattern  => $GRNOC::WebService::Regex::NUMBER_ID );
+    $method->add_input_parameter( name => "ip",
+                                  description => "IP Address of node that has joined",
+                                  required => 1,
+                                  pattern  => $GRNOC::WebService::Regex::NUMBER_ID );
+    $method->add_input_parameter( name => "ports",
+                                  description => "Array of OpenFlow port structs",
+                                  required => 1,
+                                  schema => { 'type'  => 'array',
+                                              'items' => [ 'type' => 'object',
+                                                           'properties' => { 'hw_addr'    => {'type' => 'number'},
+                                                                             'curr'       => {'type' => 'number'},
+                                                                             'name'       => {'type' => 'string'},
+                                                                             'speed'      => {'type' => 'number'},
+                                                                             'supported'  => {'type' => 'number'},
+                                                                             'enabled'    => {'type' => 'number'}, # bool
+                                                                             'flood'      => {'type' => 'number'}, # bool
+                                                                             'state'      => {'type' => 'number'},
+                                                                             'link'       => {'type' => 'number'}, # bool
+                                                                             'advertised' => {'type' => 'number'},
+                                                                             'peer'       => {'type' => 'number'},
+                                                                             'config'     => {'type' => 'number'},
+                                                                             'port_no'    => {'type' => 'number'}
+                                                                           }
+                                                         ]
+                                            } );
+    $self->{'dispatch'}->register_method($method);
+    
+    $method = GRNOC::RabbitMQ::Method->new( name        => "datapath_leave",
+                                            topic       => "OF.NOX.event",
+                                            callback    => sub { $self->datapath_leave_callback(@_) },
+                                            description => "Removes datapath to FV's internal nodes" );
+    $method->add_input_parameter( name => "dpid",
+                                  description => "Datapath ID of node that has joined",
+                                  required => 1,
+                                  pattern  => $GRNOC::WebService::Regex::NUMBER_ID );
+    $self->{'dispatch'}->register_method($method);
+    
+    $method = GRNOC::RabbitMQ::Method->new( name        => "link_event",
+                                            topic       => "OF.NOX.event",
+                                            callback    => sub { $self->link_event_callback(@_) },
+                                            description => "Notifies FV of any link event." );
+    $method->add_input_parameter( name => "dpdst",
+                                  description => "DPID of one node on the link",
+                                  required => 1,
+                                  pattern  => $GRNOC::WebService::Regex::NAME_ID );
+    $method->add_input_parameter( name => "dport",
+                                  description => "Port of node a on the link",
+                                  required => 1,
+                                  pattern  => $GRNOC::WebService::Regex::INTEGER );
+    $method->add_input_parameter( name => "dpsrc",
+                                  description => "DPID of one node on the link",
+                                  required => 1,
+                                  pattern  => $GRNOC::WebService::Regex::NAME_ID );
+    $method->add_input_parameter( name => "sport",
+                                  description => "Port of node z on the link",
+                                  required => 1,
+                                  pattern  => $GRNOC::WebService::Regex::INTEGER );
+    $method->add_input_parameter( name => "action",
+                                  description => "Status of the link",
+                                  required => 1,
+                                  pattern  => $GRNOC::WebService::Regex::TEXT );
+    $self->{'dispatch'}->register_method($method);
+    
+    $method = GRNOC::RabbitMQ::Method->new( name        => "port_status",
+                                            topic       => "OF.NOX.event",
+                                            callback    => sub { $self->port_status_callback(@_) },
+                                            description => "Notifies FV of any port status change." );
+    $method->add_input_parameter( name => "dpid",
+                                  description => "The DPID of the switch which fired the port status event",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::NAME_ID);
+
+    $method->add_input_parameter( name => "reason",
+                                  description => "The reason for the port status must be one of OFPPR_ADD OFPPR_DELETE OFPPR_MODIFY",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);
+
+    $method->add_input_parameter( name => "port",
+                                  description => "Details about the port that had the port status message generated on it",
+                                  required => 1,
+                                  schema => { 'type' => 'object',
+                                              'properties' => {'port_no'     => {'type' => 'number'},
+                                                               'link'        => {'type' => 'number'},
+                                                               'name'        => {'type' => 'string'},
+                                                               'admin_state' => {'type' => 'string'},
+                                                               'status'      => {'type' => 'string'}} } );
+    $self->{'dispatch'}->register_method($method);
+    
+    $method = GRNOC::RabbitMQ::Method->new( name        => "fv_packet_in",
+                                            topic       => "OF.NOX.event",
+                                            callback    => sub { $self->fv_packet_in_callback(@_) },
+                                            description => "Notifies FV of any received FV packet." );
+    $method->add_input_parameter( name => "src_dpid",
+                                  description => "DPID of one node on the link",
+                                  required => 1,
+                                  pattern  => $GRNOC::WebService::Regex::NAME_ID );
+    $method->add_input_parameter( name => "src_port",
+                                  description => "Port of node a on the link",
+                                  required => 1,
+                                  pattern  => $GRNOC::WebService::Regex::INTEGER );
+    $method->add_input_parameter( name => "dst_dpid",
+                                  description => "DPID of one node on the link",
+                                  required => 1,
+                                  pattern  => $GRNOC::WebService::Regex::NAME_ID );
+    $method->add_input_parameter( name => "dst_port",
+                                  description => "Port of node z on the link",
+                                  required => 1,
+                                  pattern  => $GRNOC::WebService::Regex::INTEGER );
+    $method->add_input_parameter( name => "timestamp",
+                                  description => "When the packet_in was received.",
+                                  required => 1,
+                                  pattern  => $GRNOC::WebService::Regex::INTEGER );
+    $self->{'dispatch'}->register_method($method);
+}
+
+=head2 register_for_fv_in
+
+Publishes a message to OF.NOX.register_for_fv_in to enable the
+generation of fv_packet_in messages on OF.NOX.fv_packet_in.
+
+=over 1
+
+=item $discovery_vlan VLAN on which discovery packets will be sent.
+
+=back
+
+=cut
+sub register_for_fv_in {
+    my $self = shift;
+    my $discovery_vlan = shift;
+
+    $self->{'nox'}->register_for_fv_in(vlan => int($discovery_vlan));
+}
+
+=head2 send_fv_link_event
+
+Generates a link event to the OF.FV.fv_link_event topic.
+
+=over 1
+
+=item $link_name  Name of link that triggered an event
+
+=item $link_state State of the link identified by link_name
+
+=back
+
+=cut
+sub send_fv_link_event {
+    my $self       = shift;
+    my $link_name  = shift;
+    my $link_state = shift;
+ 
+    $self->{'nox'}->fv_link_event( link_name => $link_name,
+                                   state     => $link_state,
+                                   no_reply  => 1 );
+}
+
+=head2 send_fv_packets
+
+Sends an array of packets to $discovery_valn every $interval.
+
+=over 1
+
+=item $interval       Interval by which $packets will be sent
+
+=item $discovery_vlan VLAN to which discovery packets must be sent.
+
+=item $packets        Array reference of packets to send
+
+=back
+
+=cut
+sub send_fv_packets {
+    my $self           = shift;
+    my $interval       = shift;
+    my $discovery_vlan = shift;
+    my $packets        = shift;
+
+    $self->{'nox'}->send_fv_packets( interval => int($interval),
+                                     vlan     => int($discovery_vlan),
+                                     packets  => $packets );
 }
 
 sub _load_state {
@@ -174,7 +377,7 @@ sub _load_state {
     $self->{'logger'}->debug(Data::Dumper::Dumper($self->{'all_packets'}));
     $self->{'logger'}->debug("Send FV Packets");
 
-    $self->{'mqueue'}->send_fv_packets($self->{'interval'}, $self->{'db'}->{'discovery_vlan'}, $self->{'all_packets'});
+    $self->send_fv_packets($self->{'interval'}, $self->{'db'}->{'discovery_vlan'}, $self->{'all_packets'});
 }
 
 =head2 datapath_leave_callback
@@ -500,7 +703,7 @@ sub _send_fwdctl_link_event {
                                             state   => $state_str );
     }
 
-    my $results = $self->{'mqueue'}->send_fv_link_event( $link_name, $state );
+    my $results = $self->send_fv_link_event( $link_name, $state );
     return $results;
 }
 
