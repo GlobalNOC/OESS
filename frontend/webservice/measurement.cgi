@@ -29,7 +29,6 @@
 use strict;
 use warnings;
 
-use CGI;
 use JSON;
 use Switch;
 use Data::Dumper;
@@ -38,11 +37,14 @@ use OESS::Database;
 use OESS::Topology;
 use OESS::Measurement qw(BUILDING_FILE);
 
+use GRNOC::WebService;
+
 my $db          = new OESS::Database();
 my $topo        = new OESS::Topology();
 my $measurement = new OESS::Measurement();
 
-my $cgi  = new CGI;
+#register web service dispatcher
+my $svc = GRNOC::WebService::Dispatcher->new();
 
 $| = 1;
 
@@ -53,44 +55,102 @@ sub main {
         exit(1);
     }
 
-    my $action = $cgi->param('action');
+    if ( !$svc ){
+	send_json( {"error" => "Unable to access GRNOC::WebService" });
+	exit(1);
+    }
 
-    my $output;
     my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
     if ($user->{'status'} eq 'decom') {
-        $action = "error";
+	send_json("error");
+	exit(1);
     }
 
-    switch ($action){
+    #register the WebService Methods
+    register_webservice_methods();
 
-    case "get_circuit_data" {
-                             $output = &get_circuit_data();
-    }
-    case "error" {
-        $output = {error => "Decom users cannot use webservices."};
-    }
-    else{
-        $output = {error => "Unknown action - $action"};
-    }
+    #handle the WebService request.
+    $svc->handle_request();
+    
+}
 
-    }
+sub register_webservice_methods {
+    
+    my $method;
 
-    send_json($output);
+    #get_circuit_data()
+    $method = GRNOC::WebService::Method->new(
+	name            => "get_circuit_data",
+	description     => "returns JSON formatted usage statistics for a circuit from start time to end time, and for a specific node or interface in the circuit.",
+	callback        => sub { get_circuit_data( @_ ) }
+	);
 
+    #add the required input parameter circuit_id
+    $method->add_input_parameter(
+        name            => 'circuit_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "The id of the circuit to fetch details for."
+        );
+
+    #add the required input parameter start
+    $method->add_input_parameter(
+	name            => 'start',
+	pattern         => '^(\d+)$' ,
+	required        => 1,
+        description     => "Start time in epoch seconds."
+	 );
+    
+    #add the required input parameter end
+    $method->add_input_parameter(
+        name            => 'end',
+        pattern         => '^(\d+)$' ,
+        required        => 1,
+        description     => "End time in epoch seconds."
+        );
+
+    #add the optional input paramter node
+    $method->add_input_parameter(
+        name            => 'node',
+        pattern         => $GRNOC::WebService::Regex::TEXT,
+        required        => 0,
+        description     => "the node to look at for the circuit usage data."
+        );
+
+    #add the optional input parameter interface
+    $method->add_input_parameter(
+        name            => 'interface',
+        pattern         => $GRNOC::WebService::Regex::TEXT,
+        required        => 0,
+        description     => "The name of the interface on the node to look at for the usage statistics. Must be specified when the node parameter is defined."
+	);
+    
+    #add the optional input parameter link
+    $method->add_input_parameter(
+        name            => 'link',
+        pattern         => $GRNOC::WebService::Regex::TEXT,
+        required        => 0,
+        description     => "Name of the link to view data for, if specified node/interface should not be specified."
+	);
+    
+    #register the get_circuit_data() method
+    $svc->register_method($method);
 }
 
 sub get_circuit_data {
+
+    my ( $method, $args ) = @_ ;
     my $results;
 
-    my $start      = $cgi->param("start");
-    my $end        = $cgi->param("end");
-    my $circuit_id = $cgi->param("circuit_id");
+    my $start      = $args->{'start'}{'value'};
+    my $end        = $args->{'end'}{'value'};
+    my $circuit_id = $args->{'circuit_id'}{'value'};
 
     # optional parameters, if not given we will pick the first alphabetical node / intf to show traffic for
-    my $node       = $cgi->param('node');
-    my $interface  = $cgi->param('interface');
+    my $node       = $args->{'node'}{'value'};
+    my $interface  = $args->{'interface'}{'value'};
 
-    my $link       = $cgi->param('link');
+    my $link       = $args->{'link'}{'value'};
 
     # if we were sent a link, pick one of the endpoints to use for gathering data
     if (defined $link){
@@ -98,9 +158,8 @@ sub get_circuit_data {
     my $link_id = $db->get_link_id_by_name(link => $link);
 
     if (! defined $link_id){
-        $results->{'results'} = [];
-        $results->{'error'} = $db->get_error();
-        return $results;
+	$method->set_error( $db->get_error() ) ;
+	return;
     }
 
     my $endpoints = $db->get_link_endpoints(link_id => $link_id);
@@ -109,9 +168,6 @@ sub get_circuit_data {
     $interface = $endpoints->[0]->{'interface_name'};
     }
 
-    if ($start !~ /^\d+$/ || $end !~ /^\d+$/ || $circuit_id !~ /^\d+$/){
-    return undef;
-    }
 
     my $data = $measurement->get_circuit_data(circuit_id => $circuit_id,
                           start_time => $start,
@@ -122,8 +178,7 @@ sub get_circuit_data {
 
 
     if (! defined $data){
-        $results->{'results'} = [];
-        $results->{'error'} = $measurement->get_error();
+        $method->set_error( $measurement->get_error() );
     }
     elsif ($data eq BUILDING_FILE){
         $results->{'results'}     = [];
@@ -149,6 +204,5 @@ sub send_json{
 
     print "Content-type: text/plain\n\n" . encode_json($output);
 }
-
 main();
 

@@ -29,15 +29,16 @@
 use strict;
 use warnings;
 
-use CGI;
+
 use Data::Dumper;
 use JSON;
 use OESS::Database;
 use Switch;
-
+use GRNOC::WebService;
 
 my $db = new OESS::Database();
-my $cgi = new CGI;
+#register web service dispatcher
+my $svc = GRNOC::WebService::Dispatcher->new();
 
 $| = 1;
 
@@ -47,12 +48,16 @@ sub main {
         send_json( { "error" => "Unable to connect to database." } );
         exit(1);
     }
-    my $action = $cgi->param('action');
-    print STDERR "action " . $action;
+
+    if ( !$svc ){
+	send_json( {"error" => "Unable to access GRNOC::WebService" });
+	exit(1);
+    }
 
     my $user = $db->get_user_by_id(user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
     if ($user->{'status'} eq 'decom') {
-        $action = "error";
+	send_json("error");
+	exit(1);
     }
 
     my $authorization = $db->get_user_admin_status( 'username' => $ENV{'REMOTE_USER'});
@@ -67,54 +72,146 @@ sub main {
         return send_json({error => "unable to find user"});
     }
 
-    my $output;
-    switch ($action) {
-        case "nodes" {
-            $output = &node_maintenances();
-        }
-        case "start_node" {
-            if ($user->{'type'} eq 'read-only') {
-              $output = {error => 'You are a read-only user and unable start or end maintenance.'};
-            } else {
-              $output = &start_node_maintenance();
-            }
-        }
-        case "end_node" {
-            if ($user->{'type'} eq 'read-only') {
-              $output = {error => 'You are a read-only user and unable start or end maintenance.'};
-            } else {
-              $output = &end_node_maintenance();
-            }
-        }
-        case "links" {
-            $output = &link_maintenances();
-        }
-        case "start_link" {
-            if ($user->{'type'} eq 'read-only') {
-              $output = {error => 'You are a read-only user and unable start or end maintenance.'};
-            } else {
-              $output = &start_link_maintenance();
-            }
-        }
-        case "end_link"{
-            if ($user->{'type'} eq 'read-only') {
-              $output = {error => 'You are a read-only user and unable start or end maintenance.'};
-            } else {
-              $output = &end_link_maintenance();
-            }
-        }
-        case "error" {
-            my $message = "Decommed users cannot use webservices.";
-            warn $message;
-            $output = { error => $message };
-        } 
-        else {
-            my $message = "Unknown action - $action";
-            warn $message;
-            $output = { error => $message };
-        }
+    if ($user->{'type'} eq 'read-only') {
+	send_json('You are a read-only user and unable start or end maintenance.');
+	exit(1);
     }
-    send_json($output);
+
+    #register the WebService Methods
+    register_webservice_methods();
+
+    #handle the WebService request.
+    $svc->handle_request();
+}
+
+sub register_webservice_methods {
+    
+    my $method;
+
+    #nodes()
+    $method = GRNOC::WebService::Method->new(
+	name            => "nodes",
+	description     => "returns the node maintainence for a node",
+	callback        => sub { node_maintenances( @_ ) }
+	);
+
+    #add the optional input parameter node_id
+    $method->add_input_parameter(
+	name            => 'node_id',
+	pattern         => $GRNOC::WebService::Regex::INTEGER,
+	required        => 0,
+	description     => "The node ID of the node for which we need the maintainence information."
+	); 
+
+    #register the nodes() method
+    $svc->register_method($method);
+
+    #links()
+    $method = GRNOC::WebService::Method->new(
+        name            => "links",
+        description     => "returns the links maintainence",
+        callback        => sub { link_maintenances( @_ ) }
+        );
+
+    #add the optional input parameter link_id
+    $method->add_input_parameter(
+        name            => 'link_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        description     => "The link ID of the link for which we need the maintainence information."
+        );
+
+    #register the links() method
+    $svc->register_method($method);
+
+    #start_node
+    $method = GRNOC::WebService::Method->new(
+        name            => "start_node",
+        description     => "starts the node maintainence for a node",
+        callback        => sub { start_node_maintenance( @_ ) }
+        );
+
+    #add the required input parameter node_id
+    $method->add_input_parameter(
+        name            => 'node_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "The node ID of the node for which user wants to start the node maintainence."
+        );
+
+    # add the optional input parameter description 
+    $method->add_input_parameter(
+	name            => 'description',
+	pattern         => $GRNOC::WebService::Regex::TEXT,
+	required        => 0,
+	description     => "Brief description about the maintainence on the node."
+	); 
+
+    #register the start_node() method
+    $svc->register_method($method);
+
+    #end_node
+    $method = GRNOC::WebService::Method->new(
+        name            => "end_node",
+        description     => "ends the  the node maintainence for a node",
+        callback        => sub { end_node_maintenance( @_ ) }
+        );
+
+    #add the required input parameter node_id
+    $method->add_input_parameter(
+        name            => 'node_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "The node ID of the node for which we want to end the maintainence."
+        );
+
+    #register the end_node() method
+    $svc->register_method($method);
+    
+    #start_link
+    $method = GRNOC::WebService::Method->new(
+        name            => "start_link",
+        description     => "starts the link maintainence for a link",
+        callback        => sub { start_link_maintenance( @_ ) }
+        );
+
+    #add the required input parameter link_id
+    $method->add_input_parameter(
+        name            => 'link_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "The link ID of the link for which user wants to start the node maintainence."
+        );
+
+    # add the optional input parameter description
+    $method->add_input_parameter(
+        name            => 'description',
+        pattern         => $GRNOC::WebService::Regex::TEXT,
+        required        => 0,
+        description     => "Brief description about the maintainence on the link."
+        );
+
+    #register the start_link() method
+    $svc->register_method($method);
+
+    #end_link()
+    $method = GRNOC::WebService::Method->new(
+	name            => "end_link",
+        description     => "ends the  the link maintainence for a link.",
+	callback        => sub { end_link_maintenance( @_ ) }
+	);
+    
+    #add the required input parameter link_id
+    $method->add_input_parameter(
+        name            => 'link_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "The link ID of the link for which we want to end the maintainence."
+        );
+
+    #register the end_link() method
+    $svc->register_method($method);
+
 }
 
 sub send_json {
@@ -146,8 +243,9 @@ sub _execute_node_maintenance {
 }
 
 sub node_maintenances {
+    my ( $method, $args ) = @_ ;
     my $results;
-    my $node_id = $cgi->param('node_id');
+    my $node_id = $args->{'node_id'}{'value'};
 
     my $data;
     if (defined $node_id) {
@@ -157,21 +255,24 @@ sub node_maintenances {
     }
 
     if (!defined $data) {
-        return { error => "Failed to retrieve nodes under maintenance." };
+	$method->set_error("Failed to retrieve nodes under maintenance.");
+	return;
     }
     $results->{'results'} = $data;
     return $results;
 }
 
 sub start_node_maintenance {
+
+    my ( $method, $args ) = @_ ;
     my $results;
-    my $node_id = $cgi->param('node_id');
-    my $description = $cgi->param('description');
+    my $node_id = $args->{'node_id'}{'value'};
+    my $description = $args->{'description'}{'value'};
 
     if (!defined $node_id) {
-        return { error => "Parameter node_id must be provided." };
+        return $method->set_error("Parameter node_id must be provided.");
     }
-    
+        
     if (!defined $description) {
         $description = "";
     }
@@ -180,19 +281,22 @@ sub start_node_maintenance {
     my $data = $db->start_node_maintenance($node_id, $description);
     if (!defined $data) {
         $db->_rollback();
-        return { error => "Failed to put node into maintenance mode; Database error occurred." };
+        $method->set_error("Failed to put node into maintenance mode; Database error occurred.");
+	return;
     }
     $db->_commit();
     
     my $res = _execute_node_maintenance($node_id, "start");
     if (!defined $res) {
         $db->end_node_maintenance($node_id);
-        return { error => "Failed to put node into maintenance mode; Message queue error occurred." };
+        $method->set_error("Failed to put node into maintenance mode; Message queue error occurred.");
+        return;
     }
 
     if ($res->{'results'}->{'status'} != 1) {
         $db->end_node_maintenance($node_id);
-        return { error => "Failed to put node into maintenance mode." };
+        $method->set_error("Failed to put node into maintenance mode.");
+        return;
     }
 
     $results->{'results'} = $data;
@@ -200,14 +304,14 @@ sub start_node_maintenance {
 }
 
 sub end_node_maintenance {
+    my ( $method, $args ) = @_ ;
     my $results;
-    my $node_id = $cgi->param('node_id');
-    if (!defined $node_id) {
-        return { error => "Parameter node_id must be provided." };
-    }
+    my $node_id = $args->{'node_id'}{'value'};
+
     my $data = $db->end_node_maintenance($node_id);
     if (!defined $data) {
-        return { error => "Failed to take node out of maintenance mode." };
+        $method->set_error("Failed to take node out of maintenance mode.");
+	return;
     }
     _execute_node_maintenance($node_id, "end");
 
@@ -236,8 +340,9 @@ sub _execute_link_maintenance {
 }
 
 sub link_maintenances {
+    my ( $method, $args ) = @_ ;
     my $results;
-    my $link_id = $cgi->param('link_id');
+    my $link_id = $args->{'link_id'}{'value'};
 
     my $data;
     if (defined $link_id) {
@@ -247,21 +352,24 @@ sub link_maintenances {
     }
 
     if (!defined $data) {
-        return { error => "Failed to retrieve links under maintenance." };
+        $method->set_error("Failed to retrieve links under maintenance.");
+	return;
     }
     $results->{'results'} = $data;
     return $results;
 }
 
 sub start_link_maintenance {
+    my ( $method, $args ) = @_ ;
+
     my $results     = {};
-    my $link_id     = $cgi->param('link_id');
-    my $description = $cgi->param('description');
+    my $link_id     = $args->{'link_id'}{'value'};
+    my $description = $args->{'description'}{'value'};
 
     if (!defined $link_id) {
-        return { error => "Parameter link_id must be provided." };
+        $method->set_error(error => "Parameter link_id must be provided.");
     }
-    
+
     if (!defined $description) {
         $description = "";
     }
@@ -270,19 +378,22 @@ sub start_link_maintenance {
     my $data = $db->start_link_maintenance($link_id, $description);
     if (!defined $data) {
         $db->_rollback();
-        return { error => "Failed to put link into maintenance mode; Database error occurred." };
+        $method->set_error("Failed to put link into maintenance mode. Database error occurred.");
+	return;
     }
     $db->_commit();
 
     my $res = _execute_link_maintenance($link_id, "start");
     if (!defined $res) {
         $db->end_link_maintenance($link_id);
-        return { error => "Failed to put link into maintenance mode; Message queue error occurred." };
+        $method->set_error("Failed to put link into maintenance mode; Message queue error occurred.");
+        return;
     }
 
     if ($res->{'results'}->{'status'} != 1) {
         $db->end_link_maintenance($link_id);
-        return { error => "Failed to put link into maintenance mode." };
+        $method->set_error("Failed to put link into maintenance mode.");
+        return;
     }
 
     $results->{'results'} = $data;
@@ -290,16 +401,15 @@ sub start_link_maintenance {
 }
 
 sub end_link_maintenance {
+
+    my ( $method, $args ) = @_ ;
     my $results;
-    my $link_id = $cgi->param('link_id');
-    if (!defined $link_id) {
-        return { error => "Parameter link_id must be provided." };
-        return $results;
-    }
+    my $link_id = $args->{'link_id'}{'value'};
     
     my $data = $db->end_link_maintenance($link_id);
     if (!defined $data) {
-        return { error => "Failed to take link out of maintenance mode." };
+        $method->set_error("Failed to take link out of maintenance mode.");
+	return;
     }
     _execute_link_maintenance($link_id, "end");
 
