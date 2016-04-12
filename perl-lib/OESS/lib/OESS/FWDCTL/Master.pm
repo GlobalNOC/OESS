@@ -831,12 +831,16 @@ sub _sync_database_to_network {
     
     my $node_maintenances = $self->{'db'}->get_node_maintenances();
     foreach my $maintenance (@$node_maintenances) {
-        $self->node_maintenance($maintenance->{'node'}->{'id'}, "start");
+        my $p_ref = { node_id => { value => $maintenance->{'node'}->{'id'} },
+                      state   => { value => "start" } };
+        $self->node_maintenance(undef, $p_ref);
     }
 
     my $link_maintenances = $self->{'db'}->get_link_maintenances();
     foreach my $maintenance (@$link_maintenances) {
-        $self->link_maintenance($maintenance->{'link'}->{'id'}, "start");
+        my $p_ref = { link_id => { value => $maintenance->{'link'}->{'id'} },
+                      state   => { value => "start" } };
+        $self->link_maintenance(undef, $p_ref);
     }
 
     foreach my $node (keys %{$self->{'node_info'}}){
