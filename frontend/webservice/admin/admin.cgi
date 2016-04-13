@@ -886,33 +886,43 @@ sub confirm_node {
                                               port => 5672,
                                               timeout => 15
         );
-    if ( !defined($client) ) {
-        return;
+    if (!defined $client) {
+        $results->{'results'} = [ {
+                                   "error"   => "Internal server error occurred. Message queue connection failed.",
+                                   "success" => 0
+                                  }
+                                ];
+        return $results;
     }
 
     my $cache_result = $client->update_cache(circuit_id => -1);
-
     warn Data::Dumper::Dumper($cache_result);
     
     if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
-        warn "Cache result error: $cache_result->{'error'}";
-        return;
+        $results->{'results'} = [ {
+                                   "error"   => "Cache result error: $cache_result->{'error'}.",
+                                   "success" => 0
+                                  }
+                                ];
+        return $results;
     }
 
-    my $event_id = $cache_result->{'results'}->{'event_id'};
-
+    my $event_id  = $cache_result->{'results'}->{'event_id'};
     my $final_res = FWDCTL_WAITING;
 
-    while($final_res == FWDCTL_WAITING){
+    while ($final_res == FWDCTL_WAITING) {
         sleep(1);
         $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
     }
 
     $cache_result = $client->force_sync(dpid => int($node->{'dpid'}));
-
     if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
-        warn "Failure occurred in force_sync against dpid: $node->{'dpid'}";
-        return;
+        $results->{'results'} = [ {
+                                   "error"   => "Failure occurred in force_sync against dpid: $node->{'dpid'}",
+                                   "success" => 0
+                                  }
+                                ];
+        return $results;
     }
 
     $event_id = $cache_result->{'results'}->{'event_id'};

@@ -179,6 +179,7 @@ sub get_circuit_data {
 
     if (! defined $data){
         $method->set_error( $measurement->get_error() );
+        return;
     }
     elsif ($data eq BUILDING_FILE){
         $results->{'results'}     = [];

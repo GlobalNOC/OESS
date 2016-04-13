@@ -577,29 +577,30 @@ sub remove_vlan{
     my $m_ref = shift;
     my $p_ref = shift;
 
-    $self->{'logger'}->debug("in remove_vlan");
-
     my $circuit = $p_ref->{'circuit_id'}{'value'};
 
-    $self->{'logger'}->debug("Removing VLAN: " . Data::Dumper::Dumper($p_ref));
+    $self->{'logger'}->debug("Calling remove_vlan for circuit $circuit.");
+    $self->{'logger'}->debug("Calling remove_vlan with args: " . Data::Dumper::Dumper($p_ref));
 
     $self->_update_cache();
 
-    my $commands = $self->_generate_commands($circuit,FWDCTL_REMOVE_VLAN);
-    
+    my $commands = $self->_generate_commands($circuit, FWDCTL_REMOVE_VLAN);
+    $self->{'logger'}->debug("Sending OFPFC_DELETE_STRICT in remove_vlan with commands: " . Data::Dumper::Dumper($commands));
+
     $self->send_flows( flows => $commands,
 		       command => OFPFC_DELETE_STRICT,
 		       cb => sub {
 			   $self->{'rabbit_mq'}->send_barrier( dpid => int($self->{'dpid'}),
 							       async_callback => sub {
-								   $self->get_node_status( cb => sub{
+								   $self->get_node_status( cb => sub {
 								       my $res = shift;
 								       $self->{'needs_diff'} = time();
 								       my $cb = $m_ref->{'success_callback'};
 								       &$cb($res);
-											   } )
+                                                                   } )
 							       });
-		       });    
+		       });
+    $self->{'logger'}->debug("Leaving remove_vlan");
 }
 
 =head2 datapath_join_handler

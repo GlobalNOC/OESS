@@ -270,7 +270,8 @@ sub start_node_maintenance {
     my $description = $args->{'description'}{'value'};
 
     if (!defined $node_id) {
-        return $method->set_error("Parameter node_id must be provided.");
+        $method->set_error("Parameter node_id must be provided.");
+        return;
     }
         
     if (!defined $description) {
@@ -368,6 +369,7 @@ sub start_link_maintenance {
 
     if (!defined $link_id) {
         $method->set_error(error => "Parameter link_id must be provided.");
+        return;
     }
 
     if (!defined $description) {

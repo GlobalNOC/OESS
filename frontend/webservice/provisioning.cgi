@@ -165,7 +165,7 @@ sub register_webservice_methods {
     $method->add_input_parameter(
 	name            => 'link',
 	pattern         => $GRNOC::WebService::Regex::TEXT,
-	required        => 1,
+	required        => 0,
 	multiple        => 1,
 	description     => "Array of names of links to be used in the primary path."
 	); 
@@ -621,6 +621,7 @@ sub provision_circuit {
 
     if($user->{'type'} eq 'read-only'){
         $method->set_error('You are a read-only user and unable to provision');
+        return;
     }
     if ( !$circuit_id || $circuit_id == -1 ) {
         #Register with DB
@@ -785,13 +786,13 @@ sub provision_circuit {
 }
 
 sub remove_circuit {
-
     my ( $method, $args ) = @_ ;
     my $results;
 
     my $circuit_id   = $args->{'circuit_id'}{'value'};
     my $remove_time  = $args->{'remove_time'}{'value'};
     my $workgroup_id = $args->{'workgroup_id'}{'value'};
+    
     $results->{'results'} = [];
 
     my $can_remove = $db->can_modify_circuit(
@@ -809,6 +810,7 @@ sub remove_circuit {
         );
 
     if ( !defined($log_client) ) {
+        $method->set_error("Internal server error occurred. Message queue connection failed.");
         return;
     }
 
@@ -834,14 +836,13 @@ sub remove_circuit {
         if ( $result == 0 ) {
             $method->set_error("Unable to remove circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been left in the database");
 
-            # if force is sent, it will clear it from the database regardless of whether fwdctl reported success or not
+            # If force is sent, it will clear it from the database
+            # regardless of whether fwdctl reported success or not.
+            # Otherwise the error is returned.
             if ( !$args->{'force'}{'value'} ) {
                 return;
             }
         }
-
-
-
     }
 
     my $output = $db->remove_circuit(
@@ -869,7 +870,7 @@ sub remove_circuit {
             $circuit_details->{'reason'} = 'removed by ' . $ENV{'REMOTE_USER'};
             $circuit_details->{'type'} = 'removed';
             $log_client->circuit_notification( circuit => $circuit_details, 
-		no_reply => 1,);
+                                               no_reply => 1,);
         };
         warn $@ if $@;
 
