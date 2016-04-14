@@ -94,7 +94,7 @@ sub _fail_over {
     my %args = @_;
 
     my $client  = new GRNOC::RabbitMQ::Client(
-        topic => 'OF.FWDCTL.RPC',
+        topic => 'MPLS.FWDCTL.RPC',
         exchange => 'OESS',
         user => 'guest',
         pass => 'guest',
@@ -119,7 +119,7 @@ sub _fail_over {
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
-        usleep(100);
+        usleep(1000);
         my $res = $client->get_event_status(event_id => $event_id);
 
         if($res->{'error'} || !defined($res->{'results'}) || !defined($res->{'results'}->{'status'})){
@@ -136,7 +136,7 @@ sub _send_add_command {
     my %args = @_;
 
     my $client  = new GRNOC::RabbitMQ::Client(
-        topic => 'OF.FWDCTL.RPC',
+        topic => 'MPLS.FWDCTL.RPC',
         exchange => 'OESS',
         user => 'guest',
         pass => 'guest',
@@ -160,7 +160,7 @@ sub _send_add_command {
 
     my $final_res = FWDCTL_WAITING;
     while($final_res == FWDCTL_WAITING){
-        usleep(100);
+        usleep(1000);
         my $res = $client->get_event_status(event_id => $event_id);
 
         if(defined($res->{'error'}) || !defined($res->{'results'})){
@@ -177,7 +177,7 @@ sub _send_remove_command {
     my %args = @_;
 
     my $client  = new GRNOC::RabbitMQ::Client(
-        topic => 'OF.FWDCTL.RPC',
+        topic => 'MPLS.FWDCTL.RPC',
         exchange => 'OESS',
         user => 'guest',
         pass => 'guest',
@@ -202,7 +202,7 @@ sub _send_remove_command {
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
-        usleep(100);
+        usleep(1000);
         my $res = $client->get_event_status(event_id => $event_id);
 
         if(defined($res->{'error'}) || !defined($res->{'results'})){
@@ -222,7 +222,7 @@ sub _send_update_cache{
     }
 
     my $client  = new GRNOC::RabbitMQ::Client(
-        topic => 'OF.FWDCTL.RPC',
+        topic => 'MPLS.FWDCTL.RPC',
         exchange => 'OESS',
         user => 'guest',
         pass => 'guest',
@@ -245,7 +245,7 @@ sub _send_update_cache{
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
-        usleep(100);
+        usleep(1000);
         my $res = $client->get_event_status(event_id => $event_id);
 
         if($res->{'error'} || $res->{'results'}){

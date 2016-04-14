@@ -10,6 +10,10 @@ use OESS::Database;
 use OESS::Topology;
 use OESS::Circuit;
 
+#anyevent
+use AnyEvent;
+use AnyEvent::Fork;
+
 use GRNOC::RabbitMQ::Client;
 use GRNOC::RabbitMQ::Dispatcher;
 use GRNOC::RabbitMQ::Method;
@@ -29,6 +33,10 @@ use constant OESS_CIRCUIT_UP    => 1;
 use constant OESS_CIRCUIT_DOWN  => 0;
 use constant OESS_CIRCUIT_UNKNOWN => 2;
 
+use constant TIMEOUT => 3600;
+
+use JSON::XS;
+use GRNOC::WebService::Regex;
 
 =head2 new
 
@@ -81,12 +89,6 @@ sub new {
     };
 
 
-    #from TOPO startup
-    my $nodes = $self->{'db'}->get_current_nodes( MPLS => 1);
-    foreach my $node (@$nodes) {
-        #$self->{'db'}->update_node_operational_state(node_id => $node->{'node_id'}, state => 'down', mpls => 1);
-    }
-    
     my $topo = OESS::Topology->new( db => $self->{'db'}, MPLS => 1 );
     if (! $topo) {
         $self->{'logger'}->fatal("Could not initialize topo library");
@@ -107,50 +109,43 @@ sub new {
     $self->{'circuit_status'} = {};
     $self->{'node_info'} = {};
     $self->{'link_maintenance'} = {};
-    
+    $self->{'node_by_id'} = {};
+
     $self->update_cache(-1);
+
+    #from TOPO startup
+    my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
+    foreach my $node (@$nodes) {
+	$self->make_baby($node->{'node_id'});
+    }
+
     
     $self->{'logger'}->error("MPLS Provisioner INIT COMPLETE");
+
+    
     
     return $self;
 }
 
-sub update_cache{
+sub populate_devices{
     my $self = shift;
-    my $m_ref = shift;
-    my $p_ref = shift;
-    
-    my $circuit_id = $p_ref->{'circuit_id'}->{'value'};
 
-    if(!defined($circuit_id) || $circuit_id == -1){
-        $self->{'logger'}->debug("Updating Cache for entire network");
-        my $res = build_cache(db => $self->{'db'}, logger => $self->{'logger'});
-        $self->{'circuit'} = $res->{'ckts'};
-        $self->{'link_status'} = $res->{'link_status'};
-        $self->{'circuit_status'} = $res->{'circuit_status'};
-        $self->{'node_info'} = $res->{'node_info'};
-        $self->{'logger'}->debug("Cache update complete");
+    foreach my $node (keys %{$self->{'node_by_id'}}){
+	$self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node}->{'mgmt_addr'};
+	$self->{'fwdctl_events'}->get_interfaces( async_callback => sub {
+	    my $res = shift;
+	    my $ints = $res->{'results'};
+	    $self->{'logger'}->error("Populating interfaces!!!");
+	    $self->{'db'}->_start_transaction();
 
-    }else{
-        $self->{'logger'}->debug("Updating cache for circuit: " . $circuit_id);
-        my $ckt = $self->get_ckt_object($circuit_id);
-        if(!defined($ckt)){
-            return {status => FWDCTL_FAILURE, event_id => $self->_generate_unique_event_id()};
-        }
-        $ckt->update_circuit_details();
-        $self->{'logger'}->debug("Updating cache for circuit: " . $circuit_id . " complete");
+	    foreach my $int (@$ints){
+		$self->{'logger'}->error("INTERFACE: " . Data::Dumper::Dumper($int));
+		my $int_id = $self->{'db'}->add_or_update_interface(node_id => $node, name => $int->{'name'}, description => $int->{'description'}, operational_state => $int->{'operational_state'}, port_num => $int->{'snmp_index'}, admin_state => $int->{'snmp_index'}, mpls => 1);
+		
+	    }
+	    $self->{'db'}->_commit();
+						  });
     }
-
-    #write the cache for our children
-    $self->_write_cache();
-    my $event_id = $self->_generate_unique_event_id();
-    foreach my $child (keys %{$self->{'children'}}){
-	$self->send_message_to_child($child,{action => 'update_cache'},$event_id);
-    }
-    
-    $self->{'logger'}->error("Completed sending message to children!");
-
-    return { status => FWDCTL_SUCCESS, event_id => $event_id };
 
 }
 
@@ -205,12 +200,16 @@ sub build_cache{
         
     my $nodes = $db->get_current_nodes( mpls => 1 );
     foreach my $node (@$nodes) {
-        my $details = $db->get_node_by_id(id => $node->{'id'});
-        $details->{'id'} = sprintf("%x",$node->{'id'});
-        $details->{'name'} = $node->{'name'};
-	$details->{'ip'} = inet_ntoa(pack("N",$node->{'ip'}));
-	$details->{'router_addr'} = inet_ntoa(pack("N", $node->{'router_addr_ipv4'}));
-        $node_info{$node->{'id'}} = $details;
+        my $details = $db->get_node_by_id(node_id => $node->{'node_id'});
+	warn "Node Details: " . Data::Dumper::Dumper($details);
+        $details->{'node_id'} = $details->{'node_id'};
+	$details->{'id'} = $details->{'node_id'};
+        $details->{'name'} = $details->{'name'};
+	$details->{'ip'} = $details->{'ip'};
+	$details->{'vendor'} = $details->{'vendor'};
+	$details->{'model'} = $details->{'model'};
+	$details->{'sw_version'} = $details->{'sw_version'};
+	$node_info{$node->{'name'}} = $details;
     }
 
     return {ckts => \%ckts, circuit_status => \%circuit_status, link_status => \%link_status, node_info => \%node_info};
@@ -227,7 +226,7 @@ sub convert_graph_to_mpls{
 	
     my @res;
     foreach my $link (@hops){
-	push(@res, $self->{'node_info'}->{$link->{'node_z'}}->{'router_addr'});
+	push(@res, $self->{'node_info'}->{$link->{'node_z'}}->{'router_ip'});
     }
 
     return \@res;
@@ -250,7 +249,21 @@ sub _write_cache{
         my $details = $ckt->get_details();
 
 	my $eps = $ckt->get_endpoints();
-	foreach my $ep (@$eps){
+
+
+	
+#	foreach my $ep (@$eps){	
+	for(my $i=0;$i<scalar(@$eps);$i++){
+
+	    my $ep = $eps->[$i];
+
+	    my $dest;
+	    if($i == scalar(@{$eps}) -1 ){
+		$dest = $self->{'node_info'}->{$eps->[0]->{'node'}}->{'router_ip'};
+	    }else{
+		$dest = $self->{'node_info'}->{$eps->[$i + 1]->{'node'}}->{'router_ip'};
+	    }
+
 
 	    #generate primary path
 	    my $primary_path = [];
@@ -267,29 +280,24 @@ sub _write_cache{
 			interface => $ep->{'interface'},
 			vlan_tag => $ep->{'tag'},
 			primary_path => $primary_path,
-			backup_path => $backup_path };
+			backup_path => $backup_path,
+			destination_ip => $dest
+	    };
 	    
-	    push(@{$switches{$ep->{'node'}}->{'ckts'}}, $obj);
+	    $switches{$ep->{'node'}}->{$details->{'circuit_id'}} = $obj;
 	}
     }
 
-        
-#    foreach my $id (keys %{$self->{'node_info'}}){
-#        my $data;
-#        my $ckts;
-#        foreach my $ckt (keys %{$self->{'circuits'}}){
-#            $ckts->{$ckt} = $self->{'circuits'}->{$ckt};
-#        }
-#        $data->{'ckts'} = $ckts;
-#        $data->{'nodes'} = $self->{'node_info'};
-#        $data->{'settings'}->{'discovery_vlan'} = $self->{'db'}->{'discovery_vlan'};
-#        $self->{'logger'}->info("writing shared file for dpid: " . $dpid);
-#        
-#        my $file = $self->{'share_file'} . "." . sprintf("%x",$dpid);
-#        open(my $fh, ">", $file) or $self->{'logger'}->error("Unable to open $file " . $!);
-#        print $fh encode_json($data);
-#        close($fh);
-#    }
+    foreach my $node (keys %{$self->{'node_info'}}){
+	my $data;
+	$data->{'nodes'} = $self->{'node_by_id'};
+	$data->{'ckts'} = $switches{$node};
+	$self->{'logger'}->info("writing shared file for node_id: " . $self->{'node_info'}->{$node}->{'id'});
+	my $file = $self->{'share_file'} . "." . $self->{'node_info'}->{$node}->{'id'};
+	open(my $fh, ">", $file) or $self->{'logger'}->error("Unable to open $file " . $!);
+        print $fh encode_json($data);
+        close($fh);
+    }
 
 }
 
@@ -297,9 +305,6 @@ sub _write_cache{
 sub register_rpc_methods{
     my $self = shift;
     my $d = shift;
-
-
-    
 
     my $method = GRNOC::RabbitMQ::Method->new( name => "addVlan",
 					       callback => sub { $self->addVlan(@_) },
@@ -368,6 +373,31 @@ sub register_rpc_methods{
                                   required => 1,
                                   pattern => $GRNOC::WebService::Regex::IP_ADDRESS);
 
+    $method->add_input_parameter( name => "username",
+                                  description => "the ip address of the switch",
+                                  required => 1,
+				  pattern => $GRNOC::WebService::Regex::NAME_ID);
+
+    $method->add_input_parameter( name => "password",
+                                  description => "the ip address of the switch",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::TEXT);
+
+    $method->add_input_parameter( name => "vendor",
+                                  description => "the ip address of the switch",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::NAME_ID);
+
+    $method->add_input_parameter( name => "model",
+                                  description => "the ip address of the switch",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::NAME_ID);
+
+    $method->add_input_parameter( name => "sw_version",
+                                  description => "the ip address of the switch",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::NAME_ID);
+
     $d->register_method($method);
 
 }
@@ -379,14 +409,19 @@ sub new_switch{
     my $state_ref = shift;
     
     my $ip = $p_ref->{'ip'}{'value'};
-    my $pass = $p_ref->{'password'}{'value'};
-    my $device_type = $p_ref->{'device_type'};
+    my $password = $p_ref->{'password'}{'value'};
+    my $username = $p_ref->{'username'}{'value'};
+    my $vendor = $p_ref->{'vendor'}{'value'};
+    my $model = $p_ref->{'model'}{'value'};
+    my $sw_rev = $p_ref->{'version'}{'value'};
 
-    my $node = $self->{'db'}->get_node_by_ip( ip => $ip);
+    my $node = $self->{'db'}->get_node_by_ip( ip => $ip );
     if(defined($node)){
 	$self->{'logger'}->error("This switch already exists!");
 	return FWDCTL_FAILURE;
     }
+
+    warn "new node: " . Data::Dumper::Dumper($p_ref);
 
     #first we need to create the node entry in the db...
     #also set the node instantiation to available...    
@@ -407,18 +442,20 @@ sub new_switch{
     
     # default
     if (! $node_name){
-	$node_name="unnamed-".$dpid;
+	$node_name="unnamed-".$ip;
     }
     
     $self->{'db'}->_start_transaction();
     
-    $node_id = $self->{'db'}->add_node(name => $node_name, operational_state => 'up', network_id => 1, mpls => 1);
+    my $node_id = $self->{'db'}->add_node(name => $node_name, operational_state => 'up', network_id => 1);
     if(!defined($node_id)){
 	$self->{'db'}->_rollback();
 	return FWDCTL_FAILURE;
     }
-    $self->{'db'}->create_node_instance(node_id => $node_id, mgmt_addr => $ip, admin_state => 'available', password => $password, vendor => $vendor, model => $model, sw_rev => $sw_rev);
+    $self->{'db'}->create_node_instance(node_id => $node_id, mgmt_addr => $ip, admin_state => 'available', username => $username, password => $password, vendor => $vendor, model => $model, sw_version => $sw_rev, mpls => 1, openflow => 0);
     $self->{'db'}->_commit();
+
+    $self->update_cache(-1);
 
     #sherpa will you make my babies!
     $self->make_baby($node_id);
@@ -437,6 +474,8 @@ sub make_baby{
     
     $self->{'logger'}->debug("Before the fork");
     
+    my $node = $self->{'node_by_id'}->{$id};
+
     my %args;
     $args{'id'} = $id;
     $args{'share_file'} = $self->{'share_file'}. "." . $id;
@@ -465,13 +504,181 @@ sub run{
     $self->{'children'}->{$id}->{'rpc'} = 1;
 }
 
+
+=head2 update_cache
+updates the cache for all of the children
+=cut
+
+sub update_cache{
+    my $self = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+    
+    my $circuit_id = $p_ref->{'circuit_id'}->{'value'};
+
+    if(!defined($circuit_id) || $circuit_id == -1){
+        $self->{'logger'}->debug("Updating Cache for entire network");
+        my $res = build_cache(db => $self->{'db'}, logger => $self->{'logger'});
+        $self->{'circuit'} = $res->{'ckts'};
+        $self->{'link_status'} = $res->{'link_status'};
+        $self->{'circuit_status'} = $res->{'circuit_status'};
+        $self->{'node_info'} = $res->{'node_info'};
+        $self->{'logger'}->debug("Cache update complete");
+	
+	#want to reference by name and by id
+	my %node_by_id;
+	foreach my $node (keys %{$self->{'node_info'}}){
+	    $node_by_id{$self->{'node_info'}->{$node}->{'id'}} = $self->{'node_info'}->{$node};
+	}
+	$self->{'node_by_id'} = \%node_by_id;
+    }else{
+        $self->{'logger'}->debug("Updating cache for circuit: " . $circuit_id);
+        my $ckt = $self->get_ckt_object($circuit_id);
+        if(!defined($ckt)){
+            return {status => FWDCTL_FAILURE, event_id => $self->_generate_unique_event_id()};
+        }
+        $ckt->update_circuit_details();
+        $self->{'logger'}->debug("Updating cache for circuit: " . $circuit_id . " complete");
+    }
+
+    #write the cache for our children
+    $self->_write_cache();
+    my $event_id = $self->_generate_unique_event_id();
+    foreach my $child (keys %{$self->{'children'}}){
+	$self->send_message_to_child($child,{action => 'update_cache'},$event_id);
+    }
+    
+    $self->{'logger'}->error("Completed sending message to children!");
+
+    return { status => FWDCTL_SUCCESS, event_id => $event_id };
+}
+
+=head2 check_child_status
+    sends an echo request to the child
+=cut
+
+sub check_child_status{
+    my $self = shift;
+
+    $self->{'logger'}->debug("Checking on child status");
+    my $event_id = $self->_generate_unique_event_id();
+    foreach my $id (keys %{$self->{'children'}}){
+        $self->{'logger'}->debug("checking on child: " . $id);
+        my $child = $self->{'children'}->{$id};
+        my $corr_id = $self->send_message_to_child($id,{action => 'echo'},$event_id);            
+    }
+    return {status => 1, event_id => $event_id};
+}
+
+=head2 reap_old_events
+=cut
+
+sub reap_old_events{
+    my $self = shift;
+
+    my $time = time();
+    foreach my $event (keys (%{$self->{'pending_events'}})){
+        if($self->{'pending_events'}->{$event}->{'ts'} + TIMEOUT > $time){
+            delete $self->{'pending_events'}->{$event};
+        }
+    }
+}
+
+
+=head2 send_message_to_child
+send a message to a child
+=cut
+
+sub send_message_to_child{
+    my $self = shift;
+    my $id = shift;
+    my $message = shift;
+    my $event_id = shift;
+
+    my $rpc    = $self->{'children'}->{$id}->{'rpc'};
+    if(!defined($rpc)){
+        $self->{'logger'}->error("No RPC exists for node_id: " . $id);
+	$self->make_baby($id);
+        $rpc = $self->{'children'}->{$id}->{'rpc'};
+    }
+
+    if(!defined($rpc)){
+        $self->{'logger'}->error("OMG I couldn't create babies!!!!");
+        return;
+    }
+
+    $message->{'async_callback'} = $self->message_callback($id, $event_id);
+    my $method_name = $message->{'action'};
+    delete $message->{'action'};
+
+    $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$id}->{'mgmt_addr'};
+    $self->{'fwdctl_events'}->$method_name( %$message );
+
+    $self->{'pending_results'}->{$event_id}->{'ts'} = time();
+    $self->{'pending_results'}->{$event_id}->{'ids'}->{$id} = FWDCTL_WAITING;
+}
+
+
+
 sub addVlan{
     my $self = shift;
     my $m_ref = shift;
     my $p_ref = shift;
     my $state_ref = shift;
 
+    my $circuit_id = $p_ref->{'circuit_id'}{'value'};
+
+    $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
+    $self->{'logger'}->info("addVlan: $circuit_id");
+
+    my $event_id = $self->_generate_unique_event_id();
+
+    my $ckt = $self->get_ckt_object( $circuit_id );
+    if(!defined($ckt)){
+        return {status => FWDCTL_FAILURE, event_id => $event_id};
+    }
+
+    $ckt->update_circuit_details();
+    if($ckt->{'details'}->{'state'} eq 'decom'){
+	return {status => FWDCTL_FAILURE, event_id => $event_id};
+    }
+
+    $self->_write_cache();
+
+    #get all the DPIDs involved and remove the flows
+    my $endpoints = $ckt->get_endpoints();
+    my %nodes;
+    foreach my $ep (@$endpoints){
+	$self->{'logger'}->error("Node: " . $ep->{'node'} . " is involved int he circuit");
+	$nodes{$ep->{'node'}}= 1;
+    }
+
+    my $result = FWDCTL_SUCCESS;
+
+    my $details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
+
+
+    if ($details->{'state'} eq "deploying" || $details->{'state'} eq "scheduled") {
+        
+        my $state = $details->{'state'};
+	$self->{'logger'}->error($self->{'db'}->get_error());
+    }
+
+    #TODO: WHY IS THERE HERE??? Seems like we can remove this...
+    $self->{'db'}->update_circuit_path_state(circuit_id  => $circuit_id,
+                                             old_state   => 'deploying',
+                                             new_state   => 'active');
     
+    $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UP;
+
+    foreach my $node (keys %nodes){
+	$self->{'logger'}->error("Sending add VLAN to child: " . $node);
+	my $id = $self->{'node_info'}->{$node}->{'id'};
+        $self->send_message_to_child($id,{action => 'add_vlan', circuit_id => $circuit_id}, $event_id);
+    }
+
+
+    return {status => $result, event_id => $event_id};
 }
 
 sub deleteVlan{
@@ -480,6 +687,42 @@ sub deleteVlan{
     my $p_ref = shift;
     my $state_ref = shift;
 
+    my $circuit_id = $p_ref->{'circuit_id'}{'value'};
+
+    $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
+
+    my $ckt = $self->get_ckt_object( $circuit_id );
+    my $event_id = $self->_generate_unique_event_id();
+    if(!defined($ckt)){
+        return {status => FWDCTL_FAILURE, event_id => $event_id};
+    }
+    
+    $ckt->update_circuit_details();
+
+    if($ckt->{'details'}->{'state'} eq 'decom'){
+	return {status => FWDCTL_FAILURE, event_id => $event_id};
+    }
+    
+    #update the cache
+    $self->_write_cache();
+
+    #get all the DPIDs involved and remove the flows
+    my $endpoints = $ckt->get_endpoints();
+    my %nodes;
+    foreach my $ep (@$endpoints){
+        $self->{'logger'}->error("Node: " . $ep->{'node'} . " is involved int he circuit");
+        $nodes{$ep->{'node'}}= 1;
+    }
+
+    my $result = FWDCTL_SUCCESS;
+
+    foreach my $node (keys %nodes){
+        $self->{'logger'}->error("Sending deleteVLAN to child: " . $node);
+        my $id = $self->{'node_info'}->{$node}->{'id'};
+        $self->send_message_to_child($id,{action => 'remove_vlan', circuit_id => $circuit_id}, $event_id);
+    }
+
+    return {status => $result, event_id => $event_id};
 
 }
 
@@ -505,6 +748,28 @@ sub get_ckt_object{
     }
 
     return $ckt;
+}
+
+
+sub message_callback {
+    my $self     = shift;
+    my $id     = shift;
+    my $event_id = shift;
+
+    return sub {
+        my $results = shift;
+        $self->{'logger'}->debug("Received a response from child: " . $id . " for event: " . $event_id . " Dumper: " . Data::Dumper::Dumper($results));
+	$self->{'logger'}->error("Received a response from child: " . $id . " for event: " . $event_id . " Dumper: " . Data::Dumper::Dumper($results));
+        $self->{'pending_results'}->{$event_id}->{'ids'}->{$id} = FWDCTL_UNKNOWN;
+        if (!defined $results) {
+            $self->{'logger'}->error("Undefined result received in message_callback.");
+        } elsif (defined $results->{'error'}) {
+            $self->{'logger'}->error($results->{'error'});
+        }
+        $self->{'node_rules'}->{$id} = $results->{'results'}->{'total_rules'};
+	$self->{'logger'}->debug("Event: $event_id for ID: " . $event_id . " status: " . $results->{'results'}->{'status'});
+        $self->{'pending_results'}->{$event_id}->{'ids'}->{$id} = $results->{'results'}->{'status'};
+    }
 }
 
 sub _generate_unique_event_id{

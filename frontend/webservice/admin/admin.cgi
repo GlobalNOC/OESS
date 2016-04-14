@@ -283,6 +283,14 @@ sub main {
             }
             $output = &decom_workgroup();
         }
+	case "add_mpls_switch"{
+	    if($user->{'type'} eq 'read-only'){
+                return send_json({error => 'Error: you are a readonly user'});
+            }
+	    
+	    $output = &add_mpls_switch();
+	    
+	}
         else {
             $output = {
                 error => "Unknown action - $action"
@@ -1337,6 +1345,21 @@ sub update_remote_device{
     my $res = $db->update_remote_device(node_id => $node_id, lat => $latitude, lon => $longitude);
     
     return {results => $res};
+}
+
+sub add_mpls_switch{
+    my $ip_address = $cgi->param('ip_address');
+    
+    my $client = GRNOC::RabbitMQ::Client->new( topic => 'MPLS.FWDCTL.RPC',
+					       exchange => 'OESS',
+					       user => $db->{'rabbitMQ'}->{'user'},
+					       pass => $db->{'rabbitMQ'}->{'port'},
+					       host => $db->{'rabbitMQ'}->{'host'},
+					       port => $db->{'rabbitMQ'}->{'port'});
+
+    my $res = $client->new_switch( ip => $ip_address );
+    
+    return $res;
 }
 
 sub send_json {

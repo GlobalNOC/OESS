@@ -82,6 +82,8 @@ use OESS::Topology;
 use DateTime;
 use Data::Dumper;
 
+use Socket qw( inet_aton inet_ntoa);
+
 use constant VERSION => '1.2.0';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
@@ -355,6 +357,22 @@ sub update_circuit_state{
     }
     return 1;
 }
+
+=head2 get_node_by_ip
+
+=cut
+
+sub get_node_by_ip{
+    my $self = shift;
+    my %args = @_;
+
+    my $ip = $args{'ip'};
+
+    my $query = "select node.*, node_instantiation.* from node join node_instantiation on node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.mgmt_addr = ?";
+    my $result = $self->_execute_query($query, [$ip]);
+    return $result->[0];
+}
+
 
 
 =head2 update_circuit_path_state
@@ -870,7 +888,7 @@ sub get_node_dpid_hash {
     my $self = shift;
     my %args = @_;
 
-    my $sth = $self->_prepare_query("select node.node_id, node_instantiation.dpid, inet_ntoa(node_instantiation.management_addr_ipv4) as address, " .
+    my $sth = $self->_prepare_query("select node.node_id, node_instantiation.dpid, node_instantiation.mgmt_addr as address, " .
                                     " node.name, node.longitude, node.latitude " .
                                     " from node join node_instantiation on node.node_id = node_instantiation.node_id " .
                                     " where node_instantiation.admin_state = 'active'"
@@ -893,8 +911,15 @@ sub get_node_dpid_hash {
 
 sub get_current_nodes{
     my $self = shift;
+    my %args = @_;
 
-    my $nodes = $self->_execute_query("select node.max_flows, node.in_maint, node.name, node_instantiation.dpid,node.operational_state,node.node_id, node.send_barrier_bulk from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active' order by node.name",[]);
+    my $nodes;
+
+    if(defined($args{'mpls'}) && $args{'mpls'} == 1){
+	$nodes = $self->_execute_query("select node.*, node_instantiation.* from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state != 'decom' and node_instantiation.mpls = 1 order by node.name",[]);
+    }else{
+        $nodes = $self->_execute_query("select node.*, node_instantiation.* from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state != 'decom' and node_instantiation.openflow = 1 order by node.name",[]);
+    }
 
     return $nodes;
 }
@@ -4915,7 +4940,7 @@ sub get_pending_nodes {
     my $self = shift;
     my %args = @_;
 
-    my $sth = $self->_prepare_query("select node.node_id, node_instantiation.dpid, inet_ntoa(node_instantiation.management_addr_ipv4) as address, " .
+    my $sth = $self->_prepare_query("select node.node_id, node_instantiation.dpid, node_instantiation.mgmt_addr as address, " .
 				    " node.name, node.longitude, node.latitude, node.vlan_tag_range, node.send_barrier_bulk " .
 				    " from node join node_instantiation on node.node_id = node_instantiation.node_id " .
 				    " where node_instantiation.admin_state = 'available' and node_instantiation.end_epoch = -1"
@@ -5410,7 +5435,7 @@ sub add_into{
     my $insert_node_query = "insert into node (name,longitude,latitude, network_id) VALUES (?,?,?,(select network_id from network where name=?))";
     my $insert_node_sth   = $self->_prepare_query($insert_node_query) or return;
 
-    my $insert_node_instantiaiton_query = "insert into node_instantiation (node_id,end_epoch,start_epoch,management_addr_ipv4,dpid,admin_state) VALUES ((select node_id from node where name=?),-1,unix_timestamp(now()),inet_aton(?),?,?)";
+    my $insert_node_instantiaiton_query = "insert into node_instantiation (node_id,end_epoch,start_epoch,mgmt_addr,dpid,admin_state) VALUES ((select node_id from node where name=?),-1,unix_timestamp(now()),inet_aton(?),?,?)";
     my $insert_node_instantiaiton_sth   = $self->_prepare_query($insert_node_instantiaiton_query) or return;
 
     my $insert_interface_query = "insert into interface (name,description,node_id,operational_state) VALUES(?,?,(select node_id from node where name=?),?) ";
@@ -5946,7 +5971,7 @@ sub get_nodes_by_admin_state{
 
     my $admin_state       = $args{'admin_state'};
 
-    my $select_nodes = "select node.vlan_tag_range,node.node_id,node.name,max_flows,tx_delay_ms,inet_ntoa(node_instantiation.management_addr_ipv4) as management_addr_ipv4 from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.admin_state = ? and end_epoch = -1";
+    my $select_nodes = "select node.vlan_tag_range,node.node_id,node.name,max_flows,tx_delay_ms,inet_ntoa(node_instantiation.mgmt_addr) as mgmt_addr from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.admin_state = ? and end_epoch = -1";
 
     my $select_nodes_sth = $self->_prepare_query($select_nodes);
     $select_nodes_sth->execute($admin_state);
@@ -6898,6 +6923,7 @@ sub get_node_by_name {
 }
 
 
+
 =head2 get_node_by_id
 
 =cut
@@ -7037,7 +7063,11 @@ sub create_node_instance{
 	}
      }
 
-    my $res = $self->_execute_query("insert into node_instantiation (node_id,end_epoch,start_epoch,management_addr_ipv4,admin_state,dpid) VALUES (?,?,?,?,?,?)",[$args{'node_id'},-1,time(),$args{'ipv4_addr'},$args{'admin_state'},$args{'dpid'}]);
+    if(!defined($args{'dpid'})){
+	$args{'dpid'} = inet_aton($args{'mgmt_addr'});
+    }
+
+    my $res = $self->_execute_query("insert into node_instantiation (node_id,end_epoch,start_epoch,mgmt_addr,admin_state,dpid,username,password,vendor,model,sw_version,mpls,openflow ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",[$args{'node_id'},-1,time(),$args{'mgmt_addr'},$args{'admin_state'},$args{'dpid'},$args{'username'},$args{'password'},$args{'vendor'},$args{'model'},$args{'sw_version'},$args{'mpls'},$args{'openflow'}]);
 
     if(!defined($res)){
 	$self->_set_error("Unable to create new node instantiation");
@@ -8473,7 +8503,7 @@ sub gen_topo{
         $node->{'name'} =~ s/ /+/g;
         $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","node"], id => "urn:ogf:network:domain=" . $domain . ":node=" . $node->{'name'});
         $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","address"]);
-        $writer->characters($node->{'management_addr_ipv4'});
+        $writer->characters($node->{'mgmt_addr'});
         $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","address"]);
         
         $node->{'vlan_tag_range'} =~ s/^-1/0/g;

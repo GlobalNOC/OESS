@@ -203,9 +203,11 @@ sub _process_circuit_details{
         }
     }
 
-    if(!$self->{'just_display'}){       
-        $self->_create_graph();
-        $self->_create_flows();
+    if(!$self->{'just_display'}){       	
+	$self->_create_graph();
+	if($self->{'type'} eq 'openflow'){
+	    $self->_create_flows();
+	}
     }
 }
 

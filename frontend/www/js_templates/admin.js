@@ -2861,6 +2861,33 @@ function setup_discovery_tab(){
     
     var link_table = makePendingLinkTable();
 
+    var add_mpls_switch_button = new YAHOO.widget.Button("add_mpls_switch_button", {label: "Add MPLS switch button"});
+
+    add_mpls_switch_button.on("click", function(e){
+	    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_mpls_device&mgmt_addr=" + document.getElementById("add_mpls_switch").value());
+	    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+
+	    ds.responseSchema = {
+		resultsList: "results",
+		fields: [{key: "success"}]
+	    };
+
+	    ds.sendRequest("", {success: function(req, resp){
+
+			add_mpls_switch_button.set("disabled", false);
+			add_mpls_switch_button.set("label", "Add MPLS Device");
+		    },
+
+			failure: function(req, resp){
+			add_mpls_switch_button.set("disabled", false);
+			add_mpls_switchbutton.set("label", "Add MPLS Device");
+
+			alert("Server error while adding MPLS device");
+		    }
+		});
+	});
+
+
     node_table.subscribe("rowClickEvent", function(oArgs){
 
             var record = this.getRecord(oArgs.target);
@@ -2970,9 +2997,9 @@ function setup_discovery_tab(){
             YAHOO.util.Dom.get("node_name").focus();
 
             var confirm_button = new YAHOO.widget.Button("confirm_node", {label: "Confirm Device"});
-        var deny_button = new YAHOO.widget.Button("deny_node", {label: "Deny Device"});
-
-        deny_button.on("click", function(e){
+	    var deny_button = new YAHOO.widget.Button("deny_node", {label: "Deny Device"});
+	    
+	    deny_button.on("click", function(e){
             
                     var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=deny_device&node_id=" + record.getData('node_id') + "&ipv4_addr="+ record.getData('ip_address') + "&dpid=" + record.getData('dpid'));
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;

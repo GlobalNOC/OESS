@@ -26,14 +26,14 @@ sub new{
     
     my $self = \%args;
 
-    $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Device.Juniper.MX.' . $self->{'host_info'}->{'mgmt_addr'});
+    $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Device.Juniper.MX.' . $self->{'mgmt_addr'});
     $self->{'logger'}->debug("MPLS Juniper Switch Created!");
     bless $self, $class;
 
     #TODO: make this automatically figure out the right REV
-    $self->{'template_dir'} = "juniper/13.3R8/";
+    $self->{'template_dir'} = "juniper/13.3R8";
 
-    $self->{'tt'} = Template->new(INCLUDE_PATH => "/usr/share/perl-OESS/share/mpls/templates/") or die "Unable to create Template Toolkit!";
+    $self->{'tt'} = Template->new(INCLUDE_PATH => "/usr/share/doc/perl-OESS-1.2.0/share/mpls/templates/") or die "Unable to create Template Toolkit!";
 
     return $self;
 
@@ -119,13 +119,14 @@ sub remove_vlan{
 
     my $vars = {};
     $vars->{'circuit_name'} = $ckt->{'circuit_name'};
-    $vars->{'interface'} = $ckt->{'interface'};
+    $vars->{'interface'} = {};
+    $vars->{'interface'}->{'name'} = $ckt->{'interface'};
     $vars->{'vlan_tag'} = $ckt->{'vlan_tag'};
     $vars->{'primary_path'} = $ckt->{'primary_path'};
     $vars->{'backup_path'} = $ckt->{'backup_path'};
-
-    $vars->{'switch'} = $self->{'node'}->{'name'};
-    $vars->{'site_id'} = $self->{'node'}->{'node_id'};
+    $vars->{'circuit_id'} = $ckt->{'circuit_id'};
+    $vars->{'switch'} = {name => $self->{'name'}};
+    $vars->{'site_id'} = $self->{'node_id'};
 
     my $output;
     my $remove_template = $self->{'tt'}->process( $self->{'template_dir'} . "/ep_config_delete.xml", $vars, \$output) or warn $self->{'tt'}->error();
@@ -137,20 +138,25 @@ sub add_vlan{
     my $self = shift;
     my $ckt = shift;
     
+    $self->{'logger'}->error("Adding circuit: " . Data::Dumper::Dumper($ckt));
+
     my $vars = {};
     $vars->{'circuit_name'} = $ckt->{'circuit_name'};
-    $vars->{'interface'} = $ckt->{'interface'};
+    $vars->{'interface'} = {};
+    $vars->{'interface'}->{'name'} = $ckt->{'interface'};
     $vars->{'vlan_tag'} = $ckt->{'vlan_tag'};
     $vars->{'primary_path'} = $ckt->{'primary_path'};
     $vars->{'backup_path'} = $ckt->{'backup_path'};
-
-    $vars->{'switch'} = $self->{'node'}->{'name'};
-    $vars->{'site_id'} = $self->{'node'}->{'node_id'};
+    $vars->{'destination_ip'} = $ckt->{'destination_ip'};
+    $vars->{'circuit_id'} = $ckt->{'circuit_id'};
+    $vars->{'switch'} = {name => $self->{'name'}};
+    $vars->{'site_id'} = $self->{'node_id'};
     
     my $output;
     my $remove_template = $self->{'tt'}->process( $self->{'template_dir'} . "/ep_config.xml", $vars, \$output) or warn $self->{'tt'}->error();
     
     return $self->_edit_config( config => $output );    
+    
 }
 
 sub connect{
@@ -160,17 +166,16 @@ sub connect{
 	$self->{'logger'}->error("Already connected to device");
 	return;
     }
-
-    my $host_info = $self->{'host_info'};
-    
+    $self->{'logger'}->info("Connecting to device!");
     my $jnx = new Net::Netconf::Manager( 'access' => 'ssh',
-					 'login' => $host_info->{'username'},
-					 'password' => $host_info->{'password'},
-					 'hostname' => $host_info->{'mgmt_addr'},
-					 'port' => $host_info->{'port'} );
+					 'login' => $self->{'username'},
+					 'password' => $self->{'password'},
+					 'hostname' => $self->{'mgmt_addr'},
+					 'port' => 22 );
     if(!$jnx){
 	$self->{'connected'} = 0;
     }else{
+	$self->{'logger'}->info("Connected!");
 	$self->{'jnx'} = $jnx;
 	$self->{'connected'} = 1;
     }
@@ -181,9 +186,33 @@ sub connected{
     return $self->{'connected'};
 }
 
+sub get_isis_adjacencies{
+    my $self = shift;
+
+    $self->{'jnx'}->get_isis_adjacency_information();
+
+    
+    my $interfaces = $self->{'jnx'}->get_dom();
+    my $xp = XML::LibXML::XPathContext->new( $interfaces);
+    $xp->registerNs('x',$interfaces->documentElement->namespaceURI);
+    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+
+    my $adjacencies = $xp->find('/x:rpc-reply/j:/isis-adjacency-information/j:isis-adjacency');
+    
+    my @adj;
+    foreach my $adjacency (@$adjacencies){
+	my $adj = {};
+	$adj->{'interface_name'} = $xp->findvalue('./j:interface-name');
+	$adj->{'system_name'} = $xp->findvalue('./j:system-name');
+    }
+}
+
 sub _edit_config{
     my $self = shift;
     my %params = @_;
+
+    warn $params{'config'};
+    $self->{'logger'}->error("Sending the following config: " . $params{'config'});
 
     if(!defined($params{'config'})){
 	$self->{'logger'}->error("No Configuration specified!");
@@ -199,7 +228,7 @@ sub _edit_config{
     my $res = $self->{'jnx'}->lock_config(%queryargs);
 
     if($self->{'jnx'}->has_error){
-	$self->{'logger'}->error("Error attempting to lock config: " . $self->{'jnx'}->get_first_error());
+	$self->{'logger'}->error("Error attempting to lock config: " . Dumper($self->{'jnx'}->get_first_error()));
 	return FWDCTL_FAILURE;
     }
 
@@ -210,17 +239,23 @@ sub _edit_config{
     $queryargs{'config'} = $params{'config'};
     
     $res = $self->{'jnx'}->edit_config(%queryargs);
-
     if($self->{'jnx'}->has_error){
-	$self->{'logger'}->error("Error attempting to modify config: " . $self->{'jnx'}->get_first_error());
+	$self->{'logger'}->error("Error attempting to modify config: " . Dumper($self->{'jnx'}->get_first_error()));
+	my %queryargs = ( 'target' => 'candidate' );
+	$res = $self->{'jnx'}->unlock_config(%queryargs);
 	return FWDCTL_FAILURE;
     }
 
     $self->{'jnx'}->commit();
     if($self->{'jnx'}->has_error){
-	$self->{'logger'}->error("Error attempting to commit the config: " . $self->{'jnx'}->get_first_error());
+	$self->{'logger'}->error("Error attempting to commit the config: " . Dumper($self->{'jnx'}->get_first_error()));
+	my %queryargs = ( 'target' => 'candidate' );
+        $res = $self->{'jnx'}->unlock_config(%queryargs);
 	return;
     }
+
+    my %queryargs = ( 'target' => 'candidate' );
+    $res = $self->{'jnx'}->unlock_config(%queryargs);
 
     return FWDCTL_SUCCESS;
 }
