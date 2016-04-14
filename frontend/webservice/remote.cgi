@@ -29,25 +29,27 @@
 use strict;
 use warnings;
 
-use CGI;
-use JSON;
-use Switch;
 use Data::Dumper;
+
+use GRNOC::WebService;
+
+use HTTP::Request;
+use HTTP::Headers;
+use JSON;
+use LWP::UserAgent;
+use Switch;
 use URI::Escape;
+use XML::XPath;
 
 use OESS::Database;
 use OESS::Topology;
 
 use OSCARS::Client;
 
-use LWP::UserAgent;
-use HTTP::Request;
-use HTTP::Headers;
-
-use XML::XPath;
 
 my $db   = new OESS::Database();
 my $topo = new OESS::Topology();
+
 print STDERR "HOST: " . $db->get_oscars_host() . "\n";
 warn "oscars cert: ".$db->get_oscars_cert();
 my $oscars = OSCARS::Client->new( 
@@ -62,62 +64,163 @@ my $PS_TS = $db->get_oscars_topo();
 
 my $LOCAL_DOMAIN = $db->get_local_domain_name();
 
-my $cgi  = new CGI;
+my $svc  = GRNOC::WebService::Dispatcher->new();
 
 $| = 1;
 
+
 sub main {
-
-    if (! $db){
-    send_json({"error" => "Unable to connect to database."});
-    exit(1);
+    if (!$db) {
+        send_json({ error => "Unable to connect to database." });
+        exit(1);
     }
 
-    my $action = $cgi->param('action');
-    
+    if (!$svc) {
+        send_json({ error => "Unable to load perl module GRNOC::WebService." });
+    }
+
     my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
-    if ($user->{'status'} eq 'decom') {
-        $action = "error";
-    }
-  
-    my $output;
-
-    switch ($action){
-
-    case "get_networks" {
-        $output = &get_networks();
-    }
-    case "create_reservation" {
-        $output = &create_reservation();
-    }
-    case "query_reservation" {
-        $output = &query_reservation();
-    }
-    case "cancel_reservation"{
-        $output = &cancel_reservation();
-    }
-    case "modify_reservation" {
-        $output = &modify_reservation();
-    }case "update_circuit_owner" {
-	$output = &update_circuit_owner();
-    }
-    case "error" {
-        $output = {error => "Decommed users cannot use webservices."};
-    }
-    else{
-        $output = {error => "Unknown action - $action"};
+    if (!defined $user || $user->{'status'} eq 'decom') {
+        return send_json({ error => "Invalid or decommissioned user specified." });
     }
 
-    }
+    register_webservice_methods();
+    $svc->handle_request();
+}
 
-    send_json($output);
 
+sub register_webservice_methods {
+    my $method = undef;
+
+    $method = GRNOC::WebService::Method->new( name        => 'get_networks',
+                                              description => 'Returns a list of networks.',
+                                              callback    => sub { get_networks(@_) } );
+    $method->add_input_parameter( name        => 'workgroup_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 0,
+                                  description => 'Workgroup ID used to filter networks.' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'create_reservation',
+                                              description => 'Create a circuit reservation in OSCARS.',
+                                              callback    => sub { create_reservation(@_) } );
+    $method->add_input_parameter( name        => 'src_urn',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => 'Source URN of the new circuit.' );
+    $method->add_input_parameter( name        => 'dst_urn',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => 'Destination URN of the new circuit.' );
+    $method->add_input_parameter( name        => 'src_vlan',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => 'Source VLAN of the new circuit.' );
+    $method->add_input_parameter( name        => 'dst_vlan',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => 'Destination VLAN of the new circuit.' );
+    $method->add_input_parameter( name        => 'bandwidth',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => 'Maximum bandwidth of the new circuit.' );
+    $method->add_input_parameter( name        => 'start_time',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => 'Scheduled provisioning time of the new circuit.' );
+    $method->add_input_parameter( name        => 'end_time',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => 'Scheduled de-provisioning time of the new circuit.' );
+    $method->add_input_parameter( name        => 'description',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => 'Description of the new circuit.' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'query_reservation',
+                                              description => '',
+                                              callback    => sub { query_reservation(@_) } );
+    $method->add_input_parameter( name        => 'circuit_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 0,
+                                  description => 'Circuit ID of the queried circuit.' );
+    $method->add_input_parameter( name        => 'gri',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 0,
+                                  description => 'GRI of the queried circuit.' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'cancel_reservation',
+                                              description => '',
+                                              callback    => sub { cancel_reservation(@_) } );
+    $method->add_input_parameter( name        => 'circuit_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => 'Circuit ID of the circuit reservation.' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'modify_reservation',
+                                              description => '',
+                                              callback    => sub { modify_reservation(@_) } );
+    $method->add_input_parameter( name        => 'circuit_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => 'Circuit ID of the circuit reservation.' );
+    $method->add_input_parameter( name        => 'src_urn',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => 'Source URN of the new circuit.' );
+    $method->add_input_parameter( name        => 'dst_urn',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => 'Destination URN of the new circuit.' );
+    $method->add_input_parameter( name        => 'src_vlan',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => 'Source VLAN of the new circuit.' );
+    $method->add_input_parameter( name        => 'dst_vlan',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => 'Destination VLAN of the new circuit.' );
+    $method->add_input_parameter( name        => 'bandwidth',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => 'Maximum bandwidth of the new circuit.' );
+    $method->add_input_parameter( name        => 'start_time',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => 'Scheduled provisioning time of the new circuit.' );
+    $method->add_input_parameter( name        => 'end_time',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => 'Scheduled de-provisioning time of the new circuit.' );
+    $method->add_input_parameter( name        => 'description',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => 'Description of the new circuit.' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'update_circuit_owner',
+                                              description => '',
+                                              callback    => sub { update_circuit_owner(@_) } );
+    $method->add_input_parameter( name        => 'gri',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => 'GRI' );
+    $method->add_input_parameter( name        => 'workgroup_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => 'Workgroup ID of new circuit owner.' );
+    $svc->register_method($method);
 }
 
 sub get_networks {
+    my ($method, $args) = @_;
+    
     my $results;
 
-    my $workgroup_id = $cgi->param('workgroup_id');
+    my $workgroup_id = $args->{'workgroup_id'}{'value'};
 
     # Make a SOAP envelope, use the XML file as the body.
     my $message = "";
@@ -299,16 +402,16 @@ sub get_networks {
 }
 
 sub create_reservation{
+    my ($method, $args) = @_;
 
-    my $src_urn = $cgi->param('src_urn');
-    my $dst_urn = $cgi->param('dst_urn');
-    my $src_vlan = $cgi->param('src_vlan');
-    my $dst_vlan = $cgi->param('dst_vlan');
-    my $bandwidth = $cgi->param('bandwidth');
-    my $start_time = $cgi->param('start_time');
-    my $end_time = $cgi->param('end_time');
-    my $description = $cgi->param('description');
-
+    my $src_urn     = $args->{'src_urn'}{'value'};
+    my $dst_urn     = $args->{'dst_urn'}{'value'};
+    my $src_vlan    = $args->{'src_vlan'}{'value'};
+    my $dst_vlan    = $args->{'dst_vlan'}{'value'};
+    my $bandwidth   = $args->{'bandwidth'}{'value'};
+    my $start_time  = $args->{'start_time'}{'value'};
+    my $end_time    = $args->{'end_time'}{'value'};
+    my $description = $args->{'description'}{'value'};
 
     # swap the src and dst around to try and make sure that we send a local one first.
     # OSCARS will not work unless the local network comes first for some reason.
@@ -341,9 +444,10 @@ sub create_reservation{
 }
 
 sub query_reservation{
-
-    my $circuit_id = $cgi->param("circuit_id");
-    my $gri        = $cgi->param("gri");
+    my ($method, $args) = @_;
+    
+    my $circuit_id = $args->{'circuit_id'}{'value'};
+    my $gri        = $args->{'gri'}{'value'};
 
     if (! $gri){
     $gri = $db->get_circuit_by_id(circuit_id => $circuit_id)->[0]->{'external_identifier'};
@@ -409,11 +513,12 @@ sub query_reservation{
     }
 
     return {results => [{status => $status, message => $message, path => \@path_struct}]};
-
 }
 
 sub cancel_reservation{
-    my $circuit_id = $cgi->param('circuit_id');
+    my ($method, $args) = @_;
+
+    my $circuit_id = $args->{'circuit_id'}{'value'};
 
     my $gri = $db->get_circuit_by_id(circuit_id => $circuit_id)->[0]->{'external_identifier'};
 
@@ -428,12 +533,13 @@ sub cancel_reservation{
     }
 
     return {results => [{status => $status, message => $message, gri => $gri}]};
-
 }
 
 sub update_circuit_owner{
-    my $gri = $cgi->param('gri');
-    my $workgroup_id = $cgi->param('workgroup_id');
+    my ($method, $args) = @_;
+
+    my $gri          = $args->{'gri'}{'value'};
+    my $workgroup_id = $args->{'workgroup_id'}{'value'};
 
     return {error => "No GRI Specified"} if(!defined($gri));
     return {error => "No Workgroup ID Specified"} if(!defined($workgroup_id));
@@ -450,22 +556,21 @@ sub update_circuit_owner{
     }else{
 	return {results => [{success => 1, message => "successfully update the circuit ownership"}]};
     }
-    
-
 }
 
 
 sub modify_reservation{
-
-    my $circuit_id = $cgi->param('circuit_id');
-    my $src_urn = $cgi->param('src_urn');
-    my $dst_urn = $cgi->param('dst_urn');
-    my $src_vlan = $cgi->param('src_vlan');
-    my $dst_vlan = $cgi->param('dst_vlan');
-    my $bandwidth = $cgi->param('bandwidth');
-    my $start_time = $cgi->param('start_time');
-    my $end_time = $cgi->param('end_time');
-    my $description = $cgi->param('description');
+    my ($method, $args) = @_;
+    
+    my $circuit_id  = $args->{'circuit_id'}{'value'};
+    my $src_urn     = $args->{'src_urn'}{'value'};
+    my $dst_urn     = $args->{'dst_urn'}{'value'};
+    my $src_vlan    = $args->{'src_vlan'}{'value'};
+    my $dst_vlan    = $args->{'dst_vlan'}{'value'};
+    my $bandwidth   = $args->{'bandwidth'}{'value'};
+    my $start_time  = $args->{'start_time'}{'value'};
+    my $end_time    = $args->{'end_time'}{'value'};
+    my $description = $args->{'description'}{'value'};
     my ($gri, $gti);
 
     $gri = $db->get_circuit_by_id(circuit_id => $circuit_id)->[0]->{'external_identifier'};
