@@ -135,54 +135,7 @@ sub main {
     register_webservice_methods();
     
     switch ($action) {
-        case "update_node" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &update_node();
-        }
-        case "update_interface" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &update_interface();
-        }
-        case "decom_node" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &decom_node();
-        }
-        case "confirm_link" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &confirm_link();
-        }
-        case "update_link" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &update_link();
-        }
-        case "is_new_node_in_path"{
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &is_new_node_in_path();
-        }
-        case "insert_node_in_path" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &insert_node_in_path();
-        }
-        case "is_ok_to_decom_link" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &is_ok_to_decom();
-        }
+
         case "deny_device" {
             if($user->{'type'} eq 'read-only'){
                 return send_json({error => 'Error: you are a readonly user'});
@@ -420,12 +373,151 @@ sub register_webservice_methods {
                                   description => '' );
     $svc->register_method($method);
 
+    $method = GRNOC::WebService::Method->new( name        => 'update_node',
+                                              description => "Updates a node.",
+                                              callback    => sub { update_node(@_) } );
+    $method->add_input_parameter( name        => 'node_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'name',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'longitude',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'latitude',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'vlan_range',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'default_drop',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'default_forward',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'tx_delay_ms',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 0,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'max_flows',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 0,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'bulk_barrier',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 0,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'max_static_mac_flows',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 0,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'update_interface',
+                                              description => "Updates an interface.",
+                                              callback    => sub { update_interface(@_) } );
+    $method->add_input_parameter( name        => 'interface_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'description',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'vlan_tag_range',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'decom_node',
+                                              description => 'Decommissions a node.',
+                                              callback    => sub { decom_node(@_) } );
+    $method->add_input_parameter( name        => 'node_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'confirm_link',
+                                              description => "Approves a link.",
+                                              callback    => sub { confirm_link(@_) } );
+    $method->add_input_parameter( name        => 'link_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'name',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'update_link',
+                                              description => "Updates a link.",
+                                              callback    => sub { update_link(@_) } );
+    $method->add_input_parameter( name        => 'link_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'name',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 0,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'metric',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 0,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'is_new_node_in_path',
+                                              description => '',
+                                              callback    => sub { is_new_node_in_path(@_) } );
+    $method->add_input_parameter( name        => 'link',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'insert_node_in_path',
+                                              description => '',
+                                              callback    => sub { insert_node_in_path(@_) } );
+    $method->add_input_parameter( name        => 'link_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'is_ok_to_decom_link',
+                                              description => '',
+                                              callback    => sub { is_ok_to_decom(@_) } );
+    $method->add_input_parameter( name        => 'link_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $svc->register_method($method);
 
 
 
 
 
-    
+
+    # $method = GRNOC::WebService::Method->new( name        => '',
+    #                                           description => '',
+    #                                           callback    => sub { f(@_) } );
+    # $method->add_input_parameter( name        => '',
+    #                               pattern     => $GRNOC::WebService::Regex::,
+    #                               requried    => 1,
+    #                               description => '' );
+    # $svc->register_method($method);
 }
 
 sub get_circuits_on_interface{
@@ -445,6 +537,13 @@ sub get_circuits_on_interface{
 
 
 sub insert_node_in_path{
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results = $db->insert_node_in_path( link => $cgi->param('link_id'));
 
     return {results =>  => [$results]};
@@ -452,20 +551,33 @@ sub insert_node_in_path{
 }
 
 sub is_new_node_in_path{
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
     $results->{'results'} = [];
 
-    $results->{'results'}->[0] = $db->is_new_node_in_path(link => $cgi->param('link'));
+    $results->{'results'}->[0] = $db->is_new_node_in_path(link => $args->{'link'}{'value'});
     return $results;
 }
 
 sub is_ok_to_decom{
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
 
     my $results;
     $results->{'results'} = [];
 
-    my $link_details = $db->get_link( link_id => $cgi->param('link_id'));
+    my $link_details = $db->get_link( link_id => $args->{'link_id'}{'value'} );
 
     my $circuits = $db->get_circuits_on_link( link_id => $link_details->{'link_id'} );
     $results->{'results'}->[0]->{'active_circuits'} = $circuits;
@@ -1114,19 +1226,26 @@ sub confirm_node {
 }
 
 sub update_node {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
-    my $node_id         = $cgi->param('node_id');
-    my $name            = $cgi->param('name');
-    my $long            = $cgi->param('longitude');
-    my $lat             = $cgi->param('latitude');
-    my $range           = $cgi->param('vlan_range');
-    my $default_drop    = $cgi->param('default_drop');
-    my $default_forward = $cgi->param('default_forward');
-    my $max_flows       = $cgi->param('max_flows') || 0;
-    my $tx_delay_ms     = $cgi->param('tx_delay_ms') || 0;
-    my $bulk_barrier    = $cgi->param('bulk_barrier') || 0;
-    my $max_static_mac_flows = $cgi->param('max_static_mac_flows') || 0;
+    my $node_id         = $args->{'node_id'}{'value'};
+    my $name            = $args->{'name'}{'value'};
+    my $long            = $args->{'longitude'}{'value'};
+    my $lat             = $args->{'latitude'}{'value'};
+    my $range           = $args->{'vlan_range'}{'value'};
+    my $default_drop    = $args->{'default_drop'}{'value'};
+    my $default_forward = $args->{'default_forward'}{'value'};
+    my $max_flows       = $args->{'max_flows'}{'value'} || 0;
+    my $tx_delay_ms     = $args->{'tx_delay_ms'}{'value'} || 0;
+    my $bulk_barrier    = $args->{'bulk_barrier'}{'value'} || 0;
+    my $max_static_mac_flows = $args->{'max_static_mac_flows'}{'value'} || 0;
 
     if ( $default_drop eq 'true' ) {
         $default_drop = 1;
@@ -1224,10 +1343,17 @@ sub update_node {
 
 
 sub update_interface {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
-    my $interface_id= $cgi->param('interface_id');
-    my $description= $cgi->param('description');
-    my $vlan_tags = $cgi->param('vlan_tag_range');
+    my $interface_id = $args->{'interface_id'}{'value'};
+    my $description  = $args->{'description'}{'value'};
+    my $vlan_tags    = $args->{'vlan_tag_range'}{'value'};
 
     my $result = $db->update_interface_description( 'interface_id' => $interface_id,
                                                     'description'  => $description );
@@ -1252,9 +1378,16 @@ sub update_interface {
 }
 
 sub decom_node {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
-    my $node_id = $cgi->param('node_id');
+    my $node_id = $args->{'node_id'}{'value'};
 
     my $result = $db->decom_node( node_id => $node_id );
 
@@ -1304,10 +1437,17 @@ sub decom_node {
 }
 
 sub confirm_link {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
-    my $link_id = $cgi->param('link_id');
-    my $name    = $cgi->param('name');
+    my $link_id = $args->{'link_id'}{'value'};
+    my $name    = $args->{'name'}{'value'};
 
     my $result = $db->confirm_link(
         link_id => $link_id,
@@ -1330,11 +1470,18 @@ sub confirm_link {
 }
 
 sub update_link {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
-    my $link_id = $cgi->param('link_id');
-    my $name    = $cgi->param('name');
-    my $metric  = $cgi->param('metric') || 1;
+    my $link_id = $args->{'link_id'}{'value'};
+    my $name    = $args->{'name'}{'value'};
+    my $metric  = $args->{'metric'}{'value'} || 1;
 
     my $result = $db->update_link(
         link_id => $link_id,
