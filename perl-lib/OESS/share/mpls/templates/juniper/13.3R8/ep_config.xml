@@ -1,0 +1,88 @@
+<configuration>
+<interfaces>
+  <interface>
+    <name>[% interface.name %]</name>
+    <unit>
+      <name>[% vlan_tag %]</name>
+      <encapsulation>vlan-vpls</encapsulation>
+      <vlan-id>[% vlan_tag %]</vlan-id>
+    </unit>
+  </interface>
+</interfaces>
+<protocols>
+  <mpls>
+    <label-switched-path>
+      <name>L2VPLS-PRIMARY-LSP-[% circuit_id %]</name>
+      <apply-groups>L2VPLS-LSP-ATTRIBUTES</apply-groups>
+      <to>[% destination_ip %]</to>
+      <primary>
+        <name>L2VPLS-PRIMARY-PATH-[% circuit_id %]</name>
+        <select>manual</select>
+      </primary>
+    </label-switched-path>
+    <label-switched-path>
+      <name>L2VPLS-SECONDARY-LSP-[% circuit_id %]</name>
+      <apply-groups>L2VPLS-LSP-ATTRIBUTES</apply-groups>
+      <to>[% destination_ip %]</to>
+      <primary>
+        <name>L2VPLS-SECONDARY-PATH-[% circuit_id %]</name>
+        <standby />
+      </primary>
+    </label-switched-path>
+    <path>
+      <name>L2VPLS-PRIMARY-PATH-[% circuit_id %]</name>
+    </path>
+    <path>
+      <name>L2VPLS-SECONDARY-PATH-[% circuit_id %]</name>
+    </path>
+  </mpls>
+</protocols>
+<policy-options>
+  <policy-statement>
+  <name>L2VPLS-LSP-Policy</name>
+    <term>
+      <name>L2VPLS-[% circuit_id %]</name>
+      <from>
+        <rib>mpls.0</rib>
+        <community>L2VPLS-[% circuit_id %]-Community</community>
+      </from>
+      <then>
+        <install-nexthop>
+          <lsp>L2VPLS-PRIMARY-LSP-[% circuit_id %]</lsp>
+          <lsp>L2VPLS-SECONDARY-LSP-[% circuit_id %]</lsp>
+        </install-nexthop>
+        <accept/>
+      </then>
+    </term>
+  </policy-statement>
+  <community>
+    <name>L2VPLS-[% circuit_id %]-Community</name>
+    <members>target:11537:[% circuit_id %]</members>
+  </community>
+</policy-options>
+<routing-instances>
+  <instance>
+    <name>L2VPLS-[% circuit_id %]</name>
+     <instance-type>vpls</instance-type>
+     <interface>
+       <name>[% interface.name %].[% vlan_tag %]</name>
+     </interface>
+     <route-distinguisher>
+       <rd-type>11537:[% circuit_id %]</rd-type>
+     </route-distinguisher>
+     <vrf-target>
+       <community>target:11537:[% circuit_id %]</community>
+     </vrf-target>
+     <protocols>
+       <vpls>
+         <site-range>10</site-range>
+         <no-tunnel-services/>
+         <site>
+           <name>[% switch.name %]-[% circuit_id %]</name>
+           <site-identifier>[% site_id %]</site-identifier>
+         </site>
+       </vpls>
+     </protocols>
+ </instance>
+</routing-instances>
+</configuration>
