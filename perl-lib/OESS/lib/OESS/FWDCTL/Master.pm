@@ -411,7 +411,7 @@ sub register_rpc_methods{
     $method->add_input_parameter( name => "state",
                                   description => "the current state of the specified link",
                                   required => 1,
-                                  pattern => $GRNOC::WebService::Regex::INTEGER);
+                                  pattern => $GRNOC::WebService::Regex::TEXT);
 
     $d->register_method($method);
 
@@ -427,7 +427,7 @@ sub register_rpc_methods{
     $method->add_input_parameter( name => "state",
                                   description => "the current state of the specified link",
                                   required => 1,
-                                  pattern => $GRNOC::WebService::Regex::INTEGER);
+                                  pattern => $GRNOC::WebService::Regex::TEXT);
 
     $d->register_method($method);
 
@@ -439,9 +439,11 @@ sub register_rpc_methods{
 
 
 =head2 node_maintenance
+
 Given a node_id and maintenance state of 'start' or 'end', configure
 each interface of every link on the given datapath by calling
 link_maintenance.
+
 =cut
 sub node_maintenance {
     my $self  = shift;
@@ -471,7 +473,15 @@ sub node_maintenance {
         if ($state eq 'end' && defined $store{$link->{'link_id'}}) {
             $self->{'logger'}->warn("Link $link->{'link_id'} will remain under maintenance.");
         } else {
-            $self->link_maintenance($link->{'link_id'}, $state);
+            # Insert hack here:
+            # With dbus we could call methods directly. This meant that
+            # dbus called functions the same way that any other code
+            # would. RabbitMQ passes structs to each method. So here we
+            # simulate a RabbitMQ struct to allow us to reuse
+            # $self->link_maintenance.
+            my $p_ref = { link_id => { value => $link->{'link_id'} },
+                          state   => { value => $state } };
+            $self->link_maintenance(undef, $p_ref);
         }
     }
     $self->{'logger'}->warn("Node $node_id maintenance state is $state.");
@@ -488,12 +498,14 @@ interface_ids from $interface_maintenance.
 
 =cut
 sub link_maintenance {
-    my $self    = shift;
+    my $self  = shift;
     my $m_ref = shift;
     my $p_ref = shift;
 
     my $link_id = $p_ref->{'link_id'}{'value'};
-    my $state = $p_ref->{'state'}{'value'};
+    my $state   = $p_ref->{'state'}{'value'};
+
+    $self->{'logger'}->info("Calling link_maintenance $state on link $link_id.");
 
     my $endpoints = $self->{'db'}->get_link_endpoints(link_id => $link_id);
     my $link_state;
@@ -512,7 +524,7 @@ sub link_maintenance {
     my $node1 = $self->{'db'}->get_node_by_interface_id(interface_id => $e1->{'id'});
     if (!defined $node1) {
         $self->{'logger'}->warn("Link maintenance can't be performed. Could not find link endpoint.");
-        return {status => 0};
+        return { status => 0 };
     }
 
     my $e2 = {
@@ -524,10 +536,12 @@ sub link_maintenance {
     my $node2 = $self->{'db'}->get_node_by_interface_id(interface_id => $e2->{'id'});
     if (!defined $node2) {
         $self->{'logger'}->warn("Link maintenance can't be performed on remote links.");
-        return {status => 0};
+        return { status => 0 };
     }
 
     if ($state eq 'end') {
+        $self->{'logger'}->debug("Simulating link down on endpoints $e1->{'id'} and $e2->{'id'}.");
+        
         # It is possible for a link to be in maintenance, and connected
         # to a node under maintenance. When link maintenance has ended
         # but node maintenance has not, forwarding behavior should not
@@ -548,32 +562,51 @@ sub link_maintenance {
             delete $self->{'link_maintenance'}->{$link_id};
         }
 
-        $self->port_status(undef, {dpid => { 'value' => $node1->{'dpid'} },
-				   ofp_port_reason => { 'value' => OFPPR_MODIFY } ,
-				   attr =>  { 'value' => $e1 } }, undef);
-        $self->port_status(undef, {dpid => { 'value' => $node2->{'dpid'} } ,
-				   ofp_port_reason => { 'value' => OFPPR_MODIFY },
-				   attr => { 'value' => $e2 } }, undef);
-        $self->{'logger'}->warn("Link $link_id maintenance has ended.");
+        $self->port_status(undef,
+                           {
+                             dpid            => { 'value' => $node1->{'dpid'} },
+                             ofp_port_reason => { 'value' => OFPPR_MODIFY } ,
+                             attrs           => { 'value' => $e1 }
+                           },
+                           undef);
+        $self->port_status(undef,
+                           {
+                             dpid            => { 'value' => $node2->{'dpid'} } ,
+                             ofp_port_reason => { 'value' => OFPPR_MODIFY },
+                             attrs           => { 'value' => $e2 }
+                           },
+                           undef);
+        $self->{'logger'}->info("Link $link_id maintenance has ended.");
     } else {
+        $self->{'logger'}->debug("Simulating link down on endpoints $e1->{'id'} and $e2->{'id'}.");
+        
         # Simulate link down event by passing false link state to
         # port_status.
         $e1->{'link'} = OESS_LINK_DOWN;
         $e2->{'link'} = OESS_LINK_DOWN;
 
         my $link_name;
-        $link_name = $self->port_status(undef, {dpid => { 'value' => $node1->{'dpid'} } ,
-						ofp_port_reason => { 'value' => OFPPR_MODIFY } , 
-						attr => { 'value' => $e1 } }, undef);
-        $link_name = $self->port_status(undef, {dpid => { 'value' => $node2->{'dpid'} }, 
-						ofp_port_reason => { 'value' => OFPPR_MODIFY },
-						attr => { 'value' => $e2 } }, undef);
+        $link_name = $self->port_status(undef,
+                                        {
+                                          dpid            => { 'value' => $node1->{'dpid'} },
+                                          ofp_port_reason => { 'value' => OFPPR_MODIFY },
+                                          attrs           => { 'value' => $e1 }
+                                        },
+                                        undef);
+        $link_name = $self->port_status(undef,
+                                        {
+                                          dpid            => { 'value' => $node2->{'dpid'} },
+                                          ofp_port_reason => { 'value' => OFPPR_MODIFY },
+                                          attrs           => { 'value' => $e2 }
+                                        },
+                                        undef);
 
         $self->{'link_maintenance'}->{$link_id} = 1;
         $self->{'link_status'}->{$link_name} = $link_state; # Record true link state.
-        $self->{'logger'}->warn("Link $link_id maintenance has begun.");
+        $self->{'logger'}->info("Link $link_id maintenance has begun.");
     }
-    return {status => 1};
+
+    return { status => 1 };
 }
 
 =head2 rules_per_switch
@@ -798,12 +831,16 @@ sub _sync_database_to_network {
     
     my $node_maintenances = $self->{'db'}->get_node_maintenances();
     foreach my $maintenance (@$node_maintenances) {
-        $self->node_maintenance($maintenance->{'node'}->{'id'}, "start");
+        my $p_ref = { node_id => { value => $maintenance->{'node'}->{'id'} },
+                      state   => { value => "start" } };
+        $self->node_maintenance(undef, $p_ref);
     }
 
     my $link_maintenances = $self->{'db'}->get_link_maintenances();
     foreach my $maintenance (@$link_maintenances) {
-        $self->link_maintenance($maintenance->{'link'}->{'id'}, "start");
+        my $p_ref = { link_id => { value => $maintenance->{'link'}->{'id'} },
+                      state   => { value => "start" } };
+        $self->link_maintenance(undef, $p_ref);
     }
 
     foreach my $node (keys %{$self->{'node_info'}}){
@@ -811,6 +848,7 @@ sub _sync_database_to_network {
         $self->datapath_join_handler($node);
     }
 
+    # Change me
     $self->{'logger'}->info("Init complete!");
 }
 
@@ -1267,14 +1305,14 @@ sub _fail_over_circuits{
     my $self = shift;
     my %params = @_;
 
-    my $circuits = $params{'circuits'};
-    my $link_name = $params{'link_name'};
-
+    my $circuits    = $params{'circuits'};
+    my $link_name   = $params{'link_name'};
+    
     my %dpids;
 
-    $self->{'logger'}->debug("in _fail_over_circuits with circuits: ".@$circuits);
+    $self->{'logger'}->debug("Calling _fail_over_circuits on link $link_name with circuits: " . @{$circuits});
     my $circuit_infos;
-    
+
     $self->{'db'}->_start_transaction();
 
     foreach my $circuit_info (@$circuits) {
@@ -1356,26 +1394,27 @@ sub _fail_over_circuits{
             #$self->{'fwdctl_events'}->circuit_notification", $circuit_info);
             push (@$circuit_infos, $circuit_info);
             $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_DOWN;
-            
         }
-        
     }
     my $event_id = $self->_generate_unique_event_id();
 
     #write the cache
+    $self->{'logger'}->debug("Writing cache in _fail_over_circuits.");
     $self->_write_cache();
 
     my $result = FWDCTL_SUCCESS;
 
     foreach my $dpid (keys %dpids){
-        $self->send_message_to_child($dpid,{action => 'change_path', circuit_id => $dpids{$dpid}}, $event_id);
+        $self->{'logger'}->debug("Notifying children of path change in _fail_over_circuits.");
+        $self->send_message_to_child($dpid, { action => 'change_path', circuit_id => $dpids{$dpid} }, $event_id);
     }
 
     $self->{'db'}->_commit();
+    $self->{'logger'}->debug("Committed path changes to the database in _fail_over_circuits.");
     $self->{'logger'}->debug("Completed sending the requests");
     
         
-    if ( $circuit_infos && scalar(@$circuit_infos) ) {
+    if ($circuit_infos && scalar(@{$circuit_infos})) {
 	$self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.event";
         $self->{'fwdctl_events'}->circuit_notification( type => 'link_down',
                                                         link_name => $link_name,
@@ -1383,8 +1422,7 @@ sub _fail_over_circuits{
 							no_reply => 1 );
     }
 
-    $self->{'logger'}->debug("Notification complete!");
-    
+    $self->{'logger'}->debug("Leaving _fail_over_circuits. Notification complete!");
 }
 
 =head2
@@ -1400,12 +1438,14 @@ sub _update_port_status{
     my $info = $p_ref->{'attrs'}{'value'};
     my $reason = $p_ref->{'ofp_port_reason'}{'value'};
 
+    $self->{'logger'}->info("Calling _update_port_status $reason on switch $dpid.");
 
-    if($reason == OFPPR_DELETE){
-	#currently do nothing...
-	
-    }else{
-	$self->{'db'}->_start_transaction();
+    
+    if ($reason == OFPPR_DELETE) {
+	# Currently do nothing...
+    } else {
+        $self->{'db'}->_start_transaction();
+
 	my $operational_state = 'up';
 	my $operational_state_num=(int($info->{'state'}) & 0x1);
 	if(1 == $operational_state_num){
@@ -1424,9 +1464,10 @@ sub _update_port_status{
 	my $res = $self->{'db'}->add_or_update_interface(node_id => $node->{'node_id'}, name => $info->{'name'},
 							 description => $info->{'name'}, operational_state => $operational_state,
 							 port_num => $info->{'port_no'}, admin_state => $admin_state);
-	
-	$self->{'db'}->_commit();
+        $self->{'db'}->_commit();
     }
+
+    $self->{'logger'}->info("Leaving _update_port_status.");
 }
 
 
@@ -1439,19 +1480,17 @@ sub _update_port_status{
 
 sub port_status{
     my $self   = shift;
-    #GRNOC::RabbitMQ::Method params
-    my $m_ref = shift;
-    my $p_ref = shift;
+    my $m_ref  = shift;
+    my $p_ref  = shift;
     my $state_ref = shift;
 
     #all of our params are stored in the p_ref!
-    my $dpid = $p_ref->{'dpid'}{'value'};
+    my $dpid   = $p_ref->{'dpid'}{'value'};
     my $reason = $p_ref->{'ofp_port_reason'}{'value'};
-    my $info = $p_ref->{'attrs'}{'value'};
+    my $info   = $p_ref->{'attrs'}{'value'};
 
-    $self->{'logger'}->debug("Port Status event!");
-
-    $self->{'logger'}->debug("INFO: " . Data::Dumper::Dumper($info));
+    $self->{'logger'}->info("Calling port_status $reason on switch $dpid.");
+    $self->{'logger'}->debug("Calling port_status with port attributes: " . Data::Dumper::Dumper($info));
 
     my $port_name   = $info->{'name'};
     my $port_number = $info->{'port_no'};
@@ -1474,7 +1513,6 @@ sub port_status{
 
         #port status was modified (either up or down)
         case(OFPPR_MODIFY){
-	    
 	    my $link_info   = $self->{'db'}->get_link_by_dpid_and_port(dpid => $dpid,
 								       port => $port_number);
 	    
@@ -1499,7 +1537,7 @@ sub port_status{
 			# Ignore traffic migration when in maintenance mode.
 			if (!exists $self->{'link_maintenance'}->{$link_id}) {
 			    $self->{'link_status'}->{$link_name} = OESS_LINK_DOWN;
-			    $self->_fail_over_circuits( circuits => $affected_circuits, link_name => $link_name );
+			    $self->_fail_over_circuits( circuits => $affected_circuits, link_name => $link_name);
 			    $self->_cancel_restorations( link_id => $link_id);
 			}
 			$self->{'db'}->update_link_state( link_id => $link_id, state => 'down');
@@ -1528,7 +1566,6 @@ sub port_status{
 
 	}
         case(OFPPR_DELETE){
-	    
 	    my $link_info   = $self->{'db'}->get_link_by_dpid_and_port(dpid => $dpid,
 								       port => $port_number);
 	    
@@ -1548,33 +1585,38 @@ sub port_status{
 	    }
 
 	    $self->_update_port_status($p_ref);
-	    
-
 	}
 	case(OFPPR_ADD) {
 	    #just force sync the node and update the status!
-	    $self->force_sync(undef,{dpid => {'value' => $dpid}} );
+	    $self->force_sync(undef, { dpid => {'value' => $dpid} });
 	    $self->_update_port_status($p_ref);
 	}else{
 	    #uh we should not be able to get here!
 	}
     }
+    $self->{'logger'}->info("Leaving port_status for switch $dpid.");
 }
 
 sub _cancel_restorations{
     my $self = shift;
     my %args = @_;
 
-    if (!defined($args{'link_id'})) {
+    my $link_id     = $args{'link_id'};
+
+    if (!defined $link_id) {
+        $self->{'logger'}->error("Bailing on _cancel_restorations. Argument link_id is undefined.");
         return;
     }
+    
+    $self->{'logger'}->debug("Calling _cancel_restorations on link $link_id.");
 
     my $circuits = $self->{'db'}->get_circuits_on_link( link_id => $args{'link_id'} , path => 'primary');
 
     $self->{'db'}->_start_transaction();
 
-    foreach my $circuit (@$circuits) {
-        my $scheduled_events = $self->{'db'}->get_circuit_scheduled_events( circuit_id => $circuit->{'circuit_id'},
+    foreach my $circuit (@{$circuits}) {
+        $self->{'logger'}->debug("Getting scheduled events for circuit $circuit->{'circuit_id'} in _cancel_restorations.");
+        my $scheduled_events = $self->{'db'}->get_circuit_scheduled_events( circuit_id     => $circuit->{'circuit_id'},
                                                                             show_completed => 0 );
 
         foreach my $event (@$scheduled_events) {
@@ -1584,13 +1626,13 @@ sub _cancel_restorations{
                 next if $xml->{'action'} ne 'change_path';
                 next if $xml->{'path'} ne 'primary';
                 $self->{'db'}->cancel_scheduled_action( scheduled_action_id => $event->{'scheduled_action_id'} );
-                $self->{'logger'}->warn("Canceling restore to primary for circuit: " . $circuit->{'circuit_id'} . " because primary path is down");
+                $self->{'logger'}->warn("Canceling restore to primary for circuit: " . $circuit->{'circuit_id'} . " because primary path is down in _cancel_restorations.");
             }
         }
     }
 
     $self->{'db'}->_commit();
-
+    $self->{'logger'}->debug("Leaving _cancel_restorations.");
 }
 
 
@@ -1929,13 +1971,16 @@ sub deleteVlan {
     my $p_ref = shift;
     my $state = shift;
 
+    # Measure time spent in this method.
     my $start = [gettimeofday];
 
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
     $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
 
-    my $ckt = $self->get_ckt_object( $circuit_id );
+    $self->{'logger'}->debug("Calling deleteVlan on circuit $circuit_id.");
+    
+    my $ckt      = $self->get_ckt_object( $circuit_id );
     my $event_id = $self->_generate_unique_event_id();
     if(!defined($ckt)){
         return {status => FWDCTL_FAILURE, event_id => $event_id};
@@ -1946,7 +1991,6 @@ sub deleteVlan {
     if($ckt->{'details'}->{'state'} eq 'decom'){
 	return {status => FWDCTL_FAILURE, event_id => $event_id};
     }
-    
 
     #update the cache
     $self->_write_cache();
@@ -1954,19 +1998,20 @@ sub deleteVlan {
     #get all the DPIDs involved and remove the flows
     my $flows = $ckt->get_flows();
     my %dpids;
-    foreach my $flow (@$flows){
+    foreach my $flow (@{$flows}) {
         $dpids{$flow->get_dpid()} = 1;
     }
    
     my $result = FWDCTL_SUCCESS;
 
     foreach my $dpid (keys %dpids){
-        $self->send_message_to_child($dpid,{action => 'remove_vlan', circuit_id => $circuit_id},$event_id);
+        $self->{'logger'}->debug("Sending remove_vlan command to switch procs in deleteVlan.");
+        $self->send_message_to_child($dpid, {action => 'remove_vlan', circuit_id => $circuit_id}, $event_id);
     }
 
     $self->{'logger'}->info("Elapsed Time deleteVlan: " . tv_interval( $start, [gettimeofday]));
 
-    return {status => $result,event_id => $event_id};
+    return {status => $result, event_id => $event_id};
 }
 
 

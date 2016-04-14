@@ -77,7 +77,7 @@ use XML::Simple;
 
 use Array::Utils qw(intersect);
 use XML::Writer;
-use Net::DBus;
+use GRNOC::RabbitMQ::Client;
 use OESS::Topology;
 use DateTime;
 use Data::Dumper;
@@ -139,6 +139,12 @@ sub new {
     $self->{'configuration'} = $config;
 
     $self->{'rabbitMQ'} = $config->{'rabbitMQ'};
+    $self->{'fwdctl'}   = GRNOC::RabbitMQ::Client->new( host => $self->{'rabbitMQ'}->{'host'},
+                                                        port => $self->{'rabbitMQ'}->{'port'},
+                                                        user => $self->{'rabbitMQ'}->{'user'},
+                                                        pass => $self->{'rabbitMQ'}->{'pass'},
+                                                        exchange => 'OESS',
+                                                        topic => 'OF.FWDCTL.RPC');
 
     my $snapp_config_location = $config->{'snapp_config_location'};
     my $oscars_info = {
@@ -2238,6 +2244,7 @@ sub get_node_maintenance {
 }
 
 =head2 get_node_maintenances
+
 =cut
 sub get_node_maintenances {
     my $self = shift;
@@ -2268,6 +2275,7 @@ sub get_node_maintenances {
 }
 
 =head2 start_link_maintenance
+
 =cut
 sub start_link_maintenance {
     my $self = shift;
@@ -2328,6 +2336,7 @@ sub start_link_maintenance {
 }
 
 =head2 end_link_maintenance
+
 =cut
 sub end_link_maintenance {
     my $self = shift;
@@ -2355,6 +2364,7 @@ sub end_link_maintenance {
 }
 
 =head2 get_link_maintenance
+
 =cut
 sub get_link_maintenance {
     my $self = shift;
@@ -4563,16 +4573,16 @@ sub update_link_state{
 
     if(!defined($link_id)){
 	$self->_set_error("No Link ID specified");
-    return;
+        return;
     }
 
     if(!defined($state)){
 	$state = 'down';
     }
 
-    my $result = $self->_execute_query("update link set status = ? where link_id = ?",[$state,$link_id]);
+    my $result = $self->_execute_query("update link set status = ? where link_id = ?", [$state, $link_id]);
     if($result != 1){
-	$self->_set_error("Error updating link state");
+	$self->_set_error("Could not update state of link $link_id to $state.");
     return;
     }
 
@@ -4735,13 +4745,14 @@ sub insert_node_in_path{
     my $self = shift;
     my %args = @_;
 
+    $self->{'logger'}->warn("Entering insert_node_in_path");
+
     my $link = $args{'link'};
     if(!defined($link)){
 	return {error => 'no link specified to insert node'};
     }
-
+    
     my $link_details = $self->get_link( link_id => $link);
-
 
     #find the 2 links that now make up this path
     my ($new_path,$node_id,$new_a_int,$new_z_int) = $self->_find_new_path( link => $link_details);
@@ -4760,33 +4771,18 @@ sub insert_node_in_path{
     my $new_link_a_endpoints = $self->get_link_endpoints(link_id => $new_path->[0]); 
     my $new_link_z_endpoints = $self->get_link_endpoints(link_id => $new_path->[1]); 
     my $service;
-    my $client;
-
-    my $bus = Net::DBus->system;
-
-    eval {
-	$service = $bus->get_service("org.nddi.fwdctl");
-	$client  = $service->get_object("/controller1");
-    };
-
-    if ($@) {
-	warn "Error in _connect_to_fwdctl: $@";
-	return;
-    }
-
-
-    if ( !defined $client ) {
-	return;
-    }
-
     my @events;
 
     foreach my $circuit (@$circuits){
-	#first we need to connect to DBus and remove the circuit from the switch...
-	my ($result,$event_id) = $client->deleteVlan($circuit->{'circuit_id'});
-        push(@events,$event_id);
 
-	#ok now update the links
+        $self->{'logger'}->warn("insert_node_in_path: Removing a circuit");
+        
+	# First we need to remove the circuit from the switch.
+        my $result = $self->{'fwdctl'}->deleteVlan(circuit_id => int($circuit->{'circuit_id'}));
+        $self->{'logger'}->warn("insert_node_in_path: deleteVlan result - " . Data::Dumper::Dumper($result));
+        push(@events, $result->{'event_id'});
+
+	# OK now update the links
 	my $links = $self->_execute_query("select * from link_path_membership, path, path_instantiation where path.path_id = path_instantiation.path_id and path_instantiation.end_epoch = -1 and link_path_membership.path_id = path.path_id and path.circuit_id = ? and link_path_membership.end_epoch = -1",[$circuit->{'circuit_id'}]);
 
 
@@ -4807,7 +4803,7 @@ sub insert_node_in_path{
                 if(!defined($new_internal_vlan_a) || !defined($new_internal_vlan_z) ){
 		    return {success => 0, error => "Internal Error finding available internal vlan"};
 		}
-                                #figure out the correct insertion order for the new link_path_memberships (there is no requirement that the new endpoint be the z end of either link.
+                #figure out the correct insertion order for the new link_path_memberships (there is no requirement that the new endpoint be the z end of either link.
                 my $bindparams_a= [$new_path->[0],$link->{'path_id'}];
                 my $bindparams_z= [$new_path->[1],$link->{'path_id'}];
 
@@ -4835,22 +4831,29 @@ sub insert_node_in_path{
 	    }
 	}
 
-	#re-add circuit
-	($result,$event_id) = $client->addVlan($circuit->{'circuit_id'});
-        push(@events,$event_id);
+        $self->{'logger'}->warn("insert_node_in_path: Re-adding circuit");
+        
+	# Re-add circuit
+        $result = $self->{'fwdctl'}->addVlan(circuit_id => int($circuit->{'circuit_id'}));
+        $self->{'logger'}->error("insert_node_in_path: addVlan result - " . Data::Dumper::Dumper($result));
+        push(@events, $result->{'event_id'});
     }
+
+    $self->{'logger'}->warn("insert_node_in_path: Checking status of events");
 
     while(scalar(@events) > 0){
         for(my $i=0;$i <= $#events;$i++){
-            my $res = $client->get_event_status($events[$i]);
-            if($res != FWDCTL_WAITING){
+            my $res = $self->{'fwdctl'}->get_event_status(event_id => $events[$i]);
+            $self->{'logger'}->warn("insert_node_in_path: get_event_status result: " . Data::Dumper::Dumper($res));
+            if ($res->{'status'} != FWDCTL_WAITING) {
                 delete $events[$i];
             }
         }
     }
 
-    return {success => 1};
+    $self->{'logger'}->error("Exiting insert_node_in_path");
 
+    return {success => 1};
 }
 
 =head2 decom_link
@@ -4879,7 +4882,12 @@ sub decom_link {
     return;
     }
 
-    $self->_execute_query("insert into link_instantiation (end_epoch,start_epoch,link_state,link_id,interface_a_id,interface_z_id) VALUES (-1,unix_timestamp(NOW()),'decom',?,?,?)",[$link_details->{'link_id'},$link_details->{'interface_a_id'},$link_details->{'interface_z_id'}]);
+    $result = $self->_execute_query("insert into link_instantiation (end_epoch,start_epoch,link_state,link_id,interface_a_id,interface_z_id) VALUES (-1,unix_timestamp(NOW()),'decom',?,?,?)",[$link_details->{'link_id'},$link_details->{'interface_a_id'},$link_details->{'interface_z_id'}]);
+    if ($result != 1){
+	$self->_set_error("Error addding decomed link instantiation.");
+	$self->_rollback();
+        return;
+    }
 
     if($link_details->{'status'} eq 'down'){
 	#link does not appear to be connected... set the interfaces back to "unknown" state

@@ -207,10 +207,10 @@ sub start {
 }
 
 =head2 init_circuit_trace
+
 handles bootstrapping of setting up a traceroute request record, documenting origin edge interface, signalling the first outbound packet(s).
 
 =cut
-
 sub init_circuit_trace {
     my $self = shift;
     my $method_ref = shift;
@@ -353,10 +353,13 @@ processes a trace packet that has been returned from the switch, determines what
 =cut
 
 sub process_trace_packet {
-    my $self=shift;
-    my $src_dpid = shift;
-    my $src_port = shift;
-    my $circuit_id = shift;
+    my $self  = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    my $src_dpid   = $p_ref->{'dpid'}->{'value'};
+    my $src_port   = $p_ref->{'in_port'}->{'value'};
+    my $circuit_id = $p_ref->{'circuit_id'}->{'value'};
    
     my $db = $self->{'db'};
     my $node = $db->get_node_by_dpid(dpid =>$src_dpid);
@@ -710,14 +713,16 @@ on link events, invalidate any traceroutes that were currently running over the 
 
 
 sub link_event_callback {
-    my $self   = shift;
-    my $a_dpid = shift;
-    my $a_port = shift;
-    my $z_dpid = shift;
-    my $z_port = shift;
-    my $status = shift;
-    my $db = $self->{'db'};
+    my $self  = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
 
+    my $a_dpid = $p_ref->{'dpsrc'}->{'value'};
+    my $a_port = $p_ref->{'sport'}->{'value'};
+    my $z_dpid = $p_ref->{'dpdst'}->{'value'};
+    my $z_port = $p_ref->{'dport'}->{'value'};
+    my $status = $p_ref->{'action'}->{'value'};
+    my $db     = $self->{'db'};
 
     if ($status ne 'add' ){
         #we don't do anything with link up, but down or unknown, we want to know what circuits were on this link.
