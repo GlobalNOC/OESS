@@ -1971,13 +1971,16 @@ sub deleteVlan {
     my $p_ref = shift;
     my $state = shift;
 
+    # Measure time spent in this method.
     my $start = [gettimeofday];
 
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
     $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
 
-    my $ckt = $self->get_ckt_object( $circuit_id );
+    $self->{'logger'}->debug("Calling deleteVlan on circuit $circuit_id.");
+    
+    my $ckt      = $self->get_ckt_object( $circuit_id );
     my $event_id = $self->_generate_unique_event_id();
     if(!defined($ckt)){
         return {status => FWDCTL_FAILURE, event_id => $event_id};
@@ -1988,7 +1991,6 @@ sub deleteVlan {
     if($ckt->{'details'}->{'state'} eq 'decom'){
 	return {status => FWDCTL_FAILURE, event_id => $event_id};
     }
-    
 
     #update the cache
     $self->_write_cache();
@@ -1996,19 +1998,20 @@ sub deleteVlan {
     #get all the DPIDs involved and remove the flows
     my $flows = $ckt->get_flows();
     my %dpids;
-    foreach my $flow (@$flows){
+    foreach my $flow (@{$flows}) {
         $dpids{$flow->get_dpid()} = 1;
     }
    
     my $result = FWDCTL_SUCCESS;
 
     foreach my $dpid (keys %dpids){
-        $self->send_message_to_child($dpid,{action => 'remove_vlan', circuit_id => $circuit_id},$event_id);
+        $self->{'logger'}->debug("Sending remove_vlan command to switch procs in deleteVlan.");
+        $self->send_message_to_child($dpid, {action => 'remove_vlan', circuit_id => $circuit_id}, $event_id);
     }
 
     $self->{'logger'}->info("Elapsed Time deleteVlan: " . tv_interval( $start, [gettimeofday]));
 
-    return {status => $result,event_id => $event_id};
+    return {status => $result, event_id => $event_id};
 }
 
 

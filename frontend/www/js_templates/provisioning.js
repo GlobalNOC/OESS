@@ -295,7 +295,7 @@ function saveLocalCircuit(){
 	}
     };
 
-    var postVars = "action=provision_circuit&circuit_id="+encodeURIComponent(circuit_id)
+    var postVars = "method=provision_circuit&circuit_id="+encodeURIComponent(circuit_id)
         +"&description="+encodeURIComponent(description)
         +"&bandwidth="+encodeURIComponent(bandwidth)
         +"&provision_time="+encodeURIComponent(provision_time)

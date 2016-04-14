@@ -28,10 +28,12 @@ use Log::Log4perl;
 use URI::Escape;
 use MIME::Lite;
 use OESS::Database;
+use GRNOC::WebService;
 
 my $db   = new OESS::Database();
 
-my $cgi = new CGI;
+#register web service dispatcher
+my $svc = GRNOC::WebService::Dispatcher->new();
 
 my $username = $ENV{'REMOTE_USER'};
 my $user_id;
@@ -45,87 +47,270 @@ sub main {
         exit(1);
     }
 
+    if ( !$svc ){
+	send_json( {"error" => "Unable to access GRNOC::WebService" });
+	exit(1);
+    }
+
     my $init_logger = Log::Log4perl->init_and_watch('/etc/oess/logging.conf'); 
     $user_id = $db->get_user_id_by_auth_name( 'auth_name' => $username );
 
     my $user = $db->get_user_by_id( user_id => $user_id)->[0];
     
-    my $action = $cgi->param('action');
-
-    my $output;
+ 
     if ($user->{'status'} eq 'decom') {
-        $action = "error";
+	send_json("error");
+	exit(1);
     }
     
-    switch ($action) {
-        case "get_all_workgroups" {
-            $output = &get_all_workgroups();
-        }
-        case "get_acls" {
-            $output = &get_acls();
-        }
-        case "add_acl" {
-            if ($user->{'type'} eq 'read-only') {
-              $output = {error => 'Error: you are a readonly user'};
-            } else {
-              $output = &add_acl();
-            }
-        }
-        case "update_acl" {
-            if ($user->{'type'} eq 'read-only') {
-              $output = {error => 'Error: you are a readonly user'};
-            } else {
-              $output = &update_acl();
-            }
-        }
-        case "remove_acl" {
-            if ($user->{'type'} eq 'read-only') {
-              $output = {error => 'Error: you are a readonly user'};
-            } else {
-              $output = &remove_acl();
-            }
-        }
-        case "error" {
-            $output->{'error'}   = "Decommed users cannot use webservices.";
-            $output->{'results'} = [];
-        }
-        else {
-            $output->{'error'}   = "Error: No Action specified";
-            $output->{'results'} = [];
-          }
-      }
+    if ($user->{'type'} eq 'read-only') {
+	send_json("Error: you are a readonly user");
+	return;
+    }
 
-    send_json($output);
+    #register the WebService Methods
+    register_webservice_methods();
+
+    #handle the WebService request.
+    $svc->handle_request();
+
+}
+
+sub register_webservice_methods {
+    
+    my $method;
+    
+    #get_all_workgroups()
+     $method = GRNOC::WebService::Method->new(
+	 name            => "get_all_workgroups",
+	 description     => "returns a list of workgroups the logged in user has access to",
+	 callback        => sub { get_all_workgroups( @_ ) }
+	 );
+
+    #register get_workgroups() method
+    $svc->register_method($method);
+
+    #get_acls
+    $method = GRNOC::WebService::Method->new(
+	name            => "get_acls",
+	description     => "Returns a JSON formatted list of ACLs for a given interface.",
+	callback        => sub { get_acls( @_ ) }
+	);
+
+    #add the optional input parameter interface_id
+    $method->add_input_parameter(
+        name            => 'interface_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        description     => "The interface ID for which the user wants the acl details."
+	);
+
+    #add the optional input parameter interface_acl_id
+    $method->add_input_parameter(
+        name            => 'interface_acl_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        description     => "The interface acl ID for which the user wants the details."
+	);
+
+    #register the get_acls() method
+    $svc->register_method($method);
+
+    #add_acl
+    $method = GRNOC::WebService::Method->new(
+	name            => "add_acl",
+	description     => "Adds an ACL for a specific interface/workgroup combination",
+	callback        => sub { add_acl( @_ ) }
+	);
+
+    #add the optional input parameter workgroup_id
+    $method->add_input_parameter(
+	name            => 'workgroup_id',
+	pattern         => $GRNOC::WebService::Regex::INTEGER,
+	required        => 0,
+	description     => "the workgroup the ACL is applied to."
+	); 
+
+    #add the required input parameter interface_id
+    $method->add_input_parameter(
+        name            => 'interface_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "Specific interface_ id add the ACL to"
+        );
+    
+    #add the required input parameter allow_deny
+     $method->add_input_parameter(
+        name            => 'allow_deny',
+        pattern         => '^(allow|deny)',
+        required        => 1,
+        description     => "if the ACL is an allow or deny rule."
+	 );
+
+    #add the optional input parameter eval_position
+     $method->add_input_parameter(
+        name            => 'eval_position',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        description     => "the position in the ACL list where the rule will be evaluated."
+	 );
+
+    #add the required input paramter vlan_start
+    $method->add_input_parameter(
+        name            => 'vlan_start',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "the start vlan tag."
+        );
+    
+    #add the optional input paramter vlan_end
+    $method->add_input_parameter(
+        name            => 'vlan_end',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        description     => "the end vlan tag."
+        );
+    
+    #add the optional input paramter notes
+    $method->add_input_parameter(
+        name            => 'notes',
+        pattern         => $GRNOC::WebService::Regex::TEXT,
+        required        => 0,
+        description     => "Any notes or reason for the ACL."
+        );
+    
+    #register the add_acl() method.
+    $svc->register_method($method);
+    
+    #update_acl
+    $method = GRNOC::WebService::Method->new(
+        name            => "update_acl",
+        description     => "Updates an ACL for a specific interface/workgroup combination",
+        callback        => sub { update_acl( @_ ) }
+        );
+
+    #add the optional input parameter workgroup_id
+    $method->add_input_parameter(
+        name            => 'workgroup_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        description     => "the workgroup the ACL is applied to."
+        );
+
+    #add the required input parameter interface_id
+    $method->add_input_parameter(
+        name            => 'interface_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "Specific interface_ id add the ACL to"
+        );
+
+    #add the optional input parameter interface_acl_id
+    $method->add_input_parameter(
+        name            => 'interface_acl_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "The interface acl ID of the ACL to be modified."
+        );
+
+
+    #add the required input parameter allow_deny
+     $method->add_input_parameter(
+        name            => 'allow_deny',
+        pattern         => '^(allow|deny)',
+        required        => 1,
+        description     => "if the ACL is an allow or deny rule."
+         );
+
+    #add the required input parameter eval_position
+     $method->add_input_parameter(
+        name            => 'eval_position',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "the position in the ACL list where the rule will be evaluated."
+         );
+
+    #add the required input paramter vlan_start
+    $method->add_input_parameter(
+        name            => 'vlan_start',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "the start vlan tag."
+        );
+
+    #add the optional input paramter vlan_end
+    $method->add_input_parameter(
+        name            => 'vlan_end',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        description     => "the end vlan tag."
+        );
+
+    #add the optional input paramter notes
+    $method->add_input_parameter(
+        name            => 'notes',
+        pattern         => $GRNOC::WebService::Regex::TEXT,
+        required        => 0,
+        description     => "Any notes or reason for the ACL."
+        );
+
+    #register the update_acl() method.
+    $svc->register_method($method);
+
+    #remove_acl
+    $method = GRNOC::WebService::Method->new(
+	name            => "remove_acl",
+	description     => "removes an existing ACL",
+	callback        => sub { remove_acl( @_ ) }
+	);
+
+    #add the required input parameter interface_acl_id
+    $method->add_input_parameter(
+        name            => 'interface_acl_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "The interface acl ID the ACL to be removed."
+        );
+
+    #register the remove_acl() method
+    $svc->register_method($method);
+
 }
 
 sub get_all_workgroups {
+    
+    my ( $method, $args ) = @_ ;
     my $results;
 
     my $workgroups = $db->get_all_workgroups();
 
-    return parse_results( res => $workgroups );
+    return parse_results( res => $workgroups, method => $method );
 }
 
 sub get_acls {
+    
+    my ( $method, $args ) = @_ ;
     my $results;
 
     my %params;
-    if($cgi->param('interface_id')){
-        $params{'interface_id'} = $cgi->param('interface_id');
+    if($args->{'interface_id'}{'value'}){
+        $params{'interface_id'} = $args->{'interface_id'}{'value'};
     }
-    if($cgi->param('interface_acl_id')){
-        $params{'interface_acl_id'} = $cgi->param('interface_acl_id');
+    if($args->{'interface_acl_id'}{'value'}){
+        $params{'interface_acl_id'} = $args->{'interface_acl_id'}{'value'};
     }
     
     my $acls = $db->get_acls( %params );
-
-    return parse_results( res => $acls );
+    
+    return parse_results( res => $acls , method => $method);
 }
 
 sub add_acl {
+    
+    my ( $method, $args ) = @_ ;
     my $results;
 
-    my $workgroup_id = $cgi->param('workgroup_id') || undef;
+    my $workgroup_id = $args->{'workgroup_id'}{'value'} || undef;
     my $workgroup_name;
     if (!defined $workgroup_id){
         $workgroup_name = "all workgroups";
@@ -137,25 +322,25 @@ sub add_acl {
         $workgroup_name = $db->get_workgroups(workgroup_id => $workgroup_id)->[0]{'name'};
     }
 
-    my $interface_name = $db->get_interface(interface_id => $cgi->param("interface_id"))->{'name'};
-    my $vlan_start = $cgi->param("vlan_start");
-    my $vlan_end = $cgi->param("vlan_end");
+    my $interface_name = $db->get_interface(interface_id => $args->{"interface_id"}{'value'})->{'name'};
+    my $vlan_start = $args->{"vlan_start"}{'value'};
+    my $vlan_end = $args->{"vlan_end"}{'value'};
     my $logger = Log::Log4perl->get_logger("OESS.ACL");
     $logger->debug("Initiating creation of ACL at <time> for ");    
     my $acl_id = $db->add_acl( 
-        workgroup_id  => $cgi->param("workgroup_id") || undef,
-        interface_id  => $cgi->param("interface_id"),
-        allow_deny    => $cgi->param("allow_deny"),
-        eval_position => $cgi->param("eval_position") || undef,
-        vlan_start    => $cgi->param("vlan_start"),
-        vlan_end      => $cgi->param("vlan_end") || undef,
-        notes         => $cgi->param("notes") || undef,
+        workgroup_id  => $args->{"workgroup_id"}{'value'} || undef,
+        interface_id  => $args->{"interface_id"}{'value'},
+        allow_deny    => $args->{"allow_deny"}{'value'},
+        eval_position => $args->{"eval_position"}{'value'} || undef,
+        vlan_start    => $args->{"vlan_start"}{'value'},
+        vlan_end      => $args->{"vlan_end"}{'value'} || undef,
+        notes         => $args->{"notes"}{'value'} || undef,
         user_id       => $user_id
     );
     if ( !defined $acl_id ) {
         $logger->error("Error creating ACL at ". localtime(). " for $workgroup_name, on $interface_name from vlans $vlan_start to $vlan_end. Action was initiated by $username");
-        $results->{'error'} = $db->get_error();
-        $results->{'results'} = [ { success => 0 } ];
+	$method->set_error( $db->get_error() );
+	return;
     }
     else {
         $logger->info("Created ACL with id $acl_id at " .localtime(). " for $workgroup_name on $interface_name from vlans $vlan_start to $vlan_end, Action was initiated by $username");
@@ -169,9 +354,10 @@ sub add_acl {
 }
 
 sub update_acl {
+    my ( $method, $args ) = @_ ;
     my $results;
 
-    my $acl_id = $cgi->param("interface_acl_id");
+    my $acl_id = $args->{"interface_acl_id"}{'value'};
     my $original_values =  get_acls($acl_id)->{'results'}[0];
     my $original_workgroup_name;
     if ($original_values->{'workgroup_id'}){
@@ -183,18 +369,18 @@ sub update_acl {
     my $original_interface_name = $db->get_interface(interface_id => $original_values->{"interface_id"})->{'name'};;
  
     my $success = $db->update_acl(
-        interface_acl_id => $cgi->param("interface_acl_id"),
-        workgroup_id     => $cgi->param("workgroup_id") || undef,
-        interface_id     => $cgi->param("interface_id"),
-        allow_deny       => $cgi->param("allow_deny"),
-        eval_position    => $cgi->param("eval_position"),
-        vlan_start       => $cgi->param("vlan_start"),
-        vlan_end         => $cgi->param("vlan_end") || undef,
-        notes            => $cgi->param("notes") || undef,
+        interface_acl_id => $args->{"interface_acl_id"}{'value'},
+        workgroup_id     => $args->{"workgroup_id"}{'value'} || undef,
+        interface_id     => $args->{"interface_id"}{'value'},
+        allow_deny       => $args->{"allow_deny"}{'value'},
+        eval_position    => $args->{"eval_position"}{'value'},
+        vlan_start       => $args->{"vlan_start"}{'value'},
+        vlan_end         => $args->{"vlan_end"}{'value'} || undef,
+        notes            => $args->{"notes"}{'value'} || undef,
         user_id          => $user_id
     );
 
-    my $workgroup_id = $cgi->param('workgroup_id');
+    my $workgroup_id = $args->{'workgroup_id'}{'value'};
     my $workgroup_name;
     if ($workgroup_id){
         $workgroup_name = $db->get_workgroup_by_id(workgroup_id => $workgroup_id)->{'name'};
@@ -202,28 +388,28 @@ sub update_acl {
     else{
         $workgroup_name = "All workgroups";
     }
-    my $interface_name = $db->get_interface(interface_id => $cgi->param("interface_id"))->{'name'}; 
-    my $vlan_start = $cgi->param("vlan_start");
-    my $vlan_end = $cgi->param("vlan_end");
+    my $interface_name = $db->get_interface(interface_id => $args->{"interface_id"}{'value'})->{'name'}; 
+    my $vlan_start = $args->{"vlan_start"}{'value'};
+    my $vlan_end = $args->{"vlan_end"}{'value'};
     my $logger = Log::Log4perl->get_logger("OESS.ACL");
     
     if ( !defined $success ) {
         $logger->info("Failed to update acl with id $acl_id, at ". localtime() . " on $interface_name. Action was initiated by $username."); 
-        $results->{'error'}   = $db->get_error();
-        $results->{'results'} = [];
+        $method->set_error( $db->get_error() );
+	return;
     }
 
     else {
         #get the passed values
-        my @passed_values = $cgi->param;
+        my %passed_values = $args;
         my $passed_values_hash;
-        foreach my $passed_value (@passed_values) {
+        foreach my $passed_value (keys %passed_values) {
 
             #we don't need the action param or notes
             if ($passed_value eq "action" || $passed_value eq "notes") {
                 next;
             }
-            $passed_values_hash->{$passed_value} = $cgi->param($passed_value);
+            $passed_values_hash->{$passed_value} = $args->{$passed_value}{'value'};
         }
         $logger->info("Updated ACL with id $acl_id, at ". localtime() ." on $interface_name. Action was initiated by $username.");
         
@@ -253,10 +439,12 @@ sub update_acl {
 }
 
 sub remove_acl {
+
+    my ( $method, $args ) = @_ ;
     my $results;
     my $logger = Log::Log4perl->get_logger("OESS.ACL");
  
-    my $interface_acl_id   = $cgi->param('interface_acl_id');
+    my $interface_acl_id   = $args->{'interface_acl_id'}{'value'};
     
     my $result = $db->remove_acl(
         user_id      => $user_id,
@@ -265,8 +453,7 @@ sub remove_acl {
 
     if ( !defined $result ) {
         $logger->info("Failed to delete ACL with id $interface_acl_id at ". localtime() ." Action was initiated by $username.");
-        $results->{'error'}   = $db->get_error();
-        $results->{'results'} = [];
+	$method->set_error( $db->get_error() );
     }
     else {
         $logger->info("Deleted ACL with id $interface_acl_id at ". localtime() . " Action was initiated by $username.");
@@ -280,10 +467,12 @@ sub parse_results {
     my %args = @_;
 
     my $res = $args{'res'};
+    my $method = $args{'method'};
     my $results;
      
     if ( !defined $res ) {
-        $results->{'error'} = $db->get_error();
+        $method->set_error( $db->get_error() );
+	return;
     }else {
         $results->{'results'} = $res;
     }
