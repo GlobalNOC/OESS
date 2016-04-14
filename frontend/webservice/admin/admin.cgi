@@ -30,33 +30,87 @@ use strict;
 use warnings;
 
 use CGI;
-use JSON;
-use Switch;
 use Data::Dumper;
+use JSON;
+use LWP::UserAgent;
+use Switch;
 
 use GRNOC::RabbitMQ::Client;
-
-use LWP::UserAgent;
+use GRNOC::WebService;
 
 use OESS::Database;
 use OESS::Topology;
+
 
 use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
 
+
 my $db   = new OESS::Database();
 my $topo = new OESS::Topology();
 
 my $cgi = new CGI;
+my $svc = GRNOC::WebService::Dispatcher->new();
 
 $| = 1;
 
-sub main {
 
-    if ( !$db ) {
-        send_json( { "error" => "Unable to connect to database." } );
+=head2 authorization
+
+Checks if the $REMOTE_USER should be authorized. If any authorization
+check fails an error will be returned. Returns a user whenever possible.
+Caller should check if error is defined to determine if authorization
+has failed.
+
+=over 1
+
+=item $admin     If set to 1 authorization will be granted to admin users
+
+=item $read_only If set to 1 authorization will be granted to read only users
+
+=back
+
+Returns a ($user, $error) tuple.
+
+=cut
+sub authorization {
+    my %params    = @_;
+    my $admin     = $params{'admin'};
+    my $read_only = $params{'read_only'};
+
+    my $username  = $ENV{'REMOTE_USER'};
+
+    my $auth = $db->get_user_admin_status( 'username' => $remote_user);
+    if (!defined $auth) {
+        return (undef, { error => "Invalid or decommissioned user specified." });
+    }
+
+    my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
+    if (!defined $user_id) {
+        return (undef, { error => "Invalid or decommissioned user specified." });
+    }
+    
+    my $user = $db->get_user_by_id(user_id => $user_id)->[0];
+    if (!defined $user || $user->{'status'} eq 'decom') {
+        return (undef, { error => "Invalid or decommissioned user specified." });
+    }
+
+    if ($admin == 1 && $authorization->[0]{'is_admin'} != 1) {
+        return ($user, { error => "User $username does not have admin privileges." });
+    }
+    
+    if ($read_only != 1 && &user->{'type'} eq 'read-only') {
+        return ($user, { error => "User $username is a read only user." });
+    }
+
+    return ($user, undef);
+}
+
+sub main {
+    if (!$db) {
+        send_json({ error => "Unable to connect to database." });
         exit(1);
     }
 
@@ -64,58 +118,23 @@ sub main {
     my $remote_user = $ENV{'REMOTE_USER'};
     my $output;
 
+    # TODO - REMOVE ME BEGIN
     my $authorization = $db->get_user_admin_status( 'username' => $remote_user);
-
     my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
-    
-    if($user->{'status'} eq 'decom'){
-        return send_json({error => "Decommed users cannot use webservices."});
+    if (!defined $user || $user->{'status'} eq 'decom') {
+        return send_json({ error => "Invalid or decommissioned user specified." });
     }
+    if ($user->{'type'} eq 'read-only') {
+        $read_only = 1;
+    }    
     if ( $authorization->[0]{'is_admin'} != 1 ) {
-        $output = {
-            error => "User $remote_user does not have admin privileges",
-        };
-        return ( send_json($output) );
+        return send_json({ error => "User $remote_user does not have admin privileges" });
     }
-
-    if(!defined($user)){
-        return send_json({error => "unable to find user"});
-    }
+    # TODO - REMOVE ME END
+    
+    register_webservice_methods();
     
     switch ($action) {
-        case "get_edge_interface_move_maintenances" {
-            $output = &get_edge_interface_move_maintenances();
-        }
-        case "add_edge_interface_move_maintenance" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &add_edge_interface_move_maintenance();
-        }
-        case "revert_edge_interface_move_maintenance" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &revert_edge_interface_move_maintenance();
-        }
-        case "move_edge_interface_circuits" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &move_edge_interface_circuits();
-        }
-        case "get_pending_nodes" {
-            $output = &get_pending_nodes();
-        }
-        case "get_pending_links" {
-            $output = &get_pending_links();
-        }
-        case "confirm_node" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &confirm_node();
-        }
         case "update_node" {
             if($user->{'type'} eq 'read-only'){
                 return send_json({error => 'Error: you are a readonly user'});
@@ -283,16 +302,130 @@ sub main {
             }
             $output = &decom_workgroup();
         }
-        else {
-            $output = {
-                error => "Unknown action - $action"
-            };
-        }
-
+          else {
+              return $svc->handle_request();
+          }
     }
 
     send_json($output);
+}
 
+sub register_webservice_methods {
+    my $method = undef;
+
+    $method = GRNOC::WebService::Method->new( name        => 'add_edge_interface_move_maintenances',
+                                              description => 'Creates a list interface maintenances.',
+                                              callback    => sub { add_edge_interface_move_maintenances(@_) } );
+    $method->add_input_parameter( name        => 'name',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 0,
+                                  description => 'Name of the new maintenance.' );
+    $method->add_input_parameter( name        => 'orig_interface_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => 'Interface ID of the original interface.');
+    $method->add_input_parameter( name        => 'temp_interface_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => 'Interface ID of the temporary interface.');    
+    $method->add_input_parameter( name        => 'circuit_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 0,
+                                  description => 'Circuit IDs of the circuits on original_interface.');
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'get_edge_interface_move_maintenances',
+                                              description => 'Returns a list interface maintenances.',
+                                              callback    => sub { get_edge_interface_move_maintenances(@_) } );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'revert_edge_interface_move_maintenance',
+                                              description => 'Reverts an interface maintenance.',
+                                              callback    => sub { revert_edge_interface_move_maintenances(@_) } );
+    $method->add_input_parameter( name        => 'maintenance_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 0,
+                                  description => 'Maintenance ID of the maintenance to revert.');
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'move_edge_interface_circuits',
+                                              description => "Moves an interface's circuits.",
+                                              callback    => sub { move_edge_interface_circuits(@_) } );
+    $method->add_input_parameter( name        => 'orig_interface_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => 'Interface ID of the original interface.');
+    $method->add_input_parameter( name        => 'new_interface_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => 'Interface ID of the temporary interface.');    
+    $method->add_input_parameter( name        => 'circuit_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 0,
+                                  description => 'Circuit IDs of the circuits on original_interface.' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'get_pending_nodes',
+                                              description => "Returns a list of nodes to be approved.",
+                                              callback    => sub { get_pending_nodes(@_) } );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'get_pending_links',
+                                              description => "Returns a list of links to be approved.",
+                                              callback    => sub { get_pending_links(@_) } );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'confirm_node',
+                                              description => "Approves a node.",
+                                              callback    => sub { confirm_node(@_) } );
+    $method->add_input_parameter( name        => 'node_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'name',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'longitude',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'latitude',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'vlan_range',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'default_drop',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'default_forward',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'tx_delay_ms',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'max_flows',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'bulk_barrier',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $svc->register_method($method);
+
+
+
+
+
+
+    
 }
 
 sub get_circuits_on_interface{
@@ -716,6 +849,13 @@ sub edit_user {
 }
 
 sub get_edge_interface_move_maintenances {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 1);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
     my $maints = $db->get_edge_interface_move_maintenances();
 
@@ -729,11 +869,18 @@ sub get_edge_interface_move_maintenances {
 }
 
 sub add_edge_interface_move_maintenance {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+    
     my $results = { 'results' => [] };
-    my $name               = ($cgi->param("name") eq '') ? undef : $cgi->param("name");
-    my $orig_interface_id  = $cgi->param("orig_interface_id");
-    my $temp_interface_id  = $cgi->param("temp_interface_id");
-    my @circuit_ids        = $cgi->param("circuit_id");
+    my $name               = ($args->{"name"}{'value'} eq '') ? undef : $args->{"name"}{'value'};
+    my $orig_interface_id  = $args->{"orig_interface_id"}{'value'};
+    my $temp_interface_id  = $args->{"temp_interface_id"}{'value'};
+    my @circuit_ids        = $args->{"circuit_id"}{'value'};
 
     my $res = $db->add_edge_interface_move_maintenance(
         name => $name,
@@ -757,8 +904,15 @@ sub add_edge_interface_move_maintenance {
 }
 
 sub revert_edge_interface_move_maintenance {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results = { 'results' => [] };
-    my $maintenance_id  = $cgi->param("maintenance_id");
+    my $maintenance_id  = $args->{"maintenance_id"}{'value'};
 
     my $res = $db->revert_edge_interface_move_maintenance(
         maintenance_id => $maintenance_id
@@ -778,10 +932,17 @@ sub revert_edge_interface_move_maintenance {
 }
 
 sub move_edge_interface_circuits {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results = { 'results' => [] };
-    my $orig_interface_id  = $cgi->param("orig_interface_id");
-    my $new_interface_id   = $cgi->param("new_interface_id");
-    my @circuit_ids        = $cgi->param("circuit_id");
+    my $orig_interface_id  = $args->{"orig_interface_id"}{'value'};
+    my $new_interface_id   = $args->{"new_interface_id"}{'value'};
+    my @circuit_ids        = $args->{"circuit_id"}{'value'};
 
     my $res = $db->move_edge_interface_circuits(
         orig_interface_id => $orig_interface_id,
@@ -802,6 +963,13 @@ sub move_edge_interface_circuits {
 }
 
 sub get_pending_nodes {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 1);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
     my $nodes = $db->get_pending_nodes();
@@ -817,18 +985,25 @@ sub get_pending_nodes {
 }
 
 sub confirm_node {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
-    my $node_id         = $cgi->param('node_id');
-    my $name            = $cgi->param('name');
-    my $long            = $cgi->param('longitude');
-    my $lat             = $cgi->param('latitude');
-    my $range           = $cgi->param('vlan_range');
-    my $default_drop    = $cgi->param('default_drop');
-    my $default_forward = $cgi->param('default_forward');
-    my $tx_delay_ms     = $cgi->param('tx_delay_ms');
-    my $max_flows       = $cgi->param('max_flows');
-    my $bulk_barrier    = $cgi->param('bulk_barrier');
+    my $node_id         = $args->{'node_id'}{'value'};
+    my $name            = $args->{'name'}{'value'};
+    my $long            = $args->{'longitude'}{'value'};
+    my $lat             = $args->{'latitude'}{'value'};
+    my $range           = $args->{'vlan_range'}{'value'};
+    my $default_drop    = $args->{'default_drop'}{'value'};
+    my $default_forward = $args->{'default_forward'}{'value'};
+    my $tx_delay_ms     = $args->{'tx_delay_ms'}{'value'};
+    my $max_flows       = $args->{'max_flows'}{'value'};
+    my $bulk_barrier    = $args->{'bulk_barrier'}{'value'};
 
     if ( $default_drop eq 'true' ) {
         $default_drop = 1;
@@ -1278,6 +1453,13 @@ sub decom_link {
 }
 
 sub get_pending_links {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 1);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
     my $links = $db->get_pending_links();
