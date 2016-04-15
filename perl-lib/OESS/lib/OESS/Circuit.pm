@@ -189,6 +189,7 @@ sub _process_circuit_details{
     $self->{'logger'}->debug("Active path: " . $self->get_active_path());
     $self->{'static_mac'} = $self->{'details'}->{'static_mac'};
     $self->{'has_backup_path'} = 0;
+    $self->{'type'} = $self->{'details'}->{'type'};
     $self->{'interdomain'} = 0;
     if(scalar(@{$self->{'details'}->{'backup_links'}}) > 0){
         $self->{'logger'}->debug("Circuit has backup path");
@@ -1342,6 +1343,16 @@ sub get_path_status{
     
     return 1;
 
+}
+
+=head2 get_type
+
+=cut
+
+sub get_type{
+    my $self = shift;
+    return $self->{'type'};
+    
 }
 
 =head2 error

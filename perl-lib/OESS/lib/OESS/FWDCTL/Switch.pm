@@ -512,8 +512,8 @@ sub send_flows{
         $self->{'logger'}->error("No Command specified for send_flows");
         return;
     }
-    
-    if(scalar(@$flows) == 0){
+
+    if(!defined($flows) || scalar(@$flows) == 0){
 	$self->{'logger'}->debug("send_flows: No more flows!");
 	&$cb();
 	return;

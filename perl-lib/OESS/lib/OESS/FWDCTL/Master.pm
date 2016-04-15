@@ -152,6 +152,7 @@ sub new {
     #from TOPO startup
     my $nodes = $self->{'db'}->get_current_nodes();
     foreach my $node (@$nodes) {
+	next if (!$node->{'openflow'});
         $self->{'db'}->update_node_operational_state(node_id => $node->{'node_id'}, state => 'down');
     }
 
@@ -748,6 +749,7 @@ sub build_cache{
         
     my $nodes = $db->get_current_nodes();
     foreach my $node (@$nodes) {
+	next if(!$node->{'openflow'});
         my $details = $db->get_node_by_dpid(dpid => $node->{'dpid'});
         $details->{'dpid_str'} = sprintf("%x",$node->{'dpid'});
         $details->{'name'} = $node->{'name'};
@@ -774,6 +776,8 @@ sub _write_cache{
             $self->{'logger'}->error("No Circuit could be created or found for circuit: " . $ckt_id);
             next;
         }
+	next if ($ckt->get_type() eq 'mpls');
+
         my $details = $ckt->get_details();
 
         $circuits{$ckt_id} = {};
@@ -1060,6 +1064,8 @@ sub datapath_join_handler{
     my $method_ref = shift;
     my $p_ref = shift;
     my $state = shift;
+
+    $self->{'logger'}->error("Datapath JOIN EVENT!!!");
 
     my $dpid = $p_ref->{'dpid'}{'value'};
 
@@ -1910,6 +1916,10 @@ sub addVlan {
     my $ckt = $self->get_ckt_object( $circuit_id );
     if(!defined($ckt)){
         return {status => FWDCTL_FAILURE, event_id => $event_id};
+    }
+
+    if($ckt->get_type() eq 'mpls'){
+	return {status => FWDCTL_FAILURE, event_id => $event_id};
     }
 
     $ckt->update_circuit_details();

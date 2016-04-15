@@ -52,14 +52,13 @@ sub get_system_information{
     my $reply = $self->{'jnx'}->get_system_information();
 
     if($self->{'jnx'}->has_error){
-        $self->{'logger'}->error("Error fetching interface information: " . $self->{'jnx'}->get_first_error());
+        $self->{'logger'}->error("Error fetching interface information: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
         return;
     }
 
     my $system_info = $self->{'jnx'}->get_dom();
     my $xp = XML::LibXML::XPathContext->new( $system_info);
     $xp->registerNs('x',$system_info->documentElement->namespaceURI);
-    warn $xp->find('/x:rpc-reply/x:system-information')->item(0)->toString();
     
     my $model = $xp->findvalue('/x:rpc-reply/x:system-information/x:hardware-model');
     my $version = $xp->findvalue('/x:rpc-reply/x:system-information/x:os-version');
@@ -75,7 +74,7 @@ sub get_interfaces{
 
     if($self->{'jnx'}->has_error){
 	$self->set_error($self->{'jnx'}->get_first_error());
-        $self->{'logger'}->error("Error fetching interface information: " . $self->{'jnx'}->get_first_error());
+        $self->{'logger'}->error("Error fetching interface information: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
         return;
     }
 
@@ -211,8 +210,7 @@ sub _edit_config{
     my $self = shift;
     my %params = @_;
 
-    warn $params{'config'};
-    $self->{'logger'}->error("Sending the following config: " . $params{'config'});
+    $self->{'logger'}->debug("Sending the following config: " . $params{'config'});
 
     if(!defined($params{'config'})){
 	$self->{'logger'}->error("No Configuration specified!");

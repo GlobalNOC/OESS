@@ -75,8 +75,6 @@ sub create_device_object{
 
     my $host_info = $self->{'node'};
 
-    $self->{'logger'}->error(Data::Dumper::Dumper($host_info));
-
     switch($host_info->{'vendor'}){
 	case "Juniper" {
 	    my $dev;
@@ -225,11 +223,11 @@ sub add_vlan{
     my $m_ref = shift;
     my $p_ref = shift;
 
-    $self->{'logger'}->error("in add_vlan");
+    $self->{'logger'}->debug("in add_vlan");
 
     my $circuit = $p_ref->{'circuit_id'}{'value'};
 
-    $self->{'logger'}->error("Adding VLAN: " . $circuit);
+    $self->{'logger'}->debug("Adding VLAN: " . $circuit);
 
     $self->_update_cache();
     
@@ -254,8 +252,8 @@ sub remove_vlan{
     my $vlan_obj = $self->_generate_commands( $circuit );
 
     my $res = $self->{'device'}->remove_vlan($vlan_obj);
-    $self->{'logger'}->error("after remove vlan");
-    $self->{'logger'}->error("Results: " . Data::Dumper::Dumper($res));
+    $self->{'logger'}->debug("after remove vlan");
+    $self->{'logger'}->debug("Results: " . Data::Dumper::Dumper($res));
     return $res;
 }
 

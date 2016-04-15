@@ -135,11 +135,11 @@ sub populate_devices{
 	$self->{'fwdctl_events'}->get_interfaces( async_callback => sub {
 	    my $res = shift;
 	    my $ints = $res->{'results'};
-	    $self->{'logger'}->error("Populating interfaces!!!");
+	    $self->{'logger'}->debug("Populating interfaces!!!");
 	    $self->{'db'}->_start_transaction();
 
 	    foreach my $int (@$ints){
-		$self->{'logger'}->error("INTERFACE: " . Data::Dumper::Dumper($int));
+		$self->{'logger'}->debug("INTERFACE: " . Data::Dumper::Dumper($int));
 		my $int_id = $self->{'db'}->add_or_update_interface(node_id => $node, name => $int->{'name'}, description => $int->{'description'}, operational_state => $int->{'operational_state'}, port_num => $int->{'snmp_index'}, admin_state => $int->{'snmp_index'}, mpls => 1);
 		
 	    }
@@ -172,6 +172,7 @@ sub build_cache{
     my %link_status;
     my %node_info;
     foreach my $circuit (@$circuits) {
+	next if($circuit->get_type() ne 'mpls');
         my $id = $circuit->{'circuit_id'};
         my $ckt = OESS::Circuit->new( db => $db,
                                       circuit_id => $id );
@@ -201,7 +202,7 @@ sub build_cache{
     my $nodes = $db->get_current_nodes( mpls => 1 );
     foreach my $node (@$nodes) {
         my $details = $db->get_node_by_id(node_id => $node->{'node_id'});
-	warn "Node Details: " . Data::Dumper::Dumper($details);
+	next if(!$details->{'mpls'});
         $details->{'node_id'} = $details->{'node_id'};
 	$details->{'id'} = $details->{'node_id'};
         $details->{'name'} = $details->{'name'};
@@ -417,11 +418,10 @@ sub new_switch{
 
     my $node = $self->{'db'}->get_node_by_ip( ip => $ip );
     if(defined($node)){
+	next if(!$node->{'mpls'});
 	$self->{'logger'}->error("This switch already exists!");
 	return FWDCTL_FAILURE;
     }
-
-    warn "new node: " . Data::Dumper::Dumper($p_ref);
 
     #first we need to create the node entry in the db...
     #also set the node instantiation to available...    
@@ -548,7 +548,7 @@ sub update_cache{
 	$self->send_message_to_child($child,{action => 'update_cache'},$event_id);
     }
     
-    $self->{'logger'}->error("Completed sending message to children!");
+    $self->{'logger'}->debug("Completed sending message to children!");
 
     return { status => FWDCTL_SUCCESS, event_id => $event_id };
 }
@@ -643,13 +643,17 @@ sub addVlan{
 	return {status => FWDCTL_FAILURE, event_id => $event_id};
     }
 
+    if($ckt->get_type() ne 'mpls'){
+	return {status => FWDCTL_FAILURE, event_id => $event_id, msg => "This was not an MPLS Circuit"};
+    }
+
     $self->_write_cache();
 
     #get all the DPIDs involved and remove the flows
     my $endpoints = $ckt->get_endpoints();
     my %nodes;
     foreach my $ep (@$endpoints){
-	$self->{'logger'}->error("Node: " . $ep->{'node'} . " is involved int he circuit");
+	$self->{'logger'}->debug("Node: " . $ep->{'node'} . " is involved int he circuit");
 	$nodes{$ep->{'node'}}= 1;
     }
 
@@ -672,7 +676,7 @@ sub addVlan{
     $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UP;
 
     foreach my $node (keys %nodes){
-	$self->{'logger'}->error("Sending add VLAN to child: " . $node);
+	$self->{'logger'}->debug("Sending add VLAN to child: " . $node);
 	my $id = $self->{'node_info'}->{$node}->{'id'};
         $self->send_message_to_child($id,{action => 'add_vlan', circuit_id => $circuit_id}, $event_id);
     }
@@ -710,14 +714,14 @@ sub deleteVlan{
     my $endpoints = $ckt->get_endpoints();
     my %nodes;
     foreach my $ep (@$endpoints){
-        $self->{'logger'}->error("Node: " . $ep->{'node'} . " is involved int he circuit");
+        $self->{'logger'}->debug("Node: " . $ep->{'node'} . " is involved int he circuit");
         $nodes{$ep->{'node'}}= 1;
     }
 
     my $result = FWDCTL_SUCCESS;
 
     foreach my $node (keys %nodes){
-        $self->{'logger'}->error("Sending deleteVLAN to child: " . $node);
+        $self->{'logger'}->debug("Sending deleteVLAN to child: " . $node);
         my $id = $self->{'node_info'}->{$node}->{'id'};
         $self->send_message_to_child($id,{action => 'remove_vlan', circuit_id => $circuit_id}, $event_id);
     }
@@ -759,7 +763,6 @@ sub message_callback {
     return sub {
         my $results = shift;
         $self->{'logger'}->debug("Received a response from child: " . $id . " for event: " . $event_id . " Dumper: " . Data::Dumper::Dumper($results));
-	$self->{'logger'}->error("Received a response from child: " . $id . " for event: " . $event_id . " Dumper: " . Data::Dumper::Dumper($results));
         $self->{'pending_results'}->{$event_id}->{'ids'}->{$id} = FWDCTL_UNKNOWN;
         if (!defined $results) {
             $self->{'logger'}->error("Undefined result received in message_callback.");
