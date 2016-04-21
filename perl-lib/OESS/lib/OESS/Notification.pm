@@ -245,7 +245,7 @@ sub _send_bulk_notification {
         my $circuit_details = $self->get_notification_data(circuit => $circuit);
 
         if(!defined($circuit_details)){
-            return;
+            next;
         }
         
         my $owners = $circuit_details->{'endpoint_owners'};
@@ -599,12 +599,12 @@ sub _connect_services {
 
 	  if(!defined($interface_id)){
 	      $self->{'log'}->error("Unable to find interface in DB: " . $endpoint->{'node'} . ":" . $endpoint->{'interface'});
-	      return;
+	      next;
 	  }
           my $interface = $db->get_interface(interface_id =>$interface_id);
 	  if(!defined($interface)){
 	      $self->{'log'}->error("unable to find an interface with ID: " . $interface_id);
-	      return;
+	      next;
 	  }
           my $workgroup_name = $interface->{'workgroup_name'};
 	  if(!defined($workgroup_name)){
