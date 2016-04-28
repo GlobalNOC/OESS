@@ -4121,20 +4121,33 @@ sub get_interface {
 
     my $interface_id = $args{'interface_id'};
 
-    my $query = "select interface.interface_id, interface.name,interface_instantiation.capacity_mbps as speed, interface.port_number, interface.description, interface.operational_state, interface.role, interface.node_id, interface.vlan_tag_range, workgroup.workgroup_id, workgroup.name as workgroup_name, node.name as node_name ";
+    my $query = "select interface.interface_id, interface.name,interface_instantiation.capacity_mbps as speed, interface.port_number, interface.description, interface.operational_state, interface.role, interface.node_id, interface.vlan_tag_range, node.name as node_name, interface.workgroup_id ";
     $query   .= "from interface natural join interface_instantiation ";
-    $query   .= "left join workgroup on interface.workgroup_id = workgroup.workgroup_id ";
     $query   .= "left join node on node.node_id = interface.node_id ";
     $query   .= "where interface_id = ?";
 
-    my $results = $self->_execute_query($query, [$interface_id]);
+    my $results_interface = $self->_execute_query($query, [$interface_id]);
 
-    if (! defined $results){
+    if (! defined $results_interface || scalar($results_interface) == 0){
 	$self->_set_error("Internal error getting interface information.");
 	return;
     }
+    my $interface = $results_interface->[0];
 
-    return @$results[0];
+    if (! defined($interface->{'workgroup_id'})){
+	$self->{'logger'}->warn("No workgroup specified for interface: " . $interface->{'interface_id'});
+	return $interface;
+    }
+    
+    my $workgroup_details = $self->get_workgroup_details(workgroup_id => $interface->{'workgroup_id'});
+    if (! defined $workgroup_details){
+        $self->_set_error("Unknown workgroup.");
+        return $interface;
+    }
+    
+    $interface->{'workgroup_name'} = $workgroup_details->{'name'};
+    return $interface;
+
 }
 
 =head2 get_interface_by_dpid_and_port
