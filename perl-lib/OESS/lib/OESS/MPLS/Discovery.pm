@@ -13,7 +13,7 @@ use OESS::Database;
 
 use OESS::MPLS::Discovery::Interface;
 use OESS::MPLS::Discovery::LSP;
-use OESS::MPLS::Discovery::ISIS;
+use OESS::MPLS::Discovery::IS-IS;
 
 use Log::Log4perl;
 

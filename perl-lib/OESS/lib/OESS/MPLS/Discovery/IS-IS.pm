@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-package OESS::MPLS::Discovery::ISIS;
+package OESS::MPLS::Discovery::IS-IS;
 
 use OESS::Database;
 
