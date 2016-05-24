@@ -25,7 +25,7 @@ sub main{
     my $client  = new GRNOC::RabbitMQ::Client(
         queue => 'OESS-SCHEDULER',
         exchange => 'OESS',
-	topic => 'OF.FWDCTL',
+	topic => 'OF.FWDCTL.RPC',
 	host => $rabbit_host,
 	port => $rabbit_port,
         user => $rabbit_user,
@@ -244,7 +244,7 @@ sub main{
                 $circuit_details->{'reason'} = ' scheduled circuit modification';
 		$client->{'topic'} = 'OF.Notification.event';
                 $client->circuit_notification( $circuit_details );
-		$client->{'topic'} = 'OF.FWDCTL';
+		$client->{'topic'} = 'OF.FWDCTL.RPC';
             };
 
         }
@@ -381,7 +381,7 @@ sub main{
                     warn "Attempting to send notification\n";
 		    $client->{'topic'} = 'OF.Notification.event';
                     $client->circuit_notification( $circuit_details );
-		    $client->{'topic'} = 'OF.FWDCTL';
+		    $client->{'topic'} = 'OF.FWDCTL.RPC';
                 }
 
             }else{
