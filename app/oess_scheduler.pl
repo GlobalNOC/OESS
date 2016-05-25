@@ -2,7 +2,6 @@
 
 use strict;
 use OESS::Database;
-use OESS::DBus;
 use OESS::Circuit;
 use XML::Simple;
 use Sys::Syslog qw(:standard :macros);
@@ -320,7 +319,7 @@ sub main{
                 syslog(LOG_ERR,"Error updating cache after scheduled vlan removal.");
             }
 
-            #Delete is complete and successful, send event on DBUS Channel Notification listens on.
+            #Delete is complete and successful, send event to Rabbit
             eval {
                 syslog(LOG_DEBUG,"sending circuit decommission");
                 my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
