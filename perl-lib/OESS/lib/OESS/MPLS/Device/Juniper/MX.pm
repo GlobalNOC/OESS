@@ -178,6 +178,8 @@ sub connect{
 	$self->{'jnx'} = $jnx;
 	$self->{'connected'} = 1;
     }
+
+
 }
 
 sub connected{
@@ -188,22 +190,54 @@ sub connected{
 sub get_isis_adjacencies{
     my $self = shift;
 
-    $self->{'jnx'}->get_isis_adjacency_information();
+    if(!defined($self->{'jnx'}->{'methods'}->{'get_isis_adjacency_information'})){
+	my $TOGGLE = bless { 1 => 1 }, 'TOGGLE';
+	$self->{'jnx'}->{'methods'}->{'get_isis_adjacency_information'} = { detail => $TOGGLE};
+    }
 
-    
-    my $interfaces = $self->{'jnx'}->get_dom();
-    my $xp = XML::LibXML::XPathContext->new( $interfaces);
-    $xp->registerNs('x',$interfaces->documentElement->namespaceURI);
+    $self->{'jnx'}->get_isis_adjacency_information( detail => 1 );
+
+    my $xml = $self->{'jnx'}->get_dom();
+    #warn Dumper($xml->toString());
+    my $xp = XML::LibXML::XPathContext->new( $xml);
+    $xp->registerNs('x',$xml->documentElement->namespaceURI);
     $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
 
-    my $adjacencies = $xp->find('/x:rpc-reply/j:/isis-adjacency-information/j:isis-adjacency');
+    my $adjacencies = $xp->find('/x:rpc-reply/j:isis-adjacency-information/j:isis-adjacency');
     
     my @adj;
     foreach my $adjacency (@$adjacencies){
-	my $adj = {};
-	$adj->{'interface_name'} = $xp->findvalue('./j:interface-name');
-	$adj->{'system_name'} = $xp->findvalue('./j:system-name');
+	push(@adj, _process_isis_adj($adjacency));
     }
+
+    return \@adj;
+}
+
+sub _process_isis_adj{
+    my $adj = shift;
+
+    my $obj = {};
+
+    my $xp = XML::LibXML::XPathContext->new( $adj );
+    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    $obj->{'interface_name'} = trim($xp->findvalue('./j:interface-name'));
+    $obj->{'operational_state'} = trim($xp->findvalue('./j:adjacency-state'));
+    $obj->{'remote_system_name'} = trim($xp->findvalue('./j:system-name'));
+    $obj->{'ip_address'} = trim($xp->findvalue('./j:ip-address'));
+    $obj->{'ipv6_address'} = trim($xp->findvalue('./j:ipv6-address'));
+
+    return $obj;
+}
+
+sub get_LSPs{
+    my $self = shift;
+
+    $self->{'jnx'}->get_mpls_lsp();
+    
+    
+    my @LSPs;
+
+    return \@LSPs;
 }
 
 sub _edit_config{

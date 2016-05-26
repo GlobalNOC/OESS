@@ -127,32 +127,9 @@ sub new {
     return $self;
 }
 
-sub populate_devices{
-    my $self = shift;
-
-    foreach my $node (keys %{$self->{'node_by_id'}}){
-	$self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node}->{'mgmt_addr'};
-	$self->{'fwdctl_events'}->get_interfaces( async_callback => sub {
-	    my $res = shift;
-	    my $ints = $res->{'results'};
-	    $self->{'logger'}->debug("Populating interfaces!!!");
-	    $self->{'db'}->_start_transaction();
-
-	    foreach my $int (@$ints){
-		$self->{'logger'}->debug("INTERFACE: " . Data::Dumper::Dumper($int));
-		my $int_id = $self->{'db'}->add_or_update_interface(node_id => $node, name => $int->{'name'}, description => $int->{'description'}, operational_state => $int->{'operational_state'}, port_num => $int->{'snmp_index'}, admin_state => $int->{'snmp_index'}, mpls => 1);
-		
-	    }
-	    $self->{'db'}->_commit();
-						  });
-    }
-
-}
-
 sub build_cache{
     my %params = @_;
-    
-    
+   
     my $db = $params{'db'};
     my $logger = $params{'logger'};
 
@@ -365,39 +342,14 @@ sub register_rpc_methods{
                                             description => "Always returns 1" );
     $d->register_method($method);
     
-    $method = GRNOC::RabbitMQ::Method->new( name => "new_switch",
-					    callback => sub { $self->new_switch(@_) },
-					    description => "adds a new switch to the DB and starts a child process to fetch its details");
+    $method = GRNOC::RabbitMQ::Method->new( name => 'new_switch',
+                                            callback => sub { $self->new_switch(@_) },
+                                            description => "adds a new switch by node_id" );
     
-    $method->add_input_parameter( name => "ip",
-                                  description => "the ip address of the switch",
+    $method->add_input_parameter( name => "node_id",
+                                  description => "the node ID to be added",
                                   required => 1,
-                                  pattern => $GRNOC::WebService::Regex::IP_ADDRESS);
-
-    $method->add_input_parameter( name => "username",
-                                  description => "the ip address of the switch",
-                                  required => 1,
-				  pattern => $GRNOC::WebService::Regex::NAME_ID);
-
-    $method->add_input_parameter( name => "password",
-                                  description => "the ip address of the switch",
-                                  required => 1,
-                                  pattern => $GRNOC::WebService::Regex::TEXT);
-
-    $method->add_input_parameter( name => "vendor",
-                                  description => "the ip address of the switch",
-                                  required => 1,
-                                  pattern => $GRNOC::WebService::Regex::NAME_ID);
-
-    $method->add_input_parameter( name => "model",
-                                  description => "the ip address of the switch",
-                                  required => 1,
-                                  pattern => $GRNOC::WebService::Regex::NAME_ID);
-
-    $method->add_input_parameter( name => "sw_version",
-                                  description => "the ip address of the switch",
-                                  required => 1,
-                                  pattern => $GRNOC::WebService::Regex::NAME_ID);
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);
 
     $d->register_method($method);
 
@@ -409,57 +361,16 @@ sub new_switch{
     my $p_ref = shift;
     my $state_ref = shift;
     
-    my $ip = $p_ref->{'ip'}{'value'};
-    my $password = $p_ref->{'password'}{'value'};
-    my $username = $p_ref->{'username'}{'value'};
-    my $vendor = $p_ref->{'vendor'}{'value'};
-    my $model = $p_ref->{'model'}{'value'};
-    my $sw_rev = $p_ref->{'version'}{'value'};
 
-    my $node = $self->{'db'}->get_node_by_ip( ip => $ip );
-    if(defined($node)){
-	next if(!$node->{'mpls'});
-	$self->{'logger'}->error("This switch already exists!");
-	return FWDCTL_FAILURE;
-    }
-
-    #first we need to create the node entry in the db...
-    #also set the node instantiation to available...    
-    my $node_name;
-    # try to look up the name first to be all friendly like
-    $node_name = gethostbyaddr($ip, AF_INET);
+    my $node_id = $p_ref->{'node_id'}{'value'};
     
-    # avoid any duplicate host names. The user can set this to whatever they want
-    # later via the admin interface.
-    my $i = 1;
-    my $tmp = $node_name;
-    while (my $result = $self->{'db'}->get_node_by_name(name => $tmp)){
-	$tmp = $node_name . "-" . $i;
-	$i++;
-    }
-    
-    $node_name = $tmp;
-    
-    # default
-    if (! $node_name){
-	$node_name="unnamed-".$ip;
-    }
-    
-    $self->{'db'}->_start_transaction();
-    
-    my $node_id = $self->{'db'}->add_node(name => $node_name, operational_state => 'up', network_id => 1);
-    if(!defined($node_id)){
-	$self->{'db'}->_rollback();
-	return FWDCTL_FAILURE;
-    }
-    $self->{'db'}->create_node_instance(node_id => $node_id, mgmt_addr => $ip, admin_state => 'available', username => $username, password => $password, vendor => $vendor, model => $model, sw_version => $sw_rev, mpls => 1, openflow => 0);
-    $self->{'db'}->_commit();
-
     $self->update_cache(-1);
 
-    #sherpa will you make my babies!
-    $self->make_baby($node_id);
-    $self->{'logger'}->debug("Baby was created!");
+    if(!defined($self->{'children'}->{$node_id}->{'rpc'})){
+	#sherpa will you make my babies!
+	$self->make_baby($node_id);
+	$self->{'logger'}->debug("Baby was created!");
+    }
 }
 
 

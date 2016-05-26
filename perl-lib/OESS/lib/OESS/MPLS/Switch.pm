@@ -24,6 +24,12 @@ use JSON::XS;
 sub new{
     my $class = shift;
     my %args = (
+	rabbitMQ_host,
+	rabbitMQ_port,
+	rabbitMQ_user,
+	rabbitMQ_pass,
+	use_cache => 1,
+	node => undef
         @_
         );
 
@@ -32,7 +38,9 @@ sub new{
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Switch.' . $self->{'id'});
     bless $self, $class;
 
-    $self->_update_cache();
+    if($self->{'use_cache'}){
+	$self->_update_cache();
+    }
 
     $self->create_device_object();
     if(!defined($self->{'device'})){
@@ -40,7 +48,12 @@ sub new{
 	die;
     }
     
-    my $topic = 'MPLS.FWDCTL.Switch.' . $self->{'node'}->{'mgmt_addr'};
+    if(!defined($self->{'topic'})){
+	$self->{'topic'} = "MPLS.FWDCTL.Switch";
+    }
+
+    my $topic = $self->{'topic'} . $self->{'node'}->{'mgmt_addr'};
+
 
     $self->{'logger'}->error("Listening to topic: " . $topic);
 
@@ -155,7 +168,22 @@ sub register_rpc_methods{
                                             callback    => sub {
                                                 $self->get_interfaces();
                                             },
-                                            description => "Notification that FWDCTL has exited");
+                                            description => "returns a list of interfaces on the device");
+    $dispatcher->register_method($method);
+
+    $method = GRNOC::RabbitMQ::Method->new( name        => "get_isis_adjacencies",
+                                            callback    => sub {
+                                                $self->get_isis_adjacencies();
+                                            },
+                                            description => "returns a list of IS-IS adjacencies from this switch");
+    $dispatcher->register_method($method);
+
+
+    $method = GRNOC::RabbitMQ::Method->new( name        => "get_LSPs",
+                                            callback    => sub {
+                                                $self->get_LSPs();
+                                            },
+                                            description => "returns a list of LSPs and their details");
     $dispatcher->register_method($method);
 
 }
@@ -218,6 +246,11 @@ sub stop {
     exit(1);
 }
 
+=head2 add_vlan
+    Adds a VLAN to this switch
+=cut
+
+
 sub add_vlan{
     my $self = shift;
     my $m_ref = shift;
@@ -235,6 +268,13 @@ sub add_vlan{
 
     return $self->{'device'}->add_vlan($vlan_obj);
 }
+
+
+=head2 remove_vlan
+
+removes a VLAN from this switch
+
+=cut
 
 sub remove_vlan{
     my $self = shift;
@@ -257,12 +297,46 @@ sub remove_vlan{
     return $res;
 }
 
+=head2 get_interfaces
+
+returns a list of interfaces from the device
+
+=cut
+
 sub get_interfaces{
     my $self = shift;
     my $m_ref = shift;
     my $p_ref = shift;
 
     return $self->{'device'}->get_interfaces();
+}
+
+=head2 get_isis_adjacencies
+
+    returns a list of isis_adjacencies on the device
+
+=cut
+
+sub get_isis_adjacencies{
+    my $self = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    return $self->{'device'}->get_isis_adjacencies();
+}
+
+=head2 get_LSPs
+
+    returns the details of all of the LSPs on the device
+
+=cut
+
+sub get_LSPs{
+    my $self = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    return $self->{'device'}->get_LSPs();
 }
 
 sub _generate_commands{

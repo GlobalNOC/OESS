@@ -57,6 +57,20 @@ sub get_interfaces{
     return;
 }
 
+sub get_isis_adjacencies{
+    my $self = shift;
+    
+    $self->set_error("This device does not support get_isis_adjacencies");
+    return;
+}
+
+sub get_LSPs{
+    my $self = shift;
+
+    $self->set_error("This device does not support get_LSPs");
+    return;
+}
+
 sub add_vlan{
     my $self = shift;
 
