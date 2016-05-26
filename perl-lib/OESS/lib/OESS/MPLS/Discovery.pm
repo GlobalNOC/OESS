@@ -1,5 +1,37 @@
 #!/usr/bin/perl
 
+#------ OESS MPLS Discovery Module
+##-----
+##----- Provides object oriented methods to interact with the OESS Database
+##-------------------------------------------------------------------------
+##
+## Copyright 2011 Trustees of Indiana University
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##  you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+#
+
+=head1 NAME
+OESS::MPLS::Discovery - OESS MPLS (traditional networking based) Discovery sub-component
+
+This module is the orchestrator for the topology and path detection capabilities in the MPLS
+version of OESS.  This is the class called by app/mpls/mpls_discovery.pl and handles 
+interaction with the devices to fetch the required information for the sub-components of
+the OESS::MPLS::Discovery module.  Essentially this module is the scheduler and data
+wrangler for the other modules.  It should be straight forward to add additional functionality
+including different protcols to this.
+
+=cut
+
 use strict;
 use warnings;
 
@@ -21,21 +53,37 @@ use Log::Log4perl;
 
 use AnyEvent;
 
+=head2 new
+    instantiates a new OESS::MPLS::Discovery object, which intern creates new 
+    instantiations of 
+
+    OESS::MPLS::Discovery::Interface
+    OESS::MPLS::Discovery::LSP
+    OESS::MPLS::Discovery::ISIS
+    
+    this then schedules timed events to handle our data requests and processing
+    from the other modules.  This module also will handle new device additions
+    and initial device population
+
+=cut
+
 sub new{
     my $class = shift;
+    #process our args
     my %args = (
         @_
         );
 
     my $self = \%args;
 
+    #setup the logger
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Discovery');
     bless $self, $class;
 
+    #create the DB
     if(!defined($self->{'config'})){
         $self->{'config'} = "/etc/oess/database.xml";
     }
-
     $self->{'db'} = OESS::Database->new( config_file => $self->{'config'} );
 
     die if(!defined($self->{'db'}));
@@ -48,6 +96,8 @@ sub new{
     $self->{'isis'} = $self->_init_isis();
     die if (!defined($self->{'isis'}));
 
+    
+    #create the client for talking to our Discovery switch objects!
     $self->{'rmq_client'} = GRNOC::RabbitMQ::Client->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
 							  port => $self->{'db'}->{'rabbitMQ'}->{'port'},
 							  user => $self->{'db'}->{'rabbitMQ'}->{'user'},
@@ -64,7 +114,7 @@ sub new{
     $self->{'isis_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->isis_handler()} );
     $self->{'repopulate_device'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->populate_devices() } );
 
-    
+    #our dispatcher for receiving events (only new_switch right now)    
     my $dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
                                                               port => $self->{'db'}->{'rabbitMQ'}->{'port'},
                                                               user => $self->{'db'}->{'rabbitMQ'}->{'user'},
@@ -76,6 +126,7 @@ sub new{
     $self->register_rpc_methods( $dispatcher );
     $self->{'dispatcher'} = $dispatcher;
 
+    #create a child process for each switch
     my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
     foreach my $node (@$nodes) {
 	$self->make_baby($node->{'node_id'});
@@ -83,6 +134,12 @@ sub new{
 
     return $self;
 }
+
+=head2 register_rpc_methods
+
+this sets up our dispatcher to receive remote events
+
+=cut
 
 sub register_rpc_methods{
     my $self = shift;
@@ -124,6 +181,14 @@ sub register_rpc_methods{
     $d->register_method($method);
 }
 
+=head2 new_switch
+
+this is called when a new switch is added to the network... the job
+of this module is to add the device and its interfaces (and links) 
+to the OESS database for future provisioning use
+
+=cut
+
 sub new_switch{
     my $self = shift;
     my $m_ref = shift;
@@ -137,6 +202,8 @@ sub new_switch{
     my $model = $p_ref->{'model'}{'value'};
     my $sw_rev = $p_ref->{'version'}{'value'};
 
+
+    #check to see if the node exists!
     my $node = $self->{'db'}->get_node_by_ip( ip => $ip );
     if(defined($node)){
 	if(!$node->{'mpls'}){
@@ -173,8 +240,9 @@ sub new_switch{
         $node_name="unnamed-".$ip;
     }
 
+    #wrap all of this in a transaction
     $self->{'db'}->_start_transaction();
-
+    #add to DB
     my $node_id = $self->{'db'}->add_node(name => $node_name, operational_state => 'up', network_id => 1);
     if(!defined($node_id)){
         $self->{'db'}->_rollback();
@@ -195,6 +263,11 @@ sub new_switch{
 make baby is a throw back to sherpa...
 have to give Ed the credit for most
 awesome function name ever
+
+really this creates a switch object that can
+handle our RabbitMQ requests and returns results
+from the device
+
 =cut
 sub make_baby{
     my $self = shift;
@@ -349,6 +422,15 @@ sub populate_devices{
     }
 
 }
+
+=head2 handle_response
+
+    this returns a callback for when we get our sync data reply
+    it looks complicated but really it takes a callback function
+    and returns a subroutine that calls it
+
+=cut
+
 
 sub handle_response{
     my $self = shift;
