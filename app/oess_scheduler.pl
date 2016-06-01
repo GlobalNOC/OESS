@@ -2,7 +2,6 @@
 
 use strict;
 use OESS::Database;
-use OESS::DBus;
 use OESS::Circuit;
 use XML::Simple;
 use Sys::Syslog qw(:standard :macros);
@@ -17,29 +16,25 @@ sub main{
     my $time = time();
 
     my $oess = OESS::Database->new();
+    my $rabbit_host = $oess->{'configuration'}->{'rabbitMQ'}->{'host'};
+    my $rabbit_port = $oess->{'configuration'}->{'rabbitMQ'}->{'port'};
+    my $rabbit_user = $oess->{'configuration'}->{'rabbitMQ'}->{'user'};
+    my $rabbit_pass = $oess->{'configuration'}->{'rabbitMQ'}->{'pass'};
 
     my $client  = new GRNOC::RabbitMQ::Client(
-        queue => 'OF.FWDCTL.RPC',
+        queue => 'OESS-SCHEDULER',
         exchange => 'OESS',
-        user => 'guest',
-        pass => 'guest'
+	topic => 'OF.FWDCTL.RPC',
+	host => $rabbit_host,
+	port => $rabbit_port,
+        user => $rabbit_user,
+        pass => $rabbit_pass
     );
 
     if ( !defined($client) ) {
         return;
     }
 
-    my $log_client  = new GRNOC::RabbitMQ::Client(
-        queue => 'OF.Notification.event',
-        exchange => 'OESS',
-        user => 'guest',
-        pass => 'guest'
-    );
-
-    if ( !defined($log_client) ) {
-        return;
-    }
-    
     my $actions = $oess->get_current_actions();
 
     foreach my $action (@$actions){
@@ -134,7 +129,9 @@ sub main{
                 $circuit_details->{'status'} = 'up';
                 $circuit_details->{'type'} = 'provisioned';
                 $circuit_details->{'reason'} = ' scheduled circuit provisioning';
-                $log_client->circuit_notification( $circuit_details );
+		$client->{'topic'} = 'OF.Notification.event';
+                $client->circuit_notification( $circuit_details );
+		$client->{'topic'} = 'OF.FWCTL';
             };
             
             
@@ -244,7 +241,9 @@ sub main{
                 $circuit_details->{'status'} = 'up';
                 $circuit_details->{'type'} = 'modified';
                 $circuit_details->{'reason'} = ' scheduled circuit modification';
-                $log_client->circuit_notification( $circuit_details );
+		$client->{'topic'} = 'OF.Notification.event';
+                $client->circuit_notification( $circuit_details );
+		$client->{'topic'} = 'OF.FWDCTL.RPC';
             };
 
         }
@@ -320,14 +319,16 @@ sub main{
                 syslog(LOG_ERR,"Error updating cache after scheduled vlan removal.");
             }
 
-            #Delete is complete and successful, send event on DBUS Channel Notification listens on.
+            #Delete is complete and successful, send event to Rabbit
             eval {
                 syslog(LOG_DEBUG,"sending circuit decommission");
                 my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
                 $circuit_details->{'status'} = 'removed';
                 $circuit_details->{'type'} = 'removed';
                 $circuit_details->{'reason'} = ' scheduled circuit removal';
-                $log_client->circuit_notification($circuit_details);
+		$client->{'topic'} = 'OF.Notification.event';
+                $client->circuit_notification($circuit_details);
+		$client->{'topic'} = 'OF.FWCTL';
             };
 
         }elsif($circuit_layout->{'action'} eq 'change_path'){
@@ -377,7 +378,9 @@ sub main{
                     $circuit_details->{'reason'} = $circuit_layout->{'reason'};
                     $circuit_details->{'type'} = 'change_path';
                     warn "Attempting to send notification\n";
-                    $log_client->circuit_notification( $circuit_details );
+		    $client->{'topic'} = 'OF.Notification.event';
+                    $client->circuit_notification( $circuit_details );
+		    $client->{'topic'} = 'OF.FWDCTL.RPC';
                 }
 
             }else{

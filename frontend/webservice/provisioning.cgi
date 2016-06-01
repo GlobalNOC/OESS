@@ -370,7 +370,7 @@ sub register_webservice_methods {
     #reprovision_circuit 
     $method = GRNOC::WebService::Method->new(
 	name            => "reprovision_circuit",
-	description     => "Removes and re---installs all flow rules related to a circuit on the network.",
+	description     => "Removes and reinstalls all flow rules related to a circuit on the network.",
 	callback        => sub {  reprovision_circuit ( @_ ) }
 	);
 
