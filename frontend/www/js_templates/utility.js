@@ -586,7 +586,7 @@ function makeTagSelectPanel(coordinates, options ){
             tag_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
             tag_ds.responseSchema = {
                 resultsList: "results",
-                fields: [{key: "available", parser: "number"}],
+                fields: [{key: "available", parser: "number"}, {key: "type", parser: "string"}],
                 metaFields: {
                   "error": "error"
                 }
@@ -601,8 +601,20 @@ function makeTagSelectPanel(coordinates, options ){
                     return;
                 }
                 else if (resp.results[0].available == 1){
-                    tag_verified = true;
-                    save();
+		    if(session.data.circuit_type == null){
+			session.data.circuit_type = resp.results[0].type;
+			tag_verified = true;
+			save();
+		    }else{
+			if(session.data.circuit_type == resp.results[0].type){
+			    tag_verified = true;
+			    save();
+			}else{
+			    alert("This vlan tag is in a different mode than the previous vlan tag. The tag mode must match on each interface");
+			    save_button.set("label","Save");
+			    save_button.set("disabled",false);
+			}
+		    }
                 }
                 else{
                     if (new_tag == -1){

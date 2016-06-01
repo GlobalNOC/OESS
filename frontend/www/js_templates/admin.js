@@ -2067,7 +2067,7 @@ function setup_network_tab(){
                 showConfirm("Putting the link into maintenance state will cause all circuits with an alternate path to change to that alternate path, causing a small forwarding disruption.  Circuits without an alternate path will continue to forward on this path while the link is up.  No restore to primary events will occur until the link is up and the maintenance has been completed. Are you sure you want to do this?",
                     function() {
                     maint_button.set("disabled",true);
-                    var ds = new YAHOO.util.DataSource("../services/admin/maintenance.cgi?action=start_link&link_id=" + link_id);
+                    var ds = new YAHOO.util.DataSource("../services/admin/maintenance.cgi?method=start_link&link_id=" + link_id);
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
                     ds.responseSchema = {
@@ -2809,7 +2809,7 @@ function setup_network_tab(){
             showConfirm("Putting the node into maintenance will have the links it is connected to have their associated circuits change to that alternative path, causing a small forwarding disruption. Circuits without an alternate path will continue to forward on this path while the link is up. No restore to primary events will occur until the link is up and the maintenance has been completed. Are you sure you want to do this?",
                 function() {
 
-                    var ds = new YAHOO.util.DataSource("../services/admin/maintenance.cgi?action=start_node&node_id=" + node_id);
+                    var ds = new YAHOO.util.DataSource("../services/admin/maintenance.cgi?method=start_node&node_id=" + node_id);
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
                     ds.responseSchema = {
@@ -2860,6 +2860,33 @@ function setup_discovery_tab(){
     var node_table = makePendingNodeTable();
     
     var link_table = makePendingLinkTable();
+
+    var add_mpls_switch_button = new YAHOO.widget.Button("add_mpls_switch_button", {label: "Add MPLS switch button"});
+
+    add_mpls_switch_button.on("click", function(e){
+	    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_mpls_device&mgmt_addr=" + document.getElementById("add_mpls_switch").value());
+	    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+
+	    ds.responseSchema = {
+		resultsList: "results",
+		fields: [{key: "success"}]
+	    };
+
+	    ds.sendRequest("", {success: function(req, resp){
+
+			add_mpls_switch_button.set("disabled", false);
+			add_mpls_switch_button.set("label", "Add MPLS Device");
+		    },
+
+			failure: function(req, resp){
+			add_mpls_switch_button.set("disabled", false);
+			add_mpls_switchbutton.set("label", "Add MPLS Device");
+
+			alert("Server error while adding MPLS device");
+		    }
+		});
+	});
+
 
     node_table.subscribe("rowClickEvent", function(oArgs){
 
@@ -2970,9 +2997,9 @@ function setup_discovery_tab(){
             YAHOO.util.Dom.get("node_name").focus();
 
             var confirm_button = new YAHOO.widget.Button("confirm_node", {label: "Confirm Device"});
-        var deny_button = new YAHOO.widget.Button("deny_node", {label: "Deny Device"});
-
-        deny_button.on("click", function(e){
+	    var deny_button = new YAHOO.widget.Button("deny_node", {label: "Deny Device"});
+	    
+	    deny_button.on("click", function(e){
             
                     var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=deny_device&node_id=" + record.getData('node_id') + "&ipv4_addr="+ record.getData('ip_address') + "&dpid=" + record.getData('dpid'));
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
@@ -3137,7 +3164,7 @@ function setup_maintenance_tab(){
 
 function makeNodeMaintenanceTable() {
 
-    var url = "../services/admin/maintenance.cgi?action=nodes";
+    var url = "../services/admin/maintenance.cgi?method=nodes";
     var ds  = new YAHOO.util.DataSource(url);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
@@ -3171,7 +3198,7 @@ function makeNodeMaintenanceTable() {
                     var node_id = node.id;
                     b.set('label', 'Submitting...');
                                     b.set("enable", false);
-                    var url = "../services/admin/maintenance.cgi?action=end_node"+
+                    var url = "../services/admin/maintenance.cgi?method=end_node"+
                               "&node_id="+node_id;
                       
                     var ds = new YAHOO.util.DataSource(url);
@@ -3230,7 +3257,7 @@ function makeNodeMaintenanceTable() {
 }
 
 function makeLinkMaintenanceTable(){
-    var url = "../services/admin/maintenance.cgi?action=links";
+    var url = "../services/admin/maintenance.cgi?method=links";
     var ds  = new YAHOO.util.DataSource(url);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
@@ -3263,7 +3290,7 @@ function makeLinkMaintenanceTable(){
                     var link_id = link.id;
                     b.set('label', 'Submitting...');
                     b.set('enabled',"false");
-                    var url = "../services/admin/maintenance.cgi?action=end_link"+
+                    var url = "../services/admin/maintenance.cgi?method=end_link"+
                               "&link_id="+link_id;
                     var ds = new YAHOO.util.DataSource(url);
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;

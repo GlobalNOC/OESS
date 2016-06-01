@@ -122,7 +122,7 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
         }
         panel.hide();
 
-        var url = "services/workgroup_manage.cgi?action=";
+        var url = "services/workgroup_manage.cgi?method=";
         if(options.url_prefix){
             url = options.url_prefix + url;
         }
@@ -189,7 +189,7 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
         remove_acl_button.on('click',function(){
             showConfirm("You are about to remove an acl. This CANNOT be undone. Are you sure you want to proceed?",
                 function(){
-                    var url = "services/workgroup_manage.cgi?action=remove_acl";
+                    var url = "services/workgroup_manage.cgi?method=remove_acl";
                     if(options.url_prefix){
                         url = options.url_prefix + url;
                     }
@@ -228,7 +228,7 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
     }
 
     //fetch workgroups
-    var url = "services/workgroup_manage.cgi?action=get_all_workgroups";
+    var url = "services/workgroup_manage.cgi?method=get_all_workgroups";
     if(options.url_prefix){
         url = options.url_prefix + url;
     }

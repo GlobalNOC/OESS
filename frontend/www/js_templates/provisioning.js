@@ -258,7 +258,7 @@ function saveLocalCircuit(){
 
     var description = session.data.description;
     var bandwidth   = parseInt(session.data.bandwidth / (1000 * 1000));
-
+    var circuit_type = session.data.circuit_type || "openflow";
     var provision_time = session.data.provision_time;
     var remove_time    = session.data.remove_time;
     var restore_to_primary = session.data.restore_to_primary;
@@ -295,7 +295,7 @@ function saveLocalCircuit(){
 	}
     };
 
-    var postVars = "action=provision_circuit&circuit_id="+encodeURIComponent(circuit_id)
+    var postVars = "method=provision_circuit&circuit_id="+encodeURIComponent(circuit_id)
         +"&description="+encodeURIComponent(description)
         +"&bandwidth="+encodeURIComponent(bandwidth)
         +"&provision_time="+encodeURIComponent(provision_time)
@@ -303,6 +303,7 @@ function saveLocalCircuit(){
         +"&workgroup_id="+workgroup_id
         +"&restore_to_primary="+restore_to_primary
         +"&static_mac="+static_mac
+	+"&type="+circuit_type
         +"&state=" + circuit_state;
     
     for (var i = 0; i < endpoints.length; i++){
