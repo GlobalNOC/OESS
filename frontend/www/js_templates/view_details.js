@@ -40,6 +40,7 @@ function make_circuit_details_datasource(){
     {key: "active_path"},
     {key: "restore_to_primary"},
     {key: "loop_node"},
+    {key: "type"},
     {key: "static_mac"} //TODO change to perma-name
 	]
     };
@@ -53,6 +54,7 @@ function save_session_from_datasource(details){
     session.data.description  = details.description;
     session.data.bandwidth    = details.bandwidth * 1000000;
     session.data.state        = details.state;
+    session.data.type         = details.type;
     session.data.active_path  = details.active_path;
     session.data.circuit_workgroup = details.workgroup;
     session.data.static_mac_routing = parseInt(details.static_mac);

@@ -95,6 +95,13 @@ sub status{
         }
     }
 
+    if($db->is_mpls_fwdctl_enabled()){
+	my $res = system("/etc/init.d/oess-mpls-fwdctl status");
+        if($res != 0){
+            $result = $res;
+        }
+    }
+
 
     if($db->is_vlan_stats_enabled()){
         my $res = system("/etc/init.d/oess-vlan_stats status");
@@ -157,6 +164,13 @@ sub stop{
         my $res = system("/etc/init.d/oess-fwdctl stop");
         if($res != 0){
             $result = $res;;
+        }
+    }
+
+    if($db->is_mpls_fwdctl_enabled()){
+        my $res = system("/etc/init.d/oess-mpls-fwdctl stop");
+        if($res != 0){
+            $result = $res;
         }
     }
 
@@ -224,6 +238,13 @@ sub start{
         my $res = system("/etc/init.d/oess-fwdctl start");
         if($res != 0){
             $result = $res;;
+        }
+    }
+
+    if($db->is_mpls_fwdctl_enabled()){
+        my $res = system("/etc/init.d/oess-mpls-fwdctl start");
+        if($res != 0){
+            $result = $res;
         }
     }
 
