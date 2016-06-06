@@ -135,51 +135,6 @@ sub main {
     register_webservice_methods();
     
     switch ($action) {
-        case "decom_link" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &decom_link();
-        }
-        case "get_users" {
-            $output = &get_users();
-        }
-        case "get_users_in_workgroup" {
-            $output = &get_users_in_workgroup();
-        }
-        case "add_user" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &add_user();
-        }
-        case "delete_user" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &delete_user();
-        }
-        case "add_user_to_workgroup" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &add_user_to_workgroup();
-        }
-        case "remove_user_from_workgroup" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &remove_user_from_workgroup();
-        }
-        case "edit_user" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &edit_user();
-        }
-        case "get_workgroups" {
-            $output = &get_workgroups();
-        }
         case "update_interface_owner" {
             if($user->{'type'} eq 'read-only'){
                 return send_json({error => 'Error: you are a readonly user'});
@@ -534,6 +489,136 @@ sub register_webservice_methods {
                                   description => '' );
     $svc->register_method($method);
 
+    $method = GRNOC::WebService::Method->new( name        => 'decom_link',
+                                              description => '',
+                                              callback    => sub { decom_link(@_) } );
+    $method->add_input_parameter( name        => 'link_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'get_users',
+                                              description => '',
+                                              callback    => sub { get_users(@_) } );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'get_users_in_workgroup',
+                                              description => '',
+                                              callback    => sub { get_users_in_workgroup(@_) } );
+    $method->add_input_parameter( name        => 'workgroup_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 0,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'add_user',
+                                              description => '',
+                                              callback    => sub { add_user(@_) } );
+    $method->add_input_parameter( name        => 'first_name',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'family_name',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'email_address',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'auth_name',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'type',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'status',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'delete_user',
+                                              description => '',
+                                              callback    => sub { delete_user(@_) } );
+    $method->add_input_parameter( name        => 'user_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'add_user_to_workgroup',
+                                              description => '',
+                                              callback    => sub { add_user_to_workgroup(@_) } );
+    $method->add_input_parameter( name        => 'user_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'workgroup_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 0,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'remove_user_from_workgroup',
+                                              description => '',
+                                              callback    => sub { remove_user_from_workgroup(@_) } );
+    $method->add_input_parameter( name        => 'user_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'workgroup_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 0,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'edit_user',
+                                              description => '',
+                                              callback    => sub { edit_user(@_) } );
+    $method->add_input_parameter( name        => 'user_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'first_name',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 0,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'family_name',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 0,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'email_address',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 0,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'auth_name',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 0,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'type',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 0,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'status',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 0,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'get_workgroups',
+                                              description => '',
+                                              callback    => sub { get_workgroups(@_) } );
+    $method->add_input_parameter( name        => 'user_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 0,
+                                  description => '' );
+    $svc->register_method($method);
+
+
 
 
 
@@ -770,8 +855,14 @@ sub edit_remote_link {
 }
 
 sub get_workgroups {
+    my ($method, $args) = @_;
 
-    my %parameters = ( 'user_id' => $cgi->param('user_id') || undef );
+    my ($user, $err) = authorization(admin => 0, read_only => 1);
+    if (defined $err) {
+        return send_json($err);
+    }
+
+    my %parameters = ( 'user_id' => $args->{'user_id'}{'value'} || undef );
 
     my $results;
     my $workgroups;
@@ -833,6 +924,13 @@ sub add_workgroup {
 }
 
 sub get_users {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 0, read_only => 1);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
     my $users = $db->get_users();
@@ -848,9 +946,16 @@ sub get_users {
 }
 
 sub get_users_in_workgroup {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 0, read_only => 1);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
-    my $workgroup_id = $cgi->param('workgroup_id');
+    my $workgroup_id = $args->{'workgroup_id'}{'value'};
 
     my $users = $db->get_users_in_workgroup( workgroup_id => $workgroup_id );
 
@@ -866,10 +971,17 @@ sub get_users_in_workgroup {
 }
 
 sub add_user_to_workgroup {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
-    my $user_id = $cgi->param('user_id');
-    my $wg_id   = $cgi->param('workgroup_id');
+    my $user_id = $args->{'user_id'}{'value'};
+    my $wg_id   = $args->{'workgroup_id'}{'value'};
     my $result = $db->add_user_to_workgroup(
         user_id      => $user_id,
         workgroup_id => $wg_id
@@ -887,10 +999,17 @@ sub add_user_to_workgroup {
 }
 
 sub remove_user_from_workgroup {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
-    my $user_id = $cgi->param('user_id');
-    my $wg_id   = $cgi->param('workgroup_id');
+    my $user_id = $args->{'user_id'}{'value'};
+    my $wg_id   = $args->{'workgroup_id'}{'value'};
 
     my $result = $db->remove_user_from_workgroup(
         user_id      => $user_id,
@@ -909,14 +1028,21 @@ sub remove_user_from_workgroup {
 }
 
 sub add_user {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
-    my $given_name  = $cgi->param("first_name");
-    my $family_name = $cgi->param("family_name");
-    my $email       = $cgi->param("email_address");
-    my @auth_names  = $cgi->param("auth_name");
-    my $type        = $cgi->param("type");
-    my $status      = $cgi->param("status");
+    my $given_name  = $args->{"first_name"}{'value'};
+    my $family_name = $args->{"family_name"}{'value'};
+    my $email       = $args->{"email_address"}{'value'};
+    my @auth_names  = $args->{"auth_name"}{'value'};
+    my $type        = $args->{"type"}{'value'};
+    my $status      = $args->{"status"}{'value'};
     my $new_user_id = $db->add_user(
         given_name    => $given_name,
         family_name   => $family_name,
@@ -938,9 +1064,16 @@ sub add_user {
 }
 
 sub delete_user {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
-    my $user_id = $cgi->param('user_id');
+    my $user_id = $args->{'user_id'}{'value'};
 
     my $output = $db->delete_user( user_id => $user_id );
 
@@ -956,15 +1089,22 @@ sub delete_user {
 }
 
 sub edit_user {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
-    my $user_id     = $cgi->param("user_id");
-    my $given_name  = $cgi->param("first_name");
-    my $family_name = $cgi->param("family_name");
-    my $email       = $cgi->param("email_address");
-    my @auth_names  = $cgi->param("auth_name");
-    my $type        = $cgi->param('type');
-    my $status      = $cgi->param('status');
+    my $user_id     = $args->{"user_id"}{'value'};
+    my $given_name  = $args->{"first_name"}{'value'};
+    my $family_name = $args->{"family_name"}{'value'};
+    my $email       = $args->{"email_address"}{'value'};
+    my @auth_names  = $args->{"auth_name"}{'value'};
+    my $type        = $args->{'type'}{'value'};
+    my $status      = $args->{'status'}{'value'};
 
     my $success = $db->edit_user(
         given_name    => $given_name,
@@ -1532,15 +1672,17 @@ sub update_link {
 }
 
 sub deny_device {
+    my ($method, $args) = @_;
+    
     my ($user, $err) = authorization(admin => 1, read_only => 0);
     if (defined $err) {
         return send_json($err);
     }
 
     my $results;
-    my $node_id = $cgi->param('node_id');
-    my $ipv4_addr = $cgi->param('ipv4_addr');
-    my $dpid = $cgi->param('dpid');
+    my $node_id   = $args->{'node_id'}{'value'};
+    my $ipv4_addr = $args->{'ipv4_addr'}{'value'};
+    my $dpid      = $args->{'dpid'}{'value'};
 
     my $result = $db->decom_node(node_id => $node_id);
 
@@ -1573,16 +1715,18 @@ sub deny_device {
 }
 
 sub deny_link {
+    my ($method, $args) = @_;
+    
     my ($user, $err) = authorization(admin => 1, read_only => 0);
     if (defined $err) {
         return send_json($err);
     }
 
     my $results;
+    my $link_id  = $args->{'link_id'}{'value'};
+    my $int_a_id = $args->{'interface_a_id'}{'value'};
+    my $int_z_id = $args->{'interface_z_id'}{'value'};
 
-    my $link_id = $cgi->param('link_id');
-    my $int_a_id = $cgi->param('interface_a_id');
-    my $int_z_id = $cgi->param('interface_z_id');
     my $result = $db->decom_link_instantiation( link_id => $link_id );
     
     if ( !defined $result ) {
@@ -1615,9 +1759,16 @@ sub deny_link {
 }
 
 sub decom_link {
+    my ($method, $args) = @_;
+    
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
-    my $link_id = $cgi->param('link_id');
+    my $link_id = $args->{'link_id'}{'value'};
 
     my $result = $db->decom_link( link_id => $link_id );
 
