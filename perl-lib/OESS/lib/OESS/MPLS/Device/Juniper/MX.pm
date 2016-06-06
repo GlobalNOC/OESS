@@ -42,7 +42,8 @@ sub new{
 sub disconnect{
     my $self = shift;
 
-    $self->set_error("This device does not support disconnect");
+    $self->{'jnx'}->disconnect();
+    $self->{'connected'} = 0;
     return;
 }
 
