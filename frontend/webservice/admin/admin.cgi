@@ -135,19 +135,6 @@ sub main {
     register_webservice_methods();
     
     switch ($action) {
-
-        case "deny_device" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &deny_device();
-        }
-        case "deny_link" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &deny_link();
-        }
         case "decom_link" {
             if($user->{'type'} eq 'read-only'){
                 return send_json({error => 'Error: you are a readonly user'});
@@ -255,11 +242,19 @@ sub main {
             }
             $output = &decom_workgroup();
         }
+          case "add_mpls_switch"{
+                                 if($user->{'type'} eq 'read-only'){
+                                     return send_json({error => 'Error: you are a readonly user'});
+                                 }
+                                 
+                                 $output = &add_mpls_switch();
+                                 
+                                }
           else {
               return $svc->handle_request();
           }
     }
-
+    
     send_json($output);
 }
 
@@ -505,19 +500,51 @@ sub register_webservice_methods {
                                   description => '' );
     $svc->register_method($method);
 
+    $method = GRNOC::WebService::Method->new( name        => 'deny_device',
+                                              description => '',
+                                              callback    => sub { deny_device(@_) } );
+    $method->add_input_parameter( name        => 'node_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 0,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'ipv4_addr',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 0,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'dpid',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 0,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'deny_link',
+                                              description => '',
+                                              callback    => sub { deny_link(@_) } );
+    $method->add_input_parameter( name        => 'link_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'interface_a_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 0,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'interface_z_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 0,
+                                  description => '' );
+    $svc->register_method($method);
 
 
 
 
-
-    # $method = GRNOC::WebService::Method->new( name        => '',
-    #                                           description => '',
-    #                                           callback    => sub { f(@_) } );
-    # $method->add_input_parameter( name        => '',
-    #                               pattern     => $GRNOC::WebService::Regex::,
-    #                               requried    => 1,
-    #                               description => '' );
-    # $svc->register_method($method);
+    $method = GRNOC::WebService::Method->new( name        => '',
+                                              description => '',
+                                              callback    => sub { f(@_) } );
+    $method->add_input_parameter( name        => '',
+                                  pattern     => $GRNOC::WebService::Regex::,
+                                  requried    => 1,
+                                  description => '' );
+    $svc->register_method($method);
 }
 
 sub get_circuits_on_interface{
@@ -1505,6 +1532,11 @@ sub update_link {
 }
 
 sub deny_device {
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
     my $node_id = $cgi->param('node_id');
     my $ipv4_addr = $cgi->param('ipv4_addr');
@@ -1541,6 +1573,11 @@ sub deny_device {
 }
 
 sub deny_link {
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
     my $link_id = $cgi->param('link_id');
@@ -1678,6 +1715,21 @@ sub update_remote_device{
     my $res = $db->update_remote_device(node_id => $node_id, lat => $latitude, lon => $longitude);
     
     return {results => $res};
+}
+
+sub add_mpls_switch{
+    my $ip_address = $cgi->param('ip_address');
+    
+    my $client = GRNOC::RabbitMQ::Client->new( topic => 'MPLS.FWDCTL.RPC',
+					       exchange => 'OESS',
+					       user => $db->{'rabbitMQ'}->{'user'},
+					       pass => $db->{'rabbitMQ'}->{'port'},
+					       host => $db->{'rabbitMQ'}->{'host'},
+					       port => $db->{'rabbitMQ'}->{'port'});
+
+    my $res = $client->new_switch( ip => $ip_address );
+    
+    return $res;
 }
 
 sub send_json {

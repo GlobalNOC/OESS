@@ -82,6 +82,8 @@ use OESS::Topology;
 use DateTime;
 use Data::Dumper;
 
+use Socket qw( inet_aton inet_ntoa);
+
 use constant VERSION => '1.2.0';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
@@ -361,6 +363,22 @@ sub update_circuit_state{
     }
     return 1;
 }
+
+=head2 get_node_by_ip
+
+=cut
+
+sub get_node_by_ip{
+    my $self = shift;
+    my %args = @_;
+
+    my $ip = $args{'ip'};
+
+    my $query = "select node.*, node_instantiation.* from node join node_instantiation on node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.mgmt_addr = ?";
+    my $result = $self->_execute_query($query, [$ip]);
+    return $result->[0];
+}
+
 
 
 =head2 update_circuit_path_state
@@ -669,8 +687,8 @@ sub is_external_vlan_available_on_interface {
     my $query = "select circuit.name, circuit.circuit_id from circuit join circuit_edge_interface_membership " .
                 " on circuit.circuit_id = circuit_edge_interface_membership.circuit_id " .
                 " where circuit_edge_interface_membership.interface_id = ? " .
-                "  and circuit_edge_interface_membership.extern_vlan_id = ? " .
-                "  and circuit_edge_interface_membership.end_epoch = -1";
+                " and circuit_edge_interface_membership.extern_vlan_id = ? " .
+                " and circuit_edge_interface_membership.end_epoch = -1";
 
     my $result = $self->_execute_query($query, [$interface_id, $vlan_tag]);
     if (!defined $result) {
@@ -684,6 +702,10 @@ sub is_external_vlan_available_on_interface {
     # Verify $vlan_tag is within the interface's available tag range
     my $tags = $self->_process_tag_string($interface->{'vlan_tag_range'});
 
+    my $mpls_tags = $self->_process_tag_string($interface->{'mpls_vlan_tag_range'});
+
+    my $type = 'openflow';
+
     my $available_vlan = 0;
     foreach my $tag (@{$tags}){
         if ($tag == $vlan_tag) {
@@ -692,8 +714,18 @@ sub is_external_vlan_available_on_interface {
     }
 
     if ($available_vlan == 0) {
-        $self->_set_error("VLAN $vlan_tag is not within the default VLAN range.");
-        return 0;
+	foreach my $tag (@{$mpls_tags}){
+	    if ($tag == $vlan_tag) {
+		$available_vlan = 1;
+		$type = 'mpls';
+	    }
+	}
+
+	if($available_vlan == 0){
+
+	    $self->_set_error("VLAN $vlan_tag is not within the default VLAN range.");
+	    return {status => 0, type => $type};
+	}
     }
 
     # Verify no other circuit is using $vlan_tag on $interface_id
@@ -705,16 +737,16 @@ sub is_external_vlan_available_on_interface {
                     # There's no problem here; We are editing the circuit.
                 } else {
                     $self->_set_error($err);
-                    return 0;
+                    return {status => 0, type => $type };
                 }
             }
         } else {
             $self->_set_error($err);
-            return 0;
+            return {status => 0, type => $type};
         }
     }
 
-    return 1;
+    return { status => 1, type => $type };
 }
 
 =head2 get_user_by_id
@@ -876,7 +908,7 @@ sub get_node_dpid_hash {
     my $self = shift;
     my %args = @_;
 
-    my $sth = $self->_prepare_query("select node.node_id, node_instantiation.dpid, inet_ntoa(node_instantiation.management_addr_ipv4) as address, " .
+    my $sth = $self->_prepare_query("select node.node_id, node_instantiation.dpid, node_instantiation.mgmt_addr as address, " .
                                     " node.name, node.longitude, node.latitude " .
                                     " from node join node_instantiation on node.node_id = node_instantiation.node_id " .
                                     " where node_instantiation.admin_state = 'active'"
@@ -899,8 +931,15 @@ sub get_node_dpid_hash {
 
 sub get_current_nodes{
     my $self = shift;
+    my %args = @_;
 
-    my $nodes = $self->_execute_query("select node.max_flows, node.in_maint, node.name, node_instantiation.dpid,node.operational_state,node.node_id, node.send_barrier_bulk from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state = 'active' order by node.name",[]);
+    my $nodes;
+
+    if(defined($args{'mpls'}) && $args{'mpls'} == 1){
+	$nodes = $self->_execute_query("select node.*, node_instantiation.* from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state != 'decom' and node_instantiation.mpls = 1 order by node.name",[]);
+    }else{
+        $nodes = $self->_execute_query("select node.*, node_instantiation.* from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state != 'decom' and node_instantiation.openflow = 1 order by node.name",[]);
+    }
 
     return $nodes;
 }
@@ -1406,7 +1445,15 @@ sub get_circuits_on_link{
 	return;
     }
 
-    my $query = "select link_path_membership.end_epoch as lpm_end, circuit_instantiation.end_epoch as ci_end, circuit.*, circuit_instantiation.*, path.* from link_path_membership, path, circuit, circuit_instantiation  where path.path_id = link_path_membership.path_id and link_path_membership.link_id = ? and link_path_membership.end_epoch = -1 and circuit.circuit_id = path.circuit_id and circuit_instantiation.circuit_id = circuit.circuit_id and link_path_membership.end_epoch = -1 and circuit_instantiation.end_epoch = -1 and (circuit_instantiation.circuit_state = 'active' or circuit_instantiation.circuit_state = 'reserved' or circuit_instantiation.circuit_state = 'provisioned' or circuit_instantiation.circuit_state = 'scheduled')";
+    my $query;
+    
+    if(defined($args{'mpls'}) && $args{'mpls'} == 1){
+	
+	$query = "select link_path_membership.end_epoch as lpm_end, circuit_instantiation.end_epoch as ci_end, circuit.*, circuit_instantiation.*, path.* from link_path_membership, path, circuit, circuit_instantiation  where path.path_id = link_path_membership.path_id and link_path_membership.link_id = ? and link_path_membership.end_epoch = -1 and circuit.circuit_id = path.circuit_id and circuit_instantiation.circuit_id = circuit.circuit_id and link_path_membership.end_epoch = -1 and circuit_instantiation.end_epoch = -1 and (circuit_instantiation.circuit_state = 'active' or circuit_instantiation.circuit_state = 'reserved' or circuit_instantiation.circuit_state = 'provisioned' or circuit_instantiation.circuit_state = 'scheduled') and circuit.type = 'mpls'";
+
+    }else{
+	$query = "select link_path_membership.end_epoch as lpm_end, circuit_instantiation.end_epoch as ci_end, circuit.*, circuit_instantiation.*, path.* from link_path_membership, path, circuit, circuit_instantiation  where path.path_id = link_path_membership.path_id and link_path_membership.link_id = ? and link_path_membership.end_epoch = -1 and circuit.circuit_id = path.circuit_id and circuit_instantiation.circuit_id = circuit.circuit_id and link_path_membership.end_epoch = -1 and circuit_instantiation.end_epoch = -1 and (circuit_instantiation.circuit_state = 'active' or circuit_instantiation.circuit_state = 'reserved' or circuit_instantiation.circuit_state = 'provisioned' or circuit_instantiation.circuit_state = 'scheduled') and circuit.type = 'openflow'";
+    }
 
     my $circuits = $self->_execute_query($query,[$link_id]);
 
@@ -3542,6 +3589,7 @@ sub get_current_circuits {
     my $workgroup_id = $args{'workgroup_id'};
     my $endpoint_nodes = $args{'endpoint_nodes'} || [];
     my $path_nodes = $args{'path_nodes'} || [];
+    my $type          = $args{'type'} || 'openflow';
     my $circuit_id_filter= [];
     my $results = [];
     my $circuit_list;
@@ -3619,6 +3667,11 @@ sub get_current_circuits {
 	push(@to_pass, @$circuit_id_filter);
     }
 
+    if($type ne 'all'){
+
+	$query .= " and circuit.type = '$type' ";
+	
+    }
 
     $query   .= "left join circuit_edge_interface_membership on circuit.circuit_id = circuit_edge_interface_membership.circuit_id and circuit_edge_interface_membership.end_epoch = -1 ";
     $query   .= "left join interface on circuit_edge_interface_membership.interface_id = interface.interface_id";
@@ -3751,7 +3804,7 @@ sub get_circuit_details {
     my $details;
 
     # basic circuit info
-    my $query = "select circuit.restore_to_primary, circuit.external_identifier, circuit.name, circuit.description, circuit.circuit_id, circuit.static_mac, circuit_instantiation.modified_by_user_id, circuit_instantiation.loop_node,circuit_instantiation.reason, circuit.workgroup_id, " .
+    my $query = "select circuit.restore_to_primary,circuit.type, circuit.external_identifier, circuit.name, circuit.description, circuit.circuit_id, circuit.static_mac, circuit_instantiation.modified_by_user_id, circuit_instantiation.loop_node,circuit_instantiation.reason, circuit.workgroup_id, " .
         " circuit.remote_url, circuit.remote_requester, " . 
 	" circuit_instantiation.reserved_bandwidth_mbps, circuit_instantiation.circuit_state, circuit_instantiation.start_epoch  , " .
 	" if(bu_pi.path_state = 'active', 'backup', 'primary') as active_path " .
@@ -3787,7 +3840,8 @@ sub get_circuit_details {
 		    'static_mac'             => $row->{'static_mac'},
                     'external_identifier'    => $row->{'external_identifier'},
                     'remote_requester'       => $row->{'remote_requester'},
-                    'remote_url'             => $row->{'remote_url'}
+                    'remote_url'             => $row->{'remote_url'},
+		    'type'                   => $row->{'type'}
                    };
         if ( $row->{'circuit_state'} eq 'decom' ){
             $show_historical = 1;
@@ -4121,20 +4175,33 @@ sub get_interface {
 
     my $interface_id = $args{'interface_id'};
 
-    my $query = "select interface.interface_id, interface.name,interface_instantiation.capacity_mbps as speed, interface.port_number, interface.description, interface.operational_state, interface.role, interface.node_id, interface.vlan_tag_range, workgroup.workgroup_id, workgroup.name as workgroup_name, node.name as node_name ";
+    my $query = "select interface.interface_id, interface.name,interface_instantiation.capacity_mbps as speed, interface.port_number, interface.description, interface.operational_state, interface.role, interface.node_id, interface.vlan_tag_range, node.name as node_name, interface.workgroup_id ";
     $query   .= "from interface natural join interface_instantiation ";
-    $query   .= "left join workgroup on interface.workgroup_id = workgroup.workgroup_id ";
     $query   .= "left join node on node.node_id = interface.node_id ";
     $query   .= "where interface_id = ?";
 
-    my $results = $self->_execute_query($query, [$interface_id]);
+    my $results_interface = $self->_execute_query($query, [$interface_id]);
 
-    if (! defined $results){
+    if (! defined $results_interface || scalar($results_interface) == 0){
 	$self->_set_error("Internal error getting interface information.");
 	return;
     }
+    my $interface = $results_interface->[0];
 
-    return @$results[0];
+    if (! defined($interface->{'workgroup_id'})){
+	$self->{'logger'}->warn("No workgroup specified for interface: " . $interface->{'interface_id'});
+	return $interface;
+    }
+    
+    my $workgroup_details = $self->get_workgroup_details(workgroup_id => $interface->{'workgroup_id'});
+    if (! defined $workgroup_details){
+        $self->_set_error("Unknown workgroup.");
+        return $interface;
+    }
+    
+    $interface->{'workgroup_name'} = $workgroup_details->{'name'};
+    return $interface;
+
 }
 
 =head2 get_interface_by_dpid_and_port
@@ -4923,7 +4990,7 @@ sub get_pending_nodes {
     my $self = shift;
     my %args = @_;
 
-    my $sth = $self->_prepare_query("select node.node_id, node_instantiation.dpid, inet_ntoa(node_instantiation.management_addr_ipv4) as address, " .
+    my $sth = $self->_prepare_query("select node.node_id, node_instantiation.dpid, node_instantiation.mgmt_addr as address, " .
 				    " node.name, node.longitude, node.latitude, node.vlan_tag_range, node.send_barrier_bulk " .
 				    " from node join node_instantiation on node.node_id = node_instantiation.node_id " .
 				    " where node_instantiation.admin_state = 'available' and node_instantiation.end_epoch = -1"
@@ -5418,7 +5485,7 @@ sub add_into{
     my $insert_node_query = "insert into node (name,longitude,latitude, network_id) VALUES (?,?,?,(select network_id from network where name=?))";
     my $insert_node_sth   = $self->_prepare_query($insert_node_query) or return;
 
-    my $insert_node_instantiaiton_query = "insert into node_instantiation (node_id,end_epoch,start_epoch,management_addr_ipv4,dpid,admin_state) VALUES ((select node_id from node where name=?),-1,unix_timestamp(now()),inet_aton(?),?,?)";
+    my $insert_node_instantiaiton_query = "insert into node_instantiation (node_id,end_epoch,start_epoch,mgmt_addr,dpid,admin_state) VALUES ((select node_id from node where name=?),-1,unix_timestamp(now()),inet_aton(?),?,?)";
     my $insert_node_instantiaiton_sth   = $self->_prepare_query($insert_node_instantiaiton_query) or return;
 
     my $insert_interface_query = "insert into interface (name,description,node_id,operational_state) VALUES(?,?,(select node_id from node where name=?),?) ";
@@ -5954,7 +6021,7 @@ sub get_nodes_by_admin_state{
 
     my $admin_state       = $args{'admin_state'};
 
-    my $select_nodes = "select node.vlan_tag_range,node.node_id,node.name,max_flows,tx_delay_ms,inet_ntoa(node_instantiation.management_addr_ipv4) as management_addr_ipv4 from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.admin_state = ? and end_epoch = -1";
+    my $select_nodes = "select node.vlan_tag_range,node.node_id,node.name,max_flows,tx_delay_ms,inet_ntoa(node_instantiation.mgmt_addr) as mgmt_addr from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.admin_state = ? and end_epoch = -1";
 
     my $select_nodes_sth = $self->_prepare_query($select_nodes);
     $select_nodes_sth->execute($admin_state);
@@ -6275,6 +6342,7 @@ sub provision_circuit {
     my $state            = $args{'state'} || 'active';
     my $remote_url       = $args{'remote_url'};
     my $remote_requester = $args{'remote_requester'};
+    my $type             = $args{'type'} || 'openflow';
 
     if($provision_time != -1 && $provision_time <= time() && $state eq 'active'){
         warn "Provision Time: " . $provision_time . "\n";
@@ -6343,8 +6411,8 @@ sub provision_circuit {
     }
 
     # create circuit record
-    my $circuit_id = $self->_execute_query("insert into circuit (name, description, workgroup_id, external_identifier, restore_to_primary, static_mac,circuit_state, remote_url, remote_requester) values (?, ?, ?, ?, ?, ?,?,?,?)",
-					   [$name, $description, $workgroup_id, $external_id, $restore_to_primary, $static_mac,$state, $remote_url, $remote_requester]);
+    my $circuit_id = $self->_execute_query("insert into circuit (name, description, workgroup_id, external_identifier, restore_to_primary, static_mac,circuit_state, remote_url, remote_requester, type) values (?, ?, ?, ?, ?, ?,?,?,?,?)",
+					   [$name, $description, $workgroup_id, $external_id, $restore_to_primary, $static_mac,$state, $remote_url, $remote_requester, $type]);
 
     if (! defined $circuit_id ){
         $self->_set_error("Unable to create circuit record.");
@@ -6906,6 +6974,7 @@ sub get_node_by_name {
 }
 
 
+
 =head2 get_node_by_id
 
 =cut
@@ -7045,7 +7114,11 @@ sub create_node_instance{
 	}
      }
 
-    my $res = $self->_execute_query("insert into node_instantiation (node_id,end_epoch,start_epoch,management_addr_ipv4,admin_state,dpid) VALUES (?,?,?,?,?,?)",[$args{'node_id'},-1,time(),$args{'ipv4_addr'},$args{'admin_state'},$args{'dpid'}]);
+    if(!defined($args{'dpid'})){
+	$args{'dpid'} = inet_aton($args{'mgmt_addr'});
+    }
+
+    my $res = $self->_execute_query("insert into node_instantiation (node_id,end_epoch,start_epoch,mgmt_addr,admin_state,dpid,username,password,vendor,model,sw_version,mpls,openflow ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",[$args{'node_id'},-1,time(),$args{'mgmt_addr'},$args{'admin_state'},$args{'dpid'},$args{'username'},$args{'password'},$args{'vendor'},$args{'model'},$args{'sw_version'},$args{'mpls'},$args{'openflow'}]);
 
     if(!defined($res)){
 	$self->_set_error("Unable to create new node instantiation");
@@ -7257,7 +7330,7 @@ sub edit_circuit {
     my $do_commit                 = defined($args{'do_commit'}) ? $args{'do_commit'} : 1;
     my $do_sanity_check           = defined($args{'do_sanity_check'}) ? $args{'do_sanity_check'} : 1;
     my $reason                    = $args{'reason'} || "User requested circuit edit";
-
+    my $type                      = $args{'type'} || 'openflow';
 
     # whether this edit should only edit everything or just local bits
     my $do_external               = $args{'do_external'} || 0;
@@ -7291,7 +7364,7 @@ sub edit_circuit {
         return {'success' => 1, 'circuit_id' => $circuit_id};
     }
 
-    my $result = $self->_execute_query("update circuit set description = ?, restore_to_primary = ?, static_mac = ? where circuit_id = ?", [$description,$restore_to_primary,$static_mac,$circuit_id]);
+    my $result = $self->_execute_query("update circuit set description = ?, restore_to_primary = ?, static_mac = ? where circuit_id = ?, type = ?", [$description,$restore_to_primary,$static_mac,$circuit_id, $type]);
     if (! defined $result){
         $self->_set_error("Unable to update circuit description.");
         $self->_rollback() if($do_commit);
@@ -8481,7 +8554,7 @@ sub gen_topo{
         $node->{'name'} =~ s/ /+/g;
         $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","node"], id => "urn:ogf:network:domain=" . $domain . ":node=" . $node->{'name'});
         $writer->startTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","address"]);
-        $writer->characters($node->{'management_addr_ipv4'});
+        $writer->characters($node->{'mgmt_addr'});
         $writer->endTag(["http://ogf.org/schema/network/topology/ctrlPlane/20080828/","address"]);
         
         $node->{'vlan_tag_range'} =~ s/^-1/0/g;
@@ -9362,6 +9435,22 @@ sub is_fwdctl_enabled{
     
     return 1 if(!defined($self->{'processes'}->{'fwdctl'}));
 
+    if($self->{'processes'}->{'fwdctl'}->{'status'} eq 'enabled'){
+        return 1;
+    }else{
+        return 0;
+    }
+}
+
+=head2 is_mpls_fwdctl_enabled{
+
+=cut
+
+sub is_mpls_fwdctl_enabled{
+    my $self = shift;
+    
+    return 1 if(!defined($self->{'processes'}->{'mpls_fwdctl'}));
+    
     if($self->{'processes'}->{'fwdctl'}->{'status'} eq 'enabled'){
         return 1;
     }else{

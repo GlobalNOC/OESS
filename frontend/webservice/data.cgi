@@ -784,11 +784,11 @@ sub is_vlan_tag_available {
         interface_id => $interface_id
     );
 
-    if ($is_available) {
-        push( @{ $results->{'results'} }, { "available" => 1 } );
+    if ($is_available->{'status'}) {
+        push( @{ $results->{'results'} }, { "available" => 1, type => $is_available->{'type'} } );
     }
     else {
-        push( @{ $results->{'results'} }, { "available" => 0 } );
+        push( @{ $results->{'results'} }, { "available" => 0, type => $is_available->{'type'}} );
     }
 
     return $results;
@@ -970,7 +970,8 @@ sub get_existing_circuits {
         workgroup_id   => $workgroup_id,
         endpoint_nodes => @endpoint_nodes,
         path_nodes     => @path_nodes,
-        link_status    => \%link_status
+        link_status    => \%link_status,
+	type           => 'all'
     );
 
     
