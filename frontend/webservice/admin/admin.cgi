@@ -80,7 +80,7 @@ sub authorization {
 
     my $username  = $ENV{'REMOTE_USER'};
 
-    my $auth = $db->get_user_admin_status( 'username' => $remote_user);
+    my $auth = $db->get_user_admin_status( 'username' => $username);
     if (!defined $auth) {
         return (undef, { error => "Invalid or decommissioned user specified." });
     }
@@ -95,11 +95,11 @@ sub authorization {
         return (undef, { error => "Invalid or decommissioned user specified." });
     }
 
-    if ($admin == 1 && $authorization->[0]{'is_admin'} != 1) {
+    if ($admin == 1 && $auth->[0]{'is_admin'} != 1) {
         return ($user, { error => "User $username does not have admin privileges." });
     }
     
-    if ($read_only != 1 && &user->{'type'} eq 'read-only') {
+    if ($read_only != 1 && $user->{'type'} eq 'read-only') {
         return ($user, { error => "User $username is a read only user." });
     }
 
@@ -124,19 +124,19 @@ sub register_webservice_methods {
                                               callback    => sub { add_edge_interface_move_maintenances(@_) } );
     $method->add_input_parameter( name        => 'name',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => 'Name of the new maintenance.' );
     $method->add_input_parameter( name        => 'orig_interface_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => 'Interface ID of the original interface.');
     $method->add_input_parameter( name        => 'temp_interface_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => 'Interface ID of the temporary interface.');    
     $method->add_input_parameter( name        => 'circuit_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => 'Circuit IDs of the circuits on original_interface.');
     $svc->register_method($method);
 
@@ -150,7 +150,7 @@ sub register_webservice_methods {
                                               callback    => sub { revert_edge_interface_move_maintenances(@_) } );
     $method->add_input_parameter( name        => 'maintenance_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => 'Maintenance ID of the maintenance to revert.');
     $svc->register_method($method);
 
@@ -159,15 +159,15 @@ sub register_webservice_methods {
                                               callback    => sub { move_edge_interface_circuits(@_) } );
     $method->add_input_parameter( name        => 'orig_interface_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => 'Interface ID of the original interface.');
     $method->add_input_parameter( name        => 'new_interface_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => 'Interface ID of the temporary interface.');    
     $method->add_input_parameter( name        => 'circuit_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => 'Circuit IDs of the circuits on original_interface.' );
     $svc->register_method($method);
 
@@ -186,43 +186,43 @@ sub register_webservice_methods {
                                               callback    => sub { confirm_node(@_) } );
     $method->add_input_parameter( name        => 'node_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'name',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'longitude',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'latitude',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'vlan_range',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'default_drop',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'default_forward',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'tx_delay_ms',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'max_flows',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'bulk_barrier',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $svc->register_method($method);
 
@@ -231,47 +231,47 @@ sub register_webservice_methods {
                                               callback    => sub { update_node(@_) } );
     $method->add_input_parameter( name        => 'node_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'name',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'longitude',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'latitude',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'vlan_range',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'default_drop',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'default_forward',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'tx_delay_ms',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'max_flows',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'bulk_barrier',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'max_static_mac_flows',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $svc->register_method($method);
 
@@ -280,15 +280,15 @@ sub register_webservice_methods {
                                               callback    => sub { update_interface(@_) } );
     $method->add_input_parameter( name        => 'interface_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'description',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'vlan_tag_range',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $svc->register_method($method);
 
@@ -297,7 +297,7 @@ sub register_webservice_methods {
                                               callback    => sub { decom_node(@_) } );
     $method->add_input_parameter( name        => 'node_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $svc->register_method($method);
 
@@ -306,11 +306,11 @@ sub register_webservice_methods {
                                               callback    => sub { confirm_link(@_) } );
     $method->add_input_parameter( name        => 'link_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'name',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $svc->register_method($method);
 
@@ -319,15 +319,15 @@ sub register_webservice_methods {
                                               callback    => sub { update_link(@_) } );
     $method->add_input_parameter( name        => 'link_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'name',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'metric',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $svc->register_method($method);
 
@@ -336,7 +336,7 @@ sub register_webservice_methods {
                                               callback    => sub { is_new_node_in_path(@_) } );
     $method->add_input_parameter( name        => 'link',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $svc->register_method($method);
 
@@ -345,7 +345,7 @@ sub register_webservice_methods {
                                               callback    => sub { insert_node_in_path(@_) } );
     $method->add_input_parameter( name        => 'link_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $svc->register_method($method);
 
@@ -354,7 +354,7 @@ sub register_webservice_methods {
                                               callback    => sub { is_ok_to_decom(@_) } );
     $method->add_input_parameter( name        => 'link_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $svc->register_method($method);
 
@@ -363,15 +363,15 @@ sub register_webservice_methods {
                                               callback    => sub { deny_device(@_) } );
     $method->add_input_parameter( name        => 'node_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'ipv4_addr',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'dpid',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $svc->register_method($method);
 
@@ -380,15 +380,15 @@ sub register_webservice_methods {
                                               callback    => sub { deny_link(@_) } );
     $method->add_input_parameter( name        => 'link_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'interface_a_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'interface_z_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $svc->register_method($method);
 
@@ -397,7 +397,7 @@ sub register_webservice_methods {
                                               callback    => sub { decom_link(@_) } );
     $method->add_input_parameter( name        => 'link_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $svc->register_method($method);
 
@@ -411,7 +411,7 @@ sub register_webservice_methods {
                                               callback    => sub { get_users_in_workgroup(@_) } );
     $method->add_input_parameter( name        => 'workgroup_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $svc->register_method($method);
 
@@ -420,27 +420,27 @@ sub register_webservice_methods {
                                               callback    => sub { add_user(@_) } );
     $method->add_input_parameter( name        => 'first_name',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'family_name',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'email_address',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'auth_name',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'type',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'status',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $svc->register_method($method);
 
@@ -449,7 +449,7 @@ sub register_webservice_methods {
                                               callback    => sub { delete_user(@_) } );
     $method->add_input_parameter( name        => 'user_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $svc->register_method($method);
 
@@ -458,11 +458,11 @@ sub register_webservice_methods {
                                               callback    => sub { add_user_to_workgroup(@_) } );
     $method->add_input_parameter( name        => 'user_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'workgroup_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $svc->register_method($method);
 
@@ -471,11 +471,11 @@ sub register_webservice_methods {
                                               callback    => sub { remove_user_from_workgroup(@_) } );
     $method->add_input_parameter( name        => 'user_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'workgroup_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $svc->register_method($method);
 
@@ -484,31 +484,31 @@ sub register_webservice_methods {
                                               callback    => sub { edit_user(@_) } );
     $method->add_input_parameter( name        => 'user_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'first_name',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'family_name',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'email_address',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'auth_name',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'type',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'status',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $svc->register_method($method);
 
@@ -517,7 +517,7 @@ sub register_webservice_methods {
                                               callback    => sub { get_workgroups(@_) } );
     $method->add_input_parameter( name        => 'user_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $svc->register_method($method);
 
@@ -526,11 +526,11 @@ sub register_webservice_methods {
                                               callback    => sub { update_interface_owner(@_) } );
     $method->add_input_parameter( name        => 'workgroup_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'interface_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $svc->register_method($method);
 
@@ -539,15 +539,15 @@ sub register_webservice_methods {
                                               callback    => sub { add_workgroup(@_) } );
     $method->add_input_parameter( name        => 'name',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'external_id',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'type',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 0,
                                   description => '' );
     $svc->register_method($method);
 
@@ -556,19 +556,19 @@ sub register_webservice_methods {
                                               callback    => sub { add_remote_link(@_) } );
     $method->add_input_parameter( name        => 'urn',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'name',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'interface_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'vlan_tag_range',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $svc->register_method($method);
 
@@ -577,23 +577,23 @@ sub register_webservice_methods {
                                               callback    => sub { edit_remote_link(@_) } );
     $method->add_input_parameter( name        => 'link_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'urn',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'name',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'interface_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'vlan_tag_range',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $svc->register_method($method);
 
@@ -602,7 +602,7 @@ sub register_webservice_methods {
                                               callback    => sub { remove_remote_link(@_) } );
     $method->add_input_parameter( name        => 'link_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $svc->register_method($method);
 
@@ -626,15 +626,15 @@ sub register_webservice_methods {
                                               callback    => sub { update_remote_device(@_) } );
     $method->add_input_parameter( name        => 'node_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'latitude',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'longitude',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $svc->register_method($method);
 
@@ -643,7 +643,7 @@ sub register_webservice_methods {
                                               callback    => sub { get_circuits_on_interface(@_) } );
     $method->add_input_parameter( name        => 'interface_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $svc->register_method($method);
 
@@ -652,27 +652,27 @@ sub register_webservice_methods {
                                               callback    => sub { edit_workgroup(@_) } );
     $method->add_input_parameter( name        => 'workgroup_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $method->add_input_parameter( name        => 'name',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'external_id',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'max_circuits',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'max_circuit_endpoints',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'max_mac_address_per_end',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 0,
+                                  required    => 0,
                                   description => '' );
     $svc->register_method($method);
 
@@ -686,7 +686,7 @@ sub register_webservice_methods {
                                               callback    => sub { decom_workgroup(@_) } );
     $method->add_input_parameter( name        => 'workgroup_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $svc->register_method($method);
 
@@ -695,7 +695,7 @@ sub register_webservice_methods {
                                               callback    => sub { add_mpls_switch(@_) } );
     $method->add_input_parameter( name        => 'ip_address',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  requried    => 1,
+                                  required    => 1,
                                   description => '' );
     $svc->register_method($method);
 }
@@ -1493,10 +1493,11 @@ sub confirm_node {
 
     my $event_id  = $cache_result->{'results'}->{'event_id'};
     my $final_res = FWDCTL_WAITING;
-
+    warn 'final_res: ' . Data::Dumper::Dumper($final_res);
     while ($final_res == FWDCTL_WAITING) {
         sleep(1);
-        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
+        $final_res = $client->get_event_status(event_id => $event_id, timeout => 15)->{'results'}->{'status'};
+        warn 'final_res: ' . Data::Dumper::Dumper($final_res);
     }
 
     $cache_result = $client->force_sync(dpid => int($node->{'dpid'}));
