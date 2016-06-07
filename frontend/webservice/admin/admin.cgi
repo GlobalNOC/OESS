@@ -29,7 +29,6 @@
 use strict;
 use warnings;
 
-use CGI;
 use Data::Dumper;
 use JSON;
 use LWP::UserAgent;
@@ -51,7 +50,6 @@ use constant FWDCTL_UNKNOWN     => 3;
 my $db   = new OESS::Database();
 my $topo = new OESS::Topology();
 
-my $cgi = new CGI;
 my $svc = GRNOC::WebService::Dispatcher->new();
 
 $| = 1;
@@ -113,71 +111,9 @@ sub main {
         send_json({ error => "Unable to connect to database." });
         exit(1);
     }
-
-    my $action      = $cgi->param('action');
-    my $remote_user = $ENV{'REMOTE_USER'};
-    my $output;
-
-    # TODO - REMOVE ME BEGIN
-    my $authorization = $db->get_user_admin_status( 'username' => $remote_user);
-    my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
-    if (!defined $user || $user->{'status'} eq 'decom') {
-        return send_json({ error => "Invalid or decommissioned user specified." });
-    }
-    if ($user->{'type'} eq 'read-only') {
-        $read_only = 1;
-    }    
-    if ( $authorization->[0]{'is_admin'} != 1 ) {
-        return send_json({ error => "User $remote_user does not have admin privileges" });
-    }
-    # TODO - REMOVE ME END
     
     register_webservice_methods();
-    
-    switch ($action) {
-        case "submit_topology" {
-            $output = &submit_topology();
-        }
-        case "get_remote_devices" {
-            $output = &get_remote_devices();
-        }
-        case "update_remote_device" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &update_remote_device();
-        }
-        case "populate_remote_information" {
-            $output = &populate_remote_information();
-        }case "get_circuits_on_interface" {
-            $output = &get_circuits_on_interface();
-        }case "edit_workgroup"{
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &edit_workgroup();
-        }case "get_topology"{
-            $output = &gen_topology();
-        }case "decom_workgroup"{
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &decom_workgroup();
-        }
-          case "add_mpls_switch"{
-                                 if($user->{'type'} eq 'read-only'){
-                                     return send_json({error => 'Error: you are a readonly user'});
-                                 }
-                                 
-                                 $output = &add_mpls_switch();
-                                 
-                                }
-          else {
-              return $svc->handle_request();
-          }
-    }
-    
-    send_json($output);
+    return $svc->handle_request();
 }
 
 sub register_webservice_methods {
@@ -675,23 +611,106 @@ sub register_webservice_methods {
                                               callback    => sub { get_remote_links(@_) } );
     $svc->register_method($method);
 
-
-
-
-    $method = GRNOC::WebService::Method->new( name        => '',
+    $method = GRNOC::WebService::Method->new( name        => 'submit_topology',
                                               description => '',
-                                              callback    => sub { f(@_) } );
-    $method->add_input_parameter( name        => '',
-                                  pattern     => $GRNOC::WebService::Regex::,
+                                              callback    => sub { submit_topology(@_) } );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'get_remote_devices',
+                                              description => '',
+                                              callback    => sub { get_remote_devices(@_) } );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'update_remote_device',
+                                              description => '',
+                                              callback    => sub { update_remote_device(@_) } );
+    $method->add_input_parameter( name        => 'node_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'latitude',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'longitude',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'get_circuits_on_interface',
+                                              description => '',
+                                              callback    => sub { get_circuits_on_interface(@_) } );
+    $method->add_input_parameter( name        => 'interface_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'edit_workgroup',
+                                              description => '',
+                                              callback    => sub { edit_workgroup(@_) } );
+    $method->add_input_parameter( name        => 'workgroup_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'name',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 0,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'external_id',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 0,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'max_circuits',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 0,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'max_circuit_endpoints',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 0,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'max_mac_address_per_end',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 0,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'get_topology',
+                                              description => '',
+                                              callback    => sub { gen_topology(@_) } );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'decom_workgroup',
+                                              description => '',
+                                              callback    => sub { decom_workgroup(@_) } );
+    $method->add_input_parameter( name        => 'workgroup_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'add_mpls_switch',
+                                              description => '',
+                                              callback    => sub { add_mpls_switch(@_) } );
+    $method->add_input_parameter( name        => 'ip_address',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
                                   requried    => 1,
                                   description => '' );
     $svc->register_method($method);
 }
 
 sub get_circuits_on_interface{
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 1);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
-    my $link = $db->get_link_by_interface_id( interface_id => $cgi->param('interface_id'),
+    my $link = $db->get_link_by_interface_id( interface_id => $args->{'interface_id'}{'value'},
                                               show_decom => 0 );
     if(defined($link->[0])){
         #we have a link so now its really easy just call get_circuits_on_link
@@ -712,7 +731,7 @@ sub insert_node_in_path{
         return send_json($err);
     }
 
-    my $results = $db->insert_node_in_path( link => $cgi->param('link_id'));
+    my $results = $db->insert_node_in_path( link => $args->{'link_id'}{'value'} );
 
     return {results =>  => [$results]};
     
@@ -759,6 +778,13 @@ sub is_ok_to_decom{
 }
 
 sub get_remote_devices {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 1);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
     $results->{'results'} = [];
@@ -776,6 +802,13 @@ sub get_remote_devices {
 }
 
 sub submit_topology {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
     my $topology_xml = $db->gen_topo();
@@ -1907,6 +1940,13 @@ sub get_pending_links {
 }
 
 sub gen_topology{
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 1);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $topo = $db->gen_topo();
     my $results;
 
@@ -1922,13 +1962,19 @@ sub gen_topology{
 }
 
 sub edit_workgroup{
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
     
-    my $workgroup_id = $cgi->param('workgroup_id');
-    my $workgroup_name = $cgi->param('name');
-    my $external_id = $cgi->param('external_id');
-    my $max_circuits = $cgi->param('max_circuits');
-    my $max_circuit_endpoints = $cgi->param('max_circuit_endpoints');
-    my $max_mac_address_per_end = $cgi->param('max_mac_address_per_end');
+    my $workgroup_id            = $args->{'workgroup_id'}{'value'};
+    my $workgroup_name          = $args->{'name'}{'value'};
+    my $external_id             = $args->{'external_id'}{'value'};
+    my $max_circuits            = $args->{'max_circuits'}{'value'};
+    my $max_circuit_endpoints   = $args->{'max_circuit_endpoints'}{'value'};
+    my $max_mac_address_per_end = $args->{'max_mac_address_per_end'}{'value'};
 
     my $res = $db->update_workgroup( 
         workgroup_id => $workgroup_id,
@@ -1949,16 +1995,30 @@ sub edit_workgroup{
 }
 
 sub decom_workgroup{
-    my $workgroup_id = $cgi->param('workgroup_id');
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
+    my $workgroup_id = $args->{'workgroup_id'}{'value'};
     my $results;
 
     my $circuits = $db->get_circui
 }
 
 sub update_remote_device{
-    my $node_id = $cgi->param('node_id');
-    my $latitude = $cgi->param('latitude');
-    my $longitude = $cgi->param('longitude');
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
+    my $node_id = $args->{'node_id'}{'value'};
+    my $latitude = $args->{'latitude'}{'value'};
+    my $longitude = $args->{'longitude'}{'value'};
 
     my $res = $db->update_remote_device(node_id => $node_id, lat => $latitude, lon => $longitude);
     
@@ -1966,7 +2026,14 @@ sub update_remote_device{
 }
 
 sub add_mpls_switch{
-    my $ip_address = $cgi->param('ip_address');
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+    
+    my $ip_address = $args->{'ip_address'}{'value'};
     
     my $client = GRNOC::RabbitMQ::Client->new( topic => 'MPLS.FWDCTL.RPC',
 					       exchange => 'OESS',
