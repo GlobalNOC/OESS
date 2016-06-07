@@ -167,6 +167,7 @@ t/maintenance-link.t
 t/maintenance-node.t
 t/measurement-backup_path.t
 t/measurement-primary_path.t
+t/MPLS-Discovery-Interface.t
 t/notification-send_notification.t
 t/OESSDatabaseTester.pm
 t/TEST
