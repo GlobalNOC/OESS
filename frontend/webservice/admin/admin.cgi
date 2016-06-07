@@ -66,7 +66,7 @@ has failed.
 
 =over 1
 
-=item $admin     If set to 1 authorization will be granted to admin users
+=item $admin     If set to 1 authorization will be granted to admin users only
 
 =item $read_only If set to 1 authorization will be granted to read only users
 
@@ -135,39 +135,6 @@ sub main {
     register_webservice_methods();
     
     switch ($action) {
-        case "update_interface_owner" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &update_interface_owner();
-        }
-        case "add_workgroup" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &add_workgroup();
-        }
-        case "add_remote_link" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &add_remote_link();
-        }
-        case "edit_remote_link" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &edit_remote_link();
-        }
-        case "remove_remote_link" {
-            if($user->{'type'} eq 'read-only'){
-                return send_json({error => 'Error: you are a readonly user'});
-            }
-            $output = &remove_remote_link();
-        }
-        case "get_remote_links" {
-            $output = &get_remote_links();
-        }
         case "submit_topology" {
             $output = &submit_topology();
         }
@@ -618,6 +585,95 @@ sub register_webservice_methods {
                                   description => '' );
     $svc->register_method($method);
 
+    $method = GRNOC::WebService::Method->new( name        => 'update_interface_owner',
+                                              description => '',
+                                              callback    => sub { update_interface_owner(@_) } );
+    $method->add_input_parameter( name        => 'workgroup_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'interface_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'add_workgroup',
+                                              description => '',
+                                              callback    => sub { add_workgroup(@_) } );
+    $method->add_input_parameter( name        => 'name',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'external_id',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 0,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'type',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'add_remote_link',
+                                              description => '',
+                                              callback    => sub { add_remote_link(@_) } );
+    $method->add_input_parameter( name        => 'urn',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'name',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'interface_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'vlan_tag_range',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 1,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'edit_remote_link',
+                                              description => '',
+                                              callback    => sub { edit_remote_link(@_) } );
+    $method->add_input_parameter( name        => 'link_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'urn',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 0,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'name',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 0,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'interface_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 0,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'vlan_tag_range',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  requried    => 0,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'remove_remote_link',
+                                              description => '',
+                                              callback    => sub { remove_remote_link(@_) } );
+    $method->add_input_parameter( name        => 'link_id',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  requried    => 1,
+                                  description => '' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new( name        => 'get_remote_links',
+                                              description => '',
+                                              callback    => sub { get_remote_links(@_) } );
+    $svc->register_method($method);
 
 
 
@@ -767,6 +823,13 @@ sub submit_topology {
 }
 
 sub get_remote_links {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 1);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
     my $output = $db->get_remote_links();
@@ -782,9 +845,16 @@ sub get_remote_links {
 }
 
 sub remove_remote_link {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
-    my $link_id = $cgi->param('link_id');
+    my $link_id = $args->{'link_id'}{'value'};
 
     my $output = $db->delete_link( link_id => $link_id );
 
@@ -801,12 +871,19 @@ sub remove_remote_link {
 }
 
 sub add_remote_link {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
-    my $urn                = $cgi->param('urn');
-    my $name               = $cgi->param('name');
-    my $local_interface_id = $cgi->param('interface_id');
-    my $vlan_tag_range     = $cgi->param('vlan_tag_range');
+    my $urn                = $args->{'urn'}{'value'};
+    my $name               = $args->{'name'}{'value'};
+    my $local_interface_id = $args->{'interface_id'}{'value'};
+    my $vlan_tag_range     = $args->{'vlan_tag_range'}{'value'};
     
     warn "add_remote_link: ".$vlan_tag_range;
     my $output = $db->add_remote_link(
@@ -828,12 +905,19 @@ sub add_remote_link {
 }
 
 sub edit_remote_link {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
     
-    my $urn                = $cgi->param('urn');
-    my $name               = $cgi->param('name');
-    my $vlan_tag_range     = $cgi->param('vlan_tag_range');
-    my $link_id            = $cgi->param('link_id');
+    my $urn                = $args->{'urn'}{'value'};
+    my $name               = $args->{'name'}{'value'};
+    my $vlan_tag_range     = $args->{'vlan_tag_range'}{'value'};
+    my $link_id            = $args->{'link_id'}{'value'};
     warn "updating_remote_link: ".$vlan_tag_range;
     my $output = $db->edit_remote_link(
         link_id            => $link_id,
@@ -857,7 +941,7 @@ sub edit_remote_link {
 sub get_workgroups {
     my ($method, $args) = @_;
 
-    my ($user, $err) = authorization(admin => 0, read_only => 1);
+    my ($user, $err) = authorization(admin => 1, read_only => 1);
     if (defined $err) {
         return send_json($err);
     }
@@ -881,10 +965,17 @@ sub get_workgroups {
 }
 
 sub update_interface_owner {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $results;
 
-    my $interface_id = $cgi->param('interface_id');
-    my $workgroup_id = $cgi->param('workgroup_id');
+    my $interface_id = $args->{'interface_id'}{'value'};
+    my $workgroup_id = $args->{'workgroup_id'}{'value'};
 
     my $success = $db->update_interface_owner(
         interface_id => $interface_id,
@@ -903,11 +994,17 @@ sub update_interface_owner {
 }
 
 sub add_workgroup {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
     my $results;
 
-    my $name        = $cgi->param("name");
-    my $external_id = $cgi->param('external_id');
-    my $type        = $cgi->param('type');
+    my $name        = $args->{"name"}{'value'};
+    my $external_id = $args->{'external_id'}{'value'};
+    my $type        = $args->{'type'}{'value'};
     my $new_wg_id =
         $db->add_workgroup( name => $name, external_id => $external_id , type => $type);
 
