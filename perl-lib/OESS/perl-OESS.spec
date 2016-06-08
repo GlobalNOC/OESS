@@ -79,6 +79,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::MPLS::FWDCTL.3pm.gz
 %doc %{_mandir}/man3/OESS::MPLS::Switch.3pm.gz
 %doc %{_mandir}/man3/OESS::MPLS::Topology.3pm.gz
+%doc %{_mandir}/man3/OESS::MPLS::Device::Juniper::MX.3pm.gz
 %{template_dir}/notification_templates.tmpl
 %{template_dir}/notification_bulk.tmpl
 %{template_dir}/notification_bulk.tt.html
