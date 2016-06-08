@@ -24,9 +24,6 @@ sub new{
     $self->{'logger'}->debug("MPLS Device created");
 
     bless $self, $class;    
-    
-    
-
 }
 
 sub connect{
@@ -105,8 +102,9 @@ sub get_error{
         $errors .= $error . "\n";
     }
 
-    #clear out the error for next time...
+    # Clear out the error for next time...
     $self->{'error'} = ();
+    $self->{'has_error'} = 0;
 
     return $errors;
 }

@@ -159,28 +159,42 @@ sub add_vlan{
     
 }
 
-sub connect{
+=head2 connect
+
+Returns 1 if a new connection is established. If the connection is
+already established this function will also return 1. Otherwise an error
+has occured and 0 is returned.
+
+=cut
+sub connect {
     my $self = shift;
-    
-    if($self->connected()){
-	$self->{'logger'}->error("Already connected to device");
-	return;
-    }
-    $self->{'logger'}->info("Connecting to device!");
-    my $jnx = new Net::Netconf::Manager( 'access' => 'ssh',
-					 'login' => $self->{'username'},
-					 'password' => $self->{'password'},
-					 'hostname' => $self->{'mgmt_addr'},
-					 'port' => 22 );
-    if(!$jnx){
-	$self->{'connected'} = 0;
-    }else{
-	$self->{'logger'}->info("Connected!");
-	$self->{'jnx'} = $jnx;
-	$self->{'connected'} = 1;
+
+    if ($self->connected()) {
+        $self->{'logger'}->warn("Already connected to device");
+        return 1;
     }
 
+    my $jnx = undef;
+    eval {
+        $self->{'logger'}->info("Connecting to device!");
+        $jnx = new Net::Netconf::Manager( 'access' => 'ssh',
+                                          'login' => $self->{'username'},
+                                          'password' => $self->{'password'},
+                                          'hostname' => $self->{'mgmt_addr'},
+                                          'port' => 22 );
+    };
+    if ($@ || !$jnx) {
+        my $err = "Could not connected to $self->{'mgmt_addr'}. Connection timed out.";
+        $self->set_error($err);
+        $self->{'logger'}->error($err);
+        $self->{'connected'} = 0;
+    } else {
+        $self->{'logger'}->info("Connected!");
+        $self->{'jnx'} = $jnx;
+        $self->{'connected'} = 1;
+    }
 
+    return $self->{'connected'};
 }
 
 sub connected{
@@ -248,21 +262,27 @@ sub _edit_config{
     $self->{'logger'}->debug("Sending the following config: " . $params{'config'});
 
     if(!defined($params{'config'})){
-	$self->{'logger'}->error("No Configuration specified!");
-	return FWDCTL_FAILURE;
+        my $err = "No Configuration specified!";
+        $self->set_error($err);
+        $self->{'logger'}->error($err);
+        return FWDCTL_FAILURE;
     }
 
     if(!$self->{'connected'}){
-	$self->{'logger'}->error("Not currently connected to the switch");
-	return FWDCTL_FAILURE;
+        my $err = "Not currently connected to the switch";
+        $self->set_error($err);
+        $self->{'logger'}->error($err);
+        return FWDCTL_FAILURE;
     }
     
     my %queryargs = ( 'target' => 'candidate' );
     my $res = $self->{'jnx'}->lock_config(%queryargs);
 
     if($self->{'jnx'}->has_error){
-	$self->{'logger'}->error("Error attempting to lock config: " . Dumper($self->{'jnx'}->get_first_error()));
-	return FWDCTL_FAILURE;
+        my $err = "Error attempting to lock config: " . Dumper($self->{'jnx'}->get_first_error());
+        $self->set_error($err);
+        $self->{'logger'}->error($err);
+        return FWDCTL_FAILURE;
     }
 
     %queryargs = (
@@ -273,18 +293,24 @@ sub _edit_config{
     
     $res = $self->{'jnx'}->edit_config(%queryargs);
     if($self->{'jnx'}->has_error){
-	$self->{'logger'}->error("Error attempting to modify config: " . Dumper($self->{'jnx'}->get_first_error()));
-	my %queryargs = ( 'target' => 'candidate' );
-	$res = $self->{'jnx'}->unlock_config(%queryargs);
-	return FWDCTL_FAILURE;
+        my $err = "Error attempting to modify config: " . Dumper($self->{'jnx'}->get_first_error());
+        $self->set_error($err);
+        $self->{'logger'}->error($err);
+
+        my %queryargs = ( 'target' => 'candidate' );
+        $res = $self->{'jnx'}->unlock_config(%queryargs);
+        return FWDCTL_FAILURE;
     }
 
     $self->{'jnx'}->commit();
     if($self->{'jnx'}->has_error){
-	$self->{'logger'}->error("Error attempting to commit the config: " . Dumper($self->{'jnx'}->get_first_error()));
-	my %queryargs = ( 'target' => 'candidate' );
+        my $err = "Error attempting to commit the config: " . Dumper($self->{'jnx'}->get_first_error());
+        $self->set_error($err);
+        $self->{'logger'}->error($err);
+
+        my %queryargs = ( 'target' => 'candidate' );
         $res = $self->{'jnx'}->unlock_config(%queryargs);
-	return;
+        return FWDCTL_FAILURE;
     }
 
     my %queryargs = ( 'target' => 'candidate' );
