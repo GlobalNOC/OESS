@@ -42,9 +42,15 @@ sub new{
 sub disconnect{
     my $self = shift;
 
-    $self->{'jnx'}->disconnect();
+    if (defined $self->{'jnx'}) {
+        $self->{'jnx'}->disconnect();
+    } else {
+        $self->{'logger'}->info("Device is already disconnected.");
+    }
+
     $self->{'connected'} = 0;
-    return;
+
+    return 1;
 }
 
 sub get_system_information{
