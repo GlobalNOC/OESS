@@ -10,6 +10,15 @@ lib/OESS/FV.pm
 lib/OESS/FWDCTL/Master.pm
 lib/OESS/FWDCTL/Switch.pm
 lib/OESS/Measurement.pm
+lib/OESS/MPLS/Device.pm
+lib/OESS/MPLS/Device/Juniper/MX.pm
+lib/OESS/MPLS/Discovery.pm
+lib/OESS/MPLS/Discovery/Interface.pm
+lib/OESS/MPLS/Discovery/ISIS.pm
+lib/OESS/MPLS/Discovery/LSP.pm
+lib/OESS/MPLS/FWDCTL.pm
+lib/OESS/MPLS/Switch.pm
+lib/OESS/MPLS/Topology.pm
 lib/OESS/Notification.pm
 lib/OESS/NSI/Constant.pm
 lib/OESS/NSI/Daemon.pm
@@ -26,11 +35,15 @@ lib/OESS/Traceroute.pm
 lib/OESS/Watchdog.pm
 Makefile.PL
 MANIFEST			This list of files
+oess_mpls_db.sql
 pack_in_events.pcap
 perl-OESS-1.1.7.tar.gz
 perl-OESS-1.1.8.tar.gz
 perl-OESS-1.1.8c.tar.gz
 perl-OESS.spec
+share/mpls/templates/juniper/13.3R8/ep_config.xml
+share/mpls/templates/juniper/13.3R8/ep_config.xml.backup
+share/mpls/templates/juniper/13.3R8/ep_config_delete.xml
 share/nddi.sql
 share/upgrade/oess-1.0.10-1.0.11
 share/upgrade/oess-1.0.11-1.0.12
@@ -53,6 +66,7 @@ share/upgrade/oess-1.1.6-1.1.7
 share/upgrade/oess-1.1.7-1.1.8
 share/upgrade/oess-1.1.8-1.1.8c
 share/upgrade/oess-1.1.8c-1.1.9
+share/upgrade/oess-1.1.9-1.2.0
 t/00-load_base.t
 t/01-load_known_state.t
 t/02-pod.t
@@ -135,6 +149,7 @@ t/database-40-edge_interface_move_maintenance.t
 t/database-41-can_modify_circuit.t
 t/database-42-provision_reserved_circuit.t
 t/database-43-edit_circuit_state.t
+t/database-44-_validate_endpoint.t
 t/dbus-timeout.t
 t/dbus-timeout_callback.t
 t/flow_rule-compare_actions.t

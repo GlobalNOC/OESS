@@ -29,19 +29,20 @@
 use strict;
 use warnings;
 
-use CGI;
 use JSON;
 use Switch;
 use Data::Dumper;
 
 use OESS::Database;
-use Net::DBus::Exporter qw(org.nddi.fwdctl);
+use GRNOC::RabbitMQ::Client;
 use OESS::Topology;
+use GRNOC::WebService;
 
 my $db   = new OESS::Database();
 my $topo = new OESS::Topology();
 
-my $cgi  = new CGI;
+#register web service dispatcher
+my $svc = GRNOC::WebService::Dispatcher->new();
 
 my $username = $ENV{'REMOTE_USER'};
 
@@ -54,66 +55,97 @@ sub main {
 	exit(1);
     }    
 
-    my $action = $cgi->param('action');
+    if ( !$svc ){
+	send_json( {"error" => "Unable to access GRNOC::WebService" });
+	exit(1);
+    }
+
+
     my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
     if ($user->{'status'} eq 'decom') {
-        $action = "error";
-    }
-    my $output;
-
-    switch ($action){
-	
-	case "get_node_status"{
-	    $output = &get_node_status();
-	}case "get_rules_on_node"{
-	    $output = &get_rules_on_node();
-	}
-    case "error" {
-        $output = {error => "Decom users cannot use webservices."};
+        send_json("error");
+	exit(1);
     }
 
-	else{
-	    $output = {error => "Unknown action - $action"};
-	}
+    #register the WebService Methods
+    register_webservice_methods();
 
-    }
-    
-    send_json($output);
+    #handle the WebService request.
+    $svc->handle_request();
+
     
 }
 
+sub register_webservice_methods {
+    
+    my $method;
+    
+    #get_node_status
+    $method = GRNOC::WebService::Method->new(
+	name            => "get_node_status",
+	description     => "returns JSON formatted status updates related to a Nodes connection state to the controller.",
+	callback        => sub { get_node_status( @_ ) }
+	);
+
+    #add the required input parameter node
+    $method->add_input_parameter(
+        name            => 'node',
+        pattern         => $GRNOC::WebService::Regex::TEXT,
+        required        => 1,
+        description     => "Name of the node to query the status."
+        );
+
+    #register the get_node_status() method
+    $svc->register_method($method);
+
+    #get_rules_on_node()
+    $method = GRNOC::WebService::Method->new(
+        name            => "get_rules_on_node",
+        description     => "returns the maximum allowed rules on a switch, and the total number of rules currently on the switch.",
+        callback        => sub { get_rules_on_node( @_ ) }
+        );
+
+    #add the required input parameter node
+    $method->add_input_parameter(
+        name            => 'node',
+        pattern         => $GRNOC::WebService::Regex::TEXT,
+        required        => 1,
+        description     => "Name of the node to query the rules."
+        );
+
+    #register the get_rules_on_node() method
+    $svc->register_method($method);
+
+}
+
 sub get_node_status{
+
+    my ( $method, $args ) = @_ ;
     my $results;
 
-    my $bus = Net::DBus->system;
-
-    my $client;
-    my $service;
-
-    eval {
-        $service = $bus->get_service("org.nddi.openflow");
-        $client  = $service->get_object("/controller_ro");
-    };
-
-    if ($@){
-        warn "Error in _connect_to_nox: $@";
-        return undef;
+    my $client  = new GRNOC::RabbitMQ::Client(
+        topic => 'OF.NOX.RPC',
+        exchange => 'OESS',
+        user => 'guest',
+        pass => 'guest',
+        host => 'localhost',
+        port => 5672
+    );
+    if ( !defined($client) ) {
+        return;
     }
 
-    if (! defined $client){
-        return undef;
-    }
-
-    my $node_name = $cgi->param('node');
+    my $node_name = $args->{'node'}{'value'};
     my $node = $db->get_node_by_name( name => $node_name);
 
     if(!defined($node)){
 	warn "Unable to find node named $node_name\n";
-	return {error => "Unable to find node - $node_name "};
+	$method->set_error("Unable to find node named $node_name");
+	return;
     }
     
-    my $result = $client->get_node_connect_status($node->{'dpid'});
-    $result = int($result);
+    my $result = $client->get_node_connect_status(dpid => int($node->{'dpid'}));
+    $result = int($result->{'results'}->[0]);
     my $tmp;
     $tmp->{'results'} = {node => $node_name, status => $result};
 
@@ -121,39 +153,33 @@ sub get_node_status{
 }
 
 sub get_rules_on_node{
+
+    my ( $method, $args ) = @_ ;
     my $results;
 
-    my $bus = Net::DBus->system;
-
-    my $client;
-    my $service;
-
-    eval {
-        $service = $bus->get_service("org.nddi.fwdctl");
-        $client  = $service->get_object("/controller1");
-    };
-
-    if ($@){
-        warn "Error in _connect_to_nox: $@";
-        return undef;
+    my $client  = new GRNOC::RabbitMQ::Client(
+        topic => 'OF.FWDCTL.RPC',
+        exchange => 'OESS',
+        user => 'guest',
+        pass => 'guest',
+        host => 'localhost',
+        port => 5672
+    );
+    if ( !defined($client) ) {
+        return;
     }
 
-    if (! defined $client){
-        return undef;
-    }
-
-    my $node_name = $cgi->param('node');
+    my $node_name = $args->{'node'}{'value'};
     my $node = $db->get_node_by_name( name => $node_name);
 
     if(!defined($node)){
         warn "Unable to find node named $node_name\n";
-        return {error => "Unable to find node - $node_name "};
+        $method->set_error("Unable to find node named $node_name\n");
+	return;
     }
-    my $result = $client->rules_per_switch($node->{'dpid'});
+    my $result = $client->rules_per_switch(dpid => int($node->{'dpid'}));
+    $result = int($result->{'results'});
 
-    #print STDERR Dumper($result);
-
-    $result = int($result);
     my $tmp;
     $tmp->{'results'} = {node => $node_name, rules_currently_on_switch => $result, maximum_allowed_rules_on_switch => $node->{'max_flows'}};
 

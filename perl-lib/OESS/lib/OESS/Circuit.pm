@@ -91,6 +91,12 @@ sub new{
 	$self->_load_circuit_details();
     }
 
+    if(!defined($self->{'details'})){
+	$self->{'logger'}->error("NO CIRCUIT FOUND!");
+	return;
+    }
+    
+
     return $self;
 }
 
@@ -146,6 +152,7 @@ sub update_circuit_details{
 }
 
 =head2 set_link_status
+
 =cut
 sub set_link_status{
     my $self = shift;
@@ -161,12 +168,17 @@ sub _load_circuit_details{
     my $self = shift;
     $self->{'logger'}->debug("Loading Circuit data for circuit: " . $self->{'circuit_id'});
     my $data = $self->{'db'}->get_circuit_details( circuit_id => $self->{'circuit_id'}, link_status => $self->{'link_status'});
+    if(!defined($data)){
+	$self->{'logger'}->error("NO DATA FOR THIS CIRCUIT!!! " . $self->{'circuit_id'});
+	return;
+    }
     $self->{'details'} = $data;
     $self->_process_circuit_details();
 }
 
 sub _process_circuit_details{
     my $self = shift;
+
     $self->{'remote_url'} = $self->{'details'}->{'remote_url'};
     $self->{'remote_requester'} = $self->{'details'}->{'remote_requester'};
     $self->{'state'} = $self->{'details'}->{'state'};
@@ -177,6 +189,7 @@ sub _process_circuit_details{
     $self->{'logger'}->debug("Active path: " . $self->get_active_path());
     $self->{'static_mac'} = $self->{'details'}->{'static_mac'};
     $self->{'has_backup_path'} = 0;
+    $self->{'type'} = $self->{'details'}->{'type'};
     $self->{'interdomain'} = 0;
     if(scalar(@{$self->{'details'}->{'backup_links'}}) > 0){
         $self->{'logger'}->debug("Circuit has backup path");
@@ -191,9 +204,11 @@ sub _process_circuit_details{
         }
     }
 
-    if(!$self->{'just_display'}){       
-        $self->_create_graph();
-        $self->_create_flows();
+    if(!$self->{'just_display'}){       	
+	$self->_create_graph();
+	if($self->{'type'} eq 'openflow'){
+	    $self->_create_flows();
+	}
     }
 }
 
@@ -1328,6 +1343,16 @@ sub get_path_status{
     
     return 1;
 
+}
+
+=head2 get_type
+
+=cut
+
+sub get_type{
+    my $self = shift;
+    return $self->{'type'};
+    
 }
 
 =head2 error

@@ -32,15 +32,17 @@ use strict;
 use Log::Log4perl;
 use Switch;
 
-use AnyEvent;
+use GRNOC::WebService::Regex;
+use GRNOC::RabbitMQ::Dispatcher;
+use GRNOC::RabbitMQ::Method;
+use GRNOC::RabbitMQ::Client;
 use OESS::FlowRule;
-use OESS::DBus;
-use Net::DBus;
 use JSON;
 
+use AnyEvent;
 use Data::Dumper;
 
-use Time::HiRes qw( usleep );
+use Time::HiRes qw( usleep gettimeofday tv_interval);
 use constant FWDCTL_ADD_VLAN     => 0;
 use constant FWDCTL_REMOVE_VLAN  => 1;
 use constant FWDCTL_CHANGE_PATH  => 2;
@@ -82,17 +84,120 @@ sub new {
         return;
     }
     
-    my $nox = OESS::DBus->new( service => 'org.nddi.openflow', instance => '/controller1');
-
     my $self = \%args;
+
+    $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL.Switch.' . sprintf("%x",$self->{'dpid'}));
+
+    my $ar = GRNOC::RabbitMQ::Client->new( host => $args{'rabbitMQ_host'},
+					   port => $args{'rabbitMQ_port'},
+					   user => $args{'rabbitMQ_user'},
+					   pass => $args{'rabbitMQ_pass'},
+					   topic => 'OF.NOX.RPC',
+					   exchange => 'OESS');
+    $self->{'rabbit_mq'} = $ar;
+
+    $self->{'fwdctl'} = GRNOC::RabbitMQ::Client->new( host => $args{'rabbitMQ_host'},
+                                                      port => $args{'rabbitMQ_port'},
+                                                      user => $args{'rabbitMQ_user'},
+                                                      pass => $args{'rabbitMQ_pass'},
+                                                      topic => 'OF.FWDCTL.RPC',
+                                                      exchange => 'OESS');
+    # Contact FWDCTL once every minute to verify the process is still
+    # up. If not close this process.
+    my $fwdctl_poll = AnyEvent->timer( after    => 60,
+                                       interval => 60,
+                                       cb       => sub {
+                                           $self->{'logger'}->debug("SENDING ECHO");
+                                           my $result = $self->{'fwdctl'}->echo( async_callback => sub {
+                                                                                     my $result = shift;
+                                                                                     if (defined $result->{'error'}) {
+                                                                                         $self->{'logger'}->warn("Could not contact FWDCTL; Now exiting.");
+                                                                                         $self->stop();
+                                                                                     }
+                                                                                 });
+                                       } );
+
+    my $topic = 'OF.FWDCTL.Switch.' . sprintf("%x", $self->{'dpid'});
+
+    $self->{'logger'}->info("Listening to topic: " . $topic);
+
+    my $dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $args{'rabbitMQ_host'},
+						       port => $args{'rabbitMQ_port'},
+						       user => $args{'rabbitMQ_user'},
+						       pass => $args{'rabbitMQ_pass'},
+						       topic => $topic,
+						       queue => $topic,
+						       exchange => 'OESS');
+    
+    my $method = GRNOC::RabbitMQ::Method->new( name => "add_vlan",
+					       async => 1,
+					       description => "adds a vlan for this switch",
+					       callback => sub { $self->add_vlan(@_) }	);
+    $method->add_input_parameter( name => "circuit_id",
+                                  description => "circuit_id to be added",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::NUMBER_ID);
+    $dispatcher->register_method($method);
+    
+    $method = GRNOC::RabbitMQ::Method->new( name => "remove_vlan",
+					    async => 1,
+					    description => "removes a vlan for this switch",
+					    callback => sub { $self->remove_vlan(@_) }     );
+    $method->add_input_parameter( name => "circuit_id",
+                                  description => "circuit_id to be removed",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::NUMBER_ID);
+    $dispatcher->register_method($method);
+
+    $method = GRNOC::RabbitMQ::Method->new( name => "change_path",
+					    description => "changes the path on the specified circuits",
+					    async => 1,
+					    callback => sub { $self->change_path(@_) }     );
+    $method->add_input_parameter( name => "circuit_id",
+                                  description => "The message and paramteres to be run by the child",
+                                  required => 1,
+				  multiple => 1,
+				  async => 1,
+                                  pattern => $GRNOC::WebService::Regex::NUMBER_ID);
+    $dispatcher->register_method($method);
+
+
+    $method = GRNOC::RabbitMQ::Method->new( name => "echo",
+					    description => " just an echo to check to see if we are aliave",
+					    callback => sub { return {status => 1, msg => "I'm alive!", total_rules => $self->{'flows'}}});
+    $dispatcher->register_method($method);
+
+    $method = GRNOC::RabbitMQ::Method->new( name => "datapath_join",
+                                            description => " handle datapath join event",
+					    callback => sub { $self->datapath_join_handler(); return {status => 1, msg => "default drop/forward installed, diffing scheduled", total_rules => $self->{'flows'}}});
+    $dispatcher->register_method($method);
+
+    $method = GRNOC::RabbitMQ::Method->new( name => "force_sync",
+                                            description => " handle force_sync event",
+					    callback => sub { $self->{'logger'}->warn("received a force_sync command");
+							      $self->_update_cache();
+							      $self->{'needs_diff'} = time();
+							      return {status => 1, msg => "diff scheduled!", total_rules => $self->{'flows'}}; });
+    $dispatcher->register_method($method);
+
+    $method = GRNOC::RabbitMQ::Method->new( name => "update_cache",
+                                            description => " handle thes update cahce call",
+                                            callback => sub { $self->_update_cache();
+							      return {status => 1, msg => "cache updated", total_rules => $self->{'flows'}}});
+    $dispatcher->register_method($method);
+
+    $method = GRNOC::RabbitMQ::Method->new( name        => "stop",
+                                            callback    => sub {
+                                                $self->stop();
+                                                $self->{'logger'}->info("FWDCTL has stopped; Now exiting.");
+                                            },
+                                            description => "Notification that FWDCTL has exited",
+                                            topic       => "OF.FWDCTL.event" );
+    $dispatcher->register_method($method);
 
     #--- set a default discovery vlan that can be overridden later if needed.
     $self->{'settings'}->{'discovery_vlan'} = -1;
 
-    $self->{'nox'} = $nox->{'dbus'};
-
-    $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL.Switch.' . sprintf("%x",$self->{'dpid'}));
-    $self->{'logger'}->debug("I EXIST!!!");
     bless $self, $class;
 
     $self->_update_cache();
@@ -104,8 +209,18 @@ sub new {
                                             $self->get_flow_stats();
                                         } );
 
+    $self->{'logger'}->info("Switch process: " . $self->{'dpid'} . " is ready to go!");
 
+    AnyEvent->condvar->recv;
     return $self;
+}
+
+=head2 stop
+
+=cut
+sub stop {
+    my $self = shift;
+    exit 0;
 }
 
 =head2 echo
@@ -142,7 +257,8 @@ sub _update_cache{
     }
 
     foreach my $ckt (keys %{ $data->{'ckts'}}){
-        $self->{'logger'}->debug("processing cache for circuit: " . $ckt);
+        $ckt = int($ckt);
+	$self->{'logger'}->debug("processing cache for circuit: " . $ckt);
 
         $self->{'ckts'}->{$ckt}->{'details'} = $data->{'ckts'}->{$ckt}->{'details'};
 
@@ -195,20 +311,30 @@ sub _generate_commands {
         $self->{'logger'}->error("No circuit with id: " . $circuit_id . " found in the cache");
         return;
     }
+
+    my @flows;
     
     switch($action){
         case (FWDCTL_ADD_VLAN){
-            return $self->{'ckts'}->{$circuit_id}->{'flows'}->{'current'};
+            foreach my $flow (@{$self->{'ckts'}->{$circuit_id}->{'flows'}->{'current'}}){
+		push(@flows, $flow);
+	    }
+	    return \@flows;
         }case (FWDCTL_REMOVE_VLAN){
-            return $self->{'ckts'}->{$circuit_id}->{'flows'}->{'current'};
+	    foreach my $flow (@{$self->{'ckts'}->{$circuit_id}->{'flows'}->{'current'}}){
+                push(@flows, $flow);
+            }
+            return \@flows;
         }case (FWDCTL_CHANGE_PATH){
             #we already performed the DB change so that means
             #whatever path is active is actually what we are moving to
             my $active_path     = $self->{'ckts'}{$circuit_id}{'details'}{'active_path'};
-            my $endpoint_flows  = $self->{'ckts'}{$circuit_id}{'flows'}{'endpoint'}{$active_path};
-            return $endpoint_flows;
+	    foreach my $flow (@{$self->{'ckts'}{$circuit_id}{'flows'}{'endpoint'}{$active_path}}){
+                push(@flows, $flow);
+            }
+            return \@flows;
         }else{
-
+	    $self->{'logger'}->error("_generate_commands: Invalid ACTION! $action");
         }
     }
 }
@@ -276,12 +402,16 @@ sub process_event{
 
 sub change_path{
     my $self = shift;
-    my $circuits = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+
+    my $circuits = $p_ref->{'circuit_id'}{'value'};
     
     $self->_update_cache();
     
-    my $res = FWDCTL_SUCCESS;
-   
+    my @pending_commands;
+
     foreach my $circuit (@$circuits){
         
         my $commands    = $self->_generate_commands($circuit,FWDCTL_CHANGE_PATH);
@@ -291,41 +421,24 @@ sub change_path{
             next unless defined($command);
             next unless ($command->get_dpid() == $self->{'dpid'});
             $self->{'logger'}->info("Modifying endpoint flow to $active_path path: " . $command->to_human());
-            $self->{'nox'}->send_datapath_flow($command->to_dbus( command => OFPFC_MODIFY_STRICT ));
-
-            #if not doing bulk barrier send a barrier and wait
-            if(!$self->{'node'}->{'send_barrier_bulk'}){
-                $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-                $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
-                #assume failure , use diff to be resilient to failure
-                $self->{'needs_diff'} = time();
-                
-                my $result = $self->_poll_node_status();
-                if($result != FWDCTL_SUCCESS){
-                    $res = FWDCTL_FAILURE;
-                }
-            }
-            
-            usleep($self->{'node'}->{'tx_delay_ms'} * 1000);
-        }
+	    push(@pending_commands, $command);
+	}
     }
-
-    #send our final barrier and wait for reply
-    $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-    $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
-    #assume failure , use diff to be resilient to failure
-    $self->{'needs_diff'} = time();
-    my $result = $self->_poll_node_status();
-    if($result != FWDCTL_SUCCESS){
-        $res = FWDCTL_FAILURE;
-    }
-
-    if($res == FWDCTL_SUCCESS){
-        return {success => 1, msg => "All circuits successfully changed path"};
-    }else{
-        return {success => 0, msg => "Some circuits failed to change path"};
-    }
-        
+    
+    $self->send_flows( flows => \@pending_commands,
+		       command => OFPFC_MODIFY_STRICT,
+		       cb => sub {
+			   $self->{'rabbit_mq'}->send_barrier( dpid => int($self->{'dpid'}),
+							       async_callback => sub {
+								   $self->get_node_status( cb => sub { my $res = shift;
+												       $self->{'needs_diff'} = time();
+												       my $cb = $m_ref->{'success_callback'};
+												       &$cb($res);
+											   })
+							       });
+		       });
+    
+    
     
 }
 
@@ -335,58 +448,123 @@ sub change_path{
 
 sub add_vlan{
     my $self = shift;
-    my $circuit = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    my $start = [gettimeofday];
+
+    $self->{'logger'}->debug("in add_vlan");
+
+    my $circuit = $p_ref->{'circuit_id'}{'value'};
+
+    $self->{'logger'}->debug("Adding VLAN: " . Data::Dumper::Dumper($p_ref));
 
     $self->_update_cache();
 
+    my $after_update_cache = [gettimeofday];
+
+    $self->{'logger'}->info("Elapsed time to update cache: " . tv_interval( $start, $after_update_cache));
+
     my $commands = $self->_generate_commands($circuit,FWDCTL_ADD_VLAN);
+
+    my $after_create_flows = [gettimeofday];
+
+    $self->{'logger'}->info("Time to create flows: " . tv_interval( $after_update_cache, $after_create_flows));
     
     my $res = FWDCTL_SUCCESS;
 
-    foreach my $command (@$commands){
-        
-        if($self->{'flows'} < $self->{'node'}->{'max_flows'}){
-            $self->{'logger'}->info("Installing Flow: " . $command->to_human());
+    $self->send_flows( flows => $commands,
+                       command => OFPFC_ADD,
+                       cb => sub {
+			   my $barrier_start = [gettimeofday];
+			   $self->{'logger'}->info("Time to complete sending flows: " . tv_interval( $after_create_flows, $barrier_start));
+                           $self->{'rabbit_mq'}->send_barrier( dpid => int($self->{'dpid'}),
+                                                               async_callback => sub {
+                                                                   $self->get_node_status( cb =>  sub { my $res = shift; 
+													my $end = [gettimeofday];
+													$self->{'logger'}->info("Elapsed Time add_vlan: " . tv_interval( $start, $end ));
+													$self->{'logger'}->info("Time waiting on barrier: " . tv_interval( $barrier_start, $end));
+													$self->{'needs_diff'} = time();
+													my $cb = $m_ref->{'success_callback'};
+													&$cb($res);
+											   });
+								       
+                                                               });
+                       });
 
-            $self->{'nox'}->send_datapath_flow($command->to_dbus( command => OFPFC_ADD ));
-            $self->{'flows'}++;
-                        
-        }else{
- 
-            $self->{'logger'}->error("Node: " . $self->{'node'}->{'name'} . " is at or over its maximum flow mod limit, unable to send flow rule for circuit: " . $circuit);
-            $res = FWDCTL_FAILURE;
-            
-        }
+}
 
-        #if not doing bulk barrier send a barrier and wait
-        if(!$self->{'node'}->{'send_barrier_bulk'}){
-            $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-            $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
-            #assume failure , use diff to be resilient to failure
-            $self->{'needs_diff'} = time();
-            my $result = $self->_poll_node_status();
-            if($result != FWDCTL_SUCCESS){
-                $res = FWDCTL_FAILURE;
-            }
-        }
-        usleep($self->{'node'}->{'tx_delay_ms'} * 1000);
+=head2 send_flows
+
+=cut
+
+sub send_flows{
+    my $self = shift;
+    my %params = @_;
+
+    $self->{'logger'}->debug("send_flows!");
+
+    my $flows = $params{'flows'};
+    my $cmd = $params{'command'};
+    my $cb = $params{'cb'};
+
+    if(!defined($cmd)){
+        $self->{'logger'}->error("No Command specified for send_flows");
+        return;
     }
 
-    #send our final barrier and wait for reply
-    $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-    $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
-    #assume failure , use diff to be resilient to failure
-    $self->{'needs_diff'} = time();
-    my $result = $self->_poll_node_status();
-    if($result != FWDCTL_SUCCESS){
-        $res = FWDCTL_FAILURE;
+    if(!defined($flows) || scalar(@$flows) == 0){
+	$self->{'logger'}->debug("send_flows: No more flows!");
+	&$cb();
+	return;
     }
+    
+    usleep($self->{'node'}->{'tx_delay_ms'} * 1000);
+    
+    #pull off the first flow...
+    my $flow = shift(@$flows);
 
-    if($res == FWDCTL_SUCCESS){
-        return {success => 1, msg => "Successfully added flows for circuit: $circuit"};
+
+    if($cmd == OFPFC_ADD){
+	$self->{'flows'}++;
+	$self->{'logger'}->info("Installing Flow: " . $flow->to_human());
+    }elsif($cmd == OFPFC_DELETE_STRICT || $cmd == OFPFC_DELETE){
+	$self->{'flows'}--;
+	$self->{'logger'}->info("Deleting Flow: " . $flow->to_human());
     }else{
-        return {success => 0, msg => "Failed to add flows for circuit: $circuit"};
+	#must be modify, in other words no del/or add
+	$self->{'logger'}->info("Modifying Flow: " . $flow->to_human());
     }
+    
+    if($self->{'flows'} > $self->{'node'}->{'max_flows'}){
+	$self->{'logger'}->error("Switch is currently at configured flow limit! Unable to install flows");
+	&$cb({status => 0, error => "Switch is at flow limit"});
+	return;
+    }
+
+    if($self->{'node'}->{'send_barrier_bulk'}){
+	$self->{'rabbit_mq'}->send_datapath_flow(flow => $flow->to_dict( command => $cmd),
+						 async_callback => sub { $self->send_flows( flows => $flows,
+											    command => $cmd,
+											    cb => $cb); });
+
+    }else{
+	
+	$self->{'rabbit_mq'}->send_datapath_flow(flow => $flow->to_dict( command => $cmd),
+						 async_callback => sub { 
+						     $self->{'rabbit_mq'}->send_barrier( dpid => int($self->{'dpid'}),
+											 async_callback => sub {
+											     $self->get_node_status( cb => sub{ $self->send_flows( flows => $flows,
+																	     command => $cmd,
+																	     cb => $self->send_flows( flows => $flows,
+																				      cb => $cb,
+																				      command => $cmd))
+														     })
+											 })
+						 });
+
+    }
+    
 
 }
 
@@ -396,53 +574,33 @@ sub add_vlan{
 
 sub remove_vlan{
     my $self = shift;
-    my $circuit = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    my $circuit = $p_ref->{'circuit_id'}{'value'};
+
+    $self->{'logger'}->debug("Calling remove_vlan for circuit $circuit.");
+    $self->{'logger'}->debug("Calling remove_vlan with args: " . Data::Dumper::Dumper($p_ref));
 
     $self->_update_cache();
 
-    my $commands = $self->_generate_commands($circuit,FWDCTL_REMOVE_VLAN);
-    
-    my $res = FWDCTL_SUCCESS;
+    my $commands = $self->_generate_commands($circuit, FWDCTL_REMOVE_VLAN);
+    $self->{'logger'}->debug("Sending OFPFC_DELETE_STRICT in remove_vlan with commands: " . Data::Dumper::Dumper($commands));
 
-    foreach my $command (@$commands){
-
-        $self->{'logger'}->info("Removing Flow: " . $command->to_human());
-        $self->{'nox'}->send_datapath_flow($command->to_dbus( command => OFPFC_DELETE_STRICT ));
-        $self->{'flows'}--;
-        
-        #if not doing bulk barrier send a barrier and wait
-        if(!$self->{'node'}->{'send_barrier_bulk'}){
-            $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-            $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
-            #assume failure , use diff to be resilient to failure
-            $self->{'needs_diff'} = time();
-            my $result = $self->_poll_node_status();
-            if($result != FWDCTL_SUCCESS){
-                $res = FWDCTL_FAILURE;
-            }
-        }
-
-        usleep($self->{'node'}->{'tx_delay_ms'} * 1000);
-
-    }    
-
-    #send our final barrier and wait for reply
-    $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-    $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
-    #assume failure , use diff to be resilient to failure
-    $self->{'needs_diff'} = time();
-    my $result = $self->_poll_node_status();
-    $self->{'logger'}->info("Got a barrier reply");
-    if($result != FWDCTL_SUCCESS){
-        $res = FWDCTL_FAILURE;
-    }
-
-    if($res == FWDCTL_SUCCESS){
-        return {success => 1, msg => "Successfully removed flows for: $circuit"};
-    }else{
-        return {success => 0, msg => "Failed to remove flows for circuit: $circuit"};
-    }
-    
+    $self->send_flows( flows => $commands,
+		       command => OFPFC_DELETE_STRICT,
+		       cb => sub {
+			   $self->{'rabbit_mq'}->send_barrier( dpid => int($self->{'dpid'}),
+							       async_callback => sub {
+								   $self->get_node_status( cb => sub {
+								       my $res = shift;
+								       $self->{'needs_diff'} = time();
+								       my $cb = $m_ref->{'success_callback'};
+								       &$cb($res);
+                                                                   } )
+							       });
+		       });
+    $self->{'logger'}->debug("Leaving remove_vlan");
 }
 
 =head2 datapath_join_handler
@@ -458,95 +616,79 @@ sub datapath_join_handler{
     $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} . " datapath join");
     
     my %xid_hash;
-    
-    if(!defined($self->{'node'}->{'default_forward'}) || $self->{'node'}->{'default_forward'} == 1) {
-        my $status;
-
-        #--- make sure there is a discovery vlan set. else send -1.
-        if($self->{'settings'}->{'discovery_vlan'}){ 
-            $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." pushing lldp forwarding rule for vlan $self->{'settings'}->{'discovery_vlan'}");
-            $status = $self->{'nox'}->install_default_forward(Net::DBus::dbus_uint64($self->{'dpid'}),$self->{'settings'}->{'discovery_vlan'});
-        }
-        else{
-            $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." pushing lldp forwarding rule for vlan -1");
-            $status = $self->{'nox'}->install_default_forward(Net::DBus::dbus_uint64($self->{'dpid'}),-1);
-        }
-
-        $self->{'flows'}++;
-    }
 
     if (!defined($self->{'node'}->{'default_drop'}) || $self->{'node'}->{'default_drop'} == 1) {
         $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." pushing default drop rule");
-        my $status = $self->{'nox'}->install_default_drop(Net::DBus::dbus_uint64($self->{'dpid'}));
-        $self->{'flows'}++;
+        $self->{'rabbit_mq'}->install_default_drop( dpid => int($self->{'dpid'}),
+						    async_callback => sub{ $self->{'flows'}++} );
     }
-    $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-    my $xid = $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
+    
+    if(!defined($self->{'node'}->{'default_forward'}) || $self->{'node'}->{'default_forward'} == 1) {
+        my $status;
+	
+	my $discovery_vlan = -1;
+	if(defined($self->{'settings'}->{'discovery_vlan'})){
+	    $discovery_vlan = $self->{'settings'}->{'discovery_vlan'};
+	}
+	
+	$self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." pushing lldp forwarding rule for vlan $discovery_vlan");
+	$status = $self->{'rabbit_mq'}->install_default_forward( dpid => int($self->{'dpid'}), 
+								 discovery_vlan => int($self->{'settings'}->{'discovery_vlan'}),
+								 async_callback => sub { $self->{'flows'} = $self->{'flows'} + 2; } );
+    }
 
-    my $result = $self->_poll_node_status();
-    
-    if ($result != FWDCTL_SUCCESS) {
-        $self->{'logger'}->error("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} . " failed to install default drop or lldp forward rules, may cause traffic to flood controller or discovery to fail");
-    } else {
-        $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." installed default drop rule and lldp forward rule");
-    }
-    
-    $self->{'needs_diff'} = time();
-    
+    $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
+    $self->{'rabbit_mq'}->send_barrier(dpid => int($self->{'dpid'}),
+				       async_callback => sub {
+					   $self->get_node_status( cb => sub {
+					       my $results = shift;
+					       if($results->{'status'} != FWDCTL_SUCCESS){
+						   $self->{'logger'}->error("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} . " failed to install default drop or lldp forward rules, may cause traffic to flood controller or discovery to fail");
+					       } else {
+						   $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} ." installed default drop rule and lldp forward rule");
+					       }
+					       $self->{'needs_diff'} = time();
+								   })
+				       });    
 }
 
-sub _replace_flowmod{
+sub _replace_flowmods{
     my $self = shift;
     my $commands = shift;
 
-    if (!defined($commands->{'remove'}) && !defined($commands->{'add'})) {
-        return undef;
-    }
+    $self->{'logger'}->debug("Replacing flow mods");
+    $self->{'logger'}->debug("FLows: " . Data::Dumper::Dumper($commands));
 
-    my $state = FWDCTL_SUCCESS;
-
-    if (defined($commands->{'remove'})) {
-        #delete this flowmod
-        $self->{'logger'}->info("Deleting flow: " . $commands->{'remove'}->to_human());
-        my $status = $self->{'nox'}->send_datapath_flow($commands->{'remove'}->to_dbus( command => OFPFC_DELETE_STRICT ));
-
-        if(!$self->{'node'}->{'send_barrier_bulk'}){
-            my $xid = $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($commands->{'remove'}->get_dpid()));
-            $self->{'logger'}->debug("replace flowmod: send_barrier: with dpid: " . $commands->{'remove'}->get_dpid());
-            #assume failure , use diff to be resilient to failure
-            $self->{'needs_diff'} = time();
-            my $res = $self->_poll_node_status();
-            if($res != FWDCTL_SUCCESS){
-                $state = FWDCTL_FAILURE;
-            }
-        }
-        $self->{'flows'}--;
-    }
+    my @deletes;
+    my @adds;
     
-    if (defined($commands->{'add'})) {
-        if ( $self->{'flows'} >= $self->{'node'}->{'max_flows'}){
-            $self->{'logger'}->error("sw: dpipd:" . $self->{'node'}->{'dpid_str'} . " exceeding max_flows:". $self->{'node'}->{'max_flows'} ." replace flowmod failed");
-            return FWDCTL_FAILURE;
-        }
-	    $self->{'logger'}->info("Installing Flow: " . $commands->{'add'}->to_human());
-        my $status = $self->{'nox'}->send_datapath_flow($commands->{'add'}->to_dbus( command => OFPFC_ADD ));
+    foreach my $command (@$commands){
+	if (defined($command->{'remove'})) {
+	    #delete this flowmod
+	    push(@deletes, $command->{'remove'});
+	}
+
+	if (defined($command->{'add'})) {
+	    #install this flow mod
+	    push(@adds, $command->{'add'});
+	}
 	
-        # send the barrier if the bulk flag is not set
-        if (!$self->{'node'}->{'send_barrier_bulk'}) {
-            $self->{'logger'}->info("Sending Barrier for node: " . $self->{'dpid'});
-            my $xid = $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($commands->{'add'}->get_dpid()));
-            #assume failure , use diff to be resilient to failure
-            $self->{'needs_diff'} = time();
-            $self->{'logger'}->error("replace flowmod: send_barrier: with dpid: " . $commands->{'add'}->get_dpid());
-            my $res = $self->_poll_node_status();
-            if($res != FWDCTL_SUCCESS){
-                $state = FWDCTL_FAILURE;
-            }
-        }	
-        $self->{'flows'}++;
     }
-    usleep($self->{'node'}->{'tx_delay_ms'} * 1000 );
-    return $state;
+
+    $self->send_flows( flows => \@deletes,
+                       command => OFPFC_DELETE_STRICT,
+		       cb => sub {
+			   $self->send_flows( flows => \@adds,
+					      command => OFPFC_ADD,
+					      cb => sub {
+						  $self->{'rabbit_mq'}->send_barrier( dpid => int($self->{'dpid'}),
+										      async_callback => sub {
+											  $self->get_node_status( cb =>  sub {  my $res = shift; 
+															 $self->{'logger'}->info("sw: " . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} . " diff complete! status: ".Dumper($res));
+														  });
+										      });
+					      })
+		       });
 }
 
 sub _do_diff{
@@ -568,7 +710,9 @@ sub _do_diff{
         next unless ($self->{'ckts'}->{$circuit_id}->{'details'}->{'state'} eq 'active' || 
                      $self->{'ckts'}->{$circuit_id}->{'details'}->{'state'} eq 'deploying');
         #--- get the set of commands needed to create this vlan per design
-        my $commands = $self->_generate_commands($circuit_id,FWDCTL_ADD_VLAN);
+        $self->{'logger'}->error("Processing ckt_id: " . $circuit_id);
+	my $commands = $self->_generate_commands($circuit_id,FWDCTL_ADD_VLAN);
+	$self->{'logger'}->error("Flows for ckt: " . $circuit_id . " " . Data::Dumper::Dumper($commands));
         foreach my $command (@$commands) {
             push(@all_commands,$command);
         }
@@ -621,7 +765,7 @@ sub _actual_diff{
 
     foreach my $command (@$commands) {
         #---ignore rules not for this dpid
-        $self->{'logger'}->debug("Checking to see if " . $command->to_human() . " is on device");
+        $self->{'logger'}->info("Checking to see if " . $command->to_human() . " is on device");
         next if($command->get_dpid() != $self->{'dpid'});
         
 	my $found = 0;
@@ -644,7 +788,7 @@ sub _actual_diff{
                         delete $current_flows->{$match->{'in_port'}}->{$match->{'dl_vlan'}}->[$i];
                     }else{
                         #the matches match but the actions do not... replace
-                        $self->{'logger'}->debug("replacing with new flow");
+                        $self->{'logger'}->info("replacing with new flow");
                         $stats{'mods'}++;
                         $self->{'flows'}++;
                         push(@rule_queue,{remove => $flow, add => $command});
@@ -686,36 +830,39 @@ sub _actual_diff{
         $self->{'needs_diff'} = 0;
         return FWDCTL_SUCCESS;
     }
-    #--- process the rule_queue
-    my $res = FWDCTL_SUCCESS;
-    $self->{'logger'}->debug("before calling _replace_flowmod in loop with rule_queue:". @rule_queue);
-    foreach my $args (@rule_queue) {
-        my $new_result = $self->_replace_flowmod($args);
-        if (defined($new_result) && ($new_result != FWDCTL_SUCCESS)) {
-            $res = $new_result;
-        }
-        usleep($self->{'node'}->{'tx_delay_ms'} * 1000);
-    }
 
-    if($self->{'node'}->{'bulk_barrier'}){
-        my $xid = $self->{'nox'}->send_barrier(Net::DBus::dbus_uint64($self->{'dpid'}));
-        $self->{'logger'}->info("diff barrier with dpid: " . $self->{'dpid'});
-        my $result = $self->_poll_node_status();
-        $self->{'logger'}->debug("node_status");
-        if($result != FWDCTL_SUCCESS){
-            $res = $result;
-        }
-    }
+    $self->_replace_flowmods(\@rule_queue);
 
-    
 
-    if ($res == FWDCTL_SUCCESS) {       
-        $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} . " diff completed $total changes");
-    } else {
-        $self->{'logger'}->error("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} . " diff did not complete");
-       
-    }
-    return $res;
+#    #--- process the rule_queue
+#    my $res = FWDCTL_SUCCESS;
+#    $self->{'logger'}->debug("before calling _replace_flowmod in loop with rule_queue:". @rule_queue);
+#    foreach my $args (@rule_queue) {
+#        my $new_result = $self->_replace_flowmod($args);
+#        if (defined($new_result) && ($new_result != FWDCTL_SUCCESS)) {
+#            $res = $new_result;
+#        }
+#        usleep($self->{'node'}->{'tx_delay_ms'} * 1000);
+#    }
+#
+#    if($self->{'node'}->{'bulk_barrier'}){
+#	$self->{'rabbit_mq'}->send_barrier( dpid => int($self->{'dpid'}) );
+#        $self->{'logger'}->info("diff barrier with dpid: " . $self->{'dpid'});
+#        my $result = $self->_poll_node_status();
+#        $self->{'logger'}->debug("node_status");
+#        if($result != FWDCTL_SUCCESS){
+#            $res = $result;
+#        }
+#    }
+#
+#    
+#
+#    if ($res == FWDCTL_SUCCESS) {       
+#        $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} . " diff completed $total changes");
+#    } else {
+#        $self->{'logger'}->error("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} . " diff did not complete");     
+#    }
+#    return $res;
 }
 
 
@@ -735,8 +882,11 @@ sub _process_stats_to_flows{
     my $flows = shift;
 
     my %new_flows;
+    $self->{'logger'}->debug("Processing stats to flows");
     foreach my $flow (@$flows){	
+	$self->{'logger'}->debug("Raw stat: " . Dumper($flow));
 	my $new_flow = OESS::FlowRule::parse_stat( dpid => $dpid, stat => $flow );
+	$self->{'logger'}->debug("FlowStat Flow: " . $new_flow->to_human());
         my $match = $new_flow->get_match();
         #Allow Traceroute to manage its own flow rules
         if ($match->{'dl_type'} && $match->{'dl_type'} == 34997){
@@ -760,7 +910,20 @@ sub get_flow_stats{
     my $self = shift;
 
     if($self->{'needs_diff'}){
-        my ($time,$stats) = $self->{'nox'}->get_flow_stats($self->{'dpid'});
+        $self->{'rabbit_mq'}->get_flow_stats( dpid => int($self->{'dpid'}), async_callback => $self->flow_stats_callback() );
+    }
+}
+
+sub flow_stats_callback{
+    my $self = shift;
+
+    return sub {
+	my $results = shift;
+	$self->{'logger'}->debug("Flow stats callback!!!!");
+        
+	my $time = $results->{'results'}->[0]->{'timestamp'};
+	my $stats = $results->{'results'}->[0]->{'flow_stats'}; 
+
         if ($time == -1) {
             #we don't have flow data yet
             $self->{'logger'}->info("no flow stats cached yet for dpid: " . $self->{'dpid'});
@@ -768,41 +931,57 @@ sub get_flow_stats{
         }
 
         if($time > $self->{'needs_diff'}){
-            #$self->{'needs_diff'} = 0;
+	    $self->{'logger'}->debug("About to diff");
             #---process the flow_rules into a lookup hash
             my $flows = $self->_process_stats_to_flows( $self->{'dpid'}, $stats);
             
             #--- now that we have the lookup hash of flow_rules
             #--- do the diff
             $self->_do_diff($flows);
-        }
+        }else{
+	    $self->{'logger'}->debug("need to re-schedule the diff!");
+	}
     }
 }
 
-sub _poll_node_status{
-    my $self          = shift;
+sub get_node_status{
+    my $self   = shift;
+    my %params = @_;
 
-    my $result  = FWDCTL_SUCCESS;
-    my $timeout = time() + 15;
+    my $cb            = $params{'cb'};
+    my $timeout       = $params{'timeout'};
 
-    while (time() < $timeout) {
-        
-        my ($output,$failed_flows) = $self->{'nox'}->get_node_status(Net::DBus::dbus_uint64($self->{'dpid'}));
-        $self->{'logger'}->debug("poll node status output: $output");
-        #-- pending, retry later
-        $self->{'logger'}->trace("Status of node: " . $self->{'node'}->{'name'} . " DPID: " . $self->{'node'}->{'dpid_str'} . " is " . $output);
-        if ($output != FWDCTL_WAITING){
-            #--- one failed , some day have handler passed in hash
-            $self->{'logger'}->debug("Have a response for node: " . $self->{'node'}->{'name'} . " DPID: " . $self->{'node'}->{'dpid_str'} . " and is " . $output);
-            return $output;
-        }
-        #--- if we got here lets take a short nap
-        usleep(100);
+    $self->{'logger'}->debug("Getting node status");
+
+    if(!defined($timeout)){
+	#15 sec timeout
+	$timeout = time() + 15;
+    }
+
+    $self->{'logger'}->debug("timeout: " . $timeout . " vs current time: " . time());
+
+    if(time() > $timeout){
+	$self->{'logger'}->debug("Unable to get status back from device");
+	&$cb({status => FWDCTL_UNKNOWN});
+	return;
     }
     
-    $result = FWDCTL_UNKNOWN;
-    $self->{'logger'}->warn("Switch: " . $self->{'node'}->{'name'} . " DPID: " . $self->{'node'}->{'dpid_str'} . " did not respond before the timout");
-    return $result;
+
+    $self->{'rabbit_mq'}->get_node_status( dpid => int($self->{'dpid'}),
+					   async_callback => sub { 
+					       my $results = shift;
+					       if($results->{'results'}->[0]->{'status'} == FWDCTL_WAITING){
+						   $self->{'logger'}->debug("fetching node status again");
+						   usleep(100);
+						   $self->get_node_status( cb => $cb,
+									   timeout => $timeout );
+						   return;
+					       }else{
+						   $self->{'logger'}->debug("received status: " . $results->{'results'}->[0]->{'status'});
+						   &$cb({status => $results->{'results'}->[0]->{'status'}});
+						   return;
+					       }
+					   });
 }
 
 

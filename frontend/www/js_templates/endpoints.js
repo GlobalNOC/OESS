@@ -4,7 +4,7 @@ function makeInterfacesTable(node){
   var node_name_holder = document.getElementById('node_name_holder');
   node_name_holder.innerHTML = "<center><h2><b>" + node + "</b></h2></center>";
 
-    var url = "services/data.cgi?action=get_node_interfaces&node=" + encodeURIComponent(node) + "&workgroup_id=" + session.data.workgroup_id + "&show_down=1" + "&show_trunk=1";
+    var url = "services/data.cgi?method=get_node_interfaces&node=" + encodeURIComponent(node) + "&workgroup_id=" + session.data.workgroup_id + "&show_down=1" + "&show_trunk=1";
   
   var ds = new YAHOO.util.DataSource(url);
   ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
@@ -148,7 +148,7 @@ function init(){
                     };
 
                     var endpoint_limit_ds = new YAHOO.util.DataSource(
-                        "services/data.cgi?action=is_within_circuit_endpoint_limit"+
+                        "services/data.cgi?method=is_within_circuit_endpoint_limit"+
                         "&workgroup_id=" + session.data.workgroup_id+
                         "&endpoint_num=" + ( endpoint_table.getRecordSet().getRecords().length + 1 ) 
                     );

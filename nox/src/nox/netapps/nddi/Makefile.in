@@ -295,11 +295,11 @@ nox_installwwwdir = $(DESTDIR)$(bindir)/nox/webapps/webserver/www
 EXTRA_DIST = \
 	__init__.py\
 	meta.json\
-	nddi_dbus.py
+	nddi_rabbitmq.py
 
 @PY_ENABLED_TRUE@NOX_RUNTIMEFILES = meta.json\
 @PY_ENABLED_TRUE@	__init__.py\
-@PY_ENABLED_TRUE@	nddi_dbus.py
+@PY_ENABLED_TRUE@	nddi_rabbitmq.py
 
 all: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) all-am

@@ -34,6 +34,8 @@ use JSON;
 use Switch;
 use Data::Dumper;
 
+use GRNOC::RabbitMQ::Client;
+
 use LWP::UserAgent;
 
 use OESS::Database;
@@ -281,6 +283,14 @@ sub main {
             }
             $output = &decom_workgroup();
         }
+	case "add_mpls_switch"{
+	    if($user->{'type'} eq 'read-only'){
+                return send_json({error => 'Error: you are a readonly user'});
+            }
+	    
+	    $output = &add_mpls_switch();
+	    
+	}
         else {
             $output = {
                 error => "Unknown action - $action"
@@ -856,7 +866,7 @@ sub confirm_node {
         vlan_range      => $range,
         default_forward => $default_forward,
         default_drop    => $default_drop,
-	    tx_delay_ms     => $tx_delay_ms,
+        tx_delay_ms     => $tx_delay_ms,
         max_flows       => $max_flows,
         bulk_barrier    => $bulk_barrier
         );
@@ -875,42 +885,61 @@ sub confirm_node {
 
     my $node = $db->get_node_by_id( node_id => $node_id);
 
-    #send message to update the status
-    my $bus = Net::DBus->system;
-
-    my $client;
-    my $service;
-
-    eval {
-        $service = $bus->get_service("org.nddi.fwdctl");
-        $client  = $service->get_object("/controller1");
-    };
-
-    if ($@) {
-        warn "Error in _connect_to_fwdctl: $@";
-        return undef;
+    my $client  = new GRNOC::RabbitMQ::Client(
+                                              topic => 'OF.FWDCTL.RPC',
+                                              exchange => 'OESS',
+                                              user => 'guest',
+                                              pass => 'guest',
+                                              host => 'localhost',
+                                              port => 5672,
+                                              timeout => 15
+        );
+    if (!defined $client) {
+        $results->{'results'} = [ {
+                                   "error"   => "Internal server error occurred. Message queue connection failed.",
+                                   "success" => 0
+                                  }
+                                ];
+        return $results;
     }
 
-    if ( !defined $client ) {
-        warn "Unable to connect to FWDCTL";
-        return undef;
+    my $cache_result = $client->update_cache(circuit_id => -1);
+    warn Data::Dumper::Dumper($cache_result);
+    
+    if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
+        $results->{'results'} = [ {
+                                   "error"   => "Cache result error: $cache_result->{'error'}.",
+                                   "success" => 0
+                                  }
+                                ];
+        return $results;
     }
 
-
-    my ($res,$event_id) = $client->update_cache(-1);
+    my $event_id  = $cache_result->{'results'}->{'event_id'};
     my $final_res = FWDCTL_WAITING;
 
-    while($final_res == FWDCTL_WAITING){
+    while ($final_res == FWDCTL_WAITING) {
         sleep(1);
-        $final_res = $client->get_event_status($event_id);
+        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
     }
 
-    ($res,$event_id) = $client->force_sync($node->{'dpid'});
+    $cache_result = $client->force_sync(dpid => int($node->{'dpid'}));
+    if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
+        $results->{'results'} = [ {
+                                   "error"   => "Failure occurred in force_sync against dpid: $node->{'dpid'}",
+                                   "success" => 0
+                                  }
+                                ];
+        return $results;
+    }
+
+    $event_id = $cache_result->{'results'}->{'event_id'};
+
     $final_res = FWDCTL_WAITING;
     
     while($final_res == FWDCTL_WAITING){
         sleep(1);
-        $final_res = $client->get_event_status($event_id);
+        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
     }
 
 
@@ -978,44 +1007,50 @@ sub update_node {
         $results->{'results'} = [ { "success" => 1 } ];
     }
 
-    #send message to update the status
-    my $bus = Net::DBus->system;
+    my $client  = new GRNOC::RabbitMQ::Client(
+        topic => 'OF.FWDCTL.RPC',
+        exchange => 'OESS',
+        user => 'guest',
+        pass => 'guest',
+        host => 'localhost',
+        port => 5672
+        );
 
-    my $client;
-    my $service;
-
-    eval {
-        $service = $bus->get_service("org.nddi.fwdctl");
-        $client  = $service->get_object("/controller1");
-    };
-
-    if ($@) {
-        warn "Error in _connect_to_fwdctl: $@";
-        return undef;
-    }
-
-    if ( !defined $client ) {
-        return undef;
+    if ( !defined($client) ) {
+        return;
     }
 
     my $node = $db->get_node_by_id(node_id => $node_id);
 
-    my ($res,$event_id) = $client->update_cache(-1);
+    my $cache_result = $client->update_cache(circuit_id => -1);
+
+    if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
+        return;
+    }
+
+    my $event_id = $cache_result->{'results'}->{'event_id'};
+
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
         sleep(1);
-        $final_res = $client->get_event_status($event_id);
+        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
     }
 
-    ($res,$event_id) = $client->force_sync($node->{'dpid'});
+    $cache_result = $client->force_sync(dpid => $node->{'dpid'});
+
+    if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
+        return;
+    }
+
+    $event_id = $cache_result->{'results'}->{'event_id'};
+
     $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
         sleep(1);
-        $final_res = $client->get_event_status($event_id);
+        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
     }
-
 
     return {results => [{success => $final_res}]};
 }
@@ -1068,33 +1103,32 @@ sub decom_node {
         $results->{'results'} = [ { "success" => 1 } ];
     }
 
-    #send message to update the status
-    my $bus = Net::DBus->system;
+    my $client  = new GRNOC::RabbitMQ::Client(
+        topic => 'OF.FWDCTL.RPC',
+        exchange => 'OESS',
+        user => 'guest',
+        pass => 'guest',
+        host => 'localhost',
+        port => 5672
+    );
 
-    my $client;
-    my $service;
-
-    eval {
-        $service = $bus->get_service("org.nddi.fwdctl");
-        $client  = $service->get_object("/controller1");
-    };
-
-    if ($@) {
-        warn "Error in _connect_to_fwdctl: $@";
-        return undef;
+    if ( !defined($client) ) {
+        return;
     }
-
-    if ( !defined $client ) {
-        return undef;
-    }
-
     
-    my ($res,$event_id) = $client->update_cache(-1);
+    my $cache_result = $client->update_cache(circuit_id => -1);
+
+    if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
+        return;
+    }
+
+    my $event_id = $cache_result->{'results'}->{'event_id'};
+
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
         sleep(1);
-        $final_res = $client->get_event_status($event_id);
+        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
     }
 
 
@@ -1325,6 +1359,21 @@ sub update_remote_device{
     return {results => $res};
 }
 
+sub add_mpls_switch{
+    my $ip_address = $cgi->param('ip_address');
+    
+    my $client = GRNOC::RabbitMQ::Client->new( topic => 'MPLS.FWDCTL.RPC',
+					       exchange => 'OESS',
+					       user => $db->{'rabbitMQ'}->{'user'},
+					       pass => $db->{'rabbitMQ'}->{'port'},
+					       host => $db->{'rabbitMQ'}->{'host'},
+					       port => $db->{'rabbitMQ'}->{'port'});
+
+    my $res = $client->new_switch( ip => $ip_address );
+    
+    return $res;
+}
+
 sub send_json {
     my $output = shift;
     if (!defined($output) || !$output) {
@@ -1336,36 +1385,46 @@ sub send_json {
 sub _update_cache_and_sync_node {
     my $dpid = shift;    
 
-    # connect to dbus
-    my $client;
-    my $service;
-    my $bus = Net::DBus->system;
-    eval {
-        $service = $bus->get_service("org.nddi.fwdctl");
-        $client  = $service->get_object("/controller1");
-    };
-    if ($@) {
-        warn "Error in _connect_to_fwdctl: $@";
-        return;
-    }
-    if ( !defined $client ) {
-        warn "Issue communicating with fwdctl";
+    my $client  = new GRNOC::RabbitMQ::Client(
+        topic => 'OF.FWDCTL.RPC',
+        exchange => 'OESS',
+        user => 'guest',
+        pass => 'guest',
+        host => 'localhost',
+        port => 5672
+    );
+
+    if ( !defined($client) ) {
         return;
     }
 
     # first update fwdctl's cache
-    my ($res,$event_id) = $client->update_cache(-1);
+    my $result = $client->update_cache(circuit_id => -1);
+
+    if($result->{'error'} || !$result->{'results'}->{'event_id'}){
+        return;
+    }
+
+    my $event_id = $result->{'results'}->{'event_id'};
+
     my $final_res = FWDCTL_WAITING;
     while($final_res == FWDCTL_WAITING){
         sleep(1);
-        $final_res = $client->get_event_status($event_id);
+        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
     }
     # now sync the node
-    ($res,$event_id) = $client->force_sync($dpid);
+    $result = $client->force_sync(dpid => int($dpid));
+
+    if($result->{'error'} || !$result->{'results'}->{'event_id'}){
+        return;
+    }
+
+    $event_id = $result->{'results'}->{'event_id'};
+
     $final_res = FWDCTL_WAITING;
     while($final_res == FWDCTL_WAITING){
         sleep(1);
-        $final_res = $client->get_event_status($event_id);
+        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
     }
 
     return 1;

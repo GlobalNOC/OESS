@@ -1138,7 +1138,7 @@ function NDDIMap(div_id, interdomain_mode, options){
     //reset our linkOverlapList
     this.linkOverlapList = {};
 
-    var url = "[% path %]services/data.cgi?action=get_maps";
+    var url = "[% path %]services/data.cgi?method=get_maps";
 
 	  if (session.data.workgroup_id){
 		  url += "&workgroup_id="+session.data.workgroup_id;

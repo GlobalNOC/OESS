@@ -140,7 +140,7 @@ function summary_init(options){
 
                 if(!rec.vlan_tag_range){ 
                     var tag_ds = new YAHOO.util.DataSource(
-                        "services/data.cgi?action=get_vlan_tag_range"+
+                        "services/data.cgi?method=get_vlan_tag_range"+
                         "&interface="+encodeURIComponent(rec.getData('interface'))+
                         "&node="+encodeURIComponent(rec.getData('node'))+
                         "&workgroup_id="+session.data.workgroup_id

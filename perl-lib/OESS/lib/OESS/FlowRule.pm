@@ -54,6 +54,7 @@ use strict;
 use warnings;
 use Data::Dumper;
 use Switch;
+use JSON::XS qw(encode_json);
 use Net::DBus;
 use Log::Log4perl;
 use List::Compare;
@@ -142,12 +143,12 @@ sub _validate_match{
             case "in_port"{
 		if(!$self->_validate_port($match->{$key})){
 		    $self->{'logger'}->error("IN PORT: " . $match->{$key} . " is not supported");
-            return 0;
+		    return 0;
 		}
             }case "dl_vlan"{
 		if(!$self->_validate_vlan_id($match->{$key})){
 		    $self->{'logger'}->error("VLAN Tag " . $match->{$key} . " is not supported");
-            return 0;
+		    return 0;
 		}
 		#lets do a quick fix here... 65535 = -1
 		if($match->{$key} == 65535){
@@ -579,6 +580,90 @@ sub get_actions{
     my $self = shift;
     
     return $self->{'actions'};
+}
+
+
+=head2 to_json
+
+=cut
+
+sub to_dict {
+    my ($self, %args) = @_;
+    my @actions; # An array of actions formated as 2d arrays
+    
+    foreach my $action (@{$self->{'actions'}}) {
+        foreach my $name (keys %{$action}) {
+            my @tmp; # Stores actions formated as a 2d array
+            switch (lc $name) {
+                case "output" {
+                    my $out_port;
+                    my $max_length;
+
+                    if (ref($action->{$name}) ne 'HASH') {
+                        $out_port   = $action->{$name};
+                        $max_length = 65535;
+                    } else {
+                        $out_port   = $action->{$name}->{'port'};
+                        $max_length = $action->{$name}->{'max_length'};
+                    }
+
+                    if (!defined $max_length) {
+                        $max_length = 65535;
+                    }
+                    if (!defined $out_port) {
+                        $self->{'logger'}->error("Error no out_port specified in output action");
+                        return;
+                    }
+
+                    $tmp[0]    = int(OFPAT_OUTPUT);
+                    $tmp[1][0] = int($max_length);
+                    $tmp[1][1] = int($out_port);
+                }
+                case "set_vlan_vid" {
+                    if (!defined $action->{$name} || $action->{$name} == UNTAGGED || $action->{$name} == 65535) {
+                        # untagged
+                        $tmp[0] = int(OFPAT_STRIP_VLAN);
+                        $tmp[1] = int(0);
+                    } else {
+                        $tmp[0] = int(OFPAT_SET_VLAN_VID);
+                        $tmp[1] = int($action->{$name});
+                    }
+                }
+                case "set_vlan_id" {
+                    if (!defined $action->{$name} || $action->{$name} == UNTAGGED || $action->{$name} == 65535) {
+                        # untagged
+                        $tmp[0] = int(OFPAT_STRIP_VLAN);
+                        $tmp[1] = int(0);
+                    } else {
+                        $tmp[0] = int(OFPAT_SET_VLAN_VID);
+                        $tmp[1] = int($action->{$name});
+                    }
+                }
+                case "drop"{
+                    # no actions... ie... do nothing
+                }
+                else {
+                    $self->{'logger'}->error("Error unsupported action: " . $name . "\n");
+                    return;
+                }
+            }
+
+            $self->{'logger'}->debug("Action array: ".Dumper(\@tmp));
+            if (defined $tmp[0]) {
+                push(@actions, \@tmp);
+            }
+        }
+    }
+    
+    my $dict = { dpid         => $self->{'dpid'},
+                 match        => $self->{'match'},
+                 actions      => \@actions,
+                 priority     => int($self->{'priority'}),
+                 command      => int($args{'command'}),
+                 idle_timeout => int($self->{'idle_timeout'}),
+                 hard_timeout => int($self->{'hard_timeout'})
+               };
+    return $dict;
 }
 
 =head2 to_human

@@ -24,7 +24,7 @@ function init(){
 }
 
 function make_circuit_details_datasource(){
-    var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_circuit_details&circuit_id="+session.data.circuit_id);
+    var ds = new YAHOO.util.DataSource("services/data.cgi?method=get_circuit_details&circuit_id="+session.data.circuit_id);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
 	resultsList: "results",
@@ -40,6 +40,7 @@ function make_circuit_details_datasource(){
     {key: "active_path"},
     {key: "restore_to_primary"},
     {key: "loop_node"},
+    {key: "type"},
     {key: "static_mac"} //TODO change to perma-name
 	]
     };
@@ -53,6 +54,7 @@ function save_session_from_datasource(details){
     session.data.description  = details.description;
     session.data.bandwidth    = details.bandwidth * 1000000;
     session.data.state        = details.state;
+    session.data.type         = details.type;
     session.data.active_path  = details.active_path;
     session.data.circuit_workgroup = details.workgroup;
     session.data.static_mac_routing = parseInt(details.static_mac);
@@ -123,7 +125,7 @@ function page_init(){
 		  showConfirm("Doing this may cause a disruption in traffic.  Are you sure?",
 			      function(){
 				  change_path_button.set("disabled",true);
-				  var ds = new YAHOO.util.DataSource("services/provisioning.cgi?action=fail_over_circuit&circuit_id=" + session.data.circuit_id + "&workgroup_id=" + session.data.workgroup_id);
+				  var ds = new YAHOO.util.DataSource("services/provisioning.cgi?method=fail_over_circuit&circuit_id=" + session.data.circuit_id + "&workgroup_id=" + session.data.workgroup_id);
 				  ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 				  
 				  ds.connTimeout    = 30 * 1000; // 30 seconds
@@ -235,7 +237,7 @@ function page_init(){
 			      var circuit_id= session.data.circuit_id;
 			      var workgroup_id = session.data.workgroup_id;
 			      
-			      var ds = new YAHOO.util.DataSource("services/provisioning.cgi?action=reprovision_circuit&circuit_id="+circuit_id+"&workgroup_id="+workgroup_id);
+			      var ds = new YAHOO.util.DataSource("services/provisioning.cgi?method=reprovision_circuit&circuit_id="+circuit_id+"&workgroup_id="+workgroup_id);
 			      ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 			      ds.responseSchema = {
 				  resultsList: "results",
@@ -401,7 +403,7 @@ function page_init(){
                   var node = encodeURIComponent(rec.getData('node'));
                   var interface = encodeURIComponent(rec.getData('interface'));
                   //submit to traceroute.cgi
-                   var ds = new YAHOO.util.DataSource("services/traceroute.cgi?action=init_circuit_traceroute&circuit_id=" + session.data.circuit_id 
+                   var ds = new YAHOO.util.DataSource("services/traceroute.cgi?method=init_circuit_traceroute&circuit_id=" + session.data.circuit_id 
                                                       + "&workgroup_id=" + session.data.workgroup_id
                                                       + "&node="+ node + "&interface="+interface
                                                      );
@@ -494,7 +496,7 @@ function page_init(){
                 var circuit_id = session.data.circuit_id;
                 var node_id = null;
                 var state = 'active';
-                var postVars = "action=provision_circuit&circuit_id="+encodeURIComponent(circuit_id)
+                var postVars = "method=provision_circuit&circuit_id="+encodeURIComponent(circuit_id)
                        +"&description="+encodeURIComponent(description)
                        +"&bandwidth="+encodeURIComponent(bandwidth)
                        +"&provision_time="+encodeURIComponent(provision_time)
@@ -542,7 +544,7 @@ function page_init(){
 
             ds.sendRequest(postVars,{success: handleLocalSuccess, failure: handleLocalFailure, scope: this});
 
-            }
+              }
               else {
                 window.location = "?action=loop_circuit";
                 }
@@ -644,7 +646,7 @@ function page_init(){
 
 function pollTracerouteStatus(status_table,start_button){
 
-    var ds = new YAHOO.util.DataSource("services/traceroute.cgi?action=get_circuit_traceroute&circuit_id=" + session.data.circuit_id + "&workgroup_id=" + session.data.workgroup_id); 
+    var ds = new YAHOO.util.DataSource("services/traceroute.cgi?method=get_circuit_traceroute&circuit_id=" + session.data.circuit_id + "&workgroup_id=" + session.data.workgroup_id); 
                                       ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 				  
 				      ds.connTimeout    = 30 * 1000; // 30 seconds
@@ -822,7 +824,7 @@ function setupMeasurementGraph(){
 function setupScheduledEvents(){
 
 
-    var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_circuit_scheduled_events&circuit_id="+session.data.circuit_id);
+    var ds = new YAHOO.util.DataSource("services/data.cgi?method=get_circuit_scheduled_events&circuit_id="+session.data.circuit_id);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
     ds.responseSchema = {
@@ -889,7 +891,7 @@ function setupScheduledEvents(){
 }
 
 function setupCLR(){
-    var ds = new YAHOO.util.DataSource("services/data.cgi?action=generate_clr&circuit_id=" + session.data.circuit_id);
+    var ds = new YAHOO.util.DataSource("services/data.cgi?method=generate_clr&circuit_id=" + session.data.circuit_id);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     
     ds.responseSchema = {
@@ -909,7 +911,7 @@ function setupCLR(){
 		//do something
 	    }});
 
-    var ds2 = new YAHOO.util.DataSource("services/data.cgi?action=generate_clr&circuit_id=" + session.data.circuit_id + "&raw=1");
+    var ds2 = new YAHOO.util.DataSource("services/data.cgi?method=generate_clr&circuit_id=" + session.data.circuit_id + "&raw=1");
     ds2.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
     ds2.responseSchema = {
@@ -933,7 +935,7 @@ function setupCLR(){
 
 function setupHistory(){
 
-    var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_circuit_history&circuit_id=" + session.data.circuit_id);
+    var ds = new YAHOO.util.DataSource("services/data.cgi?method=get_circuit_history&circuit_id=" + session.data.circuit_id);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
     ds.responseSchema = {
