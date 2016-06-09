@@ -53,18 +53,23 @@ sub get_system_information{
     my $reply = $self->{'jnx'}->get_system_information();
 
     if($self->{'jnx'}->has_error){
-        $self->{'logger'}->error("Error fetching interface information: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
+        $self->{'logger'}->error("Error fetching system information: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
         return;
     }
 
     my $system_info = $self->{'jnx'}->get_dom();
     my $xp = XML::LibXML::XPathContext->new( $system_info);
-    $xp->registerNs('x',$system_info->documentElement->namespaceURI);
-    
+    $xp->registerNs('x',$system_info->documentElement->namespaceURI);     
     my $model = $xp->findvalue('/x:rpc-reply/x:system-information/x:hardware-model');
     my $version = $xp->findvalue('/x:rpc-reply/x:system-information/x:os-version');
     my $host_name = $xp->findvalue('/x:rpc-reply/x:system-information/x:host-name');
-            
+    
+    # We need to create know the root path for our xml requests. This path containd the version minus the last number block
+    # (13.3R1.6 -> 13.3R1). The following regex creates the path as described
+    my $var = $version;
+    $var =~ /(\d+\.\d+R\d+)/;
+    my $root_namespace = "http://xml.juniper.net/junos/".$1.'/';
+    $self->{'root_namespace'} = $root_namespace;
     return {model => $model, version => $version, vendor => 'Juniper', host_name => $host_name};
 }
 
@@ -199,7 +204,7 @@ sub get_isis_adjacencies{
     $self->{'jnx'}->get_isis_adjacency_information( detail => 1 );
 
     my $xml = $self->{'jnx'}->get_dom();
-    #warn Dumper($xml->toString());
+    warn Dumper($xml->toString());
     my $xp = XML::LibXML::XPathContext->new( $xml);
     $xp->registerNs('x',$xml->documentElement->namespaceURI);
     $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
