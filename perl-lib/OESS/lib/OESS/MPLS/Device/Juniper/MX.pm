@@ -157,12 +157,56 @@ sub add_vlan{
     $vars->{'circuit_id'} = $ckt->{'circuit_id'};
     $vars->{'switch'} = {name => $self->{'name'}};
     $vars->{'site_id'} = $self->{'node_id'};
-    
+
+    if ($self->unit_exists($vars->{'interface'}->{'name'}, $vars->{'vlan_tag'})) {
+        my $err = "Unit name conflict exists. Use a different VLAN or contact your administrator.";
+        $self->set_error($err);
+        $self->{'logger'}->error($err);
+        return FWDCTL_FAILURE;
+    }
+
     my $output;
     my $remove_template = $self->{'tt'}->process( $self->{'template_dir'} . "/ep_config.xml", $vars, \$output) or warn $self->{'tt'}->error();
     
     return $self->_edit_config( config => $output );    
     
+}
+
+=head2
+
+Returns 1 if the unit name already exists on the specified interface;
+If not, 0 is returned.
+
+=cut
+sub unit_exists {
+    my $self           = shift;
+    my $interface_name = shift;
+    my $unit_name      = shift;
+
+    my %queryargs = ('source' => 'candidate');
+    $self->{'jnx'}->get_config(%queryargs);
+
+    my $dom  = $self->{'jnx'}->get_dom();
+    my $xml  = XML::LibXML::XPathContext->new($dom);
+
+    $xml->registerNs("base", $dom->documentElement->namespaceURI);
+    $xml->registerNs("conf", "http://xml.juniper.net/xnm/1.1/xnm");
+
+    my $interfaces = $xml->findnodes("/base:rpc-reply/base:data/conf:configuration/conf:interfaces/conf:interface");
+    foreach my $interface ($interfaces->get_nodelist) {
+        my $iface_name = $xml->findvalue("./conf:name", $interface);
+        my $units      = $xml->findnodes("./conf:unit", $interface);
+
+        if ($iface_name eq $interface_name) {
+            foreach my $unit ($units->get_nodelist) {
+                my $name = $xml->findvalue("./conf:name", $unit);
+                if ($name eq $unit_name) {
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
 }
 
 =head2 connect
@@ -319,8 +363,8 @@ sub _edit_config{
         return FWDCTL_FAILURE;
     }
 
-    my %queryargs = ( 'target' => 'candidate' );
-    $res = $self->{'jnx'}->unlock_config(%queryargs);
+    my %queryargs2 = ( 'target' => 'candidate' );
+    $res = $self->{'jnx'}->unlock_config(%queryargs2);
 
     return FWDCTL_SUCCESS;
 }
