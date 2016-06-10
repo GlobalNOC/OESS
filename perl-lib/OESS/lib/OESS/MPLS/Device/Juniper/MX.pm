@@ -87,9 +87,10 @@ sub get_interfaces{
     my @interfaces;
 
     my $interfaces = $self->{'jnx'}->get_dom();
+    my $path = $self->{'root_namespace'}."junos-interface";
     my $xp = XML::LibXML::XPathContext->new( $interfaces);
     $xp->registerNs('x',$interfaces->documentElement->namespaceURI);
-    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-interface");
+    $xp->registerNs('j',$path);  
     my $ints = $xp->findnodes('/x:rpc-reply/j:interface-information/j:physical-interface');
 
     foreach my $int ($ints->get_nodelist){
@@ -105,7 +106,8 @@ sub _process_interface{
     my $obj = {};
 
     my $xp = XML::LibXML::XPathContext->new( $int );
-    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-interface");
+    my $path = $self->{'root_namespace'}."junos-interface";
+    $xp->registerNs('j',$path);
     $obj->{'name'} = trim($xp->findvalue('./j:name'));
     $obj->{'admin_state'} = trim($xp->findvalue('./j:admin-status'));
     $obj->{'operational_state'} = trim($xp->findvalue('./j:oper-status'));
@@ -207,7 +209,8 @@ sub get_isis_adjacencies{
     warn Dumper($xml->toString());
     my $xp = XML::LibXML::XPathContext->new( $xml);
     $xp->registerNs('x',$xml->documentElement->namespaceURI);
-    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    my $path = $self->{'root_namespace'}."junos-routing";
+    $xp->registerNs('j',$path);
 
     my $adjacencies = $xp->find('/x:rpc-reply/j:isis-adjacency-information/j:isis-adjacency');
     
@@ -225,7 +228,8 @@ sub _process_isis_adj{
     my $obj = {};
 
     my $xp = XML::LibXML::XPathContext->new( $adj );
-    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    my $path = $self->{'root_namespace'}."junos-routing";
+    $xp->registerNs('j',$path);
     $obj->{'interface_name'} = trim($xp->findvalue('./j:interface-name'));
     $obj->{'operational_state'} = trim($xp->findvalue('./j:adjacency-state'));
     $obj->{'remote_system_name'} = trim($xp->findvalue('./j:system-name'));
