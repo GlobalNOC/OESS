@@ -7,7 +7,6 @@ package OESS::MPLS::Discovery::Interface;
 
 use OESS::Database;
 use Log::Log4perl;
-use Data::Dumper;
 
 sub new{
     my $class = shift;
