@@ -17,7 +17,7 @@ use OESS::MPLS::Discovery::Interface;
 
 use OESSDatabaseTester;
 
-use Test::More tests => 4;
+use Test::More tests => 7;
 use Test::Deep;
 use Data::Dumper;
 
@@ -71,10 +71,23 @@ foreach my $intf (@$example_data) {
 }
 ok(scalar @results == 3, "DB matches test data");
 
-@$example_data[0]->{'name'} = "fooooo!";
-$res = $interface_discovery->process_results( node => $example_node, interfaces => $example_data );
-is($res, undef, "nonexistent interface fails");
+@$example_data[0]->{'name'} = "e10/10";
+@$example_data[0]->{'description'} = "e10/10";
+$interface_discovery->process_results( node => $example_node, interfaces => $example_data );
+my $intf_id = $db->get_interface_id_by_names(
+    node => $example_node,
+    interface => @$example_data[0]->{'name'}
+    );
+$res = $db->get_interface(interface_id => $intf_id);
+ok($res->{'name'} eq @$example_data[0]->{'name'}, "added interface name correct");
+ok($res->{'description'} eq @$example_data[0]->{'description'}, "added interface description correct");
+ok($res->{'operational_state'} eq @$example_data[0]->{'operational_state'}, "added interface operational state correct");
 
-#TODO:
-#Verify new interfaces are added to the DB
-#Verify the interface status are updated
+@$example_data[0]->{'operational_state'} = "up";
+$res = $interface_discovery->process_results(node => $example_node, interfaces => $example_data);
+$intf_id = $db->get_interface_id_by_names(
+    node => $example_node,
+    interface => @$example_data[0]->{'name'}
+    );
+$res = $db->get_interface(interface_id => $intf_id);
+ok($res->{'operational_state'} eq "up", "operational state set to up");
