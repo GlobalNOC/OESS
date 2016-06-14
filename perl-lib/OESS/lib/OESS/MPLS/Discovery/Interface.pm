@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 package OESS::MPLS::Discovery::Interface;
-
+use Data::Dumper;
 use OESS::Database;
 use Log::Log4perl;
 
@@ -40,13 +40,36 @@ sub process_results{
     foreach my $interface (@$interfaces) {
 	my $interface_id = $self->{'db'}->get_interface_id_by_names(node => $node_name, interface => $interface->{'name'});
 	if (!defined($interface_id)) {
-	    $self->{'logger'}->warn($self->{'db'}->{'error'});
-	    return;
+	    $self->{'db'}->_start_transaction();
+	    my $node = $self->{'db'}->get_node_by_name(name => $node_name);
+	    if (!defined($node)) {
+		$self->{'logger'}->warn($self->{'db'}->{'error'});
+		$self->{'db'}->_rollback();
+		return;
+	    }
+
+	    my $res = $self->{'db'}->add_or_update_interface(
+		node_id => $node->{'node_id'},
+		name => $interface->{'name'},
+		operational_state => $interface->{'operational_state'},
+		admin_state => $interface->{'admin_state'},
+		description => $interface->{'description'},
+		);
+	    if (!defined($res)) {
+		$self->{'logger'}->warn($self->{'db'}->{'error'});
+		$self->{'db'}->_rollback();
+		return;
+	    } else {
+		$self->{'db'}->_commit();
+		next;
+	    }
 	}
 
+	$self->{'db'}->_start_transaction();
 	my $intf = $self->{'db'}->get_interface(interface_id => $interface_id);
 	if (!defined($intf)) {
 	    $self->{'logger'}->warn($self->{'db'}->{'error'});
+	    $self->{'db'}->_rollback();
 	    return;
 	}
 
@@ -57,9 +80,11 @@ sub process_results{
 		);
 	    if (!defined($result)) {
 		$self->{'logger'}->warn($self->{'db'}->{'error'});
+		$self->{'db'}->_rollback();
 		return;
 	    }
 	}
+	$self->{'db'}->_commit();
     }
 
     # all must have worked, return success
