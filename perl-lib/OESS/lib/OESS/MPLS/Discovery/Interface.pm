@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 package OESS::MPLS::Discovery::Interface;
-use Data::Dumper;
+
 use OESS::Database;
 use Log::Log4perl;
 
