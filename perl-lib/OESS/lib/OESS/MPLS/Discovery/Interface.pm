@@ -37,6 +37,7 @@ sub process_results{
     my %params = @_;
     my $node_name = $params{'node'};
     my $interfaces = $params{'interfaces'};
+    $self->{'db'}->_start_transaction();
     foreach my $interface (@$interfaces) {
 	my $interface_id = $self->{'db'}->get_interface_id_by_names(node => $node_name, interface => $interface->{'name'});
 	if (!defined($interface_id)) {
@@ -60,12 +61,10 @@ sub process_results{
 		$self->{'db'}->_rollback();
 		return;
 	    } else {
-		$self->{'db'}->_commit();
 		next;
 	    }
 	}
 
-	$self->{'db'}->_start_transaction();
 	my $intf = $self->{'db'}->get_interface(interface_id => $interface_id);
 	if (!defined($intf)) {
 	    $self->{'logger'}->warn($self->{'db'}->{'error'});
@@ -84,10 +83,10 @@ sub process_results{
 		return;
 	    }
 	}
-	$self->{'db'}->_commit();
     }
 
-    # all must have worked, return success
+    # all must have worked, commit and return success
+    $self->{'db'}->_commit();
     return 1;
 }
 
