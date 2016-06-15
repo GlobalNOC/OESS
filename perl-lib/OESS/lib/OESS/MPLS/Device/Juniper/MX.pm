@@ -63,14 +63,15 @@ sub get_system_information{
     my $model = $xp->findvalue('/x:rpc-reply/x:system-information/x:hardware-model');
     my $version = $xp->findvalue('/x:rpc-reply/x:system-information/x:os-version');
     my $host_name = $xp->findvalue('/x:rpc-reply/x:system-information/x:host-name');
-    
+    my $os_name = $xp->findvalue('/x:rpc-reply/x:system-information/x:os-name');
+
     # We need to create know the root path for our xml requests. This path containd the version minus the last number block
     # (13.3R1.6 -> 13.3R1). The following regex creates the path as described
     my $var = $version;
     $var =~ /(\d+\.\d+R\d+)/;
     my $root_namespace = "http://xml.juniper.net/junos/".$1.'/';
     $self->{'root_namespace'} = $root_namespace;
-    return {model => $model, version => $version, vendor => 'Juniper', host_name => $host_name};
+    return {model => $model, version => $version, os_name => $os_name, host_name => $host_name};
 }
 
 sub get_interfaces{
@@ -94,13 +95,14 @@ sub get_interfaces{
     my $ints = $xp->findnodes('/x:rpc-reply/j:interface-information/j:physical-interface');
 
     foreach my $int ($ints->get_nodelist){
-	push(@interfaces, _process_interface($int));
+	push(@interfaces, $self->_process_interface($int));
     }
 
     return \@interfaces;
 }
 
 sub _process_interface{
+    my $self = shift;
     my $int = shift;
     
     my $obj = {};
@@ -184,7 +186,9 @@ sub connect{
     }else{
 	$self->{'logger'}->info("Connected!");
 	$self->{'jnx'} = $jnx;
-	$self->{'connected'} = 1;
+	#gather basic system information needed later!
+	my $verify = $self->verify_connection();   
+	$self->{'connected'} = 1; 
     }
 
 
@@ -193,6 +197,19 @@ sub connect{
 sub connected{
     my $self = shift;
     return $self->{'connected'};
+}
+
+sub verify_connection{
+    #gather basic system information needed later, and make sure it is what we expected / are prepared to handle                                                                            
+    my $self = shift;
+    my $sysinfo = $self->get_system_information();
+    if (($self->{"os_name"} = "junos") && ($self->{"version_name"} = "13.3R1.6")){
+	print "Connection verified, proceeding\n";
+    }
+    else {
+	die "unknown os or software version";
+    }
+    
 }
 
 sub get_isis_adjacencies{
@@ -216,13 +233,14 @@ sub get_isis_adjacencies{
     
     my @adj;
     foreach my $adjacency (@$adjacencies){
-	push(@adj, _process_isis_adj($adjacency));
+	push(@adj, $self->_process_isis_adj($adjacency));
     }
 
     return \@adj;
 }
 
 sub _process_isis_adj{
+    my $self = shift;
     my $adj = shift;
 
     my $obj = {};
