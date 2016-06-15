@@ -204,7 +204,7 @@ sub verify_connection{
     my $self = shift;
     my $sysinfo = $self->get_system_information();
     if (($self->{"os_name"} = "junos") && ($self->{"version_name"} = "13.3R1.6")){
-	print "Connection verified, proceeding\n";
+	# print "Connection verified, proceeding\n";
     }
     else {
 	die "unknown os or software version";
