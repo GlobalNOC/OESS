@@ -187,8 +187,13 @@ sub connect{
 	$self->{'logger'}->info("Connected!");
 	$self->{'jnx'} = $jnx;
 	#gather basic system information needed later!
-	my $verify = $self->verify_connection();   
-	$self->{'connected'} = 1; 
+	my $verify = $self->verify_connection();
+	if ($verify == 1) {
+	    $self->{'connected'} = 1;
+	}
+	else {
+	    $self->{'connected'} = 0;
+	}
     }
 
 
@@ -201,13 +206,16 @@ sub connected{
 
 sub verify_connection{
     #gather basic system information needed later, and make sure it is what we expected / are prepared to handle                                                                            
+    #
     my $self = shift;
     my $sysinfo = $self->get_system_information();
-    if (($self->{"os_name"} = "junos") && ($self->{"version_name"} = "13.3R1.6")){
+    if (($sysinfo->{"os_name"} eq "junos") && ($sysinfo->{"version"} eq "13.3R1.6")){
 	# print "Connection verified, proceeding\n";
+	return 1;
     }
     else {
-	die "unknown os or software version";
+	$self->{'logger'}->error("Network OS and / or version is not supported");
+	return 0;
     }
     
 }
