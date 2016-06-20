@@ -35,6 +35,7 @@ make
 rm -rf $RPM_BUILD_ROOT
 make pure_install
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/upgrade
+%__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{template_dir}
 %__install etc/notification_templates.tmpl $RPM_BUILD_ROOT/%{template_dir}/
 %__install etc/notification_bulk.tmpl $RPM_BUILD_ROOT/%{template_dir}/
@@ -42,6 +43,7 @@ make pure_install
 %__install etc/notification.tt.html $RPM_BUILD_ROOT/%{template_dir}/
 %__install share/nddi.sql $RPM_BUILD_ROOT/%{docdir}/share/
 %__install share/upgrade/* $RPM_BUILD_ROOT/%{docdir}/share/upgrade/
+%__install share/mpls/templates/juniper/13.3R8/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/
 # clean up buildroot
 find %{buildroot} -name .packlist -exec %{__rm} {} \;
 
@@ -63,7 +65,6 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::Watchdog.3pm.gz
 %doc %{_mandir}/man3/OESS::FWDCTL::Master.3pm.gz
 %doc %{_mandir}/man3/OESS::FWDCTL::Switch.3pm.gz
-%doc %{_mandir}/man3/OESS::RabbitMQ::FV.3pm.gz
 %doc %{_mandir}/man3/OESS::Traceroute.3pm.gz
 %doc %{_mandir}/man3/OESS::FV.3pm.gz
 %doc %{_mandir}/man3/OESS::NSI::Server.3pm.gz
@@ -74,6 +75,11 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::NSI::Query.3pm.gz
 %doc %{_mandir}/man3/OESS::NSI::Reservation.3pm.gz
 %doc %{_mandir}/man3/OESS::NSI::Utils.3pm.gz
+%doc %{_mandir}/man3/OESS::MPLS::Discovery.3pm.gz
+%doc %{_mandir}/man3/OESS::MPLS::FWDCTL.3pm.gz
+%doc %{_mandir}/man3/OESS::MPLS::Switch.3pm.gz
+%doc %{_mandir}/man3/OESS::MPLS::Topology.3pm.gz
+%doc %{_mandir}/man3/OESS::MPLS::Device::Juniper::MX.3pm.gz
 %{template_dir}/notification_templates.tmpl
 %{template_dir}/notification_bulk.tmpl
 %{template_dir}/notification_bulk.tt.html
@@ -89,7 +95,6 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/Watchdog.pm
 %{perl_vendorlib}/OESS/FWDCTL/Master.pm
 %{perl_vendorlib}/OESS/FWDCTL/Switch.pm
-%{perl_vendorlib}/OESS/RabbitMQ/FV.pm
 %{perl_vendorlib}/OESS/Traceroute.pm
 %{perl_vendorlib}/OESS/NSI/Server.pm
 %{perl_vendorlib}/OESS/NSI/Constant.pm
@@ -99,8 +104,18 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/NSI/Query.pm
 %{perl_vendorlib}/OESS/NSI/Reservation.pm
 %{perl_vendorlib}/OESS/NSI/Utils.pm
+%{perl_vendorlib}/OESS/MPLS/Device.pm
+%{perl_vendorlib}/OESS/MPLS/Device/Juniper/MX.pm
+%{perl_vendorlib}/OESS/MPLS/Discovery.pm
+%{perl_vendorlib}/OESS/MPLS/Discovery/ISIS.pm
+%{perl_vendorlib}/OESS/MPLS/Discovery/Interface.pm
+%{perl_vendorlib}/OESS/MPLS/Discovery/LSP.pm
+%{perl_vendorlib}/OESS/MPLS/FWDCTL.pm
+%{perl_vendorlib}/OESS/MPLS/Switch.pm
+%{perl_vendorlib}/OESS/MPLS/Topology.pm
 %{docdir}/share/nddi.sql
 %{docdir}/share/upgrade/*
+%{docdir}/share/mpls/templates/juniper/13.3R8/*
 %changelog
 * Thu Dec  5 2013 AJ Ragusa <aragusa@grnoc.iu.edu> - OESS Perl Libs
 - Initial build.
