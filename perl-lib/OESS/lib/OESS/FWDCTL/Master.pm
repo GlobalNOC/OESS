@@ -820,11 +820,11 @@ sub port_status{
     my $reason = shift;
     my $info   = shift;
 
-    $self->{'logger'}->error("Port Status event!");
+    $self->{'logger'}->error("Port Status event!" . Data::Dumper::Dumper($info));
 
     my $port_name   = $info->{'name'};
     my $port_number = $info->{'port_no'};
-    my $link_status = $info->{'link'};
+    my $link_status = $info->{'state'};
 
     my $node_details = $self->{'db'}->get_node_by_dpid( dpid => $dpid );
 
@@ -836,6 +836,8 @@ sub port_status{
         #--- no link means edge port
         return;
     }
+
+    $self->{'logger'}->error("Link state: " . $link_status . "\n");
 
     my $link_id   = @$link_info[0]->{'link_id'};
     my $link_name = @$link_info[0]->{'name'};
@@ -849,7 +851,7 @@ sub port_status{
             #--- when a port goes down, determine the set of ckts that traverse the port
             #--- for each ckt, fail over to the non-active path, after determining that the path
             #--- looks to be intact.
-            if (! $link_status) {
+            if ($link_status) {
                 $self->{'logger'}->warn("sw:$sw_name dpid:$dpid_str port $port_name trunk $link_name is down");
 
                 my $affected_circuits = $self->{'db'}->get_affected_circuits_by_link_id(link_id => $link_id);
