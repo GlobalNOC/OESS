@@ -89,39 +89,36 @@ sub new{
     die if(!defined($self->{'db'}));
 
     #init our sub modules
-    $self->{'interface'} = $self->_init_interfaces();
-    die if (!defined($self->{'interface'}));
+    #$self->{'interface'} = $self->_init_interfaces();
+    #die if (!defined($self->{'interface'}));
     $self->{'lsp'} = $self->_init_lsp();
     die if (!defined($self->{'lsp'}));
-    $self->{'isis'} = $self->_init_isis();
-    die if (!defined($self->{'isis'}));
+    #$self->{'isis'} = $self->_init_isis();
+    #die if (!defined($self->{'isis'}));
 
-    
     #create the client for talking to our Discovery switch objects!
     $self->{'rmq_client'} = GRNOC::RabbitMQ::Client->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
 							  port => $self->{'db'}->{'rabbitMQ'}->{'port'},
 							  user => $self->{'db'}->{'rabbitMQ'}->{'user'},
 							  pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
 							  exchange => 'OESS',
-							  queue => 'MPLS-Discovery-Client',
 							  topic => 'MPLS.Discovery');
-
+    
     die if(!defined($self->{'rmq_client'}));
-        
+
     #setup the timers
-    $self->{'int_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->int_handler() });
-    $self->{'lsp_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->lsp_handler() });
-    $self->{'isis_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->isis_handler()} );
-    $self->{'repopulate_device'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->populate_devices() } );
+#    $self->{'int_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->int_handler(); });
+    $self->{'lsp_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->lsp_handler(); });
+#    $self->{'isis_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->isis_handler(); } );
 
     #our dispatcher for receiving events (only new_switch right now)    
     my $dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
-                                                              port => $self->{'db'}->{'rabbitMQ'}->{'port'},
-                                                              user => $self->{'db'}->{'rabbitMQ'}->{'user'},
-                                                              pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
-                                                              exchange => 'OESS',
-                                                              queue => 'MPLS-Discovery',
-                                                              topic => "MPLS.Discovery.RPC");
+						       port => $self->{'db'}->{'rabbitMQ'}->{'port'},
+						       user => $self->{'db'}->{'rabbitMQ'}->{'user'},
+						       pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
+						       exchange => 'OESS',
+						       queue => 'MPLS-Discovery',
+						       topic => "MPLS.Discovery.RPC");
 
     $self->register_rpc_methods( $dispatcher );
     $self->{'dispatcher'} = $dispatcher;
@@ -129,6 +126,7 @@ sub new{
     #create a child process for each switch
     my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
     foreach my $node (@$nodes) {
+	warn "Making Baby!\n";
 	$self->make_baby($node->{'node_id'});
     }
 
@@ -275,7 +273,7 @@ sub make_baby{
 
     $self->{'logger'}->debug("Before the fork");
 
-    my $node = $self->{'node_by_id'}->{$id};
+    my $node = $self->{'db'}->get_node_by_id(node_id => $id);
 
     my %args;
     $args{'id'} = $id;
@@ -285,6 +283,14 @@ sub make_baby{
     $args{'rabbitMQ_user'} = $self->{'db'}->{'rabbitMQ'}->{'user'};
     $args{'rabbitMQ_pass'} = $self->{'db'}->{'rabbitMQ'}->{'pass'};
     $args{'rabbitMQ_vhost'} = $self->{'db'}->{'rabbitMQ'}->{'vhost'};
+    $args{'vendor'} = $node->{'vendor'};
+    $args{'model'} = $node->{'model'};
+    $args{'sw_version'} = $node->{'sw_version'};
+    $args{'mgmt_addr'} = $node->{'mgmt_addr'};
+    $args{'name'} = $node->{'name'};
+    $args{'username'} = $node->{'username'};
+    $args{'password'} = $node->{'password'};
+    $args{'use_cache'} = 0;
     $args{'topic'} = "MPLS.Discovery.Switch.";
     my $proc = AnyEvent::Fork->new->require("Log::Log4perl", "OESS::MPLS::Switch")->eval('
 use strict;
@@ -299,6 +305,7 @@ sub run{
     my %args = @_;
     $logger = Log::Log4perl->get_logger("MPLS.Discovery.MASTER");
     $logger->info("Creating child for id: " . $args{"id"});
+    $args{"node"} = {"vendor" => $args{"vendor"}, "model" => $args{"model"}, "sw_version" => $args{"sw_version"}, "name" => $args{"name"}, "mgmt_addr" => $args{"mgmt_addr"}, "username" => $args{"username"}, "password" => $args{"password"}};			  
     $switch = OESS::MPLS::Switch->new( %args );
     }')->fork->send_arg( %args )->run("run");
 
@@ -360,18 +367,31 @@ sub int_handler{
 sub lsp_handler{
     my $self = shift;
     
+    my %nodes;
+
     foreach my $node (@{$self->{'db'}->get_current_nodes(mpls => 1)}){
-        $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
-#        $self->{'rmq_client'}->get_LSPs( async => 1,
-#					 async_callback => $self->handle_response( cb => sub { my $res = shift;
-#											       my $status = $self->{'lsp'}->process_result( node => $node, lsp => $res);
-#										   })
-#					
-#            );
+	$nodes{$node->{'name'}} = {'pending' => 1};
+	$self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
+        $self->{'rmq_client'}->get_LSPs( async => 1,
+					 async_callback => $self->handle_response( cb => sub { my $res = shift;
+											       $nodes{$node->{'name'}} = $res;
+											       $nodes{$node->{'name'}}->{'pending'} = 0;
+											       my $no_pending = 1;
+											       foreach my $node (keys %nodes){
+												   if($nodes{$node}->{'pending'} == 1){
+												       warn "Still have pending\n";
+												       $no_pending = 0;
+												   }
+											       }
+
+											       if($no_pending){
+												   print Data::Dumper::Dumper(\%nodes);
+												   my $status = $self->{'lsp'}->process_result( lsp => \%nodes);
+											       }
+										   })
+					 
+            );
     }
-    
-    
-    
 }
 
 sub isis_handler{
@@ -385,9 +405,10 @@ sub isis_handler{
         $self->{'rmq_client'}->get_isis_adjacencies( async => 1,
                                         async_callback => $self->handle_response( cb => sub { my $res = shift;
 											      $nodes{$node->{'name'}} = $res;
+											      $nodes{$node->{'name'}}->{'pending'} = 0;
 											      my $no_pending = 1;
 											      foreach my $node (keys %nodes){
-												  if($node->{'pending'}){
+												  if($nodes{$node}->{'pending'} == 1){
 												      $no_pending = 0;
 												  }
 											      }
@@ -401,27 +422,6 @@ sub isis_handler{
     }
 }
 
-sub populate_devices{
-    my $self = shift;
-
-    foreach my $node (keys %{$self->{'node_by_id'}}){
-        $self->{'fwdctl_events'}->{'topic'} = "MPLS.Discovery.Switch." . $self->{'node_by_id'}->{$node}->{'mgmt_addr'};
-        $self->{'fwdctl_events'}->get_interfaces( async_callback => sub {
-            my $res = shift;
-            my $ints = $res->{'results'};
-            $self->{'logger'}->debug("Populating interfaces!!!");
-            $self->{'db'}->_start_transaction();
-	    
-            foreach my $int (@$ints){
-                $self->{'logger'}->debug("INTERFACE: " . Data::Dumper::Dumper($int));
-                my $int_id = $self->{'db'}->add_or_update_interface(node_id => $node, name => $int->{'name'}, description => $int->{'description'}, operational_state => $int->{'operational_state'}, port_num => $int->{'snmp_index'}, admin_state => $int->{'snmp_index'}, mpls => 1);
-		
-            }
-            $self->{'db'}->_commit();
-                                                  });
-    }
-
-}
 
 =head2 handle_response
 

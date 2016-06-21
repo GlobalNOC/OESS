@@ -24,12 +24,12 @@ use JSON::XS;
 sub new{
     my $class = shift;
     my %args = (
-	rabbitMQ_host,
-	rabbitMQ_port,
-	rabbitMQ_user,
-	rabbitMQ_pass,
+	rabbitMQ_host => undef,
+	rabbitMQ_port => undef,
+	rabbitMQ_user => undef,
+	rabbitMQ_pass => undef,
 	use_cache => 1,
-	node => undef
+	node => undef,
         @_
         );
 
@@ -38,9 +38,13 @@ sub new{
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Switch.' . $self->{'id'});
     bless $self, $class;
 
+    $self->{'logger'}->error(Data::Dumper::Dumper($self));
+
     if($self->{'use_cache'}){
 	$self->_update_cache();
     }
+
+
 
     $self->create_device_object();
     if(!defined($self->{'device'})){
