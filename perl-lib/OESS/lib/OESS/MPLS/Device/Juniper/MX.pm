@@ -314,13 +314,258 @@ sub _process_isis_adj{
 sub get_LSPs{
     my $self = shift;
 
-    $self->{'jnx'}->get_mpls_lsp();
-    
+    if(!defined($self->{'jnx'}->{'methods'}->{'get_mpls_lsp_information'})){
+        my $TOGGLE = bless { 1 => 1 }, 'TOGGLE';
+        $self->{'jnx'}->{'methods'}->{'get_mpls_lsp_information'} = { detail => $TOGGLE};
+    }
+
+    $self->{'jnx'}->get_mpls_lsp_information( detail => 1);
+    my $xml = $self->{'jnx'}->get_dom();
+    my $xp = XML::LibXML::XPathContext->new( $xml);
+    $xp->registerNs('x',$xml->documentElement->namespaceURI);
+    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    my $rsvp_session_data = $xp->find('/x:rpc-reply/j:mpls-lsp-information/j:rsvp-session-data');
     
     my @LSPs;
 
+    foreach my $rsvp_sd (@{$rsvp_session_data}){
+	push(@LSPs,_process_rsvp_session_data($rsvp_sd));
+    }
+
     return \@LSPs;
 }
+
+sub _process_rsvp_session_data{
+    my $rsvp_sd = shift;
+    
+    my $obj = {};
+
+    my $xp = XML::LibXML::XPathContext->new( $rsvp_sd);
+    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    $obj->{'session_type'} = trim($xp->findvalue('./j:session-type'));
+    $obj->{'count'} = trim($xp->findvalue('./j:count'));
+    $obj->{'sessions'} = ();
+
+    my $rsvp_sessions = $xp->find('./j:rsvp-session');
+
+    if($obj->{'session_type'} eq 'Ingress'){
+	
+	foreach my $session (@{$rsvp_sessions}){
+	    push(@{$obj->{'sessions'}}, _process_rsvp_session_ingress($session));
+	}
+	
+    }elsif($obj->{'session_type'} eq 'Egress'){
+
+	foreach my $session (@{$rsvp_sessions}){
+            push(@{$obj->{'sessions'}}, _process_rsvp_session_egress($session));
+        }
+
+    }else{
+	
+	foreach my $session (@{$rsvp_sessions}){
+            push(@{$obj->{'sessions'}}, _process_rsvp_session_transit($session));
+        }
+
+    }
+    return $obj;
+
+}
+
+sub _process_rsvp_session_transit{
+    my $session = shift;
+
+    my $obj = {};
+
+    my $xp = XML::LibXML::XPathContext->new( $session );
+    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    $obj->{'name'} = trim($xp->findvalue('./j:name'));
+    $obj->{'route-count'} = trim($xp->findvalue('./j:route-count'));
+    $obj->{'description'} = trim($xp->findvalue('./j:description'));
+    $obj->{'destination-address'} = trim($xp->findvalue('./j:destination-address'));
+    $obj->{'source-address'} = trim($xp->findvalue('./j:source-address'));
+    $obj->{'lsp-state'} = trim($xp->findvalue('./j:lsp-state'));
+    $obj->{'lsp-path-type'} = trim($xp->findvalue('./j:lsp-path-type'));
+    $obj->{'suggested-lable-in'} = trim($xp->findvalue('./j:suggested-label-in'));
+    $obj->{'suggested-label-out'} = trim($xp->findvalue('./j:suggested-label-out'));
+    $obj->{'recovery-label-in'} = trim($xp->findvalue('./j:recovery-label-in'));
+    $obj->{'recovery-label-out'} = trim($xp->findvalue('./j:recovery-label-out'));
+    $obj->{'rsb-count'} = trim($xp->findvalue('./j:rsb-count'));
+    $obj->{'resv-style'} = trim($xp->findvalue('./j:resv-style'));
+    $obj->{'label-in'} = trim($xp->findvalue('./j:label-in'));
+    $obj->{'label-out'} = trim($xp->findvalue('./j:label-out'));
+    $obj->{'psb-lifetime'} = trim($xp->findvalue('./j:psb-lifetime'));
+    $obj->{'psb-creation-time'} = trim($xp->findvalue('./j:psb-creation-time'));
+    $obj->{'lsp-id'} = trim($xp->findvalue('./j:lsp-id'));
+    $obj->{'tunnel-id'} = trim($xp->findvalue('./j:tunnel-id'));
+    $obj->{'proto-id'} = trim($xp->findvalue('./j:proto-id'));
+    $obj->{'adspec'} = trim($xp->findvalue('./j:adspec'));
+
+    my $pkt_infos = $xp->find('./j:packet-information');
+    $obj->{'packet-information'} = ();
+    foreach my $pkt_info (@$pkt_infos){
+	push(@{$obj->{'packet-information'}}, _process_packet_info($pkt_info));
+    }
+
+
+    my $record_routes = trim($xp->find('./j:record-route/j:address'));
+    $obj->{'record-route'} = ();
+    foreach my $rr (@$record_routes){
+	push(@{$obj->{'record-route'}}, $rr->textContent);
+    }
+
+
+    return $obj;
+}
+
+sub _process_packet_info{
+    my $pkt_info = shift;
+    my $obj = {};
+
+    my $xp = XML::LibXML::XPathContext->new( $pkt_info );
+    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+
+    my $prev_hops = $xp->find('./j:previous-hop');
+    if($prev_hops->size() > 0){
+	$obj->{'previous-hop'} = ();
+	foreach my $pre_hop (@$prev_hops){
+	    push(@{$obj->{'previous-hop'}}, $pre_hop->textContent);
+	}
+    }
+
+    my $next_hops = $xp->find('./j:next-hop');
+    if($next_hops->size() > 0){
+        $obj->{'next-hop'} = ();
+        foreach my $next_hop (@$next_hops){
+            push(@{$obj->{'next-hop'}}, $next_hop->textContent);
+        }
+    }
+
+    my $interfaces = $xp->find('./j:interface-name');
+    if($interfaces->size() > 0){
+        $obj->{'interface-name'} = ();
+        foreach my $int (@$interfaces){
+            push(@{$obj->{'interface-name'}}, $int->textContent);
+        }
+    }
+
+
+    return $obj;
+}
+
+sub _process_rsvp_session_egress{
+    my $session = shift;
+
+    my $obj = {};
+
+    my $xp = XML::LibXML::XPathContext->new( $session );
+    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    $obj->{'name'} = trim($xp->findvalue('./j:name'));
+    $obj->{'route-count'} = trim($xp->findvalue('./j:route-count'));
+    $obj->{'description'} = trim($xp->findvalue('./j:description'));
+    $obj->{'destination-address'} = trim($xp->findvalue('./j:destination-address'));
+    $obj->{'source-address'} = trim($xp->findvalue('./j:source-address'));
+    $obj->{'lsp-state'} = trim($xp->findvalue('./j:lsp-state'));
+    $obj->{'lsp-path-type'} = trim($xp->findvalue('./j:lsp-path-type'));
+    $obj->{'suggested-lable-in'} = trim($xp->findvalue('./j:suggested-label-in'));
+    $obj->{'suggested-label-out'} = trim($xp->findvalue('./j:suggested-label-out'));
+    $obj->{'recovery-label-in'} = trim($xp->findvalue('./j:recovery-label-in'));
+    $obj->{'recovery-label-out'} = trim($xp->findvalue('./j:recovery-label-out'));
+    $obj->{'rsb-count'} = trim($xp->findvalue('./j:rsb-count'));
+    $obj->{'resv-style'} = trim($xp->findvalue('./j:resv-style'));
+    $obj->{'label-in'} = trim($xp->findvalue('./j:label-in'));
+    $obj->{'label-out'} = trim($xp->findvalue('./j:label-out'));
+    $obj->{'psb-lifetime'} = trim($xp->findvalue('./j:psb-lifetime'));
+    $obj->{'psb-creation-time'} = trim($xp->findvalue('./j:psb-creation-time'));
+    $obj->{'lsp-id'} = trim($xp->findvalue('./j:lsp-id'));
+    $obj->{'tunnel-id'} = trim($xp->findvalue('./j:tunnel-id'));
+    $obj->{'proto-id'} = trim($xp->findvalue('./j:proto-id'));
+    $obj->{'adspec'} = trim($xp->findvalue('./j:adspec'));
+
+    my $pkt_infos = $xp->find('./j:packet-information');
+    $obj->{'packet-information'} = ();
+    foreach my $pkt_info (@$pkt_infos){
+        push(@{$obj->{'packet-information'}}, _process_packet_info($pkt_info));
+    }
+
+    my $record_routes = trim($xp->find('./j:record-route/j:address'));
+    $obj->{'record-route'} = ();
+    foreach my $rr (@$record_routes){
+        push(@{$obj->{'record-route'}}, $rr->textContent);
+    }    
+
+    
+    
+    return $obj;
+}
+
+
+sub _process_rsvp_session_ingress{
+    my $session = shift;
+    
+    my $obj = {};
+
+    my $xp = XML::LibXML::XPathContext->new( $session );
+    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    $obj->{'name'} = trim($xp->findvalue('./j:mpls-lsp/j:name'));
+    $obj->{'description'} = trim($xp->findvalue('./j:mpls-lsp/j:description'));
+    $obj->{'destination-address'} = trim($xp->findvalue('./j:mpls-lsp/j:destination-address'));
+    $obj->{'source-address'} = trim($xp->findvalue('./j:mpls-lsp/j:source-address'));
+    $obj->{'lsp-state'} = trim($xp->findvalue('./j:mpls-lsp/j:lsp-state'));
+    $obj->{'route-count'} = trim($xp->findvalue('./j:mpls-lsp/j:route-count'));
+    $obj->{'active-path'} = trim($xp->findvalue('./j:mpls-lsp/j:active-path'));
+    $obj->{'lsp-type'} = trim($xp->findvalue('./j:mpls-lsp/j:lsp-type'));
+    $obj->{'egress-label-operation'} = trim($xp->findvalue('./j:mpls-lsp/j:egress-label-operation'));
+    $obj->{'load-balance'} = trim($xp->findvalue('./j:mpls-lsp/j:load-balance'));
+    $obj->{'attributes'} = { 'encoding-type' => trim($xp->findvalue('./j:mpls-lsp/j:mpls-lsp-attributes/j:encoding-type')),
+			     'switching-type' => trim($xp->findvalue('./mpls-lsp/j:mpls-lsp-attributes/j:switching-type')),
+			     'gpid' => trim($xp->findvalue('./mpls-lsp/j:mpls-lsp-attributes/j:gpid'))},
+    $obj->{'revert-timer'} = trim($xp->findvalue('./j:mpls-lsp/j:revert-timer'));
+    
+    $obj->{'paths'} = ();
+
+    my $paths = $xp->find('./j:mpls-lsp/j:mpls-lsp-path');
+    
+    foreach my $path (@$paths){
+	push(@{$obj->{'paths'}}, _process_lsp_path($path));
+    }
+
+    return $obj;
+}
+
+sub _process_lsp_path{
+    my $path = shift;
+
+    my $xp = XML::LibXML::XPathContext->new( $path );
+    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    
+    my $obj = {};
+
+    $obj->{'name'} = trim($xp->findvalue('./j:name'));
+    $obj->{'title'} = trim($xp->findvalue('./j:title'));
+    $obj->{'path-state'} = trim($xp->findvalue('./j:path-state'));
+    $obj->{'path-active'} = trim($xp->findvalue('./j:path-active'));
+    $obj->{'setup-priority'} = trim($xp->findvalue('./j:setup-priority'));
+
+    $obj->{'hold-priority'} = trim($xp->findvalue('./j:hold-priority'));
+    $obj->{'smart-optimize-timer'} = trim($xp->findvalue('./j:smart-optimize-timer'));
+
+    #TODO
+    #what is cspf-status
+    #$obj->{'title'} = trim($xp->find('./j:cspf-status'));
+    $obj->{'explicit-route'} = { 'addresses' => [] };
+    my $addresses = $xp->find('./j:explicit-route/j:address');
+
+    foreach my $address (@$addresses){
+	push(@{$obj->{'explicit-route'}->{'addresses'}}, $address->textContent);
+    }
+
+    $obj->{'explicit-route'}->{'explicit-route-type'} = trim($xp->findvalue('./j:explicit-route/j:explict-route-type'));
+
+    $obj->{'received-rro'} = trim($xp->findvalue('./j:received-rro'));
+    
+    return $obj;
+}
+
 
 sub _edit_config{
     my $self = shift;
@@ -408,6 +653,7 @@ sub _edit_config{
         return FWDCTL_FAILURE;
     }
 
+<<<<<<< HEAD
     eval {
         my %queryargs2 = ( 'target' => 'candidate' );
         $res = $self->{'jnx'}->unlock_config(%queryargs2);
@@ -427,6 +673,10 @@ sub _edit_config{
         $res = $self->{'jnx'}->unlock_config(%queryargs);
         return FWDCTL_FAILURE;
     }
+=======
+    %queryargs = ( 'target' => 'candidate' );
+    $res = $self->{'jnx'}->unlock_config(%queryargs);
+>>>>>>> 266e7764dfece7c243a2b11bb3c90b16482b7c04
 
     return FWDCTL_SUCCESS;
 }
