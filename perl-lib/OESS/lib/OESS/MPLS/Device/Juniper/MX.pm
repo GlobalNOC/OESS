@@ -166,7 +166,7 @@ sub connect{
 	$self->{'logger'}->error("Already connected to device");
 	return;
     }
-    $self->{'logger'}->info("Connecting to device!");
+    $self->{'logger'}->info("Connecting to device! " . Dumper($self));
     my $jnx = new Net::Netconf::Manager( 'access' => 'ssh',
 					 'login' => $self->{'username'},
 					 'password' => $self->{'password'},
@@ -240,7 +240,6 @@ sub get_LSPs{
 
     $self->{'jnx'}->get_mpls_lsp_information( detail => 1);
     my $xml = $self->{'jnx'}->get_dom();
-    warn Dumper($xml->toString());
     my $xp = XML::LibXML::XPathContext->new( $xml);
     $xp->registerNs('x',$xml->documentElement->namespaceURI);
     $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
@@ -469,9 +468,10 @@ sub _process_lsp_path{
     $obj->{'hold-priority'} = trim($xp->findvalue('./j:hold-priority'));
     $obj->{'smart-optimize-timer'} = trim($xp->findvalue('./j:smart-optimize-timer'));
 
+    #TODO
     #what is cspf-status
     #$obj->{'title'} = trim($xp->find('./j:cspf-status'));
-    $obj->{'explicit-route'} = { 'addresses' => () };
+    $obj->{'explicit-route'} = { 'addresses' => [] };
     my $addresses = $xp->find('./j:explicit-route/j:address');
 
     foreach my $address (@$addresses){
@@ -532,7 +532,7 @@ sub _edit_config{
 	return;
     }
 
-    my %queryargs = ( 'target' => 'candidate' );
+    %queryargs = ( 'target' => 'candidate' );
     $res = $self->{'jnx'}->unlock_config(%queryargs);
 
     return FWDCTL_SUCCESS;
