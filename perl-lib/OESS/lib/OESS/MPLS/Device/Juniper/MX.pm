@@ -59,19 +59,25 @@ sub get_system_information{
     my $reply = $self->{'jnx'}->get_system_information();
 
     if($self->{'jnx'}->has_error){
-        $self->{'logger'}->error("Error fetching interface information: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
+        $self->{'logger'}->error("Error fetching system information: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
         return;
     }
 
     my $system_info = $self->{'jnx'}->get_dom();
     my $xp = XML::LibXML::XPathContext->new( $system_info);
-    $xp->registerNs('x',$system_info->documentElement->namespaceURI);
-    
+    $xp->registerNs('x',$system_info->documentElement->namespaceURI);     
     my $model = $xp->findvalue('/x:rpc-reply/x:system-information/x:hardware-model');
     my $version = $xp->findvalue('/x:rpc-reply/x:system-information/x:os-version');
     my $host_name = $xp->findvalue('/x:rpc-reply/x:system-information/x:host-name');
-            
-    return {model => $model, version => $version, vendor => 'Juniper', host_name => $host_name};
+    my $os_name = $xp->findvalue('/x:rpc-reply/x:system-information/x:os-name');
+
+    # We need to create know the root path for our xml requests. This path containd the version minus the last number block
+    # (13.3R1.6 -> 13.3R1). The following regex creates the path as described
+    my $var = $version;
+    $var =~ /(\d+\.\d+R\d+)/;
+    my $root_namespace = "http://xml.juniper.net/junos/".$1.'/';
+    $self->{'root_namespace'} = $root_namespace;
+    return {model => $model, version => $version, os_name => $os_name, host_name => $host_name};
 }
 
 sub get_interfaces{
@@ -88,25 +94,28 @@ sub get_interfaces{
     my @interfaces;
 
     my $interfaces = $self->{'jnx'}->get_dom();
+    my $path = $self->{'root_namespace'}."junos-interface";
     my $xp = XML::LibXML::XPathContext->new( $interfaces);
     $xp->registerNs('x',$interfaces->documentElement->namespaceURI);
-    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-interface");
+    $xp->registerNs('j',$path);  
     my $ints = $xp->findnodes('/x:rpc-reply/j:interface-information/j:physical-interface');
 
     foreach my $int ($ints->get_nodelist){
-	push(@interfaces, _process_interface($int));
+	push(@interfaces, $self->_process_interface($int));
     }
 
     return \@interfaces;
 }
 
 sub _process_interface{
+    my $self = shift;
     my $int = shift;
     
     my $obj = {};
 
     my $xp = XML::LibXML::XPathContext->new( $int );
-    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-interface");
+    my $path = $self->{'root_namespace'}."junos-interface";
+    $xp->registerNs('j',$path);
     $obj->{'name'} = trim($xp->findvalue('./j:name'));
     $obj->{'admin_state'} = trim($xp->findvalue('./j:admin-status'));
     $obj->{'operational_state'} = trim($xp->findvalue('./j:oper-status'));
@@ -240,6 +249,27 @@ sub connect {
         return 1;
     }
 
+    $self->{'logger'}->info("Connecting to device!");
+    my $jnx = new Net::Netconf::Manager( 'access' => 'ssh',
+					 'login' => $self->{'username'},
+					 'password' => $self->{'password'},
+					 'hostname' => $self->{'mgmt_addr'},
+					 'port' => 22 );
+    if(!$jnx){
+	$self->{'connected'} = 0;
+    }else{
+	$self->{'logger'}->info("Connected!");
+	$self->{'jnx'} = $jnx;
+	#gather basic system information needed later!
+	my $verify = $self->verify_connection();
+	if ($verify == 1) {
+	    $self->{'connected'} = 1;
+	}
+	else {
+	    $self->{'connected'} = 0;
+	}
+    }
+
     my $jnx = undef;
     eval {
         $self->{'logger'}->info("Connecting to device!");
@@ -269,6 +299,22 @@ sub connected{
     return $self->{'connected'};
 }
 
+sub verify_connection{
+    #gather basic system information needed later, and make sure it is what we expected / are prepared to handle                                                                            
+    #
+    my $self = shift;
+    my $sysinfo = $self->get_system_information();
+    if (($sysinfo->{"os_name"} eq "junos") && ($sysinfo->{"version"} eq "13.3R1.6")){
+	# print "Connection verified, proceeding\n";
+	return 1;
+    }
+    else {
+	$self->{'logger'}->error("Network OS and / or version is not supported");
+	return 0;
+    }
+    
+}
+
 sub get_isis_adjacencies{
     my $self = shift;
 
@@ -280,28 +326,31 @@ sub get_isis_adjacencies{
     $self->{'jnx'}->get_isis_adjacency_information( detail => 1 );
 
     my $xml = $self->{'jnx'}->get_dom();
-    #warn Dumper($xml->toString());
+    warn Dumper($xml->toString());
     my $xp = XML::LibXML::XPathContext->new( $xml);
     $xp->registerNs('x',$xml->documentElement->namespaceURI);
-    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    my $path = $self->{'root_namespace'}."junos-routing";
+    $xp->registerNs('j',$path);
 
     my $adjacencies = $xp->find('/x:rpc-reply/j:isis-adjacency-information/j:isis-adjacency');
     
     my @adj;
     foreach my $adjacency (@$adjacencies){
-	push(@adj, _process_isis_adj($adjacency));
+	push(@adj, $self->_process_isis_adj($adjacency));
     }
 
     return \@adj;
 }
 
 sub _process_isis_adj{
+    my $self = shift;
     my $adj = shift;
 
     my $obj = {};
 
     my $xp = XML::LibXML::XPathContext->new( $adj );
-    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    my $path = $self->{'root_namespace'}."junos-routing";
+    $xp->registerNs('j',$path);
     $obj->{'interface_name'} = trim($xp->findvalue('./j:interface-name'));
     $obj->{'operational_state'} = trim($xp->findvalue('./j:adjacency-state'));
     $obj->{'remote_system_name'} = trim($xp->findvalue('./j:system-name'));
@@ -653,7 +702,6 @@ sub _edit_config{
         return FWDCTL_FAILURE;
     }
 
-<<<<<<< HEAD
     eval {
         my %queryargs2 = ( 'target' => 'candidate' );
         $res = $self->{'jnx'}->unlock_config(%queryargs2);
@@ -673,10 +721,9 @@ sub _edit_config{
         $res = $self->{'jnx'}->unlock_config(%queryargs);
         return FWDCTL_FAILURE;
     }
-=======
+
     %queryargs = ( 'target' => 'candidate' );
     $res = $self->{'jnx'}->unlock_config(%queryargs);
->>>>>>> 266e7764dfece7c243a2b11bb3c90b16482b7c04
 
     return FWDCTL_SUCCESS;
 }
