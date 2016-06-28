@@ -697,6 +697,43 @@ sub register_webservice_methods {
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
                                   required    => 1,
                                   description => '' );
+    $method->add_input_parameter( name        => 'name',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'longitude',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'latitude',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'user',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 1,
+				  description => '' );
+    $method->add_input_parameter( name        => 'password',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 1,
+				  description => '' );
+    $method->add_input_parameter( name        => 'port',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'vendor',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'model',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'sw_ver',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 1,
+				  description => '' );
+
     $svc->register_method($method);
 }
 
@@ -2034,18 +2071,50 @@ sub add_mpls_switch{
         return send_json($err);
     }
     
+    my $name = $args->{'name'}{'value'};
     my $ip_address = $args->{'ip_address'}{'value'};
-    
+    my $username = $args->{'user'}{'value'};
+    my $pass = $args->{'password'}{'value'};
+    my $latitude = $args->{'latitude'}{'value'};
+    my $longitude = $args->{'longitude'}{'value'};
+    my $port = $args->{'port'}{'value'};
+    my $vendor = $args->{'vendor'}{'value'};
+    my $model = $args->{'model'}{'value'};
+    my $sw_ver = $args->{'sw_ver'}{'value'};
+
+    my $node = $db->add_mpls_node( name => $name,
+				   ip => $ip_address,
+				   user => $username,
+				   pass => $pass,
+				   lat => $latitude,
+				   long => $longitude,
+				   port => $port,
+				   vendor => $vendor,
+				   model => $model,
+				   sw_ver => $sw_ver);
+
+    if(!defined($node)){
+	return $db->get_error();
+    }
+
     my $client = GRNOC::RabbitMQ::Client->new( topic => 'MPLS.FWDCTL.RPC',
 					       exchange => 'OESS',
 					       user => $db->{'rabbitMQ'}->{'user'},
-					       pass => $db->{'rabbitMQ'}->{'port'},
+					       pass => $db->{'rabbitMQ'}->{'pass'},
 					       host => $db->{'rabbitMQ'}->{'host'},
 					       port => $db->{'rabbitMQ'}->{'port'});
 
-    my $res = $client->new_switch( ip => $ip_address );
     
-    return $res;
+
+    warn Data::Dumper::Dumper($node);
+
+    my $res = $client->new_switch(node_id => $node->{'node_id'});    
+    $client->{'topic'} = 'MPLS.Discovery.RPC';
+    $res = $client->new_switch(node_id => $node->{'node_id'});
+    
+
+    return {results => [{success => 1, node_id => $node->{'node_id'}}]};
+
 }
 
 sub send_json {

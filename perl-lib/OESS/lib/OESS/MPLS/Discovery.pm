@@ -42,7 +42,7 @@ use Socket;
 use GRNOC::RabbitMQ::Client;
 use GRNOC::RabbitMQ::Method;
 use GRNOC::RabbitMQ::Dispatcher;
-
+use GRNOC::WebService::Regex;
 use OESS::Database;
 
 use OESS::MPLS::Discovery::Interface;
@@ -89,8 +89,8 @@ sub new{
     die if(!defined($self->{'db'}));
 
     #init our sub modules
-    #$self->{'interface'} = $self->_init_interfaces();
-    #die if (!defined($self->{'interface'}));
+    $self->{'interface'} = $self->_init_interfaces();
+    die if (!defined($self->{'interface'}));
     $self->{'lsp'} = $self->_init_lsp();
     die if (!defined($self->{'lsp'}));
     #$self->{'isis'} = $self->_init_isis();
@@ -107,7 +107,7 @@ sub new{
     die if(!defined($self->{'rmq_client'}));
 
     #setup the timers
-#    $self->{'int_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->int_handler(); });
+    $self->{'int_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->int_handler(); });
     $self->{'lsp_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->lsp_handler(); });
 #    $self->{'isis_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->isis_handler(); } );
 
@@ -146,36 +146,11 @@ sub register_rpc_methods{
 					    callback => sub { $self->new_switch(@_) },
 					    description => "adds a new switch to the DB and starts a child process to fetch its details");
     
-    $method->add_input_parameter( name => "ip",
-                                  description => "the ip address of the switch",
+    $method->add_input_parameter( name => "node_id",
+                                  description => "the node_id of the new node",
                                   required => 1,
-                                  pattern => $GRNOC::WebService::Regex::IP_ADDRESS);
+                                  pattern => $GRNOC::WebService::Regex::NUMBER_ID);
 
-    $method->add_input_parameter( name => "username",
-                                  description => "the ip address of the switch",
-                                  required => 1,
-                                  pattern => $GRNOC::WebService::Regex::NAME_ID);
-
-    $method->add_input_parameter( name => "password",
-                                  description => "the ip address of the switch",
-                                  required => 1,
-                                  pattern => $GRNOC::WebService::Regex::TEXT);
-
-    $method->add_input_parameter( name => "vendor",
-                                  description => "the ip address of the switch",
-                                  required => 1,
-                                  pattern => $GRNOC::WebService::Regex::NAME_ID);
-
-    $method->add_input_parameter( name => "model",
-                                  description => "the ip address of the switch",
-                                  required => 1,
-                                  pattern => $GRNOC::WebService::Regex::NAME_ID);
-
-    $method->add_input_parameter( name => "sw_version",
-                                  description => "the ip address of the switch",
-                                  required => 1,
-                                  pattern => $GRNOC::WebService::Regex::NAME_ID);
-	
     $d->register_method($method);
 }
 
@@ -193,67 +168,14 @@ sub new_switch{
     my $p_ref = shift;
     my $state_ref = shift;
 
-    my $ip = $p_ref->{'ip'}{'value'};
-    my $password = $p_ref->{'password'}{'value'};
-    my $username = $p_ref->{'username'}{'value'};
-    my $vendor = $p_ref->{'vendor'}{'value'};
-    my $model = $p_ref->{'model'}{'value'};
-    my $sw_rev = $p_ref->{'version'}{'value'};
-
-
-    #check to see if the node exists!
-    my $node = $self->{'db'}->get_node_by_ip( ip => $ip );
-    if(defined($node)){
-	if(!$node->{'mpls'}){
-	    #TODO: update the node instantiation to allow for MPLS
-	    
-	}
-	$self->{'logger'}->debug("This switch already exists!");
-	$self->update_cache(-1);	
-	#sherpa will you make my babies!
-	$self->make_baby($node->{'node_id'});
-	$self->{'logger'}->debug("Baby was created!");
-        return;
-    }
-
-    #first we need to create the node entry in the db...
-    #also set the node instantiation to available...
-    my $node_name;
-    # try to look up the name first to be all friendly like
-    $node_name = gethostbyaddr($ip, AF_INET);
-
-    # avoid any duplicate host names. The user can set this to whatever they want
-    # later via the admin interface.
-    my $i = 1;
-    my $tmp = $node_name;
-    while (my $result = $self->{'db'}->get_node_by_name(name => $tmp)){
-        $tmp = $node_name . "-" . $i;
-        $i++;
-    }
-
-    $node_name = $tmp;
-
-    # default
-    if (! $node_name){
-        $node_name="unnamed-".$ip;
-    }
-
-    #wrap all of this in a transaction
-    $self->{'db'}->_start_transaction();
-    #add to DB
-    my $node_id = $self->{'db'}->add_node(name => $node_name, operational_state => 'up', network_id => 1);
-    if(!defined($node_id)){
-        $self->{'db'}->_rollback();
-        return;
-    }
-    $self->{'db'}->create_node_instance(node_id => $node_id, mgmt_addr => $ip, admin_state => 'available', username => $username, password => $password, vendor => $vendor, model => $model, sw_version => $sw_rev, mpls => 1, openflow => 0);
-    $self->{'db'}->_commit();
-
-    $self->update_cache(-1);
+    my $node_id = $p_ref->{'node_id'}{'value'};
 
     #sherpa will you make my babies!
     $self->make_baby($node_id);
     $self->{'logger'}->debug("Baby was created!");
+    sleep(5);
+    $self->int_handler();
+    $self->lsp_handler();
 }
 
 
@@ -277,7 +199,6 @@ sub make_baby{
 
     my %args;
     $args{'id'} = $id;
-    $args{'share_file'} = $self->{'share_file'}. "." . $id;
     $args{'rabbitMQ_host'} = $self->{'db'}->{'rabbitMQ'}->{'host'};
     $args{'rabbitMQ_port'} = $self->{'db'}->{'rabbitMQ'}->{'port'};
     $args{'rabbitMQ_user'} = $self->{'db'}->{'rabbitMQ'}->{'user'};
@@ -288,8 +209,6 @@ sub make_baby{
     $args{'sw_version'} = $node->{'sw_version'};
     $args{'mgmt_addr'} = $node->{'mgmt_addr'};
     $args{'name'} = $node->{'name'};
-    $args{'username'} = $node->{'username'};
-    $args{'password'} = $node->{'password'};
     $args{'use_cache'} = 0;
     $args{'topic'} = "MPLS.Discovery.Switch.";
     my $proc = AnyEvent::Fork->new->require("Log::Log4perl", "OESS::MPLS::Switch")->eval('
@@ -305,7 +224,7 @@ sub run{
     my %args = @_;
     $logger = Log::Log4perl->get_logger("MPLS.Discovery.MASTER");
     $logger->info("Creating child for id: " . $args{"id"});
-    $args{"node"} = {"vendor" => $args{"vendor"}, "model" => $args{"model"}, "sw_version" => $args{"sw_version"}, "name" => $args{"name"}, "mgmt_addr" => $args{"mgmt_addr"}, "username" => $args{"username"}, "password" => $args{"password"}};			  
+    $args{"node"} = {"vendor" => $args{"vendor"}, "model" => $args{"model"}, "sw_version" => $args{"sw_version"}, "name" => $args{"name"}, "mgmt_addr" => $args{"mgmt_addr"}};			  
     $switch = OESS::MPLS::Switch->new( %args );
     }')->fork->send_arg( %args )->run("run");
 
@@ -317,7 +236,7 @@ sub _init_interfaces{
     my $self = shift;
     
     my $ints = OESS::MPLS::Discovery::Interface->new( db => $self->{'db'},
-						      lsp_processor => $self->lsp_handler );
+						      lsp_processor => sub{ $self->lsp_handler(); } );
     if(!defined($ints)){
 	die "Unable to create Interface processor\n";
     }
@@ -357,10 +276,8 @@ sub int_handler{
 	$self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
 	$self->{'rmq_client'}->get_interfaces( async => 1,
 					       async_callback => $self->handle_response( cb => sub { my $res = shift;
-												     my $status = $self->{'interface'}->process_result( node => $node, interfaces => $res);}
-					       )
-						    			 
-	    );
+												     my $status = $self->{'interface'}->process_results( node => $node->{'name'}, interfaces => $res->{'results'});
+											 }));
     }
 }
 
@@ -385,8 +302,7 @@ sub lsp_handler{
 											       }
 
 											       if($no_pending){
-												   print Data::Dumper::Dumper(\%nodes);
-												   my $status = $self->{'lsp'}->process_result( lsp => \%nodes);
+												   my $status = $self->{'lsp'}->process_results( lsp => \%nodes);
 											       }
 										   })
 					 
@@ -414,7 +330,7 @@ sub isis_handler{
 											      }
 											      
 											      if($no_pending){
-												  my $status = $self->{'isis'}->process_result( node => $node, lsp => $res);
+												  my $status = $self->{'isis'}->process_results( node => $node, lsp => $res);
 											      }
                                                                                   })
 					

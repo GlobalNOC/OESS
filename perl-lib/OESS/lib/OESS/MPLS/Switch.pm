@@ -38,13 +38,13 @@ sub new{
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Switch.' . $self->{'id'});
     bless $self, $class;
 
+    $self->{'node'}->{'node_id'} = $self->{'id'};
+
     $self->{'logger'}->error(Data::Dumper::Dumper($self));
 
     if($self->{'use_cache'}){
 	$self->_update_cache();
     }
-
-
 
     $self->create_device_object();
     if(!defined($self->{'device'})){
@@ -95,7 +95,8 @@ sub create_device_object{
     switch($host_info->{'vendor'}){
 	case "Juniper" {
 	    my $dev;
-	    if($host_info->{'model'} =~ /mx/){
+	    if($host_info->{'model'} =~ /mx/i){
+		warn Data::Dumper::Dumper($host_info);
 		$dev = OESS::MPLS::Device::Juniper::MX->new( %$host_info );
 	    }else{
 		$self->{'logger'}->error("Juniper " . $host_info->{'model'} . " is not supported");

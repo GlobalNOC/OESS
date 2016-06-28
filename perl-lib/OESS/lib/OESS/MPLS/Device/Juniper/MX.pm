@@ -35,6 +35,13 @@ sub new{
 
     $self->{'tt'} = Template->new(INCLUDE_PATH => "/usr/share/doc/perl-OESS-1.2.0/share/mpls/templates/") or die "Unable to create Template Toolkit!";
 
+    my $creds = $self->_get_credentials();
+    if(!defined($creds)){
+	die "Unable to fetch credentials!";
+    }
+    $self->{'username'} = $creds->{'username'};
+    $self->{'password'} = $creds->{'password'};
+
     return $self;
 
 }
@@ -270,7 +277,7 @@ sub connect {
 	}
     }
 
-    my $jnx = undef;
+    $jnx = undef;
     eval {
         $self->{'logger'}->info("Connecting to device!");
         $jnx = new Net::Netconf::Manager( 'access' => 'ssh',
@@ -326,7 +333,6 @@ sub get_isis_adjacencies{
     $self->{'jnx'}->get_isis_adjacency_information( detail => 1 );
 
     my $xml = $self->{'jnx'}->get_dom();
-    warn Dumper($xml->toString());
     my $xp = XML::LibXML::XPathContext->new( $xml);
     $xp->registerNs('x',$xml->documentElement->namespaceURI);
     my $path = $self->{'root_namespace'}."junos-routing";

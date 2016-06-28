@@ -2864,26 +2864,156 @@ function setup_discovery_tab(){
     var add_mpls_switch_button = new YAHOO.widget.Button("add_mpls_switch_button", {label: "Add MPLS switch button"});
 
     add_mpls_switch_button.on("click", function(e){
-	    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_mpls_device&mgmt_addr=" + document.getElementById("add_mpls_switch").value());
-	    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
-	    ds.responseSchema = {
-		resultsList: "results",
-		fields: [{key: "success"}]
-	    };
+	    var new_mpls_switch_details_panel = new YAHOO.widget.Panel("new_switch_details",
+						       {width: 600,
+							fixedcenter: true,
+							modal: true
+						       }
+						       );
 
-	    ds.sendRequest("", {success: function(req, resp){
+	    this.new_mpls = new_mpls_switch_details_panel;
 
-			add_mpls_switch_button.set("disabled", false);
-			add_mpls_switch_button.set("label", "Add MPLS Device");
-		    },
+            this.new_mpls.setHeader("Details for new Device!");
 
-			failure: function(req, resp){
-			add_mpls_switch_button.set("disabled", false);
-			add_mpls_switchbutton.set("label", "Add MPLS Device");
+            this.new_mpls.setBody("<table>" +
+				  "<tr>" +
+				  "<td>Name:</td>" +
+				  "<td colspan='4'>" +
+				  "<input type='text' id='new_node_name' size='38'>" +
+				  "</td>" +
+				  "</tr>" +
+				  "<tr>" +
+				  "<td>Latitude:</td>" +
+				  "<td><input type='text' id='new_node_lat' size='10'></td>" +
+				  "<td>Longitude:</td>" +
+				  "<td><input type='text' id='new_node_lon' size='10'></td>" +
+				  "</tr>" +
+				  "<tr>" +
+				  "<td>IP Address</td>" +
+				  "<td><input type='text' id='new_ip_address' size='40'></td>" +
+				  "</tr>" +
+                                  "<tr>" +
+                                  "<td>Username</td>" +
+                                  "<td><input type='text' id='new_username' size='20'></td>" +
+                                  "</tr>" +
+				  "<tr>" +
+                                  "<tr>" +
+                                  "<td>Password</td>" +
+                                  "<td><input type='password' id='new_password' size='20'></td>" +
+                                  "</tr>" +
+				  "<tr>" +
+                                  "<td>Port</td>" +
+                                  "<td><input type='text' id='new_port' size='10'></td>" +
+                                  "</tr>" +
+				  "<td>Vendor</td>"+
+				  "<td><select id='new_mpls_vendor'><option>Select One...</option><option value='Juniper'>Juniper</option></select></td>" +
+				  "</tr>" +
+				  "<tr>" +
+				  "<td>Model</td>" +
+				  "<td><select id='new_mpls_model'><option>Select a vendor first</option></select></td>" +
+				  "</td>" +
+				  "</tr>" +
+				  "<tr>" +
+				  "<td>Software Version</td>" +
+				  "<td><input type='text' id='new_mpls_software' size='10'></td>" +
+				  "</tr>" +
+				  "</table>"
+				  );
 
-			alert("Server error while adding MPLS device");
+            this.new_mpls.setFooter("<div id='add_node'></div><div id='node_add_cancel'></div>");
+
+            this.new_mpls.render(document.body);
+
+	    $('#new_mpls_vendor').on('change', function(){
+		    var vendor = $('#new_mpls_vendor').val();
+		    if(vendor == 'Juniper'){
+			var options = {"MX": "MX"};
+			var $el = $("#new_mpls_model");
+			$el.empty();
+			$.each(options, function(value, key){
+				$el.append($("<option></option>").attr("value", value).text(key));
+			    });
+		    }else if( vendor == 'Brocade'){
+
 		    }
+		});
+
+            var add_button = new YAHOO.widget.Button("add_node", {label: "Add Switch"});
+	    var cancel_button = new YAHOO.widget.Button("node_add_cancel", {label: "Cancel"});
+
+	    
+
+	    //do the add event!
+	    add_button.on('click', function(){
+                    
+		    var lat   = YAHOO.util.Dom.get('new_node_lat').value;
+                    var lon   = YAHOO.util.Dom.get('new_node_lon').value;
+                    var name  = YAHOO.util.Dom.get('new_node_name').value;
+		    var user  = YAHOO.util.Dom.get('new_username').value;
+		    var ip    = YAHOO.util.Dom.get('new_ip_address').value;
+		    var pass  = YAHOO.util.Dom.get('new_password').value;
+		    var port  = YAHOO.util.Dom.get('new_port').value;
+		    var vendor= YAHOO.util.Dom.get('new_mpls_vendor').value;
+		    var model = YAHOO.util.Dom.get('new_mpls_model').value;
+		    var sw_ver= YAHOO.util.Dom.get('new_mpls_software').value;
+		    
+		    if (! name){
+                        alert("You must specify a name for this device.");
+                        return;
+                    }
+
+		    if( !ip || !port || ! pass){
+			alert('You must specify and IP, SSH port, and password');
+			return;
+		    }
+
+                    if (name.match(/:/) || name.match(/\s/)){
+                        alert("You may not have spaces or colons in the name.");
+                        return;
+                    }
+                   
+                    if (! lat || ! lat.match(/^\-?\d+(\.\d+)?$/) || lat < -90 || lat > 90){
+                        alert("You must specify a valid latitude at which this device will be visualized on the map.");
+                        return;
+                    }
+                    
+                    if (! lon || ! lon.match(/^\-?\d+(\.\d+)?$/) || lon < -180 || lon > 180){
+                        alert("You must specify a valid longitude at which this device will be visualized on the map.");
+                        return;
+                    }
+
+		    if(vendor == undefined || model == undefined || sw_ver == undefined){
+			alert('Hardware vendor, model and software version are required');
+			return;
+		    }
+
+		    add_button.set("disabled", true);
+		    add_button.set("label", "Adding device....");
+
+		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_mpls_switch&name=" + encodeURIComponent(name) + "&latitude=" + encodeURIComponent(lat) + "&longitude=" + encodeURIComponent(lon) + "&user=" + encodeURIComponent(user) + "&ip_address=" + encodeURIComponent(ip) + "&password=" + encodeURIComponent(pass) + "&port=" + encodeURIComponent(port) + "&vendor=" + encodeURIComponent(vendor) + "&model=" + encodeURIComponent(model) + "&sw_ver=" + encodeURIComponent(sw_ver));
+		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+		    
+		    ds.responseSchema = {
+			resultsList: "results",
+			fields: [{key: "success"}]
+		    };
+		    
+		    ds.sendRequest("", {success: function(req, resp){
+				add_button.set("disabled", false);
+				add_button.set("label", "Add MPLS Device");
+
+				new_mpls_switch_details_panel.hide();
+				setup_network_tab();				
+			    },
+				
+				failure: function(req, resp){
+				add_button.set("disabled", false);
+				add_button.set("label", "Add MPLS Device");
+				
+				alert("Server error while adding MPLS device");
+			    }
+			});
 		});
 	});
 

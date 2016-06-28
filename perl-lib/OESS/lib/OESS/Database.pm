@@ -78,6 +78,7 @@ use XML::Simple;
 use Array::Utils qw(intersect);
 use XML::Writer;
 use GRNOC::RabbitMQ::Client;
+use GRNOC::Config;
 use OESS::Topology;
 use DateTime;
 use Data::Dumper;
@@ -87,6 +88,7 @@ use Socket qw( inet_aton inet_ntoa);
 use constant VERSION => '1.2.0';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
+use constant OESS_PW_FILE => "/etc/oess/.passwd.xml";
 use constant SHARE_DIR => "/usr/share/doc/perl-OESS-" . VERSION . "/";
 use constant UNTAGGED => -1;
 use constant OSCARS_WG => 'OSCARS IDC';
@@ -6961,10 +6963,10 @@ sub get_node_by_name {
     if ($args{'no_instantiation'}){
         $query = "select * from node where name = ?";
     }
-       else {
+    else {
 	$query = "select * from node join node_instantiation on node.node_id = node_instantiation.node_id ";
 	$query   .= " where node.name = ?";
-     }
+    }
     my $results = $self->_execute_query($query, [$name]);
     if (! defined $results){
 	$self->_set_error("Internal error fetching node information.");
@@ -6987,7 +6989,9 @@ sub get_node_by_id{
     my $sth = $self->_prepare_query($str);
 
     $sth->execute($args{'node_id'});
-    return $sth->fetchrow_hashref();
+    my $node = $sth->fetchrow_hashref();
+
+    return $node;
 }
 
 
@@ -7062,6 +7066,159 @@ sub get_node_by_interface_id {
     return @$res[0];
 }
 
+=head2 add_mpls_node
+
+    my $node = $db->add_mpls_node( ip => $ip_address,
+                                   user => $user,
+                                   pass => $pass,
+                                   lat => $lat,
+                                   long => $long,
+                                   port => $port,
+                                   vendor => $vendor,
+                                   model => $model,
+                                   sw_ver => $sw_ver);
+
+=cut
+
+sub add_mpls_node{
+    my $self = shift;
+    my %args = @_;
+
+    #TODO: PARAM CHECKS
+
+    warn Data::Dumper::Dumper(%args);
+
+    $self->_start_transaction();
+
+    my $query = "insert into node (name, latitude, longitude, operational_state,network_id) VALUES (?,?,?,?,?)";
+    my $res = $self->_execute_query($query, [$args{'name'},$args{'lat'},$args{'long'},'unknown',1]);
+
+    warn "New Node: " . Data::Dumper::Dumper($res);
+
+    if(!defined($res) || $res == -1){
+	$self->_rollback();
+	return;
+    }
+
+    my $node_id = $res;
+    $res = $self->create_node_instance( node_id => $node_id,
+					openflow => 0,
+					mpls => 1,
+					admin_state => 'active',
+					vendor => $args{'vendor'},
+					model => $args{'model'},
+					sw_version => $args{'sw_ver'},
+					mgmt_addr => $args{'ip'});
+    
+    if(!defined($res)){
+	$self->_rollback();
+	return;
+    }
+
+    #add to the password config
+    $res = $self->update_pw_file( node_id  => $node_id, 
+				  username => $args{'user'},
+				  password => $args{'pass'} );
+
+    if(!defined($res)){
+	$self->_rollback();
+	return;
+    }
+
+    #made it this far so commit and fetch our results!
+    $self->_commit();
+
+    my $node = $self->get_node_by_id( node_id => $node_id);
+    return $node;
+
+}
+
+=head2 update_pw_file
+
+=cut
+
+sub update_pw_file{
+    my $self = shift;
+    my %args = @_;
+
+    if(!defined($args{'node_id'}) || !defined($args{'username'}) || !defined($args{'password'})){
+	$self->_set_error("Upate PW file takes a node_id, username, and password");
+	return;
+    }
+
+    my $node_id = $args{'node_id'};
+
+    my $config = GRNOC::Config->new(config_file => OESS_PW_FILE, debug => 1);
+
+    my $node = $config->get("/config/node[\@node_id='$node_id']")->[0];
+    
+    warn Data::Dumper::Dumper($node);
+
+    if(defined($node)){
+	warn "Node defined... \n";
+	$config->update_attribute("/config/node[\@node_id='$node_id']","username", $args{'username'});
+	$config->update_attribute("/config/node[\@node_id='$node_id']","password", $args{'password'});
+    }else{
+	warn "Node not defined... creating...\n";
+	my $res = $config->add_node("/config", "node");
+	if(!defined($res)){
+	    warn "Unable to add Node\n";
+	    warn $config->get_error();
+	    return;
+	}
+	$res = $config->add_attribute("/config/node[last()]","node_id", $node_id);
+	if(!defined($res)){
+	    warn "Unable to add node_id attribute\n";
+	    warn $config->get_error();
+	    return;
+	}
+	$res = $config->add_attribute("/config/node[last()]","username", $args{'username'});
+	if(!defined($res)){
+            warn "Unable to add username attribute\n";
+	    warn $config->get_error();
+            return;
+        }
+	$res = $config->add_attribute("/config/node[last()]","password", $args{'password'});
+	if(!defined($res)){
+            warn "Unable to add password attribute\n";
+	    warn $config->get_error();
+            return;
+        }
+    }
+
+    return 1;
+    
+}
+
+sub get_pw_for_node{
+    my $self = shift;
+    my %args = @_;
+
+    my $node_id = $args{'node_id'};
+
+    if(!defined($node_id)){
+	return;
+    }
+
+    if(!defined($args{'node_id'})){
+	$self->_set_error("get_pw_for_node requires a node_id");
+        return;
+    }
+
+    my $config = GRNOC::Config->new( config_file => OESS_PW_FILE );
+    my $node = $config->{'doc'}->getDocumentElement()->find("/config/node[\@node_id='$node_id']")->[0];
+    my $res = XML::Simple::XMLin($node->toString(), ForceArray => 1);
+
+    if(!defined($res)){
+        warn "No Credentials found for node_id: " . $node_id . "\n";
+        die;
+    }
+
+    return $res;
+
+}
+
+
 =head2 add_node
 
 =cut
@@ -7118,7 +7275,7 @@ sub create_node_instance{
 	$args{'dpid'} = inet_aton($args{'mgmt_addr'});
     }
 
-    my $res = $self->_execute_query("insert into node_instantiation (node_id,end_epoch,start_epoch,mgmt_addr,admin_state,dpid,username,password,vendor,model,sw_version,mpls,openflow ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",[$args{'node_id'},-1,time(),$args{'mgmt_addr'},$args{'admin_state'},$args{'dpid'},$args{'username'},$args{'password'},$args{'vendor'},$args{'model'},$args{'sw_version'},$args{'mpls'},$args{'openflow'}]);
+    my $res = $self->_execute_query("insert into node_instantiation (node_id,end_epoch,start_epoch,mgmt_addr,admin_state,dpid,vendor,model,sw_version,mpls,openflow ) VALUES (?,?,?,?,?,?,?,?,?,?,?)",[$args{'node_id'},-1,time(),$args{'mgmt_addr'},$args{'admin_state'},$args{'dpid'},$args{'vendor'},$args{'model'},$args{'sw_version'},$args{'mpls'},$args{'openflow'}]);
 
     if(!defined($res)){
 	$self->_set_error("Unable to create new node instantiation");

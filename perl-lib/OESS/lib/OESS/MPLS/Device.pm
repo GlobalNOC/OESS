@@ -11,6 +11,7 @@ use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
+use constant OESS_PW_FILE       => "/etc/oess/.passwd.xml";
 
 sub new{
     my $class = shift;
@@ -25,6 +26,24 @@ sub new{
 
     bless $self, $class;    
 }
+
+sub _get_credentials{
+    my $self = shift;
+    my $config = GRNOC::Config->new( config_file => OESS_PW_FILE );
+    my $node_id = $self->{'node_id'};
+    my $node = $config->{'doc'}->getDocumentElement()->find("/config/node[\@node_id='$node_id']")->[0];
+
+    my $res = XML::Simple::XMLin($node->toString(), ForceArray => 1);
+
+    if(!defined($res)){
+	warn "No Credentials found for node_id: " . $node_id . "\n";
+	die;
+    }
+
+    return $res;
+
+}
+
 
 sub connect{
     my $self = shift;
