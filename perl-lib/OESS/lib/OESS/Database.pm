@@ -1022,7 +1022,12 @@ sub create_link_instantiation{
 	return;
     }
 
-    my $res = $self->_execute_query("insert into link_instantiation (link_id,end_epoch,start_epoch,link_state,interface_a_id,interface_z_id) VALUES (?,-1,UNIX_TIMESTAMP(NOW()),?,?,?)",[$args{'link_id'},$args{'state'},$args{'interface_a_id'},$args{'interface_z_id'}]);
+    if(!defined($args{'openflow'}) && !defined($args{'mpls'})){
+	$args{'openflow'} = 1;
+	$args{'mpls'} = 0;
+    }
+
+    my $res = $self->_execute_query("insert into link_instantiation (link_id,end_epoch,start_epoch,link_state,interface_a_id,interface_z_id, openflow, mpls) VALUES (?,-1,UNIX_TIMESTAMP(NOW()),?,?,?,?,?)",[$args{'link_id'},$args{'state'},$args{'interface_a_id'},$args{'interface_z_id'}, $args{'openflow'}, $args{'mpls'}]);
 
     if(!defined($res)){
 	return;
@@ -1425,8 +1430,16 @@ HERE
 
 sub get_current_links {
     my $self = shift;
-    #We don't set the end_epoch when a link is available or when it is decom, we only want active links ISSUE 5759
-    my $query = "select * from link natural join link_instantiation where link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active' and link.remote_urn is NULL order by link.name";
+    my %args = shift;
+
+
+    my $query;
+
+    if($args{'mpls'} && $args{'mpls'} == 1){
+	$query = "select * from link natural join link_instantiation where link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active' and link.remote_urn is NULL and link_instantiation.mpls=1 order by link.name";	
+    }else{
+	$query = "select * from link natural join link_instantiation where link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active' and link.remote_urn is NULL and link_instantiation.openflow=1 order by link.name";
+    }
 
     my $res = $self->_execute_query($query,[]);
 
@@ -5166,7 +5179,7 @@ sub get_links_details_by_name {
 sub get_link_details {
     my ($self, %args) = @_;
 
-    my $query = "select link.name, node_a.name as node_a, if_a.name as interface_a, if_a.interface_id as interface_a_id, if_a.port_number as port_no_a, node_z.name as node_z, if_z.name as interface_z, if_z.interface_id as interface_z_id, if_z.port_number as port_no_z from link " .
+    my $query = "select link_instantiation.openflow, link_instantiation.mpls, link.name, node_a.name as node_a, if_a.name as interface_a, if_a.interface_id as interface_a_id, if_a.port_number as port_no_a, node_z.name as node_z, if_z.name as interface_z, if_z.interface_id as interface_z_id, if_z.port_number as port_no_z from link " .
     " join link_instantiation link_inst on link.link_id = link_inst.link_id and link_inst.end_epoch = -1".
 	" join interface if_a on link_inst.interface_a_id = if_a.interface_id ".
  	" join interface if_z on link_inst.interface_z_id = if_z.interface_id ".
@@ -5792,7 +5805,7 @@ sub add_remote_link {
 
     my $link_id = $self->add_link(
         name           => $name,
-		remote_urn     => $urn,
+	remote_urn     => $urn,
         vlan_tag_range => $vlan_tag_range
     );
 
@@ -9566,6 +9579,37 @@ sub default_vlan_range {
     return $self->{'default_vlan_range'};
 }
 
+=head2 is_openflow_enabled
+
+=cut
+
+sub is_openflow_enabled{
+    my $self = shift;
+
+    return 1 if(!defined($self->{'configiguration'}->{'openflow'}));
+    
+    if(lc($self->{'configuration'}->{'openflow'}) eq 'enabled'){
+	return 1;
+    }
+    return 0;
+
+}
+
+=head2 is_mpls_enabled
+
+=cut
+
+sub is_mpls_enabled{
+    my $self = shift;
+    return 0 if(!defined($self->{'configuration'}->{'mpls'}));
+
+    if(lc($self->{'configuration'}->{'mpls'}) eq 'enabled'){
+        return 1;
+    }
+    return 0;
+
+}
+
 =head2 is_topo_enabled
 
 =cut
@@ -9608,7 +9652,23 @@ sub is_mpls_fwdctl_enabled{
     
     return 1 if(!defined($self->{'processes'}->{'mpls_fwdctl'}));
     
-    if($self->{'processes'}->{'fwdctl'}->{'status'} eq 'enabled'){
+    if($self->{'processes'}->{'mpls_fwdctl'}->{'status'} eq 'enabled'){
+        return 1;
+    }else{
+        return 0;
+    }
+}
+
+=head2 is_mpls_fwdctl_discovery{
+
+=cut
+
+sub is_mpls_discovery_enabled{
+    my $self = shift;
+
+    return 1 if(!defined($self->{'processes'}->{'mpls_discovery'}));
+
+    if($self->{'processes'}->{'mpls_discovery'}->{'status'} eq 'enabled'){
         return 1;
     }else{
         return 0;

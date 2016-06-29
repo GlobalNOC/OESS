@@ -363,6 +363,9 @@ sub _process_isis_adj{
     $obj->{'ip_address'} = trim($xp->findvalue('./j:ip-address'));
     $obj->{'ipv6_address'} = trim($xp->findvalue('./j:ipv6-address'));
 
+    $obj->{'remote_system_name'} =~ s/-re\d+//g;
+    $obj->{'interface_name'} =~ s/\.\d+//g;
+
     return $obj;
 }
 

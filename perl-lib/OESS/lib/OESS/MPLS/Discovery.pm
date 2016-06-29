@@ -93,8 +93,8 @@ sub new{
     die if (!defined($self->{'interface'}));
     $self->{'lsp'} = $self->_init_lsp();
     die if (!defined($self->{'lsp'}));
-    #$self->{'isis'} = $self->_init_isis();
-    #die if (!defined($self->{'isis'}));
+    $self->{'isis'} = $self->_init_isis();
+    die if (!defined($self->{'isis'}));
 
     #create the client for talking to our Discovery switch objects!
     $self->{'rmq_client'} = GRNOC::RabbitMQ::Client->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
@@ -109,7 +109,7 @@ sub new{
     #setup the timers
     $self->{'int_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->int_handler(); });
     $self->{'lsp_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->lsp_handler(); });
-#    $self->{'isis_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->isis_handler(); } );
+    $self->{'isis_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->isis_handler(); } );
 
     #our dispatcher for receiving events (only new_switch right now)    
     my $dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
@@ -302,6 +302,7 @@ sub lsp_handler{
 											       }
 
 											       if($no_pending){
+												   warn "No more pending\n";
 												   my $status = $self->{'lsp'}->process_results( lsp => \%nodes);
 											       }
 										   })
@@ -330,7 +331,8 @@ sub isis_handler{
 											      }
 											      
 											      if($no_pending){
-												  my $status = $self->{'isis'}->process_results( node => $node, lsp => $res);
+												  warn "ISIS: No more pending\n";
+												  my $status = $self->{'isis'}->process_results( isis => \%nodes);
 											      }
                                                                                   })
 					
