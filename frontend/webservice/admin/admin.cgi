@@ -709,14 +709,6 @@ sub register_webservice_methods {
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
                                   required    => 1,
                                   description => '' );
-    $method->add_input_parameter( name        => 'user',
-                                  pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  required    => 1,
-				  description => '' );
-    $method->add_input_parameter( name        => 'password',
-                                  pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  required    => 1,
-				  description => '' );
     $method->add_input_parameter( name        => 'port',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
                                   required    => 1,
@@ -2073,8 +2065,6 @@ sub add_mpls_switch{
     
     my $name = $args->{'name'}{'value'};
     my $ip_address = $args->{'ip_address'}{'value'};
-    my $username = $args->{'user'}{'value'};
-    my $pass = $args->{'password'}{'value'};
     my $latitude = $args->{'latitude'}{'value'};
     my $longitude = $args->{'longitude'}{'value'};
     my $port = $args->{'port'}{'value'};
@@ -2084,8 +2074,6 @@ sub add_mpls_switch{
 
     my $node = $db->add_mpls_node( name => $name,
 				   ip => $ip_address,
-				   user => $username,
-				   pass => $pass,
 				   lat => $latitude,
 				   long => $longitude,
 				   port => $port,

@@ -332,12 +332,189 @@ sub isis_handler{
 											      
 											      if($no_pending){
 												  warn "ISIS: No more pending\n";
-												  my $status = $self->{'isis'}->process_results( isis => \%nodes);
+												  my $adj = $self->{'isis'}->process_results( isis => \%nodes);
+												  $self->handle_links($adj);
 											      }
                                                                                   })
 					
             );
     }
+}
+
+
+sub handle_links{
+    my $self = shift;
+    my $adj = shift;
+
+    my %node_info;
+    my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
+
+    #build a Node hash by name...
+    foreach my $node (@$nodes) {
+        my $details = $self->{'db'}->get_node_by_id(node_id => $node->{'node_id'});
+        next if(!$details->{'mpls'});
+        $details->{'node_id'} = $details->{'node_id'};
+        $details->{'id'} = $details->{'node_id'};
+        $details->{'name'} = $details->{'name'};
+        $details->{'ip'} = $details->{'ip'};
+        $details->{'vendor'} = $details->{'vendor'};
+        $details->{'model'} = $details->{'model'};
+        $details->{'sw_version'} = $details->{'sw_version'};
+        $node_info{$node->{'name'}} = $details;
+    }
+
+    $self->{'db'}->_start_transaction();
+
+    foreach my $node_a (keys (%{$adj})){
+        foreach my $node_z (keys(%{$adj->{$node_a}})){
+
+	    next if (!defined($adj->{$node_a}{$node_z}{'node_z'}{'interface_name'}) || !defined($adj->{$node_a}{$node_z}{'node_a'}{'interface_name'}));
+	    
+	    my $a_int = $self->{'db'}->get_interface_id_by_names( node => $node_a,
+								  interface => $adj->{$node_a}{$node_z}{'node_a'}{'interface_name'});
+	    my $z_int = $self->{'db'}->get_interface_id_by_names( node => $node_z,
+								  interface => $adj->{$node_a}{$node_z}{'node_z'}{'interface_name'});
+	    
+	    #find current link if any
+	    my ($link_db_id, $link_db_state) = $self->get_active_link_id_by_connectors( interface_a_id => $a_int, interface_z_id => $z_int);
+	    
+	    if($link_db_id){
+				
+		#$self->{'db'}->update_link_state( link_id => $link_db_id, state => 'up');
+	    }else{
+		#first determine if any of the ports are currently used by another link... and connect to the same other node
+		my $links_a = $self->{'db'}->get_link_by_interface_id( interface_id => $a_int, show_decom => 0);
+		my $links_z = $self->{'db'}->get_link_by_interface_id( interface_id => $z_int, show_decom => 0);
+		
+		my $z_node = $self->{'db'}->get_node_by_id( node_id => $node_info{$node_a}->{'node_id'});
+		my $a_node = $self->{'db'}->get_node_by_id( node_id => $node_info{$node_z}->{'node_id'});
+		
+		my $a_links;
+		my $z_links;
+		
+		#lets first remove any circuits not going to the node we want on these interfaces
+		foreach my $link (@$links_a){
+		    my $other_int = $self->{'db'}->get_interface( interface_id => $link->{'interface_a_id'} );
+		    if($other_int->{'interface_id'} == $a_int){
+			$other_int = $self->{'db'}->get_interface( interface_id => $link->{'interface_z_id'} );
+		    }
+		    
+		    my $other_node = $self->{'db'}->get_node_by_id( node_id => $other_int->{'node_id'} );
+		    if($other_node->{'node_id'} == $z_node->{'node_id'}){
+			push(@$a_links,$link);
+		    }
+		}
+		
+		foreach my $link (@$links_z){
+		    my $other_int = $self->{'db'}->get_interface( interface_id => $link->{'interface_a_id'} );
+		    if($other_int->{'interface_id'} == $z_int){
+			$other_int = $self->{'db'}->get_interface( interface_id => $link->{'interface_z_id'} );
+		    }
+		    my $other_node = $self->{'db'}->get_node_by_id( node_id => $other_int->{'node_id'} );
+		    if($other_node->{'node_id'} == $a_node->{'node_id'}){
+			push(@$z_links,$link);
+		    }
+		}
+		
+
+		#ok... so we now only have the links going from a to z nodes
+		# we pretty much have 4 cases... there are 2 or more links going from a to z
+		# there is 1 link going from a to z (this is enumerated as 2 elsifs one for each side)
+		# there is no link going from a to z
+		if(defined($a_links->[0]) && defined($z_links->[0])){
+		    #ok this is the more complex one to worry about
+		    #pick one and move it, we will have to move another one later
+		    my $link = $a_links->[0];
+		    my $old_z = $link->{'interface_a_id'};
+		    if($old_z == $a_int){
+			$old_z = $link->{'interface_z_id'};
+		    }
+
+		    my $old_z_interface = $self->{'db'}->get_interface( interface_id => $old_z);
+		    $self->{'db'}->decom_link_instantiation( link_id => $link->{'link_id'} );
+		    $self->{'db'}->create_link_instantiation( link_id => $link->{'link_id'}, interface_a_id => $a_int, interface_z_id => $z_int, state => $link->{'state'}, mpls => 1 );
+		    
+		}elsif(defined($a_links->[0])){
+		    $self->{'logger'}->info("Link updated on the Z Side");
+
+		    #easy case update link_a so that it is now on the new interfaces
+		    my $link = $a_links->[0];
+		    my $old_z = $link->{'interface_a_id'};
+		    if($old_z == $a_int){
+			$old_z = $link->{'interface_z_id'};
+		    }
+		    my $old_z_interface= $self->{'db'}->get_interface( interface_id => $old_z);
+		    #if its in the links_a that means the z end changed...
+		    $self->{'db'}->decom_link_instantiation( link_id => $link->{'link_id'} );
+		    $self->{'db'}->create_link_instantiation( link_id => $link->{'link_id'}, interface_a_id => $a_int, interface_z_id => $z_int, state => $link->{'state'}, mpls => 1 );
+		}elsif(defined($z_links->[0])){
+		    #easy case update link_a so that it is now on the new interfaces
+		    my $link = $z_links->[0];
+
+		    my $old_a = $link->{'interface_a_id'};
+		    if($old_a == $z_int){
+			$old_a = $link->{'interface_z_id'};
+		    }
+		    my $old_a_interface= $self->{'db'}->get_interface( interface_id => $old_a);
+		    
+		    $self->{'db'}->decom_link_instantiation( link_id => $link->{'link_id'});
+		    $self->{'db'}->create_link_instantiation( link_id => $link->{'link_id'}, interface_a_id => $a_int, interface_z_id => $z_int, state => $link->{'state'}, mpls => 1);
+		}else{
+		    my $link_name = $node_a . "-" . $adj->{$node_a}{$node_z}{'node_a'}{'interface_name'} . "--" . $node_z . "-" . $adj->{$node_a}{$node_z}{'node_z'}{'interface_name'};
+		    my $link = $self->{'db'}->get_link_by_name(name => $link_name);
+		    my $link_id;
+
+		    if(!defined($link)){
+			$link_id = $self->{'db'}->add_link( name => $link_name );
+		    }else{
+			$link_id = $link->{'link_id'};
+		    }
+
+		    if(!defined($link_id)){
+			$self->{'db'}->_rollback();
+			return undef;
+		    }
+		    $self->{'db'}->create_link_instantiation( link_id => $link_id, state => 'available', interface_a_id => $a_int, interface_z_id => $z_int, mpls => 1);
+		}
+	    }
+	}
+    }
+    $self->{'db'}->_commit();
+}
+
+sub get_active_link_id_by_connectors{
+    my $self = shift;
+    my %args = @_;
+    
+    my $a_dpid  = $args{'a_dpid'};
+    my $a_port  = $args{'a_port'};
+    my $z_dpid  = $args{'z_dpid'};
+    my $z_port  = $args{'z_port'};
+    my $interface_a_id = $args{'interface_a_id'};
+    my $interface_z_id = $args{'interface_z_id'};
+
+    if(defined $interface_a_id){
+
+    }else{
+        $interface_a_id = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $a_dpid, port_number => $a_port);
+    }
+
+    if(defined $interface_z_id){
+
+    }else{
+        $interface_z_id = $self->{'db'}->get_interface_by_dpid_and_port( dpid => $z_dpid, port_number => $z_port);
+    }
+
+    #find current link if any
+    my $link = $self->{'db'}->get_link_by_a_or_z_end( interface_a_id => $interface_a_id, interface_z_id => $interface_z_id);
+    print STDERR "Found LInk: " . Data::Dumper::Dumper($link);
+    if(defined($link) && defined(@{$link})){
+        $link = @{$link}[0];
+        print STDERR "Returning LinkID: " . $link->{'link_id'} . "\n";
+        return ($link->{'link_id'},$link->{''});
+    }
+
+    return undef;
 }
 
 

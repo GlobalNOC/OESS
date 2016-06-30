@@ -40,8 +40,6 @@ sub new{
 
     $self->{'node'}->{'node_id'} = $self->{'id'};
 
-    $self->{'logger'}->error(Data::Dumper::Dumper($self));
-
     if($self->{'use_cache'}){
 	$self->_update_cache();
     }

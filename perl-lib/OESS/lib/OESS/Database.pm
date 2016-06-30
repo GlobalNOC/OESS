@@ -1330,6 +1330,10 @@ HERE
     }
     
     my $links = $self->get_current_links();
+    my $mpls_links = $self->get_current_links( mpls => 1);
+    foreach my $link (@$mpls_links){
+	push(@$links, $link);
+    }
 
     my $link_maintenances = $self->get_link_maintenances();
     foreach my $link (@$links){
@@ -1430,8 +1434,7 @@ HERE
 
 sub get_current_links {
     my $self = shift;
-    my %args = shift;
-
+    my %args = @_;
 
     my $query;
 
@@ -4204,7 +4207,7 @@ sub get_interface {
     my $interface = $results_interface->[0];
 
     if (! defined($interface->{'workgroup_id'})){
-	$self->{'logger'}->warn("No workgroup specified for interface: " . $interface->{'interface_id'});
+	#$self->{'logger'}->warn("No workgroup specified for interface: " . $interface->{'interface_id'});
 	return $interface;
     }
     
@@ -5179,7 +5182,7 @@ sub get_links_details_by_name {
 sub get_link_details {
     my ($self, %args) = @_;
 
-    my $query = "select link_instantiation.openflow, link_instantiation.mpls, link.name, node_a.name as node_a, if_a.name as interface_a, if_a.interface_id as interface_a_id, if_a.port_number as port_no_a, node_z.name as node_z, if_z.name as interface_z, if_z.interface_id as interface_z_id, if_z.port_number as port_no_z from link " .
+    my $query = "select link_inst.openflow, link_inst.mpls, link.name, node_a.name as node_a, if_a.name as interface_a, if_a.interface_id as interface_a_id, if_a.port_number as port_no_a, node_z.name as node_z, if_z.name as interface_z, if_z.interface_id as interface_z_id, if_z.port_number as port_no_z from link " .
     " join link_instantiation link_inst on link.link_id = link_inst.link_id and link_inst.end_epoch = -1".
 	" join interface if_a on link_inst.interface_a_id = if_a.interface_id ".
  	" join interface if_z on link_inst.interface_z_id = if_z.interface_id ".
@@ -7082,8 +7085,6 @@ sub get_node_by_interface_id {
 =head2 add_mpls_node
 
     my $node = $db->add_mpls_node( ip => $ip_address,
-                                   user => $user,
-                                   pass => $pass,
                                    lat => $lat,
                                    long => $long,
                                    port => $port,
@@ -7128,15 +7129,6 @@ sub add_mpls_node{
 	return;
     }
 
-    #add to the password config
-    $res = $self->update_pw_file( node_id  => $node_id, 
-				  username => $args{'user'},
-				  password => $args{'pass'} );
-
-    if(!defined($res)){
-	$self->_rollback();
-	return;
-    }
 
     #made it this far so commit and fetch our results!
     $self->_commit();
@@ -7144,63 +7136,6 @@ sub add_mpls_node{
     my $node = $self->get_node_by_id( node_id => $node_id);
     return $node;
 
-}
-
-=head2 update_pw_file
-
-=cut
-
-sub update_pw_file{
-    my $self = shift;
-    my %args = @_;
-
-    if(!defined($args{'node_id'}) || !defined($args{'username'}) || !defined($args{'password'})){
-	$self->_set_error("Upate PW file takes a node_id, username, and password");
-	return;
-    }
-
-    my $node_id = $args{'node_id'};
-
-    my $config = GRNOC::Config->new(config_file => OESS_PW_FILE, debug => 1);
-
-    my $node = $config->get("/config/node[\@node_id='$node_id']")->[0];
-    
-    warn Data::Dumper::Dumper($node);
-
-    if(defined($node)){
-	warn "Node defined... \n";
-	$config->update_attribute("/config/node[\@node_id='$node_id']","username", $args{'username'});
-	$config->update_attribute("/config/node[\@node_id='$node_id']","password", $args{'password'});
-    }else{
-	warn "Node not defined... creating...\n";
-	my $res = $config->add_node("/config", "node");
-	if(!defined($res)){
-	    warn "Unable to add Node\n";
-	    warn $config->get_error();
-	    return;
-	}
-	$res = $config->add_attribute("/config/node[last()]","node_id", $node_id);
-	if(!defined($res)){
-	    warn "Unable to add node_id attribute\n";
-	    warn $config->get_error();
-	    return;
-	}
-	$res = $config->add_attribute("/config/node[last()]","username", $args{'username'});
-	if(!defined($res)){
-            warn "Unable to add username attribute\n";
-	    warn $config->get_error();
-            return;
-        }
-	$res = $config->add_attribute("/config/node[last()]","password", $args{'password'});
-	if(!defined($res)){
-            warn "Unable to add password attribute\n";
-	    warn $config->get_error();
-            return;
-        }
-    }
-
-    return 1;
-    
 }
 
 sub get_pw_for_node{
@@ -7220,14 +7155,22 @@ sub get_pw_for_node{
 
     my $config = GRNOC::Config->new( config_file => OESS_PW_FILE );
     my $node = $config->{'doc'}->getDocumentElement()->find("/config/node[\@node_id='$node_id']")->[0];
-    my $res = XML::Simple::XMLin($node->toString(), ForceArray => 1);
-
-    if(!defined($res)){
-        warn "No Credentials found for node_id: " . $node_id . "\n";
-        die;
+    
+    my $creds;
+    if(!defined($node)){
+	$creds = { username => $config->get("/config/\@default_user")->[0],
+		   password => $config->get("/config/\@default_pw")->[0] };
+    }else{
+	$creds = XML::Simple::XMLin($node->toString(), ForceArray => 1);
+    }
+    
+    if(!defined($creds)){
+	warn "No Credentials found for node_id: " . $node_id . "\n";
     }
 
-    return $res;
+    
+
+    return $creds;
 
 }
 
