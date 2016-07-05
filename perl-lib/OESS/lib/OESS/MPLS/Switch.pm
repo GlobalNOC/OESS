@@ -38,13 +38,11 @@ sub new{
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Switch.' . $self->{'id'});
     bless $self, $class;
 
-    $self->{'logger'}->error(Data::Dumper::Dumper($self));
-
+    $self->{'node'}->{'node_id'} = $self->{'id'};
+    
     if($self->{'use_cache'}){
 	$self->_update_cache();
     }
-
-
 
     $self->create_device_object();
     if(!defined($self->{'device'})){
@@ -56,9 +54,7 @@ sub new{
 	$self->{'topic'} = "MPLS.FWDCTL.Switch";
     }
 
-    my $topic = $self->{'topic'} . $self->{'node'}->{'mgmt_addr'};
-
-
+    my $topic = $self->{'topic'} . "." .  $self->{'node'}->{'mgmt_addr'};
     $self->{'logger'}->error("Listening to topic: " . $topic);
 
     my $dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $args{'rabbitMQ_host'},
@@ -95,7 +91,8 @@ sub create_device_object{
     switch($host_info->{'vendor'}){
 	case "Juniper" {
 	    my $dev;
-	    if($host_info->{'model'} =~ /mx/){
+	    if($host_info->{'model'} =~ /mx/i){
+		warn Data::Dumper::Dumper($host_info);
 		$dev = OESS::MPLS::Device::Juniper::MX->new( %$host_info );
 	    }else{
 		$self->{'logger'}->error("Juniper " . $host_info->{'model'} . " is not supported");
@@ -190,6 +187,13 @@ sub register_rpc_methods{
                                             description => "returns a list of LSPs and their details");
     $dispatcher->register_method($method);
 
+    $method = GRNOC::RabbitMQ::Method->new( name        => "get_system_info",
+					    callback    => sub {
+						$self->get_system_info();
+					    },
+					    description => "returns the system information");
+    $dispatcher->register_method($method);
+
 }
 
 sub _update_cache{
@@ -259,7 +263,7 @@ sub add_vlan{
     my $self = shift;
     my $m_ref = shift;
     my $p_ref = shift;
-
+    $self->{'logger'}->error("ADDING VLAN");
     $self->{'logger'}->debug("in add_vlan");
 
     my $circuit = $p_ref->{'circuit_id'}{'value'};
@@ -271,6 +275,18 @@ sub add_vlan{
     my $vlan_obj = $self->_generate_commands( $circuit );
 
     return $self->{'device'}->add_vlan($vlan_obj);
+}
+
+=head2 get_system_info
+
+=cut
+
+sub get_system_info{
+    my $self = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    return $self->{'device'}->get_system_information();
 }
 
 

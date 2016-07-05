@@ -770,6 +770,9 @@ sub is_vlan_tag_available {
         vlan         => $vlan_tag,
         workgroup_id => $workgroup_id
     );
+
+    warn "VLAN TAG ACCESSIBLE: " . $is_vlan_tag_accessible . "\n";
+
     if(!$is_vlan_tag_accessible) {
         if(!defined($is_vlan_tag_accessible)){
 	    $method->set_error( $db->get_error() );

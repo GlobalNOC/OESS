@@ -11,6 +11,7 @@ use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
+use constant OESS_PW_FILE       => "/etc/oess/.passwd.xml";
 
 sub new{
     my $class = shift;
@@ -26,6 +27,30 @@ sub new{
     bless $self, $class;    
 }
 
+sub _get_credentials{
+    my $self = shift;
+    my $node_id = $self->{'node_id'};
+    my $config = GRNOC::Config->new( config_file => OESS_PW_FILE );
+    my $node = $config->{'doc'}->getDocumentElement()->find("/config/node[\@node_id='$node_id']")->[0];
+
+    my $creds;
+    if(!defined($node)){
+        $creds = { username => $config->get("/config/\@default_user")->[0],
+                   password => $config->get("/config/\@default_pw")->[0] };
+    }else{
+        $creds = XML::Simple::XMLin($node->toString(), ForceArray => 1);
+    }
+
+    if(!defined($creds)){
+        warn "No Credentials found for node_id: " . $node_id . "\n";
+	die;
+    }
+
+    return $creds;
+
+}
+
+
 sub connect{
     my $self = shift;
 
@@ -40,10 +65,10 @@ sub disconnect{
     return;
 }
 
-sub get_system_info{
+sub get_system_information{
     my $self = shift;
 
-    $self->set_error("This device does not support get_system_info");
+    $self->set_error("This device does not support get_system_information");
     return;
 }
 

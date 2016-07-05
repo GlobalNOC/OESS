@@ -37,11 +37,12 @@ sub process_results{
     my %params = @_;
     my $node_name = $params{'node'};
     my $interfaces = $params{'interfaces'};
+    
     $self->{'db'}->_start_transaction();
+    
     foreach my $interface (@$interfaces) {
 	my $interface_id = $self->{'db'}->get_interface_id_by_names(node => $node_name, interface => $interface->{'name'});
 	if (!defined($interface_id)) {
-	    $self->{'db'}->_start_transaction();
 	    my $node = $self->{'db'}->get_node_by_name(name => $node_name);
 	    if (!defined($node)) {
 		$self->{'logger'}->warn($self->{'db'}->{'error'});
@@ -55,6 +56,8 @@ sub process_results{
 		operational_state => $interface->{'operational_state'},
 		admin_state => $interface->{'admin_state'},
 		description => $interface->{'description'},
+		vlan_tag_range => "-1",
+		mpls_vlan_tag_range => "1-4095" 
 		);
 	    if (!defined($res)) {
 		$self->{'logger'}->warn($self->{'db'}->{'error'});

@@ -12,32 +12,32 @@
 <protocols>
   <mpls>
     <label-switched-path>
-      <name>L2VPLS-PRIMARY-LSP-[% circuit_id %]</name>
+      <name>OESS-L2VPLS-PRIMARY-LSP-[% circuit_id %]</name>
       <apply-groups>L2VPLS-LSP-ATTRIBUTES</apply-groups>
       <to>[% destination_ip %]</to>
       <primary>
-        <name>L2VPLS-PRIMARY-PATH-[% circuit_id %]</name>
+        <name>OESS-L2VPLS-PRIMARY-PATH-[% circuit_id %]</name>
         <select>manual</select>
       </primary>
     </label-switched-path>
     <label-switched-path>
-      <name>L2VPLS-SECONDARY-LSP-[% circuit_id %]</name>
+      <name>OESS-L2VPLS-SECONDARY-LSP-[% circuit_id %]</name>
       <apply-groups>L2VPLS-LSP-ATTRIBUTES</apply-groups>
       <to>[% destination_ip %]</to>
       <primary>
-        <name>L2VPLS-SECONDARY-PATH-[% circuit_id %]</name>
+        <name>OESS-L2VPLS-SECONDARY-PATH-[% circuit_id %]</name>
         <standby />
       </primary>
     </label-switched-path>
     <path>
-      <name>L2VPLS-PRIMARY-PATH-[% circuit_id %]</name>
+      <name>OESS-L2VPLS-PRIMARY-PATH-[% circuit_id %]</name>
       <path-list>
         <name>[% destination_ip %]</name>
         <loose/>
       </path-list>
     </path>
     <path>
-      <name>L2VPLS-SECONDARY-PATH-[% circuit_id %]</name>
+      <name>OESS-L2VPLS-SECONDARY-PATH-[% circuit_id %]</name>
       <path-list>
         <name>[% destination_ip %]</name>
         <loose/>
@@ -47,30 +47,30 @@
 </protocols>
 <policy-options>
   <policy-statement>
-  <name>L2VPLS-LSP-Policy</name>
+  <name>OESS-L2VPLS-LSP-Policy</name>
     <term>
-      <name>L2VPLS-[% circuit_id %]</name>
+      <name>OESS-L2VPLS-[% circuit_id %]</name>
       <from>
         <rib>mpls.0</rib>
-        <community>L2VPLS-[% circuit_id %]-Community</community>
+        <community>OESS-L2VPLS-[% circuit_id %]-Community</community>
       </from>
       <then>
         <install-nexthop>
-          <lsp>L2VPLS-PRIMARY-LSP-[% circuit_id %]</lsp>
-          <lsp>L2VPLS-SECONDARY-LSP-[% circuit_id %]</lsp>
+          <lsp>OESS-L2VPLS-PRIMARY-LSP-[% circuit_id %]</lsp>
+          <lsp>OESS-L2VPLS-SECONDARY-LSP-[% circuit_id %]</lsp>
         </install-nexthop>
         <accept/>
       </then>
     </term>
   </policy-statement>
   <community>
-    <name>L2VPLS-[% circuit_id %]-Community</name>
+    <name>OESS-L2VPLS-[% circuit_id %]-Community</name>
     <members>target:11537:[% circuit_id %]</members>
   </community>
 </policy-options>
 <routing-instances>
   <instance>
-    <name>L2VPLS-[% circuit_id %]</name>
+    <name>OESS-L2VPLS-[% circuit_id %]</name>
      <instance-type>vpls</instance-type>
      <interface>
        <name>[% interface.name %].[% vlan_tag %]</name>
