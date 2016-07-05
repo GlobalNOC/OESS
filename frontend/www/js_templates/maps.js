@@ -277,6 +277,8 @@ function NDDIMap(div_id, interdomain_mode, options){
       var default_forward = node_info.default_forward;
       var tx_delay_ms = node_info.tx_delay_ms;
       var max_flows = node_info.max_flows;
+      var openflow = node_info.openflow;
+      var mpls     = node_info.mpls;
       var avail_endpoints = node_info.number_available_endpoints;
       var barrier_bulk = node_info.barrier_bulk;
       var max_static_mac_flows = node_info.max_static_mac_flows;
@@ -328,6 +330,8 @@ function NDDIMap(div_id, interdomain_mode, options){
       point.default_forward = default_forward;
       point.tx_delay_ms = tx_delay_ms;
       point.max_flows = max_flows;
+      point.openflow = openflow;
+      point.mpls = mpls;
       point.barrier_bulk = barrier_bulk;
       point.max_static_mac_flows = max_static_mac_flows;
       point.dpid = dpid;
@@ -1275,11 +1279,13 @@ function NDDIMap(div_id, interdomain_mode, options){
 					      var default_forward = geo.default_forward;
 					      var default_drop = geo.default_drop;
 					      var max_flows = geo.max_flows;
+					      var openflow = geo.openflow;
+					      var mpls     = geo.mpls;
 					      var tx_delay_ms = geo.tx_delay_ms;
 					      var barrier_bulk = geo.barrier_bulk;
 					      var max_static_mac_flows = geo.max_static_mac_flows;
 					      var dpid = geo.dpid;
-					      self.events['clickNode'].fire({name: node, lat: lat, lon: lon, node_id: node_id, vlan_range: range,default_forward: default_forward, default_drop: default_drop,max_flows: max_flows, tx_delay_ms: tx_delay_ms,  feature: e.feature, barrier_bulk: barrier_bulk, max_static_mac_flows: max_static_mac_flows, dpid: dpid});
+					      self.events['clickNode'].fire({name: node, lat: lat, lon: lon, node_id: node_id, vlan_range: range,default_forward: default_forward, default_drop: default_drop,max_flows: max_flows, tx_delay_ms: tx_delay_ms,  feature: e.feature, barrier_bulk: barrier_bulk, max_static_mac_flows: max_static_mac_flows, dpid: dpid, openflow: openflow, mpls: mpls});
 					  }
 					  // otherwise we're clicking on a link
 					  else{

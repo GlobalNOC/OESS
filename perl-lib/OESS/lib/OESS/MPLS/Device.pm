@@ -65,10 +65,10 @@ sub disconnect{
     return;
 }
 
-sub get_system_info{
+sub get_system_information{
     my $self = shift;
 
-    $self->set_error("This device does not support get_system_info");
+    $self->set_error("This device does not support get_system_information");
     return;
 }
 

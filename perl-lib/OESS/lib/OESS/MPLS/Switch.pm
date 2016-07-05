@@ -39,7 +39,7 @@ sub new{
     bless $self, $class;
 
     $self->{'node'}->{'node_id'} = $self->{'id'};
-
+    
     if($self->{'use_cache'}){
 	$self->_update_cache();
     }
@@ -54,9 +54,7 @@ sub new{
 	$self->{'topic'} = "MPLS.FWDCTL.Switch";
     }
 
-    my $topic = $self->{'topic'} . $self->{'node'}->{'mgmt_addr'};
-
-
+    my $topic = $self->{'topic'} . "." .  $self->{'node'}->{'mgmt_addr'};
     $self->{'logger'}->error("Listening to topic: " . $topic);
 
     my $dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $args{'rabbitMQ_host'},
@@ -189,6 +187,13 @@ sub register_rpc_methods{
                                             description => "returns a list of LSPs and their details");
     $dispatcher->register_method($method);
 
+    $method = GRNOC::RabbitMQ::Method->new( name        => "get_system_info",
+					    callback    => sub {
+						$self->get_system_info();
+					    },
+					    description => "returns the system information");
+    $dispatcher->register_method($method);
+
 }
 
 sub _update_cache{
@@ -258,7 +263,7 @@ sub add_vlan{
     my $self = shift;
     my $m_ref = shift;
     my $p_ref = shift;
-
+    $self->{'logger'}->error("ADDING VLAN");
     $self->{'logger'}->debug("in add_vlan");
 
     my $circuit = $p_ref->{'circuit_id'}{'value'};
@@ -270,6 +275,18 @@ sub add_vlan{
     my $vlan_obj = $self->_generate_commands( $circuit );
 
     return $self->{'device'}->add_vlan($vlan_obj);
+}
+
+=head2 get_system_info
+
+=cut
+
+sub get_system_info{
+    my $self = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    return $self->{'device'}->get_system_information();
 }
 
 

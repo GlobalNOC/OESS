@@ -1003,6 +1003,7 @@ sub edit_link {
 sub create_link_instantiation{
     my $self = shift;
     my %args = @_;
+
     if(!defined($args{'link_id'})){
 	$self->_set_error("Link ID was not specified");
 	return;
@@ -1027,7 +1028,15 @@ sub create_link_instantiation{
 	$args{'mpls'} = 0;
     }
 
-    my $res = $self->_execute_query("insert into link_instantiation (link_id,end_epoch,start_epoch,link_state,interface_a_id,interface_z_id, openflow, mpls) VALUES (?,-1,UNIX_TIMESTAMP(NOW()),?,?,?,?,?)",[$args{'link_id'},$args{'state'},$args{'interface_a_id'},$args{'interface_z_id'}, $args{'openflow'}, $args{'mpls'}]);
+    if(!defined($args{'openflow'})){
+	$args{'openflow'} = 0;
+    }
+
+    if(!defined($args{'mpls'})){
+	$args{'mpls'} = 0;
+    }
+
+    my $res = $self->_execute_query("insert into link_instantiation (link_id,end_epoch,start_epoch,link_state,interface_a_id,interface_z_id, openflow, mpls, ip_a, ip_z) VALUES (?,-1,UNIX_TIMESTAMP(NOW()),?,?,?,?,?,?,?)",[$args{'link_id'},$args{'state'},$args{'interface_a_id'},$args{'interface_z_id'}, $args{'openflow'}, $args{'mpls'}, $args{'ip_a'}, $args{'ip_z'}]);
 
     if(!defined($res)){
 	return;
@@ -1117,7 +1126,7 @@ sub get_node_interfaces {
 
     push(@query_args, $node_name);
 
-    my $query = "select interface.role,interface.vlan_tag_range,interface.port_number,interface.operational_state, interface.name, interface.description, interface.interface_id, interface.workgroup_id, workgroup.name as workgroup_name from interface " .
+    my $query = "select interface.role,interface.vlan_tag_range,interface.mpls_vlan_tag_range,interface.port_number,interface.operational_state, interface.name, interface.description, interface.interface_id, interface.workgroup_id, workgroup.name as workgroup_name from interface " .
         " join node on node.name = ? and node.node_id = interface.node_id " .
         " left join workgroup on interface.workgroup_id = workgroup.workgroup_id " .
         " join interface_instantiation on interface_instantiation.end_epoch = -1 and interface_instantiation.interface_id = interface.interface_id ";
@@ -1177,6 +1186,7 @@ sub get_node_interfaces {
                 interface_id => $available_interface->{'interface_id'},
                 workgroup_id => $workgroup_id
             );
+
             # keep track of this b/c we don't want to add the owned interface again
             $interface_already_added{$available_interface->{'interface_id'}} = 1;
             if($vlan_tag_range) {
@@ -1187,7 +1197,7 @@ sub get_node_interfaces {
                     "port_number"    => $available_interface->{'port_number'},
                     "status"         => $available_interface->{'operational_state'},
                     "vlan_tag_range" => $vlan_tag_range,
-                    "int_role"       => $available_interface->{'role'},
+		    "int_role"       => $available_interface->{'role'},
                     "workgroup_id"   => $available_interface->{'workgroup_id'},
                     "workgroup_name" => $available_interface->{'workgroup_name'}
 	            });
@@ -1201,6 +1211,7 @@ sub get_node_interfaces {
         next if($interface_already_added{$row->{'interface_id'}});
 
         my $vlan_tag_range = $row->{'vlan_tag_range'};
+	my $mpls_vlan_tag_range = $row->{'mpls_vlan_tag_range'};
         if($workgroup_id) {
             $vlan_tag_range = $self->_validate_endpoint(
                 interface_id => $row->{'interface_id'},
@@ -1215,6 +1226,7 @@ sub get_node_interfaces {
                 "port_number"    => $row->{'port_number'},
                 "status"         => $row->{'operational_state'},
                 "vlan_tag_range" => $vlan_tag_range,
+		"mpls_vlan_tag_range" => $mpls_vlan_tag_range,
                 "int_role"       => $row->{'role'},
                 "workgroup_id"   => $row->{'workgroup_id'},
                 "workgroup_name" => $row->{'workgroup_name'}
@@ -1249,6 +1261,8 @@ sub get_map_layers {
     node.latitude as node_lat,
     node.name as node_name,
     node.node_id,
+    node_instantiation.openflow,
+    node_instantiation.mpls,
     node.vlan_tag_range,
     node.node_id as node_id,
     node.default_drop as default_drop,
@@ -1305,21 +1319,23 @@ HERE
         };
             
         $networks->{$network_name}->{'nodes'}->{$node_name} = {"node_name"    => $node_name,
-                                                                   "node_id"      => $row->{'node_id'},
-                                       "node_lat"     => $row->{'node_lat'},
-                                       "node_long"    => $row->{'node_long'},
-                                       "node_id"      => $row->{'node_id'},
-                                       "vlan_range"   => $row->{'vlan_tag_range'},
-                                       "default_drop" => $row->{'default_drop'},
-                                       "default_forward" => $row->{'default_forward'},
-                                       "max_static_mac_flows" => $row->{'max_static_mac_flows'},
-                                       "max_flows"    => $row->{'max_flows'},
-                                       "tx_delay_ms" => $row->{'tx_delay_ms'},
-                                       "dpid"         => sprintf("%x",$row->{'dpid'}),
-                                       "barrier_bulk" => $row->{'barrier_bulk'},
-                                       "end_epoch"   => $row->{"end_epoch"},
-                                       "number_available_endpoints" => $avail_endpoints,
-                                       "in_maint"   => $row->{"in_maint"}
+							       "node_id"      => $row->{'node_id'},
+							       "node_lat"     => $row->{'node_lat'},
+							       "node_long"    => $row->{'node_long'},
+							       "node_id"      => $row->{'node_id'},
+							       "openflow"     => $row->{'openflow'},
+							       "mpls"         => $row->{'mpls'},
+							       "vlan_range"   => $row->{'vlan_tag_range'},
+							       "default_drop" => $row->{'default_drop'},
+							       "default_forward" => $row->{'default_forward'},
+							       "max_static_mac_flows" => $row->{'max_static_mac_flows'},
+							       "max_flows"    => $row->{'max_flows'},
+							       "tx_delay_ms" => $row->{'tx_delay_ms'},
+							       "dpid"         => sprintf("%x",$row->{'dpid'}),
+							       "barrier_bulk" => $row->{'barrier_bulk'},
+							       "end_epoch"   => $row->{"end_epoch"},
+							       "number_available_endpoints" => $avail_endpoints,
+							       "in_maint"   => $row->{"in_maint"}
             };
             
         # make sure we have an array even if we never get any links for this node
@@ -2488,6 +2504,7 @@ sub add_acl {
     # check to make sure vlan start and end are valid
     $self->_check_vlan_range(
         vlan_tag_range => $interface->{'vlan_tag_range'},
+	mpls_vlan_tag_range => $interface->{'mpls_vlan_tag_range'},
         vlan_start     => $args{'vlan_start'},
         vlan_end       => $args{'vlan_end'}
     ) || return;
@@ -2535,17 +2552,17 @@ Updates acl
 sub update_acl {
     my $self = shift;
     my %args = @_;
-
-
+    
+    
     if(!defined($args{'user_id'})){
-    $self->_set_error("user_id not specified");
-    return;
+	$self->_set_error("user_id not specified");
+	return;
     }
     if(!defined($args{'interface_acl_id'})){
-    $self->_set_error("interface_acl_id not specified");
-    return;
+	$self->_set_error("interface_acl_id not specified");
+	return;
     }
-
+    
     # get the current acl state
     my $query = "select * from interface_acl where interface_acl_id = ?";
     my $interface_acl = $self->_execute_query($query, [$args{'interface_acl_id'}]);
@@ -2554,31 +2571,32 @@ sub update_acl {
         return;
     }
     $interface_acl = $interface_acl->[0];
-
+    
     # check if the user is authorized to edit this acl
     my $interface = $self->_authorize_interface_acl(
         interface_id => $interface_acl->{'interface_id'},
         user_id => $args{'user_id'}
-    ) || return;
-
+	) || return;
+    
     # check to make sure vlan start and end are valid
     $self->_check_vlan_range(
         vlan_tag_range => $interface->{'vlan_tag_range'},
+	mpls_vlan_tag_range => $interface->{'mpls_vlan_tag_range'},
         vlan_start     => $args{'vlan_start'},
         vlan_end       => $args{'vlan_end'}
-    ) || return;
-
+	) || return;
+    
     if(!defined($args{'interface_acl_id'})){
-    $self->_set_error("interface_acl_id was not specified");
-    return;
+	$self->_set_error("interface_acl_id was not specified");
+	return;
     }
     if(!defined($args{'vlan_start'})){
-    $self->_set_error("vlan_start not specified");
-    return;
+	$self->_set_error("vlan_start not specified");
+	return;
     }
     if(!defined($args{'allow_deny'})){
-    $self->_set_error("allow_deny not specified");
-    return;
+	$self->_set_error("allow_deny not specified");
+	return;
     }
     my $res;
     my $update_positions = 0;
@@ -2593,7 +2611,7 @@ sub update_acl {
         # see if its position is changing
         if($interface_acl->{'eval_position'} != $args{'eval_position'}) {
             my $moving_lower = ($interface_acl->{'eval_position'} > $args{'eval_position'}) ? 1 : 0;
-
+	    
             $query = "select * from interface_acl where interface_id = ? and eval_position = ? and interface_acl_id != ?";
             $int_acl_at_position = $self->_execute_query($query, [$interface_acl->{'interface_id'}, $args{'eval_position'}, $args{'interface_acl_id'}]);
             if(!$int_acl_at_position) {
@@ -2881,6 +2899,7 @@ sub _check_vlan_range {
     my %args = @_;
 
     my $vlan_tag_range = $args{'vlan_tag_range'};
+    my $mpls_vlan_tag_range = $args{'mpls_vlan_tag_range'};
 
     # first make sure both range values are numbers
     if( !($args{'vlan_start'} =~ m/^-?\d+$/) ) {
@@ -2921,7 +2940,10 @@ sub _check_vlan_range {
     }
 
     my @vlan_ranges = split(',', $vlan_tag_range);
-
+    my @mpls_vlan_tag_ranges = split(',', $mpls_vlan_tag_range);
+    foreach my $mpls_tag (@mpls_vlan_tag_ranges){
+	push(@vlan_ranges, $mpls_tag);
+    }
     # need to check untagged value separately if it was passed in since
     # it will be the only unconsecutive value if it is defined
     my $untagged_contained = 0;
@@ -4273,6 +4295,38 @@ sub update_interface_operational_state{
     return 1;
 }
 
+=head2 update_interface_mpls_vlan_range
+
+=cut
+
+sub update_interface_mpls_vlan_range{
+    my $self = shift;
+    my %args = @_;
+
+    if(!defined($args{'interface_id'})){
+        $self->_set_error("Interface ID was not specified");
+        return;
+    }
+
+    if(!defined($args{'vlan_tag_range'})){
+        return;
+    }
+
+    my $parse_results = $self->_process_tag_string( $args{'vlan_tag_range'} );
+
+    if(!defined($parse_results)){
+        print STDERR "Args: " . $args{'vlan_tag_range'} . " not a valid Vlan tag string\n";
+        return 0;
+    }
+
+    #TODO VALIDATE THAT IT DOES NOT OVERLAP the VLAN TAG RANGE
+
+
+    $self->_execute_query("update interface set mpls_vlan_tag_range = ? where interface.interface_id = ?",[$args{'vlan_tag_range'},$args{'interface_id'}]);
+
+    return 1;
+}
+
 =head2 update_interface_vlan_range
 
 =cut
@@ -4296,6 +4350,8 @@ sub update_interface_vlan_range{
 	print STDERR "Args: " . $args{'vlan_tag_range'} . " not a valid Vlan tag string\n";
 	return 0;
     }
+
+    #TODO VALIDATE THAT IT DOES NOT OVERLAP the MPLS VLAN TAG RANGE
 
     $self->_execute_query("update interface set vlan_tag_range = ? where interface.interface_id = ?",[$args{'vlan_tag_range'},$args{'interface_id'}]);
 
@@ -7303,6 +7359,11 @@ sub add_or_update_interface{
 	$args{'vlan_tag_range'} = MIN_VLAN_TAG . "-" . MAX_VLAN_TAG;
     }
 
+    if(!defined($args{'mpls_vlan_tag_range'})){
+	$args{'mpls_vlan_tag_range'} = undef;
+    }
+
+
     my $int_id;
 
     my $int = $self->_execute_query("select * from interface where interface.node_id = ? and interface.name = ?",[$args{'node_id'},$args{'name'}]);
@@ -7391,7 +7452,7 @@ sub add_or_update_interface{
 	}
 
 	#interface/port number doesn't exist lets create it
-	$int_id = $self->_execute_query("insert into interface (node_id,name,description,operational_state,port_number) VALUES (?,?,?,?,?)",[$args{'node_id'},$args{'name'},$args{'description'},$args{'operational_state'},$args{'port_num'}]);
+	$int_id = $self->_execute_query("insert into interface (node_id,name,description,operational_state,port_number,vlan_tag_range, mpls_vlan_tag_range) VALUES (?,?,?,?,?,?,?)",[$args{'node_id'},$args{'name'},$args{'description'},$args{'operational_state'},$args{'port_num'},$args{'vlan_tag_range'},$args{'mpls_vlan_tag_range'}]);
 	if(!defined($int_id)){
 	    $self->_set_error("Unable to insert a new interface!!");
 	    return;
@@ -8076,18 +8137,18 @@ sub _validate_endpoint {
         # Endpoints on trunk interfaces must use VLANs outside the range
         # assigned to each node. Interface ACL[s are also ignored.
         my $query = "SELECT node.vlan_tag_range " .
-          "FROM node " .
-          "JOIN interface ON node.node_id = interface.node_id " .
-          "WHERE interface.interface_id = ?";
-
+	    "FROM node " .
+	    "JOIN interface ON node.node_id = interface.node_id " .
+	    "WHERE interface.interface_id = ?";
+	
         my $results = $self->_execute_query($query, [$interface_id]);
         if (!defined $results || !defined @{$results}[0]) {
             $self->_set_error("Could not perform VLAN validation against node for trunk interface.");
             return;
         }
-
+	
         $vlan_tag_range = @{$results}[0]->{'vlan_tag_range'};
-
+	
         if(defined($vlan)){
             my $vlan_tags = $self->_process_tag_string($vlan_tag_range);
             foreach my $vlan_tag (@{$vlan_tags}) {
@@ -8096,22 +8157,26 @@ sub _validate_endpoint {
                 }
             }
         }
+    }else{
+	
     }
+    
+    warn "VLAN TAG RANGE: " . $vlan_tag_range . "\n";
 
     $query  = "select * ";
     $query .= " from interface_acl ";
     $query .= " join interface on interface_acl.interface_id = interface.interface_id ";
     $query .= " where interface_acl.interface_id = ? ";
     $query .= " and (interface_acl.workgroup_id = ? or interface_acl.workgroup_id IS NULL) order by eval_position";
-
+    
     $results = $self->_execute_query($query, [$interface_id, $workgroup_id]);
     if (!defined $results) {
 	$self->_set_error("Internal error validating endpoint.");
 	return;
     }
- 
+    
     my $tags = $self->_process_tag_string($vlan_tag_range);
-   
+    
     foreach my $tag (@$tags){
         $vlan_range_hash = $self->_set_vlan_range_allow_deny(
             vlan_range_hash  => $vlan_range_hash,
@@ -8120,14 +8185,14 @@ sub _validate_endpoint {
             allow_deny       => 0
             );
     }
-
-
+    
+    
     
     foreach my $result (@{$results}) {
         my $permission = $result->{'allow_deny'};
         my $vlan_start = $result->{'vlan_start'};
         my $vlan_end   = $result->{'vlan_end'} || $vlan_start;
-
+	
         # if vlan is not defined determine what ranges are available
         if(!defined($vlan)) {
             if($permission eq "deny") {
@@ -8136,16 +8201,16 @@ sub _validate_endpoint {
                     vlan_start       => $vlan_start,
                     vlan_end         => $vlan_end,
                     allow_deny       => 0
-                );
+		    );
             } else {
                 $vlan_range_hash = $self->_set_vlan_range_allow_deny(
                     vlan_range_hash  => $vlan_range_hash,
                     vlan_start       => $vlan_start,
                     vlan_end         => $vlan_end,
                     allow_deny       => 1
-                );
+		    );
             }
-
+	    
         }
         # otherwise if our vlan falls within this rules range determine if it is allow
         # or deny
@@ -8157,12 +8222,12 @@ sub _validate_endpoint {
             }
         }
     }
-
+    
     # convert the hash to a vlan range string
     if(!defined($vlan)){
         return $self->_vlan_range_hash2str( vlan_range_hash => $vlan_range_hash );
     }
-
+    
     # if no applicable rules were found default to deny
     return 0;
 }

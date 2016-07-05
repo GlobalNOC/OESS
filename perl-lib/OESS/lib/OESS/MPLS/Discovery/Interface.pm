@@ -56,6 +56,8 @@ sub process_results{
 		operational_state => $interface->{'operational_state'},
 		admin_state => $interface->{'admin_state'},
 		description => $interface->{'description'},
+		vlan_tag_range => "-1",
+		mpls_vlan_tag_range => "1-4095" 
 		);
 	    if (!defined($res)) {
 		$self->{'logger'}->warn($self->{'db'}->{'error'});

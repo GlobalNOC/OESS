@@ -273,6 +273,16 @@ sub register_webservice_methods {
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
                                   required    => 0,
                                   description => '' );
+    $method->add_input_parameter( name        => 'openflow',
+				  pattern     => $GRNOC::WebService::Regex::TEXT,
+				  required    => 1,
+				  description => "if openflow is enabled or not (0|1)");
+    
+    $method->add_input_parameter( name        => 'mpls',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 1,
+				  description => "if mpls is enabled or not (0|1)");
+
     $svc->register_method($method);
 
     $method = GRNOC::WebService::Method->new( name        => 'update_interface',
@@ -284,11 +294,15 @@ sub register_webservice_methods {
                                   description => '' );
     $method->add_input_parameter( name        => 'description',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  required    => 1,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'vlan_tag_range',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  required    => 1,
+                                  required    => 0,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'mpls_vlan_tag_range',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 0,
                                   description => '' );
     $svc->register_method($method);
 
@@ -1573,6 +1587,8 @@ sub update_node {
     my $tx_delay_ms     = $args->{'tx_delay_ms'}{'value'} || 0;
     my $bulk_barrier    = $args->{'bulk_barrier'}{'value'} || 0;
     my $max_static_mac_flows = $args->{'max_static_mac_flows'}{'value'} || 0;
+    my $openflow        = $args->{'openflow'};
+    my $mpls            = $args->{'mpls'};
 
     if ( $default_drop eq 'true' ) {
         $default_drop = 1;
@@ -1594,9 +1610,23 @@ sub update_node {
         $bulk_barrier = 0;
     }
 
+    if($openflow eq 'true'){
+	$openflow = 1;
+    }else{
+	$openflow = 0;
+    }
+
+    if($mpls eq 'true'){
+	$mpls = 1;
+    }else{
+	$mpls = 0;
+    }
+
     my $result = $db->update_node(
         node_id         => $node_id,
-        name            => $name,
+        openflow        => $openflow,
+	mpls            => $mpls,
+	name            => $name,
         longitude       => $long,
         latitude        => $lat,
         vlan_range      => $range,
@@ -1620,52 +1650,60 @@ sub update_node {
         $results->{'results'} = [ { "success" => 1 } ];
     }
 
-    my $client  = new GRNOC::RabbitMQ::Client(
-        topic => 'OF.FWDCTL.RPC',
-        exchange => 'OESS',
-        user => 'guest',
-        pass => 'guest',
-        host => 'localhost',
-        port => 5672
+    if($openflow){
+	
+	my $client  = new GRNOC::RabbitMQ::Client(
+	    topic => 'OF.FWDCTL.RPC',
+	    exchange => 'OESS',
+	    user => 'guest',
+	    pass => 'guest',
+	    host => 'localhost',
+	    port => 5672
         );
+	
+	if ( !defined($client) ) {
+	    return;
+	}
+	
+	my $node = $db->get_node_by_id(node_id => $node_id);
+	
+	my $cache_result = $client->update_cache(circuit_id => -1);
+	
+	if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
+	    return;
+	}
+	
+	my $event_id = $cache_result->{'results'}->{'event_id'};
+	
+	my $final_res = FWDCTL_WAITING;
+	
+	while($final_res == FWDCTL_WAITING){
+	    sleep(1);
+	    $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
+	}
+	
+	$cache_result = $client->force_sync(dpid => $node->{'dpid'});
+	
+	if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
+	    return;
+	}
+	
+	$event_id = $cache_result->{'results'}->{'event_id'};
+	
+	$final_res = FWDCTL_WAITING;
+	
+	while($final_res == FWDCTL_WAITING){
+	    sleep(1);
+	    $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
+	}
+	return {results => [{success => $final_res}]};
 
-    if ( !defined($client) ) {
-        return;
+    }else{
+
     }
 
-    my $node = $db->get_node_by_id(node_id => $node_id);
+    return {results => [{success => 1}]};
 
-    my $cache_result = $client->update_cache(circuit_id => -1);
-
-    if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
-        return;
-    }
-
-    my $event_id = $cache_result->{'results'}->{'event_id'};
-
-    my $final_res = FWDCTL_WAITING;
-
-    while($final_res == FWDCTL_WAITING){
-        sleep(1);
-        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
-    }
-
-    $cache_result = $client->force_sync(dpid => $node->{'dpid'});
-
-    if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
-        return;
-    }
-
-    $event_id = $cache_result->{'results'}->{'event_id'};
-
-    $final_res = FWDCTL_WAITING;
-
-    while($final_res == FWDCTL_WAITING){
-        sleep(1);
-        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
-    }
-
-    return {results => [{success => $final_res}]};
 }
 
 
@@ -1681,25 +1719,42 @@ sub update_interface {
     my $interface_id = $args->{'interface_id'}{'value'};
     my $description  = $args->{'description'}{'value'};
     my $vlan_tags    = $args->{'vlan_tag_range'}{'value'};
+    my $mpls_vlan_tags = $args->{'mpls_vlan_tag_range'}{'value'};
 
-    my $result = $db->update_interface_description( 'interface_id' => $interface_id,
-                                                    'description'  => $description );
+    $db->_start_transaction();
 
-    my $result2 = $db->update_interface_vlan_range( 'vlan_tag_range' => $vlan_tags,
-                                                    'interface_id'   => $interface_id );
-
-    if ( !defined $result || !defined($result2) ) {
-        $results->{'results'} = [
-            {
-                "error"   => $db->get_error(),
-                "success" => 0
-            }
-            ];
-    }
-    else {
-        $results->{'results'} = [ { "success" => 1 } ];
+    if(defined($description)){
+	my $result = $db->update_interface_description( 'interface_id' => $interface_id,
+							'description'  => $description );
+	if(!defined($result)){
+	    $db->_rollback();
+	    return {results => [{success => 0}], error => "Unable to update description"};
+	}
     }
 
+    if(defined($vlan_tags)){
+	my $result = $db->update_interface_vlan_range( 'vlan_tag_range' => $vlan_tags,
+							'interface_id'   => $interface_id );
+
+        if(!defined($result)){
+            $db->_rollback();
+            return {results => [{success => 0}], error => "Unable to update vlan tag range"};
+        }
+    }
+    
+    if(defined($mpls_vlan_tags)){
+	my $result = $db->update_interface_mpls_vlan_range( 'vlan_tag_range' => $mpls_vlan_tags,
+							    'interface_id'   => $interface_id );
+	
+	if(!defined($result)){
+            $db->_rollback();
+            return {results => [{success => 0}], error => "Unable to update MPLS Vlan tag range"};
+        }
+    }
+
+    $db->_commit();
+    $results->{'results'} = [ { "success" => 1 } ];
+    
     return $results;
 
 }

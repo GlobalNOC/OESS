@@ -40,7 +40,7 @@ CREATE TABLE `circuit` (
   CONSTRAINT `circuit_ibfk_1` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = utf8 */;
-
+ALTER TABLE circuit AUTO_INCREMENT=3000;
 --
 -- Table structure for table `circuit_edge_interface_membership`
 --
@@ -118,8 +118,8 @@ CREATE TABLE `interface` (
   `role` enum('unknown','trunk','customer') NOT NULL DEFAULT 'unknown',
   `node_id` int(10) NOT NULL,
   `vlan_tag_range` varchar(255) DEFAULT '-1,1-4095',
+  `mpls_vlan_tag_range` varchar(255) DEFAULT '0',
   `workgroup_id` int(10) DEFAULT NULL,
-  `ip_address` varchar(255),
   PRIMARY KEY (`interface_id`),
   UNIQUE KEY `node_id_name_idx` (`node_id`,`name`),
   UNIQUE KEY `node_port_idx` (`node_id`,`port_number`),
@@ -207,6 +207,10 @@ CREATE TABLE `link_instantiation` (
   `start_epoch` int(10) NOT NULL,
   `interface_a_id` int(10) NOT NULL,
   `interface_z_id` int(10) NOT NULL,
+  `openflow` int(1) NOT NULL DEFAULT 0,
+  `mpls` int(1) NOT NULL DEFAULT 0,
+  `ip_a` varchar(255),
+  `ip_z` varchar(255),
   PRIMARY KEY (`link_id`,`end_epoch`),
   KEY `interface_link_instantiation_fk` (`interface_a_id`),
   KEY `interface_link_instantiation_fk_1` (`interface_z_id`),
@@ -305,6 +309,7 @@ CREATE TABLE `node_instantiation` (
   `model` varchar(255),
   `sw_version` varchar(255),
   `mgmt_addr` varchar(255),
+  `loopback_address` varchar(255),
   PRIMARY KEY (`node_id`,`end_epoch`),
   UNIQUE KEY `node_instantiation_idx` (`end_epoch`,`dpid`),
   CONSTRAINT `node_node_instantiation_fk` FOREIGN KEY (`node_id`) REFERENCES `node` (`node_id`) ON DELETE NO ACTION ON UPDATE NO ACTION

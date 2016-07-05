@@ -237,9 +237,9 @@ sub _write_cache{
 
 	    my $dest;
 	    if($i == scalar(@{$eps}) -1 ){
-		$dest = $self->{'node_info'}->{$eps->[0]->{'node'}}->{'router_ip'};
+		$dest = $self->{'node_info'}->{$eps->[0]->{'node'}}->{'loopback_address'};
 	    }else{
-		$dest = $self->{'node_info'}->{$eps->[$i + 1]->{'node'}}->{'router_ip'};
+		$dest = $self->{'node_info'}->{$eps->[$i + 1]->{'node'}}->{'loopback_address'};
 	    }
 
 
@@ -523,6 +523,7 @@ sub send_message_to_child{
     delete $message->{'action'};
 
     $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$id}->{'mgmt_addr'};
+    $self->{'logger'}->info("Sending message to topic: " . $self->{'fwdctl_events'}->{'topic'} . "." . $method_name);
     $self->{'fwdctl_events'}->$method_name( %$message );
 
     $self->{'pending_results'}->{$event_id}->{'ts'} = time();
@@ -536,11 +537,14 @@ sub addVlan{
     my $m_ref = shift;
     my $p_ref = shift;
     my $state_ref = shift;
+    
+    $self->{'logger'}->error("Creating Circuit!");
+
 
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
     $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
-    $self->{'logger'}->info("addVlan: $circuit_id");
+    $self->{'logger'}->info("MPLS addVlan: $circuit_id");
 
     my $event_id = $self->_generate_unique_event_id();
 

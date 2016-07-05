@@ -57,13 +57,17 @@ sub upgrade{
     $dbh->do("alter table node_instantiation add column vendor varchar(255)");
     $dbh->do("alter table node_instantiation add column model varchar(255)");
     $dbh->do("alter table node_instantiation add column sw_version varchar(255)");
-    $dbh->do("alter table interface add column ip_address varchar(255)");
     $dbh->do("alter table node_instantiation drop column management_addr_ipv4");
     $dbh->do("alter table node_instantiation add column mgmt_addr varchar(255)");
     $dbh->do("alter table circuit add column type enum(‘openflow’, ‘mpls’) default ‘openflow’");
     $dbh->do("alter table circuit add column type enum('openflow', 'mpls') default 'openflow'");
     $dbh->do("alter table link_instantiation add column openflow int(1) not null default 0");
     $dbh->do("alter table link_instantiation add column mpls int(1) not null default 0");
+    $dbh->do("alter table interface add column mpls_vlan_tag_range varchar(255)");
+    $dbh->do("alter table link_instantiation add column ip_a varchar(255)");
+    $dbh->do("alter table link_instantiation add column ip_z varchar(255)");
+    $dbh->do("alter table node_instantiation add column loopback_address varchar(255)");
+
     # Done with the rest of the upgrade update our version
     $str = "update oess_version set version = '$version'";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";

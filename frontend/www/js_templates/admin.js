@@ -1595,7 +1595,7 @@ function setup_workgroup_tab(){
                             
                 var cols = [
                   {key: "name", label: "Interface", width: 80},
-                  {key: "description", label: "Description", width: 160},
+                  {key: "description", label: "Description", width: 150},
                   {key: "int_role", label: "Role", width: 50, formatter: function(elLiner, oRec, oCol, oData) {
                     if (oData === "unknown") {
                       elLiner.innerHTML = "Endpoint";
@@ -2185,18 +2185,20 @@ function setup_network_tab(){
             var barrier_bulk = args[0].barrier_bulk;
             var feature = args[0].feature;
             var dpid = convert_dpid_to_hex(args[0].dpid);
-        var max_static_mac_flows = args[0].max_static_mac_flows;
-        var end_epoch = args[0].feature.geometry.end_epoch;
+	    var max_static_mac_flows = args[0].max_static_mac_flows;
+	    var end_epoch = args[0].feature.geometry.end_epoch;
+	    var openflow = args[0].openflow;
+	    var mpls = args[0].mpls;
 
-        function show_interface_acl_panel(args){
-            var interface_id = args.interface_id;
-            var interface_name = args.interface_name;
-            var acl_panel = new YAHOO.widget.Panel("interface_acl_view_panel",{
-                width: 675,
+	    function show_interface_acl_panel(args){
+		var interface_id = args.interface_id;
+		var interface_name = args.interface_name;
+		var acl_panel = new YAHOO.widget.Panel("interface_acl_view_panel",{
+			width: 675,
                 centered: true,
-                draggable: true
-            });
-
+			draggable: true
+		    });
+		
             acl_panel.setHeader("ACL Rules for: "+interface_name);
             acl_panel.setBody(
                 "<div id='interface_acl_table_container'>" +
@@ -2369,11 +2371,12 @@ function setup_network_tab(){
                     ds.responseSchema = {
                             resultsList: "results",
                             fields: [
-                            {key: "name"},
-                            {key: "description"},
-                            {key: "vlan_tag_range"},
-                            {key: "interface_id", parser: "number"},
-                            {key: "workgroup_id", parser: "number"},
+		    {key: "name"},
+		    {key: "description"},
+		    {key: "vlan_tag_range"},
+		    {key: "mpls_vlan_tag_range"},
+		    {key: "interface_id", parser: "number"},
+		    {key: "workgroup_id", parser: "number"},
                     {key: "workgroup_name"},
                             {key: "int_role"}
                                 ],
@@ -2406,86 +2409,139 @@ function setup_network_tab(){
             }
             
                     var cols = [
-                {key:'name', label: "Interface", width: 60},
-                            {key:'description', label: "Description", width: 200, 
-                             editor: new YAHOO.widget.TextboxCellEditor({  
-                                     asyncSubmitter: function( callback, newValue) {
+				{key:'name', label: "Interface", width: 60},
+				{key:'description', label: "Description", width: 200, 
+				 editor: new YAHOO.widget.TextboxCellEditor({  
+					 asyncSubmitter: function( callback, newValue) {
                                              var record = this.getRecord();
                                              var column = this.getColumn();
                                              var oldValue = this.value;
                                              YAHOO.util.Connect.asyncRequest(
-                                                     'get','../services/admin/admin.cgi?method=update_interface&interface_id='+record.getData('interface_id')+'&description='+encodeURIComponent(newValue),{
-                                                             success:function(o) {
-                                                                     var r = YAHOO.lang.JSON.parse(o.responseText);
-                                                                     table.destroy();
-                                     table = make_node_intf_table();
-                                     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
-                                     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
-                                     table.subscribe("cellClickEvent", function (ev){
-                                         var target= YAHOO.util.Event.getTarget(ev);
-                                         var column = table.getColumn(target);
-                                         if (column.key=='description'){
-                                             table.onEventShowCellEditor(ev);
-                                         }
-                                         if(column.key=='vlan_tag_range' && target.firstChild.innerHTML != 'TRUNK'){
-                                             table.onEventShowCellEditor(ev);
-                                         }
-                                     });
+									     'get','../services/admin/admin.cgi?method=update_interface&interface_id='+record.getData('interface_id')+'&description='+encodeURIComponent(newValue),{
+										 success:function(o) {
+										     var r = YAHOO.lang.JSON.parse(o.responseText);
+										     table.destroy();
+										     table = make_node_intf_table();
+										     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
+										     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
+										     table.subscribe("cellClickEvent", function (ev){
+											     var target= YAHOO.util.Event.getTarget(ev);
+											     var column = table.getColumn(target);
+											     if (column.key=='description'){
+												 table.onEventShowCellEditor(ev);
+											     }
+											     if(column.key=='vlan_tag_range' && target.firstChild.innerHTML != 'TRUNK'){
+												 table.onEventShowCellEditor(ev);
+											     }
+											     if(column.key=='mpls_vlan_tag_range' && target.firstChild.innerHTML != 'TRUNK'){
+												 table.onEventShowCellEditor(ev);
+											     }
+											 });
+										 },
+										     failure: function(o){
+										     
+										     callback(false, oldValue);
                                                              },
-                                                             failure: function(o){
-                                     
-                                                                     callback(false, oldValue);
-                                                             },
-                                                             scope:this
-                                                             
-                                                     }
+										     scope:this
+										     
+										     }
                                                      
-                                             );
-                                     }
-                             } ) 
-                            },
-                            {key: 'vlan_tag_range', label: 'VLAN Tags', width: 220,
-                             formatter: function(elLiner, oRec, oCol, oData){
-                                     if(oRec.getData('int_role') == 'trunk'){
-                                             elLiner.innerHTML = 'TRUNK';
-                                     }else{
-                                             elLiner.innerHTML = oRec.getData('vlan_tag_range');
-                                     }
-                             },
-                             editor:new YAHOO.widget.TextboxCellEditor({
-                                     asyncSubmitter: function( callback, newValue) {
+									     );
+					 }
+				     } ) 
+				},
+				{key: 'vlan_tag_range', label: 'VLAN Tags', width: 180,
+				 formatter: function(elLiner, oRec, oCol, oData){
+					if(oRec.getData('int_role') == 'trunk'){
+					    elLiner.innerHTML = 'TRUNK';
+					}else{
+					    elLiner.innerHTML = oRec.getData('vlan_tag_range');
+					}
+				    },
+				 
+				 editor:new YAHOO.widget.TextboxCellEditor({
+					 asyncSubmitter: function( callback, newValue) {
                                              var record = this.getRecord();
                                              var column = this.getColumn();
                                              var oldValue = this.value;
                                              YAHOO.util.Connect.asyncRequest(
-                                                     'get','../services/admin/admin.cgi?method=update_interface&interface_id='+record.getData('interface_id')+'&vlan_tag_range='+encodeURIComponent(newValue),{
-                                                             success:function(o) {
-                                                                     var r = YAHOO.lang.JSON.parse(o.responseText);
-                                     table.destroy();
-                                     table = make_node_intf_table();
-                                     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
-                                     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
-                                     table.subscribe("cellClickEvent", function (ev){
-                                         var target= YAHOO.util.Event.getTarget(ev);
-                                         var column = table.getColumn(target);
-                                         if (column.key=='description'){
-                                             table.onEventShowCellEditor(ev);
+									     'get','../services/admin/admin.cgi?method=update_interface&interface_id='+record.getData('interface_id')+'&vlan_tag_range='+encodeURIComponent(newValue),{
+										 success:function(o) {
+										     var r = YAHOO.lang.JSON.parse(o.responseText);
+										     table.destroy();
+										     table = make_node_intf_table();
+										     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
+										     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
+										     table.subscribe("cellClickEvent", function (ev){
+											     var target= YAHOO.util.Event.getTarget(ev);
+											     var column = table.getColumn(target);
+											     if (column.key=='description'){
+												 table.onEventShowCellEditor(ev);
+											     }
+											     if(column.key=='vlan_tag_range' && target.firstChild.innerHTML != 'TRUNK'){
+												 table.onEventShowCellEditor(ev);
+											     } 
+											     if(column.key=='mpls_vlan_tag_range' && target.firstChild.innerHTML != 'TRUNK'){
+                                                                                                 table.onEventShowCellEditor(ev);
+                                                                                             }
+											 });
+										 },
+										     failure: function(o){
+										     callback(false, oldValue);
+										 },
+										     scope:this
+										     
+										     }
+									     
+									     );
+					 }
+				     } )},
+				{key: 'mpls_vlan_tag_range', label: 'MPLS VLAN Tags', width: 180,
+                                 formatter: function(elLiner, oRec, oCol, oData){
+                                        if(oRec.getData('int_role') == 'trunk'){
+                                            elLiner.innerHTML = 'TRUNK';
+                                        }else{
+                                            elLiner.innerHTML = oRec.getData('mpls_vlan_tag_range');
+                                        }
+                                    },
+				 
+                                 editor:new YAHOO.widget.TextboxCellEditor({
+                                         asyncSubmitter: function( callback, newValue) {
+                                             var record = this.getRecord();
+                                             var column = this.getColumn();
+                                             var oldValue = this.value;
+                                             YAHOO.util.Connect.asyncRequest(
+                                                                             'get','../services/admin/admin.cgi?method=update_interface&interface_id='+record.getData('interface_id')+'&mpls_vlan_tag_range='+encodeURIComponent(newValue),{
+                                                                                 success:function(o) {
+                                                                                     var r = YAHOO.lang.JSON.parse(o.responseText);
+                                                                                     table.destroy();
+                                                                                     table = make_node_intf_table();
+                                                                                     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
+                                                                                     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
+                                                                                     table.subscribe("cellClickEvent", function (ev){
+                                                                                             var target= YAHOO.util.Event.getTarget(ev);
+                                                                                             var column = table.getColumn(target);
+                                                                                             if (column.key=='description'){
+                                                                                                 table.onEventShowCellEditor(ev);
+                                                                                             }
+											     if(column.key=='vlan_tag_range' && target.firstChild.innerHTML != 'TRUNK'){
+                                                                                                 table.onEventShowCellEditor(ev);
+                                                                                             }
+                                                                                             if(column.key=='mpls_vlan_tag_range' && target.firstChild.innerHTML != 'TRUNK'){
+                                                                                                 table.onEventShowCellEditor(ev);
+                                                                                             }
+                                                                                         });
+                                                                                 },
+                                                                                     failure: function(o){
+                                                                                     callback(false, oldValue);
+                                                                                 },
+                                                                                     scope:this
+
+                                                                                     }
+
+                                                                             );
                                          }
-                                         if(column.key=='vlan_tag_range' && target.firstChild.innerHTML != 'TRUNK'){
-                                             table.onEventShowCellEditor(ev);
-                                         }
-                                     });
-                                                             },
-                                                             failure: function(o){
-                                                                     callback(false, oldValue);
-                                                             },
-                                                             scope:this
-                                                             
-                                                     }
-                                                     
-                                             );
-                                     }
-                             } )},
+                                     } )},
                 {key: "workgroup_name", label: "Workgroup", formatter: function(elLiner, oRec, oCol, oData){
                     if(oData === null){
                         elLiner.innerHTML = 'None';
@@ -2546,7 +2602,7 @@ function setup_network_tab(){
 
             panel = new YAHOO.widget.Panel("node_details",
                                            { 
-                                               width: 790,
+                                               width: 920,
                                                centered: true,
                                                draggable: true
                                            }
@@ -2582,6 +2638,12 @@ function setup_network_tab(){
                     "<input type='text' id='active_node_lon'>" +
                 "</td>" +
             "</tr>" +
+	    "<tr>" + 
+		"<td><label for='openflow_enabled'>OpenFlow Enabled</lable></td><td>" + 
+		   "<input type='checkbox' id='openflow_enabled' checked />" + 
+		 "</td><td><label for='mpls_enabled'>MPLS Enabled</label></td><td>" +
+		      "<input type='checkbox' id='mpls_enabled' checked />" +
+		 "</td></tr>" +
             "<tr>" +
               "<td colspan='2' class='soft_title'>Behaviours</td>"+
               "<td colspan='2' class='soft_title'>Performance Characteristics</td>"+
@@ -2637,6 +2699,9 @@ function setup_network_tab(){
                     if(column.key=='vlan_tag_range' && target.firstChild.innerHTML != 'TRUNK'){
                             table.onEventShowCellEditor(ev);
                     }
+		    if(column.key=='mpls_vlan_tag_range' && target.firstChild.innerHTML != 'TRUNK'){
+			table.onEventShowCellEditor(ev);
+		    }
                 });
 
 
@@ -2649,6 +2714,14 @@ function setup_network_tab(){
             YAHOO.util.Dom.get('active_max_flows').value            = max_flows;
             YAHOO.util.Dom.get('dpid_str').innerHTML                = dpid;
             YAHOO.util.Dom.get('active_max_static_mac_flows').value = max_static_mac_flows;
+
+	    if(openflow == 0){
+		YAHOO.util.Dom.get('openflow_enabled').checked  = false;
+	    }
+
+	    if(mpls == 0){
+		YAHOO.util.Dom.get('mpls_enabled').checked = false;
+	    }
 
             if(default_drop == 0){
                 YAHOO.util.Dom.get('active_node_default_drop').checked = false;
@@ -2683,6 +2756,8 @@ function setup_network_tab(){
 				var new_default_forward = YAHOO.util.Dom.get('active_node_default_forward').checked;
 				var new_barrier_bulk = YAHOO.util.Dom.get('active_barrier_bulk').checked;
 				var new_max_static_mac_flows = YAHOO.util.Dom.get('active_max_static_mac_flows').value;
+				var openflow = YAHOO.util.Dom.get('openflow_enabled').checked;
+				var mpls = YAHOO.util.Dom.get('mpls_enabled').checked;
 				if (! new_name){
 				    alert("You must specify a name for this device.");
 				    return;
@@ -2713,7 +2788,7 @@ function setup_network_tab(){
 				    }				
 				}
 
-				var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=update_node&node_id="+node_id+"&name="+encodeURIComponent(new_name)+"&latitude="+new_lat+"&longitude="+new_lon+"&vlan_range="+encodeURIComponent(new_range) + "&default_drop=" + encodeURIComponent(new_default_drop) + "&default_forward=" + encodeURIComponent(new_default_forward) + "&max_flows=" + encodeURIComponent(new_max_flows) + "&tx_delay_ms=" + encodeURIComponent(new_tx_delay_ms) + "&bulk_barrier=" + encodeURIComponent(new_barrier_bulk) + "&max_static_mac_flows=" + new_max_static_mac_flows);
+				var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=update_node&node_id="+node_id+"&name="+encodeURIComponent(new_name)+"&latitude="+new_lat+"&longitude="+new_lon+"&vlan_range="+encodeURIComponent(new_range) + "&default_drop=" + encodeURIComponent(new_default_drop) + "&default_forward=" + encodeURIComponent(new_default_forward) + "&max_flows=" + encodeURIComponent(new_max_flows) + "&tx_delay_ms=" + encodeURIComponent(new_tx_delay_ms) + "&bulk_barrier=" + encodeURIComponent(new_barrier_bulk) + "&max_static_mac_flows=" + +encodeURIComponent(new_max_static_mac_flows) + "&mpls=" + +encodeURIComponent(mpls) + "&openflow=" + +encodeURIComponent(openflow));
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 		    
 		    ds.responseSchema = {
@@ -2893,16 +2968,6 @@ function setup_discovery_tab(){
 				  "<td>IP Address</td>" +
 				  "<td><input type='text' id='new_ip_address' size='40'></td>" +
 				  "</tr>" +
-                                  "<tr>" +
-                                  "<td>Username</td>" +
-                                  "<td><input type='text' id='new_username' size='20'></td>" +
-                                  "</tr>" +
-				  "<tr>" +
-                                  "<tr>" +
-                                  "<td>Password</td>" +
-                                  "<td><input type='password' id='new_password' size='20'></td>" +
-                                  "</tr>" +
-				  "<tr>" +
                                   "<td>Port</td>" +
                                   "<td><input type='text' id='new_port' size='10'></td>" +
                                   "</tr>" +
@@ -2950,9 +3015,7 @@ function setup_discovery_tab(){
 		    var lat   = YAHOO.util.Dom.get('new_node_lat').value;
                     var lon   = YAHOO.util.Dom.get('new_node_lon').value;
                     var name  = YAHOO.util.Dom.get('new_node_name').value;
-		    var user  = YAHOO.util.Dom.get('new_username').value;
 		    var ip    = YAHOO.util.Dom.get('new_ip_address').value;
-		    var pass  = YAHOO.util.Dom.get('new_password').value;
 		    var port  = YAHOO.util.Dom.get('new_port').value;
 		    var vendor= YAHOO.util.Dom.get('new_mpls_vendor').value;
 		    var model = YAHOO.util.Dom.get('new_mpls_model').value;
@@ -2963,7 +3026,7 @@ function setup_discovery_tab(){
                         return;
                     }
 
-		    if( !ip || !port || ! pass){
+		    if( !ip || !port ){
 			alert('You must specify and IP, SSH port, and password');
 			return;
 		    }
@@ -2991,7 +3054,7 @@ function setup_discovery_tab(){
 		    add_button.set("disabled", true);
 		    add_button.set("label", "Adding device....");
 
-		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_mpls_switch&name=" + encodeURIComponent(name) + "&latitude=" + encodeURIComponent(lat) + "&longitude=" + encodeURIComponent(lon) + "&user=" + encodeURIComponent(user) + "&ip_address=" + encodeURIComponent(ip) + "&password=" + encodeURIComponent(pass) + "&port=" + encodeURIComponent(port) + "&vendor=" + encodeURIComponent(vendor) + "&model=" + encodeURIComponent(model) + "&sw_ver=" + encodeURIComponent(sw_ver));
+		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_mpls_switch&name=" + encodeURIComponent(name) + "&latitude=" + encodeURIComponent(lat) + "&longitude=" + encodeURIComponent(lon) + "&ip_address=" + encodeURIComponent(ip) + "&port=" + encodeURIComponent(port) + "&vendor=" + encodeURIComponent(vendor) + "&model=" + encodeURIComponent(model) + "&sw_ver=" + encodeURIComponent(sw_ver));
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 		    
 		    ds.responseSchema = {

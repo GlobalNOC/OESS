@@ -84,7 +84,62 @@ sub get_system_information{
     $var =~ /(\d+\.\d+R\d+)/;
     my $root_namespace = "http://xml.juniper.net/junos/".$1.'/';
     $self->{'root_namespace'} = $root_namespace;
-    return {model => $model, version => $version, os_name => $os_name, host_name => $host_name};
+
+
+    #also need to fetch the interfaces and find lo0.X
+    my $reply = $self->{'jnx'}->get_interface_information();
+    if($self->{'jnx'}->has_error){
+        $self->set_error($self->{'jnx'}->get_first_error());
+        $self->{'logger'}->error("Error fetching interface information: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
+        return;
+    }
+
+    my $interfaces = $self->{'jnx'}->get_dom();
+    my $path = $self->{'root_namespace'}."junos-interface";
+    my $xp = XML::LibXML::XPathContext->new( $interfaces);
+    $xp->registerNs('x',$interfaces->documentElement->namespaceURI);
+    $xp->registerNs('j',$path);
+    my $ints = $xp->findnodes('/x:rpc-reply/j:interface-information/j:physical-interface');
+
+    my $loopback_addr;
+
+    foreach my $int ($ints->get_nodelist){
+	my $xp = XML::LibXML::XPathContext->new( $int );
+	my $path = $self->{'root_namespace'}."junos-interface";
+	$xp->registerNs('j',$path);
+	my $name = trim($xp->findvalue('./j:name'));
+	next if ($name ne 'lo0');
+	
+	my $logical_ints = $xp->find('./j:logical-interface');
+	foreach my $log (@{$logical_ints}){
+	    my $log_xp = XML::LibXML::XPathContext->new( $log );
+	    my $path = $self->{'root_namespace'}."junos-interface";
+	    $log_xp->registerNs('j',$path);
+	    my $log_name = trim($log_xp->findvalue('./j:name'));
+	    if($log_name eq 'lo0.0'){
+		my $addresses = $log_xp->find("./j:address-family");
+		foreach my $addr (@$addresses){
+		    my $af_xp = XML::LibXML::XPathContext->new( $addr );
+		    my $path = $self->{'root_namespace'}."junos-interface";
+		    $af_xp->registerNs('j',$path);
+		    my $af_name = trim($af_xp->findvalue('./j:address-family-name'));
+		    next if $af_name ne 'inet';
+		    my $addrs = $af_xp->find('./j:interface-address/j:ifa-local');
+		    foreach my $ad (@$addrs){
+			my $address = trim($ad->textContent);
+			next if(!defined($address));
+			next if $address eq '';
+			next if $address eq '127.0.0.1';
+			$loopback_addr = $address;		       
+		    }
+		}
+	    }
+	}
+
+	
+    }
+
+    return {model => $model, version => $version, os_name => $os_name, host_name => $host_name, loopback_addr => $loopback_addr};
 }
 
 sub get_interfaces{
@@ -172,7 +227,7 @@ sub add_vlan{
     $vars->{'destination_ip'} = $ckt->{'destination_ip'};
     $vars->{'circuit_id'} = $ckt->{'circuit_id'};
     $vars->{'switch'} = {name => $self->{'name'}};
-    $vars->{'site_id'} = $self->{'node_id'};
+    $vars->{'site_id'} = $self->{'node_id'} + 1000;
 
     if ($self->unit_name_available($vars->{'interface'}->{'name'}, $vars->{'vlan_tag'}) == 0) {
         return FWDCTL_FAILURE;
@@ -181,6 +236,8 @@ sub add_vlan{
     my $output;
     my $remove_template = $self->{'tt'}->process( $self->{'template_dir'} . "/ep_config.xml", $vars, \$output) or warn $self->{'tt'}->error();
     
+    $self->{'logger'}->error($output);
+
     return $self->_edit_config( config => $output );    
     
 }
