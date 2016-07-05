@@ -1,108 +1,77 @@
 <configuration>
-<interfaces>
-  <interface>
-    <name>[% interface.name %]</name>
-    <unit>
-      <name>[% vlan_tag %]</name>
-      <description>OESS L2VPN [% circuit_id %]</description>
-      <encapsulation>vlan-ccc</encapsulation>
-      <vlan-id>[% vlan_tag %]</vlan-id>
-      <input-vlan-map>
-        <swap/>
-        <vlan-id>[% remote_vlan_tag %]</vlan-id>
-      </input-vlan-map>
-    </unit>
-  </interface>
-</interfaces>
-<protocols>
-  <mpls>
-    <label-switched-path>
-      <name>OESS-L2VPN-PRIMARY-LSP-[% circuit_id %]</name>
-      <apply-groups>L2VPN-LSP-ATTRIBUTES</apply-groups>
-      <to>[% destination_ip %]</to>
-      <primary>
-        <name>OESS-L2VPN-PRIMARY-PATH-[% circuit_id %]</name>
-        <select>manual</select>
-      </primary>
-    </label-switched-path>
-    <label-switched-path>
-      <name>OESS-L2VPN-SECONDARY-LSP-[% circuit_id %]</name>
-      <apply-groups>L2VPN-LSP-ATTRIBUTES</apply-groups>
-      <to>[% destination_ip %]</to>
-      <primary>
-        <name>OESS-L2VPN-SECONDARY-PATH-[% circuit_id %]</name>
-        <standby />
-      </primary>
-    </label-switched-path>
-    <path>
-      <name>OESS-L2VPN-PRIMARY-PATH-[% circuit_id %]</name>
-      <path-list>
-        <name>[% destination_ip %]</name>
-        <loose/>
-      </path-list>
-    </path>
-    <path>
-      <name>OESS-L2VPN-SECONDARY-PATH-[% circuit_id %]</name>
-      <path-list>
-        <name>[% destination_ip %]</name>
-        <loose/>
-      </path-list>
-    </path>
-  </mpls>
-</protocols>
-<policy-options>
-  <policy-statement>
-  <name>OESS-L2VPN-LSP-Policy</name>
-    <term>
-      <name>OESS-L2VPN-[% circuit_id %]</name>
-      <from>
-        <rib>mpls.0</rib>
-        <community>OESS-L2VPN-[% circuit_id %]-Community</community>
-      </from>
-      <then>
-        <install-nexthop>
-          <lsp>OESS-L2VPN-PRIMARY-LSP-[% circuit_id %]</lsp>
-          <lsp>OESS-L2VPN-SECONDARY-LSP-[% circuit_id %]</lsp>
-        </install-nexthop>
-        <accept/>
-      </then>
-    </term>
-  </policy-statement>
-  <community>
-    <name>OESS-L2VPN-[% circuit_id %]-Community</name>
-    <members>target:11537:[% circuit_id %]</members>
-  </community>
-</policy-options>
-<routing-instances>
-  <instance>
-    <name>OESS-L2VPN-[% circuit_id %]</name>
-     <instance-type>l2vpn</instance-type>
-     <interface>
-       <name>[% interface.name %].[% vlan_tag %]</name>
-     </interface>
-     <route-distinguisher>
-       <rd-type>11537:[% circuit_id %]</rd-type>
-     </route-distinguisher>
-     <vrf-target>
-       <community>target:11537:[% circuit_id %]</community>
-     </vrf-target>
-     <protocols>       
-       <l2vpn>
-	 <encapsulation-type>ethernet-vlan</encapsulation-type>
-	 <interface>
-           <name>[% interface.name %].[% vlan_id %]</name>
-	 </interface>
-	 <site-range>65534</site-range>
-	 <site>
-           <name>[% switch.name %]-[% circuit_id %]</name>
-	   <site-identifier>[% site_id %]</site-identifier>
-           <interface>
-             <name>[% interface.name %].[% vlan_id %]</name>
-           </interface>
-	 </site>
-       </l2vpn>
-     </l2vpn>
+  <interfaces>
+    <interface>
+      <name>[% interface.name %]</name>
+      <unit>
+	<name>[% vlan_tag %]</name>
+	<description>OESS L2VPN [% circuit_id %]</description>
+	<encapsulation>vlan-ccc</encapsulation>
+	<vlan-id>[% vlan_tag %]</vlan-id>
+	<input-vlan-map>
+          <swap/>
+          <vlan-id>[% remote_vlan_tag %]</vlan-id>
+	</input-vlan-map>
+      </unit>
+    </interface>
+  </interfaces>
+  <protocols>
+    <mpls>
+      [% LSPs %]
+    </mpls>
   </protocols>
-</instance>
-</routing-instances>
+  <policy-options>
+    <policy-statement>
+      <name>OESS-L2VPN-LSP-Policy</name>
+      <term>
+	<name>OESS-L2VPN-[% circuit_id %]</name>
+	<from>
+          <rib>mpls.0</rib>
+          <community>OESS-L2VPN-[% circuit_id %]-Community</community>
+	</from>
+	<then>
+          <install-nexthop>
+	    [% FOREACH path in LSP_Paths %]
+            <lsp>OESS-L2VPN-[% PATH %]-LSP-[% circuit_id %]</lsp>
+	    [% END %]
+          </install-nexthop>
+          <accept/>
+	</then>
+      </term>
+    </policy-statement>
+    <community>
+      <name>OESS-L2VPN-[% circuit_id %]-Community</name>
+      <members>target:11537:[% circuit_id %]</members>
+    </community>
+  </policy-options>
+  <routing-instances>
+    <instance>
+      <name>OESS-L2VPN-[% circuit_id %]</name>
+      <instance-type>l2vpn</instance-type>
+      <interface>
+	<name>[% interface.name %].[% vlan_tag %]</name>
+      </interface>
+      <route-distinguisher>
+	<rd-type>11537:[% circuit_id %]</rd-type>
+      </route-distinguisher>
+      <vrf-target>
+	<community>target:11537:[% circuit_id %]</community>
+      </vrf-target>
+      <protocols>       
+	<l2vpn>
+	  <encapsulation-type>ethernet-vlan</encapsulation-type>
+	  <interface>
+            <name>[% interface.name %].[% vlan_id %]</name>
+	  </interface>
+	  <site-range>65534</site-range>
+	  <site>
+            <name>[% switch.name %]-[% circuit_id %]</name>
+	    <site-identifier>[% site_id %]</site-identifier>
+            <interface>
+              <name>[% interface.name %].[% vlan_id %]</name>
+            </interface>
+	  </site>
+	</l2vpn>
+      </protocols>
+    </instance>
+  </routing-instances>
 </configuration>

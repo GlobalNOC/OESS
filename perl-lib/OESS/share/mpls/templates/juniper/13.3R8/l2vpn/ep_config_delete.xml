@@ -1,42 +1,38 @@
 <configuration>
-<interfaces>
-  <interface>
-    <name>[% interface.name %]</name>
-    <unit operation='delete'>
-      <name>[% vlan_tag %]</name>
-    </unit>
-  </interface>
-</interfaces>
-<protocols>
-  <mpls>
-    <label-switched-path operation='delete'>
-      <name>OESS-L2VPN-PRIMARY-LSP-[% circuit_id %]</name>
-    </label-switched-path>
-    <label-switched-path operation='delete'>
-      <name>OESS-L2VPN-SECONDARY-LSP-[% circuit_id %]</name>
-    </label-switched-path>
-    <path operation='delete'>
-      <name>OESS-L2VPN-PRIMARY-PATH-[% circuit_id %]</name>
-    </path>
-    <path operation='delete'>
-      <name>OESS-L2VPN-SECONDARY-PATH-[% circuit_id %]</name>
-    </path>
-  </mpls>
-</protocols>
-<policy-options>
-  <policy-statement>
-  <name>OESS-L2VPN-LSP-Policy</name>
-    <term operation='delete'>
+  <interfaces>
+    <interface>
+      <name>[% interface.name %]</name>
+      <unit operation='delete'>
+	<name>[% vlan_tag %]</name>
+      </unit>
+    </interface>
+  </interfaces>
+  <protocols>
+    <mpls>
+      [% FOREACH path in LSP_Paths %]
+      <label-switched-path operation='delete'>
+	<name>OESS-L2VPN-[% PATH %]-LSP-[% circuit_id %]</name>
+      </label-switched-path>
+      <path operation='delete'>
+	<name>OESS-L2VPN-[% PATH %]-PATH-[% circuit_id %]</name>
+      </path>
+      [% END %]
+    </mpls>
+  </protocols>
+  <policy-options>
+    <policy-statement>
+      <name>OESS-L2VPN-LSP-Policy</name>
+      <term operation='delete'>
+	<name>OESS-L2VPN-[% circuit_id %]</name>
+      </term>
+    </policy-statement>
+    <community operation='delete'>
+      <name>OESS-L2VPN-[% circuit_id %]-Community</name>
+    </community>
+  </policy-options>
+  <routing-instances>
+    <instance operation='delete'>
       <name>OESS-L2VPN-[% circuit_id %]</name>
-    </term>
-  </policy-statement>
-  <community operation='delete'>
-    <name>OESS-L2VPN-[% circuit_id %]-Community</name>
-  </community>
-</policy-options>
-<routing-instances>
-  <instance operation='delete'>
-    <name>OESS-L2VPN-[% circuit_id %]</name>
-  </instance>
-</routing-instances>
+    </instance>
+  </routing-instances>
 </configuration>
