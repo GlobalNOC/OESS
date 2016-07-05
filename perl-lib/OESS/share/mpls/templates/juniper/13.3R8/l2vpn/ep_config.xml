@@ -25,7 +25,7 @@
 	  <name>OESS-L2VPN-[% path.name %]-PATH-[% circuit_id %]</name>
 	  [% IF path.name == 'PRIMARY' %]
 	  <select>manual</select>
-	  [% ELSE %}
+	  [% ELSE %]
 	  <standby />
 	  [% END %]
 	</primary>
