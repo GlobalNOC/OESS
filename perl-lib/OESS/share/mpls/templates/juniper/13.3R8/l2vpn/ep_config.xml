@@ -16,7 +16,37 @@
   </interfaces>
   <protocols>
     <mpls>
-      [% LSPs %]
+      [% FOREACH path in paths %]
+      <label-switched-path>
+	<name>OESS-L2VPN-[% path.name %]-LSP-[% circuit_id %]</name>
+	<apply-groups>L2VPN-LSP-ATTRIBUTES</apply-groups>
+	<to>[% destination_ip %]</to>
+	<primary>
+	  <name>OESS-L2VPN-[% path.name %]-PATH-[% circuit_id %]</name>
+	  [% IF path.name == 'PRIMARY' %]
+	  <select>manual</select>
+	  [% ELSE %}
+	  <standby />
+	  [% END %]
+	</primary>
+      </label-switched-path>
+      <path>
+	<name>OESS-L2VPN-[% path.name %]-PATH-[% circuit_id %]</name>
+	<path-list>
+	  <name>[% destination_ip %]</name>
+	  [% IF path.type == 'explicit' %]
+	    [% FOREACH ip in path.path %]
+	  <path-list>
+	    <name>[% ip %]</name>
+	    <strict/>
+	  </path-list>
+	    [% END %]
+	  [% ELSE %]
+	  <loose/>
+	  [% END %]
+	</path-list>
+      </path>
+      [% END %]
     </mpls>
   </protocols>
   <policy-options>
@@ -30,8 +60,8 @@
 	</from>
 	<then>
           <install-nexthop>
-	    [% FOREACH path in LSP_Paths %]
-            <lsp>OESS-L2VPN-[% PATH %]-LSP-[% circuit_id %]</lsp>
+	    [% FOREACH path in paths %]
+            <lsp>OESS-L2VPN-[% path.name %]-LSP-[% circuit_id %]</lsp>
 	    [% END %]
           </install-nexthop>
           <accept/>
