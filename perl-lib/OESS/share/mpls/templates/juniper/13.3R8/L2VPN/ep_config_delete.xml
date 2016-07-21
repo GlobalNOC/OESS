@@ -1,0 +1,40 @@
+<configuration>
+  <interfaces>
+    <interface>
+      <name>[% interface.name %]</name>
+      <unit operation='delete'>
+	<name>[% vlan_tag %]</name>
+      </unit>
+    </interface>
+  </interfaces>
+  <protocols>
+    <mpls>
+      [% FOREACH path IN paths %]
+      <label-switched-path operation='delete'>
+	<name>OESS-L2VPN-[% path.name %]-LSP-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</name>
+      </label-switched-path>
+      <path operation='delete'>
+	<name>OESS-L2VPN-[% path.name %]-PATH-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</name>
+      </path>
+      [% END %]
+    </mpls>
+  </protocols>
+  <policy-options>
+    <policy-statement>
+      <name>L2VPN-LSP-Policy</name>
+      [% FOREACH path IN paths %]
+      <term operation='delete'>
+        <name>OESS-L2VPN-[% path.name %]-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</name>
+      </term>
+      [% END %]
+    </policy-statement>
+    <community operation='delete'>
+      <name>OESS-L2VPN-[% circuit_id %]-Community</name>
+    </community>
+  </policy-options>
+  <routing-instances>
+    <instance operation='delete'>
+      <name>OESS-L2VPN-[% circuit_id %]</name>
+    </instance>
+  </routing-instances>
+</configuration>
