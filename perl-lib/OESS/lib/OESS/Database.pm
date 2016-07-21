@@ -3921,6 +3921,7 @@ sub get_circuit_details {
                                           link_status => $args{'link_status'});
 
     foreach my $path (@$paths){
+	$details->{'paths'}{$path->{'path_type'}} = $path;
 	if($path->{'path_state'} eq 'active'){
 	    if($path->{'status'} == 1){
                 $details->{'operational_state'} = 'up';
@@ -4100,6 +4101,7 @@ sub get_path_links{
 
 }
 
+
 =head2 get_circuit_links
 
 Returns an array of hashes containing information about the path links for the circuit. If no type is given, it assumes primary path links.
@@ -4129,7 +4131,7 @@ sub get_circuit_links {
 
     my $dbh = $self->{'dbh'};
 
-    my $query = "select link.name, node_a.name as node_a, if_a.name as interface_a, if_a.interface_id as interface_a_id, if_a.port_number as port_no_a, node_z.name as node_z, if_z.name as interface_z, if_z.interface_id as interface_z_id, if_z.port_number as port_no_z from link " .
+    my $query = "select link.name, node_a.name as node_a, if_a.name as interface_a, if_a.interface_id as interface_a_id, if_a.port_number as port_no_a, node_z.name as node_z, if_z.name as interface_z, if_z.interface_id as interface_z_id, if_z.port_number as port_no_z, link_inst.ip_a as ip_a, link_inst.ip_z as ip_z from link " .
 	" join link_path_membership on link_path_membership.link_id = link.link_id " .
 	"  and link_path_membership.end_epoch = -1 " .
         " join link_instantiation link_inst on link.link_id = link_inst.link_id and link_inst.end_epoch = -1".
@@ -4167,7 +4169,9 @@ sub get_circuit_links {
 			  node_z      => $row->{'node_z'},
 			  port_no_z   => $row->{'port_no_z'},
 			  interface_z => $row->{'interface_z'},
-                          interface_z_id => $row->{'interface_z_id'}
+                          interface_z_id => $row->{'interface_z_id'},
+			  ip_a        => $row->{'ip_a'},
+			  ip_z        => $row->{'ip_z'}
 	      });
     }
 
@@ -6678,7 +6682,7 @@ sub provision_circuit {
         next if(!defined(@$relevant_links) || !defined($relevant_links->[0]));
 
         # create the primary path object
-        $query = "insert into path (path_type, circuit_id, path_state) values (?, ?, ?)";
+        $query = "insert into path (path_type, circuit_id, path_state, mpls_path_type) values (?, ?, ?, ?)";
 
         my $path_state = "deploying";
 
@@ -6686,7 +6690,12 @@ sub provision_circuit {
             $path_state = "available";
         }
 
-        my $path_id = $self->_execute_query($query, [$path_type, $circuit_id,$path_state]);
+	my $mpls_path_type = "none";
+	if($type eq 'mpls'){
+	    $mpls_path_type = 'strict';
+	}
+
+        my $path_id = $self->_execute_query($query, [$path_type, $circuit_id,$path_state, $mpls_path_type]);
 
         if (! $path_id){
             $self->_set_error("Error while creating path record.");
