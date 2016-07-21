@@ -310,6 +310,124 @@ sub aggregate_data{
     return $agg;
 }
 
+=head2 get_tsds_circuit_data
+
+=cut
+sub get_tsds_circuit_data {
+    my $self = shift;
+    my %params = @_;
+
+    my $circuit_id = $params{'circuit_id'};
+    my $start_time = $params{'start_time'};
+    my $end_time   = $params{'end_time'};
+    my $node       = $params{'node'};
+    my $interface  = $params{'interface'};
+    my $db         = $params{'db'};
+    
+    if (!defined($db)){
+        $db = OESS::Database->new();
+    }
+    if(!defined $circuit_id){
+        $self->_set_error("circuit_id is required");
+        return undef;
+    }
+    if(!defined $start_time){
+        $self->_set_error("start_time is required and should be in epoch time");
+        return undef;
+    }
+    if(!defined $end_time){
+        # assume we mean "start to now"
+        $end_time = time;
+    }
+
+    my $ckt         = OESS::Circuit->new(circuit_id => $circuit_id, db => $db);
+    my $active_path = $ckt->get_active_path();
+    my $circuit_details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
+
+    my $a; # First endpoint on specified interface
+    foreach my $e (@{$circuit_details->{'endpoints'}}) {
+        if ($e->{'node'} eq $node && $e->{'interface'} eq $interface) {
+            $a = $e;
+            last;
+        }
+    }
+    
+    # Obtain stats between each endpoint of the circuit.
+    foreach my $z (@{$circuit_details->{'endpoints'}}) {
+        
+        if ($a->{'node_id'} == $z->{'node_id'} &&
+            $a->{'interface'} == $z->{'interface'} &&
+            $a->{'tag'} == $z->{'tag'}) {
+            next;
+        }
+        
+        if ($a->{'node_id'} != $z->{'node_id'}) {
+            # Outgoing
+            my $result = { 'interfaces' => [$a->{'interface'}, $z->{'interface'}],
+                           'interface'  => $a->{'interface'},
+                           'node'       => $node,
+                           'data'       => undef
+                         }
+
+            my $tx = tsds_query_lsp($node, $circuit_id, $a->{'node_id'}, $z->{'node_id'}, $start_time, $end_time);
+            my $rx = tsds_query_lsp($node, $circuit_id, $z->{'node_id'}, $a->{'node_id'}, $start_time, $end_time);
+        } else {
+            # Outgoing
+            # my $tx = "$node - $a->{'interface'}.$a->{'tag'}";
+            # Incomming
+            # my $rx = "$node - $z->{'interface'}.$z->{'tag'}";
+        }
+        
+    }
+    
+    return $circuit_details;
+}
+
+sub tsds_query_lsp {
+    my $node    = shift;
+    my $circuit = shift;
+    my $node_a  = shift;
+    my $node_z  = shift;
+    my $start_time = shift;
+    my $end_time   = shift;
+    
+    my $config   = XML::Simple::XMLin('/etc/oess/database.xml');
+    my $username = $config->{'tsds'}->{'username'};
+    my $password = $config->{'tsds'}->{'password'};
+    my $location = $config->{'tsds'}->{'location'};
+    my $realm    = $config->{'tsds'}->{'realm'};
+    
+    # Example: 07/20/2016 18:29:46 UTC
+    $start_time = strftime("%m/%d/%Y %H:%M:%S", gmtime($start_time)) . " UTC";
+    $end_time   = strftime("%m/%d/%Y %H:%M:%S", gmtime($end_time)) . " UTC";
+    
+    # Example: OESS-L2VPN-PRIMARY-LSP-3001-3-4
+    my $lsp  = "OESS-L2VPN-PRIMARY-LSP-$circuit-$node_a-$node_z";
+    $node = "mx240-r2";
+    my $query = "get lsp, node, aggregate(values.bps, 1, average) between(\"$start_time\", \"$end_time\") by lsp, node from lsp where (lsp=\"$lsp\" and node=\"$node\") ordered by lsp asc, node asc";
+    
+    # Response example:
+    # 
+    # 'results': [
+    # { 'lsp': '',
+    #   'aggregate(values.bps, 3600, average)': [
+    #      [ time, value ],
+    #      ...
+    #   ],
+    #   'node': ''
+    # }
+    my $url = $location . "services/query.cgi";
+    my $req = GRNOC::WebService::Client->new( url => $url,
+                                              uid => $username,
+                                              passwd => $password,
+                                              realm => $realm );
+    my $res = $req->query(query => $query);
+    
+    my $result = { 'name' => 'aggregate(values.bps, 1, average)',
+                   'data' => $res->{'results'}->[0]->{'aggregate(values.bps, 1, average)'} };
+    return $result;
+}
+
 =head2 find_int_on_path_using_node
 
 =cut
