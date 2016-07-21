@@ -29,6 +29,8 @@
 use strict;
 use warnings;
 
+use GRNOC::WebService;
+
 use JSON;
 use Switch;
 use Data::Dumper;
@@ -37,7 +39,8 @@ use OESS::Database;
 use OESS::Topology;
 use OESS::Measurement qw(BUILDING_FILE);
 
-use GRNOC::WebService;
+use POSIX qw(strftime);
+use XML::Simple;
 
 my $db          = new OESS::Database();
 my $topo        = new OESS::Topology();
@@ -154,38 +157,40 @@ sub get_circuit_data {
 
     # if we were sent a link, pick one of the endpoints to use for gathering data
     if (defined $link){
+        my $link_id = $db->get_link_id_by_name(link => $link);
 
-    my $link_id = $db->get_link_id_by_name(link => $link);
+        if (! defined $link_id){
+            $method->set_error( $db->get_error() ) ;
+            return;
+        }
 
-    if (! defined $link_id){
-	$method->set_error( $db->get_error() ) ;
-	return;
+        my $endpoints = $db->get_link_endpoints(link_id => $link_id);
+        $node      = $endpoints->[0]->{'node_name'};
+        $interface = $endpoints->[0]->{'interface_name'};
     }
 
-    my $endpoints = $db->get_link_endpoints(link_id => $link_id);
 
-    $node      = $endpoints->[0]->{'node_name'};
-    $interface = $endpoints->[0]->{'interface_name'};
-    }
+    # my $data = $measurement->get_circuit_data(circuit_id => $circuit_id,
+    #                                           start_time => $start,
+    #                                           end_time   => $end,
+    #                                           node       => $node,
+    #                                           interface  => $interface);
 
-
-    my $data = $measurement->get_circuit_data(circuit_id => $circuit_id,
-                          start_time => $start,
-                          end_time   => $end,
-                          node       => $node,
-                          interface  => $interface
-    );
-
-
-    if (! defined $data){
+    my $data = $measurement->get_tsds_circuit_data(circuit_id => $circuit_id,
+                                                   start_time => $start,
+                                                   end_time   => $end,
+                                                   node       => $node,
+                                                   interface  => $interface);
+    return $data;    
+    if (!defined $data) {
         $method->set_error( $measurement->get_error() );
         return;
     }
-    elsif ($data eq BUILDING_FILE){
+    elsif ($data eq BUILDING_FILE) {
         $results->{'results'}     = [];
         $results->{'in_progress'} = 1;
     }
-    else{
+    else {
         $results->{'results'}    = $data->{'data'};
         $results->{'node'}       = $data->{'node'};
         $results->{'interface'}  = $data->{'interface'};
@@ -194,7 +199,6 @@ sub get_circuit_data {
 
     return $results;
 }
-
 
 sub send_json{
     my $output = shift;
