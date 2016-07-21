@@ -64,7 +64,8 @@ sub upgrade{
     $dbh->do("alter table link_instantiation add column ip_a varchar(255)");
     $dbh->do("alter table link_instantiation add column ip_z varchar(255)");
     $dbh->do("alter table node_instantiation add column loopback_address varchar(255)");
-
+    $dbh->do("alter table path add column mpls_path_type enum('strict','loose','none') NOT NULL default 'none'");
+    $dbh->do("alter table path modify path_type enum('primary','backup','tertiary') NOT NULL DEFAULT 'primary'");
     # Done with the rest of the upgrade update our version
     $str = "update oess_version set version = '$version'";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";

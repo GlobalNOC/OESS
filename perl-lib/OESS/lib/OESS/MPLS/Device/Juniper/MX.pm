@@ -199,14 +199,16 @@ sub remove_vlan{
     $vars->{'interface'} = {};
     $vars->{'interface'}->{'name'} = $ckt->{'interface'};
     $vars->{'vlan_tag'} = $ckt->{'vlan_tag'};
-    $vars->{'primary_path'} = $ckt->{'primary_path'};
-    $vars->{'backup_path'} = $ckt->{'backup_path'};
     $vars->{'circuit_id'} = $ckt->{'circuit_id'};
     $vars->{'switch'} = {name => $self->{'name'}};
-    $vars->{'site_id'} = $self->{'node_id'};
+    $vars->{'site_id'} = $ckt->{'site_id'};
+    $vars->{'paths'} = $ckt->{'paths'};
+    $vars->{'a_side'} = $ckt->{'a_side'};
 
     my $output;
-    my $remove_template = $self->{'tt'}->process( $self->{'template_dir'} . "/ep_config_delete.xml", $vars, \$output) or warn $self->{'tt'}->error();
+    my $remove_template = $self->{'tt'}->process( $self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config_delete.xml", $vars, \$output) or $self->{'logger'}->error( $self->{'tt'}->error());
+
+    $self->{'logger'}->error("Remove Config: " . $output);
 
     return $self->_edit_config( config => $output );
 }
@@ -222,21 +224,25 @@ sub add_vlan{
     $vars->{'interface'} = {};
     $vars->{'interface'}->{'name'} = $ckt->{'interface'};
     $vars->{'vlan_tag'} = $ckt->{'vlan_tag'};
-    $vars->{'primary_path'} = $ckt->{'primary_path'};
-    $vars->{'backup_path'} = $ckt->{'backup_path'};
+
+    $vars->{'paths'} = $ckt->{'paths'};
     $vars->{'destination_ip'} = $ckt->{'destination_ip'};
     $vars->{'circuit_id'} = $ckt->{'circuit_id'};
     $vars->{'switch'} = {name => $self->{'name'}};
-    $vars->{'site_id'} = $self->{'node_id'} + 1000;
+    $vars->{'site_id'} = $ckt->{'site_id'};
+    $vars->{'paths'} = $ckt->{'paths'};
+    $vars->{'a_side'} = $ckt->{'a_side'};
 
-    if ($self->unit_name_available($vars->{'interface'}->{'name'}, $vars->{'vlan_tag'}) == 0) {
-        return FWDCTL_FAILURE;
-    }
+#    if ($self->unit_name_available($vars->{'interface'}->{'name'}, $vars->{'vlan_tag'}) == 0) {
+#        return FWDCTL_FAILURE;
+#    }
+
+    my $ckt_type = $ckt->{'mpls_type'};
 
     my $output;
-    my $remove_template = $self->{'tt'}->process( $self->{'template_dir'} . "/ep_config.xml", $vars, \$output) or warn $self->{'tt'}->error();
+    my $add_template = $self->{'tt'}->process( $self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$output) or  $self->{'logger'}->error($self->{'tt'}->error());
     
-    $self->{'logger'}->error($output);
+    $self->{'logger'}->error("ADD config: " . $output);
 
     return $self->_edit_config( config => $output );    
     

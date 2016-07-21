@@ -141,7 +141,7 @@ sub build_cache{
     
     
     $logger->debug("Fetching State from the DB");
-    my $circuits = $db->get_current_circuits( mpls => 1, openflow => 0);
+    my $circuits = $db->get_current_circuits( type => 'mpls');
 
     #init our objects
     my %ckts;
@@ -149,7 +149,7 @@ sub build_cache{
     my %link_status;
     my %node_info;
     foreach my $circuit (@$circuits) {
-	next if($circuit->get_type() ne 'mpls');
+	$logger->error("Updating Cache for circuit: " . $circuit->{'circuit_id'});
         my $id = $circuit->{'circuit_id'};
         my $ckt = OESS::Circuit->new( db => $db,
                                       circuit_id => $id );
@@ -217,7 +217,7 @@ sub _write_cache{
 
     foreach my $ckt_id (keys (%{$self->{'circuit'}})){
         my $found = 0;
-        $self->{'logger'}->debug("writing circuit: " . $ckt_id . " to cache");
+        $self->{'logger'}->error("writing circuit: " . $ckt_id . " to cache");
         
         my $ckt = $self->get_ckt_object($ckt_id);
         if(!defined($ckt)){
@@ -228,41 +228,81 @@ sub _write_cache{
 
 	my $eps = $ckt->get_endpoints();
 
-
+	my $ckt_type = "L2VPN";
 	
-#	foreach my $ep (@$eps){	
-	for(my $i=0;$i<scalar(@$eps);$i++){
+	if(scalar(@$eps) > 2){
+	    $ckt_type = "L2VPLS";
+	}
 
-	    my $ep = $eps->[$i];
-
-	    my $dest;
-	    if($i == scalar(@{$eps}) -1 ){
-		$dest = $self->{'node_info'}->{$eps->[0]->{'node'}}->{'loopback_address'};
-	    }else{
-		$dest = $self->{'node_info'}->{$eps->[$i + 1]->{'node'}}->{'loopback_address'};
+	my $site_id = 0;
+	foreach my $ep_a (@$eps){
+	    $site_id++;
+	    my $paths = [];
+	    foreach my $ep_z (@$eps){
+		next if ($ep_a->{'node'} eq $ep_z->{'node'});
+		#because the path hops are specific to the direction
+		my $primary = $ckt->get_mpls_path_type( path => 'primary');
+		
+		
+		if(!defined($primary) || $primary eq 'none' || $primary eq 'loose'){
+		    #either we have a none or a loose type for mpls type... or its not defined... in any case... use a loose path
+		    push(@$paths,{ name => 'PRIMARY',  
+				   mpls_path_type => 'loose',
+				   dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
+				   dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}});
+		}else{
+		    #ok so they specified a strict path... get the LSPs
+		    push(@$paths,{ name => 'PRIMARY', mpls_path_type => 'strict',
+				   path => $ckt->get_mpls_hops( path => 'primary',
+								 start => $ep_a->{'node'},
+								 end => $ep_z->{'node'}),
+				   dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
+				   dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
+			 });
+		    
+		    my $backup = $ckt->get_mpls_path_type( path => 'backup');
+		    
+		    if(!defined($backup) || $backup eq 'none' || $backup eq 'loose'){
+			push(@$paths,{ name => 'SECONDARY', 
+				       mpls_path_type => 'loose',
+				       dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
+				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}});
+		    }else{
+			push(@$paths,{ name => 'SECONDARY',
+				       mpls_path_type => 'strict',
+				       path => $ckt->get_mpls_hops( path => 'backup',
+								     start => $ep_a->{'node'},
+								     end => $ep_z->{'node'}),
+				       dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
+				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
+			     });
+			#our tertiary path...
+			push(@$paths,{ name => 'TERTIARY',
+				       dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
+				       mpls_path_type => 'loose',
+				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
+			     });
+		    }
+		}	
 	    }
-
-
-	    #generate primary path
-	    my $primary_path = [];
-	    my $backup_path = [];
 	    
+	    
+	    $self->{'logger'}->error("Adding Circuit: " . $ckt->get_name() . " to cache for node: " . $ep_a->{'node'});
 
-	    #generate backup path
-	    my $bp;
-	    if($ckt->has_backup_path()){
-		$bp = $ckt->get_path( path => 'backup');
-	    }   
-
+	    if(scalar(@$paths) == 0){
+		$ckt_type = "L2VPLS_INTRA";
+	    }
+	    
 	    my $obj = { circuit_name => $ckt->get_name(),
-			interface => $ep->{'interface'},
-			vlan_tag => $ep->{'tag'},
-			primary_path => $primary_path,
-			backup_path => $backup_path,
-			destination_ip => $dest
+			interface => $ep_a->{'interface'},
+			vlan_tag => $ep_a->{'tag'},
+			paths => $paths,
+			ckt_type => $ckt_type,
+			site_id => $site_id,
+			a_side => $ep_a->{'node_id'},
 	    };
 	    
-	    $switches{$ep->{'node'}}->{$details->{'circuit_id'}} = $obj;
+	    $switches{$ep_a->{'node'}}->{$details->{'circuit_id'}} = $obj;
 	}
     }
 
@@ -428,7 +468,7 @@ sub update_cache{
     my $circuit_id = $p_ref->{'circuit_id'}->{'value'};
 
     if(!defined($circuit_id) || $circuit_id == -1){
-        $self->{'logger'}->debug("Updating Cache for entire network");
+        $self->{'logger'}->error("Updating Cache for entire network");
         my $res = build_cache(db => $self->{'db'}, logger => $self->{'logger'});
         $self->{'circuit'} = $res->{'ckts'};
         $self->{'link_status'} = $res->{'link_status'};

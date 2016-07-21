@@ -39,8 +39,6 @@ use OESS::Database;
 use OESS::Topology;
 use OESS::Measurement qw(BUILDING_FILE);
 
-use POSIX qw(strftime);
-use XML::Simple;
 
 my $db          = new OESS::Database();
 my $topo        = new OESS::Topology();
@@ -169,19 +167,24 @@ sub get_circuit_data {
         $interface = $endpoints->[0]->{'interface_name'};
     }
 
+    my $circuit = OESS::Circuit->new(circuit_id=>$circuit_id,db=>$db);
+    my $data;
+    if ($circuit->{'type'} eq 'openflow') {
+	$data = $measurement->get_circuit_data(circuit_id => $circuit_id,
+					       start_time => $start,
+					       end_time   => $end,
+					       node       => $node,
+					       interface  => $interface);
+    } else {
+	$data = $measurement->get_tsds_circuit_data(circuit_id => $circuit_id,
+						    start_time => $start,
+						    end_time   => $end,
+						    node       => $node,
+						    interface  => $interface);
+    }
 
-    # my $data = $measurement->get_circuit_data(circuit_id => $circuit_id,
-    #                                           start_time => $start,
-    #                                           end_time   => $end,
-    #                                           node       => $node,
-    #                                           interface  => $interface);
+    return $data;
 
-    my $data = $measurement->get_tsds_circuit_data(circuit_id => $circuit_id,
-                                                   start_time => $start,
-                                                   end_time   => $end,
-                                                   node       => $node,
-                                                   interface  => $interface);
-    return $data;    
     if (!defined $data) {
         $method->set_error( $measurement->get_error() );
         return;

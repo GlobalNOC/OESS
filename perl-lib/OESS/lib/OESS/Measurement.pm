@@ -37,6 +37,7 @@ use OESS::Database;
 use Data::Dumper;
 use Exporter qw(import);
 use OESS::Circuit;
+use POSIX qw(strftime);
 
 
 use constant BUILDING_FILE => -1;
@@ -342,54 +343,81 @@ sub get_tsds_circuit_data {
 
     my $ckt         = OESS::Circuit->new(circuit_id => $circuit_id, db => $db);
     my $active_path = $ckt->get_active_path();
-    my $circuit_details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
+
+    
+    if(!defined($node)){
+        $node = $ckt->get_endpoints()->[0]->{'node'};
+    }
 
     my $a; # First endpoint on specified interface
-    foreach my $e (@{$circuit_details->{'endpoints'}}) {
+    foreach my $e (@{$ckt->get_endpoints()}) {
+	if ($e->{'node'} eq $node && !defined $interface) {
+	    $interface = $e->{'interface'};
+	    $a = $e;
+	    last;
+	}
         if ($e->{'node'} eq $node && $e->{'interface'} eq $interface) {
             $a = $e;
             last;
         }
     }
-    
+
+    my $lsp_prefix = "OESS-";
+    if(scalar(@{$ckt->get_endpoints()}) > 2){
+        $lsp_prefix .= "L2VPLS-";
+    }else{
+        $lsp_prefix .= "L2VPN-";
+    }
+
+    if($active_path eq 'primary'){
+        $lsp_prefix .= "PRIMARY-LSP-";
+    }elsif($active_path eq 'backup'){
+        $lsp_prefix .= "SECONDARY-LSP-";
+    }elsif($active_path eq 'tertiary'){
+        $lsp_prefix .= "TERTIARY-LSP-";
+    }else{
+        return;
+    }
+
+
+    my $local_lsps = [];
+    my $remote_lsps = [];
+    my $interfaces =[];
     # Obtain stats between each endpoint of the circuit.
-    foreach my $z (@{$circuit_details->{'endpoints'}}) {
-        
+    foreach my $z (@{$ckt->get_endpoints()}) {
+        push(@$interfaces, $z->{'interface'});
+
         if ($a->{'node_id'} == $z->{'node_id'} &&
             $a->{'interface'} == $z->{'interface'} &&
             $a->{'tag'} == $z->{'tag'}) {
             next;
         }
         
-        if ($a->{'node_id'} != $z->{'node_id'}) {
-            # Outgoing
-            my $result = { 'interfaces' => [$a->{'interface'}, $z->{'interface'}],
-                           'interface'  => $a->{'interface'},
-                           'node'       => $node,
-                           'data'       => undef
-                         }
-
-            my $tx = tsds_query_lsp($node, $circuit_id, $a->{'node_id'}, $z->{'node_id'}, $start_time, $end_time);
-            my $rx = tsds_query_lsp($node, $circuit_id, $z->{'node_id'}, $a->{'node_id'}, $start_time, $end_time);
-        } else {
-            # Outgoing
-            # my $tx = "$node - $a->{'interface'}.$a->{'tag'}";
-            # Incomming
-            # my $rx = "$node - $z->{'interface'}.$z->{'tag'}";
-        }
-        
+	push(@$local_lsps, {lsp => $lsp_prefix . $circuit_id . "-" . $a->{'node_id'} . "-" . $z->{'node_id'}, 
+			    node => $a->{'node'}});
+	push(@$remote_lsps, {lsp => $lsp_prefix . $circuit_id . "-" . $z->{'node_id'} . "-" . $a->{'node_id'},
+			     node => $z->{'node'}});
     }
     
-    return $circuit_details;
+
+    my $input = $self->tsds_query_lsp(start => $start_time, end => $end_time,lsps => $local_lsps);
+    my $output = $self->tsds_query_lsp(start => $start_time, end => $end_time, lsps => $remote_lsps);
+
+    my $result = { 'interfaces' => $interfaces,
+		   'interface'  => $interface,
+		   'node'       => $node,
+		   'results'    => [ {name => "Input (Bps)", data => $input}, {name => "Output (Bps)", data => $output } ]
+    };
+    return $result;
 }
 
 sub tsds_query_lsp {
-    my $node    = shift;
-    my $circuit = shift;
-    my $node_a  = shift;
-    my $node_z  = shift;
-    my $start_time = shift;
-    my $end_time   = shift;
+    my $self = shift;
+    my %args = @_;
+    
+    my $start_time = $args{'start'};
+    my $end_time   = $args{'end'};
+    my $lsps = $args{'lsps'};
     
     my $config   = XML::Simple::XMLin('/etc/oess/database.xml');
     my $username = $config->{'tsds'}->{'username'};
@@ -397,14 +425,22 @@ sub tsds_query_lsp {
     my $location = $config->{'tsds'}->{'location'};
     my $realm    = $config->{'tsds'}->{'realm'};
     
-    # Example: 07/20/2016 18:29:46 UTC
-    $start_time = strftime("%m/%d/%Y %H:%M:%S", gmtime($start_time)) . " UTC";
-    $end_time   = strftime("%m/%d/%Y %H:%M:%S", gmtime($end_time)) . " UTC";
-    
     # Example: OESS-L2VPN-PRIMARY-LSP-3001-3-4
-    my $lsp  = "OESS-L2VPN-PRIMARY-LSP-$circuit-$node_a-$node_z";
-    $node = "mx240-r2";
-    my $query = "get lsp, node, aggregate(values.bps, 1, average) between(\"$start_time\", \"$end_time\") by lsp, node from lsp where (lsp=\"$lsp\" and node=\"$node\") ordered by lsp asc, node asc";
+    # my $lsp  = "OESS-L2VPN-PRIMARY-LSP-$circuit-$node_a-$node_z";
+    # $node = "mx240-r2";
+    # my $query = "get lsp, node, aggregate(values.bps, 1, average) between(\"$start_time\", \"$end_time\") by lsp, node from lsp where (lsp=\"$lsp\" and node=\"$node\") ordered by lsp asc, node asc";
+
+    # get lsp, node, aggregate(values.bps, 1, average) between($start_time, $end_time) by lsp, node from lsp where ((lsp="OESS-L2VPN-PRIMARY-LSP-3003-1-4" and node="mx240-r0") or (lsp="OESS-L2VPLS-PRIMARY-LSP-3003-3-4" and node="mx240-r2")) ordered by lsp asc, node asc
+    my $lsp_data;
+    foreach my $lsp (@{$lsps}) {
+	if(!defined($lsp_data)){
+	    $lsp_data = "(lsp=\"" . $lsp->{'lsp'} . "\" and node=\"" . $lsp->{'node'} . "\")";
+	}else{
+	    $lsp_data .= " or (lsp=\"" . $lsp->{'lsp'} . "\" and node=\"" . $lsp->{'node'} . "\")";
+	}
+    }
+
+    my $query = "get lsp, node, aggregate(values.bps, 1, average) between($start_time, $end_time) by lsp, node from lsp where (" . $lsp_data . ") ordered by lsp asc, node asc";
     
     # Response example:
     # 
@@ -423,9 +459,8 @@ sub tsds_query_lsp {
                                               realm => $realm );
     my $res = $req->query(query => $query);
     
-    my $result = { 'name' => 'aggregate(values.bps, 1, average)',
-                   'data' => $res->{'results'}->[0]->{'aggregate(values.bps, 1, average)'} };
-    return $result;
+
+    return $res->{'results'}->[0]->{'aggregate(values.bps, 1, average)'};
 }
 
 =head2 find_int_on_path_using_node

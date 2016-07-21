@@ -1285,6 +1285,90 @@ sub is_static_mac{
     return $self->{'static_mac'};
 }
 
+sub get_mpls_path_type{
+    my $self = shift;
+    my %params = @_;
+
+    if(!defined($params{'path'})){
+	$self->{'logger'}->error("No path specified");
+	return;
+    }
+
+    $self->{'logger'}->error("MPLS Path Type: " . Data::Dumper::Dumper($self->{'details'}{'paths'}));
+
+    if(!defined($self->{'details'}{'paths'}{$params{'path'}})){
+	return;
+    }
+
+    return $self->{'details'}{'paths'}{$params{'path'}}{'mpls_path_type'};
+}
+
+sub get_mpls_hops{
+    my $self = shift;
+    my %params = @_;
+
+    my $path = $params{'path'};
+    if(!defined($path)){
+	$self->{'logger'}->error("Fetching the path hops for undefined path");
+	return;
+    }
+
+    my $start = $params{'start'};
+    if(!defined($start)){
+	$self->{'logger'}->error("Fetching hops requires a start");
+	return;
+    }
+
+    my $end = $params{'end'};
+    if(!defined($end)){
+        $self->{'logger'}->error("Fetching hops requires an end");
+        return;
+    }
+ 
+    return if ($end eq $start);
+    
+    #fetch the path
+    my $p = $self->get_path(path => $path);
+
+    if(!defined($p)){
+	return;
+    }
+
+    #build our lookup has to find our IP addresses
+    my %ip_address;
+    foreach my $link (@$p){
+	my $node_a = $link->{'node_a'};
+	my $node_z = $link->{'node_z'};
+
+	$ip_address{$node_a}{$node_z} = $link->{'ip_z'};
+	$ip_address{$node_z}{$node_a} = $link->{'ip_a'};
+    }
+
+    #verify that our start/end are endpoints
+    my $eps = $self->get_endpoints();
+
+    my @ips;
+    
+    #find the next hop in the shortest path from $ep_a to $ep_z
+    my @shortest_path = $self->{'graph'}->{$path}->SP_Dijkstra($start,$end);
+    #ok we have the list of verticies... now to convert that into IP addresses
+    if(scalar(@shortest_path) <= 1){
+	#uh oh... no path!!!!
+	$self->{'logger'}->error("Uh oh there is no path");
+	return;
+    }
+    
+    for(my $i=1;$i<=$#shortest_path;$i++){
+	my $ip = $ip_address{$shortest_path[$i-1]}{$shortest_path[$i]};
+	$self->{'logger'}->debug("  Next hop: " . $shortest_path[$i-1] . " to " . $shortest_path[$i]);
+	$self->{'logger'}->debug("      Address: " . $ip);
+	push(@ips, $ip);
+    }
+    
+    return \@ips;
+}
+
+
 =head2 get_path_status
 
 =cut

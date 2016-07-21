@@ -325,9 +325,10 @@ DROP TABLE IF EXISTS `path`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `path` (
   `path_id` int(10) NOT NULL AUTO_INCREMENT,
-  `path_type` enum('primary','backup') NOT NULL DEFAULT 'primary',
+  `path_type` enum('primary','backup','tertiary') NOT NULL DEFAULT 'primary',
   `circuit_id` int(10) NOT NULL,
-  `path_state` enum('active','available','deploying') NOT NULL DEFAULT 'active',      
+  `path_state` enum('active','available','deploying') NOT NULL DEFAULT 'active',
+  `mpls_path_type` enum('strict','loose','none') NOT NULL default 'none';      
   PRIMARY KEY (`path_id`),
   UNIQUE KEY `path_idx` (`path_type`,`circuit_id`),
   KEY `circuit_path_fk` (`circuit_id`),

@@ -1107,6 +1107,9 @@ sub reprovision_circuit {
         if (!$success) {
             $method->set_error('Error sending circuit removal request to controller, please try again or contact your Systems Administrator');
         }
+
+	#sleep(30);
+
         my $add_success = _send_mpls_add_command(circuit_id => $circuit_id);
         if (!$add_success) {
             $method->set_error('Error sending circuit provision request to controller, please try again or contact your Systems Administrator');
