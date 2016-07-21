@@ -33,14 +33,13 @@ sub main{
         $dbq->{'dbh'}->begin_work();
         upgrade($dbq);
         $dbq->{'dbh'}->commit();
-    }else{
+    } else{
         print "Wrong version of OESS DB\n";
         print "This script only upgrades from version $prev_version to $version\n";
         exit;
     }
     
     print STDERR "Upgrade Successful!!\n";
-    
 }
 
 
@@ -51,7 +50,6 @@ sub upgrade{
     my $str;
     my $sth;
 
-
     $dbh->do("alter table node_instantiation add column openflow int(1) default 1");
     $dbh->do("alter table node_instantiation add column mpls int(1) default 1");
     $dbh->do("alter table node_instantiation add column vendor varchar(255)");
@@ -59,7 +57,6 @@ sub upgrade{
     $dbh->do("alter table node_instantiation add column sw_version varchar(255)");
     $dbh->do("alter table node_instantiation drop column management_addr_ipv4");
     $dbh->do("alter table node_instantiation add column mgmt_addr varchar(255)");
-    $dbh->do("alter table circuit add column type enum(‘openflow’, ‘mpls’) default ‘openflow’");
     $dbh->do("alter table circuit add column type enum('openflow', 'mpls') default 'openflow'");
     $dbh->do("alter table link_instantiation add column openflow int(1) not null default 0");
     $dbh->do("alter table link_instantiation add column mpls int(1) not null default 0");
@@ -78,7 +75,6 @@ sub upgrade{
 main();
 
 sub continue_parameter {
-
     my $name = shift;
 
     print "$name [y/n]: ";
@@ -88,13 +84,10 @@ sub continue_parameter {
     exit(0) if ($yes_or_no !~ /y/i || $yes_or_no =~ /n/i);
 }
 
-
 sub required_parameter {
-
     my $name = shift;
 
     while (1) {
-
 	print "$name (required): ";
         my $response = <>;
 	chomp($response);
