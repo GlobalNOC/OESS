@@ -71,6 +71,7 @@ sub new {
     my $self = \%args;
     bless $self,$class;
 
+    $self->{'log'} = Log::Log4perl->get_logger("OESS.Measurement");
     $self->{'db'} = $db;
     my $config_filename = $args{'config'};
     my $config = XML::Simple::XMLin($config_filename);
@@ -379,7 +380,6 @@ sub get_tsds_circuit_data {
         return;
     }
 
-
     my $local_lsps = [];
     my $remote_lsps = [];
     my $interfaces =[];
@@ -441,7 +441,7 @@ sub tsds_query_lsp {
     }
 
     my $query = "get lsp, node, aggregate(values.bps, 1, average) between($start_time, $end_time) by lsp, node from lsp where (" . $lsp_data . ") ordered by lsp asc, node asc";
-    
+    #warn "TSDS QUERY: " . $query . "\n";
     # Response example:
     # 
     # 'results': [
@@ -458,9 +458,12 @@ sub tsds_query_lsp {
                                               passwd => $password,
                                               realm => $realm );
     my $res = $req->query(query => $query);
-    
+    my $agg;
+    foreach my $r (@{$res->{'results'}}) {
+	$agg = aggregate_data($agg, $r->{'aggregate(values.bps, 1, average)'});
+    }
 
-    return $res->{'results'}->[0]->{'aggregate(values.bps, 1, average)'};
+    return $agg;
 }
 
 =head2 find_int_on_path_using_node
