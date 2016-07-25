@@ -328,7 +328,7 @@ CREATE TABLE `path` (
   `path_type` enum('primary','backup','tertiary') NOT NULL DEFAULT 'primary',
   `circuit_id` int(10) NOT NULL,
   `path_state` enum('active','available','deploying') NOT NULL DEFAULT 'active',
-  `mpls_path_type` enum('strict','loose','none') NOT NULL default 'none';      
+  `mpls_path_type` enum('strict','loose','none') NOT NULL DEFAULT 'none',
   PRIMARY KEY (`path_id`),
   UNIQUE KEY `path_idx` (`path_type`,`circuit_id`),
   KEY `circuit_path_fk` (`circuit_id`),
