@@ -784,11 +784,11 @@ sub provision_circuit {
 		
 		# failure, remove the circuit now
 		if ( $result == 0 ) {
-		    my $removal = remove_circuit(undef, {circuit_id => {value => $output->{'circuit_id'}},
-							 remove_time => {value => -1},
-							 force => {value => 1},
-							 workgroup_id => {value => $workgroup_id},
-							 type => {value => $type}}			);
+		    my $removal = remove_circuit($method, { circuit_id => {value => $output->{'circuit_id'}},
+                                                            remove_time => {value => -1},
+                                                            force => {value => 1},
+                                                            workgroup_id => {value => $workgroup_id},
+                                                            type => {value => $type} });
 		    
 		    #warn "Removal status: " . Data::Dumper::Dumper($removal);
 		    $method->set_error("Unable to provision circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been removed.");
@@ -813,11 +813,11 @@ sub provision_circuit {
 
                 # failure, remove the circuit now
                 if ( $result == 0 ) {
-                    my $removal = remove_circuit( {circuit_id => {value => $output->{'circuit_id'}},
-						   remove_time => {value => -1},
-						   force => {value => 1},
-						   workgroup_id => {value => $workgroup_id},
-						   type => {value => $type}});
+                    my $removal = remove_circuit($method, { circuit_id => {value => $output->{'circuit_id'}},
+                                                            remove_time => {value => -1},
+                                                            force => {value => 1},
+                                                            workgroup_id => {value => $workgroup_id},
+                                                            type => {value => $type} });
 
                     #warn "Removal status: " . Data::Dumper::Dumper($removal);
                     $method->set_error("Unable to provision circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been removed.");
