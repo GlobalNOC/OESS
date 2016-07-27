@@ -1,17 +1,19 @@
 <configuration>
   <interfaces>
+    [% FOREACH interface IN interfaces %]
     <interface>
       <name>[% interface.name %]</name>
       <unit>
-	<name>[% vlan_tag %]</name>
+	<name>[% interface.tag %]</name>
 	<description>OESS L2VPN [% circuit_id %]</description>
 	<encapsulation>vlan-ccc</encapsulation>
-	<vlan-id>[% vlan_tag %]</vlan-id>
+	<vlan-id>[% interface.tag %]</vlan-id>
 	<output-vlan-map>
           <swap/>
 	</output-vlan-map>
       </unit>
     </interface>
+    [% END %]
   </interfaces>
   <protocols>
     <mpls>
@@ -78,9 +80,11 @@
     <instance>
       <name>OESS-L2VPN-[% circuit_id %]</name>
       <instance-type>l2vpn</instance-type>
+      [% FOREACH interface IN interfaces %]
       <interface>
-	<name>[% interface.name %].[% vlan_tag %]</name>
+	<name>[% interface.name %].[% interface.tag %]</name>
       </interface>
+      [% END %]
       <route-distinguisher>
 	<rd-type>11537:[% circuit_id %]</rd-type>
       </route-distinguisher>
@@ -90,15 +94,19 @@
       <protocols>       
 	<l2vpn>
 	  <encapsulation-type>ethernet-vlan</encapsulation-type>
+          [% FOREACH interface IN interfaces %]
 	  <interface>
-            <name>[% interface.name %].[% vlan_tag %]</name>
+            <name>[% interface.name %].[% interface.tag %]</name>
 	  </interface>
+          [% END %]
 	  <site>
             <name>[% switch.name %]-[% circuit_id %]</name>
 	    <site-identifier>[% site_id %]</site-identifier>
+            [% FOREACH interface IN interfaces %]
             <interface>
-              <name>[% interface.name %].[% vlan_tag %]</name>
+              <name>[% interface.name %].[% interface.tag %]</name>
             </interface>
+            [% END %]
 	  </site>
 	</l2vpn>
       </protocols>

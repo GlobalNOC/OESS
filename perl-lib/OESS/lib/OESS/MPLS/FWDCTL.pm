@@ -306,7 +306,6 @@ sub _write_cache{
 
 	    my $obj = { circuit_name => $ckt->get_name(),
 			interfaces => \@ints,
-			#vlan_tag => \@vlans,
 			paths => $paths,
 			ckt_type => $ckt_type,
 			site_id => $site_id,
