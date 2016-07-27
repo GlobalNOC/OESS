@@ -236,13 +236,24 @@ sub _write_cache{
 
 	my $site_id = 0;
 	foreach my $ep_a (@$eps){
+            my @ints;
+            push(@ints, $ep_a);
+
 	    $site_id++;
 	    my $paths = [];
 	    foreach my $ep_z (@$eps){
-		next if ($ep_a->{'node'} eq $ep_z->{'node'});
+
+                # Ignore interations comparing the same endpoint.
+                next if ($ep_a->{'node'} eq $ep_z->{'node'} && $ep_a->{'interface'} eq $ep_z->{'interface'} && $ep_a->{'tag'} eq $ep_z->{'tag'});
+
+                if($ep_a->{'node'} eq $ep_z->{'node'}){
+                    # Comparing interfaces on the same node, skip path calculations.
+                    push(@ints, $ep_z);
+                    next;
+                }
+                
 		#because the path hops are specific to the direction
 		my $primary = $ckt->get_mpls_path_type( path => 'primary');
-		
 		
 		if(!defined($primary) || $primary eq 'none' || $primary eq 'loose'){
 		    #either we have a none or a loose type for mpls type... or its not defined... in any case... use a loose path
@@ -285,17 +296,17 @@ sub _write_cache{
 		    }
 		}	
 	    }
-	    
-	    
+
 	    $self->{'logger'}->error("Adding Circuit: " . $ckt->get_name() . " to cache for node: " . $ep_a->{'node'});
 
-	    if(scalar(@$paths) == 0){
-		$ckt_type = "L2VPLS_INTRA";
-	    }
-	    
+            if(scalar(@$paths) == 0){
+                # All observed endpoints are on the same node; Use VPLS.
+                $ckt_type = "L2VPLS";
+            }
+
 	    my $obj = { circuit_name => $ckt->get_name(),
-			interface => $ep_a->{'interface'},
-			vlan_tag => $ep_a->{'tag'},
+			interfaces => \@ints,
+			#vlan_tag => \@vlans,
 			paths => $paths,
 			ckt_type => $ckt_type,
 			site_id => $site_id,

@@ -763,7 +763,7 @@ sub provision_circuit {
 	my $after_provision = [gettimeofday];
 
 	warn "Time in DB: " . tv_interval( $before_provision, $after_provision);
-
+        
         if(defined($output) && ($provision_time <= time()) && ($state eq 'active' || $state eq 'scheduled' || $state eq 'provisioned')) {
 
 	    if($type eq 'openflow'){
@@ -1004,12 +1004,12 @@ sub remove_circuit {
 
     # removing it now, otherwise we'll just schedule it for later
     if ( $remove_time && $remove_time <= time() ) {
-	my $result;
-	if($type eq 'openflow'){
-	    $result = _send_remove_command( circuit_id => $circuit_id );
-	}else{
-	    $result = _send_mpls_remove_command( circuit_id => $circuit_id );
-	}
+        my $result;
+        if($type eq 'openflow'){
+            $result = _send_remove_command( circuit_id => $circuit_id );
+        }else{
+            $result = _send_mpls_remove_command( circuit_id => $circuit_id );
+        }
         if ( !defined $result ) {
             $method->set_error("Unable to talk to fwdctl service - is it running?");
             return;

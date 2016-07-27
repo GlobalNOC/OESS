@@ -255,7 +255,9 @@ sub stop {
 }
 
 =head2 add_vlan
+
     Adds a VLAN to this switch
+
 =cut
 
 

@@ -1,11 +1,13 @@
 <configuration>
   <interfaces>
+    [% FOREACH interface IN interfaces %]
     <interface>
       <name>[% interface.name %]</name>
       <unit operation='delete'>
-        <name>[% vlan_tag %]</name>
+        <name>[% interface.tag %]</name>
       </unit>
     </interface>
+    [% END %]
   </interfaces>
   <protocols>
     <mpls>

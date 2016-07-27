@@ -1,102 +1,108 @@
 <configuration>
-<interfaces>
-  <interface>
-    <name>[% interface.name %]</name>
-    <unit>
-      <name>[% vlan_tag %]</name>
-      <description>OESS L2VPLS [% circuit_id %]</description>
-      <encapsulation>vlan-vpls</encapsulation>
-      <vlan-id>[% vlan_tag %]</vlan-id>
-      <output-vlan-map>
-        <swap/>
-      </output-vlan-map>
-    </unit>
-  </interface>
-</interfaces>
-<protocols>
-  <mpls>
-    [% FOREACH path IN paths %]
-    <label-switched-path>
-      <name>OESS-L2VPLS-[% path.name %]-LSP-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</name>
-      <apply-groups>L2VPLS-LSP-ATTRIBUTES</apply-groups>
-      [% IF path.name == 'TERTIARY' %]
-      <preference>14</preference>
-      [% END %]
-      <to>[% path.dest %]</to>
-      <primary>
-        <name>OESS-L2VPLS-[% path.name %]-PATH-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</name>
-        [% IF path.name == 'PRIMARY' %]
-        <select>manual</select>
-        [% ELSE %]
-        <standby />
+  <interfaces>
+    [% FOREACH interface IN interfaces %]
+    <interface>
+      <name>[% interface.name %]</name>
+      <unit>
+        <name>[% interface.tag %]</name>
+        <description>OESS L2VPLS [% circuit_id %]</description>
+        <encapsulation>vlan-vpls</encapsulation>
+        <vlan-id>[% interface.tag %]</vlan-id>
+        <output-vlan-map>
+          <swap/>
+        </output-vlan-map>
+      </unit>
+    </interface>
+    [% END %]
+  </interfaces>
+  [% IF paths.length == 0 %]
+  <protocols>
+    <mpls>
+      [% FOREACH path IN paths %]
+      <label-switched-path>
+        <name>OESS-L2VPLS-[% path.name %]-LSP-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</name>
+        <apply-groups>L2VPLS-LSP-ATTRIBUTES</apply-groups>
+        [% IF path.name == 'TERTIARY' %]
+        <preference>14</preference>
         [% END %]
-      </primary>
-    </label-switched-path>
-    <path>
-      <name>OESS-L2VPLS-[% path.name %]-PATH-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</name>
-      [% IF path.mpls_path_type == 'strict' %]
-      [% FOREACH ip IN path.path %]
-      <path-list>
-        <name>[% ip %]</name>
-        <strict />
-      </path-list>
+        <to>[% path.dest %]</to>
+        <primary>
+          <name>OESS-L2VPLS-[% path.name %]-PATH-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</name>
+          [% IF path.name == 'PRIMARY' %]
+          <select>manual</select>
+          [% ELSE %]
+          <standby />
+          [% END %]
+        </primary>
+      </label-switched-path>
+      <path>
+        <name>OESS-L2VPLS-[% path.name %]-PATH-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</name>
+        [% IF path.mpls_path_type == 'strict' %]
+        [% FOREACH ip IN path.path %]
+        <path-list>
+          <name>[% ip %]</name>
+          <strict />
+        </path-list>
+        [% END %]
+        [% ELSE %]
+        <path-list>
+          <name>[% path.dest %]</name>
+          <loose />
+        </path-list>
+        [% END %]
+      </path>
       [% END %]
-      [% ELSE %]
-      <path-list>
-        <name>[% path.dest %]</name>
-        <loose />
-      </path-list>
+    </mpls>
+  </protocols>
+  <policy-options>
+    <policy-statement>
+      <name>L2VPLS-LSP-Policy</name>
+      [% FOREACH path IN paths %]
+      <term>
+        <name>OESS-L2VPLS-[% path.name %]-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</name>
+        <from>
+          <community>OESS-L2VPLS-[% circuit_id %]-Community</community>
+        </from>
+        <then>
+          <install-nexthop>
+            <lsp>OESS-L2VPLS-[% path.name %]-LSP-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</lsp>
+          </install-nexthop>
+          <accept/>
+        </then>
+      </term>
       [% END %]
-    </path>
-    [% END %]
-  </mpls>
-</protocols>
-<policy-options>
-  <policy-statement>
-    <name>L2VPLS-LSP-Policy</name>
-    [% FOREACH path IN paths %]
-    <term>
-      <name>OESS-L2VPLS-[% path.name %]-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</name>
-      <from>
-        <community>OESS-L2VPLS-[% circuit_id %]-Community</community>
-      </from>
-      <then>
-        <install-nexthop>
-          <lsp>OESS-L2VPLS-[% path.name %]-LSP-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</lsp>
-        </install-nexthop>
-        <accept/>
-      </then>
-    </term>
-    [% END %]
-  </policy-statement>
-  <community>
-    <name>OESS-L2VPLS-[% circuit_id %]-Community</name>
-    <members>target:11537:[% circuit_id %]</members>
-  </community>
-</policy-options>
-<routing-instances>
-  <instance>
-    <name>OESS-L2VPLS-[% circuit_id %]</name>
-     <instance-type>vpls</instance-type>
-     <interface>
-       <name>[% interface.name %].[% vlan_tag %]</name>
-     </interface>
-     <route-distinguisher>
-       <rd-type>11537:[% circuit_id %]</rd-type>
-     </route-distinguisher>
-     <vrf-target>
-       <community>target:11537:[% circuit_id %]</community>
-     </vrf-target>
-     <protocols>
-       <vpls>
-         <site-range>65534</site-range>
-         <no-tunnel-services/>
-         <site>
-           <name>[% switch.name %]-[% circuit_id %]</name>
-           <site-identifier>[% site_id %]</site-identifier>
-         </site>
-       </vpls>
-     </protocols>
- </instance>
-</routing-instances>
+    </policy-statement>
+    <community>
+      <name>OESS-L2VPLS-[% circuit_id %]-Community</name>
+      <members>target:11537:[% circuit_id %]</members>
+    </community>
+  </policy-options>
+  [% END %]
+  <routing-instances>
+    <instance>
+      <name>OESS-L2VPLS-[% circuit_id %]</name>
+      <instance-type>vpls</instance-type>
+      [% FOREACH interface IN interfaces %]
+      <interface>
+        <name>[% interface.name %].[% interface.tag %]</name>
+      </interface>
+      [% END %]
+      <route-distinguisher>
+        <rd-type>11537:[% circuit_id %]</rd-type>
+      </route-distinguisher>
+      <vrf-target>
+        <community>target:11537:[% circuit_id %]</community>
+      </vrf-target>
+      <protocols>
+        <vpls>
+          <site-range>65534</site-range>
+          <no-tunnel-services/>
+          <site>
+            <name>[% switch.name %]-[% circuit_id %]</name>
+            <site-identifier>[% site_id %]</site-identifier>
+          </site>
+        </vpls>
+      </protocols>
+    </instance>
+  </routing-instances>
 </configuration>
