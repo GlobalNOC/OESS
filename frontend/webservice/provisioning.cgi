@@ -763,7 +763,7 @@ sub provision_circuit {
 	my $after_provision = [gettimeofday];
 
 	warn "Time in DB: " . tv_interval( $before_provision, $after_provision);
-
+        
         if(defined($output) && ($provision_time <= time()) && ($state eq 'active' || $state eq 'scheduled' || $state eq 'provisioned')) {
 
 	    if($type eq 'openflow'){
@@ -784,11 +784,11 @@ sub provision_circuit {
 		
 		# failure, remove the circuit now
 		if ( $result == 0 ) {
-		    my $removal = remove_circuit(undef, {circuit_id => {value => $output->{'circuit_id'}},
-							 remove_time => {value => -1},
-							 force => {value => 1},
-							 workgroup_id => {value => $workgroup_id},
-							 type => {value => $type}}			);
+		    my $removal = remove_circuit($method, { circuit_id => {value => $output->{'circuit_id'}},
+                                                            remove_time => {value => -1},
+                                                            force => {value => 1},
+                                                            workgroup_id => {value => $workgroup_id},
+                                                            type => {value => $type} });
 		    
 		    #warn "Removal status: " . Data::Dumper::Dumper($removal);
 		    $method->set_error("Unable to provision circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been removed.");
@@ -813,11 +813,11 @@ sub provision_circuit {
 
                 # failure, remove the circuit now
                 if ( $result == 0 ) {
-                    my $removal = remove_circuit( {circuit_id => {value => $output->{'circuit_id'}},
-						   remove_time => {value => -1},
-						   force => {value => 1},
-						   workgroup_id => {value => $workgroup_id},
-						   type => {value => $type}});
+                    my $removal = remove_circuit($method, { circuit_id => {value => $output->{'circuit_id'}},
+                                                            remove_time => {value => -1},
+                                                            force => {value => 1},
+                                                            workgroup_id => {value => $workgroup_id},
+                                                            type => {value => $type} });
 
                     #warn "Removal status: " . Data::Dumper::Dumper($removal);
                     $method->set_error("Unable to provision circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been removed.");
@@ -1004,12 +1004,12 @@ sub remove_circuit {
 
     # removing it now, otherwise we'll just schedule it for later
     if ( $remove_time && $remove_time <= time() ) {
-	my $result;
-	if($type eq 'openflow'){
-	    $result = _send_remove_command( circuit_id => $circuit_id );
-	}else{
-	    $result = _send_mpls_remove_command( circuit_id => $circuit_id );
-	}
+        my $result;
+        if($type eq 'openflow'){
+            $result = _send_remove_command( circuit_id => $circuit_id );
+        }else{
+            $result = _send_mpls_remove_command( circuit_id => $circuit_id );
+        }
         if ( !defined $result ) {
             $method->set_error("Unable to talk to fwdctl service - is it running?");
             return;

@@ -1,12 +1,15 @@
 <configuration>
   <interfaces>
+    [% FOREACH interface IN interfaces %]
     <interface>
       <name>[% interface.name %]</name>
       <unit operation='delete'>
-        <name>[% vlan_tag %]</name>
+        <name>[% interface.tag %]</name>
       </unit>
     </interface>
+    [% END %]
   </interfaces>
+  [% IF paths.size > 0 %]
   <protocols>
     <mpls>
       [% FOREACH path IN paths %]
@@ -32,6 +35,7 @@
       <name>OESS-L2VPLS-[% circuit_id %]-Community</name>
     </community>
   </policy-options>
+  [% END %]
   <routing-instances>
     <instance operation='delete'>
       <name>OESS-L2VPLS-[% circuit_id %]</name>

@@ -332,7 +332,7 @@ sub isis_handler{
 											      }
 											      
 											      if($no_pending){
-												  #warn "ISIS: No more pending\n";
+												  warn "ISIS: No more pending\n";
 												  my $adj = $self->{'isis'}->process_results( isis => \%nodes);
 												  $self->handle_links($adj);
 											      }

@@ -196,9 +196,12 @@ sub remove_vlan{
 
     my $vars = {};
     $vars->{'circuit_name'} = $ckt->{'circuit_name'};
-    $vars->{'interface'} = {};
-    $vars->{'interface'}->{'name'} = $ckt->{'interface'};
-    $vars->{'vlan_tag'} = $ckt->{'vlan_tag'};
+    $vars->{'interfaces'} = [];
+    foreach my $i (@{$ckt->{'interfaces'}}) {
+        push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
+                                          tag  => $i->{'tag'}
+                                        });
+    }
     $vars->{'circuit_id'} = $ckt->{'circuit_id'};
     $vars->{'switch'} = {name => $self->{'name'}};
     $vars->{'site_id'} = $ckt->{'site_id'};
@@ -221,10 +224,12 @@ sub add_vlan{
 
     my $vars = {};
     $vars->{'circuit_name'} = $ckt->{'circuit_name'};
-    $vars->{'interface'} = {};
-    $vars->{'interface'}->{'name'} = $ckt->{'interface'};
-    $vars->{'vlan_tag'} = $ckt->{'vlan_tag'};
-
+    $vars->{'interfaces'} = [];
+    foreach my $i (@{$ckt->{'interfaces'}}) {
+        push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
+                                          tag  => $i->{'tag'}
+                                        });
+    }
     $vars->{'paths'} = $ckt->{'paths'};
     $vars->{'destination_ip'} = $ckt->{'destination_ip'};
     $vars->{'circuit_id'} = $ckt->{'circuit_id'};
@@ -388,6 +393,8 @@ sub verify_connection{
 sub get_isis_adjacencies{
     my $self = shift;
 
+    $self->{'logger'}->error("INSIDE GET_ISIS_ADJACENCIES");
+    
     if(!defined($self->{'jnx'}->{'methods'}->{'get_isis_adjacency_information'})){
 	my $TOGGLE = bless { 1 => 1 }, 'TOGGLE';
 	$self->{'jnx'}->{'methods'}->{'get_isis_adjacency_information'} = { detail => $TOGGLE};
@@ -396,6 +403,7 @@ sub get_isis_adjacencies{
     $self->{'jnx'}->get_isis_adjacency_information( detail => 1 );
 
     my $xml = $self->{'jnx'}->get_dom();
+    $self->{'logger'}->error("ISIS: " . $xml->toString());
     my $xp = XML::LibXML::XPathContext->new( $xml);
     $xp->registerNs('x',$xml->documentElement->namespaceURI);
     my $path = $self->{'root_namespace'}."junos-routing";

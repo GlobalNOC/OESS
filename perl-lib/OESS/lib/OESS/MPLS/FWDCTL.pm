@@ -236,13 +236,46 @@ sub _write_cache{
 
 	my $site_id = 0;
 	foreach my $ep_a (@$eps){
+            my @ints;
+            push(@ints, $ep_a);
+
 	    $site_id++;
 	    my $paths = [];
+            my $touch = {};
+
+	    if(defined($switches{$ep_a->{'node'}}->{$details->{'circuit_id'}})){
+		next;
+	    }
+
 	    foreach my $ep_z (@$eps){
-		next if ($ep_a->{'node'} eq $ep_z->{'node'});
-		#because the path hops are specific to the direction
+
+                # Ignore interations comparing the same endpoint.
+                next if ($ep_a->{'node'} eq $ep_z->{'node'} && $ep_a->{'interface'} eq $ep_z->{'interface'} && $ep_a->{'tag'} eq $ep_z->{'tag'});
+
+                if ($ep_a->{'node'} eq $ep_z->{'node'}){
+                    # We're comparing interfaces on the same node; There
+                    # are no path calculations to be made.
+                    #
+                    # Because we are only creating a single circuit
+                    # object per node, we should include any other
+                    # interface we see on $ep_a->{'node'}.
+                    push(@ints, $ep_z);
+                    next;
+                }
+
+                if (exists $touch->{$ep_z->{'node'}}) {
+                    # A path from $ep_a to $ep_z has already been
+                    # calculated; Skip path calculations.
+                    #
+                    # Because this endpoint is remote to $ep_a we do not
+                    # add the interface to @ints.
+                    next;
+                }
+                $touch->{$ep_z->{'node'}} = 1;
+
+                
+		# Because the path hops are specific to the direction
 		my $primary = $ckt->get_mpls_path_type( path => 'primary');
-		
 		
 		if(!defined($primary) || $primary eq 'none' || $primary eq 'loose'){
 		    #either we have a none or a loose type for mpls type... or its not defined... in any case... use a loose path
@@ -285,17 +318,16 @@ sub _write_cache{
 		    }
 		}	
 	    }
-	    
-	    
+
 	    $self->{'logger'}->error("Adding Circuit: " . $ckt->get_name() . " to cache for node: " . $ep_a->{'node'});
 
-	    if(scalar(@$paths) == 0){
-		$ckt_type = "L2VPLS_INTRA";
-	    }
-	    
+            if(scalar(@$paths) == 0){
+                # All observed endpoints are on the same node; Use VPLS.
+                $ckt_type = "L2VPLS";
+            }
+
 	    my $obj = { circuit_name => $ckt->get_name(),
-			interface => $ep_a->{'interface'},
-			vlan_tag => $ep_a->{'tag'},
+			interfaces => \@ints,
 			paths => $paths,
 			ckt_type => $ckt_type,
 			site_id => $site_id,
