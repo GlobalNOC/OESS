@@ -15,7 +15,7 @@
     </interface>
     [% END %]
   </interfaces>
-  [% IF paths.length == 0 %]
+  [% IF paths.size > 0 %]
   <protocols>
     <mpls>
       [% FOREACH path IN paths %]

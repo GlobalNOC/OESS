@@ -241,18 +241,40 @@ sub _write_cache{
 
 	    $site_id++;
 	    my $paths = [];
+            my $touch = {};
+
+	    if(defined($switches{$ep_a->{'node'}}->{$details->{'circuit_id'}})){
+		next;
+	    }
+
 	    foreach my $ep_z (@$eps){
 
                 # Ignore interations comparing the same endpoint.
                 next if ($ep_a->{'node'} eq $ep_z->{'node'} && $ep_a->{'interface'} eq $ep_z->{'interface'} && $ep_a->{'tag'} eq $ep_z->{'tag'});
 
-                if($ep_a->{'node'} eq $ep_z->{'node'}){
-                    # Comparing interfaces on the same node, skip path calculations.
+                if ($ep_a->{'node'} eq $ep_z->{'node'}){
+                    # We're comparing interfaces on the same node; There
+                    # are no path calculations to be made.
+                    #
+                    # Because we are only creating a single circuit
+                    # object per node, we should include any other
+                    # interface we see on $ep_a->{'node'}.
                     push(@ints, $ep_z);
                     next;
                 }
+
+                if (exists $touch->{$ep_z->{'node'}}) {
+                    # A path from $ep_a to $ep_z has already been
+                    # calculated; Skip path calculations.
+                    #
+                    # Because this endpoint is remote to $ep_a we do not
+                    # add the interface to @ints.
+                    next;
+                }
+                $touch->{$ep_z->{'node'}} = 1;
+
                 
-		#because the path hops are specific to the direction
+		# Because the path hops are specific to the direction
 		my $primary = $ckt->get_mpls_path_type( path => 'primary');
 		
 		if(!defined($primary) || $primary eq 'none' || $primary eq 'loose'){
