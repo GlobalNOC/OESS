@@ -19,25 +19,42 @@
         <div id="summary_type"></div>
       </td>
       
+      <!-- Bandwidth is no longer in use 
       <td><center>
         <label for="summary_bandwidth" id="summary_bandwidth_label">Bandwidth</label>
         <div id="summary_bandwidth"></div>
 	</center>
-      </td>
-
-      <td>
-        <center>
-        <label for="restore_to_primary" id="restore_to_primary_label">Restore To Primary</label>
-        <div id="restore_to_primary" style="overflow-x:visible"></div>
-	    </center>
-      </td>      
+      </td>-->
       
       <td>
         <center>
-        <label for="static_mac_routing" id="static_mac_routing_label">Static MAC Routing</label>
-        <div id="static_mac_routing" style="overflow-x:visible"></div>
-	    </center>
+          <label for="control_type" id="control_type_label">Control Type</label>
+          <div id="control_type" style="overflow-x:visible"></div>
+	</center>
+      </td>
+
+      <!-- MPLS summary fields -->
+      <td>
+        <center id="q_n_q_summary">
+          <label for="q_n_q" id="q_n_q_label">Q-n-Q</label>
+          <div id="q_n_q" style="overflow-x:visible"></div>
+	</center>
+      </td>
+
+      <!-- OpenFlow summary fields -->
+      <td>
+        <center id="restore_to_primary_summary">
+          <label for="restore_to_primary" id="restore_to_primary_label">Restore To Primary</label>
+          <div id="restore_to_primary" style="overflow-x:visible"></div>
+	</center>
       </td>      
+      
+      <td>
+        <center id="static_mac_routing_summary">
+          <label for="static_mac_routing" id="static_mac_routing_label">Static MAC Routing</label>
+          <div id="static_mac_routing" style="overflow-x:visible"></div>
+	</center>
+      </td>
 
       <td>
 	    <center>

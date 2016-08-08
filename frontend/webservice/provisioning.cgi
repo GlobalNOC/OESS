@@ -807,12 +807,11 @@ sub provision_circuit {
                 warn "Time waiting for add: " . tv_interval( $before_add_command, $after_add_command);
 
                 if ( !defined $result ) {
-                    $output->{'warning'} =
-                        "Unable to talk to fwdctl service - is it running?";
+                    $output->{'warning'} = "Unable to talk to fwdctl service - is it running?";
                 }
 
                 # failure, remove the circuit now
-                if ( $result == 0 ) {
+                if (!defined $result || $result == 0) {
                     my $removal = remove_circuit($method, { circuit_id => {value => $output->{'circuit_id'}},
                                                             remove_time => {value => -1},
                                                             force => {value => 1},
