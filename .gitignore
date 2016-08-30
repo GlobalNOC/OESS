@@ -8,3 +8,8 @@ frontend/dist
 perl-lib/OESS/Makefile
 perl-lib/OESS/MANIFEST.bak
 perl-lib/OESS/t/conf/SNMP/*
+frontend/www/.htpasswd
+nox.tar.gz
+perl-lib/OESS/perl-OESS-*.tar.gz
+perl-lib/OESS/MYMETA.json
+perl-lib/OESS/MYMETA.yml

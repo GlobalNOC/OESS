@@ -1056,8 +1056,7 @@ sub get_node_interfaces {
     if ( !defined $interfaces ) {
 	$method->set_error( $db->get_error() );
 	return;
-    }
-    else {
+    } else {
         $results->{'results'} = $interfaces;
     }
 

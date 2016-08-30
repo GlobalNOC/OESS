@@ -1,5 +1,51 @@
 <script>
   
+function set_summary(circuit_type) {
+    let restore = YAHOO.util.Dom.get('restore_to_primary_summary');
+    let staticm = YAHOO.util.Dom.get('static_mac_routing_summary');
+    let qnq     = YAHOO.util.Dom.get('q_n_q_summary');
+
+    YAHOO.util.Dom.setStyle(restore, 'display', 'none');
+    YAHOO.util.Dom.setStyle(staticm, 'display', 'none');
+    YAHOO.util.Dom.setStyle(qnq, 'display', 'none');
+
+    if (circuit_type == 'openflow') {
+        session.data.restore_to_primary = session.data.restore_to_primary || 0;
+        if (session.data.restore_to_primary == 0) {
+            YAHOO.util.Dom.get('restore_to_primary').innerHTML = 'Off';
+        } else {
+            YAHOO.util.Dom.get('restore_to_primary').innerHTML = session.data.restore_to_primary + " minutes";
+        }
+        YAHOO.util.Dom.setStyle(restore, 'display', 'block');
+
+        session.data.static_mac_routing = session.data.static_mac_routing || 0;
+        if (session.data.static_mac_routing == 0) {
+            YAHOO.util.Dom.get('static_mac_routing').innerHTML = 'Off';
+        } else {
+            YAHOO.util.Dom.get('static_mac_routing').innerHTML = 'On';
+        }
+        YAHOO.util.Dom.setStyle(staticm, 'display', 'block');
+        
+    } else if (circuit_type == 'mpls') {
+        session.data.q_n_q = session.data.q_n_q || 0;
+        if (session.data.q_n_q == 1) {
+            YAHOO.util.Dom.get('q_n_q').innerHTML = 'Enabled';
+        } else {
+            YAHOO.util.Dom.get('q_n_q').innerHTML = 'Disabled';
+        }
+        YAHOO.util.Dom.setStyle(qnq, 'display', 'block');
+
+    } else {
+        // No circuit summary info should be displayed
+    }
+
+    if (session.data.circuit_type == undefined) {
+        YAHOO.util.Dom.get('control_type').innerHTML = 'undefined';
+    } else {
+        YAHOO.util.Dom.get('control_type').innerHTML = session.data.circuit_type;
+    }
+}
+
 function summary_init(options){
   options = options || {};
   
@@ -14,7 +60,7 @@ function summary_init(options){
     bandwidth = (bandwidth / 1000000000) + " Gbps";
   }
   
-  YAHOO.util.Dom.get('summary_bandwidth').innerHTML         = bandwidth;
+  // YAHOO.util.Dom.get('summary_bandwidth').innerHTML         = bandwidth;
   YAHOO.util.Dom.get('summary_description').innerHTML       = session.data.description;
   YAHOO.util.Dom.get('summary_status').innerHTML            = session.data.state || "Planning";
   YAHOO.util.Dom.get('summary_type').innerHTML              = session.data.interdomain == 1 ? "Interdomain" : "Local";
@@ -25,16 +71,21 @@ function summary_init(options){
       YAHOO.util.Dom.get('workgroup_name').innerHTML        = session.data.workgroup_name;
   }
 
-  if(session.data.restore_to_primary == 0 || session.data.restore_to_primary == undefined){
-      YAHOO.util.Dom.get('restore_to_primary').innerHTML    = 'Off';
-  }else{
-      YAHOO.util.Dom.get('restore_to_primary').innerHTML    = session.data.restore_to_primary + " minutes";
-  }
-  if(session.data.static_mac_routing == 0 || session.data.static_mac_routing == undefined){
-      YAHOO.util.Dom.get('static_mac_routing').innerHTML    = 'Off';
-  }else{
-      YAHOO.util.Dom.get('static_mac_routing').innerHTML    = 'On';
-  }
+    // Display summary fields based on circuit type
+    set_summary(session.data.circuit_type);
+
+
+    // OpenFlow summary fields
+  // if(session.data.restore_to_primary == 0 || session.data.restore_to_primary == undefined){
+  //     YAHOO.util.Dom.get('restore_to_primary').innerHTML    = 'Off';
+  // }else{
+  //     YAHOO.util.Dom.get('restore_to_primary').innerHTML    = session.data.restore_to_primary + " minutes";
+  // }
+  // if(session.data.static_mac_routing == 0 || session.data.static_mac_routing == undefined){
+  //     YAHOO.util.Dom.get('static_mac_routing').innerHTML    = 'Off';
+  // }else{
+  //     YAHOO.util.Dom.get('static_mac_routing').innerHTML    = 'On';
+  // }
 
   [% IF show_times %]
 
@@ -285,7 +336,7 @@ function summary_init(options){
       makeHelpPanel(["summary_remove_time", "summary_remove_time_label"], "This is when the current circuit will be removed. A value of \"Never\" simply means that there is no predefined time for automatic removal. It may still be removed manually at a later date.");
   [% END %]
 
-  makeHelpPanel(["summary_bandwidth", "summary_bandwidth_label"], "This is the amount of bandwidth this circuit has reserved across the network.");
+  // makeHelpPanel(["summary_bandwidth", "summary_bandwidth_label"], "This is the amount of bandwidth this circuit has reserved across the network.");
 
   makeHelpPanel(["summary_type", "summary_type_label"], "This indicates whether the circuit is simply intradomain (Local), or interdomain.");
 

@@ -1133,7 +1133,7 @@ sub get_node_interfaces {
 
     # get all the interfaces that have an acl rule that applies to this workgroup
     # only used if workgroup_id is passed in
-    my $acl_query = "select interface.role, interface.port_number, interface.description,interface.operational_state as operational_state, interface.name as int_name, interface.interface_id, node.name as node_name, node.node_id, interface_acl.vlan_start, interface_acl.vlan_end, interface.workgroup_id, workgroup.name as workgroup_name " .
+    my $acl_query = "select interface.role, interface.port_number, interface.vlan_tag_range, interface.mpls_vlan_tag_range, interface.description,interface.operational_state as operational_state, interface.name as int_name, interface.interface_id, node.name as node_name, node.node_id, interface_acl.vlan_start, interface_acl.vlan_end, interface.workgroup_id, workgroup.name as workgroup_name " .
         " from interface_acl " .
         " join interface on interface.interface_id = interface_acl.interface_id " .
         " left join workgroup on interface.workgroup_id = workgroup.workgroup_id " .
@@ -1182,26 +1182,28 @@ sub get_node_interfaces {
             $node_name
         ]);
         foreach my $available_interface (@$available_interfaces){
-            my $vlan_tag_range = $self->_validate_endpoint(
-                interface_id => $available_interface->{'interface_id'},
-                workgroup_id => $workgroup_id
-            );
+            # my $mpls_vlan_tag_range = $available_interface->{'mpls_vlan_tag_range'};
+            my $mpls_vlan_tag_range = $self->_validate_endpoint( interface_id => $available_interface->{'interface_id'},
+                                                                 workgroup_id => $workgroup_id,
+                                                                 type         => 'mpls' );
+            my $vlan_tag_range = $self->_validate_endpoint( interface_id => $available_interface->{'interface_id'},
+                                                            workgroup_id => $workgroup_id,
+                                                            type         => 'openflow' );
 
             # keep track of this b/c we don't want to add the owned interface again
             $interface_already_added{$available_interface->{'interface_id'}} = 1;
-            if($vlan_tag_range) {
-                push(@results, {
+            push(@results, {
                     "name"           => $available_interface->{'int_name'},
                     "description"    => $available_interface->{'description'},
                     "interface_id"   => $available_interface->{'interface_id'},
                     "port_number"    => $available_interface->{'port_number'},
                     "status"         => $available_interface->{'operational_state'},
                     "vlan_tag_range" => $vlan_tag_range,
+                    "mpls_vlan_tag_range" => $mpls_vlan_tag_range,
 		    "int_role"       => $available_interface->{'role'},
                     "workgroup_id"   => $available_interface->{'workgroup_id'},
                     "workgroup_name" => $available_interface->{'workgroup_name'}
 	            });
-            }
         }
     }
 
@@ -8072,6 +8074,10 @@ sub _process_tag_string{
         $string =~ s/,-1/0/g;
     }
 
+    if ($string eq '-1') {
+        return []
+    }
+
     my @split = split(/,/, $string);
     my @tags;
 
@@ -8127,6 +8133,7 @@ sub _validate_endpoint {
     my $interface_id = $args{'interface_id'};
     my $workgroup_id = $args{'workgroup_id'};
     my $vlan         = $args{'vlan'};
+    my $type         = $args{'type'} || 'openflow';
 
     my $vlan_range_hash;
     my $vlan_tag_range;
@@ -8158,7 +8165,7 @@ sub _validate_endpoint {
 	
         $vlan_tag_range = @{$results}[0]->{'vlan_tag_range'};
 	
-        if(defined($vlan)){
+        if (defined $vlan) {
             my $vlan_tags = $self->_process_tag_string($vlan_tag_range);
             foreach my $vlan_tag (@{$vlan_tags}) {
                 if ($vlan_tag == $vlan) {
@@ -8166,11 +8173,27 @@ sub _validate_endpoint {
                 }
             }
         }
-    }else{
+    } else {
+        my $query = "SELECT interface.vlan_tag_range, interface.mpls_vlan_tag_range " .
+	    "FROM interface " .
+	    "WHERE interface.interface_id = ?";
 	
+        my $results = $self->_execute_query($query, [$interface_id]);
+        if (!defined $results || !defined @{$results}[0]) {
+            $self->_set_error("Could not perform VLAN validation against node for trunk interface.");
+            return;
+        }
+
+        if ($type eq 'openflow') {
+            $vlan_tag_range = @{$results}[0]->{'vlan_tag_range'};
+        } else {
+            $vlan_tag_range = @{$results}[0]->{'mpls_vlan_tag_range'};
+        }
     }
-    
-    warn "VLAN TAG RANGE: " . $vlan_tag_range . "\n";
+
+
+    warn "VLAN TAG RANGE $type -> $vlan_tag_range";
+
 
     $query  = "select * ";
     $query .= " from interface_acl ";
@@ -8183,19 +8206,16 @@ sub _validate_endpoint {
 	$self->_set_error("Internal error validating endpoint.");
 	return;
     }
-    
+    warn "INTERFACE ACL: ".Dumper($results);
+
+    # Create a hash with all VLANs of the specified protocol. This will
+    # be used later on to invalidate ACLs unrelated to the desired
+    # protocol.
     my $tags = $self->_process_tag_string($vlan_tag_range);
-    
-    foreach my $tag (@$tags){
-        $vlan_range_hash = $self->_set_vlan_range_allow_deny(
-            vlan_range_hash  => $vlan_range_hash,
-            vlan_start       => $tag,
-            vlan_end         => $tag,
-            allow_deny       => 0
-            );
+    my $protocol_tags = {};
+    foreach my $tag (@{$tags}) {
+        $protocol_tags->{$tag} = 1;
     }
-    
-    
     
     foreach my $result (@{$results}) {
         my $permission = $result->{'allow_deny'};
@@ -8203,8 +8223,8 @@ sub _validate_endpoint {
         my $vlan_end   = $result->{'vlan_end'} || $vlan_start;
 	
         # if vlan is not defined determine what ranges are available
-        if(!defined($vlan)) {
-            if($permission eq "deny") {
+        if (!defined $vlan) {
+            if ($permission eq "deny") {
                 $vlan_range_hash = $self->_set_vlan_range_allow_deny(
                     vlan_range_hash  => $vlan_range_hash,
                     vlan_start       => $vlan_start,
@@ -8218,8 +8238,16 @@ sub _validate_endpoint {
                     vlan_end         => $vlan_end,
                     allow_deny       => 1
 		    );
+
             }
-	    
+
+            # Remove VLANs not included in the requested protocol.
+	    foreach my $tag (keys %{$vlan_range_hash}) {
+                if (!exists $protocol_tags->{$tag}) {
+                    $vlan_range_hash->{$tag} = 0;
+                }
+            }
+            warn Dumper($self->_vlan_range_hash2str( vlan_range_hash => $vlan_range_hash ));
         }
         # otherwise if our vlan falls within this rules range determine if it is allow
         # or deny
@@ -8233,7 +8261,7 @@ sub _validate_endpoint {
     }
     
     # convert the hash to a vlan range string
-    if(!defined($vlan)){
+    if(!defined $vlan){
         return $self->_vlan_range_hash2str( vlan_range_hash => $vlan_range_hash );
     }
     
