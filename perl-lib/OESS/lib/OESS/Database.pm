@@ -7327,6 +7327,51 @@ sub update_node_operational_state{
     return 1;
 }
 
+=head2 get_diffs
+
+=cut
+sub get_diffs {
+    my $self     = shift;
+    my $approval = shift;
+
+    my $res;
+    if (!defined $approval) {
+        $res = $self->_execute_query("SELECT node_id, name, operational_state, pending_diff FROM node", []);
+    } else {
+        my $pending_diff = 0;
+        if (!$approval) {
+            $pending_diff = 1;
+        }
+        $res = $self->_execute_query("SELECT node_id, name, operational_state, pending_diff FROM node WHERE pending_diff=?", [$pending_diff]);
+    }
+
+    if (!defined $res) {
+        $self->_set_error("Unable to get list of diffs.");
+        return;
+    }
+    return $res;
+}
+
+=head2 get_diff_text
+
+=cut
+sub set_diff_validation {
+    my $self     = shift;
+    my $approval = shift;
+    my $node_id  = shift;
+
+    my $pending_diff = 0;
+    if (!$approval) {
+        $pending_diff = 1;
+    }
+
+    my $res = $self->_execute_query("update node set pending_diff=? where node_id=?", [$pending_diff, $node_id]);
+    if(!defined($res)){
+	$self->_set_error("Unable to update pending_diff.");
+	return;
+    }
+    return 1;
+}
 
 =head2 add_or_update_interface
 

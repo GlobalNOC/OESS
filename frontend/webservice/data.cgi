@@ -656,9 +656,102 @@ sub register_webservice_methods {
     #register the get_vlan_tag_range() method
     $svc->register_method($method);
 
+    # BEGIN diff
+    $method = GRNOC::WebService::Method->new(
+        name            => "get_diffs",
+        description     => "Returns diff information for each node.",
+        callback        => sub { get_diffs( @_ ) }
+	);
 
+    $method->add_input_parameter(
+        name            => 'approval',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        description     => "Filters diff information by approved state."
+        );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new(
+        name            => "get_diff_text",
+        description     => "Returns diff text for the specified node.",
+        callback        => sub { get_diff_text( @_ ) }
+	);
+
+    $method->add_input_parameter(
+        name            => 'node_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "Node ID of the diff to lookup."
+        );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new(
+        name            => "set_diff_approval",
+        description     => "Approves or rejects a large diff.",
+        callback        => sub { set_diff_approval( @_ ) }
+	);
+
+    $method->add_input_parameter(
+        name            => 'approval',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "Filters diff information by approved state."
+        );
+
+    $method->add_input_parameter(
+        name            => 'node_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "Node ID of the diff to lookup."
+        );
+    $svc->register_method($method);
+    # END diff
 }
 
+
+sub get_diffs {
+    my ( $method, $args ) = @_ ;
+    my $approval = $args->{'approval'}{'value'};
+
+    my $results = {};
+    $results->{'results'} = [
+                             {
+                              'id'=>123,
+                              'name'=>'sw1',
+                              'status'=>'pending',
+                              'approved'=>0
+                             }
+                            ];
+    return $results;
+}
+
+sub get_diff_text {
+    my ( $method, $args ) = @_ ;
+    my $node_id = $args->{'node_id'}{'value'};
+
+    my $results = {};
+    $results->{'results'} = [
+                             {
+                              'id'=>123,
+                              'name'=>'sw1',
+                              'status'=>'pending',
+                              'approved'=>0,
+                              'text'=>'diff'
+                             }
+                            ];
+    return $results;
+}
+
+sub set_diff_approval {
+    my ( $method, $args ) = @_ ;
+    my $approval = $args->{'approval'}{'value'};
+    my $node_id = $args->{'node_id'}{'value'};
+
+    my $results = {};
+    $results->{'results'} = [1];
+
+    return $results;
+}
 
 sub get_workgroups {
     
