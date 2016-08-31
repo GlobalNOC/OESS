@@ -664,7 +664,7 @@ sub register_webservice_methods {
 	);
 
     $method->add_input_parameter(
-        name            => 'approval',
+        name            => 'approved',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 0,
         description     => "Filters diff information by approved state."
@@ -692,7 +692,7 @@ sub register_webservice_methods {
 	);
 
     $method->add_input_parameter(
-        name            => 'approval',
+        name            => 'approved',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 1,
         description     => "Filters diff information by approved state."
@@ -708,21 +708,24 @@ sub register_webservice_methods {
     # END diff
 }
 
+=head2 get_diffs
 
+Returns configuration state for each node. The returned param
+pending_diff, if true, indicates that a configuration diff needs manual
+approval.
+
+=cut
 sub get_diffs {
     my ( $method, $args ) = @_ ;
-    my $approval = $args->{'approval'}{'value'};
+    my $approved = $args->{'approved'}{'value'};
 
-    my $results = {};
-    $results->{'results'} = [
-                             {
-                              'id'=>123,
-                              'name'=>'sw1',
-                              'status'=>'pending',
-                              'approved'=>0
-                             }
-                            ];
-    return $results;
+    my $diffs = $db->get_diffs($approved);
+    if (!defined $diffs) {
+	$method->set_error($db->get_error());
+        return;
+    }
+
+    return { results => $diffs };
 }
 
 sub get_diff_text {
@@ -742,15 +745,25 @@ sub get_diff_text {
     return $results;
 }
 
+=head2 set_diff_approval
+
+Approves or denies diffing for a node with pending configuration
+changes. Once approved the node may apply its changes. Returns 1 on
+success.
+
+=cut
 sub set_diff_approval {
     my ( $method, $args ) = @_ ;
-    my $approval = $args->{'approval'}{'value'};
-    my $node_id = $args->{'node_id'}{'value'};
+    my $approved = $args->{'approved'}{'value'};
+    my $node_id  = $args->{'node_id'}{'value'};
 
-    my $results = {};
-    $results->{'results'} = [1];
+    my $res = $db->set_diff_approval($approved, $node_id);
+    if (!defined $res) {
+	$method->set_error($db->get_error());
+        return;
+    }
 
-    return $results;
+    return { results => [$res] };
 }
 
 sub get_workgroups {
@@ -761,7 +774,7 @@ sub get_workgroups {
     my $workgroups = $db->get_workgroups_by_auth_name( auth_name => $username );
 
     if ( !defined $workgroups ) {
-	$method->set_error =( $db->get_error() );
+	$method->set_error($db->get_error());
 	return;
     }
     else {

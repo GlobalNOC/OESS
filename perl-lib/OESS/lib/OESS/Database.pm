@@ -7332,17 +7332,23 @@ sub update_node_operational_state{
 =cut
 sub get_diffs {
     my $self     = shift;
-    my $approval = shift;
+    my $approved = shift;
 
     my $res;
-    if (!defined $approval) {
-        $res = $self->_execute_query("SELECT node_id, name, operational_state, pending_diff FROM node", []);
+    if (!defined $approved) {
+        $res = $self->_execute_query("SELECT node.node_id, node.name, node.pending_diff, node_instantiation.admin_state " .
+                                     "FROM node JOIN node_instantiation ON node.node_id=node_instantiation.node_id " .
+                                     "WHERE node_instantiation.admin_state='active'",
+                                     []);
     } else {
         my $pending_diff = 0;
-        if (!$approval) {
+        if (!$approved) {
             $pending_diff = 1;
         }
-        $res = $self->_execute_query("SELECT node_id, name, operational_state, pending_diff FROM node WHERE pending_diff=?", [$pending_diff]);
+        $res = $self->_execute_query("SELECT node.node_id, node.name, node.pending_diff, node_instantiation.admin_state " .
+                                     "FROM node JOIN node_instantiation ON node.node_id=node_instantiation.node_id " .
+                                     "WHERE node_instantiation.admin_state='active' AND node.pending_diff=?",
+                                     [$pending_diff]);
     }
 
     if (!defined $res) {
@@ -7352,21 +7358,21 @@ sub get_diffs {
     return $res;
 }
 
-=head2 get_diff_text
+=head2 set_diff_approval
 
 =cut
-sub set_diff_validation {
+sub set_diff_approval {
     my $self     = shift;
-    my $approval = shift;
+    my $approved = shift;
     my $node_id  = shift;
 
     my $pending_diff = 0;
-    if (!$approval) {
+    if (!$approved) {
         $pending_diff = 1;
     }
 
-    my $res = $self->_execute_query("update node set pending_diff=? where node_id=?", [$pending_diff, $node_id]);
-    if(!defined($res)){
+    my $res = $self->_execute_query("UPDATE node set pending_diff=? WHERE node_id=?", [$pending_diff, $node_id]);
+    if(!defined $res){
 	$self->_set_error("Unable to update pending_diff.");
 	return;
     }
