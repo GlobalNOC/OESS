@@ -717,7 +717,21 @@ sub deleteVlan{
 
 }
 
+sub diff {
+    my $self = shift;
 
+    $self->_write_cache();
+
+    foreach my $node_id (keys %{$self->{'children'}}) {
+        my $event_id = $self->_generate_unique_event_id();
+
+        my $node = $db->get_node_by_id(node_id => $node_id);
+        my $pending_diff = $node->{'pending_diff'};
+        next if (!$node->{'mpls'});
+
+	$self->send_message_to_child($node_id, {action => 'diff', pending_diff => $pending_diff}, $event_id);
+    }
+}
 
 sub get_ckt_object{
     my $self =shift;

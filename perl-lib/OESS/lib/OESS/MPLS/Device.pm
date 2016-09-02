@@ -107,6 +107,22 @@ sub remove_vlan{
     return;
 }
 
+sub diff {
+
+}
+
+=head2
+
+Returns 1 if $diff may be applied without manual approval.
+
+=cut
+sub diff_approved {
+    my $self = shift;
+    my $diff = shift;
+
+    $self->set_error("This device does not support large_diff");
+}
+
 sub set_error{
     my $self = shift;
     my $error = shift;

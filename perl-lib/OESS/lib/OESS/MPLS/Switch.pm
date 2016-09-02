@@ -83,6 +83,22 @@ sub new{
     return $self;
 }
 
+=head2 set_pending
+
+Sets the in-memory state for a devices diff state. If durring a diff
+the in-memory state is 0, but 1 is stored in the database, a diff will
+be forced to occur.
+
+=cut
+sub set_pending {
+    my $self  = shift;
+    my $state = shift;
+
+    $self->{'pending_diff'} = $state;
+    $self->{'device'}->{'pending_diff'} = $state;
+    return 1;
+}
+
 sub create_device_object{
     my $self = shift;
 
@@ -237,7 +253,9 @@ sub _update_cache{
 }
 
 =head2 echo
+
 Always returns 1.
+
 =cut
 sub echo {
     my $self = shift;
@@ -245,8 +263,10 @@ sub echo {
 }
 
 =head2 stop
+
 Sends a shutdown signal on OF.FWDCTL.event.stop. Child processes
 should listen for this signal and cleanly exit when received.
+
 =cut
 sub stop {
     my $self = shift;

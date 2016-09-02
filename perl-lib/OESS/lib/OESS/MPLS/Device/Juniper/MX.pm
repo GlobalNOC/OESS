@@ -261,7 +261,7 @@ Do a diff between $ckts and the circuits on this device.
 sub diff {
     my $self = shift;
     my $ckts = shift;
-    my $pending_approval = shift; # Sourced from the DB
+    my $pending_diff = shift; # Sourced from the DB
 
     # Convert $ckts to configuration
     my $configuration = '<configuration>';
@@ -274,9 +274,11 @@ sub diff {
     }
     $configuration = $configuration . '</configuration>';
 
+    # NOTE - Test data in diff_text overwrites this config
     my $diff = $self->diff_text($configuration);
 
     # The diff is apparently too big to trust.
+    # NOTE - Any diff larger than one char will trigger this block
     if ($self->_large_diff($diff)) {
         if ($pending_diff) {
             if ($self->{'pending_diff'}) {
@@ -284,11 +286,13 @@ sub diff {
                 return 0;
             } else {
                 $self->{'logger'}->info('Large diff approved. Starting installation.');
+                $self->{'pending_diff'} = 0;
                 $self->_edit_config(config => $configuration);
                 return 1;
             }
         } else {
             $self->{'logger'}->info('Large diff detected. Waiting for approval before installation.');
+            $self->{'pending_diff'} = 1;
             return 0;
         }
     }

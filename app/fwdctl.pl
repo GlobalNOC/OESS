@@ -50,7 +50,7 @@ sub core{
     my $FWDCTL = OESS::FWDCTL::Master->new();
 
     my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => sub { $FWDCTL->reap_old_events() } );
-
+    my $differ = AnyEvent->timer( after => 5, interval => 60, cb => sub { $FWDCTL->diff() } );
     AnyEvent->condvar->recv;
 }
 
