@@ -253,6 +253,106 @@ sub add_vlan{
     
 }
 
+=head2 diff
+
+Do a diff between $ckts and the circuits on this device.
+
+=cut
+sub diff {
+    my $self = shift;
+    my $ckts = shift;
+    my $pending_approval = shift; # Sourced from the DB
+
+    # Convert $ckts to configuration
+    my $configuration = '<configuration>';
+    foreach my $ckt (@{$ckts}) {
+        my $addition;
+        $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$addition);
+        $addition =~ s/<configuration>//g;
+        $addition =~ s/<\/configuration>//g;
+        $configuration = $configuration . $addition;
+    }
+    $configuration = $configuration . '</configuration>';
+
+    my $diff = $self->diff_text($configuration);
+
+    # The diff is apparently too big to trust.
+    if ($self->_large_diff($diff)) {
+        if ($pending_diff) {
+            if ($self->{'pending_diff'}) {
+                $self->{'logger'}->info('Still waiting for approval before diff installation.');
+                return 0;
+            } else {
+                $self->{'logger'}->info('Large diff approved. Starting installation.');
+                $self->_edit_config(config => $configuration);
+                return 1;
+            }
+        } else {
+            $self->{'logger'}->info('Large diff detected. Waiting for approval before installation.');
+            return 0;
+        }
+    }
+
+    $self->_edit_config(config => $configuration);
+    return 1;
+}
+
+=head2 diff_text
+
+Returns a human readable diff for display to users.
+
+=cut
+sub diff_text {
+    my $self = shift;
+    my $conf = shift;
+
+    # Test data - Remove
+    $conf = "<configuration><interfaces><interface><name>xe-2/0/0</name><unit>" .
+      "<name>1000</name><description>Foo</description></unit></interface>" .
+      "</interfaces></configuration>";
+
+    my %queryargs = ('target' => 'candidate');
+    $self->{'jnx'}->lock_config(%queryargs);
+
+
+    %queryargs = ('target' => 'candidate');
+    $queryargs{'config'} = $conf;
+    $res = $self->{'jnx'}->edit_config(%queryargs);
+
+    my $configcompare = $self->{'jnx'}->get_configuration( compare => "rollback", rollback => "0" );
+    if ($self->{'jnx'}->has_error) {
+	$self->set_error($self->{'jnx'}->get_first_error());
+        $self->{'logger'}->error("Error getting diff from MX: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
+        return;
+    }
+
+    my $dom = $self->{'jnx'}->get_dom();
+    my $diff = $dom->getElementsByTagName('configuration-output')->string_value();
+    
+    $res = $self->{'jnx'}->discard_changes();
+    %queryargs = ('target' => 'candidate');
+    $self->{'jnx'}->unlock_config(%queryargs);
+
+    return $diff;
+}
+
+=head2 _large_diff
+
+Returns 1 if $diff requires manual approval.
+
+=cut
+sub _large_diff {
+    my $self = shift;
+    my $diff = shift;
+
+    my $len = length($diff);
+    if ($len > 0) {
+        return 1;
+    }
+
+    return 0;
+}
+
 =head2
 
 Returns 0 if the unit name already exists on the specified interface or
@@ -364,6 +464,14 @@ sub connect {
         $self->{'logger'}->info("Connected!");
         $self->{'jnx'} = $jnx;
         $self->{'connected'} = 1;
+
+        # Configures parameters for the get_configuration method
+        my $ATTRIBUTE = bless {}, 'ATTRIBUTE';
+        $self->{'jnx'}->{'methods'}->{'get_configuration'} = { format   => $ATTRIBUTE,
+                                                               compare  => $ATTRIBUTE,
+                                                               changed  => $ATTRIBUTE,
+                                                               database => $ATTRIBUTE,
+                                                               rollback => $ATTRIBUTE };
     }
 
     return $self->{'connected'};
