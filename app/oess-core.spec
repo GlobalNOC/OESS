@@ -51,10 +51,8 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} oess_scheduler.pl %{buildroot}/%{_bindir}
 %{__install} oess-nsi %{buildroot}/%{_bindir}
 %{__install} measurement/* %{buildroot}/%{_bindir}
-
-%{__install} notification/* %{buildroot}/%{_bindir}
 %{__install} mpls/* %{buildroot}/%{_bindir}
-
+%{__install} notification/* %{buildroot}/%{_bindir}
 %{__install} populate_remote_topologies.pl %{buildroot}/%{_bindir}
 %{__install} oess_topology_submitter.pl %{buildroot}/%{_bindir}
 

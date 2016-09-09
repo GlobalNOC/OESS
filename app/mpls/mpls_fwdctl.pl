@@ -1,26 +1,26 @@
 #!/usr/bin/perl
+use strict;
+use warnings;
 
 use OESS::MPLS::FWDCTL;
 
 use English;
-use Getopt::Long;
-use Proc::Daemon;
 use Data::Dumper;
-
-use strict;
-use warnings;
+use Getopt::Long;
+use Log::Log4perl;
+use Proc::Daemon;
 
 
 my $pid_file = "/var/run/oess/mpls_fwdctl.pid";
 
 sub core{
-    #basic init stuffs
-    Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
+    Log::Log4perl::init_and_watch('/etc/oess/logging.conf', 10);
 
     my $FWDCTL = OESS::MPLS::FWDCTL->new();
-
     my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => sub { $FWDCTL->reap_old_events() } );
-    #my $device_populator = AnyEvent->timer( after => 10, interval => 60, cb => sub {$FWDCTL->populate_devices() } );
+    my $differ = AnyEvent->timer( after => 5, interval => 60, cb => sub { $FWDCTL->diff() } );
+
+    Log::Log4perl->get_logger('OESS.MPLS.FWDCTL.MASTER')->info("Starting MPLS.FWDCTL event loop.");
     AnyEvent->condvar->recv;
 }
 
