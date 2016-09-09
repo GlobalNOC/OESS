@@ -229,6 +229,7 @@ sub _update_cache{
     my $m_ref = shift;
     my $p_ref = shift;
 
+    $self->{'logger'}->info("Loading circuits from cache file.");
     $self->{'logger'}->debug("Retrieve file: " . $self->{'share_file'});
 
     if(!-e $self->{'share_file'}){

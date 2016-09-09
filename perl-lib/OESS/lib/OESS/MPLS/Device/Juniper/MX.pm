@@ -25,10 +25,10 @@ sub new{
 	);
     
     my $self = \%args;
+    bless $self, $class;
 
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Device.Juniper.MX.' . $self->{'mgmt_addr'});
-    $self->{'logger'}->debug("MPLS Juniper Switch Created!");
-    bless $self, $class;
+    $self->{'logger'}->info("MPLS Juniper Switch Created: $self->{'mgmt_addr'}");
 
     #TODO: make this automatically figure out the right REV
     $self->{'template_dir'} = "juniper/13.3R8";
@@ -43,7 +43,6 @@ sub new{
     $self->{'password'} = $creds->{'password'};
 
     return $self;
-
 }
 
 sub disconnect{
@@ -87,7 +86,7 @@ sub get_system_information{
 
 
     #also need to fetch the interfaces and find lo0.X
-    my $reply = $self->{'jnx'}->get_interface_information();
+    $reply = $self->{'jnx'}->get_interface_information();
     if($self->{'jnx'}->has_error){
         $self->set_error($self->{'jnx'}->get_first_error());
         $self->{'logger'}->error("Error fetching interface information: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
@@ -96,7 +95,7 @@ sub get_system_information{
 
     my $interfaces = $self->{'jnx'}->get_dom();
     my $path = $self->{'root_namespace'}."junos-interface";
-    my $xp = XML::LibXML::XPathContext->new( $interfaces);
+    $xp = XML::LibXML::XPathContext->new( $interfaces);
     $xp->registerNs('x',$interfaces->documentElement->namespaceURI);
     $xp->registerNs('j',$path);
     my $ints = $xp->findnodes('/x:rpc-reply/j:interface-information/j:physical-interface');
@@ -440,33 +439,14 @@ has occured and 0 is returned.
 sub connect {
     my $self = shift;
 
+
     if ($self->connected()) {
-        $self->{'logger'}->warn("Already connected to device");
+        $self->{'logger'}->warn("Already connected to Juniper MX $self->{'mgmt_addr'}!");
         return 1;
     }
 
-    $self->{'logger'}->info("Connecting to device!");
-    my $jnx = new Net::Netconf::Manager( 'access' => 'ssh',
-					 'login' => $self->{'username'},
-					 'password' => $self->{'password'},
-					 'hostname' => $self->{'mgmt_addr'},
-					 'port' => 22 );
-    if(!$jnx){
-	$self->{'connected'} = 0;
-    }else{
-	$self->{'logger'}->info("Connected!");
-	$self->{'jnx'} = $jnx;
-	#gather basic system information needed later!
-	my $verify = $self->verify_connection();
-	if ($verify == 1) {
-	    $self->{'connected'} = 1;
-	}
-	else {
-	    $self->{'connected'} = 0;
-	}
-    }
+    my $jnx;
 
-    $jnx = undef;
     eval {
         $self->{'logger'}->info("Connecting to device!");
         $jnx = new Net::Netconf::Manager( 'access' => 'ssh',
@@ -474,27 +454,38 @@ sub connect {
                                           'password' => $self->{'password'},
                                           'hostname' => $self->{'mgmt_addr'},
                                           'port' => 22,
-                                          'debug_level' => 0);
+                                          'debug_level' => 0 );
     };
     if ($@ || !$jnx) {
-        my $err = "Could not connected to $self->{'mgmt_addr'}. Connection timed out.";
+        my $err = "Could not connect to $self->{'mgmt_addr'}. Connection timed out.";
         $self->set_error($err);
         $self->{'logger'}->error($err);
-        $self->{'connected'} = 0;
-    } else {
-        $self->{'logger'}->info("Connected!");
-        $self->{'jnx'} = $jnx;
-        $self->{'connected'} = 1;
-
-        # Configures parameters for the get_configuration method
-        my $ATTRIBUTE = bless {}, 'ATTRIBUTE';
-        $self->{'jnx'}->{'methods'}->{'get_configuration'} = { format   => $ATTRIBUTE,
-                                                               compare  => $ATTRIBUTE,
-                                                               changed  => $ATTRIBUTE,
-                                                               database => $ATTRIBUTE,
-                                                               rollback => $ATTRIBUTE };
+	$self->{'connected'} = 0;
+        return $self->{'connected'};
     }
 
+    $self->{'connected'} = 1;
+    $self->{'jnx'}       = $jnx;
+
+    # Gather basic system information needed later!
+    my $verify = $self->verify_connection();
+    if ($verify != 1) {
+        my $err = "Failure while verifying $self->{'mgmt_addr'}. Connection closed.";
+        $self->set_error($err);
+        $self->{'logger'}->error($err);
+	$self->{'connected'} = 0;
+        return $self->{'connected'};
+    }
+
+    # Configures parameters for the get_configuration method
+    my $ATTRIBUTE = bless {}, 'ATTRIBUTE';
+    $self->{'jnx'}->{'methods'}->{'get_configuration'} = { format   => $ATTRIBUTE,
+                                                           compare  => $ATTRIBUTE,
+                                                           changed  => $ATTRIBUTE,
+                                                           database => $ATTRIBUTE,
+                                                           rollback => $ATTRIBUTE };
+
+    $self->{'logger'}->info("Connected to device!");
     return $self->{'connected'};
 }
 
