@@ -50,7 +50,7 @@ sub core{
     my $FWDCTL = OESS::FWDCTL::Master->new();
     my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => sub { $FWDCTL->reap_old_events() } );
 
-    Log::Log4perl->get_logger('OESS.FWDCTL.APP')->info("Starting FWDCTL event loop.");
+    Log::Log4perl->get_logger('OESS.FWDCTL.APP')->info("Starting OESS.FWDCTL event loop.");
     AnyEvent->condvar->recv;
 }
 

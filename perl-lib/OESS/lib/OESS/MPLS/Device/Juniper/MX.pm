@@ -267,6 +267,23 @@ sub diff {
     my $configuration = '<configuration>';
     foreach my $ckt (@{$ckts}) {
         my $addition;
+
+        my $vars = {};
+        $vars->{'circuit_name'} = $ckt->{'circuit_name'};
+        $vars->{'interfaces'} = [];
+        foreach my $i (@{$ckt->{'interfaces'}}) {
+            push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
+                                              tag  => $i->{'tag'}
+                                            });
+        }
+        $vars->{'paths'} = $ckt->{'paths'};
+        $vars->{'destination_ip'} = $ckt->{'destination_ip'};
+        $vars->{'circuit_id'} = $ckt->{'circuit_id'};
+        $vars->{'switch'} = {name => $self->{'name'}};
+        $vars->{'site_id'} = $ckt->{'site_id'};
+        $vars->{'paths'} = $ckt->{'paths'};
+        $vars->{'a_side'} = $ckt->{'a_side'};
+
         $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$addition);
         $addition =~ s/<configuration>//g;
         $addition =~ s/<\/configuration>//g;
@@ -321,7 +338,7 @@ sub diff_text {
 
     %queryargs = ('target' => 'candidate');
     $queryargs{'config'} = $conf;
-    $res = $self->{'jnx'}->edit_config(%queryargs);
+    my $res = $self->{'jnx'}->edit_config(%queryargs);
 
     my $configcompare = $self->{'jnx'}->get_configuration( compare => "rollback", rollback => "0" );
     if ($self->{'jnx'}->has_error) {

@@ -479,7 +479,7 @@ Log::Log4perl::init_and_watch("/etc/oess/logging.conf",10);
 sub run{
     my $fh = shift;
     my %args = @_;
-    $logger = Log::Log4perl->get_logger("MPLS.FWDCTL.MASTER");
+    $logger = Log::Log4perl->get_logger("OESS.MPLS.FWDCTL.MASTER");
     $logger->info("Creating child for id: " . $args{"id"});
     $switch = OESS::MPLS::Switch->new( %args );
     }')->fork->send_arg( %args )->run("run");

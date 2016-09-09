@@ -4,19 +4,23 @@ use strict;
 use warnings;
 
 package OESS::MPLS::Switch;
-use GRNOC::WebService::Regex;
 
 use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
 
+use AnyEvent;
+use Log::Log4perl;
 use Switch;
 use Template;
 use Net::Netconf::Manager;
+
 use GRNOC::RabbitMQ::Dispatcher;
 use GRNOC::RabbitMQ::Method;
 use GRNOC::RabbitMQ::Client;
+use GRNOC::WebService::Regex;
+
 use OESS::MPLS::Device;
 
 use JSON::XS;
@@ -210,6 +214,14 @@ sub register_rpc_methods{
 					    description => "returns the system information");
     $dispatcher->register_method($method);
 
+    $method = GRNOC::RabbitMQ::Method->new( name        => "diff",
+					    callback    => sub { return $self->diff(@_); },
+					    description => "Proxies diff signal to the underlying device object.");
+    $method->add_input_parameter( name => "pending_diff",
+                                  description => "Set to 1 if user must approve the diff",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);
+    $dispatcher->register_method($method);
 }
 
 sub _update_cache{
@@ -337,6 +349,27 @@ sub remove_vlan{
     $self->{'logger'}->debug("after remove vlan");
     $self->{'logger'}->debug("Results: " . Data::Dumper::Dumper($res));
     return $res;
+}
+
+=head2 diff
+
+Proxies diff signal to the underlying device object.
+
+=cut
+sub diff {
+    my $self  = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    return 1;
+    
+    my $circuits = [];
+    foreach my $ckt (keys %{ $self->{'ckts'} }){
+        push(@{$circuits}, $self->{'ckts'}->{$ckt});
+    }
+
+    $self->{'logger'}->info("Calling diff on device object.");
+    return $self->{'device'}->diff($circuits, $p_ref->{'pending_diff'}{'value'});
 }
 
 =head2 get_interfaces
