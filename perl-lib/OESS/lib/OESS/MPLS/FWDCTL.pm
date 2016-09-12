@@ -730,8 +730,10 @@ sub diff {
         my $pending_diff = $node->{'pending_diff'};
         next if (!$node->{'mpls'});
 
-	$self->send_message_to_child($node_id, {action => 'diff', pending_diff => $pending_diff}, $event_id);
+	$self->send_message_to_child($node_id, {action => 'diff', pending_diff => int($pending_diff)}, $event_id);
     }
+
+    return 1;
 }
 
 sub get_ckt_object{
@@ -771,6 +773,7 @@ sub message_callback {
         } elsif (defined $results->{'error'}) {
             $self->{'logger'}->error($results->{'error'});
         }
+
         $self->{'node_rules'}->{$id} = $results->{'results'}->{'total_rules'};
 	$self->{'logger'}->debug("Event: $event_id for ID: " . $event_id . " status: " . $results->{'results'}->{'status'});
         $self->{'pending_results'}->{$event_id}->{'ids'}->{$id} = $results->{'results'}->{'status'};

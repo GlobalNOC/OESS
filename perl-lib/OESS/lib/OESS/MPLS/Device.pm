@@ -108,7 +108,10 @@ sub remove_vlan{
 }
 
 sub diff {
+    my $self = shift;
 
+    $self->set_error("The device does not support diff");
+    return;
 }
 
 =head2

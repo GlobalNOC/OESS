@@ -11,6 +11,7 @@ use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
 
 use AnyEvent;
+use Data::Dumper;
 use Log::Log4perl;
 use Switch;
 use Template;
@@ -215,7 +216,7 @@ sub register_rpc_methods{
     $dispatcher->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name        => "diff",
-					    callback    => sub { return $self->diff(@_); },
+					    callback    => sub { return { status => $self->diff(@_) } },
 					    description => "Proxies diff signal to the underlying device object.");
     $method->add_input_parameter( name => "pending_diff",
                                   description => "Set to 1 if user must approve the diff",
@@ -362,8 +363,13 @@ sub diff {
     my $m_ref = shift;
     my $p_ref = shift;
 
+    $self->{'logger'}->info("Calling Switch.diff");
+    $self->_update_cache();
+
+
     return 1;
-    
+
+
     my $circuits = [];
     foreach my $ckt (keys %{ $self->{'ckts'} }){
         push(@{$circuits}, $self->{'ckts'}->{$ckt});
