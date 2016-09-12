@@ -39,9 +39,9 @@ sub new{
         );
 
     my $self = \%args;
+    bless $self, $class;
 
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Switch.' . $self->{'id'});
-    bless $self, $class;
 
     $self->{'node'}->{'node_id'} = $self->{'id'};
     
@@ -110,27 +110,28 @@ sub create_device_object{
     my $host_info = $self->{'node'};
 
     switch($host_info->{'vendor'}){
-	case "Juniper" {
-	    my $dev;
-	    if($host_info->{'model'} =~ /mx/i){
-		warn Data::Dumper::Dumper($host_info);
-		$dev = OESS::MPLS::Device::Juniper::MX->new( %$host_info );
-	    }else{
-		$self->{'logger'}->error("Juniper " . $host_info->{'model'} . " is not supported");
-		return;
-	    }
-	    
-	    if(!defined($dev)){
-		$self->{'logger'}->error("Unable to instantiate Device!");
-		return;
-	    }
+        case "Juniper" {
+            my $dev;
+            if($host_info->{'model'} =~ /mx/i){
+                $self->{'logger'}->info("create_device_object: " . Dumper($host_info));
+                warn Data::Dumper::Dumper($host_info);
+                $dev = OESS::MPLS::Device::Juniper::MX->new( %$host_info );
+            }else{
+                $self->{'logger'}->error("Juniper " . $host_info->{'model'} . " is not supported");
+                return;
+            }
 
-	    $self->{'device'} = $dev;
+            if(!defined($dev)){
+                $self->{'logger'}->error("Unable to instantiate Device!");
+                return;
+            }
 
-	}else{
-	    $self->{'logger'}->error("Unsupported device type: ");
-	    return;
-	}
+            $self->{'device'} = $dev;
+
+        }else{
+            $self->{'logger'}->error("Unsupported device type: ");
+            return;
+        }
     }
 }
 
@@ -247,6 +248,8 @@ sub _update_cache{
     my $data = decode_json($str);
     $self->{'logger'}->debug("Fetched data!");
     $self->{'node'} = $data->{'nodes'}->{$self->{'id'}};
+    $self->{'logger'}->info("_update_cache: " . Dumper($self->{'node'}));
+
     $self->{'settings'} = $data->{'settings'};
 
     foreach my $ckt (keys %{ $self->{'ckts'} }){
@@ -366,16 +369,11 @@ sub diff {
     $self->{'logger'}->info("Calling Switch.diff");
     $self->_update_cache();
 
-
-    return 1;
-
-
     my $circuits = [];
     foreach my $ckt (keys %{ $self->{'ckts'} }){
         push(@{$circuits}, $self->{'ckts'}->{$ckt});
     }
 
-    $self->{'logger'}->info("Calling diff on device object.");
     return $self->{'device'}->diff($circuits, $p_ref->{'pending_diff'}{'value'});
 }
 

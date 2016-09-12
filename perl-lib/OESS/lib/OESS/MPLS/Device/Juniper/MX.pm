@@ -28,7 +28,7 @@ sub new{
     bless $self, $class;
 
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Device.Juniper.MX.' . $self->{'mgmt_addr'});
-    $self->{'logger'}->info("MPLS Juniper Switch Created: $self->{'mgmt_addr'}");
+    $self->{'logger'}->info("MPLS Juniper Switch Created: $self->{'mgmt_addr'} Pending diff: $self->{'pending_diff'}");
 
     #TODO: make this automatically figure out the right REV
     $self->{'template_dir'} = "juniper/13.3R8";
@@ -262,11 +262,14 @@ sub diff {
     my $ckts = shift;
     my $pending_diff = shift; # Sourced from the DB
 
-    # Convert $ckts to configuration
+    $self->{'logger'}->debug("Calling MX.diff");
+
+    # Build a configuration string to call against $self->diff_text
     my $configuration = '<configuration>';
     foreach my $ckt (@{$ckts}) {
+        # The argument $ckts is passed in a generic form. This should be
+        # converted to work with the template.
         my $addition;
-
         my $vars = {};
         $vars->{'circuit_name'} = $ckt->{'circuit_name'};
         $vars->{'interfaces'} = [];
@@ -294,9 +297,13 @@ sub diff {
     my $diff = $self->diff_text($configuration);
 
     # The diff is apparently too big to trust.
-    # NOTE - Any diff larger than one char will trigger this block
+    # NOTE - Test func causes any diff larger than one char to trigger
+    # this block.
     if ($self->_large_diff($diff)) {
         if ($pending_diff) {
+            # TODO If pending_diff and coming from a fresh reboot. Until
+            # self.pending_diff is set on this.new the else block will
+            # be triggered approving the diff (this is bad behavior).
             if ($self->{'pending_diff'}) {
                 $self->{'logger'}->info('Still waiting for approval before diff installation.');
                 return 0;

@@ -4,6 +4,8 @@ use warnings;
 ###############################################################################
 package OESS::MPLS::FWDCTL;
 
+use Data::Dumper;
+use Log::Log4perl;
 use Socket;
 
 use OESS::Database;
@@ -187,6 +189,7 @@ sub build_cache{
 	$details->{'vendor'} = $details->{'vendor'};
 	$details->{'model'} = $details->{'model'};
 	$details->{'sw_version'} = $details->{'sw_version'};
+        $details->{'pending_diff'} = $details->{'pending_diff'};;
 	$node_info{$node->{'name'}} = $details;
     }
 
@@ -458,11 +461,11 @@ sub make_baby{
     $self->{'logger'}->debug("Before the fork");
     
     my $node = $self->{'node_by_id'}->{$id};
-
     my %args;
     $args{'id'} = $id;
+    $args{'node'} = $node;
     $args{'share_file'} = $self->{'share_file'}. "." . $id;
-    $args{'rabbitMQ_host'} = $self->{'db'}->{'rabbitMQ'}->{'host'}; 
+    $args{'rabbitMQ_host'} = $self->{'db'}->{'rabbitMQ'}->{'host'};
     $args{'rabbitMQ_port'} = $self->{'db'}->{'rabbitMQ'}->{'port'};
     $args{'rabbitMQ_user'} = $self->{'db'}->{'rabbitMQ'}->{'user'};
     $args{'rabbitMQ_pass'} = $self->{'db'}->{'rabbitMQ'}->{'pass'};
@@ -471,7 +474,7 @@ sub make_baby{
     my $proc = AnyEvent::Fork->new->require("Log::Log4perl", "OESS::MPLS::Switch")->eval('
 use strict;
 use warnings;
-use Data::Dumper;
+
 my $switch;
 my $logger;
 
@@ -479,8 +482,10 @@ Log::Log4perl::init_and_watch("/etc/oess/logging.conf",10);
 sub run{
     my $fh = shift;
     my %args = @_;
+
     $logger = Log::Log4perl->get_logger("OESS.MPLS.FWDCTL.MASTER");
     $logger->info("Creating child for id: " . $args{"id"});
+
     $switch = OESS::MPLS::Switch->new( %args );
     }')->fork->send_arg( %args )->run("run");
 
@@ -514,7 +519,7 @@ sub update_cache{
 	    $node_by_id{$self->{'node_info'}->{$node}->{'id'}} = $self->{'node_info'}->{$node};
 	}
 	$self->{'node_by_id'} = \%node_by_id;
-    }else{
+    } else {
         $self->{'logger'}->debug("Updating cache for circuit: " . $circuit_id);
         my $ckt = $self->get_ckt_object($circuit_id);
         if(!defined($ckt)){
