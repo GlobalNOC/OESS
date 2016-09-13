@@ -13,6 +13,7 @@ use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
+use constant FWDCTL_BLOCKED     => 4;
 
 use GRNOC::Config;
 
@@ -260,7 +261,7 @@ Do a diff between $ckts and the circuits on this device.
 sub diff {
     my $self = shift;
     my $ckts = shift;
-    my $pending_diff = shift; # Sourced from the DB
+    my $force_diff = shift; # If set do not check diff size
 
     $self->{'logger'}->debug("Calling MX.diff");
 
@@ -293,6 +294,12 @@ sub diff {
     }
     $configuration = $configuration . '</configuration>';
 
+    if ($force_diff) {
+        $self->{'logger'}->info('Force diff was initiated. Starting installation.');
+        return $self->_edit_config(config => $configuration);
+    }
+
+
     # NOTE - Test data in diff_text overwrites this config
     my $diff = $self->diff_text($configuration);
 
@@ -300,28 +307,13 @@ sub diff {
     # NOTE - Test func causes any diff larger than one char to trigger
     # this block.
     if ($self->_large_diff($diff)) {
-        if ($pending_diff) {
-            # TODO If pending_diff and coming from a fresh reboot. Until
-            # self.pending_diff is set on this.new the else block will
-            # be triggered approving the diff (this is bad behavior).
-            if ($self->{'pending_diff'}) {
-                $self->{'logger'}->info('Still waiting for approval before diff installation.');
-                return 0;
-            } else {
-                $self->{'logger'}->info('Large diff approved. Starting installation.');
-                $self->{'pending_diff'} = 0;
-                $self->_edit_config(config => $configuration);
-                return 1;
-            }
-        } else {
-            $self->{'logger'}->info('Large diff detected. Waiting for approval before installation.');
-            $self->{'pending_diff'} = 1;
-            return 0;
-        }
+        $self->{'logger'}->info('Large diff detected. Waiting for approval before installation.');
+        $self->{'pending_diff'} = 1;
+        return FWDCTL_BLOCKED;
     }
 
-    $self->_edit_config(config => $configuration);
-    return 1;
+    $self->{'logger'}->info("Diff requires no approval. Starting installation.");
+    return $self->_edit_config(config => $configuration);
 }
 
 =head2 diff_text

@@ -69,7 +69,6 @@ sub new{
                                                        topic => $topic,
                                                        queue => $topic,
                                                        exchange => 'OESS');
-
     $self->register_rpc_methods( $dispatcher );
 
     #attempt to reconnect!
@@ -217,11 +216,14 @@ sub register_rpc_methods{
     $dispatcher->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name        => "diff",
-					    callback    => sub { return { node_id => $self->{'node'}->{'node_id'},
-                                                                          status  => $self->diff(@_) }; },
+					    callback    => sub {
+                                                my $node_id = $self->{'node'}->{'node_id'};
+                                                my $status  = $self->diff(@_);
+                                                return { node_id => $node_id, status  => $status };
+                                            },
 					    description => "Proxies diff signal to the underlying device object.");
-    $method->add_input_parameter( name => "pending_diff",
-                                  description => "Set to 1 if user must approve the diff",
+    $method->add_input_parameter( name => "force_diff",
+                                  description => "Set to 1 if size of diff should be ignored",
                                   required => 1,
                                   pattern => $GRNOC::WebService::Regex::INTEGER);
     $dispatcher->register_method($method);
@@ -367,7 +369,7 @@ sub diff {
     my $m_ref = shift;
     my $p_ref = shift;
 
-    $self->{'logger'}->info("Calling Switch.diff");
+    $self->{'logger'}->debug("Calling Switch.diff");
     $self->_update_cache();
 
     my $circuits = [];
@@ -375,7 +377,7 @@ sub diff {
         push(@{$circuits}, $self->{'ckts'}->{$ckt});
     }
 
-    return $self->{'device'}->diff($circuits, $p_ref->{'pending_diff'}{'value'});
+    return $self->{'device'}->diff($circuits, $p_ref->{'force_diff'}{'value'});
 }
 
 =head2 get_interfaces

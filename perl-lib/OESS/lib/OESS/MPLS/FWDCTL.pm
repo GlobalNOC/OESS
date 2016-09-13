@@ -24,6 +24,7 @@ use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
+use constant FWDCTL_BLOCKED     => 4;
 
 #link statuses
 use constant OESS_LINK_UP       => 1;
@@ -465,7 +466,6 @@ sub make_baby {
     my $node = $self->{'node_by_id'}->{$id};
     my %args;
     $args{'id'} = $id;
-    $args{'node'} = $node;
     $args{'share_file'} = $self->{'share_file'}. "." . $id;
     $args{'rabbitMQ_host'} = $self->{'db'}->{'rabbitMQ'}->{'host'};
     $args{'rabbitMQ_port'} = $self->{'db'}->{'rabbitMQ'}->{'port'};
@@ -501,8 +501,8 @@ sub run{
 
     $self->{'children'}->{$id}->{'rpc'} = 1;
     $self->{'children'}->{$id}->{'client'} = $client;
-
-    $self->{'logger'}->debug("Created client for node $id publishing on topic $topic.");
+    $self->{'children'}->{$id}->{'pending_diff'} = $node->{'pending_diff'};
+    $self->{'logger'}->debug("Created client for node $id. Topic: $topic PendingDiff: $node->{'pending_diff'}");
     return 1;
 }
 
@@ -746,28 +746,47 @@ sub diff {
     my $event_id = $self->_generate_unique_event_id();
     my $callback = sub {
         my $res = shift;
-        $self->{'logger'}->debug("Callback: ". Dumper($res));
 
         if (defined $res->{'error'}) {
             $self->{'logger'}->error("ERROR: " . $res->{'error'});
             return 0;
         }
 
-        if ($res->{'status'}) {
-            return 1;
+        if ($res->{'results'}->{'status'} == FWDCTL_BLOCKED) {
+            my $node_id = $res->{'results'}->{'node_id'};
+
+            $self->{'db'}->set_diff_approval(0, $node_id);
+            $self->{'children'}->{$node_id}->{'pending_diff'} = 1;
+            $self->{'logger'}->warn("Diff for node $node_id requires admin approval.");
+
+            return 0;
         }
 
-        $self->{'db'}->set_diff_approval(0, $res->{'node_id'});
-        return 0;
+        return 1;
     };
 
     foreach my $node_id (keys %{$self->{'children'}}) {
-        my $node = $self->{'db'}->get_node_by_id(node_id => $node_id);
+        my $node         = $self->{'db'}->get_node_by_id(node_id => $node_id);
+        my $force_diff   = 0;
         my $pending_diff = int($node->{'pending_diff'});
 
-        $self->{'children'}->{$node_id}->{'client'}->diff( event_id       => $event_id,
-                                                           timeout        => 15,
-                                                           pending_diff   => $pending_diff,
+        # If the database asserts a diff is pending we are still waiting
+        # for admin approval. Skip diffing for now.
+        if ($pending_diff == 1) {
+            $self->{'logger'}->info("Diff for node $node_id requires admin approval.");
+            next;
+        }
+
+        # If the database asserts there is no diff pending but memory
+        # disagrees, then the pending state was modified by an admin.
+        # The pending diff may now proceed.
+        if ($self->{'children'}->{$node_id}->{'pending_diff'} == 1) {
+            $force_diff = 1;
+            $self->{'children'}->{$node_id}->{'pending_diff'} = 0;
+        }
+
+        $self->{'children'}->{$node_id}->{'client'}->diff( timeout        => 15,
+                                                           force_diff     => $force_diff,
                                                            async_callback => $callback );
     }
 
