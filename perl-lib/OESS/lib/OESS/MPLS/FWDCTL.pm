@@ -429,6 +429,15 @@ sub register_rpc_methods{
 
     $d->register_method($method);
 
+    $method = GRNOC::RabbitMQ::Method->new( name => 'get_diff_text',
+                                            callback => sub { $self->get_diff_text(@_) },
+                                            description => "Returns a human readable diff for node_id" );
+    $method->add_input_parameter( name => "node_id",
+                                  description => "The node ID to lookup",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);
+    $d->register_method($method);
+
 }
 
 sub new_switch{
@@ -743,7 +752,6 @@ sub diff {
     $self->{'logger'}->info("Signaling MPLS nodes to begin diff.");
     $self->_write_cache();
 
-    my $event_id = $self->_generate_unique_event_id();
     my $callback = sub {
         my $res = shift;
 
@@ -791,6 +799,24 @@ sub diff {
     }
 
     return 1;
+}
+
+sub get_diff_text {
+    my $self    = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    $self->{'logger'}->debug("Calling FWDCTL.get_diff_text");
+
+    my $node_id = $p_ref->{'node_id'}{'value'};
+    my $node = $self->{'children'}->{$node_id};
+    if (!defined $node) {
+        my $err = "ERROR: Node $node_id doesn't exist.";
+        $self->{'logger'}->error($err);
+        return { error => $err };
+    }
+
+    return $self->{'children'}->{$node_id}->{'client'}->get_diff_text( timeout => 15 );
 }
 
 sub get_ckt_object{

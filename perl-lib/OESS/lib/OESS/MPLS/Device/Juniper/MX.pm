@@ -299,8 +299,6 @@ sub diff {
         return $self->_edit_config(config => $configuration);
     }
 
-
-    # NOTE - Test data in diff_text overwrites this config
     my $diff = $self->diff_text($configuration);
 
     # The diff is apparently too big to trust.
@@ -325,14 +323,8 @@ sub diff_text {
     my $self = shift;
     my $conf = shift;
 
-    # Test data - Remove
-    $conf = "<configuration><interfaces><interface><name>xe-2/0/0</name><unit>" .
-      "<name>1000</name><description>Foo</description></unit></interface>" .
-      "</interfaces></configuration>";
-
     my %queryargs = ('target' => 'candidate');
     $self->{'jnx'}->lock_config(%queryargs);
-
 
     %queryargs = ('target' => 'candidate');
     $queryargs{'config'} = $conf;
@@ -346,13 +338,24 @@ sub diff_text {
     }
 
     my $dom = $self->{'jnx'}->get_dom();
-    my $diff = $dom->getElementsByTagName('configuration-output')->string_value();
+    $self->{'diff_text'} = $dom->getElementsByTagName('configuration-output')->string_value();
     
     $res = $self->{'jnx'}->discard_changes();
     %queryargs = ('target' => 'candidate');
     $self->{'jnx'}->unlock_config(%queryargs);
 
-    return $diff;
+    return $self->{'diff_text'};
+}
+
+sub get_diff_text {
+    my $self = shift;
+
+    $self->{'logger'}->debug("Calling MX.get_diff_text");
+
+    if (!defined $self->{'diff_text'}) {
+        $self->{'diff_text'} = '';
+    }
+    return $self->{'diff_text'};
 }
 
 =head2 _large_diff

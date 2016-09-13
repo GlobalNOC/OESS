@@ -39,7 +39,10 @@ use OESS::Database;
 use OESS::Topology;
 use OESS::Circuit;
 use Log::Log4perl;
+
+use GRNOC::RabbitMQ::Client;
 use GRNOC::WebService;
+
 #link statuses
 use constant OESS_LINK_UP       => 1;
 use constant OESS_LINK_DOWN     => 0;
@@ -732,17 +735,14 @@ sub get_diff_text {
     my ( $method, $args ) = @_ ;
     my $node_id = $args->{'node_id'}{'value'};
 
-    my $results = {};
-    $results->{'results'} = [
-                             {
-                              'id'=>123,
-                              'name'=>'sw1',
-                              'status'=>'pending',
-                              'approved'=>0,
-                              'text'=>'diff'
-                             }
-                            ];
-    return $results;
+    my $client = GRNOC::RabbitMQ::Client->new( host     => 'localhost',
+                                               user     => 'guest',
+                                               pass     => 'guest',
+                                               port     => 5672,
+                                               exchange => 'OESS',
+                                               topic    => 'MPLS.FWDCTL.RPC' );
+
+    return $client->get_diff_text(node_id => $node_id);
 }
 
 =head2 set_diff_approval

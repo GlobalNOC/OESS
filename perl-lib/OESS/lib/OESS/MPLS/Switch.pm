@@ -227,6 +227,13 @@ sub register_rpc_methods{
                                   required => 1,
                                   pattern => $GRNOC::WebService::Regex::INTEGER);
     $dispatcher->register_method($method);
+
+    $method = GRNOC::RabbitMQ::Method->new( name        => "get_diff_text",
+					    callback    => sub {
+                                                return { text => $self->get_diff_text(@_) };
+                                            },
+					    description => "Proxies diff signal to the underlying device object." );
+    $dispatcher->register_method($method);
 }
 
 sub _update_cache{
@@ -378,6 +385,14 @@ sub diff {
     }
 
     return $self->{'device'}->diff($circuits, $p_ref->{'force_diff'}{'value'});
+}
+
+sub get_diff_text {
+    my $self  = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    return $self->{'device'}->get_diff_text();
 }
 
 =head2 get_interfaces
