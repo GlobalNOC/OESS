@@ -430,7 +430,7 @@ sub register_rpc_methods{
     $d->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name => 'get_diff_text',
-                                            callback => sub { $self->get_diff_text(@_) },
+                                            callback => sub { $self->get_diff_text(@_); },
                                             description => "Returns a human readable diff for node_id" );
     $method->add_input_parameter( name => "node_id",
                                   description => "The node ID to lookup",

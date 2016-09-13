@@ -677,7 +677,7 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
         name            => "get_diff_text",
         description     => "Returns diff text for the specified node.",
-        callback        => sub { get_diff_text( @_ ) }
+        callback        => sub { get_diff_text(@_); }
 	);
 
     $method->add_input_parameter(
