@@ -217,7 +217,8 @@ sub register_rpc_methods{
     $dispatcher->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name        => "diff",
-					    callback    => sub { return { status => $self->diff(@_) } },
+					    callback    => sub { return { node_id => $self->{'node'}->{'node_id'},
+                                                                          status  => $self->diff(@_) }; },
 					    description => "Proxies diff signal to the underlying device object.");
     $method->add_input_parameter( name => "pending_diff",
                                   description => "Set to 1 if user must approve the diff",

@@ -441,7 +441,7 @@ sub new_switch{
     
     $self->update_cache(-1);
 
-    if(!defined($self->{'children'}->{$node_id}->{'rpc'})){
+    if (!defined $self->{'children'}->{$node_id}->{'rpc'}) {
 	#sherpa will you make my babies!
 	$self->make_baby($node_id);
 	$self->{'logger'}->debug("Baby was created!");
@@ -450,11 +450,13 @@ sub new_switch{
 
 
 =head2 make_baby
+
 make baby is a throw back to sherpa...
 have to give Ed the credit for most 
 awesome function name ever
+
 =cut
-sub make_baby{
+sub make_baby {
     my $self = shift;
     my $id = shift;
     
@@ -487,11 +489,22 @@ sub run{
     $logger->info("Creating child for id: " . $args{"id"});
 
     $switch = OESS::MPLS::Switch->new( %args );
-    }')->fork->send_arg( %args )->run("run");
+}')->fork->send_arg( %args )->run("run");
+
+    my $topic  = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$id}->{'mgmt_addr'};
+    my $client = GRNOC::RabbitMQ::Client->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
+                                               port => $self->{'db'}->{'rabbitMQ'}->{'port'},
+                                               user => $self->{'db'}->{'rabbitMQ'}->{'user'},
+                                               pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
+                                               exchange => 'OESS',
+                                               topic    => $topic );
 
     $self->{'children'}->{$id}->{'rpc'} = 1;
-}
+    $self->{'children'}->{$id}->{'client'} = $client;
 
+    $self->{'logger'}->debug("Created client for node $id publishing on topic $topic.");
+    return 1;
+}
 
 =head2 update_cache
 updates the cache for all of the children
@@ -501,7 +514,7 @@ sub update_cache{
     my $self = shift;
     my $m_ref = shift;
     my $p_ref = shift;
-    
+
     my $circuit_id = $p_ref->{'circuit_id'}->{'value'};
 
     if(!defined($circuit_id) || $circuit_id == -1){
@@ -529,11 +542,12 @@ sub update_cache{
         $self->{'logger'}->debug("Updating cache for circuit: " . $circuit_id . " complete");
     }
 
-    #write the cache for our children
+    # Write the cache to file for our children, then signal children to
+    # read updates from file.
     $self->_write_cache();
     my $event_id = $self->_generate_unique_event_id();
-    foreach my $child (keys %{$self->{'children'}}){
-	$self->send_message_to_child($child,{action => 'update_cache'},$event_id);
+    foreach my $id (keys %{$self->{'children'}}){
+	$self->send_message_to_child($id, {action => 'update_cache'}, $event_id);
     }
     
     $self->{'logger'}->debug("Completed sending message to children!");
@@ -548,13 +562,14 @@ sub update_cache{
 sub check_child_status{
     my $self = shift;
 
-    $self->{'logger'}->debug("Checking on child status");
+    $self->{'logger'}->info("Checking the status of all children.");
     my $event_id = $self->_generate_unique_event_id();
+
     foreach my $id (keys %{$self->{'children'}}){
-        $self->{'logger'}->debug("checking on child: " . $id);
-        my $child = $self->{'children'}->{$id};
-        my $corr_id = $self->send_message_to_child($id,{action => 'echo'},$event_id);            
+        $self->{'logger'}->debug("Checking status of child: " . $id);
+        $self->send_message_to_child($id, {action => 'echo'}, $event_id);
     }
+
     return {status => 1, event_id => $event_id};
 }
 
@@ -728,14 +743,32 @@ sub diff {
     $self->{'logger'}->info("Signaling MPLS nodes to begin diff.");
     $self->_write_cache();
 
+    my $event_id = $self->_generate_unique_event_id();
+    my $callback = sub {
+        my $res = shift;
+        $self->{'logger'}->debug("Callback: ". Dumper($res));
+
+        if (defined $res->{'error'}) {
+            $self->{'logger'}->error("ERROR: " . $res->{'error'});
+            return 0;
+        }
+
+        if ($res->{'status'}) {
+            return 1;
+        }
+
+        $self->{'db'}->set_diff_approval(0, $res->{'node_id'});
+        return 0;
+    };
+
     foreach my $node_id (keys %{$self->{'children'}}) {
-        my $event_id = $self->_generate_unique_event_id();
-
         my $node = $self->{'db'}->get_node_by_id(node_id => $node_id);
-        my $pending_diff = $node->{'pending_diff'};
-        next if (!$node->{'mpls'});
+        my $pending_diff = int($node->{'pending_diff'});
 
-	$self->send_message_to_child($node_id, {action => 'diff', pending_diff => int($pending_diff)}, $event_id);
+        $self->{'children'}->{$node_id}->{'client'}->diff( event_id       => $event_id,
+                                                           timeout        => 15,
+                                                           pending_diff   => $pending_diff,
+                                                           async_callback => $callback );
     }
 
     return 1;

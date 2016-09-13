@@ -28,7 +28,7 @@ sub new{
     bless $self, $class;
 
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Device.Juniper.MX.' . $self->{'mgmt_addr'});
-    $self->{'logger'}->info("MPLS Juniper Switch Created: $self->{'mgmt_addr'} Pending diff: $self->{'pending_diff'}");
+    $self->{'logger'}->info("MPLS Juniper Switch Created: $self->{'mgmt_addr'}");
 
     #TODO: make this automatically figure out the right REV
     $self->{'template_dir'} = "juniper/13.3R8";
