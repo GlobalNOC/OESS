@@ -230,7 +230,8 @@ sub register_rpc_methods{
 
     $method = GRNOC::RabbitMQ::Method->new( name        => "get_diff_text",
 					    callback    => sub {
-                                                return { text => $self->get_diff_text(@_) };
+                                                my $resp = { text => $self->get_diff_text(@_) };
+                                                return $resp;
                                             },
 					    description => "Proxies diff signal to the underlying device object." );
     $dispatcher->register_method($method);

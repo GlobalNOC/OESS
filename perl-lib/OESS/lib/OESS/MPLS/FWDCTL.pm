@@ -125,7 +125,12 @@ sub new {
     
     $self->{'logger'}->error("MPLS Provisioner INIT COMPLETE");
 
-    
+    # {
+    #     id      => 00000,
+    #     results => undef,
+    #     status  => FWDCTL_SUCCESS
+    # };
+    $self->{'events'} = {};
     
     return $self;
 }
@@ -430,7 +435,7 @@ sub register_rpc_methods{
     $d->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name => 'get_diff_text',
-                                            callback => sub { $self->get_diff_text(@_); },
+                                            callback => sub { return $self->get_diff_text(@_); },
                                             description => "Returns a human readable diff for node_id" );
     $method->add_input_parameter( name => "node_id",
                                   description => "The node ID to lookup",
@@ -801,22 +806,43 @@ sub diff {
     return 1;
 }
 
+
 sub get_diff_text {
-    my $self    = shift;
+    my $self  = shift;
     my $m_ref = shift;
     my $p_ref = shift;
 
     $self->{'logger'}->debug("Calling FWDCTL.get_diff_text");
+    my $id = $self->_generate_unique_event_id();
+    my $event = { id      => $id,
+                  results => undef,
+                  status  => FWDCTL_WAITING
+                };
 
     my $node_id = $p_ref->{'node_id'}{'value'};
     my $node = $self->{'children'}->{$node_id};
     if (!defined $node) {
-        my $err = "ERROR: Node $node_id doesn't exist.";
+        my $err = "Node $node_id doesn't exist.";
         $self->{'logger'}->error($err);
-        return { error => $err };
+        $event->{'error'} = $err;
+        $event->{'status'} = FWDCTL_FAILURE;
+        return $event;
     }
 
-    return $self->{'children'}->{$node_id}->{'client'}->get_diff_text( timeout => 15 );
+    $node->{'client'}->get_diff_text( async_callback => sub {
+                                          my $response = shift;
+
+                                          if (defined $response->{'error'}) {
+                                              $event->{'error'} = $response->{'error'};
+                                              $event->{'status'} = FWDCTL_FAILURE;
+                                          } else {
+                                              $event->{'results'} = [ $response->{'results'} ];
+                                              $event->{'status'} = FWDCTL_SUCCESS;
+                                          }
+                                      } );
+
+    $self->{'events'}->{$id} = $event;
+    return $event;
 }
 
 sub get_ckt_object{
@@ -895,7 +921,15 @@ sub get_event_status{
         #done waiting and was success!
         $self->{'logger'}->debug("Event $event_id is complete!!");
         return {status => FWDCTL_SUCCESS};
-    }else{
+    } elsif (defined $self->{'events'}->{$event_id}) {
+
+        my $event = $self->{'events'}->{$event_id};
+        if ($event->{'status'} != FWDCTL_WAITING) {
+            delete $self->{'events'}->{$event_id};
+        }
+        return $event;
+
+    } else {
         #no known event by that ID
         return {status => FWDCTL_UNKNOWN};
     }

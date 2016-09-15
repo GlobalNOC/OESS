@@ -29,30 +29,46 @@
 use strict;
 use warnings;
 
-use JSON::XS;
-use Switch;
+use AnyEvent;
 use Data::Dumper;
-
-use URI::Escape;
-use MIME::Lite;
-use OESS::Database;
-use OESS::Topology;
-use OESS::Circuit;
+use JSON::XS;
 use Log::Log4perl;
+use MIME::Lite;
+use Switch;
+use Time::HiRes qw(usleep);
+use URI::Escape;
 
 use GRNOC::RabbitMQ::Client;
 use GRNOC::WebService;
+
+use OESS::Circuit;
+use OESS::Database;
+use OESS::Topology;
+
 
 #link statuses
 use constant OESS_LINK_UP       => 1;
 use constant OESS_LINK_DOWN     => 0;
 use constant OESS_LINK_UNKNOWN  => 2;
 
+use constant FWDCTL_WAITING     => 2;
+use constant FWDCTL_SUCCESS     => 1;
+use constant FWDCTL_FAILURE     => 0;
+use constant FWDCTL_UNKNOWN     => 3;
+use constant FWDCTL_BLOCKED     => 4;
+
 my $db   = new OESS::Database();
 my $topo = new OESS::Topology();
 
 #register web service dispatcher
-my $svc = GRNOC::WebService::Dispatcher->new();
+my $svc    = GRNOC::WebService::Dispatcher->new();
+my $fwdctl = GRNOC::RabbitMQ::Client->new( host     => 'localhost',
+                                           user     => 'guest',
+                                           pass     => 'guest',
+                                           port     => 5672,
+                                           exchange => 'OESS',
+                                           topic    => 'MPLS.FWDCTL.RPC' );
+
 
 Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
 
@@ -733,16 +749,16 @@ sub get_diffs {
 
 sub get_diff_text {
     my ( $method, $args ) = @_ ;
+
     my $node_id = $args->{'node_id'}{'value'};
+    my $event   = $fwdctl->get_diff_text( node_id => $node_id );
 
-    my $client = GRNOC::RabbitMQ::Client->new( host     => 'localhost',
-                                               user     => 'guest',
-                                               pass     => 'guest',
-                                               port     => 5672,
-                                               exchange => 'OESS',
-                                               topic    => 'MPLS.FWDCTL.RPC' );
+    while ($event->{'results'}->{'status'} == FWDCTL_WAITING) {
+        usleep(1000);
+        $event = $fwdctl->get_event_status( event_id => $event->{'results'}->{'id'} );
+    }
 
-    return $client->get_diff_text(node_id => $node_id);
+    return $event->{'results'};
 }
 
 =head2 set_diff_approval

@@ -263,8 +263,6 @@ sub diff {
     my $ckts = shift;
     my $force_diff = shift; # If set do not check diff size
 
-    $self->{'logger'}->debug("Calling MX.diff");
-
     # Build a configuration string to call against $self->diff_text
     my $configuration = '<configuration>';
     foreach my $ckt (@{$ckts}) {
