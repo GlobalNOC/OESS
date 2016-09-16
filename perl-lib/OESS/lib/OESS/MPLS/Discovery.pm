@@ -38,6 +38,7 @@ use warnings;
 package OESS::MPLS::Discovery;
 
 use AnyEvent::Fork;
+use Data::Dumper;
 use Socket;
 use GRNOC::RabbitMQ::Client;
 use GRNOC::RabbitMQ::Method;
@@ -373,6 +374,8 @@ sub handle_links{
     my %node_info;
     my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
 
+    $self->{'logger'}->info("HAAAAAAAAAAAAAAAAAAADLEING LINKS");
+
     #build a Node hash by name...
     foreach my $node (@$nodes) {
         my $details = $self->{'db'}->get_node_by_id(node_id => $node->{'node_id'});
@@ -392,14 +395,21 @@ sub handle_links{
     foreach my $node_a (keys (%{$adj})){
         foreach my $node_z (keys(%{$adj->{$node_a}})){
 
-	    next if (!defined($adj->{$node_a}{$node_z}{'node_z'}{'interface_name'}) || !defined($adj->{$node_a}{$node_z}{'node_a'}{'interface_name'}));
+            if (!defined($adj->{$node_a}{$node_z}{'node_z'}{'interface_name'}) || !defined($adj->{$node_a}{$node_z}{'node_a'}{'interface_name'})) {
+                $self->{'logger'}->info("Link Instantiation: Couldn't find a required endpoint name:A-Z: " . Data::Dumper::Dumper($adj->{$node_a}{$node_z}));
+                $self->{'logger'}->info("Link Instantiation: Couldn't find a required endpoint name:Z-A: " . Data::Dumper::Dumper($adj->{$node_z}{$node_a}));
+                next;
+            }
 	    
 	    my $a_int = $self->{'db'}->get_interface_id_by_names( node => $node_a,
-								  interface => $adj->{$node_a}{$node_z}{'node_a'}{'interface_name'});
+	        						  interface => $adj->{$node_a}{$node_z}{'node_a'}{'interface_name'});
 	    my $z_int = $self->{'db'}->get_interface_id_by_names( node => $node_z,
-								  interface => $adj->{$node_a}{$node_z}{'node_z'}{'interface_name'});
+	        						  interface => $adj->{$node_a}{$node_z}{'node_z'}{'interface_name'});
 	    
-	    next if(!defined($a_int) || !defined($z_int));
+	    if (!defined($a_int) || !defined($z_int)) {
+                $self->{'logger'}->info("Link Instantiation: Couldn't find interface_ids.");
+                next;
+            }
 
 	    #find current link if any
 	    my ($link_db_id, $link_db_state) = $self->get_active_link_id_by_connectors( interface_a_id => $a_int, interface_z_id => $z_int);
@@ -408,6 +418,8 @@ sub handle_links{
 				
 		#$self->{'db'}->update_link_state( link_id => $link_db_id, state => 'up');
 	    }else{
+                $self->{'logger'}->info("Working on Link Instantiation");
+
 		#first determine if any of the ports are currently used by another link... and connect to the same other node
 		my $links_a = $self->{'db'}->get_link_by_interface_id( interface_id => $a_int, show_decom => 0);
 		my $links_z = $self->{'db'}->get_link_by_interface_id( interface_id => $z_int, show_decom => 0);
@@ -459,7 +471,7 @@ sub handle_links{
 		    my $old_z_interface = $self->{'db'}->get_interface( interface_id => $old_z);
 		    $self->{'db'}->decom_link_instantiation( link_id => $link->{'link_id'} );
 		    $self->{'db'}->create_link_instantiation( link_id => $link->{'link_id'}, interface_a_id => $a_int, interface_z_id => $z_int, state => $link->{'state'}, mpls => 1, ip_a => $adj->{$node_a}{$node_z}{'node_a'}{'ip_address'}, ip_z => $adj->{$node_a}{$node_z}{'node_z'}{'ip_address'} );
-		    
+                    $self->{'logger'}->info("Link Instantiation A");
 		}elsif(defined($a_links->[0])){
 		    $self->{'logger'}->info("Link updated on the Z Side");
 
@@ -473,6 +485,7 @@ sub handle_links{
 		    #if its in the links_a that means the z end changed...
 		    $self->{'db'}->decom_link_instantiation( link_id => $link->{'link_id'} );
 		    $self->{'db'}->create_link_instantiation( link_id => $link->{'link_id'}, interface_a_id => $a_int, interface_z_id => $z_int, state => $link->{'state'}, mpls => 1, ip_a => $adj->{$node_a}{$node_z}{'node_a'}{'ip_address'}, ip_z => $adj->{$node_a}{$node_z}{'node_z'}{'ip_address'} );
+                    $self->{'logger'}->info("Link Instantiation B");
 		}elsif(defined($z_links->[0])){
 		    #easy case update link_a so that it is now on the new interfaces
 		    my $link = $z_links->[0];
@@ -485,6 +498,7 @@ sub handle_links{
 		    
 		    $self->{'db'}->decom_link_instantiation( link_id => $link->{'link_id'});
 		    $self->{'db'}->create_link_instantiation( link_id => $link->{'link_id'}, interface_a_id => $a_int, interface_z_id => $z_int, state => $link->{'state'}, mpls => 1, ip_a => $adj->{$node_a}{$node_z}{'node_a'}{'ip_address'}, ip_z => $adj->{$node_a}{$node_z}{'node_z'}{'ip_address'});
+                    $self->{'logger'}->info("Link Instantiation C");
 		}else{
 		    my $link_name = $node_a . "-" . $adj->{$node_a}{$node_z}{'node_a'}{'interface_name'} . "--" . $node_z . "-" . $adj->{$node_a}{$node_z}{'node_z'}{'interface_name'};
 		    my $link = $self->{'db'}->get_link_by_name(name => $link_name);
@@ -498,15 +512,19 @@ sub handle_links{
 
 		    if(!defined($link_id)){
 			$self->{'db'}->_rollback();
+                        $self->{'logger'}->info("DDDDDDDDDDDDONNNNNEEEEE HAAAAAAAAAAAAAAAAAAADLEING LINKS FAILURE");
 			return undef;
 		    }
 
 		    $self->{'db'}->create_link_instantiation( link_id => $link_id, state => 'available', interface_a_id => $a_int, interface_z_id => $z_int, mpls => 1, ip_a => $adj->{$node_a}{$node_z}{'node_a'}{'ip_address'}, ip_z => $adj->{$node_a}{$node_z}{'node_z'}{'ip_address'});
+                    $self->{'logger'}->info("Link Instantiation D");
 		}
 	    }
 	}
     }
     $self->{'db'}->_commit();
+
+    $self->{'logger'}->info("DDDDDDDDDDDDONNNNNEEEEE HAAAAAAAAAAAAAAAAAAADLEING LINKS");
 }
 
 sub get_active_link_id_by_connectors{
