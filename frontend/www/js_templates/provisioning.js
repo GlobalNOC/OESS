@@ -55,7 +55,8 @@ function saveRemoteCircuit(){
 	resultsList: "results",
 	fields: [{key: "gri"}],
 	metaFields: {
-	    error: "error"
+	    error: "error",
+            error_text: "error_text"
 	}
     };
 
@@ -291,6 +292,7 @@ function saveLocalCircuit(){
 		 ],
 	metaFields: {
 	    error: "error",
+            error_text: "error_text",
 	    warning: "warning"
 	}
     };
@@ -338,7 +340,7 @@ function handleLocalSuccess(request, response){
     this.set("disabled", false);
 
     if (response.meta.error){
-	alert("Error - " + response.meta.error);
+	alert("Error - " + response.meta.error_text);
 	return;
     }
 
@@ -386,8 +388,9 @@ function update_circuit_owner(gri){
     ds.responseSchema = {
         resultsList: "results",
 	fields: [{key: "success"},
-    {key: "error"},
-    {key: "message"}]
+                 {key: "error"},
+                 {key: "error_text"},
+                 {key: "message"}]
     };
 
     ds.sendRequest("",
