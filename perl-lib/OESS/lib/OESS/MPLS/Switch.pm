@@ -82,7 +82,7 @@ sub new{
 
     #try and connect up right away
     $self->{'device'}->connect();
- 
+
     AnyEvent->condvar->recv;
     return $self;
 }
@@ -272,7 +272,7 @@ sub _update_cache{
         $self->{'logger'}->debug("processing cache for circuit: " . $ckt);
 
         $self->{'ckts'}->{$ckt} = $data->{'ckts'}->{$ckt};
-
+        $self->{'ckts'}->{$ckt}->{'circuit_id'} = $ckt;
     }
 
     $self->{'logger'} = Log::Log4perl->get_logger('MPLS.FWDCTL.Switch.' . $self->{'node'}->{'name'}) if($self->{'node'}->{'name'});
@@ -393,7 +393,15 @@ sub get_diff_text {
     my $m_ref = shift;
     my $p_ref = shift;
 
-    return $self->{'device'}->get_diff_text();
+    $self->{'logger'}->debug("Calling Switch.diff");
+    $self->_update_cache();
+
+    my $circuits = [];
+    foreach my $ckt (keys %{ $self->{'ckts'} }){
+        push(@{$circuits}, $self->{'ckts'}->{$ckt});
+    }
+
+    return $self->{'device'}->get_diff_text($circuits);
 }
 
 =head2 get_interfaces

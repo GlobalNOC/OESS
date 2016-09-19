@@ -253,17 +253,10 @@ sub add_vlan{
     
 }
 
-=head2 diff
-
-Do a diff between $ckts and the circuits on this device.
-
-=cut
-sub diff {
+sub xml_configuration {
     my $self = shift;
     my $ckts = shift;
-    my $force_diff = shift; # If set do not check diff size
 
-    # Build a configuration string to call against $self->diff_text
     my $configuration = '<configuration>';
     foreach my $ckt (@{$ckts}) {
         # The argument $ckts is passed in a generic form. This should be
@@ -284,40 +277,22 @@ sub diff {
         $vars->{'site_id'} = $ckt->{'site_id'};
         $vars->{'paths'} = $ckt->{'paths'};
         $vars->{'a_side'} = $ckt->{'a_side'};
-
+        
         $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$addition);
         $addition =~ s/<configuration>//g;
         $addition =~ s/<\/configuration>//g;
         $configuration = $configuration . $addition;
     }
     $configuration = $configuration . '</configuration>';
-
-    if ($force_diff) {
-        $self->{'logger'}->info('Force diff was initiated. Starting installation.');
-        return $self->_edit_config(config => $configuration);
-    }
-
-    my $diff = $self->diff_text($configuration);
-
-    # The diff is apparently too big to trust.
-    # NOTE - Test func causes any diff larger than one char to trigger
-    # this block.
-    if ($self->_large_diff($diff)) {
-        $self->{'logger'}->info('Large diff detected. Waiting for approval before installation.');
-        $self->{'pending_diff'} = 1;
-        return FWDCTL_BLOCKED;
-    }
-
-    $self->{'logger'}->info("Diff requires no approval. Starting installation.");
-    return $self->_edit_config(config => $configuration);
+    return $configuration;
 }
 
-=head2 diff_text
+=head2 get_device_diff
 
-Returns a human readable diff for display to users.
+Returns and stores a human readable diff for display to users.
 
 =cut
-sub diff_text {
+sub get_device_diff {
     my $self = shift;
     my $conf = shift;
 
@@ -345,17 +320,6 @@ sub diff_text {
     return $self->{'diff_text'};
 }
 
-sub get_diff_text {
-    my $self = shift;
-
-    $self->{'logger'}->debug("Calling MX.get_diff_text");
-
-    if (!defined $self->{'diff_text'}) {
-        $self->{'diff_text'} = '';
-    }
-    return $self->{'diff_text'};
-}
-
 =head2 _large_diff
 
 Returns 1 if $diff requires manual approval.
@@ -369,8 +333,54 @@ sub _large_diff {
     if ($len > 0) {
         return 1;
     }
-
     return 0;
+}
+
+=head2 diff
+
+Do a diff between $ckts and the circuits on this device.
+
+=cut
+sub diff {
+    my $self = shift;
+    my $ckts = shift;
+    my $force_diff = shift; # If set do not check diff size
+
+    # Build a configuration string to call against $self->diff_text
+    my $configuration = xml_configuration($ckts);
+    if ($force_diff) {
+        $self->{'logger'}->info('Force diff was initiated. Starting installation.');
+        $self->{'pending_diff'} = 0;
+        return $self->_edit_config(config => $configuration);
+    }
+
+    my $diff = $self->get_device_diff($configuration);
+    if ($self->_large_diff($diff)) {
+        # It may be possible that a large diffs is considered untrusted.
+        # If so, block until the diff has been approved.
+        $self->{'logger'}->info('Large diff detected. Waiting for approval before installation.');
+        $self->{'pending_diff'} = 1;
+        return FWDCTL_BLOCKED;
+    }
+
+    $self->{'logger'}->info("Diff requires no approval. Starting installation.");
+    return $self->_edit_config(config => $configuration);
+}
+
+=head2 get_diff_text
+
+Returns a human readable diff between $circuits and this Device's
+configuration.
+
+=cut
+sub get_diff_text {
+    my $self = shift;
+    my $circuits = shift;
+
+    $self->{'logger'}->debug("Calling MX.get_diff_text");
+    my $configuration = xml_configuration($ckts);
+
+    return $self->get_device_diff($configuration);
 }
 
 =head2
@@ -835,9 +845,6 @@ sub _edit_config{
         $self->{'logger'}->error($err);
         return FWDCTL_FAILURE;
     }
-    
-    # my %queryargs = ( 'target' => 'candidate' );
-    # my $res = $self->{'jnx'}->lock_config(%queryargs);
 
     my %queryargs = ();
     my $res;
@@ -853,7 +860,7 @@ sub _edit_config{
         return FWDCTL_FAILURE;
     }
     if ($self->{'jnx'}->has_error) {
-        my $err = "Error attempting to lock config: " . Dumper($self->{'jnx'}->get_first_error());
+        my $err = "Error attempting to lock config: " . $self->{'jnx'}->get_first_error()->{'error_message'};
         $self->set_error($err);
         $self->{'logger'}->error($err);
         return FWDCTL_FAILURE;
@@ -874,7 +881,7 @@ sub _edit_config{
         return FWDCTL_FAILURE;
     }
     if($self->{'jnx'}->has_error){
-        my $err = "Error attempting to modify config: " . Dumper($self->{'jnx'}->get_first_error());
+        my $err = "Error attempting to edit config: " . $self->{'jnx'}->get_first_error()->{'error_message'};
         $self->set_error($err);
         $self->{'logger'}->error($err);
 
@@ -893,7 +900,7 @@ sub _edit_config{
         return FWDCTL_FAILURE;
     }
     if($self->{'jnx'}->has_error){
-        my $err = "Error attempting to commit the config: " . Dumper($self->{'jnx'}->get_first_error());
+        my $err = "Error attempting to commit config: " . $self->{'jnx'}->get_first_error()->{'error_message'};
         $self->set_error($err);
         $self->{'logger'}->error($err);
 
@@ -913,7 +920,7 @@ sub _edit_config{
         return FWDCTL_FAILURE;
     }
     if($self->{'jnx'}->has_error){
-        my $err = "Error attempting to unlock the config: " . Dumper($self->{'jnx'}->get_first_error());
+        my $err = "Error attempting to unlock the config: " . $self->{'jnx'}->get_first_error()->{'error_message'};
         $self->set_error($err);
         $self->{'logger'}->error($err);
 
