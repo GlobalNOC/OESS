@@ -754,7 +754,7 @@ sub get_diff_text {
     my $event   = $fwdctl->get_diff_text( node_id => $node_id );
 
     while ($event->{'results'}->{'status'} == FWDCTL_WAITING) {
-        usleep(1000);
+        usleep(1000000);
         $event = $fwdctl->get_event_status( event_id => $event->{'results'}->{'id'} );
     }
 
