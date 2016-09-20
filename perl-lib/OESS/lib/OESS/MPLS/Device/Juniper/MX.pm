@@ -378,7 +378,7 @@ sub get_diff_text {
     my $circuits = shift;
 
     $self->{'logger'}->debug("Calling MX.get_diff_text");
-    my $configuration = xml_configuration($ckts);
+    my $configuration = xml_configuration($circuits);
 
     return $self->get_device_diff($configuration);
 }
