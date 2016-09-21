@@ -180,10 +180,9 @@ sub register_rpc_methods{
     $method = GRNOC::RabbitMQ::Method->new( name        => "stop",
                                             callback    => sub {
                                                 $self->stop();
-                                                $self->{'logger'}->info("FWDCTL has stopped; Now exiting.");
                                             },
                                             description => "Notification that FWDCTL has exited",
-                                            topic       => "OF.FWDCTL.event" );
+                                            topic       => "MPLS.FWDCTL.event" );
     $dispatcher->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name        => "get_interfaces",
@@ -298,8 +297,9 @@ should listen for this signal and cleanly exit when received.
 =cut
 sub stop {
     my $self = shift;
+    $self->{'logger'}->info("FWDCTL has stopped; Now exiting.");
 
-    exit(1);
+    exit 0;
 }
 
 =head2 add_vlan

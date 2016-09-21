@@ -944,7 +944,7 @@ sub echo {
 }
 
 =head2 stop
-Sends a shutdown signal on OF.FWDCTL.event.stop. Child processes
+Sends a shutdown signal on MPLS.FWDCTL.event.stop. Child processes
 should listen for this signal and cleanly exit when received.
 =cut
 sub stop {

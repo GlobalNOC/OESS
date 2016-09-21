@@ -189,7 +189,6 @@ sub new {
     $method = GRNOC::RabbitMQ::Method->new( name        => "stop",
                                             callback    => sub {
                                                 $self->stop();
-                                                $self->{'logger'}->info("FWDCTL has stopped; Now exiting.");
                                             },
                                             description => "Notification that FWDCTL has exited",
                                             topic       => "OF.FWDCTL.event" );
@@ -220,6 +219,8 @@ sub new {
 =cut
 sub stop {
     my $self = shift;
+    $self->{'logger'}->info("FWDCTL has stopped; Now exiting.");
+
     exit 0;
 }
 

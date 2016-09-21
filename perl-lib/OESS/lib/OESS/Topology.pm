@@ -267,7 +267,7 @@ sub validate_paths {
         return;
     }
 
-    if (defined $links && $links != []) {
+    if (defined $links && @{$links} != 0) {
         if ( (!$self->path_is_loop_free($links)) && (!$self->is_loopback($endpoints)) ){
             $self->_set_error("Primary path contains a loop");
             return (0,"Primary path contains a loop.");
@@ -279,7 +279,7 @@ sub validate_paths {
         }
     }
 
-    if(defined $backup_links && $backup_links != []) {
+    if(defined $backup_links && @{$backup_links} != 0) {
         if ( (!$self->path_is_loop_free($backup_links)) && (!$self->is_loopback($endpoints)) ){
             $self->_set_error("Backup path contains a loop.");
             return (0,"Backup path contains a loop.");
