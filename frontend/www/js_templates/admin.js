@@ -10,7 +10,9 @@ var remote_link_table;
 var link_maint_table;
 var node_maint_table;
 var int_move_maint_table;
+var config_table;
 var maint_add_button;
+
 function admin_init(){
 
     var tabs = new YAHOO.widget.TabView("admin_tabs", {orientation: "left"});
@@ -28,7 +30,166 @@ function admin_init(){
     setup_remote_dev_tab();
 
     setup_maintenance_tab();
+
+    setup_config_changes_tab();
 }
+
+function setup_config_changes_tab() {
+    makeConfigTable('config_table');
+}
+
+
+function makeConfigPanel(x, y, width, obj) {
+    var url    = '../services/data.cgi?';
+    var params = 'method=get_diff_text'+
+        '&node_id='  + obj.getData('node_id');
+
+    var ds = new YAHOO.util.DataSource(url);
+    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+    ds.responseSchema = {
+        resultsList: "results",
+        fields: [
+            {key: 'text'}
+        ],
+        metaFields: {
+            error: "error"
+        }
+    };
+
+    var pre = YAHOO.util.Dom.get('config_diff_pre');
+    pre.innerHTML = 'Loading diff...';
+    YAHOO.util.Dom.setStyle(['config_diff_pre'], 'display', 'block');
+    YAHOO.util.Dom.setStyle(['config_diff_pre'], 'padding', '5px');
+    YAHOO.util.Dom.setStyle(['config_diff_pre'], 'margin', '5px');
+    YAHOO.util.Dom.setStyle(['config_diff_pre'], 'border-style', 'solid');
+    YAHOO.util.Dom.setStyle(['config_diff_pre'], 'border-color', '#c1c1c1');
+    YAHOO.util.Dom.setStyle(['config_diff_pre'], 'border-width', '2px');
+    YAHOO.util.Dom.setStyle(['config_diff_pre'], 'width', '95%');
+    YAHOO.util.Dom.setStyle(['config_diff_pre'], 'height', '300px');
+    YAHOO.util.Dom.setStyle(['config_diff_pre'], 'overflow', 'auto');
+
+    ds.sendRequest(params, {
+        success: function(req, resp) {
+            pre.innerHTML = resp.results[0].text;
+        },
+        failure: function(req, resp){
+            pre.innerHTML = 'Failed to receive diff. Please try again later.';
+            console.log('Request failed: ' + resp.error);
+        }
+    });
+
+    var approve = new YAHOO.widget.Button('approve_diff_btn', {label: 'Approve'});
+    approve.on('click', function() {
+        approve.set('label', 'Approving...');
+
+        var url    = '../services/data.cgi?';
+        var params = 'method=set_diff_approval'+
+            '&node_id='  + obj.getData('node_id') +
+            '&approved=' + '1';
+
+        var ds = new YAHOO.util.DataSource(url, { connMethodPost: true } );
+        ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+        ds.responseSchema = {
+            resultsList: "results",
+            fields: [ ],
+            metaFields: {
+                error: "error"
+            }
+        };
+
+        ds.sendRequest(params, {
+            success: function(req, resp){
+                if (resp.meta.error){
+                    alert("Error adding maintenance: " + resp.meta.error, null, {error: true});
+                    return;
+                }
+
+                var msg = 'Configuration change was approved.';
+                panel.destroy();
+                alert(msg);
+            },
+            failure: function(req, resp){
+                add_button.set('label', 'Add');
+                alert('Server error occured while approving change.' , null, {error: true});
+            }
+        });
+    });
+
+    var panel  = new YAHOO.widget.Panel('config_details', {
+        width: width,
+        xy: [x, y],
+        modal: true
+    });
+
+    panel.setHeader('Configuration Details - ' + obj.getData('name'));
+    panel.setFooter('Approve this pending configuration?');
+    panel.hideEvent.subscribe(function() {
+        // Called on click X button
+        pre.innerHTML = 'Loading diff...';
+    });
+    return panel;
+}
+
+function makeConfigTable(div_id) {
+
+    var state_formatter = function(el, rec, col, data) {
+        var is_pending = rec.getData("pending_diff");
+        var html;
+
+        if (is_pending == "1") {
+            html = '<p style="color:#BA2617">Pending Approval</p>';
+        } else {
+            html = '<p style="color:#32BA17">OK</p>';
+        }
+        el.innerHTML = html;
+    };
+    
+    var ds = new YAHOO.util.DataSource("../services/data.cgi?method=get_diffs");
+    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+    ds.responseSchema = {
+        resultsList: "results",
+        fields: [
+            {key: "node_id"},
+            {key: "name"},
+            {key: "pending_diff"}
+        ]
+    };
+
+    var columns = [
+        {key: "node_id", label: "NodeId", hidden: true, sortable: false},
+        {key: "name", label: "Switch", width: 180, sortable: true},
+        {key: "pending_diff", label: "State", width: 110, sortable: true, formatter: state_formatter}
+    ];
+    
+    var config = {
+        sortedBy: {key:'name', dir:'asc'}
+    };
+
+    var rowClickHandler = function(oArgs) {
+        var obj = this.getRecord(oArgs.target);
+        if (!obj) {
+            return;
+        }
+
+        var region = YAHOO.util.Dom.getRegion(oArgs.target);
+        var width = 400;
+
+        var x = ((region.left + region.right) / 2) - (width / 2);
+        var y = region.bottom;
+
+        var panel = makeConfigPanel(x, y, width, obj);
+        panel.render(document.body);
+    };
+
+    var table = new YAHOO.widget.DataTable(div_id, columns, ds, config);
+    table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
+    table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
+    table.subscribe("rowClickEvent", table.onEventSelectRow);
+    table.subscribe("rowClickEvent", rowClickHandler);
+
+    return table;
+}
+
 
 function setup_remote_dev_tab(){
 
