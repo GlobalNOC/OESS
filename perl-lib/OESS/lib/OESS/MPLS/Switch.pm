@@ -393,7 +393,7 @@ sub get_diff_text {
     my $m_ref = shift;
     my $p_ref = shift;
 
-    $self->{'logger'}->debug("Calling Switch.diff");
+    $self->{'logger'}->debug("Calling Switch.get_diff_text");
     $self->_update_cache();
 
     my $circuits = [];

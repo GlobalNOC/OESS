@@ -284,6 +284,7 @@ sub xml_configuration {
         $configuration = $configuration . $addition;
     }
     $configuration = $configuration . '</configuration>';
+
     return $configuration;
 }
 
@@ -347,7 +348,7 @@ sub diff {
     my $force_diff = shift; # If set do not check diff size
 
     # Build a configuration string to call against $self->diff_text
-    my $configuration = xml_configuration($ckts);
+    my $configuration = $self->xml_configuration($ckts);
     if ($force_diff) {
         $self->{'logger'}->info('Force diff was initiated. Starting installation.');
         $self->{'pending_diff'} = 0;
@@ -355,6 +356,10 @@ sub diff {
     }
 
     my $diff = $self->get_device_diff($configuration);
+    if (!defined $diff) {
+        return FWDCTL_FAILURE;
+    }
+
     if ($self->_large_diff($diff)) {
         # It may be possible that a large diffs is considered untrusted.
         # If so, block until the diff has been approved.
@@ -378,7 +383,7 @@ sub get_diff_text {
     my $circuits = shift;
 
     $self->{'logger'}->debug("Calling MX.get_diff_text");
-    my $configuration = xml_configuration($circuits);
+    my $configuration = $self->xml_configuration($circuits);
 
     return $self->get_device_diff($configuration);
 }
