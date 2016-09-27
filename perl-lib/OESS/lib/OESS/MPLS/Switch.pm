@@ -235,6 +235,13 @@ sub register_rpc_methods{
                                             },
 					    description => "Proxies diff signal to the underlying device object." );
     $dispatcher->register_method($method);
+
+    $method = GRNOC::RabbitMQ::Method->new( name        => "get_device_circuit_ids",
+					    callback    => sub {
+                                                return $self->get_device_circuit_ids(@_);
+                                            },
+					    description => "Proxies request for installed circuits to device object." );
+    $dispatcher->register_method($method);
 }
 
 sub _update_cache{
@@ -400,6 +407,15 @@ sub get_diff_text {
     return $self->{'device'}->get_diff_text($self->{'ckts'});
 }
 
+sub get_device_circuit_ids {
+    my $self  = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    $self->{'logger'}->debug("Calling Switch.get_device_circuit_ids");
+
+    return $self->{'device'}->get_device_circuit_ids();
+}
 =head2 get_interfaces
 
 returns a list of interfaces from the device

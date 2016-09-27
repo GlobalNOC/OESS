@@ -830,17 +830,39 @@ sub get_diff_text {
         return $event;
     }
 
-    $node->{'client'}->get_diff_text( async_callback => sub {
-                                          my $response = shift;
+    $node->{'client'}->get_device_circuit_ids(
+         async_callback => sub {
+             my $circuit_ids = shift;
 
-                                          if (defined $response->{'error'}) {
-                                              $event->{'error'} = $response->{'error'};
-                                              $event->{'status'} = FWDCTL_FAILURE;
-                                          } else {
-                                              $event->{'results'} = [ $response->{'results'} ];
-                                              $event->{'status'} = FWDCTL_SUCCESS;
-                                          }
-                                      } );
+             # Verifies that decom'd circuits found on device are loaded
+             # into cache.
+             foreach my $id (@{$circuit_ids->{'results'}}) {
+                 if (!defined $self->{'circuit'}->{$id}) {
+                     $self->{'circuit'}->{$id} = { circuit_id => $id };
+                 }
+             }
+             $self->_write_cache();
+
+             $node->{'client'}->get_diff_text(
+                  async_callback => sub {
+                      my $response = shift;
+
+                      if (defined $response->{'error'}) {
+                          $event->{'error'} = $response->{'error'};
+                          $event->{'status'} = FWDCTL_FAILURE;
+                      } else {
+                          $event->{'results'} = [ $response->{'results'} ];
+                          $event->{'status'} = FWDCTL_SUCCESS;
+                      }
+
+                      # Cleanup decom'd circuits
+                      # foreach my $id (@{$circuit_ids->{'results'}}) {
+                      #     if ($self->{'circuit'}->{$id}->{'state'} ne 'active') {
+                      #         delete $self->{'circuit'}->{$id};
+                      #     }
+                      # }
+                  } );
+         } );
 
     $self->{'events'}->{$id} = $event;
     return $event;
