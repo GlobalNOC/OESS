@@ -17,6 +17,9 @@ use constant FWDCTL_BLOCKED     => 4;
 
 use GRNOC::Config;
 
+use OESS::Circuit;
+use OESS::Database;
+
 use base "OESS::MPLS::Device";
 
 sub new{
@@ -32,6 +35,9 @@ sub new{
     $self->{'logger'}->info("MPLS Juniper Switch Created: $self->{'mgmt_addr'}");
 
     #TODO: make this automatically figure out the right REV
+    $self->{'logger'}->info("Loading database from $self->{'config'}");
+    $self->{'db'} = OESS::Database->new(config_file => $self->{'config'});
+
     $self->{'template_dir'} = "juniper/13.3R8";
 
     $self->{'tt'} = Template->new(INCLUDE_PATH => "/usr/share/doc/perl-OESS-1.2.0/share/mpls/templates/") or die "Unable to create Template Toolkit!";
@@ -257,11 +263,13 @@ sub xml_configuration {
     my $self = shift;
     my $ckts = shift;
 
+    $self->{'logger'}->debug(Dumper($ckts));
+
     my $configuration = '<configuration>';
     foreach my $ckt (@{$ckts}) {
         # The argument $ckts is passed in a generic form. This should be
         # converted to work with the template.
-        my $addition;
+        my $xml;
         my $vars = {};
         $vars->{'circuit_name'} = $ckt->{'circuit_name'};
         $vars->{'interfaces'} = [];
@@ -278,10 +286,17 @@ sub xml_configuration {
         $vars->{'paths'} = $ckt->{'paths'};
         $vars->{'a_side'} = $ckt->{'a_side'};
         
-        $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$addition);
-        $addition =~ s/<configuration>//g;
-        $addition =~ s/<\/configuration>//g;
-        $configuration = $configuration . $addition;
+        $self->{'logger'}->debug(Dumper($vars));
+
+        if ($ckt->{'state'} ne 'active') { #TODO FIX!!!
+            $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$xml);
+        } else {
+            $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config_delete.xml", $vars, \$xml);
+        }
+
+        $xml =~ s/<configuration>//g;
+        $xml =~ s/<\/configuration>//g;
+        $configuration = $configuration . $xml;
     }
     $configuration = $configuration . '</configuration>';
 
@@ -294,7 +309,7 @@ sub xml_configuration {
 sub get_device_circuit_infos {
     my $self = shift;
 
-    my $result = [];
+    my $result = {};
 
     my $res = $self->{'jnx'}->get_configuration( database => 'committed', format => 'xml' );
     if ($self->{'jnx'}->has_error) {
@@ -308,7 +323,6 @@ sub get_device_circuit_infos {
 
     foreach my $interface (@{$interfaces}) {
         my $units = $interface->getElementsByTagName('unit');
-
         foreach my $unit (@{$units}) {
             # Based on unit descriptions we can determine if this unit
             # represents a circuit that should be verified. Units to be
@@ -330,8 +344,38 @@ sub get_device_circuit_infos {
             }
 
             my ($oess, $type, $id) = split(/ /, $text);
-            push(@{$result}, {circuit_id => $id, type => $type});
+            $result->{$id} = { circuit_id => $id, type => $type };
         }
+    }
+    return $result;
+}
+
+=head2 required_modifications
+
+=cut
+sub required_modifications {
+    my $self = shift;
+    my $circuits = shift;
+    my $circuit_infos = shift;
+
+    my $result = [];
+
+    foreach my $id (keys %{$circuits}) {
+        if (!defined $circuit_infos->{$id}) {
+            my $addition = $circuits->{$id};
+            $addition->{'action'} = 'add';
+
+            push(@{$result}, $addition);
+        }
+    }
+
+    foreach my $id (keys %{$circuit_infos}) {
+#        if (!defined $circuits->{$id}) {
+        my $deletion = OESS::Circuit->new(db => $self->{'db'}, circuit_id => $id);
+        $deletion->update_circuit_details();
+
+        push(@{$result}, $deletion);
+#        }
     }
 
     return $result;
@@ -434,9 +478,17 @@ sub get_diff_text {
     $self->{'logger'}->debug("Calling MX.get_diff_text");
 
     my $circuit_infos = $self->get_device_circuit_infos();
-    $self->{'logger'}->debug(Dumper($circuit_infos));
+    my $modifications = $self->required_modifications($circuits, $circuit_infos);
 
-    my $configuration = $self->xml_configuration($circuits);
+    $self->{'logger'}->debug(Dumper($circuit_infos));
+    foreach my $mod (@{$modifications}) {
+        $self->{'logger'}->debug($mod->{'circuit_id'});
+        $self->{'logger'}->debug($mod->{'type'});
+        $self->{'logger'}->debug($mod->{'state'});
+    }
+
+    my $configuration = $self->xml_configuration($modifications);
+    $self->{'logger'}->debug($configuration);
     return $self->get_device_diff($configuration);
 }
 

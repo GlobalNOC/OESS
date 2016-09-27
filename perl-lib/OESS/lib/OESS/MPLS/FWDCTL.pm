@@ -480,6 +480,7 @@ sub make_baby {
     my $node = $self->{'node_by_id'}->{$id};
     my %args;
     $args{'id'} = $id;
+    $args{'config'} = $self->{'config'};
     $args{'share_file'} = $self->{'share_file'}. "." . $id;
     $args{'rabbitMQ_host'} = $self->{'db'}->{'rabbitMQ'}->{'host'};
     $args{'rabbitMQ_port'} = $self->{'db'}->{'rabbitMQ'}->{'port'};
@@ -501,7 +502,7 @@ sub run{
 
     $logger = Log::Log4perl->get_logger("OESS.MPLS.FWDCTL.MASTER");
     $logger->info("Creating child for id: " . $args{"id"});
-
+    $logger->info($args{"config"});
     $switch = OESS::MPLS::Switch->new( %args );
 }')->fork->send_arg( %args )->run("run");
 

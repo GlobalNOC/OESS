@@ -42,6 +42,7 @@ sub new{
     bless $self, $class;
 
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Switch.' . $self->{'id'});
+    $self->{'config'} = $args{'config'} || '/etc/oess/database.xml';
 
     $self->{'node'}->{'node_id'} = $self->{'id'};
     
@@ -107,13 +108,13 @@ sub create_device_object{
     my $self = shift;
 
     my $host_info = $self->{'node'};
+    $host_info->{'config'} = $self->{'config'};
 
     switch($host_info->{'vendor'}){
         case "Juniper" {
             my $dev;
             if($host_info->{'model'} =~ /mx/i){
                 $self->{'logger'}->info("create_device_object: " . Dumper($host_info));
-                warn Data::Dumper::Dumper($host_info);
                 $dev = OESS::MPLS::Device::Juniper::MX->new( %$host_info );
             }else{
                 $self->{'logger'}->error("Juniper " . $host_info->{'model'} . " is not supported");
@@ -396,12 +397,7 @@ sub get_diff_text {
     $self->{'logger'}->debug("Calling Switch.get_diff_text");
     $self->_update_cache();
 
-    my $circuits = [];
-    foreach my $ckt (keys %{ $self->{'ckts'} }){
-        push(@{$circuits}, $self->{'ckts'}->{$ckt});
-    }
-
-    return $self->{'device'}->get_diff_text($circuits);
+    return $self->{'device'}->get_diff_text($self->{'ckts'});
 }
 
 =head2 get_interfaces
