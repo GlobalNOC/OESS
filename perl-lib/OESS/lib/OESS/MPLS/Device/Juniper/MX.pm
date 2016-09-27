@@ -288,6 +288,55 @@ sub xml_configuration {
     return $configuration;
 }
 
+=head get_device_circuit_infos
+
+=cut
+sub get_device_circuit_infos {
+    my $self = shift;
+
+    my $result = [];
+
+    my $res = $self->{'jnx'}->get_configuration( database => 'committed', format => 'xml' );
+    if ($self->{'jnx'}->has_error) {
+	$self->set_error($self->{'jnx'}->get_first_error());
+        $self->{'logger'}->error("Error getting conf from MX: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
+        return;
+    }
+
+    my $dom = $self->{'jnx'}->get_dom();
+    my $interfaces = $dom->getElementsByTagName('interface');
+
+    foreach my $interface (@{$interfaces}) {
+        my $units = $interface->getElementsByTagName('unit');
+
+        foreach my $unit (@{$units}) {
+            # Based on unit descriptions we can determine if this unit
+            # represents a circuit that should be verified. Units to be
+            # selected are in the form 'OESS <type> <id>'.
+            # Ex.
+            # OESS L2VPN 3006
+
+            my $desc = $unit->getElementsByTagName('description');
+            if ($desc->size() == 0) {
+                next;
+            }
+
+            my $text = $desc->[0]->textContent();
+            if ($text !~ /^OESS/) {
+                # Units with descriptions starting with anything other
+                # than 'OESS' are not circuit related; These may be
+                # manually defined for other purposes, so we ignore.
+                next;
+            }
+
+            my ($oess, $type, $id) = split(/ /, $text);
+            push(@{$result}, {circuit_id => $id, type => $type});
+        }
+    }
+
+    return $result;
+}
+
 =head2 get_device_diff
 
 Returns and stores a human readable diff for display to users.
@@ -383,8 +432,11 @@ sub get_diff_text {
     my $circuits = shift;
 
     $self->{'logger'}->debug("Calling MX.get_diff_text");
-    my $configuration = $self->xml_configuration($circuits);
 
+    my $circuit_infos = $self->get_device_circuit_infos();
+    $self->{'logger'}->debug(Dumper($circuit_infos));
+
+    my $configuration = $self->xml_configuration($circuits);
     return $self->get_device_diff($configuration);
 }
 
