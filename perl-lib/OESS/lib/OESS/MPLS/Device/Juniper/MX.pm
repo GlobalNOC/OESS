@@ -467,7 +467,7 @@ sub _large_diff {
     my $diff = shift;
 
     my $len = length($diff);
-    if ($len > 0) {
+    if ($len > 140) {
         return 1;
     }
     return 0;
@@ -480,17 +480,32 @@ Do a diff between $ckts and the circuits on this device.
 =cut
 sub diff {
     my $self = shift;
-    my $ckts = shift;
+    my $circuits = shift;
+    my $circuit_info = shift;
     my $force_diff = shift; # If set do not check diff size
 
-    # Build a configuration string to call against $self->diff_text
-    my $configuration = $self->xml_configuration($ckts);
+    $self->{'logger'}->info("Calling MX.diff");
+
+    my $modifications = [];
+    foreach my $id (@{$circuit_info->{'additions'}}) {
+        $circuits->{$id}->{'state'} = 'active';
+        push(@{$modifications}, $circuits->{$id});
+    }
+    foreach my $id (@{$circuit_info->{'deletions'}}) {
+        $circuits->{$id}->{'state'} = 'decom';
+        push(@{$modifications}, $circuits->{$id});
+    }
+    $self->{'logger'}->debug("Diff modifications: " . Dumper($modifications));
+
+    my $configuration = $self->xml_configuration($modifications);
     if ($force_diff) {
         $self->{'logger'}->info('Force diff was initiated. Starting installation.');
         $self->{'pending_diff'} = 0;
         return $self->_edit_config(config => $configuration);
     }
 
+    # Check the size of the diff to see if verification is required for
+    # the changes to be applied.
     my $diff = $self->get_device_diff($configuration);
     if (!defined $diff) {
         return FWDCTL_FAILURE;
@@ -530,7 +545,6 @@ sub get_diff_text {
         $circuits->{$id}->{'state'} = 'decom';
         push(@{$modifications}, $circuits->{$id});
     }
-    $self->{'logger'}->debug(Dumper($modifications));
 
     my $configuration = $self->xml_configuration($modifications);
     return $self->get_device_diff($configuration);

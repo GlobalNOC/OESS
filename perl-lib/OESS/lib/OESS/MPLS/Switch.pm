@@ -222,6 +222,10 @@ sub register_rpc_methods{
                                                 return { node_id => $node_id, status  => $status };
                                             },
 					    description => "Proxies diff signal to the underlying device object.");
+    $method->add_input_parameter( name => "installed_circuits",
+                                  description => "List of circuit_ids that are installed.",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::TEXT );
     $method->add_input_parameter( name => "force_diff",
                                   description => "Set to 1 if size of diff should be ignored",
                                   required => 1,
@@ -390,14 +394,12 @@ sub diff {
     my $p_ref = shift;
 
     $self->{'logger'}->debug("Calling Switch.diff");
+    my $circuit_info = decode_json($p_ref->{'installed_circuits'}{'value'});
+    my $force_diff   = int($p_ref->{'force_diff'}{'value'});
+
     $self->_update_cache();
 
-    my $circuits = [];
-    foreach my $ckt (keys %{ $self->{'ckts'} }){
-        push(@{$circuits}, $self->{'ckts'}->{$ckt});
-    }
-
-    return $self->{'device'}->diff($circuits, $p_ref->{'force_diff'}{'value'});
+    return $self->{'device'}->diff($self->{'ckts'}, $circuit_info, $force_diff);
 }
 
 sub get_diff_text {

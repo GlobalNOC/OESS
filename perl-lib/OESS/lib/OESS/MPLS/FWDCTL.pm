@@ -697,9 +697,9 @@ sub addVlan{
     $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UP;
 
     foreach my $node (keys %nodes){
-	$self->{'logger'}->debug("Sending add VLAN to child: " . $node);
-	my $id = $self->{'node_info'}->{$node}->{'id'};
-        $self->send_message_to_child($id,{action => 'add_vlan', circuit_id => $circuit_id}, $event_id);
+	#$self->{'logger'}->debug("Sending add VLAN to child: " . $node);
+	#my $id = $self->{'node_info'}->{$node}->{'id'};
+        #$self->send_message_to_child($id,{action => 'add_vlan', circuit_id => $circuit_id}, $event_id);
     }
 
 
@@ -747,6 +747,7 @@ sub deleteVlan{
         # $self->send_message_to_child($id,{action => 'remove_vlan', circuit_id => $circuit_id}, $event_id);
     }
 
+    delete $self->{'circuit'}->{$circuit_id};
     return {status => $result, event_id => $event_id};
 
 }
@@ -755,28 +756,6 @@ sub diff {
     my $self = shift;
 
     $self->{'logger'}->info("Signaling MPLS nodes to begin diff.");
-    $self->_write_cache();
-
-    my $callback = sub {
-        my $res = shift;
-
-        if (defined $res->{'error'}) {
-            $self->{'logger'}->error("ERROR: " . $res->{'error'});
-            return 0;
-        }
-
-        if ($res->{'results'}->{'status'} == FWDCTL_BLOCKED) {
-            my $node_id = $res->{'results'}->{'node_id'};
-
-            $self->{'db'}->set_diff_approval(0, $node_id);
-            $self->{'children'}->{$node_id}->{'pending_diff'} = 1;
-            $self->{'logger'}->warn("Diff for node $node_id requires admin approval.");
-
-            return 0;
-        }
-
-        return 1;
-    };
 
     foreach my $node_id (keys %{$self->{'children'}}) {
         my $node         = $self->{'db'}->get_node_by_id(node_id => $node_id);
@@ -786,8 +765,8 @@ sub diff {
         # If the database asserts a diff is pending we are still waiting
         # for admin approval. Skip diffing for now.
         if ($pending_diff == 1) {
-            $self->{'logger'}->info("Diff for node $node_id requires admin approval.");
-            next;
+           $self->{'logger'}->info("Diff for node $node_id requires admin approval.");
+           next;
         }
 
         # If the database asserts there is no diff pending but memory
@@ -798,9 +777,77 @@ sub diff {
             $self->{'children'}->{$node_id}->{'pending_diff'} = 0;
         }
 
-        $self->{'children'}->{$node_id}->{'client'}->diff( timeout        => 15,
-                                                           force_diff     => $force_diff,
-                                                           async_callback => $callback );
+        $self->{'children'}->{$node_id}->{'client'}->get_device_circuit_ids(
+            async_callback => sub {
+                my $circuit_ids = shift;
+                $self->{'logger'}->info("Got circuit_ids...");
+
+                my $installed = {};
+                foreach my $id (@{$circuit_ids->{'results'}}) {
+                    $installed->{$id} = $id;
+                }
+
+                my $additions = [];
+                foreach my $id (keys %{$self->{'circuit'}}) {
+                    if (!defined $installed->{$id}) {
+                        push(@{$additions}, $id);
+                    }
+                }
+
+                my $deletions = [];
+                foreach my $id (keys %{$installed}) {
+                    if (!defined $self->{'circuit'}->{$id}) {
+                        # Verifies that decom'd circuits found on device
+                        # are loaded into cache. They will be removed once
+                        # get_diff_text returns.
+                        $self->{'circuit'}->{$id} = undef;
+                        push(@{$deletions}, $id);
+                    }
+                }
+
+                $self->_write_cache();
+                $self->{'logger'}->info("Wrote cache...");
+
+                # TODO
+                # Stop encoding json directly and use method schemas
+                my $payload = encode_json( { additions => $additions,
+                                             deletions => $deletions,
+                                             installed => $installed } );
+
+                 $self->{'children'}->{$node_id}->{'client'}->diff( timeout        => 15,
+                                                                    installed_circuits => $payload,
+                                                                    force_diff     => $force_diff,
+                                                                    async_callback => sub {
+                                                                        my $res = shift;
+
+                                                                        if (defined $res->{'error'}) {
+                                                                            $self->{'logger'}->error("ERROR: " . $res->{'error'});
+                                                                            return 0;
+                                                                        }
+
+                                                                        if ($res->{'results'}->{'status'} == FWDCTL_BLOCKED) {
+                                                                            my $node_id = $res->{'results'}->{'node_id'};
+
+                                                                            $self->{'db'}->set_diff_approval(0, $node_id);
+                                                                            $self->{'children'}->{$node_id}->{'pending_diff'} = 1;
+                                                                            $self->{'logger'}->warn("Diff for node $node_id requires admin approval.");
+
+                                                                            # Cleanup decom'd circuits from memory.
+                                                                            foreach my $id (@{$deletions}) {
+                                                                                delete $self->{'circuit'}->{$id};
+                                                                            }
+
+                                                                            return 0;
+                                                                        }
+
+                                                                        # Cleanup decom'd circuits from memory.
+                                                                        foreach my $id (@{$deletions}) {
+                                                                            delete $self->{'circuit'}->{$id};
+                                                                        }
+
+                                                                        return 1;
+                                                                    } );
+            } );
     }
 
     return 1;
@@ -856,6 +903,7 @@ sub get_diff_text {
                  }
              }
 
+             $self->{'logger'}->debug("Writing cache.");
              $self->_write_cache();
 
              # TODO
