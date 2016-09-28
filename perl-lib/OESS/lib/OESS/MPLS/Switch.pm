@@ -234,6 +234,10 @@ sub register_rpc_methods{
                                                 return $resp;
                                             },
 					    description => "Proxies diff signal to the underlying device object." );
+    $method->add_input_parameter( name => "installed_circuits",
+                                  description => "List of circuit_ids that are installed.",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::TEXT );
     $dispatcher->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name        => "get_device_circuit_ids",
@@ -402,9 +406,11 @@ sub get_diff_text {
     my $p_ref = shift;
 
     $self->{'logger'}->debug("Calling Switch.get_diff_text");
+    my $circuit_info = decode_json($p_ref->{'installed_circuits'}{'value'});
+
     $self->_update_cache();
 
-    return $self->{'device'}->get_diff_text($self->{'ckts'});
+    return $self->{'device'}->get_diff_text($self->{'ckts'}, $circuit_info);
 }
 
 sub get_device_circuit_ids {

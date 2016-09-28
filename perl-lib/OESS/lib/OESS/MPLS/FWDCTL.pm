@@ -234,11 +234,10 @@ sub _write_cache{
             next;
         }
         my $details = $ckt->get_details();
-
 	my $eps = $ckt->get_endpoints();
 
 	my $ckt_type = "L2VPN";
-	
+
 	if(scalar(@$eps) > 2){
 	    $ckt_type = "L2VPLS";
 	}
@@ -743,9 +742,9 @@ sub deleteVlan{
     my $result = FWDCTL_SUCCESS;
 
     foreach my $node (keys %nodes){
-        $self->{'logger'}->debug("Sending deleteVLAN to child: " . $node);
-        my $id = $self->{'node_info'}->{$node}->{'id'};
-        $self->send_message_to_child($id,{action => 'remove_vlan', circuit_id => $circuit_id}, $event_id);
+        # $self->{'logger'}->debug("Sending deleteVLAN to child: " . $node);
+        # my $id = $self->{'node_info'}->{$node}->{'id'};
+        # $self->send_message_to_child($id,{action => 'remove_vlan', circuit_id => $circuit_id}, $event_id);
     }
 
     return {status => $result, event_id => $event_id};
@@ -834,16 +833,39 @@ sub get_diff_text {
          async_callback => sub {
              my $circuit_ids = shift;
 
-             # Verifies that decom'd circuits found on device are loaded
-             # into cache.
+             my $installed = {};
              foreach my $id (@{$circuit_ids->{'results'}}) {
-                 if (!defined $self->{'circuit'}->{$id}) {
-                     $self->{'circuit'}->{$id} = { circuit_id => $id };
+                 $installed->{$id} = $id;
+             }
+
+             my $additions = [];
+             foreach my $id (keys %{$self->{'circuit'}}) {
+                 if (!defined $installed->{$id}) {
+                     push(@{$additions}, $id);
                  }
              }
+
+             my $deletions = [];
+             foreach my $id (keys %{$installed}) {
+                 if (!defined $self->{'circuit'}->{$id}) {
+                     # Verifies that decom'd circuits found on device
+                     # are loaded into cache. They will be removed once
+                     # get_diff_text returns.
+                     $self->{'circuit'}->{$id} = undef;
+                     push(@{$deletions}, $id);
+                 }
+             }
+
              $self->_write_cache();
 
+             # TODO
+             # Stop encoding json directly and use method schemas
+             my $payload = encode_json( { additions => $additions,
+                                          deletions => $deletions,
+                                          installed => $installed } );
+
              $node->{'client'}->get_diff_text(
+                  installed_circuits => $payload,
                   async_callback => sub {
                       my $response = shift;
 
@@ -855,12 +877,10 @@ sub get_diff_text {
                           $event->{'status'} = FWDCTL_SUCCESS;
                       }
 
-                      # Cleanup decom'd circuits
-                      # foreach my $id (@{$circuit_ids->{'results'}}) {
-                      #     if ($self->{'circuit'}->{$id}->{'state'} ne 'active') {
-                      #         delete $self->{'circuit'}->{$id};
-                      #     }
-                      # }
+                      # Cleanup decom'd circuits from memory.
+                      foreach my $id (@{$deletions}) {
+                          delete $self->{'circuit'}->{$id};
+                      }
                   } );
          } );
 

@@ -263,8 +263,6 @@ sub xml_configuration {
     my $self = shift;
     my $ckts = shift;
 
-    $self->{'logger'}->debug(Dumper($ckts));
-
     my $configuration = '<configuration>';
     foreach my $ckt (@{$ckts}) {
         # The argument $ckts is passed in a generic form. This should be
@@ -288,7 +286,7 @@ sub xml_configuration {
         
         $self->{'logger'}->debug(Dumper($vars));
 
-        if ($ckt->{'state'} ne 'active') { #TODO FIX!!!
+        if ($ckt->{'state'} eq 'active') {
             $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$xml);
         } else {
             $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config_delete.xml", $vars, \$xml);
@@ -415,12 +413,12 @@ sub required_modifications {
     }
 
     foreach my $id (keys %{$circuit_infos}) {
-#        if (!defined $circuits->{$id}) {
-        my $deletion = OESS::Circuit->new(db => $self->{'db'}, circuit_id => $id);
-        $deletion->update_circuit_details();
+        if (!defined $circuits->{$id}) {
+            my $deletion = $circuits->{$id};
+            $deletion->{'action'} = 'delete';
 
-        push(@{$result}, $deletion);
-#        }
+            push(@{$result}, $deletion);
+        }
     }
 
     return $result;
@@ -519,21 +517,22 @@ configuration.
 sub get_diff_text {
     my $self = shift;
     my $circuits = shift;
+    my $circuit_info = shift;
 
     $self->{'logger'}->debug("Calling MX.get_diff_text");
 
-    my $circuit_infos = $self->get_device_circuit_infos();
-    my $modifications = $self->required_modifications($circuits, $circuit_infos);
-
-    $self->{'logger'}->debug(Dumper($circuit_infos));
-    foreach my $mod (@{$modifications}) {
-        $self->{'logger'}->debug($mod->{'circuit_id'});
-        $self->{'logger'}->debug($mod->{'type'});
-        $self->{'logger'}->debug($mod->{'state'});
+    my $modifications = [];
+    foreach my $id (@{$circuit_info->{'additions'}}) {
+        $circuits->{$id}->{'state'} = 'active';
+        push(@{$modifications}, $circuits->{$id});
     }
+    foreach my $id (@{$circuit_info->{'deletions'}}) {
+        $circuits->{$id}->{'state'} = 'decom';
+        push(@{$modifications}, $circuits->{$id});
+    }
+    $self->{'logger'}->debug(Dumper($modifications));
 
     my $configuration = $self->xml_configuration($modifications);
-    $self->{'logger'}->debug($configuration);
     return $self->get_device_diff($configuration);
 }
 
