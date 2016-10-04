@@ -145,6 +145,8 @@ sub get_system_information{
 	
     }
 
+    $self->{'loopback_addr'} = $loopback_addr;
+
     return {model => $model, version => $version, os_name => $os_name, host_name => $host_name, loopback_addr => $loopback_addr};
 }
 
@@ -209,7 +211,8 @@ sub remove_vlan{
                                         });
     }
     $vars->{'circuit_id'} = $ckt->{'circuit_id'};
-    $vars->{'switch'} = {name => $self->{'name'}};
+    $vars->{'switch'} = {name => $self->{'name'},
+                         loopback => $self->{'loopback_addr'}};
     $vars->{'site_id'} = $ckt->{'site_id'};
     $vars->{'paths'} = $ckt->{'paths'};
     $vars->{'a_side'} = $ckt->{'a_side'};
@@ -239,7 +242,8 @@ sub add_vlan{
     $vars->{'paths'} = $ckt->{'paths'};
     $vars->{'destination_ip'} = $ckt->{'destination_ip'};
     $vars->{'circuit_id'} = $ckt->{'circuit_id'};
-    $vars->{'switch'} = {name => $self->{'name'}};
+    $vars->{'switch'} = {name => $self->{'name'},
+			 loopback => $self->{'loopback_addr'}};
     $vars->{'site_id'} = $ckt->{'site_id'};
     $vars->{'paths'} = $ckt->{'paths'};
     $vars->{'a_side'} = $ckt->{'a_side'};
