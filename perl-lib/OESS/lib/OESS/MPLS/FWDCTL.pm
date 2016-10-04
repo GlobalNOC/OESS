@@ -735,7 +735,7 @@ sub deleteVlan{
     my $endpoints = $ckt->get_endpoints();
     my %nodes;
     foreach my $ep (@$endpoints){
-        $self->{'logger'}->debug("Node: " . $ep->{'node'} . " is involved int he circuit");
+        $self->{'logger'}->debug("Node: " . $ep->{'node'} . " is involved in the circuit");
         $nodes{$ep->{'node'}}= 1;
     }
 
@@ -789,7 +789,10 @@ sub diff {
 
                 my $additions = [];
                 foreach my $id (keys %{$self->{'circuit'}}) {
-                    if (!defined $installed->{$id}) {
+                    # Second half of if statement protects against
+                    # circuits that should have been removed but are
+                    # still in memory.
+                    if (!defined $installed->{$id} && defined $self->{'circuit'}->{$id}) {
                         push(@{$additions}, $id);
                     }
                 }
@@ -801,10 +804,14 @@ sub diff {
                         # are loaded into cache. They will be removed once
                         # get_diff_text returns.
                         $self->{'circuit'}->{$id} = undef;
+                        # TODO
+                        $self->{'logger'}->info("Marked circuit for deletion...");
                         push(@{$deletions}, $id);
                     }
                 }
 
+                # TODO
+                $self->{'logger'}->info("Writing cache...");
                 $self->_write_cache();
                 $self->{'logger'}->info("Wrote cache...");
 
@@ -825,6 +832,12 @@ sub diff {
                                                                             return 0;
                                                                         }
 
+                                                                        # Cleanup decom'd circuits from memory.
+                                                                        foreach my $id (@{$deletions}) {
+                                                                            $self->{'logger'}->info("Deleting marked circuit");
+                                                                            delete $self->{'circuit'}->{$id};
+                                                                        }
+
                                                                         if ($res->{'results'}->{'status'} == FWDCTL_BLOCKED) {
                                                                             my $node_id = $res->{'results'}->{'node_id'};
 
@@ -832,17 +845,7 @@ sub diff {
                                                                             $self->{'children'}->{$node_id}->{'pending_diff'} = 1;
                                                                             $self->{'logger'}->warn("Diff for node $node_id requires admin approval.");
 
-                                                                            # Cleanup decom'd circuits from memory.
-                                                                            foreach my $id (@{$deletions}) {
-                                                                                delete $self->{'circuit'}->{$id};
-                                                                            }
-
                                                                             return 0;
-                                                                        }
-
-                                                                        # Cleanup decom'd circuits from memory.
-                                                                        foreach my $id (@{$deletions}) {
-                                                                            delete $self->{'circuit'}->{$id};
                                                                         }
 
                                                                         return 1;
