@@ -305,7 +305,7 @@ sub xml_configuration {
     return $configuration;
 }
 
-=head get_device_circuit_infos
+=head2 get_device_circuit_infos
 
 =cut
 sub get_device_circuit_infos {
@@ -461,7 +461,7 @@ sub get_device_diff {
     return $self->{'diff_text'};
 }
 
-=head2 _large_diff
+=head3 _large_diff( $diff )
 
 Returns 1 if $diff requires manual approval.
 
@@ -502,6 +502,11 @@ sub diff {
     $self->{'logger'}->debug("Diff modifications: " . Dumper($modifications));
 
     my $configuration = $self->xml_configuration($modifications);
+    if ($configuration eq '<configuration></configuration>') {
+        $self->{'logger'}->info('No diff required at this time.');
+        return FWDCTL_SUCCESS;
+    }
+
     if ($force_diff) {
         $self->{'logger'}->info('Force diff was initiated. Starting installation.');
         $self->{'pending_diff'} = 0;
@@ -551,10 +556,15 @@ sub get_diff_text {
     }
 
     my $configuration = $self->xml_configuration($modifications);
+    if ($configuration eq '<configuration></configuration>') {
+        $self->{'logger'}->info('No diff required at this time.');
+        return 'No diff required at this time.';
+    }
+
     return $self->get_device_diff($configuration);
 }
 
-=head2
+=head2 unit_name_available
 
 Returns 0 if the unit name already exists on the specified interface or
 another error occurs; Otherwise 1 is returned for success.

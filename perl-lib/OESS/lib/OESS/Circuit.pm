@@ -692,8 +692,11 @@ sub _generate_endpoint_flows {
 }
 
 =head2
+
     Method that generates the endpoint rules for a loopback circuit
+
 =cut
+
 sub _generate_loopback_endpoint_flows {
     my ($self, %args) = @_;
 

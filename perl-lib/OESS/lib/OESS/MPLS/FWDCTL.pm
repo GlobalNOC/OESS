@@ -43,7 +43,9 @@ use GRNOC::WebService::Regex;
 
 =head2 new
 
-    create a new OESS Master process
+create a new OESS Master process
+
+  FWDCTL->new();
 
 =cut
 
@@ -340,7 +342,8 @@ sub _write_cache{
 			ckt_type => $ckt_type,
 			site_id => $site_id,
 			a_side => $ep_a->{'node_id'},
-	    };
+                        state  => $ckt->{'state'}
+                      };
 	    
 	    $switches{$ep_a->{'node'}}->{$details->{'circuit_id'}} = $obj;
 	}
@@ -521,9 +524,10 @@ sub run{
 }
 
 =head2 update_cache
-updates the cache for all of the children
-=cut
 
+updates the cache for all of the children
+
+=cut
 sub update_cache{
     my $self = shift;
     my $m_ref = shift;
@@ -570,9 +574,10 @@ sub update_cache{
 }
 
 =head2 check_child_status
-    sends an echo request to the child
-=cut
 
+    sends an echo request to the child
+
+=cut
 sub check_child_status{
     my $self = shift;
 
@@ -588,8 +593,8 @@ sub check_child_status{
 }
 
 =head2 reap_old_events
-=cut
 
+=cut
 sub reap_old_events{
     my $self = shift;
 
@@ -603,9 +608,10 @@ sub reap_old_events{
 
 
 =head2 send_message_to_child
-send a message to a child
-=cut
 
+send a message to a child
+
+=cut
 sub send_message_to_child{
     my $self = shift;
     my $id = shift;
@@ -787,12 +793,16 @@ sub diff {
                     $installed->{$id} = $id;
                 }
 
+                # !!!
+                # Replace $self->{'circuit'} with circuits for $node_id
+                # !!!
+
                 my $additions = [];
                 foreach my $id (keys %{$self->{'circuit'}}) {
                     # Second half of if statement protects against
                     # circuits that should have been removed but are
                     # still in memory.
-                    if (!defined $installed->{$id} && defined $self->{'circuit'}->{$id}) {
+                    if (!defined $installed->{$id}) {
                         push(@{$additions}, $id);
                     }
                 }
@@ -800,23 +810,26 @@ sub diff {
                 my $deletions = [];
                 foreach my $id (keys %{$installed}) {
                     if (!defined $self->{'circuit'}->{$id}) {
-                        # Verifies that decom'd circuits found on device
-                        # are loaded into cache. They will be removed once
-                        # get_diff_text returns.
+                        # Adding something at $id forces _write_cache to
+                        # load circuit data from the db (even if the
+                        # circuit is decom'd).
                         $self->{'circuit'}->{$id} = undef;
-                        # TODO
-                        $self->{'logger'}->info("Marked circuit for deletion...");
                         push(@{$deletions}, $id);
+                        next;
+                    }
+
+                    if ($self->{'circuit'}->{$id}->{'state'} eq 'decom') {
+                        # Used when another node related to the circuit
+                        # has already cause the circuit to be loaded.
+                        push(@{$deletions}, $id);
+                        next;
                     }
                 }
 
-                # TODO
-                $self->{'logger'}->info("Writing cache...");
                 $self->_write_cache();
-                $self->{'logger'}->info("Wrote cache...");
 
-                # TODO
-                # Stop encoding json directly and use method schemas
+                # TODO Stop encoding json directly and use method
+                # schemas
                 my $payload = encode_json( { additions => $additions,
                                              deletions => $deletions,
                                              installed => $installed } );
@@ -834,7 +847,6 @@ sub diff {
 
                                                                         # Cleanup decom'd circuits from memory.
                                                                         foreach my $id (@{$deletions}) {
-                                                                            $self->{'logger'}->info("Deleting marked circuit");
                                                                             delete $self->{'circuit'}->{$id};
                                                                         }
 
@@ -1038,8 +1050,10 @@ sub echo {
 }
 
 =head2 stop
+
 Sends a shutdown signal on MPLS.FWDCTL.event.stop. Child processes
 should listen for this signal and cleanly exit when received.
+
 =cut
 sub stop {
     my $self = shift;
