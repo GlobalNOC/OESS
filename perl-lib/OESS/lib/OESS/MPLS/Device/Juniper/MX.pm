@@ -263,6 +263,13 @@ sub add_vlan{
     
 }
 
+=head2 xml_configuration( $ckts )
+
+Returns configuration as an xml string based on $ckts, which is an array of
+OESS::Circuit objects. Circuits with a state other than 'active' will be used
+to generate circuit removal xml blocks.
+
+=cut
 sub xml_configuration {
     my $self = shift;
     my $ckts = shift;
@@ -283,11 +290,11 @@ sub xml_configuration {
         $vars->{'paths'} = $ckt->{'paths'};
         $vars->{'destination_ip'} = $ckt->{'destination_ip'};
         $vars->{'circuit_id'} = $ckt->{'circuit_id'};
-        $vars->{'switch'} = {name => $self->{'name'}};
+        $vars->{'switch'} = { name => $self->{'name'},
+                              loopback => $self->{'loopback_addr'} };
         $vars->{'site_id'} = $ckt->{'site_id'};
         $vars->{'paths'} = $ckt->{'paths'};
         $vars->{'a_side'} = $ckt->{'a_side'};
-        
         $self->{'logger'}->debug(Dumper($vars));
 
         if ($ckt->{'state'} eq 'active') {

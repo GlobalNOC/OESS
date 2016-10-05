@@ -703,9 +703,9 @@ sub addVlan{
     $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UP;
 
     foreach my $node (keys %nodes){
-	#$self->{'logger'}->debug("Sending add VLAN to child: " . $node);
-	#my $id = $self->{'node_info'}->{$node}->{'id'};
-        #$self->send_message_to_child($id,{action => 'add_vlan', circuit_id => $circuit_id}, $event_id);
+	$self->{'logger'}->debug("Sending add VLAN to child: " . $node);
+	my $id = $self->{'node_info'}->{$node}->{'id'};
+        $self->send_message_to_child($id,{action => 'add_vlan', circuit_id => $circuit_id}, $event_id);
     }
 
 
@@ -748,9 +748,9 @@ sub deleteVlan{
     my $result = FWDCTL_SUCCESS;
 
     foreach my $node (keys %nodes){
-        # $self->{'logger'}->debug("Sending deleteVLAN to child: " . $node);
-        # my $id = $self->{'node_info'}->{$node}->{'id'};
-        # $self->send_message_to_child($id,{action => 'remove_vlan', circuit_id => $circuit_id}, $event_id);
+        $self->{'logger'}->debug("Sending deleteVLAN to child: " . $node);
+        my $id = $self->{'node_info'}->{$node}->{'id'};
+        $self->send_message_to_child($id,{action => 'remove_vlan', circuit_id => $circuit_id}, $event_id);
     }
 
     delete $self->{'circuit'}->{$circuit_id};
@@ -793,12 +793,12 @@ sub diff {
                     $installed->{$id} = $id;
                 }
 
-                # !!!
-                # Replace $self->{'circuit'} with circuits for $node_id
-                # !!!
-
                 my $additions = [];
                 foreach my $id (keys %{$self->{'circuit'}}) {
+                    if ($self->{'circuit'}->{$id}->on_node($node_id) == 0) {
+                        next;
+                    }
+
                     # Second half of if statement protects against
                     # circuits that should have been removed but are
                     # still in memory.
@@ -818,7 +818,7 @@ sub diff {
                         next;
                     }
 
-                    if ($self->{'circuit'}->{$id}->{'state'} eq 'decom') {
+                    if ($self->{'circuit'}->{$id}->{'state'} ne 'active') {
                         # Used when another node related to the circuit
                         # has already cause the circuit to be loaded.
                         push(@{$deletions}, $id);

@@ -362,6 +362,23 @@ sub _create_flows{
 
 }
 
+=head2 on_node( $node_id )
+
+Returns 1 if $node_id is part of a path in this circuit or 0 if it's not.
+
+=cut
+sub on_node {
+    my $self    = shift;
+    my $node_id = shift;
+
+    foreach my $point (@{$self->{'endpoints'}}) {
+        if ("$node_id" eq $point->{'node_id'}) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
 
 sub _generate_loop_node_flows{
     my $self = shift;
