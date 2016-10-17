@@ -1,8 +1,11 @@
 #!/usr/bin/perl
-
 use strict;
+use warings;
+
 use OESS::Database;
 use OESS::Circuit;
+
+use Log::Log4perl;
 use XML::Simple;
 use Sys::Syslog qw(:standard :macros);
 use FindBin;
@@ -13,6 +16,7 @@ use GRNOC::RabbitMQ::Client;
 
 sub main{
     openlog("oess_scheduler.pl", 'cons,pid', LOG_DAEMON);
+
     my $time = time();
 
     my $oess = OESS::Database->new();
@@ -41,6 +45,8 @@ sub main{
         my $ckt = $oess->get_circuit_by_id( circuit_id => $action->{'circuit_id'})->[0];
         my $circuit_layout = XMLin($action->{'circuit_layout'}, forcearray => 1);
 
+        syslog(LOG_ERR, "Scheduling for circuit_id $action->{'circuit_id'}: " . Dumper($circuit_layout));
+
         if($circuit_layout->{'action'} eq 'provision'){
 
             if($ckt->{'circuit_state'} eq 'reserved'){
@@ -59,10 +65,13 @@ sub main{
 
             #edit the circuit to make it active
             my $output = $oess->edit_circuit(circuit_id     => $action->{'circuit_id'},
+                                             endpoint_mac_address_nums => $circuit_layout->{'endpoint_mac_address_num'},
+                                             mac_addresses  => $circuit_layout->{'mac_addresses'},
                                              name           => $circuit_layout->{'name'},
                                              bandwidth      => $circuit_layout->{'bandwidth'},
                                              provision_time => time(),
                                              remove_time    => $circuit_layout->{'remove_time'},
+                                             restore_to_primary => $circuit_layout->{'restore_to_primary'},
                                              links          => $circuit_layout->{'links'},
                                              backup_links   => $circuit_layout->{'backup_links'},
                                              nodes          => $circuit_layout->{'nodes'},
@@ -102,7 +111,7 @@ sub main{
 
             #--- signal fwdctl to update caches
             eval{
-                $result = $client->update_cache($action->{'circuit_id'});
+                $result = $client->update_cache(circuit_id => $action->{'circuit_id'});
                 
                 if($result->{'error'} || !$result->{'results'}->{'event_id'}){
                     return;
@@ -170,20 +179,23 @@ sub main{
 
             my $user = $oess->get_user_by_id( user_id => $action->{'user_id'} )->[0];
 
-            my $output = $oess->edit_circuit(circuit_id => $action->{'circuit_id'},
-                                             name => $circuit_layout->{'name'},
-                                             bandwidth => $circuit_layout->{'bandwidth'},
+            my $output = $oess->edit_circuit(circuit_id     => $action->{'circuit_id'},
+                                             endpoint_mac_address_nums => $circuit_layout->{'endpoint_mac_address_num'},
+                                             mac_addresses  => $circuit_layout->{'mac_addresses'},
+                                             name           => $circuit_layout->{'name'},
+                                             bandwidth      => $circuit_layout->{'bandwidth'},
                                              provision_time => time(),
-                                             remove_time => $circuit_layout->{'remove_time'},
-                                             links => $circuit_layout->{'links'},
-                                             backup_links => $circuit_layout->{'backup_links'},
-                                             nodes => $circuit_layout->{'nodes'},
-                                             interfaces => $circuit_layout->{'interfaces'},
-                                             tags => $circuit_layout->{'tags'},
-                                             state => $circuit_layout->{'state'},
-                                             username => $user->{'auth_name'},
-                                             workgroup_id => $action->{'workgroup_id'},
-                                             description => $ckt->{'description'}
+                                             remove_time    => $circuit_layout->{'remove_time'},
+                                             restore_to_primary => $circuit_layout->{'restore_to_primary'},
+                                             links          => $circuit_layout->{'links'},
+                                             backup_links   => $circuit_layout->{'backup_links'},
+                                             nodes          => $circuit_layout->{'nodes'},
+                                             interfaces     => $circuit_layout->{'interfaces'},
+                                             tags           => $circuit_layout->{'tags'},
+                                             state          => $circuit_layout->{'state'},
+                                             username       => $user->{'auth_name'},
+                                             workgroup_id   => $action->{'workgroup_id'},
+                                             description    => $ckt->{'description'}
                 );
             
             $res = undef;
@@ -214,7 +226,7 @@ sub main{
             
             #--- signal fwdctl to update caches
             eval{
-                $result = $client->update_cache($action->{'circuit_id'});
+                $result = $client->update_cache(circuit_id => $action->{'circuit_id'});
                 
                 if($result->{'error'} || !$result->{'results'}->{'event_id'}){
                     return;
@@ -297,7 +309,7 @@ sub main{
 
             #--- signal fwdctl to update caches
             eval{
-                my $result = $client->update_cache($action->{'circuit_id'});
+                my $result = $client->update_cache(circuit_id => $action->{'circuit_id'});
 
                 if($result->{'error'} || !$result->{'results'}->{'event_id'}){
                     return;
