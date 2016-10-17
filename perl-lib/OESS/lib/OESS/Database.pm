@@ -5218,14 +5218,23 @@ sub get_link_by_name{
 
 =head2 get_links_details_by_name
 
+=over 4
+
+=item B<link_names> - Array ref of link names.
+
+=back
+
+Returns an array ref of link details. See doc for C<get_link_details>
+for values included in the resulting array ref.
+
 =cut
 
 sub get_links_details_by_name {
-    my $self = shift;
-    my %args = @_;
+    my $self       = shift;
+    my $link_names = shift;
 
     my $links = [];
-    foreach my $name (@{$args{'names'}}){
+    foreach my $name (@{$link_names}){
         my $link = $self->get_link_details( name => $name );
         if(!$link){
             $self->_set_error("Error getting link, ".$name);
@@ -6971,19 +6980,28 @@ sub _add_edit_event {
     my $params = shift;
 
     my $tmp;
-    $tmp->{'version'}       = "1.0";
-    $tmp->{'action'}        = "edit";
-    $tmp->{'state'}         = $params->{'state'};
-    $tmp->{'name'}          = $params->{'name'};
-    $tmp->{'bandwidth'}     = $params->{'bandwidth'};
-    $tmp->{'links'}         = $params->{'links'};
-    $tmp->{'backup_links'}  = $params->{'backup_links'};
-    $tmp->{'nodes'}         = $params->{'nodes'};
-    $tmp->{'interfaces'}    = $params->{'interfaces'};
-    $tmp->{'tags'}          = $params->{'tags'};
-    $tmp->{'start_time'}    = $params->{'start_time'};
-    $tmp->{'end_time'}      = $params->{'end_time'};
-
+    $tmp->{'action'}             = "edit";
+    $tmp->{'backup_links'}       = $params->{'backup_links'};
+    $tmp->{'bandwidth'}          = $params->{'bandwidth'};
+    $tmp->{'circuit_id'}         = $params->{'circuit_id'};
+    $tmp->{'description'}        = $params->{'description'};
+    $tmp->{'do_sanity_check'}    = $params->{'do_sanity_check'};
+    $tmp->{'end_time'}           = $params->{'end_time'};
+    $tmp->{'endpoint_mac_address_nums'} = $params->{'endpoint_mac_address_nums'};
+    $tmp->{'interfaces'}         = $params->{'interfaces'};
+    $tmp->{'links'}              = $params->{'links'};
+    $tmp->{'mac_addresses'}      = $params->{'mac_addresses'};
+    $tmp->{'nodes'}              = $params->{'nodes'};
+    $tmp->{'provision_time'}     = $params->{'provision_time'};
+    $tmp->{'restore_to_primary'} = $params->{'restore_to_primary'};
+    $tmp->{'state'}              = $params->{'state'};
+    $tmp->{'static_mac'}         = $params->{'static_mac'};
+    $tmp->{'tags'}               = $params->{'tags'};
+    $tmp->{'type'}               = $params->{'type'};
+    $tmp->{'user_name'}          = $params->{'user_name'};
+    $tmp->{'user_id'}            = $params->{'user_id'};
+    $tmp->{'version'}            = "1.0";
+    $tmp->{'workgroup_id'}       = $params->{'workgroup_id'};
 
     my $circuit_layout = XMLout($tmp);
 
@@ -6993,11 +7011,10 @@ sub _add_edit_event {
                                                $params->{'workgroup_id'},
                                                $params->{'circuit_id'},
                                                time(),
-                                               $params->{'edit_time'},
+                                               $params->{'provision_time'},
                                                $circuit_layout
                                                ]);
-
-    if (! defined $result){
+    if (!defined $result) {
         $self->_set_error("Error creating scheduled removal.");
         return;
     }
@@ -8642,6 +8659,7 @@ sub circuit_sanity_check {
 
     # make sure user passed in can modify circuit
     if(!$self->can_modify_circuit(username => $args{'user_name'}, %args)){
+        $self->_set_error("Permissiond denied: User cannot modify this circuit.");
         return;
     }
 
@@ -8658,6 +8676,7 @@ sub circuit_sanity_check {
 
     # make sure endpoints pass validation
     if(!$self->validate_endpoints(%args)){
+        $self->_set_error("Endpoints could not be validated.");
         return;
     }
 

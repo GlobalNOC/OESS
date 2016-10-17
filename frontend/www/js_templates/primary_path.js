@@ -129,6 +129,7 @@ function init(){
     
     var records = path_table.getRecordSet().getRecords();
     
+    session.data.backup_links = [];
     session.data.links = [];
     
     for (var i = 0; i < records.length; i++){
