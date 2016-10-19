@@ -6495,7 +6495,7 @@ sub provision_circuit {
 	if($provision_time < time()){
 	    $state = "scheduled";
 	}else{
-	    $state = "deploying";
+	    $state = "active";
 	}
     }
 
@@ -6695,7 +6695,7 @@ sub provision_circuit {
         # create the primary path object
         $query = "insert into path (path_type, circuit_id, path_state, mpls_path_type) values (?, ?, ?, ?)";
 
-        my $path_state = "deploying";
+        my $path_state = "active";
 
         if ($path_type eq "backup"){
             $path_state = "available";
@@ -6994,7 +6994,7 @@ sub _add_edit_event {
     $tmp->{'nodes'}              = $params->{'nodes'};
     $tmp->{'provision_time'}     = $params->{'provision_time'};
     $tmp->{'restore_to_primary'} = $params->{'restore_to_primary'};
-    $tmp->{'state'}              = $params->{'state'};
+    $tmp->{'state'}              = 'active';
     $tmp->{'static_mac'}         = $params->{'static_mac'};
     $tmp->{'tags'}               = $params->{'tags'};
     $tmp->{'type'}               = $params->{'type'};
@@ -7617,7 +7617,7 @@ sub edit_circuit {
         return {'success' => 1, 'circuit_id' => $circuit_id};
     }
 
-    my $result = $self->_execute_query("update circuit set description = ?, restore_to_primary = ?, static_mac = ? where circuit_id = ?, type = ?", [$description,$restore_to_primary,$static_mac,$circuit_id, $type]);
+    my $result = $self->_execute_query("update circuit set description = ?, restore_to_primary = ?, static_mac = ?, type = ? where circuit_id = ?", [$description,$restore_to_primary,$static_mac, $type, $circuit_id]);
     if (! defined $result){
         $self->_set_error("Unable to update circuit description.");
         $self->_rollback() if($do_commit);
@@ -7637,11 +7637,10 @@ sub edit_circuit {
     }
 
     $query = "insert into circuit_instantiation (circuit_id, reserved_bandwidth_mbps, circuit_state, modified_by_user_id, end_epoch, start_epoch, loop_node, reason) values (?, ?, ?, ?, -1, unix_timestamp(now()), ?,?)";
-    if(!defined($self->_execute_query($query, [$circuit_id, $bandwidth,$state, $user_id, $loop_node,$reason]))){
-        $self->_set_error("Unable to create new circuit instantiation.");
+    if(!defined($self->_execute_query($query, [$circuit_id, $bandwidth, $state, $user_id, $loop_node, $reason]))){
+        # $self->_set_error("Unable to create new circuit instantiation.");
         $self->_rollback() if($do_commit);
-        return
-
+        return;
     }
 
     #first decom everything
@@ -7783,7 +7782,7 @@ sub edit_circuit {
         # instantiate path object
         $query = "insert into path_instantiation (path_id, end_epoch, start_epoch, path_state) values (?, -1, unix_timestamp(NOW()), ?)";
 
-        my $path_state = "deploying";
+        my $path_state = "active";
 
         if ($path_type eq "backup"){
             $path_state = "available";

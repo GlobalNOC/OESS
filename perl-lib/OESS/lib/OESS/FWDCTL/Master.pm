@@ -974,7 +974,7 @@ sub _update_node_database_state{
         #update admin state if it is planned (now it exists and we have some data to back this assertion)
         if ( $node->{'admin_state'} =~ /planned/){
             ##update old, create new
-            $self->{'db'}->create_node_instance(node_id => $node->{'node_id'}, ipv4_addr => $ip ,admin_state => 'available',dpid => $dpid);
+            $self->{'db'}->create_node_instance(node_id => $node->{'node_id'}, ipv4_addr => $ip, admin_state => 'available', dpid => $dpid, openflow => 1);
         }
         $node_id = $node->{'node_id'};
 
@@ -1008,7 +1008,7 @@ sub _update_node_database_state{
             $self->{'db'}->_rollback();
             return;
         }
-        $self->{'db'}->create_node_instance(node_id => $node_id, ipv4_addr => $ip, admin_state => 'available', dpid => $dpid);
+        $self->{'db'}->create_node_instance(node_id => $node_id, ipv4_addr => $ip, admin_state => 'available', dpid => $dpid, openflow => 1);
     }
 
     my $ports = $p_ref->{'ports'}{'value'};
@@ -1945,26 +1945,27 @@ sub addVlan {
     my $result  = FWDCTL_SUCCESS;
     my $details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
 
+    # Circuit must have state set to deploying before installation may
+    # proceed. Circuits with a state of scheduled shall not be added.
     if ($details->{'state'} eq 'scheduled') {
-        $self->{'db'}->update_circuit_state(circuit_id          => $circuit_id,
-                                            old_state           => 'deploying',
-                                            new_state           => 'scheduled',
-                                            modified_by_user_id => SYSTEM_USER,
-                                            reason              => 'Circuit successfully scheduled');
-
         $self->{'logger'}->info("Elapsed time addVlan: " . tv_interval( $start, [gettimeofday]));
         return {status => $result, event_id => $event_id};
     }
 
-    $self->{'db'}->update_circuit_state(circuit_id          => $circuit_id,
-                                        old_state           => 'deploying',
-                                        new_state           => 'active',
-                                        modified_by_user_id => SYSTEM_USER,
-                                        reason              => 'Circuit successfully provisioned');
+    # Calling Database.edit_circuit calls update_circuit_state. If
+    # update_circuit_state is called on the same circuit_id within a
+    # single second a database exception will be raised. For this reason
+    # the 'deploying' state has been removed.
+    #
+    # $self->{'db'}->update_circuit_state(circuit_id          => $circuit_id,
+    #                                     old_state           => 'deploying',
+    #                                     new_state           => 'active',
+    #                                     modified_by_user_id => SYSTEM_USER,
+    #                                     reason              => 'Circuit successfully provisioned');
 
-    $self->{'db'}->update_circuit_path_state(circuit_id => $circuit_id,
-                                             old_state  => 'deploying',
-                                             new_state  => 'active');
+    # $self->{'db'}->update_circuit_path_state(circuit_id => $circuit_id,
+    #                                          old_state  => 'deploying',
+    #                                          new_state  => 'active');
 
     $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UP;
 

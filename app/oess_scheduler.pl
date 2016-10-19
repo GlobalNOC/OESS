@@ -1,11 +1,10 @@
 #!/usr/bin/perl
 use strict;
-use warings;
+use warnings;
 
 use OESS::Database;
 use OESS::Circuit;
 
-use Log::Log4perl;
 use XML::Simple;
 use Sys::Syslog qw(:standard :macros);
 use FindBin;
@@ -16,6 +15,10 @@ use GRNOC::RabbitMQ::Client;
 
 sub main{
     openlog("oess_scheduler.pl", 'cons,pid', LOG_DAEMON);
+    setlogmask( LOG_UPTO(LOG_INFO) );
+
+    syslog(LOG_INFO, "INFO Running OESS Scheduler.");
+
 
     my $time = time();
 
@@ -36,8 +39,10 @@ sub main{
     );
 
     if ( !defined($client) ) {
+        syslog(LOG_ERR, "Couldn't connect to RabbitMQ.");
         return;
     }
+
 
     my $actions = $oess->get_current_actions();
 
@@ -45,7 +50,7 @@ sub main{
         my $ckt = $oess->get_circuit_by_id( circuit_id => $action->{'circuit_id'})->[0];
         my $circuit_layout = XMLin($action->{'circuit_layout'}, forcearray => 1);
 
-        syslog(LOG_ERR, "Scheduling for circuit_id $action->{'circuit_id'}: " . Dumper($circuit_layout));
+        syslog(LOG_INFO, "Scheduling for circuit_id $action->{'circuit_id'}: " . Dumper($circuit_layout));
 
         if($circuit_layout->{'action'} eq 'provision'){
 
@@ -60,7 +65,7 @@ sub main{
                 next;
             }
 
-            syslog(LOG_DEBUG,"Circuit " . $circuit_layout->{'name'} . ":" . $circuit_layout->{'circuit_id'} . " scheduled for activation NOW!");
+            syslog(LOG_INFO, "Circuit " . $circuit_layout->{'name'} . ":" . $circuit_layout->{'circuit_id'} . " scheduled for activation NOW!");
             my $user = $oess->get_user_by_id( user_id => $action->{'user_id'} )->[0];
 
             #edit the circuit to make it active
@@ -77,7 +82,7 @@ sub main{
                                              nodes          => $circuit_layout->{'nodes'},
                                              interfaces     => $circuit_layout->{'interfaces'},
                                              tags           => $circuit_layout->{'tags'},
-                                             state          => $circuit_layout->{'state'},
+                                             state          => 'active',
                                              user_name      => $user->{'auth_name'},
                                              workgroup_id   => $action->{'workgroup_id'},
                                              description    => $ckt->{'description'}
@@ -87,9 +92,10 @@ sub main{
             my $result;
             my $event_id;
             eval {
-                $result = $client->addVlan(circuit_id => $output->{'circuit_id'});
-                
+                $result = $client->addVlan(circuit_id => int($action->{'circuit_id'}));
+
                 if($result->{'error'} || !$result->{'results'}->{'event_id'}){
+                    syslog(LOG_ERR, "Circuit " . $action->{'circuit_id'} . ":" . $circuit_layout->{'circuit_id'} . " couldn't be added.");
                     return;
                 }
 
@@ -111,7 +117,7 @@ sub main{
 
             #--- signal fwdctl to update caches
             eval{
-                $result = $client->update_cache(circuit_id => $action->{'circuit_id'});
+                $result = $client->update_cache(circuit_id => int($action->{'circuit_id'}));
                 
                 if($result->{'error'} || !$result->{'results'}->{'event_id'}){
                     return;
@@ -145,12 +151,12 @@ sub main{
             
             
         } elsif($circuit_layout->{'action'} eq 'edit'){
-            syslog(LOG_DEBUG,"Circuit " . $circuit_layout->{'name'} . ":" . $circuit_layout->{'circuit_id'} . " scheduled for edit NOW!");
+            syslog(LOG_INFO, "Circuit " . $circuit_layout->{'name'} . ":" . $circuit_layout->{'circuit_id'} . " scheduled for edit NOW!");
             my $res;
             my $result;
             my $event_id;
             eval {
-                $result = $client->deleteVlan(circuit_id => $action->{'circuit_id'});
+                $result = $client->deleteVlan(circuit_id => int($action->{'circuit_id'}));
                 if($result->{'error'} || !$result->{'results'}->{'event_id'}){
                     return;
                 }
@@ -179,6 +185,8 @@ sub main{
 
             my $user = $oess->get_user_by_id( user_id => $action->{'user_id'} )->[0];
 
+            syslog(LOG_INFO, "Circuit info: " . Dumper($circuit_layout));
+
             my $output = $oess->edit_circuit(circuit_id     => $action->{'circuit_id'},
                                              endpoint_mac_address_nums => $circuit_layout->{'endpoint_mac_address_num'},
                                              mac_addresses  => $circuit_layout->{'mac_addresses'},
@@ -193,10 +201,13 @@ sub main{
                                              interfaces     => $circuit_layout->{'interfaces'},
                                              tags           => $circuit_layout->{'tags'},
                                              state          => $circuit_layout->{'state'},
-                                             username       => $user->{'auth_name'},
+                                             user_name      => $user->{'auth_name'},
                                              workgroup_id   => $action->{'workgroup_id'},
                                              description    => $ckt->{'description'}
                 );
+            if (!defined $output) {
+                syslog(LOG_WARNING, "Failed to update database with new circuit parameters: " . $oess->get_error());
+            }
             
             $res = undef;
             $result = undef;
@@ -204,7 +215,7 @@ sub main{
             eval{
                 if($circuit_layout->{'state'} eq 'active'){
 
-                    $result = $client->addVlan(circuit_id => $output->{'circuit_id'});
+                    $result = $client->addVlan(circuit_id => int($action->{'circuit_id'}));
                     
                     if($result->{'error'} || !$result->{'results'}->{'event_id'}){
                         return;
@@ -226,7 +237,7 @@ sub main{
             
             #--- signal fwdctl to update caches
             eval{
-                $result = $client->update_cache(circuit_id => $action->{'circuit_id'});
+                $result = $client->update_cache(circuit_id => int($action->{'circuit_id'}));
                 
                 if($result->{'error'} || !$result->{'results'}->{'event_id'}){
                     return;
@@ -245,7 +256,7 @@ sub main{
             };
 
             if(!defined $res || $res != OESS::Database->FWDCTL_SUCCESS){
-                syslog(LOG_ERR,"Error updating cache after scheduled vlan removal.");
+                syslog(LOG_ERR, "Error updating cache after scheduled vlan removal.");
             }
 
             eval{
@@ -265,7 +276,7 @@ sub main{
             my $result;
             my $event_id;
             eval{
-                $result = $client->deleteVlan(circuit_id => $action->{'circuit_id'});
+                $result = $client->deleteVlan(circuit_id => int($action->{'circuit_id'}));
 
                 if($result->{'error'} || !$result->{'results'}->{'event_id'}){
                     return;
@@ -287,7 +298,6 @@ sub main{
                 syslog(LOG_ERR,"Res was not defined");
             }
             
-            syslog(LOG_DEBUG,"Res: '" . $res . "'");
             my $user = $oess->get_user_by_id( user_id => $action->{'user_id'} )->[0];
             $res = $oess->remove_circuit( circuit_id => $action->{'circuit_id'}, remove_time => time(), username => $user->{'auth_name'});
             
@@ -309,7 +319,7 @@ sub main{
 
             #--- signal fwdctl to update caches
             eval{
-                my $result = $client->update_cache(circuit_id => $action->{'circuit_id'});
+                my $result = $client->update_cache(circuit_id => int($action->{'circuit_id'}));
 
                 if($result->{'error'} || !$result->{'results'}->{'event_id'}){
                     return;
@@ -359,7 +369,7 @@ sub main{
                 my $event_id;
                 if($success){
                     eval{
-                        $result = $client->changeVlanPath(circuit_id => $action->{'circuit_id'});
+                        $result = $client->changeVlanPath(circuit_id => int($action->{'circuit_id'}));
 
                         if($result->{'error'} || !$result->{'results'}->{'event_id'}){
                             return;
