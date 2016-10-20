@@ -1,14 +1,15 @@
-#!/usr/bin/perl
-
+#!/usr/bin/perl                                                                                                                                                                                    
 use strict;
 use warnings;
 
 package OESS::MPLS::Discovery::LSP;
-
+use Data::Dumper;
 use OESS::Database;
 
 use Log::Log4perl;
 use AnyEvent;
+
+my $lsps = {};
 
 sub new{
     my $class = shift;
@@ -25,9 +26,9 @@ sub new{
         $self->{'config'} = "/etc/oess/database.xml";
     }
 
-    $self->{'db'} = OESS::Database->new( config_file => $self->{'config'} );
+#    $self->{'db'} = OESS::Database->new( config_file => $self->{'config'} );
 
-    die if(!defined($self->{'db'}));
+#    die if(!defined($self->{'db'}));
 
     return $self;
 }
@@ -36,7 +37,39 @@ sub process_results{
     my $self = shift;
     my %params = @_;
 
-    return 1;    
+    return 1;
+}
+
+
+
+sub get_lsps_per_node {
+    my $self = shift;
+    my $data = shift;
+
+
+    foreach my $top (%{$data}){
+
+	foreach my $hostname (keys ( %{$data->{$top}} ) ) {
+
+	    my $state = $data->{$top}->{$hostname}->{'pending'};
+	    my $results = $data->{$top}->{$hostname}->{'results'};
+	    $lsps->{$hostname} = {};
+
+	    foreach my $session_type (@$results){
+		my $sessions = ($session_type->{'sessions'});
+
+		foreach my $sessionsa (@$sessions){
+		    my $name  = $sessionsa ->{'name'};
+		$lsps->{$name}->{$hostname} = $sessionsa;
+		}
+	    }
+	    print Dumper($lsps);
+	    return $lsps;
+	}
+    
+    }
+
+
 }
 
 1;
