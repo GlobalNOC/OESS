@@ -24,10 +24,11 @@
 
 use OESS::FWDCTL::Master;
 use AnyEvent::RabbitMQ;
+use Data::Dumper;
 use English;
 use Getopt::Long;
+use Log::Log4perl;
 use Proc::Daemon;
-use Data::Dumper;
 
 #link statuses
 use constant OESS_LINK_UP       => 1;
@@ -44,13 +45,12 @@ use strict;
 my $pid_file = "/var/run/oess/fwdctl.pid";
 
 sub core{
-    #basic init stuffs
     Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
 
     my $FWDCTL = OESS::FWDCTL::Master->new();
-
     my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => sub { $FWDCTL->reap_old_events() } );
 
+    Log::Log4perl->get_logger('OESS.FWDCTL.APP')->info("Starting OESS.FWDCTL event loop.");
     AnyEvent->condvar->recv;
 }
 

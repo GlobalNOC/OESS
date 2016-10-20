@@ -4,6 +4,8 @@ use warnings;
 ###############################################################################
 package OESS::MPLS::FWDCTL;
 
+use Data::Dumper;
+use Log::Log4perl;
 use Socket;
 
 use OESS::Database;
@@ -22,6 +24,7 @@ use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
+use constant FWDCTL_BLOCKED     => 4;
 
 #link statuses
 use constant OESS_LINK_UP       => 1;
@@ -40,7 +43,9 @@ use GRNOC::WebService::Regex;
 
 =head2 new
 
-    create a new OESS Master process
+create a new OESS Master process
+
+  FWDCTL->new();
 
 =cut
 
@@ -122,7 +127,12 @@ sub new {
     
     $self->{'logger'}->error("MPLS Provisioner INIT COMPLETE");
 
-    
+    # {
+    #     id      => 00000,
+    #     results => undef,
+    #     status  => FWDCTL_SUCCESS
+    # };
+    $self->{'events'} = {};
     
     return $self;
 }
@@ -187,6 +197,7 @@ sub build_cache{
 	$details->{'vendor'} = $details->{'vendor'};
 	$details->{'model'} = $details->{'model'};
 	$details->{'sw_version'} = $details->{'sw_version'};
+        $details->{'pending_diff'} = $details->{'pending_diff'};;
 	$node_info{$node->{'name'}} = $details;
     }
 
@@ -225,11 +236,10 @@ sub _write_cache{
             next;
         }
         my $details = $ckt->get_details();
-
 	my $eps = $ckt->get_endpoints();
 
 	my $ckt_type = "L2VPN";
-	
+
 	if(scalar(@$eps) > 2){
 	    $ckt_type = "L2VPLS";
 	}
@@ -332,7 +342,8 @@ sub _write_cache{
 			ckt_type => $ckt_type,
 			site_id => $site_id,
 			a_side => $ep_a->{'node_id'},
-	    };
+                        state  => $ckt->{'state'}
+                      };
 	    
 	    $switches{$ep_a->{'node'}}->{$details->{'circuit_id'}} = $obj;
 	}
@@ -425,6 +436,15 @@ sub register_rpc_methods{
 
     $d->register_method($method);
 
+    $method = GRNOC::RabbitMQ::Method->new( name => 'get_diff_text',
+                                            callback => sub { return $self->get_diff_text(@_); },
+                                            description => "Returns a human readable diff for node_id" );
+    $method->add_input_parameter( name => "node_id",
+                                  description => "The node ID to lookup",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);
+    $d->register_method($method);
+
 }
 
 sub new_switch{
@@ -438,7 +458,7 @@ sub new_switch{
     
     $self->update_cache(-1);
 
-    if(!defined($self->{'children'}->{$node_id}->{'rpc'})){
+    if (!defined $self->{'children'}->{$node_id}->{'rpc'}) {
 	#sherpa will you make my babies!
 	$self->make_baby($node_id);
 	$self->{'logger'}->debug("Baby was created!");
@@ -447,22 +467,24 @@ sub new_switch{
 
 
 =head2 make_baby
+
 make baby is a throw back to sherpa...
 have to give Ed the credit for most 
 awesome function name ever
+
 =cut
-sub make_baby{
+sub make_baby {
     my $self = shift;
     my $id = shift;
     
     $self->{'logger'}->debug("Before the fork");
     
     my $node = $self->{'node_by_id'}->{$id};
-
     my %args;
     $args{'id'} = $id;
+    $args{'config'} = $self->{'config'};
     $args{'share_file'} = $self->{'share_file'}. "." . $id;
-    $args{'rabbitMQ_host'} = $self->{'db'}->{'rabbitMQ'}->{'host'}; 
+    $args{'rabbitMQ_host'} = $self->{'db'}->{'rabbitMQ'}->{'host'};
     $args{'rabbitMQ_port'} = $self->{'db'}->{'rabbitMQ'}->{'port'};
     $args{'rabbitMQ_user'} = $self->{'db'}->{'rabbitMQ'}->{'user'};
     $args{'rabbitMQ_pass'} = $self->{'db'}->{'rabbitMQ'}->{'pass'};
@@ -471,7 +493,7 @@ sub make_baby{
     my $proc = AnyEvent::Fork->new->require("Log::Log4perl", "OESS::MPLS::Switch")->eval('
 use strict;
 use warnings;
-use Data::Dumper;
+
 my $switch;
 my $logger;
 
@@ -479,24 +501,38 @@ Log::Log4perl::init_and_watch("/etc/oess/logging.conf",10);
 sub run{
     my $fh = shift;
     my %args = @_;
-    $logger = Log::Log4perl->get_logger("MPLS.FWDCTL.MASTER");
+
+    $logger = Log::Log4perl->get_logger("OESS.MPLS.FWDCTL.MASTER");
     $logger->info("Creating child for id: " . $args{"id"});
+    $logger->info($args{"config"});
     $switch = OESS::MPLS::Switch->new( %args );
-    }')->fork->send_arg( %args )->run("run");
+}')->fork->send_arg( %args )->run("run");
+
+    my $topic  = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$id}->{'mgmt_addr'};
+    my $client = GRNOC::RabbitMQ::Client->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
+                                               port => $self->{'db'}->{'rabbitMQ'}->{'port'},
+                                               user => $self->{'db'}->{'rabbitMQ'}->{'user'},
+                                               pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
+                                               exchange => 'OESS',
+                                               topic    => $topic );
 
     $self->{'children'}->{$id}->{'rpc'} = 1;
+    $self->{'children'}->{$id}->{'client'} = $client;
+    $self->{'children'}->{$id}->{'pending_diff'} = $node->{'pending_diff'};
+    $self->{'logger'}->debug("Created client for node $id. Topic: $topic PendingDiff: $node->{'pending_diff'}");
+    return 1;
 }
 
-
 =head2 update_cache
-updates the cache for all of the children
-=cut
 
+updates the cache for all of the children
+
+=cut
 sub update_cache{
     my $self = shift;
     my $m_ref = shift;
     my $p_ref = shift;
-    
+
     my $circuit_id = $p_ref->{'circuit_id'}->{'value'};
 
     if(!defined($circuit_id) || $circuit_id == -1){
@@ -514,7 +550,7 @@ sub update_cache{
 	    $node_by_id{$self->{'node_info'}->{$node}->{'id'}} = $self->{'node_info'}->{$node};
 	}
 	$self->{'node_by_id'} = \%node_by_id;
-    }else{
+    } else {
         $self->{'logger'}->debug("Updating cache for circuit: " . $circuit_id);
         my $ckt = $self->get_ckt_object($circuit_id);
         if(!defined($ckt)){
@@ -524,11 +560,12 @@ sub update_cache{
         $self->{'logger'}->debug("Updating cache for circuit: " . $circuit_id . " complete");
     }
 
-    #write the cache for our children
+    # Write the cache to file for our children, then signal children to
+    # read updates from file.
     $self->_write_cache();
     my $event_id = $self->_generate_unique_event_id();
-    foreach my $child (keys %{$self->{'children'}}){
-	$self->send_message_to_child($child,{action => 'update_cache'},$event_id);
+    foreach my $id (keys %{$self->{'children'}}){
+	$self->send_message_to_child($id, {action => 'update_cache'}, $event_id);
     }
     
     $self->{'logger'}->debug("Completed sending message to children!");
@@ -537,25 +574,27 @@ sub update_cache{
 }
 
 =head2 check_child_status
-    sends an echo request to the child
-=cut
 
+    sends an echo request to the child
+
+=cut
 sub check_child_status{
     my $self = shift;
 
-    $self->{'logger'}->debug("Checking on child status");
+    $self->{'logger'}->info("Checking the status of all children.");
     my $event_id = $self->_generate_unique_event_id();
+
     foreach my $id (keys %{$self->{'children'}}){
-        $self->{'logger'}->debug("checking on child: " . $id);
-        my $child = $self->{'children'}->{$id};
-        my $corr_id = $self->send_message_to_child($id,{action => 'echo'},$event_id);            
+        $self->{'logger'}->debug("Checking status of child: " . $id);
+        $self->send_message_to_child($id, {action => 'echo'}, $event_id);
     }
+
     return {status => 1, event_id => $event_id};
 }
 
 =head2 reap_old_events
-=cut
 
+=cut
 sub reap_old_events{
     my $self = shift;
 
@@ -569,9 +608,10 @@ sub reap_old_events{
 
 
 =head2 send_message_to_child
-send a message to a child
-=cut
 
+send a message to a child
+
+=cut
 sub send_message_to_child{
     my $self = shift;
     my $id = shift;
@@ -701,7 +741,7 @@ sub deleteVlan{
     my $endpoints = $ckt->get_endpoints();
     my %nodes;
     foreach my $ep (@$endpoints){
-        $self->{'logger'}->debug("Node: " . $ep->{'node'} . " is involved int he circuit");
+        $self->{'logger'}->debug("Node: " . $ep->{'node'} . " is involved in the circuit");
         $nodes{$ep->{'node'}}= 1;
     }
 
@@ -713,11 +753,203 @@ sub deleteVlan{
         $self->send_message_to_child($id,{action => 'remove_vlan', circuit_id => $circuit_id}, $event_id);
     }
 
+    delete $self->{'circuit'}->{$circuit_id};
     return {status => $result, event_id => $event_id};
 
 }
 
+sub diff {
+    my $self = shift;
 
+    $self->{'logger'}->info("Signaling MPLS nodes to begin diff.");
+
+    foreach my $node_id (keys %{$self->{'children'}}) {
+        my $node         = $self->{'db'}->get_node_by_id(node_id => $node_id);
+        my $force_diff   = 0;
+        my $pending_diff = int($node->{'pending_diff'});
+
+        # If the database asserts a diff is pending we are still waiting
+        # for admin approval. Skip diffing for now.
+        if ($pending_diff == 1) {
+           $self->{'logger'}->info("Diff for node $node_id requires admin approval.");
+           next;
+        }
+
+        # If the database asserts there is no diff pending but memory
+        # disagrees, then the pending state was modified by an admin.
+        # The pending diff may now proceed.
+        if ($self->{'children'}->{$node_id}->{'pending_diff'} == 1) {
+            $force_diff = 1;
+            $self->{'children'}->{$node_id}->{'pending_diff'} = 0;
+        }
+
+        $self->{'children'}->{$node_id}->{'client'}->get_device_circuit_ids(
+            async_callback => sub {
+                my $circuit_ids = shift;
+                $self->{'logger'}->info("Got circuit_ids...");
+
+                my $installed = {};
+                foreach my $id (@{$circuit_ids->{'results'}}) {
+                    $installed->{$id} = $id;
+                }
+
+                my $additions = [];
+                foreach my $id (keys %{$self->{'circuit'}}) {
+                    if ($self->{'circuit'}->{$id}->on_node($node_id) == 0) {
+                        next;
+                    }
+
+                    # Second half of if statement protects against
+                    # circuits that should have been removed but are
+                    # still in memory.
+                    if (!defined $installed->{$id}) {
+                        push(@{$additions}, $id);
+                    }
+                }
+
+                my $deletions = [];
+                foreach my $id (keys %{$installed}) {
+                    if (!defined $self->{'circuit'}->{$id}) {
+                        # Adding something at $id forces _write_cache to
+                        # load circuit data from the db (even if the
+                        # circuit is decom'd).
+                        $self->{'circuit'}->{$id} = undef;
+                        push(@{$deletions}, $id);
+                        next;
+                    }
+
+                    if ($self->{'circuit'}->{$id}->{'state'} ne 'active') {
+                        # Used when another node related to the circuit
+                        # has already cause the circuit to be loaded.
+                        push(@{$deletions}, $id);
+                        next;
+                    }
+                }
+
+                $self->_write_cache();
+
+                # TODO Stop encoding json directly and use method
+                # schemas
+                my $payload = encode_json( { additions => $additions,
+                                             deletions => $deletions,
+                                             installed => $installed } );
+
+                 $self->{'children'}->{$node_id}->{'client'}->diff( timeout        => 15,
+                                                                    installed_circuits => $payload,
+                                                                    force_diff     => $force_diff,
+                                                                    async_callback => sub {
+                                                                        my $res = shift;
+
+                                                                        if (defined $res->{'error'}) {
+                                                                            $self->{'logger'}->error("ERROR: " . $res->{'error'});
+                                                                            return 0;
+                                                                        }
+
+                                                                        # Cleanup decom'd circuits from memory.
+                                                                        foreach my $id (@{$deletions}) {
+                                                                            delete $self->{'circuit'}->{$id};
+                                                                        }
+
+                                                                        if ($res->{'results'}->{'status'} == FWDCTL_BLOCKED) {
+                                                                            my $node_id = $res->{'results'}->{'node_id'};
+
+                                                                            $self->{'db'}->set_diff_approval(0, $node_id);
+                                                                            $self->{'children'}->{$node_id}->{'pending_diff'} = 1;
+                                                                            $self->{'logger'}->warn("Diff for node $node_id requires admin approval.");
+
+                                                                            return 0;
+                                                                        }
+
+                                                                        return 1;
+                                                                    } );
+            } );
+    }
+
+    return 1;
+}
+
+
+sub get_diff_text {
+    my $self  = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    $self->{'logger'}->debug("Calling FWDCTL.get_diff_text");
+    my $id = $self->_generate_unique_event_id();
+    my $event = { id      => $id,
+                  results => undef,
+                  status  => FWDCTL_WAITING
+                };
+
+    my $node_id = $p_ref->{'node_id'}{'value'};
+    my $node = $self->{'children'}->{$node_id};
+    if (!defined $node) {
+        my $err = "Node $node_id doesn't exist.";
+        $self->{'logger'}->error($err);
+        $event->{'error'} = $err;
+        $event->{'status'} = FWDCTL_FAILURE;
+        return $event;
+    }
+
+    $node->{'client'}->get_device_circuit_ids(
+         async_callback => sub {
+             my $circuit_ids = shift;
+
+             my $installed = {};
+             foreach my $id (@{$circuit_ids->{'results'}}) {
+                 $installed->{$id} = $id;
+             }
+
+             my $additions = [];
+             foreach my $id (keys %{$self->{'circuit'}}) {
+                 if (!defined $installed->{$id}) {
+                     push(@{$additions}, $id);
+                 }
+             }
+
+             my $deletions = [];
+             foreach my $id (keys %{$installed}) {
+                 if (!defined $self->{'circuit'}->{$id}) {
+                     # Verifies that decom'd circuits found on device
+                     # are loaded into cache. They will be removed once
+                     # get_diff_text returns.
+                     $self->{'circuit'}->{$id} = undef;
+                     push(@{$deletions}, $id);
+                 }
+             }
+
+             $self->{'logger'}->debug("Writing cache.");
+             $self->_write_cache();
+
+             # TODO
+             # Stop encoding json directly and use method schemas
+             my $payload = encode_json( { additions => $additions,
+                                          deletions => $deletions,
+                                          installed => $installed } );
+
+             $node->{'client'}->get_diff_text(
+                  installed_circuits => $payload,
+                  async_callback => sub {
+                      my $response = shift;
+
+                      if (defined $response->{'error'}) {
+                          $event->{'error'} = $response->{'error'};
+                          $event->{'status'} = FWDCTL_FAILURE;
+                      } else {
+                          $event->{'results'} = [ $response->{'results'} ];
+                          $event->{'status'} = FWDCTL_SUCCESS;
+                      }
+
+                      # Cleanup decom'd circuits from memory.
+                      foreach my $id (@{$deletions}) {
+                          delete $self->{'circuit'}->{$id};
+                      }
+                  } );
+         } );
+
+    $self->{'events'}->{$id} = $event;
+    return $event;
+}
 
 sub get_ckt_object{
     my $self =shift;
@@ -756,6 +988,7 @@ sub message_callback {
         } elsif (defined $results->{'error'}) {
             $self->{'logger'}->error($results->{'error'});
         }
+
         $self->{'node_rules'}->{$id} = $results->{'results'}->{'total_rules'};
 	$self->{'logger'}->debug("Event: $event_id for ID: " . $event_id . " status: " . $results->{'results'}->{'status'});
         $self->{'pending_results'}->{$event_id}->{'ids'}->{$id} = $results->{'results'}->{'status'};
@@ -794,7 +1027,15 @@ sub get_event_status{
         #done waiting and was success!
         $self->{'logger'}->debug("Event $event_id is complete!!");
         return {status => FWDCTL_SUCCESS};
-    }else{
+    } elsif (defined $self->{'events'}->{$event_id}) {
+
+        my $event = $self->{'events'}->{$event_id};
+        if ($event->{'status'} != FWDCTL_WAITING) {
+            delete $self->{'events'}->{$event_id};
+        }
+        return $event;
+
+    } else {
         #no known event by that ID
         return {status => FWDCTL_UNKNOWN};
     }
@@ -809,8 +1050,10 @@ sub echo {
 }
 
 =head2 stop
-Sends a shutdown signal on OF.FWDCTL.event.stop. Child processes
+
+Sends a shutdown signal on MPLS.FWDCTL.event.stop. Child processes
 should listen for this signal and cleanly exit when received.
+
 =cut
 sub stop {
     my $self = shift;

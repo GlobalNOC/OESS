@@ -4,19 +4,24 @@ use strict;
 use warnings;
 
 package OESS::MPLS::Switch;
-use GRNOC::WebService::Regex;
 
 use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
 
+use AnyEvent;
+use Data::Dumper;
+use Log::Log4perl;
 use Switch;
 use Template;
 use Net::Netconf::Manager;
+
 use GRNOC::RabbitMQ::Dispatcher;
 use GRNOC::RabbitMQ::Method;
 use GRNOC::RabbitMQ::Client;
+use GRNOC::WebService::Regex;
+
 use OESS::MPLS::Device;
 
 use JSON::XS;
@@ -34,9 +39,10 @@ sub new{
         );
 
     my $self = \%args;
+    bless $self, $class;
 
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Switch.' . $self->{'id'});
-    bless $self, $class;
+    $self->{'config'} = $args{'config'} || '/etc/oess/database.xml';
 
     $self->{'node'}->{'node_id'} = $self->{'id'};
     
@@ -64,7 +70,6 @@ sub new{
                                                        topic => $topic,
                                                        queue => $topic,
                                                        exchange => 'OESS');
-
     $self->register_rpc_methods( $dispatcher );
 
     #attempt to reconnect!
@@ -78,38 +83,55 @@ sub new{
 
     #try and connect up right away
     $self->{'device'}->connect();
- 
+
     AnyEvent->condvar->recv;
     return $self;
+}
+
+=head2 set_pending
+
+Sets the in-memory state for a devices diff state. If durring a diff
+the in-memory state is 0, but 1 is stored in the database, a diff will
+be forced to occur.
+
+=cut
+sub set_pending {
+    my $self  = shift;
+    my $state = shift;
+
+    $self->{'pending_diff'} = $state;
+    $self->{'device'}->{'pending_diff'} = $state;
+    return 1;
 }
 
 sub create_device_object{
     my $self = shift;
 
     my $host_info = $self->{'node'};
+    $host_info->{'config'} = $self->{'config'};
 
     switch($host_info->{'vendor'}){
-	case "Juniper" {
-	    my $dev;
-	    if($host_info->{'model'} =~ /mx/i){
-		warn Data::Dumper::Dumper($host_info);
-		$dev = OESS::MPLS::Device::Juniper::MX->new( %$host_info );
-	    }else{
-		$self->{'logger'}->error("Juniper " . $host_info->{'model'} . " is not supported");
-		return;
-	    }
-	    
-	    if(!defined($dev)){
-		$self->{'logger'}->error("Unable to instantiate Device!");
-		return;
-	    }
+        case "Juniper" {
+            my $dev;
+            if($host_info->{'model'} =~ /mx/i){
+                $self->{'logger'}->info("create_device_object: " . Dumper($host_info));
+                $dev = OESS::MPLS::Device::Juniper::MX->new( %$host_info );
+            }else{
+                $self->{'logger'}->error("Juniper " . $host_info->{'model'} . " is not supported");
+                return;
+            }
 
-	    $self->{'device'} = $dev;
+            if(!defined($dev)){
+                $self->{'logger'}->error("Unable to instantiate Device!");
+                return;
+            }
 
-	}else{
-	    $self->{'logger'}->error("Unsupported device type: ");
-	    return;
-	}
+            $self->{'device'} = $dev;
+
+        }else{
+            $self->{'logger'}->error("Unsupported device type: ");
+            return;
+        }
     }
 }
 
@@ -159,10 +181,9 @@ sub register_rpc_methods{
     $method = GRNOC::RabbitMQ::Method->new( name        => "stop",
                                             callback    => sub {
                                                 $self->stop();
-                                                $self->{'logger'}->info("FWDCTL has stopped; Now exiting.");
                                             },
                                             description => "Notification that FWDCTL has exited",
-                                            topic       => "OF.FWDCTL.event" );
+                                            topic       => "MPLS.FWDCTL.event" );
     $dispatcher->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name        => "get_interfaces",
@@ -194,6 +215,41 @@ sub register_rpc_methods{
 					    description => "returns the system information");
     $dispatcher->register_method($method);
 
+    $method = GRNOC::RabbitMQ::Method->new( name        => "diff",
+					    callback    => sub {
+                                                my $node_id = $self->{'node'}->{'node_id'};
+                                                my $status  = $self->diff(@_);
+                                                return { node_id => $node_id, status  => $status };
+                                            },
+					    description => "Proxies diff signal to the underlying device object.");
+    $method->add_input_parameter( name => "installed_circuits",
+                                  description => "List of circuit_ids that are installed.",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::TEXT );
+    $method->add_input_parameter( name => "force_diff",
+                                  description => "Set to 1 if size of diff should be ignored",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);
+    $dispatcher->register_method($method);
+
+    $method = GRNOC::RabbitMQ::Method->new( name        => "get_diff_text",
+					    callback    => sub {
+                                                my $resp = { text => $self->get_diff_text(@_) };
+                                                return $resp;
+                                            },
+					    description => "Proxies diff signal to the underlying device object." );
+    $method->add_input_parameter( name => "installed_circuits",
+                                  description => "List of circuit_ids that are installed.",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::TEXT );
+    $dispatcher->register_method($method);
+
+    $method = GRNOC::RabbitMQ::Method->new( name        => "get_device_circuit_ids",
+					    callback    => sub {
+                                                return $self->get_device_circuit_ids(@_);
+                                            },
+					    description => "Proxies request for installed circuits to device object." );
+    $dispatcher->register_method($method);
 }
 
 sub _update_cache{
@@ -201,6 +257,7 @@ sub _update_cache{
     my $m_ref = shift;
     my $p_ref = shift;
 
+    $self->{'logger'}->info("Loading circuits from cache file.");
     $self->{'logger'}->debug("Retrieve file: " . $self->{'share_file'});
 
     if(!-e $self->{'share_file'}){
@@ -217,6 +274,8 @@ sub _update_cache{
     my $data = decode_json($str);
     $self->{'logger'}->debug("Fetched data!");
     $self->{'node'} = $data->{'nodes'}->{$self->{'id'}};
+    $self->{'logger'}->info("_update_cache: " . Dumper($self->{'node'}));
+
     $self->{'settings'} = $data->{'settings'};
 
     foreach my $ckt (keys %{ $self->{'ckts'} }){
@@ -228,7 +287,7 @@ sub _update_cache{
         $self->{'logger'}->debug("processing cache for circuit: " . $ckt);
 
         $self->{'ckts'}->{$ckt} = $data->{'ckts'}->{$ckt};
-
+        $self->{'ckts'}->{$ckt}->{'circuit_id'} = $ckt;
     }
 
     $self->{'logger'} = Log::Log4perl->get_logger('MPLS.FWDCTL.Switch.' . $self->{'node'}->{'name'}) if($self->{'node'}->{'name'});
@@ -237,7 +296,9 @@ sub _update_cache{
 }
 
 =head2 echo
+
 Always returns 1.
+
 =cut
 sub echo {
     my $self = shift;
@@ -245,13 +306,16 @@ sub echo {
 }
 
 =head2 stop
+
 Sends a shutdown signal on OF.FWDCTL.event.stop. Child processes
 should listen for this signal and cleanly exit when received.
+
 =cut
 sub stop {
     my $self = shift;
+    $self->{'logger'}->info("FWDCTL has stopped; Now exiting.");
 
-    exit(1);
+    exit 0;
 }
 
 =head2 add_vlan
@@ -319,6 +383,47 @@ sub remove_vlan{
     return $res;
 }
 
+=head2 diff
+
+Proxies diff signal to the underlying device object.
+
+=cut
+sub diff {
+    my $self  = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    $self->{'logger'}->debug("Calling Switch.diff");
+    my $circuit_info = decode_json($p_ref->{'installed_circuits'}{'value'});
+    my $force_diff   = int($p_ref->{'force_diff'}{'value'});
+
+    $self->_update_cache();
+
+    return $self->{'device'}->diff($self->{'ckts'}, $circuit_info, $force_diff);
+}
+
+sub get_diff_text {
+    my $self  = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    $self->{'logger'}->debug("Calling Switch.get_diff_text");
+    my $circuit_info = decode_json($p_ref->{'installed_circuits'}{'value'});
+
+    $self->_update_cache();
+
+    return $self->{'device'}->get_diff_text($self->{'ckts'}, $circuit_info);
+}
+
+sub get_device_circuit_ids {
+    my $self  = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    $self->{'logger'}->debug("Calling Switch.get_device_circuit_ids");
+
+    return $self->{'device'}->get_device_circuit_ids();
+}
 =head2 get_interfaces
 
 returns a list of interfaces from the device

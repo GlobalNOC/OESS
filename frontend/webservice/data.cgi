@@ -29,27 +29,46 @@
 use strict;
 use warnings;
 
-use JSON::XS;
-use Switch;
+use AnyEvent;
 use Data::Dumper;
-
-use URI::Escape;
+use JSON::XS;
+use Log::Log4perl;
 use MIME::Lite;
+use Switch;
+use Time::HiRes qw(usleep);
+use URI::Escape;
+
+use GRNOC::RabbitMQ::Client;
+use GRNOC::WebService;
+
+use OESS::Circuit;
 use OESS::Database;
 use OESS::Topology;
-use OESS::Circuit;
-use Log::Log4perl;
-use GRNOC::WebService;
+
+
 #link statuses
 use constant OESS_LINK_UP       => 1;
 use constant OESS_LINK_DOWN     => 0;
 use constant OESS_LINK_UNKNOWN  => 2;
 
+use constant FWDCTL_WAITING     => 2;
+use constant FWDCTL_SUCCESS     => 1;
+use constant FWDCTL_FAILURE     => 0;
+use constant FWDCTL_UNKNOWN     => 3;
+use constant FWDCTL_BLOCKED     => 4;
+
 my $db   = new OESS::Database();
 my $topo = new OESS::Topology();
 
 #register web service dispatcher
-my $svc = GRNOC::WebService::Dispatcher->new();
+my $svc    = GRNOC::WebService::Dispatcher->new();
+my $fwdctl = GRNOC::RabbitMQ::Client->new( host     => 'localhost',
+                                           user     => 'guest',
+                                           pass     => 'guest',
+                                           port     => 5672,
+                                           exchange => 'OESS',
+                                           topic    => 'MPLS.FWDCTL.RPC' );
+
 
 Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
 
@@ -656,9 +675,112 @@ sub register_webservice_methods {
     #register the get_vlan_tag_range() method
     $svc->register_method($method);
 
+    # BEGIN diff
+    $method = GRNOC::WebService::Method->new(
+        name            => "get_diffs",
+        description     => "Returns diff information for each node.",
+        callback        => sub { get_diffs( @_ ) }
+	);
 
+    $method->add_input_parameter(
+        name            => 'approved',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        description     => "Filters diff information by approved state."
+        );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new(
+        name            => "get_diff_text",
+        description     => "Returns diff text for the specified node.",
+        callback        => sub { get_diff_text(@_); }
+	);
+
+    $method->add_input_parameter(
+        name            => 'node_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "Node ID of the diff to lookup."
+        );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new(
+        name            => "set_diff_approval",
+        description     => "Approves or rejects a large diff.",
+        callback        => sub { set_diff_approval( @_ ) }
+	);
+
+    $method->add_input_parameter(
+        name            => 'approved',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "Filters diff information by approved state."
+        );
+
+    $method->add_input_parameter(
+        name            => 'node_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "Node ID of the diff to lookup."
+        );
+    $svc->register_method($method);
+    # END diff
 }
 
+=head2 get_diffs
+
+Returns configuration state for each node. The returned param
+pending_diff, if true, indicates that a configuration diff needs manual
+approval.
+
+=cut
+sub get_diffs {
+    my ( $method, $args ) = @_ ;
+    my $approved = $args->{'approved'}{'value'};
+
+    my $diffs = $db->get_diffs($approved);
+    if (!defined $diffs) {
+	$method->set_error($db->get_error());
+        return;
+    }
+
+    return { results => $diffs };
+}
+
+sub get_diff_text {
+    my ( $method, $args ) = @_ ;
+
+    my $node_id = $args->{'node_id'}{'value'};
+    my $event   = $fwdctl->get_diff_text( node_id => $node_id );
+
+    while ($event->{'results'}->{'status'} == FWDCTL_WAITING) {
+        usleep(1000000);
+        $event = $fwdctl->get_event_status( event_id => $event->{'results'}->{'id'} );
+    }
+
+    return $event->{'results'};
+}
+
+=head2 set_diff_approval
+
+Approves or denies diffing for a node with pending configuration
+changes. Once approved the node may apply its changes. Returns 1 on
+success.
+
+=cut
+sub set_diff_approval {
+    my ( $method, $args ) = @_ ;
+    my $approved = $args->{'approved'}{'value'};
+    my $node_id  = $args->{'node_id'}{'value'};
+
+    my $res = $db->set_diff_approval($approved, $node_id);
+    if (!defined $res) {
+	$method->set_error($db->get_error());
+        return;
+    }
+
+    return { results => [$res] };
+}
 
 sub get_workgroups {
     
@@ -668,7 +790,7 @@ sub get_workgroups {
     my $workgroups = $db->get_workgroups_by_auth_name( auth_name => $username );
 
     if ( !defined $workgroups ) {
-	$method->set_error =( $db->get_error() );
+	$method->set_error($db->get_error());
 	return;
     }
     else {

@@ -974,7 +974,7 @@ sub _update_node_database_state{
         #update admin state if it is planned (now it exists and we have some data to back this assertion)
         if ( $node->{'admin_state'} =~ /planned/){
             ##update old, create new
-            $self->{'db'}->create_node_instance(node_id => $node->{'node_id'}, ipv4_addr => $ip ,admin_state => 'available',dpid => $dpid);
+            $self->{'db'}->create_node_instance(node_id => $node->{'node_id'}, ipv4_addr => $ip, admin_state => 'available', dpid => $dpid, openflow => 1);
         }
         $node_id = $node->{'node_id'};
 
@@ -1008,7 +1008,7 @@ sub _update_node_database_state{
             $self->{'db'}->_rollback();
             return;
         }
-        $self->{'db'}->create_node_instance(node_id => $node_id, ipv4_addr => $ip, admin_state => 'available', dpid => $dpid);
+        $self->{'db'}->create_node_instance(node_id => $node_id, ipv4_addr => $ip, admin_state => 'available', dpid => $dpid, openflow => 1);
     }
 
     my $ports = $p_ref->{'ports'}{'value'};
@@ -1896,20 +1896,26 @@ sub fv_link_event{
 
 =head2 addVlan
 
-=cut
+=over 4
 
+=item B<circuit_id> - Id of the circuit to schedule or install.
+
+=back
+
+Installs or schedules the installation of circuit $circuit_id.
+
+=cut
 sub addVlan {
-    my $self       = shift;
+    my $self  = shift;
     my $m_ref = shift;
     my $p_ref = shift;
-    my $state = shift;
     
     my $start = [gettimeofday];
 
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
     $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
-    $self->{'logger'}->info("addVlan: $circuit_id");
+    $self->{'logger'}->info("Calling addVlan - circuit_id: $circuit_id");
 
     my $event_id = $self->_generate_unique_event_id();
 
@@ -1932,54 +1938,60 @@ sub addVlan {
     #get all the DPIDs involved and remove the flows
     my $flows = $ckt->get_flows();
     my %dpids;
-    foreach my $flow (@$flows){
+    foreach my $flow (@{$flows}){
         $dpids{$flow->get_dpid()} = 1;
     }
 
-    my $result = FWDCTL_SUCCESS;
-
+    my $result  = FWDCTL_SUCCESS;
     my $details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
 
-
-    if ($details->{'state'} eq "deploying" || $details->{'state'} eq "scheduled") {
-        
-        my $state = $details->{'state'};
-        
-#        $self->{'db'}->update_circuit_state(circuit_id          => $circuit_id,
-#                                            old_state           => $state,
-#                                            new_state           => 'active',
-#                                            modified_by_user_id => SYSTEM_USER,
-#                                            reason              => 'Circuit successfully provisioned' );
-
-        $self->{'logger'}->error($self->{'db'}->get_error());
+    # Circuit must have state set to deploying before installation may
+    # proceed. Circuits with a state of scheduled shall not be added.
+    if ($details->{'state'} eq 'scheduled') {
+        $self->{'logger'}->info("Elapsed time addVlan: " . tv_interval( $start, [gettimeofday]));
+        return {status => $result, event_id => $event_id};
     }
 
-    #TODO: WHY IS THERE HERE??? Seems like we can remove this...
-    $self->{'db'}->update_circuit_path_state(circuit_id  => $circuit_id,
-                                             old_state   => 'deploying',
-                                             new_state   => 'active');
-    
+    # Calling Database.edit_circuit calls update_circuit_state. If
+    # update_circuit_state is called on the same circuit_id within a
+    # single second a database exception will be raised. For this reason
+    # the 'deploying' state has been removed.
+    #
+    # $self->{'db'}->update_circuit_state(circuit_id          => $circuit_id,
+    #                                     old_state           => 'deploying',
+    #                                     new_state           => 'active',
+    #                                     modified_by_user_id => SYSTEM_USER,
+    #                                     reason              => 'Circuit successfully provisioned');
+
+    # $self->{'db'}->update_circuit_path_state(circuit_id => $circuit_id,
+    #                                          old_state  => 'deploying',
+    #                                          new_state  => 'active');
+
     $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UP;
 
     foreach my $dpid (keys %dpids){
         $self->send_message_to_child($dpid,{action => 'add_vlan', circuit_id => $circuit_id}, $event_id);
     }
 
-    $self->{'logger'}->info("Elapsed time add_vlan: " . tv_interval( $start, [gettimeofday]));
-
+    $self->{'logger'}->info("Elapsed time addVlan: " . tv_interval( $start, [gettimeofday]));
     return {status => $result, event_id => $event_id};
-    
 }
 
 =head2 deleteVlan
 
-=cut
+=over 4
 
+=item B<circuit_id> - Id of the circuit to schedule or uninstall.
+
+=back
+
+Uninstalls or schedules the uninstall of circuit $circuit_id.
+
+=cut
 sub deleteVlan {
     my $self = shift;
     my $m_ref = shift;
     my $p_ref = shift;
-    my $state = shift;
 
     # Measure time spent in this method.
     my $start = [gettimeofday];
@@ -1987,22 +1999,20 @@ sub deleteVlan {
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
     $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
-
-    $self->{'logger'}->debug("Calling deleteVlan on circuit $circuit_id.");
+    $self->{'logger'}->info("Calling deleteVlan - circuit_id: $circuit_id.");
     
-    my $ckt      = $self->get_ckt_object( $circuit_id );
     my $event_id = $self->_generate_unique_event_id();
+
+    my $ckt = $self->get_ckt_object( $circuit_id );
     if(!defined($ckt)){
         return {status => FWDCTL_FAILURE, event_id => $event_id};
     }
     
     $ckt->update_circuit_details();
-
     if($ckt->{'details'}->{'state'} eq 'decom'){
 	return {status => FWDCTL_FAILURE, event_id => $event_id};
     }
 
-    #update the cache
     $self->_write_cache();
     
     #get all the DPIDs involved and remove the flows
@@ -2012,15 +2022,15 @@ sub deleteVlan {
         $dpids{$flow->get_dpid()} = 1;
     }
    
-    my $result = FWDCTL_SUCCESS;
+    my $result  = FWDCTL_SUCCESS;
+    my $details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
 
     foreach my $dpid (keys %dpids){
         $self->{'logger'}->debug("Sending remove_vlan command to switch procs in deleteVlan.");
         $self->send_message_to_child($dpid, {action => 'remove_vlan', circuit_id => $circuit_id}, $event_id);
     }
 
-    $self->{'logger'}->info("Elapsed Time deleteVlan: " . tv_interval( $start, [gettimeofday]));
-
+    $self->{'logger'}->info("Elapsed time deleteVlan: " . tv_interval( $start, [gettimeofday]));
     return {status => $result, event_id => $event_id};
 }
 

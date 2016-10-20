@@ -253,21 +253,21 @@ sub validate_paths {
         $backup_links = $res->{'backup_links'};
         $endpoints = $res->{'endpoints'}
     }elsif( ($args{'links'} || $args{'backup_links'}) && $args{'endpoints'}){
-        $links        = $self->{'db'}->get_links_details_by_name( names => $args{'links'} );
+        $links        = $self->{'db'}->get_links_details_by_name( $args{'links'} );
         if(!$links){
             $self->_set_error($self->{'db'}->get_error());
         }
-        $backup_links = $self->{'db'}->get_links_details_by_name( names => $args{'backup_links'} );
+        $backup_links = $self->{'db'}->get_links_details_by_name( $args{'backup_links'} );
         if(!$backup_links){
             $self->_set_error($self->{'db'}->get_error());
         }
         $endpoints = $args{'endpoints'};
     }else {
         $self->_set_error("Must pass in a circuit_id, a list or links, or a list of backup_links");
-        return;
+        return (0, "Must pass in a circuit_id, a list or links, or a list of backup_links");
     }
 
-    if(defined $links){
+    if (defined $links && @{$links} != 0) {
         if ( (!$self->path_is_loop_free($links)) && (!$self->is_loopback($endpoints)) ){
             $self->_set_error("Primary path contains a loop");
             return (0,"Primary path contains a loop.");
@@ -279,8 +279,7 @@ sub validate_paths {
         }
     }
 
-    if(defined $backup_links){
-
+    if(defined $backup_links && @{$backup_links} != 0) {
         if ( (!$self->path_is_loop_free($backup_links)) && (!$self->is_loopback($endpoints)) ){
             $self->_set_error("Backup path contains a loop.");
             return (0,"Backup path contains a loop.");

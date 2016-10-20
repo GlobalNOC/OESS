@@ -5218,14 +5218,23 @@ sub get_link_by_name{
 
 =head2 get_links_details_by_name
 
+=over 4
+
+=item B<link_names> - Array ref of link names.
+
+=back
+
+Returns an array ref of link details. See doc for C<get_link_details>
+for values included in the resulting array ref.
+
 =cut
 
 sub get_links_details_by_name {
-    my $self = shift;
-    my %args = @_;
+    my $self       = shift;
+    my $link_names = shift;
 
     my $links = [];
-    foreach my $name (@{$args{'names'}}){
+    foreach my $name (@{$link_names}){
         my $link = $self->get_link_details( name => $name );
         if(!$link){
             $self->_set_error("Error getting link, ".$name);
@@ -6486,7 +6495,7 @@ sub provision_circuit {
 	if($provision_time < time()){
 	    $state = "scheduled";
 	}else{
-	    $state = "deploying";
+	    $state = "active";
 	}
     }
 
@@ -6686,7 +6695,7 @@ sub provision_circuit {
         # create the primary path object
         $query = "insert into path (path_type, circuit_id, path_state, mpls_path_type) values (?, ?, ?, ?)";
 
-        my $path_state = "deploying";
+        my $path_state = "active";
 
         if ($path_type eq "backup"){
             $path_state = "available";
@@ -6971,19 +6980,28 @@ sub _add_edit_event {
     my $params = shift;
 
     my $tmp;
-    $tmp->{'version'}       = "1.0";
-    $tmp->{'action'}        = "edit";
-    $tmp->{'state'}         = $params->{'state'};
-    $tmp->{'name'}          = $params->{'name'};
-    $tmp->{'bandwidth'}     = $params->{'bandwidth'};
-    $tmp->{'links'}         = $params->{'links'};
-    $tmp->{'backup_links'}  = $params->{'backup_links'};
-    $tmp->{'nodes'}         = $params->{'nodes'};
-    $tmp->{'interfaces'}    = $params->{'interfaces'};
-    $tmp->{'tags'}          = $params->{'tags'};
-    $tmp->{'start_time'}    = $params->{'start_time'};
-    $tmp->{'end_time'}      = $params->{'end_time'};
-
+    $tmp->{'action'}             = "edit";
+    $tmp->{'backup_links'}       = $params->{'backup_links'};
+    $tmp->{'bandwidth'}          = $params->{'bandwidth'};
+    $tmp->{'circuit_id'}         = $params->{'circuit_id'};
+    $tmp->{'description'}        = $params->{'description'};
+    $tmp->{'do_sanity_check'}    = $params->{'do_sanity_check'};
+    $tmp->{'end_time'}           = $params->{'end_time'};
+    $tmp->{'endpoint_mac_address_nums'} = $params->{'endpoint_mac_address_nums'};
+    $tmp->{'interfaces'}         = $params->{'interfaces'};
+    $tmp->{'links'}              = $params->{'links'};
+    $tmp->{'mac_addresses'}      = $params->{'mac_addresses'};
+    $tmp->{'nodes'}              = $params->{'nodes'};
+    $tmp->{'provision_time'}     = $params->{'provision_time'};
+    $tmp->{'restore_to_primary'} = $params->{'restore_to_primary'};
+    $tmp->{'state'}              = 'active';
+    $tmp->{'static_mac'}         = $params->{'static_mac'};
+    $tmp->{'tags'}               = $params->{'tags'};
+    $tmp->{'type'}               = $params->{'type'};
+    $tmp->{'user_name'}          = $params->{'user_name'};
+    $tmp->{'user_id'}            = $params->{'user_id'};
+    $tmp->{'version'}            = "1.0";
+    $tmp->{'workgroup_id'}       = $params->{'workgroup_id'};
 
     my $circuit_layout = XMLout($tmp);
 
@@ -6993,11 +7011,10 @@ sub _add_edit_event {
                                                $params->{'workgroup_id'},
                                                $params->{'circuit_id'},
                                                time(),
-                                               $params->{'edit_time'},
+                                               $params->{'provision_time'},
                                                $circuit_layout
                                                ]);
-
-    if (! defined $result){
+    if (!defined $result) {
         $self->_set_error("Error creating scheduled removal.");
         return;
     }
@@ -7327,6 +7344,57 @@ sub update_node_operational_state{
     return 1;
 }
 
+=head2 get_diffs
+
+=cut
+sub get_diffs {
+    my $self     = shift;
+    my $approved = shift;
+
+    my $res;
+    if (!defined $approved) {
+        $res = $self->_execute_query("SELECT node.node_id, node.name, node.pending_diff, node_instantiation.admin_state " .
+                                     "FROM node JOIN node_instantiation ON node.node_id=node_instantiation.node_id " .
+                                     "WHERE node_instantiation.admin_state='active'",
+                                     []);
+    } else {
+        my $pending_diff = 0;
+        if (!$approved) {
+            $pending_diff = 1;
+        }
+        $res = $self->_execute_query("SELECT node.node_id, node.name, node.pending_diff, node_instantiation.admin_state " .
+                                     "FROM node JOIN node_instantiation ON node.node_id=node_instantiation.node_id " .
+                                     "WHERE node_instantiation.admin_state='active' AND node.pending_diff=?",
+                                     [$pending_diff]);
+    }
+
+    if (!defined $res) {
+        $self->_set_error("Unable to get list of diffs.");
+        return;
+    }
+    return $res;
+}
+
+=head2 set_diff_approval
+
+=cut
+sub set_diff_approval {
+    my $self     = shift;
+    my $approved = shift;
+    my $node_id  = shift;
+
+    my $pending_diff = 0;
+    if (!$approved) {
+        $pending_diff = 1;
+    }
+
+    my $res = $self->_execute_query("UPDATE node set pending_diff=? WHERE node_id=?", [$pending_diff, $node_id]);
+    if(!defined $res){
+	$self->_set_error("Unable to update pending_diff.");
+	return;
+    }
+    return 1;
+}
 
 =head2 add_or_update_interface
 
@@ -7549,7 +7617,7 @@ sub edit_circuit {
         return {'success' => 1, 'circuit_id' => $circuit_id};
     }
 
-    my $result = $self->_execute_query("update circuit set description = ?, restore_to_primary = ?, static_mac = ? where circuit_id = ?, type = ?", [$description,$restore_to_primary,$static_mac,$circuit_id, $type]);
+    my $result = $self->_execute_query("update circuit set description = ?, restore_to_primary = ?, static_mac = ?, type = ? where circuit_id = ?", [$description,$restore_to_primary,$static_mac, $type, $circuit_id]);
     if (! defined $result){
         $self->_set_error("Unable to update circuit description.");
         $self->_rollback() if($do_commit);
@@ -7569,11 +7637,10 @@ sub edit_circuit {
     }
 
     $query = "insert into circuit_instantiation (circuit_id, reserved_bandwidth_mbps, circuit_state, modified_by_user_id, end_epoch, start_epoch, loop_node, reason) values (?, ?, ?, ?, -1, unix_timestamp(now()), ?,?)";
-    if(!defined($self->_execute_query($query, [$circuit_id, $bandwidth,$state, $user_id, $loop_node,$reason]))){
-        $self->_set_error("Unable to create new circuit instantiation.");
+    if(!defined($self->_execute_query($query, [$circuit_id, $bandwidth, $state, $user_id, $loop_node, $reason]))){
+        # $self->_set_error("Unable to create new circuit instantiation.");
         $self->_rollback() if($do_commit);
-        return
-
+        return;
     }
 
     #first decom everything
@@ -7715,7 +7782,7 @@ sub edit_circuit {
         # instantiate path object
         $query = "insert into path_instantiation (path_id, end_epoch, start_epoch, path_state) values (?, -1, unix_timestamp(NOW()), ?)";
 
-        my $path_state = "deploying";
+        my $path_state = "active";
 
         if ($path_type eq "backup"){
             $path_state = "available";
@@ -8642,6 +8709,7 @@ sub circuit_sanity_check {
 
     # make sure user passed in can modify circuit
     if(!$self->can_modify_circuit(username => $args{'user_name'}, %args)){
+        $self->_set_error("Permissiond denied: User cannot modify this circuit.");
         return;
     }
 
@@ -8656,13 +8724,9 @@ sub circuit_sanity_check {
         return;
     }
 
-    # make sure endpoints pass validation
-    if(!$self->validate_endpoints(%args)){
-        return;
-    }
-
-    # make sure paths make sense
-    if(!$self->validate_paths(%args)){
+    # Make sure endpoints and paths pass validation. Errors are logged
+    # internal to each of these methods.
+    if (!$self->validate_endpoints(%args) || !$self->validate_paths(%args)) {
         return;
     }
 

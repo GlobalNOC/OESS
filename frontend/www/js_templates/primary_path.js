@@ -78,7 +78,8 @@ function init(){
 			        {key: "link"}
 			      ],
 			      metaFields: {
-				error: "error"
+				  error: "error",
+                                  error_text: "error_text"
 			      }
 			    }
 			    
@@ -87,7 +88,7 @@ function init(){
 						  this.set('label', 'Suggest Shortest Path');
 
 						  if (resp.meta.error){
-						    alert("Error - " + resp.meta.error);
+						    alert("Error - " + resp.meta.error_text);
 						    return;
 						  }
 						  
@@ -129,20 +130,17 @@ function init(){
     
     var records = path_table.getRecordSet().getRecords();
     
+    session.data.backup_links = [];
     session.data.links = [];
     
     for (var i = 0; i < records.length; i++){
-      
-      var link      = records[i].getData('link');
-      
+      var link = records[i].getData('link');
       session.data.links.push(link);
-
     }
     
     session.save();
-    
-    nddi_map.updateMapFromSession(session);
 
+    nddi_map.updateMapFromSession(session);
   }
 
   

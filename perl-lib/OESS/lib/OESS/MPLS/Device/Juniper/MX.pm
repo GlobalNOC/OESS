@@ -13,8 +13,12 @@ use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
+use constant FWDCTL_BLOCKED     => 4;
 
 use GRNOC::Config;
+
+use OESS::Circuit;
+use OESS::Database;
 
 use base "OESS::MPLS::Device";
 
@@ -25,12 +29,15 @@ sub new{
 	);
     
     my $self = \%args;
-
-    $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Device.Juniper.MX.' . $self->{'mgmt_addr'});
-    $self->{'logger'}->debug("MPLS Juniper Switch Created!");
     bless $self, $class;
 
+    $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Device.Juniper.MX.' . $self->{'mgmt_addr'});
+    $self->{'logger'}->info("MPLS Juniper Switch Created: $self->{'mgmt_addr'}");
+
     #TODO: make this automatically figure out the right REV
+    $self->{'logger'}->info("Loading database from $self->{'config'}");
+    $self->{'db'} = OESS::Database->new(config_file => $self->{'config'});
+
     $self->{'template_dir'} = "juniper/13.3R8";
 
     $self->{'tt'} = Template->new(INCLUDE_PATH => "/usr/share/doc/perl-OESS-1.2.0/share/mpls/templates/") or die "Unable to create Template Toolkit!";
@@ -43,7 +50,6 @@ sub new{
     $self->{'password'} = $creds->{'password'};
 
     return $self;
-
 }
 
 sub disconnect{
@@ -87,7 +93,7 @@ sub get_system_information{
 
 
     #also need to fetch the interfaces and find lo0.X
-    my $reply = $self->{'jnx'}->get_interface_information();
+    $reply = $self->{'jnx'}->get_interface_information();
     if($self->{'jnx'}->has_error){
         $self->set_error($self->{'jnx'}->get_first_error());
         $self->{'logger'}->error("Error fetching interface information: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
@@ -96,7 +102,7 @@ sub get_system_information{
 
     my $interfaces = $self->{'jnx'}->get_dom();
     my $path = $self->{'root_namespace'}."junos-interface";
-    my $xp = XML::LibXML::XPathContext->new( $interfaces);
+    $xp = XML::LibXML::XPathContext->new( $interfaces);
     $xp->registerNs('x',$interfaces->documentElement->namespaceURI);
     $xp->registerNs('j',$path);
     my $ints = $xp->findnodes('/x:rpc-reply/j:interface-information/j:physical-interface');
@@ -138,6 +144,8 @@ sub get_system_information{
 
 	
     }
+
+    $self->{'loopback_addr'} = $loopback_addr;
 
     return {model => $model, version => $version, os_name => $os_name, host_name => $host_name, loopback_addr => $loopback_addr};
 }
@@ -203,7 +211,8 @@ sub remove_vlan{
                                         });
     }
     $vars->{'circuit_id'} = $ckt->{'circuit_id'};
-    $vars->{'switch'} = {name => $self->{'name'}};
+    $vars->{'switch'} = {name => $self->{'name'},
+                         loopback => $self->{'loopback_addr'}};
     $vars->{'site_id'} = $ckt->{'site_id'};
     $vars->{'paths'} = $ckt->{'paths'};
     $vars->{'a_side'} = $ckt->{'a_side'};
@@ -233,7 +242,8 @@ sub add_vlan{
     $vars->{'paths'} = $ckt->{'paths'};
     $vars->{'destination_ip'} = $ckt->{'destination_ip'};
     $vars->{'circuit_id'} = $ckt->{'circuit_id'};
-    $vars->{'switch'} = {name => $self->{'name'}};
+    $vars->{'switch'} = {name => $self->{'name'},
+			 loopback => $self->{'loopback_addr'}};
     $vars->{'site_id'} = $ckt->{'site_id'};
     $vars->{'paths'} = $ckt->{'paths'};
     $vars->{'a_side'} = $ckt->{'a_side'};
@@ -253,7 +263,315 @@ sub add_vlan{
     
 }
 
-=head2
+=head2 xml_configuration( $ckts )
+
+Returns configuration as an xml string based on $ckts, which is an array of
+OESS::Circuit objects. Circuits with a state other than 'active' will be used
+to generate circuit removal xml blocks.
+
+=cut
+sub xml_configuration {
+    my $self = shift;
+    my $ckts = shift;
+
+    my $configuration = '<configuration>';
+    foreach my $ckt (@{$ckts}) {
+        # The argument $ckts is passed in a generic form. This should be
+        # converted to work with the template.
+        my $xml;
+        my $vars = {};
+        $vars->{'circuit_name'} = $ckt->{'circuit_name'};
+        $vars->{'interfaces'} = [];
+        foreach my $i (@{$ckt->{'interfaces'}}) {
+            push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
+                                              tag  => $i->{'tag'}
+                                            });
+        }
+        $vars->{'paths'} = $ckt->{'paths'};
+        $vars->{'destination_ip'} = $ckt->{'destination_ip'};
+        $vars->{'circuit_id'} = $ckt->{'circuit_id'};
+        $vars->{'switch'} = { name => $self->{'name'},
+                              loopback => $self->{'loopback_addr'} };
+        $vars->{'site_id'} = $ckt->{'site_id'};
+        $vars->{'paths'} = $ckt->{'paths'};
+        $vars->{'a_side'} = $ckt->{'a_side'};
+        $self->{'logger'}->debug(Dumper($vars));
+
+        if ($ckt->{'state'} eq 'active') {
+            $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$xml);
+        } else {
+            $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config_delete.xml", $vars, \$xml);
+        }
+
+        $xml =~ s/<configuration>//g;
+        $xml =~ s/<\/configuration>//g;
+        $configuration = $configuration . $xml;
+    }
+    $configuration = $configuration . '</configuration>';
+
+    return $configuration;
+}
+
+=head2 get_device_circuit_infos
+
+=cut
+sub get_device_circuit_infos {
+    my $self = shift;
+
+    my $result = {};
+
+    my $res = $self->{'jnx'}->get_configuration( database => 'committed', format => 'xml' );
+    if ($self->{'jnx'}->has_error) {
+	$self->set_error($self->{'jnx'}->get_first_error());
+        $self->{'logger'}->error("Error getting conf from MX: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
+        return;
+    }
+
+    my $dom = $self->{'jnx'}->get_dom();
+    my $interfaces = $dom->getElementsByTagName('interface');
+
+    foreach my $interface (@{$interfaces}) {
+        my $units = $interface->getElementsByTagName('unit');
+        foreach my $unit (@{$units}) {
+            # Based on unit descriptions we can determine if this unit
+            # represents a circuit that should be verified. Units to be
+            # selected are in the form 'OESS <type> <id>'.
+            # Ex.
+            # OESS L2VPN 3006
+
+            my $desc = $unit->getElementsByTagName('description');
+            if ($desc->size() == 0) {
+                next;
+            }
+
+            my $text = $desc->[0]->textContent();
+            if ($text !~ /^OESS/) {
+                # Units with descriptions starting with anything other
+                # than 'OESS' are not circuit related; These may be
+                # manually defined for other purposes, so we ignore.
+                next;
+            }
+
+            my ($oess, $type, $id) = split(/ /, $text);
+            $result->{$id} = { circuit_id => $id, type => $type };
+        }
+    }
+    return $result;
+}
+
+sub get_device_circuit_ids {
+    my $self = shift;
+
+    my $result = [];
+
+    my $res = $self->{'jnx'}->get_configuration( database => 'committed', format => 'xml' );
+    if ($self->{'jnx'}->has_error) {
+	$self->set_error($self->{'jnx'}->get_first_error());
+        $self->{'logger'}->error("Error getting conf from MX: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
+        return;
+    }
+
+    my $dom = $self->{'jnx'}->get_dom();
+    my $interfaces = $dom->getElementsByTagName('interface');
+
+    foreach my $interface (@{$interfaces}) {
+        my $units = $interface->getElementsByTagName('unit');
+        foreach my $unit (@{$units}) {
+            # Based on unit descriptions we can determine if this unit
+            # represents a circuit that should be verified. Units to be
+            # selected are in the form 'OESS <type> <id>'.
+            # Ex.
+            # OESS L2VPN 3006
+
+            my $desc = $unit->getElementsByTagName('description');
+            if ($desc->size() == 0) {
+                next;
+            }
+
+            my $text = $desc->[0]->textContent();
+            if ($text !~ /^OESS/) {
+                # Units with descriptions starting with anything other
+                # than 'OESS' are not circuit related; These may be
+                # manually defined for other purposes, so we ignore.
+                next;
+            }
+
+            my ($oess, $type, $id) = split(/ /, $text);
+            push(@{$result}, $id);
+        }
+    }
+    return $result;
+}
+
+
+=head2 required_modifications
+
+=cut
+sub required_modifications {
+    my $self = shift;
+    my $circuits = shift;
+    my $circuit_infos = shift;
+
+    my $result = [];
+
+    foreach my $id (keys %{$circuits}) {
+        if (!defined $circuit_infos->{$id}) {
+            my $addition = $circuits->{$id};
+            $addition->{'action'} = 'add';
+
+            push(@{$result}, $addition);
+        }
+    }
+
+    foreach my $id (keys %{$circuit_infos}) {
+        if (!defined $circuits->{$id}) {
+            my $deletion = $circuits->{$id};
+            $deletion->{'action'} = 'delete';
+
+            push(@{$result}, $deletion);
+        }
+    }
+
+    return $result;
+}
+
+=head2 get_device_diff
+
+Returns and stores a human readable diff for display to users.
+
+=cut
+sub get_device_diff {
+    my $self = shift;
+    my $conf = shift;
+
+    my %queryargs = ('target' => 'candidate');
+    $self->{'jnx'}->lock_config(%queryargs);
+
+    %queryargs = ('target' => 'candidate');
+    $queryargs{'config'} = $conf;
+    my $res = $self->{'jnx'}->edit_config(%queryargs);
+
+    my $configcompare = $self->{'jnx'}->get_configuration( compare => "rollback", rollback => "0" );
+    if ($self->{'jnx'}->has_error) {
+	$self->set_error($self->{'jnx'}->get_first_error());
+        $self->{'logger'}->error("Error getting diff from MX: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
+        return;
+    }
+
+    my $dom = $self->{'jnx'}->get_dom();
+    $self->{'diff_text'} = $dom->getElementsByTagName('configuration-output')->string_value();
+    
+    $res = $self->{'jnx'}->discard_changes();
+    %queryargs = ('target' => 'candidate');
+    $self->{'jnx'}->unlock_config(%queryargs);
+
+    return $self->{'diff_text'};
+}
+
+=head3 _large_diff( $diff )
+
+Returns 1 if $diff requires manual approval.
+
+=cut
+sub _large_diff {
+    my $self = shift;
+    my $diff = shift;
+
+    my $len = length($diff);
+    if ($len > 140) {
+        return 1;
+    }
+    return 0;
+}
+
+=head2 diff
+
+Do a diff between $ckts and the circuits on this device.
+
+=cut
+sub diff {
+    my $self = shift;
+    my $circuits = shift;
+    my $circuit_info = shift;
+    my $force_diff = shift; # If set do not check diff size
+
+    $self->{'logger'}->info("Calling MX.diff");
+
+    my $modifications = [];
+    foreach my $id (@{$circuit_info->{'additions'}}) {
+        $circuits->{$id}->{'state'} = 'active';
+        push(@{$modifications}, $circuits->{$id});
+    }
+    foreach my $id (@{$circuit_info->{'deletions'}}) {
+        $circuits->{$id}->{'state'} = 'decom';
+        push(@{$modifications}, $circuits->{$id});
+    }
+    $self->{'logger'}->debug("Diff modifications: " . Dumper($modifications));
+
+    my $configuration = $self->xml_configuration($modifications);
+    if ($configuration eq '<configuration></configuration>') {
+        $self->{'logger'}->info('No diff required at this time.');
+        return FWDCTL_SUCCESS;
+    }
+
+    if ($force_diff) {
+        $self->{'logger'}->info('Force diff was initiated. Starting installation.');
+        $self->{'pending_diff'} = 0;
+        return $self->_edit_config(config => $configuration);
+    }
+
+    # Check the size of the diff to see if verification is required for
+    # the changes to be applied.
+    my $diff = $self->get_device_diff($configuration);
+    if (!defined $diff) {
+        return FWDCTL_FAILURE;
+    }
+
+    if ($self->_large_diff($diff)) {
+        # It may be possible that a large diffs is considered untrusted.
+        # If so, block until the diff has been approved.
+        $self->{'logger'}->info('Large diff detected. Waiting for approval before installation.');
+        $self->{'pending_diff'} = 1;
+        return FWDCTL_BLOCKED;
+    }
+
+    $self->{'logger'}->info("Diff requires no approval. Starting installation.");
+    return $self->_edit_config(config => $configuration);
+}
+
+=head2 get_diff_text
+
+Returns a human readable diff between $circuits and this Device's
+configuration.
+
+=cut
+sub get_diff_text {
+    my $self = shift;
+    my $circuits = shift;
+    my $circuit_info = shift;
+
+    $self->{'logger'}->debug("Calling MX.get_diff_text");
+
+    my $modifications = [];
+    foreach my $id (@{$circuit_info->{'additions'}}) {
+        $circuits->{$id}->{'state'} = 'active';
+        push(@{$modifications}, $circuits->{$id});
+    }
+    foreach my $id (@{$circuit_info->{'deletions'}}) {
+        $circuits->{$id}->{'state'} = 'decom';
+        push(@{$modifications}, $circuits->{$id});
+    }
+
+    my $configuration = $self->xml_configuration($modifications);
+    if ($configuration eq '<configuration></configuration>') {
+        $self->{'logger'}->info('No diff required at this time.');
+        return 'No diff required at this time.';
+    }
+
+    return $self->get_device_diff($configuration);
+}
+
+=head2 unit_name_available
 
 Returns 0 if the unit name already exists on the specified interface or
 another error occurs; Otherwise 1 is returned for success.
@@ -319,33 +637,14 @@ has occured and 0 is returned.
 sub connect {
     my $self = shift;
 
+
     if ($self->connected()) {
-        $self->{'logger'}->warn("Already connected to device");
+        $self->{'logger'}->warn("Already connected to Juniper MX $self->{'mgmt_addr'}!");
         return 1;
     }
 
-    $self->{'logger'}->info("Connecting to device!");
-    my $jnx = new Net::Netconf::Manager( 'access' => 'ssh',
-					 'login' => $self->{'username'},
-					 'password' => $self->{'password'},
-					 'hostname' => $self->{'mgmt_addr'},
-					 'port' => 22 );
-    if(!$jnx){
-	$self->{'connected'} = 0;
-    }else{
-	$self->{'logger'}->info("Connected!");
-	$self->{'jnx'} = $jnx;
-	#gather basic system information needed later!
-	my $verify = $self->verify_connection();
-	if ($verify == 1) {
-	    $self->{'connected'} = 1;
-	}
-	else {
-	    $self->{'connected'} = 0;
-	}
-    }
+    my $jnx;
 
-    $jnx = undef;
     eval {
         $self->{'logger'}->info("Connecting to device!");
         $jnx = new Net::Netconf::Manager( 'access' => 'ssh',
@@ -353,19 +652,38 @@ sub connect {
                                           'password' => $self->{'password'},
                                           'hostname' => $self->{'mgmt_addr'},
                                           'port' => 22,
-                                          'debug_level' => 0);
+                                          'debug_level' => 0 );
     };
     if ($@ || !$jnx) {
-        my $err = "Could not connected to $self->{'mgmt_addr'}. Connection timed out.";
+        my $err = "Could not connect to $self->{'mgmt_addr'}. Connection timed out.";
         $self->set_error($err);
         $self->{'logger'}->error($err);
-        $self->{'connected'} = 0;
-    } else {
-        $self->{'logger'}->info("Connected!");
-        $self->{'jnx'} = $jnx;
-        $self->{'connected'} = 1;
+	$self->{'connected'} = 0;
+        return $self->{'connected'};
     }
 
+    $self->{'connected'} = 1;
+    $self->{'jnx'}       = $jnx;
+
+    # Gather basic system information needed later!
+    my $verify = $self->verify_connection();
+    if ($verify != 1) {
+        my $err = "Failure while verifying $self->{'mgmt_addr'}. Connection closed.";
+        $self->set_error($err);
+        $self->{'logger'}->error($err);
+	$self->{'connected'} = 0;
+        return $self->{'connected'};
+    }
+
+    # Configures parameters for the get_configuration method
+    my $ATTRIBUTE = bless {}, 'ATTRIBUTE';
+    $self->{'jnx'}->{'methods'}->{'get_configuration'} = { format   => $ATTRIBUTE,
+                                                           compare  => $ATTRIBUTE,
+                                                           changed  => $ATTRIBUTE,
+                                                           database => $ATTRIBUTE,
+                                                           rollback => $ATTRIBUTE };
+
+    $self->{'logger'}->info("Connected to device!");
     return $self->{'connected'};
 }
 
@@ -715,9 +1033,6 @@ sub _edit_config{
         $self->{'logger'}->error($err);
         return FWDCTL_FAILURE;
     }
-    
-    # my %queryargs = ( 'target' => 'candidate' );
-    # my $res = $self->{'jnx'}->lock_config(%queryargs);
 
     my %queryargs = ();
     my $res;
@@ -733,7 +1048,7 @@ sub _edit_config{
         return FWDCTL_FAILURE;
     }
     if ($self->{'jnx'}->has_error) {
-        my $err = "Error attempting to lock config: " . Dumper($self->{'jnx'}->get_first_error());
+        my $err = "Error attempting to lock config: " . $self->{'jnx'}->get_first_error()->{'error_message'};
         $self->set_error($err);
         $self->{'logger'}->error($err);
         return FWDCTL_FAILURE;
@@ -754,7 +1069,7 @@ sub _edit_config{
         return FWDCTL_FAILURE;
     }
     if($self->{'jnx'}->has_error){
-        my $err = "Error attempting to modify config: " . Dumper($self->{'jnx'}->get_first_error());
+        my $err = "Error attempting to edit config: " . $self->{'jnx'}->get_first_error()->{'error_message'};
         $self->set_error($err);
         $self->{'logger'}->error($err);
 
@@ -773,7 +1088,7 @@ sub _edit_config{
         return FWDCTL_FAILURE;
     }
     if($self->{'jnx'}->has_error){
-        my $err = "Error attempting to commit the config: " . Dumper($self->{'jnx'}->get_first_error());
+        my $err = "Error attempting to commit config: " . $self->{'jnx'}->get_first_error()->{'error_message'};
         $self->set_error($err);
         $self->{'logger'}->error($err);
 
@@ -793,7 +1108,7 @@ sub _edit_config{
         return FWDCTL_FAILURE;
     }
     if($self->{'jnx'}->has_error){
-        my $err = "Error attempting to unlock the config: " . Dumper($self->{'jnx'}->get_first_error());
+        my $err = "Error attempting to unlock the config: " . $self->{'jnx'}->get_first_error()->{'error_message'};
         $self->set_error($err);
         $self->{'logger'}->error($err);
 

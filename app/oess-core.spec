@@ -51,6 +51,7 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} oess_scheduler.pl %{buildroot}/%{_bindir}
 %{__install} oess-nsi %{buildroot}/%{_bindir}
 %{__install} measurement/* %{buildroot}/%{_bindir}
+%{__install} mpls/* %{buildroot}/%{_bindir}
 %{__install} notification/* %{buildroot}/%{_bindir}
 %{__install} populate_remote_topologies.pl %{buildroot}/%{_bindir}
 %{__install} oess_topology_submitter.pl %{buildroot}/%{_bindir}
@@ -66,6 +67,8 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} etc/fwdctl-init-rh  $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-fwdctl
 %{__install} etc/fvd-init-rh  $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-fvd
 %{__install} etc/watchdog-init-rh $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-watchdog
+%{__install} etc/mpls-fwdctl-init-rh $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-mpls-fwdctl
+%{__install} etc/mpls-discovery-init-rh $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-mpls-discovery
 %{__install} etc/notification-init-rh $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-notification
 %{__install} etc/traceroute-init-rh $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-traceroute
 %{__install} etc/vlan_stats-init $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-vlan_stats
@@ -88,6 +91,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/oess-fvd.pl
 %{_bindir}/oess-traceroute.pl
 %{_bindir}/oess-notify.pl
+%{_bindir}/mpls_discovery.pl
+%{_bindir}/mpls_fwdctl.pl
 %{_bindir}/oess-watchdog.pl
 %{_bindir}/vlan_stats_d.pl
 %{_bindir}/oess-nsi
@@ -101,6 +106,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/dbus-1/system.d/nddi-dbus.conf
 %{_sysconfdir}/init.d/oess-fwdctl
 %{_sysconfdir}/init.d/oess-vlan_stats
+%{_sysconfdir}/init.d/oess-mpls-discovery
+%{_sysconfdir}/init.d/oess-mpls-fwdctl
 %{_sysconfdir}/init.d/oess-notification
 %{_sysconfdir}/init.d/oess-fvd
 %{_sysconfdir}/init.d/oess-traceroute

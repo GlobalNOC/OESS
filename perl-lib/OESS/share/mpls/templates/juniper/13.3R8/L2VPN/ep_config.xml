@@ -15,67 +15,6 @@
     </interface>
     [% END %]
   </interfaces>
-  <protocols>
-    <mpls>
-      [% FOREACH path IN paths %]
-      <label-switched-path>
-	<name>OESS-L2VPN-[% path.name %]-LSP-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</name>
-	<apply-groups>L2VPN-LSP-ATTRIBUTES</apply-groups>
-	[% IF path.name == 'TERTIARY' %]
-	<preference>14</preference>
-	[% END %]
-	<to>[% path.dest %]</to>
-	<primary>
-	  <name>OESS-L2VPN-[% path.name %]-PATH-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</name>
-	  [% IF path.name == 'PRIMARY' %]
-	  <select>manual</select>
-	  [% ELSE %]
-	  <standby />
-	  [% END %]
-	</primary>
-      </label-switched-path>
-      <path>
-	<name>OESS-L2VPN-[% path.name %]-PATH-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</name>
-	  [% IF path.mpls_path_type == 'strict' %]
-	    [% FOREACH ip IN path.path %]
-	  <path-list>
-	    <name>[% ip %]</name>
-	    <strict />
-	  </path-list>
-	    [% END %]
-	  [% ELSE %]
-	  <path-list>
-	    <name>[% path.dest %]</name>
-	    <loose />
-	  </path-list>
-       [% END %]
-      </path>
-      [% END %]
-    </mpls>
-  </protocols>
-  <policy-options>
-    <policy-statement>
-      <name>L2VPN-LSP-Policy</name>
-      [% FOREACH path IN paths %]
-      <term>
-	<name>OESS-L2VPN-[% path.name %]-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</name>
-	<from>
-          <community>OESS-L2VPN-[% circuit_id %]-Community</community>
-	</from>
-	<then>
-          <install-nexthop>
-            <lsp>OESS-L2VPN-[% path.name %]-LSP-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</lsp>
-          </install-nexthop>
-          <accept/>
-	</then>
-      </term>
-      [% END %]
-    </policy-statement>
-    <community>
-      <name>OESS-L2VPN-[% circuit_id %]-Community</name>
-      <members>target:11537:[% circuit_id %]</members>
-    </community>
-  </policy-options>
   <routing-instances>
     <instance>
       <name>OESS-L2VPN-[% circuit_id %]</name>
@@ -86,7 +25,7 @@
       </interface>
       [% END %]
       <route-distinguisher>
-	<rd-type>11537:[% circuit_id %]</rd-type>
+	<rd-type>[% switch.loopback %]:[% circuit_id %]</rd-type>
       </route-distinguisher>
       <vrf-target>
 	<community>target:11537:[% circuit_id %]</community>
@@ -94,11 +33,6 @@
       <protocols>       
 	<l2vpn>
 	  <encapsulation-type>ethernet-vlan</encapsulation-type>
-          [% FOREACH interface IN interfaces %]
-	  <interface>
-            <name>[% interface.name %].[% interface.tag %]</name>
-	  </interface>
-          [% END %]
 	  <site>
             <name>[% switch.name %]-[% circuit_id %]</name>
 	    <site-identifier>[% site_id %]</site-identifier>

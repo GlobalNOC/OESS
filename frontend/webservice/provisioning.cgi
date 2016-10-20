@@ -85,7 +85,7 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
 	name            => "provision_circuit",
 	description     => "Adds or modifies a circuit on the network",
-	callback        => sub { provision_circuit( @_ ) }
+	callback        => sub { provision_circuit(@_) }
 	);
 
     #add the required input parameter workgroup_id
@@ -202,7 +202,7 @@ sub register_webservice_methods {
         pattern         => $GRNOC::WebService::Regex::TEXT,
         required        => 1,
         multiple        => 1,
-        description     => "Array of interfaces to be used. Note that interface[0] is on node[0]."
+        description     => 'Array of interfaces to be used. Note that interface[0] is on node[0].'
 	);
 
     #add the required input parameter tag
@@ -211,7 +211,7 @@ sub register_webservice_methods {
         pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 1,
         multiple        => 1,
-        description     => "An array of vlan tags to be used on each interface. Note that tag[0] is on interface[0] and tag[1] is on interface[1]."
+        description     => 'An array of vlan tags to be used on each interface. Note that tag[0] is on interface[0] and tag[1] is on interface[1].'
 	);
 
     #add the optional paramter loop_node
@@ -431,7 +431,7 @@ sub _fail_over {
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
-        usleep(1000);
+        usleep(1000000);
         my $res = $client->get_event_status(event_id => $event_id);
 
         if($res->{'error'} || !defined($res->{'results'}) || !defined($res->{'results'}->{'status'})){
@@ -472,7 +472,7 @@ sub _send_mpls_add_command {
 
     my $final_res = FWDCTL_WAITING;
     while($final_res == FWDCTL_WAITING){
-        usleep(1000);
+        usleep(1000000);
         my $res = $client->get_event_status(event_id => $event_id);
 
         if(defined($res->{'error'}) || !defined($res->{'results'})){
@@ -513,7 +513,7 @@ sub _send_add_command {
 
     my $final_res = FWDCTL_WAITING;
     while($final_res == FWDCTL_WAITING){
-        usleep(1000);
+        usleep(1000000);
         my $res = $client->get_event_status(event_id => $event_id);
 
         if(defined($res->{'error'}) || !defined($res->{'results'})){
@@ -555,7 +555,7 @@ sub _send_mpls_remove_command {
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
-        usleep(1000);
+        usleep(1000000);
         my $res = $client->get_event_status(event_id => $event_id);
 
         if(defined($res->{'error'}) || !defined($res->{'results'})){
@@ -597,7 +597,7 @@ sub _send_remove_command {
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
-        usleep(1000);
+        usleep(1000000);
         my $res = $client->get_event_status(event_id => $event_id);
 
         if(defined($res->{'error'}) || !defined($res->{'results'})){
@@ -640,7 +640,7 @@ sub _send_update_cache{
     my $final_res = FWDCTL_WAITING;
 
     while($final_res == FWDCTL_WAITING){
-        usleep(1000);
+        usleep(1000000);
         my $res = $client->get_event_status(event_id => $event_id);
 
         if($res->{'error'} || $res->{'results'}){
@@ -654,9 +654,7 @@ sub _send_update_cache{
 }
 
 sub provision_circuit {
-
-    
-    my ( $method, $args ) = @_ ;
+    my ($method, $args) = @_;
     my $results;
 
     my $start = [gettimeofday];
@@ -674,7 +672,7 @@ sub provision_circuit {
 
     # TEMPORARY HACK UNTIL OPENFLOW PROPERLY SUPPORTS QUEUING. WE CANT
     # DO BANDWIDTH RESERVATIONS SO FOR NOW ASSUME EVERYTHING HAS 0 BANDWIDTH RESERVED
-    my $bandwidth   = $args->{'bandwidth'} || 0;
+    my $bandwidth   = $args->{'bandwidth'}{'value'} || 0;
 
     my $provision_time = $args->{'provision_time'}{'value'};
     my $remove_time    = $args->{'remove_time'}{'value'};
@@ -682,20 +680,20 @@ sub provision_circuit {
     my $restore_to_primary = $args->{'restore_to_primary'}{'value'} || 0;
     my $static_mac = $args->{'static_mac'}{'value'} || 0;
 
-    my @links         = $args->{'link'}{'value'};
-    my @backup_links  = $args->{'backup_link'}{'value'};
-    my @nodes         = $args->{'node'}{'value'};
-    my @interfaces    = $args->{'interface'}{'value'};
-    my @tags          = $args->{'tag'}{'value'};
-    my @mac_addresses = $args->{'mac_address'}{'value'};
-    my @endpoint_mac_address_nums = $args->{'endpoint_mac_address_num'}{'value'};
+    my $links         = $args->{'link'}{'value'} || [];
+    my $backup_links  = $args->{'backup_link'}{'value'} || [];
+    my $nodes         = $args->{'node'}{'value'} || [];
+    my $interfaces    = $args->{'interface'}{'value'} || [];
+    my $tags          = $args->{'tag'}{'value'} || [];
+    my $mac_addresses = $args->{'mac_address'}{'value'} || [];
+    my $endpoint_mac_address_nums = $args->{'endpoint_mac_address_num'}{'value'} || [];
     my $loop_node     = $args->{'loop_node'}{'value'};
     my $state         = $args->{'state'}{'value'} || 'active';
-    my @remote_nodes  = $args->{'remote_node'}{'value'};
-    my @remote_tags   = $args->{'remote_tag'}{'value'};
+    my $remote_nodes  = $args->{'remote_node'}{'value'} || [];
+    my $remote_tags   = $args->{'remote_tag'}{'value'} || [];
     my $remote_url    = $args->{'remote_url'}{'value'};
     my $remote_requester = $args->{'remote_requester'}{'value'};
-    
+
     my $rabbit_mq_start = [gettimeofday];
 
     my $log_client  = new GRNOC::RabbitMQ::Client(
@@ -726,7 +724,8 @@ sub provision_circuit {
 	return;
     }
 
-    my $user = $db->get_user_by_id(user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
+    my $user_id = $db->get_user_id_by_auth_name(auth_name => $ENV{'REMOTE_USER'});
+    my $user = $db->get_user_by_id(user_id => $user_id)->[0];
 
     if($user->{'type'} eq 'read-only'){
         $method->set_error('You are a read-only user and unable to provision');
@@ -744,13 +743,13 @@ sub provision_circuit {
             bandwidth      => $bandwidth,
             provision_time => $provision_time,
             remove_time    => $remove_time,
-            links          => @links,
-            backup_links   => @backup_links,
-            nodes          => @nodes,
-            interfaces     => @interfaces,
-            tags           => @tags,
-            mac_addresses  => @mac_addresses,
-            endpoint_mac_address_nums  => @endpoint_mac_address_nums,
+            links          => $links,
+            backup_links   => $backup_links,
+            nodes          => $nodes,
+            interfaces     => $interfaces,
+            tags           => $tags,
+            mac_addresses  => $mac_addresses,
+            endpoint_mac_address_nums  => $endpoint_mac_address_nums,
             user_name      => $ENV{'REMOTE_USER'},
             workgroup_id   => $workgroup_id,
             external_id    => $external_id,
@@ -839,7 +838,6 @@ sub provision_circuit {
         }
 
     } else {
-
         my %edit_circuit_args = (
             circuit_id     => $circuit_id,
             description    => $description,
@@ -847,14 +845,15 @@ sub provision_circuit {
             provision_time => $provision_time,
             restore_to_primary => $restore_to_primary,
             remove_time    => $remove_time,
-            links          => @links,
-            backup_links   => @backup_links,
-            nodes          => @nodes,
-            interfaces     => @interfaces,
-            tags           => @tags,
-            mac_addresses  => @mac_addresses,
-            endpoint_mac_address_nums  => @endpoint_mac_address_nums,
+            links          => $links,
+            backup_links   => $backup_links,
+            nodes          => $nodes,
+            interfaces     => $interfaces,
+            tags           => $tags,
+            mac_addresses  => $mac_addresses,
+            endpoint_mac_address_nums  => $endpoint_mac_address_nums,
             user_name      => $ENV{'REMOTE_USER'},
+            user_id        => $user_id,
             workgroup_id   => $workgroup_id,
             do_external    => 0,
             static_mac => $static_mac,
@@ -864,17 +863,31 @@ sub provision_circuit {
 	    type   => $type
         );
 
-        ##Edit Existing Circuit
+        # Edit Existing Circuit
         # verify is allowed to modify circuit ISSUE=7690
         # and perform all other sanity checks on circuit 10278
-        if(!$db->circuit_sanity_check(%edit_circuit_args)){
+        if (!$db->circuit_sanity_check(%edit_circuit_args)) {
             return {'results' => [], 'error' => $db->get_error() };
         }
-       
+
+        if ($state eq 'scheduled' && $provision_time > time) {
+            $edit_circuit_args{'end_time'}   = -1;
+            $edit_circuit_args{'name'}       = $description;
+
+            my $output = $db->_add_edit_event(\%edit_circuit_args);
+            if (!$output) {
+                $method->set_error( $db->get_error() );
+                return;
+            }
+
+            $results->{'results'} = [ { success => 1 } ];
+            return $results;
+        }
+
         # remove flows on switch 
 	if($type eq 'openflow'){
 	    my $result = _send_remove_command( circuit_id => $circuit_id );
-	    
+
 	    if ( !$result ) {
 		$output->{'warning'} =
 		    "Unable to talk to fwdctl service - is it running?";
@@ -889,7 +902,7 @@ sub provision_circuit {
 	    # modify database entry
 	    $output = $db->edit_circuit(%edit_circuit_args);
 	    if (!$output) {
-		$method->set_error( db->get_error() );
+		$method->set_error( $db->get_error() );
 		return;
 	    }
 	    # add flows on switch
