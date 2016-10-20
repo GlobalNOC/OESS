@@ -137,11 +137,27 @@ function init(){
         }
         session.data.restore_to_primary = restore_to_primary_value;
 
-        // let static_mac = document.getElementById('static_mac_routing_button').innerHTML;
-        if (static_mac.get('label') == 'Enabled'){
-    	    session.data.static_mac_routing = 1;
-        } else {
-            session.data.static_mac_routing = 0;
+        var records = endpoint_table.getRecordSet().getRecords();
+        session.data.endpoints = [];
+
+        for (var i = 0; i < records.length; i++) {
+            var mac_addrs = null;
+            if (static_mac.get('label') == 'Enabled'){
+                mac_addrs = records[i].getData('mac_addrs');
+                session.data.static_mac_routing = 1;
+            } else {
+                mac_addrs = [];
+                session.data.static_mac_routing = 0;
+            }
+
+            session.data.endpoints.push({
+                interface: records[i].getData('interface'),
+                node: records[i].getData('node'),
+                interface_description: records[i].getData('interface_description'),
+                tag: records[i].getData('tag'),
+                mac_addrs: mac_addrs,
+                vlan_tag_range: records[i].getData('vlan_tag_range')
+            });
         }
 
         save_session();

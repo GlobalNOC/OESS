@@ -8724,14 +8724,9 @@ sub circuit_sanity_check {
         return;
     }
 
-    # make sure endpoints pass validation
-    if(!$self->validate_endpoints(%args)){
-        $self->_set_error("Endpoints could not be validated.");
-        return;
-    }
-
-    # make sure paths make sense
-    if(!$self->validate_paths(%args)){
+    # Make sure endpoints and paths pass validation. Errors are logged
+    # internal to each of these methods.
+    if (!$self->validate_endpoints(%args) || !$self->validate_paths(%args)) {
         return;
     }
 
