@@ -70,7 +70,8 @@ sub main{
 
             #edit the circuit to make it active
             my $output = $oess->edit_circuit(circuit_id     => $action->{'circuit_id'},
-                                             endpoint_mac_address_nums => $circuit_layout->{'endpoint_mac_address_num'},
+                                             static_mac     => $circuit_layout->{'static_mac'},
+                                             endpoint_mac_address_nums => $circuit_layout->{'endpoint_mac_address_nums'},
                                              mac_addresses  => $circuit_layout->{'mac_addresses'},
                                              name           => $circuit_layout->{'name'},
                                              bandwidth      => $circuit_layout->{'bandwidth'},
@@ -87,6 +88,9 @@ sub main{
                                              workgroup_id   => $action->{'workgroup_id'},
                                              description    => $ckt->{'description'}
                 );
+            if (!defined $output) {
+                syslog(LOG_WARNING, "Failed to update database to provision circuit: " . $oess->get_error());
+            }
 
             my $res;
             my $result;
@@ -188,7 +192,8 @@ sub main{
             syslog(LOG_INFO, "Circuit info: " . Dumper($circuit_layout));
 
             my $output = $oess->edit_circuit(circuit_id     => $action->{'circuit_id'},
-                                             endpoint_mac_address_nums => $circuit_layout->{'endpoint_mac_address_num'},
+                                             static_mac     => $circuit_layout->{'static_mac'},
+                                             endpoint_mac_address_nums => $circuit_layout->{'endpoint_mac_address_nums'},
                                              mac_addresses  => $circuit_layout->{'mac_addresses'},
                                              name           => $circuit_layout->{'name'},
                                              bandwidth      => $circuit_layout->{'bandwidth'},

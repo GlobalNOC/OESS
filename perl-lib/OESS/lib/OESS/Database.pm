@@ -6897,15 +6897,20 @@ sub _add_event{
     my $params = shift;
 
     my $tmp;
-    $tmp->{'name'}         = $params->{'name'};
-    $tmp->{'bandwidth'}    = $params->{'bandwidth'};
-    $tmp->{'links'}        = $params->{'links'};
-    $tmp->{'backup_links'} = $params->{'backup_links'};
-    $tmp->{'nodes'}        = $params->{'nodes'};
-    $tmp->{'interfaces'}   = $params->{'interfaces'};
-    $tmp->{'tags'}         = $params->{'tags'};
-    $tmp->{'version'}      = "1.0";
-    $tmp->{'action'}       = "provision";
+    $tmp->{'name'}          = $params->{'name'};
+    $tmp->{'static_mac'}    = $params->{'static_mac'};
+    $tmp->{'endpoint_mac_address_nums'} = $params->{'endpoint_mac_address_nums'};
+    $tmp->{'mac_addresses'} = $params->{'mac_addresses'};
+    $tmp->{'bandwidth'}     = $params->{'bandwidth'};
+    $tmp->{'remove_time'}   = $params->{'remove_time'};
+    $tmp->{'restore_to_primary'} = $params->{'restore_to_primary'};
+    $tmp->{'links'}         = $params->{'links'};
+    $tmp->{'backup_links'}  = $params->{'backup_links'};
+    $tmp->{'nodes'}         = $params->{'nodes'};
+    $tmp->{'interfaces'}    = $params->{'interfaces'};
+    $tmp->{'tags'}          = $params->{'tags'};
+    $tmp->{'version'}       = "1.0";
+    $tmp->{'action'}        = "provision";
 
     my $circuit_layout = XMLout($tmp);
 
@@ -7617,7 +7622,7 @@ sub edit_circuit {
         return {'success' => 1, 'circuit_id' => $circuit_id};
     }
 
-    my $result = $self->_execute_query("update circuit set description = ?, restore_to_primary = ?, static_mac = ?, type = ? where circuit_id = ?", [$description,$restore_to_primary,$static_mac, $type, $circuit_id]);
+    my $result = $self->_execute_query("update circuit set description = ?, restore_to_primary = ?, static_mac = ?, circuit_state = ?, type = ? where circuit_id = ?", [$description, $restore_to_primary, $static_mac, $state, $type, $circuit_id]);
     if (! defined $result){
         $self->_set_error("Unable to update circuit description.");
         $self->_rollback() if($do_commit);
