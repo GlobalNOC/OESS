@@ -31,7 +31,7 @@ function init(){
     session.data.links = session.data.links || [];
 
     setPageSummary("Path","Choose a primary path from the map below by clicking on links between nodes.");  
-    if (session.data.links.length < 1) {
+    if (session.data.circuit_type == 'mpls' && session.data.links.length < 1) {
         setNextButton("Proceed to Step 6: Scheduling", "?action=scheduling", verify_inputs);
     } else {
         setNextButton("Proceed to Step 5: Backup Path", "?action=backup_path", verify_inputs);
