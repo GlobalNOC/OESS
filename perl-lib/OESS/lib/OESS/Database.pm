@@ -2124,6 +2124,13 @@ sub update_interface_owner {
         my $vlan_tag_range = $interface->{'vlan_tag_range'};
         my $vlan_end;
         my $vlan_start;
+
+        # Use mpls_vlan_tag_range for mpls interfaces, otherwise the
+        # default ACLs are very locked down (vlans 0-1).
+        if (defined $interface->{'mpls_vlan_tag_range'}) {
+            $vlan_tag_range = $interface->{'mpls_vlan_tag_range'};
+        }
+
         if ($vlan_tag_range =~ /(^-?[0-9]*),?([0-9]*)-([0-9]*)/) {
             if ($2 eq ''){
                 # If the vlan range doesn't have a -1 in it, (i.e. it's
