@@ -38,6 +38,29 @@ function setup_config_changes_tab() {
     makeConfigTable('config_table');
 }
 
+function display_openflow(obj) {
+    var state = 'none';
+    if (obj.checked == true) {
+        state = 'table-row';
+    }
+
+    var elements = YAHOO.util.Dom.getElementsByClassName('openflow');
+    for (var i = 0; i < elements.length; i++) {
+        elements[i].style.display = state;
+    }
+}
+
+function display_mpls(obj) {
+    var state = 'none';
+    if (obj.checked == true) {
+        state = 'table-row';
+    }
+
+    var elements = YAHOO.util.Dom.getElementsByClassName('mpls');
+    for (var i = 0; i < elements.length; i++) {
+        elements[i].style.display = state;
+    }
+}
 
 function makeConfigPanel(x, y, width, obj) {
     var url    = '../services/data.cgi?';
@@ -2349,7 +2372,14 @@ function setup_network_tab(){
 	    var max_static_mac_flows = args[0].max_static_mac_flows;
 	    var end_epoch = args[0].feature.geometry.end_epoch;
 	    var openflow = args[0].openflow;
-	    var mpls = args[0].mpls;
+
+        // tcp_port is hard coded to 22 in the backend
+	var mpls       = args[0].mpls;
+        var mgmt_addr  = args[0].mgmt_addr;
+        var tcp_port   = args[0].tcp_port;
+        var vendor     = args[0].vendor;
+        var model      = args[0].model;
+        var sw_version = args[0].sw_version;
 
 	    function show_interface_acl_panel(args){
 		var interface_id = args.interface_id;
@@ -2771,71 +2801,94 @@ function setup_network_tab(){
 
             panel.setHeader("Details for Network Element: " + node);
         panel.setBody("<table style='width:100%'>" +
-            "<tr>" +
-              "<td colspan='4' class='soft_title'>Base System Description and Information</td>"+
-            "</tr>" +
-            "<tr>" +
-                "<td colspan='2'>" +
-                    "<label for='active_node_name'>Name:</label>" +
-                    "<input type='text' size='38' style='margin-left:83px;' id='active_node_name'>" +
-                "</td>" +
-                "<td>" +
-                    "<label for='dpid_str'>DPID:</label>" +
-                "</td>" +
-                "<td>" +
-                    "<label id='dpid_str'></label>" +
-                "</td>" +
-            "</tr>" +
-                "<td>" +
-                    "<label for='active_node_lat'>Latitude:</label>" +
-                "</td>" +
-                "<td>" +
-                    "<input type='text' id='active_node_lat'>" +
-                "</td>" +
-                "<td>" +
-                    "<label for='active_node_lon'>Longitude:</label>" +
-                "</td>" +
-                "<td>" +
-                    "<input type='text' id='active_node_lon'>" +
-                "</td>" +
-            "</tr>" +
-	    "<tr>" + 
-		"<td><label for='openflow_enabled'>OpenFlow Enabled</lable></td><td>" + 
-		   "<input type='checkbox' id='openflow_enabled' checked />" + 
-		 "</td><td><label for='mpls_enabled'>MPLS Enabled</label></td><td>" +
-		      "<input type='checkbox' id='mpls_enabled' checked />" +
-		 "</td></tr>" +
-            "<tr>" +
-              "<td colspan='2' class='soft_title'>Behaviours</td>"+
-              "<td colspan='2' class='soft_title'>Performance Characteristics</td>"+
-            "</tr>" +
-            "<tr>" +
-              "<td>Vlan Range:</td>" +
-              "<td><input type='text' id='active_node_vlan_range' size='10'></td>" +
-              "<td>Maximum Number of Flow Mods</td>" +
-              "<td><input type='text' id='active_max_flows' size='10'></td>" +
-            "</tr>" +
-            "<tr>" +
-              "<td>Default Forward LLDP to controller</td>"+
-              "<td><input type='checkbox' id='active_node_default_forward' checked /></td>" +
-              "<td>FlowMod Processing Delay (ms)</td>" +
-              "<td><input type='text' id='active_tx_delay_ms' size='10'></td>" +
-            "</tr>" +
-            "<tr>" +
-              "<td>Default Drop Rule</td>" +
-              "<td><input type='checkbox' id='active_node_default_drop' checked /></td>" +
-              "<td>Send Bulk Flow Rules</td>" +
-              "<td><input type='checkbox' id='active_barrier_bulk' checked></td>" +
-            "</tr>" +
-            "<tr>" +
-              "<td></td>" +
-              "<td></td>" +
-              "<td>Static MAC Limit</td>" +
-              "<td><input type='text' id='active_max_static_mac_flows' size='10'></td>" +
-            "</tr>" +
-        "</table>" +
-        "<div style='font-weight: bold;color: grey;text-align:left'>Interfaces</div>"+
-        "<div id='node_interface_table' style='margin-top:8px;'> </div>");
+                      // Base
+                      "<tr>" +
+                        "<td colspan='4' class='soft_title'>Base System Description and Information</td>"+
+                      "</tr>" +
+                      // Base - Name, VLAN Range
+                      "<tr>" +
+                        "<td><label for='active_node_name'>Name:</label></td>" +
+                        "<td><input type='text' size='38' id='active_node_name'></td>" +
+                        "<td>Vlan Range:</td>" +
+                        "<td><input type='text' id='active_node_vlan_range' size='10'></td>" +
+                      "</tr>" +
+                      // Base - Latitude, Longitude
+                      "<tr>" +
+                        "<td><label for='active_node_lat'>Latitude:</label></td>" +
+                        "<td><input type='text' id='active_node_lat'></td>" +
+                        "<td><label for='active_node_lon'>Longitude:</label></td>" +
+                        "<td><input type='text' id='active_node_lon'></td>" +
+                      "</tr>" +
+                      // Base - OpenFlow Enabled, MPLS Enabled
+	              "<tr>" + 
+		        "<td><label for='openflow_enabled'>OpenFlow Enabled</lable></td>" +
+		        "<td><input type='checkbox' id='openflow_enabled' onchange='display_openflow(this);' checked /></td>" + 
+		        "<td><label for='mpls_enabled'>MPLS Enabled</label></td>" +
+		        "<td><input type='checkbox' id='mpls_enabled' onchange='display_mpls(this);'checked /></td>" +
+		      "</tr>" +
+                      "<tr><td>&nbsp;</td></tr>" +
+                      // OpenFlow
+                      "<tr class='openflow'>" +
+                        "<td colspan='4' class='soft_title'>OpenFlow Configuration</td>"+
+                      "</tr>" +
+                      // OpenFlow - DPID
+                      "<tr class='openflow'>" +
+                        "<td><label for='dpid_str'>DPID:</label></td>" +
+                        "<td><label id='dpid_str'></label></td>" +
+                        "<td></td>" +
+                        "<td></td>" +
+                      "</tr>" +
+                      // OpenFlow
+                      "<tr class='openflow'>" +
+                        "<td>Maximum Number of Flow Mods</td>" +
+                        "<td><input type='text' id='active_max_flows' size='10'></td>" +
+                        "<td>Static MAC Limit</td>" +
+                        "<td><input type='text' id='active_max_static_mac_flows' size='10'></td>" +
+                      "</tr>" +
+                      // OpenFlow
+                      "<tr class='openflow'>" +
+                        "<td>FlowMod Processing Delay (ms)</td>" +
+                        "<td><input type='text' id='active_tx_delay_ms' size='10'></td>" +
+                        "<td>Send Bulk Flow Rules</td>" +
+                        "<td><input type='checkbox' id='active_barrier_bulk' checked></td>" +
+                      "</tr>" +
+                      // OpenFlow
+                      "<tr class='openflow'>" +
+                        "<td>Default Drop Rule</td>" +
+                        "<td><input type='checkbox' id='active_node_default_drop' checked /></td>" +
+                        "<td>Default Forward LLDP to controller</td>"+
+                        "<td><input type='checkbox' id='active_node_default_forward' checked /></td>" +
+                      "<tr>" +
+                      "<tr class='openflow'><td>&nbsp;</td></tr>" +
+                      // MPLS
+                      "<tr class='mpls'>" +
+                        "<td colspan='4' class='soft_title'>MPLS Configuration</td>"+
+                      "</tr>" +
+                      // MPLS - IP Address, TCP Port
+                      "<tr class='mpls'>" +
+                        "<td>IP Address</td>" +
+                        "<td><input type='text' id='mgmt_addr'></td>" +
+                        "<td>TCP Port</td>" +
+                        "<td><input type='text' id='tcp_port'></td>" +
+                      "</tr>" +
+                      // MPLS - Vendor, Model
+                      "<tr class='mpls'>" +
+                        "<td>Vendor</td>" +
+                        "<td><input type='text' id='vendor'></td>" +
+                        "<td>Model</td>" +
+                        "<td><input type='text' id='model'></td>" +
+                      "</tr>" +
+                      // MPLS - Software Version
+                      "<tr class='mpls'>" +
+                        "<td>Software Version</td>" +
+                        "<td><input type='text' id='sw_version'></td>" +
+                        "<td></td>" +
+                        "<td></td>" +
+                      "</tr>" +
+                      "<tr class='mpls'><td>&nbsp;</td></tr>" +
+                      "</table>" +
+                      "<div style='font-weight: bold;color: grey;text-align:left'>Interfaces</div>"+
+                      "<div id='node_interface_table' style='margin-top:8px;'> </div>");
 
             panel.setFooter("<div id='save_active_node'></div>" + 
                             "<div id='delete_active_node'></div>" +
@@ -2865,8 +2918,6 @@ function setup_network_tab(){
 		    }
                 });
 
-
-
             YAHOO.util.Dom.get('active_node_name').value            = node;
             YAHOO.util.Dom.get('active_node_lat').value             = lat;
             YAHOO.util.Dom.get('active_node_lon').value             = lon; 
@@ -2876,13 +2927,43 @@ function setup_network_tab(){
             YAHOO.util.Dom.get('dpid_str').innerHTML                = dpid;
             YAHOO.util.Dom.get('active_max_static_mac_flows').value = max_static_mac_flows;
 
-	    if(openflow == 0){
-		YAHOO.util.Dom.get('openflow_enabled').checked  = false;
-	    }
+	    if (openflow == 0 || openflow == null) {
+                YAHOO.util.Dom.get('openflow_enabled').checked = false;
 
-	    if(mpls == 0){
+                var elements = YAHOO.util.Dom.getElementsByClassName('openflow');
+                for (var i = 0; i < elements.length; i++) {
+                    elements[i].style.display = 'none';
+                }
+            } else {
+                YAHOO.util.Dom.get('openflow_enabled').checked = true;
+
+                var elements = YAHOO.util.Dom.getElementsByClassName('openflow');
+                for (var i = 0; i < elements.length; i++) {
+                    elements[i].style.display = 'table-row';
+                }
+            }
+
+	    if (mpls == 0 || mpls == null) {
 		YAHOO.util.Dom.get('mpls_enabled').checked = false;
-	    }
+
+                var elements = YAHOO.util.Dom.getElementsByClassName('mpls');
+                for (var i = 0; i < elements.length; i++) {
+                    elements[i].style.display = 'none';
+                }
+	    } else {
+                YAHOO.util.Dom.get('mpls_enabled').checked = true;
+
+                var elements = YAHOO.util.Dom.getElementsByClassName('mpls');
+                for (var i = 0; i < elements.length; i++) {
+                    elements[i].style.display = 'table-row';
+                }
+
+                YAHOO.util.Dom.get('mgmt_addr').value  = mgmt_addr;
+                YAHOO.util.Dom.get('tcp_port').value   = tcp_port;
+                YAHOO.util.Dom.get('vendor').value     = vendor;
+                YAHOO.util.Dom.get('model').value      = model;
+                YAHOO.util.Dom.get('sw_version').value = sw_version;
+            }
 
             if(default_drop == 0){
                 YAHOO.util.Dom.get('active_node_default_drop').checked = false;
@@ -2918,7 +2999,13 @@ function setup_network_tab(){
 				var new_barrier_bulk = YAHOO.util.Dom.get('active_barrier_bulk').checked;
 				var new_max_static_mac_flows = YAHOO.util.Dom.get('active_max_static_mac_flows').value;
 				var openflow = YAHOO.util.Dom.get('openflow_enabled').checked;
-				var mpls = YAHOO.util.Dom.get('mpls_enabled').checked;
+				var mpls       = YAHOO.util.Dom.get('mpls_enabled').checked;
+                                var mgmt_addr  = YAHOO.util.Dom.get('mgmt_addr').value;
+                                var tcp_port   = YAHOO.util.Dom.get('tcp_port').value;
+                                var vendor     = YAHOO.util.Dom.get('vendor').value;
+                                var model      = YAHOO.util.Dom.get('model').value;
+                                var sw_version = YAHOO.util.Dom.get('sw_version').value;
+
 				if (! new_name){
 				    alert("You must specify a name for this device.");
 				    return;
@@ -2949,8 +3036,38 @@ function setup_network_tab(){
 				    }				
 				}
 
-				var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=update_node&node_id="+node_id+"&name="+encodeURIComponent(new_name)+"&latitude="+new_lat+"&longitude="+new_lon+"&vlan_range="+encodeURIComponent(new_range) + "&default_drop=" + encodeURIComponent(new_default_drop) + "&default_forward=" + encodeURIComponent(new_default_forward) + "&max_flows=" + encodeURIComponent(new_max_flows) + "&tx_delay_ms=" + encodeURIComponent(new_tx_delay_ms) + "&bulk_barrier=" + encodeURIComponent(new_barrier_bulk) + "&max_static_mac_flows=" + +encodeURIComponent(new_max_static_mac_flows) + "&mpls=" + +encodeURIComponent(mpls) + "&openflow=" + +encodeURIComponent(openflow));
-		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                                var args = "&node_id=" + node_id +
+                                    "&name="       + encodeURIComponent(new_name) +
+                                    "&latitude="   + new_lat +
+                                    "&longitude="  + new_lon +
+                                    "&vlan_range=" + encodeURIComponent(new_range) +
+                                    "&mpls="       + encodeURIComponent(mpls) +
+                                    "&openflow="   + encodeURIComponent(openflow);
+
+                                var mpls_args = "&mgmt_addr=" + encodeURIComponent(mgmt_addr) +
+                                    "&tcp_port="   + encodeURIComponent(tcp_port) +
+                                    "&vendor="     + encodeURIComponent(vendor) +
+                                    "&model="      + encodeURIComponent(model) +
+                                    "&sw_version=" + encodeURIComponent(sw_version);
+
+                                var openflow_args = "&default_drop=" + encodeURIComponent(new_default_drop) +
+                                    "&default_forward=" + encodeURIComponent(new_default_forward) +
+                                    "&max_flows="       + encodeURIComponent(new_max_flows) +
+                                    "&tx_delay_ms="     + encodeURIComponent(new_tx_delay_ms) +
+                                    "&bulk_barrier="    + encodeURIComponent(new_barrier_bulk) +
+                                    "&max_static_mac_flows=" + encodeURIComponent(new_max_static_mac_flows);
+
+                                if (mpls) {
+                                    args += mpls_args;
+                                }
+
+                                if (openflow) {
+                                    args += openflow_args;
+                                }
+
+				var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=update_node" + args);
+
+		                ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 		    
 		    ds.responseSchema = {
 			resultsList: "results",
