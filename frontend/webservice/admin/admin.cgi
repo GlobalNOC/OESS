@@ -276,13 +276,31 @@ sub register_webservice_methods {
     $method->add_input_parameter( name        => 'openflow',
 				  pattern     => $GRNOC::WebService::Regex::TEXT,
 				  required    => 1,
-				  description => "if openflow is enabled or not (0|1)");
-    
+				  description => "if openflow is enabled or not (0|1)");    
     $method->add_input_parameter( name        => 'mpls',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
                                   required    => 1,
 				  description => "if mpls is enabled or not (0|1)");
-
+    $method->add_input_parameter( name        => 'mgmt_addr',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 0,
+				  description => "IP address of node node_id");
+    $method->add_input_parameter( name        => 'tcp_port',
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  required    => 0,
+				  description => "TCP port of node node_id");
+    $method->add_input_parameter( name        => 'vendor',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 0,
+				  description => "Hardware vendor of node node_id");
+    $method->add_input_parameter( name        => 'model',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 0,
+				  description => "Hardware model of node node_id");
+    $method->add_input_parameter( name        => 'sw_version',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 0,
+				  description => "Software version of node node_id");
     $svc->register_method($method);
 
     $method = GRNOC::WebService::Method->new( name        => 'update_interface',
@@ -1588,38 +1606,71 @@ sub update_node {
     my $bulk_barrier    = $args->{'bulk_barrier'}{'value'} || 0;
     my $max_static_mac_flows = $args->{'max_static_mac_flows'}{'value'} || 0;
     my $openflow        = $args->{'openflow'};
-    my $mpls            = $args->{'mpls'};
 
-    if ( $default_drop eq 'true' ) {
+    my $mpls       = $args->{'mpls'}{'value'};
+    my $mgmt_addr  = $args->{'mgmt_addr'}{'value'};
+    my $tcp_port   = $args->{'tcp_port'}{'value'};
+    my $vendor     = $args->{'vendor'}{'value'};
+    my $model      = $args->{'model'}{'value'};
+    my $sw_version = $args->{'sw_version'}{'value'};
+
+    if ($default_drop eq 'true') {
         $default_drop = 1;
-    }
-    else {
+    } else {
         $default_drop = 0;
     }
 
-    if ( $default_forward eq 'true' ) {
+    if ($default_forward eq 'true') {
         $default_forward = 1;
-    }
-    else {
+    } else {
         $default_forward = 0;
     }
 
-    if($bulk_barrier eq 'true'){
+    if ($bulk_barrier eq 'true') {
         $bulk_barrier = 1;
-    }else{
+    } else {
         $bulk_barrier = 0;
     }
 
-    if($openflow eq 'true'){
+    if ($openflow eq 'true') {
 	$openflow = 1;
-    }else{
+    } else {
 	$openflow = 0;
     }
 
-    if($mpls eq 'true'){
+    if ($mpls eq 'true') {
 	$mpls = 1;
-    }else{
+    } else {
 	$mpls = 0;
+    }
+
+    if ($mpls == 1) {
+        my $result = $db->update_node_instantiation(
+            node_id    => int($node_id),
+            mpls       => int($mpls),
+            mgmt_addr  => $mgmt_addr,
+            tcp_port   => int($tcp_port),
+            vendor     => $vendor,
+            model      => $model,
+            sw_version => $sw_version
+            );
+
+        if (!defined $result ) {
+            $results->{'results'} = [ { "error"   => $db->get_error(),
+                                        "success" => 0 } ];
+            return $results;
+        }
+
+        my $client = GRNOC::RabbitMQ::Client->new( topic => 'MPLS.FWDCTL.RPC',
+                                                   exchange => 'OESS',
+                                                   user => $db->{'rabbitMQ'}->{'user'},
+                                                   pass => $db->{'rabbitMQ'}->{'pass'},
+                                                   host => $db->{'rabbitMQ'}->{'host'},
+                                                   port => $db->{'rabbitMQ'}->{'port'});
+
+        my $res = $client->new_switch(node_id => int($node_id));
+        $client->{'topic'} = 'MPLS.Discovery.RPC';
+        $client->new_switch(node_id => $node_id);
     }
 
     my $result = $db->update_node(
@@ -1641,12 +1692,11 @@ sub update_node {
     if ( !defined $result ) {
         $results->{'results'} = [
             {
-                "error"   => $db->get_error(),
-                "success" => 0
+             "error"   => $db->get_error(),
+             "success" => 0
             }
-            ];
-    }
-    else {
+        ];
+    } else {
         $results->{'results'} = [ { "success" => 1 } ];
     }
 

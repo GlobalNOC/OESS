@@ -1265,6 +1265,10 @@ sub get_map_layers {
     node.node_id,
     node_instantiation.openflow,
     node_instantiation.mpls,
+    node_instantiation.vendor,
+    node_instantiation.model,
+    node_instantiation.sw_version,
+    node_instantiation.mgmt_addr,
     node.vlan_tag_range,
     node.node_id as node_id,
     node.default_drop as default_drop,
@@ -1327,6 +1331,10 @@ HERE
 							       "node_id"      => $row->{'node_id'},
 							       "openflow"     => $row->{'openflow'},
 							       "mpls"         => $row->{'mpls'},
+                                                               "vendor"       => $row->{'vendor'},
+                                                               "model"        => $row->{'model'},
+                                                               "sw_version"   => $row->{'sw_version'},
+                                                               "mgmt_addr"    => $row->{'mgmt_addr'},
 							       "vlan_range"   => $row->{'vlan_tag_range'},
 							       "default_drop" => $row->{'default_drop'},
 							       "default_forward" => $row->{'default_forward'},
@@ -4564,6 +4572,55 @@ sub update_node {
 
     $self->_commit();
 
+    return 1;
+}
+
+=head2 update_node_instantiation
+
+=over 4
+
+=item B<node_id> - ID of node to modify
+
+=item B<mpls> - Integer is 1 if MPLS should be enabled
+
+=item B<mgmt_addr> - IP address of node node_id
+
+=item B<tcp_port> - TCP port of node node_id
+
+=item B<vendor> - Hardware vendor of node node_id
+
+=item B<model> - Hardware model of node node_id
+
+=item B<sw_version> - Software version running on node node_id
+
+=back
+
+Updates all node_instantiation fields that may be modified by a user.
+
+=cut
+sub update_node_instantiation {
+    my $self = shift;
+    my %args = @_;
+
+    my $node_id    = $args{'node_id'};
+    my $mpls       = $args{'mpls'};
+    my $mgmt_addr  = $args{'mgmt_addr'};
+    my $tcp_port   = $args{'tcp_port'}; # TODO Add this option to the database
+    my $vendor     = $args{'vendor'};
+    my $model      = $args{'model'};
+    my $sw_version = $args{'sw_version'};
+
+    $self->_start_transaction();
+
+    my $result = $self->_execute_query("update node_instantiation set mpls = ?, mgmt_addr = ?, vendor = ?, model = ?, sw_version = ? where node_id = ?",
+				       [$mpls, $mgmt_addr, $vendor, $model, $sw_version, $node_id]);
+    if ($result != 1) {
+	$self->_set_error("Error updating node instantiation.");
+	$self->_rollback();
+	return;
+    }
+
+    $self->_commit();
     return 1;
 }
 
