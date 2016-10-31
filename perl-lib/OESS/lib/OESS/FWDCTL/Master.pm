@@ -621,6 +621,8 @@ sub rules_per_switch{
     my $state = shift;
 
     my $dpid = $p_ref->{'dpid'}{'value'};
+
+    $self->{'logger'}->error("Get Rules on Node: $dpid . " . Data::Dumper::Dumper($self->{'node_rules'}));
     
     if(defined($dpid) && defined($self->{'node_rules'}->{$dpid})){
         return {dpid => $dpid, rules_on_switch => $self->{'node_rules'}->{$dpid}};
@@ -871,7 +873,7 @@ sub message_callback {
         } elsif (defined $results->{'error'}) {
             $self->{'logger'}->error($results->{'error'});
         }
-        $self->{'node_rules'}->{$dpid} = $results->{'results'}->{'total_rules'};
+        $self->{'node_rules'}->{$dpid} = $results->{'results'}->{'total_flows'};
 	$self->{'logger'}->debug("Event: $event_id for DPID: " . $event_id . " status: " . $results->{'results'}->{'status'});
         $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = $results->{'results'}->{'status'};
     }
