@@ -54,7 +54,7 @@ function save_session_from_datasource(details){
     session.data.description  = details.description;
     session.data.bandwidth    = details.bandwidth * 1000000;
     session.data.state        = details.state;
-    session.data.type         = details.type;
+    session.data.circuit_type = details.type;
     session.data.active_path  = details.active_path;
     session.data.circuit_workgroup = details.workgroup;
     session.data.static_mac_routing = parseInt(details.static_mac);
