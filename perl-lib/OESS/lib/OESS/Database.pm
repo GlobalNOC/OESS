@@ -4277,7 +4277,6 @@ sub get_interface_by_dpid_and_port{
 =head2 update_interface_operational_state
 
 =cut
-
 sub update_interface_operational_state{
     my $self = shift;
     my %args = @_;
@@ -4294,6 +4293,42 @@ sub update_interface_operational_state{
 
     my $res = $self->_execute_query("update interface set operational_state = ? where interface.interface_id = ?",[$args{'operational_state'},$args{'interface_id'}]);
     if(!defined($res)){
+	$self->_set_error("Unable to update interfaces operational state");
+	return;
+    }
+
+    return 1;
+}
+
+=head2 update_interfaces_operational_state
+
+=over 4
+
+=item B<node_id> - Id of the node whose ports' state should change
+
+=back
+
+Updates the operational state of every port on the node identified by
+$node_id to $state.
+
+=cut
+sub update_interfaces_operational_state{
+    my $self    = shift;
+    my $node_id = shift;
+    my $state   = shift;
+
+    if (!defined $node_id) {
+	$self->_set_error("Argument 'node_id' is missing");
+	return;
+    }
+
+    if (!defined $state) {
+	$self->_set_error("Argument 'state' is missing");
+	return;
+    }
+
+    my $res = $self->_execute_query("update interface set operational_state = ? where interface.node_id = ?", [$state, $node_id]);
+    if (!defined $res) {
 	$self->_set_error("Unable to update interfaces operational state");
 	return;
     }

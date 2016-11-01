@@ -188,10 +188,22 @@ sub register_nox_events{
     my $self = shift;
     my $d = shift;
     
-    my $method = GRNOC::RabbitMQ::Method->new( name => "datapath_join",
+    my $method = GRNOC::RabbitMQ::Method->new( name => "datapath_leave",
 					       topic => "OF.NOX.event",
-					       callback => sub { $self->datapath_join_handler(@_) },
-					       description => "signals a node has joined the controller");
+					       callback => sub { $self->datapath_leave_handler(@_) },
+					       description => "signals a node has left the controller");
+
+    $method->add_input_parameter( name => "dpid",
+				  description => "The DPID of the switch which left",
+				  required => 1,
+				  pattern => $GRNOC::WebService::Regex::NUMBER_ID);
+
+    $d->register_method($method);
+
+    $method = GRNOC::RabbitMQ::Method->new( name => "datapath_join",
+                                            topic => "OF.NOX.event",
+                                            callback => sub { $self->datapath_join_handler(@_) },
+                                            description => "signals a node has joined the controller");
 
     $method->add_input_parameter( name => "dpid",
 				  description => "The DPID of the switch which joined",
@@ -1055,6 +1067,45 @@ sub _update_node_database_state{
 }
 
 
+=head2 datapath_leave_handler
+
+=over 4
+
+=item B<dpid> - Datapath ID of the disconnected node
+
+=back
+
+Called whenever a datapath disconnects from the controller.
+
+=cut
+sub datapath_leave_handler {
+    my $self  = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    my $dpid = $p_ref->{'dpid'}{'value'};
+    my $dpid_str = sprintf("%x",$dpid);
+
+    $self->{'logger'}->info("Datapath LEAVE EVENT - $dpid_str");
+
+    my $node = $self->{'db'}->get_node_by_dpid(dpid => $dpid);
+    if (!defined $node) {
+        $self->{'logger'}->warn("Datapath LEAVE EVENT - Datapath node is unknown to OESS.");
+    }
+
+    my $ok;
+    $self->{'db'}->_start_transaction();
+    $ok = $self->{'db'}->update_node_operational_state(node_id => $node->{'node_id'}, state => 'down');
+    if (!$ok) {
+        $self->{'logger'}->error("Could not set $dpid_str operational state to down.");
+        $self->{'db'}->_rollback();
+    }
+    $self->{'db'}->_commit();
+
+    return 1;
+}
+
+
 =head2 datapath_join_handler
 
 =cut
@@ -1065,11 +1116,10 @@ sub datapath_join_handler{
     my $p_ref = shift;
     my $state = shift;
 
-    $self->{'logger'}->error("Datapath JOIN EVENT!!!");
-
     my $dpid = $p_ref->{'dpid'}{'value'};
-
     my $dpid_str  = sprintf("%x",$dpid);
+
+    $self->{'logger'}->error("Datapath JOIN EVENT - $dpid_str");
 
     $self->_update_node_database_state($p_ref);
 
