@@ -105,8 +105,8 @@ function makeConfigPanel(x, y, width, obj) {
                 }
 
                 var msg = 'Configuration change was approved.';
-                panel.destroy();
                 alert(msg);
+                panel.hide();
             },
             failure: function(req, resp){
                 add_button.set('label', 'Add');
@@ -124,7 +124,6 @@ function makeConfigPanel(x, y, width, obj) {
     panel.setHeader('Configuration Details - ' + obj.getData('name'));
     panel.setFooter('Approve this pending configuration?');
     panel.hideEvent.subscribe(function() {
-        // Called on click X button
         pre.innerHTML = 'Loading diff...';
     });
     return panel;
@@ -165,6 +164,8 @@ function makeConfigTable(div_id) {
         sortedBy: {key:'name', dir:'asc'}
     };
 
+    var config_panel;
+
     var rowClickHandler = function(oArgs) {
         var obj = this.getRecord(oArgs.target);
         if (!obj) {
@@ -177,8 +178,12 @@ function makeConfigTable(div_id) {
         var x = ((region.left + region.right) / 2) - (width / 2);
         var y = region.bottom;
 
-        var panel = makeConfigPanel(x, y, width, obj);
-        panel.render(document.body);
+        if (config_panel == null) {
+            config_panel = makeConfigPanel(x, y, width, obj);
+            config_panel.render(document.body);
+        } else {
+            config_panel.show();
+        }
     };
 
     var table = new YAHOO.widget.DataTable(div_id, columns, ds, config);
