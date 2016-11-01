@@ -4306,6 +4306,8 @@ sub update_interface_operational_state{
 
 =item B<node_id> - Id of the node whose ports' state should change
 
+=item B<state> - State the ports should be set to
+
 =back
 
 Updates the operational state of every port on the node identified by
