@@ -471,6 +471,7 @@ sub node_maintenance {
     }
 
     foreach my $link (@$links) {
+        next if (!$link->{'openflow'});
         if ($state eq 'end' && defined $store{$link->{'link_id'}}) {
             $self->{'logger'}->warn("Link $link->{'link_id'} will remain under maintenance.");
         } else {
@@ -507,6 +508,13 @@ sub link_maintenance {
     my $state   = $p_ref->{'state'}{'value'};
 
     $self->{'logger'}->info("Calling link_maintenance $state on link $link_id.");
+
+    my $link = $self->{'db'}->get_link(link_id => $link_id);
+    if(!$link->{'openflow'}){
+        $self->{'logger'}->error("Link " . $link->{'name'} . " is not an OpenFlow link");
+        return;
+    }
+    
 
     my $endpoints = $self->{'db'}->get_link_endpoints(link_id => $link_id);
     my $link_state;
