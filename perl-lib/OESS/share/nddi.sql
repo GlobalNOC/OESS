@@ -274,6 +274,7 @@ CREATE TABLE `node` (
   `longitude` double NOT NULL,
   `latitude` double NOT NULL,
   `operational_state` enum('unknown','up','down') NOT NULL DEFAULT 'unknown',
+  `operational_state_mpls` enum('unknown','up','down') NOT NULL DEFAULT 'unknown',
   `network_id` int(10) NOT NULL,
   `vlan_tag_range` varchar(255) NOT NULL DEFAULT '1-4095',
   `default_forward` varchar(255) DEFAULT '1',
