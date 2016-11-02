@@ -651,22 +651,34 @@ function build_circuitTable(){
     switch_status_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     switch_status_ds.responseSchema = {
 	resultsList: "results",
-	fields: ["name","node_id","operational_state", "in_maint"]
+	fields: ["name", "node_id", "operational_state", "in_maint", "operational_state_mpls"]
     };
 
     var switch_status_columns = [
-				 {key: "name", label: "Switch",sortable: true, width: 200},
-				 {key: "operational_state", sortable: true, label: "Status", width: 40, formatter: function(elLiner, oRec, oCol, oData){
-                    if (oRec.getData('in_maint') == 'yes') {
-                        elLiner.innerHTML = "<font color='teal'>Maintenance</font>";
-                    }
-                    else if(oRec.getData('operational_state') == 'up'){
-					     elLiner.innerHTML = "<font color='green'>up</font>";
-					 }else{
-					     elLiner.innerHTML = "<font color='red'>" + oRec.getData('operational_state') + "</font>";
-					 }
-				     }}
-				 ];
+        {key: "name", label: "Switch",sortable: true, width: 160},
+        {key: "operational_state", sortable: true, label: "OFP", width: 40, formatter: function(elLiner, oRec, oCol, oData) {
+            if (oRec.getData('in_maint') == 'yes') {
+                elLiner.innerHTML = "<font color='teal'>Maintenance</font>";
+            } else if(oRec.getData('operational_state') == 'up') {
+                elLiner.innerHTML = "<font color='green'>up</font>";
+            } else if(oRec.getData('operational_state') == 'unknown') {
+                elLiner.innerHTML = "<font color='blue'>na</font>";
+            } else {
+                elLiner.innerHTML = "<font color='red'>down</font>";
+            }
+        }},
+        {key: "operational_state_mpls", sortable: true, label: "MPLS", width: 40, formatter: function(elLiner, oRec, oCol, oData) {
+            if (oRec.getData('in_maint') == 'yes') {
+                elLiner.innerHTML = "<font color='teal'>Maintenance</font>";
+            } else if(oRec.getData('operational_state_mpls') == 'up') {
+                elLiner.innerHTML = "<font color='green'>up</font>";
+            } else if(oRec.getData('operational_state_mpls') == 'unknown') {
+                elLiner.innerHTML = "<font color='blue'>na</font>";
+            } else {
+                elLiner.innerHTML = "<font color='red'>down</font>";
+            }
+        }}
+    ];
 
     var switch_table = new YAHOO.widget.ScrollingDataTable("switch_status_table",switch_status_columns, switch_status_ds,{height: '210px'});
     switch_status_ds.setInterval(30000);
