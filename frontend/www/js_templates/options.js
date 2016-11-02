@@ -33,7 +33,7 @@ function init(){
     // Load default session variables if they're not already set
     session.data.static_mac_routing = session.data.static_mac_routing || 0;
     session.data.q_n_q = session.data.q_n_q || 0;
-
+    session.data.circuit_type = session.data.circuit_type || 'unknown';
 
     // Circuit Endpoint Table: circuit_details_box.js
     // By default the static mac column is hidden.
