@@ -7294,7 +7294,7 @@ sub add_mpls_node{
 
     $self->_start_transaction();
 
-    my $query = "insert into node (name, latitude, longitude, operational_state,network_id) VALUES (?,?,?,?,?)";
+    my $query = "insert into node (name, latitude, longitude, operational_state_mpls,network_id) VALUES (?,?,?,?,?)";
     my $res = $self->_execute_query($query, [$args{'name'},$args{'lat'},$args{'long'},'unknown',1]);
 
     warn "New Node: " . Data::Dumper::Dumper($res);

@@ -278,8 +278,8 @@ sub int_handler{
 	$self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
 	$self->{'rmq_client'}->get_interfaces( async => 1,
 					       async_callback => $self->handle_response( cb => sub { my $res = shift;
-												     my $status = $self->{'interface'}->process_results( node => $node->{'name'}, interfaces => $res->{'results'});
                                                                                                      $self->{'db'}->update_node_operational_state(node_id => $node->{'node_id'}, state => 'up', protocol => 'mpls');
+                                                                                                     my $status = $self->{'interface'}->process_results( node => $node->{'name'}, interfaces => $res->{'results'});
 											 }));
     }
 }
