@@ -132,7 +132,7 @@ sub new {
     my $method = GRNOC::RabbitMQ::Method->new( name => "add_vlan",
 					       async => 1,
 					       description => "adds a vlan for this switch",
-					       callback => sub { $self->add_vlan(@_) }	);
+					       callback => sub { $self->add_vlan(@_); }	);
     $method->add_input_parameter( name => "circuit_id",
                                   description => "circuit_id to be added",
                                   required => 1,
@@ -142,7 +142,7 @@ sub new {
     $method = GRNOC::RabbitMQ::Method->new( name => "remove_vlan",
 					    async => 1,
 					    description => "removes a vlan for this switch",
-					    callback => sub { $self->remove_vlan(@_) }     );
+					    callback => sub { $self->remove_vlan(@_); });
     $method->add_input_parameter( name => "circuit_id",
                                   description => "circuit_id to be removed",
                                   required => 1,
@@ -152,7 +152,7 @@ sub new {
     $method = GRNOC::RabbitMQ::Method->new( name => "change_path",
 					    description => "changes the path on the specified circuits",
 					    async => 1,
-					    callback => sub { $self->change_path(@_) }     );
+					    callback => sub { $self->change_path(@_); });
     $method->add_input_parameter( name => "circuit_id",
                                   description => "The message and paramteres to be run by the child",
                                   required => 1,
@@ -294,7 +294,7 @@ sub _update_cache{
     }
 
     $self->{'node'} = $data->{'nodes'}->{$self->{'dpid'}};
-
+    $self->{'max_flows'} = $self->{'node'}->{'max_flows'};
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.FWDCTL.Switch.' . $self->{'node'}->{'name'}) if($self->{'node'}->{'name'});
 
     $self->{'settings'} = $data->{'settings'};
@@ -429,9 +429,14 @@ sub change_path{
     $self->send_flows( flows => \@pending_commands,
 		       command => OFPFC_MODIFY_STRICT,
 		       cb => sub {
+                           my $foo = shift;
+                           $self->{'logger'}->debug("Flow Install status: " . Data::Dumper::Dumper($foo));
 			   $self->{'rabbit_mq'}->send_barrier( dpid => int($self->{'dpid'}),
 							       async_callback => sub {
-								   $self->get_node_status( cb => sub { my $res = shift;
+                                                                   my $status = shift;
+								   $self->get_node_status( status => $foo->{'status'},
+                                                                                           msg => $foo->{'msg'},
+                                                                                           cb => sub { my $res = shift;
 												       $self->{'needs_diff'} = time();
 												       my $cb = $m_ref->{'success_callback'};
 												       &$cb($res);
@@ -477,11 +482,15 @@ sub add_vlan{
     $self->send_flows( flows => $commands,
                        command => OFPFC_ADD,
                        cb => sub {
+                           my $foo = shift;
+                           $self->{'logger'}->debug("Flow Install status: " . Data::Dumper::Dumper($foo));
 			   my $barrier_start = [gettimeofday];
 			   $self->{'logger'}->info("Time to complete sending flows: " . tv_interval( $after_create_flows, $barrier_start));
                            $self->{'rabbit_mq'}->send_barrier( dpid => int($self->{'dpid'}),
                                                                async_callback => sub {
-                                                                   $self->get_node_status( cb =>  sub { my $res = shift; 
+                                                                   $self->get_node_status( status => $foo->{'status'},
+                                                                                           msg => $foo->{'msg'},
+                                                                                           cb =>  sub { my $res = shift; 
 													my $end = [gettimeofday];
 													$self->{'logger'}->info("Elapsed Time add_vlan: " . tv_interval( $start, $end ));
 													$self->{'logger'}->info("Time waiting on barrier: " . tv_interval( $barrier_start, $end));
@@ -516,7 +525,7 @@ sub send_flows{
 
     if(!defined($flows) || scalar(@$flows) == 0){
 	$self->{'logger'}->debug("send_flows: No more flows!");
-	&$cb();
+	&$cb({status => 1, msg => "Sent Flows"});
 	return;
     }
     
@@ -524,6 +533,14 @@ sub send_flows{
     
     #pull off the first flow...
     my $flow = shift(@$flows);
+
+    
+    $self->{'logger'}->debug("Current Flows: " . $self->{'flows'} . " vs. Max Flows: " . $self->{'max_flows'});
+    if($self->{'flows'} >= ($self->{'node'}->{'max_flows'} -1) && $cmd == OFPFC_ADD) {
+        $self->{'logger'}->error("Switch is currently at configured flow limit! Unable to install flows");
+        &$cb({status => 0, msg => "Switch is at flow limit"});
+        return;
+    }
 
 
     if($cmd == OFPFC_ADD){
@@ -537,12 +554,6 @@ sub send_flows{
 	$self->{'logger'}->info("Modifying Flow: " . $flow->to_human());
     }
     
-    if($self->{'flows'} > $self->{'node'}->{'max_flows'}){
-	$self->{'logger'}->error("Switch is currently at configured flow limit! Unable to install flows");
-	&$cb({status => 0, error => "Switch is at flow limit"});
-	return;
-    }
-
     if($self->{'node'}->{'send_barrier_bulk'}){
 	$self->{'rabbit_mq'}->send_datapath_flow(flow => $flow->to_dict( command => $cmd),
 						 async_callback => sub { $self->send_flows( flows => $flows,
@@ -591,14 +602,18 @@ sub remove_vlan{
     $self->send_flows( flows => $commands,
 		       command => OFPFC_DELETE_STRICT,
 		       cb => sub {
+                           my $foo = shift;
+                           $self->{'logger'}->debug("Flow Install status: " . Data::Dumper::Dumper($foo));
 			   $self->{'rabbit_mq'}->send_barrier( dpid => int($self->{'dpid'}),
 							       async_callback => sub {
-								   $self->get_node_status( cb => sub {
-								       my $res = shift;
-								       $self->{'needs_diff'} = time();
-								       my $cb = $m_ref->{'success_callback'};
-								       &$cb($res);
-                                                                   } )
+								   $self->get_node_status( status => $foo->{'status'},
+                                                                                           msg => $foo->{'msg'},
+                                                                                           cb => sub {
+                                                                                               my $res = shift;
+                                                                                               $self->{'needs_diff'} = time();
+                                                                                               my $cb = $m_ref->{'success_callback'};
+                                                                                               &$cb($res);
+                                                                                           } )
 							       });
 		       });
     $self->{'logger'}->debug("Leaving remove_vlan");
@@ -951,8 +966,10 @@ sub get_node_status{
 
     my $cb            = $params{'cb'};
     my $timeout       = $params{'timeout'};
+    my $status        = $params{'status'};
+    my $message       = $params{'msg'};
 
-    $self->{'logger'}->debug("Getting node status");
+    $self->{'logger'}->debug("Getting node status: msg => $message status => $status");
 
     if(!defined($timeout)){
 	#15 sec timeout
@@ -966,7 +983,6 @@ sub get_node_status{
 	&$cb({status => FWDCTL_UNKNOWN});
 	return;
     }
-    
 
     $self->{'rabbit_mq'}->get_node_status( dpid => int($self->{'dpid'}),
 					   async_callback => sub { 
@@ -975,11 +991,20 @@ sub get_node_status{
 						   $self->{'logger'}->debug("fetching node status again");
 						   usleep(100);
 						   $self->get_node_status( cb => $cb,
-									   timeout => $timeout );
+									   timeout => $timeout,
+                                                                           status => $status,
+                                                                           msg => $message );
 						   return;
 					       }else{
-						   $self->{'logger'}->debug("received status: " . $results->{'results'}->[0]->{'status'});
-						   &$cb({status => $results->{'results'}->[0]->{'status'}});
+                                                   if($status && $results->{'results'}->[0]->{'status'}){
+                                                       
+                                                   }else{
+                                                       $status = 0;
+                                                   }
+
+                                                   $self->{'logger'}->debug("Sending status: " . $status);
+
+						   &$cb({status => $status, total_flows => $self->{'flows'}, msg => $message});
 						   return;
 					       }
 					   });
