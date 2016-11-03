@@ -7294,7 +7294,7 @@ sub add_mpls_node{
 
     $self->_start_transaction();
 
-    my $query = "insert into node (name, latitude, longitude, operational_state,network_id) VALUES (?,?,?,?,?)";
+    my $query = "insert into node (name, latitude, longitude, operational_state_mpls,network_id) VALUES (?,?,?,?,?)";
     my $res = $self->_execute_query($query, [$args{'name'},$args{'lat'},$args{'long'},'unknown',1]);
 
     warn "New Node: " . Data::Dumper::Dumper($res);
@@ -7435,18 +7435,38 @@ sub create_node_instance{
 
 =head2 update_node_operational_state
 
-=cut
+=over 4
 
-sub update_node_operational_state{
+=item node_id - ID of the node to update
+
+=item state - State to set. Must be 'up', 'down', or 'unknown'.
+
+=item protocol - Protocol whose state you wish to change. Can be 'ofp' or 'mpls', and defaults to 'ofp'.
+
+=back
+
+=cut
+sub update_node_operational_state {
     my $self = shift;
-    my %args = @_;
+
+    my %args  = @_;
+    my $query = undef;
+
+    $args{'protocol'} = $args{'protocol'} || 'ofp';
+
     $self->_commit();
-    my $res = $self->_execute_query("update node set operational_state = ? where node_id = ?",[$args{'state'},$args{'node_id'}]);
-    if(!defined($res)){
+
+    if ($args{'protocol'} eq 'mpls') {
+        $query = "update node set operational_state_mpls = ? where node_id = ?";
+    } else {
+        $query = "update node set operational_state = ? where node_id = ?";
+    }
+
+    my $res = $self->_execute_query($query, [$args{'state'}, $args{'node_id'}]);
+    if (!defined $res) {
 	$self->_set_error("Unable to update operational state");
 	return;
     }
-
     return 1;
 }
 
