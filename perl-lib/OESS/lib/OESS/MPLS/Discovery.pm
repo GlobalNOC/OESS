@@ -350,6 +350,8 @@ sub device_handler{
         $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
         $self->{'rmq_client'}->get_system_info( async => 1,
 						async_callback => $self->handle_response( cb => sub { my $res = shift;
+
+												      $self->{'logger'}->error("get_system_info: " . Data::Dumper::Dumper($res));
 												      my $status = $self->handle_system_info( node => $node->{'node_id'}, info => $res->{'results'});
 											  }));
     }

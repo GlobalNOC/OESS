@@ -1106,12 +1106,12 @@ sub reprovision_circuit {
 	my $success= _send_remove_command(circuit_id => $circuit_id);
 	if (!$success) {
 	    $method->set_error('Error sending circuit removal request to controller, please try again or contact your Systems Administrator');
-	return;
+	return {results => {status => 0}, error => 1, error_message => 'Error sending circuit removal request to controller, please try again or contact your Systems Administrator'};
 	}
 	my $add_success = _send_add_command(circuit_id => $circuit_id);
 	if (!$add_success) {
 	    $method->set_error('Error sending circuit provision request to controller, please try again or contact your Systems Administrator');
-	    return;
+	    return {results => {status => 0} ,error => 1, error_message => 'Error sending circuit removal request to controller, please try again or contact your Systems Administrator'};
 	    
 	}
     }else{

@@ -82,7 +82,12 @@ sub new{
                                                 });
 
     #try and connect up right away
-    $self->{'device'}->connect();
+    my $ok = $self->{'device'}->connect();
+    if (!$ok) {
+	$self->{'logger'}->error("Connection to device could not be established.");
+    } else {
+	$self->{'logger'}->error("Connection to device was established.");
+    }
 
     AnyEvent->condvar->recv;
     return $self;

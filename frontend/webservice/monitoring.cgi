@@ -143,7 +143,7 @@ sub get_node_status{
 	$method->set_error("Unable to find node named $node_name");
 	return;
     }
-    
+
     my $result = $client->get_node_connect_status(dpid => int($node->{'dpid'}));
     $result = int($result->{'results'}->[0]);
     my $tmp;
@@ -177,8 +177,12 @@ sub get_rules_on_node{
         $method->set_error("Unable to find node named $node_name\n");
 	return;
     }
+
+    warn Data::Dumper::Dumper($node);
+
     my $result = $client->rules_per_switch(dpid => int($node->{'dpid'}));
-    $result = int($result->{'results'});
+    warn Data::Dumper::Dumper($result);
+    $result = int($result->{'results'}->{'rules_on_switch'});
 
     my $tmp;
     $tmp->{'results'} = {node => $node_name, rules_currently_on_switch => $result, maximum_allowed_rules_on_switch => $node->{'max_flows'}};

@@ -483,6 +483,7 @@ sub node_maintenance {
     }
 
     foreach my $link (@$links) {
+        next if (!$link->{'openflow'});
         if ($state eq 'end' && defined $store{$link->{'link_id'}}) {
             $self->{'logger'}->warn("Link $link->{'link_id'} will remain under maintenance.");
         } else {
@@ -519,6 +520,13 @@ sub link_maintenance {
     my $state   = $p_ref->{'state'}{'value'};
 
     $self->{'logger'}->info("Calling link_maintenance $state on link $link_id.");
+
+    my $link = $self->{'db'}->get_link(link_id => $link_id);
+    if(!$link->{'openflow'}){
+        $self->{'logger'}->error("Link " . $link->{'name'} . " is not an OpenFlow link");
+        return;
+    }
+    
 
     my $endpoints = $self->{'db'}->get_link_endpoints(link_id => $link_id);
     my $link_state;
@@ -633,6 +641,8 @@ sub rules_per_switch{
     my $state = shift;
 
     my $dpid = $p_ref->{'dpid'}{'value'};
+
+    $self->{'logger'}->error("Get Rules on Node: $dpid . " . Data::Dumper::Dumper($self->{'node_rules'}));
     
     if(defined($dpid) && defined($self->{'node_rules'}->{$dpid})){
         return {dpid => $dpid, rules_on_switch => $self->{'node_rules'}->{$dpid}};
@@ -883,7 +893,7 @@ sub message_callback {
         } elsif (defined $results->{'error'}) {
             $self->{'logger'}->error($results->{'error'});
         }
-        $self->{'node_rules'}->{$dpid} = $results->{'results'}->{'total_rules'};
+        $self->{'node_rules'}->{$dpid} = $results->{'results'}->{'total_flows'};
 	$self->{'logger'}->debug("Event: $event_id for DPID: " . $event_id . " status: " . $results->{'results'}->{'status'});
         $self->{'pending_results'}->{$event_id}->{'dpids'}->{$dpid} = $results->{'results'}->{'status'};
     }
