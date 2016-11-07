@@ -506,6 +506,10 @@ sub diff {
         $circuits->{$id}->{'state'} = 'decom';
         push(@{$modifications}, $circuits->{$id});
     }
+    foreach my $id (keys %{$circuit_info->{'installed'}}) {
+        $circuits->{$id}->{'state'} = 'active';
+        push(@{$modifications}, $circuits->{$id});
+    }
     $self->{'logger'}->debug("Diff modifications: " . Dumper($modifications));
 
     my $configuration = $self->xml_configuration($modifications);
@@ -559,6 +563,10 @@ sub get_diff_text {
     }
     foreach my $id (@{$circuit_info->{'deletions'}}) {
         $circuits->{$id}->{'state'} = 'decom';
+        push(@{$modifications}, $circuits->{$id});
+    }
+    foreach my $id (keys %{$circuit_info->{'installed'}}) {
+        $circuits->{$id}->{'state'} = 'active';
         push(@{$modifications}, $circuits->{$id});
     }
 
