@@ -35,7 +35,9 @@ make
 rm -rf $RPM_BUILD_ROOT
 make pure_install
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/upgrade
-%__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8
+%__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS
+%__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS_INTRA
+%__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPN
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{template_dir}
 %__install etc/notification_templates.tmpl $RPM_BUILD_ROOT/%{template_dir}/
 %__install etc/notification_bulk.tmpl $RPM_BUILD_ROOT/%{template_dir}/
@@ -43,7 +45,9 @@ make pure_install
 %__install etc/notification.tt.html $RPM_BUILD_ROOT/%{template_dir}/
 %__install share/nddi.sql $RPM_BUILD_ROOT/%{docdir}/share/
 %__install share/upgrade/* $RPM_BUILD_ROOT/%{docdir}/share/upgrade/
-%__install share/mpls/templates/juniper/13.3R8/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/
+%__install share/mpls/templates/juniper/13.3R8/L2VPLS/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS
+%__install share/mpls/templates/juniper/13.3R8/L2VPLS_INTRA/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS_INTRA
+%__install share/mpls/templates/juniper/13.3R8/L2VPN/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPN
 # clean up buildroot
 find %{buildroot} -name .packlist -exec %{__rm} {} \;
 
@@ -75,6 +79,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::NSI::Query.3pm.gz
 %doc %{_mandir}/man3/OESS::NSI::Reservation.3pm.gz
 %doc %{_mandir}/man3/OESS::NSI::Utils.3pm.gz
+%doc %{_mandir}/man3/OESS::MPLS::Device.3pm.gz
 %doc %{_mandir}/man3/OESS::MPLS::Discovery.3pm.gz
 %doc %{_mandir}/man3/OESS::MPLS::FWDCTL.3pm.gz
 %doc %{_mandir}/man3/OESS::MPLS::Switch.3pm.gz
@@ -115,7 +120,10 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/MPLS/Topology.pm
 %{docdir}/share/nddi.sql
 %{docdir}/share/upgrade/*
-%{docdir}/share/mpls/templates/juniper/13.3R8/*
+%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS/*
+%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS_INTRA/*
+%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPN/*
+
 %changelog
 * Thu Dec  5 2013 AJ Ragusa <aragusa@grnoc.iu.edu> - OESS Perl Libs
 - Initial build.
