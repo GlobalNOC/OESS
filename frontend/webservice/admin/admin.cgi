@@ -1649,8 +1649,8 @@ sub update_node {
     my $result = $db->update_node(
         node_id         => $node_id,
         openflow        => $openflow,
-	mpls            => $mpls,
-	name            => $name,
+        mpls            => $mpls,
+        name            => $name,
         longitude       => $long,
         latitude        => $lat,
         vlan_range      => $range,
@@ -1659,8 +1659,7 @@ sub update_node {
         tx_delay_ms     => $tx_delay_ms,
         max_flows       => $max_flows,
         bulk_barrier    => $bulk_barrier,
-        max_static_mac_flows => $max_static_mac_flows
-        );
+        max_static_mac_flows => $max_static_mac_flows);
 
     if (!defined $result) {
         $results->{'results'} = [ { "error"   => $db->get_error(),
