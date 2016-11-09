@@ -1586,6 +1586,7 @@ sub confirm_node {
 
 sub update_node {
     my ($method, $args) = @_;
+    warn 'update_node: entering function';
 
     my ($user, $err) = authorization(admin => 1, read_only => 0);
     if (defined $err) {
@@ -1594,25 +1595,26 @@ sub update_node {
 
     my $results;
 
-    my $node_id         = $args->{'node_id'}{'value'};
-    my $name            = $args->{'name'}{'value'};
-    my $long            = $args->{'longitude'}{'value'};
-    my $lat             = $args->{'latitude'}{'value'};
-    my $range           = $args->{'vlan_range'}{'value'};
+    my $node_id = $args->{'node_id'}{'value'};
+    my $name    = $args->{'name'}{'value'};
+    my $long    = $args->{'longitude'}{'value'};
+    my $lat     = $args->{'latitude'}{'value'};
+    my $range   = $args->{'vlan_range'}{'value'};
+
+    my $openflow        = $args->{'openflow'}{'value'};
+    my $bulk_barrier    = $args->{'bulk_barrier'}{'value'} || 0;
     my $default_drop    = $args->{'default_drop'}{'value'};
     my $default_forward = $args->{'default_forward'}{'value'};
     my $max_flows       = $args->{'max_flows'}{'value'} || 0;
-    my $tx_delay_ms     = $args->{'tx_delay_ms'}{'value'} || 0;
-    my $bulk_barrier    = $args->{'bulk_barrier'}{'value'} || 0;
     my $max_static_mac_flows = $args->{'max_static_mac_flows'}{'value'} || 0;
-    my $openflow        = $args->{'openflow'};
+    my $tx_delay_ms     = $args->{'tx_delay_ms'}{'value'} || 0;
 
     my $mpls       = $args->{'mpls'}{'value'};
     my $mgmt_addr  = $args->{'mgmt_addr'}{'value'};
-    my $tcp_port   = $args->{'tcp_port'}{'value'};
-    my $vendor     = $args->{'vendor'}{'value'};
     my $model      = $args->{'model'}{'value'};
     my $sw_version = $args->{'sw_version'}{'value'};
+    my $tcp_port   = $args->{'tcp_port'}{'value'};
+    my $vendor     = $args->{'vendor'}{'value'};
 
     if ($default_drop eq 'true') {
         $default_drop = 1;
@@ -1644,6 +1646,30 @@ sub update_node {
 	$mpls = 0;
     }
 
+    my $result = $db->update_node(
+        node_id         => $node_id,
+        openflow        => $openflow,
+	mpls            => $mpls,
+	name            => $name,
+        longitude       => $long,
+        latitude        => $lat,
+        vlan_range      => $range,
+        default_forward => $default_forward,
+        default_drop    => $default_drop,
+        tx_delay_ms     => $tx_delay_ms,
+        max_flows       => $max_flows,
+        bulk_barrier    => $bulk_barrier,
+        max_static_mac_flows => $max_static_mac_flows
+        );
+
+    if (!defined $result) {
+        $results->{'results'} = [ { "error"   => $db->get_error(),
+                                    "success" => 0 } ];
+        return $results;
+    } else {
+        $results->{'results'} = [ { "success" => 1 } ];
+    }
+
     if ($mpls == 1) {
         my $result = $db->update_node_instantiation(
             node_id    => int($node_id),
@@ -1668,40 +1694,24 @@ sub update_node {
                                                    host => $db->{'rabbitMQ'}->{'host'},
                                                    port => $db->{'rabbitMQ'}->{'port'});
 
-        my $res = $client->new_switch(node_id => int($node_id));
-        $client->{'topic'} = 'MPLS.Discovery.RPC';
-        $client->new_switch(node_id => $node_id);
+        # $client->new_switch creates its own client. Use an async call
+        # here in order to prevent a recursive anyevent error.
+        my $cv  = AnyEvent->condvar;
+
+        my $res = $client->new_switch(
+            node_id => int($node_id),
+            async => 1,
+            async_callback => sub {
+                $client->{'topic'} = 'MPLS.Discovery.RPC';
+                $client->new_switch(node_id => $node_id,
+                                    async => 1,
+                                    async_callback => sub { $cv->send(); });
+            });
+
+        $cv->recv();
     }
 
-    my $result = $db->update_node(
-        node_id         => $node_id,
-        openflow        => $openflow,
-	mpls            => $mpls,
-	name            => $name,
-        longitude       => $long,
-        latitude        => $lat,
-        vlan_range      => $range,
-        default_forward => $default_forward,
-        default_drop    => $default_drop,
-        tx_delay_ms     => $tx_delay_ms,
-        max_flows       => $max_flows,
-        bulk_barrier    => $bulk_barrier,
-        max_static_mac_flows => $max_static_mac_flows
-        );
-
-    if ( !defined $result ) {
-        $results->{'results'} = [
-            {
-             "error"   => $db->get_error(),
-             "success" => 0
-            }
-        ];
-    } else {
-        $results->{'results'} = [ { "success" => 1 } ];
-    }
-
-    if($openflow){
-	
+    if ($openflow) {
 	my $client  = new GRNOC::RabbitMQ::Client(
 	    topic => 'OF.FWDCTL.RPC',
 	    exchange => 'OESS',
