@@ -228,8 +228,9 @@ sub run{
     $logger->info("Creating child for id: " . $args{"id"});
     $args{"node"} = {"vendor" => $args{"vendor"}, "model" => $args{"model"}, "sw_version" => $args{"sw_version"}, "name" => $args{"name"}, "mgmt_addr" => $args{"mgmt_addr"}};			  
     $switch = OESS::MPLS::Switch->new( %args );
-    }')->fork->send_arg( %args )->run("run");
+}')->fork->send_arg( %args )->run("run");
 
+    $self->{'children'}->{$id} = {};
     $self->{'children'}->{$id}->{'rpc'} = 1;
 }
 
