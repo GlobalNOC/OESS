@@ -127,11 +127,6 @@ sub new {
     
     $self->{'logger'}->error("MPLS Provisioner INIT COMPLETE");
 
-    # {
-    #     id      => 00000,
-    #     results => undef,
-    #     status  => FWDCTL_SUCCESS
-    # };
     $self->{'events'} = {};
     
     return $self;
@@ -368,6 +363,7 @@ sub register_rpc_methods{
     my $d = shift;
 
     my $method = GRNOC::RabbitMQ::Method->new( name => "addVlan",
+                                               async => 1,
 					       callback => sub { $self->addVlan(@_) },
 					       description => "adds a VLAN to the network that exists in OESS DB");
     
@@ -379,6 +375,7 @@ sub register_rpc_methods{
     $d->register_method($method);
     
     $method = GRNOC::RabbitMQ::Method->new( name => "deleteVlan",
+                                            async => 1,
 					    callback => sub { $self->deleteVlan(@_) },
 					    description => "deletes a VLAN to the network that exists in OESS DB");
     
@@ -391,6 +388,7 @@ sub register_rpc_methods{
     
     
     $method = GRNOC::RabbitMQ::Method->new( name => 'update_cache',
+                                            async => 1,
 					    callback => sub { $self->update_cache(@_) },
 					    description => 'Updates the circuit cache');
 
@@ -426,6 +424,7 @@ sub register_rpc_methods{
     $d->register_method($method);
     
     $method = GRNOC::RabbitMQ::Method->new( name => 'new_switch',
+                                            async => 1,
                                             callback => sub { $self->new_switch(@_) },
                                             description => "adds a new switch by node_id" );
     
@@ -452,19 +451,22 @@ sub new_switch{
     my $m_ref = shift;
     my $p_ref = shift;
     my $state_ref = shift;
-    
 
     my $node_id = $p_ref->{'node_id'}{'value'};
     
     $self->update_cache(-1);
 
-    if (!defined $self->{'children'}->{$node_id}->{'rpc'}) {
-	#sherpa will you make my babies!
-	$self->make_baby($node_id);
-	$self->{'logger'}->debug("Baby was created!");
-    }
+    $m_ref->{'success_callback'}({status => FWDCTL_SUCCESS});
 }
 
+=head2 create_nodes
+
+Checks $self->{'pending_nodes'} for any nodes that are pending creation.
+
+=cut
+sub create_nodes {
+
+}
 
 =head2 make_baby
 
@@ -509,17 +511,9 @@ sub run{
 }')->fork->send_arg( %args )->run("run");
 
     my $topic  = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$id}->{'mgmt_addr'};
-    my $client = GRNOC::RabbitMQ::Client->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
-                                               port => $self->{'db'}->{'rabbitMQ'}->{'port'},
-                                               user => $self->{'db'}->{'rabbitMQ'}->{'user'},
-                                               pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
-                                               exchange => 'OESS',
-                                               topic    => $topic );
 
     $self->{'children'}->{$id}->{'rpc'} = 1;
-    $self->{'children'}->{$id}->{'client'} = $client;
     $self->{'children'}->{$id}->{'pending_diff'} = $node->{'pending_diff'};
-    $self->{'logger'}->debug("Created client for node $id. Topic: $topic PendingDiff: $node->{'pending_diff'}");
     return 1;
 }
 
@@ -618,6 +612,9 @@ sub send_message_to_child{
     my $message = shift;
     my $event_id = shift;
 
+    if (!defined $self->{'children'}->{$id}) {
+	$self->{'children'}->{$id} = {};
+    }
     my $rpc    = $self->{'children'}->{$id}->{'rpc'};
     if(!defined($rpc)){
         $self->{'logger'}->error("No RPC exists for node_id: " . $id);
@@ -650,28 +647,32 @@ sub addVlan{
     my $p_ref = shift;
     my $state_ref = shift;
     
-    $self->{'logger'}->error("Creating Circuit!");
+    $self->{'logger'}->error("addVlan: Creating Circuit!");
 
+    my $callback = $m_ref->{'success_callback'};
 
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
-    $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
-    $self->{'logger'}->info("MPLS addVlan: $circuit_id");
+    $self->{'logger'}->error("addVlan: Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
+    $self->{'logger'}->info("addVlan: MPLS addVlan: $circuit_id");
 
     my $event_id = $self->_generate_unique_event_id();
 
     my $ckt = $self->get_ckt_object( $circuit_id );
     if(!defined($ckt)){
-        return {status => FWDCTL_FAILURE, event_id => $event_id};
+	$self->{'logger'}->error("addVlan: Couldn't load circuit object");
+        &$callback({status => FWDCTL_FAILURE, event_id => $event_id});
     }
-
+    
     $ckt->update_circuit_details();
     if($ckt->{'details'}->{'state'} eq 'decom'){
-	return {status => FWDCTL_FAILURE, event_id => $event_id};
+	$self->{'logger'}->error("addVlan: Adding a decom'd circuit is not allowed");
+	&$callback({status => FWDCTL_FAILURE, event_id => $event_id});
     }
 
     if($ckt->get_type() ne 'mpls'){
-	return {status => FWDCTL_FAILURE, event_id => $event_id, msg => "This was not an MPLS Circuit"};
+	$self->{'logger'}->error("addVlan: Circuit type 'opeflow' cannot be used here");
+	&$callback({status => FWDCTL_FAILURE, event_id => $event_id, msg => "This was not an MPLS Circuit"});
     }
 
     $self->_write_cache();
@@ -680,17 +681,16 @@ sub addVlan{
     my $endpoints = $ckt->get_endpoints();
     my %nodes;
     foreach my $ep (@$endpoints){
-	$self->{'logger'}->debug("Node: " . $ep->{'node'} . " is involved int he circuit");
+	$self->{'logger'}->debug("addVlan: Node: " . $ep->{'node'} . " is involved int he circuit");
 	$nodes{$ep->{'node'}}= 1;
     }
 
     my $result = FWDCTL_SUCCESS;
 
     my $details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
-
-
     if ($details->{'state'} eq "deploying" || $details->{'state'} eq "scheduled") {
-        
+	$self->{'logger'}->error("addVlan: Wrong circuit state was encountered");
+
         my $state = $details->{'state'};
 	$self->{'logger'}->error($self->{'db'}->get_error());
     }
@@ -703,13 +703,12 @@ sub addVlan{
     $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UP;
 
     foreach my $node (keys %nodes){
-	$self->{'logger'}->debug("Sending add VLAN to child: " . $node);
+	$self->{'logger'}->debug("addVlan: Sending add VLAN to child: " . $node);
 	my $id = $self->{'node_info'}->{$node}->{'id'};
         $self->send_message_to_child($id,{action => 'add_vlan', circuit_id => $circuit_id}, $event_id);
     }
-
-
-    return {status => $result, event_id => $event_id};
+    
+    return &$callback({status => $result, event_id => $event_id});
 }
 
 sub deleteVlan{
@@ -718,6 +717,8 @@ sub deleteVlan{
     my $p_ref = shift;
     my $state_ref = shift;
 
+    my $callback = $m_ref->{'success_callback'};
+
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
     $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
@@ -725,13 +726,13 @@ sub deleteVlan{
     my $ckt = $self->get_ckt_object( $circuit_id );
     my $event_id = $self->_generate_unique_event_id();
     if(!defined($ckt)){
-        return {status => FWDCTL_FAILURE, event_id => $event_id};
+        &$callback({status => FWDCTL_FAILURE, event_id => $event_id});
     }
     
     $ckt->update_circuit_details();
 
     if($ckt->{'details'}->{'state'} eq 'decom'){
-	return {status => FWDCTL_FAILURE, event_id => $event_id};
+	&$callback({status => FWDCTL_FAILURE, event_id => $event_id});
     }
     
     #update the cache
@@ -752,9 +753,9 @@ sub deleteVlan{
         my $id = $self->{'node_info'}->{$node}->{'id'};
         $self->send_message_to_child($id,{action => 'remove_vlan', circuit_id => $circuit_id}, $event_id);
     }
-
+    
     delete $self->{'circuit'}->{$circuit_id};
-    return {status => $result, event_id => $event_id};
+    &$callback({status => $result, event_id => $event_id});
 
 }
 
@@ -782,8 +783,9 @@ sub diff {
             $force_diff = 1;
             $self->{'children'}->{$node_id}->{'pending_diff'} = 0;
         }
-
-        $self->{'children'}->{$node_id}->{'client'}->get_device_circuit_ids(
+        
+        $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
+        $self->{'fwdctl_events'}->get_device_circuit_ids(
             async_callback => sub {
                 my $circuit_ids = shift;
                 $self->{'logger'}->info("Got circuit_ids...");
@@ -834,37 +836,38 @@ sub diff {
                                              deletions => $deletions,
                                              installed => $installed } );
 
-                 $self->{'children'}->{$node_id}->{'client'}->diff( timeout        => 15,
-                                                                    installed_circuits => $payload,
-                                                                    force_diff     => $force_diff,
-                                                                    async_callback => sub {
-                                                                        my $res = shift;
-
-                                                                        if (defined $res->{'error'}) {
-                                                                            $self->{'logger'}->error("ERROR: " . $res->{'error'});
-                                                                            return 0;
-                                                                        }
-
-                                                                        # Cleanup decom'd circuits from memory.
-                                                                        foreach my $id (@{$deletions}) {
-                                                                            delete $self->{'circuit'}->{$id};
-                                                                        }
-
-                                                                        if ($res->{'results'}->{'status'} == FWDCTL_BLOCKED) {
-                                                                            my $node_id = $res->{'results'}->{'node_id'};
-
-                                                                            $self->{'db'}->set_diff_approval(0, $node_id);
-                                                                            $self->{'children'}->{$node_id}->{'pending_diff'} = 1;
-                                                                            $self->{'logger'}->warn("Diff for node $node_id requires admin approval.");
-
-                                                                            return 0;
-                                                                        }
-
-                                                                        return 1;
-                                                                    } );
+                $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
+                $self->{'fwdctl_events'}->diff( timeout        => 15,
+                                                installed_circuits => $payload,
+                                                force_diff     => $force_diff,
+                                                async_callback => sub {
+                                                    my $res = shift;
+                                                    
+                                                    if (defined $res->{'error'}) {
+                                                        $self->{'logger'}->error("ERROR: " . $res->{'error'});
+                                                        return 0;
+                                                    }
+                                                    
+                                                    # Cleanup decom'd circuits from memory.
+                                                    foreach my $id (@{$deletions}) {
+                                                        delete $self->{'circuit'}->{$id};
+                                                    }
+                                                    
+                                                    if ($res->{'results'}->{'status'} == FWDCTL_BLOCKED) {
+                                                        my $node_id = $res->{'results'}->{'node_id'};
+                                                        
+                                                        $self->{'db'}->set_diff_approval(0, $node_id);
+                                                        $self->{'children'}->{$node_id}->{'pending_diff'} = 1;
+                                                        $self->{'logger'}->warn("Diff for node $node_id requires admin approval.");
+                                                        
+                                                        return 0;
+                                                    }
+                                                    
+                                                    return 1;
+                                                } );
             } );
     }
-
+    
     return 1;
 }
 
@@ -891,7 +894,8 @@ sub get_diff_text {
         return $event;
     }
 
-    $node->{'client'}->get_device_circuit_ids(
+    $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
+    $self->{'fwdctl_events'}->get_device_circuit_ids(
          async_callback => sub {
              my $circuit_ids = shift;
 

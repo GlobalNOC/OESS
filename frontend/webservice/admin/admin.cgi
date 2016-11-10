@@ -1646,11 +1646,12 @@ sub update_node {
 	$mpls = 0;
     }
 
+    warn 'update_node: updating generic switch data';
     my $result = $db->update_node(
         node_id         => $node_id,
         openflow        => $openflow,
-        mpls            => $mpls,
-        name            => $name,
+	mpls            => $mpls,
+	name            => $name,
         longitude       => $long,
         latitude        => $lat,
         vlan_range      => $range,
@@ -1659,17 +1660,24 @@ sub update_node {
         tx_delay_ms     => $tx_delay_ms,
         max_flows       => $max_flows,
         bulk_barrier    => $bulk_barrier,
-        max_static_mac_flows => $max_static_mac_flows);
+        max_static_mac_flows => $max_static_mac_flows
+        );
 
-    if (!defined $result) {
-        $results->{'results'} = [ { "error"   => $db->get_error(),
-                                    "success" => 0 } ];
-        return $results;
+    if ( !defined $result ) {
+        $results->{'results'} = [
+            {
+             "error"   => $db->get_error(),
+             "success" => 0
+            }
+        ];
+	return $results;
     } else {
         $results->{'results'} = [ { "success" => 1 } ];
     }
 
     if ($mpls == 1) {
+	warn 'update_node: updating mpls switch data';
+
         my $result = $db->update_node_instantiation(
             node_id    => int($node_id),
             mpls       => int($mpls),
@@ -1693,24 +1701,23 @@ sub update_node {
                                                    host => $db->{'rabbitMQ'}->{'host'},
                                                    port => $db->{'rabbitMQ'}->{'port'});
 
-        # $client->new_switch creates its own client. Use an async call
-        # here in order to prevent a recursive anyevent error.
-        my $cv  = AnyEvent->condvar;
+	my $cv = AnyEvent->condvar;
 
-        my $res = $client->new_switch(
-            node_id => int($node_id),
-            async => 1,
-            async_callback => sub {
-                $client->{'topic'} = 'MPLS.Discovery.RPC';
-                $client->new_switch(node_id => $node_id,
-                                    async => 1,
-                                    async_callback => sub { $cv->send(); });
-            });
-
-        $cv->recv();
+	warn 'update_node: starting mpls switch forwarding process';
+        my $res = $client->new_switch(node_id => int($node_id),
+	    async => 1,
+	    async_callback => sub {
+		warn 'update_node: starting mpls switch discovery process';
+		$client->{'topic'} = 'MPLS.Discovery.RPC';
+		$client->new_switch(node_id => $node_id,
+				    async => 1,
+				    async_callback => sub { warn 'update_node: done starting mpls switch processes'; $cv->send(); })});
+	$cv->recv();
     }
 
     if ($openflow) {
+	warn 'update_node: updating openflow switch data';
+	
 	my $client  = new GRNOC::RabbitMQ::Client(
 	    topic => 'OF.FWDCTL.RPC',
 	    exchange => 'OESS',

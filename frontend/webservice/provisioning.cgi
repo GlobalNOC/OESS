@@ -406,7 +406,7 @@ sub _fail_over {
     my %args = @_;
 
     my $client  = new GRNOC::RabbitMQ::Client(
-        topic => 'MPLS.FWDCTL.RPC',
+        topic => 'OF.FWDCTL.RPC',
         exchange => 'OESS',
         user => 'guest',
         pass => 'guest',
@@ -420,9 +420,19 @@ sub _fail_over {
 
     my $circuit_id = $args{'circuit_id'};
 
-    my $result = $client->changeVlanPath(circuit_id => $circuit_id);
+    my $cv = AnyEvent->condvar;
 
-    if($result->{'error'} || !($result->{'results'})){
+    $client->changeVlanPath(circuit_id => $circuit_id, 
+                            async => 1,
+                            async_callback => sub { 
+                                my $result = shift; 
+                                warn "Got a result\n";
+                                $cv->send($result) 
+                            });
+    
+    my $result = $cv->recv();
+    
+    if(defined($result->{'error'}) || !($result->{'results'})){
         return;
     }
 
@@ -434,7 +444,7 @@ sub _fail_over {
         usleep(1000000);
         my $res = $client->get_event_status(event_id => $event_id);
 
-        if($res->{'error'} || !defined($res->{'results'}) || !defined($res->{'results'}->{'status'})){
+        if(!defined($res) || defined($res->{'error'}) || !defined($res->{'results'}) || !defined($res->{'results'}->{'status'})){
             return;
         }
 
@@ -461,10 +471,16 @@ sub _send_mpls_add_command {
     }
 
     my $circuit_id = $args{'circuit_id'};
-
-    my $result = $client->addVlan(circuit_id => $circuit_id);
+    warn "_send_mpls_add_command: Calling addVlan on circuit $circuit_id";
+    my $cv = AnyEvent->condvar;
+    $client->addVlan(circuit_id => int($circuit_id), async => 1, async_callback => sub { my $result = shift; $cv->send($result) });
+    my $result = $cv->recv();
 
     if($result->{'error'} || !defined $result->{'results'}){
+	warn '_send_mpls_add_command: Could not complete rabbitmq call to addVlan. Received no event_id';
+	if (defined $result->{'error'}) {
+	    warn '_send_mpls_add_command: ' . $result->{'error'};
+	}
         return;
     }
 
@@ -476,6 +492,7 @@ sub _send_mpls_add_command {
         my $res = $client->get_event_status(event_id => $event_id);
 
         if(defined($res->{'error'}) || !defined($res->{'results'})){
+	    warn '_send_mpls_add_command: could not complete rabbitmq call to get_event_status';
             return;
         }
 
@@ -502,9 +519,10 @@ sub _send_add_command {
     }
 
     my $circuit_id = $args{'circuit_id'};
-
-    my $result = $client->addVlan(circuit_id => $circuit_id);
-
+    my $cv = AnyEvent->condvar;
+    $client->addVlan(circuit_id => $circuit_id, async => 1, async_callback => sub { my $result = shift; $cv->send($result) });
+    my $result = $cv->recv();
+		     
     if($result->{'error'} || !defined $result->{'results'}){
         return;
     }
@@ -543,9 +561,10 @@ sub _send_mpls_remove_command {
     }
 
     my $circuit_id = $args{'circuit_id'};
-
-    my $result = $client->deleteVlan(circuit_id => $circuit_id);
-
+    my $cv = AnyEvent->condvar;
+    $client->deleteVlan(circuit_id => $circuit_id, async => 1, async_callback => sub { my $result = shift; $cv->send($result) });
+    
+    my $result = $cv->recv();
     if($result->{'error'} || !($result->{'results'})){
         return;
     }
@@ -585,9 +604,9 @@ sub _send_remove_command {
     }
 
     my $circuit_id = $args{'circuit_id'};
-
-    my $result = $client->deleteVlan(circuit_id => $circuit_id);
-
+    my $cv = AnyEvent->condvar;
+    $client->deleteVlan(circuit_id => $circuit_id, async => 1, async_callback => sub { my $result = shift; $cv->send($result) });
+    my $result = $cv->recv();
     if($result->{'error'} || !($result->{'results'})){
         return;
     }
@@ -628,9 +647,9 @@ sub _send_update_cache{
     if ( !defined($client) ) {
         return;
     }
-
-    my $result = $client->update_cache(circuit_id => $args{'circuit_id'});
-
+    my $cv = AnyEvent->condvar;
+    $client->update_cache(circuit_id => $args{'circuit_id'}, async => 1, async_callback => sub { my $result = shift; $cv->send($result) });
+    my $result = $cv->recv();
     if($result->{'error'} || !($result->{'results'})){
         return;
     }
@@ -656,6 +675,8 @@ sub _send_update_cache{
 sub provision_circuit {
     my ($method, $args) = @_;
     my $results;
+
+    warn 'provision_circuit: calling';
 
     my $start = [gettimeofday];
 
@@ -733,6 +754,7 @@ sub provision_circuit {
     }
     if ( !$circuit_id || $circuit_id == -1 ) {
         #Register with DB
+	warn 'provision_circuit: adding new circuit to the database';
 
 	my $before_provision = [gettimeofday];
 
@@ -766,23 +788,27 @@ sub provision_circuit {
         if(defined($output) && ($provision_time <= time()) && ($state eq 'active' || $state eq 'scheduled' || $state eq 'provisioned')) {
 
 	    if($type eq 'openflow'){
-		
+		warn 'provision_circuit: sending add command to openflow controller';
+
 		my $before_add_command = [gettimeofday];
 		
 		
 		my $result = _send_add_command( circuit_id => $output->{'circuit_id'} );
-		
+		warn 'provision_circuit: received response to add command from openflow controller';
+
 		my $after_add_command = [gettimeofday];
 
 		warn "Time waiting for add: " . tv_interval( $before_add_command, $after_add_command);
 
 		if ( !defined $result ) {
-		    $output->{'warning'} =
-			"Unable to talk to fwdctl service - is it running?";
+		    warn 'provision_circuit: response from openflow controller was undef. Couldnt talk to fwdctl';
+		    $output->{'warning'} = "Unable to talk to fwdctl service - is it running?";
 		}
 		
 		# failure, remove the circuit now
-		if ( $result == 0 ) {
+		if (!defined $result || $result == 0) {
+		    warn 'provision_circuit: sending remove command to openflow controller after provisioning failure';
+
 		    my $removal = remove_circuit($method, { circuit_id => {value => $output->{'circuit_id'}},
                                                             remove_time => {value => -1},
                                                             force => {value => 1},
@@ -796,21 +822,26 @@ sub provision_circuit {
 	    }
 
 	    if($type eq 'mpls'){
+		warn 'provision_circuit: sending add command to mpls controller';
 		my $before_add_command = [gettimeofday];
 
 
                 my $result = _send_mpls_add_command( circuit_id => $output->{'circuit_id'} );
+		warn 'provision_circuit: received response to add command from mpls controller';
 
                 my $after_add_command = [gettimeofday];
 
                 warn "Time waiting for add: " . tv_interval( $before_add_command, $after_add_command);
 
                 if ( !defined $result ) {
+		    warn 'provision_circuit: response from mpls controller was undef. Couldnt talk to fwdctl';
                     $output->{'warning'} = "Unable to talk to fwdctl service - is it running?";
                 }
 
                 # failure, remove the circuit now
                 if (!defined $result || $result == 0) {
+		    warn 'provision_circuit: sending remove command to mpls controller after provisioning failure';
+
                     my $removal = remove_circuit($method, { circuit_id => {value => $output->{'circuit_id'}},
                                                             remove_time => {value => -1},
                                                             force => {value => 1},
@@ -825,6 +856,7 @@ sub provision_circuit {
 
             #if we're here we've successfully provisioned onto the network, so log notification.
             if (defined $log_client) {
+		warn 'provision_circuit: logging circuit event';
                 eval{
                     my $circuit_details = $db->get_circuit_details( circuit_id => $output->{'circuit_id'} );
                     $circuit_details->{'status'} = 'up';
@@ -1186,16 +1218,15 @@ sub fail_over_circuit {
             my $user_id = $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'});
 
             $ckt->change_path( user_id => $user_id, reason => "CHANGE PATH: User requested");
-            my $result =
-              _fail_over( circuit_id => $circuit_id, workgroup_id => $workgroup_id );
+            my $result = _fail_over( circuit_id => $circuit_id, workgroup_id => $workgroup_id );
             if ( !defined($result) ) {
                 $method->set_error('Unable to change the path');
-		return;
+		return {results => [{success => 0, alt_path_down => 0}], error => {message => "Unable to communicate with FWDCTL"}};
             }
 
             if ( $result == 0 ) {
                 $method->set_error('Unable to change the path');
-                return;
+                return {results => [{success => 0, alt_path_down => 0}], error => {message => "Failure changing path"}};
             }
 
             my $circuit_details = $db->get_circuit_details( circuit_id => $circuit_id );

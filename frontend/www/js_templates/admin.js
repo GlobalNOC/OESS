@@ -63,24 +63,11 @@ function display_mpls(obj) {
 }
 
 function makeConfigPanel(x, y, width, obj) {
-    var url    = '../services/data.cgi?';
-    var params = 'method=get_diff_text'+
-        '&node_id='  + obj.getData('node_id');
 
-    var ds = new YAHOO.util.DataSource(url);
-    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-    ds.responseSchema = {
-        resultsList: "results",
-        fields: [
-            {key: 'text'}
-        ],
-        metaFields: {
-            error: "error"
-        }
-    };
 
     var pre = YAHOO.util.Dom.get('config_diff_pre');
-    pre.innerHTML = 'Loading diff...';
+    pre.node_id = obj.getData('node_id');
+
     YAHOO.util.Dom.setStyle(['config_diff_pre'], 'display', 'block');
     YAHOO.util.Dom.setStyle(['config_diff_pre'], 'padding', '5px');
     YAHOO.util.Dom.setStyle(['config_diff_pre'], 'margin', '5px');
@@ -91,23 +78,57 @@ function makeConfigPanel(x, y, width, obj) {
     YAHOO.util.Dom.setStyle(['config_diff_pre'], 'height', '300px');
     YAHOO.util.Dom.setStyle(['config_diff_pre'], 'overflow', 'auto');
 
-    ds.sendRequest(params, {
-        success: function(req, resp) {
-            pre.innerHTML = resp.results[0].text;
-        },
-        failure: function(req, resp){
-            pre.innerHTML = 'Failed to receive diff. Please try again later.';
-            console.log('Request failed: ' + resp.error);
-        }
-    });
+    load_diff = function(node_id) {
+	var url    = '../services/data.cgi?';
+	var params = 'method=get_diff_text'+
+        '&node_id='  + node_id;
+	
+	var pre = YAHOO.util.Dom.get('config_diff_pre');
+	pre.innerHTML = 'Loading diff...';
+
+	var ds = new YAHOO.util.DataSource(url);
+	ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+	ds.responseSchema = {
+	    resultsList: "results",
+	    fields: [
+	{key: 'text'}
+		     ],
+	    metaFields: {
+		error: "error"
+	    }
+	};
+
+	ds.sendRequest(params, {
+		success: function(req, resp) {
+		    if (resp.results.length == 0) {
+			pre.innerHTML = 'Failed to receive diff. Please try again later.';
+			console.log('Request failed: ' + resp.error);
+		    } else {
+			if (resp.results[0].text == "\n") {
+			    // TODO This is here due to a bug in the backend
+			    pre.innerHTML = "No diff required at this time.";
+			} else {
+			    pre.innerHTML = resp.results[0].text;
+			}
+		    }
+		},
+		    failure: function(req, resp){
+		    pre.innerHTML = 'Failed to receive diff. Please try again later.';
+		    console.log('Request failed: ' + resp.error);
+		}
+	    });
+    };
+
 
     var approve = new YAHOO.widget.Button('approve_diff_btn', {label: 'Approve'});
+    approve.node_id = obj.getData('node_id');
+
     approve.on('click', function() {
         approve.set('label', 'Approving...');
 
         var url    = '../services/data.cgi?';
         var params = 'method=set_diff_approval'+
-            '&node_id='  + obj.getData('node_id') +
+            '&node_id='  + this.node_id +
             '&approved=' + '1';
 
         var ds = new YAHOO.util.DataSource(url, { connMethodPost: true } );
@@ -143,12 +164,22 @@ function makeConfigPanel(x, y, width, obj) {
         xy: [x, y],
         modal: true
     });
+    panel.approve_button = approve;
+    panel.load_diff      = load_diff;
 
-    panel.setHeader('Configuration Details - ' + obj.getData('name'));
-    panel.setFooter('Approve this pending configuration?');
+    panel.load = function(node_id, name) {
+	this.setHeader('Configuration Details - ' + name);
+	this.setFooter('Approve this pending configuration?');
+
+	this.approve_button.node_id = node_id;
+	this.load_diff(node_id);
+    }
+
     panel.hideEvent.subscribe(function() {
         pre.innerHTML = 'Loading diff...';
     });
+
+    panel.load(obj.getData('node_id'), obj.getData('name'));
     return panel;
 }
 
@@ -205,6 +236,7 @@ function makeConfigTable(div_id) {
             config_panel = makeConfigPanel(x, y, width, obj);
             config_panel.render(document.body);
         } else {
+	    config_panel.load(obj.getData('node_id'), obj.getData('name'));
             config_panel.show();
         }
     };

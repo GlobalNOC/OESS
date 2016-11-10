@@ -35,15 +35,23 @@ lib/OESS/Traceroute.pm
 lib/OESS/Watchdog.pm
 Makefile.PL
 MANIFEST			This list of files
+MPLS/FWDCTL/Switch.pm
 oess_mpls_db.sql
 pack_in_events.pcap
 perl-OESS-1.1.7.tar.gz
 perl-OESS-1.1.8.tar.gz
 perl-OESS-1.1.8c.tar.gz
+perl-OESS-1.2.0.tar.gz
 perl-OESS.spec
 share/mpls/templates/juniper/13.3R8/ep_config.xml
 share/mpls/templates/juniper/13.3R8/ep_config.xml.backup
 share/mpls/templates/juniper/13.3R8/ep_config_delete.xml
+share/mpls/templates/juniper/13.3R8/L2VPLS/ep_config.xml
+share/mpls/templates/juniper/13.3R8/L2VPLS/ep_config_delete.xml
+share/mpls/templates/juniper/13.3R8/L2VPLS_INTRA/ep_config.xml
+share/mpls/templates/juniper/13.3R8/L2VPLS_INTRA/ep_config_delete.xml
+share/mpls/templates/juniper/13.3R8/L2VPN/ep_config.xml
+share/mpls/templates/juniper/13.3R8/L2VPN/ep_config_delete.xml
 share/nddi.sql
 share/upgrade/oess-1.0.10-1.0.11
 share/upgrade/oess-1.0.11-1.0.12
