@@ -310,6 +310,7 @@ sub register_rpc_methods{
     my $d = shift;
 
     my $method = GRNOC::RabbitMQ::Method->new( name => "addVlan",
+                                               async => 1,
 					       callback => sub { $self->addVlan(@_) },
 					       description => "adds a VLAN to the network that exists in OESS DB");
 
@@ -321,6 +322,7 @@ sub register_rpc_methods{
     $d->register_method($method);
     
     $method = GRNOC::RabbitMQ::Method->new( name => "deleteVlan",
+                                            async => 1,
 					    callback => sub { $self->deleteVlan(@_) },
 					    description => "deletes a VLAN to the network that exists in OESS DB");
     
@@ -333,7 +335,10 @@ sub register_rpc_methods{
     
     
     $method = GRNOC::RabbitMQ::Method->new( name => "changeVlanPath",
-					    callback => sub { $self->changeVlanPath(@_) },
+                                            async => 1,
+					    callback => sub { 
+                                                $self->changeVlanPath(@_);
+                                            },
 					    description => "changes a vlan to alternate path");
     
     $method->add_input_parameter( name => "circuit_id",
@@ -356,6 +361,7 @@ sub register_rpc_methods{
     $d->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name => 'fv_link_event',
+                                            async => 1,
 					    callback => sub { $self->fv_link_event(@_) },
 					    description => "Handles Forwarding Verfiication LInk events");
     
@@ -926,8 +932,6 @@ sub send_message_to_child{
     $message->{'async_callback'} = $self->message_callback($dpid, $event_id);
     my $method_name = $message->{'action'};
     delete $message->{'action'};
-
-    warn Data::Dumper::Dumper($message);
 
     $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
     $self->{'fwdctl_events'}->$method_name( %$message );
@@ -1972,6 +1976,8 @@ sub addVlan {
     
     my $start = [gettimeofday];
 
+    my $success_callback = $m_ref->{'success_callback'};
+
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
     $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
@@ -1981,16 +1987,16 @@ sub addVlan {
 
     my $ckt = $self->get_ckt_object( $circuit_id );
     if(!defined($ckt)){
-        return {status => FWDCTL_FAILURE, event_id => $event_id};
+        &$success_callback({status => FWDCTL_FAILURE, event_id => $event_id});
     }
 
     if($ckt->get_type() eq 'mpls'){
-	return {status => FWDCTL_FAILURE, event_id => $event_id};
+	&$success_callback({status => FWDCTL_FAILURE, event_id => $event_id});
     }
 
     $ckt->update_circuit_details();
     if($ckt->{'details'}->{'state'} eq 'decom'){
-	return {status => FWDCTL_FAILURE, event_id => $event_id};
+	&$success_callback({status => FWDCTL_FAILURE, event_id => $event_id});
     }
 
     $self->_write_cache();
@@ -2009,23 +2015,8 @@ sub addVlan {
     # proceed. Circuits with a state of scheduled shall not be added.
     if ($details->{'state'} eq 'scheduled') {
         $self->{'logger'}->info("Elapsed time addVlan: " . tv_interval( $start, [gettimeofday]));
-        return {status => $result, event_id => $event_id};
+        &$success_callback({status => $result, event_id => $event_id});
     }
-
-    # Calling Database.edit_circuit calls update_circuit_state. If
-    # update_circuit_state is called on the same circuit_id within a
-    # single second a database exception will be raised. For this reason
-    # the 'deploying' state has been removed.
-    #
-    # $self->{'db'}->update_circuit_state(circuit_id          => $circuit_id,
-    #                                     old_state           => 'deploying',
-    #                                     new_state           => 'active',
-    #                                     modified_by_user_id => SYSTEM_USER,
-    #                                     reason              => 'Circuit successfully provisioned');
-
-    # $self->{'db'}->update_circuit_path_state(circuit_id => $circuit_id,
-    #                                          old_state  => 'deploying',
-    #                                          new_state  => 'active');
 
     $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UP;
 
@@ -2034,7 +2025,7 @@ sub addVlan {
     }
 
     $self->{'logger'}->info("Elapsed time addVlan: " . tv_interval( $start, [gettimeofday]));
-    return {status => $result, event_id => $event_id};
+    &$success_callback({status => $result, event_id => $event_id});
 }
 
 =head2 deleteVlan
@@ -2053,6 +2044,8 @@ sub deleteVlan {
     my $m_ref = shift;
     my $p_ref = shift;
 
+    my $success_callback = $m_ref->{'success_callback'};
+
     # Measure time spent in this method.
     my $start = [gettimeofday];
 
@@ -2065,12 +2058,12 @@ sub deleteVlan {
 
     my $ckt = $self->get_ckt_object( $circuit_id );
     if(!defined($ckt)){
-        return {status => FWDCTL_FAILURE, event_id => $event_id};
+        &$success_callback({status => FWDCTL_FAILURE, event_id => $event_id});
     }
     
     $ckt->update_circuit_details();
     if($ckt->{'details'}->{'state'} eq 'decom'){
-	return {status => FWDCTL_FAILURE, event_id => $event_id};
+	&$success_callback({status => FWDCTL_FAILURE, event_id => $event_id});
     }
 
     $self->_write_cache();
@@ -2091,7 +2084,7 @@ sub deleteVlan {
     }
 
     $self->{'logger'}->info("Elapsed time deleteVlan: " . tv_interval( $start, [gettimeofday]));
-    return {status => $result, event_id => $event_id};
+    &$success_callback({status => $result, event_id => $event_id});
 }
 
 
@@ -2131,8 +2124,9 @@ sub changeVlanPath {
     foreach my $dpid (keys %dpids){
         $self->send_message_to_child($dpid,{action => 'change_path', circuits => [$circuit_id]}, $event_id);
     }
-    $self->{'logger'}->warn("Event ID: " . $event_id);
-    return {status => $result, event_id => $event_id};
+    $self->{'logger'}->warn("Change Path Event ID: " . $event_id);
+
+    $m_ref->{'success_callback'}({status => $result, event_id => $event_id});
 }
 
 =head2 get_event_status

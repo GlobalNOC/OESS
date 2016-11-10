@@ -368,6 +368,7 @@ sub register_rpc_methods{
     my $d = shift;
 
     my $method = GRNOC::RabbitMQ::Method->new( name => "addVlan",
+                                               async => 1,
 					       callback => sub { $self->addVlan(@_) },
 					       description => "adds a VLAN to the network that exists in OESS DB");
     
@@ -379,6 +380,7 @@ sub register_rpc_methods{
     $d->register_method($method);
     
     $method = GRNOC::RabbitMQ::Method->new( name => "deleteVlan",
+                                            async => 1,
 					    callback => sub { $self->deleteVlan(@_) },
 					    description => "deletes a VLAN to the network that exists in OESS DB");
     
@@ -391,6 +393,7 @@ sub register_rpc_methods{
     
     
     $method = GRNOC::RabbitMQ::Method->new( name => 'update_cache',
+                                            async => 1,
 					    callback => sub { $self->update_cache(@_) },
 					    description => 'Updates the circuit cache');
 

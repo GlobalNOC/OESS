@@ -143,13 +143,17 @@ function page_init(){
 				  };
 				  ds.sendRequest("",{success: function(Request,Response){
 					      var data = Response.results;
-					      if(data[0].success == 0){
+                                              if(typeof data == 'undefined'){
+                                                  alert('An error occured changing the path.');
+                                              }else if(typeof data[0] == 'undefined'){
+                                                  alert('An error occured changing the path.');
+                                              }else if(data[0].success == 0){
 						  if(data[0].alt_path_down == 1){
 						      alert('The alternate path is down, unable to change to it.');
 						  }else{
 						      alert('An error occured changing the path.');
 						  }
-					      }else{
+                                              }else{
                         
 						  /*
 						   *
@@ -168,7 +172,7 @@ function page_init(){
 						  graph.render(); 
 					        	 
 						  alert('Successfully changed the path.');
-                          }
+                                              }
 					      change_path_button.set("disabled",false);					      
 					  },
 					      failure: function(Request, Response){

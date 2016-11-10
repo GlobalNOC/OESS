@@ -1718,60 +1718,6 @@ sub update_node {
     if ($openflow) {
 	warn 'update_node: updating openflow switch data';
 	
-=======
-        max_static_mac_flows => $max_static_mac_flows);
-
-    if (!defined $result) {
-        $results->{'results'} = [ { "error"   => $db->get_error(),
-                                    "success" => 0 } ];
-        return $results;
-    } else {
-        $results->{'results'} = [ { "success" => 1 } ];
-    }
-
-    if ($mpls == 1) {
-        my $result = $db->update_node_instantiation(
-            node_id    => int($node_id),
-            mpls       => int($mpls),
-            mgmt_addr  => $mgmt_addr,
-            tcp_port   => int($tcp_port),
-            vendor     => $vendor,
-            model      => $model,
-            sw_version => $sw_version
-            );
-
-        if (!defined $result ) {
-            $results->{'results'} = [ { "error"   => $db->get_error(),
-                                        "success" => 0 } ];
-            return $results;
-        }
-
-        my $client = GRNOC::RabbitMQ::Client->new( topic => 'MPLS.FWDCTL.RPC',
-                                                   exchange => 'OESS',
-                                                   user => $db->{'rabbitMQ'}->{'user'},
-                                                   pass => $db->{'rabbitMQ'}->{'pass'},
-                                                   host => $db->{'rabbitMQ'}->{'host'},
-                                                   port => $db->{'rabbitMQ'}->{'port'});
-
-        # $client->new_switch creates its own client. Use an async call
-        # here in order to prevent a recursive anyevent error.
-        my $cv  = AnyEvent->condvar;
-
-        my $res = $client->new_switch(
-            node_id => int($node_id),
-            async => 1,
-            async_callback => sub {
-                $client->{'topic'} = 'MPLS.Discovery.RPC';
-                $client->new_switch(node_id => $node_id,
-                                    async => 1,
-                                    async_callback => sub { $cv->send(); });
-            });
-
-        $cv->recv();
-    }
-
-    if ($openflow) {
->>>>>>> 9e0337b04a0e4fc173b9f1c75d31372efcb7efda
 	my $client  = new GRNOC::RabbitMQ::Client(
 	    topic => 'OF.FWDCTL.RPC',
 	    exchange => 'OESS',

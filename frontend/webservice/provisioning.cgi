@@ -406,7 +406,7 @@ sub _fail_over {
     my %args = @_;
 
     my $client  = new GRNOC::RabbitMQ::Client(
-        topic => 'MPLS.FWDCTL.RPC',
+        topic => 'OF.FWDCTL.RPC',
         exchange => 'OESS',
         user => 'guest',
         pass => 'guest',
@@ -420,9 +420,19 @@ sub _fail_over {
 
     my $circuit_id = $args{'circuit_id'};
 
-    my $result = $client->changeVlanPath(circuit_id => $circuit_id);
+    my $cv = AnyEvent->condvar;
 
-    if($result->{'error'} || !($result->{'results'})){
+    $client->changeVlanPath(circuit_id => $circuit_id, 
+                            async => 1,
+                            async_callback => sub { 
+                                my $result = shift; 
+                                warn "Got a result\n";
+                                $cv->send($result) 
+                            });
+    
+    my $result = $cv->recv();
+    
+    if(defined($result->{'error'}) || !($result->{'results'})){
         return;
     }
 
@@ -434,7 +444,7 @@ sub _fail_over {
         usleep(1000000);
         my $res = $client->get_event_status(event_id => $event_id);
 
-        if($res->{'error'} || !defined($res->{'results'}) || !defined($res->{'results'}->{'status'})){
+        if(!defined($res) || defined($res->{'error'}) || !defined($res->{'results'}) || !defined($res->{'results'}->{'status'})){
             return;
         }
 
@@ -462,7 +472,9 @@ sub _send_mpls_add_command {
 
     my $circuit_id = $args{'circuit_id'};
     warn "_send_mpls_add_command: Calling addVlan on circuit $circuit_id";
-    my $result = $client->addVlan(circuit_id => int($circuit_id));
+    my $cv = AnyEvent->condvar;
+    $client->addVlan(circuit_id => int($circuit_id), async => 1, async_callback => sub { my $result = shift; $cv->send($result) });
+    my $result = $cv->recv();
 
     if($result->{'error'} || !defined $result->{'results'}){
 	warn '_send_mpls_add_command: Could not complete rabbitmq call to addVlan. Received no event_id';
@@ -507,9 +519,10 @@ sub _send_add_command {
     }
 
     my $circuit_id = $args{'circuit_id'};
-
-    my $result = $client->addVlan(circuit_id => $circuit_id);
-
+    my $cv = AnyEvent->condvar;
+    $client->addVlan(circuit_id => $circuit_id, async => 1, async_callback => sub { my $result = shift; $cv->send($result) });
+    my $result = $cv->recv();
+		     
     if($result->{'error'} || !defined $result->{'results'}){
         return;
     }
@@ -548,9 +561,10 @@ sub _send_mpls_remove_command {
     }
 
     my $circuit_id = $args{'circuit_id'};
-
-    my $result = $client->deleteVlan(circuit_id => $circuit_id);
-
+    my $cv = AnyEvent->condvar;
+    $client->deleteVlan(circuit_id => $circuit_id, async => 1, async_callback => sub { my $result = shift; $cv->send($result) });
+    
+    my $result = $cv->recv();
     if($result->{'error'} || !($result->{'results'})){
         return;
     }
@@ -590,9 +604,9 @@ sub _send_remove_command {
     }
 
     my $circuit_id = $args{'circuit_id'};
-
-    my $result = $client->deleteVlan(circuit_id => $circuit_id);
-
+    my $cv = AnyEvent->condvar;
+    $client->deleteVlan(circuit_id => $circuit_id, async => 1, async_callback => sub { my $result = shift; $cv->send($result) });
+    my $result = $cv->recv();
     if($result->{'error'} || !($result->{'results'})){
         return;
     }
@@ -633,9 +647,9 @@ sub _send_update_cache{
     if ( !defined($client) ) {
         return;
     }
-
-    my $result = $client->update_cache(circuit_id => $args{'circuit_id'});
-
+    my $cv = AnyEvent->condvar;
+    $client->update_cache(circuit_id => $args{'circuit_id'}, async => 1, async_callback => sub { my $result = shift; $cv->send($result) });
+    my $result = $cv->recv();
     if($result->{'error'} || !($result->{'results'})){
         return;
     }
@@ -1204,16 +1218,15 @@ sub fail_over_circuit {
             my $user_id = $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'});
 
             $ckt->change_path( user_id => $user_id, reason => "CHANGE PATH: User requested");
-            my $result =
-              _fail_over( circuit_id => $circuit_id, workgroup_id => $workgroup_id );
+            my $result = _fail_over( circuit_id => $circuit_id, workgroup_id => $workgroup_id );
             if ( !defined($result) ) {
                 $method->set_error('Unable to change the path');
-		return;
+		return {results => [{success => 0, alt_path_down => 0}], error => {message => "Unable to communicate with FWDCTL"}};
             }
 
             if ( $result == 0 ) {
                 $method->set_error('Unable to change the path');
-                return;
+                return {results => [{success => 0, alt_path_down => 0}], error => {message => "Failure changing path"}};
             }
 
             my $circuit_details = $db->get_circuit_details( circuit_id => $circuit_id );
