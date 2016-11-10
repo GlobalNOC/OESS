@@ -461,10 +461,14 @@ sub _send_mpls_add_command {
     }
 
     my $circuit_id = $args{'circuit_id'};
-
-    my $result = $client->addVlan(circuit_id => $circuit_id);
+    warn "_send_mpls_add_command: Calling addVlan on circuit $circuit_id";
+    my $result = $client->addVlan(circuit_id => int($circuit_id));
 
     if($result->{'error'} || !defined $result->{'results'}){
+	warn '_send_mpls_add_command: Could not complete rabbitmq call to addVlan. Received no event_id';
+	if (defined $result->{'error'}) {
+	    warn '_send_mpls_add_command: ' . $result->{'error'};
+	}
         return;
     }
 
@@ -476,6 +480,7 @@ sub _send_mpls_add_command {
         my $res = $client->get_event_status(event_id => $event_id);
 
         if(defined($res->{'error'}) || !defined($res->{'results'})){
+	    warn '_send_mpls_add_command: could not complete rabbitmq call to get_event_status';
             return;
         }
 
@@ -657,6 +662,8 @@ sub provision_circuit {
     my ($method, $args) = @_;
     my $results;
 
+    warn 'provision_circuit: calling';
+
     my $start = [gettimeofday];
 
     $results->{'results'} = [];
@@ -733,6 +740,7 @@ sub provision_circuit {
     }
     if ( !$circuit_id || $circuit_id == -1 ) {
         #Register with DB
+	warn 'provision_circuit: adding new circuit to the database';
 
 	my $before_provision = [gettimeofday];
 
@@ -766,23 +774,27 @@ sub provision_circuit {
         if(defined($output) && ($provision_time <= time()) && ($state eq 'active' || $state eq 'scheduled' || $state eq 'provisioned')) {
 
 	    if($type eq 'openflow'){
-		
+		warn 'provision_circuit: sending add command to openflow controller';
+
 		my $before_add_command = [gettimeofday];
 		
 		
 		my $result = _send_add_command( circuit_id => $output->{'circuit_id'} );
-		
+		warn 'provision_circuit: received response to add command from openflow controller';
+
 		my $after_add_command = [gettimeofday];
 
 		warn "Time waiting for add: " . tv_interval( $before_add_command, $after_add_command);
 
 		if ( !defined $result ) {
-		    $output->{'warning'} =
-			"Unable to talk to fwdctl service - is it running?";
+		    warn 'provision_circuit: response from openflow controller was undef. Couldnt talk to fwdctl';
+		    $output->{'warning'} = "Unable to talk to fwdctl service - is it running?";
 		}
 		
 		# failure, remove the circuit now
-		if ( $result == 0 ) {
+		if (!defined $result || $result == 0) {
+		    warn 'provision_circuit: sending remove command to openflow controller after provisioning failure';
+
 		    my $removal = remove_circuit($method, { circuit_id => {value => $output->{'circuit_id'}},
                                                             remove_time => {value => -1},
                                                             force => {value => 1},
@@ -796,21 +808,26 @@ sub provision_circuit {
 	    }
 
 	    if($type eq 'mpls'){
+		warn 'provision_circuit: sending add command to mpls controller';
 		my $before_add_command = [gettimeofday];
 
 
                 my $result = _send_mpls_add_command( circuit_id => $output->{'circuit_id'} );
+		warn 'provision_circuit: received response to add command from mpls controller';
 
                 my $after_add_command = [gettimeofday];
 
                 warn "Time waiting for add: " . tv_interval( $before_add_command, $after_add_command);
 
                 if ( !defined $result ) {
+		    warn 'provision_circuit: response from mpls controller was undef. Couldnt talk to fwdctl';
                     $output->{'warning'} = "Unable to talk to fwdctl service - is it running?";
                 }
 
                 # failure, remove the circuit now
                 if (!defined $result || $result == 0) {
+		    warn 'provision_circuit: sending remove command to mpls controller after provisioning failure';
+
                     my $removal = remove_circuit($method, { circuit_id => {value => $output->{'circuit_id'}},
                                                             remove_time => {value => -1},
                                                             force => {value => 1},
@@ -825,6 +842,7 @@ sub provision_circuit {
 
             #if we're here we've successfully provisioned onto the network, so log notification.
             if (defined $log_client) {
+		warn 'provision_circuit: logging circuit event';
                 eval{
                     my $circuit_details = $db->get_circuit_details( circuit_id => $output->{'circuit_id'} );
                     $circuit_details->{'status'} = 'up';

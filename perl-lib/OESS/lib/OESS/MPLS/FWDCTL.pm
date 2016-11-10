@@ -426,6 +426,7 @@ sub register_rpc_methods{
     $d->register_method($method);
     
     $method = GRNOC::RabbitMQ::Method->new( name => 'new_switch',
+                                            async => 1,
                                             callback => sub { $self->new_switch(@_) },
                                             description => "adds a new switch by node_id" );
     
@@ -452,19 +453,22 @@ sub new_switch{
     my $m_ref = shift;
     my $p_ref = shift;
     my $state_ref = shift;
-    
 
     my $node_id = $p_ref->{'node_id'}{'value'};
     
     $self->update_cache(-1);
 
-    if (!defined $self->{'children'}->{$node_id}->{'rpc'}) {
-	#sherpa will you make my babies!
-	$self->make_baby($node_id);
-	$self->{'logger'}->debug("Baby was created!");
-    }
+    return {status => FWDCTL_SUCCESS};
 }
 
+=head2 create_nodes
+
+Checks $self->{'pending_nodes'} for any nodes that are pending creation.
+
+=cut
+sub create_nodes {
+
+}
 
 =head2 make_baby
 
@@ -618,6 +622,9 @@ sub send_message_to_child{
     my $message = shift;
     my $event_id = shift;
 
+    if (!defined $self->{'children'}->{$id}) {
+	$self->{'children'}->{$id} = {};
+    }
     my $rpc    = $self->{'children'}->{$id}->{'rpc'};
     if(!defined($rpc)){
         $self->{'logger'}->error("No RPC exists for node_id: " . $id);
@@ -650,27 +657,30 @@ sub addVlan{
     my $p_ref = shift;
     my $state_ref = shift;
     
-    $self->{'logger'}->error("Creating Circuit!");
+    $self->{'logger'}->error("addVlan: Creating Circuit!");
 
 
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
-    $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
-    $self->{'logger'}->info("MPLS addVlan: $circuit_id");
+    $self->{'logger'}->error("addVlan: Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
+    $self->{'logger'}->info("addVlan: MPLS addVlan: $circuit_id");
 
     my $event_id = $self->_generate_unique_event_id();
 
     my $ckt = $self->get_ckt_object( $circuit_id );
     if(!defined($ckt)){
+	$self->{'logger'}->error("addVlan: Couldn't load circuit object");
         return {status => FWDCTL_FAILURE, event_id => $event_id};
     }
 
     $ckt->update_circuit_details();
     if($ckt->{'details'}->{'state'} eq 'decom'){
+	$self->{'logger'}->error("addVlan: Adding a decom'd circuit is not allowed");
 	return {status => FWDCTL_FAILURE, event_id => $event_id};
     }
 
     if($ckt->get_type() ne 'mpls'){
+	$self->{'logger'}->error("addVlan: Circuit type 'opeflow' cannot be used here");
 	return {status => FWDCTL_FAILURE, event_id => $event_id, msg => "This was not an MPLS Circuit"};
     }
 
@@ -680,17 +690,16 @@ sub addVlan{
     my $endpoints = $ckt->get_endpoints();
     my %nodes;
     foreach my $ep (@$endpoints){
-	$self->{'logger'}->debug("Node: " . $ep->{'node'} . " is involved int he circuit");
+	$self->{'logger'}->debug("addVlan: Node: " . $ep->{'node'} . " is involved int he circuit");
 	$nodes{$ep->{'node'}}= 1;
     }
 
     my $result = FWDCTL_SUCCESS;
 
     my $details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
-
-
     if ($details->{'state'} eq "deploying" || $details->{'state'} eq "scheduled") {
-        
+	$self->{'logger'}->error("addVlan: Wrong circuit state was encountered");
+
         my $state = $details->{'state'};
 	$self->{'logger'}->error($self->{'db'}->get_error());
     }
@@ -703,11 +712,10 @@ sub addVlan{
     $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UP;
 
     foreach my $node (keys %nodes){
-	$self->{'logger'}->debug("Sending add VLAN to child: " . $node);
+	$self->{'logger'}->debug("addVlan: Sending add VLAN to child: " . $node);
 	my $id = $self->{'node_info'}->{$node}->{'id'};
         $self->send_message_to_child($id,{action => 'add_vlan', circuit_id => $circuit_id}, $event_id);
     }
-
 
     return {status => $result, event_id => $event_id};
 }

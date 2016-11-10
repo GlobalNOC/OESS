@@ -1586,6 +1586,7 @@ sub confirm_node {
 
 sub update_node {
     my ($method, $args) = @_;
+    warn 'update_node: calling';
 
     my ($user, $err) = authorization(admin => 1, read_only => 0);
     if (defined $err) {
@@ -1644,35 +1645,7 @@ sub update_node {
 	$mpls = 0;
     }
 
-    if ($mpls == 1) {
-        my $result = $db->update_node_instantiation(
-            node_id    => int($node_id),
-            mpls       => int($mpls),
-            mgmt_addr  => $mgmt_addr,
-            tcp_port   => int($tcp_port),
-            vendor     => $vendor,
-            model      => $model,
-            sw_version => $sw_version
-            );
-
-        if (!defined $result ) {
-            $results->{'results'} = [ { "error"   => $db->get_error(),
-                                        "success" => 0 } ];
-            return $results;
-        }
-
-        my $client = GRNOC::RabbitMQ::Client->new( topic => 'MPLS.FWDCTL.RPC',
-                                                   exchange => 'OESS',
-                                                   user => $db->{'rabbitMQ'}->{'user'},
-                                                   pass => $db->{'rabbitMQ'}->{'pass'},
-                                                   host => $db->{'rabbitMQ'}->{'host'},
-                                                   port => $db->{'rabbitMQ'}->{'port'});
-
-        my $res = $client->new_switch(node_id => int($node_id));
-        $client->{'topic'} = 'MPLS.Discovery.RPC';
-        $client->new_switch(node_id => $node_id);
-    }
-
+    warn 'update_node: updating generic switch data';
     my $result = $db->update_node(
         node_id         => $node_id,
         openflow        => $openflow,
@@ -1696,11 +1669,53 @@ sub update_node {
              "success" => 0
             }
         ];
+	return $results;
     } else {
         $results->{'results'} = [ { "success" => 1 } ];
     }
 
-    if($openflow){
+    if ($mpls == 1) {
+	warn 'update_node: updating mpls switch data';
+
+        my $result = $db->update_node_instantiation(
+            node_id    => int($node_id),
+            mpls       => int($mpls),
+            mgmt_addr  => $mgmt_addr,
+            tcp_port   => int($tcp_port),
+            vendor     => $vendor,
+            model      => $model,
+            sw_version => $sw_version
+            );
+
+        if (!defined $result ) {
+            $results->{'results'} = [ { "error"   => $db->get_error(),
+                                        "success" => 0 } ];
+            return $results;
+        }
+
+        my $client = GRNOC::RabbitMQ::Client->new( topic => 'MPLS.FWDCTL.RPC',
+                                                   exchange => 'OESS',
+                                                   user => $db->{'rabbitMQ'}->{'user'},
+                                                   pass => $db->{'rabbitMQ'}->{'pass'},
+                                                   host => $db->{'rabbitMQ'}->{'host'},
+                                                   port => $db->{'rabbitMQ'}->{'port'});
+
+	my $cv = AnyEvent->condvar;
+
+	warn 'update_node: starting mpls switch forwarding process';
+        my $res = $client->new_switch(node_id => int($node_id),
+	    async => 1,
+	    async_callback => sub {
+		warn 'update_node: starting mpls switch discovery process';
+		$client->{'topic'} = 'MPLS.Discovery.RPC';
+		$client->new_switch(node_id => $node_id,
+				    async => 1,
+				    async_callback => sub { warn 'update_node: done starting mpls switch processes'; $cv->send(); })});
+	$cv->recv();
+    }
+
+    if ($openflow) {
+	warn 'update_node: updating openflow switch data';
 	
 	my $client  = new GRNOC::RabbitMQ::Client(
 	    topic => 'OF.FWDCTL.RPC',
