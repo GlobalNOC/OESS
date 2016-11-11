@@ -234,11 +234,10 @@ sub _write_cache{
 	my $eps = $ckt->get_endpoints();
 
 	my $ckt_type = "L2VPN";
-
-        #put L2CCC into the templates
-#        if($ckg->get_links() ){
-#            $ckt_type = "L2CCC";
-#        }
+        
+        if(defined($ckt->get_mpls_path_type( path => 'primary'))){
+            $ckt_type = "L2CCC";
+        }
 
 	if(scalar(@$eps) > 2){
 	    $ckt_type = "L2VPLS";
@@ -846,6 +845,7 @@ sub diff {
                                              deletions => $deletions,
                                              installed => $installed } );
 
+                warn "Diff topic! MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . "\n";
                 $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
                 $self->{'fwdctl_events'}->diff( timeout        => 15,
                                                 installed_circuits => $payload,
@@ -941,7 +941,7 @@ sub get_diff_text {
                                           deletions => $deletions,
                                           installed => $installed } );
 
-             $node->{'client'}->get_diff_text(
+             $self->{'fwdctl_events'}->get_diff_text(
                   installed_circuits => $payload,
                   async_callback => sub {
                       my $response = shift;
@@ -958,7 +958,7 @@ sub get_diff_text {
                       foreach my $id (@{$deletions}) {
                           delete $self->{'circuit'}->{$id};
                       }
-                  } );
+                 } );
          } );
 
     $self->{'events'}->{$id} = $event;
