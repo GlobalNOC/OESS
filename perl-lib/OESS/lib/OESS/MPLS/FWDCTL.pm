@@ -235,9 +235,16 @@ sub _write_cache{
 
 	my $ckt_type = "L2VPN";
 
+        #put L2CCC into the templates
+#        if($ckg->get_links() ){
+#            $ckt_type = "L2CCC";
+#        }
+
 	if(scalar(@$eps) > 2){
 	    $ckt_type = "L2VPLS";
 	}
+
+        
 
 	my $site_id = 0;
 	foreach my $ep_a (@$eps){
@@ -707,8 +714,8 @@ sub addVlan{
 	my $id = $self->{'node_info'}->{$node}->{'id'};
         $self->send_message_to_child($id,{action => 'add_vlan', circuit_id => $circuit_id}, $event_id);
     }
-    
-    return &$callback({status => $result, event_id => $event_id});
+    $self->{'logger'}->error("AddVLAN sending result");
+    &$callback({status => $result, event_id => $event_id});
 }
 
 sub deleteVlan{
@@ -755,8 +762,8 @@ sub deleteVlan{
     }
     
     delete $self->{'circuit'}->{$circuit_id};
+    $self->{'logger'}->error("Delete VLAN returning status");
     &$callback({status => $result, event_id => $event_id});
-
 }
 
 sub diff {
@@ -797,6 +804,9 @@ sub diff {
 
                 my $additions = [];
                 foreach my $id (keys %{$self->{'circuit'}}) {
+                    if(!defined($self->{'circuit'}->{$id})){
+                        next;
+                    }
                     if ($self->{'circuit'}->{$id}->on_node($node_id) == 0) {
                         next;
                     }
