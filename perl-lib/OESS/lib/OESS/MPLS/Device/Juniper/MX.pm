@@ -216,6 +216,8 @@ sub remove_vlan{
     $vars->{'site_id'} = $ckt->{'site_id'};
     $vars->{'paths'} = $ckt->{'paths'};
     $vars->{'a_side'} = $ckt->{'a_side'};
+    $vars->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
+    $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
 
     my $output;
     my $remove_template = $self->{'tt'}->process( $self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config_delete.xml", $vars, \$output) or $self->{'logger'}->error( $self->{'tt'}->error());
@@ -229,7 +231,7 @@ sub add_vlan{
     my $self = shift;
     my $ckt = shift;
     
-    $self->{'logger'}->error("Adding circuit: " . Data::Dumper::Dumper($ckt));
+    $self->{'logger'}->error("AJ Adding circuit: " . Data::Dumper::Dumper($ckt));
 
     my $vars = {};
     $vars->{'circuit_name'} = $ckt->{'circuit_name'};
@@ -245,19 +247,26 @@ sub add_vlan{
     $vars->{'switch'} = {name => $self->{'name'},
 			 loopback => $self->{'loopback_addr'}};
     $vars->{'site_id'} = $ckt->{'site_id'};
-    $vars->{'paths'} = $ckt->{'paths'};
     $vars->{'a_side'} = $ckt->{'a_side'};
+    $self->{'logger'}->error("PATHS: " . Data::Dumper::Dumper($vars->{'paths'}));
+    $vars->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
+    $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
 
 #    if ($self->unit_name_available($vars->{'interface'}->{'name'}, $vars->{'vlan_tag'}) == 0) {
 #        return FWDCTL_FAILURE;
 #    }
 
+    $self->{'logger'}->error("VARS: " . Data::Dumper::Dumper($vars));
     my $ckt_type = $ckt->{'mpls_type'};
 
     my $output;
     my $add_template = $self->{'tt'}->process( $self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$output) or  $self->{'logger'}->error($self->{'tt'}->error());
     
     $self->{'logger'}->error("ADD config: " . $output);
+    #totally possible our config is now busted :(
+    if(!defined($output)){
+        return FWDCTL_FAILURE;
+    }
 
     return $self->_edit_config( config => $output );    
     

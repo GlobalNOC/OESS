@@ -1,0 +1,68 @@
+<configuration>
+  <interfaces>
+    [% FOREACH interface IN interfaces %]
+    <interface>
+      <name>[% interface.name %]</name>
+      <unit>
+        <name>[% interface.tag %]</name>
+        <description>OESS-L2CCC-[% circuit_id %]</description>
+        <encapsulation>vlan-ccc</encapsulation>
+        <vlan-id>[% interface.tag %]</vlan-id>
+        <output-vlan-map>
+          <swap/>
+        </output-vlan-map>
+      </unit>
+    </interface>
+    [% END %]
+  </interfaces>
+  <protocols>
+    <mpls>
+      <label-switched-path>
+        <name>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]</name>
+        <apply-groups>L2CCC-LSP-ATTRIBUTES</apply-groups>
+        <to>[% dest %]</to>
+        [% FOREACH path IN paths %]
+          [% IF path.name == 'PRIMARY' %]
+        <primary>
+          <name>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]-[% path.name %]</name>
+          <select>manual</select>
+        </primary>
+          [% ELSE %]
+        <secondary>
+          <name>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]-[% path.name %]</name>
+          <standby />
+        </secondary>
+          [% END %]
+        [% END %]
+      </label-switched-path>
+      [% FOREACH path IN paths %]
+      <path>
+        <name>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]-[% path.name %]</name>
+        [% IF path.mpls_path_type == 'strict' %]
+          [% FOREACH ip IN path.path %]
+        <path-list>
+          <name>[% ip %]</name>
+          <strict />
+        </path-list>
+          [% END %]
+        [% ELSE %]
+        <path-list>
+          <name>[% dest %]</name>
+          <loose />
+        </path-list>
+        [% END %]
+      </path>
+      [% END %]
+    </mpls>
+    <connections>
+      <remote-interface-switch>
+        <name>OESS-L2CCC-[% circuit_id %]</name>
+        [% FOREACH interface IN interfaces %]
+        <interface>[% interface.name %].[% interface.tag %]</interface>
+        [% END %]
+        <transmit-lsp>OESS-L2CCC-[% a_side %]-[% path.dest_node %]-LSP-[% circuit_id %]</transmit-lsp>
+        <receive-lsp>OESS-L2CCC-[% path.dest_node %]-[% a_side %]-LSP-[% circuit_id %]</receive-lsp>
+      </remote-interface-switch>
+    </connections>
+  </protocols>
+</configuration>
