@@ -46,6 +46,8 @@ perl-OESS.spec
 share/mpls/templates/juniper/13.3R8/ep_config.xml
 share/mpls/templates/juniper/13.3R8/ep_config.xml.backup
 share/mpls/templates/juniper/13.3R8/ep_config_delete.xml
+share/mpls/templates/juniper/13.3R8/L2CCC/ep_config.xml
+share/mpls/templates/juniper/13.3R8/L2CCC/ep_config_delete.xml
 share/mpls/templates/juniper/13.3R8/L2VPLS/ep_config.xml
 share/mpls/templates/juniper/13.3R8/L2VPLS/ep_config_delete.xml
 share/mpls/templates/juniper/13.3R8/L2VPLS_INTRA/ep_config.xml
