@@ -100,6 +100,15 @@ sub new{
     return $self;
 }
 
+=head2 get_type
+
+=cut
+
+sub get_type{
+    my $self = shift;
+    return $self->{'type'};
+}
+
 =head2 get_id
 
     returns the id of the circuit

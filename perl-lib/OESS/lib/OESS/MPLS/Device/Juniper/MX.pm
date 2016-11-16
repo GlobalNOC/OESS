@@ -312,8 +312,8 @@ sub get_active_lsp_route {
         return undef, 'Could not retreive route information';
     }
 
-    $dom = $api->get_dom()->toString();
-    $response = XMLin($dom);
+    my $dom = $api->get_dom()->toString();
+    my $response = XMLin($dom);
 
     if (!defined $response->{'route-information'}) {
         return undef, 'Could not retreive route information';
@@ -382,8 +382,8 @@ sub get_active_lsp_path {
         return undef, 'Could not retreive lsp information';
     }
 
-    $dom = $api->get_dom()->toString();
-    $response = XMLin($dom);
+    my $dom = $api->get_dom()->toString();
+    my $response = XMLin($dom);
 
     if (!defined $response->{'mpls-lsp-information'}) {
         return undef, 'Could not retreive lsp information';
@@ -436,9 +436,10 @@ sub get_default_paths {
     my $self = shift;
     my $loopback_addresses = shift;
 
-    my $name = undef;
-    my $path = undef;
-    my $err  = undef;
+    my $name   = undef;
+    my $path   = undef;
+    my $err    = undef;
+    my $result = {};
 
     for my $addr (@{$loopback_addresses}) {
         ($name, $err) = $self->get_active_lsp_route($addr, 'inet.3');
@@ -452,9 +453,13 @@ sub get_default_paths {
             $self->{'logger'}->debug($err);
             next;
         }
+
+	$result->{$addr} = {};
+	$result->{$addr}->{'name'} = $name;
+	$result->{$addr}->{'path'} = $path;
     }
 
-    return 1;
+    return $result;
 }
 
 =head2 xml_configuration( $ckts )
@@ -853,7 +858,7 @@ sub connect {
                                           'login' => $self->{'username'},
                                           'password' => $self->{'password'},
                                           'hostname' => $self->{'mgmt_addr'},
-                                          'port' => 22,
+                                          'port' => 830,
                                           'debug_level' => 0 );
     };
     if ($@ || !$jnx) {

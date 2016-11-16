@@ -1454,6 +1454,27 @@ HERE
 
 }
 
+sub get_mpls_circuits_without_default_path {
+    my $self = shift;
+
+    my $query = "
+SELECT C.circuit_id, MA.interface_id as interface_a_id, NA.node_id as node_id_a, NA.loopback_address as loopback_a, MB.interface_id as interface_z_id, NB.node_id as node_id_z, NB.loopback_address as loopback_z, P.path_id, P.path_type
+FROM circuit as C
+JOIN circuit_edge_interface_membership as MA on C.circuit_id = MA.circuit_id
+JOIN circuit_edge_interface_membership as MB on C.circuit_id = MB.circuit_id
+JOIN interface as IA on MA.interface_id = IA.interface_id
+JOIN interface as IB on MB.interface_id = IB.interface_id
+JOIN node_instantiation as NA on IA.node_id = NA.node_id
+JOIN node_instantiation as NB on IB.node_id = NB.node_id
+LEFT JOIN path as P on (P.circuit_id = C.circuit_id AND P.path_type='tertiary')
+WHERE C.circuit_state='active' AND C.type='mpls' AND NA.loopback_address != NB.loopback_address
+GROUP BY C.circuit_id;
+";
+
+    my $res = $self->_execute_query($query, []);
+    return $res;
+}
+
 =head2 get_current_links
 
 =cut
@@ -3872,6 +3893,8 @@ sub get_circuit_details {
 	"left join path_instantiation as pr_pi on pr_pi.path_id = pr_p.path_id and pr_pi.end_epoch = -1 ".
         " left join path as bu_p on bu_p.circuit_id = circuit.circuit_id and bu_p.path_type = 'backup' " .
         " left join path_instantiation as bu_pi on bu_pi.path_id = bu_p.path_id and bu_pi.end_epoch = -1 ".
+        " left join path as ter_p on ter_p.circuit_id = circuit.circuit_id and ter_p.path_type = 'tertiary' " .
+        " left join path_instantiation as ter_pi on ter_pi.path_id = ter_p.path_id and ter_pi.end_epoch = -1".
 	" where circuit.circuit_id = ?";
 
     my $sth = $self->_prepare_query($query) or return;
@@ -3918,7 +3941,12 @@ sub get_circuit_details {
     $details->{'backup_links'} = $self->get_circuit_links(circuit_id => $circuit_id,
 							  type       => 'backup',
                                                           show_historical => $show_historical
-	                                                 ) || [];
+        ) || [];
+    $details->{'tertiary_links'} = $self->get_circuit_links(circuit_id => $circuit_id,
+                                                            type       => 'tertiary',
+                                                            show_historical => $show_historical
+        ) || [];
+    
 
     $details->{'workgroup'} = $self->get_workgroup_by_id( workgroup_id => $details->{'workgroup_id'} );
     $details->{'last_modified_by'} = $self->get_user_by_id( user_id => $details->{'user_id'} )->[0];
@@ -7675,6 +7703,43 @@ sub add_or_update_interface{
     }
 
     return $int_id;
+}
+
+=head2 create_path
+
+=over4
+
+=item B<circuit_id> - Circuit on this path
+
+=item B<link_ids> - An array of the links composing the path
+
+=item B<path_type> - Can be primary secondary or tertiary
+
+=back
+
+Creates a new path in the active state.
+
+=cut
+sub create_path {
+    my $self = shift;
+    my $circuit_id = shift;
+    my $link_ids   = shift;
+    my $path_type  = shift;
+
+    my $query = undef;
+
+    $query = "insert into path (path_type, mpls_path_type, circuit_id, path_state) VALUES (?, ?, ?, ?)";
+    my $path_id = $self->_execute_query($query, [$path_type, 'strict', $circuit_id, 'active']);
+
+    $query = "insert into path_instantiation (start_epoch, end_epoch, path_id, path_state) VALUES (UNIX_TIMESTAMP( NOW() ), -1, ?, ?)";
+    my $path_instantiation_id = $self->_execute_query($query, [$path_id, 'active']);
+
+    foreach my $link_id (@{$link_ids}) {
+	$query = "insert into link_path_membership (start_epoch, end_epoch, link_id, path_id) VALUES (UNIX_TIMESTAMP( NOW() ), -1, ?, ?)";
+	my $result = $self->_execute_query($query, [$link_id, $path_id]);
+    }
+
+    return 1;
 }
 
 
