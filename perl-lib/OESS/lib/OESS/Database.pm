@@ -3940,12 +3940,11 @@ sub get_circuit_details {
 
     $details->{'backup_links'} = $self->get_circuit_links(circuit_id => $circuit_id,
 							  type       => 'backup',
-                                                          show_historical => $show_historical
-        ) || [];
+                                                          show_historical => $show_historical ) || [];
+
     $details->{'tertiary_links'} = $self->get_circuit_links(circuit_id => $circuit_id,
                                                             type       => 'tertiary',
-                                                            show_historical => $show_historical
-        ) || [];
+                                                            show_historical => $show_historical ) || [];
     
 
     $details->{'workgroup'} = $self->get_workgroup_by_id( workgroup_id => $details->{'workgroup_id'} );
