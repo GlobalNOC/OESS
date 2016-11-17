@@ -3884,7 +3884,7 @@ sub get_circuit_details {
     # basic circuit info
     my $query = "select circuit.restore_to_primary,circuit.type, circuit.external_identifier, circuit.name, circuit.description, circuit.circuit_id, circuit.static_mac, circuit_instantiation.modified_by_user_id, circuit_instantiation.loop_node,circuit_instantiation.reason, circuit.workgroup_id, " .
         " circuit.remote_url, circuit.remote_requester, " . 
-	" circuit_instantiation.reserved_bandwidth_mbps, circuit_instantiation.circuit_state, circuit_instantiation.start_epoch  , " .
+	" circuit_instantiation.reserved_bandwidth_mbps, circuit_instantiation.circuit_state, circuit_instantiation.start_epoch, pr_p.path_id as primary_path_id, bu_p.path_id as backup_path_id, ter_p.path_id as tertiary_path_id, " .
 	" if(bu_pi.path_state = 'active', 'backup', 'primary') as active_path " .
 	"from circuit " .
 	" join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id " .
@@ -3967,6 +3967,7 @@ sub get_circuit_details {
     foreach my $path (@$paths){
 	$details->{'paths'}{$path->{'path_type'}} = $path;
 	if($path->{'path_state'} eq 'active'){
+            $details->{'active_path'} = $path->{'path_type'};
 	    if($path->{'status'} == 1){
                 $details->{'operational_state'} = 'up';
 	    }
@@ -3982,6 +3983,9 @@ sub get_circuit_details {
     if(!defined($details->{'operational_state'})){
 	$details->{'operational_state'} = 'unknown';
     }
+
+
+    
 
     return $details;
 
