@@ -49,6 +49,7 @@ use OESS::Database;
 use OESS::MPLS::Discovery::Interface;
 use OESS::MPLS::Discovery::LSP;
 use OESS::MPLS::Discovery::ISIS;
+use OESS::MPLS::Discovery::Paths;
 
 use Log::Log4perl;
 
@@ -96,6 +97,9 @@ sub new{
     die if (!defined($self->{'lsp'}));
     $self->{'isis'} = $self->_init_isis();
     die if (!defined($self->{'isis'}));
+    $self->{'path'} = $self->_init_paths();
+    die if (!defined($self->{'path'}));
+    
 
     #create the client for talking to our Discovery switch objects!
     $self->{'rmq_client'} = GRNOC::RabbitMQ::Client->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
@@ -109,9 +113,10 @@ sub new{
 
     #setup the timers
     $self->{'device_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->device_handler(); });
-    $self->{'int_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->int_handler(); });
-    $self->{'lsp_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->lsp_handler(); });
-    $self->{'isis_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->isis_handler(); } );
+    $self->{'int_timer'} = AnyEvent->timer( after => 20, interval => 60, cb => sub { $self->int_handler(); });
+    $self->{'lsp_timer'} = AnyEvent->timer( after => 30, interval => 60, cb => sub { $self->lsp_handler(); });
+    $self->{'isis_timer'} = AnyEvent->timer( after => 40, interval => 60, cb => sub { $self->isis_handler(); } );
+    $self->{'path_timer'} = AnyEvent->timer( after => 50, interval => 60, cb => sub { $self->path_handler(); });
 
     #our dispatcher for receiving events (only new_switch right now)    
     my $dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
@@ -271,6 +276,16 @@ sub _init_isis{
 
 }
 
+sub _init_paths{
+    my $self = shift;
+    my $paths = OESS::MPLS::Discovery::Paths->new( db => $self->{'db'} );
+    if(!defined($paths)){
+        die "Unable to create Path Processor\n";
+    }
+
+    return $paths;
+}
+
 #handlers for our timers
 sub int_handler{
     my $self = shift;
@@ -282,6 +297,46 @@ sub int_handler{
                                                                                                      $self->{'db'}->update_node_operational_state(node_id => $node->{'node_id'}, state => 'up', protocol => 'mpls');
                                                                                                      my $status = $self->{'interface'}->process_results( node => $node->{'name'}, interfaces => $res->{'results'});
 											 }));
+    }
+}
+
+=head2 path_handler
+
+=cut
+
+sub path_handler {
+
+    my $self = shift;
+
+    warn "IN Path handler\n";
+
+    $self->{'logger'}->info("path_handler: calling");
+
+    my $nodes = $self->{'db'}->get_current_nodes( mpls => 1 );
+    if (!defined $nodes) {
+        $self->{'logger'}->error("path_handler: Could not get current nodes.");
+        return 0;
+    }
+
+    my @loopback_addrs;
+
+    foreach my $node (@{$nodes}) {
+        if (!defined $node->{'loopback_address'}) {
+            next;
+        }
+        push(@loopback_addrs, $node->{'loopback_address'});
+    }
+    
+    foreach my $node (@{$nodes}){ 
+        $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
+        $self->{'rmq_client'}->get_default_paths( timeout            => 15,
+                                                  loopback_addresses => \@loopback_addrs,
+                                                  async_callback     => sub {
+                                                      my $res = shift;
+                                                      warn "Processing results\n";
+                                                      $self->{'path'}->process_results( paths => $res->{'results'}, node_id => $node->{'node_id'} );
+                                                      return 1;
+                                                  } );
     }
 }
 
