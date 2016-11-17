@@ -1055,11 +1055,30 @@ sub generate_clr{
 	$clr .= "  " . $endpoint->{'node'} . " - " . $endpoint->{'interface'} . " VLAN " . $endpoint->{'tag'} . "\n";
     }
 
-    $clr .= "\nPrimary Path:\n";
-    foreach my $path (@{$self->get_path( path => 'primary' )}){
-	$clr .= "  " . $path->{'name'} . "\n";
-    }
+    if($self->{'type'} eq 'mpls'){
 
+        if(defined($self->get_path( path => 'tertiary') )){
+            $clr .= "\nActive Path:\n";
+            foreach my $path (@{$self->get_path( path => 'tertiary' )}){
+                $clr .= "  " . $path->{'name'} . "\n";
+            }
+        }
+
+        if($#{$self->get_path( path => 'primary')} > -1){
+            $clr .= "\nPrimary Path:\n";
+            foreach my $path (@{$self->get_path( path => 'primary' )}){
+                $clr .= "  " . $path->{'name'} . "\n";
+            }
+        }
+
+    }else{
+        
+        $clr .= "\nPrimary Path:\n";
+        foreach my $path (@{$self->get_path( path => 'primary' )}){
+            $clr .= "  " . $path->{'name'} . "\n";
+        }
+    }
+    
     if($self->has_backup_path()){
         
         $clr .= "\nBackup Path:\n";
@@ -1067,6 +1086,7 @@ sub generate_clr{
             $clr .= "  " . $path->{'name'} . "\n";
         }
     }
+        
 
     return $clr;
 }
@@ -1128,6 +1148,8 @@ sub get_path{
     
     if($path eq 'backup'){
         return $self->{'details'}->{'backup_links'};
+    }elsif($path eq 'tertiary'){
+        return $self->{'details'}->{'tertiary_links'};
     }else{
         return $self->{'details'}->{'links'};
     }
