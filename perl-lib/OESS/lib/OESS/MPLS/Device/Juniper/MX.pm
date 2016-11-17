@@ -8,6 +8,7 @@ package OESS::MPLS::Device::Juniper::MX;
 use Template;
 use Net::Netconf::Manager;
 use Data::Dumper;
+use XML::Simple;
 
 use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
@@ -270,6 +271,195 @@ sub add_vlan{
 
     return $self->_edit_config( config => $output );    
     
+}
+
+=head2 get_active_lsp_route
+
+=over 4
+
+=item B<loopback> - Loopback address of the destination node
+
+=item B<table_id> - Name of the routing table to query
+
+=back
+
+Returns the name of the LSP connected to $loopback as defined in $table_id.
+
+    <rpc>
+      <get-route-information>
+        <logical-system>all</logical-system>
+        <table>$table_id</table>
+        <destination>$loopback</destination>
+        <brief/>
+      </get-route-information>
+    </rpc>
+
+=cut
+sub get_active_lsp_route {
+    my $self     = shift;
+    my $loopback = shift;
+    my $table_id = shift;
+
+    my $api       = $self->{'jnx'};
+    my $mgmt_addr = $self->{'mgmt_addr'};
+
+    $api->get_route_information( brief          => '',
+                                 destination    => $loopback,
+                                 logical_system => 'all',
+                                 table          => $table_id );
+    if ($api->has_error) {
+        $self->{'logger'}->error("get_active_lsp_route: " . $api->get_first_error());
+        return undef, 'Could not retreive route information';
+    }
+
+    my $dom = $api->get_dom()->toString();
+    my $response = XMLin($dom);
+
+    if (!defined $response->{'route-information'}) {
+        return undef, 'Could not retreive route information';
+    }
+
+    if (!defined $response->{'route-information'}->{'route-table'}) {
+        return undef, 'Route table was not defined in route-information';
+    }
+
+    my $table = $response->{'route-information'}->{'route-table'};
+    my $hops  = $table->{'rt'}->{'rt-entry'}->{'nh'};
+    my $lsp   = undef;
+
+    if (ref($hops) eq 'HASH') {
+        $lsp = $hops->{'lsp-name'};
+        return $lsp, undef;
+    }
+
+    for my $hop (@{$hops}) {
+        if (!defined $hop->{'selected-next-hop'}) {
+            next;
+        }
+
+        $lsp = $hop->{'lsp-name'};
+        last;
+    }
+
+    if (!defined $lsp) {
+        return undef, 'Could not find a valid lsp-name';
+    }
+
+    return $lsp, undef;
+}
+
+=head2 get_active_lsp_path
+
+=over 4
+
+=item B<lsp> - Name of the LSP we're querying
+
+=back
+
+Returns an array of addresses describing the path taken by traffic on
+$lsp.
+
+    <rpc>
+      <get-mpls-lsp-information>
+        <logical-system>all</logical-system>
+        <regex>$lsp</regex>
+        <detail/>
+      </get-mpls-lsp-information>
+    </rpc>
+
+=cut
+sub get_active_lsp_path {
+    my $self = shift;
+    my $lsp  = shift;
+
+    my $api = $self->{'jnx'};
+
+    $api->get_mpls_lsp_information( detail         => '',
+                                    logical_system => 'all',
+                                    regex          => $lsp );
+    if ($api->has_error) {
+        $self->{'logger'}->error("get_active_lsp_path: " . $api->get_first_error());
+        return undef, 'Could not retreive lsp information';
+    }
+
+    my $dom = $api->get_dom()->toString();
+    my $response = XMLin($dom);
+
+    if (!defined $response->{'mpls-lsp-information'}) {
+        return undef, 'Could not retreive lsp information';
+    }
+
+    if (!defined $response->{'mpls-lsp-information'}->{'rsvp-session-data'}) {
+        return undef, 'Could not find any lsp information';
+    }
+
+    my $path = undef;
+    for my $session (@{$response->{'mpls-lsp-information'}->{'rsvp-session-data'}}) {
+        if (!defined $session->{'rsvp-session'}) {
+            next;
+        }
+
+        my $active_path = $session->{'rsvp-session'}->{'mpls-lsp'}->{'active-path'};
+        if (index($active_path, 'primary') != -1) {
+            $path = $session->{'rsvp-session'}->{'mpls-lsp'}->{'mpls-lsp-path'}->{$lsp . '-primary'}->{'explicit-route'}->{'address'};
+        } else {
+            $path = $session->{'rsvp-session'}->{'mpls-lsp'}->{'mpls-lsp-path'}->{$lsp . '-secondary'}->{'explicit-route'}->{'address'};
+        }
+
+        last;
+    }
+
+    if (!defined $path) {
+        return undef, 'Could not find an mpls-lsp-path';
+    }
+
+    if (! (ref($path) eq 'ARRAY')) {
+        $path = [$path];
+    }
+
+    return ($path, undef);
+}
+
+=head2 get_default_paths
+
+=back 4
+
+=item B<$loopback_addresses> - An array of loopback ip addresses
+
+=over
+
+Determine the default forwarding path between this node and each ip
+address provided in $loopback_addresses.
+
+=cut
+sub get_default_paths {
+    my $self = shift;
+    my $loopback_addresses = shift;
+
+    my $name   = undef;
+    my $path   = undef;
+    my $err    = undef;
+    my $result = {};
+
+    for my $addr (@{$loopback_addresses}) {
+        ($name, $err) = $self->get_active_lsp_route($addr, 'inet.3');
+        if (defined $err) {
+            $self->{'logger'}->debug($err);
+            next;
+        }
+
+        ($path, $err) = $self->get_active_lsp_path($name);
+        if (defined $err) {
+            $self->{'logger'}->debug($err);
+            next;
+        }
+
+	$result->{$addr} = {};
+	$result->{$addr}->{'name'} = $name;
+	$result->{$addr}->{'path'} = $path;
+    }
+
+    return $result;
 }
 
 =head2 xml_configuration( $ckts )
@@ -668,7 +858,7 @@ sub connect {
                                           'login' => $self->{'username'},
                                           'password' => $self->{'password'},
                                           'hostname' => $self->{'mgmt_addr'},
-                                          'port' => 22,
+                                          'port' => 830,
                                           'debug_level' => 0 );
     };
     if ($@ || !$jnx) {

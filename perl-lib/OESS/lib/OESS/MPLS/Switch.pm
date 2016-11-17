@@ -255,6 +255,19 @@ sub register_rpc_methods{
                                             },
 					    description => "Proxies request for installed circuits to device object." );
     $dispatcher->register_method($method);
+
+    $method = GRNOC::RabbitMQ::Method->new( name        => "get_default_paths",
+					    callback    => sub {
+                                                return $self->get_default_paths(@_);
+                                            },
+					    description => "Returns a hash with a path to each loopback address." );
+    $method->add_input_parameter( name        => "loopback_addresses",
+                                  description => "List of loopback ip addresses",
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+				  multiple    => 1,
+                                  required    => 1 );
+
+    $dispatcher->register_method($method);
 }
 
 sub _update_cache{
@@ -418,6 +431,48 @@ sub get_diff_text {
     $self->_update_cache();
 
     return $self->{'device'}->get_diff_text($self->{'ckts'}, $circuit_info);
+}
+
+=head2 get_default_paths
+
+=back 4
+
+=item B<$loopback_addresses> - An array of loopback ip addresses
+
+=over
+
+Determine the default forwarding path between this node and each ip
+address provided in $loopback_addresses. Returns a hash for each
+destination containing an array of link addresses, and its associated
+lsp name.
+
+    {
+      "72.16.0.11": {
+        "name": "OESS-L2PVN-R0-R5",
+        "path": [
+          "172.16.0.38",
+          "172.16.0.46"
+        ]
+      },
+      ...
+    }
+
+=cut
+sub get_default_paths {
+   my $self  = shift;
+   my $m_ref = shift;
+   my $p_ref = shift;
+
+   $self->{'logger'}->debug("Calling Switch.get_default_paths");
+
+   my $addrs = $p_ref->{'loopback_addresses'}{'value'};
+   if (length($addrs) == 0) {
+       $self->{'logger'}->debug("get_default_paths: loopback array was empty");
+       return {};
+   }
+
+   my $default_paths = $self->{'device'}->get_default_paths($addrs);
+   return $default_paths;
 }
 
 sub get_device_circuit_ids {

@@ -100,6 +100,15 @@ sub new{
     return $self;
 }
 
+=head2 get_type
+
+=cut
+
+sub get_type{
+    my $self = shift;
+    return $self->{'type'};
+}
+
 =head2 get_id
 
     returns the id of the circuit
@@ -188,12 +197,24 @@ sub _process_circuit_details{
     $self->{'active_path'} = $self->{'details'}->{'active_path'};
     $self->{'logger'}->debug("Active path: " . $self->get_active_path());
     $self->{'static_mac'} = $self->{'details'}->{'static_mac'};
+    $self->{'has_primary_path'} =0;
     $self->{'has_backup_path'} = 0;
+    $self->{'has_tertiary_path'} = 0;
+   
     $self->{'type'} = $self->{'details'}->{'type'};
     $self->{'interdomain'} = 0;
+    if(scalar(@{$self->{'details'}->{'links'}})> 0){
+        $self->{'has_primary_path'} = 1;
+    }
+
     if(scalar(@{$self->{'details'}->{'backup_links'}}) > 0){
         $self->{'logger'}->debug("Circuit has backup path");
 	$self->{'has_backup_path'} = 1;
+    }
+
+    if(scalar(@{$self->{'details'}->{'tertiary_links'}}) > 0){
+        $self->{'logger'}->debug("Circuit has backup path");
+        $self->{'has_tertiary_path'} = 1;
     }
 
     $self->{'endpoints'} = $self->{'details'}->{'endpoints'};
@@ -1046,11 +1067,30 @@ sub generate_clr{
 	$clr .= "  " . $endpoint->{'node'} . " - " . $endpoint->{'interface'} . " VLAN " . $endpoint->{'tag'} . "\n";
     }
 
-    $clr .= "\nPrimary Path:\n";
-    foreach my $path (@{$self->get_path( path => 'primary' )}){
-	$clr .= "  " . $path->{'name'} . "\n";
-    }
+    if($self->{'type'} eq 'mpls'){
 
+        if(defined($self->get_path( path => 'tertiary') )){
+            $clr .= "\nActive Path:\n";
+            foreach my $path (@{$self->get_path( path => 'tertiary' )}){
+                $clr .= "  " . $path->{'name'} . "\n";
+            }
+        }
+
+        if($#{$self->get_path( path => 'primary')} > -1){
+            $clr .= "\nPrimary Path:\n";
+            foreach my $path (@{$self->get_path( path => 'primary' )}){
+                $clr .= "  " . $path->{'name'} . "\n";
+            }
+        }
+
+    }else{
+        
+        $clr .= "\nPrimary Path:\n";
+        foreach my $path (@{$self->get_path( path => 'primary' )}){
+            $clr .= "  " . $path->{'name'} . "\n";
+        }
+    }
+    
     if($self->has_backup_path()){
         
         $clr .= "\nBackup Path:\n";
@@ -1058,6 +1098,7 @@ sub generate_clr{
             $clr .= "  " . $path->{'name'} . "\n";
         }
     }
+        
 
     return $clr;
 }
@@ -1090,6 +1131,15 @@ sub get_endpoints{
     return $self->{'endpoints'};
 }
 
+=head2 has_primary_path
+
+=cut
+
+sub has_primary_path{
+    my $self = shift;
+    return $self->{'has_primary_path'};
+}
+
 =head2 has_backup_path
 
 =cut
@@ -1097,6 +1147,15 @@ sub get_endpoints{
 sub has_backup_path{
     my $self = shift;
     return $self->{'has_backup_path'};
+}
+
+=head2 has_tertiary_path
+
+=cut
+
+sub has_tertiary_path{
+    my $self = shift;
+    return $self->{'has_tertiary_path'};
 }
 
 =head2 get_path
@@ -1119,6 +1178,8 @@ sub get_path{
     
     if($path eq 'backup'){
         return $self->{'details'}->{'backup_links'};
+    }elsif($path eq 'tertiary'){
+        return $self->{'details'}->{'tertiary_links'};
     }else{
         return $self->{'details'}->{'links'};
     }
@@ -1133,6 +1194,147 @@ sub get_active_path{
     my $self = shift;
     
     return $self->{'active_path'};
+}
+
+=head2 change_mpls_path
+
+=cut
+
+sub change_mpls_path{
+    my $self = shift;
+    my %params = @_;
+
+    my $do_commit = 1;
+    if(defined($params{'do_commit'})){
+        $do_commit = $params{'do_commit'};
+    }
+
+    if(!defined($params{'user_id'})){
+        #if this isn't defined set the system user
+        $params{'user_id'} = 1;
+    }
+    my $user_id = $params{'user_id'};
+    my $reason = $params{'reason'};
+
+    return if($#{$params{'links'}} == -1);
+
+    if($self->get_type() ne 'mpls'){
+        $self->{'logger'}->error("change mpls path can only be done on mpls circuits");
+        return;
+    }
+
+    if($self->has_primary_path()){
+        if(_compare_links($self->get_path( path => 'primary' ), $params{'links'})){
+            #ok set this as the active path
+            if($self->get_active_path() ne 'primary'){
+                return $self->_change_active_path( new_path => 'primary' );
+            }else{
+                return 1;
+            }
+        }
+    }
+    
+    #ok we either didn't have a primary path or it didn't match
+    if($self->has_backup_path()){
+        if(_compare_links($self->get_path( path => 'backup'), $params{'links'})){
+            #ok set backup as the active path
+            if($self->get_active_path() ne 'backup'){
+                return $self->_change_active_path( new_path => 'backup' );
+            }else{
+                return 1;
+            }
+        }
+    }
+
+    if($self->has_tertiary_path() || defined($self->{'details'}->{'paths'}->{'tertiary'}->{'path_id'})){
+        if(!_compare_links($self->get_path( path => 'tertiary'), $params{'links'})){
+            #doesn't match so need to update it!
+            my $query = "update link_path_membership set end_epoch = unix_timestamp(NOW()) where path_id = ? and end_epoch = -1";
+            $self->{'db'}->_execute_query($query,[$self->{'details'}->{'paths'}->{'tertiary'}->{'path_id'}]);
+            $query = "insert into link_path_membership (end_epoch,link_id,path_id,start_epoch,interface_a_vlan_id,interface_z_vlan_id) VALUES (-1,?,?,unix_timestamp(NOW()),?,?)";
+            foreach my $link (@{$params{'links'}}){
+                $self->{'db'}->_execute_query($query, [$link->{'link_id'}, $self->{'details'}->{'paths'}->{'tertiary'}->{'path_id'}, $self->{'circuit_id'} + 5000, $self->{'circuit_id'} + 5000]);
+            }
+        }
+
+        #make sure this is the active path if we made it here!
+        if($self->get_active_path() ne 'tertiary'){
+            return $self->_change_active_path( new_path => 'tertiary' );
+        }else{
+            return 1;
+        }
+    }else{
+        
+        #create the tertiary path
+        my @link_ids;
+        foreach my $link (@{$params{'links'}}){
+            push(@link_ids, $link->{'link_id'});
+        }
+
+        $self->{'db'}->create_path( $self->{'circuit_id'}, \@link_ids, 'tertiary');
+        return 1;
+    }
+}
+
+sub _change_active_path{
+    my $self = shift;
+    my %params = @_;
+    
+    my $old_path_id = $self->{'paths'}->{$self->get_active_path()}->{'path_id'};
+    my $new_path_id = $self->{'paths'}->{$params{'new_path'}}->{'path_id'};
+
+    # decom the current path instantiation
+    my $query = "update path_instantiation set path_instantiation.end_epoch = unix_timestamp(NOW()) " .
+        " where path_instantiation.path_id = ? and path_instantiation.end_epoch = -1";
+    
+    my $success = $self->{'db'}->_execute_query($query, [$old_path_id]);
+
+    if (! $success ){
+        $self->error("Unable to change path_instantiation of current path to inactive.");
+        return;
+    }
+
+    # create a new path instantiation of the old path
+    $query = "insert into path_instantiation (path_id, start_epoch, end_epoch, path_state) values (?, unix_timestamp(NOW()), -1, 'available')";
+    my $new_available = $self->{'db'}->_execute_query($query, [$old_path_id]);
+    $query = "update path_instantiation set path_state = 'active' where path_id = ? and end_epoch = -1";
+
+    $success = $self->{'db'}->_execute_query($query, [$new_path_id]);
+
+    if (! $success){
+        $self->{'logger'}->error("Unable to change state to active in alternate path");
+        $self->error("Unable to change state to active in alternate path.");
+        return;
+    }
+
+    return 1;
+
+}
+
+sub _compare_links{
+    my $a_links = shift;
+    my $z_links = shift;
+
+    if($#{$a_links} != $#{$z_links}){
+        return 0;
+    }
+
+    my $same = 1;
+    foreach my $a_link (@{$a_links}){
+        my $found = 0;
+        foreach my $z_link (@{$z_links}){
+            if($a_link->{'name'} eq $z_link->{'name'}){
+                $found = 1;
+            }
+        }
+        
+        if(!$found){
+            $same = 0;
+        }
+    }
+    
+    return $same;
+    
 }
 
 =head2 change_path
@@ -1155,6 +1357,11 @@ sub change_path {
     my $user_id = $params{'user_id'};
     my $reason = $params{'reason'};
 
+    if($self->get_type() ne 'openflow'){
+        $self->{'logger'}->error("Change path can only be called for OpenFlow circuits");
+        return;
+    }
+
     #change the path
 
     if(!$self->has_backup_path()){
@@ -1167,6 +1374,7 @@ sub change_path {
     if($current_path eq 'primary'){
 	$alternate_path = 'backup';
     }
+
     $self->{'logger'}->debug("Circuit ". $self->get_name()  . " is changing to " . $alternate_path);
 
      my $query  = "select path.path_id from path " .
@@ -1447,16 +1655,6 @@ sub get_path_status{
     
     return 1;
 
-}
-
-=head2 get_type
-
-=cut
-
-sub get_type{
-    my $self = shift;
-    return $self->{'type'};
-    
 }
 
 =head2 error

@@ -19,6 +19,7 @@ function NDDIMap(div_id, interdomain_mode, options){
   this.MAJORITY_LINK_DOWN = "#E59916"; //orange
   this.LINK_PRIMARY       = "#b7f33b";//"#DEA567";
   this.LINK_SECONDARY     = "#557416";//"#2b882c";
+  this.LINK_TERTIARY      = "#00FF00";
   this.LINK_MAINT         = "#00ABA9";     //teal
 
   this.ACTIVE_HALO_COLOR   = "#f47e20";//"#FFFFCC";//"#DADADA";
@@ -650,6 +651,24 @@ function NDDIMap(div_id, interdomain_mode, options){
 	  var secondary_path_feature = new OpenLayers.Feature.Vector(secondary_path, null, secondary_style);
 	  secondary_path_feature.type = "secondary";
 
+          // now make the "tertiary path" feature above each line
+          //
+          var tertiary_path = new OpenLayers.Geometry.LineString([from_ll, to_ll]);
+          tertiary_path.element_name  = link_name;
+          tertiary_path.link_capacity = capacity;
+          tertiary_path.link_state    = state;
+
+          var tertiary_style = {
+              strokeWidth: style.strokeWidth,
+              strokeOpacity: 0.0,
+              strokeDashstyle: "dash",
+              strokeColor: this.LINK_TERTIARY,
+              graphicZIndex: 6
+          };
+
+          var tertiary_path_feature = new OpenLayers.Feature.Vector(tertiary_path, null, tertiary_style);
+          tertiary_path_feature.type = "secondary";
+
 	  // lastly make the "fat path" feature that sits on top of everything and is fully transparent to provide a
 	  // tolerance zone for clicking and hovering
 	  var fat_path = new OpenLayers.Geometry.LineString([from_ll, to_ll]);
@@ -668,16 +687,20 @@ function NDDIMap(div_id, interdomain_mode, options){
 	  // keep some references to these guys for later
 	  feature.halo_feature                = halo_feature;
 	  feature.secondary_path_feature      = secondary_path_feature;
+          feature.tertiary_path_feature       = tertiary_path_feature;
 
 	  secondary_path_feature.halo_feature    = halo_feature;
 	  secondary_path_feature.primary_feature = feature;
-
+          
+          tertiary_path_feature.halo_feature = halo_feature;
+          tertiary_path_feature.primary_feature = feature;
+          
 	  halo_feature.primary_feature = feature;
 
 	  fat_feature.primary_feature = feature;
 
 	  // order is important! must make the feature sandwich
-      var features = [feature, halo_feature, secondary_path_feature, fat_feature];
+          var features = [feature, halo_feature, secondary_path_feature, fat_feature, tertiary_path_feature];
 	  this.map.layers[1].addFeatures(features);
 
 	  if (options.active){
@@ -851,6 +874,10 @@ function NDDIMap(div_id, interdomain_mode, options){
 	      continue;
 	  }
 
+          if (feature.type == "tertiary"){
+              continue;
+          }
+
 	  // if this feature is a node, ie a point on the map
 	  //if (feature.geometry.id.indexOf('Point') != -1){
 	  if (feature.geometry.oess_point_type == "node"){
@@ -906,6 +933,7 @@ function NDDIMap(div_id, interdomain_mode, options){
     var endpoints   = session.data.endpoints || [];
     var links       = session.data.links || [];
     var backups     = session.data.backup_links || [];
+    var tertiarys    = session.data.tertiary_links || [];
     var active_path = session.data.active_path || "none";
     var loop_node   = session.data.loop_node || null;
 
@@ -926,6 +954,10 @@ function NDDIMap(div_id, interdomain_mode, options){
 	if (feature.type == "secondary"){
 	    continue;
 	}
+
+        if (feature.type == "tertiary"){
+            continue;
+        }
 
 	var was_selected = false, dual = false;
 
@@ -1042,10 +1074,49 @@ function NDDIMap(div_id, interdomain_mode, options){
 
 	  }
 
+          for (var i = 0; i < tertiarys.length; i++){
+
+              var link = tertiarys[i];
+
+              if (this.compare_link_names(feature.geometry.element_name, link)){
+                  // if this was previously selected, we have a doubly used link and should color
+                  if (was_selected){
+                      if (feature.secondary_path_feature){
+                          this.changeLinkOpacity(feature.secondary_path_feature, this.ACTIVE_LINK_OPACITY);
+                          this.changeLinkWidth(feature, this.ACTIVE_LINK_WIDTH);
+                      }
+                      dual = true;
+                  }
+
+                  // otherwise this is just a standalone backup link, color it as such
+                  else{
+                      this.changeLinkColor(feature, this.LINK_TERTIARY);
+
+                      if (active_path == "tertiary"){
+                          this.showHalo(feature, this.ACTIVE_HALO_COLOR);
+                          this.changeLinkOpacity(feature, this.ACTIVE_LINK_OPACITY);
+                          this.changeLinkWidth(feature, this.ACTIVE_LINK_WIDTH);
+                      }
+                      else if (active_path == "none"){
+                          this.changeLinkOpacity(feature, this.ACTIVE_LINK_OPACITY);
+                          this.changeLinkWidth(feature, this.INACTIVE_LINK_WIDTH);
+                      }
+                      else{
+                          this.hideHalo(feature);
+                          this.changeLinkOpacity(feature, this.INACTIVE_LINK_OPACITY);
+                          this.changeLinkWidth(feature, this.INACTIVE_LINK_WIDTH);
+                      }
+
+                  }
+                  was_selected = true;
+              }
+
+          }
+
 	  // we have a primary and NOT a secondary, hide the secondary path
 	  if (was_selected && ! dual){
-	      if (feature.secondary_path_feature){
-		  this.changeLinkOpacity(feature.secondary_path_feature, 0.0);
+	      if (feature.tertiary_path_feature){
+		  this.changeLinkOpacity(feature.tertiary_path_feature, 0.0);
 	      }
 	  }
 
@@ -1066,8 +1137,8 @@ function NDDIMap(div_id, interdomain_mode, options){
               }
 	      }
 
-	      if (feature.secondary_path_feature){
-		  this.changeLinkOpacity(feature.secondary_path_feature, 0.0);
+	      if (feature.tertiary_path_feature){
+		  this.changeLinkOpacity(feature.tertiary_path_feature, 0.0);
 	      }
 
 	  }

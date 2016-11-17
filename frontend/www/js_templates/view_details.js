@@ -35,6 +35,7 @@ function make_circuit_details_datasource(){
     {key: "bandwidth", parser: "number"},
     {key: "links"},
     {key: "backup_links"},
+    {key: "tertiary_links"},
     {key: "endpoints"},
     {key: "state"},
     {key: "active_path"},
@@ -62,6 +63,7 @@ function save_session_from_datasource(details){
     session.data.endpoints    = [];
     session.data.links        = [];
     session.data.backup_links = [];
+    session.data.tertiary_links = [];
     session.data.restore_to_primary = details.restore_to_primary;
     session.data.loop_node = details.loop_node;
 
@@ -96,6 +98,11 @@ function save_session_from_datasource(details){
     for (var i = 0; i < details.backup_links.length; i++){
         var path_component = details.backup_links[i];
         session.data.backup_links.push(path_component.name);
+    }
+
+    for (var i = 0; i < details.tertiary_links.length; i++){
+        var path_component = details.tertiary_links[i];
+        session.data.tertiary_links.push(path_component.name);
     }
 
     session.save();
