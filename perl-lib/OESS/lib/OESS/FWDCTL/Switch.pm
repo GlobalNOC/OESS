@@ -132,12 +132,7 @@ sub new {
     my $method = GRNOC::RabbitMQ::Method->new( name => "add_vlan",
 					       async => 1,
 					       description => "adds a vlan for this switch",
-					       callback => sub { my $status = $self->change_path(@_);
-                                                                 if(!defined($status)){
-                                                                     $status = 1
-                                                                 };
-                                                                 return {status => $status, msg => "I'm alive!", total_rules => $self->{'flows'}};
-                                               });
+					       callback => sub { $self->{'logger'}->error("ADD VLAN"); $self->add_vlan(@_); });
     
     $method->add_input_parameter( name => "circuit_id",
                                   description => "circuit_id to be added",
@@ -148,12 +143,7 @@ sub new {
     $method = GRNOC::RabbitMQ::Method->new( name => "remove_vlan",
 					    async => 1,
 					    description => "removes a vlan for this switch",
-					    callback => sub { my $status = $self->change_path(@_);
-                                                              if(!defined($status)){
-                                                                  $status = 1
-                                                              };
-                                                              return {status => $status, msg => "I'm alive!", total_rules => $self->{'flows'}}
-                                            });
+					    callback => sub { $self->remove_vlan(@_);  });
     
     $method->add_input_parameter( name => "circuit_id",
                                   description => "circuit_id to be removed",
@@ -164,14 +154,9 @@ sub new {
     $method = GRNOC::RabbitMQ::Method->new( name => "change_path",
 					    description => "changes the path on the specified circuits",
 					    async => 1,
-					    callback => sub { my $status = $self->change_path(@_); 
-                                                              if(!defined($status)){
-                                                                  $status = 1
-                                                              };
-                                                              return {status => $status, msg => "I'm alive!", total_rules => $self->{'flows'}};
-                                            });
+					    callback => sub { $self->change_path(@_); });
 
-    $method->add_input_parameter( name => "circuits",
+    $method->add_input_parameter( name => "circuit_id",
                                   description => "The message and paramteres to be run by the child",
                                   required => 1,
 				  multiple => 1,
@@ -424,7 +409,7 @@ sub change_path{
     my $p_ref = shift;
 
 
-    my $circuits = $p_ref->{'circuits'}{'value'};
+    my $circuits = $p_ref->{'circuit_id'}{'value'};
     
     $self->_update_cache();
     
@@ -489,6 +474,8 @@ sub add_vlan{
     $self->{'logger'}->info("Elapsed time to update cache: " . tv_interval( $start, $after_update_cache));
 
     my $commands = $self->_generate_commands($circuit,FWDCTL_ADD_VLAN);
+
+    $self->{'logger'}->debug("ADD VLAN FLOWS: " . Data::Dumper::Dumper($commands));
 
     my $after_create_flows = [gettimeofday];
 

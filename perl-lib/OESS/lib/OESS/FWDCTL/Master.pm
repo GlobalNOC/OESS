@@ -2014,6 +2014,7 @@ sub addVlan {
     # Circuit must have state set to deploying before installation may
     # proceed. Circuits with a state of scheduled shall not be added.
     if ($details->{'state'} eq 'scheduled') {
+        $self->{'logger'}->info("Scheduled an event!");
         $self->{'logger'}->info("Elapsed time addVlan: " . tv_interval( $start, [gettimeofday]));
         &$success_callback({status => $result, event_id => $event_id});
     }
@@ -2021,6 +2022,7 @@ sub addVlan {
     $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UP;
 
     foreach my $dpid (keys %dpids){
+        $self->{'logger'}->info("Sending message to DPID: " . $dpid);
         $self->send_message_to_child($dpid,{action => 'add_vlan', circuit_id => $circuit_id}, $event_id);
     }
 
