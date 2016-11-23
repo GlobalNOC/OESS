@@ -634,20 +634,29 @@ function page_init(){
         //make sure we didn't upset the user's view.
           var keep_map_position = true;
 
-	      ds.sendRequest("", {success: function(req, resp){
-			  var details = resp.results[0];
-			  save_session_from_datasource(details);
+	  ds.sendRequest("", {
+              success: function(req, resp) {
+		  var details = resp.results[0];
+		  save_session_from_datasource(details);
 
-			  for (var i = 0; i < session.data.endpoints.length; i++){
-			      nddi_map.removeNode(session.data.endpoints[i].node);
-			  } 
+		  for (var i = 0; i < session.data.endpoints.length; i++){
+		      nddi_map.removeNode(session.data.endpoints[i].node);
+		  }
 
-			  nddi_map.updateMapFromSession(session, true, keep_map_position);
+		  nddi_map.updateMapFromSession(session, true, keep_map_position);
+
+                  if (session.data.active_path == "tertiary") {
+                      nddi_map.setActiveLinks(session.data.tertiary_links);
+                  } else if (session.data.active_path == "backup") {
+                      nddi_map.setActiveLinks(session.data.backup_links);
+                  } else {
+                      nddi_map.setActiveLinks(session.data.links);
+                  }
               },
-			  failure: function(req, resp){
+	      failure: function(req, resp) {
 
-		      }
-		  });
+	      }
+	  });
 
 
 	  }, 10000);
