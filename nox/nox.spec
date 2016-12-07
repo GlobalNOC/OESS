@@ -10,7 +10,7 @@ Source0: nox.tar.gz
 #BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 
-BuildRequires:	gcc, gcc-c++,boost,dbus,boost-filesystem,boost-test,openssl-devel,boost-devel,python-devel
+BuildRequires:	gcc, gcc-c++,boost,dbus,boost-filesystem,boost-test,openssl-devel,boost-devel,python-devel,libtool
 Requires: dbus-python, python,openssl,swig,python,python-twisted,pygobject2
 
 %description
