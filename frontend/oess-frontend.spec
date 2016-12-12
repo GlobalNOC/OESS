@@ -18,6 +18,9 @@ Requires:       nddi-tiles
 Requires:	perl-Crypt-SSLeay
 Requires:	xmlsec1
 Requires:	xmlsec1-openssl
+Requires:	python >= 2.6
+Requires:	python-libs >= 2.6
+Requires:	python-simplejson
 BuildArch:	noarch
 %description
 
