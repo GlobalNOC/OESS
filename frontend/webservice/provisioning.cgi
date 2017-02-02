@@ -423,7 +423,6 @@ sub _fail_over {
     my $cv = AnyEvent->condvar;
 
     $client->changeVlanPath(circuit_id => $circuit_id, 
-                            async => 1,
                             async_callback => sub { 
                                 my $result = shift; 
                                 warn "Got a result\n";
@@ -473,7 +472,7 @@ sub _send_mpls_add_command {
     my $circuit_id = $args{'circuit_id'};
     warn "_send_mpls_add_command: Calling addVlan on circuit $circuit_id";
     my $cv = AnyEvent->condvar;
-    $client->addVlan(circuit_id => int($circuit_id), async => 1, async_callback => sub { 
+    $client->addVlan(circuit_id => int($circuit_id), async_callback => sub {
         my $result = shift; 
         $cv->send($result);
                      });
@@ -523,7 +522,7 @@ sub _send_add_command {
 
     my $circuit_id = $args{'circuit_id'};
     my $cv = AnyEvent->condvar;
-    $client->addVlan(circuit_id => $circuit_id, async => 1, async_callback => sub { my $result = shift; $cv->send($result) });
+    $client->addVlan(circuit_id => $circuit_id, async_callback => sub { my $result = shift; $cv->send($result) });
     my $result = $cv->recv();
 		     
     if($result->{'error'} || !defined $result->{'results'}){
@@ -565,7 +564,7 @@ sub _send_mpls_remove_command {
 
     my $circuit_id = $args{'circuit_id'};
     my $cv = AnyEvent->condvar;
-    $client->deleteVlan(circuit_id => $circuit_id, async => 1, async_callback => sub { my $result = shift; $cv->send($result) });
+    $client->deleteVlan(circuit_id => $circuit_id, async_callback => sub { my $result = shift; $cv->send($result) });
     
     my $result = $cv->recv();
     if($result->{'error'} || !($result->{'results'})){
@@ -608,7 +607,7 @@ sub _send_remove_command {
 
     my $circuit_id = $args{'circuit_id'};
     my $cv = AnyEvent->condvar;
-    $client->deleteVlan(circuit_id => $circuit_id, async => 1, async_callback => sub { my $result = shift; $cv->send($result) });
+    $client->deleteVlan(circuit_id => $circuit_id, async_callback => sub { my $result = shift; $cv->send($result) });
     my $result = $cv->recv();
     if($result->{'error'} || !($result->{'results'})){
         return;
@@ -651,7 +650,7 @@ sub _send_update_cache{
         return;
     }
     my $cv = AnyEvent->condvar;
-    $client->update_cache(circuit_id => $args{'circuit_id'}, async => 1, async_callback => sub { my $result = shift; $cv->send($result) });
+    $client->update_cache(circuit_id => $args{'circuit_id'}, async_callback => sub { my $result = shift; $cv->send($result) });
     my $result = $cv->recv();
     if($result->{'error'} || !($result->{'results'})){
         return;
