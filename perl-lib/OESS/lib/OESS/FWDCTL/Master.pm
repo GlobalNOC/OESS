@@ -2015,17 +2015,38 @@ sub addVlan {
     # proceed. Circuits with a state of scheduled shall not be added.
     if ($details->{'state'} eq 'scheduled') {
         $self->{'logger'}->info("Elapsed time addVlan: " . tv_interval( $start, [gettimeofday]));
-        &$success_callback({status => $result, event_id => $event_id});
+        &$success_callback({status => $result});
     }
 
     $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UP;
 
+    my $minisem = scalar keys %dpids;
     foreach my $dpid (keys %dpids){
-        $self->send_message_to_child($dpid,{action => 'add_vlan', circuit_id => $circuit_id}, $event_id);
-    }
+        $self->{'children'}->{$dpid}->{'rpc'}->add_vlan(circuit_id => $circuit_id,
+                                                        async_callback => sub {
+                                                            my $res = shift;
+                                                            if (defined $res->{'error'}) {
+                                                                $minisem = -1; # Prevents success from being reported
+                                                                $self->{'logger'}->error($res->{'error'});
+                                                                &$error_callback({error => $res->{'error'}});
+                                                                return;
+                                                            }
 
-    $self->{'logger'}->info("Elapsed time addVlan: " . tv_interval( $start, [gettimeofday]));
-    &$success_callback({status => $result, event_id => $event_id});
+                                                            if ($minisem == -1) {
+                                                                $self->{'children'}->{$dpid}->{'rpc'}->remove_vlan(circuit_id => $circuit_id,
+                                                                                                                   async_callback => sub {
+                                                                                                                       $self->{'logger'}->error("Removed circuit $circuit_id from $dpid.");
+                                                                                                                   });
+                                                                return;
+                                                            }
+
+                                                            $minisem = $minisem - 1;
+                                                            if ($minisem == 0) {
+                                                                $self->{'logger'}->info("Elapsed time addVlan: " . tv_interval($start, [gettimeofday]));
+                                                                &$success_callback({status => $res->{'results'}->{'status'}});
+                                                            }
+                                                        });
+    }
 }
 
 =head2 deleteVlan
