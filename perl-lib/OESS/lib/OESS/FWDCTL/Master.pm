@@ -2039,45 +2039,49 @@ sub addVlan {
 
     $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UP;
 
-    my $minisem = scalar keys %dpids;
-    my $err     = undef;
+    my $cv  = AnyEvent->condvar;
+    my $err = undef;
+
+    # Callback to be executed when all calls to add_vlan return.
+    $cv->begin(
+        sub {
+            if (defined $err) {
+                foreach my $dpid (keys %dpids) {
+                    $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
+                    $self->{'fwdctl_events'}->remove_vlan(circuit_id     => $circuit_id,
+                                                          async_callback => sub {
+                                                              $self->{'logger'}->error("Removed circuit $circuit_id from $dpid.");
+                                                          });
+                }
+
+                $self->{'logger'}->error("Failed to add VLAN. Elapsed time: " . tv_interval($start, [gettimeofday]));
+                &$error_callback({error => $err});
+            }
+
+            $self->{'logger'}->info("Added VLAN. Elapsed time: " . tv_interval($start, [gettimeofday]));
+            &$success_callback({status => FWDCTL_SUCCESS});
+        }
+    );
 
     foreach my $dpid (keys %dpids){
+        $cv->begin();
+
         $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
         $self->{'fwdctl_events'}->add_vlan(
             circuit_id     => $circuit_id,
             async_callback => sub {
                 my $res = shift;
 
-                # Once $minisem is zero all responses have been
-                # received. Use this opportunity to check for any
-                # errors that may have occurred.
-                $minisem = $minisem - 1;
-
                 if (defined $res->{'error'}) {
                     $err = $res->{'error'};
                     $self->{'logger'}->error($err);
                 }
 
-                if ($minisem == 0) {
-                    if (defined $err) {
-                        foreach my $id (keys %dpids) {
-                            $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
-                            $self->{'fwdctl_events'}->remove_vlan(circuit_id     => $circuit_id,
-                                                                  async_callback => sub {
-                                                                      $self->{'logger'}->error("Removed circuit $circuit_id from $dpid.");
-                                                                  });
-                        }
-
-                        $self->{'logger'}->error("Failed to add VLAN. Elapsed time: " . tv_interval($start, [gettimeofday]));
-                        &$error_callback({error => $err});
-                    }
-
-                    $self->{'logger'}->info("Added VLAN. Elapsed time: " . tv_interval($start, [gettimeofday]));
-                    &$success_callback({status => $res->{'results'}->{'status'}});
-                }
+                $cv->end();
             });
     }
+
+    $cv->end();
 }
 
 =head2 deleteVlan
