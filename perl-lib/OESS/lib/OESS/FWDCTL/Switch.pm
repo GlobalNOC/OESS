@@ -132,7 +132,7 @@ sub new {
     my $method = GRNOC::RabbitMQ::Method->new( name => "add_vlan",
 					       async => 1,
 					       description => "adds a vlan for this switch",
-					       callback => sub { my $status = $self->change_path(@_);
+					       callback => sub { my $status = $self->add_vlan(@_);
                                                                  if(!defined($status)){
                                                                      $status = 1
                                                                  };
@@ -148,7 +148,7 @@ sub new {
     $method = GRNOC::RabbitMQ::Method->new( name => "remove_vlan",
 					    async => 1,
 					    description => "removes a vlan for this switch",
-					    callback => sub { my $status = $self->change_path(@_);
+					    callback => sub { my $status = $self->remove_vlan(@_);
                                                               if(!defined($status)){
                                                                   $status = 1
                                                               };
