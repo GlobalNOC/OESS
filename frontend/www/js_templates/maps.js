@@ -700,7 +700,7 @@ function NDDIMap(div_id, interdomain_mode, options){
 	  fat_feature.primary_feature = feature;
 
 	  // order is important! must make the feature sandwich
-          var features = [feature, halo_feature, secondary_path_feature, fat_feature, tertiary_path_feature];
+          var features = [feature, halo_feature, secondary_path_feature, tertiary_path_feature, fat_feature];
 	  this.map.layers[1].addFeatures(features);
 
 	  if (options.active){
@@ -925,6 +925,37 @@ function NDDIMap(div_id, interdomain_mode, options){
       };
       return false;
   };
+
+    this.setActiveLinks = function(links) {
+        for (var i = 0; i < this.map.layers[1].features.length; i  ) {
+            var feature = this.map.layers[1].features[i];
+
+            // All non-point geometries are links
+            if (feature.geometry.id.indexOf("Point") == -1) {
+                if (feature.geometry.element_name == "fat_line") {
+                    continue;
+                }
+                if (feature.geometry.element_name == "halo_line") {
+                    continue;
+                }
+
+                for (var j = 0; j < links.length; j  ) {
+                    var link = links[j];
+
+                    if (this.compare_link_names(feature.geometry.element_name, link)) {
+                        this.showHalo(feature, this.ACTIVE_HALO_COLOR);
+                        this.updateFeature(feature.halo_feature, "strokeOpacity", 1.0);
+                        this.updateFeature(feature.halo_feature, "strokeColor", this.ACTIVE_HALO_COLOR);
+                        break;
+                    } else {
+                        this.hideHalo(feature);
+                        this.updateFeature(feature.halo_feature, "strokeOpacity", 0.0);
+                    }
+                }
+            }
+        }
+    };
+
   // convenience function to update the map based on what we've selected and have
   // stored in our session cookie
   this.updateMapFromSession = function(session, discolor_nodes, keep_map_position){

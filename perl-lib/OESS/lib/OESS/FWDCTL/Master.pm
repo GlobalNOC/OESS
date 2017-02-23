@@ -1352,8 +1352,17 @@ sub _restore_down_circuits{
     #signal all the children
 
     foreach my $dpid (keys %dpids){
-        $self->{'logger'}->debug("Telling child: " . $dpid . " that its time to work!");
-        $self->send_message_to_child($dpid,{action => 'change_path', circuit_id => $dpids{$dpid}},$event_id);
+        $self->{'logger'}->debug("Telling child: " . $dpid . " to change paths!");
+
+        $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
+        $self->{'fwdctl_events'}->change_path(circuits       => $dpids{$dpid},
+                                              async_callback => sub {
+                                                  my $response = shift;
+
+                                                  if (defined $response->{'error'} && defined $response->{'error_text'}) {
+                                                      $self->{'logger'}->error($response->{'error_text'});
+                                                  }
+                                              });
     }
 
     #commit our changes to the database
@@ -1475,8 +1484,17 @@ sub _fail_over_circuits{
     my $result = FWDCTL_SUCCESS;
 
     foreach my $dpid (keys %dpids){
-        $self->{'logger'}->debug("Notifying children of path change in _fail_over_circuits.");
-        $self->send_message_to_child($dpid, { action => 'change_path', circuit_id => $dpids{$dpid} }, $event_id);
+        $self->{'logger'}->debug("Telling child: " . $dpid . " to change paths!");
+
+        $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
+        $self->{'fwdctl_events'}->change_path(circuits       => $dpids{$dpid},
+                                              async_callback => sub {
+                                                  my $response = shift;
+
+                                                  if (defined $response->{'error'} && defined $response->{'error_text'}) {
+                                                      $self->{'logger'}->error($response->{'error_text'});
+                                                  }
+                                              });
     }
 
     $self->{'db'}->_commit();
@@ -1977,6 +1995,7 @@ sub addVlan {
     my $start = [gettimeofday];
 
     my $success_callback = $m_ref->{'success_callback'};
+    my $error_callback   = $m_ref->{'error_callback'};
 
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
@@ -2016,18 +2035,53 @@ sub addVlan {
     if ($details->{'state'} eq 'scheduled') {
         $self->{'logger'}->info("Scheduled an event!");
         $self->{'logger'}->info("Elapsed time addVlan: " . tv_interval( $start, [gettimeofday]));
-        &$success_callback({status => $result, event_id => $event_id});
+        &$success_callback({status => $result});
     }
 
     $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UP;
 
+    my $cv  = AnyEvent->condvar;
+    my $err = '';
+
+    # Callback to be executed when all calls to add_vlan return.
+    $cv->begin(
+        sub {
+            if ($err ne '') {
+                foreach my $dpid (keys %dpids) {
+                    $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
+                    $self->{'fwdctl_events'}->remove_vlan(circuit_id     => $circuit_id,
+                                                          async_callback => sub {
+                                                              $self->{'logger'}->error("Removed circuit $circuit_id from $dpid.");
+                                                          });
+                }
+
+                $self->{'logger'}->error("Failed to add VLAN. Elapsed time: " . tv_interval($start, [gettimeofday]));
+                &$error_callback({error => $err});
+            }
+
+            $self->{'logger'}->info("Added VLAN. Elapsed time: " . tv_interval($start, [gettimeofday]));
+            &$success_callback({status => FWDCTL_SUCCESS});
+        }
+    );
+
     foreach my $dpid (keys %dpids){
-        $self->{'logger'}->info("Sending message to DPID: " . $dpid);
-        $self->send_message_to_child($dpid,{action => 'add_vlan', circuit_id => $circuit_id}, $event_id);
+        $cv->begin();
+
+        $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
+        $self->{'fwdctl_events'}->add_vlan(
+            circuit_id     => $circuit_id,
+            async_callback => sub {
+                my $res = shift;
+
+                if (defined $res->{'error'}) {
+                    $self->{'logger'}->error($res->{'error'});
+                    $err .= $res->{'error'} . "\n";
+                }
+                $cv->end();
+            });
     }
 
-    $self->{'logger'}->info("Elapsed time addVlan: " . tv_interval( $start, [gettimeofday]));
-    &$success_callback({status => $result, event_id => $event_id});
+    $cv->end();
 }
 
 =head2 deleteVlan
@@ -2120,15 +2174,37 @@ sub changeVlanPath {
         $dpids{$flow->get_dpid()} = 1;
     }
     
-    my $event_id = $self->_generate_unique_event_id();
+    my $result  = FWDCTL_SUCCESS;
+    my $share   = scalar keys %dpids;
+    my $success = $m_ref->{'success_callback'};
 
-    my $result = FWDCTL_SUCCESS;
     foreach my $dpid (keys %dpids){
-        $self->send_message_to_child($dpid,{action => 'change_path', circuit_id => [$circuit_id]}, $event_id);
-    }
-    $self->{'logger'}->warn("Change Path Event ID: " . $event_id);
+        $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
+        $self->{'fwdctl_events'}->change_path(circuits       => [$circuit_id],
+                                              async_callback => sub {
+                                                  my $response = shift;
 
-    $m_ref->{'success_callback'}({status => $result, event_id => $event_id});
+                                                  # {
+                                                  #   results => {
+                                                  #     msg => 'sent flows',
+                                                  #     status => '1',
+                                                  #     total_flows => '3'
+                                                  #   }
+                                                  # }
+
+                                                  if (defined $response->{'error'} && defined $response->{'error_text'}) {
+                                                      $self->{'logger'}->error($response->{'error_text'});
+                                                      return &$success({ error => $response->{'error_text'} });
+                                                  }
+
+                                                  $share -= 1;
+                                                  if ($share == 0) {
+                                                      return &$success($response);
+                                                  }
+                                              });
+    }
+    # $self->{'logger'}->warn("Change Path Event ID: " . $event_id);
+    # $m_ref->{'success_callback'}({status => $result, event_id => $event_id});
 }
 
 =head2 get_event_status
