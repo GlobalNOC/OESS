@@ -2124,7 +2124,7 @@ sub changeVlanPath {
 
     my $result = FWDCTL_SUCCESS;
     foreach my $dpid (keys %dpids){
-        $self->send_message_to_child($dpid,{action => 'change_path', circuits => [$circuit_id]}, $event_id);
+        $self->send_message_to_child($dpid,{action => 'change_path', circuit_id => [$circuit_id]}, $event_id);
     }
     $self->{'logger'}->warn("Change Path Event ID: " . $event_id);
 
