@@ -2040,12 +2040,12 @@ sub addVlan {
     $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UP;
 
     my $cv  = AnyEvent->condvar;
-    my $err = undef;
+    my $err = '';
 
     # Callback to be executed when all calls to add_vlan return.
     $cv->begin(
         sub {
-            if (defined $err) {
+            if ($err ne '') {
                 foreach my $dpid (keys %dpids) {
                     $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
                     $self->{'fwdctl_events'}->remove_vlan(circuit_id     => $circuit_id,
@@ -2073,10 +2073,9 @@ sub addVlan {
                 my $res = shift;
 
                 if (defined $res->{'error'}) {
-                    $err = $res->{'error'};
-                    $self->{'logger'}->error($err);
+                    $self->{'logger'}->error($res->{'error'});
+                    $err .= $res->{'error'} . "\n";
                 }
-
                 $cv->end();
             });
     }
