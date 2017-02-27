@@ -510,16 +510,15 @@ sub _send_add_command {
     $client->addVlan(circuit_id => $circuit_id,
                      async_callback => sub {
                          my $result = shift;
-
-                         if (defined $result->{'error'} || !defined $result->{'results'}){
-                             warn "Error occured while calling addVlan: " . $result->{'error'};
-                             return undef;
-                         }
-
                          $cv->send($result);
                      });
 
     my $result = $cv->recv();
+    if (defined $result->{'error'} || !defined $result->{'results'}){
+        warn "Error occured while calling addVlan: " . $result->{'error'};
+        return undef;
+    }
+
     return $result->{'results'}->{'status'};
 }
 
@@ -541,7 +540,11 @@ sub _send_mpls_remove_command {
 
     my $circuit_id = $args{'circuit_id'};
     my $cv = AnyEvent->condvar;
-    $client->deleteVlan(circuit_id => $circuit_id, async_callback => sub { my $result = shift; $cv->send($result) });
+    $client->deleteVlan(circuit_id => $circuit_id,
+                        async_callback => sub {
+                            my $result = shift;
+                            $cv->send($result)
+                        });
     
     my $result = $cv->recv();
     if($result->{'error'} || !($result->{'results'})){
@@ -584,28 +587,20 @@ sub _send_remove_command {
 
     my $circuit_id = $args{'circuit_id'};
     my $cv = AnyEvent->condvar;
-    $client->deleteVlan(circuit_id => $circuit_id, async_callback => sub { my $result = shift; $cv->send($result) });
+    $client->deleteVlan(circuit_id => $circuit_id,
+                        async_callback => sub {
+                            my $result = shift;
+                            $cv->send($result)
+                        });
+
     my $result = $cv->recv();
-    if($result->{'error'} || !($result->{'results'})){
-        return;
+    return $result;
+    if (defined $result->{'error'} || !defined $result->{'results'}){
+        warn "Error occured while calling deleteVlan: " . $result->{'error'};
+        return undef;
     }
 
-    my $event_id = $result->{'results'}->{'event_id'};
-
-    my $final_res = FWDCTL_WAITING;
-
-    while($final_res == FWDCTL_WAITING){
-        usleep(1000000);
-        my $res = $client->get_event_status(event_id => $event_id);
-
-        if(defined($res->{'error'}) || !defined($res->{'results'})){
-            return;
-        }
-
-        $final_res = $res->{'results'}->{'status'};
-    }
-
-    return $final_res;
+    return $result->{'results'}->{'status'};
 }
 
 sub _send_update_cache{
@@ -1026,8 +1021,8 @@ sub remove_circuit {
     }
 
     # removing it now, otherwise we'll just schedule it for later
+    my $result;
     if ( $remove_time && $remove_time <= time() ) {
-        my $result;
         if($type eq 'openflow'){
             $result = _send_remove_command( circuit_id => $circuit_id );
         }else{
@@ -1081,9 +1076,7 @@ sub remove_circuit {
 
     }
 
-    $results->{'results'} = [ { success => 1 } ];
-
-    return $results;
+    return $result;
 }
 
 sub reprovision_circuit {
