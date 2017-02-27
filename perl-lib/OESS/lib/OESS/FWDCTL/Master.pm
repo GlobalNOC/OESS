@@ -177,10 +177,17 @@ sub new {
     $self->{'node_info'} = {};
     $self->{'link_maintenance'} = {};
 
-    $self->update_cache(-1);
+    $self->update_cache({
+        success_callback => sub {
 
-    $self->{'logger'}->error("FWDCTL INIT COMPLETE");
+        },
+        error_callback => sub {
 
+        }},
+        {circuit_id => {value => -1}}
+    );
+
+    $self->{'logger'}->info("FWDCTL INIT COMPLETE");
     return $self;
 }
 
@@ -379,6 +386,7 @@ sub register_rpc_methods{
     $d->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name => 'update_cache',
+                                            async => 1,
 					    callback => sub { $self->update_cache(@_) },
 					    description => 'Updates the circuit cache');
 
@@ -688,6 +696,9 @@ sub update_cache{
     
     my $circuit_id = $p_ref->{'circuit_id'}->{'value'};
 
+    my $success = $m_ref->{'success_callback'};
+    my $error = $m_ref->{'error_callback'};
+
     if(!defined($circuit_id) || $circuit_id == -1){
         $self->{'logger'}->debug("Updating Cache for entire network");
         my $res = build_cache(db => $self->{'db'}, logger => $self->{'logger'});
@@ -701,7 +712,8 @@ sub update_cache{
         $self->{'logger'}->debug("Updating cache for circuit: " . $circuit_id);
         my $ckt = $self->get_ckt_object($circuit_id);
         if(!defined($ckt)){
-            return {status => FWDCTL_FAILURE, event_id => $self->_generate_unique_event_id()};
+            #return {status => FWDCTL_FAILURE, event_id => $self->_generate_unique_event_id()};
+            return &$error({ error => "Couldn't get circuit $circuit_id" });
         }
         $ckt->update_circuit_details();
         $self->{'logger'}->debug("Updating cache for circuit: " . $circuit_id . " complete");
@@ -709,14 +721,37 @@ sub update_cache{
 
     #write the cache for our children
     $self->_write_cache();
-    my $event_id = $self->_generate_unique_event_id();
-    foreach my $child (keys %{$self->{'children'}}){
-            $self->send_message_to_child($child,{action => 'update_cache'},$event_id);
+
+    my $cv  = AnyEvent->condvar;
+    my $err = '';
+
+    $cv->begin( sub {
+        if ($err ne '') {
+            $self->{'logger'}->error("Failed to fully update cache.");
+            &$error({error => $err});
+        }
+
+        &$success({ status => FWDCTL_SUCCESS });
+    });
+
+    foreach my $dpid (keys %{$self->{'children'}}){
+        $cv->begin();
+
+        $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
+        $self->{'fwdctl_events'}->update_cache(
+            async_callback => sub {
+                my $res = shift;
+
+                if (defined $res->{'error'}) {
+                    $self->{'logger'}->error($res->{'error'});
+                    $err .= $res->{'error'} . "\n";
+                }
+                $cv->end();
+            });
     }
     
-    $self->{'logger'}->error("Completed sending message to children!");
-
-    return { status => FWDCTL_SUCCESS, event_id => $event_id };
+    $self->{'logger'}->debug("Completed sending message to children!");
+    $cv->end();
 }
 
 =head2 build_cache
@@ -1480,8 +1515,6 @@ sub _fail_over_circuits{
     #write the cache
     $self->{'logger'}->debug("Writing cache in _fail_over_circuits.");
     $self->_write_cache();
-
-    my $result = FWDCTL_SUCCESS;
 
     foreach my $dpid (keys %dpids){
         $self->{'logger'}->debug("Telling child: " . $dpid . " to change paths!");

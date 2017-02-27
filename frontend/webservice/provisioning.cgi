@@ -594,7 +594,6 @@ sub _send_remove_command {
                         });
 
     my $result = $cv->recv();
-    return $result;
     if (defined $result->{'error'} || !defined $result->{'results'}){
         warn "Error occured while calling deleteVlan: " . $result->{'error'};
         return undef;
@@ -621,29 +620,21 @@ sub _send_update_cache{
     if ( !defined($client) ) {
         return;
     }
+
     my $cv = AnyEvent->condvar;
-    $client->update_cache(circuit_id => $args{'circuit_id'}, async_callback => sub { my $result = shift; $cv->send($result) });
+    $client->update_cache(circuit_id => $args{'circuit_id'},
+                          async_callback => sub {
+                              my $result = shift;
+                              $cv->send($result);
+                          });
+
     my $result = $cv->recv();
-    if($result->{'error'} || !($result->{'results'})){
-        return;
+    if (defined $result->{'error'} || !defined $result->{'results'}){
+        warn "Error occured while calling deleteVlan: " . $result->{'error'};
+        return undef;
     }
 
-    my $event_id = $result->{'results'}->{'event_id'};
-
-    my $final_res = FWDCTL_WAITING;
-
-    while($final_res == FWDCTL_WAITING){
-        usleep(1000000);
-        my $res = $client->get_event_status(event_id => $event_id);
-
-        if($res->{'error'} || $res->{'results'}){
-            return;
-        }
-
-        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
-    }
-
-    return $final_res;
+    return $result->{'results'}->{'status'};
 }
 
 sub provision_circuit {
