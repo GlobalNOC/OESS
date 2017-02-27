@@ -535,25 +535,11 @@ sub _send_mpls_remove_command {
     
     my $result = $cv->recv();
     if($result->{'error'} || !($result->{'results'})){
-        return;
+        warn "Error occured while calling mpls_remove_command: " . $result->{'error'};
+        return undef;
     }
 
-    my $event_id = $result->{'results'}->{'event_id'};
-
-    my $final_res = FWDCTL_WAITING;
-
-    while($final_res == FWDCTL_WAITING){
-        usleep(1000000);
-        my $res = $client->get_event_status(event_id => $event_id);
-
-        if(defined($res->{'error'}) || !defined($res->{'results'})){
-            return;
-        }
-
-        $final_res = $res->{'results'}->{'status'};
-    }
-
-    return $final_res;
+    return $result->{'results'}->{'status'};
 }
 
 sub _send_remove_command {
