@@ -400,6 +400,7 @@ sub register_rpc_methods{
 
 
     $method = GRNOC::RabbitMQ::Method->new( name => 'force_sync',
+                                            async => 1,
 					    callback => sub { $self->force_sync(@_) },
 					    description => "Forces a synchronization of the device to the cache");
 
@@ -675,12 +676,22 @@ sub force_sync{
     my $self = shift;
     my $m_ref = shift;
     my $p_ref = shift;
-    
+
+    my $success = $m_ref->{'success_callback'};
+    my $error   = $m_ref->{'error_callback'};
+
     my $dpid = $p_ref->{'dpid'}->{'value'};
 
-    my $event_id = $self->_generate_unique_event_id();
-    $self->send_message_to_child($dpid,{action => 'force_sync'},$event_id);
-    return { status => FWDCTL_SUCCESS, event_id => $event_id };
+    $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
+    $self->{'fwdctl_events'}->force_sync(
+        async_callback => sub {
+            my $res = shift;
+            if (defined $res->{'error'}) {
+                return &$error($res);
+            }
+
+            return &$success($res);
+        });
 }
 
 =head2 update_cache
