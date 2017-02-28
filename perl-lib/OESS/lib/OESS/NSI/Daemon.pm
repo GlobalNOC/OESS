@@ -25,14 +25,16 @@ use strict;
 use warnings;
 
 use OESS::DBus;
+use OESS::NSI::MessageQueue;
 use OESS::NSI::Processor;
 
 use GRNOC::Log;
 use GRNOC::Config;
 use GRNOC::WebService::Client;
 
-use Proc::Daemon;
+use AnyEvent;
 use Data::Dumper;
+use Proc::Daemon;
 
 use constant DEFAULT_PID_FILE => '/var/run/oess/oess-nsi.pid';
 
@@ -128,22 +130,25 @@ sub _process_queues {
 sub _run {
     my ($self) = @_;
 
-    my $bus = Net::DBus->system;
-    my $service = $bus->export_service("org.nddi.nsi");
+    $self->{'processor'} = new OESS::NSI::Processor(undef, $self->{'config_file'});
 
-    my $dbus = OESS::DBus->new( service => "org.nddi.notification", instance => "/controller1");
-    
-    $self->{'processor'} = new OESS::NSI::Processor($service, $self->{'config_file'});
+    # TODO: The process_queues_handler probably isn't needed. Instead
+    # $self->{'processor'}->process_queues should be called once every
+    # ten seconds.
+    $self->{'mqueue'} = new OESS::NSI::MessageQueue(
+        user     => 'guest',
+        pass     => 'guest',
+        exchange => 'OESS',
+        provision_event_handler => $self->{'processor'}->circuit_provision,
+        modified_event_handler  => $self->{'processor'}->circuit_modified,
+        removed_event_handler   => $self->{'processor'}->circuit_removed,
+        process_request_handler => $self->{'processor'}->process_request
+    );
 
-    $dbus->connect_to_signal("circuit_provision", sub { $self->{'processor'}->circuit_provision(@_)} );
-    $dbus->connect_to_signal("circuit_modified", sub { $self->{'processor'}->circuit_modified(@_)} );
-    $dbus->connect_to_signal("circuit_removed", sub { $self->{'processor'}->circuit_removed(@_)} );
+    my $queue_timer = AnyEvent->timer(after => 3, interval => 10, cb => $self->{'processor'}->process_queues);
 
-    $self->{'dbus_reactor'} = Net::DBus::Reactor->main();
-    
-    $self->{'dbus_reactor'}->add_timeout(10000, Net::DBus::Callback->new( method => sub { $self->_process_queues(@_); } ));
-    log_debug("Starting Reactor!");
-    $self->{'dbus_reactor'}->run();
+    log_info("NSI Daemon is starting");
+    $self->{'mqueue'}->start();
 }
 
 1;

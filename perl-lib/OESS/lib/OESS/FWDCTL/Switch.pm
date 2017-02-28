@@ -743,9 +743,9 @@ sub _do_diff{
         next unless ($self->{'ckts'}->{$circuit_id}->{'details'}->{'state'} eq 'active' || 
                      $self->{'ckts'}->{$circuit_id}->{'details'}->{'state'} eq 'deploying');
         #--- get the set of commands needed to create this vlan per design
-        $self->{'logger'}->error("Processing ckt_id: " . $circuit_id);
+        $self->{'logger'}->debug("Processing ckt_id: " . $circuit_id);
 	my $commands = $self->_generate_commands($circuit_id,FWDCTL_ADD_VLAN);
-	$self->{'logger'}->error("Flows for ckt: " . $circuit_id . " " . Data::Dumper::Dumper($commands));
+	$self->{'logger'}->debug("Flows for ckt: " . $circuit_id . " " . Data::Dumper::Dumper($commands));
         foreach my $command (@$commands) {
             push(@all_commands,$command);
         }
