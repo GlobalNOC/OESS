@@ -61,6 +61,7 @@ sub new {
 
     bless($self,$class);
 
+    $self->{'logger'} = GRNOC::Log->new(config => '/etc/grnoc/logging.conf');
     return $self;
 }
 
@@ -76,7 +77,6 @@ sub start {
 
     if($self->{'daemonize'}){
         log_info("Spawning as Daemon Process");
-        
         my $daemon = new Proc::Daemon(
             'pid_file' => $self->{'pid_file'}
             );
@@ -94,7 +94,6 @@ sub start {
     }
     else{
         log_info("Spawning in foreground");
-        
         $self->{'running'} = 1;
         $self->_run();
     }
@@ -131,23 +130,31 @@ sub _run {
     my ($self) = @_;
 
     $self->{'processor'} = new OESS::NSI::Processor(undef, $self->{'config_file'});
+    log_info("NSI event processor was created.");
+
 
     # TODO: The process_queues_handler probably isn't needed. Instead
     # $self->{'processor'}->process_queues should be called once every
     # ten seconds.
-    $self->{'mqueue'} = new OESS::NSI::MessageQueue(
-        user     => 'guest',
-        pass     => 'guest',
-        exchange => 'OESS',
-        provision_event_handler => $self->{'processor'}->circuit_provision,
-        modified_event_handler  => $self->{'processor'}->circuit_modified,
-        removed_event_handler   => $self->{'processor'}->circuit_removed,
-        process_request_handler => $self->{'processor'}->process_request
-    );
+    eval {
+        $self->{'mqueue'} = new OESS::NSI::MessageQueue(
+            user     => 'guest',
+            pass     => 'guest',
+            exchange => 'OESS',
+            provision_event_handler => sub { $self->{'processor'}->circuit_provision(@_); },
+            modified_event_handler  => sub { $self->{'processor'}->circuit_modified(@_); },
+            removed_event_handler   => sub { $self->{'processor'}->circuit_removed(@_); },
+            process_request_handler => sub { $self->{'processor'}->process_request(@_); }
+        );
+    };
+    if ($@) {
+        log_error("An error occurred while creating RabbitMQ interface: " . "$@");
+        return undef;
+    }
 
-    my $queue_timer = AnyEvent->timer(after => 3, interval => 10, cb => $self->{'processor'}->process_queues);
+    my $queue_timer = AnyEvent->timer(after => 3, interval => 10, cb => sub { $self->{'processor'}->process_queues(@_); });
 
-    log_info("NSI Daemon is starting");
+    log_info("NSI daemon is now starting.");
     $self->{'mqueue'}->start();
 }
 

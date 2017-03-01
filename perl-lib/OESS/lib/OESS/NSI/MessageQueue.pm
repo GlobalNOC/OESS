@@ -23,12 +23,14 @@ sub new {
         modified_event_handler  => sub { warn('Not implemented.') },
         removed_event_handler   => sub { warn('Not implemented.') },
         process_request_handler => sub { warn('Not implemented.') },
+        process_queues_handler  => sub { warn('Not implemented.') },
         @_,
     };
 
     bless $self, $class;
 
-    $self->{'log'}    = GRNOC::Log->get_logger('OESS.NSI.MessageQueue');
+    $self->{'log'} = GRNOC::Log->get_logger('OESS.NSI.MessageQueue');
+
     $self->{'router'} = GRNOC::RabbitMQ::Dispatcher->new(
         user     => $self->{'user'},
         pass     => $self->{'pass'},
@@ -95,6 +97,7 @@ sub start {
     my $self = shift;
 
     eval {
+        $self->{'log'}->info("NSI provider agent now listening for requests via RabbitMQ.");
         $self->{'router'}->start_consuming();
     };
     if ($@) {
@@ -109,6 +112,7 @@ sub stop {
     my $self = shift;
 
     eval {
+        $self->{'log'}->info("NSI provider agent stopped listening for requests.");
         $self->{'router'}->stop_consuming();
     };
     if ($@) {

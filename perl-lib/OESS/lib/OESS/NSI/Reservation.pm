@@ -184,7 +184,7 @@ sub reserve {
 
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "provisioning.cgi");
     
-    my $res = $self->{'websvc'}->foo( action => "provision_circuit",
+    my $res = $self->{'websvc'}->provision_circuit(
 				      state  => 'reserved',
                                       workgroup_id => $self->{'workgroup_id'},
                                       external_identifier => $gri,
@@ -243,7 +243,7 @@ sub _do_reserve_abort{
     log_info("reservationAbort: connectionId: " . $connection_id);
 
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "/provisioning.cgi");
-    my $res = $self->{'websvc'}->foo( action => "remove_circuit",
+    my $res = $self->{'websvc'}->remove_circuit(
                                       circuit_id => $connection_id,
                                       workgroup_id => $self->{'workgroup_id'},
                                       remove_time => -1);
@@ -355,7 +355,7 @@ sub validate_endpoint{
     log_debug("Checking validity of EP: " . Data::Dumper::Dumper($ep));
     
     log_debug("requesting all resources for NSI workgroup");
-    my $res = $self->{'websvc'}->foo( action => "get_all_resources_for_workgroup",
+    my $res = $self->{'websvc'}->get_all_resources_for_workgroup(
                                       workgroup_id => $self->{'workgroup_id'});
 
 
@@ -367,7 +367,7 @@ sub validate_endpoint{
                     #made it this far!
                     foreach my $tag (@{$ep->{'tags'}}){
                         
-                        my $valid_tag = $self->{'websvc'}->foo( action    => "is_vlan_tag_available",
+                        my $valid_tag = $self->{'websvc'}->is_vlan_tag_available(
                                                                 interface => $ep->{'port'},
                                                                 node      => $ep->{'node'},
                                                                 vlan      => $tag,
@@ -411,7 +411,7 @@ sub get_shortest_path{
     my $links = shift;
 
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "data.cgi");
-    my $shortest_path = $self->{'websvc'}->foo( action => "get_shortest_path",
+    my $shortest_path = $self->{'websvc'}->get_shortest_path(
                                                 node => [$ep1->{'node'},$ep2->{'node'}],
                                                 link => $links);
     
@@ -722,7 +722,7 @@ sub _reserve_timeout{
     
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "provisioning.cgi");
 
-    my $res = $self->{'websvc'}->foo( action => "remove_circuit",
+    my $res = $self->{'websvc'}->remove_circuit(
                                       circuit_id => $data->{'connection_id'},
                                       workgroup_id => $self->{'workgroup_id'});
 

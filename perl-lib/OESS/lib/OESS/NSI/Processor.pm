@@ -6,6 +6,9 @@ $ENV{CRYPT_SSLEAY_CIPHER} = 'ALL';
 use strict;
 use warnings;
 
+use Data::Dumper;
+use JSON;
+
 use GRNOC::Log;
 use GRNOC::WebService::Client;
 
@@ -13,7 +16,6 @@ use OESS::NSI::Constant;
 use OESS::NSI::Reservation;
 use OESS::NSI::Provisioning;
 use OESS::NSI::Query;
-use Data::Dumper;
 
 =head2 new
 
@@ -91,10 +93,18 @@ sub circuit_removed{
 
 sub process_request {
     my ($self, $method, $params) = @_;
-    my $request = $params->{'request'}->{'value'};
+
+    my $request = $params->{'method'}->{'value'};
     my $data    = $params->{'data'}->{'value'};
 
     log_info("Received method call: $request");
+    log_info(Dumper($request));
+
+    $data = decode_json $data;
+
+    log_info("Received method data: $data");
+    log_info(Dumper($data));
+
     if($request =~ /^reserve$/){
         my $circuit = $self->{'reservation'}->reserve($data);
         if($circuit > 0 && $circuit < 99999){

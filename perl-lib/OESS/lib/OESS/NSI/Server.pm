@@ -8,6 +8,7 @@ use strict;
 
 use AnyEvent;
 use Data::Dumper;
+use JSON;
 
 use GRNOC::Log;
 use GRNOC::RabbitMQ::Client;
@@ -21,10 +22,10 @@ my $logger = GRNOC::Log->new(config => '/etc/oess/logging.conf', watch => 15);
 my $log    = $logger->get_logger('OESS.NSI.WWW');
 
 
-my $api    = GRNOC::RabbitMQ::Client(user     => 'guest',
-                                     pass     => 'guest',
-                                     exchange => 'OESS',
-                                     topic    => 'OESS.NSI.Processor');
+my $api    = GRNOC::RabbitMQ::Client->new(user     => 'guest',
+                                          pass     => 'guest',
+                                          exchange => 'OESS',
+                                          topic    => 'OESS.NSI.Processor');
 
 
 sub _send_to_daemon{
@@ -32,6 +33,8 @@ sub _send_to_daemon{
     my $data = shift;
 
     $log->info("Calling $method");
+
+    $data = encode_json $data;
 
     my $cv = AnyEvent->condvar;
     $api->process_request(method         => $method,
@@ -41,6 +44,7 @@ sub _send_to_daemon{
                               $cv->send($res);
                           });
     my $res = $cv->recv();
+    $log->debug("_send_to_daemon: " . Dumper($res));
 
     return $res;
 }
