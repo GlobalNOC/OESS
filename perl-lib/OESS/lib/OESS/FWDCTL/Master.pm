@@ -138,9 +138,6 @@ sub new {
 							     pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
 							     exchange => 'OESS',
 							     topic => 'OF.FWDCTL.event');
-
-    
-
     $self->{'logger'}->info("RabbitMQ ready to go!");
 
     # When this process receives sigterm send an event to notify all
@@ -179,10 +176,10 @@ sub new {
 
     $self->update_cache({
         success_callback => sub {
-
+            $self->{'logger'}->info("Initial call to update_cache was a success!");
         },
         error_callback => sub {
-
+            $self->{'logger'}->error("Initial call to update_cache was a failure!");
         }},
         {circuit_id => {value => -1}}
     );
@@ -711,7 +708,7 @@ sub update_cache{
     my $error = $m_ref->{'error_callback'};
 
     if(!defined($circuit_id) || $circuit_id == -1){
-        $self->{'logger'}->debug("Updating Cache for entire network");
+        $self->{'logger'}->info("Updating Cache for entire network");
         my $res = build_cache(db => $self->{'db'}, logger => $self->{'logger'});
         $self->{'circuit'} = $res->{'ckts'};
         $self->{'link_status'} = $res->{'link_status'};
@@ -844,7 +841,6 @@ sub _write_cache{
     foreach my $ckt_id (keys (%{$self->{'circuit'}})){
         my $found = 0;
         $self->{'logger'}->debug("writing circuit: " . $ckt_id . " to cache");
-        
         my $ckt = $self->get_ckt_object($ckt_id);
         if(!defined($ckt)){
             $self->{'logger'}->error("No Circuit could be created or found for circuit: " . $ckt_id);
@@ -866,16 +862,17 @@ sub _write_cache{
             push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'current'}},$flow->to_canonical());
         }
 
-        foreach my $flow (@{$ckt->get_endpoint_flows( path => 'primary')}){
-            push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'endpoint'}{'primary'}},$flow->to_canonical());
-        }
-        foreach my $flow (@{$ckt->get_endpoint_flows( path => 'backup')}){
-            push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'endpoint'}{'backup'}},$flow->to_canonical());
+        my $primary_flows = $ckt->get_endpoint_flows(path => 'primary');
+        foreach my $flow (@{$primary_flows}){
+            push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'endpoint'}{'primary'}}, $flow->to_canonical());
         }
 
+        my $backup_flows = $ckt->get_endpoint_flows(path => 'backup');
+        foreach my $flow (@{$backup_flows}) {
+            push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'endpoint'}{'backup'}}, $flow->to_canonical());
+        }
     }
 
-        
     foreach my $dpid (keys %{$self->{'node_info'}}){
         my $data;
         my $ckts;
