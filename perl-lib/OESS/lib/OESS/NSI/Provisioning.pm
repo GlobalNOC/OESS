@@ -148,26 +148,38 @@ sub _do_provisioning{
         return;
     }
 
-    $self->{'websvc'}->set_url($self->{'websvc_location'} . "/provisioning.cgi");
+    my $url = $self->{'websvc_location'} . "provisioning.cgi";
+    $self->{'websvc'}->set_url($url);
 
-    my $res = $self->{'websvc'}->foo( action => 'provision_circuit',
-                                      state => 'provisioned',
-                                      circuit_id => $connection_id,
-                                      workgroup_id => $self->{'workgroup_id'},
-                                      description => $ckt->{'description'},
-                                      name => $ckt->{'name'},
-                                      link => $ckt->{'link'},
-                                      backup_link => $ckt->{'backup_link'},
-                                      bandwidth => $ckt->{'bandwidth'},
-                                      provision_time => -1,
-                                      remove_time => 1,
-                                      node => $ckt->{'node'},
-                                      interface => $ckt->{'interface'},
-                                      tag => $ckt->{'tag'} );
+    my $res = $self->{'websvc'}->provision_circuit(
+        state => 'provisioned',
+        circuit_id => $connection_id,
+        workgroup_id => $self->{'workgroup_id'},
+        description => $ckt->{'description'},
+        name => $ckt->{'name'},
+        link => $ckt->{'link'},
+        backup_link => $ckt->{'backup_link'},
+        bandwidth => $ckt->{'bandwidth'},
+        provision_time => -1,
+        remove_time => 1,
+        node => $ckt->{'node'},
+        interface => $ckt->{'interface'},
+        tag => $ckt->{'tag'}
+    );
+    if (!defined $res) {
+        log_error("Couldn't call provision_circuit using $url: Fatal webservice error occurred.");
+        push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::PROVISIONING_FAILED, args => $args});
+        return OESS::NSI::Constant::SUCCESS;
+    }
+    if (defined $res->{'error'}) {
+        log_error("Couldn't call provision_circuit using $url: $res->{'error'}");
+        push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::PROVISIONING_FAILED, args => $args});
+        return OESS::NSI::Constant::SUCCESS;
+    }
 
     log_debug("results of provision circuit: " .  Data::Dumper::Dumper($res));
 
-    if(defined($res) && defined($res->{'results'})){
+    if (defined $res->{'results'}) {
         push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::PROVISIONING_SUCCESS, args => $args});
         return OESS::NSI::Constant::SUCCESS;
     }
@@ -185,12 +197,12 @@ sub _get_circuit_details{
     
     log_debug("fetching circuit details");
 
-    my $circuit = $self->{'websvc'}->foo( action => "get_circuit_details",
+    my $circuit = $self->{'websvc'}->get_circuit_details(
 					  circuit_id => $circuit_id);
 
     log_debug("Circuit Details: " . Data::Dumper::Dumper($circuit));
 
-    my $scheduled_actions = $self->{'websvc'}->foo( action => "get_circuit_scheduled_events",
+    my $scheduled_actions = $self->{'websvc'}->get_circuit_scheduled_events(
                                                     circuit_id => $circuit_id);
     
     log_debug("Circuit scheduled events: " . Data::Dumper::Dumper($scheduled_actions));
@@ -272,7 +284,7 @@ sub _do_terminate{
     log_debug("do terminate: $connection_id");
 
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "/provisioning.cgi");
-    my $res = $self->{'websvc'}->foo( action => "remove_circuit",
+    my $res = $self->{'websvc'}->remove_circuit(
 				      circuit_id => $connection_id,
 				      workgroup_id => $self->{'workgroup_id'},
 				      remove_time => -1);
@@ -378,7 +390,7 @@ sub _do_release{
 
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "/provisioning.cgi");
 
-    my $res = $self->{'websvc'}->foo( action => 'provision_circuit',
+    my $res = $self->{'websvc'}->provision_circuit(
                                       state => 'reserved',
                                       circuit_id => $connection_id,
                                       workgroup_id => $self->{'workgroup_id'},
