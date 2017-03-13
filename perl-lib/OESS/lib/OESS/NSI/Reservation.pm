@@ -565,12 +565,27 @@ sub _build_p2ps{
 
 sub _build_schedule{
     my $schedule = shift;
-    if($schedule->{'startTime'} ne ''){
-        return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( startTime => $schedule->{'startTime'})->type(''),
-                                                                 SOAP::Data->name( endTime => $schedule->{'endTime'})->type('')));
+
+    my $start;
+    my $end;
+
+    if (defined $schedule->{'startTime'} && $schedule->{'startTime'} ne '') {
+        $start = SOAP::Data->name(startTime => $schedule->{'startTime'})->type('');
     }
 
-    return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( endTime => $schedule->{'endTime'} )->type('')));
+    if (defined $schedule->{'endTime'} && $schedule->{'endTime'} ne '') {
+        $end = SOAP::Data->name(endTime => $schedule->{'endTime'})->type('');
+    }
+
+    if (defined $start && defined $end) {
+        return SOAP::Data->name(schedule => \SOAP::Data->value(startTime => $start, endTime => $end));
+    } elsif (defined $start) {
+        return SOAP::Data->name(schedule => \SOAP::Data->value(startTime => $start));
+    } elsif (defined $end) {
+        return SOAP::Data->name(schedule => \SOAP::Data->value(endTime => $end));
+    } else {
+        return SOAP::Data->name(schedule => \SOAP::Data->value());
+    }
 }
 
 sub _build_criteria{
