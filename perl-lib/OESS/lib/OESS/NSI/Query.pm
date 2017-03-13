@@ -280,12 +280,37 @@ sub _build_schedule{
     my $self = shift;
     my $ckt = shift;
 
-    if($ckt->{'start_time'} ne ''){
-        return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( startTime => $ckt->{'start_time'})->type(''),
-                                                                 SOAP::Data->name( endTime => $ckt->{'remove_time'})->type('')))->type('');
+    my $start;
+    my $end;
+
+    # Although the nsi spec states that startTime and endTime are
+    # optional params for ScheduleType, opennsa expects these to be
+    # set when querying for a connection. startTime has been set to
+    # 2017-03-13 (the day I found this issue), and endTime has been
+    # set to 2222-02-22. These are placeholder values only and should
+    # not be relied upon for circuits that were created without
+    # specifying startTime or endTime.
+    if (defined $ckt->{'start_time'} && $ckt->{'start_time'} ne '') {
+        $start = SOAP::Data->name(startTime => $ckt->{'start_time'})->type('');
+    } else {
+        $start = SOAP::Data->name(startTime => '2017-03-13T00:00:00+00:00')->type('');
     }
 
-    return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( endTime => $ckt->{'remove_time'} )->type('')))->type('');
+    if (defined $ckt->{'remove_time'} && $ckt->{'remove_time'} ne '') {
+        $end = SOAP::Data->name(endTime => $ckt->{'remove_time'})->type('');
+    } else {
+        $end = SOAP::Data->name(endTime => '2222-02-22T00:00:00+00:00')->type('');
+    }
+
+    if (defined $start && defined $end) {
+        return SOAP::Data->name(schedule => \SOAP::Data->value(startTime => $start, endTime => $end));
+    } elsif (defined $start) {
+        return SOAP::Data->name(schedule => \SOAP::Data->value(startTime => $start));
+    } elsif (defined $end) {
+        return SOAP::Data->name(schedule => \SOAP::Data->value(endTime => $end));
+    } else {
+        return SOAP::Data->name(schedule => \SOAP::Data->value());
+    }
 }
 
 sub _build_criteria{
@@ -293,11 +318,10 @@ sub _build_criteria{
     my $ckt = shift;
     
     return SOAP::Data->name(criteria =>
-                            \SOAP::Data->value( #$self->_build_schedule( $ckt ),
-                                                SOAP::Data->name( serviceType => '')->type(''),
-                                                $self->_build_p2ps( $ckt )
-                            ))->attr({ version => 0});
-    
+                            \SOAP::Data->value($self->_build_schedule( $ckt ),
+                                               SOAP::Data->name( serviceType => 'http://services.ogf.org/nsi/2013/12/descriptions/EVTS.A-GOLE')->type(''),
+                                               $self->_build_p2ps( $ckt )
+                           ))->attr({ version => 0});
 }
 
 
