@@ -26,6 +26,7 @@ use warnings;
 
 use DateTime;
 use SOAP::Lite on_action => sub { sprintf '"http://schemas.ogf.org/nsi/2013/12/connection/service/%s"', $_[1]};
+use Time::HiRes qw(gettimeofday);
 use Data::Dumper;
 
 use GRNOC::Log;
@@ -280,14 +281,14 @@ sub _do_terminate{
     my ($self, $args) = @_;
 
     my $connection_id = $args->{'connectionId'};
+    my $cgi = $self->{'websvc_location'} . "provisioning.cgi";
 
-    log_debug("do terminate: $connection_id");
+    log_debug("_do_terminate - url: $cgi circuit: $connection_id");
 
-    $self->{'websvc'}->set_url($self->{'websvc_location'} . "/provisioning.cgi");
-    my $res = $self->{'websvc'}->remove_circuit(
-				      circuit_id => $connection_id,
-				      workgroup_id => $self->{'workgroup_id'},
-				      remove_time => -1);
+    $self->{'websvc'}->set_url($cgi);
+    my $res = $self->{'websvc'}->remove_circuit(circuit_id => $connection_id,
+                                                workgroup_id => $self->{'workgroup_id'},
+                                                remove_time => -1);
 
     log_debug("Results of remove_circuit: " . Data::Dumper::Dumper($res));
 
@@ -297,7 +298,7 @@ sub _do_terminate{
         return OESS::NSI::Constant::SUCCESS;
     }
 
-    log_error("Unable to remove circuit: " . $res->{'error'});
+    log_error("Unable to remove circuit: " . $res->{'error'} . " " . $res->{'error_text'} . Dumper($res));
     push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::TERMINATION_FAILED, args => $args});
     return OESS::NSI::Constant::ERROR;
 }
@@ -387,6 +388,12 @@ sub _do_release{
    
 
     my $ckt = $self->_get_circuit_details($connection_id);
+    if (!defined $ckt->{'provision_time'}) {
+        $ckt->{'provision_time'} = -1;
+    }
+    if (!defined $ckt->{'remove_time'}) {
+        $ckt->{'remove_time'} = -1;
+    }
 
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "/provisioning.cgi");
 
@@ -411,7 +418,7 @@ sub _do_release{
         return OESS::NSI::Constant::SUCCESS;
     }
 
-    log_error("Unable to remove circuit: " . $res->{'error'});
+    log_error("Unable to remove circuit: " . $res->{'error'} . " " . $res->{'error_text'});
     push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::RELEASE_FAILED, args => $args});
     return OESS::NSI::Constant::ERROR;
 
