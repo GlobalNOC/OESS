@@ -455,38 +455,25 @@ sub _send_mpls_add_command {
     }
 
     my $circuit_id = $args{'circuit_id'};
-    warn "_send_mpls_add_command: Calling addVlan on circuit $circuit_id";
     my $cv = AnyEvent->condvar;
+
+    warn "_send_mpls_add_command: Calling addVlan on circuit $circuit_id";
     $client->addVlan(circuit_id => int($circuit_id), async_callback => sub {
         my $result = shift; 
         $cv->send($result);
-                     });
+    });
+
     my $result = $cv->recv();
 
-    if($result->{'error'} || !defined $result->{'results'}){
+    if (defined $result->{'error'} || !defined $result->{'results'}){
 	warn '_send_mpls_add_command: Could not complete rabbitmq call to addVlan. Received no event_id';
 	if (defined $result->{'error'}) {
 	    warn '_send_mpls_add_command: ' . $result->{'error'};
 	}
-        return;
+        return undef;
     }
 
-    my $event_id = $result->{'results'}->{'event_id'};
-
-    my $final_res = FWDCTL_WAITING;
-    while($final_res == FWDCTL_WAITING){
-        usleep(1000000);
-        my $res = $client->get_event_status(event_id => $event_id);
-
-        if(defined($res->{'error'}) || !defined($res->{'results'})){
-	    warn '_send_mpls_add_command: could not complete rabbitmq call to get_event_status';
-            return;
-        }
-
-        $final_res = $res->{'results'}->{'status'};
-    }
-
-    return $final_res;
+    return $result->{'results'}->{'status'};
 }
 
 sub _send_add_command {
@@ -548,25 +535,11 @@ sub _send_mpls_remove_command {
     
     my $result = $cv->recv();
     if($result->{'error'} || !($result->{'results'})){
-        return;
+        warn "Error occured while calling mpls_remove_command: " . $result->{'error'};
+        return undef;
     }
 
-    my $event_id = $result->{'results'}->{'event_id'};
-
-    my $final_res = FWDCTL_WAITING;
-
-    while($final_res == FWDCTL_WAITING){
-        usleep(1000000);
-        my $res = $client->get_event_status(event_id => $event_id);
-
-        if(defined($res->{'error'}) || !defined($res->{'results'})){
-            return;
-        }
-
-        $final_res = $res->{'results'}->{'status'};
-    }
-
-    return $final_res;
+    return $result->{'results'}->{'status'};
 }
 
 sub _send_remove_command {

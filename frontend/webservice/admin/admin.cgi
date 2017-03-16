@@ -1540,48 +1540,43 @@ sub confirm_node {
         return $results;
     }
 
-    my $cache_result = $client->update_cache(circuit_id => -1);
+    my $cv = AnyEvent->condvar;
+    $client->update_cache(circuit_id     => -1,
+                          async_callback => sub {
+                              my $result = shift;
+                              $cv->send($result);
+                          });
+
+    my $cache_result = $cv->recv();
+
     warn Data::Dumper::Dumper($cache_result);
-    
-    if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
-        $results->{'results'} = [ {
-                                   "error"   => "Cache result error: $cache_result->{'error'}.",
-                                   "success" => 0
-                                  }
-                                ];
-        return $results;
+
+    if ($cache_result->{'error'} || !$cache_result->{'results'}) {
+        return { results => [ {
+                               "error"   => "Cache result error: $cache_result->{'error'}.",
+                               "success" => 0
+                              }
+                            ] };
     }
 
-    my $event_id  = $cache_result->{'results'}->{'event_id'};
-    my $final_res = FWDCTL_WAITING;
-    warn 'final_res: ' . Data::Dumper::Dumper($final_res);
-    while ($final_res == FWDCTL_WAITING) {
-        sleep(1);
-        $final_res = $client->get_event_status(event_id => $event_id, timeout => 15)->{'results'}->{'status'};
-        warn 'final_res: ' . Data::Dumper::Dumper($final_res);
+    $cv = AnyEvent->condvar;
+    $client->force_sync(dpid => int($node->{'dpid'}),
+                        async_callback => sub {
+                            my $result = shift;
+                            $cv->send($result);
+                        });
+
+    $cache_result = $cv->recv();
+
+    if ($cache_result->{'error'} || !$cache_result->{'results'}) {
+        return { results => [ {
+                               "error"   => "Failure occurred in force_sync against dpid: $node->{'dpid'}",
+                               "success" => 0
+                              }
+                            ] };
     }
 
-    $cache_result = $client->force_sync(dpid => int($node->{'dpid'}));
-    if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
-        $results->{'results'} = [ {
-                                   "error"   => "Failure occurred in force_sync against dpid: $node->{'dpid'}",
-                                   "success" => 0
-                                  }
-                                ];
-        return $results;
-    }
-
-    $event_id = $cache_result->{'results'}->{'event_id'};
-
-    $final_res = FWDCTL_WAITING;
-    
-    while($final_res == FWDCTL_WAITING){
-        sleep(1);
-        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
-    }
-
-
-    return {results => [{success => $final_res}]};
+    return {results => [{success => 1}]};
 }
 
 sub update_node {
@@ -1732,44 +1727,35 @@ sub update_node {
 	}
 	
 	my $node = $db->get_node_by_id(node_id => $node_id);
-	
-	my $cache_result = $client->update_cache(circuit_id => -1);
-	
-	if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
+
+        my $cv = AnyEvent->condvar;
+        $client->update_cache(circuit_id     => -1,
+                              async_callback => sub {
+                                  my $result = shift;
+                                  $cv->send($result);
+                              });
+
+        my $cache_result = $cv->recv();
+	if ($cache_result->{'error'} || !$cache_result->{'results'}) {
 	    return;
 	}
-	
-	my $event_id = $cache_result->{'results'}->{'event_id'};
-	
-	my $final_res = FWDCTL_WAITING;
-	
-	while($final_res == FWDCTL_WAITING){
-	    sleep(1);
-	    $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
-	}
-	
-	$cache_result = $client->force_sync(dpid => $node->{'dpid'});
-	
-	if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
+
+        $cv = AnyEvent->condvar;
+        $client->force_sync(dpid => int($node->{'dpid'}),
+                            async_callback => sub {
+                                my $result = shift;
+                                $cv->send($result);
+                            });
+
+        $cache_result = $cv->recv();
+	if ($cache_result->{'error'} || !$cache_result->{'results'}) {
 	    return;
 	}
-	
-	$event_id = $cache_result->{'results'}->{'event_id'};
-	
-	$final_res = FWDCTL_WAITING;
-	
-	while($final_res == FWDCTL_WAITING){
-	    sleep(1);
-	    $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
-	}
-	return {results => [{success => $final_res}]};
 
-    }else{
-
+        return {results => [{success => 1}]};
     }
 
     return {results => [{success => 1}]};
-
 }
 
 
@@ -1864,24 +1850,20 @@ sub decom_node {
         return;
     }
     
-    my $cache_result = $client->update_cache(circuit_id => -1);
+    my $cv = AnyEvent->condvar;
+    $client->update_cache(circuit_id     => -1,
+                          async_callback => sub {
+                              my $result = shift;
+                              $cv->send($result);
+                          });
 
-    if($cache_result->{'error'} || !$cache_result->{'results'}->{'event_id'}){
+    my $cache_result = $cv->recv();
+
+    if ($cache_result->{'error'} || !$cache_result->{'results'}) {
         return;
     }
 
-    my $event_id = $cache_result->{'results'}->{'event_id'};
-
-    my $final_res = FWDCTL_WAITING;
-
-    while($final_res == FWDCTL_WAITING){
-        sleep(1);
-        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
-    }
-
-
     return $results;
-
 }
 
 sub confirm_link {
@@ -2250,33 +2232,30 @@ sub _update_cache_and_sync_node {
         return;
     }
 
-    # first update fwdctl's cache
-    my $result = $client->update_cache(circuit_id => -1);
+    my $cv = AnyEvent->condvar;
+    $client->update_cache(circuit_id     => -1,
+                          async_callback => sub {
+                              my $result = shift;
+                              $cv->send($result);
+                          });
 
-    if($result->{'error'} || !$result->{'results'}->{'event_id'}){
+    my $result = $cv->recv();
+
+    if ($result->{'error'} || !$result->{'results'}) {
         return;
     }
 
-    my $event_id = $result->{'results'}->{'event_id'};
+    $cv = AnyEvent->condvar;
+    $client->force_sync(dpid => int($dpid),
+                        async_callback => sub {
+                            my $result = shift;
+                            $cv->send($result);
+                        });
 
-    my $final_res = FWDCTL_WAITING;
-    while($final_res == FWDCTL_WAITING){
-        sleep(1);
-        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
-    }
-    # now sync the node
-    $result = $client->force_sync(dpid => int($dpid));
+    $result = $cv->recv();
 
-    if($result->{'error'} || !$result->{'results'}->{'event_id'}){
+    if ($result->{'error'} || !$result->{'results'}) {
         return;
-    }
-
-    $event_id = $result->{'results'}->{'event_id'};
-
-    $final_res = FWDCTL_WAITING;
-    while($final_res == FWDCTL_WAITING){
-        sleep(1);
-        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
     }
 
     return 1;
