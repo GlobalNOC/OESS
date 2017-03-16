@@ -697,7 +697,7 @@ sub update_cache{
     my $circuit_id = $p_ref->{'circuit_id'}->{'value'};
 
     my $success = $m_ref->{'success_callback'};
-    my $error = $m_ref->{'error_callback'};
+    my $error   = $m_ref->{'error_callback'};
 
     if(!defined($circuit_id) || $circuit_id == -1){
         $self->{'logger'}->debug("Updating Cache for entire network");
@@ -2130,7 +2130,7 @@ sub deleteVlan {
     my $p_ref = shift;
 
     my $success = $m_ref->{'success_callback'};
-    my $error = $m_ref->{'error_callback'};
+    my $error   = $m_ref->{'error_callback'};
 
     # Measure time spent in this method.
     my $start = [gettimeofday];
@@ -2212,6 +2212,8 @@ sub changeVlanPath {
     my $p_ref = shift;
     my $state = shift;
 
+    my $success = $m_ref->{'success_callback'};
+
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
     $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
@@ -2236,7 +2238,6 @@ sub changeVlanPath {
 
     my $result  = FWDCTL_SUCCESS;
     my $share   = scalar keys %dpids;
-    my $success = $m_ref->{'success_callback'};
 
     foreach my $dpid (keys %dpids){
         $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
