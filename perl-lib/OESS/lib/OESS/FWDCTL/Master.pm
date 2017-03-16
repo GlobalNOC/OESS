@@ -705,7 +705,7 @@ sub update_cache{
     my $circuit_id = $p_ref->{'circuit_id'}->{'value'};
 
     my $success = $m_ref->{'success_callback'};
-    my $error = $m_ref->{'error_callback'};
+    my $error   = $m_ref->{'error_callback'};
 
     if(!defined($circuit_id) || $circuit_id == -1){
         $self->{'logger'}->info("Updating Cache for entire network");
@@ -2137,7 +2137,7 @@ sub deleteVlan {
     my $p_ref = shift;
 
     my $success = $m_ref->{'success_callback'};
-    my $error = $m_ref->{'error_callback'};
+    my $error   = $m_ref->{'error_callback'};
 
     # Measure time spent in this method.
     my $start = [gettimeofday];
@@ -2218,6 +2218,8 @@ sub changeVlanPath {
     my $m_ref = shift;
     my $p_ref = shift;
     my $state = shift;
+
+    my $success = $m_ref->{'success_callback'};
 
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
