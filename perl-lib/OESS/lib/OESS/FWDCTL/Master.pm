@@ -177,10 +177,17 @@ sub new {
     $self->{'node_info'} = {};
     $self->{'link_maintenance'} = {};
 
-    $self->update_cache(-1);
+    $self->update_cache({
+        success_callback => sub {
 
-    $self->{'logger'}->error("FWDCTL INIT COMPLETE");
+        },
+        error_callback => sub {
 
+        }},
+        {circuit_id => {value => -1}}
+    );
+
+    $self->{'logger'}->info("FWDCTL INIT COMPLETE");
     return $self;
 }
 
@@ -379,6 +386,7 @@ sub register_rpc_methods{
     $d->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name => 'update_cache',
+                                            async => 1,
 					    callback => sub { $self->update_cache(@_) },
 					    description => 'Updates the circuit cache');
 
@@ -688,6 +696,9 @@ sub update_cache{
     
     my $circuit_id = $p_ref->{'circuit_id'}->{'value'};
 
+    my $success = $m_ref->{'success_callback'};
+    my $error   = $m_ref->{'error_callback'};
+
     if(!defined($circuit_id) || $circuit_id == -1){
         $self->{'logger'}->debug("Updating Cache for entire network");
         my $res = build_cache(db => $self->{'db'}, logger => $self->{'logger'});
@@ -701,7 +712,8 @@ sub update_cache{
         $self->{'logger'}->debug("Updating cache for circuit: " . $circuit_id);
         my $ckt = $self->get_ckt_object($circuit_id);
         if(!defined($ckt)){
-            return {status => FWDCTL_FAILURE, event_id => $self->_generate_unique_event_id()};
+            #return {status => FWDCTL_FAILURE, event_id => $self->_generate_unique_event_id()};
+            return &$error({ error => "Couldn't get circuit $circuit_id" });
         }
         $ckt->update_circuit_details();
         $self->{'logger'}->debug("Updating cache for circuit: " . $circuit_id . " complete");
@@ -709,14 +721,37 @@ sub update_cache{
 
     #write the cache for our children
     $self->_write_cache();
-    my $event_id = $self->_generate_unique_event_id();
-    foreach my $child (keys %{$self->{'children'}}){
-            $self->send_message_to_child($child,{action => 'update_cache'},$event_id);
+
+    my $cv  = AnyEvent->condvar;
+    my $err = '';
+
+    $cv->begin( sub {
+        if ($err ne '') {
+            $self->{'logger'}->error("Failed to fully update cache.");
+            &$error({error => $err});
+        }
+
+        &$success({ status => FWDCTL_SUCCESS });
+    });
+
+    foreach my $dpid (keys %{$self->{'children'}}){
+        $cv->begin();
+
+        $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
+        $self->{'fwdctl_events'}->update_cache(
+            async_callback => sub {
+                my $res = shift;
+
+                if (defined $res->{'error'}) {
+                    $self->{'logger'}->error($res->{'error'});
+                    $err .= $res->{'error'} . "\n";
+                }
+                $cv->end();
+            });
     }
     
-    $self->{'logger'}->error("Completed sending message to children!");
-
-    return { status => FWDCTL_SUCCESS, event_id => $event_id };
+    $self->{'logger'}->debug("Completed sending message to children!");
+    $cv->end();
 }
 
 =head2 build_cache
@@ -1481,8 +1516,6 @@ sub _fail_over_circuits{
     $self->{'logger'}->debug("Writing cache in _fail_over_circuits.");
     $self->_write_cache();
 
-    my $result = FWDCTL_SUCCESS;
-
     foreach my $dpid (keys %dpids){
         $self->{'logger'}->debug("Telling child: " . $dpid . " to change paths!");
 
@@ -2042,26 +2075,23 @@ sub addVlan {
     my $cv  = AnyEvent->condvar;
     my $err = '';
 
-    # Callback to be executed when all calls to add_vlan return.
-    $cv->begin(
-        sub {
-            if ($err ne '') {
-                foreach my $dpid (keys %dpids) {
-                    $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
-                    $self->{'fwdctl_events'}->remove_vlan(circuit_id     => $circuit_id,
-                                                          async_callback => sub {
-                                                              $self->{'logger'}->error("Removed circuit $circuit_id from $dpid.");
-                                                          });
-                }
-
-                $self->{'logger'}->error("Failed to add VLAN. Elapsed time: " . tv_interval($start, [gettimeofday]));
-                &$error_callback({error => $err});
+    $cv->begin( sub {
+        if ($err ne '') {
+            foreach my $dpid (keys %dpids) {
+                $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
+                $self->{'fwdctl_events'}->remove_vlan(circuit_id     => $circuit_id,
+                                                      async_callback => sub {
+                                                          $self->{'logger'}->error("Removed circuit $circuit_id from $dpid.");
+                                                      });
             }
 
-            $self->{'logger'}->info("Added VLAN. Elapsed time: " . tv_interval($start, [gettimeofday]));
-            &$success_callback({status => FWDCTL_SUCCESS});
+            $self->{'logger'}->error("Failed to add VLAN. Elapsed time: " . tv_interval($start, [gettimeofday]));
+            &$error_callback({error => $err});
         }
-    );
+
+        $self->{'logger'}->info("Added VLAN. Elapsed time: " . tv_interval($start, [gettimeofday]));
+        &$success_callback({status => FWDCTL_SUCCESS});
+    });
 
     foreach my $dpid (keys %dpids){
         $cv->begin();
@@ -2099,7 +2129,8 @@ sub deleteVlan {
     my $m_ref = shift;
     my $p_ref = shift;
 
-    my $success_callback = $m_ref->{'success_callback'};
+    my $success = $m_ref->{'success_callback'};
+    my $error   = $m_ref->{'error_callback'};
 
     # Measure time spent in this method.
     my $start = [gettimeofday];
@@ -2108,17 +2139,15 @@ sub deleteVlan {
 
     $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
     $self->{'logger'}->info("Calling deleteVlan - circuit_id: $circuit_id.");
-    
-    my $event_id = $self->_generate_unique_event_id();
 
     my $ckt = $self->get_ckt_object( $circuit_id );
     if(!defined($ckt)){
-        &$success_callback({status => FWDCTL_FAILURE, event_id => $event_id});
+        &$error({ error => "Couldn't get circuit $circuit_id." });
     }
     
     $ckt->update_circuit_details();
     if($ckt->{'details'}->{'state'} eq 'decom'){
-	&$success_callback({status => FWDCTL_FAILURE, event_id => $event_id});
+	&$error({ error => "Circuit $circuit_id was already decommissioned." });
     }
 
     $self->_write_cache();
@@ -2129,17 +2158,47 @@ sub deleteVlan {
     foreach my $flow (@{$flows}) {
         $dpids{$flow->get_dpid()} = 1;
     }
-   
-    my $result  = FWDCTL_SUCCESS;
+
+    my $cv      = AnyEvent->condvar;
     my $details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
+    my $err     = '';
+
+    $cv->begin(sub {
+        if ($err ne '') {
+            foreach my $dpid (keys %dpids) {
+                    $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
+                    $self->{'fwdctl_events'}->remove_vlan(circuit_id     => $circuit_id,
+                                                          async_callback => sub {
+                                                              $self->{'logger'}->error("Removed circuit $circuit_id from $dpid.");
+                                                          });
+            }
+
+            $self->logger->error("Failed to delete VLAN. Elapased time: " . tv_interval( $start, [gettimeofday]));
+            &$error({ error => $err });
+        }
+
+        $self->{'logger'}->info("Deleted VLAN. Elapsed time: " . tv_interval( $start, [gettimeofday]));
+        &$success({ status => FWDCTL_SUCCESS });
+    });
 
     foreach my $dpid (keys %dpids){
-        $self->{'logger'}->debug("Sending remove_vlan command to switch procs in deleteVlan.");
-        $self->send_message_to_child($dpid, {action => 'remove_vlan', circuit_id => $circuit_id}, $event_id);
+        $cv->begin();
+
+        $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
+        $self->{'fwdctl_events'}->remove_vlan(
+            circuit_id     => $circuit_id,
+            async_callback => sub {
+                my $res = shift;
+
+                if (defined $res->{'error'}) {
+                    $self->{'logger'}->error($res->{'error'});
+                    $err .= $res->{'error'} . "\n";
+                }
+                $cv->end();
+            });
     }
 
-    $self->{'logger'}->info("Elapsed time deleteVlan: " . tv_interval( $start, [gettimeofday]));
-    &$success_callback({status => $result, event_id => $event_id});
+    $cv->end();
 }
 
 
@@ -2152,6 +2211,8 @@ sub changeVlanPath {
     my $m_ref = shift;
     my $p_ref = shift;
     my $state = shift;
+
+    my $success = $m_ref->{'success_callback'};
 
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
@@ -2177,7 +2238,6 @@ sub changeVlanPath {
 
     my $result  = FWDCTL_SUCCESS;
     my $share   = scalar keys %dpids;
-    my $success = $m_ref->{'success_callback'};
 
     foreach my $dpid (keys %dpids){
         $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
