@@ -2220,6 +2220,7 @@ sub changeVlanPath {
     my $state = shift;
 
     my $success = $m_ref->{'success_callback'};
+    my $error   = $m_ref->{'error_callback'};
 
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
@@ -2246,33 +2247,32 @@ sub changeVlanPath {
     my $result  = FWDCTL_SUCCESS;
     my $share   = scalar keys %dpids;
 
-    my $success = $m_ref->{'success_callback'};
-    my $error   = $m_ref->{'error_callback'};
-
     foreach my $dpid (keys %dpids){
         $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
-        $self->{'fwdctl_events'}->change_path(circuits       => [$circuit_id],
-                                              async_callback => sub {
-                                                  my $response = shift;
+        $self->{'fwdctl_events'}->change_path(
+            circuits       => [$circuit_id],
+            async_callback => sub {
+                my $response = shift;
 
-                                                  # {
-                                                  #   results => {
-                                                  #     msg => 'sent flows',
-                                                  #     status => '1',
-                                                  #     total_flows => '3'
-                                                  #   }
-                                                  # }
+                # {
+                #   results => {
+                #     msg => 'sent flows',
+                #     status => '1',
+                #     total_flows => '3'
+                #   }
+                # }
 
-                                                  if (defined $response->{'error'} && defined $response->{'error_text'}) {
-                                                      $self->{'logger'}->error($response->{'error_text'});
-                                                      return &$error($response->{'error_text'});
-                                                  }
+                if (defined $response->{'error'} && defined $response->{'error_text'}) {
+                    $self->{'logger'}->error($response->{'error'});
+                    return &$error($response->{'error'});
+                }
 
-                                                  $share -= 1;
-                                                  if ($share == 0) {
-                                                      return &$success($response);
-                                                  }
-                                              });
+                $share -= 1;
+                if ($share == 0) {
+                    return &$success($response);
+                }
+            }
+        );
     }
 }
 

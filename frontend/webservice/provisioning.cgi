@@ -586,8 +586,6 @@ sub _send_remove_command {
 
     $result = $cv->recv();
 
-    warn "_send_remove_command.deleteVlan: " . Dumper($result);
-
     if (!defined $result) {
         $err = "Error occurred while calling deleteVlan: Couldn't contact FWDCTL via RabbitMQ.";
         return ($result, $err);
@@ -697,22 +695,26 @@ sub provision_circuit {
         pass => 'guest'
     );
     if (!defined $log_client) {
+        warn "Couldn't create RabbitMQ client.";
         $method->set_error("Couldn't create RabbitMQ client.");
         return;
     }
 
     my $after_rabbit_mq = [gettimeofday];
-    warn "Time to create rabbitMQ: " . tv_interval( $rabbit_mq_start, $after_rabbit_mq);
+    warn "Time to create rabbitMQ: " . tv_interval($rabbit_mq_start, $after_rabbit_mq);
 
     my $workgroup = $db->get_workgroup_by_id( workgroup_id => $workgroup_id );
     if (!defined $workgroup) {
+        warn "unable to find workgroup $workgroup_id";
 	$method->set_error("unable to find workgroup $workgroup_id");
 	return;
     } elsif ($workgroup->{'name'} eq 'Demo') {
-        $method->set_error('sorry this is a demo account, and can not actually provision');
+        warn "Sorry this is a demo account, and can not actually provision.";
+        $method->set_error("Sorry this is a demo account, and can not actually provision.");
 	return;
     } elsif ($workgroup->{'status'} eq 'decom') {
-	$method->set_error('The selected workgroup is decomissioned and unable to provision');
+        warn "The selected workgroup is decomissioned and unable to provision.";
+	$method->set_error("The selected workgroup is decomissioned and unable to provision.");
 	return;
     }
 
@@ -720,7 +722,8 @@ sub provision_circuit {
 
     my $user = $db->get_user_by_id(user_id => $user_id)->[0];
     if ($user->{'type'} eq 'read-only') {
-        $method->set_error('You are a read-only user and unable to provision');
+        warn "You are a read-only user and unable to provision.";
+        $method->set_error("You are a read-only user and unable to provision.");
         return;
     }
 
@@ -751,15 +754,14 @@ sub provision_circuit {
             static_mac => $static_mac,
             state => $state,
 	    type => $type
-            );
+        );
 
 	my $after_provision = [gettimeofday];
-
 	warn "Time in DB: " . tv_interval( $before_provision, $after_provision);
 
         if(defined($output) && ($provision_time <= time()) && ($state eq 'active' || $state eq 'scheduled' || $state eq 'provisioned')) {
 
-	    if($type eq 'openflow'){
+	    if ($type eq 'openflow') {
 		warn 'provision_circuit: sending add command to openflow controller';
 
 		my $before_add_command = [gettimeofday];
@@ -774,15 +776,18 @@ sub provision_circuit {
                 if (defined $err || $result == 0) {
                     # failure, remove the circuit now
                     $err = "provision_circuit: response from openflow controller was undef. Couldnt talk to fwdctl: $err";
+                    warn "$err";
                     $output->{'warning'} = $err;
+		    $method->set_error($err);
 
 		    warn 'provision_circuit: sending remove command to openflow controller after provisioning failure';
-		    my $removal = remove_circuit($method, { circuit_id => {value => $output->{'circuit_id'}},
-                                                            remove_time => {value => -1},
-                                                            force => {value => 1},
-                                                            workgroup_id => {value => $workgroup_id},
-                                                            type => {value => $type} });
-		    $method->set_error($err);
+		    remove_circuit($method, {
+                        circuit_id   => {value => $output->{'circuit_id'}},
+                        force        => {value => 1},
+                        remove_time  => {value => -1},
+                        type         => {value => $type},
+                        workgroup_id => {value => $workgroup_id}
+                    });
 		    return;
 		}
 	    }
@@ -791,31 +796,29 @@ sub provision_circuit {
 		warn 'provision_circuit: sending add command to mpls controller';
 		my $before_add_command = [gettimeofday];
 
-
                 my $result = _send_mpls_add_command( circuit_id => $output->{'circuit_id'} );
-		warn 'provision_circuit: received response to add command from mpls controller';
+                my $err    = undef;
 
                 my $after_add_command = [gettimeofday];
 
+		warn 'provision_circuit: received response to add command from mpls controller';
                 warn "Time waiting for add: " . tv_interval( $before_add_command, $after_add_command);
 
-                if ( !defined $result ) {
-		    warn 'provision_circuit: response from mpls controller was undef. Couldnt talk to fwdctl';
-                    $output->{'warning'} = "Unable to talk to fwdctl service - is it running?";
-                }
-
-                # failure, remove the circuit now
                 if (!defined $result || $result == 0) {
-		    warn 'provision_circuit: sending remove command to mpls controller after provisioning failure';
+                    # failure, remove the circuit now
+		    $err = "provision_circuit: response from mpls controller was undef. Couldn't talk to fwdctl: $err";
+                    warn "$err";
+                    $output->{'warning'} = $err;
+                    $method->set_error($err);
 
-                    my $removal = remove_circuit($method, { circuit_id => {value => $output->{'circuit_id'}},
-                                                            remove_time => {value => -1},
-                                                            force => {value => 1},
-                                                            workgroup_id => {value => $workgroup_id},
-                                                            type => {value => $type} });
-
-                    #warn "Removal status: " . Data::Dumper::Dumper($removal);
-                    $method->set_error("Unable to provision circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been removed.");
+                    warn 'provision_circuit: sending remove command to mpls controller after provisioning failure';
+                    remove_circuit($method, {
+                        circuit_id   => {value => $output->{'circuit_id'}},
+                        force        => {value => 1},
+                        remove_time  => {value => -1},
+                        type         => {value => $type},
+                        workgroup_id => {value => $workgroup_id}
+                    });
                     return;
                 }
             }
@@ -828,10 +831,13 @@ sub provision_circuit {
                     $circuit_details->{'status'} = 'up';
                     $circuit_details->{'reason'} = 'provisioned';
                     $circuit_details->{'type'} = 'provisioned';
-                    $log_client->circuit_notification( circuit => $circuit_details,
-						       no_reply => 1);
+                    $log_client->circuit_notification(circuit => $circuit_details, no_reply => 1);
                 };
-                warn $@ if $@;
+                if ($@) {
+                    # This probably isn't a critical error, but should
+                    # definitely be logged.
+                    warn "$@";
+                }
             }
         }
 
@@ -888,24 +894,24 @@ sub provision_circuit {
 	if ($type eq 'openflow') {
             my ($result, $err) = _send_remove_command( circuit_id => $circuit_id );
             if (defined $err) {
+                warn "$err";
                 $method->set_error($err);
                 return;
             }
-            warn "!!! called _send_remove_command";
-
 	    if ($result == 0) {
 		$method->set_error("Unable to remove circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been left in the database.");
 		return;
 	    }
 
 	    # modify database entry
-	    my $output = $db->edit_circuit(%edit_circuit_args);
+	    $output = $db->edit_circuit(%edit_circuit_args);
 	    if (!$output) {
 		$method->set_error( $db->get_error() );
 		return;
 	    }
 
-	    if ($state eq 'active' || $state eq 'looped') {
+	    if ($state eq 'active' || $state eq 'looped' || $state eq 'provisioned') {
+                warn "output before send_add: ".Dumper($output);
 		($result, $err) = _send_add_command( circuit_id => $output->{'circuit_id'} );
 		if (defined $err) {
                     $err = "Unable to talk to fwdctl service: $err";
@@ -914,6 +920,7 @@ sub provision_circuit {
 		    return;
 		}
 	    } else {
+                $output = undef;
                 warn "Unexpected circuit state '$state' was received while reprovisioning circuit. Forwarding may not work as expected";
             }
 	}else{
@@ -940,8 +947,7 @@ sub provision_circuit {
             if($state eq 'active' || $state eq 'looped'){
                 $result = _send_mpls_add_command( circuit_id => $output->{'circuit_id'} );
                 if ( !defined $result ) {
-                    $output->{'warning'} =
-                        "Unable to talk to fwdctl service - is it running?";
+                    $output->{'warning'} = "Unable to talk to fwdctl service - is it running?";
                 }
                 if ( $result == 0 ) {
                     $method->set_error("Unable to edit circuit. Please check your logs or contact your server adminstrator for more information. Circuit is likely not live on the network anymore.");
@@ -957,8 +963,7 @@ sub provision_circuit {
                 $circuit_details->{'status'} = 'up';
                 $circuit_details->{'reason'} = 'edited';
                 $circuit_details->{'type'} = 'modified';
-                $log_client->circuit_notification( circuit => $circuit_details,
-						   no_reply => 1);
+                $log_client->circuit_notification( circuit => $circuit_details, no_reply => 1);
             };
             warn $@ if $@;
         }
@@ -976,12 +981,13 @@ sub provision_circuit {
 
 sub remove_circuit {
     my ( $method, $args ) = @_ ;
-    my $results;
 
     my $circuit_id   = $args->{'circuit_id'}{'value'};
     my $remove_time  = $args->{'remove_time'}{'value'};
     my $workgroup_id = $args->{'workgroup_id'}{'value'};
     my $type         = $args->{'type'}{'value'} || "openflow";
+
+    my $results = {};
     $results->{'results'} = [];
 
     my $can_remove = $db->can_modify_circuit(
@@ -989,51 +995,50 @@ sub remove_circuit {
 	username     => $ENV{'REMOTE_USER'},
 	workgroup_id => $workgroup_id
     );
-
+    if ( !defined $can_remove ) {
+        $method->set_error( $db->get_error() );
+	return;
+    }
+    if ( $can_remove < 1 ) {
+	$method->set_error('Users and workgroup do not have permission to remove this circuit');
+	return;
+    }
 
     my $log_client  = new GRNOC::RabbitMQ::Client(
         topic => 'OF.Notification.event',
         exchange => 'OESS',
         user => 'guest',
         pass => 'guest'
-        );
-
+    );
     if ( !defined($log_client) ) {
         $method->set_error("Internal server error occurred. Message queue connection failed.");
         return;
     }
 
-    if ( !defined $can_remove ) {
-        $method->set_error( $db->get_error() );
-	return;
-    }
-
-    if ( $can_remove < 1 ) {
-	$method->set_error('Users and workgroup do not have permission to remove this circuit');
-	return;
-    }
+    my $result;
+    my $err;
 
     # removing it now, otherwise we'll just schedule it for later
-    my $result;
     if ( $remove_time && $remove_time <= time() ) {
-        my $err = undef;
-
-        if ($type eq 'openflow'){
-            warn "Calling _send_remove_command";
+        if ($type eq 'openflow') {
             ($result, $err) = _send_remove_command( circuit_id => $circuit_id );
             if (defined $err) {
+                warn "$err";
                 $method->set_error($err);
                 return;
             }
         } else {
             $result = _send_mpls_remove_command( circuit_id => $circuit_id );
         }
+
         if ( !defined $result ) {
+            warn "Unable to talk to fwdctl service - is it running?";
             $method->set_error("Unable to talk to fwdctl service - is it running?");
             return;
         }
 
         if ( $result == 0 ) {
+            warn "Unable to remove circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been left in the database";
             $method->set_error("Unable to remove circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been left in the database");
 
             # If force is sent, it will clear it from the database
@@ -1054,26 +1059,26 @@ sub remove_circuit {
 
     _send_update_cache( circuit_id => $circuit_id);
 
-    #    print STDERR Dumper($output);
-
     if ( !defined $output ) {
-        $method->set_error( $db->get_error() );
+        $err = $db->get_error();
+        warn "$err";
+        $method->set_error($err);
 	return;
     } elsif ($remove_time <= time() ) {
         #only send removal event if it happened now, not if it was scheduled to happen later.
         #DBUS Log removal event
         eval{
             my $circuit_details = $db->get_circuit_details( circuit_id => $output->{'circuit_id'} );
-            warn ("sending circuit_decommission");
-            warn Dumper ($circuit_details);
             $circuit_details->{'status'} = 'removed';
             $circuit_details->{'reason'} = 'removed by ' . $ENV{'REMOTE_USER'};
             $circuit_details->{'type'} = 'removed';
-            $log_client->circuit_notification( circuit => $circuit_details, 
-                                               no_reply => 1 );
+            $log_client->circuit_notification(circuit => $circuit_details, no_reply => 1);
         };
-        warn $@ if $@;
-
+        if ($@) {
+            # This probably isn't a critical error, but should
+            # definitely be logged.
+            warn "$@";
+        }
     }
 
     return {results => [ { success => $result } ]};

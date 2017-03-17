@@ -423,6 +423,7 @@ sub change_path{
     my $m_ref = shift;
     my $p_ref = shift;
 
+    my $success = $m_ref->{'success_callback'};
 
     my $circuits = $p_ref->{'circuits'}{'value'};
     
@@ -455,8 +456,7 @@ sub change_path{
                                                                                            msg => $foo->{'msg'},
                                                                                            cb => sub { my $res = shift;
 												       $self->{'needs_diff'} = time();
-												       my $cb = $m_ref->{'success_callback'};
-												       &$cb($res);
+												       &$success($res);
 											   })
 							       });
 		       });
