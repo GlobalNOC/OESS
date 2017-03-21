@@ -138,9 +138,6 @@ sub new {
 							     pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
 							     exchange => 'OESS',
 							     topic => 'OF.FWDCTL.event');
-
-    
-
     $self->{'logger'}->info("RabbitMQ ready to go!");
 
     # When this process receives sigterm send an event to notify all
@@ -179,10 +176,10 @@ sub new {
 
     $self->update_cache({
         success_callback => sub {
-
+            $self->{'logger'}->info("Initial call to update_cache was a success!");
         },
         error_callback => sub {
-
+            $self->{'logger'}->error("Initial call to update_cache was a failure!");
         }},
         {circuit_id => {value => -1}}
     );
@@ -711,7 +708,7 @@ sub update_cache{
     my $error   = $m_ref->{'error_callback'};
 
     if(!defined($circuit_id) || $circuit_id == -1){
-        $self->{'logger'}->debug("Updating Cache for entire network");
+        $self->{'logger'}->info("Updating Cache for entire network");
         my $res = build_cache(db => $self->{'db'}, logger => $self->{'logger'});
         $self->{'circuit'} = $res->{'ckts'};
         $self->{'link_status'} = $res->{'link_status'};
@@ -719,12 +716,11 @@ sub update_cache{
         $self->{'node_info'} = $res->{'node_info'};
         $self->{'logger'}->debug("Cache update complete");
 
-    }else{
-        $self->{'logger'}->debug("Updating cache for circuit: " . $circuit_id);
+    } else {
+        $self->{'logger'}->info("Updating cache for circuit: " . $circuit_id);
         my $ckt = $self->get_ckt_object($circuit_id);
         if(!defined($ckt)){
-            #return {status => FWDCTL_FAILURE, event_id => $self->_generate_unique_event_id()};
-            return &$error({ error => "Couldn't get circuit $circuit_id" });
+            return &$error("Couldn't get circuit $circuit_id");
         }
         $ckt->update_circuit_details();
         $self->{'logger'}->debug("Updating cache for circuit: " . $circuit_id . " complete");
@@ -738,11 +734,11 @@ sub update_cache{
 
     $cv->begin( sub {
         if ($err ne '') {
-            $self->{'logger'}->error("Failed to fully update cache.");
-            &$error({error => $err});
+            $self->{'logger'}->error("Failed to fully update cache: $err");
+            &$error($err);
+        } else {
+            &$success({ status => FWDCTL_SUCCESS });
         }
-
-        &$success({ status => FWDCTL_SUCCESS });
     });
 
     foreach my $dpid (keys %{$self->{'children'}}){
@@ -844,7 +840,6 @@ sub _write_cache{
     foreach my $ckt_id (keys (%{$self->{'circuit'}})){
         my $found = 0;
         $self->{'logger'}->debug("writing circuit: " . $ckt_id . " to cache");
-        
         my $ckt = $self->get_ckt_object($ckt_id);
         if(!defined($ckt)){
             $self->{'logger'}->error("No Circuit could be created or found for circuit: " . $ckt_id);
@@ -866,16 +861,17 @@ sub _write_cache{
             push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'current'}},$flow->to_canonical());
         }
 
-        foreach my $flow (@{$ckt->get_endpoint_flows( path => 'primary')}){
-            push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'endpoint'}{'primary'}},$flow->to_canonical());
-        }
-        foreach my $flow (@{$ckt->get_endpoint_flows( path => 'backup')}){
-            push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'endpoint'}{'backup'}},$flow->to_canonical());
+        my $primary_flows = $ckt->get_endpoint_flows(path => 'primary');
+        foreach my $flow (@{$primary_flows}){
+            push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'endpoint'}{'primary'}}, $flow->to_canonical());
         }
 
+        my $backup_flows = $ckt->get_endpoint_flows(path => 'backup');
+        foreach my $flow (@{$backup_flows}) {
+            push(@{$dpids{$flow->get_dpid()}{$ckt_id}{'flows'}{'endpoint'}{'backup'}}, $flow->to_canonical());
+        }
     }
 
-        
     foreach my $dpid (keys %{$self->{'node_info'}}){
         my $data;
         my $ckts;
@@ -2097,7 +2093,7 @@ sub addVlan {
             }
 
             $self->{'logger'}->error("Failed to add VLAN. Elapsed time: " . tv_interval($start, [gettimeofday]));
-            &$error_callback({error => $err});
+            &$error_callback($err);
         }
 
         $self->{'logger'}->info("Added VLAN. Elapsed time: " . tv_interval($start, [gettimeofday]));
@@ -2153,12 +2149,12 @@ sub deleteVlan {
 
     my $ckt = $self->get_ckt_object( $circuit_id );
     if(!defined($ckt)){
-        &$error({ error => "Couldn't get circuit $circuit_id." });
+        return &$error("Couldn't get circuit $circuit_id.");
     }
     
     $ckt->update_circuit_details();
     if($ckt->{'details'}->{'state'} eq 'decom'){
-	&$error({ error => "Circuit $circuit_id was already decommissioned." });
+	return &$error("Circuit $circuit_id was already decommissioned.");
     }
 
     $self->_write_cache();
@@ -2185,7 +2181,7 @@ sub deleteVlan {
             }
 
             $self->logger->error("Failed to delete VLAN. Elapased time: " . tv_interval( $start, [gettimeofday]));
-            &$error({ error => $err });
+            return &$error($err);
         }
 
         $self->{'logger'}->info("Deleted VLAN. Elapsed time: " . tv_interval( $start, [gettimeofday]));
@@ -2224,6 +2220,7 @@ sub changeVlanPath {
     my $state = shift;
 
     my $success = $m_ref->{'success_callback'};
+    my $error   = $m_ref->{'error_callback'};
 
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
@@ -2252,31 +2249,31 @@ sub changeVlanPath {
 
     foreach my $dpid (keys %dpids){
         $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
-        $self->{'fwdctl_events'}->change_path(circuits       => [$circuit_id],
-                                              async_callback => sub {
-                                                  my $response = shift;
+        $self->{'fwdctl_events'}->change_path(
+            circuits       => [$circuit_id],
+            async_callback => sub {
+                my $response = shift;
 
-                                                  # {
-                                                  #   results => {
-                                                  #     msg => 'sent flows',
-                                                  #     status => '1',
-                                                  #     total_flows => '3'
-                                                  #   }
-                                                  # }
+                # {
+                #   results => {
+                #     msg => 'sent flows',
+                #     status => '1',
+                #     total_flows => '3'
+                #   }
+                # }
 
-                                                  if (defined $response->{'error'} && defined $response->{'error_text'}) {
-                                                      $self->{'logger'}->error($response->{'error_text'});
-                                                      return &$success({ error => $response->{'error_text'} });
-                                                  }
+                if (defined $response->{'error'} && defined $response->{'error_text'}) {
+                    $self->{'logger'}->error($response->{'error'});
+                    return &$error($response->{'error'});
+                }
 
-                                                  $share -= 1;
-                                                  if ($share == 0) {
-                                                      return &$success($response);
-                                                  }
-                                              });
+                $share -= 1;
+                if ($share == 0) {
+                    return &$success($response);
+                }
+            }
+        );
     }
-    # $self->{'logger'}->warn("Change Path Event ID: " . $event_id);
-    # $m_ref->{'success_callback'}({status => $result, event_id => $event_id});
 }
 
 =head2 get_event_status

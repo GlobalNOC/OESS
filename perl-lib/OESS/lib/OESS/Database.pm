@@ -8328,7 +8328,7 @@ sub _process_tag_string{
     my $MIN_VLAN_TAG  = ($oscars_format) ? 0 : MIN_VLAN_TAG;
 
     if(!defined($string)){
-	    return;
+        return;
     }
     if($oscars_format){
         $string =~ s/^-1/0/g;
@@ -8452,8 +8452,10 @@ sub _validate_endpoint {
         }
     }
 
-
-    warn "VLAN TAG RANGE $type -> $vlan_tag_range";
+    if (!defined $vlan_tag_range) {
+        $vlan_tag_range = '-1';
+    }
+    $self->{'logger'}->debug("VLAN TAG RANGE $type -> $vlan_tag_range");
 
 
     $query  = "select * ";
@@ -8467,7 +8469,7 @@ sub _validate_endpoint {
 	$self->_set_error("Internal error validating endpoint.");
 	return;
     }
-    warn "INTERFACE ACL: ".Dumper($results);
+    $self->{'logger'}->debug("INTERFACE ACL: ".Dumper($results));
 
     # Create a hash with all VLANs of the specified protocol. This will
     # be used later on to invalidate ACLs unrelated to the desired

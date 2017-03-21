@@ -423,6 +423,7 @@ sub change_path{
     my $m_ref = shift;
     my $p_ref = shift;
 
+    my $success = $m_ref->{'success_callback'};
 
     my $circuits = $p_ref->{'circuits'}{'value'};
     
@@ -455,8 +456,7 @@ sub change_path{
                                                                                            msg => $foo->{'msg'},
                                                                                            cb => sub { my $res = shift;
 												       $self->{'needs_diff'} = time();
-												       my $cb = $m_ref->{'success_callback'};
-												       &$cb($res);
+												       &$success($res);
 											   })
 							       });
 		       });
@@ -743,9 +743,9 @@ sub _do_diff{
         next unless ($self->{'ckts'}->{$circuit_id}->{'details'}->{'state'} eq 'active' || 
                      $self->{'ckts'}->{$circuit_id}->{'details'}->{'state'} eq 'deploying');
         #--- get the set of commands needed to create this vlan per design
-        $self->{'logger'}->error("Processing ckt_id: " . $circuit_id);
+        $self->{'logger'}->debug("Processing ckt_id: " . $circuit_id);
 	my $commands = $self->_generate_commands($circuit_id,FWDCTL_ADD_VLAN);
-	$self->{'logger'}->error("Flows for ckt: " . $circuit_id . " " . Data::Dumper::Dumper($commands));
+	$self->{'logger'}->debug("Flows for ckt: " . $circuit_id . " " . Data::Dumper::Dumper($commands));
         foreach my $command (@$commands) {
             push(@all_commands,$command);
         }

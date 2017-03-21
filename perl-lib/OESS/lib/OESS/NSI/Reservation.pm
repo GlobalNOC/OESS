@@ -55,6 +55,7 @@ sub new {
 
     bless($self,$class);
 
+    $self->{'log'} = GRNOC::Log->get_logger("OESS.NSI.Reservation");
     $self->_init();
 
     return $self;
@@ -184,7 +185,7 @@ sub reserve {
 
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "provisioning.cgi");
     
-    my $res = $self->{'websvc'}->foo( action => "provision_circuit",
+    my $res = $self->{'websvc'}->provision_circuit(
 				      state  => 'reserved',
                                       workgroup_id => $self->{'workgroup_id'},
                                       external_identifier => $gri,
@@ -200,7 +201,7 @@ sub reserve {
                                       interface => [$ep1->{'port'}, $ep2->{'port'}],
                                       tag => [$ep1->{'vlan'}, $ep2->{'vlan'}]);
     
-    log_error("Results of provision: " . Data::Dumper::Dumper($res));
+    log_debug("Results of provision: " . Data::Dumper::Dumper($res));
 
     if(defined($res->{'results'}) && $res->{'results'}->{'success'} == 1){
         log_info("Successfully created reservation, connectionId: " . $res->{'results'}->{'circuit_id'});
@@ -243,7 +244,7 @@ sub _do_reserve_abort{
     log_info("reservationAbort: connectionId: " . $connection_id);
 
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "/provisioning.cgi");
-    my $res = $self->{'websvc'}->foo( action => "remove_circuit",
+    my $res = $self->{'websvc'}->remove_circuit(
                                       circuit_id => $connection_id,
                                       workgroup_id => $self->{'workgroup_id'},
                                       remove_time => -1);
@@ -349,55 +350,70 @@ sub validate_endpoint{
     my $ep = shift;
     
     #need to verify this is part of our network and actually exists and that we have permission!
+    $self->{'log'}->info("Checking validity of port $ep->{'port'} on $ep->{'node'}.");
 
-    $self->{'websvc'}->set_url($self->{'websvc_location'} . "data.cgi");
+    my $url = $self->{'websvc_location'} . "data.cgi";
+    $self->{'websvc'}->set_url($url);
+    $self->{'log'}->debug("Requesting all resources for NSI workgroup from $url");
 
-    log_debug("Checking validity of EP: " . Data::Dumper::Dumper($ep));
-    
-    log_debug("requesting all resources for NSI workgroup");
-    my $res = $self->{'websvc'}->foo( action => "get_all_resources_for_workgroup",
-                                      workgroup_id => $self->{'workgroup_id'});
-
-
-    if(defined($res) && defined($res->{'results'})){        
-        foreach my $resource (@{$res->{'results'}}){
-            if($resource->{'node_name'} eq $ep->{'node'}){
-                if($resource->{'interface_name'} eq $ep->{'port'}){
-                    log_debug("Found interface for requested EP, requesting VLAN availability");
-                    #made it this far!
-                    foreach my $tag (@{$ep->{'tags'}}){
-                        
-                        my $valid_tag = $self->{'websvc'}->foo( action    => "is_vlan_tag_available",
-                                                                interface => $ep->{'port'},
-                                                                node      => $ep->{'node'},
-                                                                vlan      => $tag,
-                                                                workgroup_id => $self->{'workgroup_id'});
-                        
-                        log_debug("Results from is valid tag: " . Data::Dumper::Dumper($valid_tag));
-                        
-                        if(defined($valid_tag) && $valid_tag->{'results'}){
-                            log_debug("results from is_vlan_tag_available: " . Data::Dumper::Dumper($valid_tag->{'results'}));
-                            if($valid_tag->{'results'}->[0]->{'available'} == 1){
-                                $ep->{'vlan'} = $tag;
-                                return 1;
-                            }
-                        }
-                    }
-
-                    return 0;
-
-                }
-            }
-        }
-    }else{
-        log_error("Unable to fetch workgroup resources" . Data::Dumper::Dumper($res));
+    my $res = $self->{'websvc'}->get_all_resources_for_workgroup(workgroup_id => $self->{'workgroup_id'});
+    if (!defined $res) {
+        $self->{'log'}->error("Couldn't get NSI workgroup resources from $url: Fatal webservice error occurred.");
         return 0;
     }
-    log_error("not a valid endpoint, or not allowed via NSI workgroup");
-    return 0;
-    
-    
+    if (defined $res->{'error'}) {
+        $self->{'log'}->error("Couldn't get NSI workgroup resources from $url: $res->{'error'}");
+        return 0;
+    }
 
+    if (defined $res->{'results'}) {
+        $self->{'log'}->debug("Workgroup resources: " . Dumper($res->{'results'}));
+
+        foreach my $resource (@{$res->{'results'}}) {
+
+            if ($resource->{'node_name'} eq $ep->{'node'} && $resource->{'interface_name'} eq $ep->{'port'}) {
+                $self->{'log'}->debug("Found interface for requested endpoint. Checking VLAN availability.");
+
+                foreach my $tag (@{$ep->{'tags'}}) {
+                    my $valid_tag = $self->{'websvc'}->is_vlan_tag_available(
+                        interface => $ep->{'port'},
+                        node      => $ep->{'node'},
+                        vlan      => $tag,
+                        workgroup_id => $self->{'workgroup_id'}
+                    );
+                    if (!defined $valid_tag) {
+                        $self->{'log'}->error("Couldn't get VLAN tag availability from $url: Fatal webservice error occurred.");
+                        return 0;
+                    }
+                    if (defined $res->{'error'}) {
+                        $self->{'log'}->error("Couldn't get VLAN tag availability from $url: $res->{'error'}");
+                        return 0;
+                    }
+
+                    if (defined $valid_tag->{'results'}) {
+                        $self->{'log'}->debug("is_vlan_tag_available response: " . Data::Dumper::Dumper($valid_tag->{'results'}));
+
+                        if ($valid_tag->{'results'}->[0]->{'available'} == 1) {
+                            $ep->{'vlan'} = $tag;
+                            return 1;
+                        }
+                    } else {
+                        $self->{'log'}->error("Got unexpected webservice response: " . Data::Dumper::Dumper($valid_tag));
+                        return 0;
+                    }
+                }
+
+                # If we reach here we have a valid switch port, but the vlan is invalid or unavailable.
+                return 0;
+            }
+        }
+    } else {
+        $self->{'log'}->error("Got unexpected webservice response: " . Data::Dumper::Dumper($res));
+        return 0;
+    }
+
+    $self->{'log'}->error("not a valid endpoint, or not allowed via NSI workgroup: " . Dumper($res));
+    return 0;
 }
 
 =head2 get_shortest_path
@@ -411,7 +427,7 @@ sub get_shortest_path{
     my $links = shift;
 
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "data.cgi");
-    my $shortest_path = $self->{'websvc'}->foo( action => "get_shortest_path",
+    my $shortest_path = $self->{'websvc'}->get_shortest_path(
                                                 node => [$ep1->{'node'},$ep2->{'node'}],
                                                 link => $links);
     
@@ -535,7 +551,6 @@ sub _reserve_commit_failed{
                                                                                         text => "reservation has already expired!"));
     };
     log_error("Error sending reserveCommitFailed message: " . Data::Dumper::Dumper($@)) if $@;
-        
 }
 
 sub _build_p2ps{
@@ -550,12 +565,27 @@ sub _build_p2ps{
 
 sub _build_schedule{
     my $schedule = shift;
-    if($schedule->{'startTime'} ne ''){
-        return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( startTime => $schedule->{'startTime'})->type(''),
-                                                                 SOAP::Data->name( endTime => $schedule->{'endTime'})->type('')));
+
+    my $start;
+    my $end;
+
+    if (defined $schedule->{'startTime'} && $schedule->{'startTime'} ne '') {
+        $start = SOAP::Data->name(startTime => $schedule->{'startTime'})->type('');
     }
 
-    return SOAP::Data->name( schedule => \SOAP::Data->value( SOAP::Data->name( endTime => $schedule->{'endTime'} )->type('')));
+    if (defined $schedule->{'endTime'} && $schedule->{'endTime'} ne '') {
+        $end = SOAP::Data->name(endTime => $schedule->{'endTime'})->type('');
+    }
+
+    if (defined $start && defined $end) {
+        return SOAP::Data->name(schedule => \SOAP::Data->value(startTime => $start, endTime => $end));
+    } elsif (defined $start) {
+        return SOAP::Data->name(schedule => \SOAP::Data->value(startTime => $start));
+    } elsif (defined $end) {
+        return SOAP::Data->name(schedule => \SOAP::Data->value(endTime => $end));
+    } else {
+        return SOAP::Data->name(schedule => \SOAP::Data->value());
+    }
 }
 
 sub _build_criteria{
@@ -722,7 +752,7 @@ sub _reserve_timeout{
     
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "provisioning.cgi");
 
-    my $res = $self->{'websvc'}->foo( action => "remove_circuit",
+    my $res = $self->{'websvc'}->remove_circuit(
                                       circuit_id => $data->{'connection_id'},
                                       workgroup_id => $self->{'workgroup_id'});
 
