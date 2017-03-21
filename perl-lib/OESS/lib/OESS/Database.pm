@@ -5029,12 +5029,25 @@ sub insert_node_in_path{
 
     foreach my $circuit (@$circuits){
 
-        $self->{'logger'}->warn("insert_node_in_path: Removing a circuit");
-        
+        my $condvar = AnyEvent->condvar;
+        $condvar->begin(sub {
+            $self->{'logger'}->info("Circuit $circuit->{'circuit_id'} reprovisioned.");
+            return 1;
+        });
+
 	# First we need to remove the circuit from the switch.
-        my $result = $self->{'fwdctl'}->deleteVlan(circuit_id => int($circuit->{'circuit_id'}));
-        $self->{'logger'}->warn("insert_node_in_path: deleteVlan result - " . Data::Dumper::Dumper($result));
-        push(@events, $result->{'event_id'});
+        $condvar->begin();
+        $self->{'logger'}->warn("insert_node_in_path: Removing a circuit");
+
+        $self->{'fwdctl'}->deleteVlan(
+            circuit_id     => int($circuit->{'circuit_id'}),
+            async_callback => sub {
+                my $result = shift;
+
+                $self->{'logger'}->debug("insert_node_in_path: deleteVlan result - " . Data::Dumper::Dumper($result));
+                $condvar->end();
+            }
+        );
 
 	# OK now update the links
 	my $links = $self->_execute_query("select * from link_path_membership, path, path_instantiation where path.path_id = path_instantiation.path_id and path_instantiation.end_epoch = -1 and link_path_membership.path_id = path.path_id and path.circuit_id = ? and link_path_membership.end_epoch = -1",[$circuit->{'circuit_id'}]);
@@ -5085,27 +5098,26 @@ sub insert_node_in_path{
 	    }
 	}
 
+	# Re-add circuit
+        $condvar->begin();
         $self->{'logger'}->warn("insert_node_in_path: Re-adding circuit");
         
-	# Re-add circuit
-        $result = $self->{'fwdctl'}->addVlan(circuit_id => int($circuit->{'circuit_id'}));
-        $self->{'logger'}->error("insert_node_in_path: addVlan result - " . Data::Dumper::Dumper($result));
-        push(@events, $result->{'event_id'});
-    }
+        $self->{'fwdctl'}->addVlan(
+            circuit_id     => int($circuit->{'circuit_id'}),
+            async_callback => sub {
+                my $result = shift;
 
-    $self->{'logger'}->warn("insert_node_in_path: Checking status of events");
-
-    while(scalar(@events) > 0){
-        for(my $i=0;$i <= $#events;$i++){
-            my $res = $self->{'fwdctl'}->get_event_status(event_id => $events[$i]);
-            $self->{'logger'}->warn("insert_node_in_path: get_event_status result: " . Data::Dumper::Dumper($res));
-            if ($res->{'status'} != FWDCTL_WAITING) {
-                delete $events[$i];
+                $self->{'logger'}->debug("insert_node_in_path: addVlan result - " . Data::Dumper::Dumper($result));
+                $condvar->end();
             }
-        }
+        );
+
+        # Wait for deletion and addition to complete, then execute
+        # callback passed to begin.
+        $condvar->end();
     }
 
-    $self->{'logger'}->error("Exiting insert_node_in_path");
+    $self->{'logger'}->info("Exiting insert_node_in_path");
 
     return {success => 1};
 }

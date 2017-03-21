@@ -1699,14 +1699,21 @@ sub update_node {
 	my $cv = AnyEvent->condvar;
 
 	warn 'update_node: starting mpls switch forwarding process';
-        my $res = $client->new_switch(node_id => int($node_id),
-	    async => 1,
+        my $res = $client->new_switch(
+            node_id        => int($node_id),
 	    async_callback => sub {
 		warn 'update_node: starting mpls switch discovery process';
+
 		$client->{'topic'} = 'MPLS.Discovery.RPC';
-		$client->new_switch(node_id => $node_id,
-				    async => 1,
-				    async_callback => sub { warn 'update_node: done starting mpls switch processes'; $cv->send(); })});
+		$client->new_switch(
+                    node_id => $node_id,
+                    async_callback => sub {
+                        warn 'update_node: done starting mpls switch processes';
+                        $cv->send();
+                    }
+                )
+            }
+        );
 	$cv->recv();
     }
 
@@ -2199,10 +2206,23 @@ sub add_mpls_switch{
 
     warn Data::Dumper::Dumper($node);
 
-    my $res = $client->new_switch(node_id => $node->{'node_id'});    
-    $client->{'topic'} = 'MPLS.Discovery.RPC';
-    $res = $client->new_switch(node_id => $node->{'node_id'});
-    
+    my $cv = AnyEvent->condvar;
+    $client->new_switch(
+        node_id        => $node->{'node_id'},
+        async_callback => sub {
+            my $result = shift;
+            
+            $client->{'topic'} = 'MPLS.Discovery.RPC';
+            $client->new_switch(
+                node_id => $node->{'node_id'},
+                async_callback => sub {
+                    my $result = shift;
+                    $cv->send($result);
+                }
+            );
+        }
+    );
+    my $res = $cv->recv();
 
     return {results => [{success => 1, node_id => $node->{'node_id'}}]};
 
