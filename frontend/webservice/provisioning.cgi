@@ -459,7 +459,7 @@ sub _send_mpls_add_command {
 
     warn "_send_mpls_add_command: Calling addVlan on circuit $circuit_id";
     $client->addVlan(circuit_id => int($circuit_id), async_callback => sub {
-        my $result = shift; 
+        my $result = shift;
         $cv->send($result);
     });
 

@@ -460,9 +460,11 @@ sub new_switch{
 
     my $node_id = $p_ref->{'node_id'}{'value'};
     
+    my $success = $m_ref->{'success_callback'};
+
     $self->update_cache(-1);
 
-    $m_ref->{'success_callback'}({status => FWDCTL_SUCCESS});
+    \&success({status => FWDCTL_SUCCESS});
 }
 
 =head2 create_nodes
