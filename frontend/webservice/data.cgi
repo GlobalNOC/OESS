@@ -61,7 +61,7 @@ my $db   = new OESS::Database();
 my $topo = new OESS::Topology();
 
 #register web service dispatcher
-my $svc    = GRNOC::WebService::Dispatcher->new();
+my $svc    = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
 my $fwdctl = GRNOC::RabbitMQ::Client->new( host     => 'localhost',
                                            user     => 'guest',
                                            pass     => 'guest',

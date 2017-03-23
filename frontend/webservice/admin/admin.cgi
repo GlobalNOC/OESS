@@ -50,7 +50,7 @@ use constant FWDCTL_UNKNOWN     => 3;
 my $db   = new OESS::Database();
 my $topo = new OESS::Topology();
 
-my $svc = GRNOC::WebService::Dispatcher->new();
+my $svc = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
 
 $| = 1;
 
@@ -468,11 +468,11 @@ sub register_webservice_methods {
                                   description => '' );
     $method->add_input_parameter( name        => 'type',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  required    => 1,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'status',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  required    => 1,
+                                  required    => 0,
                                   description => '' );
     $svc->register_method($method);
 

@@ -45,7 +45,7 @@ my $topo        = new OESS::Topology();
 my $measurement = new OESS::Measurement();
 
 #register web service dispatcher
-my $svc = GRNOC::WebService::Dispatcher->new();
+my $svc = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
 
 $| = 1;
 
