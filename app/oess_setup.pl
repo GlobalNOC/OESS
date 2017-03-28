@@ -162,6 +162,41 @@ END
     print FILE "  <rabbitMQ user='guest' pass='guest' host='localhost' port='5672' vhost='/' />\n";
     print FILE "</config>\n";
     close(FILE);
+
+
+    if ($use_mpls eq 'enabled') {
+        my $make_passwd = yes_or_no_parameter('Set up credentials for OESS to log into switches (needed for MPLS)?');
+        if ($make_passwd eq 'y') {
+            my $mpls_user = required_parameter('Default username for switches: ');
+
+            my ($mpls_pass, $mpls_confirm);
+            ReadMode('noecho');
+            while (1) {
+                $mpls_pass    = required_parameter('Password for switches: ');
+                print "\n";
+                $mpls_confirm = required_parameter('Confirm password for switches: ');
+                print "\n";
+
+                last if ($mpls_pass eq $mpls_confirm);
+                print "Passwords did not match - try again.\n";
+            }
+            ReadMode('normal');
+            print "\n";
+
+            $mpls_user = xml_escape($mpls_user);
+            $mpls_pass = xml_escape($mpls_pass);
+
+            print "Creating switch credentials file (/etc/oess/.passwd.xml)\n";
+            open(FILE, '> /etc/oess/.passwd.xml');
+            print FILE << "END";
+<config default_user='$mpls_user' default_pw='$mpls_pass'>
+</config>
+END
+            close(FILE);
+        }
+    }
+
+
     print "\nInstalling the OESS Schema\n";
     my $db = OESS::Database->new();
     $OESS::Database::ENABLE_DEVEL=1;
@@ -412,6 +447,16 @@ sub optional_parameter {
     $response = $default if (defined($default) && !$response);
 
     return $response;
+}
+
+sub xml_escape {
+    my $str = shift;
+
+    $str =~ s/&/&amp;/g;
+    $str =~ s/"/&quot;/g;
+    $str =~ s/'/&apos;/g;
+
+    return $str;
 }
 
 
