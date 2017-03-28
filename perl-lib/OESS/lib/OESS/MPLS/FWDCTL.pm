@@ -736,6 +736,8 @@ sub addVlan{
     foreach my $node (keys %nodes){
         $cv->begin();
 
+        my $node_id = $self->{'node_info'}->{$node}->{'id'};
+
         $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
         $self->{'fwdctl_events'}->add_vlan(
             circuit_id => $circuit_id,
