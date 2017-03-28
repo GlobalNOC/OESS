@@ -38,7 +38,7 @@ use GRNOC::WebService;
 
 my $db = new OESS::Database();
 #register web service dispatcher
-my $svc = GRNOC::WebService::Dispatcher->new();
+my $svc = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
 
 $| = 1;
 
