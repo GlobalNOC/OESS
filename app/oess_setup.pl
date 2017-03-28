@@ -69,6 +69,17 @@ sub main{
     ReadMode('normal');
     print "\n";
 
+    my $of_mpls_mode;
+    my %allowed_modes = ('1' => 1, '2' => 1, '3' => 1);
+    while(!($of_mpls_mode = required_parameter('Enable OpenFlow only (1), MPLS only (2), or both OpenFlow and MPLS (3)? '))
+          or !$allowed_modes{$of_mpls_mode}) {
+        print "Invalid value $of_mpls_mode entered - use 1, 2, or 3.\n";
+    }
+    my $use_openflow = 'enabled';
+    $use_openflow = 'disabled' if $of_mpls_mode == 2;
+    my $use_mpls = 'enabled';
+    $use_mpls = 'disabled' if $of_mpls_mode == 1;
+
     my $host = hostname;
     my $oscars_host = optional_parameter("Oscars Host URL","https://$host");
     my $my_cert = optional_parameter("OSCARS SSL Cert","mycert.crt");
@@ -135,16 +146,21 @@ sub main{
     open(FILE, "> /etc/oess/database.xml");
 
     print FILE << "END";
-<config snapp_config_location="/SNMP/snapp/snapp_config.xml" host="$db_host" port="$db_port" base_url="$base_url" >
+<config snapp_config_location="/SNMP/snapp/snapp_config.xml"
+        host="$db_host" port="$db_port" base_url="$base_url"
+        openflow="$use_openflow" mpls="$use_mpls">
   <credentials username="oess" password="$oess_pass" database="oess" />
   <oscars host="$oscars_host" cert="$my_cert" key="$my_key" topo="$topo_host"/>
   <smtp from_address="$from_address" image_base_url="$image_base_url" from_name="$from_name" />
 END
     print FILE "  <discovery_vlan>$discovery_vlan</discovery_vlan>\n" if($discovery_vlan ne 'untagged');
+    print FILE "  <process name='fwdctl' status='$use_openflow' />\n";
+    print FILE "  <process name='mpls_fwdctl' status='$use_mpls' />\n";
+    print FILE "  <process name='mpls_discovery' status='$use_mpls' />\n";
     print FILE "  <process name='fvd' status='disabled' />\n";
     print FILE "  <process name='watchdog' status='disabled' />\n";
     print FILE "  <rabbitMQ user='guest' pass='guest' host='localhost' port='5672' vhost='/' />\n";
-    print FILE "</config>";
+    print FILE "</config>\n";
     close(FILE);
     print "\nInstalling the OESS Schema\n";
     my $db = OESS::Database->new();
