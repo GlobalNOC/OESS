@@ -160,7 +160,7 @@ END
     print FILE "  <process name='fvd' status='disabled' />\n";
     print FILE "  <process name='watchdog' status='disabled' />\n";
     print FILE "  <rabbitMQ user='guest' pass='guest' host='localhost' port='5672' vhost='/' />\n";
-    print FILE "</config>";
+    print FILE "</config>\n";
     close(FILE);
     print "\nInstalling the OESS Schema\n";
     my $db = OESS::Database->new();
