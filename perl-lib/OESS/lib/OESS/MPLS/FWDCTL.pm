@@ -80,6 +80,7 @@ sub new {
                                                              port => $self->{'db'}->{'rabbitMQ'}->{'port'},
                                                              user => $self->{'db'}->{'rabbitMQ'}->{'user'},
                                                              pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
+                                                             timeout => 15,
                                                              exchange => 'OESS',
                                                              topic => 'MPLS.FWDCTL.event');
 
@@ -912,8 +913,7 @@ sub diff {
 
                 warn "Diff topic! MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . "\n";
                 $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
-                $self->{'fwdctl_events'}->diff( timeout        => 15,
-                                                installed_circuits => $payload,
+                $self->{'fwdctl_events'}->diff( installed_circuits => $payload,
                                                 force_diff     => $force_diff,
                                                 async_callback => sub {
                                                     my $res = shift;

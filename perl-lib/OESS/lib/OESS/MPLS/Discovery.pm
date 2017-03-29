@@ -106,6 +106,7 @@ sub new{
 							  port => $self->{'db'}->{'rabbitMQ'}->{'port'},
 							  user => $self->{'db'}->{'rabbitMQ'}->{'user'},
 							  pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
+							  timeout => 15,
 							  exchange => 'OESS',
 							  topic => 'MPLS.Discovery');
     
@@ -329,8 +330,7 @@ sub path_handler {
     
     foreach my $node (@{$nodes}){ 
         $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
-        $self->{'rmq_client'}->get_default_paths( timeout            => 15,
-                                                  loopback_addresses => \@loopback_addrs,
+        $self->{'rmq_client'}->get_default_paths( loopback_addresses => \@loopback_addrs,
                                                   async_callback     => sub {
                                                       my $res = shift;
                                                       warn "Processing results\n";
