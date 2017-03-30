@@ -375,7 +375,7 @@ sub main{
                         my $cv = AnyEvent->condvar;
 
                         $client->changeVlanPath(
-                            circuit_id => $circuit_id,
+                            circuit_id => $action->{'circuit_id'},
                             async_callback => sub {
                                 my $result = shift;
                                 $cv->send($result);
