@@ -955,7 +955,7 @@ sub flow_stats_callback{
 	$self->{'logger'}->debug("Flow stats callback!!!!");
         
 	my $time = $results->{'results'}->[0]->{'timestamp'};
-	my $stats = $results->{'results'}->[0]->{'flow_stats'}; 
+	my $stats = $results->{'results'}->[0]->{'flow_stats'};
 
         if ($time == -1) {
             #we don't have flow data yet
