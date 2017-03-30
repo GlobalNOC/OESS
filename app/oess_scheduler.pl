@@ -287,8 +287,8 @@ sub main{
                 $client->deleteVlan(
                     circuit_id => int($action->{'circuit_id'}),
                     async_callback => sub {
-                        my $result = shift;
-                        $result->send($result);
+                        my $res = shift;
+                        $result->send($res);
                     }
                 );
 
@@ -330,8 +330,8 @@ sub main{
                 $client->update_cache(
                     circuit_id => int($action->{'circuit_id'}),
                     async_callback => sub {
-                        my $result = shift;
-                        $result->send($result);
+                        my $res = shift;
+                        $result->send($res);
                     }
                 );
 
