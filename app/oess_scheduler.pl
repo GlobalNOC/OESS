@@ -96,20 +96,20 @@ sub main{
             my $result;
             my $event_id;
             eval {
-                $result = $client->addVlan(circuit_id => int($action->{'circuit_id'}));
+                $result = AnyEvent->condvar;
 
-                if($result->{'error'} || !$result->{'results'}->{'event_id'}){
+                $client->addVlan(
+                    circuit_id => int($action->{'circuit_id'}),
+                    async_callback => sub {
+                        my $r = shift;
+                        $result->send($r);
+                    }
+                );
+
+                my $final_res = $result->recv();
+                if (defined $final_res->{'error'}) {
                     syslog(LOG_ERR, "Circuit " . $action->{'circuit_id'} . ":" . $circuit_layout->{'circuit_id'} . " couldn't be added.");
                     return;
-                }
-
-                $event_id = $result->{'results'}->{'event_id'};
-
-                my $final_res = OESS::Database->FWDCTL_WAITING;
-
-                while($final_res == OESS::Database->FWDCTL_WAITING){
-                    sleep(1);
-                    $final_res = $client->get_event_status(event_id => $event_id)->{'event_id'}->{'status'};
                 }
 
                 $res = $final_res;
@@ -121,27 +121,24 @@ sub main{
 
             #--- signal fwdctl to update caches
             eval{
-                $result = $client->update_cache(circuit_id => int($action->{'circuit_id'}));
-                
-                if($result->{'error'} || !$result->{'results'}->{'event_id'}){
+                $result = AnyEvent->condvar;
+
+                $client->update_cache(
+                    circuit_id => int($action->{'circuit_id'}),
+                    async_callback => sub {
+                        my $r = shift;
+                        $result->send($r);
+                    }
+                );
+
+                my $update_cache_result = $result->recv();
+                if (defined $update_cache_result->{'error'}) {
+                    syslog(LOG_ERR, "Cache update error for " . $action->{'circuit_id'} . ":" . $circuit_layout->{'circuit_id'} . ".");
                     return;
                 }
 
-                $event_id = $result->{'results'}->{'event_id'};
-
-                my $update_cache_result = OESS::Database->FWDCTL_WAITING;
-                
-                while($update_cache_result == OESS::Database->FWDCTL_WAITING){
-                    sleep(1);
-                    $update_cache_result = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
-                }
-                
                 $res = $update_cache_result;
             };
-
-            if(!defined $res || $res != OESS::Database->FWDCTL_SUCCESS){
-                syslog(LOG_ERR,"Error updating cache after scheduled vlan removal.");
-            }
 
             eval {
                 my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
@@ -160,17 +157,19 @@ sub main{
             my $result;
             my $event_id;
             eval {
-                $result = $client->deleteVlan(circuit_id => int($action->{'circuit_id'}));
-                if($result->{'error'} || !$result->{'results'}->{'event_id'}){
-                    return;
-                }
+                $result = AnyEvent->condvar;
 
-                $event_id = $result->{'results'}->{'event_id'};
-                my $final_res = OESS::Database->FWDCTL_WAITING;
+                $client->deleteVlan(
+                    circuit_id => int($action->{'circuit_id'}),
+                    async_callback => sub {
+                        my $r = shift;
+                        $result->send($r);
+                    }
+                );
 
-                while($final_res == OESS::Database->FWDCTL_WAITING){
-                    sleep(1);
-                    $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
+                my $final_res = $result->recv();
+                if (defined $final_res->{'error'}) {
+                    syslog(LOG_ERR, "deleteVlan failed for " . $action->{'circuit_id'} . ":" . $circuit_layout->{'circuit_id'} . ".");
                 }
 
                 $res = $final_res;
@@ -219,21 +218,22 @@ sub main{
             $event_id = undef;;
             eval{
                 if($circuit_layout->{'state'} eq 'active'){
+                    $result = AnyEvent->condvar;
 
-                    $result = $client->addVlan(circuit_id => int($action->{'circuit_id'}));
-                    
-                    if($result->{'error'} || !$result->{'results'}->{'event_id'}){
+                    $client->addVlan(
+                        circuit_id => int($action->{'circuit_id'}),
+                        async_callback => sub {
+                            my $r = shift;
+                            $result->send($r);
+                        }
+                    );
+
+                    my $final_res = $result->recv();
+                    if (defined $final_res->{'error'}) {
+                        syslog(LOG_ERR, "Circuit " . $action->{'circuit_id'} . ":" . $circuit_layout->{'circuit_id'} . " couldn't be added.");
                         return;
                     }
-                    
-                    $event_id = $result->{'results'}->{'event_id'};
 
-                    my $final_res = OESS::Database->FWDCTL_WAITING;
-                    
-                    while($final_res == OESS::Database->FWDCTL_WAITING){
-                        sleep(1);
-                        $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
-                    }
                     $res = $final_res;
                 }
             };
@@ -242,25 +242,26 @@ sub main{
             
             #--- signal fwdctl to update caches
             eval{
-                $result = $client->update_cache(circuit_id => int($action->{'circuit_id'}));
-                
-                if($result->{'error'} || !$result->{'results'}->{'event_id'}){
+                $result = AnyEvent->condvar;
+
+                $client->update_cache(
+                    circuit_id => int($action->{'circuit_id'}),
+                    async_callback => sub {
+                        my $r = shift;
+                        $result->send($r);
+                    }
+                );
+
+                my $update_cache_result = $result->recv();
+                if (defined $update_cache_result->{'error'}) {
+                    syslog(LOG_ERR, "Cache update error for " . $action->{'circuit_id'} . ":" . $circuit_layout->{'circuit_id'} . ".");
                     return;
                 }
-                
-                $event_id = $result->{'results'}->{'event_id'};
 
-                my $update_cache_result = OESS::Database->FWDCTL_WAITING;
-                
-                while($update_cache_result == OESS::Database->FWDCTL_WAITING){
-                    sleep(1);
-                    $update_cache_result = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
-                }
-                
                 $res = $update_cache_result;
             };
 
-            if(!defined $res || $res != OESS::Database->FWDCTL_SUCCESS){
+            if(!defined $res){
                 syslog(LOG_ERR, "Error updating cache after scheduled vlan removal.");
             }
 
@@ -281,19 +282,19 @@ sub main{
             my $result;
             my $event_id;
             eval{
-                $result = $client->deleteVlan(circuit_id => int($action->{'circuit_id'}));
+                $result = AnyEvent->condvar;
 
-                if($result->{'error'} || !$result->{'results'}->{'event_id'}){
-                    return;
-                }
-                
-                $event_id = $result->{'results'}->{'event_id'};
+                $client->deleteVlan(
+                    circuit_id => int($action->{'circuit_id'}),
+                    async_callback => sub {
+                        my $r = shift;
+                        $result->send($r);
+                    }
+                );
 
-                my $final_res = OESS::Database->FWDCTL_WAITING;
-
-                while($final_res == OESS::Database->FWDCTL_WAITING){
-                    sleep(1);
-                    $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
+                my $final_res = $result->recv();
+                if (defined $final_res->{'error'}) {
+                    syslog(LOG_ERR, "deleteVlan failed for " . $action->{'circuit_id'} . ":" . $circuit_layout->{'circuit_id'} . ".");
                 }
 
                 $res = $final_res;
@@ -324,27 +325,24 @@ sub main{
 
             #--- signal fwdctl to update caches
             eval{
-                my $result = $client->update_cache(circuit_id => int($action->{'circuit_id'}));
+                my $result = AnyEvent->condvar;
 
-                if($result->{'error'} || !$result->{'results'}->{'event_id'}){
+                $client->update_cache(
+                    circuit_id => int($action->{'circuit_id'}),
+                    async_callback => sub {
+                        my $r = shift;
+                        $result->send($r);
+                    }
+                );
+
+                my $update_cache_result = $result->recv();
+                if (defined $update_cache_result->{'error'}) {
+                    syslog(LOG_ERR, "Cache update error for " . $action->{'circuit_id'} . ":" . $circuit_layout->{'circuit_id'} . ".");
                     return;
-                }
-                
-                $event_id = $result->{'results'}->{'event_id'};
-
-                my $update_cache_result = OESS::Database->FWDCTL_WAITING;
-                
-                while($update_cache_result == OESS::Database->FWDCTL_WAITING){
-                    sleep(1);
-                    $update_cache_result = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
                 }
 
                 $res = $update_cache_result;
             };
-            
-            if(!defined $res || $res != OESS::Database->FWDCTL_SUCCESS){
-                syslog(LOG_ERR,"Error updating cache after scheduled vlan removal.");
-            }
 
             #Delete is complete and successful, send event to Rabbit
             eval {
@@ -374,18 +372,19 @@ sub main{
                 my $event_id;
                 if($success){
                     eval{
-                        $result = $client->changeVlanPath(circuit_id => int($action->{'circuit_id'}));
+                        my $cv = AnyEvent->condvar;
 
-                        if($result->{'error'} || !$result->{'results'}->{'event_id'}){
-                            return;
-                        }
+                        $client->changeVlanPath(
+                            circuit_id => $action->{'circuit_id'},
+                            async_callback => sub {
+                                my $r = shift;
+                                $cv->send($r);
+                        });
                         
-                        $event_id = $result->{'results'}->{'event_id'};
-                        my $final_res = OESS::Database->FWDCTL_WAITING;
-
-                        while($final_res == OESS::Database->FWDCTL_WAITING){
-                            sleep(1);
-                            $final_res = $client->get_event_status(event_id => $event_id)->{'results'}->{'status'};
+                        my $final_res = $cv->recv();
+                        if(defined($result->{'error'})) {
+                            syslog(LOG_ERR, $result->{'error'});
+                            return;
                         }
 
                         $res = $final_res;

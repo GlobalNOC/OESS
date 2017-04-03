@@ -80,6 +80,7 @@ sub new {
                                                              port => $self->{'db'}->{'rabbitMQ'}->{'port'},
                                                              user => $self->{'db'}->{'rabbitMQ'}->{'user'},
                                                              pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
+                                                             timeout => 15,
                                                              exchange => 'OESS',
                                                              topic => 'MPLS.FWDCTL.event');
 
@@ -460,9 +461,11 @@ sub new_switch{
 
     my $node_id = $p_ref->{'node_id'}{'value'};
     
+    my $success = $m_ref->{'success_callback'};
+
     $self->update_cache(-1);
 
-    $m_ref->{'success_callback'}({status => FWDCTL_SUCCESS});
+    \&success({status => FWDCTL_SUCCESS});
 }
 
 =head2 create_nodes
@@ -734,6 +737,8 @@ sub addVlan{
     foreach my $node (keys %nodes){
         $cv->begin();
 
+        my $node_id = $self->{'node_info'}->{$node}->{'id'};
+
         $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
         $self->{'fwdctl_events'}->add_vlan(
             circuit_id => $circuit_id,
@@ -908,8 +913,7 @@ sub diff {
 
                 warn "Diff topic! MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . "\n";
                 $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
-                $self->{'fwdctl_events'}->diff( timeout        => 15,
-                                                installed_circuits => $payload,
+                $self->{'fwdctl_events'}->diff( installed_circuits => $payload,
                                                 force_diff     => $force_diff,
                                                 async_callback => sub {
                                                     my $res = shift;

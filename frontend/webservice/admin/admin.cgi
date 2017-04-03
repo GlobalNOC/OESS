@@ -50,7 +50,7 @@ use constant FWDCTL_UNKNOWN     => 3;
 my $db   = new OESS::Database();
 my $topo = new OESS::Topology();
 
-my $svc = GRNOC::WebService::Dispatcher->new();
+my $svc = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
 
 $| = 1;
 
@@ -468,11 +468,11 @@ sub register_webservice_methods {
                                   description => '' );
     $method->add_input_parameter( name        => 'type',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  required    => 1,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'status',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  required    => 1,
+                                  required    => 0,
                                   description => '' );
     $svc->register_method($method);
 
@@ -1699,14 +1699,21 @@ sub update_node {
 	my $cv = AnyEvent->condvar;
 
 	warn 'update_node: starting mpls switch forwarding process';
-        my $res = $client->new_switch(node_id => int($node_id),
-	    async => 1,
+        my $res = $client->new_switch(
+            node_id        => int($node_id),
 	    async_callback => sub {
 		warn 'update_node: starting mpls switch discovery process';
+
 		$client->{'topic'} = 'MPLS.Discovery.RPC';
-		$client->new_switch(node_id => $node_id,
-				    async => 1,
-				    async_callback => sub { warn 'update_node: done starting mpls switch processes'; $cv->send(); })});
+		$client->new_switch(
+                    node_id => $node_id,
+                    async_callback => sub {
+                        warn 'update_node: done starting mpls switch processes';
+                        $cv->send();
+                    }
+                )
+            }
+        );
 	$cv->recv();
     }
 
@@ -2199,10 +2206,23 @@ sub add_mpls_switch{
 
     warn Data::Dumper::Dumper($node);
 
-    my $res = $client->new_switch(node_id => $node->{'node_id'});    
-    $client->{'topic'} = 'MPLS.Discovery.RPC';
-    $res = $client->new_switch(node_id => $node->{'node_id'});
-    
+    my $cv = AnyEvent->condvar;
+    $client->new_switch(
+        node_id        => $node->{'node_id'},
+        async_callback => sub {
+            my $result = shift;
+            
+            $client->{'topic'} = 'MPLS.Discovery.RPC';
+            $client->new_switch(
+                node_id => $node->{'node_id'},
+                async_callback => sub {
+                    my $result = shift;
+                    $cv->send($result);
+                }
+            );
+        }
+    );
+    my $res = $cv->recv();
 
     return {results => [{success => 1, node_id => $node->{'node_id'}}]};
 

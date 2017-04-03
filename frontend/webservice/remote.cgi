@@ -64,7 +64,7 @@ my $PS_TS = $db->get_oscars_topo();
 
 my $LOCAL_DOMAIN = $db->get_local_domain_name();
 
-my $svc  = GRNOC::WebService::Dispatcher->new();
+my $svc  = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
 
 $| = 1;
 

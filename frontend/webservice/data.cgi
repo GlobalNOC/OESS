@@ -61,7 +61,7 @@ my $db   = new OESS::Database();
 my $topo = new OESS::Topology();
 
 #register web service dispatcher
-my $svc    = GRNOC::WebService::Dispatcher->new();
+my $svc    = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
 my $fwdctl = GRNOC::RabbitMQ::Client->new( host     => 'localhost',
                                            user     => 'guest',
                                            pass     => 'guest',
@@ -413,7 +413,7 @@ sub register_webservice_methods {
     $method->add_input_parameter(
         name            => 'workgroup_id',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
-        required        => 1,
+        required        => 0,
         description     => "The workgroup ID that the user wants to check if vlan_tag is available."
         );
 
