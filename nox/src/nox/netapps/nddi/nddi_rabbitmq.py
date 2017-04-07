@@ -292,7 +292,7 @@ class nddi_rabbitmq(Component):
         )
 
         self.register_for_error(lambda dpid, error_type, code, data, xid: 
-            error_callback(self.sg, dpid, error_type, code, data, xid)
+            error_callback(self, dpid, error_type, code, data, xid)
         )
 
         self.register_for_datapath_leave(lambda dpid : 
