@@ -132,16 +132,8 @@ sub new {
     my $method = GRNOC::RabbitMQ::Method->new( name => "add_vlan",
 					       async => 1,
 					       description => "adds a vlan for this switch",
-<<<<<<< HEAD
 					       callback => sub { $self->{'logger'}->error("ADD VLAN"); $self->add_vlan(@_); });
-=======
-					       callback => sub { my $status = $self->add_vlan(@_);
-                                                                 if(!defined($status)){
-                                                                     $status = 1
-                                                                 };
-                                                                 return {status => $status, msg => "I'm alive!", total_rules => $self->{'flows'}};
                                                });
->>>>>>> c6b57ca5c65b2caf44b45d25d7edbf8abb99b202
     
     $method->add_input_parameter( name => "circuit_id",
                                   description => "circuit_id to be added",
@@ -152,16 +144,8 @@ sub new {
     $method = GRNOC::RabbitMQ::Method->new( name => "remove_vlan",
 					    async => 1,
 					    description => "removes a vlan for this switch",
-<<<<<<< HEAD
 					    callback => sub { $self->remove_vlan(@_);  });
-=======
-					    callback => sub { my $status = $self->remove_vlan(@_);
-                                                              if(!defined($status)){
-                                                                  $status = 1
-                                                              };
-                                                              return {status => $status, msg => "I'm alive!", total_rules => $self->{'flows'}}
-                                            });
->>>>>>> c6b57ca5c65b2caf44b45d25d7edbf8abb99b202
+
     
     $method->add_input_parameter( name => "circuit_id",
                                   description => "circuit_id to be removed",
