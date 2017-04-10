@@ -2073,6 +2073,7 @@ sub addVlan {
     # Circuit must have state set to deploying before installation may
     # proceed. Circuits with a state of scheduled shall not be added.
     if ($details->{'state'} eq 'scheduled') {
+        $self->{'logger'}->info("Scheduled an event!");
         $self->{'logger'}->info("Elapsed time addVlan: " . tv_interval( $start, [gettimeofday]));
         &$success_callback({status => $result});
     }
@@ -2242,8 +2243,6 @@ sub changeVlanPath {
         $dpids{$flow->get_dpid()} = 1;
     }
     
-    my $event_id = $self->_generate_unique_event_id();
-
     my $result  = FWDCTL_SUCCESS;
     my $share   = scalar keys %dpids;
 
