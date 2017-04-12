@@ -103,11 +103,11 @@ sub get_error {
     return $err;
 }
 
-=head2 get_circuit_data
+=head2 get_of_circuit_data
 
 =cut
 
-sub get_circuit_data {
+sub get_of_circuit_data {
     my $self = shift;
     my %params = @_;
 
@@ -139,16 +139,8 @@ sub get_circuit_data {
     if(!defined $end){
         $end = time;
     }    
-    #find the base RRD dir
-    my $rrd_dir;
-    my $query = "select value from global where name = 'rrddir'";
-    my $sth = $self->{'dbh'}->prepare($query);
-    $sth->execute();
-    if(my $row = $sth->fetchrow_hashref()){
-        $rrd_dir = $row->{'value'};
-    }
-    my $circuit_details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
-    my @interfaces;
+
+
     
     #issue 7410 graphs not able to determine backup vs primary path data. 
 
@@ -165,6 +157,7 @@ sub get_circuit_data {
         }
    }
     
+    my @interfaces;
 
     my $flows = $ckt->get_flows(path => $active_path);
     my %endpoint;
@@ -202,7 +195,58 @@ sub get_circuit_data {
     #warn "Interfaces: " . Data::Dumper::Dumper(@interfaces_on_node);
     #now we have selected an interface and have a list of all the other interfaces on that node
     #generate our data
-    return $self->get_data( interface => $selected, other_ints => \@interfaces_on_node, start_time => $start, end_time => $end);
+    #return $self->get_data( interface => $selected, other_ints => \@interfaces_on_node, start_time => $start, end_time => $end);
+    my $in = $self->tsds_of_query( port_no => $selected->{'port_no'},
+                                   dpid => $selected->{'dpid'},
+                                   tag => $selected->{'tag'},
+                                   start => $start,
+                                   end => $end);
+
+    my $out_agg;
+    foreach my $int (@interfaces_on_node){
+        my $out = $self->tsds_of_query( port_no => $int->{'port_no'},
+                                        dpid => $int->{'dpid'},
+                                        tag => $int->{'tag'},
+                                        start => $start,
+                                        end => $end);
+        
+        if(!defined($out_agg)){
+            $out_agg = $out->{'results'};
+        }else{
+            aggregate_data($out_agg, $out->{'results'});
+        }
+    }
+    my $result = { 'interfaces' => \@interfaces,
+                   'interface'  => $interface,
+                   'node'       => $node,
+                   'results'    => [ {name => "Input (Bps)", data => $in->{'results'}->{'bps'}}, {name => "Output (Bps)", data => $out_agg->{'bps'}} ]
+    };
+
+}
+
+=head2 tsds_of_query
+
+=cut
+
+sub tsds_of_query{
+    my $self = shift;
+    my %params = @_;
+
+    my $start = $params{'start'};
+    my $end = $params{'end'};
+    my $port_no = $params{'port_no'};
+    my $dpid = $params{'dpid'};
+    my $tag = $params{'tag'};
+
+    my $query = "get port_no, dpid, tag,  aggregate(values.bps, 30, average) between ($start, $end) by port_no, dpid, tag from of_stats where (port_no = $port_no and dpid = $dpid and tag = $tag)";
+    
+    my $req = GRNOC::WebService::Client->new( url => $self->{'db'}->{'tsds'}->{'url'} . "/query.cgi",
+                                              uid => $self->{'db'}->{'config'}->{'tsds'}->{'username'},
+                                              passwd => $self->{'db'}->{'config'}->{'tsds'}->{'password'},
+                                              realm => $self->{'db'}->{'config'}->{'tsds'}->{'realm'} );
+    my $res = $req->query(query => $query); 
+
+    return $res;
 
 }
 
@@ -312,10 +356,11 @@ sub aggregate_data{
     return $agg;
 }
 
-=head2 get_tsds_circuit_data
+
+=head2 get_mpls_circuit_data
 
 =cut
-sub get_tsds_circuit_data {
+sub get_mpls_circuit_data {
     my $self = shift;
     my %params = @_;
 
@@ -329,6 +374,9 @@ sub get_tsds_circuit_data {
     if (!defined($db)){
         $db = OESS::Database->new();
     }
+
+    my @interfaces;
+
     if(!defined $circuit_id){
         $self->_set_error("circuit_id is required");
         return undef;
@@ -342,15 +390,19 @@ sub get_tsds_circuit_data {
         $end_time = time;
     }
 
-    my $ckt         = OESS::Circuit->new(circuit_id => $circuit_id, db => $db);
-    my $active_path = $ckt->get_active_path();
-
+    my $ckt = OESS::Circuit->new(circuit_id => $circuit_id, db => $db);
     
     if(!defined($node)){
         $node = $ckt->get_endpoints()->[0]->{'node'};
     }
 
     my $a; # First endpoint on specified interface
+    foreach my $e (@{$ckt->get_endpoints()}) {
+        if($e->{'node'} eq $node){
+            push(@interfaces, $->{'interface'});
+        }
+    }
+
     foreach my $e (@{$ckt->get_endpoints()}) {
 	if ($e->{'node'} eq $node && !defined $interface) {
 	    $interface = $e->{'interface'};
@@ -363,107 +415,42 @@ sub get_tsds_circuit_data {
         }
     }
 
-    my $lsp_prefix = "OESS-";
-    if(scalar(@{$ckt->get_endpoints()}) > 2){
-        $lsp_prefix .= "L2VPLS-";
-    }else{
-        $lsp_prefix .= "L2VPN-";
-    }
 
-    if($active_path eq 'primary'){
-        $lsp_prefix .= "PRIMARY-LSP-";
-    }elsif($active_path eq 'backup'){
-        $lsp_prefix .= "SECONDARY-LSP-";
-    }elsif($active_path eq 'tertiary'){
-        $lsp_prefix .= "TERTIARY-LSP-";
-    }else{
-        return;
-    }
 
-    my $local_lsps = [];
-    my $remote_lsps = [];
-    my $interfaces =[];
-    # Obtain stats between each endpoint of the circuit.
-    foreach my $z (@{$ckt->get_endpoints()}) {
-        push(@$interfaces, $z->{'interface'});
 
-        if ($a->{'node_id'} == $z->{'node_id'} &&
-            $a->{'interface'} == $z->{'interface'} &&
-            $a->{'tag'} == $z->{'tag'}) {
-            next;
-        }
-        
-	push(@$local_lsps, {lsp => $lsp_prefix . $circuit_id . "-" . $a->{'node_id'} . "-" . $z->{'node_id'}, 
-			    node => $a->{'node'}});
-	push(@$remote_lsps, {lsp => $lsp_prefix . $circuit_id . "-" . $z->{'node_id'} . "-" . $a->{'node_id'},
-			     node => $z->{'node'}});
-    }
-    
+    my $results = $self->tsds_interface_query( node => $node,
+                                               interface => $interface,
+                                               start => $start_time,
+                                               end => $end_time );
 
-    my $input = $self->tsds_query_lsp(start => $start_time, end => $end_time,lsps => $local_lsps);
-    my $output = $self->tsds_query_lsp(start => $start_time, end => $end_time, lsps => $remote_lsps);
-
-    my $result = { 'interfaces' => $interfaces,
+    my $result = { 'interfaces' => \@interfaces,
 		   'interface'  => $interface,
 		   'node'       => $node,
-		   'results'    => [ {name => "Input (Bps)", data => $input}, {name => "Output (Bps)", data => $output } ]
+		   'results'    => [ {name => "Input (Bps)", data => $results->{'results'}->{'input'}}, {name => "Output (Bps)", data => $results->{'results'}->{'output'}} ]
     };
+
     return $result;
 }
 
-sub tsds_query_lsp {
+
+sub tsds_interface_query{
     my $self = shift;
     my %args = @_;
     
-    my $start_time = $args{'start'};
-    my $end_time   = $args{'end'};
-    my $lsps = $args{'lsps'};
-    
-    my $config   = XML::Simple::XMLin('/etc/oess/database.xml');
-    my $username = $config->{'tsds'}->{'username'};
-    my $password = $config->{'tsds'}->{'password'};
-    my $location = $config->{'tsds'}->{'location'};
-    my $realm    = $config->{'tsds'}->{'realm'};
-    
-    # Example: OESS-L2VPN-PRIMARY-LSP-3001-3-4
-    # my $lsp  = "OESS-L2VPN-PRIMARY-LSP-$circuit-$node_a-$node_z";
-    # $node = "mx240-r2";
-    # my $query = "get lsp, node, aggregate(values.bps, 1, average) between(\"$start_time\", \"$end_time\") by lsp, node from lsp where (lsp=\"$lsp\" and node=\"$node\") ordered by lsp asc, node asc";
+    my $node = $args{'node'};
+    my $interface = $args{'interface'};
+    my $start = $args{'start'};
+    my $end = $args{'end'};
 
-    # get lsp, node, aggregate(values.bps, 1, average) between($start_time, $end_time) by lsp, node from lsp where ((lsp="OESS-L2VPN-PRIMARY-LSP-3003-1-4" and node="mx240-r0") or (lsp="OESS-L2VPLS-PRIMARY-LSP-3003-3-4" and node="mx240-r2")) ordered by lsp asc, node asc
-    my $lsp_data;
-    foreach my $lsp (@{$lsps}) {
-	if(!defined($lsp_data)){
-	    $lsp_data = "(lsp=\"" . $lsp->{'lsp'} . "\" and node=\"" . $lsp->{'node'} . "\")";
-	}else{
-	    $lsp_data .= " or (lsp=\"" . $lsp->{'lsp'} . "\" and node=\"" . $lsp->{'node'} . "\")";
-	}
-    }
-
-    my $query = "get lsp, node, aggregate(values.bps, 1, average) between($start_time, $end_time) by lsp, node from lsp where (" . $lsp_data . ") ordered by lsp asc, node asc";
-    #warn "TSDS QUERY: " . $query . "\n";
-    # Response example:
-    # 
-    # 'results': [
-    # { 'lsp': '',
-    #   'aggregate(values.bps, 3600, average)': [
-    #      [ time, value ],
-    #      ...
-    #   ],
-    #   'node': ''
-    # }
-    my $url = $location . "services/query.cgi";
-    my $req = GRNOC::WebService::Client->new( url => $url,
-                                              uid => $username,
-                                              passwd => $password,
-                                              realm => $realm );
+    my $query = "get intf, node, aggregate(values.input, 30, average), aggregate(values.output, 30, average) between ($start, $end) by intf, node from interface  where (intf=\"$interface\" and node=\"$node\")";
+    
+    my $req = GRNOC::WebService::Client->new( url => $self->{'db'}->{'tsds'}->{'url'} . "/query.cgi",
+                                              uid => $self->{'db'}->{'config'}->{'tsds'}->{'username'},
+                                              passwd => $self->{'db'}->{'config'}->{'tsds'}->{'password'},
+                                              realm => $self->{'db'}->{'config'}->{'tsds'}->{'realm'} );
     my $res = $req->query(query => $query);
-    my $agg;
-    foreach my $r (@{$res->{'results'}}) {
-	$agg = aggregate_data($agg, $r->{'aggregate(values.bps, 1, average)'});
-    }
 
-    return $agg;
+    return $res;
 }
 
 =head2 find_int_on_path_using_node
