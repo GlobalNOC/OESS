@@ -231,25 +231,22 @@ sub init_circuit_traceroute {
     }
 
         
-    my $result = $traceroute_client->init_circuit_trace($circuit_id,$source_interface);
-    if ($result){
+    my $result = $traceroute_client->init_circuit_trace(
+	circuit_id   => $circuit_id,
+	interface_id => $source_interface
+    );
+    if ($result) {
         $results->{'results'} = [{success => '1'}];
-        
     }
-
 
     return $results;
 }
 
 sub get_circuit_traceroute {
-    
     my ( $method, $args ) = @_ ;
-    my $results;
 
-    $results->{'results'} = [];
-
-
-    my $output;
+    my $results = { results => [] };
+    my $output  = undef;
 
     my $workgroup_id = $args->{'workgroup_id'}{'value'};
     my $circuit_id  =  $args->{'circuit_id'}{'value'};
@@ -262,16 +259,16 @@ sub get_circuit_traceroute {
         host => 'localhost',
         port => 5672
     );
-    if ( !defined($traceroute_client) ) {
-        return {error => 'unable to talk to traceroute service'};
+    if (!defined $traceroute_client) {
+	$method->set_error("Unable to talk to traceroute service.");
+        return;
     }
 
     my $workgroup = $db->get_workgroup_by_id( workgroup_id => $workgroup_id );
-    if(!defined($workgroup)){
+    if (!defined $workgroup) {
 	$method->set_error("unable to find workgroup $workgroup_id");
 	return;
-    }
-    elsif($workgroup->{'status'} eq 'decom'){
+    } elsif ($workgroup->{'status'} eq 'decom') {
 	$method->set_error("The selected workgroup is decomissioned and unable to provision");
 	return;
     }
@@ -282,18 +279,22 @@ sub get_circuit_traceroute {
 	circuit_id   => $circuit_id,
 	username     => $ENV{'REMOTE_USER'},
 	workgroup_id => $workgroup_id
-	);
-
-
-    if ( $can_edit < 1 ) {
+    );
+    if ($can_edit < 1) {
         $method->set_error("No traceroute data found for this circuit.");
 	return;
     }
 
     #dbus is fighting me, this is suboptimal, but dbus does not like the signature changing.    
-    my $result = $traceroute_client->get_traceroute_transactions({});
-    
-    if ($result && $result->{$circuit_id}){
+    my $transactions = $traceroute_client->get_traceroute_transactions();
+    if (!defined $transactions || !defined $transactions->{'results'}) {
+        $method->set_error("No traceroute data found for this circuit.");
+	return;
+    }
+
+    my $result = $transactions->{'results'};
+
+    if ($result && $result->{$circuit_id}) {
         my $node_dpid_hash = $db->get_node_dpid_hash;
         my $dpid_node_hash = {};
         #invert the hash, because we can
@@ -312,10 +313,6 @@ sub get_circuit_traceroute {
         $result->{nodes_traversed} = \@tmp_nodes;
         $result->{interfaces_traversed} = \@tmp_interfaces;
         push (@{$results->{results}}, $result);
-    }
-    if (!defined($result)){
-        $method->set_error("No traceroute data found for this circuit");
-	return;
     }
 
     return $results;

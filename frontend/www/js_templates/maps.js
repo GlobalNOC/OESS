@@ -927,7 +927,7 @@ function NDDIMap(div_id, interdomain_mode, options){
   };
 
     this.setActiveLinks = function(links) {
-        for (var i = 0; i < this.map.layers[1].features.length; i  ) {
+        for (var i = 0; i < this.map.layers[1].features.length; i++  ) {
             var feature = this.map.layers[1].features[i];
 
             // All non-point geometries are links
@@ -939,7 +939,7 @@ function NDDIMap(div_id, interdomain_mode, options){
                     continue;
                 }
 
-                for (var j = 0; j < links.length; j  ) {
+                for (var j = 0; j < links.length; j++  ) {
                     var link = links[j];
 
                     if (this.compare_link_names(feature.geometry.element_name, link)) {
