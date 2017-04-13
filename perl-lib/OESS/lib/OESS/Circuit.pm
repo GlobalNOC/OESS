@@ -1255,6 +1255,7 @@ sub change_mpls_path{
             foreach my $link (@{$params{'links'}}){
                 $self->{'db'}->_execute_query($query, [$link->{'link_id'}, $self->{'details'}->{'paths'}->{'tertiary'}->{'path_id'}, $self->{'circuit_id'} + 5000, $self->{'circuit_id'} + 5000]);
             }
+            
         }
 
         #make sure this is the active path if we made it here!
@@ -1264,15 +1265,36 @@ sub change_mpls_path{
             return 1;
         }
     }else{
-        
-        #create the tertiary path
-        my @link_ids;
-        foreach my $link (@{$params{'links'}}){
-            push(@link_ids, $link->{'link_id'});
-        }
 
-        $self->{'db'}->create_path( $self->{'circuit_id'}, \@link_ids, 'tertiary');
-        return 1;
+        my $query = "select * from path where circuit_id = ? and path_type = 'tertiary'";
+        my $paths = $self->{'db'}->_execute_query($query, [$self->{'circuit_id'}]);
+        if($#{$paths} > -1){
+            #re-instantiate the path
+
+            my $path_id = $paths->[0]->{'path_id'};
+
+            my $query = "insert into path_instantiation (path_id, start_epoch, end_epoch, path_state) VALUES (?,-1,unix_timestamp(NOW()), 'active')";
+            $self->{'db'}->_execute_query($query, [$path_id]);
+
+            $query = "update link_path_membership set end_epoch = unix_timestamp(NOW()) where path_id = ? and end_epoch = -1";
+            $self->{'db'}->_execute_query($query,[$path_id]);
+            $query = "insert into link_path_membership (end_epoch,link_id,path_id,start_epoch,interface_a_vlan_id,interface_z_vlan_id) VALUES (-1,?,?,unix_timestamp(NOW()),?,?)";
+            foreach my $link (@{$params{'links'}}){
+                $self->{'db'}->_execute_query($query, [$link->{'link_id'}, $path_id, $self->{'circuit_id'} + 5000, $self->{'circuit_id'} + 5000]);
+            }
+
+            return 1;
+        }else{
+            
+            #create the tertiary path
+            my @link_ids;
+            foreach my $link (@{$params{'links'}}){
+                push(@link_ids, $link->{'link_id'});
+            }
+
+            $self->{'db'}->create_path( $self->{'circuit_id'}, \@link_ids, 'tertiary');
+            return 1;
+        }
     }
 }
 

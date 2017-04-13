@@ -170,13 +170,13 @@ sub get_circuit_data {
     my $circuit = OESS::Circuit->new(circuit_id=>$circuit_id,db=>$db);
     my $data;
     if ($circuit->{'type'} eq 'openflow') {
-	$data = $measurement->get_circuit_data(circuit_id => $circuit_id,
+	$data = $measurement->get_of_circuit_data(circuit_id => $circuit_id,
 					       start_time => $start,
 					       end_time   => $end,
 					       node       => $node,
 					       interface  => $interface);
     } else {
-	$data = $measurement->get_tsds_circuit_data(circuit_id => $circuit_id,
+	$data = $measurement->get_mpls_circuit_data(circuit_id => $circuit_id,
 						    start_time => $start,
 						    end_time   => $end,
 						    node       => $node,
