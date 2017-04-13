@@ -642,7 +642,7 @@ function page_init(){
 		  for (var i = 0; i < session.data.endpoints.length; i++){
 		      nddi_map.removeNode(session.data.endpoints[i].node);
 		  }
-
+		  
 		  nddi_map.updateMapFromSession(session, true, keep_map_position);
 
                   if (session.data.active_path == "tertiary") {

@@ -106,6 +106,8 @@ def fv_packet_in_callback(nddi, dp, inport, reason, len, bid, packet):
     )
 
 def traceroute_packet_in_callback(nddi, dp, inport, reason, len, bid, packet):
+    logger.error("Calling process_trace_packet.")
+
     if(packet.type == ethernet.VLAN_TYPE):
         packet = packet.next
 
@@ -459,6 +461,8 @@ class nddi_rabbitmq(Component):
 
     # rmqi rpc method send_traceroute_packet
     def send_traceroute_packet(self, **kwargs):
+        logger.error("Sending pack to trigger process_trace_packet.")
+
         dpid     = kwargs.get('dpid')
         my_vlan  = kwargs.get('my_vlan')
         out_port = kwargs.get('out_port')

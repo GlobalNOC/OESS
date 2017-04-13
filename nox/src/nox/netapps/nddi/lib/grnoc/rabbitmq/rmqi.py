@@ -65,7 +65,7 @@ class RMQI():
     def on_request(self, method, props, body):
         routing_key = method.routing_key
 
-        logger.warn("in on_request with body: {0}".format(body))
+        logger.debug("in on_request with body: {0}".format(body))
 
         if(self.signal_callbacks[routing_key] is None):
             logger.warn("No callbacks registered for, {0}".format(routing_key))
@@ -74,7 +74,7 @@ class RMQI():
         result = None
         try:
             args = json.loads(body)
-            logger.warn("calling {0} with {1}".format(routing_key, args))
+            logger.debug("calling {0} with {1}".format(routing_key, args))
             result = (self.signal_callbacks[routing_key])(**args)
         except Exception as e:
             logger.warn('error calling {0}: {1}'.format(routing_key, e))
