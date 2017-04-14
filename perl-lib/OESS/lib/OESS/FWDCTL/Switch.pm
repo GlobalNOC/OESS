@@ -92,6 +92,7 @@ sub new {
 					   port => $args{'rabbitMQ_port'},
 					   user => $args{'rabbitMQ_user'},
 					   pass => $args{'rabbitMQ_pass'},
+					   auto_reconnect => 1,
 					   topic => 'OF.NOX.RPC',
 					   exchange => 'OESS');
     $self->{'rabbit_mq'} = $ar;
@@ -133,7 +134,6 @@ sub new {
 					       async => 1,
 					       description => "adds a vlan for this switch",
 					       callback => sub { $self->{'logger'}->error("ADD VLAN"); $self->add_vlan(@_); });
-                                               });
     
     $method->add_input_parameter( name => "circuit_id",
                                   description => "circuit_id to be added",

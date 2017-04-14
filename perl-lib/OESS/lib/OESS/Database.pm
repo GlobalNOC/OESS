@@ -913,7 +913,7 @@ sub get_node_dpid_hash {
     my $sth = $self->_prepare_query("select node.node_id, node_instantiation.dpid, node_instantiation.mgmt_addr as address, " .
                                     " node.name, node.longitude, node.latitude " .
                                     " from node join node_instantiation on node.node_id = node_instantiation.node_id " .
-                                    " where node_instantiation.admin_state = 'active'"
+                                    " where node_instantiation.admin_state = 'active' and node_instantiation.openflow = 1"
                                    ) or return;
 
     $sth->execute();

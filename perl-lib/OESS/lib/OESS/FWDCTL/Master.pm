@@ -45,7 +45,6 @@ use OESS::Topology;
 use OESS::Circuit;
 
 use GRNOC::RabbitMQ::Method;
-use GRNOC::RabbitMQ::Client;
 use GRNOC::RabbitMQ::Dispatcher;
 use GRNOC::RabbitMQ::Client;
 use AnyEvent;
@@ -120,6 +119,7 @@ sub new {
 
     my $fwdctl_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
 							      port => $self->{'db'}->{'rabbitMQ'}->{'port'},
+							      timeout => 40,
 							      user => $self->{'db'}->{'rabbitMQ'}->{'user'},
 							      pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
 							      exchange => 'OESS',
@@ -2181,7 +2181,7 @@ sub deleteVlan {
                                                           });
             }
 
-            $self->logger->error("Failed to delete VLAN. Elapased time: " . tv_interval( $start, [gettimeofday]));
+            $self->{'logger'}->error("Failed to delete VLAN. Elapased time: " . tv_interval( $start, [gettimeofday]));
             return &$error($err);
         }
 

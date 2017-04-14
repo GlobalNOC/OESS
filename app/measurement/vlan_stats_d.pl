@@ -11,21 +11,27 @@ use GRNOC::RabbitMQ::Client;
 use GRNOC::RabbitMQ::Method;
 use GRNOC::WebService::Client;
 use Data::Dumper;
+use JSON;
 use strict;
 use Getopt::Long;
 use FindBin;
+use XML::Simple;
 
+use Log::Log4perl;
 
 my $switch;
 my $previous;
+my $logger;
 my $oess;
 my $node_hash;
 my $hosts;
 my $rabbit_mq_client;
 my $previous_data = {};
-my $interval = 30000;
-
+my $interval = 30;
 my $tsds_ws;
+
+use constant MAX_TSDS_MESSAGES => 100;
+
 
 =head2 handle_error
 
@@ -57,6 +63,8 @@ sub process_flow_stats{
     my $dpid = shift;
     my $rules = shift;
     
+    $logger->debug("Calling process_flow_stats at $time");
+
     my $switch;
     #associate each rule with its in/out port/vlan
     foreach my $rule (@$rules){
@@ -64,6 +72,7 @@ sub process_flow_stats{
 	# might be some other rules or default forwarding or something, we can't match this to a 
 	# vlan / port so skip
 	next if (!defined $rule->{'match'});
+	next if (!defined $rule->{'match'}->{'in_port'});
 	next if ($rule->{'match'}->{'dl_type'} eq '34997');
 	if(!defined($switch->{$rule->{'match'}->{'in_port'}})){
 	    $switch->{$rule->{'match'}->{'in_port'}} = {};
@@ -85,7 +94,7 @@ sub process_flow_stats{
 
     }
 
-    my @tsds_work_queue;
+    my @tsds_work_queue = ();
 
     #for every port
     foreach my $port (keys (%{$switch})){
@@ -110,21 +119,33 @@ sub process_flow_stats{
                 next;
             }
 
-            
-
             my $previous = $previous_data->{$dpid}->{$port}->{$vlan};
+
+	    # If the flow stats poll interval is zero, then we just
+	    # ignore this update.
+	    if ($time == $previous->{'time'}) {
+		$logger->warn("Calculated poll interval was zero. Ignoring this update.");
+		next;
+	    }
 
             my $bps = (($inbytes - $previous->{'in_bytes'}) * 8) / ($time - $previous->{'time'});
             my $pps = $inpackets - $previous->{'in_packets'} / ($time - $previous->{'time'});
-	    
-            push(@tsds_work_queue, { interval=> $interval,
-                                              meta => { port => $port,
-                                                        dpid => $dpid },
-                                              time => $time,
-                                              type => "oess_of_stats",
-                                              values => { bps => $bps,
-                                                          pps => $pps}});
-	    
+
+            push(@tsds_work_queue, {
+		interval=> $interval,
+		meta => {
+		    dpid => $dpid,
+		    port => $port,
+		    vlan => $vlan
+		},
+		time => $time,
+		type => "oess_of_stats",
+		values => {
+		    bps => $bps,
+		    pps => $pps
+		}
+	    });
+
             $previous->{'in_bytes'} = $inbytes;
             $previous->{'in_packets'} = $inpackets;
             $previous->{'time'} = $time;
@@ -149,37 +170,43 @@ sub process_flow_stats{
                 my $bps = (($inbytes - $prev_static->{'in_bytes'}) * 8) / ($time - $prev_static->{'time'});
                 my $pps = $inpackets - $prev_static->{'in_packets'} / ($time - $prev_static->{'time'});
 
-                push(@tsds_work_queue, { interval=> $interval,
-                                                      meta => { port => $port,
-                                                                dpid => $dpid,
-                                                                mac_addrs => $rule->{'match'}->{'dl_dst'}},
-                                                      time => $time,
-                                                      type => "oess_of_stats",
-                                                      values => { bps => $bps,
-                                                                  pps => $pps}});
+                push(@tsds_work_queue, {
+		    interval=> $interval,
+		    meta => {
+			port => $port,
+			dpid => $dpid,
+			vlan => $vlan,
+			mac_addrs => $rule->{'match'}->{'dl_dst'}
+		    },
+		    time => $time,
+		    type => "oess_of_stats",
+		    values => {
+			bps => $bps,
+			pps => $pps
+		    }
+		});
 
                 $prev_static->{'in_bytes'} = $inbytes;
                 $prev_static->{'in_packets'} = $inpackets;
                 $prev_static->{'time'} = $time;
-
 	    }
 	}
     }
 
     send_to_tsds(\@tsds_work_queue);
-
 }
 
 sub send_to_tsds{
-    my $work_queue;
-
+    my $work_queue = shift;
 
     while(scalar(@$work_queue) > 0 ){
         my @msgs = splice(@$work_queue, 0, MAX_TSDS_MESSAGES);
+
         my $res = $tsds_ws->add_data( data => encode_json(\@msgs));
-        
+	if (!defined $res) {
+	    $logger->error("Could not add data to tsds.");
+	}
     }
-            
 }
 
 sub datapath_join_callback {
@@ -218,9 +245,20 @@ sub _load_config{
 	$node_hash->{$tmp->{$key}} = $node;
 	
     }
-    
 }
 
+sub _connect_to_tsds {
+    my $path   = shift;
+    my $config = XML::Simple::XMLin($path);
+
+    my $client = GRNOC::WebService::Client->new(
+	url    => $config->{'tsds'}->{'url'} . "/push.cgi",
+	uid    => $config->{'tsds'}->{'username'},
+	passwd => $config->{'tsds'}->{'password'}
+    );
+
+    return $client;
+}
 
 =head2 get_flow_stats
 
@@ -229,29 +267,36 @@ sub _load_config{
 sub get_flow_stats{
     my $self = shift;
 
+    $logger->debug("Calling get_flow_stats");
+
     if(-e '/var/run/oess/oess_is_overloaded.lock'){
         return;
     }
 
-    warn "Fetching stats\n";
     my $nodes = $oess->get_current_nodes();
     foreach my $node (@$nodes){
 	my $time;
         my $flows;
 	my $results;
         eval {
-            $results = $rabbit_mq_client->get_flow_stats( dpid => int($node->{'dpid'}) );
+            $results = $rabbit_mq_client->get_flow_stats(
+		dpid => int($node->{'dpid'}),
+		async_callback => sub {
+		    my $results = shift;
+
+		    $time = $results->{'results'}->[0]->{'timestamp'};
+		    $flows = $results->{'results'}->[0]->{'flow_stats'};
+		    if (!$time || !$flows){
+			$logger->error("Couldn't get flow stats for node " . $node->{'dpid'});
+			return;
+		    }
+
+		    process_flow_stats($time, $node->{'dpid'}, $flows);
+		}
+	    );
         };
-        log_error( "error getting flow stats: $@") if $@;
-
-	$time = $results->[0]->{'time'};
-	$flows = $results->[0]->{'flows'};
-        if (!$time || !$flows){
-            return;
-        }
-	$self->process_flow_stats($time,$node->{'dpid'},$flows);
+        $logger->error("error getting flow stats: $@") if $@;
     }
-
 }
 
 =head2 main
@@ -263,30 +308,34 @@ sub get_flow_stats{
 
 sub main{
 
-    GRNOC::Log->new( config => '/etc/oess/logging.conf' );
-    my $logger = GRNOC::Log->get_logger();
-    log_info("Starting vlan_stats_d");
+    Log::Log4perl::init('/etc/oess/logging.conf');
+    $logger = Log::Log4perl->get_logger('OESS.Measurement');
+
+    $logger->info("Starting vlan_stats_d");
 
     my $oess_config = "/etc/oess/database.xml";
     $oess = OESS::Database->new(config => $oess_config);
-
-    if (! defined $oess){
-	log_error( "Unable to connect to OESS database");
+    if (!defined $oess) {
+	$logger->error( "Unable to connect to OESS database");
 	die;
     }
 
 
-    my $tsds_ws = _connect_to_tsds();
+    $tsds_ws = _connect_to_tsds($oess_config);
+    if (!defined $tsds_ws) {
+	$logger->error("Couldn't connect to TSDS at $tsds_ws.");
+	die;
+    }
 
     _load_config();
 
-    my $rabbit_mq_client = GRNOC::RabbitMQ::Client->new( host => $oess->{'rabbitMQ'}->{'host'},
-                                                         port => $oess->{'rabbitMQ'}->{'port'},
-                                                         user => $oess->{'rabbitMQ'}->{'user'},
-                                                         pass => $oess->{'rabbitMQ'}->{'pass'},
-                                                         exchange => 'OESS',
-                                                         topic => 'OF.NOX.RPC',
-                                                         timeout => 100);
+    $rabbit_mq_client = GRNOC::RabbitMQ::Client->new( host => $oess->{'rabbitMQ'}->{'host'},
+						      port => $oess->{'rabbitMQ'}->{'port'},
+						      user => $oess->{'rabbitMQ'}->{'user'},
+						      pass => $oess->{'rabbitMQ'}->{'pass'},
+						      exchange => 'OESS',
+						      topic => 'OF.NOX.RPC',
+						      timeout => 100);
 
     my $rabbit_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $oess->{'rabbitMQ'}->{'host'},
 							      port => $oess->{'rabbitMQ'}->{'port'},
@@ -332,11 +381,11 @@ sub main{
                                                          ]
                                             } );
     $rabbit_dispatcher->register_method($method);
-    log_info("Rabbit setup vlan_stats_d");
+    $logger->info("Rabbit setup vlan_stats_d");
 
     my $collector_interval = AnyEvent->timer( after => $interval,
 					      interval => $interval,
-					      cb => sub{ get_flow_stats();});   
+					      cb => sub{ get_flow_stats();});
     
     my $config_reload_interval = AnyEvent->timer( after => $interval * 10,
 						  interval => $interval * 10,

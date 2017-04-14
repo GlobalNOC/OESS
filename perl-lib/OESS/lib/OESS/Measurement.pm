@@ -65,16 +65,18 @@ sub new {
     }
 
     my %args = (
-        config => $db->get_snapp_config_location(),
+        config => '/etc/oess/database.xml',
         @_
     );
     my $self = \%args;
     bless $self,$class;
 
-    $self->{'log'} = Log::Log4perl->get_logger("OESS.Measurement");
+    Log::Log4perl::init('/etc/oess/logging.conf');
+    $self->{'logger'} = Log::Log4perl->get_logger("OESS.Measurement");
     $self->{'db'} = $db;
     my $config_filename = $args{'config'};
     my $config = XML::Simple::XMLin($config_filename);
+    $self->{'config'} = $config;
     my $username = $config->{'db'}->{'username'};
     my $password = $config->{'db'}->{'password'};
     my $database = $config->{'db'}->{'name'};
@@ -140,8 +142,6 @@ sub get_of_circuit_data {
         $end = time;
     }    
 
-
-    
     #issue 7410 graphs not able to determine backup vs primary path data. 
 
     my $inital_node_dpid_hash = $db->get_node_dpid_hash();
@@ -153,23 +153,39 @@ sub get_of_circuit_data {
         my $int_name =  $db->get_node_interfaces('node'=> $nodeName, show_down => 1, show_trunk =>1);
         
         foreach my $int (@{$int_name}){
+	    if (!defined $int->{'port_number'}) {
+		# This case is triggered for MPLS ports, as there is
+		# no port number for MPLS ports in the database.
+		next;
+	    }
+
+	    $self->{'logger'}->debug(Dumper($int));
+
             $int_names{$nodeName}->{$int->{'port_number'}} = $int->{'name'};
         }
-   }
-    
+    }
+
+    $self->{'logger'}->debug("Gathered all interface names");
+  
     my @interfaces;
 
     my $flows = $ckt->get_flows(path => $active_path);
     my %endpoint;
     foreach my $flow (@{$flows}){
 	my $match = $flow->get_match();
-	push(@interfaces,{
-            node =>$repaired_node_dpid_hash{$flow->get_dpid()},
-            int =>$int_names{$repaired_node_dpid_hash{$flow->get_dpid()}}{$match->{'in_port'}},
+	if (!defined $match->{'port_no'}) {
+	    next;
+	}
+
+	push(@interfaces, {
+            node    => $flow->get_dpid(),
+            int     => $int_names{$repaired_node_dpid_hash{$flow->get_dpid()}}{$match->{'in_port'}},
             port_no => $match->{'in_port'},
-            tag => $match->{'dl_vlan'}});
+            tag     => $match->{'dl_vlan'}
+	});
     }
 
+    $self->{'logger'}->debug("Gathered all flows: " . Dumper(@interfaces));
 
     #ok we pushed all interfaces into a big array
     #now pull out all the ones on our selected node... and if its the selected selected it
@@ -181,23 +197,22 @@ sub get_of_circuit_data {
     }
 
     foreach my $int (@interfaces){
-        if($int->{'node'} eq $node){
+        if ($int->{'node'} eq $node) {
             if( ( !defined($interface) && !defined($selected) ) || $int->{'int'} eq $interface){
                 $selected = $int;
             }else{
-                push(@interfaces_on_node,$int);
+                push(@interfaces_on_node, $int);
             }
         }
     }
 
-    #warn "Selected: " . Data::Dumper::Dumper($selected);
-    
-    #warn "Interfaces: " . Data::Dumper::Dumper(@interfaces_on_node);
+    $self->{'logger'}->warn("Interfaces: " . Dumper(@interfaces_on_node));
+    $self->{'logger'}->warn("Selected: "   . Dumper($selected));
+
     #now we have selected an interface and have a list of all the other interfaces on that node
     #generate our data
-    #return $self->get_data( interface => $selected, other_ints => \@interfaces_on_node, start_time => $start, end_time => $end);
     my $in = $self->tsds_of_query( port_no => $selected->{'port_no'},
-                                   dpid => $selected->{'dpid'},
+                                   dpid => $selected->{'node'},
                                    tag => $selected->{'tag'},
                                    start => $start,
                                    end => $end);
@@ -205,23 +220,40 @@ sub get_of_circuit_data {
     my $out_agg;
     foreach my $int (@interfaces_on_node){
         my $out = $self->tsds_of_query( port_no => $int->{'port_no'},
-                                        dpid => $int->{'dpid'},
+                                        dpid => $int->{'node'},
                                         tag => $int->{'tag'},
                                         start => $start,
                                         end => $end);
-        
         if(!defined($out_agg)){
             $out_agg = $out->{'results'};
-        }else{
-            aggregate_data($out_agg, $out->{'results'});
+        } else {
+	    aggregate_data($out_agg, $out->{'results'}->[0]->{'aggregate(values.bps, 30, average)'});
         }
     }
-    my $result = { 'interfaces' => \@interfaces,
-                   'interface'  => $interface,
-                   'node'       => $node,
-                   'results'    => [ {name => "Input (Bps)", data => $in->{'results'}->{'bps'}}, {name => "Output (Bps)", data => $out_agg->{'bps'}} ]
-    };
 
+#    $self->{'logger'}->debug(Dumper($in));
+#    $self->{'logger'}->debug(Dumper($out_agg));
+
+    my $interface_names = [];
+    foreach my $int (@interfaces_on_node) {
+	push(@{$interface_names}, $int->{'int'});
+    }
+
+    my $result = { 'interfaces' => $interface_names,
+                   'interface'  => $selected->{'int'},
+                   'node'       => $node,
+                   'results'    => [
+		       {
+			   name => "Input (Bps)",
+			   data => $in->{'results'}->[0]->{'aggregate(values.bps, 30, average)'}
+		       },
+		       {
+			   name => "Output (Bps)",
+			   data => $out_agg->[0]->{'aggregate(values.bps, 30, average)'}
+		       }
+		   ]
+	       };
+    return $result;
 }
 
 =head2 tsds_of_query
@@ -238,13 +270,24 @@ sub tsds_of_query{
     my $dpid = $params{'dpid'};
     my $tag = $params{'tag'};
 
-    my $query = "get port_no, dpid, tag,  aggregate(values.bps, 30, average) between ($start, $end) by port_no, dpid, tag from of_stats where (port_no = $port_no and dpid = $dpid and tag = $tag)";
-    
-    my $req = GRNOC::WebService::Client->new( url => $self->{'db'}->{'tsds'}->{'url'} . "/query.cgi",
-                                              uid => $self->{'db'}->{'config'}->{'tsds'}->{'username'},
-                                              passwd => $self->{'db'}->{'config'}->{'tsds'}->{'password'},
-                                              realm => $self->{'db'}->{'config'}->{'tsds'}->{'realm'} );
-    my $res = $req->query(query => $query); 
+    $self->{'logger'}->debug("Calling tsds_of_query");
+    $self->{'logger'}->debug($dpid);
+    $self->{'logger'}->debug($port_no);
+    $self->{'logger'}->debug($tag);
+
+    my $query = "get port, dpid, vlan, aggregate(values.bps, 30, average) between ($start, $end) by port, dpid, vlan from oess_of_stats where (port = \"$port_no\" and dpid = \"$dpid\" and vlan = \"$tag\")";
+
+    my $req = GRNOC::WebService::Client->new(
+	url    => $self->{'config'}->{'tsds'}->{'url'} . "/query.cgi",
+	uid    => $self->{'config'}->{'tsds'}->{'username'},
+	passwd => $self->{'config'}->{'tsds'}->{'password'}
+    );
+    my $res = $req->query(query => $query);
+    if (!defined $res) {
+	$self->{'logger'}->error($res->get_error());
+    }
+
+    $self->{'logger'}->debug("tsds_of_query: " . Dumper($res));
 
     return $res;
 

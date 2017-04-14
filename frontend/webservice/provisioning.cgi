@@ -411,7 +411,8 @@ sub _fail_over {
         user => 'guest',
         pass => 'guest',
         host => 'localhost',
-        port => 5672
+        port => 5672,
+	timeout => 60,
         );
 
     if ( !defined($client) ) {
@@ -447,7 +448,8 @@ sub _send_mpls_add_command {
         user => 'guest',
         pass => 'guest',
         host => 'localhost',
-        port => 5672
+        port => 5672,
+	timeout => 60,
         );
 
     if ( !defined($client) ) {
@@ -490,7 +492,8 @@ sub _send_add_command {
         user => 'guest',
         pass => 'guest',
         host => 'localhost',
-        port => 5672
+        port => 5672,
+	timeout => 60
     );
     if (!defined $client) {
         $err = "Couldn't create RabbitMQ client.";
@@ -530,7 +533,8 @@ sub _send_mpls_remove_command {
         user => 'guest',
         pass => 'guest',
         host => 'localhost',
-        port => 5672
+        port => 5672,
+	timeout => 60
         );
 
     if ( !defined($client) ) {
@@ -569,7 +573,8 @@ sub _send_remove_command {
         user => 'guest',
         pass => 'guest',
         host => 'localhost',
-        port => 5672
+        port => 5672,
+	timeout => 60
     );
     if (!defined $client) {
         $err = "Couldn't create RabbitMQ client.";
@@ -610,7 +615,8 @@ sub _send_update_cache{
         user => 'guest',
         pass => 'guest',
         host => 'localhost',
-        port => 5672
+        port => 5672,
+	timeout => 60
         );
 
     if ( !defined($client) ) {
