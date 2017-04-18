@@ -41,6 +41,8 @@ sub new{
     my $self = \%args;
     bless $self, $class;
 
+    $0 = "oess_mpls_switch(" . $self->{'node'}->{'mgmt_addr'} . ")";
+
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Switch.' . $self->{'id'});
     $self->{'config'} = $args{'config'} || '/etc/oess/database.xml';
 

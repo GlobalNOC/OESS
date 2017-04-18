@@ -346,7 +346,7 @@ sub main{
 
     my $method = GRNOC::RabbitMQ::Method->new( name        => 'datapath_join',
                                                topic       => "OF.NOX.event",
-					       callback    => sub { datapatch_join_callback(@_) },
+					       callback    => sub { datapath_join_callback(@_) },
 					       description => "Datapath Join callback when a device joins");
 
     $method->add_input_parameter( name => "dpid",

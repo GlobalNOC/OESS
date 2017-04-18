@@ -343,8 +343,9 @@ sub find_path {
     my $self = shift;
     my %args = @_;
 
-    warn "Finding the shortest path\n";
-    $self->{'logger'}->debug("Finding shortest path");
+    my $type = $args{'type'};
+
+    $self->{'logger'}->debug("Finding shortest path type: $type");
 
     my @selected_links = ();
 
@@ -362,12 +363,11 @@ sub find_path {
     #now the acutal implementation, step0 sanity
     if(scalar(@$nodes) < 2){
         $self->_set_error("Not enough nodes specified in find path: " . join(",",@$nodes));
-        warn "Not enough nodes specified in the path\n";
         return undef;
     }
 
     #step1 (get nodes);
-    my @tmp = @{$db->get_current_nodes()};
+    my @tmp = @{$db->get_current_nodes( type => $type )};
     
 
     my @db_nodes;
@@ -382,7 +382,6 @@ sub find_path {
     my $input_node_set = Set::Scalar->new(@$nodes);
 
     if(not $input_node_set <= $db_node_set){
-        warn "Bad Inputs!\n";
         $self->_set_error("Bad inputs: " . join(",",@$nodes));
         return undef;
     }
@@ -394,7 +393,7 @@ sub find_path {
 
     #now put the edges in the graph
     #I am assuming there are NO repeated links between cities right now!
-    my $links = $db->get_edge_links($reserved_bw);
+    my $links = $db->get_edge_links($reserved_bw, $type);
     $self->{'logger'}->debug("edge links: " . Dumper($links));
     my %edge;
     my $used_link_set = Set::Scalar->new(@$try_avoid);
@@ -480,7 +479,6 @@ sub find_path {
         });
     }
 
-    warn Data::Dumper::Dumper($g);
 
     #run Dijkstra on our graph
     my @link_list = ();
@@ -531,7 +529,6 @@ sub find_path {
 
     $self->{'logger'}->debug("selected_links=".join(",",@selected_links));
 
-    warn "SELECTED LINKS" . Data::Dumper::Dumper(@selected_links);
     return \@selected_links;
 
 }

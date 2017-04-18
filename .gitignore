@@ -35,3 +35,5 @@ nox/stamp-h1
 perl-lib/OESS/perl-OESS-*.tar.gz
 perl-lib/OESS/MYMETA.json
 perl-lib/OESS/MYMETA.yml
+perl-lib/OESS/lib/OESS/Collector
+perl-lib/OESS/lib/OESS/Collector.pm

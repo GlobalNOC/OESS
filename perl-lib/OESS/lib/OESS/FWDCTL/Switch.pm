@@ -83,6 +83,8 @@ sub new {
         $logger->error("no DPID specified!!!");
         return;
     }
+
+    $0 = "oess_of_switch(" . $args{'dpid'} . ")";
     
     my $self = \%args;
 
@@ -92,6 +94,7 @@ sub new {
 					   port => $args{'rabbitMQ_port'},
 					   user => $args{'rabbitMQ_user'},
 					   pass => $args{'rabbitMQ_pass'},
+					   timeout => 45,
 					   auto_reconnect => 1,
 					   topic => 'OF.NOX.RPC',
 					   exchange => 'OESS');
@@ -273,6 +276,7 @@ sub _update_cache{
                                             actions => $obj->{'actions'},
                                             dpid => $obj->{'dpid'},
                                             priority => $obj->{'priority'});
+	    next if (!$flow->_validate_flow());
             push(@{$self->{'ckts'}->{$ckt}->{'flows'}->{'current'}},$flow);
         }
 
@@ -282,6 +286,7 @@ sub _update_cache{
                                             actions => $obj->{'actions'},
                                             dpid => $obj->{'dpid'},
                                             priority =>$obj->{'priority'});
+	    next if (!$flow->_validate_flow());
             push(@{$self->{'ckts'}->{$ckt}->{'flows'}->{'endpoint'}->{'primary'}},$flow);
         }
 
@@ -291,6 +296,7 @@ sub _update_cache{
                                             actions => $obj->{'actions'},
                                             dpid => $obj->{'dpid'},
                                             priority =>$obj->{'priority'});
+	    next if (!$flow->_validate_flow());
             push(@{$self->{'ckts'}->{$ckt}->{'flows'}->{'endpoint'}->{'backup'}},$flow);
         }
         
@@ -540,6 +546,19 @@ sub send_flows{
     #pull off the first flow...
     my $flow = shift(@$flows);
 
+    #verify flow is defined!
+    while(!defined($flow) && scalar(@$flows) > 0){
+	$self->{'logger'}->error("Flow was not defined... trying to get the next flow");
+	$flow = shift(@$flows);
+    }
+
+    warn "Sending Flow: " . Data::Dumper::Dumper($flow);
+
+    if(!defined($flow)){
+	$self->{'logger'}->error("No remaining flows... bailing");
+	&$cb({status => 0, msg => "No valid flows sent"});
+	return;
+    }
     
     $self->{'logger'}->debug("Current Flows: " . $self->{'flows'} . " vs. Max Flows: " . $self->{'max_flows'});
     if($self->{'flows'} >= ($self->{'node'}->{'max_flows'} -1) && $cmd == OFPFC_ADD) {
@@ -942,9 +961,13 @@ sub flow_stats_callback{
     return sub {
 	my $results = shift;
 	$self->{'logger'}->debug("Flow stats callback!!!!");
-        
+        warn Data::Dumper::Dumper($results);
 	my $time = $results->{'results'}->[0]->{'timestamp'};
 	my $stats = $results->{'results'}->[0]->{'flow_stats'};
+
+	if(!defined($time) || !defined($stats)){
+	    $self->{'logger'}->error("Unable to fetch stats for dpid: " . $self->{'dpid'});
+	}
 
         if ($time == -1) {
             #we don't have flow data yet
