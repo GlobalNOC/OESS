@@ -46,8 +46,20 @@ use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
 
+my $conf = GRNOC::Config->new(config_file => '/etc/oess/database.xml');
 
-my $db   = new OESS::Database();
+my $db = new OESS::Database();
+
+my $mq  = new GRNOC::RabbitMQ::Client(
+    user => $conf->get('rabbitmq/@username')->[0],
+    pass => $conf->get('rabbitmq/@password')->[0],
+    host => $conf->get('rabbitmq/@host')->[0],
+    port => $conf->get('rabbitmq/@port')->[0],
+    exchange => 'OESS',
+    topic    => 'OF.FWDCTL.RPC',
+    timeout  => 60
+);
+
 my $topo = new OESS::Topology();
 
 my $svc = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
@@ -1522,26 +1534,19 @@ sub confirm_node {
 
     my $node = $db->get_node_by_id( node_id => $node_id);
 
-    my $client  = new GRNOC::RabbitMQ::Client(
-                                              topic => 'OF.FWDCTL.RPC',
-                                              exchange => 'OESS',
-                                              user => 'guest',
-                                              pass => 'guest',
-                                              host => 'localhost',
-                                              port => 5672,
-                                              timeout => 15
-        );
-    if (!defined $client) {
+    if (!defined $mq) {
         $results->{'results'} = [ {
                                    "error"   => "Internal server error occurred. Message queue connection failed.",
                                    "success" => 0
                                   }
                                 ];
         return $results;
+    } else {
+	$mq->{'topic'} = 'OF.FWDCTL.RPC';
     }
 
     my $cv = AnyEvent->condvar;
-    $client->update_cache(circuit_id     => -1,
+    $mq->update_cache(circuit_id     => -1,
                           async_callback => sub {
                               my $result = shift;
                               $cv->send($result);
@@ -1560,7 +1565,7 @@ sub confirm_node {
     }
 
     $cv = AnyEvent->condvar;
-    $client->force_sync(dpid => int($node->{'dpid'}),
+    $mq->force_sync(dpid => int($node->{'dpid'}),
                         async_callback => sub {
                             my $result = shift;
                             $cv->send($result);
@@ -1689,23 +1694,26 @@ sub update_node {
             return $results;
         }
 
-        my $client = GRNOC::RabbitMQ::Client->new( topic => 'MPLS.FWDCTL.RPC',
-                                                   exchange => 'OESS',
-                                                   user => $db->{'rabbitMQ'}->{'user'},
-                                                   pass => $db->{'rabbitMQ'}->{'pass'},
-                                                   host => $db->{'rabbitMQ'}->{'host'},
-                                                   port => $db->{'rabbitMQ'}->{'port'});
+	if (!defined $mq) {
+	    $results->{'results'} = [ {
+		"error"   => "Internal server error occurred. Message queue connection failed.",
+		"success" => 0
+	    } ];
+	    return $results;
+	} else {
+	    $mq->{'topic'} = 'OF.FWDCTL.RPC';
+	}
 
 	my $cv = AnyEvent->condvar;
 
 	warn 'update_node: starting mpls switch forwarding process';
-        my $res = $client->new_switch(
+        my $res = $mq->new_switch(
             node_id        => int($node_id),
 	    async_callback => sub {
 		warn 'update_node: starting mpls switch discovery process';
 
-		$client->{'topic'} = 'MPLS.Discovery.RPC';
-		$client->new_switch(
+		$mq->{'topic'} = 'MPLS.Discovery.RPC';
+		$mq->new_switch(
                     node_id => $node_id,
                     async_callback => sub {
                         warn 'update_node: done starting mpls switch processes';
@@ -1720,27 +1728,20 @@ sub update_node {
     if ($openflow) {
 	warn 'update_node: updating openflow switch data';
 	
-	my $client  = new GRNOC::RabbitMQ::Client(
-	    topic => 'OF.FWDCTL.RPC',
-	    exchange => 'OESS',
-	    user => 'guest',
-	    pass => 'guest',
-	    host => 'localhost',
-	    port => 5672
-        );
-	
-	if ( !defined($client) ) {
+	if (!defined $mq) {
 	    return;
+	} else {
+	    $mq->{'topic'} = 'OF.FWDCTL.RPC';
 	}
 	
 	my $node = $db->get_node_by_id(node_id => $node_id);
 
         my $cv = AnyEvent->condvar;
-        $client->update_cache(circuit_id     => -1,
-                              async_callback => sub {
-                                  my $result = shift;
-                                  $cv->send($result);
-                              });
+        $mq->update_cache(circuit_id     => -1,
+			  async_callback => sub {
+			      my $result = shift;
+			      $cv->send($result);
+			  });
 
         my $cache_result = $cv->recv();
 	if ($cache_result->{'error'} || !$cache_result->{'results'}) {
@@ -1748,11 +1749,11 @@ sub update_node {
 	}
 
         $cv = AnyEvent->condvar;
-        $client->force_sync(dpid => int($node->{'dpid'}),
-                            async_callback => sub {
-                                my $result = shift;
-                                $cv->send($result);
-                            });
+        $mq->force_sync(dpid => int($node->{'dpid'}),
+			async_callback => sub {
+			    my $result = shift;
+			    $cv->send($result);
+			});
 
         $cache_result = $cv->recv();
 	if ($cache_result->{'error'} || !$cache_result->{'results'}) {
@@ -1844,25 +1845,18 @@ sub decom_node {
         $results->{'results'} = [ { "success" => 1 } ];
     }
 
-    my $client  = new GRNOC::RabbitMQ::Client(
-        topic => 'OF.FWDCTL.RPC',
-        exchange => 'OESS',
-        user => 'guest',
-        pass => 'guest',
-        host => 'localhost',
-        port => 5672
-    );
-
-    if ( !defined($client) ) {
+    if (!defined $mq) {
         return;
+    } else {
+	$mq->{'topic'} = 'OF.FWDCTL.RPC';
     }
     
     my $cv = AnyEvent->condvar;
-    $client->update_cache(circuit_id     => -1,
-                          async_callback => sub {
-                              my $result = shift;
-                              $cv->send($result);
-                          });
+    $mq->update_cache(circuit_id     => -1,
+		      async_callback => sub {
+			  my $result = shift;
+			  $cv->send($result);
+		      });
 
     my $cache_result = $cv->recv();
 
@@ -2195,25 +2189,27 @@ sub add_mpls_switch{
 	return $db->get_error();
     }
 
-    my $client = GRNOC::RabbitMQ::Client->new( topic => 'MPLS.FWDCTL.RPC',
-					       exchange => 'OESS',
-					       user => $db->{'rabbitMQ'}->{'user'},
-					       pass => $db->{'rabbitMQ'}->{'pass'},
-					       host => $db->{'rabbitMQ'}->{'host'},
-					       port => $db->{'rabbitMQ'}->{'port'});
-
-    
+    if (!defined $mq) {
+	my $results = {};
+	$results->{'results'} = [ {
+	    "error"   => "Internal server error occurred. Message queue connection failed.",
+	    "success" => 0
+	} ];
+	return $results;
+    } else {
+	$mq->{'topic'} = 'MPLS.FWDCTL.RPC';
+    }
 
     warn Data::Dumper::Dumper($node);
 
     my $cv = AnyEvent->condvar;
-    $client->new_switch(
+    $mq->new_switch(
         node_id        => $node->{'node_id'},
         async_callback => sub {
             my $result = shift;
             
-            $client->{'topic'} = 'MPLS.Discovery.RPC';
-            $client->new_switch(
+            $mq->{'topic'} = 'MPLS.Discovery.RPC';
+            $mq->new_switch(
                 node_id => $node->{'node_id'},
                 async_callback => sub {
                     my $result = shift;
@@ -2239,25 +2235,18 @@ sub send_json {
 sub _update_cache_and_sync_node {
     my $dpid = shift;    
 
-    my $client  = new GRNOC::RabbitMQ::Client(
-        topic => 'OF.FWDCTL.RPC',
-        exchange => 'OESS',
-        user => 'guest',
-        pass => 'guest',
-        host => 'localhost',
-        port => 5672
-    );
-
-    if ( !defined($client) ) {
+    if ( !defined($mq) ) {
         return;
+    } else {
+	$mq->{'topic'} = 'OF.FWDCTL.RPC';
     }
 
     my $cv = AnyEvent->condvar;
-    $client->update_cache(circuit_id     => -1,
-                          async_callback => sub {
-                              my $result = shift;
-                              $cv->send($result);
-                          });
+    $mq->update_cache(circuit_id     => -1,
+		      async_callback => sub {
+			  my $result = shift;
+			  $cv->send($result);
+		      });
 
     my $result = $cv->recv();
 
@@ -2266,11 +2255,11 @@ sub _update_cache_and_sync_node {
     }
 
     $cv = AnyEvent->condvar;
-    $client->force_sync(dpid => int($dpid),
-                        async_callback => sub {
-                            my $result = shift;
-                            $cv->send($result);
-                        });
+    $mq->force_sync(dpid => int($dpid),
+		    async_callback => sub {
+			my $result = shift;
+			$cv->send($result);
+		    });
 
     $result = $cv->recv();
 
