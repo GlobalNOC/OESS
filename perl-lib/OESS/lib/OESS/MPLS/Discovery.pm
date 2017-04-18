@@ -604,7 +604,7 @@ sub get_active_link_id_by_connectors{
     if(defined($link) && defined(@{$link})){
         $link = @{$link}[0];
         print STDERR "Returning LinkID: " . $link->{'link_id'} . "\n";
-        return ($link->{'link_id'},$link->{''});
+        return ($link->{'link_id'}, $link->{'link_state'});
     }
 
     return undef;
