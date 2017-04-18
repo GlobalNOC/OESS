@@ -239,6 +239,16 @@ sub register_webservice_methods {
         description     => "An array of node names to connect together with the shortest path."
         );
 
+    #add the required input parameter node                                                                                                                                                                  
+    $method->add_input_parameter(
+        name            => 'type',
+        pattern         => '(openflow|mpls)',
+        required        => 1,
+        multiple        => 0,
+        description     => "type of circuit we are building"
+        );
+
+
     #add the required input parameter link
     $method->add_input_parameter(
         name            => 'link',
@@ -1126,10 +1136,12 @@ sub get_shortest_path {
 
     my @nodes = $args->{'node'}{'value'};
     my @links_to_avoid = $args->{'link'}{'value'};
+    my $type = $args->{'type'}{'value'};
 
     my $sp_links = $topo->find_path(
         nodes      => @nodes,
-        used_links => @links_to_avoid
+        used_links => @links_to_avoid,
+	type => $type
     );
 
     if ( !defined $sp_links ) {

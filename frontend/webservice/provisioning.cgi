@@ -411,7 +411,8 @@ sub _fail_over {
         user => 'guest',
         pass => 'guest',
         host => 'localhost',
-        port => 5672
+        port => 5672,
+	timeout => 60,
         );
 
     if ( !defined($client) ) {
@@ -447,7 +448,8 @@ sub _send_mpls_add_command {
         user => 'guest',
         pass => 'guest',
         host => 'localhost',
-        port => 5672
+        port => 5672,
+	timeout => 60,
         );
 
     if ( !defined($client) ) {
@@ -490,7 +492,8 @@ sub _send_add_command {
         user => 'guest',
         pass => 'guest',
         host => 'localhost',
-        port => 5672
+        port => 5672,
+	timeout => 60
     );
     if (!defined $client) {
         $err = "Couldn't create RabbitMQ client.";
@@ -530,7 +533,8 @@ sub _send_mpls_remove_command {
         user => 'guest',
         pass => 'guest',
         host => 'localhost',
-        port => 5672
+        port => 5672,
+	timeout => 60
         );
 
     if ( !defined($client) ) {
@@ -569,7 +573,8 @@ sub _send_remove_command {
         user => 'guest',
         pass => 'guest',
         host => 'localhost',
-        port => 5672
+        port => 5672,
+	timeout => 60
     );
     if (!defined $client) {
         $err = "Couldn't create RabbitMQ client.";
@@ -610,7 +615,8 @@ sub _send_update_cache{
         user => 'guest',
         pass => 'guest',
         host => 'localhost',
-        port => 5672
+        port => 5672,
+	timeout => 60
         );
 
     if ( !defined($client) ) {
@@ -1025,19 +1031,23 @@ sub remove_circuit {
             if (defined $err) {
                 warn "$err";
                 $method->set_error($err);
-                return;
+		if ( !$args->{'force'}{'value'} ) {
+		    return;
+		}
             }
         } else {
             $result = _send_mpls_remove_command( circuit_id => $circuit_id );
         }
 
-        if ( !defined $result ) {
+        if ( !defined $result) {
             warn "Unable to talk to fwdctl service - is it running?";
             $method->set_error("Unable to talk to fwdctl service - is it running?");
-            return;
+	    if ( !$args->{'force'}{'value'} ) {
+		return;
+	    }
         }
 
-        if ( $result == 0 ) {
+        if ( $result == 0) {
             warn "Unable to remove circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been left in the database";
             $method->set_error("Unable to remove circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been left in the database");
 
