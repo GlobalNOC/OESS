@@ -720,6 +720,7 @@ sub provision_circuit {
     if (defined $err) {
 	warn "Couldn't validate circuit: " . $err;
 	$method->set_error("Couldn't validate circuit: " . $err);
+	return;
     }
 
     if ( !$circuit_id || $circuit_id == -1 ) {
