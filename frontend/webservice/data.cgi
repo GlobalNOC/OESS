@@ -130,7 +130,13 @@ sub register_webservice_methods {
 	pattern         => $GRNOC::WebService::Regex::INTEGER,
 	required        => 0,
 	description     => "The workgroup ID that the user is currently participating in."
-	); 
+    );
+    $method->add_input_parameter(
+	name            => 'link_type',
+	pattern         => $GRNOC::WebService::Regex::TEXT,
+	required        => 0,
+	description     => "The type of links that shall be included in the map."
+    );
     
     #register get_maps method
     $svc->register_method($method);
@@ -1197,31 +1203,31 @@ sub get_node_interfaces {
     return $results;
 }
 
+# If link_type is specified, the returned links will be limited to
+# links of the specified type. Valid link types are `openflow` and
+# `mpls`.
 sub get_maps {
 
     my ( $method, $args ) = @_ ;
     my $results;
     my $workgroup_id = $args->{'workgroup_id'}{'value'};
-    
+    my $link_type    = $args->{'link_type'}{'value'};
+
     my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
     if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
 	$method->set_error( 'Error: you are not part of this workgroup' );
 	return;
     }
 
-
-    my $layers = $db->get_map_layers( workgroup_id => $workgroup_id );
-
-    if ( !defined $layers ) {
+    my $layers = $db->get_map_layers(workgroup_id => $workgroup_id, link_type => $link_type);
+    if (!defined $layers) {
 	$method->set_error( $db->get_error() );
 	return;
-    }
-    else {
+    } else {
         $results->{'results'} = $layers;
     }
 
     return $results;
-
 }
 
 sub get_users_in_workgroup {

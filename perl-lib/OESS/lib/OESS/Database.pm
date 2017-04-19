@@ -1260,7 +1260,9 @@ sub get_map_layers {
     my $self = shift;
     my %args = @_;
 
-    my $workgroup_id= $args{'workgroup_id'};
+    my $workgroup_id = $args{'workgroup_id'};
+    my $link_type    = $args{'link_type'};
+
     my $dbh = $self->{'dbh'};
 
     # grab only the local network
@@ -1373,6 +1375,8 @@ HERE
     }
 
     my $link_maintenances = $self->get_link_maintenances();
+
+    $self->{'logger'}->error("Filtering links by $link_type");
     foreach my $link (@$links){
     
         my $inta = $self->get_interface( interface_id => $link->{'interface_a_id'});
@@ -1383,24 +1387,44 @@ HERE
             if ($link->{'link_id'} == $link_maintenance->{'link'}->{'id'}) {
                 $maint_epoch = $link_maintenance->{'end_epoch'};
             }
-            
         }
 
-        push(@{$networks->{$network_name}->{'links'}->{$inta->{'node_name'}}},{"link_name"   => $link->{'name'},
-                                                                               "link_state"  => $link->{'link_state'},
-                                                                               "link_capacity" => $intb->{'speed'},
-                                                                               "remote_urn"  => $link->{'remote_urn'},
-                                                                               "to"          => $intb->{'node_name'},
-                                                                               "link_id"     => $link->{'link_id'},
-                                                                               "maint_epoch" => $maint_epoch});
+	my $link_data_a = {
+	    "link_name"     => $link->{'name'},
+	    "openflow"      => $link->{'openflow'},
+	    "mpls"          => $link->{'mpls'},
+	    "link_state"    => $link->{'link_state'},
+	    "remote_urn"    => $link->{'remote_urn'},
+	    "link_capacity" => $inta->{'speed'},
+	    "to"            => $inta->{'node_name'},
+	    "link_id"       => $link->{'link_id'},
+	    "maint_epoch"   => $maint_epoch
+	};
 
-        push(@{$networks->{$network_name}->{'links'}->{$intb->{'node_name'}}},{"link_name"   => $link->{'name'},
-                                                                               "link_state"  => $link->{'link_state'},
-                                                                               "remote_urn"  => $link->{'remote_urn'},
-                                                                               "link_capacity" => $inta->{'speed'},
-                                                                               "to"          => $inta->{'node_name'},
-                                                                               "link_id"     => $link->{'link_id'},
-                                                                                "maint_epoch" => $maint_epoch});
+	my $link_data_b = {
+	    "link_name"     => $link->{'name'},
+	    "openflow"      => $link->{'openflow'},
+	    "mpls"          => $link->{'mpls'},
+	    "link_state"    => $link->{'link_state'},
+	    "link_capacity" => $intb->{'speed'},
+	    "remote_urn"    => $link->{'remote_urn'},
+	    "to"            => $intb->{'node_name'},
+	    "link_id"       => $link->{'link_id'},
+	    "maint_epoch"   => $maint_epoch
+	};
+
+	if (!defined $link_type) {
+	    push(@{$networks->{$network_name}->{'links'}->{$inta->{'node_name'}}}, $link_data_b);
+	    push(@{$networks->{$network_name}->{'links'}->{$intb->{'node_name'}}}, $link_data_a);
+	} elsif ($link_type eq "openflow" && $link->{'openflow'} eq "1") {
+	    push(@{$networks->{$network_name}->{'links'}->{$inta->{'node_name'}}}, $link_data_b);
+	    push(@{$networks->{$network_name}->{'links'}->{$intb->{'node_name'}}}, $link_data_a);
+	} elsif ($link_type eq "mpls" && $link->{'mpls'} eq "1") {
+	    push(@{$networks->{$network_name}->{'links'}->{$inta->{'node_name'}}}, $link_data_b);
+	    push(@{$networks->{$network_name}->{'links'}->{$intb->{'node_name'}}}, $link_data_a);
+	} else {
+	    # $link doesn't have requested type
+	}
     }
   
 
@@ -1462,7 +1486,6 @@ HERE
     }
 
     return $results;
-
 }
 
 sub get_mpls_circuits_without_default_path {
