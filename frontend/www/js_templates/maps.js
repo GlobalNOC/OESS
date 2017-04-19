@@ -1257,9 +1257,12 @@ function NDDIMap(div_id, interdomain_mode, options){
 
     var url = "[% path %]services/data.cgi?method=get_maps";
 
-	  if (session.data.workgroup_id){
-		  url += "&workgroup_id="+session.data.workgroup_id;
-	  }
+    if (session.data.workgroup_id){
+	url += "&workgroup_id="+session.data.workgroup_id;
+    }
+    if (session.data.circuit_type) {
+	url += "&link_type=" + session.data.circuit_type;
+    }
 
     var ds = new YAHOO.util.DataSource(url);
 
