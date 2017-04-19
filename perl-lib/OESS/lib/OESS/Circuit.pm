@@ -1544,7 +1544,7 @@ sub get_mpls_path_type{
 	return;
     }
 
-    $self->{'logger'}->error("MPLS Path Type: " . Data::Dumper::Dumper($self->{'details'}{'paths'}));
+    $self->{'logger'}->debug("MPLS Path Type: " . Data::Dumper::Dumper($self->{'details'}{'paths'}));
 
     if(!defined($self->{'details'}{'paths'}{$params{'path'}})){
 	return;

@@ -710,6 +710,18 @@ sub provision_circuit {
         return;
     }
 
+    my $err = $db->validate_circuit(
+	type => $type,
+	links => $links,
+	backup_links => $backup_links,
+	nodes => $nodes,
+	interfaces => $interfaces
+    );
+    if (defined $err) {
+	warn "Couldn't validate circuit: " . $err;
+	$method->set_error("Couldn't validate circuit: " . $err);
+    }
+
     if ( !$circuit_id || $circuit_id == -1 ) {
         #Register with DB
 	warn 'provision_circuit: adding new circuit to the database';

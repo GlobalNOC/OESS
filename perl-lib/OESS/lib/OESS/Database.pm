@@ -6536,6 +6536,115 @@ sub schedule_path_change{
 }
 
 
+=head2 validate_circuit
+
+Validates that links and interfaces are of the specified type. Returns
+an error string if validation fails, or undef if validation is
+successful.
+
+=over
+
+=item type
+
+A string specifying the circuit type that links and interfaces must
+be. Valid types are `openflow` or `mpls`.
+
+=item links
+
+An array of names of links that this circuit should use as a primary path.
+
+=item backup_links
+
+An array of names of links that this circuit should use as a backup path.
+
+=item nodes
+
+An array of nodes that this circuit should use. The order of this
+should match interfaces such that a given nodes[i]-interfaces[i]
+combination is accurate.
+
+=item interfaces
+
+An array of names of interfaces that this circuit should use. The
+order of this should match nodes such that a given
+nodes[i]-interfaces[i] combination is accurate.
+
+=back
+
+=cut
+
+sub validate_circuit {
+    my $self = shift;
+    my %args = @_;
+
+    my $type         = $args{'type'};
+    my $links        = $args{'links'};
+    my $backup_links = $args{'backup_links'};
+    my $nodes        = $args{'nodes'};
+    my $interfaces   = $args{'interfaces'};
+
+    my $openflow;
+    my $results;
+
+    if ($type eq 'openflow') {
+	$openflow = 1;
+    } elsif ($type eq 'mpls') {
+	$openflow = 0;
+    } else {
+	# ERROR HERE
+	return 'Unexpected circuit type received.';
+    }
+
+    my $query = "select link.link_id, link.name from link join link_instantiation on link.link_id=link_instantiation.link_id"; 
+    $query   .= " where link_instantiation.openflow=?";
+
+    $results = $self->_execute_query($query, [$openflow]);
+    if (!defined $results) {
+        $self->_set_error("Internal error getting links while validating.");
+        return "Internal error getting links while validating.";
+    }
+
+    my $valid_links = {};
+
+    foreach my $link (@{$results}) {
+	$valid_links->{$link->{'name'}} = 1;
+    }
+
+    foreach my $name (@{$links}) {
+	if (!exists $valid_links->{$name}) {
+	    return "Link $name is not of type $type.";
+	}
+    }
+
+    foreach my $name (@{$backup_links}) {
+	if (!exists $valid_links->{$name}) {
+	    return "Backup link $name is not of type $type.";
+	}
+    }
+
+    my $node_len = scalar @{$nodes};
+    my $intf_len = scalar @{$interfaces};
+
+    if ($node_len != $intf_len) {
+	return "The number of nodes, and interfaces are not equal.";
+    }
+
+    for (my $i = 0; $i < $node_len; $i++) {
+	my $query = "select node.name, interface.* ";
+	$query   .= "from interface join node on node.node_id=interface.node_id ";
+	$query   .= "where interface.name=? and node.name=?";
+
+	$results = $self->_execute_query($query, [$interfaces->[$i], $nodes->[$i]]);
+	if (scalar @{$results} == 0) {
+	    return "Interface $interfaces->[$i] is not of type $type.";
+	}
+    }
+
+    $self->{'logger'}->info("Circuit type check complete.");
+
+    return;
+}
+
 =head2 provision_circuit
 
 Creates a new circuit record and its path information.
