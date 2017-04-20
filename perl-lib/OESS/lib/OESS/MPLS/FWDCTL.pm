@@ -122,6 +122,7 @@ sub new {
     #from TOPO startup
     my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
     foreach my $node (@$nodes) {
+	warn Dumper($node);
 	$self->make_baby($node->{'node_id'});
     }
 
@@ -488,6 +489,8 @@ sub make_baby {
     my $self = shift;
     my $id = shift;
     
+    return 1 if(defined($self->{'children'}->{$id}->{'rpc'}) && $self->{'children'}->{$id}->{'rpc'} == 1);
+
     $self->{'logger'}->debug("Before the fork");
     
     my $node = $self->{'node_by_id'}->{$id};
