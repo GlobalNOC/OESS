@@ -1282,6 +1282,7 @@ sub get_map_layers {
     node_instantiation.model,
     node_instantiation.sw_version,
     node_instantiation.mgmt_addr,
+    node_instantiation.tcp_port,
     node.vlan_tag_range,
     node.node_id as node_id,
     node.default_drop as default_drop,
@@ -1348,6 +1349,7 @@ HERE
                                                                "model"        => $row->{'model'},
                                                                "sw_version"   => $row->{'sw_version'},
                                                                "mgmt_addr"    => $row->{'mgmt_addr'},
+                                                               "tcp_port"     => $row->{'tcp_port'},
 							       "vlan_range"   => $row->{'vlan_tag_range'},
 							       "default_drop" => $row->{'default_drop'},
 							       "default_forward" => $row->{'default_forward'},
@@ -4721,8 +4723,8 @@ sub update_node_instantiation {
 
     $self->_start_transaction();
 
-    my $result = $self->_execute_query("update node_instantiation set mpls = ?, mgmt_addr = ?, vendor = ?, model = ?, sw_version = ? where node_id = ?",
-				       [$mpls, $mgmt_addr, $vendor, $model, $sw_version, $node_id]);
+    my $result = $self->_execute_query("update node_instantiation set mpls = ?, mgmt_addr = ?, vendor = ?, model = ?, sw_version = ?, tcp_port = ? where node_id = ?",
+				       [$mpls, $mgmt_addr, $vendor, $model, $sw_version, $tcp_port, $node_id]);
     if ($result != 1) {
 	$self->_set_error("Error updating node instantiation.");
 	$self->_rollback();
