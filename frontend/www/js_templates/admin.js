@@ -2410,13 +2410,12 @@ function setup_network_tab(){
 	    var end_epoch = args[0].feature.geometry.end_epoch;
 	    var openflow = args[0].openflow;
 
-        // tcp_port is hard coded to 22 in the backend
-	var mpls       = args[0].mpls;
-        var mgmt_addr  = args[0].mgmt_addr;
-        var tcp_port   = args[0].tcp_port;
-        var vendor     = args[0].vendor;
-        var model      = args[0].model;
-        var sw_version = args[0].sw_version;
+            var mpls       = args[0].mpls;
+            var mgmt_addr  = args[0].mgmt_addr;
+            var tcp_port   = args[0].tcp_port;
+            var vendor     = args[0].vendor;
+            var model      = args[0].model;
+            var sw_version = args[0].sw_version;
 
 	    function show_interface_acl_panel(args){
 		var interface_id = args.interface_id;

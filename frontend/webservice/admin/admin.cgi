@@ -1661,7 +1661,7 @@ sub update_node {
         max_flows       => $max_flows,
         bulk_barrier    => $bulk_barrier,
         max_static_mac_flows => $max_static_mac_flows
-        );
+    );
 
     if ( !defined $result ) {
         $results->{'results'} = [
@@ -1686,7 +1686,7 @@ sub update_node {
             vendor     => $vendor,
             model      => $model,
             sw_version => $sw_version
-            );
+	);
 
         if (!defined $result ) {
             $results->{'results'} = [ { "error"   => $db->get_error(),
@@ -1707,16 +1707,14 @@ sub update_node {
 	my $cv = AnyEvent->condvar;
 
 	warn 'update_node: starting mpls switch forwarding process';
+	$mq->{'topic'} = 'MPLS.FWDCTL.RPC';
         my $res = $mq->new_switch(
             node_id        => int($node_id),
 	    async_callback => sub {
-		warn 'update_node: starting mpls switch discovery process';
-
 		$mq->{'topic'} = 'MPLS.Discovery.RPC';
 		$mq->new_switch(
                     node_id => $node_id,
                     async_callback => sub {
-                        warn 'update_node: done starting mpls switch processes';
                         $cv->send();
                     }
                 )
@@ -1729,7 +1727,11 @@ sub update_node {
 	warn 'update_node: updating openflow switch data';
 	
 	if (!defined $mq) {
-	    return;
+	    $results->{'results'} = [ {
+		"error"   => "Internal server error occurred. Message queue connection failed.",
+		"success" => 0
+	    } ];
+	    return $results;
 	} else {
 	    $mq->{'topic'} = 'OF.FWDCTL.RPC';
 	}
@@ -1745,13 +1747,18 @@ sub update_node {
 
         my $cache_result = $cv->recv();
 	if ($cache_result->{'error'} || !$cache_result->{'results'}) {
-	    return;
+	    $results->{'results'} = [ {
+		"error"   => "Internal server error occurred. $cache_result->{'error'}",
+		"success" => 0
+	    } ];
+	    return $results;
 	}
 
         $cv = AnyEvent->condvar;
         $mq->force_sync(dpid => int($node->{'dpid'}),
 			async_callback => sub {
 			    my $result = shift;
+
 			    $cv->send($result);
 			});
 

@@ -281,7 +281,7 @@ function NDDIMap(div_id, interdomain_mode, options){
       var openflow = node_info.openflow;
       var mpls       = node_info.mpls;
       var mgmt_addr  = node_info.mgmt_addr;
-      var tcp_port   = 22;
+      var tcp_port   = node_info.tcp_port;
       var vendor     = node_info.vendor;
       var model      = node_info.model;
       var sw_version = node_info.sw_version;
