@@ -7939,6 +7939,7 @@ sub edit_circuit {
 
     # do a quick check on arguments passed in
     if($do_sanity_check && !$self->circuit_sanity_check(%args)){
+	$self->_set_error("Could not perform circuit sanity check.");
         return;
     }
 
@@ -8555,6 +8556,8 @@ sub _validate_endpoint {
     my $vlan_tag_range;
     my $additional_vlan_range;
 
+    $self->{'logger'}->debug("Calling _validate_endpoint: " . Dumper(%args));
+
     my $query = "SELECT interface.role " .
       "FROM interface " .
       "WHERE interface.interface_id = ?";
@@ -8601,16 +8604,16 @@ sub _validate_endpoint {
         }
 
         if ($type eq 'openflow') {
-            $vlan_tag_range = @{$results}[0]->{'vlan_tag_range'};
+            $vlan_tag_range = $results->[0]->{'vlan_tag_range'};
         } else {
-            $vlan_tag_range = @{$results}[0]->{'mpls_vlan_tag_range'};
+            $vlan_tag_range = $results->[0]->{'mpls_vlan_tag_range'};
         }
     }
 
     if (!defined $vlan_tag_range) {
         $vlan_tag_range = '-1';
     }
-    $self->{'logger'}->debug("VLAN TAG RANGE $type -> $vlan_tag_range");
+    $self->{'logger'}->debug("VLAN TAG RANGE $type: $vlan_tag_range");
 
 
     $query  = "select * ";
@@ -8946,6 +8949,7 @@ sub validate_endpoints {
     my $mac_addresses  = $args{'mac_addresses'};
     my $static_mac     = $args{'static_mac'} || 0; 
     my $endpoint_mac_address_nums = $args{'endpoint_mac_address_nums'};
+    my $type                      = $args{'type'} || 'openflow';
 
     for (my $i = 0; $i < @$nodes; $i++){
         my $node      = @$nodes[$i];
@@ -8963,7 +8967,7 @@ sub validate_endpoints {
             return;
         }
 
-        if (! $self->_validate_endpoint(interface_id => $interface_id, workgroup_id => $workgroup_id, vlan => $vlan)){
+        if (! $self->_validate_endpoint(interface_id => $interface_id, workgroup_id => $workgroup_id, vlan => $vlan, type => $type)){
             $self->_set_error("Interface \"$interface\" on endpoint \"$node\" with VLAN tag \"$vlan\" is not allowed for this workgroup.");
             return;
         }
@@ -9033,6 +9037,13 @@ sub validate_paths {
             interface => @$interfaces[$i],
             vlan => @$tags[$i]
         });        
+    }
+
+    # MPLS circuits without links are auto-provisioned by the
+    # routers. We can skip validation here.
+    if ($args{'type'} eq 'mpls' && (!defined $args{'links'} || scalar @{$args{'links'}} == 0)) {
+        $self->{'logger'}->info("Skipping path validation for mpls circuit with no links.");
+        return 1;
     }
 
     # now check to verify that the topology makes sense
