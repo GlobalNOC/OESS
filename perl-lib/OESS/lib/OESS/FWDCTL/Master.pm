@@ -47,6 +47,8 @@ use OESS::Circuit;
 use GRNOC::RabbitMQ::Method;
 use GRNOC::RabbitMQ::Dispatcher;
 use GRNOC::RabbitMQ::Client;
+use OESS::RabbitMQ::Client;
+use OESS::RabbitMQ::Dispatcher;
 use AnyEvent;
 use AnyEvent::Fork;
 
@@ -117,14 +119,9 @@ sub new {
 
     $self->{'db'} = OESS::Database->new( config_file => $self->{'config'} );
 
-    my $fwdctl_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
-							      port => $self->{'db'}->{'rabbitMQ'}->{'port'},
-							      timeout => 40,
-							      user => $self->{'db'}->{'rabbitMQ'}->{'user'},
-							      pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
-							      exchange => 'OESS',
-							      queue => 'OF-FWDCTL',
-							      topic => "OF.FWDCTL.RPC");
+    my $fwdctl_dispatcher = OESS::RabbitMQ::Dispatcher->new( queue => 'OF-FWDCTL',
+                                                             timeout => 60,
+							     topic => "OF.FWDCTL.RPC");
 
     $self->register_rpc_methods( $fwdctl_dispatcher );
     $self->register_nox_events( $fwdctl_dispatcher );
@@ -132,12 +129,7 @@ sub new {
     $self->{'fwdctl_dispatcher'} = $fwdctl_dispatcher;
 
 
-    $self->{'fwdctl_events'} = GRNOC::RabbitMQ::Client->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
-							     port => $self->{'db'}->{'rabbitMQ'}->{'port'},
-							     user => $self->{'db'}->{'rabbitMQ'}->{'user'},
-							     pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
-							     exchange => 'OESS',
-							     topic => 'OF.FWDCTL.event');
+    $self->{'fwdctl_events'} = OESS::RabbitMQ::Client->new( topic => 'OF.FWDCTL.event');
     $self->{'logger'}->info("RabbitMQ ready to go!");
 
     # When this process receives sigterm send an event to notify all

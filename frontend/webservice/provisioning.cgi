@@ -661,15 +661,8 @@ sub provision_circuit {
 
     my $rabbit_mq_start = [gettimeofday];
 
-    my $log_client  = new GRNOC::RabbitMQ::Client(
-	user => $conf->get('rabbitmq/@username')->[0],
-	pass => $conf->get('rabbitmq/@password')->[0],
-	host => $conf->get('rabbitmq/@host')->[0],
-	port => $conf->get('rabbitmq/@port')->[0],
-        exchange => 'OESS',
-        topic    => 'OF.Notification.event',
-	timeout  => 15
-    );
+    my $log_client = OESS::RabbitMQ::Client->new( topic    => 'OF.Notification.event',
+                                                  timeout  => 15 );
     if (!defined $log_client) {
         warn "Couldn't create RabbitMQ client.";
         $method->set_error("Couldn't create RabbitMQ client.");
@@ -993,15 +986,8 @@ sub remove_circuit {
 	return;
     }
 
-    my $log_client  = new GRNOC::RabbitMQ::Client(
-	user => $conf->get('rabbitmq/@username')->[0],
-	pass => $conf->get('rabbitmq/@password')->[0],
-	host => $conf->get('rabbitmq/@host')->[0],
-	port => $conf->get('rabbitmq/@port')->[0],
-        exchange => 'OESS',
-        topic    => 'OF.Notification.event',
-	timeout  => 15
-    );
+    my $log_client = OESS::RabbitMQ::Client->new( topic    => 'OF.Notification.event',
+                                                  timeout  => 15 );
     if ( !defined($log_client) ) {
         $method->set_error("Internal server error occurred. Message queue connection failed.");
         return;
@@ -1153,16 +1139,9 @@ sub fail_over_circuit {
     my $workgroup_id = $args->{'workgroup_id'}{'value'};
     my $forced = $args->{'force'}{'value'} || undef;
 
-    my $log_client  = new GRNOC::RabbitMQ::Client(
-	user => $conf->get('rabbitmq/@username')->[0],
-	pass => $conf->get('rabbitmq/@password')->[0],
-	host => $conf->get('rabbitmq/@host')->[0],
-	port => $conf->get('rabbitmq/@port')->[0],
-        exchange => 'OESS',
-        topic    => 'OF.Notification.event',
-	timeout  => 15
-    );
 
+    my $log_client = OESS::RabbitMQ::Client->new( topic    => 'OF.Notification.event',
+                                                  timeout  => 15 );
     if ( !defined($log_client) ) {
         return;
     }

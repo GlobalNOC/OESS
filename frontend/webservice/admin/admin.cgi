@@ -1712,7 +1712,8 @@ sub update_node {
 		$cv->end($res);
 	    });
 	$mq->{'topic'} = 'MPLS.Discovery.RPC';
-	$cv->begin();
+
+	$cv->begin;
 	$mq->new_switch(
 	    node_id => $node_id,
 	    async_callback => sub {
@@ -1743,12 +1744,12 @@ sub update_node {
 			      $cv->end($result);
 			  });
 
+        $cv->begin;
         $mq->force_sync(dpid => int($node->{'dpid'}),
 			async_callback => sub {
 			    my $result = shift;
 			    $cv->end($result);
 			});
-
     }
 
     $cv->recv();

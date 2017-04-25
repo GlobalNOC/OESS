@@ -5,17 +5,21 @@ use warnings;
 use GRNOC::RabbitMQ::Dispatcher;
 use GRNOC::Config;
 
-package OESS::RabittMQ::Dispatcher;
+package OESS::RabbitMQ::Dispatcher;
 
 sub new{
     my $that = shift;
     my $class = ref($that) || $that;
 
     my %args = (
+        timeout => 15,
         @_
-        );
+    );
 
-    
+    if (!defined $args{'timeout'}) {
+        $args{'timeout'} = 15;
+    }
+
     my $config = GRNOC::Config->new(config_file => '/etc/oess/database.xml');
     
     my $user = $config->get('/config/rabbitMQ/@user')->[0];
