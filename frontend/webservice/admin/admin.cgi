@@ -2021,7 +2021,7 @@ sub decom_link {
         return send_json($err);
     }
 
-    my $results;
+    my $results = {};
 
     my $link_id = $args->{'link_id'}{'value'};
 
@@ -2033,9 +2033,8 @@ sub decom_link {
                 "error"   => $db->get_error(),
                 "success" => 0
             }
-            ];
-    }
-    else {
+        ];
+    } else {
         $results->{'results'} = [ { "success" => 1 } ];
     }
 

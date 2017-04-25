@@ -1061,10 +1061,9 @@ sub decom_link_instantiation{
 	return;
     }
 
-    my $res = $self->_execute_query("update link_instantiation set end_epoch = UNIX_TIMESTAMP(NOW()) where link_id = ? and end_epoch = -1",[$args{'link_id'}]);
+    my $res = $self->_execute_query("update link_instantiation set end_epoch = UNIX_TIMESTAMP(NOW()) where link_id = ? and end_epoch = -1", [$args{'link_id'}]);
 
     return 1;
-
 }
 
 =head2 get_edge_links
@@ -5175,20 +5174,46 @@ sub decom_link {
     $self->_start_transaction();
 
     my $link_details = $self->get_link( link_id => $link_id );
+    if ($link_details->{'link_state'} eq 'decom') {
+        $self->_set_error("Link has already been decom'd.");
+	$self->_rollback();
+        return;
+    }
+
+    warn "". Dumper($link_details);
 
     my $result = $self->_execute_query("update link_instantiation set end_epoch = unix_timestamp(NOW()) where end_epoch = -1 and link_id = ?", [$link_id]);
 
     if ($result != 1){
 	$self->_set_error("Error updating link instantiation.");
 	$self->_rollback();
-    return;
+        return;
     }
 
-    $result = $self->_execute_query("insert into link_instantiation (end_epoch,start_epoch,link_state,link_id,interface_a_id,interface_z_id) VALUES (-1,unix_timestamp(NOW()),'decom',?,?,?)",[$link_details->{'link_id'},$link_details->{'interface_a_id'},$link_details->{'interface_z_id'}]);
-    if ($result != 1){
+    # _execute_query doesn't properly handle the case of inserts with
+    # a non-incrementing ids.
+    my $_query = "insert into link_instantiation (end_epoch,start_epoch,link_state,link_id,interface_a_id,interface_z_id,openflow,mpls) VALUES (-1,unix_timestamp(NOW()),'decom',?,?,?,?,?)";
+    my $_args = [
+        $link_details->{'link_id'},
+        $link_details->{'interface_a_id'},
+        $link_details->{'interface_z_id'},
+        $link_details->{'openflow'},
+        $link_details->{'mpls'}
+    ];
+
+    my $sth = $self->{'dbh'}->prepare($_query);
+    if (!$sth){
+	warn "Error in executing query: $DBI::errstr";
 	$self->_set_error("Error addding decomed link instantiation.");
 	$self->_rollback();
-        return;
+	return;
+    }
+
+    if (!$sth->execute(@$_args)) {
+	warn "Error in executing query: $DBI::errstr";
+	$self->_set_error("Error addding decomed link instantiation.");
+	$self->_rollback();
+	return;
     }
 
     if($link_details->{'status'} eq 'down'){
@@ -8344,7 +8369,7 @@ sub _execute_query {
     #warn "Query is: $query\n";
 
     if (! $sth){
-    warn "Error in prepare query: $DBI::errstr";
+        warn "Error in prepare query: $DBI::errstr";
 	$self->_set_error("Unable to prepare query: $DBI::errstr");
 	return;
     }
@@ -8358,11 +8383,11 @@ sub _execute_query {
     if ($query =~ /^\s*select/i){
         my @array;
 	while (my $row = $sth->fetchrow_hashref()){
-        push(@array, $row);
-    }
+            push(@array, $row);
+        }
 
 	#warn "Returning " . (scalar @array) . " rows";
-    return \@array;
+        return \@array;
     }
 
     if ($query =~ /^\s*insert/i){
