@@ -62,13 +62,9 @@ my $topo = new OESS::Topology();
 
 #register web service dispatcher
 my $svc    = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
-my $fwdctl = GRNOC::RabbitMQ::Client->new( host     => 'localhost',
-                                           user     => 'guest',
-                                           pass     => 'guest',
-                                           port     => 5672,
-                                           exchange => 'OESS',
-                                           topic    => 'MPLS.FWDCTL.RPC' );
 
+my $mq = OESS::RabbitMQ::Client->new( topic    => 'MPLS.FWDCTL.RPC',
+                                      timeout  => 60 );
 
 Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
 
@@ -767,11 +763,11 @@ sub get_diff_text {
     my ( $method, $args ) = @_ ;
 
     my $node_id = $args->{'node_id'}{'value'};
-    my $event   = $fwdctl->get_diff_text( node_id => $node_id );
+    my $event   = $mq->get_diff_text( node_id => $node_id );
 
     while ($event->{'results'}->{'status'} == FWDCTL_WAITING) {
         usleep(1000000);
-        $event = $fwdctl->get_event_status( event_id => $event->{'results'}->{'id'} );
+        $event = $mq->get_event_status( event_id => $event->{'results'}->{'id'} );
     }
 
     return $event->{'results'};

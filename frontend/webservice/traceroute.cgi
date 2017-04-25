@@ -41,6 +41,8 @@ use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
 
 my $db = new OESS::Database();
+my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.NDDI.RPC',
+                                      timeout  => 60 );
 
 #register web service dispatcher
 my $svc = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
@@ -194,15 +196,7 @@ sub init_circuit_traceroute {
 	return;
     }
 
-    my $traceroute_client  = new GRNOC::RabbitMQ::Client(
-        topic => 'OF.NDDI.RPC',
-        exchange => 'OESS',
-        user => 'guest',
-        pass => 'guest',
-        host => 'localhost',
-        port => 5672
-    );
-    if ( !defined($traceroute_client) ) {
+    if ( !defined($mq) ) {
         return {error => 'unable to talk to traceroute service'};
     }
 
@@ -231,7 +225,7 @@ sub init_circuit_traceroute {
     }
 
         
-    my $result = $traceroute_client->init_circuit_trace(
+    my $result = $mq->init_circuit_trace(
 	circuit_id   => $circuit_id,
 	interface_id => $source_interface
     );
@@ -251,15 +245,7 @@ sub get_circuit_traceroute {
     my $workgroup_id = $args->{'workgroup_id'}{'value'};
     my $circuit_id  =  $args->{'circuit_id'}{'value'};
 
-    my $traceroute_client  = new GRNOC::RabbitMQ::Client(
-        topic => 'OF.NDDI.RPC',
-        exchange => 'OESS',
-        user => 'guest',
-        pass => 'guest',
-        host => 'localhost',
-        port => 5672
-    );
-    if (!defined $traceroute_client) {
+    if (!defined $mq) {
 	$method->set_error("Unable to talk to traceroute service.");
         return;
     }
@@ -286,7 +272,7 @@ sub get_circuit_traceroute {
     }
 
     #dbus is fighting me, this is suboptimal, but dbus does not like the signature changing.    
-    my $transactions = $traceroute_client->get_traceroute_transactions();
+    my $transactions = $mq->get_traceroute_transactions();
     if (!defined $transactions || !defined $transactions->{'results'}) {
         $method->set_error("No traceroute data found for this circuit.");
 	return;

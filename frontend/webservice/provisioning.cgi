@@ -49,15 +49,8 @@ my $conf = GRNOC::Config->new(config_file => '/etc/oess/database.xml');
 
 my $db = new OESS::Database();
 
-my $mq  = new GRNOC::RabbitMQ::Client(
-    user => $conf->get('rabbitmq/@username')->[0],
-    pass => $conf->get('rabbitmq/@password')->[0],
-    host => $conf->get('rabbitmq/@host')->[0],
-    port => $conf->get('rabbitmq/@port')->[0],
-    exchange => 'OESS',
-    topic    => 'OF.FWDCTL.RPC',
-    timeout  => 60
-);
+my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
+                                      timeout  => 60 );
 
 my $svc = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
 

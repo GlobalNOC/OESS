@@ -44,6 +44,9 @@ my $topo = new OESS::Topology();
 #register web service dispatcher
 my $svc = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
 
+my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.NOX.RPC',
+                                      timeout  => 60 );
+
 my $username = $ENV{'REMOTE_USER'};
 
 $| = 1;
@@ -123,15 +126,7 @@ sub get_node_status{
     my ( $method, $args ) = @_ ;
     my $results;
 
-    my $client  = new GRNOC::RabbitMQ::Client(
-        topic => 'OF.NOX.RPC',
-        exchange => 'OESS',
-        user => 'guest',
-        pass => 'guest',
-        host => 'localhost',
-        port => 5672
-    );
-    if ( !defined($client) ) {
+    if ( !defined($mq) ) {
         return;
     }
 
@@ -144,7 +139,8 @@ sub get_node_status{
 	return;
     }
 
-    my $result = $client->get_node_connect_status(dpid => int($node->{'dpid'}));
+    $mq->{'topic'} = 'OF.NOX.RPC';
+    my $result = $mq->get_node_connect_status(dpid => int($node->{'dpid'}));
     $result = int($result->{'results'}->[0]);
     my $tmp;
     $tmp->{'results'} = {node => $node_name, status => $result};
@@ -157,15 +153,7 @@ sub get_rules_on_node{
     my ( $method, $args ) = @_ ;
     my $results;
 
-    my $client  = new GRNOC::RabbitMQ::Client(
-        topic => 'OF.FWDCTL.RPC',
-        exchange => 'OESS',
-        user => 'guest',
-        pass => 'guest',
-        host => 'localhost',
-        port => 5672
-    );
-    if ( !defined($client) ) {
+    if ( !defined($mq) ) {
         return;
     }
 
@@ -180,6 +168,7 @@ sub get_rules_on_node{
 
     warn Data::Dumper::Dumper($node);
 
+    $mq->{'topic'} = 'OF.FWDCTL.RPC';
     my $result = $client->rules_per_switch(dpid => int($node->{'dpid'}));
     warn Data::Dumper::Dumper($result);
     $result = int($result->{'results'}->{'rules_on_switch'});
