@@ -43,6 +43,8 @@ use Socket;
 use GRNOC::RabbitMQ::Client;
 use GRNOC::RabbitMQ::Method;
 use GRNOC::RabbitMQ::Dispatcher;
+use OESS::RabbitMQ::Client;
+use OESS::RabbitMQ::Dispatcher;
 use GRNOC::WebService::Regex;
 use OESS::Database;
 
@@ -102,13 +104,8 @@ sub new{
     
 
     #create the client for talking to our Discovery switch objects!
-    $self->{'rmq_client'} = GRNOC::RabbitMQ::Client->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
-							  port => $self->{'db'}->{'rabbitMQ'}->{'port'},
-							  user => $self->{'db'}->{'rabbitMQ'}->{'user'},
-							  pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
-							  timeout => 15,
-							  exchange => 'OESS',
-							  topic => 'MPLS.Discovery');
+    $self->{'rmq_client'} = OESS::RabbitMQ::Client->new( timeout => 15,
+							 topic => 'MPLS.Discovery');
     
     die if(!defined($self->{'rmq_client'}));
 
@@ -120,13 +117,8 @@ sub new{
     $self->{'path_timer'} = AnyEvent->timer( after => 50, interval => 60, cb => sub { $self->path_handler(); });
 
     #our dispatcher for receiving events (only new_switch right now)    
-    my $dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
-						       port => $self->{'db'}->{'rabbitMQ'}->{'port'},
-						       user => $self->{'db'}->{'rabbitMQ'}->{'user'},
-						       pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
-						       exchange => 'OESS',
-						       queue => 'MPLS-Discovery',
-						       topic => "MPLS.Discovery.RPC");
+    my $dispatcher = OESS::RabbitMQ::Dispatcher->new( queue => 'MPLS-Discovery',
+						      topic => "MPLS.Discovery.RPC");
 
     $self->register_rpc_methods( $dispatcher );
     $self->{'dispatcher'} = $dispatcher;

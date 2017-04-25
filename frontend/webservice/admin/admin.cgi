@@ -34,7 +34,7 @@ use JSON;
 use LWP::UserAgent;
 use Switch;
 
-use GRNOC::RabbitMQ::Client;
+use OESS::RabbitMQ::Client;
 use GRNOC::WebService;
 
 use OESS::Database;
@@ -50,15 +50,8 @@ my $conf = GRNOC::Config->new(config_file => '/etc/oess/database.xml');
 
 my $db = new OESS::Database();
 
-my $mq  = new GRNOC::RabbitMQ::Client(
-    user => $conf->get('rabbitmq/@username')->[0],
-    pass => $conf->get('rabbitmq/@password')->[0],
-    host => $conf->get('rabbitmq/@host')->[0],
-    port => $conf->get('rabbitmq/@port')->[0],
-    exchange => 'OESS',
-    topic    => 'OF.FWDCTL.RPC',
-    timeout  => 60
-);
+my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
+                                      timeout  => 60 );
 
 my $topo = new OESS::Topology();
 
@@ -1675,6 +1668,9 @@ sub update_node {
         $results->{'results'} = [ { "success" => 1 } ];
     }
 
+    my $cv = AnyEvent->condvar;
+    $cv->begin;
+
     if ($mpls == 1) {
 	warn 'update_node: updating mpls switch data';
 
@@ -1704,23 +1700,26 @@ sub update_node {
 	    $mq->{'topic'} = 'OF.FWDCTL.RPC';
 	}
 
-	my $cv = AnyEvent->condvar;
-
 	warn 'update_node: starting mpls switch forwarding process';
+	#no reason to do these individually!
 	$mq->{'topic'} = 'MPLS.FWDCTL.RPC';
-        my $res = $mq->new_switch(
+	$cv->begin;
+        $mq->new_switch(
             node_id        => int($node_id),
 	    async_callback => sub {
-		$mq->{'topic'} = 'MPLS.Discovery.RPC';
-		$mq->new_switch(
-                    node_id => $node_id,
-                    async_callback => sub {
-                        $cv->send();
-                    }
-                )
-            }
-        );
-	$cv->recv();
+		my $res = shift;
+		
+		$cv->end($res);
+	    });
+	$mq->{'topic'} = 'MPLS.Discovery.RPC';
+
+	$cv->begin;
+	$mq->new_switch(
+	    node_id => $node_id,
+	    async_callback => sub {
+		my $res = shift;
+		$cv->end($res);
+	    });
     }
 
     if ($openflow) {
@@ -1738,37 +1737,22 @@ sub update_node {
 	
 	my $node = $db->get_node_by_id(node_id => $node_id);
 
-        my $cv = AnyEvent->condvar;
+	$cv->begin;
         $mq->update_cache(circuit_id     => -1,
 			  async_callback => sub {
 			      my $result = shift;
-			      $cv->send($result);
+			      $cv->end($result);
 			  });
 
-        my $cache_result = $cv->recv();
-	if ($cache_result->{'error'} || !$cache_result->{'results'}) {
-	    $results->{'results'} = [ {
-		"error"   => "Internal server error occurred. $cache_result->{'error'}",
-		"success" => 0
-	    } ];
-	    return $results;
-	}
-
-        $cv = AnyEvent->condvar;
+        $cv->begin;
         $mq->force_sync(dpid => int($node->{'dpid'}),
 			async_callback => sub {
 			    my $result = shift;
-
-			    $cv->send($result);
+			    $cv->end($result);
 			});
-
-        $cache_result = $cv->recv();
-	if ($cache_result->{'error'} || !$cache_result->{'results'}) {
-	    return;
-	}
-
-        return {results => [{success => 1}]};
     }
+
+    $cv->recv();
 
     return {results => [{success => 1}]};
 }

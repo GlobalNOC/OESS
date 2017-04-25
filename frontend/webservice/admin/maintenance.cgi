@@ -33,10 +33,14 @@ use warnings;
 use Data::Dumper;
 use JSON;
 use OESS::Database;
+use OESS::RabbitMQ::Client;
 use Switch;
 use GRNOC::WebService;
 
 my $db = new OESS::Database();
+my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
+                                      timeout  => 60 );
+
 #register web service dispatcher
 my $svc = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
 
@@ -226,20 +230,11 @@ sub _execute_node_maintenance {
     my $node_id = shift;
     my $state = shift;
 
-    my $client  = new GRNOC::RabbitMQ::Client(
-        topic => 'OF.FWDCTL.RPC',
-        exchange => 'OESS',
-        user => 'guest',
-        pass => 'guest',
-        host => 'localhost',
-        port => 5672
-    );
-
-    if (!defined $client ) {
+    if (!defined $mq ) {
         warn "Could not communicate with FWDCTL. Please check rabbitmq-server.";
         return;
     }
-    return $client->node_maintenance(node_id => int($node_id), state => $state);
+    return $mq->node_maintenance(node_id => int($node_id), state => $state);
 }
 
 sub node_maintenances {
@@ -324,20 +319,10 @@ sub _execute_link_maintenance {
     my $link_id = shift;
     my $state = shift;
 
-    my $client = new GRNOC::RabbitMQ::Client(
-        topic => 'OF.FWDCTL.RPC',
-        exchange => 'OESS',
-        user => 'guest',
-        pass => 'guest',
-        host => 'localhost',
-        port => 5672,
-        timeout => 60
-    );
-
-    if (!defined $client) {
+    if (!defined $mq) {
         return;
     }
-    return $client->link_maintenance(link_id => int($link_id), state => $state);
+    return $mq->link_maintenance(link_id => int($link_id), state => $state);
 }
 
 sub link_maintenances {

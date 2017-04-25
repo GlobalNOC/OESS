@@ -13,6 +13,8 @@ use OESS::Circuit;
 use GRNOC::RabbitMQ::Client;
 use GRNOC::RabbitMQ::Dispatcher;
 use GRNOC::RabbitMQ::Method;
+use OESS::RabbitMQ::Client;
+use OESS::RabbitMQ::Dispatcher;
 use OESS::Topology;
 
 use JSON::XS;
@@ -99,12 +101,7 @@ sub new {
 
     $self->{'topo'} = OESS::Topology->new( db => $self->{'db'});
 
-    $self->{'dispatcher'} = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
-							      port => $self->{'db'}->{'rabbitMQ'}->{'port'},
-							      user => $self->{'db'}->{'rabbitMQ'}->{'user'},
-							      pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
-                                                              exchange => 'OESS',
-							      topic    => 'OF.NDDI.RPC');
+    $self->{'dispatcher'} = OESS::RabbitMQ::Dispatcher->new( topic    => 'OF.NDDI.RPC');
     
     my $method = GRNOC::RabbitMQ::Method->new( name => 'init_circuit_trace',
 					       callback => sub { $self->init_circuit_trace(@_) },
@@ -178,12 +175,7 @@ sub new {
 				  pattern => $GRNOC::WebService::Regex::INTEGER);
     $self->{'dispatcher'}->register_method($method);
     
-    $self->{'rabbitmq'} = GRNOC::RabbitMQ::Client->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
-                                                        port => $self->{'db'}->{'rabbitMQ'}->{'port'},
-                                                        user => $self->{'db'}->{'rabbitMQ'}->{'user'},
-                                                        pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
-                                                        exchange => 'OESS',
-                                                        topic => 'OF.Traceroute.event');
+    $self->{'rabbitmq'} = OESS::RabbitMQ::Client->new( topic => 'OF.Traceroute.event');
     
     $self->{'collector_interval'} = AnyEvent->timer( after    => 5,
 						     interval => 10,

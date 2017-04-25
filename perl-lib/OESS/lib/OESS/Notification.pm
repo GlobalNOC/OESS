@@ -16,6 +16,8 @@ use GRNOC::RabbitMQ::Method;
 use GRNOC::RabbitMQ::Client;
 use GRNOC::RabbitMQ::Dispatcher;
 use GRNOC::WebService::Regex;
+use OESS::RabbitMQ::Client;
+use OESS::RabbitMQ::Dispatcher;
 use OESS::Circuit;
 use Log::Log4perl;
 
@@ -94,21 +96,11 @@ sub new {
     $self->_process_config_file();
     $self->_connect_services();
         
-    my $notification_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'rabbit_config'}->{'host'},
-                                                                    port => $self->{'rabbit_config'}->{'port'},
-                                                                    user => $self->{'rabbit_config'}->{'user'},
-                                                                    pass => $self->{'rabbit_config'}->{'pass'},
-                                                                    exchange => 'OESS',
-                                                                    topic => 'OF.FWDCTL.RPC' );
+    my $notification_dispatcher = OESS::RabbitMQ::Dispatcher->new( topic => 'OF.FWDCTL.RPC' );
     $self->register_notification_events($notification_dispatcher);
     $self->{'notification_dispatcher'} = $notification_dispatcher;
 
-    my $emitter = GRNOC::RabbitMQ::Client->new( host => $self->{'rabbit_config'}->{'host'},
-                                                port => $self->{'rabbit_config'}->{'port'},
-                                                user => $self->{'rabbit_config'}->{'user'},
-                                                pass => $self->{'rabbit_config'}->{'pass'},
-                                                exchange => 'OESS',
-                                                topic => 'OF.Notification.event');
+    my $emitter = OESS::RabbitMQ::Client->new( topic => 'OF.Notification.event');
     $self->{'notification_events'} = $emitter;
     
     return $self;

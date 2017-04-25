@@ -616,6 +616,8 @@ sub remove_vlan{
 
     my $circuit = $p_ref->{'circuit_id'}{'value'};
 
+    my $success = $m_ref->{'success_callback'};
+
     $self->{'logger'}->debug("Calling remove_vlan for circuit $circuit.");
     $self->{'logger'}->debug("Calling remove_vlan with args: " . Data::Dumper::Dumper($p_ref));
 
@@ -636,9 +638,8 @@ sub remove_vlan{
                                                                                            cb => sub {
                                                                                                my $res = shift;
                                                                                                $self->{'needs_diff'} = time();
-                                                                                               my $cb = $m_ref->{'success_callback'};
-                                                                                               &$cb($res);
-                                                                                           } )
+                                                                                               &$success($res);
+                                                                                           } );
 							       });
 		       });
     $self->{'logger'}->debug("Leaving remove_vlan");
