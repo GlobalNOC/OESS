@@ -38,7 +38,7 @@ use Switch;
 use Time::HiRes qw(usleep);
 use URI::Escape;
 
-use GRNOC::RabbitMQ::Client;
+use OESS::RabbitMQ::Client;
 use GRNOC::WebService;
 
 use OESS::Circuit;

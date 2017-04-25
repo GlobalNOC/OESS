@@ -34,7 +34,7 @@ use Switch;
 use Data::Dumper;
 
 use OESS::Database;
-use GRNOC::RabbitMQ::Client;
+use OESS::RabbitMQ::Client;
 use OESS::Topology;
 use GRNOC::WebService;
 

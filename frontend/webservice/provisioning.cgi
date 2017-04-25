@@ -32,7 +32,7 @@ use Switch;
 use Data::Dumper;
 
 use GRNOC::Config;
-use GRNOC::RabbitMQ::Client;
+use OESS::RabbitMQ::Client;
 use Time::HiRes qw(usleep);
 use OESS::Database;
 use OESS::Topology;

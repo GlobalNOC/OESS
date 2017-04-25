@@ -27,7 +27,7 @@ use warnings;
 
 use JSON;
 use Switch;
-use GRNOC::RabbitMQ::Client;
+use OESS::RabbitMQ::Client;
 
 use Data::Dumper;
 

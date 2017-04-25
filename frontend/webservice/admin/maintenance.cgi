@@ -33,6 +33,7 @@ use warnings;
 use Data::Dumper;
 use JSON;
 use OESS::Database;
+use OESS::RabbitMQ::Client;
 use Switch;
 use GRNOC::WebService;
 
