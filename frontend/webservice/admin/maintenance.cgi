@@ -276,8 +276,14 @@ sub start_node_maintenance {
     $db->_start_transaction();
     my $data = $db->start_node_maintenance($node_id, $description);
     if (!defined $data) {
+        my $err_msg = $db->get_error();
         $db->_rollback();
-        $method->set_error("Failed to put node into maintenance mode; Database error occurred.");
+
+        if($err_msg eq OESS::Database::ERR_NODE_ALREADY_IN_MAINTENANCE) {
+            $method->set_error("The node is already in maintenance mode.");
+        } else {
+            $method->set_error("Failed to put node into maintenance mode; Database error occurred.");
+        }
 	return;
     }
     $db->_commit();

@@ -3203,7 +3203,11 @@ function setup_network_tab(){
 
                     ds.responseSchema = {
                         resultsList: "results",
-                        fields: [{key: "maintenance_id"}]
+                        fields: [{key: "maintenance_id"}],
+                        metaFields: {
+                            error: "error",
+                            error_text: "error_text"
+                        }
                         }; 
 
                     ds.sendRequest("", 
@@ -3213,7 +3217,13 @@ function setup_network_tab(){
                                maint_button.set("label", "Put Device in Maintenance");
                                save_button.set("disabled", false);
 
-                               if (resp.results && resp.results[0].maintenance_id){
+                               if (resp.meta.error) {
+                                   var err_txt = resp.meta.error_text;
+                                   if (!YAHOO.lang.isString(err_txt)) err_txt = resp.meta.error;
+                                   if (!YAHOO.lang.isString(err_txt)) err_txt = "Error putting device into maintenance.";
+                                   alert(err_txt);
+                               }
+                               else if (resp.results && resp.results[0].maintenance_id){
                                    map.reinitialize();
                                    panel.destroy();
                                    panel = null;

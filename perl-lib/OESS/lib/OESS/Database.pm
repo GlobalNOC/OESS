@@ -98,6 +98,8 @@ use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
 
+use constant ERR_NODE_ALREADY_IN_MAINTENANCE => "Node is already in maintenance mode.";
+
 our $ENABLE_DEVEL=0;
 
 =head1 PUBLIC METHODS
@@ -2273,7 +2275,7 @@ sub start_node_maintenance {
     my $sql1 = "SELECT m.maintenance_id FROM maintenance as m, node_maintenance as n where m.maintenance_id = n.maintenance_id AND m.end_epoch = -1 AND n.node_id = ?";
     my $node_maintenance = $self->_execute_query($sql1, [$node_id]);
     if (defined @$node_maintenance[0]) {
-        $self->_set_error("Node is already in maintenance mode.");
+        $self->_set_error(ERR_NODE_ALREADY_IN_MAINTENANCE);
         return;
     }
 
