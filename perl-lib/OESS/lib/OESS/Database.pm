@@ -5619,8 +5619,7 @@ sub get_links_by_node {
     my $query = "select link.link_id, link.name as link_name, interface.* from link ";
     $query   .= " join link_instantiation on link.link_id = link_instantiation.link_id ";
     $query   .= " join interface on interface.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id) ";
-    $query   .= " join node on node.node_id = interface.node_id ";
-    $query   .= " where node.node_id = ?";
+    $query   .= " where interface.node_id = ? and link_instantiation.end_epoch = -1";
 
     my $results = $self->_execute_query($query, [$node_id]);
 
