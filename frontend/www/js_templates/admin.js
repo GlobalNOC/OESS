@@ -38,18 +38,6 @@ function setup_config_changes_tab() {
     makeConfigTable('config_table');
 }
 
-function display_openflow(obj) {
-    var state = 'none';
-    if (obj.checked == true) {
-        state = 'table-row';
-    }
-
-    var elements = YAHOO.util.Dom.getElementsByClassName('openflow');
-    for (var i = 0; i < elements.length; i++) {
-        elements[i].style.display = state;
-    }
-}
-
 function display_mpls(obj) {
     var state = 'none';
     if (obj.checked == true) {
@@ -2857,8 +2845,8 @@ function setup_network_tab(){
                       "</tr>" +
                       // Base - OpenFlow Enabled, MPLS Enabled
 	              "<tr>" + 
-		        "<td><label for='openflow_enabled'>OpenFlow Enabled</lable></td>" +
-		        "<td><input type='checkbox' id='openflow_enabled' onchange='display_openflow(this);' checked /></td>" + 
+		        "<td></td>" +
+		        "<td><input type='hidden' id='openflow_enabled' /></td>" + 
 		        "<td><label for='mpls_enabled'>MPLS Enabled</label></td>" +
 		        "<td><input type='checkbox' id='mpls_enabled' onchange='display_mpls(this);'checked /></td>" +
 		      "</tr>" +
@@ -2964,14 +2952,14 @@ function setup_network_tab(){
             YAHOO.util.Dom.get('active_max_static_mac_flows').value = max_static_mac_flows;
 
 	    if (openflow == 0 || openflow == null) {
-                YAHOO.util.Dom.get('openflow_enabled').checked = false;
+                YAHOO.util.Dom.get('openflow_enabled').value = false;
 
                 var elements = YAHOO.util.Dom.getElementsByClassName('openflow');
                 for (var i = 0; i < elements.length; i++) {
                     elements[i].style.display = 'none';
                 }
             } else {
-                YAHOO.util.Dom.get('openflow_enabled').checked = true;
+                YAHOO.util.Dom.get('openflow_enabled').value = true;
 
                 var elements = YAHOO.util.Dom.getElementsByClassName('openflow');
                 for (var i = 0; i < elements.length; i++) {
@@ -3034,7 +3022,7 @@ function setup_network_tab(){
 				var new_default_forward = YAHOO.util.Dom.get('active_node_default_forward').checked;
 				var new_barrier_bulk = YAHOO.util.Dom.get('active_barrier_bulk').checked;
 				var new_max_static_mac_flows = YAHOO.util.Dom.get('active_max_static_mac_flows').value;
-				var openflow = YAHOO.util.Dom.get('openflow_enabled').checked;
+				var openflow   = YAHOO.util.Dom.get('openflow_enabled').value;
 				var mpls       = YAHOO.util.Dom.get('mpls_enabled').checked;
                                 var mgmt_addr  = YAHOO.util.Dom.get('mgmt_addr').value;
                                 var tcp_port   = YAHOO.util.Dom.get('tcp_port').value;
