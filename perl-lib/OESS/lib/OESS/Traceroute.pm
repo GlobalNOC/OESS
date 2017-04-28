@@ -13,11 +13,14 @@ use OESS::Circuit;
 use GRNOC::RabbitMQ::Client;
 use GRNOC::RabbitMQ::Dispatcher;
 use GRNOC::RabbitMQ::Method;
+use OESS::RabbitMQ::Client;
+use OESS::RabbitMQ::Dispatcher;
 use OESS::Topology;
 
 use JSON::XS;
 use Time::HiRes qw(usleep);
 use Data::Dumper;
+use AnyEvent;
 use Array::Utils qw(unique);
 
 #temporary until add/delete is moved to FWDCTL.
@@ -98,12 +101,7 @@ sub new {
 
     $self->{'topo'} = OESS::Topology->new( db => $self->{'db'});
 
-    $self->{'dispatcher'} = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
-							      port => $self->{'db'}->{'rabbitMQ'}->{'port'},
-							      user => $self->{'db'}->{'rabbitMQ'}->{'user'},
-							      pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
-                                                              exchange => 'OESS',
-							      topic    => 'OF.NOX.RPC');
+    $self->{'dispatcher'} = OESS::RabbitMQ::Dispatcher->new( topic    => 'OF.NDDI.RPC');
     
     my $method = GRNOC::RabbitMQ::Method->new( name => 'init_circuit_trace',
 					       callback => sub { $self->init_circuit_trace(@_) },
@@ -177,20 +175,19 @@ sub new {
 				  pattern => $GRNOC::WebService::Regex::INTEGER);
     $self->{'dispatcher'}->register_method($method);
     
-    $self->{'rabbitmq'} = GRNOC::RabbitMQ::Client->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
-                                                        port => $self->{'db'}->{'rabbitMQ'}->{'port'},
-                                                        user => $self->{'db'}->{'rabbitMQ'}->{'user'},
-                                                        pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
-                                                        exchange => 'OESS',
-                                                        topic => 'OF.Traceroute.event');
+    $self->{'rabbitmq'} = OESS::RabbitMQ::Client->new( topic => 'OF.Traceroute.event');
     
-    my $collector_interval = AnyEvent->timer( after => 10000,
-                                              interval => 10000,
-                                              cb => sub { $self->_timeout_traceroutes() });
+    $self->{'collector_interval'} = AnyEvent->timer( after    => 5,
+						     interval => 10,
+						     cb => sub {
+							 $self->_timeout_traceroutes();
+						     });
 
-    my $config_reload_interval = AnyEvent->timer( after => 500,
-                                                  interval => 500,
-                                                  cb => sub{ $self->_send_pending_traceroute_packets(); });
+    $self->{'config_reload_interval'} = AnyEvent->timer( after    => 5,
+							 interval => 1,
+							 cb => sub{
+							     $self->_send_pending_traceroute_packets();
+							 });
     return $self;
 }
 
@@ -202,13 +199,15 @@ Start listening for messages on RabbitMQ
 sub start {
     my $self = shift;
     
-    $self->{'logger'}->error("Calling Traceroute->start");
+    $self->{'logger'}->info("Traceroute.pm consuming on OF.NDDI.RPC");
     $self->{'dispatcher'}->start_consuming();
 }
 
 =head2 init_circuit_trace
 
-handles bootstrapping of setting up a traceroute request record, documenting origin edge interface, signalling the first outbound packet(s).
+handles bootstrapping of setting up a traceroute request record,
+documenting origin edge interface, signalling the first outbound
+packet(s).
 
 =cut
 sub init_circuit_trace {
@@ -219,6 +218,8 @@ sub init_circuit_trace {
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
     my $endpoint_interface = $p_ref->{'interface_id'}{'value'};
     
+    $self->{'logger'}->info("Calling init_circuit_trace");
+
     my $db = $self->{'db'};
 
     my $circuit = OESS::Circuit->new(db => $db,
@@ -232,9 +233,8 @@ sub init_circuit_trace {
     #get dpid,port_no from endpoint_interface_id;
     
     my $interface = $db->get_interface(interface_id => $endpoint_interface);
-
     if (!$interface){
-        $self->{'logger'}->warn ("could not find interface with interace_id $endpoint_interface");
+        $self->{'logger'}->error("could not find interface with interace_id $endpoint_interface");
         return 0;
     }
     
@@ -246,59 +246,72 @@ sub init_circuit_trace {
 
     foreach my $exit_port (@{$circuit->{'path'}{$active_path}->{ $interface->{'node_name'} } } ){
         push (@$exit_ports, {vlan => $exit_port->{'remote_port_vlan'}, port => $exit_port->{'port'}});
-    } 
-    #verify there isn't already a traceroute running for this vlan
-    my $active_transaction = $self->get_traceroute_transactions({circuit_id => $circuit_id,
-                                                                 status => 'active'});
-    
-    if ($active_transaction&& defined($active_transaction->{'status'}) ){
-        #set_error..
-        $self->{'logger'}->warn("traceroute transaction for this circuit already active");
-        
-      return 0;
     }
-    my $remaining_endpoints= 0;
+
+    # Verify there isn't already a traceroute running for this vlan.
+    my $active_transaction = $self->get_traceroute_transactions(undef, {
+	circuit_id => { value => $circuit_id },
+	status     => { value => 'active' }
+    });
+    
+    if ($active_transaction && defined $active_transaction->{'status'}) {
+        $self->{'logger'}->error("Traceroute transaction for this circuit is already active.");
+	return 0;
+    }
+
+    my $remaining_endpoints = 0;
     my @endpoint_nodes;
 
     foreach my $endpoint (@{$circuit->{'endpoints'}}) {
         push (@endpoint_nodes, $endpoint->{'node'});
-       
     }
     my @unique_nodes = unique(@endpoint_nodes);
 
     #create a new tracelog entry in the database
-    my $success =$self->add_traceroute_transaction( circuit_id=> $circuit_id,
-                                     source_endpoint => {dpid => $endpoint_dpid,exit_ports =>$exit_ports},
-                                     remaining_endpoints => ( @unique_nodes -1),
-                                     ttl => 30 #todo make based on config
-        );
-    if (!$success){
-        $self->{'logger'}->error("did not add traceroute transaction");
+    my $success = $self->add_traceroute_transaction(
+	circuit_id          => $circuit_id,
+	remaining_endpoints => (@unique_nodes -1),
+	source_endpoint     => { dpid => $endpoint_dpid, exit_ports => $exit_ports },
+	ttl                 => 30
+    );
+    if (!$success) {
+        $self->{'logger'}->error("Failed to create traceroute transaction.");
         return 0;
     }
    #will have transaction_id,ttl,source_port left of current traceroute
    
-    my $transaction = $self->get_traceroute_transactions({circuit_id => $circuit_id});
+    my $transaction = $self->get_traceroute_transactions(undef, {
+	circuit_id => { value => $circuit_id },
+	status     => { value => undef }
+    });
 
     #add all rules
-    my $rules=    $self->build_trace_rules($circuit_id);
-    
-    #should this send to fwdctl or straight to NOX?
+    my $rules = $self->build_trace_rules($circuit_id);
+
     $self->{'rabbitmq'}->{'topic'} = "OF.NOX.RPC";
     my @dpids = ();
-    foreach my $rule (@$rules){
-        $self->{'rabbitmq'}->send_datapath_flow(flow => $rule->to_dict( command => OFPFC_ADD));
-        push(@dpids, $rule->get_dpid() );
-    }
-    foreach my $dpid (@dpids){
-        $self->{'rabbitmq'}->send_barrier(dpid => int($dpid));
-    }
-    $self->{pending_packets}->{$circuit_id} = { dpid => \@dpids,
-                                                timeout => time() + 15,
-    };
-    
-    #$self->send_trace_packet($circuit_id,$transaction);
 
+    foreach my $rule (@{$rules}) {
+        $self->{'rabbitmq'}->send_datapath_flow(
+	    flow           => $rule->to_dict(command => OFPFC_ADD),
+	    async_callback => sub {
+		$self->{'logger'}->debug("Installed rule to " . $rule->get_dpid());
+	    }
+	);
+
+	push(@dpids, $rule->get_dpid());
+    }
+
+    foreach my $dpid (@dpids) {
+        $self->{'rabbitmq'}->send_barrier(
+	    dpid           => int($dpid),
+	    async_callback => sub {
+		$self->{'logger'}->debug("Node $dpid has installed all rules.");
+	    }
+	);
+    }
+
+    $self->{pending_packets}->{$circuit_id} = { dpid => \@dpids, timeout => time() + 15 };
     return 1;
 }
 
@@ -361,6 +374,8 @@ sub process_trace_packet {
     my $src_port   = $p_ref->{'in_port'}->{'value'};
     my $circuit_id = $p_ref->{'circuit_id'}->{'value'};
    
+    $self->{'logger'}->info("Calling process_trace_packet.");
+
     my $db = $self->{'db'};
     my $node = $db->get_node_by_dpid(dpid =>$src_dpid);
 
@@ -375,10 +390,15 @@ sub process_trace_packet {
                                               topo => $self->{'topo'},
                                               circuit_id => $circuit_id
                 );
-    my $transaction = $self->get_traceroute_transactions({circuit_id => $circuit_id, status=>'active'});
+    my $transaction = $self->get_traceroute_transactions(undef, {
+	circuit_id => { value => $circuit_id },
+	status     => { value => 'active' }
+    });
     
-            #we've got an active transaction for this circuit, now verify this is actually the right traceroute, we may have multiple circuits over the same link 
-            #get circuit_details, and validate this was tagged with the vlan we would have expected inbound
+    #we've got an active transaction for this circuit, now verify this
+    #is actually the right traceroute, we may have multiple circuits
+    #over the same link get circuit_details, and validate this was
+    #tagged with the vlan we would have expected inbound
     
     if ($transaction){  
 
@@ -470,11 +490,22 @@ sub send_trace_packet {
 
     #each packet will always be set to send out the links of the edge_interface
     $self->{'rabbitmq'}->{'topic'} = "OF.NOX.RPC";
-    foreach my $exit_port (@{$source_port->{exit_ports} }){
-        $self->{'rabbitmq'}->send_traceroute_packet( dpid       => int($source_port->{'dpid'}),
-                                                     vlan       => int($exit_port->{'vlan'}),
-                                                     port       => int($exit_port->{'port'}),
-                                                     circuit_id => int($circuit_id) );
+    foreach my $exit_port (@{$source_port->{exit_ports}}) {
+	$self->{'logger'}->info("calling send_traceroute_packet");
+
+        $self->{'rabbitmq'}->send_traceroute_packet(
+	    data           => int($circuit_id),
+	    dpid           => int($source_port->{'dpid'}),
+	    out_port       => int($exit_port->{'port'}),
+	    my_vlan        => int($exit_port->{'vlan'}),
+	    async_callback => sub {
+		my $result = shift;
+
+		if (defined $result->{'results'} && defined $result->{'results'}->[0] && defined $result->{'results'}->[0]->{'error'}) {
+		    $self->{'logger'}->error($result->{'results'}->[0]->{'error'});
+		}
+	    }
+	);
     }
 }
 
@@ -493,48 +524,37 @@ sub get_traceroute_transactions {
     my $transactions = $self->{'transactions'};
 
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
-    my $status = $p_ref->{'status'}{'value'};
+    my $status     = $p_ref->{'status'}{'value'};
     
-    if ( defined( $circuit_id ) ){     
-
-        if (defined($status)){
-            $results = {};
-            if ($self->{'transactions'}->{$circuit_id} &&
-                $self->{'transactions'}->{$circuit_id}->{'status'} eq $status){
+    if (defined $circuit_id) {
+        if (defined $status) {
+            if ($self->{'transactions'}->{$circuit_id} && $self->{'transactions'}->{$circuit_id}->{'status'} eq $status) {
                 $results = $transactions->{$circuit_id} || {};
-                
-                return $results;
             }
-            
-            return $results;
-        }
-        else {
+        } else {
             $results = $transactions->{$circuit_id} || {};
-            return $results;
-
         }
-    }
-    elsif (defined($status)){
-        #my $transactions = $self->{'transactions'};
-        
-        foreach my $transaction_circuit_id (keys %$transactions){
+
+	return $results;
+    } elsif (defined $status) {
+        foreach my $transaction_circuit_id (keys %{$transactions}) {
             if ($transactions->{$transaction_circuit_id} && $transactions->{$transaction_circuit_id}->{'status'} eq $status){
-                $results->{$transaction_circuit_id}= $transactions->{$transaction_circuit_id};
+                $results->{$transaction_circuit_id} = $transactions->{$transaction_circuit_id};
             }
         }
-        return $results;
 
-    }
-    else {
-        $results = $transactions|| {};
+        return $results;
+    } else {
+        $results = $transactions || {};
+
         return $results;
     }
-
 }
 
 =head2 add_traceroute_transaction
 
-adds entry into the in-memory hash for new traceroute.
+add_traceroute_transaction adds an entry into the in-memory hash for
+new traceroute. It returns 1 if successful or undef on failure.
 
 =cut
 
@@ -637,27 +657,28 @@ sub _timeout_traceroutes {
     my $threshold = time() - 45;
     my $reap_threshold = time() - (60*3);
 
-    my $transactions = $self->get_traceroute_transactions();
+    my $transactions = $self->get_traceroute_transactions(undef, {
+	circuit_id => { value => undef },
+	status     => { value => undef }
+    });
 
     foreach my $circuit_id (keys %$transactions){
 
         my $transaction = $transactions->{$circuit_id};
 
-          
         if ($transaction && $transaction->{'status'} eq 'active' && $transaction->{'start_epoch'} <= $threshold) {
-            #set transaction to timeout, remove rules
-            $self->{'logger'}->info("Timed out transaction for circuit: $circuit_id");
+            $self->{'logger'}->warn("Timed out transaction for circuit: $circuit_id");
+
             $self->{'transactions'}->{$circuit_id}->{'status'} = 'timed out';
             $self->{'transactions'}->{$circuit_id}->{'end_epoch'} = time();
             $self->remove_traceroute_rules(circuit_id => $circuit_id);
         }
+
         # if the end epoch is more than 5 minutes old, lets remove it from memory, to try and limit memory balooning?
-        if ($transaction && $transaction->{'end_epoch'}&& $transaction->{'end_epoch'} <= $reap_threshold){
+        if ($transaction && $transaction->{'end_epoch'} && $transaction->{'end_epoch'} <= $reap_threshold){
             delete $self->{'transactions'}->{$circuit_id};
         }
-
     }
-    
 }
 
 #checks the status of the dpid from the last traceroute send, and if complete or timed out, sends the packet anyways.
@@ -687,12 +708,18 @@ sub _send_pending_traceroute_packets {
             my $all_dpids_ok=1;
             foreach my $dpid (@$dpids){
                 $self->{'rabbitmq'}->{'topic'} = "OF.NOX.RPC";
-                my $status = $self->{'rabbitmq'}->get_node_status(dpid => int($dpid));
-                if ($status->{'status'} == FWDCTL_WAITING) {
-                    $self->{'logger'}->debug("switch ".sprintf("%x",$dpid)." is still in FWDCTL_WAITING, skipping sending for circuit $circuit_id");
-                    $all_dpids_ok=0;
-                    last;
-                }
+                $self->{'rabbitmq'}->get_node_status(
+		    dpid           => int($dpid),
+		    async_callback => sub {
+			my $result = shift;
+			my $status = $result->{'results'}->[0];
+
+			if ($status->{'status'} == FWDCTL_WAITING) {
+			    $self->{'logger'}->debug("switch ".sprintf("%x",$dpid)." is still in FWDCTL_WAITING, skipping sending for circuit $circuit_id");
+			    $all_dpids_ok=0;
+			    # last;
+			}
+		    });
             }
             if ($all_dpids_ok){
                 $self->{'logger'}->info("all switches returned from FWDCTL_WAITING sending trace packet for circuit $circuit_id");
@@ -741,7 +768,10 @@ sub link_event_callback {
             $link= $link->[0];
 
             
-            my $transactions = $self->get_traceroute_transactions({status => 'active'});
+            my $transactions = $self->get_traceroute_transactions(undef, {
+		circuit_id => { value => undef },
+		status     => { value => 'active' }
+	    });
             
             if (!$transactions){
                 #shortcut if we don't have any active transactions

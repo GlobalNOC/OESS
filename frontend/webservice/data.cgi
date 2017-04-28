@@ -38,7 +38,7 @@ use Switch;
 use Time::HiRes qw(usleep);
 use URI::Escape;
 
-use GRNOC::RabbitMQ::Client;
+use OESS::RabbitMQ::Client;
 use GRNOC::WebService;
 
 use OESS::Circuit;
@@ -62,13 +62,9 @@ my $topo = new OESS::Topology();
 
 #register web service dispatcher
 my $svc    = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
-my $fwdctl = GRNOC::RabbitMQ::Client->new( host     => 'localhost',
-                                           user     => 'guest',
-                                           pass     => 'guest',
-                                           port     => 5672,
-                                           exchange => 'OESS',
-                                           topic    => 'MPLS.FWDCTL.RPC' );
 
+my $mq = OESS::RabbitMQ::Client->new( topic    => 'MPLS.FWDCTL.RPC',
+                                      timeout  => 60 );
 
 Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
 
@@ -130,7 +126,13 @@ sub register_webservice_methods {
 	pattern         => $GRNOC::WebService::Regex::INTEGER,
 	required        => 0,
 	description     => "The workgroup ID that the user is currently participating in."
-	); 
+    );
+    $method->add_input_parameter(
+	name            => 'link_type',
+	pattern         => $GRNOC::WebService::Regex::TEXT,
+	required        => 0,
+	description     => "The type of links that shall be included in the map."
+    );
     
     #register get_maps method
     $svc->register_method($method);
@@ -238,6 +240,16 @@ sub register_webservice_methods {
 	multiple        => 1,
         description     => "An array of node names to connect together with the shortest path."
         );
+
+    #add the required input parameter node                                                                                                                                                                  
+    $method->add_input_parameter(
+        name            => 'type',
+        pattern         => '(openflow|mpls)',
+        required        => 1,
+        multiple        => 0,
+        description     => "type of circuit we are building"
+        );
+
 
     #add the required input parameter link
     $method->add_input_parameter(
@@ -751,11 +763,11 @@ sub get_diff_text {
     my ( $method, $args ) = @_ ;
 
     my $node_id = $args->{'node_id'}{'value'};
-    my $event   = $fwdctl->get_diff_text( node_id => $node_id );
+    my $event   = $mq->get_diff_text( node_id => $node_id );
 
     while ($event->{'results'}->{'status'} == FWDCTL_WAITING) {
         usleep(1000000);
-        $event = $fwdctl->get_event_status( event_id => $event->{'results'}->{'id'} );
+        $event = $mq->get_event_status( event_id => $event->{'results'}->{'id'} );
     }
 
     return $event->{'results'};
@@ -1126,10 +1138,12 @@ sub get_shortest_path {
 
     my @nodes = $args->{'node'}{'value'};
     my @links_to_avoid = $args->{'link'}{'value'};
+    my $type = $args->{'type'}{'value'};
 
     my $sp_links = $topo->find_path(
         nodes      => @nodes,
-        used_links => @links_to_avoid
+        used_links => @links_to_avoid,
+	type => $type
     );
 
     if ( !defined $sp_links ) {
@@ -1185,31 +1199,31 @@ sub get_node_interfaces {
     return $results;
 }
 
+# If link_type is specified, the returned links will be limited to
+# links of the specified type. Valid link types are `openflow` and
+# `mpls`.
 sub get_maps {
 
     my ( $method, $args ) = @_ ;
     my $results;
     my $workgroup_id = $args->{'workgroup_id'}{'value'};
-    
+    my $link_type    = $args->{'link_type'}{'value'};
+
     my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
     if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
 	$method->set_error( 'Error: you are not part of this workgroup' );
 	return;
     }
 
-
-    my $layers = $db->get_map_layers( workgroup_id => $workgroup_id );
-
-    if ( !defined $layers ) {
+    my $layers = $db->get_map_layers(workgroup_id => $workgroup_id, link_type => $link_type);
+    if (!defined $layers) {
 	$method->set_error( $db->get_error() );
 	return;
-    }
-    else {
+    } else {
         $results->{'results'} = $layers;
     }
 
     return $results;
-
 }
 
 sub get_users_in_workgroup {

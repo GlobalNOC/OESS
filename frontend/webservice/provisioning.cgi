@@ -31,7 +31,8 @@ use Switch;
 #use Net::DBus::Exporter qw(org.nddi.fwdctl);
 use Data::Dumper;
 
-use GRNOC::RabbitMQ::Client;
+use GRNOC::Config;
+use OESS::RabbitMQ::Client;
 use Time::HiRes qw(usleep);
 use OESS::Database;
 use OESS::Topology;
@@ -44,9 +45,13 @@ use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
 
+my $conf = GRNOC::Config->new(config_file => '/etc/oess/database.xml');
+
 my $db = new OESS::Database();
 
-#register web service dispatcher
+my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
+                                      timeout  => 60 );
+
 my $svc = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
 
 $| = 1;
@@ -55,6 +60,11 @@ sub main {
     
     if ( !$db ) {
         send_json( { "error" => "Unable to connect to database." } );
+        exit(1);
+    }
+
+    if (!defined $mq ) {
+        send_json( { "error" => "Unable to connect to RabbitMQ." } );
         exit(1);
     }
 
@@ -405,29 +415,22 @@ sub register_webservice_methods {
 sub _fail_over {
     my %args = @_;
 
-    my $client  = new GRNOC::RabbitMQ::Client(
-        topic => 'OF.FWDCTL.RPC',
-        exchange => 'OESS',
-        user => 'guest',
-        pass => 'guest',
-        host => 'localhost',
-        port => 5672
-        );
-
-    if ( !defined($client) ) {
-        return;
+    if (!defined $mq) {
+	return;
+    } else {
+	$mq->{'topic'} = 'OF.FWDCTL.RPC';
     }
 
     my $circuit_id = $args{'circuit_id'};
 
     my $cv = AnyEvent->condvar;
 
-    $client->changeVlanPath(circuit_id => $circuit_id,
-                            async_callback => sub {
-                                my $result = shift; 
-                                warn "Got a result\n";
-                                $cv->send($result) 
-                            });
+    $mq->changeVlanPath(circuit_id => $circuit_id,
+			async_callback => sub {
+			    my $result = shift; 
+			    warn "Got a result\n";
+			    $cv->send($result) 
+			});
     
     my $result = $cv->recv();
     
@@ -441,24 +444,17 @@ sub _fail_over {
 sub _send_mpls_add_command {
     my %args = @_;
 
-    my $client  = new GRNOC::RabbitMQ::Client(
-        topic => 'MPLS.FWDCTL.RPC',
-        exchange => 'OESS',
-        user => 'guest',
-        pass => 'guest',
-        host => 'localhost',
-        port => 5672
-        );
-
-    if ( !defined($client) ) {
-        return;
+    if (!defined $mq) {
+	return;
+    } else {
+	$mq->{'topic'} = 'MPLS.FWDCTL.RPC';
     }
 
     my $circuit_id = $args{'circuit_id'};
     my $cv = AnyEvent->condvar;
 
     warn "_send_mpls_add_command: Calling addVlan on circuit $circuit_id";
-    $client->addVlan(circuit_id => int($circuit_id), async_callback => sub {
+    $mq->addVlan(circuit_id => int($circuit_id), async_callback => sub {
         my $result = shift;
         $cv->send($result);
     });
@@ -484,26 +480,20 @@ sub _send_add_command {
     my $result = undef;
     my $err    = undef;
 
-    my $client  = new GRNOC::RabbitMQ::Client(
-        topic => 'OF.FWDCTL.RPC',
-        exchange => 'OESS',
-        user => 'guest',
-        pass => 'guest',
-        host => 'localhost',
-        port => 5672
-    );
-    if (!defined $client) {
+    if (!defined $mq) {
         $err = "Couldn't create RabbitMQ client.";
-        return;
+	return;
+    } else {
+	$mq->{'topic'} = 'OF.FWDCTL.RPC';
     }
 
     my $cv = AnyEvent->condvar;
 
-    $client->addVlan(circuit_id => $circuit_id,
-                     async_callback => sub {
-                         my $result = shift;
-                         $cv->send($result);
-                     });
+    $mq->addVlan(circuit_id => $circuit_id,
+		 async_callback => sub {
+		     my $result = shift;
+		     $cv->send($result);
+		 });
 
     $result = $cv->recv();
 
@@ -524,27 +514,20 @@ sub _send_add_command {
 sub _send_mpls_remove_command {
     my %args = @_;
 
-    my $client  = new GRNOC::RabbitMQ::Client(
-        topic => 'MPLS.FWDCTL.RPC',
-        exchange => 'OESS',
-        user => 'guest',
-        pass => 'guest',
-        host => 'localhost',
-        port => 5672
-        );
-
-    if ( !defined($client) ) {
-        return;
+    if (!defined $mq) {
+	return;
+    } else {
+	$mq->{'topic'} = 'MPLS.FWDCTL.RPC';
     }
 
     my $circuit_id = $args{'circuit_id'};
     my $cv = AnyEvent->condvar;
 
-    $client->deleteVlan(circuit_id => $circuit_id,
-                        async_callback => sub {
-                            my $result = shift;
-                            $cv->send($result)
-                        });
+    $mq->deleteVlan(circuit_id => $circuit_id,
+		    async_callback => sub {
+			my $result = shift;
+			$cv->send($result)
+		    });
     
     my $result = $cv->recv();
     if($result->{'error'} || !($result->{'results'})){
@@ -563,26 +546,20 @@ sub _send_remove_command {
     my $result = undef;
     my $err    = undef;
 
-    my $client  = new GRNOC::RabbitMQ::Client(
-        topic => 'OF.FWDCTL.RPC',
-        exchange => 'OESS',
-        user => 'guest',
-        pass => 'guest',
-        host => 'localhost',
-        port => 5672
-    );
-    if (!defined $client) {
+    if (!defined $mq) {
         $err = "Couldn't create RabbitMQ client.";
-        return ($result, $err);
+	return ($result, $err);
+    } else {
+	$mq->{'topic'} = 'OF.FWDCTL.RPC';
     }
 
     my $cv = AnyEvent->condvar;
 
-    $client->deleteVlan(circuit_id     => $circuit_id,
-                        async_callback => sub {
-                            my $result = shift;
-                            $cv->send($result);
-                        });
+    $mq->deleteVlan(circuit_id     => $circuit_id,
+		    async_callback => sub {
+			my $result = shift;
+			$cv->send($result);
+		    });
 
     $result = $cv->recv();
 
@@ -604,25 +581,21 @@ sub _send_update_cache{
         $args{'circuit_id'} = -1;
     }
 
-    my $client  = new GRNOC::RabbitMQ::Client(
-        topic => 'OF.FWDCTL.RPC',
-        exchange => 'OESS',
-        user => 'guest',
-        pass => 'guest',
-        host => 'localhost',
-        port => 5672
-        );
+    my $err = undef;
 
-    if ( !defined($client) ) {
-        return;
+    if (!defined $mq) {
+        $err = "Couldn't create RabbitMQ client.";
+	return;
+    } else {
+	$mq->{'topic'} = 'OF.FWDCTL.RPC';
     }
 
     my $cv = AnyEvent->condvar;
-    $client->update_cache(circuit_id => $args{'circuit_id'},
-                          async_callback => sub {
-                              my $result = shift;
-                              $cv->send($result);
-                          });
+    $mq->update_cache(circuit_id => $args{'circuit_id'},
+		      async_callback => sub {
+			  my $result = shift;
+			  $cv->send($result);
+		      });
 
     my $result = $cv->recv();
     warn Dumper($result);
@@ -688,12 +661,8 @@ sub provision_circuit {
 
     my $rabbit_mq_start = [gettimeofday];
 
-    my $log_client  = new GRNOC::RabbitMQ::Client(
-        topic => 'OF.Notification.event',
-        exchange => 'OESS',
-        user => 'guest',
-        pass => 'guest'
-    );
+    my $log_client = OESS::RabbitMQ::Client->new( topic    => 'OF.Notification.event',
+                                                  timeout  => 15 );
     if (!defined $log_client) {
         warn "Couldn't create RabbitMQ client.";
         $method->set_error("Couldn't create RabbitMQ client.");
@@ -725,6 +694,19 @@ sub provision_circuit {
         warn "You are a read-only user and unable to provision.";
         $method->set_error("You are a read-only user and unable to provision.");
         return;
+    }
+
+    my $err = $db->validate_circuit(
+	type => $type,
+	links => $links,
+	backup_links => $backup_links,
+	nodes => $nodes,
+	interfaces => $interfaces
+    );
+    if (defined $err) {
+	warn "Couldn't validate circuit: " . $err;
+	$method->set_error("Couldn't validate circuit: " . $err);
+	return;
     }
 
     if ( !$circuit_id || $circuit_id == -1 ) {
@@ -1004,12 +986,8 @@ sub remove_circuit {
 	return;
     }
 
-    my $log_client  = new GRNOC::RabbitMQ::Client(
-        topic => 'OF.Notification.event',
-        exchange => 'OESS',
-        user => 'guest',
-        pass => 'guest'
-    );
+    my $log_client = OESS::RabbitMQ::Client->new( topic    => 'OF.Notification.event',
+                                                  timeout  => 15 );
     if ( !defined($log_client) ) {
         $method->set_error("Internal server error occurred. Message queue connection failed.");
         return;
@@ -1025,19 +1003,23 @@ sub remove_circuit {
             if (defined $err) {
                 warn "$err";
                 $method->set_error($err);
-                return;
+		if ( !$args->{'force'}{'value'} ) {
+		    return;
+		}
             }
         } else {
             $result = _send_mpls_remove_command( circuit_id => $circuit_id );
         }
 
-        if ( !defined $result ) {
+        if ( !defined $result) {
             warn "Unable to talk to fwdctl service - is it running?";
             $method->set_error("Unable to talk to fwdctl service - is it running?");
-            return;
+	    if ( !$args->{'force'}{'value'} ) {
+		return;
+	    }
         }
 
-        if ( $result == 0 ) {
+        if ( $result == 0) {
             warn "Unable to remove circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been left in the database";
             $method->set_error("Unable to remove circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been left in the database");
 
@@ -1157,13 +1139,9 @@ sub fail_over_circuit {
     my $workgroup_id = $args->{'workgroup_id'}{'value'};
     my $forced = $args->{'force'}{'value'} || undef;
 
-    my $log_client  = new GRNOC::RabbitMQ::Client(
-        topic => 'OF.Notification.event',
-        exchange => 'OESS',
-        user => 'guest',
-        pass => 'guest'
-        );
 
+    my $log_client = OESS::RabbitMQ::Client->new( topic    => 'OF.Notification.event',
+                                                  timeout  => 15 );
     if ( !defined($log_client) ) {
         return;
     }

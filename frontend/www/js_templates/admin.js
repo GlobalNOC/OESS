@@ -38,18 +38,6 @@ function setup_config_changes_tab() {
     makeConfigTable('config_table');
 }
 
-function display_openflow(obj) {
-    var state = 'none';
-    if (obj.checked == true) {
-        state = 'table-row';
-    }
-
-    var elements = YAHOO.util.Dom.getElementsByClassName('openflow');
-    for (var i = 0; i < elements.length; i++) {
-        elements[i].style.display = state;
-    }
-}
-
 function display_mpls(obj) {
     var state = 'none';
     if (obj.checked == true) {
@@ -2410,13 +2398,12 @@ function setup_network_tab(){
 	    var end_epoch = args[0].feature.geometry.end_epoch;
 	    var openflow = args[0].openflow;
 
-        // tcp_port is hard coded to 22 in the backend
-	var mpls       = args[0].mpls;
-        var mgmt_addr  = args[0].mgmt_addr;
-        var tcp_port   = args[0].tcp_port;
-        var vendor     = args[0].vendor;
-        var model      = args[0].model;
-        var sw_version = args[0].sw_version;
+            var mpls       = args[0].mpls;
+            var mgmt_addr  = args[0].mgmt_addr;
+            var tcp_port   = args[0].tcp_port;
+            var vendor     = args[0].vendor;
+            var model      = args[0].model;
+            var sw_version = args[0].sw_version;
 
 	    function show_interface_acl_panel(args){
 		var interface_id = args.interface_id;
@@ -2858,8 +2845,8 @@ function setup_network_tab(){
                       "</tr>" +
                       // Base - OpenFlow Enabled, MPLS Enabled
 	              "<tr>" + 
-		        "<td><label for='openflow_enabled'>OpenFlow Enabled</lable></td>" +
-		        "<td><input type='checkbox' id='openflow_enabled' onchange='display_openflow(this);' checked /></td>" + 
+		        "<td></td>" +
+		        "<td><input type='hidden' id='openflow_enabled' /></td>" + 
 		        "<td><label for='mpls_enabled'>MPLS Enabled</label></td>" +
 		        "<td><input type='checkbox' id='mpls_enabled' onchange='display_mpls(this);'checked /></td>" +
 		      "</tr>" +
@@ -2965,14 +2952,14 @@ function setup_network_tab(){
             YAHOO.util.Dom.get('active_max_static_mac_flows').value = max_static_mac_flows;
 
 	    if (openflow == 0 || openflow == null) {
-                YAHOO.util.Dom.get('openflow_enabled').checked = false;
+                YAHOO.util.Dom.get('openflow_enabled').value = false;
 
                 var elements = YAHOO.util.Dom.getElementsByClassName('openflow');
                 for (var i = 0; i < elements.length; i++) {
                     elements[i].style.display = 'none';
                 }
             } else {
-                YAHOO.util.Dom.get('openflow_enabled').checked = true;
+                YAHOO.util.Dom.get('openflow_enabled').value = true;
 
                 var elements = YAHOO.util.Dom.getElementsByClassName('openflow');
                 for (var i = 0; i < elements.length; i++) {
@@ -3035,7 +3022,7 @@ function setup_network_tab(){
 				var new_default_forward = YAHOO.util.Dom.get('active_node_default_forward').checked;
 				var new_barrier_bulk = YAHOO.util.Dom.get('active_barrier_bulk').checked;
 				var new_max_static_mac_flows = YAHOO.util.Dom.get('active_max_static_mac_flows').value;
-				var openflow = YAHOO.util.Dom.get('openflow_enabled').checked;
+				var openflow   = YAHOO.util.Dom.get('openflow_enabled').value;
 				var mpls       = YAHOO.util.Dom.get('mpls_enabled').checked;
                                 var mgmt_addr  = YAHOO.util.Dom.get('mgmt_addr').value;
                                 var tcp_port   = YAHOO.util.Dom.get('tcp_port').value;
@@ -3204,7 +3191,11 @@ function setup_network_tab(){
 
                     ds.responseSchema = {
                         resultsList: "results",
-                        fields: [{key: "maintenance_id"}]
+                        fields: [{key: "maintenance_id"}],
+                        metaFields: {
+                            error: "error",
+                            error_text: "error_text"
+                        }
                         }; 
 
                     ds.sendRequest("", 
@@ -3214,7 +3205,13 @@ function setup_network_tab(){
                                maint_button.set("label", "Put Device in Maintenance");
                                save_button.set("disabled", false);
 
-                               if (resp.results && resp.results[0].maintenance_id){
+                               if (resp.meta.error) {
+                                   var err_txt = resp.meta.error_text;
+                                   if (!YAHOO.lang.isString(err_txt)) err_txt = resp.meta.error;
+                                   if (!YAHOO.lang.isString(err_txt)) err_txt = "Error putting device into maintenance.";
+                                   alert(err_txt);
+                               }
+                               else if (resp.results && resp.results[0].maintenance_id){
                                    map.reinitialize();
                                    panel.destroy();
                                    panel = null;

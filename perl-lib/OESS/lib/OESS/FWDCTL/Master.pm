@@ -45,9 +45,10 @@ use OESS::Topology;
 use OESS::Circuit;
 
 use GRNOC::RabbitMQ::Method;
-use GRNOC::RabbitMQ::Client;
 use GRNOC::RabbitMQ::Dispatcher;
 use GRNOC::RabbitMQ::Client;
+use OESS::RabbitMQ::Client;
+use OESS::RabbitMQ::Dispatcher;
 use AnyEvent;
 use AnyEvent::Fork;
 
@@ -118,13 +119,9 @@ sub new {
 
     $self->{'db'} = OESS::Database->new( config_file => $self->{'config'} );
 
-    my $fwdctl_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
-							      port => $self->{'db'}->{'rabbitMQ'}->{'port'},
-							      user => $self->{'db'}->{'rabbitMQ'}->{'user'},
-							      pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
-							      exchange => 'OESS',
-							      queue => 'OF-FWDCTL',
-							      topic => "OF.FWDCTL.RPC");
+    my $fwdctl_dispatcher = OESS::RabbitMQ::Dispatcher->new( queue => 'OF-FWDCTL',
+                                                             timeout => 60,
+							     topic => "OF.FWDCTL.RPC");
 
     $self->register_rpc_methods( $fwdctl_dispatcher );
     $self->register_nox_events( $fwdctl_dispatcher );
@@ -132,12 +129,7 @@ sub new {
     $self->{'fwdctl_dispatcher'} = $fwdctl_dispatcher;
 
 
-    $self->{'fwdctl_events'} = GRNOC::RabbitMQ::Client->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
-							     port => $self->{'db'}->{'rabbitMQ'}->{'port'},
-							     user => $self->{'db'}->{'rabbitMQ'}->{'user'},
-							     pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
-							     exchange => 'OESS',
-							     topic => 'OF.FWDCTL.event');
+    $self->{'fwdctl_events'} = OESS::RabbitMQ::Client->new( topic => 'OF.FWDCTL.event');
     $self->{'logger'}->info("RabbitMQ ready to go!");
 
     # When this process receives sigterm send an event to notify all
@@ -173,6 +165,7 @@ sub new {
     $self->{'circuit_status'} = {};
     $self->{'node_info'} = {};
     $self->{'link_maintenance'} = {};
+
 
     $self->update_cache({
         success_callback => sub {
@@ -743,6 +736,10 @@ sub update_cache{
 
     foreach my $dpid (keys %{$self->{'children'}}){
         $cv->begin();
+
+	if(!$self->{'children'}->{$dpid}->{'rpc'}){
+	    $self->make_baby($dpid);
+	}
 
         $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
         $self->{'fwdctl_events'}->update_cache(
@@ -2173,22 +2170,15 @@ sub deleteVlan {
 
     $cv->begin(sub {
         if ($err ne '') {
-            foreach my $dpid (keys %dpids) {
-                    $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
-                    $self->{'fwdctl_events'}->remove_vlan(circuit_id     => $circuit_id,
-                                                          async_callback => sub {
-                                                              $self->{'logger'}->error("Removed circuit $circuit_id from $dpid.");
-                                                          });
-            }
-
-            $self->logger->error("Failed to delete VLAN. Elapased time: " . tv_interval( $start, [gettimeofday]));
-            return &$error($err);
+            $self->{'logger'}->error("Failed to delete VLAN: '$err' . Elapased time: " . tv_interval( $start, [gettimeofday]));
+            &$error({status => FWDCTL_FAILURE, error => $err});
+	    return;
         }
-
-        $self->{'logger'}->info("Deleted VLAN. Elapsed time: " . tv_interval( $start, [gettimeofday]));
+	
+        $self->{'logger'}->debug("Deleted VLAN Success. Elapsed time: " . tv_interval( $start, [gettimeofday]));
         &$success({ status => FWDCTL_SUCCESS });
-    });
-
+	       });
+    
     foreach my $dpid (keys %dpids){
         $cv->begin();
 

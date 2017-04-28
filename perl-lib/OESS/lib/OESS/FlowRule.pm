@@ -121,7 +121,7 @@ validates that the flow_rule is valid
 sub _validate_flow {
     my $self = shift;
     if($self->_validate_match($self->{'match'}) && $self->_validate_actions($self->{'actions'}) && $self->_validate_priority($self->{'priority'}) && $self->_validate_dpid($self->{'dpid'}) && $self->_validate_byte_count($self->{'byte_count'}) && $self->_validate_packet_count($self->{'packet_count'})){
-    return 1;
+	return 1;
     }else{
 	return 0;
     }
@@ -199,7 +199,13 @@ sub _validate_actions {
             if($key eq 'set_vlan_vid'){
                 delete $action->{$key};
                 $action->{'set_vlan_id'} = $value;
-            }
+            }elsif($key eq 'output'){
+		my $out_port = $action->{$key};
+		if(!$self->_validate_port($out_port)){
+                    $self->{'logger'}->error("OUTPUT PORT: " . $out_port . " is not supported");
+                    return 0;
+                }
+	    }
         }
     }
     return 1;

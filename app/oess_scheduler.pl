@@ -6,7 +6,7 @@ use OESS::Database;
 use OESS::Circuit;
 
 use XML::Simple;
-use Sys::Syslog qw(:standard :macros);
+use Log::Log4perl;
 use FindBin;
 use Fcntl qw(:flock);
 use Data::Dumper;
@@ -14,11 +14,10 @@ use Data::Dumper;
 use GRNOC::RabbitMQ::Client;
 
 sub main{
-    openlog("oess_scheduler.pl", 'cons,pid', LOG_DAEMON);
-    setlogmask( LOG_UPTO(LOG_INFO) );
+    Log::Log4perl::init('/etc/oess/logging.conf');
+    my $logger = Log::Log4perl->get_logger('OESS.Scheduler');
 
-    syslog(LOG_INFO, "INFO Running OESS Scheduler.");
-
+    $logger->info("INFO Running OESS Scheduler.");
 
     my $time = time();
 
@@ -29,28 +28,34 @@ sub main{
     my $rabbit_pass = $oess->{'configuration'}->{'rabbitMQ'}->{'pass'};
 
     my $client  = new GRNOC::RabbitMQ::Client(
-        queue => 'OESS-SCHEDULER',
         exchange => 'OESS',
 	topic => 'OF.FWDCTL.RPC',
 	host => $rabbit_host,
 	port => $rabbit_port,
         user => $rabbit_user,
-        pass => $rabbit_pass
+        pass => $rabbit_pass,
+	timeout => 15
     );
 
     if ( !defined($client) ) {
-        syslog(LOG_ERR, "Couldn't connect to RabbitMQ.");
+	$logger->error("Couldn't connect to RabbitMQ.");
         return;
     }
 
-
     my $actions = $oess->get_current_actions();
+    $logger->debug("Executing scheduled actions: " . Dumper($actions));
 
     foreach my $action (@$actions){
         my $ckt = $oess->get_circuit_by_id( circuit_id => $action->{'circuit_id'})->[0];
         my $circuit_layout = XMLin($action->{'circuit_layout'}, forcearray => 1);
 
-        syslog(LOG_INFO, "Scheduling for circuit_id $action->{'circuit_id'}: " . Dumper($circuit_layout));
+	$logger->info("Scheduling $circuit_layout->{'action'} for circuit_id $action->{'circuit_id'}.");
+
+	if ($ckt->{'type'} eq 'openflow') {
+	    $client->{'topic'} = 'OF.FWDCTL.RPC';
+	} else {
+	    $client->{'topic'} = 'MPLS.FWDCTL.RPC';
+	}
 
         if($circuit_layout->{'action'} eq 'provision'){
 
@@ -65,31 +70,34 @@ sub main{
                 next;
             }
 
-            syslog(LOG_INFO, "Circuit " . $circuit_layout->{'name'} . ":" . $circuit_layout->{'circuit_id'} . " scheduled for activation NOW!");
+	    $logger->info("Circuit " . $circuit_layout->{'name'} . ":" . $circuit_layout->{'circuit_id'} . " scheduled for activation NOW!");
             my $user = $oess->get_user_by_id( user_id => $action->{'user_id'} )->[0];
 
+
             #edit the circuit to make it active
-            my $output = $oess->edit_circuit(circuit_id     => $action->{'circuit_id'},
-                                             static_mac     => $circuit_layout->{'static_mac'},
-                                             endpoint_mac_address_nums => $circuit_layout->{'endpoint_mac_address_nums'},
-                                             mac_addresses  => $circuit_layout->{'mac_addresses'},
-                                             name           => $circuit_layout->{'name'},
-                                             bandwidth      => $circuit_layout->{'bandwidth'},
-                                             provision_time => time(),
-                                             remove_time    => $circuit_layout->{'remove_time'},
-                                             restore_to_primary => $circuit_layout->{'restore_to_primary'},
-                                             links          => $circuit_layout->{'links'},
-                                             backup_links   => $circuit_layout->{'backup_links'},
-                                             nodes          => $circuit_layout->{'nodes'},
-                                             interfaces     => $circuit_layout->{'interfaces'},
-                                             tags           => $circuit_layout->{'tags'},
-                                             state          => 'active',
-                                             user_name      => $user->{'auth_name'},
-                                             workgroup_id   => $action->{'workgroup_id'},
-                                             description    => $ckt->{'description'}
-                );
+            my $output = $oess->edit_circuit(
+		circuit_id     => $action->{'circuit_id'},
+		static_mac     => $circuit_layout->{'static_mac'},
+		endpoint_mac_address_nums => $circuit_layout->{'endpoint_mac_address_nums'},
+		mac_addresses  => $circuit_layout->{'mac_addresses'},
+		name           => $circuit_layout->{'name'},
+		bandwidth      => $circuit_layout->{'bandwidth'},
+		provision_time => time(),
+		remove_time    => $circuit_layout->{'remove_time'},
+		restore_to_primary => $circuit_layout->{'restore_to_primary'},
+		links          => $circuit_layout->{'links'},
+		backup_links   => $circuit_layout->{'backup_links'},
+		nodes          => $circuit_layout->{'nodes'},
+		interfaces     => $circuit_layout->{'interfaces'},
+		tags           => $circuit_layout->{'tags'},
+		state          => 'active',
+		user_name      => $user->{'auth_name'},
+		workgroup_id   => $action->{'workgroup_id'},
+		description    => $ckt->{'description'},
+		type           => $ckt->{'type'}
+	    );
             if (!defined $output) {
-                syslog(LOG_WARNING, "Failed to update database to provision circuit: " . $oess->get_error());
+		$logger->warn("Failed to update database to provision circuit: " . $oess->get_error());
             }
 
             my $res;
@@ -108,14 +116,13 @@ sub main{
 
                 my $final_res = $result->recv();
                 if (defined $final_res->{'error'}) {
-                    syslog(LOG_ERR, "Circuit " . $action->{'circuit_id'} . ":" . $circuit_layout->{'circuit_id'} . " couldn't be added.");
+		    $logger->error("Circuit " . $action->{'circuit_id'} . " couldn't be added: " . $final_res->{'error'});
                     return;
                 }
 
                 $res = $final_res;
             };
-            
-            
+
             $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
             
 
@@ -133,7 +140,7 @@ sub main{
 
                 my $update_cache_result = $result->recv();
                 if (defined $update_cache_result->{'error'}) {
-                    syslog(LOG_ERR, "Cache update error for " . $action->{'circuit_id'} . ":" . $circuit_layout->{'circuit_id'} . ".");
+		    $logger->error("Cache update error for " . $action->{'circuit_id'} . ":" . $circuit_layout->{'circuit_id'} . ".");
                     return;
                 }
 
@@ -152,7 +159,7 @@ sub main{
             
             
         } elsif($circuit_layout->{'action'} eq 'edit'){
-            syslog(LOG_INFO, "Circuit " . $circuit_layout->{'name'} . ":" . $circuit_layout->{'circuit_id'} . " scheduled for edit NOW!");
+	    $logger->info("Circuit " . $circuit_layout->{'name'} . ":" . $circuit_layout->{'circuit_id'} . " scheduled for edit NOW!");
             my $res;
             my $result;
             my $event_id;
@@ -169,7 +176,7 @@ sub main{
 
                 my $final_res = $result->recv();
                 if (defined $final_res->{'error'}) {
-                    syslog(LOG_ERR, "deleteVlan failed for " . $action->{'circuit_id'} . ":" . $circuit_layout->{'circuit_id'} . ".");
+		    $logger->error("deleteVlan failed for " . $action->{'circuit_id'} . ":" . $circuit_layout->{'circuit_id'} . ".");
                 }
 
                 $res = $final_res;
@@ -188,7 +195,7 @@ sub main{
 
             my $user = $oess->get_user_by_id( user_id => $action->{'user_id'} )->[0];
 
-            syslog(LOG_INFO, "Circuit info: " . Dumper($circuit_layout));
+	    $logger->info("Circuit info: " . Dumper($circuit_layout));
 
             my $output = $oess->edit_circuit(circuit_id     => $action->{'circuit_id'},
                                              static_mac     => $circuit_layout->{'static_mac'},
@@ -210,7 +217,7 @@ sub main{
                                              description    => $ckt->{'description'}
                 );
             if (!defined $output) {
-                syslog(LOG_WARNING, "Failed to update database with new circuit parameters: " . $oess->get_error());
+		$logger->info("Failed to update database with new circuit parameters: " . $oess->get_error());
             }
             
             $res = undef;
@@ -230,7 +237,7 @@ sub main{
 
                     my $final_res = $result->recv();
                     if (defined $final_res->{'error'}) {
-                        syslog(LOG_ERR, "Circuit " . $action->{'circuit_id'} . ":" . $circuit_layout->{'circuit_id'} . " couldn't be added.");
+			$logger->error("Circuit " . $action->{'circuit_id'} . ":" . $circuit_layout->{'circuit_id'} . " couldn't be added.");
                         return;
                     }
 
@@ -254,7 +261,7 @@ sub main{
 
                 my $update_cache_result = $result->recv();
                 if (defined $update_cache_result->{'error'}) {
-                    syslog(LOG_ERR, "Cache update error for " . $action->{'circuit_id'} . ":" . $circuit_layout->{'circuit_id'} . ".");
+                    $logger->error("Cache update error for " . $action->{'circuit_id'} . ":" . $circuit_layout->{'circuit_id'} . ".");
                     return;
                 }
 
@@ -262,7 +269,7 @@ sub main{
             };
 
             if(!defined $res){
-                syslog(LOG_ERR, "Error updating cache after scheduled vlan removal.");
+                $logger->error("Error updating cache after scheduled vlan removal.");
             }
 
             eval{
@@ -277,7 +284,7 @@ sub main{
 
         }
         elsif($circuit_layout->{'action'} eq 'remove'){
-            syslog(LOG_ERR, "Circuit " . $circuit_layout->{'name'} . ":" . $action->{'circuit_id'} . " scheduled for removal NOW!");
+            $logger->error("Circuit " . $circuit_layout->{'name'} . ":" . $action->{'circuit_id'} . " scheduled for removal NOW!");
             my $res;
             my $result;
             my $event_id;
@@ -294,14 +301,14 @@ sub main{
 
                 my $final_res = $result->recv();
                 if (defined $final_res->{'error'}) {
-                    syslog(LOG_ERR, "deleteVlan failed for " . $action->{'circuit_id'} . ":" . $circuit_layout->{'circuit_id'} . ".");
+                    $logger->error("deleteVlan failed for " . $action->{'circuit_id'} . ":" . $circuit_layout->{'circuit_id'} . ".");
                 }
 
                 $res = $final_res;
             };
             
             if(!defined($res)){
-                syslog(LOG_ERR,"Res was not defined");
+                $logger->error("Res was not defined");
             }
             
             my $user = $oess->get_user_by_id( user_id => $action->{'user_id'} )->[0];
@@ -309,7 +316,7 @@ sub main{
             
             
             if(!defined($res)){
-                syslog(LOG_ERR,"unable to remove circuit");
+                $logger->error("unable to remove circuit");
                 $oess->_rollback();
                 die;
             }else{
@@ -318,7 +325,7 @@ sub main{
                 
                 
                 if(!defined($res)){
-                    syslog(LOG_ERR,"Unable to complete action");
+                    $logger->error("Unable to complete action");
                     $oess->_rollback();
                 }
             }
@@ -337,7 +344,7 @@ sub main{
 
                 my $update_cache_result = $result->recv();
                 if (defined $update_cache_result->{'error'}) {
-                    syslog(LOG_ERR, "Cache update error for " . $action->{'circuit_id'} . ":" . $circuit_layout->{'circuit_id'} . ".");
+                    $logger->error("Cache update error for " . $action->{'circuit_id'} . ":" . $circuit_layout->{'circuit_id'} . ".");
                     return;
                 }
 
@@ -346,7 +353,7 @@ sub main{
 
             #Delete is complete and successful, send event to Rabbit
             eval {
-                syslog(LOG_DEBUG,"sending circuit decommission");
+                $logger->debug("sending circuit decommission");
                 my $circuit_details = $oess->get_circuit_details( circuit_id => $action->{'circuit_id'} );
                 $circuit_details->{'status'} = 'removed';
                 $circuit_details->{'type'} = 'removed';
@@ -357,14 +364,14 @@ sub main{
             };
 
         }elsif($circuit_layout->{'action'} eq 'change_path'){
-            syslog(LOG_ERR,"Found a change_path action!!\n");
+            $logger->error("Found a change_path action!!\n");
             #verify the circuit has an alternate path
             my $circuit = OESS::Circuit->new( db=>$oess, circuit_id => $action->{'circuit_id'});
             my $circuit_details = $circuit->{'details'};
             
             #if we are already on our scheduled path... don't change
             if($circuit_details->{'active_path'} ne $circuit_layout->{'path'}){
-                syslog(LOG_INFO,"Changing the patch of circuit " . $circuit_details->{'description'} . ":" . $circuit_details->{'circuit_id'});
+                $logger->info("Changing the patch of circuit " . $circuit_details->{'description'} . ":" . $circuit_details->{'circuit_id'});
                 my $success = $circuit->change_path( user_id => 1, reason => $circuit_layout->{'reason'});
                 #my $success = 1;
                 my $res;
@@ -383,7 +390,7 @@ sub main{
                         
                         my $final_res = $cv->recv();
                         if(defined($result->{'error'})) {
-                            syslog(LOG_ERR, $result->{'error'});
+                            $logger->error($result->{'error'});
                             return;
                         }
 
@@ -394,7 +401,7 @@ sub main{
                 $res = $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
 
                 if(!defined($res)){
-                    syslog(LOG_ERR,"Unable to complete action");
+                    $logger->error("Unable to complete action");
                     $oess->_rollback();
                 }
 
@@ -411,11 +418,11 @@ sub main{
 
             }else{
                 #already done... nothing to do... complete the scheduled action
-                syslog(LOG_WARNING,"Circuit " . $circuit_details->{'description'} . ":" . $circuit_details->{'circuit_id'} . " is already on Path:" . $circuit_layout->{'path'} . "completing scheduled action"); 
+                $logger->warn("Circuit " . $circuit_details->{'description'} . ":" . $circuit_details->{'circuit_id'} . " is already on Path:" . $circuit_layout->{'path'} . "completing scheduled action");
                 my $res = $oess->update_action_complete_epoch( scheduled_action_id => $action->{'scheduled_action_id'});
 
                 if(!defined($res)){
-                    syslog(LOG_ERR,"Unable to complete action");
+                    $logger->error("Unable to complete action");
                     $oess->_rollback();
                 }
             }

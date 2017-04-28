@@ -19,6 +19,8 @@ use AnyEvent::Fork;
 use GRNOC::RabbitMQ::Client;
 use GRNOC::RabbitMQ::Dispatcher;
 use GRNOC::RabbitMQ::Method;
+use OESS::RabbitMQ::Client;
+use OESS::RabbitMQ::Dispatcher;
 
 use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
@@ -63,26 +65,15 @@ sub new {
 
     $self->{'db'} = OESS::Database->new( config_file => $self->{'config'} );
 
-    my $fwdctl_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
-                                                              port => $self->{'db'}->{'rabbitMQ'}->{'port'},
-                                                              user => $self->{'db'}->{'rabbitMQ'}->{'user'},
-                                                              pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
-                                                              exchange => 'OESS',
-                                                              queue => 'MPLS-FWDCTL',
-                                                              topic => "MPLS.FWDCTL.RPC");
+    my $fwdctl_dispatcher = OESS::RabbitMQ::Dispatcher->new( queue => 'MPLS-FWDCTL',
+                                                             topic => "MPLS.FWDCTL.RPC");
 
     $self->register_rpc_methods( $fwdctl_dispatcher );
 
     $self->{'fwdctl_dispatcher'} = $fwdctl_dispatcher;
 
 
-    $self->{'fwdctl_events'} = GRNOC::RabbitMQ::Client->new( host => $self->{'db'}->{'rabbitMQ'}->{'host'},
-                                                             port => $self->{'db'}->{'rabbitMQ'}->{'port'},
-                                                             user => $self->{'db'}->{'rabbitMQ'}->{'user'},
-                                                             pass => $self->{'db'}->{'rabbitMQ'}->{'pass'},
-                                                             timeout => 15,
-                                                             exchange => 'OESS',
-                                                             topic => 'MPLS.FWDCTL.event');
+    $self->{'fwdctl_events'} = OESS::RabbitMQ::Client->new( topic => 'MPLS.FWDCTL.event');
 
 
 
@@ -122,6 +113,7 @@ sub new {
     #from TOPO startup
     my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
     foreach my $node (@$nodes) {
+	warn Dumper($node);
 	$self->make_baby($node->{'node_id'});
     }
 
@@ -488,6 +480,8 @@ sub make_baby {
     my $self = shift;
     my $id = shift;
     
+    return 1 if(defined($self->{'children'}->{$id}->{'rpc'}) && $self->{'children'}->{$id}->{'rpc'} == 1);
+
     $self->{'logger'}->debug("Before the fork");
     
     my $node = $self->{'node_by_id'}->{$id};

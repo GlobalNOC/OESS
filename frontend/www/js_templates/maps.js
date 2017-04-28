@@ -281,7 +281,7 @@ function NDDIMap(div_id, interdomain_mode, options){
       var openflow = node_info.openflow;
       var mpls       = node_info.mpls;
       var mgmt_addr  = node_info.mgmt_addr;
-      var tcp_port   = 22;
+      var tcp_port   = node_info.tcp_port;
       var vendor     = node_info.vendor;
       var model      = node_info.model;
       var sw_version = node_info.sw_version;
@@ -1257,9 +1257,12 @@ function NDDIMap(div_id, interdomain_mode, options){
 
     var url = "[% path %]services/data.cgi?method=get_maps";
 
-	  if (session.data.workgroup_id){
-		  url += "&workgroup_id="+session.data.workgroup_id;
-	  }
+    if (session.data.workgroup_id){
+	url += "&workgroup_id="+session.data.workgroup_id;
+    }
+    if (session.data.circuit_type) {
+	url += "&link_type=" + session.data.circuit_type;
+    }
 
     var ds = new YAHOO.util.DataSource(url);
 

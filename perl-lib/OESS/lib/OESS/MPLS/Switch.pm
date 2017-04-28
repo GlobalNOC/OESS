@@ -22,6 +22,7 @@ use GRNOC::RabbitMQ::Method;
 use GRNOC::RabbitMQ::Client;
 use GRNOC::WebService::Regex;
 
+
 use OESS::MPLS::Device;
 
 use JSON::XS;
@@ -49,6 +50,8 @@ sub new{
     if($self->{'use_cache'}){
 	$self->_update_cache();
     }
+
+    $0 = "oess_mpls_switch(" . $self->{'node'}->{'mgmt_addr'} . ")";
 
     $self->create_device_object();
     if(!defined($self->{'device'})){

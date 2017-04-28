@@ -97,7 +97,8 @@ sub main{
     }
 
     continue_param("Do you want to create the database $db_name and install the OESS schema there?");
-    print "The Follwing password requests are for the new mysql oess user that will be created in mysql\n";
+    print "The Follwing password requests are for the new mysql oess user that will be created\n";
+
     my ($oess_pass, $oess_confirm);
     ReadMode('noecho');
     while (1){
@@ -114,22 +115,26 @@ sub main{
     ReadMode('normal');
     print "\n";
 
-    print "\nCreating new users\n";
+    print "\nCreating new user\n";
 
     $handle->do('create database oess');
     $handle->do("GRANT ALL ON oess.* to 'oess'\@'localhost' identified by '$oess_pass'") or die DBI::errstr;
     $handle->do("flush privileges");
 	
     my $discovery_vlan = optional_parameter("Discovery VLAN Tag: ","untagged");
-
+    my $tsds_url = required_parameter("TSDS Service URL: ");
+    my $tsds_username = required_parameter("TSDS Username: ");
+    ReadMode('noecho');
+    my $tsds_password = required_parameter("TSDS Password: ");
+    ReadMode('normal');
     #put all of this into a config file
     print "Creating Configuration file (/etc/oess/database.xml)\n";
     open(FILE, "> /etc/oess/database.xml");
 
     print FILE << "END";
-<config snapp_config_location="/SNMP/snapp/snapp_config.xml"
-        host="$db_host" port="$db_port" base_url="$base_url"
+<config host="$db_host" port="$db_port" base_url="$base_url"
         openflow="$use_openflow" mpls="$use_mpls">
+  <tsds url="$tsds_url" username="$tsds_username" password="$tsds_password" />
   <credentials username="oess" password="$oess_pass" database="oess" />
   <oscars host="$oscars_host" cert="$my_cert" key="$my_key" topo="$topo_host"/>
   <smtp from_address="$from_address" image_base_url="$image_base_url" from_name="$from_name" />

@@ -7,7 +7,7 @@ use Data::Dumper;
 
 use GRNOC::Log;
 use GRNOC::Config;
-use GRNOC::RabbitMQ::Dispatcher;
+use OESS::RabbitMQ::Dispatcher;
 use GRNOC::RabbitMQ::Method;
 use GRNOC::WebService::Regex;
 
@@ -31,13 +31,8 @@ sub new {
 
     $self->{'log'} = GRNOC::Log->get_logger('OESS.NSI.MessageQueue');
 
-    $self->{'router'} = GRNOC::RabbitMQ::Dispatcher->new(
-        user     => $self->{'user'},
-        pass     => $self->{'pass'},
-        exchange => $self->{'exchange'},
-        topic    => 'OESS.NSI.Processor',
-        queue    => 'OESS.NSI.Processor'
-    );
+    $self->{'router'} = OESS::RabbitMQ::Dispatcher->new( topic    => 'OESS.NSI.Processor',
+							 queue    => 'OESS.NSI.Processor');
 
     my $method;
     $method = GRNOC::RabbitMQ::Method->new(name        => 'circuit_provision',

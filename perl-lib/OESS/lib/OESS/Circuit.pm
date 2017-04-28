@@ -1255,7 +1255,7 @@ sub change_mpls_path{
             foreach my $link (@{$params{'links'}}){
                 $self->{'db'}->_execute_query($query, [$link->{'link_id'}, $self->{'details'}->{'paths'}->{'tertiary'}->{'path_id'}, $self->{'circuit_id'} + 5000, $self->{'circuit_id'} + 5000]);
             }
-
+            
         }
 
         #make sure this is the active path if we made it here!
@@ -1282,8 +1282,6 @@ sub change_mpls_path{
             foreach my $link (@{$params{'links'}}){
                 $self->{'db'}->_execute_query($query, [$link->{'link_id'}, $path_id, $self->{'circuit_id'} + 5000, $self->{'circuit_id'} + 5000]);
             }
-
-            
 
             return 1;
         }else{
@@ -1546,7 +1544,7 @@ sub get_mpls_path_type{
 	return;
     }
 
-    $self->{'logger'}->error("MPLS Path Type: " . Data::Dumper::Dumper($self->{'details'}{'paths'}));
+    $self->{'logger'}->debug("MPLS Path Type: " . Data::Dumper::Dumper($self->{'details'}{'paths'}));
 
     if(!defined($self->{'details'}{'paths'}{$params{'path'}})){
 	return;

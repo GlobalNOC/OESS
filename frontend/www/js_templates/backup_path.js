@@ -73,6 +73,8 @@ function init(){
 			    
 			    url += "&bandwidth=" + session.data.bandwidth;
 			    
+			    url += "&type=" + session.data.circuit_type;
+
 			    var ds = new YAHOO.util.DataSource(url);
 			    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 			    ds.responseSchema = {

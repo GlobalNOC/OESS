@@ -312,6 +312,7 @@ CREATE TABLE `node_instantiation` (
   `sw_version` varchar(255),
   `mgmt_addr` varchar(255),
   `loopback_address` varchar(255),
+  `tcp_port` int DEFAULT 830,
   PRIMARY KEY (`node_id`,`end_epoch`),
   UNIQUE KEY `node_instantiation_idx` (`end_epoch`,`dpid`),
   CONSTRAINT `node_node_instantiation_fk` FOREIGN KEY (`node_id`) REFERENCES `node` (`node_id`) ON DELETE NO ACTION ON UPDATE NO ACTION

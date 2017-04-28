@@ -928,7 +928,7 @@ sub get_isis_adjacencies{
     $self->{'jnx'}->get_isis_adjacency_information( detail => 1 );
 
     my $xml = $self->{'jnx'}->get_dom();
-    $self->{'logger'}->error("ISIS: " . $xml->toString());
+    $self->{'logger'}->debug("ISIS: " . $xml->toString());
     my $xp = XML::LibXML::XPathContext->new( $xml);
     $xp->registerNs('x',$xml->documentElement->namespaceURI);
     my $path = $self->{'root_namespace'}."junos-routing";
