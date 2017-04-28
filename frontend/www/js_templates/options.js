@@ -40,11 +40,6 @@ function init(){
     var endpoint_table = summary_init();
     endpoint_table.hideColumn('mac_addrs');
 
-    // yui-dt-col7 is an alias for the column of the edit
-    // buttons. This is hidden for the options page due to issue
-    // 160:3834.
-    endpoint_table.hideColumn('yui-dt-col7');
-
     // OpenFlow Circuit Options
     const restore_to_primary = new YAHOO.widget.Button('restore_to_primary_button', {
         type:  'button',
