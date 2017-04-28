@@ -25,13 +25,6 @@ sub main{
     print "\n";
     continue_param("Do you wish to continue");
 
-    my $restart_dbus = yes_or_no_parameter("Do you want to restart DBus?");
-    if($restart_dbus eq 'y'){
-	`/etc/init.d/messagebus`;
-    }else{
-
-    }
-
     eval {
 	require SOAP::Data::Builder;
     };
@@ -104,7 +97,7 @@ sub main{
     }
 
     continue_param("Do you want to create the database $db_name and install the OESS schema there?");
-    print "The Follwing password requests are for the new mysql oess and snapp users that will be created\n";
+    print "The Follwing password requests are for the new mysql oess user that will be created in mysql\n";
     my ($oess_pass, $oess_confirm);
     ReadMode('noecho');
     while (1){
@@ -118,25 +111,13 @@ sub main{
     }
     print "\n";
 
-    my ($snapp_pass, $snapp_confirm);
-    while (1){
-	$snapp_pass    = required_parameter("SNAPP Password: ");
-	print "\n";
-	$snapp_confirm = required_parameter("Confirm SNAPP Password: ");
-	print "\n";
-
-	last if ($snapp_pass eq $snapp_confirm);
-	print "Passwords did not match, try again.\n";
-    }
     ReadMode('normal');
     print "\n";
 
     print "\nCreating new users\n";
 
     $handle->do('create database oess');
-    $handle->do('create database snapp');
     $handle->do("GRANT ALL ON oess.* to 'oess'\@'localhost' identified by '$oess_pass'") or die DBI::errstr;
-    $handle->do("GRANT ALL ON snapp.* to 'snapp'\@'localhost' identified by '$snapp_pass'") or die DBI::errstr;
     $handle->do("flush privileges");
 	
     my $discovery_vlan = optional_parameter("Discovery VLAN Tag: ","untagged");
@@ -225,109 +206,11 @@ END
     my $sth = $handle->prepare("insert into network (name,longitude,latitude,is_local) VALUES (?,?,?,?)") or die "Unable to add Network";
     $sth->execute($domain_name,0,0,1) or die "Unable to add Network";
 
-    #ok now install the SNAPP DB
-    $handle->func('createdb',"snappdb",'admin');
-
-    my $sql_file = "";
-    while($sql_file eq '' || !-e $sql_file){
-	$sql_file = optional_parameter("Location of snapp.mysql.sql","/usr/share/oess-core/snapp.mysql.sql");
-    }
-
-    system("mysql -u\"$db_user\" -p\"$db_pass\" -h\"$db_host\" -P\"$db_port\" \"snapp\" < $sql_file");
-
-    print "DONE!\n\n";
-    print "Re-connecting to mysql using the new database ($db_name)... ";
-
-    $handle = DBI->connect("DBI:mysql:dbname=snapp;host=$db_host;port=$db_port",
-			   $db_user,
-			   $db_pass,
-			   {PrintError => 0});
-
-    if (!$handle) {
-        print "FAILED!\n\n";
-        print "Unable to connect to the database: " . $DBI::errstr . "\n";
-	exit(1);
-    }else {
-        print "OK!\n\n";
-    }
-
-    $handle->do("GRANT ALL PRIVILEGES ON snapp.* to 'snapp'\@'localhost'");
-    $sql_file = "";
-    while($sql_file eq '' || !-e $sql_file){
-        $sql_file = optional_parameter("Location of SNAPPs base_example.sql","/usr/share/oess-core/snapp_base.mysql.sql");
-    }
-
-    system("mysql -u\"$db_user\" -p\"$db_pass\" -h\"$db_host\" -P\"$db_port\" \"snapp\" < $sql_file");
-
-    #put all of this into a config file
-    `/bin/mkdir -p /SNMP/snapp`;
-    open(FILE, "> /SNMP/snapp/snapp_config.xml");
-    print FILE << "END";
-<snapp-config>
-  <db type="mysql" name="snapp" username="snapp" password="$snapp_pass" port="3306" host="localhost" collection_class_name="PerVlanPerInterface">
-  </db>
-  <control port="9967" enable_password="control-caos"></control>
-</snapp-config>
-END
-
-close(FILE);
-
-    #setup our new collection_class
-    my $base_path = optional_parameter("What path do you want the RRD files stored?","/SNMP/snapp/db/");
-    `/bin/mkdir $base_path`;
-    `/bin/chown _snapp:_snapp $base_path -R`;
-    my $sth3 = $handle->prepare("update global set value = ? where name = 'rrddir'");
-    $sth3->execute($base_path);
-
-    my $step = optional_parameter("What interval do you want to collect per VLAN per Interface statistics?",30);
-
-    $sth = $handle->prepare("insert into collection_class (name,description,collection_interval,default_cf,default_class) VALUES ('PerVlanPerInterface','FlowStats',?,'AVERAGE',0)");
-    $sth->execute($step);
-    my $collection_class_id = $handle->{'mysql_insertid'};
-
-    $sth = $handle->prepare("select * from oid_collection where name = 'in-octets' or name = 'out-octets' or name = 'in-packets' or name = 'out-packets'");
-    $sth->execute();
-
-    while(my $row = $sth->fetchrow_hashref()){
-	my $ds_name = "";
-	if($row->{'name'} eq 'in-packets'){
-	    $ds_name = "inUcast";
-	}elsif($row->{'name'} eq 'out-packets'){
-	    $ds_name = "outUcast";
-	}elsif($row->{'name'} eq 'in-octets'){
-	    $ds_name = "input";
-	}else{
-	    $ds_name = "output";
-	}
-
-	my $sth2 = $handle->prepare("insert into oid_collection_class_map (collection_class_id,oid_collection_id,order_val,ds_name) VALUES (?,?,20,?)") or die "Unable to prepare query: " . DBI::errstr;
-	$sth2->execute($collection_class_id,$row->{'oid_collection_id'},$ds_name) or die "Unable to execute query: " . DBI::errstr;
-
-    }
-
-
-    my $another = 1;
-    while($another){
-	print "Setting up the RRAs... this is how to consolidate, and how long to keep data";
-	my $consolidation = optional_parameter("How many data points should I consolidate?",1);
-	my $int = $step * $consolidation;
-	my $how_long = optional_parameter("How long do you want to retain $int sec data? (days)",100);
-	my $sth3 = $handle->prepare("insert into rra (collection_class_id,step,cf,num_days,xff) VALUES (?,?,?,?,?)");
-	$sth3->execute($collection_class_id,$consolidation,'AVERAGE',$how_long,0.8);
-	my $yes_no = yes_or_no_parameter("Do you want to add another RRA?");
-	if($yes_no eq 'y'){
-	    $another = 1;
-	}else{
-	    $another = 0;
-	}
-    }
-
     #add an admin workgroup
     print "We will now be creating an OE-SS Workgroup\n";
     my $admin_workgroup = optional_parameter("Admin Workgroup Name","admin");
     my $workgroup_id = $db->add_workgroup( name => $admin_workgroup,
 					   type => 'admin');
-
 
     #create a user
     #if (yes_or_no_parameter("OESS Frontend requires a user, would you like to add a user via htpasswd file?") eq "y"){
