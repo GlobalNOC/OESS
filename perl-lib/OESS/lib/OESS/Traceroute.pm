@@ -104,6 +104,7 @@ sub new {
     $self->{'dispatcher'} = OESS::RabbitMQ::Dispatcher->new( topic    => 'OF.NDDI.RPC');
     
     my $method = GRNOC::RabbitMQ::Method->new( name => 'init_circuit_trace',
+					       async => 1,
 					       callback => sub { $self->init_circuit_trace(@_) },
 					       description => "Initializes a circuit trace");
     $method->add_input_parameter( name => 'circuit_id',
@@ -159,6 +160,7 @@ sub new {
 
     $method = GRNOC::RabbitMQ::Method->new( name => "traceroute_packet_in",
 					    topic => "OF.NOX.event",
+					    async => 1,
 					    callback => sub { $self->process_trace_packet(@_) },
 					    description => "Traceroute packet was received");
     $method->add_input_parameter( name => "dpid",
@@ -198,7 +200,11 @@ Start listening for messages on RabbitMQ
 =cut
 sub start {
     my $self = shift;
-    
+
+    $self->{'rabbitmq'}->{'topic'} = "OF.NOX.RPC";
+    $self->{'rabbitmq'}->register_for_traceroute_in();
+    $self->{'rabbitmq'}->{'topic'} = 'OF.Traceroute.event';
+
     $self->{'logger'}->info("Traceroute.pm consuming on OF.NDDI.RPC");
     $self->{'dispatcher'}->start_consuming();
 }
@@ -214,6 +220,9 @@ sub init_circuit_trace {
     my $self = shift;
     my $method_ref = shift;
     my $p_ref = shift;
+
+    my $success_cb = $method_ref->{'success_callback'};
+    my $error_cb = $method_ref->{'error_callback'};
 
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
     my $endpoint_interface = $p_ref->{'interface_id'}{'value'};
@@ -235,7 +244,8 @@ sub init_circuit_trace {
     my $interface = $db->get_interface(interface_id => $endpoint_interface);
     if (!$interface){
         $self->{'logger'}->error("could not find interface with interace_id $endpoint_interface");
-        return 0;
+	\&$error_cb({error => "could not find interface with interace_id $endpoint_interface"});
+	return;
     }
     
     my $node = $db->get_node_by_name(name => $interface->{'node_name'});
@@ -256,7 +266,8 @@ sub init_circuit_trace {
     
     if ($active_transaction && defined $active_transaction->{'status'}) {
         $self->{'logger'}->error("Traceroute transaction for this circuit is already active.");
-	return 0;
+	\&$error_cb({error => "Traceroute transaction for this circuit is already active."});
+	return;
     }
 
     my $remaining_endpoints = 0;
@@ -276,7 +287,8 @@ sub init_circuit_trace {
     );
     if (!$success) {
         $self->{'logger'}->error("Failed to create traceroute transaction.");
-        return 0;
+	\&$error_cb({error => "Failed to create traceroute transaction."});
+        return;
     }
    #will have transaction_id,ttl,source_port left of current traceroute
    
@@ -291,11 +303,17 @@ sub init_circuit_trace {
     $self->{'rabbitmq'}->{'topic'} = "OF.NOX.RPC";
     my @dpids = ();
 
+    my $cv = AnyEvent->condvar;
+    $cv->begin( sub{ 
+	\&$success_cb({success => 1});
+		} );
     foreach my $rule (@{$rules}) {
+	$cv->begin();
         $self->{'rabbitmq'}->send_datapath_flow(
 	    flow           => $rule->to_dict(command => OFPFC_ADD),
 	    async_callback => sub {
 		$self->{'logger'}->debug("Installed rule to " . $rule->get_dpid());
+		$cv->end();
 	    }
 	);
 
@@ -303,16 +321,19 @@ sub init_circuit_trace {
     }
 
     foreach my $dpid (@dpids) {
+	$cv->begin();
         $self->{'rabbitmq'}->send_barrier(
 	    dpid           => int($dpid),
 	    async_callback => sub {
 		$self->{'logger'}->debug("Node $dpid has installed all rules.");
+		$cv->end();
 	    }
 	);
     }
 
     $self->{pending_packets}->{$circuit_id} = { dpid => \@dpids, timeout => time() + 15 };
-    return 1;
+
+    $cv->end();
 }
 
 # handles packet that is returned to controller by the traceroute rules. 
@@ -336,8 +357,7 @@ sub build_trace_rules {
     my $current_flows = $circuit->get_flows();#path => $circuit->get_active_path );
 
     foreach my $flow( @$current_flows){
-            
-
+        
         #first upgrade priority on flow higher
         $flow->{'priority'} +=1;
         my $matches= $flow->get_match();
@@ -350,7 +370,6 @@ sub build_trace_rules {
         my $actions = []; #$flow->get_actions;
         push(@$actions, {output => OESS::FlowRule::OFPP_CONTROLLER});
         $flow->set_actions($actions);
-        
         push(@rules,$flow);
     }
 
@@ -370,10 +389,12 @@ sub process_trace_packet {
     my $m_ref = shift;
     my $p_ref = shift;
 
+    my $success_cb = $m_ref->{'success_callback'};
+    \&$success_cb({success => 1});
+    
     my $src_dpid   = $p_ref->{'dpid'}->{'value'};
     my $src_port   = $p_ref->{'in_port'}->{'value'};
     my $circuit_id = $p_ref->{'circuit_id'}->{'value'};
-   
     $self->{'logger'}->info("Calling process_trace_packet.");
 
     my $db = $self->{'db'};
@@ -394,82 +415,83 @@ sub process_trace_packet {
 	circuit_id => { value => $circuit_id },
 	status     => { value => 'active' }
     });
-    
+
     #we've got an active transaction for this circuit, now verify this
     #is actually the right traceroute, we may have multiple circuits
     #over the same link get circuit_details, and validate this was
     #tagged with the vlan we would have expected inbound
     
     if ($transaction){  
+	
+	my $cv = AnyEvent->condvar;
+	$cv->begin( sub {
+	    my @tmp_nodes_traversed = split (',',$transaction->{nodes_traversed});
+	    my @tmp_intfs_traversed = split (',',$transaction->{interfaces_traversed});
+	    push (@tmp_nodes_traversed , $src_dpid);
+	    push (@tmp_intfs_traversed , $interface->{'name'});
+	    $transaction->{nodes_traversed} = join(",",@tmp_nodes_traversed);
+	    $transaction->{interfaces_traversed} = join(",",@tmp_intfs_traversed);
+	    $transaction->{ttl} -= 1;
+	    #get transaction from db again:	    
+	    if ($transaction->{'remaining_endpoints'} < 1){
+		#we're done!
+		$transaction->{'status'} = 'Complete';
+		#remove all flows from the switches
+		$transaction->{'end_epoch'} = time();
+		$self->remove_traceroute_rules(circuit_id => $circuit_id);
+	    }
+	    elsif ($transaction->{'ttl'} < 1){
+		$transaction->{'status'} = 'timeout';
+		$transaction->{'end_epoch'} = time();
+		#remove all flows from the switches
+		$self->remove_traceroute_rules(circuit_id => $circuit_id);
+	    }
+	    else {
+		
+		$self->{pending_packets}->{$circuit_id} = { dpid => [$src_dpid],
+							    timeout => time() + 15,
+		};
+		
+		#$self->send_trace_packet($circuit_id,$transaction);
+		
+	    }});
+	my $t;
+	#remove flow rule from dst_dpid,dst_port
+	foreach my $flow_rule (@{$self->build_trace_rules($circuit_id)} ) {
 
-    #remove flow rule from dst_dpid,dst_port
+	    if (  $flow_rule->get_dpid() == $src_dpid && $flow_rule->{'match'}->{'in_port'} == $src_port ) {
+		$self->{'logger'}->info("Received traceroute flow from node: $node->{'name'} interface: $interface->{'name'} ".$flow_rule->get_dpid() );
+		$self->{'rabbitmq'}->{'topic'} = "OF.NOX.RPC";
+		$cv->begin();
+		$self->{'logger'}->debug("Removing Flow: " . $flow_rule->to_human());
+		my $xid = $self->{'rabbitmq'}->send_datapath_flow(flow => $flow_rule->to_dict(command => OFPFC_DELETE_STRICT),
+								  async_callback => sub {
+								      $self->{'rabbitmq'}->send_barrier(dpid => int($flow_rule->get_dpid()),
+													async_callback => sub {
+													    #wait for barrier...
+													    #is this a rule that is on the same node as edge ports other than the originating edge port? if so, decrement edge_ports
+													    foreach my $endpoint (@{$circuit_details->{'details'}->{'endpoints'} }) {
+														
+														my $e_node = $endpoint->{'node'};
+														my $e_dpid = $circuit_details->{'dpid_lookup'}->{$e_node};
+														
+														if ( $e_dpid == $transaction->{'source_endpoint'}->{'dpid'} ) {
+														    next;
+														}
+														
+														if ($e_dpid == $src_dpid ){
+														    #decrement 
+														    $transaction->{remaining_endpoints} -= 1;
+														}   		    
+													    }
 
-    foreach my $flow_rule (@{$self->build_trace_rules($circuit_id)} ) {
-
-        
-
-        if (  $flow_rule->get_dpid() == $src_dpid && $flow_rule->{'match'}->{'in_port'} == $src_port ) {
-            $self->{'logger'}->info("Received traceroute flow from node: $node->{'name'} interface: $interface->{'name'} ".$flow_rule->get_dpid() );
-            $self->{'rabbitmq'}->{'topic'} = "OF.NOX.RPC";
-            my $xid = $self->{'rabbitmq'}->send_datapath_flow(flow => $flow_rule->to_dict(command => OFPFC_DELETE_STRICT));
-            $self->{'rabbitmq'}->send_barrier(dpid => int($flow_rule->get_dpid()));
-            
-            #is this a rule that is on the same node as edge ports other than the originating edge port? if so, decrement edge_ports
-            foreach my $endpoint (@{$circuit_details->{'details'}->{'endpoints'} }) {
-           
-                my $e_node = $endpoint->{'node'};
-                my $e_dpid = $circuit_details->{'dpid_lookup'}->{$e_node};
-            
-                if ( $e_dpid == $transaction->{'source_endpoint'}->{'dpid'} ) {
-                    next;
-                }
-
-                if ($e_dpid == $src_dpid ){
-                    #decrement 
-                    $transaction->{remaining_endpoints} -= 1;
-                }
-                     
-            
-            }
-        }
-    
-    }              
-    my @tmp_nodes_traversed = split (',',$transaction->{nodes_traversed});
-    my @tmp_intfs_traversed = split (',',$transaction->{interfaces_traversed});
-    push (@tmp_nodes_traversed , $src_dpid);
-    push (@tmp_intfs_traversed , $interface->{'name'});
-    $transaction->{nodes_traversed} = join(",",@tmp_nodes_traversed);
-    $transaction->{interfaces_traversed} = join(",",@tmp_intfs_traversed);
-    $transaction->{ttl} -= 1;
-        #get transaction from db again:
-
-        
-        if ($transaction->{'remaining_endpoints'} < 1){
-            #we're done!
-            $transaction->{'status'} = 'Complete';
-            #remove all flows from the switches
-            $transaction->{'end_epoch'} = time();
-            $self->remove_traceroute_rules(circuit_id => $circuit_id);
-        }
-        elsif ($transaction->{'ttl'} < 1){
-            $transaction->{'status'} = 'timeout';
-            $transaction->{'end_epoch'} = time();
-            #remove all flows from the switches
-            $self->remove_traceroute_rules(circuit_id => $circuit_id);
-        }
-        else {
-            
-            $self->{pending_packets}->{$circuit_id} = { dpid => [$src_dpid],
-                                                        timeout => time() + 15,
-                                                      }
-                                                            
-            #$self->send_trace_packet($circuit_id,$transaction);
-        
-        }
-    
+														$cv->end();
+													
+													})});
+	    }
+	}
+	$cv->end();
     }
-
-   return;
 }
 
 =head2 send_trace_packet
@@ -487,7 +509,6 @@ sub send_trace_packet {
     my $source_port = $transaction->{'source_endpoint'};
     
     my $packet_out;
-
     #each packet will always be set to send out the links of the edge_interface
     $self->{'rabbitmq'}->{'topic'} = "OF.NOX.RPC";
     foreach my $exit_port (@{$source_port->{exit_ports}}) {
@@ -619,14 +640,22 @@ sub remove_traceroute_rules {
     my @dpids = ();
     #optimization: rules for nodes we've already traced through should have been deleted already, we could skip them.
     $self->{'rabbitmq'}->{'topic'} = "OF.NOX.RPC";
+    my %dpids;
+
+    my $cv = AnyEvent->condvar;
+    $cv->begin( sub { 
+	foreach my $dpid (keys %dpids){
+	    $self->{'rabbitmq'}->send_barrier( dpid => int($dpid),
+					       no_reply => 1);
+	}});
     foreach my $rule (@$rules){
         $self->{'logger'}->debug("removing traceroute rule for circuit_id $args{'circuit_id'} on switch ". sprintf("%x",$rule->get_dpid()));
-        $self->{'rabbitmq'}->send_datapath_flow(flow => $rule->to_dict(command => OFPFC_DELETE_STRICT));
-        push (@dpids,$rule->get_dpid());
+	$cv->begin();
+        $self->{'rabbitmq'}->send_datapath_flow(flow => $rule->to_dict(command => OFPFC_DELETE_STRICT),
+						async_callback => sub { $cv->end() } );
+	$dpids{$rule->get_dpid()} = 1;
     }
-    foreach my $dpid (@dpids){
-        $self->{'rabbitmq'}->send_barrier(dpid => int($dpid));
-    }
+
 }
 
 =head2 clear_traceroute_transaction
