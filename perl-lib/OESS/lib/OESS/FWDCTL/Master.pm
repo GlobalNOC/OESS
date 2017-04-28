@@ -2239,7 +2239,7 @@ sub changeVlanPath {
     foreach my $dpid (keys %dpids){
         $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
         $self->{'fwdctl_events'}->change_path(
-            circuits       => [$circuit_id],
+            circuit_id       => [$circuit_id],
             async_callback => sub {
                 my $response = shift;
 

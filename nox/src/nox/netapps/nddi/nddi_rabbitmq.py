@@ -271,7 +271,8 @@ class nddi_rabbitmq(Component):
         self.latest_flow_stats         = {}
         self.collection_epoch_duration = 10
         self.registered_for_fv_in      = 0
-        
+        self.registered_for_traceroute_in = 0
+
         # instantiate rabbitmq rpc interface
         self.rmqi_rpc = RMQI(
             exchange='OESS',
@@ -461,7 +462,7 @@ class nddi_rabbitmq(Component):
 
     # rmqi rpc method send_traceroute_packet
     def send_traceroute_packet(self, **kwargs):
-        logger.error("Sending pack to trigger process_trace_packet.")
+        logger.debug("Sending pack to trigger process_trace_packet.")
 
         dpid     = kwargs.get('dpid')
         my_vlan  = kwargs.get('my_vlan')
@@ -618,6 +619,7 @@ class nddi_rabbitmq(Component):
     def register_for_traceroute_in(self):
         #ether type 88b6 is experimental
         #88b6 IEEE 802.1 IEEE Std 802 - Local Experimental
+        logger.debug("Attempting to register for traceroute in packets")
         if(self.registered_for_traceroute_in == 1):
             return 1
         logger.info("Registered for packet in events for Traceroute")
@@ -632,6 +634,7 @@ class nddi_rabbitmq(Component):
         0xffff, match)
 
         self.registered_for_traceroute_in = 1
+        logger.debug("Registered for traceroute packet")
         return 1
 
     # rmqi rpc method install_default_foward
