@@ -44,6 +44,12 @@ function init(){
 
   // defined in circuit_details_box.js
   var endpoint_table = summary_init();
+
+  // yui-dt-col7 is an alias for the column of the edit
+  // buttons. This was hidden on the options page due to issue
+  // 160:3834, but the options page needs this for static mac
+  // circuits.
+  endpoint_table.hideColumn('yui-dt-col7');
   
   var path_table = makePathTable();
   
