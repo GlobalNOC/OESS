@@ -131,7 +131,8 @@ sub new {
 						       pass => $args{'rabbitMQ_pass'},
 						       topic => $topic,
 						       queue => $topic,
-						       exchange => 'OESS');
+						       exchange => 'OESS',
+                                                       exclusive => 1);
     
     my $method = GRNOC::RabbitMQ::Method->new( name => "add_vlan",
 					       async => 1,
@@ -655,6 +656,7 @@ sub datapath_join_handler{
     #--- first push the default "forward to controller" rule to this node. This enables
     #--- discovery to work properly regardless of whether the switch's implementation does it by default
     #--- or not
+    warn "SWITCH: IN DATAPATH JOIN HANDLER\n";
     $self->{'logger'}->info("sw:" . $self->{'node'}->{'name'} . " dpid:" . $self->{'node'}->{'dpid_str'} . " datapath join");
     
     my %xid_hash;

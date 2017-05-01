@@ -2177,7 +2177,7 @@ sub deleteVlan {
 	
         $self->{'logger'}->debug("Deleted VLAN Success. Elapsed time: " . tv_interval( $start, [gettimeofday]));
         &$success({ status => FWDCTL_SUCCESS });
-	       });
+    });
     
     foreach my $dpid (keys %dpids){
         $cv->begin();
