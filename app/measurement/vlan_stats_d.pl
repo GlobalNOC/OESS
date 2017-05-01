@@ -342,7 +342,8 @@ sub main{
 							      user => $oess->{'rabbitMQ'}->{'user'},
 							      pass => $oess->{'rabbitMQ'}->{'pass'},
                                                               exchange => 'OESS',
-							      topic => 'OF.NOX.event');
+							      topic => 'OF.NOX.event',
+                                                              exclusive => 1);
 
     my $method = GRNOC::RabbitMQ::Method->new( name        => 'datapath_join',
                                                topic       => "OF.NOX.event",

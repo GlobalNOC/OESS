@@ -7,6 +7,12 @@ use GRNOC::Config;
 
 package OESS::RabbitMQ::Dispatcher;
 
+=head2 new
+
+Creates a Dispatcher. For this application exclusive queues are used
+(used by only 1 connection and deleted on connection closed).
+
+=cut
 sub new{
     my $that = shift;
     my $class = ref($that) || $that;
@@ -27,14 +33,17 @@ sub new{
     my $host = $config->get('/config/rabbitMQ/@host')->[0];
     my $port = $config->get('/config/rabbitMQ/@port')->[0];
 
-    my $rabbit = GRNOC::RabbitMQ::Dispatcher->new( host => $host,
-						   pass => $pass,
-						   user => $user,
-						   port => $port,
-						   timeout => $args{'timeout'},
-						   exchange => 'OESS',
-						   topic => $args{'topic'},
-						   queue => $args{'queue'} );
+    my $rabbit = GRNOC::RabbitMQ::Dispatcher->new(
+        host => $host,
+        pass => $pass,
+        user => $user,
+        port => $port,
+        timeout => $args{'timeout'},
+        exchange => 'OESS',
+        topic => $args{'topic'},
+        queue => $args{'queue'},
+        exclusive => 1
+    );
     
     return $rabbit;
 
