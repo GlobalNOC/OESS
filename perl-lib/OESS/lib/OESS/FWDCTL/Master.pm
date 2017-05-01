@@ -1394,7 +1394,7 @@ sub _restore_down_circuits{
         $self->{'logger'}->debug("Telling child: " . $dpid . " to change paths!");
 
         $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
-        $self->{'fwdctl_events'}->change_path(circuits       => $dpids{$dpid},
+        $self->{'fwdctl_events'}->change_path(circuit_id       => $dpids{$dpid},
                                               async_callback => sub {
                                                   my $response = shift;
 
@@ -1524,7 +1524,7 @@ sub _fail_over_circuits{
         $self->{'logger'}->debug("Telling child: " . $dpid . " to change paths!");
 
         $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
-        $self->{'fwdctl_events'}->change_path(circuits       => $dpids{$dpid},
+        $self->{'fwdctl_events'}->change_path(circuit_id       => $dpids{$dpid},
                                               async_callback => sub {
                                                   my $response = shift;
 
