@@ -1061,6 +1061,8 @@ sub remove_circuit {
             # definitely be logged.
             warn "$@";
         }
+    } else { # We successfully put in scheduled removal
+        $result = 1;
     }
 
     return {results => [ { success => $result } ]};
