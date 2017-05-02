@@ -26,7 +26,7 @@ function makePathTable(){
 }  
   
 function init(){  
-    setPageSummary("Path","Choose a primary path from the map below by clicking on links between nodes.");
+    setPageSummary("Options","If needed, select additional options for the circuit's behavior.");
     setNextButton("Proceed to Step 4: Primary Path", "?action=primary_path", verify_inputs);
 
 

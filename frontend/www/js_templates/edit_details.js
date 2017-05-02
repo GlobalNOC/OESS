@@ -62,7 +62,7 @@ function init(){
         }
 	});
 
-  setPageSummary("Basic Details", "Add Information");
+  setPageSummary("Basic Details", "Enter a short description and choose a type for the circuit.");
 
   setNextButton("Proceed to Step 2: Endpoints", "?action=endpoints", verify_inputs);  
   
