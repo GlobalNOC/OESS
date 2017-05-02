@@ -48,7 +48,7 @@ function init(){
     restore_to_primary.on('click', function() {
         if (this.get('label') == 'Enabled') {
             document.getElementById('restore_to_primary_holder').style.display = 'none';
-            document.getElementById('restore_to_primary').value = 0;
+            document.getElementById('restore_to_primary_text').value = 0;
             this.set('label', 'Disabled');
         } else{
             document.getElementById('restore_to_primary_holder').style.display = 'inline';
@@ -72,8 +72,8 @@ function init(){
         }
     });
 
-    YAHOO.util.Dom.get('restore_to_primary').value = session.data.restore_to_primary || 0;
-    if(YAHOO.util.Dom.get('restore_to_primary').value > 0){
+    YAHOO.util.Dom.get('restore_to_primary_text').value = session.data.restore_to_primary || 0;
+    if(YAHOO.util.Dom.get('restore_to_primary_text').value > 0){
         restore_to_primary.set('label', 'Enabled');
         document.getElementById("restore_to_primary_holder").style.display = "inline";
     }
