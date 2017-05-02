@@ -129,7 +129,7 @@ sub new {
     $self->{'fwdctl_dispatcher'} = $fwdctl_dispatcher;
 
 
-    $self->{'fwdctl_events'} = OESS::RabbitMQ::Client->new( topic => 'OF.FWDCTL.event');
+    $self->{'fwdctl_events'} = OESS::RabbitMQ::Client->new( topic => 'OF.FWDCTL.event', timeout => 30);
     $self->{'logger'}->info("RabbitMQ ready to go!");
 
     # When this process receives sigterm send an event to notify all
@@ -365,7 +365,7 @@ sub register_rpc_methods{
     $method->add_input_parameter( name => "link_name",
 				  description => "the name of the link for the forwarding event",
 				  required => 1,
-				  pattern => $GRNOC::WebService::Regex::NAME);
+				  pattern => $GRNOC::WebService::Regex::NAME_ID);
 
     $method->add_input_parameter( name => "state",
                                   description => "the current state of the specified link",
@@ -883,7 +883,11 @@ sub _write_cache{
         
         my $file = $self->{'share_file'} . "." . sprintf("%x",$dpid);
         open(my $fh, ">", $file) or $self->{'logger'}->error("Unable to open $file " . $!);
+	#lock the file
+	flock($fh, 2);
         print $fh encode_json($data);
+	#unlock the file
+	flock($fh, 8);
         close($fh);
     }
 
@@ -2170,12 +2174,12 @@ sub deleteVlan {
 
     $cv->begin(sub {
         if ($err ne '') {
-            $self->{'logger'}->error("Failed to delete VLAN: '$err' . Elapased time: " . tv_interval( $start, [gettimeofday]));
+            $self->{'logger'}->error("Failed to delete VLAN $circuit_id: '$err' . Elapased time: " . tv_interval( $start, [gettimeofday]));
             &$error({status => FWDCTL_FAILURE, error => $err});
 	    return;
         }
 	
-        $self->{'logger'}->debug("Deleted VLAN Success. Elapsed time: " . tv_interval( $start, [gettimeofday]));
+        $self->{'logger'}->debug("Deleted VLAN $circuit_id Success. Elapsed time: " . tv_interval( $start, [gettimeofday]));
         &$success({ status => FWDCTL_SUCCESS });
     });
     

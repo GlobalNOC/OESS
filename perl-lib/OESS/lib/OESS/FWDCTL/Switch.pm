@@ -252,11 +252,23 @@ sub _update_cache{
 
     my $str;
     open(my $fh, "<", $self->{'share_file'});
+    flock($fh, 1);
     while(my $line = <$fh>){
         $str .= $line;
     }
-    
-    my $data = from_json($str);
+    flock($fh, 8);
+    close($fh);
+
+    my $data;
+    eval{
+	$data = from_json($str);
+    };
+    if(!defined($data)){
+	$self->{'logger'}->error("Unable to parse JSON cache file: " . $str);
+	$self->{'logger'}->error("JSON Error: " . $@);
+	return;
+    }
+
     $self->{'logger'}->debug("Fetched data!");
     $self->{'node'} = $data->{'nodes'}->{$self->{'dpid'}};
     $self->{'settings'} = $data->{'settings'};
@@ -468,6 +480,9 @@ sub add_vlan{
     my $m_ref = shift;
     my $p_ref = shift;
 
+    my $success = $m_ref->{'success_callback'};
+    my $error   = $m_ref->{'error_callback'};
+
     my $start = [gettimeofday];
 
     $self->{'logger'}->debug("in add_vlan");
@@ -508,8 +523,8 @@ sub add_vlan{
 													$self->{'logger'}->info("Elapsed Time add_vlan: " . tv_interval( $start, $end ));
 													$self->{'logger'}->info("Time waiting on barrier: " . tv_interval( $barrier_start, $end));
 													$self->{'needs_diff'} = time();
-													my $cb = $m_ref->{'success_callback'};
-													&$cb($res);
+
+													&$success($res);
 											   });
 								       
                                                                });
