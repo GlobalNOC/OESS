@@ -766,7 +766,8 @@ sub _do_diff{
     #--- process each ckt
     my @all_commands;
     foreach my $circuit_id (keys %{ $self->{'ckts'} }){
-        next unless ($self->{'ckts'}->{$circuit_id}->{'details'}->{'state'} eq 'active' || 
+        next unless ($self->{'ckts'}->{$circuit_id}->{'details'}->{'state'} eq 'active' ||
+                         $self->{'ckts'}->{$circuit_id}->{'details'}->{'state'} eq 'looped' ||
                      $self->{'ckts'}->{$circuit_id}->{'details'}->{'state'} eq 'deploying');
         #--- get the set of commands needed to create this vlan per design
         $self->{'logger'}->debug("Processing ckt_id: " . $circuit_id);
