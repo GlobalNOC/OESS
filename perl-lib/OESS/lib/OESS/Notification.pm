@@ -223,7 +223,7 @@ sub _send_bulk_notification {
     my $self = shift;
     my $data = shift;
     my $db = $self->{'db'};
-    my $circuits = $data->{'affected_circuits'};
+    my $circuits = $data->{'affected_circuits'}{'value'};
     my $link_name = $data->{'link_name'};
     my $workgroup_notifications={};
     my $type = $data->{'type'};
