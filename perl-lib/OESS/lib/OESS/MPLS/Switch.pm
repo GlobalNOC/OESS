@@ -71,7 +71,6 @@ sub new{
                                                        user => $args{'rabbitMQ_user'},
                                                        pass => $args{'rabbitMQ_pass'},
                                                        topic => $topic,
-                                                       queue => $topic,
                                                        exchange => 'OESS',
                                                        exclusive => 1);
     $self->register_rpc_methods( $dispatcher );
