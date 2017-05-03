@@ -186,31 +186,31 @@ sub circuit_notification {
     switch($circuit->{'type'} ) {
         case "provisioned"{
 	    $subject .= "has been provisioned in workgroup: $workgroup ";
-	    $self->{'notification_events'}->circuit_provision( circuit => $circuit );
+	    $self->{'notification_events'}->circuit_provision( circuit => $circuit, no_reply => 1 );
 	}
 	case "removed" {
 	    $subject .= "has been removed from workgroup: $workgroup";
-	    $self->{'notification_events'}->circuit_remove(circuit => $circuit );
+	    $self->{'notification_events'}->circuit_remove( circuit => $circuit, no_reply => 1 );
 	}
 	case "modified" {
 	    $subject .= "has been edited in workgroup: $workgroup";
-	    $self->{'notification_events'}->circuit_modify(circuit => $circuit);
+	    $self->{'notification_events'}->circuit_modify( circuit => $circuit, no_reply => 1 );
 	}
 	case "change_path" {
 	    $subject .= "has changed to " . $circuit_notification_data->{'circuit'}->{'active_path'} . " path in workgroup: $workgroup";
-	    $self->{'notification_events'}->circuit_change_path( circuit => $circuit );
+	    $self->{'notification_events'}->circuit_change_path( circuit => $circuit, no_reply => 1 );
 	}
 	case "restored" {
 	    $subject .= "has been restored for workgroup: $workgroup";
-	    $self->{'notification_events'}->circuit_restore(circuit => $circuit );
+	    $self->{'notification_events'}->circuit_restore( circuit => $circuit, no_reply => 1 );
 	}
 	case "down" {
 	    $subject .= "is down for workgroup: $workgroup";
-	    $self->{'notification_events'}->circuit_down( circuit => $circuit );
+	    $self->{'notification_events'}->circuit_down( circuit => $circuit, no_reply => 1 );
 	}
 	case "unknown" {
 	    $subject .= "is in an unknown state in workgroup: $workgroup";
-	    $self->{'notification_events'}->circuit_unknown( circuit => $circuit );
+	    $self->{'notification_events'}->circuit_unknown( circuit => $circuit, no_reply => 1 );
 	}
     }
 
@@ -223,7 +223,7 @@ sub _send_bulk_notification {
     my $self = shift;
     my $data = shift;
     my $db = $self->{'db'};
-    my $circuits = $data->{'affected_circuits'};
+    my $circuits = $data->{'affected_circuits'}{'value'};
     my $link_name = $data->{'link_name'};
     my $workgroup_notifications={};
     my $type = $data->{'type'};
