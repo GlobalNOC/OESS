@@ -1717,7 +1717,7 @@ sub port_status{
 	}
 	case(OFPPR_ADD) {
 	    #just force sync the node and update the status!
-	    $self->force_sync(undef, { dpid => {'value' => $dpid} });
+	    $self->force_sync({ success_callback => sub {}, error_callback => sub {}}, { dpid => {'value' => $dpid} });
 	    $self->_update_port_status($p_ref);
 	}else{
 	    #uh we should not be able to get here!
@@ -1869,8 +1869,8 @@ sub link_event{
                     $self->{'logger'}->debug("About to diff: " . Dumper($node_z));
 
 		    #diff
-		    $self->force_sync(undef, {dpid => {'value' => $node_a->{'dpid'}}});
-		    $self->force_sync(undef, {dpid => {'value' => $node_z->{'dpid'}}});
+		    $self->force_sync({ success_callback => sub {}, error_callback => sub {}}, {dpid => {'value' => $node_a->{'dpid'}}});
+		    $self->force_sync({ success_callback => sub {}, error_callback => sub {}}, {dpid => {'value' => $node_z->{'dpid'}}});
 		    return;
 			
 		}elsif(defined($a_links->[0])){
@@ -1900,8 +1900,8 @@ sub link_event{
                     my $node_z = $self->{'db'}->get_node_by_interface_id( interface_id => $interface_z->{'interface_id'});
 
                     #diff
-                    $self->force_sync(undef, {dpid => {'value' => $node_a->{'dpid'}}});
-                    $self->force_sync(undef, {dpid => {'value' => $node_z->{'dpid'}}});
+                    $self->force_sync({ success_callback => sub {}, error_callback => sub {}}, {dpid => {'value' => $node_a->{'dpid'}}});
+                    $self->force_sync({ success_callback => sub {}, error_callback => sub {}}, {dpid => {'value' => $node_z->{'dpid'}}});
 		    return;
 		}elsif(defined($z_links->[0])){
 		    #easy case update link_a so that it is now on the new interfaces
@@ -1931,8 +1931,8 @@ sub link_event{
                     my $node_z = $self->{'db'}->get_node_by_interface_id( interface_id => $interface_z->{'interface_id'});
 
                     #diff
-                    $self->force_sync(undef, {dpid => {'value' => $node_a->{'dpid'}}});
-                    $self->force_sync(undef, {dpid => {'value' => $node_z->{'dpid'}}});
+                    $self->force_sync({ success_callback => sub {}, error_callback => sub {}}, {dpid => {'value' => $node_a->{'dpid'}}});
+                    $self->force_sync({ success_callback => sub {}, error_callback => sub {}}, {dpid => {'value' => $node_z->{'dpid'}}});
 		    return;
 		}else{
 		    $self->{'logger'}->warn("This is not part of any other link... making a new instance");

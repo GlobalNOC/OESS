@@ -143,8 +143,8 @@ sub register_rpc_methods{
     my $self = shift;
     my $d = shift;
     my $method = GRNOC::RabbitMQ::Method->new( name => "new_switch",
-					    callback => sub { $self->new_switch(@_) },
-					    description => "adds a new switch to the DB and starts a child process to fetch its details");
+					       callback => sub { $self->new_switch(@_) },
+					       description => "adds a new switch to the DB and starts a child process to fetch its details");
     
     $method->add_input_parameter( name => "node_id",
                                   description => "the node_id of the new node",
