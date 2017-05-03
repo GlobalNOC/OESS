@@ -2377,6 +2377,8 @@ sub stop {
     $self->{'logger'}->info("Sending OF.FWDCTL.event.stop to listeners");
     $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.event";
     $self->{'fwdctl_events'}->stop( async_callback => sub{ } );
+
+    $self->{'fwdctl_dispatcher'}->stop_consuming();
 }
 
 1;
