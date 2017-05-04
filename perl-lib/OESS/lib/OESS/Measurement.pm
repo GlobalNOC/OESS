@@ -205,7 +205,7 @@ sub get_of_circuit_data {
         if(!defined($out_agg)){
             $out_agg = $out->{'results'};
         } else {
-	    aggregate_data($out_agg->[0]->{'aggregate)values.bps, 30, average)'}, $out->{'results'}->[0]->{'aggregate(values.bps, 30, average)'});
+	    aggregate_data($out_agg->[0]->{'aggregate(values.bps, 30, average)'}, $out->{'results'}->[0]->{'aggregate(values.bps, 30, average)'});
         }
     }
 
