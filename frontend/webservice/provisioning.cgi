@@ -661,7 +661,7 @@ sub provision_circuit {
 
     my $rabbit_mq_start = [gettimeofday];
 
-    my $log_client = OESS::RabbitMQ::Client->new( topic    => 'OF.Notification.event',
+    my $log_client = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.event',
                                                   timeout  => 15 );
     if (!defined $log_client) {
         warn "Couldn't create RabbitMQ client.";
@@ -986,7 +986,7 @@ sub remove_circuit {
 	return;
     }
 
-    my $log_client = OESS::RabbitMQ::Client->new( topic    => 'OF.Notification.event',
+    my $log_client = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.event',
                                                   timeout  => 15 );
     if ( !defined($log_client) ) {
         $method->set_error("Internal server error occurred. Message queue connection failed.");
@@ -1142,7 +1142,7 @@ sub fail_over_circuit {
     my $forced = $args->{'force'}{'value'} || undef;
 
 
-    my $log_client = OESS::RabbitMQ::Client->new( topic    => 'OF.Notification.event',
+    my $log_client = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.event',
                                                   timeout  => 15 );
     if ( !defined($log_client) ) {
         return;
@@ -1207,6 +1207,7 @@ sub fail_over_circuit {
                 eval {
                     $circuit_details->{'status'} = 'down';
                     $circuit_details->{'reason'} = "user " . $ENV{'REMOTE_USER'} . " forced the circuit to change to the alternate path which is down!";
+                    $circuit_details->{'type'} = 'change_path';
                     $log_client->circuit_notification( circuit => $circuit_details,
 						       no_reply => 1);
                 };
