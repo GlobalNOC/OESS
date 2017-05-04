@@ -129,7 +129,7 @@ sub process_flow_stats{
 	    }
 
             my $bps = (($inbytes - $previous->{'in_bytes'}) * 8) / ($time - $previous->{'time'});
-            my $pps = $inpackets - $previous->{'in_packets'} / ($time - $previous->{'time'});
+            my $pps = ($inpackets - $previous->{'in_packets'}) / ($time - $previous->{'time'});
 
             push(@tsds_work_queue, {
 		interval=> $interval,
@@ -168,7 +168,7 @@ sub process_flow_stats{
                 my $prev_static = $previous->{'mac_addrs'}->{$rule->{'match'}->{'dl_dst'}};
 
                 my $bps = (($inbytes - $prev_static->{'in_bytes'}) * 8) / ($time - $prev_static->{'time'});
-                my $pps = $inpackets - $prev_static->{'in_packets'} / ($time - $prev_static->{'time'});
+                my $pps = ($inpackets - $prev_static->{'in_packets'}) / ($time - $prev_static->{'time'});
 
                 push(@tsds_work_queue, {
 		    interval=> $interval,
@@ -254,8 +254,9 @@ sub _connect_to_tsds {
     my $client = GRNOC::WebService::Client->new(
 	url    => $config->{'tsds'}->{'url'} . "/push.cgi",
 	uid    => $config->{'tsds'}->{'username'},
-	passwd => $config->{'tsds'}->{'password'}
-    );
+	passwd => $config->{'tsds'}->{'password'},
+	debug => 0
+	);
 
     return $client;
 }
