@@ -136,14 +136,27 @@ sub get_system_information{
 		    $af_xp->registerNs('j',$path);
 		    my $af_name = trim($af_xp->findvalue('./j:address-family-name'));
 		    next if $af_name ne 'inet';
-		    my $addrs = $af_xp->find('./j:interface-address/j:ifa-local');
-		    foreach my $ad (@$addrs){
-			my $address = trim($ad->textContent);
-			next if(!defined($address));
-			next if $address eq '';
-			next if $address eq '127.0.0.1';
-			$loopback_addr = $address;		       
-		    }
+
+		    foreach my $addr (@{$af_xp->find('./j:interface-address')}){
+			# Within the interface-address tag there may
+			# be an ifa-flags tag. If so the
+			# ifaf-preferred flag can be used to select
+			# the default loopback address
+			my $is_default = $af_xp->exists('./j:ifa-flags/j:ifaf-preferred', $addr);
+                        if (!$is_default) {
+                            next;
+                        }
+
+			my $addrs = $af_xp->find('./j:ifa-local', $addr);
+                        foreach my $ad (@$addrs){
+                            my $address = trim($ad->textContent);
+                            next if(!defined($address));
+                            next if $address eq '';
+                            next if $address eq '127.0.0.1';
+
+                            $loopback_addr = $address;
+                        }
+                    }
 		}
 	    }
 	}
