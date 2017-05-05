@@ -32,7 +32,7 @@ function init(){
 
     // Load default session variables if they're not already set
     session.data.static_mac_routing = session.data.static_mac_routing || 0;
-    session.data.q_n_q = session.data.q_n_q || 0;
+    //session.data.q_n_q = session.data.q_n_q || 0;
     session.data.circuit_type = session.data.circuit_type || 'unknown';
 
     // Circuit Endpoint Table: circuit_details_box.js
@@ -86,7 +86,7 @@ function init(){
 
 
     // MPLS Circuit Options
-    const q_n_q = new YAHOO.widget.Button('q_n_q_button', { 
+    /*    const q_n_q = new YAHOO.widget.Button('q_n_q_button', { 
         type:  'button',
         label: (session.data.q_n_q > 0) ? 'Enabled' : 'Disabled'
     });
@@ -99,14 +99,14 @@ function init(){
             this.set('label', 'Enabled');
         }
     });
-
+    */
     // Display OpenFlow or MPLS Options based on selected circuit type
     if (session.data.circuit_type == 'openflow') {
         document.getElementById('openflow_circuit_options').style.display = 'table-row';
-        document.getElementById('mpls_circuit_options').style.display = 'none';
+	//        document.getElementById('mpls_circuit_options').style.display = 'none';
     } else if (session.data.circuit_type == 'mpls') {
         document.getElementById('openflow_circuit_options').style.display = 'none';
-        document.getElementById('mpls_circuit_options').style.display = 'table-row';
+	//        document.getElementById('mpls_circuit_options').style.display = 'table-row';
     } else {
         console.log('Unexpected circuit type was set.');
     }

@@ -3,11 +3,11 @@
 function set_summary(circuit_type) {
     let restore = YAHOO.util.Dom.get('restore_to_primary_summary');
     let staticm = YAHOO.util.Dom.get('static_mac_routing_summary');
-    let qnq     = YAHOO.util.Dom.get('q_n_q_summary');
+    //    let qnq     = YAHOO.util.Dom.get('q_n_q_summary');
 
     YAHOO.util.Dom.setStyle(restore, 'display', 'none');
     YAHOO.util.Dom.setStyle(staticm, 'display', 'none');
-    YAHOO.util.Dom.setStyle(qnq, 'display', 'none');
+    //YAHOO.util.Dom.setStyle(qnq, 'display', 'none');
 
     if (circuit_type == 'openflow') {
         session.data.restore_to_primary = session.data.restore_to_primary || 0;
@@ -27,14 +27,14 @@ function set_summary(circuit_type) {
         YAHOO.util.Dom.setStyle(staticm, 'display', 'block');
         
     } else if (circuit_type == 'mpls') {
-        session.data.q_n_q = session.data.q_n_q || 0;
+	/*        session.data.q_n_q = session.data.q_n_q || 0;
         if (session.data.q_n_q == 1) {
             YAHOO.util.Dom.get('q_n_q').innerHTML = 'Enabled';
         } else {
             YAHOO.util.Dom.get('q_n_q').innerHTML = 'Disabled';
         }
         YAHOO.util.Dom.setStyle(qnq, 'display', 'block');
-
+	*/
     } else {
         // No circuit summary info should be displayed
     }
