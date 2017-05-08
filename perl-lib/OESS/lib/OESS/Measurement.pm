@@ -161,17 +161,25 @@ sub get_of_circuit_data {
 	});
     }
 
-    $self->{'logger'}->debug("Gathered all flows: " . Dumper(@interfaces));
+    #$self->{'logger'}->debug("Gathered all flows: " . Dumper(@interfaces));
 
     #ok we pushed all interfaces into a big array
     #now pull out all the ones on our selected node... and if its the selected selected it
     my $selected;
     my @interfaces_on_node;
 
+    my $ep = $ckt->get_endpoints()->[0];
+
+    warn Dumper($ep);
+
     if(!defined($node)){
-        $node = $interfaces[0]->{'node'};
+        $node = $inital_node_dpid_hash->{$ep->{'node'}};
     }else{
-	$node = $inital_node_dpid_hash->{$node};
+        $node = $inital_node_dpid_hash->{$node};
+    }
+
+    if(!defined($interface)){
+	$interface = $ep->{'interface'};
     }
 
     foreach my $int (@interfaces){

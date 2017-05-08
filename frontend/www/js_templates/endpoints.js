@@ -72,7 +72,7 @@ function makeInterfacesTable(node){
 function init(){  
 
   setPageSummary("Intradomain Endpoints","Pick at least two endpoints from the map below.");
-  
+
   setNextButton("Proceed to Step 3: Circuit Options", "?action=options", verify_inputs);
   
   var endpoint_table = summary_init();

@@ -119,15 +119,15 @@ function init(){
   }
 
 
-  var chosen_tagging = session.data.tagging || "ptp";
- 
+  //  var chosen_tagging = session.data.tagging || "ptp";
+  /* 
   hookupRadioButtons("tagging", chosen_tagging, function(){
 	               if (document.getElementsByName('tagging')[1].checked){
 			   document.getElementsByName('tagging')[0].checked = true;
 			   alert("Q-in-Q is not supported at this time.");
 		       }
                      });
-  
+  */
   var bandwidth_holder = new YAHOO.util.Element(YAHOO.util.Dom.get("reserved_bandwidth_holder"));
   var chosen_domain    = session.data.interdomain || "0";
   
@@ -226,7 +226,7 @@ function init(){
 
   makeHelpPanel(["edit_reserved_bandwidth_label", "slider-value", "sliderbg"], "This is the amount of bandwidth this circuit will have allocated to it across the Openflow network.");
 
-  makeHelpPanel(["tagging_label", "tagging-ptp", "tagging-qnq"], "This is the type of tagging you would like to use. Point to Point will let you individually assign VLAN tags to each endpoint. Q-in-Q tunnel will tell the system to forward all VLANs coming in one endpoint to the other(s).<br><br>Note at this time that Q-in-Q tunnels are not supported.");
+  //  makeHelpPanel(["tagging_label", "tagging-ptp", "tagging-qnq"], "This is the type of tagging you would like to use. Point to Point will let you individually assign VLAN tags to each endpoint. Q-in-Q tunnel will tell the system to forward all VLANs coming in one endpoint to the other(s).<br><br>Note at this time that Q-in-Q tunnels are not supported.");
 
   makeHelpPanel(["type_label", "interdomain-no", "interdomain-yes"], "This is used to indicate whether or not this circuit will be provisioned across multiple domains.");
   
