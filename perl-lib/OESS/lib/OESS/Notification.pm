@@ -157,7 +157,6 @@ sub circuit_notification {
 
     my $type = $p_ref->{'type'}{'value'};
     my $link_name= $p_ref->{'link_name'}{'value'};
-    my $affected_circuits= $p_ref->{'affected_circuits'}{'value'};
 
 
     my $circuit;
@@ -169,7 +168,7 @@ sub circuit_notification {
         return;
     }
 
-    $circuit = $p_ref;
+    $circuit = $p_ref->{'affected_circuits'}{'value'}[0];
     my $circuit_notification_data = $self->get_notification_data( circuit => $circuit );
     if (!defined($circuit_notification_data)) {
         $self->{'log'}->error("Unable to get circuit data for circuit: " . $circuit->{'circuit_id'});
@@ -224,9 +223,9 @@ sub _send_bulk_notification {
     my $data = shift;
     my $db = $self->{'db'};
     my $circuits = $data->{'affected_circuits'}{'value'};
-    my $link_name = $data->{'link_name'};
+    my $link_name = $data->{'link_name'}{'value'};
     my $workgroup_notifications={};
-    my $type = $data->{'type'};
+    my $type = $data->{'type'}{'value'};
 
     foreach my $circuit (@$circuits) {
         #build workgroup buckets
@@ -300,7 +299,7 @@ sub _send_bulk_notification {
                     workgroup_id => $workgroup_notifications->{$workgroup }{'workgroup_id'},
                     from_signature_name => $self->{'from_name'},
                     link_name => $link_name,
-                    type => $data->{'type'},
+                    type => $type,
                     circuits => $workgroup_circuits,
                     circuits_on_owned_endpoints => $circuits_on_owned_endpoints,
                     image_base_url => $self->{'image_base_url'},
