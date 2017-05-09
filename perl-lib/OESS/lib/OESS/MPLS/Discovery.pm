@@ -143,8 +143,9 @@ sub register_rpc_methods{
     my $self = shift;
     my $d = shift;
     my $method = GRNOC::RabbitMQ::Method->new( name => "new_switch",
-					    callback => sub { $self->new_switch(@_) },
-					    description => "adds a new switch to the DB and starts a child process to fetch its details");
+                                               async => 1,
+					       callback => sub { $self->new_switch(@_) },
+					       description => "adds a new switch to the DB and starts a child process to fetch its details");
     
     $method->add_input_parameter( name => "node_id",
                                   description => "the node_id of the new node",
@@ -168,6 +169,9 @@ sub new_switch{
     my $p_ref = shift;
     my $state_ref = shift;
 
+    my $success = $m_ref->{'success_callback'};
+    my $error   = $m_ref->{'error_callback'};
+
     my $node_id = $p_ref->{'node_id'}{'value'};
 
     #sherpa will you make my babies!
@@ -176,6 +180,8 @@ sub new_switch{
     sleep(5);
     $self->int_handler();
     $self->lsp_handler();
+
+    \&success({status => 1});
 }
 
 

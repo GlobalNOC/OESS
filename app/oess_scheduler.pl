@@ -152,8 +152,11 @@ sub main{
                 $circuit_details->{'status'} = 'up';
                 $circuit_details->{'type'} = 'provisioned';
                 $circuit_details->{'reason'} = ' scheduled circuit provisioning';
-		$client->{'topic'} = 'OF.Notification.event';
-                $client->circuit_notification( $circuit_details );
+                $client->{'topic'} = 'OF.FWDCTL.event';
+                $client->circuit_notification(type      => 'provisioned',
+                                              link_name => 'n/a',
+                                              affected_circuits => [$circuit_details],
+                                              no_reply  => 1);
 		$client->{'topic'} = 'OF.FWCTL';
             };
             
@@ -277,8 +280,11 @@ sub main{
                 $circuit_details->{'status'} = 'up';
                 $circuit_details->{'type'} = 'modified';
                 $circuit_details->{'reason'} = ' scheduled circuit modification';
-		$client->{'topic'} = 'OF.Notification.event';
-                $client->circuit_notification( $circuit_details );
+                $client->{'topic'} = 'OF.FWDCTL.event';
+                $client->circuit_notification(type      => 'modified',
+                                              link_name => 'n/a',
+                                              affected_circuits => [$circuit_details],
+                                              no_reply  => 1);
 		$client->{'topic'} = 'OF.FWDCTL.RPC';
             };
 
@@ -358,8 +364,11 @@ sub main{
                 $circuit_details->{'status'} = 'removed';
                 $circuit_details->{'type'} = 'removed';
                 $circuit_details->{'reason'} = ' scheduled circuit removal';
-		$client->{'topic'} = 'OF.Notification.event';
-                $client->circuit_notification($circuit_details);
+                $client->{'topic'} = 'OF.FWDCTL.event';
+                $client->circuit_notification(type      => 'removed',
+                                              link_name => 'n/a',
+                                              affected_circuits => [$circuit_details],
+                                              no_reply  => 1);
 		$client->{'topic'} = 'OF.FWCTL';
             };
 
@@ -411,8 +420,11 @@ sub main{
                     $circuit_details->{'reason'} = $circuit_layout->{'reason'};
                     $circuit_details->{'type'} = 'change_path';
                     warn "Attempting to send notification\n";
-		    $client->{'topic'} = 'OF.Notification.event';
-                    $client->circuit_notification( $circuit_details );
+                    $client->{'topic'} = 'OF.FWDCTL.event';
+                    $client->circuit_notification(type      => 'change_path',
+                                                  link_name => 'n/a',
+                                                  affected_circuits => [$circuit_details],
+                                                  no_reply  => 1);
 		    $client->{'topic'} = 'OF.FWDCTL.RPC';
                 }
 

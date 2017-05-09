@@ -157,7 +157,6 @@ sub circuit_notification {
 
     my $type = $p_ref->{'type'}{'value'};
     my $link_name= $p_ref->{'link_name'}{'value'};
-    my $affected_circuits= $p_ref->{'affected_circuits'}{'value'};
 
 
     my $circuit;
@@ -169,7 +168,7 @@ sub circuit_notification {
         return;
     }
 
-    $circuit = $p_ref;
+    $circuit = $p_ref->{'affected_circuits'}{'value'}[0];
     my $circuit_notification_data = $self->get_notification_data( circuit => $circuit );
     if (!defined($circuit_notification_data)) {
         $self->{'log'}->error("Unable to get circuit data for circuit: " . $circuit->{'circuit_id'});
@@ -186,31 +185,31 @@ sub circuit_notification {
     switch($circuit->{'type'} ) {
         case "provisioned"{
 	    $subject .= "has been provisioned in workgroup: $workgroup ";
-	    $self->{'notification_events'}->circuit_provision( circuit => $circuit );
+	    $self->{'notification_events'}->circuit_provision( circuit => $circuit, no_reply => 1 );
 	}
 	case "removed" {
 	    $subject .= "has been removed from workgroup: $workgroup";
-	    $self->{'notification_events'}->circuit_remove(circuit => $circuit );
+	    $self->{'notification_events'}->circuit_remove( circuit => $circuit, no_reply => 1 );
 	}
 	case "modified" {
 	    $subject .= "has been edited in workgroup: $workgroup";
-	    $self->{'notification_events'}->circuit_modify(circuit => $circuit);
+	    $self->{'notification_events'}->circuit_modify( circuit => $circuit, no_reply => 1 );
 	}
 	case "change_path" {
 	    $subject .= "has changed to " . $circuit_notification_data->{'circuit'}->{'active_path'} . " path in workgroup: $workgroup";
-	    $self->{'notification_events'}->circuit_change_path( circuit => $circuit );
+	    $self->{'notification_events'}->circuit_change_path( circuit => $circuit, no_reply => 1 );
 	}
 	case "restored" {
 	    $subject .= "has been restored for workgroup: $workgroup";
-	    $self->{'notification_events'}->circuit_restore(circuit => $circuit );
+	    $self->{'notification_events'}->circuit_restore( circuit => $circuit, no_reply => 1 );
 	}
 	case "down" {
 	    $subject .= "is down for workgroup: $workgroup";
-	    $self->{'notification_events'}->circuit_down( circuit => $circuit );
+	    $self->{'notification_events'}->circuit_down( circuit => $circuit, no_reply => 1 );
 	}
 	case "unknown" {
 	    $subject .= "is in an unknown state in workgroup: $workgroup";
-	    $self->{'notification_events'}->circuit_unknown( circuit => $circuit );
+	    $self->{'notification_events'}->circuit_unknown( circuit => $circuit, no_reply => 1 );
 	}
     }
 
@@ -223,10 +222,10 @@ sub _send_bulk_notification {
     my $self = shift;
     my $data = shift;
     my $db = $self->{'db'};
-    my $circuits = $data->{'affected_circuits'};
-    my $link_name = $data->{'link_name'};
+    my $circuits = $data->{'affected_circuits'}{'value'};
+    my $link_name = $data->{'link_name'}{'value'};
     my $workgroup_notifications={};
-    my $type = $data->{'type'};
+    my $type = $data->{'type'}{'value'};
 
     foreach my $circuit (@$circuits) {
         #build workgroup buckets
@@ -300,7 +299,7 @@ sub _send_bulk_notification {
                     workgroup_id => $workgroup_notifications->{$workgroup }{'workgroup_id'},
                     from_signature_name => $self->{'from_name'},
                     link_name => $link_name,
-                    type => $data->{'type'},
+                    type => $type,
                     circuits => $workgroup_circuits,
                     circuits_on_owned_endpoints => $circuits_on_owned_endpoints,
                     image_base_url => $self->{'image_base_url'},

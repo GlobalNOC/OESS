@@ -71,22 +71,29 @@ sub new{
                                                        user => $args{'rabbitMQ_user'},
                                                        pass => $args{'rabbitMQ_pass'},
                                                        topic => $topic,
-                                                       queue => $topic,
-                                                       exchange => 'OESS');
+                                                       exchange => 'OESS',
+                                                       exclusive => 1);
     $self->register_rpc_methods( $dispatcher );
 
     #attempt to reconnect!
-    $self->{'connect_timer'} = AnyEvent->timer( after => 10, interval => 60,
-                                                cb => sub {
-                                                    if($self->{'device'}->connected()){
-                                                        return;
-                                                    }
-                                                    $self->{'device'}->connect();
-                                                });
+    warn "Setting up reconnect timer\n";
+    $self->{'connect_timer'} = AnyEvent->timer(
+        after => 60,
+        interval => 60,
+        cb => sub {
+            $self->{'logger'}->info("Checking to connection status.");
+            if($self->{'device'}->connected()){
+                warn "Device reports connected\n";
+                return;
+            }
+            warn "Device is not connected... connecting\n";
+            $self->{'device'}->connect();
+        });
 
     #try and connect up right away
     my $ok = $self->{'device'}->connect();
     if (!$ok) {
+	warn "Unable to connect\n";
 	$self->{'logger'}->error("Connection to device could not be established.");
     } else {
 	$self->{'logger'}->error("Connection to device was established.");

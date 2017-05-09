@@ -70,6 +70,11 @@ sub disconnect{
 sub get_system_information{
     my $self = shift;
 
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+	$self->{'logger'}->error("Not currently connected to device");
+	return;
+    }
+
     my $reply = $self->{'jnx'}->get_system_information();
 
     if($self->{'jnx'}->has_error){
@@ -131,14 +136,29 @@ sub get_system_information{
 		    $af_xp->registerNs('j',$path);
 		    my $af_name = trim($af_xp->findvalue('./j:address-family-name'));
 		    next if $af_name ne 'inet';
-		    my $addrs = $af_xp->find('./j:interface-address/j:ifa-local');
-		    foreach my $ad (@$addrs){
-			my $address = trim($ad->textContent);
-			next if(!defined($address));
-			next if $address eq '';
-			next if $address eq '127.0.0.1';
-			$loopback_addr = $address;		       
-		    }
+
+		    foreach my $addr (@{$af_xp->find('./j:interface-address')}){
+
+			my $addrs = $af_xp->find('./j:ifa-local', $addr);
+                        foreach my $ad (@$addrs){
+                            my $address = trim($ad->textContent);
+                            next if(!defined($address));
+                            next if $address eq '';
+                            next if $address eq '127.0.0.1';
+
+                            $loopback_addr = $address;
+                        }
+
+			# Within the interface-address tag there may
+			# be an ifa-flags tag. If so the
+			# ifaf-preferred flag can be used to select
+			# the default loopback address
+			my $is_default = $af_xp->exists('./j:ifa-flags/j:ifaf-preferred', $addr);
+                        if ($is_default) {
+                            last;
+                        }
+
+                    }
 		}
 	    }
 	}
@@ -153,6 +173,11 @@ sub get_system_information{
 
 sub get_interfaces{
     my $self = shift;
+
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
 
     my $reply = $self->{'jnx'}->get_interface_information();
 
@@ -232,7 +257,10 @@ sub add_vlan{
     my $self = shift;
     my $ckt = shift;
     
-    $self->{'logger'}->error("AJ Adding circuit: " . Data::Dumper::Dumper($ckt));
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
 
     my $vars = {};
     $vars->{'circuit_name'} = $ckt->{'circuit_name'};
@@ -299,6 +327,11 @@ sub get_active_lsp_route {
     my $self     = shift;
     my $loopback = shift;
     my $table_id = shift;
+
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
 
     my $api       = $self->{'jnx'};
     my $mgmt_addr = $self->{'mgmt_addr'};
@@ -371,6 +404,11 @@ $lsp.
 sub get_active_lsp_path {
     my $self = shift;
     my $lsp  = shift;
+
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
 
     my $api = $self->{'jnx'};
 
@@ -517,6 +555,11 @@ sub xml_configuration {
 sub get_device_circuit_infos {
     my $self = shift;
 
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
+
     my $result = {};
 
     my $res = $self->{'jnx'}->get_configuration( database => 'committed', format => 'xml' );
@@ -560,6 +603,11 @@ sub get_device_circuit_infos {
 
 sub get_device_circuit_ids {
     my $self = shift;
+
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
 
     my $result = [];
 
@@ -611,6 +659,11 @@ sub required_modifications {
     my $circuits = shift;
     my $circuit_infos = shift;
 
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
+
     my $result = [];
 
     foreach my $id (keys %{$circuits}) {
@@ -642,6 +695,11 @@ Returns and stores a human readable diff for display to users.
 sub get_device_diff {
     my $self = shift;
     my $conf = shift;
+
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
 
     my %queryargs = ('target' => 'candidate');
     $self->{'jnx'}->lock_config(%queryargs);
@@ -690,6 +748,13 @@ Do a diff between $ckts and the circuits on this device.
 =cut
 sub diff {
     my $self = shift;
+
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
+
+
     my $circuits = shift;
     my $circuit_info = shift;
     my $force_diff = shift; # If set do not check diff size
@@ -750,6 +815,12 @@ configuration.
 =cut
 sub get_diff_text {
     my $self = shift;
+    
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
+    
     my $circuits = shift;
     my $circuit_info = shift;
 
@@ -788,6 +859,7 @@ sub unit_name_available {
     my $self           = shift;
     my $interface_name = shift;
     my $unit_name      = shift;
+
 
     if (!defined $self->{'jnx'}) {
         my $err = "Netconf connection is down.";
@@ -894,8 +966,16 @@ sub connect {
     return $self->{'connected'};
 }
 
-sub connected{
+sub connected {
     my $self = shift;
+
+    if (defined $self->{'jnx'}->{'conn_obj'} && $self->{'jnx'}->has_error) {
+        my $err = $self->{'jnx'}->get_first_error();
+        $self->{'logger'}->error("Connection failure detected: $err->{'error_message'}");
+        $self->disconnect();
+    }
+
+    $self->{'logger'}->debug("Connection state is $self->{'connected'}.");
     return $self->{'connected'};
 }
 
@@ -903,6 +983,12 @@ sub verify_connection{
     #gather basic system information needed later, and make sure it is what we expected / are prepared to handle                                                                            
     #
     my $self = shift;
+
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
+
     my $sysinfo = $self->get_system_information();
     if (($sysinfo->{"os_name"} eq "junos") && ($sysinfo->{"version"} eq "13.3R1.6")){
 	# print "Connection verified, proceeding\n";
@@ -917,6 +1003,11 @@ sub verify_connection{
 
 sub get_isis_adjacencies{
     my $self = shift;
+
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
 
     $self->{'logger'}->error("INSIDE GET_ISIS_ADJACENCIES");
     
@@ -967,6 +1058,11 @@ sub _process_isis_adj{
 
 sub get_LSPs{
     my $self = shift;
+
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
 
     if(!defined($self->{'jnx'}->{'methods'}->{'get_mpls_lsp_information'})){
         my $TOGGLE = bless { 1 => 1 }, 'TOGGLE';

@@ -273,7 +273,7 @@ function NDDIMap(div_id, interdomain_mode, options){
       var node_long  = parseFloat(node_info.node_long);
       var node_id    = parseInt(node_info.node_id || -1);
       var vlan_range = node_info.vlan_range;
-      var end_epoch  = node_info.end_epoch
+      var end_epoch  = node_info.end_epoch;
       var default_drop = node_info.default_drop;
       var default_forward = node_info.default_forward;
       var tx_delay_ms = node_info.tx_delay_ms;
@@ -751,7 +751,7 @@ function NDDIMap(div_id, interdomain_mode, options){
       for(var i=0; i<data.links.length; i++){
           //link_name += "<div style='text-shadow: 1px 1px 1px #FFF;color: ";
           if(this.options.node_label_status == true) {
-              if(data.links[i].state == "up"){
+              if(data.links[i].state == "active"){
                   link_up_count++;
                   link_name += "<div style='text-shadow: 1px 1px 1px #FFF;color: "+this.LINK_UP+";'>";
               }
@@ -799,7 +799,7 @@ function NDDIMap(div_id, interdomain_mode, options){
       //determine the link status color based on majority of status
       percent_up = (link_up_count / data.links.length) * 100;
       var link_color;
-      if( percent_up == 100 ){ //green if all up
+      if( percent_up == 100 ){ //blue if all up
           data.features[0].geometry.link_state = "up";
       }else if( percent_up >= 50 ){ //yellow for majority up
           data.features[0].geometry.link_state = "majority_up";

@@ -129,7 +129,7 @@ sub new {
     $self->{'fwdctl_dispatcher'} = $fwdctl_dispatcher;
 
 
-    $self->{'fwdctl_events'} = OESS::RabbitMQ::Client->new( topic => 'OF.FWDCTL.event');
+    $self->{'fwdctl_events'} = OESS::RabbitMQ::Client->new( topic => 'OF.FWDCTL.event', timeout => 30);
     $self->{'logger'}->info("RabbitMQ ready to go!");
 
     # When this process receives sigterm send an event to notify all
@@ -365,7 +365,7 @@ sub register_rpc_methods{
     $method->add_input_parameter( name => "link_name",
 				  description => "the name of the link for the forwarding event",
 				  required => 1,
-				  pattern => $GRNOC::WebService::Regex::NAME);
+				  pattern => $GRNOC::WebService::Regex::NAME_ID);
 
     $method->add_input_parameter( name => "state",
                                   description => "the current state of the specified link",
@@ -883,7 +883,11 @@ sub _write_cache{
         
         my $file = $self->{'share_file'} . "." . sprintf("%x",$dpid);
         open(my $fh, ">", $file) or $self->{'logger'}->error("Unable to open $file " . $!);
+	#lock the file
+	flock($fh, 2);
         print $fh encode_json($data);
+	#unlock the file
+	flock($fh, 8);
         close($fh);
     }
 
@@ -1394,7 +1398,7 @@ sub _restore_down_circuits{
         $self->{'logger'}->debug("Telling child: " . $dpid . " to change paths!");
 
         $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
-        $self->{'fwdctl_events'}->change_path(circuits       => $dpids{$dpid},
+        $self->{'fwdctl_events'}->change_path(circuit_id       => $dpids{$dpid},
                                               async_callback => sub {
                                                   my $response = shift;
 
@@ -1524,7 +1528,7 @@ sub _fail_over_circuits{
         $self->{'logger'}->debug("Telling child: " . $dpid . " to change paths!");
 
         $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
-        $self->{'fwdctl_events'}->change_path(circuits       => $dpids{$dpid},
+        $self->{'fwdctl_events'}->change_path(circuit_id       => $dpids{$dpid},
                                               async_callback => sub {
                                                   my $response = shift;
 
@@ -1713,7 +1717,7 @@ sub port_status{
 	}
 	case(OFPPR_ADD) {
 	    #just force sync the node and update the status!
-	    $self->force_sync(undef, { dpid => {'value' => $dpid} });
+	    $self->force_sync({ success_callback => sub {}, error_callback => sub {}}, { dpid => {'value' => $dpid} });
 	    $self->_update_port_status($p_ref);
 	}else{
 	    #uh we should not be able to get here!
@@ -1865,8 +1869,8 @@ sub link_event{
                     $self->{'logger'}->debug("About to diff: " . Dumper($node_z));
 
 		    #diff
-		    $self->force_sync(undef, {dpid => {'value' => $node_a->{'dpid'}}});
-		    $self->force_sync(undef, {dpid => {'value' => $node_z->{'dpid'}}});
+		    $self->force_sync({ success_callback => sub {}, error_callback => sub {}}, {dpid => {'value' => $node_a->{'dpid'}}});
+		    $self->force_sync({ success_callback => sub {}, error_callback => sub {}}, {dpid => {'value' => $node_z->{'dpid'}}});
 		    return;
 			
 		}elsif(defined($a_links->[0])){
@@ -1896,8 +1900,8 @@ sub link_event{
                     my $node_z = $self->{'db'}->get_node_by_interface_id( interface_id => $interface_z->{'interface_id'});
 
                     #diff
-                    $self->force_sync(undef, {dpid => {'value' => $node_a->{'dpid'}}});
-                    $self->force_sync(undef, {dpid => {'value' => $node_z->{'dpid'}}});
+                    $self->force_sync({ success_callback => sub {}, error_callback => sub {}}, {dpid => {'value' => $node_a->{'dpid'}}});
+                    $self->force_sync({ success_callback => sub {}, error_callback => sub {}}, {dpid => {'value' => $node_z->{'dpid'}}});
 		    return;
 		}elsif(defined($z_links->[0])){
 		    #easy case update link_a so that it is now on the new interfaces
@@ -1927,8 +1931,8 @@ sub link_event{
                     my $node_z = $self->{'db'}->get_node_by_interface_id( interface_id => $interface_z->{'interface_id'});
 
                     #diff
-                    $self->force_sync(undef, {dpid => {'value' => $node_a->{'dpid'}}});
-                    $self->force_sync(undef, {dpid => {'value' => $node_z->{'dpid'}}});
+                    $self->force_sync({ success_callback => sub {}, error_callback => sub {}}, {dpid => {'value' => $node_a->{'dpid'}}});
+                    $self->force_sync({ success_callback => sub {}, error_callback => sub {}}, {dpid => {'value' => $node_z->{'dpid'}}});
 		    return;
 		}else{
 		    $self->{'logger'}->warn("This is not part of any other link... making a new instance");
@@ -2170,14 +2174,14 @@ sub deleteVlan {
 
     $cv->begin(sub {
         if ($err ne '') {
-            $self->{'logger'}->error("Failed to delete VLAN: '$err' . Elapased time: " . tv_interval( $start, [gettimeofday]));
+            $self->{'logger'}->error("Failed to delete VLAN $circuit_id: '$err' . Elapased time: " . tv_interval( $start, [gettimeofday]));
             &$error({status => FWDCTL_FAILURE, error => $err});
 	    return;
         }
 	
-        $self->{'logger'}->debug("Deleted VLAN Success. Elapsed time: " . tv_interval( $start, [gettimeofday]));
+        $self->{'logger'}->debug("Deleted VLAN $circuit_id Success. Elapsed time: " . tv_interval( $start, [gettimeofday]));
         &$success({ status => FWDCTL_SUCCESS });
-	       });
+    });
     
     foreach my $dpid (keys %dpids){
         $cv->begin();
@@ -2239,7 +2243,7 @@ sub changeVlanPath {
     foreach my $dpid (keys %dpids){
         $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
         $self->{'fwdctl_events'}->change_path(
-            circuits       => [$circuit_id],
+            circuit_id       => [$circuit_id],
             async_callback => sub {
                 my $response = shift;
 
@@ -2372,7 +2376,9 @@ sub stop {
 
     $self->{'logger'}->info("Sending OF.FWDCTL.event.stop to listeners");
     $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.event";
-    $self->{'fwdctl_events'}->stop();
+    $self->{'fwdctl_events'}->stop( async_callback => sub{ } );
+
+    $self->{'fwdctl_dispatcher'}->stop_consuming();
 }
 
 1;

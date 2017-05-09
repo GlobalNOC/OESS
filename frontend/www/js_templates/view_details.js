@@ -281,7 +281,13 @@ function page_init(){
 			  }
 			  );
 	  });
+
       var traceroute_panel;
+
+      if(session.data.circuit_type == "mpls"){
+	  YAHOO.util.Dom.get("traceroute_button").style.visibility = "hidden";
+      }else{
+
       var traceroute_button = new YAHOO.widget.Button("traceroute_button", {label: "Trace Circuit Path" });
 
 
@@ -471,6 +477,13 @@ function page_init(){
               }
           });
       });
+      }
+
+      if(session.data.circuit_type == "mpls"){
+
+	  YAHOO.util.Dom.get("loop_circuit_button").style.visibility = "hidden";
+
+      }else{
 
       var loop_circuit_button;
 
@@ -561,6 +574,7 @@ function page_init(){
                 }
 
         });
+      }
   }
   else{
 
@@ -931,6 +945,12 @@ function setupCLR(){
 		//do something
 	    }});
 
+    if(session.data.circuit_type == "mpls"){
+	var header = YAHOO.util.Dom.get("CLR_table_raw_header");
+	header.style.visibility = "hidden";
+	YAHOO.util.Dom.get("CLR_table_raw").hidden = true;
+    }else{
+
     var ds2 = new YAHOO.util.DataSource("services/data.cgi?method=generate_clr&circuit_id=" + session.data.circuit_id + "&raw=1");
     ds2.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
@@ -950,7 +970,7 @@ function setupCLR(){
                 failure: function(Req,Resp){
                 //do something
             }});
-
+    }
 }
 
 function setupHistory(){
