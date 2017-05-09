@@ -98,6 +98,7 @@ sub main{
 
     continue_param("Do you want to create the database $db_name and install the OESS schema there?");
     print "The Follwing password requests are for the new mysql oess user that will be created\n";
+
     my ($oess_pass, $oess_confirm);
     ReadMode('noecho');
     while (1){
@@ -215,7 +216,6 @@ END
     my $admin_workgroup = optional_parameter("Admin Workgroup Name","admin");
     my $workgroup_id = $db->add_workgroup( name => $admin_workgroup,
 					   type => 'admin');
-
 
     #create a user
     #if (yes_or_no_parameter("OESS Frontend requires a user, would you like to add a user via htpasswd file?") eq "y"){
