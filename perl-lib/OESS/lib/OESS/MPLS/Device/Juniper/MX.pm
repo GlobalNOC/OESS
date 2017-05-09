@@ -529,6 +529,10 @@ sub xml_configuration {
         $vars->{'circuit_id'} = $ckt->{'circuit_id'};
         $vars->{'switch'} = { name => $self->{'name'},
                               loopback => $self->{'loopback_addr'} };
+
+        $vars->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
+        $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
+
         $vars->{'site_id'} = $ckt->{'site_id'};
         $vars->{'paths'} = $ckt->{'paths'};
         $vars->{'a_side'} = $ckt->{'a_side'};
