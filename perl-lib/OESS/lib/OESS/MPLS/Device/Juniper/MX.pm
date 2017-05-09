@@ -966,8 +966,16 @@ sub connect {
     return $self->{'connected'};
 }
 
-sub connected{
+sub connected {
     my $self = shift;
+
+    if (defined $self->{'jnx'}->{'conn_obj'} && $self->{'jnx'}->has_error) {
+        my $err = $self->{'jnx'}->get_first_error();
+        $self->{'logger'}->error("Connection failure detected: $err->{'error_message'}");
+        $self->disconnect();
+    }
+
+    $self->{'logger'}->debug("Connection state is $self->{'connected'}.");
     return $self->{'connected'};
 }
 
