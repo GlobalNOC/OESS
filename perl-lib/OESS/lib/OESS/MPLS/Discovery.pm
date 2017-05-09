@@ -443,6 +443,7 @@ sub handle_links{
         $details->{'model'} = $details->{'model'};
         $details->{'sw_version'} = $details->{'sw_version'};
         $node_info{$node->{'name'}} = $details;
+	$node_info{$details->{'short_name'}} = $details;
     }
 
     $self->{'db'}->_start_transaction();
@@ -456,9 +457,12 @@ sub handle_links{
                 next;
             }
 	    
-	    my $a_int = $self->{'db'}->get_interface_id_by_names( node => $node_a,
+	    my $actual_node_a = $node_info{$node_a}->{'name'};
+	    my $actual_node_z = $node_info{$node_z}->{'name'};
+
+	    my $a_int = $self->{'db'}->get_interface_id_by_names( node => $actual_node_a,
 	        						  interface => $adj->{$node_a}{$node_z}{'node_a'}{'interface_name'});
-	    my $z_int = $self->{'db'}->get_interface_id_by_names( node => $node_z,
+	    my $z_int = $self->{'db'}->get_interface_id_by_names( node => $actual_node_z,
 	        						  interface => $adj->{$node_a}{$node_z}{'node_z'}{'interface_name'});
 	    
 	    if (!defined($a_int) || !defined($z_int)) {
