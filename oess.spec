@@ -1,4 +1,4 @@
-Summary: OESS MetaPackage 
+Summary: OESS Metapackage 
 Name: oess
 Version: 1.2.0
 Release: 0.dev01%{?dist}
