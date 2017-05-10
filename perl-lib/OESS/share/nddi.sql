@@ -285,6 +285,7 @@ CREATE TABLE `node` (
   `max_static_mac_flows` int(10) DEFAULT '0',
   `in_maint` enum('yes','no') NOT NULL DEFAULT 'no',
   `pending_diff` int(1) DEFAULT 0,
+  `short_name` varchar(255),
   PRIMARY KEY (`node_id`),
   UNIQUE KEY `node_idx` (`name`),
   KEY `network_node_fk` (`network_id`),

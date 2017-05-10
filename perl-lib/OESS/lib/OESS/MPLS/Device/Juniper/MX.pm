@@ -530,6 +530,10 @@ sub xml_configuration {
         $vars->{'circuit_id'} = $ckt->{'circuit_id'};
         $vars->{'switch'} = { name => $self->{'name'},
                               loopback => $self->{'loopback_addr'} };
+
+        $vars->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
+        $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
+
         $vars->{'site_id'} = $ckt->{'site_id'};
         $vars->{'paths'} = $ckt->{'paths'};
         $vars->{'a_side'} = $ckt->{'a_side'};
@@ -967,8 +971,16 @@ sub connect {
     return $self->{'connected'};
 }
 
-sub connected{
+sub connected {
     my $self = shift;
+
+    if (defined $self->{'jnx'}->{'conn_obj'} && $self->{'jnx'}->has_error) {
+        my $err = $self->{'jnx'}->get_first_error();
+        $self->{'logger'}->error("Connection failure detected: $err->{'error_message'}");
+        $self->disconnect();
+    }
+
+    $self->{'logger'}->debug("Connection state is $self->{'connected'}.");
     return $self->{'connected'};
 }
 
