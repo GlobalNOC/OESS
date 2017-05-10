@@ -1,6 +1,6 @@
 Name:	nox		
-Version: 0.10.9
-Release: 1%{?dist}
+Version: 0.10.10
+Release: 0.dev01%{?dist}
 Summary: nox an openflow controller	
 
 Group:	Networking	

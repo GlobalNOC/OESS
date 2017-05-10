@@ -11,7 +11,7 @@ BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 BuildRequires:	perl
 Requires:	perl-OESS >= 1.2.0, perl(Net::DBus),dbus,dbus-libs,mysql-server,oess-core
-Requires:       nox >= 0.10.9
+Requires:       nox >= 0.10.10
 Requires:       yui2
 Requires:       httpd, mod_ssl
 Requires:       nddi-tiles
