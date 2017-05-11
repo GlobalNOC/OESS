@@ -1,7 +1,7 @@
 Name:		oess-frontend
 Version:	1.2.0
 Release:	0.dev01%{?dist}
-Summary:	The core oess service provides
+Summary:	The OESS webservices and user interface
 
 Group:		Network
 License:	APL 2.0
@@ -9,19 +9,43 @@ URL:		http://www.grnoc.iu.edu
 Source0:	%{name}-%{version}.tar.gz
 BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
-BuildRequires:	perl
-Requires:	perl-OESS >= 1.2.0, perl(Net::DBus),dbus,dbus-libs,mysql-server,oess-core
-Requires:       nox >= 0.10.10
-Requires:       yui2
-Requires:       httpd, mod_ssl
-Requires:       nddi-tiles
-Requires:	perl-Crypt-SSLeay
-Requires:	xmlsec1
-Requires:	xmlsec1-openssl
-Requires:	python >= 2.6
-Requires:	python-libs >= 2.6
-Requires:	python-simplejson
+BuildRequires: perl
+BuildRequires: python >= 2.6, python-libs >= 2.6
+BuildRequires: python-simplejson
+
+Requires: oess-core >= 1.2.0, nox >= 0.10.10
+Requires: yui2
+Requires: httpd, mod_ssl
+Requires: nddi-tiles
+Requires: perl-Crypt-SSLeay
+Requires: xmlsec1, xmlsec1-openssl
+
+Requires: perl-OESS >= 1.2.0, perl-OSCARS-Client >= 1.2.0
+
+Requires: perl(strict), perl(warnings)
+Requires: perl(AnyEvent)
+Requires: perl(CGI)
+Requires: perl(Data::Dumper)
+Requires: perl(FindBin)
+Requires: perl(GRNOC::Config)
+Requires: perl(GRNOC::WebService), perl(GRNOC::WebService::Dispatcher), perl(GRNOC::WebService::Method), perl(GRNOC::WebService::Regex)
+Requires: perl(HTTP::Headers), perl(HTTP::Request)
+Requires: perl(JSON)
+Requires: perl(JSON::XS)
+Requires: perl(Log::Log4perl)
+Requires: perl(LWP::UserAgent)
+Requires: perl(MIME::Lite)
+Requires: perl(SOAP::Constants), perl(SOAP::Lite), perl(SOAP::Server), perl(SOAP::Trace)
+Requires: perl(SOAP::Transport::HTTP), perl(SOAP::Transport::HTTP::CGI)
+Requires: perl(Switch)
+Requires: perl(Template)
+Requires: perl(Time::HiRes)
+Requires: perl(URI::Escape)
+Requires: perl(XML::Simple), perl(XML::XPath)
+
+
 BuildArch:	noarch
+
 %description
 
 

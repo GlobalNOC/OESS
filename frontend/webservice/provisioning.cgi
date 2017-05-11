@@ -28,7 +28,6 @@ use warnings;
 
 use JSON;
 use Switch;
-#use Net::DBus::Exporter qw(org.nddi.fwdctl);
 use Data::Dumper;
 
 use GRNOC::Config;
