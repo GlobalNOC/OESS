@@ -24,8 +24,8 @@ Requires: perl(base), perl(constant), perl(strict), perl(warnings)
 Requires: perl-OESS >= 1.2.0
 
 Requires: perl(AnyEvent), perl(AnyEvent::DBus), perl(AnyEvent::RabbitMQ)
-Requires: perl(Data::Dumper)
 Requires: perl(CPAN), perl(CPAN::Shell)
+Requires: perl(Data::Dumper)
 Requires: perl(DBI), perl(DBD::mysql)
 Requires: perl(English)
 Requires: perl(Fcntl)
@@ -48,8 +48,7 @@ Requires: perl(SOAP::Data::Builder)
 Requires: perl(Sys::Hostname)
 Requires: perl(Term::ReadKey)
 Requires: perl(URI::Escape)
-Requires: perl(XML::Simple)
-Requires: perl(XML::XPath)
+Requires: perl(XML::Simple), perl(XML::XPath)
 
 BuildArch: noarch
 AutoreqProv: no
