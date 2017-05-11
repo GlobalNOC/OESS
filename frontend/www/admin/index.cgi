@@ -74,7 +74,7 @@ sub main {
     $vars->{'breadcrumbs'}        = $breadcrumbs;
     $vars->{'current_breadcrumb'} = $current_breadcrumb;
     $vars->{'path'}               = "../";
-
+    $vars->{'admin_email'}        = $db->get_admin_email();
     $tt->process( "html_templates/page_base.html", $vars, \$output )
       or warn $tt->error();
 
