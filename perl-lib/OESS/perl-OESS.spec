@@ -130,39 +130,39 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root,-)
-%doc %{_mandir}/man/OESS::Circuit.3pm.gz
-%doc %{_mandir}/man/OESS::Database.3pm.gz
-%doc %{_mandir}/man/OESS::DBus.3pm.gz
-%doc %{_mandir}/man/OESS::FlowRule.3pm.gz
-%doc %{_mandir}/man/OESS::FV.3pm.gz
-%doc %{_mandir}/man/OESS::FWDCTL::Master.3pm.gz
-%doc %{_mandir}/man/OESS::FWDCTL::Switch.3pm.gz
-%doc %{_mandir}/man/OESS::Measurement.3pm.gz
-%doc %{_mandir}/man/OESS::MPLS::Device::Juniper::MX.3pm.gz
-%doc %{_mandir}/man/OESS::MPLS::Device.3pm.gz
-%doc %{_mandir}/man/OESS::MPLS::Discovery::Interface.3pm.gz
-%doc %{_mandir}/man/OESS::MPLS::Discovery::ISIS.3pm.gz
-%doc %{_mandir}/man/OESS::MPLS::Discovery::LSP.3pm.gz
-%doc %{_mandir}/man/OESS::MPLS::Discovery::Paths.3pm.gz
-%doc %{_mandir}/man/OESS::MPLS::Discovery.3pm.gz
-%doc %{_mandir}/man/OESS::MPLS::FWDCTL.3pm.gz
-%doc %{_mandir}/man/OESS::MPLS::Switch.3pm.gz
-%doc %{_mandir}/man/OESS::MPLS::Topology.3pm.gz
-%doc %{_mandir}/man/OESS::Notification.3pm.gz
-%doc %{_mandir}/man/OESS::NSI::Constant.3pm.gz
-%doc %{_mandir}/man/OESS::NSI::Daemon.3pm.gz
-%doc %{_mandir}/man/OESS::NSI::MessageQueue.3pm.gz
-%doc %{_mandir}/man/OESS::NSI::Processor.3pm.gz
-%doc %{_mandir}/man/OESS::NSI::Provisioning.3pm.gz
-%doc %{_mandir}/man/OESS::NSI::Query.3pm.gz
-%doc %{_mandir}/man/OESS::NSI::Reservation.3pm.gz
-%doc %{_mandir}/man/OESS::NSI::Server.3pm.gz
-%doc %{_mandir}/man/OESS::NSI::Utils.3pm.gz
-%doc %{_mandir}/man/OESS::RabbitMQ::Client.3pm.gz
-%doc %{_mandir}/man/OESS::RabbitMQ::Dispatcher.3pm.gz
-%doc %{_mandir}/man/OESS::Topology.3pm.gz
-%doc %{_mandir}/man/OESS::Traceroute.3pm.gz
-%doc %{_mandir}/man/OESS::Watchdog.3pm.gz
+%doc %{_mandir}/man3/OESS::Circuit.3pm.gz
+%doc %{_mandir}/man3/OESS::Database.3pm.gz
+%doc %{_mandir}/man3/OESS::DBus.3pm.gz
+%doc %{_mandir}/man3/OESS::FlowRule.3pm.gz
+%doc %{_mandir}/man3/OESS::FV.3pm.gz
+%doc %{_mandir}/man3/OESS::FWDCTL::Master.3pm.gz
+%doc %{_mandir}/man3/OESS::FWDCTL::Switch.3pm.gz
+%doc %{_mandir}/man3/OESS::Measurement.3pm.gz
+%doc %{_mandir}/man3/OESS::MPLS::Device::Juniper::MX.3pm.gz
+%doc %{_mandir}/man3/OESS::MPLS::Device.3pm.gz
+%doc %{_mandir}/man3/OESS::MPLS::Discovery::Interface.3pm.gz
+%doc %{_mandir}/man3/OESS::MPLS::Discovery::ISIS.3pm.gz
+%doc %{_mandir}/man3/OESS::MPLS::Discovery::LSP.3pm.gz
+%doc %{_mandir}/man3/OESS::MPLS::Discovery::Paths.3pm.gz
+%doc %{_mandir}/man3/OESS::MPLS::Discovery.3pm.gz
+%doc %{_mandir}/man3/OESS::MPLS::FWDCTL.3pm.gz
+%doc %{_mandir}/man3/OESS::MPLS::Switch.3pm.gz
+%doc %{_mandir}/man3/OESS::MPLS::Topology.3pm.gz
+%doc %{_mandir}/man3/OESS::Notification.3pm.gz
+%doc %{_mandir}/man3/OESS::NSI::Constant.3pm.gz
+%doc %{_mandir}/man3/OESS::NSI::Daemon.3pm.gz
+%doc %{_mandir}/man3/OESS::NSI::MessageQueue.3pm.gz
+%doc %{_mandir}/man3/OESS::NSI::Processor.3pm.gz
+%doc %{_mandir}/man3/OESS::NSI::Provisioning.3pm.gz
+%doc %{_mandir}/man3/OESS::NSI::Query.3pm.gz
+%doc %{_mandir}/man3/OESS::NSI::Reservation.3pm.gz
+%doc %{_mandir}/man3/OESS::NSI::Server.3pm.gz
+%doc %{_mandir}/man3/OESS::NSI::Utils.3pm.gz
+%doc %{_mandir}/man3/OESS::RabbitMQ::Client.3pm.gz
+%doc %{_mandir}/man3/OESS::RabbitMQ::Dispatcher.3pm.gz
+%doc %{_mandir}/man3/OESS::Topology.3pm.gz
+%doc %{_mandir}/man3/OESS::Traceroute.3pm.gz
+%doc %{_mandir}/man3/OESS::Watchdog.3pm.gz
 %{template_dir}/notification_templates.tmpl
 %{template_dir}/notification_bulk.tmpl
 %{template_dir}/notification_bulk.tt.html
