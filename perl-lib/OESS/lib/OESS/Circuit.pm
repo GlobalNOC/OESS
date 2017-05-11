@@ -1067,38 +1067,37 @@ sub generate_clr{
 	$clr .= "  " . $endpoint->{'node'} . " - " . $endpoint->{'interface'} . " VLAN " . $endpoint->{'tag'} . "\n";
     }
 
-    if($self->{'type'} eq 'mpls'){
+    my $active = $self->get_active_path();
+    if ($active eq 'tertiary') {
+        $active = 'default';
+    }
+    $clr .= "\nActive Path:\n";
+    $clr .= $active . "\n";
 
-        if(defined($self->get_path( path => 'tertiary') )){
-            $clr .= "\nActive Path:\n";
-            foreach my $path (@{$self->get_path( path => 'tertiary' )}){
-                $clr .= "  " . $path->{'name'} . "\n";
-            }
-        }
-
-        if($#{$self->get_path( path => 'primary')} > -1){
-            $clr .= "\nPrimary Path:\n";
-            foreach my $path (@{$self->get_path( path => 'primary' )}){
-                $clr .= "  " . $path->{'name'} . "\n";
-            }
-        }
-
-    }else{
-        
+    if($#{$self->get_path( path => 'primary')} > -1){
         $clr .= "\nPrimary Path:\n";
         foreach my $path (@{$self->get_path( path => 'primary' )}){
             $clr .= "  " . $path->{'name'} . "\n";
         }
     }
-    
-    if($self->has_backup_path()){
-        
+
+    if($#{$self->get_path( path => 'backup')} > -1){
         $clr .= "\nBackup Path:\n";
         foreach my $path (@{$self->get_path( path => 'backup' )}){
             $clr .= "  " . $path->{'name'} . "\n";
         }
     }
-        
+
+    if($self->{'type'} eq 'mpls'){
+        # In mpls land the tertiary path is the auto-selected
+        # path. Displaying 'Default' to users for less confusion.
+        if($#{$self->get_path( path => 'tertiary')} > -1){
+            $clr .= "\nDefault Path:\n";
+            foreach my $path (@{$self->get_path( path => 'tertiary' )}){
+                $clr .= "  " . $path->{'name'} . "\n";
+            }
+        }
+    }
 
     return $clr;
 }
