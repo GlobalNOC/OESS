@@ -3995,6 +3995,9 @@ sub get_circuit_details {
 	$details->{'created_by'} = $self->get_user_by_id( user_id => $first_instantiation->{'modified_by_user_id'})->[0];
 	my $dt_create = DateTime->from_epoch( epoch => $first_instantiation->{'start_epoch'} );
 	$details->{'created_on'} = $dt_create->strftime('%m/%d/%Y %H:%M:%S');
+    }else{
+	$details->{'created_by'} = $details->{'last_modified_by'};
+	$details->{'created_on'} = $details->{'last_edited'};
     }
 
     my $paths = $self->get_circuit_paths( circuit_id => $circuit_id, 
