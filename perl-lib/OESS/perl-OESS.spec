@@ -130,65 +130,76 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root,-)
-%doc %{_mandir}/man3/OESS::Circuit.3pm.gz
-%doc %{_mandir}/man3/OESS::Database.3pm.gz
-%doc %{_mandir}/man3/OESS::DBus.3pm.gz
-%doc %{_mandir}/man3/OESS::Topology.3pm.gz
-%doc %{_mandir}/man3/OESS::Measurement.3pm.gz
-%doc %{_mandir}/man3/OESS::FlowRule.3pm.gz
-%doc %{_mandir}/man3/OESS::Notification.3pm.gz
-%doc %{_mandir}/man3/OESS::Watchdog.3pm.gz
-%doc %{_mandir}/man3/OESS::FWDCTL::Master.3pm.gz
-%doc %{_mandir}/man3/OESS::FWDCTL::Switch.3pm.gz
-%doc %{_mandir}/man3/OESS::Traceroute.3pm.gz
-%doc %{_mandir}/man3/OESS::FV.3pm.gz
-%doc %{_mandir}/man3/OESS::NSI::Server.3pm.gz
-%doc %{_mandir}/man3/OESS::NSI::Constant.3pm.gz
-%doc %{_mandir}/man3/OESS::NSI::Daemon.3pm.gz
-%doc %{_mandir}/man3/OESS::NSI::Processor.3pm.gz
-%doc %{_mandir}/man3/OESS::NSI::Provisioning.3pm.gz
-%doc %{_mandir}/man3/OESS::NSI::Query.3pm.gz
-%doc %{_mandir}/man3/OESS::NSI::Reservation.3pm.gz
-%doc %{_mandir}/man3/OESS::NSI::Utils.3pm.gz
-%doc %{_mandir}/man3/OESS::MPLS::Device.3pm.gz
-%doc %{_mandir}/man3/OESS::MPLS::Discovery.3pm.gz
-%doc %{_mandir}/man3/OESS::MPLS::FWDCTL.3pm.gz
-%doc %{_mandir}/man3/OESS::MPLS::Switch.3pm.gz
-%doc %{_mandir}/man3/OESS::MPLS::Topology.3pm.gz
-%doc %{_mandir}/man3/OESS::MPLS::Device::Juniper::MX.3pm.gz
+%doc %{_mandir}/man/OESS::Circuit.3pm.gz
+%doc %{_mandir}/man/OESS::Database.3pm.gz
+%doc %{_mandir}/man/OESS::DBus.3pm.gz
+%doc %{_mandir}/man/OESS::FlowRule.3pm.gz
+%doc %{_mandir}/man/OESS::FV.3pm.gz
+%doc %{_mandir}/man/OESS::FWDCTL::Master.3pm.gz
+%doc %{_mandir}/man/OESS::FWDCTL::Switch.3pm.gz
+%doc %{_mandir}/man/OESS::Measurement.3pm.gz
+%doc %{_mandir}/man/OESS::MPLS::Device::Juniper::MX.3pm.gz
+%doc %{_mandir}/man/OESS::MPLS::Device.3pm.gz
+%doc %{_mandir}/man/OESS::MPLS::Discovery::Interface.3pm.gz
+%doc %{_mandir}/man/OESS::MPLS::Discovery::ISIS.3pm.gz
+%doc %{_mandir}/man/OESS::MPLS::Discovery::LSP.3pm.gz
+%doc %{_mandir}/man/OESS::MPLS::Discovery::Paths.3pm.gz
+%doc %{_mandir}/man/OESS::MPLS::Discovery.3pm.gz
+%doc %{_mandir}/man/OESS::MPLS::FWDCTL.3pm.gz
+%doc %{_mandir}/man/OESS::MPLS::Switch.3pm.gz
+%doc %{_mandir}/man/OESS::MPLS::Topology.3pm.gz
+%doc %{_mandir}/man/OESS::Notification.3pm.gz
+%doc %{_mandir}/man/OESS::NSI::Constant.3pm.gz
+%doc %{_mandir}/man/OESS::NSI::Daemon.3pm.gz
+%doc %{_mandir}/man/OESS::NSI::MessageQueue.3pm.gz
+%doc %{_mandir}/man/OESS::NSI::Processor.3pm.gz
+%doc %{_mandir}/man/OESS::NSI::Provisioning.3pm.gz
+%doc %{_mandir}/man/OESS::NSI::Query.3pm.gz
+%doc %{_mandir}/man/OESS::NSI::Reservation.3pm.gz
+%doc %{_mandir}/man/OESS::NSI::Server.3pm.gz
+%doc %{_mandir}/man/OESS::NSI::Utils.3pm.gz
+%doc %{_mandir}/man/OESS::RabbitMQ::Client.3pm.gz
+%doc %{_mandir}/man/OESS::RabbitMQ::Dispatcher.3pm.gz
+%doc %{_mandir}/man/OESS::Topology.3pm.gz
+%doc %{_mandir}/man/OESS::Traceroute.3pm.gz
+%doc %{_mandir}/man/OESS::Watchdog.3pm.gz
 %{template_dir}/notification_templates.tmpl
 %{template_dir}/notification_bulk.tmpl
 %{template_dir}/notification_bulk.tt.html
 %{template_dir}/notification.tt.html
-%{perl_vendorlib}/OESS/Notification.pm
-%{perl_vendorlib}/OESS/DBus.pm
-%{perl_vendorlib}/OESS/Database.pm
-%{perl_vendorlib}/OESS/Topology.pm
-%{perl_vendorlib}/OESS/Measurement.pm
 %{perl_vendorlib}/OESS/Circuit.pm
+%{perl_vendorlib}/OESS/Database.pm
+%{perl_vendorlib}/OESS/DBus.pm
 %{perl_vendorlib}/OESS/FlowRule.pm
 %{perl_vendorlib}/OESS/FV.pm
-%{perl_vendorlib}/OESS/Watchdog.pm
 %{perl_vendorlib}/OESS/FWDCTL/Master.pm
 %{perl_vendorlib}/OESS/FWDCTL/Switch.pm
-%{perl_vendorlib}/OESS/Traceroute.pm
-%{perl_vendorlib}/OESS/NSI/Server.pm
+%{perl_vendorlib}/OESS/Measurement.pm
+%{perl_vendorlib}/OESS/MPLS/Device/Juniper/MX.pm
+%{perl_vendorlib}/OESS/MPLS/Device.pm
+%{perl_vendorlib}/OESS/MPLS/Discovery/Interface.pm
+%{perl_vendorlib}/OESS/MPLS/Discovery/ISIS.pm
+%{perl_vendorlib}/OESS/MPLS/Discovery/LSP.pm
+%{perl_vendorlib}/OESS/MPLS/Discovery/Paths.pm
+%{perl_vendorlib}/OESS/MPLS/Discovery.pm
+%{perl_vendorlib}/OESS/MPLS/FWDCTL.pm
+%{perl_vendorlib}/OESS/MPLS/Switch.pm
+%{perl_vendorlib}/OESS/MPLS/Topology.pm
+%{perl_vendorlib}/OESS/Notification.pm
 %{perl_vendorlib}/OESS/NSI/Constant.pm
 %{perl_vendorlib}/OESS/NSI/Daemon.pm
+%{perl_vendorlib}/OESS/NSI/MessageQueue.pm
 %{perl_vendorlib}/OESS/NSI/Processor.pm
 %{perl_vendorlib}/OESS/NSI/Provisioning.pm
 %{perl_vendorlib}/OESS/NSI/Query.pm
 %{perl_vendorlib}/OESS/NSI/Reservation.pm
+%{perl_vendorlib}/OESS/NSI/Server.pm
 %{perl_vendorlib}/OESS/NSI/Utils.pm
-%{perl_vendorlib}/OESS/MPLS/Device.pm
-%{perl_vendorlib}/OESS/MPLS/Device/Juniper/MX.pm
-%{perl_vendorlib}/OESS/MPLS/Discovery.pm
-%{perl_vendorlib}/OESS/MPLS/Discovery/ISIS.pm
-%{perl_vendorlib}/OESS/MPLS/Discovery/Interface.pm
-%{perl_vendorlib}/OESS/MPLS/Discovery/LSP.pm
-%{perl_vendorlib}/OESS/MPLS/FWDCTL.pm
-%{perl_vendorlib}/OESS/MPLS/Switch.pm
-%{perl_vendorlib}/OESS/MPLS/Topology.pm
+%{perl_vendorlib}/OESS/RabbitMQ/Client.pm
+%{perl_vendorlib}/OESS/RabbitMQ/Dispatcher.pm
+%{perl_vendorlib}/OESS/Topology.pm
+%{perl_vendorlib}/OESS/Traceroute.pm
+%{perl_vendorlib}/OESS/Watchdog.pm
 %{docdir}/share/nddi.sql
 %{docdir}/share/upgrade/*
 %{docdir}/share/mpls/templates/juniper/13.3R8/L2CCC/*
