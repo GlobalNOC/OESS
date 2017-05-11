@@ -1,7 +1,7 @@
 Name:		oess-core		
-Version:	1.1.9
-Release:	2%{?dist}
-Summary:	The core oess service provides
+Version:	1.2.0
+Release:	0.dev01%{?dist}
+Summary:	The core OESS service providers
 
 Group:		Network
 License:	APL 2.0
@@ -10,15 +10,46 @@ Source0:	%{name}-%{version}.tar.gz
 BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 BuildRequires:	perl
-Requires:       perl(Net::DBus), dbus, dbus-libs, mysql-server
-Requires:       nox >= 0.10.9
+
+Requires:       nox >= 0.10.10
 Requires:       xmlsec1-devel
 Requires:	xmlsec1-openssl-devel
 Requires(interp): /bin/sh
 Requires(rpmlib): rpmlib(CompressedFileNames) <= 3.0.4-1 rpmlib(PayloadFilesHavePrefix) <= 4.0-1
 Requires(post): /bin/sh
-Requires: /bin/bash /usr/bin/perl perl(CGI) perl(DBI) perl(Data::Dumper) perl(English) perl(FindBin) perl(Getopt::Long) perl(Getopt::Std) perl(HTML::Entities) perl(LockFile::Simple) perl(Net::DBus) perl(Net::DBus::Exporter) perl(Proc::Daemon) perl(RRDs) perl(Socket) perl(Switch) perl(Sys::Hostname) perl(Sys::Syslog) perl(URI::Escape) perl(XML::Simple) perl(XML::Writer) perl(XML::XPath) perl(base) perl(constant) perl(strict) perl(warnings) perl(Term::ReadKey) perl(CPAN)
-Requires:       perl-OESS >= 1.1.9
+Requires: /bin/bash
+Requires: /usr/bin/perl
+Requires: perl(base), perl(constant), perl(strict), perl(warnings)
+
+Requires: perl-OESS >= 1.2.0
+
+Requires: perl(AnyEvent), perl(AnyEvent::DBus), perl(AnyEvent::RabbitMQ)
+Requires: perl(CPAN), perl(CPAN::Shell)
+Requires: perl(Data::Dumper)
+Requires: perl(DBI), perl(DBD::mysql)
+Requires: perl(English)
+Requires: perl(Fcntl)
+Requires: perl(File::Path)
+Requires: perl(FindBin)
+Requires: perl(Getopt::Long), perl(Getopt::Std)
+Requires: perl(GRNOC::Config)
+Requires: perl(GRNOC::Log)
+Requires: perl(GRNOC::RabbitMQ::Client), perl(GRNOC::RabbitMQ::Dispatcher), perl(GRNOC::RabbitMQ::Method)
+Requires: perl(GRNOC::WebService::Client)
+Requires: perl(HTML::Entities)
+Requires: perl(HTTP::Headers), perl(HTTP::Request)
+Requires: perl(JSON)
+Requires: perl(LockFile::Simple)
+Requires: perl(Log::Log4perl)
+Requires: perl(LWP::UserAgent)
+Requires: perl(Net::DBus), perl(Net::DBus::Annotation)
+Requires: perl(Proc::Daemon)
+Requires: perl(SOAP::Data::Builder)
+Requires: perl(Sys::Hostname)
+Requires: perl(Term::ReadKey)
+Requires: perl(URI::Escape)
+Requires: perl(XML::Simple), perl(XML::XPath)
+
 BuildArch: noarch
 AutoreqProv: no
 %description

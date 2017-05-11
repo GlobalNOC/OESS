@@ -9,6 +9,7 @@ use Template;
 use Net::Netconf::Manager;
 use Data::Dumper;
 use XML::Simple;
+use XML::LibXML::XPathContext;
 
 use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;

@@ -1,7 +1,7 @@
 Name:	nox		
-Version: 0.10.9
-Release: 1%{?dist}
-Summary: nox an openflow controller	
+Version: 0.10.10
+Release: 0.dev01%{?dist}
+Summary: NOX: an OpenFlow controller	
 
 Group:	Networking	
 License: GPLv3	
@@ -10,11 +10,29 @@ Source0: nox.tar.gz
 #BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 
-BuildRequires:	gcc, gcc-c++,boost,dbus,boost-filesystem,boost-test,openssl-devel,boost-devel,python-devel,libtool
-Requires: dbus-python, python,openssl,swig,python,python-twisted,pygobject2
+BuildRequires: gcc, gcc-c++, glibc-headers, libtool
+BuildRequires: boost >= 1.34.1, boost-filesystem, boost-test, boost-devel >= 1.34.1
+BuildRequires: dbus
+BuildRequires: openssl-devel
+BuildRequires: python-devel
+BuildRequires: swig >= 1.3.0
+
+Requires: python >= 2.6, python-libs
+Requires: openssl, pyOpenSSL
+Requires: python-twisted, python-twisted-core
+Requires: python-simplejson
+Requires: python-pika
+Requires: python-zope-interface
+Requires: boot-system >= 1.34.1, boost-filesystem, boost-test
+Requires: glibc, libstdc++
+Requires: libcom_err
+Requires: xerces-c >= 2.7.0
+Requires: dbus-python
+
+
 
 %description
-The dbus enhanced openflow conrtoller
+The DBus/RabbitMQ-enhanced OpenFlow conrtoller
 
 %prep
 %setup -q -n nox
