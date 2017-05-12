@@ -23,7 +23,7 @@ Requires: python-twisted, python-twisted-core
 Requires: python-simplejson
 Requires: python-pika
 Requires: python-zope-interface
-Requires: boot-system >= 1.34.1, boost-filesystem, boost-test
+Requires: boost-system >= 1.34.1, boost-filesystem, boost-test
 Requires: glibc, libstdc++
 Requires: libcom_err
 Requires: xerces-c >= 2.7.0
