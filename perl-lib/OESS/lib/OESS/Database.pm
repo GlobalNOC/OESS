@@ -7698,7 +7698,7 @@ sub get_diffs {
     if (!defined $approved) {
         $res = $self->_execute_query("SELECT node.node_id, node.name, node.pending_diff, node_instantiation.admin_state " .
                                      "FROM node JOIN node_instantiation ON node.node_id=node_instantiation.node_id " .
-                                     "WHERE node_instantiation.admin_state='active'",
+                                     "WHERE node_instantiation.admin_state='active' and node_instantiation.end_epoch = -1",
                                      []);
     } else {
         my $pending_diff = 0;
@@ -7707,7 +7707,7 @@ sub get_diffs {
         }
         $res = $self->_execute_query("SELECT node.node_id, node.name, node.pending_diff, node_instantiation.admin_state " .
                                      "FROM node JOIN node_instantiation ON node.node_id=node_instantiation.node_id " .
-                                     "WHERE node_instantiation.admin_state='active' AND node.pending_diff=?",
+                                     "WHERE node_instantiation.admin_state='active' and node_instantiation.end_epoch = -1 AND node.pending_diff=?",
                                      [$pending_diff]);
     }
 
