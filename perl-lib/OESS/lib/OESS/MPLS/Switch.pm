@@ -223,6 +223,13 @@ sub register_rpc_methods{
                                             description => "returns a list of LSPs and their details");
     $dispatcher->register_method($method);
 
+    $method = GRNOC::RabbitMQ::Method->new( name        => "connected",
+                                            callback    => sub {
+                                                $self->connected();
+                                            },
+                                            description => "returns the current connected state of the device");
+    $dispatcher->register_method($method)
+
     $method = GRNOC::RabbitMQ::Method->new( name        => "get_system_info",
 					    callback    => sub {
 						$self->get_system_info();
@@ -237,10 +244,6 @@ sub register_rpc_methods{
                                                 return { node_id => $node_id, status  => $status };
                                             },
 					    description => "Proxies diff signal to the underlying device object.");
-    $method->add_input_parameter( name => "installed_circuits",
-                                  description => "List of circuit_ids that are installed.",
-                                  required => 1,
-                                  pattern => $GRNOC::WebService::Regex::TEXT );
     $method->add_input_parameter( name => "force_diff",
                                   description => "Set to 1 if size of diff should be ignored",
                                   required => 1,
@@ -253,10 +256,6 @@ sub register_rpc_methods{
                                                 return $resp;
                                             },
 					    description => "Proxies diff signal to the underlying device object." );
-    $method->add_input_parameter( name => "installed_circuits",
-                                  description => "List of circuit_ids that are installed.",
-                                  required => 1,
-                                  pattern => $GRNOC::WebService::Regex::TEXT );
     $dispatcher->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name        => "get_device_circuit_ids",
@@ -331,6 +330,16 @@ Always returns 1.
 sub echo {
     my $self = shift;
     return {status => 1};
+}
+
+=head2 connected
+
+=cut
+
+sub connected{
+    my $self = shift;
+    
+    return $self->{'device'}->connected();
 }
 
 =head2 stop
@@ -421,13 +430,12 @@ sub diff {
     my $m_ref = shift;
     my $p_ref = shift;
 
+    my $force_diff = $p_ref->{'force_diff'}{'value'};
+
     $self->{'logger'}->debug("Calling Switch.diff");
-    my $circuit_info = decode_json($p_ref->{'installed_circuits'}{'value'});
-    my $force_diff   = int($p_ref->{'force_diff'}{'value'});
-
     $self->_update_cache();
-
-    return $self->{'device'}->diff($self->{'ckts'}, $circuit_info, $force_diff);
+    my $to_be_removed = $self->{'device'}->get_config_to_remove( circuits => $self->{'ckts'} );
+    return $self->{'device'}->diff( circuits => $self->{'ckts'}, force_diff =>  $force_diff, remove => $to_be_removed);
 }
 
 sub get_diff_text {
@@ -436,11 +444,9 @@ sub get_diff_text {
     my $p_ref = shift;
 
     $self->{'logger'}->debug("Calling Switch.get_diff_text");
-    my $circuit_info = decode_json($p_ref->{'installed_circuits'}{'value'});
-
     $self->_update_cache();
-
-    return $self->{'device'}->get_diff_text($self->{'ckts'}, $circuit_info);
+    my $to_be_removed = $self->{'device'}->get_config_to_remove( circuits => $self->{'ckts'} );
+    return $self->{'device'}->get_diff_text(circuits => $self->{'ckts'}, remove => $to_be_removed);
 }
 
 =head2 get_default_paths

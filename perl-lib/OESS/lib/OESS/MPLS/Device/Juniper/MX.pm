@@ -556,6 +556,8 @@ sub xml_configuration {
 
 =head2 get_device_circuit_infos
 
+I do not believe this is used... 
+
 =cut
 sub get_device_circuit_infos {
     my $self = shift;
@@ -828,6 +830,8 @@ sub get_device_circuit_ids {
 
 
 =head2 required_modifications
+
+I don't believe this is used...
 
 =cut
 sub required_modifications {
