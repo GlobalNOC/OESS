@@ -23,6 +23,12 @@ use OESS::Database;
 
 use base "OESS::MPLS::Device";
 
+=head2 new
+
+creates a new Juniper MX Device object
+
+=cut
+
 sub new{
     my $class = shift;
     my %args = (
@@ -53,6 +59,12 @@ sub new{
     return $self;
 }
 
+=head2 disconnect
+
+disconnects from the device
+
+=cut
+
 sub disconnect{
     my $self = shift;
 
@@ -66,6 +78,12 @@ sub disconnect{
 
     return 1;
 }
+
+=head2 get_system_information
+
+gets the systems information
+
+=cut
 
 sub get_system_information{
     my $self = shift;
@@ -170,6 +188,12 @@ sub get_system_information{
     return {model => $model, version => $version, os_name => $os_name, host_name => $host_name, loopback_addr => $loopback_addr};
 }
 
+=head2 get_interfaces
+
+returns a list of current interfaces on the device
+
+=cut
+
 sub get_interfaces{
     my $self = shift;
 
@@ -223,6 +247,12 @@ sub _process_interface{
 
 }
 
+=head2 remove_vlan
+
+removes a vlan via NetConf
+
+=cut
+
 sub remove_vlan{
     my $self = shift;
     my $ckt = shift;
@@ -251,6 +281,12 @@ sub remove_vlan{
 
     return $self->_edit_config( config => $output );
 }
+
+=head2 add_vlan
+
+add a vlan to the juniper
+
+=cut
 
 sub add_vlan{
     my $self = shift;
@@ -459,11 +495,11 @@ sub get_active_lsp_path {
 
 =head2 get_default_paths
 
-=back 4
+=over 4
 
 =item B<$loopback_addresses> - An array of loopback ip addresses
 
-=over
+=back
 
 Determine the default forwarding path between this node and each ip
 address provided in $loopback_addresses.
@@ -1128,6 +1164,13 @@ sub connect {
     return $self->{'connected'};
 }
 
+
+=head2 connected
+
+returns the state if the device is currently connected or not
+
+=cut
+
 sub connected {
     my $self = shift;
 
@@ -1140,6 +1183,13 @@ sub connected {
     $self->{'logger'}->debug("Connection state is $self->{'connected'}.");
     return $self->{'connected'};
 }
+
+
+=head2 verify_connection
+
+    verify the connection
+
+=cut
 
 sub verify_connection{
     #gather basic system information needed later, and make sure it is what we expected / are prepared to handle                                                                            
@@ -1162,6 +1212,12 @@ sub verify_connection{
     }
     
 }
+
+=head2 get_isis_adjacencies
+
+    returns the current isis adjacencies on the box
+
+=cut
 
 sub get_isis_adjacencies{
     my $self = shift;
@@ -1217,6 +1273,12 @@ sub _process_isis_adj{
 
     return $obj;
 }
+
+=head2 get_LSPs
+
+returns the current MPLS LSPs on the box
+
+=cut
 
 sub get_LSPs{
     my $self = shift;
@@ -1587,6 +1649,12 @@ sub _edit_config{
 
     return FWDCTL_SUCCESS;
 }
+
+=head2 trim
+
+trims off white space
+
+=cut
 
 sub trim{
     my $s = shift; 

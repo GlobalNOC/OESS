@@ -1534,6 +1534,10 @@ sub is_static_mac{
     return $self->{'static_mac'};
 }
 
+=head2 get_mpls_path_type
+
+=cut
+
 sub get_mpls_path_type{
     my $self = shift;
     my %params = @_;
@@ -1551,6 +1555,10 @@ sub get_mpls_path_type{
 
     return $self->{'details'}{'paths'}{$params{'path'}}{'mpls_path_type'};
 }
+
+=head2 get_mpls_hops
+
+=cut
 
 sub get_mpls_hops{
     my $self = shift;

@@ -13,6 +13,12 @@ use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
 use constant OESS_PW_FILE       => "/etc/oess/.passwd.xml";
 
+=head2 new
+
+creates a new device object (don't instantiate directly)
+
+=cut
+
 sub new{
     my $class = shift;
     my %args = (
@@ -50,6 +56,9 @@ sub _get_credentials{
 
 }
 
+=head2 connect
+
+=cut
 
 sub connect{
     my $self = shift;
@@ -58,12 +67,20 @@ sub connect{
     return;
 }
 
+=head2 disconnect
+
+=cut
+
 sub disconnect{
     my $self = shift;
 
     $self->set_error("This device does not support disconnect");
     return;
 }
+
+=head2 get_system_information
+
+=cut
 
 sub get_system_information{
     my $self = shift;
@@ -72,12 +89,20 @@ sub get_system_information{
     return;
 }
 
+=head2 get_interfaces 
+
+=cut
+
 sub get_interfaces{
     my $self = shift;
 
     $self->set_error("This device does not support get_interfaces");
     return;
 }
+
+=head2 get_isis_adjacencies
+
+=cut
 
 sub get_isis_adjacencies{
     my $self = shift;
@@ -86,12 +111,20 @@ sub get_isis_adjacencies{
     return;
 }
 
+=head2 get_LSPs
+
+=cut
+
 sub get_LSPs{
     my $self = shift;
 
     $self->set_error("This device does not support get_LSPs");
     return;
 }
+
+=head2 add_vlan
+
+=cut
 
 sub add_vlan{
     my $self = shift;
@@ -100,12 +133,20 @@ sub add_vlan{
     return;
 }
 
+=head2 remove_vlan
+
+=cut
+
 sub remove_vlan{
     my $self = shift;
 
     $self->set_error("This device does not support remove_vlan");
     return;
 }
+
+=head2 diff
+
+=cut
 
 sub diff {
     my $self = shift;
@@ -114,7 +155,7 @@ sub diff {
     return;
 }
 
-=head2
+=head2 diff_approved
 
 Returns 1 if $diff may be applied without manual approval.
 
@@ -126,6 +167,10 @@ sub diff_approved {
     $self->set_error("This device does not support large_diff");
 }
 
+=head2 set_error
+
+=cut
+
 sub set_error{
     my $self = shift;
     my $error = shift;
@@ -133,10 +178,18 @@ sub set_error{
     push(@{$self->{'error'}}, $error);
 }
 
+=head2 has_error
+
+=cut
+
 sub has_error{
     my $self = shift;
     return $self->{'has_error'};
 }
+
+=head2 get_error
+
+=cut
 
 sub get_error{
     my $self = shift;

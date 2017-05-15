@@ -285,7 +285,9 @@ sub _init_paths{
     return $paths;
 }
 
-#handlers for our timers
+=head2 int_handler
+
+=cut
 sub int_handler{
     my $self = shift;
     
@@ -338,6 +340,10 @@ sub path_handler {
     }
 }
 
+=head2 lsp_handler
+
+=cut
+
 sub lsp_handler{
     my $self = shift;
     
@@ -367,6 +373,10 @@ sub lsp_handler{
             );
     }
 }
+
+=head2 isis_handler
+
+=cut
 
 sub isis_handler{
     my $self = shift;
@@ -398,6 +408,10 @@ sub isis_handler{
     }
 }
 
+=head2 device_handler
+
+=cut
+
 sub device_handler{
     my $self =shift;
     foreach my $node (@{$self->{'db'}->get_current_nodes(mpls => 1)}){
@@ -412,6 +426,10 @@ sub device_handler{
     
 }
 
+=head2 handle_system_info
+
+=cut
+
 sub handle_system_info{
     my $self = shift;
     my %params = @_;
@@ -423,6 +441,10 @@ sub handle_system_info{
     $self->{'db'}->_execute_query($query,[$info->{'loopback_addr'},$node]);
 
 }
+
+=head2 handle_links
+
+=cut
 
 sub handle_links{
     my $self = shift;
@@ -576,6 +598,10 @@ sub handle_links{
     }
     $self->{'db'}->_commit();
 }
+
+=head2 get_active_link_id_by_connectors
+
+=cut
 
 sub get_active_link_id_by_connectors{
     my $self = shift;

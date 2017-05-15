@@ -970,11 +970,12 @@ sub get_flow_stats{
     my $self = shift;
 
     if($self->{'needs_diff'}){
-        $self->{'rabbit_mq'}->get_flow_stats( dpid => int($self->{'dpid'}), async_callback => $self->flow_stats_callback() );
+        $self->{'rabbit_mq'}->get_flow_stats( dpid => int($self->{'dpid'}), async_callback => $self->_flow_stats_callback() );
     }
 }
 
-sub flow_stats_callback{
+
+sub _flow_stats_callback{
     my $self = shift;
 
     return sub {
@@ -1007,6 +1008,12 @@ sub flow_stats_callback{
 	}
     }
 }
+
+=head2 get_node_status
+
+returns the current status of the node
+
+=cut
 
 sub get_node_status{
     my $self   = shift;

@@ -9,6 +9,12 @@ use OESS::Database;
 use Log::Log4perl;
 use AnyEvent;
 
+=head2 new
+
+    creates a new OESS::MPLS::Discovery::ISIS object
+
+=cut
+
 sub new{
     my $class = shift;
     my %args = (
@@ -34,6 +40,13 @@ sub new{
 
     return $self;
 }
+
+=head2 process_results
+
+    takes the results from show isis adj or equivilent
+    and returns the current direct adjacencies on the network
+
+=cut
 
 sub process_results{
     my $self = shift;

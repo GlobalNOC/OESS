@@ -8,6 +8,12 @@ package OESS::MPLS::Discovery::Interface;
 use OESS::Database;
 use Log::Log4perl;
 
+=head2 new
+
+create a new MPLS Discovery interface handler
+
+=cut
+
 sub new{
     my $class = shift;
     my %args = (
@@ -31,6 +37,12 @@ sub new{
 
     return $self;
 }
+
+=head2 process_results
+
+    processes results and sends them to the db
+
+=cut
 
 sub process_results{
     my $self = shift;

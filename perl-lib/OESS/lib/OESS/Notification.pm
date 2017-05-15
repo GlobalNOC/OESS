@@ -97,7 +97,7 @@ sub new {
     $self->_connect_services();
         
     my $notification_dispatcher = OESS::RabbitMQ::Dispatcher->new( topic => 'OF.FWDCTL.RPC' );
-    $self->register_notification_events($notification_dispatcher);
+    $self->_register_notification_events($notification_dispatcher);
     $self->{'notification_dispatcher'} = $notification_dispatcher;
 
     my $emitter = OESS::RabbitMQ::Client->new( topic => 'OF.Notification.event');
@@ -106,13 +106,17 @@ sub new {
     return $self;
 }
 
+=head2 start
+
+=cut
+
 sub start {
     my $self = shift;
     $self->{'log'}->info("Notification.pm is now consuming.");
     $self->{'notification_dispatcher'}->start_consuming();
 }
 
-sub register_notification_events{
+sub _register_notification_events{
     my $self = shift;
     my $d = shift;
     

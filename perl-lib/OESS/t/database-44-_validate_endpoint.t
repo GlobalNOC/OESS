@@ -25,7 +25,11 @@ my $db = OESS::Database->new( config => OESSDatabaseTester::getConfigFilePath() 
 # TODO Remove and move into database-29-update_interface_owner.t
 my $success = $db->update_interface_owner(interface_id => 51,
                                           workgroup_id => 263);
-my $error = undef;
+my $error = $db->get_error();
+if(defined($error)){
+    warn Dumper($error);
+}
+
 ok(defined $success, "Trunk interface was associated with admin workgroup.");
 
 
@@ -44,13 +48,13 @@ $success = $db->_validate_endpoint(interface_id => $trunk_interface_id,
                                    workgroup_id => 11,
                                    vlan => undef);
 $error = $db->get_error();
-#warn Data::Dumper::Dumper($success);
 ok($success eq "1-99,4095", "returned the proper values");
 ok(!defined $error, "Error: $error");
 
 $success = $db->_validate_endpoint(interface_id => $trunk_interface_id,
                                    workgroup_id => $trunk_workgroup_id,
                                    vlan => undef);
+warn Dumper($success);
 ok($success eq $trunk_vlan_tag_range, "VLAN range reported correctly.");
 
 # Verify VLAN validation works as expected for trunk interfaces

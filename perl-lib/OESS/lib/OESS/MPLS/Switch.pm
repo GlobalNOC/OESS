@@ -27,6 +27,10 @@ use OESS::MPLS::Device;
 
 use JSON::XS;
 
+=head2 new
+
+=cut
+
 sub new{
     my $class = shift;
     my %args = (
@@ -73,7 +77,7 @@ sub new{
                                                        topic => $topic,
                                                        exchange => 'OESS',
                                                        exclusive => 1);
-    $self->register_rpc_methods( $dispatcher );
+    $self->_register_rpc_methods( $dispatcher );
 
     #attempt to reconnect!
     warn "Setting up reconnect timer\n";
@@ -119,6 +123,12 @@ sub set_pending {
     return 1;
 }
 
+=head2 create_device_object
+
+creates the correct device object based on params passed in
+
+=cut
+
 sub create_device_object{
     my $self = shift;
 
@@ -150,7 +160,7 @@ sub create_device_object{
     }
 }
 
-sub register_rpc_methods{
+sub _register_rpc_methods{
     my $self = shift;
     my $dispatcher = shift;
 
@@ -228,7 +238,7 @@ sub register_rpc_methods{
                                                 $self->connected();
                                             },
                                             description => "returns the current connected state of the device");
-    $dispatcher->register_method($method)
+    $dispatcher->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name        => "get_system_info",
 					    callback    => sub {
@@ -438,6 +448,10 @@ sub diff {
     return $self->{'device'}->diff( circuits => $self->{'ckts'}, force_diff =>  $force_diff, remove => $to_be_removed);
 }
 
+=head2 get_diff_text
+
+=cut
+
 sub get_diff_text {
     my $self  = shift;
     my $m_ref = shift;
@@ -451,11 +465,11 @@ sub get_diff_text {
 
 =head2 get_default_paths
 
-=back 4
+=over 4
 
 =item B<$loopback_addresses> - An array of loopback ip addresses
 
-=over
+=back
 
 Determine the default forwarding path between this node and each ip
 address provided in $loopback_addresses. Returns a hash for each
@@ -491,6 +505,10 @@ sub get_default_paths {
    return $default_paths;
 }
 
+=head2 get_device_circuit_ids
+
+=cut
+
 sub get_device_circuit_ids {
     my $self  = shift;
     my $m_ref = shift;
@@ -500,6 +518,7 @@ sub get_device_circuit_ids {
 
     return $self->{'device'}->get_device_circuit_ids();
 }
+
 =head2 get_interfaces
 
 returns a list of interfaces from the device

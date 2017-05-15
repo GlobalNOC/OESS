@@ -7,6 +7,12 @@ use GRNOC::Config;
 
 package OESS::RabbitMQ::Client;
 
+=head2 new
+
+creates a new GRNOC::RabbitMQ module with all the OESS params
+
+=cut
+
 sub new{
     my $that = shift;
     my $class = ref($that) || $that;

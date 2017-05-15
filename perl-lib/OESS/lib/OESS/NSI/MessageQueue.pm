@@ -11,6 +11,10 @@ use OESS::RabbitMQ::Dispatcher;
 use GRNOC::RabbitMQ::Method;
 use GRNOC::WebService::Regex;
 
+=head2 new
+
+=cut
+
 sub new {
     my $class = shift;
     $class = ref($class) || $class;
@@ -88,6 +92,10 @@ sub new {
     return $self;
 }
 
+=head2 start
+
+=cut
+
 sub start {
     my $self = shift;
 
@@ -102,6 +110,10 @@ sub start {
 
     return 1;
 }
+
+=head2 stop
+
+=cut
 
 sub stop {
     my $self = shift;

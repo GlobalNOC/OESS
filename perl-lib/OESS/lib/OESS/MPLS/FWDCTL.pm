@@ -68,7 +68,7 @@ sub new {
     my $fwdctl_dispatcher = OESS::RabbitMQ::Dispatcher->new( queue => 'MPLS-FWDCTL',
                                                              topic => "MPLS.FWDCTL.RPC");
 
-    $self->register_rpc_methods( $fwdctl_dispatcher );
+    $self->_register_rpc_methods( $fwdctl_dispatcher );
 
     $self->{'fwdctl_dispatcher'} = $fwdctl_dispatcher;
 
@@ -124,6 +124,12 @@ sub new {
     
     return $self;
 }
+
+=head2 build_cache
+
+builds the cache for it to work off of
+
+=cut
 
 sub build_cache{
     my %params = @_;
@@ -193,6 +199,12 @@ sub build_cache{
     return {ckts => \%ckts, circuit_status => \%circuit_status, link_status => \%link_status, node_info => \%node_info};
 
 }
+
+=head2 convert_graph_to_mpls
+
+converts the graph object into next hop addresses for the MPLS path
+
+=cut
 
 sub convert_graph_to_mpls{
     my $self = shift;
@@ -359,8 +371,7 @@ sub _write_cache{
 
 }
 
-
-sub register_rpc_methods{
+sub _register_rpc_methods{
     my $self = shift;
     my $d = shift;
 
@@ -447,6 +458,12 @@ sub register_rpc_methods{
     $d->register_method($method);
 
 }
+
+=head2 new_switch
+
+handles the case of adding a new switch
+
+=cut
 
 sub new_switch{
     my $self = shift;
@@ -645,7 +662,11 @@ sub send_message_to_child{
     $self->{'pending_results'}->{$event_id}->{'ids'}->{$id} = FWDCTL_WAITING;
 }
 
+=head2 addVlan
 
+adds a vlan via MPLS
+
+=cut
 
 sub addVlan{
     my $self = shift;
@@ -753,6 +774,12 @@ sub addVlan{
     $cv->end();
 }
 
+=head2 deleteVlan
+
+deletes a vlan in MPLS mode
+
+=cut
+
 sub deleteVlan{
     my $self = shift;
     my $m_ref = shift;
@@ -827,6 +854,12 @@ sub deleteVlan{
 
     $cv->end();
 }
+
+=head2 diff
+
+signals diff to all of th enodes
+
+=cut
 
 sub diff {
     my $self = shift;
@@ -946,6 +979,11 @@ sub diff {
     return 1;
 }
 
+=head2 get_diff_text
+
+returns the diff text for a given node
+
+=cut
 
 sub get_diff_text {
     my $self  = shift;
@@ -987,6 +1025,12 @@ sub get_diff_text {
     return $event;
 }
 
+=head2 get_ckt_object
+
+returns a ckt object for the requested circuit
+
+=cut
+
 sub get_ckt_object{
     my $self =shift;
     my $ckt_id = shift;
@@ -1012,6 +1056,11 @@ sub get_ckt_object{
     return $ckt;
 }
 
+=head2 message_callback
+
+sends a message and puts the response in a pending results queue
+
+=cut
 
 sub message_callback {
     my $self     = shift;
@@ -1038,6 +1087,13 @@ sub _generate_unique_event_id{
     my $self = shift;
     return $self->{'uuid'}->to_string($self->{'uuid'}->create());
 }
+
+=head2 get_event_status
+
+gives us the current status of a requested event
+I don't believe this is used anymore!
+
+=cut
 
 sub get_event_status{
     my $self = shift;
