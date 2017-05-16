@@ -887,93 +887,29 @@ sub diff {
         }
         
         $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
-        # $self->{'fwdctl_events'}->get_device_circuit_ids(
-        #     async_callback => sub {
-        #         my $circuit_ids = shift;
-        #         $self->{'logger'}->info("Got circuit_ids...");
-        #         $self->{'logger'}->error("circuit_ids: " . Dumper($circuit_ids));
-
-        #         my $installed = {};
-        #         foreach my $id (@{$circuit_ids->{'results'}}) {
-        #             $installed->{$id} = $id;
-        #         }
-
-        #         my $additions = [];
-        #         foreach my $id (keys %{$self->{'circuit'}}) {
-        #             if(!defined($self->{'circuit'}->{$id})){
-        #                 next;
-        #             }
-        #             if ($self->{'circuit'}->{$id}->on_node($node_id) == 0) {
-        #                 next;
-        #             }
-
-        #             # Second half of if statement protects against
-        #             # circuits that should have been removed but are
-        #             # still in memory.
-        #             if (!defined $installed->{$id}) {
-        #                 push(@{$additions}, $id);
-        #             }
-        #         }
-
-        #         my $deletions = [];
-        #         foreach my $id (keys %{$installed}) {
-        #             if (!defined $self->{'circuit'}->{$id}) {
-        #                 # Adding something at $id forces _write_cache to
-        #                 # load circuit data from the db (even if the
-        #                 # circuit is decom'd).
-        #                 $self->{'circuit'}->{$id} = undef;
-        #                 push(@{$deletions}, $id);
-        #                 next;
-        #             }
-
-        #             if ($self->{'circuit'}->{$id}->{'state'} ne 'active') {
-        #                 # Used when another node related to the circuit
-        #                 # has already cause the circuit to be loaded.
-        #                 push(@{$deletions}, $id);
-        #                 next;
-        #             }
-        #         }
-	#
-        #        $self->_write_cache();
-
-                # TODO Stop encoding json directly and use method
-                # schemas
-                # my $payload = encode_json( { additions => $additions,
-                #                              deletions => $deletions,
-                #                              installed => $installed } );
-        #my $payload = '{}';
-        #        $self->{'logger'}->error("diff payload: " . Dumper($payload));
-
-        #        warn "Diff topic! MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . "\n";
-                $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
-                $self->{'fwdctl_events'}->diff( force_diff => $force_diff,
-                                                #installed_circuits => $payload,
-                                                #force_diff     => $force_diff,
-                                                async_callback => sub {
-                                                    my $res = shift;
-                                                   
-                                                    if (defined $res->{'error'}) {
-                                                        $self->{'logger'}->error("ERROR: " . $res->{'error'});
-                                                        return 0;
-                                                    }
-                                                   
-                                                    # Cleanup decom'd circuits from memory.
-                                                    # foreach my $id (@{$deletions}) {
-                                                    #     delete $self->{'circuit'}->{$id};
-                                                    # }
-                                                   
-                                                    if ($res->{'results'}->{'status'} == FWDCTL_BLOCKED) {
-                                                        my $node_id = $res->{'results'}->{'node_id'};
-                                                       
-                                                        $self->{'db'}->set_diff_approval(0, $node_id);
-                                                        $self->{'children'}->{$node_id}->{'pending_diff'} = 1;
-                                                        $self->{'logger'}->warn("Diff for node $node_id requires admin approval.");
-                                                       
-                                                        return 0;
-                                                    }
-                                                   
-                                                    return 1;
-                                                });
+        $self->{'fwdctl_events'}->diff( force_diff => $force_diff,
+                                        #installed_circuits => $payload,
+                                        #force_diff     => $force_diff,
+                                        async_callback => sub {
+                                            my $res = shift;
+                                            
+                                            if (defined $res->{'error'}) {
+                                                $self->{'logger'}->error("ERROR: " . $res->{'error'});
+                                                return 0;
+                                            }
+                                            
+                                            if ($res->{'results'}->{'status'} == FWDCTL_BLOCKED) {
+                                                my $node_id = $res->{'results'}->{'node_id'};
+                                                
+                                                $self->{'db'}->set_diff_approval(0, $node_id);
+                                                $self->{'children'}->{$node_id}->{'pending_diff'} = 1;
+                                                $self->{'logger'}->warn("Diff for node $node_id requires admin approval.");
+                                                
+                                                return 0;
+                                            }
+                                            
+                                            return 1;
+                                        });
     }
     
     return 1;

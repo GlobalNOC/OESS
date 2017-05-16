@@ -96,7 +96,8 @@ sub get_system_information{
     my $reply = $self->{'jnx'}->get_system_information();
 
     if($self->{'jnx'}->has_error){
-        $self->{'logger'}->error("Error fetching system information: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
+        my $error_msg = $self->{'jnx'}->get_first_error();
+        $self->{'logger'}->error("Error fetching system information: " . $error->{'error_message'});
         return;
     }
 
@@ -119,8 +120,9 @@ sub get_system_information{
     #also need to fetch the interfaces and find lo0.X
     $reply = $self->{'jnx'}->get_interface_information();
     if($self->{'jnx'}->has_error){
-        $self->set_error($self->{'jnx'}->get_first_error());
-        $self->{'logger'}->error("Error fetching interface information: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
+        my $error = $self->{'jnx'}->get_first_error();
+        $self->set_error($error->{'error_message'});
+        $self->{'logger'}->error("Error fetching interface information: " . $error->{'error_message'});
         return;
     }
 
@@ -205,8 +207,9 @@ sub get_interfaces{
     my $reply = $self->{'jnx'}->get_interface_information();
 
     if($self->{'jnx'}->has_error){
-	$self->set_error($self->{'jnx'}->get_first_error());
-        $self->{'logger'}->error("Error fetching interface information: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
+        my $error = $self->{'jnx'}->get_first_error();
+	$self->set_error($error->{'error_message'});
+        $self->{'logger'}->error("Error fetching interface information: " . $error->{'error_message'});
         return;
     }
 
@@ -320,7 +323,6 @@ sub add_vlan{
         return FWDCTL_FAILURE;
     }
 
-    $self->{'logger'}->error("VARS: " . Data::Dumper::Dumper($vars));
     my $ckt_type = $ckt->{'mpls_type'};
 
     my $output;
@@ -538,8 +540,7 @@ sub get_default_paths {
 =head2 xml_configuration( $ckts )
 
 Returns configuration as an xml string based on $ckts, which is an array of
-OESS::Circuit objects. Circuits with a state other than 'active' will be used
-to generate circuit removal xml blocks.
+OESS::Circuit objects. It also takes a string of Removes which will be specified before the adds.
 
 =cut
 sub xml_configuration {
@@ -607,8 +608,9 @@ sub get_device_circuit_infos {
 
     my $res = $self->{'jnx'}->get_configuration( database => 'committed', format => 'xml' );
     if ($self->{'jnx'}->has_error) {
-	$self->set_error($self->{'jnx'}->get_first_error());
-        $self->{'logger'}->error("Error getting conf from MX: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
+        my $error = $self->{'jnx'}->get_first_error();
+	$self->set_error($error->{'error_message'});
+        $self->{'logger'}->error("Error getting conf from MX: " . $error->{'error_message'});
         return;
     }
 
@@ -662,8 +664,9 @@ sub get_config_to_remove{
 
     my $res = $self->{'jnx'}->get_configuration( database => 'committed', format => 'xml' );
     if ($self->{'jnx'}->has_error) {
-        $self->set_error($self->{'jnx'}->get_first_error());
-        $self->{'logger'}->error("Error getting conf from MX: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
+        my $error = $self->{'jnx'}->get_first_error();
+        $self->set_error($error->{'error_message'});
+        $self->{'logger'}->error("Error getting conf from MX: " . $error->{'error_message'});
         return;
     }
 
@@ -826,8 +829,9 @@ sub get_device_circuit_ids {
 
     my $res = $self->{'jnx'}->get_configuration( database => 'committed', format => 'xml' );
     if ($self->{'jnx'}->has_error) {
-	$self->set_error($self->{'jnx'}->get_first_error());
-        $self->{'logger'}->error("Error getting conf from MX: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
+        my $error = $self->{'jnx'}->get_first_error();
+	$self->set_error($error->{'error_message'});
+        $self->{'logger'}->error("Error getting conf from MX: " . $error->{'error_message'});
         return;
     }
 
@@ -926,8 +930,9 @@ sub get_device_diff {
 
     my $configcompare = $self->{'jnx'}->get_configuration( compare => "rollback", rollback => "0" );
     if ($self->{'jnx'}->has_error) {
-	$self->set_error($self->{'jnx'}->get_first_error());
-        $self->{'logger'}->error("Error getting diff from MX: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
+        my $error = $self->{'jnx'}->get_first_error();
+	$self->set_error($error->{'error_message'});
+        $self->{'logger'}->error("Error getting diff from MX: " . $error->{'error_message'});
         return;
     }
 
@@ -1018,7 +1023,8 @@ sub diff {
 =head2 get_diff_text
 
 Returns a human readable diff between $circuits and this Device's
-configuration.
+configuration.  It takes an array of circuits to build the current configuration with
+and a remove string of XML to be removed from the device
 
 =cut
 sub get_diff_text {
