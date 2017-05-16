@@ -38,9 +38,8 @@ CREATE TABLE `circuit` (
   UNIQUE KEY `circuit_idx` (`name`),
   KEY `workgroup_id` (`workgroup_id`),
   CONSTRAINT `circuit_ibfk_1` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=3000 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = utf8 */;
-ALTER TABLE circuit AUTO_INCREMENT=3000;
 --
 -- Table structure for table `circuit_edge_interface_membership`
 --
@@ -118,12 +117,13 @@ CREATE TABLE `interface` (
   `role` enum('unknown','trunk','customer') NOT NULL DEFAULT 'unknown',
   `node_id` int(10) NOT NULL,
   `vlan_tag_range` varchar(255) DEFAULT '-1,1-4095',
-  `mpls_vlan_tag_range` varchar(255) DEFAULT '0',
+  `mpls_vlan_tag_range` varchar(255) DEFAULT NULL,
   `workgroup_id` int(10) DEFAULT NULL,
   PRIMARY KEY (`interface_id`),
   UNIQUE KEY `node_id_name_idx` (`node_id`,`name`),
   UNIQUE KEY `node_port_idx` (`node_id`,`port_number`),
   KEY `node_interface_fk` (`node_id`),
+  KEY `interface_ibfk_1` (`workgroup_id`),
   CONSTRAINT `interface_ibfk_1` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`),
   CONSTRAINT `node_interface_fk` FOREIGN KEY (`node_id`) REFERENCES `node` (`node_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
@@ -183,7 +183,7 @@ CREATE TABLE `link` (
   `link_id` int(10) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
   `remote_urn` varchar(256) DEFAULT NULL,
-  `status` enum('up','down','unknown') DEFAULT 'up',
+  `status` enum('up','down','unknown') NOT NULL DEFAULT 'unknown',
   `metric` int(11) DEFAULT '1',
   `fv_status` enum('up','down','unknown') NOT NULL DEFAULT 'unknown',
   `vlan_tag_range` varchar(255) DEFAULT NULL,
@@ -233,7 +233,7 @@ CREATE TABLE `link_path_membership` (
   `path_id` int(10) NOT NULL,
   `start_epoch` int(10) NOT NULL,
   `interface_a_vlan_id` int(11) NOT NULL,
-  `interface_z_vlan_id` int(11) NOT NULL,        
+  `interface_z_vlan_id` int(11) NOT NULL,
   PRIMARY KEY (`link_id`,`end_epoch`,`path_id`,`interface_a_vlan_id`,`interface_z_vlan_id`),
   UNIQUE KEY `unique_vlan_a` (`link_id`,`end_epoch`,`interface_a_vlan_id`),
   UNIQUE KEY `unique_vlan_z` (`link_id`,`end_epoch`,`interface_z_vlan_id`),
@@ -313,7 +313,7 @@ CREATE TABLE `node_instantiation` (
   `sw_version` varchar(255),
   `mgmt_addr` varchar(255),
   `loopback_address` varchar(255),
-  `tcp_port` int DEFAULT 830,
+  `tcp_port` int(6) DEFAULT 830,
   PRIMARY KEY (`node_id`,`end_epoch`),
   UNIQUE KEY `node_instantiation_idx` (`end_epoch`,`dpid`),
   CONSTRAINT `node_node_instantiation_fk` FOREIGN KEY (`node_id`) REFERENCES `node` (`node_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
@@ -572,7 +572,9 @@ CREATE TABLE `edge_interface_move_maintenance_circuit_membership` (
   `maintenance_id` int(10) NOT NULL,
   `circuit_id` int(10) NOT NULL,
   KEY `maintenance_id` (`maintenance_id`),
-  KEY `circuit_id` (`circuit_id`)
+  KEY `circuit_id` (`circuit_id`),
+  CONSTRAINT `edge_interface_move_maintenance_circuit_membership_ibfk_1` FOREIGN KEY (`maintenance_id`) REFERENCES `edge_interface_move_maintenance` (`maintenance_id`) ON DELETE CASCADE,
+  CONSTRAINT `edge_interface_move_maintenance_circuit_membership_ibfk_2` FOREIGN KEY (`circuit_id`) REFERENCES `circuit` (`circuit_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -584,10 +586,10 @@ DROP TABLE IF EXISTS `maintenance`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `maintenance` (
-  `maintenance_id` int(10) NOT NULL AUTO_INCREMENT,
+  `maintenance_id` int(11) NOT NULL AUTO_INCREMENT,
   `description` varchar(255),
-  `start_epoch` int(10),
-  `end_epoch` int(10) DEFAULT -1,
+  `start_epoch` int(11),
+  `end_epoch` int(11) DEFAULT -1,
   PRIMARY KEY (`maintenance_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -600,24 +602,24 @@ DROP TABLE IF EXISTS `node_maintenance`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `node_maintenance` (
-  `node_maintenance_id` int(10) NOT NULL AUTO_INCREMENT,
-  `node_id` int(10) NOT NULL,
-  `maintenance_id` int(10) NOT NULL,
+  `node_maintenance_id` int(11) NOT NULL AUTO_INCREMENT,
+  `node_id` int(11) NOT NULL,
+  `maintenance_id` int(11) NOT NULL,
   PRIMARY KEY (`node_maintenance_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `node_maintenance`
+-- Table structure for table `link_maintenance`
 --
 
 DROP TABLE IF EXISTS `link_maintenance`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `link_maintenance` (
-  `link_maintenance_id` int(10) NOT NULL AUTO_INCREMENT,
-  `link_id` int(10) NOT NULL,
-  `maintenance_id` int(10) NOT NULL,
+  `link_maintenance_id` int(11) NOT NULL AUTO_INCREMENT,
+  `link_id` int(11) NOT NULL,
+  `maintenance_id` int(11) NOT NULL,
   PRIMARY KEY (`link_maintenance_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
