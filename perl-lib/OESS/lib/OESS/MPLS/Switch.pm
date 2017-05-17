@@ -27,6 +27,10 @@ use OESS::MPLS::Device;
 
 use JSON::XS;
 
+=head2 new
+
+=cut
+
 sub new{
     my $class = shift;
     my %args = (
@@ -73,7 +77,7 @@ sub new{
                                                        topic => $topic,
                                                        exchange => 'OESS',
                                                        exclusive => 1);
-    $self->register_rpc_methods( $dispatcher );
+    $self->_register_rpc_methods( $dispatcher );
 
     #attempt to reconnect!
     warn "Setting up reconnect timer\n";
@@ -119,6 +123,12 @@ sub set_pending {
     return 1;
 }
 
+=head2 create_device_object
+
+creates the correct device object based on params passed in
+
+=cut
+
 sub create_device_object{
     my $self = shift;
 
@@ -150,7 +160,7 @@ sub create_device_object{
     }
 }
 
-sub register_rpc_methods{
+sub _register_rpc_methods{
     my $self = shift;
     my $dispatcher = shift;
 
@@ -223,6 +233,13 @@ sub register_rpc_methods{
                                             description => "returns a list of LSPs and their details");
     $dispatcher->register_method($method);
 
+    $method = GRNOC::RabbitMQ::Method->new( name        => "connected",
+                                            callback    => sub {
+                                                $self->connected();
+                                            },
+                                            description => "returns the current connected state of the device");
+    $dispatcher->register_method($method);
+
     $method = GRNOC::RabbitMQ::Method->new( name        => "get_system_info",
 					    callback    => sub {
 						$self->get_system_info();
@@ -237,10 +254,6 @@ sub register_rpc_methods{
                                                 return { node_id => $node_id, status  => $status };
                                             },
 					    description => "Proxies diff signal to the underlying device object.");
-    $method->add_input_parameter( name => "installed_circuits",
-                                  description => "List of circuit_ids that are installed.",
-                                  required => 1,
-                                  pattern => $GRNOC::WebService::Regex::TEXT );
     $method->add_input_parameter( name => "force_diff",
                                   description => "Set to 1 if size of diff should be ignored",
                                   required => 1,
@@ -253,10 +266,6 @@ sub register_rpc_methods{
                                                 return $resp;
                                             },
 					    description => "Proxies diff signal to the underlying device object." );
-    $method->add_input_parameter( name => "installed_circuits",
-                                  description => "List of circuit_ids that are installed.",
-                                  required => 1,
-                                  pattern => $GRNOC::WebService::Regex::TEXT );
     $dispatcher->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name        => "get_device_circuit_ids",
@@ -331,6 +340,16 @@ Always returns 1.
 sub echo {
     my $self = shift;
     return {status => 1};
+}
+
+=head2 connected
+
+=cut
+
+sub connected{
+    my $self = shift;
+    
+    return $self->{'device'}->connected();
 }
 
 =head2 stop
@@ -421,14 +440,17 @@ sub diff {
     my $m_ref = shift;
     my $p_ref = shift;
 
+    my $force_diff = $p_ref->{'force_diff'}{'value'};
+
     $self->{'logger'}->debug("Calling Switch.diff");
-    my $circuit_info = decode_json($p_ref->{'installed_circuits'}{'value'});
-    my $force_diff   = int($p_ref->{'force_diff'}{'value'});
-
     $self->_update_cache();
-
-    return $self->{'device'}->diff($self->{'ckts'}, $circuit_info, $force_diff);
+    my $to_be_removed = $self->{'device'}->get_config_to_remove( circuits => $self->{'ckts'} );
+    return $self->{'device'}->diff( circuits => $self->{'ckts'}, force_diff =>  $force_diff, remove => $to_be_removed);
 }
+
+=head2 get_diff_text
+
+=cut
 
 sub get_diff_text {
     my $self  = shift;
@@ -436,20 +458,18 @@ sub get_diff_text {
     my $p_ref = shift;
 
     $self->{'logger'}->debug("Calling Switch.get_diff_text");
-    my $circuit_info = decode_json($p_ref->{'installed_circuits'}{'value'});
-
     $self->_update_cache();
-
-    return $self->{'device'}->get_diff_text($self->{'ckts'}, $circuit_info);
+    my $to_be_removed = $self->{'device'}->get_config_to_remove( circuits => $self->{'ckts'} );
+    return $self->{'device'}->get_diff_text(circuits => $self->{'ckts'}, remove => $to_be_removed);
 }
 
 =head2 get_default_paths
 
-=back 4
+=over 4
 
 =item B<$loopback_addresses> - An array of loopback ip addresses
 
-=over
+=back
 
 Determine the default forwarding path between this node and each ip
 address provided in $loopback_addresses. Returns a hash for each
@@ -485,6 +505,10 @@ sub get_default_paths {
    return $default_paths;
 }
 
+=head2 get_device_circuit_ids
+
+=cut
+
 sub get_device_circuit_ids {
     my $self  = shift;
     my $m_ref = shift;
@@ -494,6 +518,7 @@ sub get_device_circuit_ids {
 
     return $self->{'device'}->get_device_circuit_ids();
 }
+
 =head2 get_interfaces
 
 returns a list of interfaces from the device

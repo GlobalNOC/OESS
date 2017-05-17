@@ -56,7 +56,9 @@ cmp_deeply($details,{
                     'name' => 'Link 41',
                     'interface_z_id' => '31',
                     'interface_a_id' => '131',
-                    'interface_a' => 'e1/2'
+                    'interface_a' => 'e1/2',
+                    'ip_a' => undef,
+                    'ip_z' => undef
                 }
             ],
     'circuit_id' => 101,
@@ -121,6 +123,27 @@ cmp_deeply($details,{
     'user_id' => '1',
     'restore_to_primary' => '0',
     'operational_state' => 'up',
+    'tertiary_links' => [],
+    'type' => 'openflow',
+    'paths' => {
+        'primary' => {
+                                      'circuit_id' => '101',
+                                      'path_id' => '121',
+                                      'path_instantiation_id' => '161',
+                                      'status' => 1,
+                                      'start_epoch' => '1348965714',
+                                      'path_type' => 'primary',
+                                      'end_epoch' => '-1',
+                                      'path_state' => 'active',
+                                      'mpls_path_type' => 'none',
+                                      'links' => [
+                                          {
+                                                     'link_id' => '41',
+                                                     'name' => 'Link 41'
+                                          }
+                                                 ]
+        }
+    },
     'created_by' => {
         'status' => 'active',
         'email' => 'user_201@foo.net',

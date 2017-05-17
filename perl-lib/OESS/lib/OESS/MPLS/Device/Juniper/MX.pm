@@ -9,7 +9,6 @@ use Template;
 use Net::Netconf::Manager;
 use Data::Dumper;
 use XML::Simple;
-use XML::LibXML::XPathContext;
 
 use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
@@ -23,6 +22,12 @@ use OESS::Circuit;
 use OESS::Database;
 
 use base "OESS::MPLS::Device";
+
+=head2 new
+
+creates a new Juniper MX Device object
+
+=cut
 
 sub new{
     my $class = shift;
@@ -54,6 +59,12 @@ sub new{
     return $self;
 }
 
+=head2 disconnect
+
+disconnects from the device
+
+=cut
+
 sub disconnect{
     my $self = shift;
 
@@ -68,6 +79,12 @@ sub disconnect{
     return 1;
 }
 
+=head2 get_system_information
+
+gets the systems information
+
+=cut
+
 sub get_system_information{
     my $self = shift;
 
@@ -79,7 +96,8 @@ sub get_system_information{
     my $reply = $self->{'jnx'}->get_system_information();
 
     if($self->{'jnx'}->has_error){
-        $self->{'logger'}->error("Error fetching system information: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
+        my $error_msg = $self->{'jnx'}->get_first_error();
+        $self->{'logger'}->error("Error fetching system information: " . $error->{'error_message'});
         return;
     }
 
@@ -102,8 +120,9 @@ sub get_system_information{
     #also need to fetch the interfaces and find lo0.X
     $reply = $self->{'jnx'}->get_interface_information();
     if($self->{'jnx'}->has_error){
-        $self->set_error($self->{'jnx'}->get_first_error());
-        $self->{'logger'}->error("Error fetching interface information: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
+        my $error = $self->{'jnx'}->get_first_error();
+        $self->set_error($error->{'error_message'});
+        $self->{'logger'}->error("Error fetching interface information: " . $error->{'error_message'});
         return;
     }
 
@@ -168,9 +187,14 @@ sub get_system_information{
     }
 
     $self->{'loopback_addr'} = $loopback_addr;
-
     return {model => $model, version => $version, os_name => $os_name, host_name => $host_name, loopback_addr => $loopback_addr};
 }
+
+=head2 get_interfaces
+
+returns a list of current interfaces on the device
+
+=cut
 
 sub get_interfaces{
     my $self = shift;
@@ -183,8 +207,9 @@ sub get_interfaces{
     my $reply = $self->{'jnx'}->get_interface_information();
 
     if($self->{'jnx'}->has_error){
-	$self->set_error($self->{'jnx'}->get_first_error());
-        $self->{'logger'}->error("Error fetching interface information: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
+        my $error = $self->{'jnx'}->get_first_error();
+	$self->set_error($error->{'error_message'});
+        $self->{'logger'}->error("Error fetching interface information: " . $error->{'error_message'});
         return;
     }
 
@@ -225,6 +250,12 @@ sub _process_interface{
 
 }
 
+=head2 remove_vlan
+
+removes a vlan via NetConf
+
+=cut
+
 sub remove_vlan{
     my $self = shift;
     my $ckt = shift;
@@ -254,6 +285,12 @@ sub remove_vlan{
     return $self->_edit_config( config => $output );
 }
 
+=head2 add_vlan
+
+add a vlan to the juniper
+
+=cut
+
 sub add_vlan{
     my $self = shift;
     my $ckt = shift;
@@ -282,11 +319,10 @@ sub add_vlan{
     $vars->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
     $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
 
-#    if ($self->unit_name_available($vars->{'interface'}->{'name'}, $vars->{'vlan_tag'}) == 0) {
-#        return FWDCTL_FAILURE;
-#    }
+    if ($self->unit_name_available($vars->{'interface'}->{'name'}, $vars->{'vlan_tag'}) == 0) {
+        return FWDCTL_FAILURE;
+    }
 
-    $self->{'logger'}->error("VARS: " . Data::Dumper::Dumper($vars));
     my $ckt_type = $ckt->{'mpls_type'};
 
     my $output;
@@ -461,11 +497,11 @@ sub get_active_lsp_path {
 
 =head2 get_default_paths
 
-=back 4
+=over 4
 
 =item B<$loopback_addresses> - An array of loopback ip addresses
 
-=over
+=back
 
 Determine the default forwarding path between this node and each ip
 address provided in $loopback_addresses.
@@ -504,15 +540,16 @@ sub get_default_paths {
 =head2 xml_configuration( $ckts )
 
 Returns configuration as an xml string based on $ckts, which is an array of
-OESS::Circuit objects. Circuits with a state other than 'active' will be used
-to generate circuit removal xml blocks.
+OESS::Circuit objects. It also takes a string of Removes which will be specified before the adds.
 
 =cut
 sub xml_configuration {
     my $self = shift;
     my $ckts = shift;
+    my $remove = shift;
 
     my $configuration = '<configuration>';
+    $configuration .= $remove;
     foreach my $ckt (@{$ckts}) {
         # The argument $ckts is passed in a generic form. This should be
         # converted to work with the template.
@@ -556,6 +593,8 @@ sub xml_configuration {
 
 =head2 get_device_circuit_infos
 
+I do not believe this is used... 
+
 =cut
 sub get_device_circuit_infos {
     my $self = shift;
@@ -569,8 +608,9 @@ sub get_device_circuit_infos {
 
     my $res = $self->{'jnx'}->get_configuration( database => 'committed', format => 'xml' );
     if ($self->{'jnx'}->has_error) {
-	$self->set_error($self->{'jnx'}->get_first_error());
-        $self->{'logger'}->error("Error getting conf from MX: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
+        my $error = $self->{'jnx'}->get_first_error();
+	$self->set_error($error->{'error_message'});
+        $self->{'logger'}->error("Error getting conf from MX: " . $error->{'error_message'});
         return;
     }
 
@@ -606,6 +646,177 @@ sub get_device_circuit_infos {
     return $result;
 }
 
+=head2 get_config_to_remove
+
+attempts to find parts of the config to remove, unfortunatly very templates specific
+
+=cut
+
+sub get_config_to_remove{
+    my $self = shift;
+    my %params = @_;
+    my $circuits = $params{'circuits'};
+
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
+
+    my $res = $self->{'jnx'}->get_configuration( database => 'committed', format => 'xml' );
+    if ($self->{'jnx'}->has_error) {
+        my $error = $self->{'jnx'}->get_first_error();
+        $self->set_error($error->{'error_message'});
+        $self->{'logger'}->error("Error getting conf from MX: " . $error->{'error_message'});
+        return;
+    }
+
+    my $dom = $self->{'jnx'}->get_dom();
+
+    #so there are a few chunks of the config we need to check for
+    #interface sub unit
+    #mpls label switch path
+    #mpls paths
+    #connections remote interface switch
+    #routing instances
+
+    my $delete = "";
+    my $routing_instance_dels = "";
+    my $xp = XML::LibXML::XPathContext->new($dom);
+    $xp->registerNs("base", $dom->documentElement->namespaceURI);
+    $xp->registerNs('c', 'http://xml.juniper.net/xnm/1.1/xnm');
+
+    my $routing_instances = $xp->find( '/base:rpc-reply/c:configuration/c:routing-instances/c:instance');
+
+    foreach my $ri (@$routing_instances){
+	my $name = $xp->findvalue( './c:name', $ri );
+	if($name =~ /^OESS/){
+	    #check to see if is currently active circuit
+	    $name =~ /OESS\-\w+\-(\d+)/;
+	    my $circuit_id = $1;
+	    if(!$self->_is_active_circuit($circuit_id, $circuits)){
+		$routing_instance_dels .= "<instance operation='delete'><name>$name</name></instance>";
+	    }
+	}
+    }
+
+    if($routing_instance_dels ne ''){
+	$delete .= "<routing-instances>$routing_instance_dels</routing-instances>";
+    }
+
+    my $interfaces = $xp->find( '/base:rpc-reply/c:configuration/c:interfaces/c:interface');
+    my $interfaces_del = "";
+    foreach my $interface (@$interfaces){
+	my $int_name = $xp->findvalue( './c:name', $interface);
+	my $units = $xp->find( './c:unit', $interface);
+	my $int_del = "<interface><name>" . $int_name . "</name>";
+	my $has_dels = 0;
+	foreach my $unit (@$units){
+	    my $description = $xp->findvalue( './c:description', $unit );
+	    if($description =~ /^OESS/){
+		$description =~ /OESS\-\w+\-(\d+)/;
+		my $circuit_id = $1;
+		if(!$self->_is_active_circuit($circuit_id, $circuits)){
+		    my $unit_name = $xp->findvalue( './c:name', $unit);
+		    $int_del .= "<unit operation='delete'><name>" . $unit_name . "</name></unit>";
+		    $has_dels = 1;
+		}
+	    }
+	}
+	$int_del .= "</interface>";
+	if($has_dels){
+	    $interfaces_del .= $int_del;
+	}
+    }
+
+    if($interfaces_del ne ''){
+	$delete .= "<interfaces>$interfaces_del</interfaces>";
+    }
+
+    my $lsp_dels = "";
+    my $mpls_lsps = $xp->find( '/base:rpc-reply/c:configuration/c:protocols/c:mpls/c:label-switched-path');    
+    foreach my $lsp (@{$mpls_lsps}){
+	my $name = $xp->findvalue( './c:name', $lsp);
+	if($name =~ /^OESS/){
+	    $name =~ /OESS\-\w+\-\d+\-\d+\-LSP\-(\d+)/;
+	    my $circuit_id = $1;
+	    if(!$self->_is_active_circuit($circuit_id, $circuits)){
+		$lsp_dels .= "<name>" . $name . "</name>";
+	    }
+	}
+    }
+    my $path_dels = "";
+    my $paths = $xp->find( '/base:rpc-reply/c:configuration/c:protocols/c:mpls/c:path');
+    foreach my $path (@{$paths}){
+	my $name = $xp->findvalue( './c:name', $path);
+        if($name =~ /^OESS/){
+	    $name =~ /OESS\-\w+\-\w+\-\w+\-LSP\-(\d+)/;
+	    my $circuit_id = $1;
+            if(!$self->_is_active_circuit($circuit_id, $circuits)){
+                $path_dels .= "<name>" . $name . "</name>";
+            }
+        }
+    }
+
+    if($lsp_dels ne '' || $path_dels ne ''){
+	$delete .= "<protocols><mpls>";
+	if($lsp_dels ne ''){
+	    $delete .= "<label-switched-path operation='delete'>" . $lsp_dels . "</label_switched_path>";
+	}
+
+	if($path_dels ne ''){
+	    $delete .= "<path operation='delete'>" . $path_dels . "</path>";
+	}
+	$delete .= "</mpls></protocols>";
+    }
+
+
+    my $ris_dels = "";
+
+    my $remote_interface_switches = $xp->find( '/base:rpc-reply/c:configuration/c:connections/c:remote-interface-switch');
+    
+    foreach my $ris (@{$remote_interface_switches}){
+	my $name = $xp->findvalue( './c:name', $ris);
+        if($name =~ /^OESS/){
+	    $name =~ /OESS\-\w+\-(\d+)/;
+	    my $circuit_id = $1;
+	    #figure out the right bit!
+	    if(!$self->_is_active_circuit($circuit_id, $circuits)){
+                $ris_dels .= "<name>" . $name . "</name>";
+            }
+        }
+    }
+
+    if($ris_dels ne ''){
+	$delete .= "<protocols><connections><remote-interface-switch>" . $ris_dels . "</remote_interface-switch></connections></protocols>";
+    }
+    
+    return $delete;
+}
+
+sub _is_active_circuit{
+    my $self = shift;
+    my $circuit_id = shift;
+    my $circuits = shift;
+    if(!defined($circuit_id)){
+	$self->{'logger'}->error("Unable to find the circuit ID");
+	return 1;
+    }
+
+    if(defined($circuits->{$circuit_id}) && ($circuits->{$circuit_id}->{'state'} eq 'active')){
+	return 1;
+    }
+
+    $self->{'logger'}->error("Circuit id: " . $circuit_id . " was not found as an active circuit... scheduling for removal");
+    return 0;
+    
+}
+
+=head2 get_device_circuit_ids
+
+this should no longer be used...
+
+=cut
+
 sub get_device_circuit_ids {
     my $self = shift;
 
@@ -618,8 +829,9 @@ sub get_device_circuit_ids {
 
     my $res = $self->{'jnx'}->get_configuration( database => 'committed', format => 'xml' );
     if ($self->{'jnx'}->has_error) {
-	$self->set_error($self->{'jnx'}->get_first_error());
-        $self->{'logger'}->error("Error getting conf from MX: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
+        my $error = $self->{'jnx'}->get_first_error();
+	$self->set_error($error->{'error_message'});
+        $self->{'logger'}->error("Error getting conf from MX: " . $error->{'error_message'});
         return;
     }
 
@@ -648,7 +860,8 @@ sub get_device_circuit_ids {
                 next;
             }
 
-            my ($oess, $type, $id) = split(/ /, $text);
+            $self->{'logger'}->info("get_device_circuit_ids: $text");
+            my ($oess, $type, $id) = split(/-/, $text);
             push(@{$result}, $id);
         }
     }
@@ -657,6 +870,8 @@ sub get_device_circuit_ids {
 
 
 =head2 required_modifications
+
+I don't believe this is used...
 
 =cut
 sub required_modifications {
@@ -715,8 +930,9 @@ sub get_device_diff {
 
     my $configcompare = $self->{'jnx'}->get_configuration( compare => "rollback", rollback => "0" );
     if ($self->{'jnx'}->has_error) {
-	$self->set_error($self->{'jnx'}->get_first_error());
-        $self->{'logger'}->error("Error getting diff from MX: " . Data::Dumper::Dumper($self->{'jnx'}->get_first_error()));
+        my $error = $self->{'jnx'}->get_first_error();
+	$self->set_error($error->{'error_message'});
+        $self->{'logger'}->error("Error getting diff from MX: " . $error->{'error_message'});
         return;
     }
 
@@ -753,35 +969,26 @@ Do a diff between $ckts and the circuits on this device.
 =cut
 sub diff {
     my $self = shift;
+    my %params = @_;
+
+    my $circuits = $params{'circuits'};
+    my $force_diff = $params{'force_diff'};
+    my $remove = $params{'remove'};
 
     if(!$self->{'connected'} || !defined($self->{'jnx'})){
         $self->{'logger'}->error("Not currently connected to device");
         return;
     }
 
-
-    my $circuits = shift;
-    my $circuit_info = shift;
-    my $force_diff = shift; # If set do not check diff size
-
     $self->{'logger'}->info("Calling MX.diff");
 
-    my $modifications = [];
-    foreach my $id (@{$circuit_info->{'additions'}}) {
-        $circuits->{$id}->{'state'} = 'active';
-        push(@{$modifications}, $circuits->{$id});
+    my @circuits;
+    foreach my $ckt_id (keys (%{$circuits})){
+	push(@circuits, $circuits->{$ckt_id});
     }
-    foreach my $id (@{$circuit_info->{'deletions'}}) {
-        $circuits->{$id}->{'state'} = 'decom';
-        push(@{$modifications}, $circuits->{$id});
-    }
-    foreach my $id (keys %{$circuit_info->{'installed'}}) {
-        $circuits->{$id}->{'state'} = 'active';
-        push(@{$modifications}, $circuits->{$id});
-    }
-    $self->{'logger'}->debug("Diff modifications: " . Dumper($modifications));
 
-    my $configuration = $self->xml_configuration($modifications);
+    my $configuration = $self->xml_configuration(\@circuits, $remove);
+
     if ($configuration eq '<configuration></configuration>') {
         $self->{'logger'}->info('No diff required at this time.');
         return FWDCTL_SUCCESS;
@@ -794,7 +1001,7 @@ sub diff {
     }
 
     # Check the size of the diff to see if verification is required for
-    # the changes to be applied.
+    # the changes to be applied. $diff is a human readable diff.
     my $diff = $self->get_device_diff($configuration);
     if (!defined $diff) {
         return FWDCTL_FAILURE;
@@ -809,43 +1016,35 @@ sub diff {
     }
 
     $self->{'logger'}->info("Diff requires no approval. Starting installation.");
+
     return $self->_edit_config(config => $configuration);
 }
 
 =head2 get_diff_text
 
 Returns a human readable diff between $circuits and this Device's
-configuration.
+configuration.  It takes an array of circuits to build the current configuration with
+and a remove string of XML to be removed from the device
 
 =cut
 sub get_diff_text {
     my $self = shift;
-    
+    my %params = @_;
+    my $circuits = $params{'circuits'};
+    my $remove = $params{'remove'};
     if(!$self->{'connected'} || !defined($self->{'jnx'})){
         $self->{'logger'}->error("Not currently connected to device");
         return;
     }
     
-    my $circuits = shift;
-    my $circuit_info = shift;
-
     $self->{'logger'}->debug("Calling MX.get_diff_text");
 
-    my $modifications = [];
-    foreach my $id (@{$circuit_info->{'additions'}}) {
-        $circuits->{$id}->{'state'} = 'active';
-        push(@{$modifications}, $circuits->{$id});
-    }
-    foreach my $id (@{$circuit_info->{'deletions'}}) {
-        $circuits->{$id}->{'state'} = 'decom';
-        push(@{$modifications}, $circuits->{$id});
-    }
-    foreach my $id (keys %{$circuit_info->{'installed'}}) {
-        $circuits->{$id}->{'state'} = 'active';
-        push(@{$modifications}, $circuits->{$id});
+    my @circuits;
+    foreach my $ckt_id (keys (%{$circuits})){
+        push(@circuits, $circuits->{$ckt_id});
     }
 
-    my $configuration = $self->xml_configuration($modifications);
+    my $configuration = $self->xml_configuration(\@circuits, $remove );
     if ($configuration eq '<configuration></configuration>') {
         $self->{'logger'}->info('No diff required at this time.');
         return 'No diff required at this time.';
@@ -971,6 +1170,13 @@ sub connect {
     return $self->{'connected'};
 }
 
+
+=head2 connected
+
+returns the state if the device is currently connected or not
+
+=cut
+
 sub connected {
     my $self = shift;
 
@@ -983,6 +1189,13 @@ sub connected {
     $self->{'logger'}->debug("Connection state is $self->{'connected'}.");
     return $self->{'connected'};
 }
+
+
+=head2 verify_connection
+
+    verify the connection
+
+=cut
 
 sub verify_connection{
     #gather basic system information needed later, and make sure it is what we expected / are prepared to handle                                                                            
@@ -1005,6 +1218,12 @@ sub verify_connection{
     }
     
 }
+
+=head2 get_isis_adjacencies
+
+    returns the current isis adjacencies on the box
+
+=cut
 
 sub get_isis_adjacencies{
     my $self = shift;
@@ -1060,6 +1279,12 @@ sub _process_isis_adj{
 
     return $obj;
 }
+
+=head2 get_LSPs
+
+returns the current MPLS LSPs on the box
+
+=cut
 
 sub get_LSPs{
     my $self = shift;
@@ -1430,6 +1655,12 @@ sub _edit_config{
 
     return FWDCTL_SUCCESS;
 }
+
+=head2 trim
+
+trims off white space
+
+=cut
 
 sub trim{
     my $s = shift; 

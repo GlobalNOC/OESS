@@ -35,12 +35,13 @@ my $res = $db->edit_circuit(
     'nodes' => ['Node 11', 'Node 51'], 
     'interfaces' => ['e15/1', 'e15/1'],
     'tags' => [1,1],
+    'type' => 'openflow',
     'user_name' => 'aragusa',
     'workgroup_id' => 11,
     'external_id' => undef
 );
 ok(!$res, 'authorization check');
-is($db->get_error(),'Interface "e15/1" on endpoint "Node 11" with VLAN tag "1" is not allowed for this workgroup.','correct error');
+is($db->get_error(),'Could not perform circuit sanity check.');
 
 $res = $db->edit_circuit(
     'circuit_id' => 51,
@@ -51,6 +52,7 @@ $res = $db->edit_circuit(
     'remove_time' => 1380308981,
     'links' => ['Link 181', 'Link 191', 'Link 531'],
     'backup_links' => [],
+    'type' => 'openflow',
     'nodes' => ['Node 11', 'Node 51'], 
     'interfaces' => ['e1/1', 'e15/1'],
     'tags' => [3,3],
@@ -72,7 +74,7 @@ delete $res->{'name'};
 delete $res->{'last_edited'};
 # delete internal ids
 delete $res->{'internal_ids'};
-
+delete $res->{'paths'};
 my $correct_result = {
           'static_mac' => 0,
           'remote_requester' => undef,
@@ -103,7 +105,9 @@ my $correct_result = {
                          'name' => 'Link 181',
                          'interface_z_id' => '851',
                          'interface_a_id' => '161',
-                         'interface_a' => 'e3/1'
+                         'interface_a' => 'e3/1',
+                         'ip_a' => undef,
+                         'ip_z' => undef,
                        },
                        {
                          'interface_z' => 'e1/1',
@@ -114,7 +118,9 @@ my $correct_result = {
                          'name' => 'Link 191',
                          'interface_z_id' => '61',
                          'interface_a_id' => '171',
-                         'interface_a' => 'e1/1'
+                         'interface_a' => 'e1/1',
+                         'ip_a' => undef,
+                         'ip_z' => undef,
                        },
                        {
                          'interface_z' => 'e3/2',
@@ -125,7 +131,9 @@ my $correct_result = {
                          'name' => 'Link 531',
                          'interface_z_id' => '71',
                          'interface_a_id' => '45781',
-                         'interface_a' => 'e3/1'
+                         'interface_a' => 'e3/1',
+                         'ip_a' => undef,
+                         'ip_z' => undef,
                        }
                      ],
           'circuit_id' => 51,
@@ -172,7 +180,9 @@ my $correct_result = {
           'bandwidth' => 1337,
           'user_id' => '11',
           'restore_to_primary' => '0',
-          'operational_state' => 'unknown',
+          'operational_state' => 'up',
+                               'type' => 'openflow',
+                               'tertiary_links' => [],
           'created_by' => {
                             'email' => 'user_201@foo.net',
                             'is_admin' => '0',

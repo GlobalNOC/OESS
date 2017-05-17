@@ -32,6 +32,7 @@ cmp_deeply($paths->[0],{
             'status' => 1,
             'start_epoch' => '1362144043',
             'path_type' => 'primary',
+            'mpls_path_type' => 'none',
             'end_epoch' => '-1',
             'path_state' => 'active',
             'links' => [
@@ -65,6 +66,7 @@ cmp_deeply($paths->[1],{
             'path_instantiation_id' => '9771',
             'status' => 1,
             'start_epoch' => '1362144043',
+            'mpls_path_type' => 'none',
             'path_type' => 'backup',
             'end_epoch' => '-1',
             'path_state' => 'available',

@@ -1491,6 +1491,10 @@ HERE
     return $results;
 }
 
+=head2 get_mpls_circuits_without_default_path
+
+=cut
+
 sub get_mpls_circuits_without_default_path {
     my $self = shift;
 
@@ -1957,14 +1961,12 @@ sub get_workgroup_interfaces {
     my $interfaces = [];
 
     my $query = "select interface.description,interface.operational_state as operational_state, interface.name as int_name, interface.interface_id, interface.vlan_tag_range, node.name as node_name, node.node_id " .
-	        " from workgroup " .
-		"  join interface on interface.workgroup_id = workgroup.workgroup_id " .
-		"  join interface_instantiation on interface.interface_id = interface_instantiation.interface_id " .
-		"    and interface_instantiation.end_epoch = -1" .
-		"  join node on node.node_id = interface.node_id " .
-		"  join node_instantiation on node.node_id = node_instantiation.node_id " .
-		"    and node_instantiation.end_epoch = -1 " .
-		" where workgroup.workgroup_id = ? " .
+	        "from workgroup " .
+		"join interface on interface.workgroup_id = workgroup.workgroup_id " .
+		"join interface_instantiation on (interface.interface_id = interface_instantiation.interface_id and interface_instantiation.end_epoch = -1) " .
+		"join node on node.node_id = interface.node_id " .
+		"join node_instantiation on (node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1) " .
+		"where workgroup.workgroup_id = ? " .
 		"order by node_name ASC, int_name ASC";
 
     my $results = $self->_execute_query($query, [$workgroup_id]);
@@ -7545,6 +7547,10 @@ sub add_mpls_node{
 
 }
 
+=head2 get_pw_for_node
+
+=cut
+
 sub get_pw_for_node{
     my $self = shift;
     my %args = @_;
@@ -7698,7 +7704,7 @@ sub get_diffs {
     if (!defined $approved) {
         $res = $self->_execute_query("SELECT node.node_id, node.name, node.pending_diff, node_instantiation.admin_state " .
                                      "FROM node JOIN node_instantiation ON node.node_id=node_instantiation.node_id " .
-                                     "WHERE node_instantiation.admin_state='active'",
+                                     "WHERE node_instantiation.admin_state='active' and node_instantiation.end_epoch = -1",
                                      []);
     } else {
         my $pending_diff = 0;
@@ -7707,7 +7713,7 @@ sub get_diffs {
         }
         $res = $self->_execute_query("SELECT node.node_id, node.name, node.pending_diff, node_instantiation.admin_state " .
                                      "FROM node JOIN node_instantiation ON node.node_id=node_instantiation.node_id " .
-                                     "WHERE node_instantiation.admin_state='active' AND node.pending_diff=?",
+                                     "WHERE node_instantiation.admin_state='active' and node_instantiation.end_epoch = -1 AND node.pending_diff=?",
                                      [$pending_diff]);
     }
 
@@ -7896,7 +7902,7 @@ sub add_or_update_interface{
 
 =head2 create_path
 
-=over4
+=over 4
 
 =item B<circuit_id> - Circuit on this path
 
@@ -10145,7 +10151,7 @@ sub is_fwdctl_enabled{
     }
 }
 
-=head2 is_mpls_fwdctl_enabled{
+=head2 is_mpls_fwdctl_enabled
 
 =cut
 
@@ -10161,7 +10167,7 @@ sub is_mpls_fwdctl_enabled{
     }
 }
 
-=head2 is_mpls_fwdctl_discovery{
+=head2 is_mpls_discovery_enabled
 
 =cut
 
@@ -10286,6 +10292,9 @@ sub is_traceroute_enabled{
     }
 }
 
+=head2 get_active_link_id_by_connectors
+
+=cut
 
 sub get_active_link_id_by_connectors{
     my $self = shift;

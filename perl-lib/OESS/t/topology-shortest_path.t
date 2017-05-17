@@ -35,7 +35,8 @@ sub main {
 
     # Verify path is determined by shortest hops when metrics are all 0
     my $path = $topo->find_path(
-        nodes => ['Node 11','Node 51']
+        nodes => ['Node 11','Node 51'],
+        type => 'openflow'
     );
     ok($path, "find_path() ran succesfully");
     is_deeply($path,['Link 181','Link 191']);
@@ -49,7 +50,8 @@ sub main {
     ok($return, "Link 191 sucessfully updated");
 
     $path = $topo->find_path(
-        nodes => ['Node 11','Node 51']
+        nodes => ['Node 11','Node 51'],
+        type => 'openflow'
     );
     ok($path, "find_path() ran succesfully");
 
@@ -64,7 +66,8 @@ sub main {
     # Verify backup path does not contain a loop ISSUE=8688
     $path = $topo->find_path(
         nodes      => ['Node 11','Node 31','Node 111','Node 21'],
-        used_links => ['Link 171','Link 151','Link 61','Link 101','Link 221','Link 1']
+        used_links => ['Link 171','Link 151','Link 61','Link 101','Link 221','Link 1'],
+        type => 'openflow'
     );
 
     my $path_details = get_path_details($path);

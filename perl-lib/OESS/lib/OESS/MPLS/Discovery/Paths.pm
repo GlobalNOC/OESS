@@ -10,6 +10,12 @@ use OESS::Circuit;
 use Log::Log4perl;
 use AnyEvent;
 
+=head2 new
+
+creates a new OESS::MPLS::Discovery::path object
+
+=cut
+
 sub new{
     my $class = shift;
     my %args = (
@@ -111,6 +117,12 @@ sub _process_paths{
     }
     
 }
+
+=head2 get_circuits
+    
+    gets a list of circuits on an LSP
+
+=cut
 
 sub get_circuits{
     my $self = shift;

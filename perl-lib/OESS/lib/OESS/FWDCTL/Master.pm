@@ -123,8 +123,8 @@ sub new {
                                                              timeout => 60,
 							     topic => "OF.FWDCTL.RPC");
 
-    $self->register_rpc_methods( $fwdctl_dispatcher );
-    $self->register_nox_events( $fwdctl_dispatcher );
+    $self->_register_rpc_methods( $fwdctl_dispatcher );
+    $self->_register_nox_events( $fwdctl_dispatcher );
     
     $self->{'fwdctl_dispatcher'} = $fwdctl_dispatcher;
 
@@ -181,7 +181,7 @@ sub new {
     return $self;
 }
 
-sub register_nox_events{
+sub _register_nox_events{
     my $self = shift;
     my $d = shift;
     
@@ -302,7 +302,7 @@ sub register_nox_events{
     
 }
 
-sub register_rpc_methods{
+sub _register_rpc_methods{
     my $self = shift;
     my $d = shift;
 
@@ -926,6 +926,12 @@ sub _sync_database_to_network {
     # Change me
     $self->{'logger'}->info("Init complete!");
 }
+
+=head2 message_callback
+
+a mesage callback handler
+
+=cut
 
 
 sub message_callback {

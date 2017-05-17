@@ -11,6 +11,12 @@ use AnyEvent;
 
 my $lsps = {};
 
+=head2 new
+
+creates a new OESS::MPLS::Discovery LSP ojbect
+
+=cut
+
 sub new{
     my $class = shift;
     my %args = (
@@ -33,6 +39,12 @@ sub new{
     return $self;
 }
 
+=head2 process_results
+
+does nothing?  not used?
+
+=cut
+
 sub process_results{
     my $self = shift;
     my %params = @_;
@@ -40,7 +52,11 @@ sub process_results{
     return 1;
 }
 
+=head2 get_lsps_per_node
 
+    finds all of the LSPs on the node
+
+=cut
 
 sub get_lsps_per_node {
     my $self = shift;

@@ -50,6 +50,7 @@ my $res = $db->provision_circuit(
     'nodes' => ['Node 11', 'Node 51'], 
     'interfaces' => ['e15/1', 'e15/1'],
     'tags' => [1,1],
+    'type' => 'openflow',
     'user_name' => 'aragusa',
     'workgroup_id' => 11,
     'external_id' => undef
@@ -68,6 +69,7 @@ $res = $db->provision_circuit(
     'nodes' => ['Node 11', 'Node 51'], 
     'interfaces' => ['e1/1', 'e15/1'],
     'tags' => [10,10],
+    'type' => 'openflow',
     'user_name' => 'aragusa',
     'workgroup_id' => 11,
     'external_id' => undef
@@ -80,6 +82,9 @@ $res = $db->get_circuit_details(
     circuit_id => $res->{'circuit_id'},
 );
 delete $res->{'last_modified_by'};
+delete $res->{'created_on'};
+delete $res->{'created_by'};
+delete $res->{'paths'};
 my $correct_result =  {
           'external_identifier' => undef,
           'state' => 'reserved',
@@ -98,7 +103,9 @@ my $correct_result =  {
                          'name' => 'Link 181',
                          'interface_z_id' => '851',
                          'interface_a_id' => '161',
-                         'interface_a' => 'e3/1'
+                         'interface_a' => 'e3/1',
+                         'ip_a' => undef,
+                         'ip_z' => undef
                        },
                        {
                          'interface_z' => 'e1/1',
@@ -109,7 +116,9 @@ my $correct_result =  {
                          'name' => 'Link 191',
                          'interface_z_id' => '61',
                          'interface_a_id' => '171',
-                         'interface_a' => 'e1/1'
+                         'interface_a' => 'e1/1',
+                         'ip_a' => undef,
+                         'ip_z' => undef
                        },
                        {
                          'interface_z' => 'e3/2',
@@ -120,7 +129,9 @@ my $correct_result =  {
                          'name' => 'Link 531',
                          'interface_z_id' => '71',
                          'interface_a_id' => '45781',
-                         'interface_a' => 'e3/1'
+                         'interface_a' => 'e3/1',
+                         'ip_a' => undef,
+                         'ip_z' => undef
                        }
                      ],
           'workgroup_id' => '11',
@@ -184,7 +195,9 @@ my $correct_result =  {
                },
           'user_id' => '11',
           'restore_to_primary' => '0',
-          'operational_state' => 'unknown'
+          'tertiary_links' => [],
+          'type' => 'openflow',
+          'operational_state' => 'up'
 };
 
 # delete the name since that's randomly generated

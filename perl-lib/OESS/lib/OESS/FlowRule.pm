@@ -589,7 +589,7 @@ sub get_actions{
 }
 
 
-=head2 to_json
+=head2 to_dict
 
 =cut
 

@@ -68,7 +68,7 @@ sub new {
     my $fwdctl_dispatcher = OESS::RabbitMQ::Dispatcher->new( queue => 'MPLS-FWDCTL',
                                                              topic => "MPLS.FWDCTL.RPC");
 
-    $self->register_rpc_methods( $fwdctl_dispatcher );
+    $self->_register_rpc_methods( $fwdctl_dispatcher );
 
     $self->{'fwdctl_dispatcher'} = $fwdctl_dispatcher;
 
@@ -125,6 +125,12 @@ sub new {
     return $self;
 }
 
+=head2 build_cache
+
+builds the cache for it to work off of
+
+=cut
+
 sub build_cache{
     my %params = @_;
    
@@ -140,6 +146,7 @@ sub build_cache{
     
     $logger->debug("Fetching State from the DB");
     my $circuits = $db->get_current_circuits( type => 'mpls');
+    warn Dumper($circuits);
 
     #init our objects
     my %ckts;
@@ -193,6 +200,12 @@ sub build_cache{
 
 }
 
+=head2 convert_graph_to_mpls
+
+converts the graph object into next hop addresses for the MPLS path
+
+=cut
+
 sub convert_graph_to_mpls{
     my $self = shift;
     my $graph = shift;
@@ -216,6 +229,8 @@ sub _write_cache{
 
     foreach my $ckt_id (keys (%{$self->{'circuit'}})){
         my $found = 0;
+        next if $self->{'circuit'}->{$ckt_id}->{'type'} ne 'mpls';
+
         $self->{'logger'}->error("writing circuit: " . $ckt_id . " to cache");
         
         my $ckt = $self->get_ckt_object($ckt_id);
@@ -356,8 +371,7 @@ sub _write_cache{
 
 }
 
-
-sub register_rpc_methods{
+sub _register_rpc_methods{
     my $self = shift;
     my $d = shift;
 
@@ -444,6 +458,12 @@ sub register_rpc_methods{
     $d->register_method($method);
 
 }
+
+=head2 new_switch
+
+handles the case of adding a new switch
+
+=cut
 
 sub new_switch{
     my $self = shift;
@@ -642,7 +662,11 @@ sub send_message_to_child{
     $self->{'pending_results'}->{$event_id}->{'ids'}->{$id} = FWDCTL_WAITING;
 }
 
+=head2 addVlan
 
+adds a vlan via MPLS
+
+=cut
 
 sub addVlan{
     my $self = shift;
@@ -750,6 +774,12 @@ sub addVlan{
     $cv->end();
 }
 
+=head2 deleteVlan
+
+deletes a vlan in MPLS mode
+
+=cut
+
 sub deleteVlan{
     my $self = shift;
     my $m_ref = shift;
@@ -825,6 +855,12 @@ sub deleteVlan{
     $cv->end();
 }
 
+=head2 diff
+
+signals diff to all of th enodes
+
+=cut
+
 sub diff {
     my $self = shift;
 
@@ -851,95 +887,39 @@ sub diff {
         }
         
         $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
-        $self->{'fwdctl_events'}->get_device_circuit_ids(
-            async_callback => sub {
-                my $circuit_ids = shift;
-                $self->{'logger'}->info("Got circuit_ids...");
-
-                my $installed = {};
-                foreach my $id (@{$circuit_ids->{'results'}}) {
-                    $installed->{$id} = $id;
-                }
-
-                my $additions = [];
-                foreach my $id (keys %{$self->{'circuit'}}) {
-                    if(!defined($self->{'circuit'}->{$id})){
-                        next;
-                    }
-                    if ($self->{'circuit'}->{$id}->on_node($node_id) == 0) {
-                        next;
-                    }
-
-                    # Second half of if statement protects against
-                    # circuits that should have been removed but are
-                    # still in memory.
-                    if (!defined $installed->{$id}) {
-                        push(@{$additions}, $id);
-                    }
-                }
-
-                my $deletions = [];
-                foreach my $id (keys %{$installed}) {
-                    if (!defined $self->{'circuit'}->{$id}) {
-                        # Adding something at $id forces _write_cache to
-                        # load circuit data from the db (even if the
-                        # circuit is decom'd).
-                        $self->{'circuit'}->{$id} = undef;
-                        push(@{$deletions}, $id);
-                        next;
-                    }
-
-                    if ($self->{'circuit'}->{$id}->{'state'} ne 'active') {
-                        # Used when another node related to the circuit
-                        # has already cause the circuit to be loaded.
-                        push(@{$deletions}, $id);
-                        next;
-                    }
-                }
-
-                $self->_write_cache();
-
-                # TODO Stop encoding json directly and use method
-                # schemas
-                my $payload = encode_json( { additions => $additions,
-                                             deletions => $deletions,
-                                             installed => $installed } );
-
-                warn "Diff topic! MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . "\n";
-                $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
-                $self->{'fwdctl_events'}->diff( installed_circuits => $payload,
-                                                force_diff     => $force_diff,
-                                                async_callback => sub {
-                                                    my $res = shift;
-                                                    
-                                                    if (defined $res->{'error'}) {
-                                                        $self->{'logger'}->error("ERROR: " . $res->{'error'});
-                                                        return 0;
-                                                    }
-                                                    
-                                                    # Cleanup decom'd circuits from memory.
-                                                    foreach my $id (@{$deletions}) {
-                                                        delete $self->{'circuit'}->{$id};
-                                                    }
-                                                    
-                                                    if ($res->{'results'}->{'status'} == FWDCTL_BLOCKED) {
-                                                        my $node_id = $res->{'results'}->{'node_id'};
-                                                        
-                                                        $self->{'db'}->set_diff_approval(0, $node_id);
-                                                        $self->{'children'}->{$node_id}->{'pending_diff'} = 1;
-                                                        $self->{'logger'}->warn("Diff for node $node_id requires admin approval.");
-                                                        
-                                                        return 0;
-                                                    }
-                                                    
-                                                    return 1;
-                                                } );
-            } );
+        $self->{'fwdctl_events'}->diff( force_diff => $force_diff,
+                                        #installed_circuits => $payload,
+                                        #force_diff     => $force_diff,
+                                        async_callback => sub {
+                                            my $res = shift;
+                                            
+                                            if (defined $res->{'error'}) {
+                                                $self->{'logger'}->error("ERROR: " . $res->{'error'});
+                                                return 0;
+                                            }
+                                            
+                                            if ($res->{'results'}->{'status'} == FWDCTL_BLOCKED) {
+                                                my $node_id = $res->{'results'}->{'node_id'};
+                                                
+                                                $self->{'db'}->set_diff_approval(0, $node_id);
+                                                $self->{'children'}->{$node_id}->{'pending_diff'} = 1;
+                                                $self->{'logger'}->warn("Diff for node $node_id requires admin approval.");
+                                                
+                                                return 0;
+                                            }
+                                            
+                                            return 1;
+                                        });
     }
     
     return 1;
 }
 
+=head2 get_diff_text
+
+returns the diff text for a given node
+
+=cut
 
 sub get_diff_text {
     my $self  = shift;
@@ -964,47 +944,10 @@ sub get_diff_text {
     }
 
     $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
-    $self->{'fwdctl_events'}->get_device_circuit_ids(
-         async_callback => sub {
-             my $circuit_ids = shift;
-
-             my $installed = {};
-             foreach my $id (@{$circuit_ids->{'results'}}) {
-                 $installed->{$id} = $id;
-             }
-
-             my $additions = [];
-             foreach my $id (keys %{$self->{'circuit'}}) {
-                 if (!defined $installed->{$id}) {
-                     push(@{$additions}, $id);
-                 }
-             }
-
-             my $deletions = [];
-             foreach my $id (keys %{$installed}) {
-                 if (!defined $self->{'circuit'}->{$id}) {
-                     # Verifies that decom'd circuits found on device
-                     # are loaded into cache. They will be removed once
-                     # get_diff_text returns.
-                     $self->{'circuit'}->{$id} = undef;
-                     push(@{$deletions}, $id);
-                 }
-             }
-
-             $self->{'logger'}->debug("Writing cache.");
-             $self->_write_cache();
-
-             # TODO
-             # Stop encoding json directly and use method schemas
-             my $payload = encode_json( { additions => $additions,
-                                          deletions => $deletions,
-                                          installed => $installed } );
-
-             $self->{'fwdctl_events'}->get_diff_text(
-                  installed_circuits => $payload,
-                  async_callback => sub {
+    $self->{'fwdctl_events'}->get_diff_text(
+	async_callback => sub {
                       my $response = shift;
-
+		      
                       if (defined $response->{'error'}) {
                           $event->{'error'} = $response->{'error'};
                           $event->{'status'} = FWDCTL_FAILURE;
@@ -1012,17 +955,17 @@ sub get_diff_text {
                           $event->{'results'} = [ $response->{'results'} ];
                           $event->{'status'} = FWDCTL_SUCCESS;
                       }
-
-                      # Cleanup decom'd circuits from memory.
-                      foreach my $id (@{$deletions}) {
-                          delete $self->{'circuit'}->{$id};
-                      }
-                 } );
-         } );
+	} );
 
     $self->{'events'}->{$id} = $event;
     return $event;
 }
+
+=head2 get_ckt_object
+
+returns a ckt object for the requested circuit
+
+=cut
 
 sub get_ckt_object{
     my $self =shift;
@@ -1032,7 +975,10 @@ sub get_ckt_object{
     
     if(!defined($ckt)){
         $ckt = OESS::Circuit->new( circuit_id => $ckt_id, db => $self->{'db'});
-        
+        if ($ckt->{'type'} ne 'mpls') {
+            $self->{'logger'}->error("Circuit $ckt_id is not of type MPLS.");
+            return undef;
+        }
 	if(!defined($ckt)){
 	    return;
 	}
@@ -1046,6 +992,11 @@ sub get_ckt_object{
     return $ckt;
 }
 
+=head2 message_callback
+
+sends a message and puts the response in a pending results queue
+
+=cut
 
 sub message_callback {
     my $self     = shift;
@@ -1072,6 +1023,13 @@ sub _generate_unique_event_id{
     my $self = shift;
     return $self->{'uuid'}->to_string($self->{'uuid'}->create());
 }
+
+=head2 get_event_status
+
+gives us the current status of a requested event
+I don't believe this is used anymore!
+
+=cut
 
 sub get_event_status{
     my $self = shift;

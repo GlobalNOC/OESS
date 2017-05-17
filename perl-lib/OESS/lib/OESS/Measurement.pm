@@ -54,10 +54,10 @@ sub new {
     my $class = ref($that) || $that;
     my %params = @_;
 
-    my $db = OESS::Database->new();
-        
+    my $db = $params{'db'};
+
     if(!defined($db)){
-        return undef;
+        $db = OESS::Database->new();
     }
 
     my %args = (
@@ -117,6 +117,13 @@ sub get_of_circuit_data {
 
     #get the path that is currently active for issue 7410
     my $ckt        = OESS::Circuit->new(circuit_id => $circuit_id, db => $db);
+
+    if(!defined($ckt)){
+        warn "Unable to find circuit\n";
+        $self->_set_error("unable to find circuit: " . $circuit_id . " in th OESS DB");
+        return undef;
+    }
+
     my $active_path = $ckt->get_active_path();
 
     if(!defined $start){
@@ -197,7 +204,7 @@ sub get_of_circuit_data {
 
     #now we have selected an interface and have a list of all the other interfaces on that node
     #generate our data
-    my $in = $self->tsds_of_query( port_no => $selected->{'port_no'},
+    my $in = $self->_tsds_of_query( port_no => $selected->{'port_no'},
                                    dpid => $selected->{'node'},
                                    tag => $selected->{'tag'},
                                    start => $start,
@@ -205,7 +212,7 @@ sub get_of_circuit_data {
 
     my $out_agg;
     foreach my $int (@interfaces_on_node){
-        my $out = $self->tsds_of_query( port_no => $int->{'port_no'},
+        my $out = $self->_tsds_of_query( port_no => $int->{'port_no'},
                                         dpid => $int->{'node'},
                                         tag => $int->{'tag'},
                                         start => $start,
@@ -248,7 +255,7 @@ sub get_of_circuit_data {
 
 =cut
 
-sub tsds_of_query{
+sub _tsds_of_query{
     my $self = shift;
     my %params = @_;
 
@@ -369,7 +376,7 @@ sub get_mpls_circuit_data {
 
     
 
-    my $results = $self->tsds_interface_query( node => $node,
+    my $results = $self->_tsds_interface_query( node => $node,
                                                interface => $interface . "." . $tag,
                                                start => $start_time,
                                                end => $end_time );
@@ -386,7 +393,7 @@ sub get_mpls_circuit_data {
 }
 
 
-sub tsds_interface_query{
+sub _tsds_interface_query{
     my $self = shift;
     my %args = @_;
     

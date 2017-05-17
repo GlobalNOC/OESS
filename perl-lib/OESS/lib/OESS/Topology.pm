@@ -562,12 +562,9 @@ sub is_path_up{
 	    }
 	}
     }else{
-
 	my $links = $self->{'db'}->get_current_links();
 
-
 	foreach my $link (@$links){
-
 
             if( $link->{'status'} eq 'down'){
                 $down_links{$link->{'name'}} = $link;
@@ -585,7 +582,6 @@ sub is_path_up{
     }
 
     foreach my $link (@$path_links){
-
         if( $down_links{ $link->{'name'} } ){
             return 0;
         }elsif($unknown_links{$link->{'name'}}){

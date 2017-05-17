@@ -101,6 +101,24 @@ sub register_webservice_methods {
     #register the get_node_status() method
     $svc->register_method($method);
 
+    #get_node_status
+    $method = GRNOC::WebService::Method->new(
+        name            => "get_mpls_node_status",
+        description     => "returns JSON formatted status updates related to a Nodes connection state to the controller.",
+        callback        => sub { get_mpls_node_status( @_ ) }
+        );
+
+    #add the required input parameter node
+    $method->add_input_parameter(
+        name            => 'node',
+        pattern         => $GRNOC::WebService::Regex::TEXT,
+        required        => 1,
+        description     => "Name of the node to query the status."
+        );
+    
+    #register the get_node_status() method
+    $svc->register_method($method);
+
     #get_rules_on_node()
     $method = GRNOC::WebService::Method->new(
         name            => "get_rules_on_node",
@@ -148,6 +166,39 @@ sub get_node_status{
     return $tmp;
 }
 
+sub get_mpls_node_status{
+    my ( $method, $args ) = @_ ;
+    my $results;
+
+    if ( !defined($mq) ) {
+        return;
+    }
+
+    my $node_name = $args->{'node'}{'value'};
+    my $node = $db->get_node_by_name( name => $node_name);
+
+    if(!defined($node)){
+        warn "Unable to find node named $node_name\n";
+        $method->set_error("Unable to find node named $node_name");
+        return;
+    }
+
+    warn Dumper($node);
+
+    if(!$node->{'mpls'}){
+	my $tmp;
+	$tmp->{'results'} = {node => $node_name, status => 0, error => "Node is not configured for mpls"};
+	return $tmp;
+    }
+
+    $mq->{'topic'} = 'MPLS.FWDCTL.Switch.' . $node->{'mgmt_addr'};
+    my $result = $mq->connected();
+    $result = int($result);
+    my $tmp;
+    $tmp->{'results'} = {node => $node_name, status => $result};
+    return $tmp;
+}
+
 sub get_rules_on_node{
 
     my ( $method, $args ) = @_ ;
@@ -169,7 +220,7 @@ sub get_rules_on_node{
     warn Data::Dumper::Dumper($node);
 
     $mq->{'topic'} = 'OF.FWDCTL.RPC';
-    my $result = $client->rules_per_switch(dpid => int($node->{'dpid'}));
+    my $result = $mq->rules_per_switch(dpid => int($node->{'dpid'}));
     warn Data::Dumper::Dumper($result);
     $result = int($result->{'results'}->{'rules_on_switch'});
 
