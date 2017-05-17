@@ -982,6 +982,10 @@ function NDDIMap(div_id, interdomain_mode, options){
 	    continue;
 	}
 
+        if (feature.geometry.element_name == "fat_line") {
+            continue;
+        }
+
 	if (feature.type == "secondary"){
 	    continue;
 	}
@@ -1039,6 +1043,7 @@ function NDDIMap(div_id, interdomain_mode, options){
 	// otherwise this feature must be a link
 	else if( feature.geometry.id.indexOf('Point') == -1 ){
 
+
 	  for (var i = 0; i < links.length; i++){
 	    var link = links[i];
 
@@ -1073,10 +1078,10 @@ function NDDIMap(div_id, interdomain_mode, options){
         if (this.compare_link_names(feature.geometry.element_name, link)){
 	      // if this was previously selected, we have a doubly used link and should color
 	      if (was_selected){
-		  if (feature.secondary_path_feature){
-		      this.changeLinkOpacity(feature.secondary_path_feature, this.ACTIVE_LINK_OPACITY);
-		      this.changeLinkWidth(feature, this.ACTIVE_LINK_WIDTH);
-		  }
+                  if (feature.secondary_path_feature){
+                      this.changeLinkOpacity(feature.secondary_path_feature, this.ACTIVE_LINK_OPACITY);
+                      this.changeLinkWidth(feature, this.ACTIVE_LINK_WIDTH);
+                  }
 		  dual = true;
 	      }
 
@@ -1105,49 +1110,10 @@ function NDDIMap(div_id, interdomain_mode, options){
 
 	  }
 
-          for (var i = 0; i < tertiarys.length; i++){
-
-              var link = tertiarys[i];
-
-              if (this.compare_link_names(feature.geometry.element_name, link)){
-                  // if this was previously selected, we have a doubly used link and should color
-                  if (was_selected){
-                      if (feature.secondary_path_feature){
-                          this.changeLinkOpacity(feature.secondary_path_feature, this.ACTIVE_LINK_OPACITY);
-                          this.changeLinkWidth(feature, this.ACTIVE_LINK_WIDTH);
-                      }
-                      dual = true;
-                  }
-
-                  // otherwise this is just a standalone backup link, color it as such
-                  else{
-                      this.changeLinkColor(feature, this.LINK_TERTIARY);
-
-                      if (active_path == "tertiary"){
-                          this.showHalo(feature, this.ACTIVE_HALO_COLOR);
-                          this.changeLinkOpacity(feature, this.ACTIVE_LINK_OPACITY);
-                          this.changeLinkWidth(feature, this.ACTIVE_LINK_WIDTH);
-                      }
-                      else if (active_path == "none"){
-                          this.changeLinkOpacity(feature, this.ACTIVE_LINK_OPACITY);
-                          this.changeLinkWidth(feature, this.INACTIVE_LINK_WIDTH);
-                      }
-                      else{
-                          this.hideHalo(feature);
-                          this.changeLinkOpacity(feature, this.INACTIVE_LINK_OPACITY);
-                          this.changeLinkWidth(feature, this.INACTIVE_LINK_WIDTH);
-                      }
-
-                  }
-                  was_selected = true;
-              }
-
-          }
-
 	  // we have a primary and NOT a secondary, hide the secondary path
 	  if (was_selected && ! dual){
-	      if (feature.tertiary_path_feature){
-		  this.changeLinkOpacity(feature.tertiary_path_feature, 0.0);
+	      if (feature.secondary_path_feature){
+		  this.changeLinkOpacity(feature.secondary_path_feature, 0.0);
 	      }
 	  }
 
