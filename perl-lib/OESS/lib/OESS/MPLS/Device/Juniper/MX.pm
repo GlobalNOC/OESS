@@ -127,7 +127,6 @@ sub get_system_information{
     }
 
     my $interfaces = $self->{'jnx'}->get_dom();
-    warn "DOM: " . $interfaces->toString();
     my $path = $self->{'root_namespace'}."junos-interface";
     $xp = XML::LibXML::XPathContext->new( $interfaces);
     $xp->registerNs('x',$interfaces->documentElement->namespaceURI);
