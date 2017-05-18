@@ -475,6 +475,8 @@ sub new_switch{
     
     my $success = $m_ref->{'success_callback'};
 
+    $self->make_baby($node_id);
+    $self->{'logger'}->debug("Baby was created!");
     $self->update_cache(-1);
 
     \&success({status => FWDCTL_SUCCESS});
