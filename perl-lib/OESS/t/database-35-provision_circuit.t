@@ -80,7 +80,7 @@ $res = $db->provision_circuit('description' => "Trunk test",
                               'interfaces' => ['e1/1', $trunk_iface],
                               'tags' => [1, $valid_vlan],
                               'user_name' => $user->{'auth_name'},
-                              'workgroup_id' => $trunk_iface_workgroup_id,
+                              'workgroup_id' => $trunk_iface_workgroup_id + 1,
                               'external_id' => undef);
 $err = $db->get_error();
 ok(!$res, "Authorization check");

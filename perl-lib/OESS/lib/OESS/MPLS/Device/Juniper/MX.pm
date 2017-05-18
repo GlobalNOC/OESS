@@ -96,7 +96,7 @@ sub get_system_information{
     my $reply = $self->{'jnx'}->get_system_information();
 
     if($self->{'jnx'}->has_error){
-        my $error_msg = $self->{'jnx'}->get_first_error();
+        my $error = $self->{'jnx'}->get_first_error();
         $self->{'logger'}->error("Error fetching system information: " . $error->{'error_message'});
         return;
     }
