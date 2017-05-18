@@ -5,7 +5,7 @@
       <name>[% interface.name %]</name>
       <unit>
 	<name>[% interface.tag %]</name>
-	<description>OESS L2VPN [% circuit_id %]</description>
+	<description>OESS-L2VPN-[% circuit_id %]</description>
 	<encapsulation>vlan-ccc</encapsulation>
 	<vlan-id>[% interface.tag %]</vlan-id>
 	<output-vlan-map>

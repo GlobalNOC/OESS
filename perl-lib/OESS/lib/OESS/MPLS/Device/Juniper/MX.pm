@@ -811,6 +811,7 @@ sub _is_active_circuit{
     
 }
 
+
 =head2 get_device_circuit_ids
 
 this should no longer be used...
@@ -1208,7 +1209,7 @@ sub verify_connection{
     }
 
     my $sysinfo = $self->get_system_information();
-    if (($sysinfo->{"os_name"} eq "junos") && ($sysinfo->{"version"} eq "13.3R1.6")){
+    if (($sysinfo->{"os_name"} eq "junos") && ($sysinfo->{"version"} eq "13.3R1.6" || $sysinfo->{"version"} eq '15.1F6-S6.4')){
 	# print "Connection verified, proceeding\n";
 	return 1;
     }
