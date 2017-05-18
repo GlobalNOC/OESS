@@ -382,7 +382,7 @@ sub _load_state {
 
 =head2 datapath_leave_callback
 
-event that firest for when a node leaves
+event that fires when a node leaves
 
 =cut
 
@@ -654,7 +654,7 @@ sub do_work {
 =head2 fv_packet_in_callback
 
 event that fires when a packet in event occurs and matches the
-forwarding verification deamon process
+forwarding verification daemon process
 
 =cut
 

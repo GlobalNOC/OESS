@@ -14,6 +14,9 @@ use Template;
 use Switch;
 use FindBin;
 use OESS::Database();
+use Log::Log4perl;
+
+Log::Log4perl::init('/etc/oess/logging.conf');
 
 my $ADMIN_BREADCRUMBS = [
     { title => "Workgroups", url => "../index.cgi?action=workgroups" },

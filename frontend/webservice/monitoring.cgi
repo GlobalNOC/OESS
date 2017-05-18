@@ -32,11 +32,14 @@ use warnings;
 use JSON;
 use Switch;
 use Data::Dumper;
+use Log::Log4perl;
 
 use OESS::Database;
 use OESS::RabbitMQ::Client;
 use OESS::Topology;
 use GRNOC::WebService;
+
+Log::Log4perl::init('/etc/oess/logging.conf');
 
 my $db   = new OESS::Database();
 my $topo = new OESS::Topology();

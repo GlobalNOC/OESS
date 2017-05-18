@@ -29,6 +29,7 @@ use warnings;
 use JSON;
 use Switch;
 use Data::Dumper;
+use Log::Log4perl;
 
 use GRNOC::Config;
 use OESS::RabbitMQ::Client;
@@ -43,6 +44,8 @@ use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
+
+Log::Log4perl::init('/etc/oess/logging.conf');
 
 my $conf = GRNOC::Config->new(config_file => '/etc/oess/database.xml');
 

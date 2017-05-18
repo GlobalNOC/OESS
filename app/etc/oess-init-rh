@@ -7,6 +7,7 @@ use OESS::Database;
 use AnyEvent;
 use AnyEvent::DBus;
 use Net::DBus::Annotation qw(:call);
+use Log::Log4perl;
 use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
@@ -14,6 +15,8 @@ use constant FWDCTL_UNKNOWN     => 3;
 
 sub main{
     my $option = shift;
+
+    Log::Log4perl::init('/etc/oess/logging.conf');
 
     if($option eq 'stop'){
         exit(stop());
@@ -24,7 +27,7 @@ sub main{
         exit($status);
     }elsif($option eq 'validate-all'){
         my $status = status();
-        #short circuit if status saysit isn't running no reason to go any further
+        # short circuit - if status says it isn't running, there's no reason to go any further
         if($status != 0){
             exit($status);
         }

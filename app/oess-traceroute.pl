@@ -43,7 +43,7 @@ sub main{
             `chmod 0644 /var/run/oess/oess-traceroute.pid`;
             return;
         }
-    } else { # Not a deamon, just run the core;
+    } else { # Not a daemon, just run the core;
         $SIG{HUP} = sub{ exit(0); };
     }
 

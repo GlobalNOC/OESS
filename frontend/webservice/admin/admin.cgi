@@ -33,6 +33,7 @@ use Data::Dumper;
 use JSON;
 use LWP::UserAgent;
 use Switch;
+use Log::Log4perl;
 
 use OESS::RabbitMQ::Client;
 use GRNOC::WebService;
@@ -45,6 +46,8 @@ use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
+
+Log::Log4perl::init('/etc/oess/logging.conf');
 
 my $conf = GRNOC::Config->new(config_file => '/etc/oess/database.xml');
 

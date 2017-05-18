@@ -8,6 +8,9 @@ use OESS::NSI::Server;
 use Data::Dumper;
 use SOAP::Lite;
 use SOAP::Transport::HTTP;
+use Log::Log4perl;
+
+Log::Log4perl::init('/etc/oess/logging.conf');
 
 sub new_handler{
 

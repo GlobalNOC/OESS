@@ -40,12 +40,15 @@ use LWP::UserAgent;
 use Switch;
 use URI::Escape;
 use XML::XPath;
+use Log::Log4perl;
 
 use OESS::Database;
 use OESS::Topology;
 
 use OSCARS::Client;
 
+
+Log::Log4perl::init('/etc/oess/logging.conf');
 
 my $db   = new OESS::Database();
 my $topo = new OESS::Topology();

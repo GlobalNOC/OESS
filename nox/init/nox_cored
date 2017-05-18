@@ -122,7 +122,7 @@ case "$1" in
 
   restart)
         $0 stop
-        #wee need to sleep to make sure the deamon has enoth time to shutdown
+        # we need to sleep to make sure the daemon has enough time to shutdown
         sleep 3
         $0 start
         exit $?
