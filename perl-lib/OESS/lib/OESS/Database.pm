@@ -8570,6 +8570,11 @@ sub _process_tag_string{
 
 Verifies that the endpoint in question is accessible to the given workgroup. If a vlan tag is not passed in returns the list of available vlan tag ranges.
 
+_validate_endpoint returns 1 if workgroup $workgroup_id has
+permissions to use $vlan on interface $interface_id.
+_validate_endpoint returns a comma separated string of
+vlan ranges if $vlan is `undef`.
+
 =over
 
 =item interface_id
@@ -8619,15 +8624,29 @@ sub _validate_endpoint {
             return;
         }
 	
-        $vlan_tag_range = @{$results}[0]->{'vlan_tag_range'};
+	my $node_tag_range = @{$results}[0]->{'vlan_tag_range'};
+	my $node_tags      = $self->_process_tag_string($node_tag_range);
+	my $trunk_tags     = {};
+	for (my $i = 1; $i < 4096; $i++) {
+	    $trunk_tags->{$i} = 1;
+	}
+	foreach my $tag (@{$node_tags}) {
+	    $trunk_tags->{$tag} = 0;
+	}
+
+	$vlan_tag_range = $self->_vlan_range_hash2str(vlan_range_hash => $trunk_tags);
+        #$vlan_tag_range = @{$results}[0]->{'vlan_tag_range'};
 	
         if (defined $vlan) {
             my $vlan_tags = $self->_process_tag_string($vlan_tag_range);
             foreach my $vlan_tag (@{$vlan_tags}) {
                 if ($vlan_tag == $vlan) {
-                    return 0;
+                    return 1;
                 }
             }
+            return 0;
+        } else {
+            return $vlan_tag_range;
         }
     } else {
         my $query = "SELECT interface.vlan_tag_range, interface.mpls_vlan_tag_range " .

@@ -32,6 +32,12 @@ if(defined($error)){
 
 ok(defined $success, "Trunk interface was associated with admin workgroup.");
 
+# REMOVE
+#$success = $db->update_interface_vlan_range(
+#    interface_id => 51,
+#    vlan_tag_range => '1-99,4095'
+#);
+#warn "$success";
 
 my $basic_interface_id = 45571;
 my $basic_workgroup_id = 1;
@@ -48,7 +54,7 @@ $success = $db->_validate_endpoint(interface_id => $trunk_interface_id,
                                    workgroup_id => 11,
                                    vlan => undef);
 $error = $db->get_error();
-ok($success eq "1-99,4095", "returned the proper values");
+ok($success eq "1-99,4095", "returned the proper values: $success");
 ok(!defined $error, "Error: $error");
 
 $success = $db->_validate_endpoint(interface_id => $trunk_interface_id,

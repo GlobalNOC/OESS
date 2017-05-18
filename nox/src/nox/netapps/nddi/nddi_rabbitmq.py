@@ -43,9 +43,9 @@ import time
 # expose this through nox.lib or something similar at some point
 import os
 import sys
-sys.path.append("{0}/lib/grnoc".format(os.getcwd()))
-sys.path.append("/usr/bin/nox/netapps/nddi/lib")
-from grnoc.rabbitmq.rmqi import RMQI
+sys.path.append(os.getcwd())
+
+from rmqi import RMQI
 
 FWDCTL_WAITING = 2
 FWDCTL_SUCCESS = 1

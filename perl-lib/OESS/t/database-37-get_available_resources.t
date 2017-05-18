@@ -51,7 +51,7 @@ my $correct_result = [
             'interface_id' => '45901',
             'description' => 'e15/1',
             'is_owner' => 0,
-            'vlan_tag_range' => '-1,1-100,201-4095',
+            'vlan_tag_range' => '1-100,201-4095',
             'node_id' => '21',
             'operational_state' => 'up'
     },
