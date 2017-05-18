@@ -1,6 +1,6 @@
 Name:	nox		
 Version: 0.10.10
-Release: 0.dev01%{?dist}
+Release: 0.dev05%{?dist}
 Summary: NOX: an OpenFlow controller	
 
 Group:	Networking	
@@ -21,7 +21,7 @@ Requires: python >= 2.6, python-libs
 Requires: openssl, pyOpenSSL
 Requires: python-twisted, python-twisted-core
 Requires: python-simplejson
-Requires: python-pika
+Requires: pika
 Requires: python-zope-interface
 Requires: boost-system >= 1.34.1, boost-filesystem, boost-test
 Requires: glibc, libstdc++
