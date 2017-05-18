@@ -112,10 +112,10 @@ sub get_system_information{
     # We need to create know the root path for our xml requests. This path containd the version minus the last number block
     # (13.3R1.6 -> 13.3R1). The following regex creates the path as described
     my $var = $version;
-    $var =~ /(\d+\.\d+R\d+)/;
+    $var =~ /(\d+\.\d+\S\d+)/;
     my $root_namespace = "http://xml.juniper.net/junos/".$1.'/';
     $self->{'root_namespace'} = $root_namespace;
-
+    $self->{'logger'}->debug("Root Namespace: " . $root_namespace);
 
     #also need to fetch the interfaces and find lo0.X
     $reply = $self->{'jnx'}->get_interface_information();
