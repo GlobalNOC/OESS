@@ -67,10 +67,19 @@ sub connect{
     return;
 }
 
+=head2 get_config_to_remove
+
+=cut
+sub get_config_to_remove{
+    my $self = shift;
+
+    $self->set_error("This device does not support connect");
+    return;
+}
+
 =head2 disconnect
 
 =cut
-
 sub disconnect{
     my $self = shift;
 

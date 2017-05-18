@@ -436,6 +436,8 @@ sub handle_system_info{
     
     my $node = $params{'node'};
     my $info = $params{'info'};
+    warn Dumper($node);
+    warn Dumper($info);
 
     my $query = "update node_instantiation set loopback_address = ? where node_id = ?";
     $self->{'db'}->_execute_query($query,[$info->{'loopback_addr'},$node]);
