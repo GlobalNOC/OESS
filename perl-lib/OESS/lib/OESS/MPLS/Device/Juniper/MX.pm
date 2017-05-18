@@ -112,10 +112,10 @@ sub get_system_information{
     # We need to create know the root path for our xml requests. This path containd the version minus the last number block
     # (13.3R1.6 -> 13.3R1). The following regex creates the path as described
     my $var = $version;
-    $var =~ /(\d+\.\d+R\d+)/;
+    $var =~ /(\d+\.\d+\S\d+)/;
     my $root_namespace = "http://xml.juniper.net/junos/".$1.'/';
     $self->{'root_namespace'} = $root_namespace;
-
+    $self->{'logger'}->debug("Root Namespace: " . $root_namespace);
 
     #also need to fetch the interfaces and find lo0.X
     $reply = $self->{'jnx'}->get_interface_information();
@@ -127,6 +127,7 @@ sub get_system_information{
     }
 
     my $interfaces = $self->{'jnx'}->get_dom();
+    warn "DOM: " . $interfaces->toString();
     my $path = $self->{'root_namespace'}."junos-interface";
     $xp = XML::LibXML::XPathContext->new( $interfaces);
     $xp->registerNs('x',$interfaces->documentElement->namespaceURI);
@@ -811,6 +812,7 @@ sub _is_active_circuit{
     
 }
 
+
 =head2 get_device_circuit_ids
 
 this should no longer be used...
@@ -1208,7 +1210,7 @@ sub verify_connection{
     }
 
     my $sysinfo = $self->get_system_information();
-    if (($sysinfo->{"os_name"} eq "junos") && ($sysinfo->{"version"} eq "13.3R1.6")){
+    if (($sysinfo->{"os_name"} eq "junos") && ($sysinfo->{"version"} eq "13.3R1.6" || $sysinfo->{"version"} eq '15.1F6-S6.4')){
 	# print "Connection verified, proceeding\n";
 	return 1;
     }
