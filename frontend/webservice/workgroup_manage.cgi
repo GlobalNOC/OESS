@@ -30,6 +30,8 @@ use MIME::Lite;
 use OESS::Database;
 use GRNOC::WebService;
 
+Log::Log4perl::init_and_watch('/etc/oess/logging.conf');
+
 my $db   = new OESS::Database();
 
 #register web service dispatcher
@@ -52,7 +54,6 @@ sub main {
 	exit(1);
     }
 
-    my $init_logger = Log::Log4perl->init_and_watch('/etc/oess/logging.conf'); 
     $user_id = $db->get_user_id_by_auth_name( 'auth_name' => $username );
 
     my $user = $db->get_user_by_id( user_id => $user_id)->[0];

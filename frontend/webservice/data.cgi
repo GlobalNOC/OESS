@@ -57,6 +57,8 @@ use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
 use constant FWDCTL_BLOCKED     => 4;
 
+Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
+
 my $db   = new OESS::Database();
 my $topo = new OESS::Topology();
 
@@ -65,8 +67,6 @@ my $svc    = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'a
 
 my $mq = OESS::RabbitMQ::Client->new( topic    => 'MPLS.FWDCTL.RPC',
                                       timeout  => 60 );
-
-Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
 
 my $username = $ENV{'REMOTE_USER'};
 my $is_admin = $db->get_user_admin_status( 'username' => $username );

@@ -30,6 +30,7 @@ use Switch;
 use OESS::RabbitMQ::Client;
 
 use Data::Dumper;
+use Log::Log4perl;
 
 use OESS::Database;
 use OESS::Topology;
@@ -39,6 +40,8 @@ use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
+
+Log::Log4perl::init('/etc/oess/logging.conf');
 
 my $db = new OESS::Database();
 my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.NDDI.RPC',

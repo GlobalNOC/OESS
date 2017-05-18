@@ -38,6 +38,9 @@ use CGI;
 use Template;
 use Switch;
 use FindBin;
+use Log::Log4perl;
+
+Log::Log4perl::init('/etc/oess/logging.conf');
 
 my $db= OESS::Database->new();
 

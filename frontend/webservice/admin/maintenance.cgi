@@ -35,7 +35,10 @@ use JSON;
 use OESS::Database;
 use OESS::RabbitMQ::Client;
 use Switch;
+use Log::Log4perl;
 use GRNOC::WebService;
+
+Log::Log4perl::init('/etc/oess/logging.conf');
 
 my $db = new OESS::Database();
 my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
