@@ -24,7 +24,7 @@ sub main{
         exit($status);
     }elsif($option eq 'validate-all'){
         my $status = status();
-        #short circuit if status saysit isn't running no reason to go any further
+        # short circuit - if status says it isn't running, there's no reason to go any further
         if($status != 0){
             exit($status);
         }
