@@ -1755,6 +1755,7 @@ sub update_node {
 			});
     }
 
+    $cv->end;
     $cv->recv();
 
     return {results => [{success => 1}]};
