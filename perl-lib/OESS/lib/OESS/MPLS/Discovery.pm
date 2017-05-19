@@ -384,12 +384,12 @@ sub isis_handler{
 
     my %nodes;
     foreach my $node (@{$self->{'db'}->get_current_nodes(mpls => 1)}){
-	$nodes{$node->{'name'}} = {'pending' => 1};
+	$nodes{$node->{'short_name'}} = {'pending' => 1};
         $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
         $self->{'rmq_client'}->get_isis_adjacencies( async => 1,
                                         async_callback => $self->handle_response( cb => sub { my $res = shift;
-											      $nodes{$node->{'name'}} = $res;
-											      $nodes{$node->{'name'}}->{'pending'} = 0;
+											      $nodes{$node->{'short_name'}} = $res;
+											      $nodes{$node->{'short_name'}}->{'pending'} = 0;
 											      my $no_pending = 1;
 											      foreach my $node (keys %nodes){
 												  if($nodes{$node}->{'pending'} == 1){
@@ -417,10 +417,16 @@ sub device_handler{
     foreach my $node (@{$self->{'db'}->get_current_nodes(mpls => 1)}){
         $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
         $self->{'rmq_client'}->get_system_info( async => 1,
-						async_callback => $self->handle_response( cb => sub { my $res = shift;
+						async_callback => $self->handle_response( cb => sub {
+                                                                                              my $res = shift;
+                                                                                              if (defined $res->{'error'}) {
+                                                                                                  my $addr = $node->{'mgmt_addr'};
+                                                                                                  my $err = $res->{'error'};
+                                                                                                  $self->{'logger'}->error("Error calling get_system_info on $addr: $err");
+                                                                                                  return;
+                                                                                              }
 
-												      $self->{'logger'}->error("get_system_info: " . Data::Dumper::Dumper($res));
-												      my $status = $self->handle_system_info( node => $node->{'node_id'}, info => $res->{'results'});
+                                                                                              $self->handle_system_info(node => $node->{'node_id'}, info => $res->{'results'});
 											  }));
     }
     
@@ -467,6 +473,8 @@ sub handle_links{
         $node_info{$node->{'name'}} = $details;
 	$node_info{$details->{'short_name'}} = $details;
     }
+
+    #warn Dumper($adj);
 
     $self->{'db'}->_start_transaction();
 
