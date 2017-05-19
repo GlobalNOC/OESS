@@ -896,7 +896,9 @@ sub diff {
                                             my $res = shift;
                                             
                                             if (defined $res->{'error'}) {
-                                                $self->{'logger'}->error("ERROR: " . $res->{'error'});
+                                                my $addr = $node->{'mgmt_addr'};
+                                                my $err = $res->{'error'};
+                                                $self->{'logger'}->error("Error calling diff on $addr: $err");
                                                 return 0;
                                             }
                                             
