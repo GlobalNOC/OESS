@@ -5623,7 +5623,7 @@ sub get_links_by_node {
 
     my $node_id = $args{'node_id'};
 
-    my $query = "select link.link_id, link.name as link_name, interface.* from link ";
+    my $query = "select link.link_id, link.name as link_name, link_instantiation.openflow, interface.* from link ";
     $query   .= " join link_instantiation on link.link_id = link_instantiation.link_id ";
     $query   .= " join interface on interface.interface_id in (link_instantiation.interface_a_id, link_instantiation.interface_z_id) ";
     $query   .= " where interface.node_id = ? and link_instantiation.end_epoch = -1";
