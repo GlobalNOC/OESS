@@ -825,7 +825,7 @@ sub _actual_diff{
 
     foreach my $command (@$commands) {
         #---ignore rules not for this dpid
-        $self->{'logger'}->info("Checking to see if " . $command->to_human() . " is on device");
+        $self->{'logger'}->debug("Checking to see if " . $command->to_human() . " is on device");
         next if($command->get_dpid() != $self->{'dpid'});
         
 	my $found = 0;

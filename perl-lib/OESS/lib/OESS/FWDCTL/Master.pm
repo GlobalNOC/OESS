@@ -503,7 +503,7 @@ sub node_maintenance {
             $self->link_maintenance(undef, $p_ref);
         }
     }
-    $self->{'logger'}->warn("Node $node_id maintenance state is $state.");
+    $self->{'logger'}->info("Node $node_id maintenance state is $state.");
     return {status => 1};
 }
 
