@@ -740,12 +740,12 @@ sub addVlan{
                 my $node_addr = $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
 
                 $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $node_addr;
-                $self->{'fwdctl_events'}->add_vlan(circuit_id => $circuit_id,
-                                                   async_callback => sub {
-                                                       $self->{'logger'}->error("Removed MPLS circuit from $node_addr.");
-                                                   });
+                $self->{'fwdctl_events'}->remove_vlan(circuit_id => $circuit_id,
+						      async_callback => sub {
+							  $self->{'logger'}->error("Removed MPLS circuit from $node_addr.");
+						      });
             }
-
+	    
             $self->{'logger'}->error("Failed to add MPLS VLAN.");
             &$error({error => $err});
         }
@@ -764,11 +764,10 @@ sub addVlan{
             circuit_id => $circuit_id,
             async_callback => sub {
                 my $res = shift;
-
-                if (defined $res->{'error'}) {
-                    $self->{'logger'}->error($res->{'error'});
-                    $err .= $res->{'error'} . "\n";
-                }
+		if($res->{'results'}->{'status'} != FWDCTL_SUCCESS){
+		    $self->{'logger'}->error("Switch : " . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . " reported an error");
+		    $err .= "Switch : " . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . " reported an error";
+		}
                 $cv->end();
             });
     }
@@ -846,10 +845,11 @@ sub deleteVlan{
             async_callback => sub {
                 my $res = shift;
 
-                if (defined $res->{'error'}) {
-                    $self->{'logger'}->error($res->{'error'});
-                    $err .= $res->{'error'} . "\n";
-                }
+		if( $res->{'results'}->{'status'} != FWDCTL_SUCCESS){
+		    my $error = "Switch $node_addr reported an error";
+		    $self->{'logger'}->error($error);
+                    $err .= $error . "\n";
+		}
                 $cv->end();
             });
     }
