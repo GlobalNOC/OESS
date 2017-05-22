@@ -265,8 +265,11 @@ function page_init(){
 			      ds.sendRequest("", { 
 				      success: function(req, resp){ 
 					  reprovision_button.set('disabled',false);
-					  alert("Successfully reprovisioned circuit.");
-					  
+					  if((resp.results[0] === undefined) || (resp.results[0].success == 0)){
+					      alert("Failed to reprovision circuit, please try again later or contact your systems administrator if this continues.");
+					  }else{
+					      alert("Successfully reprovisioned circuit.");
+					  }
 					  
 				      },
 					  failure: function(req, resp){
