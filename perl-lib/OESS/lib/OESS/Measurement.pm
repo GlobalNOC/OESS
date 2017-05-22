@@ -70,7 +70,6 @@ sub new {
     $self->{'logger'} = Log::Log4perl->get_logger("OESS.Measurement");
     $self->{'db'} = $db;
     $self->{'config'} = $db->{'configuration'};
-    warn Dumper($self);
     return $self;
 
 }
