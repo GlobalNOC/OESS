@@ -252,11 +252,12 @@ sub _connect_to_tsds {
     my $config = XML::Simple::XMLin($path);
 
     my $client = GRNOC::WebService::Client->new(
-	url    => $config->{'tsds'}->{'url'} . "/push.cgi",
-	uid    => $config->{'tsds'}->{'username'},
-	passwd => $config->{'tsds'}->{'password'},
-	debug => 0
-	);
+        url     => $config->{'tsds'}->{'url'} . "/push.cgi",
+        uid     => $config->{'tsds'}->{'username'},
+        passwd  => $config->{'tsds'}->{'password'},
+        usePost => 1, # we're pushing a *lot* of measurements at once
+        debug   => 0
+        );
 
     return $client;
 }
