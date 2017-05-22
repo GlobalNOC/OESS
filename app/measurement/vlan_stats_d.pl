@@ -62,6 +62,7 @@ sub process_flow_stats{
     my $time = shift;
     my $dpid = shift;
     my $rules = shift;
+    my $num_same_times = 0; # number of (port,VLAN) pairs for which the poll interval is zero
     
     $logger->debug("Calling process_flow_stats at $time");
 
@@ -124,7 +125,7 @@ sub process_flow_stats{
 	    # If the flow stats poll interval is zero, then we just
 	    # ignore this update.
 	    if ($time == $previous->{'time'}) {
-		$logger->warn("Calculated poll interval was zero. Ignoring this update.");
+                ++$num_same_times;
 		next;
 	    }
 
@@ -191,6 +192,10 @@ sub process_flow_stats{
                 $prev_static->{'time'} = $time;
 	    }
 	}
+    }
+
+    if ($num_same_times > 0) {
+        $logger->warn("Calculated poll interval was zero for $num_same_times port/VLAN(s); ignoring those updates.");
     }
 
     send_to_tsds(\@tsds_work_queue);
