@@ -99,7 +99,7 @@ sub new {
 					   topic => 'OF.NOX.RPC',
 					   exchange => 'OESS');
     $self->{'rabbit_mq'} = $ar;
-
+    $self->{'fwdctl_failures'} = 0;
     $self->{'fwdctl'} = GRNOC::RabbitMQ::Client->new( host => $args{'rabbitMQ_host'},
                                                       port => $args{'rabbitMQ_port'},
                                                       user => $args{'rabbitMQ_user'},
@@ -115,9 +115,15 @@ sub new {
                                            my $result = $self->{'fwdctl'}->echo( async_callback => sub {
                                                                                      my $result = shift;
                                                                                      if (defined $result->{'error'}) {
-                                                                                         $self->{'logger'}->warn("Could not contact FWDCTL; Now exiting.");
-                                                                                         $self->stop();
-                                                                                     }
+                                                                                         $self->{'logger'}->warn("Could not contact FWDCTL");
+											 $self->{'fwdctl_failures'}++;
+
+											 if($self->{'fwdctl_failures'} > 5){
+											     $self->stop();
+											 }
+                                                                                     }else{
+											 $self->{'fwdctl_failures'} = 0;
+										     }
                                                                                  });
                                        } );
 
