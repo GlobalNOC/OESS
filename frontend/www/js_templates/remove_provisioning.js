@@ -208,7 +208,8 @@ function removeLocalCircuit(){
                  {key: "circuit_id", parser: "number"}    
 		 ],
 	metaFields: {
-	    error: "error"
+	    error: "error",
+            error_text: "error_text"
 	}
     };
 
@@ -223,7 +224,7 @@ function handleSuccess(request, response){
     this.set("disabled", false);
 
     if (response.meta.error){
-	alert("Error - " + response.meta.error);
+	alert(response.meta.error_text);
 	return;
     }
 
