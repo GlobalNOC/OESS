@@ -91,10 +91,10 @@ def fv_packet_in_callback(nddi, dp, inport, reason, len, bid, packet):
     
     #verify the packet came in from expected node/port
     if(dst_dpid != dp):
-        logger.warn("Packet was sent to dpid: " + str(dst_dpid) + " but came from: " + str(dp))
+        logger.debug("Packet was sent to dpid: " + str(dst_dpid) + " but came from: " + str(dp))
         return
     if(dst_port != inport):
-        logger.warn("Packet was sent to port: " + str(dst_port) + " but came from: " + str(inport))
+        logger.debug("Packet was sent to port: " + str(dst_port) + " but came from: " + str(inport))
         return
 
     nddi.rmqi_topic.emit_signal('fv_packet_in','OF.NOX.event',
@@ -507,14 +507,14 @@ class nddi_rabbitmq(Component):
     def get_flow_stats(self, **kwargs):
 
         #sys.exit(1)
-        logger.warn("in get_flow_stats")
+        logger.debug("in get_flow_stats")
         dpid = kwargs.get('dpid')
 
-        logger.warn("get_flow_stats: ".format(dpid))
+        logger.debug("get_flow_stats: ".format(dpid))
 
         if last_flow_stats.has_key(dpid):
             #build an array of DBus Dicts
-            logger.warn('getting flow stats for dpid: {0}'.format(dpid))
+            logger.debug('getting flow stats for dpid: {0}'.format(dpid))
             flow_stats = []
             for item in last_flow_stats[dpid]["flows"]:
                 match = item['match']
@@ -768,14 +768,14 @@ class nddi_rabbitmq(Component):
         etime = time.time() * 1000.0
         
         total_parse_time = parse_time - stime
-        logger.warn("Took: %f ms to parse flow" % total_parse_time)
+        logger.debug("Took: %f ms to parse flow" % total_parse_time)
 
         send_time = initial_send_time - parse_time
-        logger.warn("Send Time: %f ms to send flow" % send_time)
+        logger.debug("Send Time: %f ms to send flow" % send_time)
 
 
         total_time = etime - stime
-        logger.warn("Took: %f mss to send flow" % total_time)
+        logger.debug("Took: %f mss to send flow" % total_time)
         
 
         return xid
