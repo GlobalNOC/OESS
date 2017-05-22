@@ -8724,7 +8724,6 @@ sub _validate_endpoint {
                     $vlan_range_hash->{$tag} = 0;
                 }
             }
-            warn Dumper($self->_vlan_range_hash2str( vlan_range_hash => $vlan_range_hash ));
         }
         # otherwise if our vlan falls within this rules range determine if it is allow
         # or deny
