@@ -143,12 +143,7 @@ sub new {
     $self->{'configuration'} = $config;
 
     $self->{'rabbitMQ'} = $config->{'rabbitMQ'};
-    $self->{'fwdctl'}   = GRNOC::RabbitMQ::Client->new( host => $self->{'rabbitMQ'}->{'host'},
-                                                        port => $self->{'rabbitMQ'}->{'port'},
-                                                        user => $self->{'rabbitMQ'}->{'user'},
-                                                        pass => $self->{'rabbitMQ'}->{'pass'},
-                                                        exchange => 'OESS',
-                                                        topic => 'OF.FWDCTL.RPC');
+    $self->{'fwdctl'}   = undef;
 
     my $snapp_config_location = $config->{'snapp_config_location'};
     my $oscars_info = {
@@ -5042,6 +5037,15 @@ sub insert_node_in_path{
     my %args = @_;
 
     $self->{'logger'}->warn("Entering insert_node_in_path");
+
+    if(!defined($self->{'fwdctl'})) {
+        $self->{'fwdctl'} = GRNOC::RabbitMQ::Client->new( host => $self->{'rabbitMQ'}->{'host'},
+                                                          port => $self->{'rabbitMQ'}->{'port'},
+                                                          user => $self->{'rabbitMQ'}->{'user'},
+                                                          pass => $self->{'rabbitMQ'}->{'pass'},
+                                                          exchange => 'OESS',
+                                                          topic => 'OF.FWDCTL.RPC' );
+    }
 
     my $link = $args{'link'};
     if(!defined($link)){
