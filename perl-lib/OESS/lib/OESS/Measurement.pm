@@ -250,6 +250,18 @@ sub get_of_circuit_data {
     return $result;
 }
 
+=head2 _is_tsds_config_ok
+
+Sees if all the TSDS-related config is present
+
+=cut
+
+sub _is_tsds_config_ok{
+    my $self  = shift;
+    my $tconf = $self->{'config'}->{'tsds'};
+    return defined($tconf) && defined($tconf->{'url'}) && defined($tconf->{'username'}) && defined($tconf->{'password'});
+}
+
 =head2 tsds_of_query
 
 =cut
@@ -271,6 +283,7 @@ sub _tsds_of_query{
 
     my $query = "get port, dpid, vlan, aggregate(values.bps, 30, average) between ($start, $end) by port, dpid, vlan from oess_of_stats where (port = \"$port_no\" and dpid = \"$dpid\" and vlan = \"$tag\")";
 
+    $self->{'logger'}->error('TSDS config not fully set up!') if !$self->_is_tsds_config_ok();
     my $req = GRNOC::WebService::Client->new(
 	url    => $self->{'config'}->{'tsds'}->{'url'} . "/query.cgi",
 	uid    => $self->{'config'}->{'tsds'}->{'username'},
@@ -402,7 +415,8 @@ sub _tsds_interface_query{
     my $end = $args{'end'};
 
     my $query = "get intf, node, aggregate(values.input, 30, average), aggregate(values.output, 30, average) between ($start, $end) by intf, node from interface  where (intf=\"$interface\" and node=\"$node\")";
-    
+
+    $self->{'logger'}->error('TSDS config not fully set up!') if !$self->_is_tsds_config_ok();
     my $req = GRNOC::WebService::Client->new(
         url    => $self->{'config'}->{'tsds'}->{'url'} . "/query.cgi",
         uid    => $self->{'config'}->{'tsds'}->{'username'},

@@ -256,10 +256,16 @@ sub _connect_to_tsds {
     my $path   = shift;
     my $config = XML::Simple::XMLin($path);
 
+    my $tc = $config->{'tsds'};
+    if(!defined($tc) || !defined($tc->{'url'}) || !defined($tc->{'username'}) || !defined($tc->{'password'})){
+        $logger->error('TSDS config not fully defined!');
+        return undef;
+    }
+
     my $client = GRNOC::WebService::Client->new(
-        url     => $config->{'tsds'}->{'url'} . "/push.cgi",
-        uid     => $config->{'tsds'}->{'username'},
-        passwd  => $config->{'tsds'}->{'password'},
+        url     => $tc->{'url'} . "/push.cgi",
+        uid     => $tc->{'username'},
+        passwd  => $tc->{'password'},
         usePost => 1, # we're pushing a *lot* of measurements at once
         debug   => 0
         );
