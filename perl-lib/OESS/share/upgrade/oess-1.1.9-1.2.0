@@ -88,6 +88,8 @@ sub upgrade{
     $dbh->do("alter table user modify column status enum('active','decom') NOT NULL DEFAULT 'active'");
     $dbh->do("drop table if exists workgroup_interface_membership");
 
+    $dbh->do("update link_instantiation set openflow = 1 where end_epoch = '-1' and link_state != 'decom'");
+
     # Done with the rest of the upgrade update our version
     $str = "update oess_version set version = '$version'";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
