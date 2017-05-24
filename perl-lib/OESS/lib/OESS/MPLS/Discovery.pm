@@ -181,7 +181,7 @@ sub new_switch{
     $self->int_handler();
     $self->lsp_handler();
 
-    \&success({status => 1});
+    &$success({status => 1});
 }
 
 
