@@ -44,7 +44,8 @@ sub new {
                                            topic       => 'OF.Notification.event',
                                            callback    => $self->{'provision_event_handler'},
                                            description => 'Handles provisioned circuit events');
-    $method->add_input_parameter(name        => 'circuit_id',
+    $method->add_input_parameter(name        => 'affected_circuits',
+				 multiple    => 1,
                                  description => 'The events associated circuit',
                                  pattern     => $GRNOC::WebService::Regex::INTEGER);
     $self->{'router'}->register_method($method);
@@ -54,7 +55,8 @@ sub new {
                                            topic       => 'OF.Notification.event',
                                            callback    => $self->{'modified_event_handler'},
                                            description => 'Handles modified circuit events');
-    $method->add_input_parameter(name        => 'circuit_id',
+    $method->add_input_parameter(name        => 'affected_circuits',
+				 multiple    => 1,
                                  description => 'The events associated circuit',
                                  pattern     => $GRNOC::WebService::Regex::INTEGER);
     $self->{'router'}->register_method($method);
@@ -64,7 +66,8 @@ sub new {
                                            topic       => 'OF.Notification.event',
                                            callback    => $self->{'removed_event_handler'},
                                            description => 'Handles removed circuit events');
-    $method->add_input_parameter(name        => 'circuit_id',
+    $method->add_input_parameter(name        => 'affected_circuit',
+				 multiple    => 1,
                                  description => 'The events associated circuit',
                                  pattern     => $GRNOC::WebService::Regex::INTEGER);
     $self->{'router'}->register_method($method);

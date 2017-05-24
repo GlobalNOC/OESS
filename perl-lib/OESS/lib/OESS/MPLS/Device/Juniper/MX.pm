@@ -334,8 +334,7 @@ sub add_vlan{
         return FWDCTL_FAILURE;
     }
 
-    return $self->_edit_config( config => $output );    
-    
+    return $self->_edit_config( config => $output );      
 }
 
 =head2 get_active_lsp_route
@@ -691,7 +690,7 @@ sub get_config_to_remove{
 	my $name = $xp->findvalue( './c:name', $ri );
 	if($name =~ /^OESS/){
 	    #check to see if is currently active circuit
-	    $name =~ /OESS\-\w+\-(\d+)/;
+	    $name =~ /OESS\-\S+\-(\d+)/;
 	    my $circuit_id = $1;
 	    if(!$self->_is_active_circuit($circuit_id, $circuits)){
 		$routing_instance_dels .= "<instance operation='delete'><name>$name</name></instance>";
@@ -740,7 +739,7 @@ sub get_config_to_remove{
 	    $name =~ /OESS\-\w+\-\d+\-\d+\-LSP\-(\d+)/;
 	    my $circuit_id = $1;
 	    if(!$self->_is_active_circuit($circuit_id, $circuits)){
-		$lsp_dels .= "<name>" . $name . "</name>";
+		$lsp_dels .= "<label-switched-path operation='delete'><name>" . $name . "</name></label-switched-path>";
 	    }
 	}
     }
@@ -752,7 +751,7 @@ sub get_config_to_remove{
 	    $name =~ /OESS\-\w+\-\w+\-\w+\-LSP\-(\d+)/;
 	    my $circuit_id = $1;
             if(!$self->_is_active_circuit($circuit_id, $circuits)){
-                $path_dels .= "<name>" . $name . "</name>";
+                $path_dels .= "<path operation='delete'><name>" . $name . "</name></path>";
             }
         }
     }
@@ -760,11 +759,11 @@ sub get_config_to_remove{
     if($lsp_dels ne '' || $path_dels ne ''){
 	$delete .= "<protocols><mpls>";
 	if($lsp_dels ne ''){
-	    $delete .= "<label-switched-path operation='delete'>" . $lsp_dels . "</label_switched_path>";
+	    $delete .= $lsp_dels;
 	}
-
+	
 	if($path_dels ne ''){
-	    $delete .= "<path operation='delete'>" . $path_dels . "</path>";
+	    $delete .= $path_dels;
 	}
 	$delete .= "</mpls></protocols>";
     }
@@ -772,22 +771,22 @@ sub get_config_to_remove{
 
     my $ris_dels = "";
 
-    my $remote_interface_switches = $xp->find( '/base:rpc-reply/c:configuration/c:connections/c:remote-interface-switch');
+    my $remote_interface_switches = $xp->find( '/base:rpc-reply/c:configuration/c:protocols/c:connections/c:remote-interface-switch');
     
     foreach my $ris (@{$remote_interface_switches}){
 	my $name = $xp->findvalue( './c:name', $ris);
         if($name =~ /^OESS/){
-	    $name =~ /OESS\-\w+\-(\d+)/;
+	    $name =~ /OESS\-\S+\-(\d+)/;
 	    my $circuit_id = $1;
 	    #figure out the right bit!
 	    if(!$self->_is_active_circuit($circuit_id, $circuits)){
-                $ris_dels .= "<name>" . $name . "</name>";
+                $ris_dels .= "<remote-interface-switch operation='delete'><name>" . $name . "</name></remote-interface-switch>";
             }
         }
     }
 
     if($ris_dels ne ''){
-	$delete .= "<protocols><connections><remote-interface-switch>" . $ris_dels . "</remote_interface-switch></connections></protocols>";
+	$delete .= "<protocols><connections>" . $ris_dels . "</connections></protocols>";
     }
     
     return $delete;
@@ -1600,12 +1599,16 @@ sub _edit_config{
         my $err = "$@";
         $self->set_error($err);
         $self->{'logger'}->error($err);
+        my %queryargs = ( 'target' => 'candidate' );
+        $res = $self->{'jnx'}->unlock_config(%queryargs);
         return FWDCTL_FAILURE;
     }
     if($self->{'jnx'}->has_error){
-        my $err = "Error attempting to edit config: " . $self->{'jnx'}->get_first_error()->{'error_message'};
+	my $error = $self->{'jnx'}->get_first_error();
+        my $err = "Error attempting to edit config: " . $error->{'error_message'};
         $self->set_error($err);
         $self->{'logger'}->error($err);
+	$self->{'logger'}->error(Dumper($error));
 
         my %queryargs = ( 'target' => 'candidate' );
         $res = $self->{'jnx'}->unlock_config(%queryargs);
