@@ -1374,7 +1374,6 @@ HERE
 
     my $link_maintenances = $self->get_link_maintenances();
 
-    $self->{'logger'}->error("Filtering links by $link_type");
     foreach my $link (@$links){
     
         my $inta = $self->get_interface( interface_id => $link->{'interface_a_id'});
