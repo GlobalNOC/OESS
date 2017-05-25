@@ -46,7 +46,8 @@ sub new {
                                            description => 'Handles provisioned circuit events');
     $method->add_input_parameter(name        => 'circuit',
                                  description => 'The events associated circuit',
-                                 pattern     => $GRNOC::WebService::Regex::INTEGER);
+                                 required => 1,
+                                 schema => {'type' => 'object'});
     $self->{'router'}->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new(name        => 'circuit_modify',
@@ -56,7 +57,8 @@ sub new {
                                            description => 'Handles modified circuit events');
     $method->add_input_parameter(name        => 'circuit',
                                  description => 'The events associated circuit',
-                                 pattern     => $GRNOC::WebService::Regex::INTEGER);
+                                 required => 1,
+                                 schema => {'type' => 'object'});
     $self->{'router'}->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new(name        => 'circuit_remove',
@@ -66,7 +68,8 @@ sub new {
                                            description => 'Handles removed circuit events');
     $method->add_input_parameter(name        => 'circuit',
                                  description => 'The events associated circuit',
-                                 pattern     => $GRNOC::WebService::Regex::INTEGER);
+                                 required => 1,
+                                 schema => {'type' => 'object'});
     $self->{'router'}->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new(name        => 'process_request',
