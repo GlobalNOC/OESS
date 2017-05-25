@@ -162,6 +162,11 @@ div#details_tabs .yui-content {
 div#workgroup_tabs .yui-content {
     background: white;
 }
+
+.yui-skin-sam .yui-dt-scrollable .yui-dt-hd {
+    text-align: left;
+}
+
 .yui-skin-sam .yui-navset-left .yui-nav .selected a {
     background: #2647A0 url(../yui/build/assets/skins/sam/sprite.png) repeat-x left -1400px !important;    
 }
