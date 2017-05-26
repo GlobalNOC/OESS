@@ -6613,31 +6613,46 @@ sub validate_circuit {
     my $self = shift;
     my %args = @_;
 
-    my $type         = $args{'type'};
     my $links        = $args{'links'};
     my $backup_links = $args{'backup_links'};
     my $nodes        = $args{'nodes'};
     my $interfaces   = $args{'interfaces'};
+    my $vlans        = $args{'vlans'};
 
-    my $openflow;
-    my $results;
+    my $type;
 
-    if ($type eq 'openflow') {
-	$openflow = 1;
-    } elsif ($type eq 'mpls') {
-	$openflow = 0;
-    } else {
-	# ERROR HERE
-	return 'Unexpected circuit type received.';
+    my $node_len = scalar @{$nodes};
+    my $intf_len = scalar @{$interfaces};
+    my $vlans_len = scalar @{$vlans};
+
+    if ($node_len != $intf_len || $node_len != $vlans_len) {
+        return (0,"The number of nodes, and interfaces are not equal.");
     }
 
-    my $query = "select link.link_id, link.name from link join link_instantiation on link.link_id=link_instantiation.link_id"; 
-    $query   .= " where link_instantiation.openflow=?";
+    for(my $i = 0; $i <= @$nodes; $i++){
+        my $interface_id = $self->get_interface_id_by_names( node => $nodes->[$i],
+                                                             interface => $interfaces->[$i]);
+        
+        my $interface = $self->get_interface( interface_id => $interface_id);
 
-    $results = $self->_execute_query($query, [$openflow]);
+        my $res = $self->is_external_vlan_available_on_interface( interface_id => $interface_id, vlan => $vlans->[$i]);
+        if(!defined($type)){
+            $type = $res->{'type'};
+        }else{
+            if($type ne $res->{'type'}){
+                return (0,'Interace types do not match');
+            }
+        }
+    }
+
+
+
+    my $query = "select link.link_id, link.name, link_instantiation.mpls, link_instantiation.openflow from link join link_instantiation on link.link_id=link_instantiation.link_id where end_epoch = -1";
+
+    $results = $self->_execute_query($query);
     if (!defined $results) {
         $self->_set_error("Internal error getting links while validating.");
-        return "Internal error getting links while validating.";
+        return (0,"Internal error getting links while validating.");
     }
 
     my $valid_links = {};
@@ -6648,37 +6663,19 @@ sub validate_circuit {
 
     foreach my $name (@{$links}) {
 	if (!exists $valid_links->{$name}) {
-	    return "Link $name is not of type $type.";
+	    return (0,"Link $name is not of type $type.");
 	}
     }
 
     foreach my $name (@{$backup_links}) {
 	if (!exists $valid_links->{$name}) {
-	    return "Backup link $name is not of type $type.";
-	}
-    }
-
-    my $node_len = scalar @{$nodes};
-    my $intf_len = scalar @{$interfaces};
-
-    if ($node_len != $intf_len) {
-	return "The number of nodes, and interfaces are not equal.";
-    }
-
-    for (my $i = 0; $i < $node_len; $i++) {
-	my $query = "select node.name, interface.* ";
-	$query   .= "from interface join node on node.node_id=interface.node_id ";
-	$query   .= "where interface.name=? and node.name=?";
-
-	$results = $self->_execute_query($query, [$interfaces->[$i], $nodes->[$i]]);
-	if (scalar @{$results} == 0) {
-	    return "Interface $interfaces->[$i] is not of type $type.";
+	    return (0,"Backup link $name is not of type $type.");
 	}
     }
 
     $self->{'logger'}->info("Circuit type check complete.");
 
-    return;
+    return (1,"Circuit validated");
 }
 
 =head2 provision_circuit
@@ -6754,7 +6751,7 @@ sub provision_circuit {
     my $state            = $args{'state'} || 'active';
     my $remote_url       = $args{'remote_url'};
     my $remote_requester = $args{'remote_requester'};
-    my $type             = $args{'type'} || 'openflow';
+    my $type; #to be determined later!
 
     if($provision_time != -1 && $provision_time <= time() && $state eq 'active'){
         warn "Provision Time: " . $provision_time . "\n";
@@ -6803,7 +6800,6 @@ sub provision_circuit {
         return;
     }
     
-
     my $query;
     $self->_start_transaction();
 
@@ -6917,11 +6913,22 @@ sub provision_circuit {
         }
 
 	# Verify that $vlan is not already in use on this interface
-	if (! $self->is_external_vlan_available_on_interface(vlan => $vlan, interface_id => $interface_id) ){
+	my $is_avail = $self->is_external_vlan_available_on_interface(vlan => $vlan, interface_id => $interface_id);
+        if(!$is_avail->{'status'}){
 	    $self->_set_error("Vlan '$vlan' is currently in use by another circuit on interface '$interface' on endpoint '$node'");
             $self->_rollback();
 	    return;
 	}
+
+        if(!defined($type)){
+            $type = $is_avail->{'type'};
+        }else{
+            if($type ne $is_avail->{'type'}){
+                $self->_set_error("Interface types do not match!  Unable to provision circuit from OpenFlow to MPLS");
+                $self->_rollback();
+                return;
+            }
+        }
 
 	$query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, end_epoch, start_epoch) values (?, ?, ?, -1, unix_timestamp(NOW()))";
 

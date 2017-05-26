@@ -107,14 +107,14 @@ sub register_webservice_methods {
 	required        => 1,
 	description     => "The workgroup_id with permission to build the circuit, the user must be a member of this workgroup."
 	); 
-
-    $method->add_input_parameter(
-	name => 'type',
-	pattern => $GRNOC::WebService::Regex::NAME_ID,
-	required => 0,
-	default => 'openflow',
-	description => "type of circuit (openflow|mpls)"
-	);
+#this is autodetermined based on interfaces
+#    $method->add_input_parameter(
+#	name => 'type',
+#	pattern => $GRNOC::WebService::Regex::NAME_ID,
+#	required => 0,
+#	default => 'openflow',
+#	description => "type of circuit (openflow|mpls)"
+#	);
     
     #add the optional input parameter external_identifier
      $method->add_input_parameter(
@@ -635,7 +635,7 @@ sub provision_circuit {
     my $circuit_id  = $args->{'circuit_id'}{'value'} || undef;
     my $description = $args->{'description'}{'value'};
 
-    my $type = $args->{'type'}{'value'} || "openflow";
+    #my $type = $args->{'type'}{'value'} || "openflow";
 
     # TEMPORARY HACK UNTIL OPENFLOW PROPERLY SUPPORTS QUEUING. WE CANT
     # DO BANDWIDTH RESERVATIONS SO FOR NOW ASSUME EVERYTHING HAS 0 BANDWIDTH RESERVED
@@ -698,14 +698,14 @@ sub provision_circuit {
         return;
     }
 
-    my $err = $db->validate_circuit(
-	type => $type,
+    my ($status,$err) = $db->validate_circuit(
 	links => $links,
 	backup_links => $backup_links,
 	nodes => $nodes,
-	interfaces => $interfaces
+	interfaces => $interfaces,
+        vlans => $tags
     );
-    if (defined $err) {
+    if (!$status){
 	warn "Couldn't validate circuit: " . $err;
 	$method->set_error("Couldn't validate circuit: " . $err);
 	return;
@@ -736,9 +736,16 @@ sub provision_circuit {
             external_id    => $external_id,
             restore_to_primary => $restore_to_primary,
             static_mac => $static_mac,
-            state => $state,
-	    type => $type
+            state => $state
         );
+
+        my $circuit = OESS::Circuit->new( circuit_id => $output->{'circuit_id'},
+                                          db => $db);
+        if(!defined($circuit)){
+            $method->set_error("Unable to provision circuit");
+            return;
+        }
+        my $type = $circuit->get_type();
 
 	my $after_provision = [gettimeofday];
 	warn "Time in DB: " . tv_interval( $before_provision, $after_provision);
@@ -851,10 +858,17 @@ sub provision_circuit {
             static_mac => $static_mac,
             do_sanity_check => 0,
             loop_node => $loop_node,
-            state  => $state,
-	    type   => $type
+            state  => $state
         );
 
+        my $circuit = OESS::Circuit->new( circuit_id => $circuit_id,
+                                          db => $db);
+        if(!defined($circuit)){
+            $method->set_error("Unable to find circuit: " . $circuit_id);
+            return;
+        }
+        my $type = $circuit->get_type();
+        
         # Edit Existing Circuit
         # verify is allowed to modify circuit ISSUE=7690
         # and perform all other sanity checks on circuit 10278
@@ -975,8 +989,14 @@ sub remove_circuit {
     my $circuit_id   = $args->{'circuit_id'}{'value'};
     my $remove_time  = $args->{'remove_time'}{'value'};
     my $workgroup_id = $args->{'workgroup_id'}{'value'};
-    my $type         = $args->{'type'}{'value'} || "openflow";
 
+    my $circuit = OESS::Circuit->new( circuit_id => $circuit_id,
+                                      db => $db);
+    if(!defined($circuit)){
+        $method->set_error("Unable to find circuit: " . $circuit_id);
+        return;
+    }
+    my $type = $circuit->get_type();
     my $results = {};
     $results->{'results'} = [];
 
