@@ -6822,6 +6822,16 @@ sub provision_circuit {
 	}
     }
 
+    my $interface = $self->get_interface_id_by_names( node => $nodes->[0],
+                                                      interface => $interfaces->[0]);
+    if(!defined($interface)){
+        $self->_set_error("Unable to find interface for endpoint");
+        return;
+    }
+
+    my $is_avail = $self->is_external_vlan_available_on_interface(vlan => $tags->[0], interface_id => $interface);
+
+    $type = $is_avail->{'type'};
     # create circuit record
     my $circuit_id = $self->_execute_query("insert into circuit (name, description, workgroup_id, external_identifier, restore_to_primary, static_mac,circuit_state, remote_url, remote_requester, type) values (?, ?, ?, ?, ?, ?,?,?,?,?)",
 					   [$name, $description, $workgroup_id, $external_id, $restore_to_primary, $static_mac,$state, $remote_url, $remote_requester, $type]);
@@ -6924,14 +6934,10 @@ sub provision_circuit {
 	    return;
 	}
 
-        if(!defined($type)){
-            $type = $is_avail->{'type'};
-        }else{
-            if($type ne $is_avail->{'type'}){
-                $self->_set_error("Interface types do not match!  Unable to provision circuit from OpenFlow to MPLS");
-                $self->_rollback();
-                return;
-            }
+        if($type ne $is_avail->{'type'}){
+            $self->_set_error("Interface types do not match!  Unable to provision circuit from OpenFlow to MPLS");
+            $self->_rollback();
+            return;
         }
 
 	$query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, end_epoch, start_epoch) values (?, ?, ?, -1, unix_timestamp(NOW()))";
