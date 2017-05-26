@@ -309,6 +309,12 @@ sub register_webservice_methods {
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
                                   required    => 0,
 				  description => "Software version of node node_id");
+    $method->add_input_parameter( name        => "short_name",
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 0,
+                                  description => "Short name of the device as it will be found during discovery");
+
+
     $svc->register_method($method);
 
     $method = GRNOC::WebService::Method->new( name        => 'update_interface',
@@ -1611,6 +1617,7 @@ sub update_node {
     my $sw_version = $args->{'sw_version'}{'value'};
     my $tcp_port   = $args->{'tcp_port'}{'value'};
     my $vendor     = $args->{'vendor'}{'value'};
+    my $short_name = $args->{'short_name'}{'value'};
 
     if ($default_drop eq 'true') {
         $default_drop = 1;
@@ -1656,7 +1663,8 @@ sub update_node {
         tx_delay_ms     => $tx_delay_ms,
         max_flows       => $max_flows,
         bulk_barrier    => $bulk_barrier,
-        max_static_mac_flows => $max_static_mac_flows
+        max_static_mac_flows => $max_static_mac_flows,
+        short_name      => $short_name
     );
 
     if ( !defined $result ) {

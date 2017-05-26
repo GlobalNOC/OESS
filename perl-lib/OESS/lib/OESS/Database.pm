@@ -4656,6 +4656,7 @@ sub update_node {
     my $tx_delay_ms = $args{'tx_delay_ms'} || 0;
     my $barrier_bulk = $args{'bulk_barrier'} || 0;
     my $max_static_mac_flows = $args{'max_static_mac_flows'} || 0;
+    my $short_name = $args{'short_name'};
 
     if(!defined($default_drop)){
 	$default_drop =1;
@@ -4671,8 +4672,8 @@ sub update_node {
 
     $self->_start_transaction();
 
-    my $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ?, vlan_tag_range = ?,default_drop = ?, default_forward = ?, tx_delay_ms = ?, max_flows = ?, send_barrier_bulk = ?, max_static_mac_flows = ? where node_id = ?",
-				       [$name, $long, $lat, $vlan_range,$default_drop,$default_forward,$tx_delay_ms, $max_flows, $barrier_bulk, $max_static_mac_flows, $node_id]
+    my $result = $self->_execute_query("update node set name = ?, longitude = ?, latitude = ?, vlan_tag_range = ?,default_drop = ?, default_forward = ?, tx_delay_ms = ?, max_flows = ?, send_barrier_bulk = ?, max_static_mac_flows = ?, short_name =?  where node_id = ?",
+				       [$name, $long, $lat, $vlan_range,$default_drop,$default_forward,$tx_delay_ms, $max_flows, $barrier_bulk, $max_static_mac_flows, $short_name, $node_id]
 	                              );
 
     if ($result != 1){
