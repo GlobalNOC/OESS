@@ -2906,8 +2906,8 @@ function setup_network_tab(){
                       "<tr class='mpls'>" +
                         "<td>Software Version</td>" +
                         "<td><input type='text' id='sw_version'></td>" +
-                        "<td></td>" +
-                        "<td></td>" +
+                        "<td>Short Name:</td>" +
+                        "<td><input type='text' id='short_name'></td>" +
                       "</tr>" +
                       "<tr class='mpls'><td>&nbsp;</td></tr>" +
                       "</table>" +
@@ -2950,6 +2950,7 @@ function setup_network_tab(){
             YAHOO.util.Dom.get('active_max_flows').value            = max_flows;
             YAHOO.util.Dom.get('dpid_str').innerHTML                = dpid;
             YAHOO.util.Dom.get('active_max_static_mac_flows').value = max_static_mac_flows;
+            YAHOO.util.Dom.get('short_name').value = short_name;
 
 	    if (openflow == 0 || openflow == null) {
                 YAHOO.util.Dom.get('openflow_enabled').value = false;
@@ -3029,6 +3030,7 @@ function setup_network_tab(){
                                 var vendor     = YAHOO.util.Dom.get('vendor').value;
                                 var model      = YAHOO.util.Dom.get('model').value;
                                 var sw_version = YAHOO.util.Dom.get('sw_version').value;
+                                var short_name = YAHOO.util.Dom.get('short_name').value;
 
 				if (! new_name){
 				    alert("You must specify a name for this device.");
@@ -3072,7 +3074,8 @@ function setup_network_tab(){
                                     "&tcp_port="   + encodeURIComponent(tcp_port) +
                                     "&vendor="     + encodeURIComponent(vendor) +
                                     "&model="      + encodeURIComponent(model) +
-                                    "&sw_version=" + encodeURIComponent(sw_version);
+                                    "&sw_version=" + encodeURIComponent(sw_version) +
+                                    "&short_name=" + ecnodeURIComponent(short_name);
 
                                 var openflow_args = "&default_drop=" + encodeURIComponent(new_default_drop) +
                                     "&default_forward=" + encodeURIComponent(new_default_forward) +
