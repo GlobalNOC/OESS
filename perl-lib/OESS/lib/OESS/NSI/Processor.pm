@@ -44,7 +44,7 @@ sub circuit_provision{
     my ($self, $method, $params) = @_;
 
     foreach my $ckt_id (@{$self->{'watched_circuits'}}){
-        if ($params->{'circuit_id'}->{'value'} == $ckt_id) {
+        if ($params->{'circuit'}->{'value'}->{'circuit_id'} == $ckt_id) {
             log_info("Circuit $ckt_id was provisioned.");
             $self->{'provisioning'}->dataPlaneStateChange($ckt_id);
         } else {
@@ -61,7 +61,7 @@ sub circuit_modified{
     my ($self, $method, $params) = @_;
 
     foreach my $ckt_id (@{$self->{'watched_circuits'}}){
-        if ($params->{'circuit_id'}->{'value'} == $ckt_id) {
+        if ($params->{'circuit'}->{'value'}->{'circuit_id'} == $ckt_id) {
             log_info("Circuit $ckt_id was modified.");
             $self->{'provisioning'}->dataPlaneStateChange($ckt_id);
         } else {
@@ -78,7 +78,7 @@ sub circuit_removed{
     my ($self, $method, $params) = @_;
 
     foreach my $ckt_id (@{$self->{'watched_circuits'}}){
-        if($params->{'circuit_id'}->{'value'} == $ckt_id){
+        if($params->{'circuit'}->{'value'}->{'circuit_id'} == $ckt_id){
             log_info("Circuit $ckt_id was removed.");
             $self->{'provisioning'}->dataPlaneStateChange($ckt_id);
         } else {

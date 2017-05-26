@@ -479,7 +479,7 @@ sub new_switch{
     $self->{'logger'}->debug("Baby was created!");
     $self->update_cache(-1);
 
-    \&success({status => FWDCTL_SUCCESS});
+    &$success({status => FWDCTL_SUCCESS});
 }
 
 =head2 create_nodes
