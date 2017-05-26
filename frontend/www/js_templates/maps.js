@@ -285,7 +285,7 @@ function NDDIMap(div_id, interdomain_mode, options){
       var vendor     = node_info.vendor;
       var model      = node_info.model;
       var sw_version = node_info.sw_version;
-
+      var short_name = node_info.short_name;
       var avail_endpoints = node_info.number_available_endpoints;
       var barrier_bulk = node_info.barrier_bulk;
       var max_static_mac_flows = node_info.max_static_mac_flows;
@@ -343,6 +343,7 @@ function NDDIMap(div_id, interdomain_mode, options){
       point.tcp_port   = tcp_port;
       point.vendor     = vendor;
       point.model      = model;
+      point.short_name = short_name;
       point.sw_version = sw_version;
       point.barrier_bulk = barrier_bulk;
       point.max_static_mac_flows = max_static_mac_flows;
@@ -1369,10 +1370,11 @@ function NDDIMap(div_id, interdomain_mode, options){
                                               var model      = geo.model;
                                               var sw_version = geo.sw_version;
 					      var tx_delay_ms = geo.tx_delay_ms;
+                                              var short_name = geo.short_name;
 					      var barrier_bulk = geo.barrier_bulk;
 					      var max_static_mac_flows = geo.max_static_mac_flows;
 					      var dpid = geo.dpid;
-					      self.events['clickNode'].fire({name: node, lat: lat, lon: lon, node_id: node_id, vlan_range: range,default_forward: default_forward, default_drop: default_drop,max_flows: max_flows, tx_delay_ms: tx_delay_ms,  feature: e.feature, barrier_bulk: barrier_bulk, max_static_mac_flows: max_static_mac_flows, dpid: dpid, openflow: openflow, mpls: mpls, mgmt_addr: mgmt_addr, tcp_port: tcp_port, vendor: vendor, model: model, sw_version: sw_version});
+					      self.events['clickNode'].fire({name: node, lat: lat, lon: lon, node_id: node_id, vlan_range: range,default_forward: default_forward, default_drop: default_drop,max_flows: max_flows, tx_delay_ms: tx_delay_ms,  feature: e.feature, barrier_bulk: barrier_bulk, max_static_mac_flows: max_static_mac_flows, dpid: dpid, openflow: openflow, mpls: mpls, mgmt_addr: mgmt_addr, tcp_port: tcp_port, vendor: vendor, model: model,short_name: short_name, sw_version: sw_version});
 					  }
 					  // otherwise we're clicking on a link
 					  else{

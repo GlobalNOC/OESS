@@ -2388,6 +2388,7 @@ function setup_network_tab(){
             var lon        = args[0].lon;
             var vlan_range = args[0].vlan_range;
             var max_flows = args[0].max_flows;
+            var short_name = args[0].short_name;
             var tx_delay_ms = args[0].tx_delay_ms;
             var default_drop = args[0].default_drop;
             var default_forward = args[0].default_forward;
@@ -2589,6 +2590,7 @@ function setup_network_tab(){
 		    {key: "name"},
 		    {key: "description"},
 		    {key: "vlan_tag_range"},
+                    {key: "short_name"},
 		    {key: "mpls_vlan_tag_range"},
 		    {key: "interface_id", parser: "number"},
 		    {key: "workgroup_id", parser: "number"},
@@ -3075,7 +3077,7 @@ function setup_network_tab(){
                                     "&vendor="     + encodeURIComponent(vendor) +
                                     "&model="      + encodeURIComponent(model) +
                                     "&sw_version=" + encodeURIComponent(sw_version) +
-                                    "&short_name=" + ecnodeURIComponent(short_name);
+                                    "&short_name=" + encodeURIComponent(short_name);
 
                                 var openflow_args = "&default_drop=" + encodeURIComponent(new_default_drop) +
                                     "&default_forward=" + encodeURIComponent(new_default_forward) +
@@ -3494,6 +3496,10 @@ function setup_discovery_tab(){
                 YAHOO.util.Dom.get('max_flows').checked = record.getData('max_flows');
             }
 
+            if(record.getData('short_name')){
+                YAHOO.util.Dom.get('short_name').value = record.getData('short_name');
+            }
+
             if(record.getData('tx_delay_ms')){
                 YAHOO.util.Dom.get('tx_delay_ms').checked = record.getData('tx_delay_ms');
             }
@@ -3558,7 +3564,7 @@ function setup_discovery_tab(){
                     var max_flows = YAHOO.util.Dom.get('max_flows').value;
                     var tx_delay_ms = YAHOO.util.Dom.get('tx_delay_ms').value;
                     var bulk_barrier = YAHOO.util.Dom.get('bulk_barrier').checked;
-
+                    
                     if (! name){
                         alert("You must specify a name for this device.");
                         return;
