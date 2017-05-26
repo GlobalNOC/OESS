@@ -96,6 +96,7 @@ div.breadcrumbs {
     float: left;
     font-size: 88%;
     margin-left: 35px;
+    margin-right: 2em;
 }
 
 div.breadcrumbs a {
@@ -206,10 +207,12 @@ div#workgroup_tabs .yui-content {
 
 
 div.active_workgroup_container {
-    float: right; 
-    font-size: 90%; 
-    margin-top: 90px;
-    margin-right: -70px;
+    font-size: 90%;
+    margin-right: 35px;
+    text-align: right;
+}
+
+div.active_workgroup_container::first-line {
     color: white;
 }
 
