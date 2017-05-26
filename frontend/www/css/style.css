@@ -165,6 +165,7 @@ div#workgroup_tabs .yui-content {
 
 .yui-skin-sam .yui-dt-scrollable .yui-dt-hd {
     text-align: left;
+    position: static;
 }
 
 .yui-skin-sam .yui-navset-left .yui-nav .selected a {
