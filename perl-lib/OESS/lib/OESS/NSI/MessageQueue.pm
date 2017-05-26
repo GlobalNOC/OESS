@@ -44,6 +44,7 @@ sub new {
                                            topic       => 'OF.Notification.event',
                                            callback    => $self->{'provision_event_handler'},
                                            description => 'Handles provisioned circuit events');
+
     $method->add_input_parameter(name        => 'circuit',
                                  description => 'The events associated circuit',
                                  required => 1,
@@ -55,6 +56,7 @@ sub new {
                                            topic       => 'OF.Notification.event',
                                            callback    => $self->{'modified_event_handler'},
                                            description => 'Handles modified circuit events');
+
     $method->add_input_parameter(name        => 'circuit',
                                  description => 'The events associated circuit',
                                  required => 1,
