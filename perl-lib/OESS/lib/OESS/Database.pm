@@ -6604,13 +6604,11 @@ An array of names of interfaces that this circuit should use. The
 order of this should match nodes such that a given
 nodes[i]-interfaces[i] combination is accurate.
 
-=back
-
 =item vlans
 
 An array of vlan tags that the circuit should use must match nodes/interfaces
 
-=cut
+=back
 
 =cut
 
@@ -6634,13 +6632,14 @@ sub validate_circuit {
         return (0,"The number of nodes, and interfaces are not equal.");
     }
 
-    for(my $i = 0; $i <= @$nodes; $i++){
+    for(my $i = 0; $i < @$nodes; $i++){
         my $interface_id = $self->get_interface_id_by_names( node => $nodes->[$i],
                                                              interface => $interfaces->[$i]);
         
         my $interface = $self->get_interface( interface_id => $interface_id);
 
         my $res = $self->is_external_vlan_available_on_interface( interface_id => $interface_id, vlan => $vlans->[$i]);
+        warn Dumper($res);
         if(!defined($type)){
             $type = $res->{'type'};
         }else{
@@ -6654,7 +6653,7 @@ sub validate_circuit {
 
     my $query = "select link.link_id, link.name, link_instantiation.mpls, link_instantiation.openflow from link join link_instantiation on link.link_id=link_instantiation.link_id where end_epoch = -1";
 
-    $results = $self->_execute_query($query);
+    my $results = $self->_execute_query($query);
     if (!defined $results) {
         $self->_set_error("Internal error getting links while validating.");
         return (0,"Internal error getting links while validating.");
