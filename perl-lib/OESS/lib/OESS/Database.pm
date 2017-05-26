@@ -6575,8 +6575,7 @@ sub schedule_path_change{
 =head2 validate_circuit
 
 Validates that links and interfaces are of the specified type. Returns
-an error string if validation fails, or undef if validation is
-successful.
+a status and an error string if validation fails.
 
 =over
 
@@ -6606,6 +6605,12 @@ order of this should match nodes such that a given
 nodes[i]-interfaces[i] combination is accurate.
 
 =back
+
+=item vlans
+
+An array of vlan tags that the circuit should use must match nodes/interfaces
+
+=cut
 
 =cut
 
