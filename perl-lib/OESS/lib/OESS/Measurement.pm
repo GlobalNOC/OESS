@@ -185,7 +185,7 @@ sub get_of_circuit_data {
 
     foreach my $int (@interfaces){
         if ($int->{'dpid'} eq $dpid) {
-            if( ( !defined($interface) && !defined($selected) ) || $int->{'int'} eq $interface){
+            if(!defined($selected) && defined($interface) && ($int->{'int'} eq $interface)){
                 $selected = $int;
             }else{
                 push(@other_interfaces_on_node, $int);
@@ -193,8 +193,9 @@ sub get_of_circuit_data {
         }
     }
 
-    # If the asked-for interface does not exist on the node in question, punt!
-    $selected = pop @other_interfaces_on_node if !defined($interface);
+    # If the asked-for interface does not exist on the node in question
+    # (or no specific interface was asked for), just select one!
+    $selected = shift @other_interfaces_on_node if !defined($selected);
 
     $self->{'logger'}->info("Interfaces: " . Dumper(@other_interfaces_on_node));
     $self->{'logger'}->info("Selected: "   . Dumper($selected));
