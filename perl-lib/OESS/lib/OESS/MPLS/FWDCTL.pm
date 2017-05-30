@@ -449,7 +449,8 @@ sub _register_rpc_methods{
     $d->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name => 'get_diff_text',
-                                            callback => sub { return $self->get_diff_text(@_); },
+                                            async => 1,
+                                            callback => sub { $self->get_diff_text(@_); },
                                             description => "Returns a human readable diff for node_id" );
     $method->add_input_parameter( name => "node_id",
                                   description => "The node ID to lookup",
@@ -931,38 +932,32 @@ sub get_diff_text {
     my $p_ref = shift;
 
     $self->{'logger'}->debug("Calling FWDCTL.get_diff_text");
-    my $id = $self->_generate_unique_event_id();
-    my $event = { id      => $id,
-                  results => undef,
-                  status  => FWDCTL_WAITING
-                };
+
+    my $success_cb = $m_ref->{'success_callback'};
+    my $error_cb = $m_ref->{'error_callback'};
 
     my $node_id = $p_ref->{'node_id'}{'value'};
     my $node = $self->{'children'}->{$node_id};
     if (!defined $node) {
         my $err = "Node $node_id doesn't exist.";
         $self->{'logger'}->error($err);
-        $event->{'error'} = $err;
-        $event->{'status'} = FWDCTL_FAILURE;
-        return $event;
+        &$error_cb({error => $err, status => FWDCTL_FAILURE});
+        return;
     }
 
     $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
     $self->{'fwdctl_events'}->get_diff_text(
 	async_callback => sub {
-                      my $response = shift;
-		      
-                      if (defined $response->{'error'}) {
-                          $event->{'error'} = $response->{'error'};
-                          $event->{'status'} = FWDCTL_FAILURE;
-                      } else {
-                          $event->{'results'} = [ $response->{'results'} ];
-                          $event->{'status'} = FWDCTL_SUCCESS;
-                      }
+            my $response = shift;
+            
+            if (defined $response->{'error'}) {
+                &$error_cb({error => $response->{'error'}, status => FWDCTL_FAILURE});
+            } else {
+                &$success_cb( {status => FWDCTL_SUCCESS, results => [ $response->{'results'} ]});
+                #$event->{'results'} = [ $response->{'results'} ];
+                #$event->{'status'} = FWDCTL_SUCCESS;
+            }
 	} );
-
-    $self->{'events'}->{$id} = $event;
-    return $event;
 }
 
 =head2 get_ckt_object

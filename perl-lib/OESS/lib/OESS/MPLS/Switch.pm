@@ -208,7 +208,7 @@ sub _register_rpc_methods{
                                                 $self->stop();
                                             },
                                             description => "Notification that FWDCTL has exited",
-                                            topic       => "MPLS.FWDCTL.event" );
+                                            topic       => "MPLS.Discovery.event" );
     $dispatcher->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name        => "get_interfaces",
