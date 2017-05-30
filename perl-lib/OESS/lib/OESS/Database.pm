@@ -2051,6 +2051,8 @@ sub get_available_resources {
     my %interface_already_added;
     foreach my $interface (@$interfaces) {
         my $vlan_tag_range = $self->_validate_endpoint(interface_id => $interface->{'interface_id'}, workgroup_id => $workgroup_id );
+        my $mpls_vlan_tag_range = $self->_validate_endpoint(interface_id => $interface->{'interface_id'}, workgroup_id => $workgroup_id, type => 'mpls');
+        $vlan_tag_range .= $mpls_vlan_tag_range;
         $interface_already_added{$interface->{'interface_id'}} = 1;
         if ( $vlan_tag_range ){
             my $is_owner = 0;
