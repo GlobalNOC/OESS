@@ -38,6 +38,7 @@ use Data::Dumper;
 use Exporter qw(import);
 use OESS::Circuit;
 use POSIX qw(strftime);
+use List::Util qw(none);
 
 
 use constant BUILDING_FILE => -1;
@@ -115,7 +116,7 @@ sub get_of_circuit_data {
     }
 
     #get the path that is currently active for issue 7410
-    my $ckt        = OESS::Circuit->new(circuit_id => $circuit_id, db => $db);
+    my $ckt = OESS::Circuit->new(circuit_id => $circuit_id, db => $db);
 
     if(!defined($ckt)){
         warn "Unable to find circuit\n";
@@ -123,7 +124,6 @@ sub get_of_circuit_data {
         return undef;
     }
 
-    my $active_path = $ckt->get_active_path();
 
     if(!defined $start){
         $self->_set_error("start_time is required and should be in epoch time");
@@ -137,16 +137,15 @@ sub get_of_circuit_data {
 
     #issue 7410 graphs not able to determine backup vs primary path data. 
 
-    my $inital_node_dpid_hash = $db->get_node_dpid_hash();
-    
-    my %repaired_node_dpid_hash = reverse %{$inital_node_dpid_hash};
-    my %int_names;
-    foreach my $nodeName (keys (%{$inital_node_dpid_hash})){
+    my %node_to_dpid = %{$db->get_node_dpid_hash()}; # map of node name to node DPID
+    my %int_names; # map of (DPID, port #) to interface name
 
-        my $int_name =  $db->get_node_interfaces('node'=> $nodeName, show_down => 1, show_trunk =>1);
+    foreach my $nodeName (keys %node_to_dpid){
+
+        my $int_name =  $db->get_node_interfaces(node => $nodeName, show_down => 1, show_trunk =>1);
         
         foreach my $int (@{$int_name}){
-            $int_names{$nodeName}->{$int->{'port_number'}} = $int->{'name'};
+            $int_names{$node_to_dpid{$nodeName}}->{$int->{'port_number'}} = $int->{'name'};
         }
     }
 
@@ -154,14 +153,15 @@ sub get_of_circuit_data {
   
     my @interfaces;
 
+    my $active_path = $ckt->get_active_path();
     my $flows = $ckt->get_flows(path => $active_path);
-    my %endpoint;
+
     foreach my $flow (@{$flows}){
 	my $match = $flow->get_match();
 
 	push(@interfaces, {
-            node    => $flow->get_dpid(),
-            int     => $int_names{$repaired_node_dpid_hash{$flow->get_dpid()}}{$match->{'in_port'}},
+            dpid    => $flow->get_dpid(),
+            int     => $int_names{$flow->get_dpid()}{$match->{'in_port'}},
             port_no => $match->{'in_port'},
             tag     => $match->{'dl_vlan'}
 	});
@@ -172,50 +172,49 @@ sub get_of_circuit_data {
     #ok we pushed all interfaces into a big array
     #now pull out all the ones on our selected node... and if its the selected selected it
     my $selected;
-    my @interfaces_on_node;
+    my @other_interfaces_on_node;
 
-    my $ep = $ckt->get_endpoints()->[0];
-
-    warn Dumper($ep);
-
-    if(!defined($node)){
-        $node = $inital_node_dpid_hash->{$ep->{'node'}};
-    }else{
-        $node = $inital_node_dpid_hash->{$node};
+    # if we weren't given a specific node, or it isn't involved in the current path, use one of the endpoint interfaces
+    if (!defined($node) || !defined($node_to_dpid{$node})
+                        || (none { $_->{'dpid'} eq $node_to_dpid{$node} } @interfaces)){
+        my $ep = $ckt->get_endpoints()->[0];
+        $node = $ep->{'node'};
+        $interface = $ep->{'interface'};
     }
 
-    if(!defined($interface)){
-	$interface = $ep->{'interface'};
-    }
+    my $dpid = $node_to_dpid{$node};
 
     foreach my $int (@interfaces){
-        if ($int->{'node'} eq $node) {
+        if ($int->{'dpid'} eq $dpid) {
             if( ( !defined($interface) && !defined($selected) ) || $int->{'int'} eq $interface){
                 $selected = $int;
             }else{
-                push(@interfaces_on_node, $int);
+                push(@other_interfaces_on_node, $int);
             }
         }
     }
 
-    $self->{'logger'}->warn("Interfaces: " . Dumper(@interfaces_on_node));
-    $self->{'logger'}->warn("Selected: "   . Dumper($selected));
+    # If the asked-for interface does not exist on the node in question, punt!
+    $selected = pop @other_interfaces_on_node if !defined($interface);
+
+    $self->{'logger'}->info("Interfaces: " . Dumper(@other_interfaces_on_node));
+    $self->{'logger'}->info("Selected: "   . Dumper($selected));
 
     #now we have selected an interface and have a list of all the other interfaces on that node
     #generate our data
     my $in = $self->_tsds_of_query( port_no => $selected->{'port_no'},
-                                   dpid => $selected->{'node'},
-                                   tag => $selected->{'tag'},
-                                   start => $start,
-                                   end => $end);
+                                    dpid    => $selected->{'dpid'},
+                                    tag     => $selected->{'tag'},
+                                    start   => $start,
+                                    end     => $end);
 
     my $out_agg;
-    foreach my $int (@interfaces_on_node){
+    foreach my $int (@other_interfaces_on_node){
         my $out = $self->_tsds_of_query( port_no => $int->{'port_no'},
-                                        dpid => $int->{'node'},
-                                        tag => $int->{'tag'},
-                                        start => $start,
-                                        end => $end);
+                                         dpid    => $int->{'dpid'},
+                                         tag     => $int->{'tag'},
+                                         start   => $start,
+                                         end     => $end);
         if(!defined($out_agg)){
             $out_agg = $out->{'results'};
         } else {
@@ -227,7 +226,7 @@ sub get_of_circuit_data {
 #    $self->{'logger'}->debug(Dumper($out_agg));
 
     my $interface_names = [];
-    foreach my $int (@interfaces_on_node) {
+    foreach my $int (@other_interfaces_on_node) {
 	push(@{$interface_names}, $int->{'int'});
     }
 
@@ -235,7 +234,7 @@ sub get_of_circuit_data {
 
     my $result = { 'interfaces' => $interface_names,
                    'interface'  => $selected->{'int'},
-                   'node'       => $repaired_node_dpid_hash{$node},
+                   'node'       => $node,
                    'results'    => [
 		       {
 			   name => "Input (Bps)",
