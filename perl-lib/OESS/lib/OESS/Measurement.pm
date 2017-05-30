@@ -225,14 +225,15 @@ sub get_of_circuit_data {
 #    $self->{'logger'}->debug(Dumper($in));
 #    $self->{'logger'}->debug(Dumper($out_agg));
 
-    my $interface_names = [];
+    my @interface_names = ();
     foreach my $int (@other_interfaces_on_node) {
-	push(@{$interface_names}, $int->{'int'});
+	push(@interface_names, $int->{'int'});
     }
 
-    push(@{$interface_names}, $selected->{'int'});
+    push(@interface_names, $selected->{'int'});
+    @interface_names = sort @interface_names;
 
-    my $result = { 'interfaces' => $interface_names,
+    my $result = { 'interfaces' => \@interface_names,
                    'interface'  => $selected->{'int'},
                    'node'       => $node,
                    'results'    => [
