@@ -517,7 +517,7 @@ sub make_baby {
     $args{'rabbitMQ_user'} = $self->{'db'}->{'rabbitMQ'}->{'user'};
     $args{'rabbitMQ_pass'} = $self->{'db'}->{'rabbitMQ'}->{'pass'};
     $args{'rabbitMQ_vhost'} = $self->{'db'}->{'rabbitMQ'}->{'vhost'};
-
+    $args{'topic'} = "MPLS.FWDCTL.Switch";
     my $proc = AnyEvent::Fork->new->require("Log::Log4perl", "OESS::MPLS::Switch")->eval('
 use strict;
 use warnings;
@@ -1089,7 +1089,7 @@ sub stop {
     my $self = shift;
 
     $self->{'logger'}->info("Sending MPLS.FWDCTL.event.stop to listeners");
-    $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.event";
+    $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch";
     $self->{'fwdctl_events'}->stop();
 }
 
