@@ -851,12 +851,8 @@ sub get_diff_text {
     my ( $method, $args ) = @_ ;
 
     my $node_id = $args->{'node_id'}{'value'};
+    $mq->{'topic'} = "MPLS.FWDCTL.RPC";
     my $event   = $mq->get_diff_text( node_id => $node_id );
-
-    while ($event->{'results'}->{'status'} == FWDCTL_WAITING) {
-        usleep(1000000);
-        $event = $mq->get_event_status( event_id => $event->{'results'}->{'id'} );
-    }
 
     return $event->{'results'};
 }
