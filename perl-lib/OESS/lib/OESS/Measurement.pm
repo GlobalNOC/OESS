@@ -38,7 +38,6 @@ use Data::Dumper;
 use Exporter qw(import);
 use OESS::Circuit;
 use POSIX qw(strftime);
-use List::Util qw(none);
 
 
 use constant BUILDING_FILE => -1;
@@ -176,7 +175,7 @@ sub get_of_circuit_data {
 
     # if we weren't given a specific node, or it isn't involved in the current path, use one of the endpoint interfaces
     if (!defined($node) || !defined($node_to_dpid{$node})
-                        || (none { $_->{'dpid'} eq $node_to_dpid{$node} } @interfaces)){
+                        || (scalar(grep { $_->{'dpid'} eq $node_to_dpid{$node} } @interfaces) == 0)){
         my $ep = $ckt->get_endpoints()->[0];
         $node = $ep->{'node'};
         $interface = $ep->{'interface'};
