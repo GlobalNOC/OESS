@@ -34,29 +34,41 @@ function workgroups_init(){
 
 function make_workgroups_table(){
 
-    var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_workgroups");
+    var ds = new YAHOO.util.DataSource("services/data.cgi?method=get_workgroups");
     ds.responseType   = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
 	resultsList: "results",
 	fields: [{key: "name"},
                  {key: "workgroup_id"},
                  {key: "type"}
-		 ],
+		],
 	metafields: {
 	    error: "error"
 	}
     };
-
+    //sort the workgroups alphabetically
+    ds.doBeforeCallback = function (Request, FullResponse, ParsedResponse, Callback) {
+        ParsedResponse.results.sort(sortWorkgroups);
+        return ParsedResponse;
+    };
+    
     var cols = [{key: "name", label: "Workgroup", sortable:true, width: 300}
 		];
-
-        
     var config = {
 	sortedBy:{key:"name", dir:"asc"},
 	height: '200px'
     }
-    
     var dt = new YAHOO.widget.ScrollingDataTable("workgroups_table", cols, ds, config);
+
+    function sortWorkgroups(a, b){
+        var nameA=a.name.toLowerCase();
+        var nameB=b.name.toLowerCase();
+        if (nameA < nameB) 
+            return -1;
+        if (nameA > nameB)
+            return 1;
+        return 0; 
+    }
 
     var search = new YAHOO.util.Element(YAHOO.util.Dom.get('workgroup_search'));
     var searchTimeout;

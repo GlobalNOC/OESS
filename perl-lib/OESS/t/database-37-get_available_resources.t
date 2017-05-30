@@ -20,7 +20,9 @@ use OESS::Database;
 use OESSDatabaseTester;
 use Data::Dumper;
 
-my $db = OESS::Database->new(config => OESSDatabaseTester::getConfigFilePath());
+my $cpath = OESSDatabaseTester::getConfigFilePath();
+warn "$cpath";
+my $db = OESS::Database->new(config => $cpath);
 
 #my $res;
 # try editing a circuit when acl rule will block you
@@ -30,8 +32,7 @@ my $res = $db->get_available_resources(
 ok($res, 'query ok');
 is(@$res, 6, 'count');
 
-warn Dumper($res);
-my $correct_result = [                                                                                                                
+my $correct_result = [
     {
             'interface_name' => 'e15/1',
             'remote_links' => [],
@@ -50,7 +51,7 @@ my $correct_result = [
             'interface_id' => '45901',
             'description' => 'e15/1',
             'is_owner' => 0,
-            'vlan_tag_range' => '-1,1-100,201-4095',
+            'vlan_tag_range' => '1-100,201-4095',
             'node_id' => '21',
             'operational_state' => 'up'
     },
@@ -138,4 +139,14 @@ my $correct_result = [
 }
     ];
 
-cmp_deeply($res, $correct_result, "values for resources matches");
+warn Dumper($res);
+warn "---";
+warn Dumper($correct_result);
+
+my ($ok, $stack) = Test::Deep::cmp_details($res, $correct_result);
+if (!$ok) {
+    my $err = Test::Deep::deep_diag($stack);
+    warn "$err";
+}
+
+ok($ok, "Values for resources match.");

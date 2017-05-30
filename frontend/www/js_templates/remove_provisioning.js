@@ -208,11 +208,12 @@ function removeLocalCircuit(){
                  {key: "circuit_id", parser: "number"}    
 		 ],
 	metaFields: {
-	    error: "error"
+	    error: "error",
+            error_text: "error_text"
 	}
     };
 
-    var postVars = "action=remove_circuit&circuit_id="+encodeURIComponent(circuit_id)+"&remove_time="+encodeURIComponent(remove_time) + "&workgroup_id=" + encodeURIComponent(session.data.workgroup_id);
+    var postVars = "method=remove_circuit&circuit_id="+encodeURIComponent(circuit_id)+"&remove_time="+encodeURIComponent(remove_time) + "&workgroup_id=" + encodeURIComponent(session.data.workgroup_id) + "&type=" + encodeURIComponent(session.data.circuit_type);
 
     ds.sendRequest(postVars, {success: handleSuccess, failure: handleFailure, scope: this});
 }
@@ -223,7 +224,7 @@ function handleSuccess(request, response){
     this.set("disabled", false);
 
     if (response.meta.error){
-	alert("Error - " + response.meta.error);
+	alert(response.meta.error_text);
 	return;
     }
 

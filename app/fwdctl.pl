@@ -22,16 +22,13 @@
 ##   limitations under the License.
 #
 
-use OESS::DBus;
 use OESS::FWDCTL::Master;
-use Net::DBus::Exporter qw(org.nddi.fwdctl);
-use Net::DBus qw(:typing);
-use base qw(Net::DBus::Object);
-use AnyEvent::DBus;
+use AnyEvent::RabbitMQ;
+use Data::Dumper;
 use English;
 use Getopt::Long;
+use Log::Log4perl;
 use Proc::Daemon;
-use Data::Dumper;
 
 #link statuses
 use constant OESS_LINK_UP       => 1;
@@ -48,76 +45,19 @@ use strict;
 my $pid_file = "/var/run/oess/fwdctl.pid";
 
 sub core{
-
-    #basic init stuffs
     Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
-    my $log = Log::Log4perl->get_logger("FWDCTL");
-    my $db = OESS::Database->new();
 
-    #build the cache
-    my $res = OESS::FWDCTL::Master::build_cache( db => $db, logger => $log);
-    my $cache =  {circuit => $res->{'ckts'},
-                  link_status => $res->{'link_status'},
-                  node_info => $res->{'node_info'},
-                  circuit_status => $res->{'circuit_status'},
-                  db => $db};
+    my $FWDCTL = OESS::FWDCTL::Master->new();
+    my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => sub { $FWDCTL->reap_old_events() } );
 
-    my $bus = Net::DBus->system;
-    my $service = $bus->export_service("org.nddi.fwdctl");
-
-    my $srv_object = OESS::FWDCTL::Master->new(service => $service, cache => $cache);
-    my $dbus = OESS::DBus->new( service => "org.nddi.openflow", instance => "/controller1", timeout => -1, sleep_interval => .1);
-
-    #--- listen for topo events ----
-    sub datapath_join_callback{
-        my $dpid   = shift;
-        my $ports  = shift;
-        my $dpid_str  = sprintf("%x",$dpid);
-        $srv_object->datapath_join_handler($dpid);
-    }
-
-    sub port_status_callback{
-        my $dpid   = shift;
-        my $reason = shift;
-        my $info   = shift;
-        $srv_object->port_status($dpid,$reason,$info);
-    }
-
-    sub check_child_status{
-        $srv_object->check_child_status();
-    }
-
-    sub link_event_callback{
-        my $a_dpid  = shift;
-        my $a_port  = shift;
-        my $z_dpid  = shift;
-        my $z_port  = shift;
-        my $status  = shift;
-        $srv_object->link_event($a_dpid,$a_port,$z_dpid,$z_port,$status);
-    }
-
-    sub reap_stale_events{
-        $srv_object->reap_old_events();
-    }
-
-    $dbus->connect_to_signal("datapath_join",\&datapath_join_callback);
-    $dbus->connect_to_signal("port_status",\&port_status_callback);
-    $dbus->connect_to_signal("link_event",\&link_event_callback);
-
-    my $timer = AnyEvent->timer( after => 10, interval => 10, cb => \&check_child_status);
-    my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => \&reap_stale_events);
-
-    $srv_object->_sync_database_to_network();
-
+    Log::Log4perl->get_logger('OESS.FWDCTL.APP')->info("Starting OESS.FWDCTL event loop.");
     AnyEvent->condvar->recv;
-
 }
 
 sub main{
     my $is_daemon = 0;
     my $verbose;
     my $username;
-
     #remove the ready file
 
     #--- see if the pid file exists. if not then just continue running.
@@ -166,17 +106,20 @@ sub main{
                                        );
         }
 
+        # Init returns the PID (scalar) of the daemon to the parent, or
+        # the PIDs (array) of the daemons created if exec_command has
+        # more then one program to execute.
+        # 
+        # Init returns 0 to the child (daemon).
         my $kid_pid = $daemon->Init;
-	
         if ($kid_pid) {
-            `chmod 0644 $pid_file`;
-            #how to wait until the child process is ready...
+            `chmod 0644 $pid_file`; # How to wait until the child process is ready.
             return;
+        } else {
+            core();
         }
-
-	core();
     }
-    #not a deamon, just run the core;
+    #not a daemon, just run the core;
     else {
         $SIG{HUP} = sub{ exit(0); };
 	core();

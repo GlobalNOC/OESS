@@ -25,14 +25,16 @@ use strict;
 use warnings;
 
 use OESS::DBus;
+use OESS::NSI::MessageQueue;
 use OESS::NSI::Processor;
 
 use GRNOC::Log;
 use GRNOC::Config;
 use GRNOC::WebService::Client;
 
-use Proc::Daemon;
+use AnyEvent;
 use Data::Dumper;
+use Proc::Daemon;
 
 use constant DEFAULT_PID_FILE => '/var/run/oess/oess-nsi.pid';
 
@@ -59,6 +61,7 @@ sub new {
 
     bless($self,$class);
 
+    $self->{'logger'} = GRNOC::Log->new(config => '/etc/grnoc/logging.conf');
     return $self;
 }
 
@@ -74,7 +77,6 @@ sub start {
 
     if($self->{'daemonize'}){
         log_info("Spawning as Daemon Process");
-        
         my $daemon = new Proc::Daemon(
             'pid_file' => $self->{'pid_file'}
             );
@@ -92,7 +94,6 @@ sub start {
     }
     else{
         log_info("Spawning in foreground");
-        
         $self->{'running'} = 1;
         $self->_run();
     }
@@ -128,22 +129,33 @@ sub _process_queues {
 sub _run {
     my ($self) = @_;
 
-    my $bus = Net::DBus->system;
-    my $service = $bus->export_service("org.nddi.nsi");
+    $self->{'processor'} = new OESS::NSI::Processor(undef, $self->{'config_file'});
+    log_info("NSI event processor was created.");
 
-    my $dbus = OESS::DBus->new( service => "org.nddi.notification", instance => "/controller1");
-    
-    $self->{'processor'} = new OESS::NSI::Processor($service, $self->{'config_file'});
 
-    $dbus->connect_to_signal("circuit_provision", sub { $self->{'processor'}->circuit_provision(@_)} );
-    $dbus->connect_to_signal("circuit_modified", sub { $self->{'processor'}->circuit_modified(@_)} );
-    $dbus->connect_to_signal("circuit_removed", sub { $self->{'processor'}->circuit_removed(@_)} );
+    # TODO: The process_queues_handler probably isn't needed. Instead
+    # $self->{'processor'}->process_queues should be called once every
+    # ten seconds.
+    eval {
+        $self->{'mqueue'} = new OESS::NSI::MessageQueue(
+            user     => 'guest',
+            pass     => 'guest',
+            exchange => 'OESS',
+            provision_event_handler => sub { $self->{'processor'}->circuit_provision(@_); },
+            modified_event_handler  => sub { $self->{'processor'}->circuit_modified(@_); },
+            removed_event_handler   => sub { $self->{'processor'}->circuit_removed(@_); },
+            process_request_handler => sub { $self->{'processor'}->process_request(@_); }
+        );
+    };
+    if ($@) {
+        log_error("An error occurred while creating RabbitMQ interface: " . "$@");
+        return undef;
+    }
 
-    $self->{'dbus_reactor'} = Net::DBus::Reactor->main();
-    
-    $self->{'dbus_reactor'}->add_timeout(10000, Net::DBus::Callback->new( method => sub { $self->_process_queues(@_); } ));
-    log_debug("Starting Reactor!");
-    $self->{'dbus_reactor'}->run();
+    my $queue_timer = AnyEvent->timer(after => 3, interval => 10, cb => sub { $self->{'processor'}->process_queues(@_); });
+
+    log_info("NSI daemon is now starting.");
+    $self->{'mqueue'}->start();
 }
 
 1;

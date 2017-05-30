@@ -37,12 +37,12 @@ if [ -n "$vlan" ];
 then
     if [ "$vlan" -ne "-1" ];
     then
-	    options=" -d -i ptcp:$NOX_CONTROLLER_IP:$NOX_CONTROLLER_PORT discovery=$NOX_DISCOVERY_INTERVAL,$vlan nddi_dbus -n /var/log/nox/nox.info"
+	    options=" -d -i ptcp:$NOX_CONTROLLER_IP:$NOX_CONTROLLER_PORT discovery=$NOX_DISCOVERY_INTERVAL,$vlan nddi_rabbitmq -n /var/log/nox/nox.info"
     else
-	    options=" -d -i ptcp:$NOX_CONTROLLER_IP:$NOX_CONTROLLER_PORT discovery=$NOX_DISCOVERY_INTERVAL nddi_dbus -n /var/log/nox/nox.info"
+	    options=" -d -i ptcp:$NOX_CONTROLLER_IP:$NOX_CONTROLLER_PORT discovery=$NOX_DISCOVERY_INTERVAL nddi_rabbitmq -n /var/log/nox/nox.info"
     fi
 else
-    options=" -d -i ptcp:$NOX_CONTROLLER_IP:$NOX_CONTROLLER_PORT discovery=$NOX_DISCOVERY_INTERVAL nddi_dbus -n /var/log/nox/nox.info"
+    options=" -d -i ptcp:$NOX_CONTROLLER_IP:$NOX_CONTROLLER_PORT discovery=$NOX_DISCOVERY_INTERVAL nddi_rabbitmq -n /var/log/nox/nox.info"
 fi
 
 username=_oess
@@ -122,7 +122,7 @@ case "$1" in
 
   restart)
         $0 stop
-        #wee need to sleep to make sure the deamon has enoth time to shutdown
+        # we need to sleep to make sure the daemon has enough time to shutdown
         sleep 3
         $0 start
         exit $?

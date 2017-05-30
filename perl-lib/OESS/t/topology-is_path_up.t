@@ -42,9 +42,10 @@ ok($topo->is_path_up(path_id => 121 ), "Path 121 begins as up" );
 
 ok($db->update_link_state( link_id=>41, state=>'down' ), "set link 41 to down");
 
+my $path_state = $topo->is_path_up( path_id => 121);
+
 ok( $topo->is_path_up(path_id => 121 )==0, "Path 4841 is now down ");
 
 $db->update_link_state(link_id=>41, state=>'up');
-
 
 ok($topo->is_path_up(path_id =>121 ) == 1, "Path Returned to up" );

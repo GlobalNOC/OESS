@@ -7,7 +7,10 @@ use Data::Dumper;
 use OSCARS::pss;
 use XML::Simple;
 use Switch;
+use Log::Log4perl;
 
+
+Log::Log4perl::init('/etc/oess/logging.conf');
 
 my $cgi = new CGI;
 

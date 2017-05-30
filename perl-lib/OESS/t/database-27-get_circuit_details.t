@@ -59,7 +59,9 @@ cmp_deeply($res,{
                   'name' => 'Link 1',
                   'interface_z_id' => '21',
                   'interface_a_id' => '41',
-                  'interface_a' => 'e3/1'
+                  'interface_a' => 'e3/1',
+                  'ip_a' => undef,
+                  'ip_z' => undef,
     },
               {
                   'interface_z' => 'e5/1',
@@ -70,7 +72,9 @@ cmp_deeply($res,{
                   'name' => 'Link 21',
                   'interface_z_id' => '221',
                   'interface_a_id' => '361',
-                  'interface_a' => 'e3/1'
+                  'interface_a' => 'e3/1',
+                  'ip_a' => undef,
+                  'ip_z' => undef,
     },
               {
                   'interface_z' => 'e3/2',
@@ -81,7 +85,9 @@ cmp_deeply($res,{
                   'name' => 'Link 211',
                   'interface_z_id' => '271',
                   'interface_a_id' => '861',
-                  'interface_a' => 'e3/2'
+                  'interface_a' => 'e3/2',
+                  'ip_a' => undef,
+                  'ip_z' => undef,
     },
               {
                   'interface_z' => 'e3/1',
@@ -92,7 +98,9 @@ cmp_deeply($res,{
                   'name' => 'Link 231',
                   'interface_z_id' => '231',
                   'interface_a_id' => '211',
-                  'interface_a' => 'e3/1'
+                  'interface_a' => 'e3/1',
+                  'ip_a' => undef,
+                  'ip_z' => undef,
               }
           ],
     'loop_node' => undef,
@@ -106,7 +114,9 @@ cmp_deeply($res,{
             'name' => 'Link 221',
             'interface_z_id' => '281',
             'interface_a_id' => '871',
-            'interface_a' => 'e1/1'
+            'interface_a' => 'e1/1',
+            'ip_a' => undef,
+            'ip_z' => undef,
         }
         ],
           'circuit_id' => 3731,
@@ -188,7 +198,69 @@ cmp_deeply($res,{
           'last_edited' => '02/22/2013 18:01:26',
           'user_id' => '221',
           'restore_to_primary' => '0',
-          'operational_state' => 'up'
+          'operational_state' => 'up',
+    'created_by' => {
+                                  'email' => 'user_221@foo.net',
+                                  'is_admin' => '0',
+                                  'type' => 'normal',
+                                  'auth_id' => '211',
+                                  'given_names' => 'User 221',
+                                  'user_id' => '221',
+                                  'family_name' => 'User 221',
+                                  'auth_name' => 'user_221@foo.net',
+                                  'status' => 'active'
+    },
+                                      'created_on' => '02/22/2013 18:01:26',
+                                      'paths' => {
+                                          'primary' => {
+                                      'circuit_id' => '3731',
+                                      'path_id' => '4701',
+                                      'path_instantiation_id' => '8581',
+                                      'status' => 1,
+                                      'start_epoch' => '1361556086',
+                                      'path_type' => 'primary',
+                                      'end_epoch' => '-1',
+                                      'path_state' => 'active',
+                                      'mpls_path_type' => 'none',
+                                      'links' => [
+                                          {
+                                                     'link_id' => '221',
+                                                     'name' => 'Link 221'
+                                          }
+                                                 ]
+                                          },
+                                                     'backup' => {
+                                     'circuit_id' => '3731',
+                                     'path_id' => '4711',
+                                     'path_instantiation_id' => '8591',
+                                     'status' => 1,
+                                     'start_epoch' => '1361556086',
+                                     'path_type' => 'backup',
+                                     'end_epoch' => '-1',
+                                     'path_state' => 'available',
+                                     'mpls_path_type' => 'none',
+                                     'links' => [
+                                         {
+                                                    'link_id' => '1',
+                                                    'name' => 'Link 1'
+                                         },
+                                         {
+                                                    'link_id' => '21',
+                                                    'name' => 'Link 21'
+                                         },
+                                         {
+                                                    'link_id' => '211',
+                                                    'name' => 'Link 211'
+                                         },
+                                         {
+                                                    'link_id' => '231',
+                                                    'name' => 'Link 231'
+                                         }
+                                                ]
+                                                 }
+                                  },
+                                      'tertiary_links' => [],
+                                      'type' => 'openflow'
 	   });
 
 $res = $db->get_circuit_details_by_name( name => 999999999 );

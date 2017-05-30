@@ -30,13 +30,14 @@ package OESS::Measurement;
 use strict;
 use warnings;
 
-use Log::Log4perl;
+use GRNOC::Log;
 use RRDs;
 use XML::Simple;
 use OESS::Database;
 use Data::Dumper;
 use Exporter qw(import);
 use OESS::Circuit;
+use POSIX qw(strftime);
 
 
 use constant BUILDING_FILE => -1;
@@ -54,30 +55,21 @@ sub new {
     my %params = @_;
 
     my $db = $params{'db'};
-    
-    if (!defined $db){
-        $db = OESS::Database->new();
-    }
-    
+
     if(!defined($db)){
-        return undef;
+        $db = OESS::Database->new();
     }
 
     my %args = (
-        config => $db->get_snapp_config_location(),
         @_
     );
     my $self = \%args;
     bless $self,$class;
 
+    Log::Log4perl::init('/etc/oess/logging.conf');
+    $self->{'logger'} = Log::Log4perl->get_logger("OESS.Measurement");
     $self->{'db'} = $db;
-    my $config_filename = $args{'config'};
-    my $config = XML::Simple::XMLin($config_filename);
-    my $username = $config->{'db'}->{'username'};
-    my $password = $config->{'db'}->{'password'};
-    my $database = $config->{'db'}->{'name'};
-    my $dbh = DBI->connect("DBI:mysql:$database", $username, $password);
-    $self->{'dbh'} = $dbh;
+    $self->{'config'} = $db->{'configuration'};
     return $self;
 
 }
@@ -101,11 +93,11 @@ sub get_error {
     return $err;
 }
 
-=head2 get_circuit_data
+=head2 get_of_circuit_data
 
 =cut
 
-sub get_circuit_data {
+sub get_of_circuit_data {
     my $self = shift;
     my %params = @_;
 
@@ -114,11 +106,9 @@ sub get_circuit_data {
     my $end        = $params{'end_time'};
     my $node       = $params{'node'};
     my $interface  = $params{'interface'};
-    my $db         = $params{'db'};
     
-    if (!defined($db)){
-        $db = OESS::Database->new();
-    }
+    my $db = OESS::Database->new();
+
     if(!defined $circuit_id){
         $self->_set_error("circuit_id is required");
         return undef;
@@ -126,6 +116,13 @@ sub get_circuit_data {
 
     #get the path that is currently active for issue 7410
     my $ckt        = OESS::Circuit->new(circuit_id => $circuit_id, db => $db);
+
+    if(!defined($ckt)){
+        warn "Unable to find circuit\n";
+        $self->_set_error("unable to find circuit: " . $circuit_id . " in th OESS DB");
+        return undef;
+    }
+
     my $active_path = $ckt->get_active_path();
 
     if(!defined $start){
@@ -137,17 +134,7 @@ sub get_circuit_data {
     if(!defined $end){
         $end = time;
     }    
-    #find the base RRD dir
-    my $rrd_dir;
-    my $query = "select value from global where name = 'rrddir'";
-    my $sth = $self->{'dbh'}->prepare($query);
-    $sth->execute();
-    if(my $row = $sth->fetchrow_hashref()){
-        $rrd_dir = $row->{'value'};
-    }
-    my $circuit_details = $self->{'db'}->get_circuit_details(circuit_id => $circuit_id);
-    my @interfaces;
-    
+
     #issue 7410 graphs not able to determine backup vs primary path data. 
 
     my $inital_node_dpid_hash = $db->get_node_dpid_hash();
@@ -161,130 +148,157 @@ sub get_circuit_data {
         foreach my $int (@{$int_name}){
             $int_names{$nodeName}->{$int->{'port_number'}} = $int->{'name'};
         }
-   }
-    
+    }
+
+    $self->{'logger'}->debug("Gathered all interface names");
+  
+    my @interfaces;
 
     my $flows = $ckt->get_flows(path => $active_path);
     my %endpoint;
     foreach my $flow (@{$flows}){
 	my $match = $flow->get_match();
-	push(@interfaces,{
-            node =>$repaired_node_dpid_hash{$flow->get_dpid()},
-            int =>$int_names{$repaired_node_dpid_hash{$flow->get_dpid()}}{$match->{'in_port'}},
+
+	push(@interfaces, {
+            node    => $flow->get_dpid(),
+            int     => $int_names{$repaired_node_dpid_hash{$flow->get_dpid()}}{$match->{'in_port'}},
             port_no => $match->{'in_port'},
-            tag => $match->{'dl_vlan'}});
+            tag     => $match->{'dl_vlan'}
+	});
     }
 
+    #$self->{'logger'}->debug("Gathered all flows: " . Dumper(@interfaces));
 
     #ok we pushed all interfaces into a big array
     #now pull out all the ones on our selected node... and if its the selected selected it
     my $selected;
     my @interfaces_on_node;
 
+    my $ep = $ckt->get_endpoints()->[0];
+
+    warn Dumper($ep);
+
     if(!defined($node)){
-        $node = $interfaces[0]->{'node'};
+        $node = $inital_node_dpid_hash->{$ep->{'node'}};
+    }else{
+        $node = $inital_node_dpid_hash->{$node};
+    }
+
+    if(!defined($interface)){
+	$interface = $ep->{'interface'};
     }
 
     foreach my $int (@interfaces){
-        if($int->{'node'} eq $node){
+        if ($int->{'node'} eq $node) {
             if( ( !defined($interface) && !defined($selected) ) || $int->{'int'} eq $interface){
                 $selected = $int;
             }else{
-                push(@interfaces_on_node,$int);
+                push(@interfaces_on_node, $int);
             }
         }
     }
 
-    #warn "Selected: " . Data::Dumper::Dumper($selected);
-    
-    #warn "Interfaces: " . Data::Dumper::Dumper(@interfaces_on_node);
+    $self->{'logger'}->warn("Interfaces: " . Dumper(@interfaces_on_node));
+    $self->{'logger'}->warn("Selected: "   . Dumper($selected));
+
     #now we have selected an interface and have a list of all the other interfaces on that node
     #generate our data
-    return $self->get_data( interface => $selected, other_ints => \@interfaces_on_node, start_time => $start, end_time => $end);
+    my $in = $self->_tsds_of_query( port_no => $selected->{'port_no'},
+                                   dpid => $selected->{'node'},
+                                   tag => $selected->{'tag'},
+                                   start => $start,
+                                   end => $end);
 
+    my $out_agg;
+    foreach my $int (@interfaces_on_node){
+        my $out = $self->_tsds_of_query( port_no => $int->{'port_no'},
+                                        dpid => $int->{'node'},
+                                        tag => $int->{'tag'},
+                                        start => $start,
+                                        end => $end);
+        if(!defined($out_agg)){
+            $out_agg = $out->{'results'};
+        } else {
+	    aggregate_data($out_agg->[0]->{'aggregate(values.bps, 30, average)'}, $out->{'results'}->[0]->{'aggregate(values.bps, 30, average)'});
+        }
+    }
+
+#    $self->{'logger'}->debug(Dumper($in));
+#    $self->{'logger'}->debug(Dumper($out_agg));
+
+    my $interface_names = [];
+    foreach my $int (@interfaces_on_node) {
+	push(@{$interface_names}, $int->{'int'});
+    }
+
+    push(@{$interface_names}, $selected->{'int'});
+
+    my $result = { 'interfaces' => $interface_names,
+                   'interface'  => $selected->{'int'},
+                   'node'       => $repaired_node_dpid_hash{$node},
+                   'results'    => [
+		       {
+			   name => "Input (Bps)",
+			   data => $in->{'results'}->[0]->{'aggregate(values.bps, 30, average)'}
+		       },
+		       {
+			   name => "Output (Bps)",
+			   data => $out_agg->[0]->{'aggregate(values.bps, 30, average)'}
+		       }
+		   ]
+	       };
+    return $result;
 }
 
+=head2 _is_tsds_config_ok
 
-=head2 get_data
-  Params: circuit_id => circuit id of the circuit to find data for
-          start_time => the start_time to get data for
-          end_time => the end time to get data for (optional, if not defined is set to NOW)
-
-  return RRD Data
+Sees if all the TSDS-related config is present
 
 =cut
 
-sub get_data {
+sub _is_tsds_config_ok{
+    my $self  = shift;
+    my $tconf = $self->{'config'}->{'tsds'};
+    return defined($tconf) && defined($tconf->{'url'}) && defined($tconf->{'username'}) && defined($tconf->{'password'});
+}
+
+=head2 tsds_of_query
+
+=cut
+
+sub _tsds_of_query{
     my $self = shift;
     my %params = @_;
-    my $selected = $params{'interface'};
-    my $other_ints = $params{'other_ints'};
-    my $start      = $params{'start_time'};
-    my $end        = $params{'end_time'};
-    if(!defined $start){
-        $self->_set_error("start_time is required and should be in epoch time");
-	return undef;
+
+    my $start = $params{'start'};
+    my $end = $params{'end'};
+    my $port_no = $params{'port_no'};
+    my $dpid = $params{'dpid'};
+    my $tag = $params{'tag'};
+
+    $self->{'logger'}->debug("Calling tsds_of_query");
+    $self->{'logger'}->debug($dpid);
+    $self->{'logger'}->debug($port_no);
+    $self->{'logger'}->debug($tag);
+
+    my $query = "get port, dpid, vlan, aggregate(values.bps, 30, average) between ($start, $end) by port, dpid, vlan from oess_of_stats where (port = \"$port_no\" and dpid = \"$dpid\" and vlan = \"$tag\")";
+
+    $self->{'logger'}->error('TSDS config not fully set up!') if !$self->_is_tsds_config_ok();
+    my $req = GRNOC::WebService::Client->new(
+	url    => $self->{'config'}->{'tsds'}->{'url'} . "/query.cgi",
+	uid    => $self->{'config'}->{'tsds'}->{'username'},
+	passwd => $self->{'config'}->{'tsds'}->{'password'},
+	debug => 1,
+    );
+    my $res = $req->query(query => $query);
+    if (!defined $res) {
+	$self->{'logger'}->error($req->get_error());
     }
 
-    # assume we mean "start to now"
-    if(!defined $end){
-        $end = time;
-    }
-    #find the base RRD dir
-    my $rrd_dir;
-    my $query = "select value from global where name = 'rrddir'";
-    my $sth = $self->{'dbh'}->prepare($query);
-    $sth->execute();
-    if(my $row = $sth->fetchrow_hashref()){
-        $rrd_dir = $row->{'value'};
-    }
-    my $node = $self->{'db'}->get_node_by_name( name => $selected->{'node'});
-    #get all the host details for the interfaces host
-    my $host = $self->get_host_by_external_id($node->{'node_id'});
-    
-    #find the collections RRD file in SNAPP
-    #warn "Looking for collection\n";
-    
-    my $collection = $self->_find_rrd_file_by_host_int_and_vlan($host->{'host_id'},$selected->{'port_no'},$selected->{'tag'});
-    if(defined($collection)){
-        #warn "Collection Found!!\n";
-	my $rrd_file = $rrd_dir . $collection->{'rrdfile'};
-        my $data= [];
-        my $input  = $self->get_rrd_file_data( file => $rrd_file, start_time => $start, end_time => $end) || [];
-        push(@{$data},{name => 'Input (Bps)',
-                       data => $input});
-        my $output_agg;
-        foreach my $other_int (@$other_ints){
-            my $other_collection = $self->_find_rrd_file_by_host_int_and_vlan($host->{'host_id'},$other_int->{'port_no'},$other_int->{'tag'});
-            if(defined($other_collection)){
-                my $other_rrd_file = $rrd_dir . $other_collection->{'rrdfile'};
-                my $output = $self->get_rrd_file_data( file => $other_rrd_file, start_time => $start, end_time => $end);
-                $output_agg = aggregate_data($output_agg,$output) || [];
-            }
-        }
-        
-        push(@{$data},{name => 'Output (Bps)',
-                       data => $output_agg});
+    $self->{'logger'}->debug("tsds_of_query: " . Dumper($res));
 
+    return $res;
 
-
-        my @all_interfaces;
-	foreach my $int (@$other_ints){
-	    push(@all_interfaces, $int->{'int'});
-	}
-        
-        push(@all_interfaces, $selected->{'int'});
-	
-	return {"node"       => $selected->{'node'},
-		"interface"  => $selected->{'int'},
-		"data"       => $data,
-		"interfaces" => \@all_interfaces
-	};
-    }else{
-	#unable to find RRD file
-	$self->_set_error("Unable to find RRD/Collection");
-	return BUILDING_FILE;#[{name => 'Creating RRD', data => [[time(), undef]]}];
-    }
 }
 
 =head2 aggregate_data
@@ -302,12 +316,117 @@ sub aggregate_data{
 
     #theoretically they are the same step and same times so this should just work
     #if it doesn't we need much more complex logic
+
     for(my $i=0;$i<=$#{$agg};$i++){
-        if($agg->[$i]->[0] == $new_data->[$i]->[0]){
+        warn Dumper($agg->[$i]);
+	if($agg->[$i]->[0] == $new_data->[$i]->[0]){
             $agg->[$i]->[1] += $new_data->[$i]->[1];
         }
     }
     return $agg;
+}
+
+
+=head2 get_mpls_circuit_data
+
+=cut
+sub get_mpls_circuit_data {
+    my $self = shift;
+    my %params = @_;
+
+    my $circuit_id = $params{'circuit_id'};
+    my $start_time = $params{'start_time'};
+    my $end_time   = $params{'end_time'};
+    my $node       = $params{'node'};
+    my $interface  = $params{'interface'};
+    my $db = OESS::Database->new();
+    my $tag;
+
+    my @interfaces;
+
+    if(!defined $circuit_id){
+        $self->_set_error("circuit_id is required");
+        return undef;
+    }
+    if(!defined $start_time){
+        $self->_set_error("start_time is required and should be in epoch time");
+        return undef;
+    }
+    if(!defined $end_time){
+        # assume we mean "start to now"
+        $end_time = time;
+    }
+
+    my $ckt = OESS::Circuit->new(circuit_id => $circuit_id, db => $db);
+    
+    if(!defined($node)){
+        $node = $ckt->get_endpoints()->[0]->{'node'};
+    }
+
+    my $a; # First endpoint on specified interface
+    foreach my $e (@{$ckt->get_endpoints()}) {
+        if($e->{'node'} eq $node){
+            push(@interfaces, $e->{'interface'});
+        }
+    }
+
+    foreach my $e (@{$ckt->get_endpoints()}) {
+	if ($e->{'node'} eq $node && !defined $interface) {
+	    $interface = $e->{'interface'};
+	    $tag = $e->{'tag'};
+	    $a = $e;
+	    last;
+	}
+        if ($e->{'node'} eq $node && $e->{'interface'} eq $interface) {
+	    $tag = $e->{'tag'};
+            $a = $e;
+            last;
+        }
+    }
+
+
+
+    
+
+    my $results = $self->_tsds_interface_query( node => $node,
+                                               interface => $interface . "." . $tag,
+                                               start => $start_time,
+                                               end => $end_time );
+
+    warn Dumper($results);
+
+    my $result = { 'interfaces' => \@interfaces,
+		   'interface'  => $interface,
+		   'node'       => $node,
+		   'results'    => [ {name => "Input (Bps)", data => $results->{'results'}->[0]->{'aggregate(values.input, 30, average)'}}, {name => "Output (Bps)", data => $results->{'results'}->[0]->{'aggregate(values.output, 30, average)'}} ]
+    };
+
+    return $result;
+}
+
+
+sub _tsds_interface_query{
+    my $self = shift;
+    my %args = @_;
+    
+    my $node = $args{'node'};
+    my $interface = $args{'interface'};
+    my $start = $args{'start'};
+    my $end = $args{'end'};
+
+    my $query = "get intf, node, aggregate(values.input, 30, average), aggregate(values.output, 30, average) between ($start, $end) by intf, node from interface  where (intf=\"$interface\" and node=\"$node\")";
+
+    $self->{'logger'}->error('TSDS config not fully set up!') if !$self->_is_tsds_config_ok();
+    my $req = GRNOC::WebService::Client->new(
+        url    => $self->{'config'}->{'tsds'}->{'url'} . "/query.cgi",
+        uid    => $self->{'config'}->{'tsds'}->{'username'},
+        passwd => $self->{'config'}->{'tsds'}->{'password'},
+        debug => 1,
+	);
+
+    my $res = $req->query(query => $query);
+
+    return $res;
 }
 
 =head2 find_int_on_path_using_node
@@ -353,161 +472,6 @@ sub find_int_on_path_using_node{
 
     return $interface;
 
-}
-
-sub _find_rrd_file_by_host_and_int{
-    my $self = shift;
-    my $host_id = shift;
-    my $int_name = shift;
-    my $query = "select * from collection where host_id = ? and premap_oid_suffix = ?";
-    my $sth = $self->{'dbh'}->prepare($query);
-    $sth->execute($host_id,"Ethernet" . $int_name);
-    if(my $row = $sth->fetchrow_hashref()){
-    return $row;
-    }else{
-	$self->_set_error("No Collection found with host_id $host_id and interface name $int_name\n");
-	return undef;
-    }
-}
-
-sub _find_rrd_file_by_host_int_and_vlan{
-    my $self = shift;
-    my $host_id = shift;
-    my $port = shift;
-    my $vlan = shift;
-    # openflow treats untagged as 0xFFFF so that's
-    # what we'll need to look for
-    if ($vlan eq -1){
-        $vlan = 65535;
-    }
-
-    my $query = "select * from collection where host_id = ? and premap_oid_suffix = ?";
-    my $sth = $self->{'dbh'}->prepare($query);
-    $sth->execute($host_id,$port . "-" . $vlan);
-    if(my $row = $sth->fetchrow_hashref()){
-	return $row;
-    }else{
-    $self->_set_error("No Collection found for host host_id with interface and vlan $port - $vlan");
-	return undef;
-    }
-}
-
-=head2 get_host_by_external_id
-
-    find a host based on the external_id (ie... node_id)
-
-=cut
-
-
-
-sub get_host_by_external_id{
-    my $self = shift;
-    my $id = shift;
-    my $query = "select * from host where host.external_id = ?";
-    my $sth = $self->{'dbh'}->prepare($query);
-    $sth->execute($id);
-    if(my $row = $sth->fetchrow_hashref()){
-        return $row;
-    }else{
-	$self->_set_error("No host found with external_id $id");
-	return undef;
-    }
-}
-
-
-
-=head2 get_rrd_file_data
-
-    Params: file => the rrd file to pull data from
-            start_time => the start time (epoch or RRD style (-5min))
-            end_time => (optional) the end time to query data for (epoch or RRD style NOW) defaults to NOW if not specified
-
-    process the data into a format for the FLOT graphs to use, also buckets data so that javascript doesn't freak out with too much data
-
-=cut
-
-sub get_rrd_file_data {
-    my $self = shift;
-    my %params = @_;
-
-    if(!defined($params{'file'})){
-	$self->_set_error("No file specified");
-	return undef;
-    }
-
-    if(!defined($params{'start_time'})){
-	$self->_set_error("No Start time specified");
-	return undef;
-    }
-
-    if(!defined($params{'end_time'})){
-	$params{'end_time'} = "NOW";
-    }
-
-    if(!defined($params{'h_size'})){
-	$params{'h_size'} = 300;
-    }
-    my ($start,$step,$names,$data) = RRDs::fetch($params{'file'},"AVERAGE","-s " . $params{'start_time'},"-e " . $params{'end_time'});
-   
-    if (! defined $data){
-	 
-        warn RRDs::error;
-        return undef;
-    }
-
-    my @results;
-    my $output;
-    my $input;
-    my @names = @$names;
-    my @data = @$data;
-
-    for(my $i=0;$i<$#names;$i++){
-
-	if($names[$i] eq 'output'){
-            next;
-	}elsif($names[$i] eq 'input'){
-	    $input = $i;
-	}
-    }
-    my $time = $start;
-    my @outputs;
-    my @inputs;
-
-    my $spacing = int(@$data / $params{'h_size'});
-    $spacing = 1 if($spacing == 0);
-
-    for(my $i=0;$i<$#data;$i+=$spacing){
-	my ($bucket,$j);
-
-	for($j = 0;$j<$spacing && $j+$i < @$data; $j++){
-	    my $row = @$data[$i+$j];
-	    my $divisor = ($j + $i == @$data - 1? $j+1 : $spacing);
-
-	    if(defined(@$row[$input])){
-		$bucket->{'input'} += @$row[$input] / $divisor;
-	    }
-
-	}
-
-	if($spacing > 1){
-	    my $timeStart = $start;
-	    my $timeEnd = ($start + ($step*$spacing));
-	    $bucket->{'time'} = ($timeStart + $timeEnd) / 2;
-	}else{
-	    $bucket->{'time'} = $start;
-	}
-
-	$start += ($step * $spacing);
-	if(defined($bucket->{'input'})){
-	    $bucket->{'input'} *= 8;
-	}
-	push(@inputs,[$bucket->{'time'}, $bucket->{'input'}]);
-    }
-    return \@inputs;
-#    push(@results,{"name" => "Input (bps)",
-#		   "data" => \@inputs});
-#
-#    return \@results;
 }
 
 

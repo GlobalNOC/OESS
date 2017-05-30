@@ -3,26 +3,35 @@
 use strict;
 use English;
 use Proc::Daemon;
+use AnyEvent;
 use OESS::Database;
-use OESS::DBus;
+use GRNOC::Log;
+use GRNOC::RabbitMQ::Dispatcher;
+use GRNOC::RabbitMQ::Client;
+use GRNOC::RabbitMQ::Method;
+use GRNOC::WebService::Client;
 use Data::Dumper;
+use JSON;
 use strict;
 use Getopt::Long;
-use Sys::Syslog qw(:standard :macros);
 use FindBin;
-use RRDs;
+use XML::Simple;
 
+use Log::Log4perl;
 
 my $switch;
 my $previous;
-my $base_rrd_path = "per_flow/";
-my $snapp_dbh;
+my $logger;
 my $oess;
-my $base_path;
-my $collection_class_name;
 my $node_hash;
 my $hosts;
-my $dbus;
+my $rabbit_mq_client;
+my $previous_data = {};
+my $interval = 30;
+my $tsds_ws;
+
+use constant MAX_TSDS_MESSAGES => 100;
+
 
 =head2 handle_error
 
@@ -33,12 +42,13 @@ the behavior we only need to change it in once place
 
 sub handle_error{
     my $error = shift;
-    syslog(LOG_ERR,"vlan_stats_d experienced an error: " . Dumper($error));
+    
+    log_error("vlan_stats_d experienced an error: " . Dumper($error));
 }
 
 =head2 flow_stats_in_callback
 
-    handle the flow_stats_in event, one thing to note is that this even is fired through nddi_dbus nddi_dbus handles all cases where
+    handle the flow_stats_in event, one thing to note is that this even is fired through nddi_rabbitmq nddi_rabbitmq handles all cases where
     there a multiple packets with this data.  flow_stats_in expects to have all the data returned in the rules variable
 
     expects a dpid, and an array of rules and their in_bytes/in_packets
@@ -52,7 +62,10 @@ sub process_flow_stats{
     my $time = shift;
     my $dpid = shift;
     my $rules = shift;
+    my $num_same_times = 0; # number of (port,VLAN) pairs for which the poll interval is zero
     
+    $logger->debug("Calling process_flow_stats at $time");
+
     my $switch;
     #associate each rule with its in/out port/vlan
     foreach my $rule (@$rules){
@@ -60,6 +73,7 @@ sub process_flow_stats{
 	# might be some other rules or default forwarding or something, we can't match this to a 
 	# vlan / port so skip
 	next if (!defined $rule->{'match'});
+	next if (!defined $rule->{'match'}->{'in_port'});
 	next if ($rule->{'match'}->{'dl_type'} eq '34997');
 	if(!defined($switch->{$rule->{'match'}->{'in_port'}})){
 	    $switch->{$rule->{'match'}->{'in_port'}} = {};
@@ -81,6 +95,8 @@ sub process_flow_stats{
 
     }
 
+    my @tsds_work_queue = ();
+
     #for every port
     foreach my $port (keys (%{$switch})){
 	#look at every vlan
@@ -89,17 +105,111 @@ sub process_flow_stats{
 	    my $inbytes = $switch->{$port}->{$vlan}->{'in'}->{'byte_count'};
 	    my $inpackets = $switch->{$port}->{$vlan}->{'in'}->{'packet_count'};
 	    
-	    
-	    #do the RRD update
-	    #RRD update!
-	    update_rrd(dpid => $dpid, port => $port, vlan => $vlan, input => $inbytes, inUcast => $inpackets);
-	    
+            if(!defined($previous_data->{$dpid})){
+                $previous_data->{$dpid} = { };
+            }
+
+            if(!defined($previous_data->{$dpid}->{$port})){
+                $previous_data->{$dpid}->{$port} = {};
+            }
+
+            if(!defined($previous_data->{$dpid}->{$port}->{$vlan})){
+                $previous_data->{$dpid}->{$port}->{$vlan} = {time => $time,
+							     in_bytes => $inbytes,
+							     in_packets => $inpackets};
+                next;
+            }
+
+            my $previous = $previous_data->{$dpid}->{$port}->{$vlan};
+
+	    # If the flow stats poll interval is zero, then we just
+	    # ignore this update.
+	    if ($time == $previous->{'time'}) {
+                ++$num_same_times;
+		next;
+	    }
+
+            my $bps = (($inbytes - $previous->{'in_bytes'}) * 8) / ($time - $previous->{'time'});
+            my $pps = ($inpackets - $previous->{'in_packets'}) / ($time - $previous->{'time'});
+
+            push(@tsds_work_queue, {
+		interval=> $interval,
+		meta => {
+		    dpid => $dpid,
+		    port => $port,
+		    vlan => $vlan
+		},
+		time => $time,
+		type => "oess_of_stats",
+		values => {
+		    bps => $bps,
+		    pps => $pps
+		}
+	    });
+
+            $previous->{'in_bytes'} = $inbytes;
+            $previous->{'in_packets'} = $inpackets;
+            $previous->{'time'} = $time;
+
 	    foreach my $rule (@{$switch->{$port}->{$vlan}->{'mac_addrs'}}){
 		my $static_in_bytes = $rule->{'in'}->{'byte_count'};
 		my $static_in_packets = $rule->{'in'}->{'packet_count'};
-		
-		update_rrd(dpid => $dpid, port => $port, vlan => $vlan, mac_addr => $rule->{'match'}->{'dl_dst'}, input => $static_in_bytes, inUcast => $static_in_packets);
+                
+                if(!defined($previous->{'mac_addrs'})){
+                    $previous->{'mac_addrs'} = {};
+                }
+
+                if(!defined($previous->{'mac_addrs'}->{$rule->{'match'}->{'dl_dst'}})){
+                    $previous->{'mac_addrs'}->{$rule->{'match'}->{'dl_dst'}} = {time => $time,
+                                                                                in_bytes => $static_in_bytes,
+                                                                                in_packets => $static_in_packets};
+                    next;
+                }
+                
+                my $prev_static = $previous->{'mac_addrs'}->{$rule->{'match'}->{'dl_dst'}};
+
+                my $bps = (($inbytes - $prev_static->{'in_bytes'}) * 8) / ($time - $prev_static->{'time'});
+                my $pps = ($inpackets - $prev_static->{'in_packets'}) / ($time - $prev_static->{'time'});
+
+                push(@tsds_work_queue, {
+		    interval=> $interval,
+		    meta => {
+			port => $port,
+			dpid => $dpid,
+			vlan => $vlan,
+			mac_addrs => $rule->{'match'}->{'dl_dst'}
+		    },
+		    time => $time,
+		    type => "oess_of_stats",
+		    values => {
+			bps => $bps,
+			pps => $pps
+		    }
+		});
+
+                $prev_static->{'in_bytes'} = $inbytes;
+                $prev_static->{'in_packets'} = $inpackets;
+                $prev_static->{'time'} = $time;
 	    }
+	}
+    }
+
+    if ($num_same_times > 0) {
+        $logger->warn("Calculated poll interval was zero for $num_same_times port/VLAN(s); ignoring those updates.");
+    }
+
+    send_to_tsds(\@tsds_work_queue);
+}
+
+sub send_to_tsds{
+    my $work_queue = shift;
+
+    while(scalar(@$work_queue) > 0 ){
+        my @msgs = splice(@$work_queue, 0, MAX_TSDS_MESSAGES);
+
+        my $res = $tsds_ws->add_data( data => encode_json(\@msgs));
+	if (!defined $res) {
+	    $logger->error("Could not add data to tsds.");
 	}
     }
 }
@@ -109,31 +219,6 @@ sub datapath_join_callback {
     my $ip_addr   = shift;
     my $port_list = shift;
 
-    my $node = $oess->get_node_by_dpid( dpid => $dpid );
-    
-    my $query = "select * from host where host.external_id = ?";
-    my $sth = $snapp_dbh->prepare($query);
-    $sth->execute( $node->{'node_id'} );
-    
-    if(my $row = $sth->fetchrow_hashref()){
-	$query = "update host set ip_address = ?, description = ?, dns_name = ?, community = ? where host_id = ?";
-        $sth = $snapp_dbh->prepare($query)or handle_error($snapp_dbh,$DBI::errstr);
-        $sth->execute($node->{'management_addr_ipv4'},$node->{'name'},$node->{'name'},"public",$row->{'host_id'})or handle_error($snapp_dbh,$DBI::errstr);
-        my $host_id = $row->{'host_id'};
-
-        #now update collection names if the host name changed
-        $query = "update collection set name = replace(name,'" . $row->{'description'} . "','" . $node->{'name'} . "') where host_id = " . $row->{'host_id'};
-        $sth = $snapp_dbh->prepare($query) or handle_error($snapp_dbh,$DBI::errstr);
-        $sth->execute() or handle_error($snapp_dbh,$DBI::errstr);
-        return $host_id;
-    }else{
-	my $query = "insert into host (ip_address,description,dns_name,community,external_id) VALUES (?,?,?,?,?)";
-	my $sth = $snapp_dbh->prepare($query)or handle_error($snapp_dbh,$DBI::errstr);
-	my $res = $sth->execute($node->{'management_addr_ipv4'},$node->{'name'},$node->{'name'},"community",$node->{'node_id'})or handle_error($snapp_dbh,$DBI::errstr);
-	$res = $sth->{'mysql_insertid'};
-	return $res;
-    }
-
     _load_config();
 
 }
@@ -142,235 +227,6 @@ sub datapath_leave_callback {
     my $dpid = shift;
 
     #do not do anything at this point...
-}
-
-sub update_rrd{
-    my %params = @_;
-
-    #find the node by dpid
-
-    my $node = $node_hash->{$params{'dpid'}};
-    #figure out the filename based on node, port, vlan
-    #filename =  node_id/node_id-port-vlan.rrd
-    
-    if(!defined($node)){
-	syslog(LOG_ERR,"Unable to find NODE DPID: " . $params{'dpid'});
-	return;
-    }
-
-    my $file;
-    if(!defined($params{'mac_addr'})){
-	$file = $base_rrd_path . $node->{'node_id'} . "/" . $node->{'node_id'} . "-" . $params{'port'} . "-" . $params{'vlan'} . ".rrd";
-    }else{
-	$file = $base_rrd_path . $node->{'node_id'} . "/" . $node->{'node_id'} . "-" . $params{'port'} . "-" . $params{'vlan'} . "-" . $params{'mac_addr'} . ".rrd";
-    }
-    #if the file doesn't exist create it
-    if(! -e $base_path . $file){
-	my $res = create_rrd_file($file);
-	if(!$res){
-	    return;
-	}
-    }
-    
-    #here are our RRA's
-    my $template = "input:inUcast";
-    #generate our value String
-    my $value = "N:" . $params{'input'} . ":" . $params{'inUcast'};
-
-    my $tmp = $hosts->{$node->{'node_id'}};
-    if(!defined($params{'mac_addr'})){
-	if(defined($hosts->{$node->{'node_id'}}->{'collections'}->{$params{'port'} . "-" . $params{'vlan'}})){
-	    #do nothing we already saw it
-	}else{
-	    #add the file to SNAPP (in case it was decommed, or never there)
-	    add_snapp($file,$params{'dpid'},$params{'port'},$params{'vlan'});
-	}
-    }else{
-	if(defined($hosts->{$node->{'node_id'}}->{'collections'}->{$params{'port'} . "-" . $params{'vlan'} . "-" . $params{'mac_addr'}})){
-            #do nothing we already saw it
-	}else{
-            #add the file to SNAPP (in case it was decommed, or never there)
-            add_snapp($file,$params{'dpid'},$params{'port'},$params{'vlan'},$params{'mac_addr'});
-	}
-    }
-    #do the update and log any error
-    RRDs::update($base_path . $file,"--template",$template,$value);
-    my $error = RRDs::error();
-    if(defined($error)){
-	syslog(LOG_ERR,"There was an error updating RRD file $file: " . $error);
-    }
-}
-
-
-=head2 create_rrd_file
-
-creates an rrdifle based on the name (path is currently hard coded)
-
-=cut
-
-sub create_rrd_file{
-    my $file = shift;
-    $file = $base_path . $file;
-
-    my $path = $file;
-    $path =~ /(.*)\/.*\.rrd/;
-    $path = $1;
-
-    #make the path if it doesn't exist
-    `mkdir -p $path`;
-
-    #set the proper perms
-    chmod 0755, $path;
-
-    my $sth = $snapp_dbh->prepare("select * from collection_class where collection_class.name = ?") or handle_error();
-    if(!defined($sth)){
-	return 0;
-    }
-    
-    $sth->execute($collection_class_name) or handle_error();
-    
-    my $coll_class = $sth->fetchrow_hashref();
-    if(!defined($coll_class)){
-	return 0;
-    }
-
-    $sth = $snapp_dbh->prepare("select * from rra where rra.collection_class_id = ?") or handle_error();
-    if(!defined($sth)){
-	return 0;
-    }
-
-    $sth->execute($coll_class->{'collection_class_id'});
-    
-    my @rras;
-    while(my $rra = $sth->fetchrow_hashref()){
-	push(@rras,$rra);
-    }
-
-    my @rrd_str;
-    push(@rrd_str,"-s " . $coll_class->{'collection_interval'});
-    push(@rrd_str,"DS:input:DERIVE:" . $coll_class->{'collection_interval'} * 3 . ":0:11811160064");
-    #push(@rrd_str,"DS:output:DERIVE:" . $coll_class->{'collection_interval'} * 3 . ":0:11811160064");
-    push(@rrd_str,"DS:inUcast:DERIVE:" . $coll_class->{'collection_interval'} * 3 . ":0:11811160064");
-    #push(@rrd_str,"DS:outUcast:DERIVE:" . $coll_class->{'collection_interval'} * 3 . ":0:11811160064");
-    
-    foreach my $rra (@rras){
-	my $rows = ($rra->{'num_days'} * 60 * 60 * 24) / $coll_class->{'collection_interval'} / $rra->{'step'};
-	push(@rrd_str,"RRA:" . $rra->{'cf'} . ":" . $rra->{'xff'} . ":" . $rra->{'step'} . ":" . $rows);
-    }
-
-    #create RRD file, and log any error
-    RRDs::create($file,@rrd_str);
-    my $error = RRDs::error();
-    if(defined($error)){
-	syslog(LOG_ERR,"Error trying to create rrdfile: " . $file . "\n$error");
-	return 0;
-    }
-
-    #set the proper file perms
-    chmod 0644, $file;
-
-    return 1;
-}
-
-=head2 add_snapp
-
-Adds the data into the SNAPP database, (note the collector_id = 1 to let SNAPP collector know to ignore this)
-
-if the collection is already in SNAPP then we just verify it is active, if it isn't we activate it
-
-=cut
-
-sub add_snapp{
-    my $file = shift;
-    my $dpid = shift;
-    my $port = shift;
-    my $vlan = shift;
-    my $mac_addr = shift;
-    my $node = $oess->get_node_by_dpid( dpid => $dpid);
-    my $host;
-    
-    if(!defined($node)){
-	return;
-    }
-
-    my $sth = $snapp_dbh->prepare("select * from host where external_id = ?") or handle_error($!);
-    if(!defined($sth)){
-	next;
-    }
-
-    $sth->execute($node->{'node_id'}) or handle_error($!);
-    if(my $row = $sth->fetchrow_hashref()){
-	$host = $row;
-    }else{
-	#fire the datapath_join_callback... 
-	#this should attempt to add the host to SNAPP
-	#the next go around we should find the node and add collections
-	datapath_join_callback($dpid,undef,undef);
-	return;
-    }
-
-    $sth = $snapp_dbh->prepare("select * from collection where host_id = ? and premap_oid_suffix = ?") or handle_error($!);
-
-    if(!defined($mac_addr)){
-	$sth->execute($host->{'host_id'},$port . "-" . $vlan) or handle_error($!);
-    }else{
-	$sth->execute($host->{'host_id'},$port . "-" . $vlan . "-" . $mac_addr) or handle_error($!);
-    }
-    if(my $row = $sth->fetchrow_hashref()){
-	#hey this collection already exists
-	$sth = $snapp_dbh->prepare("select * from collection_instantiation where collection_id = ? and end_epoch = -1") or handle_error($!);
-	if(!defined($sth)){
-	    return;
-	}
-	$sth->execute($row->{'collection_id'}) or handle_error($!);
-	if(my $instance = $sth->fetchrow_hashref()){
-	    #already an active instance do nothing
-	    return;
-	}else{
-	    #there is not an active instance create it
-	    $sth = $snapp_dbh->prepare("insert into collection_instantiation (collection_id,end_epoch,start_epoch,threshold,description) VALUES (?,-1,UNIX_TIMESTAMP(NOW()),0,'')") or handle_error($!);
-	    if(!defined($sth)){
-		return;
-	    }
-	    $sth->execute($row->{'collection_id'}) or handle_error($!);
-	    return;
-	}
-    }else{
-	#no collection found create it and the instance
-	$sth = $snapp_dbh->prepare("select * from collection_class where collection_class.name = ?") or handle_error($!);
-	if(!defined($sth)){
-	    return;
-	}
-	$sth->execute($collection_class_name) or handle_error($!);
-	
-	my $collection_class = $sth->fetchrow_hashref();
-	if(!defined($collection_class)){
-	    return;
-	}
-	
-	$sth = $snapp_dbh->prepare("insert into collection (name,host_id,rrdfile,premap_oid_suffix,long_identifier,collection_class_id,oid_suffix_mapping_id,collector_id) VALUES (?,?,?,?,?,?,?,1)") or handle_error($!);
-	if(!defined($sth)){
-	    return;
-	}
-	if(!defined($mac_addr)){
-	    $sth->execute($node->{'name'} . "-" . $port . "-" . $vlan,$host->{'host_id'},$file,$port . "-" . $vlan,$port . "-" . $vlan,$collection_class->{'collection_class_id'},1) or handle_error($!);
-	}else{
-	    $sth->execute($node->{'name'} . "-" . $port . "-" . $vlan . "-" . $mac_addr,$host->{'host_id'},$file,$port . "-" . $vlan . "-" . $mac_addr,$port . "-" . $vlan . "-" . $mac_addr,$collection_class->{'collection_class_id'},1) or handle_error($!);
-	}
-	my $collection_id = $sth->{'mysql_insertid'};
-	if(!defined($collection_id)){
-	    syslog(LOG_ERR,"Unable to add collection: $!");
-	    return;
-	}
-	$sth = $snapp_dbh->prepare("insert into collection_instantiation (collection_id,end_epoch,start_epoch,threshold,description) VALUES (?,-1,NOW(),0,'')") or handle_error($!);
-	if(!defined($sth)){
-	    return;
-	}
-	$sth->execute($collection_id) or handle_error($!);
-
-	_load_config();
-	return
-    }
 }
 
 
@@ -394,124 +250,162 @@ sub _load_config{
 	$node_hash->{$tmp->{$key}} = $node;
 	
     }
-    
+}
 
-    my $query = "select * from host";
-    
-    my $sth = $snapp_dbh->prepare($query);
-    $sth->execute();
+sub _connect_to_tsds {
+    my $path   = shift;
+    my $config = XML::Simple::XMLin($path);
 
-    while(my $host = $sth->fetchrow_hashref()){
-
-    
-	$query = "select * from collection natural join collection_instantiation where collection_instantiation.end_epoch = -1 and collection.host_id = ?";
-	my $sth_collections = $snapp_dbh->prepare($query);
-	$sth_collections->execute($host->{'host_id'});
-	
-	while(my $collection = $sth_collections->fetchrow_hashref()){
-	    $host->{'collections'}->{$collection->{'premap_oid_suffix'}} = $collection;
-	}
-
-	$hosts->{$host->{'external_id'}} = $host;
-	
+    my $tc = $config->{'tsds'};
+    if(!defined($tc) || !defined($tc->{'url'}) || !defined($tc->{'username'}) || !defined($tc->{'password'})){
+        $logger->error('TSDS config not fully defined!');
+        return undef;
     }
-    
+
+    my $client = GRNOC::WebService::Client->new(
+        url     => $tc->{'url'} . "/push.cgi",
+        uid     => $tc->{'username'},
+        passwd  => $tc->{'password'},
+        usePost => 1, # we're pushing a *lot* of measurements at once
+        debug   => 0
+        );
+
+    return $client;
 }
-
-=head2 connect_to_snapp
-
-    Connect to the SNAPP Database 
-    Takes 1 param the snapp config file
-
-=cut
-
-sub connect_to_snapp{
-    my $snapp_config = shift;
-    my $config = XML::Simple::XMLin($snapp_config);
-    my $username = $config->{'db'}->{'username'};
-    my $password = $config->{'db'}->{'password'};
-    my $database = $config->{'db'}->{'name'};
-    my $snapp_db = DBI->connect("DBI:mysql:$database", $username, $password);
-    $collection_class_name = $config->{'db'}->{'collection_class_name'};
-    return $snapp_db;
-}
-
 
 =head2 get_flow_stats
 
 =cut
 
 sub get_flow_stats{
+    my $self = shift;
+
+    $logger->debug("Calling get_flow_stats");
 
     if(-e '/var/run/oess/oess_is_overloaded.lock'){
         return;
     }
 
-    warn "Fetching stats\n";
     my $nodes = $oess->get_current_nodes();
     foreach my $node (@$nodes){
 	my $time;
         my $flows;
+	my $results;
         eval {
-            ($time,$flows) = $dbus->{'dbus'}->get_flow_stats($node->{'dpid'});
-        };
-        syslog(LOG_ERR, "error getting flow stats: $@") if $@;
-        if (!$time || !$flows){
-            return;
-        }
-	process_flow_stats($time,$node->{'dpid'},$flows);
-    }
+            $results = $rabbit_mq_client->get_flow_stats(
+		dpid => int($node->{'dpid'}),
+		async_callback => sub {
+		    my $results = shift;
 
+		    $time = $results->{'results'}->[0]->{'timestamp'};
+		    $flows = $results->{'results'}->[0]->{'flow_stats'};
+		    if (!$time || !$flows){
+			$logger->error("Couldn't get flow stats for node " . $node->{'dpid'});
+			return;
+		    }
+
+		    process_flow_stats($time, $node->{'dpid'}, $flows);
+		}
+	    );
+        };
+        $logger->error("error getting flow stats: $@") if $@;
+    }
 }
+
 =head2 main
 
-    Basically connects to syslog, SNAPP DB, OESS-DB, and Net::DBus and connects the flow_stats_in callback to the 
+    Basically connects to SNAPP DB, OESS-DB, and Net::DBus and connects the flow_stats_in callback to the 
     flow_stats_in event
 
 =cut
 
 sub main{
-    openlog("OESS-vlan_stats_d","ndelay,pid","local0");
-    syslog(LOG_NOTICE, "Starting vlan_stats_d");
+
+    Log::Log4perl::init('/etc/oess/logging.conf');
+    $logger = Log::Log4perl->get_logger('OESS.Measurement');
+
+    $logger->info("Starting vlan_stats_d");
 
     my $oess_config = "/etc/oess/database.xml";
     $oess = OESS::Database->new(config => $oess_config);
-
-    if (! defined $oess){
-	syslog(LOG_ERR, "Unable to connect to OESS database");
+    if (!defined $oess) {
+	$logger->error( "Unable to connect to OESS database");
 	die;
     }
 
-    $snapp_dbh = connect_to_snapp($oess->get_snapp_config_location());
 
-    if (! defined $snapp_dbh){
-	syslog(LOG_ERR, "Unable to connect to snapp database.");
-	die;
-    }
-    
-    my $sth = $snapp_dbh->prepare("select value from global where name = 'rrddir'");
-    $sth->execute();
-    $base_path = $sth->fetchrow_hashref()->{'value'};
-    if(!defined($base_path)){
-	syslog(LOG_ERR, "Unable to find base RRD directory from snapp database.");
+    $tsds_ws = _connect_to_tsds($oess_config);
+    if (!defined $tsds_ws) {
+	$logger->error("Couldn't connect to TSDS at $tsds_ws.");
 	die;
     }
 
     _load_config();
 
-    $dbus = OESS::DBus->new( service => "org.nddi.openflow",
-			     instance => "/controller1", sleep_interval => .1, timeout => -1);
-    if(defined($dbus)){
-	$dbus->connect_to_signal("datapath_leave",\&datapath_leave_callback);
-	$dbus->connect_to_signal("datapath_join",\&datapath_join_callback);
-	$dbus->start_reactor( timeouts => [{interval => 30000, callback => Net::DBus::Callback->new(
-						method => sub { get_flow_stats(); })},
-					   {interval => 300000, callback => Net::DBus::Callback->new(
-						method => sub { _load_config(); })}]);
-    }else{
-	syslog(LOG_ERR,"Unable to connect to dbus");
-	die;
-    }
+    $rabbit_mq_client = GRNOC::RabbitMQ::Client->new( host => $oess->{'rabbitMQ'}->{'host'},
+						      port => $oess->{'rabbitMQ'}->{'port'},
+						      user => $oess->{'rabbitMQ'}->{'user'},
+						      pass => $oess->{'rabbitMQ'}->{'pass'},
+						      exchange => 'OESS',
+						      topic => 'OF.NOX.RPC',
+						      timeout => 100);
+
+    my $rabbit_dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $oess->{'rabbitMQ'}->{'host'},
+							      port => $oess->{'rabbitMQ'}->{'port'},
+							      user => $oess->{'rabbitMQ'}->{'user'},
+							      pass => $oess->{'rabbitMQ'}->{'pass'},
+                                                              exchange => 'OESS',
+							      topic => 'OF.NOX.event',
+                                                              exclusive => 1);
+
+    my $method = GRNOC::RabbitMQ::Method->new( name        => 'datapath_join',
+                                               topic       => "OF.NOX.event",
+					       callback    => sub { datapath_join_callback(@_) },
+					       description => "Datapath Join callback when a device joins");
+
+    $method->add_input_parameter( name => "dpid",
+                                  description => "The DPID of the switch which joined",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::NUMBER_ID);
+
+    $method->add_input_parameter( name => "ip",
+                                  description => "The IP of the swich which has joined",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::NUMBER_ID);
+
+    $method->add_input_parameter( name => "ports",
+                                  description => "A list of ports that exist on the node, and their details",
+                                  required => 1,
+                                  schema => { 'type'  => 'array',
+                                              'items' => [ 'type' => 'object',
+                                                           'properties' => { 'hw_addr'    => {'type' => 'number'},
+                                                                             'curr'       => {'type' => 'number'},
+                                                                             'name'       => {'type' => 'string'},
+                                                                             'speed'      => {'type' => 'number'},
+                                                                             'supported'  => {'type' => 'number'},
+                                                                             'enabled'    => {'type' => 'number'}, # bool
+                                                                             'flood'      => {'type' => 'number'}, # bool
+                                                                             'state'      => {'type' => 'number'},
+                                                                             'link'       => {'type' => 'number'}, # bool
+                                                                             'advertised' => {'type' => 'number'},
+                                                                             'peer'       => {'type' => 'number'},
+                                                                             'config'     => {'type' => 'number'},
+                                                                             'port_no'    => {'type' => 'number'}
+                                                                           }
+                                                         ]
+                                            } );
+    $rabbit_dispatcher->register_method($method);
+    $logger->info("Rabbit setup vlan_stats_d");
+
+    my $collector_interval = AnyEvent->timer( after => $interval,
+					      interval => $interval,
+					      cb => sub{ get_flow_stats();});
+    
+    my $config_reload_interval = AnyEvent->timer( after => $interval * 10,
+						  interval => $interval * 10,
+						  cb => sub{ _load_config(); });
+
+    $rabbit_dispatcher->start_consuming();
 }
 
 

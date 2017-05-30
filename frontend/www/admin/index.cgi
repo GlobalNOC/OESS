@@ -14,6 +14,9 @@ use Template;
 use Switch;
 use FindBin;
 use OESS::Database();
+use Log::Log4perl;
+
+Log::Log4perl::init('/etc/oess/logging.conf');
 
 my $ADMIN_BREADCRUMBS = [
     { title => "Workgroups", url => "../index.cgi?action=workgroups" },
@@ -74,7 +77,7 @@ sub main {
     $vars->{'breadcrumbs'}        = $breadcrumbs;
     $vars->{'current_breadcrumb'} = $current_breadcrumb;
     $vars->{'path'}               = "../";
-
+    $vars->{'admin_email'}        = $db->get_admin_email();
     $tt->process( "html_templates/page_base.html", $vars, \$output )
       or warn $tt->error();
 

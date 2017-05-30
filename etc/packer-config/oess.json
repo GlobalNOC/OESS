@@ -5,6 +5,7 @@
 	},	
     "builders":[
 	{
+        "ssh_pty" : true,
 	    "type": "virtualbox-iso",
 	    "vm_name": "oess-{{user `oess_version`}}",
 	    "guest_os_type": "RedHat_64",

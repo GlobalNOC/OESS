@@ -38,14 +38,18 @@ use CGI;
 use Template;
 use Switch;
 use FindBin;
+use Log::Log4perl;
+
+Log::Log4perl::init('/etc/oess/logging.conf');
 
 my $db= OESS::Database->new();
 
 
 my $ADD_BREADCRUMBS = [{title => "Workgroups",   url => "?action=workgroups"},
                        {title => "Home",         url => "?action=index"},
-		       {title => "Details",      url => "?action=edit_details"},		       
+		       {title => "Details",      url => "?action=edit_details"},
 		       {title => "Endpoints",    url => "?action=endpoints"},
+                       {title => "Options",      url => "?action=options"},
 		       {title => "Primary Path", url => "?action=primary_path"},
 		       {title => "Backup Path",  url => "?action=backup_path"},
 		       {title => "Scheduling",   url => "?action=scheduling"},
@@ -135,6 +139,11 @@ sub main{
 			       $title              = "Endpoints";
 			       $breadcrumbs        = $ADD_BREADCRUMBS;
 			       $current_breadcrumb = "Endpoints";
+	                     }
+	case "options"       { $filename           = "html_templates/options.html";
+			       $title              = "Options";
+			       $breadcrumbs        = $ADD_BREADCRUMBS;
+			       $current_breadcrumb = "Options";
 	                     }
 	case "primary_path"  { $filename           = "html_templates/primary_path.html";
 			       $title              = "Primary Path";

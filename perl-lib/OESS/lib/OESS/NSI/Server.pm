@@ -6,34 +6,41 @@ use SOAP::Lite;
 
 use strict;
 
+use AnyEvent;
 use Data::Dumper;
+use JSON;
+
+use GRNOC::Log;
+use OESS::RabbitMQ::Client;
 use OESS::DBus;
 use OESS::NSI::Utils;
 use OESS::NSI::Query;
+
+
+my $logger = GRNOC::Log->new(config => '/etc/oess/logging.conf', watch => 15);
+my $log    = $logger->get_logger('OESS.NSI.WWW');
+
+
+my $api    = OESS::RabbitMQ::Client->new( topic    => 'OESS.NSI.Processor');
+
 
 sub _send_to_daemon{
     my $method = shift;
     my $data = shift;
 
-    my $bus = Net::DBus->system;
+    $log->info("Calling $method");
 
-    my $client;
-    my $service;
+    $data = encode_json $data;
 
-    eval {
-        $service = $bus->get_service("org.nddi.nsi");
-        $client  = $service->get_object("/controller1");
-    };
-
-    if ($@) {
-        warn "Error in _connect_to_fwdctl: $@";
-    }
-        
-    if ( !defined($client) ) {
-        return;
-    }
-
-    my $res = $client->process_request($method,$data);
+    my $cv = AnyEvent->condvar;
+    $api->process_request(method         => $method,
+                          data           => $data,
+                          async_callback => sub {
+                              my $res = shift;
+                              $cv->send($res);
+                          });
+    my $res = $cv->recv();
+    $log->debug("_send_to_daemon: " . Dumper($res));
 
     return $res;
 }

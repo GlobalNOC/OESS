@@ -1,0 +1,45 @@
+<configuration>
+  <interfaces>
+    [% FOREACH interface IN interfaces %]
+    <interface>
+      <name>[% interface.name %]</name>
+      <unit>
+        <name>[% interface.tag %]</name>
+        <description>OESS-L2VPLS-[% circuit_id %]</description>
+        <encapsulation>vlan-vpls</encapsulation>
+        <vlan-id>[% interface.tag %]</vlan-id>
+        <output-vlan-map>
+          <swap/>
+        </output-vlan-map>
+      </unit>
+    </interface>
+    [% END %]
+  </interfaces>
+  <routing-instances>
+    <instance>
+      <name>OESS-L2VPLS-[% circuit_id %]</name>
+      <instance-type>vpls</instance-type>
+      [% FOREACH interface IN interfaces %]
+      <interface>
+        <name>[% interface.name %].[% interface.tag %]</name>
+      </interface>
+      [% END %]
+      <route-distinguisher>
+        <rd-type>11537:[% circuit_id %]</rd-type>
+      </route-distinguisher>
+      <vrf-target>
+        <community>target:11537:[% circuit_id %]</community>
+      </vrf-target>
+      <protocols>
+        <vpls>
+          <site-range>65534</site-range>
+          <no-tunnel-services/>
+          <site>
+            <name>[% switch.name %]-[% circuit_id %]</name>
+            <site-identifier>[% site_id %]</site-identifier>
+          </site>
+        </vpls>
+      </protocols>
+    </instance>
+  </routing-instances>
+</configuration>

@@ -253,21 +253,21 @@ sub validate_paths {
         $backup_links = $res->{'backup_links'};
         $endpoints = $res->{'endpoints'}
     }elsif( ($args{'links'} || $args{'backup_links'}) && $args{'endpoints'}){
-        $links        = $self->{'db'}->get_links_details_by_name( names => $args{'links'} );
+        $links        = $self->{'db'}->get_links_details_by_name( $args{'links'} );
         if(!$links){
             $self->_set_error($self->{'db'}->get_error());
         }
-        $backup_links = $self->{'db'}->get_links_details_by_name( names => $args{'backup_links'} );
+        $backup_links = $self->{'db'}->get_links_details_by_name( $args{'backup_links'} );
         if(!$backup_links){
             $self->_set_error($self->{'db'}->get_error());
         }
         $endpoints = $args{'endpoints'};
     }else {
         $self->_set_error("Must pass in a circuit_id, a list or links, or a list of backup_links");
-        return;
+        return (0, "Must pass in a circuit_id, a list or links, or a list of backup_links");
     }
 
-    if(defined $links){
+    if (defined $links && @{$links} != 0) {
         if ( (!$self->path_is_loop_free($links)) && (!$self->is_loopback($endpoints)) ){
             $self->_set_error("Primary path contains a loop");
             return (0,"Primary path contains a loop.");
@@ -279,8 +279,7 @@ sub validate_paths {
         }
     }
 
-    if(defined $backup_links){
-
+    if(defined $backup_links && @{$backup_links} != 0) {
         if ( (!$self->path_is_loop_free($backup_links)) && (!$self->is_loopback($endpoints)) ){
             $self->_set_error("Backup path contains a loop.");
             return (0,"Backup path contains a loop.");
@@ -344,8 +343,9 @@ sub find_path {
     my $self = shift;
     my %args = @_;
 
-    warn "Finding the shortest path\n";
-    $self->{'logger'}->debug("Finding shortest path");
+    my $type = $args{'type'};
+
+    $self->{'logger'}->debug("Finding shortest path type: $type");
 
     my @selected_links = ();
 
@@ -363,12 +363,11 @@ sub find_path {
     #now the acutal implementation, step0 sanity
     if(scalar(@$nodes) < 2){
         $self->_set_error("Not enough nodes specified in find path: " . join(",",@$nodes));
-        warn "Not enough nodes specified in the path\n";
         return undef;
     }
 
     #step1 (get nodes);
-    my @tmp = @{$db->get_current_nodes()};
+    my @tmp = @{$db->get_current_nodes( type => $type )};
     
 
     my @db_nodes;
@@ -383,7 +382,6 @@ sub find_path {
     my $input_node_set = Set::Scalar->new(@$nodes);
 
     if(not $input_node_set <= $db_node_set){
-        warn "Bad Inputs!\n";
         $self->_set_error("Bad inputs: " . join(",",@$nodes));
         return undef;
     }
@@ -395,7 +393,7 @@ sub find_path {
 
     #now put the edges in the graph
     #I am assuming there are NO repeated links between cities right now!
-    my $links = $db->get_edge_links($reserved_bw);
+    my $links = $db->get_edge_links($reserved_bw, $type);
     $self->{'logger'}->debug("edge links: " . Dumper($links));
     my %edge;
     my $used_link_set = Set::Scalar->new(@$try_avoid);
@@ -481,7 +479,6 @@ sub find_path {
         });
     }
 
-    warn Data::Dumper::Dumper($g);
 
     #run Dijkstra on our graph
     my @link_list = ();
@@ -532,7 +529,6 @@ sub find_path {
 
     $self->{'logger'}->debug("selected_links=".join(",",@selected_links));
 
-    warn "SELECTED LINKS" . Data::Dumper::Dumper(@selected_links);
     return \@selected_links;
 
 }
@@ -566,12 +562,9 @@ sub is_path_up{
 	    }
 	}
     }else{
-
 	my $links = $self->{'db'}->get_current_links();
 
-
 	foreach my $link (@$links){
-
 
             if( $link->{'status'} eq 'down'){
                 $down_links{$link->{'name'}} = $link;
@@ -589,7 +582,6 @@ sub is_path_up{
     }
 
     foreach my $link (@$path_links){
-
         if( $down_links{ $link->{'name'} } ){
             return 0;
         }elsif($unknown_links{$link->{'name'}}){

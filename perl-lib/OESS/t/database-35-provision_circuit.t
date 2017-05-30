@@ -58,6 +58,7 @@ my $res = $db->provision_circuit('description' => "Trunk test",
                                  'links' => ['Link 181', 'Link 191', 'Link 531'],
                                  'backup_links' => [],
                                  'nodes' => ['Node 11', $trunk_iface_node], 
+                                 'type' => 'openflow',
                                  'interfaces' => ['e1/1', $trunk_iface],
                                  'tags' => [1, $invalid_vlan],
                                  'user_name' => $user->{'auth_name'},
@@ -75,10 +76,11 @@ $res = $db->provision_circuit('description' => "Trunk test",
                               'links' => ['Link 181', 'Link 191', 'Link 531'],
                               'backup_links' => [],
                               'nodes' => ['Node 11', $trunk_iface_node], 
+                              'type' => 'openflow',
                               'interfaces' => ['e1/1', $trunk_iface],
                               'tags' => [1, $valid_vlan],
                               'user_name' => $user->{'auth_name'},
-                              'workgroup_id' => $trunk_iface_workgroup_id,
+                              'workgroup_id' => $trunk_iface_workgroup_id + 1,
                               'external_id' => undef);
 $err = $db->get_error();
 ok(!$res, "Authorization check");
@@ -93,6 +95,7 @@ $res = $db->provision_circuit('description' => "Trunk test",
                               'provision_time' => -1,
                               'remove_time' => -1,
                               'links' => ['Link 181', 'Link 191', 'Link 531'],
+                              'type' => 'openflow',
                               'backup_links' => [],
                               'nodes' => ['Node 11', $trunk_iface_node], 
                               'interfaces' => ['e1/1', $trunk_iface],
@@ -109,10 +112,12 @@ $res = $db->get_circuit_details(circuit_id => $trunk_circuit_id);
 ok($res, "Retreived trunk circuit.");
 
 delete $res->{'last_modified_by'};
+delete $res->{'created_by'};
 delete $res->{'name'};
 delete $res->{'last_edited'};
 delete $res->{'circuit_id'};
-
+delete $res->{'created_on'};
+delete $res->{'paths'};
 my $correct_trunk_result = {
                             'remote_requester' => undef,
                             'external_identifier' => undef,
@@ -130,7 +135,9 @@ my $correct_trunk_result = {
                                          'name' => 'Link 181',
                                          'interface_z_id' => '851',
                                          'interface_a_id' => '161',
-                                         'interface_a' => 'e3/1'
+                                         'interface_a' => 'e3/1',
+                                         'ip_a' => undef,
+                                         'ip_z' => undef,
                                         },
                                         {
                                          'interface_z' => 'e1/1',
@@ -141,7 +148,9 @@ my $correct_trunk_result = {
                                          'name' => 'Link 191',
                                          'interface_z_id' => '61',
                                          'interface_a_id' => '171',
-                                         'interface_a' => 'e1/1'
+                                         'interface_a' => 'e1/1',
+                                         'ip_a' => undef,
+                                         'ip_z' => undef,
                                         },
                                         {
                                          'interface_z' => 'e3/2',
@@ -152,7 +161,9 @@ my $correct_trunk_result = {
                                          'name' => 'Link 531',
                                          'interface_z_id' => '71',
                                          'interface_a_id' => '45781',
-                                         'interface_a' => 'e3/1'
+                                         'interface_a' => 'e3/1',
+                                         'ip_a' => undef,
+                                         'ip_z' => undef,
                                         }
                                        ],
                             'static_mac' => '0',
@@ -217,7 +228,9 @@ my $correct_trunk_result = {
                                               },
                             'user_id' => '11',
                             'restore_to_primary' => '0',
-                            'operational_state' => 'unknown'
+                            'operational_state' => 'up',
+                            'tertiary_links' => [],
+                            'type' => 'openflow'
                            };
 cmp_deeply($res, $correct_trunk_result, "Values for trunk circuit matches");
 
@@ -244,6 +257,7 @@ $res = $db->provision_circuit(
     'nodes' => ['Node 11', 'Node 51'], 
     'interfaces' => ['e15/1', 'e15/1'],
     'tags' => [1,1],
+    'type' => 'openflow',
     'user_name' => 'aragusa',
     'workgroup_id' => 11,
     'external_id' => undef
@@ -260,6 +274,7 @@ $res = $db->provision_circuit(
     'backup_links' => [],
     'nodes' => ['Node 11', 'Node 51'], 
     'interfaces' => ['e1/1', 'e15/1'],
+    'type' => 'openflow',
     'tags' => [1,1],
     'user_name' => 'aragusa',
     'workgroup_id' => 11,
@@ -271,8 +286,10 @@ ok($res->{'success'}, "circuit successfully added");
 $res = $db->get_circuit_details(
     circuit_id => $res->{'circuit_id'},
                                );
+warn Dumper($res);
 delete $res->{'last_modified_by'};
-
+delete $res->{'created_on'};
+delete $res->{'paths'};
 my $correct_result =  {
           'external_identifier' => undef,
           'state' => 'active',
@@ -291,7 +308,9 @@ my $correct_result =  {
                          'name' => 'Link 181',
                          'interface_z_id' => '851',
                          'interface_a_id' => '161',
-                         'interface_a' => 'e3/1'
+                         'interface_a' => 'e3/1',
+                         'ip_a' => undef,
+                         'ip_z' => undef,
                        },
                        {
                          'interface_z' => 'e1/1',
@@ -302,7 +321,9 @@ my $correct_result =  {
                          'name' => 'Link 191',
                          'interface_z_id' => '61',
                          'interface_a_id' => '171',
-                         'interface_a' => 'e1/1'
+                         'interface_a' => 'e1/1',
+                         'ip_a' => undef,
+                         'ip_z' => undef,
                        },
                        {
                          'interface_z' => 'e3/2',
@@ -313,7 +334,9 @@ my $correct_result =  {
                          'name' => 'Link 531',
                          'interface_z_id' => '71',
                          'interface_a_id' => '45781',
-                         'interface_a' => 'e3/1'
+                         'interface_a' => 'e3/1',
+                         'ip_a' => undef,
+                         'ip_z' => undef,
                        }
                      ],
           'workgroup_id' => '11',
@@ -378,7 +401,20 @@ my $correct_result =  {
 
           'user_id' => '11',
           'restore_to_primary' => '0',
-          'operational_state' => 'unknown'
+          'operational_state' => 'up',
+          'created_by' => {
+                                  'status' => 'active',
+                                  'auth_id' => '970',
+                                  'family_name' => 'User 11',
+                                  'email' => 'user_11@foo.net',
+                                  'is_admin' => '0',
+                                  'user_id' => '11',
+                                  'given_names' => 'User 11',
+                                  'type' => 'normal',
+                                  'auth_name' => 'aragusa'
+                                },
+          'tertiary_links' => [],
+          'type' => 'openflow'
 };
 
 # delete the name since that's randomly generated

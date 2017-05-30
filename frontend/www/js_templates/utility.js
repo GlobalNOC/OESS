@@ -1,5 +1,7 @@
 <script>
 
+var next_button;
+
 window.originalAlert = window.alert;
 
 // override the default alert so we can make it prettier / standardized
@@ -168,16 +170,25 @@ function setNextButton(text, url, verification_callback){
   
   verification_callback = verification_callback || function(){return true;};
   
-  var button = new YAHOO.widget.Button("next_button", {label: text});
+  if(next_button !== undefined){
+      next_button.set("label", text);
+      next_button.on("click", function(){
+              if (verification_callback()){
+                  window.location = url;
+              }
+          });
+  }else{
+
+  next_button = new YAHOO.widget.Button("next_button", {label: text});
   
-  button.on("click", function(){	      
+  next_button.on("click", function(){	      
 		if (verification_callback()){		
 		  window.location = url;  
 		}	     
 	    });
   
-  return button;
-  
+  return next_button;
+  }
 }
 
 function hookupRadioButtons(name, value, callback){
@@ -577,7 +588,7 @@ function makeTagSelectPanel(coordinates, options ){
             tag_verified = true;
         } else {
             var tag_ds = new YAHOO.util.DataSource(
-                "services/data.cgi?action=is_vlan_tag_available"+
+                "services/data.cgi?method=is_vlan_tag_available"+
                 "&vlan="+new_tag+
                 "&interface="+encodeURIComponent(options.interface)+
                 "&node="+encodeURIComponent(options.node)+
@@ -586,7 +597,7 @@ function makeTagSelectPanel(coordinates, options ){
             tag_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
             tag_ds.responseSchema = {
                 resultsList: "results",
-                fields: [{key: "available", parser: "number"}],
+                fields: [{key: "available", parser: "number"}, {key: "type", parser: "string"}],
                 metaFields: {
                   "error": "error"
                 }
@@ -601,8 +612,25 @@ function makeTagSelectPanel(coordinates, options ){
                     return;
                 }
                 else if (resp.results[0].available == 1){
-                    tag_verified = true;
-                    save();
+		    if(session.data.circuit_type == null){
+			session.data.circuit_type = resp.results[0].type;
+			tag_verified = true;
+                        if(session.data.circuit_type == 'mpls'){
+                            setNextButton("Proceed to Next Step: Primary Path", "?action=primary_path", verify_inputs);
+                        }else{
+                            setNextButton("Proceed to Next Step: Circuit Options", "?action=options", verify_inputs);
+                        }
+                        save();
+		    }else{
+			if(session.data.circuit_type == resp.results[0].type){
+			    tag_verified = true;
+			    save();
+			}else{
+			    alert("This vlan tag is in a different mode than the previous vlan tag. The tag mode must match on each interface");
+			    save_button.set("label","Save");
+			    save_button.set("disabled",false);
+			}
+		    }
                 }
                 else{
                     if (new_tag == -1){
@@ -641,7 +669,7 @@ function makeTagSelectPanel(coordinates, options ){
             }
 
             var mac_ds = new YAHOO.util.DataSource(
-                "services/data.cgi?action=is_within_mac_limit"+
+                "services/data.cgi?method=is_within_mac_limit"+
                 mac_address_string+
                 "&interface="+encodeURIComponent(options.interface)+
                 "&node="+encodeURIComponent(options.node)+
