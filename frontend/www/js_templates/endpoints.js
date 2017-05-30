@@ -69,6 +69,7 @@ function makeInterfacesTable(node){
     return table;
 }
 var endpoint_table;
+var nddi_map;
 function init(){  
 
   setPageSummary("Intradomain Endpoints","Pick at least two endpoints from the map below.");
@@ -83,7 +84,7 @@ function init(){
   
   endpoint_table = summary_init();
 
-  var nddi_map = new NDDIMap("map");
+  nddi_map = new NDDIMap("map");
 
     var w = 540;
     if (session.data.workgroup_type === 'admin') {
@@ -107,9 +108,6 @@ function init(){
         }
 
         set_summary(session.data.circuit_type);
-        if(session.data.circuit_type == 'mpls'){
-            setNextButton("Proceed to Next Step: Primary Path", "?action=primary_path", verify_inputs);
-        }
         save_session();
     });
 
@@ -223,6 +221,8 @@ function init(){
         });
   });
   
+}
+
   function save_session(){
     
     var records = endpoint_table.getRecordSet().getRecords();
@@ -254,7 +254,7 @@ function init(){
 
   }
 
-}
+
 
 function verify_inputs(){
 
