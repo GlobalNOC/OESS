@@ -67,7 +67,7 @@ function makeConfigPanel(x, y, width, obj) {
     YAHOO.util.Dom.setStyle(['config_diff_pre'], 'overflow', 'auto');
 
     load_diff = function(node_id) {
-	var url    = '../services/data.cgi?';
+	var url    = '../services/admin/admin.cgi?';
 	var params = 'method=get_diff_text'+
         '&node_id='  + node_id;
 	
@@ -114,7 +114,7 @@ function makeConfigPanel(x, y, width, obj) {
     approve.on('click', function() {
         approve.set('label', 'Approving...');
 
-        var url    = '../services/data.cgi?';
+        var url    = '../services/admin/admin.cgi?';
         var params = 'method=set_diff_approval'+
             '&node_id='  + this.node_id +
             '&approved=' + '1';
@@ -185,7 +185,7 @@ function makeConfigTable(div_id) {
         el.innerHTML = html;
     };
     
-    var ds = new YAHOO.util.DataSource("../services/data.cgi?method=get_diffs");
+    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=get_diffs");
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
         resultsList: "results",
