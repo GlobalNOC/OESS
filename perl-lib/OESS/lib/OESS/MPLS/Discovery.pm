@@ -123,6 +123,12 @@ sub new{
     $self->register_rpc_methods( $dispatcher );
     $self->{'dispatcher'} = $dispatcher;
 
+    # When this process receives sigterm send an event to notify all
+    # children to exit cleanly.
+    $SIG{TERM} = sub {
+        $self->stop();
+    };
+
     #create a child process for each switch
     my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
     foreach my $node (@$nodes) {
@@ -668,6 +674,20 @@ sub handle_response{
 	&$cb($results);
     }
 }
-    
+
+=head2 stop
+
+Sends a shutdown signal on MPLS.FWDCTL.event.stop. Child processes
+should listen for this signal and cleanly exit when received.
+
+=cut
+
+sub stop {
+    my $self = shift;
+
+    $self->{'logger'}->info("Sending MPLS.Discovery.stop to listeners");
+    $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch";
+    $self->{'rmq_client'}->stop();
+}    
 
 1;
