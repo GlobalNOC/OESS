@@ -292,7 +292,7 @@ sub _tsds_of_query{
     );
     my $res = $req->query(query => $query);
     if (!defined $res) {
-	$self->{'logger'}->error($res->get_error());
+	$self->{'logger'}->error($req->get_error());
     }
 
     $self->{'logger'}->debug("tsds_of_query: " . Dumper($res));
