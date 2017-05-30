@@ -769,7 +769,6 @@ function build_circuitTable(){
     var user_table = new YAHOO.widget.DataTable("user_table", user_columns, user_ds, user_config);
 
     var resource_map = new NDDIMap("available_resource_map", session.data.interdomain == 0);
-
     //resource_map.showDefault();
 
     resource_map.on("loaded", function(){
