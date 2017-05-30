@@ -35,6 +35,10 @@ function init(){
     //session.data.q_n_q = session.data.q_n_q || 0;
     session.data.circuit_type = session.data.circuit_type || 'unknown';
 
+    if(session.data.circuit_type == 'mpls'){
+        window.location = '?action=primary_path';
+    }
+
     // Circuit Endpoint Table: circuit_details_box.js
     // By default the static mac column is hidden.
     var endpoint_table = summary_init();

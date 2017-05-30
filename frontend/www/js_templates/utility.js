@@ -1,5 +1,7 @@
 <script>
 
+var next_button;
+
 window.originalAlert = window.alert;
 
 // override the default alert so we can make it prettier / standardized
@@ -168,16 +170,25 @@ function setNextButton(text, url, verification_callback){
   
   verification_callback = verification_callback || function(){return true;};
   
-  var button = new YAHOO.widget.Button("next_button", {label: text});
+  if(next_button !== undefined){
+      next_button.set("label", text);
+      next_button.on("click", function(){
+              if (verification_callback()){
+                  window.location = url;
+              }
+          });
+  }else{
+
+  next_button = new YAHOO.widget.Button("next_button", {label: text});
   
-  button.on("click", function(){	      
+  next_button.on("click", function(){	      
 		if (verification_callback()){		
 		  window.location = url;  
 		}	     
 	    });
   
-  return button;
-  
+  return next_button;
+  }
 }
 
 function hookupRadioButtons(name, value, callback){
@@ -604,7 +615,12 @@ function makeTagSelectPanel(coordinates, options ){
 		    if(session.data.circuit_type == null){
 			session.data.circuit_type = resp.results[0].type;
 			tag_verified = true;
-			save();
+                        if(session.data.circuit_type == 'mpls'){
+                            setNextButton("Proceed to Next Step: Primary Path", "?action=primary_path", verify_inputs);
+                        }else{
+                            setNextButton("Proceed to Next Step: Circuit Options", "?action=options", verify_inputs);
+                        }
+                        save();
 		    }else{
 			if(session.data.circuit_type == resp.results[0].type){
 			    tag_verified = true;

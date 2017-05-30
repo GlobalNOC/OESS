@@ -577,6 +577,46 @@ sub _send_remove_command {
     return ($result->{'results'}->{'status'}, $err);
 }
 
+sub _send_mpls_update_cache{
+    my %args = @_;
+    if(!defined($args{'circuit_id'})){
+        $args{'circuit_id'} = -1;
+    }
+
+    my $err = undef;
+
+    if (!defined $mq) {
+        $err = "Couldn't create RabbitMQ client.";
+        return;
+    } else {
+        $mq->{'topic'} = 'MPLS.FWDCTL.RPC';
+    }
+    my $cv = AnyEvent->condvar;
+    $mq->update_cache(circuit_id => $args{'circuit_id'},
+                      async_callback => sub {
+                          my $result = shift;
+                          $cv->send($result);
+                      });
+
+    my $result = $cv->recv();
+    warn Dumper($result);
+
+    if (!defined $result) {
+        warn "Error occurred while calling update_cache: Couldn't contact MPLS.FWDCTL via RabbitMQ.";
+        return undef;
+    }
+    if (!defined $result->{'results'}) {
+        warn "Something terrible happened with rabbitmq: " . Dumper($result);
+        return undef;
+    }
+    if (defined $result->{'results'}->{'error'}) {
+        warn "Error occured while calling update_cache: " . $result->{'results'}->{'error'};
+        return undef;
+    }
+
+    return $result->{'results'}->{'status'};
+}
+
 sub _send_update_cache{
     my %args = @_;
     if(!defined($args{'circuit_id'})){
@@ -810,6 +850,7 @@ sub provision_circuit {
                         type         => {value => $type},
                         workgroup_id => {value => $workgroup_id}
                     });
+
                     return;
                 }
             }
@@ -1067,7 +1108,11 @@ sub remove_circuit {
 	workgroup_id => $workgroup_id
     );
 
-    _send_update_cache( circuit_id => $circuit_id);
+    if($type eq 'openflow'){
+        _send_update_cache( circuit_id => $circuit_id);
+    }else{
+        _send_mpls_update_cache( circuit_id => $circuit_id );
+    }
 
     if ( !defined $output ) {
         $err = $db->get_error();
