@@ -604,7 +604,12 @@ function makeTagSelectPanel(coordinates, options ){
 		    if(session.data.circuit_type == null){
 			session.data.circuit_type = resp.results[0].type;
 			tag_verified = true;
-			save();
+                        if(session.data.circuit_type == 'mpls'){
+                            setNextButton("Proceed to Next Step: Primary Path", "?action=primary_path", verify_inputs);
+                        }else{
+                            setNextButton("Proceed to Next Step: Circuit Options", "?action=options", verify_inputs);
+                        }
+                        save();
 		    }else{
 			if(session.data.circuit_type == resp.results[0].type){
 			    tag_verified = true;

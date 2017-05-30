@@ -667,7 +667,7 @@ function build_circuitTable(){
                 elLiner.innerHTML = "<font color='red'>down</font>";
             }
         }},
-        {key: "operational_state_mpls", sortable: true, label: "MPLS", width: 40, formatter: function(elLiner, oRec, oCol, oData) {
+        {key: "operational_state_mpls", sortable: true, label: "NetConf", width: 40, formatter: function(elLiner, oRec, oCol, oData) {
             if (oRec.getData('in_maint') == 'yes') {
                 elLiner.innerHTML = "<font color='teal'>Maintenance</font>";
             } else if(oRec.getData('operational_state_mpls') == 'up') {
@@ -690,7 +690,7 @@ function build_circuitTable(){
     };
 
     var circuit_status_cols = [
-			       {key: "description", label: "Name",sortable:true, width: 200},
+			       {key: "description", label: "Name",sortable:true, width: 180},
 			       {key: "status", label: "Status",sortable:true, width: 100,sortable: true, formatter: function(elLiner, oRec, oColumn, oData){
                     
                     if(oRec.getData('operational_state') == 'down'){

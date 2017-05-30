@@ -68,14 +68,20 @@ function makeInterfacesTable(node){
     table.subscribe("rowClickEvent", table.onEventSelectRow);
     return table;
 }
-
+var endpoint_table;
 function init(){  
 
   setPageSummary("Intradomain Endpoints","Pick at least two endpoints from the map below.");
-
-  setNextButton("Proceed to Step 3: Circuit Options", "?action=options", verify_inputs);
   
-  var endpoint_table = summary_init();
+  setNextButton("Proceed to Next Step: Circuit Options", "?action=options", verify_inputs);
+
+  if(session.data.circuit_type !== undefined){
+      if(session.data.circuit_type == 'mpls'){
+          setNextButton("Proceed to Next Step: Primary Path", "?action=primary_path", verify_inputs);
+      }
+  }
+  
+  endpoint_table = summary_init();
 
   var nddi_map = new NDDIMap("map");
 
@@ -101,6 +107,9 @@ function init(){
         }
 
         set_summary(session.data.circuit_type);
+        if(session.data.circuit_type == 'mpls'){
+            setNextButton("Proceed to Next Step: Primary Path", "?action=primary_path", verify_inputs);
+        }
         save_session();
     });
 
@@ -245,21 +254,23 @@ function init(){
 
   }
 
-  function verify_inputs(){
-
-    var records = endpoint_table.getRecordSet().getRecords();
-    
-    if (records.length < 2){
-      alert("You must have at least two endpoints.");
-      return false;
-    }       
-    
-    save_session();
-
-    return true;
-  }
-  
 }
+
+function verify_inputs(){
+
+  var records = endpoint_table.getRecordSet().getRecords();
+  
+  if (records.length < 2){
+    alert("You must have at least two endpoints.");
+    return false;
+  }       
+
+  save_session();
+  return true;
+
+}
+  
+
 
 YAHOO.util.Event.onDOMReady(init);
   
