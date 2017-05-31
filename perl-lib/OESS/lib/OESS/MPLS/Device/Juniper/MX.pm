@@ -1317,6 +1317,39 @@ sub get_LSPs{
     return \@LSPs;
 }
 
+=head2 get_lsp_paths
+
+implementation of OESS::MPLS::Device::get_lsp_paths
+
+=cut
+
+sub get_lsp_paths{
+    my $self = shift;
+    my $lsps = shift; # array of LSP names
+
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error('Not currently connected to device');
+        return;
+    }
+
+    # map: 'LSP-name' -> [ array of IP addresses for links along the LSP ]
+    my %paths = ();
+
+    foreach my $lsp (@$lsps) {
+        print 'aaa ' . $self->{'jnx'}->get_mpls_lsp_information(regex => $lsp, extensive => 1);
+        my $dom = $self->{'jnx'}->get_dom();
+
+        # Extract the link IP addresses out of the response
+        my $xp = XML::LibXML::XPathContext->new($dom);
+        $xp->registerNs('r', $self->{'root_namespace'} . 'junos-routing');
+        my @route_nodes = $xp->findnodes('//r:mpls-lsp-information[1]/r:rsvp-session-data[r:session-type="Ingress"][1]/r:rsvp-session/r:mpls-lsp[1]/r:mpls-lsp-path[r:path-active][1]/r:explicit-route[1]/r:address')->get_nodelist;
+
+        $paths{$lsp} = [ map { $_->textContent } @route_nodes ];
+    }
+
+    return \%paths;
+}
+
 sub _process_rsvp_session_data{
     my $rsvp_sd = shift;
     
