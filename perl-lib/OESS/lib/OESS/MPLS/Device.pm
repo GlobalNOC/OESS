@@ -98,6 +98,19 @@ sub get_system_information{
     return;
 }
 
+=head2 get_route_table
+
+See OESS::MPLS::Switch::get_route_table for input and output format
+
+=cut
+
+sub get_route_table{
+    my $self = shift;
+
+    $self->set_error("This device does not support get_route_table");
+    return;
+}
+
 =head2 get_interfaces 
 
 =cut
@@ -128,6 +141,19 @@ sub get_LSPs{
     my $self = shift;
 
     $self->set_error("This device does not support get_LSPs");
+    return;
+}
+
+=head2 get_lsp_paths
+
+See OESS::MPLS::Switch::get_lsp_paths for input and output format
+
+=cut
+
+sub get_lsp_paths{
+    my $self = shift;
+
+    $self->set_error("This device does not support get_lsp_paths");
     return;
 }
 

@@ -218,6 +218,13 @@ sub _register_rpc_methods{
                                             description => "returns a list of interfaces on the device");
     $dispatcher->register_method($method);
 
+    $method = GRNOC::RabbitMQ::Method->new( name        => "get_route_table",
+                                            callback    => sub {
+                                                $self->get_route_table();
+                                            },
+                                            description => "returns a list of LSPs that originate on the device");
+    $dispatcher->register_method($method);
+
     $method = GRNOC::RabbitMQ::Method->new( name        => "get_isis_adjacencies",
                                             callback    => sub {
                                                 $self->get_isis_adjacencies();
@@ -231,6 +238,21 @@ sub _register_rpc_methods{
                                                 $self->get_LSPs();
                                             },
                                             description => "returns a list of LSPs and their details");
+    $dispatcher->register_method($method);
+
+
+    $method = GRNOC::RabbitMQ::Method->new( name        => "get_lsp_paths",
+                                            callback    => sub {
+                                                $self->get_lsp_paths(@_);
+                                            },
+                                            description => "for each LSP, provides a list of link addresses");
+
+    $method->add_input_parameter( name => "lsps",
+                                  description => "An array of strings, each string the name of an LSP",
+                                  required => 1,
+                                  schema => { type => 'array',
+                                              items => { type => 'string' } });
+
     $dispatcher->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name        => "connected",
@@ -533,6 +555,20 @@ sub get_interfaces{
     return $self->{'device'}->get_interfaces();
 }
 
+=head2 get_route_table
+
+takes no arguments; returns a list of LSPs originating from the device
+
+=cut
+
+sub get_route_table{
+    my $self = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    return $self->{'device'}->get_route_table();
+}
+
 =head2 get_isis_adjacencies
 
     returns a list of isis_adjacencies on the device
@@ -559,6 +595,21 @@ sub get_LSPs{
     my $p_ref = shift;
 
     return $self->{'device'}->get_LSPs();
+}
+
+=head2 get_lsp_paths
+
+takes a list of LSP names
+returns a map from LSP-name to [array of IP addresses for links along the LSP path]
+
+=cut
+
+sub get_lsp_paths{
+    my $self = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    return $self->{'device'}->get_lsp_paths($p_ref->{'lsps'}{'value'});
 }
 
 sub _generate_commands{
