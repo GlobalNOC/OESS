@@ -22,6 +22,10 @@ function makeInterfacesTable(node){
         }
     };
   
+    // tags is used to hold the available openflow vlan_tag_range;
+    // This is then combined with mpls_vlan_tag_range to display a
+    // list of globally valid vlans.
+    var tags = '';
     var cols = [
         {key: "name", label: "Interface"},
         {key: "description", label: "Description", width: 120},
@@ -33,21 +37,19 @@ function makeInterfacesTable(node){
                 elLiner.innerHTML = "Trunk";
             }
         }},
-        {key: "vlan_tag_range", label: "OpenFlow Tag Range", formatter: function(elLiner, oRec, oCol, oData){
-            if (oData === null){
-                elLiner.innerHTML = "None Available";
-            } else {
-                var string = oData.replace(/^-1/, "untagged");
-                elLiner.innerHTML = string;
-            }
+        {key: "vlan_tag_range", label: "Tag Range", formatter: function(elLiner, oRec, oCol, oData){
+                if (oData !== null) {
+                    tags = oData.replace(/^-1/, "untagged");
+                }
         }},
-        {key: "mpls_vlan_tag_range", label: "MPLS Tag Range", formatter: function(elLiner, oRec, oCol, oData){
-            if (oData === null){
-                elLiner.innerHTML = "None Available";
-            } else {
-                var string = oData.replace(/^-1/, "untagged");
-                elLiner.innerHTML = string;
-            }
+        {key: "mpls_vlan_tag_range", label: "Tag Range", formatter: function(elLiner, oRec, oCol, oData){
+                if (oData === null) {
+                    elLiner.innerHTML = tags;
+                } else {
+                    if (tags !== '') { tags += ','; }
+                    tags += oData.replace(/^-1/, "untagged");
+                }
+                elLiner.innerHTML = tags;
         }}
     ];
 
@@ -63,6 +65,7 @@ function makeInterfacesTable(node){
     };
   
     var table = new YAHOO.widget.ScrollingDataTable("add_interface_table", cols, ds, configs);
+    table.hideColumn("vlan_tag_range");
     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
     table.subscribe("rowClickEvent", table.onEventSelectRow);

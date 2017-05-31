@@ -607,7 +607,7 @@ function NDDIMap(div_id, interdomain_mode, options){
           strokeColor: stroke_Color,
 	      //strokeColor: (state == "down" ? this.LINK_DOWN : this.LINK_UP),
 	      strokeOpacity: 1.0,
-	      strokeDashstyle: (state == "down" ? "dot" : "solid"),
+              strokeDashstyle: "solid",
 	      strokeWidth: 3.5,
 	      cursor: "hand",
 	      graphicZIndex: 5
@@ -752,7 +752,7 @@ function NDDIMap(div_id, interdomain_mode, options){
       for(var i=0; i<data.links.length; i++){
           //link_name += "<div style='text-shadow: 1px 1px 1px #FFF;color: ";
           if(this.options.node_label_status == true) {
-              if(data.links[i].state == "active"){
+              if(data.links[i].state == "up"){
                   link_up_count++;
                   link_name += "<div style='text-shadow: 1px 1px 1px #FFF;color: "+this.LINK_UP+";'>";
               }
