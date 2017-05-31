@@ -299,8 +299,7 @@ sub int_handler{
     
     foreach my $node (@{$self->{'db'}->get_current_nodes(mpls => 1)}){
 	$self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
-	$self->{'rmq_client'}->get_interfaces( async => 1,
-					       async_callback => $self->handle_response( cb => sub { my $res = shift;
+	$self->{'rmq_client'}->get_interfaces( async_callback => $self->handle_response( cb => sub { my $res = shift;
                                                                                                      $self->{'db'}->update_node_operational_state(node_id => $node->{'node_id'}, state => 'up', protocol => 'mpls');
                                                                                                      my $status = $self->{'interface'}->process_results( node => $node->{'name'}, interfaces => $res->{'results'});
 											 }));
@@ -358,8 +357,7 @@ sub lsp_handler{
     foreach my $node (@{$self->{'db'}->get_current_nodes(mpls => 1)}){
 	$nodes{$node->{'name'}} = {'pending' => 1};
 	$self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
-        $self->{'rmq_client'}->get_LSPs( async => 1,
-					 async_callback => $self->handle_response( cb => sub { my $res = shift;
+        $self->{'rmq_client'}->get_LSPs( async_callback => $self->handle_response( cb => sub { my $res = shift;
 											       $nodes{$node->{'name'}} = $res;
 											       $nodes{$node->{'name'}}->{'pending'} = 0;
 											       my $no_pending = 1;
@@ -392,8 +390,7 @@ sub isis_handler{
     foreach my $node (@{$self->{'db'}->get_current_nodes(mpls => 1)}){
 	$nodes{$node->{'short_name'}} = {'pending' => 1};
         $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
-        $self->{'rmq_client'}->get_isis_adjacencies( async => 1,
-                                        async_callback => $self->handle_response( cb => sub { my $res = shift;
+        $self->{'rmq_client'}->get_isis_adjacencies( async_callback => $self->handle_response( cb => sub { my $res = shift;
 											      $nodes{$node->{'short_name'}} = $res;
 											      $nodes{$node->{'short_name'}}->{'pending'} = 0;
 											      my $no_pending = 1;
@@ -422,8 +419,7 @@ sub device_handler{
     my $self =shift;
     foreach my $node (@{$self->{'db'}->get_current_nodes(mpls => 1)}){
         $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
-        $self->{'rmq_client'}->get_system_info( async => 1,
-						async_callback => $self->handle_response( cb => sub {
+        $self->{'rmq_client'}->get_system_info( async_callback => $self->handle_response( cb => sub {
                                                                                               my $res = shift;
                                                                                               if (defined $res->{'error'}) {
                                                                                                   my $addr = $node->{'mgmt_addr'};
