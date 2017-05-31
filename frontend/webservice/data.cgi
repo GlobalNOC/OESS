@@ -1184,9 +1184,21 @@ sub get_all_node_status {
     my $results;
 
     my $nodes = $db->get_current_nodes();
-    
-    $results->{'results'} = $nodes;
+    foreach my $node (@{$nodes}) {
+        if(!$node->{'mpls'}){
+            next;
+        }
 
+        $mq->{'topic'} = 'MPLS.FWDCTL.Switch.' . $node->{'mgmt_addr'};
+        my $result = $mq->is_connected();
+        if (!defined $result || int($result->{'results'}->{'connected'}) == 0) {
+            $node->{'operational_state_mpls'} = 'down';
+        } else {
+            $node->{'operational_state_mpls'} = 'up';
+        }
+    }
+
+    $results->{'results'} = $nodes;
     return $results;
 }
 
