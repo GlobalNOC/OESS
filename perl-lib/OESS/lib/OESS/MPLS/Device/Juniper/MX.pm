@@ -1158,13 +1158,20 @@ sub connect {
         return $self->{'connected'};
     }
 
-    # Configures parameters for the get_configuration method
+    # Configures parameters for several methods
     my $ATTRIBUTE = bless {}, 'ATTRIBUTE';
+    my $TOGGLE = bless { 1 => 1 }, 'TOGGLE';
+
     $self->{'jnx'}->{'methods'}->{'get_configuration'} = { format   => $ATTRIBUTE,
                                                            compare  => $ATTRIBUTE,
                                                            changed  => $ATTRIBUTE,
                                                            database => $ATTRIBUTE,
                                                            rollback => $ATTRIBUTE };
+
+    $self->{'jnx'}->{'methods'}->{'get_mpls_lsp_information'} = {
+        detail    => $TOGGLE,
+        extensive => $TOGGLE,
+    };
 
     $self->{'logger'}->info("Connected to device!");
     return $self->{'connected'};
@@ -1292,11 +1299,6 @@ sub get_LSPs{
     if(!$self->{'connected'} || !defined($self->{'jnx'})){
         $self->{'logger'}->error("Not currently connected to device");
         return;
-    }
-
-    if(!defined($self->{'jnx'}->{'methods'}->{'get_mpls_lsp_information'})){
-        my $TOGGLE = bless { 1 => 1 }, 'TOGGLE';
-        $self->{'jnx'}->{'methods'}->{'get_mpls_lsp_information'} = { detail => $TOGGLE};
     }
 
     $self->{'jnx'}->get_mpls_lsp_information( detail => 1);
