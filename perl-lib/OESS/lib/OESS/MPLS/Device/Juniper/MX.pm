@@ -92,7 +92,6 @@ sub get_system_information{
 	$self->{'logger'}->error("Not currently connected to device");
 	return;
     }
-
     my $reply = $self->{'jnx'}->get_system_information();
 
     if($self->{'jnx'}->has_error){
@@ -190,6 +189,59 @@ sub get_system_information{
     return {model => $model, version => $version, os_name => $os_name, host_name => $host_name, loopback_addr => $loopback_addr};
 }
 
+=head2 get_route_table
+
+=cut
+
+sub get_route_table{
+    my $self = shift;
+    my %args = @_;
+    my $table = $args{'table'};
+
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
+
+    my $reply = $self->{'jnx'}->get_route_information( table => $table );
+
+    if($self->{'jnx'}->has_error){
+        my $error = $self->{'jnx'}->get_first_error();
+        $self->set_error($error->{'error_message'});
+        $self->{'logger'}->error("Error fetching route table information: " . $error->{'error_message'});
+        return;
+    }
+
+    my $dom = $self->{'jnx'}->get_dom();
+
+    my $lsp_to_interface = {};
+
+    my $path = $self->{'root_namespace'}."junos-routing";
+    my $xp = XML::LibXML::XPathContext->new( $dom );
+    $xp->registerNs('x',$dom->documentElement->namespaceURI);
+    $xp->registerNs('j',$path);
+    my $routes = $xp->findnodes('/x:rpc-reply/j:route-information/j:route-table/j:rt');    
+    foreach my $route (@$routes){
+	my $dest = $xp->find('./j:rt-destination', $route);
+	my $protocol = $xp->find('./j:rt-entry/j:protocol-name',$route);
+	my $next_hops = $xp->find('./j:rt-entry/j:nh', $route);
+	foreach my $nh (@$next_hops){
+	    my $lsp_name = $xp->find('./j:lsp-name', $nh)->[0];
+	    warn Dumper($lsp_name);
+	    if(!defined($lsp_name)){
+		
+	    }else{
+		if(!defined($lsp_to_interface->{$lsp_name->textContent})){
+		    $lsp_to_interface->{$lsp_name->textContent} = ();
+		}
+		push(@{$lsp_to_interface->{$lsp_name->textContent}}, $dest->[0]->textContent);
+	    }
+	}
+    }
+    
+    return $lsp_to_interface;
+}
+
 =head2 get_interfaces
 
 returns a list of current interfaces on the device
@@ -259,6 +311,11 @@ removes a vlan via NetConf
 sub remove_vlan{
     my $self = shift;
     my $ckt = shift;
+
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
 
     my $vars = {};
     $vars->{'circuit_name'} = $ckt->{'circuit_name'};
@@ -509,6 +566,11 @@ address provided in $loopback_addresses.
 sub get_default_paths {
     my $self = shift;
     my $loopback_addresses = shift;
+
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
 
     my $name   = undef;
     my $path   = undef;
@@ -1064,6 +1126,10 @@ sub unit_name_available {
     my $interface_name = shift;
     my $unit_name      = shift;
 
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
 
     if (!defined $self->{'jnx'}) {
         my $err = "Netconf connection is down.";
@@ -1193,7 +1259,7 @@ sub connected {
         $self->disconnect();
     }
 
-    $self->{'logger'}->debug("Connection state is $self->{'connected'}.");
+    $self->{'logger'}->info("Connection state is $self->{'connected'}.");
     return $self->{'connected'};
 }
 
