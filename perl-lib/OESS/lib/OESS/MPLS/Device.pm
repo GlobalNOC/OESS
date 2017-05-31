@@ -98,16 +98,16 @@ sub get_system_information{
     return;
 }
 
-=head2 get_route_table
+=head2 get_routed_lsps
 
-See OESS::MPLS::Switch::get_route_table for input and output format
+See OESS::MPLS::Switch::get_routed_lsps for input and output format
 
 =cut
 
-sub get_route_table{
+sub get_routed_lsps{
     my $self = shift;
 
-    $self->set_error("This device does not support get_route_table");
+    $self->set_error("This device does not support get_routed_lsps");
     return;
 }
 

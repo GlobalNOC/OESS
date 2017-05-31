@@ -189,11 +189,11 @@ sub get_system_information{
     return {model => $model, version => $version, os_name => $os_name, host_name => $host_name, loopback_addr => $loopback_addr};
 }
 
-=head2 get_route_table
+=head2 get_routed_lsps
 
 =cut
 
-sub get_route_table{
+sub get_routed_lsps{
     my $self = shift;
     my %args = @_;
     my $table = $args{'table'};
