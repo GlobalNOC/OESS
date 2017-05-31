@@ -223,6 +223,12 @@ sub _register_rpc_methods{
                                                 $self->get_route_table();
                                             },
                                             description => "returns a list of LSPs that originate on the device");
+
+    $method->add_input_parameter( name => "table",
+                                  description => "The routing table to look for LSPs in",
+                                  required => 1,
+                                  schema => { type => 'string' });
+
     $dispatcher->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name        => "get_isis_adjacencies",
@@ -557,7 +563,7 @@ sub get_interfaces{
 
 =head2 get_route_table
 
-takes no arguments; returns a list of LSPs originating from the device
+takes a routing table name; returns a list of LSPs originating from the device
 
 =cut
 
@@ -566,7 +572,7 @@ sub get_route_table{
     my $m_ref = shift;
     my $p_ref = shift;
 
-    return $self->{'device'}->get_route_table();
+    return $self->{'device'}->get_route_table(table => $p_ref->{'table'}{'value'});
 }
 
 =head2 get_isis_adjacencies
