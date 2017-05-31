@@ -10372,5 +10372,38 @@ sub get_active_link_id_by_connectors{
     return undef;
 }
 
+=head2 get_circuit_by_nodeid_interfacename_vlan
+
+Given a (node ID, interface name, VLAN tag) triple,
+return the circuit (if any) that terminates at that triple
+
+=cut
+
+sub get_circuit_by_nodeid_interfacename_vlan{
+    my $self = shift;
+
+    my %args = @_;
+    my $node_id        = $args{'node_id'};
+    my $interface_name = $args{'interface'};
+    my $vlan           = $args{'vlan'};
+
+    if (!defined($node_id) || !defined($interface_name) || !defined($vlan)) {
+        return undef;
+    }
+
+    my $query = 'select c.*, ci.*
+                 from circuit c,
+                      circuit_instantiation ci,
+                      circuit_edge_interface_membership em,
+                      interface i
+                 where ci.circuit_id = c.circuit_id
+                   and em.circuit_id = c.circuit_id
+                   and i.interface_id = em.interface_id
+                   and ci.end_epoch = -1
+                   and em.end_epoch = -1
+                   and i.node_id = ? and i.name = ? and em.extern_vlan_id = ?';
+    return $self->_execute_query($query, [$node_id, $interface_name, $vlan]);
+}
+
 return 1;
 
