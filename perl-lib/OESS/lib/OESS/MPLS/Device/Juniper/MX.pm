@@ -234,7 +234,9 @@ sub get_routed_lsps{
 		if(!defined($lsp_to_interface->{$lsp_name->textContent})){
 		    $lsp_to_interface->{$lsp_name->textContent} = ();
 		}
-		push(@{$lsp_to_interface->{$lsp_name->textContent}}, $dest->[0]->textContent);
+                my $subinterface = $dest->[0]->textContent;
+                $subinterface =~ /^(.*)\.([^.]+)$/; # split into (interface, VLAN tag)
+                push(@{$lsp_to_interface->{$lsp_name->textContent}}, [$1, $2 + 0]);
 	    }
 	}
     }

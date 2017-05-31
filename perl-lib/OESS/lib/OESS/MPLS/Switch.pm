@@ -563,7 +563,9 @@ sub get_interfaces{
 
 =head2 get_routed_lsps
 
-takes a routing table name; returns a list of LSPs originating from the device
+takes a routing table name;
+returns a map where the keys are the LSPs originating from the device
+                and the values are an array of (interface, VLAN) pairs using that LSP
 
 =cut
 
