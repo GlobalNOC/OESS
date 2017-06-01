@@ -200,11 +200,23 @@ sub get_routed_lsps{
     my $self = shift;
     my %args = @_;
     my $table = $args{'table'};
+    my $circuits = $args{'circuits'};
 
     if(!$self->{'connected'} || !defined($self->{'jnx'})){
         $self->{'logger'}->error("Not currently connected to device");
         return;
     }
+
+
+    my $int_tag_circuit = {};
+    #first thing is to take the circuits array and parse it into an interface -> tag -> circuit lookup
+    foreach my $circuit (keys %{$circuits}){
+        my $ckt = $circuits->{$circuit};
+        foreach my $interface (@{$ckt->{'interfaces'}}){
+            $int_tag_circuit->{$interface->{'interface'}}->{$interface->{'tag'}} = $circuit;
+        }
+    }
+    
 
     my $reply = $self->{'jnx'}->get_route_information( table => $table );
 
@@ -217,7 +229,7 @@ sub get_routed_lsps{
 
     my $dom = $self->{'jnx'}->get_dom();
 
-    my $lsp_to_interface = {};
+    my $dest_to_lsp = {};
 
     my $path = $self->{'root_namespace'}."junos-routing";
     my $xp = XML::LibXML::XPathContext->new( $dom );
@@ -225,26 +237,53 @@ sub get_routed_lsps{
     $xp->registerNs('j',$path);
     my $routes = $xp->findnodes('/x:rpc-reply/j:route-information/j:route-table/j:rt');    
     foreach my $route (@$routes){
-	my $dest = $xp->find('./j:rt-destination', $route);
-	my $protocol = $xp->find('./j:rt-entry/j:protocol-name',$route);
+	my $dest = $xp->findvalue('./j:rt-destination', $route);
+	my $protocol = $xp->findvalue('./j:rt-entry/j:protocol-name',$route);
 	my $next_hops = $xp->find('./j:rt-entry/j:nh', $route);
 	foreach my $nh (@$next_hops){
-	    my $lsp_name = $xp->find('./j:lsp-name', $nh)->[0];
-	    warn Dumper($lsp_name);
-	    if(!defined($lsp_name)){
-		
-	    }else{
-		if(!defined($lsp_to_interface->{$lsp_name->textContent})){
-		    $lsp_to_interface->{$lsp_name->textContent} = ();
-		}
-                my $subinterface = $dest->[0]->textContent;
-                $subinterface =~ /^(.*)\.([^.]+)$/; # split into (interface, VLAN tag)
-                push(@{$lsp_to_interface->{$lsp_name->textContent}}, [$1, $2 + 0]);
-	    }
+	    my $lsp_name = $xp->findvalue('./j:lsp-name', $nh);
+            if(!defined($dest_to_lsp->{$dest})){
+                $dest_to_lsp->{$dest} = ();
+            }
+            push(@{$dest_to_lsp->{$dest}}, $lsp_name);
 	}
     }
+
+    my $circuit_to_lsp = {};
+
+    foreach my $dest (keys %{$dest_to_lsp}){
+        
+        #determine which type it is
+        #either the prefix, the route id or the interface name
+        #11537:3019:1:1/96
+        #172.16.0.13:3017:1:1/96
+        #xe-2/2/0.666
+        
+        my $circuit_id;
+
+        if($dest =~ /^(.*)\.(\d+)$/){
+            #ok we have an interface!
+            my $int = $1;
+            my $tag = $2;
+            #need to find the interface and vlan combo and get the circuit id!
+            if(defined($int_tag_circuit->{$int}) && defined($int_tag_circuit->{$int}->{$tag})){
+                $circuit_id = $int_tag_circuit->{$int}->{$tag};
+            }
+        }else{
+            my @parts = split(':',$dest);
+            $circuit_id = $parts[1];
+            if(!defined($circuits->{$circuit_id})){
+                #not a circuit we know about... ignoring
+                $circuit_id = undef;
+            }
+        }
+
+        next if !defined($circuit_id);
+
+        $circuit_to_lsp->{$circuit_id} = $dest_to_lsp->{$dest};
+    }
     
-    return $lsp_to_interface;
+    return $circuit_to_lsp;
 }
 
 =head2 get_interfaces
@@ -1392,29 +1431,35 @@ implementation of OESS::MPLS::Device::get_lsp_paths
 
 sub get_lsp_paths{
     my $self = shift;
-    my $lsps = shift; # array of LSP names
 
     if(!$self->{'connected'} || !defined($self->{'jnx'})){
         $self->{'logger'}->error('Not currently connected to device');
         return;
     }
+    my $res = $self->{'jnx'}->get_mpls_lsp_information(extensive => 1);
+    my $dom = $self->{'jnx'}->get_dom();
 
-    # map: 'LSP-name' -> [ array of IP addresses for links along the LSP ]
-    my %paths = ();
+    # Extract the link IP addresses out of the response
+    my $xp = XML::LibXML::XPathContext->new($dom);
+    $xp->registerNs('r', $self->{'root_namespace'} . 'junos-routing');
+    
+    my %lsp_routes = {};
 
-    foreach my $lsp (@$lsps) {
-        print 'aaa ' . $self->{'jnx'}->get_mpls_lsp_information(regex => $lsp, extensive => 1);
-        my $dom = $self->{'jnx'}->get_dom();
-
-        # Extract the link IP addresses out of the response
-        my $xp = XML::LibXML::XPathContext->new($dom);
-        $xp->registerNs('r', $self->{'root_namespace'} . 'junos-routing');
-        my @route_nodes = $xp->findnodes('//r:mpls-lsp-information[1]/r:rsvp-session-data[r:session-type="Ingress"][1]/r:rsvp-session/r:mpls-lsp[1]/r:mpls-lsp-path[r:path-active][1]/r:explicit-route[1]/r:address')->get_nodelist;
-
-        $paths{$lsp} = [ map { $_->textContent } @route_nodes ];
+    my $ingress_lsps = $xp->findnodes('/r:mpls-lsp-information/r:rsvp-session-data[r:session-type="Ingress"]/r:rsvp-session/r:mpls-lsp');
+    foreach my $ingress_lsp (@$ingress_lsps){
+        my $name = $xp->findvalue('./r:name', $ingress_lsp);
+        my $paths = $xp->find('./r:mpls-lsp-path', $ingress_lsp);
+        foreach my $path (@$paths){
+            if($xp->exists('./r:path-active', $path)){
+                my $next_hops = $xp->find('./r:explicit-route/r:address');
+                foreach my $nh (@$next_hops){
+                    push(@{$lsp_routes{$name}}, $nh);
+                }
+            }
+        }
     }
 
-    return \%paths;
+    return \%lsp_routes
 }
 
 sub _process_rsvp_session_data{

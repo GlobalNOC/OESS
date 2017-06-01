@@ -112,8 +112,8 @@ sub new{
     die if(!defined($self->{'rmq_client'}));
 
     # set up some sequence numbers so path detection handles out-of-order responses sanely
-    $self->{'path_sequence'} = 0;
-    $self->{'path_node_latest'} = {};
+#    $self->{'path_sequence'} = 0;
+#    $self->{'path_node_latest'} = {};
 
     #setup the timers
     $self->{'device_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->device_handler(); });
@@ -331,25 +331,73 @@ sub path_handler {
         return 0;
     }
 
-    my $curr_path_sequence = $self->{'path_sequence'};
-    $self->{'path_sequence'} += 1;
+#    my $curr_path_sequence = $self->{'path_sequence'};
+#    $self->{'path_sequence'} += 1;
 
+    my %circuit_lsps;
+    my %lsp_paths;
+
+    my $cv = AnyEvent->condvar;
+    $cv->begin(sub {
+        #now that we have all of the circuit LSPs and all of the LSP paths
+        #turn this into updates to the OESS DB!
+
+               });
+    
     # For each node, get the list of LSPs, and the interfaces associated
     foreach my $node (@{$nodes}) {
         $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
+
+        $cv->begin();
         $self->{'rmq_client'}->get_routed_lsps(
             table          => MPLS_TABLE,
             async_callback => sub {
                 my $res = shift;
-                $self->_path_processing_helper(
-                    $curr_path_sequence,
-                    $node,
-                    $res->{'results'}
-                );
-                return 1;
-            }
-        );
+                if(!defined($res->{'error'})){
+                    foreach my $ckt (@{$res->{'results'}}){
+                        if(defined($circuit_lsps{$ckt})){
+                            push(@{$circuit_lsps{$ckt}}, $res->{'results'}->{$ckt});
+                        }else{
+                            $circuit_lsps{$ckt} = $res->{'results'}->{$ckt};
+                        }
+                    }
+                }
+
+                $cv->end;
+            });
+
+        $cv->begin();
+        $self->{'rmq_client'}->get_routed_lsps(
+            table          => VPLS_TABLE,
+            async_callback => sub {
+                my $res = shift;
+
+                if(!defined($res->{'error'})){
+                    foreach my $ckt (@{$res->{'results'}}){
+                        if(defined($circuit_lsps{$ckt})){
+                            push(@{$circuit_lsps{$ckt}}, $res->{'results'}->{$ckt});
+                        }else{
+                            $circuit_lsps{$ckt} = $res->{'results'}->{$ckt};
+                        }
+                    }
+                }
+
+                $cv->end;
+            });
+
+        $cv->begin();
+        $self->{'rmq_client'}->get_lsp_paths(
+            async_callback => sub {
+                my $res = shift;
+
+                $cv->end;
+            });
+
     }
+
+
+    $cv->end;
+
 }
 
 # Runs as the callback to our invocation of get_routed_lsps

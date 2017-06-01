@@ -574,7 +574,7 @@ sub get_routed_lsps{
     my $m_ref = shift;
     my $p_ref = shift;
 
-    return $self->{'device'}->get_routed_lsps(table => $p_ref->{'table'}{'value'});
+    return $self->{'device'}->get_routed_lsps(table => $p_ref->{'table'}{'value'}, circuits => $self->{'ckts'});
 }
 
 =head2 get_isis_adjacencies
