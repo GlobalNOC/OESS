@@ -235,7 +235,7 @@ sub _register_rpc_methods{
 
     $method = GRNOC::RabbitMQ::Method->new( name        => "connected",
                                             callback    => sub {
-                                                $self->connected();
+                                                return $self->connected();
                                             },
                                             description => "returns the current connected state of the device");
     $dispatcher->register_method($method);

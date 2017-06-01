@@ -70,6 +70,7 @@ sub disconnect{
 
     if (defined $self->{'jnx'}) {
         $self->{'jnx'}->disconnect();
+        $self->{'jnx'} = undef;
     } else {
         $self->{'logger'}->info("Device is already disconnected.");
     }
@@ -92,8 +93,9 @@ sub get_system_information{
 	$self->{'logger'}->error("Not currently connected to device");
 	return;
     }
-
+    $self->{'logger'}->error('!!!!!! get system info');
     my $reply = $self->{'jnx'}->get_system_information();
+    $self->{'logger'}->error('!!!!!! got system info');
 
     if($self->{'jnx'}->has_error){
         my $error = $self->{'jnx'}->get_first_error();
@@ -190,6 +192,59 @@ sub get_system_information{
     return {model => $model, version => $version, os_name => $os_name, host_name => $host_name, loopback_addr => $loopback_addr};
 }
 
+=head2 get_route_table
+
+=cut
+
+sub get_route_table{
+    my $self = shift;
+    my %args = @_;
+    my $table = $args{'table'};
+
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
+
+    my $reply = $self->{'jnx'}->get_route_information( table => $table );
+
+    if($self->{'jnx'}->has_error){
+        my $error = $self->{'jnx'}->get_first_error();
+        $self->set_error($error->{'error_message'});
+        $self->{'logger'}->error("Error fetching route table information: " . $error->{'error_message'});
+        return;
+    }
+
+    my $dom = $self->{'jnx'}->get_dom();
+
+    my $lsp_to_interface = {};
+
+    my $path = $self->{'root_namespace'}."junos-routing";
+    my $xp = XML::LibXML::XPathContext->new( $dom );
+    $xp->registerNs('x',$dom->documentElement->namespaceURI);
+    $xp->registerNs('j',$path);
+    my $routes = $xp->findnodes('/x:rpc-reply/j:route-information/j:route-table/j:rt');    
+    foreach my $route (@$routes){
+	my $dest = $xp->find('./j:rt-destination', $route);
+	my $protocol = $xp->find('./j:rt-entry/j:protocol-name',$route);
+	my $next_hops = $xp->find('./j:rt-entry/j:nh', $route);
+	foreach my $nh (@$next_hops){
+	    my $lsp_name = $xp->find('./j:lsp-name', $nh)->[0];
+	    warn Dumper($lsp_name);
+	    if(!defined($lsp_name)){
+		
+	    }else{
+		if(!defined($lsp_to_interface->{$lsp_name->textContent})){
+		    $lsp_to_interface->{$lsp_name->textContent} = ();
+		}
+		push(@{$lsp_to_interface->{$lsp_name->textContent}}, $dest->[0]->textContent);
+	    }
+	}
+    }
+    
+    return $lsp_to_interface;
+}
+
 =head2 get_interfaces
 
 returns a list of current interfaces on the device
@@ -259,6 +314,11 @@ removes a vlan via NetConf
 sub remove_vlan{
     my $self = shift;
     my $ckt = shift;
+
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
 
     my $vars = {};
     $vars->{'circuit_name'} = $ckt->{'circuit_name'};
@@ -509,6 +569,11 @@ address provided in $loopback_addresses.
 sub get_default_paths {
     my $self = shift;
     my $loopback_addresses = shift;
+
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
 
     my $name   = undef;
     my $path   = undef;
@@ -922,9 +987,6 @@ sub get_device_diff {
     }
 
     my %queryargs = ('target' => 'candidate');
-    $self->{'jnx'}->lock_config(%queryargs);
-
-    %queryargs = ('target' => 'candidate');
     $queryargs{'config'} = $conf;
     my $res = $self->{'jnx'}->edit_config(%queryargs);
 
@@ -933,15 +995,14 @@ sub get_device_diff {
         my $error = $self->{'jnx'}->get_first_error();
 	$self->set_error($error->{'error_message'});
         $self->{'logger'}->error("Error getting diff from MX: " . $error->{'error_message'});
+        $res = $self->{'jnx'}->discard_changes();
         return;
     }
 
     my $dom = $self->{'jnx'}->get_dom();
     $self->{'diff_text'} = $dom->getElementsByTagName('configuration-output')->string_value();
-    
+    $self->{'logger'}->error("Diff text: '" . $self->{'diff_text'} . "'");
     $res = $self->{'jnx'}->discard_changes();
-    %queryargs = ('target' => 'candidate');
-    $self->{'jnx'}->unlock_config(%queryargs);
 
     return $self->{'diff_text'};
 }
@@ -1003,7 +1064,7 @@ sub diff {
     # Check the size of the diff to see if verification is required for
     # the changes to be applied. $diff is a human readable diff.
     my $diff = $self->get_device_diff($configuration);
-    if (!defined $diff) {
+    if (!defined $diff || $diff eq '') {
         return FWDCTL_FAILURE;
     }
 
@@ -1064,6 +1125,10 @@ sub unit_name_available {
     my $interface_name = shift;
     my $unit_name      = shift;
 
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
 
     if (!defined $self->{'jnx'}) {
         my $err = "Netconf connection is down.";
@@ -1186,7 +1251,7 @@ sub connected {
         $self->disconnect();
     }
 
-    $self->{'logger'}->debug("Connection state is $self->{'connected'}.");
+    $self->{'logger'}->info("Connection state is $self->{'connected'}.");
     return $self->{'connected'};
 }
 
@@ -1599,8 +1664,7 @@ sub _edit_config{
         my $err = "$@";
         $self->set_error($err);
         $self->{'logger'}->error($err);
-        my %queryargs = ( 'target' => 'candidate' );
-        $res = $self->{'jnx'}->unlock_config(%queryargs);
+        $res = $self->{'jnx'}->unlock_config();
         return FWDCTL_FAILURE;
     }
     if($self->{'jnx'}->has_error){
@@ -1610,8 +1674,7 @@ sub _edit_config{
         $self->{'logger'}->error($err);
 	$self->{'logger'}->error(Dumper($error));
 
-        my %queryargs = ( 'target' => 'candidate' );
-        $res = $self->{'jnx'}->unlock_config(%queryargs);
+        $res = $self->{'jnx'}->unlock_config();
         return FWDCTL_FAILURE;
     }
 
@@ -1629,14 +1692,12 @@ sub _edit_config{
         $self->set_error($err);
         $self->{'logger'}->error($err);
 
-        my %queryargs = ( 'target' => 'candidate' );
-        $res = $self->{'jnx'}->unlock_config(%queryargs);
+        $res = $self->{'jnx'}->unlock_config();
         return FWDCTL_FAILURE;
     }
 
     eval {
-        my %queryargs2 = ( 'target' => 'candidate' );
-        $res = $self->{'jnx'}->unlock_config(%queryargs2);
+        $res = $self->{'jnx'}->unlock_config();
     };
     if ($@) {
         my $err = "$@";
@@ -1649,13 +1710,9 @@ sub _edit_config{
         $self->set_error($err);
         $self->{'logger'}->error($err);
 
-        my %queryargs = ( 'target' => 'candidate' );
-        $res = $self->{'jnx'}->unlock_config(%queryargs);
+        $res = $self->{'jnx'}->unlock_config();
         return FWDCTL_FAILURE;
     }
-
-    %queryargs = ( 'target' => 'candidate' );
-    $res = $self->{'jnx'}->unlock_config(%queryargs);
 
     return FWDCTL_SUCCESS;
 }
