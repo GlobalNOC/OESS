@@ -57,6 +57,8 @@ use Log::Log4perl;
 
 use AnyEvent;
 
+use constant MPLS_TABLE => 'mpls.0';
+
 =head2 new
     instantiates a new OESS::MPLS::Discovery object, which intern creates new 
     instantiations of 
@@ -108,6 +110,10 @@ sub new{
 							 topic => 'MPLS.Discovery');
     
     die if(!defined($self->{'rmq_client'}));
+
+    # set up some sequence numbers so path detection handles out-of-order responses sanely
+    $self->{'path_sequence'} = 0;
+    $self->{'path_node_latest'} = {};
 
     #setup the timers
     $self->{'device_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->device_handler(); });
@@ -325,25 +331,55 @@ sub path_handler {
         return 0;
     }
 
-    my @loopback_addrs;
+    my $curr_path_sequence = $self->{'path_sequence'};
+    $self->{'path_sequence'} += 1;
 
+    # For each node, get the list of LSPs, and the interfaces associated
     foreach my $node (@{$nodes}) {
-        if (!defined $node->{'loopback_address'}) {
-            next;
-        }
-        push(@loopback_addrs, $node->{'loopback_address'});
-    }
-    
-    foreach my $node (@{$nodes}){ 
         $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
-        $self->{'rmq_client'}->get_default_paths( loopback_addresses => \@loopback_addrs,
-                                                  async_callback     => sub {
-                                                      my $res = shift;
-                                                      warn "Processing results\n";
-                                                      $self->{'path'}->process_results( paths => $res->{'results'}, node_id => $node->{'node_id'} );
-                                                      return 1;
-                                                  } );
+        $self->{'rmq_client'}->get_routed_lsps(
+            table          => MPLS_TABLE,
+            async_callback => sub {
+                my $res = shift;
+                $self->_path_processing_helper(
+                    $curr_path_sequence,
+                    $node,
+                    $res->{'results'}
+                );
+                return 1;
+            }
+        );
     }
+}
+
+# Runs as the callback to our invocation of get_routed_lsps
+sub _path_process_lsps {
+    my $self = shift;
+    my $curr_path_sequence = shift;
+    my $node = shift;
+    my $routed_lsps = shift;
+
+    my $mgmt_addr = $node->{'mgmt_addr'};
+
+    # For each LSP, get the list of links (each link represented by the IP address of a link endpoint)
+    my @lsp_names = keys %$routed_lsps;
+    $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $mgmt_addr;
+    $self->{'rmq_client'}->get_lsp_paths(
+        lsps           => \@lsp_names,
+        async_callback => sub {
+            # If a later run of path_handler for this switch has completed before us, we don't want to nuke the newer results:
+            my $latest_applied = $self->{'path_node_latest'}{$mgmt_addr};
+            return 1 if defined($latest_applied) && ($latest_applied > $curr_path_sequence);
+
+            # We have everything we need from the switch to update the database at this point
+            $self->{'path'}->process_results(
+                node_id        => $node->{'node_id'},
+                lsp_interfaces => $routed_lsps,
+                lsp_paths      => $res->{'results'}
+            );
+            return 1;
+        }
+    );
 }
 
 =head2 lsp_handler

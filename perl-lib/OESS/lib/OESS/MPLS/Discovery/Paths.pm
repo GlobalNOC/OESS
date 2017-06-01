@@ -50,8 +50,13 @@ sub process_results{
     my $self = shift;
     my %params = @_;
 
-    if(!defined($params{'paths'})){
-        $self->{'logger'}->error("process_results: paths not defined");
+    if(!defined($params{'lsp_paths'})){
+        $self->{'logger'}->error("process_results: lsp_paths not defined");
+        return 0;
+    }
+
+    if(!defined($params{'lsp_interfaces'})){
+        $self->{'logger'}->error("process_results: lsp_interfaces not defined");
         return 0;
     }
 
@@ -60,7 +65,11 @@ sub process_results{
         return 0;
     }
 
-    return $self->_process_paths( paths => $params{'paths'}, node_id => $params{'node_id'} );
+    return $self->_process_paths(
+        lsp_paths      => $params{'lsp_paths'},
+        lsp_interfaces => $params{'lsp_interfaces'},
+        node_id        => $params{'node_id'},
+    );
 }
 
 
@@ -68,12 +77,13 @@ sub _process_paths{
     my $self = shift;
     my %params = @_;
 
-    my $paths = $params{'paths'};
-    my $node_id = $params{'node_id'};
+    my $lsp_paths = $params{'lsp_paths'};           # map from LSP name to list of link-endpoint IP addresses
+    my $lsp_interfaces = $params{'lsp_interfaces'}; # map from LSP name to list of (interface, VLAN tag) pairs using that LSP
+    my $node_id = $params{'node_id'};               # node ID of the node in question
 
     my %links;
-    my $links = $self->{'db'}->get_current_links( mpls => 1 );
-    foreach my $link (@{$links}){
+    my $links_db = $self->{'db'}->get_current_links( mpls => 1 );
+    foreach my $link (@{$links_db}){
         my $ip_a = $link->{'ip_a'};
         my $ip_z = $link->{'ip_z'};
 
@@ -81,40 +91,63 @@ sub _process_paths{
         $links{$ip_z} = $link;
     }
 
-    my %node_id;
-    my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
-    foreach my $node (@$nodes){
-        $node_id{$node->{'node_id'}} = $node;
+    my %nodes;
+    my $nodes_db = $self->{'db'}->get_current_nodes( mpls => 1);
+    foreach my $node (@$nodes_db){
+        $nodes{$node->{'node_id'}} = $node;
     }
 
     warn "Processing the paths into links!\n";
-    foreach my $dest (keys %{$paths}){
-        my @links;
 
-        foreach my $addr (@{$paths->{$dest}->{'path'}}){
-            if(!defined($links{$addr})){
-                warn "PROBLEM HERE!!!\n";
-                $self->{'logger'}->error("NO link found with address: " . $addr);
-                next;
-            }
-            push(@links,$links{$addr});
-        }
+    foreach my $lsp (keys %{$lsp_paths}){
+        my @lsp_links = map { $links{$_} }, @{$lsp_paths->{$lsp}};
+        foreach my $endpoint (@{$lsp_interfaces->{$lsp}}) {
+            my $interface = $endpoint->[0];
+            my $vlan_tag = $endpoint->[1];
 
-        $paths->{$dest}->{'links'} = \@links;
-    }
+            my $db_circuit = $self->{'db'}->get_circuit_by_nodeid_interfacename_vlan(
+                node_id   => $node_id,
+                interface => $interface,
+                vlan      => $vlan_tag
+            );
 
-    foreach my $ckt (@{$self->get_circuits( node_id => $params{'node_id'} )}){
-        #TODO: THIS WONT WORK FOR MP CIRCUITS
-        next if !defined($ckt);
-        my $eps = $ckt->get_endpoints();
-        foreach my $ep (@$eps){
-            next if ($ep->{'node_id'} == $node_id );
-            warn Data::Dumper::Dumper($node_id{$ep->{'node_id'}});
-            my $links = $paths->{$node_id{$ep->{'node_id'}}->{'loopback_address'}}->{'links'};
-            warn "LINKS: " . Data::Dumper::Dumper($links);
-            $ckt->change_mpls_path( links => $paths->{$node_id{$ep->{'node_id'}}->{'loopback_address'}}->{'links'} );        
+            # [syncing up the path in the DB goes here]
         }
     }
+
+
+
+# Above should be OK (modulo bugs), below needs to be revised/mapped into new scheme of things:
+#
+# Former implementation, pre-4296:
+#
+#    foreach my $dest (keys %{$paths}){
+#        my @links;
+#
+#        foreach my $addr (@{$paths->{$dest}->{'path'}}){
+#            if(!defined($links{$addr})){
+#                warn "PROBLEM HERE!!!\n";
+#                $self->{'logger'}->error("NO link found with address: " . $addr);
+#                next;
+#            }
+#            push(@links,$links{$addr});
+#        }
+#
+#        $paths->{$dest}->{'links'} = \@links;
+#    }
+#
+#    foreach my $ckt (@{$self->get_circuits( node_id => $params{'node_id'} )}){
+#        #TODO: THIS WONT WORK FOR MP CIRCUITS
+#        next if !defined($ckt);
+#        my $eps = $ckt->get_endpoints();
+#        foreach my $ep (@$eps){
+#            next if ($ep->{'node_id'} == $node_id );
+#            warn Data::Dumper::Dumper($node_id{$ep->{'node_id'}});
+#            my $links = $paths->{$node_id{$ep->{'node_id'}}->{'loopback_address'}}->{'links'};
+#            warn "LINKS: " . Data::Dumper::Dumper($links);
+#            $ckt->change_mpls_path( links => $paths->{$node_id{$ep->{'node_id'}}->{'loopback_address'}}->{'links'} );        
+#        }
+#    }
     
 }
 

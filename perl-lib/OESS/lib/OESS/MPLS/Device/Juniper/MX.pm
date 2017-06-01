@@ -192,11 +192,11 @@ sub get_system_information{
     return {model => $model, version => $version, os_name => $os_name, host_name => $host_name, loopback_addr => $loopback_addr};
 }
 
-=head2 get_route_table
+=head2 get_routed_lsps
 
 =cut
 
-sub get_route_table{
+sub get_routed_lsps{
     my $self = shift;
     my %args = @_;
     my $table = $args{'table'};
@@ -237,7 +237,9 @@ sub get_route_table{
 		if(!defined($lsp_to_interface->{$lsp_name->textContent})){
 		    $lsp_to_interface->{$lsp_name->textContent} = ();
 		}
-		push(@{$lsp_to_interface->{$lsp_name->textContent}}, $dest->[0]->textContent);
+                my $subinterface = $dest->[0]->textContent;
+                $subinterface =~ /^(.*)\.([^.]+)$/; # split into (interface, VLAN tag)
+                push(@{$lsp_to_interface->{$lsp_name->textContent}}, [$1, $2 + 0]);
 	    }
 	}
     }
@@ -1223,13 +1225,20 @@ sub connect {
         return $self->{'connected'};
     }
 
-    # Configures parameters for the get_configuration method
+    # Configures parameters for several methods
     my $ATTRIBUTE = bless {}, 'ATTRIBUTE';
+    my $TOGGLE = bless { 1 => 1 }, 'TOGGLE';
+
     $self->{'jnx'}->{'methods'}->{'get_configuration'} = { format   => $ATTRIBUTE,
                                                            compare  => $ATTRIBUTE,
                                                            changed  => $ATTRIBUTE,
                                                            database => $ATTRIBUTE,
                                                            rollback => $ATTRIBUTE };
+
+    $self->{'jnx'}->{'methods'}->{'get_mpls_lsp_information'} = {
+        detail    => $TOGGLE,
+        extensive => $TOGGLE,
+    };
 
     $self->{'logger'}->info("Connected to device!");
     return $self->{'connected'};
@@ -1359,11 +1368,6 @@ sub get_LSPs{
         return;
     }
 
-    if(!defined($self->{'jnx'}->{'methods'}->{'get_mpls_lsp_information'})){
-        my $TOGGLE = bless { 1 => 1 }, 'TOGGLE';
-        $self->{'jnx'}->{'methods'}->{'get_mpls_lsp_information'} = { detail => $TOGGLE};
-    }
-
     $self->{'jnx'}->get_mpls_lsp_information( detail => 1);
     my $xml = $self->{'jnx'}->get_dom();
     my $xp = XML::LibXML::XPathContext->new( $xml);
@@ -1378,6 +1382,39 @@ sub get_LSPs{
     }
 
     return \@LSPs;
+}
+
+=head2 get_lsp_paths
+
+implementation of OESS::MPLS::Device::get_lsp_paths
+
+=cut
+
+sub get_lsp_paths{
+    my $self = shift;
+    my $lsps = shift; # array of LSP names
+
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error('Not currently connected to device');
+        return;
+    }
+
+    # map: 'LSP-name' -> [ array of IP addresses for links along the LSP ]
+    my %paths = ();
+
+    foreach my $lsp (@$lsps) {
+        print 'aaa ' . $self->{'jnx'}->get_mpls_lsp_information(regex => $lsp, extensive => 1);
+        my $dom = $self->{'jnx'}->get_dom();
+
+        # Extract the link IP addresses out of the response
+        my $xp = XML::LibXML::XPathContext->new($dom);
+        $xp->registerNs('r', $self->{'root_namespace'} . 'junos-routing');
+        my @route_nodes = $xp->findnodes('//r:mpls-lsp-information[1]/r:rsvp-session-data[r:session-type="Ingress"][1]/r:rsvp-session/r:mpls-lsp[1]/r:mpls-lsp-path[r:path-active][1]/r:explicit-route[1]/r:address')->get_nodelist;
+
+        $paths{$lsp} = [ map { $_->textContent } @route_nodes ];
+    }
+
+    return \%paths;
 }
 
 sub _process_rsvp_session_data{
