@@ -222,7 +222,7 @@ sub _register_rpc_methods{
                                             callback    => sub {
                                                 $self->get_routed_lsps();
                                             },
-                                            description => "returns a list of LSPs that originate on the device");
+                                            description => "returns the LSPs (in a given routing table) that originate on the device");
 
     $method->add_input_parameter( name => "table",
                                   description => "The routing table to look for LSPs in",
@@ -564,8 +564,8 @@ sub get_interfaces{
 =head2 get_routed_lsps
 
 takes a routing table name;
-returns a map where the keys are the LSPs originating from the device
-                and the values are an array of (interface, VLAN) pairs using that LSP
+returns a map where the keys are circuit_ids
+                and the values are an array of LSPs originating from the device that are associated with that circuit
 
 =cut
 
