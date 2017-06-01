@@ -9,6 +9,7 @@ use OESS::Database;
 use OESS::Circuit;
 use Log::Log4perl;
 use AnyEvent;
+use List::MoreUtils qw(uniq);
 
 =head2 new
 
@@ -55,20 +56,14 @@ sub process_results{
         return 0;
     }
 
-    if(!defined($params{'lsp_interfaces'})){
-        $self->{'logger'}->error("process_results: lsp_interfaces not defined");
-        return 0;
-    }
-
-    if(!defined($params{'node_id'})){
-        $self->{'logger'}->error("process_results: node_id not defined");
+    if(!defined($params{'circuit_lsps'})){
+        $self->{'logger'}->error("process_results: circuit_lsps not defined");
         return 0;
     }
 
     return $self->_process_paths(
-        lsp_paths      => $params{'lsp_paths'},
-        lsp_interfaces => $params{'lsp_interfaces'},
-        node_id        => $params{'node_id'},
+        lsp_paths    => $params{'lsp_paths'},
+        circuit_lsps => $params{'circuit_lsps'},
     );
 }
 
@@ -77,78 +72,38 @@ sub _process_paths{
     my $self = shift;
     my %params = @_;
 
-    my $lsp_paths = $params{'lsp_paths'};           # map from LSP name to list of link-endpoint IP addresses
-    my $lsp_interfaces = $params{'lsp_interfaces'}; # map from LSP name to list of (interface, VLAN tag) pairs using that LSP
-    my $node_id = $params{'node_id'};               # node ID of the node in question
+    my $circuit_lsps = $params{'circuit_lsps'}; # map from circuit ID to list of LSPs making up the path of the circuit
+    my $lsp_paths = $params{'lsp_paths'};       # map from LSP name to list of link-endpoint IP addresses
 
-    my %links;
+    my %ip_links; # Map from IP address to link_id
+    my %links_by_id; # Map from link_id to link
+
     my $links_db = $self->{'db'}->get_current_links( mpls => 1 );
     foreach my $link (@{$links_db}){
         my $ip_a = $link->{'ip_a'};
         my $ip_z = $link->{'ip_z'};
+        my $link_id = $link->{'link_id'}
 
-        $links{$ip_a} = $link;
-        $links{$ip_z} = $link;
-    }
-
-    my %nodes;
-    my $nodes_db = $self->{'db'}->get_current_nodes( mpls => 1);
-    foreach my $node (@$nodes_db){
-        $nodes{$node->{'node_id'}} = $node;
+        $ip_links{$ip_a} = $link_id;
+        $ip_links{$ip_z} = $link_id;
+        $links_by_id{$link_id} = $link;
     }
 
     warn "Processing the paths into links!\n";
 
-    foreach my $lsp (keys %{$lsp_paths}){
-        my @lsp_links = map { $links{$_} }, @{$lsp_paths->{$lsp}};
-        foreach my $endpoint (@{$lsp_interfaces->{$lsp}}) {
-            my $interface = $endpoint->[0];
-            my $vlan_tag = $endpoint->[1];
+    foreach my $circuit_id (keys %{$circuit_lsps}){
+       my @ckt_path0; # list of (possibly duplicated) IP addresses making up the circuit
+       foreach my $lsp (@{$circuit_lsps->{$circuit_id}}){
+           push @ckt_path0, @{$lsp_paths->{$lsp}};
+       }
 
-            my $db_circuit = $self->{'db'}->get_circuit_by_nodeid_interfacename_vlan(
-                node_id   => $node_id,
-                interface => $interface,
-                vlan      => $vlan_tag
-            );
+       my @ckt_path1 = map { $ip_links{$_} } @ckt_path0;
+       my @ckt_path2 = uniq @ckt_path1; # list of link_ids making up the circuit, without duplication
+       my @ckt_path  = map { $links_by_id{$_} } @ckt_path2;
 
-            # [syncing up the path in the DB goes here]
-        }
+       my $ckt = OESS::Circuit->new(db => $self->{'db'}, circuit_id => $circuit_id);
+       $ckt->change_mpls_path(links => \@ckt_path);
     }
-
-
-
-# Above should be OK (modulo bugs), below needs to be revised/mapped into new scheme of things:
-#
-# Former implementation, pre-4296:
-#
-#    foreach my $dest (keys %{$paths}){
-#        my @links;
-#
-#        foreach my $addr (@{$paths->{$dest}->{'path'}}){
-#            if(!defined($links{$addr})){
-#                warn "PROBLEM HERE!!!\n";
-#                $self->{'logger'}->error("NO link found with address: " . $addr);
-#                next;
-#            }
-#            push(@links,$links{$addr});
-#        }
-#
-#        $paths->{$dest}->{'links'} = \@links;
-#    }
-#
-#    foreach my $ckt (@{$self->get_circuits( node_id => $params{'node_id'} )}){
-#        #TODO: THIS WONT WORK FOR MP CIRCUITS
-#        next if !defined($ckt);
-#        my $eps = $ckt->get_endpoints();
-#        foreach my $ep (@$eps){
-#            next if ($ep->{'node_id'} == $node_id );
-#            warn Data::Dumper::Dumper($node_id{$ep->{'node_id'}});
-#            my $links = $paths->{$node_id{$ep->{'node_id'}}->{'loopback_address'}}->{'links'};
-#            warn "LINKS: " . Data::Dumper::Dumper($links);
-#            $ckt->change_mpls_path( links => $paths->{$node_id{$ep->{'node_id'}}->{'loopback_address'}}->{'links'} );        
-#        }
-#    }
-    
 }
 
 =head2 get_circuits
