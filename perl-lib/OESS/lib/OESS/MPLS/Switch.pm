@@ -251,14 +251,7 @@ sub _register_rpc_methods{
                                             callback    => sub {
                                                 $self->get_lsp_paths(@_);
                                             },
-                                            description => "for each LSP, provides a list of link addresses");
-
-    $method->add_input_parameter( name => "lsps",
-                                  description => "An array of strings, each string the name of an LSP",
-                                  required => 1,
-                                  schema => { type => 'array',
-                                              items => { type => 'string' } });
-
+                                            description => "for each LSP on the switch, provides a list of link addresses");
     $dispatcher->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name        => "connected",
@@ -607,8 +600,8 @@ sub get_LSPs{
 
 =head2 get_lsp_paths
 
-takes a list of LSP names
 returns a map from LSP-name to [array of IP addresses for links along the LSP path]
+for each LSP on the switch
 
 =cut
 
@@ -617,7 +610,7 @@ sub get_lsp_paths{
     my $m_ref = shift;
     my $p_ref = shift;
 
-    return $self->{'device'}->get_lsp_paths($p_ref->{'lsps'}{'value'});
+    return $self->{'device'}->get_lsp_paths();
 }
 
 sub _generate_commands{
