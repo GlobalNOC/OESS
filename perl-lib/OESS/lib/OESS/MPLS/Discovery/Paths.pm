@@ -82,7 +82,7 @@ sub _process_paths{
     foreach my $link (@{$links_db}){
         my $ip_a = $link->{'ip_a'};
         my $ip_z = $link->{'ip_z'};
-        my $link_id = $link->{'link_id'}
+        my $link_id = $link->{'link_id'};
 
         $ip_links{$ip_a} = $link_id;
         $ip_links{$ip_z} = $link_id;
