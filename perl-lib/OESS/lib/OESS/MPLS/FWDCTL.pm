@@ -1071,8 +1071,38 @@ sub get_event_status{
     }
 }
 
+=head2 save_mpls_nodes_status
+
+save_mpls_nodes_status gets the current connection status of all
+active mpls nodes, and saves them in the database.
+
+=cut
+sub save_mpls_nodes_status {
+    my $self = shift;
+
+    my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
+    foreach my $node (@{$nodes}) {
+        $self->{'fwdctl_events'}->{'topic'} = 'MPLS.FWDCTL.Switch.' . $node->{'mgmt_addr'};
+
+        $self->{'fwdctl_events'}->is_connected( async_callback => sub {
+                                                    my $result = shift;
+                                                    if (!defined $result || int($result->{'results'}->{'connected'}) == 0) {
+                                                        $self->{'logger'}->info("Setting MPLS node $node->{'node_id'} status to 'down'.");
+                                                        $self->{'db'}->set_mpls_node_status($node->{'node_id'}, 'down');
+                                                    } else {
+                                                        $self->{'logger'}->info("Setting MPLS node $node->{'node_id'} status to 'up'.");
+                                                        $self->{'db'}->set_mpls_node_status($node->{'node_id'}, 'up');
+                                                    }
+                                                });
+    }
+
+    $self->{'fwdctl_events'}->{'topic'} = 'MPLS.FWDCTL.event';
+}
+
 =head2 echo
+
 Always returns 1.
+
 =cut
 sub echo {
     my $self = shift;
