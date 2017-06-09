@@ -3859,7 +3859,9 @@ sub get_circuit_details_by_name {
 }
 
 =head2 get_circuit_paths
+
     returns the circuits paths include the links that they ride over and their status
+
 =cut
 
 sub get_circuit_paths{
@@ -3872,7 +3874,11 @@ sub get_circuit_paths{
 	return;
     }
 
-    my $query = "select * from path join path_instantiation on path.path_id = path_instantiation.path_id where path.circuit_id = ? and path_instantiation.end_epoch = -1";
+    my $query = "select path.path_id, path.path_type, path.circuit_id, path.mpls_path_type, path_instantiation.* ";
+    $query .= "from path ";
+    $query .= "join path_instantiation on path.path_id = path_instantiation.path_id ";
+    $query .= "where path.circuit_id = ? and path_instantiation.end_epoch = -1 ";
+    $query .= "order by path.path_id";
 
     my $paths = $self->_execute_query($query, [$circuit_id]);
 
@@ -7984,7 +7990,7 @@ sub create_path {
 	my $result = $self->_execute_query($query, [$link_id, $path_id]);
     }
 
-    return 1;
+    return $path_id;
 }
 
 

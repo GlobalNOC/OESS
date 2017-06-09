@@ -5,10 +5,12 @@ use warnings;
 
 package OESS::MPLS::Discovery::Paths;
 
+use Data::Dumper;
 use OESS::Database;
 use OESS::Circuit;
 use Log::Log4perl;
 use AnyEvent;
+use List::MoreUtils qw(uniq);
 
 =head2 new
 
@@ -50,17 +52,20 @@ sub process_results{
     my $self = shift;
     my %params = @_;
 
-    if(!defined($params{'paths'})){
-        $self->{'logger'}->error("process_results: paths not defined");
+    if(!defined($params{'lsp_paths'})){
+        $self->{'logger'}->error("process_results: lsp_paths not defined");
         return 0;
     }
 
-    if(!defined($params{'node_id'})){
-        $self->{'logger'}->error("process_results: node_id not defined");
+    if(!defined($params{'circuit_lsps'})){
+        $self->{'logger'}->error("process_results: circuit_lsps not defined");
         return 0;
     }
 
-    return $self->_process_paths( paths => $params{'paths'}, node_id => $params{'node_id'} );
+    return $self->_process_paths(
+        lsp_paths    => $params{'lsp_paths'},
+        circuit_lsps => $params{'circuit_lsps'},
+    );
 }
 
 
@@ -68,54 +73,39 @@ sub _process_paths{
     my $self = shift;
     my %params = @_;
 
-    my $paths = $params{'paths'};
-    my $node_id = $params{'node_id'};
+    my $circuit_lsps = $params{'circuit_lsps'}; # map from circuit ID to list of LSPs making up the path of the circuit
+    my $lsp_paths = $params{'lsp_paths'};       # map from LSP name to list of link-endpoint IP addresses
 
-    my %links;
-    my $links = $self->{'db'}->get_current_links( mpls => 1 );
-    foreach my $link (@{$links}){
+    my %ip_links; # Map from IP address to link_id
+    my %links_by_id; # Map from link_id to link
+
+    my $links_db = $self->{'db'}->get_current_links( mpls => 1 );
+    foreach my $link (@{$links_db}){
         my $ip_a = $link->{'ip_a'};
         my $ip_z = $link->{'ip_z'};
+        my $link_id = $link->{'link_id'};
 
-        $links{$ip_a} = $link;
-        $links{$ip_z} = $link;
-    }
-
-    my %node_id;
-    my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
-    foreach my $node (@$nodes){
-        $node_id{$node->{'node_id'}} = $node;
+        $ip_links{$ip_a} = $link_id;
+        $ip_links{$ip_z} = $link_id;
+        $links_by_id{$link_id} = $link;
     }
 
     warn "Processing the paths into links!\n";
-    foreach my $dest (keys %{$paths}){
-        my @links;
 
-        foreach my $addr (@{$paths->{$dest}->{'path'}}){
-            if(!defined($links{$addr})){
-                warn "PROBLEM HERE!!!\n";
-                $self->{'logger'}->error("NO link found with address: " . $addr);
-                next;
-            }
-            push(@links,$links{$addr});
-        }
+    foreach my $circuit_id (keys %{$circuit_lsps}){
+       my @ckt_path0; # list of (possibly duplicated) IP addresses making up the circuit
+       foreach my $lsp (@{$circuit_lsps->{$circuit_id}}){
+           push @ckt_path0, @{$lsp_paths->{$lsp}};
+       }
 
-        $paths->{$dest}->{'links'} = \@links;
+       my @ckt_path1 = map { $ip_links{$_} } @ckt_path0;
+       my @ckt_path2 = uniq @ckt_path1; # list of link_ids making up the circuit, without duplication
+       my @ckt_path  = map { $links_by_id{$_} } @ckt_path2;
+       $self->{'logger'}->info(Dumper(@ckt_path));
+
+       my $ckt = OESS::Circuit->new(db => $self->{'db'}, circuit_id => $circuit_id);
+       $ckt->update_mpls_path(links => \@ckt_path);
     }
-
-    foreach my $ckt (@{$self->get_circuits( node_id => $params{'node_id'} )}){
-        #TODO: THIS WONT WORK FOR MP CIRCUITS
-        next if !defined($ckt);
-        my $eps = $ckt->get_endpoints();
-        foreach my $ep (@$eps){
-            next if ($ep->{'node_id'} == $node_id );
-            warn Data::Dumper::Dumper($node_id{$ep->{'node_id'}});
-            my $links = $paths->{$node_id{$ep->{'node_id'}}->{'loopback_address'}}->{'links'};
-            warn "LINKS: " . Data::Dumper::Dumper($links);
-            $ckt->change_mpls_path( links => $paths->{$node_id{$ep->{'node_id'}}->{'loopback_address'}}->{'links'} );        
-        }
-    }
-    
 }
 
 =head2 get_circuits
