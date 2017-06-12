@@ -864,7 +864,8 @@ sub deleteVlan{
 
 =head2 diff
 
-signals diff to all of th enodes
+Signals all children to re-read from cache, determine if a
+configuration change is required, and if so, make the change.
 
 =cut
 
@@ -894,31 +895,32 @@ sub diff {
         }
 
         $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
-        $self->{'fwdctl_events'}->diff( force_diff => $force_diff,
-                                        async_callback => sub {
-                                            my $res = shift;
-                                            
-                                            if (defined $res->{'error'}) {
-                                                my $addr = $node->{'mgmt_addr'};
-                                                my $err = $res->{'error'};
-                                                $self->{'logger'}->error("Error calling diff on $addr: $err");
-                                                return 0;
-                                            }
-                                            
-                                            if ($res->{'results'}->{'status'} == FWDCTL_BLOCKED) {
-                                                my $node_id = $res->{'results'}->{'node_id'};
-                                                
-                                                $self->{'db'}->set_diff_approval(0, $node_id);
-                                                $self->{'children'}->{$node_id}->{'pending_diff'} = 1;
-                                                $self->{'logger'}->warn("Diff for node $node_id requires admin approval.");
-                                                
-                                                return 0;
-                                            }
-                                            
-                                            return 1;
-                                        });
+        $self->{'fwdctl_events'}->diff(
+            force_diff     => $force_diff,
+            async_callback => sub {
+                my $res = shift;
+
+                if (defined $res->{'error'}) {
+                    my $addr = $node->{'mgmt_addr'};
+                    my $err = $res->{'error'};
+                    $self->{'logger'}->error("Error calling diff on $addr: $err");
+                    return 0;
+                }
+
+                if ($res->{'results'}->{'status'} == FWDCTL_BLOCKED) {
+                    my $node_id = $res->{'results'}->{'node_id'};
+
+                    $self->{'db'}->set_diff_approval(0, $node_id);
+                    $self->{'children'}->{$node_id}->{'pending_diff'} = 1;
+
+                    $self->{'logger'}->warn("Diff for node $node_id requires admin approval.");
+                    return 0;
+                }
+
+                return 1;
+            });
     }
-    
+
     return 1;
 }
 
