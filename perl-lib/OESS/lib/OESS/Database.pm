@@ -2051,6 +2051,8 @@ sub get_available_resources {
     my %interface_already_added;
     foreach my $interface (@$interfaces) {
         my $vlan_tag_range = $self->_validate_endpoint(interface_id => $interface->{'interface_id'}, workgroup_id => $workgroup_id );
+        my $mpls_vlan_tag_range = $self->_validate_endpoint(interface_id => $interface->{'interface_id'}, workgroup_id => $workgroup_id, type => 'mpls');
+        $vlan_tag_range .= $mpls_vlan_tag_range;
         $interface_already_added{$interface->{'interface_id'}} = 1;
         if ( $vlan_tag_range ){
             my $is_owner = 0;
@@ -7137,6 +7139,31 @@ sub provision_circuit {
     my $to_return = {"success" => 1, "circuit_id" => $circuit_id};
 
     return $to_return;
+}
+
+=head2
+
+set_mpls_node_status sets operational_state_mpls of node $node_id to
+$status which must be 'up' or 'down'.
+
+=cut
+sub set_mpls_node_status {
+    my $self = shift;
+    my $node_id = shift;
+    my $status  = shift;
+
+    if ($status ne 'up' && $status ne 'down') {
+        $self->_set_error("Node status must be 'up' or 'down'.");
+        return;
+    }
+
+    my $query = "update node set operational_state_mpls=? where node_id=?";
+    my $result = $self->_execute_query($query, [$status, $node_id]);
+    if (!defined $result) {
+        $self->_set_error("Could not update mpls node's operation state.");
+        return;
+    }
+    return $result;
 }
 
 =head2 remove_circuit

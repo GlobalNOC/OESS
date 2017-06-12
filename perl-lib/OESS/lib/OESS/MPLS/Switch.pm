@@ -233,9 +233,9 @@ sub _register_rpc_methods{
                                             description => "returns a list of LSPs and their details");
     $dispatcher->register_method($method);
 
-    $method = GRNOC::RabbitMQ::Method->new( name        => "connected",
+    $method = GRNOC::RabbitMQ::Method->new( name        => "is_connected",
                                             callback    => sub {
-                                                $self->connected();
+                                                return $self->connected();
                                             },
                                             description => "returns the current connected state of the device");
     $dispatcher->register_method($method);
@@ -349,7 +349,7 @@ sub echo {
 sub connected{
     my $self = shift;
     
-    return $self->{'device'}->connected();
+    return {connected => $self->{'device'}->connected()};
 }
 
 =head2 stop
@@ -445,6 +445,9 @@ sub diff {
     $self->{'logger'}->debug("Calling Switch.diff");
     $self->_update_cache();
     my $to_be_removed = $self->{'device'}->get_config_to_remove( circuits => $self->{'ckts'} );
+    if (!defined) {
+        return { error => 'Could not communicate with device.' };
+    }
     return $self->{'device'}->diff( circuits => $self->{'ckts'}, force_diff =>  $force_diff, remove => $to_be_removed);
 }
 

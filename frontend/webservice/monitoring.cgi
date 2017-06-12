@@ -195,8 +195,9 @@ sub get_mpls_node_status{
     }
 
     $mq->{'topic'} = 'MPLS.FWDCTL.Switch.' . $node->{'mgmt_addr'};
-    my $result = $mq->connected();
-    $result = int($result);
+    my $result = $mq->is_connected();
+    warn Dumper($result);
+    $result = int($result->{'results'}->{'connected'});
     my $tmp;
     $tmp->{'results'} = {node => $node_name, status => $result};
     return $tmp;
