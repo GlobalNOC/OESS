@@ -689,19 +689,22 @@ sub addVlan{
 
     my $ckt = $self->get_ckt_object( $circuit_id );
     if(!defined($ckt)){
-	$self->{'logger'}->error("addVlan: Couldn't load circuit object");
-        &$error({status => FWDCTL_FAILURE});
+        my $err = "addVlan: Couldn't load circuit object";
+        $self->{'logger'}->error($err);
+        return &$error($err);
     }
     
     $ckt->update_circuit_details();
     if($ckt->{'details'}->{'state'} eq 'decom'){
-	$self->{'logger'}->error("addVlan: Adding a decom'd circuit is not allowed");
-	&$error({status => FWDCTL_FAILURE});
+        my $err = "addVlan: Adding a decom'd circuit is not allowed";
+        $self->{'logger'}->error($err);
+        return &$error($err);
     }
 
     if($ckt->get_type() ne 'mpls'){
-	$self->{'logger'}->error("addVlan: Circuit type 'opeflow' cannot be used here");
-	&$error({status => FWDCTL_FAILURE});
+        my $err = "addVlan: Circuit type 'opeflow' cannot be used here";
+        $self->{'logger'}->error($err);
+        return &$error($err);
     }
 
     $self->_write_cache();
@@ -748,11 +751,11 @@ sub addVlan{
             }
 	    
             $self->{'logger'}->error("Failed to add MPLS VLAN.");
-            &$error({error => $err});
+            return &$error($err);
         }
 
         $self->{'logger'}->info("Added VLAN.");
-        &$success({status => $result});
+        return &$success({status => $result});
     });
 
     foreach my $node (keys %nodes){
@@ -765,8 +768,9 @@ sub addVlan{
             circuit_id => $circuit_id,
             async_callback => sub {
                 my $res = shift;
+
 		if($res->{'results'}->{'status'} != FWDCTL_SUCCESS){
-		    $self->{'logger'}->error("Switch : " . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . " reported an error");
+		    $self->{'logger'}->error("Switch " . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . " reported an error.");
 		    $err .= "Switch : " . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . " reported an error";
 		}
                 $cv->end();
@@ -798,13 +802,13 @@ sub deleteVlan{
     my $ckt = $self->get_ckt_object( $circuit_id );
     my $event_id = $self->_generate_unique_event_id();
     if(!defined($ckt)){
-        &$error({status => FWDCTL_FAILURE});
+        return &$error({status => FWDCTL_FAILURE});
     }
     
     $ckt->update_circuit_details();
 
     if($ckt->{'details'}->{'state'} eq 'decom'){
-	&$error({status => FWDCTL_FAILURE});
+	return &$error("Circuit is already decom'd");
     }
     
     #update the cache
@@ -824,12 +828,12 @@ sub deleteVlan{
     $cv->begin(sub {
         if ($err ne '') {
             $self->{'logger'}->error("Failed to delete MPLS VLAN.");
-            &$error({error => $err});
+            return &$error($err);
         }
 
         delete $self->{'circuit'}->{$circuit_id};
         $self->{'logger'}->info("Delete VLAN.");
-        &$success({status => FWDCTL_SUCCESS});
+        return &$success({status => FWDCTL_SUCCESS});
     });
 
     foreach my $node (keys %nodes){
@@ -888,11 +892,9 @@ sub diff {
             $force_diff = 1;
             $self->{'children'}->{$node_id}->{'pending_diff'} = 0;
         }
-        
+
         $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
         $self->{'fwdctl_events'}->diff( force_diff => $force_diff,
-                                        #installed_circuits => $payload,
-                                        #force_diff     => $force_diff,
                                         async_callback => sub {
                                             my $res = shift;
                                             
