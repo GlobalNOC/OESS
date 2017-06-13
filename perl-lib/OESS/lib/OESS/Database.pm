@@ -647,9 +647,11 @@ sub get_affected_circuits_by_link_id {
 
 =head2 is_external_vlan_available_on_interface
 
-Returns a boolean indicating whether or not the given tag is currently available (ie not actively in use) on the interface
-identified by $interface_id. This should only be used to check for edge interfaces and not the internal vlan tags
-specific to the OESS forwarding rules.
+Returns a hash including 'status' which indicates whether or not the
+given tag is currently available (ie not actively in use), and 'type'
+indicating the circuit protocol on the interface identified by
+$interface_id. This should only be used to check for edge interfaces
+and not the internal vlan tags specific to the OESS forwarding rules.
 
 =over
 
@@ -6885,7 +6887,12 @@ sub provision_circuit {
         }
     }
 
-    #not a scheduled event ie.. do it now
+    # When using mpls, hairpinning is not supported. Keep track of
+    # each node, interface pair. If duplicated rollback the
+    # transaction and error out.
+    my $mpls_interfaces = {};
+
+    # not a scheduled event ie.. do it now
     # first set up endpoints
     for (my $i = 0; $i < @$nodes; $i++){
 	my $node      = @$nodes[$i];
@@ -6894,6 +6901,18 @@ sub provision_circuit {
         my $endpoint_mac_address_num = @$endpoint_mac_address_nums[$i];
         my $circuit_edge_id;
         
+        if ($type eq 'mpls') {
+            my $node_iface_pair = "$node.$interface";
+
+            if (!defined $mpls_interfaces->{$node_iface_pair}) {
+                $mpls_interfaces->{$node_iface_pair} = 1;
+            } else {
+                $self->_set_error("Can't use the same interface more than once per MPLS circuit.");
+                $self->_rollback();
+                return;
+            }
+        }
+
 	my $query = "SELECT interface.interface_id, interface.role, node.node_id, node.vlan_tag_range " .
           "FROM interface JOIN node ON node.node_id = interface.node_id " .
           "WHERE node.name = ? and interface.name = ?";
@@ -9058,7 +9077,7 @@ sub validate_endpoints {
     my $tags           = $args{'tags'};
     my $workgroup_id   = $args{'workgroup_id'};
     my $mac_addresses  = $args{'mac_addresses'};
-    my $static_mac     = $args{'static_mac'} || 0; 
+    my $static_mac     = $args{'static_mac'} || 0;
     my $endpoint_mac_address_nums = $args{'endpoint_mac_address_nums'};
     my $type                      = $args{'type'} || 'openflow';
 
