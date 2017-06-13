@@ -1,5 +1,8 @@
 #!/usr/bin/perl -T 
 #
+
+
+
 ##----- NDDI OESS provisioning.cgi
 ##-----
 ##----- Provides a WebAPI to allow for provisioning/decoming of circuits
@@ -970,10 +973,8 @@ sub provision_circuit {
 	    my $result = _send_mpls_remove_command( circuit_id => $circuit_id );
 
             if ( !$result ) {
-                $output->{'warning'} =
-                    "Unable to talk to fwdctl service - is it running?";
+                $output->{'warning'} = "Unable to talk to fwdctl service - is it running?";
                 $method->set_error("Unable to talk to fwdctl service - is it running?");
-
                 return;
             }
             if ( $result == 0 ) {

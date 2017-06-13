@@ -1105,12 +1105,12 @@ sub diff {
     }
 
     my $configuration = $self->xml_configuration(\@circuits, $remove);
-    $self->{'logger'}->info(Dumper($configuration));
-
     if ($configuration eq '<configuration></configuration>') {
         $self->{'logger'}->info('No diff required at this time.');
         return FWDCTL_SUCCESS;
     }
+
+    $self->{'logger'}->debug(Dumper($configuration));
 
     if ($force_diff) {
         $self->{'logger'}->info('Force diff was initiated. Starting installation.');

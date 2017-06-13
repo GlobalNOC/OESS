@@ -312,30 +312,41 @@ sub _register_rpc_methods{
     $dispatcher->register_method($method);
 }
 
-sub _update_cache{
+sub _update_cache {
     my $self = shift;
     my $m_ref = shift;
     my $p_ref = shift;
 
-    $self->{'logger'}->info("Loading circuits from cache file.");
-    $self->{'logger'}->debug("Retrieve file: " . $self->{'share_file'});
+    $self->{'logger'}->debug("Loading circuits from cache file $self->{'share_file'}");
 
-    if(!-e $self->{'share_file'}){
-        $self->{'logger'}->error("No Cache file exists!!!");
+    if (!-e $self->{'share_file'}) {
+        $self->{'logger'}->error("Cache file $self->{'share_file'} doesn't exists!");
         return;
     }
 
-    my $str;
-    open(my $fh, "<", $self->{'share_file'});
+    open(my $fh, "<", $self->{'share_file'}) or do {
+        $self->{'logger'}->error("Could not open $self->{'share_file'}");
+        return;
+    };
+
+    my $str = '';
     while(my $line = <$fh>){
         $str .= $line;
     }
 
-    my $data = decode_json($str);
-    $self->{'logger'}->debug("Fetched data!");
-    $self->{'node'} = $data->{'nodes'}->{$self->{'id'}};
-    $self->{'logger'}->info("_update_cache circuits: " . Dumper($data->{'ckts'}));
+    close($fh) or do {
+        $self->{'logger'}->error("Could not close $self->{'share_file'}");
+        return;
+    };
 
+    my $data = eval { decode_json($str) };
+    if ($@) {
+        $self->{'logger'}->error("Could not decode cache file: $@");
+        return;
+    }
+
+    $self->{'logger'}->debug("Loading cache file into memory: " . Dumper($data));
+    $self->{'node'}     = $data->{'nodes'}->{$self->{'id'}};
     $self->{'settings'} = $data->{'settings'};
 
     foreach my $ckt (keys %{$self->{'ckts'}}) {
@@ -343,14 +354,18 @@ sub _update_cache{
     }
 
     foreach my $ckt (keys %{$data->{'ckts'}}) {
-        $self->{'logger'}->info("Processing cache for circuit: $ckt");
+        $self->{'logger'}->debug("Processing cache for circuit $ckt");
 
+        $data->{'ckts'}->{$ckt}->{'circuit_id'} = $ckt;
         $self->{'ckts'}->{$ckt} = $data->{'ckts'}->{$ckt};
-        $self->{'ckts'}->{$ckt}->{'circuit_id'} = int($ckt);
     }
 
-    $self->{'logger'} = Log::Log4perl->get_logger('MPLS.FWDCTL.Switch.' . $self->{'node'}->{'name'}) if($self->{'node'}->{'name'});
-    $self->{'settings'} = $data->{'settings'};
+    if ($self->{'node'}->{'name'}) {
+        $self->{'logger'} = Log::Log4perl->get_logger('MPLS.FWDCTL.Switch.'.$self->{'node'}->{'name'});
+    }
+
+    $self->{'logger'}->info("Loaded circuits from cache file $self->{'share_file'}");
+    return 1;
 }
 
 =head2 echo
