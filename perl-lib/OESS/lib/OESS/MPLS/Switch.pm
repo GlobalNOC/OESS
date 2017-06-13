@@ -103,6 +103,8 @@ sub new{
 	$self->{'logger'}->error("Connection to device was established.");
     }
 
+    $self->{'ckts'} = {};
+
     AnyEvent->condvar->recv;
     return $self;
 }
@@ -218,6 +220,19 @@ sub _register_rpc_methods{
                                             description => "returns a list of interfaces on the device");
     $dispatcher->register_method($method);
 
+    $method = GRNOC::RabbitMQ::Method->new( name        => "get_routed_lsps",
+                                            callback    => sub {
+                                                $self->get_routed_lsps(@_);
+                                            },
+                                            description => "returns the LSPs (in a given routing table) that originate on the device");
+
+    $method->add_input_parameter( name => "table",
+                                  description => "The routing table to look for LSPs in",
+                                  required => 1,
+                                  schema => { type => 'string' });
+
+    $dispatcher->register_method($method);
+
     $method = GRNOC::RabbitMQ::Method->new( name        => "get_isis_adjacencies",
                                             callback    => sub {
                                                 $self->get_isis_adjacencies();
@@ -231,6 +246,14 @@ sub _register_rpc_methods{
                                                 $self->get_LSPs();
                                             },
                                             description => "returns a list of LSPs and their details");
+    $dispatcher->register_method($method);
+
+
+    $method = GRNOC::RabbitMQ::Method->new( name        => "get_lsp_paths",
+                                            callback    => sub {
+                                                $self->get_lsp_paths(@_);
+                                            },
+                                            description => "for each LSP on the switch, provides a list of link addresses");
     $dispatcher->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name        => "is_connected",
@@ -311,24 +334,22 @@ sub _update_cache{
     my $data = decode_json($str);
     $self->{'logger'}->debug("Fetched data!");
     $self->{'node'} = $data->{'nodes'}->{$self->{'id'}};
-    $self->{'logger'}->info("_update_cache: " . Dumper($self->{'node'}));
+    $self->{'logger'}->info("_update_cache circuits: " . Dumper($data->{'ckts'}));
 
     $self->{'settings'} = $data->{'settings'};
 
-    foreach my $ckt (keys %{ $self->{'ckts'} }){
+    foreach my $ckt (keys %{$self->{'ckts'}}) {
         delete $self->{'ckts'}->{$ckt};
     }
 
-    foreach my $ckt (keys %{ $data->{'ckts'}}){
-        $ckt = int($ckt);
-        $self->{'logger'}->debug("processing cache for circuit: " . $ckt);
+    foreach my $ckt (keys %{$data->{'ckts'}}) {
+        $self->{'logger'}->info("Processing cache for circuit: $ckt");
 
         $self->{'ckts'}->{$ckt} = $data->{'ckts'}->{$ckt};
-        $self->{'ckts'}->{$ckt}->{'circuit_id'} = $ckt;
+        $self->{'ckts'}->{$ckt}->{'circuit_id'} = int($ckt);
     }
 
     $self->{'logger'} = Log::Log4perl->get_logger('MPLS.FWDCTL.Switch.' . $self->{'node'}->{'name'}) if($self->{'node'}->{'name'});
-
     $self->{'settings'} = $data->{'settings'};
 }
 
@@ -445,9 +466,10 @@ sub diff {
     $self->{'logger'}->debug("Calling Switch.diff");
     $self->_update_cache();
     my $to_be_removed = $self->{'device'}->get_config_to_remove( circuits => $self->{'ckts'} );
-    if (!defined) {
+    if (!defined $to_be_removed) {
         return { error => 'Could not communicate with device.' };
     }
+
     return $self->{'device'}->diff( circuits => $self->{'ckts'}, force_diff =>  $force_diff, remove => $to_be_removed);
 }
 
@@ -536,6 +558,23 @@ sub get_interfaces{
     return $self->{'device'}->get_interfaces();
 }
 
+=head2 get_routed_lsps
+
+takes a routing table name; returns a map where the keys are
+circuit_ids and the values are an array of LSPs originating from the
+device that are associated with that circuit
+
+=cut
+
+sub get_routed_lsps{
+    my $self = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    $self->_update_cache();
+    return $self->{'device'}->get_routed_lsps(table => $p_ref->{'table'}{'value'}, circuits => $self->{'ckts'});
+}
+
 =head2 get_isis_adjacencies
 
     returns a list of isis_adjacencies on the device
@@ -562,6 +601,21 @@ sub get_LSPs{
     my $p_ref = shift;
 
     return $self->{'device'}->get_LSPs();
+}
+
+=head2 get_lsp_paths
+
+returns a map from LSP-name to [array of IP addresses for links along the LSP path]
+for each LSP on the switch
+
+=cut
+
+sub get_lsp_paths{
+    my $self = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    return $self->{'device'}->get_lsp_paths();
 }
 
 sub _generate_commands{

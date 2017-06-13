@@ -70,6 +70,7 @@ sub disconnect{
 
     if (defined $self->{'jnx'}) {
         $self->{'jnx'}->disconnect();
+        $self->{'jnx'} = undef;
     } else {
         $self->{'logger'}->info("Device is already disconnected.");
     }
@@ -92,8 +93,9 @@ sub get_system_information{
 	$self->{'logger'}->error("Not currently connected to device");
 	return;
     }
-
+    $self->{'logger'}->error('!!!!!! get system info');
     my $reply = $self->{'jnx'}->get_system_information();
+    $self->{'logger'}->error('!!!!!! got system info');
 
     if($self->{'jnx'}->has_error){
         my $error = $self->{'jnx'}->get_first_error();
@@ -190,6 +192,112 @@ sub get_system_information{
     return {model => $model, version => $version, os_name => $os_name, host_name => $host_name, loopback_addr => $loopback_addr};
 }
 
+=head2 get_routed_lsps
+
+=cut
+
+sub get_routed_lsps{
+    my $self = shift;
+    my %args = @_;
+    my $table = $args{'table'};
+    my $circuits = $args{'circuits'};
+
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
+
+    my $int_tag_circuit = {};
+    #first thing is to take the circuits array and parse it into an interface -> tag -> circuit lookup
+    foreach my $circuit (keys %{$circuits}){
+        my $ckt = $circuits->{$circuit};
+        foreach my $interface (@{$ckt->{'interfaces'}}){
+            $int_tag_circuit->{$interface->{'interface'}}->{$interface->{'tag'}} = $circuit;
+        }
+    }
+    
+    my $reply = $self->{'jnx'}->get_route_information( table => $table );
+
+    if($self->{'jnx'}->has_error){
+        my $error = $self->{'jnx'}->get_first_error();
+        $self->set_error($error->{'error_message'});
+        $self->{'logger'}->error("Error fetching route table information: " . $error->{'error_message'});
+        return;
+    }
+
+    my $dom = $self->{'jnx'}->get_dom();
+    my $dest_to_lsp = {};
+
+    my $path = $self->{'root_namespace'}."junos-routing";
+    my $xp = XML::LibXML::XPathContext->new( $dom );
+    $xp->registerNs('x',$dom->documentElement->namespaceURI);
+    $xp->registerNs('j',$path);
+
+    my $routes = $xp->findnodes('/x:rpc-reply/j:route-information/j:route-table/j:rt');    
+    foreach my $route (@$routes){
+	my $dest = $xp->findvalue('./j:rt-destination', $route);
+	my $protocol = $xp->findvalue('./j:rt-entry/j:protocol-name',$route);
+	my $next_hops = $xp->find('./j:rt-entry/j:nh', $route);
+
+        if ($next_hops->size() == 0) {
+            $self->{'logger'}->warn("Skipping rt-entry that has zero next hops in rt-destination $dest");
+            next;
+        }
+
+	foreach my $nh (@$next_hops){
+	    my $lsp_name = $xp->findvalue('./j:lsp-name', $nh);
+            if (!defined $lsp_name || $lsp_name eq '') {
+                # $lsp_name will probably never be undef; findvalue
+                # seems to return an emtpy string even when the
+                # lsp-name tag doesn't exist.
+                $self->{'logger'}->warn("Skipping rt-entry's next hop as it's missing an lsp-name in rt-destination $dest");
+                next;
+            }
+
+            if(!defined($dest_to_lsp->{$dest})){
+                $dest_to_lsp->{$dest} = ();
+            }
+            push(@{$dest_to_lsp->{$dest}}, $lsp_name);
+	}
+    }
+
+    my $circuit_to_lsp = {};
+
+    foreach my $dest (keys %{$dest_to_lsp}){
+        
+        #determine which type it is
+        #either the prefix, the route id or the interface name
+        #11537:3019:1:1/96
+        #172.16.0.13:3017:1:1/96
+        #xe-2/2/0.666
+        
+        my $circuit_id;
+
+        if($dest =~ /^(.*)\.(\d+)$/){
+            #ok we have an interface!
+            my $int = $1;
+            my $tag = $2;
+            #need to find the interface and vlan combo and get the circuit id!
+            if(defined($int_tag_circuit->{$int}) && defined($int_tag_circuit->{$int}->{$tag})){
+                $circuit_id = $int_tag_circuit->{$int}->{$tag};
+            }
+        }else{
+            my @parts = split(':',$dest);
+            $circuit_id = $parts[1];
+            if(!defined($circuits->{$circuit_id})){
+                #not a circuit we know about... ignoring
+                $circuit_id = undef;
+            }
+        }
+
+        next if !defined($circuit_id);
+
+        $circuit_to_lsp->{$circuit_id} = $dest_to_lsp->{$dest};
+    }
+
+    return $circuit_to_lsp;
+}
+
 =head2 get_interfaces
 
 returns a list of current interfaces on the device
@@ -259,6 +367,11 @@ removes a vlan via NetConf
 sub remove_vlan{
     my $self = shift;
     my $ckt = shift;
+
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
 
     my $vars = {};
     $vars->{'circuit_name'} = $ckt->{'circuit_name'};
@@ -510,6 +623,11 @@ sub get_default_paths {
     my $self = shift;
     my $loopback_addresses = shift;
 
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
+
     my $name   = undef;
     my $path   = undef;
     my $err    = undef;
@@ -578,7 +696,7 @@ sub xml_configuration {
         if ($ckt->{'state'} eq 'active') {
             $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$xml);
         } else {
-            $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config_delete.xml", $vars, \$xml);
+            # The remove case is now handled in get_config_to_remove
         }
 
         $xml =~ s/<configuration>//g;
@@ -685,7 +803,6 @@ sub get_config_to_remove{
     $xp->registerNs('c', 'http://xml.juniper.net/xnm/1.1/xnm');
 
     my $routing_instances = $xp->find( '/base:rpc-reply/c:configuration/c:routing-instances/c:instance');
-
     foreach my $ri (@$routing_instances){
 	my $name = $xp->findvalue( './c:name', $ri );
 	if($name =~ /^OESS/){
@@ -798,7 +915,7 @@ sub _is_active_circuit{
     my $circuits = shift;
     if(!defined($circuit_id)){
 	$self->{'logger'}->error("Unable to find the circuit ID");
-	return 1;
+	return 0;
     }
 
     if(defined($circuits->{$circuit_id}) && ($circuits->{$circuit_id}->{'state'} eq 'active')){
@@ -922,9 +1039,6 @@ sub get_device_diff {
     }
 
     my %queryargs = ('target' => 'candidate');
-    $self->{'jnx'}->lock_config(%queryargs);
-
-    %queryargs = ('target' => 'candidate');
     $queryargs{'config'} = $conf;
     my $res = $self->{'jnx'}->edit_config(%queryargs);
 
@@ -933,16 +1047,19 @@ sub get_device_diff {
         my $error = $self->{'jnx'}->get_first_error();
 	$self->set_error($error->{'error_message'});
         $self->{'logger'}->error("Error getting diff from MX: " . $error->{'error_message'});
+        $res = $self->{'jnx'}->discard_changes();
         return;
     }
 
     my $dom = $self->{'jnx'}->get_dom();
     $self->{'diff_text'} = $dom->getElementsByTagName('configuration-output')->string_value();
-    
     $res = $self->{'jnx'}->discard_changes();
-    %queryargs = ('target' => 'candidate');
-    $self->{'jnx'}->unlock_config(%queryargs);
 
+    if ($self->{'diff_text'} eq "\n") {
+        # In some cases a diff containing only an empty line may be
+        # received. This case should be ignored.
+        $self->{'diff_text'} = '';
+    }
     return $self->{'diff_text'};
 }
 
@@ -977,7 +1094,7 @@ sub diff {
 
     if(!$self->{'connected'} || !defined($self->{'jnx'})){
         $self->{'logger'}->error("Not currently connected to device");
-        return;
+        return FWDCTL_FAILURE;
     }
 
     $self->{'logger'}->info("Calling MX.diff");
@@ -988,6 +1105,7 @@ sub diff {
     }
 
     my $configuration = $self->xml_configuration(\@circuits, $remove);
+    $self->{'logger'}->info(Dumper($configuration));
 
     if ($configuration eq '<configuration></configuration>') {
         $self->{'logger'}->info('No diff required at this time.');
@@ -1003,7 +1121,7 @@ sub diff {
     # Check the size of the diff to see if verification is required for
     # the changes to be applied. $diff is a human readable diff.
     my $diff = $self->get_device_diff($configuration);
-    if (!defined $diff) {
+    if (!defined $diff || $diff eq '') {
         return FWDCTL_FAILURE;
     }
 
@@ -1064,6 +1182,10 @@ sub unit_name_available {
     my $interface_name = shift;
     my $unit_name      = shift;
 
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
 
     if (!defined $self->{'jnx'}) {
         my $err = "Netconf connection is down.";
@@ -1158,13 +1280,20 @@ sub connect {
         return $self->{'connected'};
     }
 
-    # Configures parameters for the get_configuration method
+    # Configures parameters for several methods
     my $ATTRIBUTE = bless {}, 'ATTRIBUTE';
+    my $TOGGLE = bless { 1 => 1 }, 'TOGGLE';
+
     $self->{'jnx'}->{'methods'}->{'get_configuration'} = { format   => $ATTRIBUTE,
                                                            compare  => $ATTRIBUTE,
                                                            changed  => $ATTRIBUTE,
                                                            database => $ATTRIBUTE,
                                                            rollback => $ATTRIBUTE };
+
+    $self->{'jnx'}->{'methods'}->{'get_mpls_lsp_information'} = {
+        detail    => $TOGGLE,
+        extensive => $TOGGLE,
+    };
 
     $self->{'logger'}->info("Connected to device!");
     return $self->{'connected'};
@@ -1186,7 +1315,7 @@ sub connected {
         $self->disconnect();
     }
 
-    $self->{'logger'}->debug("Connection state is $self->{'connected'}.");
+    $self->{'logger'}->info("Connection state is $self->{'connected'}.");
     return $self->{'connected'};
 }
 
@@ -1294,11 +1423,6 @@ sub get_LSPs{
         return;
     }
 
-    if(!defined($self->{'jnx'}->{'methods'}->{'get_mpls_lsp_information'})){
-        my $TOGGLE = bless { 1 => 1 }, 'TOGGLE';
-        $self->{'jnx'}->{'methods'}->{'get_mpls_lsp_information'} = { detail => $TOGGLE};
-    }
-
     $self->{'jnx'}->get_mpls_lsp_information( detail => 1);
     my $xml = $self->{'jnx'}->get_dom();
     my $xp = XML::LibXML::XPathContext->new( $xml);
@@ -1313,6 +1437,50 @@ sub get_LSPs{
     }
 
     return \@LSPs;
+}
+
+=head2 get_lsp_paths
+
+implementation of OESS::MPLS::Device::get_lsp_paths
+
+=cut
+
+sub get_lsp_paths{
+    my $self = shift;
+
+    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+        $self->{'logger'}->error('Not currently connected to device');
+        return;
+    }
+
+    my $res = $self->{'jnx'}->get_mpls_lsp_information(extensive => 1);
+    my $dom = $self->{'jnx'}->get_dom();
+
+    # Extract the link IP addresses out of the response
+    my $xp = XML::LibXML::XPathContext->new($dom);
+    warn $self->{'root_namespace'};
+    $xp->registerNs('root', $dom->documentElement->namespaceURI);
+    $xp->registerNs('r', $self->{'root_namespace'} . 'junos-routing');
+
+    my $ingress_lsps = $xp->findnodes('/root:rpc-reply/r:mpls-lsp-information/r:rsvp-session-data[r:session-type="Ingress"]/r:rsvp-session/r:mpls-lsp');
+    my $lsp_routes   = {};
+
+    foreach my $ingress_lsp (@{$ingress_lsps}) {
+        my $name  = $xp->findvalue('./r:name', $ingress_lsp);
+        my $paths = $xp->find('./r:mpls-lsp-path', $ingress_lsp);
+
+        foreach my $path (@{$paths}) {
+            if ($xp->exists('./r:path-active', $path)) {
+                my $next_hops = $xp->find('./r:explicit-route/r:address', $path);
+
+                foreach my $nh (@{$next_hops}) {
+                    push(@{$lsp_routes->{$name}}, $nh->textContent);
+                }
+            }
+        }
+    }
+
+    return $lsp_routes;
 }
 
 sub _process_rsvp_session_data{
@@ -1599,8 +1767,7 @@ sub _edit_config{
         my $err = "$@";
         $self->set_error($err);
         $self->{'logger'}->error($err);
-        my %queryargs = ( 'target' => 'candidate' );
-        $res = $self->{'jnx'}->unlock_config(%queryargs);
+        $res = $self->{'jnx'}->unlock_config();
         return FWDCTL_FAILURE;
     }
     if($self->{'jnx'}->has_error){
@@ -1608,10 +1775,8 @@ sub _edit_config{
         my $err = "Error attempting to edit config: " . $error->{'error_message'};
         $self->set_error($err);
         $self->{'logger'}->error($err);
-	$self->{'logger'}->error(Dumper($error));
 
-        my %queryargs = ( 'target' => 'candidate' );
-        $res = $self->{'jnx'}->unlock_config(%queryargs);
+        $res = $self->{'jnx'}->unlock_config();
         return FWDCTL_FAILURE;
     }
 
@@ -1629,14 +1794,12 @@ sub _edit_config{
         $self->set_error($err);
         $self->{'logger'}->error($err);
 
-        my %queryargs = ( 'target' => 'candidate' );
-        $res = $self->{'jnx'}->unlock_config(%queryargs);
+        $res = $self->{'jnx'}->unlock_config();
         return FWDCTL_FAILURE;
     }
 
     eval {
-        my %queryargs2 = ( 'target' => 'candidate' );
-        $res = $self->{'jnx'}->unlock_config(%queryargs2);
+        $res = $self->{'jnx'}->unlock_config();
     };
     if ($@) {
         my $err = "$@";
@@ -1649,13 +1812,9 @@ sub _edit_config{
         $self->set_error($err);
         $self->{'logger'}->error($err);
 
-        my %queryargs = ( 'target' => 'candidate' );
-        $res = $self->{'jnx'}->unlock_config(%queryargs);
+        $res = $self->{'jnx'}->unlock_config();
         return FWDCTL_FAILURE;
     }
-
-    %queryargs = ( 'target' => 'candidate' );
-    $res = $self->{'jnx'}->unlock_config(%queryargs);
 
     return FWDCTL_SUCCESS;
 }

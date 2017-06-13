@@ -57,6 +57,9 @@ use Log::Log4perl;
 
 use AnyEvent;
 
+use constant MPLS_TABLE => 'mpls.0';
+use constant VPLS_TABLE => 'bgp.l2vpn.0';
+
 =head2 new
     instantiates a new OESS::MPLS::Discovery object, which intern creates new 
     instantiations of 
@@ -108,6 +111,10 @@ sub new{
 							 topic => 'MPLS.Discovery');
     
     die if(!defined($self->{'rmq_client'}));
+
+    # set up some sequence numbers so path detection handles out-of-order responses sanely
+#    $self->{'path_sequence'} = 0;
+#    $self->{'path_node_latest'} = {};
 
     #setup the timers
     $self->{'device_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->device_handler(); });
@@ -211,6 +218,7 @@ sub make_baby{
 
     my %args;
     $args{'id'} = $id;
+    $args{'share_file'} = '/var/run/oess/mpls_share.'. $id;
     $args{'rabbitMQ_host'} = $self->{'db'}->{'rabbitMQ'}->{'host'};
     $args{'rabbitMQ_port'} = $self->{'db'}->{'rabbitMQ'}->{'port'};
     $args{'rabbitMQ_user'} = $self->{'db'}->{'rabbitMQ'}->{'user'};
@@ -324,25 +332,63 @@ sub path_handler {
         return 0;
     }
 
-    my @loopback_addrs;
+#    my $curr_path_sequence = $self->{'path_sequence'};
+#    $self->{'path_sequence'} += 1;
 
+    # Map from circuit ID to the list of LSPs associated with the circuit
+    my %circuit_lsps;
+    # Map from LSP name to the list of links currently used by the LSP
+    # (or rather, for each link, it has the IP address of an endpoint)
+    my %lsp_paths;
+
+    my $cv = AnyEvent->condvar;
+    $cv->begin(sub {
+                   #now that we have all of the circuit LSPs and all of the LSP paths
+                   #turn this into updates to the OESS DB!
+                   $self->{'path'}->process_results(
+                       circuit_lsps => \%circuit_lsps,
+                       lsp_paths    => \%lsp_paths
+                   );
+               });
+
+    # For each node, get the list of LSPs, and the associated circuits and paths
     foreach my $node (@{$nodes}) {
-        if (!defined $node->{'loopback_address'}) {
-            next;
-        }
-        push(@loopback_addrs, $node->{'loopback_address'});
-    }
-    
-    foreach my $node (@{$nodes}){ 
         $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
-        $self->{'rmq_client'}->get_default_paths( loopback_addresses => \@loopback_addrs,
-                                                  async_callback     => sub {
-                                                      my $res = shift;
-                                                      warn "Processing results\n";
-                                                      $self->{'path'}->process_results( paths => $res->{'results'}, node_id => $node->{'node_id'} );
-                                                      return 1;
-                                                  } );
+
+        foreach my $table (MPLS_TABLE, VPLS_TABLE) {
+            $cv->begin();
+            $self->{'rmq_client'}->get_routed_lsps(
+                table          => $table,
+                async_callback => sub {
+                    my $res = shift;
+                    if(!defined($res->{'error'})){
+                        foreach my $ckt (keys %{$res->{'results'}}){
+                            $circuit_lsps{$ckt} = [] if !defined($circuit_lsps{$ckt});
+                            push @{$circuit_lsps{$ckt}}, @{$res->{'results'}->{$ckt}};
+                        }
+                    }
+
+                    $cv->end;
+                });
+        }
+
+        $cv->begin();
+        $self->{'rmq_client'}->get_lsp_paths(
+            async_callback => sub {
+                my $res = shift;
+                if(!defined($res->{'error'})){
+                    my %paths = %{$res->{'results'}};
+                    foreach my $lsp (keys %paths){
+                        $lsp_paths{$lsp} = [] if !defined($lsp_paths{$lsp});
+                        push @{$lsp_paths{$lsp}}, @{$paths{$lsp}};
+                    }
+                }
+
+                $cv->end;
+            });
     }
+
+    $cv->end;
 }
 
 =head2 lsp_handler

@@ -52,7 +52,7 @@ my $conf = GRNOC::Config->new(config_file => '/etc/oess/database.xml');
 my $db = new OESS::Database();
 
 my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
-                                      timeout  => 60 );
+                                      timeout  => 120 );
 
 my $svc = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
 
@@ -579,6 +579,7 @@ sub _send_remove_command {
 
 sub _send_mpls_update_cache{
     my %args = @_;
+
     if(!defined($args{'circuit_id'})){
         $args{'circuit_id'} = -1;
     }
@@ -605,8 +606,8 @@ sub _send_mpls_update_cache{
         warn "Error occurred while calling update_cache: Couldn't contact MPLS.FWDCTL via RabbitMQ.";
         return undef;
     }
-    if (!defined $result->{'results'}) {
-        warn "Something terrible happened with rabbitmq: " . Dumper($result);
+    if (defined $result->{'error'}) {
+        warn "Error occurred while calling update_cache: $result->{'error'}";
         return undef;
     }
     if (defined $result->{'results'}->{'error'}) {
