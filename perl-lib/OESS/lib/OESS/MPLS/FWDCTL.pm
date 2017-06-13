@@ -108,7 +108,10 @@ sub new {
     $self->{'link_maintenance'} = {};
     $self->{'node_by_id'} = {};
 
-    $self->update_cache(-1);
+    $self->update_cache(
+        { success_callback => sub { }, error_callback => sub { } },
+        { circuit_id => { value => -1 } }
+    );
 
     #from TOPO startup
     my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
@@ -478,7 +481,10 @@ sub new_switch{
 
     $self->make_baby($node_id);
     $self->{'logger'}->debug("Baby was created!");
-    $self->update_cache(-1);
+    $self->update_cache(
+        { success_callback => sub { }, error_callback => sub { } },
+        { circuit_id => { value => -1 } }
+    );
 
     &$success({status => FWDCTL_SUCCESS});
 }
@@ -548,15 +554,19 @@ sub run{
 updates the cache for all of the children
 
 =cut
-sub update_cache{
+sub update_cache {
     my $self = shift;
     my $m_ref = shift;
     my $p_ref = shift;
 
+    my $success = $m_ref->{'success_callback'};
+    my $error   = $m_ref->{'error_callback'};
+
     my $circuit_id = $p_ref->{'circuit_id'}->{'value'};
 
-    if(!defined($circuit_id) || $circuit_id == -1){
-        $self->{'logger'}->error("Updating Cache for entire network");
+    if (!defined($circuit_id) || $circuit_id == -1) {
+        $self->{'logger'}->debug("Updating Cache for entire network");
+
         my $res = build_cache(db => $self->{'db'}, logger => $self->{'logger'});
         $self->{'circuit'} = $res->{'ckts'};
         $self->{'link_status'} = $res->{'link_status'};
@@ -570,27 +580,49 @@ sub update_cache{
 	    $node_by_id{$self->{'node_info'}->{$node}->{'id'}} = $self->{'node_info'}->{$node};
 	}
 	$self->{'node_by_id'} = \%node_by_id;
+
+        $self->{'logger'}->info("Updated cache for entire network");
     } else {
-        $self->{'logger'}->debug("Updating cache for circuit: " . $circuit_id);
+        $self->{'logger'}->debug("Updating cache for circuit $circuit_id");
+
         my $ckt = $self->get_ckt_object($circuit_id);
-        if(!defined($ckt)){
-            return {status => FWDCTL_FAILURE, event_id => $self->_generate_unique_event_id()};
+        if (!defined $ckt) {
+            return &$error("Couldn't create circuit object for circuit $circuit_id");
         }
+
         $ckt->update_circuit_details();
-        $self->{'logger'}->debug("Updating cache for circuit: " . $circuit_id . " complete");
+        $self->{'logger'}->debug("Updated cache for circuit $circuit_id");
     }
 
     # Write the cache to file for our children, then signal children to
     # read updates from file.
     $self->_write_cache();
+
+    my $condvar  = AnyEvent->condvar;
     my $event_id = $self->_generate_unique_event_id();
+    $condvar->begin(
+        sub {
+            $self->{'logger'}->info("Completed sending update_cache to children!");
+            return &$success({ status => FWDCTL_SUCCESS, event_id => $event_id });
+        }
+    );
+
     foreach my $id (keys %{$self->{'children'}}){
-	$self->send_message_to_child($id, {action => 'update_cache'}, $event_id);
+        my $addr = $self->{'node_by_id'}->{$id}->{'mgmt_addr'};
+        $condvar->begin();
+
+        $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch.$addr";
+        $self->{'fwdctl_events'}->update_cache(
+            async_callback => sub {
+                my $result = shift;
+
+                $condvar->end();
+                $self->{'logger'}->info("Switch $addr updated its cache.");
+            }
+        );
     }
     
-    $self->{'logger'}->debug("Completed sending message to children!");
-
-    return { status => FWDCTL_SUCCESS, event_id => $event_id };
+    $condvar->end();
 }
 
 =head2 check_child_status
@@ -864,7 +896,8 @@ sub deleteVlan{
 
 =head2 diff
 
-signals diff to all of th enodes
+Signals all children to re-read from cache, determine if a
+configuration change is required, and if so, make the change.
 
 =cut
 
@@ -894,31 +927,32 @@ sub diff {
         }
 
         $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
-        $self->{'fwdctl_events'}->diff( force_diff => $force_diff,
-                                        async_callback => sub {
-                                            my $res = shift;
-                                            
-                                            if (defined $res->{'error'}) {
-                                                my $addr = $node->{'mgmt_addr'};
-                                                my $err = $res->{'error'};
-                                                $self->{'logger'}->error("Error calling diff on $addr: $err");
-                                                return 0;
-                                            }
-                                            
-                                            if ($res->{'results'}->{'status'} == FWDCTL_BLOCKED) {
-                                                my $node_id = $res->{'results'}->{'node_id'};
-                                                
-                                                $self->{'db'}->set_diff_approval(0, $node_id);
-                                                $self->{'children'}->{$node_id}->{'pending_diff'} = 1;
-                                                $self->{'logger'}->warn("Diff for node $node_id requires admin approval.");
-                                                
-                                                return 0;
-                                            }
-                                            
-                                            return 1;
-                                        });
+        $self->{'fwdctl_events'}->diff(
+            force_diff     => $force_diff,
+            async_callback => sub {
+                my $res = shift;
+
+                if (defined $res->{'error'}) {
+                    my $addr = $node->{'mgmt_addr'};
+                    my $err = $res->{'error'};
+                    $self->{'logger'}->error("Error calling diff on $addr: $err");
+                    return 0;
+                }
+
+                if ($res->{'results'}->{'status'} == FWDCTL_BLOCKED) {
+                    my $node_id = $res->{'results'}->{'node_id'};
+
+                    $self->{'db'}->set_diff_approval(0, $node_id);
+                    $self->{'children'}->{$node_id}->{'pending_diff'} = 1;
+
+                    $self->{'logger'}->warn("Diff for node $node_id requires admin approval.");
+                    return 0;
+                }
+
+                return 1;
+            });
     }
-    
+
     return 1;
 }
 
