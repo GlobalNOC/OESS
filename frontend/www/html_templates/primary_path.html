@@ -3,11 +3,12 @@
 
 <div class="main_page">
   <br/>
-  [% INCLUDE html_templates/circuit_details_box.html %]
 
   <center id="mpls_description">
-    <p style="color: #DF0101; width: 75%;">Selecting a primary path is optional. By default the circuit will use the shortest contrained path based on routing protocols. If you do not select a primary path you will not be able to select a backup path.</p>
+    <p style="color: #DF0101; width: 75%;">Selecting a primary path is optional. If no primary path is selected, the circuit will use the shortest available path based on routing protocols. If you do not select a primary path, you will not be able to select a backup path.</p>
   </center><br/>
+
+  [% INCLUDE html_templates/circuit_details_box.html %]
 
   <div id="layout">
 
