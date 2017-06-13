@@ -349,9 +349,6 @@ sub path_handler {
                        circuit_lsps => \%circuit_lsps,
                        lsp_paths    => \%lsp_paths
                    );
-
-                   $self->{'logger'}->error(Dumper(\%circuit_lsps));
-                   $self->{'logger'}->error(Dumper(\%lsp_paths));
                });
 
     # For each node, get the list of LSPs, and the associated circuits and paths

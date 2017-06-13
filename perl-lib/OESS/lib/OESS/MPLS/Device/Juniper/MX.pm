@@ -93,8 +93,9 @@ sub get_system_information{
 	$self->{'logger'}->error("Not currently connected to device");
 	return;
     }
-
+    $self->{'logger'}->error('!!!!!! get system info');
     my $reply = $self->{'jnx'}->get_system_information();
+    $self->{'logger'}->error('!!!!!! got system info');
 
     if($self->{'jnx'}->has_error){
         my $error = $self->{'jnx'}->get_first_error();
@@ -294,7 +295,6 @@ sub get_routed_lsps{
         $circuit_to_lsp->{$circuit_id} = $dest_to_lsp->{$dest};
     }
 
-    $self->{'logger'}->info(Dumper($circuit_to_lsp));
     return $circuit_to_lsp;
 }
 
@@ -1121,7 +1121,7 @@ sub diff {
     # Check the size of the diff to see if verification is required for
     # the changes to be applied. $diff is a human readable diff.
     my $diff = $self->get_device_diff($configuration);
-    if (!defined $diff) {
+    if (!defined $diff || $diff eq '') {
         return FWDCTL_FAILURE;
     }
 
@@ -1480,7 +1480,6 @@ sub get_lsp_paths{
         }
     }
 
-    warn Dumper($lsp_routes);
     return $lsp_routes;
 }
 
