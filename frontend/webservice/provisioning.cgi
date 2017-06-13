@@ -782,6 +782,12 @@ sub provision_circuit {
             static_mac => $static_mac,
             state => $state
         );
+        if (!defined $output) {
+            my $err = $db->get_error();
+            warn $err;
+            $method->set_error($err);
+            return;
+        }
 
         my $circuit = OESS::Circuit->new( circuit_id => $output->{'circuit_id'},
                                           db => $db);
