@@ -1042,7 +1042,10 @@ sub get_device_diff {
     $queryargs{'config'} = $conf;
     my $res = $self->{'jnx'}->edit_config(%queryargs);
 
-    my $configcompare = $self->{'jnx'}->get_configuration( compare => "rollback", rollback => "0" );
+    # According to docs format isn't considered when used with
+    # compare. However in 15.1F6-S6.4 it is; I would expect this to
+    # continue in later Junos versions.
+    my $configcompare = $self->{'jnx'}->get_configuration( compare => "rollback", rollback => "0", format => "text" );
     if ($self->{'jnx'}->has_error) {
         my $error = $self->{'jnx'}->get_first_error();
 	$self->set_error($error->{'error_message'});
@@ -1122,6 +1125,7 @@ sub diff {
     # the changes to be applied. $diff is a human readable diff.
     my $diff = $self->get_device_diff($configuration);
     if (!defined $diff || $diff eq '') {
+        $self->{'logger'}->info('No diff required at this time.');
         return FWDCTL_FAILURE;
     }
 
@@ -1141,8 +1145,9 @@ sub diff {
 =head2 get_diff_text
 
 Returns a human readable diff between $circuits and this Device's
-configuration.  It takes an array of circuits to build the current configuration with
-and a remove string of XML to be removed from the device
+configuration, or undef when no diff is required. Takes an array of
+circuits to build the current configuration, and a remove string of
+XML to be removed from the device.
 
 =cut
 sub get_diff_text {
@@ -1164,11 +1169,16 @@ sub get_diff_text {
 
     my $configuration = $self->xml_configuration(\@circuits, $remove );
     if ($configuration eq '<configuration></configuration>') {
-        $self->{'logger'}->info('No diff required at this time.');
-        return 'No diff required at this time.';
+        return undef;
     }
 
-    return $self->get_device_diff($configuration);
+    my $diff = $self->get_device_diff($configuration);
+    if ($diff eq '') {
+        # Handles case where a device returns an empty string
+        return undef;
+    }
+
+    return $diff;
 }
 
 =head2 unit_name_available
