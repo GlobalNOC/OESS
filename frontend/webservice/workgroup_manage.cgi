@@ -45,12 +45,12 @@ $| = 1;
 sub main {
 
     if ( !$db ) {
-        send_json( { "error" => "Unable to connect to database." } );
+        send_json({ "error" => "Unable to connect to database." });
         exit(1);
     }
 
     if ( !$svc ){
-	send_json( {"error" => "Unable to access GRNOC::WebService" });
+	send_json({ "error" => "Unable to access GRNOC::WebService" });
 	exit(1);
     }
 
@@ -60,12 +60,12 @@ sub main {
     
  
     if ($user->{'status'} eq 'decom') {
-	send_json("error");
+	send_json({ "error" => "error" });
 	exit(1);
     }
     
     if ($user->{'type'} eq 'read-only') {
-	send_json("Error: you are a readonly user");
+	send_json({ "error" => "Error: you are a readonly user" });
 	return;
     }
 

@@ -985,15 +985,13 @@ sub get_diff_text {
     $self->{'fwdctl_events'}->get_diff_text(
 	async_callback => sub {
             my $response = shift;
-            
+
             if (defined $response->{'error'}) {
                 &$error_cb({error => $response->{'error'}, status => FWDCTL_FAILURE});
             } else {
                 &$success_cb( {status => FWDCTL_SUCCESS, results => [ $response->{'results'} ]});
-                #$event->{'results'} = [ $response->{'results'} ];
-                #$event->{'status'} = FWDCTL_SUCCESS;
             }
-	} );
+	});
 }
 
 =head2 get_ckt_object
