@@ -82,16 +82,13 @@ sub new{
     #attempt to reconnect!
     warn "Setting up reconnect timer\n";
     $self->{'connect_timer'} = AnyEvent->timer(
-        after => 60,
+        after    => 60,
         interval => 60,
         cb => sub {
-            $self->{'logger'}->info("Checking to connection status.");
-            if($self->{'device'}->connected()){
-                warn "Device reports connected\n";
-                return;
+            if (!$self->{'device'}->connected()) {
+                $self->{'logger'}->warn("Device is not connected. Attempting to connect");
+                return $self->{'device'}->connect();
             }
-            warn "Device is not connected... connecting\n";
-            $self->{'device'}->connect();
         });
 
     #try and connect up right away
