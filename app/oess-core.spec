@@ -127,8 +127,6 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/oess-watchdog.pl
 %{_bindir}/vlan_stats_d.pl
 %{_bindir}/oess-nsi
-%{_bindir}/snapp-config-gen
-%{_bindir}/perfSonar_gen
 %{_bindir}/oess_setup.pl
 %{_bindir}/oess_scheduler.pl
 %{_bindir}/populate_remote_topologies.pl
