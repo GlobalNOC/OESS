@@ -2259,6 +2259,7 @@ sub get_all_workgroups {
 }
 
 =head2 start_node_maintenance
+
 =cut
 sub start_node_maintenance {
     my $self = shift;
@@ -2321,6 +2322,7 @@ sub start_node_maintenance {
 }
 
 =head2 end_node_maintenance
+
 =cut
 sub end_node_maintenance {
     my $self = shift;
@@ -2347,6 +2349,7 @@ sub end_node_maintenance {
 }
 
 =head2 get_node_maintenance
+
 =cut
 sub get_node_maintenance {
     my $self = shift;
@@ -2528,6 +2531,7 @@ sub get_link_maintenance {
 }
 
 =head2 get_link_maintenances
+
 =cut
 sub get_link_maintenances {
     my $self = shift;
@@ -2969,6 +2973,7 @@ sub _authorize_interface_acl {
 
 Checks to make sure vlan start is less than vlan end and they fall withing the interface's range
 and that they are both numbers
+
 =cut
 
 sub _check_vlan_range {
@@ -4975,6 +4980,9 @@ sub is_new_node_in_path{
     }
 }
 
+=head2 _find_new_path
+
+=cut
 sub _find_new_path{
     my $self = shift;
     my %args = @_;
@@ -8352,6 +8360,9 @@ sub _start_transaction {
     $dbh->begin_work() or die $dbh->errstr;
 }
 
+=head2 _rollback
+
+=cut
 sub _rollback{
     my $self = shift;
     my $dbh = $self->{'dbh'};
@@ -8589,6 +8600,9 @@ sub get_allowed_vlans {
     return $tags;
 }
 
+=head2 _process_tag_string
+
+=cut
 sub _process_tag_string{
     my $self          = shift;
     my $string        = shift;
@@ -8855,6 +8869,9 @@ sub _set_vlan_range_allow_deny {
     return $vlan_range_hash;
 }
 
+=head2 _vlan_range_hash2str
+
+=cut
 sub _vlan_range_hash2str {
     my $self = shift;
     my %args = @_;
@@ -9558,7 +9575,7 @@ sub gen_topo{
 }
 
 =head2 get_admin_email
-    
+
 =cut
 sub get_admin_email{
     my $self = shift;
@@ -10179,7 +10196,9 @@ sub mac_validate {
 }
 
 =head2 default vlan_range
- get/sets the default vlan range set on switches
+
+get/sets the default vlan range set on switches
+
 =cut
 sub default_vlan_range {
     my ($self, %args) = @_;
