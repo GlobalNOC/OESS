@@ -7174,9 +7174,9 @@ sub provision_circuit {
     return $to_return;
 }
 
-=head2
+=head2 set_mpls_node_status 
 
-set_mpls_node_status sets operational_state_mpls of node $node_id to
+sets operational_state_mpls of node $node_id to
 $status which must be 'up' or 'down'.
 
 =cut
@@ -10195,7 +10195,7 @@ sub mac_validate {
     return 0;
 }
 
-=head2 default vlan_range
+=head2 default_vlan_range
 
 get/sets the default vlan range set on switches
 
