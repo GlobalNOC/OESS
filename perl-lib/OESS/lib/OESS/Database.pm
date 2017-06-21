@@ -2051,10 +2051,10 @@ sub get_available_resources {
     }
     my $available_interfaces = [];
     my %interface_already_added;
+
     foreach my $interface (@$interfaces) {
-        my $vlan_tag_range = $self->_validate_endpoint(interface_id => $interface->{'interface_id'}, workgroup_id => $workgroup_id );
-        my $mpls_vlan_tag_range = $self->_validate_endpoint(interface_id => $interface->{'interface_id'}, workgroup_id => $workgroup_id, type => 'mpls');
-        $vlan_tag_range .= $mpls_vlan_tag_range;
+        my $vlan_tag_range = $self->_validate_endpoint(interface_id => $interface->{'interface_id'}, workgroup_id => $workgroup_id, type => 'all');
+
         $interface_already_added{$interface->{'interface_id'}} = 1;
         if ( $vlan_tag_range ){
             my $is_owner = 0;
@@ -8675,6 +8675,11 @@ sub _validate_endpoint {
 
     $self->{'logger'}->debug("Calling _validate_endpoint: " . Dumper(%args));
 
+    # Create a hash with all VLANs of the specified protocol. This will
+    # be used later on to invalidate ACLs unrelated to the desired
+    # protocol.
+    my $protocol_tags = {};
+
     my $query = "SELECT interface.role " .
       "FROM interface " .
       "WHERE interface.interface_id = ?";
@@ -8710,7 +8715,6 @@ sub _validate_endpoint {
 	}
 
 	$vlan_tag_range = $self->_vlan_range_hash2str(vlan_range_hash => $trunk_tags);
-        #$vlan_tag_range = @{$results}[0]->{'vlan_tag_range'};
 	
         if (defined $vlan) {
             my $vlan_tags = $self->_process_tag_string($vlan_tag_range);
@@ -8735,17 +8739,31 @@ sub _validate_endpoint {
         }
 
         if ($type eq 'openflow') {
-            $vlan_tag_range = $results->[0]->{'vlan_tag_range'};
+            my $tag_string = $results->[0]->{'vlan_tag_range'} || '-1';
+            my $tags = $self->_process_tag_string($tag_string);
+            foreach my $tag (@{$tags}) {
+                $protocol_tags->{$tag} = 1;
+            }
+        } elsif ($type eq 'mpls') {
+            my $tag_string = $results->[0]->{'mpls_vlan_tag_range'} || '-1';
+            my $tags = $self->_process_tag_string($tag_string);
+            foreach my $tag (@{$tags}) {
+                $protocol_tags->{$tag} = 1;
+            }
         } else {
-            $vlan_tag_range = $results->[0]->{'mpls_vlan_tag_range'};
+            my $of_tag_string = $results->[0]->{'vlan_tag_range'} || '-1';
+            my $of_tags = $self->_process_tag_string($of_tag_string);
+            foreach my $tag (@{$of_tags}) {
+                $protocol_tags->{$tag} = 1;
+            }
+
+            my $mpls_tag_string = $results->[0]->{'mpls_vlan_tag_range'} || '-1';
+            my $mpls_tags = $self->_process_tag_string($mpls_tag_string);
+            foreach my $tag (@{$mpls_tags}) {
+                $protocol_tags->{$tag} = 1;
+            }
         }
     }
-
-    if (!defined $vlan_tag_range) {
-        $vlan_tag_range = '-1';
-    }
-    $self->{'logger'}->debug("VLAN TAG RANGE $type: $vlan_tag_range");
-
 
     $query  = "select * ";
     $query .= " from interface_acl ";
@@ -8759,15 +8777,6 @@ sub _validate_endpoint {
 	return;
     }
     $self->{'logger'}->debug("INTERFACE ACL: ".Dumper($results));
-
-    # Create a hash with all VLANs of the specified protocol. This will
-    # be used later on to invalidate ACLs unrelated to the desired
-    # protocol.
-    my $tags = $self->_process_tag_string($vlan_tag_range);
-    my $protocol_tags = {};
-    foreach my $tag (@{$tags}) {
-        $protocol_tags->{$tag} = 1;
-    }
     
     foreach my $result (@{$results}) {
         my $permission = $result->{'allow_deny'};
