@@ -2100,8 +2100,7 @@ function setup_network_tab(){
     // clear out the old map if we have it (ie, might have confirmed something)
     YAHOO.util.Dom.get("active_network_map").innerHTML = "";
 
-    //var map = new NDDIMap("active_network_map", null, { node_label_status: false } );
-    var map = new NDDIMap("active_network_map", null );
+    var map = new NDDIMap("active_network_map", null, {circuit_type: null});
 
     map.on("loaded", function(){
             //this.showDefault();
