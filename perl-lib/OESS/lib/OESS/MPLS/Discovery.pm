@@ -107,7 +107,7 @@ sub new{
     
 
     #create the client for talking to our Discovery switch objects!
-    $self->{'rmq_client'} = OESS::RabbitMQ::Client->new( timeout => 15,
+    $self->{'rmq_client'} = OESS::RabbitMQ::Client->new( timeout => 30,
 							 topic => 'MPLS.Discovery');
     
     die if(!defined($self->{'rmq_client'}));
@@ -552,13 +552,13 @@ sub handle_links{
 	    my ($link_db_id, $link_db_state) = $self->get_active_link_id_by_connectors( interface_a_id => $a_int, interface_z_id => $z_int);
 	    
 	    if($link_db_id){
-				
+
 		#$self->{'db'}->update_link_state( link_id => $link_db_id, state => 'up');
 	    }else{
 		#first determine if any of the ports are currently used by another link... and connect to the same other node
 		my $links_a = $self->{'db'}->get_link_by_interface_id( interface_id => $a_int, show_decom => 0);
 		my $links_z = $self->{'db'}->get_link_by_interface_id( interface_id => $z_int, show_decom => 0);
-		
+
 		my $z_node = $self->{'db'}->get_node_by_id( node_id => $node_info{$node_a}->{'node_id'});
 		my $a_node = $self->{'db'}->get_node_by_id( node_id => $node_info{$node_z}->{'node_id'});
 		
@@ -568,7 +568,7 @@ sub handle_links{
 		#lets first remove any circuits not going to the node we want on these interfaces
 		foreach my $link (@$links_a){
 		    my $other_int = $self->{'db'}->get_interface( interface_id => $link->{'interface_a_id'} );
-		    if($other_int->{'interface_id'} == $a_int){
+		    if($other_int->{'interface_id'} != $a_int){
 			$other_int = $self->{'db'}->get_interface( interface_id => $link->{'interface_z_id'} );
 		    }
 		    
@@ -577,10 +577,10 @@ sub handle_links{
 			push(@$a_links,$link);
 		    }
 		}
-		
+
 		foreach my $link (@$links_z){
 		    my $other_int = $self->{'db'}->get_interface( interface_id => $link->{'interface_a_id'} );
-		    if($other_int->{'interface_id'} == $z_int){
+		    if($other_int->{'interface_id'} != $z_int){
 			$other_int = $self->{'db'}->get_interface( interface_id => $link->{'interface_z_id'} );
 		    }
 		    my $other_node = $self->{'db'}->get_node_by_id( node_id => $other_int->{'node_id'} );
@@ -620,6 +620,8 @@ sub handle_links{
 		    $self->{'db'}->decom_link_instantiation( link_id => $link->{'link_id'} );
 		    $self->{'db'}->create_link_instantiation( link_id => $link->{'link_id'}, interface_a_id => $a_int, interface_z_id => $z_int, state => $link->{'state'}, mpls => 1, ip_a => $adj->{$node_a}{$node_z}{'node_a'}{'ip_address'}, ip_z => $adj->{$node_a}{$node_z}{'node_z'}{'ip_address'} );
 		}elsif(defined($z_links->[0])){
+		    $self->{'logger'}->info("Link updated on the A Side");
+
 		    #easy case update link_a so that it is now on the new interfaces
 		    my $link = $z_links->[0];
 
