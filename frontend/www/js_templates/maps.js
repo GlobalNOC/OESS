@@ -1227,8 +1227,14 @@ function NDDIMap(div_id, interdomain_mode, options){
     if (session.data.workgroup_id){
 	url += "&workgroup_id="+session.data.workgroup_id;
     }
-    if (session.data.circuit_type) {
+
+    // options.circuit_type overrides the session data value. If it's
+    // passed in and null, all links are returned; Otherwise only the
+    // requested link type is requested.
+    if (this.options.circuit_type === undefined && session.data.circuit_type) {
 	url += "&link_type=" + session.data.circuit_type;
+    } else if (this.options.circuit_type !== undefined && this.options.circuit_type !== null) {
+        url += "&link_type=" + this.options.circuit_type;
     }
 
     var ds = new YAHOO.util.DataSource(url);
