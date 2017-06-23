@@ -559,8 +559,8 @@ sub handle_links{
 		my $links_a = $self->{'db'}->get_link_by_interface_id( interface_id => $a_int, show_decom => 0);
 		my $links_z = $self->{'db'}->get_link_by_interface_id( interface_id => $z_int, show_decom => 0);
 
-		my $z_node = $self->{'db'}->get_node_by_id( node_id => $node_info{$node_a}->{'node_id'});
-		my $a_node = $self->{'db'}->get_node_by_id( node_id => $node_info{$node_z}->{'node_id'});
+		my $a_node = $self->{'db'}->get_node_by_id( node_id => $node_info{$node_a}->{'node_id'});
+		my $z_node = $self->{'db'}->get_node_by_id( node_id => $node_info{$node_z}->{'node_id'});
 		
 		my $a_links;
 		my $z_links;
@@ -568,7 +568,7 @@ sub handle_links{
 		#lets first remove any circuits not going to the node we want on these interfaces
 		foreach my $link (@$links_a){
 		    my $other_int = $self->{'db'}->get_interface( interface_id => $link->{'interface_a_id'} );
-		    if($other_int->{'interface_id'} != $a_int){
+		    if($other_int->{'interface_id'} == $a_int){
 			$other_int = $self->{'db'}->get_interface( interface_id => $link->{'interface_z_id'} );
 		    }
 		    
@@ -580,7 +580,7 @@ sub handle_links{
 
 		foreach my $link (@$links_z){
 		    my $other_int = $self->{'db'}->get_interface( interface_id => $link->{'interface_a_id'} );
-		    if($other_int->{'interface_id'} != $z_int){
+		    if($other_int->{'interface_id'} == $z_int){
 			$other_int = $self->{'db'}->get_interface( interface_id => $link->{'interface_z_id'} );
 		    }
 		    my $other_node = $self->{'db'}->get_node_by_id( node_id => $other_int->{'node_id'} );
