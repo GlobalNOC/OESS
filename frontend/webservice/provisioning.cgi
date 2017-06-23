@@ -919,7 +919,8 @@ sub provision_circuit {
             return;
         }
         my $type = $circuit->get_type();
-        
+        $edit_circuit_args{'type'} = $type;
+
         # Edit Existing Circuit
         # verify is allowed to modify circuit ISSUE=7690
         # and perform all other sanity checks on circuit 10278
