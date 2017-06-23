@@ -945,7 +945,10 @@ sub is_ok_to_decom{
 
     my $link_details = $db->get_link( link_id => $args->{'link_id'}{'value'} );
 
-    my $circuits = $db->get_circuits_on_link( link_id => $link_details->{'link_id'} );
+    my $circuits = $db->get_circuits_on_link(
+        link_id => $link_details->{'link_id'},
+        mpls    => $link_details->{'mpls'}
+    );
     $results->{'results'}->[0]->{'active_circuits'} = $circuits;
 
 
