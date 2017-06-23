@@ -1116,7 +1116,7 @@ sub get_device_diff {
 
     my $res = $self->{'jnx'}->edit_config(%queryargs);
     if (!defined $res) {
-        $self->{'logger'}->error("Couldn't call edit_config.");
+        $self->{'logger'}->error("Couldn't call edit_config in get_device_diff.");
 
         if ($self->{'jnx'}->has_error) {
             my $error = $self->{'jnx'}->get_first_error()->{'error_message'};
@@ -1144,7 +1144,8 @@ sub get_device_diff {
 
     my $dom = $self->{'jnx'}->get_dom();
     $self->{'diff_text'} = $dom->getElementsByTagName('configuration-output')->string_value();
-    $res = $self->{'jnx'}->discard_changes();
+
+    $ok = $self->unlock();
 
     if ($self->{'diff_text'} eq "\n") {
         # In some cases a diff containing only an empty line may be
@@ -1152,7 +1153,7 @@ sub get_device_diff {
         $self->{'diff_text'} = '';
     }
 
-    $ok = $self->unlock();
+
     return $self->{'diff_text'};
 }
 
