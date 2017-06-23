@@ -5082,7 +5082,10 @@ sub insert_node_in_path{
     }
 
     #ok first decom the old
-    my $circuits = $self->get_circuits_on_link( link_id => $link_details->{'link_id'});
+    my $circuits = $self->get_circuits_on_link(
+        link_id => $link_details->{'link_id'},
+        mpls    => $link_details->{'mpls'}
+    );
 
     $self->decom_link(link_id => $link_details->{'link_id'});
 
