@@ -71,11 +71,82 @@ sub disconnect{
     if (defined $self->{'jnx'}) {
         $self->{'jnx'}->disconnect();
         $self->{'jnx'} = undef;
+
+        $self->{'logger'}->warn("Device was disconnected.");
     } else {
         $self->{'logger'}->info("Device is already disconnected.");
     }
 
     $self->{'connected'} = 0;
+
+    return 1;
+}
+
+sub lock {
+    my $self = shift;
+
+    if (!$self->{'connected'} || !defined $self->{'jnx'}) {
+	$self->{'logger'}->error("Not currently connected to device");
+	return;
+    }
+
+    my $TOGGLE = bless { 1 => 1 }, 'TOGGLE';
+
+    $self->{'jnx'}->{'methods'}->{'open_configuration'} = {
+        private    => $TOGGLE,
+    };
+
+    $self->{'jnx'}->open_configuration(private => 1);
+    if ($self->{'jnx'}->has_error){
+        my $error = $self->{'jnx'}->get_first_error();
+        if ($error->{'error_message'} !~ /uncommitted/) {
+            $self->{'logger'}->error("Error opening private configuration: " . $error->{'error_message'});
+            return;
+        }
+    }
+
+    return 1;
+}
+
+sub commit {
+    my $self = shift;
+
+    if (!$self->{'connected'} || !defined $self->{'jnx'}) {
+	$self->{'logger'}->error("Not currently connected to device");
+	return;
+    }
+
+    $self->{'jnx'}->{'methods'}->{'commit_configuration'} = {};
+
+    $self->{'jnx'}->commit_configuration();
+    if ($self->{'jnx'}->has_error){
+        my $error = $self->{'jnx'}->get_first_error();
+        $self->{'logger'}->error("Error closing private configuration: " . $error->{'error_message'});
+    }
+
+    # TODO Check for an ok
+
+    my $result = $self->{'jnx'}->get_dom();
+    $self->{'logger'}->info(Dumper($result->toString()));
+
+    return 1;
+}
+
+sub unlock {
+    my $self = shift;
+
+    if (!$self->{'connected'} || !defined $self->{'jnx'}) {
+	$self->{'logger'}->error("Not currently connected to device");
+	return;
+    }
+
+    $self->{'jnx'}->{'methods'}->{'close_configuration'} = {};
+
+    $self->{'jnx'}->close_configuration();
+    if ($self->{'jnx'}->has_error){
+        my $error = $self->{'jnx'}->get_first_error();
+        $self->{'logger'}->error("Error closing private configuration: " . $error->{'error_message'});
+    }
 
     return 1;
 }
@@ -93,17 +164,17 @@ sub get_system_information{
 	$self->{'logger'}->error("Not currently connected to device");
 	return;
     }
-    $self->{'logger'}->error('!!!!!! get system info');
-    my $reply = $self->{'jnx'}->get_system_information();
-    $self->{'logger'}->error('!!!!!! got system info');
 
-    if($self->{'jnx'}->has_error){
+    my $reply = $self->{'jnx'}->get_system_information();
+
+    if ($self->{'jnx'}->has_error){
         my $error = $self->{'jnx'}->get_first_error();
         $self->{'logger'}->error("Error fetching system information: " . $error->{'error_message'});
         return;
     }
 
     my $system_info = $self->{'jnx'}->get_dom();
+
     my $xp = XML::LibXML::XPathContext->new( $system_info);
     $xp->registerNs('x',$system_info->documentElement->namespaceURI);     
     my $model = $xp->findvalue('/x:rpc-reply/x:system-information/x:hardware-model');
@@ -1040,7 +1111,21 @@ sub get_device_diff {
 
     my %queryargs = ('target' => 'candidate');
     $queryargs{'config'} = $conf;
+
+
     my $res = $self->{'jnx'}->edit_config(%queryargs);
+    if (!defined $res) {
+        $self->{'logger'}->error("Couldn't call edit_config.");
+
+        if ($self->{'jnx'}->has_error) {
+            my $error = $self->{'jnx'}->get_first_error()->{'error_message'};
+            $self->{'logger'}->error($error);
+        }
+
+        $self->disconnect();
+        return;
+    }
+
 
     # According to docs format isn't considered when used with
     # compare. However in 15.1F6-S6.4 it is; I would expect this to
@@ -1278,7 +1363,7 @@ sub connect {
     }
 
     $self->{'connected'} = 1;
-    $self->{'jnx'}       = $jnx;
+    $self->{'jnx'} = $jnx;
 
     # Gather basic system information needed later!
     my $verify = $self->verify_connection();
@@ -1337,13 +1422,13 @@ sub connected {
 =cut
 
 sub verify_connection{
-    #gather basic system information needed later, and make sure it is what we expected / are prepared to handle                                                                            
+    #gather basic system information needed later, and make sure it is what we expected / are prepared to handle
     #
     my $self = shift;
 
     if(!$self->{'connected'} || !defined($self->{'jnx'})){
         $self->{'logger'}->error("Not currently connected to device");
-        return;
+        return 0;
     }
 
     my $sysinfo = $self->get_system_information();
@@ -1748,22 +1833,7 @@ sub _edit_config{
     my %queryargs = ();
     my $res;
 
-    eval {
-        %queryargs = ( 'target' => 'candidate' );
-        $self->{'jnx'}->lock_config(%queryargs);
-    };
-    if ($@) {
-        my $err = "$@";
-        $self->set_error($err);
-        $self->{'logger'}->error($err);
-        return FWDCTL_FAILURE;
-    }
-    if ($self->{'jnx'}->has_error) {
-        my $err = "Error attempting to lock config: " . $self->{'jnx'}->get_first_error()->{'error_message'};
-        $self->set_error($err);
-        $self->{'logger'}->error($err);
-        return FWDCTL_FAILURE;
-    }
+    my $ok = $self->lock();
 
     %queryargs = (
         'target' => 'candidate'
@@ -1808,23 +1878,8 @@ sub _edit_config{
         return FWDCTL_FAILURE;
     }
 
-    eval {
-        $res = $self->{'jnx'}->unlock_config();
-    };
-    if ($@) {
-        my $err = "$@";
-        $self->set_error($err);
-        $self->{'logger'}->error($err);
-        return FWDCTL_FAILURE;
-    }
-    if($self->{'jnx'}->has_error){
-        my $err = "Error attempting to unlock the config: " . $self->{'jnx'}->get_first_error()->{'error_message'};
-        $self->set_error($err);
-        $self->{'logger'}->error($err);
-
-        $res = $self->{'jnx'}->unlock_config();
-        return FWDCTL_FAILURE;
-    }
+    $ok = $self->commit();
+    $ok = $self->unlock();
 
     return FWDCTL_SUCCESS;
 }
