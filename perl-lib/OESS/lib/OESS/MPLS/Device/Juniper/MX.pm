@@ -1112,6 +1112,7 @@ sub get_device_diff {
     my %queryargs = ('target' => 'candidate');
     $queryargs{'config'} = $conf;
 
+    my $ok = $self->lock();
 
     my $res = $self->{'jnx'}->edit_config(%queryargs);
     if (!defined $res) {
@@ -1136,6 +1137,8 @@ sub get_device_diff {
 	$self->set_error($error->{'error_message'});
         $self->{'logger'}->error("Error getting diff from MX: " . $error->{'error_message'});
         $res = $self->{'jnx'}->discard_changes();
+
+        $ok = $self->unlock();
         return;
     }
 
@@ -1148,6 +1151,8 @@ sub get_device_diff {
         # received. This case should be ignored.
         $self->{'diff_text'} = '';
     }
+
+    $ok = $self->unlock();
     return $self->{'diff_text'};
 }
 
