@@ -1223,10 +1223,10 @@ sub update_mpls_path{
     }
 
     if ($self->has_primary_path()) {
-        $self->{'logger'}->info("Checking primary path for $self->{'circuit_id'}");
+        $self->{'logger'}->debug("Checking primary path for $self->{'circuit_id'}");
 
         if (_compare_links($self->get_path(path => 'primary'), $params{'links'})) {
-            $self->{'logger'}->info("Primary path selected for $self->{'circuit_id'}");
+            $self->{'logger'}->debug("Primary path selected for $self->{'circuit_id'}");
             return $self->_change_active_path(new_path => 'primary');
         }
     }
