@@ -358,7 +358,7 @@ sub _update_cache {
     }
 
     if ($self->{'node'}->{'name'}) {
-        $self->{'logger'} = Log::Log4perl->get_logger('MPLS.FWDCTL.Switch.'.$self->{'node'}->{'name'});
+        $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.FWDCTL.Switch.'.$self->{'node'}->{'name'});
     }
 
     $self->{'logger'}->info("Loaded circuits from cache file $self->{'share_file'}");
