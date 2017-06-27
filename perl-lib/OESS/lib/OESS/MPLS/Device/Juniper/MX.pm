@@ -311,7 +311,7 @@ sub get_routed_lsps{
 	my $next_hops = $xp->find('./j:rt-entry/j:nh', $route);
 
         if ($next_hops->size() == 0) {
-            $self->{'logger'}->warn("Skipping rt-entry that has zero next hops in rt-destination $dest");
+            $self->{'logger'}->debug("Skipping rt-entry that has zero next hops in rt-destination $dest");
             next;
         }
 
@@ -321,7 +321,7 @@ sub get_routed_lsps{
                 # $lsp_name will probably never be undef; findvalue
                 # seems to return an emtpy string even when the
                 # lsp-name tag doesn't exist.
-                $self->{'logger'}->warn("Skipping rt-entry's next hop as it's missing an lsp-name in rt-destination $dest");
+                $self->{'logger'}->debug("Skipping rt-entry's next hop as it's missing an lsp-name in rt-destination $dest");
                 next;
             }
 
@@ -1167,7 +1167,7 @@ sub _large_diff {
     my $diff = shift;
 
     my $len = length($diff);
-    if ($len > 140) {
+    if ($len > 500) {
         return 1;
     }
     return 0;

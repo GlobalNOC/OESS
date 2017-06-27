@@ -234,7 +234,7 @@ sub _write_cache{
         my $found = 0;
         next if $self->{'circuit'}->{$ckt_id}->{'type'} ne 'mpls';
 
-        $self->{'logger'}->error("writing circuit: " . $ckt_id . " to cache");
+        $self->{'logger'}->debug("writing circuit: " . $ckt_id . " to cache");
         
         my $ckt = $self->get_ckt_object($ckt_id);
         if(!defined($ckt)){
@@ -341,7 +341,7 @@ sub _write_cache{
 		}	
 	    }
 
-	    $self->{'logger'}->error("Adding Circuit: " . $ckt->get_name() . " to cache for node: " . $ep_a->{'node'});
+	    $self->{'logger'}->debug("Adding Circuit: " . $ckt->get_name() . " to cache for node: " . $ep_a->{'node'});
 
             if(scalar(@$paths) == 0){
                 # All observed endpoints are on the same node; Use VPLS.
