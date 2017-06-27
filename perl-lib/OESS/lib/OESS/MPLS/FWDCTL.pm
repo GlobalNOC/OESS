@@ -73,8 +73,10 @@ sub new {
     $self->{'fwdctl_dispatcher'} = $fwdctl_dispatcher;
 
 
-    $self->{'fwdctl_events'} = OESS::RabbitMQ::Client->new( topic => 'MPLS.FWDCTL.event');
-
+    $self->{'fwdctl_events'} = OESS::RabbitMQ::Client->new(
+        timeout => 120,
+        topic => 'MPLS.FWDCTL.event'
+    );
 
 
     $self->{'logger'}->info("RabbitMQ ready to go!");
