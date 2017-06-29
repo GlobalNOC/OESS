@@ -77,15 +77,13 @@ sub disconnect{
         $self->{'logger'}->info("Device is already disconnected.");
     }
 
-    $self->{'connected'} = 0;
-
     return 1;
 }
 
 sub lock {
     my $self = shift;
 
-    if (!$self->{'connected'} || !defined $self->{'jnx'}) {
+    if (!$self->connected()){
 	$self->{'logger'}->error("Not currently connected to device");
 	return;
     }
@@ -111,7 +109,7 @@ sub lock {
 sub commit {
     my $self = shift;
 
-    if (!$self->{'connected'} || !defined $self->{'jnx'}) {
+    if (!$self->connected()){
 	$self->{'logger'}->error("Not currently connected to device");
 	return;
     }
@@ -135,7 +133,7 @@ sub commit {
 sub unlock {
     my $self = shift;
 
-    if (!$self->{'connected'} || !defined $self->{'jnx'}) {
+    if (!$self->connected()){
 	$self->{'logger'}->error("Not currently connected to device");
 	return;
     }
@@ -145,7 +143,10 @@ sub unlock {
     $self->{'jnx'}->close_configuration();
     if ($self->{'jnx'}->has_error){
         my $error = $self->{'jnx'}->get_first_error();
-        $self->{'logger'}->error("Error closing private configuration: " . $error->{'error_message'});
+        if ($error->{'error_message'} !~ /uncommitted/) {
+            $self->{'logger'}->error("Error closing private configuration: " . $error->{'error_message'});
+            return 0;
+        }
     }
 
     return 1;
@@ -160,7 +161,7 @@ gets the systems information
 sub get_system_information{
     my $self = shift;
 
-    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+    if(!$self->connected()){
 	$self->{'logger'}->error("Not currently connected to device");
 	return;
     }
@@ -273,7 +274,7 @@ sub get_routed_lsps{
     my $table = $args{'table'};
     my $circuits = $args{'circuits'};
 
-    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+    if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return;
     }
@@ -378,7 +379,7 @@ returns a list of current interfaces on the device
 sub get_interfaces{
     my $self = shift;
 
-    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+    if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return;
     }
@@ -439,7 +440,7 @@ sub remove_vlan{
     my $self = shift;
     my $ckt = shift;
 
-    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+    if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return;
     }
@@ -479,9 +480,8 @@ sub add_vlan{
     my $self = shift;
     my $ckt = shift;
     
-    if(!$self->{'connected'} || !defined($self->{'jnx'})){
-        $self->{'logger'}->error("Not currently connected to device");
-        return;
+    if(!$self->connected()){
+	return FWDCTL_FAILURE;
     }
 
     my $vars = {};
@@ -548,7 +548,7 @@ sub get_active_lsp_route {
     my $loopback = shift;
     my $table_id = shift;
 
-    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+    if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return;
     }
@@ -625,7 +625,7 @@ sub get_active_lsp_path {
     my $self = shift;
     my $lsp  = shift;
 
-    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+    if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return;
     }
@@ -694,7 +694,7 @@ sub get_default_paths {
     my $self = shift;
     my $loopback_addresses = shift;
 
-    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+    if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return;
     }
@@ -787,7 +787,7 @@ I do not believe this is used...
 sub get_device_circuit_infos {
     my $self = shift;
 
-    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+    if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return;
     }
@@ -845,7 +845,7 @@ sub get_config_to_remove{
     my %params = @_;
     my $circuits = $params{'circuits'};
 
-    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+    if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return;
     }
@@ -853,9 +853,10 @@ sub get_config_to_remove{
     my $res = $self->{'jnx'}->get_configuration( database => 'committed', format => 'xml' );
     if ($self->{'jnx'}->has_error) {
         my $error = $self->{'jnx'}->get_first_error();
-        $self->set_error($error->{'error_message'});
-        $self->{'logger'}->error("Error getting conf from MX: " . $error->{'error_message'});
-        return;
+        if ($error->{'error_message'} !~ /uncommitted/) {
+            $self->{'logger'}->error("Error getting conf from MX: " . $error->{'error_message'});
+            return;
+        }
     }
 
     my $dom = $self->{'jnx'}->get_dom();
@@ -1008,7 +1009,7 @@ this should no longer be used...
 sub get_device_circuit_ids {
     my $self = shift;
 
-    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+    if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return;
     }
@@ -1067,7 +1068,7 @@ sub required_modifications {
     my $circuits = shift;
     my $circuit_infos = shift;
 
-    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+    if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return;
     }
@@ -1104,7 +1105,7 @@ sub get_device_diff {
     my $self = shift;
     my $conf = shift;
 
-    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+    if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return;
     }
@@ -1115,18 +1116,14 @@ sub get_device_diff {
     my $ok = $self->lock();
 
     my $res = $self->{'jnx'}->edit_config(%queryargs);
-    if (!defined $res) {
-        $self->{'logger'}->error("Couldn't call edit_config in get_device_diff.");
-
-        if ($self->{'jnx'}->has_error) {
-            my $error = $self->{'jnx'}->get_first_error()->{'error_message'};
-            $self->{'logger'}->error($error);
+    if ($self->{'jnx'}->has_error) {
+        my $error = $self->{'jnx'}->get_first_error();
+        if ($error->{'error_message'} !~ /uncommitted/) {
+            $self->{'logger'}->error("Error getting device diff: " . $error->{'error_message'});
+            $self->disconnect();
+            return;
         }
-
-        $self->disconnect();
-        return;
     }
-
 
     # According to docs format isn't considered when used with
     # compare. However in 15.1F6-S6.4 it is; I would expect this to
@@ -1134,12 +1131,16 @@ sub get_device_diff {
     my $configcompare = $self->{'jnx'}->get_configuration( compare => "rollback", rollback => "0", format => "text" );
     if ($self->{'jnx'}->has_error) {
         my $error = $self->{'jnx'}->get_first_error();
-	$self->set_error($error->{'error_message'});
-        $self->{'logger'}->error("Error getting diff from MX: " . $error->{'error_message'});
-        $res = $self->{'jnx'}->discard_changes();
 
-        $ok = $self->unlock();
-        return;
+        if ($error->{'error_message'} !~ /uncommitted/) {
+            $self->set_error($error->{'error_message'});
+
+            $self->{'logger'}->error("Error getting diff from MX: " . $error->{'error_message'});
+            $res = $self->{'jnx'}->discard_changes();
+
+            $ok = $self->unlock();
+            return;
+        }
     }
 
     my $dom = $self->{'jnx'}->get_dom();
@@ -1186,7 +1187,7 @@ sub diff {
     my $force_diff = $params{'force_diff'};
     my $remove = $params{'remove'};
 
-    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+    if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return FWDCTL_FAILURE;
     }
@@ -1246,7 +1247,7 @@ sub get_diff_text {
     my %params = @_;
     my $circuits = $params{'circuits'};
     my $remove = $params{'remove'};
-    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+    if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return;
     }
@@ -1283,7 +1284,7 @@ sub unit_name_available {
     my $interface_name = shift;
     my $unit_name      = shift;
 
-    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+    if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return;
     }
@@ -1364,11 +1365,9 @@ sub connect {
         my $err = "Could not connect to $self->{'mgmt_addr'}. Connection timed out.";
         $self->set_error($err);
         $self->{'logger'}->error($err);
-	$self->{'connected'} = 0;
-        return $self->{'connected'};
+        return 0;
     }
 
-    $self->{'connected'} = 1;
     $self->{'jnx'} = $jnx;
 
     # Gather basic system information needed later!
@@ -1377,8 +1376,7 @@ sub connect {
         my $err = "Failure while verifying $self->{'mgmt_addr'}. Connection closed.";
         $self->set_error($err);
         $self->{'logger'}->error($err);
-	$self->{'connected'} = 0;
-        return $self->{'connected'};
+        return 0;
     }
 
     # Configures parameters for several methods
@@ -1397,7 +1395,7 @@ sub connect {
     };
 
     $self->{'logger'}->info("Connected to device!");
-    return $self->{'connected'};
+    return 1;
 }
 
 
@@ -1410,14 +1408,22 @@ returns the state if the device is currently connected or not
 sub connected {
     my $self = shift;
 
+    return 0 if(!defined($self->{'jnx'}));
+		
     if (defined $self->{'jnx'}->{'conn_obj'} && $self->{'jnx'}->has_error) {
-        my $err = $self->{'jnx'}->get_first_error();
-        $self->{'logger'}->error("Connection failure detected: $err->{'error_message'}");
-        $self->disconnect();
+        my $error = $self->{'jnx'}->get_first_error();
+
+        if ($error->{'error_message'} !~ /uncommitted/) {
+            $self->{'logger'}->error("Connection failure detected: $error->{'error_message'}");
+            $self->disconnect();
+            return 0;
+        }
     }
 
-    $self->{'logger'}->info("Connection state is $self->{'connected'}.");
-    return $self->{'connected'};
+    my $state = defined($self->{'jnx'}->{'conn_obj'});
+
+    $self->{'logger'}->info("Connection state is " . $state);
+    return $state;
 }
 
 
@@ -1432,7 +1438,7 @@ sub verify_connection{
     #
     my $self = shift;
 
-    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+    if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return 0;
     }
@@ -1458,7 +1464,7 @@ sub verify_connection{
 sub get_isis_adjacencies{
     my $self = shift;
 
-    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+    if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return;
     }
@@ -1519,7 +1525,7 @@ returns the current MPLS LSPs on the box
 sub get_LSPs{
     my $self = shift;
 
-    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+    if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return;
     }
@@ -1549,7 +1555,7 @@ implementation of OESS::MPLS::Device::get_lsp_paths
 sub get_lsp_paths{
     my $self = shift;
 
-    if(!$self->{'connected'} || !defined($self->{'jnx'})){
+    if(!$self->connected()){
         $self->{'logger'}->error('Not currently connected to device');
         return;
     }
@@ -1829,7 +1835,7 @@ sub _edit_config{
         return FWDCTL_FAILURE;
     }
 
-    if(!$self->{'connected'}){
+    if(!$self->connected()){
         my $err = "Not currently connected to the switch";
         $self->set_error($err);
         $self->{'logger'}->error($err);
