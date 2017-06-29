@@ -557,7 +557,7 @@ sub update_circuit_owner{
     if(!defined($res)){
 	return {error => "Error updating circuit ownership", results => [0]};
     }else{
-	return {results => [{success => 1, message => "successfully update the circuit ownership"}]};
+	return {results => [{success => 1, message => "successfully updated the circuit ownership"}]};
     }
 }
 
