@@ -203,8 +203,8 @@ sub register_webservice_methods {
     $method->add_input_parameter(
         name            => 'interface_id',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
-        required        => 1,
-        description     => "Specific interface_ id add the ACL to"
+        required        => 0,
+        description     => "Unused; kept for backwards compatibility"
         );
 
     #add the optional input parameter interface_acl_id
@@ -373,7 +373,6 @@ sub update_acl {
     my $success = $db->update_acl(
         interface_acl_id => $args->{"interface_acl_id"}{'value'},
         workgroup_id     => $args->{"workgroup_id"}{'value'} || undef,
-        interface_id     => $args->{"interface_id"}{'value'},
         allow_deny       => $args->{"allow_deny"}{'value'},
         eval_position    => $args->{"eval_position"}{'value'},
         vlan_start       => $args->{"vlan_start"}{'value'},
