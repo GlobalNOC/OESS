@@ -29,7 +29,7 @@ function init(){
 
   setPageSummary("Backup Path","Choose a backup path from the map below by clicking on links between nodes. This path should be as physically redundant as possible.");
   
-  setNextButton("Proceed to Step 6: Scheduling", "?action=scheduling", verify_inputs);
+  setNextButton("Proceed to Next Step: Scheduling", "?action=scheduling", verify_inputs);
 
     // Help message for MPLS path selection.
     session.data.circuit_type = session.data.circuit_type || 'openflow';

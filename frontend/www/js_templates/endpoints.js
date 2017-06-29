@@ -232,6 +232,8 @@ function init(){
 
     var records = endpoint_table.getRecordSet().getRecords();
     session.data.bandwidth = 0;
+    session.data.restore_to_primary = 0;
+    session.data.static_mac_routing = 0;
     session.data.description = circuit_description;
     session.data.endpoints = [];
     
