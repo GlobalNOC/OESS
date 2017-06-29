@@ -71,7 +71,6 @@ sub disconnect{
     if (defined $self->{'jnx'}) {
         $self->{'jnx'}->disconnect();
         $self->{'jnx'} = undef;
-
         $self->{'logger'}->warn("Device was disconnected.");
     } else {
         $self->{'logger'}->info("Device is already disconnected.");
@@ -103,6 +102,9 @@ sub lock {
         }
     }
 
+    my $result = $self->{'jnx'}->get_dom();
+    $self->{'logger'}->info(Dumper($result->toString()));
+
     return 1;
 }
 
@@ -113,10 +115,12 @@ sub commit {
 	$self->{'logger'}->error("Not currently connected to device");
 	return;
     }
+    
+    my $TOGGLE = bless { 1 => 1 }, 'TOGGLE';
 
-    $self->{'jnx'}->{'methods'}->{'commit_configuration'} = {};
+    $self->{'jnx'}->{'methods'}->{'commit_configuration'} = { check => $TOGGLE , synchronize => $TOGGLE};
 
-    $self->{'jnx'}->commit_configuration();
+    $self->{'jnx'}->commit_configuration( synchronize => 1);
     if ($self->{'jnx'}->has_error){
         my $error = $self->{'jnx'}->get_first_error();
         $self->{'logger'}->error("Error closing private configuration: " . $error->{'error_message'});
@@ -148,6 +152,9 @@ sub unlock {
             return 0;
         }
     }
+
+    my $result = $self->{'jnx'}->get_dom();
+    $self->{'logger'}->info(Dumper($result->toString()));
 
     return 1;
 }
@@ -504,6 +511,7 @@ sub add_vlan{
     $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
 
     if ($self->unit_name_available($vars->{'interface'}->{'name'}, $vars->{'vlan_tag'}) == 0) {
+        $self->{'logger'}->error("Unit $vars->{'vlan_tag'} is not available on $vars->{'interface'}->{'name'}");
         return FWDCTL_FAILURE;
     }
 
@@ -762,7 +770,7 @@ sub xml_configuration {
         $vars->{'site_id'} = $ckt->{'site_id'};
         $vars->{'paths'} = $ckt->{'paths'};
         $vars->{'a_side'} = $ckt->{'a_side'};
-        $self->{'logger'}->debug(Dumper($vars));
+        #$self->{'logger'}->debug(Dumper($vars));
 
         if ($ckt->{'state'} eq 'active') {
             $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$xml);
@@ -1117,6 +1125,8 @@ sub get_device_diff {
 
     my $res = $self->{'jnx'}->edit_config(%queryargs);
     if ($self->{'jnx'}->has_error) {
+	my $dom = $self->{'jnx'}->get_dom();
+	$self->{'logger'}->error($dom->toString());
         my $error = $self->{'jnx'}->get_first_error();
         if ($error->{'error_message'} !~ /uncommitted/) {
             $self->{'logger'}->error("Error getting device diff: " . $error->{'error_message'});
@@ -1361,6 +1371,7 @@ sub connect {
                                           'port' => 830,
                                           'debug_level' => 0 );
     };
+
     if ($@ || !$jnx) {
         my $err = "Could not connect to $self->{'mgmt_addr'}. Connection timed out.";
         $self->set_error($err);
@@ -1413,17 +1424,14 @@ sub connected {
     if (defined $self->{'jnx'}->{'conn_obj'} && $self->{'jnx'}->has_error) {
         my $error = $self->{'jnx'}->get_first_error();
 
-        if ($error->{'error_message'} !~ /uncommitted/) {
-            $self->{'logger'}->error("Connection failure detected: $error->{'error_message'}");
-            $self->disconnect();
-            return 0;
-        }
+    if(defined($self->{'jnx'}->{'conn_obj'})){
+	$self->{'logger'}->debug("Connection state is up");
+	return 1;
+    }else{
+	$self->{'logger'}->warn("Connection state is down");
+	return 0;
     }
 
-    my $state = defined($self->{'jnx'}->{'conn_obj'});
-
-    $self->{'logger'}->info("Connection state is " . $state);
-    return $state;
 }
 
 
@@ -1565,7 +1573,7 @@ sub get_lsp_paths{
 
     # Extract the link IP addresses out of the response
     my $xp = XML::LibXML::XPathContext->new($dom);
-    warn $self->{'root_namespace'};
+
     $xp->registerNs('root', $dom->documentElement->namespaceURI);
     $xp->registerNs('r', $self->{'root_namespace'} . 'junos-routing');
 
@@ -1845,53 +1853,55 @@ sub _edit_config{
     my %queryargs = ();
     my $res;
 
+    $self->{'logger'}->debug("Locking config");
+
     my $ok = $self->lock();
+
+    $self->{'logger'}->debug("Locked config!");
 
     %queryargs = (
         'target' => 'candidate'
         );
 
     eval {
+	$self->{'logger'}->debug("About to send config: " . $params{'config'});
         $queryargs{'config'} = $params{'config'};
         $res = $self->{'jnx'}->edit_config(%queryargs);
+	$self->{'logger'}->debug("Success Editing config!");
+	my $result = $self->{'jnx'}->get_dom();
+	$self->{'logger'}->info(Dumper($result->toString()));
     };
     if ($@) {
         my $err = "$@";
         $self->set_error($err);
         $self->{'logger'}->error($err);
+	$self->{'logger'}->debug("Unlocking config");
         $res = $self->{'jnx'}->unlock_config();
+	$self->{'logger'}->debug("Config unlocked");
         return FWDCTL_FAILURE;
     }
     if($self->{'jnx'}->has_error){
-	my $error = $self->{'jnx'}->get_first_error();
-        my $err = "Error attempting to edit config: " . $error->{'error_message'};
-        $self->set_error($err);
-        $self->{'logger'}->error($err);
-
-        $res = $self->{'jnx'}->unlock_config();
-        return FWDCTL_FAILURE;
+        my $error = $self->{'jnx'}->get_first_error();
+        if ($error->{'error_message'} !~ /uncommitted/) {
+            my $err = "Error attempting to edit config: " . $error->{'error_message'};
+            $self->set_error($err);
+            $self->{'logger'}->error($err);
+#	    $self->{'logger'}->debug("Unlocking config");
+#            $self->unlock();
+#	    $self->{'logger'}->debug("Config unlocked!");
+#            return FWDCTL_FAILURE;
+        }
     }
 
-    eval {
-        $self->{'jnx'}->commit();
-    };
-    if ($@) {
-        my $err = "$@";
-        $self->set_error($err);
-        $self->{'logger'}->error($err);
-        return FWDCTL_FAILURE;
-    }
-    if($self->{'jnx'}->has_error){
-        my $err = "Error attempting to commit config: " . $self->{'jnx'}->get_first_error()->{'error_message'};
-        $self->set_error($err);
-        $self->{'logger'}->error($err);
-
-        $res = $self->{'jnx'}->unlock_config();
-        return FWDCTL_FAILURE;
-    }
+    $self->{'logger'}->debug("Commiting!");
 
     $ok = $self->commit();
+
+    $self->{'logger'}->debug("Commit complete!");
+
     $ok = $self->unlock();
+
+    $self->{'logger'}->debug("Unlock complete!");
 
     return FWDCTL_SUCCESS;
 }

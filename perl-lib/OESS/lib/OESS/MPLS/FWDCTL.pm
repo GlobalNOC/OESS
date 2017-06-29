@@ -886,6 +886,7 @@ sub deleteVlan{
 
 		if( $res->{'results'}->{'status'} != FWDCTL_SUCCESS){
 		    my $error = "Switch $node_addr reported an error";
+		    $self->{'logger'}->error(Dumper($res));
 		    $self->{'logger'}->error($error);
                     $err .= $error . "\n";
 		}
