@@ -163,6 +163,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::Topology.3pm.gz
 %doc %{_mandir}/man3/OESS::Traceroute.3pm.gz
 %doc %{_mandir}/man3/OESS::Watchdog.3pm.gz
+%doc %{_mandir}/man3/OESS::Webservice.3pm.gz
 %{template_dir}/notification_templates.tmpl
 %{template_dir}/notification_bulk.tmpl
 %{template_dir}/notification_bulk.tt.html
@@ -200,6 +201,7 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/Topology.pm
 %{perl_vendorlib}/OESS/Traceroute.pm
 %{perl_vendorlib}/OESS/Watchdog.pm
+%{perl_vendorlib}/OESS/Webservice.pm
 %{docdir}/share/nddi.sql
 %{docdir}/share/upgrade/*
 %{docdir}/share/mpls/templates/juniper/13.3R8/L2CCC/*

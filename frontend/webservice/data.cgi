@@ -44,6 +44,7 @@ use GRNOC::WebService;
 use OESS::Circuit;
 use OESS::Database;
 use OESS::Topology;
+use OESS::Webservice;
 
 
 #link statuses
@@ -129,7 +130,7 @@ sub register_webservice_methods {
     );
     $method->add_input_parameter(
 	name            => 'link_type',
-	pattern         => $GRNOC::WebService::Regex::TEXT,
+	pattern         => $OESS::Webservice::CIRCUIT_TYPE,
 	required        => 0,
 	description     => "The type of links that shall be included in the map."
     );
@@ -244,7 +245,7 @@ sub register_webservice_methods {
     #add the required input parameter node                                                                                                                                                                  
     $method->add_input_parameter(
         name            => 'type',
-        pattern         => '(openflow|mpls)',
+        pattern         => $OESS::Webservice::CIRCUIT_TYPE,
         required        => 1,
         multiple        => 0,
         description     => "type of circuit we are building"
@@ -450,7 +451,7 @@ sub register_webservice_methods {
     #add the optional input parameter order_by
     $method->add_input_parameter(
         name            => 'order_by',
-        pattern         => $GRNOC::WebService::Regex::TEXT,
+        pattern         => '^(given_names|auth_name)$',
         required        => 0,
         description     => "Specify how the workgroups should be ordered."
         );

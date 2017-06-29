@@ -128,11 +128,11 @@ sub register_webservice_methods {
                                   requried    => 1,
                                   description => 'Maximum bandwidth of the new circuit.' );
     $method->add_input_parameter( name        => 'start_time',
-                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
                                   requried    => 1,
                                   description => 'Scheduled provisioning time of the new circuit.' );
     $method->add_input_parameter( name        => 'end_time',
-                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
                                   requried    => 1,
                                   description => 'Scheduled de-provisioning time of the new circuit.' );
     $method->add_input_parameter( name        => 'description',
@@ -191,11 +191,11 @@ sub register_webservice_methods {
                                   requried    => 1,
                                   description => 'Maximum bandwidth of the new circuit.' );
     $method->add_input_parameter( name        => 'start_time',
-                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
                                   requried    => 1,
                                   description => 'Scheduled provisioning time of the new circuit.' );
     $method->add_input_parameter( name        => 'end_time',
-                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
                                   requried    => 1,
                                   description => 'Scheduled de-provisioning time of the new circuit.' );
     $method->add_input_parameter( name        => 'description',
@@ -208,7 +208,7 @@ sub register_webservice_methods {
                                               description => '',
                                               callback    => sub { update_circuit_owner(@_) } );
     $method->add_input_parameter( name        => 'gri',
-                                  pattern     => $GRNOC::WebService::Regex::INTEGER,
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
                                   requried    => 1,
                                   description => 'GRI' );
     $method->add_input_parameter( name        => 'workgroup_id',
