@@ -1,4 +1,3 @@
-#!/usr/bin/perl
 ## Common constants and functions used by webservices
 ##----------------------------------------------------------------------
 ##
@@ -14,7 +13,11 @@
 ##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
-#
+
+package OESS::Webservice;
+
+use strict;
+use warnings;
 
 =head2 CIRCUIT_TYPE
 
