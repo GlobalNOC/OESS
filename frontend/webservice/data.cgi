@@ -1309,7 +1309,7 @@ sub send_message {
     );
     $message->send( 'smtp', 'localhost' );
 
-    return { results => [ { sucess => 1 } ] };
+    return { results => [ { success => 1 } ] };
     
 }
 
