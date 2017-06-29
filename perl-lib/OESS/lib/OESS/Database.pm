@@ -6781,7 +6781,7 @@ sub provision_circuit {
     my $remote_requester = $args{'remote_requester'};
     my $type; #to be determined later!
 
-    if($provision_time != -1 && $provision_time <= time() && $state eq 'active'){
+    if($provision_time != -1 && $provision_time > time() && $state eq 'active'){
         warn "Provision Time: " . $provision_time . "\n";
         warn "Setting state to scheduled!\n";
         $state = 'scheduled';
@@ -6839,7 +6839,7 @@ sub provision_circuit {
     my $name = $workgroup_details->{'name'} . "-" . $uuid;
 
     if(!defined($state)){
-	if($provision_time < time()){
+	if($provision_time > time()){
 	    $state = "scheduled";
 	}else{
 	    $state = "active";
