@@ -1424,13 +1424,6 @@ sub connected {
     if (defined $self->{'jnx'}->{'conn_obj'} && $self->{'jnx'}->has_error) {
         my $error = $self->{'jnx'}->get_first_error();
 
-#        if ($error->{'error_message'} !~ /uncommitted/ && $error->{'error_message'} !~ /synchronize/) {
-#            $self->{'logger'}->error("Connection failure detected: $error->{'error_message'}");
-#            $self->disconnect();
-#            return 0;
-#        }
-    }
-
     if(defined($self->{'jnx'}->{'conn_obj'})){
 	$self->{'logger'}->debug("Connection state is up");
 	return 1;
@@ -1438,6 +1431,7 @@ sub connected {
 	$self->{'logger'}->warn("Connection state is down");
 	return 0;
     }
+
 }
 
 
