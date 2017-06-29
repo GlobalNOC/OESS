@@ -9,7 +9,7 @@ use SOAP::Data::Builder;
 use URI::Escape;
 
 use OESS::Database;
-use OESS::DBus;
+use OESS::RabbitMQ::Client;
 
 use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
@@ -24,16 +24,11 @@ my $OSCARS_USER        = "OSCARS";
 my $IDC_WORKGROUP_NAME = "OSCARS IDC";
 
 my $db   = new OESS::Database();
-my $dbus = OESS::DBus->new( service => "org.nddi.fwdctl", instance => "/controller1");
-$dbus = $dbus->{'dbus'};
+
 my $LOCAL_DOMAIN = $db->get_local_domain_name();
 
 $ENV{HTTPS_CERT_FILE} = $db->get_oscars_cert();
 $ENV{HTTPS_KEY_FILE}  = $db->get_oscars_key();
-
-if (! defined $dbus){
-    die "Couldn't connect to dbus";
-}
 
 
 my $workgroup = $db->get_workgroup_details_by_name(name => $IDC_WORKGROUP_NAME);
@@ -109,13 +104,19 @@ sub setupReq{
 	warn "Success!";
 
 	my $circuit_id = $result->{'circuit_id'};
-	
-        my ($res,$event_id) = $dbus->addVlan($circuit_id);
-        my $final_res = FWDCTL_WAITING;
-        while($final_res == FWDCTL_WAITING){
-            sleep(1);
-            $final_res = $dbus->get_event_status($event_id);
+
+        my $circuit_details = $db->get_circuit_details( circuit_id => $circuit_id );
+        if(!defined($circuit_id)){
+            warn "Unable to grab circuit details!";
+            return;
         }
+
+        my $rabbit_client = OESS::RabbitMQ::Client->new( topic => 'OF.FWDCTL.RPC');
+        if($circuit_details->{'type'} eq 'MPLS'){
+            $rabbit_client->{'topic'} = "MPLS.FWDCTL.RPC";
+        }
+
+        my $final_res = $rabbit_client->addVlan( circuit_id => $circuit_id );
 
 	warn "fwdctl says: $final_res";
 
@@ -200,14 +201,17 @@ sub modifyReq {
 
 	my $circuit_id = $circuit_info->{'circuit_id'};
         
-        my ($res,$event_id) = $dbus->deleteVlan($circuit_id);
-        my $final_res = FWDCTL_WAITING;
-        while($final_res == FWDCTL_WAITING){
-            sleep(1);
-            $final_res = $dbus->get_event_status($event_id);
+        my $circuit = OESS::Circuit->new( circuit_id => $circuit_id,
+                                          db => $db);
+
+        my $rabbit_client = OESS::RabbitMQ::Client->new( topic => 'OF.FWDCTL.RPC' );
+        if($circuit->get_type() eq 'MPLS'){
+            $rabbit_client->{'topic'} = 'MPLS.FWDCTL.RPC';
         }
 
-        warn "fwdctl says: $final_res";
+        my $final_res = $rabbit_client->deleteVlan($circuit_id);
+
+        warn "fwdctl says: " . Dumper($final_res);
 
 	my $result = $db->edit_circuit(circuit_id        => $circuit_id,
 	                               description       => $description,
@@ -237,14 +241,9 @@ sub modifyReq {
 	}
 	else {	   
 
-            my ($res,$event_id) = $dbus->addVlan($circuit_id);
-            my $final_res = FWDCTL_WAITING;
-            while($final_res == FWDCTL_WAITING){
-                sleep(1);
-                $final_res = $dbus->get_event_status($event_id);
-            }
-
-            warn "fwdctl says: $final_res";
+            my $final_res = $rabbit_client->addVlan( circuit_id => $circuit_id);
+            
+            warn "fwdctl says: " . Dumper($final_res);
 
 	    $writer2->startTag(["http://oscars.es.net/OSCARS/coord", "status"]);
 	    $writer2->characters("SUCCESS");
@@ -317,13 +316,14 @@ sub teardownReq {
 
     }
     else{
-
-        my ($res,$event_id) = $dbus->deleteVlan($circuit_info->{'circuit_id'});
-        my $final_res = FWDCTL_WAITING;
-        while($final_res == FWDCTL_WAITING){
-            sleep(1);
-            $final_res = $dbus->get_event_status($event_id);
+        my $circuit = OESS::Circuit->new( circuit_id => $circuit_info->{'circuit_id'});
+        
+        my $rabbit_client = OESS::RabbitMQ::Client->new( topic => 'OF.FWDCTL.RPC');
+        if($circuit->get_type() eq 'MPLS'){
+            $rabbit_client->{'topic'} = "MPLS.FWDCTL.RPC";
         }
+
+        my $final_res = $rabbit_client->deleteVlan( circuit_id => $circuit_info->{'circuit_id'});
         
         warn "fwdctl says: $final_res";
 
@@ -333,23 +333,11 @@ sub teardownReq {
 	                                );
 
         #we missed this cache update and this caused problems
-        my ($result,$event_id) = $dbus->update_cache($circuit_info->{'circuit_id'});
-        my $final_res = FWDCTL_WAITING;
-        while($final_res == FWDCTL_WAITING){
-            sleep(1);
-            $final_res = $dbus->get_event_status($event_id);
-        }
+        my $res = $rabbit_client->update_cache( circuit_id => $circuit_info->{'circuit_id'});
 
-	if (! defined $result){
-	    $writer2->startTag(["http://oscars.es.net/OSCARS/coord", "status"]);
-	    $writer2->characters("FAILED");
-	    $writer2->endTag(["http://oscars.es.net/OSCARS/coord", "status"]);	    
-	}
-	else {	   
-	    $writer2->startTag(["http://oscars.es.net/OSCARS/coord", "status"]);
-	    $writer2->characters("SUCCESS");
-	    $writer2->endTag(["http://oscars.es.net/OSCARS/coord", "status"]); 	    
-	}
+        $writer2->startTag(["http://oscars.es.net/OSCARS/coord", "status"]);
+        $writer2->characters("SUCCESS");
+        $writer2->endTag(["http://oscars.es.net/OSCARS/coord", "status"]); 	    
 
     }
 

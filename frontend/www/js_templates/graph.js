@@ -252,7 +252,7 @@ function MeasurementGraph(container, legend_container, options){
 	    this._showLoading();
 	}
 
-      var url = "services/measurement.cgi?action=get_circuit_data&circuit_id="+this.options.circuit_id+"&start="+parseInt(this.options.start)+"&end="+parseInt(this.options.end)
+      var url = "services/measurement.cgi?method=get_circuit_data&circuit_id="+this.options.circuit_id+"&start="+parseInt(this.options.start)+"&end="+parseInt(this.options.end)
 
     if (this.options.node){
 	    url += "&node="+encodeURIComponent(this.options.node);

@@ -59,7 +59,7 @@ sub main{
         }
     }
 
-    #not a deamon, just run the core;
+    #not a daemon, just run the core;
     else {
         $SIG{HUP} = sub{ exit(0); };
         my $watchdog = OESS::Watchdog->new();

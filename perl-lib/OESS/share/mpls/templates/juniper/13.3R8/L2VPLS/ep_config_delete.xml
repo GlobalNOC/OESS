@@ -1,0 +1,44 @@
+<configuration>
+  <interfaces>
+    [% FOREACH interface IN interfaces %]
+    <interface>
+      <name>[% interface.name %]</name>
+      <unit operation='delete'>
+        <name>[% interface.tag %]</name>
+      </unit>
+    </interface>
+    [% END %]
+  </interfaces>
+  [% IF paths.size > 0 %]
+  <protocols>
+    <mpls>
+      [% FOREACH path IN paths %]
+      <label-switched-path operation='delete'>
+        <name>OESS-L2VPLS-[% path.name %]-LSP-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</name>
+      </label-switched-path>
+      <path operation='delete'>
+        <name>OESS-L2VPLS-[% path.name %]-PATH-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</name>
+      </path>
+      [% END %]
+    </mpls>
+  </protocols>
+  <policy-options>
+    <policy-statement>
+      <name>L2VPLS-LSP-Policy</name>
+      [% FOREACH path IN paths %]
+      <term operation='delete'>
+        <name>OESS-L2VPLS-[% path.name %]-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</name>
+      </term>
+      [% END %]
+    </policy-statement>
+    <community operation='delete'>
+      <name>OESS-L2VPLS-[% circuit_id %]-Community</name>
+    </community>
+  </policy-options>
+  [% END %]
+  <routing-instances>
+    <instance operation='delete'>
+      <name>OESS-L2VPLS-[% circuit_id %]</name>
+    </instance>
+  </routing-instances>
+</configuration>

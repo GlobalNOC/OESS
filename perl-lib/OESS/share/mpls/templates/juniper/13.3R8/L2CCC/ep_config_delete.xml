@@ -1,0 +1,29 @@
+<configuration>
+  <interfaces>
+    [% FOREACH interface IN interfaces %]
+    <interface>
+      <name>[% interface.name %]</name>
+      <unit operation='delete'>
+        <name>[% interface.tag %]</name>
+      </unit>
+    </interface>
+    [% END %]
+  </interfaces>
+  <protocols>
+    <mpls>
+      <label-switched-path operation='delete'>
+        <name>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]</name>
+      </label-switched-path>
+      [% FOREACH path IN paths %]
+      <path operation='delete'>
+        <name>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]-[% path.name %]</name>
+      </path>
+      [% END %]
+    </mpls>
+    <connections>
+      <remote-interface-switch operation='delete'>
+        <name>OESS-L2CCC-[% circuit_id %]</name>
+      </remote-interface-switch>
+    </connections>
+  </protocols>
+</configuration>

@@ -19,6 +19,7 @@ function NDDIMap(div_id, interdomain_mode, options){
   this.MAJORITY_LINK_DOWN = "#E59916"; //orange
   this.LINK_PRIMARY       = "#b7f33b";//"#DEA567";
   this.LINK_SECONDARY     = "#557416";//"#2b882c";
+  this.LINK_TERTIARY      = "#00FF00";
   this.LINK_MAINT         = "#00ABA9";     //teal
 
   this.ACTIVE_HALO_COLOR   = "#f47e20";//"#FFFFCC";//"#DADADA";
@@ -272,11 +273,19 @@ function NDDIMap(div_id, interdomain_mode, options){
       var node_long  = parseFloat(node_info.node_long);
       var node_id    = parseInt(node_info.node_id || -1);
       var vlan_range = node_info.vlan_range;
-      var end_epoch  = node_info.end_epoch
+      var end_epoch  = node_info.end_epoch;
       var default_drop = node_info.default_drop;
       var default_forward = node_info.default_forward;
       var tx_delay_ms = node_info.tx_delay_ms;
       var max_flows = node_info.max_flows;
+      var openflow = node_info.openflow;
+      var mpls       = node_info.mpls;
+      var mgmt_addr  = node_info.mgmt_addr;
+      var tcp_port   = node_info.tcp_port;
+      var vendor     = node_info.vendor;
+      var model      = node_info.model;
+      var sw_version = node_info.sw_version;
+      var short_name = node_info.short_name;
       var avail_endpoints = node_info.number_available_endpoints;
       var barrier_bulk = node_info.barrier_bulk;
       var max_static_mac_flows = node_info.max_static_mac_flows;
@@ -328,6 +337,14 @@ function NDDIMap(div_id, interdomain_mode, options){
       point.default_forward = default_forward;
       point.tx_delay_ms = tx_delay_ms;
       point.max_flows = max_flows;
+      point.openflow = openflow;
+      point.mpls       = mpls;
+      point.mgmt_addr  = mgmt_addr;
+      point.tcp_port   = tcp_port;
+      point.vendor     = vendor;
+      point.model      = model;
+      point.short_name = short_name;
+      point.sw_version = sw_version;
       point.barrier_bulk = barrier_bulk;
       point.max_static_mac_flows = max_static_mac_flows;
       point.dpid = dpid;
@@ -590,7 +607,7 @@ function NDDIMap(div_id, interdomain_mode, options){
           strokeColor: stroke_Color,
 	      //strokeColor: (state == "down" ? this.LINK_DOWN : this.LINK_UP),
 	      strokeOpacity: 1.0,
-	      strokeDashstyle: (state == "down" ? "dot" : "solid"),
+              strokeDashstyle: "solid",
 	      strokeWidth: 3.5,
 	      cursor: "hand",
 	      graphicZIndex: 5
@@ -635,6 +652,24 @@ function NDDIMap(div_id, interdomain_mode, options){
 	  var secondary_path_feature = new OpenLayers.Feature.Vector(secondary_path, null, secondary_style);
 	  secondary_path_feature.type = "secondary";
 
+          // now make the "tertiary path" feature above each line
+          //
+          var tertiary_path = new OpenLayers.Geometry.LineString([from_ll, to_ll]);
+          tertiary_path.element_name  = link_name;
+          tertiary_path.link_capacity = capacity;
+          tertiary_path.link_state    = state;
+
+          var tertiary_style = {
+              strokeWidth: style.strokeWidth,
+              strokeOpacity: 0.0,
+              strokeDashstyle: "dash",
+              strokeColor: this.LINK_TERTIARY,
+              graphicZIndex: 6
+          };
+
+          var tertiary_path_feature = new OpenLayers.Feature.Vector(tertiary_path, null, tertiary_style);
+          tertiary_path_feature.type = "secondary";
+
 	  // lastly make the "fat path" feature that sits on top of everything and is fully transparent to provide a
 	  // tolerance zone for clicking and hovering
 	  var fat_path = new OpenLayers.Geometry.LineString([from_ll, to_ll]);
@@ -653,16 +688,20 @@ function NDDIMap(div_id, interdomain_mode, options){
 	  // keep some references to these guys for later
 	  feature.halo_feature                = halo_feature;
 	  feature.secondary_path_feature      = secondary_path_feature;
+          feature.tertiary_path_feature       = tertiary_path_feature;
 
 	  secondary_path_feature.halo_feature    = halo_feature;
 	  secondary_path_feature.primary_feature = feature;
-
+          
+          tertiary_path_feature.halo_feature = halo_feature;
+          tertiary_path_feature.primary_feature = feature;
+          
 	  halo_feature.primary_feature = feature;
 
 	  fat_feature.primary_feature = feature;
 
 	  // order is important! must make the feature sandwich
-      var features = [feature, halo_feature, secondary_path_feature, fat_feature];
+          var features = [feature, halo_feature, secondary_path_feature, tertiary_path_feature, fat_feature];
 	  this.map.layers[1].addFeatures(features);
 
 	  if (options.active){
@@ -761,7 +800,7 @@ function NDDIMap(div_id, interdomain_mode, options){
       //determine the link status color based on majority of status
       percent_up = (link_up_count / data.links.length) * 100;
       var link_color;
-      if( percent_up == 100 ){ //green if all up
+      if( percent_up == 100 ){ //blue if all up
           data.features[0].geometry.link_state = "up";
       }else if( percent_up >= 50 ){ //yellow for majority up
           data.features[0].geometry.link_state = "majority_up";
@@ -836,6 +875,10 @@ function NDDIMap(div_id, interdomain_mode, options){
 	      continue;
 	  }
 
+          if (feature.type == "tertiary"){
+              continue;
+          }
+
 	  // if this feature is a node, ie a point on the map
 	  //if (feature.geometry.id.indexOf('Point') != -1){
 	  if (feature.geometry.oess_point_type == "node"){
@@ -883,6 +926,37 @@ function NDDIMap(div_id, interdomain_mode, options){
       };
       return false;
   };
+
+    this.setActiveLinks = function(links) {
+        for (var i = 0; i < this.map.layers[1].features.length; i++  ) {
+            var feature = this.map.layers[1].features[i];
+
+            // All non-point geometries are links
+            if (feature.geometry.id.indexOf("Point") == -1) {
+                if (feature.geometry.element_name == "fat_line") {
+                    continue;
+                }
+                if (feature.geometry.element_name == "halo_line") {
+                    continue;
+                }
+
+                for (var j = 0; j < links.length; j++  ) {
+                    var link = links[j];
+
+                    if (this.compare_link_names(feature.geometry.element_name, link)) {
+                        this.showHalo(feature, this.ACTIVE_HALO_COLOR);
+                        this.updateFeature(feature.halo_feature, "strokeOpacity", 1.0);
+                        this.updateFeature(feature.halo_feature, "strokeColor", this.ACTIVE_HALO_COLOR);
+                        break;
+                    } else {
+                        this.hideHalo(feature);
+                        this.updateFeature(feature.halo_feature, "strokeOpacity", 0.0);
+                    }
+                }
+            }
+        }
+    };
+
   // convenience function to update the map based on what we've selected and have
   // stored in our session cookie
   this.updateMapFromSession = function(session, discolor_nodes, keep_map_position){
@@ -891,6 +965,7 @@ function NDDIMap(div_id, interdomain_mode, options){
     var endpoints   = session.data.endpoints || [];
     var links       = session.data.links || [];
     var backups     = session.data.backup_links || [];
+    var tertiarys    = session.data.tertiary_links || [];
     var active_path = session.data.active_path || "none";
     var loop_node   = session.data.loop_node || null;
 
@@ -908,9 +983,17 @@ function NDDIMap(div_id, interdomain_mode, options){
 	    continue;
 	}
 
+        if (feature.geometry.element_name == "fat_line") {
+            continue;
+        }
+
 	if (feature.type == "secondary"){
 	    continue;
 	}
+
+        if (feature.type == "tertiary"){
+            continue;
+        }
 
 	var was_selected = false, dual = false;
 
@@ -961,6 +1044,7 @@ function NDDIMap(div_id, interdomain_mode, options){
 	// otherwise this feature must be a link
 	else if( feature.geometry.id.indexOf('Point') == -1 ){
 
+
 	  for (var i = 0; i < links.length; i++){
 	    var link = links[i];
 
@@ -995,10 +1079,10 @@ function NDDIMap(div_id, interdomain_mode, options){
         if (this.compare_link_names(feature.geometry.element_name, link)){
 	      // if this was previously selected, we have a doubly used link and should color
 	      if (was_selected){
-		  if (feature.secondary_path_feature){
-		      this.changeLinkOpacity(feature.secondary_path_feature, this.ACTIVE_LINK_OPACITY);
-		      this.changeLinkWidth(feature, this.ACTIVE_LINK_WIDTH);
-		  }
+                  if (feature.secondary_path_feature){
+                      this.changeLinkOpacity(feature.secondary_path_feature, this.ACTIVE_LINK_OPACITY);
+                      this.changeLinkWidth(feature, this.ACTIVE_LINK_WIDTH);
+                  }
 		  dual = true;
 	      }
 
@@ -1051,8 +1135,8 @@ function NDDIMap(div_id, interdomain_mode, options){
               }
 	      }
 
-	      if (feature.secondary_path_feature){
-		  this.changeLinkOpacity(feature.secondary_path_feature, 0.0);
+	      if (feature.tertiary_path_feature){
+		  this.changeLinkOpacity(feature.tertiary_path_feature, 0.0);
 	      }
 
 	  }
@@ -1138,11 +1222,20 @@ function NDDIMap(div_id, interdomain_mode, options){
     //reset our linkOverlapList
     this.linkOverlapList = {};
 
-    var url = "[% path %]services/data.cgi?action=get_maps";
+    var url = "[% path %]services/data.cgi?method=get_maps";
 
-	  if (session.data.workgroup_id){
-		  url += "&workgroup_id="+session.data.workgroup_id;
-	  }
+    if (session.data.workgroup_id){
+	url += "&workgroup_id="+session.data.workgroup_id;
+    }
+
+    // options.circuit_type overrides the session data value. If it's
+    // passed in and null, all links are returned; Otherwise only the
+    // requested link type is requested.
+    if (this.options.circuit_type === undefined && session.data.circuit_type) {
+	url += "&link_type=" + session.data.circuit_type;
+    } else if (this.options.circuit_type !== undefined && this.options.circuit_type !== null) {
+        url += "&link_type=" + this.options.circuit_type;
+    }
 
     var ds = new YAHOO.util.DataSource(url);
 
@@ -1275,11 +1368,19 @@ function NDDIMap(div_id, interdomain_mode, options){
 					      var default_forward = geo.default_forward;
 					      var default_drop = geo.default_drop;
 					      var max_flows = geo.max_flows;
+					      var openflow = geo.openflow;
+					      var mpls       = geo.mpls;
+                                              var mgmt_addr  = geo.mgmt_addr;
+                                              var tcp_port   = geo.tcp_port;
+                                              var vendor     = geo.vendor;
+                                              var model      = geo.model;
+                                              var sw_version = geo.sw_version;
 					      var tx_delay_ms = geo.tx_delay_ms;
+                                              var short_name = geo.short_name;
 					      var barrier_bulk = geo.barrier_bulk;
 					      var max_static_mac_flows = geo.max_static_mac_flows;
 					      var dpid = geo.dpid;
-					      self.events['clickNode'].fire({name: node, lat: lat, lon: lon, node_id: node_id, vlan_range: range,default_forward: default_forward, default_drop: default_drop,max_flows: max_flows, tx_delay_ms: tx_delay_ms,  feature: e.feature, barrier_bulk: barrier_bulk, max_static_mac_flows: max_static_mac_flows, dpid: dpid});
+					      self.events['clickNode'].fire({name: node, lat: lat, lon: lon, node_id: node_id, vlan_range: range,default_forward: default_forward, default_drop: default_drop,max_flows: max_flows, tx_delay_ms: tx_delay_ms,  feature: e.feature, barrier_bulk: barrier_bulk, max_static_mac_flows: max_static_mac_flows, dpid: dpid, openflow: openflow, mpls: mpls, mgmt_addr: mgmt_addr, tcp_port: tcp_port, vendor: vendor, model: model,short_name: short_name, sw_version: sw_version});
 					  }
 					  // otherwise we're clicking on a link
 					  else{

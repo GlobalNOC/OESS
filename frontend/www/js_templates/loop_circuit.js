@@ -46,7 +46,7 @@ function init(){
   
         //first, let's make sure the node is actually part of the circuit.
         document.getElementById("loop_status").innerHTML = "Checking to see if the endpoint is part of the circuit..."; 
-        var dsString="services/data.cgi?action=get_existing_circuits&workgroup_id="+session.data.workgroup_id;
+        var dsString="services/data.cgi?method=get_existing_circuits&workgroup_id="+session.data.workgroup_id;
         dsString +="&path_node_id="+args[0].node_id;
 
         dsString +="&endpoint_node_id="+session.data.endpoints[0].node_id;
@@ -120,7 +120,7 @@ function init(){
                         var node_id    = args[0].node_id;
                         node_name  = args[0].name;
 
-                        var postVars = "action=provision_circuit&circuit_id="+encodeURIComponent(circuit_id)
+                        var postVars = "method=provision_circuit&circuit_id="+encodeURIComponent(circuit_id)
                                +"&description="+encodeURIComponent(description)
                                +"&bandwidth="+encodeURIComponent(bandwidth)
                                +"&provision_time="+encodeURIComponent(provision_time)

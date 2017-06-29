@@ -51,7 +51,7 @@ sub main{
         my $logger = Log::Log4perl->init_and_watch('/etc/oess/logging.conf');
         my $bfd = OESS::FV->new();
     }
-    #not a deamon, just run the core;
+    #not a daemon, just run the core;
     else {
         $SIG{HUP} = sub{ exit(0); };
         my $logger = Log::Log4perl->init_and_watch('/etc/oess/logging.conf');

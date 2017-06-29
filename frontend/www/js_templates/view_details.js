@@ -24,7 +24,7 @@ function init(){
 }
 
 function make_circuit_details_datasource(){
-    var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_circuit_details&circuit_id="+session.data.circuit_id);
+    var ds = new YAHOO.util.DataSource("services/data.cgi?method=get_circuit_details&circuit_id="+session.data.circuit_id);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
 	resultsList: "results",
@@ -35,11 +35,13 @@ function make_circuit_details_datasource(){
     {key: "bandwidth", parser: "number"},
     {key: "links"},
     {key: "backup_links"},
+    {key: "tertiary_links"},
     {key: "endpoints"},
     {key: "state"},
     {key: "active_path"},
     {key: "restore_to_primary"},
     {key: "loop_node"},
+    {key: "type"},
     {key: "static_mac"} //TODO change to perma-name
 	]
     };
@@ -53,6 +55,7 @@ function save_session_from_datasource(details){
     session.data.description  = details.description;
     session.data.bandwidth    = details.bandwidth * 1000000;
     session.data.state        = details.state;
+    session.data.circuit_type = details.type;
     session.data.active_path  = details.active_path;
     session.data.circuit_workgroup = details.workgroup;
     session.data.static_mac_routing = parseInt(details.static_mac);
@@ -60,6 +63,7 @@ function save_session_from_datasource(details){
     session.data.endpoints    = [];
     session.data.links        = [];
     session.data.backup_links = [];
+    session.data.tertiary_links = [];
     session.data.restore_to_primary = details.restore_to_primary;
     session.data.loop_node = details.loop_node;
 
@@ -96,6 +100,11 @@ function save_session_from_datasource(details){
         session.data.backup_links.push(path_component.name);
     }
 
+    for (var i = 0; i < details.tertiary_links.length; i++){
+        var path_component = details.tertiary_links[i];
+        session.data.tertiary_links.push(path_component.name);
+    }
+
     session.save();
 }
 
@@ -123,7 +132,7 @@ function page_init(){
 		  showConfirm("Doing this may cause a disruption in traffic.  Are you sure?",
 			      function(){
 				  change_path_button.set("disabled",true);
-				  var ds = new YAHOO.util.DataSource("services/provisioning.cgi?action=fail_over_circuit&circuit_id=" + session.data.circuit_id + "&workgroup_id=" + session.data.workgroup_id);
+				  var ds = new YAHOO.util.DataSource("services/provisioning.cgi?method=fail_over_circuit&circuit_id=" + session.data.circuit_id + "&workgroup_id=" + session.data.workgroup_id);
 				  ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 				  
 				  ds.connTimeout    = 30 * 1000; // 30 seconds
@@ -141,13 +150,17 @@ function page_init(){
 				  };
 				  ds.sendRequest("",{success: function(Request,Response){
 					      var data = Response.results;
-					      if(data[0].success == 0){
+                                              if(typeof data == 'undefined'){
+                                                  alert('An error occured changing the path.');
+                                              }else if(typeof data[0] == 'undefined'){
+                                                  alert('An error occured changing the path.');
+                                              }else if(data[0].success == 0){
 						  if(data[0].alt_path_down == 1){
 						      alert('The alternate path is down, unable to change to it.');
 						  }else{
 						      alert('An error occured changing the path.');
 						  }
-					      }else{
+                                              }else{
                         
 						  /*
 						   *
@@ -166,7 +179,7 @@ function page_init(){
 						  graph.render(); 
 					        	 
 						  alert('Successfully changed the path.');
-                          }
+                                              }
 					      change_path_button.set("disabled",false);					      
 					  },
 					      failure: function(Request, Response){
@@ -200,7 +213,7 @@ function page_init(){
 	  session.data.endpoints = endpoints;
 	  session.save();
 	  
-	  window.location = "?action=edit_details";
+	  window.location = "?action=endpoints";
 	  });
       
       var remove_button = new YAHOO.widget.Button("remove_button", {label: "Remove Circuit"});
@@ -235,7 +248,7 @@ function page_init(){
 			      var circuit_id= session.data.circuit_id;
 			      var workgroup_id = session.data.workgroup_id;
 			      
-			      var ds = new YAHOO.util.DataSource("services/provisioning.cgi?action=reprovision_circuit&circuit_id="+circuit_id+"&workgroup_id="+workgroup_id);
+			      var ds = new YAHOO.util.DataSource("services/provisioning.cgi?method=reprovision_circuit&circuit_id="+circuit_id+"&workgroup_id="+workgroup_id);
 			      ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 			      ds.responseSchema = {
 				  resultsList: "results",
@@ -252,8 +265,11 @@ function page_init(){
 			      ds.sendRequest("", { 
 				      success: function(req, resp){ 
 					  reprovision_button.set('disabled',false);
-					  alert("Successfully reprovisioned circuit.");
-					  
+					  if((resp.results[0] === undefined) || (resp.results[0].success == 0)){
+					      alert("Failed to reprovision circuit, please try again later or contact your systems administrator if this continues.");
+					  }else{
+					      alert("Successfully reprovisioned circuit.");
+					  }
 					  
 				      },
 					  failure: function(req, resp){
@@ -268,7 +284,13 @@ function page_init(){
 			  }
 			  );
 	  });
+
       var traceroute_panel;
+
+      if(session.data.circuit_type == "mpls"){
+	  YAHOO.util.Dom.get("traceroute_button").style.visibility = "hidden";
+      }else{
+
       var traceroute_button = new YAHOO.widget.Button("traceroute_button", {label: "Trace Circuit Path" });
 
 
@@ -401,7 +423,7 @@ function page_init(){
                   var node = encodeURIComponent(rec.getData('node'));
                   var interface = encodeURIComponent(rec.getData('interface'));
                   //submit to traceroute.cgi
-                   var ds = new YAHOO.util.DataSource("services/traceroute.cgi?action=init_circuit_traceroute&circuit_id=" + session.data.circuit_id 
+                   var ds = new YAHOO.util.DataSource("services/traceroute.cgi?method=init_circuit_traceroute&circuit_id=" + session.data.circuit_id 
                                                       + "&workgroup_id=" + session.data.workgroup_id
                                                       + "&node="+ node + "&interface="+interface
                                                      );
@@ -458,6 +480,13 @@ function page_init(){
               }
           });
       });
+      }
+
+      if(session.data.circuit_type == "mpls"){
+
+	  YAHOO.util.Dom.get("loop_circuit_button").style.visibility = "hidden";
+
+      }else{
 
       var loop_circuit_button;
 
@@ -494,7 +523,7 @@ function page_init(){
                 var circuit_id = session.data.circuit_id;
                 var node_id = null;
                 var state = 'active';
-                var postVars = "action=provision_circuit&circuit_id="+encodeURIComponent(circuit_id)
+                var postVars = "method=provision_circuit&circuit_id="+encodeURIComponent(circuit_id)
                        +"&description="+encodeURIComponent(description)
                        +"&bandwidth="+encodeURIComponent(bandwidth)
                        +"&provision_time="+encodeURIComponent(provision_time)
@@ -542,12 +571,13 @@ function page_init(){
 
             ds.sendRequest(postVars,{success: handleLocalSuccess, failure: handleLocalFailure, scope: this});
 
-            }
+              }
               else {
                 window.location = "?action=loop_circuit";
                 }
 
         });
+      }
   }
   else{
 
@@ -621,20 +651,29 @@ function page_init(){
         //make sure we didn't upset the user's view.
           var keep_map_position = true;
 
-	      ds.sendRequest("", {success: function(req, resp){
-			  var details = resp.results[0];
-			  save_session_from_datasource(details);
+	  ds.sendRequest("", {
+              success: function(req, resp) {
+		  var details = resp.results[0];
+		  save_session_from_datasource(details);
 
-			  for (var i = 0; i < session.data.endpoints.length; i++){
-			      nddi_map.removeNode(session.data.endpoints[i].node);
-			  } 
+		  for (var i = 0; i < session.data.endpoints.length; i++){
+		      nddi_map.removeNode(session.data.endpoints[i].node);
+		  }
+		  
+		  nddi_map.updateMapFromSession(session, true, keep_map_position);
 
-			  nddi_map.updateMapFromSession(session, true, keep_map_position);
+                  if (session.data.active_path == "tertiary") {
+                      nddi_map.setActiveLinks(session.data.tertiary_links);
+                  } else if (session.data.active_path == "backup") {
+                      nddi_map.setActiveLinks(session.data.backup_links);
+                  } else {
+                      nddi_map.setActiveLinks(session.data.links);
+                  }
               },
-			  failure: function(req, resp){
+	      failure: function(req, resp) {
 
-		      }
-		  });
+	      }
+	  });
 
 
 	  }, 10000);
@@ -644,7 +683,7 @@ function page_init(){
 
 function pollTracerouteStatus(status_table,start_button){
 
-    var ds = new YAHOO.util.DataSource("services/traceroute.cgi?action=get_circuit_traceroute&circuit_id=" + session.data.circuit_id + "&workgroup_id=" + session.data.workgroup_id); 
+    var ds = new YAHOO.util.DataSource("services/traceroute.cgi?method=get_circuit_traceroute&circuit_id=" + session.data.circuit_id + "&workgroup_id=" + session.data.workgroup_id); 
                                       ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 				  
 				      ds.connTimeout    = 30 * 1000; // 30 seconds
@@ -822,7 +861,7 @@ function setupMeasurementGraph(){
 function setupScheduledEvents(){
 
 
-    var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_circuit_scheduled_events&circuit_id="+session.data.circuit_id);
+    var ds = new YAHOO.util.DataSource("services/data.cgi?method=get_circuit_scheduled_events&circuit_id="+session.data.circuit_id);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
     ds.responseSchema = {
@@ -889,7 +928,7 @@ function setupScheduledEvents(){
 }
 
 function setupCLR(){
-    var ds = new YAHOO.util.DataSource("services/data.cgi?action=generate_clr&circuit_id=" + session.data.circuit_id);
+    var ds = new YAHOO.util.DataSource("services/data.cgi?method=generate_clr&circuit_id=" + session.data.circuit_id);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     
     ds.responseSchema = {
@@ -909,7 +948,13 @@ function setupCLR(){
 		//do something
 	    }});
 
-    var ds2 = new YAHOO.util.DataSource("services/data.cgi?action=generate_clr&circuit_id=" + session.data.circuit_id + "&raw=1");
+    if(session.data.circuit_type == "mpls"){
+	var header = YAHOO.util.Dom.get("CLR_table_raw_header");
+	header.style.visibility = "hidden";
+	YAHOO.util.Dom.get("CLR_table_raw").hidden = true;
+    }else{
+
+    var ds2 = new YAHOO.util.DataSource("services/data.cgi?method=generate_clr&circuit_id=" + session.data.circuit_id + "&raw=1");
     ds2.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
     ds2.responseSchema = {
@@ -928,12 +973,12 @@ function setupCLR(){
                 failure: function(Req,Resp){
                 //do something
             }});
-
+    }
 }
 
 function setupHistory(){
 
-    var ds = new YAHOO.util.DataSource("services/data.cgi?action=get_circuit_history&circuit_id=" + session.data.circuit_id);
+    var ds = new YAHOO.util.DataSource("services/data.cgi?method=get_circuit_history&circuit_id=" + session.data.circuit_id);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
     ds.responseSchema = {

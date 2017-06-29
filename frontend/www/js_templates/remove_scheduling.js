@@ -88,7 +88,7 @@ function timeSelectionHandler(radio_group_name, display_element_id){
 
 function init(){  
 
-  setPageSummary("Scheduling","Choose when this circuit should be created and removed.");
+  setPageSummary("Scheduling","Choose when this circuit should be removed.");
   
   setNextButton("Proceed to Step 2: Provisioning", "?action=remove_provisioning", verify_inputs);
   // defined in circuit_details_box.js

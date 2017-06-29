@@ -1,0 +1,49 @@
+<configuration>
+  <interfaces>
+    [% FOREACH interface IN interfaces %]
+    <interface>
+      <name>[% interface.name %]</name>
+      <unit>
+	<name>[% interface.tag %]</name>
+	<description>OESS-L2VPN-[% circuit_id %]</description>
+	<encapsulation>vlan-ccc</encapsulation>
+	<vlan-id>[% interface.tag %]</vlan-id>
+	<output-vlan-map>
+          <swap/>
+	</output-vlan-map>
+      </unit>
+    </interface>
+    [% END %]
+  </interfaces>
+  <routing-instances>
+    <instance>
+      <name>OESS-L2VPN-[% circuit_id %]</name>
+      <instance-type>l2vpn</instance-type>
+      [% FOREACH interface IN interfaces %]
+      <interface>
+	<name>[% interface.name %].[% interface.tag %]</name>
+      </interface>
+      [% END %]
+      <route-distinguisher>
+	<rd-type>[% switch.loopback %]:[% circuit_id %]</rd-type>
+      </route-distinguisher>
+      <vrf-target>
+	<community>target:11537:[% circuit_id %]</community>
+      </vrf-target>
+      <protocols>       
+	<l2vpn>
+	  <encapsulation-type>ethernet-vlan</encapsulation-type>
+	  <site>
+            <name>[% switch.name %]-[% circuit_id %]</name>
+	    <site-identifier>[% site_id %]</site-identifier>
+            [% FOREACH interface IN interfaces %]
+            <interface>
+              <name>[% interface.name %].[% interface.tag %]</name>
+            </interface>
+            [% END %]
+	  </site>
+	</l2vpn>
+      </protocols>
+    </instance>
+  </routing-instances>
+</configuration>
