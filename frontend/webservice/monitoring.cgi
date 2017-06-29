@@ -226,6 +226,11 @@ sub get_rules_on_node{
     $mq->{'topic'} = 'OF.FWDCTL.RPC';
     my $result = $mq->rules_per_switch(dpid => int($node->{'dpid'}));
     warn Data::Dumper::Dumper($result);
+    if (defined $result->{'error'}) {
+        $method->set_error($result->{'error'});
+        return;
+    }
+
     $result = int($result->{'results'}->{'rules_on_switch'});
 
     my $tmp;

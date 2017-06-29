@@ -346,6 +346,7 @@ sub _register_rpc_methods{
 
 
     $method = GRNOC::RabbitMQ::Method->new( name => 'rules_per_switch',
+                                            async => 1,
 					    callback => sub { $self->rules_per_switch(@_) },
 					    description => "Returns the total number of flow rules currently installed on this switch");
     
@@ -645,15 +646,31 @@ sub rules_per_switch{
     my $p_ref = shift;
     my $state = shift;
 
+    my $success = $m_ref->{'success_callback'};
+    my $error   = $m_ref->{'error_callback'};
+
     my $dpid = $p_ref->{'dpid'}{'value'};
 
-    $self->{'logger'}->error("Get Rules on Node: $dpid . " . Data::Dumper::Dumper($self->{'node_rules'}));
+    $self->{'logger'}->debug("Get Rules on Node: $dpid . " . Data::Dumper::Dumper($self->{'node_rules'}));
     
-    if(defined($dpid) && defined($self->{'node_rules'}->{$dpid})){
-        return {dpid => $dpid, rules_on_switch => $self->{'node_rules'}->{$dpid}};
+    if (!defined $self->{'children'}->{$dpid}) {
+        return &$error("Unable to find DPID: $dpid");
     }
 
-    return {error => "Unable to find DPID: " . $dpid};
+    $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
+    $self->{'fwdctl_events'}->get_flows(
+        async_callback => sub {
+            my $res = shift;
+            if (defined $res->{'error'}) {
+                return &$error($res->{'error'});
+            }
+
+            return &$success({
+                dpid => $dpid,
+                rules_on_switch => $res->{'results'}->{'flows'}
+            });
+        }
+    );
 }
 
 =head2 force_sync
