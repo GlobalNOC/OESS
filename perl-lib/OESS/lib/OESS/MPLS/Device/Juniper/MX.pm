@@ -1431,7 +1431,6 @@ sub connected {
 	$self->{'logger'}->warn("Connection state is down");
 	return 0;
     }
-
 }
 
 

@@ -8,13 +8,18 @@
 
     <tr>
       <td colspan="5" style="padding-bottom: 8px;padding-right:20px">
-        <label for="summary_description" id="summary_description_label">Description</label>
-        <div id="summary_description"></div>
+	[% IF edit_details == 1 %]
+	  <label for="description" id="description_label">Description</label>
+	  <input id="description" type="text" size="35">
+	[% ELSE %]
+	  <label for="summary_description" id="summary_description_label">Description</label>
+          <div id="summary_description"></div>
+	[% END %]
       </td>
     </tr>
     
     <tr>
-      <td>
+      <td style="display: none">
         <label for="summary_type" id="summary_type_label">Type</label>
         <div id="summary_type"></div>
       </td>

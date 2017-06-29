@@ -75,7 +75,7 @@ var endpoint_table;
 var nddi_map;
 function init(){  
 
-  setPageSummary("Intradomain Endpoints","Pick at least two endpoints from the map below.");
+  setPageSummary("Endpoints","Pick at least two endpoints from the map below.");
   
   setNextButton("Proceed to Next Step: Circuit Options", "?action=options", verify_inputs);
 
@@ -228,8 +228,11 @@ function init(){
 
   function save_session(){
     
+      var circuit_description = document.getElementById('description').value;
+
     var records = endpoint_table.getRecordSet().getRecords();
-    
+    session.data.bandwidth = 0;
+    session.data.description = circuit_description;
     session.data.endpoints = [];
     
     for (var i = 0; i < records.length; i++){
