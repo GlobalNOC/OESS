@@ -1,7 +1,7 @@
 Summary: OESS Metapackage 
 Name: oess
 Version: 1.2.0
-Release: 0.dev01%{?dist}
+Release: 1%{?dist}
 License: Apache
 Group: GRNOC
 #Source: 
