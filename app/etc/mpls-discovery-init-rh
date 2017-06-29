@@ -26,7 +26,7 @@ fi
 [ ${NETWORKING} = "no" ] && exit 0
 name=mpls_discovery
 exec_file=/usr/bin/$name.pl
-options=" "
+options="-v "
 username=_oess
 lockfile=/var/lock/subsys/$name
 command="$exec_file -u $username $options"

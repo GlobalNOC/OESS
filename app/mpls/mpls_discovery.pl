@@ -65,8 +65,8 @@ sub main{
         if ($verbose) {
             $daemon = Proc::Daemon->new(
                                         pid_file => $pid_file,
-                                        child_STDOUT => '/var/log/oess/mpls.out',
-                                        child_STDERR => '/var/log/oess/mpls.log',
+                                        child_STDOUT => '/var/log/oess/mpls_discovery.out',
+                                        child_STDERR => '/var/log/oess/mpls_discovery.log',
                 );
         } else {
             $daemon = Proc::Daemon->new(

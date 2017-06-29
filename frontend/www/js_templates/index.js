@@ -9,7 +9,7 @@
     var new_circuit = new YAHOO.util.Element('create_new_vlan');
     var checking_circuit_limit = false;
     new_circuit.on('click', function(e){
-	    //window.location = "index.cgi?action=edit_details";
+	    //window.location = "index.cgi?action=endpoints";
 	    if([% is_read_only %] == 1){
 		alert('Your account is read-only and can not provision a circuit');
 		return;
@@ -38,7 +38,7 @@
             success: function(req,resp){
                 if(parseInt(resp.results[0].within_limit)){
 	                session.clear();
-	                window.location = "index.cgi?action=edit_details";
+	                window.location = "index.cgi?action=endpoints";
                 }else {
                     alert("Workgroup is already at circuit limit");
                     new_circuit.set("innerHTML","Create a New VLAN");

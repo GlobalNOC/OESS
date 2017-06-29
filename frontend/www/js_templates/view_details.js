@@ -213,7 +213,7 @@ function page_init(){
 	  session.data.endpoints = endpoints;
 	  session.save();
 	  
-	  window.location = "?action=edit_details";
+	  window.location = "?action=endpoints";
 	  });
       
       var remove_button = new YAHOO.widget.Button("remove_button", {label: "Remove Circuit"});
