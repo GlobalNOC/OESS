@@ -73,8 +73,10 @@ sub new {
     $self->{'fwdctl_dispatcher'} = $fwdctl_dispatcher;
 
 
-    $self->{'fwdctl_events'} = OESS::RabbitMQ::Client->new( topic => 'MPLS.FWDCTL.event');
-
+    $self->{'fwdctl_events'} = OESS::RabbitMQ::Client->new(
+        timeout => 120,
+        topic => 'MPLS.FWDCTL.event'
+    );
 
 
     $self->{'logger'}->info("RabbitMQ ready to go!");
@@ -884,6 +886,7 @@ sub deleteVlan{
 
 		if( $res->{'results'}->{'status'} != FWDCTL_SUCCESS){
 		    my $error = "Switch $node_addr reported an error";
+		    $self->{'logger'}->error(Dumper($res));
 		    $self->{'logger'}->error($error);
                     $err .= $error . "\n";
 		}

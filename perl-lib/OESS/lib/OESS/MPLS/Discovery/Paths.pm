@@ -95,6 +95,9 @@ sub _process_paths{
     foreach my $circuit_id (keys %{$circuit_lsps}){
        my @ckt_path0; # list of (possibly duplicated) IP addresses making up the circuit
        foreach my $lsp (@{$circuit_lsps->{$circuit_id}}){
+           if (!defined $lsp_paths->{$lsp}) {
+               next;
+           }
            push @ckt_path0, @{$lsp_paths->{$lsp}};
        }
 
