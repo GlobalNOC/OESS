@@ -208,6 +208,16 @@ sub new {
                                             topic       => "OF.FWDCTL.event" );
     $dispatcher->register_method($method);
 
+    $method = GRNOC::RabbitMQ::Method->new(
+        name        => "get_flows",
+        description => "Number of flows installed on this device",
+        callback    => sub {
+            return {flows => $self->{'flows'}};
+        }
+    );
+    $dispatcher->register_method($method);
+
+
     #--- set a default discovery vlan that can be overridden later if needed.
     $self->{'settings'}->{'discovery_vlan'} = -1;
 
