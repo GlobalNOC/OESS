@@ -27,7 +27,7 @@ function makePathTable(){
   
 function init(){  
     setPageSummary("Options","If needed, select additional options for the circuit's behavior.");
-    setNextButton("Proceed to Step 4: Primary Path", "?action=primary_path", verify_inputs);
+    setNextButton("Proceed to Next Step: Primary Path", "?action=primary_path", verify_inputs);
 
 
     // Load default session variables if they're not already set

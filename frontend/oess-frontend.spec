@@ -1,6 +1,6 @@
 Name:		oess-frontend
 Version:	1.2.0
-Release:	0.dev01%{?dist}
+Release:	1%{?dist}
 Summary:	The OESS webservices and user interface
 
 Group:		Network
@@ -20,7 +20,7 @@ Requires: nddi-tiles
 Requires: perl-Crypt-SSLeay
 Requires: xmlsec1, xmlsec1-openssl
 
-Requires: perl-OESS >= 1.2.0, perl-OSCARS-Client >= 1.2.0
+Requires: perl-OESS >= 1.2.0
 
 Requires: perl(strict), perl(warnings)
 Requires: perl(AnyEvent)

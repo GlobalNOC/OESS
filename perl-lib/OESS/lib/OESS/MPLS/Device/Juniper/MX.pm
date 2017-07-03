@@ -79,6 +79,10 @@ sub disconnect{
     return 1;
 }
 
+=head2 lock
+
+=cut
+
 sub lock {
     my $self = shift;
 
@@ -108,6 +112,10 @@ sub lock {
     return 1;
 }
 
+=head2 commit
+
+=cut
+
 sub commit {
     my $self = shift;
 
@@ -133,6 +141,10 @@ sub commit {
 
     return 1;
 }
+
+=head2 unlock
+
+=cut
 
 sub unlock {
     my $self = shift;
@@ -1423,6 +1435,8 @@ sub connected {
 		
     if (defined $self->{'jnx'}->{'conn_obj'} && $self->{'jnx'}->has_error) {
         my $error = $self->{'jnx'}->get_first_error();
+        $self->{'logger'}->error("Error: " . $error->{'error_message'});
+    }
 
     if(defined($self->{'jnx'}->{'conn_obj'})){
 	$self->{'logger'}->debug("Connection state is up");
