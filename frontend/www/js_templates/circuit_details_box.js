@@ -62,6 +62,9 @@ function summary_init(options){
   
   // YAHOO.util.Dom.get('summary_bandwidth').innerHTML         = bandwidth;
   [% IF edit_details == 1 %]
+      if(session.data.description === undefined){
+	  session.data.description = "";
+      }
       YAHOO.util.Dom.get('description').value = session.data.description;
   [% ELSE %]
   YAHOO.util.Dom.get('summary_description').innerHTML       = session.data.description;
