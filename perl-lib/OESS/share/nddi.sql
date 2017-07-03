@@ -377,7 +377,7 @@ CREATE TABLE `node_instantiation` (
   `admin_state` enum('planned','available','active','maintenance','decom') NOT NULL DEFAULT 'planned',
   `dpid` varchar(40) NOT NULL,
   `openflow` int(1) default 1,
-  `mpls` int(1) default 1,
+  `mpls` int(1) default 0,
   `vendor` varchar(255),
   `model` varchar(255),
   `sw_version` varchar(255),
