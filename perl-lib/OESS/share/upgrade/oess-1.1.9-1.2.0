@@ -50,8 +50,8 @@ sub upgrade{
     my $str;
     my $sth;
 
-    $dbh->do("alter table node_instantiation add column openflow int(1) NOT NULL default 1");
-    $dbh->do("alter table node_instantiation add column mpls int(1) NOT NULL default 0");
+    $dbh->do("alter table node_instantiation add column openflow int(1) default 1");
+    $dbh->do("alter table node_instantiation add column mpls int(1) default 0");
     $dbh->do("alter table node_instantiation add column vendor varchar(255)");
     $dbh->do("alter table node_instantiation add column model varchar(255)");
     $dbh->do("alter table node_instantiation add column sw_version varchar(255)");
