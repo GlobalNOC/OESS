@@ -625,9 +625,9 @@ sub send_flows{
 											 async_callback => sub {
 											     $self->get_node_status( cb => sub{ $self->send_flows( flows => $flows,
 																	     command => $cmd,
-																	     cb => $self->send_flows( flows => $flows,
-																				      cb => $cb,
-																				      command => $cmd))
+																	     cb => sub { $self->send_flows( flows => $flows,
+                                                                                                                                                                            cb => $cb,
+                                                                                                                                                                            command => $cmd);} )
 														     })
 											 })
 						 });
