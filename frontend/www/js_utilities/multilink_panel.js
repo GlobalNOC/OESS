@@ -56,14 +56,14 @@ var get_multilink_panel = function(container_id, options){
         var link = $('#'+this.container_id+'_link_selector').val();
         if(link == "") link = null;
         options.on_change({ link: link });
-        panel.hide();
+        panel.destroy();
     }, false, { container_id: container_id });
 
     //set up cancel button
     var cancel_panel_button = new YAHOO.widget.Button(container_id+'_cancel');
     cancel_panel_button.set('label','Cancel');
     cancel_panel_button.on('click',function(){
-        panel.hide();
+        panel.destroy();
     });
 
     return panel;
