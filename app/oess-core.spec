@@ -33,9 +33,12 @@ Requires: perl(File::Path)
 Requires: perl(FindBin)
 Requires: perl(Getopt::Long), perl(Getopt::Std)
 Requires: perl(GRNOC::Config)
-Requires: perl(GRNOC::Log)
-Requires: perl(GRNOC::RabbitMQ::Client), perl(GRNOC::RabbitMQ::Dispatcher), perl(GRNOC::RabbitMQ::Method)
-Requires: perl(GRNOC::WebService::Client)
+Requires: perl(GRNOC::Log)                  >= 1.0.4
+Requires: perl(GRNOC::RabbitMQ)             >= 1.1.0
+Requires: perl(GRNOC::RabbitMQ::Client)
+Requires: perl(GRNOC::RabbitMQ::Dispatcher)
+Requires: perl(GRNOC::RabbitMQ::Method)
+Requires: perl(GRNOC::WebService::Client)   >= 1.4.1
 Requires: perl(HTML::Entities)
 Requires: perl(HTTP::Headers), perl(HTTP::Request)
 Requires: perl(JSON)

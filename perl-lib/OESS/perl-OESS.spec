@@ -36,6 +36,7 @@ Requires: perl
 Requires: perl(AnyEvent)
 Requires: perl(AnyEvent::Fork)
 Requires: perl(Array::Utils)
+Requires: perl(Class::Accessor)
 Requires: perl(Data::Dumper)
 Requires: perl(Data::UUID)
 Requires: perl(DateTime)
@@ -47,12 +48,13 @@ Requires: perl(Getopt::Long)
 Requires: perl(Graph::Directed)
 Requires: perl(Graph::Undirected)
 Requires: perl(GRNOC::Config)
-Requires: perl(GRNOC::Log)
-Requires: perl(GRNOC::RabbitMQ)
+Requires: perl(GRNOC::Log)                  >= 1.0.4
+Requires: perl(GRNOC::RabbitMQ)             >= 1.1.0
 Requires: perl(GRNOC::RabbitMQ::Client)
 Requires: perl(GRNOC::RabbitMQ::Dispatcher)
 Requires: perl(GRNOC::RabbitMQ::Method)
-Requires: perl(GRNOC::WebService::Client)
+Requires: perl(GRNOC::WebService::Client)   >= 1.4.1
+Requires: perl(GRNOC::WebService)           >= 1.2.9
 Requires: perl(GRNOC::WebService::Regex)
 Requires: perl(JSON)
 Requires: perl(JSON::XS)
@@ -64,6 +66,7 @@ Requires: perl(Net::DBus)
 Requires: perl(Net::DBus::Exporter)
 Requires: perl(Net::DBus::Object)
 Requires: perl(Net::DBus::Reactor)
+Requires: perl(Net::Netconf)                >= 1.4.1
 Requires: perl(Net::Netconf::Manager)
 Requires: perl(POSIX)
 Requires: perl(Proc::Daemon)
