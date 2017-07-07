@@ -138,7 +138,9 @@ sub new{
         $self->stop();
     };
 
-    #create a child process for each switch
+    # Create a child process for each switch
+    $self->{'children'} = {};
+
     my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
     foreach my $node (@$nodes) {
 	warn "Making Baby!\n";
@@ -215,6 +217,9 @@ sub make_baby{
     my $id = shift;
 
     $self->{'logger'}->debug("Before the fork");
+    if (defined $self->{'children'}->{$id}) {
+        return 1;
+    }
 
     my $node = $self->{'db'}->get_node_by_id(node_id => $id);
 
