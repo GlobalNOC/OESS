@@ -745,7 +745,7 @@ sub stop {
 
     $self->{'logger'}->info("Sending MPLS.Discovery.stop to listeners");
     $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch";
-    $self->{'rmq_client'}->stop();
+    $self->{'rmq_client'}->stop( async_callback => sub { return 1; } );
 }    
 
 1;
