@@ -683,7 +683,7 @@ sub provision_circuit {
 
     # TEMPORARY HACK UNTIL OPENFLOW PROPERLY SUPPORTS QUEUING. WE CANT
     # DO BANDWIDTH RESERVATIONS SO FOR NOW ASSUME EVERYTHING HAS 0 BANDWIDTH RESERVED
-    my $bandwidth   = $args->{'bandwidth'}{'value'} || 0;
+    my $bandwidth   = 0;
 
     my $provision_time = $args->{'provision_time'}{'value'};
     my $remove_time    = $args->{'remove_time'}{'value'};
