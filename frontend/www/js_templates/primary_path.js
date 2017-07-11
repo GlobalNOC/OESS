@@ -31,7 +31,7 @@ function init(){
     session.data.links = session.data.links || [];
 
     setPageSummary("Path","Choose a primary path from the map below by clicking on links between nodes.");  
-    if (session.data.circuit_type == 'mpls' && session.data.links.length < 1) {
+    if (session.data.circuit_type == 'mpls') {
         setNextButton("Proceed to Next Step: Scheduling", "?action=scheduling", verify_inputs);
     } else {
         setNextButton("Proceed to Next Step: Backup Path", "?action=backup_path", verify_inputs);
@@ -125,13 +125,6 @@ function init(){
 
   nddi_map.on("clickLink", function(e, args){
       onClickLink(path_table, e, args, save_session);
-
-      if (session.data.links.length < 1) {
-          console.log('No primary path is selected.');
-          setNextButton("Proceed to Next Step: Scheduling", "?action=scheduling", verify_inputs);
-      } else {
-          setNextButton("Proceed to Next Step: Backup Path", "?action=backup_path", verify_inputs);
-      }
   });
   
   
