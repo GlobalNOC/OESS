@@ -267,12 +267,13 @@ sub _update_cache{
     }
 
     my $str;
-    open(my $fh, "<", $self->{'share_file'});
-    flock($fh, 1);
+    open(my $fh, "<", $self->{'share_file'}) or $self->{'logger'}->error("Unable to open file: " . $self->{'share_file'} . " $!");
+    flock($fh, 1) or $self->{'logger'}->error("Unable to flock: $!");
+    seek($fh, 0, 0);
     while(my $line = <$fh>){
         $str .= $line;
     }
-    flock($fh, 8);
+    flock($fh, 8) or $self->{'logger'}->error("Unable to flock: $!");
     close($fh);
 
     my $data;
@@ -282,7 +283,8 @@ sub _update_cache{
     if(!defined($data)){
 	$self->{'logger'}->error("Unable to parse JSON cache file: " . $str);
 	$self->{'logger'}->error("JSON Error: " . $@);
-	return;
+	sleep(30);
+	return $self->_update_cache();
     }
 
     $self->{'logger'}->debug("Fetched data!");
