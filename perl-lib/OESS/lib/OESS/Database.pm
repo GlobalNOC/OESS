@@ -6856,6 +6856,9 @@ sub provision_circuit {
     my $is_avail = $self->is_external_vlan_available_on_interface(vlan => $tags->[0], interface_id => $interface);
 
     $type = $is_avail->{'type'};
+    if($type eq 'mpls'){
+        $backup_links = [];
+    }
     # create circuit record
     my $circuit_id = $self->_execute_query("insert into circuit (name, description, workgroup_id, external_identifier, restore_to_primary, static_mac,circuit_state, remote_url, remote_requester, type) values (?, ?, ?, ?, ?, ?,?,?,?,?)",
 					   [$name, $description, $workgroup_id, $external_id, $restore_to_primary, $static_mac,$state, $remote_url, $remote_requester, $type]);

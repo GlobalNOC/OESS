@@ -901,10 +901,10 @@ sub _write_cache{
         my $file = $self->{'share_file'} . "." . sprintf("%x",$dpid);
         open(my $fh, ">", $file) or $self->{'logger'}->error("Unable to open $file " . $!);
 	#lock the file
-	flock($fh, 2);
+	flock($fh, 2) or $self->{'logger'}->error("Unable to flock: $!");
         print $fh encode_json($data);
 	#unlock the file
-	flock($fh, 8);
+	flock($fh, 8) or $self->{'logger'}->error("Unable to unlock flock: $!");
         close($fh);
     }
 
