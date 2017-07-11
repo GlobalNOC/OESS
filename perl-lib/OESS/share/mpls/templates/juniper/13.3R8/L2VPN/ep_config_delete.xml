@@ -1,0 +1,17 @@
+<configuration>
+  <interfaces>
+    [% FOREACH interface IN interfaces %]
+    <interface>
+      <name>[% interface.name %]</name>
+      <unit operation='delete'>
+	<name>[% interface.tag %]</name>
+      </unit>
+    </interface>
+    [% END %]
+  </interfaces>
+  <routing-instances>
+    <instance operation='delete'>
+      <name>OESS-L2VPN-[% circuit_id %]</name>
+    </instance>
+  </routing-instances>
+</configuration>

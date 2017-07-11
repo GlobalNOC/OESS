@@ -12,12 +12,16 @@ use MIME::Lite::TT::HTML;
 #use Template;
 use Switch;
 use DateTime;
-use Net::DBus::Exporter qw (org.nddi.notification);
-use Net::DBus qw(:typing);
+use GRNOC::RabbitMQ::Method;
+use GRNOC::RabbitMQ::Client;
+use GRNOC::RabbitMQ::Dispatcher;
+use GRNOC::WebService::Regex;
+use OESS::RabbitMQ::Client;
+use OESS::RabbitMQ::Dispatcher;
 use OESS::Circuit;
 use Log::Log4perl;
 
-use base qw(Net::DBus::Object);
+
 
 #--------------------------------------------------------------------
 #----- OESS::Notification
@@ -64,45 +68,76 @@ path to the notification template file, defaults to absolute path /usr/share/oes
 =cut
 
 sub new {
-    my $that = shift;
+    my $that  = shift;
     my $class = ref($that) || $that;
 
-    #my $service = shift;
-    my %args    = (
-                   config_file => 'etc/oess/database.xml',
-                   service => undef,
-                   template_path => '/usr/share/oess-core/',
-                   @_,
-                  );
+    my %args  = (
+        config_file => '/etc/oess/database.xml',
+        service => undef,
+        template_path => '/usr/share/oess-core/',
+        @_,
+        );
 
-
-    my $service = $args{'service'};
-
-    #my $self  = \%args;
-
-    my $self = $class->SUPER::new( $service, "/controller1" );
+    my $self  = \%args;
+    bless $self, $class;
+    
     $self->{'config_file'} = $args{'config_file'};
     $self->{'template_path'} = $args{'template_path'};
-
+    
     return if !defined( $self->{'config_file'} );
+    
+    if(!defined($self->{'config'})){
+        $self->{'config'} = "/etc/oess/database.xml";
+    }
 
     $self->{'tt'} = Template->new(ABSOLUTE=>1);
     $self->{'log'} = Log::Log4perl->get_logger("OESS.Notification");
 
-    bless $self, $class;
-
     $self->_process_config_file();
     $self->_connect_services();
-    dbus_signal( "circuit_provision",[ [ "dict", "string", ["variant"] ] ],['string'] );
-    dbus_signal( "circuit_modified", [ [ "dict", "string", ["variant"] ] ] );
-    dbus_signal( "circuit_removed", [ [ "dict", "string", ["variant"] ] ], ['string'] );
-    dbus_signal( "circuit_change_path", [ [ "dict", "string", ["variant"] ] ], ['string'] );
-    dbus_signal( "circuit_restored", [['dict', 'string', ["variant"]]],['string']);
-    dbus_signal( "circuit_down", [['dict', 'string', ["variant"]]],['string']);
-    dbus_signal( "circuit_unknown", [['dict', 'string', ["variant"]]],['string']);
+        
+    my $notification_dispatcher = OESS::RabbitMQ::Dispatcher->new( topic => 'OF.FWDCTL.RPC' );
+    $self->_register_notification_events($notification_dispatcher);
+    $self->{'notification_dispatcher'} = $notification_dispatcher;
 
-    dbus_method( "circuit_notification", [["dict","string",["variant"]]],["string"]);
+    my $emitter = OESS::RabbitMQ::Client->new( topic => 'OF.Notification.event');
+    $self->{'notification_events'} = $emitter;
+    
     return $self;
+}
+
+=head2 start
+
+=cut
+
+sub start {
+    my $self = shift;
+    $self->{'log'}->info("Notification.pm is now consuming.");
+    $self->{'notification_dispatcher'}->start_consuming();
+}
+
+sub _register_notification_events{
+    my $self = shift;
+    my $d = shift;
+    
+    $self->{'log'}->debug("Register Notification events");
+    my $method = GRNOC::RabbitMQ::Method->new( name => "circuit_notification",
+					       topic => 'OF.FWDCTL.event',
+                                               callback => sub {$self->circuit_notification(@_) },
+                                               description => "Signals circuit notification event");
+    $method->add_input_parameter( name => "type",
+                                  description => "the type of circuit notification event",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::TEXT);
+    $method->add_input_parameter( name => "link_name",
+                                  description => "Name of the link",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::TEXT);
+    $method->add_input_parameter( name => "affected_circuits",
+                                  description => "List of circuits affected by the event",
+                                  required => 1,
+                                  schema => { 'type' => 'array'});
+    $d->register_method($method);
 }
 
 =head2 C<circuit_notification()>
@@ -121,21 +156,27 @@ hashref containing circuit data, minimally at least the circuit_id
 
 sub circuit_notification {
     my $self    = shift;
-    my $dbus_data = shift;
-    my $circuit;
-    $self->{'log'}->debug("Sending Circuit Notification: " . Data::Dumper::Dumper($dbus_data));
+    my $m_ref = shift;
+    my $p_ref = shift;
 
-    if ($dbus_data->{'type'} eq 'link_down' || $dbus_data->{'type'} eq 'link_up' ) {
+    my $type = $p_ref->{'type'}{'value'};
+    my $link_name= $p_ref->{'link_name'}{'value'};
+
+
+    my $circuit;
+    $self->{'log'}->debug("Sending Circuit Notification: " . Data::Dumper::Dumper($p_ref));
+    
+    if ($type eq 'link_down' || $type eq 'link_up' ) {
 	$self->{'log'}->debug("Sending bulk notifications");
-        $self->_send_bulk_notification($dbus_data);
+        $self->_send_bulk_notification($p_ref);
         return;
     }
 
-    $circuit = $dbus_data;
+    $circuit = $p_ref->{'affected_circuits'}{'value'}[0];
     my $circuit_notification_data = $self->get_notification_data( circuit => $circuit );
     if (!defined($circuit_notification_data)) {
         $self->{'log'}->error("Unable to get circuit data for circuit: " . $circuit->{'circuit_id'});
-	return;
+	return {status => 0};;
     }
 
     my $subject = "OESS Notification: Circuit '" . $circuit_notification_data->{'circuit'}->{'description'} . "' ";
@@ -148,33 +189,33 @@ sub circuit_notification {
     switch($circuit->{'type'} ) {
         case "provisioned"{
 	    $subject .= "has been provisioned in workgroup: $workgroup ";
-	    $self->emit_signal( "circuit_provision", $circuit );
+	    $self->{'notification_events'}->circuit_provision( circuit => $circuit, no_reply => 1 );
 	}
 	case "removed" {
 	    $subject .= "has been removed from workgroup: $workgroup";
-	    $self->emit_signal( "circuit_removed", $circuit );
+	    $self->{'notification_events'}->circuit_remove( circuit => $circuit, no_reply => 1 );
 	}
 	case "modified" {
 	    $subject .= "has been edited in workgroup: $workgroup";
-	    $self->emit_signal( "circuit_modified", $circuit );
+	    $self->{'notification_events'}->circuit_modify( circuit => $circuit, no_reply => 1 );
 	}
 	case "change_path" {
 	    $subject .= "has changed to " . $circuit_notification_data->{'circuit'}->{'active_path'} . " path in workgroup: $workgroup";
-	    $self->emit_signal( "circuit_change_path", $circuit );
+	    $self->{'notification_events'}->circuit_change_path( circuit => $circuit, no_reply => 1 );
 	}
 	case "restored" {
 	    $subject .= "has been restored for workgroup: $workgroup";
-	    $self->emit_signal( "circuit_restored", $circuit );
+	    $self->{'notification_events'}->circuit_restore( circuit => $circuit, no_reply => 1 );
 	}
 	case "down" {
 	    $subject .= "is down for workgroup: $workgroup";
-	    $self->emit_signal( "circuit_down", $circuit );
+	    $self->{'notification_events'}->circuit_down( circuit => $circuit, no_reply => 1 );
 	}
 	case "unknown" {
 	    $subject .= "is in an unknown state in workgroup: $workgroup";
-	    $self->emit_signal( "circuit_unknown", $circuit );
+	    $self->{'notification_events'}->circuit_unknown( circuit => $circuit, no_reply => 1 );
 	}
-      }
+    }
 
     $circuit_notification_data->{'subject'} = $subject;
     $self->send_notification( $circuit_notification_data );
@@ -183,36 +224,36 @@ sub circuit_notification {
 
 sub _send_bulk_notification {
     my $self = shift;
-    my $dbus_data = shift;
+    my $data = shift;
     my $db = $self->{'db'};
-    my $circuits = $dbus_data->{'affected_circuits'};
-    my $link_name = $dbus_data->{'link_name'};
+    my $circuits = $data->{'affected_circuits'}{'value'};
+    my $link_name = $data->{'link_name'}{'value'};
     my $workgroup_notifications={};
-    my $type = $dbus_data->{'type'};
+    my $type = $data->{'type'}{'value'};
 
     foreach my $circuit (@$circuits) {
         #build workgroup buckets
         my $circuit_details = $self->get_notification_data(circuit => $circuit);
 
         if(!defined($circuit_details)){
-            return;
+            next;
         }
-
+        
         my $owners = $circuit_details->{'endpoint_owners'};
-
+        
         foreach my $owner (keys %$owners) {
             my $affected_users = $owners->{$owner}->{'affected_users'};
             my $workgroup_id = $owners->{$owner}->{'workgroup_id'};
-
+            
             unless ($workgroup_notifications->{$owner}) {
                 $workgroup_notifications->{$owner} = {};
                 $workgroup_notifications->{$owner}{'affected_users'} = $affected_users;
                 $workgroup_notifications->{$owner }{'workgroup_id'} = $workgroup_id;
                 $workgroup_notifications->{$owner}{'endpoint_owned'}{'circuits'} = [];
             }
-
+            
             push (@{ $workgroup_notifications->{ $owner }{'endpoint_owned'}{'circuits'} }, $circuit_details->{'circuit'} );
-
+            
         }
 
         unless ($workgroup_notifications->{$circuit_details->{'workgroup'} } ) {
@@ -262,7 +303,7 @@ sub _send_bulk_notification {
                     workgroup_id => $workgroup_notifications->{$workgroup }{'workgroup_id'},
                     from_signature_name => $self->{'from_name'},
                     link_name => $link_name,
-                    type => $dbus_data->{'type'},
+                    type => $type,
                     circuits => $workgroup_circuits,
                     circuits_on_owned_endpoints => $circuits_on_owned_endpoints,
                     image_base_url => $self->{'image_base_url'},
@@ -465,6 +506,7 @@ sub _process_config_file {
     #my $config = GRNOC::Config->new( config_file => $self->{'config_file'} );
     my $config = XML::Simple::XMLin($self->{'config_file'});
 
+    $self->{'rabbit_config'} = $config->{'rabbitMQ'};
     $self->{'from_name'}    = $config->{'smtp'}->{'from_name'};
     $self->{'from_address'} = $config->{'smtp'}->{'from_address'};
     $self->{'image_base_url'} = $config->{'smtp'}->{'image_base_url'};
@@ -479,12 +521,11 @@ sub _process_config_file {
 =cut
 
 sub _connect_services {
-      my $self = shift;
-
-      my $db = OESS::Database->new();
-      $self->{'db'} = $db;
-
-  }
+    my $self = shift;
+    
+    $self->{'db'} = OESS::Database->new( config_file => $self->{'config'} );
+    
+}
 
 =head2 C<get_notification_data()>
 
@@ -549,12 +590,12 @@ sub _connect_services {
 
 	  if(!defined($interface_id)){
 	      $self->{'log'}->error("Unable to find interface in DB: " . $endpoint->{'node'} . ":" . $endpoint->{'interface'});
-	      return;
+	      next;
 	  }
           my $interface = $db->get_interface(interface_id =>$interface_id);
 	  if(!defined($interface)){
 	      $self->{'log'}->error("unable to find an interface with ID: " . $interface_id);
-	      return;
+	      next;
 	  }
           my $workgroup_name = $interface->{'workgroup_name'};
 	  if(!defined($workgroup_name)){
@@ -617,13 +658,10 @@ subject of email
 =cut
 
 sub _send_notification {
-
     my $self = shift;
     my %args = @_;
 
     my $body = $args{'body'};
-
-
 }
 
 

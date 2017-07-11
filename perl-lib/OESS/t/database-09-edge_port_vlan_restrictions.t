@@ -14,7 +14,7 @@ BEGIN {
 use lib "$path";
 use OESSDatabaseTester;
 
-use Test::More tests => 13;
+use Test::More tests => 14;
 use Test::Deep;
 use OESS::Database;
 use OESSDatabaseTester;
@@ -45,24 +45,24 @@ my $interface = $db->get_interface( interface_id => $interfaces->[0]->{'interfac
 ok($interface->{'vlan_tag_range'} eq '100-200', "VLAN Range was updated in the DB");
 
 my $is_external_vlan_avail = $db->is_external_vlan_available_on_interface( vlan => 150, interface_id => $interfaces->[0]->{'interface_id'});
-
-ok($is_external_vlan_avail == 1, "Allowed a vlan in the range");
+ok($is_external_vlan_avail->{'status'} == 1, "Allowed a vlan in the range");
+ok($is_external_vlan_avail->{'type'} == 'openflow', "Returned the correct type");
 
 $is_external_vlan_avail = $db->is_external_vlan_available_on_interface( vlan=> 200,interface_id =>$interfaces->[0]->{'interface_id'});
 
-ok($is_external_vlan_avail == 1, "Allowed a vlan at the edge of the range");
+ok($is_external_vlan_avail->{'status'} == 1, "Allowed a vlan at the edge of the range");
 
 $is_external_vlan_avail = $db->is_external_vlan_available_on_interface( vlan=> 100,interface_id =>$interfaces->[0]->{'interface_id'});
 
-ok($is_external_vlan_avail == 1, "Allowed a vlan in the beginning of the range");
+ok($is_external_vlan_avail->{'status'} == 1, "Allowed a vlan in the beginning of the range");
 
 $is_external_vlan_avail = $db->is_external_vlan_available_on_interface( vlan=> 1050,interface_id =>$interfaces->[0]->{'interface_id'});
 
-ok($is_external_vlan_avail == 0, "Not allowed outside of the range");
+ok($is_external_vlan_avail->{'status'} == 0, "Not allowed outside of the range");
 
 $is_external_vlan_avail = $db->is_external_vlan_available_on_interface( vlan=> 50,interface_id =>$interfaces->[0]->{'interface_id'});
 
-ok($is_external_vlan_avail == 0, "Not allowed outside of the range");
+ok($is_external_vlan_avail->{'status'} == 0, "Not allowed outside of the range");
 
 $res = $db->update_interface_vlan_range( interface_id => $interfaces->[1]->{'interface_id'}, vlan_tag_range => 'foo-200');
 
@@ -81,5 +81,4 @@ $interface = $db->get_interface( interface_id => $interfaces->[1]->{'interface_i
 ok($interface->{'vlan_tag_range'} eq '-1,1-4095', "Vlan range was updated to include untagged");
 
 $is_external_vlan_avail = $db->is_external_vlan_available_on_interface( vlan => -1, interface_id => $interfaces->[1]->{'interface_id'} );
-
-ok($is_external_vlan_avail == 1, "Untagged interface supported");
+ok($is_external_vlan_avail->{'status'} == 1, "Untagged interface supported");

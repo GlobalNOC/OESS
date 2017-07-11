@@ -2,13 +2,12 @@
 
 package OESS::NSI::Processor;
 $ENV{CRYPT_SSLEAY_CIPHER} = 'ALL';
+
 use strict;
 use warnings;
 
-use Net::DBus::Exporter qw(org.nddi.nsi);
-use Net::DBus qw(:typing);
-use Net::DBus::Annotation qw(:call);
-use base qw(Net::DBus::Object);
+use Data::Dumper;
+use JSON;
 
 use GRNOC::Log;
 use GRNOC::WebService::Client;
@@ -17,7 +16,6 @@ use OESS::NSI::Constant;
 use OESS::NSI::Reservation;
 use OESS::NSI::Provisioning;
 use OESS::NSI::Query;
-use Data::Dumper;
 
 =head2 new
 
@@ -28,15 +26,12 @@ sub new {
     my $service = shift;
     my $config_file = shift;
     
-    my $self = $class->SUPER::new($service, '/controller1');
+    my $self = {};
     bless($self,$class);
 
     $self->{'config_file'} = $config_file;
     $self->{'watched_circuits'} = [];
     $self->_init();
-
-    #-- dbus methods
-    dbus_method("process_request", ["string", ["dict", "string", ["variant"]]], ["int32"]);
 
     return $self;
 }
@@ -46,12 +41,14 @@ sub new {
 =cut
 
 sub circuit_provision{
-    my ($self, $circuit) = @_;
+    my ($self, $method, $params) = @_;
 
     foreach my $ckt_id (@{$self->{'watched_circuits'}}){
-        if($circuit->{'circuit_id'} == $ckt_id){
-            log_debug("Found a circuit that was modified! circuit_id: " . $circuit);
+        if ($params->{'circuit'}->{'value'}->{'circuit_id'} == $ckt_id) {
+            log_info("Circuit $ckt_id was provisioned.");
             $self->{'provisioning'}->dataPlaneStateChange($ckt_id);
+        } else {
+            log_debug("Ignoring provisioned circuit $ckt_id.");
         }
     }
 }
@@ -61,11 +58,14 @@ sub circuit_provision{
 =cut
 
 sub circuit_modified{
-    my ($self, $circuit) = @_;
+    my ($self, $method, $params) = @_;
+
     foreach my $ckt_id (@{$self->{'watched_circuits'}}){
-        if($circuit->{'circuit_id'} == $ckt_id){
-            log_debug("found a circuit that was modified! circuit_id: " . $circuit);
+        if ($params->{'circuit'}->{'value'}->{'circuit_id'} == $ckt_id) {
+            log_info("Circuit $ckt_id was modified.");
             $self->{'provisioning'}->dataPlaneStateChange($ckt_id);
+        } else {
+            log_debug("Ignoring modified circuit $ckt_id.");
         }
     }
 }
@@ -75,11 +75,14 @@ sub circuit_modified{
 =cut
 
 sub circuit_removed{
-    my ($self, $circuit) = @_;
+    my ($self, $method, $params) = @_;
+
     foreach my $ckt_id (@{$self->{'watched_circuits'}}){
-        log_debug("Found a circuit that was removed! cicuit_id = " . $circuit);
-        if($circuit->{'circuit_id'} == $ckt_id){
+        if($params->{'circuit'}->{'value'}->{'circuit_id'} == $ckt_id){
+            log_info("Circuit $ckt_id was removed.");
             $self->{'provisioning'}->dataPlaneStateChange($ckt_id);
+        } else {
+            log_debug("Ignoring removed circuit $ckt_id.");
         }
     }
 }
@@ -89,9 +92,19 @@ sub circuit_removed{
 =cut
 
 sub process_request {
-    my ($self, $request, $data) = @_;
+    my ($self, $method, $params) = @_;
+
+    my $request = $params->{'method'}->{'value'};
+    my $data    = $params->{'data'}->{'value'};
 
     log_info("Received method call: $request");
+    log_info(Dumper($request));
+
+    $data = decode_json $data;
+
+    log_info("Received method data: $data");
+    log_info(Dumper($data));
+
     if($request =~ /^reserve$/){
         my $circuit = $self->{'reservation'}->reserve($data);
         if($circuit > 0 && $circuit < 99999){

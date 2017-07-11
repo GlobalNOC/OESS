@@ -2,9 +2,12 @@
 
 
 <div class="main_page">
-  <br>
+  <br/>
   [% INCLUDE html_templates/circuit_details_box.html %]
-  <br>
+
+  <center id="mpls_description">
+    <p style="color: #DF0101; width: 75%;">Selecting a backup path is optional. By default the circuit will use the shortest constrained path based on routing protocols for a backup path when the primary path is down. If you do select a backup path, a tertiary path will be created using the shortest constrained path based on routing protocols.</p>
+  </center><br/>
 
   <div id="layout">
 

@@ -4,44 +4,54 @@ function makeInterfacesTable(node){
   var node_name_holder = document.getElementById('node_name_holder');
   node_name_holder.innerHTML = "<center><h2><b>" + node + "</b></h2></center>";
 
-    var url = "services/data.cgi?action=get_node_interfaces&node=" + encodeURIComponent(node) + "&workgroup_id=" + session.data.workgroup_id + "&show_down=1" + "&show_trunk=1";
+    var url = "services/data.cgi?method=get_node_interfaces&node=" + encodeURIComponent(node) + "&workgroup_id=" + session.data.workgroup_id + "&show_down=1" + "&show_trunk=1";
+    var ds = new YAHOO.util.DataSource(url);
+    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+    ds.responseSchema = {
+        resultsList: "results",
+        fields: [
+            {key: "name"},
+            {key: "description"},
+            {key: "status"},
+            {key: "int_role"},
+            {key: "vlan_tag_range"},
+            {key: "mpls_vlan_tag_range"}
+        ],
+        metaFields: {
+            error: "error"
+        }
+    };
   
-  var ds = new YAHOO.util.DataSource(url);
-  ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-  ds.responseSchema = {
-    resultsList: "results",
-    fields: [
-      {key: "name"},
-      {key: "description"},
-      {key: "status"},
-      {key: "int_role"},
-      {key: "vlan_tag_range"}
-    ],
-    metaFields: {
-      error: "error"
-    }
-  };
-  
-  var cols = [
-    {key: "name", label: "Interface"},
-    {key: "description", label: "Description", width: 120},
-    {key: "status", label: "Status"},
-    {key: "int_role", label: "Role", formatter: function(elLiner, oRec, oCol, oData) {
-      if (oData === "unknown") {
-        elLiner.innerHTML = "Endpoint";
-      } else {
-        elLiner.innerHTML = "Trunk";
-      }
-    }},
-    {key: "vlan_tag_range", label: "VLAN Tag Range", formatter: function(elLiner, oRec, oCol, oData){
-      if(oData === null){
-        elLiner.innerHTML = "None Available";
-      }else {
-        var string = oData.replace(/^-1/, "untagged");
-        elLiner.innerHTML = string;
-      }
-    }}
-  ];
+    // tags is used to hold the available openflow vlan_tag_range;
+    // This is then combined with mpls_vlan_tag_range to display a
+    // list of globally valid vlans.
+    var tags = '';
+    var cols = [
+        {key: "name", label: "Interface"},
+        {key: "description", label: "Description", width: 120},
+        {key: "status", label: "Status"},
+        {key: "int_role", label: "Role", formatter: function(elLiner, oRec, oCol, oData) {
+            if (oData === "unknown") {
+                elLiner.innerHTML = "Endpoint";
+            } else {
+                elLiner.innerHTML = "Trunk";
+            }
+        }},
+        {key: "vlan_tag_range", label: "Tag Range", formatter: function(elLiner, oRec, oCol, oData){
+                if (oData !== null) {
+                    tags = oData.replace(/^-1/, "untagged");
+                }
+        }},
+        {key: "mpls_vlan_tag_range", label: "Tag Range", formatter: function(elLiner, oRec, oCol, oData){
+                if (oData === null) {
+                    elLiner.innerHTML = tags;
+                } else {
+                    if (tags !== '') { tags += ','; }
+                    tags += oData.replace(/^-1/, "untagged");
+                }
+                elLiner.innerHTML = tags;
+        }}
+    ];
 
     // Removes role column from table when not in 'admin' workgroup.
     // Assumes role is stored in fourth column from the left.
@@ -50,26 +60,34 @@ function makeInterfacesTable(node){
         cols.splice(3, 1);
     }
   
-  var configs = {
-    height: "337px"
-  };
+    var configs = {
+        height: "337px"
+    };
   
-  var table = new YAHOO.widget.ScrollingDataTable("add_interface_table", cols, ds, configs);
-  table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
-  table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
-  table.subscribe("rowClickEvent", table.onEventSelectRow);
-  return table;
+    var table = new YAHOO.widget.ScrollingDataTable("add_interface_table", cols, ds, configs);
+    table.hideColumn("vlan_tag_range");
+    table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
+    table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
+    table.subscribe("rowClickEvent", table.onEventSelectRow);
+    return table;
 }
-
+var endpoint_table;
+var nddi_map;
 function init(){  
 
-  setPageSummary("Intradomain Endpoints","Pick at least two endpoints from the map below.");
+  setPageSummary("Endpoints","Pick at least two endpoints from the map below.");
   
-  setNextButton("Proceed to Step 3: Primary Path", "?action=primary_path", verify_inputs);
-  
-  var endpoint_table = summary_init();
+  setNextButton("Proceed to Next Step: Circuit Options", "?action=options", verify_inputs);
 
-  var nddi_map = new NDDIMap("map");
+  if(session.data.circuit_type !== undefined){
+      if(session.data.circuit_type == 'mpls'){
+          setNextButton("Proceed to Next Step: Primary Path", "?action=primary_path", verify_inputs);
+      }
+  }
+  
+  endpoint_table = summary_init();
+
+  nddi_map = new NDDIMap("map");
 
     var w = 540;
     if (session.data.workgroup_type === 'admin') {
@@ -83,13 +101,18 @@ function init(){
     
   //nddi_map.showDefault();
   
-  nddi_map.on("loaded", function(){
-                this.updateMapFromSession(session);
-              });
+    nddi_map.on("loaded", function(){
+        this.updateMapFromSession(session);
+    });
 
-  endpoint_table.subscribe("rowDeleteEvent", function(){
-          save_session();
-      });
+    endpoint_table.subscribe("rowDeleteEvent", function(){
+        if (this.getRecordSet().getLength() == 0) {
+            session.data.circuit_type = undefined;
+        }
+
+        set_summary(session.data.circuit_type);
+        save_session();
+    });
 
   nddi_map.on("clickNode", function(e, args){
 
@@ -140,6 +163,7 @@ function init(){
                             mac_addrs: mac_addresses 
                         });
 
+                        set_summary(session.data.circuit_type);
                         save_session();
 
                         nddi_map.table.unselectAllRows();
@@ -148,7 +172,7 @@ function init(){
                     };
 
                     var endpoint_limit_ds = new YAHOO.util.DataSource(
-                        "services/data.cgi?action=is_within_circuit_endpoint_limit"+
+                        "services/data.cgi?method=is_within_circuit_endpoint_limit"+
                         "&workgroup_id=" + session.data.workgroup_id+
                         "&endpoint_num=" + ( endpoint_table.getRecordSet().getRecords().length + 1 ) 
                     );
@@ -200,10 +224,17 @@ function init(){
         });
   });
   
+}
+
   function save_session(){
     
+      var circuit_description = document.getElementById('description').value;
+
     var records = endpoint_table.getRecordSet().getRecords();
-    
+    session.data.bandwidth = 0;
+    session.data.restore_to_primary = 0;
+    session.data.static_mac_routing = 0;
+    session.data.description = circuit_description;
     session.data.endpoints = [];
     
     for (var i = 0; i < records.length; i++){
@@ -231,21 +262,23 @@ function init(){
 
   }
 
-  function verify_inputs(){
 
-    var records = endpoint_table.getRecordSet().getRecords();
-    
-    if (records.length < 2){
-      alert("You must have at least two endpoints.");
-      return false;
-    }       
-    
-    save_session();
 
-    return true;
-  }
+function verify_inputs(){
+
+  var records = endpoint_table.getRecordSet().getRecords();
   
+  if (records.length < 2){
+    alert("You must have at least two endpoints.");
+    return false;
+  }       
+
+  save_session();
+  return true;
+
 }
+  
+
 
 YAHOO.util.Event.onDOMReady(init);
   

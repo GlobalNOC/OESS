@@ -10,7 +10,9 @@ var remote_link_table;
 var link_maint_table;
 var node_maint_table;
 var int_move_maint_table;
+var config_table;
 var maint_add_button;
+
 function admin_init(){
 
     var tabs = new YAHOO.widget.TabView("admin_tabs", {orientation: "left"});
@@ -28,11 +30,218 @@ function admin_init(){
     setup_remote_dev_tab();
 
     setup_maintenance_tab();
+
+    setup_config_changes_tab();
 }
+
+function setup_config_changes_tab() {
+    makeConfigTable('config_table');
+}
+
+function display_mpls(obj) {
+    var state = 'none';
+    if (obj.checked == true) {
+        state = 'table-row';
+    }
+
+    var elements = YAHOO.util.Dom.getElementsByClassName('mpls');
+    for (var i = 0; i < elements.length; i++) {
+        elements[i].style.display = state;
+    }
+}
+
+function makeConfigPanel(x, y, width, obj) {
+
+
+    var pre = YAHOO.util.Dom.get('config_diff_pre');
+    pre.node_id = obj.getData('node_id');
+
+    YAHOO.util.Dom.setStyle(['config_diff_pre'], 'display', 'block');
+    YAHOO.util.Dom.setStyle(['config_diff_pre'], 'padding', '5px');
+    YAHOO.util.Dom.setStyle(['config_diff_pre'], 'margin', '5px');
+    YAHOO.util.Dom.setStyle(['config_diff_pre'], 'border-style', 'solid');
+    YAHOO.util.Dom.setStyle(['config_diff_pre'], 'border-color', '#c1c1c1');
+    YAHOO.util.Dom.setStyle(['config_diff_pre'], 'border-width', '2px');
+    YAHOO.util.Dom.setStyle(['config_diff_pre'], 'width', '95%');
+    YAHOO.util.Dom.setStyle(['config_diff_pre'], 'height', '300px');
+    YAHOO.util.Dom.setStyle(['config_diff_pre'], 'overflow', 'auto');
+
+    load_diff = function(node_id) {
+	var url    = '../services/admin/admin.cgi?';
+	var params = 'method=get_diff_text'+
+        '&node_id='  + node_id;
+	
+	var pre = YAHOO.util.Dom.get('config_diff_pre');
+	pre.innerHTML = 'Loading diff...';
+
+	var ds = new YAHOO.util.DataSource(url);
+	ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+	ds.responseSchema = {
+	    resultsList: "results",
+	    fields: [
+	{key: 'text'}
+		     ],
+	    metaFields: {
+		error: "error"
+	    }
+	};
+
+	ds.sendRequest(params, {
+		success: function(req, resp) {
+		    if (resp.results.length == 0) {
+			pre.innerHTML = 'Failed to receive diff. Please try again later.';
+			console.log('Request failed: ' + resp.error);
+		    } else {
+			if (resp.results[0].text == "\n") {
+			    // TODO This is here due to a bug in the backend
+			    pre.innerHTML = "No diff required at this time.";
+			} else {
+			    pre.innerHTML = resp.results[0].text;
+			}
+		    }
+		},
+		    failure: function(req, resp){
+		    pre.innerHTML = 'Failed to receive diff. Please try again later.';
+		    console.log('Request failed: ' + resp.error);
+		}
+	    });
+    };
+
+
+    var approve = new YAHOO.widget.Button('approve_diff_btn', {label: 'Approve'});
+    approve.node_id = obj.getData('node_id');
+
+    approve.on('click', function() {
+        approve.set('label', 'Approving...');
+
+        var url    = '../services/admin/admin.cgi?';
+        var params = 'method=set_diff_approval'+
+            '&node_id='  + this.node_id +
+            '&approved=' + '1';
+
+        var ds = new YAHOO.util.DataSource(url, { connMethodPost: true } );
+        ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+        ds.responseSchema = {
+            resultsList: "results",
+            fields: [ ],
+            metaFields: {
+                error: "error"
+            }
+        };
+
+        ds.sendRequest(params, {
+            success: function(req, resp){
+                if (resp.meta.error){
+                    alert("Error adding maintenance: " + resp.meta.error, null, {error: true});
+                    return;
+                }
+
+                var msg = 'Configuration change was approved.';
+                alert(msg);
+                panel.hide();
+            },
+            failure: function(req, resp){
+                add_button.set('label', 'Add');
+                alert('Server error occured while approving change.' , null, {error: true});
+            }
+        });
+    });
+
+    var panel  = new YAHOO.widget.Panel('config_details', {
+        width: width,
+        xy: [x, y],
+        modal: true
+    });
+    panel.approve_button = approve;
+    panel.load_diff      = load_diff;
+
+    panel.load = function(node_id, name) {
+	this.setHeader('Configuration Details - ' + name);
+	this.setFooter('Approve this pending configuration?');
+
+	this.approve_button.node_id = node_id;
+	this.load_diff(node_id);
+    }
+
+    panel.hideEvent.subscribe(function() {
+        pre.innerHTML = 'Loading diff...';
+    });
+
+    panel.load(obj.getData('node_id'), obj.getData('name'));
+    return panel;
+}
+
+function makeConfigTable(div_id) {
+
+    var state_formatter = function(el, rec, col, data) {
+        var is_pending = rec.getData("pending_diff");
+        var html;
+
+        if (is_pending == "1") {
+            html = '<p style="color:#BA2617">Pending Approval</p>';
+        } else {
+            html = '<p style="color:#32BA17">OK</p>';
+        }
+        el.innerHTML = html;
+    };
+    
+    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=get_diffs");
+    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+    ds.responseSchema = {
+        resultsList: "results",
+        fields: [
+            {key: "node_id"},
+            {key: "name"},
+            {key: "pending_diff"}
+        ]
+    };
+
+    var columns = [
+        {key: "node_id", label: "NodeId", hidden: true, sortable: false},
+        {key: "name", label: "Switch", width: 180, sortable: true},
+        {key: "pending_diff", label: "State", width: 110, sortable: true, formatter: state_formatter}
+    ];
+    
+    var config = {
+        sortedBy: {key:'name', dir:'asc'}
+    };
+
+    var config_panel;
+
+    var rowClickHandler = function(oArgs) {
+        var obj = this.getRecord(oArgs.target);
+        if (!obj) {
+            return;
+        }
+
+        var region = YAHOO.util.Dom.getRegion(oArgs.target);
+        var width = 400;
+
+        var x = ((region.left + region.right) / 2) - (width / 2);
+        var y = region.bottom;
+
+        if (config_panel == null) {
+            config_panel = makeConfigPanel(x, y, width, obj);
+            config_panel.render(document.body);
+        } else {
+	    config_panel.load(obj.getData('node_id'), obj.getData('name'));
+            config_panel.show();
+        }
+    };
+
+    var table = new YAHOO.widget.DataTable(div_id, columns, ds, config);
+    table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
+    table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
+    table.subscribe("rowClickEvent", table.onEventSelectRow);
+    table.subscribe("rowClickEvent", rowClickHandler);
+
+    return table;
+}
+
 
 function setup_remote_dev_tab(){
 
-    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_remote_devices");
+    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=get_remote_devices");
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
         resultsList: "results",
@@ -116,7 +325,7 @@ function setup_remote_dev_tab(){
                         return;
                     }
 
-                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_remote_device&node_id="+node_id+
+                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=update_remote_device&node_id="+node_id+
                                                        "&name="+ encodeURIComponent(rec.getData("name")) +
                                                        "&latitude=" + new_lat +
                                                        "&longitude="+ new_lon
@@ -170,7 +379,7 @@ function setup_remote_tab(){
     var view_topo_button = new YAHOO.widget.Button("view_topo_button", {label: "View Topology"});
 
     resubmit_button.on("click", function(){
-            var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=submit_topology");
+            var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=submit_topology");
             ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
             ds.responseSchema = {
                 resultsList: "results",
@@ -223,7 +432,7 @@ function setup_remote_tab(){
         view_topo_p.hideEvent.subscribe(function(){
             this.destroy();
         });
-            var topo_ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_topology");
+            var topo_ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=get_topology");
             topo_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
             topo_ds.responseSchema = {
                 resultsList: "results",
@@ -252,7 +461,7 @@ function setup_remote_tab(){
 
         });
 
-    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_remote_links");
+    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=get_remote_links");
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
         resultsList: "results",
@@ -361,7 +570,7 @@ function setup_remote_tab(){
                     
                     this.changeNodeImage(feature, this.ACTIVE_IMAGE);
 
-                    var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_node_interfaces&node="+encodeURIComponent(node) + "&show_down=1");
+                    var ds = new YAHOO.util.DataSource("../services/data.cgi?method=get_node_interfaces&node="+encodeURIComponent(node) + "&show_down=1");
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                     ds.responseSchema = {
                 resultsList: "results",
@@ -450,7 +659,7 @@ function setup_remote_tab(){
                                         return;
                                     }
 
-                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_remote_links");
+                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=get_remote_links");
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                     ds.responseSchema = {
                         resultsList: "results",
@@ -530,7 +739,7 @@ function setup_remote_tab(){
                                         save_button.set("disabled", true);
                                         save_button.set("label", "Adding Remote URN...");
 
-                                        var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_remote_link" +
+                                        var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_remote_link" +
                                                            "&interface_id=" + interface_id +
                                                            "&urn=" + encodeURIComponent(urn) + 
                                                            "&name=" + encodeURIComponent(name) +
@@ -651,7 +860,7 @@ function editRemoteLink(link_id,name, urn, vlan_tag_range,interface_name,interfa
             return;
         }
 
-        var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_remote_links");
+        var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=get_remote_links");
         ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
         ds.responseSchema = {
             resultsList: "results",
@@ -723,7 +932,7 @@ function editRemoteLink(link_id,name, urn, vlan_tag_range,interface_name,interfa
                         save_button.set("disabled", true);
                         save_button.set("label", "Updating Remote URN...");
 
-                        var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=edit_remote_link" +
+                        var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=edit_remote_link" +
                                                            "&link_id=" + encodeURIComponent(link_id) +
                                                            "&urn=" + encodeURIComponent(urn) +
                                                            "&name=" + encodeURIComponent(name) +
@@ -779,7 +988,7 @@ function editRemoteLink(link_id,name, urn, vlan_tag_range,interface_name,interfa
 
 
 function removeRemoteLink(link_id, button){
-var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=remove_remote_link&link_id="+link_id);
+var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=remove_remote_link&link_id="+link_id);
 ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 ds.responseSchema = {
 resultsList: "results",
@@ -963,10 +1172,10 @@ function setup_users_tab(){
                     var url = "../services/admin/admin.cgi?"
             
                     if (! user_id){
-                        url += "action=add_user";
+                        url += "method=add_user";
                     }
                     else{
-                        url += "action=edit_user&user_id="+user_id;
+                        url += "method=edit_user&user_id="+user_id;
                     }
             
                     var fname = YAHOO.util.Dom.get("user_given_name").value;
@@ -1052,7 +1261,7 @@ function setup_users_tab(){
                                        
                                        else{
                                            
-                                           var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_user_to_workgroup&workgroup_id=" + add_new_user_to_workgroup + "&user_id="+ user_id);
+                                           var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_user_to_workgroup&workgroup_id=" + add_new_user_to_workgroup + "&user_id="+ user_id);
                                            ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                                            ds.responseSchema = {
                                                resultsList: "results",
@@ -1287,7 +1496,7 @@ function setup_workgroup_tab(){
                     return;
                 }
                 //construct url
-                var submit_ds_url= "../services/admin/admin.cgi?action=edit_workgroup&workgroup_id=" + workgroup_id + "&name=" + encodeURI(document.getElementById('workgroup_name_edit').value) + "&max_mac_address_per_end=" + max_mac_address_per_end + "&max_circuits=" + max_circuits + "&max_circuit_endpoints=" + max_circuit_endpoints;
+                var submit_ds_url= "../services/admin/admin.cgi?method=edit_workgroup&workgroup_id=" + workgroup_id + "&name=" + encodeURI(document.getElementById('workgroup_name_edit').value) + "&max_mac_address_per_end=" + max_mac_address_per_end + "&max_circuits=" + max_circuits + "&max_circuit_endpoints=" + max_circuit_endpoints;
                 //determine if workgroup external id is defined
                 workgroup_external = document.getElementById('workgroup_external_edit').value;
                 if( (workgroup_external !== undefined) &&
@@ -1327,7 +1536,7 @@ function setup_workgroup_tab(){
                                 function(){
                                     workgroup_user_table.disable();
 
-                                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=remove_user_from_workgroup&user_id="+user_id+"&workgroup_id="+workgroup_id);
+                                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=remove_user_from_workgroup&user_id="+user_id+"&workgroup_id="+workgroup_id);
                                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                                     ds.responseSchema = {
                                         resultsList: "results",
@@ -1381,7 +1590,7 @@ function setup_workgroup_tab(){
                                 function(){
                                     owned_interfaces_table.disable();
 
-                                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_interface_owner&interface_id="+interface_id);
+                                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=update_interface_owner&interface_id="+interface_id);
                                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                                     ds.responseSchema = {
                                         resultsList: "results",
@@ -1487,7 +1696,7 @@ function setup_workgroup_tab(){
                             var first   = record.getData('first_name');
                             var last    = record.getData('family_name');
 
-                            var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_user_to_workgroup&workgroup_id=" + workgroup_id + "&user_id="+ user_id);
+                            var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_user_to_workgroup&workgroup_id=" + workgroup_id + "&user_id="+ user_id);
                             ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                             ds.responseSchema = {
                                 resultsList: "results",
@@ -1573,7 +1782,7 @@ function setup_workgroup_tab(){
 
                 this.changeNodeImage(feature, this.ACTIVE_IMAGE);
 
-                var url = "../services/data.cgi?action=get_node_interfaces&node=" + encodeURIComponent(node) + "&show_down=1";
+                var url = "../services/data.cgi?method=get_node_interfaces&node=" + encodeURIComponent(node) + "&show_down=1";
                 if (workgroup_type === "admin") {
                   url = url + "&show_trunk=1";
                 }
@@ -1595,7 +1804,7 @@ function setup_workgroup_tab(){
                             
                 var cols = [
                   {key: "name", label: "Interface", width: 80},
-                  {key: "description", label: "Description", width: 160},
+                  {key: "description", label: "Description", width: 150},
                   {key: "int_role", label: "Role", width: 50, formatter: function(elLiner, oRec, oCol, oData) {
                     if (oData === "unknown") {
                       elLiner.innerHTML = "Endpoint";
@@ -1634,7 +1843,7 @@ function setup_workgroup_tab(){
                   var interface_id = rec.getData('interface_id');
 
                   //first check to see if this interface is already owned by another work group
-                  var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_interface&interface_id="+interface_id);
+                  var ds = new YAHOO.util.DataSource("../services/data.cgi?method=get_interface&interface_id="+interface_id);
                   ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                   ds.responseSchema = {
                     resultsList: "results",
@@ -1655,7 +1864,7 @@ function setup_workgroup_tab(){
                       } else {
                         var workgroup_name = resp.results[0].workgroup_name;
                         var update_interface_owner = function() {
-                          var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_interface_owner&workgroup_id="+workgroup_id+"&interface_id="+interface_id);
+                          var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=update_interface_owner&workgroup_id="+workgroup_id+"&interface_id="+interface_id);
                           ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                           ds.responseSchema = {
                             resultsList: "results",
@@ -1764,7 +1973,7 @@ function setup_workgroup_tab(){
                     this.set("label", "Creating workgroup...");
                     this.set("disabled", true);
 
-                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_workgroup&name="+encodeURIComponent(workgroup_name)+"&external_id="+encodeURIComponent(external_id)+"&type="+encodeURIComponent(workgroup_type) );
+                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_workgroup&name="+encodeURIComponent(workgroup_name)+"&external_id="+encodeURIComponent(external_id)+"&type="+encodeURIComponent(workgroup_type) );
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                     ds.responseSchema = {
                         resultsList: "results",
@@ -1806,7 +2015,7 @@ function setup_workgroup_tab(){
 function do_node_insert(link_id, map, delete_button, save_button, panel){
     showConfirm("This link has active circuits.  However there is a node in the middle of the path.  Would you like to automatically approve the new links and migrate all existing circuits onto the new paths?",
                 function(){
-                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=insert_node_in_path&link_id=" + link_id);
+                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=insert_node_in_path&link_id=" + link_id);
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                     
                     ds.responseSchema = {
@@ -1845,7 +2054,7 @@ function do_decom_link(link_id,map,delete_button,save_button,panel){
     showConfirm("Decomissioning this link will remove it. Are you sure you wish to continue?",
                 function(){
 
-                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=decom_link&link_id="+link_id);
+                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=decom_link&link_id="+link_id);
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
                     ds.responseSchema = {
@@ -1891,8 +2100,7 @@ function setup_network_tab(){
     // clear out the old map if we have it (ie, might have confirmed something)
     YAHOO.util.Dom.get("active_network_map").innerHTML = "";
 
-    //var map = new NDDIMap("active_network_map", null, { node_label_status: false } );
-    var map = new NDDIMap("active_network_map", null );
+    var map = new NDDIMap("active_network_map", null, {circuit_type: null});
 
     map.on("loaded", function(){
             //this.showDefault();
@@ -1943,7 +2151,7 @@ function setup_network_tab(){
                         return;
                     }
                 
-            var url  = "../services/admin/admin.cgi?action=update_link&link_id="+link.link_id;
+            var url  = "../services/admin/admin.cgi?method=update_link&link_id="+link.link_id;
                 url += "&name="+encodeURIComponent(new_name);
                     if(new_metric == 0){
                         new_metric = 1;
@@ -1993,7 +2201,7 @@ function setup_network_tab(){
             
             delete_button.on("click", function(){
                     
-                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=is_ok_to_decom_link&link_id=" + link.link_id);
+                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=is_ok_to_decom_link&link_id=" + link.link_id);
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                     ds.responseSchema = {
                         resultsList: "results",
@@ -2067,7 +2275,7 @@ function setup_network_tab(){
                 showConfirm("Putting the link into maintenance state will cause all circuits with an alternate path to change to that alternate path, causing a small forwarding disruption.  Circuits without an alternate path will continue to forward on this path while the link is up.  No restore to primary events will occur until the link is up and the maintenance has been completed. Are you sure you want to do this?",
                     function() {
                     maint_button.set("disabled",true);
-                    var ds = new YAHOO.util.DataSource("../services/admin/maintenance.cgi?action=start_link&link_id=" + link_id);
+                    var ds = new YAHOO.util.DataSource("../services/admin/maintenance.cgi?method=start_link&link_id=" + link_id);
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
                     ds.responseSchema = {
@@ -2107,7 +2315,7 @@ function setup_network_tab(){
 
             });
 
-            var url =  "../services/data.cgi?action=get_link_by_name";
+            var url =  "../services/data.cgi?method=get_link_by_name";
                 url += "&name="+ encodeURIComponent(link_name);
 
             var ds = new YAHOO.util.DataSource(url);
@@ -2179,24 +2387,33 @@ function setup_network_tab(){
             var lon        = args[0].lon;
             var vlan_range = args[0].vlan_range;
             var max_flows = args[0].max_flows;
+            var short_name = args[0].short_name;
             var tx_delay_ms = args[0].tx_delay_ms;
             var default_drop = args[0].default_drop;
             var default_forward = args[0].default_forward;
             var barrier_bulk = args[0].barrier_bulk;
             var feature = args[0].feature;
             var dpid = convert_dpid_to_hex(args[0].dpid);
-        var max_static_mac_flows = args[0].max_static_mac_flows;
-        var end_epoch = args[0].feature.geometry.end_epoch;
+	    var max_static_mac_flows = args[0].max_static_mac_flows;
+	    var end_epoch = args[0].feature.geometry.end_epoch;
+	    var openflow = args[0].openflow;
 
-        function show_interface_acl_panel(args){
-            var interface_id = args.interface_id;
-            var interface_name = args.interface_name;
-            var acl_panel = new YAHOO.widget.Panel("interface_acl_view_panel",{
-                width: 675,
+            var mpls       = args[0].mpls;
+            var mgmt_addr  = args[0].mgmt_addr;
+            var tcp_port   = args[0].tcp_port;
+            var vendor     = args[0].vendor;
+            var model      = args[0].model;
+            var sw_version = args[0].sw_version;
+
+	    function show_interface_acl_panel(args){
+		var interface_id = args.interface_id;
+		var interface_name = args.interface_name;
+		var acl_panel = new YAHOO.widget.Panel("interface_acl_view_panel",{
+			width: 675,
                 centered: true,
-                draggable: true
-            });
-
+			draggable: true
+		    });
+		
             acl_panel.setHeader("ACL Rules for: "+interface_name);
             acl_panel.setBody(
                 "<div id='interface_acl_table_container'>" +
@@ -2297,7 +2514,7 @@ function setup_network_tab(){
                 var move_edge_int = function(){
                     add_button.set('label', 'Submitting...');
                     var url = "../services/admin/admin.cgi?";
-                    var postVars = "action=move_edge_interface_circuits"+
+                    var postVars = "method=move_edge_interface_circuits"+
                                    "&orig_interface_id="+params.orig_interface_id+
                                    "&new_interface_id="+move_int_form.val().new_interface_id;
                     var circuit_ids = move_int_form.val().circuit_ids();
@@ -2363,17 +2580,19 @@ function setup_network_tab(){
         }
         
         function make_node_intf_table(){
-            var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_node_interfaces&show_down=1&show_trunk=1&node="+encodeURIComponent(node) );
+            var ds = new YAHOO.util.DataSource("../services/data.cgi?method=get_node_interfaces&show_down=1&show_trunk=1&node="+encodeURIComponent(node) );
             
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                     ds.responseSchema = {
                             resultsList: "results",
                             fields: [
-                            {key: "name"},
-                            {key: "description"},
-                            {key: "vlan_tag_range"},
-                            {key: "interface_id", parser: "number"},
-                            {key: "workgroup_id", parser: "number"},
+		    {key: "name"},
+		    {key: "description"},
+		    {key: "vlan_tag_range"},
+                    {key: "short_name"},
+		    {key: "mpls_vlan_tag_range"},
+		    {key: "interface_id", parser: "number"},
+		    {key: "workgroup_id", parser: "number"},
                     {key: "workgroup_name"},
                             {key: "int_role"}
                                 ],
@@ -2406,86 +2625,139 @@ function setup_network_tab(){
             }
             
                     var cols = [
-                {key:'name', label: "Interface", width: 60},
-                            {key:'description', label: "Description", width: 200, 
-                             editor: new YAHOO.widget.TextboxCellEditor({  
-                                     asyncSubmitter: function( callback, newValue) {
+				{key:'name', label: "Interface", width: 60},
+				{key:'description', label: "Description", width: 200, 
+				 editor: new YAHOO.widget.TextboxCellEditor({  
+					 asyncSubmitter: function( callback, newValue) {
                                              var record = this.getRecord();
                                              var column = this.getColumn();
                                              var oldValue = this.value;
                                              YAHOO.util.Connect.asyncRequest(
-                                                     'get','../services/admin/admin.cgi?action=update_interface&interface_id='+record.getData('interface_id')+'&description='+encodeURIComponent(newValue),{
-                                                             success:function(o) {
-                                                                     var r = YAHOO.lang.JSON.parse(o.responseText);
-                                                                     table.destroy();
-                                     table = make_node_intf_table();
-                                     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
-                                     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
-                                     table.subscribe("cellClickEvent", function (ev){
-                                         var target= YAHOO.util.Event.getTarget(ev);
-                                         var column = table.getColumn(target);
-                                         if (column.key=='description'){
-                                             table.onEventShowCellEditor(ev);
-                                         }
-                                         if(column.key=='vlan_tag_range' && target.firstChild.innerHTML != 'TRUNK'){
-                                             table.onEventShowCellEditor(ev);
-                                         }
-                                     });
+									     'get','../services/admin/admin.cgi?method=update_interface&interface_id='+record.getData('interface_id')+'&description='+encodeURIComponent(newValue),{
+										 success:function(o) {
+										     var r = YAHOO.lang.JSON.parse(o.responseText);
+										     table.destroy();
+										     table = make_node_intf_table();
+										     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
+										     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
+										     table.subscribe("cellClickEvent", function (ev){
+											     var target= YAHOO.util.Event.getTarget(ev);
+											     var column = table.getColumn(target);
+											     if (column.key=='description'){
+												 table.onEventShowCellEditor(ev);
+											     }
+											     if(column.key=='vlan_tag_range' && target.firstChild.innerHTML != 'TRUNK'){
+												 table.onEventShowCellEditor(ev);
+											     }
+											     if(column.key=='mpls_vlan_tag_range' && target.firstChild.innerHTML != 'TRUNK'){
+												 table.onEventShowCellEditor(ev);
+											     }
+											 });
+										 },
+										     failure: function(o){
+										     
+										     callback(false, oldValue);
                                                              },
-                                                             failure: function(o){
-                                     
-                                                                     callback(false, oldValue);
-                                                             },
-                                                             scope:this
-                                                             
-                                                     }
+										     scope:this
+										     
+										     }
                                                      
-                                             );
-                                     }
-                             } ) 
-                            },
-                            {key: 'vlan_tag_range', label: 'VLAN Tags', width: 220,
-                             formatter: function(elLiner, oRec, oCol, oData){
-                                     if(oRec.getData('int_role') == 'trunk'){
-                                             elLiner.innerHTML = 'TRUNK';
-                                     }else{
-                                             elLiner.innerHTML = oRec.getData('vlan_tag_range');
-                                     }
-                             },
-                             editor:new YAHOO.widget.TextboxCellEditor({
-                                     asyncSubmitter: function( callback, newValue) {
+									     );
+					 }
+				     } ) 
+				},
+				{key: 'vlan_tag_range', label: 'VLAN Tags', width: 180,
+				 formatter: function(elLiner, oRec, oCol, oData){
+					if(oRec.getData('int_role') == 'trunk'){
+					    elLiner.innerHTML = 'TRUNK';
+					}else{
+					    elLiner.innerHTML = oRec.getData('vlan_tag_range');
+					}
+				    },
+				 
+				 editor:new YAHOO.widget.TextboxCellEditor({
+					 asyncSubmitter: function( callback, newValue) {
                                              var record = this.getRecord();
                                              var column = this.getColumn();
                                              var oldValue = this.value;
                                              YAHOO.util.Connect.asyncRequest(
-                                                     'get','../services/admin/admin.cgi?action=update_interface&interface_id='+record.getData('interface_id')+'&vlan_tag_range='+encodeURIComponent(newValue),{
-                                                             success:function(o) {
-                                                                     var r = YAHOO.lang.JSON.parse(o.responseText);
-                                     table.destroy();
-                                     table = make_node_intf_table();
-                                     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
-                                     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
-                                     table.subscribe("cellClickEvent", function (ev){
-                                         var target= YAHOO.util.Event.getTarget(ev);
-                                         var column = table.getColumn(target);
-                                         if (column.key=='description'){
-                                             table.onEventShowCellEditor(ev);
+									     'get','../services/admin/admin.cgi?method=update_interface&interface_id='+record.getData('interface_id')+'&vlan_tag_range='+encodeURIComponent(newValue),{
+										 success:function(o) {
+										     var r = YAHOO.lang.JSON.parse(o.responseText);
+										     table.destroy();
+										     table = make_node_intf_table();
+										     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
+										     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
+										     table.subscribe("cellClickEvent", function (ev){
+											     var target= YAHOO.util.Event.getTarget(ev);
+											     var column = table.getColumn(target);
+											     if (column.key=='description'){
+												 table.onEventShowCellEditor(ev);
+											     }
+											     if(column.key=='vlan_tag_range' && target.firstChild.innerHTML != 'TRUNK'){
+												 table.onEventShowCellEditor(ev);
+											     } 
+											     if(column.key=='mpls_vlan_tag_range' && target.firstChild.innerHTML != 'TRUNK'){
+                                                                                                 table.onEventShowCellEditor(ev);
+                                                                                             }
+											 });
+										 },
+										     failure: function(o){
+										     callback(false, oldValue);
+										 },
+										     scope:this
+										     
+										     }
+									     
+									     );
+					 }
+				     } )},
+				{key: 'mpls_vlan_tag_range', label: 'MPLS VLAN Tags', width: 180,
+                                 formatter: function(elLiner, oRec, oCol, oData){
+                                        if(oRec.getData('int_role') == 'trunk'){
+                                            elLiner.innerHTML = 'TRUNK';
+                                        }else{
+                                            elLiner.innerHTML = oRec.getData('mpls_vlan_tag_range');
+                                        }
+                                    },
+				 
+                                 editor:new YAHOO.widget.TextboxCellEditor({
+                                         asyncSubmitter: function( callback, newValue) {
+                                             var record = this.getRecord();
+                                             var column = this.getColumn();
+                                             var oldValue = this.value;
+                                             YAHOO.util.Connect.asyncRequest(
+                                                                             'get','../services/admin/admin.cgi?method=update_interface&interface_id='+record.getData('interface_id')+'&mpls_vlan_tag_range='+encodeURIComponent(newValue),{
+                                                                                 success:function(o) {
+                                                                                     var r = YAHOO.lang.JSON.parse(o.responseText);
+                                                                                     table.destroy();
+                                                                                     table = make_node_intf_table();
+                                                                                     table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
+                                                                                     table.subscribe("rowMouseoutEvent", table.onEventUnhighlightRow);
+                                                                                     table.subscribe("cellClickEvent", function (ev){
+                                                                                             var target= YAHOO.util.Event.getTarget(ev);
+                                                                                             var column = table.getColumn(target);
+                                                                                             if (column.key=='description'){
+                                                                                                 table.onEventShowCellEditor(ev);
+                                                                                             }
+											     if(column.key=='vlan_tag_range' && target.firstChild.innerHTML != 'TRUNK'){
+                                                                                                 table.onEventShowCellEditor(ev);
+                                                                                             }
+                                                                                             if(column.key=='mpls_vlan_tag_range' && target.firstChild.innerHTML != 'TRUNK'){
+                                                                                                 table.onEventShowCellEditor(ev);
+                                                                                             }
+                                                                                         });
+                                                                                 },
+                                                                                     failure: function(o){
+                                                                                     callback(false, oldValue);
+                                                                                 },
+                                                                                     scope:this
+
+                                                                                     }
+
+                                                                             );
                                          }
-                                         if(column.key=='vlan_tag_range' && target.firstChild.innerHTML != 'TRUNK'){
-                                             table.onEventShowCellEditor(ev);
-                                         }
-                                     });
-                                                             },
-                                                             failure: function(o){
-                                                                     callback(false, oldValue);
-                                                             },
-                                                             scope:this
-                                                             
-                                                     }
-                                                     
-                                             );
-                                     }
-                             } )},
+                                     } )},
                 {key: "workgroup_name", label: "Workgroup", formatter: function(elLiner, oRec, oCol, oData){
                     if(oData === null){
                         elLiner.innerHTML = 'None';
@@ -2546,7 +2818,7 @@ function setup_network_tab(){
 
             panel = new YAHOO.widget.Panel("node_details",
                                            { 
-                                               width: 790,
+                                               width: 920,
                                                centered: true,
                                                draggable: true
                                            }
@@ -2554,65 +2826,94 @@ function setup_network_tab(){
 
             panel.setHeader("Details for Network Element: " + node);
         panel.setBody("<table style='width:100%'>" +
-            "<tr>" +
-              "<td colspan='4' class='soft_title'>Base System Description and Information</td>"+
-            "</tr>" +
-            "<tr>" +
-                "<td colspan='2'>" +
-                    "<label for='active_node_name'>Name:</label>" +
-                    "<input type='text' size='38' style='margin-left:83px;' id='active_node_name'>" +
-                "</td>" +
-                "<td>" +
-                    "<label for='dpid_str'>DPID:</label>" +
-                "</td>" +
-                "<td>" +
-                    "<label id='dpid_str'></label>" +
-                "</td>" +
-            "</tr>" +
-                "<td>" +
-                    "<label for='active_node_lat'>Latitude:</label>" +
-                "</td>" +
-                "<td>" +
-                    "<input type='text' id='active_node_lat'>" +
-                "</td>" +
-                "<td>" +
-                    "<label for='active_node_lon'>Longitude:</label>" +
-                "</td>" +
-                "<td>" +
-                    "<input type='text' id='active_node_lon'>" +
-                "</td>" +
-            "</tr>" +
-            "<tr>" +
-              "<td colspan='2' class='soft_title'>Behaviours</td>"+
-              "<td colspan='2' class='soft_title'>Performance Characteristics</td>"+
-            "</tr>" +
-            "<tr>" +
-              "<td>Vlan Range:</td>" +
-              "<td><input type='text' id='active_node_vlan_range' size='10'></td>" +
-              "<td>Maximum Number of Flow Mods</td>" +
-              "<td><input type='text' id='active_max_flows' size='10'></td>" +
-            "</tr>" +
-            "<tr>" +
-              "<td>Default Forward LLDP to controller</td>"+
-              "<td><input type='checkbox' id='active_node_default_forward' checked /></td>" +
-              "<td>FlowMod Processing Delay (ms)</td>" +
-              "<td><input type='text' id='active_tx_delay_ms' size='10'></td>" +
-            "</tr>" +
-            "<tr>" +
-              "<td>Default Drop Rule</td>" +
-              "<td><input type='checkbox' id='active_node_default_drop' checked /></td>" +
-              "<td>Send Bulk Flow Rules</td>" +
-              "<td><input type='checkbox' id='active_barrier_bulk' checked></td>" +
-            "</tr>" +
-            "<tr>" +
-              "<td></td>" +
-              "<td></td>" +
-              "<td>Static MAC Limit</td>" +
-              "<td><input type='text' id='active_max_static_mac_flows' size='10'></td>" +
-            "</tr>" +
-        "</table>" +
-        "<div style='font-weight: bold;color: grey;text-align:left'>Interfaces</div>"+
-        "<div id='node_interface_table' style='margin-top:8px;'> </div>");
+                      // Base
+                      "<tr>" +
+                        "<td colspan='4' class='soft_title'>Base System Description and Information</td>"+
+                      "</tr>" +
+                      // Base - Name, VLAN Range
+                      "<tr>" +
+                        "<td><label for='active_node_name'>Name:</label></td>" +
+                        "<td><input type='text' size='38' id='active_node_name'></td>" +
+                        "<td>Vlan Range:</td>" +
+                        "<td><input type='text' id='active_node_vlan_range' size='10'></td>" +
+                      "</tr>" +
+                      // Base - Latitude, Longitude
+                      "<tr>" +
+                        "<td><label for='active_node_lat'>Latitude:</label></td>" +
+                        "<td><input type='text' id='active_node_lat'></td>" +
+                        "<td><label for='active_node_lon'>Longitude:</label></td>" +
+                        "<td><input type='text' id='active_node_lon'></td>" +
+                      "</tr>" +
+                      // Base - OpenFlow Enabled, MPLS Enabled
+	              "<tr>" + 
+		        "<td></td>" +
+		        "<td><input type='hidden' id='openflow_enabled' /></td>" + 
+		        "<td><label for='mpls_enabled'>MPLS Enabled</label></td>" +
+		        "<td><input type='checkbox' id='mpls_enabled' onchange='display_mpls(this);'checked /></td>" +
+		      "</tr>" +
+                      "<tr><td>&nbsp;</td></tr>" +
+                      // OpenFlow
+                      "<tr class='openflow'>" +
+                        "<td colspan='4' class='soft_title'>OpenFlow Configuration</td>"+
+                      "</tr>" +
+                      // OpenFlow - DPID
+                      "<tr class='openflow'>" +
+                        "<td><label for='dpid_str'>DPID:</label></td>" +
+                        "<td><label id='dpid_str'></label></td>" +
+                        "<td></td>" +
+                        "<td></td>" +
+                      "</tr>" +
+                      // OpenFlow
+                      "<tr class='openflow'>" +
+                        "<td>Maximum Number of Flow Mods</td>" +
+                        "<td><input type='text' id='active_max_flows' size='10'></td>" +
+                        "<td>Static MAC Limit</td>" +
+                        "<td><input type='text' id='active_max_static_mac_flows' size='10'></td>" +
+                      "</tr>" +
+                      // OpenFlow
+                      "<tr class='openflow'>" +
+                        "<td>FlowMod Processing Delay (ms)</td>" +
+                        "<td><input type='text' id='active_tx_delay_ms' size='10'></td>" +
+                        "<td>Send Bulk Flow Rules</td>" +
+                        "<td><input type='checkbox' id='active_barrier_bulk' checked></td>" +
+                      "</tr>" +
+                      // OpenFlow
+                      "<tr class='openflow'>" +
+                        "<td>Default Drop Rule</td>" +
+                        "<td><input type='checkbox' id='active_node_default_drop' checked /></td>" +
+                        "<td>Default Forward LLDP to controller</td>"+
+                        "<td><input type='checkbox' id='active_node_default_forward' checked /></td>" +
+                      "<tr>" +
+                      "<tr class='openflow'><td>&nbsp;</td></tr>" +
+                      // MPLS
+                      "<tr class='mpls'>" +
+                        "<td colspan='4' class='soft_title'>MPLS Configuration</td>"+
+                      "</tr>" +
+                      // MPLS - IP Address, TCP Port
+                      "<tr class='mpls'>" +
+                        "<td>IP Address</td>" +
+                        "<td><input type='text' id='mgmt_addr'></td>" +
+                        "<td>TCP Port</td>" +
+                        "<td><input type='text' id='tcp_port'></td>" +
+                      "</tr>" +
+                      // MPLS - Vendor, Model
+                      "<tr class='mpls'>" +
+                        "<td>Vendor</td>" +
+                        "<td><input type='text' id='vendor'></td>" +
+                        "<td>Model</td>" +
+                        "<td><input type='text' id='model'></td>" +
+                      "</tr>" +
+                      // MPLS - Software Version
+                      "<tr class='mpls'>" +
+                        "<td>Software Version</td>" +
+                        "<td><input type='text' id='sw_version'></td>" +
+                        "<td>Short Name:</td>" +
+                        "<td><input type='text' id='short_name'></td>" +
+                      "</tr>" +
+                      "<tr class='mpls'><td>&nbsp;</td></tr>" +
+                      "</table>" +
+                      "<div style='font-weight: bold;color: grey;text-align:left'>Interfaces</div>"+
+                      "<div id='node_interface_table' style='margin-top:8px;'> </div>");
 
             panel.setFooter("<div id='save_active_node'></div>" + 
                             "<div id='delete_active_node'></div>" +
@@ -2637,9 +2938,10 @@ function setup_network_tab(){
                     if(column.key=='vlan_tag_range' && target.firstChild.innerHTML != 'TRUNK'){
                             table.onEventShowCellEditor(ev);
                     }
+		    if(column.key=='mpls_vlan_tag_range' && target.firstChild.innerHTML != 'TRUNK'){
+			table.onEventShowCellEditor(ev);
+		    }
                 });
-
-
 
             YAHOO.util.Dom.get('active_node_name').value            = node;
             YAHOO.util.Dom.get('active_node_lat').value             = lat;
@@ -2649,6 +2951,45 @@ function setup_network_tab(){
             YAHOO.util.Dom.get('active_max_flows').value            = max_flows;
             YAHOO.util.Dom.get('dpid_str').innerHTML                = dpid;
             YAHOO.util.Dom.get('active_max_static_mac_flows').value = max_static_mac_flows;
+            YAHOO.util.Dom.get('short_name').value = short_name;
+
+	    if (openflow == 0 || openflow == null) {
+                YAHOO.util.Dom.get('openflow_enabled').value = false;
+
+                var elements = YAHOO.util.Dom.getElementsByClassName('openflow');
+                for (var i = 0; i < elements.length; i++) {
+                    elements[i].style.display = 'none';
+                }
+            } else {
+                YAHOO.util.Dom.get('openflow_enabled').value = true;
+
+                var elements = YAHOO.util.Dom.getElementsByClassName('openflow');
+                for (var i = 0; i < elements.length; i++) {
+                    elements[i].style.display = 'table-row';
+                }
+            }
+
+	    if (mpls == 0 || mpls == null) {
+		YAHOO.util.Dom.get('mpls_enabled').checked = false;
+
+                var elements = YAHOO.util.Dom.getElementsByClassName('mpls');
+                for (var i = 0; i < elements.length; i++) {
+                    elements[i].style.display = 'none';
+                }
+	    } else {
+                YAHOO.util.Dom.get('mpls_enabled').checked = true;
+
+                var elements = YAHOO.util.Dom.getElementsByClassName('mpls');
+                for (var i = 0; i < elements.length; i++) {
+                    elements[i].style.display = 'table-row';
+                }
+
+                YAHOO.util.Dom.get('mgmt_addr').value  = mgmt_addr;
+                YAHOO.util.Dom.get('tcp_port').value   = tcp_port;
+                YAHOO.util.Dom.get('vendor').value     = vendor;
+                YAHOO.util.Dom.get('model').value      = model;
+                YAHOO.util.Dom.get('sw_version').value = sw_version;
+            }
 
             if(default_drop == 0){
                 YAHOO.util.Dom.get('active_node_default_drop').checked = false;
@@ -2671,7 +3012,7 @@ function setup_network_tab(){
         }
 
         save_button.on("click", function(){
-		showConfirm("Are you sure you want to update the device. The new values will take effect immediatly.",
+		showConfirm("The new values will take effect immediately.Are you sure you want to update the device?",
 			    function(){
 				var new_name  = YAHOO.util.Dom.get('active_node_name').value;
 				var new_lat   = YAHOO.util.Dom.get('active_node_lat').value;
@@ -2683,6 +3024,15 @@ function setup_network_tab(){
 				var new_default_forward = YAHOO.util.Dom.get('active_node_default_forward').checked;
 				var new_barrier_bulk = YAHOO.util.Dom.get('active_barrier_bulk').checked;
 				var new_max_static_mac_flows = YAHOO.util.Dom.get('active_max_static_mac_flows').value;
+				var openflow   = YAHOO.util.Dom.get('openflow_enabled').value;
+				var mpls       = YAHOO.util.Dom.get('mpls_enabled').checked;
+                                var mgmt_addr  = YAHOO.util.Dom.get('mgmt_addr').value;
+                                var tcp_port   = YAHOO.util.Dom.get('tcp_port').value;
+                                var vendor     = YAHOO.util.Dom.get('vendor').value;
+                                var model      = YAHOO.util.Dom.get('model').value;
+                                var sw_version = YAHOO.util.Dom.get('sw_version').value;
+                                var short_name = YAHOO.util.Dom.get('short_name').value;
+
 				if (! new_name){
 				    alert("You must specify a name for this device.");
 				    return;
@@ -2713,8 +3063,39 @@ function setup_network_tab(){
 				    }				
 				}
 
-				var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=update_node&node_id="+node_id+"&name="+encodeURIComponent(new_name)+"&latitude="+new_lat+"&longitude="+new_lon+"&vlan_range="+encodeURIComponent(new_range) + "&default_drop=" + encodeURIComponent(new_default_drop) + "&default_forward=" + encodeURIComponent(new_default_forward) + "&max_flows=" + encodeURIComponent(new_max_flows) + "&tx_delay_ms=" + encodeURIComponent(new_tx_delay_ms) + "&bulk_barrier=" + encodeURIComponent(new_barrier_bulk) + "&max_static_mac_flows=" + new_max_static_mac_flows);
-		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                                var args = "&node_id=" + node_id +
+                                    "&name="       + encodeURIComponent(new_name) +
+                                    "&latitude="   + new_lat +
+                                    "&longitude="  + new_lon +
+                                    "&vlan_range=" + encodeURIComponent(new_range) +
+                                    "&mpls="       + encodeURIComponent(mpls) +
+                                    "&openflow="   + encodeURIComponent(openflow);
+
+                                var mpls_args = "&mgmt_addr=" + encodeURIComponent(mgmt_addr) +
+                                    "&tcp_port="   + encodeURIComponent(tcp_port) +
+                                    "&vendor="     + encodeURIComponent(vendor) +
+                                    "&model="      + encodeURIComponent(model) +
+                                    "&sw_version=" + encodeURIComponent(sw_version) +
+                                    "&short_name=" + encodeURIComponent(short_name);
+
+                                var openflow_args = "&default_drop=" + encodeURIComponent(new_default_drop) +
+                                    "&default_forward=" + encodeURIComponent(new_default_forward) +
+                                    "&max_flows="       + encodeURIComponent(new_max_flows) +
+                                    "&tx_delay_ms="     + encodeURIComponent(new_tx_delay_ms) +
+                                    "&bulk_barrier="    + encodeURIComponent(new_barrier_bulk) +
+                                    "&max_static_mac_flows=" + encodeURIComponent(new_max_static_mac_flows);
+
+                                if (mpls) {
+                                    args += mpls_args;
+                                }
+
+                                if (openflow) {
+                                    args += openflow_args;
+                                }
+
+				var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=update_node" + args);
+
+		                ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 		    
 		    ds.responseSchema = {
 			resultsList: "results",
@@ -2761,7 +3142,7 @@ function setup_network_tab(){
 		    showConfirm("Decomissioning this device will remove it and all links going to it. This will not impact existing circuits going across it presently, but you will not be able to add any more circuits that traverse this device. Are you sure you wish to continue?", 
 				function(){
 
-				    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=decom_node&node_id="+node_id);	
+				    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=decom_node&node_id="+node_id);	
 				    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 				    
 				    ds.responseSchema = {
@@ -2809,12 +3190,16 @@ function setup_network_tab(){
             showConfirm("Putting the node into maintenance will have the links it is connected to have their associated circuits change to that alternative path, causing a small forwarding disruption. Circuits without an alternate path will continue to forward on this path while the link is up. No restore to primary events will occur until the link is up and the maintenance has been completed. Are you sure you want to do this?",
                 function() {
 
-                    var ds = new YAHOO.util.DataSource("../services/admin/maintenance.cgi?action=start_node&node_id=" + node_id);
+                    var ds = new YAHOO.util.DataSource("../services/admin/maintenance.cgi?method=start_node&node_id=" + node_id);
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
                     ds.responseSchema = {
                         resultsList: "results",
-                        fields: [{key: "maintenance_id"}]
+                        fields: [{key: "maintenance_id"}],
+                        metaFields: {
+                            error: "error",
+                            error_text: "error_text"
+                        }
                         }; 
 
                     ds.sendRequest("", 
@@ -2824,7 +3209,13 @@ function setup_network_tab(){
                                maint_button.set("label", "Put Device in Maintenance");
                                save_button.set("disabled", false);
 
-                               if (resp.results && resp.results[0].maintenance_id){
+                               if (resp.meta.error) {
+                                   var err_txt = resp.meta.error_text;
+                                   if (!YAHOO.lang.isString(err_txt)) err_txt = resp.meta.error;
+                                   if (!YAHOO.lang.isString(err_txt)) err_txt = "Error putting device into maintenance.";
+                                   alert(err_txt);
+                               }
+                               else if (resp.results && resp.results[0].maintenance_id){
                                    map.reinitialize();
                                    panel.destroy();
                                    panel = null;
@@ -2860,6 +3251,158 @@ function setup_discovery_tab(){
     var node_table = makePendingNodeTable();
     
     var link_table = makePendingLinkTable();
+
+    var add_mpls_switch_button = new YAHOO.widget.Button("add_mpls_switch_button", {label: "Add MPLS switch button"});
+
+    add_mpls_switch_button.on("click", function(e){
+
+	    var new_mpls_switch_details_panel = new YAHOO.widget.Panel("new_switch_details",
+						       {width: 600,
+							fixedcenter: true,
+							modal: true
+						       }
+						       );
+
+	    this.new_mpls = new_mpls_switch_details_panel;
+
+            this.new_mpls.setHeader("Details for new Device!");
+
+            this.new_mpls.setBody("<table>" +
+				  "<tr>" +
+				  "<td>Name:</td>" +
+				  "<td colspan='4'>" +
+				  "<input type='text' id='new_node_name' size='38'>" +
+				  "</td>" +
+				  "</tr>" +
+				  "<tr>" +
+				  "<td>Short Name:</td>" +
+				  "<td colspan='4'>" +
+				  "<input type='text' id='new_node_short_name' size='38'>" +
+				  "</td>" +
+				  "</tr>" +
+				  "<tr>" +
+				  "<td>Latitude:</td>" +
+				  "<td><input type='text' id='new_node_lat' size='10'></td>" +
+				  "<td>Longitude:</td>" +
+				  "<td><input type='text' id='new_node_lon' size='10'></td>" +
+				  "</tr>" +
+				  "<tr>" +
+				  "<td>IP Address</td>" +
+				  "<td><input type='text' id='new_ip_address' size='40'></td>" +
+				  "</tr>" +
+                                  "<td>Port</td>" +
+                                  "<td><input type='text' id='new_port' size='10'></td>" +
+                                  "</tr>" +
+				  "<td>Vendor</td>"+
+				  "<td><select id='new_mpls_vendor'><option>Select One...</option><option value='Juniper'>Juniper</option></select></td>" +
+				  "</tr>" +
+				  "<tr>" +
+				  "<td>Model</td>" +
+				  "<td><select id='new_mpls_model'><option>Select a vendor first</option></select></td>" +
+				  "</td>" +
+				  "</tr>" +
+				  "<tr>" +
+				  "<td>Software Version</td>" +
+				  "<td><input type='text' id='new_mpls_software' size='10'></td>" +
+				  "</tr>" +
+				  "</table>"
+				  );
+
+            this.new_mpls.setFooter("<div id='add_node'></div><div id='node_add_cancel'></div>");
+
+            this.new_mpls.render(document.body);
+
+	    $('#new_mpls_vendor').on('change', function(){
+		    var vendor = $('#new_mpls_vendor').val();
+		    if(vendor == 'Juniper'){
+			var options = {"MX": "MX"};
+			var $el = $("#new_mpls_model");
+			$el.empty();
+			$.each(options, function(value, key){
+				$el.append($("<option></option>").attr("value", value).text(key));
+			    });
+		    }else if( vendor == 'Brocade'){
+
+		    }
+		});
+
+            var add_button = new YAHOO.widget.Button("add_node", {label: "Add Switch"});
+	    var cancel_button = new YAHOO.widget.Button("node_add_cancel", {label: "Cancel"});
+
+	    
+
+	    //do the add event!
+	    add_button.on('click', function(){
+                    
+		    var lat   = YAHOO.util.Dom.get('new_node_lat').value;
+                    var lon   = YAHOO.util.Dom.get('new_node_lon').value;
+                    var name  = YAHOO.util.Dom.get('new_node_name').value;
+                    var short_name = YAHOO.util.Dom.get('new_node_short_name').value;
+		    var ip    = YAHOO.util.Dom.get('new_ip_address').value;
+		    var port  = YAHOO.util.Dom.get('new_port').value;
+		    var vendor= YAHOO.util.Dom.get('new_mpls_vendor').value;
+		    var model = YAHOO.util.Dom.get('new_mpls_model').value;
+		    var sw_ver= YAHOO.util.Dom.get('new_mpls_software').value;
+		    
+		    if (! name){
+                        alert("You must specify a name for this device.");
+                        return;
+                    }
+
+		    if( !ip || !port ){
+			alert('You must specify and IP, SSH port, and password');
+			return;
+		    }
+
+                    if (name.match(/:/) || name.match(/\s/)){
+                        alert("You may not have spaces or colons in the name.");
+                        return;
+                    }
+                   
+                    if (! lat || ! lat.match(/^\-?\d+(\.\d+)?$/) || lat < -90 || lat > 90){
+                        alert("You must specify a valid latitude at which this device will be visualized on the map.");
+                        return;
+                    }
+                    
+                    if (! lon || ! lon.match(/^\-?\d+(\.\d+)?$/) || lon < -180 || lon > 180){
+                        alert("You must specify a valid longitude at which this device will be visualized on the map.");
+                        return;
+                    }
+
+		    if(vendor == undefined || model == undefined || sw_ver == undefined){
+			alert('Hardware vendor, model and software version are required');
+			return;
+		    }
+
+		    add_button.set("disabled", true);
+		    add_button.set("label", "Adding device....");
+
+		var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_mpls_switch&name=" + encodeURIComponent(name) + "&short_name=" + encodeURIComponent(short_name) + "&latitude=" + encodeURIComponent(lat) + "&longitude=" + encodeURIComponent(lon) + "&ip_address=" + encodeURIComponent(ip) + "&port=" + encodeURIComponent(port) + "&vendor=" + encodeURIComponent(vendor) + "&model=" + encodeURIComponent(model) + "&sw_ver=" + encodeURIComponent(sw_ver));
+		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+		    
+		    ds.responseSchema = {
+			resultsList: "results",
+			fields: [{key: "success"}]
+		    };
+		    
+		    ds.sendRequest("", {success: function(req, resp){
+				add_button.set("disabled", false);
+				add_button.set("label", "Add MPLS Device");
+
+				new_mpls_switch_details_panel.hide();
+				setup_network_tab();				
+			    },
+				
+				failure: function(req, resp){
+				add_button.set("disabled", false);
+				add_button.set("label", "Add MPLS Device");
+				
+				alert("Server error while adding MPLS device");
+			    }
+			});
+		});
+	});
+
 
     node_table.subscribe("rowClickEvent", function(oArgs){
 
@@ -2959,6 +3502,10 @@ function setup_discovery_tab(){
                 YAHOO.util.Dom.get('max_flows').checked = record.getData('max_flows');
             }
 
+            if(record.getData('short_name')){
+                YAHOO.util.Dom.get('short_name').value = record.getData('short_name');
+            }
+
             if(record.getData('tx_delay_ms')){
                 YAHOO.util.Dom.get('tx_delay_ms').checked = record.getData('tx_delay_ms');
             }
@@ -2970,11 +3517,11 @@ function setup_discovery_tab(){
             YAHOO.util.Dom.get("node_name").focus();
 
             var confirm_button = new YAHOO.widget.Button("confirm_node", {label: "Confirm Device"});
-        var deny_button = new YAHOO.widget.Button("deny_node", {label: "Deny Device"});
-
-        deny_button.on("click", function(e){
+	    var deny_button = new YAHOO.widget.Button("deny_node", {label: "Deny Device"});
+	    
+	    deny_button.on("click", function(e){
             
-                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=deny_device&node_id=" + record.getData('node_id') + "&ipv4_addr="+ record.getData('ip_address') + "&dpid=" + record.getData('dpid'));
+                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=deny_device&node_id=" + record.getData('node_id') + "&ipv4_addr="+ record.getData('ip_address') + "&dpid=" + record.getData('dpid'));
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                  
                     ds.responseSchema = {
@@ -3023,7 +3570,7 @@ function setup_discovery_tab(){
                     var max_flows = YAHOO.util.Dom.get('max_flows').value;
                     var tx_delay_ms = YAHOO.util.Dom.get('tx_delay_ms').value;
                     var bulk_barrier = YAHOO.util.Dom.get('bulk_barrier').checked;
-
+                    
                     if (! name){
                         alert("You must specify a name for this device.");
                         return;
@@ -3054,7 +3601,7 @@ function setup_discovery_tab(){
                         }                               
                     }
 
-                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=confirm_node&node_id=" + record.getData('node_id') + "&name=" + encodeURIComponent(name) + "&latitude=" + encodeURIComponent(lat) + "&longitude=" + encodeURIComponent(lon) + "&vlan_range=" + encodeURIComponent(range) + "&default_drop=" + encodeURIComponent(default_drop) + "&default_forward=" + encodeURIComponent(default_forward) + "&max_flows=" + encodeURIComponent(max_flows) + "&tx_delay_ms=" + encodeURIComponent(tx_delay_ms) + "&bulk_barrier=" + encodeURIComponent(bulk_barrier));
+                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=confirm_node&node_id=" + record.getData('node_id') + "&name=" + encodeURIComponent(name) + "&latitude=" + encodeURIComponent(lat) + "&longitude=" + encodeURIComponent(lon) + "&vlan_range=" + encodeURIComponent(range) + "&default_drop=" + encodeURIComponent(default_drop) + "&default_forward=" + encodeURIComponent(default_forward) + "&max_flows=" + encodeURIComponent(max_flows) + "&tx_delay_ms=" + encodeURIComponent(tx_delay_ms) + "&bulk_barrier=" + encodeURIComponent(bulk_barrier));
 
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
@@ -3137,7 +3684,7 @@ function setup_maintenance_tab(){
 
 function makeNodeMaintenanceTable() {
 
-    var url = "../services/admin/maintenance.cgi?action=nodes";
+    var url = "../services/admin/maintenance.cgi?method=nodes";
     var ds  = new YAHOO.util.DataSource(url);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
@@ -3171,7 +3718,7 @@ function makeNodeMaintenanceTable() {
                     var node_id = node.id;
                     b.set('label', 'Submitting...');
                                     b.set("enable", false);
-                    var url = "../services/admin/maintenance.cgi?action=end_node"+
+                    var url = "../services/admin/maintenance.cgi?method=end_node"+
                               "&node_id="+node_id;
                       
                     var ds = new YAHOO.util.DataSource(url);
@@ -3230,7 +3777,7 @@ function makeNodeMaintenanceTable() {
 }
 
 function makeLinkMaintenanceTable(){
-    var url = "../services/admin/maintenance.cgi?action=links";
+    var url = "../services/admin/maintenance.cgi?method=links";
     var ds  = new YAHOO.util.DataSource(url);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
@@ -3263,7 +3810,7 @@ function makeLinkMaintenanceTable(){
                     var link_id = link.id;
                     b.set('label', 'Submitting...');
                     b.set('enabled',"false");
-                    var url = "../services/admin/maintenance.cgi?action=end_link"+
+                    var url = "../services/admin/maintenance.cgi?method=end_link"+
                               "&link_id="+link_id;
                     var ds = new YAHOO.util.DataSource(url);
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
@@ -3321,7 +3868,7 @@ function makeLinkMaintenanceTable(){
 }
 
 function makeIntMoveMaintTable(){
-    var url = "../services/admin/admin.cgi?action=get_edge_interface_move_maintenances";
+    var url = "../services/admin/admin.cgi?method=get_edge_interface_move_maintenances";
     var ds  = new YAHOO.util.DataSource(url);
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
@@ -3349,7 +3896,7 @@ function makeIntMoveMaintTable(){
             b.on("click", function(){
                 var maintComplete = function(maintenance_id, table){
                     b.set('label', 'Submitting...');
-                    var url = "../services/admin/admin.cgi?action=revert_edge_interface_move_maintenance"+
+                    var url = "../services/admin/admin.cgi?method=revert_edge_interface_move_maintenance"+
                               "&maintenance_id="+maintenance_id;
                     var ds = new YAHOO.util.DataSource(url);
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
@@ -3438,7 +3985,7 @@ function makeIntMoveMaintAddPanel(table){
         var add_eim_maint = function(){ 
             add_button.set('label', 'Submitting...');
             var url = "../services/admin/admin.cgi?";
-            var postVars = "action=add_edge_interface_move_maintenance"+
+            var postVars = "method=add_edge_interface_move_maintenance"+
                            "&name="+$('#intm_maint_name').val()+
                            "&orig_interface_id="+move_int_form.val().orig_interface_id+
                            "&temp_interface_id="+move_int_form.val().new_interface_id;
@@ -3584,9 +4131,9 @@ function getMoveIntForm(container_id, config){
     var getOptions = function(selector_types, obj){
         var url;
         if((selector_types.length === 1) && (selector_types[0] === "node")){
-            url = "../services/data.cgi?action=get_nodes";
+            url = "../services/data.cgi?method=get_nodes";
         }else {
-            url = "../services/data.cgi?action=get_node_interfaces"+
+            url = "../services/data.cgi?method=get_node_interfaces"+
                   "&show_down=0"+
                   "&show_trunk=0"+
                   "&node="+obj.node;
@@ -3682,7 +4229,7 @@ function getMoveIntForm(container_id, config){
         // callback for when original interface selector changes
         var changeInterface = function(interface_id){ 
             if(!interface_id){ return; }
-            var url = "../services/data.cgi?action=get_circuits_by_interface_id"+
+            var url = "../services/data.cgi?method=get_circuits_by_interface_id"+
                       "&interface_id="+interface_id;                   
             var ds  = new YAHOO.util.DataSource(url);
             ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
@@ -3836,7 +4383,7 @@ function getMoveIntForm(container_id, config){
 }
 
 function makeOwnedInterfaceTable(id){
-    var ds = new YAHOO.util.DataSource("../services/data.cgi?action=get_workgroup_interfaces&workgroup_id="+id);
+    var ds = new YAHOO.util.DataSource("../services/data.cgi?method=get_workgroup_interfaces&workgroup_id="+id);
 
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
@@ -3877,7 +4424,7 @@ function makeOwnedInterfaceTable(id){
 
 function makeWorkgroupUserTable(id){
 
-    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_users_in_workgroup&workgroup_id="+id);
+    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=get_users_in_workgroup&workgroup_id="+id);
 
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
@@ -3918,7 +4465,7 @@ function makeWorkgroupUserTable(id){
 
 function makeUserTable(div_id,search_id){
     
-    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_users");
+    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=get_users");
     
     
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
@@ -3968,7 +4515,7 @@ function makeUserTable(div_id,search_id){
 
 function makeUserWorkgroupTable(user_id,first_name,family_name) {
 
-    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_workgroups&user_id="+user_id);
+    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=get_workgroups&user_id="+user_id);
 
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
@@ -4020,7 +4567,7 @@ function makeUserWorkgroupTable(user_id,first_name,family_name) {
                     function(){
                         table.disable();
                         
-                        var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=remove_user_from_workgroup&user_id="+user_id+"&workgroup_id="+workgroup_id);
+                        var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=remove_user_from_workgroup&user_id="+user_id+"&workgroup_id="+workgroup_id);
                         ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                         ds.responseSchema = {
                             resultsList: "results",
@@ -4093,7 +4640,7 @@ function makeUserWorkgroupTable(user_id,first_name,family_name) {
                 new_wg_p.hide();
             });
 
-                var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_workgroups");
+                var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=get_workgroups");
 
                 ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                 ds.responseSchema = {
@@ -4138,7 +4685,7 @@ function makeUserWorkgroupTable(user_id,first_name,family_name) {
                 //var first   = record.getData('first_name');
                 //var last    = record.getData('family_name');
                 var workgroup_id = record.getData('workgroup_id');
-                var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=add_user_to_workgroup&workgroup_id=" + workgroup_id + "&user_id="+ user_id);
+                var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_user_to_workgroup&workgroup_id=" + workgroup_id + "&user_id="+ user_id);
                 ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                 ds.responseSchema = {
                     resultsList: "results",
@@ -4207,7 +4754,7 @@ function makeWorkgroupTable(){
         
     });
         
-    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_workgroups");
+    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=get_workgroups");
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
         resultsList: "results",
@@ -4250,7 +4797,7 @@ function makeWorkgroupTable(){
 
 function makePendingNodeTable(){
 
-    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_pending_nodes");
+    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=get_pending_nodes");
 
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
@@ -4302,7 +4849,7 @@ function makePendingNodeTable(){
 
 function makePendingLinkTable(){
 
-    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=get_pending_links");
+    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=get_pending_links");
 
     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
@@ -4397,7 +4944,7 @@ function makePendingLinkTable(){
         var deny_button = new YAHOO.widget.Button("deny_link", {label: "Deny Link"});
         deny_button.on("click", function(e){
             
-                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=deny_link&link_id=" + record.getData('link_id') + "&interface_a_id="+ record.getData('endpoints')[0].interface_id + "&interface_z_id=" + record.getData('endpoints')[1].interface_id);
+                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=deny_link&link_id=" + record.getData('link_id') + "&interface_a_id="+ record.getData('endpoints')[0].interface_id + "&interface_z_id=" + record.getData('endpoints')[1].interface_id);
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                  
                     ds.responseSchema = {
@@ -4448,7 +4995,7 @@ function makePendingLinkTable(){
                         return;
                     }
                    
-                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?action=confirm_link&link_id=" + record.getData('link_id') + "&name=" + encodeURIComponent(name));
+                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=confirm_link&link_id=" + record.getData('link_id') + "&name=" + encodeURIComponent(name));
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 
                     ds.responseSchema = {

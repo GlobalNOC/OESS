@@ -1,0 +1,123 @@
+#!/usr/bin/perl
+#-------------------------------------------------------------------
+#----- OESS 1.0.12 - 1.1.0 upgrade module                         
+#-----                                                               
+#----- Copyright(C) 2010 The Trustees of Indiana University          
+#--------------------------------------------------------------------
+#----- $HeadURL: $                                                   
+#----- $Id: $                                                        
+#-----                                                               
+#----- This is run when upgrading the database from     
+#----- version 1.1.9 to version 1.2.0                               
+#-------------------------------------------------------------------- 
+
+use strict;
+use warnings;
+use OESS::Database;
+
+my $prev_version = "1.1.9";
+my $version = "1.2.0";
+
+sub main{
+    print "*******************************************************************\n";
+    print "*********             OESS DB UPGRADE           ************\n";
+    print "*******************************************************************\n";
+    print "********* This will upgrade from $prev_version to $version **********\n";
+    print "********* of the OESS DB any other version will not work ************\n";
+    
+    continue_parameter("Do you wish to continue");
+    
+    my $dbq = new OESS::Database();
+    my $current_version = $dbq->get_oess_schema_version();    
+    if($current_version eq $prev_version){
+        $dbq->{'dbh'}->begin_work();
+        upgrade($dbq);
+        $dbq->{'dbh'}->commit();
+    } else{
+        print "Wrong version of OESS DB\n";
+        print "This script only upgrades from version $prev_version to $version\n";
+        exit;
+    }
+    
+    print STDERR "Upgrade Successful!!\n";
+}
+
+
+sub upgrade{
+    my $dbq = shift;
+    my $term = shift;
+    my $dbh = $dbq->{'dbh'};
+    my $str;
+    my $sth;
+
+    $dbh->do("alter table node_instantiation add column openflow int(1) default 1");
+    $dbh->do("alter table node_instantiation add column mpls int(1) default 0");
+    $dbh->do("alter table node_instantiation add column vendor varchar(255)");
+    $dbh->do("alter table node_instantiation add column model varchar(255)");
+    $dbh->do("alter table node_instantiation add column sw_version varchar(255)");
+    $dbh->do("alter table node_instantiation drop column management_addr_ipv4");
+    $dbh->do("alter table node_instantiation add column mgmt_addr varchar(255)");
+    $dbh->do("alter table circuit add column type enum('openflow', 'mpls') default 'openflow'");
+    $dbh->do("alter table link_instantiation add column openflow int(1) not null default 0");
+    $dbh->do("alter table link_instantiation add column mpls int(1) not null default 0");
+    $dbh->do("alter table interface add column mpls_vlan_tag_range varchar(255) default null");
+    $dbh->do("alter table link_instantiation add column ip_a varchar(255)");
+    $dbh->do("alter table link_instantiation add column ip_z varchar(255)");
+    $dbh->do("alter table node_instantiation add column loopback_address varchar(255)");
+    $dbh->do("alter table node_instantiation add column tcp_port int(6) default 830");
+    $dbh->do("alter table path add column mpls_path_type enum('strict','loose','none') NOT NULL default 'none'");
+    $dbh->do("alter table path modify path_type enum('primary','backup','tertiary') NOT NULL DEFAULT 'primary'");
+    $dbh->do("alter table node add column pending_diff int(1) default 0");
+    $dbh->do("alter table node add column operational_state_mpls enum('unknown','up','down') NOT NULL DEFAULT 'unknown'");
+    $dbh->do("alter table node add column short_name varchar(255)");
+
+    $dbh->do("alter table interface add key interface_ibfk_1 (workgroup_id)");
+    $dbh->do("alter table link modify column status enum('up','down','unknown') NOT NULL DEFAULT 'unknown'");
+    $dbh->do("alter table link_maintenance modify column link_maintenance_id int(11) NOT NULL AUTO_INCREMENT");
+    $dbh->do("alter table link_maintenance modify column link_id int(11) NOT NULL");
+    $dbh->do("alter table link_maintenance modify column maintenance_id int(11) NOT NULL");
+    $dbh->do("alter table link_path_membership drop primary key");
+    $dbh->do("alter table link_path_membership add primary key (link_id,end_epoch,path_id,interface_a_vlan_id,interface_z_vlan_id)");
+    $dbh->do("alter table maintenance modify column maintenance_id int(11) NOT NULL AUTO_INCREMENT");
+    $dbh->do("alter table maintenance modify column start_epoch int(11)");
+    $dbh->do("alter table maintenance modify column end_epoch int(11) default -1");
+    $dbh->do("alter table node_maintenance modify column node_maintenance_id int(11) NOT NULL AUTO_INCREMENT");
+    $dbh->do("alter table node_maintenance modify column node_id int(11) NOT NULL");
+    $dbh->do("alter table node_maintenance modify column maintenance_id int(11) NOT NULL");
+    $dbh->do("alter table remote_auth modify column auth_name varchar(255) NOT NULL");
+    $dbh->do("alter table user modify column status enum('active','decom') NOT NULL DEFAULT 'active'");
+    $dbh->do("drop table if exists workgroup_interface_membership");
+
+    $dbh->do("update link_instantiation set openflow = 1 where end_epoch = '-1' and link_state != 'decom'");
+
+    # Done with the rest of the upgrade update our version
+    $str = "update oess_version set version = '$version'";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+}
+
+main();
+
+sub continue_parameter {
+    my $name = shift;
+
+    print "$name [y/n]: ";
+    my $yes_or_no = <>;
+    chomp($yes_or_no);
+
+    exit(0) if ($yes_or_no !~ /y/i || $yes_or_no =~ /n/i);
+}
+
+sub required_parameter {
+    my $name = shift;
+
+    while (1) {
+	print "$name (required): ";
+        my $response = <>;
+	chomp($response);
+
+        return $response if ($response);
+
+	print "\nThis option is required!\n\n";
+    }
+}

@@ -3,13 +3,15 @@ include ../../../Make.vars
 EXTRA_DIST = \
 	__init__.py\
 	meta.json\
-	nddi_dbus.py
+	nddi_rabbitmq.py\
+	rmqi.py
 
 if PY_ENABLED
 AM_CPPFLAGS += $(PYTHON_CPPFLAGS)
 NOX_RUNTIMEFILES = meta.json\
 	__init__.py\
-	nddi_dbus.py
+	nddi_rabbitmq.py\
+	rmqi.py
 
 endif #PY_ENABLED
 

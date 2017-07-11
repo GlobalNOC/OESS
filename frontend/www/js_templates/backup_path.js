@@ -29,8 +29,14 @@ function init(){
 
   setPageSummary("Backup Path","Choose a backup path from the map below by clicking on links between nodes. This path should be as physically redundant as possible.");
   
-  setNextButton("Proceed to Step 5: Scheduling", "?action=scheduling", verify_inputs);
-  
+  setNextButton("Proceed to Next Step: Scheduling", "?action=scheduling", verify_inputs);
+
+    // Help message for MPLS path selection.
+    session.data.circuit_type = session.data.circuit_type || 'openflow';
+    if (session.data.circuit_type == 'openflow') {
+        document.getElementById('mpls_description').style.display = 'none';
+    }
+
   // defined in circuit_details_box.js
   var endpoint_table = summary_init();
   
@@ -53,7 +59,7 @@ function init(){
 	                    this.set('disabled', true);
 			    this.set('label', 'Calculating shortest backup path...');			    
 
-			    var url = "services/data.cgi?action=get_shortest_path";
+			    var url = "services/data.cgi?method=get_shortest_path";
 			    
 			    for (var i = 0; i < session.data.endpoints.length; i++){
 			      var node = session.data.endpoints[i].node;
@@ -67,6 +73,8 @@ function init(){
 			    
 			    url += "&bandwidth=" + session.data.bandwidth;
 			    
+			    url += "&type=" + session.data.circuit_type;
+
 			    var ds = new YAHOO.util.DataSource(url);
 			    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 			    ds.responseSchema = {
@@ -137,29 +145,26 @@ function init(){
   }
 
   
-  function verify_inputs(){
+    function verify_inputs(){
 
-    var records = path_table.getRecordSet().getRecords();
+        var records = path_table.getRecordSet().getRecords();
     
-    if (records.length == 0){
-
-	showConfirm("Warning: You have selected no backup path. In the event of a failure along the primary path, your traffic will be interrupted. Are you sure you wish to continue?", 
-		    function(){ 
-			save_session(); 
-			window.location = "?action=scheduling";
-		    },
-		    function(){}
-		    );
+        if (records.length == 0 && session.data.circuit_type != 'mpls'){
+	    showConfirm("Warning: You have selected no backup path. In the event of a failure along the primary path, your traffic will be interrupted. Are you sure you wish to continue?", 
+		        function(){ 
+			    save_session(); 
+			    window.location = "?action=scheduling";
+		        },
+		        function(){}
+		       );
 	
-	return false;
+	    return false;
+        }    
     
-    }    
-    
-    save_session();
-    
-    return true;
-  }
-  
+        save_session();
+
+        return true;
+    }
 }
 
 YAHOO.util.Event.onDOMReady(init);

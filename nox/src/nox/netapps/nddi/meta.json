@@ -1,11 +1,11 @@
 {
     "components": [
         {
-            "name": "nddi_dbus" ,
+            "name": "nddi_rabbitmq" ,
             "dependencies": [
 	      "discovery"	
             ],
-            "python": "nox.netapps.nddi.nddi_dbus" 
+            "python": "nox.netapps.nddi.nddi_rabbitmq" 
         }
 
     ]

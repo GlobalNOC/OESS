@@ -90,7 +90,7 @@ function init(){
 
   setPageSummary("Scheduling","Choose when this circuit should be created and removed.");
   
-  setNextButton("Proceed to Step 6: Review Design", "?action=provisioning", verify_inputs);
+  setNextButton("Proceed to Next Step: Review Design", "?action=provisioning", verify_inputs);
   // defined in circuit_details_box.js
   var endpoint_table = summary_init();
    

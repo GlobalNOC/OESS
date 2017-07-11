@@ -27,12 +27,29 @@ function makePathTable(){
   
 function init(){  
 
-  setPageSummary("Path","Choose a primary path from the map below by clicking on links between nodes.");
+    session.data.circuit_type = session.data.circuit_type || 'openflow';
+    session.data.links = session.data.links || [];
+
+    setPageSummary("Path","Choose a primary path from the map below by clicking on links between nodes.");  
+    if (session.data.circuit_type == 'mpls' && session.data.links.length < 1) {
+        setNextButton("Proceed to Next Step: Scheduling", "?action=scheduling", verify_inputs);
+    } else {
+        setNextButton("Proceed to Next Step: Backup Path", "?action=backup_path", verify_inputs);
+    }
   
-  setNextButton("Proceed to Step 4: Backup Path", "?action=backup_path", verify_inputs);
-  
+    // Help message for MPLS path selection.
+    if (session.data.circuit_type == 'openflow') {
+        document.getElementById('mpls_description').style.display = 'none';
+    }
+
   // defined in circuit_details_box.js
   var endpoint_table = summary_init();
+
+  // yui-dt-col7 is an alias for the column of the edit
+  // buttons. This was hidden on the options page due to issue
+  // 160:3834, but the options page needs this for static mac
+  // circuits.
+  endpoint_table.hideColumn('yui-dt-col7');
   
   var path_table = makePathTable();
   
@@ -52,12 +69,15 @@ function init(){
 	                    this.set('disabled', true);
 			    this.set('label', 'Calculating shortest path...');
 			    
-			    var url = "services/data.cgi?action=get_shortest_path";
+			    var url = "services/data.cgi?method=get_shortest_path";
 			    
 			    for (var i = 0; i < session.data.endpoints.length; i++){
 			      var node = session.data.endpoints[i].node;
 			      url += "&node=" + node;
 			    }
+			    
+			    //append the type
+			    url += "&type=" + session.data.circuit_type; 
 			    
 			    var ds = new YAHOO.util.DataSource(url);
 			    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
@@ -67,7 +87,8 @@ function init(){
 			        {key: "link"}
 			      ],
 			      metaFields: {
-				error: "error"
+				  error: "error",
+                                  error_text: "error_text"
 			      }
 			    }
 			    
@@ -76,7 +97,7 @@ function init(){
 						  this.set('label', 'Suggest Shortest Path');
 
 						  if (resp.meta.error){
-						    alert("Error - " + resp.meta.error);
+						    alert("Error - " + resp.meta.error_text);
 						    return;
 						  }
 						  
@@ -104,6 +125,13 @@ function init(){
 
   nddi_map.on("clickLink", function(e, args){
       onClickLink(path_table, e, args, save_session);
+
+      if (session.data.links.length < 1) {
+          console.log('No primary path is selected.');
+          setNextButton("Proceed to Next Step: Scheduling", "?action=scheduling", verify_inputs);
+      } else {
+          setNextButton("Proceed to Next Step: Backup Path", "?action=backup_path", verify_inputs);
+      }
   });
   
   
@@ -111,54 +139,53 @@ function init(){
     
     var records = path_table.getRecordSet().getRecords();
     
+    if (!session.data.hasOwnProperty('backup_links')) {
+        session.data.backup_links = [];
+    }
+
     session.data.links = [];
     
     for (var i = 0; i < records.length; i++){
-      
-      var link      = records[i].getData('link');
-      
+      var link = records[i].getData('link');
       session.data.links.push(link);
-
     }
     
     session.save();
-    
-    nddi_map.updateMapFromSession(session);
 
+    nddi_map.updateMapFromSession(session);
   }
 
   
-  function verify_inputs(){
+    function verify_inputs() {
+        var records = path_table.getRecordSet().getRecords();
 
-    var records = path_table.getRecordSet().getRecords();
-    
-    // having no path is okay if we only have 1 node
-    if (records.length < 1){
-
-	var all_same_nodes = true,
-	    last_node      = "";
+        // having no path is okay if we only have 1 node
+        if (records.length < 1) {          
+	    var all_same_nodes = true,
+	        last_node      = "";
 	
 
-	var endpoints = session.data.endpoints || [];
+	    var endpoints = session.data.endpoints || [];
 
-	for (var i = 0; i < endpoints.length; i++){
-	    if (last_node && last_node != endpoints[i].node){
-		all_same_nodes = false;
-		break;
+	    for (var i = 0; i < endpoints.length; i++){
+	        if (last_node && last_node != endpoints[i].node){
+		    all_same_nodes = false;
+		    break;
+	        }
+	        last_node = endpoints[i].node;
 	    }
-	    last_node = endpoints[i].node;
-	}
 
-	if (! all_same_nodes){
-	    alert("You must have at least one path component.");
-	    return false;
-	}
-    }    
+            // If circuit type is not openflow we ignore path lengths of zero
+	    if (!all_same_nodes && session.data.circuit_type == 'openflow') {
+	        alert("You must have at least one path component.");
+	        return false;
+	    }
+        }
     
-    save_session();
+        save_session();
     
-    return true;
-  }
+        return true;
+    }
   
 }
 
