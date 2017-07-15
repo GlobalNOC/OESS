@@ -147,6 +147,8 @@ sub new{
 	$self->make_baby($node->{'node_id'});
     }
 
+    $self->{'ipv4_intf'} = {};
+
     return $self;
 }
 
@@ -315,11 +317,22 @@ sub int_handler{
     foreach my $node (@{$self->{'db'}->get_current_nodes(mpls => 1)}){
 	$self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
 	my $start = [gettimeofday];
-	$self->{'rmq_client'}->get_interfaces( async_callback => $self->handle_response( cb => sub { my $res = shift;
-												     $self->{'logger'}->debug("Total Time for get_interfaces " . $node->{'mgmt_addr'} . " call: " . tv_interval($start,[gettimeofday]));
-                                                                                                     $self->{'db'}->update_node_operational_state(node_id => $node->{'node_id'}, state => 'up', protocol => 'mpls');
-                                                                                                     my $status = $self->{'interface'}->process_results( node => $node->{'name'}, interfaces => $res->{'results'});
-											 }));
+	$self->{'rmq_client'}->get_interfaces(
+            async_callback => $self->handle_response(
+                cb => sub {
+                    my $res = shift;
+                    $self->{'logger'}->debug("Total Time for get_interfaces " . $node->{'mgmt_addr'} . " call: " . tv_interval($start,[gettimeofday]));
+
+                    foreach my $int (@{$res->{'results'}}) {
+                        foreach my $addr (@{$int->{'addresses'}}) {
+                            $self->{'ipv4_intf'}->{$addr} = $int->{'name'};
+                        }
+                    }
+
+                    $self->{'db'}->update_node_operational_state(node_id => $node->{'node_id'}, state => 'up', protocol => 'mpls');
+                    my $status = $self->{'interface'}->process_results( node => $node->{'name'}, interfaces => $res->{'results'});
+                })
+        );
     }
 }
 
