@@ -141,7 +141,7 @@ sub get_of_circuit_data {
 
     foreach my $nodeName (keys %node_to_dpid){
 
-        my $int_name =  $db->get_node_interfaces(node => $nodeName, show_down => 1, show_trunk =>1);
+        my $int_name =  $db->get_node_interfaces(node => $nodeName, show_down => 1, show_trunk =>1, type => 'openflow');
         
         foreach my $int (@{$int_name}){
             $int_names{$node_to_dpid{$nodeName}}->{$int->{'port_number'}} = $int->{'name'};
