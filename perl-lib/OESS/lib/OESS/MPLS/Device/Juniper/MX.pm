@@ -359,6 +359,7 @@ sub get_routed_lsps{
         #determine which type it is
         #either the prefix, the route id or the interface name
         #11537:3019:1:1/96
+        ##loopback mechanism not supported after all... use ASN ^^^
         #172.16.0.13:3017:1:1/96
         #xe-2/2/0.666
         

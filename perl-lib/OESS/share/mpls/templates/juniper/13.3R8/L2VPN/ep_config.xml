@@ -25,7 +25,7 @@
       </interface>
       [% END %]
       <route-distinguisher>
-	<rd-type>[% switch.loopback %]:[% circuit_id %]</rd-type>
+	<rd-type>11537:[% circuit_id %]</rd-type>
       </route-distinguisher>
       <vrf-target>
 	<community>target:11537:[% circuit_id %]</community>
