@@ -1108,6 +1108,8 @@ The name of the node to query.
 
 =item show_down (optional)
 
+=item type (optional openflow|mpls|all)
+
 The internal MySQL primary key int identifier for this workgroup.
 
 =back
@@ -1122,6 +1124,7 @@ sub get_node_interfaces {
     my $workgroup_id    = $args{'workgroup_id'};
     my $show_down       = $args{'show_down'};
     my $show_trunk      = $args{'show_trunk'} || 0;
+    my $type            = $args{'type'} || 'all';
     my $null_workgroups = $args{'null_workgroups'};
 
     if(!defined($show_down)){
@@ -1166,6 +1169,14 @@ sub get_node_interfaces {
     if($show_down == 0){
 	    $query .= " and interface.operational_state = 'up' ";
 	    $acl_query .= " and interface.operational_state = 'up' ";
+    }
+
+    if($type eq 'openflow'){
+	$query .= " and interface.port_number is not null ";
+    }elsif($type eq 'mpls'){
+	$query .= " and interface.port_number is null";
+    }else{
+	#do nothing... it'll return everything
     }
 
     if (defined $workgroup_id){
