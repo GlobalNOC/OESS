@@ -139,7 +139,7 @@ sub new {
     };
 
     #from TOPO startup
-    my $nodes = $self->{'db'}->get_current_nodes();
+    my $nodes = $self->{'db'}->get_current_nodes(type => 'openflow');
     foreach my $node (@$nodes) {
 	next if (!$node->{'openflow'});
         $self->{'db'}->update_node_operational_state(node_id => $node->{'node_id'}, state => 'down');
@@ -825,7 +825,7 @@ sub build_cache{
         }
     }
         
-    my $links = $db->get_current_links();
+    my $links = $db->get_current_links(type => 'openflow');
     foreach my $link (@$links) {
         if ($link->{'status'} eq 'up') {
             $link_status{$link->{'name'}} = OESS_LINK_UP;
@@ -836,7 +836,7 @@ sub build_cache{
         }
     }
         
-    my $nodes = $db->get_current_nodes();
+    my $nodes = $db->get_current_nodes(type => 'openflow');
     foreach my $node (@$nodes) {
 	next if(!$node->{'openflow'});
         my $details = $db->get_node_by_dpid(dpid => $node->{'dpid'});

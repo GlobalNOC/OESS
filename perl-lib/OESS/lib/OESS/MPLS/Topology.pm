@@ -64,7 +64,7 @@ sub new {
 
 
     #from TOPO startup
-    my $nodes = $self->{'db'}->get_current_nodes( MPLS => 1);
+    my $nodes = $self->{'db'}->get_current_nodes(type => 'mpls');
     foreach my $node (@$nodes) {
         $self->{'db'}->update_node_operational_state(node_id => $node->{'node_id'}, state => 'down');
     }
