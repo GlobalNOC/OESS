@@ -105,6 +105,10 @@ sub _process_paths{
        my @ckt_path2 = uniq @ckt_path1; # list of link_ids making up the circuit, without duplication
        my @ckt_path  = map { $links_by_id{$_} } @ckt_path2;
 
+       # Remove any undef elements. It's possible this may happen when
+       # multiple lsps are configured on the same port.
+       @ckt_path = grep defined, @ckt_path;
+
        my $ckt = OESS::Circuit->new(db => $self->{'db'}, circuit_id => $circuit_id);
        $ckt->update_mpls_path(links => \@ckt_path);
     }
