@@ -534,6 +534,7 @@ sub handle_links{
     my %node_info;
 
     my $nodes = $self->{'db'}->get_current_nodes(type => 'mpls');
+    my $intfs = $self->{'ipv4_intf'};
 
     #build a Node hash by name...
     foreach my $node (@$nodes) {
