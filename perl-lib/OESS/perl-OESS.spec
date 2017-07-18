@@ -49,7 +49,7 @@ Requires: perl(Graph::Directed)
 Requires: perl(Graph::Undirected)
 Requires: perl(GRNOC::Config)
 Requires: perl(GRNOC::Log)                  >= 1.0.4
-Requires: perl(GRNOC::RabbitMQ)             >= 1.1.0
+Requires: perl(GRNOC::RabbitMQ)             >= 1.1.1
 Requires: perl(GRNOC::RabbitMQ::Client)
 Requires: perl(GRNOC::RabbitMQ::Dispatcher)
 Requires: perl(GRNOC::RabbitMQ::Method)
