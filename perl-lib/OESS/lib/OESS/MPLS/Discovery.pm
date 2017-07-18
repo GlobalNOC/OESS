@@ -141,7 +141,7 @@ sub new{
     # Create a child process for each switch
     $self->{'children'} = {};
 
-    my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
+    my $nodes = $self->{'db'}->get_current_nodes(type => 'mpls');
     foreach my $node (@$nodes) {
 	warn "Making Baby!\n";
 	$self->make_baby($node->{'node_id'});
@@ -312,7 +312,7 @@ sub _init_paths{
 sub int_handler{
     my $self = shift;
     
-    foreach my $node (@{$self->{'db'}->get_current_nodes(mpls => 1)}){
+    foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
 	$self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
 	my $start = [gettimeofday];
 	$self->{'rmq_client'}->get_interfaces( async_callback => $self->handle_response( cb => sub { my $res = shift;
@@ -335,7 +335,7 @@ sub path_handler {
 
     $self->{'logger'}->info("path_handler: calling");
 
-    my $nodes = $self->{'db'}->get_current_nodes( mpls => 1 );
+    my $nodes = $self->{'db'}->get_current_nodes(type => 'mpls');
     if (!defined $nodes) {
         $self->{'logger'}->error("path_handler: Could not get current nodes.");
         return 0;
@@ -409,7 +409,7 @@ sub lsp_handler{
     
     my %nodes;
 
-    foreach my $node (@{$self->{'db'}->get_current_nodes(mpls => 1)}){
+    foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
 	$nodes{$node->{'name'}} = {'pending' => 1};
 	$self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
 	my $start = [gettimeofday];
@@ -444,7 +444,7 @@ sub isis_handler{
 
 
     my %nodes;
-    foreach my $node (@{$self->{'db'}->get_current_nodes(mpls => 1)}){
+    foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
 	$nodes{$node->{'short_name'}} = {'pending' => 1};
         $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
 	my $start = [gettimeofday];
@@ -476,7 +476,7 @@ sub isis_handler{
 
 sub device_handler{
     my $self =shift;
-    foreach my $node (@{$self->{'db'}->get_current_nodes(mpls => 1)}){
+    foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
         $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
 	my $start = [gettimeofday];
         $self->{'rmq_client'}->get_system_info( async_callback => $self->handle_response( cb => sub {
@@ -519,7 +519,7 @@ sub handle_links{
     my $adj = shift;
 
     my %node_info;
-    my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
+    my $nodes = $self->{'db'}->get_current_nodes(type => 'mpls');
 
     #build a Node hash by name...
     foreach my $node (@$nodes) {

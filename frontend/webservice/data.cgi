@@ -142,7 +142,13 @@ sub register_webservice_methods {
 	name            => "get_nodes",
 	description     => "returns a list of nodes",
 	callback        => sub { get_nodes( @_ ) }
-	);
+    );
+    $method->add_input_parameter(
+	name            => 'type',
+	pattern         => $GRNOC::WebService::Regex::TEXT,
+	required        => 0,
+	description     => "The type of nodes that shall be included in the map."
+    );
     
     #register get_nodes() method
     $svc->register_method($method);
@@ -489,7 +495,13 @@ sub register_webservice_methods {
 	name            => "get_all_node_status",
 	description     => "returns a list of all active nodes and their operational status.",
 	callback        => sub { get_all_node_status( @_ ) }
-	);
+    );
+    $method->add_input_parameter(
+	name            => 'type',
+	pattern         => $GRNOC::WebService::Regex::TEXT,
+	required        => 0,
+	description     => "The type of nodes that shall be included in the map."
+    );
 
     #register the get_all_node_status() method
     $svc->register_method($method);
@@ -987,7 +999,7 @@ sub get_existing_circuits {
     }
 
     my %link_status;
-    my $links = $db->get_current_links();
+    my $links = $db->get_current_links(type => 'all');
     foreach my $link (@$links){
         if($link->{'status'} eq 'up'){
             $link_status{$link->{'name'}} = OESS_LINK_UP;
@@ -1057,7 +1069,9 @@ sub get_shortest_path {
 sub get_nodes {
 
     my ( $method, $args ) = @_ ;
-    my $nodes = $db->get_current_nodes();
+    my $type = $args->{'type'}{'value'} || 'all';
+
+    my $nodes = $db->get_current_nodes(type => $type);
 
     if ( !defined($nodes) ) {
 	$method->set_error( $db->get_error() );
@@ -1181,9 +1195,11 @@ sub generate_clr {
 sub get_all_node_status {
     
     my ( $method, $args ) = @_ ;
+    my $type = $args->{'type'}{'value'} || 'all';
+
     my $results;
 
-    my $nodes = $db->get_current_nodes();
+    my $nodes = $db->get_current_nodes(type => $type);
     $results->{'results'} = $nodes;
     return $results;
 }
@@ -1191,9 +1207,11 @@ sub get_all_node_status {
 sub get_all_link_status {
 
     my ( $method, $args ) = @_ ;
+    my $type = $args->{'type'}{'value'} || 'all';
+
     my $results;
 
-    my $links = $db->get_current_links();
+    my $links = $db->get_current_links(type => $type);
 
     $results->{'results'} = $links;
     return $results;
