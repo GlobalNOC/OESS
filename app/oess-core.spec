@@ -1,6 +1,6 @@
 Name:		oess-core		
-Version:	1.2.0
-Release:	2%{?dist}
+Version:	1.2.1
+Release:	1%{?dist}
 Summary:	The core OESS service providers
 
 Group:		Network
@@ -11,7 +11,7 @@ BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 BuildRequires:	perl
 
-Requires:       nox >= 0.10.10
+Requires:       nox >= 0.10.11
 Requires:       xmlsec1-devel
 Requires:	xmlsec1-openssl-devel
 Requires(interp): /bin/sh
@@ -21,7 +21,7 @@ Requires: /bin/bash
 Requires: /usr/bin/perl
 Requires: perl(base), perl(constant), perl(strict), perl(warnings)
 
-Requires: perl-OESS >= 1.2.0
+Requires: perl-OESS >= 1.2.1
 
 Requires: perl(AnyEvent), perl(AnyEvent::DBus), perl(AnyEvent::RabbitMQ)
 Requires: perl(CPAN), perl(CPAN::Shell)
@@ -34,7 +34,7 @@ Requires: perl(FindBin)
 Requires: perl(Getopt::Long), perl(Getopt::Std)
 Requires: perl(GRNOC::Config)
 Requires: perl(GRNOC::Log)                  >= 1.0.4
-Requires: perl(GRNOC::RabbitMQ)             >= 1.1.0
+Requires: perl(GRNOC::RabbitMQ)             >= 1.1.1
 Requires: perl(GRNOC::RabbitMQ::Client)
 Requires: perl(GRNOC::RabbitMQ::Dispatcher)
 Requires: perl(GRNOC::RabbitMQ::Method)

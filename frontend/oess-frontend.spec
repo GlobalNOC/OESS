@@ -1,6 +1,6 @@
 Name:		oess-frontend
-Version:	1.2.0
-Release:	2%{?dist}
+Version:	1.2.1
+Release:	1%{?dist}
 Summary:	The OESS webservices and user interface
 
 Group:		Network
@@ -13,14 +13,14 @@ BuildRequires: perl
 BuildRequires: python >= 2.6, python-libs >= 2.6
 BuildRequires: python-simplejson
 
-Requires: oess-core >= 1.2.0, nox >= 0.10.10
+Requires: oess-core >= 1.2.1, nox >= 0.10.11
 Requires: yui2
 Requires: httpd, mod_ssl
 Requires: nddi-tiles
 Requires: perl-Crypt-SSLeay
 Requires: xmlsec1, xmlsec1-openssl
 
-Requires: perl-OESS >= 1.2.0
+Requires: perl-OESS >= 1.2.1
 
 Requires: perl(strict), perl(warnings)
 Requires: perl(AnyEvent)
@@ -28,7 +28,7 @@ Requires: perl(CGI)
 Requires: perl(Data::Dumper)
 Requires: perl(FindBin)
 Requires: perl(GRNOC::Config)
-Requires: perl(GRNOC::RabbitMQ)                    >= 1.1.0
+Requires: perl(GRNOC::RabbitMQ)                    >= 1.1.1
 Requires: perl(GRNOC::RabbitMQ::Client)
 Requires: perl(GRNOC::RabbitMQ::Dispatcher)
 Requires: perl(GRNOC::WebService)                  >= 1.2.9
