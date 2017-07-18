@@ -76,10 +76,13 @@ sub _process_paths{
     my $circuit_lsps = $params{'circuit_lsps'}; # map from circuit ID to list of LSPs making up the path of the circuit
     my $lsp_paths = $params{'lsp_paths'};       # map from LSP name to list of link-endpoint IP addresses
 
+    $self->{'logger'}->error(Dumper($circuit_lsps));
+    $self->{'logger'}->error(Dumper($lsp_paths));
+
     my %ip_links; # Map from IP address to link_id
     my %links_by_id; # Map from link_id to link
 
-    my $links_db = $self->{'db'}->get_current_links( mpls => 1 );
+    my $links_db = $self->{'db'}->get_current_links(type => 'mpls');
     foreach my $link (@{$links_db}){
         my $ip_a = $link->{'ip_a'};
         my $ip_z = $link->{'ip_z'};

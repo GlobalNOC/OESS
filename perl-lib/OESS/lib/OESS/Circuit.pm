@@ -288,7 +288,7 @@ sub _create_flows{
     my $dpid_lookup  = $self->{'db'}->get_node_dpid_hash();
     $self->{'dpid_lookup'} = $dpid_lookup;
     
-    my $nodes = $self->{'db'}->get_current_nodes();
+    my $nodes = $self->{'db'}->get_current_nodes(type => $self->{'type'});
 
     $self->{'node_id_lookup'} = {};
     foreach my $node (@$nodes){
@@ -1673,7 +1673,7 @@ sub get_path_status{
     my %unknown_links;
     
     if(!defined($link_status)){
-        my $links = $self->{'db'}->get_current_links();
+        my $links = $self->{'db'}->get_current_links(type => $self->{'type'});
         
         foreach my $link (@$links){
 

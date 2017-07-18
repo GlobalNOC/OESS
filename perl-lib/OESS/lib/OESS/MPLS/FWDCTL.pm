@@ -116,7 +116,7 @@ sub new {
     );
 
     #from TOPO startup
-    my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
+    my $nodes = $self->{'db'}->get_current_nodes(type => 'mpls');
     foreach my $node (@$nodes) {
 	warn Dumper($node);
 	$self->make_baby($node->{'node_id'});
@@ -175,7 +175,7 @@ sub build_cache{
         }
     }
         
-    my $links = $db->get_current_links();
+    my $links = $db->get_current_links(type => 'mpls');
     foreach my $link (@$links) {
         if ($link->{'status'} eq 'up') {
             $link_status{$link->{'name'}} = OESS_LINK_UP;
@@ -186,7 +186,7 @@ sub build_cache{
         }
     }
         
-    my $nodes = $db->get_current_nodes( mpls => 1 );
+    my $nodes = $db->get_current_nodes(type => 'mpls');
     foreach my $node (@$nodes) {
         my $details = $db->get_node_by_id(node_id => $node->{'node_id'});
 	next if(!$details->{'mpls'});
@@ -1117,7 +1117,7 @@ active mpls nodes, and saves them in the database.
 sub save_mpls_nodes_status {
     my $self = shift;
 
-    my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
+    my $nodes = $self->{'db'}->get_current_nodes(type => 'mpls');
     foreach my $node (@{$nodes}) {
         $self->{'fwdctl_events'}->{'topic'} = 'MPLS.FWDCTL.Switch.' . $node->{'mgmt_addr'};
 

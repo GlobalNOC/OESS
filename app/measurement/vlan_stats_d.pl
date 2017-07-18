@@ -286,7 +286,7 @@ sub get_flow_stats{
         return;
     }
 
-    my $nodes = $oess->get_current_nodes();
+    my $nodes = $oess->get_current_nodes(type => 'openflow');
     foreach my $node (@$nodes){
 	my $time;
         my $flows;

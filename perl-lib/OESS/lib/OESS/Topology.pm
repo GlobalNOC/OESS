@@ -562,7 +562,7 @@ sub is_path_up{
 	    }
 	}
     }else{
-	my $links = $self->{'db'}->get_current_links();
+	my $links = $self->{'db'}->get_current_links(type => 'all');
 
 	foreach my $link (@$links){
 

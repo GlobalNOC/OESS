@@ -289,10 +289,10 @@ sub _load_state {
     my $self  = shift;
     $self->{'logger'}->debug("Loading the state");
 
-    my $links = $self->{'db'}->get_current_links();
+    my $links = $self->{'db'}->get_current_links(type => 'openflow');
 
     my %nodes;
-    my $nodes = $self->{'db'}->get_current_nodes();
+    my $nodes = $self->{'db'}->get_current_nodes(type => 'openflow');
     foreach my $node (@$nodes) {
         $nodes{ $node->{'dpid'} } = $node;
 

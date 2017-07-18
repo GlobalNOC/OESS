@@ -935,11 +935,14 @@ sub get_current_nodes{
     my %args = @_;
 
     my $nodes;
+    my $type = $args{'type'};
 
-    if(defined($args{'mpls'}) && $args{'mpls'} == 1){
+    if ($type eq 'mpls') {
 	$nodes = $self->_execute_query("select node.*, node_instantiation.* from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state != 'decom' and node_instantiation.mpls = 1 order by node.name",[]);
-    }else{
+    } elsif ($type eq 'openflow') {
         $nodes = $self->_execute_query("select node.*, node_instantiation.* from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state != 'decom' and node_instantiation.openflow = 1 order by node.name",[]);
+    } else {
+        $nodes = $self->_execute_query("select node.*, node_instantiation.* from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state != 'decom' order by node.name",[]);
     }
 
     return $nodes;
@@ -1370,8 +1373,8 @@ HERE
         
     }
     
-    my $links = $self->get_current_links();
-    my $mpls_links = $self->get_current_links( mpls => 1);
+    my $links = $self->get_current_links(type => 'openflow');
+    my $mpls_links = $self->get_current_links(type => 'mpls');
     foreach my $link (@$mpls_links){
 	push(@$links, $link);
     }
@@ -1523,11 +1526,14 @@ sub get_current_links {
     my %args = @_;
 
     my $query;
+    my $type = $args{'type'};
 
-    if($args{'mpls'} && $args{'mpls'} == 1){
-	$query = "select * from link natural join link_instantiation where link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active' and link.remote_urn is NULL and link_instantiation.mpls=1 order by link.name";	
-    }else{
-	$query = "select * from link natural join link_instantiation where link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active' and link.remote_urn is NULL and link_instantiation.openflow=1 order by link.name";
+    if ($type eq 'mpls') {
+        $query = "SELECT * FROM link JOIN link_instantiation as linki ON link.link_id = linki.link_id where linki.end_epoch = -1 AND linki.link_state = 'active' AND link.remote_urn is NULL AND linki.mpls=1 ORDER BY link.name";
+    } elsif ($type eq 'openflow') {
+        $query = "SELECT * FROM link JOIN link_instantiation as linki ON link.link_id = linki.link_id where linki.end_epoch = -1 AND linki.link_state = 'active' AND link.remote_urn is NULL AND linki.openflow=1 ORDER BY link.name";
+    } else {
+        $query = "SELECT * FROM link JOIN link_instantiation as linki ON link.link_id = linki.link_id where linki.end_epoch = -1 AND linki.link_state = 'active' AND link.remote_urn is NULL ORDER BY link.name";
     }
 
     my $res = $self->_execute_query($query,[]);
