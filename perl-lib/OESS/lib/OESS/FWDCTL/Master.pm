@@ -316,6 +316,11 @@ sub _register_rpc_methods{
 				  required => 1,
 				  pattern => $GRNOC::WebService::Regex::INTEGER);
 
+    $method->add_input_parameter( name => 'force_reprovision',
+                                  description => "don't remove circuit on failure to re-add",
+                                  required => 0,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);
+
     $d->register_method($method);
     
     $method = GRNOC::RabbitMQ::Method->new( name => "deleteVlan",
@@ -2060,6 +2065,7 @@ sub addVlan {
 
     my $success_callback = $m_ref->{'success_callback'};
     my $error_callback   = $m_ref->{'error_callback'};
+    my $force_reprovision = $m_ref->{'force_reprovison'} || 0;
 
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
@@ -2108,7 +2114,7 @@ sub addVlan {
     my $err = '';
 
     $cv->begin( sub {
-        if ($err ne '') {
+        if ($err ne '' && !$force_reprovision) {
             foreach my $dpid (keys %dpids) {
                 $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
                 $self->{'fwdctl_events'}->remove_vlan(circuit_id     => $circuit_id,

@@ -442,12 +442,27 @@ sub _process_interface{
     $obj->{'admin_state'} = trim($xp->findvalue('./j:admin-status'));
     $obj->{'operational_state'} = trim($xp->findvalue('./j:oper-status'));
     $obj->{'description'} = trim($xp->findvalue('./j:description'));
-    if(!defined($obj->{'description'}) || $obj->{'description'} eq ''){
+    $obj->{'addresses'} = [];
+
+    if (!defined $obj->{'description'} || $obj->{'description'} eq '') {
 	$obj->{'description'} = $obj->{'name'};
     } 
 
-    return $obj;
+    my $families  = $xp->findnodes('./j:logical-interface/j:address-family');
+    foreach my $family (@{$families}) {
+        my $family_name = trim($xp->findvalue('j:address-family-name', $family));
+        if (!defined $family_name || $family_name ne 'inet') {
+            next;
+        }
 
+        my $local_addresses = $xp->findnodes('j:interface-address/j:ifa-local', $family);
+        foreach my $local (@{$local_addresses}) {
+            my $addr = trim($local->to_literal());
+            push(@{$obj->{'addresses'}}, $addr);
+        }
+    }
+
+    return $obj;
 }
 
 =head2 remove_vlan
