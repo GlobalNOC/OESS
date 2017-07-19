@@ -119,7 +119,7 @@ sub new {
 											 $self->{'fwdctl_failures'}++;
 
 											 if($self->{'fwdctl_failures'} > 5){
-											     $self->stop();
+											     #$self->stop();
 											 }
                                                                                      }else{
 											 $self->{'fwdctl_failures'} = 0;
