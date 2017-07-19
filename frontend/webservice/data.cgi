@@ -192,6 +192,14 @@ sub register_webservice_methods {
         description     => "Show down interfaces on the node."
         );
 
+    $method->add_input_parameter(
+        name            => 'type',
+        pattern         => '(openflow|mpls|all)',
+        required        => 0,
+        default         => 'all',
+        description     => "Type of interfaces to return."
+        );
+
     #register get_node_interfaces() method
     $svc->register_method($method);
 
@@ -1090,11 +1098,14 @@ sub get_node_interfaces {
     my $workgroup_id = $args->{'workgroup_id'}{'value'};
     my $show_down    = $args->{'show_down'}{'value'} || 0;
     my $show_trunk   = $args->{'show_trunk'}{'value'} || 0;
+    my $type         = $args->{'type'}{'value'};
+
     my $interfaces   = $db->get_node_interfaces(
         node         => $node,
         workgroup_id => $workgroup_id,
         show_down    => $show_down,
-        show_trunk   => $show_trunk
+        show_trunk   => $show_trunk,
+        type         => $type
     );
 
     # something went wrong
