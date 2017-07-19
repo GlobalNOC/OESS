@@ -43,11 +43,10 @@ sub new{
 
     #TODO: make this automatically figure out the right REV
     $self->{'logger'}->info("Loading database from $self->{'config'}");
-    $self->{'db'} = OESS::Database->new(config_file => $self->{'config'});
 
     $self->{'template_dir'} = "juniper/13.3R8";
 
-    $self->{'tt'} = Template->new(INCLUDE_PATH => "/usr/share/doc/perl-OESS-1.2.0/share/mpls/templates/") or die "Unable to create Template Toolkit!";
+    $self->{'tt'} = Template->new(INCLUDE_PATH => $OESS::Database::SHARE_DIR . "share/mpls/templates/") or die "Unable to create Template Toolkit!";
 
     my $creds = $self->_get_credentials();
     if(!defined($creds)){
