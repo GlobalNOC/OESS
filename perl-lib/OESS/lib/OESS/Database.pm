@@ -77,7 +77,7 @@ use XML::Simple;
 use Array::Utils qw(intersect);
 use XML::Writer;
 use GRNOC::Config;
-#use OESS::Topology;
+use OESS::Topology;
 use DateTime;
 use Data::Dumper;
 
