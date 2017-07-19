@@ -29,7 +29,6 @@
 use strict;
 use warnings;
 
-use AnyEvent;
 use Data::Dumper;
 use JSON::XS;
 use Log::Log4perl;
@@ -38,12 +37,10 @@ use Switch;
 use Time::HiRes qw(usleep);
 use URI::Escape;
 
-use OESS::RabbitMQ::Client;
 use GRNOC::WebService;
 
 use OESS::Circuit;
 use OESS::Database;
-use OESS::Topology;
 
 
 #link statuses
@@ -60,13 +57,10 @@ use constant FWDCTL_BLOCKED     => 4;
 Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
 
 my $db   = new OESS::Database();
-my $topo = new OESS::Topology();
+
 
 #register web service dispatcher
 my $svc    = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
-
-my $mq = OESS::RabbitMQ::Client->new( topic    => 'MPLS.FWDCTL.RPC',
-                                      timeout  => 60 );
 
 my $username = $ENV{'REMOTE_USER'};
 my $is_admin = $db->get_user_admin_status( 'username' => $username );
@@ -1054,7 +1048,7 @@ sub get_shortest_path {
     my @nodes = $args->{'node'}{'value'};
     my @links_to_avoid = $args->{'link'}{'value'};
     my $type = $args->{'type'}{'value'};
-
+    my $topo = $db->{'topo'};
     my $sp_links = $topo->find_path(
         nodes      => @nodes,
         used_links => @links_to_avoid,

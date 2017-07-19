@@ -72,14 +72,12 @@ use warnings;
 package OESS::Database;
 
 use DBI;
-use Log::Log4perl;
 use XML::Simple;
 
 use Array::Utils qw(intersect);
 use XML::Writer;
-use GRNOC::RabbitMQ::Client;
 use GRNOC::Config;
-use OESS::Topology;
+#use OESS::Topology;
 use DateTime;
 use Data::Dumper;
 
@@ -5074,14 +5072,10 @@ sub insert_node_in_path{
     my %args = @_;
 
     $self->{'logger'}->warn("Entering insert_node_in_path");
-
+    require OESS::RabbitMQ::Client;
     if(!defined($self->{'fwdctl'})) {
-        $self->{'fwdctl'} = GRNOC::RabbitMQ::Client->new( host => $self->{'rabbitMQ'}->{'host'},
-                                                          port => $self->{'rabbitMQ'}->{'port'},
-                                                          user => $self->{'rabbitMQ'}->{'user'},
-                                                          pass => $self->{'rabbitMQ'}->{'pass'},
-                                                          exchange => 'OESS',
-                                                          topic => 'OF.FWDCTL.RPC' );
+        $self->{'fwdctl'} = OESS::RabbitMQ::Client->new(timeout => 60,
+							topic => 'OF.FWDCTL.RPC');
     }
 
     my $link = $args{'link'};
