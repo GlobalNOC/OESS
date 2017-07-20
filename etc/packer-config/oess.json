@@ -1,104 +1,110 @@
 {
 	"variables": {
-		   "oess_version":"1.1.6",
-		   "oess_version_friendly_name":"1.1.6"
-	},	
-    "builders":[
-	{
-        "ssh_pty" : true,
-	    "type": "virtualbox-iso",
-	    "vm_name": "oess-{{user `oess_version`}}",
-	    "guest_os_type": "RedHat_64",
-	    "iso_url": "http://mirror.symnds.com/distributions/CentOS-vault/6.4/isos/x86_64/CentOS-6.4-x86_64-minimal.iso",
-	    "format": "ova",
-            "export_opts": ["--vsys","0",
-	                   "--product","OESS",
-	    		   "--producturl", "http://globalnoc.iu.edu/sdn/oess.html",
-			   "--vendor", "GlobalNOC",
-			   "--vendorurl","http://globalnoc.iu.edu",
-			   "--version", "{{user `oess_version_friendly_name`}}",
-			   "--description", "OESS {{user `oess_version_friendly_name`}}",
-			   "--eula", "Apache 2.0" ],
-	    "iso_checksum": "4a5fa01c81cc300f4729136e28ebe600",
-	    "http_directory": "./",
-            "http_port_min": "8500",
-            "iso_checksum_type": "md5",	 
-	    "disk_size": 10000,
-            "boot_command": [
-                "<esc><wait>",
-                "linux ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/ks.cfg ",
-                "<enter><wait>"
-    	    ],
-	    "shutdown_command": "sudo shutdown -h now",
-            "ssh_username": "oess",
-            "ssh_password": "oess",
-            "ssh_wait_timeout": "300s",
-	    
-	    "vboxmanage": [	     
-		[
-		    "modifyvm",
-		    "{{.Name}}",
-		    "--memory",
-		    "1048"
-		],
-
-		[
-		    "modifyvm",
-		    "{{.Name}}",
-		    "--cpus",
-		    "1"
-		]
-	    ]
-	    
-	    
-	}	],
-    "provisioners":[
-	{
-	    "type": "file",
-	    "source":"mysql_settings.txt",
-	    "destination": "/tmp/mysql_settings.txt"
-
+		"oess_version": "1.2.1",
+		"oess_version_friendly_name": "1.2.1"
 	},
-	{    "type": "file",
-	     "source":"oess_settings.txt",
-	     "destination": "/tmp/oess_settings.txt"
-	},
-	{
-	    
-            "type": "shell",
-	    "inline": [
-
-		"sleep 30",
-		"sudo yum makecache",
-		"sudo yum -y install wget",
-		"sudo useradd -r _snapp",
-		"wget http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm",
-		"sudo yum -y update",
-		"sudo rpm -Uvh epel-release-6*.rpm",
-		"wget http://globalnoc.iu.edu/sdn/oess/oess-releases/oess-{{user `oess_version`}}.tar.gz",
-		"tar -xzf oess-{{user `oess_version`}}.tar.gz",
-		"cd oess-{{user `oess_version`}}",
-		"sudo yum -y install `find *.rpm`"
-	    ]
-	    
-	},
-	{
-	    "type": "shell",
-	    "inline": [
-		"sudo /etc/init.d/mysqld start",
-		"sudo /usr/bin/mysql_secure_installation < /tmp/mysql_settings.txt",
-		"sudo perl /usr/bin/oess_setup.pl < /tmp/oess_settings.txt",
-		"sudo /sbin/iptables -I INPUT 5 -m state --state NEW -m tcp -p tcp --dport 6633 -j ACCEPT",
-		"sudo /sbin/iptables -I INPUT 5 -m state --state NEW -m tcp -p tcp --dport 443 -j ACCEPT",
-		"sudo /sbin/iptables -I INPUT 5 -m state --state NEW -m tcp -p tcp --dport 22 -j ACCEPT",
-		"sudo /etc/init.d/iptables save",
-		"sudo /etc/init.d/messagebus restart",
-		"sudo /etc/init.d/oess restart",
-		"sudo /etc/init.d/httpd restart",
-		"sudo chkconfig mysqld on",
-        	"sudo chkconfig httpd on",
-        	"sudo chkconfig oess on"	
-    ]
-	}
+	"builders": [
+		{
+			"ssh_pty" : true,
+			"type": "virtualbox-iso",
+			"vm_name": "oess-{{user `oess_version`}}",
+			"guest_os_type": "RedHat_64",
+			"iso_url": "http://mirror.umd.edu/centos/6.9/isos/x86_64/CentOS-6.9-x86_64-minimal.iso",
+			"iso_checksum": "af4a1640c0c6f348c6c41f1ea9e192a2",
+			"format": "ova",
+				"export_opts": [
+					"--vsys","0",
+					"--product","OESS",
+					"--producturl", "http://globalnoc.iu.edu/sdn/oess.html",
+					"--vendor", "GlobalNOC",
+					"--vendorurl","http://globalnoc.iu.edu",
+					"--version", "{{user `oess_version_friendly_name`}}",
+					"--description", "OESS {{user `oess_version_friendly_name`}}",
+					"--eula", "Apache 2.0"
+				],
+			"http_directory": "./",
+			"http_port_min": "8500",
+			"iso_checksum_type": "md5",
+			"disk_size": 10000,
+			"boot_command": [
+				"<esc><wait>",
+				"linux ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/ks.cfg ",
+				"<enter><wait>"
+			],
+			"shutdown_command": "sudo shutdown -h now",
+			"ssh_username": "oess",
+			"ssh_password": "oess",
+			"ssh_wait_timeout": "600s",
+			"vboxmanage": [
+				[
+					"modifyvm",
+					"{{.Name}}",
+					"--memory",
+					"1048"
+				],
+				[
+					"modifyvm",
+					"{{.Name}}",
+					"--cpus",
+					"1"
+				]
+			]
+		}
+	],
+    "provisioners": [
+		{
+			"type": "file",
+			"source":"grnoc-public.repo",
+			"destination": "/tmp/grnoc-public.repo"
+		},
+		{
+			"type": "file",
+			"source":"mysql_settings.txt",
+			"destination": "/tmp/mysql_settings.txt"
+		},
+		{
+			"type": "file",
+			"source":"oess_settings.txt",
+			"destination": "/tmp/oess_settings.txt"
+		},
+		{
+			"type": "shell",
+			"inline": [
+				"sleep 30",
+				"sudo mv /tmp/grnoc-public.repo /etc/yum.repos.d/",
+				"sudo yum makecache",
+				"sudo yum -y update",
+				"sudo yum -y install wget",
+				"wget http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm",
+				"sudo rpm -Uvh epel-release-6*.rpm",
+				"sudo useradd -r _snapp",
+				"sudo yum -y install perl-GRNOC-RabbitMQ nox perl-OESS oess-core oess-frontend"
+			]
+		},
+		{
+			"type": "shell",
+			"inline": [
+				"sudo yum -y install rabbitmq-server",
+				"sudo /etc/init.d/rabbitmq-server start"
+			]
+		},
+		{
+			"type": "shell",
+			"inline": [
+				"sudo yum -y install mysql-server",
+				"sudo /etc/init.d/mysqld start",
+				"sudo /usr/bin/mysql_secure_installation < /tmp/mysql_settings.txt",
+				"sudo perl /usr/bin/oess_setup.pl < /tmp/oess_settings.txt",
+				"sudo /sbin/iptables -I INPUT 5 -m state --state NEW -m tcp -p tcp --dport 6633 -j ACCEPT",
+				"sudo /sbin/iptables -I INPUT 5 -m state --state NEW -m tcp -p tcp --dport 443 -j ACCEPT",
+				"sudo /sbin/iptables -I INPUT 5 -m state --state NEW -m tcp -p tcp --dport 22 -j ACCEPT",
+				"sudo /etc/init.d/iptables save",
+				"sudo /etc/init.d/oess restart",
+				"sudo /etc/init.d/httpd restart",
+				"sudo chkconfig mysqld on",
+				"sudo chkconfig httpd on",
+				"sudo chkconfig oess on"
+			]
+		}
     ]
 }
