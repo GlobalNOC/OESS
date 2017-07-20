@@ -28,7 +28,7 @@ var get_multilink_panel = function(container_id, options){
     var link_options = "<option value=''>Select Link</option>";
     for( var i = 0; i < options.links.length; i++ ){
         var link = options.links[i];
-        if( (options.already_used_check) && is_already_used(link.link_name)) continue;
+        //if( (options.already_used_check) && is_already_used(link.link_name)) continue;
         //if( (options.hide_down_links) && (link.state == "down") ) continue;
         //if(is_already_used(link.link_name)) {
         //    link_options += "class='disabled-result' "; 
