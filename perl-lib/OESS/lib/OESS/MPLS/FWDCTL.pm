@@ -1158,6 +1158,8 @@ sub stop {
     $self->{'logger'}->info("Sending MPLS.FWDCTL.event.stop to listeners");
     $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch";
     $self->{'fwdctl_events'}->stop( no_reply => 1);
+
+    $self->{'fwdctl_dispatcher'}->stop_consuming();
 }
 
 1;

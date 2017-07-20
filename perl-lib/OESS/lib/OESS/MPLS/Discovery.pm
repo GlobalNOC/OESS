@@ -789,6 +789,8 @@ sub stop {
     $self->{'logger'}->info("Sending MPLS.Discovery.stop to listeners");
     $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch";
     $self->{'rmq_client'}->stop( no_reply => 1);
+
+    $self->{'dispatcher'}->stop_consuming();
 }    
 
 1;
