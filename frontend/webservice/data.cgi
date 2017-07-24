@@ -139,7 +139,7 @@ sub register_webservice_methods {
     );
     $method->add_input_parameter(
 	name            => 'type',
-	pattern         => $GRNOC::WebService::Regex::TEXT,
+    pattern         => '^(openflow|mpls|all)$',
 	required        => 0,
 	description     => "The type of nodes that shall be included in the map."
     );
@@ -188,7 +188,7 @@ sub register_webservice_methods {
 
     $method->add_input_parameter(
         name            => 'type',
-        pattern         => '(openflow|mpls|all)',
+        pattern         => '^(openflow|mpls|all)$',
         required        => 0,
         default         => 'all',
         description     => "Type of interfaces to return."
@@ -500,7 +500,7 @@ sub register_webservice_methods {
     );
     $method->add_input_parameter(
 	name            => 'type',
-	pattern         => $GRNOC::WebService::Regex::TEXT,
+    pattern         => '^(openflow|mpls|all)$',
 	required        => 0,
 	description     => "The type of nodes that shall be included in the map."
     );
@@ -514,6 +514,12 @@ sub register_webservice_methods {
         description     => "returns a list of all active links and their operational status.",
         callback        => sub { get_all_link_status( @_ ) }
         );
+    $method->add_input_parameter(
+	name            => 'type',
+    pattern         => '^(openflow|mpls|all)$',
+	required        => 0,
+	description     => "The type of links that shall be included."
+    );
 
     #register the get_all_link_status() method
     $svc->register_method($method);
