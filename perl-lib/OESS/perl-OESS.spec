@@ -70,6 +70,7 @@ Requires: perl(Net::Netconf)                >= 1.4.1
 Requires: perl(Net::Netconf::Manager)
 Requires: perl(POSIX)
 Requires: perl(Proc::Daemon)
+Requires: perl(Proc::FastSpawn)
 Requires: perl(Proc::ProcessTable)
 Requires: perl(RRDs)
 Requires: perl(Set::Scalar)
