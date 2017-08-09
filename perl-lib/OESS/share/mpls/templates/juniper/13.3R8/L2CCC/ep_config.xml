@@ -25,12 +25,11 @@
           [% IF path.name == 'PRIMARY' %]
         <primary>
           <name>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]-[% path.name %]</name>
-          <select>manual</select>
         </primary>
           [% ELSE %]
         <secondary>
           <name>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]-[% path.name %]</name>
-          <standby />
+	  <standby />
         </secondary>
           [% END %]
         [% END %]
@@ -48,7 +47,6 @@
         [% ELSE %]
         <path-list>
           <name>[% dest %]</name>
-          <loose />
         </path-list>
         [% END %]
       </path>
