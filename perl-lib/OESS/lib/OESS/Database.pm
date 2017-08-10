@@ -7740,8 +7740,9 @@ sub create_node_instance{
 	}
      }
 
-    if(!defined($args{'dpid'})){
-	$args{'dpid'} = inet_aton($args{'mgmt_addr'});
+    if (!defined $args{'dpid'}) {
+        my $data = inet_aton($args{'mgmt_addr'});
+        $args{'dpid'} = unpack('N', $data);
     }
 
     my $res = $self->_execute_query("insert into node_instantiation (node_id,end_epoch,start_epoch,mgmt_addr,admin_state,dpid,vendor,model,sw_version,mpls,openflow ) VALUES (?,?,?,?,?,?,?,?,?,?,?)",[$args{'node_id'},-1,time(),$args{'mgmt_addr'},$args{'admin_state'},$args{'dpid'},$args{'vendor'},$args{'model'},$args{'sw_version'},$args{'mpls'},$args{'openflow'}]);
