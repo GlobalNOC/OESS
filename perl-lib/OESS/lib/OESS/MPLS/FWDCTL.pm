@@ -921,7 +921,7 @@ sub diff {
         # If the database asserts there is no diff pending but memory
         # disagrees, then the pending state was modified by an admin.
         # The pending diff may now proceed.
-        if ($self->{'children'}->{$node_id}->{'pending_diff'} == 1) {
+        if ($self->{'children'}->{$node_id}->{'pending_diff'} == 1 && $pending_diff == 0) {
             $force_diff = 1;
             $self->{'children'}->{$node_id}->{'pending_diff'} = 0;
         }
