@@ -1619,14 +1619,26 @@ sub get_mpls_hops{
 	return;
     }
 
+    my $nodes = $db->get_nodes( mpls => 1);
+    my %nodes;
+    foreach my $node (@$nodes){
+        $nodes{$node->{'name'}} = $node;
+    }
+
     #build our lookup has to find our IP addresses
     my %ip_address;
     foreach my $link (@$p){
 	my $node_a = $link->{'node_a'};
 	my $node_z = $link->{'node_z'};
 
-	$ip_address{$node_a}{$node_z} = $link->{'ip_z'};
-	$ip_address{$node_z}{$node_a} = $link->{'ip_a'};
+        #this worked when doing it on a per-link basis
+        #however they want to do it for 
+#	$ip_address{$node_a}{$node_z} = $link->{'ip_z'};
+#	$ip_address{$node_z}{$node_a} = $link->{'ip_a'};
+        
+        $ip_address{$node_a}{$node_z} = $nodes{$node_a}->{'loopback_address'};
+        $ip_address{$node_z}{$node_a} = $nodes{$node_z}->{'loopback_address'};
+
     }
 
     #verify that our start/end are endpoints
@@ -1649,7 +1661,7 @@ sub get_mpls_hops{
 	$self->{'logger'}->debug("      Address: " . $ip);
 	push(@ips, $ip);
     }
-    
+
     return \@ips;
 }
 
