@@ -1483,12 +1483,14 @@ sub move_edge_interface_circuits {
         new_interface_id  => $new_interface_id,
         circuit_ids       => (@circuit_ids > 0) ? \@circuit_ids : undef
         );
+
     if ( !defined $res ) {
         $results->{'error'}   = $db->get_error();
     }
     $results->{'results'} = [$res];
 
     # now diff node
+    
     if(!_update_cache_and_sync_node($res->{'dpid'})){
         $results->{'error'}   = "Issue diffing node";
     }
