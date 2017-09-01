@@ -2893,7 +2893,7 @@ function setup_network_tab(){
                       "<tr class='mpls'>" +
                         "<td>IP Address</td>" +
                         "<td><input type='text' id='mgmt_addr'></td>" +
-                        "<td>TCP Port</td>" +
+                        "<td>NetConf SSH Port</td>" +
                         "<td><input type='text' id='tcp_port'></td>" +
                       "</tr>" +
                       // MPLS - Vendor, Model
