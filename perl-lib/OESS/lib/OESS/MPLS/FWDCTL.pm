@@ -916,15 +916,12 @@ sub diff {
 
         # If the database asserts a diff is pending we are still waiting
         # for admin approval. Skip diffing for now.
-        if ($pending_diff == 1) {
-           $self->{'logger'}->info("Diff for node $node_id requires admin approval.");
-           next;
-        }
+
 
         # If the database asserts there is no diff pending but memory
         # disagrees, then the pending state was modified by an admin.
         # The pending diff may now proceed.
-        if ($self->{'children'}->{$node_id}->{'pending_diff'} == 1) {
+        if ($self->{'children'}->{$node_id}->{'pending_diff'} == 1 && $pending_diff == 0) {
             $force_diff = 1;
             $self->{'children'}->{$node_id}->{'pending_diff'} = 0;
         }
@@ -950,6 +947,9 @@ sub diff {
 
                     $self->{'logger'}->warn("Diff for node $node_id requires admin approval.");
                     return 0;
+                }else{
+                    $self->{'db'}->set_diff_approval(1, $node_id);
+                    $self->{'children'}->{$node_id}->{'pending_diff'} = 0;
                 }
 
                 return 1;
