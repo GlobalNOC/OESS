@@ -38,19 +38,27 @@ function makeInterfacesTable(node){
             }
         }},
         {key: "vlan_tag_range", label: "Tag Range", formatter: function(elLiner, oRec, oCol, oData){
-                if (oData !== null) {
-                    tags = oData.replace(/^-1/, "untagged");
-                }
-        }},
+            }},
         {key: "mpls_vlan_tag_range", label: "Tag Range", formatter: function(elLiner, oRec, oCol, oData){
-                if (oData === null) {
-                    elLiner.innerHTML = tags;
-                } else {
-                    if (tags !== '') { tags += ','; }
-                    tags += oData.replace(/^-1/, "untagged");
+                var vlanTagRange;
+                var mplsTagRange;
+                if(oRec._oData.vlan_tag_range !== null){
+                    vlanTagRange = oRec._oData.vlan_tag_range.replace(/^-1/, "untagged");
                 }
-                elLiner.innerHTML = tags;
-        }}
+                if(oRec._oData.mpls_vlan_tag_range !== null){
+                    mplsTagRange = oRec._oData.mpls_vlan_tag_range.replace(/^-1/, "untagged");
+                }
+                var vlans;
+                if(vlanTagRange !== undefined && mplsTagRange !== undefined){
+                    elLiner.innerHTML = vlanTagRange + "," + mplsTagRange;
+                }else if(vlanTagRange !== undefined){
+                    elLiner.innerHTML = vlanTagRange;
+                }else{
+                    elLiner.innerHTML = mplsTagRange;
+                }
+
+
+            }}
     ];
 
     // Removes role column from table when not in 'admin' workgroup.
@@ -132,7 +140,27 @@ function init(){
                 this.table.subscribe("rowClickEvent", function(args){
 
             var rec = this.getRecord(args.target);
-            var tag_range = rec.getData('vlan_tag_range');
+            var mpls_vlan_tag_range = rec.getData("mpls_vlan_tag_range");
+            var vlan_tag_range = rec.getData("vlan_tag_range");
+
+            var vlanTagRange;
+            var mplsTagRange;
+            if(rec.getData("vlan_tag_range") !== null){
+                vlanTagRange = rec.getData("vlan_tag_range").replace(/^-1/, "untagged");
+            }
+            if(rec.getData("mpls_vlan_tag_range") !== null){
+                mplsTagRange = rec.getData("mpls_vlan_tag_range").replace(/^-1/, "untagged");
+            }
+            var vlans;
+            if(vlanTagRange !== undefined && mplsTagRange !== undefined){
+                vlans = vlanTagRange + "," + mplsTagRange;
+            }else if(vlanTagRange !== undefined){
+                vlans = vlanTagRange;
+            }else{
+                vlans = mplsTagRange;
+            }
+
+            var tag_range = vlans;
             var interface = rec.getData('name');
             var description = rec.getData('description');
 
