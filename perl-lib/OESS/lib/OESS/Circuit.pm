@@ -1255,6 +1255,7 @@ sub update_mpls_path{
 
         my $path_id = $self->{'db'}->create_path($self->{'circuit_id'}, \@link_ids, 'tertiary');
         $self->{'paths'}->{'tertiary'}->{'path_id'} = $path_id; # Required by _change_active_path
+        $self->{'has_tertiary_path'} = 1;
 
         my $query = "update link_path_membership set end_epoch=unix_timestamp(NOW()) where path_id=? and end_epoch=-1";
         $self->{'db'}->_execute_query($query,[$path_id]);
@@ -1263,6 +1264,8 @@ sub update_mpls_path{
         foreach my $link (@{$params{'links'}}){
             $self->{'db'}->_execute_query($query, [$link->{'link_id'}, $path_id, $self->{'circuit_id'} + 5000, $self->{'circuit_id'} + 5000]);
         }
+
+        $self->{'details'}->{'tertiary_links'} = $params{'links'};
 
         return $self->_change_active_path(new_path => 'tertiary');
     }
@@ -1282,6 +1285,9 @@ sub update_mpls_path{
                 $self->{'circuit_id'} + 5000
             ]);
         }
+
+        $self->{'details'}->{'tertiary_links'} = $params{'links'};
+
     }
 
     return $self->_change_active_path(new_path => 'tertiary');
