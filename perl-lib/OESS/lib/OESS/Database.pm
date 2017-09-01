@@ -5225,7 +5225,6 @@ sub decom_link {
         return;
     }
 
-    warn "". Dumper($link_details);
 
     my $result = $self->_execute_query("update link_instantiation set end_epoch = unix_timestamp(NOW()) where end_epoch = -1 and link_id = ?", [$link_id]);
 
@@ -9737,17 +9736,17 @@ sub add_edge_interface_move_maintenance {
     );
     if(!defined($res)){
 	    $self->_rollback() if($do_commit);
-        return;
+            return;
     }
     my $moved_circuit_ids   = $res->{'moved_circuits'};
     my $unmoved_circuit_ids = $res->{'unmoved_circuits'};
-
+    
     # now create edge_interface_move_maintenance_circuit_membership records for each moved circuit
     foreach my $circuit_id (@$moved_circuit_ids){
         my $query = "INSERT INTO edge_interface_move_maintenance_circuit_membership ( ".
-                    "  maintenance_id, ".
-                    "  circuit_id ) ". 
-                    "VALUES (?,?)";
+            "  maintenance_id, ".
+            "  circuit_id ) ". 
+            "VALUES (?,?)";
         my $res = $self->_execute_query($query,[
             $maintenance_id,
             $circuit_id
@@ -9875,6 +9874,9 @@ sub get_circuit_edge_interface_memberships {
         $query .= " AND circuit_id IN (".(join(',', ('?') x @$circuit_ids)).")";
         push(@$params, @$circuit_ids);
     }
+
+    warn "Query: " . $query . "\n";
+    warn "Params: " . Dumper($params);
     my $edge_interface_recs = $self->_execute_query($query, $params) || return;
 
     return $edge_interface_recs;
@@ -9889,19 +9891,22 @@ sub move_edge_interface_circuits {
     my $orig_interface_id = $args{'orig_interface_id'};
     my $new_interface_id  = $args{'new_interface_id'};
     my $circuit_ids       = $args{'circuit_ids'};
+
+    warn "Circuit IDS: " . Dumper($circuit_ids);
+
     my $do_commit    = (defined($args{'do_commit'})) ? $args{'do_commit'} : 1;
 
     #sanity checks
     if(!defined($orig_interface_id)){
-	    $self->_set_error("Must pass in orig_interface_id.");
+        $self->_set_error("Must pass in orig_interface_id.");
         return;
     }
     if(!defined($new_interface_id)){
-	    $self->_set_error("Must pass in new_interface_id.");
+        $self->_set_error("Must pass in new_interface_id.");
         return;
     }
     if($orig_interface_id == $new_interface_id){
-	    $self->_set_error("Original interface and new interface must be different.");
+        $self->_set_error("Original interface and new interface must be different.");
         return;
     }
 
@@ -9912,7 +9917,7 @@ sub move_edge_interface_circuits {
         return;
     }
     my $dpid = $orig_int_node->{'dpid'};
-   
+    
     # first retrieve all of the edge records that we're moving 
     my $src_edge_interface_recs = $self->get_circuit_edge_interface_memberships(
         interface_id => $orig_interface_id,
@@ -9992,7 +9997,8 @@ sub move_edge_interface_circuits {
     return { 
         moved_circuits   => \@moved_circuits,
         unmoved_circuits => \@unmoved_circuits,
-        dpid             => $dpid
+        dpid             => $dpid,
+        node             => $orig_int_node
     };
 }
 
