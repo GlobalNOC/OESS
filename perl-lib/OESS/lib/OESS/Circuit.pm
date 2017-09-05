@@ -1625,7 +1625,7 @@ sub get_mpls_hops{
 	return;
     }
 
-    my $nodes = $db->get_nodes( mpls => 1);
+    my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
     my %nodes;
     foreach my $node (@$nodes){
         $nodes{$node->{'name'}} = $node;

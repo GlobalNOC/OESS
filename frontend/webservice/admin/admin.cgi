@@ -1430,7 +1430,7 @@ sub add_edge_interface_move_maintenance {
     $results->{'results'} = [$res];
 
     # now diff node
-    if(!_update_cache_and_sync_node($res->{'dpid'})){
+    if(!_update_cache_and_sync_node($res->{'node'})){
         $results->{'error'}   = "Issue diffing node";
     }
 
@@ -1458,8 +1458,8 @@ sub revert_edge_interface_move_maintenance {
     $results->{'results'} = [$res];
 
     # now diff node
-    if(!_update_cache_and_sync_node($res->{'dpid'})){
-        $results->{'error'}   = "Issue diffing node";
+    if(!_update_cache_and_sync_node($res->{'node'})){
+	$results->{'error'}   = "Issue diffing node";
     }
 
     return $results;
@@ -1476,21 +1476,26 @@ sub move_edge_interface_circuits {
     my $results = { 'results' => [] };
     my $orig_interface_id  = $args->{"orig_interface_id"}{'value'};
     my $new_interface_id   = $args->{"new_interface_id"}{'value'};
-    my @circuit_ids        = $args->{"circuit_id"}{'value'};
+    my $circuit_ids        = $args->{"circuit_id"}{'value'};
 
     my $res = $db->move_edge_interface_circuits(
         orig_interface_id => $orig_interface_id,
         new_interface_id  => $new_interface_id,
-        circuit_ids       => (@circuit_ids > 0) ? \@circuit_ids : undef
+        circuit_ids       => $circuit_ids
         );
-    if ( !defined $res ) {
+
+
+    if ( !defined $res || !defined($res->{'node'})) {
         $results->{'error'}   = $db->get_error();
+	warn "Error: " . $db->get_error();
+	return $results;
     }
+
     $results->{'results'} = [$res];
 
     # now diff node
-    if(!_update_cache_and_sync_node($res->{'dpid'})){
-        $results->{'error'}   = "Issue diffing node";
+    if(!_update_cache_and_sync_node($res->{'node'})){
+	$results->{'error'}   = "Issue diffing node";
     }
 
     return $results;
@@ -1607,8 +1612,6 @@ sub confirm_node {
                           });
 
     my $cache_result = $cv->recv();
-
-    warn Data::Dumper::Dumper($cache_result);
 
     if ($cache_result->{'error'} || !$cache_result->{'results'}) {
         return { results => [ {
@@ -2265,8 +2268,6 @@ sub add_mpls_switch{
 	$mq->{'topic'} = 'MPLS.FWDCTL.RPC';
     }
 
-    warn Data::Dumper::Dumper($node);
-
     my $cv = AnyEvent->condvar;
     $mq->new_switch(
         node_id        => $node->{'node_id'},
@@ -2298,10 +2299,11 @@ sub send_json {
 }
 
 sub _update_cache_and_sync_node {
-    my $dpid = shift;    
+    my $node = shift;
+
     require OESS::RabbitMQ::Client;
     my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
-                                          timeout  => 60 );
+                                          timeout  => 20 );
 
     if ( !defined($mq) ) {
         return;
@@ -2310,31 +2312,40 @@ sub _update_cache_and_sync_node {
     }
 
     my $cv = AnyEvent->condvar;
-    $mq->update_cache(circuit_id     => -1,
-		      async_callback => sub {
-			  my $result = shift;
-			  $cv->send($result);
-		      });
-
-    my $result = $cv->recv();
-
-    if ($result->{'error'} || !$result->{'results'}) {
-        return;
+    $cv->begin();
+    if($node->{'openflow'}){
+	warn "Updating OF Cache\n";
+	$cv->begin();
+	$mq->update_cache(circuit_id     => -1,
+			  async_callback => sub {
+			      my $result = shift;
+			      $cv->send();
+			  });
+	warn "Requesting OF Force Sync\n";
+	$cv->begin();
+	$mq->force_sync(dpid => int($node->{'dpid'}),
+			async_callback => sub {
+			    my $result = shift;
+			    $cv->send();
+			});
+	
+	
     }
 
-    $cv = AnyEvent->condvar;
-    $mq->force_sync(dpid => int($dpid),
-		    async_callback => sub {
-			my $result = shift;
-			$cv->send($result);
-		    });
-
-    $result = $cv->recv();
-
-    if ($result->{'error'} || !$result->{'results'}) {
-        return;
+    if($node->{'mpls'}){
+	warn "Syncing MPLS\n";
+	$mq->{'topic'} = 'MPLS.FWDCTL.RPC';
+	$cv->begin();
+	$mq->new_switch(
+	    node_id => int($node->{'node_id'}),
+	    async_callback => sub {
+		my $result = shift;
+		$cv->send();
+	    });
     }
 
+    $cv->recv();
+    warn "Complete syncing node\n";
     return 1;
 }
 
