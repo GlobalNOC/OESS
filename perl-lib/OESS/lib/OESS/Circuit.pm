@@ -213,7 +213,7 @@ sub _process_circuit_details{
     }
 
     if(scalar(@{$self->{'details'}->{'tertiary_links'}}) > 0){
-        $self->{'logger'}->debug("Circuit has backup path");
+        $self->{'logger'}->debug("Circuit has tertiary path");
         $self->{'has_tertiary_path'} = 1;
     }
 
@@ -1245,7 +1245,39 @@ sub update_mpls_path{
     # This includes adding the path to the database if not already
     # existing.
 
-    if (!$self->has_tertiary_path()) {
+    #check and see if circuit has any previously defined tertiary path
+    my $query  = "select path.path_id from path where path.path_type=? and circuit_id=?";
+    my $results = $self->{'db'}->_execute_query($query, ["tertiary", $self->{'circuit_id'}]);
+
+    if(defined($results) && defined($results->[0])){
+
+	$self->{'logger'}->error("Tertiary path already exists...");
+	my $tertiary_path_id = $results->[0]->{'path_id'};
+
+
+	if(!_compare_links($self->get_path(path => 'tertiary'), $params{'links'})) {
+	    my $query = "update link_path_membership set end_epoch = unix_timestamp(NOW()) where path_id = ? and end_epoch = -1";
+	    $self->{'db'}->_execute_query($query,[$self->{'details'}->{'paths'}->{'tertiary'}->{'path_id'}]);
+	    
+	    $query = "insert into link_path_membership (end_epoch,link_id,path_id,start_epoch,interface_a_vlan_id,interface_z_vlan_id) " .
+		"VALUES (-1,?,?,unix_timestamp(NOW()),?,?)";
+	    
+	    foreach my $link (@{$params{'links'}}) {
+		$self->{'db'}->_execute_query($query, [
+						  $link->{'link_id'},
+						  $tertiary_path_id,
+						  $self->{'circuit_id'} + 5000,
+						  $self->{'circuit_id'} + 5000
+					      ]);
+		
+	    }
+	}else{
+	    #nothing to do here
+	}
+
+    }else{
+	$self->{'logger'}->error("No tertiary path exists...creating...");
+	
         my @link_ids;
         foreach my $link (@{$params{'links'}}) {
             push(@link_ids, $link->{'link_id'});
@@ -1266,28 +1298,6 @@ sub update_mpls_path{
         }
 
         $self->{'details'}->{'tertiary_links'} = $params{'links'};
-
-        return $self->_change_active_path(new_path => 'tertiary');
-    }
-
-    if (!_compare_links($self->get_path(path => 'tertiary'), $params{'links'})) {
-        my $query = "update link_path_membership set end_epoch = unix_timestamp(NOW()) where path_id = ? and end_epoch = -1";
-        $self->{'db'}->_execute_query($query,[$self->{'details'}->{'paths'}->{'tertiary'}->{'path_id'}]);
-
-        $query = "insert into link_path_membership (end_epoch,link_id,path_id,start_epoch,interface_a_vlan_id,interface_z_vlan_id) " .
-            "VALUES (-1,?,?,unix_timestamp(NOW()),?,?)";
-
-        foreach my $link (@{$params{'links'}}) {
-            $self->{'db'}->_execute_query($query, [
-                $link->{'link_id'},
-                $self->{'details'}->{'paths'}->{'tertiary'}->{'path_id'},
-                $self->{'circuit_id'} + 5000,
-                $self->{'circuit_id'} + 5000
-            ]);
-        }
-
-        $self->{'details'}->{'tertiary_links'} = $params{'links'};
-
     }
 
     return $self->_change_active_path(new_path => 'tertiary');
@@ -1308,6 +1318,8 @@ sub _change_active_path{
         return 1;
     }
 
+    $self->{'db'}->_start_transaction();
+
     $self->{'logger'}->info("Circuit $self->{'circuit_id'} changing paths from $current_path to $new_path");
 
     my $query  = "select path.path_id from path where path.path_type=? and circuit_id=?";
@@ -1326,6 +1338,7 @@ sub _change_active_path{
     
     my $success = $self->{'db'}->_execute_query($query, [$old_path_id]);
     if (!$success) {
+	$self->{'db'}->_rollback();
         my $err = "Unable to change path_instantiation of current path to inactive.";
         $self->{'logger'}->error($err);
         $self->error($err);
@@ -1336,10 +1349,19 @@ sub _change_active_path{
     $query = "insert into path_instantiation (path_id, start_epoch, end_epoch, path_state) values (?, unix_timestamp(NOW()), -1, 'available')";
     $success = $self->{'db'}->_execute_query($query, [$old_path_id]);
 
+    if (!$success) {
+	$self->{'db'}->_rollback();
+        my $err = "Unable to update path_instantiation table";
+        $self->{'logger'}->error($err);
+        $self->error($err);
+        return;
+    }
+
     $query = "update path_instantiation set path_state = 'active' where path_id=? and end_epoch=-1";
     $success = $self->{'db'}->_execute_query($query, [$new_path_id]);
 
     if (!$success) {
+	$self->{'db'}->_rollback();
         my $err = "Unable to update path_instantiation table";
         $self->{'logger'}->error($err);
         $self->error($err);
@@ -1351,15 +1373,26 @@ sub _change_active_path{
     $query = "update path set path_state='available' where path_id=?";
     $success = $self->{'db'}->_execute_query($query, [$old_path_id]);
 
-    $query = "update path set path_state='active' where path_id=?";
-    $success = $self->{'db'}->_execute_query($query, [$new_path_id]);
-
     if (!$success) {
+        $self->{'db'}->_rollback();
         my $err = "Unable to update path table";
         $self->{'logger'}->error($err);
         $self->error($err);
         return;
     }
+
+    $query = "update path set path_state='active' where path_id=?";
+    $success = $self->{'db'}->_execute_query($query, [$new_path_id]);
+    
+    if (!$success) {
+	$self->{'db'}->_rollback();
+        my $err = "Unable to update path table";
+        $self->{'logger'}->error($err);
+        $self->error($err);
+        return;
+    }
+
+    $self->{'db'}->_commit();
 
     $self->{'active_path'} = $params{'new_path'};
     $self->{'details'}->{'active_path'} = $params{'new_path'};
