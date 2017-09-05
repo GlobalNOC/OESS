@@ -1,5 +1,5 @@
 Name:	nox		
-Version: 0.10.12
+Version: 0.10.13
 Release: 1%{?dist}
 Summary: NOX: an OpenFlow controller	
 
