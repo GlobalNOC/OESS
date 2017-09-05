@@ -55,78 +55,136 @@ function init(){
   
   var nddi_map = new NDDIMap("map");
 
+  nddi_map.on("loaded", function(){
+          if (session.data.circuit_type == 'mpls') {
+              var url = "services/data.cgi?method=get_shortest_path";
+
+              for (var i = 0; i < session.data.endpoints.length; i++){
+                  var node = session.data.endpoints[i].node;
+                  url += "&node=" + node;
+              }
+
+              //append the type
+              url += "&type=" + session.data.circuit_type;
+
+              var ds = new YAHOO.util.DataSource(url);
+              ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+              ds.responseSchema = {
+                  resultsList: "results",
+                  fields: [
+              {key: "link"}
+                           ],
+                  metaFields: {
+                      error: "error",
+                      error_text: "error_text"
+                  }
+              }
+
+              ds.sendRequest("", {success: function(req, resp){
+
+
+                          if (resp.meta.error){
+                              alert("Error - " + resp.meta.error_text);
+                              return;
+                          }
+
+
+                          for (var i = 0; i < resp.results.length; i++){
+                              session.data.backup_links.push(resp.results[i].link);
+                          }
+                          this.updateMapFromSession(session);
+
+                      },
+                      failure: function(req, resp){
+                          alert('Server error while determining shortest path.');
+                      },
+                          scope: this
+                          });
+          }else{
+
+              this.updateMapFromSession(session);
+          }
+      });
+
+
+  nddi_map.on("clickLink", function(e, args){
+          onClickLink(path_table, e, args, save_session);
+      });
+
+
   var layout = makePageLayout(nddi_map, {map_width: 700,
 					 max_resize: 700});  
 
   legend_init(nddi_map);
-  
-  var shortest_path_button = new YAHOO.widget.Button("shortest_path_button", {label: "Suggest Shortest Path"});
-  
-  //nddi_map.showDefault();
-  
-  shortest_path_button.on("click", function(){
 
-	                    this.set('disabled', true);
-			    this.set('label', 'Calculating shortest path...');
-			    
-			    var url = "services/data.cgi?method=get_shortest_path";
-			    
-			    for (var i = 0; i < session.data.endpoints.length; i++){
-			      var node = session.data.endpoints[i].node;
-			      url += "&node=" + node;
-			    }
-			    
-			    //append the type
-			    url += "&type=" + session.data.circuit_type; 
-			    
-			    var ds = new YAHOO.util.DataSource(url);
-			    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-			    ds.responseSchema = {
-			      resultsList: "results",
-			      fields: [
-			        {key: "link"}
-			      ],
-			      metaFields: {
-				  error: "error",
-                                  error_text: "error_text"
-			      }
-			    }
-			    
-			    ds.sendRequest("", {success: function(req, resp){
-					          this.set('disabled', false);
-						  this.set('label', 'Suggest Shortest Path');
+  if (session.data.circuit_type == 'mpls') {
+      session.data.backup_links = [];
+      var remove_path_button = new YAHOO.widget.Button("shortest_path_button", {label: "Remove manually defined path"});
+      
+      remove_path_button.on("click", function(){
+              var length = path_table.getRecordSet().getRecords().length;
+              path_table.deleteRows(0, length);
+              save_session();
+          });
 
-						  if (resp.meta.error){
-						    alert("Error - " + resp.meta.error_text);
-						    return;
-						  }
-						  
-						  path_table.deleteRows(0, path_table.getRecordSet().getRecords().length);
-						  
-						  for (var i = 0; i < resp.results.length; i++){
-						    path_table.addRow({link: resp.results[i].link});
-						  }
-						  
-						  save_session();
-						  
-						},
-						failure: function(req, resp){
-					          alert('Server error while determining shortest path.');
-				                },
-					        scope: this
-					       });
-			    
-			  });
+  }else{
   
-  nddi_map.on("loaded", function(){
-		this.updateMapFromSession(session);
-	      });  
+      var shortest_path_button = new YAHOO.widget.Button("shortest_path_button", {label: "Suggest Shortest Path"});
   
-
-  nddi_map.on("clickLink", function(e, args){
-      onClickLink(path_table, e, args, save_session);
-  });
-  
+      shortest_path_button.on("click", function(){
+              
+              this.set('disabled', true);
+              this.set('label', 'Calculating shortest path...');
+              
+              var url = "services/data.cgi?method=get_shortest_path";
+              
+              for (var i = 0; i < session.data.endpoints.length; i++){
+                  var node = session.data.endpoints[i].node;
+                  url += "&node=" + node;
+              }
+              
+              //append the type
+              url += "&type=" + session.data.circuit_type; 
+              
+              var ds = new YAHOO.util.DataSource(url);
+              ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+              ds.responseSchema = {
+                  resultsList: "results",
+                  fields: [
+              {key: "link"}
+                           ],
+                  metaFields: {
+                      error: "error",
+                      error_text: "error_text"
+                  }
+              }
+              
+              ds.sendRequest("", {success: function(req, resp){
+                          this.set('disabled', false);
+                          this.set('label', 'Suggest Shortest Path');
+                          
+                          if (resp.meta.error){
+                              alert("Error - " + resp.meta.error_text);
+                              return;
+                          }
+                          
+                          path_table.deleteRows(0, path_table.getRecordSet().getRecords().length);
+                          
+                          for (var i = 0; i < resp.results.length; i++){
+                              path_table.addRow({link: resp.results[i].link});
+                          }
+                          
+                          save_session();
+                          
+                      },
+                          failure: function(req, resp){
+                          alert('Server error while determining shortest path.');
+                      },
+                          scope: this
+                          });
+              
+          });
+  }
   
   function save_session(){
     
@@ -181,7 +239,6 @@ function init(){
     }
   
 }
-
 YAHOO.util.Event.onDOMReady(init);
   
 </script>

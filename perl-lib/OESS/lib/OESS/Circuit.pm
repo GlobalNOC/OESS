@@ -1255,6 +1255,7 @@ sub update_mpls_path{
 
         my $path_id = $self->{'db'}->create_path($self->{'circuit_id'}, \@link_ids, 'tertiary');
         $self->{'paths'}->{'tertiary'}->{'path_id'} = $path_id; # Required by _change_active_path
+        $self->{'has_tertiary_path'} = 1;
 
         my $query = "update link_path_membership set end_epoch=unix_timestamp(NOW()) where path_id=? and end_epoch=-1";
         $self->{'db'}->_execute_query($query,[$path_id]);
@@ -1263,6 +1264,8 @@ sub update_mpls_path{
         foreach my $link (@{$params{'links'}}){
             $self->{'db'}->_execute_query($query, [$link->{'link_id'}, $path_id, $self->{'circuit_id'} + 5000, $self->{'circuit_id'} + 5000]);
         }
+
+        $self->{'details'}->{'tertiary_links'} = $params{'links'};
 
         return $self->_change_active_path(new_path => 'tertiary');
     }
@@ -1282,6 +1285,9 @@ sub update_mpls_path{
                 $self->{'circuit_id'} + 5000
             ]);
         }
+
+        $self->{'details'}->{'tertiary_links'} = $params{'links'};
+
     }
 
     return $self->_change_active_path(new_path => 'tertiary');
@@ -1619,14 +1625,26 @@ sub get_mpls_hops{
 	return;
     }
 
+    my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
+    my %nodes;
+    foreach my $node (@$nodes){
+        $nodes{$node->{'name'}} = $node;
+    }
+
     #build our lookup has to find our IP addresses
     my %ip_address;
     foreach my $link (@$p){
 	my $node_a = $link->{'node_a'};
 	my $node_z = $link->{'node_z'};
 
-	$ip_address{$node_a}{$node_z} = $link->{'ip_z'};
-	$ip_address{$node_z}{$node_a} = $link->{'ip_a'};
+        #this worked when doing it on a per-link basis
+        #however they want to do it for 
+#	$ip_address{$node_a}{$node_z} = $link->{'ip_z'};
+#	$ip_address{$node_z}{$node_a} = $link->{'ip_a'};
+        
+        $ip_address{$node_a}{$node_z} = $nodes{$node_a}->{'loopback_address'};
+        $ip_address{$node_z}{$node_a} = $nodes{$node_z}->{'loopback_address'};
+
     }
 
     #verify that our start/end are endpoints
@@ -1649,7 +1667,7 @@ sub get_mpls_hops{
 	$self->{'logger'}->debug("      Address: " . $ip);
 	push(@ips, $ip);
     }
-    
+
     return \@ips;
 }
 
