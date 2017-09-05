@@ -1,5 +1,5 @@
 Name:		oess-core		
-Version:	1.2.2
+Version:	1.2.3
 Release:	1%{?dist}
 Summary:	The core OESS service providers
 
@@ -11,7 +11,7 @@ BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 BuildRequires:	perl
 
-Requires:       nox >= 0.10.12
+Requires:       nox >= 0.10.13
 Requires:       xmlsec1-devel
 Requires:	xmlsec1-openssl-devel
 Requires(interp): /bin/sh
@@ -21,7 +21,7 @@ Requires: /bin/bash
 Requires: /usr/bin/perl
 Requires: perl(base), perl(constant), perl(strict), perl(warnings)
 
-Requires: perl-OESS >= 1.2.2
+Requires: perl-OESS >= 1.2.3
 
 Requires: perl(AnyEvent), perl(AnyEvent::DBus), perl(AnyEvent::RabbitMQ)
 Requires: perl(CPAN), perl(CPAN::Shell)
