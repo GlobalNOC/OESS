@@ -974,9 +974,33 @@ sub get_config_to_remove{
         if($name =~ /^OESS/){
 	    $name =~ /OESS\-\w+\-\w+\-\w+\-LSP\-(\d+)/;
 	    my $circuit_id = $1;
-            if(!$self->_is_active_circuit($circuit_id, $circuits)){
+            if (!$self->_is_active_circuit($circuit_id, $circuits)) {
                 $path_dels .= "<path operation='delete'><name>" . $name . "</name></path>";
-            }
+            } else {
+		# Active circuits with a 'strict' or manually defined
+		# path should check their path for extra hops.
+		my $strict_path = $self->_get_strict_path($circuit_id, $circuits);
+		if (!defined $strict_path) {
+		    next;
+		}
+
+		my $path_list_dels = "";
+		my $path_lists = $xp->find('./c:path-list', $path);
+
+		foreach my $path_list (@$path_lists) {
+		    my $path_list_name = $xp->findvalue('./c:name', $path_list);
+		    $self->{'logger'}->info('===' . $path_list_name);
+
+		    if (!defined $strict_path->{$path_list_name}) {
+			$self->{'logger'}->info("===Adding $path_list_name to path-list delete");
+		     	$path_list_dels .= "<path-list operation='delete'><name>" . $path_list_name . "</name></path-list>";
+		    }
+		}
+
+		if ($path_list_dels ne '') {
+		    $path_dels .= "<path><name>" . $name . "</name>" . $path_list_dels . "</path>";
+		}
+	    }
         }
     }
 
@@ -1014,6 +1038,33 @@ sub get_config_to_remove{
     }
     
     return $delete;
+}
+
+sub _get_strict_path{
+    my $self = shift;
+    my $circuit_id = shift;
+    my $circuits = shift;
+
+    if (!defined $circuit_id) {
+	$self->{'logger'}->error("Missing argument circuit_id");
+	return undef;
+    }
+
+    my $paths = $circuits->{$circuit_id}->{'paths'};
+    foreach my $path (@$paths) {
+	if ($path->{'mpls_path_type'} ne 'strict') {
+	    next;
+	}
+
+	my $hops   = $path->{'path'};
+	my $result = {};
+	foreach my $hop (@$hops) {
+	    $result->{$hop} = 1;
+	}
+	return $result;
+    }
+
+    return undef;
 }
 
 sub _is_active_circuit{
