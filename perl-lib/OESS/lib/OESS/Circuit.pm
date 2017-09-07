@@ -212,8 +212,10 @@ sub _process_circuit_details{
 	$self->{'has_backup_path'} = 1;
     }
 
+    $self->{'logger'}->error("Circuit Details: " . Dumper($self->{'details'}));
+
     if(scalar(@{$self->{'details'}->{'tertiary_links'}}) > 0){
-        $self->{'logger'}->debug("Circuit has tertiary path");
+        $self->{'logger'}->debug("Circuit has backup path");
         $self->{'has_tertiary_path'} = 1;
     }
 
@@ -1631,31 +1633,37 @@ sub get_mpls_hops{
     my $self = shift;
     my %params = @_;
 
+    my @ips;
+
     my $path = $params{'path'};
     if(!defined($path)){
 	$self->{'logger'}->error("Fetching the path hops for undefined path");
-	return;
+	return \@ips;
     }
 
     my $start = $params{'start'};
     if(!defined($start)){
 	$self->{'logger'}->error("Fetching hops requires a start");
-	return;
+	return \@ips;
     }
 
     my $end = $params{'end'};
     if(!defined($end)){
         $self->{'logger'}->error("Fetching hops requires an end");
-        return;
+        return \@ips;
     }
  
-    return if ($end eq $start);
+    return \@ips if ($end eq $start);
     
+    $self->{'logger'}->debug("Path: " . $path);
+
     #fetch the path
     my $p = $self->get_path(path => $path);
 
+    $self->{'logger'}->debug("Path is: " . Dumper($p));
+
     if(!defined($p)){
-	return;
+	return \@ips;
     }
 
     my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
@@ -1683,15 +1691,13 @@ sub get_mpls_hops{
     #verify that our start/end are endpoints
     my $eps = $self->get_endpoints();
 
-    my @ips;
-    
     #find the next hop in the shortest path from $ep_a to $ep_z
     my @shortest_path = $self->{'graph'}->{$path}->SP_Dijkstra($start,$end);
     #ok we have the list of verticies... now to convert that into IP addresses
     if(scalar(@shortest_path) <= 1){
 	#uh oh... no path!!!!
 	$self->{'logger'}->error("Uh oh there is no path");
-	return;
+	return \@ips;
     }
     
     for(my $i=1;$i<=$#shortest_path;$i++){
@@ -1700,6 +1706,8 @@ sub get_mpls_hops{
 	$self->{'logger'}->debug("      Address: " . $ip);
 	push(@ips, $ip);
     }
+
+    $self->{'logger'}->error("IP addresses: " . Dumper(@ips));
 
     return \@ips;
 }
