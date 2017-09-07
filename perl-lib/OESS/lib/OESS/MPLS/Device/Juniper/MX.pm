@@ -989,10 +989,8 @@ sub get_config_to_remove{
 
 		foreach my $path_list (@$path_lists) {
 		    my $path_list_name = $xp->findvalue('./c:name', $path_list);
-		    $self->{'logger'}->info('===' . $path_list_name);
 
 		    if (!defined $strict_path->{$path_list_name}) {
-			$self->{'logger'}->info("===Adding $path_list_name to path-list delete");
 		     	$path_list_dels .= "<path-list operation='delete'><name>" . $path_list_name . "</name></path-list>";
 		    }
 		}
