@@ -976,28 +976,6 @@ sub get_config_to_remove{
 	    my $circuit_id = $1;
             if (!$self->_is_active_circuit($circuit_id, $circuits)) {
                 $path_dels .= "<path operation='delete'><name>" . $name . "</name></path>";
-            } else {
-		# Active circuits with a 'strict' or manually defined
-		# path should check their path for extra hops.
-		my $strict_path = $self->_get_strict_path($circuit_id, $circuits);
-		if (!defined $strict_path) {
-		    next;
-		}
-
-		my $path_list_dels = "";
-		my $path_lists = $xp->find('./c:path-list', $path);
-
-		foreach my $path_list (@$path_lists) {
-		    my $path_list_name = $xp->findvalue('./c:name', $path_list);
-
-		    if (!defined $strict_path->{$path_list_name}) {
-		     	$path_list_dels .= "<path-list operation='delete'><name>" . $path_list_name . "</name></path-list>";
-		    }
-		}
-
-		if ($path_list_dels ne '') {
-		    $path_dels .= "<path><name>" . $name . "</name>" . $path_list_dels . "</path>";
-		}
 	    }
         }
     }
