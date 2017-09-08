@@ -44,6 +44,10 @@
           <strict />
         </path-list>
           [% END %]
+	[% ELSE %]
+	<path-list>
+	  <name>[% dest %]</name>
+	</path-list>
         [% END %]
       </path>
       [% END %]
