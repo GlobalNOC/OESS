@@ -904,26 +904,76 @@ sub get_config_to_remove{
     #routing instances
 
     my $delete = "";
-    my $routing_instance_dels = "";
+    my $ri_dels = "";
     my $xp = XML::LibXML::XPathContext->new($dom);
     $xp->registerNs("base", $dom->documentElement->namespaceURI);
     $xp->registerNs('c', 'http://xml.juniper.net/xnm/1.1/xnm');
 
+    $self->{'logger'}->debug("About to process routing instances");
     my $routing_instances = $xp->find( '/base:rpc-reply/c:configuration/c:routing-instances/c:instance');
-    foreach my $ri (@$routing_instances){
-	my $name = $xp->findvalue( './c:name', $ri );
-	if($name =~ /^OESS/){
-	    #check to see if is currently active circuit
-	    $name =~ /OESS\-\S+\-(\d+)/;
-	    my $circuit_id = $1;
-	    if(!$self->_is_active_circuit($circuit_id, $circuits)){
-		$routing_instance_dels .= "<instance operation='delete'><name>$name</name></instance>";
-	    }
-	}
+    foreach my $ri (@{$routing_instances}){
+        my $name = $xp->findvalue( './c:name', $ri );
+
+	$self->{'logger'}->debug("Processing routing instance: " . $name);
+
+        if($name =~ /^OESS/){
+            $name =~ /OESS\-(\S+)\-(\d+)/;
+            my $type = $1;
+            my $circuit_id = $2;
+            #figure out the right bit!
+            if(!$self->_is_active_circuit($circuit_id, $circuits)){
+                $ri_dels = "<instance operation='delete'><name>" . $name . "</name></instance>";
+                next;
+            }
+
+
+            my $ints = $xp->find(' ./c:interface', $ri);
+
+            foreach my $int (@$ints){
+                my $int_full_name = $xp->findvalue( './c:name', $int);
+		$self->{'logger'}->debug("Checking to see if port: $int_full_name is part of circuit: $circuit_id");
+                my ($int_name,$unit_name) = split('.',$int_full_name);
+                if(!$self->_is_circuit_on_port($circuit_id, $circuits, $int_name, $unit_name)){
+                    $ri_dels .= "<instance><name>$name</name><interface operation='delete'><name>$int_full_name</name></interface></instance>";
+                }
+            }
+
+            if($type eq 'L2VPN'){
+                #now dig down into the
+                #<protocols>
+                #        <l2vpn>
+                #            <encapsulation-type>ethernet-vlan</encapsulation-type>
+                #            <site>
+                #                <name>mx240-r2.testlab.grnoc.iu.edu-3001</name>
+                #                <site-identifier>1</site-identifier>
+                #                <interface>
+                #                    <name>xe-2/2/0.501</name>
+                #                </interface>
+                #            </site>
+                #        </l2vpn>
+                #    </protocols>
+
+                my $sites = $xp->find(' ./c:protocols/c:l2vpn/c:site', $ri);
+		foreach my $site (@$sites){
+		    my $site_name = $xp->findvalue( './c:name', $site);
+		    $self->{'logger'}->debug("Site Name: " . $site_name);
+		    my $ints = $xp->find('./c:interface', $site);
+
+		    foreach my $int (@$ints){
+			my $int_full_name = $xp->findvalue( './c:name', $int);
+			my ($int_name,$unit_name) = split('.',$name);
+			$self->{'logger'}->debug("Checking to see if port: $name is part of circuit: $circuit_id");
+			if(!$self->_is_circuit_on_port($circuit_id, $circuits, $int_name, $unit_name)){
+			    $ri_dels .= "<instance><name>$name</name><protocols><l2vpn><site><name>$site_name</name><interface operation='delete'><name>$int_full_name</name></interface></site></l2vpn></protocols></instance>";
+			}
+		    }
+		}
+            }
+        }
     }
 
-    if($routing_instance_dels ne ''){
-	$delete .= "<routing-instances>$routing_instance_dels</routing-instances>";
+    if($ri_dels ne ''){
+	$delete .= "<routing-instances>$ri_dels</routing-instances>";
     }
 
     my $interfaces = $xp->find( '/base:rpc-reply/c:configuration/c:interfaces/c:interface');
@@ -938,8 +988,13 @@ sub get_config_to_remove{
 	    if($description =~ /^OESS/){
 		$description =~ /OESS\-\w+\-(\d+)/;
 		my $circuit_id = $1;
+		my $unit_name = $xp->findvalue( './c:name', $unit);
 		if(!$self->_is_active_circuit($circuit_id, $circuits)){
-		    my $unit_name = $xp->findvalue( './c:name', $unit);
+		    $int_del .= "<unit operation='delete'><name>" . $unit_name . "</name></unit>";
+                    $has_dels = 1;
+		    next;
+		}
+		if(!$self->_is_circuit_on_port($circuit_id, $circuits, $int_name, $unit_name)){
 		    $int_del .= "<unit operation='delete'><name>" . $unit_name . "</name></unit>";
 		    $has_dels = 1;
 		}
@@ -1012,7 +1067,7 @@ sub get_config_to_remove{
     if($ris_dels ne ''){
 	$delete .= "<protocols><connections>" . $ris_dels . "</connections></protocols>";
     }
-    
+
     return $delete;
 }
 
@@ -1041,6 +1096,33 @@ sub _get_strict_path{
     }
 
     return undef;
+}
+
+sub _is_circuit_on_port{
+    my $self = shift;
+    my $circuit_id = shift;
+    my $circuits = shift;
+    my $port = shift;
+    my $vlan = shift;
+
+    if(!defined($circuit_id)){
+        $self->{'logger'}->error("Unable to find the circuit ID");
+        return 0;
+    }
+
+    if(defined($circuits->{$circuit_id})){
+	foreach my $int (@{$circuits->{$circuit_id}->{'interfaces'}}){
+	    #check to see if the port matches the port
+	    #check to see if the vlan matches the vlan
+	    if($int->{'interface'} eq $port && $int->{'vlan'} eq $vlan){
+		$self->{'logger'}->error("Interface: " . $int->{'interface'} . " is in circuit: " . $circuit_id);
+		return 1;
+	    }
+	}
+    }
+
+    return 0;
+
 }
 
 sub _is_active_circuit{
