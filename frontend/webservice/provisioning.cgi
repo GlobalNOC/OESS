@@ -495,7 +495,7 @@ sub _send_add_command {
 
     my $cv = AnyEvent->condvar;
 
-    $mq->addVlan(circuit_id => $circuit_id,
+    $mq->addVlan(circuit_id => int($circuit_id),
                  force_reprovision => $force_reprovision,
 		 async_callback => sub {
 		     my $result = shift;
@@ -530,7 +530,7 @@ sub _send_mpls_remove_command {
     my $circuit_id = $args{'circuit_id'};
     my $cv = AnyEvent->condvar;
 
-    $mq->deleteVlan(circuit_id => $circuit_id,
+    $mq->deleteVlan(circuit_id => int($circuit_id),
 		    async_callback => sub {
 			my $result = shift;
 			$cv->send($result)
@@ -562,7 +562,7 @@ sub _send_remove_command {
 
     my $cv = AnyEvent->condvar;
 
-    $mq->deleteVlan(circuit_id     => $circuit_id,
+    $mq->deleteVlan(circuit_id     => int($circuit_id),
 		    async_callback => sub {
 			my $result = shift;
 			$cv->send($result);
