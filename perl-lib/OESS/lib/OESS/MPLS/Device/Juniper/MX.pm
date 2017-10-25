@@ -134,7 +134,6 @@ sub commit {
     }
 
     # TODO Check for an ok
-
     my $result = $self->{'jnx'}->get_dom();
     $self->{'logger'}->info(Dumper($result->toString()));
 
@@ -938,6 +937,10 @@ sub get_config_to_remove{
                 }
             }
 
+            if ($type eq 'L2CCC') {
+                $ri_dels .= "<instance operation='delete'><name>OESS-L2VPN-$circuit_id</name></instance>";
+            }
+
             if($type eq 'L2VPN'){
                 #now dig down into the
                 #<protocols>
@@ -1589,12 +1592,12 @@ sub verify_connection{
     }
 
     my $sysinfo = $self->get_system_information();
-    if (($sysinfo->{"os_name"} eq "junos") && ($sysinfo->{"version"} eq "13.3R1.6" || $sysinfo->{"version"} eq '15.1F6-S6.4')){
+    if (($sysinfo->{"os_name"} eq "junos") && ($sysinfo->{"version"} eq "13.3R1.6" || $sysinfo->{"version"} eq '15.1F6-S6.4' || $sysinfo->{"version"} eq '15.1F6.9' || $sysinfo->{"version"} eq '15.1F6-S7.2')){
 	# print "Connection verified, proceeding\n";
 	return 1;
     }
     else {
-	$self->{'logger'}->error("Network OS and / or version is not supported");
+	$self->{'logger'}->error("Network OS and / or version $sysinfo->{'version'} not supported");
 	return 0;
     }
     
@@ -2005,8 +2008,27 @@ sub _edit_config{
         $queryargs{'config'} = $params{'config'};
         $res = $self->{'jnx'}->edit_config(%queryargs);
 	$self->{'logger'}->debug("Success Editing config!");
-	my $result = $self->{'jnx'}->get_dom();
-	$self->{'logger'}->info(Dumper($result->toString()));
+
+        my $dom = $self->{'jnx'}->get_dom()->toString();
+        my $response = XMLin($dom);
+
+        if (defined $response->{'rpc-error'}) {
+            if (ref($response->{'rpc-error'}) eq 'HASH') {
+                $response->{'rpc-error'} = [ $response->{'rpc-error'} ];
+            }
+
+            foreach my $error (@{$response->{'rpc-error'}}) {
+                my $lvl = $error->{'error-severity'};
+                my $err = $error->{'error-message'};
+                $err =~ s/^\s+|\s+$//g; # python >> str.strip()
+
+                if ($lvl eq 'warning') {
+                    $self->{'logger'}->warn($err);
+                } else {
+                    $self->{'logger'}->error($err);
+                }
+            }
+        }
     };
     if ($@) {
         my $err = "$@";
