@@ -166,6 +166,7 @@ sub register_webservice_methods {
     $method->add_input_parameter( name        => 'circuit_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
                                   required    => 0,
+                                  multiple    => 1,
                                   description => 'Circuit IDs of the circuits on original_interface.' );
     $svc->register_method($method);
 

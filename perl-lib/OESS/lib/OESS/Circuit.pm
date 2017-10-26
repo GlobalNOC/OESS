@@ -1678,14 +1678,12 @@ sub get_mpls_hops{
 	my $node_a = $link->{'node_a'};
 	my $node_z = $link->{'node_z'};
 
-        #this worked when doing it on a per-link basis
-        #however they want to do it for 
-#	$ip_address{$node_a}{$node_z} = $link->{'ip_z'};
-#	$ip_address{$node_z}{$node_a} = $link->{'ip_a'};
-        
+        # When using link based ip addresses
+        # $ip_address{$node_a}{$node_z} = $link->{'ip_z'};
+        # $ip_address{$node_z}{$node_a} = $link->{'ip_a'};
+
         $ip_address{$node_a}{$node_z} = $nodes{$node_a}->{'loopback_address'};
         $ip_address{$node_z}{$node_a} = $nodes{$node_z}->{'loopback_address'};
-
     }
 
     #verify that our start/end are endpoints
