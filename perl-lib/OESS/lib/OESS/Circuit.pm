@@ -1682,8 +1682,8 @@ sub get_mpls_hops{
         # $ip_address{$node_a}{$node_z} = $link->{'ip_z'};
         # $ip_address{$node_z}{$node_a} = $link->{'ip_a'};
 
-        $ip_address{$node_a}{$node_z} = $nodes{$node_a}->{'loopback_address'};
-        $ip_address{$node_z}{$node_a} = $nodes{$node_z}->{'loopback_address'};
+        $ip_address{$node_a}{$node_z} = $nodes{$node_z}->{'loopback_address'};
+        $ip_address{$node_z}{$node_a} = $nodes{$node_a}->{'loopback_address'};
     }
 
     #verify that our start/end are endpoints
