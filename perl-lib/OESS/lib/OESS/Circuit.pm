@@ -212,7 +212,7 @@ sub _process_circuit_details{
 	$self->{'has_backup_path'} = 1;
     }
 
-    $self->{'logger'}->error("Circuit Details: " . Dumper($self->{'details'}));
+    $self->{'logger'}->debug("Circuit Details: " . Dumper($self->{'details'}));
 
     if(scalar(@{$self->{'details'}->{'tertiary_links'}}) > 0){
         $self->{'logger'}->debug("Circuit has backup path");
@@ -1253,7 +1253,7 @@ sub update_mpls_path{
 
     if(defined($results) && defined($results->[0])){
 
-	$self->{'logger'}->error("Tertiary path already exists...");
+	$self->{'logger'}->debug("Tertiary path already exists...");
 	my $tertiary_path_id = $results->[0]->{'path_id'};
 
 
@@ -1285,7 +1285,7 @@ sub update_mpls_path{
             push(@link_ids, $link->{'link_id'});
         }
 
-        $self->{'logger'}->error("Creating tertiary path with links ". Dumper(@link_ids));
+        $self->{'logger'}->debug("Creating tertiary path with links ". Dumper(@link_ids));
 
         my $path_id = $self->{'db'}->create_path($self->{'circuit_id'}, \@link_ids, 'tertiary');
         $self->{'paths'}->{'tertiary'}->{'path_id'} = $path_id; # Required by _change_active_path
@@ -1705,7 +1705,7 @@ sub get_mpls_hops{
 	push(@ips, $ip);
     }
 
-    $self->{'logger'}->error("IP addresses: " . Dumper(@ips));
+    $self->{'logger'}->debug("IP addresses: " . Dumper(@ips));
 
     return \@ips;
 }
