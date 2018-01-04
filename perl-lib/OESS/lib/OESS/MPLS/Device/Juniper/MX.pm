@@ -8,6 +8,7 @@ package OESS::MPLS::Device::Juniper::MX;
 use Template;
 use Net::Netconf::Manager;
 use Data::Dumper;
+use Log::Log4perl;
 use XML::Simple;
 
 use constant FWDCTL_WAITING     => 2;
@@ -127,15 +128,20 @@ sub commit {
 
     $self->{'jnx'}->{'methods'}->{'commit_configuration'} = { check => $TOGGLE , synchronize => $TOGGLE};
 
-    $self->{'jnx'}->commit_configuration( synchronize => 1);
-    if ($self->{'jnx'}->has_error){
+    $self->{'jnx'}->commit_configuration(synchronize => 1);
+    if ($self->{'jnx'}->has_error) {
         my $error = $self->{'jnx'}->get_first_error();
-        $self->{'logger'}->error("Error closing private configuration: " . $error->{'error_message'});
-    }
+        my $lvl = $error->{'error_severity'};
+        my $msg = $error->{'error_message'};
+        $msg =~ s/^\s+|\s+$//g; # python >> str.strip()
 
-    # TODO Check for an ok
-    my $result = $self->{'jnx'}->get_dom();
-    $self->{'logger'}->info(Dumper($result->toString()));
+        if ($lvl eq 'error') {
+            $self->{'logger'}->error("Error commiting configurattion!");
+            $self->{'logger'}->error($msg);
+            $self->{'logger'}->debug($self->{'jnx'}->get_dom()->toString());
+            return 0;
+        }
+    }
 
     return 1;
 }
@@ -552,7 +558,7 @@ sub add_vlan{
         return FWDCTL_FAILURE;
     }
 
-    return $self->_edit_config( config => $output );      
+    return $self->_edit_config(config => $output);
 }
 
 =head2 get_active_lsp_route
@@ -2013,42 +2019,50 @@ sub _edit_config{
     }
 
     my %queryargs = ();
-    my $res;
+    my $result;
+    my $ok = 0;
 
     $self->{'logger'}->debug("Locking config");
-
-    my $ok = $self->lock();
-
+    $ok = $self->lock();
     $self->{'logger'}->debug("Locked config!");
 
     %queryargs = (
-        'target' => 'candidate'
-        );
+        target => 'candidate',
+        config => $params{'config'}
+    );
 
     eval {
-	$self->{'logger'}->debug("About to send config: " . $params{'config'});
-        $queryargs{'config'} = $params{'config'};
-        $res = $self->{'jnx'}->edit_config(%queryargs);
-	$self->{'logger'}->debug("Success Editing config!");
+        $self->{'logger'}->info("Editing config: " . $queryargs{'config'});
+        $self->{'jnx'}->edit_config(%queryargs);
+        $self->{'logger'}->debug("Edit complete!");
 
         my $dom = $self->{'jnx'}->get_dom()->toString();
         my $response = XMLin($dom);
 
+        my $errors = [];
+        if (defined $response->{'commit-results'} && $response->{'commit-results'}->{'rpc-error'}) {
+            $errors = $response->{'commit-results'}->{'rpc-error'};
+        }
+
         if (defined $response->{'rpc-error'}) {
-            if (ref($response->{'rpc-error'}) eq 'HASH') {
-                $response->{'rpc-error'} = [ $response->{'rpc-error'} ];
-            }
+            $errors = $response->{'rpc-error'};
+        }
 
-            foreach my $error (@{$response->{'rpc-error'}}) {
-                my $lvl = $error->{'error-severity'};
-                my $err = $error->{'error-message'};
-                $err =~ s/^\s+|\s+$//g; # python >> str.strip()
+        if (ref($errors) eq 'HASH') {
+            $errors = [ $errors ];
+        }
 
-                if ($lvl eq 'warning') {
-                    $self->{'logger'}->warn($err);
-                } else {
-                    $self->{'logger'}->error($err);
-                }
+        foreach my $error (@{$errors}) {
+            my $lvl = $error->{'error-severity'};
+            my $msg = $error->{'error-message'};
+            $msg =~ s/^\s+|\s+$//g; # python >> str.strip()
+
+            if ($lvl eq 'warning') {
+                $self->{'logger'}->warn($msg);
+            } else {
+                # error-severity of 'error' is considered fatal
+                $self->{'logger'}->error($msg);
+                die $msg;
             }
         }
     };
@@ -2056,35 +2070,43 @@ sub _edit_config{
         my $err = "$@";
         $self->set_error($err);
         $self->{'logger'}->error($err);
-	$self->{'logger'}->debug("Unlocking config");
-        $res = $self->{'jnx'}->unlock_config();
-	$self->{'logger'}->debug("Config unlocked");
+
+        $self->unlock();
         return FWDCTL_FAILURE;
     }
-    if($self->{'jnx'}->has_error){
+
+    if ($self->{'jnx'}->has_error) {
         my $error = $self->{'jnx'}->get_first_error();
         if ($error->{'error_message'} !~ /uncommitted/) {
             my $err = "Error attempting to edit config: " . $error->{'error_message'};
             $self->set_error($err);
             $self->{'logger'}->error($err);
-#	    $self->{'logger'}->debug("Unlocking config");
-#            $self->unlock();
-#	    $self->{'logger'}->debug("Config unlocked!");
-#            return FWDCTL_FAILURE;
+
+            # Normally we would unlock and return failure here, but
+            # warnings are considered errors by this netconf lib. We
+            # must ensure that we handle error severity levels
+            # correctly before we add this block back in.
+            #
+            # $self->unlock();
+            # return FWDCTL_FAILURE;
         }
     }
 
     $self->{'logger'}->debug("Commiting!");
-
     $ok = $self->commit();
+    if (!$ok) {
+        $self->{'logger'}->error("Commit could not be completed!");
+        $result = FWDCTL_FAILURE;
+    } else {
+        $self->{'logger'}->debug("Commit complete!");
+        $result = FWDCTL_SUCCESS;
+    }
 
-    $self->{'logger'}->debug("Commit complete!");
-
-    $ok = $self->unlock();
-
+    $self->{'logger'}->debug("Unlocking!");
+    $self->unlock();
     $self->{'logger'}->debug("Unlock complete!");
 
-    return FWDCTL_SUCCESS;
+    return $result;
 }
 
 =head2 trim
