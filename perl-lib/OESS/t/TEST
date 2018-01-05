@@ -33,7 +33,9 @@ if (defined $ENV{'TEST_FILES'}){
     }
 }
 else {
-    @tests = (<t/*.t>);
+    # Build list of all .t files in all sub-directories of t/
+    @tests = split(/\n/, `find t -type f | grep -v ".svn" | grep -v "~" | grep .t`);
+    @tests = sort @tests;
 }
 
 if ($formatter) {

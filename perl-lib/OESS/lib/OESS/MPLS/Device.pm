@@ -5,6 +5,7 @@ use warnings;
 
 package OESS::MPLS::Device;
 
+use GRNOC::Config;
 use OESS::MPLS::Device::Juniper::MX;
 
 use constant FWDCTL_WAITING     => 2;
