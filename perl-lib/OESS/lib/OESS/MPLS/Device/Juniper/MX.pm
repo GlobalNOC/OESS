@@ -26,15 +26,23 @@ use base "OESS::MPLS::Device";
 
 =head2 new
 
-creates a new Juniper MX Device object
+    my $mx = OESS::MPLS::Device::Juniper::MX->new(
+      config => '/etc/oess/database.xml',
+      loopback_addr => '127.0.0.1',
+      mgmt_addr     => '192.168.1.1',
+      name          => 'demo.grnoc.iu.edu',
+      node_id       => 1
+    );
+
+new creates a Juniper MX device object. Use methods on this object to
+communicate with a device on the network.
 
 =cut
-
 sub new{
     my $class = shift;
     my %args = (
         @_
-	);
+    );
     
     my $self = \%args;
     bless $self, $class;
@@ -61,20 +69,20 @@ sub new{
 
 =head2 disconnect
 
-disconnects from the device
+disconnect calls disconnect on this MX's connection object and then
+deletes it.
 
 =cut
-
 sub disconnect{
     my $self = shift;
 
-    if (defined $self->{'jnx'}) {
-        $self->{'jnx'}->disconnect();
-        $self->{'jnx'} = undef;
-        $self->{'logger'}->warn("Device was disconnected.");
-    } else {
-        $self->{'logger'}->info("Device is already disconnected.");
+    if (!defined $self->{'jnx'}) {
+        return 1;
     }
+
+    $self->{'jnx'}->disconnect();
+    $self->{'jnx'} = undef;
+    $self->{'logger'}->warn("Device was disconnected.");
 
     return 1;
 }
