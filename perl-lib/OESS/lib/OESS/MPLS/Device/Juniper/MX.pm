@@ -471,10 +471,26 @@ sub _process_interface{
 
 =head2 remove_vlan
 
+    my $ok = remove_vlan(
+      circuit_id => 1234,
+      ckt_type   => 'L2VPLS',
+      interfaces => [
+        { name => 'ge-0/0/1', tag => 2004 },
+        { name => 'ge-0/0/2', tag => 2004 }
+      ],
+      a_side     => '',            # Optional for L2VPN
+      dest_node  => '127.0.0.2',   # Optional for L2VPN and L2VPLS
+      paths      => [
+        {
+          name      => 'vmx1-r2',  # Optional for L2VPN
+          dest_node => '127.0.0.2' # Optional for L2VPN and L2CCC
+        }
+      ]
+    );
+
 removes a vlan via NetConf
 
 =cut
-
 sub remove_vlan{
     my $self = shift;
     my $ckt = shift;
@@ -2078,17 +2094,17 @@ sub _edit_config{
     if ($self->{'jnx'}->has_error) {
         my $error = $self->{'jnx'}->get_first_error();
         if ($error->{'error_message'} !~ /uncommitted/) {
-            my $err = "Error attempting to edit config: " . $error->{'error_message'};
-            $self->set_error($err);
-            $self->{'logger'}->error($err);
+            my $lvl = $error->{'error_severity'};
+            my $msg = $error->{'error_message'};
 
-            # Normally we would unlock and return failure here, but
-            # warnings are considered errors by this netconf lib. We
-            # must ensure that we handle error severity levels
-            # correctly before we add this block back in.
-            #
-            # $self->unlock();
-            # return FWDCTL_FAILURE;
+            if ($lvl eq 'warning') {
+                $self->{'logger'}->warn($msg);
+            } else {
+                # error-severity of 'error' is considered fatal
+                $self->{'logger'}->error($msg);
+                $self->unlock();
+                return FWDCTL_FAILURE;
+            }
         }
     }
 
