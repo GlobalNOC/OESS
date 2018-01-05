@@ -69,6 +69,8 @@ sub new{
 
 =head2 disconnect
 
+    disconnect();
+
 disconnect calls disconnect on this MX's connection object and then
 deletes it.
 
@@ -1603,27 +1605,20 @@ sub connect {
 
 =head2 connected
 
-returns the state if the device is currently connected or not
+    my $state = connected();
+
+connected returns 1 if the device is currently connected.
 
 =cut
-
 sub connected {
     my $self = shift;
 
-    return 0 if(!defined($self->{'jnx'}));
-		
-    if (defined $self->{'jnx'}->{'conn_obj'} && $self->{'jnx'}->has_error) {
-        my $error = $self->{'jnx'}->get_first_error();
-        $self->{'logger'}->error("Error: " . $error->{'error_message'});
-    }
-
-    if(defined($self->{'jnx'}->{'conn_obj'})){
-	$self->{'logger'}->debug("Connection state is up");
-	return 1;
-    }else{
+    if (!defined $self->{'jnx'} || !defined $self->{'jnx'}->{'conn_obj'}) {
 	$self->{'logger'}->warn("Connection state is down");
 	return 0;
     }
+
+    return 1;
 }
 
 
