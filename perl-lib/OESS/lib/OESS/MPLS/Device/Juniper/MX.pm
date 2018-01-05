@@ -187,10 +187,22 @@ sub unlock {
 
 =head2 get_system_information
 
-gets the systems information
+    my $info = get_system_information();
+
+get_system_information returns an object containing information about
+the connected device.
+
+Result:
+
+    {
+      host_name     => 'vmx-r0'
+      loopback_addr => '172.16.0.1'
+      model         => 'vmx'
+      os_name       => 'junos'
+      version       => '15.1F6.9'
+    }
 
 =cut
-
 sub get_system_information{
     my $self = shift;
 
@@ -248,7 +260,7 @@ sub get_system_information{
 	$xp->registerNs('j',$path);
 	my $name = trim($xp->findvalue('./j:name'));
 	next if ($name ne 'lo0');
-	
+
 	my $logical_ints = $xp->find('./j:logical-interface');
 	foreach my $log (@{$logical_ints}){
 	    my $log_xp = XML::LibXML::XPathContext->new( $log );
