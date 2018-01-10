@@ -1490,8 +1490,11 @@ sub get_diff_text {
 
 =head2 unit_name_available
 
-Returns 0 if the unit name already exists on the specified interface or
-another error occurs; Otherwise 1 is returned for success.
+    my $ok = unit_name_available('ge-0/0/1', 2004);
+
+unit_name_available returns C<1> if the unit is available for
+provisioning. If the unit name already exists on the specified
+interface or another error occurs C<0> is returned.
 
 =cut
 sub unit_name_available {
