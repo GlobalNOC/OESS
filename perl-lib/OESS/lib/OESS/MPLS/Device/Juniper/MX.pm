@@ -155,15 +155,16 @@ sub lock {
 
     eval {
         $self->{'jnx'}->open_configuration(private => 1);
-        my ($dom, $xml, $err) = $self->get_response();
+
+        my ($xml, $dom, $err) = $self->get_response();
         if (defined $err) {
+            $self->{logger}->error($xml->toString());
             die $err;
         }
-
-        $self->{logger}->debug($dom->toString());
+        $self->{logger}->debug($xml->toString());
     };
     if ($@) {
-        $self->{logger}->error("$@");
+        $self->{logger}->error("Error locking configuration: $@");
         return 0;
     }
 
@@ -172,33 +173,33 @@ sub lock {
 
 =head2 commit
 
-=cut
+    my $ok = commit();
 
+commit attempts to copy the device's private configuration to the
+running configuration. commit returns C<1> on success.
+
+=cut
 sub commit {
     my $self = shift;
 
-    if (!$self->connected()){
+    if (!$self->connected()) {
 	$self->{'logger'}->error("Not currently connected to device");
 	return;
     }
-    
-    my $TOGGLE = bless { 1 => 1 }, 'TOGGLE';
 
-    $self->{'jnx'}->{'methods'}->{'commit_configuration'} = { check => $TOGGLE , synchronize => $TOGGLE};
+    eval {
+        $self->{'jnx'}->commit_configuration(synchronize => 1);
 
-    $self->{'jnx'}->commit_configuration(synchronize => 1);
-    if ($self->{'jnx'}->has_error) {
-        my $error = $self->{'jnx'}->get_first_error();
-        my $lvl = $error->{'error_severity'};
-        my $msg = $error->{'error_message'};
-        $msg =~ s/^\s+|\s+$//g; # python >> str.strip()
-
-        if ($lvl eq 'error') {
-            $self->{'logger'}->error("Error commiting configurattion!");
-            $self->{'logger'}->error($msg);
-            $self->{'logger'}->debug($self->{'jnx'}->get_dom()->toString());
-            return 0;
+        my ($xml, $dom, $err) = $self->get_response();
+        if (defined $err) {
+            $self->{logger}->error($xml->toString());
+            die $err;
         }
+        $self->{logger}->debug($xml->toString());
+    };
+    if ($@) {
+        $self->{'logger'}->error("Error commiting configuration: $@");
+        return 0;
     }
 
     return 1;
@@ -1664,6 +1665,11 @@ sub connect {
     };
 
     $self->{'jnx'}->{'methods'}->{'open_configuration'} = {private => $TOGGLE};
+
+    $self->{'jnx'}->{'methods'}->{'commit_configuration'} = {
+        check       => $TOGGLE,
+        synchronize => $TOGGLE
+    };
 
     $self->{'logger'}->info("Connected to device!");
     return 1;
