@@ -89,35 +89,83 @@ sub disconnect{
     return 1;
 }
 
-=head2 lock
+=head2 get_response
+
+    my ($xml, $dom, $err) = get_response();
+
+get_response parses the last response received via
+C<$self-E<gt>{jnx}>. It returns the XML object, the XML as a hash, and
+the first error received if one was encountered.
 
 =cut
+sub get_response {
+    my $self = shift;
 
+    my $xml = $self->{jnx}->get_dom();
+    my $dom = XMLin($xml->toString());
+    my $err = undef;
+
+    my $errors = [];
+    if (defined $dom->{'commit-results'} && $dom->{'commit-results'}->{'rpc-error'}) {
+        $errors = $dom->{'commit-results'}->{'rpc-error'};
+    }
+
+    if (defined $dom->{'rpc-error'}) {
+        $errors = $dom->{'rpc-error'};
+    }
+
+    if (ref($errors) eq 'HASH') {
+        $errors = [$errors];
+    }
+
+    foreach my $error (@{$errors}) {
+        my $lvl = $error->{'error-severity'};
+        my $msg = $error->{'error-message'};
+        $msg =~ s/^\s+|\s+$//g; # python >> str.strip()
+
+        if ($lvl eq 'warning') {
+            $self->{'logger'}->warn($msg);
+        } else {
+            # error-severity of 'error' is considered a stop
+            # condition. Return the first error encountered.
+            $err = $msg;
+            last;
+        }
+    }
+
+    return ($xml, $dom, $err);
+}
+
+=head2 lock
+
+    my $ok = lock();
+
+lock attempts to open this device's configuration in private mode, and
+returns C<1> on success. The unlock subroutine should always be called
+after lock.
+
+=cut
 sub lock {
     my $self = shift;
 
-    if (!$self->connected()){
+    if (!$self->connected()) {
 	$self->{'logger'}->error("Not currently connected to device");
 	return;
     }
 
-    my $TOGGLE = bless { 1 => 1 }, 'TOGGLE';
-
-    $self->{'jnx'}->{'methods'}->{'open_configuration'} = {
-        private    => $TOGGLE,
-    };
-
-    $self->{'jnx'}->open_configuration(private => 1);
-    if ($self->{'jnx'}->has_error){
-        my $error = $self->{'jnx'}->get_first_error();
-        if ($error->{'error_message'} !~ /uncommitted/) {
-            $self->{'logger'}->error("Error opening private configuration: " . $error->{'error_message'});
-            return;
+    eval {
+        $self->{'jnx'}->open_configuration(private => 1);
+        my ($dom, $xml, $err) = $self->get_response();
+        if (defined $err) {
+            die $err;
         }
-    }
 
-    my $result = $self->{'jnx'}->get_dom();
-    $self->{'logger'}->info(Dumper($result->toString()));
+        $self->{logger}->debug($dom->toString());
+    };
+    if ($@) {
+        $self->{logger}->error("$@");
+        return 0;
+    }
 
     return 1;
 }
@@ -1602,16 +1650,20 @@ sub connect {
     my $ATTRIBUTE = bless {}, 'ATTRIBUTE';
     my $TOGGLE = bless { 1 => 1 }, 'TOGGLE';
 
-    $self->{'jnx'}->{'methods'}->{'get_configuration'} = { format   => $ATTRIBUTE,
-                                                           compare  => $ATTRIBUTE,
-                                                           changed  => $ATTRIBUTE,
-                                                           database => $ATTRIBUTE,
-                                                           rollback => $ATTRIBUTE };
+    $self->{'jnx'}->{'methods'}->{'get_configuration'} = {
+        format   => $ATTRIBUTE,
+        compare  => $ATTRIBUTE,
+        changed  => $ATTRIBUTE,
+        database => $ATTRIBUTE,
+        rollback => $ATTRIBUTE
+    };
 
     $self->{'jnx'}->{'methods'}->{'get_mpls_lsp_information'} = {
         detail    => $TOGGLE,
         extensive => $TOGGLE,
     };
+
+    $self->{'jnx'}->{'methods'}->{'open_configuration'} = {private => $TOGGLE};
 
     $self->{'logger'}->info("Connected to device!");
     return 1;
