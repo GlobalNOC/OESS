@@ -704,7 +704,6 @@ sub send_message_to_child{
 adds a vlan via MPLS
 
 =cut
-
 sub addVlan{
     my $self = shift;
     my $m_ref = shift;
@@ -768,6 +767,8 @@ sub addVlan{
     
     $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UP;
 
+    $self->{'logger'}->info("Adding VLAN.");
+
     my $cv  = AnyEvent->condvar;
     my $err = '';
 
@@ -819,7 +820,6 @@ sub addVlan{
 deletes a vlan in MPLS mode
 
 =cut
-
 sub deleteVlan{
     my $self = shift;
     my $m_ref = shift;
@@ -856,6 +856,8 @@ sub deleteVlan{
         $nodes{$ep->{'node'}}= 1;
     }
 
+    $self->{'logger'}->info("Deleting VLAN.");
+
     my $cv  = AnyEvent->condvar;
     my $err = '';
 
@@ -866,7 +868,7 @@ sub deleteVlan{
         }
 
         delete $self->{'circuit'}->{$circuit_id};
-        $self->{'logger'}->info("Delete VLAN.");
+        $self->{'logger'}->info("Deleted VLAN.");
         return &$success({status => FWDCTL_SUCCESS});
     });
 

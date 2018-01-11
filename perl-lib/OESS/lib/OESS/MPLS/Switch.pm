@@ -400,21 +400,17 @@ sub stop {
 
 =head2 add_vlan
 
-    Adds a VLAN to this switch
+Adds a VLAN to this switch
 
 =cut
-
-
 sub add_vlan{
     my $self = shift;
     my $m_ref = shift;
     my $p_ref = shift;
-    $self->{'logger'}->error("ADDING VLAN");
-    $self->{'logger'}->debug("in add_vlan");
 
     my $circuit = $p_ref->{'circuit_id'}{'value'};
 
-    $self->{'logger'}->debug("Adding VLAN: " . $circuit);
+    $self->{'logger'}->debug("Calling add_vlan: " . $circuit);
 
     $self->_update_cache();
     
@@ -426,7 +422,6 @@ sub add_vlan{
 =head2 get_system_info
 
 =cut
-
 sub get_system_info{
     my $self = shift;
     my $m_ref = shift;
@@ -441,17 +436,14 @@ sub get_system_info{
 removes a VLAN from this switch
 
 =cut
-
 sub remove_vlan{
     my $self = shift;
     my $m_ref = shift;
     my $p_ref = shift;
 
-    $self->{'logger'}->debug("in remove_vlan");
-
     my $circuit = $p_ref->{'circuit_id'}{'value'};
 
-    $self->{'logger'}->debug("Removing VLAN: " . $circuit);
+    $self->{'logger'}->debug("Calling remove_vlan: " . $circuit);
 
     $self->_update_cache();
 

@@ -24,6 +24,10 @@ use OESS::Database;
 
 use base "OESS::MPLS::Device";
 
+=head1 package OESS::MPLS::Device::Juniper::MX
+
+    use OESS::MPLS::Device::Juniper::MX;
+
 =head2 new
 
     my $mx = OESS::MPLS::Device::Juniper::MX->new(
@@ -150,7 +154,7 @@ sub lock {
 
     if (!$self->connected()) {
 	$self->{'logger'}->error("Not currently connected to device");
-	return;
+	return 0;
     }
 
     eval {
@@ -184,7 +188,7 @@ sub commit {
 
     if (!$self->connected()) {
 	$self->{'logger'}->error("Not currently connected to device");
-	return;
+	return 0;
     }
 
     eval {
@@ -207,29 +211,34 @@ sub commit {
 
 =head2 unlock
 
-=cut
+    my $ok = unlock();
 
+unlock attempts to unlock this device's configuration and returns C<1>
+on success. This subroutine should always be called after lock.
+
+=cut
 sub unlock {
     my $self = shift;
 
-    if (!$self->connected()){
+    if (!$self->connected()) {
 	$self->{'logger'}->error("Not currently connected to device");
-	return;
+	return 0;
     }
 
-    $self->{'jnx'}->{'methods'}->{'close_configuration'} = {};
+    eval {
+        $self->{'jnx'}->close_configuration();
 
-    $self->{'jnx'}->close_configuration();
-    if ($self->{'jnx'}->has_error){
-        my $error = $self->{'jnx'}->get_first_error();
-        if ($error->{'error_message'} !~ /uncommitted/) {
-            $self->{'logger'}->error("Error closing private configuration: " . $error->{'error_message'});
-            return 0;
+        my ($xml, $dom, $err) = $self->get_response();
+        if (defined $err) {
+            $self->{logger}->error($xml->toString());
+            die $err;
         }
+        $self->{logger}->debug($xml->toString());
+    };
+    if ($@) {
+        $self->{'logger'}->error("Error commiting configuration: $@");
+        return 0;
     }
-
-    my $result = $self->{'jnx'}->get_dom();
-    $self->{'logger'}->info(Dumper($result->toString()));
 
     return 1;
 }
@@ -580,8 +589,7 @@ sub remove_vlan{
                                         });
     }
     $vars->{'circuit_id'} = $ckt->{'circuit_id'};
-    $vars->{'switch'} = {name => $self->{'name'},
-                         loopback => $self->{'loopback_addr'}};
+    $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
     $vars->{'site_id'} = $ckt->{'site_id'};
     $vars->{'paths'} = $ckt->{'paths'};
     $vars->{'a_side'} = $ckt->{'a_side'};
@@ -589,9 +597,10 @@ sub remove_vlan{
     $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
 
     my $output;
-    my $remove_template = $self->{'tt'}->process( $self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config_delete.xml", $vars, \$output) or $self->{'logger'}->error( $self->{'tt'}->error());
-
-    $self->{'logger'}->error("Remove Config: " . $output);
+    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config_delete.xml", $vars, \$output);
+    if (!$ok) {
+        $self->{'logger'}->error($self->{'tt'}->error());
+    }
 
     return $self->_edit_config( config => $output );
 }
@@ -601,7 +610,6 @@ sub remove_vlan{
 add a vlan to the juniper
 
 =cut
-
 sub add_vlan{
     my $self = shift;
     my $ckt = shift;
@@ -621,11 +629,9 @@ sub add_vlan{
     $vars->{'paths'} = $ckt->{'paths'};
     $vars->{'destination_ip'} = $ckt->{'destination_ip'};
     $vars->{'circuit_id'} = $ckt->{'circuit_id'};
-    $vars->{'switch'} = {name => $self->{'name'},
-			 loopback => $self->{'loopback_addr'}};
+    $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
     $vars->{'site_id'} = $ckt->{'site_id'};
     $vars->{'a_side'} = $ckt->{'a_side'};
-    $self->{'logger'}->error("PATHS: " . Data::Dumper::Dumper($vars->{'paths'}));
     $vars->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
     $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
 
@@ -634,14 +640,14 @@ sub add_vlan{
         return FWDCTL_FAILURE;
     }
 
-    my $ckt_type = $ckt->{'mpls_type'};
-
     my $output;
-    my $add_template = $self->{'tt'}->process( $self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$output) or  $self->{'logger'}->error($self->{'tt'}->error());
+    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$output);
+    if (!$ok) {
+        $self->{'logger'}->error($self->{'tt'}->error());
+        return FWDCTL_FAILURE;
+    }
     
-    $self->{'logger'}->error("ADD config: " . $output);
-    #totally possible our config is now busted :(
-    if(!defined($output)){
+    if (!defined $output) {
         return FWDCTL_FAILURE;
     }
 
@@ -1671,6 +1677,8 @@ sub connect {
         synchronize => $TOGGLE
     };
 
+    $self->{'jnx'}->{'methods'}->{'close_configuration'} = {};
+
     $self->{'logger'}->info("Connected to device!");
     return 1;
 }
@@ -2094,8 +2102,6 @@ sub _edit_config{
     my $self = shift;
     my %params = @_;
 
-    $self->{'logger'}->debug("Sending the following config: " . $params{'config'});
-
     if(!defined($params{'config'})){
         my $err = "No Configuration specified!";
         $self->set_error($err);
@@ -2124,9 +2130,8 @@ sub _edit_config{
     );
 
     eval {
-        $self->{'logger'}->info("Editing config: " . $queryargs{'config'});
+        $self->{'logger'}->info("Calling edit_config: " . $queryargs{'config'});
         $self->{'jnx'}->edit_config(%queryargs);
-        $self->{'logger'}->debug("Edit complete!");
 
         my $dom = $self->{'jnx'}->get_dom()->toString();
         my $response = XMLin($dom);
