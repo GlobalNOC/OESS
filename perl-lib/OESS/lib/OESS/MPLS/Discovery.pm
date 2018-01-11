@@ -339,7 +339,6 @@ sub int_handler{
 =head2 path_handler
 
 =cut
-
 sub path_handler {
 
     my $self = shift;
@@ -353,9 +352,6 @@ sub path_handler {
         $self->{'logger'}->error("path_handler: Could not get current nodes.");
         return 0;
     }
-
-#    my $curr_path_sequence = $self->{'path_sequence'};
-#    $self->{'path_sequence'} += 1;
 
     # Map from circuit ID to the list of LSPs associated with the circuit
     my %circuit_lsps;

@@ -250,7 +250,7 @@ sub unlock {
 get_system_information returns an object containing information about
 the connected device.
 
-Result:
+B<Result>
 
     {
       host_name     => 'vmx-r0'
@@ -369,8 +369,52 @@ sub get_system_information{
 
 =head2 get_routed_lsps
 
-=cut
+    my $circuits_to_lsps = get_routed_lsps(
+      table    => 'bgp.l2vpn.0',
+      circuits => {
+        circuit_id => '3025',
+        interfaces => [
+          {
+            'node' => 'vmx-r1.testlab.grnoc.iu.edu',
+            'local' => '1',
+            'mac_addrs' => [],
+            'interface_description' => 'R1 -> R2',
+            'port_no' => undef,
+            'node_id' => '4',
+            'urn' => undef,
+            'interface' => 'ge-0/0/1',
+            'tag' => '300',
+            'role' => 'unknown'
+          }
+        ],
+        a_side => '4',
+        circuit_name => 'admin-5056cdda-f6df-11e7-94cd-fa163e341ea2',
+        site_id => 2,
+        paths => [
+          {
+            dest' => '172.16.0.0',
+            name' => 'PRIMARY',
+            mpls_path_type' => 'loose',
+            dest_node' => '1'
+          }
+        ],
+        ckt_type => 'L2VPN',
+        state => 'active'
+      }
+    );
 
+get_routed_lsps creates a map from circuit_id to an array of
+associated LSPs.
+
+B<Result>
+
+    {
+      '3025' => [
+        'I2-LAB1-LAB0-LSP-0'
+      ]
+    }
+
+=cut
 sub get_routed_lsps{
     my $self = shift;
     my %args = @_;
@@ -391,7 +435,7 @@ sub get_routed_lsps{
         }
     }
     
-    my $reply = $self->{'jnx'}->get_route_information( table => $table );
+    my $reply = $self->{'jnx'}->get_route_information(table => $table);
 
     if($self->{'jnx'}->has_error){
         my $error = $self->{'jnx'}->get_first_error();
@@ -401,6 +445,7 @@ sub get_routed_lsps{
     }
 
     my $dom = $self->{'jnx'}->get_dom();
+
     my $dest_to_lsp = {};
 
     my $path = $self->{'root_namespace'}."junos-routing";
@@ -439,7 +484,6 @@ sub get_routed_lsps{
     my $circuit_to_lsp = {};
 
     foreach my $dest (keys %{$dest_to_lsp}){
-        
         #determine which type it is
         #either the prefix, the route id or the interface name
         #11537:3019:1:1/96
