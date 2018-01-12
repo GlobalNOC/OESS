@@ -1841,7 +1841,6 @@ sub _process_isis_adj{
 returns the current MPLS LSPs on the box
 
 =cut
-
 sub get_LSPs{
     my $self = shift;
 
@@ -1854,13 +1853,13 @@ sub get_LSPs{
     my $xml = $self->{'jnx'}->get_dom();
     my $xp = XML::LibXML::XPathContext->new( $xml);
     $xp->registerNs('x',$xml->documentElement->namespaceURI);
-    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    $xp->registerNs('j', $self->{'root_namespace'} . 'junos-routing');
     my $rsvp_session_data = $xp->find('/x:rpc-reply/j:mpls-lsp-information/j:rsvp-session-data');
     
     my @LSPs;
 
     foreach my $rsvp_sd (@{$rsvp_session_data}){
-	push(@LSPs,_process_rsvp_session_data($rsvp_sd));
+	push(@LSPs, $self->_process_rsvp_session_data($rsvp_sd));
     }
 
     return \@LSPs;
@@ -1924,12 +1923,13 @@ sub get_lsp_paths{
 }
 
 sub _process_rsvp_session_data{
+    my $self = shift;
     my $rsvp_sd = shift;
     
     my $obj = {};
 
     my $xp = XML::LibXML::XPathContext->new( $rsvp_sd);
-    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    $xp->registerNs('j', $self->{'root_namespace'} . 'junos-routing');
     $obj->{'session_type'} = trim($xp->findvalue('./j:session-type'));
     $obj->{'count'} = trim($xp->findvalue('./j:count'));
     $obj->{'sessions'} = ();
@@ -1939,19 +1939,19 @@ sub _process_rsvp_session_data{
     if($obj->{'session_type'} eq 'Ingress'){
 	
 	foreach my $session (@{$rsvp_sessions}){
-	    push(@{$obj->{'sessions'}}, _process_rsvp_session_ingress($session));
+	    push(@{$obj->{'sessions'}}, $self->_process_rsvp_session_ingress($session));
 	}
 	
     }elsif($obj->{'session_type'} eq 'Egress'){
 
 	foreach my $session (@{$rsvp_sessions}){
-            push(@{$obj->{'sessions'}}, _process_rsvp_session_egress($session));
+            push(@{$obj->{'sessions'}}, $self->_process_rsvp_session_egress($session));
         }
 
     }else{
 	
 	foreach my $session (@{$rsvp_sessions}){
-            push(@{$obj->{'sessions'}}, _process_rsvp_session_transit($session));
+            push(@{$obj->{'sessions'}}, $self->_process_rsvp_session_transit($session));
         }
 
     }
@@ -1960,12 +1960,13 @@ sub _process_rsvp_session_data{
 }
 
 sub _process_rsvp_session_transit{
+    my $self = shift;
     my $session = shift;
 
     my $obj = {};
 
     my $xp = XML::LibXML::XPathContext->new( $session );
-    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    $xp->registerNs('j', $self->{'root_namespace'} . 'junos-routing');
     $obj->{'name'} = trim($xp->findvalue('./j:name'));
     $obj->{'route-count'} = trim($xp->findvalue('./j:route-count'));
     $obj->{'description'} = trim($xp->findvalue('./j:description'));
@@ -1991,7 +1992,7 @@ sub _process_rsvp_session_transit{
     my $pkt_infos = $xp->find('./j:packet-information');
     $obj->{'packet-information'} = ();
     foreach my $pkt_info (@$pkt_infos){
-	push(@{$obj->{'packet-information'}}, _process_packet_info($pkt_info));
+	push(@{$obj->{'packet-information'}}, $self->_process_packet_info($pkt_info));
     }
 
 
@@ -2006,11 +2007,12 @@ sub _process_rsvp_session_transit{
 }
 
 sub _process_packet_info{
+    my $self = shift;
     my $pkt_info = shift;
     my $obj = {};
 
     my $xp = XML::LibXML::XPathContext->new( $pkt_info );
-    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    $xp->registerNs('j', $self->{'root_namespace'} . 'junos-routing');
 
     my $prev_hops = $xp->find('./j:previous-hop');
     if($prev_hops->size() > 0){
@@ -2041,12 +2043,13 @@ sub _process_packet_info{
 }
 
 sub _process_rsvp_session_egress{
+    my $self = shift;
     my $session = shift;
 
     my $obj = {};
 
     my $xp = XML::LibXML::XPathContext->new( $session );
-    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    $xp->registerNs('j', $self->{'root_namespace'} . 'junos-routing');
     $obj->{'name'} = trim($xp->findvalue('./j:name'));
     $obj->{'route-count'} = trim($xp->findvalue('./j:route-count'));
     $obj->{'description'} = trim($xp->findvalue('./j:description'));
@@ -2072,7 +2075,7 @@ sub _process_rsvp_session_egress{
     my $pkt_infos = $xp->find('./j:packet-information');
     $obj->{'packet-information'} = ();
     foreach my $pkt_info (@$pkt_infos){
-        push(@{$obj->{'packet-information'}}, _process_packet_info($pkt_info));
+        push(@{$obj->{'packet-information'}}, $self->_process_packet_info($pkt_info));
     }
 
     my $record_routes = trim($xp->find('./j:record-route/j:address'));
@@ -2088,12 +2091,13 @@ sub _process_rsvp_session_egress{
 
 
 sub _process_rsvp_session_ingress{
+    my $self = shift;
     my $session = shift;
     
     my $obj = {};
 
     my $xp = XML::LibXML::XPathContext->new( $session );
-    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    $xp->registerNs('j', $self->{'root_namespace'} . 'junos-routing');
     $obj->{'name'} = trim($xp->findvalue('./j:mpls-lsp/j:name'));
     $obj->{'description'} = trim($xp->findvalue('./j:mpls-lsp/j:description'));
     $obj->{'destination-address'} = trim($xp->findvalue('./j:mpls-lsp/j:destination-address'));
@@ -2114,17 +2118,18 @@ sub _process_rsvp_session_ingress{
     my $paths = $xp->find('./j:mpls-lsp/j:mpls-lsp-path');
     
     foreach my $path (@$paths){
-	push(@{$obj->{'paths'}}, _process_lsp_path($path));
+	push(@{$obj->{'paths'}}, $self->_process_lsp_path($path));
     }
 
     return $obj;
 }
 
 sub _process_lsp_path{
+    my $self = shift;
     my $path = shift;
 
     my $xp = XML::LibXML::XPathContext->new( $path );
-    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    $xp->registerNs('j', $self->{'root_namespace'} . 'junos-routing');
     
     my $obj = {};
 
