@@ -627,7 +627,8 @@ sub _process_interface{
       ]
     );
 
-removes a vlan via NetConf
+remove_vlan removes a vlan from this device via NetConf. Returns 1 on
+success.
 
 =cut
 sub remove_vlan{
@@ -666,7 +667,25 @@ sub remove_vlan{
 
 =head2 add_vlan
 
-add a vlan to the juniper
+    my $ok = add_vlan({
+      circuit_name => 'circuit',
+      interfaces => [
+        {
+          interface => 'ge-0/0/1',
+          tag => 2004
+        },
+        {
+          interface => 'ge-0/0/2',
+          tag => 2004
+        }
+      ],
+      paths => [],
+      circuit_id => 3012,
+      site_id => 1,
+      ckt_type => 'L2VPLS'
+    });
+
+add_vlan adds a vlan to this device via NetConf. Returns 1 on success.
 
 =cut
 sub add_vlan{
@@ -1130,7 +1149,7 @@ sub get_device_diff {
     return $self->{'diff_text'};
 }
 
-=head3 _large_diff( $diff )
+=head2 _large_diff( $diff )
 
 Returns 1 if $diff requires manual approval.
 
