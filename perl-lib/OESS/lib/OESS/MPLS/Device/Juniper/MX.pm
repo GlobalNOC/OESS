@@ -1369,45 +1369,6 @@ sub get_device_circuit_ids {
     return $result;
 }
 
-
-=head2 required_modifications
-
-I don't believe this is used...
-
-=cut
-sub required_modifications {
-    my $self = shift;
-    my $circuits = shift;
-    my $circuit_infos = shift;
-
-    if(!$self->connected()){
-        $self->{'logger'}->error("Not currently connected to device");
-        return;
-    }
-
-    my $result = [];
-
-    foreach my $id (keys %{$circuits}) {
-        if (!defined $circuit_infos->{$id}) {
-            my $addition = $circuits->{$id};
-            $addition->{'action'} = 'add';
-
-            push(@{$result}, $addition);
-        }
-    }
-
-    foreach my $id (keys %{$circuit_infos}) {
-        if (!defined $circuits->{$id}) {
-            my $deletion = $circuits->{$id};
-            $deletion->{'action'} = 'delete';
-
-            push(@{$result}, $deletion);
-        }
-    }
-
-    return $result;
-}
-
 =head2 get_device_diff
 
 Returns and stores a human readable diff for display to users.
