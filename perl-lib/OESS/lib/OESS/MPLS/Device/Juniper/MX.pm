@@ -956,61 +956,6 @@ sub xml_configuration {
     return $configuration;
 }
 
-=head2 get_device_circuit_infos
-
-I do not believe this is used... 
-
-=cut
-sub get_device_circuit_infos {
-    my $self = shift;
-
-    if(!$self->connected()){
-        $self->{'logger'}->error("Not currently connected to device");
-        return;
-    }
-
-    my $result = {};
-
-    my $res = $self->{'jnx'}->get_configuration( database => 'committed', format => 'xml' );
-    if ($self->{'jnx'}->has_error) {
-        my $error = $self->{'jnx'}->get_first_error();
-	$self->set_error($error->{'error_message'});
-        $self->{'logger'}->error("Error getting conf from MX: " . $error->{'error_message'});
-        return;
-    }
-
-    my $dom = $self->{'jnx'}->get_dom();
-    my $interfaces = $dom->getElementsByTagName('interface');
-
-    foreach my $interface (@{$interfaces}) {
-        my $units = $interface->getElementsByTagName('unit');
-        foreach my $unit (@{$units}) {
-            # Based on unit descriptions we can determine if this unit
-            # represents a circuit that should be verified. Units to be
-            # selected are in the form 'OESS <type> <id>'.
-            # Ex.
-            # OESS L2VPN 3006
-
-            my $desc = $unit->getElementsByTagName('description');
-            if ($desc->size() == 0) {
-                next;
-            }
-
-            my $text = $desc->[0]->textContent();
-            if ($text !~ /^OESS/) {
-                # Units with descriptions starting with anything other
-                # than 'OESS' are not circuit related; These may be
-                # manually defined for other purposes, so we ignore.
-                next;
-            }
-
-            my ($oess, $type, $id) = split(/ /, $text);
-            $result->{$id} = { circuit_id => $id, type => $type };
-        }
-    }
-    return $result;
-}
-
 =head2 get_config_to_remove
 
 attempts to find parts of the config to remove, unfortunatly very templates specific
