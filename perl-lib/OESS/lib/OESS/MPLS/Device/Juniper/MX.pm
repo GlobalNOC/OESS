@@ -1870,8 +1870,6 @@ sub get_LSPs{
 
     my $paths = get_lsp_paths();
 
-implementation of OESS::MPLS::Device::get_lsp_paths
-
 get_lsp_paths returns a map of LSP to an array of IP addresses; Each
 array indicates the links of the LSP. An empty hash will be returned
 if no LSPs are found or even if a failure occurs.
