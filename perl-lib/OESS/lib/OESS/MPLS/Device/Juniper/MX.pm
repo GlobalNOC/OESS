@@ -1311,64 +1311,6 @@ sub _is_active_circuit{
     
 }
 
-
-=head2 get_device_circuit_ids
-
-this should no longer be used...
-
-=cut
-
-sub get_device_circuit_ids {
-    my $self = shift;
-
-    if(!$self->connected()){
-        $self->{'logger'}->error("Not currently connected to device");
-        return;
-    }
-
-    my $result = [];
-
-    my $res = $self->{'jnx'}->get_configuration( database => 'committed', format => 'xml' );
-    if ($self->{'jnx'}->has_error) {
-        my $error = $self->{'jnx'}->get_first_error();
-	$self->set_error($error->{'error_message'});
-        $self->{'logger'}->error("Error getting conf from MX: " . $error->{'error_message'});
-        return;
-    }
-
-    my $dom = $self->{'jnx'}->get_dom();
-    my $interfaces = $dom->getElementsByTagName('interface');
-
-    foreach my $interface (@{$interfaces}) {
-        my $units = $interface->getElementsByTagName('unit');
-        foreach my $unit (@{$units}) {
-            # Based on unit descriptions we can determine if this unit
-            # represents a circuit that should be verified. Units to be
-            # selected are in the form 'OESS <type> <id>'.
-            # Ex.
-            # OESS L2VPN 3006
-
-            my $desc = $unit->getElementsByTagName('description');
-            if ($desc->size() == 0) {
-                next;
-            }
-
-            my $text = $desc->[0]->textContent();
-            if ($text !~ /^OESS/) {
-                # Units with descriptions starting with anything other
-                # than 'OESS' are not circuit related; These may be
-                # manually defined for other purposes, so we ignore.
-                next;
-            }
-
-            $self->{'logger'}->info("get_device_circuit_ids: $text");
-            my ($oess, $type, $id) = split(/-/, $text);
-            push(@{$result}, $id);
-        }
-    }
-    return $result;
-}
-
 =head2 get_device_diff
 
 Returns and stores a human readable diff for display to users.

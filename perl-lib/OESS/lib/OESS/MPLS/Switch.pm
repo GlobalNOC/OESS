@@ -288,13 +288,6 @@ sub _register_rpc_methods{
 					    description => "Proxies diff signal to the underlying device object." );
     $dispatcher->register_method($method);
 
-    $method = GRNOC::RabbitMQ::Method->new( name        => "get_device_circuit_ids",
-					    callback    => sub {
-                                                return $self->get_device_circuit_ids(@_);
-                                            },
-					    description => "Proxies request for installed circuits to device object." );
-    $dispatcher->register_method($method);
-
     $method = GRNOC::RabbitMQ::Method->new( name        => "get_default_paths",
 					    callback    => sub {
                                                 return $self->get_default_paths(@_);
@@ -540,20 +533,6 @@ sub get_default_paths {
 
    my $default_paths = $self->{'device'}->get_default_paths($addrs);
    return $default_paths;
-}
-
-=head2 get_device_circuit_ids
-
-=cut
-
-sub get_device_circuit_ids {
-    my $self  = shift;
-    my $m_ref = shift;
-    my $p_ref = shift;
-
-    $self->{'logger'}->debug("Calling Switch.get_device_circuit_ids");
-
-    return $self->{'device'}->get_device_circuit_ids();
 }
 
 =head2 get_interfaces
