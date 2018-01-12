@@ -191,9 +191,9 @@ $mock->new_sub(
 </rpc-reply>')
 );
 
-$result = $device->get_lsp_paths();
-($ok, $stack) = Test::Deep::cmp_details($result, {});
-ok($ok, "empty hash returned when error message received.");
+$result = $device->get_LSPs();
+($ok, $stack) = Test::Deep::cmp_details($result, []);
+ok($ok, "empty array returned when error message received.");
 
 
 my $err = $mock->sub_called(

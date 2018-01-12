@@ -1838,7 +1838,57 @@ sub _process_isis_adj{
 
 =head2 get_LSPs
 
-returns the current MPLS LSPs on the box
+    my $lsps = get_LSPs();
+
+get_LSPs returns all MPLS LSPs on this device. Returns an empty array
+if none are found or an error occurs.
+
+B<Returns>
+
+    [{
+      sessions => [{
+        'destination-address' => '172.16.0.6',
+        'name' => 'I2-LAB0-MX960-1-LSP-6',
+        'lsp-type' => 'Static Configured',
+        'lsp-state' => 'Up',
+        'description' => '',
+        'paths' => [
+          {
+            'path-state' => 'Up',
+            'explicit-route' => {
+              'explicit-route-type' => '',
+              'addresses' => [
+                '172.16.0.13',
+                '172.16.0.17',
+                '172.16.0.19',
+                '172.16.0.31'
+              ]
+            },
+            'name' => 'I2-LAB0-MX960-1-LSP-6-primary',
+            'setup-priority' => '0',
+            'smart-optimize-timer' => '',
+            'path-active' => '',
+            'received-rro' => 'Received RRO (ProtectionFlag 1=Available 2=InUse 4=B/W 8=Node 10=SoftPreempt 20=Node-ID):
+      172.16.0.13 172.16.0.17 172.16.0.19 172.16.0.31',
+            'title' => 'Primary',
+            'hold-priority' => '0'
+          }
+        ],
+        'egress-label-operation' => 'Penultimate hop popping',
+        'active-path' => 'I2-LAB0-MX960-1-LSP-6-primary (primary)',
+        'route-count' => '0',
+        'revert-timer' => '600',
+        'source-address' => '172.16.0.0',
+        'load-balance' => 'random',
+        'attributes' => {
+          'encoding-type' => 'Packet',
+          'switching-type' => '',
+          'gpid' => ''
+        }
+      }],
+      session_type => 'Ingress',
+      count => '1'
+    }];
 
 =cut
 sub get_LSPs{
@@ -1849,7 +1899,7 @@ sub get_LSPs{
         return;
     }
 
-    $self->{'jnx'}->get_mpls_lsp_information( detail => 1);
+    $self->{'jnx'}->get_mpls_lsp_information(detail => 1);
     my $xml = $self->{'jnx'}->get_dom();
     my $xp = XML::LibXML::XPathContext->new( $xml);
     $xp->registerNs('x',$xml->documentElement->namespaceURI);
