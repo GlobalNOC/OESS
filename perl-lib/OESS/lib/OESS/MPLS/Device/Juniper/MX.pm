@@ -1653,6 +1653,8 @@ sub unit_name_available {
 
 =head2 connect
 
+    my $ok = connect();
+
 Returns 1 if a new connection is established. If the connection is
 already established this function will also return 1. Otherwise an error
 has occured and 0 is returned.
