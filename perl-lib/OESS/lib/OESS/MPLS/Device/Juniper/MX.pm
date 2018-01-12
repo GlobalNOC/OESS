@@ -520,10 +520,25 @@ sub get_routed_lsps{
 
 =head2 get_interfaces
 
-returns a list of current interfaces on the device
+    my $ints = get_interfaces();
+
+get_interfaces gets basic info about each interface on this device.
+
+B<Returns>
+
+    [
+      {
+        'addresses' => [
+          '156.56.6.103'
+        ],
+        'name' => 'ge-0/0/0',
+        'description' => 'Management Interface',
+        'admin_state' => 'up',
+        'operational_state' => 'up'
+      }
+    ]
 
 =cut
-
 sub get_interfaces{
     my $self = shift;
 
