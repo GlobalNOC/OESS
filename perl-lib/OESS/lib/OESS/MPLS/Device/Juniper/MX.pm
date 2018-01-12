@@ -1721,6 +1721,8 @@ sub connect {
         synchronize => $TOGGLE
     };
 
+    $self->{'jnx'}->{'methods'}->{'get_isis_adjacency_information'} = {detail => $TOGGLE};
+
     $self->{'jnx'}->{'methods'}->{'close_configuration'} = {};
 
     $self->{'logger'}->info("Connected to device!");
@@ -1777,23 +1779,36 @@ sub verify_connection{
 
 =head2 get_isis_adjacencies
 
-    returns the current isis adjacencies on the box
+    my $adjs = get_isis_adjacencies();
+
+get_isis_adjacencies returns a list of ISIS adjacencies.
+
+B<Returns>
+
+    [
+      {
+        'interface_name' => 'ae1',
+        'remote_system_name' => 'vmx-r3',
+        'ip_address' => '172.16.0.19',
+        'ipv6_address' => 'fe80::205:8600:285c:d9c0',
+        'operational_state' => 'Up'
+      },
+      {
+        'interface_name' => 'ge-0/0/1',
+        'remote_system_name' => 'vmx-r1',
+        'ip_address' => '172.16.0.16',
+        'ipv6_address' => 'fe80::206:a00:1e0e:fff5',
+        'operational_state' => 'Up'
+      }
+    ]
 
 =cut
-
 sub get_isis_adjacencies{
     my $self = shift;
 
     if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return;
-    }
-
-    $self->{'logger'}->error("INSIDE GET_ISIS_ADJACENCIES");
-    
-    if(!defined($self->{'jnx'}->{'methods'}->{'get_isis_adjacency_information'})){
-	my $TOGGLE = bless { 1 => 1 }, 'TOGGLE';
-	$self->{'jnx'}->{'methods'}->{'get_isis_adjacency_information'} = { detail => $TOGGLE};
     }
 
     $self->{'jnx'}->get_isis_adjacency_information( detail => 1 );
@@ -1888,7 +1903,7 @@ B<Returns>
       }],
       session_type => 'Ingress',
       count => '1'
-    }];
+    }]
 
 =cut
 sub get_LSPs{

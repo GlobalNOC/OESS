@@ -114,10 +114,6 @@ sub new{
     
     die if(!defined($self->{'rmq_client'}));
 
-    # set up some sequence numbers so path detection handles out-of-order responses sanely
-#    $self->{'path_sequence'} = 0;
-#    $self->{'path_node_latest'} = {};
-
     #setup the timers
     $self->{'device_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->device_handler(); });
     $self->{'int_timer'} = AnyEvent->timer( after => 60, interval => 120, cb => sub { $self->int_handler(); });
