@@ -1751,13 +1751,13 @@ sub connected {
 
 =head2 verify_connection
 
-    verify the connection
+    my $ok = verify_connection();
+
+verify_connection gathers basic system information and checks the
+device is running a supported software version.
 
 =cut
-
 sub verify_connection{
-    #gather basic system information needed later, and make sure it is what we expected / are prepared to handle
-    #
     my $self = shift;
 
     if(!$self->connected()){
