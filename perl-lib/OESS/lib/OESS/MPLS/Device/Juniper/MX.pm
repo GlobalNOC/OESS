@@ -198,25 +198,27 @@ sub get_system_information{
     }
 
     my $system_info = $self->{'jnx'}->get_dom();
+    my $root_ns     = $system_info->documentElement()->namespaceURI();
+    $self->{logger}->info("Using root XML namespace $root_ns.");
 
-    my $xp = XML::LibXML::XPathContext->new( $system_info);
-    $xp->registerNs('x',$system_info->documentElement->namespaceURI);     
-    my $model = $xp->findvalue('/x:rpc-reply/x:system-information/x:hardware-model');
-    my $version = $xp->findvalue('/x:rpc-reply/x:system-information/x:os-version');
+    my $xp = XML::LibXML::XPathContext->new($system_info);
+    $xp->registerNs('x', $root_ns);
+
+    # Eg. http://xml.juniper.net/junos/15.1I0/junos
+    my $junos_ns = $xp->lookupNs('junos');
+    $self->{'root_namespace'} = substr($junos_ns, 0, -5);
+    $self->{logger}->info("Using JUNOS XML namespace $self->{'root_namespace'}.");
+
     my $host_name = $xp->findvalue('/x:rpc-reply/x:system-information/x:host-name');
-    my $os_name = $xp->findvalue('/x:rpc-reply/x:system-information/x:os-name');
+    my $model =     $xp->findvalue('/x:rpc-reply/x:system-information/x:hardware-model');
+    my $os_name =   $xp->findvalue('/x:rpc-reply/x:system-information/x:os-name');
+    my $version =   $xp->findvalue('/x:rpc-reply/x:system-information/x:os-version');
 
-    # We need to create know the root path for our xml requests. This path containd the version minus the last number block
-    # (13.3R1.6 -> 13.3R1). The following regex creates the path as described
-    my $var = $version;
-    $var =~ /(\d+\.\d+\S\d+)/;
-    my $root_namespace = "http://xml.juniper.net/junos/".$1.'/';
-    $self->{'root_namespace'} = $root_namespace;
-    $self->{'logger'}->debug("Root Namespace: " . $root_namespace);
+    $self->{logger}->info("Using firmware version $version.");
 
     #also need to fetch the interfaces and find lo0.X
     $reply = $self->{'jnx'}->get_interface_information();
-    if($self->{'jnx'}->has_error){
+    if ($self->{'jnx'}->has_error) {
         my $error = $self->{'jnx'}->get_first_error();
         $self->set_error($error->{'error_message'});
         $self->{'logger'}->error("Error fetching interface information: " . $error->{'error_message'});
@@ -225,7 +227,7 @@ sub get_system_information{
 
     my $interfaces = $self->{'jnx'}->get_dom();
     my $path = $self->{'root_namespace'}."junos-interface";
-    $xp = XML::LibXML::XPathContext->new( $interfaces);
+    $xp = XML::LibXML::XPathContext->new($interfaces);
     $xp->registerNs('x',$interfaces->documentElement->namespaceURI);
     $xp->registerNs('j',$path);
     my $ints = $xp->findnodes('/x:rpc-reply/j:interface-information/j:physical-interface');
@@ -420,6 +422,7 @@ sub get_interfaces{
     my @interfaces;
 
     my $interfaces = $self->{'jnx'}->get_dom();
+    $self->{'logger'}->debug("get_interface_information: " . $interfaces->toString());
     my $path = $self->{'root_namespace'}."junos-interface";
     my $xp = XML::LibXML::XPathContext->new( $interfaces);
     $xp->registerNs('x',$interfaces->documentElement->namespaceURI);
@@ -1620,7 +1623,7 @@ sub verify_connection{
     }
 
     my $sysinfo = $self->get_system_information();
-    if (($sysinfo->{"os_name"} eq "junos") && ($sysinfo->{"version"} eq "13.3R1.6" || $sysinfo->{"version"} eq '15.1F6-S6.4' || $sysinfo->{"version"} eq '15.1F6.9' || $sysinfo->{"version"} eq '15.1F6-S7.2')){
+    if (($sysinfo->{"os_name"} eq "junos") && ($sysinfo->{"version"} eq "13.3R1.6" || $sysinfo->{"version"} eq '15.1F6-S6.4' || $sysinfo->{"version"} eq '15.1F6.9' || $sysinfo->{"version"} eq '15.1F6-S7.2' || $sysinfo->{version} eq '15.1I20171208_1648_amahale')){
 	# print "Connection verified, proceeding\n";
 	return 1;
     }
@@ -1655,7 +1658,7 @@ sub get_isis_adjacencies{
     $self->{'jnx'}->get_isis_adjacency_information( detail => 1 );
 
     my $xml = $self->{'jnx'}->get_dom();
-    $self->{'logger'}->debug("ISIS: " . $xml->toString());
+    $self->{'logger'}->debug("get_isis_adjacency_information: " . $xml->toString());
     my $xp = XML::LibXML::XPathContext->new( $xml);
     $xp->registerNs('x',$xml->documentElement->namespaceURI);
     my $path = $self->{'root_namespace'}."junos-routing";
@@ -1708,6 +1711,7 @@ sub get_LSPs{
 
     $self->{'jnx'}->get_mpls_lsp_information( detail => 1);
     my $xml = $self->{'jnx'}->get_dom();
+    $self->{'logger'}->debug("get_mpls_lsp_information: " . $xml->toString());
     my $xp = XML::LibXML::XPathContext->new( $xml);
     $xp->registerNs('x',$xml->documentElement->namespaceURI);
     $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
