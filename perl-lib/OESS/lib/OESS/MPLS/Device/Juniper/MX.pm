@@ -24,17 +24,29 @@ use OESS::Database;
 
 use base "OESS::MPLS::Device";
 
+=head1 package OESS::MPLS::Device::Juniper::MX
+
+    use OESS::MPLS::Device::Juniper::MX;
+
 =head2 new
 
-creates a new Juniper MX Device object
+    my $mx = OESS::MPLS::Device::Juniper::MX->new(
+      config => '/etc/oess/database.xml',
+      loopback_addr => '127.0.0.1',
+      mgmt_addr     => '192.168.1.1',
+      name          => 'demo.grnoc.iu.edu',
+      node_id       => 1
+    );
+
+new creates a Juniper MX device object. Use methods on this object to
+communicate with a device on the network.
 
 =cut
-
 sub new{
     my $class = shift;
     my %args = (
         @_
-	);
+    );
     
     my $self = \%args;
     bless $self, $class;
@@ -61,86 +73,137 @@ sub new{
 
 =head2 disconnect
 
-disconnects from the device
+    disconnect();
+
+disconnect calls disconnect on this MX's connection object and then
+deletes it.
 
 =cut
-
 sub disconnect{
     my $self = shift;
 
-    if (defined $self->{'jnx'}) {
-        $self->{'jnx'}->disconnect();
-        $self->{'jnx'} = undef;
-        $self->{'logger'}->warn("Device was disconnected.");
-    } else {
-        $self->{'logger'}->info("Device is already disconnected.");
+    if (!defined $self->{'jnx'}) {
+        return 1;
     }
+
+    $self->{'jnx'}->disconnect();
+    $self->{'jnx'} = undef;
+    $self->{'logger'}->warn("Device was disconnected.");
 
     return 1;
 }
 
-=head2 lock
+=head2 get_response
+
+    my ($xml, $dom, $err) = get_response();
+
+get_response parses the last response received via
+C<$self-E<gt>{jnx}>. It returns the XML object, the XML as a hash, and
+the first error received if one was encountered.
 
 =cut
-
-sub lock {
+sub get_response {
     my $self = shift;
 
-    if (!$self->connected()){
-	$self->{'logger'}->error("Not currently connected to device");
-	return;
+    my $xml = $self->{jnx}->get_dom();
+    my $dom = XMLin($xml->toString());
+    my $err = undef;
+
+    my $errors = [];
+    if (defined $dom->{'commit-results'} && $dom->{'commit-results'}->{'rpc-error'}) {
+        $errors = $dom->{'commit-results'}->{'rpc-error'};
     }
 
-    my $TOGGLE = bless { 1 => 1 }, 'TOGGLE';
+    if (defined $dom->{'rpc-error'}) {
+        $errors = $dom->{'rpc-error'};
+    }
 
-    $self->{'jnx'}->{'methods'}->{'open_configuration'} = {
-        private    => $TOGGLE,
-    };
+    if (ref($errors) eq 'HASH') {
+        $errors = [$errors];
+    }
 
-    $self->{'jnx'}->open_configuration(private => 1);
-    if ($self->{'jnx'}->has_error){
-        my $error = $self->{'jnx'}->get_first_error();
-        if ($error->{'error_message'} !~ /uncommitted/) {
-            $self->{'logger'}->error("Error opening private configuration: " . $error->{'error_message'});
-            return;
+    foreach my $error (@{$errors}) {
+        my $lvl = $error->{'error-severity'};
+        my $msg = $error->{'error-message'};
+        $msg =~ s/^\s+|\s+$//g; # python >> str.strip()
+
+        if ($lvl eq 'warning') {
+            $self->{'logger'}->warn($msg);
+        } else {
+            # error-severity of 'error' is considered a stop
+            # condition. Return the first error encountered.
+            $err = $msg;
+            last;
         }
     }
 
-    my $result = $self->{'jnx'}->get_dom();
-    $self->{'logger'}->info(Dumper($result->toString()));
+    return ($xml, $dom, $err);
+}
+
+=head2 lock
+
+    my $ok = lock();
+
+lock attempts to open this device's configuration in private mode, and
+returns C<1> on success. The unlock subroutine should always be called
+after lock.
+
+=cut
+sub lock {
+    my $self = shift;
+
+    if (!$self->connected()) {
+	$self->{'logger'}->error("Not currently connected to device");
+	return 0;
+    }
+
+    eval {
+        $self->{'jnx'}->open_configuration(private => 1);
+
+        my ($xml, $dom, $err) = $self->get_response();
+        if (defined $err) {
+            $self->{logger}->error($xml->toString());
+            die $err;
+        }
+        $self->{logger}->debug($xml->toString());
+    };
+    if ($@) {
+        $self->{logger}->error("Error locking configuration: $@");
+        return 0;
+    }
 
     return 1;
 }
 
 =head2 commit
 
-=cut
+    my $ok = commit();
 
+commit attempts to copy the device's private configuration to the
+running configuration. commit returns C<1> on success.
+
+=cut
 sub commit {
     my $self = shift;
 
-    if (!$self->connected()){
+    if (!$self->connected()) {
 	$self->{'logger'}->error("Not currently connected to device");
-	return;
+	return 0;
     }
-    
-    my $TOGGLE = bless { 1 => 1 }, 'TOGGLE';
 
-    $self->{'jnx'}->{'methods'}->{'commit_configuration'} = { check => $TOGGLE , synchronize => $TOGGLE};
+    eval {
+        $self->{'jnx'}->commit_configuration(synchronize => 1);
 
-    $self->{'jnx'}->commit_configuration(synchronize => 1);
-    if ($self->{'jnx'}->has_error) {
-        my $error = $self->{'jnx'}->get_first_error();
-        my $lvl = $error->{'error_severity'};
-        my $msg = $error->{'error_message'};
-        $msg =~ s/^\s+|\s+$//g; # python >> str.strip()
-
-        if ($lvl eq 'error') {
-            $self->{'logger'}->error("Error commiting configurattion!");
-            $self->{'logger'}->error($msg);
-            $self->{'logger'}->debug($self->{'jnx'}->get_dom()->toString());
-            return 0;
+        my ($xml, $dom, $err) = $self->get_response();
+        if (defined $err) {
+            $self->{logger}->error($xml->toString());
+            die $err;
         }
+        $self->{logger}->debug($xml->toString());
+    };
+    if ($@) {
+        $self->{'logger'}->error("Error commiting configuration: $@");
+        return 0;
     }
 
     return 1;
@@ -148,39 +211,56 @@ sub commit {
 
 =head2 unlock
 
-=cut
+    my $ok = unlock();
 
+unlock attempts to unlock this device's configuration and returns C<1>
+on success. This subroutine should always be called after lock.
+
+=cut
 sub unlock {
     my $self = shift;
 
-    if (!$self->connected()){
+    if (!$self->connected()) {
 	$self->{'logger'}->error("Not currently connected to device");
-	return;
+	return 0;
     }
 
-    $self->{'jnx'}->{'methods'}->{'close_configuration'} = {};
+    eval {
+        $self->{'jnx'}->close_configuration();
 
-    $self->{'jnx'}->close_configuration();
-    if ($self->{'jnx'}->has_error){
-        my $error = $self->{'jnx'}->get_first_error();
-        if ($error->{'error_message'} !~ /uncommitted/) {
-            $self->{'logger'}->error("Error closing private configuration: " . $error->{'error_message'});
-            return 0;
+        my ($xml, $dom, $err) = $self->get_response();
+        if (defined $err) {
+            $self->{logger}->error($xml->toString());
+            die $err;
         }
+        $self->{logger}->debug($xml->toString());
+    };
+    if ($@) {
+        $self->{'logger'}->error("Error commiting configuration: $@");
+        return 0;
     }
-
-    my $result = $self->{'jnx'}->get_dom();
-    $self->{'logger'}->info(Dumper($result->toString()));
 
     return 1;
 }
 
 =head2 get_system_information
 
-gets the systems information
+    my $info = get_system_information();
+
+get_system_information returns an object containing information about
+the connected device.
+
+B<Result>
+
+    {
+      host_name     => 'vmx-r0'
+      loopback_addr => '172.16.0.1'
+      model         => 'vmx'
+      os_name       => 'junos'
+      version       => '15.1F6.9'
+    }
 
 =cut
-
 sub get_system_information{
     my $self = shift;
 
@@ -240,7 +320,7 @@ sub get_system_information{
 	$xp->registerNs('j',$path);
 	my $name = trim($xp->findvalue('./j:name'));
 	next if ($name ne 'lo0');
-	
+
 	my $logical_ints = $xp->find('./j:logical-interface');
 	foreach my $log (@{$logical_ints}){
 	    my $log_xp = XML::LibXML::XPathContext->new( $log );
@@ -291,8 +371,52 @@ sub get_system_information{
 
 =head2 get_routed_lsps
 
-=cut
+    my $circuits_to_lsps = get_routed_lsps(
+      table    => 'bgp.l2vpn.0',
+      circuits => {
+        circuit_id => '3025',
+        interfaces => [
+          {
+            'node' => 'vmx-r1.testlab.grnoc.iu.edu',
+            'local' => '1',
+            'mac_addrs' => [],
+            'interface_description' => 'R1 -> R2',
+            'port_no' => undef,
+            'node_id' => '4',
+            'urn' => undef,
+            'interface' => 'ge-0/0/1',
+            'tag' => '300',
+            'role' => 'unknown'
+          }
+        ],
+        a_side => '4',
+        circuit_name => 'admin-5056cdda-f6df-11e7-94cd-fa163e341ea2',
+        site_id => 2,
+        paths => [
+          {
+            dest' => '172.16.0.0',
+            name' => 'PRIMARY',
+            mpls_path_type' => 'loose',
+            dest_node' => '1'
+          }
+        ],
+        ckt_type => 'L2VPN',
+        state => 'active'
+      }
+    );
 
+get_routed_lsps creates a map from circuit_id to an array of
+associated LSPs.
+
+B<Result>
+
+    {
+      '3025' => [
+        'I2-LAB1-LAB0-LSP-0'
+      ]
+    }
+
+=cut
 sub get_routed_lsps{
     my $self = shift;
     my %args = @_;
@@ -313,7 +437,7 @@ sub get_routed_lsps{
         }
     }
     
-    my $reply = $self->{'jnx'}->get_route_information( table => $table );
+    my $reply = $self->{'jnx'}->get_route_information(table => $table);
 
     if($self->{'jnx'}->has_error){
         my $error = $self->{'jnx'}->get_first_error();
@@ -323,6 +447,7 @@ sub get_routed_lsps{
     }
 
     my $dom = $self->{'jnx'}->get_dom();
+
     my $dest_to_lsp = {};
 
     my $path = $self->{'root_namespace'}."junos-routing";
@@ -361,7 +486,6 @@ sub get_routed_lsps{
     my $circuit_to_lsp = {};
 
     foreach my $dest (keys %{$dest_to_lsp}){
-        
         #determine which type it is
         #either the prefix, the route id or the interface name
         #11537:3019:1:1/96
@@ -398,10 +522,25 @@ sub get_routed_lsps{
 
 =head2 get_interfaces
 
-returns a list of current interfaces on the device
+    my $ints = get_interfaces();
+
+get_interfaces gets basic info about each interface on this device.
+
+B<Returns>
+
+    [
+      {
+        'addresses' => [
+          '156.56.6.103'
+        ],
+        'name' => 'ge-0/0/0',
+        'description' => 'Management Interface',
+        'admin_state' => 'up',
+        'operational_state' => 'up'
+      }
+    ]
 
 =cut
-
 sub get_interfaces{
     my $self = shift;
 
@@ -474,10 +613,27 @@ sub _process_interface{
 
 =head2 remove_vlan
 
-removes a vlan via NetConf
+    my $ok = remove_vlan(
+      circuit_id => 1234,
+      ckt_type   => 'L2VPLS',
+      interfaces => [
+        { name => 'ge-0/0/1', tag => 2004 },
+        { name => 'ge-0/0/2', tag => 2004 }
+      ],
+      a_side     => '',            # Optional for L2VPN
+      dest_node  => '127.0.0.2',   # Optional for L2VPN and L2VPLS
+      paths      => [
+        {
+          name      => 'vmx1-r2',  # Optional for L2VPN
+          dest_node => '127.0.0.2' # Optional for L2VPN and L2CCC
+        }
+      ]
+    );
+
+remove_vlan removes a vlan from this device via NetConf. Returns 1 on
+success.
 
 =cut
-
 sub remove_vlan{
     my $self = shift;
     my $ckt = shift;
@@ -496,8 +652,7 @@ sub remove_vlan{
                                         });
     }
     $vars->{'circuit_id'} = $ckt->{'circuit_id'};
-    $vars->{'switch'} = {name => $self->{'name'},
-                         loopback => $self->{'loopback_addr'}};
+    $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
     $vars->{'site_id'} = $ckt->{'site_id'};
     $vars->{'paths'} = $ckt->{'paths'};
     $vars->{'a_side'} = $ckt->{'a_side'};
@@ -505,19 +660,37 @@ sub remove_vlan{
     $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
 
     my $output;
-    my $remove_template = $self->{'tt'}->process( $self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config_delete.xml", $vars, \$output) or $self->{'logger'}->error( $self->{'tt'}->error());
-
-    $self->{'logger'}->error("Remove Config: " . $output);
+    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config_delete.xml", $vars, \$output);
+    if (!$ok) {
+        $self->{'logger'}->error($self->{'tt'}->error());
+    }
 
     return $self->_edit_config( config => $output );
 }
 
 =head2 add_vlan
 
-add a vlan to the juniper
+    my $ok = add_vlan({
+      circuit_name => 'circuit',
+      interfaces => [
+        {
+          interface => 'ge-0/0/1',
+          tag => 2004
+        },
+        {
+          interface => 'ge-0/0/2',
+          tag => 2004
+        }
+      ],
+      paths => [],
+      circuit_id => 3012,
+      site_id => 1,
+      ckt_type => 'L2VPLS'
+    });
+
+add_vlan adds a vlan to this device via NetConf. Returns 1 on success.
 
 =cut
-
 sub add_vlan{
     my $self = shift;
     my $ckt = shift;
@@ -537,11 +710,9 @@ sub add_vlan{
     $vars->{'paths'} = $ckt->{'paths'};
     $vars->{'destination_ip'} = $ckt->{'destination_ip'};
     $vars->{'circuit_id'} = $ckt->{'circuit_id'};
-    $vars->{'switch'} = {name => $self->{'name'},
-			 loopback => $self->{'loopback_addr'}};
+    $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
     $vars->{'site_id'} = $ckt->{'site_id'};
     $vars->{'a_side'} = $ckt->{'a_side'};
-    $self->{'logger'}->error("PATHS: " . Data::Dumper::Dumper($vars->{'paths'}));
     $vars->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
     $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
 
@@ -550,222 +721,18 @@ sub add_vlan{
         return FWDCTL_FAILURE;
     }
 
-    my $ckt_type = $ckt->{'mpls_type'};
-
     my $output;
-    my $add_template = $self->{'tt'}->process( $self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$output) or  $self->{'logger'}->error($self->{'tt'}->error());
+    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$output);
+    if (!$ok) {
+        $self->{'logger'}->error($self->{'tt'}->error());
+        return FWDCTL_FAILURE;
+    }
     
-    $self->{'logger'}->error("ADD config: " . $output);
-    #totally possible our config is now busted :(
-    if(!defined($output)){
+    if (!defined $output) {
         return FWDCTL_FAILURE;
     }
 
     return $self->_edit_config(config => $output);
-}
-
-=head2 get_active_lsp_route
-
-=over 4
-
-=item B<loopback> - Loopback address of the destination node
-
-=item B<table_id> - Name of the routing table to query
-
-=back
-
-Returns the name of the LSP connected to $loopback as defined in $table_id.
-
-    <rpc>
-      <get-route-information>
-        <logical-system>all</logical-system>
-        <table>$table_id</table>
-        <destination>$loopback</destination>
-        <brief/>
-      </get-route-information>
-    </rpc>
-
-=cut
-sub get_active_lsp_route {
-    my $self     = shift;
-    my $loopback = shift;
-    my $table_id = shift;
-
-    if(!$self->connected()){
-        $self->{'logger'}->error("Not currently connected to device");
-        return;
-    }
-
-    my $api       = $self->{'jnx'};
-    my $mgmt_addr = $self->{'mgmt_addr'};
-
-    $api->get_route_information( brief          => '',
-                                 destination    => $loopback,
-                                 logical_system => 'all',
-                                 table          => $table_id );
-    if ($api->has_error) {
-        $self->{'logger'}->error("get_active_lsp_route: " . $api->get_first_error());
-        return undef, 'Could not retreive route information';
-    }
-
-    my $dom = $api->get_dom()->toString();
-    my $response = XMLin($dom);
-
-    if (!defined $response->{'route-information'}) {
-        return undef, 'Could not retreive route information';
-    }
-
-    if (!defined $response->{'route-information'}->{'route-table'}) {
-        return undef, 'Route table was not defined in route-information';
-    }
-
-    my $table = $response->{'route-information'}->{'route-table'};
-    my $hops  = $table->{'rt'}->{'rt-entry'}->{'nh'};
-    my $lsp   = undef;
-
-    if (ref($hops) eq 'HASH') {
-        $lsp = $hops->{'lsp-name'};
-        return $lsp, undef;
-    }
-
-    for my $hop (@{$hops}) {
-        if (!defined $hop->{'selected-next-hop'}) {
-            next;
-        }
-
-        $lsp = $hop->{'lsp-name'};
-        last;
-    }
-
-    if (!defined $lsp) {
-        return undef, 'Could not find a valid lsp-name';
-    }
-
-    return $lsp, undef;
-}
-
-=head2 get_active_lsp_path
-
-=over 4
-
-=item B<lsp> - Name of the LSP we're querying
-
-=back
-
-Returns an array of addresses describing the path taken by traffic on
-$lsp.
-
-    <rpc>
-      <get-mpls-lsp-information>
-        <logical-system>all</logical-system>
-        <regex>$lsp</regex>
-        <detail/>
-      </get-mpls-lsp-information>
-    </rpc>
-
-=cut
-sub get_active_lsp_path {
-    my $self = shift;
-    my $lsp  = shift;
-
-    if(!$self->connected()){
-        $self->{'logger'}->error("Not currently connected to device");
-        return;
-    }
-
-    my $api = $self->{'jnx'};
-
-    $api->get_mpls_lsp_information( detail         => '',
-                                    logical_system => 'all',
-                                    regex          => $lsp );
-    if ($api->has_error) {
-        $self->{'logger'}->error("get_active_lsp_path: " . $api->get_first_error());
-        return undef, 'Could not retreive lsp information';
-    }
-
-    my $dom = $api->get_dom()->toString();
-    my $response = XMLin($dom);
-
-    if (!defined $response->{'mpls-lsp-information'}) {
-        return undef, 'Could not retreive lsp information';
-    }
-
-    if (!defined $response->{'mpls-lsp-information'}->{'rsvp-session-data'}) {
-        return undef, 'Could not find any lsp information';
-    }
-
-    my $path = undef;
-    for my $session (@{$response->{'mpls-lsp-information'}->{'rsvp-session-data'}}) {
-        if (!defined $session->{'rsvp-session'}) {
-            next;
-        }
-
-        my $active_path = $session->{'rsvp-session'}->{'mpls-lsp'}->{'active-path'};
-        if (index($active_path, 'primary') != -1) {
-            $path = $session->{'rsvp-session'}->{'mpls-lsp'}->{'mpls-lsp-path'}->{$lsp . '-primary'}->{'explicit-route'}->{'address'};
-        } else {
-            $path = $session->{'rsvp-session'}->{'mpls-lsp'}->{'mpls-lsp-path'}->{$lsp . '-secondary'}->{'explicit-route'}->{'address'};
-        }
-
-        last;
-    }
-
-    if (!defined $path) {
-        return undef, 'Could not find an mpls-lsp-path';
-    }
-
-    if (! (ref($path) eq 'ARRAY')) {
-        $path = [$path];
-    }
-
-    return ($path, undef);
-}
-
-=head2 get_default_paths
-
-=over 4
-
-=item B<$loopback_addresses> - An array of loopback ip addresses
-
-=back
-
-Determine the default forwarding path between this node and each ip
-address provided in $loopback_addresses.
-
-=cut
-sub get_default_paths {
-    my $self = shift;
-    my $loopback_addresses = shift;
-
-    if(!$self->connected()){
-        $self->{'logger'}->error("Not currently connected to device");
-        return;
-    }
-
-    my $name   = undef;
-    my $path   = undef;
-    my $err    = undef;
-    my $result = {};
-
-    for my $addr (@{$loopback_addresses}) {
-        ($name, $err) = $self->get_active_lsp_route($addr, 'inet.3');
-        if (defined $err) {
-            $self->{'logger'}->debug($err);
-            next;
-        }
-
-        ($path, $err) = $self->get_active_lsp_path($name);
-        if (defined $err) {
-            $self->{'logger'}->debug($err);
-            next;
-        }
-
-	$result->{$addr} = {};
-	$result->{$addr}->{'name'} = $name;
-	$result->{$addr}->{'path'} = $path;
-    }
-
-    return $result;
 }
 
 =head2 xml_configuration( $ckts )
@@ -822,67 +789,11 @@ sub xml_configuration {
     return $configuration;
 }
 
-=head2 get_device_circuit_infos
-
-I do not believe this is used... 
-
-=cut
-sub get_device_circuit_infos {
-    my $self = shift;
-
-    if(!$self->connected()){
-        $self->{'logger'}->error("Not currently connected to device");
-        return;
-    }
-
-    my $result = {};
-
-    my $res = $self->{'jnx'}->get_configuration( database => 'committed', format => 'xml' );
-    if ($self->{'jnx'}->has_error) {
-        my $error = $self->{'jnx'}->get_first_error();
-	$self->set_error($error->{'error_message'});
-        $self->{'logger'}->error("Error getting conf from MX: " . $error->{'error_message'});
-        return;
-    }
-
-    my $dom = $self->{'jnx'}->get_dom();
-    my $interfaces = $dom->getElementsByTagName('interface');
-
-    foreach my $interface (@{$interfaces}) {
-        my $units = $interface->getElementsByTagName('unit');
-        foreach my $unit (@{$units}) {
-            # Based on unit descriptions we can determine if this unit
-            # represents a circuit that should be verified. Units to be
-            # selected are in the form 'OESS <type> <id>'.
-            # Ex.
-            # OESS L2VPN 3006
-
-            my $desc = $unit->getElementsByTagName('description');
-            if ($desc->size() == 0) {
-                next;
-            }
-
-            my $text = $desc->[0]->textContent();
-            if ($text !~ /^OESS/) {
-                # Units with descriptions starting with anything other
-                # than 'OESS' are not circuit related; These may be
-                # manually defined for other purposes, so we ignore.
-                next;
-            }
-
-            my ($oess, $type, $id) = split(/ /, $text);
-            $result->{$id} = { circuit_id => $id, type => $type };
-        }
-    }
-    return $result;
-}
-
 =head2 get_config_to_remove
 
 attempts to find parts of the config to remove, unfortunatly very templates specific
 
 =cut
-
 sub get_config_to_remove{
     my $self = shift;
     my %params = @_;
@@ -1177,103 +1088,6 @@ sub _is_active_circuit{
     
 }
 
-
-=head2 get_device_circuit_ids
-
-this should no longer be used...
-
-=cut
-
-sub get_device_circuit_ids {
-    my $self = shift;
-
-    if(!$self->connected()){
-        $self->{'logger'}->error("Not currently connected to device");
-        return;
-    }
-
-    my $result = [];
-
-    my $res = $self->{'jnx'}->get_configuration( database => 'committed', format => 'xml' );
-    if ($self->{'jnx'}->has_error) {
-        my $error = $self->{'jnx'}->get_first_error();
-	$self->set_error($error->{'error_message'});
-        $self->{'logger'}->error("Error getting conf from MX: " . $error->{'error_message'});
-        return;
-    }
-
-    my $dom = $self->{'jnx'}->get_dom();
-    my $interfaces = $dom->getElementsByTagName('interface');
-
-    foreach my $interface (@{$interfaces}) {
-        my $units = $interface->getElementsByTagName('unit');
-        foreach my $unit (@{$units}) {
-            # Based on unit descriptions we can determine if this unit
-            # represents a circuit that should be verified. Units to be
-            # selected are in the form 'OESS <type> <id>'.
-            # Ex.
-            # OESS L2VPN 3006
-
-            my $desc = $unit->getElementsByTagName('description');
-            if ($desc->size() == 0) {
-                next;
-            }
-
-            my $text = $desc->[0]->textContent();
-            if ($text !~ /^OESS/) {
-                # Units with descriptions starting with anything other
-                # than 'OESS' are not circuit related; These may be
-                # manually defined for other purposes, so we ignore.
-                next;
-            }
-
-            $self->{'logger'}->info("get_device_circuit_ids: $text");
-            my ($oess, $type, $id) = split(/-/, $text);
-            push(@{$result}, $id);
-        }
-    }
-    return $result;
-}
-
-
-=head2 required_modifications
-
-I don't believe this is used...
-
-=cut
-sub required_modifications {
-    my $self = shift;
-    my $circuits = shift;
-    my $circuit_infos = shift;
-
-    if(!$self->connected()){
-        $self->{'logger'}->error("Not currently connected to device");
-        return;
-    }
-
-    my $result = [];
-
-    foreach my $id (keys %{$circuits}) {
-        if (!defined $circuit_infos->{$id}) {
-            my $addition = $circuits->{$id};
-            $addition->{'action'} = 'add';
-
-            push(@{$result}, $addition);
-        }
-    }
-
-    foreach my $id (keys %{$circuit_infos}) {
-        if (!defined $circuits->{$id}) {
-            my $deletion = $circuits->{$id};
-            $deletion->{'action'} = 'delete';
-
-            push(@{$result}, $deletion);
-        }
-    }
-
-    return $result;
-}
-
 =head2 get_device_diff
 
 Returns and stores a human readable diff for display to users.
@@ -1338,7 +1152,7 @@ sub get_device_diff {
     return $self->{'diff_text'};
 }
 
-=head3 _large_diff( $diff )
+=head2 _large_diff( $diff )
 
 Returns 1 if $diff requires manual approval.
 
@@ -1455,8 +1269,11 @@ sub get_diff_text {
 
 =head2 unit_name_available
 
-Returns 0 if the unit name already exists on the specified interface or
-another error occurs; Otherwise 1 is returned for success.
+    my $ok = unit_name_available('ge-0/0/1', 2004);
+
+unit_name_available returns C<1> if the unit is available for
+provisioning. If the unit name already exists on the specified
+interface or another error occurs C<0> is returned.
 
 =cut
 sub unit_name_available {
@@ -1516,6 +1333,8 @@ sub unit_name_available {
 
 =head2 connect
 
+    my $ok = connect();
+
 Returns 1 if a new connection is established. If the connection is
 already established this function will also return 1. Otherwise an error
 has occured and 0 is returned.
@@ -1564,16 +1383,29 @@ sub connect {
     my $ATTRIBUTE = bless {}, 'ATTRIBUTE';
     my $TOGGLE = bless { 1 => 1 }, 'TOGGLE';
 
-    $self->{'jnx'}->{'methods'}->{'get_configuration'} = { format   => $ATTRIBUTE,
-                                                           compare  => $ATTRIBUTE,
-                                                           changed  => $ATTRIBUTE,
-                                                           database => $ATTRIBUTE,
-                                                           rollback => $ATTRIBUTE };
+    $self->{'jnx'}->{'methods'}->{'get_configuration'} = {
+        format   => $ATTRIBUTE,
+        compare  => $ATTRIBUTE,
+        changed  => $ATTRIBUTE,
+        database => $ATTRIBUTE,
+        rollback => $ATTRIBUTE
+    };
 
     $self->{'jnx'}->{'methods'}->{'get_mpls_lsp_information'} = {
         detail    => $TOGGLE,
         extensive => $TOGGLE,
     };
+
+    $self->{'jnx'}->{'methods'}->{'open_configuration'} = {private => $TOGGLE};
+
+    $self->{'jnx'}->{'methods'}->{'commit_configuration'} = {
+        check       => $TOGGLE,
+        synchronize => $TOGGLE
+    };
+
+    $self->{'jnx'}->{'methods'}->{'get_isis_adjacency_information'} = {detail => $TOGGLE};
+
+    $self->{'jnx'}->{'methods'}->{'close_configuration'} = {};
 
     $self->{'logger'}->info("Connected to device!");
     return 1;
@@ -1582,39 +1414,32 @@ sub connect {
 
 =head2 connected
 
-returns the state if the device is currently connected or not
+    my $state = connected();
+
+connected returns 1 if the device is currently connected.
 
 =cut
-
 sub connected {
     my $self = shift;
 
-    return 0 if(!defined($self->{'jnx'}));
-		
-    if (defined $self->{'jnx'}->{'conn_obj'} && $self->{'jnx'}->has_error) {
-        my $error = $self->{'jnx'}->get_first_error();
-        $self->{'logger'}->error("Error: " . $error->{'error_message'});
-    }
-
-    if(defined($self->{'jnx'}->{'conn_obj'})){
-	$self->{'logger'}->debug("Connection state is up");
-	return 1;
-    }else{
+    if (!defined $self->{'jnx'} || !defined $self->{'jnx'}->{'conn_obj'}) {
 	$self->{'logger'}->warn("Connection state is down");
 	return 0;
     }
+
+    return 1;
 }
 
 
 =head2 verify_connection
 
-    verify the connection
+    my $ok = verify_connection();
+
+verify_connection gathers basic system information and checks the
+device is running a supported software version.
 
 =cut
-
 sub verify_connection{
-    #gather basic system information needed later, and make sure it is what we expected / are prepared to handle
-    #
     my $self = shift;
 
     if(!$self->connected()){
@@ -1636,23 +1461,36 @@ sub verify_connection{
 
 =head2 get_isis_adjacencies
 
-    returns the current isis adjacencies on the box
+    my $adjs = get_isis_adjacencies();
+
+get_isis_adjacencies returns a list of ISIS adjacencies.
+
+B<Returns>
+
+    [
+      {
+        'interface_name' => 'ae1',
+        'remote_system_name' => 'vmx-r3',
+        'ip_address' => '172.16.0.19',
+        'ipv6_address' => 'fe80::205:8600:285c:d9c0',
+        'operational_state' => 'Up'
+      },
+      {
+        'interface_name' => 'ge-0/0/1',
+        'remote_system_name' => 'vmx-r1',
+        'ip_address' => '172.16.0.16',
+        'ipv6_address' => 'fe80::206:a00:1e0e:fff5',
+        'operational_state' => 'Up'
+      }
+    ]
 
 =cut
-
 sub get_isis_adjacencies{
     my $self = shift;
 
     if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return;
-    }
-
-    $self->{'logger'}->error("INSIDE GET_ISIS_ADJACENCIES");
-    
-    if(!defined($self->{'jnx'}->{'methods'}->{'get_isis_adjacency_information'})){
-	my $TOGGLE = bless { 1 => 1 }, 'TOGGLE';
-	$self->{'jnx'}->{'methods'}->{'get_isis_adjacency_information'} = { detail => $TOGGLE};
     }
 
     $self->{'jnx'}->get_isis_adjacency_information( detail => 1 );
@@ -1697,10 +1535,59 @@ sub _process_isis_adj{
 
 =head2 get_LSPs
 
-returns the current MPLS LSPs on the box
+    my $lsps = get_LSPs();
+
+get_LSPs returns all MPLS LSPs on this device. Returns an empty array
+if none are found or an error occurs.
+
+B<Returns>
+
+    [{
+      sessions => [{
+        'destination-address' => '172.16.0.6',
+        'name' => 'I2-LAB0-MX960-1-LSP-6',
+        'lsp-type' => 'Static Configured',
+        'lsp-state' => 'Up',
+        'description' => '',
+        'paths' => [
+          {
+            'path-state' => 'Up',
+            'explicit-route' => {
+              'explicit-route-type' => '',
+              'addresses' => [
+                '172.16.0.13',
+                '172.16.0.17',
+                '172.16.0.19',
+                '172.16.0.31'
+              ]
+            },
+            'name' => 'I2-LAB0-MX960-1-LSP-6-primary',
+            'setup-priority' => '0',
+            'smart-optimize-timer' => '',
+            'path-active' => '',
+            'received-rro' => 'Received RRO (ProtectionFlag 1=Available 2=InUse 4=B/W 8=Node 10=SoftPreempt 20=Node-ID):
+      172.16.0.13 172.16.0.17 172.16.0.19 172.16.0.31',
+            'title' => 'Primary',
+            'hold-priority' => '0'
+          }
+        ],
+        'egress-label-operation' => 'Penultimate hop popping',
+        'active-path' => 'I2-LAB0-MX960-1-LSP-6-primary (primary)',
+        'route-count' => '0',
+        'revert-timer' => '600',
+        'source-address' => '172.16.0.0',
+        'load-balance' => 'random',
+        'attributes' => {
+          'encoding-type' => 'Packet',
+          'switching-type' => '',
+          'gpid' => ''
+        }
+      }],
+      session_type => 'Ingress',
+      count => '1'
+    }]
 
 =cut
-
 sub get_LSPs{
     my $self = shift;
 
@@ -1709,18 +1596,18 @@ sub get_LSPs{
         return;
     }
 
-    $self->{'jnx'}->get_mpls_lsp_information( detail => 1);
+    $self->{'jnx'}->get_mpls_lsp_information(detail => 1);
     my $xml = $self->{'jnx'}->get_dom();
     $self->{'logger'}->debug("get_mpls_lsp_information: " . $xml->toString());
     my $xp = XML::LibXML::XPathContext->new( $xml);
     $xp->registerNs('x',$xml->documentElement->namespaceURI);
-    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    $xp->registerNs('j', $self->{'root_namespace'} . 'junos-routing');
     my $rsvp_session_data = $xp->find('/x:rpc-reply/j:mpls-lsp-information/j:rsvp-session-data');
     
     my @LSPs;
 
     foreach my $rsvp_sd (@{$rsvp_session_data}){
-	push(@LSPs,_process_rsvp_session_data($rsvp_sd));
+	push(@LSPs, $self->_process_rsvp_session_data($rsvp_sd));
     }
 
     return \@LSPs;
@@ -1728,10 +1615,24 @@ sub get_LSPs{
 
 =head2 get_lsp_paths
 
-implementation of OESS::MPLS::Device::get_lsp_paths
+    my $paths = get_lsp_paths();
+
+get_lsp_paths returns a map of LSP to an array of IP addresses; Each
+array indicates the links of the LSP. An empty hash will be returned
+if no LSPs are found or even if a failure occurs.
+
+B<Returns>
+
+    {
+      'I2-LAB0-MX960-1-LSP-6' => [
+        '172.16.0.13',
+        '172.16.0.17',
+        '172.16.0.19',
+        '172.16.0.31'
+      ]
+    }
 
 =cut
-
 sub get_lsp_paths{
     my $self = shift;
 
@@ -1766,17 +1667,17 @@ sub get_lsp_paths{
             }
         }
     }
-
     return $lsp_routes;
 }
 
 sub _process_rsvp_session_data{
+    my $self = shift;
     my $rsvp_sd = shift;
     
     my $obj = {};
 
     my $xp = XML::LibXML::XPathContext->new( $rsvp_sd);
-    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    $xp->registerNs('j', $self->{'root_namespace'} . 'junos-routing');
     $obj->{'session_type'} = trim($xp->findvalue('./j:session-type'));
     $obj->{'count'} = trim($xp->findvalue('./j:count'));
     $obj->{'sessions'} = ();
@@ -1786,19 +1687,19 @@ sub _process_rsvp_session_data{
     if($obj->{'session_type'} eq 'Ingress'){
 	
 	foreach my $session (@{$rsvp_sessions}){
-	    push(@{$obj->{'sessions'}}, _process_rsvp_session_ingress($session));
+	    push(@{$obj->{'sessions'}}, $self->_process_rsvp_session_ingress($session));
 	}
 	
     }elsif($obj->{'session_type'} eq 'Egress'){
 
 	foreach my $session (@{$rsvp_sessions}){
-            push(@{$obj->{'sessions'}}, _process_rsvp_session_egress($session));
+            push(@{$obj->{'sessions'}}, $self->_process_rsvp_session_egress($session));
         }
 
     }else{
 	
 	foreach my $session (@{$rsvp_sessions}){
-            push(@{$obj->{'sessions'}}, _process_rsvp_session_transit($session));
+            push(@{$obj->{'sessions'}}, $self->_process_rsvp_session_transit($session));
         }
 
     }
@@ -1807,12 +1708,13 @@ sub _process_rsvp_session_data{
 }
 
 sub _process_rsvp_session_transit{
+    my $self = shift;
     my $session = shift;
 
     my $obj = {};
 
     my $xp = XML::LibXML::XPathContext->new( $session );
-    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    $xp->registerNs('j', $self->{'root_namespace'} . 'junos-routing');
     $obj->{'name'} = trim($xp->findvalue('./j:name'));
     $obj->{'route-count'} = trim($xp->findvalue('./j:route-count'));
     $obj->{'description'} = trim($xp->findvalue('./j:description'));
@@ -1838,7 +1740,7 @@ sub _process_rsvp_session_transit{
     my $pkt_infos = $xp->find('./j:packet-information');
     $obj->{'packet-information'} = ();
     foreach my $pkt_info (@$pkt_infos){
-	push(@{$obj->{'packet-information'}}, _process_packet_info($pkt_info));
+	push(@{$obj->{'packet-information'}}, $self->_process_packet_info($pkt_info));
     }
 
 
@@ -1853,11 +1755,12 @@ sub _process_rsvp_session_transit{
 }
 
 sub _process_packet_info{
+    my $self = shift;
     my $pkt_info = shift;
     my $obj = {};
 
     my $xp = XML::LibXML::XPathContext->new( $pkt_info );
-    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    $xp->registerNs('j', $self->{'root_namespace'} . 'junos-routing');
 
     my $prev_hops = $xp->find('./j:previous-hop');
     if($prev_hops->size() > 0){
@@ -1888,12 +1791,13 @@ sub _process_packet_info{
 }
 
 sub _process_rsvp_session_egress{
+    my $self = shift;
     my $session = shift;
 
     my $obj = {};
 
     my $xp = XML::LibXML::XPathContext->new( $session );
-    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    $xp->registerNs('j', $self->{'root_namespace'} . 'junos-routing');
     $obj->{'name'} = trim($xp->findvalue('./j:name'));
     $obj->{'route-count'} = trim($xp->findvalue('./j:route-count'));
     $obj->{'description'} = trim($xp->findvalue('./j:description'));
@@ -1919,7 +1823,7 @@ sub _process_rsvp_session_egress{
     my $pkt_infos = $xp->find('./j:packet-information');
     $obj->{'packet-information'} = ();
     foreach my $pkt_info (@$pkt_infos){
-        push(@{$obj->{'packet-information'}}, _process_packet_info($pkt_info));
+        push(@{$obj->{'packet-information'}}, $self->_process_packet_info($pkt_info));
     }
 
     my $record_routes = trim($xp->find('./j:record-route/j:address'));
@@ -1935,12 +1839,13 @@ sub _process_rsvp_session_egress{
 
 
 sub _process_rsvp_session_ingress{
+    my $self = shift;
     my $session = shift;
     
     my $obj = {};
 
     my $xp = XML::LibXML::XPathContext->new( $session );
-    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    $xp->registerNs('j', $self->{'root_namespace'} . 'junos-routing');
     $obj->{'name'} = trim($xp->findvalue('./j:mpls-lsp/j:name'));
     $obj->{'description'} = trim($xp->findvalue('./j:mpls-lsp/j:description'));
     $obj->{'destination-address'} = trim($xp->findvalue('./j:mpls-lsp/j:destination-address'));
@@ -1961,17 +1866,18 @@ sub _process_rsvp_session_ingress{
     my $paths = $xp->find('./j:mpls-lsp/j:mpls-lsp-path');
     
     foreach my $path (@$paths){
-	push(@{$obj->{'paths'}}, _process_lsp_path($path));
+	push(@{$obj->{'paths'}}, $self->_process_lsp_path($path));
     }
 
     return $obj;
 }
 
 sub _process_lsp_path{
+    my $self = shift;
     my $path = shift;
 
     my $xp = XML::LibXML::XPathContext->new( $path );
-    $xp->registerNs('j',"http://xml.juniper.net/junos/13.3R1/junos-routing");
+    $xp->registerNs('j', $self->{'root_namespace'} . 'junos-routing');
     
     my $obj = {};
 
@@ -2006,8 +1912,6 @@ sub _edit_config{
     my $self = shift;
     my %params = @_;
 
-    $self->{'logger'}->debug("Sending the following config: " . $params{'config'});
-
     if(!defined($params{'config'})){
         my $err = "No Configuration specified!";
         $self->set_error($err);
@@ -2036,9 +1940,8 @@ sub _edit_config{
     );
 
     eval {
-        $self->{'logger'}->info("Editing config: " . $queryargs{'config'});
+        $self->{'logger'}->info("Calling edit_config: " . $queryargs{'config'});
         $self->{'jnx'}->edit_config(%queryargs);
-        $self->{'logger'}->debug("Edit complete!");
 
         my $dom = $self->{'jnx'}->get_dom()->toString();
         my $response = XMLin($dom);
@@ -2082,17 +1985,17 @@ sub _edit_config{
     if ($self->{'jnx'}->has_error) {
         my $error = $self->{'jnx'}->get_first_error();
         if ($error->{'error_message'} !~ /uncommitted/) {
-            my $err = "Error attempting to edit config: " . $error->{'error_message'};
-            $self->set_error($err);
-            $self->{'logger'}->error($err);
+            my $lvl = $error->{'error_severity'};
+            my $msg = $error->{'error_message'};
 
-            # Normally we would unlock and return failure here, but
-            # warnings are considered errors by this netconf lib. We
-            # must ensure that we handle error severity levels
-            # correctly before we add this block back in.
-            #
-            # $self->unlock();
-            # return FWDCTL_FAILURE;
+            if ($lvl eq 'warning') {
+                $self->{'logger'}->warn($msg);
+            } else {
+                # error-severity of 'error' is considered fatal
+                $self->{'logger'}->error($msg);
+                $self->unlock();
+                return FWDCTL_FAILURE;
+            }
         }
     }
 

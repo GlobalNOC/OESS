@@ -114,10 +114,6 @@ sub new{
     
     die if(!defined($self->{'rmq_client'}));
 
-    # set up some sequence numbers so path detection handles out-of-order responses sanely
-#    $self->{'path_sequence'} = 0;
-#    $self->{'path_node_latest'} = {};
-
     #setup the timers
     $self->{'device_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->device_handler(); });
     $self->{'int_timer'} = AnyEvent->timer( after => 60, interval => 120, cb => sub { $self->int_handler(); });
@@ -339,7 +335,6 @@ sub int_handler{
 =head2 path_handler
 
 =cut
-
 sub path_handler {
 
     my $self = shift;
@@ -353,9 +348,6 @@ sub path_handler {
         $self->{'logger'}->error("path_handler: Could not get current nodes.");
         return 0;
     }
-
-#    my $curr_path_sequence = $self->{'path_sequence'};
-#    $self->{'path_sequence'} += 1;
 
     # Map from circuit ID to the list of LSPs associated with the circuit
     my %circuit_lsps;
