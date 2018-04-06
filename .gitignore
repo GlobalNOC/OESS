@@ -39,3 +39,7 @@ perl-lib/OESS/lib/OESS/Collector
 perl-lib/OESS/lib/OESS/Collector.pm
 etc/packer-config/output-virtualbox-iso/
 etc/packer-config/packer_cache/
+perl-lib/OESS/blib/
+perl-lib/OESS/cover_db/
+perl-lib/OESS/pm_to_blib
+perl-lib/OESS/tap/
