@@ -887,7 +887,7 @@ sub get_config_to_remove{
 			my ($int_name,$unit_name) = split('.',$name);
 			$self->{'logger'}->debug("Checking to see if port: $name is part of circuit: $circuit_id");
 			if(!$self->_is_circuit_on_port($circuit_id, $circuits, $int_name, $unit_name)){
-			    $ri_dels .= "<instance><name>$name</name><protocols><l2vpn><site><name>$site_name</name><interface operation='delete'><name>$int_full_name</name></interface></site></l2vpn></protocols></instance>";
+                            $ri_dels .= "<instance><name>$name</name><protocols><l2vpn><site operation='delete'><name>$site_name</name></site></l2vpn></protocols></instance>";
 			}
 		    }
 		}
