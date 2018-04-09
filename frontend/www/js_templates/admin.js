@@ -235,6 +235,12 @@ function makeConfigTable(div_id) {
     table.subscribe("rowClickEvent", table.onEventSelectRow);
     table.subscribe("rowClickEvent", rowClickHandler);
 
+    ds.setInterval(15000, null, {
+        success: table.onDataReturnInitializeTable,
+        failure: function() {},
+        scope:   table
+    });
+
     return table;
 }
 
