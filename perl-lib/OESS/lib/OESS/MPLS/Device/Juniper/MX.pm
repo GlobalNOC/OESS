@@ -68,7 +68,18 @@ sub new{
     $self->{'username'} = $creds->{'username'};
     $self->{'password'} = $creds->{'password'};
 
+    $self->{'supported_firmware'} = $self->_get_supported_firmware();
     return $self;
+}
+
+=head2 _get_firmware
+
+=cut
+sub _get_supported_firmware {
+    my $self = shift;
+
+    my $xml = XMLin('/etc/oess/firmware.xml');
+    return $xml->{version};
 }
 
 =head2 disconnect
@@ -1448,15 +1459,14 @@ sub verify_connection{
     }
 
     my $sysinfo = $self->get_system_information();
-    if (($sysinfo->{"os_name"} eq "junos") && ($sysinfo->{"version"} eq "13.3R1.6" || $sysinfo->{"version"} eq '15.1F6-S6.4' || $sysinfo->{"version"} eq '15.1F6.9' || $sysinfo->{"version"} eq '15.1F6-S7.2' || $sysinfo->{version} eq '15.1I20171208_1648_amahale')){
-	# print "Connection verified, proceeding\n";
-	return 1;
+    foreach my $fw (@{$self->{'supported_firmware'}}) {
+        if ($sysinfo->{'os_name'} eq $fw->{'make'} && $sysinfo->{'model'} eq $fw->{'model'} && $sysinfo->{'version'} eq $fw->{'number'}) {
+            return 1;
+        }
     }
-    else {
-	$self->{'logger'}->error("Network OS and / or version $sysinfo->{'version'} not supported");
-	return 0;
-    }
-    
+
+    $self->{'logger'}->error("Network OS $sysinfo->{'os_name'} version $sysinfo->{'version'} on the $sysinfo->{'model'} is not supported.");
+    return 0;
 }
 
 =head2 get_isis_adjacencies
