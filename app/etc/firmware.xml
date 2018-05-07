@@ -1,0 +1,7 @@
+<firmware>
+  <version make="junos" model="mx960" number="13.3R1.6" />
+  <version make="junos" model="vmx"   number="15.1F6.9" />
+  <version make="junos" model="mx960" number="15.1F6-S6.4" />
+  <version make="junos" model="mx960" number="15.1F6-S7.2" />
+  <version make="junos" model="mx960" number="15.1I20171208_1648_amahale" />
+</firmware>

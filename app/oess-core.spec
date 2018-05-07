@@ -95,6 +95,7 @@ rm -rf $RPM_BUILD_ROOT
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT/etc/cron.d/
 
 %{__install} etc/logging.conf $RPM_BUILD_ROOT%{_sysconfdir}/oess/
+%{__install} etc/firmware.xml $RPM_BUILD_ROOT%{_sysconfdir}/oess/
 %{__install} etc/watchdog.conf $RPM_BUILD_ROOT%{_sysconfdir}/oess/
 %{__install} etc/nddi-dbus.conf $RPM_BUILD_ROOT%{_sysconfdir}/dbus-1/system.d/
 %{__install} etc/nsi.conf.example $RPM_BUILD_ROOT%{_sysconfdir}/oess/nsi.conf
@@ -153,6 +154,7 @@ rm -rf $RPM_BUILD_ROOT
 %config(noreplace) %{_sysconfdir}/oess/nsi.conf
 %config(noreplace) /etc/cron.d/nddi-scheduler.cron
 %config(noreplace) %{_sysconfdir}/oess/logging.conf
+%config(noreplace) %{_sysconfdir}/oess/firmware.xml
 %config(noreplace) %{_sysconfdir}/oess/watchdog.conf
 %doc
 
