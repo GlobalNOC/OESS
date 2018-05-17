@@ -746,6 +746,92 @@ sub add_vlan{
     return $self->_edit_config(config => $output);
 }
 
+=head2 add_vrf
+
+=cut
+
+sub add_vrf{
+    my $self = shift;
+    my $vrf = shift;
+
+    if(!$self->connected()){
+        return FWDCTL_FAILURE;
+    }
+
+    my $vars = {};
+    $vars->{'vrf_name'} = $vrf->{'vrf_name'};
+    $vars->{'interfaces'} = [];
+    foreach my $i (@{$vrf->{'interfaces'}}) {
+	
+	my @bgp;
+	foreach $bgp (@{$i->{'bgp'}}){
+	    push(@bgp, { asn => $bgp->{'asn'},
+			 peer_ip => $bgp->{'peer_ip'},
+			 auth_key => $bgp->{'auth_key'}
+		 });
+	}
+
+        push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
+                                          tag  => $i->{'tag'},
+					  bgp => \@bgp
+	      });
+    }
+    $vars->{'vrf_id'} = $ckt->{'vrf_id'};
+    $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
+
+    if ($self->unit_name_available($vars->{'interface'}->{'name'}, $vars->{'vlan_tag'}) == 0) {
+        $self->{'logger'}->error("Unit $vars->{'vlan_tag'} is not available on $vars->{'interface'}->{'name'}");
+        return FWDCTL_FAILURE;
+    }
+
+    my $output;
+    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vars, \$output);
+    if (!$ok) {
+        $self->{'logger'}->error($self->{'tt'}->error());
+        return FWDCTL_FAILURE;
+    }
+
+    if (!defined $output) {
+        return FWDCTL_FAILURE;
+    }
+
+    return $self->_edit_config(config => $output);
+}
+
+
+=head2 remove_vrf
+
+=cut
+
+sub remove_vrf{
+    my $self = shift;
+    my $vrf = shift;
+
+    if(!$self->connected()){
+        $self->{'logger'}->error("Not currently connected to device");
+        return FWDCTL_FAILURE;
+    }
+
+    my $vars = {};
+    $vars->{'vrf_name'} = $ckt->{'vrf_name'};
+    $vars->{'interfaces'} = [];
+    foreach my $i (@{$ckt->{'interfaces'}}) {
+        push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
+                                          tag  => $i->{'tag'}
+	      });
+    }
+    $vars->{'vrf_id'} = $ckt->{'vrf_id'};
+    $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
+
+    my $output;
+    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config_delete.xml", $vars, \$output);
+    if (!$ok) {
+        $self->{'logger'}->error($self->{'tt'}->error());
+    }
+
+    return $self->_edit_config( config => $output );
+}
+
 =head2 xml_configuration( $ckts )
 
 Returns configuration as an xml string based on $ckts, which is an array of

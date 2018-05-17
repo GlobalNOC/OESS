@@ -155,6 +155,7 @@ sub build_cache{
 
     #init our objects
     my %ckts;
+    my %vrfs;
     my %circuit_status;
     my %link_status;
     my %node_info;
@@ -185,6 +186,19 @@ sub build_cache{
             $link_status{$link->{'name'}} = OESS_LINK_UNKNOWN;
         }
     }
+
+    my $vrfs = $db->get_current_vrfs();
+
+    foreach my $vrf_id (@$vrfs){
+	$logger->error("Updating Cache for VRF: " . $vrf_id);
+	
+	my $vrf = OESS::VRF->new( db => $db,
+				  vrf_id => $vrf_id);
+
+	$vrfs{ $vrf->get_id() } = $vrf;
+	
+    }
+
         
     my $nodes = $db->get_current_nodes(type => 'mpls');
     foreach my $node (@$nodes) {
@@ -201,7 +215,7 @@ sub build_cache{
 	$node_info{$node->{'name'}} = $details;
     }
 
-    return {ckts => \%ckts, circuit_status => \%circuit_status, link_status => \%link_status, node_info => \%node_info};
+    return {ckts => \%ckts, circuit_status => \%circuit_status, link_status => \%link_status, node_info => \%node_info, vrfs => \%vrfs};
 
 }
 
@@ -232,6 +246,40 @@ sub _write_cache{
 
     my %switches;
 
+    foreach my $vrf_id (keys (%{$self->{'vrf'}})){
+	my $vrf = $self->get_vrf_object($vrf_id);
+
+	my $eps = $vrf->get_endpoints();
+	
+	my @ints;
+	foreach my $ep (@$eps){
+	    my @bgp;
+	    foreach my $bgp (@{$ep->{'bgp'}}){
+		push(@bgp, { local_ip => $bgp->{'local_ip'},
+			     peer_ip => $bgp->{'peer_ip'},
+			     asn => $bgp->{'asn'},
+			     key => $bgp->{'key'}});
+	    }
+	    
+	    my $int_obj = { name => $ep->{'int_name'},
+			    tag => $ep->{'tag'},
+			    bgp => \@bgp };
+	    
+	    
+	    if(defined($switches{$ep->{'node'}})){
+		push(@{$switches{$ep->{'node'}}->{'vrf'}{$vrf_id}{'interfaces'}}, $int_obj); 
+	    }else{
+		$switches{$ep->{'node'}}->{'vrf'}{$vrf_id} = { name => $vrf->get_name(),
+							       vrf_id => $vrg->get_id(),
+							       interfaces => [$int_obj],
+							       prefix_limit => $vrf->get_prefix_limit(),
+							       local_asn => $vrf->local_asn(),
+							       
+		}	
+	    }
+	}
+    }
+    
     foreach my $ckt_id (keys (%{$self->{'circuit'}})){
         my $found = 0;
         next if $self->{'circuit'}->{$ckt_id}->{'type'} ne 'mpls';
@@ -267,7 +315,7 @@ sub _write_cache{
 	    my $paths = [];
             my $touch = {};
 
-	    if(defined($switches{$ep_a->{'node'}}->{$details->{'circuit_id'}})){
+	    if(defined($switches{$ep_a->{'node'}}->{'ckts'}{$details->{'circuit_id'}})){
 		next;
 	    }
 
@@ -359,7 +407,7 @@ sub _write_cache{
                         state  => $ckt->{'state'}
                       };
 	    
-	    $switches{$ep_a->{'node'}}->{$details->{'circuit_id'}} = $obj;
+	    $switches{$ep_a->{'node'}}->{'ckts'}{$details->{'circuit_id'}} = $obj;
 	}
     }
 
@@ -571,6 +619,7 @@ sub update_cache {
 
         my $res = build_cache(db => $self->{'db'}, logger => $self->{'logger'});
         $self->{'circuit'} = $res->{'ckts'};
+	$self->{'vrfs'} = $res->{'vrfs'};
         $self->{'link_status'} = $res->{'link_status'};
         $self->{'circuit_status'} = $res->{'circuit_status'};
         $self->{'node_info'} = $res->{'node_info'};
