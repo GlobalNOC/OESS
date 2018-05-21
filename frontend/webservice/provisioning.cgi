@@ -1,5 +1,4 @@
-#!/usr/bin/perl -T 
-#
+#!/usr/bin/perl
 
 
 
@@ -63,26 +62,26 @@ $| = 1;
 
 sub main {
     
-    if ( !$db ) {
-        send_json( { "error" => "Unable to connect to database." } );
-        exit(1);
-    }
+     if ( !$db ) {
+         send_json( { "error" => "Unable to connect to database." } );
+         exit(1);
+     }
 
-    if (!defined $mq ) {
-        send_json( { "error" => "Unable to connect to RabbitMQ." } );
-        exit(1);
-    }
+     if (!defined $mq ) {
+         send_json( { "error" => "Unable to connect to RabbitMQ." } );
+         exit(1);
+     }
 
-    if ( !$svc ){
-	send_json( {"error" => "Unable to access GRNOC::WebService" });
-	exit(1);
-    }
+     if ( !$svc ){
+         send_json( {"error" => "Unable to access GRNOC::WebService" });
+         exit(1);
+     }
     
-    my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
-    if ($user->{'status'} eq 'decom') {
-        send_json("error");
-	exit(1);
-    }
+     my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
+     if ($user->{'status'} eq 'decom') {
+         send_json("error");
+         exit(1);
+     }
 
     #register the WebService Methods
     register_webservice_methods();
@@ -421,7 +420,7 @@ sub register_webservice_methods {
 	name            => "provision_vrf",
 	description     => "Provisions a VRF (L3VPN) on the network",
 	callback        => sub {  provision_vrf ( @_ ) }
-	);
+    );
     
     $method->add_input_parameter(
 	name            => 'vrf_id',
@@ -431,46 +430,54 @@ sub register_webservice_methods {
         );
     
     $method->add_input_parameter(
+        name            => 'name',
+        pattern         => $GRNOC::WebService::Regex::NAME_ID,
+        required        => 1,
+        description     => "The workgroup_id with permission to build the vrf, the user must be a member of this workgroup."
+        );
+
+    $method->add_input_parameter(
         name            => 'workgroup_id',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 1,
         description     => "The workgroup_id with permission to build the vrf, the user must be a member of this workgroup."
         );
-
+    
     #add the required input parameter description
     $method->add_input_parameter(
-	name            => 'description',
-	pattern         => $GRNOC::WebService::Regex::TEXT,
-	required        => 1,
-	description     => "The description of the circuit."
-	);
-
-
-    $method->add_input_parameter(
-        name            => 'endpoints',
+        name            => 'description',
         pattern         => $GRNOC::WebService::Regex::TEXT,
         required        => 1,
+        description     => "The description of the circuit."
+        );
+    
+    
+    $method->add_input_parameter(
+        name            => 'endpoint',
+        pattern         => $GRNOC::WebService::Regex::TEXT,
+        required        => 1,
+	multiple        => 1,
         description     => "The JSON blob describing all of the endpoints"
         );
-
+    
     $method->add_input_parameter(
         name            => 'local_asn',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
-	required        => 1,
+        required        => 1,
         description     => "The JSON blob describing all of the endpoints"
-	);
+        );
     
     $method->add_input_parameter(
-	name            => 'prefix_limit',
-	pattern         => $GRNOC::WebService::Regex::INTEGER,
-	required        => 0,
-	default         => 1000,
-	description     => "Maximum prefix limit size for BGP peer routes"
-	);
-
+        name            => 'prefix_limit',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        default         => 1000,
+        description     => "Maximum prefix limit size for BGP peer routes"
+        );
+    
     $svc->register_method($method);
-
-}
+    
+ }
 
 sub _fail_over {
     my %args = @_;
@@ -719,14 +726,10 @@ sub _send_update_cache{
     return $result->{'results'}->{'status'};
 }
 
-=head2 provision_vrf
-
-=cut
-
 sub provision_vrf {
     my ($method, $args) = @_;
     my $results;
-
+    
     my $start = [gettimeofday];
     
     $results->{'results'} = [];
@@ -734,31 +737,44 @@ sub provision_vrf {
     my $workgroup_id = $args->{'workgroup_id'}{'value'};
     my $vrf_id = $args->{'vrf_id'}{'value'} || undef;
     my $description = $args->{'description'}{'value'};
-    
+    my $name = $args->{'name'}{'value'};
     my $provision_time = $args->{'provision_time'}{'value'};
     my $remove_time = $args->{'provision_time'}{'value'};
-    
+    my $prefix_limit = $args->{'prefix_limit'}{'value'};
     my $endpoints = $args->{'endpoint'}{'value'};
-
+    
     my $user_id = $db->get_user_id_by_auth_name(auth_name => $ENV{'REMOTE_USER'});
-
+    
     my $user = $db->get_user_by_id(user_id => $user_id)->[0];
+
     if ($user->{'type'} eq 'read-only') {
         warn "You are a read-only user and unable to provision.";
         $method->set_error("You are a read-only user and unable to provision.");
         return;
     }
-
+    
     my @nodes;
     my @interfaces;
     my @vlans;
+    
+    my @endpoints;
+    foreach my $ep (@$endpoints){
+	warn "Endpoints: $ep\n";
+	eval{
+	    my $decoded = decode_json($ep);
+	    warn Dumper($decoded);
+	    push(@endpoints, $decoded);
+	};
 
-    foreach my $endpoint (@$endpoints){
-	push(@nodes, $endpoint->{'node'});
-	push(@interfaces, $endpoint->{'interface'});
-	push(@vlans, $endpoint->{'tag'});
     }
 
+    foreach my $endpoint (@endpoints){
+        push(@nodes, $endpoint->{'node'});
+        push(@interfaces, $endpoint->{'interface'});
+        push(@vlans, $endpoint->{'tag'});
+    }
+    
+    warn Dumper(@endpoints);
 
     #yes I know this is not a circuit, however the same permissions exist!
     #so we can validate the circuit is valid (ie... we have all the permissions)
@@ -776,48 +792,68 @@ sub provision_vrf {
         return;
     }
 
+     if(!defined($vrf_id) || $vrf_id == -1){
+         #create new VRF
 
-    if(!defined($vrf_id) || $vrf_id == -1){
-	#create new VRF
+         #first create the initial VRF record
+         $db->_start_transaction();
 
-	#first create the initial VRF record
-	$db->_start_transaction();
-	
-	my $vrf_id = $db->_execute_query("insert into vrf (name, description, workgroup_id, created, created_by, last_modified, last_modified_by, status) VALUES (?,?,?,unix_timestamp(now()), ?, unix_timestamp(now()), ?, 'active')",[$name, $description,$workgroup_id, $user_id, $user_id]);
-	if(!defined($vrf_id)){
-	    $method->set_error("Unable to create VRF");
-	    $db->_rollback();
-	    return;
-	}
+	 #warn Dumper($name);
+	 #warn Dumper($description);
+	 #warn Dumper($workgroup_id);
+	 #warn Dumper($user_id);
 
-	foreach my $endpoint (@$endpoints){
-	    my $vrf_ep_id = $db->_execute_query("insert into vrf_ep (interface_id, tag, bandwidth, vrf_id, state) VALUES (?,?,?,?,?)",[$int_id, $vlan, $bandwidth, $vrf_id, 'active']);
+         my $vrf_id = $db->_execute_query("insert into vrf (name, description, workgroup_id, created, created_by, last_modified, last_modified_by, state) VALUES (?,?,?,unix_timestamp(now()), ?, unix_timestamp(now()), ?, 'active')", [$name, $description,$workgroup_id, $user_id, $user_id]);
+         if(!defined($vrf_id)){
+             my $error = $db->get_error();
+             $method->set_error("Unable to create VRF: " . $error);
+             $db->_rollback();
+             return;
+         }
 
-	    if(!defined($vrf_ep_id)){
-		$method->set_error("Unable to add VRF Endpoint");
-		$db->_rollback();
-		return;
-	    }
+         foreach my $ep (@endpoints){
+             my $interface_id = $db->get_interface_id_by_names( interface => $ep->{'interface'}, node => $ep->{'node'} );
 
-	    foreach my $bgp (@{$endpoint->{'bgp'}}){
-		my $res = $db->_execute_query("insert into vrf_ep_peer (vrf_ep_id, peer_ip, local_ip, remote_as, state) VALUES (?,?,?,?,?)",[$vrf_ep_id, $peer_ip, $local_ip, $remote_as, 'active']);
-		if(!defined($res)){
-		    $method->set_error("Uanble to add VRF Endpoint peer");
-		    $db->_rollback();
-		    return;
-		}
-	    }
-	}
+             if(!defined($interface_id)){
+                 $db->_rollback();
+                 $method->set_error("Unable to find interface: " . $ep->{'interface'} . " on node " . $ep->{'node'});
+                 return;
+             }
 
-	$db->_commit();
+             if(!defined($ep->{'tag'}) || !defined($ep->{'bandwidth'})){
+                 $db->_rollback();
+                 $method->set_error("VRF Endpoints require both VLAN and Bandwidth fields to be specified");
+                 return;
+             }
 
-	push(@{$results->{'results'}},{success => 1, vrf_id => $vrf_id});
 
-    }else{
-	#edit existing VRF
-	
-    }
-
+             my $vrf_ep_id = $db->_execute_query("insert into vrf_ep (interface_id, tag, bandwidth, vrf_id, state) VALUES (?,?,?,?,?)",[$interface_id, $ep->{'tag'}, $ep->{'bandwidth'}, $vrf_id, 'active']);
+             if(!defined($vrf_ep_id)){
+                 my $error = $db->get_error();
+         	$method->set_error("Unable to add VRF Endpoint: " . $error);
+         	$db->_rollback();
+         	return;
+             }
+             
+             foreach my $bgp (@{$ep->{'peerings'}}){
+                 my $res = $db->_execute_query("insert into vrf_ep_peer (vrf_ep_id, peer_ip, local_ip, remote_as, md5_key, state) VALUES (?,?,?,?,?,?)",[$vrf_ep_id, $bgp->{'peer_ip'}, $bgp->{'local_ip'}, $bgp->{'asn'}, $bgp->{'key'}, 'active']);
+                 if(!defined($res)){
+                     my $error = $db->get_error();
+                     $method->set_error("Uanble to add VRF Endpoint peer: " . $error);
+                     $db->_rollback();
+                     return;
+                 }
+             }
+         }
+         
+         $db->_commit();
+         
+         push(@{$results->{'results'}},{success => 1, vrf_id => $vrf_id});
+         
+     }else{
+         #edit existing VRF
+         
+     }
 }
 
 =head2 provision_circuit

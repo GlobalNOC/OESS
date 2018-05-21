@@ -635,12 +635,12 @@ sub _generate_static_mac_path_flows{
                             if(! $in_port->{'is_endpoint'} ){
                                 #this is the link -> ep rule
                                 #it was generated in the one above... ignore it now
-                                push(@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{$path}}, $flow);
+                                #push(@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{$path}}, $flow);
                             }else{
                                 #this is ep -> ep rule
                                 #don't dupe this because it doesn't change this is s1:p1 to s1:p2 and vise versa
                                 if($path eq 'primary'){
-                                    push(@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{$path}},$flow);
+                                 #   push(@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{$path}},$flow);
                                 }
                             }
 			}
