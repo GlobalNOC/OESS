@@ -767,10 +767,15 @@ sub add_vrf{
 	
 	my @bgp;
 	foreach my $bgp (@{$i->{'peers'}}){
+            #strip off the cidr
+            #192.168.1.0/24
+            my $peer_ip = $bgp->{'peer_ip'};
+            $peer_ip =~ s/\/\d+//g;
+
 	    push(@bgp, { asn => $bgp->{'asn'},
 			 local_ip => $bgp->{'local_ip'},
-                         peer_ip => $bgp->{'peer_ip'},
-			 key => $bgp->{'auth_key'}
+                         peer_ip => $peer_ip,
+			 key => $bgp->{'key'}
 		 });
 	}
 

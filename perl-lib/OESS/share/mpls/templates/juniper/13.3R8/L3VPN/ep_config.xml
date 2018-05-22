@@ -67,14 +67,14 @@
 	      <as-number>55038</as-number>
 	    </local-as>
 	    [% FOREACH interface IN interfaces %]
-	      [% FOREACH bgp in interface.peers %]
+	      [% FOREACH peer in interface.peers %]
 	    <neighbor>
-	      <name>[% bgp.peer_ip %]</name>
-	      <description>OESS-L3VPN-[% vrf_id %] -[% description %]</description>
+	      <name>[% peer.peer_ip %]</name>
+	      <description>OESS-L3VPN-[% vrf_id %]</description>
 	      <import>OESS-L3VPN-[% vrf_id %]-IN</import>
-	      <authentication-key>[% bgp.key %]</authentication-key>
+	      <authentication-key>[% peer.key %]</authentication-key>
 	      <export>OESS-L3VPN-[% vrf_id %]-OUT</export>
-	      <peer-as>[% bgp.asn %]></peer-as>
+	      <peer-as>[% peer.asn %]</peer-as>
 	    </neighbor>
 	      [% END %]
 	    [% END %]
@@ -85,7 +85,7 @@
   </routing-instances>
   <policy-options>
     <policy-statement>
-      <name>OESS-L3VPN-[% vrf_id %]</name>
+      <name>OESS-L3VPN-[% vrf_id %]-EXPORT</name>
       <term>
 	<name>direct</name>
 	<from>
@@ -119,7 +119,24 @@
 	</then>
       </term>
     </policy-statement>
-
+    <policy-statement>
+      <name>OESS-L3VPN-[% vrf_id %]-IMPORT</name>
+      <term>
+        <name>import</name>
+        <from>
+          <community>OESS-L3VPN-[% vrf_id %]</community>
+        </from>
+        <then>
+          <accept/>
+        </then>
+      </term>
+      <term>
+        <name>reject</name>
+        <then>
+          <reject/>
+        </then>
+      </term>
+    </policy-statement>
     <policy-statement>
       <name>OESS-L3VPN-[% vrf_id %]-IN</name>
       <term>
@@ -146,7 +163,6 @@
 	</then>
       </term>
     </policy-statement>
-
     <policy-statement>
       <name>OESS-L3VPN-[% vrf_id %]-OUT</name>
       <term>
@@ -178,7 +194,6 @@
 	</then>
       </term>
     </policy-statement>
-
     <community>
       <name>OESS-L3VPN-[% vrf_id %]</name>
       <members>target:55038:[% vrf_id %]</members>
@@ -188,5 +203,4 @@
       <members>55038:[% vrf_id %]</members>
     </community>
   </policy-options>
-
 </configuration>

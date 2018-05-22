@@ -265,8 +265,8 @@ sub _write_cache{
 	    foreach my $bgp (@{$ep->{'peers'}}){
 		push(@bgp, { local_ip => $bgp->{'local_ip'},
 			     peer_ip => $bgp->{'peer_ip'},
-			     asn => $bgp->{'asn'},
-			     key => $bgp->{'key'}});
+			     asn => $bgp->{'peer_asn'},
+			     key => $bgp->{'md5_key'}});
 	    }
 	    
 	    my $int_obj = { name => $ep->{'name'},
