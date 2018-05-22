@@ -841,8 +841,8 @@ sub _generate_loopback_endpoint_flows {
 #                     {'output' => $e->{'port_no'}}
 #                 ]
 #            );
-            push(@{$self->{'flows'}->{'endpoint'}->{'primary'}}, $to_endpoint);
-            push(@{$self->{'flows'}->{'endpoint'}->{'backup'}},  $to_endpoint);
+#            push(@{$self->{'flows'}->{'endpoint'}->{'primary'}}, $to_endpoint);
+#            push(@{$self->{'flows'}->{'endpoint'}->{'backup'}},  $to_endpoint);
         }
     }
 }
@@ -1064,10 +1064,10 @@ sub generate_clr{
     $clr .= "Last Modified By: " . $self->{'details'}->{'last_modified_by'}->{'given_names'} . " " . $self->{'details'}->{'last_modified_by'}->{'family_name'} . " at " . $self->{'details'}->{'last_edited'} . "\n\n";
     $clr .= "Endpoints: \n";
 
-    foreach my $endpoint (@{$self->get_endpoints()}){
-        if ($endpoint->{'tag'} == OESS::FlowRule::UNTAGGED ){ $endpoint->{'tag'} = 'Untagged'; }
-	$clr .= "  " . $endpoint->{'node'} . " - " . $endpoint->{'interface'} . " VLAN " . $endpoint->{'tag'} . "\n";
-    }
+#    foreach my $endpoint (@{$self->get_endpoints()}){
+#        if ($endpoint->{'tag'} == OESS::FlowRule::UNTAGGED ){ $endpoint->{'tag'} = 'Untagged'; }
+#	$clr .= "  " . $endpoint->{'node'} . " - " . $endpoint->{'interface'} . " VLAN " . $endpoint->{'tag'} . "\n";
+#    }
 
     my $active = $self->get_active_path();
     if ($active eq 'tertiary') {

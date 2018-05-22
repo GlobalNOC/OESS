@@ -91,6 +91,15 @@ sub new{
     return $self;
 }
 
+=head2 get_prefix_limit
+
+=cut
+
+sub get_prefix_limit{
+    my $self = shift;
+    return 1000;
+}
+
 =head2 get_id
 
     returns the id of the circuit
@@ -131,9 +140,6 @@ sub _load_vrf_details{
     $self->_get_vrf_details( vrf_id => $self->{'vrf_id'});
 }
 
-
-
-
 sub _get_vrf_details{
     my $self = shift;
     my %params = @_;
@@ -157,7 +163,7 @@ sub _get_vrf_details{
     $self->{'details'}->{'workgroup'} = $workgroup;
     
     #find endpoints 
-    $res = $self->{'db'}->_execute_query("select * from vrf_ep where vrf_id = ? and status = ?", [$vrf_id, $status]);
+    $res = $self->{'db'}->_execute_query("select vrf_ep.*, node.name as node, interface.name as int_name from vrf_ep join interface on interface.interface_id = vrf_ep.interface_id join node on node.node_id = interface.node_id where vrf_id = ? and state = ?", [$vrf_id, $status]);
     if(!defined($res) || !defined($res->[0])){
         $self->{'logger'}->error("Error fetching VRF endpoints");
         return;
@@ -166,7 +172,7 @@ sub _get_vrf_details{
     $self->{'endpoints'} = ();
 
     foreach my $ep (@$res){
-	my $bgp_res = $self->{'db'}->_execute_query("select * from vrf_ep_peer where vrf_ep_id = ? and status = ?",[$ep->{'vrf_ep_id'}, $status]);
+	my $bgp_res = $self->{'db'}->_execute_query("select * from vrf_ep_peer where vrf_ep_id = ? and state = ?",[$ep->{'vrf_ep_id'}, $status]);
 	if(!defined($bgp_res) || !defined($bgp_res->[0])){
 	    $bgp_res = ();
 	}
@@ -178,16 +184,20 @@ sub _get_vrf_details{
 	}
 
 
-	my $int = $self->db->get_interface( interface_id => $ep->{'int_id'});
+	my $int = $self->{'db'}->get_interface( interface_id => $ep->{'interface_id'});
 	
 	$int->{'tag'} = $ep->{'tag'};
+        $int->{'node'} = $ep->{'node'};
+        $int->{'node_id'} = $ep->{'node_id'};
 	$int->{'bandwidth'} = $ep->{'bandwidth'};
-	$int->{'status'} = $ep->{'status'};
+	$int->{'state'} = $ep->{'state'};
 	$int->{'vrf_ep_id'} = $ep->{'vrf_ep_id'};
-	$int->{'bgp_peers'} = \@bgp;
+	$int->{'peers'} = \@bgp;
 	
 	push(@{$self->{'endpoints'}}, $int);
-    }   
+    }
+
+    $self->{'details'}->{'endpoints'} = $self->{'endpoints'};
     
 }
 
@@ -207,6 +217,15 @@ sub on_node {
     }
 
     return 0;
+}
+
+=head2 local_asn
+
+=cut
+
+sub local_asn{
+    my $self = shift;
+    return $self->{'details'}->{'local_asn'};
 }
 
 
@@ -912,6 +931,15 @@ sub get_path_status{
     
     return 1;
 
+}
+
+=head2 state
+
+=cut
+
+sub state{
+    my $self = shift;
+    return $self->{'details'}->{'state'};
 }
 
 =head2 error

@@ -758,29 +758,36 @@ sub add_vrf{
         return FWDCTL_FAILURE;
     }
 
+    $self->{'logger'}->error("VRF: " . Dumper($vrf));
+
     my $vars = {};
-    $vars->{'vrf_name'} = $vrf->{'vrf_name'};
+    $vars->{'vrf_name'} = $vrf->{'name'};
     $vars->{'interfaces'} = [];
     foreach my $i (@{$vrf->{'interfaces'}}) {
 	
 	my @bgp;
-	foreach $bgp (@{$i->{'bgp'}}){
+	foreach my $bgp (@{$i->{'peers'}}){
 	    push(@bgp, { asn => $bgp->{'asn'},
-			 peer_ip => $bgp->{'peer_ip'},
-			 auth_key => $bgp->{'auth_key'}
+			 local_ip => $bgp->{'local_ip'},
+                         peer_ip => $bgp->{'peer_ip'},
+			 key => $bgp->{'auth_key'}
 		 });
 	}
 
-        push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
+        push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
                                           tag  => $i->{'tag'},
-					  bgp => \@bgp
+                                          bandwidth => $i->{'bandwidth'},
+					  peers => \@bgp
 	      });
     }
-    $vars->{'vrf_id'} = $ckt->{'vrf_id'};
+    $vars->{'vrf_id'} = $vrf->{'vrf_id'};
     $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
+    $vars->{'prefix_limit'} = $vrf->{'prefix_limit'};
 
-    if ($self->unit_name_available($vars->{'interface'}->{'name'}, $vars->{'vlan_tag'}) == 0) {
-        $self->{'logger'}->error("Unit $vars->{'vlan_tag'} is not available on $vars->{'interface'}->{'name'}");
+    $self->{'logger'}->error("VARS: " . Dumper($vars));
+
+    if ($self->unit_name_available($vars->{'interface'}->{'name'}, $vars->{'tag'}) == 0) {
+        $self->{'logger'}->error("Unit $vars->{'tag'} is not available on $vars->{'interface'}->{'name'}");
         return FWDCTL_FAILURE;
     }
 
@@ -813,14 +820,14 @@ sub remove_vrf{
     }
 
     my $vars = {};
-    $vars->{'vrf_name'} = $ckt->{'vrf_name'};
+    $vars->{'vrf_name'} = $vrf->{'vrf_name'};
     $vars->{'interfaces'} = [];
-    foreach my $i (@{$ckt->{'interfaces'}}) {
+    foreach my $i (@{$vrf->{'interfaces'}}) {
         push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
                                           tag  => $i->{'tag'}
 	      });
     }
-    $vars->{'vrf_id'} = $ckt->{'vrf_id'};
+    $vars->{'vrf_id'} = $vrf->{'vrf_id'};
     $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
 
     my $output;

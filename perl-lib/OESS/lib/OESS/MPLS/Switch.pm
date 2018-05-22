@@ -358,15 +358,15 @@ sub _update_cache {
         $self->{'ckts'}->{$ckt} = $data->{'ckts'}->{$ckt};
     }
 
-    foreach my $vrf (keys %{$data->{'vrfs'}}){
+    foreach my $vrf (keys %{$self->{'vrfs'}}){
 	delete $self->{'vrfs'}->{$vrf};
     }
 
     foreach my $vrf (keys %{$data->{'vrfs'}}) {
         $self->{'logger'}->debug("Processing cache for vrf $vrf");
 
-        $data->{'vrfs'}->{$vrf}->{'vrf_id'} = $ckt;
-        $self->{'vrfs'}->{$ckt} = $data->{'vrf'}->{$ckt};
+        $data->{'vrfs'}->{$vrf}->{'vrf_id'} = $vrf;
+        $self->{'vrfs'}->{$vrf} = $data->{'vrfs'}->{$vrf};
     }
     
 
@@ -481,11 +481,11 @@ sub add_vrf{
 
     my $vrf = $p_ref->{'vrf_id'}{'value'};
 
-    $self->{'logger'}->debug("Calling add_vrf: " . $vrf);
+    $self->{'logger'}->error("Calling add_vrf: " . $vrf);
 
     $self->_update_cache();
 
-    my $vrf_obj = $self->_generate_commands( $vrf );
+    my $vrf_obj = $self->_generate_vrf_commands( $vrf );
 
     return $self->{'device'}->add_vrf($vrf_obj);
 }
@@ -508,7 +508,7 @@ sub remove_vrf{
 
     $self->_update_cache();
 
-    my $vrf_obj = $self->_generate_commands( $vrf );
+    my $vrf_obj = $self->_generate_vrf_commands( $vrf );
 
     my $res = $self->{'device'}->remove_vrf($vrf_obj);
     $self->{'logger'}->debug("after remove vrf");
@@ -641,6 +641,15 @@ sub _generate_commands{
 
     my $obj = $self->{'ckts'}->{$ckt_id};
     $obj->{'circuit_id'} = $ckt_id;
+    return $obj;
+}
+
+sub _generate_vrf_commands{
+    my $self = shift;
+    my $vrf_id = shift;
+
+    my $obj = $self->{'vrfs'}->{$vrf_id};
+    $obj->{'vrf_id'} = $vrf_id;
     return $obj;
 }
 

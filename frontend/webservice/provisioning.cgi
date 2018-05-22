@@ -39,6 +39,7 @@ use Time::HiRes qw(usleep);
 use OESS::Database;
 use OESS::Topology;
 use OESS::Circuit;
+use OESS::VRF;
 use Time::HiRes qw(gettimeofday tv_interval);
 use GRNOC::WebService;
 
@@ -508,6 +509,37 @@ sub _fail_over {
     return $result;
 }
 
+sub _send_vrf_add_command{
+    my %args = @_;
+
+    if (!defined $mq) {
+        return;
+    } else {
+        $mq->{'topic'} = 'MPLS.FWDCTL.RPC';
+    }    
+
+    my $vrf_id = $args{'vrf_id'};
+    my $cv = AnyEvent->condvar;
+
+    warn "_send_vrf_add_command: Calling addVrf on vrf $vrf_id";
+    $mq->addVrf(vrf_id => int($vrf_id), async_callback => sub {
+        my $result = shift;
+        $cv->send($result);
+                });
+
+    my $result = $cv->recv();
+
+    if (defined $result->{'error'} || !defined $result->{'results'}){
+        warn '_send_vrf_add_command: Could not complete rabbitmq call to addVrf. Received no event_id';
+        if (defined $result->{'error'}) {
+            warn '_send_mpls_vrf_command: ' . $result->{'error'};
+        }
+        return undef;
+    }
+
+    return $result->{'results'}->{'status'};
+}
+
 sub _send_mpls_add_command {
     my %args = @_;
 
@@ -836,7 +868,8 @@ sub provision_vrf {
              }
              
              foreach my $bgp (@{$ep->{'peerings'}}){
-                 my $res = $db->_execute_query("insert into vrf_ep_peer (vrf_ep_id, peer_ip, local_ip, remote_as, md5_key, state) VALUES (?,?,?,?,?,?)",[$vrf_ep_id, $bgp->{'peer_ip'}, $bgp->{'local_ip'}, $bgp->{'asn'}, $bgp->{'key'}, 'active']);
+                 warn Dumper($bgp);
+                 my $res = $db->_execute_query("insert into vrf_ep_peer (vrf_ep_id, peer_ip, local_ip, peer_asn, md5_key, state) VALUES (?,?,?,?,?,?)",[$vrf_ep_id, $bgp->{'peer_ip'}, $bgp->{'local_ip'}, $bgp->{'asn'}, $bgp->{'key'}, 'active']);
                  if(!defined($res)){
                      my $error = $db->get_error();
                      $method->set_error("Uanble to add VRF Endpoint peer: " . $error);
@@ -848,12 +881,24 @@ sub provision_vrf {
          
          $db->_commit();
          
-         push(@{$results->{'results'}},{success => 1, vrf_id => $vrf_id});
+         my $vrf = OESS::VRF->new( vrf_id => $vrf_id, db => $db);
+         if(!defined($vrf)){
+             push(@{$results->{'results'}},{success => 0, vrf_id => $vrf_id});
+             return $results;
+         }
+
+         my $res = _send_vrf_add_command( vrf_id => $vrf_id);
+         
+
+         push(@{$results->{'results'}},{success => $res, vrf_id => $vrf_id});
          
      }else{
          #edit existing VRF
          
      }
+
+    return $results;
+
 }
 
 =head2 provision_circuit
