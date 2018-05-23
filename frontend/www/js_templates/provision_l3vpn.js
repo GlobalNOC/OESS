@@ -242,7 +242,7 @@ async function submitPrivateNetworkForm(form) {
           epoints.push(e);
       });
   
-  let resp = await provisionVRF(
+  return await provisionVRF(
     session.data.workgroup_id,
     elements['description'].value,
     elements['description'].value,
@@ -251,10 +251,4 @@ async function submitPrivateNetworkForm(form) {
     removeTime,
     -1
   );
-
-  if (typeof resp.success !=== undefined && resp.success === 1) {
-      return true;
-  }
-
-  return false;
 }
