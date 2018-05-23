@@ -213,32 +213,48 @@ function submitEndpointSelectionModal(form) {
   $('#modal1').modal('hide');
 }
 
-function submitPrivateNetworkForm(form) {
+async function submitPrivateNetworkForm(form) {
   let elements = form.elements;
 
-  let req = {
-    circuit_id:     -1,
-    description:    elements['description'].value,
-    endpoints:      [],
-    provision_time: -1,
-    oessPeerIP:     elements['oess-peer-ip'].value,
-    remove_time:    -1,
-    workgroup_id:   session.data.workgroup_id
-  };
-
+  let provisionTime = -1;
   if (elements['provision-time'].value === 'later') {
     let date = new Date(elements['provision-time-picker'].value);
-    req.provision_time = date.getTime();
+    provisionTime = date.getTime();
   }
 
+  let removeTime = -1;
   if (elements['remove-time'].value === 'later') {
     let date = new Date(elements['remove-time-picker'].value);
-    req.remove_time = date.getTime();
+    removeTime = date.getTime();
   }
 
   let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
-  endpoints.forEach(function(endpoint) { req.endpoints.push(endpoint); });
+  console.log(endpoints);
+
+  let epoints   = [];
+  endpoints.forEach(function(e) {
+          e.peerings = [{
+              asn: e.bgpASN,
+              key: e.bgpKey,
+              oessPeerIP: elements['oess-peer-ip'].value,
+              yourPeerIP: e.peerIP
+          }];
+          epoints.push(e);
+      });
   
-  // TODO - Generate POST to create private network
-  console.log(req);
+  let resp = await provisionVRF(
+    session.data.workgroup_id,
+    elements['description'].value,
+    elements['description'].value,
+    epoints,
+    provisionTime,
+    removeTime,
+    -1
+  );
+
+  if (typeof resp.success !=== undefined && resp.success === 1) {
+      return true;
+  }
+
+  return false;
 }
