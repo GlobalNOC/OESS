@@ -159,6 +159,16 @@ sub main{
 			       $breadcrumbs        = $ADD_BREADCRUMBS;
 			       $current_breadcrumb = "Scheduling";	    
 	                     }
+        case "provision_l3vpn" {
+            $title              = "New private network";
+            $filename           = "html_templates/provision_l3vpn.html";
+            $current_breadcrumb = "New private network";
+            $breadcrumbs        = [
+                {title => "Workgroups",          url => "?action=workgroups"},
+                {title => "Home",                url => "?action=index"},
+                {title => "New private network", url => "#"}
+            ];
+        }
 	case "provisioning"  { $filename           = "html_templates/provisioning.html";
 			       $title              = "Provisioning";
 			       $breadcrumbs        = $ADD_BREADCRUMBS;
