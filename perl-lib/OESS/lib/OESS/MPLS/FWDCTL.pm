@@ -464,6 +464,18 @@ sub _register_rpc_methods{
                                   pattern => $GRNOC::WebService::Regex::INTEGER);
 
     $d->register_method($method);
+
+    $method = GRNOC::RabbitMQ::Method->new( name => "delVrf",
+                                            async => 1,
+                                            callback => sub { $self->delVrf(@_) },
+                                            description => "remove a VRF to the network that exists in OESS DB");
+
+    $method->add_input_parameter( name => "vrf_id",
+                                  description => "the vrf ID to add",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);
+
+    $d->register_method($method);
     
     $method = GRNOC::RabbitMQ::Method->new( name => "deleteVlan",
                                             async => 1,
@@ -864,6 +876,111 @@ sub addVrf{
 
         $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
         $self->{'fwdctl_events'}->add_vrf(
+            vrf_id => $vrf_id,
+            async_callback => sub {
+                my $res = shift;
+
+                if($res->{'results'}->{'status'} != FWDCTL_SUCCESS){
+                    $self->{'logger'}->error("Switch " . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . " reported an error.");
+                    $err .= "Switch : " . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . " reported an error";
+                }
+                $cv->end();
+            });
+    }
+
+    $cv->end();
+}
+
+=head2 delVrf
+
+=cut
+
+sub delVrf{
+    my $self = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+    my $state_ref = shift;
+
+    $self->{'logger'}->error("delVrf: Removing VRF!");
+
+    my $success = $m_ref->{'success_callback'};
+    my $error = $m_ref->{'error_callback'};
+
+    my $vrf_id = $p_ref->{'vrf_id'}{'value'};
+
+    $self->{'logger'}->error("delVrf: VRF ID required") && $self->{'logger'}->logconfess() if(!defined($vrf_id));
+    $self->{'logger'}->info("delVrf: MPLS delVrf: $vrf_id");
+
+    my $vrf = $self->get_vrf_object( $vrf_id );
+    if(!defined($vrf)){
+        my $err = "delVrf: Couldn't load vrf object";
+        $self->{'logger'}->error($err);
+        return &$error($err);
+    }
+
+    $vrf->update_vrf_details();
+    if($vrf->state() eq 'decom'){
+        my $err = "delVrf: removing a decom'd vrf is not allowed";
+        $self->{'logger'}->error($err);
+        return &$error($err);
+    }
+
+    $self->_write_cache();
+
+    #get all the DPIDs involved and remove the flows
+    my $endpoints = $vrf->get_endpoints();
+    my %nodes;
+    foreach my $ep (@$endpoints){
+        $self->{'logger'}->error("EP: " . Dumper($ep));
+        $self->{'logger'}->error("delVrf: Node: " . $ep->{'node'} . " is involved in the vrf");
+        $nodes{$ep->{'node'}}= 1;
+    }
+
+    my $result = FWDCTL_SUCCESS;
+
+    if ($vrf->state() eq "deploying" || $vrf->state() eq "scheduled") {
+        $self->{'logger'}->error("delVrf: Wrong circuit state was encountered");
+        
+        my $state = $vrf->state();
+        $self->{'logger'}->error($self->{'db'}->get_error());
+    }
+
+
+    $self->{'logger'}->info("removing VRF.");
+
+    my $cv  = AnyEvent->condvar;
+    my $err = '';
+
+    $cv->begin( sub {
+        if ($err ne '') {
+            foreach my $node (keys %nodes){
+                my $node_id = $self->{'node_info'}->{$node}->{'id'};
+                my $node_addr = $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
+                
+                $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $node_addr;
+                $self->{'fwdctl_events'}->remove_vrf(vrf_id => $vrf_id,
+                                                     async_callback => sub {
+                                                         $self->{'logger'}->error("Removed VRF from $node_addr.");
+                                                     });
+            }
+            
+            $self->{'logger'}->error("Failed to remove VRF.");
+            return &$error($err);
+        }
+        
+        $self->{'logger'}->info("Added VRF.");
+        return &$success({status => $result});
+                });
+    
+    foreach my $node (keys %nodes){
+        $cv->begin();
+
+        $self->{'logger'}->error("Getting ready to remove VRF: " . $vrf->get_id() . " to switch: " . $node);
+
+        my $node_id = $self->{'node_info'}->{$node}->{'id'};
+
+        $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
+        $self->{'fwdctl_events'}->remove_vrf(
             vrf_id => $vrf_id,
             async_callback => sub {
                 my $res = shift;

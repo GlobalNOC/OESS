@@ -476,7 +476,56 @@ sub register_webservice_methods {
         description     => "Maximum prefix limit size for BGP peer routes"
         );
     
+    $method->add_input_parameter(
+        name            => 'provision_time',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        default         => -1,
+        description     => "time to provision -1 = now and unix timestamp for any other time"
+        );
+
+    $method->add_input_parameter(
+        name            => 'remove_time',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        default         => -1,
+        description     => "defaults to -1 for never otherwise takes a unix timestamp",
+        );
+
     $svc->register_method($method);
+
+    #remove_vrf
+    $method = GRNOC::WebService::Method->new(
+        name            => "remove_vrf",
+        description     => "removes a VRF (L3VPN) from the network",
+        callback        => sub {  remove_vrf ( @_ ) }
+        );
+
+    $method->add_input_parameter(
+        name            => 'vrf_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        description     => "If editing an existing VRF specify the ID otherwise leave blank for new VRF."
+        );
+
+    $method->add_input_parameter(
+        name            => 'workgroup_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        description     => "If editing an existing VRF specify the ID otherwise leave blank for new VRF."
+        );
+
+    $method->add_input_parameter(
+        name            => 'remove_time',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        default         => -1,
+        description     => "defaults to -1 for now otherwise takes a unix timestamp",
+        );
+
+    $svc->register_method($method);
+
+
     
  }
 
@@ -507,6 +556,37 @@ sub _fail_over {
     }
 
     return $result;
+}
+
+sub _send_vrf_rem_command{
+    my %args = @_;
+
+    if (!defined $mq) {
+        return;
+    } else {
+        $mq->{'topic'} = 'MPLS.FWDCTL.RPC';
+    }
+
+    my $vrf_id = $args{'vrf_id'};
+    my $cv = AnyEvent->condvar;
+
+    warn "_send_vrf_rm_command: Calling delVrf on vrf $vrf_id";
+    $mq->delVrf(vrf_id => int($vrf_id), async_callback => sub {
+        my $result = shift;
+        $cv->send($result);
+                });
+
+    my $result = $cv->recv();
+
+    if (defined $result->{'error'} || !defined $result->{'results'}){
+        warn '_send_vrf_rem_command: Could not complete rabbitmq call to delVrf. Received no event_id';
+        if (defined $result->{'error'}) {
+            warn '_send_mpls_vrf_command: ' . $result->{'error'};
+        }
+        return undef;
+    }
+
+    return $result->{'results'}->{'status'};
 }
 
 sub _send_vrf_add_command{
@@ -756,6 +836,45 @@ sub _send_update_cache{
     }
 
     return $result->{'results'}->{'status'};
+}
+
+sub remove_vrf {
+    my ($method, $args) = @_;
+    my $results;
+
+    my $start = [gettimeofday];
+
+    $results->{'results'} = [];
+
+    my $workgroup_id = $args->{'workgroup_id'}{'value'};
+    my $vrf_id = $args->{'vrf_id'}{'value'} || undef;
+    my $remove_time = $args->{'provision_time'}{'value'};
+
+    my $user_id = $db->get_user_id_by_auth_name(auth_name => $ENV{'REMOTE_USER'});
+
+    my $user = $db->get_user_by_id(user_id => $user_id)->[0];
+
+    if ($user->{'type'} eq 'read-only') {
+        warn "You are a read-only user and unable to provision.";
+        $method->set_error("You are a read-only user and unable to provision.");
+        return;
+    }
+
+    my $vrf = OESS::VRF->new( vrf_id => $vrf_id, db => $db);
+    if(!defined($vrf)){
+        push(@{$results->{'results'}},{success => 0, vrf_id => $vrf_id});
+        return $results;
+    }
+
+    if($vrf->{'state'} ne 'active'){
+        push(@{$results->{'results'}},{success => 0, vrf_id => $vrf_id, error => "VRF is not active, unable to remove"});
+        return $results;
+    }
+
+    my $res = _send_vrf_rem_command( vrf_id => $vrf_id);
+    
+    push(@{$results->{'results'}},{success => $res, vrf_id => $vrf_id});    
+    return $results;
 }
 
 sub provision_vrf {

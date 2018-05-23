@@ -13,28 +13,32 @@
 
   <routing-instances>
     <instance operation='delete'>
-      <name>OESS-L3VPN-[% l3vpn_id %]</name>
+      <name>OESS-L3VPN-[% vrf_id %]</name>
     </instance>
   </routing-instances>
 
   <policy-options>
     <policy-statement operation='delete'>
-      <name>OESS-L3VPN-[% l3vpn_id %]</name>
+      <name>OESS-L3VPN-[% vrf_id %]-IMPORT</name>
     </policy-statement>
 
     <policy-statement operation='delete'>
-      <name>OESS-L3VPN-[% l3vpn_id %]-IN</name>
+      <name>OESS-L3VPN-[% vrf_id %]-EXPORT</name>
     </policy-statement>
 
     <policy-statement operation='delete'>
-      <name>OESS-L3VPN-[% l3vpn_id %]-OUT</name>
+      <name>OESS-L3VPN-[% vrf_id %]-IN</name>
+    </policy-statement>
+
+    <policy-statement operation='delete'>
+      <name>OESS-L3VPN-[% vrf_id %]-OUT</name>
     </policy-statement>
 
     <community operation='delete'>
-      <name>OESS-L3VPN-[% l3vpn_id %]</name>
+      <name>OESS-L3VPN-[% vrf_id %]</name>
     </community>
     <community operation='delete'>
-      <name>OESS-L3VPN-[% l3vpn_id %]-BGP</name>
+      <name>OESS-L3VPN-[% vrf_id %]-BGP</name>
     </community>
   </policy-options>
 
