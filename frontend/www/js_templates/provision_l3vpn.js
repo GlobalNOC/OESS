@@ -112,7 +112,7 @@ function removeFromEndpointSelectionTable(index) {
   loadEndpointSelectionTable();
 }
 
-/* loadEndpointSelectionModal
+/** loadEndpointSelectionModal
  *
  * loadEndpointSelectionModal populates endpoint-select-form based on
  * 'endpoints' in sessionStorage indexed at index. If index is -1 or
@@ -128,23 +128,33 @@ async function loadEndpointSelectionModal(node, index=-1) {
     endpoint = endpoints[index];
     await loadEndpointSelectionInterfaces(node);
   }
-  console.log(endpoint);
 
   let header   = document.getElementById('endpoint-select-header');
   header.innerHTML = endpoint.node || node;
 
   let elements = document.getElementById('endpoint-select-form').elements;
-  elements['endpoint-select-bandwidth'].value    = endpoint.bandwidth || null;
-  elements['endpoint-select-bgp-asn'].value      = endpoint.bgpASN    || null;
-  elements['endpoint-select-bgp-key'].value      = endpoint.bgpKey    || null;
-  elements['endpoint-select-interface'].value    = endpoint.interface || null;
-  elements['endpoint-select-node'].value         = endpoint.node      || node;
-  elements['endpoint-select-your-peer-ip'].value = endpoint.peerIP    || null;
-  elements['endpoint-select-vlan'].value         = endpoint.tag       || null;
-  elements['endpoint-select-id'].value           = index; // Index of endpoint in sessionStorage
+  elements['endpoint-select-bandwidth'].value = endpoint.bandwidth || null;
+  elements['endpoint-select-interface'].value = endpoint.interface || null;
+  elements['endpoint-select-node'].value      = endpoint.node      || node;
+  elements['endpoint-select-vlan'].value      = endpoint.tag       || null;
+  elements['endpoint-select-id'].value        = index; // Index of endpoint in sessionStorage
 }
 
-/* loadEndpointSelectionTable
+async function loadPeeringSelectionModal(endpointIndex, peeringIndex) {
+
+    $('#peering-select-cancel').click(function(){
+            $('#modal2').modal('hide');
+        });
+
+    $('#peering-select-form').click(function(){
+            event.preventDefault();
+            $('#modal2').modal('hide');
+        });
+
+    $('#modal2').modal('show');
+}
+
+/** loadEndpointSelectionTable
  * 
  * loadEndpointSelectionTable re-populates endpoint-selection-table
  * from scratch based on 'endpoints' in sessionStorage; Direct
@@ -156,45 +166,96 @@ function loadEndpointSelectionTable() {
   let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
   let table = document.getElementById('endpoint-selection-table');
 
-  for (let i = table.rows.length - 1; i > -1; i--) {
-    table.deleteRow(i);
-  }
-  
+
+  table.innerHTML = '';
   endpoints.forEach(function(endpoint, index) {
-    let row   = table.insertRow(-1);
 
-    let node = row.insertCell(0);
-    node.innerHTML = endpoint.node;
-
-    let intf = row.insertCell(1);
-    intf.innerHTML = endpoint.interface;
-
-    let vlan = row.insertCell(2);
-    vlan.innerHTML = endpoint.tag;
-
-    let asn = row.insertCell(3);
-    asn.innerHTML = endpoint.bgpASN;
-
-    let peerIP = row.insertCell(4);
-    peerIP.innerHTML = endpoint.peerIP;
-
-    let options = row.insertCell(5);
-    options.innerHTML = `
-<span class="glyphicon glyphicon-edit"   onclick="loadEndpointSelectionModal('${endpoint.node}', ${index})"></span>
-<span class="glyphicon glyphicon-remove" onclick="removeFromEndpointSelectionTable(${index})"></span>
+    let html = `
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h4 style="margin: 0px">
+      ${endpoint.node} <small>${endpoint.interface} : ${endpoint.tag}</small>
+      <span style="float: right;">
+        <span class="glyphicon glyphicon-edit"   onclick="loadEndpointSelectionModal('${endpoint.node}', ${index})"></span>
+        <span class="glyphicon glyphicon-remove" onclick="removeFromEndpointSelectionTable(${index})"></span>
+      </span>
+    </h4>
+  </div>
 `;
+
+    let peeringHTML = '';
+    endpoint.peerings.forEach(function(peering, peeringIndex) {
+      peeringHTML += `<tr>
+        <td>${peering.asn}</td>
+<td>${peering.yourPeerIP}</td>
+<td>${peering.key}</td>
+<td>${peering.oessPeerIP}</td>
+<td><button class="btn btn-danger btn-sm" class="form-control" type="button" onclick="deletePeering(${index}, ${peeringIndex})">&nbsp;<span class="glyphicon glyphicon-trash"></span>&nbsp;</button></td>
+</tr>`;
+    });
+
+    let bodyHTML = `
+<table class="table">
+  <thead>
+    <tr><th>Your Peer ASN</th><th>Your Peer IP</th><th>Your BGP Key</th><th>OESS Peer IP</th><th></th></tr>
+  </thead>
+  <tbody>
+    ${peeringHTML}
+    <tr id="new-peering-form-${index}">
+      <td><input class="form-control bgp-asn" type="text" /></td>
+      <td><input class="form-control your-peer-ip" type="text" /></td>
+      <td><input class="form-control bgp-key" type="text" /></td>
+      <td><input class="form-control oess-peer-ip" type="text" /></td>
+      <td><button class="btn btn-success btn-sm" class="form-control" type="button" onclick="newPeering(${index})">&nbsp;<span class="glyphicon glyphicon-plus"></span>&nbsp;</button></td>
+    </tr>
+  </tbody>
+</table>
+
+</div>
+`;
+
+
+    table.innerHTML += html + bodyHTML;
   });
+}
+
+function newPeering(index) {
+    let asn = document.querySelector(`#new-peering-form-${index} .bgp-asn`);
+    let key = document.querySelector(`#new-peering-form-${index} .bgp-key`);
+    let oessPeerIP = document.querySelector(`#new-peering-form-${index} .oess-peer-ip`);
+    let yourPeerIP = document.querySelector(`#new-peering-form-${index} .your-peer-ip`);
+
+    let peering = {
+        asn: asn.value,
+        key: key.value,
+        oessPeerIP: oessPeerIP.value,
+        yourPeerIP: yourPeerIP.value
+    };
+
+    let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
+    endpoints[index].peerings.push(peering);
+    sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
+
+    // Redraw endpoints
+    loadEndpointSelectionTable();
+}
+
+function deletePeering(endpointIndex, peeringIndex) {
+    let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
+    endpoints[endpointIndex].peerings.splice(peeringIndex, 1);
+    console.log(endpoints);
+    sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
+
+    // Redraw endpoints
+    loadEndpointSelectionTable();
 }
 
 function submitEndpointSelectionModal(form) {
   let elements = form.elements;
   let endpoint = {
     bandwidth: elements['endpoint-select-bandwidth'].value,
-    bgpASN:    elements['endpoint-select-bgp-asn'].value,
-    bgpKey:    elements['endpoint-select-bgp-key'].value,
     interface: elements['endpoint-select-interface'].value,
     node:      elements['endpoint-select-node'].value,
-    peerIP:    elements['endpoint-select-your-peer-ip'].value,
     tag:       elements['endpoint-select-vlan'].value,
     id:        elements['endpoint-select-id'].value
   };
@@ -202,11 +263,13 @@ function submitEndpointSelectionModal(form) {
   let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
   if (endpoint.id < 0) {
     // Endpoints with an id of -1 are new.
+    endpoint['peerings'] = [];
     endpoints.push(endpoint);
   } else {
     endpoints.splice(endpoint.id, 1, endpoint);
   }
 
+  console.log(endpoints);
   sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
   loadEndpointSelectionTable();
 
@@ -236,7 +299,7 @@ async function submitPrivateNetworkForm(form) {
           e.peerings = [{
               asn: e.bgpASN,
               key: e.bgpKey,
-              oessPeerIP: elements['oess-peer-ip'].value,
+              oessPeerIP: '192.168.1.1/24',
               yourPeerIP: e.peerIP
           }];
           epoints.push(e);

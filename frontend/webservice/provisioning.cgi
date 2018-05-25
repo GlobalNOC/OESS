@@ -866,7 +866,7 @@ sub remove_vrf {
         return $results;
     }
 
-    if($vrf->{'state'} ne 'active'){
+    if($vrf->{'details'}{'state'} ne 'active'){
         push(@{$results->{'results'}},{success => 0, vrf_id => $vrf_id, error => "VRF is not active, unable to remove"});
         return $results;
     }
