@@ -235,7 +235,9 @@ sub local_asn{
 
 sub get_details{
     my $self = shift;
-    return $self->{'details'};
+    my $details = $self->{'details'};
+    $details->{'endpoints'} = $self->{'endpoints'};
+    return $details;
 }
 
 =head2 generate_vrf_layout
