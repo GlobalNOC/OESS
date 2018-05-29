@@ -174,7 +174,7 @@ function loadEndpointSelectionTable() {
 <div class="panel panel-default">
   <div class="panel-heading">
     <h4 style="margin: 0px">
-      ${endpoint.node} <small>${endpoint.interface} : ${endpoint.tag}</small>
+      ${endpoint.node} <small>${endpoint.interface} - ${endpoint.tag}</small>
       <span style="float: right;">
         <span class="glyphicon glyphicon-edit"   onclick="loadEndpointSelectionModal('${endpoint.node}', ${index})"></span>
         <span class="glyphicon glyphicon-remove" onclick="removeFromEndpointSelectionTable(${index})"></span>
