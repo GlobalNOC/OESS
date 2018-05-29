@@ -86,7 +86,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   $('#private-network-form').submit(function(event){
     event.preventDefault();
-    console.log('yo');
     submitPrivateNetworkForm(event.target);
   });
 
@@ -292,24 +291,12 @@ async function submitPrivateNetworkForm(form) {
   }
 
   let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
-  console.log(endpoints);
-
-  let epoints   = [];
-  endpoints.forEach(function(e) {
-          e.peerings = [{
-              asn: e.bgpASN,
-              key: e.bgpKey,
-              oessPeerIP: '192.168.1.1/24',
-              yourPeerIP: e.peerIP
-          }];
-          epoints.push(e);
-      });
   
   return await provisionVRF(
     session.data.workgroup_id,
     elements['description'].value,
     elements['description'].value,
-    epoints,
+    endpoints,
     provisionTime,
     removeTime,
     -1

@@ -57,7 +57,8 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
         peer_ip:  p.yourPeerIP
       });
     });
-    form.append('endpoint', encodeURIComponent(JSON.stringify(e)));
+
+    form.append('endpoint', JSON.stringify(e));
   });
 
   try {
@@ -73,4 +74,8 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
   }
 
   return null;
+}
+
+async function getVRF(vrfID) {
+  let url = 'services/admin.cgi';
 }
