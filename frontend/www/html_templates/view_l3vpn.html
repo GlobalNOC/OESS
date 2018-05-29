@@ -6,12 +6,12 @@
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
 
   <script>
-    [% INCLUDE js_templates/api/provisioning.js  %]
+    [% INCLUDE js_templates/api/vrf.js %]
     [% INCLUDE js_templates/api/interfaces.js  %]
     [% INCLUDE js_templates/view_l3vpn.js %]
   </script>
 
-  <h2 id="description">My first circuit</h2>
+  <h2 id="description"></h2>
 
   <div class="row" style="margin-bottom: 15px;">
     <div class="col-md-12">
@@ -20,29 +20,27 @@
     </div>
   </div>
 
-  <form id="private-network-form">
-    <div class="row">
-      <div class="col-md-6">
-      </div>
-
-      <div class="col-md-6">
-        <p id="provision-time">Never</p>
-        <p id="remove-time">Never</p>
-      </div>
+  <div class="row">
+    <div class="col-md-6">
     </div>
 
-    <div class="row">
-      <div class="col-md-12">
-        <div id="endpoint-selection-table"></div>
-      </div>
+    <div class="col-md-6">
+      <p id="provision-time">Never</p>
+      <p id="remove-time">Never</p>
     </div>
+  </div>
 
-    <div class="row">
-      <div class="col-md-12">
-        <button class="btn btn-success" type="button">Edit</button>
-        <button class="btn btn-danger" type="button">Delete</button>
-      </div>
+  <div class="row">
+    <div class="col-md-12">
+      <div id="endpoint-selection-table"></div>
     </div>
+  </div>
 
-  </form>
+  <div class="row">
+    <div class="col-md-12">
+      <button class="btn btn-success" type="button">Edit</button>
+      <button class="btn btn-danger" type="button">Delete</button>
+    </div>
+  </div>
+
 </div>

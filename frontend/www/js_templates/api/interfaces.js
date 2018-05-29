@@ -17,7 +17,7 @@ async function getInterfaces(workgroupID, nodeName, trunk=1) {
     const data = await resp.json();
     return data.results;
   } catch(error) {
-    console.log('Failure occurred in get_node_interfaces.');
+    console.log('Failure occurred in getInterfaces.');
     console.log(error);
     return [];
   }
