@@ -89,6 +89,14 @@ async function loadVRF() {
   let description = document.getElementById('description');
   description.innerHTML = `${vrf.description} <small>${vrf.vrf_id}</small>`;
 
+  document.getElementById('provision-time').innerHTML = '';
+  document.getElementById('remove-time').innerHTML = '';
+  document.getElementById('last-modified').innerHTML = new Date(vrf.last_modified * 1000);
+  document.getElementById('created-on').innerHTML = new Date(vrf.created * 1000);
+  document.getElementById('created-by').innerHTML = vrf.created_by[0].auth_name;
+  document.getElementById('owned-by').innerHTML = vrf.workgroup.name;
+  document.getElementById('state').innerHTML = vrf.state;
+
   let endpoints = document.getElementById('endpoints');
   vrf.endpoints.forEach(function(endpoint) {
 
@@ -96,11 +104,11 @@ async function loadVRF() {
     endpoint.peers.forEach(function(peering, peeringIndex) {
       peeringHTML += `
 <tr>
+  <td></td>
   <td>${peering.peer_asn}</td>
   <td>${peering.peer_ip}</td>
   <td>${peering.md5_key}</td>
   <td>${peering.local_ip}</td>
-  <td></td>
 </tr>`;
 
     });
@@ -116,7 +124,7 @@ async function loadVRF() {
 
   <table class="table">
     <thead>
-      <tr><th>Your Peer ASN</th><th>Your Peer IP</th><th>Your BGP Key</th><th>OESS Peer IP</th><th></th></tr>
+      <tr><th></th><th>Your Peer ASN</th><th>Your Peer IP</th><th>Your BGP Key</th><th>OESS Peer IP</th></tr>
     </thead>
     <tbody>
       ${peeringHTML}
