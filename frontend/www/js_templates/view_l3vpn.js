@@ -117,10 +117,13 @@ async function loadVRF() {
     let html = `
 <div class="panel panel-default">
  <div class="panel-heading">
-   <h4 style="margin: 0px">
+   <h4 style="margin: 0px; fload: left;">
    ${endpoint.node} <small>${endpoint.name} - ${endpoint.tag}</small>
+
    </h4>
   </div>
+
+<iframe src="https://grafana.net.internet2.edu/grafana/d-solo/kgVskjnik/interfaces?orgId=1&panelId=4&tab=options&from=1527685140258&to=1527688740259&var-node=rtsw.hous.net.internet2.edu&var-interface=et-1%2F0%2F0.3060" width="100%" height="100" frameborder="0"></iframe>
 
   <table class="table">
     <thead>
