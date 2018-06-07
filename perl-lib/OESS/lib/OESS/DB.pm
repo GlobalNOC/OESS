@@ -162,7 +162,12 @@ sub rollback{
     $self->{'dbh'}->rollback();
 }
 
-
+sub _set_error{
+    my $self = shift;
+    my $error = shift;
+    $self->{'logger'}->error("OESS::DB Error: " . $error);
+    $self->{'error'} = $error;
+}
 
 1;
 

@@ -3,6 +3,8 @@
 use strict;
 use warnings;
 
+package OESS::Entity;
+
 use OESS::DB::Entity;
 
 sub new{
@@ -28,8 +30,7 @@ sub new{
 
     $self->_fetch_from_db();
     
-    return $self;
-    
+    return $self;    
 }
 
 sub _from_hash{
@@ -46,24 +47,35 @@ sub _from_hash{
 sub _fetch_from_db{
     my $self = shift;
 
-    my $info = OESS::DB::Entity->fetch(db => $self->{'db'}, entity_id => $self->{'entity_id'});
+    my $info = OESS::DB::Entity::fetch(db => $self->{'db'}, entity_id => $self->{'entity_id'});
     $self->_from_hash($info);
 }
 
 sub _update_db{
     my $self = shift;
-    return OESS::DB::Entity->update(db => $self->{'db'}, entity => $self->_to_hash());
+    return OESS::DB::Entity->update(db => $self->{'db'}, entity => $self->to_hash());
 }
 
-sub _to_hash{
+sub to_hash{
     my $self = shift;
 
-    return { name => $self->{'name'},
-             interfaces => $self->{'interfaces'},
-             parents => $self->{'parents'},
-             children => $self->{'children'},
-             entity_id => $self->{'entity_id'} };
+    my @ints;
 
+    foreach my $int (@{$self->interfaces()}){
+        push(@ints, $int->to_hash());
+    }
+
+    return { name => $self->name(),
+             interfaces => \@ints,
+             parents => $self->parents(),
+             children => $self->children(),
+             entity_id => $self->entity_id() };
+
+}
+
+sub entity_id{
+    my $self = shift;
+    return $self->{'entity_id'};
 }
 
 sub name{
@@ -99,7 +111,7 @@ sub parents{
 
 sub children{
     my $self = shift;
-    my $children = $shift;
+    my $children = shift;
 
     if(defined($children)){
         $self->{'children'} = $children;
@@ -129,3 +141,5 @@ sub add_interface{
     push(@{$self->{'interfaces'}},$interface);
 }
 
+
+1;

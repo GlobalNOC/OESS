@@ -33,16 +33,53 @@ sub new{
     return $self;
 }
 
-sub _from_hash{
+sub from_hash{
+    my $self = shift;
+    my $hash = shift;
 
+    $self->{'node_id'} = $hash->{'node_id'};
+    $self->{'name'} = $hash->{'name'};
+    $self->{'latitude'} = $hash->{'latitude'};
+    $self->{'longitude'} = $hash->{'longitude'};
+    
 }
 
-sub _to_hash{
-
+sub to_hash{
+    
 }
 
 sub _fetch_from_db{
+    my $self = shift;
+    my $db = $self->{'db'};
+    my $hash = OESS::DB::Node::fetch(db => $db, node_id => $self->{'node_id'});
+    $self->from_hash($hash);
+}
 
+sub node_id{
+    my $self = shift;
+    return $self->{'node_id'};
+}
+
+sub name{
+    my $self = shift;
+    return $self->{'name'};
+}
+
+sub interfaces{
+    my $self = shift;
+    my $interfaces = shift;
+    
+    if(defined($interfaces)){
+
+    }else{
+       
+        if(!defined($self->{'interfaces'})){
+            my $interfaces = OESS::DB::Node::get_interfaces(db => $self->{'db'}, node_id => $self->{'node_id'});
+            $self->{'interfaces'} = $interfaces;
+        }
+        
+        return $self->{'interfaces'};
+    }
 }
 
 1;

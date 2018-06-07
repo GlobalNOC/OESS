@@ -35,21 +35,35 @@ sub new{
     return $self;
 }
 
-sub _from_hash{
+sub from_hash{
     my $self = shift;
+    my $hash = shift;
 
+    $self->{'name'} = $hash->{'name'};
+    $self->{'interface_id'} = $hash->{'interface_id'};
+    $self->{'node'} = $hash->{'node'};
+    $self->{'description'} = $hash->{'description'};
+    $self->{'operational_state'} = $hash->{'operational_state'};
     
 
 }
 
-sub _to_hash{
+sub to_hash{
     my $self = shift;
     
+    return { name => $self->name(),
+             description => $self->description(),
+             interface_id => $self->interface_id(),
+             node_id => $self->node()->node_id(),
+             node => $self->node()->name() 
+    };
 }
 
 sub _fetch_from_db{
     my $self = shift;
 
+    my $info = OESS::DB::Interface::fetch(db => $self->{'db'}, interface_id => $self->{'interface_id'});
+    $self->from_hash($info);
 }
 
 sub update_db{
@@ -58,11 +72,14 @@ sub update_db{
 }
 
 sub name{
-
+    my $self = shift;
+    return $self->{'name'};
 }
 
 sub description{
-
+    my $self = shift;
+    return $self->{'description'};
+    
 }
 
 sub port_number{
@@ -70,6 +87,8 @@ sub port_number{
 }
 
 sub interface_id{
+    my $self = shift;
+    return $self->{'interface_id'};
 
 }
 
@@ -82,11 +101,12 @@ sub role{
 }
 
 sub node{
-
+    my $self = shift;
+    return $self->{'node'};
 }
 
 sub workgroup{
-
+    
 }
 
 sub vlan_tag_range{
