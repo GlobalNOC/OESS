@@ -22,3 +22,24 @@ async function getInterfaces(workgroupID, nodeName, trunk=1) {
     return [];
   }
 }
+
+/**
+ *
+ */
+async function getEntities(workgroupID, parentEntityID=null) {
+  let url = `services/entity.cgi?method=get_root_entities&workgroup_id=${workgroupID}`;
+  if (parentEntityID !== null) {
+      url = `services/entity.cgi?method=get_entity_children&workgroup_id=${workgroupID}&entity_id=${parentEntityID}`;
+  }
+
+  try {
+    const resp = await fetch(url, {method: 'get', credentials: 'include'});
+    const data = await resp.json();
+    return data.results;
+  } catch(error) {
+    console.log('Failure occurred in getEntities.');
+    console.log(error);
+    return [];
+  }
+
+}

@@ -179,6 +179,17 @@ sub main{
             {title => "Private network details", url => "#"}
         ];
     }
+    case "provision_cloud" {
+        $title              = "New cloud network";
+        $filename           = "html_templates/provision_cloud.html";
+        $current_breadcrumb = "New cloud network";
+        $breadcrumbs        = [
+            {title => "Workgroups",          url => "?action=workgroups"},
+            {title => "Home",                url => "?action=index"},
+            {title => "New cloud network", url => "#"}
+        ];
+    }
+
 	case "provisioning"  { $filename           = "html_templates/provisioning.html";
 			       $title              = "Provisioning";
 			       $breadcrumbs        = $ADD_BREADCRUMBS;

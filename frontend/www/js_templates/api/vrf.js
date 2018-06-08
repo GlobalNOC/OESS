@@ -79,7 +79,6 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
 async function getVRF(vrfID) {
   let url = `services/data.cgi?action=get_vrf_details&vrf_id=${vrfID}`;
 
-
   try {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});
     const data = await resp.json();

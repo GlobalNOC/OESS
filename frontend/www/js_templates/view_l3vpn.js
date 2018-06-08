@@ -109,6 +109,7 @@ async function loadVRF() {
   <td>${peering.peer_ip}</td>
   <td>${peering.md5_key}</td>
   <td>${peering.local_ip}</td>
+  <td><span id="state" class="label label-success">active</span></td>
 </tr>`;
 
     });
@@ -116,18 +117,22 @@ async function loadVRF() {
     console.log(endpoint);
     let html = `
 <div class="panel panel-default">
- <div class="panel-heading">
-   <h4 style="margin: 0px; fload: left;">
+ <div class="panel-heading" style="height: 40px;">
+   <h4 style="margin: 0px; float: left;">
    ${endpoint.node} <small>${endpoint.name} - ${endpoint.tag}</small>
-
    </h4>
   </div>
-
-<iframe src="https://grafana.net.internet2.edu/grafana/d-solo/kgVskjnik/interfaces?orgId=1&panelId=4&tab=options&from=1527685140258&to=1527688740259&var-node=rtsw.hous.net.internet2.edu&var-interface=et-1%2F0%2F0.3060" width="100%" height="100" frameborder="0"></iframe>
-
+  <h2 style="padding: 15px" >Statistics</h3>
+  <table class="table">
+      <tbody>
+        <tr><td></td><td><iframe src="https://grafana.net.internet2.edu/grafana/d-solo/kgVskjnik/interfaces?orgId=1&panelId=2&var-node=rtsw.hous.net.internet2.edu&var-interface=et-1%2F0%2F0.3060" width="100%" height="300" frameborder="0"></iframe></td>
+      </tr>
+      </tbody>
+  </table>
+  <h2 style="padding: 15px">Peerings</h3>
   <table class="table">
     <thead>
-      <tr><th></th><th>Your Peer ASN</th><th>Your Peer IP</th><th>Your BGP Key</th><th>OESS Peer IP</th></tr>
+      <tr><th></th><th>Your ASN</th><th>Your IP</th><th>Your BGP Key</th><th>OESS IP</th><th>Status</th></tr>
     </thead>
     <tbody>
       ${peeringHTML}
