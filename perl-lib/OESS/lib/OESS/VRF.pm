@@ -12,6 +12,9 @@ use constant OESS_LINK_UP       => 1;
 use constant OESS_LINK_DOWN     => 0;
 use constant OESS_LINK_UNKNOWN  => 2;
 
+use Data::Dumper;
+use OESS::DB;
+
 =head1 NAME
 
 OESS::VRF - VRF Interaction Module
@@ -53,7 +56,7 @@ sub new{
     my $class = ref($that) || $that;
 
     my $logger = Log::Log4perl->get_logger("OESS.VRF");
-
+    
     my %args = (
 	details => undef,
 	vrf_id => undef,
@@ -73,9 +76,54 @@ sub new{
 	$self->{'logger'}->error("No Database Object specified");
 	return;
     }
-
+    
+    $self->_fetch_from_db();
 
     return $self;
+}
+
+sub from_hash{
+    my $self = shift;
+    my $hash = shift;
+
+    $self->{'endpoints'} = $hash->{'endpoints'};
+    $self->{'name'} = $hash->{'name'};
+    $self->{'prefix_limit'} = $hash->{'prefix_limit'};
+
+    
+}
+
+sub _fetch_from_db{
+    my $self = shift;
+
+    my $hash = OESS::DB::VRF::fetch(db => $self->{'db'}, vrf_id => $self->{'vrf_id'});
+    $self->from_hash($hash);
+
+}
+
+sub to_hash{
+    my $self = shift;
+
+    my $obj;
+
+    $obj->{'name'} = $self->name();
+    $obj->{'vrf_id'} = $self->vrf_id();
+
+    my @endpoints;
+    foreach my $endpoint (@{$self->endpoints()}){
+        push(@endpoints, $endpoint->to_hash());
+    }
+
+    $obj->{'endpoints'} = \@endpoints;
+    $obj->{'prefix_limit'} = $self->prefix_limit();
+    
+
+    return $obj;
+}
+
+sub vrf_id{
+    my $self =shift;
+    return $self->{'vrf_id'};
 }
 
 sub id{
@@ -95,9 +143,12 @@ sub endpoints{
     my $eps = shift;
 
     if(!defined($eps)){
+        if(!defined($self->{'endpoints'})){
+            return []
+        }
         return $self->{'endpoints'};
     }else{
-        
+        return [];
     }
 }
 
@@ -129,22 +180,6 @@ sub update_vrf_details{
     $self->_load_vrf_details();
 }
 
-
-sub _to_model{
-    my $self = shift;
-    
-    
-}
-
-sub _from_model{
-    my $self = shift;
-    
-    
-}
-
-
-
-
 =head2 error
 
 =cut
@@ -156,6 +191,11 @@ sub error{
         $self->{'error'} = $error;
     }
     return $self->{'error'};
+}
+
+sub prefix_limit{
+    my $self = shift;
+    return $self->{'prefix_limit'};
 }
 
 1;

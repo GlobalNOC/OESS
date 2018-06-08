@@ -93,7 +93,12 @@ sub get_entity_children{
         return;
     }
 
-    return {results => $entity->children()};
+    my @children;
+    foreach my $ent (@{$entity->children()}){
+        push(@children, OESS::Entity->new(db => $db, entity_id => $ent->{'entity_id'})->to_hash());
+    }
+
+    return {results => \@children};
 }
 
 sub get_entity_interfaces{

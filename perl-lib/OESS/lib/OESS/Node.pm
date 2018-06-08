@@ -45,7 +45,13 @@ sub from_hash{
 }
 
 sub to_hash{
-    
+    my $self = shift;
+    my $obj = { node_id => $self->{'node_id'},
+                name => $self->{'name'},
+                latitude => $self->{'latitude'},
+                longitude => $self->{'longitude'}};
+
+    return $obj;
 }
 
 sub _fetch_from_db{
