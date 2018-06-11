@@ -28,10 +28,10 @@
  * @param {integer} [vrfID=-1] - Identifier of VRF to modify
  */
 async function provisionVRF(workgroupID, name, description, endpoints, provisionTime, removeTime, vrfID=-1) {
-  let url = 'services/provisioning.cgi';
+  let url = 'services/vrf.cgi';
 
   let form = new FormData();
-  form.append('method', 'provision_vrf');
+  form.append('method', 'provision');
   form.append('name', encodeURIComponent(name));
   form.append('description', encodeURIComponent(description));
   form.append('local_asn', 1);
