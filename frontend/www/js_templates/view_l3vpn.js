@@ -83,7 +83,10 @@ function removeFromEndpointSelectionTable(index) {
  * loadVRF
  */
 async function loadVRF() {
-  let vrf = await getVRF(37);
+  let url = new URL(window.location.href);
+  let vrfID = url.searchParams.get('vrf_id');
+
+  let vrf = await getVRF(vrfID);
   console.log(vrf);
 
   let description = document.getElementById('description');
