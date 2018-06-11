@@ -9,8 +9,9 @@
 /**
  * @typedef Endpoint
  * @property {integer} bandwidth - Maximum bandwidth allowed
- * @property {string} interface - Name of interface
- * @property {string} node - Name of node
+ * @property {string} [interface=undefined] - Name of interface
+ * @property {string} [entity=undefined] - Name of entity
+ * @property {string} [node=undefined] - Name of node
  * @property {integer} tag - VLAN number
  * @property {Peering[]} peerings - Peers on this endpoint
  */
@@ -43,11 +44,16 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
   endpoints.forEach(function(endpoint) {
     let e = {
       bandwidth: endpoint.bandwidth,
-      interface: endpoint.interface,
-      node:      endpoint.node,
       tag:       endpoint.tag,
       peerings:  []
     };
+
+    if (typeof endpoint.entity !== undefined) {
+      e['entity'] = endpoint.entity;
+    } else {
+      e['interface'] = endpoint.interface;
+      e['node']      = endpoint.node;
+    }
 
     endpoint.peerings.forEach(function(p) {
       e.peerings.push({

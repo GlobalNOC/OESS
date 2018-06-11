@@ -2,6 +2,8 @@
 document.addEventListener('DOMContentLoaded', function() {
   sessionStorage.setItem('endpoints', '[]');
 
+  setDateTimeVisibility();
+
   let map = L.map('map').setView([51.505, -0.09], 6);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
   L.marker([51.5, -0.09]).addTo(map);
@@ -49,8 +51,30 @@ async function addNetworkEndpointCallback(event) {
 }
 
 async function addNetworkSubmitCallback(event) {
-    // TODO
+    let provisionTime = -1;
+    if (document.querySelector('input[name=provision-time]:checked').value === 'later') {
+        let date = new Date(document.querySelector('#provision-time-picker').value);
+        provisionTime = date.getTime();
+    }
+
+    let removeTime = -1;
+    if (document.querySelector('input[name=remove-time]:checked').value === 'later') {
+        let date = new Date(document.querySelector('#remove-time-picker').value);
+        removeTime = date.getTime();
+    }
+
+    let vrfID = await provisionVRF(
+        session.data.workgroup_id,
+        document.querySelector('#description').value,
+        document.querySelector('#description').value,
+        JSON.parse(sessionStorage.getItem('endpoints')),
+        provisionTime,
+        removeTime,
+        -1
+    );
+    console.log(vrfID);
     console.log('addNetworkSubmitCallback not complete.');
+    return vrfID;
 }
 
 async function addNetworkCancelCallback(event) {
@@ -131,6 +155,28 @@ async function setEntity(id, name) {
 }
 
 //--- Add Endpoint - Endpoint Tab ---
+
+//--- Main - Schedule ---
+
+function setDateTimeVisibility() {
+  let type = document.querySelector('input[name=provision-time]:checked').value;
+  let pick = document.getElementById('provision-time-picker');
+
+  if (type === 'later') {
+    pick.style.display = 'block';
+  } else {
+    pick.style.display = 'none';
+  }
+
+  type = document.querySelector('input[name=remove-time]:checked').value;
+  pick = document.getElementById('remove-time-picker');
+
+  if (type === 'later') {
+    pick.style.display = 'block';
+  } else {
+    pick.style.display = 'none';
+  }
+}
 
 //--- Main - Endpoint ---
 
