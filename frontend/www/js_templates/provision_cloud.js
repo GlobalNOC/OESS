@@ -104,7 +104,7 @@ async function loadEntityList(parentEntity=null) {
 
     entitiesList.innerHTML = '';
     if (parentEntity !== null) {
-        entitiesList.innerHTML += `<button type="button" class="list-group-item" onclick="loadEntityList(${parentEntity})">
+        entitiesList.innerHTML += `<button type="button" class="list-group-item" onclick="loadEntityList()">
                                      <span class="glyphicon glyphicon-menu-left" style="float: right;"></span>
                                    </button>`;
     }
