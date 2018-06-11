@@ -180,6 +180,29 @@ sub remove_vlan{
     return;
 }
 
+=head2 add_vrf
+
+=cut
+
+sub add_vrf{
+    my $self = shift;
+
+    $self->set_error("This device does not support add_vrf");
+    return;
+}
+
+=head2 remove_vrf
+
+=cut
+
+sub remove_vrf{
+    my $self = shift;
+
+    $self->set_error("This device does not support remove_vrf");
+    return;
+}
+
+
 =head2 diff
 
 =cut

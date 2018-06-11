@@ -3649,6 +3649,62 @@ sub edit_user {
     return 1;
 }
 
+=head2 get_current_vrfs
+
+=cut
+
+sub get_current_vrfs{
+    my $self = shift;
+    my %args = @_;
+
+    my $res = $self->_execute_query("select * from vrf where vrf.state = 'active'",[]);
+    
+    if(!defined($res)){
+        $self->_set_error("Internal error while getting vrfs");
+        return;
+    }
+
+    my $vrfs;
+
+    foreach my $row (@$res){
+        $vrfs->{$row->{'vrf_id'}} = { 'vrf_id' => $row->{'vrf_id'},
+                                      'name'   => $row->{'name'},
+                                      'description' => $row->{'description'},
+                                      'state' => $row->{'state'},
+                                      'endpoints' => [],
+                                      'workgroup_id' => $row->{'workgroup_id'}};
+        
+        my $eps = $self->_execute_query("select vrf_ep.*, node.name, node.node_id, interface.name as interface from vrf_ep join interface on vrf_ep.interface_id = interface.interface_id join node on interface.node_id = node.node_id where vrf_id = ? and state = 'active'",[$row->{'vrf_id'}]);
+
+        foreach my $ep (@$eps){
+
+            my $peers = $self->_execute_query("select * from vrf_ep_peer where vrf_ep_id = ? and state = 'active'",[$ep->{'vrf_ep_id'}]);
+            
+            my @bgp;
+
+            foreach my $bgp (@$peers){
+                push(@bgp, $bgp);
+            }
+            push(@{$vrfs->{$row->{'vrf_id'}}->{'endpoints'}},{interface_id => $ep->{'interface_id'},
+                                                              node_id      => $ep->{'node_id'},
+                                                              interface    => $ep->{'interface'},
+                                                              bandwidth    => $ep->{'bandwidth'},
+                                                              tag          => $ep->{'tag'},
+                                                              peers => \@bgp });
+            
+        }
+        
+    }
+
+    my $results;
+
+    foreach my $vrf_id (keys %$vrfs){
+        push (@$results, $vrfs->{$vrf_id});
+    }
+
+    return $results;
+}
+
 =head2 get_current_circuits_by_interface
 
 =cut

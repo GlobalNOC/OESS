@@ -182,6 +182,27 @@ sub _register_rpc_methods{
                                   required => 1,
                                   pattern => $GRNOC::WebService::Regex::NUMBER_ID);
     $dispatcher->register_method($method);
+    
+    my $method = GRNOC::RabbitMQ::Method->new( name => "add_vrf",
+                                               description => "adds a vrf for this switch",
+					       callback => sub { return {status => $self->add_vrf(@_) }});
+    
+    $method->add_input_parameter( name => "vrf_id",
+                                  description => "vrf_id to be added",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::NUMBER_ID);
+    $dispatcher->register_method($method);
+    
+    my $method = GRNOC::RabbitMQ::Method->new( name => "remove_vrf",
+                                               description => "removes a vrf from this switch",
+                                               callback => sub { return {status => $self->remove_vrf(@_) }});
+
+    $method->add_input_parameter( name => "vrf_id",
+                                  description => "vrf_id to be removed",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::NUMBER_ID);
+    $dispatcher->register_method($method);
+
 
     $method = GRNOC::RabbitMQ::Method->new( name => "echo",
                                             description => " just an echo to check to see if we are aliave",
@@ -337,11 +358,23 @@ sub _update_cache {
         $self->{'ckts'}->{$ckt} = $data->{'ckts'}->{$ckt};
     }
 
+    foreach my $vrf (keys %{$self->{'vrfs'}}){
+	delete $self->{'vrfs'}->{$vrf};
+    }
+
+    foreach my $vrf (keys %{$data->{'vrfs'}}) {
+        $self->{'logger'}->debug("Processing cache for vrf $vrf");
+
+        $data->{'vrfs'}->{$vrf}->{'vrf_id'} = $vrf;
+        $self->{'vrfs'}->{$vrf} = $data->{'vrfs'}->{$vrf};
+    }
+    
+
     if ($self->{'node'}->{'name'}) {
         $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.FWDCTL.Switch.'.$self->{'node'}->{'name'});
     }
 
-    $self->{'logger'}->info("Loaded circuits from cache file $self->{'share_file'}");
+    $self->{'logger'}->info("Loaded circuits / VRFs from cache file $self->{'share_file'}");
     return 1;
 }
 
@@ -431,6 +464,54 @@ sub remove_vlan{
 
     my $res = $self->{'device'}->remove_vlan($vlan_obj);
     $self->{'logger'}->debug("after remove vlan");
+    $self->{'logger'}->debug("Results: " . Data::Dumper::Dumper($res));
+    return $res;
+}
+
+=head2 add_vrf
+
+adds a VRF to the device
+
+=cut
+sub add_vrf{
+
+    my $self = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    my $vrf = $p_ref->{'vrf_id'}{'value'};
+
+    $self->{'logger'}->error("Calling add_vrf: " . $vrf);
+
+    $self->_update_cache();
+
+    my $vrf_obj = $self->_generate_vrf_commands( $vrf );
+
+    return $self->{'device'}->add_vrf($vrf_obj);
+}
+
+
+=head2 remove_vrf
+
+  removes a VRF from this switch
+
+=cut
+
+sub remove_vrf{
+    my $self = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    my $vrf = $p_ref->{'vrf_id'}{'value'};
+
+    $self->{'logger'}->debug("Calling remove_vrf: " . $vrf);
+
+    $self->_update_cache();
+
+    my $vrf_obj = $self->_generate_vrf_commands( $vrf );
+
+    my $res = $self->{'device'}->remove_vrf($vrf_obj);
+    $self->{'logger'}->debug("after remove vrf");
     $self->{'logger'}->debug("Results: " . Data::Dumper::Dumper($res));
     return $res;
 }
@@ -560,6 +641,15 @@ sub _generate_commands{
 
     my $obj = $self->{'ckts'}->{$ckt_id};
     $obj->{'circuit_id'} = $ckt_id;
+    return $obj;
+}
+
+sub _generate_vrf_commands{
+    my $self = shift;
+    my $vrf_id = shift;
+
+    my $obj = $self->{'vrfs'}->{$vrf_id};
+    $obj->{'vrf_id'} = $vrf_id;
     return $obj;
 }
 
