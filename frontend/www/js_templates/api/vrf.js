@@ -49,7 +49,7 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
     };
 
     if (typeof endpoint.entity !== undefined) {
-      e['entity'] = endpoint.entity;
+      e['entity'] = endpoint.name;
     } else {
       e['interface'] = endpoint.interface;
       e['node']      = endpoint.node;
@@ -89,7 +89,7 @@ async function getVRF(vrfID) {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});
     const data = await resp.json();
     console.log(data);
-    return data.results;
+    return data.results[0];
   } catch(error) {
     console.log('Failure occurred in getVRF.');
     console.log(error);

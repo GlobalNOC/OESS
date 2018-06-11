@@ -96,7 +96,7 @@ async function loadVRF() {
   document.getElementById('remove-time').innerHTML = '';
   document.getElementById('last-modified').innerHTML = new Date(vrf.last_modified * 1000);
   document.getElementById('created-on').innerHTML = new Date(vrf.created * 1000);
-  document.getElementById('created-by').innerHTML = vrf.created_by[0].auth_name;
+  document.getElementById('created-by').innerHTML = vrf.created_by.email;
   document.getElementById('owned-by').innerHTML = vrf.workgroup.name;
   document.getElementById('state').innerHTML = vrf.state;
 
@@ -122,16 +122,13 @@ async function loadVRF() {
 <div class="panel panel-default">
  <div class="panel-heading" style="height: 40px;">
    <h4 style="margin: 0px; float: left;">
-   ${endpoint.node} <small>${endpoint.name} - ${endpoint.tag}</small>
+   ${endpoint.node.name} <small>${endpoint.interface.name} - ${endpoint.tag}</small>
    </h4>
   </div>
   <h2 style="padding: 15px" >Statistics</h3>
-  <table class="table">
-      <tbody>
-        <tr><td></td><td><iframe src="https://grafana.net.internet2.edu/grafana/d-solo/kgVskjnik/interfaces?orgId=1&panelId=2&var-node=rtsw.hous.net.internet2.edu&var-interface=et-1%2F0%2F0.3060" width="100%" height="300" frameborder="0"></iframe></td>
-      </tr>
-      </tbody>
-  </table>
+<div style="padding-left: 15px; padding-right: 15px">
+<iframe src="https://grafana.net.internet2.edu/grafana/d-solo/kgVskjnik/interfaces?orgId=1&panelId=2&var-node=rtsw.hous.net.internet2.edu&var-interface=et-1%2F0%2F0.3060" width="100%" height="300" frameborder="0"></iframe>
+</div>
   <h2 style="padding: 15px">Peerings</h3>
   <table class="table">
     <thead>
