@@ -51,6 +51,10 @@
               </div>
 
               <div class="form-group">
+                <input id="entity-name" class="form-control" type="hidden" value="">
+              </div>
+
+              <div class="form-group">
                 <label class="control-label">VLAN</label>
                 <select id="entity-vlans" class="form-control"></select>
               </div>
@@ -89,8 +93,8 @@
                 <input id="endpoint-select-id" class="form-control" type="hidden" value="-1">
               </div>
 
-              <button id="endpoint-select-submit" class="btn btn-success" type="submit">Add Endpoint</button>
-              <button id="add-endpoint-modal-cancel" class="btn btn-danger" type="button">Cancel</button>
+              <button id="add-endpoint-submit" class="btn btn-success" type="submit">Add Endpoint</button>
+              <button id="add-endpoint-cancel" class="btn btn-danger" type="button">Cancel</button>
             </div>
 
           </div>
@@ -128,7 +132,7 @@
   <div class="row">
     <div class="col-md-12">
       <p><b>Endpoints</b></p>
-      <button id="add-endpoint" class="btn btn-success" type="submit">Add Endpoint</button>
+      <button id="add-network-endpoint" class="btn btn-success" type="submit">Add Endpoint</button>
 
       <div id="selected-endpoint-list" style="margin-top: 15px;"></div>      
     </div>
@@ -136,8 +140,8 @@
 
   <div class="row">
     <div class="col-md-12">
-      <button class="btn btn-success" type="submit" disabled>Add Private Network</button>
-      <button class="btn btn-danger" type="button">Cancel</button>
+      <button id="add-network-submit" class="btn btn-success" type="submit">Add Private Network</button>
+      <button id="add-network-cancel" class="btn btn-danger" type="button">Cancel</button>
     </div>
   </div>
 
