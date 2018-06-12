@@ -23,82 +23,41 @@
   <div class="modal fade" role="dialog" tabindex="-1" id="add-endpoint-modal">
     <div class="modal-dialog" role="document">
       <div class="modal-content">
-        <div class="modal-header"><h4 id="endpoint-select-header" class="modal-title">Add Endpoint</h4></div>
+        <div class="modal-header"><h4 id="endpoint-select-header" class="modal-title">Add Network Entity</h4></div>
+
         <div class="modal-body">
+          <div style="margin-bottom: 15px;"></div>
 
-          <ul class="nav nav-tabs">
-            <li role="presentation" class="active"><a href="#basic" aria-controls="basic" role="tab" data-toggle="tab">Basic</a></li>
-            <li role="presentation"><a id="advanced-tab" href="#advanced" aria-controls="advanced" role="tab" data-toggle="tab">Advanced</a></li>
-          </ul>
-
-          <div class="tab-content">
-
-            <div role="tabpanel" class="tab-pane active" id="basic">
-              <div style="margin-bottom: 15px;"></div>
-
-              <div class="form-group">
-                <input id="entity-search" class="form-control" type="text" placeholder="Search" />
-              </div>
-
-              <div style="height: 200px; overflow-y: scroll; margin-bottom: 15px;">
-                <div id="entities-list" class="list-group">
-                  <button type="button" class="list-group-item">Placeholder<span class="glyphicon glyphicon-menu-right" style="float: right;"></span></button>
-                </div>
-              </div>
-
-              <div class="form-group">
-                <input id="entity-id" class="form-control" type="hidden" value="">
-              </div>
-
-              <div class="form-group">
-                <input id="entity-name" class="form-control" type="hidden" value="">
-              </div>
-
-              <div class="form-group">
-                <label class="control-label">VLAN</label>
-                <select id="entity-vlans" class="form-control"></select>
-              </div>
-
-              <div class="form-group">
-                <label class="control-label">Bandwidth (Mb/s)</label>
-                <input id="entity-bandwidth" class="form-control" type="number" placeholder="100" min="10" max="100000" required>
-              </div>
-
-              <button id="add-entity-submit" class="btn btn-success" type="submit">Add Entity</button>
-              <button id="add-entity-cancel" class="btn btn-danger" type="button">Cancel</button>
-            </div>
-
-
-            <div role="tabpanel" class="tab-pane" id="advanced">
-              <div style="height: 200px; margin-top: 15px; margin-bottom: 15px;" id="map"></div>
-
-              <div class="form-group">
-                <label class="control-label">Interface</label>
-                <select id="endpoint-select-interface" class="form-control">
-                  <option>et-3/0/0</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="control-label">VLAN</label>
-                <select id="endpoint-select-vlan" class="form-control"></select>
-              </div>
-              <div class="form-group">
-                <label class="control-label">Bandwidth (Mb/s)</label>
-                <input id="endpoint-select-bandwidth" class="form-control" type="number" placeholder="100" min="10" max="100000" required>
-              </div>
-              <div class="form-group">
-                <input id="endpoint-select-node" class="form-control" type="hidden" value="">
-              </div>
-              <div class="form-group">
-                <input id="endpoint-select-id" class="form-control" type="hidden" value="-1">
-              </div>
-
-              <button id="add-endpoint-submit" class="btn btn-success" type="submit">Add Endpoint</button>
-              <button id="add-endpoint-cancel" class="btn btn-danger" type="button">Cancel</button>
-            </div>
-
+          <div class="form-group">
+            <input id="entity-search" class="form-control" type="text" placeholder="Search" />
           </div>
 
+          <div style="height: 200px; overflow-y: scroll; margin-bottom: 15px;">
+            <div id="entities-list" class="list-group">
+              <button type="button" class="list-group-item">Placeholder<span class="glyphicon glyphicon-menu-right" style="float: right;"></span></button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <input id="entity-id" class="form-control" type="hidden" value="">
+          </div>
+
+          <div class="form-group">
+            <input id="entity-name" class="form-control" type="hidden" value="">
+          </div>
+
+          <div class="form-group">
+            <label class="control-label">VLAN</label>
+            <select id="entity-vlans" class="form-control"></select>
+          </div>
+
+          <div class="form-group">
+            <label class="control-label">Bandwidth (Mb/s)</label>
+            <input id="entity-bandwidth" class="form-control" type="number" placeholder="100" min="10" max="100000" required>
+          </div>
+
+          <button id="add-entity-submit" class="btn btn-success" type="submit">Add Entity</button>
+          <button id="add-entity-cancel" class="btn btn-danger" type="button">Cancel</button>
         </div>
       </div>
     </div>
@@ -141,7 +100,7 @@
   <div class="row">
     <div class="col-md-12">
       <p><b>Endpoints</b></p>
-      <button id="add-network-endpoint" class="btn btn-success" type="submit">Add Endpoint</button>
+      <button id="add-network-endpoint" class="btn btn-success" type="submit">Add Network Entity</button>
 
       <div id="selected-endpoint-list" style="margin-top: 15px;"></div>      
     </div>

@@ -4,15 +4,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   setDateTimeVisibility();
 
-  let map = L.map('map').setView([51.505, -0.09], 6);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-  L.marker([51.5, -0.09]).addTo(map);
-
-  // Map size isn't known until after the tab has been selected.
-  $('#advanced-tab').on('show.bs.tab', function(){
-    setTimeout(function() { map.invalidateSize(); }, 1);
-  });
-
   let addNetworkEndpoint = document.querySelector('#add-network-endpoint');
   addNetworkEndpoint.addEventListener('click', addNetworkEndpointCallback);
 
@@ -27,12 +18,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   let addEntityCancel = document.querySelector('#add-entity-cancel');
   addEntityCancel.addEventListener('click', addEntityCancelCallback);
-
-  let addEndpointSubmit = document.querySelector('#add-endpoint-submit');
-  addEndpointSubmit.addEventListener('click', addEndpointSubmitCallback);
-
-  let addEndpointCancel = document.querySelector('#add-endpoint-cancel');
-  addEndpointCancel.addEventListener('click', addEndpointCancelCallback);
 });
 
 async function addNetworkEndpointCallback(event) {
@@ -112,22 +97,7 @@ async function addEntityCancelCallback(event) {
     addEndpointModal.modal('hide');
 }
 
-async function addEndpointSubmitCallback(event) {
-    // TODO
-    console.log('addEndpointSubmitCallback not complete.');
-
-    loadSelectedEndpointList();
-
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('hide');
-}
-
-async function addEndpointCancelCallback(event) {
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('hide');
-}
-
-//--- Add Endpoint - Entity Tab ---
+//--- Add Endpoint Modal
 
 async function loadEntityList(parentEntity=null) {
     let entities = await getEntities(session.data.workgroup_id, parentEntity);
@@ -160,8 +130,6 @@ async function setEntity(id, name) {
    let entityName = document.querySelector('#entity-name');
    entityName.value = name;
 }
-
-//--- Add Endpoint - Endpoint Tab ---
 
 //--- Main - Schedule ---
 
