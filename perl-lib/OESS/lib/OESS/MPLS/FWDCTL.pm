@@ -22,6 +22,9 @@ use GRNOC::RabbitMQ::Method;
 use OESS::RabbitMQ::Client;
 use OESS::RabbitMQ::Dispatcher;
 
+use OESS::DB;
+use OESS::VRF;
+
 use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
@@ -186,16 +189,16 @@ sub build_cache{
             $link_status{$link->{'name'}} = OESS_LINK_UNKNOWN;
         }
     }
-
-    my $vrfs = $db->get_current_vrfs();
+    my $db2 = OESS::DB->new();
+    my $vrfs = OESS::DB::VRF::get_vrfs(db => $db2, state => 'active');
 
     foreach my $vrf_id (@$vrfs){
 	$logger->error("Updating Cache for VRF: " . $vrf_id);
 	
-	my $vrf = OESS::VRF->new( db => $db,
+	my $vrf = OESS::VRF->new( db => $db2,
 				  vrf_id => $vrf_id);
 
-	$vrfs{ $vrf->get_id() } = $vrf;
+	$vrfs{ $vrf->vrf_id() } = $vrf;
 	
     }
 
@@ -269,10 +272,10 @@ sub _write_cache{
 	    if(defined($switches{$ep->{'node'}})){
 		push(@{$switches{$ep->{'node'}}->{'vrf'}{$vrf_id}{'interfaces'}}, $int_obj); 
 	    }else{
-		$switches{$ep->{'node'}}->{'vrf'}{$vrf_id} = { name => $vrf->get_name(),
-							       vrf_id => $vrg->get_id(),
+		$switches{$ep->{'node'}}->{'vrf'}{$vrf_id} = { name => $vrf->name(),
+							       vrf_id => $vrf->vrf_id(),
 							       interfaces => [$int_obj],
-							       prefix_limit => $vrf->get_prefix_limit(),
+							       prefix_limit => $vrf->prefix_limit(),
 							       local_asn => $vrf->local_asn(),
 							       
 		}	

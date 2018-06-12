@@ -7,6 +7,7 @@ package OESS::Endpoint;
 
 use OESS::DB;
 use OESS::Interface;
+use OESS::Entity;
 use OESS::Node;
 use OESS::Peer;
 use Data::Dumper;
@@ -21,8 +22,6 @@ sub new{
         details => undef,
         vrf_id => undef,
         db => undef,
-        just_display => 0,
-        link_status => undef,
         @_
         );
 
@@ -37,10 +36,52 @@ sub new{
         return;
     }
 
-    $self->_fetch_from_db();
+    if(!defined($self->{'vrf_endpoint_id'}) || $self->{'vrf_endpoint_id'} == -1){
+        
+        $self->_build_from_model();
+
+    }else{
+
+        $self->_fetch_from_db();
+
+    }
 
     return $self;
 
+}
+
+sub _build_from_model{
+    my $self = shift;
+
+    warn "Building endpoint from model\n";
+    
+    warn Dumper($self->{'model'});
+
+    if(defined($self->{'model'}->{'interface'})){
+        $self->{'interface'} = OESS::Interface->new( db => $self->{'db'}, name => $self->{'model'}->{'interface'}, node => $self->{'model'}->{'node'});
+    }else{
+        $self->{'interface'} = OESS::Entity->new( db => $self->{'db'}, name => $self->{'model'}->{'entity'})->interfaces()->[0];
+    }
+    $self->{'tag'} = $self->{'model'}->{'tag'};
+    $self->{'bandwidth'} = $self->{'model'}->{'bandwidth'};
+
+    if($self->{'type'} eq 'vrf'){
+        $self->{'peers'} = ();
+        foreach my $peer (@{$self->{'model'}->{'peerings'}}){
+            push(@{$self->{'peers'}}, OESS::Peer->new( db => $self->{'db'}, model => $peer, vrf_ep_peer_id => -1));
+        }
+    }
+
+    warn "PEER RAW: " . Dumper($self->{'peers'});
+
+}
+
+sub create{
+    my $self = shift;
+
+    my $endpoint_id = OESS::DB::Endpoint::create( db => $self->{'db'}, model => $self->_to_hash());
+
+    return $endpoint_id;
 }
 
 sub to_hash{
@@ -49,7 +90,7 @@ sub to_hash{
 
     $obj->{'interface'} = $self->interface()->to_hash();
     $obj->{'node'} = $self->interface()->node()->to_hash();
-    $obj->{'vlan'} = $self->vlan();
+    $obj->{'tag'} = $self->tag();
     $obj->{'bandwidth'} = $self->bandwidth();
 
     if($self->{'type'} eq 'vrf'){
@@ -136,7 +177,7 @@ sub peers{
     return $self->{'peers'};
 }
 
-sub vlan{
+sub tag{
     my $self = shift;
     return $self->{'tag'};
 }
@@ -165,5 +206,7 @@ sub circuit_endpoint_id{
     my $self = shift;
     return $self->{'circuit_endpoint_id'};
 }
+
+
 
 1;

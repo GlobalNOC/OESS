@@ -365,8 +365,8 @@ sub _update_cache {
     foreach my $vrf (keys %{$data->{'vrfs'}}) {
         $self->{'logger'}->debug("Processing cache for vrf $vrf");
 
-        $data->{'vrfs'}->{$vrf}->{'vrf_id'} = $ckt;
-        $self->{'vrfs'}->{$ckt} = $data->{'vrf'}->{$ckt};
+        $data->{'vrfs'}->{$vrf}->{'vrf_id'} = $vrf;
+        $self->{'vrfs'}->{$vrf} = $data->{'vrf'}->{$vrf};
     }
     
 

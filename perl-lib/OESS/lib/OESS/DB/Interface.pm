@@ -13,7 +13,7 @@ sub fetch{
 
     my $status = $params{'status'} || 'active';
 
-    my $interface_id = $params{'interface_id'};#
+    my $interface_id = $params{'interface_id'};
 
     my $interface = $db->execute_query("select * from interface natural join interface_instantiation where interface.interface_id = ?",[$interface_id]);
 
@@ -36,6 +36,22 @@ sub fetch{
             workgroup_id => $interface->{'workgroup_id'},
             acls => $acls };
 
+}
+
+sub get_interface{
+    my %params = @_;
+    
+    my $db = $params{'db'};
+    my $interface_name= $params{'interface'};
+    my $node_name = $params{'node'};
+    
+    my $interface = $db->execute_query("select interface_id from interface where name=? and node_id=(select node_id from node where name=?)",[$interface_name, $node_name]);
+
+    if(!defined($interface) || !defined($interface->[0])){
+        return;
+    }
+
+    return $interface->[0]->{'interface_id'};
 }
 
 sub update{

@@ -32,9 +32,22 @@ sub new{
         return;
     }
 
-    $self->_fetch_from_db();
+    if(!defined($self->{'vrf_ep_peer_id'}) || $self->{'vrf_ep_peer_id'} == -1){
+        $self->_build_from_model();
+    }else{
+        $self->_fetch_from_db();
+    }
 
     return $self;
+}
+
+sub _build_from_model{
+    my $self = shift;
+
+    $self->{'peer_ip'} = $self->{'model'}->{'peer_ip'};
+    $self->{'peer_asn'} = $self->{'model'}->{'asn'};
+    $self->{'md5_key'} = $self->{'model'}->{'key'};
+    $self->{'local_ip'} = $self->{'model'}->{'local_ip'};
 }
 
 sub from_hash{
@@ -73,7 +86,6 @@ sub _fetch_from_db{
     my $vrf_ep_peer_id = $self->{'vrf_ep_peer_id'};
 
     my $hash = OESS::DB::VRF::fetch_peer(db => $db, vrf_ep_peer_id => $vrf_ep_peer_id);
-    warn Dumper($hash);
     $self->from_hash($hash);
 }
 

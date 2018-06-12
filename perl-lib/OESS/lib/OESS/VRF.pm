@@ -14,6 +14,8 @@ use constant OESS_LINK_UNKNOWN  => 2;
 
 use Data::Dumper;
 use OESS::DB;
+use OESS::Endpoint;
+use OESS::Workgroup;
 
 =head1 NAME
 
@@ -76,10 +78,41 @@ sub new{
 	$self->{'logger'}->error("No Database Object specified");
 	return;
     }
-    
-    $self->_fetch_from_db();
+
+    if(!defined($self->{'vrf_id'}) || $self->{'vrf_id'} == -1){
+        #build from model
+        $self->_build_from_model();
+    }else{
+        $self->_fetch_from_db();
+    }
 
     return $self;
+}
+
+sub _build_from_model{
+    my $self = shift;
+
+    warn Dumper($self->{'model'});
+
+    $self->{'name'} = $self->{'model'}->{'name'};
+    $self->{'description'} = $self->{'model'}->{'description'};
+    $self->{'prefix_limit'} = $self->{'model'}->{'prefix_limit'};
+
+    $self->{'endpoints'} = ();
+    #process Endpoints
+    foreach my $ep (@{$self->{'model'}->{'endpoints'}}){
+        push(@{$self->{'endpoints'}},OESS::Endpoint->new( db => $self->{'db'}, model => $ep, type => 'vrf'));
+    }
+    
+    #process Workgroups
+    $self->{'workgroup'} = OESS::Workgroup->new( db => $self->{'db'}, workgroup_id => $self->{'model'}->{'workgroup_id'});
+
+    #process user
+    $self->{'created_by'} = OESS::User->new( db => $self->{'db'}, user_id => $self->{'model'}->{'created_by'});
+    $self->{'last_modified_by'} = OESS::User->new(db => $self->{'db'}, user_id => $self->{'model'}->{'last_modified_by'});
+    $self->{'local_asn'} = $self->{'model'}->{'local_asn'} || 55038;
+
+    return;
 }
 
 sub from_hash{
@@ -88,9 +121,14 @@ sub from_hash{
 
     $self->{'endpoints'} = $hash->{'endpoints'};
     $self->{'name'} = $hash->{'name'};
+    $self->{'description'} = $hash->{'description'};
     $self->{'prefix_limit'} = $hash->{'prefix_limit'};
-
-    
+    $self->{'workgroup'} = $hash->{'workgroup'};
+    $self->{'created_by'} = $hash->{'created_by'};
+    $self->{'last_modified_by'} = $hash->{'last_modified_by'};
+    $self->{'created'} = $hash->{'created'};
+    $self->{'last_modified'} = $hash->{'last_modified'};
+    $self->{'local_asn'} = $hash->{'local_asn'};
 }
 
 sub _fetch_from_db{
@@ -108,7 +146,7 @@ sub to_hash{
 
     $obj->{'name'} = $self->name();
     $obj->{'vrf_id'} = $self->vrf_id();
-
+    $obj->{'description'} = $self->description();
     my @endpoints;
     foreach my $endpoint (@{$self->endpoints()}){
         push(@endpoints, $endpoint->to_hash());
@@ -116,7 +154,12 @@ sub to_hash{
 
     $obj->{'endpoints'} = \@endpoints;
     $obj->{'prefix_limit'} = $self->prefix_limit();
-    
+    $obj->{'workgroup'} = $self->workgroup()->to_hash();
+    $obj->{'created_by'} = $self->created_by()->to_hash();
+    $obj->{'last_modified_by'} = $self->last_modified_by()->to_hash();
+    $obj->{'created'} = $self->created();
+    $obj->{'last_modified'} = $self->last_modified();
+    $obj->{'local_asn'} = $self->local_asn();
 
     return $obj;
 }
@@ -164,6 +207,56 @@ sub name{
     }
 }
 
+sub description{
+    my $self = shift;
+    my $description = shift;
+
+    if(!defined($description)){
+        return $self->{'description'};
+    }else{
+        $self->{'description'} = $description;
+        return $self->{'description'};
+    }
+}
+
+sub workgroup{
+    my $self = shift;
+    my $workgroup = shift;
+
+    if(!defined($workgroup)){
+
+        return $self->{'workgroup'};
+    }else{
+        $self->{'workgroup'} = $workgroup;
+        return $self->{'workgroup'};
+    }
+}
+
+sub update_db{
+    my $self = shift;
+
+    if(!defined($self->{'vrf_id'})){
+        $self->create();
+    }else{
+        $self->_edit();
+    }
+}
+
+sub create{
+    my $self = shift;
+    
+    my $vrf_id = OESS::DB::VRF::create(db => $self->{'db'}, model => $self->to_hash());
+    $self->{'vrf_id'} = $vrf_id;
+    
+}
+
+sub _edit{
+    my $self = shift;
+    
+    
+
+}
+
 
 
 =head2 update_vrf_details
@@ -196,6 +289,33 @@ sub error{
 sub prefix_limit{
     my $self = shift;
     return $self->{'prefix_limit'};
+}
+
+sub created_by{
+    my $self = shift;
+    my $created_by = shift;
+
+    return $self->{'created_by'};
+}
+
+sub last_modified_by{
+    my $self = shift;
+    return $self->{'last_modified_by'};
+}
+
+sub last_modified{
+    my $self = shift;
+    return $self->{'last_modified'};
+}
+
+sub created{
+    my $self = shift;
+    return $self->{'created'};
+}
+
+sub local_asn{
+    my $self = shift;
+    return $self->{'local_asn'};
 }
 
 1;

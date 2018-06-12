@@ -6,6 +6,8 @@ use warnings;
 package OESS::Interface;
 
 use OESS::DB::Interface;
+use Data::Dumper;
+
 
 sub new{
     my $that  = shift;
@@ -38,7 +40,7 @@ sub new{
 sub from_hash{
     my $self = shift;
     my $hash = shift;
-
+    
     $self->{'name'} = $hash->{'name'};
     $self->{'interface_id'} = $hash->{'interface_id'};
     $self->{'node'} = $hash->{'node'};
@@ -62,7 +64,25 @@ sub to_hash{
 sub _fetch_from_db{
     my $self = shift;
 
+
+    if(!defined($self->{'interface_id'})){
+        if(defined($self->{'name'}) && defined($self->{'node'})){
+            my $interface_id = OESS::DB::Interface::get_interface(db => $self->{'db'}, interface => $self->{'name'}, node => $self->{'node'});
+            if(!defined($interface_id)){
+                $self->{'logger'}->error();
+                return;
+            }
+            $self->{'interface_id'} = $interface_id;
+        }
+    }
+
+    if(!defined($self->{'interface_id'})){
+        $self->{'logger'}->error("Unable to find interface");
+        return;
+    }
+
     my $info = OESS::DB::Interface::fetch(db => $self->{'db'}, interface_id => $self->{'interface_id'});
+
     $self->from_hash($info);
 }
 

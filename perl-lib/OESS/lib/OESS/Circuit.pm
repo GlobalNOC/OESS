@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-use strict;
+#use strict;
 use warnings;
 
 package OESS::Circuit;
@@ -841,8 +841,8 @@ sub _generate_loopback_endpoint_flows {
 #                     {'output' => $e->{'port_no'}}
 #                 ]
 #            );
-            push(@{$self->{'flows'}->{'endpoint'}->{'primary'}}, $to_endpoint);
-            push(@{$self->{'flows'}->{'endpoint'}->{'backup'}},  $to_endpoint);
+#            push(@{$self->{'flows'}->{'endpoint'}->{'primary'}}, $to_endpoint);
+#            push(@{$self->{'flows'}->{'endpoint'}->{'backup'}},  $to_endpoint);
         }
     }
 }
