@@ -69,6 +69,7 @@ body {
     display: flex;
     flex-direction: row;
     justify-content: space-around;
+    align-items: center;
 
     grid-column-start: 2;
     grid-column-end: 3;
