@@ -762,7 +762,7 @@ sub add_vrf{
 
     my $vars = {};
     $vars->{'vrf_name'} = $vrf->{'name'};
-    $vars->{'interfaces'} = [];
+    $vars->{'interfaces'} = ();
     foreach my $i (@{$vrf->{'interfaces'}}) {
 	
 	my @bgp;
@@ -772,7 +772,11 @@ sub add_vrf{
             my $peer_ip = $bgp->{'peer_ip'};
             $peer_ip =~ s/\/\d+//g;
 
-	    push(@bgp, { asn => $bgp->{'asn'},
+            if(!defined($bgp->{'key'})){
+                $bgp->{'key'} = -1;
+            }
+
+	    push(@bgp, { asn => $bgp->{'peer_asn'},
 			 local_ip => $bgp->{'local_ip'},
                          peer_ip => $peer_ip,
 			 key => $bgp->{'key'}

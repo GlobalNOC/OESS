@@ -98,7 +98,6 @@ sub _build_from_model{
     $self->{'description'} = $self->{'model'}->{'description'};
     $self->{'prefix_limit'} = $self->{'model'}->{'prefix_limit'};
 
-<<<<<<< HEAD
     $self->{'endpoints'} = ();
     #process Endpoints
     foreach my $ep (@{$self->{'model'}->{'endpoints'}}){
@@ -289,6 +288,9 @@ sub error{
 
 sub prefix_limit{
     my $self = shift;
+    if(!defined($self->{'prefix_limit'})){
+        return 1000;
+    }
     return $self->{'prefix_limit'};
 }
 
@@ -318,6 +320,11 @@ sub created{
 sub local_asn{
     my $self = shift;
     return $self->{'local_asn'};
+}
+
+sub state{
+    my $self = shift;
+    return 'active';
 }
 
 1;

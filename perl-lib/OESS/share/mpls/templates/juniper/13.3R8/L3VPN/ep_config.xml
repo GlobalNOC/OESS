@@ -72,7 +72,9 @@
 	      <name>[% peer.peer_ip %]</name>
 	      <description>OESS-L3VPN-[% vrf_id %]</description>
 	      <import>OESS-L3VPN-[% vrf_id %]-IN</import>
+	      [% IF peer.key != -1 %]
 	      <authentication-key>[% peer.key %]</authentication-key>
+	      [% END %]
 	      <export>OESS-L3VPN-[% vrf_id %]-OUT</export>
 	      <peer-as>[% peer.asn %]</peer-as>
 	    </neighbor>
