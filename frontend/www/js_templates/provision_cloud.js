@@ -2,14 +2,7 @@
 document.addEventListener('DOMContentLoaded', function() {
   sessionStorage.setItem('endpoints', '[]');
 
-  let map = L.map('map').setView([51.505, -0.09], 6);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-  L.marker([51.5, -0.09]).addTo(map);
-
-  // Map size isn't known until after the tab has been selected.
-  $('#advanced-tab').on('show.bs.tab', function(){
-    setTimeout(function() { map.invalidateSize(); }, 1);
-  });
+  setDateTimeVisibility();
 
   let addNetworkEndpoint = document.querySelector('#add-network-endpoint');
   addNetworkEndpoint.addEventListener('click', addNetworkEndpointCallback);
@@ -25,12 +18,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   let addEntityCancel = document.querySelector('#add-entity-cancel');
   addEntityCancel.addEventListener('click', addEntityCancelCallback);
-
-  let addEndpointSubmit = document.querySelector('#add-endpoint-submit');
-  addEndpointSubmit.addEventListener('click', addEndpointSubmitCallback);
-
-  let addEndpointCancel = document.querySelector('#add-endpoint-cancel');
-  addEndpointCancel.addEventListener('click', addEndpointCancelCallback);
 });
 
 async function addNetworkEndpointCallback(event) {
@@ -49,8 +36,37 @@ async function addNetworkEndpointCallback(event) {
 }
 
 async function addNetworkSubmitCallback(event) {
-    // TODO
-    console.log('addNetworkSubmitCallback not complete.');
+    let provisionTime = -1;
+    if (document.querySelector('input[name=provision-time]:checked').value === 'later') {
+        let date = new Date(document.querySelector('#provision-time-picker').value);
+        provisionTime = date.getTime();
+    }
+
+    let removeTime = -1;
+    if (document.querySelector('input[name=remove-time]:checked').value === 'later') {
+        let date = new Date(document.querySelector('#remove-time-picker').value);
+        removeTime = date.getTime();
+    }
+
+    let addNetworkLoadingModal = $('#add-network-loading');
+    addNetworkLoadingModal.modal('show');
+
+    let vrfID = await provisionVRF(
+        session.data.workgroup_id,
+        document.querySelector('#description').value,
+        document.querySelector('#description').value,
+        JSON.parse(sessionStorage.getItem('endpoints')),
+        provisionTime,
+        removeTime,
+        -1
+    );
+
+    if (vrfID === null) {
+        addNetworkLoadingModal.modal('hide');
+        alert('Failed to provision VRF. Please try again later.');
+    } else {
+        window.location.href = `index.cgi?action=view_l3vpn&vrf_id=${vrfID}`;
+    }
 }
 
 async function addNetworkCancelCallback(event) {
@@ -81,22 +97,7 @@ async function addEntityCancelCallback(event) {
     addEndpointModal.modal('hide');
 }
 
-async function addEndpointSubmitCallback(event) {
-    // TODO
-    console.log('addEndpointSubmitCallback not complete.');
-
-    loadSelectedEndpointList();
-
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('hide');
-}
-
-async function addEndpointCancelCallback(event) {
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('hide');
-}
-
-//--- Add Endpoint - Entity Tab ---
+//--- Add Endpoint Modal
 
 async function loadEntityList(parentEntity=null) {
     let entities = await getEntities(session.data.workgroup_id, parentEntity);
@@ -130,7 +131,27 @@ async function setEntity(id, name) {
    entityName.value = name;
 }
 
-//--- Add Endpoint - Endpoint Tab ---
+//--- Main - Schedule ---
+
+function setDateTimeVisibility() {
+  let type = document.querySelector('input[name=provision-time]:checked').value;
+  let pick = document.getElementById('provision-time-picker');
+
+  if (type === 'later') {
+    pick.style.display = 'block';
+  } else {
+    pick.style.display = 'none';
+  }
+
+  type = document.querySelector('input[name=remove-time]:checked').value;
+  pick = document.getElementById('remove-time-picker');
+
+  if (type === 'later') {
+    pick.style.display = 'block';
+  } else {
+    pick.style.display = 'none';
+  }
+}
 
 //--- Main - Endpoint ---
 

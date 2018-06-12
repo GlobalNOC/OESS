@@ -9,8 +9,9 @@
 /**
  * @typedef Endpoint
  * @property {integer} bandwidth - Maximum bandwidth allowed
- * @property {string} interface - Name of interface
- * @property {string} node - Name of node
+ * @property {string} [interface=undefined] - Name of interface
+ * @property {string} [entity=undefined] - Name of entity
+ * @property {string} [node=undefined] - Name of node
  * @property {integer} tag - VLAN number
  * @property {Peering[]} peerings - Peers on this endpoint
  */
@@ -43,11 +44,16 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
   endpoints.forEach(function(endpoint) {
     let e = {
       bandwidth: endpoint.bandwidth,
-      interface: endpoint.interface,
-      node:      endpoint.node,
       tag:       endpoint.tag,
       peerings:  []
     };
+
+    if (typeof endpoint.entity !== undefined) {
+      e['entity'] = endpoint.name;
+    } else {
+      e['interface'] = endpoint.interface;
+      e['node']      = endpoint.node;
+    }
 
     endpoint.peerings.forEach(function(p) {
       e.peerings.push({
@@ -77,12 +83,13 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
 }
 
 async function getVRF(vrfID) {
-  let url = `services/data.cgi?action=get_vrf_details&vrf_id=${vrfID}`;
+  let url = `services/vrf.cgi?method=get_vrf_details&vrf_id=${vrfID}`;
 
   try {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});
     const data = await resp.json();
-    return data.results;
+    console.log(data);
+    return data.results[0];
   } catch(error) {
     console.log('Failure occurred in getVRF.');
     console.log(error);

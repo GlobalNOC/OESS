@@ -231,8 +231,11 @@ sub main{
 
     
     #print STDERR Dumper($vars);
-    $tt->process("html_templates/page_base.html", $vars, \$output) or warn $tt->error();
-    
+    if ($action eq 'view_l3vpn' || $action eq 'provision_cloud') {
+        $tt->process("html_templates/base.html", $vars, \$output) or warn $tt->error();
+    } else {
+        $tt->process("html_templates/page_base.html", $vars, \$output) or warn $tt->error();
+    }
     print "Content-type: text/html\n\n" . $output;
 }
 
