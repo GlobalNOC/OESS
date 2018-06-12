@@ -89,7 +89,60 @@ sub new{
     return $self;
 }
 
+<<<<<<< HEAD
 sub _build_from_model{
+=======
+=head2 get_prefix_limit
+
+=cut
+
+sub get_prefix_limit{
+    my $self = shift;
+    return 1000;
+}
+
+=head2 get_id
+
+    returns the id of the circuit
+
+=cut
+
+sub get_id{
+    my $self = shift;
+    return $self->{'vrf_id'};
+}
+
+=head2 get_name
+
+=cut
+
+sub get_name{
+    my $self = shift;
+    return $self->{'details'}->{'name'};
+}
+
+=head2 update_vrf_details
+
+    reload the vrf details from the database to make sure everything 
+    is in sync with what should be there
+
+=cut
+
+sub update_vrf_details{
+    my $self = shift;
+    my %params = @_;
+
+    $self->_load_vrf_details();
+}
+
+sub _load_vrf_details{
+    my $self = shift;
+    $self->{'logger'}->debug("Loading Circuit data for vrf: " . $self->{'vrf_id'});
+    $self->_get_vrf_details( vrf_id => $self->{'vrf_id'});
+}
+
+sub _get_vrf_details{
+>>>>>>> cloud
     my $self = shift;
 
     warn Dumper($self->{'model'});
@@ -98,11 +151,55 @@ sub _build_from_model{
     $self->{'description'} = $self->{'model'}->{'description'};
     $self->{'prefix_limit'} = $self->{'model'}->{'prefix_limit'};
 
+<<<<<<< HEAD
     $self->{'endpoints'} = ();
     #process Endpoints
     foreach my $ep (@{$self->{'model'}->{'endpoints'}}){
         push(@{$self->{'endpoints'}},OESS::Endpoint->new( db => $self->{'db'}, model => $ep, type => 'vrf'));
     }
+=======
+    my $workgroup = $self->{'db'}->get_workgroup_by_id( workgroup_id => $self->{'details'}->{'workgroup_id'} );
+
+    $self->{'details'}->{'created_by'} = $user;
+    $self->{'details'}->{'workgroup'} = $workgroup;
+    
+    #find endpoints 
+    $res = $self->{'db'}->_execute_query("select vrf_ep.*, node.name as node, interface.name as int_name from vrf_ep join interface on interface.interface_id = vrf_ep.interface_id join node on node.node_id = interface.node_id where vrf_id = ? and state = ?", [$vrf_id, $status]);
+    if(!defined($res) || !defined($res->[0])){
+        $self->{'logger'}->error("Error fetching VRF endpoints");
+        return;
+    }
+    
+    $self->{'endpoints'} = ();
+
+    foreach my $ep (@$res){
+	my $bgp_res = $self->{'db'}->_execute_query("select * from vrf_ep_peer where vrf_ep_id = ? and state = ?",[$ep->{'vrf_ep_id'}, $status]);
+	if(!defined($bgp_res) || !defined($bgp_res->[0])){
+	    $bgp_res = ();
+	}
+	
+	my @bgp;
+
+	foreach my $bgp (@{$bgp_res}){
+	    push(@bgp, $bgp);
+	}
+
+
+	my $int = $self->{'db'}->get_interface( interface_id => $ep->{'interface_id'});
+	
+	$int->{'tag'} = $ep->{'tag'};
+        $int->{'node'} = $ep->{'node'};
+        $int->{'node_id'} = $ep->{'node_id'};
+	$int->{'bandwidth'} = $ep->{'bandwidth'};
+	$int->{'state'} = $ep->{'state'};
+	$int->{'vrf_ep_id'} = $ep->{'vrf_ep_id'};
+	$int->{'peers'} = \@bgp;
+	
+	push(@{$self->{'endpoints'}}, $int);
+    }
+
+    $self->{'details'}->{'endpoints'} = $self->{'endpoints'};
+>>>>>>> cloud
     
     #process Workgroups
     $self->{'workgroup'} = OESS::Workgroup->new( db => $self->{'db'}, workgroup_id => $self->{'model'}->{'workgroup_id'});
@@ -115,6 +212,7 @@ sub _build_from_model{
     return;
 }
 
+<<<<<<< HEAD
 sub from_hash{
     my $self = shift;
     my $hash = shift;
@@ -129,6 +227,25 @@ sub from_hash{
     $self->{'created'} = $hash->{'created'};
     $self->{'last_modified'} = $hash->{'last_modified'};
     $self->{'local_asn'} = $hash->{'local_asn'};
+=======
+=head2 local_asn
+
+=cut
+
+sub local_asn{
+    my $self = shift;
+    return $self->{'details'}->{'local_asn'};
+}
+
+
+=head2 get_details
+
+=cut
+
+sub get_details{
+    my $self = shift;
+    return $self->_get_vrf_details();
+>>>>>>> cloud
 }
 
 sub _fetch_from_db{
@@ -303,10 +420,23 @@ sub last_modified_by{
     return $self->{'last_modified_by'};
 }
 
+<<<<<<< HEAD
 sub last_modified{
     my $self = shift;
     return $self->{'last_modified'};
 }
+=======
+=head2 state
+
+=cut
+
+sub state{
+    my $self = shift;
+    return $self->{'details'}->{'state'};
+}
+
+=head2 error
+>>>>>>> cloud
 
 sub created{
     my $self = shift;
