@@ -35,6 +35,9 @@ body {
     grid-row-end: 3;
 
     background-color: #3a3a3a;
+
+    padding-top: 5px;
+    padding-bottom: 3px;
 }
 
 .breadcrumbs {

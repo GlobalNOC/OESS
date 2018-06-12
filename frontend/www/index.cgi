@@ -231,7 +231,7 @@ sub main{
 
     
     #print STDERR Dumper($vars);
-    if ($action eq 'view_l3vpn') {
+    if ($action eq 'view_l3vpn' || $action eq 'provision_cloud') {
         $tt->process("html_templates/base.html", $vars, \$output) or warn $tt->error();
     } else {
         $tt->process("html_templates/page_base.html", $vars, \$output) or warn $tt->error();
