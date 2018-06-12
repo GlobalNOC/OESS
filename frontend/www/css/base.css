@@ -17,11 +17,13 @@ body {
 
     grid-row-start: 1;
     grid-row-end: 2;
+
+    padding-left: 15px;
+    padding-right: 7px;
 }
 
 .logo {
     flex: 1;
-    padding-left: 30px;
 }
 
 .breadcrumb-gutter {
@@ -37,11 +39,20 @@ body {
     background-color: #3a3a3a;
 
     padding-top: 5px;
+    padding-right: 15px;
     padding-bottom: 3px;
+    padding-left: 15px;
 }
 
 .breadcrumbs {
     flex: 1;
+    /* Overrides margin styles from other sheet. */
+    margin: 0px !important;
+}
+
+/* Overrides margin styles from other sheet. */
+.active_workgroup_container {
+    margin: 0px !important;
 }
 
 .content {
@@ -90,8 +101,4 @@ body {
 
 a p {
     color: white;
-}
-
-a:hover {
-color: white;
 }
