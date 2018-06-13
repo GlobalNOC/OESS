@@ -35,6 +35,16 @@ async function addNetworkEndpointCallback(event) {
     addEndpointModal.modal('show');
 }
 
+async function deleteNetworkEndpointCallback(index) {
+    let entity = document.querySelector(`#enity-${index}`);
+
+    let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
+    endpoints.splice(index, 1);
+    sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
+
+    loadSelectedEndpointList();
+}
+
 async function addNetworkSubmitCallback(event) {
     let provisionTime = -1;
     if (document.querySelector('input[name=provision-time]:checked').value === 'later') {
@@ -214,13 +224,13 @@ function loadSelectedEndpointList() {
           });
 
           let html = `
-<div class="panel panel-default">
+<div id="entity-${index}" class="panel panel-default">
   <div class="panel-heading">
     <h4 style="margin: 0px">
       ${endpointName}
-      <span style="float: right;">
-        <span class="glyphicon glyphicon-edit"   onclick=""></span>
-        <span class="glyphicon glyphicon-remove" onclick=""></span>
+      <span style="float: right; margin-top: -5px;">
+        <button class="btn btn-link" type="button" onclick=""><span class="glyphicon glyphicon-edit"></span></button>
+        <button class="btn btn-link" type="button" onclick="deleteNetworkEndpointCallback(${index})"><span class="glyphicon glyphicon-remove"></span></button>
       </span>
     </h4>
   </div>
