@@ -29,7 +29,29 @@ async function addNetworkEndpointCallback(event) {
     }
     document.querySelector('#entity-vlans').innerHTML = entityVLANs;
 
+    document.querySelector('#entity-index').value = -1;
     document.querySelector('#entity-bandwidth').value = null;
+
+    let addEndpointModal = $('#add-endpoint-modal');
+    addEndpointModal.modal('show');
+}
+
+async function modifyNetworkEndpointCallback(index) {
+    let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
+
+    await loadEntityList();
+
+    let entityVLANs = '';
+    for (let i = 1; i < 4095; i++) {
+        entityVLANs += `<option>${i}</option>`;
+    }
+    document.querySelector('#entity-vlans').innerHTML = entityVLANs;
+    document.querySelector('#entity-vlans').value = endpoints[index].tag;
+
+    document.querySelector('#entity-index').value = index;
+    document.querySelector('#entity-id').value = endpoints[index].entity_id;
+    document.querySelector('#entity-name').value = endpoints[index].name;
+    document.querySelector('#entity-bandwidth').value = endpoints[index].bandwidth;
 
     let addEndpointModal = $('#add-endpoint-modal');
     addEndpointModal.modal('show');
@@ -93,9 +115,15 @@ async function addEntitySubmitCallback(event) {
     };
 
     let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
-    endpoints.push(entity);
-    sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
+    let endpointIndex = document.querySelector('#entity-index').value;
+    if (endpointIndex >= 0) {
+        entity.peerings = endpoints[endpointIndex].peerings;
+        endpoints[endpointIndex] = entity;
+    } else {
+        endpoints.push(entity);
+    }
 
+    sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
     loadSelectedEndpointList();
 
     let addEndpointModal = $('#add-endpoint-modal');
@@ -229,7 +257,7 @@ function loadSelectedEndpointList() {
     <h4 style="margin: 0px">
       ${endpointName}
       <span style="float: right; margin-top: -5px;">
-        <button class="btn btn-link" type="button" onclick=""><span class="glyphicon glyphicon-edit"></span></button>
+        <button class="btn btn-link" type="button" onclick="modifyNetworkEndpointCallback(${index})"><span class="glyphicon glyphicon-edit"></span></button>
         <button class="btn btn-link" type="button" onclick="deleteNetworkEndpointCallback(${index})"><span class="glyphicon glyphicon-remove"></span></button>
       </span>
     </h4>
