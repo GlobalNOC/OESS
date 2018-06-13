@@ -36,10 +36,16 @@ async function addNetworkEndpointCallback(event) {
 }
 
 async function addNetworkSubmitCallback(event) {
+    if (!document.querySelector('#description').validity.valid) {
+        document.querySelector('#description').reportValidity();
+        return null;
+    }
+
     let provisionTime = -1;
     if (document.querySelector('input[name=provision-time]:checked').value === 'later') {
         let date = new Date(document.querySelector('#provision-time-picker').value);
         provisionTime = date.getTime();
+        console.log(provisionTime);
     }
 
     let removeTime = -1;
@@ -74,6 +80,17 @@ async function addNetworkCancelCallback(event) {
 }
 
 async function addEntitySubmitCallback(event) {
+    let name = document.querySelector('#entity-name').value;
+    if (name === '') {
+        document.querySelector('#entity-alert').style.display = 'block';
+        return null;
+    }
+
+    if (!document.querySelector('#entity-bandwidth').validity.valid) {
+        document.querySelector('#entity-bandwidth').reportValidity();
+        return null;
+    }
+
     let entity = {
         bandwidth: document.querySelector('#entity-bandwidth').value,
         entity_id: document.querySelector('#entity-id').value,
@@ -155,11 +172,41 @@ function setDateTimeVisibility() {
 
 //--- Main - Endpoint ---
 
+function setIPv4ValidationMessage(input) {
+    input.addEventListener('input', function(e) {
+        if (input.validity.valueMissing) {
+            input.setCustomValidity('Please fill out this field.');
+        } else if (input.validity.patternMismatch) {
+            input.setCustomValidity('Please input a valid IPv4 subnet in CIDR notation.');
+        } else {
+            input.setCustomValidity('');
+        }
+    }, false);
+}
+
 function newPeering(index) {
     let asn = document.querySelector(`#new-peering-form-${index} .bgp-asn`);
-    let key = document.querySelector(`#new-peering-form-${index} .bgp-key`);
-    let oessPeerIP = document.querySelector(`#new-peering-form-${index} .oess-peer-ip`);
+    if (!asn.validity.valid) {
+        asn.reportValidity();
+        return null;
+    }
     let yourPeerIP = document.querySelector(`#new-peering-form-${index} .your-peer-ip`);
+    setIPv4ValidationMessage(yourPeerIP);
+    if (!yourPeerIP.validity.valid) {
+        yourPeerIP.reportValidity();
+        return null;
+    }
+    let key = document.querySelector(`#new-peering-form-${index} .bgp-key`);
+    if (!key.validity.valid) {
+        key.reportValidity();
+        return null;
+    }
+    let oessPeerIP = document.querySelector(`#new-peering-form-${index} .oess-peer-ip`);
+    setIPv4ValidationMessage(oessPeerIP);
+    if (!oessPeerIP.validity.valid) {
+        oessPeerIP.reportValidity();
+        return null;
+    }
 
     let peering = {
         asn: asn.value,
@@ -232,10 +279,10 @@ function loadSelectedEndpointList() {
         <tbody>
           ${peerings}
           <tr id="new-peering-form-${index}">
-            <td><input class="form-control bgp-asn" type="text" /></td>
-            <td><input class="form-control your-peer-ip" type="text" /></td>
+            <td><input class="form-control bgp-asn" type="number" required /></td>
+            <td><input class="form-control your-peer-ip" type="text" placeholder="198.162.1.1/24" pattern="^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$" required /></td>
             <td><input class="form-control bgp-key" type="text" /></td>
-            <td><input class="form-control oess-peer-ip" type="text" /></td>
+            <td><input class="form-control oess-peer-ip" type="text" placeholder="198.162.1.1/24" pattern="^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$" required /></td>
             <td><button class="btn btn-success btn-sm" class="form-control" type="button" onclick="newPeering(${index})">&nbsp;<span class="glyphicon glyphicon-plus"></span>&nbsp;</button></td>
           </tr>
         </tbody>
