@@ -17,6 +17,7 @@
   <script>
     [% INCLUDE js_templates/api/vrf.js %]
     [% INCLUDE js_templates/api/interfaces.js  %]
+    [% INCLUDE js_templates/api/validateIP.js  %]
     [% INCLUDE js_templates/provision_cloud.js  %]
   </script>
   
@@ -27,6 +28,10 @@
 
         <div class="modal-body">
           <div style="margin-bottom: 15px;"></div>
+
+          <div id="entity-alert" class="alert alert-danger" role="alert" style="display: none;">
+            <p>You'll need to select an entity before you can move on.</p>
+          </div>
 
           <div class="form-group">
             <input id="entity-search" class="form-control" type="text" placeholder="Search" />
