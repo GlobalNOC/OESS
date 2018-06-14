@@ -191,7 +191,6 @@ function newPeering(index) {
         return null;
     }
     let yourPeerIP = document.querySelector(`#new-peering-form-${index} .your-peer-ip`);
-    setIPv4ValidationMessage(yourPeerIP);
     if (!yourPeerIP.validity.valid) {
         yourPeerIP.reportValidity();
         return null;
@@ -202,7 +201,6 @@ function newPeering(index) {
         return null;
     }
     let oessPeerIP = document.querySelector(`#new-peering-form-${index} .oess-peer-ip`);
-    setIPv4ValidationMessage(oessPeerIP);
     if (!oessPeerIP.validity.valid) {
         oessPeerIP.reportValidity();
         return null;
@@ -280,9 +278,9 @@ function loadSelectedEndpointList() {
           ${peerings}
           <tr id="new-peering-form-${index}">
             <td><input class="form-control bgp-asn" type="number" required /></td>
-            <td><input class="form-control your-peer-ip" type="text" placeholder="198.162.1.1/24" pattern="^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$" required /></td>
+            <td><input class="form-control your-peer-ip" type="text" required /></td>
             <td><input class="form-control bgp-key" type="text" /></td>
-            <td><input class="form-control oess-peer-ip" type="text" placeholder="198.162.1.1/24" pattern="^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$" required /></td>
+            <td><input class="form-control oess-peer-ip" type="text" required /></td>
             <td><button class="btn btn-success btn-sm" class="form-control" type="button" onclick="newPeering(${index})">&nbsp;<span class="glyphicon glyphicon-plus"></span>&nbsp;</button></td>
           </tr>
         </tbody>
@@ -296,4 +294,12 @@ function loadSelectedEndpointList() {
   });
 
   document.getElementById('selected-endpoint-list').innerHTML = selectedEndpointList;
+
+  endpoints.forEach(function(endpoint, index) {
+          let yourPeerIP = document.querySelector(`#new-peering-form-${index} .your-peer-ip`);
+          asIPv4CIDR(yourPeerIP);
+
+          let oessPeerIP = document.querySelector(`#new-peering-form-${index} .oess-peer-ip`);
+          asIPv4CIDR(oessPeerIP);
+  });
 }
