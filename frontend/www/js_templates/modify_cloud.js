@@ -26,13 +26,17 @@ async function loadVRF() {
   let id = url.searchParams.get('vrf_id');
   let vrf = await getVRF(id);
   console.log(vrf);
+
+  let description = document.querySelector('#description');
+  description.value = vrf.description;
+
   let endpoints = [];
 
   vrf.endpoints.forEach(function(e) {
     let endpoint = {
         bandwidth: e.bandwidth,
         entity_id: -1,
-        name: 'nananananana',
+        name: 'ajajajajajajaj',
         peerings: [],
         tag: e.tag
     };
@@ -40,7 +44,7 @@ async function loadVRF() {
     e.peers.forEach(function(p) {
       let peering = {
           asn: p.peer_asn,
-          key: p.md5_key,
+          key: p.md5_key || '',
           oessPeerIP: p.local_ip,
           yourPeerIP: p.peer_ip
       };
