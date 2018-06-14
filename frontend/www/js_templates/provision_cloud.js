@@ -77,7 +77,6 @@ async function addNetworkSubmitCallback(event) {
     if (document.querySelector('input[name=provision-time]:checked').value === 'later') {
         let date = new Date(document.querySelector('#provision-time-picker').value);
         provisionTime = date.getTime();
-        console.log(provisionTime);
     }
 
     let removeTime = -1;
