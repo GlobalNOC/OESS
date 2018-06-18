@@ -114,12 +114,6 @@ sub port_number{
 
 }
 
-sub interface_id{
-    my $self = shift;
-    return $self->{'interface_id'};
-
-}
-
 sub operational_state{
 
 }

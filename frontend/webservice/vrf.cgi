@@ -26,14 +26,24 @@ sub register_ro_methods{
         );
 
     $method->add_input_parameter( name => 'vrf_id',
-                                  pattern => $GRNOC::WebService::Regex::INTEGER,,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER,
                                   required => 1,
                                   description => 'VRF ID to fetch details' 
         );
 
     $svc->register_method($method);
 
-    
+    $method = GRNOC::WebService::Method->new(
+        name => 'get_vrfs',
+        description => 'returns the list of VRFs',
+        callback => sub { get_vrfs(@_) } );
+
+    $method->add_input_parameter( name => 'workgroup_id',
+                                  pattern => $GRNOC::WebService::Regex::INTEGER,
+                                  required => 1,
+                                  description => 'Workgroup ID to fetch the list of VRFs');
+
+    $svc->register_method($method);
     
 
 
@@ -98,7 +108,27 @@ sub register_rw_methods{
         description     => "Maximum prefix limit size for BGP peer routes"
     );
 
-$svc->register_method($method);
+    $svc->register_method($method);
+    
+    $method = GRNOC::WebService::Method->new(
+        name => 'remove',
+        description => 'removes a vrf that is on the network',
+        callback => sub { remove_vrf(@_) });    
+    
+    $method->add_input_parameter(
+        name            => 'workgroup_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "The workgroup_id with permission to build the vrf, the user must be a member of this workgroup."
+        );
+
+    $method->add_input_parameter(
+        name => 'vrf_id',
+        pattern => $GRNOC::WebService::Regex::INTEGER,
+        required => 1,
+        description => 'the ID of the VRF to remove from the network');
+
+    $svc->register_method($method);
 
 }
 
@@ -123,6 +153,8 @@ sub provision_vrf{
     my $model = {};
 
     my $user = OESS::DB::User::find_user_by_remote_auth( db => $db, remote_user => $ENV{'REMOTE_USER'} );
+    
+    $user = OESS::User->new(db => $db, user_id =>  $user->{'user_id'} );
 
     $model->{'description'} = $params->{'name'}{'value'};
     $model->{'prefix_limit'} = $params->{'prefix_limit'}{'value'};
@@ -132,8 +164,8 @@ sub provision_vrf{
     $model->{'name'} = $params->{'name'}{'value'};
     $model->{'provision_time'} = $params->{'provision_time'}{'value'};
     $model->{'remove_time'} = $params->{'provision_time'}{'value'};
-    $model->{'created_by'} = $user->{'user_id'};
-    $model->{'last_modified_by'} = $user->{'user_id'};
+    $model->{'created_by'} = $user->user_id();
+    $model->{'last_modified_by'} = $user->user_id();
 
     $model->{'endpoints'} = ();
     foreach my $endpoint (@{$params->{'endpoint'}{'value'}}){
@@ -145,8 +177,14 @@ sub provision_vrf{
         push(@{$model->{'endpoints'}}, $obj);
     }
 
+    #first validate the user is in the workgroup
+    if(!$user->in_workgroup( $model->{'workgroup_id'})){
+        $method->set_error("User is not in workgroup");
+        return;
+    }
+
     my $vrf = OESS::VRF->new( db => $db, vrf_id => -1, model => $model);
-    warn Dumper($vrf);
+    #warn Dumper($vrf);
     $vrf->create();
     
     my $vrf_id = $vrf->vrf_id();
@@ -161,6 +199,36 @@ sub provision_vrf{
         return {results => $res};
                 
     }
+
+}
+
+sub remove_vrf{    
+    my $method = shift;
+    my $params = shift;
+    my $ref = shift;
+
+    my $model = {};
+    my $user = OESS::DB::User::find_user_by_remote_auth( db => $db, remote_user => $ENV{'REMOTE_USER'} );
+
+    my $wg = $params->{'workgroup_id'}{'value'};
+    my $vrf_id = $params->{'vrf_id'}{'value'} || undef;
+
+    my $vrf = OESS::VRF->new(db => $db, vrf_id => $vrf_id);
+
+    if(!defined($vrf)){
+        $method->set_error("Unable to find VRF: " . $vrf_id);
+        return {success => 0};
+    }
+
+    my $result;
+    if(!$user->is_in_workgroup( $wg)){
+        $method->set_error("User " . $ENV{'REMOTE_USER'} . " is not in workgroup");
+        return {success => 0};
+    }
+
+    my $res = vrf_del( method => $method, vrf_id => $vrf_id);
+    $res->{'vrf_id'} = $vrf_id;
+    return {results => $res};
 
 }
 
@@ -192,14 +260,36 @@ sub vrf_add{
     return {success => 1};
 }
 
-sub edit_vrf{
-    my $method = shift;
-    my $params = shift;
-    my $ref = shift;
+
+sub vrf_del{
+    my %params = @_;
+    my $vrf_id = $params{'vrf_id'};
+    my $method = $params{'method'};
+    $mq->{'topic'} = 'MPLS.FWDCTL.RPC';
+
+    my $cv = AnyEvent->condvar;
+
+    warn "_send_vrf_add_command: Calling delVrf on vrf $vrf_id";
+    $mq->delVrf(vrf_id => int($vrf_id), async_callback => sub {
+        my $result = shift;
+        $cv->send($result);
+                });
+
+    my $result = $cv->recv();
     
+    if (defined $result->{'error'} || !defined $result->{'results'}){
+        if (defined $result->{'error'}) {
+            warn '_send_mpls_vrf_command: ' . $result->{'error'};
+            $method->set_error($result->{'error'});
+        }
+
+        return {success => 0};
+    }
+
+    return {success => 1};
 }
 
-sub remove_vrf{
+sub edit_vrf{
     my $method = shift;
     my $params = shift;
     my $ref = shift;

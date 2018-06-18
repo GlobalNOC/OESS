@@ -79,6 +79,36 @@ sub to_hash{
     return $obj;
 }
 
+sub peer_ip{
+    my $self = shift;
+    return $self->{'peer_ip'};
+}
+
+sub local_ip{
+    my $self = shift;
+    return $self->{'local_ip'};
+}
+
+sub peer_asn{
+    my $self = shift;
+    return $self->{'peer_asn'};
+}
+
+sub md5_key{
+    my $self = shift;
+    return $self->{'md5_key'};
+}
+
+sub vrf_ep_id{
+    my $self = shift;
+    return $self->{'vrf_ep_id'};
+}
+
+sub vrf_ep_peer_id{
+    my $self = shift;
+    return $self->{'vrf_ep_peer_id'};
+}
+
 sub _fetch_from_db{
     my $self = shift;
    

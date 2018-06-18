@@ -16,7 +16,15 @@ sub fetch{
         return;
     }
 
-    return $user->[0];
+
+    $user = $user->[0];
+    $user->{'workgroups'} = ();
+    my $workgroups = $db->execute_query("select workgroup_id from user_workgroup_membership where user_id = ?",[$user_id]);
+    foreach my $workgroup (@$workgroups){
+        push(@{$user->{'workgroups'}}, OESS::Workgroup->new(db => $db, workgroup_id => $workgroup->{'workgroup_id'}));
+    }
+
+    return $user;
 
 }
 

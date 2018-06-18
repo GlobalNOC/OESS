@@ -16,7 +16,7 @@ use Data::Dumper;
 use OESS::DB;
 use OESS::Endpoint;
 use OESS::Workgroup;
-
+use NetAddr::IP;
 
 
 =head1 NAME
@@ -246,13 +246,11 @@ sub update_db{
 
 sub create{
     my $self = shift;
-
-    
     
     #need to validate endpoints
     foreach my $ep (@{$self->endpoints()}){
-        if( !$ep->interface()->valid_vlan( workgroup_id => $self->workgroup()->workgroup_id(), vlan => $ep->vlan() )){
-            $self->{'logger'}->error("VLAN: " . $ep->vlan() . " is not allowed for workgroup on interface: " . $ep->interface()->name());
+        if( !$ep->interface()->vlan_valid( workgroup_id => $self->workgroup()->workgroup_id(), vlan => $ep->tag() )){
+            $self->{'logger'}->error("VLAN: " . $ep->tag() . " is not allowed for workgroup on interface: " . $ep->interface()->name());
             return 0;
         }
 
@@ -265,6 +263,12 @@ sub create{
                 return 0;
             }
         }
+    }
+
+    #validate that we have at least 2 endpoints
+    if(scalar($self->endpoints()) < 2){
+        $self->{'logger'}->error("VRF Needs at least 2 endpoints");
+        return 0;
     }
 
     my $vrf_id = OESS::DB::VRF::create(db => $self->{'db'}, model => $self->to_hash());
