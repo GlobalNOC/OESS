@@ -1,0 +1,102 @@
+<html>
+
+  [% INCLUDE html_templates/header.html %]
+
+  [% INCLUDE js_templates/cookie.js %]
+  [% INCLUDE js_templates/utility.js %]
+  [% INCLUDE js_templates/maps.js %]
+
+  <body class="yui-skin-sam">
+
+    <div class="header">
+      <div class="logo"><h1>OESS</h1></div>
+
+      <span id="docLink" class="yui-button yui-link-button" >
+        <span class="first-child">
+          <a href="https://docs.globalnoc.iu.edu/sdn/oess.html" style="font-size: 10px">Documentation</a>
+        </span>
+      </span>
+		  
+      <span id="feedbackLink" class="yui-button yui-link-button" style="margin-left:0px;" >
+	<span class="first-child">
+	  <a href="mailto:[% admin_email %]?SUBJECT=System Support: NDDI/OS3E Feedback Ticket" style="font-size: 10px">Feedback</a>
+	</span>
+      </span>
+	  
+      [% IF is_admin == 1 %]
+      <span id="adminLink" class="yui-button yui-link-button" style="margin-left:0px;" >
+        <span class="first-child">
+          <a href="admin/" style="font-size: 10px">Admin</a>
+        </span>
+      </span>
+      [% END %]
+    </div>
+
+    <div class="breadcrumb-gutter">
+      <div class="breadcrumbs">
+	  [% past_selected = 0 %]
+	
+	  [% FOREACH crumb IN breadcrumbs %]
+
+	  [% crumb_id = crumb.title.split(" ").join("_") _ "_breadcrumb" %]
+	  
+          [% IF crumb.title == current_breadcrumb %]
+	  
+	  <span class="selected_breadcrumb" id="[% crumb_id %]">[% crumb.title %]</span>
+	  
+	  [% past_selected = 1 %]
+          
+	  [% ELSE %]
+          
+	  [% IF ! past_selected %]
+          
+	  <a href="[% crumb.url %]" id="[% crumb_id %]">[% crumb.title %]</a>
+	  
+	  [% ELSE %]
+          
+	  <span class="future_breadcrumb" id="[% crumb_id %]">[% crumb.title %]</span>
+          
+	  [% END %]
+          
+	  [% END %]
+          
+	  [% IF ! loop.last %]
+          
+	  <span class="breadcrumb_spacer">&gt;</span>
+          
+	  [% END %]
+	  
+	  [% END %]
+      </div>
+
+      <div id="active_workgroup_container" class="active_workgroup_container">
+        Workgroup: <span id="active_workgroup_name"></span>
+      </div>
+    </div>
+
+    <div class="content">
+      [% INCLUDE $page %]
+    </div>
+
+    <div class="footer-logos">
+      <a href="http://globalnoc.iu.edu"><img src="media/globalnoc-logo.svg"/></a>
+      <a href="http://www.internet2.edu/"><img src="media/internet2-logo.png" width="50%"/></a>
+    </div>
+
+    <div class="footer-links">
+      <div>
+        <a href="https://globalnoc.iu.edu/"><p>GlobalNOC</p></a>
+        <a href="http://iu.edu/"><p>Indiana University</p></a>
+      </div>
+      <div>
+        <a href="http://www.internet2.edu/"><p>Internet2</p></a>
+      </div>
+      <div>
+        <a href="http://www.internet2.edu/network/ose/"><p>OESS</p></a>
+        <a href="https://docs.globalnoc.iu.edu/sdn/oess.html"><p>About</p></a>
+        <a href="https://docs.globalnoc.iu.edu/sdn/oess/revision-history.html"><p>Version [% version %]</p></a>
+      </div>
+    </div>
+
+  </body>
+</html>

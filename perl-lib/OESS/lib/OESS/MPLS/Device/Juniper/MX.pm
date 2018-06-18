@@ -763,6 +763,7 @@ sub add_vrf{
     my $vars = {};
     $vars->{'vrf_name'} = $vrf->{'name'};
     $vars->{'interfaces'} = ();
+
     foreach my $i (@{$vrf->{'interfaces'}}) {
 	
 	my @bgp;
@@ -777,6 +778,7 @@ sub add_vrf{
             }
 
 	    push(@bgp, { asn => $bgp->{'peer_asn'},
+
 			 local_ip => $bgp->{'local_ip'},
                          peer_ip => $peer_ip,
 			 key => $bgp->{'key'}
@@ -1694,6 +1696,7 @@ sub verify_connection{
     }
 
     $self->{'logger'}->error("Network OS $sysinfo->{'os_name'} version $sysinfo->{'version'} on the $sysinfo->{'model'} is not supported.");
+    $self->disconnect();
     return 0;
 }
 
