@@ -14,6 +14,8 @@
    integrity="sha512-/Nsx9X4HebavoBvEBuyp3I7od5tA0UzAxs+j83KgC8PU0kgB4XiK4Lfe4y4cgBtaRJQEIFCW+oC506aPT2L1zw=="
    crossorigin=""></script>
 
+ <link type="text/css" rel="stylesheet" href="[% path %]css/entity.css">
+
   <script>
     [% INCLUDE js_templates/api/vrf.js %]
     [% INCLUDE js_templates/api/interfaces.js %]
@@ -33,61 +35,59 @@
     </div>
   </div>
 
-  <div class="row">
-    <div class="col-md-12" style="padding-bottom: 15px;">
-      <div class="row" style="padding-bottom: 15px;">
-        <div class="col-md-2">
-          <img src="https://shop.lego.com/static/images/svg/lego-logo.svg" height="128px" width="128px" style="padding-top: 15px;" />
-        </div>
-        <div class="col-md-10">
-          <h2>GlobalNOC <small>of <a href="#">Indiana University</a></small></h2>
-          <p>2715 E 10th St<br/>Bloomington, IN 47408</p>
-        </div>
+  <div class="entity-discovery">
+    <div class="entity-nav">
+         <ul class="nav nav-pills nav-stacked">
+           <li role="presentation"><a href="#">&lt; Indiana University</a></li>
+           <li role="presentation"><a href="#">Network Analysis and Control &gt;</a></li>
+           <li role="presentation"><a href="#">Monitoring Information and Infrastructure &gt;</a></li>
+         </ul>
+    </div>
+
+    <div class="entity-header">
+      <img class="entity-logo" src="https://shop.lego.com/static/images/svg/lego-logo.svg" />
+      <div>
+        <h2>GlobalNOC <small>of <a href="#">Indiana University</a></small></h2>
+        <p>2715 E 10th St<br/>Bloomington, IN 47408</p>
+      </div>
+    </div>
+
+    <div class="entity-content">
+      <p class="entity">The GlobalNOC’s Service Desk, Network Engineering, and Software and Systems teams work as an integrated unit to meet the fast-changing needs of the R&E networking community.</p>
+
+      <h3>Contacts</h3>
+      <div class="entity-contacts">
+        <p class="entity-contact"><b>Jonathan Stout</b><br/>(317) 274-0804<br/>jonstout@globolnoc.iu.edu</p>
+        <p class="entity-contact"><b>AJ Ragusa</b><br/>(317) 274-0805<br/>araguso@globolnoc.iu.edu</p>
       </div>
 
-      <div class="row">
-        <div class="col-md-6">
-          <p>The GlobalNOC’s Service Desk, Network Engineering, and Software and Systems teams work as an integrated unit to meet the fast-changing needs of the R&E networking community.</p>
-
-          <h3>Contacts</h3>
-          <p><b>Jonathan Stout</b><br/>(317) 274-0804<br/>jonstout@globolnoc.iu.edu</p>
-          <p><b>AJ Ragusa</b><br/>(317) 274-0805<br/>araguso@globolnoc.iu.edu</p>
-        </div>
-
-        <div class="col-md-6" style="padding-top: 15px; padding-bottom: 15px;">
-          <div id="map" class="openlayers"></div>
-        </div>
+      <!--
+      <h3>Children</h3>
+      <div class="entity-children">
+        <p class="entity-child"><a href="#">
+            <img class="entity-child-img" src="https://shop.lego.com/static/images/svg/lego-logo.svg" />
+            <b>Network Analysis and Control</b>
+        </a></p>
+        <p class="entity-child"><a href="#">
+            <img class="entity-child-img" src="https://shop.lego.com/static/images/svg/lego-logo.svg" />
+            <b>Monitoring Information and Infrastructure</b>
+         </a></p>
       </div>
 
-      <div class="row">
-        <div class="col-md-6">
-          <h3>Children</h3>
-          <p><a href="#">
-              <img src="https://shop.lego.com/static/images/svg/lego-logo.svg" height="32px" width="32px" style="padding-top: 0px; vertical-align: text-top;" />
-              <b>Network Analysis and Control</b>
-          </a></p>
-          <p><a href="#">
-              <img src="https://shop.lego.com/static/images/svg/lego-logo.svg" height="32px" width="32px" style="padding-top: 0px; vertical-align: text-top;" />
-              <b>Monitoring Information and Infrastructure</b>
-          </a></p>
-        </div>
+      <div class="entity-map">
+        <div id="map" class="openlayers"></div>
+      </div>
 
-        <div class="col-md-6">
       <h3>Interfaces</h3>
-      <p><span class="label label-danger">▾</span> <b>rtsw.chic.net.internet2.edu</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;xe-3/2/0</p>
-      <p><span class="label label-success">▴</span> <b>rtsw.chic.net.internet2.edu</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;xe-3/2/1</p>
-
-        </div>
+      <div class="entity-interfaces">
+        <p class="entity-interface"><span class="label label-danger">▾</span> <b>rtsw.chic.net.internet2.edu</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;xe-3/2/0</p>
+         <p class="entity-interface"><span class="label label-success">▴</span> <b>rtsw.chic.net.internet2.edu</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;xe-3/2/1</p>
       </div>
-    </div>
+      -->
 
-  </div>
-
-  <div class="row">
-    <div class="col-md-6">
-    </div>
-
-    <div class="col-md-6" style="padding-top: 15px; padding-bottom: 15px;">
+      <div class="entity-actions">
+        <button class="button btn btn-primary" type="button">Connect to GlobalNOC</button>
+      </div>
     </div>
   </div>
 </div>
