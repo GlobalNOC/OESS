@@ -1333,62 +1333,65 @@ sub _change_active_path{
 
     $self->{'logger'}->info("Changing paths from $old_path_id to $new_path_id");
 
-
-    # decom the current path instantiation
-    $query = "update path_instantiation set path_instantiation.end_epoch = unix_timestamp(NOW()) " .
-        "where path_instantiation.path_id = ? and path_instantiation.end_epoch = -1";
+    # Decom the current path instantiation for each path
+    my $decom_path_instantiation = "
+UPDATE path_instantiation set path_instantiation.end_epoch=unix_timestamp(NOW())
+WHERE path_instantiation.path_id=? and path_instantiation.end_epoch=-1";
     
-    my $success = $self->{'db'}->_execute_query($query, [$old_path_id]);
-    if (!$success) {
+    my $affected = $self->{'db'}->_execute_query($decom_path_instantiation, [$old_path_id]);
+    if (!defined $affected || $affected < 0) {
 	$self->{'db'}->_rollback();
-        my $err = "Unable to change path_instantiation of current path to inactive.";
+        my $err = "Unable to decom old path's current path_instantiation.";
         $self->{'logger'}->error($err);
         $self->error($err);
         return;
     }
 
-    # create a new path instantiation of the old path
-    $query = "insert into path_instantiation (path_id, start_epoch, end_epoch, path_state) values (?, unix_timestamp(NOW()), -1, 'available')";
-    $success = $self->{'db'}->_execute_query($query, [$old_path_id]);
-
-    if (!$success) {
+    $affected = $self->{'db'}->_execute_query($decom_path_instantiation, [$new_path_id]);
+    if (!defined $affected || $affected < 0) {
 	$self->{'db'}->_rollback();
-        my $err = "Unable to update path_instantiation table";
+        my $err = "Unable to decom new path's current path_instantiation.";
         $self->{'logger'}->error($err);
         $self->error($err);
         return;
     }
 
-    $query = "update path_instantiation set path_state = 'active' where path_id=? and end_epoch=-1";
-    $success = $self->{'db'}->_execute_query($query, [$new_path_id]);
-
+    # Create a new path instantiation for each path
+    my $create_path_instantiation = "
+insert into path_instantiation (path_id, start_epoch, end_epoch, path_state) values (?, unix_timestamp(NOW()), -1, ?)";
+    my $success = $self->{'db'}->_execute_query($create_path_instantiation, [$old_path_id, 'available']);
     if (!$success) {
 	$self->{'db'}->_rollback();
-        my $err = "Unable to update path_instantiation table";
+        my $err = "Unable to add old path's new path_instantiation entry.";
         $self->{'logger'}->error($err);
         $self->error($err);
         return;
     }
 
+    $success = $self->{'db'}->_execute_query($create_path_instantiation, [$new_path_id, 'active']);
+    if (!$success) {
+	$self->{'db'}->_rollback();
+        my $err = "Unable to add new path's new path_instantiation entry.";
+        $self->{'logger'}->error($err);
+        $self->error($err);
+        return;
+    }
 
     # Update the path table
-    $query = "update path set path_state='available' where path_id=?";
-    $success = $self->{'db'}->_execute_query($query, [$old_path_id]);
-
-    if (!$success) {
+    my $set_path_state = "update path set path_state=? where path_id=?";
+    $affected = $self->{'db'}->_execute_query($set_path_state, ['available', $old_path_id]);
+    if (!defined $affected || $affected < 0) {
         $self->{'db'}->_rollback();
-        my $err = "Unable to update path table";
+        my $err = "Unable to update old path's new state.";
         $self->{'logger'}->error($err);
         $self->error($err);
         return;
     }
 
-    $query = "update path set path_state='active' where path_id=?";
-    $success = $self->{'db'}->_execute_query($query, [$new_path_id]);
-    
-    if (!$success) {
+    $affected = $self->{'db'}->_execute_query($set_path_state, ['active', $new_path_id]);
+    if (!defined $affected || $affected < 0) {
 	$self->{'db'}->_rollback();
-        my $err = "Unable to update path table";
+        my $err = "Unable to update new path's new state.";
         $self->{'logger'}->error($err);
         $self->error($err);
         return;
