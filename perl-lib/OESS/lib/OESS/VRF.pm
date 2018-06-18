@@ -17,6 +17,8 @@ use OESS::DB;
 use OESS::Endpoint;
 use OESS::Workgroup;
 
+
+
 =head1 NAME
 
 OESS::VRF - VRF Interaction Module
@@ -244,10 +246,30 @@ sub update_db{
 
 sub create{
     my $self = shift;
+
     
+    
+    #need to validate endpoints
+    foreach my $ep (@{$self->endpoints()}){
+        if( !$ep->interface()->valid_vlan( workgroup_id => $self->workgroup()->workgroup_id(), vlan => $ep->vlan() )){
+            $self->{'logger'}->error("VLAN: " . $ep->vlan() . " is not allowed for workgroup on interface: " . $ep->interface()->name());
+            return 0;
+        }
+
+        #validate IP addresses for peerings
+        foreach my $peer (@{$ep->peers()}){
+            my $peer_ip = NetAddr::IP->new($peer->peer_ip());
+            my $local_ip = NetAddr::IP->new($peer->local_ip());
+            if(!$local_ip->contains($peer_ip)){
+                $self->{'logger'}->error("Peer and Local IPs are not in the same subnet...");
+                return 0;
+            }
+        }
+    }
+
     my $vrf_id = OESS::DB::VRF::create(db => $self->{'db'}, model => $self->to_hash());
     $self->{'vrf_id'} = $vrf_id;
-    
+    return 1;
 }
 
 sub _edit{

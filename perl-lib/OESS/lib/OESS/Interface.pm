@@ -46,7 +46,9 @@ sub from_hash{
     $self->{'node'} = $hash->{'node'};
     $self->{'description'} = $hash->{'description'};
     $self->{'operational_state'} = $hash->{'operational_state'};
-    
+    $self->{'acls'} = $hash->{'acls'};
+    $self->{'mpls_vlan_tag_range'} = $hash->{'mpls_vlan_tag_range'};
+    $self->_process_mpls_vlan_tag();
 
 }
 
@@ -57,7 +59,8 @@ sub to_hash{
              description => $self->description(),
              interface_id => $self->interface_id(),
              node_id => $self->node()->node_id(),
-             node => $self->node()->name() 
+             node => $self->node()->name(),
+             acls => $self->acls()->to_hash()
     };
 }
 
@@ -91,6 +94,11 @@ sub update_db{
 
 }
 
+sub interface_id{
+    my $self = shift;
+    return $self->{'interface_id'};
+}
+
 sub name{
     my $self = shift;
     return $self->{'name'};
@@ -116,6 +124,11 @@ sub operational_state{
 
 }
 
+sub acls{
+    my $self = shift;
+    return $self->{'acls'};
+}
+
 sub role{
 
 }
@@ -134,9 +147,82 @@ sub vlan_tag_range{
 }
 
 sub mpls_vlan_tag_range{
+    my $self = shift;
+    return $self->{'mpls_vlan_tag_range'};
+}
+
+sub vlan_in_use{
+    my $self = shift;
+    my $vlan = shift;
+
+    #check and see if the specified VLAN tag is already in use
+    
+    my $in_use = OESS::DB::Interface::vrf_vlans_in_use(db => $self->{'db'}, interface_id => $self->interface_id() );
+    
+    push(@{$in_use},OESS::DB::Interface::circuit_vlans_in_use(db => $self->{'db'}, interface_id => $self->interface_id()));
+
+    foreach my $used (@$in_use){
+        if($used == $vlan){
+            return 1;
+        }
+    }
+
+    return 0;
 
 }
 
+sub _process_mpls_vlan_tag{
+    my $self = shift;
+    
+    
+    my %range;
+    my @range = split(',',$self->mpls_vlan_tag_range());
+    foreach my $range (@range){
+        if($range =~ /-/){
+            my ($start,$end) = split('-',$range);
+            for(my $i=$start; $i<=$end;$i++){
+                $range{$i} = 1;
+            }
+        }else{
+            #single value
+            $range{$range} = 1;
+        }
+    }
+    $self->{'mpls_range'} = \%range;
+}
+
+sub mpls_range{
+    my $self = shift;
+    return $self->{'mpls_range'};
+}
+
+sub vlan_valid{
+    my $self = shift;
+    my %params = @_;
+    my $vlan = $params{'vlan'};
+    my $workgroup_id = $params{'workgroup_id'};
+
+    #first check for valid range
+    if($vlan < 1 || $vlan > 4095){
+        return 0;
+    }
+
+    #first check and make sure the VLAN tag is not in use
+    if($self->vlan_in_use($vlan)){
+        return 0;
+    }
+
+    if(!$self->acls()->vlan_allowed( vlan => $vlan, workgroup_id => $workgroup_id)){
+        return 0;
+    }
+    
+    if(!defined($self->mpls_range()->{$vlan})){
+        return 0;
+    }
+
+    #ok we got this far... its allowed
+    return 1;
+}
 
 1;
 
