@@ -79,9 +79,54 @@ sub register_ro_methods{
 }
 
 sub register_rw_methods{
+    
+    my $method = GRNOC::WebService::Method->new(
+        name            => "update_entity",
+        description     => "",
+        callback        => sub { update_entity(@_) }
+        );
+    
+    $method->add_input_parameter(
+        name => 'entity_id',
+        pattern => $GRNOC::WebService::Regex::INTEGER,
+        required => 1,
+        description => "entity to be updated");
 
+    $method->add_input_parameter(
+        name => 'description',
+        pattern => $GRNOC::WebService::Regex::TEXT,
+        required => 1,
+        description => "the description to be set on the entity");
+
+    $method->add_input_parameter(
+        name => 'name',
+        pattern => $GRNOC::WebService::Regex::NAME,
+        required => 1,
+        description => "the name of the entity");
+
+    $method->add_input_parameter(
+        name => 'url',
+        pattern => $GRNOC::WebService::Regex::URL,
+        required => 1,
+        description => "The URL of the entities web page");
+
+    $method->add_input_parameter(
+        name => 'logo_url',
+        pattern => $GRNOC::WebService::Regex::URL,
+        required => 1,
+        description => "The URL to the logo for the entity");
+
+    $svc->register_method($method);
+    
 }
 
+sub update_entity{
+    my $method = shift;
+    my $params = shift;
+    my $ref = shift;
+
+    
+}
 
 sub get_root_entities{
     my $method = shift;

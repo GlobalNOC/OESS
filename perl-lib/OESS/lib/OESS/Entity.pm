@@ -39,6 +39,9 @@ sub _from_hash{
     my $hash = shift;
 
     $self->{'name'} = $hash->{'name'};
+    $self->{'description'} = $hash->{'description'};
+    $self->{'logo_url'} = $hash->{'logo_url'};
+    $self->{'url'} = $hash->{'url'};
     $self->{'interfaces'} = $hash->{'interfaces'};
     $self->{'parents'} = $hash->{'parents'};
     $self->{'children'} = $hash->{'children'};
@@ -69,6 +72,9 @@ sub to_hash{
     }
 
     return { name => $self->name(),
+             logo_url => $self->logo_url(),
+             url => $self->url(),
+             description => $self->description(),
              interfaces => \@ints,
              parents => $self->parents(),
              children => $self->children(),
@@ -89,6 +95,35 @@ sub name{
     }else{
         return $self->{'name'};
     }
+}
+
+sub description{
+    my $self = shift;
+    my $description = shift;
+
+    if(defined($description)){
+        $self->{'description'} = $description;
+    }
+    return $self->{'description'};
+}
+
+sub logo_url{
+    my $self = shift;
+    my $logo_url = shift;
+
+    if(defined($logo_url)){
+        $self->{'logo_url'} = $logo_url;
+    }
+    return $self->{'logo_url'};
+}
+
+sub url {
+    my $self = shift;
+    my $url = shift;
+    if(defined($url)){
+        $self->{'url'} = $url;
+    }
+    return $self->{'url'};
 }
 
 sub interfaces{
