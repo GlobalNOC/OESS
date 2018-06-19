@@ -71,7 +71,7 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
     const resp = await fetch(url, {method: 'post', credentials: 'include', body: form});
     const data = await resp.json();
 
-    if (typeof data.error_text !== undefined) {
+    if ('error_text' in data) {
         console.log(data.error_text);
         return null;
     }

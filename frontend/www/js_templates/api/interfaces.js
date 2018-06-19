@@ -27,9 +27,9 @@ async function getInterfaces(workgroupID, nodeName, trunk=1) {
  *
  */
 async function getEntities(workgroupID, parentEntityID=null) {
-  let url = `services/entity.cgi?method=get_root_entities&workgroup_id=${workgroupID}`;
+  let url = `services/entity.cgi?method=get_entity&workgroup_id=${workgroupID}&entity_id=1`;
   if (parentEntityID !== null) {
-      url = `services/entity.cgi?method=get_entity_children&workgroup_id=${workgroupID}&entity_id=${parentEntityID}`;
+      url = `services/entity.cgi?method=get_entity&workgroup_id=${workgroupID}&entity_id=${parentEntityID}`;
   }
 
   try {
