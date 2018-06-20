@@ -11,25 +11,28 @@
     <div class="header">
       <div class="logo"><h1>OESS</h1></div>
 
-      <span id="docLink" class="yui-button yui-link-button" >
-        <span class="first-child">
-          <a href="https://docs.globalnoc.iu.edu/sdn/oess.html" style="font-size: 10px">Documentation</a>
-        </span>
-      </span>
-		  
-      <span id="feedbackLink" class="yui-button yui-link-button" style="margin-left:0px;" >
-	<span class="first-child">
-	  <a href="mailto:[% admin_email %]?SUBJECT=System Support: NDDI/OS3E Feedback Ticket" style="font-size: 10px">Feedback</a>
-	</span>
-      </span>
-	  
       [% IF is_admin == 1 %]
-      <span id="adminLink" class="yui-button yui-link-button" style="margin-left:0px;" >
-        <span class="first-child">
-          <a href="admin/" style="font-size: 10px">Admin</a>
-        </span>
-      </span>
+      <a class="btn btn-default" href="admin/" role="button">Admin</a>
       [% END %]
+
+      <div class="btn-group">
+        <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          <span class="badge" style="background-color: #D75452;">1</span>&nbsp; jonstout / <span id="active_workgroup_name"></span>
+          <span class="caret"></span>
+        </button>
+        <ul class="dropdown-menu">
+          <li>
+            <a href="#">
+              <b>Jonathan Stout</b><br/>
+              GlobalNOC<br/>
+              jonstout@globolnoc.iu.edu
+            </a>
+          </li>
+          <li role="separator" class="divider"></li>
+          <li><a href="#"><span class="badge" style="background-color: #D75452;">1</span> Indiana University</a></li>
+          <li><a href="#">Internet2</a></li>
+        </ul>
+      </div>
     </div>
 
     <div class="breadcrumb-gutter">
@@ -68,10 +71,6 @@
 	  
 	  [% END %]
       </div>
-
-      <div id="active_workgroup_container" class="active_workgroup_container">
-        Workgroup: <span id="active_workgroup_name"></span>
-      </div>
     </div>
 
     <div class="content">
@@ -94,6 +93,8 @@
       <div>
         <a href="http://www.internet2.edu/network/ose/"><p>OESS</p></a>
         <a href="https://docs.globalnoc.iu.edu/sdn/oess.html"><p>About</p></a>
+        <a href="https://docs.globalnoc.iu.edu/sdn/oess.html"><p>Documentation</p></a>
+        <a href="mailto:[% admin_email %]?SUBJECT=System Support: NDDI/OS3E Feedback Ticket"><p>Feedback</p></a>
         <a href="https://docs.globalnoc.iu.edu/sdn/oess/revision-history.html"><p>Version [% version %]</p></a>
       </div>
     </div>

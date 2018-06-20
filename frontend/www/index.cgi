@@ -199,6 +199,16 @@ sub main{
             {title => "Phonebook",  url => "#"}
         ];
     }
+    case "welcome" {
+        $title              = "Welcome";
+        $filename           = "html_templates/welcome.html";
+        $current_breadcrumb = "Welcome";
+        $breadcrumbs        = [
+            {title => "Workgroups", url => "?action=workgroups"},
+            {title => "Home",       url => "?action=index"},
+            {title => "Welcome",    url => "#"}
+        ];
+    }
 
 	case "provisioning"  { $filename           = "html_templates/provisioning.html";
 			       $title              = "Provisioning";
@@ -241,7 +251,7 @@ sub main{
 
     
     #print STDERR Dumper($vars);
-    if ($action eq 'view_l3vpn' || $action eq 'provision_cloud' || $action eq 'phonebook') {
+    if ($action eq 'view_l3vpn' || $action eq 'provision_cloud' || $action eq 'phonebook' || $action eq 'welcome') {
         $tt->process("html_templates/base.html", $vars, \$output) or warn $tt->error();
     } else {
         $tt->process("html_templates/page_base.html", $vars, \$output) or warn $tt->error();
