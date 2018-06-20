@@ -167,8 +167,6 @@ sub get_vrfs{
         return;
     }
 
-    warn Dumper($user);
-
     #first validate the user is in the workgroup
     if(!$user->in_workgroup( $workgroup_id)){
         $method->set_error("User is not in workgroup");
@@ -181,7 +179,7 @@ sub get_vrfs{
     foreach my $vrf (@$vrfs){
         my $vrf = OESS::VRF->new( db => $db, vrf_id => $vrf->{'vrf_id'});
         next if(!defined($vrf));
-        push(@vrfs, $vrf->to_has());
+        push(@vrfs, $vrf->to_hash());
     }
 
     return \@vrfs;
