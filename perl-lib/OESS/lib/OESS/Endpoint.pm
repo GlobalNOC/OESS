@@ -55,8 +55,6 @@ sub _build_from_model{
 
     warn "Building endpoint from model\n";
     
-    warn Dumper($self->{'model'});
-
     if(defined($self->{'model'}->{'interface'})){
         $self->{'interface'} = OESS::Interface->new( db => $self->{'db'}, name => $self->{'model'}->{'interface'}, node => $self->{'model'}->{'node'});
     }else{
@@ -71,8 +69,6 @@ sub _build_from_model{
             push(@{$self->{'peers'}}, OESS::Peer->new( db => $self->{'db'}, model => $peer, vrf_ep_peer_id => -1));
         }
     }
-
-    warn "PEER RAW: " . Dumper($self->{'peers'});
 
 }
 

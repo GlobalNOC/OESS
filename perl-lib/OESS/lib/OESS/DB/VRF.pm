@@ -226,15 +226,29 @@ sub get_vrfs{
     my %params = @_;
     my $db = $params{'db'};
 
-    my $where;
-    my @where;
+    my @where_str;
+    my @where_val;
 
     if(defined($params{'state'})){
-        push(@where,$params{'state'});
-        $where .= " state =";
+        push(@where_val,$params{'state'});
+        push(@where_str,"state = ?");
     }
 
-    my $vrfs = $db->execute_query("select vrf_id from vrf where state = 'active'",[]);
+    if(defined($params{'workgroup_id'})){
+        push(@where_val, $params{'workgroup_id'});
+        push(@where_str, "workgroup_id = ?");
+    }
+
+    my $where;
+    foreach my $str (@where_str){
+        if(!defined($where)){
+            $where .= $str;
+        }else{
+            $where .= " and " . $str;
+        }
+    }
+
+    my $vrfs = $db->execute_query("select vrf_id from vrf where $where",\@where_val);
     return $vrfs;
 }
     

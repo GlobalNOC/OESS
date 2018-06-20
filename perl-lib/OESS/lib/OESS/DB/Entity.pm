@@ -22,7 +22,7 @@ sub fetch{
     }else{
         $entity = $db->execute_query("select * from entity where name = ?",[$entity_name]);
     }
-    warn "Fetch Entity: " . Dumper($entity);
+
     return if (!defined($entity) || !defined($entity->[0]));
 
     $entity = $entity->[0];
@@ -41,8 +41,6 @@ sub fetch{
 
     }
 
-    warn Dumper($entity);
-    
     return {entity_id => $entity->{'entity_id'},
             name => $entity->{'name'},
             parents => $parents,
@@ -54,8 +52,6 @@ sub get_root_entities{
     my %params = @_;
     my $db = $params{'db'};
     
-    warn Dumper($db);
-
     my $entities = $db->execute_query("select entity.entity_id from entity join entity_hierarchy on entity_hierarchy.entity_child_id = entity.entity_id where entity_hierarchy.entity_parent_id = 1",[]);
     
     my @roots;

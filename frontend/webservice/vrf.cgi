@@ -145,6 +145,36 @@ sub get_vrf_details{
     
 }
 
+sub get_vrfs{
+    my $method = shift;
+    my $params = shift;
+    my $ref = shift;
+
+    my $workgroup_id = $params->{'workgroup_id'}{'value'};
+    
+    #verify user is in workgroup
+    my $user = OESS::DB::User::find_user_by_remote_auth( db => $db, remote_user => $ENV{'REMOTE_USER'} );
+
+    $user = OESS::User->new(db => $db, user_id =>  $user->{'user_id'} );
+
+    #first validate the user is in the workgroup
+    if(!$user->in_workgroup( $workgroup_id)){
+        $method->set_error("User is not in workgroup");
+        return;
+    }
+    
+    my $vrfs = OESS::DB::VRF::get_vrfs( db => $db, workgroup_id => $workgroup_id, state => 'active');
+    
+    my @vrfs;
+    foreach my $vrf (@$vrfs){
+        push(@vrfs, OESS::VRF->new( db => $db, vrf_id => $vrf->{'vrf_id'})->to_hash());
+    }
+
+    return \@vrfs;
+        
+
+}
+
 sub provision_vrf{
     my $method = shift;
     my $params = shift;
