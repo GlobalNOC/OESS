@@ -157,6 +157,13 @@ sub get_vrfs{
 
     $user = OESS::User->new(db => $db, user_id =>  $user->{'user_id'} );
 
+    if(!defined($user)){
+        $method->set_error("User " . $ENV{'REMOTE_USER'} . " is not in OESS");
+        return;
+    }
+
+    warn Dumper($user);
+
     #first validate the user is in the workgroup
     if(!$user->in_workgroup( $workgroup_id)){
         $method->set_error("User is not in workgroup");
@@ -185,6 +192,11 @@ sub provision_vrf{
     my $user = OESS::DB::User::find_user_by_remote_auth( db => $db, remote_user => $ENV{'REMOTE_USER'} );
     
     $user = OESS::User->new(db => $db, user_id =>  $user->{'user_id'} );
+
+    if(!defined($user)){
+        $method->set_error("User " . $ENV{'REMOTE_USER'} . " is not in OESS");
+        return;
+    }
 
     $model->{'description'} = $params->{'name'}{'value'};
     $model->{'prefix_limit'} = $params->{'prefix_limit'}{'value'};
@@ -245,16 +257,27 @@ sub remove_vrf{
 
     my $vrf = OESS::VRF->new(db => $db, vrf_id => $vrf_id);
 
+    $user = OESS::User->new(db => $db, user_id =>  $user->{'user_id'} );
+
+    if(!defined($user)){
+        $method->set_error("User " . $ENV{'REMOTE_USER'} . " is not in OESS");
+        return;
+    }
+
     if(!defined($vrf)){
         $method->set_error("Unable to find VRF: " . $vrf_id);
         return {success => 0};
     }
 
+
+
     my $result;
-    if(!$user->is_in_workgroup( $wg)){
+    if(!$user->in_workgroup( $wg)){
         $method->set_error("User " . $ENV{'REMOTE_USER'} . " is not in workgroup");
         return {success => 0};
     }
+
+    $vrf->decom(user_id => $user->user_id());
 
     my $res = vrf_del( method => $method, vrf_id => $vrf_id);
     $res->{'vrf_id'} = $vrf_id;

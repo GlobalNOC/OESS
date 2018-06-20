@@ -119,4 +119,11 @@ sub _fetch_from_db{
     $self->from_hash($hash);
 }
 
+sub decom{
+    my $self = shift;
+
+    my $res = OESS::DB::VRF::decom_peer(db => $self->{'db'}, vrf_ep_peer_id => $self->vrf_ep_peer_id());
+    return $res;
+}
+
 1;

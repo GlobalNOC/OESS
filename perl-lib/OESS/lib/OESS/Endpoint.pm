@@ -203,6 +203,26 @@ sub circuit_endpoint_id{
     return $self->{'circuit_endpoint_id'};
 }
 
+sub decom{
+    my $self = shift;
+    
+    my $res;
+    if($self->type() eq 'vrf'){
 
+        foreach my $peer (@{$self->peers()}){
+            $peer->decom();
+        }
+        
+        $res = OESS::DB::VRF::decom_endpoint(db => $self->{'db'}, vrf_endpoint_id => $self->vrf_endpoint_id());
+        
+    }else{
+
+        $res = OESS::DB::Circuit::decom_endpoint(db => $self->{'db'}, circuit_endpoint_id => $self->circuit_endpoint_id());
+
+    }
+
+    return $res;
+
+}
 
 1;

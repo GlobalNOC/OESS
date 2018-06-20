@@ -296,7 +296,25 @@ sub update_vrf_details{
     my $self = shift;
     my %params = @_;
 
-    $self->_load_vrf_details();
+    $self->_fetch_from_db();
+}
+
+=head2 decom
+
+=cut
+
+sub decom{
+    my $self = shift;
+    my %params = @_;
+    my $user_id = $params{'user_id'};
+    
+    foreach my $ep (@{$self->endpoints()}){
+        $ep->decom();
+    }
+
+    my $res = OESS::DB::VRF::decom(db => $self->{'db'}, vrf_id => $self->{'vrf_id'}, user_id => $user_id);
+    return $res;
+
 }
 
 =head2 error

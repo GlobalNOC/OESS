@@ -222,6 +222,36 @@ sub _update_vrf{
         
 }
 
+sub decom{
+    my %params = @_;
+    my $db = $params{'db'};
+    my $vrf_id = $params{'vrf_id'};
+    my $user = $params{'user_id'};
+
+    my $res = $db->execute_query("update vrf set state = 'decom', last_modified_by = ?, last_modified = unix_timestamp(now()) where vrf_id = ?",[$user, $vrf_id]);
+    return $res;
+
+}
+
+sub decom_endpoint{
+    my %params = @_;
+    my $db = $params{'db'};
+    my $vrf_ep_id = $params{'vrf_endpoint_id'};
+    
+    my $res = $db->execute_query("update vrf_ep set state = 'decom' where vrf_ep_id = ?",[$vrf_ep_id]);
+    return $res;
+
+}
+
+sub decom_peer{
+    my %params = @_;
+    my $db = $params{'db'};
+    my $vrf_ep_peer_id = $params{'vrf_ep_peer_id'};
+
+    my $res = $db->execute_query("update vrf_ep_peer set state = 'decom' where vrf_ep_peer_id = ?",[$vrf_ep_peer_id]);
+    return $res;
+}
+
 sub get_vrfs{
     my %params = @_;
     my $db = $params{'db'};
