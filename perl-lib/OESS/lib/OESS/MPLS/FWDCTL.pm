@@ -197,12 +197,14 @@ sub build_cache{
     foreach my $vrf (@$vrfs){
 	$logger->error("Updating Cache for VRF: " . $vrf->{'vrf_id'});
 	
+
 	$vrf = OESS::VRF->new( db => $db2,
                                vrf_id => $vrf->{'vrf_id'});
 
         if(!defined($vrf)){
             warn "Unable to process VRF: " . $vrf->{'vrf_id'} . "\n";
             $logger->error("Unable to process VRF: " . $vrf->{'vrf_id'});
+
             next;
         }
 
@@ -263,11 +265,11 @@ sub _write_cache{
 
 	my $eps = $vrf->endpoints();
 	
-        #$self->{'logger'}->error("ENDPOINTS: " . Dumper($eps));
 
 	my @ints;
 	foreach my $ep (@$eps){
 	    my @bgp;
+
 	    foreach my $bgp (@{$ep->peers()}){
 		push(@bgp, $bgp->to_hash());
 	    }
@@ -286,10 +288,13 @@ sub _write_cache{
                                                                              interfaces => [$int_obj],
                                                                              prefix_limit => $vrf->prefix_limit(),
                                                                              local_asn => $vrf->local_asn(),
+
 		}	
 	    }
 	}
     }
+
+    $self->{'logger'}->error("SWITCHES WITH VRF: " .  Dumper(%switches));
     
     $self->{'logger'}->error("SWITCHES WITH VRF: " .  Dumper(%switches));
     
@@ -815,6 +820,9 @@ sub addVrf{
         return &$error($err);
     }
 
+
+    $vrf->update_vrf_details();
+
     if($vrf->state() eq 'decom'){
         my $err = "addVrf: Adding a decom'd vrf is not allowed";
         $self->{'logger'}->error($err);
@@ -824,12 +832,14 @@ sub addVrf{
     $self->_write_cache();
 
     #get all the DPIDs involved and remove the flows
+
     my $endpoints = $vrf->endpoints();
     my %nodes;
     foreach my $ep (@$endpoints){
         $self->{'logger'}->error("EP: " . Dumper($ep));
         $self->{'logger'}->error("addVrf: Node: " . $ep->node()->name() . " is involved in the vrf");
         $nodes{$ep->node()->name()}= 1;
+
     }
 
     my $result = FWDCTL_SUCCESS;
@@ -838,7 +848,9 @@ sub addVrf{
         $self->{'logger'}->error("addVrf: Wrong circuit state was encountered");
         
         my $state = $vrf->state();
+
         $self->{'logger'}->error($self->{'db2'}->get_error());
+
     }
 
 
@@ -871,7 +883,9 @@ sub addVrf{
     foreach my $node (keys %nodes){
         $cv->begin();
 
+
         $self->{'logger'}->error("Getting ready to add VRF: " . $vrf->vrf_id() . " to switch: " . $node);
+
 
         my $node_id = $self->{'node_info'}->{$node}->{'id'};
 
@@ -929,12 +943,14 @@ sub delVrf{
     $self->_write_cache();
 
     #get all the DPIDs involved and remove the flows
+
     my $endpoints = $vrf->endpoints();
     my %nodes;
     foreach my $ep (@$endpoints){
         $self->{'logger'}->error("EP: " . Dumper($ep));
         $self->{'logger'}->error("delVrf: Node: " . $ep->node()->name() . " is involved in the vrf");
         $nodes{$ep->node()->name()}= 1;
+
     }
 
     my $result = FWDCTL_SUCCESS;
@@ -943,7 +959,9 @@ sub delVrf{
         $self->{'logger'}->error("delVrf: Wrong circuit state was encountered");
         
         my $state = $vrf->state();
+
         $self->{'logger'}->error($self->{'db2'}->get_error());
+
     }
 
 
@@ -976,7 +994,9 @@ sub delVrf{
     foreach my $node (keys %nodes){
         $cv->begin();
 
+
         $self->{'logger'}->error("Getting ready to remove VRF: " . $vrf->vrf_id() . " to switch: " . $node);
+
 
         my $node_id = $self->{'node_info'}->{$node}->{'id'};
 
@@ -1305,6 +1325,7 @@ sub get_vrf_object{
     my $self = shift;
     my $vrf_id = shift;
     
+
     my $vrf = $self->{'vrfs'}->{$vrf_id};
     
     if(!defined($vrf)){
@@ -1315,6 +1336,7 @@ sub get_vrf_object{
         }
         
         $self->{'vrfs'}->{$vrf->vrf_id()} = $vrf;
+
     }
     
     if(!defined($vrf)){
@@ -1322,6 +1344,7 @@ sub get_vrf_object{
     }
     
     return $vrf;    
+
 }
 
 
