@@ -46,14 +46,12 @@ sub _from_hash{
     $self->{'parents'} = $hash->{'parents'};
     $self->{'children'} = $hash->{'children'};
     $self->{'entity_id'} = $hash->{'entity_id'};
-#    warn Dumper($self->{'interfaces'});
 }
 
 sub _fetch_from_db{
     my $self = shift;
 
     my $info = OESS::DB::Entity::fetch(db => $self->{'db'}, entity_id => $self->{'entity_id'}, name => $self->{'name'});
-#    warn "ENTITY HASH: " . Dumper($info);
     $self->_from_hash($info);
 }
 

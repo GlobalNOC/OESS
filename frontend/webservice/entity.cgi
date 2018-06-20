@@ -38,7 +38,7 @@ sub register_ro_methods{
     $method->add_input_parameter(
         name            => 'entity_id',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
-        required        => 0,
+        required        => 1,
         description     => "The Entity ID to find the children entities"   );
                                              
     $svc->register_method($method);
@@ -53,7 +53,7 @@ sub register_ro_methods{
     $method->add_input_parameter(
         name            => 'entity_id',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
-        required        => 0,
+        required        => 1,
         description     => "The Entity ID to find the interfaces for"   );
 
     $svc->register_method($method);
@@ -151,6 +151,7 @@ sub get_entity_children{
     my $entity = OESS::Entity->new(db => $db, entity_id => $params->{'entity_id'}{'value'});
 
     if(!defined($entity)){
+        $method->set_error("Unable to find entity: " . $params->{'entity_id'}{'value'} . " in the Database");
         return;
     }
 

@@ -141,6 +141,11 @@ sub get_vrf_details{
     
     my $vrf = OESS::VRF->new(db => $db, vrf_id => $vrf_id);
     
+    if(!defined($vrf)){
+        $method->set_error("VRF: " . $vrf_id . " was not found");
+        return;
+    }
+
     return {results => [$vrf->to_hash()]};
     
 }
@@ -174,7 +179,9 @@ sub get_vrfs{
     
     my @vrfs;
     foreach my $vrf (@$vrfs){
-        push(@vrfs, OESS::VRF->new( db => $db, vrf_id => $vrf->{'vrf_id'})->to_hash());
+        my $vrf = OESS::VRF->new( db => $db, vrf_id => $vrf->{'vrf_id'});
+        next if(!defined($vrf));
+        push(@vrfs, $vrf->to_has());
     }
 
     return \@vrfs;
