@@ -7,6 +7,13 @@ document.addEventListener('DOMContentLoaded', function() {
   loadEntityList();
 });
 
+async function deleteConnection(id, name) {
+    let ok = confirm(`Are you sure you want to delete ${name}?`);
+    if (ok) {
+        deleteVRF(session.data.workgroup_id, id);
+    }
+}
+
 async function toggleEntityBody(id) {
    let entityBody = document.querySelector(`#entity-body-${id}`);
    let entityClosed = document.querySelector(`#entity-body-${id}-closed`);
@@ -73,7 +80,7 @@ async function loadEntityList() {
     <h4>
       <a href="#"><span class="glyphicon glyphicon-edit" style="padding-right: 9px;"></span></a>
       <a href="?action=view_l3vpn&vrf_id=${entity.vrf_id}"><span class="glyphicon glyphicon-stats" style="padding-right: 9px;"></span></a>
-      <a href="#"><span class="glyphicon glyphicon-trash" style="padding-right: 9px;"></span></a>
+      <a onclick="deleteConnection(${index}, '${entity.name}')" href="javascript:void(0)"><span class="glyphicon glyphicon-trash" style="padding-right: 9px;"></span></a>
       <a id="entity-body-${index}-opened" onclick="toggleEntityBody(${index})" href="javascript:void(0)" style="display: none;"><span class="glyphicon glyphicon-chevron-up"></span></a>
       <a id="entity-body-${index}-closed" onclick="toggleEntityBody(${index})" href="javascript:void(0)"><span class="glyphicon glyphicon-chevron-down"></span></a>
     </h4>
