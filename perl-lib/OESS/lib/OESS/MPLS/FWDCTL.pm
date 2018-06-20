@@ -23,6 +23,9 @@ use GRNOC::RabbitMQ::Method;
 use OESS::RabbitMQ::Client;
 use OESS::RabbitMQ::Dispatcher;
 
+use OESS::DB;
+use OESS::VRF;
+
 use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
@@ -65,7 +68,7 @@ sub new {
     }
 
     $self->{'db'} = OESS::Database->new( config_file => $self->{'config'} );
-
+    $self->{'db2'} = OESS::DB->new();
     my $fwdctl_dispatcher = OESS::RabbitMQ::Dispatcher->new( queue => 'MPLS-FWDCTL',
                                                              topic => "MPLS.FWDCTL.RPC");
 
@@ -141,6 +144,7 @@ sub build_cache{
     my %params = @_;
    
     my $db = $params{'db'};
+    my $db2 = $params{'db2'};
     my $logger = $params{'logger'};
 
     die if(!defined($logger));
@@ -188,20 +192,23 @@ sub build_cache{
         }
     }
 
-    my $vrfs = $db->get_current_vrfs();
+    my $vrfs = OESS::DB::VRF::get_vrfs(db => $db2, state => 'active');
 
     foreach my $vrf (@$vrfs){
 	$logger->error("Updating Cache for VRF: " . $vrf->{'vrf_id'});
 	
-	my $vrf = OESS::VRF->new( db => $db,
-				  vrf_id => $vrf->{'vrf_id'});
+
+	$vrf = OESS::VRF->new( db => $db2,
+                               vrf_id => $vrf->{'vrf_id'});
 
         if(!defined($vrf)){
             warn "Unable to process VRF: " . $vrf->{'vrf_id'} . "\n";
+            $logger->error("Unable to process VRF: " . $vrf->{'vrf_id'});
+
             next;
         }
 
-	$vrfs{ $vrf->get_id() } = $vrf;
+	$vrfs{ $vrf->vrf_id() } = $vrf;
 	
     }
 
@@ -252,43 +259,43 @@ sub _write_cache{
 
     my %switches;
 
-    foreach my $vrf_id (keys (%{$self->{'vrf'}})){
-	my $vrf = $self->get_vrf_object($vrf_id);
+    foreach my $vrf (keys (%{$self->{'vrfs'}})){
+        $self->{'logger'}->error("Writing cache for VRF: " . $vrf);
+	$vrf = $self->get_vrf_object($vrf);
 
-	my $eps = $vrf->get_endpoints();
+	my $eps = $vrf->endpoints();
 	
-        $self->{'logger'}->error("ENDPOINTS: " . Dumper($eps));
 
 	my @ints;
 	foreach my $ep (@$eps){
 	    my @bgp;
-	    foreach my $bgp (@{$ep->{'peers'}}){
-		push(@bgp, { local_ip => $bgp->{'local_ip'},
-			     peer_ip => $bgp->{'peer_ip'},
-			     asn => $bgp->{'peer_asn'},
-			     key => $bgp->{'md5_key'}});
+
+	    foreach my $bgp (@{$ep->peers()}){
+		push(@bgp, $bgp->to_hash());
 	    }
 	    
-	    my $int_obj = { name => $ep->{'name'},
-			    tag => $ep->{'tag'},
-                            bandwidth => $ep->{'bandwidth'},
+	    my $int_obj = { name => $ep->interface()->name(),
+			    tag => $ep->tag(),
+                            bandwidth => $ep->bandwidth(),
 			    peers => \@bgp };
 	    
 	    
-	    if(defined($switches{$ep->{'node'}})){
-		push(@{$switches{$ep->{'node'}}->{'vrfs'}{$vrf_id}{'interfaces'}}, $int_obj); 
-	    }else{
-		$switches{$ep->{'node'}}->{'vrfs'}{$vrf_id} = { name => $vrf->get_name(),
-                                                                vrf_id => $vrf->get_id(),
-                                                                interfaces => [$int_obj],
-                                                                prefix_limit => $vrf->get_prefix_limit(),
-                                                                local_asn => $vrf->local_asn(),
-                                                                
+	    if(defined($switches{$ep->node()->name()}->{'vrfs'}{$vrf->vrf_id()})){
+		push(@{$switches{$ep->node()->name()}->{'vrfs'}{$vrf->vrf_id()}{'interfaces'}}, $int_obj); 
+            }else{
+                $switches{$ep->node()->name()}->{'vrfs'}{$vrf->vrf_id()} = { name => $vrf->name(),
+                                                                             vrf_id => $vrf->vrf_id(),
+                                                                             interfaces => [$int_obj],
+                                                                             prefix_limit => $vrf->prefix_limit(),
+                                                                             local_asn => $vrf->local_asn(),
+
 		}	
 	    }
 	}
     }
 
+    $self->{'logger'}->error("SWITCHES WITH VRF: " .  Dumper(%switches));
+    
     $self->{'logger'}->error("SWITCHES WITH VRF: " .  Dumper(%switches));
     
     foreach my $ckt_id (keys (%{$self->{'circuit'}})){
@@ -654,7 +661,7 @@ sub update_cache {
     if (!defined($circuit_id) || $circuit_id == -1) {
         $self->{'logger'}->debug("Updating Cache for entire network");
 
-        my $res = build_cache(db => $self->{'db'}, logger => $self->{'logger'});
+        my $res = build_cache(db => $self->{'db'}, logger => $self->{'logger'}, db2 => $self->{'db2'});
         $self->{'circuit'} = $res->{'ckts'};
 	$self->{'vrfs'} = $res->{'vrfs'};
         $self->{'link_status'} = $res->{'link_status'};
@@ -813,7 +820,9 @@ sub addVrf{
         return &$error($err);
     }
 
+
     $vrf->update_vrf_details();
+
     if($vrf->state() eq 'decom'){
         my $err = "addVrf: Adding a decom'd vrf is not allowed";
         $self->{'logger'}->error($err);
@@ -823,12 +832,14 @@ sub addVrf{
     $self->_write_cache();
 
     #get all the DPIDs involved and remove the flows
-    my $endpoints = $vrf->get_endpoints();
+
+    my $endpoints = $vrf->endpoints();
     my %nodes;
     foreach my $ep (@$endpoints){
         $self->{'logger'}->error("EP: " . Dumper($ep));
-        $self->{'logger'}->error("addVrf: Node: " . $ep->{'node'} . " is involved in the vrf");
-        $nodes{$ep->{'node'}}= 1;
+        $self->{'logger'}->error("addVrf: Node: " . $ep->node()->name() . " is involved in the vrf");
+        $nodes{$ep->node()->name()}= 1;
+
     }
 
     my $result = FWDCTL_SUCCESS;
@@ -837,7 +848,9 @@ sub addVrf{
         $self->{'logger'}->error("addVrf: Wrong circuit state was encountered");
         
         my $state = $vrf->state();
-        $self->{'logger'}->error($self->{'db'}->get_error());
+
+        $self->{'logger'}->error($self->{'db2'}->get_error());
+
     }
 
 
@@ -870,7 +883,9 @@ sub addVrf{
     foreach my $node (keys %nodes){
         $cv->begin();
 
-        $self->{'logger'}->error("Getting ready to add VRF: " . $vrf->get_id() . " to switch: " . $node);
+
+        $self->{'logger'}->error("Getting ready to add VRF: " . $vrf->vrf_id() . " to switch: " . $node);
+
 
         my $node_id = $self->{'node_info'}->{$node}->{'id'};
 
@@ -928,12 +943,14 @@ sub delVrf{
     $self->_write_cache();
 
     #get all the DPIDs involved and remove the flows
-    my $endpoints = $vrf->get_endpoints();
+
+    my $endpoints = $vrf->endpoints();
     my %nodes;
     foreach my $ep (@$endpoints){
         $self->{'logger'}->error("EP: " . Dumper($ep));
-        $self->{'logger'}->error("delVrf: Node: " . $ep->{'node'} . " is involved in the vrf");
-        $nodes{$ep->{'node'}}= 1;
+        $self->{'logger'}->error("delVrf: Node: " . $ep->node()->name() . " is involved in the vrf");
+        $nodes{$ep->node()->name()}= 1;
+
     }
 
     my $result = FWDCTL_SUCCESS;
@@ -942,7 +959,9 @@ sub delVrf{
         $self->{'logger'}->error("delVrf: Wrong circuit state was encountered");
         
         my $state = $vrf->state();
-        $self->{'logger'}->error($self->{'db'}->get_error());
+
+        $self->{'logger'}->error($self->{'db2'}->get_error());
+
     }
 
 
@@ -975,7 +994,9 @@ sub delVrf{
     foreach my $node (keys %nodes){
         $cv->begin();
 
-        $self->{'logger'}->error("Getting ready to remove VRF: " . $vrf->get_id() . " to switch: " . $node);
+
+        $self->{'logger'}->error("Getting ready to remove VRF: " . $vrf->vrf_id() . " to switch: " . $node);
+
 
         my $node_id = $self->{'node_info'}->{$node}->{'id'};
 
@@ -1304,23 +1325,26 @@ sub get_vrf_object{
     my $self = shift;
     my $vrf_id = shift;
     
-    my $vrf = $self->{'vrf'}->{$vrf_id};
+
+    my $vrf = $self->{'vrfs'}->{$vrf_id};
     
     if(!defined($vrf)){
-        $vrf = OESS::VRF->new( vrf_id => $vrf_id, db => $self->{'db'});
+        $vrf = OESS::VRF->new( vrf_id => $vrf_id, db => $self->{'db2'});
         if(!defined($vrf)){
+            $self->{'logger'}->error("Unable to create VRF Object for VRF: " . $vrf_id);
             return;
         }
         
-        $self->{'vrf'}->{$vrf->get_id()} = $vrf;
+        $self->{'vrfs'}->{$vrf->vrf_id()} = $vrf;
+
     }
     
     if(!defined($vrf)){
         $self->logger->error("Error creating VRF object: " . $vrf_id);
     }
     
-    return $vrf;
-    
+    return $vrf;    
+
 }
 
 

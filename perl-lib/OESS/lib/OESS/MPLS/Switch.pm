@@ -531,14 +531,14 @@ sub diff {
     $self->{'logger'}->debug("Calling Switch.diff");
     $self->_update_cache();
 
-    my $to_be_removed = $self->{'device'}->get_config_to_remove( circuits => $self->{'ckts'} );
+    my $to_be_removed = $self->{'device'}->get_config_to_remove( circuits => $self->{'ckts'}, vrfs => $self->{'vrfs'} );
     if (!defined $to_be_removed) {
         $self->{'logger'}->error('Could not communicate with device.');
         return FWDCTL_FAILURE;
     }
     $self->{'logger'}->debug("Config to remove: " . Dumper($to_be_removed));
 
-    return $self->{'device'}->diff(circuits => $self->{'ckts'}, force_diff =>  $force_diff, remove => $to_be_removed);
+    return $self->{'device'}->diff(circuits => $self->{'ckts'}, vrfs => $self->{'vrfs'}, force_diff =>  $force_diff, remove => $to_be_removed);
 }
 
 =head2 get_diff_text
@@ -553,7 +553,7 @@ sub get_diff_text {
     $self->{'logger'}->debug("Calling Switch.get_diff_text");
     $self->_update_cache();
     my $to_be_removed = $self->{'device'}->get_config_to_remove( circuits => $self->{'ckts'} );
-    my $diff = $self->{'device'}->get_diff_text(circuits => $self->{'ckts'}, remove => $to_be_removed);
+    my $diff = $self->{'device'}->get_diff_text(circuits => $self->{'ckts'}, vrfs => $self->{'vrfs'}, remove => $to_be_removed);
     if (!defined $diff) {
         return 'No diff required at this time.';
     }
