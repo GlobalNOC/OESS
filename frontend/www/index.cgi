@@ -207,6 +207,8 @@ sub main{
             {title => "Workgroups", url => "?action=workgroups"},
             {title => "Home",       url => "?action=index"},
             {title => "Welcome",    url => "#"}
+        ];
+    }
     case "modify_cloud" {
         $title              = "Update cloud network";
         $filename           = "html_templates/modify_cloud.html";
