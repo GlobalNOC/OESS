@@ -207,6 +207,14 @@ sub main{
             {title => "Workgroups", url => "?action=workgroups"},
             {title => "Home",       url => "?action=index"},
             {title => "Welcome",    url => "#"}
+    case "modify_cloud" {
+        $title              = "Update cloud network";
+        $filename           = "html_templates/modify_cloud.html";
+        $current_breadcrumb = "Update cloud network";
+        $breadcrumbs        = [
+            {title => "Workgroups",          url => "?action=workgroups"},
+            {title => "Home",                url => "?action=index"},
+            {title => "Update cloud network", url => "#"}
         ];
     }
 
@@ -251,7 +259,7 @@ sub main{
 
     
     #print STDERR Dumper($vars);
-    if ($action eq 'view_l3vpn' || $action eq 'provision_cloud' || $action eq 'phonebook' || $action eq 'welcome') {
+    if ($action eq 'view_l3vpn' || $action eq 'provision_cloud' || $action eq 'modify_cloud' || $action eq 'phonebook' || $action eq 'welcome') {
         $tt->process("html_templates/base.html", $vars, \$output) or warn $tt->error();
     } else {
         $tt->process("html_templates/page_base.html", $vars, \$output) or warn $tt->error();
