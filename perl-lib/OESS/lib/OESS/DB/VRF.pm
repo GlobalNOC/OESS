@@ -3,9 +3,13 @@
 use strict;
 use warnings;
 
-use OESS::Endpoint;
-
 package OESS::DB::VRF;
+
+use OESS::Endpoint;
+use OESS::Peer;
+use OESS::Interface;
+use OESS::User;
+use OESS::Workgroup;
 
 use Data::Dumper;
 
@@ -27,19 +31,18 @@ sub fetch{
 
     $details = $res->[0];
     
-    #my $user = $db->get_user_by_id( user_id => $details->{'created_by'});
-    
-    #my $workgroup = $db->get_workgroup_by_id( workgroup_id => $details->{'workgroup_id'} );
+    my $created_by = OESS::User->new( db => $db, user_id => $details->{'created_by'});
+    my $last_modified_by = OESS::User->new(db => $db, user_id => $details->{'last_modified_by'});
+    my $workgroup = OESS::Workgroup->new( db => $db, workgroup_id => $details->{'workgroup_id'});
 
-    #$details->{'created_by'} = $user;
-    #$details->{'workgroup'} = $workgroup;
-    
+    $details->{'last_modified_by'} = $last_modified_by;
+    $details->{'created_by'} = $created_by;
+    $details->{'workgroup'} = $workgroup;
+   
+
     my $ep_ids = OESS::DB::VRF::fetch_endpoints(db => $db, vrf_id => $vrf_id);
-
-    warn Dumper($ep_ids);
     
     foreach my $ep (@$ep_ids){
-        warn Dumper($ep);
         push(@{$details->{'endpoints'}}, OESS::Endpoint->new(db => $db, type => 'vrf', vrf_endpoint_id => $ep->{'vrf_ep_id'}));
     }
     
@@ -57,55 +60,83 @@ sub update{
     
 }
 
-sub _create_vrf{
+sub create{
     my %params = @_;
     my $db = $params{'db'};
     my $model = $params{'model'};
     
-    $db->_start_transaction();
+    $db->start_transaction();
  
    
-    my $vrf_id = $db->execute_query("insert into vrf (name, description, workgroup_id, created, created_by, last_modified, last_modified_by, state) VALUES (?,?,?,unix_timestamp(now()), ?, unix_timestamp(now()), ?, 'active')", [$model->{'name'}, $model->{'description'},$model->{'workgroup_id'}, $model->{'user_id'}, $model->{'user_id'}]);
+    my $vrf_id = $db->execute_query("insert into vrf (name, description, workgroup_id, local_asn, created, created_by, last_modified, last_modified_by, state) VALUES (?,?,?,?,unix_timestamp(now()), ?, unix_timestamp(now()), ?, 'active')", [$model->{'name'}, $model->{'description'},$model->{'workgroup'}->{'workgroup_id'}, $model->{'local_asn'}, $model->{'created_by'}->{'user_id'}, $model->{'last_modified_by'}->{'user_id'}]);
     if(!defined($vrf_id)){
         my $error = $db->get_error();
-        $db->_rollback();
+        $db->rollback();
         return;
     }
     
     foreach my $ep (@{$model->{'endpoints'}}){
-        my $interface_id = $db->get_interface_id_by_names( interface => $ep->{'interface'}, node => $ep->{'node'} );
-        
-        if(!defined($interface_id)){
-            $db->_rollback();
+        my $res = OESS::DB::VRF::add_endpoint(db => $db, model => $ep, vrf_id => $vrf_id);
+        if(!defined($res)){
+            $db->rollback();
             return;
-        }
-        
-        if(!defined($ep->{'tag'}) || !defined($ep->{'bandwidth'})){
-            $db->_rollback();
-            return;
-        }
-        
-        
-        my $vrf_ep_id = $db->execute_query("insert into vrf_ep (interface_id, tag, bandwidth, vrf_id, state) VALUES (?,?,?,?,?)",[$interface_id, $ep->{'tag'}, $ep->{'bandwidth'}, $vrf_id, 'active']);
-        if(!defined($vrf_ep_id)){
-            my $error = $db->get_error();
-            $db->_rollback();
-            return;
-        }
-        
-        foreach my $bgp (@{$ep->{'peerings'}}){
-            warn Dumper($bgp);
-            my $res = $db->execute_query("insert into vrf_ep_peer (vrf_ep_id, peer_ip, local_ip, peer_asn, md5_key, state) VALUES (?,?,?,?,?,?)",[$vrf_ep_id, $bgp->{'peer_ip'}, $bgp->{'local_ip'}, $bgp->{'asn'}, $bgp->{'key'}, 'active']);
-            if(!defined($res)){
-                my $error = $db->get_error();
-                $db->_rollback();
-                return;
-            }
         }
     }
     
-    $db->_commit();
+    $db->commit();
+
+    return $vrf_id;
+}        
+
+sub delete_endpoint{
+    my %params = @_;
+
     
+    
+} 
+
+sub add_endpoint{       
+    my %params = @_;
+
+    my $db = $params{'db'};
+    my $model = $params{'model'};
+    my $vrf_id = $params{'vrf_id'};
+
+    my $vrf_ep_id = $db->execute_query("insert into vrf_ep (interface_id, tag, bandwidth, vrf_id, state) VALUES (?,?,?,?,?)",[$model->{'interface'}->{'interface_id'}, $model->{'tag'}, $model->{'bandwidth'}, $vrf_id, 'active']);
+    if(!defined($vrf_ep_id)){
+        my $error = $db->get_error();
+        $db->rollback();
+        return;
+    }
+ 
+    foreach my $peer (@{$model->{'peers'}}){
+        my $res = add_peer(db => $db, model => $peer, vrf_ep_id => $vrf_ep_id);
+        if(!defined($res)){
+            my $error = $db->get_error();
+            $db->rollback();
+            return;
+        }
+    }
+
+    return $vrf_ep_id;
+}
+
+sub add_peer{
+    my %params = @_;
+    
+    my $db = $params{'db'};
+    my $model = $params{'model'};
+    my $vrf_ep_id = $params{'vrf_ep_id'};
+    warn "PEER MODEL: " . Dumper($model);
+
+    my $res = $db->execute_query("insert into vrf_ep_peer (vrf_ep_id, peer_ip, local_ip, peer_asn, md5_key, state) VALUES (?,?,?,?,?,?)",[$vrf_ep_id, $model->{'peer_ip'}, $model->{'local_ip'}, $model->{'peer_asn'}, $model->{'key'}, 'active']);
+
+    if(!defined($res)){
+        my $error = $db->get_error();
+        return;
+    }
+
+    return $res;
 }
 
 sub fetch_endpoints{
@@ -117,7 +148,6 @@ sub fetch_endpoints{
 
     #find endpoints 
     my $res = $db->execute_query("select vrf_ep.vrf_ep_id from vrf_ep where vrf_id = ? and state = ?", [$vrf_id, $status]);
-    warn Dumper($res);
     if(!defined($res) || !defined($res->[0])){
         return;
     }
@@ -146,7 +176,6 @@ sub fetch_endpoint{
 
     my @peers;
     foreach my $peer (@$peers){
-        warn "Creating Peer: " . Dumper($peer);
         push(@peers, OESS::Peer->new( vrf_ep_peer_id => $peer->{'vrf_ep_peer_id'}, db => $db));
     }
 
@@ -191,6 +220,66 @@ sub fetch_peer{
 sub _update_vrf{
         
         
+}
+
+sub decom{
+    my %params = @_;
+    my $db = $params{'db'};
+    my $vrf_id = $params{'vrf_id'};
+    my $user = $params{'user_id'};
+
+    my $res = $db->execute_query("update vrf set state = 'decom', last_modified_by = ?, last_modified = unix_timestamp(now()) where vrf_id = ?",[$user, $vrf_id]);
+    return $res;
+
+}
+
+sub decom_endpoint{
+    my %params = @_;
+    my $db = $params{'db'};
+    my $vrf_ep_id = $params{'vrf_endpoint_id'};
+    
+    my $res = $db->execute_query("update vrf_ep set state = 'decom' where vrf_ep_id = ?",[$vrf_ep_id]);
+    return $res;
+
+}
+
+sub decom_peer{
+    my %params = @_;
+    my $db = $params{'db'};
+    my $vrf_ep_peer_id = $params{'vrf_ep_peer_id'};
+
+    my $res = $db->execute_query("update vrf_ep_peer set state = 'decom' where vrf_ep_peer_id = ?",[$vrf_ep_peer_id]);
+    return $res;
+}
+
+sub get_vrfs{
+    my %params = @_;
+    my $db = $params{'db'};
+
+    my @where_str;
+    my @where_val;
+
+    if(defined($params{'state'})){
+        push(@where_val,$params{'state'});
+        push(@where_str,"state = ?");
+    }
+
+    if(defined($params{'workgroup_id'})){
+        push(@where_val, $params{'workgroup_id'});
+        push(@where_str, "workgroup_id = ?");
+    }
+
+    my $where;
+    foreach my $str (@where_str){
+        if(!defined($where)){
+            $where .= $str;
+        }else{
+            $where .= " and " . $str;
+        }
+    }
+
+    my $vrfs = $db->execute_query("select vrf_id from vrf where $where",\@where_val);
+    return $vrfs;
 }
     
     1;

@@ -92,7 +92,7 @@ deletes it.
 =cut
 sub disconnect{
     my $self = shift;
-
+    
     if (!defined $self->{'jnx'}) {
         return 1;
     }
@@ -762,7 +762,8 @@ sub add_vrf{
 
     my $vars = {};
     $vars->{'vrf_name'} = $vrf->{'name'};
-    $vars->{'interfaces'} = [];
+    $vars->{'interfaces'} = ();
+
     foreach my $i (@{$vrf->{'interfaces'}}) {
 	
 	my @bgp;
@@ -772,7 +773,12 @@ sub add_vrf{
             my $peer_ip = $bgp->{'peer_ip'};
             $peer_ip =~ s/\/\d+//g;
 
-	    push(@bgp, { asn => $bgp->{'asn'},
+            if(!defined($bgp->{'key'})){
+                $bgp->{'key'} = -1;
+            }
+
+	    push(@bgp, { asn => $bgp->{'peer_asn'},
+
 			 local_ip => $bgp->{'local_ip'},
                          peer_ip => $peer_ip,
 			 key => $bgp->{'key'}
@@ -853,6 +859,7 @@ OESS::Circuit objects. It also takes a string of Removes which will be specified
 sub xml_configuration {
     my $self = shift;
     my $ckts = shift;
+    my $vrf = shift;
     my $remove = shift;
 
     my $configuration = '<configuration>';
@@ -893,6 +900,56 @@ sub xml_configuration {
         $xml =~ s/<\/configuration>//g;
         $configuration = $configuration . $xml;
     }
+    
+    foreach my $vrf (@{$vrf}){
+        my $xml;
+        my $vars = {};
+        $vars->{'vrf_name'} = $vrf->{'name'};
+        $vars->{'interfaces'} = ();
+        foreach my $i (@{$vrf->{'interfaces'}}) {
+            
+            my @bgp;
+            foreach my $bgp (@{$i->{'peers'}}){
+                #strip off the cidr
+                #192.168.1.0/24
+                my $peer_ip = $bgp->{'peer_ip'};
+                $peer_ip =~ s/\/\d+//g;
+                
+                if(!defined($bgp->{'key'})){
+                    $bgp->{'key'} = -1;
+                }
+                
+                push(@bgp, { asn => $bgp->{'peer_asn'},
+                             local_ip => $bgp->{'local_ip'},
+                             peer_ip => $peer_ip,
+                             key => $bgp->{'key'}
+                     });
+            }
+            
+            push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
+                                              tag  => $i->{'tag'},
+                                              bandwidth => $i->{'bandwidth'},
+                                              peers => \@bgp
+                  });
+        }
+        
+        $vars->{'vrf_id'} = $vrf->{'vrf_id'};
+        $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
+        $vars->{'prefix_limit'} = $vrf->{'prefix_limit'};
+        
+        $self->{'logger'}->error("VARS: " . Dumper($vars));
+        
+        if($vrf->{'state'} eq 'active'){
+            $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vars, \$xml);
+        }else{
+            
+        }
+        
+        $xml =~ s/<configuration>//g;
+        $xml =~ s/<\/configuration>//g;
+        $configuration = $configuration . $xml;
+    }
+    
     $configuration = $configuration . '</configuration>';
 
     return $configuration;
@@ -907,7 +964,7 @@ sub get_config_to_remove{
     my $self = shift;
     my %params = @_;
     my $circuits = $params{'circuits'};
-
+    my $vrfs = $params{'vrfs'};
     if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return;
@@ -948,12 +1005,18 @@ sub get_config_to_remove{
             $name =~ /OESS\-(\S+)\-(\d+)/;
             my $type = $1;
             my $circuit_id = $2;
-            #figure out the right bit!
-            if(!$self->_is_active_circuit($circuit_id, $circuits)){
-                $ri_dels = "<instance operation='delete'><name>" . $name . "</name></instance>";
-                next;
+            if($type eq 'L3VPN'){
+                if(!$self->_is_active_vrf($circuit_id, $vrfs)){
+                    $ri_dels = "<instance operation='delete'><name>" . $name . "</name></instance>";
+                    next;
+                }
+            }else{
+                #figure out the right bit!
+                if(!$self->_is_active_circuit($circuit_id, $circuits)){
+                    $ri_dels = "<instance operation='delete'><name>" . $name . "</name></instance>";
+                    next;
+                }
             }
-
 
             my $ints = $xp->find(' ./c:interface', $ri);
 
@@ -961,8 +1024,14 @@ sub get_config_to_remove{
                 my $int_full_name = $xp->findvalue( './c:name', $int);
 		$self->{'logger'}->debug("Checking to see if port: $int_full_name is part of circuit: $circuit_id");
                 my ($int_name,$unit_name) = split('.',$int_full_name);
-                if(!$self->_is_circuit_on_port($circuit_id, $circuits, $int_name, $unit_name)){
-                    $ri_dels .= "<instance><name>$name</name><interface operation='delete'><name>$int_full_name</name></interface></instance>";
+                if($type eq 'L3VPN'){
+                    if(!$self->_is_vrf_on_port($circuit_id, $vrfs, $int_name, $unit_name)){
+                        $ri_dels .= "<instance><name>$name</name><interface operation='delete'><name>$int_full_name</name></interface></instance>";
+                    }
+                }else{
+                    if(!$self->_is_circuit_on_port($circuit_id, $circuits, $int_name, $unit_name)){
+                        $ri_dels .= "<instance><name>$name</name><interface operation='delete'><name>$int_full_name</name></interface></instance>";
+                    }
                 }
             }
 
@@ -971,20 +1040,6 @@ sub get_config_to_remove{
             }
 
             if($type eq 'L2VPN'){
-                #now dig down into the
-                #<protocols>
-                #        <l2vpn>
-                #            <encapsulation-type>ethernet-vlan</encapsulation-type>
-                #            <site>
-                #                <name>mx240-r2.testlab.grnoc.iu.edu-3001</name>
-                #                <site-identifier>1</site-identifier>
-                #                <interface>
-                #                    <name>xe-2/2/0.501</name>
-                #                </interface>
-                #            </site>
-                #        </l2vpn>
-                #    </protocols>
-
                 my $sites = $xp->find(' ./c:protocols/c:l2vpn/c:site', $ri);
 		foreach my $site (@$sites){
 		    my $site_name = $xp->findvalue( './c:name', $site);
@@ -1018,18 +1073,35 @@ sub get_config_to_remove{
 	foreach my $unit (@$units){
 	    my $description = $xp->findvalue( './c:description', $unit );
 	    if($description =~ /^OESS/){
-		$description =~ /OESS\-\w+\-(\d+)/;
-		my $circuit_id = $1;
+		$description =~ /OESS\-(\w+)\-(\d+)/;
+                my $type = $1;
+		my $circuit_id = $2;
 		my $unit_name = $xp->findvalue( './c:name', $unit);
-		if(!$self->_is_active_circuit($circuit_id, $circuits)){
-		    $int_del .= "<unit operation='delete'><name>" . $unit_name . "</name></unit>";
-                    $has_dels = 1;
-		    next;
-		}
-		if(!$self->_is_circuit_on_port($circuit_id, $circuits, $int_name, $unit_name)){
-		    $int_del .= "<unit operation='delete'><name>" . $unit_name . "</name></unit>";
-		    $has_dels = 1;
-		}
+                if($type eq 'L3VPN'){
+                    if(!$self->_is_active_vrf($circuit_id, $vrfs)){
+                        $int_del .= "<unit operation='delete'><name>" . $unit_name . "</name></unit>";
+                        $has_dels = 1;
+                        next;
+                    }
+
+                    if(!$self->_is_vrf_on_port($circuit_id, $vrfs, $int_name, $unit_name)){
+                        $int_del .= "<unit operation='delete'><name>" . $unit_name . "</name></unit>";
+                        $has_dels = 1;
+                    }
+                    ##need to process each BGP peer for L3VPNs
+                    
+
+                }else{
+                    if(!$self->_is_active_circuit($circuit_id, $circuits)){
+                        $int_del .= "<unit operation='delete'><name>" . $unit_name . "</name></unit>";
+                        $has_dels = 1;
+                        next;
+                    }
+                    if(!$self->_is_circuit_on_port($circuit_id, $circuits, $int_name, $unit_name)){
+                        $int_del .= "<unit operation='delete'><name>" . $unit_name . "</name></unit>";
+                        $has_dels = 1;
+                    }
+                }
 	    }
 	}
 	$int_del .= "</interface>";
@@ -1122,6 +1194,8 @@ sub get_config_to_remove{
 	$delete .= "<protocols><connections>" . $ris_dels . "</connections></protocols>";
     }
 
+    
+
     return $delete;
 }
 
@@ -1177,6 +1251,51 @@ sub _is_circuit_on_port{
 
     return 0;
 
+}
+
+sub _is_vrf_on_port{
+    my $self = shift;
+    my $vrf_id = shift;
+    my $vrfs = shift;
+    my $port = shift;
+    my $vlan = shift;
+
+    if(!defined($vrf_id)){
+        $self->{'logger'}->error("Unable to find the vrf ID");
+        return 0;
+    }
+
+    if(defined($vrfs->{$vrf_id})){
+        foreach my $int (@{$vrfs->{$vrf_id}->{'interfaces'}}){
+            #check to see if the port matches the port
+            #check to see if the vlan matches the vlan
+            if($int->{'interface'} eq $port && $int->{'vlan'} eq $vlan){
+                $self->{'logger'}->error("Interface: " . $int->{'interface'} . " is in vrf: " . $vrf_id);
+                return 1;
+            }
+        }
+    }
+
+    return 0;
+}
+
+sub _is_active_vrf{
+    my $self = shift;
+    my $vrf_id = shift;
+    my $vrfs = shift;
+
+    if(!defined($vrf_id)){
+        $self->{'logger'}->error("Unable to find the VRF ID");
+        return 0;
+    }
+
+    if(defined($vrfs->{'vrf_id'}) && $vrfs->{'vrf_id'}->{'state'} eq 'active'){
+        return 1;
+    }
+
+    $self->{'logger'}->error("VRF ID: " . $vrf_id . " was not found as an active VRF... scheduling removal");
+    return 0;
+    
 }
 
 sub _is_active_circuit{
@@ -1288,6 +1407,7 @@ sub diff {
 
     my $circuits = $params{'circuits'};
     my $force_diff = $params{'force_diff'};
+    my $vrfs = $params{'vrfs'};
     my $remove = $params{'remove'};
 
     if(!$self->connected()){
@@ -1302,7 +1422,12 @@ sub diff {
 	push(@circuits, $circuits->{$ckt_id});
     }
 
-    my $configuration = $self->xml_configuration(\@circuits, $remove);
+    my @vrfs;
+    foreach my $vrf_id (keys (%{$vrfs})){
+        push(@vrfs, $vrfs->{$vrf_id});
+    }
+
+    my $configuration = $self->xml_configuration(\@circuits,\@vrfs, $remove);
     if ($configuration eq '<configuration></configuration>') {
         $self->{'logger'}->info('No diff required at this time.');
         return FWDCTL_SUCCESS;
@@ -1349,6 +1474,7 @@ sub get_diff_text {
     my $self = shift;
     my %params = @_;
     my $circuits = $params{'circuits'};
+    my $vrfs = $params{'vrfs'};
     my $remove = $params{'remove'};
     if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
@@ -1362,7 +1488,13 @@ sub get_diff_text {
         push(@circuits, $circuits->{$ckt_id});
     }
 
-    my $configuration = $self->xml_configuration(\@circuits, $remove );
+
+    my @vrfs;
+    foreach my $vrf_id (keys (%{$vrfs})){
+        push(@vrfs, $vrfs->{$vrf_id});
+    }
+
+    my $configuration = $self->xml_configuration(\@circuits,\@vrfs, $remove );
     if ($configuration eq '<configuration></configuration>') {
         return undef;
     }
