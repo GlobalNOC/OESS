@@ -102,8 +102,8 @@ async function loadEntityList() {
       <div style="padding-right: 15px;">
         <p><b>Created by</b><p>
         <p><b>Created on</b><p>
-        <p><b>Modified by</b></p>
-        <p><b>Modified on</b></p>
+        <p><b>Last modified by</b></p>
+        <p><b>Last modified on</b></p>
       </div>
       <div style="padding-right: 18px;">
         <p>${entity.created_by.email}</p>
