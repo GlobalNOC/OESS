@@ -203,17 +203,17 @@ sub get_entity{
         my @allowed_vlans;
         for(my $i=1;$i<=4095;$i++){
             if($int->vlan_valid( workgroup_id => $workgroup_id, vlan => $i )){
-                push(@allowed_vlans,$i);
-                $vlans{$i} = 1;
+#                push(@allowed_vlans,$i);
+#                $vlans{$i} = 1;
             }
         }
-        $obj->{'available_vlans'} = \@allowed_vlans;
-        push(@ints,$obj);
+#        $obj->{'available_vlans'} = \@allowed_vlans;
+#        push(@ints,$obj);
     }
     
     my $res = $entity->to_hash();
     $res->{'interfaces'} = \@ints;
-    $res->{'allowed_vlans'} = keys %vlans;
+#    $res->{'allowed_vlans'} = keys %vlans;
     return {results => $res};
     
 }

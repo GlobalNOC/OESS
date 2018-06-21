@@ -48,20 +48,21 @@ sub from_hash{
     $self->{'operational_state'} = $hash->{'operational_state'};
     $self->{'acls'} = $hash->{'acls'};
     $self->{'mpls_vlan_tag_range'} = $hash->{'mpls_vlan_tag_range'};
-    $self->_process_mpls_vlan_tag();
-
+    $self->{'used_vlans'} = $hash->{'used_vlans'};
+    
 }
 
 sub to_hash{
     my $self = shift;
+
+    my $res = { name => $self->name(),
+                description => $self->description(),
+                interface_id => $self->interface_id(),
+                node_id => $self->node()->node_id(),
+                node => $self->node()->name(),
+                acls => $self->acls()->to_hash() };
     
-    return { name => $self->name(),
-             description => $self->description(),
-             interface_id => $self->interface_id(),
-             node_id => $self->node()->node_id(),
-             node => $self->node()->name(),
-             acls => $self->acls()->to_hash()
-    };
+    return $res;
 }
 
 sub _fetch_from_db{
@@ -145,17 +146,23 @@ sub mpls_vlan_tag_range{
     return $self->{'mpls_vlan_tag_range'};
 }
 
+sub used_vlans{
+    my $self = shift;
+
+    return $self->{'used_vlans'};
+}
+
 sub vlan_in_use{
     my $self = shift;
     my $vlan = shift;
 
     #check and see if the specified VLAN tag is already in use
-    
-    my $in_use = OESS::DB::Interface::vrf_vlans_in_use(db => $self->{'db'}, interface_id => $self->interface_id() );
-    
-    push(@{$in_use},OESS::DB::Interface::circuit_vlans_in_use(db => $self->{'db'}, interface_id => $self->interface_id()));
 
-    foreach my $used (@$in_use){
+    if(!defined($self->{'mpls_range'})){
+        $self->_process_mpls_vlan_tag();
+    }
+
+    foreach my $used (@{$self->used_vlans()}){
         if($used == $vlan){
             return 1;
         }
@@ -187,6 +194,9 @@ sub _process_mpls_vlan_tag{
 
 sub mpls_range{
     my $self = shift;
+    if(!defined($self->{'mpls_range'})){
+        $self->_process_mpls_vlan_tag();
+    }
     return $self->{'mpls_range'};
 }
 
