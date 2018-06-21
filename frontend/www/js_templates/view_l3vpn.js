@@ -149,7 +149,7 @@ async function loadVRF() {
   <h2 style="padding: 15px" >Statistics</h3>
 <div style="padding-left: 15px; padding-right: 15px">
 
-<iframe src="https://daldoyle-dev-7.grnoc.iu.edu/grafana/d-solo/LbLWIXmmk/simple?orgId=1&var-node=${endpoint.node.name}&var-interface=${endpoint.interface.name}.${endpoint.tag}&panelId=4&from=1529582539012&to=1529604139012" width="100%" height="300" frameborder="0"></iframe>
+<iframe src="https://daldoyle-dev-7.grnoc.iu.edu/grafana/d-solo/LbLWIXmmk/simple?orgId=1&var-node=${endpoint.node.name}&var-interface=${endpoint.interface.name}.${endpoint.tag}&panelId=4&from=now-1h&to=now" width="100%" height="300" frameborder="0"></iframe>
 
 <!-- <iframe src="https://grafana.net.internet2.edu/grafana/d-solo/kgVskjnik/interfaces?orgId=1&panelId=2&var-node=&var-interface=" width="100%" height="300" frameborder="0"></iframe> -->
 </div>
