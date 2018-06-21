@@ -16,7 +16,9 @@ document.addEventListener('DOMContentLoaded', function() {
   let url = new URL(window.location.href);
   let entityID = url.searchParams.get('entity_id');
 
-  loadEntityList(entityID);
+  loadUserMenu().then(function() {
+      loadEntityList(entityID);
+  });
 
   // let map = new NDDIMap('map');
   // map.on("loaded", function(){

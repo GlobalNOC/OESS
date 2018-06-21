@@ -1,9 +1,10 @@
-
 document.addEventListener('DOMContentLoaded', function() {
   sessionStorage.setItem('endpoints', '[]');
 
-  loadVRF();
-  setDateTimeVisibility();
+  loadUserMenu().then(function() {
+      loadVRF();
+      setDateTimeVisibility();
+  });
 
   let addNetworkEndpoint = document.querySelector('#add-network-endpoint');
   addNetworkEndpoint.addEventListener('click', addNetworkEndpointCallback);

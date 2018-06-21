@@ -49,26 +49,28 @@
   }
 
 document.addEventListener('DOMContentLoaded', function() {
-  $('#delete-vrf-button').click(function(){
-    deleteConnection(session.data.workgroup_id);
-  });
+  loadUserMenu().then(function() {
+      $('#delete-vrf-button').click(function(){
+          deleteConnection(session.data.workgroup_id);
+      });
 
-  $('#edit-vrf-button').click(function(){
-    modifyConnection();
-  });
+      $('#edit-vrf-button').click(function(){
+          modifyConnection();
+      });
 
-  let map = new NDDIMap('map');
-  map.on("loaded", function(){
-    this.updateMapFromSession(session);
-  });
+      let map = new NDDIMap('map');
+      map.on("loaded", function(){
+         this.updateMapFromSession(session);
+      });
 
-  map.on("clickNode", function(e, args) {
-    let node = args[0].name;
-    loadEndpointSelectionModal(node);
-    loadEndpointSelectionInterfaces(node);
-  });
+      map.on("clickNode", function(e, args) {
+          let node = args[0].name;
+          loadEndpointSelectionModal(node);
+          loadEndpointSelectionInterfaces(node);
+      });
 
-  loadVRF();
+      loadVRF();
+  });
 });
 
 async function deleteConnection(id) {
