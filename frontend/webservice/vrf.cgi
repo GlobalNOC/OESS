@@ -332,7 +332,7 @@ sub vrf_del{
         my $result = shift;
         $cv->send($result);
                 });
-
+    
     my $result = $cv->recv();
     
     if (defined $result->{'error'} || !defined $result->{'results'}){
@@ -340,10 +340,10 @@ sub vrf_del{
             warn '_send_mpls_vrf_command: ' . $result->{'error'};
             $method->set_error($result->{'error'});
         }
-
+        
         return {success => 0};
     }
-
+    
     return {success => 1};
 }
 
