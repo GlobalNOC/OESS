@@ -741,9 +741,10 @@ sub get_workgroups {
 	return;
     }
     else {
-        foreach my $workgroup (@$workgroups) {
-            $workgroup->{username} = $username;
-        }
+
+	foreach my $workgroup (@$workgroups) {
+	    $workgroup->{username} = $username;
+	}
         $results->{'results'} = $workgroups;
     }
 
