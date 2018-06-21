@@ -50,7 +50,7 @@
 
 document.addEventListener('DOMContentLoaded', function() {
   $('#delete-vrf-button').click(function(){
-    console.log('delete');
+    deleteConnection(session.data.workgroup_id);
   });
 
   $('#edit-vrf-button').click(function(){
@@ -70,6 +70,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
   loadVRF();
 });
+
+async function deleteConnection(id) {
+    let vrfID = document.getElementById('vrf-id').innerHTML;
+    vrfID = parseInt(vrfID);
+
+    let ok = confirm(`Are you sure you want to delete this connection?`);
+    if (ok) {
+        await deleteVRF(session.data.workgroup_id, vrfID);
+        window.location = '?action=welcome';
+    }
+}
 
 function removeFromEndpointSelectionTable(index) {
   let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
@@ -92,6 +103,7 @@ async function loadVRF() {
   let description = document.getElementById('description');
   description.innerHTML = `${vrf.description} <small>${vrf.vrf_id}</small>`;
 
+  document.getElementById('vrf-id').innerHTML = vrf.vrf_id;
   document.getElementById('provision-time').innerHTML = '';
   document.getElementById('remove-time').innerHTML = '';
   document.getElementById('last-modified').innerHTML = new Date(vrf.last_modified * 1000);

@@ -100,5 +100,34 @@ async function getVRF(vrfID) {
     console.log(error);
     return null;
   }
+}
 
+async function deleteVRF(workgroupID, vrfID) {
+  let url = `services/vrf.cgi?method=remove&vrf_id=${vrfID}&workgroup_id=${workgroupID}`;
+
+  try {
+    const resp = await fetch(url, {method: 'get', credentials: 'include'});
+    const data = await resp.json();
+    console.log(data);
+    return data.results[0];
+  } catch(error) {
+    console.log('Failure occurred in deleteVRF.');
+    console.log(error);
+    return null;
+  }
+}
+
+async function getVRFs(workgroupID) {
+  let url = `services/vrf.cgi?method=get_vrfs&workgroup_id=${workgroupID}`;
+
+  try {
+    const resp = await fetch(url, {method: 'get', credentials: 'include'});
+    const data = await resp.json();
+    console.log(data);
+    return data;
+  } catch(error) {
+    console.log('Failure occurred in getVRF.');
+    console.log(error);
+    return null;
+  }
 }

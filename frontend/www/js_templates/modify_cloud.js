@@ -2,6 +2,7 @@
 document.addEventListener('DOMContentLoaded', function() {
   sessionStorage.setItem('endpoints', '[]');
 
+  loadVRF();
   setDateTimeVisibility();
 
   let addNetworkEndpoint = document.querySelector('#add-network-endpoint');
@@ -19,6 +20,43 @@ document.addEventListener('DOMContentLoaded', function() {
   let addEntityCancel = document.querySelector('#add-entity-cancel');
   addEntityCancel.addEventListener('click', addEntityCancelCallback);
 });
+
+async function loadVRF() {
+  let url = new URL(window.location.href);
+  let id = url.searchParams.get('vrf_id');
+  let vrf = await getVRF(id);
+  console.log(vrf);
+
+  let description = document.querySelector('#description');
+  description.value = vrf.description;
+
+  let endpoints = [];
+
+  vrf.endpoints.forEach(function(e) {
+    let endpoint = {
+        bandwidth: e.bandwidth,
+        entity_id: -1,
+        name: 'ajajajajajajaj',
+        peerings: [],
+        tag: e.tag
+    };
+
+    e.peers.forEach(function(p) {
+      let peering = {
+          asn: p.peer_asn,
+          key: p.md5_key || '',
+          oessPeerIP: p.local_ip,
+          yourPeerIP: p.peer_ip
+      };
+      endpoint.peerings.push(peering);
+    });
+
+    endpoints.push(endpoint);
+  });
+
+  sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
+  loadSelectedEndpointList();
+}
 
 async function addNetworkEndpointCallback(event) {
     await loadEntityList();
@@ -142,17 +180,11 @@ async function addEntitySubmitCallback(event) {
     sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
     loadSelectedEndpointList();
 
-    let entityAlertOK = document.querySelector('#entity-alert-ok');
-    entityAlertOK.style.display = 'none';
-
     let addEndpointModal = $('#add-endpoint-modal');
     addEndpointModal.modal('hide');
 }
 
 async function addEntityCancelCallback(event) {
-    let entityAlertOK = document.querySelector('#entity-alert-ok');
-    entityAlertOK.style.display = 'none';
-
     let addEndpointModal = $('#add-endpoint-modal');
     addEndpointModal.modal('hide');
 }
@@ -160,44 +192,26 @@ async function addEntityCancelCallback(event) {
 //--- Add Endpoint Modal
 
 async function loadEntityList(parentEntity=null) {
-    let entity = await getEntities(session.data.workgroup_id, parentEntity);
-    let entityList = document.querySelector('#entity-list');
+    let entities = await getEntities(session.data.workgroup_id, parentEntity);
+    let entitiesList = document.querySelector('#entities-list');
 
-    let logoURL = entity.logo_url || 'https://shop.lego.com/static/images/svg/lego-logo.svg';
-    let description = entity.description;
-    let name = entity.name;
-    let entityID = entity.entity_id;
-
-    let parent = null;
-    if ('parents' in entity && entity.parents.length > 0) {
-        parent = entity.parents[0];
+    entitiesList.innerHTML = '';
+    if (parentEntity !== null) {
+        entitiesList.innerHTML += `<button type="button" class="list-group-item" onclick="loadEntityList()">
+                                     <span class="glyphicon glyphicon-menu-left" style="float: right;"></span>
+                                   </button>`;
     }
 
-    let entities = '';
-
-    if (parent !== null) {
-        entities += `<button type="button" class="list-group-item" onclick="loadEntityList(${parent.entity_id})">
-                         ${parent.name}
-                         <span class="glyphicon glyphicon-menu-left" style="float: right;"></span>
-                     </button>`;
-    }
-
-    if ('children' in entity && entity.children.length > 0) {
-        entity.children.forEach(function(child) {
-                entities += `<button type="button" class="list-group-item" onclick="loadEntityList(${child.entity_id})">
-                                 ${child.name}
-                                 <span class="glyphicon glyphicon-menu-right" style="float: right;"></span>
-                              </button>`;
-        });
-
-        entityList.innerHTML = entities;
-    }
-
-    setEntity(entityID, name);
-
-    let entityAlertOK = document.querySelector('#entity-alert-ok');
-    entityAlertOK.innerHTML = `<p>Selected ${name}.</p>`;
-    entityAlertOK.style.display = 'block';
+    entities.forEach(function(entity) {
+            if (entity.children.length > 0) {
+                entitiesList.innerHTML += `<button type="button" class="list-group-item" onclick="loadEntityList(${entity.entity_id})">
+                                             ${entity.name}
+                                             <span class="glyphicon glyphicon-menu-right" style="float: right;"></span>
+                                           </button>`;
+            } else {
+                entitiesList.innerHTML += `<button type="button" class="list-group-item" onclick="setEntity(${entity.entity_id}, '${entity.name}')">${entity.name}</button>`;
+            }
+    });
 }
 
 async function setEntity(id, name) {

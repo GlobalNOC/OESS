@@ -11,6 +11,7 @@ body {
 .header {
     display: flex;
     flex-direction: row;
+    align-items: flex-end;
 
     grid-column-start: 2;
     grid-column-end: 3;
@@ -20,6 +21,11 @@ body {
 
     padding-left: 15px;
     padding-right: 7px;
+}
+
+.header .btn {
+    margin-right: 8px;
+    margin-bottom: 13px;
 }
 
 .logo {
@@ -61,8 +67,6 @@ body {
 
     grid-row-start: 3;
     grid-row-end: 4;
-
-    padding-bottom: 30px;
 }
 
 .footer-logos {
