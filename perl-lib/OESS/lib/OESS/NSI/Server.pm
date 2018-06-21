@@ -21,7 +21,8 @@ my $logger = GRNOC::Log->new(config => '/etc/oess/logging.conf', watch => 15);
 my $log    = $logger->get_logger('OESS.NSI.WWW');
 
 
-my $api    = OESS::RabbitMQ::Client->new( topic    => 'OESS.NSI.Processor');
+my $api    = OESS::RabbitMQ::Client->new( timeout => 60,
+                                          topic    => 'OESS.NSI.Processor');
 
 
 sub _send_to_daemon{
