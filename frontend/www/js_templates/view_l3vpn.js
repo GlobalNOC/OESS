@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   $('#edit-vrf-button').click(function(){
-    console.log('edit');
+    modifyConnection();
   });
 
   let map = new NDDIMap('map');
@@ -80,6 +80,13 @@ async function deleteConnection(id) {
         await deleteVRF(session.data.workgroup_id, vrfID);
         window.location = '?action=welcome';
     }
+}
+
+async function modifyConnection(id) {
+    let vrfID = document.getElementById('vrf-id').innerHTML;
+    vrfID = parseInt(vrfID);
+
+    window.location = `?action=modify_cloud&vrf_id=${vrfID}`;
 }
 
 function removeFromEndpointSelectionTable(index) {
