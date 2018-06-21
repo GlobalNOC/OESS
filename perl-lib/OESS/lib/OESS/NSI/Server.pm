@@ -243,7 +243,12 @@ sub reserve{
     if($res < 0){
         $result = SOAP::Data->name( connectionId => 9999999 )->type("");
     }else{
-        $result = SOAP::Data->name( connectionId => $res )->type("");
+
+        if(defined($res->{'error'})){
+            $result = SOAP::Data->name( connectionId => 999999 )->type("");
+        }else{
+            $result = SOAP::Data->name( connectionId => $res )->type("");
+        }
     }
     return ("reserveResponse",$header, $result);
 }
