@@ -60,6 +60,9 @@ async function loadEntityList(parentEntity=null) {
     if (parent !== null) {
         entityConnect.style.display = 'block';
         entityConnect.innerHTML = `Connect to ${name}`;
+        entityConnect.addEventListener('click', function() {
+                window.location.href = `?action=provision_cloud&prepop_vrf_id=${entityID}`;
+            }, false);
     } else {
         entityConnect.style.display = 'none';
     }

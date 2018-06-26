@@ -20,6 +20,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
   let addEntityCancel = document.querySelector('#add-entity-cancel');
   addEntityCancel.addEventListener('click', addEntityCancelCallback);
+
+  let url = new URL(window.location.href);
+  let id = url.searchParams.get('prepop_vrf_id');
+  if (id) {
+      loadEntityList(id);
+      let entityVLANs = '';
+      for (let i = 1; i < 4095; i++) {
+          entityVLANs += `<option>${i}</option>`;
+      }
+      document.querySelector('#entity-vlans').innerHTML = entityVLANs;
+
+      document.querySelector('#entity-index').value = -1;
+      document.querySelector('#entity-bandwidth').value = null;
+
+      let addEndpointModal = $('#add-endpoint-modal');
+      addEndpointModal.modal('show');
+  }
 });
 
 async function addNetworkEndpointCallback(event) {
