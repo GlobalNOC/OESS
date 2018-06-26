@@ -46,6 +46,7 @@ sub _from_hash{
     $self->{'parents'} = $hash->{'parents'};
     $self->{'children'} = $hash->{'children'};
     $self->{'entity_id'} = $hash->{'entity_id'};
+    $self->{'users'} = $hash->{'users'};
 }
 
 sub _fetch_from_db{
@@ -69,15 +70,27 @@ sub to_hash{
         push(@ints, $int->to_hash());
     }
 
+    my @contacts;
+    foreach my $user (@{$self->users()}){
+        push(@contacts,$user->to_hash());
+    }
+
     return { name => $self->name(),
              logo_url => $self->logo_url(),
              url => $self->url(),
              description => $self->description(),
              interfaces => \@ints,
              parents => $self->parents(),
+             contacts => \@contacts,
              children => $self->children(),
              entity_id => $self->entity_id() };
 
+}
+
+sub users {
+    my $self = shift;
+
+    return $self->{'users'} || [];
 }
 
 sub entity_id{

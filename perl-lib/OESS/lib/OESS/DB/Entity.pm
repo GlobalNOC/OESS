@@ -41,6 +41,15 @@ sub fetch{
 
     }
 
+    my $users = $db->execute_query( "select user_id from user_entity_membership where entity_id = ?",[$entity->{'entity_id'}]);
+    
+    my @users;
+    foreach my $u (@$users){
+        my $user = OESS::User->new( db => $db, user_id => $u->{'user_id'});
+        next if !defined($user);
+        push(@users,$user);
+    }
+
     return {entity_id => $entity->{'entity_id'},
             description => $entity->{'description'},
             logo_url => $entity->{'logo_url'},
@@ -48,7 +57,8 @@ sub fetch{
             name => $entity->{'name'},
             parents => $parents,
             interfaces => \@interfaces,
-            children => $children };
+            children => $children,
+            users => \@users };
 }
 
 sub get_root_entities{

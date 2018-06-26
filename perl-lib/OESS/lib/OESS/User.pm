@@ -52,6 +52,8 @@ sub to_hash{
         push(@wgs, $wg->to_hash());
     }
     
+    $obj->{'is_admin'} = $self->is_admin();
+    $obj->{'type'} = $self->type();
     $obj->{'workgroups'} = \@wgs;
     
     return $obj;
@@ -62,10 +64,12 @@ sub from_hash{
     my $hash = shift;
 
     $self->{'user_id'} = $hash->{'user_id'};
-    $self->{'first_name'} = $hash->{'first_name'};
-    $self->{'last_name'} = $hash->{'last_name'};
+    $self->{'first_name'} = $hash->{'given_names'};
+    $self->{'last_name'} = $hash->{'family_name'};
     $self->{'email'} = $hash->{'email'};
     $self->{'workgroups'} = $hash->{'workgroups'};
+    $self->{'type'} = $hash->{'type'};
+    $self->{'is_admin'} = $hash->{'is_admin'};
 }
 
 sub _fetch_from_db{
@@ -103,6 +107,10 @@ sub email{
     return $self->{'email'};
 }
 
+sub is_admin{
+    my $self = shift;
+    return $self->{'is_admin'};
+}
 
 sub in_workgroup{
     my $self = shift;
@@ -114,6 +122,11 @@ sub in_workgroup{
         }
     }
     return 0;
+}
+
+sub type{
+    my $self = shift;
+    return $self->{'type'};
 }
 
 1;

@@ -44,8 +44,9 @@ sub from_hash{
 
     $self->{'workgroup_id'} = $hash->{'workgroup_id'};
     $self->{'name'} = $hash->{'name'};
-    $self->{'admin'} = $hash->{'admin'};
-
+    $self->{'type'} = $hash->{'type'};
+    $self->{'max_circuits'} = $hash->{'max_circuits'};
+    $self->{'external_id'} = $hash->{'external_id'};
 }
 
 sub to_hash{
@@ -55,16 +56,16 @@ sub to_hash{
 
     $obj->{'workgroup_id'} = $self->workgroup_id();
     $obj->{'name'} = $self->name();
-    $obj->{'admin'} = $self->admin();
+    $obj->{'type'} = $self->type();
 
-    $obj->{'users'} = ();
-    #$obj->{'external_id'} = $self->external_id();
-    #$obj->{'max_circuits'} = $self->max_circuits();
+    #$obj->{'users'} = ();
+    $obj->{'external_id'} = $self->external_id();
+    $obj->{'max_circuits'} = $self->max_circuits();    
     
-#    foreach my $user (@{$self->users()}){
-#        push(@{$self->{'users'}}, $user->to_hash());
-#    }
-
+    foreach my $user (@{$self->users()}){
+        push(@{$self->{'users'}}, $user->to_hash());
+    }
+    
     return $obj;
 }
 
@@ -74,6 +75,11 @@ sub _fetch_from_db{
     my $wg = OESS::DB::Workgroup::fetch(db => $self->{'db'}, workgroup_id => $self->{'workgroup_id'});
     $self->from_hash($wg);
     
+}
+
+sub max_circuits{
+    my $self = shift;
+    return $self->{'max_circuits'};
 }
 
 sub workgroup_id{
@@ -100,22 +106,26 @@ sub name{
     }
 }
 
-sub admin{
+sub users{
     my $self = shift;
-    my $admin = shift;
+    return $self->{'users'} || [];
+}
 
-    if(!defined($admin)){
-        return $self->{'admin'};
+sub type{
+    my $self = shift;
+    my $type = shift;
+
+    if(!defined($type)){
+        return $self->{'type'};
     }else{
-        $self->{'admin'} = $admin;
-        return $self->{'admin'};
+        $self->{'type'} = $type;
+        return $self->{'type'};
     }
 }
 
-sub users{
+sub external_id{
     my $self = shift;
-
-    return [];
+    return $self->{'external_id'};
 }
 
 1;
