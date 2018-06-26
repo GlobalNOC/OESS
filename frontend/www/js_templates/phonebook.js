@@ -81,4 +81,16 @@ async function loadEntityList(parentEntity=null) {
             }
     });
     document.querySelector('#entity-interfaces').innerHTML = entityInterfaces;
+
+    if (entity.contacts.length < 1) {
+        document.querySelector('#entity-contacts-title').style.display = 'none';
+    } else {
+        document.querySelector('#entity-contacts-title').style.display = 'block';
+    }
+
+    let entityContacts = '';
+    entity.contacts.forEach(function(contact) {
+            entityContacts += `<p class="entity-contact"><b>${contact.first_name} ${contact.last_name}</b><br/>${contact.email}</p>`;
+    });
+    document.querySelector('#entity-contacts').innerHTML = entityContacts;
 }
