@@ -74,8 +74,11 @@ async function loadEntityList(parentEntity=null) {
 
     let entityInterfaces = '';
     entity.interfaces.forEach(function(intf) {
-            // <p class="entity-interface"><span class="label label-danger">▾</span> <b>${intf.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${intf.name}</p>
-            entityInterfaces += `<p class="entity-interface"><span class="label label-success">▴</span> <b>${intf.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${intf.name}</p>`;
+            if (intf.operational_state === 'up') {
+                entityInterfaces += `<p class="entity-interface"><span class="label label-success">▴</span> <b>${intf.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${intf.name}</p>`;
+            } else {
+                entityInterfaces += `<p class="entity-interface"><span class="label label-danger">▾</span> <b>${intf.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${intf.name}</p>`;
+            }
     });
     document.querySelector('#entity-interfaces').innerHTML = entityInterfaces;
 }
