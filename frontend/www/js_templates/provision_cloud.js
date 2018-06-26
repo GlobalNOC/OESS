@@ -51,6 +51,8 @@ async function addNetworkEndpointCallback(event) {
     document.querySelector('#entity-index').value = -1;
     document.querySelector('#entity-bandwidth').value = null;
 
+    document.querySelector('#add-entity-submit').innerHTML = 'Add Endpoint';
+
     let addEndpointModal = $('#add-endpoint-modal');
     addEndpointModal.modal('show');
 }
@@ -71,6 +73,8 @@ async function modifyNetworkEndpointCallback(index) {
     document.querySelector('#entity-id').value = endpoints[index].entity_id;
     document.querySelector('#entity-name').value = endpoints[index].name;
     document.querySelector('#entity-bandwidth').value = endpoints[index].bandwidth;
+
+    document.querySelector('#add-entity-submit').innerHTML = 'Modify Endpoint';
 
     let addEndpointModal = $('#add-endpoint-modal');
     addEndpointModal.modal('show');
