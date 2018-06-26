@@ -45,11 +45,11 @@ sub from_hash{
     $self->{'interface_id'} = $hash->{'interface_id'};
     $self->{'node'} = $hash->{'node'};
     $self->{'description'} = $hash->{'description'};
-    $self->{'operational_state'} = $hash->{'operational_state'};
     $self->{'acls'} = $hash->{'acls'};
     $self->{'mpls_vlan_tag_range'} = $hash->{'mpls_vlan_tag_range'};
     $self->{'used_vlans'} = $hash->{'used_vlans'};
-    
+    $self->{'operational_state'} = $hash->{'operational_state'};
+    warn Dumper($self);
 }
 
 sub to_hash{
@@ -60,7 +60,8 @@ sub to_hash{
                 interface_id => $self->interface_id(),
                 node_id => $self->node()->node_id(),
                 node => $self->node()->name(),
-                acls => $self->acls()->to_hash() };
+                acls => $self->acls()->to_hash(),
+                operational_state => $self->{'operational_state'} };
     
     return $res;
 }
@@ -95,6 +96,11 @@ sub update_db{
 
 }
 
+sub operational_state{
+    my $self = shift;
+    return $self->{'operational_state'};
+}
+
 sub interface_id{
     my $self = shift;
     return $self->{'interface_id'};
@@ -112,10 +118,6 @@ sub description{
 }
 
 sub port_number{
-
-}
-
-sub operational_state{
 
 }
 
