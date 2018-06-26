@@ -1,10 +1,10 @@
-
 document.addEventListener('DOMContentLoaded', function() {
-
   let url = new URL(window.location.href);
   let entityID = url.searchParams.get('entity_id');
 
-  loadEntityList();
+  loadUserMenu().then(function() {
+      loadEntityList();
+  });
 });
 
 async function deleteConnection(id, name) {

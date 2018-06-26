@@ -49,26 +49,28 @@
   }
 
 document.addEventListener('DOMContentLoaded', function() {
-  $('#delete-vrf-button').click(function(){
-    deleteConnection(session.data.workgroup_id);
-  });
+  loadUserMenu().then(function() {
+      $('#delete-vrf-button').click(function(){
+          deleteConnection(session.data.workgroup_id);
+      });
 
-  $('#edit-vrf-button').click(function(){
-    modifyConnection();
-  });
+      $('#edit-vrf-button').click(function(){
+          modifyConnection();
+      });
 
-  let map = new NDDIMap('map');
-  map.on("loaded", function(){
-    this.updateMapFromSession(session);
-  });
+      let map = new NDDIMap('map');
+      map.on("loaded", function(){
+         this.updateMapFromSession(session);
+      });
 
-  map.on("clickNode", function(e, args) {
-    let node = args[0].name;
-    loadEndpointSelectionModal(node);
-    loadEndpointSelectionInterfaces(node);
-  });
+      map.on("clickNode", function(e, args) {
+          let node = args[0].name;
+          loadEndpointSelectionModal(node);
+          loadEndpointSelectionInterfaces(node);
+      });
 
-  loadVRF();
+      loadVRF();
+  });
 });
 
 async function deleteConnection(id) {
@@ -146,7 +148,10 @@ async function loadVRF() {
   </div>
   <h2 style="padding: 15px" >Statistics</h3>
 <div style="padding-left: 15px; padding-right: 15px">
-<iframe src="https://grafana.net.internet2.edu/grafana/d-solo/kgVskjnik/interfaces?orgId=1&panelId=2&var-node=rtsw.hous.net.internet2.edu&var-interface=et-1%2F0%2F0.3060" width="100%" height="300" frameborder="0"></iframe>
+
+<iframe src="https://daldoyle-dev-7.grnoc.iu.edu/grafana/d-solo/LbLWIXmmk/simple?orgId=1&var-node=${endpoint.node.name}&var-interface=${endpoint.interface.name}.${endpoint.tag}&panelId=4&from=now-1h&to=now" width="100%" height="300" frameborder="0"></iframe>
+
+<!-- <iframe src="https://grafana.net.internet2.edu/grafana/d-solo/kgVskjnik/interfaces?orgId=1&panelId=2&var-node=&var-interface=" width="100%" height="300" frameborder="0"></iframe> -->
 </div>
   <h2 style="padding: 15px">Peerings</h3>
   <table class="table">

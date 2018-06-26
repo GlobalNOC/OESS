@@ -1,9 +1,10 @@
-
 document.addEventListener('DOMContentLoaded', function() {
   sessionStorage.setItem('endpoints', '[]');
 
-  loadVRF();
-  setDateTimeVisibility();
+  loadUserMenu().then(function() {
+      loadVRF();
+      setDateTimeVisibility();
+  });
 
   let addNetworkEndpoint = document.querySelector('#add-network-endpoint');
   addNetworkEndpoint.addEventListener('click', addNetworkEndpointCallback);
@@ -36,7 +37,8 @@ async function loadVRF() {
     let endpoint = {
         bandwidth: e.bandwidth,
         entity_id: -1,
-        name: 'ajajajajajajaj',
+        name: e.interface.name,
+        node: e.node.name,
         peerings: [],
         tag: e.tag
     };
@@ -314,11 +316,11 @@ function loadSelectedEndpointList() {
   console.log(endpoints);
   endpoints.forEach(function(endpoint, index) {
           let endpointName = '';
-          if (typeof endpoint.entity_id !== undefined) {
-              endpointName = `${endpoint.name} <small>${endpoint.tag}</small>`;
-          } else {
-              endpointName = `${endpoint.node} <small>${endpoint.interface} - ${endpoint.tag}</small>`;
-          }
+          // if (typeof endpoint.entity_id !== undefined) {
+          //     endpointName = `${endpoint.name} <small>${endpoint.tag}</small>`;
+          // } else {
+                 endpointName = `${endpoint.node} <small>${endpoint.name} - ${endpoint.tag}</small>`;
+          // }
 
           let peerings = '';
           endpoint.peerings.forEach(function(peering, peeringIndex) {

@@ -2,7 +2,9 @@
 document.addEventListener('DOMContentLoaded', function() {
   sessionStorage.setItem('endpoints', '[]');
 
-  setDateTimeVisibility();
+  loadUserMenu().then(function() {
+      setDateTimeVisibility();
+  });
 
   let addNetworkEndpoint = document.querySelector('#add-network-endpoint');
   addNetworkEndpoint.addEventListener('click', addNetworkEndpointCallback);

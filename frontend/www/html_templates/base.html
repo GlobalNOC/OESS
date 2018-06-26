@@ -6,6 +6,11 @@
   [% INCLUDE js_templates/utility.js %]
   [% INCLUDE js_templates/maps.js %]
 
+  <script>
+    [% INCLUDE js_templates/api/workgroup.js %]
+    [% INCLUDE js_templates/user_menu.js %]
+  </script>
+
   <body class="yui-skin-sam">
 
     <div class="header">
@@ -17,21 +22,11 @@
 
       <div class="btn-group">
         <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-          <span class="badge" style="background-color: #D75452;">1</span>&nbsp; jonstout / <span id="active_workgroup_name"></span>
+          <!-- <span class="badge" style="background-color: #D75452;">1</span>&nbsp; jonstout / <span id="active_workgroup_name"></span> -->
+          jonstout / <span id="active_workgroup_name"></span>
           <span class="caret"></span>
         </button>
-        <ul class="dropdown-menu">
-          <li>
-            <a href="#">
-              <b>Jonathan Stout</b><br/>
-              GlobalNOC<br/>
-              jonstout@globolnoc.iu.edu
-            </a>
-          </li>
-          <li role="separator" class="divider"></li>
-          <li><a href="#">admin</a></li>
-          <li><a href="#"><span class="badge" style="background-color: #D75452;">1</span> Internet2</a></li>
-          <li><a href="#">GRNOC</a></li>
+        <ul id="user-menu-workgroups" class="dropdown-menu">
         </ul>
       </div>
     </div>
