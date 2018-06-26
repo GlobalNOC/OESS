@@ -578,11 +578,11 @@ sub _build_schedule{
     }
 
     if (defined $start && defined $end) {
-        return SOAP::Data->name(schedule => \SOAP::Data->value(startTime => $start, endTime => $end));
+        return SOAP::Data->name(schedule => \SOAP::Data->value($start, $end));
     } elsif (defined $start) {
-        return SOAP::Data->name(schedule => \SOAP::Data->value(startTime => $start));
+        return SOAP::Data->name(schedule => \SOAP::Data->value($start));
     } elsif (defined $end) {
-        return SOAP::Data->name(schedule => \SOAP::Data->value(endTime => $end));
+        return SOAP::Data->name(schedule => \SOAP::Data->value($end));
     } else {
         return SOAP::Data->name(schedule => \SOAP::Data->value());
     }

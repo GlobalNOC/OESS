@@ -26,6 +26,10 @@ sub fetch{
     
     my $node = OESS::Node->new( db => $db, node_id => $interface->{'node_id'});
 
+    my $in_use = OESS::DB::Interface::vrf_vlans_in_use(db => $db, interface_id => $interface_id );
+
+    push(@{$in_use},OESS::DB::Interface::circuit_vlans_in_use(db => $db, interface_id => $interface_id));
+
     return {interface_id => $interface->{'interface_id'},
             name => $interface->{'name'},
             role => $interface->{'role'},
@@ -35,7 +39,8 @@ sub fetch{
             vlan_tag_range => $interface->{'vlan_tag_range'},
             mpls_vlan_tag_range => $interface->{'mpls_vlan_tag_range'},
             workgroup_id => $interface->{'workgroup_id'},
-            acls => $acls };
+            acls => $acls,
+            used_vlans => $in_use };
 
 }
 

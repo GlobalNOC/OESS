@@ -42,6 +42,9 @@ sub fetch{
     }
 
     return {entity_id => $entity->{'entity_id'},
+            description => $entity->{'description'},
+            logo_url => $entity->{'logo_url'},
+            url => $entity->{'url'},
             name => $entity->{'name'},
             parents => $parents,
             interfaces => \@interfaces,

@@ -21,7 +21,8 @@ my $logger = GRNOC::Log->new(config => '/etc/oess/logging.conf', watch => 15);
 my $log    = $logger->get_logger('OESS.NSI.WWW');
 
 
-my $api    = OESS::RabbitMQ::Client->new( topic    => 'OESS.NSI.Processor');
+my $api    = OESS::RabbitMQ::Client->new( timeout => 60,
+                                          topic    => 'OESS.NSI.Processor');
 
 
 sub _send_to_daemon{
@@ -242,7 +243,12 @@ sub reserve{
     if($res < 0){
         $result = SOAP::Data->name( connectionId => 9999999 )->type("");
     }else{
-        $result = SOAP::Data->name( connectionId => $res )->type("");
+
+        if(defined($res->{'error'})){
+            $result = SOAP::Data->name( connectionId => 999999 )->type("");
+        }else{
+            $result = SOAP::Data->name( connectionId => $res )->type("");
+        }
     }
     return ("reserveResponse",$header, $result);
 }
