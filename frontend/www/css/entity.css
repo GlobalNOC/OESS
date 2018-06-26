@@ -67,6 +67,7 @@
 
 .entity-interfaces {
     display: flex;
+    flex-wrap: wrap;
 }
 
 .entity-interface {
@@ -77,4 +78,5 @@
     display: flex;
 
     margin-top: 15px;
+    margin-bottom: 15px;
 }

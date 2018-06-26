@@ -12,24 +12,12 @@
 //
 
 document.addEventListener('DOMContentLoaded', function() {
-
   let url = new URL(window.location.href);
   let entityID = url.searchParams.get('entity_id');
 
   loadUserMenu().then(function() {
       loadEntityList(entityID);
   });
-
-  // let map = new NDDIMap('map');
-  // map.on("loaded", function(){
-  //   this.updateMapFromSession(session);
-  // });
-
-  // map.on("clickNode", function(e, args) {
-  //   let node = args[0].name;
-  //   loadEndpointSelectionModal(node);
-  //   loadEndpointSelectionInterfaces(node);
-  // });
 });
 
 async function loadEntityList(parentEntity=null) {
@@ -76,6 +64,18 @@ async function loadEntityList(parentEntity=null) {
             let childLi  = `<li role="presentation" onclick="loadEntityList(${entity.entity_id})"><a href="#">${entity.name} &gt;</a></li>`;
             entityNav += childLi;
     });
-
     entitiesList.innerHTML = entityNav;
+
+    if (entity.interfaces.length < 1) {
+        document.querySelector('#entity-interfaces-title').style.display = 'none';
+    } else {
+        document.querySelector('#entity-interfaces-title').style.display = 'block';
+    }
+
+    let entityInterfaces = '';
+    entity.interfaces.forEach(function(intf) {
+            // <p class="entity-interface"><span class="label label-danger">▾</span> <b>${intf.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${intf.name}</p>
+            entityInterfaces += `<p class="entity-interface"><span class="label label-success">▴</span> <b>${intf.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${intf.name}</p>`;
+    });
+    document.querySelector('#entity-interfaces').innerHTML = entityInterfaces;
 }
