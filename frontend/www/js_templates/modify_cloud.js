@@ -72,6 +72,8 @@ async function addNetworkEndpointCallback(event) {
     document.querySelector('#entity-index').value = -1;
     document.querySelector('#entity-bandwidth').value = null;
 
+    document.querySelector('#add-entity-submit').innerHTML = 'Add Endpoint';
+
     let addEndpointModal = $('#add-endpoint-modal');
     addEndpointModal.modal('show');
 }
@@ -92,6 +94,8 @@ async function modifyNetworkEndpointCallback(index) {
     document.querySelector('#entity-id').value = endpoints[index].entity_id;
     document.querySelector('#entity-name').value = endpoints[index].name;
     document.querySelector('#entity-bandwidth').value = endpoints[index].bandwidth;
+
+    document.querySelector('#add-entity-submit').innerHTML = 'Modify Endpoint';
 
     let addEndpointModal = $('#add-endpoint-modal');
     addEndpointModal.modal('show');
@@ -194,26 +198,40 @@ async function addEntityCancelCallback(event) {
 //--- Add Endpoint Modal
 
 async function loadEntityList(parentEntity=null) {
-    let entities = await getEntities(session.data.workgroup_id, parentEntity);
+    let entity = await getEntities(session.data.workgroup_id, parentEntity);
     let entitiesList = document.querySelector('#entities-list');
+
+    let parent = null;
+    if ('parents' in entity && entity.parents.length > 0) {
+        parent = entity.parents[0];
+    }
+
+    let entities = '';
 
     entitiesList.innerHTML = '';
     if (parentEntity !== null) {
-        entitiesList.innerHTML += `<button type="button" class="list-group-item" onclick="loadEntityList()">
-                                     <span class="glyphicon glyphicon-menu-left" style="float: right;"></span>
-                                   </button>`;
+        entities += `<button type="button" class="list-group-item" onclick="loadEntityList(${parent.entity_id})">
+                         ${parent.name}
+                         <span class="glyphicon glyphicon-menu-left" style="float: right;"></span>
+                     </button>`;
     }
 
-    entities.forEach(function(entity) {
-            if (entity.children.length > 0) {
-                entitiesList.innerHTML += `<button type="button" class="list-group-item" onclick="loadEntityList(${entity.entity_id})">
-                                             ${entity.name}
-                                             <span class="glyphicon glyphicon-menu-right" style="float: right;"></span>
-                                           </button>`;
-            } else {
-                entitiesList.innerHTML += `<button type="button" class="list-group-item" onclick="setEntity(${entity.entity_id}, '${entity.name}')">${entity.name}</button>`;
-            }
-    });
+    if ('children' in entity && entity.children.length > 0) {
+        entity.children.forEach(function(child) {
+                entities += `<button type="button" class="list-group-item" onclick="loadEntityList(${child.entity_id})">
+                                 ${child.name}
+                                 <span class="glyphicon glyphicon-menu-right" style="float: right;"></span>
+                             </button>`;
+        });
+
+        entitiesList.innerHTML = entities;
+    }
+
+    setEntity(entity.entity_id, entity.name);
+
+    let entityAlertOK = document.querySelector('#entity-alert-ok');
+    entityAlertOK.innerHTML = `<p>Selected ${entity.name}.</p>`;
+    entityAlertOK.style.display = 'block';
 }
 
 async function setEntity(id, name) {
