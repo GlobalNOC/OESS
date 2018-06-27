@@ -16,7 +16,7 @@ use OESS::Database;
 use OESS::ACL;
 use OESSDatabaseTester;
 
-use Test::More tests => 31;
+use Test::More tests => 37;
 use Test::Deep;
 use Data::Dumper;
 
@@ -94,13 +94,19 @@ va_test(
 va_test(
   $acl->vlan_allowed( workgroup_id => 31, vlan => 300 ),
   0,
-  10, 'when workgroup is not listed in ACLs for interface, default is to deny'
+  10, 'when workgroup is not listed in ACLs for interface, default is to deny (not the interface owner)'
+);
+
+va_test(
+  $acl->vlan_allowed( workgroup_id => 1, vlan => 300 ),
+  0,
+  11, 'when workgroup is not listed in ACLs for interface, default is to deny, even for the owner of the interface'
 );
 
 va_test(
   $acl->vlan_allowed( workgroup_id => 21, vlan => -1 ),
   1,
-  11, 'VLAN tag of -1 in range works'
+  12, 'VLAN tag of -1 in range works'
 );
 
 
@@ -110,23 +116,43 @@ $acl = OESS::ACL->new( interface_id => 45811, db => $db );
 va_test(
   $acl->vlan_allowed( workgroup_id => 101, vlan => 999 ),
   0,
-  12, 'when a workgroup is listed in ACLs for interface, but no ACLs for the workgroup match the tag, deny'
+  13, 'when a workgroup is listed in ACLs for interface, but no ACLs for the workgroup match the tag, deny'
 );
 
 va_test(
   $acl->vlan_allowed( workgroup_id => 31, vlan => 100 ),
   0,
-  13, 'single-tag bounds work (part 1: 100)'
+  14, 'single-tag bounds work (part 1: 100)'
 );
 
 va_test(
   $acl->vlan_allowed( workgroup_id => 31, vlan => 101 ),
   1,
-  14, 'single-tag bounds work (part 2: 101)'
+  15, 'single-tag bounds work (part 2: 101)'
 );
 
 va_test(
   $acl->vlan_allowed( workgroup_id => 31, vlan => 102 ),
   0,
-  15, 'single-tag bounds work as expected (part 3: 102)'
+  16, 'single-tag bounds work as expected (part 3: 102)'
+);
+
+
+
+$acl = OESS::ACL->new( interface_id => 32291, db => $db );
+
+va_test(
+  $acl->vlan_allowed( workgroup_id => 31, vlan => 1729 ),
+  0,
+  17, 'when no ACLs exist for an interface, deny (not the interface owner)'
+);
+
+
+
+$acl = OESS::ACL->new( interface_id => 501, db => $db );
+
+va_test(
+  $acl->vlan_allowed( workgroup_id => 11, vlan => 1729 ),
+  0,
+  18, 'when no ACLs exist for an interface, deny, even for the interface owner'
 );
