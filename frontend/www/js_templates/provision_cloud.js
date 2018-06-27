@@ -21,6 +21,12 @@ document.addEventListener('DOMContentLoaded', function() {
   let addEntityCancel = document.querySelector('#add-entity-cancel');
   addEntityCancel.addEventListener('click', addEntityCancelCallback);
 
+  let addEndpointSubmit = document.querySelector('#add-endpoint-submit');
+  addEndpointSubmit.addEventListener('click', addEndpointSubmitCallback);
+
+  let addEndpointCancel = document.querySelector('#add-endpoint-cancel');
+  addEndpointCancel.addEventListener('click', addEndpointCancelCallback);
+
   let url = new URL(window.location.href);
   let id = url.searchParams.get('prepop_vrf_id');
   if (id) {
@@ -39,7 +45,25 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
+async function loadMyInterfaces() {
+    let interfaces = await getInterfacesByWorkgroup(session.data.workgroup_id);
+
+    let options = '';
+    interfaces.forEach(function(intf) {
+            options += `<option value="${intf.interface_id}">${intf.node_name} - ${intf.interface_name}</option>`;
+    });
+    document.querySelector('#endpoint-select-interface').innerHTML = options;
+
+    let endpointVLANs = '';
+    for (let i = 1; i < 4095; i++) {
+        endpointVLANs += `<option>${i}</option>`;
+    }
+    document.querySelector('#endpoint-vlans').innerHTML = endpointVLANs;
+}
+
 async function addNetworkEndpointCallback(event) {
+    loadMyInterfaces();
+
     await loadEntityList();
 
     let entityVLANs = '';
@@ -176,6 +200,21 @@ async function addEntityCancelCallback(event) {
     let entityAlertOK = document.querySelector('#entity-alert-ok');
     entityAlertOK.style.display = 'none';
 
+    let addEndpointModal = $('#add-endpoint-modal');
+    addEndpointModal.modal('hide');
+}
+
+async function addEndpointSubmitCallback(event) {
+    // TODO
+    console.log('addEndpointSubmitCallback not complete.');
+
+    loadSelectedEndpointList();
+
+    let addEndpointModal = $('#add-endpoint-modal');
+    addEndpointModal.modal('hide');
+}
+
+async function addEndpointCancelCallback(event) {
     let addEndpointModal = $('#add-endpoint-modal');
     addEndpointModal.modal('hide');
 }
