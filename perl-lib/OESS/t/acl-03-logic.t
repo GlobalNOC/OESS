@@ -16,7 +16,7 @@ use OESS::Database;
 use OESS::ACL;
 use OESSDatabaseTester;
 
-use Test::More tests => 37;
+use Test::More tests => 53;
 use Test::Deep;
 use Data::Dumper;
 
@@ -155,4 +155,56 @@ va_test(
   $acl->vlan_allowed( workgroup_id => 11, vlan => 1729 ),
   0,
   18, 'when no ACLs exist for an interface, deny, even for the interface owner'
+);
+
+
+
+$acl = OESS::ACL->new( interface_id => 21, db => $db );
+
+va_test(
+  $acl->vlan_allowed( workgroup_id => 11, vlan => 1155 ),
+  1,
+  19, 'ACLs with null workgroup_id apply to all workgroups (1)'
+);
+
+va_test(
+  $acl->vlan_allowed( workgroup_id => 101, vlan => 1155 ),
+  1,
+  20, 'ACLs with null workgroup_id apply to all workgroups (2)'
+);
+
+va_test(
+  $acl->vlan_allowed( workgroup_id => 61, vlan => 1130 ),
+  1,
+  21, 'wildcard workgroup matches are also first-match-wins (1)'
+);
+
+va_test(
+  $acl->vlan_allowed( workgroup_id => 11, vlan => 1150 ),
+  0,
+  22, 'wildcard workgroup matches are also first-match-wins (2)'
+);
+
+va_test(
+  $acl->vlan_allowed( workgroup_id => 101, vlan => 1150 ),
+  0,
+  23, 'wildcard workgroup matches are also first-match-wins (3)'
+);
+
+va_test(
+  $acl->vlan_allowed( workgroup_id => 101, vlan => 1163 ),
+  1,
+  24, 'first-match-wins, even when wildcard workgroup matches follow (1)'
+);
+
+va_test(
+  $acl->vlan_allowed( workgroup_id => 101, vlan => 1174 ),
+  0,
+  25, 'first-match-wins, even when wildcard workgroup matches follow (2)'
+);
+
+va_test(
+  $acl->vlan_allowed( workgroup_id => 71, vlan => 3000 ),
+  0,
+  26, 'even in presence of wildcard workgroup matches, when no ACLs match, deny'
 );

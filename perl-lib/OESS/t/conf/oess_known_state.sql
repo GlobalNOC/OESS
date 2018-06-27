@@ -266,7 +266,7 @@ CREATE TABLE `interface_acl` (
   KEY `interface_id` (`interface_id`),
   CONSTRAINT `interface_acl_ibfk_1` FOREIGN KEY (`interface_id`) REFERENCES `interface` (`interface_id`),
   CONSTRAINT `interface_acl_ibfk_2` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=23 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -275,7 +275,7 @@ CREATE TABLE `interface_acl` (
 
 LOCK TABLES `interface_acl` WRITE;
 /*!40000 ALTER TABLE `interface_acl` DISABLE KEYS */;
-INSERT INTO `interface_acl` VALUES (1,21,45901,'deny',10,101,200,'ima note'),(2,21,45911,'deny',20,100,NULL,NULL),(3,21,45811,'allow',10,100,NULL,'ima note'),(4,31,45811,'allow',20,101,NULL,'ima note'),(5,101,45811,'allow',30,102,NULL,'ima note'),(6,61,45811,'allow',40,103,NULL,'ima note'),(7,71,45811,'allow',50,104,NULL,'ima note'),(8,81,45811,'allow',60,105,NULL,'ima note'),(9,11,321,'allow',10,1,10,'(for test 34-provision_circuit.t)'),(10,11,511,'allow',10,1,10,'(for test 34-provision_circuit.t)'),(11,11,391,'deny',10,1,NULL,'(for test 34-provision_circuit.t)'),(12,11,391,'allow',20,1,4095,'(for test 34-provision_circuit.t)'),(13,21,45901,'allow',20,120,125,NULL),(14,21,45901,'allow',30,-1,4095,NULL);
+INSERT INTO `interface_acl` VALUES (1,21,45901,'deny',10,101,200,'ima note'),(2,21,45911,'deny',20,100,NULL,NULL),(3,21,45811,'allow',10,100,NULL,'ima note'),(4,31,45811,'allow',20,101,NULL,'ima note'),(5,101,45811,'allow',30,102,NULL,'ima note'),(6,61,45811,'allow',40,103,NULL,'ima note'),(7,71,45811,'allow',50,104,NULL,'ima note'),(8,81,45811,'allow',60,105,NULL,'ima note'),(9,11,321,'allow',10,1,10,'(for test 34-provision_circuit.t)'),(10,11,511,'allow',10,1,10,'(for test 34-provision_circuit.t)'),(11,11,391,'deny',10,1,NULL,'(for test 34-provision_circuit.t)'),(12,11,391,'allow',20,1,4095,'(for test 34-provision_circuit.t)'),(13,21,45901,'allow',20,120,125,NULL),(14,21,45901,'allow',30,-1,4095,NULL),(15,NULL,21,'allow',40,1100,1199,'note 34'),(16,101,21,'deny',30,1160,1179,'note 35'),(17,101,21,'allow',10,1162,1163,'note 36'),(18,NULL,21,'deny',20,1150,NULL,'note 37'),(19,61,21,'deny',50,1100,1148,NULL),(20,71,21,'allow',60,1000,2000,NULL);
 /*!40000 ALTER TABLE `interface_acl` ENABLE KEYS */;
 UNLOCK TABLES;
 
