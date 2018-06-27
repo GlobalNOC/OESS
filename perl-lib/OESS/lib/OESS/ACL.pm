@@ -87,17 +87,8 @@ sub vlan_allowed{
     my $vlan = $params{'vlan'};
 
     foreach my $acl (@{$self->{'acls'}}){
-        if($acl->{'start'} < $vlan && $acl->{'end'} > $vlan){
-            if(!defined($acl->{'workgroup_id'}) || $acl->{'workgroup_id'} == $workgroup_id){
-                if($acl->{'allow_deny'} eq 'allow'){
-                    return 1;
-                }else{
-                    return 0;
-                }
-            }
-        }
-
-        if($acl->{'start'} == $vlan || $acl->{'end'} == $vlan){
+        if(   (defined($acl->{'end'}) && $acl->{'start'} <= $vlan && $acl->{'end'} >= $vlan)
+           || ((!defined($acl->{'end'})) && $acl->{'start'} == $vlan) ){
             if(!defined($acl->{'workgroup_id'}) || $acl->{'workgroup_id'} == $workgroup_id){
                 if($acl->{'allow_deny'} eq 'allow'){
                     return 1;
