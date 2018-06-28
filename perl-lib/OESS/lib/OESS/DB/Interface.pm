@@ -16,7 +16,7 @@ sub fetch{
 
     my $interface_id = $params{'interface_id'};
 
-    my $interface = $db->execute_query("select * from interface natural join interface_instantiation where interface.interface_id = ?",[$interface_id]);
+    my $interface = $db->_execute_query("select * from interface natural join interface_instantiation where interface.interface_id = ?",[$interface_id]);
 
     return if (!defined($interface) || !defined($interface->[0]));
                
@@ -51,7 +51,7 @@ sub get_interface{
     my $interface_name= $params{'interface'};
     my $node_name = $params{'node'};
     
-    my $interface = $db->execute_query("select interface_id from interface where name=? and node_id=(select node_id from node where name=?)",[$interface_name, $node_name]);
+    my $interface = $db->_execute_query("select interface_id from interface where name=? and node_id=(select node_id from node where name=?)",[$interface_name, $node_name]);
 
     if(!defined($interface) || !defined($interface->[0])){
         return;
@@ -66,7 +66,7 @@ sub get_acls{
     my $db = $params{'db'};
     my $interface_id = $params{'interface_id'};
 
-    my $acls = $db->execute_query("select * from interface_acl where interface_id = ?",[$interface_id]);
+    my $acls = $db->_execute_query("select * from interface_acl where interface_id = ?",[$interface_id]);
     return $acls;
 }
 
@@ -75,7 +75,7 @@ sub vrf_vlans_in_use{
     my $db = $params{'db'};
     my $interface_id = $params{'interface_id'};
 
-    my $vlan_tags = $db->execute_query("select vrf_ep.tag from vrf_ep join vrf on vrf_ep.vrf_id = vrf.vrf_id where vrf.state = 'active' and vrf_ep.state = 'active' and vrf_ep.interface_id = ?",[$interface_id]);
+    my $vlan_tags = $db->_execute_query("select vrf_ep.tag from vrf_ep join vrf on vrf_ep.vrf_id = vrf.vrf_id where vrf.state = 'active' and vrf_ep.state = 'active' and vrf_ep.interface_id = ?",[$interface_id]);
     
     my @tags;
     foreach my $tag (@$vlan_tags){

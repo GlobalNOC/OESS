@@ -6,7 +6,7 @@ use warnings;
 package OESS::Circuit;
 
 use Log::Log4perl;
-#use OESS::FlowRule;
+use OESS::FlowRule;
 use Graph::Directed;
 use Data::Dumper;
 use OESS::Topology;
