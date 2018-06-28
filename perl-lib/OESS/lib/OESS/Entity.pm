@@ -29,7 +29,8 @@ sub new{
         return;
     }
 
-    $self->_fetch_from_db();
+    my $fetch_ok = $self->_fetch_from_db();
+    return undef if !$fetch_ok;
     
     return $self;    
 }
@@ -53,7 +54,10 @@ sub _fetch_from_db{
     my $self = shift;
 
     my $info = OESS::DB::Entity::fetch(db => $self->{'db'}, entity_id => $self->{'entity_id'}, name => $self->{'name'});
+    return 0 if !defined($info);
+
     $self->_from_hash($info);
+    return 1;
 }
 
 sub _update_db{
