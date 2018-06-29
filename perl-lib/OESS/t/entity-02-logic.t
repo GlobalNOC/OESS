@@ -16,7 +16,7 @@ use OESS::Database;
 use OESS::Entity;
 use OESSDatabaseTester;
 
-use Test::More tests => 10;
+use Test::More tests => 18;
 use Test::Deep;
 use Data::Dumper;
 
@@ -73,3 +73,34 @@ cmp_deeply(
 
 
 my $ent2 = OESS::Entity->new( name => 'B University-Metropolis', db => $db );
+
+ok($ent2->entity_id() == 14,                       'Entity 2 returns correct entity_id');
+ok($ent2->name() eq 'B University-Metropolis',     'Entity 2 returns correct name');
+ok($ent2->url() eq 'https://b-metro.example.edu/', 'Entity 2 returns correct URL');
+ok(!defined($ent2->logo_url()),                    'Entity 2 returns correct logo URL');
+cmp_deeply(
+    [ map {ref $_} @{$ent2->users()} ],
+    [ 'OESS::User', 'OESS::User' ],
+    'Entity 2: users() returns two User objects'
+);
+cmp_deeply(
+    [ map {$_->user_id()} @{$ent2->users()} ],
+    bag(
+        121,
+        881,
+    ),
+    'Entity 2: users() returns proper users'
+);
+warn Dumper($ent2->interfaces());
+cmp_deeply(
+    [ map {ref $_} @{$ent2->interfaces()} ],
+    [ 'OESS::Interface' ],
+    'Entity 2: interfaces() returns one Interface object'
+);
+cmp_deeply(
+    [ map {$_->interface_id()} @{$ent2->interfaces()} ],
+    bag(
+        35961,
+    ),
+    'Entity 2: interfaces() returns correct interfaces'
+);
