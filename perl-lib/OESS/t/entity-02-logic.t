@@ -69,3 +69,7 @@ cmp_deeply(
     ),
     'Entity 1 returns correct list of children'
 );
+
+
+
+my $ent2 = OESS::Entity->new( name => 'B University-Metropolis', db => $db );

@@ -7,7 +7,7 @@ package OESS::DB::Entity;
 
 use OESS::Interface;
 use OESS::Entity;
-use Data::Dumper;
+use OESS::User;
 
 sub fetch{
     my %params = @_;

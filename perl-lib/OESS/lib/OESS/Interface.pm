@@ -6,7 +6,6 @@ use warnings;
 package OESS::Interface;
 
 use OESS::DB::Interface;
-use Data::Dumper;
 
 
 sub new{
@@ -49,7 +48,6 @@ sub from_hash{
     $self->{'mpls_vlan_tag_range'} = $hash->{'mpls_vlan_tag_range'};
     $self->{'used_vlans'} = $hash->{'used_vlans'};
     $self->{'operational_state'} = $hash->{'operational_state'};
-    warn Dumper($self);
 }
 
 sub to_hash{

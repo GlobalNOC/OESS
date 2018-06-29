@@ -6,7 +6,6 @@ use warnings;
 package OESS::Entity;
 
 use OESS::DB::Entity;
-use Data::Dumper;
 
 sub new{
     my $that  = shift;
