@@ -31,9 +31,7 @@ sub new{
         return;
     }
 
-    $self->_fetch_from_db();
-
-    return $self;
+    return $self->_fetch_from_db();
 }
 
 sub from_hash{
@@ -86,7 +84,10 @@ sub _fetch_from_db{
 
     my $info = OESS::DB::Interface::fetch(db => $self->{'db'}, interface_id => $self->{'interface_id'});
 
+    return undef if !defined($info);
+
     $self->from_hash($info);
+    return $self;
 }
 
 sub update_db{

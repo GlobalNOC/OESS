@@ -16,10 +16,10 @@ sub fetch{
 
     my $interface_id = $params{'interface_id'};
 
-    my $interface = $db->_execute_query("select * from interface natural join interface_instantiation where interface.interface_id = ?",[$interface_id]);
+    my $interface = $db->_execute_query("select * from interface where interface.interface_id = ?",[$interface_id]);
 
     return if (!defined($interface) || !defined($interface->[0]));
-               
+
     $interface = $interface->[0];
 
     my $acls = OESS::ACL->new( db => $db, interface_id => $interface_id);
