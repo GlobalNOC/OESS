@@ -16,7 +16,7 @@ use OESS::Database;
 use OESS::Entity;
 use OESSDatabaseTester;
 
-use Test::More tests => 18;
+use Test::More tests => 37;
 use Test::Deep;
 use Data::Dumper;
 
@@ -85,13 +85,9 @@ cmp_deeply(
 );
 cmp_deeply(
     [ map {$_->user_id()} @{$ent2->users()} ],
-    bag(
-        121,
-        881,
-    ),
+    bag( 121, 881 ),
     'Entity 2: users() returns proper users'
 );
-warn Dumper($ent2->interfaces());
 cmp_deeply(
     [ map {ref $_} @{$ent2->interfaces()} ],
     [ 'OESS::Interface' ],
@@ -99,8 +95,85 @@ cmp_deeply(
 );
 cmp_deeply(
     [ map {$_->interface_id()} @{$ent2->interfaces()} ],
-    bag(
-        35961,
-    ),
+    bag( 35961 ),
     'Entity 2: interfaces() returns correct interfaces'
+);
+cmp_deeply($ent2->children(), [], 'Entity 2: children() returns zero children');
+cmp_deeply(
+    [ map {ref $_} @{$ent2->parents()} ],
+    [ 'HASH', 'HASH' ],
+    'Entity 2: parents() return two hashes'
+);
+cmp_deeply(
+    [ map {$_->{'entity_id'}} @{$ent2->parents()} ],
+    bag( 6, 8 ),
+    'Entity 2: parents() returns info on correct parent entities'
+);
+
+
+
+my $ent3 = OESS::Entity->new( entity_id => 12, db => $db );
+
+ok($ent3->entity_id() == 12,      'Entity 3 returns correct entity_id');
+ok($ent3->name() eq 'BC US-West', 'Entity 3 returns correct name');
+ok($ent3->description() eq 'Blue Cloud US-West region',
+                                  'Entity 3 returns correct description');
+
+ok($ent3->name('West') eq 'West', 'Entity 3: can set name in object');
+ok($ent3->description('blah') eq 'blah',
+                                  'Entity 3: can set name in object');
+ok($ent3->url('ftp://w.bc.net/') eq 'ftp://w.bc.net/',
+                                  'Entity 3: can set URL in object');
+ok($ent3->logo_url('file:///a.png') eq 'file:///a.png',
+                                  'Entity 3: can set logo URL in object');
+cmp_deeply(
+    {
+        name        => $ent3->name(),
+        description => $ent3->description(),
+        url         => $ent3->url(),
+        logo_url    => $ent3->logo_url(),
+    },
+    {
+        name        => 'West',
+        description => 'blah',
+        url         => 'ftp://w.bc.net/',
+        logo_url    => 'file:///a.png',
+    },
+    'Entity 3: changes to fields in object are (memory-)persistent'
+);
+
+cmp_deeply(
+    [ map {ref $_} @{$ent3->interfaces()} ],
+    [ 'OESS::Interface' ],
+    'Entity 3: interfaces() returns one Interface object'
+);
+cmp_deeply(
+    [ map {$_->interface_id()} @{$ent3->interfaces()} ],
+    bag( 21 ),
+    'Entity 3: interfaces() returns correct interfaces'
+);
+ok(defined( $ent3->interfaces([ $ent3->interfaces()->[0], $ent2->interfaces()->[0] ]) ), 'Entity 3: set-interfaces sanity check');
+cmp_deeply(
+    [ map {ref $_} @{$ent3->interfaces()} ],
+    [ 'OESS::Interface', 'OESS::Interface' ],
+    'Entity 3: post-set interfaces() returns two Interface objects'
+);
+cmp_deeply(
+    [ map {$_->interface_id()} @{$ent3->interfaces()} ],
+    bag( 21, 35961 ),
+    'Entity 3: post-set interfaces() returns correct interfaces'
+);
+
+my $interface_14081 = OESS::Interface->new( interface_id => 14081, db => $db );
+ok(defined($interface_14081), 'Sanity check: we can make OESS::Interface for id=14081');
+$ent3->add_interface($interface_14081);
+cmp_deeply(
+    [ map {ref $_} @{$ent3->interfaces()} ],
+    [ 'OESS::Interface', 'OESS::Interface', 'OESS::Interface' ],
+    'Entity 3: post-add interfaces() returns three Interface objects'
+);
+cmp_deeply(
+    [ map {$_->interface_id()} @{$ent3->interfaces()} ],
+    bag( 21, 14081, 35961 ),
+    'Entity 3: post-add interfaces() returns correct interfaces'
 );
