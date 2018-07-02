@@ -58,14 +58,13 @@ sub _fetch_from_db{
 
 sub _update_db{
     my $self = shift;
-    return OESS::DB::Entity->update(db => $self->{'db'}, entity => $self->to_hash());
+    return OESS::DB::Entity::update(db => $self->{'db'}, entity => $self->to_hash());
 }
 
 sub to_hash{
     my $self = shift;
 
     my @ints;
-
     foreach my $int (@{$self->interfaces()}){
         push(@ints, $int->to_hash());
     }
@@ -75,16 +74,17 @@ sub to_hash{
         push(@contacts,$user->to_hash());
     }
 
-    return { name => $self->name(),
-             logo_url => $self->logo_url(),
-             url => $self->url(),
-             description => $self->description(),
-             interfaces => \@ints,
-             parents => $self->parents(),
-             contacts => \@contacts,
-             children => $self->children(),
-             entity_id => $self->entity_id() };
-
+    return {
+        name => $self->name(),
+        logo_url => $self->logo_url(),
+        url => $self->url(),
+        description => $self->description(),
+        interfaces => \@ints,
+        parents => $self->parents(),
+        contacts => \@contacts,
+        children => $self->children(),
+        entity_id => $self->entity_id()
+    };
 }
 
 sub users {

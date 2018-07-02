@@ -95,25 +95,25 @@ sub register_rw_methods{
     $method->add_input_parameter(
         name => 'description',
         pattern => $GRNOC::WebService::Regex::TEXT,
-        required => 1,
+        required => 0,
         description => "the description to be set on the entity");
 
     $method->add_input_parameter(
         name => 'name',
         pattern => $GRNOC::WebService::Regex::NAME,
-        required => 1,
+        required => 0,
         description => "the name of the entity");
 
     $method->add_input_parameter(
         name => 'url',
         pattern => $GRNOC::WebService::Regex::URL,
-        required => 1,
+        required => 0,
         description => "The URL of the entities web page");
 
     $method->add_input_parameter(
         name => 'logo_url',
-        pattern => $GRNOC::WebService::Regex::URL,
-        required => 1,
+        pattern => $GRNOC::WebService::Regex::TEXT,
+        required => 0,
         description => "The URL to the logo for the entity");
 
     $svc->register_method($method);
@@ -125,7 +125,26 @@ sub update_entity{
     my $params = shift;
     my $ref = shift;
 
-    
+    my $entity = OESS::Entity->new(db => $db, entity_id => $params->{entity_id}{value});
+    if (!defined $entity) {
+        $method->set_error("Unable to find entity: " . $params->{'entity_id'}{'value'} . " in the Database");
+    }
+
+    if (defined $params->{description}{value}) {
+        $entity->description($params->{description}{value});
+    }
+    if (defined $params->{logo_url}{value}) {
+        $entity->logo_url($params->{logo_url}{value});
+    }
+    if (defined $params->{name}{value}) {
+        $entity->name($params->{name}{value});
+    }
+    if (defined $params->{url}{value}) {
+        $entity->url($params->{url}{value});
+    }
+
+    my $result = $entity->_update_db();
+    return { results => [ { success => 1 } ] };
 }
 
 sub get_root_entities{
