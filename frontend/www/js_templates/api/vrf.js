@@ -48,7 +48,7 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
       peerings:  []
     };
 
-    if (typeof endpoint.entity !== undefined) {
+    if ('entity_id' in endpoint) {
       e['entity'] = endpoint.name;
     } else {
       e['interface'] = endpoint.interface;
