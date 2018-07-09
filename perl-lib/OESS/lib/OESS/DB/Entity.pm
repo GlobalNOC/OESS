@@ -76,4 +76,42 @@ sub get_root_entities{
     return \@roots;
 }
 
+sub update {
+    my %params = @_;
+    my $db = $params{'db'};
+    my $entity = $params{'entity'};
+
+    return if (!defined $entity->{entity_id});
+
+    my $reqs = [];
+    my $args = [];
+    my $set = '';
+
+    if (defined $entity->{description}) {
+        push @$reqs, 'description=?';
+        push @$args, $entity->{description};
+    }
+    if (defined $entity->{logo_url}) {
+        push @$reqs, 'logo_url=?';
+        push @$args, $entity->{logo_url};
+    }
+    if (defined $entity->{name}) {
+        push @$reqs, 'name=?';
+        push @$args, $entity->{name};
+    }
+    if (defined $entity->{url}) {
+        push @$reqs, 'url=?';
+        push @$args, $entity->{url};
+    }
+    $set .= join(', ', @$reqs);
+    push @$args, $entity->{entity_id};
+
+    my $result = $db->execute_query(
+        "UPDATE entity SET $set WHERE entity_id=?",
+        $args
+    );
+
+    return $result;
+}
+
 1;
