@@ -47,7 +47,7 @@ async function loadEntityList(parentEntity=null) {
     let entityConnect = document.querySelector('#entity-connect');
     if (parent !== null) {
         entityConnect.style.display = 'block';
-        entityConnect.innerHTML = `Connect to ${name}`;
+        entityConnect.innerHTML = `Create new connection to ${name}`;
         entityConnect.addEventListener('click', function() {
                 window.location.href = `?action=provision_cloud&prepop_vrf_id=${entityID}`;
             }, false);
