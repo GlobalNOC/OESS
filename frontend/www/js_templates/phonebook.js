@@ -1,16 +1,3 @@
-// name
-// parent-name
-// street
-// city-state-zip
-// description
-// contacts: [
-//   { name: '', phone: '', email: '' }
-// ]
-// children-names: [
-//   ''
-// ]
-//
-
 document.addEventListener('DOMContentLoaded', function() {
   let url = new URL(window.location.href);
   let entityID = url.searchParams.get('entity_id');
