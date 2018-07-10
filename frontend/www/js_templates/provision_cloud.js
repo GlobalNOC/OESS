@@ -426,7 +426,7 @@ function loadSelectedEndpointList() {
       ${endpointName}
       <span style="float: right; margin-top: -5px;">
         <button class="btn btn-link" type="button" onclick="modifyNetworkEndpointCallback(${index})"><span class="glyphicon glyphicon-edit"></span></button>
-        <button class="btn btn-link" type="button" onclick="deleteNetworkEndpointCallback(${index})"><span class="glyphicon glyphicon-remove"></span></button>
+        <button class="btn btn-link" type="button" onclick="deleteNetworkEndpointCallback(${index})"><span class="glyphicon glyphicon-trash"></span></button>
       </span>
     </h4>
   </div>
