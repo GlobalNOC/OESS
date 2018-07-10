@@ -58,7 +58,32 @@ sub _fetch_from_db{
 
 sub _update_db{
     my $self = shift;
-    return OESS::DB::Entity::update(db => $self->{'db'}, entity => $self->to_hash());
+
+    my $entity = $self->to_hash();
+
+    $self->{db}->start_transaction();
+
+    my $result;
+    my $result = OESS::DB::Entity::remove_interfaces(db => $self->{db}, entity => $entity);
+    if (!defined $result) {
+        $self->{db}->rollback();
+        return $self->{db}->{error};
+    }
+
+    $result = OESS::DB::Entity::add_interfaces(db => $self->{db}, entity => $entity);
+    if (!defined $result) {
+        $self->{db}->rollback();
+        return $self->{db}->{error};
+    }
+
+    $result = OESS::DB::Entity::update(db => $self->{'db'}, entity => $entity);
+    if (!defined $result) {
+        $self->{db}->rollback();
+        return $self->{db}->{error};
+    }
+
+    $self->{db}->commit();
+    return;
 }
 
 sub to_hash{
@@ -71,7 +96,7 @@ sub to_hash{
 
     my @contacts;
     foreach my $user (@{$self->users()}){
-        push(@contacts,$user->to_hash());
+        push(@contacts, $user->to_hash());
     }
 
     return {
@@ -183,12 +208,34 @@ sub add_parent{
     push(@{$self->{'parent'}},$entity);
 }
 
-sub add_interface{
+sub add_interface {
     my $self = shift;
     my $interface = shift;
 
-    push(@{$self->{'interfaces'}},$interface);
+    foreach my $i (@{$self->{'interfaces'}}) {
+        if ($i->{interface_id} == $interface->{interface_id}) {
+            return 1;
+        }
+    }
+
+    push @{$self->{'interfaces'}}, $interface;
+    return 1;
 }
 
+sub remove_interface {
+    my $self = shift;
+    my $interface = shift;
+
+    my @tmp = @{$self->{interfaces}};
+    $self->{interfaces} = [];
+
+    foreach my $i (@tmp) {
+        if ($i->{interface_id} != $interface->{interface_id}) {
+            push @{$self->{interfaces}}, $i;
+        }
+    }
+
+    return 1;
+}
 
 1;

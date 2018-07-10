@@ -114,4 +114,43 @@ sub update {
     return $result;
 }
 
+sub remove_interfaces {
+    my %params = @_;
+    my $db = $params{'db'};
+    my $entity = $params{'entity'};
+
+    my $result = $db->execute_query(
+        "DELETE from entity_interface_membership where entity_id=?",
+        [$entity->{entity_id}]
+    );
+
+    return $result;
+}
+
+sub add_interfaces {
+    my %params = @_;
+    my $db = $params{'db'};
+    my $entity = $params{'entity'};
+
+    if (@{$entity->{interfaces}} == 0) {
+        return 1;
+    }
+
+    my $values = [];
+    my $params = [];
+    foreach my $intf (@{$entity->{interfaces}}) {
+        push @$params, '(?, ?)';
+
+        push @$values, $entity->{entity_id};
+        push @$values, $intf->{interface_id};
+    }
+
+    my $param_str = join(', ', @$params);
+
+    return $db->execute_query(
+        "INSERT into entity_interface_membership (entity_id, interface_id) VALUES $param_str",
+        $values
+    );
+}
+
 1;
