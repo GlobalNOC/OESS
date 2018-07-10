@@ -76,6 +76,18 @@ sub _update_db{
         return $self->{db}->{error};
     }
 
+    my $result = OESS::DB::Entity::remove_users(db => $self->{db}, entity => $entity);
+    if (!defined $result) {
+        $self->{db}->rollback();
+        return $self->{db}->{error};
+    }
+
+    $result = OESS::DB::Entity::add_users(db => $self->{db}, entity => $entity);
+    if (!defined $result) {
+        $self->{db}->rollback();
+        return $self->{db}->{error};
+    }
+
     $result = OESS::DB::Entity::update(db => $self->{'db'}, entity => $entity);
     if (!defined $result) {
         $self->{db}->rollback();
@@ -232,6 +244,36 @@ sub remove_interface {
     foreach my $i (@tmp) {
         if ($i->{interface_id} != $interface->{interface_id}) {
             push @{$self->{interfaces}}, $i;
+        }
+    }
+
+    return 1;
+}
+
+sub add_user {
+    my $self = shift;
+    my $user = shift;
+
+    foreach my $i (@{$self->{'users'}}) {
+        if ($i->{user_id} == $user->{user_id}) {
+            return 1;
+        }
+    }
+
+    push @{$self->{'users'}}, $user;
+    return 1;
+}
+
+sub remove_user {
+    my $self = shift;
+    my $user = shift;
+
+    my @tmp = @{$self->{users}};
+    $self->{users} = [];
+
+    foreach my $i (@tmp) {
+        if ($i->{user_id} != $user->{user_id}) {
+            push @{$self->{users}}, $i;
         }
     }
 
