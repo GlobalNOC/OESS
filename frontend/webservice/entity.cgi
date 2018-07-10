@@ -79,45 +79,75 @@ sub register_ro_methods{
 }
 
 sub register_rw_methods{
-    
     my $method = GRNOC::WebService::Method->new(
         name            => "update_entity",
         description     => "",
         callback        => sub { update_entity(@_) }
-        );
-    
+    );
     $method->add_input_parameter(
         name => 'entity_id',
         pattern => $GRNOC::WebService::Regex::INTEGER,
         required => 1,
         description => "entity to be updated");
-
     $method->add_input_parameter(
         name => 'description',
         pattern => $GRNOC::WebService::Regex::TEXT,
         required => 0,
         description => "the description to be set on the entity");
-
     $method->add_input_parameter(
         name => 'name',
         pattern => $GRNOC::WebService::Regex::NAME,
         required => 0,
         description => "the name of the entity");
-
     $method->add_input_parameter(
         name => 'url',
         pattern => $GRNOC::WebService::Regex::URL,
         required => 0,
         description => "The URL of the entities web page");
-
     $method->add_input_parameter(
         name => 'logo_url',
         pattern => $GRNOC::WebService::Regex::TEXT,
         required => 0,
         description => "The URL to the logo for the entity");
-
     $svc->register_method($method);
-    
+
+    $method = GRNOC::WebService::Method->new(
+        name            => "add_interface",
+        description     => "",
+        callback        => sub { add_interface(@_) }
+    );
+    $method->add_input_parameter(
+        name => 'entity_id',
+        pattern => $GRNOC::WebService::Regex::INTEGER,
+        required => 1,
+        description => "entity to be updated"
+    );
+    $method->add_input_parameter(
+        name => 'interface_id',
+        pattern => $GRNOC::WebService::Regex::INTEGER,
+        required => 1,
+        description => "interface to be added"
+    );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new(
+        name            => "remove_interface",
+        description     => "",
+        callback        => sub { remove_interface(@_) }
+    );
+    $method->add_input_parameter(
+        name => 'entity_id',
+        pattern => $GRNOC::WebService::Regex::INTEGER,
+        required => 1,
+        description => "entity to be updated"
+    );
+    $method->add_input_parameter(
+        name => 'interface_id',
+        pattern => $GRNOC::WebService::Regex::INTEGER,
+        required => 1,
+        description => "interface to be removed"
+    );
+    $svc->register_method($method);
 }
 
 sub update_entity{
@@ -128,6 +158,7 @@ sub update_entity{
     my $entity = OESS::Entity->new(db => $db, entity_id => $params->{entity_id}{value});
     if (!defined $entity) {
         $method->set_error("Unable to find entity: " . $params->{'entity_id'}{'value'} . " in the Database");
+        return;
     }
 
     if (defined $params->{description}{value}) {
@@ -144,6 +175,60 @@ sub update_entity{
     }
 
     my $result = $entity->_update_db();
+    return { results => [ { success => 1 } ] };
+}
+
+sub add_interface {
+    my $method = shift;
+    my $params = shift;
+    my $ref = shift;
+
+    my $entity = OESS::Entity->new(db => $db, entity_id => $params->{entity_id}{value});
+    if (!defined $entity) {
+        $method->set_error("Unable to find entity $params->{'entity_id'}{'value'} in the db");
+        return;
+    }
+
+    my $interface = OESS::Interface->new(db => $db, interface_id => $params->{interface_id}{value});
+    if (!defined $interface) {
+        $method->set_error("Unable to find interface $params->{'interface_id'}{'value'} in the db.");
+        return;
+    }
+
+    $entity->add_interface($interface);
+    my $err = $entity->_update_db();
+    if (defined $err) {
+        $method->set_error("$err");
+        return;
+    }
+
+    return { results => [ { success => 1 } ] };
+}
+
+sub remove_interface {
+    my $method = shift;
+    my $params = shift;
+    my $ref = shift;
+
+    my $entity = OESS::Entity->new(db => $db, entity_id => $params->{entity_id}{value});
+    if (!defined $entity) {
+        $method->set_error("Unable to find entity: " . $params->{'entity_id'}{'value'} . " in the Database");
+        return;
+    }
+
+    my $interface = OESS::Interface->new(db => $db, interface_id => $params->{interface_id}{value});
+    if (!defined $interface) {
+        $method->set_error("Unable to find interface: " . $params->{'interface_id'}{'value'} . " in the Database");
+        return;
+    }
+
+    $entity->remove_interface($interface);
+    my $err = $entity->_update_db();
+    if (defined $err) {
+        $method->set_error("$err");
+        return;
+    }
+
     return { results => [ { success => 1 } ] };
 }
 
