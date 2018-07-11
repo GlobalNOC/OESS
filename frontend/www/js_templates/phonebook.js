@@ -1,16 +1,3 @@
-// name
-// parent-name
-// street
-// city-state-zip
-// description
-// contacts: [
-//   { name: '', phone: '', email: '' }
-// ]
-// children-names: [
-//   ''
-// ]
-//
-
 document.addEventListener('DOMContentLoaded', function() {
   let url = new URL(window.location.href);
   let entityID = url.searchParams.get('entity_id');
@@ -18,7 +5,44 @@ document.addEventListener('DOMContentLoaded', function() {
   loadUserMenu().then(function() {
       loadEntityList(entityID);
   });
+
+  let addToConnection = document.querySelector('#entity-connect-existing');
+  addToConnection.addEventListener('click', addToConnectionCallback);
+
+  let addToConnectionCancel = document.querySelector('#add-to-connection-cancel');
+  addToConnectionCancel.addEventListener('click', addToConnectionCancelCallback);
 });
+
+// Called when the 'Add to existing Connection' button is
+// pressed. Presents the user with a list of all connections to which
+// the current entity may be added.
+async function addToConnectionCallback() {
+    let addEndpointModal = $('#add-to-connection-modal');
+    addEndpointModal.modal('show');
+
+    let connections = await getVRFs(session.data.workgroup_id);
+    let html = '';
+
+    let entityName = document.querySelector('#entity-name');
+
+    for (let i = 0; i < connections.length; i++) {
+        let conn = connections[i];
+        html += `
+<tr>
+  <td><a href="?action=modify_cloud&vrf_id=${conn.vrf_id}&prepop_vrf_id=${entityName.dataset.id}"><b>${conn.name}</b></a></td>
+  <td>${conn.vrf_id}</td>
+  <td>${conn.created_by.email}</td>
+</tr>
+`;
+    }
+
+    document.querySelector('#add-to-connection-list').innerHTML = '<table class="table">' + html + '</table>';
+}
+
+async function addToConnectionCancelCallback() {
+    let addEndpointModal = $('#add-to-connection-modal');
+    addEndpointModal.modal('hide');
+}
 
 async function loadEntityList(parentEntity=null) {
     let entity = await getEntities(session.data.workgroup_id, parentEntity);
@@ -38,6 +62,7 @@ async function loadEntityList(parentEntity=null) {
     logo.setAttribute('src', logoURL);
 
     let entityName = document.querySelector('#entity-name');
+    entityName.dataset.id = entityID;
     if (parent !== null) {
         entityName.innerHTML = `${name} <small>of <a href="#" onclick="loadEntityList(${parent.entity_id})">${parent.name}</a></small>`;
     } else {
@@ -47,7 +72,7 @@ async function loadEntityList(parentEntity=null) {
     let entityConnect = document.querySelector('#entity-connect');
     if (parent !== null) {
         entityConnect.style.display = 'block';
-        entityConnect.innerHTML = `Connect to ${name}`;
+        entityConnect.innerHTML = `Create new connection to ${name}`;
         entityConnect.addEventListener('click', function() {
                 window.location.href = `?action=provision_cloud&prepop_vrf_id=${entityID}`;
             }, false);

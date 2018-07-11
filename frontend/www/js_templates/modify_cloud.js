@@ -20,6 +20,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
   let addEntityCancel = document.querySelector('#add-entity-cancel');
   addEntityCancel.addEventListener('click', addEntityCancelCallback);
+
+  let url = new URL(window.location.href);
+  let id = url.searchParams.get('prepop_vrf_id');
+  if (id) {
+      loadEntityList(id);
+      let entityVLANs = '';
+      for (let i = 1; i < 4095; i++) {
+          entityVLANs += `<option>${i}</option>`;
+      }
+      document.querySelector('#entity-vlans').innerHTML = entityVLANs;
+
+      document.querySelector('#entity-index').value = -1;
+      document.querySelector('#entity-bandwidth').value = null;
+
+      let addEndpointModal = $('#add-endpoint-modal');
+      addEndpointModal.modal('show');
+  }
 });
 
 async function loadVRF() {
@@ -334,11 +351,11 @@ function loadSelectedEndpointList() {
   console.log(endpoints);
   endpoints.forEach(function(endpoint, index) {
           let endpointName = '';
-          // if (typeof endpoint.entity_id !== undefined) {
-          //     endpointName = `${endpoint.name} <small>${endpoint.tag}</small>`;
-          // } else {
-                 endpointName = `${endpoint.node} <small>${endpoint.name} - ${endpoint.tag}</small>`;
-          // }
+          if ('entity_id' in endpoint) {
+              endpointName = `${endpoint.name} <small>${endpoint.tag}</small>`;
+          } else {
+              endpointName = `${endpoint.node} <small>${endpoint.interface} - ${endpoint.tag}</small>`;
+          }
 
           let peerings = '';
           endpoint.peerings.forEach(function(peering, peeringIndex) {
