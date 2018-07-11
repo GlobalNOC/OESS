@@ -153,4 +153,43 @@ sub add_interfaces {
     );
 }
 
+sub remove_users {
+    my %params = @_;
+    my $db = $params{'db'};
+    my $entity = $params{'entity'};
+
+    my $result = $db->execute_query(
+        "DELETE from user_entity_membership where entity_id=?",
+        [$entity->{entity_id}]
+    );
+
+    return $result;
+}
+
+sub add_users {
+    my %params = @_;
+    my $db = $params{'db'};
+    my $entity = $params{'entity'};
+
+    if (@{$entity->{contacts}} == 0) {
+        return 1;
+    }
+
+    my $values = [];
+    my $params = [];
+    foreach my $user (@{$entity->{contacts}}) {
+        push @$params, '(?, ?)';
+
+        push @$values, $entity->{entity_id};
+        push @$values, $user->{user_id};
+    }
+
+    my $param_str = join(', ', @$params);
+
+    return $db->execute_query(
+        "INSERT into user_entity_membership (entity_id, user_id) VALUES $param_str",
+        $values
+    );
+}
+
 1;

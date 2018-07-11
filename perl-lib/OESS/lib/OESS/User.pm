@@ -32,7 +32,10 @@ sub new{
         return;
     }
 
-    $self->_fetch_from_db();
+    my $ok = $self->_fetch_from_db();
+    if (!$ok) {
+        return;
+    }
 
     return $self;
 }
@@ -70,14 +73,19 @@ sub from_hash{
     $self->{'workgroups'} = $hash->{'workgroups'};
     $self->{'type'} = $hash->{'type'};
     $self->{'is_admin'} = $hash->{'is_admin'};
+
+    return 1;
 }
 
 sub _fetch_from_db{
     my $self = shift;
 
     my $user = OESS::DB::User::fetch(db => $self->{'db'}, user_id => $self->{'user_id'});
-    $self->from_hash($user);
+    if (!defined $user) {
+        return;
+    }
 
+    return $self->from_hash($user);
 }
 
 sub first_name{
