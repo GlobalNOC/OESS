@@ -21,7 +21,7 @@ use GRNOC::Config;
 
 use OESS::Circuit;
 use OESS::Database;
-
+use NetAddr::IP;
 use base "OESS::MPLS::Device";
 
 =head1 package OESS::MPLS::Device::Juniper::MX
@@ -766,7 +766,11 @@ sub add_vrf{
 
     foreach my $i (@{$vrf->{'interfaces'}}) {
 	
-	my @bgp;
+	my @bgp_v4;
+        my @bgp_v6;
+        my $has_ipv4=0;
+        my $has_ipv6=0;
+
 	foreach my $bgp (@{$i->{'peers'}}){
             #strip off the cidr
             #192.168.1.0/24
@@ -777,19 +781,42 @@ sub add_vrf{
                 $bgp->{'key'} = -1;
             }
 
-	    push(@bgp, { asn => $bgp->{'peer_asn'},
+            
+            my $type = NetAddr::IP->new($bgp->{'peer_ip'})->version();
+            warn "Version: " . $type . "\n";
+            $self->{'logger'}->error("IP Address type: " . $type);
+            #determine if its an ipv4 or an ipv6
+            if($type == 4){
+                $has_ipv4 = 1;
+                $vars->{'has_ipv4'} = 1;
+                push(@bgp_v4, { asn => $bgp->{'peer_asn'},
+                                
+                                local_ip => $bgp->{'local_ip'},
+                                peer_ip => $peer_ip,
+                                key => $bgp->{'key'}
+                     });
 
-			 local_ip => $bgp->{'local_ip'},
-                         peer_ip => $peer_ip,
-			 key => $bgp->{'key'}
-		 });
-	}
+            }else{
+                $has_ipv6 = 1;
+                $vars->{'has_ipv6'} = 1;
+                push(@bgp_v6, { asn => $bgp->{'peer_asn'},
+                                
+                                local_ip => $bgp->{'local_ip'},
+                                peer_ip => $peer_ip,
+                                key => $bgp->{'key'}
+                     });
+            }            
 
+        }
+
+            
         push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
                                           tag  => $i->{'tag'},
                                           bandwidth => $i->{'bandwidth'},
-					  peers => \@bgp
-	      });
+					  v4_peers => \@bgp_v4,
+                                          has_ipv4 => $has_ipv4,
+                                          has_ipv6 => $has_ipv6,
+                                          v6_peers => \@bgp_v6 });
     }
     $vars->{'vrf_id'} = $vrf->{'vrf_id'};
     $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
@@ -908,10 +935,13 @@ sub xml_configuration {
         $vars->{'interfaces'} = ();
         foreach my $i (@{$vrf->{'interfaces'}}) {
             
-            my @bgp;
+            my @bgp_v4;
+            my @bgp_v6;
+            my $has_ipv4 = 0;
+            my $has_ipv6 = 0;
+            
             foreach my $bgp (@{$i->{'peers'}}){
-                #strip off the cidr
-                #192.168.1.0/24
+                #strip off the cidr                                                                                                                                                                                                                                                                                                                  #192.168.1.0/24
                 my $peer_ip = $bgp->{'peer_ip'};
                 $peer_ip =~ s/\/\d+//g;
                 
@@ -919,18 +949,39 @@ sub xml_configuration {
                     $bgp->{'key'} = -1;
                 }
                 
-                push(@bgp, { asn => $bgp->{'peer_asn'},
-                             local_ip => $bgp->{'local_ip'},
-                             peer_ip => $peer_ip,
-                             key => $bgp->{'key'}
-                     });
+                my $ip = NetAddr::IP->new($bgp->{'peer_ip'});
+                my $type = $ip->version();
+                #determine if its an ipv4 or an ipv6
+                if($type == 4){
+                    $self->{'logger'}->error("Processing IPv4 peer");
+                    $has_ipv4 = 1;
+                    $vars->{'has_ipv4'} = 1;
+                    push(@bgp_v4, { asn => $bgp->{'peer_asn'},                                    
+                                    local_ip => $bgp->{'local_ip'},
+                                    peer_ip => $peer_ip,
+                                    key => $bgp->{'key'}
+                         });
+                    
+                }else{
+                    $self->{'logger'}->error("Processing IPv6 peer");
+                    $has_ipv6 = 1;
+                    $vars->{'has_ipv6'} = 1;
+                    push(@bgp_v6, { asn => $bgp->{'peer_asn'},                                    
+                                    local_ip => $bgp->{'local_ip'},
+                                    peer_ip => $peer_ip,
+                                    key => $bgp->{'key'}
+                         });
+                }
+                
             }
             
             push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
                                               tag  => $i->{'tag'},
                                               bandwidth => $i->{'bandwidth'},
-                                              peers => \@bgp
-                  });
+                                              v4_peers => \@bgp_v4,
+                                              has_ipv4 => $has_ipv4,
+                                              has_ipv6 => $has_ipv6,
+                                              v6_peers => \@bgp_v6 });
         }
         
         $vars->{'vrf_id'} = $vrf->{'vrf_id'};
