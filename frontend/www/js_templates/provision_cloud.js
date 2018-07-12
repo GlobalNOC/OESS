@@ -82,6 +82,9 @@ async function addNetworkEndpointCallback(event) {
     document.querySelector('#add-entity-submit').innerHTML = 'Add Endpoint';
     document.querySelector('#add-endpoint-submit').innerHTML = 'Add Endpoint';
 
+    document.querySelector('#entity-interface').value = null;
+    document.querySelector('#entity-node').value = null;
+
     let addEndpointModal = $('#add-endpoint-modal');
     addEndpointModal.modal('show');
 }
@@ -98,10 +101,19 @@ async function modifyNetworkEndpointCallback(index) {
     document.querySelector('#endpoint-vlans').innerHTML = vlans;
     document.querySelector('#entity-vlans').innerHTML = vlans;
 
+    document.querySelector('#entity-node').value = null;
+    document.querySelector('#entity-interface').value = null;
+
     if ('entity_id' in endpoints[index] && endpoints[index].entity_id != -1) {
+        await loadEntityList(endpoints[index].entity_id);
+
         document.querySelector('#entity-index').value = index;
         document.querySelector('#entity-id').value = endpoints[index].entity_id;
         document.querySelector('#entity-name').value = endpoints[index].name;
+
+        document.querySelector('#entity-node').value = endpoints[index].node;
+        document.querySelector('#entity-interface').value = endpoints[index].interface;
+
         $('#basic').tab('show');
     } else {
         document.querySelector('#endpoint-select-interface').value = `${endpoints[index].node} - ${endpoints[index].interface}`;
@@ -118,6 +130,14 @@ async function modifyNetworkEndpointCallback(index) {
 
     document.querySelector('#add-endpoint-submit').innerHTML = 'Modify Endpoint';
     document.querySelector('#add-entity-submit').innerHTML = 'Modify Endpoint';
+
+    let addEntitySubmitButton = document.querySelector('#add-entity-submit');
+    if ('entity_id' in endpoints[index]) {
+        addEntitySubmitButton.innerHTML = `Modify ${endpoints[index].name}`;
+    }
+    if ('entity_id' in endpoints[index] && endpoints[index].interface !== '') {
+        addEntitySubmitButton.innerHTML = `Modify ${endpoints[index].name} on ${endpoints[index].interface}`;
+    }
 
     let addEndpointModal = $('#add-endpoint-modal');
     addEndpointModal.modal('show');
@@ -190,6 +210,8 @@ async function addEntitySubmitCallback(event) {
 
     let entity = {
         bandwidth: document.querySelector('#entity-bandwidth').value,
+        interface: document.querySelector('#entity-interface').value,
+        node: document.querySelector('#entity-node').value,
         entity_id: document.querySelector('#entity-id').value,
         name: document.querySelector('#entity-name').value,
         peerings: [],
@@ -278,7 +300,7 @@ async function loadEntityList(parentEntity=null) {
     let childSpacer = '';
 
     if (parent !== null) {
-        entities += `<button type="button" class="list-group-item" onclick="loadEntityList(${parent.entity_id})">
+        entities += `<button type="button" class="list-group-item active" onclick="loadEntityList(${parent.entity_id})">
                        <span class="glyphicon glyphicon-menu-up"></span>&nbsp;&nbsp;
                        ${name}
                      </button>`;
@@ -297,7 +319,8 @@ async function loadEntityList(parentEntity=null) {
 
     if ('children' in entity && entity.children.length === 0 && entity.interfaces.length > 0) {
         entity.interfaces.forEach(function(child) {
-                entities += `<button type="button" class="list-group-item" onclick="">
+                entities += `<button type="button" class="list-group-item"
+                                     onclick="setEntityEndpoint(${entityID}, '${name}', '${child.node}', '${child.name}')">
                                ${childSpacer}<b>${child.node}</b> ${child.name}
                              </button>`;
         });
@@ -317,6 +340,17 @@ async function setEntity(id, name) {
 
    let addEntitySubmitButton = document.querySelector('#add-entity-submit');
    addEntitySubmitButton.innerHTML = `Add ${name}`;
+}
+
+async function setEntityEndpoint(id, name, node, intf) {
+    document.querySelector('#entity-id').value = id;
+    document.querySelector('#entity-name').value = name;
+    document.querySelector('#entity-node').value = node;
+    document.querySelector('#entity-interface').value = intf;
+
+   let addEntitySubmitButton = document.querySelector('#add-entity-submit');
+   addEntitySubmitButton.innerHTML = `Add ${name} on ${intf}`;
+
 }
 
 //--- Main - Schedule ---
@@ -411,7 +445,11 @@ function loadSelectedEndpointList() {
   endpoints.forEach(function(endpoint, index) {
           let endpointName = '';
           if ('entity_id' in endpoint) {
-              endpointName = `${endpoint.name} <small>${endpoint.tag}</small>`;
+              if (endpoint.interface === '') {
+                  endpointName = `${endpoint.name} <small>${endpoint.tag}</small>`;
+              } else {
+                  endpointName = `${endpoint.name} <small>${endpoint.interface} ${endpoint.tag}</small>`;
+              }
           } else {
               endpointName = `${endpoint.node} <small>${endpoint.interface} - ${endpoint.tag}</small>`;
           }
