@@ -262,6 +262,7 @@ async function addEndpointCancelCallback(event) {
 async function loadEntityList(parentEntity=null) {
     let entity = await getEntities(session.data.workgroup_id, parentEntity);
     let entityList = document.querySelector('#entity-list');
+    entityList.innerHTML = '';
 
     let logoURL = entity.logo_url || 'https://shop.lego.com/static/images/svg/lego-logo.svg';
     let description = entity.description;
@@ -274,30 +275,36 @@ async function loadEntityList(parentEntity=null) {
     }
 
     let entities = '';
+    let childSpacer = '';
 
     if (parent !== null) {
         entities += `<button type="button" class="list-group-item" onclick="loadEntityList(${parent.entity_id})">
-                         ${parent.name}
-                         <span class="glyphicon glyphicon-menu-left" style="float: right;"></span>
+                       <span class="glyphicon glyphicon-menu-up"></span>&nbsp;&nbsp;
+                       ${name}
                      </button>`;
+        childSpacer = '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
     }
 
     if ('children' in entity && entity.children.length > 0) {
         entity.children.forEach(function(child) {
                 entities += `<button type="button" class="list-group-item" onclick="loadEntityList(${child.entity_id})">
-                                 ${child.name}
-                                 <span class="glyphicon glyphicon-menu-right" style="float: right;"></span>
-                              </button>`;
+                               ${childSpacer}${child.name}
+                               <span class="glyphicon glyphicon-menu-right" style="float: right;"></span>
+                             </button>`;
         });
+        entityList.innerHTML += entities;
+    }
 
-        entityList.innerHTML = entities;
+    if ('children' in entity && entity.children.length === 0 && entity.interfaces.length > 0) {
+        entity.interfaces.forEach(function(child) {
+                entities += `<button type="button" class="list-group-item" onclick="">
+                               ${childSpacer}<b>${child.node}</b> ${child.name}
+                             </button>`;
+        });
+        entityList.innerHTML += entities;
     }
 
     setEntity(entityID, name);
-
-    let entityAlertOK = document.querySelector('#entity-alert-ok');
-    entityAlertOK.innerHTML = `<p>Selected ${name}.</p>`;
-    entityAlertOK.style.display = 'block';
 }
 
 async function setEntity(id, name) {
@@ -307,6 +314,9 @@ async function setEntity(id, name) {
 
    let entityName = document.querySelector('#entity-name');
    entityName.value = name;
+
+   let addEntitySubmitButton = document.querySelector('#add-entity-submit');
+   addEntitySubmitButton.innerHTML = `Add ${name}`;
 }
 
 //--- Main - Schedule ---
