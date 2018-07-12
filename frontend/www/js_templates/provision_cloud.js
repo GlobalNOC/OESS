@@ -458,9 +458,9 @@ function loadSelectedEndpointList() {
 
   endpoints.forEach(function(endpoint, index) {
           let yourPeerIP = document.querySelector(`#new-peering-form-${index} .your-peer-ip`);
-          asIPv4CIDR(yourPeerIP);
+          asIPv4CIDRorIPv6CIDR(yourPeerIP);
 
           let oessPeerIP = document.querySelector(`#new-peering-form-${index} .oess-peer-ip`);
-          asIPv4CIDR(oessPeerIP);
+          asIPv4CIDRorIPv6CIDR(oessPeerIP);
   });
 }
