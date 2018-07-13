@@ -3,12 +3,17 @@
 use strict;
 use warnings;
 
+use Log::Log4perl;
+
 use GRNOC::WebService::Method;
 use GRNOC::WebService::Dispatcher;
 
 use OESS::RabbitMQ::Client;
 use OESS::DB;
 use OESS::VRF;
+
+
+Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
 
 
 my $db = OESS::DB->new();
@@ -237,7 +242,7 @@ sub provision_vrf{
     my $vrf_id = $vrf->vrf_id();
     if($vrf_id == -1){
 
-        return {results => {'success' => 0}, error => {'error creating VRF: ' . $vrf->error()}};
+        return {results => {'success' => 0}, error => 'error creating VRF: ' . $vrf->error()};
 
     }else{
 

@@ -94,8 +94,6 @@ sub new{
 sub _build_from_model{
     my $self = shift;
 
-    warn Dumper($self->{'model'});
-
     $self->{'name'} = $self->{'model'}->{'name'};
     $self->{'description'} = $self->{'model'}->{'description'};
     $self->{'prefix_limit'} = $self->{'model'}->{'prefix_limit'};
@@ -103,9 +101,9 @@ sub _build_from_model{
     $self->{'endpoints'} = ();
     #process Endpoints
     foreach my $ep (@{$self->{'model'}->{'endpoints'}}){
-        push(@{$self->{'endpoints'}},OESS::Endpoint->new( db => $self->{'db'}, model => $ep, type => 'vrf'));
+	push(@{$self->{'endpoints'}}, OESS::Endpoint->new( db => $self->{'db'}, model => $ep, type => 'vrf'));
     }
-    
+
     #process Workgroups
     $self->{'workgroup'} = OESS::Workgroup->new( db => $self->{'db'}, workgroup_id => $self->{'model'}->{'workgroup_id'});
 
@@ -249,8 +247,14 @@ sub create{
     
     #need to validate endpoints
     foreach my $ep (@{$self->endpoints()}){
+        if(!defined($ep) || !defined($ep->interface())){
+            $self->{'logger'}->error("No Endpoint specified");
+	    $self->error("No Endpoint specified");
+            return 0;
+        }
         if( !$ep->interface()->vlan_valid( workgroup_id => $self->workgroup()->workgroup_id(), vlan => $ep->tag() )){
             $self->{'logger'}->error("VLAN: " . $ep->tag() . " is not allowed for workgroup on interface: " . $ep->interface()->name());
+	    $self->error("VLAN: " . $ep->tag() . " is not allowed for workgroup on interface: " . $ep->interface()->name());
             return 0;
         }
 
@@ -260,6 +264,7 @@ sub create{
             my $local_ip = NetAddr::IP->new($peer->local_ip());
             if(!$local_ip->contains($peer_ip)){
                 $self->{'logger'}->error("Peer and Local IPs are not in the same subnet...");
+		$self->error("Peer and Local IPs are not in the same subnet...");
                 return 0;
             }
         }
@@ -268,10 +273,14 @@ sub create{
     #validate that we have at least 2 endpoints
     if(scalar($self->endpoints()) < 2){
         $self->{'logger'}->error("VRF Needs at least 2 endpoints");
+	$self->error("VRF Needs at least 2 endpoints");
         return 0;
     }
 
     my $vrf_id = OESS::DB::VRF::create(db => $self->{'db'}, model => $self->to_hash());
+    if ($vrf_id == -1) {
+	$self->error("Could not add VRF to db.");
+    }
     $self->{'vrf_id'} = $vrf_id;
     return 1;
 }
