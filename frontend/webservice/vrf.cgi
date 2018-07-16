@@ -208,7 +208,7 @@ sub provision_vrf{
         return;
     }
 
-    $model->{'description'} = $params->{'name'}{'value'};
+    $model->{'description'} = $params->{'description'}{'value'};
     $model->{'prefix_limit'} = $params->{'prefix_limit'}{'value'};
 
     $model->{'workgroup_id'} = $params->{'workgroup_id'}{'value'};
