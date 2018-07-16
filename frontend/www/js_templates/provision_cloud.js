@@ -1,4 +1,3 @@
-
 document.addEventListener('DOMContentLoaded', function() {
   sessionStorage.setItem('endpoints', '[]');
 
@@ -15,112 +14,22 @@ document.addEventListener('DOMContentLoaded', function() {
   let addNetworkCancel = document.querySelector('#add-network-cancel');
   addNetworkCancel.addEventListener('click', addNetworkCancelCallback);
 
-  let addEntitySubmit = document.querySelector('#add-entity-submit');
-  addEntitySubmit.addEventListener('click', addEntitySubmitCallback);
-
-  let addEntityCancel = document.querySelector('#add-entity-cancel');
-  addEntityCancel.addEventListener('click', addEntityCancelCallback);
-
-  let addEndpointSubmit = document.querySelector('#add-endpoint-submit');
-  addEndpointSubmit.addEventListener('click', addEndpointSubmitCallback);
-
-  let addEndpointCancel = document.querySelector('#add-endpoint-cancel');
-  addEndpointCancel.addEventListener('click', addEndpointCancelCallback);
-
   let url = new URL(window.location.href);
   let id = url.searchParams.get('prepop_vrf_id');
   if (id) {
-      loadEntityList(id);
-      let entityVLANs = '';
-      for (let i = 1; i < 4095; i++) {
-          entityVLANs += `<option>${i}</option>`;
-      }
-      document.querySelector('#entity-vlans').innerHTML = entityVLANs;
-
-      document.querySelector('#entity-index').value = -1;
-      document.querySelector('#entity-bandwidth').value = null;
-
-      let addEndpointModal = $('#add-endpoint-modal');
-      addEndpointModal.modal('show');
+      showAndPrePopulateEndpointSelectionModal(id);
   }
 });
 
-async function loadMyInterfaces() {
-    let interfaces = await getInterfacesByWorkgroup(session.data.workgroup_id);
-
-    let options = '';
-    interfaces.forEach(function(intf) {
-            options += `<option data-node="${intf.node_name}" data-interface="${intf.interface_name}" value="${intf.node_name} - ${intf.interface_name}">${intf.node_name} - ${intf.interface_name}</option>`;
-    });
-    document.querySelector('#endpoint-select-interface').innerHTML = options;
-
-    let endpointVLANs = '';
-    for (let i = 1; i < 4095; i++) {
-        endpointVLANs += `<option>${i}</option>`;
-    }
-    document.querySelector('#endpoint-vlans').innerHTML = endpointVLANs;
-}
-
 async function addNetworkEndpointCallback(event) {
-    loadMyInterfaces();
-
-    await loadEntityList();
-
-    let entityVLANs = '';
-    for (let i = 1; i < 4095; i++) {
-        entityVLANs += `<option>${i}</option>`;
-    }
-    document.querySelector('#entity-vlans').innerHTML = entityVLANs;
-    document.querySelector('#endpoint-vlans').innerHTML = entityVLANs;
-
-    document.querySelector('#entity-index').value = -1;
-    document.querySelector('#endpoint-index').value = -1;
-
-    document.querySelector('#entity-bandwidth').value = null;
-    document.querySelector('#endpoint-bandwidth').value = null;
-
-    document.querySelector('#add-entity-submit').innerHTML = 'Add Endpoint';
-    document.querySelector('#add-endpoint-submit').innerHTML = 'Add Endpoint';
-
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('show');
+    showEndpointSelectionModal(null);
 }
 
 async function modifyNetworkEndpointCallback(index) {
     let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
+    endpoints[index].index = index;
 
-    await loadEntityList();
-
-    let vlans = '';
-    for (let i = 1; i < 4095; i++) {
-        vlans += `<option>${i}</option>`;
-    }
-    document.querySelector('#endpoint-vlans').innerHTML = vlans;
-    document.querySelector('#entity-vlans').innerHTML = vlans;
-
-    if ('entity_id' in endpoints[index] && endpoints[index].entity_id != -1) {
-        document.querySelector('#entity-index').value = index;
-        document.querySelector('#entity-id').value = endpoints[index].entity_id;
-        document.querySelector('#entity-name').value = endpoints[index].name;
-        $('#basic').tab('show');
-    } else {
-        document.querySelector('#endpoint-select-interface').value = `${endpoints[index].node} - ${endpoints[index].interface}`;
-
-        document.querySelector('#endpoint-index').value = index;
-        $('#advanced').tab('show');
-    }
-
-    document.querySelector('#endpoint-vlans').value = endpoints[index].tag;
-    document.querySelector('#entity-vlans').value = endpoints[index].tag;
-
-    document.querySelector('#endpoint-bandwidth').value = endpoints[index].bandwidth;
-    document.querySelector('#entity-bandwidth').value = endpoints[index].bandwidth;
-
-    document.querySelector('#add-endpoint-submit').innerHTML = 'Modify Endpoint';
-    document.querySelector('#add-entity-submit').innerHTML = 'Modify Endpoint';
-
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('show');
+    showEndpointSelectionModal(endpoints[index]);
 }
 
 async function deleteNetworkEndpointCallback(index) {
@@ -174,139 +83,6 @@ async function addNetworkSubmitCallback(event) {
 
 async function addNetworkCancelCallback(event) {
     window.location.href = 'index.cgi?action=index';
-}
-
-async function addEntitySubmitCallback(event) {
-    let name = document.querySelector('#entity-name').value;
-    if (name === '') {
-        document.querySelector('#entity-alert').style.display = 'block';
-        return null;
-    }
-
-    if (!document.querySelector('#entity-bandwidth').validity.valid) {
-        document.querySelector('#entity-bandwidth').reportValidity();
-        return null;
-    }
-
-    let entity = {
-        bandwidth: document.querySelector('#entity-bandwidth').value,
-        entity_id: document.querySelector('#entity-id').value,
-        name: document.querySelector('#entity-name').value,
-        peerings: [],
-        tag: document.querySelector('#entity-vlans').value
-    };
-
-    let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
-    let endpointIndex = document.querySelector('#entity-index').value;
-    if (endpointIndex >= 0) {
-        entity.peerings = endpoints[endpointIndex].peerings;
-        endpoints[endpointIndex] = entity;
-    } else {
-        endpoints.push(entity);
-    }
-
-    sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
-    loadSelectedEndpointList();
-
-    let entityAlertOK = document.querySelector('#entity-alert-ok');
-    entityAlertOK.style.display = 'none';
-
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('hide');
-}
-
-async function addEntityCancelCallback(event) {
-    let entityAlertOK = document.querySelector('#entity-alert-ok');
-    entityAlertOK.style.display = 'none';
-
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('hide');
-}
-
-async function addEndpointSubmitCallback(event) {
-    let intf = document.querySelector('#endpoint-select-interface');
-    let node = intf.options[intf.selectedIndex].getAttribute('data-node');
-    let intfName = intf.options[intf.selectedIndex].getAttribute('data-interface');
-
-    let endpoint = {
-        bandwidth: document.querySelector('#endpoint-bandwidth').value,
-        interface: intfName,
-        node: node,
-        peerings: [],
-        tag: document.querySelector('#endpoint-vlans').value
-    };
-
-    let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
-    let endpointIndex = document.querySelector('#endpoint-index').value;
-    if (endpointIndex >= 0) {
-        endpoint.peerings = endpoints[endpointIndex].peerings;
-        endpoints[endpointIndex] = endpoint;
-    } else {
-        endpoints.push(endpoint);
-    }
-
-    sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
-    loadSelectedEndpointList();
-
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('hide');
-}
-
-async function addEndpointCancelCallback(event) {
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('hide');
-}
-
-//--- Add Endpoint Modal
-
-async function loadEntityList(parentEntity=null) {
-    let entity = await getEntities(session.data.workgroup_id, parentEntity);
-    let entityList = document.querySelector('#entity-list');
-
-    let logoURL = entity.logo_url || 'https://shop.lego.com/static/images/svg/lego-logo.svg';
-    let description = entity.description;
-    let name = entity.name;
-    let entityID = entity.entity_id;
-
-    let parent = null;
-    if ('parents' in entity && entity.parents.length > 0) {
-        parent = entity.parents[0];
-    }
-
-    let entities = '';
-
-    if (parent !== null) {
-        entities += `<button type="button" class="list-group-item" onclick="loadEntityList(${parent.entity_id})">
-                         ${parent.name}
-                         <span class="glyphicon glyphicon-menu-left" style="float: right;"></span>
-                     </button>`;
-    }
-
-    if ('children' in entity && entity.children.length > 0) {
-        entity.children.forEach(function(child) {
-                entities += `<button type="button" class="list-group-item" onclick="loadEntityList(${child.entity_id})">
-                                 ${child.name}
-                                 <span class="glyphicon glyphicon-menu-right" style="float: right;"></span>
-                              </button>`;
-        });
-
-        entityList.innerHTML = entities;
-    }
-
-    setEntity(entityID, name);
-
-    let entityAlertOK = document.querySelector('#entity-alert-ok');
-    entityAlertOK.innerHTML = `<p>Selected ${name}.</p>`;
-    entityAlertOK.style.display = 'block';
-}
-
-async function setEntity(id, name) {
-    console.log(id);
-   let entityID = document.querySelector('#entity-id');
-   entityID.value = id;
-
-   let entityName = document.querySelector('#entity-name');
-   entityName.value = name;
 }
 
 //--- Main - Schedule ---
@@ -401,7 +177,11 @@ function loadSelectedEndpointList() {
   endpoints.forEach(function(endpoint, index) {
           let endpointName = '';
           if ('entity_id' in endpoint) {
-              endpointName = `${endpoint.name} <small>${endpoint.tag}</small>`;
+              if (endpoint.interface === '') {
+                  endpointName = `${endpoint.name} <small>${endpoint.tag}</small>`;
+              } else {
+                  endpointName = `${endpoint.name} <small>${endpoint.interface} ${endpoint.tag}</small>`;
+              }
           } else {
               endpointName = `${endpoint.node} <small>${endpoint.interface} - ${endpoint.tag}</small>`;
           }

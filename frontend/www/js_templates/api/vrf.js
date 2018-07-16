@@ -29,7 +29,7 @@
  * @param {integer} [vrfID=-1] - Identifier of VRF to modify
  */
 async function provisionVRF(workgroupID, name, description, endpoints, provisionTime, removeTime, vrfID=-1) {
-  let url = 'services/vrf.cgi';
+  let url = '[% path %]services/vrf.cgi';
 
   let form = new FormData();
   form.append('method', 'provision');
@@ -48,7 +48,7 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
       peerings:  []
     };
 
-    if ('entity_id' in endpoint) {
+    if ('entity_id' in endpoint && endpoint.interface === '' && endpoint.node === '') {
       e['entity'] = endpoint.name;
     } else {
       e['interface'] = endpoint.interface;
@@ -88,7 +88,7 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
 }
 
 async function getVRF(vrfID) {
-  let url = `services/vrf.cgi?method=get_vrf_details&vrf_id=${vrfID}`;
+  let url = `[% path %]services/vrf.cgi?method=get_vrf_details&vrf_id=${vrfID}`;
 
   try {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});
@@ -103,7 +103,7 @@ async function getVRF(vrfID) {
 }
 
 async function deleteVRF(workgroupID, vrfID) {
-  let url = `services/vrf.cgi?method=remove&vrf_id=${vrfID}&workgroup_id=${workgroupID}`;
+  let url = `[% path %]services/vrf.cgi?method=remove&vrf_id=${vrfID}&workgroup_id=${workgroupID}`;
 
   try {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});
@@ -118,7 +118,7 @@ async function deleteVRF(workgroupID, vrfID) {
 }
 
 async function getVRFs(workgroupID) {
-  let url = `services/vrf.cgi?method=get_vrfs&workgroup_id=${workgroupID}`;
+  let url = `[% path %]services/vrf.cgi?method=get_vrfs&workgroup_id=${workgroupID}`;
 
   try {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});
