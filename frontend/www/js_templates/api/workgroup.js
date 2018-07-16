@@ -1,5 +1,5 @@
 async function getWorkgroups() {
-  let url = `services/data.cgi?method=get_workgroups`;
+  let url = `[% path %]services/data.cgi?method=get_workgroups`;
 
   try {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});
