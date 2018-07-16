@@ -159,94 +159,37 @@ sub main{
 			       $breadcrumbs        = $ADD_BREADCRUMBS;
 			       $current_breadcrumb = "Scheduling";	    
 	                     }
-    case "provision_l3vpn" {
-        $title              = "New private network";
-        $filename           = "html_templates/provision_l3vpn.html";
-        $current_breadcrumb = "New private network";
-        $breadcrumbs        = [
-            {title => "Workgroups",          url => "?action=workgroups"},
-            {title => "Home",                url => "?action=index"},
-            {title => "New private network", url => "#"}
-        ];
-    }
-    case "view_l3vpn" {
-        $title              = "Private network details";
-        $filename           = "html_templates/view_l3vpn.html";
-        $current_breadcrumb = "Private network details";
-        $breadcrumbs        = [
-            {title => "Workgroups",              url => "?action=workgroups"},
-            {title => "Home",                    url => "?action=index"},
-            {title => "Private network details", url => "#"}
-        ];
-    }
-    case "provision_cloud" {
-        $title              = "New cloud network";
-        $filename           = "html_templates/provision_cloud.html";
-        $current_breadcrumb = "New cloud network";
-        $breadcrumbs        = [
-            {title => "Workgroups",        url => "?action=workgroups"},
-            {title => "Home",              url => "?action=index"},
-            {title => "New cloud network", url => "#"}
-        ];
-    }
-    case "phonebook" {
-        $title              = "Phonebook";
-        $filename           = "html_templates/phonebook.html";
-        $current_breadcrumb = "Phonebook";
-        $breadcrumbs        = [
-            {title => "Workgroups", url => "?action=workgroups"},
-            {title => "Home",       url => "?action=index"},
-            {title => "Phonebook",  url => "#"}
-        ];
-    }
-    case "welcome" {
-        $title              = "Welcome";
-        $filename           = "html_templates/welcome.html";
-        $current_breadcrumb = "Welcome";
-        $breadcrumbs        = [
-            {title => "Workgroups", url => "?action=workgroups"},
-            {title => "Home",       url => "?action=index"},
-            {title => "Welcome",    url => "#"}
-        ];
-    }
-    case "modify_cloud" {
-        $title              = "Update cloud network";
-        $filename           = "html_templates/modify_cloud.html";
-        $current_breadcrumb = "Update cloud network";
-        $breadcrumbs        = [
-            {title => "Workgroups",          url => "?action=workgroups"},
-            {title => "Home",                url => "?action=index"},
-            {title => "Update cloud network", url => "#"}
-        ];
-    }
 
-	case "provisioning"  { $filename           = "html_templates/provisioning.html";
-			       $title              = "Provisioning";
-			       $breadcrumbs        = $ADD_BREADCRUMBS;
-			       $current_breadcrumb = "Provisioning";	    
-	                     }
-	case "remove_scheduling" { $filename           = "html_templates/remove_scheduling.html";
-				   $title              = "Removal Scheduling";
-				   $breadcrumbs        = $REMOVE_BREADCRUMBS;
-				   $current_breadcrumb = "Scheduling";
-					  
-	                         }
-	case "remove_provisioning" { $filename           = "html_templates/remove_provisioning.html";
-				     $title              = "Removal Provisioning";
-				     $breadcrumbs        = $REMOVE_BREADCRUMBS;
-				     $current_breadcrumb = "Provisioning";				     
-	                           }
-    case "decom" 
-    {
-                $filename           = "html_templates/denied.html";
-                $title              = "Access Denied";
+    case "provisioning" {
+        $filename           = "html_templates/provisioning.html";
+        $title              = "Provisioning";
+        $breadcrumbs        = $ADD_BREADCRUMBS;
+        $current_breadcrumb = "Provisioning";
     }
-	case "about"         { $filename           = "html_templates/splash.html";
-						   $title              = "About";
-	                     }
-	else                 { $filename = "html_templates/error.html"; 
-						   $title    = "Error";
-					   }
+    case "remove_scheduling" {
+        $filename           = "html_templates/remove_scheduling.html";
+        $title              = "Removal Scheduling";
+        $breadcrumbs        = $REMOVE_BREADCRUMBS;
+        $current_breadcrumb = "Scheduling";
+    }
+    case "remove_provisioning" {
+        $filename           = "html_templates/remove_provisioning.html";
+        $title              = "Removal Provisioning";
+        $breadcrumbs        = $REMOVE_BREADCRUMBS;
+        $current_breadcrumb = "Provisioning";
+    }
+    case "decom" {
+        $filename = "html_templates/denied.html";
+        $title    = "Access Denied";
+    }
+    case "about" {
+        $filename = "html_templates/splash.html";
+        $title    = "About";
+    }
+    else {
+        $filename = "html_templates/error.html"; 
+        $title    = "Error";
+    }
 	
     }
     $vars->{'admin_email'}        = $db->get_admin_email();

@@ -31,7 +31,12 @@ sub new{
         return;
     }
 
-    return $self->_fetch_from_db();
+    my $ok = $self->_fetch_from_db();
+    if (!$ok) {
+        return;
+    }
+
+    return $self;
 }
 
 sub from_hash{
@@ -46,6 +51,8 @@ sub from_hash{
     $self->{'mpls_vlan_tag_range'} = $hash->{'mpls_vlan_tag_range'};
     $self->{'used_vlans'} = $hash->{'used_vlans'};
     $self->{'operational_state'} = $hash->{'operational_state'};
+
+    return 1;
 }
 
 sub to_hash{
@@ -65,29 +72,27 @@ sub to_hash{
 sub _fetch_from_db{
     my $self = shift;
 
-
-    if(!defined($self->{'interface_id'})){
-        if(defined($self->{'name'}) && defined($self->{'node'})){
+    if (!defined $self->{'interface_id'}) {
+        if (defined $self->{'name'} && defined $self->{'node'}) {
             my $interface_id = OESS::DB::Interface::get_interface(db => $self->{'db'}, interface => $self->{'name'}, node => $self->{'node'});
-            if(!defined($interface_id)){
-                $self->{'logger'}->error();
+            if (!defined $interface_id) {
+                $self->{'logger'}->error("Unable to fetch interface $self->{name} on $self->{node} from the db!");
                 return;
             }
             $self->{'interface_id'} = $interface_id;
         }
-    }
 
-    if(!defined($self->{'interface_id'})){
-        $self->{'logger'}->error("Unable to find interface");
+        $self->{'logger'}->error("Unable to fetch interface from the db!");
         return;
     }
 
     my $info = OESS::DB::Interface::fetch(db => $self->{'db'}, interface_id => $self->{'interface_id'});
+    if (!defined $info) {
+        $self->{'logger'}->error("Unable to fetch interface $self->{interface_id} from the db!");
+        return;
+    }
 
-    return undef if !defined($info);
-
-    $self->from_hash($info);
-    return $self;
+    return $self->from_hash($info);
 }
 
 sub update_db{

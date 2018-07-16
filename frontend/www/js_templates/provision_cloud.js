@@ -1,4 +1,3 @@
-
 document.addEventListener('DOMContentLoaded', function() {
   sessionStorage.setItem('endpoints', '[]');
 
@@ -15,69 +14,22 @@ document.addEventListener('DOMContentLoaded', function() {
   let addNetworkCancel = document.querySelector('#add-network-cancel');
   addNetworkCancel.addEventListener('click', addNetworkCancelCallback);
 
-  let addEntitySubmit = document.querySelector('#add-entity-submit');
-  addEntitySubmit.addEventListener('click', addEntitySubmitCallback);
-
-  let addEntityCancel = document.querySelector('#add-entity-cancel');
-  addEntityCancel.addEventListener('click', addEntityCancelCallback);
-
   let url = new URL(window.location.href);
   let id = url.searchParams.get('prepop_vrf_id');
   if (id) {
-      loadEntityList(id);
-      let entityVLANs = '';
-      for (let i = 1; i < 4095; i++) {
-          entityVLANs += `<option>${i}</option>`;
-      }
-      document.querySelector('#entity-vlans').innerHTML = entityVLANs;
-
-      document.querySelector('#entity-index').value = -1;
-      document.querySelector('#entity-bandwidth').value = null;
-
-      let addEndpointModal = $('#add-endpoint-modal');
-      addEndpointModal.modal('show');
+      showAndPrePopulateEndpointSelectionModal(id);
   }
 });
 
 async function addNetworkEndpointCallback(event) {
-    await loadEntityList();
-
-    let entityVLANs = '';
-    for (let i = 1; i < 4095; i++) {
-        entityVLANs += `<option>${i}</option>`;
-    }
-    document.querySelector('#entity-vlans').innerHTML = entityVLANs;
-
-    document.querySelector('#entity-index').value = -1;
-    document.querySelector('#entity-bandwidth').value = null;
-
-    document.querySelector('#add-entity-submit').innerHTML = 'Add Endpoint';
-
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('show');
+    showEndpointSelectionModal(null);
 }
 
 async function modifyNetworkEndpointCallback(index) {
     let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
+    endpoints[index].index = index;
 
-    await loadEntityList();
-
-    let entityVLANs = '';
-    for (let i = 1; i < 4095; i++) {
-        entityVLANs += `<option>${i}</option>`;
-    }
-    document.querySelector('#entity-vlans').innerHTML = entityVLANs;
-    document.querySelector('#entity-vlans').value = endpoints[index].tag;
-
-    document.querySelector('#entity-index').value = index;
-    document.querySelector('#entity-id').value = endpoints[index].entity_id;
-    document.querySelector('#entity-name').value = endpoints[index].name;
-    document.querySelector('#entity-bandwidth').value = endpoints[index].bandwidth;
-
-    document.querySelector('#add-entity-submit').innerHTML = 'Modify Endpoint';
-
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('show');
+    showEndpointSelectionModal(endpoints[index]);
 }
 
 async function deleteNetworkEndpointCallback(index) {
@@ -131,105 +83,6 @@ async function addNetworkSubmitCallback(event) {
 
 async function addNetworkCancelCallback(event) {
     window.location.href = 'index.cgi?action=index';
-}
-
-async function addEntitySubmitCallback(event) {
-    let name = document.querySelector('#entity-name').value;
-    if (name === '') {
-        document.querySelector('#entity-alert').style.display = 'block';
-        return null;
-    }
-
-    if (!document.querySelector('#entity-bandwidth').validity.valid) {
-        document.querySelector('#entity-bandwidth').reportValidity();
-        return null;
-    }
-
-    let entity = {
-        bandwidth: document.querySelector('#entity-bandwidth').value,
-        entity_id: document.querySelector('#entity-id').value,
-        name: document.querySelector('#entity-name').value,
-        peerings: [],
-        tag: document.querySelector('#entity-vlans').value
-    };
-
-    let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
-    let endpointIndex = document.querySelector('#entity-index').value;
-    if (endpointIndex >= 0) {
-        entity.peerings = endpoints[endpointIndex].peerings;
-        endpoints[endpointIndex] = entity;
-    } else {
-        endpoints.push(entity);
-    }
-
-    sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
-    loadSelectedEndpointList();
-
-    let entityAlertOK = document.querySelector('#entity-alert-ok');
-    entityAlertOK.style.display = 'none';
-
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('hide');
-}
-
-async function addEntityCancelCallback(event) {
-    let entityAlertOK = document.querySelector('#entity-alert-ok');
-    entityAlertOK.style.display = 'none';
-
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('hide');
-}
-
-//--- Add Endpoint Modal
-
-async function loadEntityList(parentEntity=null) {
-    let entity = await getEntities(session.data.workgroup_id, parentEntity);
-    let entityList = document.querySelector('#entity-list');
-
-    let logoURL = entity.logo_url || 'https://shop.lego.com/static/images/svg/lego-logo.svg';
-    let description = entity.description;
-    let name = entity.name;
-    let entityID = entity.entity_id;
-
-    let parent = null;
-    if ('parents' in entity && entity.parents.length > 0) {
-        parent = entity.parents[0];
-    }
-
-    let entities = '';
-
-    if (parent !== null) {
-        entities += `<button type="button" class="list-group-item" onclick="loadEntityList(${parent.entity_id})">
-                         ${parent.name}
-                         <span class="glyphicon glyphicon-menu-left" style="float: right;"></span>
-                     </button>`;
-    }
-
-    if ('children' in entity && entity.children.length > 0) {
-        entity.children.forEach(function(child) {
-                entities += `<button type="button" class="list-group-item" onclick="loadEntityList(${child.entity_id})">
-                                 ${child.name}
-                                 <span class="glyphicon glyphicon-menu-right" style="float: right;"></span>
-                              </button>`;
-        });
-
-        entityList.innerHTML = entities;
-    }
-
-    setEntity(entityID, name);
-
-    let entityAlertOK = document.querySelector('#entity-alert-ok');
-    entityAlertOK.innerHTML = `<p>Selected ${name}.</p>`;
-    entityAlertOK.style.display = 'block';
-}
-
-async function setEntity(id, name) {
-    console.log(id);
-   let entityID = document.querySelector('#entity-id');
-   entityID.value = id;
-
-   let entityName = document.querySelector('#entity-name');
-   entityName.value = name;
 }
 
 //--- Main - Schedule ---
@@ -323,8 +176,12 @@ function loadSelectedEndpointList() {
   console.log(endpoints);
   endpoints.forEach(function(endpoint, index) {
           let endpointName = '';
-          if (typeof endpoint.entity_id !== undefined) {
-              endpointName = `${endpoint.name} <small>${endpoint.tag}</small>`;
+          if ('entity_id' in endpoint) {
+              if (endpoint.interface === '') {
+                  endpointName = `${endpoint.name} <small>${endpoint.tag}</small>`;
+              } else {
+                  endpointName = `${endpoint.name} <small>${endpoint.interface} ${endpoint.tag}</small>`;
+              }
           } else {
               endpointName = `${endpoint.node} <small>${endpoint.interface} - ${endpoint.tag}</small>`;
           }
@@ -349,7 +206,7 @@ function loadSelectedEndpointList() {
       ${endpointName}
       <span style="float: right; margin-top: -5px;">
         <button class="btn btn-link" type="button" onclick="modifyNetworkEndpointCallback(${index})"><span class="glyphicon glyphicon-edit"></span></button>
-        <button class="btn btn-link" type="button" onclick="deleteNetworkEndpointCallback(${index})"><span class="glyphicon glyphicon-remove"></span></button>
+        <button class="btn btn-link" type="button" onclick="deleteNetworkEndpointCallback(${index})"><span class="glyphicon glyphicon-trash"></span></button>
       </span>
     </h4>
   </div>
@@ -381,9 +238,9 @@ function loadSelectedEndpointList() {
 
   endpoints.forEach(function(endpoint, index) {
           let yourPeerIP = document.querySelector(`#new-peering-form-${index} .your-peer-ip`);
-          asIPv4CIDR(yourPeerIP);
+          asIPv4CIDRorIPv6CIDR(yourPeerIP);
 
           let oessPeerIP = document.querySelector(`#new-peering-form-${index} .oess-peer-ip`);
-          asIPv4CIDR(oessPeerIP);
+          asIPv4CIDRorIPv6CIDR(oessPeerIP);
   });
 }

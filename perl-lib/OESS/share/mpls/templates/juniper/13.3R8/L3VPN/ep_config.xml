@@ -8,19 +8,48 @@
         <description>OESS-L3VPN-[% vrf_id %]</description>
         <vlan-id>[% interface.tag %]</vlan-id>
         <family>
+          [% IF interface.has_ipv4 %]
           <inet>
             <mtu>9000</mtu>
-            [% FOREACH peer IN interface.peers %]
+            [% FOREACH peer IN interface.v4_peers %]
             <address>
               <name>[% peer.local_ip %]</name>
             </address>
             [% END %]
           </inet>
+          [% END %]
+          [% IF interface.has_ipv6 %]
+          <inet6>
+            <mtu>9000</mtu>
+            [% FOREACH peer IN interface.v6_peers %]
+            <address>
+              <name>[% peer.local_ip %]</name>
+              </address>
+            [% END %]
+          </inet6>
+          [% END %]
         </family>
       </unit>
     </interface>
     [% END %]
   </interfaces>
+  [% FOREACH interface IN interfaces %]
+    [% IF interface.bandwidth > 0 %]
+  <class-of-service>
+    <interfaces>
+      <interface>
+        <name>[% interface.name %]</name>
+        <unit>
+          <name>[% interface.tag %]</name>
+          <shaping-rate>
+            <rate>[% interface.bandwidth %]m</rate>
+          </shaping-rate>
+        </unit>
+      </interface>
+    </interfaces>
+  </class-of-service>
+    [% END %]
+  [% END %]
   <routing-instances>
     <instance>
       <name>OESS-L3VPN-[% vrf_id %]</name>
@@ -46,6 +75,7 @@
       <protocols>
 	<bgp>
 	  <log-updown/>
+          [% IF has_ipv4 %]
 	  <group>
 	    <name>OESS-L3VPN-[% vrf_id %]-BGP</name>
 	    <family>
@@ -62,27 +92,67 @@
 		  </prefix-limit>
 		</unicast>
 	      </inet>
+            </family>
+            <local-as>
+              <as-number>55038</as-number>
+            </local-as>
+            [% FOREACH interface IN interfaces %]
+              [% FOREACH peer in interface.v4_peers %]
+            <neighbor>
+              <name>[% peer.peer_ip %]</name>
+              <description>OESS-L3VPN-[% vrf_id %]</description>
+              <import>OESS-L3VPN-[% vrf_id %]-IN</import>
+
+              [% IF peer.key != -1 %]
+              <authentication-key>[% peer.key %]</authentication-key>
+              [% END %]
+   
+              <export>OESS-L3VPN-[% vrf_id %]-OUT</export>
+              <peer-as>[% peer.asn %]</peer-as>
+            </neighbor>
+              [% END %]
+            [% END %]
+          </group>
+          [% END %]
+          [% IF has_ipv6 %]
+          <group>
+            <name>OESS-L3VPN-[% vrf_id %]-BGP-V6</name>
+            <family>
+              <inet6>
+                <unicast>
+                  <prefix-limit>
+                    <maximum>[% prefix_limit %]</maximum>
+                    <teardown>
+                      <limit-threshold>90</limit-threshold>
+                      <idle-timeout>
+                        <timeout>30</timeout>
+                      </idle-timeout>
+                    </teardown>
+                  </prefix-limit>
+                </unicast>
+              </inet6>
 	    </family>
 	    <local-as>
 	      <as-number>55038</as-number>
 	    </local-as>
-	    [% FOREACH interface IN interfaces %]
-	      [% FOREACH peer in interface.peers %]
-	    <neighbor>
-	      <name>[% peer.peer_ip %]</name>
-	      <description>OESS-L3VPN-[% vrf_id %]</description>
-	      <import>OESS-L3VPN-[% vrf_id %]-IN</import>
+            [% FOREACH interface IN interfaces %]
+              [% FOREACH peer in interface.v6_peers %]
+            <neighbor>
+              <name>[% peer.peer_ip %]</name>
+              <description>OESS-L3VPN-[% vrf_id %]</description>
+              <import>OESS-L3VPN-[% vrf_id %]-IN</import>
 
-	      [% IF peer.key != -1 %]
-	      <authentication-key>[% peer.key %]</authentication-key>
-	      [% END %]
+              [% IF peer.key != -1 %]
+              <authentication-key>[% peer.key %]</authentication-key>
+              [% END %]
 
-	      <export>OESS-L3VPN-[% vrf_id %]-OUT</export>
-	      <peer-as>[% peer.asn %]</peer-as>
-	    </neighbor>
-	      [% END %]
+              <export>OESS-L3VPN-[% vrf_id %]-OUT</export>
+              <peer-as>[% peer.asn %]</peer-as>
+            </neighbor>
+              [% END %]
 	    [% END %]
 	  </group>
+          [% END %]
 	</bgp>
       </protocols>
     </instance>

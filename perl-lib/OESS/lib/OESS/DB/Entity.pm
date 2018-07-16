@@ -76,4 +76,120 @@ sub get_root_entities{
     return \@roots;
 }
 
+sub update {
+    my %params = @_;
+    my $db = $params{'db'};
+    my $entity = $params{'entity'};
+
+    return if (!defined $entity->{entity_id});
+
+    my $reqs = [];
+    my $args = [];
+    my $set = '';
+
+    if (defined $entity->{description}) {
+        push @$reqs, 'description=?';
+        push @$args, $entity->{description};
+    }
+    if (defined $entity->{logo_url}) {
+        push @$reqs, 'logo_url=?';
+        push @$args, $entity->{logo_url};
+    }
+    if (defined $entity->{name}) {
+        push @$reqs, 'name=?';
+        push @$args, $entity->{name};
+    }
+    if (defined $entity->{url}) {
+        push @$reqs, 'url=?';
+        push @$args, $entity->{url};
+    }
+    $set .= join(', ', @$reqs);
+    push @$args, $entity->{entity_id};
+
+    my $result = $db->execute_query(
+        "UPDATE entity SET $set WHERE entity_id=?",
+        $args
+    );
+
+    return $result;
+}
+
+sub remove_interfaces {
+    my %params = @_;
+    my $db = $params{'db'};
+    my $entity = $params{'entity'};
+
+    my $result = $db->execute_query(
+        "DELETE from entity_interface_membership where entity_id=?",
+        [$entity->{entity_id}]
+    );
+
+    return $result;
+}
+
+sub add_interfaces {
+    my %params = @_;
+    my $db = $params{'db'};
+    my $entity = $params{'entity'};
+
+    if (@{$entity->{interfaces}} == 0) {
+        return 1;
+    }
+
+    my $values = [];
+    my $params = [];
+    foreach my $intf (@{$entity->{interfaces}}) {
+        push @$params, '(?, ?)';
+
+        push @$values, $entity->{entity_id};
+        push @$values, $intf->{interface_id};
+    }
+
+    my $param_str = join(', ', @$params);
+
+    return $db->execute_query(
+        "INSERT into entity_interface_membership (entity_id, interface_id) VALUES $param_str",
+        $values
+    );
+}
+
+sub remove_users {
+    my %params = @_;
+    my $db = $params{'db'};
+    my $entity = $params{'entity'};
+
+    my $result = $db->execute_query(
+        "DELETE from user_entity_membership where entity_id=?",
+        [$entity->{entity_id}]
+    );
+
+    return $result;
+}
+
+sub add_users {
+    my %params = @_;
+    my $db = $params{'db'};
+    my $entity = $params{'entity'};
+
+    if (@{$entity->{contacts}} == 0) {
+        return 1;
+    }
+
+    my $values = [];
+    my $params = [];
+    foreach my $user (@{$entity->{contacts}}) {
+        push @$params, '(?, ?)';
+
+        push @$values, $entity->{entity_id};
+        push @$values, $user->{user_id};
+    }
+
+    my $param_str = join(', ', @$params);
+
+    return $db->execute_query(
+        "INSERT into user_entity_membership (entity_id, user_id) VALUES $param_str",
+        $values
+    );
+}
+
 1;

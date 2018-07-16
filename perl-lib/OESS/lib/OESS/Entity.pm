@@ -61,33 +61,70 @@ sub _fetch_from_db{
 
 sub _update_db{
     my $self = shift;
-    return OESS::DB::Entity->update(db => $self->{'db'}, entity => $self->to_hash());
+
+    my $entity = $self->to_hash();
+
+    $self->{db}->start_transaction();
+
+    my $result;
+    my $result = OESS::DB::Entity::remove_interfaces(db => $self->{db}, entity => $entity);
+    if (!defined $result) {
+        $self->{db}->rollback();
+        return $self->{db}->{error};
+    }
+
+    $result = OESS::DB::Entity::add_interfaces(db => $self->{db}, entity => $entity);
+    if (!defined $result) {
+        $self->{db}->rollback();
+        return $self->{db}->{error};
+    }
+
+    my $result = OESS::DB::Entity::remove_users(db => $self->{db}, entity => $entity);
+    if (!defined $result) {
+        $self->{db}->rollback();
+        return $self->{db}->{error};
+    }
+
+    $result = OESS::DB::Entity::add_users(db => $self->{db}, entity => $entity);
+    if (!defined $result) {
+        $self->{db}->rollback();
+        return $self->{db}->{error};
+    }
+
+    $result = OESS::DB::Entity::update(db => $self->{'db'}, entity => $entity);
+    if (!defined $result) {
+        $self->{db}->rollback();
+        return $self->{db}->{error};
+    }
+
+    $self->{db}->commit();
+    return;
 }
 
 sub to_hash{
     my $self = shift;
 
     my @ints;
-
     foreach my $int (@{$self->interfaces()}){
         push(@ints, $int->to_hash());
     }
 
     my @contacts;
     foreach my $user (@{$self->users()}){
-        push(@contacts,$user->to_hash());
+        push(@contacts, $user->to_hash());
     }
 
-    return { name => $self->name(),
-             logo_url => $self->logo_url(),
-             url => $self->url(),
-             description => $self->description(),
-             interfaces => \@ints,
-             parents => $self->parents(),
-             contacts => \@contacts,
-             children => $self->children(),
-             entity_id => $self->entity_id() };
-
+    return {
+        name => $self->name(),
+        logo_url => $self->logo_url(),
+        url => $self->url(),
+        description => $self->description(),
+        interfaces => \@ints,
+        parents => $self->parents(),
+        contacts => \@contacts,
+        children => $self->children(),
+        entity_id => $self->entity_id()
+    };
 }
 
 sub users {
@@ -186,12 +223,64 @@ sub add_parent{
     push(@{$self->{'parents'}},$entity);
 }
 
-sub add_interface{
+sub add_interface {
     my $self = shift;
     my $interface = shift;
 
-    push(@{$self->{'interfaces'}},$interface);
+    foreach my $i (@{$self->{'interfaces'}}) {
+        if ($i->{interface_id} == $interface->{interface_id}) {
+            return 1;
+        }
+    }
+
+    push @{$self->{'interfaces'}}, $interface;
+    return 1;
 }
 
+sub remove_interface {
+    my $self = shift;
+    my $interface = shift;
+
+    my @tmp = @{$self->{interfaces}};
+    $self->{interfaces} = [];
+
+    foreach my $i (@tmp) {
+        if ($i->{interface_id} != $interface->{interface_id}) {
+            push @{$self->{interfaces}}, $i;
+        }
+    }
+
+    return 1;
+}
+
+sub add_user {
+    my $self = shift;
+    my $user = shift;
+
+    foreach my $i (@{$self->{'users'}}) {
+        if ($i->{user_id} == $user->{user_id}) {
+            return 1;
+        }
+    }
+
+    push @{$self->{'users'}}, $user;
+    return 1;
+}
+
+sub remove_user {
+    my $self = shift;
+    my $user = shift;
+
+    my @tmp = @{$self->{users}};
+    $self->{users} = [];
+
+    foreach my $i (@tmp) {
+        if ($i->{user_id} != $user->{user_id}) {
+            push @{$self->{users}}, $i;
+        }
+    }
+
+    return 1;
+}
 
 1;

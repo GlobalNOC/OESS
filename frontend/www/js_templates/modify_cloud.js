@@ -15,11 +15,11 @@ document.addEventListener('DOMContentLoaded', function() {
   let addNetworkCancel = document.querySelector('#add-network-cancel');
   addNetworkCancel.addEventListener('click', addNetworkCancelCallback);
 
-  let addEntitySubmit = document.querySelector('#add-entity-submit');
-  addEntitySubmit.addEventListener('click', addEntitySubmitCallback);
-
-  let addEntityCancel = document.querySelector('#add-entity-cancel');
-  addEntityCancel.addEventListener('click', addEntityCancelCallback);
+  let url = new URL(window.location.href);
+  let id = url.searchParams.get('prepop_vrf_id');
+  if (id) {
+      showAndPrePopulateEndpointSelectionModal(id);
+  }
 });
 
 async function loadVRF() {
@@ -40,7 +40,8 @@ async function loadVRF() {
         name: e.interface.name,
         node: e.node.name,
         peerings: [],
-        tag: e.tag
+        tag: e.tag,
+        interface: e.interface.name
     };
 
     e.peers.forEach(function(p) {
@@ -61,44 +62,14 @@ async function loadVRF() {
 }
 
 async function addNetworkEndpointCallback(event) {
-    await loadEntityList();
-
-    let entityVLANs = '';
-    for (let i = 1; i < 4095; i++) {
-        entityVLANs += `<option>${i}</option>`;
-    }
-    document.querySelector('#entity-vlans').innerHTML = entityVLANs;
-
-    document.querySelector('#entity-index').value = -1;
-    document.querySelector('#entity-bandwidth').value = null;
-
-    document.querySelector('#add-entity-submit').innerHTML = 'Add Endpoint';
-
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('show');
+    showEndpointSelectionModal(null);
 }
 
 async function modifyNetworkEndpointCallback(index) {
     let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
+    endpoints[index].index = index;
 
-    await loadEntityList();
-
-    let entityVLANs = '';
-    for (let i = 1; i < 4095; i++) {
-        entityVLANs += `<option>${i}</option>`;
-    }
-    document.querySelector('#entity-vlans').innerHTML = entityVLANs;
-    document.querySelector('#entity-vlans').value = endpoints[index].tag;
-
-    document.querySelector('#entity-index').value = index;
-    document.querySelector('#entity-id').value = endpoints[index].entity_id;
-    document.querySelector('#entity-name').value = endpoints[index].name;
-    document.querySelector('#entity-bandwidth').value = endpoints[index].bandwidth;
-
-    document.querySelector('#add-entity-submit').innerHTML = 'Modify Endpoint';
-
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('show');
+    showEndpointSelectionModal(endpoints[index]);
 }
 
 async function deleteNetworkEndpointCallback(index) {
@@ -132,6 +103,9 @@ async function addNetworkSubmitCallback(event) {
     let addNetworkLoadingModal = $('#add-network-loading');
     addNetworkLoadingModal.modal('show');
 
+    let url = new URL(window.location.href);
+    let id = url.searchParams.get('vrf_id');
+
     let vrfID = await provisionVRF(
         session.data.workgroup_id,
         document.querySelector('#description').value,
@@ -139,7 +113,7 @@ async function addNetworkSubmitCallback(event) {
         JSON.parse(sessionStorage.getItem('endpoints')),
         provisionTime,
         removeTime,
-        -1
+        id
     );
 
     if (vrfID === null) {
@@ -234,16 +208,11 @@ async function loadEntityList(parentEntity=null) {
     entityAlertOK.style.display = 'block';
 }
 
-async function setEntity(id, name) {
-    console.log(id);
-   let entityID = document.querySelector('#entity-id');
-   entityID.value = id;
 
-   let entityName = document.querySelector('#entity-name');
-   entityName.value = name;
-}
 
 //--- Main - Schedule ---
+
+
 
 function setDateTimeVisibility() {
   let type = document.querySelector('input[name=provision-time]:checked').value;
@@ -334,11 +303,11 @@ function loadSelectedEndpointList() {
   console.log(endpoints);
   endpoints.forEach(function(endpoint, index) {
           let endpointName = '';
-          // if (typeof endpoint.entity_id !== undefined) {
-          //     endpointName = `${endpoint.name} <small>${endpoint.tag}</small>`;
-          // } else {
-                 endpointName = `${endpoint.node} <small>${endpoint.name} - ${endpoint.tag}</small>`;
-          // }
+          if ('entity_id' in endpoint) {
+              endpointName = `${endpoint.name} <small>${endpoint.tag}</small>`;
+          } else {
+              endpointName = `${endpoint.node} <small>${endpoint.interface} - ${endpoint.tag}</small>`;
+          }
 
           let peerings = '';
           endpoint.peerings.forEach(function(peering, peeringIndex) {
@@ -360,7 +329,7 @@ function loadSelectedEndpointList() {
       ${endpointName}
       <span style="float: right; margin-top: -5px;">
         <button class="btn btn-link" type="button" onclick="modifyNetworkEndpointCallback(${index})"><span class="glyphicon glyphicon-edit"></span></button>
-        <button class="btn btn-link" type="button" onclick="deleteNetworkEndpointCallback(${index})"><span class="glyphicon glyphicon-remove"></span></button>
+        <button class="btn btn-link" type="button" onclick="deleteNetworkEndpointCallback(${index})"><span class="glyphicon glyphicon-trash"></span></button>
       </span>
     </h4>
   </div>
