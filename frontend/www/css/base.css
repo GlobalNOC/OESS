@@ -69,6 +69,15 @@ body {
     grid-row-end: 4;
 }
 
+/* Gives the older UI the full screen. */
+.old-content {
+    grid-column-start: 1;
+    grid-column-end: 4;
+
+    grid-row-start: 1;
+    grid-row-end: 6
+}
+
 .footer-logos {
     display: flex;
     flex-direction: row;
