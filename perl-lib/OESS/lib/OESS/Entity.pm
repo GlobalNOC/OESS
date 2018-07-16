@@ -183,7 +183,7 @@ sub add_parent{
     my $self = shift;
     my $entity = shift;
 
-    push(@{$self->{'parent'}},$entity);
+    push(@{$self->{'parents'}},$entity);
 }
 
 sub add_interface{

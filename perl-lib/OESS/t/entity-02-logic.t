@@ -16,7 +16,7 @@ use OESS::Database;
 use OESS::Entity;
 use OESSDatabaseTester;
 
-use Test::More tests => 37;
+use Test::More tests => 41;
 use Test::Deep;
 use Data::Dumper;
 
@@ -176,4 +176,40 @@ cmp_deeply(
     [ map {$_->interface_id()} @{$ent3->interfaces()} ],
     bag( 21, 14081, 35961 ),
     'Entity 3: post-add interfaces() returns correct interfaces'
+);
+
+cmp_deeply(
+    [ map {$_->{'entity_id'}} @{$ent3->parents()} ],
+    bag( 9 ),
+    'Entity 3: parents() returns correct set of parents'
+);
+
+my $new_parent = {
+    entity_id   => 8,
+    name        => 'Small State MilliPOP',
+    description => undef,
+    logo_url    => undef,
+    url         => 'https://smst.millipop.net/',
+};
+$ent3->add_parent($new_parent);
+cmp_deeply(
+    [ map {$_->{'entity_id'}} @{$ent3->parents()} ],
+    bag( 8, 9 ),
+    'Entity 3: post-add parents() returns correct set of parents'
+);
+
+my $new_parent_list = [
+    {
+        entity_id   => 7,
+        name        => 'Big State TeraPOP',
+        description => 'The R&E networking hub for Big State',
+        logo_url    => 'https://terapop.example.net/favicon.ico',
+        url         => 'https://terapop.example.net/',
+    },
+];
+ok(defined($ent3->parents($new_parent_list)), 'Entity 3: set-parents sanity check');
+cmp_deeply(
+    [ map {$_->{'entity_id'}} @{$ent3->parents()} ],
+    bag( 7 ),
+    'Entity 3: post-set parents() returns correct set of parents'
 );
