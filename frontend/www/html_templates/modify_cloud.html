@@ -20,60 +20,8 @@
     [% INCLUDE js_templates/api/validateIP.js  %]
     [% INCLUDE js_templates/modify_cloud.js  %]
   </script>
-  
-  <div class="modal fade" role="dialog" tabindex="-1" id="add-endpoint-modal">
-    <div class="modal-dialog" role="document">
-      <div class="modal-content">
-        <div class="modal-header"><h4 id="endpoint-select-header" class="modal-title">Add Network Endpoint</h4></div>
 
-        <div class="modal-body">
-          <div style="margin-bottom: 15px;"></div>
-
-          <div id="entity-alert" class="alert alert-danger" role="alert" style="display: none;">
-            <p>You'll need to select an entity before you can move on.</p>
-          </div>
-
-          <div id="entity-alert-ok" class="alert alert-info" role="alert" style="display: none;">
-          </div>
-
-          <div class="form-group">
-            <input id="entity-search" class="form-control" type="text" placeholder="Search" />
-          </div>
-
-          <div style="height: 200px; overflow-y: scroll; margin-bottom: 15px;">
-            <div id="entities-list" class="list-group">
-              <button type="button" class="list-group-item">Placeholder<span class="glyphicon glyphicon-menu-right" style="float: right;"></span></button>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <input id="entity-index" class="form-control" type="hidden" value="">
-          </div>
-
-          <div class="form-group">
-            <input id="entity-id" class="form-control" type="hidden" value="">
-          </div>
-
-          <div class="form-group">
-            <input id="entity-name" class="form-control" type="hidden" value="">
-          </div>
-
-          <div class="form-group">
-            <label class="control-label">VLAN</label>
-            <select id="entity-vlans" class="form-control"></select>
-          </div>
-
-          <div class="form-group">
-            <label class="control-label">Bandwidth (Mb/s)</label>
-            <input id="entity-bandwidth" class="form-control" type="number" placeholder="100" min="10" max="100000">
-          </div>
-
-          <button id="add-entity-submit" class="btn btn-success" type="submit">Add Endpoint</button>
-          <button id="add-entity-cancel" class="btn btn-danger" type="button">Cancel</button>
-        </div>
-      </div>
-    </div>
-  </div>
+  [% INCLUDE html_templates/provision_cloud/EndpointSelectionModal.html %]
 
   <div class="modal fade" role="dialog" tabindex="-1" id="add-network-loading">
     <div class="modal-dialog" role="document">
@@ -120,7 +68,7 @@
 
   <div class="row">
     <div class="col-md-12">
-      <button id="add-network-submit" class="btn btn-success" type="submit">Add Private Network</button>
+      <button id="add-network-submit" class="btn btn-success" type="submit">Modify Private Network</button>
       <button id="add-network-cancel" class="btn btn-danger" type="button">Cancel</button>
     </div>
   </div>

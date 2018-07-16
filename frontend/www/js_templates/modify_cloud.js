@@ -15,27 +15,10 @@ document.addEventListener('DOMContentLoaded', function() {
   let addNetworkCancel = document.querySelector('#add-network-cancel');
   addNetworkCancel.addEventListener('click', addNetworkCancelCallback);
 
-  let addEntitySubmit = document.querySelector('#add-entity-submit');
-  addEntitySubmit.addEventListener('click', addEntitySubmitCallback);
-
-  let addEntityCancel = document.querySelector('#add-entity-cancel');
-  addEntityCancel.addEventListener('click', addEntityCancelCallback);
-
   let url = new URL(window.location.href);
   let id = url.searchParams.get('prepop_vrf_id');
   if (id) {
-      loadEntityList(id);
-      let entityVLANs = '';
-      for (let i = 1; i < 4095; i++) {
-          entityVLANs += `<option>${i}</option>`;
-      }
-      document.querySelector('#entity-vlans').innerHTML = entityVLANs;
-
-      document.querySelector('#entity-index').value = -1;
-      document.querySelector('#entity-bandwidth').value = null;
-
-      let addEndpointModal = $('#add-endpoint-modal');
-      addEndpointModal.modal('show');
+      showAndPrePopulateEndpointSelectionModal(id);
   }
 });
 
@@ -57,7 +40,8 @@ async function loadVRF() {
         name: e.interface.name,
         node: e.node.name,
         peerings: [],
-        tag: e.tag
+        tag: e.tag,
+        interface: e.interface.name
     };
 
     e.peers.forEach(function(p) {
@@ -78,44 +62,14 @@ async function loadVRF() {
 }
 
 async function addNetworkEndpointCallback(event) {
-    await loadEntityList();
-
-    let entityVLANs = '';
-    for (let i = 1; i < 4095; i++) {
-        entityVLANs += `<option>${i}</option>`;
-    }
-    document.querySelector('#entity-vlans').innerHTML = entityVLANs;
-
-    document.querySelector('#entity-index').value = -1;
-    document.querySelector('#entity-bandwidth').value = null;
-
-    document.querySelector('#add-entity-submit').innerHTML = 'Add Endpoint';
-
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('show');
+    showEndpointSelectionModal(null);
 }
 
 async function modifyNetworkEndpointCallback(index) {
     let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
+    endpoints[index].index = index;
 
-    await loadEntityList();
-
-    let entityVLANs = '';
-    for (let i = 1; i < 4095; i++) {
-        entityVLANs += `<option>${i}</option>`;
-    }
-    document.querySelector('#entity-vlans').innerHTML = entityVLANs;
-    document.querySelector('#entity-vlans').value = endpoints[index].tag;
-
-    document.querySelector('#entity-index').value = index;
-    document.querySelector('#entity-id').value = endpoints[index].entity_id;
-    document.querySelector('#entity-name').value = endpoints[index].name;
-    document.querySelector('#entity-bandwidth').value = endpoints[index].bandwidth;
-
-    document.querySelector('#add-entity-submit').innerHTML = 'Modify Endpoint';
-
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('show');
+    showEndpointSelectionModal(endpoints[index]);
 }
 
 async function deleteNetworkEndpointCallback(index) {
@@ -149,6 +103,9 @@ async function addNetworkSubmitCallback(event) {
     let addNetworkLoadingModal = $('#add-network-loading');
     addNetworkLoadingModal.modal('show');
 
+    let url = new URL(window.location.href);
+    let id = url.searchParams.get('vrf_id');
+
     let vrfID = await provisionVRF(
         session.data.workgroup_id,
         document.querySelector('#description').value,
@@ -156,7 +113,7 @@ async function addNetworkSubmitCallback(event) {
         JSON.parse(sessionStorage.getItem('endpoints')),
         provisionTime,
         removeTime,
-        -1
+        id
     );
 
     if (vrfID === null) {
@@ -251,16 +208,11 @@ async function loadEntityList(parentEntity=null) {
     entityAlertOK.style.display = 'block';
 }
 
-async function setEntity(id, name) {
-    console.log(id);
-   let entityID = document.querySelector('#entity-id');
-   entityID.value = id;
 
-   let entityName = document.querySelector('#entity-name');
-   entityName.value = name;
-}
 
 //--- Main - Schedule ---
+
+
 
 function setDateTimeVisibility() {
   let type = document.querySelector('input[name=provision-time]:checked').value;

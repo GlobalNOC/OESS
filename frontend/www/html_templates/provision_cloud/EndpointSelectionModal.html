@@ -1,3 +1,4 @@
+
 <script>
   [% INCLUDE js_templates/provision_cloud/EndpointSelectionModal.js %]
 </script>
@@ -6,20 +7,19 @@
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
+
         <h4 id="endpoint-select-header" class="modal-title">Add Network Endpoint</h4>
       </div>
 
       <div class="modal-body"><div style="margin-bottom: 15px;"></div>
         <ul class="nav nav-tabs">
-          <li role="presentation" class="active"><a href="#basic" aria-controls="basic" role="tab" data-toggle="tab">Basic</a></li>
-          <li role="presentation"><a id="advanced-tab" href="#advanced" aria-controls="advanced" role="tab" data-toggle="tab">My Interfaces</a></li>
+          <li role="presentation" class="active"><a id="basic" href="#basic-content" aria-controls="basic" role="tab" data-toggle="tab">Basic</a></li>
+          <li role="presentation"><a id="advanced" href="#advanced-content" aria-controls="advanced" role="tab" data-toggle="tab">My Interfaces</a></li>
         </ul>
 
         <div class="tab-content">
-          <div role="tabpanel" class="tab-pane active" id="basic"><div style="margin-bottom: 15px;"></div>
-            <div id="entity-alert" class="alert alert-danger" role="alert" style="display: none;">
-              <p>You'll need to select an entity before you can move on.</p>
-            </div>
+          <div role="tabpanel" id="basic-content" class="tab-pane active"><div style="margin-bottom: 15px;"></div>
+            <div id="entity-alert" class="alert alert-danger" role="alert" style="display: none;"></div>
             <div id="entity-alert-ok" class="alert alert-info" role="alert" style="display: none;"></div>
 
             <div class="form-group">
@@ -62,7 +62,7 @@
             <button id="add-entity-cancel" class="btn btn-danger" type="button">Cancel</button>
           </div>
 
-          <div role="tabpanel" class="tab-pane" id="advanced"><div style="margin-bottom: 15px;"></div>
+          <div role="tabpanel" id="advanced-content" class="tab-pane"><div style="margin-bottom: 15px;"></div>
             <div class="form-group">
               <label class="control-label">Interface</label>
               <select id="endpoint-select-interface" class="form-control">
