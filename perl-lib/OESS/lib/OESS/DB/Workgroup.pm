@@ -12,7 +12,7 @@ sub fetch{
     my $db = $params{'db'};
     my $workgroup_id = $params{'workgroup_id'};
 
-    my $wg = $db->_execute_query("select * from workgroup where workgroup_id = ?",[$workgroup_id]);
+    my $wg = $db->execute_query("select * from workgroup where workgroup_id = ?",[$workgroup_id]);
     if(!defined($wg) || !defined($wg->[0])){
         return;
     }
@@ -26,7 +26,7 @@ sub get_users_in_workgroup{
     my $db = $params{'db'};
     my $workgroup_id = $params{'workgroup_id'};
 
-    my $users = $db->_execute_query("select user_id from user_workgroup_membership where workgroup_id = ?",[$workgroup_id]);
+    my $users = $db->execute_query("select user_id from user_workgroup_membership where workgroup_id = ?",[$workgroup_id]);
     if(!defined($users)){
         return;
     }

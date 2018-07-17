@@ -18,20 +18,20 @@ sub fetch{
 
     my $entity;
     if(defined($entity_id)){
-        $entity = $db->_execute_query("select * from entity where entity_id = ?",[$entity_id]);
+        $entity = $db->execute_query("select * from entity where entity_id = ?",[$entity_id]);
     }else{
-        $entity = $db->_execute_query("select * from entity where name = ?",[$entity_name]);
+        $entity = $db->execute_query("select * from entity where name = ?",[$entity_name]);
     }
 
     return if (!defined($entity) || !defined($entity->[0]));
 
     $entity = $entity->[0];
 
-    my $interfaces = $db->_execute_query("select interface_id from entity_interface_membership where entity_id = ?", [$entity->{'entity_id'}]);
+    my $interfaces = $db->execute_query("select interface_id from entity_interface_membership where entity_id = ?", [$entity->{'entity_id'}]);
 
-    my $parents = $db->_execute_query( "select entity.* from entity join entity_hierarchy on entity.entity_id = entity_hierarchy.entity_parent_id where entity_hierarchy.entity_child_id = ?",[$entity->{'entity_id'}]);
+    my $parents = $db->execute_query( "select entity.* from entity join entity_hierarchy on entity.entity_id = entity_hierarchy.entity_parent_id where entity_hierarchy.entity_child_id = ?",[$entity->{'entity_id'}]);
 
-    my $children = $db->_execute_query( "select entity.* from entity join entity_hierarchy on entity.entity_id = entity_hierarchy.entity_child_id where entity_hierarchy.entity_parent_id = ?",[$entity->{'entity_id'}]);
+    my $children = $db->execute_query( "select entity.* from entity join entity_hierarchy on entity.entity_id = entity_hierarchy.entity_child_id where entity_hierarchy.entity_parent_id = ?",[$entity->{'entity_id'}]);
 
     my @interfaces;
 
@@ -41,7 +41,7 @@ sub fetch{
 
     }
 
-    my $users = $db->_execute_query( "select user_id from user_entity_membership where entity_id = ?",[$entity->{'entity_id'}]);
+    my $users = $db->execute_query( "select user_id from user_entity_membership where entity_id = ?",[$entity->{'entity_id'}]);
     
     my @users;
     foreach my $u (@$users){
@@ -65,7 +65,7 @@ sub get_root_entities{
     my %params = @_;
     my $db = $params{'db'};
     
-    my $entities = $db->_execute_query("select entity.entity_id from entity join entity_hierarchy on entity_hierarchy.entity_child_id = entity.entity_id where entity_hierarchy.entity_parent_id = 1",[]);
+    my $entities = $db->execute_query("select entity.entity_id from entity join entity_hierarchy on entity_hierarchy.entity_child_id = entity.entity_id where entity_hierarchy.entity_parent_id = 1",[]);
     
     my @roots;
 

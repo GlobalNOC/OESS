@@ -15,13 +15,13 @@ sub fetch{
 
     my $details;
 
-    my $node = $db->_execute_query("select * from node natural join node_instantiation where node_id = ? and node_instantiation.end_epoch = -1", [$node_id]);
+    my $node = $db->execute_query("select * from node natural join node_instantiation where node_id = ? and node_instantiation.end_epoch = -1", [$node_id]);
 
     return if(!defined($node) || !defined($node->[0]));
 
     $node = $node->[0];
 
-    my $res = $db->_execute_query("select interface.interface_id from interface natural join interface_instantiation where interface.node_id = ? and interface_instantiation.end_epoch = -1");
+    my $res = $db->execute_query("select interface.interface_id from interface natural join interface_instantiation where interface.node_id = ? and interface_instantiation.end_epoch = -1");
     
     my @ints;
 
@@ -44,7 +44,7 @@ sub get_node_interfaces{
     my $db = shift;
     my $node_id = shift;
 
-    my $interfaces = $db->_execute_query("select * from interface where node_id = ?",[$node_id]);
+    my $interfaces = $db->execute_query("select * from interface where node_id = ?",[$node_id]);
 
     my @ints;
     foreach my $interface (@$interfaces){
