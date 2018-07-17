@@ -1386,6 +1386,8 @@ sub get_device_diff {
         return;
     }
 
+    $self->{'logger'}->debug("Candidate config: " . $conf);
+
     my %queryargs = ('target' => 'candidate');
     $queryargs{'config'} = $conf;
 
