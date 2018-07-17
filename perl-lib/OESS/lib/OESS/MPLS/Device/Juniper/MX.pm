@@ -1016,6 +1016,9 @@ sub get_config_to_remove{
     my %params = @_;
     my $circuits = $params{'circuits'};
     my $vrfs = $params{'vrfs'};
+
+    $self->{'logger'}->error("VRFS: " . Dumper($vrfs));
+
     if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return;
@@ -1340,7 +1343,9 @@ sub _is_active_vrf{
         return 0;
     }
 
-    if(defined($vrfs->{'vrf_id'}) && $vrfs->{'vrf_id'}->{'state'} eq 'active'){
+    $self->{'logger'}->error("VRF Details: " . Dumper($vrfs->{$vrf_id}));
+
+    if(defined($vrfs->{$vrf_id}) && $vrfs->{$vrf_id}->{'state'} eq 'active'){
         return 1;
     }
 

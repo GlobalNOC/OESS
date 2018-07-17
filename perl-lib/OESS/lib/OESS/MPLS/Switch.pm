@@ -531,6 +531,7 @@ sub diff {
     $self->{'logger'}->debug("Calling Switch.diff");
     $self->_update_cache();
 
+    $self->{'logger'}->error("Active VRFS: " . Dumper($self->{'vrfs'}));
     my $to_be_removed = $self->{'device'}->get_config_to_remove( circuits => $self->{'ckts'}, vrfs => $self->{'vrfs'} );
     if (!defined $to_be_removed) {
         $self->{'logger'}->error('Could not communicate with device.');
@@ -552,7 +553,8 @@ sub get_diff_text {
 
     $self->{'logger'}->debug("Calling Switch.get_diff_text");
     $self->_update_cache();
-    my $to_be_removed = $self->{'device'}->get_config_to_remove( circuits => $self->{'ckts'} );
+    $self->{'logger'}->error("Active VRFS: " . Dumper($self->{'vrfs'}));
+    my $to_be_removed = $self->{'device'}->get_config_to_remove( circuits => $self->{'ckts'}, vrfs => $self->{'vrfs'} );
     my $diff = $self->{'device'}->get_diff_text(circuits => $self->{'ckts'}, vrfs => $self->{'vrfs'}, remove => $to_be_removed);
     if (!defined $diff) {
         return 'No diff required at this time.';
