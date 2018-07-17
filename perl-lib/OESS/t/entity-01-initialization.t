@@ -12,7 +12,7 @@ BEGIN {
 }
 
 use lib "$path";
-use OESS::Database;
+use OESS::DB;
 use OESS::Entity;
 use OESSDatabaseTester;
 
@@ -20,8 +20,8 @@ use Test::More tests => 9;
 use Test::Deep;
 use Data::Dumper;
 
-my $db = OESS::Database->new( config => OESSDatabaseTester::getConfigFilePath() );
-ok(defined($db), 'Can instantiate OESS::Database object');
+my $db = OESS::DB->new( config => OESSDatabaseTester::getConfigFilePath() );
+ok(defined($db), 'Can instantiate OESS::DB object');
 
 my $ent = OESS::Entity->new( entity_id => 1, db => $db );
 ok(defined($ent), 'Can instantiate OESS::Entity object (id=1)');

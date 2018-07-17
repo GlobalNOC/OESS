@@ -12,7 +12,7 @@ BEGIN {
 }
 
 use lib "$path";
-use OESS::Database;
+use OESS::DB;
 use OESS::ACL;
 use OESSDatabaseTester;
 
@@ -32,10 +32,10 @@ sub acl_row {
 
 
 
-my $db = OESS::Database->new( config => OESSDatabaseTester::getConfigFilePath() );
+my $db = OESS::DB->new( config => OESSDatabaseTester::getConfigFilePath() );
 my $acl = OESS::ACL->new( interface_id => 45811, db => $db );
 
-ok(defined($db) && defined($acl), 'Sanity-check: can instantiate OESS::Database and OESS::ACL objects');
+ok(defined($db) && defined($acl), 'Sanity-check: can instantiate OESS::DB and OESS::ACL objects');
 
 cmp_deeply(
     $acl->to_hash(),
