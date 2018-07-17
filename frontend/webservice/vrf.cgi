@@ -217,6 +217,7 @@ sub provision_vrf{
     $model->{'provision_time'} = $params->{'provision_time'}{'value'};
     $model->{'remove_time'} = $params->{'provision_time'}{'value'};
     $model->{'created_by'} = $user->user_id();
+    $model->{'last_modified'} = $params->{'provision_time'}{'value'};
     $model->{'last_modified_by'} = $user->user_id();
 
     $model->{'endpoints'} = ();
@@ -235,15 +236,22 @@ sub provision_vrf{
         return;
     }
 
-    my $vrf = OESS::VRF->new( db => $db, vrf_id => -1, model => $model);
-    #warn Dumper($vrf);
-    $vrf->create();
-    
+    my $vrf;
+    if (defined $model->{'vrf_id'} && $model->{'vrf_id'} != -1) {
+        $vrf = OESS::VRF->new( db => $db, vrf_id => $model->{'vrf_id'});
+        $vrf->update($model);
+
+        $method->set_error("Nothing bad has actually happened; I'm preventing refresh on the frontend for testing.");
+        return;
+    } else {
+        $vrf = OESS::VRF->new( db => $db, model => $model);
+        $vrf->create();
+    }
+
     my $vrf_id = $vrf->vrf_id();
     if($vrf_id == -1){
-
-        return {results => {'success' => 0}, error => 'error creating VRF: ' . $vrf->error()};
-
+        $method->set_error('error creating VRF: ' . $vrf->error());
+        return;
     }else{
 
         my $res = vrf_add( method => $method, vrf_id => $vrf_id);

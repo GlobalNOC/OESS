@@ -285,14 +285,42 @@ sub create{
     return 1;
 }
 
-sub _edit{
-    my $self = shift;
-    
-    
+sub update {
+    my $self  = shift;
+    my $modal = shift;
 
+    warn Dumper($modal);
+
+    # Maybe updated and requires reprovision:
+    if (defined $modal->{endpoints}) {
+        # TODO
+        foreach my $endpoint (@{$self->{endpoints}}) {
+            warn Dumper($endpoint);
+        }
+    }
+
+    # Maybe updated:
+    $self->{name} = $modal->{name} if (defined $modal->{name});
+    $self->{description} = $modal->{description} if (defined $modal->{description});
+    $self->{prefix_limit} = $modal->{prefix_limit} if (defined $modal->{prefix_limit});
+    $self->{local_asn} = $modal->{local_asn} if (defined $modal->{local_asn});
+
+    # Always updated:
+    $self->{last_modified} = $modal->{last_modified} if (defined $modal->{last_modified});
+    $self->{last_modified_by} = $modal->{last_modified_by} if (defined $modal->{last_modified_by});
+
+    # Doesn't change:
+    # $self->{'workgroup'}
+    # $self->{'created_by'}
+    # $self->{'created'}
+
+    return 1;
 }
 
 
+sub _edit {
+    my $self = shift;
+}
 
 =head2 update_vrf_details
 
