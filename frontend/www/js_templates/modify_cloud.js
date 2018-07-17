@@ -125,7 +125,7 @@ async function addNetworkSubmitCallback(event) {
 }
 
 async function addNetworkCancelCallback(event) {
-    window.location.href = 'index.cgi?action=index';
+    window.location.href = 'index.cgi?action=welcome';
 }
 
 async function addEntitySubmitCallback(event) {
