@@ -72,7 +72,7 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
     const data = await resp.json();
 
     if ('error_text' in data) {
-        console.log(data.error_text);
+        alert(data.error_text);
         return null;
     }
 
