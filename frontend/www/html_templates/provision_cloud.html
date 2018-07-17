@@ -21,6 +21,7 @@
 
   <script>
     [% INCLUDE js_templates/api/vrf.js %]
+    [% INCLUDE js_templates/api/vlan.js %]
     [% INCLUDE js_templates/api/interfaces.js  %]
     [% INCLUDE js_templates/api/validateIP.js  %]
     [% INCLUDE js_templates/provision_cloud.js  %]
@@ -31,7 +32,7 @@
   <div class="modal fade" role="dialog" tabindex="-1" id="add-network-loading">
     <div class="modal-dialog" role="document">
       <div class="modal-content" style="text-align: center;">
-        <img src="media/loading.gif" width="200px;"/>
+        <img src="[% path %]media/loading.gif" width="200px;"/>
         <p>Give us just a few seconds. We're in process of provisioning your network now.</p>
         <br/>
       </div>
