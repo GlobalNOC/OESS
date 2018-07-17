@@ -971,6 +971,75 @@ INSERT INTO `user_workgroup_membership` VALUES (1,11),(11,11),(21,11),(51,11),(6
 UNLOCK TABLES;
 
 --
+-- Table structure for table `vrf`
+--
+
+DROP TABLE IF EXISTS `vrf`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `vrf` (
+  `vrf_id` int(10) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `description` varchar(255) NOT NULL,
+  `workgroup_id` int(10) NOT NULL,
+  `state` enum('active','decom') DEFAULT NULL,
+  `created` int(10) NOT NULL,
+  `created_by` int(10) NOT NULL,
+  `last_modified` int(10) NOT NULL,
+  `last_modified_by` int(10) NOT NULL,
+  `local_asn` int(10) NOT NULL,
+  PRIMARY KEY (`vrf_id`),
+  KEY `workgroup_id` (`workgroup_id`),
+  KEY `created_by` (`created_by`),
+  KEY `last_modified_by` (`last_modified_by`),
+  CONSTRAINT `vrf_ibfk_3` FOREIGN KEY (`last_modified_by`) REFERENCES `user` (`user_id`),
+  CONSTRAINT `vrf_ibfk_1` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`),
+  CONSTRAINT `vrf_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `vrf`
+--
+
+LOCK TABLES `vrf` WRITE;
+/*!40000 ALTER TABLE `vrf` DISABLE KEYS */;
+/*!40000 ALTER TABLE `vrf` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `vrf_ep`
+--
+
+DROP TABLE IF EXISTS `vrf_ep`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `vrf_ep` (
+  `vrf_ep_id` int(11) NOT NULL AUTO_INCREMENT,
+  `tag` int(10) DEFAULT NULL,
+  `bandwidth` int(10) DEFAULT NULL,
+  `vrf_id` int(10) DEFAULT NULL,
+  `interface_id` int(10) NOT NULL,
+  `state` enum('active','decom') DEFAULT NULL,
+  `entity_id` int(11) DEFAULT NULL,
+  PRIMARY KEY (`vrf_ep_id`),
+  KEY `vrf_id` (`vrf_id`),
+  KEY `interface_id` (`interface_id`),
+  CONSTRAINT `vrf_ep_ibfk_1` FOREIGN KEY (`vrf_id`) REFERENCES `vrf` (`vrf_id`),
+  CONSTRAINT `vrf_ep_ibfk_2` FOREIGN KEY (`interface_id`) REFERENCES `interface` (`interface_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `vrf_ep`
+--
+
+LOCK TABLES `vrf_ep` WRITE;
+/*!40000 ALTER TABLE `vrf_ep` DISABLE KEYS */;
+/*!40000 ALTER TABLE `vrf_ep` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `workgroup`
 --
 
