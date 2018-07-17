@@ -20,7 +20,7 @@ async function loadUserMenu() {
           session.save();
       }
 
-      if (session.data.workgroup_id === group.workgroup_id) {
+      if (session.data.workgroup_id == group.workgroup_id) {
           userMenuActiveWorkgroup.innerHTML = group.name;
       }
       html += `<li><a onclick="selectWorkgroup(${group.workgroup_id})" href="#">${group.name}</a></li>`;
