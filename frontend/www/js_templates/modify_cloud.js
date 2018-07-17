@@ -118,7 +118,6 @@ async function addNetworkSubmitCallback(event) {
 
     if (vrfID === null) {
         addNetworkLoadingModal.modal('hide');
-        alert('Failed to provision VRF. Please try again later.');
     } else {
         window.location.href = `index.cgi?action=view_l3vpn&vrf_id=${vrfID}`;
     }

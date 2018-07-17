@@ -49,15 +49,46 @@ sub fetch{
     return $details;
 }
 
-sub update{
+sub update {
     my %params = @_;
-    
-    if(!defined($params{'vrf_id'}) || $params{'vrf_id'} == -1){
-        return _create_vrf(\%params);
-    }else{
-        return _update_vrf(\%params);
+    my $db = $params{'db'};
+    my $vrf = $params{'vrf'};
+
+    return if (!defined $vrf->{vrf_id});
+
+    my $reqs = [];
+    my $args = [];
+    my $set = '';
+
+    if (defined $vrf->{name}) {
+        push @$reqs, 'name=?';
+        push @$args, $vrf->{name};
     }
-    
+    if (defined $vrf->{description}) {
+        push @$reqs, 'description=?';
+        push @$args, $vrf->{description};
+    }
+    if (defined $vrf->{local_asn}) {
+        push @$reqs, 'local_asn=?';
+        push @$args, $vrf->{local_asn};
+    }
+    if (defined $vrf->{last_modified}) {
+        push @$reqs, 'last_modified=?';
+        push @$args, $vrf->{last_modified};
+    }
+    if (defined $vrf->{last_modified_by}->{user_id}) {
+        push @$reqs, 'last_modified_by=?';
+        push @$args, $vrf->{last_modified_by}->{user_id};
+    }
+    $set .= join(', ', @$reqs);
+    push @$args, $vrf->{vrf_id};
+
+    my $result = $db->execute_query(
+        "UPDATE vrf SET $set WHERE vrf_id=?",
+        $args
+    );
+
+    return $result;
 }
 
 sub create{
@@ -88,11 +119,30 @@ sub create{
     return $vrf_id;
 }        
 
-sub delete_endpoint{
+sub delete_endpoints {
     my %params = @_;
+    my $db = $params{'db'};
+    my $vrf_id = $params{'vrf_id'};
 
-    
-    
+    my $ok = $db->execute_query(
+        "delete vrf_ep_peer
+         from vrf_ep join vrf_ep_peer on vrf_ep.vrf_ep_id=vrf_ep_peer.vrf_ep_id
+         where vrf_id=?",
+        [$vrf_id]
+    );
+    if (!$ok) {
+        return $ok;
+    }
+
+    $ok = $db->execute_query(
+        "delete from vrf_ep where vrf_id=?",
+        [$vrf_id]
+    );
+    if (!$ok) {
+        return $ok;
+    }
+
+    return $ok;
 } 
 
 sub add_endpoint{       
@@ -217,9 +267,8 @@ sub fetch_peer{
 
 }
 
-sub _update_vrf{
-        
-        
+sub _update_vrf {
+
 }
 
 sub decom{

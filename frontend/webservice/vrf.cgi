@@ -217,6 +217,7 @@ sub provision_vrf{
     $model->{'provision_time'} = $params->{'provision_time'}{'value'};
     $model->{'remove_time'} = $params->{'provision_time'}{'value'};
     $model->{'created_by'} = $user->user_id();
+    $model->{'last_modified'} = $params->{'provision_time'}{'value'};
     $model->{'last_modified_by'} = $user->user_id();
 
     $model->{'endpoints'} = ();
@@ -235,23 +236,41 @@ sub provision_vrf{
         return;
     }
 
-    my $vrf = OESS::VRF->new( db => $db, vrf_id => -1, model => $model);
-    #warn Dumper($vrf);
-    $vrf->create();
-    
-    my $vrf_id = $vrf->vrf_id();
-    if($vrf_id == -1){
+    my $vrf;
+    if (defined $model->{'vrf_id'} && $model->{'vrf_id'} != -1) {
+        $vrf = OESS::VRF->new( db => $db, vrf_id => $model->{'vrf_id'});
+        my $ok = $vrf->update($model);
+        if (!$ok) {
+            $method->set_error($vrf->error());
+            return;
+        }
 
-        return {results => {'success' => 0}, error => 'error creating VRF: ' . $vrf->error()};
+        $ok = $vrf->update_db();
+        if (!$ok) {
+            $method->set_error($vrf->error());
+            return;
+        }
 
-    }else{
+        my $vrf_id = $vrf->vrf_id();
 
-        my $res = vrf_add( method => $method, vrf_id => $vrf_id);
+        my $res = vrf_del(method => $method, vrf_id => $vrf_id);
+        $res = vrf_add( method => $method, vrf_id => $vrf_id);
         $res->{'vrf_id'} = $vrf_id;
-        return {results => $res};
-                
+        return { results => $res };
     }
 
+    $vrf = OESS::VRF->new( db => $db, model => $model);
+    $vrf->create();
+
+    my $vrf_id = $vrf->vrf_id();
+    if ($vrf_id == -1) {
+        $method->set_error('error creating VRF: ' . $vrf->error());
+        return;
+    }
+
+    my $res = vrf_add( method => $method, vrf_id => $vrf_id);
+    $res->{'vrf_id'} = $vrf_id;
+    return {results => $res};
 }
 
 sub remove_vrf{    
