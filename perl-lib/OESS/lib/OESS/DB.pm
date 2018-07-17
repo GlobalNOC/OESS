@@ -34,8 +34,7 @@ sub new{
     my $logger = Log::Log4perl->get_logger("OESS.DB");
 
     my %args = (
-        interface_id => undef,
-        db => undef,
+        config => '/etc/oess/database.xml',
         @_
         );
 
@@ -45,7 +44,7 @@ sub new{
 
     $self->{'logger'} = $logger;
 
-    $self->_process_config("/etc/oess/database.xml");
+    $self->_process_config($args{'config'});
 
     $self->_connect_to_db();
     
