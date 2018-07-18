@@ -1062,13 +1062,13 @@ sub get_config_to_remove{
             my $circuit_id = $2;
             if($type eq 'L3VPN'){
                 if(!$self->_is_active_vrf($circuit_id, $vrfs)){
-                    $ri_dels = "<instance operation='delete'><name>" . $name . "</name></instance>";
+                    $ri_dels .= "<instance operation='delete'><name>" . $name . "</name></instance>";
                     next;
                 }
             }else{
                 #figure out the right bit!
                 if(!$self->_is_active_circuit($circuit_id, $circuits)){
-                    $ri_dels = "<instance operation='delete'><name>" . $name . "</name></instance>";
+                    $ri_dels .= "<instance operation='delete'><name>" . $name . "</name></instance>";
                     next;
                 }
             }
