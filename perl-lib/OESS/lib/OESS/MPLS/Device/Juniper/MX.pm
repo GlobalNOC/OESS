@@ -931,6 +931,7 @@ sub xml_configuration {
     foreach my $vrf (@{$vrf}){
         my $xml;
         my $vars = {};
+        next if ($vrf->{'state'} ne 'active');
         $vars->{'vrf_name'} = $vrf->{'name'};
         $vars->{'interfaces'} = ();
         foreach my $i (@{$vrf->{'interfaces'}}) {
@@ -1016,6 +1017,9 @@ sub get_config_to_remove{
     my %params = @_;
     my $circuits = $params{'circuits'};
     my $vrfs = $params{'vrfs'};
+
+    $self->{'logger'}->debug("VRFS: " . Dumper($vrfs));
+
     if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return;
@@ -1058,13 +1062,13 @@ sub get_config_to_remove{
             my $circuit_id = $2;
             if($type eq 'L3VPN'){
                 if(!$self->_is_active_vrf($circuit_id, $vrfs)){
-                    $ri_dels = "<instance operation='delete'><name>" . $name . "</name></instance>";
+                    $ri_dels .= "<instance operation='delete'><name>" . $name . "</name></instance>";
                     next;
                 }
             }else{
                 #figure out the right bit!
                 if(!$self->_is_active_circuit($circuit_id, $circuits)){
-                    $ri_dels = "<instance operation='delete'><name>" . $name . "</name></instance>";
+                    $ri_dels .= "<instance operation='delete'><name>" . $name . "</name></instance>";
                     next;
                 }
             }
@@ -1293,7 +1297,8 @@ sub _is_circuit_on_port{
 	foreach my $int (@{$circuits->{$circuit_id}->{'interfaces'}}){
 	    #check to see if the port matches the port
 	    #check to see if the vlan matches the vlan
-	    if($int->{'interface'} eq $port && $int->{'vlan'} eq $vlan){
+            $self->{'logger'}->debug("Comparing " . Dumper($int) . " to $port and $vlan");
+	    if($int->{'interface'} eq $port && $int->{'tag'} eq $vlan){
 		$self->{'logger'}->error("Interface: " . $int->{'interface'} . " is in circuit: " . $circuit_id);
 		return 1;
 	    }
@@ -1320,8 +1325,9 @@ sub _is_vrf_on_port{
         foreach my $int (@{$vrfs->{$vrf_id}->{'interfaces'}}){
             #check to see if the port matches the port
             #check to see if the vlan matches the vlan
-            if($int->{'interface'} eq $port && $int->{'vlan'} eq $vlan){
-                $self->{'logger'}->error("Interface: " . $int->{'interface'} . " is in vrf: " . $vrf_id);
+            $self->{'logger'}->debug("Comparing " . Dumper($int) . " to $port and $vlan");
+            if($int->{'name'} eq $port && $int->{'tag'} eq $vlan){
+                $self->{'logger'}->error("Interface: " . $int->{'name'} . " is in vrf: " . $vrf_id);
                 return 1;
             }
         }
@@ -1340,7 +1346,9 @@ sub _is_active_vrf{
         return 0;
     }
 
-    if(defined($vrfs->{'vrf_id'}) && $vrfs->{'vrf_id'}->{'state'} eq 'active'){
+    $self->{'logger'}->debug("VRF Details: " . Dumper($vrfs->{$vrf_id}));
+
+    if(defined($vrfs->{$vrf_id}) && $vrfs->{$vrf_id}->{'state'} eq 'active'){
         return 1;
     }
 
@@ -1380,6 +1388,8 @@ sub get_device_diff {
         $self->{'logger'}->error("Not currently connected to device");
         return;
     }
+
+    $self->{'logger'}->debug("Candidate config: " . $conf);
 
     my %queryargs = ('target' => 'candidate');
     $queryargs{'config'} = $conf;

@@ -287,6 +287,7 @@ sub _write_cache{
                                                                              vrf_id => $vrf->vrf_id(),
                                                                              interfaces => [$int_obj],
                                                                              prefix_limit => $vrf->prefix_limit(),
+                                                                             state => $vrf->state(),
                                                                              local_asn => $vrf->local_asn(),
 
 		}	

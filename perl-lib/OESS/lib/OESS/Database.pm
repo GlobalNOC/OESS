@@ -695,6 +695,15 @@ sub is_external_vlan_available_on_interface {
         return;
     }
 
+    $query = "select vrf from vrf join vrf_ep on vrf.vrf_id = vrf_ep.vrf_id where vrf_ep.interface_id = ? and vrf_ep.tag = ?";
+    my $result2 = $self->_execute_query($query, [$interface_id, $vlan_tag]);
+    if(!defined($result)){
+        $self->_set_error("Internal error while finding available vrf vlan tags");
+        return;
+    }
+    
+    push(@{$result},$result2);
+
     $query = "select * from interface where interface.interface_id = ?";
     my $interface = $self->_execute_query( $query, [$interface_id])->[0];
 
