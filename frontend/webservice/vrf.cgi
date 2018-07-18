@@ -298,20 +298,18 @@ sub remove_vrf{
         return {success => 0};
     }
 
-
-
     my $result;
     if(!$user->in_workgroup( $wg)){
         $method->set_error("User " . $ENV{'REMOTE_USER'} . " is not in workgroup");
         return {success => 0};
     }
 
-    $vrf->decom(user_id => $user->user_id());
-
     my $res = vrf_del( method => $method, vrf_id => $vrf_id);
     $res->{'vrf_id'} = $vrf_id;
-    return {results => $res};
 
+    $vrf->decom(user_id => $user->user_id());
+
+    return {results => $res};
 }
 
 sub vrf_add{
