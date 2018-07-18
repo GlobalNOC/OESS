@@ -861,10 +861,11 @@ sub remove_vrf{
     $vars->{'vrf_name'} = $vrf->{'vrf_name'};
     $vars->{'interfaces'} = [];
     foreach my $i (@{$vrf->{'interfaces'}}) {
-        push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
+        push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
                                           tag  => $i->{'tag'}
 	      });
     }
+
     $vars->{'vrf_id'} = $vrf->{'vrf_id'};
     $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
 
