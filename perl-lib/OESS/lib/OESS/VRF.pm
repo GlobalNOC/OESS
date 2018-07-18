@@ -94,8 +94,6 @@ sub new{
 sub _build_from_model{
     my $self = shift;
 
-    warn Dumper($self->{'model'});
-
     $self->{'name'} = $self->{'model'}->{'name'};
     $self->{'description'} = $self->{'model'}->{'description'};
     $self->{'prefix_limit'} = $self->{'model'}->{'prefix_limit'};
@@ -103,9 +101,9 @@ sub _build_from_model{
     $self->{'endpoints'} = ();
     #process Endpoints
     foreach my $ep (@{$self->{'model'}->{'endpoints'}}){
-        push(@{$self->{'endpoints'}},OESS::Endpoint->new( db => $self->{'db'}, model => $ep, type => 'vrf'));
+	push(@{$self->{'endpoints'}}, OESS::Endpoint->new( db => $self->{'db'}, model => $ep, type => 'vrf'));
     }
-    
+
     #process Workgroups
     $self->{'workgroup'} = OESS::Workgroup->new( db => $self->{'db'}, workgroup_id => $self->{'model'}->{'workgroup_id'});
 
@@ -237,10 +235,11 @@ sub workgroup{
 sub update_db{
     my $self = shift;
 
-    if(!defined($self->{'vrf_id'})){
+    if (!defined $self->{'vrf_id'}) {
         $self->create();
-    }else{
-        $self->_edit();
+        return 1;
+    } else {
+        return $self->_edit();
     }
 }
 
@@ -249,8 +248,14 @@ sub create{
     
     #need to validate endpoints
     foreach my $ep (@{$self->endpoints()}){
+        if(!defined($ep) || !defined($ep->interface())){
+            $self->{'logger'}->error("No Endpoint specified");
+	    $self->error("No Endpoint specified");
+            return 0;
+        }
         if( !$ep->interface()->vlan_valid( workgroup_id => $self->workgroup()->workgroup_id(), vlan => $ep->tag() )){
             $self->{'logger'}->error("VLAN: " . $ep->tag() . " is not allowed for workgroup on interface: " . $ep->interface()->name());
+	    $self->error("VLAN: " . $ep->tag() . " is not allowed for workgroup on interface: " . $ep->interface()->name());
             return 0;
         }
 
@@ -260,6 +265,7 @@ sub create{
             my $local_ip = NetAddr::IP->new($peer->local_ip());
             if(!$local_ip->contains($peer_ip)){
                 $self->{'logger'}->error("Peer and Local IPs are not in the same subnet...");
+		$self->error("Peer and Local IPs are not in the same subnet...");
                 return 0;
             }
         }
@@ -268,22 +274,129 @@ sub create{
     #validate that we have at least 2 endpoints
     if(scalar($self->endpoints()) < 2){
         $self->{'logger'}->error("VRF Needs at least 2 endpoints");
+	$self->error("VRF Needs at least 2 endpoints");
         return 0;
     }
 
     my $vrf_id = OESS::DB::VRF::create(db => $self->{'db'}, model => $self->to_hash());
+    if ($vrf_id == -1) {
+	$self->error("Could not add VRF to db.");
+    }
     $self->{'vrf_id'} = $vrf_id;
     return 1;
 }
 
-sub _edit{
-    my $self = shift;
-    
-    
+sub update {
+    my $self  = shift;
+    my $modal = shift;
 
+    my $endpoints = {};
+    foreach my $endpoint (@{$self->{endpoints}}) {
+        my $intf = $endpoint->{interface}->{name};
+        my $node = $endpoint->{interface}->{node}->{name};
+
+        $endpoints->{$node}->{$intf} = $endpoint->{tag};
+    }
+
+    # Validate we have at least 2 endpoints
+    if (@{$modal->{endpoints}} < 2) {
+        $self->{'logger'}->error("VRF Needs at least 2 endpoints");
+	$self->error("VRF Needs at least 2 endpoints");
+        return 0;
+    }
+
+    my $new_endpoints = [];
+
+    foreach my $ep (@{$modal->{endpoints}}) {
+        my $intf = $ep->{interface};
+        my $node = $ep->{node};
+        my $tag = $ep->{tag};
+
+        if (!defined $tag) {
+	    $self->error("Endpoint tag is missing.");
+            return 0;
+        }
+        if (!defined $intf) {
+	    $self->error("Endpoint interface is missing.");
+            return 0;
+        }
+        if (!defined $node) {
+	    $self->error("Endpoint node is missing.");
+            return 0;
+        }
+
+        # VLANs already in use will come back as invalid; If previously validated continue.
+        my $endpoint = OESS::Endpoint->new(db => $self->{db}, model => $ep, type => 'vrf');
+        my $valid_tag = $endpoint->interface()->vlan_valid(workgroup_id => $self->workgroup()->workgroup_id(), vlan => $tag);
+        my $previously_validated = defined $endpoints->{$node}->{$intf} && $endpoints->{$node}->{$intf} == $tag;
+
+        if (!$previously_validated && !$valid_tag) {
+            $self->error("Endpoint tag $tag may not be used.");
+            return 0;
+        }
+
+        foreach my $peer (@{$endpoint->peers()}){
+            my $peer_ip = NetAddr::IP->new($peer->peer_ip());
+            my $local_ip = NetAddr::IP->new($peer->local_ip());
+
+            if(!$local_ip->contains($peer_ip)){
+		$self->error("Peer and Local IPs must be in the same subnet.");
+                return 0;
+            }
+        }
+
+        push @{$new_endpoints}, $endpoint;
+    }
+
+    $self->{endpoints} = $new_endpoints;
+
+    # Maybe updated:
+    $self->{name} = $modal->{name} if (defined $modal->{name});
+    $self->{description} = $modal->{description} if (defined $modal->{description});
+    $self->{local_asn} = $modal->{local_asn} if (defined $modal->{local_asn});
+
+    # Always updated:
+    $self->{last_modified} = $modal->{last_modified} if (defined $modal->{last_modified});
+    $self->{last_modified_by} = OESS::User->new(db => $self->{'db'}, user_id => $modal->{last_modified_by}) if (defined $modal->{last_modified_by});
+
+    return 1;
 }
 
 
+sub _edit {
+    my $self = shift;
+
+    my $vrf = $self->to_hash();
+
+    $self->{db}->start_transaction();
+
+    my $result = OESS::DB::VRF::update(db => $self->{db}, vrf => $vrf);
+    if (!$result) {
+        $self->{db}->rollback();
+	$self->error("Could not update VRF: $result");
+        return;
+    }
+
+    $result = OESS::DB::VRF::delete_endpoints(db => $self->{db}, vrf_id => $vrf->{vrf_id});
+    if (!$result) {
+        $self->{db}->rollback();
+	$self->error("Could not remove old endpoints from VRF.");
+        return;
+    }
+
+    foreach my $ep (@{$vrf->{endpoints}}) {
+        $result = OESS::DB::VRF::add_endpoint(db => $self->{db}, vrf_id => $vrf->{vrf_id}, model => $ep);
+        if (!$result) {
+            $self->{db}->rollback();
+            $self->error("Could not add endpoint to VRF.");
+            return;
+        }
+    }
+
+    $self->{db}->commit();
+
+    return 1;
+}
 
 =head2 update_vrf_details
 

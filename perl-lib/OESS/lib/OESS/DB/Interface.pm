@@ -51,7 +51,7 @@ sub get_interface{
     my $interface_name= $params{'interface'};
     my $node_name = $params{'node'};
     
-    my $interface = $db->_execute_query("select interface_id from interface where name=? and node_id=(select node_id from node where name=?)",[$interface_name, $node_name]);
+    my $interface = $db->execute_query("select interface_id from interface where name=? and node_id=(select node_id from node where name=?)",[$interface_name, $node_name]);
 
     if(!defined($interface) || !defined($interface->[0])){
         return;

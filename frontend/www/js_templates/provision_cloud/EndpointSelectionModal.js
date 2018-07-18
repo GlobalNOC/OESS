@@ -138,14 +138,32 @@ async function loadEntities(parentEntity=null) {
     entityList.innerHTML = entities;
 
     setEntity(entity.entity_id, entity.name);
+    loadEntityVLANs(entity);
 }
 
-async function loadEntityVLANs() {
-    let vlans = '';
-    for (let i = 1; i < 4095; i++) {
-        vlans += `<option>${i}</option>`;
+async function loadEntityVLANs(entity) {
+    if (!entity) {
+        console.log('skipping entity vlan fetch');
+        return null;
     }
-    document.querySelector('#entity-vlans').innerHTML = vlans;
+
+    let vlanH = {};
+    for (let i = 0; i < entity.interfaces.length; i++) {
+        for (let j = 0; j < entity.interfaces[i].available_vlans.length; j++) {
+            vlanH[entity.interfaces[i].available_vlans[j]] = 1;
+        }
+    }
+
+    let vlans = [];
+    for (key in vlanH) {
+        vlans.push(key);
+    }
+
+    let options = '';
+    for (let i = 0; i < vlans.length; i++) {
+        options += `<option>${vlans[i]}</option>`;
+    }
+    document.querySelector('#entity-vlans').innerHTML = options;
 }
 
 async function addEntitySubmitCallback(event) {
@@ -245,14 +263,14 @@ async function loadInterfaces() {
 
 async function loadInterfaceVLANs() {
     let select = document.querySelector('#endpoint-select-interface');
-    let node = select.options[select.selectedIndex].getAttribute('data-node');
-    let intf = select.options[select.selectedIndex].getAttribute('data-interface');
+    let id = select.options[select.selectedIndex].getAttribute('data-id');
 
-    let vlans = '';
-    for (let i = 1; i < 4095; i++) {
-        vlans += `<option>${i}</option>`;
+    let vlans = await getAvailableVLANs(session.data.workgroup_id, id);
+    let options = '';
+    for (let i = 0; i < vlans.length; i++) {
+        options += `<option>${vlans[i]}</option>`;
     }
-    document.querySelector('#endpoint-vlans').innerHTML = vlans;
+    document.querySelector('#endpoint-vlans').innerHTML = options;
 }
 
 async function addInterfaceSubmitCallback(event) {

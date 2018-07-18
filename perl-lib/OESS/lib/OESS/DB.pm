@@ -168,5 +168,10 @@ sub _set_error{
     $self->{'error'} = $error;
 }
 
+sub get_error{
+    my $self = shift;
+    return $self->{'error'};
+}
+
 1;
 

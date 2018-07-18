@@ -33,8 +33,8 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
 
   let form = new FormData();
   form.append('method', 'provision');
-  form.append('name', encodeURIComponent(name));
-  form.append('description', encodeURIComponent(description));
+  form.append('name', name);
+  form.append('description', description);
   form.append('local_asn', 1);
   form.append('workgroup_id', workgroupID);
   form.append('provision_time', provisionTime);
@@ -72,11 +72,11 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
     const data = await resp.json();
 
     if ('error_text' in data) {
-        console.log(data.error_text);
+        alert(data.error_text);
         return null;
     }
 
-    if (typeof data.results.success !== undefined && data.results.success === 1) {
+    if (typeof data.results.success !== 'undefined' && typeof data.results.vrf_id !== 'undefined') {
       return parseInt(data.results.vrf_id);
     }
   } catch(error) {

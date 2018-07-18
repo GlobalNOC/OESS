@@ -80,10 +80,10 @@ sub _fetch_from_db{
                 return;
             }
             $self->{'interface_id'} = $interface_id;
-        }
-
-        $self->{'logger'}->error("Unable to fetch interface from the db!");
-        return;
+        } else {
+	    $self->{'logger'}->error("Unable to fetch interface $self->{name} on $self->{node} from the db!");
+	    return;
+	}
     }
 
     my $info = OESS::DB::Interface::fetch(db => $self->{'db'}, interface_id => $self->{'interface_id'});
