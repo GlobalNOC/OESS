@@ -931,6 +931,7 @@ sub xml_configuration {
     foreach my $vrf (@{$vrf}){
         my $xml;
         my $vars = {};
+        next if ($vrf->{'state'} ne 'active');
         $vars->{'vrf_name'} = $vrf->{'name'};
         $vars->{'interfaces'} = ();
         foreach my $i (@{$vrf->{'interfaces'}}) {
@@ -1296,7 +1297,8 @@ sub _is_circuit_on_port{
 	foreach my $int (@{$circuits->{$circuit_id}->{'interfaces'}}){
 	    #check to see if the port matches the port
 	    #check to see if the vlan matches the vlan
-	    if($int->{'interface'} eq $port && $int->{'vlan'} eq $vlan){
+            $self->{'logger'}->error("Comparing " . Dumper($int) . " to $port and $vlan");
+	    if($int->{'interface'} eq $port && $int->{'tag'} eq $vlan){
 		$self->{'logger'}->error("Interface: " . $int->{'interface'} . " is in circuit: " . $circuit_id);
 		return 1;
 	    }
@@ -1323,8 +1325,9 @@ sub _is_vrf_on_port{
         foreach my $int (@{$vrfs->{$vrf_id}->{'interfaces'}}){
             #check to see if the port matches the port
             #check to see if the vlan matches the vlan
-            if($int->{'interface'} eq $port && $int->{'vlan'} eq $vlan){
-                $self->{'logger'}->error("Interface: " . $int->{'interface'} . " is in vrf: " . $vrf_id);
+            $self->{'logger'}->error("Comparing " . Dumper($int) . " to $port and $vlan");
+            if($int->{'name'} eq $port && $int->{'tag'} eq $vlan){
+                $self->{'logger'}->error("Interface: " . $int->{'name'} . " is in vrf: " . $vrf_id);
                 return 1;
             }
         }
