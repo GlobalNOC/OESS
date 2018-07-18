@@ -6,7 +6,14 @@
       <unit>
         <name>[% interface.tag %]</name>
         <description>OESS-L3VPN-[% vrf_id %]</description>
+        [% IF interface.defined('inner_tag') %]
+        <vlan-tags>
+          <outer>[% interface.tag %]</outer>
+          <inner>[% interface.inner_tag %]</inner>
+        </vlan-tags>
+        [% ELSE %]
         <vlan-id>[% interface.tag %]</vlan-id>
+        [% END %]
         <family>
           [% IF interface.has_ipv4 %]
           <inet>
