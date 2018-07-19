@@ -686,10 +686,12 @@ sub remove_vlan{
       interfaces => [
         {
           interface => 'ge-0/0/1',
+          inner_tag => 100,
           tag => 2004
         },
         {
           interface => 'ge-0/0/2',
+          inner_tag => 100,
           tag => 2004
         }
       ],
@@ -715,6 +717,7 @@ sub add_vlan{
     $vars->{'interfaces'} = [];
     foreach my $i (@{$ckt->{'interfaces'}}) {
         push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
+                                          inner_tag => $i->{'inner_tag'},
                                           tag  => $i->{'tag'}
                                         });
     }
@@ -900,8 +903,19 @@ sub xml_configuration {
         $vars->{'circuit_name'} = $ckt->{'circuit_name'};
         $vars->{'interfaces'} = [];
         foreach my $i (@{$ckt->{'interfaces'}}) {
+            # Cantor's pairing function
+            # Assign one natural number to each pair of natural
+            # numbers. This ensures a unique number for q-in-q tagged
+            # units.
+            #
+            # ((a+b+1)*(a+b)/2)+b
+            my $a = $i->{'tag'};
+            my $b = $i->{'inner_tag'} || 0;
+            my $unit = (($a+$b+1)*($a+$b)/2)+$b;
+
             push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
-                                              tag  => $i->{'tag'}
+                                              tag  => $i->{'tag'},
+                                              unit => $unit
                                             });
         }
         $vars->{'paths'} = $ckt->{'paths'};
@@ -976,8 +990,20 @@ sub xml_configuration {
                 }
                 
             }
-            
+
+            # Cantor's pairing function
+            # Assign one natural number to each pair of natural
+            # numbers. This ensures a unique number for q-in-q tagged
+            # units.
+            #
+            # ((a+b+1)*(a+b)/2)+b
+            my $a = $i->{'tag'};
+            my $b = $i->{'inner_tag'} || 0;
+            my $unit = (($a+$b+1)*($a+$b)/2)+$b;
+
             push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
+                                              unit => $unit,
+                                              inner_tag  => $i->{'inner_tag'},
                                               tag  => $i->{'tag'},
                                               bandwidth => $i->{'bandwidth'},
                                               v4_peers => \@bgp_v4,
