@@ -673,14 +673,16 @@ sub is_external_vlan_available_on_interface {
     my $interface_id = $args{'interface_id'};
     my $circuit_id = $args{'circuit_id'};
 
+    my $type = 'openflow';
+
     if(!defined($interface_id)){
         $self->_set_error("No Interface ID Specified");
-        return undef;
+        return;
     }
 
     if(!defined($vlan_tag)){
         $self->_set_error("No VLAN Tag specified");
-        return undef;
+        return;
     }
 
     my $query = "select circuit.name, circuit.circuit_id from circuit join circuit_edge_interface_membership " .
@@ -694,67 +696,51 @@ sub is_external_vlan_available_on_interface {
         $self->_set_error("Internal error while finding available external vlan tags.");
         return;
     }
+    foreach my $circuit (@{$result}) {
+        if (defined $circuit_id && $circuit->{'circuit_id'} == $circuit_id) {
+            # There's no problem here; We are editing the circuit.
+            return { status => 1, type => 'openflow' };
+        } else {
+            return { status => 0, type => 'openflow' };
+        }
+    }
 
-    $query = "select vrf from vrf join vrf_ep on vrf.vrf_id = vrf_ep.vrf_id where vrf_ep.interface_id = ? and vrf_ep.tag = ?";
+    $query = "select vrf.vrf_id from vrf join vrf_ep on vrf.vrf_id = vrf_ep.vrf_id where vrf.state='active' and vrf_ep.interface_id=? and vrf_ep.tag=?";
     my $result2 = $self->_execute_query($query, [$interface_id, $vlan_tag]);
-    if(!defined($result)){
+    if (!defined $result2) {
         $self->_set_error("Internal error while finding available vrf vlan tags");
         return;
     }
-    
-    push(@{$result},$result2);
-
-    $query = "select * from interface where interface.interface_id = ?";
-    my $interface = $self->_execute_query( $query, [$interface_id])->[0];
+    foreach my $vrf (@{$result2}) {
+        if (defined $circuit_id && $vrf->{vrf_id} == $circuit_id) {
+            # There's no problem here; We are editing the circuit.
+            return { status => 1, type => 'mpls' };
+        } else {
+            return { status => 0, type => 'mpls' };
+        }
+    }
 
     # Verify $vlan_tag is within the interface's available tag range
+
+    $query = "select * from interface where interface.interface_id = ?";
+    my $interface = $self->_execute_query($query, [$interface_id])->[0];
+
     my $tags = $self->_process_tag_string($interface->{'vlan_tag_range'});
-
-    my $mpls_tags = $self->_process_tag_string($interface->{'mpls_vlan_tag_range'});
-
-    my $type = 'openflow';
-
-    my $available_vlan = 0;
     foreach my $tag (@{$tags}){
         if ($tag == $vlan_tag) {
-            $available_vlan = 1;
+            return { status => 1, type => 'openflow' };
         }
     }
 
-    if ($available_vlan == 0) {
-	foreach my $tag (@{$mpls_tags}){
-	    if ($tag == $vlan_tag) {
-		$available_vlan = 1;
-		$type = 'mpls';
-	    }
-	}
-
-	if($available_vlan == 0){
-
-	    $self->_set_error("VLAN $vlan_tag is not within the default VLAN range.");
-	    return {status => 0, type => $type};
-	}
-    }
-
-    # Verify no other circuit is using $vlan_tag on $interface_id
-    my $err = "VLAN $vlan_tag already in use on another circuit\n";
-    if (@{$result} > 0) {
-        if (defined $circuit_id) {
-            foreach my $circuit (@{$result}) {
-                if ($circuit->{'circuit_id'} == $circuit_id) {
-                    # There's no problem here; We are editing the circuit.
-                } else {
-                    $self->_set_error($err);
-                    return {status => 0, type => $type };
-                }
-            }
-        } else {
-            $self->_set_error($err);
-            return {status => 0, type => $type};
+    my $mpls_tags = $self->_process_tag_string($interface->{'mpls_vlan_tag_range'});
+    foreach my $tag (@{$mpls_tags}){
+        if ($tag == $vlan_tag) {
+            return { status => 1, type => 'mpls' };
         }
     }
 
-    return { status => 1, type => $type };
+    $self->{logger}->error("Couldn't determine if VLAN $vlan_tag was available.");
+    return { status => 0, type => 'openflow' };
 }
 
 =head2 get_user_by_id
