@@ -7,7 +7,14 @@
 	<name>[% interface.unit %]</name>
 	<description>OESS-L2VPN-[% circuit_id %]</description>
 	<encapsulation>vlan-ccc</encapsulation>
-	<vlan-id>[% interface.tag %]</vlan-id>
+        [% IF interface.defined('inner_tag') %]
+        <vlan-tags>
+          <outer>[% interface.tag %]</outer>
+          <inner>[% interface.inner_tag %]</inner>
+        </vlan-tags>
+        [% ELSE %]
+        <vlan-id>[% interface.tag %]</vlan-id>
+        [% END %]
 	<output-vlan-map>
           <swap/>
 	</output-vlan-map>
