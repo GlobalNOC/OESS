@@ -71,6 +71,7 @@ CREATE TABLE `circuit_edge_interface_membership` (
   `end_epoch` int(10) NOT NULL,
   `start_epoch` int(10) NOT NULL,
   `extern_vlan_id` int(10) NOT NULL,
+  `inner_tag` int(10) DEFAULT NULL,
   `circuit_edge_id` int(10) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`circuit_edge_id`),
   UNIQUE KEY `interface_id` (`interface_id`,`circuit_id`,`end_epoch`,`extern_vlan_id`),

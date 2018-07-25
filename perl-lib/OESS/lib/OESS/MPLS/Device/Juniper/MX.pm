@@ -979,7 +979,6 @@ sub xml_configuration {
         $vars->{'site_id'} = $ckt->{'site_id'};
         $vars->{'paths'} = $ckt->{'paths'};
         $vars->{'a_side'} = $ckt->{'a_side'};
-        #$self->{'logger'}->debug(Dumper($vars));
 
         if ($ckt->{'state'} eq 'active') {
             $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$xml);
