@@ -6806,16 +6806,27 @@ An array of names of endpoint nodes that this circuit should use. The order of t
 
 =item interfaces
 
-An array of names of interfaces that this circuit should use. The order of this should match nodes and tags such that a given nodes[i]-interfaces[i]-tags[i] combination is accurate.
+An array of interfaces this circuit should use. The order of this
+should match nodes and interfaces such that a given C<(nodes[i],
+interfaces[i], tags[i], inner_tags[i])> combination is accurate.
 
 =item tags
 
-An array of vlan tags that this circuit should use. The order of this should match nodes and interfaces such that a given nodes[i]-interfaces[i]-tags[i] combination is accurate.
+An array of vlan tags that this circuit should use. The order of this
+should match nodes and interfaces such that a given C<(nodes[i],
+interfaces[i], tags[i], inner_tags[i])> combination is accurate.
+
+=back
+
+=item inner_tags
+
+An array of vlan tags that this circuit should use. The order of this
+should match nodes and interfaces such that a given C<(nodes[i],
+interfaces[i], tags[i], inner_tags[i])> combination is accurate.
 
 =back
 
 =cut
-
 sub provision_circuit {
     my $self = shift;
     my %args = @_;
@@ -6829,6 +6840,7 @@ sub provision_circuit {
     my $nodes            = $args{'nodes'};
     my $interfaces       = $args{'interfaces'};
     my $tags             = $args{'tags'};
+    my $inner_tags       = $args{'inner_tags'};
     my $mac_addresses    = $args{'mac_addresses'};
     my $endpoint_mac_address_nums = $args{'endpoint_mac_address_nums'};
     my $user_name        = $args{'user_name'};
@@ -6974,6 +6986,7 @@ sub provision_circuit {
 	my $node      = @$nodes[$i];
 	my $interface = @$interfaces[$i];
 	my $vlan      = @$tags[$i];
+	my $inner_vlan = @$inner_tags[$i];
         my $endpoint_mac_address_num = @$endpoint_mac_address_nums[$i];
         my $circuit_edge_id;
         
@@ -7046,11 +7059,10 @@ sub provision_circuit {
             return;
         }
 
-	$query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, end_epoch, start_epoch) values (?, ?, ?, -1, unix_timestamp(NOW()))";
+	$query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, inner_tag, end_epoch, start_epoch) values (?, ?, ?, ?, -1, unix_timestamp(NOW()))";
 
-	$circuit_edge_id = $self->_execute_query($query, [$interface_id, $circuit_id, $vlan]);
+	$circuit_edge_id = $self->_execute_query($query, [$interface_id, $circuit_id, $vlan, $inner_vlan]);
 	if (! defined($circuit_edge_id) ){
-            #if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $vlan])){
 	    $self->_set_error("Unable to create circuit edge to interface '$interface' on endpoint '$node'");
             $self->_rollback();
 	    return;
@@ -8109,6 +8121,7 @@ sub edit_circuit {
     my $nodes                     = $args{'nodes'};
     my $interfaces                = $args{'interfaces'};
     my $tags                      = $args{'tags'};
+    my $inner_tags                = $args{'inner_tags'};
     my $state                     = $args{'state'} || "active";
     my $user_name                 = $args{'user_name'};
     my $workgroup_id              = $args{'workgroup_id'};
@@ -8226,6 +8239,7 @@ sub edit_circuit {
         my $node      = @$nodes[$i];
         my $interface = @$interfaces[$i];
         my $vlan      = @$tags[$i];
+        my $inner_vlan = @$inner_tags[$i];
         my $endpoint_mac_address_num = @$endpoint_mac_address_nums[$i];
         my $circuit_edge_id;
 
@@ -8234,9 +8248,9 @@ sub edit_circuit {
             " where node.name = ? and interface.name = ? ";
         my $interface_id = $self->_execute_query($query, [$node, $interface])->[0]->{'interface_id'};
 
-        $query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, end_epoch, start_epoch) values (?, ?, ?, -1, unix_timestamp(NOW()))";
+        $query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, inner_tag, end_epoch, start_epoch) values (?, ?, ?, ?, -1, unix_timestamp(NOW()))";
 
-        $circuit_edge_id = $self->_execute_query($query, [$interface_id, $circuit_id, $vlan]);
+        $circuit_edge_id = $self->_execute_query($query, [$interface_id, $circuit_id, $vlan, $inner_vlan]);
         if (! defined($circuit_edge_id) ){
 
             $self->_set_error("Unable to create circuit edge to interface '$interface'");

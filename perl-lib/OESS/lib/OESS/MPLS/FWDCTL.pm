@@ -421,7 +421,7 @@ sub _write_cache{
 			a_side => $ep_a->{'node_id'},
                         state  => $ckt->{'state'}
                       };
-	    
+
 	    $switches{$ep_a->{'node'}}->{'ckts'}{$details->{'circuit_id'}} = $obj;
 	}
     }
