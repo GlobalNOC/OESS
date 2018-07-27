@@ -670,6 +670,7 @@ sub is_external_vlan_available_on_interface {
     my %args = @_;
 
     my $vlan_tag     = $args{'vlan'};
+    my $inner_vlan_tag = $args{'inner_vlan'};
     my $interface_id = $args{'interface_id'};
     my $circuit_id = $args{'circuit_id'};
 
@@ -689,9 +690,10 @@ sub is_external_vlan_available_on_interface {
                 " on circuit.circuit_id = circuit_edge_interface_membership.circuit_id " .
                 " where circuit_edge_interface_membership.interface_id = ? " .
                 " and circuit_edge_interface_membership.extern_vlan_id = ? " .
+                " and circuit_edge_interface_membership.inner_tag = ? " .
                 " and circuit_edge_interface_membership.end_epoch = -1";
 
-    my $result = $self->_execute_query($query, [$interface_id, $vlan_tag]);
+    my $result = $self->_execute_query($query, [$interface_id, $vlan_tag, $inner_vlan_tag]);
     if (!defined $result) {
         $self->_set_error("Internal error while finding available external vlan tags.");
         return;
@@ -705,8 +707,8 @@ sub is_external_vlan_available_on_interface {
         }
     }
 
-    $query = "select vrf.vrf_id from vrf join vrf_ep on vrf.vrf_id = vrf_ep.vrf_id where vrf.state='active' and vrf_ep.interface_id=? and vrf_ep.tag=?";
-    my $result2 = $self->_execute_query($query, [$interface_id, $vlan_tag]);
+    $query = "select vrf.vrf_id from vrf join vrf_ep on vrf.vrf_id = vrf_ep.vrf_id where vrf.state='active' and vrf_ep.interface_id=? and vrf_ep.tag=? and vrf_ep.inner_tag=?";
+    my $result2 = $self->_execute_query($query, [$interface_id, $vlan_tag, $inner_vlan_tag]);
     if (!defined $result2) {
         $self->_set_error("Internal error while finding available vrf vlan tags");
         return;
