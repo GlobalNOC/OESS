@@ -4,7 +4,7 @@
     <interface>
       <name>[% interface.name %]</name>
       <unit operation='delete'>
-	<name>[% interface.tag %]</name>
+	<name>[% interface.unit %]</name>
       </unit>
     </interface>
     [% END %]

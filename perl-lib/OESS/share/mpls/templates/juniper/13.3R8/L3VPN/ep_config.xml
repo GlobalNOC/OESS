@@ -4,9 +4,16 @@
     <interface>
       <name>[% interface.name %]</name>
       <unit>
-        <name>[% interface.tag %]</name>
+        <name>[% interface.unit %]</name>
         <description>OESS-L3VPN-[% vrf_id %]</description>
+        [% IF interface.defined('inner_tag') %]
+        <vlan-tags>
+          <outer>[% interface.tag %]</outer>
+          <inner>[% interface.inner_tag %]</inner>
+        </vlan-tags>
+        [% ELSE %]
         <vlan-id>[% interface.tag %]</vlan-id>
+        [% END %]
         <family>
           [% IF interface.has_ipv4 %]
           <inet>
@@ -40,7 +47,7 @@
       <interface>
         <name>[% interface.name %]</name>
         <unit>
-          <name>[% interface.tag %]</name>
+          <name>[% interface.unit %]</name>
           <shaping-rate>
             <rate>[% interface.bandwidth %]m</rate>
           </shaping-rate>
@@ -56,7 +63,7 @@
       <instance-type>vrf</instance-type>
       [% FOREACH interface IN interfaces %]
       <interface>
-	<name>[% interface.name %].[% interface.tag %]</name>
+	<name>[% interface.name %].[% interface.unit %]</name>
       </interface>
       [% END %]
       <route-distinguisher>

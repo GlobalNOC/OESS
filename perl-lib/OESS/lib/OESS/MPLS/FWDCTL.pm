@@ -276,6 +276,7 @@ sub _write_cache{
 	    
 	    my $int_obj = { name => $ep->interface()->name(),
 			    tag => $ep->tag(),
+                            inner_tag => $ep->inner_tag(),
                             bandwidth => $ep->bandwidth(),
 			    peers => \@bgp };
 	    
@@ -294,9 +295,6 @@ sub _write_cache{
 	    }
 	}
     }
-
-    $self->{'logger'}->error("SWITCHES WITH VRF: " .  Dumper(%switches));
-    
     $self->{'logger'}->error("SWITCHES WITH VRF: " .  Dumper(%switches));
     
     foreach my $ckt_id (keys (%{$self->{'circuit'}})){
@@ -323,8 +321,6 @@ sub _write_cache{
 	    $ckt_type = "L2VPLS";
 	}
 
-        
-
 	my $site_id = 0;
 	foreach my $ep_a (@$eps){
             my @ints;
@@ -341,7 +337,7 @@ sub _write_cache{
 	    foreach my $ep_z (@$eps){
 
                 # Ignore interations comparing the same endpoint.
-                next if ($ep_a->{'node'} eq $ep_z->{'node'} && $ep_a->{'interface'} eq $ep_z->{'interface'} && $ep_a->{'tag'} eq $ep_z->{'tag'});
+                next if ($ep_a->{'node'} eq $ep_z->{'node'} && $ep_a->{'interface'} eq $ep_z->{'interface'} && $ep_a->{'tag'} eq $ep_z->{'tag'} && $ep_a->{'inner_tag'} eq $ep_z->{'inner_tag'});
 
                 if ($ep_a->{'node'} eq $ep_z->{'node'}){
                     # We're comparing interfaces on the same node; There
@@ -425,7 +421,7 @@ sub _write_cache{
 			a_side => $ep_a->{'node_id'},
                         state  => $ckt->{'state'}
                       };
-	    
+
 	    $switches{$ep_a->{'node'}}->{'ckts'}{$details->{'circuit_id'}} = $obj;
 	}
     }

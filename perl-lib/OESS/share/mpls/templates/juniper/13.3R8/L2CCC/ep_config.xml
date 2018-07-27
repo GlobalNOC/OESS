@@ -4,10 +4,17 @@
     <interface>
       <name>[% interface.name %]</name>
       <unit>
-        <name>[% interface.tag %]</name>
+        <name>[% interface.unit %]</name>
         <description>OESS-L2CCC-[% circuit_id %]</description>
         <encapsulation>vlan-ccc</encapsulation>
+        [% IF interface.defined('inner_tag') %]
+        <vlan-tags>
+          <outer>[% interface.tag %]</outer>
+          <inner>[% interface.inner_tag %]</inner>
+        </vlan-tags>
+        [% ELSE %]
         <vlan-id>[% interface.tag %]</vlan-id>
+        [% END %]
         <output-vlan-map>
           <swap/>
         </output-vlan-map>
@@ -52,7 +59,7 @@
       <remote-interface-switch>
         <name>OESS-L2CCC-[% circuit_id %]</name>
         [% FOREACH interface IN interfaces %]
-        <interface>[% interface.name %].[% interface.tag %]</interface>
+        <interface>[% interface.name %].[% interface.unit %]</interface>
         [% END %]
         <transmit-lsp>OESS-L2CCC-[% a_side %]-[% path.dest_node %]-LSP-[% circuit_id %]</transmit-lsp>
         <receive-lsp>OESS-L2CCC-[% path.dest_node %]-[% a_side %]-LSP-[% circuit_id %]</receive-lsp>
