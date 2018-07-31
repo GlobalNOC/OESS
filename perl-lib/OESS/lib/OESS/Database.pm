@@ -6732,7 +6732,10 @@ sub validate_circuit {
             vlan => $vlans->[$i],
             inner_vlan => $inner_vlans->[$i]
         );
-        warn Dumper($res);
+        if (!$res->{status}) {
+            return (0, "VLAN $vlans->[$i] $inner_vlans->[$i] is not available on $nodes->[$i] $interfaces->[$i].");
+        }
+
         if(!defined($type)){
             $type = $res->{'type'};
         }else{
@@ -9221,7 +9224,8 @@ sub validate_endpoints {
         }
 
         # need to check to see if this external vlan is open on this interface first
-        if (! $self->is_external_vlan_available_on_interface(vlan => $vlan, interface_id => $interface_id, circuit_id => $circuit_id) ){
+        my $is_avail = $self->is_external_vlan_available_on_interface(vlan => $vlan, interface_id => $interface_id, circuit_id => $circuit_id);
+        if (!$is_avail->{'status'}) {
             $self->_set_error("Vlan '$vlan' is currently in use by another circuit on interface '$interface' on endpoint '$node'");
             return;
         }
