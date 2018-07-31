@@ -6709,6 +6709,7 @@ sub validate_circuit {
     my $nodes        = $args{'nodes'};
     my $interfaces   = $args{'interfaces'};
     my $vlans        = $args{'vlans'};
+    my $inner_vlans  = $args{'inner_vlans'} || [];
 
     my $type;
 
@@ -6726,7 +6727,11 @@ sub validate_circuit {
         
         my $interface = $self->get_interface( interface_id => $interface_id);
 
-        my $res = $self->is_external_vlan_available_on_interface( interface_id => $interface_id, vlan => $vlans->[$i]);
+        my $res = $self->is_external_vlan_available_on_interface(
+            interface_id => $interface_id,
+            vlan => $vlans->[$i],
+            inner_vlan => $inner_vlans->[$i]
+        );
         warn Dumper($res);
         if(!defined($type)){
             $type = $res->{'type'};

@@ -916,7 +916,8 @@ sub provision_vrf {
     my @nodes;
     my @interfaces;
     my @vlans;
-    
+    my @inner_vlans;
+
     my @endpoints;
     foreach my $ep (@$endpoints){
 	warn "Endpoints: $ep\n";
@@ -932,6 +933,7 @@ sub provision_vrf {
         push(@nodes, $endpoint->{'node'});
         push(@interfaces, $endpoint->{'interface'});
         push(@vlans, $endpoint->{'tag'});
+        push(@inner_vlans, $endpoint->{'inner_tag'});
     }
     
     warn Dumper(@endpoints);
@@ -946,8 +948,9 @@ sub provision_vrf {
         backup_links => [],
         nodes => \@nodes,
         interfaces => \@interfaces,
-        vlans => \@vlans
-    );    
+        vlans => \@vlans,
+        inner_vlans => \@inner_vlans
+    );
 
     if (!$status){
         warn "Couldn't validate circuit: " . $err;
@@ -1122,7 +1125,8 @@ sub provision_circuit {
 	backup_links => $backup_links,
 	nodes => $nodes,
 	interfaces => $interfaces,
-        vlans => $tags
+        vlans => $tags,
+        inner_vlans => $inner_tags
     );
     if (!$status){
 	warn "Couldn't validate circuit: " . $err;
