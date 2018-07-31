@@ -14,6 +14,8 @@ BEGIN {
 use lib "$path";
 use OESS::DB;
 use OESS::Entity;
+use OESS::Interface;
+use OESS::User;
 use OESSDatabaseTester;
 
 use Test::More tests => 60;
