@@ -3,7 +3,7 @@ async function loadCommands() {
 
     let options = '';
     commands.forEach(function(cmd) {
-            options += `<option value="${cmd.id}">${cmd.name}</option>`
+            options += `<option value="${cmd.command_id}">${cmd.name}</option>`
     });
     document.querySelector('#command-select').innerHTML = options;
 }

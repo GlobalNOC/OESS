@@ -7,6 +7,7 @@ use GRNOC::WebService::Method;
 use GRNOC::WebService::Dispatcher;
 use OESS::DB;
 use OESS::VRF;
+use OESS::DB::Command;
 
 use GRNOC::Config;
 use GRNOC::RouterProxy;
@@ -45,24 +46,15 @@ $method->add_input_parameter(
 $svc->register_method($method);
 
 
-my $commands = {
-    1 => { id => 1, name => 'show version', template => 'show version' },
-    2 => { id => 2, name => 'show mpls lsp brief', template => 'show mpls lsp brief' },
-    3 => { id => 3, name => 'show interfaces', template => 'show interfaces [% interface %].[% unit %]' }
-};
-
-
 sub get_commands {
     my $method = shift;
     my $params = shift;
 
     my $interface_id = $params->{'interface_id'}{'value'};
     my $workgroup_id = $params->{'workgroup_id'}{'value'};
+    my $type = $params->{'type'}{'value'} || 'l3vpn';
 
-    my $result = [];
-    foreach my $key (keys %$commands) {
-        push @$result, $commands->{$key};
-    }
+    my $result = OESS::DB::Command::fetch_all(db => $db, type => $type);
 
     return { results => $result };
 }
@@ -74,12 +66,7 @@ sub run_command {
     my $command_id = $params->{'command_id'}{'value'};
     my $vrf_id = $params->{'vrf_id'}{'value'};
 
-    if (!defined $command_id) {
-        $method->set_error("ERROR");
-        return;
-    }
-
-    my $config = GRNOC::Config->new( config_file => '/etc/oess/.passwd.xml' );
+    my $config = GRNOC::Config->new(config_file => '/etc/oess/.passwd.xml');
     my $vrf = OESS::VRF->new(db => $db, vrf_id => $vrf_id);
 
     my $result = '';
@@ -99,14 +86,18 @@ sub run_command {
             timeout     => 15
         );
 
-        my $cmd_template = $commands->{$command_id}->{template};
-        my $cmd = '';
+        my $cmd = OESS::DB::Command::fetch(db => $db, command_id => $command_id);
+        if (!defined $cmd) {
+            $method->set_error("Could not find requested command $command_id.");
+            return;
+        }
 
-        my $tt  = Template->new();
-        $tt->process(\$cmd_template, { node => $node, interface => $intf, unit => $unit }, \$cmd);
+        my $cmd_string = '';
+        my $tt = Template->new();
+        $tt->process(\$cmd->{template}, { node => $node, interface => $intf, unit => $unit }, \$cmd_string);
 
         $result .= "========== $node ==========\n\n";
-        $result .= $proxy->junosSSH($cmd);
+        $result .= $proxy->junosSSH($cmd_string);
     }
 
     return { results => [ $result ] };
