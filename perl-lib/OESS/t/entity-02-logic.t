@@ -16,7 +16,7 @@ use OESS::DB;
 use OESS::Entity;
 use OESSDatabaseTester;
 
-use Test::More tests => 41;
+use Test::More tests => 47;
 use Test::Deep;
 use Data::Dumper;
 
@@ -212,4 +212,62 @@ cmp_deeply(
     [ map {$_->{'entity_id'}} @{$ent3->parents()} ],
     bag( 7 ),
     'Entity 3: post-set parents() returns correct set of parents'
+);
+
+my $ent4 = OESS::Entity->new( entity_id => 9, db => $db );
+
+ok($ent4->entity_id() == 9,       'Entity 4 returns correct entity_id');
+ok($ent4->name() eq 'Blue Cloud', 'Entity 4 returns correct name');
+
+cmp_deeply(
+    [ map {ref $_} @{$ent4->children()} ],
+    [ 'HASH', 'HASH', 'HASH' ],
+    'Entity 4: children() returns 3 hashes'
+);
+
+cmp_deeply(
+    [ map {$_->{'entity_id'}} @{$ent4->children()} ],
+    bag( 11, 12, 13 ),
+    'Entity 4: children() returns info on correct child entities'
+);
+
+my $new_child = {
+    # corporate acquisition?
+    entity_id   => 16,
+    name        => 'EC Utopia',
+    description => 'Guess where this region is?',
+    logo_url    => undef,
+    url         => undef,
+};
+
+$ent4->add_child($new_child);
+cmp_deeply(
+    [ map {$_->{'entity_id'}} @{$ent4->children()} ],
+    bag( 11, 12, 13, 16 ),
+    'Entity 4: post-add children() returns correct set of children'
+);
+
+my $new_child_list = [
+    # public-private partnership thingy
+    {
+        entity_id   => 7,
+        name        => 'Big State TeraPOP',
+        description => 'The R&E networking hub for Big State',
+        logo_url    => 'https://terapop.example.net/favicon.ico',
+        url         => 'https://terapop.example.net/',
+    },
+    {
+        entity_id   => 8,
+        name        => 'Small State MilliPOP',
+        description => undef,
+        logo_url    => undef,
+        url         => 'https://smst.millipop.net/',
+    },
+];
+
+$ent4->children($new_child_list);
+cmp_deeply(
+    [ map {$_->{'entity_id'}} @{$ent4->children()} ],
+    bag( 7, 8 ),
+    'Entity 4: post-set children() returns correct set of children'
 );
