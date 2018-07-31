@@ -129,6 +129,7 @@ sub from_hash{
     $self->{'created'} = $hash->{'created'};
     $self->{'last_modified'} = $hash->{'last_modified'};
     $self->{'local_asn'} = $hash->{'local_asn'};
+    $self->{'state'} = $hash->{'state'};
 }
 
 sub _fetch_from_db{
@@ -151,7 +152,7 @@ sub to_hash{
     foreach my $endpoint (@{$self->endpoints()}){
         push(@endpoints, $endpoint->to_hash());
     }
-
+    $obj->{'state'} = $self->{'state'};
     $obj->{'endpoints'} = \@endpoints;
     $obj->{'prefix_limit'} = $self->prefix_limit();
     $obj->{'workgroup'} = $self->workgroup()->to_hash();
@@ -481,7 +482,7 @@ sub local_asn{
 
 sub state{
     my $self = shift;
-    return 'active';
+    return $self->{'state'};
 }
 
 1;

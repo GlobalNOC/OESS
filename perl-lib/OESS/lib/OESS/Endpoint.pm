@@ -60,6 +60,7 @@ sub _build_from_model{
     }else{
         $self->{'interface'} = OESS::Entity->new( db => $self->{'db'}, name => $self->{'model'}->{'entity'})->interfaces()->[0];
     }
+    $self->{'inner_tag'} = $self->{'model'}->{'inner_tag'};
     $self->{'tag'} = $self->{'model'}->{'tag'};
     $self->{'bandwidth'} = $self->{'model'}->{'bandwidth'};
 
@@ -86,6 +87,7 @@ sub to_hash{
 
     $obj->{'interface'} = $self->interface()->to_hash();
     $obj->{'node'} = $self->interface()->node()->to_hash();
+    $obj->{'inner_tag'} = $self->inner_tag();
     $obj->{'tag'} = $self->tag();
     $obj->{'bandwidth'} = $self->bandwidth();
 
@@ -124,6 +126,7 @@ sub from_hash{
         $self->{'circuit_id'} = $hash->{'circuit_id'};
     }
 
+    $self->{'inner_tag'} = $hash->{'inner_tag'};
     $self->{'tag'} = $hash->{'tag'};
     $self->{'bandwidth'} = $hash->{'bandwidth'};
     
@@ -171,6 +174,11 @@ sub peers{
         return [];
     }
     return $self->{'peers'};
+}
+
+sub inner_tag{
+    my $self = shift;
+    return $self->{'inner_tag'};
 }
 
 sub tag{

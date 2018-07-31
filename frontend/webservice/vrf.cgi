@@ -219,21 +219,37 @@ sub provision_vrf{
     $model->{'created_by'} = $user->user_id();
     $model->{'last_modified'} = $params->{'provision_time'}{'value'};
     $model->{'last_modified_by'} = $user->user_id();
-
     $model->{'endpoints'} = ();
-    foreach my $endpoint (@{$params->{'endpoint'}{'value'}}){
-        my $obj;
-        eval{
-            $obj = decode_json($endpoint);
-        };
-        
-        push(@{$model->{'endpoints'}}, $obj);
-    }
 
     #first validate the user is in the workgroup
     if(!$user->in_workgroup( $model->{'workgroup_id'})){
         $method->set_error("User is not in workgroup");
         return;
+    }
+
+    # Use $peerings to validate a local address isn't specified twice
+    # on the same interface.
+    my $peerings = {};
+
+    foreach my $endpoint (@{$params->{'endpoint'}{'value'}}){
+        my $obj;
+        eval{
+            $obj = decode_json($endpoint);
+        };
+        if ($@) {
+            $method->set_error("Cannot decode endpoint: $@");
+            return;
+        }
+
+        foreach my $peering (@{$obj->{peerings}}) {
+            if (defined $peerings->{"$obj->{node} $obj->{interface} $peering->{local_ip}"}) {
+                $method->set_error("Cannot have duplicate local addresses on an interface.");
+                return;
+            }
+            $peerings->{"$obj->{node} $obj->{interface} $peering->{local_ip}"} = 1;
+        }
+
+        push(@{$model->{'endpoints'}}, $obj);
     }
 
     my $vrf;
@@ -298,20 +314,18 @@ sub remove_vrf{
         return {success => 0};
     }
 
-
-
     my $result;
     if(!$user->in_workgroup( $wg)){
         $method->set_error("User " . $ENV{'REMOTE_USER'} . " is not in workgroup");
         return {success => 0};
     }
 
-    $vrf->decom(user_id => $user->user_id());
-
     my $res = vrf_del( method => $method, vrf_id => $vrf_id);
     $res->{'vrf_id'} = $vrf_id;
-    return {results => $res};
 
+    $vrf->decom(user_id => $user->user_id());
+
+    return {results => $res};
 }
 
 sub vrf_add{

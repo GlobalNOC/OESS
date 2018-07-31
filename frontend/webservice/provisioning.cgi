@@ -229,6 +229,15 @@ sub register_webservice_methods {
         description     => 'An array of vlan tags to be used on each interface. Note that tag[0] is on interface[0] and tag[1] is on interface[1].'
 	);
 
+    #add the optional input parameter inner_tag
+    $method->add_input_parameter(
+        name            => 'inner_tag',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        multiple        => 1,
+        description     => 'An array of inner vlan tags to be used on each interface. Note that inner tag[0] is on interface[0] and inner tag[1] is on interface[1].'
+	);
+
     #add the optional paramter loop_node
     $method->add_input_parameter(
         name            => 'loop_node',
@@ -451,8 +460,7 @@ sub register_webservice_methods {
         required        => 1,
         description     => "The description of the circuit."
         );
-    
-    
+
     $method->add_input_parameter(
         name            => 'endpoint',
         pattern         => $GRNOC::WebService::Regex::TEXT,
@@ -930,6 +938,9 @@ sub provision_vrf {
 
     #yes I know this is not a circuit, however the same permissions exist!
     #so we can validate the circuit is valid (ie... we have all the permissions)
+    #
+    # We only consider outer tags during validation as these are the
+    # defined customer endpoints.
     my ($status,$err) = $db->validate_circuit(
         links => [],
         backup_links => [],
@@ -979,7 +990,7 @@ sub provision_vrf {
              }
 
 
-             my $vrf_ep_id = $db->_execute_query("insert into vrf_ep (interface_id, tag, bandwidth, vrf_id, state) VALUES (?,?,?,?,?)",[$interface_id, $ep->{'tag'}, $ep->{'bandwidth'}, $vrf_id, 'active']);
+             my $vrf_ep_id = $db->_execute_query("insert into vrf_ep (interface_id, tag, inner_tag, bandwidth, vrf_id, state) VALUES (?,?,?,?,?,?)",[$interface_id, $ep->{'tag'}, $ep->{'inner_tag'}, $ep->{'bandwidth'}, $vrf_id, 'active']);
              if(!defined($vrf_ep_id)){
                  my $error = $db->get_error();
          	$method->set_error("Unable to add VRF Endpoint: " . $error);
@@ -1059,6 +1070,7 @@ sub provision_circuit {
     my $nodes         = $args->{'node'}{'value'} || [];
     my $interfaces    = $args->{'interface'}{'value'} || [];
     my $tags          = $args->{'tag'}{'value'} || [];
+    my $inner_tags    = $args->{'inner_tag'}{'value'} || [];
     my $mac_addresses = $args->{'mac_address'}{'value'} || [];
     my $endpoint_mac_address_nums = $args->{'endpoint_mac_address_num'}{'value'} || [];
     my $loop_node     = $args->{'loop_node'}{'value'};
@@ -1136,6 +1148,7 @@ sub provision_circuit {
             nodes          => $nodes,
             interfaces     => $interfaces,
             tags           => $tags,
+            inner_tags     => $inner_tags,
             mac_addresses  => $mac_addresses,
             endpoint_mac_address_nums  => $endpoint_mac_address_nums,
             user_name      => $ENV{'REMOTE_USER'},
@@ -1263,6 +1276,7 @@ sub provision_circuit {
             nodes          => $nodes,
             interfaces     => $interfaces,
             tags           => $tags,
+            inner_tags     => $inner_tags,
             mac_addresses  => $mac_addresses,
             endpoint_mac_address_nums  => $endpoint_mac_address_nums,
             user_name      => $ENV{'REMOTE_USER'},

@@ -152,7 +152,7 @@ sub add_endpoint{
     my $model = $params{'model'};
     my $vrf_id = $params{'vrf_id'};
 
-    my $vrf_ep_id = $db->execute_query("insert into vrf_ep (interface_id, tag, bandwidth, vrf_id, state) VALUES (?,?,?,?,?)",[$model->{'interface'}->{'interface_id'}, $model->{'tag'}, $model->{'bandwidth'}, $vrf_id, 'active']);
+    my $vrf_ep_id = $db->execute_query("insert into vrf_ep (interface_id, tag, inner_tag, bandwidth, vrf_id, state) VALUES (?,?,?,?,?,?)",[$model->{'interface'}->{'interface_id'}, $model->{'tag'}, $model->{'inner_tag'}, $model->{'bandwidth'}, $vrf_id, 'active']);
     if(!defined($vrf_ep_id)){
         my $error = $db->get_error();
         $db->rollback();
