@@ -16,7 +16,7 @@ use OESS::DB;
 use OESS::Entity;
 use OESSDatabaseTester;
 
-use Test::More tests => 47;
+use Test::More tests => 60;
 use Test::Deep;
 use Data::Dumper;
 
@@ -178,6 +178,20 @@ cmp_deeply(
     'Entity 3: post-add interfaces() returns correct interfaces'
 );
 
+$ent3->remove_interface({ interface_id => 8311 });
+cmp_deeply(
+    [ map {$_->interface_id()} @{$ent3->interfaces()} ],
+    bag( 21, 14081, 35961 ),
+    'Entity 3: removing a non-member interface leaves interface list unchanged'
+);
+
+$ent3->remove_interface({ interface_id => 21 });
+cmp_deeply(
+    [ map {$_->interface_id()} @{$ent3->interfaces()} ],
+    bag( 14081, 35961 ),
+    'Entity 3: removing a member interface removes only that interface'
+);
+
 cmp_deeply(
     [ map {$_->{'entity_id'}} @{$ent3->parents()} ],
     bag( 9 ),
@@ -212,6 +226,62 @@ cmp_deeply(
     [ map {$_->{'entity_id'}} @{$ent3->parents()} ],
     bag( 7 ),
     'Entity 3: post-set parents() returns correct set of parents'
+);
+
+cmp_deeply(
+    [ map {ref $_} @{$ent3->users()} ],
+    [ 'OESS::User' ],
+    'Entity 3: users() returns 1 user'
+);
+
+cmp_deeply(
+    [ map {$_->user_id()} @{$ent3->users()} ],
+    [ 121 ],
+    'Entity 3: users() returns the correct user'
+);
+
+my $new_user = OESS::User->new( user_id => 881, db => $db );
+ok(defined($new_user) && (ref($new_user) eq 'OESS::User'), 'Sanity-check: User->new(881) returned a user');
+
+$ent3->add_user($new_user);
+
+cmp_deeply(
+    [ map {ref $_} @{$ent3->users()} ],
+    [ 'OESS::User', 'OESS::User' ],
+    'Entity 3: post-add users() returns 2 uses'
+);
+
+cmp_deeply(
+    [ map {$_->user_id()} @{$ent3->users()} ],
+    bag( 121, 881 ),
+    'Entity 3: post-add users() returns the correct users'
+);
+
+$ent3->add_user($new_user);
+cmp_deeply(
+    [ map {$_->user_id()} @{$ent3->users()} ],
+    bag( 121, 881 ),
+    'Entity 3: adding the same user twice only results in one user returned by users()'
+);
+
+my $user_to_delete = OESS::User->new( user_id => 901, db => $db );
+ok(defined($user_to_delete) && (ref($user_to_delete) eq 'OESS::User'), 'Sanity-check: User->new(901) returned a user');
+
+$ent3->remove_user($user_to_delete);
+cmp_deeply(
+    [ map {$_->user_id()} @{$ent3->users()} ],
+    bag( 121, 881 ),
+    'Entity 3: removing a non-member user does not change the users list'
+);
+
+$user_to_delete = OESS::User->new( user_id => 121, db => $db );
+ok(defined($user_to_delete) && (ref($user_to_delete) eq 'OESS::User'), 'Sanity-check: User->new(121) returned a user');
+
+$ent3->remove_user($user_to_delete);
+cmp_deeply(
+    [ map {$_->user_id()} @{$ent3->users()} ],
+    [ 881 ],
+    'Entity 3: removing a member user removes that user and only that user'
 );
 
 my $ent4 = OESS::Entity->new( entity_id => 9, db => $db );
@@ -270,4 +340,10 @@ cmp_deeply(
     [ map {$_->{'entity_id'}} @{$ent4->children()} ],
     bag( 7, 8 ),
     'Entity 4: post-set children() returns correct set of children'
+);
+
+cmp_deeply(
+    $ent4->users(),
+    [],
+    'Entity 4 has no member users'
 );
