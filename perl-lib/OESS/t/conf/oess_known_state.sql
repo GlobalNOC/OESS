@@ -1016,6 +1016,7 @@ DROP TABLE IF EXISTS `vrf_ep`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `vrf_ep` (
   `vrf_ep_id` int(11) NOT NULL AUTO_INCREMENT,
+  `inner_tag` int(10) DEFAULT NULL,
   `tag` int(10) DEFAULT NULL,
   `bandwidth` int(10) DEFAULT NULL,
   `vrf_id` int(10) DEFAULT NULL,
