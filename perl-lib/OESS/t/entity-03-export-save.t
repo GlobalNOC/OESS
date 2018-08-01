@@ -16,13 +16,39 @@ BEGIN {
 use lib "$path";
 use OESS::DB;
 use OESS::Entity;
+use OESS::Interface;
+use OESS::User;
 use OESSDatabaseTester;
 
-use Test::More tests => 8;
+use Test::More tests => 9;
 use Test::Deep;
 use Data::Dumper;
 
-my $db = OESS::DB->new( config => OESSDatabaseTester::getConfigFilePath() );
+my $db;
+
+sub _interface {
+    my $id = shift;
+    return all(
+        OESS::Interface->new(interface_id => $id, db => $db)->to_hash,
+        # second half of the test is a sanity-check that the method calls in the first half didn't fail
+        superhashof({interface_id => $id, node_id => ignore(), name => ignore()}),
+    );
+}
+
+sub _user {
+    my $id = shift;
+    return all(
+        OESS::User->new(user_id => $id, db => $db)->to_hash,
+        # second half of the test is a sanity-check that the method calls in the first half didn't fail
+        superhashof({user_id => $id, type => ignore(), email => ignore()}),
+    );
+}
+
+
+
+$db = OESS::DB->new( config => OESSDatabaseTester::getConfigFilePath() );
+
+
 
 my $ent1 = OESS::Entity->new( entity_id => 2, db => $db );
 ok(defined($db) && defined($ent1), 'Sanity check: can instantiate OESS::DB and OESS::Entity objects');
@@ -80,6 +106,43 @@ ok(!defined($ent1->update_db()), 'Entity 1: no DB errors when running update_db(
 my $ent1a = OESS::Entity->new( entity_id => 2, db => $db );
 ok($ent1a->name() eq 'Not Connectors', 'Entity 1: after update_db(), row in DB has changed name');
 ok($ent1a->description() eq 'Those that are included in this classification', 'Entity 1: after update_db(), description still exists in DB');
+
+
+
+my $ent2 = OESS::Entity->new( entity_id => 14, db => $db );
+
+cmp_deeply(
+    $ent2->to_hash(),
+    {
+        entity_id   => 14,
+
+        name        => 'B University-Metropolis',
+        description => 'Metropolis regional campus',
+        url         => 'https://b-metro.example.edu/',
+        logo_url    => undef,
+
+        interfaces  => bag( _interface(35961) ),
+        contacts    => bag( _user(121), _user(881) ),
+        parents     => bag(
+            {
+                entity_id   => 6,
+                name        => 'B University',
+                description => 'mascot: Wally B. from the 1980s short',
+                logo_url    => undef,
+                url         => 'gopher://b.example.edu/',
+            },
+            {
+                entity_id   => 8,
+                name        => 'Small State MilliPOP',
+                description => undef,
+                logo_url    => undef,
+                url         => 'https://smst.millipop.net/',
+            },
+        ),
+        children    => [],
+    },
+    'Entity 2: to_hash returns expected results'
+);
 
 
 
