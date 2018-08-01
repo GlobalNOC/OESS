@@ -59,7 +59,7 @@ sub _fetch_from_db{
     return 1;
 }
 
-sub _update_db{
+sub update_db{
     my $self = shift;
 
     my $entity = $self->to_hash();
