@@ -90,6 +90,30 @@ sub update_db{
         return $self->{db}->{error};
     }
 
+    $result = OESS::DB::Entity::remove_parents(db => $self->{db}, entity => $entity);
+    if (!defined $result) {
+        $self->{db}->rollback();
+        return $self->{db}->{error};
+    }
+
+    $result = OESS::DB::Entity::add_parents(db => $self->{db}, entity => $entity);
+    if (!defined $result) {
+        $self->{db}->rollback();
+        return $self->{db}->{error};
+    }
+
+    $result = OESS::DB::Entity::remove_children(db => $self->{db}, entity => $entity);
+    if (!defined $result) {
+        $self->{db}->rollback();
+        return $self->{db}->{error};
+    }
+
+    $result = OESS::DB::Entity::add_children(db => $self->{db}, entity => $entity);
+    if (!defined $result) {
+        $self->{db}->rollback();
+        return $self->{db}->{error};
+    }
+
     $result = OESS::DB::Entity::update(db => $self->{'db'}, entity => $entity);
     if (!defined $result) {
         $self->{db}->rollback();

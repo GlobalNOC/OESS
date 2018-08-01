@@ -192,4 +192,82 @@ sub add_users {
     );
 }
 
+sub remove_parents {
+    my %params = @_;
+    my $db = $params{'db'};
+    my $entity = $params{'entity'};
+
+    my $result = $db->execute_query(
+        "DELETE from entity_hierarchy where entity_child_id=?",
+        [$entity->{entity_id}]
+    );
+
+    return $result;
+}
+
+sub add_parents {
+    my %params = @_;
+    my $db = $params{'db'};
+    my $entity = $params{'entity'};
+
+    if (@{$entity->{parents}} == 0) {
+        return 1;
+    }
+
+    my $params = [];
+    my $values = [];
+    foreach my $parent (@{$entity->{parents}}) {
+        push @$params, '(?, ?)';
+
+        push @$values, $parent->{entity_id}; # entity_parent_id
+        push @$values, $entity->{entity_id}; # entity_child_id
+    }
+
+    my $param_str = join(', ', @$params);
+
+    return $db->execute_query(
+        "INSERT into entity_hierarchy (entity_parent_id, entity_child_id) VALUES $param_str",
+        $values
+    );
+}
+
+sub remove_children {
+    my %params = @_;
+    my $db = $params{'db'};
+    my $entity = $params{'entity'};
+
+    my $result = $db->execute_query(
+        "DELETE from entity_hierarchy where entity_parent_id=?",
+        [$entity->{entity_id}]
+    );
+
+    return $result;
+}
+
+sub add_children {
+    my %params = @_;
+    my $db = $params{'db'};
+    my $entity = $params{'entity'};
+
+    if (@{$entity->{children}} == 0) {
+        return 1;
+    }
+
+    my $params = [];
+    my $values = [];
+    foreach my $child (@{$entity->{children}}) {
+        push @$params, '(?, ?)';
+
+        push @$values, $entity->{entity_id}; # entity_parent_id
+        push @$values, $child->{entity_id};  # entity_child_id
+    }
+
+    my $param_str = join(', ', @$params);
+
+    return $db->execute_query(
+        "INSERT into entity_hierarchy (entity_parent_id, entity_child_id) VALUES $param_str",
+        $values
+    );
+}
+
 1;

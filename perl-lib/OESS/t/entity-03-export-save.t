@@ -195,7 +195,7 @@ cmp_deeply(
             },
         ),
     },
-    'Entity 2: after update_db(), stuff in DB has been updated'
+    'Entity 2: after update_db(), stuff in DB has been updated appropriately'
 );
 
 
