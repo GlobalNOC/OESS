@@ -9,6 +9,8 @@ use OESS::Interface;
 use OESS::Entity;
 use OESS::User;
 
+use List::MoreUtils qw(uniq);
+
 sub fetch{
     my %params = @_;
     my $db = $params{'db'};
@@ -136,13 +138,15 @@ sub add_interfaces {
         return 1;
     }
 
+    my @interface_ids = uniq map {$_->{interface_id}} @{$entity->{interfaces}};
+
     my $values = [];
     my $params = [];
-    foreach my $intf (@{$entity->{interfaces}}) {
+    foreach my $intf_id (@interface_ids) {
         push @$params, '(?, ?)';
 
         push @$values, $entity->{entity_id};
-        push @$values, $intf->{interface_id};
+        push @$values, $intf_id;
     }
 
     my $param_str = join(', ', @$params);
@@ -175,13 +179,15 @@ sub add_users {
         return 1;
     }
 
+    my @user_ids = uniq map {$_->{user_id}} @{$entity->{contacts}};
+
     my $values = [];
     my $params = [];
-    foreach my $user (@{$entity->{contacts}}) {
+    foreach my $user_id (@user_ids) {
         push @$params, '(?, ?)';
 
         push @$values, $entity->{entity_id};
-        push @$values, $user->{user_id};
+        push @$values, $user_id;
     }
 
     my $param_str = join(', ', @$params);
@@ -214,12 +220,14 @@ sub add_parents {
         return 1;
     }
 
+    my @parent_ids = uniq map {$_->{entity_id}} @{$entity->{parents}};
+
     my $params = [];
     my $values = [];
-    foreach my $parent (@{$entity->{parents}}) {
+    foreach my $parent (@parent_ids) {
         push @$params, '(?, ?)';
 
-        push @$values, $parent->{entity_id}; # entity_parent_id
+        push @$values, $parent;              # entity_parent_id
         push @$values, $entity->{entity_id}; # entity_child_id
     }
 
@@ -253,13 +261,20 @@ sub add_children {
         return 1;
     }
 
+    my @child_ids = uniq map {$_->{entity_id}} @{$entity->{children}};
+
     my $params = [];
     my $values = [];
-    foreach my $child (@{$entity->{children}}) {
+    foreach my $child (@child_ids) {
+        # The next line prevents double-counting of cases where there's
+        # a length-1 loop in the hierarchy; the parent-child relationship
+        # in that case is already saved by add_parents
+        next if $child == $entity->{entity_id};
+
         push @$params, '(?, ?)';
 
         push @$values, $entity->{entity_id}; # entity_parent_id
-        push @$values, $child->{entity_id};  # entity_child_id
+        push @$values, $child;               # entity_child_id
     }
 
     my $param_str = join(', ', @$params);

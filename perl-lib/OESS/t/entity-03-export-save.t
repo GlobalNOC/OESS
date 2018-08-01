@@ -152,6 +152,7 @@ $ent2->add_interface(OESS::Interface->new(interface_id => 21, db => $db));
 $ent2->remove_interface(OESS::Interface->new(interface_id => 35961, db => $db));
 $ent2->remove_user(OESS::User->new(user_id => 121, db => $db));
 $ent2->add_child({ entity_id => 15 });
+$ent2->add_child({ entity_id => 15 }); # Try adding it twice!
 
 ok(!defined($ent2->update_db()), 'Entity 2: no DB errors when running update_db()');
 
