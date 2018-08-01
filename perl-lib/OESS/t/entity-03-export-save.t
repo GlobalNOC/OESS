@@ -20,7 +20,7 @@ use OESS::Interface;
 use OESS::User;
 use OESSDatabaseTester;
 
-use Test::More tests => 9;
+use Test::More tests => 11;
 use Test::Deep;
 use Data::Dumper;
 
@@ -142,6 +142,60 @@ cmp_deeply(
         children    => [],
     },
     'Entity 2: to_hash returns expected results'
+);
+
+# Try changing multiple things, update the DB, and see if we get the expected results after:
+$ent2->name('xyzzy');
+$ent2->logo_url('https://example.edu/icon');
+$ent2->add_interface(OESS::Interface->new(interface_id => 14081, db => $db));
+$ent2->add_interface(OESS::Interface->new(interface_id => 21, db => $db));
+$ent2->remove_interface(OESS::Interface->new(interface_id => 35961, db => $db));
+$ent2->remove_user(OESS::User->new(user_id => 121, db => $db));
+$ent2->add_child({ entity_id => 15 });
+
+ok(!defined($ent2->update_db()), 'Entity 2: no DB errors when running update_db()');
+
+my $ent2a = OESS::Entity->new( entity_id => 14, db => $db );
+
+cmp_deeply(
+    $ent2a->to_hash(),
+    {
+        entity_id   => 14,
+
+        name        => 'xyzzy',
+        description => 'Metropolis regional campus',
+        url         => 'https://b-metro.example.edu/',
+        logo_url    => 'https://example.edu/icon',
+
+        interfaces  => bag( _interface(21), _interface(14081) ),
+        contacts    => bag( _user(881) ),
+        parents     => bag(
+            {
+                entity_id   => 6,
+                name        => 'B University',
+                description => 'mascot: Wally B. from the 1980s short',
+                logo_url    => undef,
+                url         => 'gopher://b.example.edu/',
+            },
+            {
+                entity_id   => 8,
+                name        => 'Small State MilliPOP',
+                description => undef,
+                logo_url    => undef,
+                url         => 'https://smst.millipop.net/',
+            },
+        ),
+        children    => bag(
+            {
+                entity_id   => 15,
+                name        => 'EC Ellettsville',
+                description => 'Ellettsville region',
+                logo_url    => undef,
+                url         => undef,
+            },
+        ),
+    },
+    'Entity 2: after update_db(), stuff in DB has been updated'
 );
 
 
