@@ -126,7 +126,6 @@ sub new{
     die if(!defined($self->{'rmq_client'}));
 
     #setup the timers
-    warn "Setting up timers\n";
     $self->{'device_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->device_handler(); });
     $self->{'int_timer'} = AnyEvent->timer( after => 60, interval => 120, cb => sub { $self->int_handler(); });
     $self->{'lsp_timer'} = AnyEvent->timer( after => 100, interval => 200, cb => sub { $self->lsp_handler(); });
@@ -519,7 +518,6 @@ sub device_handler{
 sub vrf_stats_handler{
     my $self = shift;
     $self->{'logger'}->error("Attempting to pull VRF stats");
-    warn "Fetching Stats\n";
     foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
 	$self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
 	my $start = [gettimeofday];
