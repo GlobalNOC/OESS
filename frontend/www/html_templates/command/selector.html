@@ -1,0 +1,15 @@
+<script>
+  [% INCLUDE js_templates/command/selector.js %]
+  loadCommands();
+</script>
+
+<form id="command" class="form-inline">
+  <div class="form-group">
+    <select id="command-select" class="form-control">
+    </select>
+  </div>
+  <input type="button" value="run" class="btn btn-primary" onclick="loadCommandResult()"/>
+</form>
+
+<a href="#" onclick="toggleCommandResult()"><p id="command-result-toggle">Expand</p></a>
+<pre id="command-result"></pre>

@@ -7,6 +7,7 @@
 
   <script>
     [% INCLUDE js_templates/api/vrf.js %]
+    [% INCLUDE js_templates/api/command.js  %]
     [% INCLUDE js_templates/api/interfaces.js  %]
     [% INCLUDE js_templates/view_l3vpn.js %]
   </script>
@@ -47,6 +48,12 @@
           <td><b>Last modified:</b></td><td id="last-modified"/>
         </tr>
       </table>
+    </div>
+  </div>
+
+  <div class="row" style="margin-bottom: 0px">
+    <div class="col-md-12">
+      [% INCLUDE html_templates/command/selector.html %]
     </div>
   </div>
 

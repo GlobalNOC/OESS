@@ -118,3 +118,17 @@ body {
 a p {
     color: white;
 }
+
+#command-result {
+    display: none;
+    height: 250px;
+}
+
+#command-result-toggle {
+    margin-top: 5px;
+    color: blue;
+}
+
+#command-select {
+    min-width: 200px;
+}
