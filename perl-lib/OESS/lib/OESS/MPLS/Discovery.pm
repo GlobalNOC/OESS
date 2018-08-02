@@ -45,8 +45,10 @@ use GRNOC::RabbitMQ::Method;
 use GRNOC::RabbitMQ::Dispatcher;
 use OESS::RabbitMQ::Client;
 use OESS::RabbitMQ::Dispatcher;
+use GRNOC::WebService::Client;
 use GRNOC::WebService::Regex;
 use OESS::Database;
+use JSON::XS;
 
 use OESS::MPLS::Discovery::Interface;
 use OESS::MPLS::Discovery::LSP;
@@ -61,7 +63,10 @@ use AnyEvent;
 
 use constant MPLS_TABLE => 'mpls.0';
 use constant VPLS_TABLE => 'bgp.l2vpn.0';
-
+use constant MAX_TSDS_MESSAGES => 30;
+use constant TSDS_RIB_TYPE => 'rib_table';
+use constant TSDS_PEER_TYPE => 'bgp_peer';
+use constant VRF_STATS_INTERVAL => 60;
 =head2 new
     instantiates a new OESS::MPLS::Discovery object, which intern creates new 
     instantiations of 
@@ -107,6 +112,12 @@ sub new{
     $self->{'path'} = $self->_init_paths();
     die if (!defined($self->{'path'}));
     
+    my $tsds_conf = $self->{'db'}->{'configuration'}->{'tsds'};
+    $self->{'tsds_svc'} = GRNOC::WebService::Client->new( url => $tsds_conf->{'url'} . "/push.cgi",
+                                                          uid => $tsds_conf->{'username'},
+                                                          passwd => $tsds_conf->{'password'},
+                                                          usePost => 1,
+                                                          debug => 1);
 
     #create the client for talking to our Discovery switch objects!
     $self->{'rmq_client'} = OESS::RabbitMQ::Client->new( timeout => 120,
@@ -115,11 +126,13 @@ sub new{
     die if(!defined($self->{'rmq_client'}));
 
     #setup the timers
-    $self->{'device_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->device_handler(); });
-    $self->{'int_timer'} = AnyEvent->timer( after => 60, interval => 120, cb => sub { $self->int_handler(); });
-    $self->{'lsp_timer'} = AnyEvent->timer( after => 100, interval => 200, cb => sub { $self->lsp_handler(); });
-    $self->{'isis_timer'} = AnyEvent->timer( after => 800, interval => 120, cb => sub { $self->isis_handler(); } );
-    $self->{'path_timer'} = AnyEvent->timer( after => 50, interval => 300, cb => sub { $self->path_handler(); });
+    warn "Setting up timers\n";
+    #$self->{'device_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->device_handler(); });
+    #$self->{'int_timer'} = AnyEvent->timer( after => 60, interval => 120, cb => sub { $self->int_handler(); });
+    #$self->{'lsp_timer'} = AnyEvent->timer( after => 100, interval => 200, cb => sub { $self->lsp_handler(); });
+    #$self->{'isis_timer'} = AnyEvent->timer( after => 800, interval => 120, cb => sub { $self->isis_handler(); } );
+    #$self->{'path_timer'} = AnyEvent->timer( after => 50, interval => 300, cb => sub { $self->path_handler(); });
+    $self->{'vrf_stats_time'} = AnyEvent->timer( after => 20, interval => VRF_STATS_INTERVAL, cb => sub { $self->vrf_stats_handler(); });
 
     #our dispatcher for receiving events (only new_switch right now)    
     my $dispatcher = OESS::RabbitMQ::Dispatcher->new( queue => 'MPLS-Discovery',
@@ -497,6 +510,108 @@ sub device_handler{
 											  }));
     }
     
+}
+
+=head2 vrf_stats_handler{
+
+=cut
+
+sub vrf_stats_handler{
+    my $self = shift;
+    $self->{'logger'}->error("Attempting to pull VRF stats");
+    warn "Fetching Stats\n";
+    foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
+	$self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
+	my $start = [gettimeofday];
+	$self->{'rmq_client'}->get_vrf_stats( async_callback => $self->handle_response( cb => sub {
+	    my $res = shift;
+	    if(defined($res->{'error'})){
+		my $addr = $node->{'mgmt_addr'};
+		my $err = $res->{'error'};
+		$self->{'logger'}->error("Error calling get_vrf_stats on $addr: $err");
+		return;
+	    }
+	    $self->{'logger'}->debug("Total Time for get_vrf_stats " . $node->{'mgmt_addr'} . " call: " . tv_interval($start,[gettimeofday]));
+	    $self->handle_vrf_stats(node => $node, stats => $res->{'results'});
+											}));
+    }
+}
+
+=head2 handle_vrf_stats
+
+=cut
+
+sub handle_vrf_stats{
+    my $self = shift;
+    my %params = @_;
+    
+    my $node = $params{'node'};
+    my $stats = $params{'stats'};
+
+    my $rib_stats = $stats->{'rib_stats'};
+    my $peer_stats = $stats->{'peer_stats'};
+
+    my $time = time();
+    my $tsds_val = ();
+
+    while (scalar(@$rib_stats) > 0){
+        my $rib = shift @$rib_stats;
+        my $meta = { routing_table => $rib->{'vrf'},
+                     node => $node->{'name'}};
+
+        delete $rib->{'vrf'};
+
+        push(@$tsds_val, { type => TSDS_RIB_TYPE,
+                           time => $time,
+                           interval => VRF_STATS_INTERVAL,
+                           values => $rib,
+                           meta => $meta});
+
+        if(scalar(@$tsds_val) >= MAX_TSDS_MESSAGES || scalar(@$rib_stats) == 0){
+            $self->{'tsds_svc'}->add_data(data => encode_json($tsds_val));
+            $tsds_val = ();
+        }
+    }
+
+    while (scalar(@$peer_stats) > 0){
+        my $peer = shift @$peer_stats;
+        my $meta = { peer_address => $peer->{'address'},
+                     vrf => $peer->{'vrf'},
+                     as => $peer->{'as'},
+                     node => $node->{'name'}};
+
+        my $prev =  $self->{'previous_peer'}->{$node->{'name'}}->{$peer->{'vrf'}}->{$peer->{'address'}};
+        if(!defined($prev)){
+            warn "No previous peer defined: " . Dumper($meta);
+            $self->{'previous_peer'}->{$node->{'name'}}->{$peer->{'vrf'}}->{$peer->{'address'}} = $peer;
+            next;
+        }
+
+        my $vals;
+        
+        $vals->{'output_messages'} = ($peer->{'output_messages'} - $prev->{'output_messages'}) / VRF_STATS_INTERVAL;
+        $vals->{'input_messages'} = ($peer->{'input_messages'} - $prev->{'input_messages'}) / VRF_STATS_INTERVAL;
+        $vals->{'route_queue_count'} = $peer->{'route_queue_count'};
+        
+        if($peer->{'state'} ne 'Established'){
+            $vals->{'state'} = 0;
+        }else{
+            $vals->{'state'} = 1;
+        }
+
+        $vals->{'flap_count'} = $peer->{'flap_count'};
+
+        push(@$tsds_val, { type => TSDS_PEER_TYPE,
+                           time => $time,
+                           interval => VRF_STATS_INTERVAL,
+                           values => $vals,
+                           meta => $meta});
+
+        if(scalar(@$tsds_val) >= MAX_TSDS_MESSAGES || scalar(@$peer_stats) == 0){
+            $self->{'tsds_svc'}->add_data(data => encode_json($tsds_val));
+            $tsds_val = ();
+        }
+    }    
 }
 
 =head2 handle_system_info

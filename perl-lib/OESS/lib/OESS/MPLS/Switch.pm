@@ -274,6 +274,13 @@ sub _register_rpc_methods{
                                             description => "for each LSP on the switch, provides a list of link addresses");
     $dispatcher->register_method($method);
 
+    $method = GRNOC::RabbitMQ::Method->new( name => "get_vrf_stats",
+                                            callback => sub {
+                                                $self->get_vrf_stats(@_);
+                                            }, description => "Get VRF BGP Stats");
+
+    $dispatcher->register_method($method);
+
     $method = GRNOC::RabbitMQ::Method->new( name        => "is_connected",
                                             callback    => sub {
                                                 return $self->connected();
@@ -620,6 +627,19 @@ sub get_LSPs{
     my $p_ref = shift;
 
     return $self->{'device'}->get_LSPs();
+}
+
+
+=head2 get_vrf_stats
+
+=cut
+
+sub get_vrf_stats{
+    my $self = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    return $self->{'device'}->get_vrf_stats();
 }
 
 =head2 get_lsp_paths
