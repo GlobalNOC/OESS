@@ -225,6 +225,9 @@ sub add_parents {
     my $params = [];
     my $values = [];
     foreach my $parent (@parent_ids) {
+        # The next line prevents an entity from being its own parent.
+        next if $parent == $entity->{entity_id};
+
         push @$params, '(?, ?)';
 
         push @$values, $parent;              # entity_parent_id
@@ -266,9 +269,7 @@ sub add_children {
     my $params = [];
     my $values = [];
     foreach my $child (@child_ids) {
-        # The next line prevents double-counting of cases where there's
-        # a length-1 loop in the hierarchy; the parent-child relationship
-        # in that case is already saved by add_parents
+        # The next line prevents an entity from being its own child.
         next if $child == $entity->{entity_id};
 
         push @$params, '(?, ?)';
