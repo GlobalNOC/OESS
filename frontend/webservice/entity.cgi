@@ -212,7 +212,7 @@ sub update_entity{
         $entity->url($params->{url}{value});
     }
 
-    my $result = $entity->_update_db();
+    my $result = $entity->update_db();
     return { results => [ { success => 1 } ] };
 }
 
@@ -234,7 +234,7 @@ sub add_interface {
     }
 
     $entity->add_interface($interface);
-    my $err = $entity->_update_db();
+    my $err = $entity->update_db();
     if (defined $err) {
         $method->set_error("$err");
         return;
@@ -261,7 +261,7 @@ sub remove_interface {
     }
 
     $entity->remove_interface($interface);
-    my $err = $entity->_update_db();
+    my $err = $entity->update_db();
     if (defined $err) {
         $method->set_error("$err");
         return;
@@ -288,7 +288,7 @@ sub add_user {
     }
 
     $entity->add_user($user);
-    my $err = $entity->_update_db();
+    my $err = $entity->update_db();
     if (defined $err) {
         $method->set_error("$err");
         return;
@@ -315,7 +315,7 @@ sub remove_user {
     }
 
     $entity->remove_user($user);
-    my $err = $entity->_update_db();
+    my $err = $entity->update_db();
     if (defined $err) {
         $method->set_error("$err");
         return;

@@ -5,6 +5,8 @@ use warnings;
 
 package OESS::Node;
 
+use OESS::DB::Node;
+
 sub new{
     my $that  = shift;
     my $class = ref($that) || $that;

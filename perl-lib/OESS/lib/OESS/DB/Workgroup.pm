@@ -3,6 +3,8 @@
 use strict;
 use warnings;
 
+use OESS::User;
+
 package OESS::DB::Workgroup;
 
 sub fetch{

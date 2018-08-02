@@ -6,7 +6,6 @@ use warnings;
 package OESS::Interface;
 
 use OESS::DB::Interface;
-use Data::Dumper;
 
 
 sub new{

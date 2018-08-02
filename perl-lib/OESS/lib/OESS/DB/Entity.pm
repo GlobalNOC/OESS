@@ -7,7 +7,9 @@ package OESS::DB::Entity;
 
 use OESS::Interface;
 use OESS::Entity;
-use Data::Dumper;
+use OESS::User;
+
+use List::MoreUtils qw(uniq);
 
 sub fetch{
     my %params = @_;
@@ -136,13 +138,15 @@ sub add_interfaces {
         return 1;
     }
 
+    my @interface_ids = uniq map {$_->{interface_id}} @{$entity->{interfaces}};
+
     my $values = [];
     my $params = [];
-    foreach my $intf (@{$entity->{interfaces}}) {
+    foreach my $intf_id (@interface_ids) {
         push @$params, '(?, ?)';
 
         push @$values, $entity->{entity_id};
-        push @$values, $intf->{interface_id};
+        push @$values, $intf_id;
     }
 
     my $param_str = join(', ', @$params);
@@ -175,19 +179,109 @@ sub add_users {
         return 1;
     }
 
+    my @user_ids = uniq map {$_->{user_id}} @{$entity->{contacts}};
+
     my $values = [];
     my $params = [];
-    foreach my $user (@{$entity->{contacts}}) {
+    foreach my $user_id (@user_ids) {
         push @$params, '(?, ?)';
 
         push @$values, $entity->{entity_id};
-        push @$values, $user->{user_id};
+        push @$values, $user_id;
     }
 
     my $param_str = join(', ', @$params);
 
     return $db->execute_query(
         "INSERT into user_entity_membership (entity_id, user_id) VALUES $param_str",
+        $values
+    );
+}
+
+sub remove_parents {
+    my %params = @_;
+    my $db = $params{'db'};
+    my $entity = $params{'entity'};
+
+    my $result = $db->execute_query(
+        "DELETE from entity_hierarchy where entity_child_id=?",
+        [$entity->{entity_id}]
+    );
+
+    return $result;
+}
+
+sub add_parents {
+    my %params = @_;
+    my $db = $params{'db'};
+    my $entity = $params{'entity'};
+
+    if (@{$entity->{parents}} == 0) {
+        return 1;
+    }
+
+    my @parent_ids = uniq map {$_->{entity_id}} @{$entity->{parents}};
+
+    my $params = [];
+    my $values = [];
+    foreach my $parent (@parent_ids) {
+        # The next line prevents an entity from being its own parent.
+        next if $parent == $entity->{entity_id};
+
+        push @$params, '(?, ?)';
+
+        push @$values, $parent;              # entity_parent_id
+        push @$values, $entity->{entity_id}; # entity_child_id
+    }
+
+    my $param_str = join(', ', @$params);
+
+    return $db->execute_query(
+        "INSERT into entity_hierarchy (entity_parent_id, entity_child_id) VALUES $param_str",
+        $values
+    );
+}
+
+sub remove_children {
+    my %params = @_;
+    my $db = $params{'db'};
+    my $entity = $params{'entity'};
+
+    my $result = $db->execute_query(
+        "DELETE from entity_hierarchy where entity_parent_id=?",
+        [$entity->{entity_id}]
+    );
+
+    return $result;
+}
+
+sub add_children {
+    my %params = @_;
+    my $db = $params{'db'};
+    my $entity = $params{'entity'};
+
+    if (@{$entity->{children}} == 0) {
+        return 1;
+    }
+
+    my @child_ids = uniq map {$_->{entity_id}} @{$entity->{children}};
+
+    my $params = [];
+    my $values = [];
+    foreach my $child (@child_ids) {
+        # The next line prevents an entity from being its own child.
+        next if $child == $entity->{entity_id};
+
+        push @$params, '(?, ?)';
+
+        push @$values, $entity->{entity_id}; # entity_parent_id
+        push @$values, $child;               # entity_child_id
+    }
+
+    my $param_str = join(', ', @$params);
+
+    return $db->execute_query(
+        "INSERT into entity_hierarchy (entity_parent_id, entity_child_id) VALUES $param_str",
         $values
     );
 }
