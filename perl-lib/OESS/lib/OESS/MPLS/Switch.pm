@@ -183,9 +183,9 @@ sub _register_rpc_methods{
                                   pattern => $GRNOC::WebService::Regex::NUMBER_ID);
     $dispatcher->register_method($method);
     
-    my $method = GRNOC::RabbitMQ::Method->new( name => "add_vrf",
-                                               description => "adds a vrf for this switch",
-					       callback => sub { return {status => $self->add_vrf(@_) }});
+    $method = GRNOC::RabbitMQ::Method->new( name => "add_vrf",
+                                            description => "adds a vrf for this switch",
+                                            callback => sub { return {status => $self->add_vrf(@_) }});
     
     $method->add_input_parameter( name => "vrf_id",
                                   description => "vrf_id to be added",
@@ -193,9 +193,9 @@ sub _register_rpc_methods{
                                   pattern => $GRNOC::WebService::Regex::NUMBER_ID);
     $dispatcher->register_method($method);
     
-    my $method = GRNOC::RabbitMQ::Method->new( name => "remove_vrf",
-                                               description => "removes a vrf from this switch",
-                                               callback => sub { return {status => $self->remove_vrf(@_) }});
+    $method = GRNOC::RabbitMQ::Method->new( name => "remove_vrf",
+                                            description => "removes a vrf from this switch",
+                                            callback => sub { return {status => $self->remove_vrf(@_) }});
 
     $method->add_input_parameter( name => "vrf_id",
                                   description => "vrf_id to be removed",

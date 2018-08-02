@@ -841,6 +841,11 @@ sub add_vrf{
             $unit = ((($a+$b+1)*($a+$b))/2)+$b+5000;
         }
 
+        if ($self->unit_name_available($i->{'name'}, $unit) == 0) {
+            $self->{'logger'}->error("Unit $unit is not available on $i->{'name'}");
+            return FWDCTL_FAILURE;
+        }
+
         push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
                                           inner_tag => $i->{'inner_tag'},
                                           tag  => $i->{'tag'},
@@ -856,11 +861,6 @@ sub add_vrf{
     $vars->{'prefix_limit'} = $vrf->{'prefix_limit'};
 
     $self->{'logger'}->error("VARS: " . Dumper($vars));
-
-    if ($self->unit_name_available($vars->{'interface'}->{'name'}, $vars->{'tag'}) == 0) {
-        $self->{'logger'}->error("Unit $vars->{'tag'} is not available on $vars->{'interface'}->{'name'}");
-        return FWDCTL_FAILURE;
-    }
 
     my $output;
     my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vars, \$output);
@@ -1410,7 +1410,7 @@ sub _is_circuit_on_port{
         }
 
         if($int->{'interface'} eq $port && $unit eq $vlan){
-            $self->{'logger'}->error("Interface $int->{'interface'}.$unit is in circuit $circuit_id.");
+            $self->{'logger'}->debug("Interface $int->{'interface'}.$unit is in circuit $circuit_id.");
             return 1;
         }
     }
