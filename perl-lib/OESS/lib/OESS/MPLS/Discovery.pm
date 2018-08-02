@@ -127,11 +127,11 @@ sub new{
 
     #setup the timers
     warn "Setting up timers\n";
-    #$self->{'device_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->device_handler(); });
-    #$self->{'int_timer'} = AnyEvent->timer( after => 60, interval => 120, cb => sub { $self->int_handler(); });
-    #$self->{'lsp_timer'} = AnyEvent->timer( after => 100, interval => 200, cb => sub { $self->lsp_handler(); });
-    #$self->{'isis_timer'} = AnyEvent->timer( after => 800, interval => 120, cb => sub { $self->isis_handler(); } );
-    #$self->{'path_timer'} = AnyEvent->timer( after => 50, interval => 300, cb => sub { $self->path_handler(); });
+    $self->{'device_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->device_handler(); });
+    $self->{'int_timer'} = AnyEvent->timer( after => 60, interval => 120, cb => sub { $self->int_handler(); });
+    $self->{'lsp_timer'} = AnyEvent->timer( after => 100, interval => 200, cb => sub { $self->lsp_handler(); });
+    $self->{'isis_timer'} = AnyEvent->timer( after => 800, interval => 120, cb => sub { $self->isis_handler(); } );
+    $self->{'path_timer'} = AnyEvent->timer( after => 50, interval => 300, cb => sub { $self->path_handler(); });
     $self->{'vrf_stats_time'} = AnyEvent->timer( after => 20, interval => VRF_STATS_INTERVAL, cb => sub { $self->vrf_stats_handler(); });
 
     #our dispatcher for receiving events (only new_switch right now)    
