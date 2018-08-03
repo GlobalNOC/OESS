@@ -31,10 +31,10 @@ function init(){
     session.data.links = session.data.links || [];
 
     setPageSummary("Path","Choose a primary path from the map below by clicking on links between nodes.");  
-    if (session.data.circuit_type == 'mpls' && session.data.links.length < 1) {
-        setNextButton("Proceed to Step 6: Scheduling", "?action=scheduling", verify_inputs);
+    if (session.data.circuit_type == 'mpls') {
+        setNextButton("Proceed to Next Step: Scheduling", "?action=scheduling", verify_inputs);
     } else {
-        setNextButton("Proceed to Step 5: Backup Path", "?action=backup_path", verify_inputs);
+        setNextButton("Proceed to Next Step: Backup Path", "?action=backup_path", verify_inputs);
     }
   
     // Help message for MPLS path selection.
@@ -55,85 +55,136 @@ function init(){
   
   var nddi_map = new NDDIMap("map");
 
+  nddi_map.on("loaded", function(){
+          if (session.data.circuit_type == 'mpls') {
+              var url = "services/data.cgi?method=get_shortest_path";
+
+              for (var i = 0; i < session.data.endpoints.length; i++){
+                  var node = session.data.endpoints[i].node;
+                  url += "&node=" + node;
+              }
+
+              //append the type
+              url += "&type=" + session.data.circuit_type;
+
+              var ds = new YAHOO.util.DataSource(url);
+              ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+              ds.responseSchema = {
+                  resultsList: "results",
+                  fields: [
+              {key: "link"}
+                           ],
+                  metaFields: {
+                      error: "error",
+                      error_text: "error_text"
+                  }
+              }
+
+              ds.sendRequest("", {success: function(req, resp){
+
+
+                          if (resp.meta.error){
+                              alert("Error - " + resp.meta.error_text);
+                              return;
+                          }
+
+
+                          for (var i = 0; i < resp.results.length; i++){
+                              session.data.backup_links.push(resp.results[i].link);
+                          }
+                          this.updateMapFromSession(session);
+
+                      },
+                      failure: function(req, resp){
+                          alert('Server error while determining shortest path.');
+                      },
+                          scope: this
+                          });
+          }else{
+
+              this.updateMapFromSession(session);
+          }
+      });
+
+
+  nddi_map.on("clickLink", function(e, args){
+          onClickLink(path_table, e, args, save_session);
+      });
+
+
   var layout = makePageLayout(nddi_map, {map_width: 700,
 					 max_resize: 700});  
 
   legend_init(nddi_map);
-  
-  var shortest_path_button = new YAHOO.widget.Button("shortest_path_button", {label: "Suggest Shortest Path"});
-  
-  //nddi_map.showDefault();
-  
-  shortest_path_button.on("click", function(){
 
-	                    this.set('disabled', true);
-			    this.set('label', 'Calculating shortest path...');
-			    
-			    var url = "services/data.cgi?method=get_shortest_path";
-			    
-			    for (var i = 0; i < session.data.endpoints.length; i++){
-			      var node = session.data.endpoints[i].node;
-			      url += "&node=" + node;
-			    }
-			    
-			    //append the type
-			    url += "&type=" + session.data.circuit_type; 
-			    
-			    var ds = new YAHOO.util.DataSource(url);
-			    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-			    ds.responseSchema = {
-			      resultsList: "results",
-			      fields: [
-			        {key: "link"}
-			      ],
-			      metaFields: {
-				  error: "error",
-                                  error_text: "error_text"
-			      }
-			    }
-			    
-			    ds.sendRequest("", {success: function(req, resp){
-					          this.set('disabled', false);
-						  this.set('label', 'Suggest Shortest Path');
+  if (session.data.circuit_type == 'mpls') {
+      session.data.backup_links = [];
+      var remove_path_button = new YAHOO.widget.Button("shortest_path_button", {label: "Remove manually defined path"});
+      
+      remove_path_button.on("click", function(){
+              var length = path_table.getRecordSet().getRecords().length;
+              path_table.deleteRows(0, length);
+              save_session();
+          });
 
-						  if (resp.meta.error){
-						    alert("Error - " + resp.meta.error_text);
-						    return;
-						  }
-						  
-						  path_table.deleteRows(0, path_table.getRecordSet().getRecords().length);
-						  
-						  for (var i = 0; i < resp.results.length; i++){
-						    path_table.addRow({link: resp.results[i].link});
-						  }
-						  
-						  save_session();
-						  
-						},
-						failure: function(req, resp){
-					          alert('Server error while determining shortest path.');
-				                },
-					        scope: this
-					       });
-			    
-			  });
+  }else{
   
-  nddi_map.on("loaded", function(){
-		this.updateMapFromSession(session);
-	      });  
+      var shortest_path_button = new YAHOO.widget.Button("shortest_path_button", {label: "Suggest Shortest Path"});
   
-
-  nddi_map.on("clickLink", function(e, args){
-      onClickLink(path_table, e, args, save_session);
-
-      if (session.data.links.length < 1) {
-          console.log('No primary path is selected.');
-          setNextButton("Proceed to Step 6: Scheduling", "?action=scheduling", verify_inputs);
-      } else {
-          setNextButton("Proceed to Step 5: Backup Path", "?action=backup_path", verify_inputs);
-      }
-  });
-  
+      shortest_path_button.on("click", function(){
+              
+              this.set('disabled', true);
+              this.set('label', 'Calculating shortest path...');
+              
+              var url = "services/data.cgi?method=get_shortest_path";
+              
+              for (var i = 0; i < session.data.endpoints.length; i++){
+                  var node = session.data.endpoints[i].node;
+                  url += "&node=" + node;
+              }
+              
+              //append the type
+              url += "&type=" + session.data.circuit_type; 
+              
+              var ds = new YAHOO.util.DataSource(url);
+              ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+              ds.responseSchema = {
+                  resultsList: "results",
+                  fields: [
+              {key: "link"}
+                           ],
+                  metaFields: {
+                      error: "error",
+                      error_text: "error_text"
+                  }
+              }
+              
+              ds.sendRequest("", {success: function(req, resp){
+                          this.set('disabled', false);
+                          this.set('label', 'Suggest Shortest Path');
+                          
+                          if (resp.meta.error){
+                              alert("Error - " + resp.meta.error_text);
+                              return;
+                          }
+                          
+                          path_table.deleteRows(0, path_table.getRecordSet().getRecords().length);
+                          
+                          for (var i = 0; i < resp.results.length; i++){
+                              path_table.addRow({link: resp.results[i].link});
+                          }
+                          
+                          save_session();
+                          
+                      },
+                          failure: function(req, resp){
+                          alert('Server error while determining shortest path.');
+                      },
+                          scope: this
+                          });
+              
+          });
+  }
   
   function save_session(){
     
@@ -188,7 +239,6 @@ function init(){
     }
   
 }
-
 YAHOO.util.Event.onDOMReady(init);
   
 </script>

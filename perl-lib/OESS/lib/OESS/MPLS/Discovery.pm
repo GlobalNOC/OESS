@@ -53,6 +53,8 @@ use OESS::MPLS::Discovery::LSP;
 use OESS::MPLS::Discovery::ISIS;
 use OESS::MPLS::Discovery::Paths;
 
+use Time::HiRes qw( gettimeofday tv_interval);
+
 use Log::Log4perl;
 
 use AnyEvent;
@@ -107,21 +109,17 @@ sub new{
     
 
     #create the client for talking to our Discovery switch objects!
-    $self->{'rmq_client'} = OESS::RabbitMQ::Client->new( timeout => 30,
+    $self->{'rmq_client'} = OESS::RabbitMQ::Client->new( timeout => 120,
 							 topic => 'MPLS.Discovery');
     
     die if(!defined($self->{'rmq_client'}));
 
-    # set up some sequence numbers so path detection handles out-of-order responses sanely
-#    $self->{'path_sequence'} = 0;
-#    $self->{'path_node_latest'} = {};
-
     #setup the timers
     $self->{'device_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->device_handler(); });
-    $self->{'int_timer'} = AnyEvent->timer( after => 20, interval => 60, cb => sub { $self->int_handler(); });
-    $self->{'lsp_timer'} = AnyEvent->timer( after => 30, interval => 60, cb => sub { $self->lsp_handler(); });
-    $self->{'isis_timer'} = AnyEvent->timer( after => 40, interval => 60, cb => sub { $self->isis_handler(); } );
-    $self->{'path_timer'} = AnyEvent->timer( after => 50, interval => 60, cb => sub { $self->path_handler(); });
+    $self->{'int_timer'} = AnyEvent->timer( after => 60, interval => 120, cb => sub { $self->int_handler(); });
+    $self->{'lsp_timer'} = AnyEvent->timer( after => 100, interval => 200, cb => sub { $self->lsp_handler(); });
+    $self->{'isis_timer'} = AnyEvent->timer( after => 800, interval => 120, cb => sub { $self->isis_handler(); } );
+    $self->{'path_timer'} = AnyEvent->timer( after => 50, interval => 300, cb => sub { $self->path_handler(); });
 
     #our dispatcher for receiving events (only new_switch right now)    
     my $dispatcher = OESS::RabbitMQ::Dispatcher->new( queue => 'MPLS-Discovery',
@@ -136,12 +134,16 @@ sub new{
         $self->stop();
     };
 
-    #create a child process for each switch
-    my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
+    # Create a child process for each switch
+    $self->{'children'} = {};
+
+    my $nodes = $self->{'db'}->get_current_nodes(type => 'mpls');
     foreach my $node (@$nodes) {
 	warn "Making Baby!\n";
 	$self->make_baby($node->{'node_id'});
     }
+
+    $self->{'ipv4_intf'} = {};
 
     return $self;
 }
@@ -213,6 +215,9 @@ sub make_baby{
     my $id = shift;
 
     $self->{'logger'}->debug("Before the fork");
+    if (defined $self->{'children'}->{$id}) {
+        return 1;
+    }
 
     my $node = $self->{'db'}->get_node_by_id(node_id => $id);
 
@@ -305,19 +310,31 @@ sub _init_paths{
 sub int_handler{
     my $self = shift;
     
-    foreach my $node (@{$self->{'db'}->get_current_nodes(mpls => 1)}){
+    foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
 	$self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
-	$self->{'rmq_client'}->get_interfaces( async_callback => $self->handle_response( cb => sub { my $res = shift;
-                                                                                                     $self->{'db'}->update_node_operational_state(node_id => $node->{'node_id'}, state => 'up', protocol => 'mpls');
-                                                                                                     my $status = $self->{'interface'}->process_results( node => $node->{'name'}, interfaces => $res->{'results'});
-											 }));
+	my $start = [gettimeofday];
+	$self->{'rmq_client'}->get_interfaces(
+            async_callback => $self->handle_response(
+                cb => sub {
+                    my $res = shift;
+                    $self->{'logger'}->debug("Total Time for get_interfaces " . $node->{'mgmt_addr'} . " call: " . tv_interval($start,[gettimeofday]));
+
+                    foreach my $int (@{$res->{'results'}}) {
+                        foreach my $addr (@{$int->{'addresses'}}) {
+                            $self->{'ipv4_intf'}->{$addr} = $int->{'name'};
+                        }
+                    }
+
+                    $self->{'db'}->update_node_operational_state(node_id => $node->{'node_id'}, state => 'up', protocol => 'mpls');
+                    my $status = $self->{'interface'}->process_results( node => $node->{'name'}, interfaces => $res->{'results'});
+                })
+        );
     }
 }
 
 =head2 path_handler
 
 =cut
-
 sub path_handler {
 
     my $self = shift;
@@ -326,14 +343,11 @@ sub path_handler {
 
     $self->{'logger'}->info("path_handler: calling");
 
-    my $nodes = $self->{'db'}->get_current_nodes( mpls => 1 );
+    my $nodes = $self->{'db'}->get_current_nodes(type => 'mpls');
     if (!defined $nodes) {
         $self->{'logger'}->error("path_handler: Could not get current nodes.");
         return 0;
     }
-
-#    my $curr_path_sequence = $self->{'path_sequence'};
-#    $self->{'path_sequence'} += 1;
 
     # Map from circuit ID to the list of LSPs associated with the circuit
     my %circuit_lsps;
@@ -400,10 +414,12 @@ sub lsp_handler{
     
     my %nodes;
 
-    foreach my $node (@{$self->{'db'}->get_current_nodes(mpls => 1)}){
+    foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
 	$nodes{$node->{'name'}} = {'pending' => 1};
 	$self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
+	my $start = [gettimeofday];
         $self->{'rmq_client'}->get_LSPs( async_callback => $self->handle_response( cb => sub { my $res = shift;
+											       $self->{'logger'}->debug("Total Time for get_LSPs " . $node->{'mgmt_addr'} . " call: " . tv_interval($start,[gettimeofday]));
 											       $nodes{$node->{'name'}} = $res;
 											       $nodes{$node->{'name'}}->{'pending'} = 0;
 											       my $no_pending = 1;
@@ -433,26 +449,28 @@ sub isis_handler{
 
 
     my %nodes;
-    foreach my $node (@{$self->{'db'}->get_current_nodes(mpls => 1)}){
+    foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
 	$nodes{$node->{'short_name'}} = {'pending' => 1};
         $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
+	my $start = [gettimeofday];
         $self->{'rmq_client'}->get_isis_adjacencies( async_callback => $self->handle_response( cb => sub { my $res = shift;
-											      $nodes{$node->{'short_name'}} = $res;
-											      $nodes{$node->{'short_name'}}->{'pending'} = 0;
-											      my $no_pending = 1;
-											      foreach my $node (keys %nodes){
-												  if($nodes{$node}->{'pending'} == 1){
-												      $no_pending = 0;
-												  }
-											      }
-											      
-											      if($no_pending){
-												  warn "ISIS: No more pending\n";
-												  my $adj = $self->{'isis'}->process_results( isis => \%nodes);
-												  $self->handle_links($adj);
-											      }
-                                                                                  })
-					
+													   $self->{'logger'}->debug("Total Time for get_isis_adjacencies " . $node->{'mgmt_addr'} . " call: " . tv_interval($start,[gettimeofday]));
+													   $nodes{$node->{'short_name'}} = $res;
+													   $nodes{$node->{'short_name'}}->{'pending'} = 0;
+													   my $no_pending = 1;
+													   foreach my $node (keys %nodes){
+													       if($nodes{$node}->{'pending'} == 1){
+														   $no_pending = 0;
+													       }
+													   }
+													   
+													   if($no_pending){
+													       warn "ISIS: No more pending\n";
+													       my $adj = $self->{'isis'}->process_results( isis => \%nodes);
+													       $self->handle_links($adj);
+													   }
+											       })
+						     
             );
     }
 }
@@ -463,8 +481,9 @@ sub isis_handler{
 
 sub device_handler{
     my $self =shift;
-    foreach my $node (@{$self->{'db'}->get_current_nodes(mpls => 1)}){
+    foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
         $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
+	my $start = [gettimeofday];
         $self->{'rmq_client'}->get_system_info( async_callback => $self->handle_response( cb => sub {
                                                                                               my $res = shift;
                                                                                               if (defined $res->{'error'}) {
@@ -473,7 +492,7 @@ sub device_handler{
                                                                                                   $self->{'logger'}->error("Error calling get_system_info on $addr: $err");
                                                                                                   return;
                                                                                               }
-
+											      $self->{'logger'}->debug("Total Time for get_system_info " . $node->{'mgmt_addr'} . " call: " . tv_interval($start,[gettimeofday]));
                                                                                               $self->handle_system_info(node => $node->{'node_id'}, info => $res->{'results'});
 											  }));
     }
@@ -502,10 +521,12 @@ sub handle_system_info{
 
 sub handle_links{
     my $self = shift;
-    my $adj = shift;
+    my $adjs = shift;
 
     my %node_info;
-    my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
+
+    my $nodes = $self->{'db'}->get_current_nodes(type => 'mpls');
+    my $intfs = $self->{'ipv4_intf'};
 
     #build a Node hash by name...
     foreach my $node (@$nodes) {
@@ -522,139 +543,167 @@ sub handle_links{
 	$node_info{$details->{'short_name'}} = $details;
     }
 
-    #warn Dumper($adj);
+    $self->{'logger'}->debug("Adjacencies: " . Dumper($adjs));
+    $self->{'logger'}->debug("IPAddr map: " . Dumper($intfs));
 
     $self->{'db'}->_start_transaction();
 
-    foreach my $node_a (keys (%{$adj})){
-        foreach my $node_z (keys(%{$adj->{$node_a}})){
+    foreach my $node_a (keys %{$adjs}) {
+        foreach my $intf_a (keys %{$adjs->{$node_a}}) {
+            my $adj_a = $adjs->{$node_a}->{$intf_a};
 
-            if (!defined($adj->{$node_a}{$node_z}{'node_z'}{'interface_name'}) || !defined($adj->{$node_a}{$node_z}{'node_a'}{'interface_name'})) {
-                $self->{'logger'}->info("Link Instantiation: Couldn't find a required endpoint name:A-Z: " . Data::Dumper::Dumper($adj->{$node_a}{$node_z}));
-                $self->{'logger'}->info("Link Instantiation: Couldn't find a required endpoint name:Z-A: " . Data::Dumper::Dumper($adj->{$node_z}{$node_a}));
-                next;
-            }
-	    
-	    my $actual_node_a = $node_info{$node_a}->{'name'};
-	    my $actual_node_z = $node_info{$node_z}->{'name'};
+            my $node_z = $adj_a->{'remote_node'};
+            my $intf_z = $intfs->{$adj_a->{'remote_ip'}};
 
-	    my $a_int = $self->{'db'}->get_interface_id_by_names( node => $actual_node_a,
-	        						  interface => $adj->{$node_a}{$node_z}{'node_a'}{'interface_name'});
-	    my $z_int = $self->{'db'}->get_interface_id_by_names( node => $actual_node_z,
-	        						  interface => $adj->{$node_a}{$node_z}{'node_z'}{'interface_name'});
-	    
-	    if (!defined($a_int) || !defined($z_int)) {
-                $self->{'logger'}->info("Link Instantiation: Couldn't find interface_ids.");
+            my $adj_z = $adjs->{$node_z}->{$intf_z};
+
+            if (!defined $adj_a || !defined $adj_z) {
+                $self->{'logger'}->warn("Link Instantiation: Couldn't find remote adjacency for $node_a $intf_a");
                 next;
             }
 
-	    #find current link if any
-	    my ($link_db_id, $link_db_state) = $self->get_active_link_id_by_connectors( interface_a_id => $a_int, interface_z_id => $z_int);
-	    
-	    if($link_db_id){
+            my $a_int = $self->{'db'}->get_interface_id_by_names(node => $node_info{$node_a}->{'name'}, interface => $intf_a);
+            my $z_int = $self->{'db'}->get_interface_id_by_names(node => $node_info{$node_z}->{'name'}, interface => $intf_z);
+            if (!defined($a_int) || !defined($z_int)) {
+                $self->{'logger'}->warn("Link Instantiation: Couldn't find interface_ids.");
+                next;
+            }
 
-		#$self->{'db'}->update_link_state( link_id => $link_db_id, state => 'up');
-	    }else{
-		#first determine if any of the ports are currently used by another link... and connect to the same other node
-		my $links_a = $self->{'db'}->get_link_by_interface_id( interface_id => $a_int, show_decom => 0);
-		my $links_z = $self->{'db'}->get_link_by_interface_id( interface_id => $z_int, show_decom => 0);
+	    my ($link_db_id, $link_db_state) = $self->get_active_link_id_by_connectors(interface_a_id => $a_int, interface_z_id => $z_int);
+            if ($link_db_id) {
+                next;
+            }
 
-		my $a_node = $self->{'db'}->get_node_by_id( node_id => $node_info{$node_a}->{'node_id'});
-		my $z_node = $self->{'db'}->get_node_by_id( node_id => $node_info{$node_z}->{'node_id'});
+            my $links_a = $self->{'db'}->get_link_by_interface_id(interface_id => $a_int, show_decom => 0);
+            my $links_z = $self->{'db'}->get_link_by_interface_id(interface_id => $z_int, show_decom => 0);
+
+            my $a_node = $self->{'db'}->get_node_by_id(node_id => $node_info{$node_a}->{'node_id'});
+            my $z_node = $self->{'db'}->get_node_by_id(node_id => $node_info{$node_z}->{'node_id'});
+
+            my $a_links;
+            my $z_links;
 		
-		my $a_links;
-		my $z_links;
-		
-		#lets first remove any circuits not going to the node we want on these interfaces
-		foreach my $link (@$links_a){
-		    my $other_int = $self->{'db'}->get_interface( interface_id => $link->{'interface_a_id'} );
-		    if($other_int->{'interface_id'} == $a_int){
-			$other_int = $self->{'db'}->get_interface( interface_id => $link->{'interface_z_id'} );
-		    }
+            # lets first remove any circuits not going to the node we want on these interfaces
+            foreach my $link (@$links_a){
+                my $other_int = $self->{'db'}->get_interface(interface_id => $link->{'interface_a_id'});
+                if ($other_int->{'interface_id'} == $a_int) {
+                    $other_int = $self->{'db'}->get_interface(interface_id => $link->{'interface_z_id'});
+                }
 		    
-		    my $other_node = $self->{'db'}->get_node_by_id( node_id => $other_int->{'node_id'} );
-		    if($other_node->{'node_id'} == $z_node->{'node_id'}){
-			push(@$a_links,$link);
-		    }
-		}
+                my $other_node = $self->{'db'}->get_node_by_id(node_id => $other_int->{'node_id'});
+                if ($other_node->{'node_id'} == $z_node->{'node_id'}) {
+                    push(@$a_links, $link);
+                }
+            }
 
-		foreach my $link (@$links_z){
-		    my $other_int = $self->{'db'}->get_interface( interface_id => $link->{'interface_a_id'} );
-		    if($other_int->{'interface_id'} == $z_int){
-			$other_int = $self->{'db'}->get_interface( interface_id => $link->{'interface_z_id'} );
-		    }
-		    my $other_node = $self->{'db'}->get_node_by_id( node_id => $other_int->{'node_id'} );
-		    if($other_node->{'node_id'} == $a_node->{'node_id'}){
-			push(@$z_links,$link);
-		    }
-		}
-		
+            foreach my $link (@$links_z){
+                my $other_int = $self->{'db'}->get_interface(interface_id => $link->{'interface_a_id'});
+                if ($other_int->{'interface_id'} == $z_int) {
+                    $other_int = $self->{'db'}->get_interface(interface_id => $link->{'interface_z_id'});
+                }
+                my $other_node = $self->{'db'}->get_node_by_id(node_id => $other_int->{'node_id'});
+                if ($other_node->{'node_id'} == $a_node->{'node_id'}) {
+                    push(@$z_links, $link);
+                }
+            }
 
-		#ok... so we now only have the links going from a to z nodes
-		# we pretty much have 4 cases... there are 2 or more links going from a to z
-		# there is 1 link going from a to z (this is enumerated as 2 elsifs one for each side)
-		# there is no link going from a to z
-		if(defined($a_links->[0]) && defined($z_links->[0])){
-		    #ok this is the more complex one to worry about
-		    #pick one and move it, we will have to move another one later
-		    my $link = $a_links->[0];
-		    my $old_z = $link->{'interface_a_id'};
-		    if($old_z == $a_int){
-			$old_z = $link->{'interface_z_id'};
-		    }
+            # we pretty much have 4 cases... there are 2 or more links going from a to z
+            # there is 1 link going from a to z (this is enumerated as 2 elsifs one for each side)
+            # there is no link going from a to z
+            if (defined $a_links->[0] && defined $z_links->[0]) {
+                #ok this is the more complex one to worry about
+                #pick one and move it, we will have to move another one later
+                my $link = $a_links->[0];
+                my $old_z = $link->{'interface_a_id'};
+                if ($old_z == $a_int) {
+                    $old_z = $link->{'interface_z_id'};
+                }
 
-		    my $old_z_interface = $self->{'db'}->get_interface( interface_id => $old_z);
-		    $self->{'db'}->decom_link_instantiation( link_id => $link->{'link_id'} );
-		    $self->{'db'}->create_link_instantiation( link_id => $link->{'link_id'}, interface_a_id => $a_int, interface_z_id => $z_int, state => $link->{'state'}, mpls => 1, ip_a => $adj->{$node_a}{$node_z}{'node_a'}{'ip_address'}, ip_z => $adj->{$node_a}{$node_z}{'node_z'}{'ip_address'} );
-		}elsif(defined($a_links->[0])){
-		    $self->{'logger'}->info("Link updated on the Z Side");
+                my $old_z_interface = $self->{'db'}->get_interface(interface_id => $old_z);
+                $self->{'db'}->decom_link_instantiation(link_id => $link->{'link_id'});
+                $self->{'db'}->create_link_instantiation(
+                    link_id => $link->{'link_id'},
+                    interface_a_id => $a_int,
+                    interface_z_id => $z_int,
+                    state => $link->{'state'},
+                    mpls => 1,
+                    ip_a => $adj_z->{'remote_ip'},
+                    ip_z => $adj_a->{'remote_ip'}
+                );
+            } elsif (defined $a_links->[0]) {
+                $self->{'logger'}->info("Link updated on the Z Side");
 
-		    #easy case update link_a so that it is now on the new interfaces
-		    my $link = $a_links->[0];
-		    my $old_z = $link->{'interface_a_id'};
-		    if($old_z == $a_int){
-			$old_z = $link->{'interface_z_id'};
-		    }
-		    my $old_z_interface= $self->{'db'}->get_interface( interface_id => $old_z);
-		    #if its in the links_a that means the z end changed...
-		    $self->{'db'}->decom_link_instantiation( link_id => $link->{'link_id'} );
-		    $self->{'db'}->create_link_instantiation( link_id => $link->{'link_id'}, interface_a_id => $a_int, interface_z_id => $z_int, state => $link->{'state'}, mpls => 1, ip_a => $adj->{$node_a}{$node_z}{'node_a'}{'ip_address'}, ip_z => $adj->{$node_a}{$node_z}{'node_z'}{'ip_address'} );
-		}elsif(defined($z_links->[0])){
-		    $self->{'logger'}->info("Link updated on the A Side");
+                #easy case update link_a so that it is now on the new interfaces
+                my $link = $a_links->[0];
+                my $old_z = $link->{'interface_a_id'};
+                if ($old_z == $a_int) {
+                    $old_z = $link->{'interface_z_id'};
+                }
 
-		    #easy case update link_a so that it is now on the new interfaces
-		    my $link = $z_links->[0];
+                my $old_z_interface = $self->{'db'}->get_interface(interface_id => $old_z);
+                #if its in the links_a that means the z end changed...
+                $self->{'db'}->decom_link_instantiation(link_id => $link->{'link_id'});
+                $self->{'db'}->create_link_instantiation(
+                    link_id => $link->{'link_id'},
+                    interface_a_id => $a_int,
+                    interface_z_id => $z_int,
+                    state => $link->{'state'},
+                    mpls => 1,
+                    ip_a => $adj_z->{'remote_ip'},
+                    ip_z => $adj_a->{'remote_ip'}
+                );
+            } elsif (defined $z_links->[0]) {
+                $self->{'logger'}->info("Link updated on the A Side");
 
-		    my $old_a = $link->{'interface_a_id'};
-		    if($old_a == $z_int){
-			$old_a = $link->{'interface_z_id'};
-		    }
-		    my $old_a_interface= $self->{'db'}->get_interface( interface_id => $old_a);
-		    
-		    $self->{'db'}->decom_link_instantiation( link_id => $link->{'link_id'});
-		    $self->{'db'}->create_link_instantiation( link_id => $link->{'link_id'}, interface_a_id => $a_int, interface_z_id => $z_int, state => $link->{'state'}, mpls => 1, ip_a => $adj->{$node_a}{$node_z}{'node_a'}{'ip_address'}, ip_z => $adj->{$node_a}{$node_z}{'node_z'}{'ip_address'});
-		}else{
-		    my $link_name = $node_a . "-" . $adj->{$node_a}{$node_z}{'node_a'}{'interface_name'} . "--" . $node_z . "-" . $adj->{$node_a}{$node_z}{'node_z'}{'interface_name'};
-		    my $link = $self->{'db'}->get_link_by_name(name => $link_name);
-		    my $link_id;
+                #easy case update link_a so that it is now on the new interfaces
+                my $link = $z_links->[0];
+                my $old_a = $link->{'interface_a_id'};
+                if ($old_a == $z_int) {
+                    $old_a = $link->{'interface_z_id'};
+                }
 
-		    if(!defined($link)){
-			$link_id = $self->{'db'}->add_link( name => $link_name );
-		    }else{
-			$link_id = $link->{'link_id'};
-		    }
+                my $old_a_interface= $self->{'db'}->get_interface(interface_id => $old_a);
+                $self->{'db'}->decom_link_instantiation(link_id => $link->{'link_id'});
+                $self->{'db'}->create_link_instantiation(
+                    link_id => $link->{'link_id'},
+                    interface_a_id => $a_int,
+                    interface_z_id => $z_int,
+                    state => $link->{'state'},
+                    mpls => 1,
+                    ip_a => $adj_z->{'remote_ip'},
+                    ip_z => $adj_a->{'remote_ip'}
+                );
+            } else {
+                my $link_name = $node_a . "-" . $intf_a . "--" . $node_z . "-" . $intf_z;
+                my $link = $self->{'db'}->get_link_by_name(name => $link_name);
+                my $link_id;
 
-		    if(!defined($link_id)){
-			$self->{'db'}->_rollback();
-			return undef;
-		    }
+                if (!defined $link) {
+                    $link_id = $self->{'db'}->add_link(name => $link_name);
+                } else {
+                    $link_id = $link->{'link_id'};
+                }
 
-		    $self->{'db'}->create_link_instantiation( link_id => $link_id, state => 'available', interface_a_id => $a_int, interface_z_id => $z_int, mpls => 1, ip_a => $adj->{$node_a}{$node_z}{'node_a'}{'ip_address'}, ip_z => $adj->{$node_a}{$node_z}{'node_z'}{'ip_address'});
-		}
-	    }
-	}
+                if (!defined $link_id) {
+                    $self->{'db'}->_rollback();
+                    return undef;
+                }
+
+                $self->{'db'}->create_link_instantiation(
+                    link_id => $link_id,
+                    state => 'available',
+                    interface_a_id => $a_int,
+                    interface_z_id => $z_int,
+                    mpls => 1,
+                    ip_a => $adj_z->{'remote_ip'},
+                    ip_z => $adj_a->{'remote_ip'}
+                );
+            }
+        }
     }
+
     $self->{'db'}->_commit();
+    return 1;
 }
 
 =head2 get_active_link_id_by_connectors
@@ -731,7 +780,9 @@ sub stop {
 
     $self->{'logger'}->info("Sending MPLS.Discovery.stop to listeners");
     $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch";
-    $self->{'rmq_client'}->stop();
+    $self->{'rmq_client'}->stop( no_reply => 1);
+
+    $self->{'dispatcher'}->stop_consuming();
 }    
 
 1;

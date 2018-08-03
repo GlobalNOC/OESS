@@ -139,7 +139,7 @@ sub new {
     };
 
     #from TOPO startup
-    my $nodes = $self->{'db'}->get_current_nodes();
+    my $nodes = $self->{'db'}->get_current_nodes(type => 'openflow');
     foreach my $node (@$nodes) {
 	next if (!$node->{'openflow'});
         $self->{'db'}->update_node_operational_state(node_id => $node->{'node_id'}, state => 'down');
@@ -316,6 +316,11 @@ sub _register_rpc_methods{
 				  required => 1,
 				  pattern => $GRNOC::WebService::Regex::INTEGER);
 
+    $method->add_input_parameter( name => 'force_reprovision',
+                                  description => "don't remove circuit on failure to re-add",
+                                  required => 0,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);
+
     $d->register_method($method);
     
     $method = GRNOC::RabbitMQ::Method->new( name => "deleteVlan",
@@ -346,6 +351,7 @@ sub _register_rpc_methods{
 
 
     $method = GRNOC::RabbitMQ::Method->new( name => 'rules_per_switch',
+                                            async => 1,
 					    callback => sub { $self->rules_per_switch(@_) },
 					    description => "Returns the total number of flow rules currently installed on this switch");
     
@@ -645,15 +651,31 @@ sub rules_per_switch{
     my $p_ref = shift;
     my $state = shift;
 
+    my $success = $m_ref->{'success_callback'};
+    my $error   = $m_ref->{'error_callback'};
+
     my $dpid = $p_ref->{'dpid'}{'value'};
 
-    $self->{'logger'}->error("Get Rules on Node: $dpid . " . Data::Dumper::Dumper($self->{'node_rules'}));
+    $self->{'logger'}->debug("Get Rules on Node: $dpid . " . Data::Dumper::Dumper($self->{'node_rules'}));
     
-    if(defined($dpid) && defined($self->{'node_rules'}->{$dpid})){
-        return {dpid => $dpid, rules_on_switch => $self->{'node_rules'}->{$dpid}};
+    if (!defined $self->{'children'}->{$dpid}) {
+        return &$error("Unable to find DPID: $dpid");
     }
 
-    return {error => "Unable to find DPID: " . $dpid};
+    $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
+    $self->{'fwdctl_events'}->get_flows(
+        async_callback => sub {
+            my $res = shift;
+            if (defined $res->{'error'}) {
+                return &$error($res->{'error'});
+            }
+
+            return &$success({
+                dpid => $dpid,
+                rules_on_switch => $res->{'results'}->{'flows'}
+            });
+        }
+    );
 }
 
 =head2 force_sync
@@ -803,7 +825,7 @@ sub build_cache{
         }
     }
         
-    my $links = $db->get_current_links();
+    my $links = $db->get_current_links(type => 'openflow');
     foreach my $link (@$links) {
         if ($link->{'status'} eq 'up') {
             $link_status{$link->{'name'}} = OESS_LINK_UP;
@@ -814,7 +836,7 @@ sub build_cache{
         }
     }
         
-    my $nodes = $db->get_current_nodes();
+    my $nodes = $db->get_current_nodes(type => 'openflow');
     foreach my $node (@$nodes) {
 	next if(!$node->{'openflow'});
         my $details = $db->get_node_by_dpid(dpid => $node->{'dpid'});
@@ -884,10 +906,10 @@ sub _write_cache{
         my $file = $self->{'share_file'} . "." . sprintf("%x",$dpid);
         open(my $fh, ">", $file) or $self->{'logger'}->error("Unable to open $file " . $!);
 	#lock the file
-	flock($fh, 2);
+	flock($fh, 2) or $self->{'logger'}->error("Unable to flock: $!");
         print $fh encode_json($data);
 	#unlock the file
-	flock($fh, 8);
+	flock($fh, 8) or $self->{'logger'}->error("Unable to unlock flock: $!");
         close($fh);
     }
 
@@ -2043,6 +2065,7 @@ sub addVlan {
 
     my $success_callback = $m_ref->{'success_callback'};
     my $error_callback   = $m_ref->{'error_callback'};
+    my $force_reprovision = $m_ref->{'force_reprovison'} || 0;
 
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
@@ -2091,7 +2114,7 @@ sub addVlan {
     my $err = '';
 
     $cv->begin( sub {
-        if ($err ne '') {
+        if ($err ne '' && !$force_reprovision) {
             foreach my $dpid (keys %dpids) {
                 $self->{'fwdctl_events'}->{'topic'} = "OF.FWDCTL.Switch." . sprintf("%x", $dpid);
                 $self->{'fwdctl_events'}->remove_vlan(circuit_id     => $circuit_id,

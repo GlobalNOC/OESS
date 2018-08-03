@@ -1,0 +1,6 @@
+[grnoc-public]
+name=GlobalNOC Public el6 Packages - $basearch
+baseurl=https://repo-public.grnoc.iu.edu/repo/6/$basearch
+enabled=1
+gpgcheck=1
+gpgkey=https://repo-public.grnoc.iu.edu/repo/RPM-GPG-KEY-GRNOC6

@@ -30,33 +30,23 @@ use strict;
 use warnings;
 
 use Data::Dumper;
-use JSON;
-use LWP::UserAgent;
-use Switch;
+use JSON::XS;
 use Log::Log4perl;
 
-use OESS::RabbitMQ::Client;
 use GRNOC::WebService;
 
 use OESS::Database;
-use OESS::Topology;
-
+#use Time::HiRes qw( gettimeofday tv_interval);
 
 use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
 
+
 Log::Log4perl::init('/etc/oess/logging.conf');
 
-my $conf = GRNOC::Config->new(config_file => '/etc/oess/database.xml');
-
 my $db = new OESS::Database();
-
-my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
-                                      timeout  => 60 );
-
-my $topo = new OESS::Topology();
 
 my $svc = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
 
@@ -176,6 +166,7 @@ sub register_webservice_methods {
     $method->add_input_parameter( name        => 'circuit_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
                                   required    => 0,
+                                  multiple    => 1,
                                   description => 'Circuit IDs of the circuits on original_interface.' );
     $svc->register_method($method);
 
@@ -747,6 +738,10 @@ sub register_webservice_methods {
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
                                   required    => 1,
                                   description => '' );
+    $method->add_input_parameter( name        => 'short_name',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 1,
+                                  description => '' );
     $method->add_input_parameter( name        => 'longitude',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
                                   required    => 1,
@@ -851,6 +846,9 @@ sub get_diff_text {
     my ( $method, $args ) = @_ ;
 
     my $node_id = $args->{'node_id'}{'value'};
+    require OESS::RabbitMQ::Client;
+    my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
+					  timeout  => 60 );
     $mq->{'topic'} = "MPLS.FWDCTL.RPC";
     my $event   = $mq->get_diff_text( node_id => $node_id );
 
@@ -980,60 +978,6 @@ sub get_remote_devices {
         $results->{'results'} = $devices;
     }
 
-    return $results;
-}
-
-sub submit_topology {
-    my ($method, $args) = @_;
-
-    my ($user, $err) = authorization(admin => 1, read_only => 0);
-    if (defined $err) {
-        return send_json($err);
-    }
-
-    my $results;
-
-    my $topology_xml = $db->gen_topo();
-    my $httpEndpoint = $db->get_oscars_topo();
-
-    my $xml = "";
-    $xml .=
-        '<SOAP-ENV:Envelope xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
-                   xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                   xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
-             <SOAP-ENV:Header/>
-             <SOAP-ENV:Body>';
-    $xml .=
-        '<nmwg:message type="TSReplaceRequest" xmlns:nmwg="http://ggf.org/ns/nmwg/base/2.0/">
-               <nmwg:metadata id="meta0">
-                  <nmwg:eventType>http://ggf.org/ns/nmwg/topology/20070809</nmwg:eventType>
-                     </nmwg:metadata>
-                       <nmwg:data id="data0" metadataIdRef="meta0">';
-    $xml .= $topology_xml;
-    $xml .= '          </nmwg:data>
-              </nmwg:message>
-              </SOAP-ENV:Body>
-              </SOAP-ENV:Envelope>';
-
-    my $method_uri = "http://ggf.org/ns/nmwg/base/2.0/message/";
-    my $userAgent = LWP::UserAgent->new( 'timeout' => 10 );
-    my $sendSoap =
-        HTTP::Request->new( 'POST', $httpEndpoint, new HTTP::Headers, $xml );
-    $sendSoap->header( 'SOAPAction' => $method_uri );
-    $sendSoap->content_type('text/xml');
-    $sendSoap->content_length( length($xml) );
-
-    my $httpResponse = $userAgent->request($sendSoap);
-    warn Dumper($httpResponse);
-    warn Dumper($httpResponse->code());
-    warn Dumper($httpResponse->message());
-    
-    if($httpResponse->code() == 200 && $httpResponse->message() eq 'success'){
-        $results->{'results'} = [ { success => 1 } ];
-    }else{
-        $results->{'error'} = $httpResponse->message();
-    }
     return $results;
 }
 
@@ -1487,7 +1431,7 @@ sub add_edge_interface_move_maintenance {
     $results->{'results'} = [$res];
 
     # now diff node
-    if(!_update_cache_and_sync_node($res->{'dpid'})){
+    if(!_update_cache_and_sync_node($res->{'node'})){
         $results->{'error'}   = "Issue diffing node";
     }
 
@@ -1515,8 +1459,8 @@ sub revert_edge_interface_move_maintenance {
     $results->{'results'} = [$res];
 
     # now diff node
-    if(!_update_cache_and_sync_node($res->{'dpid'})){
-        $results->{'error'}   = "Issue diffing node";
+    if(!_update_cache_and_sync_node($res->{'node'})){
+	$results->{'error'}   = "Issue diffing node";
     }
 
     return $results;
@@ -1533,21 +1477,26 @@ sub move_edge_interface_circuits {
     my $results = { 'results' => [] };
     my $orig_interface_id  = $args->{"orig_interface_id"}{'value'};
     my $new_interface_id   = $args->{"new_interface_id"}{'value'};
-    my @circuit_ids        = $args->{"circuit_id"}{'value'};
+    my $circuit_ids        = $args->{"circuit_id"}{'value'};
 
     my $res = $db->move_edge_interface_circuits(
         orig_interface_id => $orig_interface_id,
         new_interface_id  => $new_interface_id,
-        circuit_ids       => (@circuit_ids > 0) ? \@circuit_ids : undef
+        circuit_ids       => $circuit_ids
         );
-    if ( !defined $res ) {
+
+
+    if ( !defined $res || !defined($res->{'node'})) {
         $results->{'error'}   = $db->get_error();
+	warn "Error: " . $db->get_error();
+	return $results;
     }
+
     $results->{'results'} = [$res];
 
     # now diff node
-    if(!_update_cache_and_sync_node($res->{'dpid'})){
-        $results->{'error'}   = "Issue diffing node";
+    if(!_update_cache_and_sync_node($res->{'node'})){
+	$results->{'error'}   = "Issue diffing node";
     }
 
     return $results;
@@ -1642,7 +1591,9 @@ sub confirm_node {
     }
 
     my $node = $db->get_node_by_id( node_id => $node_id);
-
+    require OESS::RabbitMQ::Client;
+    my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
+                                          timeout  => 60 );
     if (!defined $mq) {
         $results->{'results'} = [ {
                                    "error"   => "Internal server error occurred. Message queue connection failed.",
@@ -1662,8 +1613,6 @@ sub confirm_node {
                           });
 
     my $cache_result = $cv->recv();
-
-    warn Data::Dumper::Dumper($cache_result);
 
     if ($cache_result->{'error'} || !$cache_result->{'results'}) {
         return { results => [ {
@@ -1755,6 +1704,9 @@ sub update_node {
     } else {
 	$mpls = 0;
     }
+    require OESS::RabbitMQ::Client;
+    my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
+                                          timeout  => 60 );
 
     warn 'update_node: updating generic switch data';
     my $result = $db->update_node(
@@ -1911,7 +1863,7 @@ sub update_interface {
             return {results => [{success => 0}], error => "Unable to update vlan tag range"};
         }
     }
-    
+
     if(defined($mpls_vlan_tags)){
 	my $result = $db->update_interface_mpls_vlan_range( 'vlan_tag_range' => $mpls_vlan_tags,
 							    'interface_id'   => $interface_id );
@@ -1924,7 +1876,7 @@ sub update_interface {
 
     $db->_commit();
     $results->{'results'} = [ { "success" => 1 } ];
-    
+
     return $results;
 
 }
@@ -1954,6 +1906,9 @@ sub decom_node {
     else {
         $results->{'results'} = [ { "success" => 1 } ];
     }
+    require OESS::RabbitMQ::Client;
+    my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
+                                          timeout  => 60 );
 
     if (!defined $mq) {
         return;
@@ -2277,6 +2232,7 @@ sub add_mpls_switch{
     }
     
     my $name = $args->{'name'}{'value'};
+    my $short_name = $args->{'short_name'}{'value'};
     my $ip_address = $args->{'ip_address'}{'value'};
     my $latitude = $args->{'latitude'}{'value'};
     my $longitude = $args->{'longitude'}{'value'};
@@ -2284,8 +2240,12 @@ sub add_mpls_switch{
     my $vendor = $args->{'vendor'}{'value'};
     my $model = $args->{'model'}{'value'};
     my $sw_ver = $args->{'sw_ver'}{'value'};
+    require OESS::RabbitMQ::Client;
+    my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
+                                          timeout  => 60 );
 
     my $node = $db->add_mpls_node( name => $name,
+                                   short_name => $short_name,
 				   ip => $ip_address,
 				   lat => $latitude,
 				   long => $longitude,
@@ -2308,8 +2268,6 @@ sub add_mpls_switch{
     } else {
 	$mq->{'topic'} = 'MPLS.FWDCTL.RPC';
     }
-
-    warn Data::Dumper::Dumper($node);
 
     my $cv = AnyEvent->condvar;
     $mq->new_switch(
@@ -2342,7 +2300,11 @@ sub send_json {
 }
 
 sub _update_cache_and_sync_node {
-    my $dpid = shift;    
+    my $node = shift;
+
+    require OESS::RabbitMQ::Client;
+    my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
+                                          timeout  => 20 );
 
     if ( !defined($mq) ) {
         return;
@@ -2351,31 +2313,40 @@ sub _update_cache_and_sync_node {
     }
 
     my $cv = AnyEvent->condvar;
-    $mq->update_cache(circuit_id     => -1,
-		      async_callback => sub {
-			  my $result = shift;
-			  $cv->send($result);
-		      });
-
-    my $result = $cv->recv();
-
-    if ($result->{'error'} || !$result->{'results'}) {
-        return;
+    $cv->begin();
+    if($node->{'openflow'}){
+	warn "Updating OF Cache\n";
+	$cv->begin();
+	$mq->update_cache(circuit_id     => -1,
+			  async_callback => sub {
+			      my $result = shift;
+			      $cv->send();
+			  });
+	warn "Requesting OF Force Sync\n";
+	$cv->begin();
+	$mq->force_sync(dpid => int($node->{'dpid'}),
+			async_callback => sub {
+			    my $result = shift;
+			    $cv->send();
+			});
+	
+	
     }
 
-    $cv = AnyEvent->condvar;
-    $mq->force_sync(dpid => int($dpid),
-		    async_callback => sub {
-			my $result = shift;
-			$cv->send($result);
-		    });
-
-    $result = $cv->recv();
-
-    if ($result->{'error'} || !$result->{'results'}) {
-        return;
+    if($node->{'mpls'}){
+	warn "Syncing MPLS\n";
+	$mq->{'topic'} = 'MPLS.FWDCTL.RPC';
+	$cv->begin();
+	$mq->new_switch(
+	    node_id => int($node->{'node_id'}),
+	    async_callback => sub {
+		my $result = shift;
+		$cv->send();
+	    });
     }
 
+    $cv->recv();
+    warn "Complete syncing node\n";
     return 1;
 }
 

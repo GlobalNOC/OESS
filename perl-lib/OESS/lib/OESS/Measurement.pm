@@ -141,7 +141,7 @@ sub get_of_circuit_data {
 
     foreach my $nodeName (keys %node_to_dpid){
 
-        my $int_name =  $db->get_node_interfaces(node => $nodeName, show_down => 1, show_trunk =>1);
+        my $int_name =  $db->get_node_interfaces(node => $nodeName, show_down => 1, show_trunk =>1, type => 'openflow');
         
         foreach my $int (@{$int_name}){
             $int_names{$node_to_dpid{$nodeName}}->{$int->{'port_number'}} = $int->{'name'};
@@ -197,8 +197,8 @@ sub get_of_circuit_data {
     # (or no specific interface was asked for), just select one!
     $selected = shift @other_interfaces_on_node if !defined($selected);
 
-    $self->{'logger'}->info("Interfaces: " . Dumper(@other_interfaces_on_node));
-    $self->{'logger'}->info("Selected: "   . Dumper($selected));
+    #$self->{'logger'}->info("Interfaces: " . Dumper(@other_interfaces_on_node));
+    #$self->{'logger'}->info("Selected: "   . Dumper($selected));
 
     #now we have selected an interface and have a list of all the other interfaces on that node
     #generate our data
@@ -295,7 +295,7 @@ sub _tsds_of_query{
 	$self->{'logger'}->error($req->get_error());
     }
 
-    $self->{'logger'}->debug("tsds_of_query: " . Dumper($res));
+    #$self->{'logger'}->debug("tsds_of_query: " . Dumper($res));
 
     return $res;
 
@@ -318,7 +318,7 @@ sub aggregate_data{
     #if it doesn't we need much more complex logic
 
     for(my $i=0;$i<=$#{$agg};$i++){
-        warn Dumper($agg->[$i]);
+        #warn Dumper($agg->[$i]);
 	if($agg->[$i]->[0] == $new_data->[$i]->[0]){
             $agg->[$i]->[1] += $new_data->[$i]->[1];
         }
@@ -393,7 +393,7 @@ sub get_mpls_circuit_data {
                                                start => $start_time,
                                                end => $end_time );
 
-    warn Dumper($results);
+    #warn Dumper($results);
 
     my $result = { 'interfaces' => \@interfaces,
 		   'interface'  => $interface,

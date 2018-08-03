@@ -482,6 +482,7 @@ sub _send_add_command {
     my %args = @_;
 
     my $circuit_id = $args{'circuit_id'};
+    my $force_reprovision = $args{'force_reprovision'} || 0;
 
     my $result = undef;
     my $err    = undef;
@@ -495,7 +496,8 @@ sub _send_add_command {
 
     my $cv = AnyEvent->condvar;
 
-    $mq->addVlan(circuit_id => $circuit_id,
+    $mq->addVlan(circuit_id => int($circuit_id),
+                 force_reprovision => $force_reprovision,
 		 async_callback => sub {
 		     my $result = shift;
 		     $cv->send($result);
@@ -529,7 +531,7 @@ sub _send_mpls_remove_command {
     my $circuit_id = $args{'circuit_id'};
     my $cv = AnyEvent->condvar;
 
-    $mq->deleteVlan(circuit_id => $circuit_id,
+    $mq->deleteVlan(circuit_id => int($circuit_id),
 		    async_callback => sub {
 			my $result = shift;
 			$cv->send($result)
@@ -561,7 +563,7 @@ sub _send_remove_command {
 
     my $cv = AnyEvent->condvar;
 
-    $mq->deleteVlan(circuit_id     => $circuit_id,
+    $mq->deleteVlan(circuit_id     => int($circuit_id),
 		    async_callback => sub {
 			my $result = shift;
 			$cv->send($result);
@@ -684,7 +686,7 @@ sub provision_circuit {
 
     # TEMPORARY HACK UNTIL OPENFLOW PROPERLY SUPPORTS QUEUING. WE CANT
     # DO BANDWIDTH RESERVATIONS SO FOR NOW ASSUME EVERYTHING HAS 0 BANDWIDTH RESERVED
-    my $bandwidth   = $args->{'bandwidth'}{'value'} || 0;
+    my $bandwidth   = 0;
 
     my $provision_time = $args->{'provision_time'}{'value'};
     my $remove_time    = $args->{'remove_time'}{'value'};
@@ -1189,10 +1191,9 @@ sub reprovision_circuit {
         if (defined $err) {
             my $error_text = "Error sending circuit removal request to controller, please try again or contact your Systems Administrator: $err";
             $method->set_error($error_text);
-            return {results => {status => 0}, error => 1, error_message => $error_text};
         }
 
-	($add_success, $err) = _send_add_command(circuit_id => $circuit_id);
+	($add_success, $err) = _send_add_command(circuit_id => $circuit_id, force_reprovision => 1);
         if (defined $err) {
             my $error_text = "Error sending circuit provision request to controller, please try again or contact your Systems Administrator: $err";
             $method->set_error($error_text);

@@ -287,26 +287,6 @@ sub _register_rpc_methods{
                                             },
 					    description => "Proxies diff signal to the underlying device object." );
     $dispatcher->register_method($method);
-
-    $method = GRNOC::RabbitMQ::Method->new( name        => "get_device_circuit_ids",
-					    callback    => sub {
-                                                return $self->get_device_circuit_ids(@_);
-                                            },
-					    description => "Proxies request for installed circuits to device object." );
-    $dispatcher->register_method($method);
-
-    $method = GRNOC::RabbitMQ::Method->new( name        => "get_default_paths",
-					    callback    => sub {
-                                                return $self->get_default_paths(@_);
-                                            },
-					    description => "Returns a hash with a path to each loopback address." );
-    $method->add_input_parameter( name        => "loopback_addresses",
-                                  description => "List of loopback ip addresses",
-                                  pattern     => $GRNOC::WebService::Regex::TEXT,
-				  multiple    => 1,
-                                  required    => 1 );
-
-    $dispatcher->register_method($method);
 }
 
 sub _update_cache {
@@ -400,21 +380,17 @@ sub stop {
 
 =head2 add_vlan
 
-    Adds a VLAN to this switch
+Adds a VLAN to this switch
 
 =cut
-
-
 sub add_vlan{
     my $self = shift;
     my $m_ref = shift;
     my $p_ref = shift;
-    $self->{'logger'}->error("ADDING VLAN");
-    $self->{'logger'}->debug("in add_vlan");
 
     my $circuit = $p_ref->{'circuit_id'}{'value'};
 
-    $self->{'logger'}->debug("Adding VLAN: " . $circuit);
+    $self->{'logger'}->debug("Calling add_vlan: " . $circuit);
 
     $self->_update_cache();
     
@@ -426,7 +402,6 @@ sub add_vlan{
 =head2 get_system_info
 
 =cut
-
 sub get_system_info{
     my $self = shift;
     my $m_ref = shift;
@@ -441,17 +416,14 @@ sub get_system_info{
 removes a VLAN from this switch
 
 =cut
-
 sub remove_vlan{
     my $self = shift;
     my $m_ref = shift;
     my $p_ref = shift;
 
-    $self->{'logger'}->debug("in remove_vlan");
-
     my $circuit = $p_ref->{'circuit_id'}{'value'};
 
-    $self->{'logger'}->debug("Removing VLAN: " . $circuit);
+    $self->{'logger'}->debug("Calling remove_vlan: " . $circuit);
 
     $self->_update_cache();
 
@@ -506,62 +478,6 @@ sub get_diff_text {
     }
 
     return $diff;
-}
-
-=head2 get_default_paths
-
-=over 4
-
-=item B<$loopback_addresses> - An array of loopback ip addresses
-
-=back
-
-Determine the default forwarding path between this node and each ip
-address provided in $loopback_addresses. Returns a hash for each
-destination containing an array of link addresses, and its associated
-lsp name.
-
-    {
-      "72.16.0.11": {
-        "name": "OESS-L2PVN-R0-R5",
-        "path": [
-          "172.16.0.38",
-          "172.16.0.46"
-        ]
-      },
-      ...
-    }
-
-=cut
-sub get_default_paths {
-   my $self  = shift;
-   my $m_ref = shift;
-   my $p_ref = shift;
-
-   $self->{'logger'}->debug("Calling Switch.get_default_paths");
-
-   my $addrs = $p_ref->{'loopback_addresses'}{'value'};
-   if (length($addrs) == 0) {
-       $self->{'logger'}->debug("get_default_paths: loopback array was empty");
-       return {};
-   }
-
-   my $default_paths = $self->{'device'}->get_default_paths($addrs);
-   return $default_paths;
-}
-
-=head2 get_device_circuit_ids
-
-=cut
-
-sub get_device_circuit_ids {
-    my $self  = shift;
-    my $m_ref = shift;
-    my $p_ref = shift;
-
-    $self->{'logger'}->debug("Calling Switch.get_device_circuit_ids");
-
-    return $self->{'device'}->get_device_circuit_ids();
 }
 
 =head2 get_interfaces

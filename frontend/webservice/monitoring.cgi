@@ -36,13 +36,11 @@ use Log::Log4perl;
 
 use OESS::Database;
 use OESS::RabbitMQ::Client;
-use OESS::Topology;
 use GRNOC::WebService;
 
 Log::Log4perl::init('/etc/oess/logging.conf');
 
 my $db   = new OESS::Database();
-my $topo = new OESS::Topology();
 
 #register web service dispatcher
 my $svc = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
@@ -226,6 +224,11 @@ sub get_rules_on_node{
     $mq->{'topic'} = 'OF.FWDCTL.RPC';
     my $result = $mq->rules_per_switch(dpid => int($node->{'dpid'}));
     warn Data::Dumper::Dumper($result);
+    if (defined $result->{'error'}) {
+        $method->set_error($result->{'error'});
+        return;
+    }
+
     $result = int($result->{'results'}->{'rules_on_switch'});
 
     my $tmp;

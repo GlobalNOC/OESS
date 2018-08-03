@@ -31,11 +31,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 1.2.0
+Version 1.2.5
 
 =cut
 
-our $VERSION = '1.2.0';
+our $VERSION = '1.2.5';
 
 =head1 SYNOPSIS
 
@@ -72,12 +72,10 @@ use warnings;
 package OESS::Database;
 
 use DBI;
-use Log::Log4perl;
 use XML::Simple;
 
 use Array::Utils qw(intersect);
 use XML::Writer;
-use GRNOC::RabbitMQ::Client;
 use GRNOC::Config;
 use OESS::Topology;
 use DateTime;
@@ -85,7 +83,7 @@ use Data::Dumper;
 
 use Socket qw( inet_aton inet_ntoa);
 
-use constant VERSION => '1.2.0';
+use constant VERSION => '1.2.5';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant OESS_PW_FILE => "/etc/oess/.passwd.xml";
@@ -935,11 +933,14 @@ sub get_current_nodes{
     my %args = @_;
 
     my $nodes;
+    my $type = $args{'type'};
 
-    if(defined($args{'mpls'}) && $args{'mpls'} == 1){
+    if ($type eq 'mpls') {
 	$nodes = $self->_execute_query("select node.*, node_instantiation.* from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state != 'decom' and node_instantiation.mpls = 1 order by node.name",[]);
-    }else{
+    } elsif ($type eq 'openflow') {
         $nodes = $self->_execute_query("select node.*, node_instantiation.* from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state != 'decom' and node_instantiation.openflow = 1 order by node.name",[]);
+    } else {
+        $nodes = $self->_execute_query("select node.*, node_instantiation.* from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state != 'decom' order by node.name",[]);
     }
 
     return $nodes;
@@ -1108,6 +1109,8 @@ The name of the node to query.
 
 =item show_down (optional)
 
+=item type (optional openflow|mpls|all)
+
 The internal MySQL primary key int identifier for this workgroup.
 
 =back
@@ -1122,6 +1125,7 @@ sub get_node_interfaces {
     my $workgroup_id    = $args{'workgroup_id'};
     my $show_down       = $args{'show_down'};
     my $show_trunk      = $args{'show_trunk'} || 0;
+    my $type            = $args{'type'} || 'all';
     my $null_workgroups = $args{'null_workgroups'};
 
     if(!defined($show_down)){
@@ -1166,6 +1170,14 @@ sub get_node_interfaces {
     if($show_down == 0){
 	    $query .= " and interface.operational_state = 'up' ";
 	    $acl_query .= " and interface.operational_state = 'up' ";
+    }
+
+    if($type eq 'openflow'){
+	$query .= " and interface.port_number is not null ";
+    }elsif($type eq 'mpls'){
+	$query .= " and interface.port_number is null";
+    }else{
+	#do nothing... it'll return everything
     }
 
     if (defined $workgroup_id){
@@ -1370,8 +1382,8 @@ HERE
         
     }
     
-    my $links = $self->get_current_links();
-    my $mpls_links = $self->get_current_links( mpls => 1);
+    my $links = $self->get_current_links(type => 'openflow');
+    my $mpls_links = $self->get_current_links(type => 'mpls');
     foreach my $link (@$mpls_links){
 	push(@$links, $link);
     }
@@ -1523,11 +1535,14 @@ sub get_current_links {
     my %args = @_;
 
     my $query;
+    my $type = $args{'type'};
 
-    if($args{'mpls'} && $args{'mpls'} == 1){
-	$query = "select * from link natural join link_instantiation where link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active' and link.remote_urn is NULL and link_instantiation.mpls=1 order by link.name";	
-    }else{
-	$query = "select * from link natural join link_instantiation where link_instantiation.end_epoch = -1 and link_instantiation.link_state = 'active' and link.remote_urn is NULL and link_instantiation.openflow=1 order by link.name";
+    if ($type eq 'mpls') {
+        $query = "SELECT * FROM link JOIN link_instantiation as linki ON link.link_id = linki.link_id where linki.end_epoch = -1 AND linki.link_state = 'active' AND link.remote_urn is NULL AND linki.mpls=1 ORDER BY link.name";
+    } elsif ($type eq 'openflow') {
+        $query = "SELECT * FROM link JOIN link_instantiation as linki ON link.link_id = linki.link_id where linki.end_epoch = -1 AND linki.link_state = 'active' AND link.remote_urn is NULL AND linki.openflow=1 ORDER BY link.name";
+    } else {
+        $query = "SELECT * FROM link JOIN link_instantiation as linki ON link.link_id = linki.link_id where linki.end_epoch = -1 AND linki.link_state = 'active' AND link.remote_urn is NULL ORDER BY link.name";
     }
 
     my $res = $self->_execute_query($query,[]);
@@ -5057,14 +5072,10 @@ sub insert_node_in_path{
     my %args = @_;
 
     $self->{'logger'}->warn("Entering insert_node_in_path");
-
+    require OESS::RabbitMQ::Client;
     if(!defined($self->{'fwdctl'})) {
-        $self->{'fwdctl'} = GRNOC::RabbitMQ::Client->new( host => $self->{'rabbitMQ'}->{'host'},
-                                                          port => $self->{'rabbitMQ'}->{'port'},
-                                                          user => $self->{'rabbitMQ'}->{'user'},
-                                                          pass => $self->{'rabbitMQ'}->{'pass'},
-                                                          exchange => 'OESS',
-                                                          topic => 'OF.FWDCTL.RPC' );
+        $self->{'fwdctl'} = OESS::RabbitMQ::Client->new(timeout => 60,
+							topic => 'OF.FWDCTL.RPC');
     }
 
     my $link = $args{'link'};
@@ -5214,7 +5225,6 @@ sub decom_link {
         return;
     }
 
-    warn "". Dumper($link_details);
 
     my $result = $self->_execute_query("update link_instantiation set end_epoch = unix_timestamp(NOW()) where end_epoch = -1 and link_id = ?", [$link_id]);
 
@@ -6856,6 +6866,9 @@ sub provision_circuit {
     my $is_avail = $self->is_external_vlan_available_on_interface(vlan => $tags->[0], interface_id => $interface);
 
     $type = $is_avail->{'type'};
+    if($type eq 'mpls'){
+        $backup_links = [];
+    }
     # create circuit record
     my $circuit_id = $self->_execute_query("insert into circuit (name, description, workgroup_id, external_identifier, restore_to_primary, static_mac,circuit_state, remote_url, remote_requester, type) values (?, ?, ?, ?, ?, ?,?,?,?,?)",
 					   [$name, $description, $workgroup_id, $external_id, $restore_to_primary, $static_mac,$state, $remote_url, $remote_requester, $type]);
@@ -7072,6 +7085,7 @@ sub provision_circuit {
         my $relevant_links = $link_lookup->{$path_type};
 
         next if(!defined(@$relevant_links) || !defined($relevant_links->[0]));
+	next if ($path_type eq 'backup' && $type eq 'mpls');
 
         # create the primary path object
         $query = "insert into path (path_type, circuit_id, path_state, mpls_path_type) values (?, ?, ?, ?)";
@@ -7599,8 +7613,8 @@ sub add_mpls_node{
 
     $self->_start_transaction();
 
-    my $query = "insert into node (name, latitude, longitude, operational_state_mpls,network_id) VALUES (?,?,?,?,?)";
-    my $res = $self->_execute_query($query, [$args{'name'},$args{'lat'},$args{'long'},'unknown',1]);
+    my $query = "insert into node (name, short_name, latitude, longitude, operational_state_mpls,network_id) VALUES (?,?,?,?,?,?)";
+    my $res = $self->_execute_query($query, [$args{'name'},$args{'short_name'},$args{'lat'},$args{'long'},'unknown',1]);
 
     warn "New Node: " . Data::Dumper::Dumper($res);
 
@@ -7726,8 +7740,9 @@ sub create_node_instance{
 	}
      }
 
-    if(!defined($args{'dpid'})){
-	$args{'dpid'} = inet_aton($args{'mgmt_addr'});
+    if (!defined $args{'dpid'}) {
+        my $data = inet_aton($args{'mgmt_addr'});
+        $args{'dpid'} = unpack('N', $data);
     }
 
     my $res = $self->_execute_query("insert into node_instantiation (node_id,end_epoch,start_epoch,mgmt_addr,admin_state,dpid,vendor,model,sw_version,mpls,openflow ) VALUES (?,?,?,?,?,?,?,?,?,?,?)",[$args{'node_id'},-1,time(),$args{'mgmt_addr'},$args{'admin_state'},$args{'dpid'},$args{'vendor'},$args{'model'},$args{'sw_version'},$args{'mpls'},$args{'openflow'}]);
@@ -8232,6 +8247,7 @@ sub edit_circuit {
         my $relevant_links = $link_lookup->{$path_type};
 
         next if(!defined(@$relevant_links) || !defined($relevant_links->[0]));
+	next if($path_type eq 'backup' && $type eq 'mpls');
 
         #try to find the path first
         $query = "select * from path where circuit_id = ? and path_type = ?";
@@ -9722,17 +9738,17 @@ sub add_edge_interface_move_maintenance {
     );
     if(!defined($res)){
 	    $self->_rollback() if($do_commit);
-        return;
+            return;
     }
     my $moved_circuit_ids   = $res->{'moved_circuits'};
     my $unmoved_circuit_ids = $res->{'unmoved_circuits'};
-
+    
     # now create edge_interface_move_maintenance_circuit_membership records for each moved circuit
     foreach my $circuit_id (@$moved_circuit_ids){
         my $query = "INSERT INTO edge_interface_move_maintenance_circuit_membership ( ".
-                    "  maintenance_id, ".
-                    "  circuit_id ) ". 
-                    "VALUES (?,?)";
+            "  maintenance_id, ".
+            "  circuit_id ) ". 
+            "VALUES (?,?)";
         my $res = $self->_execute_query($query,[
             $maintenance_id,
             $circuit_id
@@ -9860,6 +9876,9 @@ sub get_circuit_edge_interface_memberships {
         $query .= " AND circuit_id IN (".(join(',', ('?') x @$circuit_ids)).")";
         push(@$params, @$circuit_ids);
     }
+
+    warn "Query: " . $query . "\n";
+    warn "Params: " . Dumper($params);
     my $edge_interface_recs = $self->_execute_query($query, $params) || return;
 
     return $edge_interface_recs;
@@ -9874,19 +9893,22 @@ sub move_edge_interface_circuits {
     my $orig_interface_id = $args{'orig_interface_id'};
     my $new_interface_id  = $args{'new_interface_id'};
     my $circuit_ids       = $args{'circuit_ids'};
+
+    warn "Circuit IDS: " . Dumper($circuit_ids);
+
     my $do_commit    = (defined($args{'do_commit'})) ? $args{'do_commit'} : 1;
 
     #sanity checks
     if(!defined($orig_interface_id)){
-	    $self->_set_error("Must pass in orig_interface_id.");
+        $self->_set_error("Must pass in orig_interface_id.");
         return;
     }
     if(!defined($new_interface_id)){
-	    $self->_set_error("Must pass in new_interface_id.");
+        $self->_set_error("Must pass in new_interface_id.");
         return;
     }
     if($orig_interface_id == $new_interface_id){
-	    $self->_set_error("Original interface and new interface must be different.");
+        $self->_set_error("Original interface and new interface must be different.");
         return;
     }
 
@@ -9897,7 +9919,7 @@ sub move_edge_interface_circuits {
         return;
     }
     my $dpid = $orig_int_node->{'dpid'};
-   
+    
     # first retrieve all of the edge records that we're moving 
     my $src_edge_interface_recs = $self->get_circuit_edge_interface_memberships(
         interface_id => $orig_interface_id,
@@ -9977,7 +9999,8 @@ sub move_edge_interface_circuits {
     return { 
         moved_circuits   => \@moved_circuits,
         unmoved_circuits => \@unmoved_circuits,
-        dpid             => $dpid
+        dpid             => $dpid,
+        node             => $orig_int_node
     };
 }
 

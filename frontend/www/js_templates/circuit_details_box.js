@@ -61,7 +61,15 @@ function summary_init(options){
   }
   
   // YAHOO.util.Dom.get('summary_bandwidth').innerHTML         = bandwidth;
+  [% IF edit_details == 1 %]
+      if(session.data.description === undefined){
+	  session.data.description = "";
+      }
+      YAHOO.util.Dom.get('description').value = session.data.description;
+  [% ELSE %]
   YAHOO.util.Dom.get('summary_description').innerHTML       = session.data.description;
+  [% END %]
+
   YAHOO.util.Dom.get('summary_status').innerHTML            = session.data.state || "Planning";
   YAHOO.util.Dom.get('summary_type').innerHTML              = session.data.interdomain == 1 ? "Interdomain" : "Local";
 
@@ -325,8 +333,9 @@ function summary_init(options){
     }
 
   // set up all the help hover widgets
-  makeHelpPanel(["summary_description", "summary_description_label"], "This is the human readable description for this circuit.");
-
+    [% IF edit_details != 1 %]
+    makeHelpPanel(["summary_description", "summary_description_label"], "This is the human readable description for this circuit.");
+    [% END %]
   makeHelpPanel(["circuit_endpoints_table", "circuit_endpoints_table_label"], "These are the endpoints of the circuit in the Openflow network. In addition, this table shows what ports and what VLAN tags are used on the endpoint.");
 
   [% IF show_times %]

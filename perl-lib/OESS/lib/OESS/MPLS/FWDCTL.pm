@@ -73,8 +73,10 @@ sub new {
     $self->{'fwdctl_dispatcher'} = $fwdctl_dispatcher;
 
 
-    $self->{'fwdctl_events'} = OESS::RabbitMQ::Client->new( topic => 'MPLS.FWDCTL.event');
-
+    $self->{'fwdctl_events'} = OESS::RabbitMQ::Client->new(
+        timeout => 120,
+        topic => 'MPLS.FWDCTL.event'
+    );
 
 
     $self->{'logger'}->info("RabbitMQ ready to go!");
@@ -114,7 +116,7 @@ sub new {
     );
 
     #from TOPO startup
-    my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
+    my $nodes = $self->{'db'}->get_current_nodes(type => 'mpls');
     foreach my $node (@$nodes) {
 	warn Dumper($node);
 	$self->make_baby($node->{'node_id'});
@@ -173,7 +175,7 @@ sub build_cache{
         }
     }
         
-    my $links = $db->get_current_links();
+    my $links = $db->get_current_links(type => 'mpls');
     foreach my $link (@$links) {
         if ($link->{'status'} eq 'up') {
             $link_status{$link->{'name'}} = OESS_LINK_UP;
@@ -184,7 +186,7 @@ sub build_cache{
         }
     }
         
-    my $nodes = $db->get_current_nodes( mpls => 1 );
+    my $nodes = $db->get_current_nodes(type => 'mpls');
     foreach my $node (@$nodes) {
         my $details = $db->get_node_by_id(node_id => $node->{'node_id'});
 	next if(!$details->{'mpls'});
@@ -702,7 +704,6 @@ sub send_message_to_child{
 adds a vlan via MPLS
 
 =cut
-
 sub addVlan{
     my $self = shift;
     my $m_ref = shift;
@@ -766,6 +767,8 @@ sub addVlan{
     
     $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UP;
 
+    $self->{'logger'}->info("Adding VLAN.");
+
     my $cv  = AnyEvent->condvar;
     my $err = '';
 
@@ -817,7 +820,6 @@ sub addVlan{
 deletes a vlan in MPLS mode
 
 =cut
-
 sub deleteVlan{
     my $self = shift;
     my $m_ref = shift;
@@ -854,6 +856,8 @@ sub deleteVlan{
         $nodes{$ep->{'node'}}= 1;
     }
 
+    $self->{'logger'}->info("Deleting VLAN.");
+
     my $cv  = AnyEvent->condvar;
     my $err = '';
 
@@ -864,7 +868,7 @@ sub deleteVlan{
         }
 
         delete $self->{'circuit'}->{$circuit_id};
-        $self->{'logger'}->info("Delete VLAN.");
+        $self->{'logger'}->info("Deleted VLAN.");
         return &$success({status => FWDCTL_SUCCESS});
     });
 
@@ -884,6 +888,7 @@ sub deleteVlan{
 
 		if( $res->{'results'}->{'status'} != FWDCTL_SUCCESS){
 		    my $error = "Switch $node_addr reported an error";
+		    $self->{'logger'}->error(Dumper($res));
 		    $self->{'logger'}->error($error);
                     $err .= $error . "\n";
 		}
@@ -913,15 +918,12 @@ sub diff {
 
         # If the database asserts a diff is pending we are still waiting
         # for admin approval. Skip diffing for now.
-        if ($pending_diff == 1) {
-           $self->{'logger'}->info("Diff for node $node_id requires admin approval.");
-           next;
-        }
+
 
         # If the database asserts there is no diff pending but memory
         # disagrees, then the pending state was modified by an admin.
         # The pending diff may now proceed.
-        if ($self->{'children'}->{$node_id}->{'pending_diff'} == 1) {
+        if ($self->{'children'}->{$node_id}->{'pending_diff'} == 1 && $pending_diff == 0) {
             $force_diff = 1;
             $self->{'children'}->{$node_id}->{'pending_diff'} = 0;
         }
@@ -947,6 +949,9 @@ sub diff {
 
                     $self->{'logger'}->warn("Diff for node $node_id requires admin approval.");
                     return 0;
+                }else{
+                    $self->{'db'}->set_diff_approval(1, $node_id);
+                    $self->{'children'}->{$node_id}->{'pending_diff'} = 0;
                 }
 
                 return 1;
@@ -1114,7 +1119,7 @@ active mpls nodes, and saves them in the database.
 sub save_mpls_nodes_status {
     my $self = shift;
 
-    my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
+    my $nodes = $self->{'db'}->get_current_nodes(type => 'mpls');
     foreach my $node (@{$nodes}) {
         $self->{'fwdctl_events'}->{'topic'} = 'MPLS.FWDCTL.Switch.' . $node->{'mgmt_addr'};
 
@@ -1154,7 +1159,9 @@ sub stop {
 
     $self->{'logger'}->info("Sending MPLS.FWDCTL.event.stop to listeners");
     $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch";
-    $self->{'fwdctl_events'}->stop();
+    $self->{'fwdctl_events'}->stop( no_reply => 1);
+
+    $self->{'fwdctl_dispatcher'}->stop_consuming();
 }
 
 1;

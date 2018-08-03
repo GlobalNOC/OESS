@@ -37,14 +37,12 @@ use Data::Dumper;
 use Log::Log4perl;
 
 use OESS::Database;
-use OESS::Topology;
 use OESS::Measurement qw(BUILDING_FILE);
 
 
 Log::Log4perl::init('/etc/oess/logging.conf');
 
 my $db          = new OESS::Database();
-my $topo        = new OESS::Topology();
 my $measurement = new OESS::Measurement();
 
 #register web service dispatcher

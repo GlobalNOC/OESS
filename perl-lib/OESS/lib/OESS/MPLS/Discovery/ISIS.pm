@@ -66,42 +66,38 @@ sub _process_adjacencies{
     my $self = shift;
     my $isis = shift;
     
+    # A hash mapping source node to destination node.
+    # {
+    #   'src': {
+    #       'local_intf': {
+    #         'operational_state': '',
+    #         'local_intf':  '',
+    #         'local_node':  '',
+    #         'remote_node': '',
+    #         'remote_ip':   '',
+    #         'remote_ipv6': ''
+    #   }
+    # }
     my $adjacencies = {};
-    
-    foreach my $node (keys(%{$isis})){
-	if(!defined($adjacencies->{$node})){
+
+    foreach my $node (keys %{$isis}) {
+	if (!defined $adjacencies->{$node}) {
 	    $adjacencies->{$node} = {};
 	}
 
-        foreach my $adj (@{$isis->{$node}->{'results'}}){
-	    if(!defined($adjacencies->{$adj->{'remote_system_name'}})){
-		$adjacencies->{$adj->{'remote_system_name'}} = {};
-	    }
-	    if(!defined($adjacencies->{$node}{$adj->{'remote_system_name'}})){
-		$adjacencies->{$node}{$adj->{'remote_system_name'}} = {operational_state => $adj->{'operational_state'},
-								       node_a => {node => $node,
-										  interface_name => $adj->{'interface_name'},
-								       },
-								       node_z => {node => $adj->{'remote_system_name'},
-										  ip_address => $adj->{'ip_address'},
-										  ipv6_address => $adj->{'ipv6_address'}}};
-		
-		$adjacencies->{$adj->{'remote_system_name'}}{$node} = {operational_state => $adj->{'operational_state'},
-								       node_z => {node => $node,
-										  interface_name => $adj->{'interface_name'},
-								       },
-								       node_a => {node => $adj->{'remote_system_name'},
-										  ip_address => $adj->{'ip_address'},
-										  ipv6_address => $adj->{'ipv6_address'}}};
-	    }else{
-		#we already found it update it with the missing info from the other side!
-		$adjacencies->{$adj->{'remote_system_name'}}{$node}{'node_a'}{'ip_address'} = $adj->{'ip_address'};
-		$adjacencies->{$adj->{'remote_system_name'}}{$node}{'node_a'}{'ipv6_address'} = $adj->{'ipv6_address'};
-		$adjacencies->{$adj->{'remote_system_name'}}{$node}{'node_z'}{'interface_name'} = $adj->{'interface_name'};
-		$adjacencies->{$node}{$adj->{'remote_system_name'}}{'node_a'}{'interface_name'} = $adj->{'interface_name'};
-		$adjacencies->{$node}{$adj->{'remote_system_name'}}{'node_a'}{'ip_address'} = $adj->{'ip_address'};
-                $adjacencies->{$node}{$adj->{'remote_system_name'}}{'node_a'}{'ipv6_address'} = $adj->{'ipv6_address'};
-	    }
+        foreach my $adj (@{$isis->{$node}->{'results'}}) {
+            my $intf = $adj->{'interface_name'};
+
+            my $a = {
+                operational_state => $adj->{'operational_state'},
+                local_node => $node,
+                local_intf => $intf,
+                remote_node => $adj->{'remote_system_name'},
+                remote_ip   => $adj->{'ip_address'},
+                remote_ipv6 => $adj->{'ipv6_address'}
+            };
+
+            $adjacencies->{$node}->{$intf} = $a;
         }
     }
 

@@ -119,7 +119,7 @@ sub new {
 											 $self->{'fwdctl_failures'}++;
 
 											 if($self->{'fwdctl_failures'} > 5){
-											     $self->stop();
+											     #$self->stop();
 											 }
                                                                                      }else{
 											 $self->{'fwdctl_failures'} = 0;
@@ -208,6 +208,16 @@ sub new {
                                             topic       => "OF.FWDCTL.event" );
     $dispatcher->register_method($method);
 
+    $method = GRNOC::RabbitMQ::Method->new(
+        name        => "get_flows",
+        description => "Number of flows installed on this device",
+        callback    => sub {
+            return {flows => $self->{'flows'}};
+        }
+    );
+    $dispatcher->register_method($method);
+
+
     #--- set a default discovery vlan that can be overridden later if needed.
     $self->{'settings'}->{'discovery_vlan'} = -1;
 
@@ -257,12 +267,13 @@ sub _update_cache{
     }
 
     my $str;
-    open(my $fh, "<", $self->{'share_file'});
-    flock($fh, 1);
+    open(my $fh, "<", $self->{'share_file'}) or $self->{'logger'}->error("Unable to open file: " . $self->{'share_file'} . " $!");
+    flock($fh, 1) or $self->{'logger'}->error("Unable to flock: $!");
+    seek($fh, 0, 0);
     while(my $line = <$fh>){
         $str .= $line;
     }
-    flock($fh, 8);
+    flock($fh, 8) or $self->{'logger'}->error("Unable to flock: $!");
     close($fh);
 
     my $data;
@@ -272,7 +283,8 @@ sub _update_cache{
     if(!defined($data)){
 	$self->{'logger'}->error("Unable to parse JSON cache file: " . $str);
 	$self->{'logger'}->error("JSON Error: " . $@);
-	return;
+	sleep(30);
+	return $self->_update_cache();
     }
 
     $self->{'logger'}->debug("Fetched data!");
@@ -615,9 +627,9 @@ sub send_flows{
 											 async_callback => sub {
 											     $self->get_node_status( cb => sub{ $self->send_flows( flows => $flows,
 																	     command => $cmd,
-																	     cb => $self->send_flows( flows => $flows,
-																				      cb => $cb,
-																				      command => $cmd))
+																	     cb => sub { $self->send_flows( flows => $flows,
+                                                                                                                                                                            cb => $cb,
+                                                                                                                                                                            command => $cmd);} )
 														     })
 											 })
 						 });

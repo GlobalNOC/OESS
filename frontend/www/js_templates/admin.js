@@ -235,6 +235,12 @@ function makeConfigTable(div_id) {
     table.subscribe("rowClickEvent", table.onEventSelectRow);
     table.subscribe("rowClickEvent", rowClickHandler);
 
+    ds.setInterval(15000, null, {
+        success: table.onDataReturnInitializeTable,
+        failure: function() {},
+        scope:   table
+    });
+
     return table;
 }
 
@@ -2893,7 +2899,7 @@ function setup_network_tab(){
                       "<tr class='mpls'>" +
                         "<td>IP Address</td>" +
                         "<td><input type='text' id='mgmt_addr'></td>" +
-                        "<td>TCP Port</td>" +
+                        "<td>NetConf SSH Port</td>" +
                         "<td><input type='text' id='tcp_port'></td>" +
                       "</tr>" +
                       // MPLS - Vendor, Model
@@ -3275,6 +3281,12 @@ function setup_discovery_tab(){
 				  "</td>" +
 				  "</tr>" +
 				  "<tr>" +
+				  "<td>Short Name:</td>" +
+				  "<td colspan='4'>" +
+				  "<input type='text' id='new_node_short_name' size='38'>" +
+				  "</td>" +
+				  "</tr>" +
+				  "<tr>" +
 				  "<td>Latitude:</td>" +
 				  "<td><input type='text' id='new_node_lat' size='10'></td>" +
 				  "<td>Longitude:</td>" +
@@ -3331,6 +3343,7 @@ function setup_discovery_tab(){
 		    var lat   = YAHOO.util.Dom.get('new_node_lat').value;
                     var lon   = YAHOO.util.Dom.get('new_node_lon').value;
                     var name  = YAHOO.util.Dom.get('new_node_name').value;
+                    var short_name = YAHOO.util.Dom.get('new_node_short_name').value;
 		    var ip    = YAHOO.util.Dom.get('new_ip_address').value;
 		    var port  = YAHOO.util.Dom.get('new_port').value;
 		    var vendor= YAHOO.util.Dom.get('new_mpls_vendor').value;
@@ -3370,7 +3383,7 @@ function setup_discovery_tab(){
 		    add_button.set("disabled", true);
 		    add_button.set("label", "Adding device....");
 
-		    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_mpls_switch&name=" + encodeURIComponent(name) + "&latitude=" + encodeURIComponent(lat) + "&longitude=" + encodeURIComponent(lon) + "&ip_address=" + encodeURIComponent(ip) + "&port=" + encodeURIComponent(port) + "&vendor=" + encodeURIComponent(vendor) + "&model=" + encodeURIComponent(model) + "&sw_ver=" + encodeURIComponent(sw_ver));
+		var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_mpls_switch&name=" + encodeURIComponent(name) + "&short_name=" + encodeURIComponent(short_name) + "&latitude=" + encodeURIComponent(lat) + "&longitude=" + encodeURIComponent(lon) + "&ip_address=" + encodeURIComponent(ip) + "&port=" + encodeURIComponent(port) + "&vendor=" + encodeURIComponent(vendor) + "&model=" + encodeURIComponent(model) + "&sw_ver=" + encodeURIComponent(sw_ver));
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 		    
 		    ds.responseSchema = {

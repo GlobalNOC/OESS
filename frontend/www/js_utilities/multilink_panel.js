@@ -28,7 +28,7 @@ var get_multilink_panel = function(container_id, options){
     var link_options = "<option value=''>Select Link</option>";
     for( var i = 0; i < options.links.length; i++ ){
         var link = options.links[i];
-        if( (options.already_used_check) && is_already_used(link.link_name)) continue;
+        //if( (options.already_used_check) && is_already_used(link.link_name)) continue;
         //if( (options.hide_down_links) && (link.state == "down") ) continue;
         //if(is_already_used(link.link_name)) {
         //    link_options += "class='disabled-result' "; 
@@ -56,14 +56,14 @@ var get_multilink_panel = function(container_id, options){
         var link = $('#'+this.container_id+'_link_selector').val();
         if(link == "") link = null;
         options.on_change({ link: link });
-        panel.hide();
+        panel.destroy();
     }, false, { container_id: container_id });
 
     //set up cancel button
     var cancel_panel_button = new YAHOO.widget.Button(container_id+'_cancel');
     cancel_panel_button.set('label','Cancel');
     cancel_panel_button.on('click',function(){
-        panel.hide();
+        panel.destroy();
     });
 
     return panel;

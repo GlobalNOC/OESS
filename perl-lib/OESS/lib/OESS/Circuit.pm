@@ -212,6 +212,8 @@ sub _process_circuit_details{
 	$self->{'has_backup_path'} = 1;
     }
 
+    $self->{'logger'}->debug("Circuit Details: " . Dumper($self->{'details'}));
+
     if(scalar(@{$self->{'details'}->{'tertiary_links'}}) > 0){
         $self->{'logger'}->debug("Circuit has backup path");
         $self->{'has_tertiary_path'} = 1;
@@ -288,7 +290,7 @@ sub _create_flows{
     my $dpid_lookup  = $self->{'db'}->get_node_dpid_hash();
     $self->{'dpid_lookup'} = $dpid_lookup;
     
-    my $nodes = $self->{'db'}->get_current_nodes();
+    my $nodes = $self->{'db'}->get_current_nodes(type => $self->{'type'});
 
     $self->{'node_id_lookup'} = {};
     foreach my $node (@$nodes){
@@ -1245,16 +1247,49 @@ sub update_mpls_path{
     # This includes adding the path to the database if not already
     # existing.
 
-    if (!$self->has_tertiary_path()) {
+    #check and see if circuit has any previously defined tertiary path
+    my $query  = "select path.path_id from path where path.path_type=? and circuit_id=?";
+    my $results = $self->{'db'}->_execute_query($query, ["tertiary", $self->{'circuit_id'}]);
+
+    if(defined($results) && defined($results->[0])){
+
+	$self->{'logger'}->debug("Tertiary path already exists...");
+	my $tertiary_path_id = $results->[0]->{'path_id'};
+
+
+	if(!_compare_links($self->get_path(path => 'tertiary'), $params{'links'})) {
+	    my $query = "update link_path_membership set end_epoch = unix_timestamp(NOW()) where path_id = ? and end_epoch = -1";
+	    $self->{'db'}->_execute_query($query,[$self->{'details'}->{'paths'}->{'tertiary'}->{'path_id'}]);
+	    
+	    $query = "insert into link_path_membership (end_epoch,link_id,path_id,start_epoch,interface_a_vlan_id,interface_z_vlan_id) " .
+		"VALUES (-1,?,?,unix_timestamp(NOW()),?,?)";
+	    
+	    foreach my $link (@{$params{'links'}}) {
+		$self->{'db'}->_execute_query($query, [
+						  $link->{'link_id'},
+						  $tertiary_path_id,
+						  $self->{'circuit_id'} + 5000,
+						  $self->{'circuit_id'} + 5000
+					      ]);
+		
+	    }
+	}else{
+	    #nothing to do here
+	}
+
+    }else{
+	$self->{'logger'}->error("No tertiary path exists...creating...");
+	
         my @link_ids;
         foreach my $link (@{$params{'links'}}) {
             push(@link_ids, $link->{'link_id'});
         }
 
-        $self->{'logger'}->error("Creating tertiary path with links ". Dumper(@link_ids));
+        $self->{'logger'}->debug("Creating tertiary path with links ". Dumper(@link_ids));
 
         my $path_id = $self->{'db'}->create_path($self->{'circuit_id'}, \@link_ids, 'tertiary');
         $self->{'paths'}->{'tertiary'}->{'path_id'} = $path_id; # Required by _change_active_path
+        $self->{'has_tertiary_path'} = 1;
 
         my $query = "update link_path_membership set end_epoch=unix_timestamp(NOW()) where path_id=? and end_epoch=-1";
         $self->{'db'}->_execute_query($query,[$path_id]);
@@ -1264,24 +1299,7 @@ sub update_mpls_path{
             $self->{'db'}->_execute_query($query, [$link->{'link_id'}, $path_id, $self->{'circuit_id'} + 5000, $self->{'circuit_id'} + 5000]);
         }
 
-        return $self->_change_active_path(new_path => 'tertiary');
-    }
-
-    if (!_compare_links($self->get_path(path => 'tertiary'), $params{'links'})) {
-        my $query = "update link_path_membership set end_epoch = unix_timestamp(NOW()) where path_id = ? and end_epoch = -1";
-        $self->{'db'}->_execute_query($query,[$self->{'details'}->{'paths'}->{'tertiary'}->{'path_id'}]);
-
-        $query = "insert into link_path_membership (end_epoch,link_id,path_id,start_epoch,interface_a_vlan_id,interface_z_vlan_id) " .
-            "VALUES (-1,?,?,unix_timestamp(NOW()),?,?)";
-
-        foreach my $link (@{$params{'links'}}) {
-            $self->{'db'}->_execute_query($query, [
-                $link->{'link_id'},
-                $self->{'details'}->{'paths'}->{'tertiary'}->{'path_id'},
-                $self->{'circuit_id'} + 5000,
-                $self->{'circuit_id'} + 5000
-            ]);
-        }
+        $self->{'details'}->{'tertiary_links'} = $params{'links'};
     }
 
     return $self->_change_active_path(new_path => 'tertiary');
@@ -1302,6 +1320,8 @@ sub _change_active_path{
         return 1;
     }
 
+    $self->{'db'}->_start_transaction();
+
     $self->{'logger'}->info("Circuit $self->{'circuit_id'} changing paths from $current_path to $new_path");
 
     my $query  = "select path.path_id from path where path.path_type=? and circuit_id=?";
@@ -1313,47 +1333,71 @@ sub _change_active_path{
 
     $self->{'logger'}->info("Changing paths from $old_path_id to $new_path_id");
 
-
-    # decom the current path instantiation
-    $query = "update path_instantiation set path_instantiation.end_epoch = unix_timestamp(NOW()) " .
-        "where path_instantiation.path_id = ? and path_instantiation.end_epoch = -1";
+    # Decom the current path instantiation for each path
+    my $decom_path_instantiation = "
+UPDATE path_instantiation set path_instantiation.end_epoch=unix_timestamp(NOW())
+WHERE path_instantiation.path_id=? and path_instantiation.end_epoch=-1";
     
-    my $success = $self->{'db'}->_execute_query($query, [$old_path_id]);
-    if (!$success) {
-        my $err = "Unable to change path_instantiation of current path to inactive.";
+    my $affected = $self->{'db'}->_execute_query($decom_path_instantiation, [$old_path_id]);
+    if (!defined $affected || $affected < 0) {
+	$self->{'db'}->_rollback();
+        my $err = "Unable to decom old path's current path_instantiation.";
         $self->{'logger'}->error($err);
         $self->error($err);
         return;
     }
 
-    # create a new path instantiation of the old path
-    $query = "insert into path_instantiation (path_id, start_epoch, end_epoch, path_state) values (?, unix_timestamp(NOW()), -1, 'available')";
-    $success = $self->{'db'}->_execute_query($query, [$old_path_id]);
-
-    $query = "update path_instantiation set path_state = 'active' where path_id=? and end_epoch=-1";
-    $success = $self->{'db'}->_execute_query($query, [$new_path_id]);
-
-    if (!$success) {
-        my $err = "Unable to update path_instantiation table";
+    $affected = $self->{'db'}->_execute_query($decom_path_instantiation, [$new_path_id]);
+    if (!defined $affected || $affected < 0) {
+	$self->{'db'}->_rollback();
+        my $err = "Unable to decom new path's current path_instantiation.";
         $self->{'logger'}->error($err);
         $self->error($err);
         return;
     }
 
+    # Create a new path instantiation for each path
+    my $create_path_instantiation = "
+insert into path_instantiation (path_id, start_epoch, end_epoch, path_state) values (?, unix_timestamp(NOW()), -1, ?)";
+    my $success = $self->{'db'}->_execute_query($create_path_instantiation, [$old_path_id, 'available']);
+    if (!$success) {
+	$self->{'db'}->_rollback();
+        my $err = "Unable to add old path's new path_instantiation entry.";
+        $self->{'logger'}->error($err);
+        $self->error($err);
+        return;
+    }
+
+    $success = $self->{'db'}->_execute_query($create_path_instantiation, [$new_path_id, 'active']);
+    if (!$success) {
+	$self->{'db'}->_rollback();
+        my $err = "Unable to add new path's new path_instantiation entry.";
+        $self->{'logger'}->error($err);
+        $self->error($err);
+        return;
+    }
 
     # Update the path table
-    $query = "update path set path_state='available' where path_id=?";
-    $success = $self->{'db'}->_execute_query($query, [$old_path_id]);
-
-    $query = "update path set path_state='active' where path_id=?";
-    $success = $self->{'db'}->_execute_query($query, [$new_path_id]);
-
-    if (!$success) {
-        my $err = "Unable to update path table";
+    my $set_path_state = "update path set path_state=? where path_id=?";
+    $affected = $self->{'db'}->_execute_query($set_path_state, ['available', $old_path_id]);
+    if (!defined $affected || $affected < 0) {
+        $self->{'db'}->_rollback();
+        my $err = "Unable to update old path's new state.";
         $self->{'logger'}->error($err);
         $self->error($err);
         return;
     }
+
+    $affected = $self->{'db'}->_execute_query($set_path_state, ['active', $new_path_id]);
+    if (!defined $affected || $affected < 0) {
+	$self->{'db'}->_rollback();
+        my $err = "Unable to update new path's new state.";
+        $self->{'logger'}->error($err);
+        $self->error($err);
+        return;
+    }
+
+    $self->{'db'}->_commit();
 
     $self->{'active_path'} = $params{'new_path'};
     $self->{'details'}->{'active_path'} = $params{'new_path'};
@@ -1592,31 +1636,43 @@ sub get_mpls_hops{
     my $self = shift;
     my %params = @_;
 
+    my @ips;
+
     my $path = $params{'path'};
     if(!defined($path)){
 	$self->{'logger'}->error("Fetching the path hops for undefined path");
-	return;
+	return \@ips;
     }
 
     my $start = $params{'start'};
     if(!defined($start)){
 	$self->{'logger'}->error("Fetching hops requires a start");
-	return;
+	return \@ips;
     }
 
     my $end = $params{'end'};
     if(!defined($end)){
         $self->{'logger'}->error("Fetching hops requires an end");
-        return;
+        return \@ips;
     }
  
-    return if ($end eq $start);
+    return \@ips if ($end eq $start);
     
+    $self->{'logger'}->debug("Path: " . $path);
+
     #fetch the path
     my $p = $self->get_path(path => $path);
 
+    $self->{'logger'}->debug("Path is: " . Dumper($p));
+
     if(!defined($p)){
-	return;
+	return \@ips;
+    }
+
+    my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
+    my %nodes;
+    foreach my $node (@$nodes){
+        $nodes{$node->{'name'}} = $node;
     }
 
     #build our lookup has to find our IP addresses
@@ -1625,22 +1681,24 @@ sub get_mpls_hops{
 	my $node_a = $link->{'node_a'};
 	my $node_z = $link->{'node_z'};
 
-	$ip_address{$node_a}{$node_z} = $link->{'ip_z'};
-	$ip_address{$node_z}{$node_a} = $link->{'ip_a'};
+        # When using link based ip addresses
+        # $ip_address{$node_a}{$node_z} = $link->{'ip_z'};
+        # $ip_address{$node_z}{$node_a} = $link->{'ip_a'};
+
+        $ip_address{$node_a}{$node_z} = $nodes{$node_z}->{'loopback_address'};
+        $ip_address{$node_z}{$node_a} = $nodes{$node_a}->{'loopback_address'};
     }
 
     #verify that our start/end are endpoints
     my $eps = $self->get_endpoints();
 
-    my @ips;
-    
     #find the next hop in the shortest path from $ep_a to $ep_z
     my @shortest_path = $self->{'graph'}->{$path}->SP_Dijkstra($start,$end);
     #ok we have the list of verticies... now to convert that into IP addresses
     if(scalar(@shortest_path) <= 1){
 	#uh oh... no path!!!!
 	$self->{'logger'}->error("Uh oh there is no path");
-	return;
+	return \@ips;
     }
     
     for(my $i=1;$i<=$#shortest_path;$i++){
@@ -1649,7 +1707,9 @@ sub get_mpls_hops{
 	$self->{'logger'}->debug("      Address: " . $ip);
 	push(@ips, $ip);
     }
-    
+
+    $self->{'logger'}->debug("IP addresses: " . Dumper(@ips));
+
     return \@ips;
 }
 
@@ -1673,7 +1733,7 @@ sub get_path_status{
     my %unknown_links;
     
     if(!defined($link_status)){
-        my $links = $self->{'db'}->get_current_links();
+        my $links = $self->{'db'}->get_current_links(type => $self->{'type'});
         
         foreach my $link (@$links){
 

@@ -47,7 +47,6 @@ my $db= OESS::Database->new();
 
 my $ADD_BREADCRUMBS = [{title => "Workgroups",   url => "?action=workgroups"},
                        {title => "Home",         url => "?action=index"},
-		       {title => "Details",      url => "?action=edit_details"},
 		       {title => "Endpoints",    url => "?action=endpoints"},
                        {title => "Options",      url => "?action=options"},
 		       {title => "Primary Path", url => "?action=primary_path"},

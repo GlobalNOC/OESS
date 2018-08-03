@@ -1,6 +1,6 @@
 Name:		oess-core		
-Version:	1.2.0
-Release:	0.dev01%{?dist}
+Version:	1.2.5
+Release:	1%{?dist}
 Summary:	The core OESS service providers
 
 Group:		Network
@@ -11,7 +11,7 @@ BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 BuildRequires:	perl
 
-Requires:       nox >= 0.10.10
+Requires:       nox >= 0.10.14
 Requires:       xmlsec1-devel
 Requires:	xmlsec1-openssl-devel
 Requires(interp): /bin/sh
@@ -21,7 +21,7 @@ Requires: /bin/bash
 Requires: /usr/bin/perl
 Requires: perl(base), perl(constant), perl(strict), perl(warnings)
 
-Requires: perl-OESS >= 1.2.0
+Requires: perl-OESS >= 1.2.4
 
 Requires: perl(AnyEvent), perl(AnyEvent::DBus), perl(AnyEvent::RabbitMQ)
 Requires: perl(CPAN), perl(CPAN::Shell)
@@ -33,9 +33,12 @@ Requires: perl(File::Path)
 Requires: perl(FindBin)
 Requires: perl(Getopt::Long), perl(Getopt::Std)
 Requires: perl(GRNOC::Config)
-Requires: perl(GRNOC::Log)
-Requires: perl(GRNOC::RabbitMQ::Client), perl(GRNOC::RabbitMQ::Dispatcher), perl(GRNOC::RabbitMQ::Method)
-Requires: perl(GRNOC::WebService::Client)
+Requires: perl(GRNOC::Log)                  >= 1.0.4
+Requires: perl(GRNOC::RabbitMQ)             >= 1.1.1
+Requires: perl(GRNOC::RabbitMQ::Client)
+Requires: perl(GRNOC::RabbitMQ::Dispatcher)
+Requires: perl(GRNOC::RabbitMQ::Method)
+Requires: perl(GRNOC::WebService::Client)   >= 1.4.1
 Requires: perl(HTML::Entities)
 Requires: perl(HTTP::Headers), perl(HTTP::Request)
 Requires: perl(JSON)
@@ -92,6 +95,7 @@ rm -rf $RPM_BUILD_ROOT
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT/etc/cron.d/
 
 %{__install} etc/logging.conf $RPM_BUILD_ROOT%{_sysconfdir}/oess/
+%{__install} etc/firmware.xml $RPM_BUILD_ROOT%{_sysconfdir}/oess/
 %{__install} etc/watchdog.conf $RPM_BUILD_ROOT%{_sysconfdir}/oess/
 %{__install} etc/nddi-dbus.conf $RPM_BUILD_ROOT%{_sysconfdir}/dbus-1/system.d/
 %{__install} etc/nsi.conf.example $RPM_BUILD_ROOT%{_sysconfdir}/oess/nsi.conf
@@ -150,6 +154,7 @@ rm -rf $RPM_BUILD_ROOT
 %config(noreplace) %{_sysconfdir}/oess/nsi.conf
 %config(noreplace) /etc/cron.d/nddi-scheduler.cron
 %config(noreplace) %{_sysconfdir}/oess/logging.conf
+%config(noreplace) %{_sysconfdir}/oess/firmware.xml
 %config(noreplace) %{_sysconfdir}/oess/watchdog.conf
 %doc
 

@@ -59,6 +59,7 @@ Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
 
 my $db   = new OESS::Database();
 
+
 #register web service dispatcher
 my $svc    = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
 
