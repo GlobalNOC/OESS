@@ -1,6 +1,6 @@
 Name:		oess-frontend
-Version:	1.2.0
-Release:	0.dev03%{?dist}
+Version:	1.2.5
+Release:	1%{?dist}
 Summary:	The OESS webservices and user interface
 
 Group:		Network
@@ -13,14 +13,14 @@ BuildRequires: perl
 BuildRequires: python >= 2.6, python-libs >= 2.6
 BuildRequires: python-simplejson
 
-Requires: oess-core >= 1.2.0, nox >= 0.10.10
+Requires: oess-core >= 1.2.4, nox >= 0.10.14
 Requires: yui2
 Requires: httpd, mod_ssl
 Requires: nddi-tiles
 Requires: perl-Crypt-SSLeay
 Requires: xmlsec1, xmlsec1-openssl
 
-Requires: perl-OESS >= 1.2.0, perl-OSCARS-Client >= 1.2.0
+Requires: perl-OESS >= 1.2.4
 
 Requires: perl(strict), perl(warnings)
 Requires: perl(AnyEvent)
@@ -28,7 +28,13 @@ Requires: perl(CGI)
 Requires: perl(Data::Dumper)
 Requires: perl(FindBin)
 Requires: perl(GRNOC::Config)
-Requires: perl(GRNOC::WebService), perl(GRNOC::WebService::Dispatcher), perl(GRNOC::WebService::Method), perl(GRNOC::WebService::Regex)
+Requires: perl(GRNOC::RabbitMQ)                    >= 1.1.1
+Requires: perl(GRNOC::RabbitMQ::Client)
+Requires: perl(GRNOC::RabbitMQ::Dispatcher)
+Requires: perl(GRNOC::WebService)                  >= 1.2.9
+Requires: perl(GRNOC::WebService::Dispatcher)
+Requires: perl(GRNOC::WebService::Method)
+Requires: perl(GRNOC::WebService::Regex)
 Requires: perl(HTTP::Headers), perl(HTTP::Request)
 Requires: perl(JSON)
 Requires: perl(JSON::XS)
