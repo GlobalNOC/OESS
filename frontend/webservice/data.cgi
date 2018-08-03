@@ -29,7 +29,6 @@
 use strict;
 use warnings;
 
-use AnyEvent;
 use Data::Dumper;
 use JSON::XS;
 use Log::Log4perl;
@@ -38,12 +37,10 @@ use Switch;
 use Time::HiRes qw(usleep);
 use URI::Escape;
 
-use OESS::RabbitMQ::Client;
 use GRNOC::WebService;
 
 use OESS::Circuit;
 use OESS::Database;
-use OESS::Topology;
 use OESS::Webservice;
 
 
@@ -61,13 +58,9 @@ use constant FWDCTL_BLOCKED     => 4;
 Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
 
 my $db   = new OESS::Database();
-my $topo = new OESS::Topology();
 
 #register web service dispatcher
 my $svc    = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
-
-my $mq = OESS::RabbitMQ::Client->new( topic    => 'MPLS.FWDCTL.RPC',
-                                      timeout  => 60 );
 
 my $username = $ENV{'REMOTE_USER'};
 my $is_admin = $db->get_user_admin_status( 'username' => $username );
@@ -143,7 +136,13 @@ sub register_webservice_methods {
 	name            => "get_nodes",
 	description     => "returns a list of nodes",
 	callback        => sub { get_nodes( @_ ) }
-	);
+    );
+    $method->add_input_parameter(
+	name            => 'type',
+	pattern         => $OESS::Webservice::CIRCUIT_TYPE_WITH_ALL,
+	required        => 0,
+	description     => "The type of nodes that shall be included in the map."
+    );
     
     #register get_nodes() method
     $svc->register_method($method);
@@ -185,6 +184,14 @@ sub register_webservice_methods {
         pattern         => $GRNOC::WebService::Regex::BOOLEAN,
         required        => 0,
         description     => "Show down interfaces on the node."
+        );
+
+    $method->add_input_parameter(
+        name            => 'type',
+        pattern         => $OESS::Webservice::CIRCUIT_TYPE_WITH_ALL,
+        required        => 0,
+        default         => 'all',
+        description     => "Type of interfaces to return."
         );
 
     #register get_node_interfaces() method
@@ -490,7 +497,13 @@ sub register_webservice_methods {
 	name            => "get_all_node_status",
 	description     => "returns a list of all active nodes and their operational status.",
 	callback        => sub { get_all_node_status( @_ ) }
-	);
+    );
+    $method->add_input_parameter(
+	name            => 'type',
+	pattern         => $OESS::Webservice::CIRCUIT_TYPE_WITH_ALL,
+	required        => 0,
+	description     => "The type of nodes that shall be included in the map."
+    );
 
     #register the get_all_node_status() method
     $svc->register_method($method);
@@ -501,6 +514,12 @@ sub register_webservice_methods {
         description     => "returns a list of all active links and their operational status.",
         callback        => sub { get_all_link_status( @_ ) }
         );
+    $method->add_input_parameter(
+	name            => 'type',
+	pattern         => $OESS::Webservice::CIRCUIT_TYPE_WITH_ALL,
+	required        => 0,
+	description     => "The type of links that shall be included."
+    );
 
     #register the get_all_link_status() method
     $svc->register_method($method);
@@ -988,7 +1007,7 @@ sub get_existing_circuits {
     }
 
     my %link_status;
-    my $links = $db->get_current_links();
+    my $links = $db->get_current_links(type => 'all');
     foreach my $link (@$links){
         if($link->{'status'} eq 'up'){
             $link_status{$link->{'name'}} = OESS_LINK_UP;
@@ -1035,7 +1054,7 @@ sub get_shortest_path {
     my @nodes = $args->{'node'}{'value'};
     my @links_to_avoid = $args->{'link'}{'value'};
     my $type = $args->{'type'}{'value'};
-
+    my $topo = $db->{'topo'};
     my $sp_links = $topo->find_path(
         nodes      => @nodes,
         used_links => @links_to_avoid,
@@ -1058,7 +1077,9 @@ sub get_shortest_path {
 sub get_nodes {
 
     my ( $method, $args ) = @_ ;
-    my $nodes = $db->get_current_nodes();
+    my $type = $args->{'type'}{'value'} || 'all';
+
+    my $nodes = $db->get_current_nodes(type => $type);
 
     if ( !defined($nodes) ) {
 	$method->set_error( $db->get_error() );
@@ -1077,11 +1098,14 @@ sub get_node_interfaces {
     my $workgroup_id = $args->{'workgroup_id'}{'value'};
     my $show_down    = $args->{'show_down'}{'value'} || 0;
     my $show_trunk   = $args->{'show_trunk'}{'value'} || 0;
+    my $type         = $args->{'type'}{'value'};
+
     my $interfaces   = $db->get_node_interfaces(
         node         => $node,
         workgroup_id => $workgroup_id,
         show_down    => $show_down,
-        show_trunk   => $show_trunk
+        show_trunk   => $show_trunk,
+        type         => $type
     );
 
     # something went wrong
@@ -1182,9 +1206,11 @@ sub generate_clr {
 sub get_all_node_status {
     
     my ( $method, $args ) = @_ ;
+    my $type = $args->{'type'}{'value'} || 'all';
+
     my $results;
 
-    my $nodes = $db->get_current_nodes();
+    my $nodes = $db->get_current_nodes(type => $type);
     $results->{'results'} = $nodes;
     return $results;
 }
@@ -1192,9 +1218,11 @@ sub get_all_node_status {
 sub get_all_link_status {
 
     my ( $method, $args ) = @_ ;
+    my $type = $args->{'type'}{'value'} || 'all';
+
     my $results;
 
-    my $links = $db->get_current_links();
+    my $links = $db->get_current_links(type => $type);
 
     $results->{'results'} = $links;
     return $results;

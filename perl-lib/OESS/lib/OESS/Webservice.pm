@@ -27,6 +27,14 @@ Regex for validation of circuit (and link!) types
 
 $CIRCUIT_TYPE = '^(openflow|mpls)$';
 
+=head2 CIRCUIT_TYPE_WITH_ALL
+
+Regex for validation of circuit (and link!) types, along with 'all' option
+
+=cut
+
+$CIRCUIT_TYPE_WITH_ALL = '^(openflow|mpls|all)$';
+
 =head2 ACL_ALLOW_DENY
 
 Regex for validation of ACL allow/deny entry
