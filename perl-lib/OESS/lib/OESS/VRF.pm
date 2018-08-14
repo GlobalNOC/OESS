@@ -137,7 +137,6 @@ sub _fetch_from_db{
 
     my $hash = OESS::DB::VRF::fetch(db => $self->{'db'}, vrf_id => $self->{'vrf_id'});
     $self->from_hash($hash);
-
 }
 
 sub to_hash{
@@ -186,14 +185,12 @@ sub endpoints{
     my $self = shift;
     my $eps = shift;
 
-    if(!defined($eps)){
-        if(!defined($self->{'endpoints'})){
-            return []
-        }
-        return $self->{'endpoints'};
-    }else{
-        return [];
+    if (!defined $eps) {
+        return $self->{endpoints} || [];
     }
+
+    $self->{endpoints} = $eps;
+    return $self->{endpoints};
 }
 
 sub name{

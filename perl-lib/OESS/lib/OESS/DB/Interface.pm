@@ -31,6 +31,8 @@ sub fetch{
     push(@{$in_use},OESS::DB::Interface::circuit_vlans_in_use(db => $db, interface_id => $interface_id));
 
     return {interface_id => $interface->{'interface_id'},
+            cloud_interconnect_type => $interface->{'cloud_interconnect_type'},
+            cloud_interconnect_id => $interface->{'cloud_interconnect_id'},
             name => $interface->{'name'},
             role => $interface->{'role'},
             description => $interface->{'description'},

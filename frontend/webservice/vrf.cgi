@@ -9,6 +9,7 @@ use GRNOC::WebService::Method;
 use GRNOC::WebService::Dispatcher;
 
 use OESS::RabbitMQ::Client;
+use OESS::Cloud::AWS;
 use OESS::DB;
 use OESS::VRF;
 
@@ -276,7 +277,11 @@ sub provision_vrf{
     }
 
     $vrf = OESS::VRF->new( db => $db, model => $model);
-    $vrf->create();
+    my $ok = $vrf->create();
+    if (!$ok) {
+        $method->set_error('error creating VRF: ' . $vrf->error());
+        return;
+    }
 
     my $vrf_id = $vrf->vrf_id();
     if ($vrf_id == -1) {
@@ -284,7 +289,64 @@ sub provision_vrf{
         return;
     }
 
+    my $new_endpoints = [];
+    foreach my $ep (@{$vrf->endpoints()}) {
+
+        if (!$ep->interface()->cloud_interconnect_id) {
+            push @$new_endpoints, $ep;
+            next;
+        }
+
+        warn "oooooooooooo AWS oooooooooooo";
+        my $aws = OESS::Cloud::AWS->new();
+
+        if ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-connection') {
+
+            # my $res = $aws->allocate_connection(
+            #     $vrf->name,
+            #     347957162513, # TODO Get AWS owner account from user
+            #     $ep->tag,
+            #     $ep->bandwidth . 'Mbps'
+            # );
+            my $res = {ConnectionId => 123};
+            $ep->cloud_account_id(347957162513);
+            $ep->cloud_connection_id($res->{ConnectionId});
+            push @$new_endpoints, $ep;
+
+        } elsif ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-vinterface') {
+            my $peer = $ep->peers()->[0];
+
+            my $ip_version = 'ipv4';
+            if ($peer->local_ip !~ /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$/) {
+                $ip_version = 'ipv6';
+            }
+
+            # my $res = $aws->allocate_vinterface(
+            #     347957162513, # TODO Get AWS owner account from user
+            #     $ip_version,
+            #     $peer->peer_ip,
+            #     $peer->peer_asn || 55038,
+            #     $peer->md5_key,
+            #     $peer->local_ip,
+            #     $vrf->name,
+            #     $ep->tag
+            # );
+            my $res = {VirtualInterfaceId => 123};
+            $ep->cloud_account_id(347957162513);
+            $ep->cloud_connection_id($res->{VirtualInterfaceId});
+            push @$new_endpoints, $ep;
+
+        } else {
+            warn "Cloud interconnect type is not supported.";
+            push @$new_endpoints, $ep;
+        }
+    }
+
+    $vrf->endpoints($new_endpoints);
+    $vrf->update_db();
+
     my $res = vrf_add( method => $method, vrf_id => $vrf_id);
+
     $res->{'vrf_id'} = $vrf_id;
     return {results => $res};
 }
@@ -340,7 +402,7 @@ sub vrf_add{
     $mq->addVrf(vrf_id => int($vrf_id), async_callback => sub {
         my $result = shift;
         $cv->send($result);
-                });
+    });
     
     my $result = $cv->recv();
     
