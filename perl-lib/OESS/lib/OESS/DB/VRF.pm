@@ -207,7 +207,7 @@ sub fetch_endpoints{
     #find endpoints 
     my $res = $db->execute_query(
         "select vrf_ep.vrf_ep_id from vrf_ep
-         join cloud_connection_vrf_ep on vrf_ep.vrf_ep_id=cloud_connection_vrf_ep.vrf_ep_id
+         left join cloud_connection_vrf_ep on vrf_ep.vrf_ep_id=cloud_connection_vrf_ep.vrf_ep_id
          where vrf_id = ? and state = ?", [$vrf_id, $status]
     );
     if(!defined($res) || !defined($res->[0])){
@@ -226,7 +226,7 @@ sub fetch_endpoint{
 
     my $vrf_ep = $db->execute_query(
         "select * from vrf_ep
-         join cloud_connection_vrf_ep on vrf_ep.vrf_ep_id=cloud_connection_vrf_ep.vrf_ep_id
+         left join cloud_connection_vrf_ep on vrf_ep.vrf_ep_id=cloud_connection_vrf_ep.vrf_ep_id
          where vrf_ep.vrf_ep_id = ?", [$vrf_ep_id]
     );
     
