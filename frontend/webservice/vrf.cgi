@@ -256,6 +256,64 @@ sub provision_vrf{
     my $vrf;
     if (defined $model->{'vrf_id'} && $model->{'vrf_id'} != -1) {
         $vrf = OESS::VRF->new( db => $db, vrf_id => $model->{'vrf_id'});
+
+        # Each endpoint in $vrf should compared against
+        # $model->{endpoints}. If the vlan numbers have changed we'll
+        # need to reprovision the cloud connections.
+
+        my $cl_lookup = {};
+        my $ep_lookup = {};
+
+        foreach my $ep (@{$vrf->endpoints}) {
+            if (!$ep->{interface}->{cloud_interconnect_id}) {
+                next;
+            }
+
+            my $switch = $ep->{interface}->{node}->{name};
+            my $interface = $ep->{interface}->{name};
+            my $tag = $ep->{tag};
+            my $inner_tag = $ep->{inner_tag};
+
+            my $cl_name = "$switch-$interface";
+            my $ep_name = "$switch-$interface-$tag-$inner_tag";
+
+            $cl_lookup->{$cl_name} = 1;
+            $ep_lookup->{$ep_name} = $ep;
+        }
+
+        for (my $i = 0; $i < @{$model->{endpoints}}; $i++) {
+            my $switch = $model->{endpoints}->[$i]->{node};
+            my $interface = $model->{endpoints}->[$i]->{interface};
+            my $tag = $model->{endpoints}->[$i]->{tag};
+            my $inner_tag = $model->{endpoints}->[$i]->{inner_tag};
+
+            my $cl_name = "$switch-$interface";
+            my $ep_name = "$switch-$interface-$tag-$inner_tag";
+
+            if (!defined $cl_lookup->{$cl_name}) {
+                next; # Not a cloud endpoint
+            }
+
+            if (defined $ep_lookup->{$ep_name}) {
+                $model->{endpoints}->[$i]->{cloud_account_id} = $ep_lookup->{$ep_name}->{cloud_account_id};
+                $model->{endpoints}->[$i]->{cloud_connection_id} = $ep_lookup->{$ep_name}->{cloud_connection_id};
+                warn 'Doing nothing: ' . Dumper($ep_name);
+                delete $ep_lookup->{$ep_name};
+            } else {
+                # Add cloud interface
+                warn 'Adding: ' . Dumper($ep_name);
+            }
+        }
+
+#        warn Dumper('!!!!!!!!!!!!!!!');
+#        warn Dumper($vrf->endpoints);
+#        warn Dumper($model->{endpoints});
+#        warn Dumper('!!!!!!!!!!!!!!!');
+
+        # if new endpoint with cloud_interconnect_id allocate
+        # if missing endpoint that had a cloud_interconnect_id delete
+        # if endpoint vlan changed delete and allocate
+
         my $ok = $vrf->update($model);
         if (!$ok) {
             $method->set_error($vrf->error());
@@ -267,6 +325,86 @@ sub provision_vrf{
             $method->set_error($vrf->error());
             return;
         }
+
+        # Remove these cloud endpoints. They either were removed or
+        # had their tags changed.
+        foreach my $name (keys %$ep_lookup) {
+            warn 'Removing: ' . Dumper($name);
+            my $ep = $ep_lookup->{$name};
+
+        warn "oooooooooooo AWS oooooooooooo";
+        my $aws = OESS::Cloud::AWS->new();
+
+        if ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-connection') {
+            my $aws_account = $ep->cloud_account_id;
+            my $aws_connection = $ep->cloud_connection_id;
+            warn "Removing aws conn $aws_connection from $aws_account";
+            $aws->delete_connection($aws_connection);
+
+        } elsif ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-vinterface') {
+            my $aws_account = $ep->cloud_account_id;
+            my $aws_connection = $ep->cloud_connection_id;
+            warn "Removing aws vint $aws_connection from $aws_account";
+            $aws->delete_vinterface($aws_connection);
+
+        } else {
+            warn "Cloud interconnect type is not supported.";
+        }
+
+        }
+
+    my $new_endpoints = [];
+    foreach my $ep (@{$vrf->endpoints()}) {
+
+        if (!$ep->interface()->cloud_interconnect_id) {
+            push @$new_endpoints, $ep;
+            next;
+        }
+
+        warn "oooooooooooo AWS oooooooooooo";
+        my $aws = OESS::Cloud::AWS->new();
+
+        if ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-connection') {
+            my $res = $aws->allocate_connection(
+                $vrf->name,
+                347957162513, # TODO Get AWS owner account from user
+                $ep->tag,
+                $ep->bandwidth . 'Mbps'
+            );
+            $ep->cloud_account_id(347957162513);
+            $ep->cloud_connection_id($res->{ConnectionId});
+            push @$new_endpoints, $ep;
+
+        } elsif ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-vinterface') {
+            my $peer = $ep->peers()->[0];
+
+            my $ip_version = 'ipv4';
+            if ($peer->local_ip !~ /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$/) {
+                $ip_version = 'ipv6';
+            }
+
+            my $res = $aws->allocate_vinterface(
+                347957162513, # TODO Get AWS owner account from user
+                $ip_version,
+                $peer->peer_ip,
+                $peer->peer_asn || 55038,
+                $peer->md5_key || '6f5902ac237024bdd0c176cb93063dc4',
+                $peer->local_ip,
+                $vrf->name,
+                $ep->tag
+            );
+            $ep->cloud_account_id(347957162513);
+            $ep->cloud_connection_id($res->{VirtualInterfaceId});
+            push @$new_endpoints, $ep;
+
+        } else {
+            warn "Cloud interconnect type is not supported.";
+            push @$new_endpoints, $ep;
+        }
+    }
+
+    $vrf->endpoints($new_endpoints);
+    $vrf->update_db();
 
         my $vrf_id = $vrf->vrf_id();
 
