@@ -305,11 +305,6 @@ sub provision_vrf{
             }
         }
 
-#        warn Dumper('!!!!!!!!!!!!!!!');
-#        warn Dumper($vrf->endpoints);
-#        warn Dumper($model->{endpoints});
-#        warn Dumper('!!!!!!!!!!!!!!!');
-
         # if new endpoint with cloud_interconnect_id allocate
         # if missing endpoint that had a cloud_interconnect_id delete
         # if endpoint vlan changed delete and allocate
