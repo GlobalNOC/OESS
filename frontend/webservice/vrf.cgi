@@ -9,6 +9,7 @@ use GRNOC::WebService::Method;
 use GRNOC::WebService::Dispatcher;
 
 use OESS::RabbitMQ::Client;
+use OESS::Cloud;
 use OESS::Cloud::AWS;
 use OESS::DB;
 use OESS::VRF;
@@ -321,85 +322,19 @@ sub provision_vrf{
             return;
         }
 
+
         # Remove these cloud endpoints. They either were removed or
         # had their tags changed.
+        my $to_remove = [];
         foreach my $name (keys %$ep_lookup) {
             warn 'Removing: ' . Dumper($name);
-            my $ep = $ep_lookup->{$name};
-
-        warn "oooooooooooo AWS oooooooooooo";
-        my $aws = OESS::Cloud::AWS->new();
-
-        if ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-connection') {
-            my $aws_account = $ep->cloud_account_id;
-            my $aws_connection = $ep->cloud_connection_id;
-            warn "Removing aws conn $aws_connection from $aws_account";
-            $aws->delete_connection($aws_connection);
-
-        } elsif ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-vinterface') {
-            my $aws_account = $ep->cloud_account_id;
-            my $aws_connection = $ep->cloud_connection_id;
-            warn "Removing aws vint $aws_connection from $aws_account";
-            $aws->delete_vinterface($aws_connection);
-
-        } else {
-            warn "Cloud interconnect type is not supported.";
+            push @$to_remove, $ep_lookup->{$name};
         }
+        OESS::Cloud::cleanup_endpoints($to_remove);
 
-        }
-
-    my $new_endpoints = [];
-    foreach my $ep (@{$vrf->endpoints()}) {
-
-        if (!$ep->interface()->cloud_interconnect_id) {
-            push @$new_endpoints, $ep;
-            next;
-        }
-
-        warn "oooooooooooo AWS oooooooooooo";
-        my $aws = OESS::Cloud::AWS->new();
-
-        if ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-connection') {
-            my $res = $aws->allocate_connection(
-                $vrf->name,
-                347957162513, # TODO Get AWS owner account from user
-                $ep->tag,
-                $ep->bandwidth . 'Mbps'
-            );
-            $ep->cloud_account_id(347957162513);
-            $ep->cloud_connection_id($res->{ConnectionId});
-            push @$new_endpoints, $ep;
-
-        } elsif ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-vinterface') {
-            my $peer = $ep->peers()->[0];
-
-            my $ip_version = 'ipv4';
-            if ($peer->local_ip !~ /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$/) {
-                $ip_version = 'ipv6';
-            }
-
-            my $res = $aws->allocate_vinterface(
-                347957162513, # TODO Get AWS owner account from user
-                $ip_version,
-                $peer->peer_ip,
-                $peer->peer_asn || 55038,
-                $peer->md5_key || '6f5902ac237024bdd0c176cb93063dc4',
-                $peer->local_ip,
-                $vrf->name,
-                $ep->tag
-            );
-            $ep->cloud_account_id(347957162513);
-            $ep->cloud_connection_id($res->{VirtualInterfaceId});
-            push @$new_endpoints, $ep;
-
-        } else {
-            warn "Cloud interconnect type is not supported.";
-            push @$new_endpoints, $ep;
-        }
-    }
-
-    $vrf->endpoints($new_endpoints);
-    $vrf->update_db();
+        my $setup_endpoints = OESS::Cloud::setup_endpoints($vrf->name, $vrf->endpoints, 347957162513);
+        $vrf->endpoints($setup_endpoints);
+        $vrf->update_db();
 
         my $vrf_id = $vrf->vrf_id();
 
@@ -422,57 +357,8 @@ sub provision_vrf{
         return;
     }
 
-    my $new_endpoints = [];
-    foreach my $ep (@{$vrf->endpoints()}) {
-
-        if (!$ep->interface()->cloud_interconnect_id) {
-            push @$new_endpoints, $ep;
-            next;
-        }
-
-        warn "oooooooooooo AWS oooooooooooo";
-        my $aws = OESS::Cloud::AWS->new();
-
-        if ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-connection') {
-            my $res = $aws->allocate_connection(
-                $vrf->name,
-                347957162513, # TODO Get AWS owner account from user
-                $ep->tag,
-                $ep->bandwidth . 'Mbps'
-            );
-            $ep->cloud_account_id(347957162513);
-            $ep->cloud_connection_id($res->{ConnectionId});
-            push @$new_endpoints, $ep;
-
-        } elsif ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-vinterface') {
-            my $peer = $ep->peers()->[0];
-
-            my $ip_version = 'ipv4';
-            if ($peer->local_ip !~ /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$/) {
-                $ip_version = 'ipv6';
-            }
-
-            my $res = $aws->allocate_vinterface(
-                347957162513, # TODO Get AWS owner account from user
-                $ip_version,
-                $peer->peer_ip,
-                $peer->peer_asn || 55038,
-                $peer->md5_key,
-                $peer->local_ip,
-                $vrf->name,
-                $ep->tag
-            );
-            $ep->cloud_account_id(347957162513);
-            $ep->cloud_connection_id($res->{VirtualInterfaceId});
-            push @$new_endpoints, $ep;
-
-        } else {
-            warn "Cloud interconnect type is not supported.";
-            push @$new_endpoints, $ep;
-        }
-    }
-
-    $vrf->endpoints($new_endpoints);
+    my $setup_endpoints = OESS::Cloud::setup_endpoints($vrf->name, $vrf->endpoints, 347957162513);
+    $vrf->endpoints($setup_endpoints);
     $vrf->update_db();
 
     my $res = vrf_add( method => $method, vrf_id => $vrf_id);
@@ -517,30 +403,8 @@ sub remove_vrf{
 
     $vrf->decom(user_id => $user->user_id());
 
-    foreach my $ep (@{$vrf->endpoints()}) {
-        if (!$ep->interface()->cloud_interconnect_id) {
-            next;
-        }
+    OESS::Cloud::cleanup_endpoints($vrf->endpoints);
 
-        warn "oooooooooooo AWS oooooooooooo";
-        my $aws = OESS::Cloud::AWS->new();
-
-        if ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-connection') {
-            my $aws_account = $ep->cloud_account_id;
-            my $aws_connection = $ep->cloud_connection_id;
-            warn "Removing aws conn $aws_connection from $aws_account";
-            $aws->delete_connection($aws_connection);
-
-        } elsif ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-vinterface') {
-            my $aws_account = $ep->cloud_account_id;
-            my $aws_connection = $ep->cloud_connection_id;
-            warn "Removing aws vint $aws_connection from $aws_account";
-            $aws->delete_vinterface($aws_connection);
-
-        } else {
-            warn "Cloud interconnect type is not supported.";
-        }
-    }
     return {results => $res};
 }
 
