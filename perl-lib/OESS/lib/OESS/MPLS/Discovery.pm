@@ -517,7 +517,7 @@ sub device_handler{
 
 sub vrf_stats_handler{
     my $self = shift;
-    $self->{'logger'}->error("Attempting to pull VRF stats");
+    $self->{'logger'}->debug("Attempting to pull VRF stats");
     foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
 	$self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
 	my $start = [gettimeofday];
