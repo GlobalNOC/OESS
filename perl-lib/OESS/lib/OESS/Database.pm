@@ -1970,7 +1970,7 @@ sub get_workgroup_interfaces {
 
     my $interfaces = [];
 
-    my $query = "select interface.description,interface.operational_state as operational_state, interface.name as int_name, interface.interface_id, interface.vlan_tag_range, node.name as node_name, node.node_id " .
+    my $query = "select interface.description,interface.operational_state as operational_state, interface.name as int_name, interface.interface_id, interface.vlan_tag_range, interface.cloud_interconnect_id, interface.cloud_interconnect_type, node.name as node_name, node.node_id " .
 	        "from workgroup " .
 		"join interface on interface.workgroup_id = workgroup.workgroup_id " .
 		"join interface_instantiation on (interface.interface_id = interface_instantiation.interface_id and interface_instantiation.end_epoch = -1) " .
@@ -2003,6 +2003,8 @@ sub get_workgroup_interfaces {
 	push(@$interfaces, {"interface_id"   => $row->{'interface_id'},
                             "vlan_tag_range" => $row->{'vlan_tag_range'},
                             "interface_name" => $row->{'int_name'},
+                            "cloud_interconnect_id" => $row->{'cloud_interconnect_id'},
+                            "cloud_interconnect_type" => $row->{'cloud_interconnect_type'},
                             "node_id"        => $row->{'node_id'},
                             "node_name"      => $row->{'node_name'},
                             "remote_links"    => \@remote_links,

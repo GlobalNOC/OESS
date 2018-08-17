@@ -24,7 +24,6 @@ a replacement for the parent VRF's endpoints.
 sub setup_endpoints {
     my $vrf_name   = shift;
     my $endpoints  = shift;
-    my $account_id = shift;
     my $result     = [];
 
     foreach my $ep (@$endpoints) {
@@ -39,11 +38,11 @@ sub setup_endpoints {
         if ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-connection') {
             my $res = $aws->allocate_connection(
                 $vrf_name,
-                $account_id,
+                $ep->cloud_account_id,
                 $ep->tag,
                 $ep->bandwidth . 'Mbps'
             );
-            $ep->cloud_account_id($account_id);
+            $ep->cloud_account_id($ep->cloud_account_id);
             $ep->cloud_connection_id($res->{ConnectionId});
             push @$result, $ep;
 
@@ -56,7 +55,7 @@ sub setup_endpoints {
             }
 
             my $res = $aws->allocate_vinterface(
-                $account_id,
+                $ep->cloud_account_id,
                 $ip_version,
                 $peer->peer_ip,
                 $peer->peer_asn || 55038,
@@ -65,7 +64,7 @@ sub setup_endpoints {
                 $vrf_name,
                 $ep->tag
             );
-            $ep->cloud_account_id($account_id);
+            $ep->cloud_account_id($ep->cloud_account_id);
             $ep->cloud_connection_id($res->{VirtualInterfaceId});
             push @$result, $ep;
 

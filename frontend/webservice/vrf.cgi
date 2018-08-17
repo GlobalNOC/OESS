@@ -332,7 +332,7 @@ sub provision_vrf{
         }
         OESS::Cloud::cleanup_endpoints($to_remove);
 
-        my $setup_endpoints = OESS::Cloud::setup_endpoints($vrf->name, $vrf->endpoints, 347957162513);
+        my $setup_endpoints = OESS::Cloud::setup_endpoints($vrf->name, $vrf->endpoints);
         $vrf->endpoints($setup_endpoints);
         $vrf->update_db();
 
@@ -357,7 +357,7 @@ sub provision_vrf{
         return;
     }
 
-    my $setup_endpoints = OESS::Cloud::setup_endpoints($vrf->name, $vrf->endpoints, 347957162513);
+    my $setup_endpoints = OESS::Cloud::setup_endpoints($vrf->name, $vrf->endpoints);
     $vrf->endpoints($setup_endpoints);
     $vrf->update_db();
 
