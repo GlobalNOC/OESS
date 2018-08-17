@@ -622,6 +622,104 @@ sub _process_interface{
     return $obj;
 }
 
+sub get_vrf_stats{
+    my $self = shift;
+
+    if(!$self->connected()){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
+
+    my $reply = $self->{'jnx'}->get_bgp_summary_information( instance => "OESS-L3VPN");
+
+    if($self->{'jnx'}->has_error){
+        my $error = $self->{'jnx'}->get_first_error();
+        $self->set_error($error->{'error_message'});
+        $self->{'logger'}->error("Error fetching VRF stats: " . $error->{'error_message'});
+        return;
+    }
+
+    my %vrf_stats;
+
+    my $stats = $self->{'jnx'}->get_dom();
+    #$self->{'logger'}->debug("VRF Stats: " . $stats->toString());
+    
+    my @peer_stats;
+    my @rib_stats;
+
+    my $path = $self->{'root_namespace'}."junos-routing";
+    my $xp = XML::LibXML::XPathContext->new( $stats );
+    $xp->registerNs('x',$stats->documentElement->namespaceURI);
+    $xp->registerNs('j',$path);
+        
+    my $peers = $xp->findnodes('/x:rpc-reply/j:bgp-information/j:bgp-peer');
+    foreach my $peer (@{$peers}){
+        my $peer_xp = XML::LibXML::XPathContext->new( $peer );
+        my $path = $self->{'root_namespace'}."junos-routing";
+        $peer_xp->registerNs('j',$path);
+        my $address = $peer_xp->findvalue('./j:peer-address');
+        my $as = $peer_xp->findvalue('./j:peer-as');
+        my $vrf = $peer_xp->findvalue('./j:description');
+        my $state = $peer_xp->findvalue('./j:peer-state');
+        my $flap_count = $peer_xp->findvalue('./j:flap-count');
+        my $rqc = $peer_xp->findvalue('./j:route-queue-count');
+        my $output_messages = $peer_xp->findvalue('./j:output-messages');
+        my $input_messages = $peer_xp->findvalue('./j:input-messages');
+        push(@peer_stats,{vrf => $vrf,
+                          address => $address,
+                          as => $as,
+                          state => $state,
+                          flap_count => $flap_count,
+                          route_queue_count => $rqc,
+                          output_messages => $output_messages,
+                          input_messages => $input_messages});
+    }
+
+    my $ribs = $xp->findnodes('/x:rpc-reply/j:bgp-information/j:bgp-rib');
+    foreach my $rib (@{$ribs}){
+        my $rib_xp = XML::LibXML::XPathContext->new( $rib );
+        my $path = $self->{'root_namespace'}."junos-routing";
+        $rib_xp->registerNs('j',$path);
+        my $name = $rib_xp->findvalue('./j:name');
+        my $total_prefix_count = $rib_xp->findvalue('./j:total-prefix-count');
+        my $received_prefix_count = $rib_xp->findvalue('./j:received-prefix-count');
+        my $accepted_prefix_count = $rib_xp->findvalue('./j:accepted-prefix-count');
+        my $active_prefix_count = $rib_xp->findvalue('./j:active-prefix-count');
+        my $suppressed_prefix_count = $rib_xp->findvalue('./j:suppressed-prefix-count');
+        my $history_prefix_count = $rib_xp->findvalue('./j:history-prefix-count');
+        my $damped_prefix_count = $rib_xp->findvalue('./j:damped-prefix-count');
+        my $total_external_prefix_count = $rib_xp->findvalue('./j:total-external-prefix-count');
+        my $active_external_prefix_count = $rib_xp->findvalue('./j:active-external-prefix-count');
+        my $accepted_external_prefix_count = $rib_xp->findvalue('./j:accepted-external-prefix-count');
+        my $suppressed_external_prefix_count = $rib_xp->findvalue('./j:suppressed-external-prefix-count');
+        my $total_internal_prefix_count = $rib_xp->findvalue('./j:total-internal-prefix-count');
+        my $active_internal_prefix_count = $rib_xp->findvalue('./j:active-internal-prefix-count');
+        my $accepted_internal_prefix_count = $rib_xp->findvalue('./j:accepted-internal-prefix-count');
+        my $suppressed_internal_prefix_count = $rib_xp->findvalue('./j:suppressed-internal-prefix-count');
+        my $pending_prefix_count = $rib_xp->findvalue('./j:pending-prefix-count');
+        push(@rib_stats,{ vrf => $name,
+                          total_prefix_count => $total_prefix_count,
+                          received_prefix_count => $received_prefix_count,
+                          accepted_prefix_count => $accepted_prefix_count,
+                          active_prefix_count => $active_prefix_count,
+                          suppressed_prefix_count => $suppressed_prefix_count,
+                          history_prefix_count => $history_prefix_count,
+                          damped_prefix_count => $damped_prefix_count,
+                          total_external_prefix_count => $total_external_prefix_count,
+                          active_external_prefix_count => $active_external_prefix_count,
+                          accepted_external_prefix_count => $accepted_external_prefix_count,
+                          suppressed_external_prefix_count => $suppressed_external_prefix_count,
+                          total_internal_prefix_count => $total_internal_prefix_count,
+                          active_internal_prefix_count => $active_internal_prefix_count,
+                          accepted_internal_prefix_count => $accepted_internal_prefix_count,
+                          suppressed_internal_prefix_count => $suppressed_internal_prefix_count,
+                          pending_prefix_count => $pending_prefix_count });
+    }
+    return {peer_stats => \@peer_stats,
+            rib_stats => \@rib_stats};
+    
+}
+
 =head2 remove_vlan
 
     my $ok = remove_vlan(
