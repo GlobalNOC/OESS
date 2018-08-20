@@ -151,6 +151,7 @@ async function loadEntities(parentEntity=null) {
 
     setEntity(entity.entity_id, entity.name);
     loadEntityVLANs(entity);
+    loadEntityCloudAccountInput(entity);
 }
 
 async function loadEntityVLANs(entity) {
@@ -178,6 +179,35 @@ async function loadEntityVLANs(entity) {
     document.querySelector('#entity-vlans').innerHTML = options;
 }
 
+async function loadEntityCloudAccountInput(entity) {
+    console.log('loading entity account');
+
+    if (!entity) {
+        console.log('skipping entity account');
+        return null;
+    }
+
+    let interconnect_id = null;
+    let interconnect_type = null;
+
+    for (let i = 0; i < entity.interfaces.length; i++) {
+        if (typeof entity.interfaces[i].cloud_interconnect_id === 'undefined') {
+            continue;
+        }
+
+        interconnect_id = entity.interfaces[i].cloud_interconnect_id;
+        interconnect_type = entity.interfaces[i].cloud_interconnect_type;
+    }
+
+    if (interconnect_id === null || interconnect_id === 'null') {
+        document.querySelector('#entity-cloud-account').style.display = 'none';
+    } else {
+        // TODO Update cloud account label based on interconnect type
+        document.querySelector('#entity-cloud-account-label').innerHTML = 'AWS Account Owner';
+        document.querySelector('#entity-cloud-account').style.display = 'block';
+    }
+}
+
 async function addEntitySubmitCallback(event) {
     let name = document.querySelector('#entity-name').value;
     if (name === '') {
@@ -197,7 +227,8 @@ async function addEntitySubmitCallback(event) {
         peerings: [],
         tag: document.querySelector('#entity-vlans').value,
         entity_id: document.querySelector('#entity-id').value,
-        name: document.querySelector('#entity-name').value
+        name: document.querySelector('#entity-name').value,
+        cloud_account_id: document.querySelector('#entity-cloud-account-id').value
     };
     console.log(entity);
 
