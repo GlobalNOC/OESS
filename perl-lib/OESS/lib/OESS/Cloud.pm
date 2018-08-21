@@ -37,6 +37,7 @@ sub setup_endpoints {
 
         if ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-connection') {
             my $res = $aws->allocate_connection(
+                $ep->interface()->cloud_interconnect_id,
                 $vrf_name,
                 $ep->cloud_account_id,
                 $ep->tag,
@@ -55,6 +56,7 @@ sub setup_endpoints {
             }
 
             my $res = $aws->allocate_vinterface(
+                $ep->interface()->cloud_interconnect_id,
                 $ep->cloud_account_id,
                 $ip_version,
                 $peer->peer_ip,
@@ -100,13 +102,13 @@ sub cleanup_endpoints {
             my $aws_account = $ep->cloud_account_id;
             my $aws_connection = $ep->cloud_connection_id;
             warn "Removing aws conn $aws_connection from $aws_account";
-            $aws->delete_connection($aws_connection);
+            $aws->delete_connection($ep->interface()->cloud_interconnect_id, $aws_connection);
 
         } elsif ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-vinterface') {
             my $aws_account = $ep->cloud_account_id;
             my $aws_connection = $ep->cloud_connection_id;
             warn "Removing aws vint $aws_connection from $aws_account";
-            $aws->delete_vinterface($aws_connection);
+            $aws->delete_vinterface($ep->interface()->cloud_interconnect_id, $aws_connection);
 
         } else {
             warn "Cloud interconnect type is not supported.";
