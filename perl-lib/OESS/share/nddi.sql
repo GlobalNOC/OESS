@@ -1051,9 +1051,9 @@ DROP TABLE IF EXISTS `entity_interface_membership`;
 CREATE TABLE `entity_interface_membership` (
   `entity_id` int(11) NOT NULL,
   `interface_id` int(11) NOT NULL,
-  KEY `entity` (`entity_id`),
+  UNIQUE KEY `unique_entity_interface` (`entity_id`,`interface_id`),
   KEY `interface` (`interface_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 
