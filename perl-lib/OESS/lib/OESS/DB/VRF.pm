@@ -159,7 +159,7 @@ sub add_endpoint{
         return;
     }
  
-    if (defined $model->{cloud_account_id}) {
+    if (defined $model->{cloud_account_id} && $model->{cloud_account_id} ne '') {
         $db->execute_query(
             "insert into cloud_connection_vrf_ep (vrf_ep_id, cloud_account_id, cloud_connection_id)
              values (?, ?, ?)",

@@ -34,7 +34,6 @@ sub allocate_connection {
     my $owner_account = shift;
     my $tag = shift;
     my $bandwidth = shift;
-    warn "!!!!!!!!!!!! AWS - Connection !!!!!!!!!!!!";
 
     $ENV{'AWS_ACCESS_KEY'} = $self->{creds}->{aws}->{conn_access_key};
     $ENV{'AWS_SECRET_KEY'} = $self->{creds}->{aws}->{conn_secret_key};
@@ -51,8 +50,10 @@ sub allocate_connection {
         Vlan => $tag
     );
 
+    # TODO: Find failure modes and log as error
     warn Dumper($resp);
-    warn "!!!!!!!!!!!! AWS - Connection !!!!!!!!!!!!";
+
+    $self->{logger}->info("Allocated AWS Connection $resp->{ConnectionId} on $self->{connection_region} for $resp->{OwnerAccount} with VLAN $resp->{Vlan}.");
     return $resp;
 }
 
@@ -61,7 +62,6 @@ sub allocate_connection {
 sub delete_connection {
     my $self = shift;
     my $connection_id = shift;
-    warn "!!!!!!!!!!!! AWS - Connection !!!!!!!!!!!!";
 
     $ENV{'AWS_ACCESS_KEY'} = $self->{creds}->{aws}->{conn_access_key};
     $ENV{'AWS_SECRET_KEY'} = $self->{creds}->{aws}->{conn_secret_key};
@@ -75,7 +75,8 @@ sub delete_connection {
     );
 
     warn Dumper($resp);
-    warn "!!!!!!!!!!!! AWS - Connection !!!!!!!!!!!!";
+
+    $self->{logger}->info("Removed AWS Connection $resp->{ConnectionId} on $self->{connection_region} for $resp->{OwnerAccount} with VLAN $resp->{Vlan}.");
     return $resp;
 }
 
@@ -91,7 +92,6 @@ sub allocate_vinterface {
     my $customer_addr = shift;
     my $vinterface_name = shift;
     my $tag = shift;
-    warn "!!!!!!!!!!!! AWS - VInterface !!!!!!!!!!!!";
 
     $ENV{'AWS_ACCESS_KEY'} = $self->{creds}->{aws}->{vint_access_key};
     $ENV{'AWS_SECRET_KEY'} = $self->{creds}->{aws}->{vint_secret_key};
@@ -114,8 +114,10 @@ sub allocate_vinterface {
         }
     );
 
+    # TODO: Find failure modes and log as error
     warn Dumper($resp);
-    warn "!!!!!!!!!!!! AWS - VInterface !!!!!!!!!!!!";
+
+    $self->{logger}->info("Allocated AWS Virtual Interface $resp->{ConnectionId} on $self->{vinterface_region} for $resp->{OwnerAccount} with VLAN $resp->{Vlan}.");
     return $resp;
 }
 
@@ -124,7 +126,6 @@ sub allocate_vinterface {
 sub delete_vinterface {
     my $self = shift;
     my $vinterface_id = shift;
-    warn "!!!!!!!!!!!! AWS - VInterface !!!!!!!!!!!!";
 
     $ENV{'AWS_ACCESS_KEY'} = $self->{creds}->{aws}->{vint_access_key};
     $ENV{'AWS_SECRET_KEY'} = $self->{creds}->{aws}->{vint_secret_key};
@@ -138,8 +139,9 @@ sub delete_vinterface {
     );
 
     warn Dumper($resp);
-    warn "!!!!!!!!!!!! AWS - VInterface !!!!!!!!!!!!";
+
+    $self->{logger}->info("Removed AWS Virtual Interface $resp->{ConnectionId} on $self->{vinterface_region} for $resp->{OwnerAccount} with VLAN $resp->{Vlan}.");
     return $resp;
 }
 
-return 1;
+1;
