@@ -197,9 +197,7 @@ sub build_cache{
     foreach my $vrf (@$vrfs){
 	$logger->error("Updating Cache for VRF: " . $vrf->{'vrf_id'});
 	
-
-	$vrf = OESS::VRF->new( db => $db2,
-                               vrf_id => $vrf->{'vrf_id'});
+	$vrf = OESS::VRF->new(db => $db2, vrf_id => $vrf->{'vrf_id'});
 
         if(!defined($vrf)){
             warn "Unable to process VRF: " . $vrf->{'vrf_id'} . "\n";
@@ -209,9 +207,7 @@ sub build_cache{
         }
 
 	$vrfs{ $vrf->vrf_id() } = $vrf;
-	
     }
-
         
     my $nodes = $db->get_current_nodes(type => 'mpls');
     foreach my $node (@$nodes) {
@@ -229,7 +225,6 @@ sub build_cache{
     }
 
     return {ckts => \%ckts, circuit_status => \%circuit_status, link_status => \%link_status, node_info => \%node_info, vrfs => \%vrfs};
-
 }
 
 =head2 convert_graph_to_mpls
@@ -265,7 +260,6 @@ sub _write_cache{
 
 	my $eps = $vrf->endpoints();
 	
-
 	my @ints;
 	foreach my $ep (@$eps){
 	    my @bgp;
@@ -276,6 +270,7 @@ sub _write_cache{
 	    
 	    my $int_obj = { name => $ep->interface()->name(),
 			    tag => $ep->tag(),
+                            inner_tag => $ep->inner_tag(),
                             bandwidth => $ep->bandwidth(),
 			    peers => \@bgp };
 	    
@@ -287,6 +282,7 @@ sub _write_cache{
                                                                              vrf_id => $vrf->vrf_id(),
                                                                              interfaces => [$int_obj],
                                                                              prefix_limit => $vrf->prefix_limit(),
+                                                                             state => $vrf->state(),
                                                                              local_asn => $vrf->local_asn(),
 
 		}	
@@ -294,8 +290,6 @@ sub _write_cache{
 	}
     }
 
-    $self->{'logger'}->error("SWITCHES WITH VRF: " .  Dumper(%switches));
-    
     $self->{'logger'}->error("SWITCHES WITH VRF: " .  Dumper(%switches));
     
     foreach my $ckt_id (keys (%{$self->{'circuit'}})){
@@ -322,8 +316,6 @@ sub _write_cache{
 	    $ckt_type = "L2VPLS";
 	}
 
-        
-
 	my $site_id = 0;
 	foreach my $ep_a (@$eps){
             my @ints;
@@ -340,7 +332,7 @@ sub _write_cache{
 	    foreach my $ep_z (@$eps){
 
                 # Ignore interations comparing the same endpoint.
-                next if ($ep_a->{'node'} eq $ep_z->{'node'} && $ep_a->{'interface'} eq $ep_z->{'interface'} && $ep_a->{'tag'} eq $ep_z->{'tag'});
+                next if ($ep_a->{'node'} eq $ep_z->{'node'} && $ep_a->{'interface'} eq $ep_z->{'interface'} && $ep_a->{'tag'} eq $ep_z->{'tag'} && $ep_a->{'inner_tag'} eq $ep_z->{'inner_tag'});
 
                 if ($ep_a->{'node'} eq $ep_z->{'node'}){
                     # We're comparing interfaces on the same node; There
@@ -424,7 +416,7 @@ sub _write_cache{
 			a_side => $ep_a->{'node_id'},
                         state  => $ckt->{'state'}
                       };
-	    
+
 	    $switches{$ep_a->{'node'}}->{'ckts'}{$details->{'circuit_id'}} = $obj;
 	}
     }
@@ -796,14 +788,10 @@ sub send_message_to_child{
 =head2 addVrf
 
 =cut
-
 sub addVrf{
     my $self = shift;
     my $m_ref = shift;
     my $p_ref = shift;
-    my $state_ref = shift;
-
-    $self->{'logger'}->error("addVrf: Creating VRF!");
 
     my $success = $m_ref->{'success_callback'};
     my $error = $m_ref->{'error_callback'};
@@ -819,8 +807,9 @@ sub addVrf{
         $self->{'logger'}->error($err);
         return &$error($err);
     }
-
-
+    # The VRF may be cached. If so we must reload from DB. This causes
+    # a single load for cached VRFs and a double load for VRFs not
+    # cached.
     $vrf->update_vrf_details();
 
     if($vrf->state() eq 'decom'){
@@ -839,7 +828,6 @@ sub addVrf{
         $self->{'logger'}->error("EP: " . Dumper($ep));
         $self->{'logger'}->error("addVrf: Node: " . $ep->node()->name() . " is involved in the vrf");
         $nodes{$ep->node()->name()}= 1;
-
     }
 
     my $result = FWDCTL_SUCCESS;
@@ -850,7 +838,6 @@ sub addVrf{
         my $state = $vrf->state();
 
         $self->{'logger'}->error($self->{'db2'}->get_error());
-
     }
 
 
@@ -878,11 +865,10 @@ sub addVrf{
         
         $self->{'logger'}->info("Added VRF.");
         return &$success({status => $result});
-                });
+    });
     
     foreach my $node (keys %nodes){
         $cv->begin();
-
 
         $self->{'logger'}->error("Getting ready to add VRF: " . $vrf->vrf_id() . " to switch: " . $node);
 
@@ -972,31 +958,18 @@ sub delVrf{
 
     $cv->begin( sub {
         if ($err ne '') {
-            foreach my $node (keys %nodes){
-                my $node_id = $self->{'node_info'}->{$node}->{'id'};
-                my $node_addr = $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
-                
-                $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $node_addr;
-                $self->{'fwdctl_events'}->remove_vrf(vrf_id => $vrf_id,
-                                                     async_callback => sub {
-                                                         $self->{'logger'}->error("Removed VRF from $node_addr.");
-                                                     });
-            }
-            
-            $self->{'logger'}->error("Failed to remove VRF.");
+            $self->{'logger'}->error("Failed to remove VRF: $err");
             return &$error($err);
         }
-        
-        $self->{'logger'}->info("Added VRF.");
+
+        $self->{'logger'}->info("Removed VRF.");
         return &$success({status => $result});
-                });
+    });
     
     foreach my $node (keys %nodes){
         $cv->begin();
 
-
         $self->{'logger'}->error("Getting ready to remove VRF: " . $vrf->vrf_id() . " to switch: " . $node);
-
 
         my $node_id = $self->{'node_info'}->{$node}->{'id'};
 
@@ -1008,7 +981,7 @@ sub delVrf{
 
                 if($res->{'results'}->{'status'} != FWDCTL_SUCCESS){
                     $self->{'logger'}->error("Switch " . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . " reported an error.");
-                    $err .= "Switch : " . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . " reported an error";
+                    $err .= "Switch " . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . " reported an error. ";
                 }
                 $cv->end();
             });
@@ -1472,16 +1445,26 @@ sub save_mpls_nodes_status {
     foreach my $node (@{$nodes}) {
         $self->{'fwdctl_events'}->{'topic'} = 'MPLS.FWDCTL.Switch.' . $node->{'mgmt_addr'};
 
-        $self->{'fwdctl_events'}->is_connected( async_callback => sub {
-                                                    my $result = shift;
-                                                    if (!defined $result || int($result->{'results'}->{'connected'}) == 0) {
-                                                        $self->{'logger'}->info("Setting MPLS node $node->{'node_id'} status to 'down'.");
-                                                        $self->{'db'}->set_mpls_node_status($node->{'node_id'}, 'down');
-                                                    } else {
-                                                        $self->{'logger'}->info("Setting MPLS node $node->{'node_id'} status to 'up'.");
-                                                        $self->{'db'}->set_mpls_node_status($node->{'node_id'}, 'up');
-                                                    }
-                                                });
+        $self->{'fwdctl_events'}->is_connected(
+            async_callback => sub {
+                my $result = shift;
+                if (!defined $result) {
+                    $self->{'logger'}->error("Cannot get MPLS node $node->{'node_id'} status; Setting status to 'down'.");
+                    return $self->{'db'}->set_mpls_node_status($node->{'node_id'}, 'down');
+                }
+                if (defined $result->{'error'}) {
+                    $self->{'logger'}->error("MPLS node $node->{'node_id'} error: $result->{'error'}. Setting status to 'down'.");
+                    return $self->{'db'}->set_mpls_node_status($node->{'node_id'}, 'down');
+                }
+
+                if (int($result->{'results'}->{'connected'}) == 0) {
+                    $self->{'logger'}->info("Setting MPLS node $node->{'node_id'} status to 'down'.");
+                    return $self->{'db'}->set_mpls_node_status($node->{'node_id'}, 'down');
+                }
+
+                $self->{'logger'}->info("Setting MPLS node $node->{'node_id'} status to 'up'.");
+                return $self->{'db'}->set_mpls_node_status($node->{'node_id'}, 'up');
+        });
     }
 
     $self->{'fwdctl_events'}->{'topic'} = 'MPLS.FWDCTL.event';

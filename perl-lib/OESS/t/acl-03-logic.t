@@ -12,7 +12,7 @@ BEGIN {
 }
 
 use lib "$path";
-use OESS::Database;
+use OESS::DB;
 use OESS::ACL;
 use OESSDatabaseTester;
 
@@ -32,10 +32,10 @@ sub va_test {
 
 
 
-my $db = OESS::Database->new( config => OESSDatabaseTester::getConfigFilePath() );
+my $db = OESS::DB->new( config => OESSDatabaseTester::getConfigFilePath() );
 my $acl = OESS::ACL->new( interface_id => 45901, db => $db );
 
-ok(defined($db) && defined($acl), 'Sanity-check: can instantiate OESS::Database and OESS::ACL objects');
+ok(defined($db) && defined($acl), 'Sanity-check: can instantiate OESS::DB and OESS::ACL objects');
 
 va_test(
   $acl->vlan_allowed( workgroup_id => 21, vlan => 150 ),

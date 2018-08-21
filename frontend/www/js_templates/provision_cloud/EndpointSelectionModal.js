@@ -10,6 +10,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
   let addInterfaceCancel = document.querySelector('#add-endpoint-cancel');
   addInterfaceCancel.addEventListener('click', addInterfaceCancelCallback);
+
+  let endpointInterfaceSelect = document.querySelector('#endpoint-select-interface');
+  endpointInterfaceSelect.addEventListener('change', loadInterfaceVLANs);
+  endpointInterfaceSelect.addEventListener('change', loadInterfaceCloudAccountInput);
 });
 
 async function showEndpointSelectionModal(endpoint) {
@@ -36,11 +40,16 @@ async function showEndpointSelectionModal(endpoint) {
             await loadEntities();
             await loadInterfaces();
             await loadInterfaceVLANs();
-            console.log(`${endpoint.node} - ${endpoint.interface}`);
-            console.log(`${endpoint.node} - ${endpoint.name}`);
+
+            // #entity-index is shared between interfaces and entities
             document.querySelector('#endpoint-select-interface').value = `${endpoint.node} - ${endpoint.interface}`;
             document.querySelector('#entity-index').value = endpoint.index;
-            // #entity-index is shared between interfaces and entities
+
+            // Must call after endpoint-select-interface's value set
+            await loadInterfaceCloudAccountInput();
+
+            console.log(`${endpoint.node} - ${endpoint.interface}`);
+            console.log(`${endpoint.node} - ${endpoint.name}`);
         }
 
         document.querySelector('#endpoint-vlans').value = endpoint.tag;
@@ -51,6 +60,8 @@ async function showEndpointSelectionModal(endpoint) {
 
         document.querySelector('#add-endpoint-submit').innerHTML = 'Modify Interface';
         document.querySelector('#add-entity-submit').innerHTML = 'Modify Entity';
+
+        document.querySelector('#endpoint-cloud-account-id').value = endpoint.cloud_account_id;
 
         let addEntitySubmitButton = document.querySelector('#add-entity-submit');
         if ('entity_id' in endpoint) {
@@ -70,6 +81,7 @@ async function showEndpointSelectionModal(endpoint) {
 
         await loadInterfaces();
         loadInterfaceVLANs();
+        loadInterfaceCloudAccountInput();
 
         document.querySelector('#entity-index').value = -1;
     }
@@ -138,14 +150,62 @@ async function loadEntities(parentEntity=null) {
     entityList.innerHTML = entities;
 
     setEntity(entity.entity_id, entity.name);
+    loadEntityVLANs(entity);
+    loadEntityCloudAccountInput(entity);
 }
 
-async function loadEntityVLANs() {
-    let vlans = '';
-    for (let i = 1; i < 4095; i++) {
-        vlans += `<option>${i}</option>`;
+async function loadEntityVLANs(entity) {
+    if (!entity) {
+        console.log('skipping entity vlan fetch');
+        return null;
     }
-    document.querySelector('#entity-vlans').innerHTML = vlans;
+
+    let vlanH = {};
+    for (let i = 0; i < entity.interfaces.length; i++) {
+        for (let j = 0; j < entity.interfaces[i].available_vlans.length; j++) {
+            vlanH[entity.interfaces[i].available_vlans[j]] = 1;
+        }
+    }
+
+    let vlans = [];
+    for (key in vlanH) {
+        vlans.push(key);
+    }
+
+    let options = '';
+    for (let i = 0; i < vlans.length; i++) {
+        options += `<option>${vlans[i]}</option>`;
+    }
+    document.querySelector('#entity-vlans').innerHTML = options;
+}
+
+async function loadEntityCloudAccountInput(entity) {
+    console.log('loading entity account');
+
+    if (!entity) {
+        console.log('skipping entity account');
+        return null;
+    }
+
+    let interconnect_id = null;
+    let interconnect_type = null;
+
+    for (let i = 0; i < entity.interfaces.length; i++) {
+        if (typeof entity.interfaces[i].cloud_interconnect_id === 'undefined') {
+            continue;
+        }
+
+        interconnect_id = entity.interfaces[i].cloud_interconnect_id;
+        interconnect_type = entity.interfaces[i].cloud_interconnect_type;
+    }
+
+    if (interconnect_id === null || interconnect_id === 'null') {
+        document.querySelector('#entity-cloud-account').style.display = 'none';
+    } else {
+        // TODO Update cloud account label based on interconnect type
+        document.querySelector('#entity-cloud-account-label').innerHTML = 'AWS Account Owner';
+        document.querySelector('#entity-cloud-account').style.display = 'block';
+    }
 }
 
 async function addEntitySubmitCallback(event) {
@@ -167,7 +227,8 @@ async function addEntitySubmitCallback(event) {
         peerings: [],
         tag: document.querySelector('#entity-vlans').value,
         entity_id: document.querySelector('#entity-id').value,
-        name: document.querySelector('#entity-name').value
+        name: document.querySelector('#entity-name').value,
+        cloud_account_id: document.querySelector('#entity-cloud-account-id').value
     };
     console.log(entity);
 
@@ -234,7 +295,7 @@ async function loadInterfaces() {
 
     let options = '';
     interfaces.forEach(function(intf) {
-            options += `<option data-id="${intf.interface_id}" data-node="${intf.node_name}" data-interface="${intf.interface_name}" value="${intf.node_name} - ${intf.interface_name}">
+            options += `<option data-id="${intf.interface_id}" data-cloud-interconnect-id="${intf.cloud_interconnect_id}" data-cloud-interconnect-type="${intf.cloud_interconnect_type}" data-node="${intf.node_name}" data-interface="${intf.interface_name}" value="${intf.node_name} - ${intf.interface_name}">
                           ${intf.node_name} - ${intf.interface_name}
                         </option>`;
     });
@@ -244,15 +305,34 @@ async function loadInterfaces() {
 }
 
 async function loadInterfaceVLANs() {
-    let select = document.querySelector('#endpoint-select-interface');
-    let node = select.options[select.selectedIndex].getAttribute('data-node');
-    let intf = select.options[select.selectedIndex].getAttribute('data-interface');
+    console.log('loading interface vlans');
 
-    let vlans = '';
-    for (let i = 1; i < 4095; i++) {
-        vlans += `<option>${i}</option>`;
+    let select = document.querySelector('#endpoint-select-interface');
+    let id = select.options[select.selectedIndex].getAttribute('data-id');
+
+    let vlans = await getAvailableVLANs(session.data.workgroup_id, id);
+    let options = '';
+    for (let i = 0; i < vlans.length; i++) {
+        options += `<option>${vlans[i]}</option>`;
     }
-    document.querySelector('#endpoint-vlans').innerHTML = vlans;
+    document.querySelector('#endpoint-vlans').innerHTML = options;
+}
+
+async function loadInterfaceCloudAccountInput() {
+    console.log('loading interface cloud account input');
+
+    let select = document.querySelector('#endpoint-select-interface');
+    let id = select.options[select.selectedIndex].getAttribute('data-id');
+    let interconnect_id = select.options[select.selectedIndex].getAttribute('data-cloud-interconnect-id');
+    let interconnect_type = select.options[select.selectedIndex].getAttribute('data-cloud-interconnect-type');
+
+    if (interconnect_id === 'null') {
+        document.querySelector('#endpoint-cloud-account').style.display = 'none';
+    } else {
+        // TODO Update cloud account label based on interconnect type
+        document.querySelector('#endpoint-cloud-account-label').innerHTML = 'AWS Account Owner';
+        document.querySelector('#endpoint-cloud-account').style.display = 'block';
+    }
 }
 
 async function addInterfaceSubmitCallback(event) {
@@ -265,6 +345,7 @@ async function addInterfaceSubmitCallback(event) {
         interface: intf,
         node: node,
         peerings: [],
+        cloud_account_id: document.querySelector('#endpoint-cloud-account-id').value,
         tag: document.querySelector('#endpoint-vlans').value
     };
     console.log(endpoint);

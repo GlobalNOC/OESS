@@ -202,6 +202,17 @@ sub remove_vrf{
     return;
 }
 
+=head2 get_vrf_stats
+
+=cut
+
+sub get_vrf_stats{
+    my $self = shift;
+
+    $self->set_error("This device does not support get_vrf_stats");
+    return;
+}
+
 
 =head2 diff
 

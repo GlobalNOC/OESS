@@ -13,6 +13,7 @@
  * @property {string} [entity=undefined] - Name of entity
  * @property {string} [node=undefined] - Name of node
  * @property {integer} tag - VLAN number
+ * @property {integer} [cloud_account_id=undefined] - Cloud account owner for cloud interconnect
  * @property {Peering[]} peerings - Peers on this endpoint
  */
 
@@ -33,8 +34,8 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
 
   let form = new FormData();
   form.append('method', 'provision');
-  form.append('name', encodeURIComponent(name));
-  form.append('description', encodeURIComponent(description));
+  form.append('name', name);
+  form.append('description', description);
   form.append('local_asn', 1);
   form.append('workgroup_id', workgroupID);
   form.append('provision_time', provisionTime);
@@ -45,7 +46,8 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
     let e = {
       bandwidth: endpoint.bandwidth,
       tag:       endpoint.tag,
-      peerings:  []
+      peerings:  [],
+      cloud_account_id: endpoint.cloud_account_id
     };
 
     if ('entity_id' in endpoint && endpoint.interface === '' && endpoint.node === '') {
@@ -76,7 +78,7 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
         throw(data.error_text);
     }
 
-    if (typeof data.results.success !== undefined && data.results.success === 1) {
+    if (typeof data.results.success !== 'undefined' && typeof data.results.vrf_id !== 'undefined') {
       return parseInt(data.results.vrf_id);
     }
 

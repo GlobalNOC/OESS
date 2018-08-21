@@ -9,6 +9,8 @@ use GRNOC::WebService::Method;
 use GRNOC::WebService::Dispatcher;
 
 use OESS::RabbitMQ::Client;
+use OESS::Cloud;
+use OESS::Cloud::AWS;
 use OESS::DB;
 use OESS::VRF;
 
@@ -208,7 +210,7 @@ sub provision_vrf{
         return;
     }
 
-    $model->{'description'} = $params->{'name'}{'value'};
+    $model->{'description'} = $params->{'description'}{'value'};
     $model->{'prefix_limit'} = $params->{'prefix_limit'}{'value'};
 
     $model->{'workgroup_id'} = $params->{'workgroup_id'}{'value'};
@@ -217,17 +219,9 @@ sub provision_vrf{
     $model->{'provision_time'} = $params->{'provision_time'}{'value'};
     $model->{'remove_time'} = $params->{'provision_time'}{'value'};
     $model->{'created_by'} = $user->user_id();
+    $model->{'last_modified'} = $params->{'provision_time'}{'value'};
     $model->{'last_modified_by'} = $user->user_id();
-
     $model->{'endpoints'} = ();
-    foreach my $endpoint (@{$params->{'endpoint'}{'value'}}){
-        my $obj;
-        eval{
-            $obj = decode_json($endpoint);
-        };
-        
-        push(@{$model->{'endpoints'}}, $obj);
-    }
 
     #first validate the user is in the workgroup
     if(!$user->in_workgroup( $model->{'workgroup_id'})){
@@ -235,23 +229,142 @@ sub provision_vrf{
         return;
     }
 
-    my $vrf = OESS::VRF->new( db => $db, vrf_id => -1, model => $model);
-    #warn Dumper($vrf);
-    $vrf->create();
-    
-    my $vrf_id = $vrf->vrf_id();
-    if($vrf_id == -1){
+    # Use $peerings to validate a local address isn't specified twice
+    # on the same interface.
+    my $peerings = {};
 
-        return {results => {'success' => 0}, error => 'error creating VRF: ' . $vrf->error()};
+    foreach my $endpoint (@{$params->{'endpoint'}{'value'}}){
+        my $obj;
+        eval{
+            $obj = decode_json($endpoint);
+        };
+        if ($@) {
+            $method->set_error("Cannot decode endpoint: $@");
+            return;
+        }
 
-    }else{
+        foreach my $peering (@{$obj->{peerings}}) {
+            if (defined $peerings->{"$obj->{node} $obj->{interface} $peering->{local_ip}"}) {
+                $method->set_error("Cannot have duplicate local addresses on an interface.");
+                return;
+            }
+            $peerings->{"$obj->{node} $obj->{interface} $peering->{local_ip}"} = 1;
+        }
 
-        my $res = vrf_add( method => $method, vrf_id => $vrf_id);
-        $res->{'vrf_id'} = $vrf_id;
-        return {results => $res};
-                
+        push(@{$model->{'endpoints'}}, $obj);
     }
 
+    my $vrf;
+    if (defined $model->{'vrf_id'} && $model->{'vrf_id'} != -1) {
+        $vrf = OESS::VRF->new( db => $db, vrf_id => $model->{'vrf_id'});
+
+        # Each endpoint in $vrf should compared against
+        # $model->{endpoints}. If the vlan numbers have changed we'll
+        # need to reprovision the cloud connections.
+
+        my $cl_lookup = {};
+        my $ep_lookup = {};
+
+        foreach my $ep (@{$vrf->endpoints}) {
+            if (!$ep->{interface}->{cloud_interconnect_id}) {
+                next;
+            }
+
+            my $switch = $ep->{interface}->{node}->{name};
+            my $interface = $ep->{interface}->{name};
+            my $tag = $ep->{tag};
+            my $inner_tag = $ep->{inner_tag};
+
+            my $cl_name = "$switch-$interface";
+            my $ep_name = "$switch-$interface-$tag-$inner_tag";
+
+            $cl_lookup->{$cl_name} = 1;
+            $ep_lookup->{$ep_name} = $ep;
+        }
+
+        for (my $i = 0; $i < @{$model->{endpoints}}; $i++) {
+            my $switch = $model->{endpoints}->[$i]->{node};
+            my $interface = $model->{endpoints}->[$i]->{interface};
+            my $tag = $model->{endpoints}->[$i]->{tag};
+            my $inner_tag = $model->{endpoints}->[$i]->{inner_tag};
+
+            my $cl_name = "$switch-$interface";
+            my $ep_name = "$switch-$interface-$tag-$inner_tag";
+
+            if (!defined $cl_lookup->{$cl_name}) {
+                next; # Not a cloud endpoint
+            }
+
+            if (defined $ep_lookup->{$ep_name}) {
+                $model->{endpoints}->[$i]->{cloud_account_id} = $ep_lookup->{$ep_name}->{cloud_account_id};
+                $model->{endpoints}->[$i]->{cloud_connection_id} = $ep_lookup->{$ep_name}->{cloud_connection_id};
+                warn 'Doing nothing: ' . Dumper($ep_name);
+                delete $ep_lookup->{$ep_name};
+            } else {
+                # Add cloud interface
+                warn 'Adding: ' . Dumper($ep_name);
+            }
+        }
+
+        # if new endpoint with cloud_interconnect_id allocate
+        # if missing endpoint that had a cloud_interconnect_id delete
+        # if endpoint vlan changed delete and allocate
+
+        my $ok = $vrf->update($model);
+        if (!$ok) {
+            $method->set_error($vrf->error());
+            return;
+        }
+
+        $ok = $vrf->update_db();
+        if (!$ok) {
+            $method->set_error($vrf->error());
+            return;
+        }
+
+
+        # Remove these cloud endpoints. They either were removed or
+        # had their tags changed.
+        my $to_remove = [];
+        foreach my $name (keys %$ep_lookup) {
+            warn 'Removing: ' . Dumper($name);
+            push @$to_remove, $ep_lookup->{$name};
+        }
+        OESS::Cloud::cleanup_endpoints($to_remove);
+
+        my $setup_endpoints = OESS::Cloud::setup_endpoints($vrf->name, $vrf->endpoints);
+        $vrf->endpoints($setup_endpoints);
+        $vrf->update_db();
+
+        my $vrf_id = $vrf->vrf_id();
+
+        my $res = vrf_del(method => $method, vrf_id => $vrf_id);
+        $res = vrf_add( method => $method, vrf_id => $vrf_id);
+        $res->{'vrf_id'} = $vrf_id;
+        return { results => $res };
+    }
+
+    $vrf = OESS::VRF->new( db => $db, model => $model);
+    my $ok = $vrf->create();
+    if (!$ok) {
+        $method->set_error('error creating VRF: ' . $vrf->error());
+        return;
+    }
+
+    my $vrf_id = $vrf->vrf_id();
+    if ($vrf_id == -1) {
+        $method->set_error('error creating VRF: ' . $vrf->error());
+        return;
+    }
+
+    my $setup_endpoints = OESS::Cloud::setup_endpoints($vrf->name, $vrf->endpoints);
+    $vrf->endpoints($setup_endpoints);
+    $vrf->update_db();
+
+    my $res = vrf_add( method => $method, vrf_id => $vrf_id);
+
+    $res->{'vrf_id'} = $vrf_id;
+    return {results => $res};
 }
 
 sub remove_vrf{    
@@ -279,20 +392,20 @@ sub remove_vrf{
         return {success => 0};
     }
 
-
-
     my $result;
     if(!$user->in_workgroup( $wg)){
         $method->set_error("User " . $ENV{'REMOTE_USER'} . " is not in workgroup");
         return {success => 0};
     }
 
-    $vrf->decom(user_id => $user->user_id());
-
     my $res = vrf_del( method => $method, vrf_id => $vrf_id);
     $res->{'vrf_id'} = $vrf_id;
-    return {results => $res};
 
+    $vrf->decom(user_id => $user->user_id());
+
+    OESS::Cloud::cleanup_endpoints($vrf->endpoints);
+
+    return {results => $res};
 }
 
 sub vrf_add{
@@ -307,7 +420,7 @@ sub vrf_add{
     $mq->addVrf(vrf_id => int($vrf_id), async_callback => sub {
         my $result = shift;
         $cv->send($result);
-                });
+    });
     
     my $result = $cv->recv();
     

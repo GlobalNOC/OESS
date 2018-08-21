@@ -183,9 +183,9 @@ sub _register_rpc_methods{
                                   pattern => $GRNOC::WebService::Regex::NUMBER_ID);
     $dispatcher->register_method($method);
     
-    my $method = GRNOC::RabbitMQ::Method->new( name => "add_vrf",
-                                               description => "adds a vrf for this switch",
-					       callback => sub { return {status => $self->add_vrf(@_) }});
+    $method = GRNOC::RabbitMQ::Method->new( name => "add_vrf",
+                                            description => "adds a vrf for this switch",
+                                            callback => sub { return {status => $self->add_vrf(@_) }});
     
     $method->add_input_parameter( name => "vrf_id",
                                   description => "vrf_id to be added",
@@ -193,9 +193,9 @@ sub _register_rpc_methods{
                                   pattern => $GRNOC::WebService::Regex::NUMBER_ID);
     $dispatcher->register_method($method);
     
-    my $method = GRNOC::RabbitMQ::Method->new( name => "remove_vrf",
-                                               description => "removes a vrf from this switch",
-                                               callback => sub { return {status => $self->remove_vrf(@_) }});
+    $method = GRNOC::RabbitMQ::Method->new( name => "remove_vrf",
+                                            description => "removes a vrf from this switch",
+                                            callback => sub { return {status => $self->remove_vrf(@_) }});
 
     $method->add_input_parameter( name => "vrf_id",
                                   description => "vrf_id to be removed",
@@ -272,6 +272,13 @@ sub _register_rpc_methods{
                                                 $self->get_lsp_paths(@_);
                                             },
                                             description => "for each LSP on the switch, provides a list of link addresses");
+    $dispatcher->register_method($method);
+
+    $method = GRNOC::RabbitMQ::Method->new( name => "get_vrf_stats",
+                                            callback => sub {
+                                                $self->get_vrf_stats(@_);
+                                            }, description => "Get VRF BGP Stats");
+
     $dispatcher->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name        => "is_connected",
@@ -531,6 +538,7 @@ sub diff {
     $self->{'logger'}->debug("Calling Switch.diff");
     $self->_update_cache();
 
+    $self->{'logger'}->debug("Active VRFS: " . Dumper($self->{'vrfs'}));
     my $to_be_removed = $self->{'device'}->get_config_to_remove( circuits => $self->{'ckts'}, vrfs => $self->{'vrfs'} );
     if (!defined $to_be_removed) {
         $self->{'logger'}->error('Could not communicate with device.');
@@ -552,7 +560,8 @@ sub get_diff_text {
 
     $self->{'logger'}->debug("Calling Switch.get_diff_text");
     $self->_update_cache();
-    my $to_be_removed = $self->{'device'}->get_config_to_remove( circuits => $self->{'ckts'} );
+    $self->{'logger'}->debug("Active VRFS: " . Dumper($self->{'vrfs'}));
+    my $to_be_removed = $self->{'device'}->get_config_to_remove( circuits => $self->{'ckts'}, vrfs => $self->{'vrfs'} );
     my $diff = $self->{'device'}->get_diff_text(circuits => $self->{'ckts'}, vrfs => $self->{'vrfs'}, remove => $to_be_removed);
     if (!defined $diff) {
         return 'No diff required at this time.';
@@ -618,6 +627,19 @@ sub get_LSPs{
     my $p_ref = shift;
 
     return $self->{'device'}->get_LSPs();
+}
+
+
+=head2 get_vrf_stats
+
+=cut
+
+sub get_vrf_stats{
+    my $self = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    return $self->{'device'}->get_vrf_stats();
 }
 
 =head2 get_lsp_paths

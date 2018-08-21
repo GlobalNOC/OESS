@@ -49,15 +49,46 @@ sub fetch{
     return $details;
 }
 
-sub update{
+sub update {
     my %params = @_;
-    
-    if(!defined($params{'vrf_id'}) || $params{'vrf_id'} == -1){
-        return _create_vrf(\%params);
-    }else{
-        return _update_vrf(\%params);
+    my $db = $params{'db'};
+    my $vrf = $params{'vrf'};
+
+    return if (!defined $vrf->{vrf_id});
+
+    my $reqs = [];
+    my $args = [];
+    my $set = '';
+
+    if (defined $vrf->{name}) {
+        push @$reqs, 'name=?';
+        push @$args, $vrf->{name};
     }
-    
+    if (defined $vrf->{description}) {
+        push @$reqs, 'description=?';
+        push @$args, $vrf->{description};
+    }
+    if (defined $vrf->{local_asn}) {
+        push @$reqs, 'local_asn=?';
+        push @$args, $vrf->{local_asn};
+    }
+    if (defined $vrf->{last_modified}) {
+        push @$reqs, 'last_modified=?';
+        push @$args, $vrf->{last_modified};
+    }
+    if (defined $vrf->{last_modified_by}->{user_id}) {
+        push @$reqs, 'last_modified_by=?';
+        push @$args, $vrf->{last_modified_by}->{user_id};
+    }
+    $set .= join(', ', @$reqs);
+    push @$args, $vrf->{vrf_id};
+
+    my $result = $db->execute_query(
+        "UPDATE vrf SET $set WHERE vrf_id=?",
+        $args
+    );
+
+    return $result;
 }
 
 sub create{
@@ -88,11 +119,30 @@ sub create{
     return $vrf_id;
 }        
 
-sub delete_endpoint{
+sub delete_endpoints {
     my %params = @_;
+    my $db = $params{'db'};
+    my $vrf_id = $params{'vrf_id'};
 
-    
-    
+    my $ok = $db->execute_query(
+        "delete vrf_ep_peer
+         from vrf_ep join vrf_ep_peer on vrf_ep.vrf_ep_id=vrf_ep_peer.vrf_ep_id
+         where vrf_ep.vrf_id=?",
+        [$vrf_id]
+    );
+    if (!$ok) {
+        return $ok;
+    }
+
+    $ok = $db->execute_query(
+        "delete from vrf_ep where vrf_id=?",
+        [$vrf_id]
+    );
+    if (!$ok) {
+        return $ok;
+    }
+
+    return $ok;
 } 
 
 sub add_endpoint{       
@@ -102,13 +152,21 @@ sub add_endpoint{
     my $model = $params{'model'};
     my $vrf_id = $params{'vrf_id'};
 
-    my $vrf_ep_id = $db->execute_query("insert into vrf_ep (interface_id, tag, bandwidth, vrf_id, state) VALUES (?,?,?,?,?)",[$model->{'interface'}->{'interface_id'}, $model->{'tag'}, $model->{'bandwidth'}, $vrf_id, 'active']);
+    my $vrf_ep_id = $db->execute_query("insert into vrf_ep (interface_id, tag, inner_tag, bandwidth, vrf_id, state) VALUES (?,?,?,?,?,?)",[$model->{'interface'}->{'interface_id'}, $model->{'tag'}, $model->{'inner_tag'}, $model->{'bandwidth'}, $vrf_id, 'active']);
     if(!defined($vrf_ep_id)){
         my $error = $db->get_error();
         $db->rollback();
         return;
     }
  
+    if (defined $model->{cloud_account_id} && $model->{cloud_account_id} ne '') {
+        $db->execute_query(
+            "insert into cloud_connection_vrf_ep (vrf_ep_id, cloud_account_id, cloud_connection_id)
+             values (?, ?, ?)",
+            [$vrf_ep_id, $model->{cloud_account_id}, $model->{cloud_connection_id}]
+        );
+    }
+
     foreach my $peer (@{$model->{'peers'}}){
         my $res = add_peer(db => $db, model => $peer, vrf_ep_id => $vrf_ep_id);
         if(!defined($res)){
@@ -129,7 +187,7 @@ sub add_peer{
     my $vrf_ep_id = $params{'vrf_ep_id'};
     warn "PEER MODEL: " . Dumper($model);
 
-    my $res = $db->execute_query("insert into vrf_ep_peer (vrf_ep_id, peer_ip, local_ip, peer_asn, md5_key, state) VALUES (?,?,?,?,?,?)",[$vrf_ep_id, $model->{'peer_ip'}, $model->{'local_ip'}, $model->{'peer_asn'}, $model->{'key'}, 'active']);
+    my $res = $db->execute_query("insert into vrf_ep_peer (vrf_ep_id, peer_ip, local_ip, peer_asn, md5_key, state) VALUES (?,?,?,?,?,?)",[$vrf_ep_id, $model->{'peer_ip'}, $model->{'local_ip'}, $model->{'peer_asn'}, $model->{'md5_key'}, 'active']);
 
     if(!defined($res)){
         my $error = $db->get_error();
@@ -147,13 +205,16 @@ sub fetch_endpoints{
     my $status = $params{'status'} || 'active';
 
     #find endpoints 
-    my $res = $db->execute_query("select vrf_ep.vrf_ep_id from vrf_ep where vrf_id = ? and state = ?", [$vrf_id, $status]);
+    my $res = $db->execute_query(
+        "select vrf_ep.vrf_ep_id from vrf_ep
+         left join cloud_connection_vrf_ep on vrf_ep.vrf_ep_id=cloud_connection_vrf_ep.vrf_ep_id
+         where vrf_id = ? and state = ?", [$vrf_id, $status]
+    );
     if(!defined($res) || !defined($res->[0])){
         return;
     }
 
     return $res;
-
 }
 
 sub fetch_endpoint{
@@ -163,7 +224,11 @@ sub fetch_endpoint{
     my $vrf_ep_id = $params{'vrf_endpoint_id'};
     my $status = $params{'status'} || 'active';
 
-    my $vrf_ep = $db->execute_query("select * from vrf_ep where vrf_ep_id = ?", [$vrf_ep_id]);
+    my $vrf_ep = $db->execute_query(
+        "select * from vrf_ep
+         left join cloud_connection_vrf_ep on vrf_ep.vrf_ep_id=cloud_connection_vrf_ep.vrf_ep_id
+         where vrf_ep.vrf_ep_id = ?", [$vrf_ep_id]
+    );
     
     if(!defined($vrf_ep) || !defined($vrf_ep->[0])){
         return;
@@ -217,9 +282,8 @@ sub fetch_peer{
 
 }
 
-sub _update_vrf{
-        
-        
+sub _update_vrf {
+
 }
 
 sub decom{

@@ -12,7 +12,7 @@ BEGIN {
 }
 
 use lib "$path";
-use OESS::Database;
+use OESS::DB;
 use OESS::ACL;
 use OESSDatabaseTester;
 
@@ -20,8 +20,8 @@ use Test::More tests => 6;
 use Test::Deep;
 use Data::Dumper;
 
-my $db = OESS::Database->new( config => OESSDatabaseTester::getConfigFilePath() );
-ok(defined($db), 'Can instantiate OESS::Database object');
+my $db = OESS::DB->new( config => OESSDatabaseTester::getConfigFilePath() );
+ok(defined($db), 'Can instantiate OESS::DB object');
 
 my $acl = OESS::ACL->new( interface_id => 45811, db => $db );
 ok(defined($acl), 'Can instantiate an OESS::ACL for an interface that\'s present');

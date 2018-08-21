@@ -6,7 +6,6 @@ use warnings;
 package OESS::Entity;
 
 use OESS::DB::Entity;
-use Data::Dumper;
 
 sub new{
     my $that  = shift;
@@ -29,7 +28,8 @@ sub new{
         return;
     }
 
-    $self->_fetch_from_db();
+    my $fetch_ok = $self->_fetch_from_db();
+    return undef if !$fetch_ok;
     
     return $self;    
 }
@@ -53,10 +53,13 @@ sub _fetch_from_db{
     my $self = shift;
 
     my $info = OESS::DB::Entity::fetch(db => $self->{'db'}, entity_id => $self->{'entity_id'}, name => $self->{'name'});
+    return 0 if !defined($info);
+
     $self->_from_hash($info);
+    return 1;
 }
 
-sub _update_db{
+sub update_db{
     my $self = shift;
 
     my $entity = $self->to_hash();
@@ -82,6 +85,30 @@ sub _update_db{
     }
 
     $result = OESS::DB::Entity::add_users(db => $self->{db}, entity => $entity);
+    if (!defined $result) {
+        $self->{db}->rollback();
+        return $self->{db}->{error};
+    }
+
+    $result = OESS::DB::Entity::remove_parents(db => $self->{db}, entity => $entity);
+    if (!defined $result) {
+        $self->{db}->rollback();
+        return $self->{db}->{error};
+    }
+
+    $result = OESS::DB::Entity::add_parents(db => $self->{db}, entity => $entity);
+    if (!defined $result) {
+        $self->{db}->rollback();
+        return $self->{db}->{error};
+    }
+
+    $result = OESS::DB::Entity::remove_children(db => $self->{db}, entity => $entity);
+    if (!defined $result) {
+        $self->{db}->rollback();
+        return $self->{db}->{error};
+    }
+
+    $result = OESS::DB::Entity::add_children(db => $self->{db}, entity => $entity);
     if (!defined $result) {
         $self->{db}->rollback();
         return $self->{db}->{error};
@@ -216,7 +243,7 @@ sub add_parent{
     my $self = shift;
     my $entity = shift;
 
-    push(@{$self->{'parent'}},$entity);
+    push(@{$self->{'parents'}},$entity);
 }
 
 sub add_interface {

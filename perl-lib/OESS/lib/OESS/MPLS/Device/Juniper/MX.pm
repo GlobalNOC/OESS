@@ -622,6 +622,104 @@ sub _process_interface{
     return $obj;
 }
 
+sub get_vrf_stats{
+    my $self = shift;
+
+    if(!$self->connected()){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
+
+    my $reply = $self->{'jnx'}->get_bgp_summary_information( instance => "OESS-L3VPN");
+
+    if($self->{'jnx'}->has_error){
+        my $error = $self->{'jnx'}->get_first_error();
+        $self->set_error($error->{'error_message'});
+        $self->{'logger'}->error("Error fetching VRF stats: " . $error->{'error_message'});
+        return;
+    }
+
+    my %vrf_stats;
+
+    my $stats = $self->{'jnx'}->get_dom();
+    #$self->{'logger'}->debug("VRF Stats: " . $stats->toString());
+    
+    my @peer_stats;
+    my @rib_stats;
+
+    my $path = $self->{'root_namespace'}."junos-routing";
+    my $xp = XML::LibXML::XPathContext->new( $stats );
+    $xp->registerNs('x',$stats->documentElement->namespaceURI);
+    $xp->registerNs('j',$path);
+        
+    my $peers = $xp->findnodes('/x:rpc-reply/j:bgp-information/j:bgp-peer');
+    foreach my $peer (@{$peers}){
+        my $peer_xp = XML::LibXML::XPathContext->new( $peer );
+        my $path = $self->{'root_namespace'}."junos-routing";
+        $peer_xp->registerNs('j',$path);
+        my $address = $peer_xp->findvalue('./j:peer-address');
+        my $as = $peer_xp->findvalue('./j:peer-as');
+        my $vrf = $peer_xp->findvalue('./j:description');
+        my $state = $peer_xp->findvalue('./j:peer-state');
+        my $flap_count = $peer_xp->findvalue('./j:flap-count');
+        my $rqc = $peer_xp->findvalue('./j:route-queue-count');
+        my $output_messages = $peer_xp->findvalue('./j:output-messages');
+        my $input_messages = $peer_xp->findvalue('./j:input-messages');
+        push(@peer_stats,{vrf => $vrf,
+                          address => $address,
+                          as => $as,
+                          state => $state,
+                          flap_count => $flap_count,
+                          route_queue_count => $rqc,
+                          output_messages => $output_messages,
+                          input_messages => $input_messages});
+    }
+
+    my $ribs = $xp->findnodes('/x:rpc-reply/j:bgp-information/j:bgp-rib');
+    foreach my $rib (@{$ribs}){
+        my $rib_xp = XML::LibXML::XPathContext->new( $rib );
+        my $path = $self->{'root_namespace'}."junos-routing";
+        $rib_xp->registerNs('j',$path);
+        my $name = $rib_xp->findvalue('./j:name');
+        my $total_prefix_count = $rib_xp->findvalue('./j:total-prefix-count');
+        my $received_prefix_count = $rib_xp->findvalue('./j:received-prefix-count');
+        my $accepted_prefix_count = $rib_xp->findvalue('./j:accepted-prefix-count');
+        my $active_prefix_count = $rib_xp->findvalue('./j:active-prefix-count');
+        my $suppressed_prefix_count = $rib_xp->findvalue('./j:suppressed-prefix-count');
+        my $history_prefix_count = $rib_xp->findvalue('./j:history-prefix-count');
+        my $damped_prefix_count = $rib_xp->findvalue('./j:damped-prefix-count');
+        my $total_external_prefix_count = $rib_xp->findvalue('./j:total-external-prefix-count');
+        my $active_external_prefix_count = $rib_xp->findvalue('./j:active-external-prefix-count');
+        my $accepted_external_prefix_count = $rib_xp->findvalue('./j:accepted-external-prefix-count');
+        my $suppressed_external_prefix_count = $rib_xp->findvalue('./j:suppressed-external-prefix-count');
+        my $total_internal_prefix_count = $rib_xp->findvalue('./j:total-internal-prefix-count');
+        my $active_internal_prefix_count = $rib_xp->findvalue('./j:active-internal-prefix-count');
+        my $accepted_internal_prefix_count = $rib_xp->findvalue('./j:accepted-internal-prefix-count');
+        my $suppressed_internal_prefix_count = $rib_xp->findvalue('./j:suppressed-internal-prefix-count');
+        my $pending_prefix_count = $rib_xp->findvalue('./j:pending-prefix-count');
+        push(@rib_stats,{ vrf => $name,
+                          total_prefix_count => $total_prefix_count,
+                          received_prefix_count => $received_prefix_count,
+                          accepted_prefix_count => $accepted_prefix_count,
+                          active_prefix_count => $active_prefix_count,
+                          suppressed_prefix_count => $suppressed_prefix_count,
+                          history_prefix_count => $history_prefix_count,
+                          damped_prefix_count => $damped_prefix_count,
+                          total_external_prefix_count => $total_external_prefix_count,
+                          active_external_prefix_count => $active_external_prefix_count,
+                          accepted_external_prefix_count => $accepted_external_prefix_count,
+                          suppressed_external_prefix_count => $suppressed_external_prefix_count,
+                          total_internal_prefix_count => $total_internal_prefix_count,
+                          active_internal_prefix_count => $active_internal_prefix_count,
+                          accepted_internal_prefix_count => $accepted_internal_prefix_count,
+                          suppressed_internal_prefix_count => $suppressed_internal_prefix_count,
+                          pending_prefix_count => $pending_prefix_count });
+    }
+    return {peer_stats => \@peer_stats,
+            rib_stats => \@rib_stats};
+    
+}
+
 =head2 remove_vlan
 
     my $ok = remove_vlan(
@@ -658,8 +756,17 @@ sub remove_vlan{
     $vars->{'circuit_name'} = $ckt->{'circuit_name'};
     $vars->{'interfaces'} = [];
     foreach my $i (@{$ckt->{'interfaces'}}) {
+        my $unit = $i->{'tag'};
+        if (defined $i->{'inner_tag'}) {
+            my $a = $i->{'tag'};
+            my $b = $i->{'inner_tag'};
+            $unit = ((($a+$b+1)*($a+$b))/2)+$b+5000;
+        }
+
         push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
-                                          tag  => $i->{'tag'}
+                                          inner_tag => $i->{'inner_tag'},
+                                          tag => $i->{'tag'},
+                                          unit => $unit
                                         });
     }
     $vars->{'circuit_id'} = $ckt->{'circuit_id'};
@@ -686,10 +793,12 @@ sub remove_vlan{
       interfaces => [
         {
           interface => 'ge-0/0/1',
+          inner_tag => 100,
           tag => 2004
         },
         {
           interface => 'ge-0/0/2',
+          inner_tag => 100,
           tag => 2004
         }
       ],
@@ -714,8 +823,17 @@ sub add_vlan{
     $vars->{'circuit_name'} = $ckt->{'circuit_name'};
     $vars->{'interfaces'} = [];
     foreach my $i (@{$ckt->{'interfaces'}}) {
+        my $unit = $i->{'tag'};
+        if (defined $i->{'inner_tag'}) {
+            my $a = $i->{'tag'};
+            my $b = $i->{'inner_tag'};
+            $unit = ((($a+$b+1)*($a+$b))/2)+$b+5000;
+        }
+
         push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
-                                          tag  => $i->{'tag'}
+                                          inner_tag => $i->{'inner_tag'},
+                                          tag  => $i->{'tag'},
+                                          unit => $unit
                                         });
     }
     $vars->{'paths'} = $ckt->{'paths'};
@@ -780,7 +898,6 @@ sub add_vrf{
             if(!defined($bgp->{'key'})){
                 $bgp->{'key'} = -1;
             }
-
             
             my $type = NetAddr::IP->new($bgp->{'peer_ip'})->version();
             warn "Version: " . $type . "\n";
@@ -809,9 +926,28 @@ sub add_vrf{
 
         }
 
-            
+        # Cantor's pairing function
+        # Assign one natural number to each pair of natural
+        # numbers. This ensures a unique number for q-in-q tagged
+        # units.
+        #
+        # ((a+b+1)*(a+b)/2)+b
+        my $unit = $i->{'tag'};
+        if (defined $i->{'inner_tag'}) {
+            my $a = $i->{'tag'};
+            my $b = $i->{'inner_tag'};
+            $unit = ((($a+$b+1)*($a+$b))/2)+$b+5000;
+        }
+
+        if ($self->unit_name_available($i->{'name'}, $unit) == 0) {
+            $self->{'logger'}->error("Unit $unit is not available on $i->{'name'}");
+            return FWDCTL_FAILURE;
+        }
+
         push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
+                                          inner_tag => $i->{'inner_tag'},
                                           tag  => $i->{'tag'},
+                                          unit => $unit,
                                           bandwidth => $i->{'bandwidth'},
 					  v4_peers => \@bgp_v4,
                                           has_ipv4 => $has_ipv4,
@@ -823,11 +959,6 @@ sub add_vrf{
     $vars->{'prefix_limit'} = $vrf->{'prefix_limit'};
 
     $self->{'logger'}->error("VARS: " . Dumper($vars));
-
-    if ($self->unit_name_available($vars->{'interface'}->{'name'}, $vars->{'tag'}) == 0) {
-        $self->{'logger'}->error("Unit $vars->{'tag'} is not available on $vars->{'interface'}->{'name'}");
-        return FWDCTL_FAILURE;
-    }
 
     my $output;
     my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vars, \$output);
@@ -861,10 +992,26 @@ sub remove_vrf{
     $vars->{'vrf_name'} = $vrf->{'vrf_name'};
     $vars->{'interfaces'} = [];
     foreach my $i (@{$vrf->{'interfaces'}}) {
-        push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
-                                          tag  => $i->{'tag'}
+        # Cantor's pairing function
+        # Assign one natural number to each pair of natural
+        # numbers. This ensures a unique number for q-in-q tagged
+        # units.
+        #
+        # ((a+b+1)*(a+b)/2)+b
+        my $unit = $i->{'tag'};
+        if (defined $i->{'inner_tag'}) {
+            my $a = $i->{'tag'};
+            my $b = $i->{'inner_tag'};
+            $unit = ((($a+$b+1)*($a+$b))/2)+$b+5000;
+        }
+
+        push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
+                                          inner_tag => $i->{'inner_tag'},
+                                          tag  => $i->{'tag'},
+                                          unit => $unit
 	      });
     }
+
     $vars->{'vrf_id'} = $vrf->{'vrf_id'};
     $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
 
@@ -899,8 +1046,23 @@ sub xml_configuration {
         $vars->{'circuit_name'} = $ckt->{'circuit_name'};
         $vars->{'interfaces'} = [];
         foreach my $i (@{$ckt->{'interfaces'}}) {
+            # Cantor's pairing function
+            # Assign one natural number to each pair of natural
+            # numbers. This ensures a unique number for q-in-q tagged
+            # units.
+            #
+            # ((a+b+1)*(a+b)/2)+b
+            my $unit = $i->{'tag'};
+            if (defined $i->{'inner_tag'}) {
+                my $a = $i->{'tag'};
+                my $b = $i->{'inner_tag'};
+                $unit = ((($a+$b+1)*($a+$b))/2)+$b+5000;
+            }
+
             push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
-                                              tag  => $i->{'tag'}
+                                              inner_tag => $i->{'inner_tag'},
+                                              tag  => $i->{'tag'},
+                                              unit => $unit
                                             });
         }
         $vars->{'paths'} = $ckt->{'paths'};
@@ -915,7 +1077,6 @@ sub xml_configuration {
         $vars->{'site_id'} = $ckt->{'site_id'};
         $vars->{'paths'} = $ckt->{'paths'};
         $vars->{'a_side'} = $ckt->{'a_side'};
-        #$self->{'logger'}->debug(Dumper($vars));
 
         if ($ckt->{'state'} eq 'active') {
             $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$xml);
@@ -931,6 +1092,7 @@ sub xml_configuration {
     foreach my $vrf (@{$vrf}){
         my $xml;
         my $vars = {};
+        next if ($vrf->{'state'} ne 'active');
         $vars->{'vrf_name'} = $vrf->{'name'};
         $vars->{'interfaces'} = ();
         foreach my $i (@{$vrf->{'interfaces'}}) {
@@ -974,8 +1136,23 @@ sub xml_configuration {
                 }
                 
             }
-            
+
+            # Cantor's pairing function
+            # Assign one natural number to each pair of natural
+            # numbers. This ensures a unique number for q-in-q tagged
+            # units.
+            #
+            # ((a+b+1)*(a+b)/2)+b
+            my $unit = $i->{'tag'};
+            if (defined $i->{'inner_tag'}) {
+                my $a = $i->{'tag'};
+                my $b = $i->{'inner_tag'};
+                $unit = ((($a+$b+1)*($a+$b))/2)+$b+5000;
+            }
+
             push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
+                                              unit => $unit,
+                                              inner_tag  => $i->{'inner_tag'},
                                               tag  => $i->{'tag'},
                                               bandwidth => $i->{'bandwidth'},
                                               v4_peers => \@bgp_v4,
@@ -992,8 +1169,6 @@ sub xml_configuration {
         
         if($vrf->{'state'} eq 'active'){
             $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vars, \$xml);
-        }else{
-            
         }
         
         $xml =~ s/<configuration>//g;
@@ -1016,6 +1191,9 @@ sub get_config_to_remove{
     my %params = @_;
     my $circuits = $params{'circuits'};
     my $vrfs = $params{'vrfs'};
+
+    $self->{'logger'}->debug("VRFS: " . Dumper($vrfs));
+
     if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
         return;
@@ -1058,13 +1236,13 @@ sub get_config_to_remove{
             my $circuit_id = $2;
             if($type eq 'L3VPN'){
                 if(!$self->_is_active_vrf($circuit_id, $vrfs)){
-                    $ri_dels = "<instance operation='delete'><name>" . $name . "</name></instance>";
+                    $ri_dels .= "<instance operation='delete'><name>" . $name . "</name></instance>";
                     next;
                 }
             }else{
                 #figure out the right bit!
                 if(!$self->_is_active_circuit($circuit_id, $circuits)){
-                    $ri_dels = "<instance operation='delete'><name>" . $name . "</name></instance>";
+                    $ri_dels .= "<instance operation='delete'><name>" . $name . "</name></instance>";
                     next;
                 }
             }
@@ -1128,6 +1306,7 @@ sub get_config_to_remove{
                 my $type = $1;
 		my $circuit_id = $2;
 		my $unit_name = $xp->findvalue( './c:name', $unit);
+
                 if($type eq 'L3VPN'){
                     if(!$self->_is_active_vrf($circuit_id, $vrfs)){
                         $int_del .= "<unit operation='delete'><name>" . $unit_name . "</name></unit>";
@@ -1138,9 +1317,35 @@ sub get_config_to_remove{
                     if(!$self->_is_vrf_on_port($circuit_id, $vrfs, $int_name, $unit_name)){
                         $int_del .= "<unit operation='delete'><name>" . $unit_name . "</name></unit>";
                         $has_dels = 1;
+                        next;
                     }
-                    ##need to process each BGP peer for L3VPNs
-                    
+
+                    $int_del .= "<unit><name>$unit_name</name>";
+
+                    # Need to process each BGP peer for L3VPNs
+                    #   family inet address name $address
+                    #   family inet6 address name $address
+
+                    my $addrs = $xp->find( './c:family/c:inet/c:address', $unit);
+                    foreach my $addr (@$addrs) {
+                        my $addr_name = $xp->findvalue( './c:name', $addr);
+
+                        if (!$self->_is_peer_address($circuit_id, $vrfs, $int_name, $addr_name)) {
+                            $int_del .= "<family><inet><address operation='delete'><name>$addr_name</name></address></inet></family>";
+                        }
+                    }
+
+                    $addrs = $xp->find( './c:family/c:inet6/c:address', $unit);
+                    foreach my $addr (@$addrs) {
+                        my $addr_name = $xp->findvalue( './c:name', $addr);
+
+                        if (!$self->_is_peer_address($circuit_id, $vrfs, $int_name, $addr_name)) {
+                            $int_del .= "<family><inet6><address operation='delete'><name>$addr_name</name></address></inet6></family>";
+                        }
+                    }
+
+                    $int_del .= "</unit>";
+                    $self->{logger}->error(Dumper($int_del));
 
                 }else{
                     if(!$self->_is_active_circuit($circuit_id, $circuits)){
@@ -1245,8 +1450,6 @@ sub get_config_to_remove{
 	$delete .= "<protocols><connections>" . $ris_dels . "</connections></protocols>";
     }
 
-    
-
     return $delete;
 }
 
@@ -1289,15 +1492,25 @@ sub _is_circuit_on_port{
         return 0;
     }
 
-    if(defined($circuits->{$circuit_id})){
-	foreach my $int (@{$circuits->{$circuit_id}->{'interfaces'}}){
-	    #check to see if the port matches the port
-	    #check to see if the vlan matches the vlan
-	    if($int->{'interface'} eq $port && $int->{'vlan'} eq $vlan){
-		$self->{'logger'}->error("Interface: " . $int->{'interface'} . " is in circuit: " . $circuit_id);
-		return 1;
-	    }
-	}
+    if (!defined $circuits->{$circuit_id}) {
+        return 0;
+    }
+
+    foreach my $int (@{$circuits->{$circuit_id}->{'interfaces'}}){
+        # check to see if the port matches the port
+        # check to see if the vlan matches the vlan
+
+        my $unit = $int->{'tag'};
+        if (defined $int->{'inner_tag'}) {
+            my $a = $int->{'tag'};
+            my $b = $int->{'inner_tag'};
+            $unit = ((($a+$b+1)*($a+$b))/2)+$b+5000;
+        }
+
+        if($int->{'interface'} eq $port && $unit eq $vlan){
+            $self->{'logger'}->debug("Interface $int->{'interface'}.$unit is in circuit $circuit_id.");
+            return 1;
+        }
     }
 
     return 0;
@@ -1309,24 +1522,65 @@ sub _is_vrf_on_port{
     my $vrf_id = shift;
     my $vrfs = shift;
     my $port = shift;
-    my $vlan = shift;
+    my $vlan = shift; # Unit name on device
 
     if(!defined($vrf_id)){
         $self->{'logger'}->error("Unable to find the vrf ID");
         return 0;
     }
 
-    if(defined($vrfs->{$vrf_id})){
-        foreach my $int (@{$vrfs->{$vrf_id}->{'interfaces'}}){
-            #check to see if the port matches the port
-            #check to see if the vlan matches the vlan
-            if($int->{'interface'} eq $port && $int->{'vlan'} eq $vlan){
-                $self->{'logger'}->error("Interface: " . $int->{'interface'} . " is in vrf: " . $vrf_id);
-                return 1;
-            }
+    if (!defined $vrfs->{$vrf_id}) {
+        return 0;
+    }
+
+    foreach my $int (@{$vrfs->{$vrf_id}->{'interfaces'}}){
+        # check to see if the port matches the port
+        # check to see if the vlan matches the vlan
+
+        my $unit = $int->{'tag'};
+        if (defined $int->{'inner_tag'}) {
+            my $a = $int->{'tag'};
+            my $b = $int->{'inner_tag'};
+            $unit = ((($a+$b+1)*($a+$b))/2)+$b+5000;
+        }
+
+        if($int->{'name'} eq $port && $unit eq $vlan){
+            $self->{'logger'}->error("Interface $int->{'name'}.$unit is in vrf $vrf_id.");
+            return 1;
         }
     }
 
+    return 0;
+}
+
+sub _is_peer_address {
+    my $self = shift;
+    my $vrf_id = shift;
+    my $vrfs = shift;
+    my $int_name = shift;
+    my $addr_name = shift;
+
+    if(!defined($vrf_id)){
+        $self->{'logger'}->error("Unable to find the vrf ID");
+        return 0;
+    }
+
+    if (!defined $vrfs->{$vrf_id}) {
+        return 0;
+    }
+
+    foreach my $int (@{$vrfs->{$vrf_id}->{'interfaces'}}) {
+        if ($int->{name} ne $int_name) {
+            next;
+        }
+
+        foreach my $peer (@{$int->{peers}}) {
+            if ($peer->{local_ip} eq $addr_name) {
+                return 1;
+            }
+        }
+        return 0;
+    }
     return 0;
 }
 
@@ -1340,7 +1594,9 @@ sub _is_active_vrf{
         return 0;
     }
 
-    if(defined($vrfs->{'vrf_id'}) && $vrfs->{'vrf_id'}->{'state'} eq 'active'){
+    $self->{'logger'}->debug("VRF Details: " . Dumper($vrfs->{$vrf_id}));
+
+    if(defined($vrfs->{$vrf_id}) && $vrfs->{$vrf_id}->{'state'} eq 'active'){
         return 1;
     }
 
@@ -1380,6 +1636,8 @@ sub get_device_diff {
         $self->{'logger'}->error("Not currently connected to device");
         return;
     }
+
+    $self->{'logger'}->debug("Candidate config: " . $conf);
 
     my %queryargs = ('target' => 'candidate');
     $queryargs{'config'} = $conf;

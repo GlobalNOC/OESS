@@ -208,6 +208,83 @@ LOCK TABLES `edge_interface_move_maintenance_circuit_membership` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `entity`
+--
+
+DROP TABLE IF EXISTS `entity`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `entity` (
+  `entity_id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) DEFAULT NULL,
+  `description` text,
+  `logo_url` varchar(255) DEFAULT NULL,
+  `url` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`entity_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `entity`
+--
+
+LOCK TABLES `entity` WRITE;
+/*!40000 ALTER TABLE `entity` DISABLE KEYS */;
+INSERT INTO `entity` VALUES (1,'root','The top of the hierarchy blah blah blah',NULL,'ftp://example.net/pub/'),(2,'Connectors','Those that are included in this classification',NULL,NULL),(3,'Universities','Fabulous ones',NULL,NULL),(4,'Cloud Providers','Those that belong to the emperor',NULL,NULL),(5,'University of A',NULL,'https://a.example.edu/logo.png',NULL),(6,'B University','mascot: Wally B. from the 1980s short',NULL,'gopher://b.example.edu/'),(7,'Big State TeraPOP','The R&E networking hub for Big State','https://terapop.example.net/favicon.ico','https://terapop.example.net/'),(8,'Small State MilliPOP',NULL,NULL,'https://smst.millipop.net/'),(9,'Blue Cloud','*Totally* not a parody of an actual cloud provider','http://bluecloud.com/logo-anim.gif','http://bluecloud.com/special/custom-networking'),(10,'Elasticloud','It\'s elastic!',NULL,'https://elasticloud.com/r-and-e-landing'),(11,'BC US-East','Blue Cloud US-East region',NULL,NULL),(12,'BC US-West','Blue Cloud US-West region',NULL,NULL),(13,'BC LON-01','Blue Cloud London 1 region',NULL,NULL),(14,'B University-Metropolis','Metropolis regional campus',NULL,'https://b-metro.example.edu/'),(15,'EC Ellettsville','Ellettsville region',NULL,NULL),(16,'EC Utopia','Guess where this region is?',NULL,NULL);
+/*!40000 ALTER TABLE `entity` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `entity_hierarchy`
+--
+
+DROP TABLE IF EXISTS `entity_hierarchy`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `entity_hierarchy` (
+  `entity_parent_id` int(11) NOT NULL,
+  `entity_child_id` int(11) NOT NULL,
+  KEY `entity_parent` (`entity_parent_id`),
+  KEY `entity_child` (`entity_child_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `entity_hierarchy`
+--
+
+LOCK TABLES `entity_hierarchy` WRITE;
+/*!40000 ALTER TABLE `entity_hierarchy` DISABLE KEYS */;
+INSERT INTO `entity_hierarchy` VALUES (1,2),(1,3),(1,4),(3,5),(3,6),(2,7),(2,8),(8,6),(8,14),(4,9),(4,10),(9,11),(9,12),(9,13),(10,15),(10,16),(7,16),(6,14);
+/*!40000 ALTER TABLE `entity_hierarchy` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `entity_interface_membership`
+--
+
+DROP TABLE IF EXISTS `entity_interface_membership`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `entity_interface_membership` (
+  `entity_id` int(11) NOT NULL,
+  `interface_id` int(11) NOT NULL,
+  KEY `entity` (`entity_id`),
+  KEY `interface` (`interface_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `entity_interface_membership`
+--
+
+LOCK TABLES `entity_interface_membership` WRITE;
+/*!40000 ALTER TABLE `entity_interface_membership` DISABLE KEYS */;
+INSERT INTO `entity_interface_membership` VALUES (7,14081),(7,14081),(11,21),(12,21),(14,35961);
+/*!40000 ALTER TABLE `entity_interface_membership` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `interface`
 --
 
@@ -842,6 +919,31 @@ INSERT INTO `user` VALUES (1,'user_1@foo.net','User 1','User 1',0,'normal','acti
 UNLOCK TABLES;
 
 --
+-- Table structure for table `user_entity_membership`
+--
+
+DROP TABLE IF EXISTS `user_entity_membership`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `user_entity_membership` (
+  `user_id` int(11) NOT NULL,
+  `entity_id` int(11) NOT NULL,
+  KEY `entity` (`entity_id`),
+  KEY `user` (`user_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `user_entity_membership`
+--
+
+LOCK TABLES `user_entity_membership` WRITE;
+/*!40000 ALTER TABLE `user_entity_membership` DISABLE KEYS */;
+INSERT INTO `user_entity_membership` VALUES (121,6),(121,12),(121,14),(881,14),(901,10);
+/*!40000 ALTER TABLE `user_entity_membership` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `user_workgroup_membership`
 --
 
@@ -866,6 +968,76 @@ LOCK TABLES `user_workgroup_membership` WRITE;
 /*!40000 ALTER TABLE `user_workgroup_membership` DISABLE KEYS */;
 INSERT INTO `user_workgroup_membership` VALUES (1,11),(11,11),(21,11),(51,11),(61,11),(81,11),(141,11),(221,11),(1,21),(11,21),(51,21),(11,31),(21,31),(51,31),(101,31),(181,31),(11,41),(51,41),(11,51),(51,51),(11,61),(51,61),(11,71),(51,71),(11,81),(21,81),(51,81),(11,91),(51,91),(71,91),(221,91),(11,101),(51,101),(11,111),(51,111),(11,121),(51,121),(11,131),(51,131),(71,131),(81,131),(111,131),(131,131),(141,131),(181,131),(11,141),(51,141),(11,151),(51,151),(11,161),(51,161),(11,171),(51,171),(11,181),(51,181),(11,191),(1,201),(11,201),(21,201),(31,201),(51,201),(61,201),(71,201),(81,201),(101,201),(111,201),(131,201),(181,201),(11,211),(21,211),(51,211),(11,221),(21,221),(51,221),(71,221),(111,221),(131,221),(171,221),(181,221),(221,221),(241,221),(251,221),(11,241),(51,241),(61,241),(11,251),(51,251),(201,251),(221,251),(21,261),(21,271),(21,281),(11,291),(31,301),(11,311),(51,311),(11,321),(51,321),(101,321),(11,341),(21,351),(61,351),(61,361),(1,371),(71,371),(81,371),(111,371),(131,371),(141,371),(161,371),(221,371),(81,381),(11,391),(1,401),(151,411),(161,421),(201,421),(171,431),(221,431),(171,441),(171,451),(171,461),(191,471),(221,471),(191,481),(191,491),(191,501),(201,511),(11,521),(11,531),(241,531),(211,541),(211,551),(211,561),(211,571),(211,581),(211,591),(231,601),(231,611),(231,621),(231,631),(231,641),(231,651),(11,661),(241,671),(11,701),(251,711),(241,721),(251,721),(241,731),(241,741),(241,751),(241,761),(241,771),(241,781),(241,791),(241,801),(241,811),(241,821),(241,831),(241,841),(241,851),(241,861),(241,871),(241,881),(241,891),(241,901),(241,911),(261,921);
 /*!40000 ALTER TABLE `user_workgroup_membership` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `vrf`
+--
+
+DROP TABLE IF EXISTS `vrf`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `vrf` (
+  `vrf_id` int(10) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `description` varchar(255) NOT NULL,
+  `workgroup_id` int(10) NOT NULL,
+  `state` enum('active','decom') DEFAULT NULL,
+  `created` int(10) NOT NULL,
+  `created_by` int(10) NOT NULL,
+  `last_modified` int(10) NOT NULL,
+  `last_modified_by` int(10) NOT NULL,
+  `local_asn` int(10) NOT NULL,
+  PRIMARY KEY (`vrf_id`),
+  KEY `workgroup_id` (`workgroup_id`),
+  KEY `created_by` (`created_by`),
+  KEY `last_modified_by` (`last_modified_by`),
+  CONSTRAINT `vrf_ibfk_3` FOREIGN KEY (`last_modified_by`) REFERENCES `user` (`user_id`),
+  CONSTRAINT `vrf_ibfk_1` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`),
+  CONSTRAINT `vrf_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `vrf`
+--
+
+LOCK TABLES `vrf` WRITE;
+/*!40000 ALTER TABLE `vrf` DISABLE KEYS */;
+/*!40000 ALTER TABLE `vrf` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `vrf_ep`
+--
+
+DROP TABLE IF EXISTS `vrf_ep`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `vrf_ep` (
+  `vrf_ep_id` int(11) NOT NULL AUTO_INCREMENT,
+  `inner_tag` int(10) DEFAULT NULL,
+  `tag` int(10) DEFAULT NULL,
+  `bandwidth` int(10) DEFAULT NULL,
+  `vrf_id` int(10) DEFAULT NULL,
+  `interface_id` int(10) NOT NULL,
+  `state` enum('active','decom') DEFAULT NULL,
+  `entity_id` int(11) DEFAULT NULL,
+  PRIMARY KEY (`vrf_ep_id`),
+  KEY `vrf_id` (`vrf_id`),
+  KEY `interface_id` (`interface_id`),
+  CONSTRAINT `vrf_ep_ibfk_1` FOREIGN KEY (`vrf_id`) REFERENCES `vrf` (`vrf_id`),
+  CONSTRAINT `vrf_ep_ibfk_2` FOREIGN KEY (`interface_id`) REFERENCES `interface` (`interface_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `vrf_ep`
+--
+
+LOCK TABLES `vrf_ep` WRITE;
+/*!40000 ALTER TABLE `vrf_ep` DISABLE KEYS */;
+/*!40000 ALTER TABLE `vrf_ep` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --

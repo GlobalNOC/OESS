@@ -47,7 +47,6 @@ sub new{
     }
 
     return $self;
-
 }
 
 sub _build_from_model{
@@ -60,8 +59,11 @@ sub _build_from_model{
     }else{
         $self->{'interface'} = OESS::Entity->new( db => $self->{'db'}, name => $self->{'model'}->{'entity'})->interfaces()->[0];
     }
+    $self->{'inner_tag'} = $self->{'model'}->{'inner_tag'};
     $self->{'tag'} = $self->{'model'}->{'tag'};
     $self->{'bandwidth'} = $self->{'model'}->{'bandwidth'};
+    $self->{cloud_account_id} = $self->{model}->{cloud_account_id};
+    $self->{cloud_connection_id} = $self->{model}->{cloud_connection_id};
 
     if($self->{'type'} eq 'vrf'){
         $self->{'peers'} = ();
@@ -86,8 +88,11 @@ sub to_hash{
 
     $obj->{'interface'} = $self->interface()->to_hash();
     $obj->{'node'} = $self->interface()->node()->to_hash();
+    $obj->{'inner_tag'} = $self->inner_tag();
     $obj->{'tag'} = $self->tag();
     $obj->{'bandwidth'} = $self->bandwidth();
+    $obj->{cloud_account_id} = $self->cloud_account_id();
+    $obj->{cloud_connection_id} = $self->cloud_connection_id();
 
     if($self->{'type'} eq 'vrf'){
 
@@ -116,6 +121,8 @@ sub from_hash{
 
     $self->{'bandwidth'} = $hash->{'bandwidth'};
     $self->{'interface'} = $hash->{'interface'};
+    $self->{cloud_account_id} = $hash->{cloud_account_id};
+    $self->{cloud_connection_id} = $hash->{cloud_connection_id};
 
     if($self->{'type'} eq 'vrf'){
         $self->{'peers'} = $hash->{'peers'};
@@ -124,6 +131,7 @@ sub from_hash{
         $self->{'circuit_id'} = $hash->{'circuit_id'};
     }
 
+    $self->{'inner_tag'} = $hash->{'inner_tag'};
     $self->{'tag'} = $hash->{'tag'};
     $self->{'bandwidth'} = $hash->{'bandwidth'};
     
@@ -149,6 +157,23 @@ sub _fetch_from_db{
 
 }
 
+sub cloud_account_id {
+    my $self = shift;
+    my $value = shift;
+    if (defined $value) {
+        $self->{cloud_account_id} = $value;
+    }
+    return $self->{cloud_account_id};
+}
+
+sub cloud_connection_id {
+    my $self = shift;
+    my $value = shift;
+    if (defined $value) {
+        $self->{cloud_connection_id} = $value;
+    }
+    return $self->{cloud_connection_id};
+}
 
 sub interface{
     my $self = shift;
@@ -171,6 +196,11 @@ sub peers{
         return [];
     }
     return $self->{'peers'};
+}
+
+sub inner_tag{
+    my $self = shift;
+    return $self->{'inner_tag'};
 }
 
 sub tag{

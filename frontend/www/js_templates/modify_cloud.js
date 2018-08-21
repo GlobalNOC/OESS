@@ -118,14 +118,13 @@ async function addNetworkSubmitCallback(event) {
 
     if (vrfID === null) {
         addNetworkLoadingModal.modal('hide');
-        alert('Failed to provision VRF. Please try again later.');
     } else {
         window.location.href = `index.cgi?action=view_l3vpn&vrf_id=${vrfID}`;
     }
 }
 
 async function addNetworkCancelCallback(event) {
-    window.location.href = 'index.cgi?action=index';
+    window.location.href = 'index.cgi?action=welcome';
 }
 
 async function addEntitySubmitCallback(event) {

@@ -71,6 +71,7 @@ CREATE TABLE `circuit_edge_interface_membership` (
   `end_epoch` int(10) NOT NULL,
   `start_epoch` int(10) NOT NULL,
   `extern_vlan_id` int(10) NOT NULL,
+  `inner_tag` int(10) DEFAULT NULL,
   `circuit_edge_id` int(10) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`circuit_edge_id`),
   UNIQUE KEY `interface_id` (`interface_id`,`circuit_id`,`end_epoch`,`extern_vlan_id`),
@@ -215,6 +216,8 @@ CREATE TABLE `interface` (
   `name` varchar(255) NOT NULL,
   `port_number` int(10) DEFAULT NULL,
   `description` varchar(255) NOT NULL,
+  `cloud_interconnect_type` varchar(255) NOT NULL,
+  `cloud_interconnect_id` varchar(255) NOT NULL,
   `operational_state` enum('unknown','up','down') NOT NULL DEFAULT 'unknown',
   `role` enum('unknown','trunk','customer') NOT NULL DEFAULT 'unknown',
   `node_id` int(10) NOT NULL,
@@ -899,6 +902,7 @@ DROP TABLE IF EXISTS `vrf_ep`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `vrf_ep` (
   `vrf_ep_id` int(11) NOT NULL AUTO_INCREMENT,
+  `inner_tag` int(10) DEFAULT NULL,
   `tag` int(10) DEFAULT NULL,
   `bandwidth` int(10) DEFAULT NULL,
   `vrf_id` int(10) DEFAULT NULL,
@@ -918,6 +922,23 @@ CREATE TABLE `vrf_ep` (
 LOCK TABLES `vrf_ep` WRITE;
 /*!40000 ALTER TABLE `vrf_ep` DISABLE KEYS */;
 /*!40000 ALTER TABLE `vrf_ep` ENABLE KEYS */;
+UNLOCK TABLES;
+
+DROP TABLE IF EXISTS `cloud_connection_vrf_ep`;
+CREATE TABLE `cloud_connection_vrf_ep` (
+  `cloud_connection_vrf_ep_id` int(11) NOT NULL AUTO_INCREMENT,
+  `vrf_ep_id` int(11) DEFAULT NULL,
+  `cloud_account_id` varchar(255) NOT NULL,
+  `cloud_connection_id` varchar(255) NOT NULL,
+  PRIMARY KEY (`cloud_connection_vrf_ep_id`),
+  KEY `vrf_ep_id` (`vrf_ep_id`),
+  CONSTRAINT `cloud_connection_vrf_ep_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+
+LOCK TABLES `cloud_connection_vrf_ep` WRITE;
+/*!40000 ALTER TABLE `cloud_connection_vrf_ep` DISABLE KEYS */;
+/*!40000 ALTER TABLE `cloud_connection_vrf_ep` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -1057,6 +1078,30 @@ CREATE TABLE `entity_interface_membership` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 
+--
+-- Table structure for table `command`
+--
+
+DROP TABLE IF EXISTS `command`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `command` (
+  `command_id` int(10) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `template` varchar(255) NOT NULL,
+  `type` varchar(255) NOT NULL,
+  PRIMARY KEY (`command_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `command`
+--
+
+LOCK TABLES `command` WRITE;
+/*!40000 ALTER TABLE `command` DISABLE KEYS */;
+/*!40000 ALTER TABLE `command` ENABLE KEYS */;
+UNLOCK TABLES;
 
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
