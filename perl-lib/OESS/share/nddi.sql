@@ -1,4 +1,4 @@
--- MySQL dump 10.13  Distrib 5.1.52, for redhat-linux-gnu (x86_64)
+-Extend shared config to archiver and flow moverl MySQL dump 10.13  Distrib 5.1.52, for redhat-linux-gnu (x86_64)
 --
 -- Host: localhost    Database: oess
 -- ------------------------------------------------------
@@ -632,7 +632,7 @@ CREATE TABLE `oess_version` (
 
 LOCK TABLES `oess_version` WRITE;
 /*!40000 ALTER TABLE `oess_version` DISABLE KEYS */;
-INSERT INTO `oess_version` VALUES ('1.2.5');
+INSERT INTO `oess_version` VALUES ('1.2.5a');
 /*!40000 ALTER TABLE `oess_version` ENABLE KEYS */;
 UNLOCK TABLES;
 
