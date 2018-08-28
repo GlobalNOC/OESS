@@ -258,6 +258,7 @@ B<Result>
       model         => 'vmx'
       os_name       => 'junos'
       version       => '15.1F6.9'
+      major_rev     => 15
     }
 
 =cut
@@ -293,6 +294,9 @@ sub get_system_information{
     my $model =     $xp->findvalue('/x:rpc-reply/x:system-information/x:hardware-model');
     my $os_name =   $xp->findvalue('/x:rpc-reply/x:system-information/x:os-name');
     my $version =   $xp->findvalue('/x:rpc-reply/x:system-information/x:os-version');
+
+    my $major_rev = $version;
+    $major_rev =~ s/^(\d+)\..+$/$1/;
 
     $self->{logger}->info("Using firmware version $version.");
 
@@ -366,7 +370,8 @@ sub get_system_information{
     }
 
     $self->{'loopback_addr'} = $loopback_addr;
-    return {model => $model, version => $version, os_name => $os_name, host_name => $host_name, loopback_addr => $loopback_addr};
+    $self->{'major_rev'} = $major_rev;
+    return {model => $model, version => $version, os_name => $os_name, host_name => $host_name, loopback_addr => $loopback_addr, major_rev => $major_rev};
 }
 
 =head2 get_routed_lsps
@@ -1448,7 +1453,7 @@ sub verify_connection{
     }
 
     my $sysinfo = $self->get_system_information();
-    if (($sysinfo->{"os_name"} eq "junos") && ($sysinfo->{"version"} eq "13.3R1.6" || $sysinfo->{"version"} eq '15.1F6-S6.4' || $sysinfo->{"version"} eq '15.1F6.9' || $sysinfo->{"version"} eq '15.1F6-S7.2' || $sysinfo->{version} eq '15.1I20171208_1648_amahale')){
+    if (($sysinfo->{"os_name"} eq "junos") && ($sysinfo->{"version"} eq "13.3R1.6" || $sysinfo->{"version"} eq '15.1F6-S6.4' || $sysinfo->{"version"} eq '15.1F6.9' || $sysinfo->{"version"} eq '15.1F6-S7.2' || $sysinfo->{version} eq '15.1I20171208_1648_amahale' || $sysinfo->{"version"} eq '17.3R3.9')){
 	# print "Connection verified, proceeding\n";
 	return 1;
     }
@@ -1659,8 +1664,12 @@ sub get_lsp_paths{
 
         foreach my $path (@{$paths}) {
             if ($xp->exists('./r:path-active', $path)) {
-                my $next_hops = $xp->find('./r:explicit-route/r:address', $path);
-
+                my $next_hops;
+                if ( $self->{'major_rev'} < 17 ) {
+                    $next_hops = $xp->find('./r:explicit-route/r:address', $path);
+                } else {
+                    $next_hops = $xp->find('./r:explicit-route/r:explicit-route-element/r:address', $path);
+                }
                 foreach my $nh (@{$next_hops}) {
                     push(@{$lsp_routes->{$name}}, $nh->textContent);
                 }
