@@ -127,7 +127,7 @@ sub delete_endpoints {
     my $ok = $db->execute_query(
         "delete vrf_ep_peer
          from vrf_ep join vrf_ep_peer on vrf_ep.vrf_ep_id=vrf_ep_peer.vrf_ep_id
-         where vrf_id=?",
+         where vrf_ep.vrf_id=?",
         [$vrf_id]
     );
     if (!$ok) {
@@ -159,6 +159,14 @@ sub add_endpoint{
         return;
     }
  
+    if (defined $model->{cloud_account_id} && $model->{cloud_account_id} ne '') {
+        $db->execute_query(
+            "insert into cloud_connection_vrf_ep (vrf_ep_id, cloud_account_id, cloud_connection_id)
+             values (?, ?, ?)",
+            [$vrf_ep_id, $model->{cloud_account_id}, $model->{cloud_connection_id}]
+        );
+    }
+
     foreach my $peer (@{$model->{'peers'}}){
         my $res = add_peer(db => $db, model => $peer, vrf_ep_id => $vrf_ep_id);
         if(!defined($res)){
@@ -179,7 +187,7 @@ sub add_peer{
     my $vrf_ep_id = $params{'vrf_ep_id'};
     warn "PEER MODEL: " . Dumper($model);
 
-    my $res = $db->execute_query("insert into vrf_ep_peer (vrf_ep_id, peer_ip, local_ip, peer_asn, md5_key, state) VALUES (?,?,?,?,?,?)",[$vrf_ep_id, $model->{'peer_ip'}, $model->{'local_ip'}, $model->{'peer_asn'}, $model->{'key'}, 'active']);
+    my $res = $db->execute_query("insert into vrf_ep_peer (vrf_ep_id, peer_ip, local_ip, peer_asn, md5_key, state) VALUES (?,?,?,?,?,?)",[$vrf_ep_id, $model->{'peer_ip'}, $model->{'local_ip'}, $model->{'peer_asn'}, $model->{'md5_key'}, 'active']);
 
     if(!defined($res)){
         my $error = $db->get_error();
@@ -197,13 +205,16 @@ sub fetch_endpoints{
     my $status = $params{'status'} || 'active';
 
     #find endpoints 
-    my $res = $db->execute_query("select vrf_ep.vrf_ep_id from vrf_ep where vrf_id = ? and state = ?", [$vrf_id, $status]);
+    my $res = $db->execute_query(
+        "select vrf_ep.vrf_ep_id from vrf_ep
+         left join cloud_connection_vrf_ep on vrf_ep.vrf_ep_id=cloud_connection_vrf_ep.vrf_ep_id
+         where vrf_id = ? and state = ?", [$vrf_id, $status]
+    );
     if(!defined($res) || !defined($res->[0])){
         return;
     }
 
     return $res;
-
 }
 
 sub fetch_endpoint{
@@ -213,7 +224,11 @@ sub fetch_endpoint{
     my $vrf_ep_id = $params{'vrf_endpoint_id'};
     my $status = $params{'status'} || 'active';
 
-    my $vrf_ep = $db->execute_query("select * from vrf_ep where vrf_ep_id = ?", [$vrf_ep_id]);
+    my $vrf_ep = $db->execute_query(
+        "select * from vrf_ep
+         left join cloud_connection_vrf_ep on vrf_ep.vrf_ep_id=cloud_connection_vrf_ep.vrf_ep_id
+         where vrf_ep.vrf_ep_id = ?", [$vrf_ep_id]
+    );
     
     if(!defined($vrf_ep) || !defined($vrf_ep->[0])){
         return;

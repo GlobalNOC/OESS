@@ -216,6 +216,8 @@ CREATE TABLE `interface` (
   `name` varchar(255) NOT NULL,
   `port_number` int(10) DEFAULT NULL,
   `description` varchar(255) NOT NULL,
+  `cloud_interconnect_type` varchar(255) NOT NULL,
+  `cloud_interconnect_id` varchar(255) NOT NULL,
   `operational_state` enum('unknown','up','down') NOT NULL DEFAULT 'unknown',
   `role` enum('unknown','trunk','customer') NOT NULL DEFAULT 'unknown',
   `node_id` int(10) NOT NULL,
@@ -920,6 +922,23 @@ CREATE TABLE `vrf_ep` (
 LOCK TABLES `vrf_ep` WRITE;
 /*!40000 ALTER TABLE `vrf_ep` DISABLE KEYS */;
 /*!40000 ALTER TABLE `vrf_ep` ENABLE KEYS */;
+UNLOCK TABLES;
+
+DROP TABLE IF EXISTS `cloud_connection_vrf_ep`;
+CREATE TABLE `cloud_connection_vrf_ep` (
+  `cloud_connection_vrf_ep_id` int(11) NOT NULL AUTO_INCREMENT,
+  `vrf_ep_id` int(11) DEFAULT NULL,
+  `cloud_account_id` varchar(255) NOT NULL,
+  `cloud_connection_id` varchar(255) NOT NULL,
+  PRIMARY KEY (`cloud_connection_vrf_ep_id`),
+  KEY `vrf_ep_id` (`vrf_ep_id`),
+  CONSTRAINT `cloud_connection_vrf_ep_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+
+LOCK TABLES `cloud_connection_vrf_ep` WRITE;
+/*!40000 ALTER TABLE `cloud_connection_vrf_ep` DISABLE KEYS */;
+/*!40000 ALTER TABLE `cloud_connection_vrf_ep` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --

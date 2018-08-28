@@ -788,14 +788,10 @@ sub send_message_to_child{
 =head2 addVrf
 
 =cut
-
 sub addVrf{
     my $self = shift;
     my $m_ref = shift;
     my $p_ref = shift;
-    my $state_ref = shift;
-
-    $self->{'logger'}->error("addVrf: Creating VRF!");
 
     my $success = $m_ref->{'success_callback'};
     my $error = $m_ref->{'error_callback'};
@@ -811,8 +807,9 @@ sub addVrf{
         $self->{'logger'}->error($err);
         return &$error($err);
     }
-
-
+    # The VRF may be cached. If so we must reload from DB. This causes
+    # a single load for cached VRFs and a double load for VRFs not
+    # cached.
     $vrf->update_vrf_details();
 
     if($vrf->state() eq 'decom'){
@@ -831,7 +828,6 @@ sub addVrf{
         $self->{'logger'}->error("EP: " . Dumper($ep));
         $self->{'logger'}->error("addVrf: Node: " . $ep->node()->name() . " is involved in the vrf");
         $nodes{$ep->node()->name()}= 1;
-
     }
 
     my $result = FWDCTL_SUCCESS;
@@ -842,7 +838,6 @@ sub addVrf{
         my $state = $vrf->state();
 
         $self->{'logger'}->error($self->{'db2'}->get_error());
-
     }
 
 
@@ -874,7 +869,6 @@ sub addVrf{
     
     foreach my $node (keys %nodes){
         $cv->begin();
-
 
         $self->{'logger'}->error("Getting ready to add VRF: " . $vrf->vrf_id() . " to switch: " . $node);
 

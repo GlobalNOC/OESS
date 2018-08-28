@@ -13,6 +13,7 @@
  * @property {string} [entity=undefined] - Name of entity
  * @property {string} [node=undefined] - Name of node
  * @property {integer} tag - VLAN number
+ * @property {integer} [cloud_account_id=undefined] - Cloud account owner for cloud interconnect
  * @property {Peering[]} peerings - Peers on this endpoint
  */
 
@@ -45,7 +46,8 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
     let e = {
       bandwidth: endpoint.bandwidth,
       tag:       endpoint.tag,
-      peerings:  []
+      peerings:  [],
+      cloud_account_id: endpoint.cloud_account_id
     };
 
     if ('entity_id' in endpoint && endpoint.interface === '' && endpoint.node === '') {

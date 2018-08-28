@@ -46,6 +46,8 @@ sub from_hash{
     $self->{'name'} = $hash->{'name'};
     $self->{'interface_id'} = $hash->{'interface_id'};
     $self->{'node'} = $hash->{'node'};
+    $self->{'cloud_interconnect_id'} = $hash->{'cloud_interconnect_id'};
+    $self->{'cloud_interconnect_type'} = $hash->{'cloud_interconnect_type'};
     $self->{'description'} = $hash->{'description'};
     $self->{'acls'} = $hash->{'acls'};
     $self->{'mpls_vlan_tag_range'} = $hash->{'mpls_vlan_tag_range'};
@@ -59,6 +61,8 @@ sub to_hash{
     my $self = shift;
 
     my $res = { name => $self->name(),
+                cloud_interconnect_id => $self->cloud_interconnect_id(),
+                cloud_interconnect_type => $self->cloud_interconnect_type(),
                 description => $self->description(),
                 interface_id => $self->interface_id(),
                 node_id => $self->node()->node_id(),
@@ -115,10 +119,19 @@ sub name{
     return $self->{'name'};
 }
 
+sub cloud_interconnect_id{
+    my $self = shift;
+    return $self->{'cloud_interconnect_id'};
+}
+
+sub cloud_interconnect_type{
+    my $self = shift;
+    return $self->{'cloud_interconnect_type'};
+}
+
 sub description{
     my $self = shift;
     return $self->{'description'};
-    
 }
 
 sub port_number{
