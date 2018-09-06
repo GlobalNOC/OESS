@@ -11,14 +11,16 @@ use Log::Log4perl;
 use Paws;
 use XML::Simple;
 
+my $self;
+
 sub new {
-    my $class = shift;
-    my $self  = {
+    #my $class = shift;
+    $self  = {
         config => '/etc/oess/database.xml',
         logger => Log::Log4perl->get_logger('OESS.Cloud.AWS'),
         @_
     };
-    bless $self, $class;
+    #bless $self, $class;
 
     $self->{creds} = XML::Simple::XMLin($self->{config});
     $self->{connections} = {};
@@ -26,12 +28,20 @@ sub new {
     foreach my $conn (@{$self->{creds}->{cloud}->{connection}}) {
         $self->{connections}->{$conn->{interconnect_id}} = $conn;
     }
-    return $self;
+    #return $self;
 }
+
+new();
+
+#warn "self-connections " . Dumper $self->{connections};
+#warn "self-creds " . Dumper $self->{creds};
+
+# old
+# region => $self->{connections}->{$interconnect_id}->{region}
 
   my $dc = Paws->service(
         'DirectConnect',
-        region => $self->{connections}->{$interconnect_id}->{region}
+        region => "us-east-1"
     );
 
 # DescribeVirtualInterfaces
