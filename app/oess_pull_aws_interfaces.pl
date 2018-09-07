@@ -104,23 +104,6 @@ new();
 
 
 
-               #'Vlan' => 101,
-               #'VirtualInterfaceState' => 'available',
-               #'ConnectionId' => 'dxcon-fgm77851',
-               #'AmazonAddress' => '169.254.255.1/30',
-               #'Asn' => 55038,
-               #'OwnerAccount' => '347957162513',
-               #'CustomerAddress' => '169.254.255.2/30',
-               #'Location' => 'EqDC2',
-               #'AmazonSideAsn' => 7224,
-               #'DirectConnectGatewayId' => '',
-               #'VirtualInterfaceType' => 'private',
-               #'VirtualInterfaceName' => 'Test L3VPN Interface',
-               #'VirtualInterfaceId' => 'dxvif-fgtrfa3c',
-               #'AddressFamily' => 'ipv4',
-               #'AuthKey' => '0xqpdZjNOHf0hZUC0owwSLUI',
-               #'VirtualGatewayId' => 'vgw-64ce390d'
-
     }
 
 
