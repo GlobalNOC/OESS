@@ -74,19 +74,22 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
     const data = await resp.json();
 
     if ('error_text' in data) {
-        alert(data.error_text);
-        return null;
+        console.log(data.error_text);
+        throw(data.error_text);
     }
 
     if (typeof data.results.success !== 'undefined' && typeof data.results.vrf_id !== 'undefined') {
       return parseInt(data.results.vrf_id);
     }
+
   } catch(error) {
     console.log('Failure occurred in provisionVRF.');
     console.log(error);
+    throw(error);
   }
 
-  return null;
+  //should never get here
+  throw("Unexpected response from server");
 }
 
 async function getVRF(vrfID) {

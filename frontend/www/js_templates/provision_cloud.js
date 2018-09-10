@@ -63,21 +63,28 @@ async function addNetworkSubmitCallback(event) {
     let addNetworkLoadingModal = $('#add-network-loading');
     addNetworkLoadingModal.modal('show');
 
-    let vrfID = await provisionVRF(
-        session.data.workgroup_id,
-        document.querySelector('#description').value,
-        document.querySelector('#description').value,
-        JSON.parse(sessionStorage.getItem('endpoints')),
-        provisionTime,
-        removeTime,
-        -1
-    );
+    try{
+        let vrfID = await provisionVRF(
+                                       session.data.workgroup_id,
+                                       document.querySelector('#description').value,
+                                       document.querySelector('#description').value,
+                                       JSON.parse(sessionStorage.getItem('endpoints')),
+                                       provisionTime,
+                                       removeTime,
+                                       -1
+                                       );
 
-    if (vrfID === null) {
+        if (vrfID === null) {
+            addNetworkLoadingModal.modal('hide');
+            alert('Unknown Error: Failed to provision VRF. Please try again later.');
+        } else {
+            window.location.href = `index.cgi?action=view_l3vpn&vrf_id=${vrfID}`;
+        }
+
+    } catch (error){
         addNetworkLoadingModal.modal('hide');
-        alert('Failed to provision VRF. Please try again later.');
-    } else {
-        window.location.href = `index.cgi?action=view_l3vpn&vrf_id=${vrfID}`;
+        alert('Failed to provision Cloud Connection.  Error: ' + error);
+        return;
     }
 }
 
