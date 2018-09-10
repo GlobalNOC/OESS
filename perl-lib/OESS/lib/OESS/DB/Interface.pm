@@ -8,6 +8,8 @@ package OESS::DB::Interface;
 use OESS::Node;
 use OESS::ACL;
 
+use Data::Dumper;
+
 sub fetch{
     my %params = @_;
     my $db = $params{'db'};
@@ -60,6 +62,48 @@ sub get_interface{
     }
 
     return $interface->[0]->{'interface_id'};
+}
+
+sub get_interfaces{
+    my %params = @_;
+
+    my $db = $params{'db'};
+   
+    my @where_str;
+    my @where_val;
+
+    if(defined($params{'node_id'})){
+        push(@where_val, $params{'node_id'});
+        push(@where_str, "node_id = ?");
+    }
+
+    if(defined($params{'workgroup_id'})){
+        push(@where_val, $params{'workgroup_id'});
+        push(@where_str, "workgroup_id = ?");
+    }
+
+    
+    my $where;
+
+    foreach my $str (@where_str){
+        if(!defined($where)){
+            $where .= $str;
+        }else{
+            $where .= " and " . $str;
+        }
+    }
+
+    my $query = "select interface_id from interface where $where";
+    #warn "Query: " . $query . "\n";
+    #warn "Query Params: " . Dumper(\@where_val);
+    my $interfaces = $db->execute_query($query,\@where_val);
+    my @ints;
+    foreach my $int (@$interfaces){
+        push(@ints, $int->{'interface_id'});
+    }
+
+    return \@ints;
+
 }
 
 sub get_acls{

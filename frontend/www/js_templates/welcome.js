@@ -65,10 +65,23 @@ async function loadEntityList() {
         let color = ok ? '#E0F0D9' : '#F2DEDE';
         let createdOn = new Date(parseInt(entity.created) * 1000);
         let modifiedOn = new Date(parseInt(entity.last_modified) * 1000);
+        let bg_color = '#fff';
+        let owner = 1;
+        if(entity.workgroup.workgroup_id != session.data.workgroup_id){
+            bg_color = '#e5e5e5';
+            owner = 0;
+        }
+
+        let edit = "<a href='?action=modify_cloud&vrf_id=${entity.vrf_id}'><span class='glyphicon glyphicon-edit' style='padding-right: 9px;'></span></a>";
+        let del = "<a onclick='deleteConnection(${entity.vrf_id}, '${entity.name}')' href='javascript:void(0)'><span class='glyphicon glyphicon-trash' style='padding-right: 9px;'></span></a>";
+        if(owner != 1){
+            edit = "<span class='glyphicon glyphicon-edit' style='padding-right: 9px;'></span>";
+            del = "<span class='glyphicon glyphicon-trash' style='padding-right: 9px;'></span>";
+        }
 
         let entityHTML = `
 <div class="panel panel-default">
-  <div class="panel-heading" style="display: flex; background-color: #fff;">
+  <div class="panel-heading" style="display: flex; background-color: ${bg_color};">
     <div style="width: 30px; background-color: ${color}; margin: -10px 15px -10px -15px;">
     </div>
     <div style="flex: 1;">
@@ -79,9 +92,9 @@ async function loadEntityList() {
       </div>
     </div>
     <h4>
-      <a href="?action=modify_cloud&vrf_id=${entity.vrf_id}"><span class="glyphicon glyphicon-edit" style="padding-right: 9px;"></span></a>
+      ${edit}
       <a href="?action=view_l3vpn&vrf_id=${entity.vrf_id}"><span class="glyphicon glyphicon-stats" style="padding-right: 9px;"></span></a>
-      <a onclick="deleteConnection(${entity.vrf_id}, '${entity.name}')" href="javascript:void(0)"><span class="glyphicon glyphicon-trash" style="padding-right: 9px;"></span></a>
+      ${del}
       <a id="entity-body-${index}-opened" onclick="toggleEntityBody(${index})" href="javascript:void(0)" style="display: none;"><span class="glyphicon glyphicon-chevron-up"></span></a>
       <a id="entity-body-${index}-closed" onclick="toggleEntityBody(${index})" href="javascript:void(0)"><span class="glyphicon glyphicon-chevron-down"></span></a>
     </h4>

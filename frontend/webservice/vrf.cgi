@@ -174,8 +174,10 @@ sub get_vrfs{
         return;
     }
 
+    warn Dumper($user);
+
     #first validate the user is in the workgroup
-    if(!$user->in_workgroup( $workgroup_id)){
+    if(!$user->in_workgroup( $workgroup_id) && !$user->is_admin()){
         $method->set_error("User is not in workgroup");
         return;
     }
@@ -224,7 +226,7 @@ sub provision_vrf{
     $model->{'endpoints'} = ();
 
     #first validate the user is in the workgroup
-    if(!$user->in_workgroup( $model->{'workgroup_id'})){
+    if(!$user->in_workgroup( $model->{'workgroup_id'}) && !$user->is_admin()){
         $method->set_error("User is not in workgroup");
         return;
     }
@@ -393,7 +395,7 @@ sub remove_vrf{
     }
 
     my $result;
-    if(!$user->in_workgroup( $wg)){
+    if(!$user->in_workgroup( $wg) && !$user->is_admin()){
         $method->set_error("User " . $ENV{'REMOTE_USER'} . " is not in workgroup");
         return {success => 0};
     }
