@@ -388,6 +388,12 @@ sub get_entity{
     my $entity = OESS::Entity->new(db => $db, entity_id => $params->{'entity_id'}{'value'});
 
     if(!defined($entity)){
+        $method->set_error("Entity was not found in the database");
+        return;
+    }
+
+    if(!$user->in_workgroup( $workgroup_id) && !$user->is_admin()){
+        $method->set_error("User not in workgroup");
         return;
     }
 

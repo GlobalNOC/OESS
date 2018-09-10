@@ -84,7 +84,7 @@ sub run_command {
         $method->set_error("User $ENV{REMOTE_USER} is not in OESS.");
         return;
     }
-    if (!$user->in_workgroup($workgroup_id)) {
+    if(!$user->in_workgroup( $workgroup_id) && !$user->is_admin()){
         $method->set_error("User $ENV{REMOTE_USER} is not in workgroup.");
         return;
     }
