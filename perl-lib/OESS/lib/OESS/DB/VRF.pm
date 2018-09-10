@@ -325,14 +325,26 @@ sub get_vrfs{
 
     if(defined($params{'state'})){
         push(@where_val,$params{'state'});
-        push(@where_str,"state = ?");
+        push(@where_str,"vrf.state = ?");
     }
-
+    
     if(defined($params{'workgroup_id'})){
         push(@where_val, $params{'workgroup_id'});
-        push(@where_str, "workgroup_id = ?");
+        #now we need to find all interfaces OWNED by this workgroup and all VRFs on those endpoints!!!!!
+        my $interfaces = OESS::DB::Interface::get_interfaces(db => $db, workgroup_id => $params{'workgroup_id'});
+        #warn "Interafce IDs: " . Dumper($interfaces);
+        push(@where_val, @$interfaces);
+        my $vals = "";
+        foreach my $int (@$interfaces){
+            if($vals eq ''){
+                $vals .= "?";
+            }else{
+                $vals .= ",?";
+            }
+        }
+        push(@where_str, "(workgroup_id = ? or vrf_ep.interface_id in ($vals))");
     }
-
+    
     my $where;
     foreach my $str (@where_str){
         if(!defined($where)){
@@ -342,8 +354,12 @@ sub get_vrfs{
         }
     }
 
-    my $vrfs = $db->execute_query("select vrf_id from vrf where $where",\@where_val);
+    my $query = "select vrf.vrf_id from vrf join vrf_ep on vrf_ep.vrf_id = vrf.vrf_id where $where";
+    #warn "Query: " . $query . "\n";
+    #warn "Query Params: " . Dumper(\@where_val);
+    my $vrfs = $db->execute_query($query,\@where_val);
+    #warn Dumper($vrfs);
     return $vrfs;
 }
-    
-    1;
+
+1;
