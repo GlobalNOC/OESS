@@ -354,11 +354,12 @@ sub get_vrfs{
         }
     }
 
-    my $query = "select vrf.vrf_id from vrf join vrf_ep on vrf_ep.vrf_id = vrf.vrf_id where $where";
-    #warn "Query: " . $query . "\n";
-    #warn "Query Params: " . Dumper(\@where_val);
+    my $query = "select distinct(vrf.vrf_id) from vrf join vrf_ep on vrf_ep.vrf_id = vrf.vrf_id where $where";
+
     my $vrfs = $db->execute_query($query,\@where_val);
-    #warn Dumper($vrfs);
+
+    
+
     return $vrfs;
 }
 
