@@ -121,8 +121,7 @@ async function loadVRF() {
   document.getElementById('owned-by').innerHTML = vrf.workgroup.name;
   document.getElementById('state').innerHTML = vrf.state;
 
-  let endpoints = document.getElementById('endpoints');
-  vrf.endpoints.forEach(function(endpoint) {
+  vrf.endpoints.forEach(function(endpoint, eIndex) {
 
     let peeringHTML = '';
     endpoint.peers.forEach(function(peering, peeringIndex) {
@@ -138,22 +137,17 @@ async function loadVRF() {
 
     });
 
-    console.log(endpoint);
     let html = `
 <div class="panel panel-default">
- <div class="panel-heading" style="height: 40px;">
-   <h4 style="margin: 0px; float: left;">
-   ${endpoint.node.name} <small>${endpoint.interface.name} - ${endpoint.tag}</small>
-   </h4>
+  <div class="panel-heading" style="height: 40px;">
+    <h4 style="margin: 0px; float: left;">
+    ${endpoint.node.name} <small>${endpoint.interface.name} - ${endpoint.tag}</small>
+    </h4>
   </div>
-  <h2 style="padding: 15px" >Statistics</h3>
-<div style="padding-left: 15px; padding-right: 15px">
 
-<iframe src="https://daldoyle-dev-7.grnoc.iu.edu/grafana/d-solo/LbLWIXmmk/simple?orgId=1&var-node=${endpoint.node.name}&var-interface=${endpoint.interface.name}.${endpoint.tag}&panelId=4&from=now-1h&to=now" width="100%" height="300" frameborder="0"></iframe>
+  <div style="padding-left: 15px; padding-right: 15px">
+  </div>
 
-<!-- <iframe src="https://grafana.net.internet2.edu/grafana/d-solo/kgVskjnik/interfaces?orgId=1&panelId=2&var-node=&var-interface=" width="100%" height="300" frameborder="0"></iframe> -->
-</div>
-  <h2 style="padding: 15px">Peerings</h3>
   <table class="table">
     <thead>
       <tr><th></th><th>Your ASN</th><th>Your IP</th><th>Your BGP Key</th><th>OESS IP</th><th>Status</th></tr>
@@ -164,6 +158,50 @@ async function loadVRF() {
   </table>
 </div>`;
     
+    let endpoints = document.getElementById('endpoints');
     endpoints.innerHTML += html;
+
+    let statGraph = `
+<div id="endpoints-statistics-${eIndex}" class="panel panel-default endpoints-statistics" style="display: none;">
+  <div class="panel-heading" style="height: 40px;">
+    <h4 style="margin: 0px; float: left;">
+    ${endpoint.node.name} <small>${endpoint.interface.name} - ${endpoint.tag}</small>
+    </h4>
+  </div>
+
+  <div style="padding-left: 15px; padding-right: 15px">
+    <iframe src="https://daldoyle-dev-7.grnoc.iu.edu/grafana/d-solo/LbLWIXmmk/simple?orgId=1&var-node=${endpoint.node.name}&var-interface=${endpoint.interface.name}.${endpoint.tag}&panelId=4&from=now-1h&to=now" width="100%" height="300" frameborder="0"></iframe>
+  </div>
+</div>`;
+
+    let stats = document.getElementById('endpoints-statistics');
+    stats.innerHTML += statGraph;
+
+    let statOption = `<li><a href="#" data-id="${eIndex}" onclick="toggleStatistics(this)">${endpoint.node.name} - ${endpoint.interface.name} - ${endpoint.tag}</a></li>`;
+
+    let dropdown = document.getElementById('endpoints-statistics-dropdown');
+    dropdown.innerHTML += statOption;
+
+
+    if (eIndex === 0) {
+        let selection = document.getElementById('endpoints-statistics-selection');
+        selection.innerHTML = `${endpoint.node.name} - ${endpoint.interface.name} - ${endpoint.tag} <span class="caret"></span>`;
+    }
+
   });
+
+  document.getElementById('endpoints-statistics-0').style.display = 'block';
+}
+
+function toggleStatistics(e) {
+    let elements = document.getElementsByClassName('endpoints-statistics');
+    for (let i = 0; i < elements.length; i++) {
+        elements[i].style.display = 'none';
+    }
+
+    let element = document.getElementById(`endpoints-statistics-${e.dataset.id}`);
+    element.style.display = 'block';
+
+    let selection = document.getElementById('endpoints-statistics-selection');
+    selection.innerHTML = `${e.innerHTML} <span class="caret"></span>`;
 }

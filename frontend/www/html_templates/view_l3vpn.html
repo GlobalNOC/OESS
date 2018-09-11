@@ -12,61 +12,52 @@
     [% INCLUDE js_templates/view_l3vpn.js %]
   </script>
 
-  <h2 id="description"></h2>
-  <div id="vrf-id" style="display: none;"></div>
-
-  <div class="row" style="margin-bottom: 15px;">
-    <div class="col-md-12">
-      <div id="map" class="openlayers"></div>
+  <div class="row" style="margin-bottom: 15px">
+    <div class="col-md-6">
+      <h2 id="description"></h2>
+      <div id="vrf-id" style="display: none;"></div>
+    </div>
+    <div class="col-md-6" style="margin-top: 30px; text-align: right;">
+      <button id="edit-vrf-button" class="btn btn-success" type="button">Edit VRF</button>
+      <button id="delete-vrf-button" class="btn btn-danger" type="button">Remove VRF</button>
     </div>
   </div>
 
   <div class="row" style="margin-bottom: 15px">
-    <div class="col-md-6">
-      <div id="provision-time"></div>
-      <div id="remove-time"></div>
+    <div class="col-md-12">
+      <ul class="nav nav-tabs" role="tablist">
+        <li role="presentation" class="active"><a href="#details" aria-controls="details" role="tab" data-toggle="tab">Details</a></li>
+        <li role="presentation"><a href="#statistics" aria-controls="statistics" role="tab" data-toggle="tab">Statistics</a></li>
+        <li role="presentation"><a href="#commands" aria-controls="commands" role="tab" data-toggle="tab">Commands</a></li>
+      </ul>
 
-      <table style="width: 50%;">
-        <tr>
-          <td><b>Status:</b></td><td><span id="state" class="label label-success"></span></td>
-        </tr>
-        <tr>
-          <td><b>Owned by:</b></td><td id="owned-by"/>
-        </tr>
-        <tr>
-          <td><b>Created by:</b></td><td id="created-by"/>
-        </tr>
-      </table>
-    </div>
-
-    <div class="col-md-6">
-      <table style="width: 100%;">
-        <tr>
-          <td><b>Created on:</b></td><td id="created-on"/>
-        </tr>
-        <tr>
-          <td><b>Last modified:</b></td><td id="last-modified"/>
-        </tr>
-      </table>
+      <div class="tab-content">
+        <div role="tabpanel" class="tab-pane active" id="details">
+          <br/>
+          [% INCLUDE html_templates/view_l3vpn/details.html %]
+        </div>
+        <div role="tabpanel" class="tab-pane" id="statistics">
+          <br/>
+          [% INCLUDE html_templates/view_l3vpn/statistics.html %]
+        </div>
+        <div role="tabpanel" class="tab-pane" id="commands">
+          <br/>
+          [% INCLUDE html_templates/view_l3vpn/commands.html %]
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="row" style="margin-bottom: 0px">
-    <div class="col-md-12">
-      [% INCLUDE html_templates/command/selector.html %]
-    </div>
+  <div class="row" style="margin-bottom: 15px">
   </div>
 
   <div class="row">
     <div class="col-md-12">
-      <div id="endpoints"></div>
     </div>
   </div>
 
   <div class="row" style="margin-bottom: 15px">
     <div class="col-md-12">
-      <button id="edit-vrf-button" class="btn btn-success" type="button">Edit</button>
-      <button id="delete-vrf-button" class="btn btn-danger" type="button">Delete</button>
     </div>
   </div>
 
