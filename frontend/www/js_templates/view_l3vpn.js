@@ -171,38 +171,43 @@ async function loadVRF() {
   </div>
 
   <div style="padding-left: 15px; padding-right: 15px">
-    <iframe src="[% grafana %]" width="100%" height="300" frameborder="0"></iframe>
+    <iframe id="endpoints-statistics-iframe-${eIndex}" data-url="[% grafana %]" src="[% grafana %]&from=now-1h&to=now" width="100%" height="300" frameborder="0"></iframe>
   </div>
 </div>`;
 
     let stats = document.getElementById('endpoints-statistics');
     stats.innerHTML += statGraph;
 
-    let statOption = `<li><a href="#" data-id="${eIndex}" onclick="toggleStatistics(this)">${endpoint.node.name} - ${endpoint.interface.name} - ${endpoint.tag}</a></li>`;
+    let statOption = `<option value="${eIndex}">${endpoint.node.name} - ${endpoint.interface.name} - ${endpoint.tag}</option>`;
 
-    let dropdown = document.getElementById('endpoints-statistics-dropdown');
+    let dropdown = document.getElementById('endpoints-statistics-selection');
     dropdown.innerHTML += statOption;
 
-
-    if (eIndex === 0) {
-        let selection = document.getElementById('endpoints-statistics-selection');
-        selection.innerHTML = `${endpoint.node.name} - ${endpoint.interface.name} - ${endpoint.tag} <span class="caret"></span>`;
-    }
-
+    displayStatisticsIFrame();
   });
 
   document.getElementById('endpoints-statistics-0').style.display = 'block';
 }
 
-function toggleStatistics(e) {
+function displayStatisticsIFrame() {
     let elements = document.getElementsByClassName('endpoints-statistics');
     for (let i = 0; i < elements.length; i++) {
         elements[i].style.display = 'none';
     }
 
-    let element = document.getElementById(`endpoints-statistics-${e.dataset.id}`);
+    let container = document.getElementById(`endpoints-statistics-selection`);
+
+    let element = document.getElementById(`endpoints-statistics-${container.value}`);
     element.style.display = 'block';
 
-    let selection = document.getElementById('endpoints-statistics-selection');
-    selection.innerHTML = `${e.innerHTML} <span class="caret"></span>`;
+    updateStatisticsIFrame();
+}
+
+function updateStatisticsIFrame() {
+    let container = document.getElementById(`endpoints-statistics-selection`);
+
+    let range = document.getElementById(`endpoints-statistics-range`);
+
+    let iframe = document.getElementById(`endpoints-statistics-iframe-${container.value}`);
+    iframe.src = iframe.dataset.url + range.value;
 }
