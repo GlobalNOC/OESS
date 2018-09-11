@@ -137,6 +137,7 @@ sub main{
         }
     }
 
+    $vars->{'grafana'}            = 'https://daldoyle-dev-7.grnoc.iu.edu/grafana/d-solo/LbLWIXmmk/simple?orgId=1&var-node=${endpoint.node.name}&var-interface=${endpoint.interface.name}.${endpoint.tag}&panelId=4&from=now-1h&to=now';
     $vars->{'admin_email'}        = $db->get_admin_email();
     $vars->{'page'}               = $filename;
     $vars->{'title'}              = $title;

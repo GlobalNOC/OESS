@@ -116,6 +116,7 @@ async function loadVRF() {
   document.getElementById('provision-time').innerHTML = '';
   document.getElementById('remove-time').innerHTML = '';
   document.getElementById('last-modified').innerHTML = new Date(vrf.last_modified * 1000);
+  document.getElementById('last-modified-by').innerHTML = vrf.last_modified_by.email;
   document.getElementById('created-on').innerHTML = new Date(vrf.created * 1000);
   document.getElementById('created-by').innerHTML = vrf.created_by.email;
   document.getElementById('owned-by').innerHTML = vrf.workgroup.name;
@@ -170,7 +171,7 @@ async function loadVRF() {
   </div>
 
   <div style="padding-left: 15px; padding-right: 15px">
-    <iframe src="https://daldoyle-dev-7.grnoc.iu.edu/grafana/d-solo/LbLWIXmmk/simple?orgId=1&var-node=${endpoint.node.name}&var-interface=${endpoint.interface.name}.${endpoint.tag}&panelId=4&from=now-1h&to=now" width="100%" height="300" frameborder="0"></iframe>
+    <iframe src="[% grafana %]" width="100%" height="300" frameborder="0"></iframe>
   </div>
 </div>`;
 
