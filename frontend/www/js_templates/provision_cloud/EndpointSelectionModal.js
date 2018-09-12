@@ -16,14 +16,14 @@ document.addEventListener('DOMContentLoaded', function() {
   endpointInterfaceSelect.addEventListener('change', loadInterfaceCloudAccountInput);
 });
 
-async function showEndpointSelectionModal(endpoint) {
+async function showEndpointSelectionModal(endpoint, options) {
     if (endpoint) {
         document.querySelector('#endpoint-select-header').innerHTML = 'Modify Network Endpoint';
 
         if ('entity_id' in endpoint && endpoint.entity_id !== -1) {
             $('#basic').tab('show');
 
-            await loadEntities(endpoint.entity_id);
+            await loadEntities(endpoint.entity_id, options);
             await loadInterfaces();
 
             document.querySelector('#entity-index').value = endpoint.index;
@@ -107,8 +107,8 @@ async function hideEndpointSelectionModal(index) {
     endpointSelectionModal.modal('hide');
 }
 
-async function loadEntities(parentEntity=null) {
-    let entity = await getEntities(session.data.workgroup_id, parentEntity);
+async function loadEntities(parentEntity=null, options) {
+    let entity = await getEntities(session.data.workgroup_id, parentEntity, options);
 
     let parent = null;
     if ('parents' in entity && entity.parents.length > 0) {
@@ -222,14 +222,16 @@ async function addEntitySubmitCallback(event) {
 
     let entity = {
         bandwidth: document.querySelector('#entity-bandwidth').value,
-        interface: document.querySelector('#entity-interface').value,
-        node: document.querySelector('#entity-node').value,
+        interface: "TBD",
+        node: "TBD",
+        name: "TBD",
         peerings: [],
         tag: document.querySelector('#entity-vlans').value,
         entity_id: document.querySelector('#entity-id').value,
-        name: document.querySelector('#entity-name').value,
+        entity: document.querySelector('#entity-name').value,
         cloud_account_id: document.querySelector('#entity-cloud-account-id').value
     };
+
     console.log(entity);
 
     let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));

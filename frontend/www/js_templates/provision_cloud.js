@@ -185,9 +185,9 @@ function loadSelectedEndpointList() {
           let endpointName = '';
           if ('entity_id' in endpoint) {
               if (endpoint.interface === '') {
-                  endpointName = `${endpoint.name} <small>${endpoint.tag}</small>`;
+                  endpointName = `${endpoint.entity} <small>${endpoint.tag}</small>`;
               } else {
-                  endpointName = `${endpoint.name} <small>${endpoint.interface} ${endpoint.tag}</small>`;
+                  endpointName = `${endpoint.entity} <small>${endpoint.interface} ${endpoint.tag}</small>`;
               }
           } else {
               endpointName = `${endpoint.node} <small>${endpoint.interface} - ${endpoint.tag}</small>`;

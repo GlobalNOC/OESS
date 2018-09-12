@@ -8,6 +8,7 @@ use GRNOC::WebService::Method;
 
 use OESS::DB;
 use OESS::Entity;
+use OESS::VRF;
 
 #register web service dispatcher
 my $svc    = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
@@ -75,6 +76,18 @@ sub register_ro_methods{
         required        => 0,
         description     => "The workgroup id to find the ACLs for the entity"   );
     
+    $method->add_input_parameter(
+        name            => 'vrf_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        description     => "The workgroup id to find the ACLs for the entity"   );
+
+    $method->add_input_parameter(
+        name            => 'circuit_id_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        description     => "The workgroup id to find the ACLs for the entity"   );
+
     $svc->register_method($method);
 }
 
@@ -96,12 +109,12 @@ sub register_rw_methods{
         description => "the description to be set on the entity");
     $method->add_input_parameter(
         name => 'name',
-        pattern => $GRNOC::WebService::Regex::NAME,
+        pattern => $GRNOC::WebService::Regex::NAME_ID,
         required => 0,
         description => "the name of the entity");
     $method->add_input_parameter(
         name => 'url',
-        pattern => $GRNOC::WebService::Regex::URL,
+        pattern => $GRNOC::WebService::Regex::TEXT,
         required => 0,
         description => "The URL of the entities web page");
     $method->add_input_parameter(
@@ -384,6 +397,18 @@ sub get_entity{
     my $params = shift;
     my $ref =  shift;
 
+    my $vrf_id = $params->{'vrf_id'}{'value'};
+    my $circuit_id = $params->{'circuit_id'}{'value'};
+    #verify user is in workgroup
+    my $user = OESS::DB::User::find_user_by_remote_auth( db => $db, remote_user => $ENV{'REMOTE_USER'} );
+
+    $user = OESS::User->new(db => $db, user_id =>  $user->{'user_id'} );
+
+    if(!defined($user)){
+        $method->set_error("User " . $ENV{'REMOTE_USER'} . " is not in OESS");
+        return;
+    }
+
     my $workgroup_id = $params->{'workgroup_id'}{'value'};
     my $entity = OESS::Entity->new(db => $db, entity_id => $params->{'entity_id'}{'value'});
 
@@ -399,8 +424,45 @@ sub get_entity{
 
     my %vlans;
 
+    my $vrf;
+    my $circuit;
+
+
+    if(defined($vrf_id)){
+        $vrf = OESS::VRF->new(db => $db, vrf_id => $vrf_id);
+        if(!defined($vrf)){
+            $method->set_error("Unable to find VRF: " . $vrf_id);
+            return;
+        }
+    }
+
+    if(defined($circuit_id)){
+        $circuit = OESS::Circuit->new(db => $db, circuit_id => $vrf_id);
+        if(!defined($circuit)){
+            $method->set_error("Unable to find Circuit: " . $circuit_id);
+            return;
+        }
+    }
+
+
     my @ints;
     foreach my $int (@{$entity->interfaces()}){
+        my $already_used_tag;
+        if(defined($vrf)){
+            foreach my $ep (@{$vrf->endpoints}){
+                if($ep->interface()->interface_id() == $int->interface_id()){
+                    $already_used_tag = $ep->tag();
+                }
+            }
+        }
+
+        if(defined($circuit)){
+            foreach my $ep (@{$circuit->endpoints}){
+                if($ep->interface()->interface_id() == $int->interface_id()){
+                    $already_used_tag = $ep->tag();
+                }
+            }
+        }
         my $obj = $int->to_hash();
         my @allowed_vlans;
         for(my $i=1;$i<=4095;$i++){
@@ -408,14 +470,36 @@ sub get_entity{
                 push(@allowed_vlans,$i);
                 $vlans{$i} = 1;
             }
+
+            if($already_used_tag == $i){
+                push(@allowed_vlans, $i);
+                $vlans{$i} = 1;
+            }
         }
         $obj->{'available_vlans'} = \@allowed_vlans;
         push(@ints,$obj);
     }
     
+    if(defined($vrf_id)){
+        my $vrf = OESS::VRF->new(db => $db, vrf_id => $vrf_id);
+        if(!defined($vrf)){
+            $method->set_error("Unable to find VRF: " . $vrf_id);
+            return;
+        }
+
+        foreach my $ep (@{$vrf->endpoints()}){
+            warn "Entity ID: " . $ep->entity->entity_id() . " vs " . $entity->entity_id() . "\n";
+            if($ep->entity->entity_id() == $entity->entity_id()){
+                warn "Adding Tag: " . $ep->tag() . "\n";
+                $vlans{$ep->tag()} = 1;
+            }
+        }
+    }
+    
     my $res = $entity->to_hash();
     $res->{'interfaces'} = \@ints;
-    $res->{'allowed_vlans'} = keys %vlans;
+    my @allowed_vs = keys %vlans;
+    $res->{'allowed_vlans'} = \@allowed_vs;
     return {results => $res};
     
 }

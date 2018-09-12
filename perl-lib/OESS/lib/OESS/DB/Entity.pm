@@ -17,12 +17,17 @@ sub fetch{
 
     my $entity_id = $params{'entity_id'};
     my $entity_name = $params{'name'};
+    my $interface_id = $params{'interface_id'};
 
     my $entity;
     if(defined($entity_id)){
         $entity = $db->execute_query("select * from entity where entity_id = ?",[$entity_id]);
-    }else{
+    }elsif(defined($entity_name)){
         $entity = $db->execute_query("select * from entity where name = ?",[$entity_name]);
+    }elsif(defined($interface_id)){
+        $entity = $db->execute_query("select * from entity where entity_id in (select entity_id from entity_interface_membership where interface_id = ?)",[$interface_id]);
+    }else{
+        return;
     }
 
     return if (!defined($entity) || !defined($entity->[0]));

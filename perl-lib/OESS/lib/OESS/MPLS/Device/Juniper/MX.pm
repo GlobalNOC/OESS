@@ -642,7 +642,7 @@ sub get_vrf_stats{
     my %vrf_stats;
 
     my $stats = $self->{'jnx'}->get_dom();
-    #$self->{'logger'}->debug("VRF Stats: " . $stats->toString());
+    $self->{'logger'}->debug("VRF Stats: " . $stats->toString());
     
     my @peer_stats;
     my @rib_stats;

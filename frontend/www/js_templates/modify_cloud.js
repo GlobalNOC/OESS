@@ -36,7 +36,8 @@ async function loadVRF() {
   vrf.endpoints.forEach(function(e) {
     let endpoint = {
         bandwidth: e.bandwidth,
-        entity_id: -1,
+        entity_id: e.entity.entity_id,
+        entity: e.entity.name,
         name: e.interface.name,
         node: e.node.name,
         peerings: [],
@@ -58,6 +59,7 @@ async function loadVRF() {
   });
 
   sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
+  sessionStorage.setItem('vrf',JSON.stringify(vrf));
   loadSelectedEndpointList();
 }
 
@@ -69,7 +71,7 @@ async function modifyNetworkEndpointCallback(index) {
     let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
     endpoints[index].index = index;
 
-    showEndpointSelectionModal(endpoints[index]);
+    showEndpointSelectionModal(endpoints[index], {vrf: JSON.parse(sessionStorage.getItem('vrf'))});
 }
 
 async function deleteNetworkEndpointCallback(index) {
@@ -142,7 +144,10 @@ async function addEntitySubmitCallback(event) {
     let entity = {
         bandwidth: document.querySelector('#entity-bandwidth').value,
         entity_id: document.querySelector('#entity-id').value,
-        name: document.querySelector('#entity-name').value,
+        entity: document.querySelector('#entity-name').value,
+        node: "TBD",
+        name: "TBD",
+        //name: document.querySelector('#entity-name').value,
         peerings: [],
         tag: document.querySelector('#entity-vlans').value
     };
@@ -302,11 +307,7 @@ function loadSelectedEndpointList() {
   console.log(endpoints);
   endpoints.forEach(function(endpoint, index) {
           let endpointName = '';
-          if ('entity_id' in endpoint) {
-              endpointName = `${endpoint.name} <small>${endpoint.tag}</small>`;
-          } else {
-              endpointName = `${endpoint.node} <small>${endpoint.interface} - ${endpoint.tag}</small>`;
-          }
+          endpointName = `${endpoint.entity} - ${endpoint.node} - ${endpoint.name} <small>${endpoint.tag}</small>`;
 
           let peerings = '';
           endpoint.peerings.forEach(function(peering, peeringIndex) {
