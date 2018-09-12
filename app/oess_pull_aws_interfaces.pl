@@ -115,18 +115,25 @@ warn "OESS_UPDATES " . Dumper $oess_updates;
 
 my $update_requests = reformat( $oess_updates );
 
+foreach my $ur ( @$update_requests ) {
+
+
+}
+
 sub reformat {
     my ( $updates ) = @_;
+
+    my $updates_out = [];
 
     my @top_level_fields = ( 'local_asn', 'prefix_limit', 'name', 'vrf_id', 'description' );
 
 
-    my $update = {};
     foreach my $row (@$updates) {
+        my $update = {};
         $update->{workgroup_id} = $workgroup_id;
         #$update->{endpoint} = $jsonObj->encode( $row->{endpoints} );
-        $update->{endpoint} = [];
-        foreach my $endpoint (@{$updates->{endpoints}}) {
+        my $endpoints_for_update = [];
+        foreach my $endpoint (@{$row->{endpoints}}) {
             my $ep = {};
             $ep->{interface}->{node}->{name} = $endpoint->{node}->{name};
             $ep->{interface}->{name} = $endpoint->{interface}->{name};
@@ -134,20 +141,25 @@ sub reformat {
             $ep->{inner_tag} = $endpoint->{inner_tag};
             $ep->{cloud_account_id} = $endpoint->{cloud_account_id};
             $ep->{cloud_connection_id} = $endpoint->{cloud_connection_id};
+            $ep->{peerings} = $endpoint->{peers};
 
-            push @{$update->{endpoint}}, $ep;        
+            #$ep = $jsonObj->encode( $ep );
+
+            push @$endpoints_for_update, $ep;
 
         }
+        $update->{endpoint} = $jsonObj->encode( $endpoints_for_update );
 
         foreach my $field( @top_level_fields ) {
             $update->{ $field } = $row->{ $field };
         }
+        warn "UPDATE " . Dumper $update;
+        push @$updates_out, $update;
 
     }
 
-    warn "UPDATE " . Dumper $update;
 
-    return $update;
+    return $updates_out;
 
 
 
@@ -198,11 +210,8 @@ sub _update_value {
 
 warn "aws_matches " . Dumper \%aws_matches;
 
-die;
 
-#get_vrf_aws_details( "dxcon-fgm77851", "" );
-
-sub get_vrf_aws_details { 
+sub get_vrf_aws_details {
     my ( $cloud_connection_id, $vlan_id ) = @_;
 
     #warn "aws_res: $aws_res";
@@ -233,60 +242,46 @@ sub get_vrf_aws_details {
 
 }
 
-sub output_aws_details {
-    my ( $details ) = @_;
-    my @fields_to_ignore = ( 'CustomerRouterConfig' );
-    foreach my $row (@$details) {
-        while ( my ($k, $v ) = each %$row ) {
-
-
-        }
-
-
-    }
-
-}
-
-my $virtual_interfaces = $aws_res->{VirtualInterfaces};
-warn "interfaces \n";
-#my $json = $aws_res->freeze();
-#warn $json->encode( $virtual_interfaces );
-
-warn "aws aws_res " . Dumper ( $aws_res );
-
-for my $intf ( @$virtual_interfaces ) {
-    my $bgp_peers = $intf->BgpPeers;
-    #warn "bgp peers " . Dumper @{ $interface->BgpPeers }[0]->AddressFamily;
-
-    my @fields = (
-        'Vlan', 
-        'VirtualInterfaceState', 
-        'ConnectionId',
-        'AmazonAddress',
-        'Asn',
-        'OwnerAccount',
-        'CustomerAddress',
-        'Location',
-        'AmazonSideAsn',
-        'DirectConnectGatewayId',
-        'VirtualInterfaceType',
-        'VirtualInterfaceName',
-        'VirtualInterfaceId',
-        'AddressFamily',
-        #'AuthKey',
-        'VirtualGatewayId',
-
-    );
-
-    my $results = {};
-    for my $field ( @fields ) {
-        $results->{$field} = $intf->{$field};
-
-    }
-    warn "RESULTS\n" . Dumper $results;
-
-
-
-}
-
+#my $virtual_interfaces = $aws_res->{VirtualInterfaces};
+#warn "interfaces \n";
+##my $json = $aws_res->freeze();
+##warn $json->encode( $virtual_interfaces );
+#
+#warn "aws aws_res " . Dumper ( $aws_res );
+#
+#for my $intf ( @$virtual_interfaces ) {
+#    my $bgp_peers = $intf->BgpPeers;
+#    #warn "bgp peers " . Dumper @{ $interface->BgpPeers }[0]->AddressFamily;
+#
+#    my @fields = (
+#        'Vlan', 
+#        'VirtualInterfaceState', 
+#        'ConnectionId',
+#        'AmazonAddress',
+#        'Asn',
+#        'OwnerAccount',
+#        'CustomerAddress',
+#        'Location',
+#        'AmazonSideAsn',
+#        'DirectConnectGatewayId',
+#        'VirtualInterfaceType',
+#        'VirtualInterfaceName',
+#        'VirtualInterfaceId',
+#        'AddressFamily',
+#        #'AuthKey',
+#        'VirtualGatewayId',
+#
+#    );
+#
+#    my $results = {};
+#    for my $field ( @fields ) {
+#        $results->{$field} = $intf->{$field};
+#
+#    }
+#    warn "RESULTS\n" . Dumper $results;
+#
+#
+#
+#}
+#
 
