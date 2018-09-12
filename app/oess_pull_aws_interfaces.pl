@@ -91,8 +91,8 @@ my $oess_updates = [];
 foreach my $vrf (@$oess_res) {
     #warn "vrf " . Dumper $vrf;
     foreach my $endpoint ( @{$vrf->{'endpoints'}} ) {
-        next if ( ! $endpoint->{'cloud_connection_id'} );
-        warn "endpoint " . Dumper $endpoint;
+        next if ( not defined( $endpoint->{'cloud_connection_id'} ) );
+        #warn "endpoint " . Dumper $endpoint;
         #my $interconnect_id = $endpoint->{'interface'}->{'cloud_interconnect_id'};
         my $connection_id = $endpoint->{'cloud_connection_id'};
         my $vlan_id = $endpoint->{'tag'};
@@ -114,12 +114,23 @@ sub update_endpoint_values {
 
     foreach my $aws (@$aws_vrfs ) {
         warn "updating aws " . $aws->VirtualInterfaceId;
-        $endpoint->{'cloud_connection_id'} = $aws->VirtualInterfaceId;
+        #warn "aws values " . Dumper $aws;
+        $endpoint->{'interface'}->{'cloud_interconnect_id'} = $aws->ConnectionId;
         $endpoint->{'cloud_account_id'} = $aws->OwnerAccount;
+        # TODO: handle more than one set of peers. currently we assume one
+        my $peer = $endpoint->{'peers'}->[0];
+        warn "PEER " . Dumper $peer;
+        $peer->{'peer_ip'} = $aws->AmazonAddress;
+        $peer->{'peer_asn'} = $aws->AmazonSideAsn;
+        $peer->{'md5_key'} = $aws->AuthKey;
+        $peer->{'local_ip'} = $aws->CustomerAddress;
+        warn "PEER AFTER CHANGES " . Dumper $peer;
+        $endpoint->{'peers'}->[0] = $peer;
+
 
     }
 
-    warn "ENDPOINT AFTER UPDATES vlan " . $endpoint->{'tag'} . "!!\n" . Dumper $endpoint;
+    warn "ENDPOINT AFTER UPDATES vlan " . $endpoint->{'tag'} . "!!\n"  . Dumper $endpoint;
 
 
 
