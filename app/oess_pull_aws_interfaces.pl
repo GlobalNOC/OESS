@@ -17,27 +17,22 @@ use GRNOC::WebService::Client;
     #with Storage('format' => 'JSON', 'io' => 'File');
 
 
-my $self;
 my $client;
+my $config;
+my $logger;
+my $creds;
+my $connections = {};
 my $jsonObj = JSON->new->allow_nonref->convert_blessed->allow_blessed;
 
-
 sub new {
-    #my $class = shift;
-    $self  = {
-        config => '/etc/oess/database.xml',
-        logger => Log::Log4perl->get_logger('OESS.Cloud.AWS'),
-        @_
-    };
+    $config = '/etc/oess/database.xml';
+    $logger = Log::Log4perl->get_logger('OESS.Cloud.AWS');
     #bless $self, $class;
-    my $creds = XML::Simple::XMLin($self->{config});
-    $self->{creds} = $creds;
-    #warn "config " . Dumper $self->{creds};
-    #warn "url " .  Dumper $creds->{wsc}->{url};
+    $creds = XML::Simple::XMLin($config);
     $client = GRNOC::WebService::Client->new(
-        url     => $self->{creds}->{wsc}->{url} . "/vrf.cgi",
-        uid     => $self->{creds}->{wsc}->{username},
-        passwd  => $self->{creds}->{wsc}->{password},
+        url     => $creds->{wsc}->{url} . "/vrf.cgi",
+        uid     => $creds->{wsc}->{username},
+        passwd  => $creds->{wsc}->{password},
         verify_hostname => 0,
         #usePost => 1,
         debug   => 0
@@ -64,17 +59,11 @@ if ( defined $client ) {
     warn "client not defined";
 }
 
-
-$self->{connections} = {};
-
 my %aws_matches = ();
 
-foreach my $conn (@{$self->{creds}->{cloud}->{connection}}) {
-    $self->{connections}->{$conn->{interconnect_id}} = $conn;
+foreach my $conn (@{$creds->{cloud}->{connection}}) {
+    $connections->{$conn->{interconnect_id}} = $conn;
 }
-
-#warn "self-connections " . Dumper $self->{connections};
-#warn "self-creds " . Dumper $self->{creds};
 
 my $dc = Paws->service(
     'DirectConnect',
@@ -84,11 +73,6 @@ my $dc = Paws->service(
 # DescribeVirtualInterfaces
 
 my $aws_res = $dc->DescribeVirtualInterfaces();
-#$aws_res->{VirtualInterfaces} =  [ map { $_->delete_custom_field('CustomerRouterConfig') } @{$aws_res->{VirtualInterfaces}} ];
-
-#warn "aws_res " . Dumper $aws_res;
-
-#die;
 
 my $vrf_id_filter = 609;
 
@@ -241,47 +225,3 @@ sub get_vrf_aws_details {
     return \@aws_details;
 
 }
-
-#my $virtual_interfaces = $aws_res->{VirtualInterfaces};
-#warn "interfaces \n";
-##my $json = $aws_res->freeze();
-##warn $json->encode( $virtual_interfaces );
-#
-#warn "aws aws_res " . Dumper ( $aws_res );
-#
-#for my $intf ( @$virtual_interfaces ) {
-#    my $bgp_peers = $intf->BgpPeers;
-#    #warn "bgp peers " . Dumper @{ $interface->BgpPeers }[0]->AddressFamily;
-#
-#    my @fields = (
-#        'Vlan', 
-#        'VirtualInterfaceState', 
-#        'ConnectionId',
-#        'AmazonAddress',
-#        'Asn',
-#        'OwnerAccount',
-#        'CustomerAddress',
-#        'Location',
-#        'AmazonSideAsn',
-#        'DirectConnectGatewayId',
-#        'VirtualInterfaceType',
-#        'VirtualInterfaceName',
-#        'VirtualInterfaceId',
-#        'AddressFamily',
-#        #'AuthKey',
-#        'VirtualGatewayId',
-#
-#    );
-#
-#    my $results = {};
-#    for my $field ( @fields ) {
-#        $results->{$field} = $intf->{$field};
-#
-#    }
-#    warn "RESULTS\n" . Dumper $results;
-#
-#
-#
-#}
-#
-
