@@ -86,12 +86,14 @@ my $aws_res = $dc->DescribeVirtualInterfaces();
 
 #die;
 
+my $vrf_id_filter = 609;
 
 my $oess_updates = [];
 foreach my $vrf (@$oess_res) {
     #warn "vrf " . Dumper $vrf;
     foreach my $endpoint ( @{$vrf->{'endpoints'}} ) {
         next if ( not defined( $endpoint->{'cloud_connection_id'} ) );
+        next if ( defined ( $vrf_id_filter ) && $vrf_id_filter != $endpoint->{'tag'} );
         #warn "endpoint " . Dumper $endpoint;
         #my $interconnect_id = $endpoint->{'interface'}->{'cloud_interconnect_id'};
         my $connection_id = $endpoint->{'cloud_connection_id'};
@@ -101,10 +103,35 @@ foreach my $vrf (@$oess_res) {
         warn "NUMBER OF PEERS " . @{$endpoint->{'peers'}};
         my $aws_vrfs = get_vrf_aws_details( $connection_id, $vlan_id );
         update_endpoint_values( $endpoint, $aws_vrfs );
-        push @$oess_updates, $aws_vrfs;
+        push @$oess_updates, $vrf;
+    }
+}
 
+warn "OESS_UPDATES " . Dumper $oess_updates;
+
+my $update_requests = reformat( $oess_updates );
+
+sub reformat {
+    my ( $updates ) = @_;
+
+    my @top_level_fields = ( 'local_asn', 'prefix_limit', 'name', 'vrf_id', 'description' );
+
+
+    my $update = {};
+    foreach my $row (@$updates) {
+        $update->{'workgroup_id'} = $workgroup_id;
+        $update->{'endpoint'} = $jsonObj->encode( $row->{'endpoints'} );
+        foreach my $field( @top_level_fields ) {
+            $update->{ $field } = $row->{ $field };
+        }
 
     }
+
+    warn "UPDATE " . Dumper $update;
+
+    return $update;
+
+
 
 }
 
@@ -115,15 +142,15 @@ sub update_endpoint_values {
     foreach my $aws (@$aws_vrfs ) {
         warn "updating aws " . $aws->VirtualInterfaceId;
         #warn "aws values " . Dumper $aws;
-        $endpoint->{'interface'}->{'cloud_interconnect_id'} = $aws->ConnectionId;
-        $endpoint->{'cloud_account_id'} = $aws->OwnerAccount;
+        $endpoint->{'interface'}->{'cloud_interconnect_id'} = $aws->ConnectionId if  $aws->ConnectionId;
+        $endpoint->{'cloud_account_id'} = $aws->OwnerAccount if $aws->OwnerAccount;
         # TODO: handle more than one set of peers. currently we assume one
         my $peer = $endpoint->{'peers'}->[0];
         warn "PEER " . Dumper $peer;
-        $peer->{'peer_ip'} = $aws->AmazonAddress;
-        $peer->{'peer_asn'} = $aws->AmazonSideAsn;
-        $peer->{'md5_key'} = $aws->AuthKey;
-        $peer->{'local_ip'} = $aws->CustomerAddress;
+        $peer->{'peer_ip'} = $aws->AmazonAddress if $aws->AmazonAddress;
+        $peer->{'peer_asn'} = $aws->AmazonSideAsn if $aws->AmazonSideAsn;
+        $peer->{'md5_key'} = $aws->AuthKey if $aws->AuthKey;
+        $peer->{'local_ip'} = $aws->CustomerAddress if $aws->CustomerAddress;
         warn "PEER AFTER CHANGES " . Dumper $peer;
         $endpoint->{'peers'}->[0] = $peer;
 
@@ -131,9 +158,24 @@ sub update_endpoint_values {
     }
 
     warn "ENDPOINT AFTER UPDATES vlan " . $endpoint->{'tag'} . "!!\n"  . Dumper $endpoint;
+}
 
+# Updates a value, but only if the new value is defined
+# Assumes that $old is a scalar, but ...
+# if $key is provided then $old->{ $key } is used for the old value
 
+sub _update_value {
+    my ( $old, $new, $key ) = @_;
+    # by default, return the "old" (existing) value
+    my $ret = $old;
 
+    if ( defined $new ) {
+        if ( $key ) {
+            my $oldval = $old->{ $key };
+        }
+        $ret = $new;
+    }
+    return $ret;
 }
 
 warn "aws_matches " . Dumper \%aws_matches;
