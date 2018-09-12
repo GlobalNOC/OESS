@@ -2212,7 +2212,12 @@ sub get_lsp_paths{
 
         foreach my $path (@{$paths}) {
             if ($xp->exists('./r:path-active', $path)) {
-                my $next_hops = $xp->find('./r:explicit-route/r:address', $path);
+                my $next_hops;
+                if ( $self->{'major_rev'} < 17 ) {
+                    $next_hops = $xp->find('./r:explicit-route/r:address', $path);
+                } else {
+                    $next_hops = $xp->find('./r:explicit-route/r:explicit-route-element/r:address', $path);
+                }
 
                 foreach my $nh (@{$next_hops}) {
                     push(@{$lsp_routes->{$name}}, $nh->textContent);
