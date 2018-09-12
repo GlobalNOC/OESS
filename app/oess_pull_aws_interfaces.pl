@@ -33,14 +33,14 @@ sub new {
     my $creds = XML::Simple::XMLin($self->{config});
     $self->{creds} = $creds;
     #warn "config " . Dumper $self->{creds};
-    #warn "url " .  Dumper $creds->{'wsc'}->{'url'};
+    #warn "url " .  Dumper $creds->{wsc}->{url};
     $client = GRNOC::WebService::Client->new(
-        url     => $self->{creds}->{'wsc'}->{'url'} . "/vrf.cgi",
-        uid     => $self->{creds}->{'wsc'}->{'username'},
-        passwd  => $self->{creds}->{'wsc'}->{'password'},
+        url     => $self->{creds}->{wsc}->{url} . "/vrf.cgi",
+        uid     => $self->{creds}->{wsc}->{username},
+        passwd  => $self->{creds}->{wsc}->{password},
         verify_hostname => 0,
         #usePost => 1,
-        debug   => 1
+        debug   => 0
     ) or die "Cannot connect to webservice";
     #warn "client after creating " . Dumper $client;
 }
@@ -54,6 +54,10 @@ my $oess_res;
 if ( defined $client ) {
     $oess_res = $client->get_vrfs( workgroup_id => $workgroup_id );
     warn "oess_res: " . Dumper $oess_res;
+    if ( ! defined $oess_res ) {
+        die "Error retrieving VRFs from webservice " . $client->get_error();
+
+    }
 #my $data = $oess_res->data();
     #warn "data " . Dumper $data;
 } else {
@@ -80,7 +84,7 @@ my $dc = Paws->service(
 # DescribeVirtualInterfaces
 
 my $aws_res = $dc->DescribeVirtualInterfaces();
-#$aws_res->{'VirtualInterfaces'} =  [ map { $_->delete_custom_field('CustomerRouterConfig') } @{$aws_res->{'VirtualInterfaces'}} ];
+#$aws_res->{VirtualInterfaces} =  [ map { $_->delete_custom_field('CustomerRouterConfig') } @{$aws_res->{VirtualInterfaces}} ];
 
 #warn "aws_res " . Dumper $aws_res;
 
@@ -91,16 +95,16 @@ my $vrf_id_filter = 609;
 my $oess_updates = [];
 foreach my $vrf (@$oess_res) {
     #warn "vrf " . Dumper $vrf;
-    foreach my $endpoint ( @{$vrf->{'endpoints'}} ) {
-        next if ( not defined( $endpoint->{'cloud_connection_id'} ) );
-        next if ( defined ( $vrf_id_filter ) && $vrf_id_filter != $endpoint->{'tag'} );
+    foreach my $endpoint ( @{$vrf->{endpoints}} ) {
+        next if ( not defined( $endpoint->{cloud_connection_id} ) );
+        next if ( defined ( $vrf_id_filter ) && $vrf_id_filter != $endpoint->{tag} );
         #warn "endpoint " . Dumper $endpoint;
-        #my $interconnect_id = $endpoint->{'interface'}->{'cloud_interconnect_id'};
-        my $connection_id = $endpoint->{'cloud_connection_id'};
-        my $vlan_id = $endpoint->{'tag'};
-        #my $vlan_id = $endpoint->{'cloud_connection_id'};
+        #my $interconnect_id = $endpoint->{interface}->{cloud_interconnect_id};
+        my $connection_id = $endpoint->{cloud_connection_id};
+        my $vlan_id = $endpoint->{tag};
+        #my $vlan_id = $endpoint->{cloud_connection_id};
         warn "VLAN_ID " . Dumper $vlan_id;
-        warn "NUMBER OF PEERS " . @{$endpoint->{'peers'}};
+        warn "NUMBER OF PEERS " . @{$endpoint->{peers}};
         my $aws_vrfs = get_vrf_aws_details( $connection_id, $vlan_id );
         update_endpoint_values( $endpoint, $aws_vrfs );
         push @$oess_updates, $vrf;
@@ -119,8 +123,22 @@ sub reformat {
 
     my $update = {};
     foreach my $row (@$updates) {
-        $update->{'workgroup_id'} = $workgroup_id;
-        $update->{'endpoint'} = $jsonObj->encode( $row->{'endpoints'} );
+        $update->{workgroup_id} = $workgroup_id;
+        #$update->{endpoint} = $jsonObj->encode( $row->{endpoints} );
+        $update->{endpoint} = [];
+        foreach my $endpoint (@{$updates->{endpoints}}) {
+            my $ep = {};
+            $ep->{interface}->{node}->{name} = $endpoint->{node}->{name};
+            $ep->{interface}->{name} = $endpoint->{interface}->{name};
+            $ep->{tag} = $endpoint->{tag};
+            $ep->{inner_tag} = $endpoint->{inner_tag};
+            $ep->{cloud_account_id} = $endpoint->{cloud_account_id};
+            $ep->{cloud_connection_id} = $endpoint->{cloud_connection_id};
+
+            push @{$update->{endpoint}}, $ep;        
+
+        }
+
         foreach my $field( @top_level_fields ) {
             $update->{ $field } = $row->{ $field };
         }
@@ -142,22 +160,22 @@ sub update_endpoint_values {
     foreach my $aws (@$aws_vrfs ) {
         warn "updating aws " . $aws->VirtualInterfaceId;
         #warn "aws values " . Dumper $aws;
-        $endpoint->{'interface'}->{'cloud_interconnect_id'} = $aws->ConnectionId if  $aws->ConnectionId;
-        $endpoint->{'cloud_account_id'} = $aws->OwnerAccount if $aws->OwnerAccount;
+        $endpoint->{interface}->{cloud_interconnect_id} = $aws->ConnectionId if  $aws->ConnectionId;
+        $endpoint->{cloud_account_id} = $aws->OwnerAccount if $aws->OwnerAccount;
         # TODO: handle more than one set of peers. currently we assume one
-        my $peer = $endpoint->{'peers'}->[0];
+        my $peer = $endpoint->{peers}->[0];
         warn "PEER " . Dumper $peer;
-        $peer->{'peer_ip'} = $aws->AmazonAddress if $aws->AmazonAddress;
-        $peer->{'peer_asn'} = $aws->AmazonSideAsn if $aws->AmazonSideAsn;
-        $peer->{'md5_key'} = $aws->AuthKey if $aws->AuthKey;
-        $peer->{'local_ip'} = $aws->CustomerAddress if $aws->CustomerAddress;
+        $peer->{peer_ip} = $aws->AmazonAddress if $aws->AmazonAddress;
+        $peer->{peer_asn} = $aws->AmazonSideAsn if $aws->AmazonSideAsn;
+        $peer->{md5_key} = $aws->AuthKey if $aws->AuthKey;
+        $peer->{local_ip} = $aws->CustomerAddress if $aws->CustomerAddress;
         warn "PEER AFTER CHANGES " . Dumper $peer;
-        $endpoint->{'peers'}->[0] = $peer;
+        $endpoint->{peers}->[0] = $peer;
 
 
     }
 
-    warn "ENDPOINT AFTER UPDATES vlan " . $endpoint->{'tag'} . "!!\n"  . Dumper $endpoint;
+    warn "ENDPOINT AFTER UPDATES vlan " . $endpoint->{tag} . "!!\n"  . Dumper $endpoint;
 }
 
 # Updates a value, but only if the new value is defined
@@ -189,12 +207,12 @@ sub get_vrf_aws_details {
 
     #warn "aws_res: $aws_res";
     
-    #my @ret = grep { $_->ConnectionId eq $cloud_interconnect_id } @{$aws_res->{'VirtualInterfaces'}};
+    #my @ret = grep { $_->ConnectionId eq $cloud_interconnect_id } @{$aws_res->{VirtualInterfaces}};
     #warn "RET \n" . Dumper @ret;
     
     my @aws_details = (); 
 
-    foreach my $aws (@{$aws_res->{'VirtualInterfaces'}}) {
+    foreach my $aws (@{$aws_res->{VirtualInterfaces}}) {
 
         if ( $aws->VirtualInterfaceId ne $cloud_connection_id ) {
             next;
@@ -229,7 +247,7 @@ sub output_aws_details {
 
 }
 
-my $virtual_interfaces = $aws_res->{'VirtualInterfaces'};
+my $virtual_interfaces = $aws_res->{VirtualInterfaces};
 warn "interfaces \n";
 #my $json = $aws_res->freeze();
 #warn $json->encode( $virtual_interfaces );
