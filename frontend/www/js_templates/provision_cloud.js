@@ -184,13 +184,9 @@ function loadSelectedEndpointList() {
   endpoints.forEach(function(endpoint, index) {
           let endpointName = '';
           if ('entity_id' in endpoint) {
-              if (endpoint.interface === '') {
-                  endpointName = `${endpoint.entity} <small>${endpoint.tag}</small>`;
-              } else {
-                  endpointName = `${endpoint.entity} <small>${endpoint.interface} ${endpoint.tag}</small>`;
-              }
+              endpointName = `${endpoint.entity} ${endpoint.node} <small>${endpoint.name} ${endpoint.tag}</small>`;
           } else {
-              endpointName = `${endpoint.node} <small>${endpoint.interface} - ${endpoint.tag}</small>`;
+              endpointName = `${endpoint.node} <small>${endpoint.name} - ${endpoint.tag}</small>`;
           }
 
           let peerings = '';

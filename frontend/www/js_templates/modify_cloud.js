@@ -308,7 +308,7 @@ function loadSelectedEndpointList() {
   endpoints.forEach(function(endpoint, index) {
           let endpointName = '';
           endpointName = `${endpoint.entity} - ${endpoint.node} - ${endpoint.name} <small>${endpoint.tag}</small>`;
-
+         
           let peerings = '';
           endpoint.peerings.forEach(function(peering, peeringIndex) {
                   peerings += `

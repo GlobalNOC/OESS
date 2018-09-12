@@ -8,6 +8,8 @@ use GRNOC::WebService::Dispatcher;
 use OESS::DB;
 use OESS::Interface;
 use OESS::VRF;
+use OESS::Entity;
+use OESS::Workgroup;
 
 my $db = OESS::DB->new();
 my $svc = GRNOC::WebService::Dispatcher->new();
@@ -69,6 +71,21 @@ sub register_ro_methods{
     
 
     $svc->register_method($method);
+
+    my $method = GRNOC::WebService::Method->new(
+        name => "get_workgroup_interfaces",
+        description => "returns a list of available vlan tags ",
+        callback => sub { get_workgroup_interfaces(@_) }
+        );
+    
+    $method->add_input_parameter( name => 'workgroup_id',
+                                  pattern => $GRNOC::WebService::Regex::INTEGER,
+                                  required => 1,
+                                  description => 'Workgroup ID to fetch details'
+        );
+    
+    $svc->register_method($method);    
+
 }
 
 sub register_rw_methods{
@@ -137,6 +154,31 @@ sub is_vlan_available{
     }
 
     return {results => {allowed => $interface->vlan_valid( workgroup_id => $workgroup_id, vlan => $vlan )}};
+}
+
+sub get_workgroup_interfaces{
+    my $method = shift;
+    my $params = shift;
+    my $workgroup_id = $params->{'workgroup_id'}{'value'};
+
+    my $workgroup = OESS::Workgroup->new( workgroup_id => $workgroup_id, db => $db);
+    my $interfaces = $workgroup->interfaces();
+
+    my @res;
+    foreach my $interface (@$interfaces){
+        my $obj = $interface->to_hash();
+        my $entity = OESS::Entity->new( interface_id => $interface->interface_id(), db => $db);
+        if(defined($entity)){
+            $obj->{'entity'} = $entity->name();
+            $obj->{'entity_id'} = $entity->entity_id();
+        }
+        push(@res, $obj);
+    }
+
+    return {results => \@res};
+
+
+    
 }
 
 sub main{
