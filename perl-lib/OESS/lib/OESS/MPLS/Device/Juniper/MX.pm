@@ -269,6 +269,7 @@ B<Result>
       model         => 'vmx'
       os_name       => 'junos'
       version       => '15.1F6.9'
+      major_rev     => '15'
     }
 
 =cut
@@ -304,7 +305,8 @@ sub get_system_information{
     my $model =     $xp->findvalue('/x:rpc-reply/x:system-information/x:hardware-model');
     my $os_name =   $xp->findvalue('/x:rpc-reply/x:system-information/x:os-name');
     my $version =   $xp->findvalue('/x:rpc-reply/x:system-information/x:os-version');
-
+    my $major_rev = $version;
+    $major_rev =~ s/^(\d+)\..+$/$1/;
     $self->{logger}->info("Using firmware version $version.");
 
     #also need to fetch the interfaces and find lo0.X
@@ -377,7 +379,8 @@ sub get_system_information{
     }
 
     $self->{'loopback_addr'} = $loopback_addr;
-    return {model => $model, version => $version, os_name => $os_name, host_name => $host_name, loopback_addr => $loopback_addr};
+    $self->{'major_rev'} = $major_rev;
+    return {model => $model, version => $version, os_name => $os_name, host_name => $host_name, loopback_addr => $loopback_addr, major_rev => $major_rev};
 }
 
 =head2 get_routed_lsps
@@ -1999,7 +2002,7 @@ sub verify_connection{
 
     my $sysinfo = $self->get_system_information();
     foreach my $fw (@{$self->{'supported_firmware'}}) {
-        if ($sysinfo->{'os_name'} eq $fw->{'make'} && $sysinfo->{'model'} eq $fw->{'model'} && $sysinfo->{'version'} eq $fw->{'number'}) {
+        if ($sysinfo->{'os_name'} eq $fw->{'make'} && $sysinfo->{'model'} eq $fw->{'model'} && $sysinfo->{'version'} eq $fw->{'number'} && $sysinfo->{'major_rev'} eq $fw->{'major_rev'}) {
             return 1;
         }
     }
