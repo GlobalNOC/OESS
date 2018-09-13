@@ -99,6 +99,11 @@ function removeFromEndpointSelectionTable(index) {
   loadEndpointSelectionTable();
 }
 
+function formatDate(seconds) {
+    let d = new Date(seconds * 1000);
+    return d.toLocaleString();
+}
+
 /**
  * loadVRF
  */
@@ -115,14 +120,25 @@ async function loadVRF() {
   document.getElementById('vrf-id').innerHTML = vrf.vrf_id;
   document.getElementById('provision-time').innerHTML = '';
   document.getElementById('remove-time').innerHTML = '';
-  document.getElementById('last-modified').innerHTML = new Date(vrf.last_modified * 1000);
+  document.getElementById('last-modified').innerHTML = formatDate(vrf.last_modified);
   document.getElementById('last-modified-by').innerHTML = vrf.last_modified_by.email;
-  document.getElementById('created-on').innerHTML = new Date(vrf.created * 1000);
+  document.getElementById('created-on').innerHTML = formatDate(vrf.created);
   document.getElementById('created-by').innerHTML = vrf.created_by.email;
   document.getElementById('owned-by').innerHTML = vrf.workgroup.name;
   document.getElementById('state').innerHTML = vrf.state;
 
+  let peerSelections = document.getElementById('peering-selection');
+
+  let iframe3 = document.getElementById(`endpoints-statistics-iframe-route`);
+  iframe3.dataset.vrf = vrf.vrf_id;
+  iframe3.src = `${iframe3.dataset.url}&var-table=OESS-L3VPN-${vrf.vrf_id}.inet.0&from=now-1h&to=now`;
+
   vrf.endpoints.forEach(function(endpoint, eIndex) {
+
+    let select = document.createElement('select');
+    select.setAttribute('class', 'form-control peer-selection');
+    select.setAttribute('id', `peering-selection-${eIndex}`);
+    select.setAttribute('onchange', 'updateStatisticsIFrame()');
 
     let peeringHTML = '';
     endpoint.peers.forEach(function(peering, peeringIndex) {
@@ -136,7 +152,10 @@ async function loadVRF() {
   <td><span id="state" class="label label-success">active</span></td>
 </tr>`;
 
+      select.innerHTML += `<option value=${peering.peer_ip}>${peering.peer_ip}</option>`;
     });
+
+    peerSelections.appendChild(select);
 
     let html = `
 <div class="panel panel-default">
@@ -158,7 +177,7 @@ async function loadVRF() {
     </tbody>
   </table>
 </div>`;
-    
+
     let endpoints = document.getElementById('endpoints');
     endpoints.innerHTML += html;
 
@@ -171,7 +190,8 @@ async function loadVRF() {
   </div>
 
   <div style="padding-left: 15px; padding-right: 15px">
-    <iframe id="endpoints-statistics-iframe-${eIndex}" data-url="[% grafana %]" src="[% grafana %]&from=now-1h&to=now" width="100%" height="300" frameborder="0"></iframe>
+    <iframe id="endpoints-statistics-iframe-${eIndex}" data-url="[% g_port %]" data-node="${endpoint.node.name}" data-interface="${endpoint.interface.name}" width="100%" height="300" frameborder="0"></iframe>
+    <iframe id="endpoints-statistics-iframe-peer-${eIndex}" data-url="[% g_peer %]" data-node="${endpoint.node.name}" data-vrf="${vrf.vrf_id}" width="100%" height="300" frameborder="0"></iframe>
   </div>
 </div>`;
 
@@ -195,10 +215,18 @@ function displayStatisticsIFrame() {
         elements[i].style.display = 'none';
     }
 
+    let selections = document.getElementsByClassName('peer-selection');
+    for (let i = 0; i < selections.length; i++) {
+        selections[i].style.display = 'none';
+    }
+
     let container = document.getElementById(`endpoints-statistics-selection`);
 
     let element = document.getElementById(`endpoints-statistics-${container.value}`);
     element.style.display = 'block';
+
+    let peer = document.getElementById(`peering-selection-${container.value}`);
+    peer.style.display = 'block';
 
     updateStatisticsIFrame();
 }
@@ -208,6 +236,14 @@ function updateStatisticsIFrame() {
 
     let range = document.getElementById(`endpoints-statistics-range`);
 
+    let peer = document.getElementById(`peering-selection-${container.value}`);
+
     let iframe = document.getElementById(`endpoints-statistics-iframe-${container.value}`);
-    iframe.src = iframe.dataset.url + range.value;
+    iframe.src = `${iframe.dataset.url}&var-node=${iframe.dataset.node}&var-interface=${iframe.dataset.interface}` + range.value;
+
+    let iframe2 = document.getElementById(`endpoints-statistics-iframe-peer-${container.value}`);
+    iframe2.src = `${iframe2.dataset.url}&var-node=${iframe2.dataset.node}&var-vrf=OESS-L3VPN-${iframe2.dataset.vrf}&var-peer=${peer.value}` + range.value;
+
+    let iframe3 = document.getElementById(`endpoints-statistics-iframe-route`);
+    iframe3.src = `${iframe3.dataset.url}&var-table=OESS-L3VPN-${iframe3.dataset.vrf}.inet.0` + range.value;
 }
