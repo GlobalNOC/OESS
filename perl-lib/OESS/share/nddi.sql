@@ -147,6 +147,41 @@ LOCK TABLES `circuit_instantiation` WRITE;
 /*!40000 ALTER TABLE `circuit_instantiation` ENABLE KEYS */;
 UNLOCK TABLES;
 
+
+--
+-- Table structure for table `cloud_connection_vrf_ep`
+--
+
+DROP TABLE IF EXISTS `cloud_connection_vrf_ep`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `cloud_connection_vrf_ep` (
+  `cloud_connection_vrf_ep_id` int(11) NOT NULL AUTO_INCREMENT,
+  `vrf_ep_id` int(11) DEFAULT NULL,
+  `cloud_account_id` varchar(255) NOT NULL,
+  `cloud_connection_id` varchar(255) NOT NULL,
+  PRIMARY KEY (`cloud_connection_vrf_ep_id`),
+  KEY `vrf_ep_id` (`vrf_ep_id`),
+  CONSTRAINT `cloud_connection_vrf_ep_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=38 DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `command`
+--
+
+DROP TABLE IF EXISTS `command`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `command` (
+  `command_id` int(10) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `template` varchar(255) NOT NULL,
+  `type` varchar(255) NOT NULL,
+  PRIMARY KEY (`command_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
 --
 -- Table structure for table `edge_interface_move_maintenance`
 --
@@ -177,6 +212,54 @@ LOCK TABLES `edge_interface_move_maintenance` WRITE;
 /*!40000 ALTER TABLE `edge_interface_move_maintenance` DISABLE KEYS */;
 /*!40000 ALTER TABLE `edge_interface_move_maintenance` ENABLE KEYS */;
 UNLOCK TABLES;
+
+--
+-- Table structure for table `entity`
+--
+
+DROP TABLE IF EXISTS `entity`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `entity` (
+  `entity_id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) DEFAULT NULL,
+  `description` text,
+  `logo_url` varchar(255) DEFAULT NULL,
+  `url` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`entity_id`)
+) ENGINE=MyISAM AUTO_INCREMENT=15 DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `entity_hierarchy`
+--
+
+DROP TABLE IF EXISTS `entity_hierarchy`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `entity_hierarchy` (
+  `entity_parent_id` int(11) NOT NULL,
+  `entity_child_id` int(11) NOT NULL,
+  KEY `entity_parent` (`entity_parent_id`),
+  KEY `entity_child` (`entity_child_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `entity_interface_membership`
+--
+
+DROP TABLE IF EXISTS `entity_interface_membership`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `entity_interface_membership` (
+  `entity_id` int(11) NOT NULL,
+  `interface_id` int(11) NOT NULL,
+  UNIQUE KEY `unique_entity_interface` (`entity_id`,`interface_id`),
+  KEY `interface` (`interface_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
 
 --
 -- Table structure for table `edge_interface_move_maintenance_circuit_membership`
@@ -830,6 +913,21 @@ INSERT INTO `user` VALUES (1,'system@localhost','system','system',0,'normal','ac
 UNLOCK TABLES;
 
 --
+-- Table structure for table `user_entity_membership`
+--
+
+DROP TABLE IF EXISTS `user_entity_membership`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `user_entity_membership` (
+  `user_id` int(11) NOT NULL,
+  `entity_id` int(11) NOT NULL,
+  KEY `entity` (`entity_id`),
+  KEY `user` (`user_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `user_workgroup_membership`
 --
 
@@ -924,23 +1022,6 @@ LOCK TABLES `vrf_ep` WRITE;
 /*!40000 ALTER TABLE `vrf_ep` ENABLE KEYS */;
 UNLOCK TABLES;
 
-DROP TABLE IF EXISTS `cloud_connection_vrf_ep`;
-CREATE TABLE `cloud_connection_vrf_ep` (
-  `cloud_connection_vrf_ep_id` int(11) NOT NULL AUTO_INCREMENT,
-  `vrf_ep_id` int(11) DEFAULT NULL,
-  `cloud_account_id` varchar(255) NOT NULL,
-  `cloud_connection_id` varchar(255) NOT NULL,
-  PRIMARY KEY (`cloud_connection_vrf_ep_id`),
-  KEY `vrf_ep_id` (`vrf_ep_id`),
-  CONSTRAINT `cloud_connection_vrf_ep_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
-
-LOCK TABLES `cloud_connection_vrf_ep` WRITE;
-/*!40000 ALTER TABLE `cloud_connection_vrf_ep` DISABLE KEYS */;
-/*!40000 ALTER TABLE `cloud_connection_vrf_ep` ENABLE KEYS */;
-UNLOCK TABLES;
-
 --
 -- Table structure for table `vrf_ep_peer`
 --
@@ -1020,88 +1101,6 @@ CREATE TABLE `workgroup_node_membership` (
 --
 -- Table structure for table `workgroup_node_membership`
 --
-
-DROP TABLE IF EXISTS `entity`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-
-CREATE TABLE `entity` (
-  `entity_id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) DEFAULT NULL,
-  `description` text,
-  `logo_url` varchar(255) DEFAULT NULL,
-  `url` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`entity_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `entity`
---
-
-LOCK TABLES `entity` WRITE;
-/*!40000 ALTER TABLE `entity` DISABLE KEYS */;
-INSERT INTO `entity` VALUES (1,'root');
-/*!40000 ALTER TABLE `entity` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `entity_hierarchy`
---
-
-DROP TABLE IF EXISTS `entity_hierarchy`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-
-CREATE TABLE `entity_hierarchy` (
-  `entity_parent_id` int(11) NOT NULL,
-  `entity_child_id` int(11) NOT NULL,
-  KEY `entity_parent` (`entity_parent_id`),
-  KEY `entity_child` (`entity_child_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `entity_hierarchy`
---                                                                                                                                                                                                                 
-
-DROP TABLE IF EXISTS `entity_interface_membership`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-
-CREATE TABLE `entity_interface_membership` (
-  `entity_id` int(11) NOT NULL,
-  `interface_id` int(11) NOT NULL,
-  UNIQUE KEY `unique_entity_interface` (`entity_id`,`interface_id`),
-  KEY `interface` (`interface_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
-
---
--- Table structure for table `command`
---
-
-DROP TABLE IF EXISTS `command`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `command` (
-  `command_id` int(10) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
-  `template` varchar(255) NOT NULL,
-  `type` varchar(255) NOT NULL,
-  PRIMARY KEY (`command_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `command`
---
-
-LOCK TABLES `command` WRITE;
-/*!40000 ALTER TABLE `command` DISABLE KEYS */;
-/*!40000 ALTER TABLE `command` ENABLE KEYS */;
-UNLOCK TABLES;
 
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
