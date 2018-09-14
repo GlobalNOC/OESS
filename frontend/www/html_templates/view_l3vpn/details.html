@@ -1,0 +1,45 @@
+<style>
+.table.table-borderless tr td, .table.no-border tr th {
+    border: 0;
+}
+</style>
+
+<div class="row" style="margin-bottom: 15px;">
+  <div class="col-md-6">
+    <div id="provision-time"></div>
+    <div id="remove-time"></div>
+
+    <table class="table table-borderless">
+      <tr>
+        <td><b>Status:</b></td><td><span id="state" class="label label-success"></span></td>
+      </tr>
+      <tr>
+        <td><b>Owned by:</b></td><td id="owned-by"/>
+      </tr>
+      <tr>
+        <td><b>Created by:</b></td><td id="created-by"/>
+      </tr>
+      <tr>
+        <td><b>Created on:</b></td><td id="created-on"/>
+      </tr>
+      <tr>
+        <td><b>Last modified by:</b></td><td id="last-modified-by"/>
+      </tr>
+      <tr>
+        <td><b>Last modified on:</b></td><td id="last-modified"/>
+      </tr>
+    </table>
+
+    <iframe id="endpoints-statistics-iframe-route" data-url="[% g_route %]" width="100%" height="300" frameborder="0"></iframe>
+  </div>
+
+  <div class="col-md-6">
+    <div id="map" class="openlayers"></div>
+  </div>
+</div>
+
+<div class="row" style="margin-bottom: 15px;">
+  <div class="col-md-12">
+    <div id="endpoints"></div>
+  </div>
+</div>
