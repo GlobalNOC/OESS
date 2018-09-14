@@ -551,7 +551,7 @@ sub handle_vrf_stats{
 
     my $time = time();
     my $tsds_val = ();
-
+    $self->{'logger'}->debug("Handling RIB stats: " . Dumper($rib_stats));
     while (scalar(@$rib_stats) > 0){
         my $rib = shift @$rib_stats;
         my $meta = { routing_table => $rib->{'vrf'},
@@ -566,10 +566,12 @@ sub handle_vrf_stats{
                            meta => $meta});
 
         if(scalar(@$tsds_val) >= MAX_TSDS_MESSAGES || scalar(@$rib_stats) == 0){
-            $self->{'tsds_svc'}->add_data(data => encode_json($tsds_val));
+            $self->{'logger'}->debug(Dumper($self->{'tsds_svc'}->add_data(data => encode_json($tsds_val))));
             $tsds_val = ();
         }
     }
+
+    $self->{'logger'}->debug("Handling Peer stats: " . Dumper($peer_stats));
 
     while (scalar(@$peer_stats) > 0){
         my $peer = shift @$peer_stats;
@@ -606,7 +608,8 @@ sub handle_vrf_stats{
                            meta => $meta});
 
         if(scalar(@$tsds_val) >= MAX_TSDS_MESSAGES || scalar(@$peer_stats) == 0){
-            $self->{'tsds_svc'}->add_data(data => encode_json($tsds_val));
+            $self->{'logger'}->debug("Sending: " . Dumper($tsds_val));
+            $self->{'logger'}->debug(Dumper("Response: " . Dumper($self->{'tsds_svc'}->add_data(data => encode_json($tsds_val)))));
             $tsds_val = ();
         }
     }    

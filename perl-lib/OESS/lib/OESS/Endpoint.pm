@@ -10,6 +10,7 @@ use OESS::Interface;
 use OESS::Entity;
 use OESS::Node;
 use OESS::Peer;
+use OESS::Entity;
 use Data::Dumper;
 
 sub new{
@@ -53,12 +54,16 @@ sub _build_from_model{
     my $self = shift;
 
     warn "Building endpoint from model\n";
+
     
     if(defined($self->{'model'}->{'interface'})){
         $self->{'interface'} = OESS::Interface->new( db => $self->{'db'}, name => $self->{'model'}->{'interface'}, node => $self->{'model'}->{'node'});
+        $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, interface_id => $self->{'interface'}->interface_id());
     }else{
-        $self->{'interface'} = OESS::Entity->new( db => $self->{'db'}, name => $self->{'model'}->{'entity'})->interfaces()->[0];
+        $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, name => $self->{'model'}->{'entity'});
+        $self->{'interface'} = $self->{'entity'}->interfaces()->[0];
     }
+
     $self->{'inner_tag'} = $self->{'model'}->{'inner_tag'};
     $self->{'tag'} = $self->{'model'}->{'tag'};
     $self->{'bandwidth'} = $self->{'model'}->{'bandwidth'};
@@ -93,7 +98,9 @@ sub to_hash{
     $obj->{'bandwidth'} = $self->bandwidth();
     $obj->{cloud_account_id} = $self->cloud_account_id();
     $obj->{cloud_connection_id} = $self->cloud_connection_id();
-
+    if(defined($self->entity())){
+        $obj->{'entity'} = $self->entity->to_hash();
+    }
     if($self->{'type'} eq 'vrf'){
 
         my @peers;
@@ -121,6 +128,7 @@ sub from_hash{
 
     $self->{'bandwidth'} = $hash->{'bandwidth'};
     $self->{'interface'} = $hash->{'interface'};
+
     $self->{cloud_account_id} = $hash->{cloud_account_id};
     $self->{cloud_connection_id} = $hash->{cloud_connection_id};
 
@@ -134,6 +142,8 @@ sub from_hash{
     $self->{'inner_tag'} = $hash->{'inner_tag'};
     $self->{'tag'} = $hash->{'tag'};
     $self->{'bandwidth'} = $hash->{'bandwidth'};
+
+    $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, interface_id => $self->{'interface'}->{'interface_id'});
     
 }
 
@@ -231,6 +241,11 @@ sub circuit_id{
 sub circuit_endpoint_id{
     my $self = shift;
     return $self->{'circuit_endpoint_id'};
+}
+
+sub entity{
+    my $self = shift;
+    return $self->{'entity'};
 }
 
 sub decom{
