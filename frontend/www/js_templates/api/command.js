@@ -12,8 +12,11 @@ async function getCommands() {
   }
 }
 
-async function runCommand(workgroupID, commandID, vrfID) {
-    let url = `[% path %]services/command.cgi?method=run_command&workgroup_id=${workgroupID}&command_id=${commandID}&vrf_id=${vrfID}`;
+async function runCommand(workgroupID, commandID, options={}) {
+    let url = `[% path %]services/command.cgi?method=run_command&workgroup_id=${workgroupID}&command_id=${commandID}`;
+    Object.keys(options).forEach(function(k) {
+            url += `&${k}=${options[k]}`;
+    });
 
   try {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});

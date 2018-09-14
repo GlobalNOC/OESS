@@ -114,6 +114,8 @@ async function loadVRF() {
   let vrf = await getVRF(vrfID);
   console.log(vrf);
 
+  loadCommands(vrf);
+
   let description = document.getElementById('description');
   description.innerHTML = `${vrf.description} <small>${vrf.vrf_id}</small>`;
 

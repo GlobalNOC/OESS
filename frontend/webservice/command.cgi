@@ -28,8 +28,7 @@ $method->add_input_parameter(
     name => "type",
     pattern => $GRNOC::WebService::Regex::TEXT,
     required => 0,
-    description => "Type of commands to get",
-    default => 'l3vpn'
+    description => "Type of commands to get"
 );
 $svc->register_method($method);
 
@@ -45,16 +44,34 @@ $method->add_input_parameter(
     description => "ID of command to run"
 );
 $method->add_input_parameter(
-    name => "vrf_id",
-    pattern => $GRNOC::WebService::Regex::INTEGER,
-    required => 1,
-    description => "ID of VRF to run command against"
-);
-$method->add_input_parameter(
     name => "workgroup_id",
     pattern => $GRNOC::WebService::Regex::INTEGER,
     required => 1,
     description => "ID of current user's workgroup"
+);
+$method->add_input_parameter(
+    name => "node",
+    pattern => $GRNOC::WebService::Regex::TEXT,
+    required => 0,
+    description => ""
+);
+$method->add_input_parameter(
+    name => "interface",
+    pattern => $GRNOC::WebService::Regex::TEXT,
+    required => 0,
+    description => ""
+);
+$method->add_input_parameter(
+    name => "unit",
+    pattern => $GRNOC::WebService::Regex::TEXT,
+    required => 0,
+    description => ""
+);
+$method->add_input_parameter(
+    name => "peer",
+    pattern => $GRNOC::WebService::Regex::TEXT,
+    required => 0,
+    description => ""
 );
 $svc->register_method($method);
 
@@ -65,7 +82,7 @@ sub get_commands {
 
     my $type = $params->{'type'}{'value'};
 
-    my $result = OESS::DB::Command::fetch_all(db => $db, type => $type);
+    my $result = OESS::DB::Command::fetch_all(db => $db);
 
     return { results => $result };
 }
@@ -74,9 +91,14 @@ sub run_command {
     my $method = shift;
     my $params = shift;
 
-    my $command_id = $params->{'command_id'}{'value'};
-    my $vrf_id = $params->{'vrf_id'}{'value'};
-    my $workgroup_id = $params->{'workgroup_id'}{'value'};
+    my $command_id   = $params->{command_id}{value};
+    my $workgroup_id = $params->{workgroup_id}{value};
+
+    my $cmd = OESS::DB::Command::fetch(db => $db, command_id => $command_id);
+    if (!defined $cmd) {
+        $method->set_error("Could not find requested command $command_id.");
+        return;
+    }
 
     my $user = OESS::DB::User::find_user_by_remote_auth(db => $db, remote_user => $ENV{'REMOTE_USER'});
     $user = OESS::User->new(db => $db, user_id =>  $user->{'user_id'});
@@ -89,45 +111,54 @@ sub run_command {
         return;
     }
 
-    my $config = GRNOC::Config->new(config_file => '/etc/oess/.passwd.xml');
-    my $vrf = OESS::VRF->new(db => $db, vrf_id => $vrf_id);
+    my $node = $params->{node}{value};
+    my $intf = $params->{interface}{value};
+    my $unit = $params->{unit}{value};
+    my $peer = $params->{peer}{value};
 
-    if ($vrf->workgroup()->{workgroup_id} != $workgroup_id) {
-        $method->set_error("Workgroup $workgroup_id doesn't have access to VRF $vrf_id.");
+    if ($cmd->{type} eq 'node') {
+        if (!defined $node) {
+            $method->set_error("Required parameter is missing.");
+            return;
+        }
+    } elsif ($cmd->{type} eq 'interface') {
+        if (!defined $node || !defined $intf) {
+            $method->set_error("Required parameter is missing.");
+            return;
+        }
+    } elsif ($cmd->{type} eq 'unit') {
+        if (!defined $node || !defined $intf || !defined $unit) {
+            $method->set_error("Required parameter is missing.");
+            return;
+        }
+    } elsif ($cmd->{type} eq 'peer') {
+        if (!defined $node || !defined $intf || !defined $unit || !defined $peer) {
+            $method->set_error("Required parameter is missing.");
+            return;
+        }
+    } else {
+        $method->set_error("Unknown command type used in database.");
         return;
     }
 
-    my $result = '';
-    foreach my $ep (@{$vrf->endpoints()}) {
-        my $node = $ep->{interface}->{node}->{name};
-        my $intf = $ep->{interface}->{name};
-        my $unit = $ep->{tag};
+    my $config = GRNOC::Config->new(config_file => '/etc/oess/.passwd.xml');
 
-        my $proxy = GRNOC::RouterProxy->new(
-            hostname    => $node,
-            port        => 22,
-            username    => $config->get('/config/@default_user')->[0],
-            password    => $config->get('/config/@default_pw')->[0],
-            method      => 'ssh',
-            type        => 'junos',
-            maxlines    => 1000,
-            timeout     => 15
-        );
+    my $proxy = GRNOC::RouterProxy->new(
+        hostname    => $node,
+        port        => 22,
+        username    => $config->get('/config/@default_user')->[0],
+        password    => $config->get('/config/@default_pw')->[0],
+        method      => 'ssh',
+        type        => 'junos',
+        maxlines    => 1000,
+        timeout     => 15
+    );
 
-        my $cmd = OESS::DB::Command::fetch(db => $db, command_id => $command_id);
-        if (!defined $cmd) {
-            $method->set_error("Could not find requested command $command_id.");
-            return;
-        }
+    my $cmd_string = '';
+    my $tt = Template->new();
+    $tt->process(\$cmd->{template}, { node => $node, interface => $intf, unit => $unit, peer => $peer }, \$cmd_string);
 
-        my $cmd_string = '';
-        my $tt = Template->new();
-        $tt->process(\$cmd->{template}, { node => $node, interface => $intf, unit => $unit }, \$cmd_string);
-
-        $result .= "========== $node ==========\n\n";
-        $result .= $proxy->junosSSH($cmd_string);
-    }
-
+    my $result = $proxy->junosSSH($cmd_string);
     return { results => [ $result ] };
 }
 
