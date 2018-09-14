@@ -6,7 +6,7 @@ use warnings;
 package OESS::Workgroup;
 
 use OESS::DB::Workgroup;
-
+use Data::Dumper;
 sub new{
     my $that  = shift;
     my $class = ref($that) || $that;
@@ -47,6 +47,12 @@ sub from_hash{
     $self->{'type'} = $hash->{'type'};
     $self->{'max_circuits'} = $hash->{'max_circuits'};
     $self->{'external_id'} = $hash->{'external_id'};
+    $self->{'interfaces'} = ();
+
+    foreach my $int (@{$hash->{'interfaces'}}){
+        push(@{$self->{'interfaces'}}, OESS::Interface->new(interface_id => $int->{'interface_id'}, db => $self->{'db'}));
+    }
+
 }
 
 sub to_hash{
@@ -61,11 +67,17 @@ sub to_hash{
     #$obj->{'users'} = ();
     $obj->{'external_id'} = $self->external_id();
     $obj->{'max_circuits'} = $self->max_circuits();    
-    
+    $obj->{'interfaces'} = ();;
+
     foreach my $user (@{$self->users()}){
         push(@{$self->{'users'}}, $user->to_hash());
     }
-    
+   
+    foreach my $int (@{$self->interfaces()}){
+        warn Dumper($int);
+        push(@{$obj->{'interfaces'}}, $int->to_hash());
+    }
+ 
     return $obj;
 }
 
@@ -109,6 +121,11 @@ sub name{
 sub users{
     my $self = shift;
     return $self->{'users'} || [];
+}
+
+sub interfaces{
+    my $self = shift;
+    return $self->{'interfaces'} || [];
 }
 
 sub type{

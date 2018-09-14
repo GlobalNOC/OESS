@@ -31,7 +31,7 @@ async function getInterfaces(workgroupID, nodeName, trunk=1) {
  * @param {integer} [trunk=1] - Include trunk interfaces
  */
 async function getInterfacesByWorkgroup(workgroupID, trunk=1) {
-  let url = `[% path %]services/data.cgi?method=get_workgroup_interfaces&workgroup_id=${workgroupID}&show_down=1&show_trunk=${trunk}`;
+    let url = `[% path %]services/interface.cgi?method=get_workgroup_interfaces&workgroup_id=${workgroupID}`;
 
   try {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});
@@ -47,12 +47,21 @@ async function getInterfacesByWorkgroup(workgroupID, trunk=1) {
 /**
  *
  */
-async function getEntities(workgroupID, parentEntityID=null) {
+async function getEntities(workgroupID, parentEntityID=null, options) {
   let url = `[% path %]services/entity.cgi?method=get_entity&workgroup_id=${workgroupID}&entity_id=1`;
   if (parentEntityID !== null) {
       url = `[% path %]services/entity.cgi?method=get_entity&workgroup_id=${workgroupID}&entity_id=${parentEntityID}`;
   }
-
+  if(options !== undefined){
+      if(options.vrf != null){
+          url += "&vrf_id=" + options.vrf.vrf_id;
+      }
+      
+      if(options.circuit_id != null){
+          url += "&circuit_id=" + options.circuit.circuit_id;
+      }
+      
+  }
   try {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});
     const data = await resp.json();

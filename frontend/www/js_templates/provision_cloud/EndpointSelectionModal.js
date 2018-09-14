@@ -16,14 +16,14 @@ document.addEventListener('DOMContentLoaded', function() {
   endpointInterfaceSelect.addEventListener('change', loadInterfaceCloudAccountInput);
 });
 
-async function showEndpointSelectionModal(endpoint) {
+async function showEndpointSelectionModal(endpoint, options) {
     if (endpoint) {
         document.querySelector('#endpoint-select-header').innerHTML = 'Modify Network Endpoint';
 
         if ('entity_id' in endpoint && endpoint.entity_id !== -1) {
             $('#basic').tab('show');
 
-            await loadEntities(endpoint.entity_id);
+            await loadEntities(endpoint.entity_id, options);
             await loadInterfaces();
 
             document.querySelector('#entity-index').value = endpoint.index;
@@ -64,12 +64,8 @@ async function showEndpointSelectionModal(endpoint) {
         document.querySelector('#endpoint-cloud-account-id').value = endpoint.cloud_account_id;
 
         let addEntitySubmitButton = document.querySelector('#add-entity-submit');
-        if ('entity_id' in endpoint) {
-            addEntitySubmitButton.innerHTML = `Modify ${endpoint.name}`;
-        }
-        if ('entity_id' in endpoint && endpoint.interface !== '') {
-            addEntitySubmitButton.innerHTML = `Modify ${endpoint.name} on ${endpoint.interface}`;
-        }
+        addEntitySubmitButton.innerHTML = `Modify Endpoint`;
+
 
     } else {
         document.querySelector('#endpoint-select-header').innerHTML = 'Add Network Endpoint';
@@ -107,8 +103,8 @@ async function hideEndpointSelectionModal(index) {
     endpointSelectionModal.modal('hide');
 }
 
-async function loadEntities(parentEntity=null) {
-    let entity = await getEntities(session.data.workgroup_id, parentEntity);
+async function loadEntities(parentEntity=null, options) {
+    let entity = await getEntities(session.data.workgroup_id, parentEntity, options);
 
     let parent = null;
     if ('parents' in entity && entity.parents.length > 0) {
@@ -222,14 +218,16 @@ async function addEntitySubmitCallback(event) {
 
     let entity = {
         bandwidth: document.querySelector('#entity-bandwidth').value,
-        interface: document.querySelector('#entity-interface').value,
-        node: document.querySelector('#entity-node').value,
+        interface: "TBD",
+        node: "TBD",
+        name: "TBD",
         peerings: [],
         tag: document.querySelector('#entity-vlans').value,
         entity_id: document.querySelector('#entity-id').value,
-        name: document.querySelector('#entity-name').value,
+        entity: document.querySelector('#entity-name').value,
         cloud_account_id: document.querySelector('#entity-cloud-account-id').value
     };
+
     console.log(entity);
 
     let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
@@ -295,8 +293,8 @@ async function loadInterfaces() {
 
     let options = '';
     interfaces.forEach(function(intf) {
-            options += `<option data-id="${intf.interface_id}" data-cloud-interconnect-id="${intf.cloud_interconnect_id}" data-cloud-interconnect-type="${intf.cloud_interconnect_type}" data-node="${intf.node_name}" data-interface="${intf.interface_name}" value="${intf.node_name} - ${intf.interface_name}">
-                          ${intf.node_name} - ${intf.interface_name}
+            options += `<option data-entity="${intf.entity}" data-entity="${intf.entity_id}" data-id="${intf.interface_id}" data-cloud-interconnect-id="${intf.cloud_interconnect_id}" data-cloud-interconnect-type="${intf.cloud_interconnect_type}" data-node="${intf.node}" data-interface="${intf.name}" value="${intf.name} - ${intf.name}">
+                          ${intf.node} - ${intf.name}
                         </option>`;
     });
     document.querySelector('#endpoint-select-interface').innerHTML = options;
@@ -339,11 +337,17 @@ async function addInterfaceSubmitCallback(event) {
     let select = document.querySelector('#endpoint-select-interface');
     let node = select.options[select.selectedIndex].getAttribute('data-node');
     let intf = select.options[select.selectedIndex].getAttribute('data-interface');
-
+    let entity = select.options[select.selectedIndex].getAttribute('data-entity');
+    let entity_id = select.options[select.selectedIndex].getAttribute('data-entity_id');
+    if(entity == "undefined" || entity == "" || entity == null || entity == undefined){
+        entity = "NA";
+    }
     let endpoint = {
         bandwidth: document.querySelector('#endpoint-bandwidth').value,
-        interface: intf,
+        name: intf,
         node: node,
+        entity: entity,
+        entity_id: entity_id,
         peerings: [],
         cloud_account_id: document.querySelector('#endpoint-cloud-account-id').value,
         tag: document.querySelector('#endpoint-vlans').value
