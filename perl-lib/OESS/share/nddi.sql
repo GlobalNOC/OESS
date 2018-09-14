@@ -163,7 +163,7 @@ CREATE TABLE `cloud_connection_vrf_ep` (
   PRIMARY KEY (`cloud_connection_vrf_ep_id`),
   KEY `vrf_ep_id` (`vrf_ep_id`),
   CONSTRAINT `cloud_connection_vrf_ep_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=38 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -342,9 +342,12 @@ CREATE TABLE `interface_acl` (
   `vlan_start` int(10) NOT NULL,
   `vlan_end` int(10) DEFAULT NULL,
   `notes` text,
+  `entity_id` int(11) DEFAULT NULL,
   PRIMARY KEY (`interface_acl_id`),
   KEY `workgroup_id` (`workgroup_id`),
   KEY `interface_id` (`interface_id`),
+  KEY `entity_fk` (`entity_id`),
+  CONSTRAINT `entity_fk` FOREIGN KEY (`entity_id`) REFERENCES `entity` (`entity_id`),
   CONSTRAINT `interface_acl_ibfk_1` FOREIGN KEY (`interface_id`) REFERENCES `interface` (`interface_id`),
   CONSTRAINT `interface_acl_ibfk_2` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

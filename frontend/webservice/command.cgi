@@ -28,8 +28,7 @@ $method->add_input_parameter(
     name => "type",
     pattern => $GRNOC::WebService::Regex::TEXT,
     required => 0,
-    description => "Type of commands to get",
-    default => 'l3vpn'
+    description => "Type of commands to get"
 );
 $svc->register_method($method);
 

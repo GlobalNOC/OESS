@@ -463,21 +463,27 @@ sub get_entity{
                 }
             }
         }
+        
         my $obj = $int->to_hash();
         my @allowed_vlans;
-        for(my $i=1;$i<=4095;$i++){
-            if($int->vlan_valid( workgroup_id => $workgroup_id, vlan => $i )){
-                push(@allowed_vlans,$i);
-                $vlans{$i} = 1;
-            }
 
-            if($already_used_tag == $i){
-                push(@allowed_vlans, $i);
-                $vlans{$i} = 1;
+        foreach my $acl (@{$int->acls()->acls()}){
+            next if $acl->{'entity_id'} != $entity->entity_id();
+            
+            for(my $i=$acl->{'start'}; $i<=$acl->{'end'}; $i++){
+                if($int->vlan_valid( workgroup_id => $workgroup_id, vlan => $i )){
+                    push(@allowed_vlans,$i);
+                    $vlans{$i} = 1;
+                }
+                
+                if($already_used_tag == $i){
+                    push(@allowed_vlans, $i);
+                    $vlans{$i} = 1;
+                }
             }
+            $obj->{'available_vlans'} = \@allowed_vlans;
+            push(@ints,$obj);
         }
-        $obj->{'available_vlans'} = \@allowed_vlans;
-        push(@ints,$obj);
     }
     
     if(defined($vrf_id)){
@@ -486,7 +492,7 @@ sub get_entity{
             $method->set_error("Unable to find VRF: " . $vrf_id);
             return;
         }
-
+        
         foreach my $ep (@{$vrf->endpoints()}){
             warn "Entity ID: " . $ep->entity->entity_id() . " vs " . $entity->entity_id() . "\n";
             if($ep->entity->entity_id() == $entity->entity_id()){

@@ -18,6 +18,7 @@ sub fetch{
     my $entity_id = $params{'entity_id'};
     my $entity_name = $params{'name'};
     my $interface_id = $params{'interface_id'};
+    my $vlan = $params{'vlan'};
 
     my $entity;
     if(defined($entity_id)){
@@ -25,7 +26,7 @@ sub fetch{
     }elsif(defined($entity_name)){
         $entity = $db->execute_query("select * from entity where name = ?",[$entity_name]);
     }elsif(defined($interface_id)){
-        $entity = $db->execute_query("select * from entity where entity_id in (select entity_id from entity_interface_membership where interface_id = ?)",[$interface_id]);
+        $entity = $db->execute_query("select * from entity where entity_id in (select entity_id from interface_acl where interface_id = ? and (vlan_start <= ? and vlan_end >= $vlan)",[$interface_id,$vlan]);
     }else{
         return;
     }
@@ -34,7 +35,7 @@ sub fetch{
 
     $entity = $entity->[0];
 
-    my $interfaces = $db->execute_query("select interface_id from entity_interface_membership where entity_id = ?", [$entity->{'entity_id'}]);
+    my $interfaces = $db->execute_query("select interface_id from interface_acl where entity_id = ?",[$entity->{'entity_id'}]);
 
     my $parents = $db->execute_query( "select entity.* from entity join entity_hierarchy on entity.entity_id = entity_hierarchy.entity_parent_id where entity_hierarchy.entity_child_id = ?",[$entity->{'entity_id'}]);
 
@@ -43,7 +44,6 @@ sub fetch{
     my @interfaces;
 
     foreach my $int (@$interfaces){
-
         push(@interfaces,OESS::Interface->new(db => $db, interface_id => $int->{'interface_id'}));
 
     }

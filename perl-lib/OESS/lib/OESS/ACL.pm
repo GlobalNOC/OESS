@@ -43,6 +43,7 @@ sub from_hash{
     foreach my $acl (@$hash){
 
         push(@acls, { workgroup_id => $acl->{'workgroup_id'},
+                      entity_id => $acl->{'entity_id'},
                       allow_deny => $acl->{'allow_deny'},
                       eval_position => $acl->{'eval_position'},
                       start => $acl->{'vlan_start'},
@@ -77,6 +78,11 @@ sub _fetch_from_db{
     my $acls = OESS::DB::Interface::get_acls( db => $self->{'db'}, interface_id => $self->{'interface_id'} );
     $self->from_hash($acls);
 
+}
+
+sub acls{
+    my $self = shift;
+    return $self->{'acls'};
 }
 
 sub vlan_allowed{
