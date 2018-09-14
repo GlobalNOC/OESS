@@ -83,7 +83,7 @@ sub register_ro_methods{
         description     => "The workgroup id to find the ACLs for the entity"   );
 
     $method->add_input_parameter(
-        name            => 'circuit_id_id',
+        name            => 'circuit_id',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 0,
         description     => "The workgroup id to find the ACLs for the entity"   );

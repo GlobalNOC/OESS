@@ -380,7 +380,7 @@ sub get_system_information{
 
     $self->{'loopback_addr'} = $loopback_addr;
     $self->{'major_rev'} = $major_rev;
-    return {model => $model, version => $version, os_name => $os_name, host_name => $host_name, loopback_addr => $loopback_addr, major_rev => $major_rev};
+    return {model => $model, version => $version, os_name => $os_name, host_name => $host_name, loopback_addr => $loopback_addr};
 }
 
 =head2 get_routed_lsps
