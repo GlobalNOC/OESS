@@ -14,6 +14,7 @@
         [% ELSE %]
         <vlan-id>[% interface.tag %]</vlan-id>
         [% END %]
+        [% IF interface.has_ipv4 or interface.has_ipv6 %]
         <family>
           [% IF interface.has_ipv4 %]
           <inet>
@@ -36,6 +37,7 @@
           </inet6>
           [% END %]
         </family>
+        [% END %]
       </unit>
     </interface>
     [% END %]

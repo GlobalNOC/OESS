@@ -807,6 +807,7 @@ sub addVrf{
         $self->{'logger'}->error($err);
         return &$error($err);
     }
+
     # The VRF may be cached. If so we must reload from DB. This causes
     # a single load for cached VRFs and a double load for VRFs not
     # cached.

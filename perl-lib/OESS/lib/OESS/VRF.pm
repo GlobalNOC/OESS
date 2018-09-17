@@ -243,7 +243,7 @@ sub update_db{
 
 sub create{
     my $self = shift;
-    
+
     #need to validate endpoints
     foreach my $ep (@{$self->endpoints()}){
         if(!defined($ep) || !defined($ep->interface())){
@@ -251,6 +251,7 @@ sub create{
 	    $self->error("No Endpoint specified");
             return 0;
         }
+
         if( !$ep->interface()->vlan_valid( workgroup_id => $self->workgroup()->workgroup_id(), vlan => $ep->tag() )){
             $self->{'logger'}->error("VLAN: " . $ep->tag() . " is not allowed for workgroup on interface: " . $ep->interface()->name());
 	    $self->error("VLAN: " . $ep->tag() . " is not allowed for workgroup on interface: " . $ep->interface()->name());
@@ -365,8 +366,6 @@ sub _edit {
     my $self = shift;
 
     my $vrf = $self->to_hash();
-    warn '????????????????????????';
-    warn Dumper($vrf);
 
     $self->{db}->start_transaction();
 

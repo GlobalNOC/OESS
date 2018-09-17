@@ -185,7 +185,6 @@ sub add_peer{
     my $db = $params{'db'};
     my $model = $params{'model'};
     my $vrf_ep_id = $params{'vrf_ep_id'};
-    warn "PEER MODEL: " . Dumper($model);
 
     my $res = $db->execute_query("insert into vrf_ep_peer (vrf_ep_id, peer_ip, local_ip, peer_asn, md5_key, state) VALUES (?,?,?,?,?,?)",[$vrf_ep_id, $model->{'peer_ip'}, $model->{'local_ip'}, $model->{'peer_asn'}, $model->{'md5_key'}, 'active']);
 
@@ -332,7 +331,6 @@ sub get_vrfs{
         push(@where_val, $params{'workgroup_id'});
         #now we need to find all interfaces OWNED by this workgroup and all VRFs on those endpoints!!!!!
         my $interfaces = OESS::DB::Interface::get_interfaces(db => $db, workgroup_id => $params{'workgroup_id'});
-        #warn "Interafce IDs: " . Dumper($interfaces);
         push(@where_val, @$interfaces);
         my $vals = "";
         foreach my $int (@$interfaces){

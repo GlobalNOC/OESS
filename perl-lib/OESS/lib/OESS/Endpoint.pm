@@ -27,7 +27,7 @@ sub new{
         );
 
     my $self = \%args;
-
+    
     bless $self, $class;
 
     $self->{'logger'} = $logger;
@@ -54,21 +54,21 @@ sub _build_from_model{
     my $self = shift;
 
     warn "Building endpoint from model\n";
-
     
-    if(defined($self->{'model'}->{'interface'})){
-        $self->{'interface'} = OESS::Interface->new( db => $self->{'db'}, name => $self->{'model'}->{'interface'}, node => $self->{'model'}->{'node'});
-        $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, interface_id => $self->{'interface'}->interface_id());
-    }else{
-        $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, name => $self->{'model'}->{'entity'});
-        $self->{'interface'} = $self->{'entity'}->interfaces()->[0];
-    }
-
     $self->{'inner_tag'} = $self->{'model'}->{'inner_tag'};
     $self->{'tag'} = $self->{'model'}->{'tag'};
     $self->{'bandwidth'} = $self->{'model'}->{'bandwidth'};
     $self->{cloud_account_id} = $self->{model}->{cloud_account_id};
     $self->{cloud_connection_id} = $self->{model}->{cloud_connection_id};
+
+    if(defined($self->{'model'}->{'interface'})){
+        $self->{'interface'} = OESS::Interface->new( db => $self->{'db'}, name => $self->{'model'}->{'interface'}, node => $self->{'model'}->{'node'});
+        $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, interface_id => $self->{'interface'}->{'interface_id'}, vlan => $self->{'tag'});
+    }else{
+        $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, name => $self->{'model'}->{'entity'});
+        $self->{'interface'} = $self->{'entity'}->interfaces()->[0];
+    }
+
 
     if($self->{'type'} eq 'vrf'){
         $self->{'peers'} = ();
@@ -143,8 +143,9 @@ sub from_hash{
     $self->{'tag'} = $hash->{'tag'};
     $self->{'bandwidth'} = $hash->{'bandwidth'};
 
-    $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, interface_id => $self->{'interface'}->{'interface_id'});
-    
+    warn "Searching for Entity\n";
+    $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, interface_id => $self->{'interface'}->{'interface_id'}, vlan => $self->{'tag'});
+    warn Dumper($self->{'entity'});
 }
 
 sub _fetch_from_db{
