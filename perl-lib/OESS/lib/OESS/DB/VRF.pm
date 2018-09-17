@@ -342,9 +342,14 @@ sub get_vrfs{
                 $vals .= ",?";
             }
         }
-        push(@where_str, "(workgroup_id = ? or vrf_ep.interface_id in ($vals))");
+        if (!(scalar @$interfaces)) {
+            push(@where_str, "(workgroup_id = ?");
+        } else {
+            push(@where_str, "(workgroup_id = ? or vrf_ep.interface_id in ($vals))");
+        }
+        warn Dumper(@where_str);
     }
-    
+
     my $where;
     foreach my $str (@where_str){
         if(!defined($where)){
