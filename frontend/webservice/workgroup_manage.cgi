@@ -132,6 +132,13 @@ sub register_webservice_methods {
 	description     => "the workgroup the ACL is applied to."
 	); 
 
+    $method->add_input_parameter(
+        name            => 'entity_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        description     => "Specific entity_id add the ACL to"
+    );
+
     #add the required input parameter interface_id
     $method->add_input_parameter(
         name            => 'interface_id',
@@ -139,6 +146,7 @@ sub register_webservice_methods {
         required        => 1,
         description     => "Specific interface_ id add the ACL to"
         );
+
     
     #add the required input parameter allow_deny
      $method->add_input_parameter(
@@ -196,6 +204,12 @@ sub register_webservice_methods {
         pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 0,
         description     => "the workgroup the ACL is applied to."
+        );
+    $method->add_input_parameter(
+        name            => 'entity_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        description     => "the entity the ACL is applied to."
         );
 
     #add the required input parameter interface_id
@@ -336,6 +350,7 @@ sub add_acl {
         vlan_start    => $args->{"vlan_start"}{'value'},
         vlan_end      => $args->{"vlan_end"}{'value'} || undef,
         notes         => $args->{"notes"}{'value'} || undef,
+        entity_id     => $args->{"entity_id"}{'value'} || undef,
         user_id       => $user_id
     );
     if ( !defined $acl_id ) {
@@ -372,6 +387,7 @@ sub update_acl {
     my $success = $db->update_acl(
         interface_acl_id => $args->{"interface_acl_id"}{'value'},
         workgroup_id     => $args->{"workgroup_id"}{'value'} || undef,
+        entity_id        => $args->{"entity_id"}{'value'} || undef,
         interface_id     => $args->{"interface_id"}{'value'},
         allow_deny       => $args->{"allow_deny"}{'value'},
         eval_position    => $args->{"eval_position"}{'value'},

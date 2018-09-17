@@ -64,6 +64,8 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
     panel.setBody(
         "<label for='"+container_id+"_acl_panel_workgroup' id='"+container_id+"_acl_panel_workgroup_label' style='margin-right: 12px' class='soft_title'>Workgroup:</label>" +
         "<select data-placeholder='Loading Workgroups...' style='width:250px;' class='chzn-select' id='"+container_id+"_acl_panel_workgroup'></select>" +
+        "<br><br><label for='"+container_id+"_acl_panel_entity' id='"+container_id+"_acl_panel_entity_label' style='margin-right: 12px' class='soft_title'>Entity:</label>" +
+        "<select data-placeholder='Loading Entitys...' style='width:250px;' class='chzn-select' id='"+container_id+"_acl_panel_entity'></select>" +
         "<br><br><label for='"+container_id+"_acl_panel_permission' id='"+container_id+"_acl_panel_permission_label' style='margin-right: 10px' class='soft_title'>Permission:</label>" +
         "<select data-placeholder='Select Permission' style='width:250px;' class='chzn-select' id='"+container_id+"_acl_panel_permission'>" +
         "<option value></option>" +
@@ -73,12 +75,9 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
         "<br><br><label for='"+container_id+"_acl_panel_vlan_start' class='soft_title'>VLAN Range:</label>" +
         "<input id='"+container_id+"_acl_panel_vlan_start' type='text' size='10' style='margin-left: 5px;margin-right: 5px;'>" + "-" +
         "<input id='"+container_id+"_acl_panel_vlan_end' type='text' size='10' style='margin-left: 5px'>" +
-        "<br><br><label for='"+container_id+"_acl_panel_entity' class='soft_title'>Entity:</label>" +
-        "<input id='"+container_id+"_acl_panel_entity' rows='4' cols='35' style='margin-left: 12px'></input>" +
-        "<div id='"+container_id+"_acl_panel_entity_div' rows='4' cols='35' style='margin-left: 12px'></div>" +
         "<br><br><label for='"+container_id+"_acl_panel_notes' class='soft_title'>Notes:</label>" +
         "<textarea id='"+container_id+"_acl_panel_notes' rows='4' cols='35' style='margin-left: 12px'>"
-    );
+	  );
     panel.setFooter("<div id='"+container_id+"_save_acl_panel'></div><div id='"+container_id+"_remove_acl_panel'></div><div id='"+container_id+"_cancel_acl_panel'></div>");
     if(options.render_location) {
         panel.render(options.render_location);
@@ -92,12 +91,14 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
         $('#'+container_id+'_acl_panel_permission').val( rec.getData("allow_deny") )
         $('#'+container_id+'_acl_panel_vlan_start').val( rec.getData("vlan_start") );
         $('#'+container_id+'_acl_panel_vlan_end').val( rec.getData("vlan_end") );
+        $('#'+container_id+'_acl_panel_entity').val( rec.getData("entity_id") );
         $('#'+container_id+'_acl_panel_notes').val( rec.getData("notes") );
     }
    
     $('.chzn-select').chosen({search_contains: true});
     //disable the workgroup selector until the workgroups are fetched
     $("#"+container_id+"_acl_panel_workgroup").attr('disabled', true).trigger("liszt:updated");
+    $("#"+container_id+"_acl_panel_entity").attr('disabled', true).trigger("liszt:updated");
 
     //set up save button
     var save_acl_button = new YAHOO.widget.Button(container_id+'_save_acl_panel');
@@ -106,11 +107,11 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
     if(is_edit){
         save_acl_button.set('disabled', true);
     }
-    save_acl_button.on('click',function(){
 
-        //get values
-        var workgroup_id = $("#"+container_id+"_acl_panel_workgroup").chosen().val()
-        var allow_deny   = $("#"+container_id+"_acl_panel_permission").chosen().val()
+    save_acl_button.on('click',function(){
+        var workgroup_id = $("#"+container_id+"_acl_panel_workgroup").chosen().val();
+        var entity_id    = $("#"+container_id+"_acl_panel_entity").chosen().val();
+        var allow_deny   = $("#"+container_id+"_acl_panel_permission").chosen().val();
         var vlan_start   = $("#"+container_id+"_acl_panel_vlan_start").val();
         var vlan_end     = $("#"+container_id+"_acl_panel_vlan_end").val();
         var notes        = encodeURIComponent($("#"+container_id+"_acl_panel_notes").val());
@@ -119,7 +120,7 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
             permission: allow_deny, 
             vlan_start: vlan_start, 
             vlan_end: vlan_end
-        })){
+			})){
             //data's bad 
             return 1;
         }
@@ -147,6 +148,7 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
 
         //optional
         if(workgroup_id) {url += "&workgroup_id="+workgroup_id;}
+        if(entity_id)    {url += "&entity_id="+entity_id;}
         if(notes)        {url += "&notes="+notes;}
         if(vlan_end)     {url += "&vlan_end="+vlan_end;}
 
@@ -175,9 +177,8 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
                 throw "Error saving acl data";
             },
             scope: this
-        },ds);
-    });
-
+		    },ds);
+        });    
     //set up cancel button
     var cancel_acl_panel_button = new YAHOO.widget.Button(container_id+'_cancel_acl_panel');
     cancel_acl_panel_button.set('label','Cancel');
@@ -231,7 +232,7 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
     }
 
     //fetch workgroups
-    var url = "services/workgroup_manage.cgi?method=get_all_workgroups";
+    var url = "services/entity.cgi?method=get_entities";
     if(options.url_prefix){
         url = options.url_prefix + url;
     }
@@ -241,7 +242,7 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
     entity_ds.responseSchema = {
         resultsList: "results",
         fields: [
-            {key: "workgroup_id", parser: "number"},
+            {key: "entity_id", parser:"number"},
             {key: "name"}
         ],
         metaFields: {
@@ -249,22 +250,29 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
             error_text: "error_text"
         }
     };
-    // entity_ds.sendRequest('', {
-    //     success: function(req, res) {
-
-    //     },
-    //     failure: function(req, res) {
-
-    //     },
-    //     scope: this
-    // });
-    // container_id + "_acl_panel_entity"
-
-    try {
-        var autoComplete = new YAHOO.widget.AutoComplete(`${container_id}_acl_panel_entity`, `${container_id}_acl_panel_entity_div`, entity_ds);
-    } catch(e) {
-        console.log(e);
-    }
+    entity_ds.sendRequest("",{
+        success: function(req, resp){
+            $('#'+container_id+'_acl_panel_entity').append("<option value>All</option>");
+            for( var i = 0; i < resp.results.length; i++ ){
+                var entity_id = resp.results[i].entity_id;
+                var name = resp.results[i].name;
+                var option = "<option value='"+entity_id+"'>"+name+"</option>";
+                $('#'+container_id+'_acl_panel_entity').append(option);
+            }
+            //select proper value and enabled save button if its an edit
+            if(is_edit){
+                save_acl_button.set('disabled', false);
+                $('#'+container_id+'_acl_panel_entity').val( rec.getData("entity_id") )
+            }
+            //enable and update
+            $("#"+container_id+"_acl_panel_entity").attr('data-placeholder', 'Select Entity');
+            $("#"+container_id+"_acl_panel_entity").attr('disabled', false).trigger("liszt:updated");
+        },
+        failure: function(req, resp){
+            throw("Error: fetching selections");
+        },
+        scope: this
+    });
 
     url = "services/workgroup_manage.cgi?method=get_all_workgroups";
     if(options.url_prefix){

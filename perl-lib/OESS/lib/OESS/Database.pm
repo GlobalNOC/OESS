@@ -2620,13 +2620,14 @@ sub add_acl {
         $args{'eval_position'},
         $args{'vlan_start'},
         $args{'vlan_end'},
-        $args{'notes'}
+        $args{'notes'},
+        $args{'entity_id'}
     ];
 
     my $user_id = $args{'user_id'};
 
 
-    my $query = "insert into interface_acl (workgroup_id, interface_id, allow_deny, eval_position, vlan_start, vlan_end, notes) values (?,?,?,?,?,?,?)";
+    my $query = "insert into interface_acl (workgroup_id, interface_id, allow_deny, eval_position, vlan_start, vlan_end, notes, entity_id) values (?,?,?,?,?,?,?,?)";
     my $acl_id = $self->_execute_query($query, $args);
 
     if (! defined $acl_id){
@@ -2742,10 +2743,11 @@ sub update_acl {
         }
     }
 
-    $query = "update interface_acl set workgroup_id = ?, allow_deny = ?, eval_position = ?, vlan_start = ?, vlan_end = ?, notes = ? where interface_acl_id = ?";
+    $query = "update interface_acl set workgroup_id = ?, entity_id = ?, allow_deny = ?, eval_position = ?, vlan_start = ?, vlan_end = ?, notes = ? where interface_acl_id = ?";
 
     my $params = [
         $args{'workgroup_id'},
+        $args{'entity_id'},
         $args{'allow_deny'},
         $args{'eval_position'},
         $args{'vlan_start'},
@@ -2898,10 +2900,11 @@ sub get_acls {
     my %args = @_;
 
     my $acls = [];
-    my $sql= "select acl.interface_acl_id, acl.workgroup_id, workgroup.name as workgroup_name, owner_workgroup.workgroup_id as owner_workgroup_id, owner_workgroup.name as owner_workgroup_name, acl.interface_id, interface.name as interface_name, acl.allow_deny, acl.eval_position, acl.vlan_start, acl.vlan_end, acl.notes ";
+    my $sql= "select acl.interface_acl_id, acl.workgroup_id, workgroup.name as workgroup_name, owner_workgroup.workgroup_id as owner_workgroup_id, owner_workgroup.name as owner_workgroup_name, acl.interface_id, interface.name as interface_name, acl.allow_deny, acl.eval_position, acl.vlan_start, acl.vlan_end, acl.notes, entity.entity_id as entity_id, entity.name as entity_name ";
     $sql .= " from workgroup as owner_workgroup";
     $sql .= " join interface on owner_workgroup.workgroup_id = interface.workgroup_id ";
     $sql .= " join interface_acl as acl on acl.interface_id = interface.interface_id ";
+    $sql .= " left join entity on acl.entity_id = entity.entity_id ";
     $sql .= " left join workgroup on acl.workgroup_id = workgroup.workgroup_id ";
     $sql .= " where 1=1 ";
     $sql .= " and owner_workgroup.workgroup_id = ? " if(defined($args{'owner_workgroup_id'}));

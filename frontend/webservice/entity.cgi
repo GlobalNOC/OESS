@@ -28,6 +28,18 @@ sub register_ro_methods{
 
     $svc->register_method($method);
 
+    $method = GRNOC::WebService::Method->new(
+        name            => "get_entities",
+        description     => "returns a JSON object representing all entities",
+        callback        => sub { get_entities() }
+    );
+    $method->add_input_parameter(
+        name            => 'name',
+        pattern         => $GRNOC::WebService::Regex::TEXT,
+        required        => 0,
+        description     => "Name of entity to search for."
+    );
+    $svc->register_method($method);
 
     $method = GRNOC::WebService::Method->new(
         name => 'get_entity_children',
@@ -350,6 +362,21 @@ sub get_root_entities{
     }
 
     return {results => \@entities};
+}
+
+sub get_entities{
+    my $method = shift;
+    my $params = shift;
+    my $ref = shift;
+
+    my $entities = OESS::DB::Entity::get_root_entities(db => $db);
+
+    my $result = [];
+    foreach my $ent (@$entities){
+        push @$result, $ent->to_hash();
+    }
+
+    return { results => $result };
 }
 
 sub get_entity_children{
