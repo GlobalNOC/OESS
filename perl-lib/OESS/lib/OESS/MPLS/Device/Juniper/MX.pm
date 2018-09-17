@@ -1091,7 +1091,7 @@ sub xml_configuration {
         $xml =~ s/<\/configuration>//g;
         $configuration = $configuration . $xml;
     }
-    
+   
     foreach my $vrf (@{$vrf}){
         my $xml;
         my $vars = {};

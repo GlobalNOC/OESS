@@ -976,6 +976,7 @@ CREATE TABLE `vrf_ep` (
   `bandwidth` int(10) DEFAULT NULL,
   `vrf_id` int(10) DEFAULT NULL,
   `interface_id` int(10) NOT NULL,
+  `state` enum('active','decom') DEFAULT NULL,
   PRIMARY KEY (`vrf_ep_id`),
   KEY `vrf_id` (`vrf_id`),
   KEY `interface_id` (`interface_id`),
@@ -1005,6 +1006,9 @@ CREATE TABLE `vrf_ep_peer` (
   `peer_ip` varchar(255) NOT NULL,
   `peer_asn` int(10) NOT NULL,
   `vrf_ep_id` int(11) DEFAULT NULL,
+  `state` enum('active','decom') DEFAULT NULL,
+  `local_ip` varchar(255) DEFAULT NULL,
+  `md5_key` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`vrf_ep_peer_id`),
   KEY `vrf_ep_id` (`vrf_ep_id`),
   CONSTRAINT `vrf_ep_peer_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`)

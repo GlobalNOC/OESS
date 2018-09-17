@@ -98,14 +98,14 @@ sub execute_query{
     my $sth = $self->{'dbh'}->prepare($query);
 
     if(!$sth){
-        warn "Error in prepare query: $DBI::errstr";
-        $self->_set_error("Unable to prepare query: $DBI::errstr");
+        warn "Error in prepare query: $DBI::errstr in $query";
+        $self->_set_error("Unable to prepare query: $DBI::errstr in $query");
         return;
     }
 
     if (! $sth->execute(@$args) ){
-        warn "Error in executing query: $caller: $DBI::errstr";
-        $self->_set_error("Unable to execute query: $caller: $DBI::errstr");
+        warn "Error in executing query: $caller: $DBI::errstr in $query";
+        $self->_set_error("Unable to execute query: $caller: $DBI::errstr in $query");
         return;
     }
 

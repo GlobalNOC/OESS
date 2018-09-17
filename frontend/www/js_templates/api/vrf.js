@@ -50,7 +50,7 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
       cloud_account_id: endpoint.cloud_account_id
     };
 
-    if ('entity_id' in endpoint && endpoint.interface === '' && endpoint.node === '') {
+    if ('entity_id' in endpoint && endpoint.interface === 'TBD' && endpoint.node === 'TBD') {
       e['entity'] = endpoint.name;
     } else {
       e['interface'] = endpoint.interface;

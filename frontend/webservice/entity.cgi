@@ -5,7 +5,7 @@ use warnings;
 
 use GRNOC::WebService::Dispatcher;
 use GRNOC::WebService::Method;
-
+use List::MoreUtils qw(uniq);
 use OESS::DB;
 use OESS::Entity;
 use OESS::VRF;
@@ -469,7 +469,8 @@ sub get_entity{
 
         foreach my $acl (@{$int->acls()->acls()}){
             next if $acl->{'entity_id'} != $entity->entity_id();
-            
+            next if $acl->{'allow_deny'} ne 'allow';
+            next if $acl->{'workgroup_id'} != $workgroup_id;
             for(my $i=$acl->{'start'}; $i<=$acl->{'end'}; $i++){
                 if($int->vlan_valid( workgroup_id => $workgroup_id, vlan => $i )){
                     push(@allowed_vlans,$i);
@@ -501,9 +502,22 @@ sub get_entity{
             }
         }
     }
-    
+
+    my @uniq_ints;
+    foreach my $int (@ints){
+        my $found = 0;
+        foreach my $uint (@uniq_ints){
+            if($uint->{'interface_id'} == $int->{'interface_id'}){
+                $found = 1;
+            }
+        }
+        if(!$found){
+            push(@uniq_ints, $int);
+        }
+    }
+    warn Dumper(\@uniq_ints);
     my $res = $entity->to_hash();
-    $res->{'interfaces'} = \@ints;
+    $res->{'interfaces'} = \@uniq_ints;
     my @allowed_vs = keys %vlans;
     $res->{'allowed_vlans'} = \@allowed_vs;
     return {results => $res};

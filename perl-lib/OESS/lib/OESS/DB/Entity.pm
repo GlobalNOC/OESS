@@ -8,7 +8,7 @@ package OESS::DB::Entity;
 use OESS::Interface;
 use OESS::Entity;
 use OESS::User;
-
+use Data::Dumper;
 use List::MoreUtils qw(uniq);
 
 sub fetch{
@@ -25,8 +25,9 @@ sub fetch{
         $entity = $db->execute_query("select * from entity where entity_id = ?",[$entity_id]);
     }elsif(defined($entity_name)){
         $entity = $db->execute_query("select * from entity where name = ?",[$entity_name]);
-    }elsif(defined($interface_id)){
-        $entity = $db->execute_query("select * from entity where entity_id in (select entity_id from interface_acl where interface_id = ? and (vlan_start <= ? and vlan_end >= $vlan)",[$interface_id,$vlan]);
+    }elsif(defined($interface_id) && defined($vlan)){
+        $entity = $db->execute_query("select * from entity where entity_id in (select entity_id from interface_acl where interface_id = ? and (vlan_start <= ? and vlan_end >= ?))",[$interface_id,$vlan,$vlan]);
+        warn "Entity from interface / vlan: " . Dumper($entity);
     }else{
         return;
     }

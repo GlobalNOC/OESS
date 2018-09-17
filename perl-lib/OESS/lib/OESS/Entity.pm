@@ -52,7 +52,7 @@ sub _from_hash{
 sub _fetch_from_db{
     my $self = shift;
 
-    my $info = OESS::DB::Entity::fetch(db => $self->{'db'}, entity_id => $self->{'entity_id'}, name => $self->{'name'}, interface_id => $self->{'interface_id'});
+    my $info = OESS::DB::Entity::fetch(db => $self->{'db'}, entity_id => $self->{'entity_id'}, name => $self->{'name'}, interface_id => $self->{'interface_id'}, vlan => $self->{'vlan'});
     return 0 if !defined($info);
 
     $self->_from_hash($info);
