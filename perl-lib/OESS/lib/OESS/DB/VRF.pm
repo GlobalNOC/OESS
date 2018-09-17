@@ -347,7 +347,6 @@ sub get_vrfs{
         } else {
             push(@where_str, "(workgroup_id = ? or vrf_ep.interface_id in ($vals))");
         }
-        warn Dumper(@where_str);
     }
 
     my $where;
