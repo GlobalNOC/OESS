@@ -73,6 +73,9 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
         "<br><br><label for='"+container_id+"_acl_panel_vlan_start' class='soft_title'>VLAN Range:</label>" +
         "<input id='"+container_id+"_acl_panel_vlan_start' type='text' size='10' style='margin-left: 5px;margin-right: 5px;'>" + "-" +
         "<input id='"+container_id+"_acl_panel_vlan_end' type='text' size='10' style='margin-left: 5px'>" +
+        "<br><br><label for='"+container_id+"_acl_panel_entity' class='soft_title'>Entity:</label>" +
+        "<input id='"+container_id+"_acl_panel_entity' rows='4' cols='35' style='margin-left: 12px'></input>" +
+        "<div id='"+container_id+"_acl_panel_entity_div' rows='4' cols='35' style='margin-left: 12px'></div>" +
         "<br><br><label for='"+container_id+"_acl_panel_notes' class='soft_title'>Notes:</label>" +
         "<textarea id='"+container_id+"_acl_panel_notes' rows='4' cols='35' style='margin-left: 12px'>"
     );
@@ -229,6 +232,41 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
 
     //fetch workgroups
     var url = "services/workgroup_manage.cgi?method=get_all_workgroups";
+    if(options.url_prefix){
+        url = options.url_prefix + url;
+    }
+
+    var entity_ds = new YAHOO.util.DataSource(url);
+    entity_ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+    entity_ds.responseSchema = {
+        resultsList: "results",
+        fields: [
+            {key: "workgroup_id", parser: "number"},
+            {key: "name"}
+        ],
+        metaFields: {
+            error: "error",
+            error_text: "error_text"
+        }
+    };
+    // entity_ds.sendRequest('', {
+    //     success: function(req, res) {
+
+    //     },
+    //     failure: function(req, res) {
+
+    //     },
+    //     scope: this
+    // });
+    // container_id + "_acl_panel_entity"
+
+    try {
+        var autoComplete = new YAHOO.widget.AutoComplete(`${container_id}_acl_panel_entity`, `${container_id}_acl_panel_entity_div`, entity_ds);
+    } catch(e) {
+        console.log(e);
+    }
+
+    url = "services/workgroup_manage.cgi?method=get_all_workgroups";
     if(options.url_prefix){
         url = options.url_prefix + url;
     }
