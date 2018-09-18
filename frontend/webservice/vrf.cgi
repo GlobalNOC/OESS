@@ -407,6 +407,9 @@ sub remove_vrf{
 
     OESS::Cloud::cleanup_endpoints($vrf->endpoints);
 
+    #send the update cache to the MPLS fwdctl
+    _update_cache(vrf_id => $vrf_id);
+
     return {results => $res};
 }
 
@@ -467,11 +470,44 @@ sub vrf_del{
     return {success => 1};
 }
 
-sub edit_vrf{
-    my $method = shift;
-    my $params = shift;
-    my $ref = shift;
-    
+sub _update_cache{
+    my %args = @_;
+
+    if(!defined($args{'vrf_id'})){
+        $args{'vrf_id'} = -1;
+    }
+
+    my $err = undef;
+
+    if (!defined $mq) {
+        $err = "Couldn't create RabbitMQ client.";
+        return;
+    } else {
+        $mq->{'topic'} = 'MPLS.FWDCTL.RPC';
+    }
+    my $cv = AnyEvent->condvar;
+    $mq->update_cache(vrf_id => $args{'vrf_id'},
+                      async_callback => sub {
+                          my $result = shift;
+                          $cv->send($result);
+                      });
+
+    my $result = $cv->recv();
+
+    if (!defined $result) {
+        warn "Error occurred while calling update_cache: Couldn't contact MPLS.FWDCTL via RabbitMQ.";
+        return undef;
+    }
+    if (defined $result->{'error'}) {
+        warn "Error occurred while calling update_cache: $result->{'error'}";
+        return undef;
+    }
+    if (defined $result->{'results'}->{'error'}) {
+        warn "Error occured while calling update_cache: " . $result->{'results'}->{'error'};
+        return undef;
+    }
+
+    return $result->{'results'}->{'status'};
 }
 
 
