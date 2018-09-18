@@ -1,27 +1,28 @@
 async function loadUserMenu() {
-  let workgroups = await getWorkgroups();
+  let user = await getCurrentUser();
 
   let userMenuActiveWorkgroup = document.querySelector(`#active_workgroup_name`);
   let userMenuWorkgroups = document.querySelector(`#user-menu-workgroups`);
   let html = `
 <li>
   <a href="#">
-    <b>Jonathan Stout</b><br/>
-    GlobalNOC<br/>
-    jonstout@globolnoc.iu.edu
+    <b>${user.first_name} ${user.last_name}</b><br/>
+    ${user.username}<br/>
+    ${user.email}
   </a>
 </li>
 <li role="separator" class="divider"></li>
 `;
 
-  workgroups.forEach(function(group) {
+  user.workgroups.forEach(function(group) {
       if (session.data.workgroup_id === undefined) {
           session.data.workgroup_id = group.workgroup_id;
+          session.data.username = group.username;
           session.save();
       }
 
       if (session.data.workgroup_id == group.workgroup_id) {
-          userMenuActiveWorkgroup.innerHTML = group.name;
+          userMenuActiveWorkgroup.innerHTML = user.username + ' / ' + group.name;
       }
       html += `<li><a onclick="selectWorkgroup(${group.workgroup_id})" href="#">${group.name}</a></li>`;
   });
