@@ -369,7 +369,7 @@ sub get_entities{
     my $params = shift;
     my $ref = shift;
 
-    my $entities = OESS::DB::Entity::get_root_entities(db => $db);
+    my $entities = OESS::DB::Entity::get_entities(db => $db);
 
     my $result = [];
     foreach my $ent (@$entities){
