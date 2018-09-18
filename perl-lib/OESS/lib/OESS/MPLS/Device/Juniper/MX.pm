@@ -960,7 +960,7 @@ sub add_vrf{
     $vars->{'vrf_id'} = $vrf->{'vrf_id'};
     $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
     $vars->{'prefix_limit'} = $vrf->{'prefix_limit'};
-
+    $vars->{'local_as'} = $vrf->{'local_as'};
     $self->{'logger'}->error("VARS: " . Dumper($vars));
 
     my $output;
