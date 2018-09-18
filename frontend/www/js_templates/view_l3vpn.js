@@ -163,7 +163,7 @@ async function loadVRF() {
 <div class="panel panel-default">
   <div class="panel-heading" style="height: 40px;">
     <h4 style="margin: 0px; float: left;">
-    ${endpoint.node.name} <small>${endpoint.interface.name} - ${endpoint.tag}</small>
+	${endpoint.entity.name} - <small>${endpoint.node.name} - ${endpoint.interface.name} - ${endpoint.tag}</small>
     </h4>
   </div>
 

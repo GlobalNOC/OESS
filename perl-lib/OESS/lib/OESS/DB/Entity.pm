@@ -84,6 +84,29 @@ sub get_root_entities{
     return \@roots;
 }
 
+=head2 get_entities
+
+=cut
+sub get_entities {
+    my %params = @_;
+    my $db = $params{'db'};
+
+    my $entities = $db->execute_query(
+        "select entity.entity_id, entity.name from entity
+        join entity_hierarchy on entity_hierarchy.entity_child_id=entity.entity_id
+        where entity_hierarchy.entity_parent_id != 1
+        group by entity.entity_id
+        order by entity.name",
+        []
+    );
+
+    my $result = [];
+    foreach my $entity (@$entities){
+        push @$result, OESS::Entity->new(db => $db, entity_id => $entity->{'entity_id'});
+    }
+    return $result;
+}
+
 sub update {
     my %params = @_;
     my $db = $params{'db'};
