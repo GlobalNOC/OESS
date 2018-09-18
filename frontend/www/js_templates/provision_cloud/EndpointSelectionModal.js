@@ -28,7 +28,7 @@ async function showEndpointSelectionModal(endpoint, options) {
 
             document.querySelector('#entity-index').value = endpoint.index;
             document.querySelector('#entity-id').value = endpoint.entity_id;
-            document.querySelector('#entity-name').value = endpoint.name;
+            document.querySelector('#entity-name').value = endpoint.entity;
 
             document.querySelector('#entity-node').value = endpoint.node;
             document.querySelector('#entity-interface').value = endpoint.interface;
