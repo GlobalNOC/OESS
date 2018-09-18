@@ -42,23 +42,7 @@
     </interface>
     [% END %]
   </interfaces>
-  [% FOREACH interface IN interfaces %]
-    [% IF interface.bandwidth > 0 %]
-  <class-of-service>
-    <interfaces>
-      <interface>
-        <name>[% interface.name %]</name>
-        <unit>
-          <name>[% interface.unit %]</name>
-          <shaping-rate>
-            <rate>[% interface.bandwidth %]m</rate>
-          </shaping-rate>
-        </unit>
-      </interface>
-    </interfaces>
-  </class-of-service>
-    [% END %]
-  [% END %]
+
   <routing-instances>
     <instance>
       <name>OESS-L3VPN-[% vrf_id %]</name>
@@ -77,7 +61,7 @@
       <routing-options>
 	<router-id>[% switch.loopback %]</router-id>
 	<autonomous-system>
-	  <as-number>55038</as-number>
+	  <as-number>[% local_as %]</as-number>
 	  <independent-domain></independent-domain>
 	</autonomous-system>
       </routing-options>
@@ -103,7 +87,7 @@
 	      </inet>
             </family>
             <local-as>
-              <as-number>55038</as-number>
+              <as-number>[% local_as %]</as-number>
             </local-as>
             [% FOREACH interface IN interfaces %]
               [% FOREACH peer in interface.v4_peers %]
@@ -142,7 +126,7 @@
               </inet6>
 	    </family>
 	    <local-as>
-	      <as-number>55038</as-number>
+	      <as-number>[% local_as %]</as-number>
 	    </local-as>
             [% FOREACH interface IN interfaces %]
               [% FOREACH peer in interface.v6_peers %]
@@ -279,11 +263,11 @@
     </policy-statement>
     <community>
       <name>OESS-L3VPN-[% vrf_id %]</name>
-      <members>target:55038:[% vrf_id %]</members>
+      <members>target:[% local_as %]:[% vrf_id %]</members>
     </community>
     <community>
       <name>OESS-L3VPN-[% vrf_id %]-BGP</name>
-      <members>55038:[% vrf_id %]</members>
+      <members>[% local_as %]:[% vrf_id %]</members>
     </community>
   </policy-options>
 </configuration>

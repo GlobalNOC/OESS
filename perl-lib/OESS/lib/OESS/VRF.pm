@@ -17,7 +17,7 @@ use OESS::DB;
 use OESS::Endpoint;
 use OESS::Workgroup;
 use NetAddr::IP;
-
+use OESS::Config;
 
 =head1 NAME
 
@@ -81,6 +81,10 @@ sub new{
 	return;
     }
 
+    if(!defined($self->{'config'})){
+        $self->{'config'} = OESS::Config->new();
+    }
+
     if(!defined($self->{'vrf_id'}) || $self->{'vrf_id'} == -1){
         #build from model
         $self->_build_from_model();
@@ -110,7 +114,7 @@ sub _build_from_model{
     #process user
     $self->{'created_by'} = OESS::User->new( db => $self->{'db'}, user_id => $self->{'model'}->{'created_by'});
     $self->{'last_modified_by'} = OESS::User->new(db => $self->{'db'}, user_id => $self->{'model'}->{'last_modified_by'});
-    $self->{'local_asn'} = $self->{'model'}->{'local_asn'} || 55038;
+    $self->{'local_asn'} = $self->{'model'}->{'local_asn'} || $self->{'config'}->local_as();
 
     return;
 }
