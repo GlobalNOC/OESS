@@ -898,7 +898,7 @@ sub add_vrf{
             my $peer_ip = $bgp->{'peer_ip'};
             $peer_ip =~ s/\/\d+//g;
 
-            if(!defined($bgp->{'key'})){
+            if(!defined($bgp->{'md5_key'})){
                 $bgp->{'key'} = -1;
             }
             
@@ -913,7 +913,7 @@ sub add_vrf{
                                 
                                 local_ip => $bgp->{'local_ip'},
                                 peer_ip => $peer_ip,
-                                key => $bgp->{'key'}
+                                key => $bgp->{'md5_key'}
                      });
 
             }else{
@@ -923,7 +923,7 @@ sub add_vrf{
                                 
                                 local_ip => $bgp->{'local_ip'},
                                 peer_ip => $peer_ip,
-                                key => $bgp->{'key'}
+                                key => $bgp->{'md5_key'}
                      });
             }            
 
@@ -960,7 +960,7 @@ sub add_vrf{
     $vars->{'vrf_id'} = $vrf->{'vrf_id'};
     $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
     $vars->{'prefix_limit'} = $vrf->{'prefix_limit'};
-    $vars->{'local_as'} = $vrf->{'local_as'};
+    $vars->{'local_as'} = $vrf->{'local_asn'};
     $self->{'logger'}->error("VARS: " . Dumper($vars));
 
     my $output;
@@ -1110,8 +1110,8 @@ sub xml_configuration {
                 my $peer_ip = $bgp->{'peer_ip'};
                 $peer_ip =~ s/\/\d+//g;
                 
-                if(!defined($bgp->{'key'})){
-                    $bgp->{'key'} = -1;
+                if(!defined($bgp->{'md5_key'})){
+                    $bgp->{'md5_key'} = -1;
                 }
                 
                 my $ip = NetAddr::IP->new($bgp->{'peer_ip'});
@@ -1124,7 +1124,7 @@ sub xml_configuration {
                     push(@bgp_v4, { asn => $bgp->{'peer_asn'},                                    
                                     local_ip => $bgp->{'local_ip'},
                                     peer_ip => $peer_ip,
-                                    key => $bgp->{'key'}
+                                    key => $bgp->{'md5_key'}
                          });
                     
                 }else{
@@ -1134,7 +1134,7 @@ sub xml_configuration {
                     push(@bgp_v6, { asn => $bgp->{'peer_asn'},                                    
                                     local_ip => $bgp->{'local_ip'},
                                     peer_ip => $peer_ip,
-                                    key => $bgp->{'key'}
+                                    key => $bgp->{'md5_key'}
                          });
                 }
                 
@@ -1163,7 +1163,7 @@ sub xml_configuration {
                                               has_ipv6 => $has_ipv6,
                                               v6_peers => \@bgp_v6 });
         }
-        
+        $vars->{'local_as'} = $vrf->{'local_asn'};
         $vars->{'vrf_id'} = $vrf->{'vrf_id'};
         $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
         $vars->{'prefix_limit'} = $vrf->{'prefix_limit'};

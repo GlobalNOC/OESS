@@ -96,7 +96,7 @@
               <description>OESS-L3VPN-[% vrf_id %]</description>
               <import>OESS-L3VPN-[% vrf_id %]-IN</import>
 
-              [% IF peer.key != -1 %]
+              [% IF peer.key %]
               <authentication-key>[% peer.key %]</authentication-key>
               [% END %]
    
