@@ -573,6 +573,8 @@ sub handle_vrf_stats{
 
     $self->{'logger'}->debug("Handling Peer stats: " . Dumper($peer_stats));
 
+    $self->{'db'}->_start_transaction();
+
     while (scalar(@$peer_stats) > 0){
         my $peer = shift @$peer_stats;
         my $meta = { peer_address => $peer->{'address'},
@@ -599,6 +601,22 @@ sub handle_vrf_stats{
             $vals->{'state'} = 1;
         }
 
+        my $vrf = $peer->{'vrf'};
+        my $vrf_id;
+        if($vrf =~ /OESS-L3VPN/){
+            $vrf =~ /OESS-L3VPN-(\d+)/;
+            $vrf_id = $1;
+        }
+
+        warn "Processing VRF: " . $vrf . "\n";
+        warn "VRF ID: " . $vrf_id . "\n";
+
+        if(defined($vrf_id)){
+            warn "Updating VRF EP Peer " . $peer->{'address'} . " with status: " . $vals->{'state'} . " in VRF: " . $vrf_id . "\n";
+            my $res = $self->{'db'}->_execute_query("update vrf_ep_peer set operational_state = ? where peer_ip like ? and vrf_ep_id in (select vrf_ep_id from vrf_ep where vrf_id = ?)",[$vals->{'state'},$peer->{'address'} . "/%",$vrf_id]);
+            warn Dumper($res);
+        }
+
         $vals->{'flap_count'} = $peer->{'flap_count'};
 
         push(@$tsds_val, { type => TSDS_PEER_TYPE,
@@ -612,7 +630,9 @@ sub handle_vrf_stats{
             $self->{'logger'}->debug(Dumper("Response: " . Dumper($self->{'tsds_svc'}->add_data(data => encode_json($tsds_val)))));
             $tsds_val = ();
         }
-    }    
+        
+    }   
+    $self->{'db'}->_commit();
 }
 
 =head2 handle_system_info
