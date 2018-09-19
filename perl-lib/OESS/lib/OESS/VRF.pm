@@ -160,7 +160,7 @@ sub to_hash{
     $obj->{'created'} = $self->created();
     $obj->{'last_modified'} = $self->last_modified();
     $obj->{'local_asn'} = $self->local_asn();
-
+    $obj->{'operational_state'} = $self->operational_state();
     return $obj;
 }
 
@@ -482,6 +482,26 @@ sub local_asn{
 sub state{
     my $self = shift;
     return $self->{'state'};
+}
+
+sub operational_state{
+    my $self = shift;
+    
+    my $operational_state = 1;
+    foreach my $ep (@{$self->endpoints()}){
+        foreach my $peer (@{$ep->peers()}){
+            if($peer->operational_state() ne 'up'){
+                $operational_state = 0;
+            }
+        }
+    }
+
+    if($operational_state){
+        return "up";
+    }else{
+        return "down";
+    }
+
 }
 
 1;

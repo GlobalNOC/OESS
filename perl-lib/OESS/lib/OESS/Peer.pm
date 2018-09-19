@@ -61,6 +61,7 @@ sub from_hash{
     $self->{'md5_key'} = $hash->{'md5_key'};
     $self->{'state'} = $hash->{'state'};
     $self->{'local_ip'} = $hash->{'local_ip'};
+    $self->{'operational_state'} = $hash->{'operational_state'};
 
 }
 
@@ -75,7 +76,7 @@ sub to_hash{
     $obj->{'md5_key'} = $self->{'md5_key'};
     $obj->{'state'} = $self->{'state'};
     $obj->{'local_ip'} = $self->{'local_ip'};
-
+    $obj->{'operational_state'} = $self->operational_state();
     return $obj;
 }
 
@@ -107,6 +108,15 @@ sub vrf_ep_id{
 sub vrf_ep_peer_id{
     my $self = shift;
     return $self->{'vrf_ep_peer_id'};
+}
+
+sub operational_state{
+    my $self = shift;
+    if($self->{'operational_state'} == 1){
+        return "up";
+    }else{
+        return "down"
+    }
 }
 
 sub _fetch_from_db{
