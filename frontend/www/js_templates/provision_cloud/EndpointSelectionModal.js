@@ -17,6 +17,19 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function showEndpointSelectionModal(endpoint, options) {
+    // Clear all pre-existing values from form
+    document.querySelector('#entity-index').value = null;
+    document.querySelector('#entity-id').value = null;
+    document.querySelector('#entity-name').value = null;
+    document.querySelector('#entity-node').value = null;
+    document.querySelector('#entity-interface').value = null;
+    document.querySelector('#endpoint-vlans').value = null;
+    document.querySelector('#entity-vlans').value = null;
+    document.querySelector('#endpoint-bandwidth').value = null;
+    document.querySelector('#entity-bandwidth').value = null;
+    document.querySelector('#endpoint-cloud-account-id').value = null;
+    document.querySelector('#entity-cloud-account-id').value = null;
+
     if (endpoint) {
         document.querySelector('#endpoint-select-header').innerHTML = 'Modify Network Endpoint';
 

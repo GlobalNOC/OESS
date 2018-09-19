@@ -57,7 +57,6 @@ sub setup_endpoints {
             my $peer = $ep->peers()->[0];
             if (defined $peer) {
                 $amazon_addr   = $peer->peer_ip;
-                $asn           = $peer->peer_asn;
                 $auth_key      = $peer->md5_key;
                 $customer_addr = $peer->local_ip;
 
@@ -79,6 +78,7 @@ sub setup_endpoints {
             );
             $ep->cloud_account_id($ep->cloud_account_id);
             $ep->cloud_connection_id($res->{VirtualInterfaceId});
+            $peer->peer_asn($res->{AmazonSideAsn});
             push @$result, $ep;
 
         } else {
