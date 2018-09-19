@@ -160,6 +160,7 @@ sub get_workgroup_interfaces{
     my $method = shift;
     my $params = shift;
     my $workgroup_id = $params->{'workgroup_id'}{'value'};
+    my $vlan = $params->{'vlan'}{'value'};
 
     my $workgroup = OESS::Workgroup->new( workgroup_id => $workgroup_id, db => $db);
     my $interfaces = $workgroup->interfaces();

@@ -496,8 +496,13 @@ sub _register_rpc_methods{
 
     
     $method->add_input_parameter( name => "circuit_id",
-                                  description => "the circuit ID to delete",
-                                  required => 1,
+                                  description => "the circuit ID to update",
+                                  required => 0,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);
+
+    $method->add_input_parameter( name => "vrf_id",
+                                  description => "the vrf ID to update",
+                                  required => 0,
                                   pattern => $GRNOC::WebService::Regex::INTEGER);
 
     $d->register_method($method);
@@ -648,11 +653,13 @@ sub update_cache {
     my $success = $m_ref->{'success_callback'};
     my $error   = $m_ref->{'error_callback'};
 
-    my $circuit_id = $p_ref->{'circuit_id'}->{'value'};
-
-    if (!defined($circuit_id) || $circuit_id == -1) {
+    my $circuit_id = $p_ref->{'circuit_id'}{'value'};
+    
+    my $vrf_id = $p_ref->{'vrf_id'}{'value'};
+    
+    if ((!defined($circuit_id) || $circuit_id == -1 ) && (!defined($vrf_id) || $vrf_id == -1)) {
         $self->{'logger'}->debug("Updating Cache for entire network");
-
+        
         my $res = build_cache(db => $self->{'db'}, logger => $self->{'logger'}, db2 => $self->{'db2'});
         $self->{'circuit'} = $res->{'ckts'};
 	$self->{'vrfs'} = $res->{'vrfs'};
@@ -667,20 +674,30 @@ sub update_cache {
 	    $node_by_id{$self->{'node_info'}->{$node}->{'id'}} = $self->{'node_info'}->{$node};
 	}
 	$self->{'node_by_id'} = \%node_by_id;
-
+        
         $self->{'logger'}->info("Updated cache for entire network");
-    } else {
+    } elsif(defined($circuit_id) && $circuit_id != -1) {
         $self->{'logger'}->debug("Updating cache for circuit $circuit_id");
-
+        
         my $ckt = $self->get_ckt_object($circuit_id);
         if (!defined $ckt) {
             return &$error("Couldn't create circuit object for circuit $circuit_id");
         }
-
+        
         $ckt->update_circuit_details();
         $self->{'logger'}->debug("Updated cache for circuit $circuit_id");
-    }
+    }else{
+        $self->{'logger'}->debug("Updating cache for vrf $vrf_id");
 
+        my $vrf = $self->get_vrf_object($vrf_id);
+        if (!defined $vrf) {
+            return &$error("Couldn't create vrf object for vrf $vrf_id");
+        }
+
+        $vrf->update_vrf_details();
+        $self->{'logger'}->debug("Updated cache for vrf $vrf_id");
+    }
+    
     # Write the cache to file for our children, then signal children to
     # read updates from file.
     $self->_write_cache();
@@ -807,6 +824,7 @@ sub addVrf{
         $self->{'logger'}->error($err);
         return &$error($err);
     }
+
     # The VRF may be cached. If so we must reload from DB. This causes
     # a single load for cached VRFs and a double load for VRFs not
     # cached.

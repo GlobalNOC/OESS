@@ -5,7 +5,7 @@ use warnings;
 
 use GRNOC::WebService::Dispatcher;
 use GRNOC::WebService::Method;
-
+use List::MoreUtils qw(uniq);
 use OESS::DB;
 use OESS::Entity;
 use OESS::VRF;
@@ -28,6 +28,18 @@ sub register_ro_methods{
 
     $svc->register_method($method);
 
+    $method = GRNOC::WebService::Method->new(
+        name            => "get_entities",
+        description     => "returns a JSON object representing all entities",
+        callback        => sub { get_entities() }
+    );
+    $method->add_input_parameter(
+        name            => 'name',
+        pattern         => $GRNOC::WebService::Regex::TEXT,
+        required        => 0,
+        description     => "Name of entity to search for."
+    );
+    $svc->register_method($method);
 
     $method = GRNOC::WebService::Method->new(
         name => 'get_entity_children',
@@ -83,7 +95,7 @@ sub register_ro_methods{
         description     => "The workgroup id to find the ACLs for the entity"   );
 
     $method->add_input_parameter(
-        name            => 'circuit_id_id',
+        name            => 'circuit_id',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 0,
         description     => "The workgroup id to find the ACLs for the entity"   );
@@ -352,6 +364,21 @@ sub get_root_entities{
     return {results => \@entities};
 }
 
+sub get_entities{
+    my $method = shift;
+    my $params = shift;
+    my $ref = shift;
+
+    my $entities = OESS::DB::Entity::get_entities(db => $db);
+
+    my $result = [];
+    foreach my $ent (@$entities){
+        push @$result, $ent->to_hash();
+    }
+
+    return { results => $result };
+}
+
 sub get_entity_children{
     my $method = shift;
     my $params = shift;
@@ -463,21 +490,28 @@ sub get_entity{
                 }
             }
         }
+        
         my $obj = $int->to_hash();
         my @allowed_vlans;
-        for(my $i=1;$i<=4095;$i++){
-            if($int->vlan_valid( workgroup_id => $workgroup_id, vlan => $i )){
-                push(@allowed_vlans,$i);
-                $vlans{$i} = 1;
-            }
 
-            if($already_used_tag == $i){
-                push(@allowed_vlans, $i);
-                $vlans{$i} = 1;
+        foreach my $acl (@{$int->acls()->acls()}){
+            next if $acl->{'entity_id'} != $entity->entity_id();
+            next if $acl->{'allow_deny'} ne 'allow';
+            next if $acl->{'workgroup_id'} != $workgroup_id;
+            for(my $i=$acl->{'start'}; $i<=$acl->{'end'}; $i++){
+                if($int->vlan_valid( workgroup_id => $workgroup_id, vlan => $i )){
+                    push(@allowed_vlans,$i);
+                    $vlans{$i} = 1;
+                }
+                
+                if($already_used_tag == $i){
+                    push(@allowed_vlans, $i);
+                    $vlans{$i} = 1;
+                }
             }
+            $obj->{'available_vlans'} = \@allowed_vlans;
+            push(@ints,$obj);
         }
-        $obj->{'available_vlans'} = \@allowed_vlans;
-        push(@ints,$obj);
     }
     
     if(defined($vrf_id)){
@@ -486,7 +520,7 @@ sub get_entity{
             $method->set_error("Unable to find VRF: " . $vrf_id);
             return;
         }
-
+        
         foreach my $ep (@{$vrf->endpoints()}){
             warn "Entity ID: " . $ep->entity->entity_id() . " vs " . $entity->entity_id() . "\n";
             if($ep->entity->entity_id() == $entity->entity_id()){
@@ -495,9 +529,22 @@ sub get_entity{
             }
         }
     }
-    
+
+    my @uniq_ints;
+    foreach my $int (@ints){
+        my $found = 0;
+        foreach my $uint (@uniq_ints){
+            if($uint->{'interface_id'} == $int->{'interface_id'}){
+                $found = 1;
+            }
+        }
+        if(!$found){
+            push(@uniq_ints, $int);
+        }
+    }
+    warn Dumper(\@uniq_ints);
     my $res = $entity->to_hash();
-    $res->{'interfaces'} = \@ints;
+    $res->{'interfaces'} = \@uniq_ints;
     my @allowed_vs = keys %vlans;
     $res->{'allowed_vlans'} = \@allowed_vs;
     return {results => $res};

@@ -7,6 +7,7 @@
   [% INCLUDE js_templates/maps.js %]
 
   <script>
+    [% INCLUDE js_templates/api/user.js %]
     [% INCLUDE js_templates/api/workgroup.js %]
     [% INCLUDE js_templates/user_menu.js %]
   </script>
@@ -22,8 +23,7 @@
 
       <div class="btn-group">
         <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-          <!-- <span class="badge" style="background-color: #D75452;">1</span>&nbsp; jonstout / <span id="active_workgroup_name"></span> -->
-          jonstout / <span id="active_workgroup_name"></span>
+          <span id="active_workgroup_name">&nbsp;</span>
           <span class="caret"></span>
         </button>
         <ul id="user-menu-workgroups" class="dropdown-menu">

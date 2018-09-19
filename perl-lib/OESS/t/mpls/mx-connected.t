@@ -6,7 +6,7 @@ use Data::Dumper;
 use OESS::Mock;
 use OESS::MPLS::Device::Juniper::MX;
 
-use Test::More tests => 2;
+use Test::More tests => 3;
 
 
 my $device = OESS::MPLS::Device::Juniper::MX->new(

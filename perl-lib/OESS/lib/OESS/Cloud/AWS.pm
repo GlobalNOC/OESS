@@ -99,6 +99,24 @@ sub allocate_vinterface {
     $ENV{'AWS_ACCESS_KEY'} = $self->{connections}->{$interconnect_id}->{access_key};
     $ENV{'AWS_SECRET_KEY'} = $self->{connections}->{$interconnect_id}->{secret_key};
 
+    my $allocation = {
+        Asn => $asn,
+        VirtualInterfaceName => $vinterface_name,
+        Vlan => $tag
+    };
+    if (defined $addr_family) {
+        $allocation->{AddressFamily} = $addr_family;
+    }
+    if (defined $amazon_addr) {
+        $allocation->{AmazonAddress} = $amazon_addr;
+    }
+    if (defined $auth_key) {
+        $allocation->{AuthKey} = $auth_key;
+    }
+    if (defined $customer_addr) {
+        $allocation->{CustomerAddress} = $customer_addr;
+    }
+
     my $dc = Paws->service(
         'DirectConnect',
         region => $self->{connections}->{$interconnect_id}->{region}
@@ -106,15 +124,7 @@ sub allocate_vinterface {
     my $resp = $dc->AllocatePrivateVirtualInterface(
         ConnectionId => $interconnect_id,
         OwnerAccount => $owner_account,
-        NewPrivateVirtualInterfaceAllocation => {
-            AddressFamily => $addr_family,
-            AmazonAddress => $amazon_addr,
-            Asn => $asn,
-            AuthKey => $auth_key,
-            CustomerAddress => $customer_addr,
-            VirtualInterfaceName => $vinterface_name,
-            Vlan => $tag
-        }
+        NewPrivateVirtualInterfaceAllocation => $allocation
     );
 
     # TODO: Find failure modes and log as error

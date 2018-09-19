@@ -48,21 +48,32 @@ sub setup_endpoints {
             push @$result, $ep;
 
         } elsif ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-vinterface') {
-            my $peer = $ep->peers()->[0];
+            my $amazon_addr   = undef;
+            my $asn           = 55038;
+            my $auth_key      = undef;
+            my $customer_addr = undef;
+            my $ip_version    = 'ipv6';
 
-            my $ip_version = 'ipv4';
-            if ($peer->local_ip !~ /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$/) {
-                $ip_version = 'ipv6';
+            my $peer = $ep->peers()->[0];
+            if (defined $peer) {
+                $amazon_addr   = $peer->peer_ip;
+                $asn           = $peer->peer_asn;
+                $auth_key      = $peer->md5_key;
+                $customer_addr = $peer->local_ip;
+
+                if ($peer->local_ip =~ /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$/) {
+                    $ip_version = 'ipv4';
+                }
             }
 
             my $res = $aws->allocate_vinterface(
                 $ep->interface()->cloud_interconnect_id,
                 $ep->cloud_account_id,
                 $ip_version,
-                $peer->peer_ip,
-                $peer->peer_asn || 55038,
-                $peer->md5_key || '6f5902ac237024bdd0c176cb93063dc4',
-                $peer->local_ip,
+                $amazon_addr,
+                $asn,
+                $auth_key,
+                $customer_addr,
                 $vrf_name,
                 $ep->tag
             );

@@ -1,0 +1,25 @@
+<div class="row">
+  <div class="col-md-4">
+    <select class="form-control" id="endpoints-statistics-selection" onchange="displayStatisticsIFrame()">
+    </select>
+  </div>
+
+  <div class="col-md-4">
+    <select class="form-control" id="endpoints-statistics-range" onchange="updateStatisticsIFrame()">
+      <option value="&from=now-1h&to=now">Last hour</option>
+      <option value="&from=now-1d&to=now">Last day</option>
+      <option value="&from=now-1w&to=now">Last week</option>
+    </select>
+  </div>
+
+  <div id="peering-selection" class="col-md-4">
+
+  </div>
+</div>
+<br/>
+
+<div class="row">
+  <div class="col-md-12">
+    <div id="endpoints-statistics"></div>
+  </div>
+</div>

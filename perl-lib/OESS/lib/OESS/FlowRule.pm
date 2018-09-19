@@ -55,7 +55,7 @@ use warnings;
 use Data::Dumper;
 use Switch;
 use JSON::XS qw(encode_json);
-#use Net::DBus;
+use Net::DBus;
 use Log::Log4perl;
 use List::Compare;
 use Storable qw(dclone);
@@ -436,135 +436,135 @@ sub set_dpid{
 
 =cut
 
-# sub to_dbus {
-#     my ($self, %args) = @_;
+ sub to_dbus {
+     my ($self, %args) = @_;
 
-#     $self->{'logger'}->debug("Processing flow to DBus");
+     $self->{'logger'}->debug("Processing flow to DBus");
 
-#     my $command;
-#     $command->{'dpid'} = Net::DBus::dbus_uint64($self->{'dpid'});
-#     my @actions;
-#     $self->{'logger'}->debug("Processing Actions");
-#     for(my $i=0;$i<= $#{$self->{'actions'}};$i++){
-#         my @tmp;
-#         my $action = $self->{'actions'}->[$i];
+     my $command;
+     $command->{'dpid'} = Net::DBus::dbus_uint64($self->{'dpid'});
+     my @actions;
+     $self->{'logger'}->debug("Processing Actions");
+     for(my $i=0;$i<= $#{$self->{'actions'}};$i++){
+         my @tmp;
+         my $action = $self->{'actions'}->[$i];
 
-#         foreach my $key (keys (%$action)){
-#             $self->{'logger'}->trace("Processing action: " . $key . " " . $action->{$key});
-#             switch (lc($key)){
-#                 case "output" {
-#                     #look at OF1.0 spec when sending ofp_action_output
-#                     #it takes a max_length and a port
-#                     #max length is only used when forwarding to controller
-#                     #max_length defaults to 0 if not specified
-#                     my $max_length;
-#                     my $out_port;
+         foreach my $key (keys (%$action)){
+             $self->{'logger'}->trace("Processing action: " . $key . " " . $action->{$key});
+             switch (lc($key)){
+                 case "output" {
+                     #look at OF1.0 spec when sending ofp_action_output
+                     #it takes a max_length and a port
+                     #max length is only used when forwarding to controller
+                     #max_length defaults to 0 if not specified
+                     my $max_length;
+                     my $out_port;
 
-#                     if(ref($action->{$key}) ne 'HASH'){
-#                         $out_port = $action->{$key};
-#                         $max_length = 65535;
-#                     }else{
-#                         $max_length = $action->{$key}->{'max_length'};
-#                         $out_port = $action->{$key}->{'port'};
-#                     }
+                     if(ref($action->{$key}) ne 'HASH'){
+                         $out_port = $action->{$key};
+                         $max_length = 65535;
+                     }else{
+                         $max_length = $action->{$key}->{'max_length'};
+                         $out_port = $action->{$key}->{'port'};
+                     }
 
-#                     if(!defined($max_length)){
-#                         $max_length = 65535;
-#                     }
+                     if(!defined($max_length)){
+                         $max_length = 65535;
+                     }
 
-#                     if(!defined($out_port)){
-#                         $self->{'logger'}->error("Error no out_port specified in output action");
-#                         return;
-#                     }
+                     if(!defined($out_port)){
+                         $self->{'logger'}->error("Error no out_port specified in output action");
+                         return;
+                     }
 
-#                     $tmp[0] = Net::DBus::dbus_uint16(OFPAT_OUTPUT);
-#                     $tmp[1][0] = Net::DBus::dbus_uint16(int($max_length));
-#                     $tmp[1][1] = Net::DBus::dbus_uint16(int($out_port));
-#                 }
+                     $tmp[0] = Net::DBus::dbus_uint16(OFPAT_OUTPUT);
+                     $tmp[1][0] = Net::DBus::dbus_uint16(int($max_length));
+                     $tmp[1][1] = Net::DBus::dbus_uint16(int($out_port));
+                 }
 
-#                 case "set_vlan_vid" {
-#                     if(!defined($action->{$key}) || $action->{$key} == UNTAGGED || $action->{$key} == 65535){
-#                         #untagged
-#                         $tmp[0] = Net::DBus::dbus_uint16(OFPAT_STRIP_VLAN);
-#                         $tmp[1] = Net::DBus::dbus_uint16(0);
-#                     } else {
-#                         $tmp[0] = Net::DBus::dbus_uint16(OFPAT_SET_VLAN_VID);
-#                         $tmp[1] = Net::DBus::dbus_uint16(int($action->{$key}));
-#                     }
-#                 }case "set_vlan_id"{
-#                     if(!defined($action->{$key}) || $action->{$key} == UNTAGGED || $action->{$key} == 65535){
-#                         #untagged
-#                         $tmp[0] = Net::DBus::dbus_uint16(OFPAT_STRIP_VLAN);
-#                         $tmp[1] = Net::DBus::dbus_uint16(0);
-#                     } else {
-#                         $tmp[0] = Net::DBus::dbus_uint16(OFPAT_SET_VLAN_VID);
-#                         $tmp[1] = Net::DBus::dbus_uint16(int($action->{$key}));
-#                     }
-#                 }
+                 case "set_vlan_vid" {
+                     if(!defined($action->{$key}) || $action->{$key} == UNTAGGED || $action->{$key} == 65535){
+                         #untagged
+                         $tmp[0] = Net::DBus::dbus_uint16(OFPAT_STRIP_VLAN);
+                         $tmp[1] = Net::DBus::dbus_uint16(0);
+                     } else {
+                         $tmp[0] = Net::DBus::dbus_uint16(OFPAT_SET_VLAN_VID);
+                         $tmp[1] = Net::DBus::dbus_uint16(int($action->{$key}));
+                     }
+                 }case "set_vlan_id"{
+                     if(!defined($action->{$key}) || $action->{$key} == UNTAGGED || $action->{$key} == 65535){
+                         #untagged
+                         $tmp[0] = Net::DBus::dbus_uint16(OFPAT_STRIP_VLAN);
+                         $tmp[1] = Net::DBus::dbus_uint16(0);
+                     } else {
+                         $tmp[0] = Net::DBus::dbus_uint16(OFPAT_SET_VLAN_VID);
+                         $tmp[1] = Net::DBus::dbus_uint16(int($action->{$key}));
+                     }
+                 }
 
-#                 case "drop"{
-#                     #no actions... ie... do nothing
+                 case "drop"{
+                     #no actions... ie... do nothing
                     
-#                 }else{
-#                             $self->{'logger'}->error("Error unsupported action: " . $key . "\n");
-#                     return;
-#                 }
-#             }
-#             if(defined($tmp[0])){
-#                 push(@actions,\@tmp);
-#             }
-#         }
-#     }
+                 }else{
+                             $self->{'logger'}->error("Error unsupported action: " . $key . "\n");
+                     return;
+                 }
+             }
+             if(defined($tmp[0])){
+                 push(@actions,\@tmp);
+             }
+         }
+     }
 
-#     #push the actions on to the object
-#     $command->{'action'} = \@actions;
+      #push the actions on to the object
+     $command->{'action'} = \@actions;
     
-#     $self->{'logger'}->debug("Processing Match");
-#     foreach my $key (keys (%{$self->{'match'}})){
-#         $self->{'logger'}->trace("Processing Match Key: " . $key . " value: " . $self->{'match'}->{$key});
-#         switch ($key){
-#             case "in_port"{
-#                 $command->{'attr'}{'IN_PORT'} = Net::DBus::dbus_uint16(int($self->{'match'}->{$key}));
-#             }case "dl_vlan"{
-#                 $command->{'attr'}{'DL_VLAN'} = Net::DBus::dbus_uint16(int($self->{'match'}->{$key}));
-#             }case "dl_type"{
-#                 $command->{'attr'}{'DL_TYPE'} = Net::DBus::dbus_uint16(int($self->{'match'}->{$key}));
-#             }case "dl_dst"{
-#                 $command->{'attr'}{'DL_DST'}  = Net::DBus::dbus_uint64(int($self->{'match'}->{$key}));
-#             }case "dl_vlan_pcp"{
-#                 #not supported
-#             }case "nw_proto"{
-#                 #not supported
-#             }case "tp_src"{
-#                 #not supported
-#             }case "nw_tos"{
-#                 #not supported
-#             }case "tp_dst"{
-#                 #not supported
-#             }else{
-#                 $self->{'logger'}->error("To Dbus: Unsupported match attribute: " . $key . "\n");
-#                 return;
-#             }
-#         }
-#     }
+     $self->{'logger'}->debug("Processing Match");
+     foreach my $key (keys (%{$self->{'match'}})){
+         $self->{'logger'}->trace("Processing Match Key: " . $key . " value: " . $self->{'match'}->{$key});
+         switch ($key){
+             case "in_port"{
+                 $command->{'attr'}{'IN_PORT'} = Net::DBus::dbus_uint16(int($self->{'match'}->{$key}));
+            }case "dl_vlan"{
+                 $command->{'attr'}{'DL_VLAN'} = Net::DBus::dbus_uint16(int($self->{'match'}->{$key}));
+             }case "dl_type"{
+                 $command->{'attr'}{'DL_TYPE'} = Net::DBus::dbus_uint16(int($self->{'match'}->{$key}));
+             }case "dl_dst"{
+                 $command->{'attr'}{'DL_DST'}  = Net::DBus::dbus_uint64(int($self->{'match'}->{$key}));
+             }case "dl_vlan_pcp"{
+                 #not supported
+             }case "nw_proto"{
+                 #not supported
+             }case "tp_src"{
+                 #not supported
+             }case "nw_tos"{
+                 #not supported
+             }case "tp_dst"{
+                 #not supported
+             }else{
+                 $self->{'logger'}->error("To Dbus: Unsupported match attribute: " . $key . "\n");
+                 return;
+             }
+         }
+     }
     
-#     #these are all set by default
-#     $command->{'attr'}{'PRIORITY'}     = Net::DBus::dbus_uint16(int($self->{'priority'}));
-#     $command->{'attr'}{'HARD_TIMEOUT'} = Net::DBus::dbus_uint16(int($self->{'hard_timeout'}));
-#     $command->{'attr'}{'IDLE_TIMEOUT'} = Net::DBus::dbus_uint16(int($self->{'idle_timeout'}));
+     #these are all set by default
+     $command->{'attr'}{'PRIORITY'}     = Net::DBus::dbus_uint16(int($self->{'priority'}));
+     $command->{'attr'}{'HARD_TIMEOUT'} = Net::DBus::dbus_uint16(int($self->{'hard_timeout'}));
+     $command->{'attr'}{'IDLE_TIMEOUT'} = Net::DBus::dbus_uint16(int($self->{'idle_timeout'}));
 
-#     #set the command if it was defined
-#     if(defined($args{'command'})){
-#         $command->{'attr'}{'COMMAND'} = Net::DBus::dbus_uint16(int($args{'command'}));
-#         $self->{'logger'}->debug("flow converted to dbus with OFPFC of :". $command->{'attr'}{'COMMAND'});
-#     } else {
-#         $self->{'logger'}->error("no command sent with to_dbus command!");
-#     }
+     #set the command if it was defined
+     if(defined($args{'command'})){
+         $command->{'attr'}{'COMMAND'} = Net::DBus::dbus_uint16(int($args{'command'}));
+         $self->{'logger'}->debug("flow converted to dbus with OFPFC of :". $command->{'attr'}{'COMMAND'});
+     } else {
+         $self->{'logger'}->error("no command sent with to_dbus command!");
+     }
 
-#     $self->{'logger'}->debug("returning the flow in dbus format");
+     $self->{'logger'}->debug("returning the flow in dbus format");
 
-#     return (Net::DBus::dbus_uint64($self->{'dpid'}),$command->{'attr'},$command->{'action'});
-# }
+     return (Net::DBus::dbus_uint64($self->{'dpid'}),$command->{'attr'},$command->{'action'});
+ }
 
 
 =head2 get_match
