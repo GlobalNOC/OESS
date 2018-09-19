@@ -221,7 +221,7 @@ function loadSelectedEndpointList() {
         <tbody>
           ${peerings}
           <tr id="new-peering-form-${index}">
-            <td><input class="form-control bgp-asn" type="number" required /></td>
+            <td><input class="form-control bgp-asn" type="number" ${ endpoint.cloud_account_id ? 'disabled' : 'required' } /></td>
             <td><input class="form-control your-peer-ip" type="text" required /></td>
             <td><input class="form-control bgp-key" type="text" /></td>
             <td><input class="form-control oess-peer-ip" type="text" required /></td>

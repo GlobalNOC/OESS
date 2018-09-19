@@ -57,7 +57,6 @@ sub setup_endpoints {
             my $peer = $ep->peers()->[0];
             if (defined $peer) {
                 $amazon_addr   = $peer->peer_ip;
-                $asn           = $peer->peer_asn;
                 $auth_key      = $peer->md5_key;
                 $customer_addr = $peer->local_ip;
 
