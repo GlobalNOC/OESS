@@ -1034,6 +1034,7 @@ CREATE TABLE `vrf_ep_peer` (
   `peer_ip` varchar(255) NOT NULL,
   `peer_asn` int(10) NOT NULL,
   `vrf_ep_id` int(11) DEFAULT NULL,
+  `operational_state` int(1) DEFAULT NULL,
   PRIMARY KEY (`vrf_ep_peer_id`),
   KEY `vrf_ep_id` (`vrf_ep_id`),
   CONSTRAINT `vrf_ep_peer_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`)
