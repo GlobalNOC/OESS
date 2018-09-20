@@ -71,6 +71,14 @@ sub register_rw_methods{
         );
 
     $method->add_input_parameter(
+        name            => 'skip_cloud_provisioning',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        description     => "If editing an existing VRF specify the ID otherwise leave blank for new VRF.",
+        default         => 0
+    );
+
+    $method->add_input_parameter(
         name            => 'name',
         pattern         => $GRNOC::WebService::Regex::NAME_ID,
         required        => 1,
@@ -300,6 +308,50 @@ sub provision_vrf{
             if (defined $ep_lookup->{$ep_name}) {
                 $model->{endpoints}->[$i]->{cloud_account_id} = $ep_lookup->{$ep_name}->{cloud_account_id};
                 $model->{endpoints}->[$i]->{cloud_connection_id} = $ep_lookup->{$ep_name}->{cloud_connection_id};
+
+                # Compare peers. If they're different and cloud edit
+                # has been not been disabled we throw an error. The
+                # reason for this is related to how AWS vinterface
+                # peerings are managed; It's easier to ask the user to
+                # recreate the circuit than to handle all the edge
+                # cases involved in diffing a peering.
+                my $needs_diff = 0;
+
+                if (@{$ep_lookup->{$ep_name}->{peers}} == @{$model->{endpoints}->[$i]->{peerings}}) {
+                    foreach my $new_peer (@{$model->{endpoints}->[$i]->{peerings}}) {
+                        my $found_ok = 0;
+
+                        foreach my $old_peer (@{$ep_lookup->{$ep_name}->{peers}}) {
+                            if ($new_peer->{peer_ip} ne $old_peer->{peer_ip}) {
+                                next;
+                            }
+                            if ($new_peer->{local_ip} ne $old_peer->{local_ip}) {
+                                next;
+                            }
+                            if ($new_peer->{asn} ne $old_peer->{peer_asn}) {
+                                next;
+                            }
+                            if ($new_peer->{key} ne $old_peer->{md5_key}) {
+                                next;
+                            }
+                            $found_ok = 1;
+                            last;
+                        }
+
+                        if (!$found_ok) {
+                            $needs_diff = 1;
+                            last;
+                        }
+                    }
+                } else {
+                    $needs_diff = 1;
+                }
+
+                if ($needs_diff && !$params->{skip_cloud_provisioning}{value}) {
+                    $method->set_error("Cannot modify a cloud connection's peerings. Please recreate the circuit.");
+                    return;
+                }
+
                 warn 'Doing nothing: ' . Dumper($ep_name);
                 delete $ep_lookup->{$ep_name};
             } else {
@@ -332,10 +384,17 @@ sub provision_vrf{
             warn 'Removing: ' . Dumper($name);
             push @$to_remove, $ep_lookup->{$name};
         }
-        OESS::Cloud::cleanup_endpoints($to_remove);
+        if (!$params->{skip_cloud_provisioning}{value}) {
+            eval {
+                OESS::Cloud::cleanup_endpoints($to_remove);
 
-        my $setup_endpoints = OESS::Cloud::setup_endpoints($vrf->name, $vrf->endpoints);
-        $vrf->endpoints($setup_endpoints);
+                my $setup_endpoints = OESS::Cloud::setup_endpoints($vrf->name, $vrf->endpoints);
+                $vrf->endpoints($setup_endpoints);
+            };
+            if ($@) {
+                warn "$@";
+            }
+        }
         $vrf->update_db();
 
         my $vrf_id = $vrf->vrf_id();

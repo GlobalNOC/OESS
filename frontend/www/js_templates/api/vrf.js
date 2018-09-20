@@ -74,7 +74,6 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
     const data = await resp.json();
 
     if ('error_text' in data) {
-        console.log(data.error_text);
         throw(data.error_text);
     }
 
@@ -85,7 +84,8 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
   } catch(error) {
     console.log('Failure occurred in provisionVRF.');
     console.log(error);
-    throw(error);
+    alert(error);
+    return null;
   }
 
   //should never get here
