@@ -145,7 +145,6 @@ sub from_hash{
 
     warn "Searching for Entity\n";
     $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, interface_id => $self->{'interface'}->{'interface_id'}, vlan => $self->{'tag'});
-    warn Dumper($self->{'entity'});
 }
 
 sub _fetch_from_db{
