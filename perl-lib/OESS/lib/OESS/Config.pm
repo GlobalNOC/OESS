@@ -94,4 +94,15 @@ sub db_credentials{
             password => $password};
 }
 
+sub get_cloud_config{
+    my $self = shift;
+
+    return $self->{'config'}->{'cloud'};
+}
+
+sub base_url{
+    my $self = shift;
+    return $self->{'config'}->{'base_url'};
+}
+
 1;

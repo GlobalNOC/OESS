@@ -11,217 +11,200 @@ use Log::Log4perl;
 use Paws;
 use XML::Simple;
 use GRNOC::WebService::Client;
+use OESS::Config;
 
-#use MooseX::Storage;
-#    with Storage('format' => 'JSON');
-    #with Storage('format' => 'JSON', 'io' => 'File');
-
-
-my $client;
-my $config;
 my $logger;
-my $creds;
-my $connections = {};
-my $jsonObj = JSON->new->allow_nonref->convert_blessed->allow_blessed;
 
-sub new {
-    $config = '/etc/oess/database.xml';
-    $logger = Log::Log4perl->get_logger('OESS.Cloud.AWS');
-    #bless $self, $class;
-    $creds = XML::Simple::XMLin($config);
-    $client = GRNOC::WebService::Client->new(
-        url     => $creds->{wsc}->{url} . "/vrf.cgi",
-        uid     => $creds->{wsc}->{username},
-        passwd  => $creds->{wsc}->{password},
-        verify_hostname => 0,
-        #usePost => 1,
-        debug   => 0
-    ) or die "Cannot connect to webservice";
-    #warn "client after creating " . Dumper $client;
-}
+sub main{
+    my $logger = Log::Log4perl->get_logger('OESS.Cloud.AWS.Syncer');
+    my $config = OESS::Config->new();
+    my $client = connect_to_ws($config);
 
-new();
+    my $workgroup_id = find_aws_workgroup($client, $config);
 
-# Get VRFs from OESS db
-my $workgroup_id = 3; # TODO: make this configurable
+    $client->set_url($config->base_url() . "/services/vrf.cgi");
+    my $vrfs = $client->get_vrfs( workgroup_id => $workgroup_id);
+    
+    my $aws_ints = get_aws_virtual_interface($config);
 
-my $oess_res;
-if ( defined $client ) {
-    $oess_res = $client->get_vrfs( workgroup_id => $workgroup_id );
-    warn "oess_res: " . Dumper $oess_res;
-    if ( ! defined $oess_res ) {
-        die "Error retrieving VRFs from webservice " . $client->get_error();
-
-    }
-#my $data = $oess_res->data();
-    #warn "data " . Dumper $data;
-} else {
-    warn "client not defined";
-}
-
-my %aws_matches = ();
-
-foreach my $conn (@{$creds->{cloud}->{connection}}) {
-    $connections->{$conn->{interconnect_id}} = $conn;
-}
-
-my $dc = Paws->service(
-    'DirectConnect',
-    region => "us-east-1"
-);
-
-# DescribeVirtualInterfaces
-
-my $aws_res = $dc->DescribeVirtualInterfaces();
-
-my $vrf_id_filter = 609;
-
-my $oess_updates = [];
-foreach my $vrf (@$oess_res) {
-    #warn "vrf " . Dumper $vrf;
-    foreach my $endpoint ( @{$vrf->{endpoints}} ) {
-        next if ( not defined( $endpoint->{cloud_connection_id} ) );
-        next if ( defined ( $vrf_id_filter ) && $vrf_id_filter != $endpoint->{tag} );
-        #warn "endpoint " . Dumper $endpoint;
-        #my $interconnect_id = $endpoint->{interface}->{cloud_interconnect_id};
-        my $connection_id = $endpoint->{cloud_connection_id};
-        my $vlan_id = $endpoint->{tag};
-        #my $vlan_id = $endpoint->{cloud_connection_id};
-        warn "VLAN_ID " . Dumper $vlan_id;
-        warn "NUMBER OF PEERS " . @{$endpoint->{peers}};
-        my $aws_vrfs = get_vrf_aws_details( $connection_id, $vlan_id );
-        update_endpoint_values( $endpoint, $aws_vrfs );
-        push @$oess_updates, $vrf;
-    }
-}
-
-warn "OESS_UPDATES " . Dumper $oess_updates;
-
-my $update_requests = reformat( $oess_updates );
-
-foreach my $ur ( @$update_requests ) {
-
+    compare_and_update_vrfs( vrfs => $vrfs, aws_ints => $aws_ints, client => $client);
 
 }
 
-sub reformat {
-    my ( $updates ) = @_;
+sub find_aws_workgroup{
+    my $client = shift;
+    my $config = shift;
 
-    my $updates_out = [];
+    my $cloud_config = $config->get_cloud_config();
 
-    my @top_level_fields = ( 'local_asn', 'prefix_limit', 'name', 'vrf_id', 'description' );
+    my $wg_name;
 
-
-    foreach my $row (@$updates) {
-        my $update = {};
-        $update->{workgroup_id} = $workgroup_id;
-        #$update->{endpoint} = $jsonObj->encode( $row->{endpoints} );
-        my $endpoints_for_update = [];
-        foreach my $endpoint (@{$row->{endpoints}}) {
-            my $ep = {};
-            $ep->{interface}->{node}->{name} = $endpoint->{node}->{name};
-            $ep->{interface}->{name} = $endpoint->{interface}->{name};
-            $ep->{tag} = $endpoint->{tag};
-            $ep->{inner_tag} = $endpoint->{inner_tag};
-            $ep->{cloud_account_id} = $endpoint->{cloud_account_id};
-            $ep->{cloud_connection_id} = $endpoint->{cloud_connection_id};
-            $ep->{peerings} = $endpoint->{peers};
-
-            #$ep = $jsonObj->encode( $ep );
-
-            push @$endpoints_for_update, $ep;
-
+    foreach my $cloud (@{$cloud_config->{'connection'}}){
+        if($cloud->{'interconnect_type'} eq 'aws-hosted-vinterface' || $cloud->{'interconnect_type'} eq 'aws-hosted-connection'){
+            $wg_name = $cloud->{'workgroup'};
         }
-        $update->{endpoint} = $jsonObj->encode( $endpoints_for_update );
+    }
 
-        foreach my $field( @top_level_fields ) {
-            $update->{ $field } = $row->{ $field };
+    $client->set_url( $config->base_url() . "/services/user.cgi");
+    my $res = $client->get_current();
+
+    my $workgroups = $res->{'results'}->[0]->{'workgroups'};
+    foreach my $wg (@$workgroups){
+        if($wg->{'name'} eq $wg_name){
+            return $wg->{'workgroup_id'};
         }
-        warn "UPDATE " . Dumper $update;
-        push @$updates_out, $update;
-
     }
-
-
-    return $updates_out;
-
-
-
 }
 
-sub update_endpoint_values {
-    my ( $endpoint, $aws_vrfs ) = @_;
-    return if ( not (defined $aws_vrfs) || @$aws_vrfs == 0);
-
-    foreach my $aws (@$aws_vrfs ) {
-        warn "updating aws " . $aws->VirtualInterfaceId;
-        #warn "aws values " . Dumper $aws;
-        $endpoint->{interface}->{cloud_interconnect_id} = $aws->ConnectionId if  $aws->ConnectionId;
-        $endpoint->{cloud_account_id} = $aws->OwnerAccount if $aws->OwnerAccount;
-        # TODO: handle more than one set of peers. currently we assume one
-        my $peer = $endpoint->{peers}->[0];
-        warn "PEER " . Dumper $peer;
-        $peer->{peer_ip} = $aws->AmazonAddress if $aws->AmazonAddress;
-        $peer->{peer_asn} = $aws->AmazonSideAsn if $aws->AmazonSideAsn;
-        $peer->{md5_key} = $aws->AuthKey if $aws->AuthKey;
-        $peer->{local_ip} = $aws->CustomerAddress if $aws->CustomerAddress;
-        warn "PEER AFTER CHANGES " . Dumper $peer;
-        $endpoint->{peers}->[0] = $peer;
 
 
-    }
+sub connect_to_ws {
+    my $config = shift;
 
-    warn "ENDPOINT AFTER UPDATES vlan " . $endpoint->{tag} . "!!\n"  . Dumper $endpoint;
+    my $creds = $config->get_cloud_config();
+    my $client = GRNOC::WebService::Client->new(
+        url     => $config->base_url() . "services/vrf.cgi",
+        uid     => $creds->{'user'},
+        passwd  => $creds->{'password'},
+        realm   => $creds->{'realm'},
+        debug   => 1
+        ) or die "Cannot connect to webservice";
+
+    return $client;
 }
 
-# Updates a value, but only if the new value is defined
-# Assumes that $old is a scalar, but ...
-# if $key is provided then $old->{ $key } is used for the old value
 
-sub _update_value {
-    my ( $old, $new, $key ) = @_;
-    # by default, return the "old" (existing) value
-    my $ret = $old;
+sub get_aws_virtual_interface{
+    my $config = shift;
+    
+    my @aws_conns;
 
-    if ( defined $new ) {
-        if ( $key ) {
-            my $oldval = $old->{ $key };
+    foreach my $cloud (@{$config->get_cloud_config()->{'connection'}}){
+        if($cloud->{'interconnect_type'} eq 'aws-hosted-vinterface'){
+            $ENV{'AWS_ACCESS_KEY'} = $cloud->{access_key};
+            $ENV{'AWS_SECRET_KEY'} = $cloud->{secret_key};
+            
+            my $dc = Paws->service(
+                'DirectConnect',
+                region => "us-east-1"
+                );
+            
+            
+            # DescribeVirtualInterfaces    
+            my $aws_res = $dc->DescribeVirtualInterfaces();
+            warn Dumper($aws_res->{VirtualInterfaces});
+            push(@aws_conns, @{$aws_res->{VirtualInterfaces}});
         }
-        $ret = $new;
-    }
-    return $ret;
+
+    }        
+
+    return \@aws_conns;
 }
 
-warn "aws_matches " . Dumper \%aws_matches;
+sub compare_and_update_vrfs{
+    my %params = @_;
+    my $vrfs = $params{'vrfs'};
+    my $aws_ints = $params{'aws_ints'};
+    my $client = $params{'client'};
 
+    foreach my $vrf (@$vrfs) {
+        foreach my $endpoint ( @{$vrf->{endpoints}} ) {
+            next if ( !defined( $endpoint->{cloud_connection_id} ) );
+            my $connection_id = $endpoint->{cloud_connection_id};   
+            my $aws_peering = get_vrf_aws_details( aws_ints => $aws_ints, cloud_connection_id => $connection_id );
+            my $update = update_endpoint_values( $endpoint->{'peers'}->[0], $aws_peering );
+            if($update){
+                update_oess_vrf($vrf,$client);
+            }else{
+                warn "NO Update required for VRF: " . $vrf->{'vrf_id'} . "\n";
+            }
+        }
+    }
+}
+
+sub update_oess_vrf{
+    my $vrf = shift;
+    my $client = shift;
+    my %params;
+    $params{'skip_cloud_provisioning'} = 1;
+    $params{'vrf_id'} = $vrf->{'vrf_id'};
+    $params{'name'} = $vrf->{'name'};
+    $params{'workgroup_id'} = $vrf->{'workgroup'}->{'workgroup_id'};
+    $params{'description'} = $vrf->{'description'};
+    $params{'prefix_limit'} = $vrf->{'prefix_limit'};
+    $params{'local_asn'} = $vrf->{'local_asn'};
+
+    $params{'endpoint'} = ();
+    foreach my $ep (@{$vrf->{'endpoints'}}){
+        my @peerings;
+        foreach my $p (@{$ep->{'peers'}}){
+            push(@peerings,{ peer_ip => $p->{'peer_ip'},
+                             asn => $p->{'peer_asn'},
+                             key => $p->{'md5_key'},
+                             local_ip => $p->{'local_ip'}});
+        }
+        push(@{$params{'endpoint'}},encode_json({ interface => $ep->{'interface'}->{'name'}, 
+                                                  node => $ep->{'node'}->{'name'},
+                                                  tag => $ep->{'tag'},
+                                                  bandwidth => $ep->{'bandwidth'},
+                                                  inner_tag => $ep->{'inner_tag'},
+                                                  peerings => \@peerings}));
+    
+        
+    }
+    
+    #warn Dumper(\%params);
+
+    my $res = $client->provision(%params);
+    warn Dumper($res);
+}
 
 sub get_vrf_aws_details {
-    my ( $cloud_connection_id, $vlan_id ) = @_;
+    my %params = @_;
+    my $cloud_connection_id = $params{'cloud_connection_id'};
+    my $virtual_interfaces = $params{'aws_ints'};
 
-    #warn "aws_res: $aws_res";
-    
-    #my @ret = grep { $_->ConnectionId eq $cloud_interconnect_id } @{$aws_res->{VirtualInterfaces}};
-    #warn "RET \n" . Dumper @ret;
-    
-    my @aws_details = (); 
+    warn Dumper(@$virtual_interfaces);
 
-    foreach my $aws (@{$aws_res->{VirtualInterfaces}}) {
-
+    foreach my $aws (@$virtual_interfaces){
+        warn "AWS VirtualInterfaceId: " . $aws->VirtualInterfaceId . " vs " . $cloud_connection_id . "\n";
         if ( $aws->VirtualInterfaceId ne $cloud_connection_id ) {
+            warn "Not it\n";
             next;
         }
-        # key off cloud_connection_id
-        warn "INTF ConnectionId matches $cloud_connection_id on vlan " . $vlan_id;
-        my $key = $cloud_connection_id . "_" . $vlan_id;
-        $aws_matches{$key} = 0 if ( not defined ( $aws_matches{ $key } ) );
-        $aws_matches{$key}++;
-        push @aws_details, $aws;
+        warn "Found\n";
+        return $aws
     }
-
-
-    warn "AWS_DETAILS " . @aws_details;
-    #warn "AWS_DETAILS " . Dumper @aws_details;
-
-    return \@aws_details;
-
 }
+
+
+sub update_endpoint_values {
+    my ( $vrf_peer, $aws_peer ) = @_;
+
+    my $update = 0;
+
+    if($vrf_peer->{peer_ip} ne $aws_peer->AmazonAddress){
+        $vrf_peer->{peer_ip} = $aws_peer->AmazonAddress;
+        $update = 1;
+    }
+    if($vrf_peer->{peer_asn} ne $aws_peer->AmazonSideAsn){
+        $vrf_peer->{peer_asn} = $aws_peer->AmazonSideAsn;
+        $update = 1;
+    }
+    if(!defined($vrf_peer->{md5_key}) || $vrf_peer->{md5_key} ne $aws_peer->AuthKey){
+        $vrf_peer->{md5_key} = $aws_peer->AuthKey;
+        $update = 1;
+    }
+    if($vrf_peer->{local_ip} ne $aws_peer->CustomerAddress){
+        $vrf_peer->{local_ip} = $aws_peer->CustomerAddress;
+        return 1;
+    }
+    if($update){
+        return 1;
+    }else{
+        return 0;
+    }
+}
+
+
+main();
