@@ -27,7 +27,6 @@ async function showEndpointSelectionModal(endpoint, options) {
     document.querySelector('#entity-vlans').value = null;
     document.querySelector('#endpoint-bandwidth').value = null;
     document.querySelector('#entity-bandwidth').value = null;
-    document.querySelector('#endpoint-cloud-account-id').value = null;
     document.querySelector('#entity-cloud-account-id').value = null;
 
     if (endpoint) {
@@ -73,8 +72,6 @@ async function showEndpointSelectionModal(endpoint, options) {
 
         document.querySelector('#add-endpoint-submit').innerHTML = 'Modify Interface';
         document.querySelector('#add-entity-submit').innerHTML = 'Modify Entity';
-
-        document.querySelector('#endpoint-cloud-account-id').value = endpoint.cloud_account_id;
 
         let addEntitySubmitButton = document.querySelector('#add-entity-submit');
         addEntitySubmitButton.innerHTML = `Modify Endpoint`;
@@ -344,14 +341,6 @@ async function loadInterfaceCloudAccountInput() {
     let id = select.options[select.selectedIndex].getAttribute('data-id');
     let interconnect_id = select.options[select.selectedIndex].getAttribute('data-cloud-interconnect-id');
     let interconnect_type = select.options[select.selectedIndex].getAttribute('data-cloud-interconnect-type');
-
-    if (interconnect_id === 'null') {
-        document.querySelector('#endpoint-cloud-account').style.display = 'none';
-    } else {
-        // TODO Update cloud account label based on interconnect type
-        document.querySelector('#endpoint-cloud-account-label').innerHTML = 'AWS Account Owner';
-        document.querySelector('#endpoint-cloud-account').style.display = 'block';
-    }
 }
 
 async function addInterfaceSubmitCallback(event) {
@@ -365,12 +354,12 @@ async function addInterfaceSubmitCallback(event) {
     }
     let endpoint = {
         bandwidth: document.querySelector('#endpoint-bandwidth').value,
-        name: intf,
+        interface: intf,
         node: node,
         entity: entity,
         entity_id: entity_id,
         peerings: [],
-        cloud_account_id: document.querySelector('#endpoint-cloud-account-id').value,
+        cloud_account_id: '',
         tag: document.querySelector('#endpoint-vlans').value
     };
     console.log(endpoint);
