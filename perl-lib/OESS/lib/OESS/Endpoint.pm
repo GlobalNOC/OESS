@@ -61,6 +61,7 @@ sub _build_from_model{
     $self->{cloud_account_id} = $self->{model}->{cloud_account_id};
     $self->{cloud_connection_id} = $self->{model}->{cloud_connection_id};
 
+
     if(defined($self->{'model'}->{'interface'})){
         $self->{'interface'} = OESS::Interface->new( db => $self->{'db'}, name => $self->{'model'}->{'interface'}, node => $self->{'model'}->{'node'});
         $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, interface_id => $self->{'interface'}->{'interface_id'}, vlan => $self->{'tag'});
@@ -77,14 +78,9 @@ sub _build_from_model{
         }
     }
 
-}
+    #unit will be selected at creation....
+    $self->{'unit'} = undef;
 
-sub create{
-    my $self = shift;
-
-    my $endpoint_id = OESS::DB::Endpoint::create( db => $self->{'db'}, model => $self->_to_hash());
-
-    return $endpoint_id;
 }
 
 sub to_hash{
@@ -118,6 +114,7 @@ sub to_hash{
     }
     
     $obj->{'type'} = $self->{'type'};
+    $obj->{'unit'} = $self->{'unit'};
     return $obj;
 
 }
@@ -142,6 +139,8 @@ sub from_hash{
     $self->{'inner_tag'} = $hash->{'inner_tag'};
     $self->{'tag'} = $hash->{'tag'};
     $self->{'bandwidth'} = $hash->{'bandwidth'};
+
+    $self->{'unit'} = $hash->{'unit'};
 
     warn "Searching for Entity\n";
     $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, interface_id => $self->{'interface'}->{'interface_id'}, vlan => $self->{'tag'});
@@ -246,6 +245,11 @@ sub circuit_endpoint_id{
 sub entity{
     my $self = shift;
     return $self->{'entity'};
+}
+
+sub unit{
+    my $self = shift;
+    return $self->{'unit'};
 }
 
 sub decom{
