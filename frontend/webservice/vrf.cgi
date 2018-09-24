@@ -360,22 +360,11 @@ sub provision_vrf{
             }
         }
 
-        # if new endpoint with cloud_interconnect_id allocate
-        # if missing endpoint that had a cloud_interconnect_id delete
-        # if endpoint vlan changed delete and allocate
-
         my $ok = $vrf->update($model);
         if (!$ok) {
             $method->set_error($vrf->error());
             return;
         }
-
-        $ok = $vrf->update_db();
-        if (!$ok) {
-            $method->set_error($vrf->error());
-            return;
-        }
-
 
         # Remove these cloud endpoints. They either were removed or
         # had their tags changed.
@@ -384,6 +373,7 @@ sub provision_vrf{
             warn 'Removing: ' . Dumper($name);
             push @$to_remove, $ep_lookup->{$name};
         }
+
         if (!$params->{skip_cloud_provisioning}{value}) {
             eval {
                 OESS::Cloud::cleanup_endpoints($to_remove);
@@ -392,10 +382,16 @@ sub provision_vrf{
                 $vrf->endpoints($setup_endpoints);
             };
             if ($@) {
-                warn "$@";
+                $method->set_error("$@");
+                return;
             }
         }
-        $vrf->update_db();
+
+        $ok = $vrf->update_db();
+        if (!$ok) {
+            $method->set_error($vrf->error());
+            return;
+        }
 
         my $vrf_id = $vrf->vrf_id();
 
@@ -459,12 +455,18 @@ sub remove_vrf{
         return {success => 0};
     }
 
-    my $res = vrf_del( method => $method, vrf_id => $vrf_id);
+    eval {
+        OESS::Cloud::cleanup_endpoints($vrf->endpoints);
+    };
+    if ($@) {
+        $method->set_error("$@");
+        return;
+    }
+
+    my $res = vrf_del(method => $method, vrf_id => $vrf_id);
     $res->{'vrf_id'} = $vrf_id;
 
     $vrf->decom(user_id => $user->user_id());
-
-    OESS::Cloud::cleanup_endpoints($vrf->endpoints);
 
     #send the update cache to the MPLS fwdctl
     _update_cache(vrf_id => $vrf_id);
