@@ -31,7 +31,7 @@ sub register_ro_methods{
     $method = GRNOC::WebService::Method->new(
         name            => "get_entities",
         description     => "returns a JSON object representing all entities",
-        callback        => sub { get_entities() }
+        callback        => sub { get_entities(@_) }
     );
     $method->add_input_parameter(
         name            => 'name',
@@ -369,7 +369,7 @@ sub get_entities{
     my $params = shift;
     my $ref = shift;
 
-    my $entities = OESS::DB::Entity::get_entities(db => $db);
+    my $entities = OESS::DB::Entity::get_entities(db => $db, name => $params->{name}{value});
 
     my $result = [];
     foreach my $ent (@$entities){

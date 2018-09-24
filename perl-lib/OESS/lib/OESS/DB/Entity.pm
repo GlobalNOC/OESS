@@ -90,14 +90,25 @@ sub get_root_entities{
 sub get_entities {
     my %params = @_;
     my $db = $params{'db'};
+    my $name = $params{'name'};
+
+    my $reqs = [];
+    my $args = [];
+
+    my $where = 'where entity_hierarchy.entity_parent_id != 1';
+    if (defined $name) {
+        $where .= " and entity.name like ?";
+        push @$args, "%$name%";
+    }
+    warn "$where";
 
     my $entities = $db->execute_query(
         "select entity.entity_id, entity.name from entity
         join entity_hierarchy on entity_hierarchy.entity_child_id=entity.entity_id
-        where entity_hierarchy.entity_parent_id != 1
+        $where
         group by entity.entity_id
         order by entity.name",
-        []
+        $args
     );
 
     my $result = [];
