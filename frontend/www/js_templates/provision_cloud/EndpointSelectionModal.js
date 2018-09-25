@@ -114,6 +114,11 @@ async function hideEndpointSelectionModal(index) {
 }
 
 async function loadEntities(parentEntity=null, options) {
+    let s = document.querySelector('#add-entity-submit');
+    s.removeAttribute('disabled');
+    let r = document.querySelector('#add-entity-request-access');
+    r.style.display = 'none';
+
     let entity = await getEntities(session.data.workgroup_id, parentEntity, options);
 
     let parent = null;
@@ -383,4 +388,40 @@ async function addInterfaceSubmitCallback(event) {
 async function addInterfaceCancelCallback(event) {
     let addEndpointModal = $('#add-endpoint-modal');
     addEndpointModal.modal('hide');
+}
+
+function loadEntitySearchList(search) {
+    getEntitiesAll(session.data.workgroup_id, search.value).then(function(entities) {
+        console.log(entities);
+        let items = '';
+        entities.forEach(function(e) {
+                let l = e.children.length;
+                let i = e.interfaces.length;
+                items += `<a href="#" class="list-group-item" data-id="${e.entity_id}" data-interfaces="${i}" data-children="${l}" onclick="setEntitySearchValue(this)">${e.name}</a>`;
+        });
+
+        let list = document.querySelector('#entity-search-list');
+        list.innerHTML = items;
+    });
+}
+
+function setEntitySearchValue(elem) {
+    let input = document.querySelector('#entity-search');
+    input.value = elem.innerHTML;
+
+    let list = document.querySelector('#entity-search-list');
+    list.innerHTML = '';
+
+    loadEntities(elem.dataset.id, {});
+
+    let s = document.querySelector('#add-entity-submit');
+    let r = document.querySelector('#add-entity-request-access');
+    let c = document.querySelector('#add-entity-cancel');
+
+    if (parseInt(elem.dataset.interfaces) === 0) {
+        s.setAttribute('disabled', true);
+        r.style.display = 'inline-block';
+    } else {
+        s.removeAttribute('disabled');
+    }
 }
