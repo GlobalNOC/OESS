@@ -222,7 +222,7 @@ function loadSelectedEndpointList() {
           <tr id="new-peering-form-${index}">
             <td><input class="form-control bgp-asn" type="number" ${ endpoint.cloud_account_id ? 'disabled' : 'required' } /></td>
             <td><input class="form-control your-peer-ip" type="text" required /></td>
-            <td><input class="form-control bgp-key" type="text" /></td>
+            <td><input class="form-control bgp-key" type="text" ${ endpoint.cloud_account_id ? 'required' : '' } /></td>
             <td><input class="form-control oess-peer-ip" type="text" required /></td>
             <td><button class="btn btn-success btn-sm" class="form-control" type="button" onclick="newPeering(${index})">&nbsp;<span class="glyphicon glyphicon-plus"></span>&nbsp;</button></td>
           </tr>
