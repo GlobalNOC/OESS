@@ -396,7 +396,8 @@ function loadEntitySearchList(search) {
         let items = '';
         entities.forEach(function(e) {
                 let l = e.children.length;
-                items += `<a href="#" class="list-group-item" data-id="${e.entity_id}" data-children="${l}" onclick="setEntitySearchValue(this)">${e.name}</a>`;
+                let i = e.interfaces.length;
+                items += `<a href="#" class="list-group-item" data-id="${e.entity_id}" data-interfaces="${i}" data-children="${l}" onclick="setEntitySearchValue(this)">${e.name}</a>`;
         });
 
         let list = document.querySelector('#entity-search-list');
@@ -417,7 +418,7 @@ function setEntitySearchValue(elem) {
     let r = document.querySelector('#add-entity-request-access');
     let c = document.querySelector('#add-entity-cancel');
 
-    if (parseInt(elem.dataset.children) === 0) {
+    if (parseInt(elem.dataset.interfaces) === 0) {
         s.setAttribute('disabled', true);
         r.style.display = 'inline-block';
     } else {

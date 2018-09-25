@@ -34,6 +34,12 @@ sub register_ro_methods{
         callback        => sub { get_entities(@_) }
     );
     $method->add_input_parameter(
+        name            => 'workgroup_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "The workgroup id to find the ACLs for the entity"
+    );
+    $method->add_input_parameter(
         name            => 'name',
         pattern         => $GRNOC::WebService::Regex::TEXT,
         required        => 0,
@@ -369,14 +375,53 @@ sub get_entities{
     my $params = shift;
     my $ref = shift;
 
+    my $workgroup_id = $params->{'workgroup_id'}{'value'};
+
     my $entities = OESS::DB::Entity::get_entities(db => $db, name => $params->{name}{value});
 
-    my $result = [];
-    foreach my $ent (@$entities){
-        push @$result, $ent->to_hash();
+    my $results = [];
+    foreach my $entity (@$entities) {
+
+        my %vlans;
+        my @ints;
+        foreach my $int (@{$entity->interfaces()}){
+            my $obj = $int->to_hash();
+            my @allowed_vlans;
+
+            foreach my $acl (@{$int->acls()->acls()}){
+                next if $acl->{'entity_id'} != $entity->entity_id();
+                next if $acl->{'allow_deny'} ne 'allow';
+                next if $acl->{'workgroup_id'} != $workgroup_id;
+                for (my $i=$acl->{'start'}; $i<=$acl->{'end'}; $i++) {
+                    if ($int->vlan_valid(workgroup_id => $workgroup_id, vlan => $i)) {
+                        $obj->{'available_vlans'} = \@allowed_vlans;
+                        push(@ints,$obj);
+                        last;
+                    }
+                }
+            }
+        }
+
+        my @uniq_ints;
+        foreach my $int (@ints){
+            my $found = 0;
+            foreach my $uint (@uniq_ints){
+                if($uint->{'interface_id'} == $int->{'interface_id'}){
+                    $found = 1;
+                }
+            }
+            if(!$found){
+                push(@uniq_ints, $int);
+            }
+        }
+
+        my $result = $entity->to_hash();
+        $result->{interfaces} = \@uniq_ints;
+
+        push @$results, $result;
     }
 
-    return { results => $result };
+    return { results => $results };
 }
 
 sub get_entity_children{
