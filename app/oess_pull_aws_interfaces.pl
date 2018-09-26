@@ -67,7 +67,8 @@ sub connect_to_ws {
         uid     => $creds->{'user'},
         passwd  => $creds->{'password'},
         realm   => $creds->{'realm'},
-        debug   => 1
+        debug   => 0,
+        timeout => 120
         ) or die "Cannot connect to webservice";
 
     return $client;
