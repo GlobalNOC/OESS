@@ -48,7 +48,7 @@ async function loadEntityList(parentEntity=null) {
     let entity = await getEntities(session.data.workgroup_id, parentEntity);
     let entitiesList = document.querySelector('#entity-list');
 
-    let logoURL = entity.logo_url || 'https://shop.lego.com/static/images/svg/lego-logo.svg';
+    let logoURL = entity.logo_url || '../media/default_entity.png';
     let description = entity.description;
     let name = entity.name;
     let entityID = entity.entity_id;
@@ -83,14 +83,55 @@ async function loadEntityList(parentEntity=null) {
     let entityDescription = document.querySelector('#entity-description');
     entityDescription.innerHTML = description;
 
+    let path   = sessionStorage.getItem('phone-crumb');
+    let cpath  = '';
+
+    let entityCrumbs = document.querySelector('#entity-crumbs');
+    let entityCrumbsString = '';
+
+
     let entityNav = '';
-    if (parent !== null) {
-        entityNav += `<li role="presentation" onclick="loadEntityList(${parent.entity_id})"><a href="#">&lt; ${parent.name}</a></li>`;
+
+    if (parent === null || !path) {
+        path = '[]';
+        sessionStorage.setItem('phone-crumb', path);
+    } else {
+        let crumbs = JSON.parse(path);
+        let found  = 0;
+
+        for (let i = 0; i < crumbs.length; i++) {
+            console.log('yo');
+            console.log(crumbs[i].name);
+            if (crumbs[i].name === parent.name) {
+                found = 1;
+                crumbs = crumbs.splice(i, 1);
+                break;
+            }
+        }
+        if (!found && parent !== null) {
+            crumbs.push({name: parent.name, id: parent.entity_id});
+        }
+
+        cpath = crumbs.map(function(c){ return c.name; }).join(' / ');
+        sessionStorage.setItem('phone-crumb', JSON.stringify(crumbs));
+
+        if (parent !== null && entity.children.length === 0) {
+            entityNav += `<li role="presentation" onclick="loadEntityList(${parent.entity_id})"><a href="#">Go back</a></li>`;
+        }
+
+        crumbs.forEach(function(c) {
+            entityCrumbsString += `<li><a href="#" onclick="loadEntityList(${c.id})">${c.name}</a></li>`;
+        });
+
     }
 
+    entityCrumbsString += `<li class="active">${name}</li>`;
+    entityCrumbs.innerHTML = entityCrumbsString;
+
+
     entity.children.forEach(function(entity) {
-            let childLi  = `<li role="presentation" onclick="loadEntityList(${entity.entity_id})"><a href="#">${entity.name} &gt;</a></li>`;
-            entityNav += childLi;
+        let childLi  = `<li role="presentation" onclick="loadEntityList(${entity.entity_id})"><a href="#">${entity.name}</a></li>`;
+        entityNav += childLi;
     });
     entitiesList.innerHTML = entityNav;
 
@@ -103,9 +144,9 @@ async function loadEntityList(parentEntity=null) {
     let entityInterfaces = '';
     entity.interfaces.forEach(function(intf) {
             if (intf.operational_state === 'up') {
-                entityInterfaces += `<p class="entity-interface"><span class="label label-success">▴</span> <b>${intf.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${intf.name}</p>`;
+                entityInterfaces += `<p class="entity-interface"><span class="label label-success">&nbsp;▴&nbsp;</span> <b>${intf.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${intf.name}</p>`;
             } else {
-                entityInterfaces += `<p class="entity-interface"><span class="label label-danger">▾</span> <b>${intf.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${intf.name}</p>`;
+                entityInterfaces += `<p class="entity-interface"><span class="label label-danger">&nbsp;▾&nbsp;</span> <b>${intf.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${intf.name}</p>`;
             }
     });
     document.querySelector('#entity-interfaces').innerHTML = entityInterfaces;

@@ -759,17 +759,10 @@ sub remove_vlan{
     $vars->{'circuit_name'} = $ckt->{'circuit_name'};
     $vars->{'interfaces'} = [];
     foreach my $i (@{$ckt->{'interfaces'}}) {
-        my $unit = $i->{'tag'};
-        if (defined $i->{'inner_tag'}) {
-            my $a = $i->{'tag'};
-            my $b = $i->{'inner_tag'};
-            $unit = ((($a+$b+1)*($a+$b))/2)+$b+5000;
-        }
-
         push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
                                           inner_tag => $i->{'inner_tag'},
                                           tag => $i->{'tag'},
-                                          unit => $unit
+                                          unit => $i->{'unit'}
                                         });
     }
     $vars->{'circuit_id'} = $ckt->{'circuit_id'};
@@ -826,17 +819,10 @@ sub add_vlan{
     $vars->{'circuit_name'} = $ckt->{'circuit_name'};
     $vars->{'interfaces'} = [];
     foreach my $i (@{$ckt->{'interfaces'}}) {
-        my $unit = $i->{'tag'};
-        if (defined $i->{'inner_tag'}) {
-            my $a = $i->{'tag'};
-            my $b = $i->{'inner_tag'};
-            $unit = ((($a+$b+1)*($a+$b))/2)+$b+5000;
-        }
-
         push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
                                           inner_tag => $i->{'inner_tag'},
                                           tag  => $i->{'tag'},
-                                          unit => $unit
+                                          unit => $i->{'unit'}
                                         });
     }
     $vars->{'paths'} = $ckt->{'paths'};
@@ -848,7 +834,7 @@ sub add_vlan{
     $vars->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
     $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
 
-    if ($self->unit_name_available($vars->{'interface'}->{'name'}, $vars->{'vlan_tag'}) == 0) {
+    if ($self->unit_name_available($vars->{'interface'}->{'name'}, $vars->{'interface'}->{'unit'}) == 0) {
         $self->{'logger'}->error("Unit $vars->{'vlan_tag'} is not available on $vars->{'interface'}->{'name'}");
         return FWDCTL_FAILURE;
     }
@@ -929,28 +915,16 @@ sub add_vrf{
 
         }
 
-        # Cantor's pairing function
-        # Assign one natural number to each pair of natural
-        # numbers. This ensures a unique number for q-in-q tagged
-        # units.
-        #
-        # ((a+b+1)*(a+b)/2)+b
-        my $unit = $i->{'tag'};
-        if (defined $i->{'inner_tag'}) {
-            my $a = $i->{'tag'};
-            my $b = $i->{'inner_tag'};
-            $unit = ((($a+$b+1)*($a+$b))/2)+$b+5000;
-        }
 
-        if ($self->unit_name_available($i->{'name'}, $unit) == 0) {
-            $self->{'logger'}->error("Unit $unit is not available on $i->{'name'}");
+        if ($self->unit_name_available($i->{'name'}, $i->{'unit'}) == 0) {
+            $self->{'logger'}->error("Unit " . $i->{'unit'}  . " is not available on $i->{'name'}");
             return FWDCTL_FAILURE;
         }
 
         push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
                                           inner_tag => $i->{'inner_tag'},
                                           tag  => $i->{'tag'},
-                                          unit => $unit,
+                                          unit => $i->{'unit'},
                                           bandwidth => $i->{'bandwidth'},
 					  v4_peers => \@bgp_v4,
                                           has_ipv4 => $has_ipv4,
@@ -995,23 +969,10 @@ sub remove_vrf{
     $vars->{'vrf_name'} = $vrf->{'vrf_name'};
     $vars->{'interfaces'} = [];
     foreach my $i (@{$vrf->{'interfaces'}}) {
-        # Cantor's pairing function
-        # Assign one natural number to each pair of natural
-        # numbers. This ensures a unique number for q-in-q tagged
-        # units.
-        #
-        # ((a+b+1)*(a+b)/2)+b
-        my $unit = $i->{'tag'};
-        if (defined $i->{'inner_tag'}) {
-            my $a = $i->{'tag'};
-            my $b = $i->{'inner_tag'};
-            $unit = ((($a+$b+1)*($a+$b))/2)+$b+5000;
-        }
-
         push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
                                           inner_tag => $i->{'inner_tag'},
                                           tag  => $i->{'tag'},
-                                          unit => $unit
+                                          unit => $i->{'unit'}
 	      });
     }
 
@@ -1049,23 +1010,10 @@ sub xml_configuration {
         $vars->{'circuit_name'} = $ckt->{'circuit_name'};
         $vars->{'interfaces'} = [];
         foreach my $i (@{$ckt->{'interfaces'}}) {
-            # Cantor's pairing function
-            # Assign one natural number to each pair of natural
-            # numbers. This ensures a unique number for q-in-q tagged
-            # units.
-            #
-            # ((a+b+1)*(a+b)/2)+b
-            my $unit = $i->{'tag'};
-            if (defined $i->{'inner_tag'}) {
-                my $a = $i->{'tag'};
-                my $b = $i->{'inner_tag'};
-                $unit = ((($a+$b+1)*($a+$b))/2)+$b+5000;
-            }
-
             push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
                                               inner_tag => $i->{'inner_tag'},
                                               tag  => $i->{'tag'},
-                                              unit => $unit
+                                              unit => $i->{'unit'}
                                             });
         }
         $vars->{'paths'} = $ckt->{'paths'};
@@ -1140,21 +1088,8 @@ sub xml_configuration {
                 
             }
 
-            # Cantor's pairing function
-            # Assign one natural number to each pair of natural
-            # numbers. This ensures a unique number for q-in-q tagged
-            # units.
-            #
-            # ((a+b+1)*(a+b)/2)+b
-            my $unit = $i->{'tag'};
-            if (defined $i->{'inner_tag'}) {
-                my $a = $i->{'tag'};
-                my $b = $i->{'inner_tag'};
-                $unit = ((($a+$b+1)*($a+$b))/2)+$b+5000;
-            }
-
             push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
-                                              unit => $unit,
+                                              unit => $i->{'unit'},
                                               inner_tag  => $i->{'inner_tag'},
                                               tag  => $i->{'tag'},
                                               bandwidth => $i->{'bandwidth'},

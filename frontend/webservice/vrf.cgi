@@ -182,8 +182,6 @@ sub get_vrfs{
         return;
     }
 
-    warn Dumper($user);
-
     #first validate the user is in the workgroup
     if(!$user->in_workgroup( $workgroup_id) && !$user->is_admin()){
         $method->set_error("User is not in workgroup");
@@ -352,17 +350,11 @@ sub provision_vrf{
                     return;
                 }
 
-                warn 'Doing nothing: ' . Dumper($ep_name);
                 delete $ep_lookup->{$ep_name};
             } else {
                 # Add cloud interface
-                warn 'Adding: ' . Dumper($ep_name);
             }
         }
-
-        # if new endpoint with cloud_interconnect_id allocate
-        # if missing endpoint that had a cloud_interconnect_id delete
-        # if endpoint vlan changed delete and allocate
 
         my $ok = $vrf->update($model);
         if (!$ok) {
@@ -370,20 +362,13 @@ sub provision_vrf{
             return;
         }
 
-        $ok = $vrf->update_db();
-        if (!$ok) {
-            $method->set_error($vrf->error());
-            return;
-        }
-
-
         # Remove these cloud endpoints. They either were removed or
         # had their tags changed.
         my $to_remove = [];
         foreach my $name (keys %$ep_lookup) {
-            warn 'Removing: ' . Dumper($name);
             push @$to_remove, $ep_lookup->{$name};
         }
+
         if (!$params->{skip_cloud_provisioning}{value}) {
             eval {
                 OESS::Cloud::cleanup_endpoints($to_remove);
@@ -392,10 +377,16 @@ sub provision_vrf{
                 $vrf->endpoints($setup_endpoints);
             };
             if ($@) {
-                warn "$@";
+                $method->set_error("$@");
+                return;
             }
         }
-        $vrf->update_db();
+
+        $ok = $vrf->update_db();
+        if (!$ok) {
+            $method->set_error($vrf->error());
+            return;
+        }
 
         my $vrf_id = $vrf->vrf_id();
 
@@ -406,6 +397,18 @@ sub provision_vrf{
     }
 
     $vrf = OESS::VRF->new( db => $db, model => $model);
+
+    if (!$params->{skip_cloud_provisioning}{value}) {
+	eval {
+	    my $setup_endpoints = OESS::Cloud::setup_endpoints($vrf->name, $vrf->endpoints);
+	    $vrf->endpoints($setup_endpoints);
+	};
+	if ($@) {
+	    $method->set_error("$@");
+	    return;
+	}
+    }
+
     my $ok = $vrf->create();
     if (!$ok) {
         $method->set_error('error creating VRF: ' . $vrf->error());
@@ -418,12 +421,8 @@ sub provision_vrf{
         return;
     }
 
-    my $setup_endpoints = OESS::Cloud::setup_endpoints($vrf->name, $vrf->endpoints);
-    $vrf->endpoints($setup_endpoints);
-    $vrf->update_db();
-
     my $res = vrf_add( method => $method, vrf_id => $vrf_id);
-
+    
     $res->{'vrf_id'} = $vrf_id;
     return {results => $res};
 }
@@ -459,12 +458,18 @@ sub remove_vrf{
         return {success => 0};
     }
 
-    my $res = vrf_del( method => $method, vrf_id => $vrf_id);
+    eval {
+        OESS::Cloud::cleanup_endpoints($vrf->endpoints);
+    };
+    if ($@) {
+        $method->set_error("$@");
+        return;
+    }
+
+    my $res = vrf_del(method => $method, vrf_id => $vrf_id);
     $res->{'vrf_id'} = $vrf_id;
 
     $vrf->decom(user_id => $user->user_id());
-
-    OESS::Cloud::cleanup_endpoints($vrf->endpoints);
 
     #send the update cache to the MPLS fwdctl
     _update_cache(vrf_id => $vrf_id);

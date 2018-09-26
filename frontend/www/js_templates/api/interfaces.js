@@ -71,5 +71,24 @@ async function getEntities(workgroupID, parentEntityID=null, options) {
     console.log(error);
     return [];
   }
+}
 
+/**
+ * getEntitiesAll returns a list of entities filtered by queryString.
+ *
+ * @param {integer} workgroupID - Identifier of the current workgroup
+ * @param {string} queryString - Entity name to filter results by
+ */
+async function getEntitiesAll(workgroupID, queryString) {
+    let url = `[% path %]services/entity.cgi?method=get_entities&workgroup_id=${workgroupID}&name=${queryString}`;
+
+    try {
+        const resp = await fetch(url, {method: 'get', credentials: 'include'});
+        const data = await resp.json();
+        return data.results;
+    } catch(error) {
+        console.log('Failure occurred in getEntities.');
+        console.log(error);
+        return [];
+    }
 }

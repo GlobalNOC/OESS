@@ -145,6 +145,42 @@ sub delete_endpoints {
     return $ok;
 } 
 
+sub find_available_unit{
+    my %params = @_;
+    my $db = $params{'db'};
+    my $interface_id = $params{'interface_id'};
+    my $tag = $params{'tag'};
+    my $inner_tag = $params{'inner_tag'};
+
+    if(!defined($inner_tag)){
+        return $tag;
+    }
+
+    #find available unit > 5000
+    my $used_vrf_units = $db->execute_query("select unit from vrf_ep where unit > 5000 and state = 'active' and interface_id= ?",[$interface_id]);
+    my $used_circuit_units = $db->execute_query("select unit from circuit_edge_interface_membership where interface_id = ? and end_epoch = -1 and circuit_id in (select circuit.circuit_id from circuit join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id and circu
+it.circuit_state = 'active' and circuit_instantiation.circuit_state = 'active' and circuit_instantiation.end_epoch = -1)",[$interface_id]);
+
+    my %used;
+
+    foreach my $used_vrf_unit (@$used_vrf_units){
+        $used{$used_vrf_unit->{'unit'}} = 1;
+    }
+
+    foreach my $used_circuit_units (@{$used_circuit_units}){
+        $used{$used_circuit_units->{'unit'}} = 1;
+    }
+
+    
+    for(my $i=5000;$i<16000;$i++){
+        if(defined($used{$i}) && $used{$i} == 1){
+            next;
+        }
+        return $i;
+    }
+
+}
+
 sub add_endpoint{       
     my %params = @_;
 
@@ -152,13 +188,21 @@ sub add_endpoint{
     my $model = $params{'model'};
     my $vrf_id = $params{'vrf_id'};
 
-    my $vrf_ep_id = $db->execute_query("insert into vrf_ep (interface_id, tag, inner_tag, bandwidth, vrf_id, state) VALUES (?,?,?,?,?,?)",[$model->{'interface'}->{'interface_id'}, $model->{'tag'}, $model->{'inner_tag'}, $model->{'bandwidth'}, $vrf_id, 'active']);
+    my $unit = find_available_unit(db => $db, interface_id => $model->{'interface'}->{'interface_id'}, tag => $model->{'tag'}, inner_tag => $model->{'inner_tag'});
+    if(!defined($unit)){
+        $db->rollback();
+        return;
+    }   
+
+    my $vrf_ep_id = $db->execute_query("insert into vrf_ep (interface_id, tag, inner_tag, bandwidth, vrf_id, state,unit) VALUES (?,?,?,?,?,?,?)",[$model->{'interface'}->{'interface_id'}, $model->{'tag'}, $model->{'inner_tag'}, $model->{'bandwidth'}, $vrf_id, 'active',$unit]);
     if(!defined($vrf_ep_id)){
         my $error = $db->get_error();
         $db->rollback();
         return;
     }
  
+
+
     if (defined $model->{cloud_account_id} && $model->{cloud_account_id} ne '') {
         $db->execute_query(
             "insert into cloud_connection_vrf_ep (vrf_ep_id, cloud_account_id, cloud_connection_id)

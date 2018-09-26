@@ -270,6 +270,7 @@ sub _write_cache{
 	    
 	    my $int_obj = { name => $ep->interface()->name(),
 			    tag => $ep->tag(),
+                            unit => $ep->unit(),
                             inner_tag => $ep->inner_tag(),
                             bandwidth => $ep->bandwidth(),
 			    peers => \@bgp };

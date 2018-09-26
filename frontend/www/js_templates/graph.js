@@ -86,7 +86,7 @@ function MeasurementGraph(container, legend_container, options){
 					    );
 
 	this.panel.setHeader("Loading...");
-	this.panel.setBody("<center><img src='media/loading.gif'></center>");
+	this.panel.setBody("<center><img src='media/loading.gif' height='80px'></center>");
 
 	this.panel.render(container);
 	this.panel.show();

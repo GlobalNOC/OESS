@@ -90,7 +90,7 @@
               <as-number>[% local_as %]</as-number>
             </local-as>
             [% FOREACH interface IN interfaces %]
-              [% FOREACH peer in interface.v4_peers %]
+               [% FOREACH peer IN interface.v4_peers %]
             <neighbor>
               <name>[% peer.peer_ip %]</name>
               <description>OESS-L3VPN-[% vrf_id %]</description>
@@ -129,7 +129,7 @@
 	      <as-number>[% local_as %]</as-number>
 	    </local-as>
             [% FOREACH interface IN interfaces %]
-              [% FOREACH peer in interface.v6_peers %]
+              [% FOREACH peer IN interface.v6_peers %]
             <neighbor>
               <name>[% peer.peer_ip %]</name>
               <description>OESS-L3VPN-[% vrf_id %]</description>
