@@ -284,6 +284,7 @@ sub create{
     my $vrf_id = OESS::DB::VRF::create(db => $self->{'db'}, model => $self->to_hash());
     if ($vrf_id == -1) {
 	$self->error("Could not add VRF to db.");
+	return 0;
     }
     $self->{'vrf_id'} = $vrf_id;
     return 1;

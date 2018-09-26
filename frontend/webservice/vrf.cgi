@@ -182,8 +182,6 @@ sub get_vrfs{
         return;
     }
 
-    warn Dumper($user);
-
     #first validate the user is in the workgroup
     if(!$user->in_workgroup( $workgroup_id) && !$user->is_admin()){
         $method->set_error("User is not in workgroup");
@@ -352,11 +350,9 @@ sub provision_vrf{
                     return;
                 }
 
-                warn 'Doing nothing: ' . Dumper($ep_name);
                 delete $ep_lookup->{$ep_name};
             } else {
                 # Add cloud interface
-                warn 'Adding: ' . Dumper($ep_name);
             }
         }
 
@@ -370,7 +366,6 @@ sub provision_vrf{
         # had their tags changed.
         my $to_remove = [];
         foreach my $name (keys %$ep_lookup) {
-            warn 'Removing: ' . Dumper($name);
             push @$to_remove, $ep_lookup->{$name};
         }
 
@@ -402,6 +397,18 @@ sub provision_vrf{
     }
 
     $vrf = OESS::VRF->new( db => $db, model => $model);
+
+    if (!$params->{skip_cloud_provisioning}{value}) {
+	eval {
+	    my $setup_endpoints = OESS::Cloud::setup_endpoints($vrf->name, $vrf->endpoints);
+	    $vrf->endpoints($setup_endpoints);
+	};
+	if ($@) {
+	    $method->set_error("$@");
+	    return;
+	}
+    }
+
     my $ok = $vrf->create();
     if (!$ok) {
         $method->set_error('error creating VRF: ' . $vrf->error());
@@ -414,12 +421,8 @@ sub provision_vrf{
         return;
     }
 
-    my $setup_endpoints = OESS::Cloud::setup_endpoints($vrf->name, $vrf->endpoints);
-    $vrf->endpoints($setup_endpoints);
-    $vrf->update_db();
-
     my $res = vrf_add( method => $method, vrf_id => $vrf_id);
-
+    
     $res->{'vrf_id'} = $vrf_id;
     return {results => $res};
 }
