@@ -1613,18 +1613,20 @@ sub get_device_diff {
     }
 
     my $dom = $self->{'jnx'}->get_dom();
-    $self->{'diff_text'} = $dom->getElementsByTagName('configuration-output')->string_value();
-
+    my $text = $dom->getElementsByTagName('configuration-output')->string_value();
+    $self->{'logger'}->error("Raw diff text: " . $text);
     $ok = $self->unlock();
 
-    if ($self->{'diff_text'} eq "\n") {
+    $text =~ s/\n\[edit .*\]\n[+|-] \s+ authentication-key \S+ \#\# SECRET-DATA\n//g;
+    $text =~ s/[+|-] \s+ authentication-key \S+ \#\# SECRET-DATA//g;
+
+    if ($text eq "\n") {
         # In some cases a diff containing only an empty line may be
         # received. This case should be ignored.
-        $self->{'diff_text'} = '';
+        $text = '';
     }
 
-
-    return $self->{'diff_text'};
+    return $text;
 }
 
 =head2 _large_diff( $diff )
