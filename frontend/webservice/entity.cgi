@@ -587,7 +587,7 @@ sub get_entity{
             push(@uniq_ints, $int);
         }
     }
-    warn Dumper(\@uniq_ints);
+
     my $res = $entity->to_hash();
     $res->{'interfaces'} = \@uniq_ints;
     my @allowed_vs = keys %vlans;
