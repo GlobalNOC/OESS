@@ -27,7 +27,6 @@ sub fetch{
         $entity = $db->execute_query("select * from entity where name = ?",[$entity_name]);
     }elsif(defined($interface_id) && defined($vlan)){
         $entity = $db->execute_query("select * from entity where entity_id in (select entity_id from interface_acl where interface_id = ? and (vlan_start <= ? and vlan_end >= ?))",[$interface_id,$vlan,$vlan]);
-        warn "Entity from interface / vlan: " . Dumper($entity);
     }else{
         return;
     }
