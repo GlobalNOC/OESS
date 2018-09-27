@@ -249,7 +249,7 @@ CREATE TABLE `entity` (
   `logo_url` varchar(255) DEFAULT NULL,
   `url` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`entity_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=17 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -258,6 +258,7 @@ CREATE TABLE `entity` (
 
 LOCK TABLES `entity` WRITE;
 /*!40000 ALTER TABLE `entity` DISABLE KEYS */;
+INSERT INTO `entity` VALUES (1,'root','The top of the hierarchy blah blah blah',NULL,'ftp://example.net/pub/'),(2,'Connectors','Those that are included in this classification',NULL,NULL),(3,'Universities','Fabulous ones',NULL,NULL),(4,'Cloud Providers','Those that belong to the emperor',NULL,NULL),(5,'University of A',NULL,'https://a.example.edu/logo.png',NULL),(6,'B University','mascot: Wally B. from the 1980s short',NULL,'gopher://b.example.edu/'),(7,'Big State TeraPOP','The R&E networking hub for Big State','https://terapop.example.net/favicon.ico','https://terapop.example.net/'),(8,'Small State MilliPOP',NULL,NULL,'https://smst.millipop.net/'),(9,'Blue Cloud','*Totally* not a parody of an actual cloud provider','http://bluecloud.com/logo-anim.gif','http://bluecloud.com/special/custom-networking'),(10,'Elasticloud','It\'s elastic!',NULL,'https://elasticloud.com/r-and-e-landing'),(11,'BC US-East','Blue Cloud US-East region',NULL,NULL),(12,'BC US-West','Blue Cloud US-West region',NULL,NULL),(13,'BC LON-01','Blue Cloud London 1 region',NULL,NULL),(14,'B University-Metropolis','Metropolis regional campus',NULL,'https://b-metro.example.edu/'),(15,'EC Ellettsville','Ellettsville region',NULL,NULL),(16,'EC Utopia','Guess where this region is?',NULL,NULL);
 /*!40000 ALTER TABLE `entity` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1139,4 +1140,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2018-09-27 20:03:49
+-- Dump completed on 2018-09-27 21:38:03
