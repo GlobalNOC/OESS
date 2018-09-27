@@ -38,7 +38,9 @@ cmp_deeply($res,[
             'interface_id' => '45911',
             'description' => 'e3/2',
             'remote_links' => [],
-            'vlan_tag_range' => '-1,1-4095',
+            'vlan_tag_range' => '1-4095',
+            'cloud_interconnect_type' => undef,
+            'cloud_interconnect_id' => undef,
             'node_id' => '1',
             'operational_state' => 'up'
           },
@@ -50,6 +52,8 @@ cmp_deeply($res,[
             'remote_links' => [],
             'vlan_tag_range' => '1-4095',
             'node_id' => '21',
+            'cloud_interconnect_type' => undef,
+            'cloud_interconnect_id' => undef,
             'operational_state' => 'up'
           }
         ], 'check results');

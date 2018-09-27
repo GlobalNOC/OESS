@@ -27,6 +27,7 @@ sub acl_row {
         allow_deny    => $_[2],
         start         => $_[3],
         end           => $_[4],
+        entity_id     => $_[5],
     };
 }
 
@@ -42,12 +43,12 @@ cmp_deeply(
     {
         interface_id => 45811,
         acls => [
-            acl_row(10, 21,  'allow', 100, undef),
-            acl_row(20, 31,  'allow', 101, undef),
-            acl_row(30, 101, 'allow', 102, undef),
-            acl_row(40, 61,  'allow', 103, undef),
-            acl_row(50, 71,  'allow', 104, undef),
-            acl_row(60, 81,  'allow', 105, undef),
+            acl_row(10, 21,  'allow', 100, undef, undef),
+            acl_row(20, 31,  'allow', 101, undef, undef),
+            acl_row(30, 101, 'allow', 102, undef, undef),
+            acl_row(40, 61,  'allow', 103, undef, undef),
+            acl_row(50, 71,  'allow', 104, undef, undef),
+            acl_row(60, 81,  'allow', 105, undef, undef),
         ],
     },
     'ACL object 1 (id=45811): to_hash returns the right information, in the right order'
