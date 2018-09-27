@@ -88,6 +88,7 @@ sub upgrade{
     $dbh->do("alter table interface add column cloud_interconnect_type varchar(255)");
     $dbh->do("alter table interface add column cloud_interconnect_id varchar(255)");
     $dbh->do("alter table interface_acl add column entity_id int(11)");
+    $dbh->do("alter table circuit_edge_interface_membership add column inner_tag int(10)");
     $dbh->do("alter table circuit_edge_interface_membership add column unit int(11)");
     $dbh->do("update circuit_edge_interface_membership set unit = extern_vlan_id");
     # Done with the rest of the upgrade update our version
