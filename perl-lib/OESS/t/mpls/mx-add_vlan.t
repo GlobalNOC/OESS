@@ -1,12 +1,19 @@
+#!/usr/bin/perl
+
 use strict;
 use warnings;
 
 use Data::Dumper;
 
+
+use GRNOC::Log;
+use Test::More tests => 5;
+my $logger = GRNOC::Log->new( level => 'DEBUG');
+
+use OESS::Database;
 use OESS::Mock;
 use OESS::MPLS::Device::Juniper::MX;
 
-use Test::More tests => 5;
 
 # MX overrides unit_name_available to return 1.
 {
