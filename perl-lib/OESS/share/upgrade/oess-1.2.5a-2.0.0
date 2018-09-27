@@ -50,7 +50,7 @@ sub upgrade{
     my $str;
     my $sth;
 
-    $dbh->do("CREATE TABLE CREATE TABLE `vrf` (  `vrf_id` int(10) NOT NULL AUTO_INCREMENT,  `name` varchar(255) NOT NULL,  `description` varchar(255) NOT NULL,  `workgroup_id` int(10) NOT NULL,  `state` enum('active','decom') DEFAULT NULL,  `created` int(10) NOT NULL,  `created_by` int(10) NOT NULL,  `last_modified` int(10) NOT NULL,  `last_modified_by` int(10) NOT NULL,  `local_asn` int(10) NOT NULL,  PRIMARY KEY (`vrf_id`),  KEY `workgroup_id` (`workgroup_id`),  KEY `created_by` (`created_by`),  KEY `last_modified_by` (`last_modified_by`),  CONSTRAINT `vrf_ibfk_3` FOREIGN KEY (`last_modified_by`) REFERENCES `user` (`user_id`),  CONSTRAINT `vrf_ibfk_1` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`),  CONSTRAINT `vrf_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `user` (`user_id`))");
+    $dbh->do("CREATE TABLE CREATE TABLE `vrf` ( `vrf_id` int(10) NOT NULL AUTO_INCREMENT,  `name` varchar(255) NOT NULL,  `description` varchar(255) NOT NULL,  `workgroup_id` int(10) NOT NULL,  `state` enum('active','decom') DEFAULT NULL,  `created` int(10) NOT NULL,  `created_by` int(10) NOT NULL,  `last_modified` int(10) NOT NULL,  `last_modified_by` int(10) NOT NULL,  `local_asn` int(10) NOT NULL,  PRIMARY KEY (`vrf_id`),  KEY `workgroup_id` (`workgroup_id`),  KEY `created_by` (`created_by`),  KEY `last_modified_by` (`last_modified_by`),  CONSTRAINT `vrf_ibfk_3` FOREIGN KEY (`last_modified_by`) REFERENCES `user` (`user_id`),  CONSTRAINT `vrf_ibfk_1` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`),  CONSTRAINT `vrf_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `user` (`user_id`))");
     $dbh->do("CREATE TABLE `vrf_ep` (  `vrf_ep_id` int(11) NOT NULL AUTO_INCREMENT,  `inner_tag` int(10) DEFAULT NULL,  `tag` int(10) DEFAULT NULL,  `bandwidth` int(10) DEFAULT NULL,  `vrf_id` int(10) DEFAULT NULL,  `interface_id` int(10) NOT NULL,  `state` enum('active','decom') DEFAULT NULL,  `unit` int(11) DEFAULT NULL,  PRIMARY KEY (`vrf_ep_id`),  KEY `vrf_id` (`vrf_id`),  KEY `interface_id` (`interface_id`),  CONSTRAINT `vrf_ep_ibfk_1` FOREIGN KEY (`vrf_id`) REFERENCES `vrf` (`vrf_id`),  CONSTRAINT `vrf_ep_ibfk_2` FOREIGN KEY (`interface_id`) REFERENCES `interface` (`interface_id`))");
     $dbh->do(" CREATE TABLE `vrf_ep_peer` (  `vrf_ep_peer_id` int(10) NOT NULL AUTO_INCREMENT,  `peer_ip` varchar(255) NOT NULL,  `peer_asn` int(10) NOT NULL,  `vrf_ep_id` int(11) DEFAULT NULL,  `state` enum('active','decom') DEFAULT NULL,  `local_ip` varchar(255) DEFAULT NULL,  `md5_key` varchar(255) DEFAULT NULL,  `ip_version` enum('ipv4','ipv6') DEFAULT NULL,  `operational_state` int(1) DEFAULT NULL,  PRIMARY KEY (`vrf_ep_peer_id`),  KEY `vrf_ep_id` (`vrf_ep_id`),  CONSTRAINT `vrf_ep_peer_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`))");
 
@@ -62,7 +62,8 @@ sub upgrade{
     $dbh->do("alter table interface add column cloud_interconnect_type varchar(255)");
     $dbh->do("alter table interface add column cloud_interconnect_id varchar(255)");
     $dbh->do("alter table interface_acl add column entity_id int(11)");
-    
+    $dbh->do("alter table circuit_edge_interface_membership add column unit int(11)");
+    $dbh->do("update circuit_edge_interface_membership set unit = extern_vlan_id");
     # Done with the rest of the upgrade update our version
     $str = "update oess_version set version = '$version'";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
