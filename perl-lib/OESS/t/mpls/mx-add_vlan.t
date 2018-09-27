@@ -83,10 +83,12 @@ my $ok = $device->add_vlan({
     interfaces => [
         {
             interface => 'ge-0/0/1',
+            unit => 2004,
             tag => 2004
         },
         {
             interface => 'ge-0/0/2',
+            unit => 2004,
             tag => 2004
         }
     ],
@@ -161,10 +163,12 @@ $ok = $device->add_vlan({
     interfaces => [
         {
             interface => 'ge-0/0/1',
+            unit => 2004,
             tag => 2004
         },
         {
             interface => 'ge-0/0/2',
+            unit => 2004,
             tag => 2004
         }
     ],

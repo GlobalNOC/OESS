@@ -53,6 +53,8 @@ my $correct_result = [
             'is_owner' => 0,
             'vlan_tag_range' => '1-100,201-4095',
             'node_id' => '21',
+            'cloud_interconnect_id' => undef,
+            'cloud_interconnect_type' => undef,            
             'operational_state' => 'up'
     },
 {                                                                                                               
@@ -71,6 +73,8 @@ my $correct_result = [
                                     'max_mac_address_per_end' => '10'
             },
             'interface_id' => '51',
+            'cloud_interconnect_id' => undef,
+            'cloud_interconnect_type' => undef,                                       
             'description' => 'e3/1',
             'is_owner' => 0,
             'vlan_tag_range' => '1-99,4095',
@@ -93,6 +97,8 @@ my $correct_result = [
                                     'max_mac_address_per_end' => '10'
             },
             'interface_id' => '45571',
+            'cloud_interconnect_id' => undef,
+            'cloud_interconnect_type' => undef,
             'description' => 'e15/7',
             'is_owner' => 0,
             'vlan_tag_range' => '1-4095',
@@ -108,6 +114,8 @@ my $correct_result = [
                 }
                               ],
             'node_name' => 'Node 11',
+            'cloud_interconnect_id' => undef,
+            'cloud_interconnect_type' => undef,
             'interface_id' => '321',
             'description' => 'e1/1',
             'is_owner' => 1,
@@ -119,6 +127,8 @@ my $correct_result = [
             'interface_name' => 'e15/1',
             'remote_links' => [],
             'node_name' => 'Node 11',
+            'cloud_interconnect_id' => undef,
+            'cloud_interconnect_type' => undef,
             'interface_id' => '391',
             'description' => 'e15/1',
             'is_owner' => 1,
@@ -129,6 +139,8 @@ my $correct_result = [
 {
             'interface_name' => 'e15/1',
             'remote_links' => [],
+            'cloud_interconnect_id' => undef,
+            'cloud_interconnect_type' => undef,
             'node_name' => 'Node 51',
             'interface_id' => '511',
             'description' => 'e15/1',

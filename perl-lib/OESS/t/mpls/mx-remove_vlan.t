@@ -1,3 +1,5 @@
+#!/usr/bin/perl
+
 use strict;
 use warnings;
 
@@ -64,10 +66,12 @@ my $ok = $device->remove_vlan({
     interfaces => [
         {
             interface => 'ge-0/0/1',
+            unit => 2004,
             tag => 2004
         },
         {
             interface => 'ge-0/0/2',
+            unit => 2004,
             tag => 2004
         }
     ],
@@ -95,10 +99,12 @@ $ok = $device->remove_vlan({
     interfaces => [
         {
             interface => 'ge-0/0/1',
+            unit => 2004,
             tag => 2004
         },
         {
             interface => 'ge-0/0/2',
+            unit => 2004,
             tag => 2004
         }
     ],
@@ -142,10 +148,12 @@ $ok = $device->remove_vlan({
     interfaces => [
         {
             interface => 'ge-0/0/1',
+            unit => 2004,
             tag => 2004
         },
         {
             interface => 'ge-0/0/2',
+            unit => 2004,
             tag => 2004
         }
     ],
