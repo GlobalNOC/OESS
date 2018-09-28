@@ -60,7 +60,7 @@ sub process_results{
     return $adjacencies;
 }
 
-=head _process_adjacencies
+=head2 _process_adjacencies
 
 =cut
 sub _process_adjacencies{
