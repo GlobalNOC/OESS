@@ -29,6 +29,7 @@ foreach my $interface (@$interfaces){
     if($interface->{'vlan_tag_range'} eq '1-4095'){
 	
     }else{
+        warn Dumper($interface);
 	$is_broken = 1;
     }
 
