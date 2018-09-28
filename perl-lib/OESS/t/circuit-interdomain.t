@@ -45,6 +45,8 @@ cmp_deeply($endpoints->[0], {
             'node_id' => '91',
             'urn' => undef,
             'interface' => 'e15/1',
+            'unit' => '3005',
+            'inner_tag' => undef,
             'tag' => '3005',
             'role' => 'unknown'
            }, "Endpoint 1 matches");
@@ -58,6 +60,8 @@ cmp_deeply($endpoints->[1], {
             'node_id' => '91',
             'urn' => undef,
             'interface' => 'e15/3',
+            'unit' => '3005',
+            'inner_tag' => undef,
             'tag' => '3005',
             'role' => 'unknown'
            }, "Endpoint 2 matches");
@@ -69,6 +73,8 @@ cmp_deeply($endpoints->[2], {
             'interface_description' => 'xe-1/1/0',
             'port_no' => undef,
             'node_id' => '4161',
+                'unit' => '3005',
+                'inner_tag' => undef,
             'urn' => 'urn:ogf:network:domain=ion.internet2.edu:node=rtr.newy:port=xe-1/1/0:link=*',
             'interface' => 'xe-1/1/0',
             'tag' => '3005',

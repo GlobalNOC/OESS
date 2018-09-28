@@ -94,10 +94,12 @@ my $conf = $device->xml_configuration(
         interfaces => [
             {
                 interface => 'ge-0/0/1',
+                unit => 2004,
                 tag => 2004
             },
             {
                 interface => 'ge-0/0/2',
+                unit => 2004,
                 tag => 2004
             }
         ],

@@ -8311,10 +8311,16 @@ sub edit_circuit {
             " join node on node.node_id = interface.node_id " .
             " where node.name = ? and interface.name = ? ";
         my $interface_id = $self->_execute_query($query, [$node, $interface])->[0]->{'interface_id'};
+        
+        my $unit = $self->find_available_unit( interface_id => $interface_id, inner_tag => $inner_vlan, tag => $vlan);
+        if(!defined($unit)){
+            $self->_set_error("Unable to calculate unit name to use for interface");
+            $self->_rollback();
+            return;
+        }
+        $query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, inner_tag, end_epoch, start_epoch, unit) values (?, ?, ?, ?, -1, unix_timestamp(NOW()),?)";
 
-        $query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, inner_tag, end_epoch, start_epoch) values (?, ?, ?, ?, -1, unix_timestamp(NOW()))";
-
-        $circuit_edge_id = $self->_execute_query($query, [$interface_id, $circuit_id, $vlan, $inner_vlan]);
+        $circuit_edge_id = $self->_execute_query($query, [$interface_id, $circuit_id, $vlan, $inner_vlan, $unit]);
         if (! defined($circuit_edge_id) ){
 
             $self->_set_error("Unable to create circuit edge to interface '$interface'");

@@ -149,6 +149,8 @@ my $correct_result = {
                              'urn' => undef,
                              'interface' => 'e1/1',
                              'tag' => '3',
+                             'unit' => 3,
+                             'inner_tag' => undef,
                              'role' => 'unknown',
                              'mac_addrs' => []
                            },
@@ -160,6 +162,8 @@ my $correct_result = {
                              'node_id' => '51',
                              'urn' => undef,
                              'interface' => 'e15/1',
+                             'unit' => 3,
+                             'inner_tag' => undef,
                              'tag' => '3',
                              'role' => 'unknown',
                              'mac_addrs' => []
