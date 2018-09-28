@@ -163,19 +163,19 @@ $acl = OESS::ACL->new( interface_id => 21, db => $db );
 
 va_test(
   $acl->vlan_allowed( workgroup_id => 11, vlan => 1155 ),
-  1,
+  0,
   19, 'ACLs with null workgroup_id apply to all workgroups (1)'
 );
 
 va_test(
   $acl->vlan_allowed( workgroup_id => 101, vlan => 1155 ),
-  1,
+  0,
   20, 'ACLs with null workgroup_id apply to all workgroups (2)'
 );
 
 va_test(
   $acl->vlan_allowed( workgroup_id => 61, vlan => 1130 ),
-  1,
+  0,
   21, 'wildcard workgroup matches are also first-match-wins (1)'
 );
 
@@ -193,7 +193,7 @@ va_test(
 
 va_test(
   $acl->vlan_allowed( workgroup_id => 101, vlan => 1163 ),
-  1,
+  0,
   24, 'first-match-wins, even when wildcard workgroup matches follow (1)'
 );
 
