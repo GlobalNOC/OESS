@@ -7,7 +7,9 @@ package OESS::Interface;
 
 use OESS::DB::Interface;
 
+=head2 new
 
+=cut
 sub new{
     my $that  = shift;
     my $class = ref($that) || $that;
@@ -39,6 +41,9 @@ sub new{
     return $self;
 }
 
+=head2 from_hash
+
+=cut
 sub from_hash{
     my $self = shift;
     my $hash = shift;
@@ -57,6 +62,9 @@ sub from_hash{
     return 1;
 }
 
+=head2 to_hash
+
+=cut
 sub to_hash{
     my $self = shift;
 
@@ -73,6 +81,9 @@ sub to_hash{
     return $res;
 }
 
+=head2 _fetch_from_db
+
+=cut
 sub _fetch_from_db{
     my $self = shift;
 
@@ -99,78 +110,126 @@ sub _fetch_from_db{
     return $self->from_hash($info);
 }
 
+=head2 update_db
+
+=cut
 sub update_db{
     my $self = shift;
 
 }
 
+=head2 operational_state
+
+=cut
 sub operational_state{
     my $self = shift;
     return $self->{'operational_state'};
 }
 
+=head2 interface_id
+
+=cut
 sub interface_id{
     my $self = shift;
     return $self->{'interface_id'};
 }
 
+=head2 name
+
+=cut
 sub name{
     my $self = shift;
     return $self->{'name'};
 }
 
+=head2 cloud_interconnect_id
+
+=cut
 sub cloud_interconnect_id{
     my $self = shift;
     return $self->{'cloud_interconnect_id'};
 }
 
+=head2 cloud_interconnect_type
+
+=cut
 sub cloud_interconnect_type{
     my $self = shift;
     return $self->{'cloud_interconnect_type'};
 }
 
+=head2 description
+
+=cut
 sub description{
     my $self = shift;
     return $self->{'description'};
 }
 
+=head2 port_number
+
+=cut
 sub port_number{
 
 }
 
+=head2 acls
+
+=cut
 sub acls{
     my $self = shift;
     return $self->{'acls'};
 }
 
+=head2 role
+
+=cut
 sub role{
 
 }
 
+=head2 node
+
+=cut
 sub node{
     my $self = shift;
     return $self->{'node'};
 }
 
+=head2 workgroup
+
+=cut
 sub workgroup{
     
 }
 
+=head2 vlan_tag_range
+
+=cut
 sub vlan_tag_range{
 
 }
 
+=head2 mpls_vlan_tag_range
+
+=cut
 sub mpls_vlan_tag_range{
     my $self = shift;
     return $self->{'mpls_vlan_tag_range'};
 }
 
+=head2 used_vlans
+
+=cut
 sub used_vlans{
     my $self = shift;
 
     return $self->{'used_vlans'};
 }
 
+=head2 vlan_in_use
+
+=cut
 sub vlan_in_use{
     my $self = shift;
     my $vlan = shift;
@@ -191,6 +250,9 @@ sub vlan_in_use{
 
 }
 
+=head2 _process_mpls_vlan_tag
+
+=cut
 sub _process_mpls_vlan_tag{
     my $self = shift;
     
@@ -211,6 +273,9 @@ sub _process_mpls_vlan_tag{
     $self->{'mpls_range'} = \%range;
 }
 
+=head2 mpls_range
+
+=cut
 sub mpls_range{
     my $self = shift;
     if(!defined($self->{'mpls_range'})){
@@ -220,6 +285,9 @@ sub mpls_range{
 }
 
 
+=head2 vlan_valid
+
+=cut
 sub vlan_valid{
     my $self = shift;
     my %params = @_;
@@ -249,4 +317,3 @@ sub vlan_valid{
 }
 
 1;
-

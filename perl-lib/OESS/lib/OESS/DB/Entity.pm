@@ -11,6 +11,9 @@ use OESS::User;
 use Data::Dumper;
 use List::MoreUtils qw(uniq);
 
+=head2 fetch
+
+=cut
 sub fetch{
     my %params = @_;
     my $db = $params{'db'};
@@ -68,6 +71,9 @@ sub fetch{
             users => \@users };
 }
 
+=head2 get_root_entities
+
+=cut
 sub get_root_entities{
     my %params = @_;
     my $db = $params{'db'};
@@ -117,6 +123,9 @@ sub get_entities {
     return $result;
 }
 
+=head2 update
+
+=cut
 sub update {
     my %params = @_;
     my $db = $params{'db'};
@@ -155,6 +164,9 @@ sub update {
     return $result;
 }
 
+=head2 remove_interfaces
+
+=cut
 sub remove_interfaces {
     my %params = @_;
     my $db = $params{'db'};
@@ -168,6 +180,9 @@ sub remove_interfaces {
     return $result;
 }
 
+=head2 add_interfaces
+
+=cut
 sub add_interfaces {
     my %params = @_;
     my $db = $params{'db'};
@@ -196,6 +211,9 @@ sub add_interfaces {
     );
 }
 
+=head2 remove_users
+
+=cut
 sub remove_users {
     my %params = @_;
     my $db = $params{'db'};
@@ -209,6 +227,9 @@ sub remove_users {
     return $result;
 }
 
+=head2 add_users
+
+=cut
 sub add_users {
     my %params = @_;
     my $db = $params{'db'};
@@ -237,6 +258,9 @@ sub add_users {
     );
 }
 
+=head2 remove_parents
+
+=cut
 sub remove_parents {
     my %params = @_;
     my $db = $params{'db'};
@@ -250,6 +274,9 @@ sub remove_parents {
     return $result;
 }
 
+=head2 add_parents
+
+=cut
 sub add_parents {
     my %params = @_;
     my $db = $params{'db'};
@@ -281,6 +308,9 @@ sub add_parents {
     );
 }
 
+=head2 remove_children
+
+=cut
 sub remove_children {
     my %params = @_;
     my $db = $params{'db'};
@@ -294,6 +324,9 @@ sub remove_children {
     return $result;
 }
 
+=head2 add_children
+
+=cut
 sub add_children {
     my %params = @_;
     my $db = $params{'db'};

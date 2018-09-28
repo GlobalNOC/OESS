@@ -5,6 +5,8 @@ use warnings;
 
 package OESS::DB::Node;
 
+=head2 fetch
+=cut
 sub fetch{
     my %params = @_;
     my $db = $params{'db'};
@@ -34,12 +36,8 @@ sub fetch{
     return $node;
 }
 
-sub update{
-    
-
-
-}
-
+=head2 get_node_interfaces
+=cut
 sub get_node_interfaces{
     my $db = shift;
     my $node_id = shift;
@@ -52,17 +50,6 @@ sub get_node_interfaces{
     }
 
     return \@ints;
-}
-
-
-sub _update{
-
-
-}
-
-sub _create{
-
-
 }
 
 1;

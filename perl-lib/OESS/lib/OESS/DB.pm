@@ -26,7 +26,6 @@ use DBI;
 =head2 new
 
 =cut
-
 sub new{
     my $that  = shift;
     my $class = ref($that) || $that;
@@ -49,11 +48,11 @@ sub new{
     $self->_connect_to_db();
     
     return $self;
-    
-
 }
 
+=head2 _connect_to_db
 
+=cut
 sub _connect_to_db{
     my $self = shift;
    
@@ -75,6 +74,9 @@ sub _connect_to_db{
     $self->{'dbh'} = $dbh;
 }
 
+=head2 _process_config
+
+=cut
 sub _process_config{
     my $self = shift;
     my $config = shift;
@@ -89,6 +91,9 @@ sub _process_config{
 
 }
 
+=head2 execute_query
+
+=cut
 sub execute_query{
     my $self = shift;
     my $query = shift;
@@ -135,7 +140,6 @@ sub execute_query{
 =head2 start_transaction
 
 =cut
-
 sub start_transaction{
     my $self = shift;
 
@@ -145,7 +149,6 @@ sub start_transaction{
 =head2 commit
 
 =cut
-
 sub commit{
     my $self = shift;
 
@@ -155,12 +158,14 @@ sub commit{
 =head2 rollback
 
 =cut
-
 sub rollback{
     my $self = shift;
     $self->{'dbh'}->rollback();
 }
 
+=head2 _set_error
+
+=cut
 sub _set_error{
     my $self = shift;
     my $error = shift;
@@ -168,6 +173,9 @@ sub _set_error{
     $self->{'error'} = $error;
 }
 
+=head2 get_error
+
+=cut
 sub get_error{
     my $self = shift;
     return $self->{'error'};

@@ -1,5 +1,4 @@
 #!/usr/bin/perl
-
 use strict;
 use warnings;
 
@@ -95,6 +94,9 @@ sub new{
     return $self;
 }
 
+=head2 _build_from_model
+
+=cut
 sub _build_from_model{
     my $self = shift;
 
@@ -119,6 +121,9 @@ sub _build_from_model{
     return;
 }
 
+=head2 from_hash
+
+=cut
 sub from_hash{
     my $self = shift;
     my $hash = shift;
@@ -136,6 +141,9 @@ sub from_hash{
     $self->{'state'} = $hash->{'state'};
 }
 
+=head2 _fetch_from_db
+
+=cut
 sub _fetch_from_db{
     my $self = shift;
 
@@ -143,6 +151,9 @@ sub _fetch_from_db{
     $self->from_hash($hash);
 }
 
+=head2 to_hash
+
+=cut
 sub to_hash{
     my $self = shift;
 
@@ -168,11 +179,17 @@ sub to_hash{
     return $obj;
 }
 
+=head2 vrf_id
+
+=cut
 sub vrf_id{
     my $self =shift;
     return $self->{'vrf_id'};
 }
 
+=head2 id
+
+=cut
 sub id{
     my $self = shift;
     my $id = shift;
@@ -185,6 +202,9 @@ sub id{
     }
 }
 
+=head2 endpoints
+
+=cut
 sub endpoints{
     my $self = shift;
     my $eps = shift;
@@ -197,6 +217,9 @@ sub endpoints{
     return $self->{endpoints};
 }
 
+=head2 name
+
+=cut
 sub name{
     my $self = shift;
     my $name = shift;
@@ -209,6 +232,9 @@ sub name{
     }
 }
 
+=head2 description
+
+=cut
 sub description{
     my $self = shift;
     my $description = shift;
@@ -221,6 +247,9 @@ sub description{
     }
 }
 
+=head2 workgroup
+
+=cut
 sub workgroup{
     my $self = shift;
     my $workgroup = shift;
@@ -234,6 +263,9 @@ sub workgroup{
     }
 }
 
+=head2 update_db
+
+=cut
 sub update_db{
     my $self = shift;
 
@@ -245,6 +277,9 @@ sub update_db{
     }
 }
 
+=head2 create
+
+=cut
 sub create{
     my $self = shift;
 
@@ -290,6 +325,9 @@ sub create{
     return 1;
 }
 
+=head2 update
+
+=cut
 sub update {
     my $self  = shift;
     my $modal = shift;
@@ -366,7 +404,9 @@ sub update {
     return 1;
 }
 
+=head2 _edit
 
+=cut
 sub _edit {
     my $self = shift;
 
@@ -404,11 +444,10 @@ sub _edit {
 
 =head2 update_vrf_details
 
-    reload the vrf details from the database to make sure everything 
-    is in sync with what should be there
+reload the vrf details from the database to make sure everything is in
+sync with what should be there
 
 =cut
-
 sub update_vrf_details{
     my $self = shift;
     my %params = @_;
@@ -419,7 +458,6 @@ sub update_vrf_details{
 =head2 decom
 
 =cut
-
 sub decom{
     my $self = shift;
     my %params = @_;
@@ -437,7 +475,6 @@ sub decom{
 =head2 error
 
 =cut
-
 sub error{
     my $self = shift;
     my $error = shift;
@@ -447,6 +484,9 @@ sub error{
     return $self->{'error'};
 }
 
+=head2 prefix_limit
+
+=cut
 sub prefix_limit{
     my $self = shift;
     if(!defined($self->{'prefix_limit'})){
@@ -455,6 +495,9 @@ sub prefix_limit{
     return $self->{'prefix_limit'};
 }
 
+=head2 created_by
+
+=cut
 sub created_by{
     my $self = shift;
     my $created_by = shift;
@@ -462,32 +505,50 @@ sub created_by{
     return $self->{'created_by'};
 }
 
+=head2 last_modified_by
+
+=cut
 sub last_modified_by{
     my $self = shift;
     return $self->{'last_modified_by'};
 }
 
 
+=head2 last_modified
+
+=cut
 sub last_modified{
     my $self = shift;
     return $self->{'last_modified'};
 }
 
+=head2 created
+
+=cut
 sub created{
     my $self = shift;
     return $self->{'created'};
 }
 
+=head2 local_asn
+
+=cut
 sub local_asn{
     my $self = shift;
     return $self->{'local_asn'};
 }
 
+=head2 state
+
+=cut
 sub state{
     my $self = shift;
     return $self->{'state'};
 }
 
+=head2 operational_state
+
+=cut
 sub operational_state{
     my $self = shift;
     
@@ -505,7 +566,6 @@ sub operational_state{
     }else{
         return "down";
     }
-
 }
 
 1;

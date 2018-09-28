@@ -213,7 +213,9 @@ sub reconnect{
 
 }
 
+=head2 find_available_unit
 
+=cut
 sub find_available_unit{
     my $self = shift;
     my %params = @_;
@@ -6872,8 +6874,6 @@ An array of vlan tags that this circuit should use. The order of this
 should match nodes and interfaces such that a given C<(nodes[i],
 interfaces[i], tags[i], inner_tags[i])> combination is accurate.
 
-=back
-
 =item inner_tags
 
 An array of vlan tags that this circuit should use. The order of this
@@ -8542,10 +8542,6 @@ sub _get_uuid {
 
     return @$result[0]->{'uuid'};
 }
-
-=head2 _rollback
-
-=cut
 
 =head2 _commit
 

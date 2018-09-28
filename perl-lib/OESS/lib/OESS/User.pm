@@ -7,6 +7,9 @@ package OESS::User;
 
 use OESS::DB::User;
 
+=head2 new
+
+=cut
 sub new{
     my $that  = shift;
     my $class = ref($that) || $that;
@@ -40,6 +43,9 @@ sub new{
     return $self;
 }
 
+=head2 to_hash
+
+=cut
 sub to_hash{
     my $self = shift;
 
@@ -62,6 +68,9 @@ sub to_hash{
     return $obj;
 }
 
+=head2 from_hash
+
+=cut
 sub from_hash{
     my $self = shift;
     my $hash = shift;
@@ -77,6 +86,9 @@ sub from_hash{
     return 1;
 }
 
+=head2 _fetch_from_db
+
+=cut
 sub _fetch_from_db{
     my $self = shift;
 
@@ -88,38 +100,59 @@ sub _fetch_from_db{
     return $self->from_hash($user);
 }
 
+=head2 first_name
+
+=cut
 sub first_name{
     my $self = shift;
     return $self->{'first_name'};
 }
 
+=head2 last_name
+
+=cut
 sub last_name{
     my $self = shift;
     return $self->{'last_name'};
 
 }
 
+=head2 user_id
+
+=cut
 sub user_id{
     my $self = shift;
     return $self->{'user_id'};
     
 }
 
+=head2 workgroups
+
+=cut
 sub workgroups{
     my $self = shift;
     return $self->{'workgroups'} || [];
 }
 
+=head2 email
+
+=cut
 sub email{
     my $self = shift;
     return $self->{'email'};
 }
 
+=head2 is_admin
+
+=cut
 sub is_admin{
     my $self = shift;
     return $self->{'is_admin'};
 }
 
+=head2 in_workgroup
+
+=cut
 sub in_workgroup{
     my $self = shift;
     my $workgroup_id = shift;
@@ -132,6 +165,9 @@ sub in_workgroup{
     return 0;
 }
 
+=head2 type
+
+=cut
 sub type{
     my $self = shift;
     return $self->{'type'};

@@ -589,6 +589,9 @@ sub get_interfaces{
     return \@interfaces;
 }
 
+=head2 _process_interface
+
+=cut
 sub _process_interface{
     my $self = shift;
     my $int = shift;
@@ -625,6 +628,9 @@ sub _process_interface{
     return $obj;
 }
 
+=head2 get_vrf_stats
+
+=cut
 sub get_vrf_stats{
     my $self = shift;
 
@@ -856,7 +862,6 @@ sub add_vlan{
 =head2 add_vrf
 
 =cut
-
 sub add_vrf{
     my $self = shift;
     my $vrf = shift;
@@ -955,7 +960,6 @@ sub add_vrf{
 =head2 remove_vrf
 
 =cut
-
 sub remove_vrf{
     my $self = shift;
     my $vrf = shift;
@@ -1391,6 +1395,9 @@ sub get_config_to_remove{
     return $delete;
 }
 
+=head2 _get_strict_path
+
+=cut
 sub _get_strict_path{
     my $self = shift;
     my $circuit_id = shift;
@@ -1418,6 +1425,9 @@ sub _get_strict_path{
     return undef;
 }
 
+=head2 _is_circuit_on_port
+
+=cut
 sub _is_circuit_on_port{
     my $self = shift;
     my $circuit_id = shift;
@@ -1455,6 +1465,9 @@ sub _is_circuit_on_port{
 
 }
 
+=head2 _is_vrf_on_port
+
+=cut
 sub _is_vrf_on_port{
     my $self = shift;
     my $vrf_id = shift;
@@ -1491,6 +1504,10 @@ sub _is_vrf_on_port{
     return 0;
 }
 
+
+=head2 _is_peer_address
+
+=cut
 sub _is_peer_address {
     my $self = shift;
     my $vrf_id = shift;
@@ -1522,6 +1539,9 @@ sub _is_peer_address {
     return 0;
 }
 
+=head2 _is_active_vrf
+
+=cut
 sub _is_active_vrf{
     my $self = shift;
     my $vrf_id = shift;
@@ -1543,6 +1563,9 @@ sub _is_active_vrf{
     
 }
 
+=head2 _is_active_circuit
+
+=cut
 sub _is_active_circuit{
     my $self = shift;
     my $circuit_id = shift;
@@ -1558,7 +1581,6 @@ sub _is_active_circuit{
 
     $self->{'logger'}->error("Circuit id: " . $circuit_id . " was not found as an active circuit... scheduling for removal");
     return 0;
-    
 }
 
 =head2 get_device_diff
@@ -2002,6 +2024,10 @@ sub get_isis_adjacencies{
     return \@adj;
 }
 
+
+=head2 _process_isis_adj
+
+=cut
 sub _process_isis_adj{
     my $self = shift;
     my $adj = shift;
@@ -2165,6 +2191,9 @@ sub get_lsp_paths{
     return $lsp_routes;
 }
 
+=head2 _process_rsvp_session_data
+
+=cut
 sub _process_rsvp_session_data{
     my $self = shift;
     my $rsvp_sd = shift;
@@ -2202,6 +2231,9 @@ sub _process_rsvp_session_data{
 
 }
 
+=head2 _process_rsvp_session_transit
+
+=cut
 sub _process_rsvp_session_transit{
     my $self = shift;
     my $session = shift;
@@ -2249,6 +2281,9 @@ sub _process_rsvp_session_transit{
     return $obj;
 }
 
+=head2 _process_packet_info
+
+=cut
 sub _process_packet_info{
     my $self = shift;
     my $pkt_info = shift;
@@ -2285,6 +2320,9 @@ sub _process_packet_info{
     return $obj;
 }
 
+=head2 _process_rsvp_session_egress
+
+=cut
 sub _process_rsvp_session_egress{
     my $self = shift;
     my $session = shift;
@@ -2327,12 +2365,12 @@ sub _process_rsvp_session_egress{
         push(@{$obj->{'record-route'}}, $rr->textContent);
     }    
 
-    
-    
     return $obj;
 }
 
+=head2 _process_rsvp_session_ingress
 
+=cut
 sub _process_rsvp_session_ingress{
     my $self = shift;
     my $session = shift;
@@ -2367,6 +2405,9 @@ sub _process_rsvp_session_ingress{
     return $obj;
 }
 
+=head2 _process_lsp_path
+
+=cut
 sub _process_lsp_path{
     my $self = shift;
     my $path = shift;
@@ -2402,7 +2443,9 @@ sub _process_lsp_path{
     return $obj;
 }
 
+=head2 _edit_config
 
+=cut
 sub _edit_config{
     my $self = shift;
     my %params = @_;
@@ -2516,7 +2559,6 @@ sub _edit_config{
 trims off white space
 
 =cut
-
 sub trim{
     my $s = shift; 
     $s =~ s/^\s+|\s+$//g;

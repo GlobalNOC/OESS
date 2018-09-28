@@ -13,7 +13,9 @@ use OESS::Workgroup;
 
 use Data::Dumper;
 
+=head2 fetch
 
+=cut
 sub fetch{
     my %params = @_;
     my $db = $params{'db'};
@@ -49,6 +51,9 @@ sub fetch{
     return $details;
 }
 
+=head2 update
+
+=cut
 sub update {
     my %params = @_;
     my $db = $params{'db'};
@@ -91,6 +96,9 @@ sub update {
     return $result;
 }
 
+=head2 create
+
+=cut
 sub create{
     my %params = @_;
     my $db = $params{'db'};
@@ -119,6 +127,9 @@ sub create{
     return $vrf_id;
 }        
 
+=head2 delete_endpoints
+
+=cut
 sub delete_endpoints {
     my %params = @_;
     my $db = $params{'db'};
@@ -145,6 +156,9 @@ sub delete_endpoints {
     return $ok;
 } 
 
+=head2 find_available_unit
+
+=cut
 sub find_available_unit{
     my %params = @_;
     my $db = $params{'db'};
@@ -181,7 +195,10 @@ it.circuit_state = 'active' and circuit_instantiation.circuit_state = 'active' a
 
 }
 
-sub add_endpoint{       
+=head2 add_endpoint
+
+=cut
+sub add_endpoint{
     my %params = @_;
 
     my $db = $params{'db'};
@@ -223,6 +240,9 @@ sub add_endpoint{
     return $vrf_ep_id;
 }
 
+=head2 add_peer
+
+=cut
 sub add_peer{
     my %params = @_;
     
@@ -240,6 +260,9 @@ sub add_peer{
     return $res;
 }
 
+=head2 fetch_endpoints
+
+=cut
 sub fetch_endpoints{
     my %params = @_;
 
@@ -260,6 +283,9 @@ sub fetch_endpoints{
     return $res;
 }
 
+=head2 fetch_endpoint
+
+=cut
 sub fetch_endpoint{
     my %params = @_;
 
@@ -293,7 +319,9 @@ sub fetch_endpoint{
     return $vrf_ep;    
 }
 
+=head2 fetch_endpoint_peers
 
+=cut
 sub fetch_endpoint_peers{
     my %params = @_;
     
@@ -307,6 +335,9 @@ sub fetch_endpoint_peers{
      
 }
 
+=head2 fetch_peer
+
+=cut
 sub fetch_peer{
     my %params = @_;
     
@@ -325,10 +356,9 @@ sub fetch_peer{
 
 }
 
-sub _update_vrf {
+=head2 decom
 
-}
-
+=cut
 sub decom{
     my %params = @_;
     my $db = $params{'db'};
@@ -340,6 +370,9 @@ sub decom{
 
 }
 
+=head2 decom_endpoint
+
+=cut
 sub decom_endpoint{
     my %params = @_;
     my $db = $params{'db'};
@@ -350,6 +383,9 @@ sub decom_endpoint{
 
 }
 
+=head2 decom_peer
+
+=cut
 sub decom_peer{
     my %params = @_;
     my $db = $params{'db'};
@@ -359,6 +395,9 @@ sub decom_peer{
     return $res;
 }
 
+=head2 get_vrfs
+
+=cut
 sub get_vrfs{
     my %params = @_;
     my $db = $params{'db'};
@@ -403,8 +442,6 @@ sub get_vrfs{
     my $query = "select distinct(vrf.vrf_id) from vrf join vrf_ep on vrf_ep.vrf_id = vrf.vrf_id where $where";
 
     my $vrfs = $db->execute_query($query,\@where_val);
-
-    
 
     return $vrfs;
 }

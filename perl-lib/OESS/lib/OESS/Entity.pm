@@ -7,6 +7,9 @@ package OESS::Entity;
 
 use OESS::DB::Entity;
 
+=head2 new
+
+=cut
 sub new{
     my $that  = shift;
     my $class = ref($that) || $that;
@@ -34,6 +37,9 @@ sub new{
     return $self;    
 }
 
+=head2 _from_hash
+
+=cut
 sub _from_hash{
     my $self = shift;
     my $hash = shift;
@@ -49,6 +55,9 @@ sub _from_hash{
     $self->{'users'} = $hash->{'users'};
 }
 
+=head2 _fetch_from_db
+
+=cut
 sub _fetch_from_db{
     my $self = shift;
 
@@ -59,6 +68,9 @@ sub _fetch_from_db{
     return 1;
 }
 
+=head2 update_db
+
+=cut
 sub update_db{
     my $self = shift;
 
@@ -124,6 +136,9 @@ sub update_db{
     return;
 }
 
+=head2 to_hash
+
+=cut
 sub to_hash{
     my $self = shift;
 
@@ -150,17 +165,26 @@ sub to_hash{
     };
 }
 
+=head2 users
+
+=cut
 sub users {
     my $self = shift;
 
     return $self->{'users'} || [];
 }
 
+=head2 entity_id
+
+=cut
 sub entity_id{
     my $self = shift;
     return $self->{'entity_id'};
 }
 
+=head2 name
+
+=cut
 sub name{
     my $self = shift;
     my $name = shift;
@@ -171,6 +195,9 @@ sub name{
     }
 }
 
+=head2 description
+
+=cut
 sub description{
     my $self = shift;
     my $description = shift;
@@ -181,6 +208,9 @@ sub description{
     return $self->{'description'};
 }
 
+=head2 logo_url
+
+=cut
 sub logo_url{
     my $self = shift;
     my $logo_url = shift;
@@ -191,6 +221,9 @@ sub logo_url{
     return $self->{'logo_url'};
 }
 
+=head2 url
+
+=cut
 sub url {
     my $self = shift;
     my $url = shift;
@@ -200,6 +233,9 @@ sub url {
     return $self->{'url'};
 }
 
+=head2 interfaces
+
+=cut
 sub interfaces{
     my $self = shift;
     my $interfaces = shift;
@@ -211,6 +247,9 @@ sub interfaces{
     }
 }
 
+=head2 parents
+
+=cut
 sub parents{
     my $self = shift;
     my $parents = shift;
@@ -221,6 +260,9 @@ sub parents{
     }
 }
 
+=head2 children
+
+=cut
 sub children{
     my $self = shift;
     my $children = shift;
@@ -232,6 +274,9 @@ sub children{
     }
 }
 
+=head2 add_child
+
+=cut
 sub add_child{
     my $self = shift;
     my $entity = shift;
@@ -239,6 +284,9 @@ sub add_child{
     push(@{$self->{'children'}},$entity);
 }
 
+=head2 add_parent
+
+=cut
 sub add_parent{
     my $self = shift;
     my $entity = shift;
@@ -246,6 +294,9 @@ sub add_parent{
     push(@{$self->{'parents'}},$entity);
 }
 
+=head2 add_interface
+
+=cut
 sub add_interface {
     my $self = shift;
     my $interface = shift;
@@ -260,6 +311,9 @@ sub add_interface {
     return 1;
 }
 
+=head2 remove_interface
+
+=cut
 sub remove_interface {
     my $self = shift;
     my $interface = shift;
@@ -276,6 +330,9 @@ sub remove_interface {
     return 1;
 }
 
+=head2 add_user
+
+=cut
 sub add_user {
     my $self = shift;
     my $user = shift;
@@ -290,6 +347,9 @@ sub add_user {
     return 1;
 }
 
+=head2 remove_user
+
+=cut
 sub remove_user {
     my $self = shift;
     my $user = shift;
