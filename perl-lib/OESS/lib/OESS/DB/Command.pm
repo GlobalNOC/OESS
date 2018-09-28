@@ -5,6 +5,8 @@ use warnings;
 
 package OESS::DB::Command;
 
+=head2 fetch
+=cut
 sub fetch {
     my %params = @_;
     my $db = $params{'db'};
@@ -22,6 +24,8 @@ sub fetch {
     return $cmd->[0];
 }
 
+=head2 fetch_all
+=cut
 sub fetch_all {
     my %params = @_;
     my $db = $params{'db'};

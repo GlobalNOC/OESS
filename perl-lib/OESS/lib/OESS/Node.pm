@@ -7,6 +7,9 @@ package OESS::Node;
 
 use OESS::DB::Node;
 
+=head2 new
+
+=cut
 sub new{
     my $that  = shift;
     my $class = ref($that) || $that;
@@ -35,6 +38,9 @@ sub new{
     return $self;
 }
 
+=head2 from_hash
+
+=cut
 sub from_hash{
     my $self = shift;
     my $hash = shift;
@@ -46,6 +52,9 @@ sub from_hash{
     
 }
 
+=head2 to_hash
+
+=cut
 sub to_hash{
     my $self = shift;
     my $obj = { node_id => $self->{'node_id'},
@@ -56,6 +65,9 @@ sub to_hash{
     return $obj;
 }
 
+=head2 _fetch_from_db
+
+=cut
 sub _fetch_from_db{
     my $self = shift;
     my $db = $self->{'db'};
@@ -63,16 +75,25 @@ sub _fetch_from_db{
     $self->from_hash($hash);
 }
 
+=head2 node_id
+
+=cut
 sub node_id{
     my $self = shift;
     return $self->{'node_id'};
 }
 
+=head2 name
+
+=cut
 sub name{
     my $self = shift;
     return $self->{'name'};
 }
 
+=head2 interfaces
+
+=cut
 sub interfaces{
     my $self = shift;
     my $interfaces = shift;

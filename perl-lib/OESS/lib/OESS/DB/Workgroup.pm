@@ -8,6 +8,8 @@ use OESS::Interface;
 
 package OESS::DB::Workgroup;
 
+=head2 fetch
+=cut
 sub fetch{
     my %params = @_;
     my $db = $params{'db'};
@@ -25,6 +27,8 @@ sub fetch{
     return $wg->[0];
 }
 
+=head2 get_users_in_workgroup
+=cut
 sub get_users_in_workgroup{
     my %params = @_;
     
@@ -48,6 +52,5 @@ sub get_users_in_workgroup{
     }
     return \@users;
 }
-
 
 1;

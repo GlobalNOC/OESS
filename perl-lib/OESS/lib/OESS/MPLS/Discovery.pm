@@ -67,20 +67,21 @@ use constant MAX_TSDS_MESSAGES => 30;
 use constant TSDS_RIB_TYPE => 'rib_table';
 use constant TSDS_PEER_TYPE => 'bgp_peer';
 use constant VRF_STATS_INTERVAL => 60;
+
 =head2 new
-    instantiates a new OESS::MPLS::Discovery object, which intern creates new 
-    instantiations of 
+
+instantiates a new OESS::MPLS::Discovery object, which intern creates
+new instantiations of
 
     OESS::MPLS::Discovery::Interface
     OESS::MPLS::Discovery::LSP
     OESS::MPLS::Discovery::ISIS
-    
-    this then schedules timed events to handle our data requests and processing
-    from the other modules.  This module also will handle new device additions
-    and initial device population
+
+this then schedules timed events to handle our data requests and
+processing from the other modules.  This module also will handle new
+device additions and initial device population
 
 =cut
-
 sub new{
     my $class = shift;
     #process our args
@@ -165,7 +166,6 @@ sub new{
 this sets up our dispatcher to receive remote events
 
 =cut
-
 sub register_rpc_methods{
     my $self = shift;
     my $d = shift;
@@ -184,12 +184,11 @@ sub register_rpc_methods{
 
 =head2 new_switch
 
-this is called when a new switch is added to the network... the job
-of this module is to add the device and its interfaces (and links) 
-to the OESS database for future provisioning use
+this is called when a new switch is added to the network... the job of
+this module is to add the device and its interfaces (and links) to the
+OESS database for future provisioning use
 
 =cut
-
 sub new_switch{
     my $self = shift;
     my $m_ref = shift;
@@ -213,13 +212,12 @@ sub new_switch{
 
 
 =head2 make_baby
-make baby is a throw back to sherpa...
-have to give Ed the credit for most
-awesome function name ever
 
-really this creates a switch object that can
-handle our RabbitMQ requests and returns results
-from the device
+make baby is a throw back to sherpa...  have to give Ed the credit for
+most awesome function name ever
+
+really this creates a switch object that can handle our RabbitMQ
+requests and returns results from the device
 
 =cut
 sub make_baby{
@@ -269,7 +267,11 @@ sub run{
     $self->{'children'}->{$id}->{'rpc'} = 1;
 }
 
-#initialize our sub modules...
+=head2 _init_interfaces
+
+initialize our sub modules...
+
+=cut
 sub _init_interfaces{
     my $self = shift;
     
@@ -282,6 +284,9 @@ sub _init_interfaces{
     return $ints;
 }
 
+=head2 _init_lsp
+
+=cut
 sub _init_lsp{
     my $self = shift;
 
@@ -294,6 +299,9 @@ sub _init_lsp{
 
 }
 
+=head2 _init_isis
+
+=cut
 sub _init_isis{  
     my $self = shift;
 
@@ -306,6 +314,9 @@ sub _init_isis{
 
 }
 
+=head2 _init_paths
+
+=cut
 sub _init_paths{
     my $self = shift;
     my $paths = OESS::MPLS::Discovery::Paths->new( db => $self->{'db'} );
@@ -420,7 +431,6 @@ sub path_handler {
 =head2 lsp_handler
 
 =cut
-
 sub lsp_handler{
     my $self = shift;
     
@@ -455,7 +465,6 @@ sub lsp_handler{
 =head2 isis_handler
 
 =cut
-
 sub isis_handler{
     my $self = shift;
 
@@ -490,7 +499,6 @@ sub isis_handler{
 =head2 device_handler
 
 =cut
-
 sub device_handler{
     my $self =shift;
     foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
@@ -511,10 +519,9 @@ sub device_handler{
     
 }
 
-=head2 vrf_stats_handler{
+=head2 vrf_stats_handler
 
 =cut
-
 sub vrf_stats_handler{
     my $self = shift;
     $self->{'logger'}->debug("Attempting to pull VRF stats");
@@ -538,7 +545,6 @@ sub vrf_stats_handler{
 =head2 handle_vrf_stats
 
 =cut
-
 sub handle_vrf_stats{
     my $self = shift;
     my %params = @_;
@@ -638,7 +644,6 @@ sub handle_vrf_stats{
 =head2 handle_system_info
 
 =cut
-
 sub handle_system_info{
     my $self = shift;
     my %params = @_;
@@ -654,7 +659,6 @@ sub handle_system_info{
 =head2 handle_links
 
 =cut
-
 sub handle_links{
     my $self = shift;
     my $adjs = shift;
@@ -845,7 +849,6 @@ sub handle_links{
 =head2 get_active_link_id_by_connectors
 
 =cut
-
 sub get_active_link_id_by_connectors{
     my $self = shift;
     my %args = @_;
@@ -881,16 +884,13 @@ sub get_active_link_id_by_connectors{
     return undef;
 }
 
-
 =head2 handle_response
 
-    this returns a callback for when we get our sync data reply
-    it looks complicated but really it takes a callback function
-    and returns a subroutine that calls it
+this returns a callback for when we get our sync data reply it looks
+complicated but really it takes a callback function and returns a
+subroutine that calls it
 
 =cut
-
-
 sub handle_response{
     my $self = shift;
     my %params = @_;
@@ -910,7 +910,6 @@ Sends a shutdown signal on MPLS.FWDCTL.event.stop. Child processes
 should listen for this signal and cleanly exit when received.
 
 =cut
-
 sub stop {
     my $self = shift;
 

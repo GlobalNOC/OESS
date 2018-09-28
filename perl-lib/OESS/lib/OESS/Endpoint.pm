@@ -13,6 +13,9 @@ use OESS::Peer;
 use OESS::Entity;
 use Data::Dumper;
 
+=head2 new
+
+=cut
 sub new{
     my $that  = shift;
     my $class = ref($that) || $that;
@@ -50,6 +53,9 @@ sub new{
     return $self;
 }
 
+=head2 _build_from_model
+
+=cut
 sub _build_from_model{
     my $self = shift;
 
@@ -83,6 +89,9 @@ sub _build_from_model{
 
 }
 
+=head2 to_hash
+
+=cut
 sub to_hash{
     my $self = shift;
     my $obj;
@@ -119,6 +128,9 @@ sub to_hash{
 
 }
 
+=head2 from_hash
+
+=cut
 sub from_hash{
     my $self = shift;
     my $hash = shift;
@@ -146,6 +158,9 @@ sub from_hash{
     $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, interface_id => $self->{'interface'}->{'interface_id'}, vlan => $self->{'tag'});
 }
 
+=head2 _fetch_from_db
+
+=cut
 sub _fetch_from_db{
     my $self = shift;
     
@@ -166,6 +181,9 @@ sub _fetch_from_db{
 
 }
 
+=head2 cloud_account_id
+
+=cut
 sub cloud_account_id {
     my $self = shift;
     my $value = shift;
@@ -175,6 +193,9 @@ sub cloud_account_id {
     return $self->{cloud_account_id};
 }
 
+=head2 cloud_connection_id
+
+=cut
 sub cloud_connection_id {
     my $self = shift;
     my $value = shift;
@@ -184,21 +205,33 @@ sub cloud_connection_id {
     return $self->{cloud_connection_id};
 }
 
+=head2 interface
+
+=cut
 sub interface{
     my $self = shift;
     return $self->{'interface'};
 }
 
+=head2 node
+
+=cut
 sub node{
     my $self = shift;
     return $self->{'interface'}->node();
 }
 
+=head2 type
+
+=cut
 sub type{
     my $self = shift;
     $self->{'type'};
 }
 
+=head2 peers
+
+=cut
 sub peers{
     my $self = shift;
     if(!defined($self->{'peers'})){
@@ -207,51 +240,81 @@ sub peers{
     return $self->{'peers'};
 }
 
+=head2 inner_tag
+
+=cut
 sub inner_tag{
     my $self = shift;
     return $self->{'inner_tag'};
 }
 
+=head2 tag
+
+=cut
 sub tag{
     my $self = shift;
     return $self->{'tag'};
 }
 
+=head2 bandwidth
+
+=cut
 sub bandwidth{
     my $self = shift;
     return $self->{'bandwidth'};
 }
 
+=head2 vrf_endpoint_id
+
+=cut
 sub vrf_endpoint_id{
     my $self = shift;
     return $self->{'vrf_endpoint_id'};
 }
 
+=head2 vrf_id
+
+=cut
 sub vrf_id{
     my $self = shift;
     return $self->{'vrf_id'};
 }
 
+=head2 circuit_id
+
+=cut
 sub circuit_id{
     my $self = shift;
     return $self->{'circuit_id'};
 }
 
+=head2 circuit_endpoint_id
+
+=cut
 sub circuit_endpoint_id{
     my $self = shift;
     return $self->{'circuit_endpoint_id'};
 }
 
+=head2 entity
+
+=cut
 sub entity{
     my $self = shift;
     return $self->{'entity'};
 }
 
+=head2 unit
+
+=cut
 sub unit{
     my $self = shift;
     return $self->{'unit'};
 }
 
+=head2 decom
+
+=cut
 sub decom{
     my $self = shift;
     

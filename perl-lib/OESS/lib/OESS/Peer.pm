@@ -7,6 +7,9 @@ package OESS::Peer;
 
 use Data::Dumper;
 
+=head2 new
+
+=cut
 sub new{
     my $that  = shift;
     my $class = ref($that) || $that;
@@ -41,6 +44,9 @@ sub new{
     return $self;
 }
 
+=head2 _build_from_model
+
+=cut
 sub _build_from_model{
     my $self = shift;
 
@@ -50,6 +56,9 @@ sub _build_from_model{
     $self->{'local_ip'} = $self->{'model'}->{'local_ip'};
 }
 
+=head2 from_hash
+
+=cut
 sub from_hash{
     my $self = shift;
     my $hash = shift;
@@ -65,6 +74,9 @@ sub from_hash{
 
 }
 
+=head2 to_hash
+
+=cut
 sub to_hash{
     my $self = shift;
 
@@ -80,16 +92,25 @@ sub to_hash{
     return $obj;
 }
 
+=head2 peer_ip
+
+=cut
 sub peer_ip{
     my $self = shift;
     return $self->{'peer_ip'};
 }
 
+=head2 local_ip
+
+=cut
 sub local_ip{
     my $self = shift;
     return $self->{'local_ip'};
 }
 
+=head2 peer_asn
+
+=cut
 sub peer_asn{
     my $self = shift;
     my $value = shift;
@@ -99,21 +120,33 @@ sub peer_asn{
     return $self->{peer_asn};
 }
 
+=head2 md5_key
+
+=cut
 sub md5_key{
     my $self = shift;
     return $self->{'md5_key'};
 }
 
+=head2 vrf_ep_id
+
+=cut
 sub vrf_ep_id{
     my $self = shift;
     return $self->{'vrf_ep_id'};
 }
 
+=head2 vrf_ep_peer_id
+
+=cut
 sub vrf_ep_peer_id{
     my $self = shift;
     return $self->{'vrf_ep_peer_id'};
 }
 
+=head2 operational_state
+
+=cut
 sub operational_state{
     my $self = shift;
     if($self->{'operational_state'} == 1){
@@ -123,6 +156,9 @@ sub operational_state{
     }
 }
 
+=head2 _fetch_from_db
+
+=cut
 sub _fetch_from_db{
     my $self = shift;
    
@@ -133,6 +169,9 @@ sub _fetch_from_db{
     $self->from_hash($hash);
 }
 
+=head2 decom
+
+=cut
 sub decom{
     my $self = shift;
 

@@ -33,10 +33,7 @@ my $db_server = $config->db_server();
 
 =head2 new
 
-
-
 =cut
-
 sub new{
     my $that  = shift;
     my $class = ref($that) || $that;
@@ -61,6 +58,9 @@ sub new{
     return $self;
 }
 
+=head2 _process_config
+
+=cut
 sub _process_config{
     my $self = shift;
 
@@ -73,14 +73,15 @@ sub _process_config{
 returns the configured local_as number
 
 =cut
-
 sub local_as{
     my $self = shift;
 
     return $self->{'config'}->{'local_as'};
 }
 
+=head2 db_credentials
 
+=cut
 sub db_credentials{
     my $self = shift;
 
@@ -94,12 +95,18 @@ sub db_credentials{
             password => $password};
 }
 
+=head2 get_cloud_config
+
+=cut
 sub get_cloud_config{
     my $self = shift;
 
     return $self->{'config'}->{'cloud'};
 }
 
+=head2 base_url
+
+=cut
 sub base_url{
     my $self = shift;
     return $self->{'config'}->{'base_url'};

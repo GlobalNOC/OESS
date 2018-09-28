@@ -7,6 +7,9 @@ package OESS::ACL;
 
 use OESS::DB::Interface;
 
+=head2 new
+
+=cut
 sub new{
     my $that  = shift;
     my $class = ref($that) || $that;
@@ -35,6 +38,9 @@ sub new{
     return $self;
 }
 
+=head2 from_hash
+
+=cut
 sub from_hash{
     my $self = shift;
     my $hash = shift;
@@ -54,11 +60,11 @@ sub from_hash{
     my @sorted_acls = sort { $a->{'eval_position'} cmp $b->{'eval_position'} } @acls;
 
     $self->{'acls'} = \@sorted_acls;
-    
 }
 
+=head2 to_hash
 
-
+=cut
 sub to_hash{
     my $self = shift;
     
@@ -71,20 +77,28 @@ sub to_hash{
     return $obj;
 }
 
+=head2 _fetch_from_db
+
+=cut
 sub _fetch_from_db{
     my $self = shift;
-   
 
     my $acls = OESS::DB::Interface::get_acls( db => $self->{'db'}, interface_id => $self->{'interface_id'} );
     $self->from_hash($acls);
-
 }
 
+=head2 acls
+
+=cut
 sub acls{
     my $self = shift;
     return $self->{'acls'};
 }
 
+
+=head2 vlan_allowed
+
+=cut
 sub vlan_allowed{
     my $self = shift;
     my %params = @_;

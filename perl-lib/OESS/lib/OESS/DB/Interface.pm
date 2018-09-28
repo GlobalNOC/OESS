@@ -10,6 +10,9 @@ use OESS::ACL;
 
 use Data::Dumper;
 
+=head2 fetch
+
+=cut
 sub fetch{
     my %params = @_;
     my $db = $params{'db'};
@@ -48,6 +51,8 @@ sub fetch{
 
 }
 
+=head2 get_interface
+=cut
 sub get_interface{
     my %params = @_;
     
@@ -64,6 +69,8 @@ sub get_interface{
     return $interface->[0]->{'interface_id'};
 }
 
+=head2 get_interfaces
+=cut
 sub get_interfaces{
     my %params = @_;
 
@@ -106,6 +113,8 @@ sub get_interfaces{
 
 }
 
+=head2 get_acls
+=cut
 sub get_acls{
     my %params = @_;
 
@@ -116,6 +125,8 @@ sub get_acls{
     return $acls;
 }
 
+=head2 vrf_vlans_in_use
+=cut
 sub vrf_vlans_in_use{
     my %params = @_;
     my $db = $params{'db'};
@@ -131,24 +142,15 @@ sub vrf_vlans_in_use{
     return \@tags;
 }
 
+=head2 circuit_vlans_in_use
+
+=cut
 sub circuit_vlans_in_use{
     my %params = @_;
     my $db = $params{'db'};
     my $interface_id = $params{'interface_id'};
 
     
-}
-
-sub update{
-    
-}
-
-sub _update{
-
-}
-
-sub _create{
-
 }
 
 1;

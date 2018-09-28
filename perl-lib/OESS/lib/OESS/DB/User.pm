@@ -7,6 +7,8 @@ use OESS::Workgroup;
 
 package OESS::DB::User;
 
+=head2 fetch
+=cut
 sub fetch{
     my %params = @_;
     my $db = $params{'db'};
@@ -27,9 +29,10 @@ sub fetch{
     }
 
     return $user;
-
 }
 
+=head2 find_user_by_remote_auth
+=cut
 sub find_user_by_remote_auth{
     my %params = @_;
     my $db = $params{'db'};

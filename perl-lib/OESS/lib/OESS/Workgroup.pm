@@ -7,6 +7,10 @@ package OESS::Workgroup;
 
 use OESS::DB::Workgroup;
 use Data::Dumper;
+
+=head2 new
+
+=cut
 sub new{
     my $that  = shift;
     my $class = ref($that) || $that;
@@ -34,10 +38,12 @@ sub new{
 
     $self->_fetch_from_db();
 
-    return $self;    
-    
+    return $self;
 }
 
+=head2 from_hash
+
+=cut
 sub from_hash{
     my $self = shift;
     my $hash = shift;
@@ -55,6 +61,9 @@ sub from_hash{
 
 }
 
+=head2 to_hash
+
+=cut
 sub to_hash{
     my $self = shift;
 
@@ -81,6 +90,9 @@ sub to_hash{
     return $obj;
 }
 
+=head2 _fetch_from_db
+
+=cut
 sub _fetch_from_db{
     my $self = shift;
 
@@ -89,11 +101,17 @@ sub _fetch_from_db{
     
 }
 
+=head2 max_circuits
+
+=cut
 sub max_circuits{
     my $self = shift;
     return $self->{'max_circuits'};
 }
 
+=head2 workgroup_id
+
+=cut
 sub workgroup_id{
     my $self = shift;
     my $workgroup_id = shift;
@@ -106,6 +124,9 @@ sub workgroup_id{
     }
 }
 
+=head2 name
+
+=cut
 sub name{
     my $self = shift;
     my $name = shift;
@@ -118,16 +139,25 @@ sub name{
     }
 }
 
+=head2 users
+
+=cut
 sub users{
     my $self = shift;
     return $self->{'users'} || [];
 }
 
+=head2 interfaces
+
+=cut
 sub interfaces{
     my $self = shift;
     return $self->{'interfaces'} || [];
 }
 
+=head2 type
+
+=cut
 sub type{
     my $self = shift;
     my $type = shift;
@@ -140,6 +170,9 @@ sub type{
     }
 }
 
+=head2 external_id
+
+=cut
 sub external_id{
     my $self = shift;
     return $self->{'external_id'};
