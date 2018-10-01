@@ -154,7 +154,6 @@ sub from_hash{
 
     $self->{'unit'} = $hash->{'unit'};
 
-    warn "Searching for Entity\n";
     $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, interface_id => $self->{'interface'}->{'interface_id'}, vlan => $self->{'tag'});
 }
 
