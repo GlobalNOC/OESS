@@ -78,19 +78,7 @@ sub update_db{
 
     $self->{db}->start_transaction();
 
-    my $result = OESS::DB::Entity::remove_interfaces(db => $self->{db}, entity => $entity);
-    if (!defined $result) {
-        $self->{db}->rollback();
-        return $self->{db}->{error};
-    }
-
-    $result = OESS::DB::Entity::add_interfaces(db => $self->{db}, entity => $entity);
-    if (!defined $result) {
-        $self->{db}->rollback();
-        return $self->{db}->{error};
-    }
-
-    $result = OESS::DB::Entity::remove_users(db => $self->{db}, entity => $entity);
+    my $result = OESS::DB::Entity::remove_users(db => $self->{db}, entity => $entity);
     if (!defined $result) {
         $self->{db}->rollback();
         return $self->{db}->{error};
