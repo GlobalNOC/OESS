@@ -21,7 +21,6 @@ lib/OESS/MPLS/FWDCTL.pm
 lib/OESS/MPLS/Switch.pm
 lib/OESS/MPLS/Topology.pm
 lib/OESS/Notification.pm
-lib/OESS/NSI/Constant.pm
 lib/OESS/NSI/Daemon.pm
 lib/OESS/NSI/MessageQueue.pm
 lib/OESS/NSI/Processor.pm

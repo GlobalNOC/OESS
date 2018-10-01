@@ -8,6 +8,16 @@ use Log::Log4perl;
 use Paws;
 use XML::Simple;
 
+=head1 NAME
+
+OESS::Cloud::AWS
+
+=cut
+
+=head2 new
+
+=cut
+
 sub new {
     my $class = shift;
     my $self  = {
