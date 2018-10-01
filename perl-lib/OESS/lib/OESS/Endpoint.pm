@@ -234,9 +234,16 @@ sub type{
 =cut
 sub peers{
     my $self = shift;
+    my $peers = shift;
+
+    if(defined($peers)){
+        $self->{'peers'} = $peers;
+    }
+
     if(!defined($self->{'peers'})){
         return [];
     }
+
     return $self->{'peers'};
 }
 
