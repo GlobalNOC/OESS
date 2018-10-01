@@ -147,7 +147,6 @@ cmp_deeply(
 # Try changing multiple things, update the DB, and see if we get the expected results after:
 $ent2->name('xyzzy');
 $ent2->logo_url('https://example.edu/icon');
-$ent2->remove_interface(OESS::Interface->new(interface_id => 35961, db => $db));
 $ent2->remove_user(OESS::User->new(user_id => 121, db => $db));
 $ent2->add_child({ entity_id => 15 });
 $ent2->add_child({ entity_id => 15 }); # Try adding it twice!
