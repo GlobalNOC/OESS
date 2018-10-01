@@ -1,5 +1,5 @@
 Name:		oess-frontend
-Version:	1.2.5
+Version:	2.0.0
 Release:	1%{?dist}
 Summary:	The OESS webservices and user interface
 

@@ -1,5 +1,5 @@
 Name:		oess-core		
-Version:	1.2.5
+Version:	2.0.0
 Release:	1%{?dist}
 Summary:	The core OESS service providers
 
