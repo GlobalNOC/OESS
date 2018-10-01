@@ -122,13 +122,6 @@ cmp_deeply(
     {
         interface_id => 21,
         acls => [
-            acl_row(10, 101,   'allow', 1162, 1163 ),
-            acl_row(20, undef, 'deny',  1150, undef),
-            acl_row(30, 101,   'deny',  1160, 1179 ),
-
-            acl_row(40, undef, 'allow', 1100, 1199 ),
-            acl_row(50, 61,    'deny',  1100, 1148 ),
-            acl_row(60, 71,    'allow', 1000, 2000 ),
         ],
     },
     'ACL object 6 (id=21): to_hash returns the right information, even when interface_acl_ids aren\'t in desired order'
