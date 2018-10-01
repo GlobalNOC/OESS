@@ -415,7 +415,7 @@ sub _edit_vrf{
     
     #finally we get to adding it to the network again!
     $res = vrf_add(method => $method, vrf_id => $vrf_id);
-    return {results => $res};
+    return {results => {vrf_id => $vrf_id}, status => $res};
     
     
 }
