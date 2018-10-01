@@ -33,6 +33,7 @@ BuildRequires: perl(Time::HiRes)
 BuildRequires: perl(XML::Simple)
 
 Requires: perl
+Requires: perl-NetAddr-IP
 Requires: perl(AnyEvent)
 Requires: perl(AnyEvent::Fork)
 Requires: perl(Array::Utils)
