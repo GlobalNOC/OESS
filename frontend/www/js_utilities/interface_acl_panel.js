@@ -232,7 +232,7 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
     }
 
     //fetch workgroups
-    var url = "services/entity.cgi?method=get_entities";
+    var url = `services/entity.cgi?method=get_entities&workgroup_id=${session.data.workgroup_id}`;
     if(options.url_prefix){
         url = options.url_prefix + url;
     }
