@@ -83,6 +83,22 @@ async function loadEntityList(parentEntity=null) {
     let entityDescription = document.querySelector('#entity-description');
     entityDescription.innerHTML = description;
 
+    let header = document.querySelector('#entity-header');
+    header.style.flexDirection = 'column';
+
+    let elogo = document.querySelector('#entity-logo');
+    let ename = document.querySelector('#entity-name');
+    if (entityID == "1") {
+        elogo.style.display = 'none';
+        ename.style.display = 'none';
+        header.innerHTML = `<h1>Network Entities</h1>
+            <p>Browse connected network entities here. Once you've located a network you'd like to connect with, you may use the provided links to add the network to an existing Layer3 VPN or use the network as the basis for a new VPN.</p><p>To create a new entity, please <a href="mailto:[% admin_email %]?SUBJECT=System Support: OESS Entity Creation Request">contact</a> your OESS administrator.</p>`;
+    } else {
+        header.innerHTML = '';
+        elogo.style.display = 'block';
+        ename.style.display = 'block';
+    }
+
     let path   = sessionStorage.getItem('phone-crumb');
     let cpath  = '';
 
@@ -126,6 +142,12 @@ async function loadEntityList(parentEntity=null) {
     entityCrumbsString += `<li class="active">${name}</li>`;
     entityCrumbs.innerHTML = entityCrumbsString;
 
+    let entityActions = document.querySelector('#entity-actions');
+    if (entity.interfaces.length > 0) {
+        entityActions.style.display = 'flex';
+    } else {
+        entityActions.style.display = 'none';
+    }
 
     entity.children.forEach(function(entity) {
         let childLi  = `<li role="presentation" onclick="loadEntityList(${entity.entity_id})"><a href="#">${entity.name}</a></li>`;
