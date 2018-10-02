@@ -23,6 +23,8 @@ my $svc = GRNOC::WebService::Dispatcher->new();
 my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
                                       timeout  => 120 );
 
+my $log_client = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.event',
+                                              timeout  => 15 );
 
 sub register_ro_methods{
 
@@ -293,6 +295,14 @@ sub provision_vrf{
         my $res = vrf_add( method => $method, vrf_id => $vrf_id);
         
         $res->{'vrf_id'} = $vrf_id;
+
+        eval{
+            my $vrf_details = $vrf->to_hash();
+            $log_client->vrf_notification(type => 'provisioned',
+                                          reason => 'Created by ' . $ENV{'REMOTE_USER'},
+                                          vrf => $vrf->vrf_id(),
+                                          no_reply  => 1);
+        };
         return {results => $res};
     }
 }
@@ -425,6 +435,19 @@ sub _edit_vrf{
     
     #finally we get to adding it to the network again!
     $res = vrf_add(method => $method, vrf_id => $vrf_id);
+
+    eval{
+        my $vrf_details = $vrf->to_hash();
+        $vrf_details->{'status'} = 'up';
+        $vrf_details->{'reason'} = 'edited';
+        $vrf_details->{'type'} = 'modified';
+        $log_client->vrf_notification(type => 'modified',
+                                      reason => 'Edited by ' . $ENV{'REMOTE_USER'},
+                                      vrf => $vrf->vrf_id(),
+                                      no_reply  => 1);
+    };
+
+
     return {results => {vrf_id => $vrf_id}, status => $res};
     
     
@@ -476,6 +499,14 @@ sub remove_vrf{
 
     #send the update cache to the MPLS fwdctl
     _update_cache(vrf_id => $vrf_id);
+
+    eval{
+        my $vrf_details = $vrf->to_hash();
+        $log_client->vrf_notification(type => 'removed',
+                                      reason => 'Removed by ' . $ENV{'REMOTE_USER'},
+                                      vrf => $vrf->vrf_id(),
+                                      no_reply  => 1);
+    };
 
     return {results => $res};
 }

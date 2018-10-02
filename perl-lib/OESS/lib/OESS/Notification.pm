@@ -21,6 +21,9 @@ use OESS::RabbitMQ::Dispatcher;
 use OESS::Circuit;
 use Log::Log4perl;
 
+#new stuff
+use OESS::DB;
+use OESS::VRF;
 
 
 #--------------------------------------------------------------------
@@ -138,6 +141,67 @@ sub _register_notification_events{
                                   required => 1,
                                   schema => { 'type' => 'array'});
     $d->register_method($method);
+
+    $self->{'log'}->debug("Register Notification events");
+    $method = GRNOC::RabbitMQ::Method->new( name => "vrf_notification",
+                                            topic => 'OF.FWDCTL.event',
+                                               callback => sub {$self->vrf_notification(@_) },
+                                            description => "Signals vrf notification event");
+    $method->add_input_parameter( name => "type",
+                                  description => "the type of vrf notification event",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::TEXT);
+    $method->add_input_parameter( name => "reason",
+                                  description => "the reason for this vrf notification event",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::TEXT);
+    $method->add_input_parameter( name => "vrf",
+                                  description => "the VRF object we are operating on",
+                                  required => 1,
+                                  schema => { 'type' => 'integer'});
+    $d->register_method($method);
+
+}
+
+
+=head2 vrf_notification{
+
+=cut
+
+sub vrf_notification{
+    my $self = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    my $vrf_id = $p_ref->{'vrf'}{'value'};
+    my $vrf = OESS::VRF->new( db => $self->{'db_new'}, vrf_id => $vrf_id);
+    if(!defined($vrf)){
+        $self->{'log'}->error("No VRF was specified");
+        return;
+    }
+    
+    my $subject = "OESS Notification: VRF '" . $vrf->{'description'} . "' ";
+    #no bulk notifications for MPLS VRFs
+    switch($p_ref->{'type'}{'value'}){
+        case "provisioned"{
+            $subject .= "has been provisioned in workgroup: " . $vrf->workgroup()->name();
+            $self->{'notification_events'}->vrf_provision( vrf_id => $vrf->vrf_id(), no_reply => 1 );
+        }
+        case "removed" {
+            $subject .= "has been removed from workgroup: " . $vrf->workgroup()->name();
+            $self->{'notification_events'}->vrf_remove( vrf_id => $vrf->vrf_id(), no_reply => 1 );
+        }
+        case "modified" {
+            $subject .= "has been edited in workgroup: " . $vrf->workgroup()->name();
+            $self->{'notification_events'}->vrf_modify( vrf_id => $vrf->vrf_id(), no_reply => 1 );
+        }
+    }
+
+    $self->send_vrf_notification( subject => $subject,
+                                  reason => $p_ref->{'reason'}{'value'},
+                                  type => $p_ref->{'type'}{'value'},
+                                  vrf => $vrf->to_hash() );
+
 }
 
 =head2 C<circuit_notification()>
@@ -188,37 +252,177 @@ sub circuit_notification {
 
     switch($circuit->{'type'} ) {
         case "provisioned"{
-	    $subject .= "has been provisioned in workgroup: $workgroup ";
-	    $self->{'notification_events'}->circuit_provision( circuit => $circuit, no_reply => 1 );
-	}
-	case "removed" {
-	    $subject .= "has been removed from workgroup: $workgroup";
-	    $self->{'notification_events'}->circuit_remove( circuit => $circuit, no_reply => 1 );
-	}
-	case "modified" {
-	    $subject .= "has been edited in workgroup: $workgroup";
-	    $self->{'notification_events'}->circuit_modify( circuit => $circuit, no_reply => 1 );
-	}
-	case "change_path" {
-	    $subject .= "has changed to " . $circuit_notification_data->{'circuit'}->{'active_path'} . " path in workgroup: $workgroup";
-	    $self->{'notification_events'}->circuit_change_path( circuit => $circuit, no_reply => 1 );
-	}
-	case "restored" {
-	    $subject .= "has been restored for workgroup: $workgroup";
-	    $self->{'notification_events'}->circuit_restore( circuit => $circuit, no_reply => 1 );
-	}
-	case "down" {
-	    $subject .= "is down for workgroup: $workgroup";
-	    $self->{'notification_events'}->circuit_down( circuit => $circuit, no_reply => 1 );
-	}
-	case "unknown" {
-	    $subject .= "is in an unknown state in workgroup: $workgroup";
-	    $self->{'notification_events'}->circuit_unknown( circuit => $circuit, no_reply => 1 );
-	}
+            $subject .= "has been provisioned in workgroup: $workgroup ";
+            $self->{'notification_events'}->circuit_provision( circuit => $circuit, no_reply => 1 );
+        }
+        case "removed" {
+            $subject .= "has been removed from workgroup: $workgroup";
+            $self->{'notification_events'}->circuit_remove( circuit => $circuit, no_reply => 1 );
+        }
+        case "modified" {
+            $subject .= "has been edited in workgroup: $workgroup";
+            $self->{'notification_events'}->circuit_modify( circuit => $circuit, no_reply => 1 );
+        }
+        case "change_path" {
+            $subject .= "has changed to " . $circuit_notification_data->{'circuit'}->{'active_path'} . " path in workgroup: $workgroup";
+            $self->{'notification_events'}->circuit_change_path( circuit => $circuit, no_reply => 1 );
+        }
+        case "restored" {
+            $subject .= "has been restored for workgroup: $workgroup";
+            $self->{'notification_events'}->circuit_restore( circuit => $circuit, no_reply => 1 );
+        }
+        case "down" {
+            $subject .= "is down for workgroup: $workgroup";
+            $self->{'notification_events'}->circuit_down( circuit => $circuit, no_reply => 1 );
+        }
+        case "unknown" {
+            $subject .= "is in an unknown state in workgroup: $workgroup";
+            $self->{'notification_events'}->circuit_unknown( circuit => $circuit, no_reply => 1 );
+        }
     }
 
     $circuit_notification_data->{'subject'} = $subject;
     $self->send_notification( $circuit_notification_data );
+
+}
+
+sub send_vrf_notification {
+    my $self = shift;
+    my %params = @_;
+    my $subject = $params{'subject'};
+    my $vrf = $params{'vrf'};
+    my $type = $params{'type'};
+    my $reason = $params{'reason'};
+
+    $self->{'log'}->debug("send vrf notification: " . Data::Dumper::Dumper($vrf));
+
+    my @to_list     = ();
+    my $desc        = $vrf->{'description'};
+
+    my $dt = DateTime->now;
+    my $str_date = $dt->day_name() . ", " . $dt->month_name() . " " . $dt->day() . ", " . $dt->year() . ", at " . $dt->hms() . " UTC";
+    $self->{'log'}->debug("Using Time String: " . $str_date);
+
+    my $clr = "";
+    $clr .= "VRF: " . $vrf->{'name'} . "\n";
+    my $created = DateTime->from_epoch(epoch => $vrf->{'created'});
+    my $str_created = $created->day_name() . ", " . $created->month_name() . " " . $created->day() . ", " . $created->year() . ", at " . $created->hms() . " UTC";
+    $clr .= "Created By: " . $vrf->{'created_by'}->{'first_name'} . " " . $vrf->{'created_by'}->{'family_name'} . " at " . $str_created . " for workgroup " . $vrf->{'workgroup'}->{'name'} . "\n";
+    my $modified = DateTime->now;
+    my $str_modified = $modified->day_name() . ", " . $modified->month_name() . " " . $modified->day() . ", " . $modified->year() . ", at " . $modified->hms() . " UTC\n";
+    $clr .= "Last Modified By: " . $vrf->{'last_modified_by'}->{'first_name'} . " " . $vrf->{'last_modified_by'}->{'family_name'} . " at " . $str_modified . " UTC\n";
+    $clr .= "Endpoints: \n";
+    foreach my $ep (@{$vrf->{'endpoints'}}){
+        $clr .= "  " . $ep->{'node'}->{'name'} . " - " . $ep->{'interface'}->{'name'} . " VLAN " . $ep->{'tag'} . "\n";
+        foreach my $peer (@{$ep->{'peers'}}){
+            $clr .= "    Peer: OESS IP" . $peer->{'local_ip'} . " OESS AS " . $vrf->{'local_asn'} . " Remote AS " . $peer->{'peer_asn'} . " Remote IP " . $peer->{'peer_ip'} . "\n"; 
+        }
+    }
+
+
+    
+
+    my %vars = (
+        SUBJECT             => $subject,
+        base_url            => $self->{'base_url'},
+        vrf                 => $vrf,
+        clr                 => $clr,
+        from_signature_name => $self->{'from_name'},
+        type                => $type,
+        reason              => $reason,
+        image_base_url      => $self->{'image_base_url'},
+        human_time          => $str_date
+        );
+
+    my %tmpl_options = ( ABSOLUTE=>1,
+                         RELATIVE=>0,
+        );
+    my $body;
+
+    #get workgroup members
+    my $workgroup_members = $self->{'db'}->get_users_in_workgroup(
+        workgroup_id => $vrf->{'workgroup'}->{'workgroup_id'}
+        );
+
+    foreach my $user ( @{ $workgroup_members } ) {
+        push( @to_list, $user->{'email_address'} );
+    }
+
+    my $to_string = join( ",", @to_list );
+
+    if($to_string eq ''){
+        $self->{'log'}->error("INFO: send_notification: No notification to send as there are no users in workgroup. ");
+        return 0;
+    }
+
+    eval{
+        my $message = MIME::Lite::TT::HTML->new(
+            From    => $self->{'from_address'},
+            To      => $to_string,
+            Subject => $subject,
+            Encoding    => 'quoted-printable',
+            Timezone => 'UTC',
+            Template => {
+                html => $self->{'template_path'} . "/notification_vrf.tt.html",
+                text => $self->{'template_path'} . "/notification_templates_vrf.tmpl"
+            },
+            TmplParams => \%vars,
+            TmplOptions => \%tmpl_options,
+            );
+
+
+        $message->send( 'smtp', 'localhost' );
+    };
+
+    if($@){
+        $self->{'log'}->error("Error sending Notification: " . $@);
+    }
+
+
+    my @workgroups_to_notify;
+    foreach my $ep (@{$vrf->{'endpoints'}}){
+        push(@workgroups_to_notify, $ep->{'interface'}->{'workgroup'}->{'workgroup_id'}) if $ep->{'interface'}->{'workgroup'}->{'workgroup_id'} ne $vrf->{'workgroup'}->{'workgroup_id'};
+    }
+
+    my @full_list;
+    foreach my $wg (@workgroups_to_notify){
+            #get workgroup members
+        my $workgroup_members = $self->{'db'}->get_users_in_workgroup(
+            workgroup_id => $wg
+            );
+
+        foreach my $user ( @{ $workgroup_members } ) {
+            push( @full_list, $user->{'email_address'} );
+        }
+    }
+    
+    if(scalar(@full_list > 0)){
+        $to_string = join( ",", @full_list );
+        
+        eval{
+            my $message = MIME::Lite::TT::HTML->new(
+                From    => $self->{'from_address'},
+                To      => $to_string,
+                Subject => $subject,
+                Encoding    => 'quoted-printable',
+                Timezone => 'UTC',
+                Template => {
+                    html => "$self->{'template_path'}/notification_vrf.tt.html",
+                    text => "$self->{'template_path'}/notification_templates_vrf.tmpl"
+                },
+                TmplParams => \%vars,
+                TmplOptions => \%tmpl_options,
+                );
+            
+            
+            $message->send( 'smtp', 'localhost' );
+        };
+        if($@){
+            $self->{'log'}->error("Error sending Notification: " . $@);
+        }
+    }
+
+    return 1;
     
 }
 
@@ -389,7 +593,7 @@ sub send_notification {
     my $desc        = $data->{'circuit'}->{'description'};
 
     my $dt = DateTime->now;
-    my $str_date = $dt->day_name() . ", " . $dt->month_name() . " " . $dt->day() . ", " . $dt->year() . ", at " . $dt->hms();
+    my $str_date = $dt->day_name() . ", " . $dt->month_name() . " " . $dt->day() . ", " . $dt->year() . ", at " . $dt->hms() . " UTC";
     $self->{'log'}->debug("Using Time String: " . $str_date);
 
     my %vars = (
@@ -524,7 +728,7 @@ sub _connect_services {
     my $self = shift;
     
     $self->{'db'} = OESS::Database->new( config_file => $self->{'config'} );
-    
+    $self->{'db_new'} = OESS::DB->new();
 }
 
 =head2 C<get_notification_data()>
