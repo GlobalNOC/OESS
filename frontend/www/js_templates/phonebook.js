@@ -100,8 +100,6 @@ async function loadEntityList(parentEntity=null) {
         let found  = 0;
 
         for (let i = 0; i < crumbs.length; i++) {
-            console.log('yo');
-            console.log(crumbs[i].name);
             if (crumbs[i].name === parent.name) {
                 found = 1;
                 crumbs = crumbs.splice(i, 1);
