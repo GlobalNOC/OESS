@@ -135,22 +135,6 @@ async function loadEntityList(parentEntity=null) {
     });
     entitiesList.innerHTML = entityNav;
 
-    if (entity.interfaces.length < 1) {
-        document.querySelector('#entity-interfaces-title').style.display = 'none';
-    } else {
-        document.querySelector('#entity-interfaces-title').style.display = 'block';
-    }
-
-    let entityInterfaces = '';
-    entity.interfaces.forEach(function(intf) {
-            if (intf.operational_state === 'up') {
-                entityInterfaces += `<p class="entity-interface"><span class="label label-success">&nbsp;▴&nbsp;</span> <b>${intf.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${intf.name}</p>`;
-            } else {
-                entityInterfaces += `<p class="entity-interface"><span class="label label-danger">&nbsp;▾&nbsp;</span> <b>${intf.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${intf.name}</p>`;
-            }
-    });
-    document.querySelector('#entity-interfaces').innerHTML = entityInterfaces;
-
     if (entity.contacts.length < 1) {
         document.querySelector('#entity-contacts-title').style.display = 'none';
     } else {

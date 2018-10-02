@@ -392,7 +392,6 @@ async function addInterfaceCancelCallback(event) {
 
 function loadEntitySearchList(search) {
     getEntitiesAll(session.data.workgroup_id, search.value).then(function(entities) {
-        console.log(entities);
         let items = '';
         entities.forEach(function(e) {
                 let l = e.children.length;
