@@ -73,25 +73,20 @@
       [% INCLUDE $page %]
     </div>
 
-    <div class="footer-logos">
-      <a href="http://globalnoc.iu.edu"><img src="[% path %]media/globalnoc-logo.svg"/></a>
-      <a href="http://www.internet2.edu/"><img src="[% path %]media/internet2-logo.png" width="50%"/></a>
-    </div>
-
     <div class="footer-links">
-      <div>
-        <a href="https://globalnoc.iu.edu/"><p>GlobalNOC</p></a>
-        <a href="http://iu.edu/"><p>Indiana University</p></a>
+      <div class="footer-links-left">
+        <a href="http://www.internet2.edu/network/ose/">About</a>
+        <a href="https://docs.globalnoc.iu.edu/sdn/oess.html">Documentation</a>
+        <a href="mailto:[% admin_email %]?SUBJECT=System Support: NDDI/OS3E Feedback Ticket">Feedback</a>
       </div>
-      <div>
-        <a href="http://www.internet2.edu/"><p>Internet2</p></a>
+
+      <div class="footer-links-center">
+        <a href="https://docs.globalnoc.iu.edu/sdn/oess/revision-history.html">OESS v[% version %]</a>
       </div>
-      <div>
-        <a href="http://www.internet2.edu/network/ose/"><p>OESS</p></a>
-        <a href="https://docs.globalnoc.iu.edu/sdn/oess.html"><p>About</p></a>
-        <a href="https://docs.globalnoc.iu.edu/sdn/oess.html"><p>Documentation</p></a>
-        <a href="mailto:[% admin_email %]?SUBJECT=System Support: NDDI/OS3E Feedback Ticket"><p>Feedback</p></a>
-        <a href="https://docs.globalnoc.iu.edu/sdn/oess/revision-history.html"><p>Version [% version %]</p></a>
+
+      <div class="footer-links-right">
+        <a href="http://www.internet2.edu/" style="float: left; max-height: 100px"><img src="[% path %]media/i2.png"/></a>
+        <a href="http://globalnoc.iu.edu" style="float: left; padding-bottom: 2px;"><img src="[% path %]media/globalnoc-logo.svg"/></a>
       </div>
     </div>
 
