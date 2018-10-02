@@ -378,7 +378,7 @@ sub _edit_vrf{
         }
     }
 
-    $vrf->endpoints(\@new_endpoints);
+    #$vrf->endpoints(\@new_endpoints);
 
     #our VRF object has the endpoints... now make any cloud changes (if necessary)
     if(!$skip_cloud_provisioning){
@@ -386,6 +386,15 @@ sub _edit_vrf{
             OESS::Cloud::cleanup_endpoints(\@cloud_dels);
 
             my $setup_endpoints = OESS::Cloud::setup_endpoints($vrf->name, \@cloud_adds);
+
+            foreach my $ep (@new_endpoints){
+                foreach my $new_ep (@{$setup_endpoints}){
+                    if($ep->node()->name() eq $new_ep->node()->name() && $ep->interface()->name() eq $new_ep->interface()->name() && $ep->tag() eq $new_ep->tag()){
+                        $ep->{'cloud_connection_id'} = $new_ep->{'cloud_connection_id'};
+                    }
+                }
+            }
+            
         };
         if ($@) {
             $method->set_error("$@");
@@ -393,6 +402,7 @@ sub _edit_vrf{
         }
     }
 
+    $vrf->endpoints(\@new_endpoints);
 
     #ok now that we made it this far... 4 steps to complete...
     #1. remove the existing VRF from the network
