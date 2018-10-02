@@ -13,9 +13,14 @@
   </script>
 
   <body class="yui-skin-sam">
-
+    <div class="header-background"></div>
     <div class="header">
-      <div class="logo"><h1>OESS</h1></div>
+      <div class="logo">
+        <a href="[% path %]new/index.cgi"><h1>OESS</h1></a>
+        <a href="[% path %]new/index.cgi">Connections</a>
+        <a href="[% path %]new/index.cgi?action=provision_cloud">Create</a>
+        <a href="[% path %]new/index.cgi?action=phonebook">Discover</a>
+      </div>
 
       [% IF is_admin == 1 %]
       <a class="btn btn-default" href="[% path %]admin/" role="button">Admin</a>
@@ -28,44 +33,6 @@
         </button>
         <ul id="user-menu-workgroups" class="dropdown-menu">
         </ul>
-      </div>
-    </div>
-
-    <div class="breadcrumb-gutter">
-      <div class="breadcrumbs">
-	  [% past_selected = 0 %]
-	
-	  [% FOREACH crumb IN breadcrumbs %]
-
-	  [% crumb_id = crumb.title.split(" ").join("_") _ "_breadcrumb" %]
-	  
-          [% IF crumb.title == current_breadcrumb %]
-	  
-	  <span class="selected_breadcrumb" id="[% crumb_id %]">[% crumb.title %]</span>
-	  
-	  [% past_selected = 1 %]
-          
-	  [% ELSE %]
-          
-	  [% IF ! past_selected %]
-          
-	  <a href="[% crumb.url %]" id="[% crumb_id %]">[% crumb.title %]</a>
-	  
-	  [% ELSE %]
-          
-	  <span class="future_breadcrumb" id="[% crumb_id %]">[% crumb.title %]</span>
-          
-	  [% END %]
-          
-	  [% END %]
-          
-	  [% IF ! loop.last %]
-          
-	  <span class="breadcrumb_spacer">&gt;</span>
-          
-	  [% END %]
-	  
-	  [% END %]
       </div>
     </div>
 

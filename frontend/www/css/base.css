@@ -21,6 +21,18 @@ body {
 
     padding-left: 15px;
     padding-right: 7px;
+
+    color: #dfdfdf;
+}
+
+.header-background {
+    grid-column-start: 1;
+    grid-column-end: 4;
+
+    grid-row-start: 1;
+    grid-row-end: 3;
+
+    background-color: #3a3a3a;
 }
 
 .header .btn {
@@ -30,6 +42,37 @@ body {
 
 .logo {
     flex: 1;
+
+    display: flex;
+    color: #dfdfdf;
+    align-items: flex-end;    
+}
+
+.logo a {
+    color: #eaeaea;
+    font-size: large;
+    margin: 12px 25px 8px 0px;
+}
+
+.logo h1 {
+    color: #eaeaea;
+    text-decoration: none;
+    margin: 5px 10px 0px 0px;
+}
+
+.logo a:hover {
+    color: #fafafa;
+    text-decoration: none;
+}
+
+.logo a:active {
+    color: #dfdfdf;
+    text-decoration: none;
+}
+
+.logo a:visited {
+    color: #eaeaea;
+    text-decoration: none;
 }
 
 .breadcrumb-gutter {
