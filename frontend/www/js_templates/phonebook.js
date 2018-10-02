@@ -100,8 +100,6 @@ async function loadEntityList(parentEntity=null) {
         let found  = 0;
 
         for (let i = 0; i < crumbs.length; i++) {
-            console.log('yo');
-            console.log(crumbs[i].name);
             if (crumbs[i].name === parent.name) {
                 found = 1;
                 crumbs = crumbs.splice(i, 1);
@@ -134,22 +132,6 @@ async function loadEntityList(parentEntity=null) {
         entityNav += childLi;
     });
     entitiesList.innerHTML = entityNav;
-
-    if (entity.interfaces.length < 1) {
-        document.querySelector('#entity-interfaces-title').style.display = 'none';
-    } else {
-        document.querySelector('#entity-interfaces-title').style.display = 'block';
-    }
-
-    let entityInterfaces = '';
-    entity.interfaces.forEach(function(intf) {
-            if (intf.operational_state === 'up') {
-                entityInterfaces += `<p class="entity-interface"><span class="label label-success">&nbsp;▴&nbsp;</span> <b>${intf.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${intf.name}</p>`;
-            } else {
-                entityInterfaces += `<p class="entity-interface"><span class="label label-danger">&nbsp;▾&nbsp;</span> <b>${intf.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${intf.name}</p>`;
-            }
-    });
-    document.querySelector('#entity-interfaces').innerHTML = entityInterfaces;
 
     if (entity.contacts.length < 1) {
         document.querySelector('#entity-contacts-title').style.display = 'none';

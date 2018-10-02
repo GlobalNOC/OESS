@@ -136,7 +136,7 @@ async function loadVRF() {
   iframe3.src = `${iframe3.dataset.url}&var-table=OESS-L3VPN-${vrf.vrf_id}.inet.0&from=now-1h&to=now`;
 
   vrf.endpoints.forEach(function(endpoint, eIndex) {
-
+	 
     let select = document.createElement('select');
     select.setAttribute('class', 'form-control peer-selection');
     select.setAttribute('id', `peering-selection-${eIndex}`);
@@ -144,6 +144,10 @@ async function loadVRF() {
 
     let peeringHTML = '';
     endpoint.peers.forEach(function(peering, peeringIndex) {
+	    peering.operational_label = 'success';
+	    if(peering.operational_state != 'up'){
+		peering.operational_label = 'danger';
+	    }
       peeringHTML += `
 <tr>
   <td></td>
@@ -151,7 +155,7 @@ async function loadVRF() {
   <td>${peering.peer_ip}</td>
   <td>${peering.md5_key}</td>
   <td>${peering.local_ip}</td>
-  <td><span id="state" class="label label-success">active</span></td>
+			       <td><span id="state" class="label label-${peering.operational_label}">${peering.operational_state}</span></td>
 </tr>`;
 
       select.innerHTML += `<option value=${peering.peer_ip}>${peering.peer_ip}</option>`;
