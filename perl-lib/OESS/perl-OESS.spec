@@ -121,6 +121,8 @@ make pure_install
 %__install etc/notification_bulk.tmpl $RPM_BUILD_ROOT/%{template_dir}/
 %__install etc/notification_bulk.tt.html $RPM_BUILD_ROOT/%{template_dir}/
 %__install etc/notification.tt.html $RPM_BUILD_ROOT/%{template_dir}/
+%__install etc/notification_templates_vrf.tmpl $RPM_BUILD_ROOT/%{template_dir}/
+%__install etc/notification_vrf.tt.html $RPM_BUILD_ROOT/%{template_dir}/
 %__install share/nddi.sql $RPM_BUILD_ROOT/%{docdir}/share/
 %__install share/upgrade/* $RPM_BUILD_ROOT/%{docdir}/share/upgrade/
 %__install share/mpls/templates/juniper/13.3R8/L2CCC/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/L2CCC
@@ -196,6 +198,8 @@ rm -rf $RPM_BUILD_ROOT
 %{template_dir}/notification_bulk.tmpl
 %{template_dir}/notification_bulk.tt.html
 %{template_dir}/notification.tt.html
+%{template_dir}/notification_vrf.tt.html
+%{template_dir}/notification_templates_vrf.tmpl
 %{perl_vendorlib}/OESS/ACL.pm
 %{perl_vendorlib}/OESS/Circuit.pm
 %{perl_vendorlib}/OESS/Database.pm
