@@ -192,8 +192,12 @@ async function loadEntityVLANs(entity) {
     if (vlans.length === 0) {
         document.querySelector('#entity-vlans').setAttribute('disabled', true);
         document.querySelector('#entity-vlans').innerHTML = '<option>VLANs not available for the selected Entity</option>';
+        document.querySelector('#add-entity-request-access').style.display = 'inline-block';
+        document.querySelector('#add-entity-submit').style.display = 'none';
     } else {
         document.querySelector('#entity-vlans').removeAttribute('disabled');
+        document.querySelector('#add-entity-request-access').style.display = 'none';
+        document.querySelector('#add-entity-submit').style.display = 'inline-block';
     }
 }
 
