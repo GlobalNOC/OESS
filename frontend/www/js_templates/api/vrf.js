@@ -42,32 +42,46 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
   form.append('remove_time', removeTime);
   form.append('vrf_id', vrfID);
 
-  endpoints.forEach(function(endpoint) {
-    let e = {
-      bandwidth: endpoint.bandwidth,
-      tag:       endpoint.tag,
-      peerings:  [],
-      cloud_account_id: endpoint.cloud_account_id
-    };
+  if (endpoints.length < 2) {
+      alert('At least two endpoints must be specified.');
+      return null;
+  }
 
-    if ('entity_id' in endpoint && endpoint.interface === 'TBD' && endpoint.node === 'TBD') {
-      e['entity'] = endpoint.entity;
-    } else {
-      e['interface'] = endpoint.interface;
-      e['node']      = endpoint.node;
-    }
+  try {
+    endpoints.forEach(function(endpoint) {
+      let e = {
+        bandwidth: endpoint.bandwidth,
+        tag:       endpoint.tag,
+        peerings:  [],
+        cloud_account_id: endpoint.cloud_account_id
+      };
 
-    endpoint.peerings.forEach(function(p) {
-      e.peerings.push({
-        asn: p.asn,
-        key: p.key,
-        local_ip: p.oessPeerIP,
-        peer_ip:  p.yourPeerIP
+      if ('entity_id' in endpoint && endpoint.interface === 'TBD' && endpoint.node === 'TBD') {
+        e['entity'] = endpoint.entity;
+      } else {
+        e['interface'] = endpoint.interface;
+        e['node']      = endpoint.node;
+      }
+
+      if (endpoint.peerings.length < 1) {
+        throw('At least one peering on each endpoint must be specified.');
+      }
+
+      endpoint.peerings.forEach(function(p) {
+        e.peerings.push({
+          asn: p.asn,
+          key: p.key,
+          local_ip: p.oessPeerIP,
+          peer_ip:  p.yourPeerIP
+        });
       });
-    });
 
-    form.append('endpoint', JSON.stringify(e));
-  });
+      form.append('endpoint', JSON.stringify(e));
+    });
+  } catch(error) {
+    alert(error);
+    return null;
+  }
 
   try {
     const resp = await fetch(url, {method: 'post', credentials: 'include', body: form});
