@@ -100,6 +100,7 @@ share/upgrade/oess-1.2.1-1.2.2
 share/upgrade/oess-1.2.2-1.2.3
 share/upgrade/oess-1.2.3-1.2.4
 share/upgrade/oess-1.2.4-1.2.5
+share/upgrade/oess-1.2.5-1.2.5a
 share/upgrade/oess-1.2.5a-2.0.0
 t/00-load_base.t
 t/01-load_known_state.t
