@@ -164,7 +164,7 @@ sub _register_notification_events{
 }
 
 
-=head2 vrf_notification{
+=head2 vrf_notification
 
 =cut
 
@@ -285,6 +285,10 @@ sub circuit_notification {
     $self->send_notification( $circuit_notification_data );
 
 }
+
+=head2 send_vrf_notification
+
+=cut
 
 sub send_vrf_notification {
     my $self = shift;
