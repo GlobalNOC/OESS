@@ -36,7 +36,11 @@ async function addToConnectionCallback() {
 `;
     }
 
-    document.querySelector('#add-to-connection-list').innerHTML = '<table class="table">' + html + '</table>';
+    if (connections.length === 0) {
+        document.querySelector('#add-to-connection-list').innerHTML = '<p>No existing connections found. Create a new L3VPN to connect to this Entity.</p><br/>'
+    } else {
+        document.querySelector('#add-to-connection-list').innerHTML = '<table class="table">' + html + '</table>';
+    }
 }
 
 async function addToConnectionCancelCallback() {
