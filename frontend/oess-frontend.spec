@@ -48,7 +48,7 @@ Requires: perl(Template)
 Requires: perl(Time::HiRes)
 Requires: perl(URI::Escape)
 Requires: perl(XML::Simple), perl(XML::XPath)
-
+Requires: perl-Paws
 
 BuildArch:	noarch
 
