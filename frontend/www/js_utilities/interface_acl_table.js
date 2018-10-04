@@ -77,6 +77,7 @@
                 "vlan_start",
                 "vlan_end",
                 "interface_id",
+                "entity_id",
                 "workgroup_id",
                 "notes"
             ],
