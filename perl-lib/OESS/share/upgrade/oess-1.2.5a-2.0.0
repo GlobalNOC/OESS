@@ -82,6 +82,14 @@ sub upgrade{
   CONSTRAINT `cloud_connection_vrf_ep_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`) ON DELETE CASCADE
 )");
 
+    $dbh->do("CREATE TABLE `command` (
+  `command_id` int(10) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `template` varchar(255) NOT NULL,
+  `type` varchar(255) NOT NULL,
+  PRIMARY KEY (`command_id`)
+)");
+
     $dbh->do("CREATE TABLE `entity` (  `entity_id` int(11) NOT NULL AUTO_INCREMENT,  `name` varchar(255) DEFAULT NULL,  `description` text,  `logo_url` varchar(255) DEFAULT NULL,  `url` varchar(255) DEFAULT NULL,  PRIMARY KEY (`entity_id`))");
 
     $dbh->do("CREATE TABLE `entity_hierarchy` (  `entity_parent_id` int(11) NOT NULL,  `entity_child_id` int(11) NOT NULL,  KEY `entity_parent` (`entity_parent_id`),  KEY `entity_child` (`entity_child_id`))"); 
