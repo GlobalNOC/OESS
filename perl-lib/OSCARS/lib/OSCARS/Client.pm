@@ -225,7 +225,7 @@ sub create_reservation{
     }
 
     if ($end_time eq -1){
-        $end_time = time() + (2 * 635 * 24 * 60 * 60); # 2 years                                                                                                                                        
+        $end_time = time() + (2 * 365 * 24 * 60 * 60); # 2 years                                                                                                                                        
     }
 
     my $path_type = 'strict';
