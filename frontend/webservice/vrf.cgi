@@ -293,8 +293,6 @@ sub provision_vrf{
         }
 
         my $res = vrf_add( method => $method, vrf_id => $vrf_id);
-        
-        $res->{'vrf_id'} = $vrf_id;
 
         eval{
             my $vrf_details = $vrf->to_hash();
@@ -427,6 +425,7 @@ sub _edit_vrf{
     if(!$ok){
         #whoops... failed to update... re-add to network and signal to user
         vrf_add(method => $method, vrf_id => $vrf_id);
+        $method->set_error("Failed to update database with VRF. Please try again later.");
         return;
     }
 
@@ -447,10 +446,7 @@ sub _edit_vrf{
                                       no_reply  => 1);
     };
 
-
-    return {results => {vrf_id => $vrf_id}, status => $res};
-    
-    
+    return {results => $res};
 }
 
 sub remove_vrf{    
@@ -529,14 +525,14 @@ sub vrf_add{
     
     if (defined $result->{'error'} || !defined $result->{'results'}){
         if (defined $result->{'error'}) {
-            warn '_send_mpls_vrf_command: ' . $result->{'error'};
             $method->set_error($result->{'error'});
+        } else {
+            $method->set_error("Did not get response from addVRF.");
         }
-      
-        return {success => 0};
+        return {success => 0, vrf_id => $vrf_id};
     }
 
-    return {success => 1};
+    return {success => 1, vrf_id => $vrf_id};
 }
 
 
@@ -552,20 +548,20 @@ sub vrf_del{
     $mq->delVrf(vrf_id => int($vrf_id), async_callback => sub {
         my $result = shift;
         $cv->send($result);
-                });
+    });
     
     my $result = $cv->recv();
     
     if (defined $result->{'error'} || !defined $result->{'results'}){
         if (defined $result->{'error'}) {
-            warn '_send_mpls_vrf_command: ' . $result->{'error'};
             $method->set_error($result->{'error'});
+        } else {
+            $method->set_error("Did not get response from delVRF.");
         }
-        
-        return {success => 0};
+        return {success => 0, vrf_id => $vrf_id};
     }
     
-    return {success => 1};
+    return {success => 1, vrf_id => $vrf_id};
 }
 
 sub _update_cache{
