@@ -29,6 +29,7 @@ use URI::Escape;
 use MIME::Lite;
 use OESS::Database;
 use GRNOC::WebService;
+use OESS::Webservice;
 
 Log::Log4perl::init_and_watch('/etc/oess/logging.conf');
 
@@ -151,7 +152,7 @@ sub register_webservice_methods {
     #add the required input parameter allow_deny
      $method->add_input_parameter(
         name            => 'allow_deny',
-        pattern         => '^(allow|deny)',
+        pattern         => $OESS::Webservice::ACL_ALLOW_DENY,
         required        => 1,
         description     => "if the ACL is an allow or deny rule."
 	 );
@@ -216,8 +217,8 @@ sub register_webservice_methods {
     $method->add_input_parameter(
         name            => 'interface_id',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
-        required        => 1,
-        description     => "Specific interface_ id add the ACL to"
+        required        => 0,
+        description     => "Unused; kept for backwards compatibility"
         );
 
     #add the optional input parameter interface_acl_id
@@ -232,7 +233,7 @@ sub register_webservice_methods {
     #add the required input parameter allow_deny
      $method->add_input_parameter(
         name            => 'allow_deny',
-        pattern         => '^(allow|deny)',
+        pattern         => $OESS::Webservice::ACL_ALLOW_DENY,
         required        => 1,
         description     => "if the ACL is an allow or deny rule."
          );

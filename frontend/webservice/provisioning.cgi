@@ -42,6 +42,7 @@ use OESS::Circuit;
 use OESS::VRF;
 use Time::HiRes qw(gettimeofday tv_interval);
 use GRNOC::WebService;
+use OESS::Webservice;
 
 use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
@@ -133,7 +134,7 @@ sub register_webservice_methods {
 	 name            => 'circuit_id',
 	 pattern         => $GRNOC::WebService::Regex::INTEGER,
 	 required        => 0,
-	 description     => "---1 or undefined indicated circuit is to be added."
+	 description     => "-1 or undefined indicate circuit is to be added."
 	 ); 
     
     #add the required input parameter description
@@ -155,17 +156,17 @@ sub register_webservice_methods {
     #add the required input parameter provision_time
     $method->add_input_parameter(
 	name            => 'provision_time',
-	pattern         => $GRNOC::WebService::Regex::TEXT,
+	pattern         => $GRNOC::WebService::Regex::INTEGER,
 	required        => 1,
-	description     => "Timestamp of when circuit should be created in epoch time format. - 1 means now."
+	description     => "Timestamp of when circuit should be created in epoch time format. -1 means now."
 	); 
 
     #add the required input parameter remove_time
      $method->add_input_parameter(
 	 name            => 'remove_time',
-	 pattern         => $GRNOC::WebService::Regex::TEXT,
+	 pattern         => $GRNOC::WebService::Regex::INTEGER,
 	 required        => 1,
-	 description     => "The time the circuit should be removed from the network in epoch time format. ---1 means never."
+	 description     => "The time the circuit should be removed from the network in epoch time format. -1 means never."
 	 ); 
     
     #add the optional input parameter restore_to_primary
@@ -249,7 +250,7 @@ sub register_webservice_methods {
     #add the optional input parameter mac_addressess
     $method->add_input_parameter(
         name            => 'mac_address',
-        pattern         => $GRNOC::WebService::Regex::TEXT,
+        pattern         => $GRNOC::WebService::Regex::MAC_ADDRESS,
         required        => 0,
         multiple        => 1,
         description     => "Array of mac address of endpoints for static mac circuits."
@@ -258,7 +259,7 @@ sub register_webservice_methods {
     #add the optional input parameter endpoint_mac_address_num
     $method->add_input_parameter(
         name            => 'endpoint_mac_address_num',
-        pattern         => $GRNOC::WebService::Regex::TEXT,
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 0,
         multiple        => 1,
         description     => "Array of mac address of endpoints for static mac circuits."
@@ -284,7 +285,7 @@ sub register_webservice_methods {
     #add the optional input parameter remote_tag
     $method->add_input_parameter(
         name            => 'remote_tag',
-        pattern         => $GRNOC::WebService::Regex::TEXT,
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        =>  0,
 	multiple        =>  1,
         description     => "VLAN tags to be used on the IDC endpoints."
@@ -318,7 +319,7 @@ sub register_webservice_methods {
 
     $method->add_input_parameter(
         name            => 'type',
-        pattern         => $GRNOC::WebService::Regex::NAME_ID,
+        pattern         => $OESS::Webservice::CIRCUIT_TYPE,
         required        => 0,
 	default         => 'openflow',
         description     => "The id of the circuit to be removed."
@@ -415,7 +416,7 @@ sub register_webservice_methods {
 
     $method->add_input_parameter(
         name            => 'type',
-        pattern         => $GRNOC::WebService::Regex::NAME_ID,
+        pattern         => $OESS::Webservice::CIRCUIT_TYPE,
         required        => 0,
         default         => 'openflow',
         description     => "The id of the circuit to be removed."

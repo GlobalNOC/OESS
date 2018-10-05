@@ -727,14 +727,23 @@ sub is_external_vlan_available_on_interface {
         return;
     }
 
-    my $query = "select circuit.name, circuit.circuit_id from circuit join circuit_edge_interface_membership " .
-                " on circuit.circuit_id = circuit_edge_interface_membership.circuit_id " .
-                " where circuit_edge_interface_membership.interface_id = ? " .
-                " and circuit_edge_interface_membership.extern_vlan_id = ? " .
-                " and circuit_edge_interface_membership.inner_tag = ? " .
-                " and circuit_edge_interface_membership.end_epoch = -1";
+    my $query_args = [$interface_id, $vlan_tag];
+    my $inner_tags = '';
+    if (defined $inner_vlan_tag) {
+        push @$query_args, $inner_vlan_tag;
+        $inner_tags = "and circuit_edge_interface_membership.inner_tag = ? ";
+    } else {
+        $inner_tags = "and circuit_edge_interface_membership.inner_tag is NULL ";
+    }
 
-    my $result = $self->_execute_query($query, [$interface_id, $vlan_tag, $inner_vlan_tag]);
+    my $query = "select circuit.name, circuit.circuit_id from circuit join circuit_edge_interface_membership " .
+                "on circuit.circuit_id = circuit_edge_interface_membership.circuit_id " .
+                "where circuit_edge_interface_membership.interface_id = ? " .
+                "and circuit_edge_interface_membership.extern_vlan_id = ? " .
+                $inner_tags .
+                "and circuit_edge_interface_membership.end_epoch = -1";
+
+    my $result = $self->_execute_query($query, $query_args);
     if (!defined $result) {
         $self->_set_error("Internal error while finding available external vlan tags.");
         return;
@@ -6911,7 +6920,7 @@ sub provision_circuit {
     my $remote_requester = $args{'remote_requester'};
     my $type; #to be determined later!
 
-    if($provision_time != -1 && $provision_time <= time() && $state eq 'active'){
+    if($provision_time != -1 && $provision_time > time() && $state eq 'active'){
         warn "Provision Time: " . $provision_time . "\n";
         warn "Setting state to scheduled!\n";
         $state = 'scheduled';
@@ -6969,7 +6978,7 @@ sub provision_circuit {
     my $name = $workgroup_details->{'name'} . "-" . $uuid;
 
     if(!defined($state)){
-	if($provision_time < time()){
+	if($provision_time > time()){
 	    $state = "scheduled";
 	}else{
 	    $state = "active";

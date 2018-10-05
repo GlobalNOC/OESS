@@ -188,6 +188,17 @@ async function loadEntityVLANs(entity) {
         options += `<option>${vlans[i]}</option>`;
     }
     document.querySelector('#entity-vlans').innerHTML = options;
+
+    if (vlans.length === 0) {
+        document.querySelector('#entity-vlans').setAttribute('disabled', true);
+        document.querySelector('#entity-vlans').innerHTML = '<option>VLANs not available for the selected Entity</option>';
+        document.querySelector('#add-entity-request-access').style.display = 'inline-block';
+        document.querySelector('#add-entity-submit').style.display = 'none';
+    } else {
+        document.querySelector('#entity-vlans').removeAttribute('disabled');
+        document.querySelector('#add-entity-request-access').style.display = 'none';
+        document.querySelector('#add-entity-submit').style.display = 'inline-block';
+    }
 }
 
 async function loadEntityCloudAccountInput(entity) {
@@ -314,6 +325,13 @@ async function loadInterfaces() {
     });
     document.querySelector('#endpoint-select-interface').innerHTML = options;
 
+    if (interfaces.length === 0) {
+        document.querySelector('#endpoint-select-interface').setAttribute('disabled', true);
+        document.querySelector('#endpoint-select-interface').innerHTML = '<option>Interfaces not found for the current workgroup</option>';
+    } else {
+        document.querySelector('#endpoint-select-interface').removeAttribute('disabled');
+    }
+
     loadInterfaceVLANs();
 }
 
@@ -322,6 +340,8 @@ async function loadInterfaceVLANs() {
 
     let select = document.querySelector('#endpoint-select-interface');
     if (!select.value) {
+        document.querySelector('#endpoint-vlans').setAttribute('disabled', true);
+        document.querySelector('#endpoint-vlans').innerHTML = '<option>VLANs not available for the selected Interface</option>';
         return null;
     }
 
@@ -333,6 +353,13 @@ async function loadInterfaceVLANs() {
         options += `<option>${vlans[i]}</option>`;
     }
     document.querySelector('#endpoint-vlans').innerHTML = options;
+
+    if (vlans.length === 0) {
+        document.querySelector('#endpoint-vlans').setAttribute('disabled', true);
+        document.querySelector('#endpoint-vlans').innerHTML = '<option>VLANs not available for the selected Interface</option>';
+    } else {
+        document.querySelector('#endpoint-vlans').removeAttribute('disabled');
+    }
 }
 
 async function loadInterfaceCloudAccountInput() {
