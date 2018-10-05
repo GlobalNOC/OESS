@@ -1,0 +1,20 @@
+Greetings workgroup [%workgroup%],
+[% SWITCH type %]
+[%  CASE 'provisioned' %]
+VRF [% vrf.description %] has been provisioned by [% vrf.last_modified_by.username %] on [% human_time %].
+
+[% CASE 'removed' %]
+The VRF [% vrf.description %] has been decommissioned by [% vrf.last_modified_by.username %] on [% human_time %].
+
+[% CASE 'modified' %]
+The VRF [% vrf.description %] has been edited by [% vrf.last_modified_by.first_name %] [% vrf.last_modified_by.last_name %] on [% human_time %].
+
+[% END %]
+
+The details of the VRF are below:
+
+[% clr %]
+
+Sincerely,
+
+[% from_signature_name %]

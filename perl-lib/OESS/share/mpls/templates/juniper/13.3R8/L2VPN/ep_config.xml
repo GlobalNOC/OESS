@@ -4,10 +4,17 @@
     <interface>
       <name>[% interface.name %]</name>
       <unit>
-	<name>[% interface.tag %]</name>
+	<name>[% interface.unit %]</name>
 	<description>OESS-L2VPN-[% circuit_id %]</description>
 	<encapsulation>vlan-ccc</encapsulation>
-	<vlan-id>[% interface.tag %]</vlan-id>
+        [% IF interface.defined('inner_tag') %]
+        <vlan-tags>
+          <outer>[% interface.tag %]</outer>
+          <inner>[% interface.inner_tag %]</inner>
+        </vlan-tags>
+        [% ELSE %]
+        <vlan-id>[% interface.tag %]</vlan-id>
+        [% END %]
 	<output-vlan-map>
           <swap/>
 	</output-vlan-map>
@@ -21,7 +28,7 @@
       <instance-type>l2vpn</instance-type>
       [% FOREACH interface IN interfaces %]
       <interface>
-	<name>[% interface.name %].[% interface.tag %]</name>
+	<name>[% interface.name %].[% interface.unit %]</name>
       </interface>
       [% END %]
       <route-distinguisher>
@@ -38,7 +45,7 @@
 	    <site-identifier>[% site_id %]</site-identifier>
             [% FOREACH interface IN interfaces %]
             <interface>
-              <name>[% interface.name %].[% interface.tag %]</name>
+              <name>[% interface.name %].[% interface.unit %]</name>
             </interface>
             [% END %]
 	  </site>

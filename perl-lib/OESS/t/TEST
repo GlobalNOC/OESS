@@ -15,7 +15,7 @@ unshift(@INC, "blib/lib", "blib/arch");
 
 my @tests;
 if (defined $ENV{'TEST_FILES'}){
-    my @test_files = $ENV{'TEST_FILES'};
+    my @test_files = split(/\s+/, $ENV{'TEST_FILES'});
     for (@test_files) {
 	if (-d $_) {
 	    push(@tests, <$_/*.t>);

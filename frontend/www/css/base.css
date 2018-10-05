@@ -1,0 +1,235 @@
+body {
+    display: grid;
+    height: 100vh;
+
+    grid-template-columns: 6vw auto 6vw;
+    grid-template-rows: min-content min-content auto min-content min-content;
+
+    text-align: left;
+}
+
+.header {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+
+    grid-column-start: 2;
+    grid-column-end: 3;
+
+    grid-row-start: 1;
+    grid-row-end: 2;
+
+    color: #dfdfdf;
+}
+
+.header-background {
+    grid-column-start: 1;
+    grid-column-end: 4;
+
+    grid-row-start: 1;
+    grid-row-end: 3;
+
+    background-color: #3a3a3a;
+}
+
+.header .btn {
+    margin-right: 8px;
+    margin-bottom: 13px;
+}
+
+.logo {
+    flex: 1;
+
+    display: flex;
+    color: #dfdfdf;
+    align-items: flex-end;    
+}
+
+.logo a {
+    color: #eaeaea;
+    font-size: large;
+    margin: 12px 20px 8px 0px;
+}
+
+.logo h1 {
+    color: #eaeaea;
+    text-decoration: none;
+    margin: 5px 5px 0px 0px;
+}
+
+.logo a:hover {
+    color: #fafafa;
+    text-decoration: none;
+}
+
+.logo a:active {
+    color: #dfdfdf;
+    text-decoration: none;
+}
+
+.logo a:visited {
+    color: #eaeaea;
+    text-decoration: none;
+}
+
+.breadcrumb-gutter {
+    display: flex;
+    flex-direction: row;
+
+    grid-column-start: 2;
+    grid-column-end: 3;
+
+    grid-row-start: 2;
+    grid-row-end: 3;
+
+    background-color: #3a3a3a;
+
+    padding-top: 5px;
+    padding-right: 15px;
+    padding-bottom: 3px;
+    padding-left: 15px;
+}
+
+.breadcrumbs {
+    flex: 1;
+    /* Overrides margin styles from other sheet. */
+    margin: 0px !important;
+}
+
+/* Overrides margin styles from other sheet. */
+.active_workgroup_container {
+    margin: 0px !important;
+}
+
+.content {
+    grid-column-start: 2;
+    grid-column-end: 3;
+
+    grid-row-start: 3;
+    grid-row-end: 4;
+}
+
+/* Gives the older UI the full screen. */
+.old-content {
+    grid-column-start: 1;
+    grid-column-end: 4;
+
+    grid-row-start: 1;
+    grid-row-end: 6
+}
+
+.footer-logos {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-evenly;
+    align-items: center;
+
+    grid-column-start: 2;
+    grid-column-end: 3;
+
+    grid-row-start: 4;
+    grid-row-end: 5;
+
+    /* background-color: #595959; */
+    background-color: #505050;
+
+    margin-top: 30px;
+
+    padding-top: 30px;
+    /* padding-bottom: 30px; */
+}
+
+.footer-logos a {
+    /* flex: 1; */
+}
+
+.footer-links {
+    display: flex;
+    flex-direction: row;
+
+    grid-column-start: 2;
+    grid-column-end: 3;
+
+    grid-row-start: 5;
+    grid-row-end: 6;
+
+    padding-top: 30px;
+    padding-bottom: 30px;
+}
+
+.footer-links-left {
+    flex: 1;
+
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.footer-links-center {
+    flex: 1;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.footer-links-right {
+    flex: 1;
+
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.footer-links p {
+    color: #a0a0a0;
+    font-size: large;
+
+    border-width: 0px 0px 4px 0px;
+    border-color: #EE3B33;
+    border-style: solid;
+}
+
+.footer-links a {
+    color: #a0a0a0;
+    font-weight: normal;
+    padding: 8px;
+
+}
+
+.footer-links a:hover {
+    color: #707070;
+    text-decoration-color: #707070;
+}
+
+
+.footer-link-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.footer-link-group a {
+    color: #e0e0e0;
+    font-weight: normal;
+    margin-bottom: 8px;
+}
+
+.footer-link-group a:hover {
+    color: #eaeaea;
+    text-decoration-color: #f0f0f0;
+}
+
+
+#command-result {
+    display: none;
+    height: 250px;
+}
+
+#command-result-toggle {
+    margin-top: 5px;
+    color: blue;
+}
+
+#command-select {
+    min-width: 200px;
+}

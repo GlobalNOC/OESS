@@ -11,10 +11,9 @@ use AnyEvent;
 
 =head2 new
 
-    creates a new OESS::MPLS::Discovery::ISIS object
+Creates a new OESS::MPLS::Discovery::ISIS object
 
 =cut
-
 sub new{
     my $class = shift;
     my %args = (
@@ -43,11 +42,10 @@ sub new{
 
 =head2 process_results
 
-    takes the results from show isis adj or equivilent
-    and returns the current direct adjacencies on the network
+Takes the results from show isis adj or equivilent and returns the
+current direct adjacencies on the network
 
 =cut
-
 sub process_results{
     my $self = shift;
     my %params = @_;
@@ -62,6 +60,9 @@ sub process_results{
     return $adjacencies;
 }
 
+=head2 _process_adjacencies
+
+=cut
 sub _process_adjacencies{
     my $self = shift;
     my $isis = shift;

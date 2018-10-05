@@ -21,7 +21,7 @@ use GRNOC::Config;
 
 use OESS::Circuit;
 use OESS::Database;
-
+use NetAddr::IP;
 use base "OESS::MPLS::Device";
 
 =head1 package OESS::MPLS::Device::Juniper::MX
@@ -92,7 +92,7 @@ deletes it.
 =cut
 sub disconnect{
     my $self = shift;
-
+    
     if (!defined $self->{'jnx'}) {
         return 1;
     }
@@ -269,6 +269,7 @@ B<Result>
       model         => 'vmx'
       os_name       => 'junos'
       version       => '15.1F6.9'
+      major_rev     => '15'
     }
 
 =cut
@@ -304,7 +305,8 @@ sub get_system_information{
     my $model =     $xp->findvalue('/x:rpc-reply/x:system-information/x:hardware-model');
     my $os_name =   $xp->findvalue('/x:rpc-reply/x:system-information/x:os-name');
     my $version =   $xp->findvalue('/x:rpc-reply/x:system-information/x:os-version');
-
+    my $major_rev = $version;
+    $major_rev =~ s/^(\d+)\..+$/$1/;
     $self->{logger}->info("Using firmware version $version.");
 
     #also need to fetch the interfaces and find lo0.X
@@ -377,6 +379,7 @@ sub get_system_information{
     }
 
     $self->{'loopback_addr'} = $loopback_addr;
+    $self->{'major_rev'} = $major_rev;
     return {model => $model, version => $version, os_name => $os_name, host_name => $host_name, loopback_addr => $loopback_addr};
 }
 
@@ -586,6 +589,9 @@ sub get_interfaces{
     return \@interfaces;
 }
 
+=head2 _process_interface
+
+=cut
 sub _process_interface{
     my $self = shift;
     my $int = shift;
@@ -620,6 +626,107 @@ sub _process_interface{
     }
 
     return $obj;
+}
+
+=head2 get_vrf_stats
+
+=cut
+sub get_vrf_stats{
+    my $self = shift;
+
+    if(!$self->connected()){
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
+
+    my $reply = $self->{'jnx'}->get_bgp_summary_information( instance => "OESS-L3VPN");
+
+    if($self->{'jnx'}->has_error){
+        my $error = $self->{'jnx'}->get_first_error();
+        $self->set_error($error->{'error_message'});
+        $self->{'logger'}->error("Error fetching VRF stats: " . $error->{'error_message'});
+        return;
+    }
+
+    my %vrf_stats;
+
+    my $stats = $self->{'jnx'}->get_dom();
+    $self->{'logger'}->debug("VRF Stats: " . $stats->toString());
+    
+    my @peer_stats;
+    my @rib_stats;
+
+    my $path = $self->{'root_namespace'}."junos-routing";
+    my $xp = XML::LibXML::XPathContext->new( $stats );
+    $xp->registerNs('x',$stats->documentElement->namespaceURI);
+    $xp->registerNs('j',$path);
+        
+    my $peers = $xp->findnodes('/x:rpc-reply/j:bgp-information/j:bgp-peer');
+    foreach my $peer (@{$peers}){
+        my $peer_xp = XML::LibXML::XPathContext->new( $peer );
+        my $path = $self->{'root_namespace'}."junos-routing";
+        $peer_xp->registerNs('j',$path);
+        my $address = $peer_xp->findvalue('./j:peer-address');
+        my $as = $peer_xp->findvalue('./j:peer-as');
+        my $vrf = $peer_xp->findvalue('./j:description');
+        my $state = $peer_xp->findvalue('./j:peer-state');
+        my $flap_count = $peer_xp->findvalue('./j:flap-count');
+        my $rqc = $peer_xp->findvalue('./j:route-queue-count');
+        my $output_messages = $peer_xp->findvalue('./j:output-messages');
+        my $input_messages = $peer_xp->findvalue('./j:input-messages');
+        push(@peer_stats,{vrf => $vrf,
+                          address => $address,
+                          as => $as,
+                          state => $state,
+                          flap_count => $flap_count,
+                          route_queue_count => $rqc,
+                          output_messages => $output_messages,
+                          input_messages => $input_messages});
+    }
+
+    my $ribs = $xp->findnodes('/x:rpc-reply/j:bgp-information/j:bgp-rib');
+    foreach my $rib (@{$ribs}){
+        my $rib_xp = XML::LibXML::XPathContext->new( $rib );
+        my $path = $self->{'root_namespace'}."junos-routing";
+        $rib_xp->registerNs('j',$path);
+        my $name = $rib_xp->findvalue('./j:name');
+        my $total_prefix_count = $rib_xp->findvalue('./j:total-prefix-count');
+        my $received_prefix_count = $rib_xp->findvalue('./j:received-prefix-count');
+        my $accepted_prefix_count = $rib_xp->findvalue('./j:accepted-prefix-count');
+        my $active_prefix_count = $rib_xp->findvalue('./j:active-prefix-count');
+        my $suppressed_prefix_count = $rib_xp->findvalue('./j:suppressed-prefix-count');
+        my $history_prefix_count = $rib_xp->findvalue('./j:history-prefix-count');
+        my $damped_prefix_count = $rib_xp->findvalue('./j:damped-prefix-count');
+        my $total_external_prefix_count = $rib_xp->findvalue('./j:total-external-prefix-count');
+        my $active_external_prefix_count = $rib_xp->findvalue('./j:active-external-prefix-count');
+        my $accepted_external_prefix_count = $rib_xp->findvalue('./j:accepted-external-prefix-count');
+        my $suppressed_external_prefix_count = $rib_xp->findvalue('./j:suppressed-external-prefix-count');
+        my $total_internal_prefix_count = $rib_xp->findvalue('./j:total-internal-prefix-count');
+        my $active_internal_prefix_count = $rib_xp->findvalue('./j:active-internal-prefix-count');
+        my $accepted_internal_prefix_count = $rib_xp->findvalue('./j:accepted-internal-prefix-count');
+        my $suppressed_internal_prefix_count = $rib_xp->findvalue('./j:suppressed-internal-prefix-count');
+        my $pending_prefix_count = $rib_xp->findvalue('./j:pending-prefix-count');
+        push(@rib_stats,{ vrf => $name,
+                          total_prefix_count => $total_prefix_count,
+                          received_prefix_count => $received_prefix_count,
+                          accepted_prefix_count => $accepted_prefix_count,
+                          active_prefix_count => $active_prefix_count,
+                          suppressed_prefix_count => $suppressed_prefix_count,
+                          history_prefix_count => $history_prefix_count,
+                          damped_prefix_count => $damped_prefix_count,
+                          total_external_prefix_count => $total_external_prefix_count,
+                          active_external_prefix_count => $active_external_prefix_count,
+                          accepted_external_prefix_count => $accepted_external_prefix_count,
+                          suppressed_external_prefix_count => $suppressed_external_prefix_count,
+                          total_internal_prefix_count => $total_internal_prefix_count,
+                          active_internal_prefix_count => $active_internal_prefix_count,
+                          accepted_internal_prefix_count => $accepted_internal_prefix_count,
+                          suppressed_internal_prefix_count => $suppressed_internal_prefix_count,
+                          pending_prefix_count => $pending_prefix_count });
+    }
+    return {peer_stats => \@peer_stats,
+            rib_stats => \@rib_stats};
+    
 }
 
 =head2 remove_vlan
@@ -659,7 +766,9 @@ sub remove_vlan{
     $vars->{'interfaces'} = [];
     foreach my $i (@{$ckt->{'interfaces'}}) {
         push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
-                                          tag  => $i->{'tag'}
+                                          inner_tag => $i->{'inner_tag'},
+                                          tag => $i->{'tag'},
+                                          unit => $i->{'unit'}
                                         });
     }
     $vars->{'circuit_id'} = $ckt->{'circuit_id'};
@@ -686,10 +795,12 @@ sub remove_vlan{
       interfaces => [
         {
           interface => 'ge-0/0/1',
+          inner_tag => 100,
           tag => 2004
         },
         {
           interface => 'ge-0/0/2',
+          inner_tag => 100,
           tag => 2004
         }
       ],
@@ -715,7 +826,9 @@ sub add_vlan{
     $vars->{'interfaces'} = [];
     foreach my $i (@{$ckt->{'interfaces'}}) {
         push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
-                                          tag  => $i->{'tag'}
+                                          inner_tag => $i->{'inner_tag'},
+                                          tag  => $i->{'tag'},
+                                          unit => $i->{'unit'}
                                         });
     }
     $vars->{'paths'} = $ckt->{'paths'};
@@ -727,7 +840,7 @@ sub add_vlan{
     $vars->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
     $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
 
-    if ($self->unit_name_available($vars->{'interface'}->{'name'}, $vars->{'vlan_tag'}) == 0) {
+    if ($self->unit_name_available($vars->{'interface'}->{'name'}, $vars->{'interface'}->{'unit'}) == 0) {
         $self->{'logger'}->error("Unit $vars->{'vlan_tag'} is not available on $vars->{'interface'}->{'name'}");
         return FWDCTL_FAILURE;
     }
@@ -746,6 +859,139 @@ sub add_vlan{
     return $self->_edit_config(config => $output);
 }
 
+=head2 add_vrf
+
+=cut
+sub add_vrf{
+    my $self = shift;
+    my $vrf = shift;
+
+    if(!$self->connected()){
+        return FWDCTL_FAILURE;
+    }
+
+    $self->{'logger'}->error("VRF: " . Dumper($vrf));
+
+    my $vars = {};
+    $vars->{'vrf_name'} = $vrf->{'name'};
+    $vars->{'interfaces'} = ();
+
+    foreach my $i (@{$vrf->{'interfaces'}}) {
+	
+	my @bgp_v4;
+        my @bgp_v6;
+        my $has_ipv4=0;
+        my $has_ipv6=0;
+
+	foreach my $bgp (@{$i->{'peers'}}){
+            #strip off the cidr
+            #192.168.1.0/24
+            my $peer_ip = $bgp->{'peer_ip'};
+            $peer_ip =~ s/\/\d+//g;
+
+            if(!defined($bgp->{'md5_key'})){
+                $bgp->{'key'} = -1;
+            }
+            
+            my $type = NetAddr::IP->new($bgp->{'peer_ip'})->version();
+            warn "Version: " . $type . "\n";
+            $self->{'logger'}->error("IP Address type: " . $type);
+            #determine if its an ipv4 or an ipv6
+            if($type == 4){
+                $has_ipv4 = 1;
+                $vars->{'has_ipv4'} = 1;
+                push(@bgp_v4, { asn => $bgp->{'peer_asn'},
+                                
+                                local_ip => $bgp->{'local_ip'},
+                                peer_ip => $peer_ip,
+                                key => $bgp->{'md5_key'}
+                     });
+
+            }else{
+                $has_ipv6 = 1;
+                $vars->{'has_ipv6'} = 1;
+                push(@bgp_v6, { asn => $bgp->{'peer_asn'},
+                                
+                                local_ip => $bgp->{'local_ip'},
+                                peer_ip => $peer_ip,
+                                key => $bgp->{'md5_key'}
+                     });
+            }            
+
+        }
+
+
+        if ($self->unit_name_available($i->{'name'}, $i->{'unit'}) == 0) {
+            $self->{'logger'}->error("Unit " . $i->{'unit'}  . " is not available on $i->{'name'}");
+            return FWDCTL_FAILURE;
+        }
+
+        push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
+                                          inner_tag => $i->{'inner_tag'},
+                                          tag  => $i->{'tag'},
+                                          unit => $i->{'unit'},
+                                          bandwidth => $i->{'bandwidth'},
+					  v4_peers => \@bgp_v4,
+                                          has_ipv4 => $has_ipv4,
+                                          has_ipv6 => $has_ipv6,
+                                          v6_peers => \@bgp_v6 });
+    }
+    $vars->{'vrf_id'} = $vrf->{'vrf_id'};
+    $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
+    $vars->{'prefix_limit'} = $vrf->{'prefix_limit'};
+    $vars->{'local_as'} = $vrf->{'local_asn'};
+    $self->{'logger'}->error("VARS: " . Dumper($vars));
+
+    my $output;
+    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vars, \$output);
+    if (!$ok) {
+        $self->{'logger'}->error($self->{'tt'}->error());
+        return FWDCTL_FAILURE;
+    }
+
+    if (!defined $output) {
+        return FWDCTL_FAILURE;
+    }
+
+    return $self->_edit_config(config => $output);
+}
+
+
+=head2 remove_vrf
+
+=cut
+sub remove_vrf{
+    my $self = shift;
+    my $vrf = shift;
+
+    if(!$self->connected()){
+        $self->{'logger'}->error("Not currently connected to device");
+        return FWDCTL_FAILURE;
+    }
+
+    my $vars = {};
+    $vars->{'vrf_name'} = $vrf->{'vrf_name'};
+    $vars->{'interfaces'} = [];
+    foreach my $i (@{$vrf->{'interfaces'}}) {
+        push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
+                                          inner_tag => $i->{'inner_tag'},
+                                          tag  => $i->{'tag'},
+                                          unit => $i->{'unit'}
+	      });
+    }
+
+    $vars->{'vrf_id'} = $vrf->{'vrf_id'};
+    $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
+
+    my $output;
+    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config_delete.xml", $vars, \$output);
+    if (!$ok) {
+        $self->{'logger'}->error($self->{'tt'}->error());
+    }
+
+    return $self->_edit_config( config => $output );
+}
+
 =head2 xml_configuration( $ckts )
 
 Returns configuration as an xml string based on $ckts, which is an array of
@@ -755,6 +1001,7 @@ OESS::Circuit objects. It also takes a string of Removes which will be specified
 sub xml_configuration {
     my $self = shift;
     my $ckts = shift;
+    my $vrf = shift;
     my $remove = shift;
 
     my $configuration = '<configuration>';
@@ -768,7 +1015,9 @@ sub xml_configuration {
         $vars->{'interfaces'} = [];
         foreach my $i (@{$ckt->{'interfaces'}}) {
             push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
-                                              tag  => $i->{'tag'}
+                                              inner_tag => $i->{'inner_tag'},
+                                              tag  => $i->{'tag'},
+                                              unit => $i->{'unit'}
                                             });
         }
         $vars->{'paths'} = $ckt->{'paths'};
@@ -783,7 +1032,6 @@ sub xml_configuration {
         $vars->{'site_id'} = $ckt->{'site_id'};
         $vars->{'paths'} = $ckt->{'paths'};
         $vars->{'a_side'} = $ckt->{'a_side'};
-        #$self->{'logger'}->debug(Dumper($vars));
 
         if ($ckt->{'state'} eq 'active') {
             $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$xml);
@@ -795,6 +1043,81 @@ sub xml_configuration {
         $xml =~ s/<\/configuration>//g;
         $configuration = $configuration . $xml;
     }
+   
+    foreach my $vrf (@{$vrf}){
+        my $xml;
+        my $vars = {};
+        next if ($vrf->{'state'} ne 'active');
+        $vars->{'vrf_name'} = $vrf->{'name'};
+        $vars->{'interfaces'} = ();
+        foreach my $i (@{$vrf->{'interfaces'}}) {
+            
+            my @bgp_v4;
+            my @bgp_v6;
+            my $has_ipv4 = 0;
+            my $has_ipv6 = 0;
+            
+            foreach my $bgp (@{$i->{'peers'}}){
+                #strip off the cidr                                                                                                                                                                                                                                                                                                                  #192.168.1.0/24
+                my $peer_ip = $bgp->{'peer_ip'};
+                $peer_ip =~ s/\/\d+//g;
+                
+                if(!defined($bgp->{'md5_key'})){
+                    $bgp->{'md5_key'} = -1;
+                }
+                
+                my $ip = NetAddr::IP->new($bgp->{'peer_ip'});
+                my $type = $ip->version();
+                #determine if its an ipv4 or an ipv6
+                if($type == 4){
+                    $self->{'logger'}->error("Processing IPv4 peer");
+                    $has_ipv4 = 1;
+                    $vars->{'has_ipv4'} = 1;
+                    push(@bgp_v4, { asn => $bgp->{'peer_asn'},                                    
+                                    local_ip => $bgp->{'local_ip'},
+                                    peer_ip => $peer_ip,
+                                    key => $bgp->{'md5_key'}
+                         });
+                    
+                }else{
+                    $self->{'logger'}->error("Processing IPv6 peer");
+                    $has_ipv6 = 1;
+                    $vars->{'has_ipv6'} = 1;
+                    push(@bgp_v6, { asn => $bgp->{'peer_asn'},                                    
+                                    local_ip => $bgp->{'local_ip'},
+                                    peer_ip => $peer_ip,
+                                    key => $bgp->{'md5_key'}
+                         });
+                }
+                
+            }
+
+            push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
+                                              unit => $i->{'unit'},
+                                              inner_tag  => $i->{'inner_tag'},
+                                              tag  => $i->{'tag'},
+                                              bandwidth => $i->{'bandwidth'},
+                                              v4_peers => \@bgp_v4,
+                                              has_ipv4 => $has_ipv4,
+                                              has_ipv6 => $has_ipv6,
+                                              v6_peers => \@bgp_v6 });
+        }
+        $vars->{'local_as'} = $vrf->{'local_asn'};
+        $vars->{'vrf_id'} = $vrf->{'vrf_id'};
+        $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
+        $vars->{'prefix_limit'} = $vrf->{'prefix_limit'};
+        
+        $self->{'logger'}->error("VARS: " . Dumper($vars));
+        
+        if($vrf->{'state'} eq 'active'){
+            $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vars, \$xml);
+        }
+        
+        $xml =~ s/<configuration>//g;
+        $xml =~ s/<\/configuration>//g;
+        $configuration = $configuration . $xml;
+    }
+    
     $configuration = $configuration . '</configuration>';
 
     return $configuration;
@@ -809,6 +1132,9 @@ sub get_config_to_remove{
     my $self = shift;
     my %params = @_;
     my $circuits = $params{'circuits'};
+    my $vrfs = $params{'vrfs'};
+
+    $self->{'logger'}->debug("VRFS: " . Dumper($vrfs));
 
     if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
@@ -850,12 +1176,18 @@ sub get_config_to_remove{
             $name =~ /OESS\-(\S+)\-(\d+)/;
             my $type = $1;
             my $circuit_id = $2;
-            #figure out the right bit!
-            if(!$self->_is_active_circuit($circuit_id, $circuits)){
-                $ri_dels = "<instance operation='delete'><name>" . $name . "</name></instance>";
-                next;
+            if($type eq 'L3VPN'){
+                if(!$self->_is_active_vrf($circuit_id, $vrfs)){
+                    $ri_dels .= "<instance operation='delete'><name>" . $name . "</name></instance>";
+                    next;
+                }
+            }else{
+                #figure out the right bit!
+                if(!$self->_is_active_circuit($circuit_id, $circuits)){
+                    $ri_dels .= "<instance operation='delete'><name>" . $name . "</name></instance>";
+                    next;
+                }
             }
-
 
             my $ints = $xp->find(' ./c:interface', $ri);
 
@@ -863,8 +1195,14 @@ sub get_config_to_remove{
                 my $int_full_name = $xp->findvalue( './c:name', $int);
 		$self->{'logger'}->debug("Checking to see if port: $int_full_name is part of circuit: $circuit_id");
                 my ($int_name,$unit_name) = split('.',$int_full_name);
-                if(!$self->_is_circuit_on_port($circuit_id, $circuits, $int_name, $unit_name)){
-                    $ri_dels .= "<instance><name>$name</name><interface operation='delete'><name>$int_full_name</name></interface></instance>";
+                if($type eq 'L3VPN'){
+                    if(!$self->_is_vrf_on_port($circuit_id, $vrfs, $int_name, $unit_name)){
+                        $ri_dels .= "<instance><name>$name</name><interface operation='delete'><name>$int_full_name</name></interface></instance>";
+                    }
+                }else{
+                    if(!$self->_is_circuit_on_port($circuit_id, $circuits, $int_name, $unit_name)){
+                        $ri_dels .= "<instance><name>$name</name><interface operation='delete'><name>$int_full_name</name></interface></instance>";
+                    }
                 }
             }
 
@@ -873,20 +1211,6 @@ sub get_config_to_remove{
             }
 
             if($type eq 'L2VPN'){
-                #now dig down into the
-                #<protocols>
-                #        <l2vpn>
-                #            <encapsulation-type>ethernet-vlan</encapsulation-type>
-                #            <site>
-                #                <name>mx240-r2.testlab.grnoc.iu.edu-3001</name>
-                #                <site-identifier>1</site-identifier>
-                #                <interface>
-                #                    <name>xe-2/2/0.501</name>
-                #                </interface>
-                #            </site>
-                #        </l2vpn>
-                #    </protocols>
-
                 my $sites = $xp->find(' ./c:protocols/c:l2vpn/c:site', $ri);
 		foreach my $site (@$sites){
 		    my $site_name = $xp->findvalue( './c:name', $site);
@@ -920,18 +1244,62 @@ sub get_config_to_remove{
 	foreach my $unit (@$units){
 	    my $description = $xp->findvalue( './c:description', $unit );
 	    if($description =~ /^OESS/){
-		$description =~ /OESS\-\w+\-(\d+)/;
-		my $circuit_id = $1;
+		$description =~ /OESS\-(\w+)\-(\d+)/;
+                my $type = $1;
+		my $circuit_id = $2;
 		my $unit_name = $xp->findvalue( './c:name', $unit);
-		if(!$self->_is_active_circuit($circuit_id, $circuits)){
-		    $int_del .= "<unit operation='delete'><name>" . $unit_name . "</name></unit>";
-                    $has_dels = 1;
-		    next;
-		}
-		if(!$self->_is_circuit_on_port($circuit_id, $circuits, $int_name, $unit_name)){
-		    $int_del .= "<unit operation='delete'><name>" . $unit_name . "</name></unit>";
-		    $has_dels = 1;
-		}
+
+                if($type eq 'L3VPN'){
+                    if(!$self->_is_active_vrf($circuit_id, $vrfs)){
+                        $int_del .= "<unit operation='delete'><name>" . $unit_name . "</name></unit>";
+                        $has_dels = 1;
+                        next;
+                    }
+
+                    if(!$self->_is_vrf_on_port($circuit_id, $vrfs, $int_name, $unit_name)){
+                        $int_del .= "<unit operation='delete'><name>" . $unit_name . "</name></unit>";
+                        $has_dels = 1;
+                        next;
+                    }
+
+                    $int_del .= "<unit><name>$unit_name</name>";
+
+                    # Need to process each BGP peer for L3VPNs
+                    #   family inet address name $address
+                    #   family inet6 address name $address
+
+                    my $addrs = $xp->find( './c:family/c:inet/c:address', $unit);
+                    foreach my $addr (@$addrs) {
+                        my $addr_name = $xp->findvalue( './c:name', $addr);
+
+                        if (!$self->_is_peer_address($circuit_id, $vrfs, $int_name, $addr_name)) {
+                            $int_del .= "<family><inet><address operation='delete'><name>$addr_name</name></address></inet></family>";
+                        }
+                    }
+
+                    $addrs = $xp->find( './c:family/c:inet6/c:address', $unit);
+                    foreach my $addr (@$addrs) {
+                        my $addr_name = $xp->findvalue( './c:name', $addr);
+
+                        if (!$self->_is_peer_address($circuit_id, $vrfs, $int_name, $addr_name)) {
+                            $int_del .= "<family><inet6><address operation='delete'><name>$addr_name</name></address></inet6></family>";
+                        }
+                    }
+
+                    $int_del .= "</unit>";
+                    $self->{logger}->error(Dumper($int_del));
+
+                }else{
+                    if(!$self->_is_active_circuit($circuit_id, $circuits)){
+                        $int_del .= "<unit operation='delete'><name>" . $unit_name . "</name></unit>";
+                        $has_dels = 1;
+                        next;
+                    }
+                    if(!$self->_is_circuit_on_port($circuit_id, $circuits, $int_name, $unit_name)){
+                        $int_del .= "<unit operation='delete'><name>" . $unit_name . "</name></unit>";
+                        $has_dels = 1;
+                    }
+                }
 	    }
 	}
 	$int_del .= "</interface>";
@@ -1027,6 +1395,9 @@ sub get_config_to_remove{
     return $delete;
 }
 
+=head2 _get_strict_path
+
+=cut
 sub _get_strict_path{
     my $self = shift;
     my $circuit_id = shift;
@@ -1054,6 +1425,9 @@ sub _get_strict_path{
     return undef;
 }
 
+=head2 _is_circuit_on_port
+
+=cut
 sub _is_circuit_on_port{
     my $self = shift;
     my $circuit_id = shift;
@@ -1066,21 +1440,132 @@ sub _is_circuit_on_port{
         return 0;
     }
 
-    if(defined($circuits->{$circuit_id})){
-	foreach my $int (@{$circuits->{$circuit_id}->{'interfaces'}}){
-	    #check to see if the port matches the port
-	    #check to see if the vlan matches the vlan
-	    if($int->{'interface'} eq $port && $int->{'vlan'} eq $vlan){
-		$self->{'logger'}->error("Interface: " . $int->{'interface'} . " is in circuit: " . $circuit_id);
-		return 1;
-	    }
-	}
+    if (!defined $circuits->{$circuit_id}) {
+        return 0;
+    }
+
+    foreach my $int (@{$circuits->{$circuit_id}->{'interfaces'}}){
+        # check to see if the port matches the port
+        # check to see if the vlan matches the vlan
+
+        my $unit = $int->{'tag'};
+        if (defined $int->{'inner_tag'}) {
+            my $a = $int->{'tag'};
+            my $b = $int->{'inner_tag'};
+            $unit = ((($a+$b+1)*($a+$b))/2)+$b+5000;
+        }
+
+        if($int->{'interface'} eq $port && $unit eq $vlan){
+            $self->{'logger'}->debug("Interface $int->{'interface'}.$unit is in circuit $circuit_id.");
+            return 1;
+        }
     }
 
     return 0;
 
 }
 
+=head2 _is_vrf_on_port
+
+=cut
+sub _is_vrf_on_port{
+    my $self = shift;
+    my $vrf_id = shift;
+    my $vrfs = shift;
+    my $port = shift;
+    my $vlan = shift; # Unit name on device
+
+    if(!defined($vrf_id)){
+        $self->{'logger'}->error("Unable to find the vrf ID");
+        return 0;
+    }
+
+    if (!defined $vrfs->{$vrf_id}) {
+        return 0;
+    }
+
+    foreach my $int (@{$vrfs->{$vrf_id}->{'interfaces'}}){
+        # check to see if the port matches the port
+        # check to see if the vlan matches the vlan
+
+        my $unit = $int->{'tag'};
+        if (defined $int->{'inner_tag'}) {
+            my $a = $int->{'tag'};
+            my $b = $int->{'inner_tag'};
+            $unit = ((($a+$b+1)*($a+$b))/2)+$b+5000;
+        }
+
+        if($int->{'name'} eq $port && $unit eq $vlan){
+            $self->{'logger'}->error("Interface $int->{'name'}.$unit is in vrf $vrf_id.");
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+
+=head2 _is_peer_address
+
+=cut
+sub _is_peer_address {
+    my $self = shift;
+    my $vrf_id = shift;
+    my $vrfs = shift;
+    my $int_name = shift;
+    my $addr_name = shift;
+
+    if(!defined($vrf_id)){
+        $self->{'logger'}->error("Unable to find the vrf ID");
+        return 0;
+    }
+
+    if (!defined $vrfs->{$vrf_id}) {
+        return 0;
+    }
+
+    foreach my $int (@{$vrfs->{$vrf_id}->{'interfaces'}}) {
+        if ($int->{name} ne $int_name) {
+            next;
+        }
+
+        foreach my $peer (@{$int->{peers}}) {
+            if ($peer->{local_ip} eq $addr_name) {
+                return 1;
+            }
+        }
+        return 0;
+    }
+    return 0;
+}
+
+=head2 _is_active_vrf
+
+=cut
+sub _is_active_vrf{
+    my $self = shift;
+    my $vrf_id = shift;
+    my $vrfs = shift;
+
+    if(!defined($vrf_id)){
+        $self->{'logger'}->error("Unable to find the VRF ID");
+        return 0;
+    }
+
+    $self->{'logger'}->debug("VRF Details: " . Dumper($vrfs->{$vrf_id}));
+
+    if(defined($vrfs->{$vrf_id}) && $vrfs->{$vrf_id}->{'state'} eq 'active'){
+        return 1;
+    }
+
+    $self->{'logger'}->error("VRF ID: " . $vrf_id . " was not found as an active VRF... scheduling removal");
+    return 0;
+    
+}
+
+=head2 _is_active_circuit
+
+=cut
 sub _is_active_circuit{
     my $self = shift;
     my $circuit_id = shift;
@@ -1096,7 +1581,6 @@ sub _is_active_circuit{
 
     $self->{'logger'}->error("Circuit id: " . $circuit_id . " was not found as an active circuit... scheduling for removal");
     return 0;
-    
 }
 
 =head2 get_device_diff
@@ -1112,6 +1596,8 @@ sub get_device_diff {
         $self->{'logger'}->error("Not currently connected to device");
         return;
     }
+
+    $self->{'logger'}->debug("Candidate config: " . $conf);
 
     my %queryargs = ('target' => 'candidate');
     $queryargs{'config'} = $conf;
@@ -1149,18 +1635,20 @@ sub get_device_diff {
     }
 
     my $dom = $self->{'jnx'}->get_dom();
-    $self->{'diff_text'} = $dom->getElementsByTagName('configuration-output')->string_value();
-
+    my $text = $dom->getElementsByTagName('configuration-output')->string_value();
+    $self->{'logger'}->error("Raw diff text: " . $text);
     $ok = $self->unlock();
 
-    if ($self->{'diff_text'} eq "\n") {
+    $text =~ s/\n\[edit .*\]\n[+|-] \s+ authentication-key \S+ \#\# SECRET-DATA\n//g;
+    $text =~ s/[+|-] \s+ authentication-key \S+ \#\# SECRET-DATA//g;
+
+    if ($text eq "\n") {
         # In some cases a diff containing only an empty line may be
         # received. This case should be ignored.
-        $self->{'diff_text'} = '';
+        $text = '';
     }
 
-
-    return $self->{'diff_text'};
+    return $text;
 }
 
 =head2 _large_diff( $diff )
@@ -1190,6 +1678,7 @@ sub diff {
 
     my $circuits = $params{'circuits'};
     my $force_diff = $params{'force_diff'};
+    my $vrfs = $params{'vrfs'};
     my $remove = $params{'remove'};
 
     if(!$self->connected()){
@@ -1204,7 +1693,12 @@ sub diff {
 	push(@circuits, $circuits->{$ckt_id});
     }
 
-    my $configuration = $self->xml_configuration(\@circuits, $remove);
+    my @vrfs;
+    foreach my $vrf_id (keys (%{$vrfs})){
+        push(@vrfs, $vrfs->{$vrf_id});
+    }
+
+    my $configuration = $self->xml_configuration(\@circuits,\@vrfs, $remove);
     if ($configuration eq '<configuration></configuration>') {
         $self->{'logger'}->info('No diff required at this time.');
         return FWDCTL_SUCCESS;
@@ -1251,6 +1745,7 @@ sub get_diff_text {
     my $self = shift;
     my %params = @_;
     my $circuits = $params{'circuits'};
+    my $vrfs = $params{'vrfs'};
     my $remove = $params{'remove'};
     if(!$self->connected()){
         $self->{'logger'}->error("Not currently connected to device");
@@ -1264,7 +1759,13 @@ sub get_diff_text {
         push(@circuits, $circuits->{$ckt_id});
     }
 
-    my $configuration = $self->xml_configuration(\@circuits, $remove );
+
+    my @vrfs;
+    foreach my $vrf_id (keys (%{$vrfs})){
+        push(@vrfs, $vrfs->{$vrf_id});
+    }
+
+    my $configuration = $self->xml_configuration(\@circuits,\@vrfs, $remove );
     if ($configuration eq '<configuration></configuration>') {
         return undef;
     }
@@ -1460,12 +1961,13 @@ sub verify_connection{
 
     my $sysinfo = $self->get_system_information();
     foreach my $fw (@{$self->{'supported_firmware'}}) {
-        if ($sysinfo->{'os_name'} eq $fw->{'make'} && $sysinfo->{'model'} eq $fw->{'model'} && $sysinfo->{'version'} eq $fw->{'number'}) {
+        if ($sysinfo->{'os_name'} eq $fw->{'make'} && $sysinfo->{'model'} eq $fw->{'model'} && $sysinfo->{'version'} eq $fw->{'number'} && $sysinfo->{'major_rev'} eq $fw->{'major_rev'}) {
             return 1;
         }
     }
 
     $self->{'logger'}->error("Network OS $sysinfo->{'os_name'} version $sysinfo->{'version'} on the $sysinfo->{'model'} is not supported.");
+    $self->disconnect();
     return 0;
 }
 
@@ -1522,6 +2024,10 @@ sub get_isis_adjacencies{
     return \@adj;
 }
 
+
+=head2 _process_isis_adj
+
+=cut
 sub _process_isis_adj{
     my $self = shift;
     my $adj = shift;
@@ -1669,7 +2175,12 @@ sub get_lsp_paths{
 
         foreach my $path (@{$paths}) {
             if ($xp->exists('./r:path-active', $path)) {
-                my $next_hops = $xp->find('./r:explicit-route/r:address', $path);
+                my $next_hops;
+                if ( $self->{'major_rev'} < 17 ) {
+                    $next_hops = $xp->find('./r:explicit-route/r:address', $path);
+                } else {
+                    $next_hops = $xp->find('./r:explicit-route/r:explicit-route-element/r:address', $path);
+                }
 
                 foreach my $nh (@{$next_hops}) {
                     push(@{$lsp_routes->{$name}}, $nh->textContent);
@@ -1680,6 +2191,9 @@ sub get_lsp_paths{
     return $lsp_routes;
 }
 
+=head2 _process_rsvp_session_data
+
+=cut
 sub _process_rsvp_session_data{
     my $self = shift;
     my $rsvp_sd = shift;
@@ -1717,6 +2231,9 @@ sub _process_rsvp_session_data{
 
 }
 
+=head2 _process_rsvp_session_transit
+
+=cut
 sub _process_rsvp_session_transit{
     my $self = shift;
     my $session = shift;
@@ -1764,6 +2281,9 @@ sub _process_rsvp_session_transit{
     return $obj;
 }
 
+=head2 _process_packet_info
+
+=cut
 sub _process_packet_info{
     my $self = shift;
     my $pkt_info = shift;
@@ -1800,6 +2320,9 @@ sub _process_packet_info{
     return $obj;
 }
 
+=head2 _process_rsvp_session_egress
+
+=cut
 sub _process_rsvp_session_egress{
     my $self = shift;
     my $session = shift;
@@ -1842,12 +2365,12 @@ sub _process_rsvp_session_egress{
         push(@{$obj->{'record-route'}}, $rr->textContent);
     }    
 
-    
-    
     return $obj;
 }
 
+=head2 _process_rsvp_session_ingress
 
+=cut
 sub _process_rsvp_session_ingress{
     my $self = shift;
     my $session = shift;
@@ -1882,6 +2405,9 @@ sub _process_rsvp_session_ingress{
     return $obj;
 }
 
+=head2 _process_lsp_path
+
+=cut
 sub _process_lsp_path{
     my $self = shift;
     my $path = shift;
@@ -1917,7 +2443,9 @@ sub _process_lsp_path{
     return $obj;
 }
 
+=head2 _edit_config
 
+=cut
 sub _edit_config{
     my $self = shift;
     my %params = @_;
@@ -2031,7 +2559,6 @@ sub _edit_config{
 trims off white space
 
 =cut
-
 sub trim{
     my $s = shift; 
     $s =~ s/^\s+|\s+$//g;

@@ -17,6 +17,8 @@
             {key: "interface_acl_id", parser: "number"},
             {key: "workgroup_id", parser: "number"},
             {key: "workgroup_name"},
+            {key: "entity_id", parser: "number"},
+            {key: "entity_name"},
             {key: "interface_id", parser: "number"},
             {key: "allow_deny"},
             {key: "eval_position"},
@@ -49,6 +51,7 @@
                 }
                 el.innerHTML = string;
             }},
+            {key: "entity_name", label: "Entity", sortable:false},
             {key: "notes", label: "Notes",sortable:false}
         ];
 
@@ -74,6 +77,7 @@
                 "vlan_start",
                 "vlan_end",
                 "interface_id",
+                "entity_id",
                 "workgroup_id",
                 "notes"
             ],

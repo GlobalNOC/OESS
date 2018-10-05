@@ -283,7 +283,7 @@ function saveLocalCircuit(){
     
     var ds = new YAHOO.util.DataSource("services/provisioning.cgi");
     ds.connMethodPost = true;
-    ds.connTimeout    = 30 * 1000; // 30 seconds
+    ds.connTimeout    = (30 * 1000) * 10; // 300 seconds
     ds.responseType   = YAHOO.util.DataSource.TYPE_JSON;
     ds.responseSchema = {
 	resultsList: "results",

@@ -1,0 +1,62 @@
+<html>
+
+  [% INCLUDE html_templates/header.html %]
+
+  [% INCLUDE js_templates/cookie.js %]
+  [% INCLUDE js_templates/utility.js %]
+  [% INCLUDE js_templates/maps.js %]
+
+  <script>
+    [% INCLUDE js_templates/api/user.js %]
+    [% INCLUDE js_templates/api/workgroup.js %]
+    [% INCLUDE js_templates/user_menu.js %]
+  </script>
+
+  <body class="yui-skin-sam">
+    <div class="header-background"></div>
+    <div class="header">
+      <img src="[% path %]media/internet2-logo.png" style="float: left; max-height: 60px; margin-right: 10px;"/>
+      <div class="logo">
+        <a href="[% path %]new/index.cgi"><h1>Cloud Connect<small></small></h1></a>
+        <a href="[% path %]new/index.cgi">My Connections</a>
+        <a href="[% path %]new/index.cgi?action=provision_cloud">Create</a>
+        <a href="[% path %]new/index.cgi?action=phonebook">Discover</a>
+      </div>
+
+      [% IF is_admin == 1 %]
+      <a class="btn btn-default" href="[% path %]admin/" role="button">Admin</a>
+      [% END %]
+
+      <div class="btn-group">
+        <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          <span id="active_workgroup_name">&nbsp;</span>
+          <span class="caret"></span>
+        </button>
+        <ul id="user-menu-workgroups" class="dropdown-menu">
+        </ul>
+      </div>
+    </div>
+
+    <div class="content">
+      [% INCLUDE $page %]
+    </div>
+
+    <div class="footer-links">
+      <div class="footer-links-left">
+        <a href="http://www.internet2.edu/network/ose/">About</a>
+        <a href="https://docs.globalnoc.iu.edu/sdn/oess.html">Documentation</a>
+        <a href="mailto:[% admin_email %]?SUBJECT=System Support: NDDI/OS3E Feedback Ticket">Feedback</a>
+      </div>
+
+      <div class="footer-links-center">
+        <a href="https://docs.globalnoc.iu.edu/sdn/oess/revision-history.html">OESS v[% version %]</a>
+      </div>
+
+      <div class="footer-links-right">
+        <a href="http://globalnoc.iu.edu" style="float: left; padding-bottom: 2px;"><img src="[% path %]media/globalnoc-logo.svg"/></a>
+        <a href="http://www.internet2.edu/" style="float: left; max-height: 100px"><img src="[% path %]media/i2.png"/></a>
+      </div>
+    </div>
+
+  </body>
+</html>

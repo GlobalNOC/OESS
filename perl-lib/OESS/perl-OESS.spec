@@ -1,6 +1,6 @@
 Summary: OESS Perl Libraries
 Name: perl-OESS
-Version: 1.2.5
+Version: 2.0.0
 Release: 1%{?dist}
 License: APL 2.0
 Group: Network
@@ -33,6 +33,7 @@ BuildRequires: perl(Time::HiRes)
 BuildRequires: perl(XML::Simple)
 
 Requires: perl
+Requires: perl-NetAddr-IP
 Requires: perl(AnyEvent)
 Requires: perl(AnyEvent::Fork)
 Requires: perl(Array::Utils)
@@ -68,6 +69,7 @@ Requires: perl(Net::DBus::Object)
 Requires: perl(Net::DBus::Reactor)
 Requires: perl(Net::Netconf)                >= 1.4.1
 Requires: perl(Net::Netconf::Manager)
+Requires: perl(NetAddr::IP)
 Requires: perl(POSIX)
 Requires: perl(Proc::Daemon)
 Requires: perl(Proc::ProcessTable)
@@ -84,8 +86,9 @@ Requires: perl(URI::Escape)
 Requires: perl(XML::Simple)
 Requires: perl(XML::Writer)
 Requires: perl(XML::LibXML::XPathContext)
+Requires: grnoc-routerproxy >= 2.0.1
 
-Provides: perl-OESS-Circuit, perl-OESS-Database, perl-OESS-DBus, perl-OESS-Topology,perl-OESS-Measurement,perl-OESS-FlowRule
+Provides: perl-OESS-Circuit, perl-OESS-Database, perl-OESS-DBus, perl-OESS-Topology,perl-OESS-Measurement,perl-OESS-FlowRule,perl(OESS::DB::Command),perl(OESS::Workgroup),perl(OESS::Cloud::AWS),perl(OESS::DB::User),perl(OESS::Cloud),perl(OESS::DB),perl(OESS::Interface),perl(OESS::Entity),perl(OESS::VRF),perl(OESS::DB::VRF),perl(OESS::DB::Entity)
 Obsoletes: perl-OESS-Circuit, perl-OESS-Database, perl-OESS-DBus, perl-OESS-Topology,perl-OESS-Measurement,perl-OESS-FlowRule
 
 AutoReq: no
@@ -112,16 +115,20 @@ make pure_install
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L2CCC
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPN
+%__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L3VPN
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{template_dir}
 %__install etc/notification_templates.tmpl $RPM_BUILD_ROOT/%{template_dir}/
 %__install etc/notification_bulk.tmpl $RPM_BUILD_ROOT/%{template_dir}/
 %__install etc/notification_bulk.tt.html $RPM_BUILD_ROOT/%{template_dir}/
 %__install etc/notification.tt.html $RPM_BUILD_ROOT/%{template_dir}/
+%__install etc/notification_templates_vrf.tmpl $RPM_BUILD_ROOT/%{template_dir}/
+%__install etc/notification_vrf.tt.html $RPM_BUILD_ROOT/%{template_dir}/
 %__install share/nddi.sql $RPM_BUILD_ROOT/%{docdir}/share/
 %__install share/upgrade/* $RPM_BUILD_ROOT/%{docdir}/share/upgrade/
 %__install share/mpls/templates/juniper/13.3R8/L2CCC/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/L2CCC
 %__install share/mpls/templates/juniper/13.3R8/L2VPLS/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS
 %__install share/mpls/templates/juniper/13.3R8/L2VPN/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPN
+%__install share/mpls/templates/juniper/13.3R8/L3VPN/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/L3VPN
 # clean up buildroot
 find %{buildroot} -name .packlist -exec %{__rm} {} \;
 
@@ -133,6 +140,27 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root,-)
+%doc %{_mandir}/man3/OESS::ACL.3pm.gz
+%doc %{_mandir}/man3/OESS::Cloud.3pm.gz
+%doc %{_mandir}/man3/OESS::Cloud::AWS.3pm.gz
+%doc %{_mandir}/man3/OESS::Config.3pm.gz
+%doc %{_mandir}/man3/OESS::DB.3pm.gz
+%doc %{_mandir}/man3/OESS::DB::Command.3pm.gz
+%doc %{_mandir}/man3/OESS::DB::Entity.3pm.gz
+%doc %{_mandir}/man3/OESS::DB::Interface.3pm.gz
+%doc %{_mandir}/man3/OESS::DB::Node.3pm.gz
+%doc %{_mandir}/man3/OESS::DB::User.3pm.gz
+%doc %{_mandir}/man3/OESS::DB::VRF.3pm.gz
+%doc %{_mandir}/man3/OESS::DB::Workgroup.3pm.gz
+%doc %{_mandir}/man3/OESS::Endpoint.3pm.gz
+%doc %{_mandir}/man3/OESS::Entity.3pm.gz
+%doc %{_mandir}/man3/OESS::Interface.3pm.gz
+%doc %{_mandir}/man3/OESS::Mock.3pm.gz
+%doc %{_mandir}/man3/OESS::Node.3pm.gz
+%doc %{_mandir}/man3/OESS::Peer.3pm.gz
+%doc %{_mandir}/man3/OESS::User.3pm.gz
+%doc %{_mandir}/man3/OESS::VRF.3pm.gz
+%doc %{_mandir}/man3/OESS::Workgroup.3pm.gz
 %doc %{_mandir}/man3/OESS::Circuit.3pm.gz
 %doc %{_mandir}/man3/OESS::Database.3pm.gz
 %doc %{_mandir}/man3/OESS::DBus.3pm.gz
@@ -171,11 +199,34 @@ rm -rf $RPM_BUILD_ROOT
 %{template_dir}/notification_bulk.tmpl
 %{template_dir}/notification_bulk.tt.html
 %{template_dir}/notification.tt.html
+%{template_dir}/notification_vrf.tt.html
+%{template_dir}/notification_templates_vrf.tmpl
+%{perl_vendorlib}/OESS/ACL.pm
 %{perl_vendorlib}/OESS/Circuit.pm
 %{perl_vendorlib}/OESS/Database.pm
 %{perl_vendorlib}/OESS/DBus.pm
 %{perl_vendorlib}/OESS/FlowRule.pm
 %{perl_vendorlib}/OESS/FV.pm
+%{perl_vendorlib}/OESS/DB.pm
+%{perl_vendorlib}/OESS/DB/Command.pm
+%{perl_vendorlib}/OESS/DB/Entity.pm
+%{perl_vendorlib}/OESS/DB/Interface.pm
+%{perl_vendorlib}/OESS/DB/Node.pm
+%{perl_vendorlib}/OESS/DB/User.pm
+%{perl_vendorlib}/OESS/DB/VRF.pm
+%{perl_vendorlib}/OESS/DB/Workgroup.pm
+%{perl_vendorlib}/OESS/Cloud.pm
+%{perl_vendorlib}/OESS/Cloud/AWS.pm
+%{perl_vendorlib}/OESS/Config.pm
+%{perl_vendorlib}/OESS/Endpoint.pm
+%{perl_vendorlib}/OESS/Entity.pm
+%{perl_vendorlib}/OESS/Interface.pm
+%{perl_vendorlib}/OESS/Mock.pm
+%{perl_vendorlib}/OESS/Node.pm
+%{perl_vendorlib}/OESS/Peer.pm
+%{perl_vendorlib}/OESS/User.pm
+%{perl_vendorlib}/OESS/VRF.pm
+%{perl_vendorlib}/OESS/Workgroup.pm
 %{perl_vendorlib}/OESS/FWDCTL/Master.pm
 %{perl_vendorlib}/OESS/FWDCTL/Switch.pm
 %{perl_vendorlib}/OESS/Measurement.pm
@@ -210,6 +261,7 @@ rm -rf $RPM_BUILD_ROOT
 %{docdir}/share/mpls/templates/juniper/13.3R8/L2CCC/*
 %{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS/*
 %{docdir}/share/mpls/templates/juniper/13.3R8/L2VPN/*
+%{docdir}/share/mpls/templates/juniper/13.3R8/L3VPN/*
 
 %changelog
 * Thu Dec  5 2013 AJ Ragusa <aragusa@grnoc.iu.edu> - OESS Perl Libs

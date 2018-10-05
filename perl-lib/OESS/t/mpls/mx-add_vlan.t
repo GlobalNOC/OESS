@@ -1,12 +1,19 @@
+#!/usr/bin/perl
+
 use strict;
 use warnings;
 
 use Data::Dumper;
 
+
+use GRNOC::Log;
+use Test::More tests => 5;
+my $logger = GRNOC::Log->new( level => 'DEBUG');
+
+use OESS::Database;
 use OESS::Mock;
 use OESS::MPLS::Device::Juniper::MX;
 
-use Test::More tests => 5;
 
 # MX overrides unit_name_available to return 1.
 {
@@ -76,10 +83,12 @@ my $ok = $device->add_vlan({
     interfaces => [
         {
             interface => 'ge-0/0/1',
+            unit => 2004,
             tag => 2004
         },
         {
             interface => 'ge-0/0/2',
+            unit => 2004,
             tag => 2004
         }
     ],
@@ -107,11 +116,13 @@ $ok = $device->add_vlan({
     interfaces => [
         {
             interface => 'ge-0/0/1',
-            tag => 2004
+            tag => 2004,
+            unit => 2004
         },
         {
             interface => 'ge-0/0/2',
-            tag => 2004
+            tag => 2004,
+            unit => 2004
         }
     ],
     paths => [],
@@ -154,10 +165,12 @@ $ok = $device->add_vlan({
     interfaces => [
         {
             interface => 'ge-0/0/1',
+            unit => 2004,
             tag => 2004
         },
         {
             interface => 'ge-0/0/2',
+            unit => 2004,
             tag => 2004
         }
     ],
@@ -178,7 +191,9 @@ my $expected_config = '<configuration>
         <name>2004</name>
         <description>OESS-L2VPLS-3012</description>
         <encapsulation>vlan-vpls</encapsulation>
+        
         <vlan-id>2004</vlan-id>
+        
         <output-vlan-map>
           <swap/>
         </output-vlan-map>
@@ -191,7 +206,9 @@ my $expected_config = '<configuration>
         <name>2004</name>
         <description>OESS-L2VPLS-3012</description>
         <encapsulation>vlan-vpls</encapsulation>
+        
         <vlan-id>2004</vlan-id>
+        
         <output-vlan-map>
           <swap/>
         </output-vlan-map>

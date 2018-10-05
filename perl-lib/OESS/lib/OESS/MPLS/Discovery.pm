@@ -45,8 +45,10 @@ use GRNOC::RabbitMQ::Method;
 use GRNOC::RabbitMQ::Dispatcher;
 use OESS::RabbitMQ::Client;
 use OESS::RabbitMQ::Dispatcher;
+use GRNOC::WebService::Client;
 use GRNOC::WebService::Regex;
 use OESS::Database;
+use JSON::XS;
 
 use OESS::MPLS::Discovery::Interface;
 use OESS::MPLS::Discovery::LSP;
@@ -61,21 +63,25 @@ use AnyEvent;
 
 use constant MPLS_TABLE => 'mpls.0';
 use constant VPLS_TABLE => 'bgp.l2vpn.0';
+use constant MAX_TSDS_MESSAGES => 30;
+use constant TSDS_RIB_TYPE => 'rib_table';
+use constant TSDS_PEER_TYPE => 'bgp_peer';
+use constant VRF_STATS_INTERVAL => 60;
 
 =head2 new
-    instantiates a new OESS::MPLS::Discovery object, which intern creates new 
-    instantiations of 
+
+instantiates a new OESS::MPLS::Discovery object, which intern creates
+new instantiations of
 
     OESS::MPLS::Discovery::Interface
     OESS::MPLS::Discovery::LSP
     OESS::MPLS::Discovery::ISIS
-    
-    this then schedules timed events to handle our data requests and processing
-    from the other modules.  This module also will handle new device additions
-    and initial device population
+
+this then schedules timed events to handle our data requests and
+processing from the other modules.  This module also will handle new
+device additions and initial device population
 
 =cut
-
 sub new{
     my $class = shift;
     #process our args
@@ -107,6 +113,12 @@ sub new{
     $self->{'path'} = $self->_init_paths();
     die if (!defined($self->{'path'}));
     
+    my $tsds_conf = $self->{'db'}->{'configuration'}->{'tsds'};
+    $self->{'tsds_svc'} = GRNOC::WebService::Client->new( url => $tsds_conf->{'url'} . "/push.cgi",
+                                                          uid => $tsds_conf->{'username'},
+                                                          passwd => $tsds_conf->{'password'},
+                                                          usePost => 1,
+                                                          debug => 1);
 
     #create the client for talking to our Discovery switch objects!
     $self->{'rmq_client'} = OESS::RabbitMQ::Client->new( timeout => 120,
@@ -120,6 +132,7 @@ sub new{
     $self->{'lsp_timer'} = AnyEvent->timer( after => 100, interval => 200, cb => sub { $self->lsp_handler(); });
     $self->{'isis_timer'} = AnyEvent->timer( after => 800, interval => 120, cb => sub { $self->isis_handler(); } );
     $self->{'path_timer'} = AnyEvent->timer( after => 50, interval => 300, cb => sub { $self->path_handler(); });
+    $self->{'vrf_stats_time'} = AnyEvent->timer( after => 20, interval => VRF_STATS_INTERVAL, cb => sub { $self->vrf_stats_handler(); });
 
     #our dispatcher for receiving events (only new_switch right now)    
     my $dispatcher = OESS::RabbitMQ::Dispatcher->new( queue => 'MPLS-Discovery',
@@ -153,7 +166,6 @@ sub new{
 this sets up our dispatcher to receive remote events
 
 =cut
-
 sub register_rpc_methods{
     my $self = shift;
     my $d = shift;
@@ -172,12 +184,11 @@ sub register_rpc_methods{
 
 =head2 new_switch
 
-this is called when a new switch is added to the network... the job
-of this module is to add the device and its interfaces (and links) 
-to the OESS database for future provisioning use
+this is called when a new switch is added to the network... the job of
+this module is to add the device and its interfaces (and links) to the
+OESS database for future provisioning use
 
 =cut
-
 sub new_switch{
     my $self = shift;
     my $m_ref = shift;
@@ -201,13 +212,12 @@ sub new_switch{
 
 
 =head2 make_baby
-make baby is a throw back to sherpa...
-have to give Ed the credit for most
-awesome function name ever
 
-really this creates a switch object that can
-handle our RabbitMQ requests and returns results
-from the device
+make baby is a throw back to sherpa...  have to give Ed the credit for
+most awesome function name ever
+
+really this creates a switch object that can handle our RabbitMQ
+requests and returns results from the device
 
 =cut
 sub make_baby{
@@ -257,7 +267,11 @@ sub run{
     $self->{'children'}->{$id}->{'rpc'} = 1;
 }
 
-#initialize our sub modules...
+=head2 _init_interfaces
+
+initialize our sub modules...
+
+=cut
 sub _init_interfaces{
     my $self = shift;
     
@@ -270,6 +284,9 @@ sub _init_interfaces{
     return $ints;
 }
 
+=head2 _init_lsp
+
+=cut
 sub _init_lsp{
     my $self = shift;
 
@@ -282,6 +299,9 @@ sub _init_lsp{
 
 }
 
+=head2 _init_isis
+
+=cut
 sub _init_isis{  
     my $self = shift;
 
@@ -294,6 +314,9 @@ sub _init_isis{
 
 }
 
+=head2 _init_paths
+
+=cut
 sub _init_paths{
     my $self = shift;
     my $paths = OESS::MPLS::Discovery::Paths->new( db => $self->{'db'} );
@@ -408,7 +431,6 @@ sub path_handler {
 =head2 lsp_handler
 
 =cut
-
 sub lsp_handler{
     my $self = shift;
     
@@ -443,7 +465,6 @@ sub lsp_handler{
 =head2 isis_handler
 
 =cut
-
 sub isis_handler{
     my $self = shift;
 
@@ -478,7 +499,6 @@ sub isis_handler{
 =head2 device_handler
 
 =cut
-
 sub device_handler{
     my $self =shift;
     foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
@@ -499,10 +519,131 @@ sub device_handler{
     
 }
 
+=head2 vrf_stats_handler
+
+=cut
+sub vrf_stats_handler{
+    my $self = shift;
+    $self->{'logger'}->debug("Attempting to pull VRF stats");
+    foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
+	$self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
+	my $start = [gettimeofday];
+	$self->{'rmq_client'}->get_vrf_stats( async_callback => $self->handle_response( cb => sub {
+	    my $res = shift;
+	    if(defined($res->{'error'})){
+		my $addr = $node->{'mgmt_addr'};
+		my $err = $res->{'error'};
+		$self->{'logger'}->error("Error calling get_vrf_stats on $addr: $err");
+		return;
+	    }
+	    $self->{'logger'}->debug("Total Time for get_vrf_stats " . $node->{'mgmt_addr'} . " call: " . tv_interval($start,[gettimeofday]));
+	    $self->handle_vrf_stats(node => $node, stats => $res->{'results'});
+											}));
+    }
+}
+
+=head2 handle_vrf_stats
+
+=cut
+sub handle_vrf_stats{
+    my $self = shift;
+    my %params = @_;
+    
+    my $node = $params{'node'};
+    my $stats = $params{'stats'};
+
+    my $rib_stats = $stats->{'rib_stats'};
+    my $peer_stats = $stats->{'peer_stats'};
+
+    my $time = time();
+    my $tsds_val = ();
+    $self->{'logger'}->debug("Handling RIB stats: " . Dumper($rib_stats));
+    while (scalar(@$rib_stats) > 0){
+        my $rib = shift @$rib_stats;
+        my $meta = { routing_table => $rib->{'vrf'},
+                     node => $node->{'name'}};
+
+        delete $rib->{'vrf'};
+
+        push(@$tsds_val, { type => TSDS_RIB_TYPE,
+                           time => $time,
+                           interval => VRF_STATS_INTERVAL,
+                           values => $rib,
+                           meta => $meta});
+
+        if(scalar(@$tsds_val) >= MAX_TSDS_MESSAGES || scalar(@$rib_stats) == 0){
+            $self->{'logger'}->debug(Dumper($self->{'tsds_svc'}->add_data(data => encode_json($tsds_val))));
+            $tsds_val = ();
+        }
+    }
+
+    $self->{'logger'}->debug("Handling Peer stats: " . Dumper($peer_stats));
+
+    $self->{'db'}->_start_transaction();
+
+    while (scalar(@$peer_stats) > 0){
+        my $peer = shift @$peer_stats;
+        my $meta = { peer_address => $peer->{'address'},
+                     vrf => $peer->{'vrf'},
+                     as => $peer->{'as'},
+                     node => $node->{'name'}};
+
+        my $prev =  $self->{'previous_peer'}->{$node->{'name'}}->{$peer->{'vrf'}}->{$peer->{'address'}};
+        if(!defined($prev)){
+            warn "No previous peer defined: " . Dumper($meta);
+            $self->{'previous_peer'}->{$node->{'name'}}->{$peer->{'vrf'}}->{$peer->{'address'}} = $peer;
+            next;
+        }
+
+        my $vals;
+        
+        $vals->{'output_messages'} = ($peer->{'output_messages'} - $prev->{'output_messages'}) / VRF_STATS_INTERVAL;
+        $vals->{'input_messages'} = ($peer->{'input_messages'} - $prev->{'input_messages'}) / VRF_STATS_INTERVAL;
+        $vals->{'route_queue_count'} = $peer->{'route_queue_count'};
+        
+        if($peer->{'state'} ne 'Established'){
+            $vals->{'state'} = 0;
+        }else{
+            $vals->{'state'} = 1;
+        }
+
+        my $vrf = $peer->{'vrf'};
+        my $vrf_id;
+        if($vrf =~ /OESS-L3VPN/){
+            $vrf =~ /OESS-L3VPN-(\d+)/;
+            $vrf_id = $1;
+        }
+
+        warn "Processing VRF: " . $vrf . "\n";
+        warn "VRF ID: " . $vrf_id . "\n";
+
+        if(defined($vrf_id)){
+            warn "Updating VRF EP Peer " . $peer->{'address'} . " with status: " . $vals->{'state'} . " in VRF: " . $vrf_id . "\n";
+            my $res = $self->{'db'}->_execute_query("update vrf_ep_peer set operational_state = ? where peer_ip like ? and vrf_ep_id in (select vrf_ep_id from vrf_ep where vrf_id = ?)",[$vals->{'state'},$peer->{'address'} . "/%",$vrf_id]);
+            warn Dumper($res);
+        }
+
+        $vals->{'flap_count'} = $peer->{'flap_count'};
+
+        push(@$tsds_val, { type => TSDS_PEER_TYPE,
+                           time => $time,
+                           interval => VRF_STATS_INTERVAL,
+                           values => $vals,
+                           meta => $meta});
+
+        if(scalar(@$tsds_val) >= MAX_TSDS_MESSAGES || scalar(@$peer_stats) == 0){
+            $self->{'logger'}->debug("Sending: " . Dumper($tsds_val));
+            $self->{'logger'}->debug(Dumper("Response: " . Dumper($self->{'tsds_svc'}->add_data(data => encode_json($tsds_val)))));
+            $tsds_val = ();
+        }
+        
+    }   
+    $self->{'db'}->_commit();
+}
+
 =head2 handle_system_info
 
 =cut
-
 sub handle_system_info{
     my $self = shift;
     my %params = @_;
@@ -518,7 +659,6 @@ sub handle_system_info{
 =head2 handle_links
 
 =cut
-
 sub handle_links{
     my $self = shift;
     my $adjs = shift;
@@ -709,7 +849,6 @@ sub handle_links{
 =head2 get_active_link_id_by_connectors
 
 =cut
-
 sub get_active_link_id_by_connectors{
     my $self = shift;
     my %args = @_;
@@ -745,16 +884,13 @@ sub get_active_link_id_by_connectors{
     return undef;
 }
 
-
 =head2 handle_response
 
-    this returns a callback for when we get our sync data reply
-    it looks complicated but really it takes a callback function
-    and returns a subroutine that calls it
+this returns a callback for when we get our sync data reply it looks
+complicated but really it takes a callback function and returns a
+subroutine that calls it
 
 =cut
-
-
 sub handle_response{
     my $self = shift;
     my %params = @_;
@@ -774,7 +910,6 @@ Sends a shutdown signal on MPLS.FWDCTL.event.stop. Child processes
 should listen for this signal and cleanly exit when received.
 
 =cut
-
 sub stop {
     my $self = shift;
 

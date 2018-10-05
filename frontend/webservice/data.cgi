@@ -40,6 +40,7 @@ use URI::Escape;
 use GRNOC::WebService;
 
 use OESS::Circuit;
+use OESS::VRF;
 use OESS::Database;
 use OESS::Webservice;
 
@@ -344,6 +345,25 @@ sub register_webservice_methods {
     #register the get_circuit_details() method
     $svc->register_method($method);
 
+        #get_circuit_details
+    $method = GRNOC::WebService::Method->new(
+        name            => "get_vrf_details",
+        description     => "returns all of the details for a given vrf",
+	callback        => sub { get_vrf_details ( @_ ) }
+	);
+
+    #add the required input parameter circuit_id
+    $method->add_input_parameter(
+        name            => 'vrf_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "The id of the vrf to fetch details for."
+    );
+
+    #register the get_vrf_details() method
+    $svc->register_method($method);
+
+
     #get_circuit_details_by_external_identifier
     $method = GRNOC::WebService::Method->new(
 	name            => "get_circuit_details_by_external_identifier",
@@ -428,6 +448,15 @@ sub register_webservice_methods {
         pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 1,
         description     => "The vlan tag to check the availability of on the node/interface combination."
+        );
+
+    #add the optional input paramter inner_vlan
+    $method->add_input_parameter(
+        name            => 'inner_vlan',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        default         => undef,
+        description     => "The inner vlan tag to check the availability of on the node/interface combination."
         );
 
     #add the required input paramter workgroup_id
@@ -722,6 +751,10 @@ sub get_workgroups {
 	return;
     }
     else {
+
+	foreach my $workgroup (@$workgroups) {
+	    $workgroup->{username} = $username;
+	}
         $results->{'results'} = $workgroups;
     }
 
@@ -794,23 +827,19 @@ sub get_workgroup_interfaces {
 }
 
 sub is_vlan_tag_available {
-    
     my ( $method, $args ) = @_ ;
-    my $results;
-
-    $results->{'results'} = [];
 
     my $interface    = $args->{'interface'}{'value'};
     my $node         = $args->{'node'}{'value'};
     my $vlan_tag     = $args->{'vlan'}{'value'};
+    my $inner_vlan_tag = $args->{'inner_vlan'}{'value'};
     my $workgroup_id = $args->{'workgroup_id'}{'value'};
 
     my $interface_id = $db->get_interface_id_by_names(
         node      => $node,
         interface => $interface
     );
-
-    if ( !defined $interface_id ) {
+    if (!defined $interface_id) {
 	$method->set_error( "Unable to find interface '$interface' on endpoint '$node'" );
 	return;
     }
@@ -820,31 +849,24 @@ sub is_vlan_tag_available {
         vlan         => $vlan_tag,
         workgroup_id => $workgroup_id
     );
-
-    warn "VLAN TAG ACCESSIBLE: " . $is_vlan_tag_accessible . "\n";
-
-    if(!$is_vlan_tag_accessible) {
-        if(!defined($is_vlan_tag_accessible)){
-	    $method->set_error( $db->get_error() );
-	    return;
-        } else {
-            return { results => [{ "available" => 0 }] };
-        }
+    if (!defined $is_vlan_tag_accessible) {
+        $method->set_error($db->get_error());
+        return;
+    }
+    if (!$is_vlan_tag_accessible) {
+        return { results => [{ available => 0 }] };
     }
 
     my $is_available = $db->is_external_vlan_available_on_interface(
         vlan         => $vlan_tag,
+        inner_vlan   => $inner_vlan_tag,
         interface_id => $interface_id
     );
-
-    if ($is_available->{'status'}) {
-        push( @{ $results->{'results'} }, { "available" => 1, type => $is_available->{'type'} } );
+    if (!defined $is_available) {
+        $method->set_error($db->get_error());
+        return;
     }
-    else {
-        push( @{ $results->{'results'} }, { "available" => 0, type => $is_available->{'type'}} );
-    }
-
-    return $results;
+    return { results => [{ available => $is_available->{status}, type => $is_available->{type} }] };
 }
 
 sub get_vlan_tag_range {
@@ -929,6 +951,25 @@ sub get_circuit_history {
     }
     else {
         $results->{'results'} = $events;
+    }
+
+    return $results;
+}
+
+sub get_vrf_details{
+    my $results;
+
+    my ( $method, $args ) = @_ ;
+    my $vrf_id = $args->{'vrf_id'}{'value'};
+
+    my $vrf = OESS::VRF->new( vrf_id => $vrf_id, db => $db);
+    my $details = $vrf->get_details();
+    if ( !defined $details ) {
+        $method->set_error( $db->get_error() );
+        return;
+    }
+    else {
+        $results->{'results'} = $details;
     }
 
     return $results;

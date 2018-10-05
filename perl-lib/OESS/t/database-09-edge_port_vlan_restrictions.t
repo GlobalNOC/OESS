@@ -22,16 +22,15 @@ use Data::Dumper;
 
 my $db = OESS::Database->new(config => OESSDatabaseTester::getConfigFilePath());
 
-my $interfaces = $db->get_node_interfaces( node => 'Node 1');
+my $interfaces = $db->get_node_interfaces(node => 'Node 1', show_down => 1);
 
 my $is_broken = 0;
 foreach my $interface (@$interfaces){
     if($interface->{'vlan_tag_range'} eq '1-4095'){
 	
     }else{
-	$is_broken = 1;
+        $is_broken = 1;
     }
-
 }
 
 ok($is_broken == 0, "All interfaces have vlan range 1-4095");

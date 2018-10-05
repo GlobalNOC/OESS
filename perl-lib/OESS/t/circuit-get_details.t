@@ -78,6 +78,8 @@ cmp_deeply($details,{
             'node_id' => '21',
             'urn' => undef,
             'interface' => 'e15/2',
+            'unit' => '105',
+            'inner_tag' => undef,
             'tag' => '105',
             'role' => 'unknown'
         },
@@ -90,6 +92,8 @@ cmp_deeply($details,{
             'node_id' => '81',
             'urn' => undef,
             'interface' => 'e15/2',
+            'unit' => '105',
+            'inner_tag' => undef,
             'tag' => '105',
             'role' => 'unknown'
         }

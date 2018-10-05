@@ -1,0 +1,89 @@
+.entity-discovery {
+    display: grid;
+    grid-gap: 15px;
+
+    grid-template-columns: minmax(200px, max-content) auto;
+    grid-template-rows: max-content 1fr;
+}
+
+.entity-nav {
+    grid-column: 1 / 2;
+    grid-row:    1 / 3;
+
+    padding-top: 15px;
+}
+
+.entity-header {
+    grid-column: 2 / 3;
+    grid-row: 1 / 2;
+
+    display: flex;
+
+    margin-bottom: 15px;
+}
+
+.entity-logo {
+    height: 128px;
+    width: 128px;
+
+    border-style: solid;
+    border-width: 3px;
+    border-color: #495057;
+
+    margin-top: 18px;
+    margin-right: 15px;
+}
+
+.entity-content {
+    grid-column: 2 / 3;
+    grid-row: 2 / 3;
+
+    display: flex;
+    flex-direction: column;
+}
+
+.entity-contacts {
+    display: flex;
+}
+
+.entity-contact {
+    margin-right: 15px;
+}
+
+.entity-children {
+    display: flex;
+}
+
+.entity-child {
+    margin-right: 15px;
+}
+
+.entity-child-img {
+    height: 32px;
+    width: 32px;
+
+    margin-right: 8px;
+    vertical-align: text-top;
+}
+
+.entity-map {
+    display: flex;
+
+    margin-top: 15px;
+}
+
+.entity-interfaces {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.entity-interface {
+    margin-right: 15px;
+}
+
+.entity-actions {
+    display: flex;
+
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
