@@ -88,7 +88,7 @@ Requires: perl(XML::Writer)
 Requires: perl(XML::LibXML::XPathContext)
 Requires: grnoc-routerproxy >= 2.0.1
 
-Provides: perl-OESS-Circuit, perl-OESS-Database, perl-OESS-DBus, perl-OESS-Topology,perl-OESS-Measurement,perl-OESS-FlowRule,perl(OESS::DB::Command),perl(OESS::Workgroup),perl(OESS::Cloud::AWS),perl(OESS::DB::User),perl(OESS::Cloud),perl(OESS::DB),perl(OESS::Interface),perl(OESS::Entity),perl(OESS::VRF),perl(OESS::DB::VRF),perl(OESS::DB::Entity)
+Provides: perl-OESS-Circuit, perl-OESS-Database, perl-OESS-DBus, perl-OESS-Topology,perl-OESS-Measurement,perl-OESS-FlowRule,perl(OESS::DB::Command),perl(OESS::Workgroup),perl(OESS::Cloud::AWS),perl(OESS::DB::User),perl(OESS::Cloud),perl(OESS::DB),perl(OESS::Interface),perl(OESS::Entity),perl(OESS::VRF),perl(OESS::DB::VRF),perl(OESS::DB::Entity),perl(OESS::WebService)
 Obsoletes: perl-OESS-Circuit, perl-OESS-Database, perl-OESS-DBus, perl-OESS-Topology,perl-OESS-Measurement,perl-OESS-FlowRule
 
 AutoReq: no
