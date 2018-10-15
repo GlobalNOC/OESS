@@ -63,7 +63,7 @@ cmp_deeply($interface->acls()->{'acls'}
 ok(($interface->node)->node_id eq ($test_interface->{'node_id'}), "The method node() returns the correct node");
 
 
-cmp_deeply($interface->mpls_vlan_tag_range() eq $test_interface->{'mpls_vlan_tag_range'}
+cmp_deeply($interface->mpls_vlan_tag_range(), $test_interface->{'mpls_vlan_tag_range'}
 		, "The method mpls_vlan_tag_range() returns the expected result");
 
 ### Test : used_vlans ###
