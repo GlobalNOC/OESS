@@ -134,6 +134,8 @@ cmp_deeply($res,{
                              'node_id' => '111',
                              'urn' => undef,
                              'interface' => 'e3/1',
+                             'unit' => '104',
+                             'inner_tag' => undef,
                              'tag' => '104',
                              'role' => 'unknown',
                              'mac_addrs' => []
@@ -145,6 +147,8 @@ cmp_deeply($res,{
                              'port_no' => '2',
                              'node_id' => '31',
                              'urn' => undef,
+                             'inner_tag' => undef,
+                             'unit' => '2068',
                              'interface' => 'e1/2',
                              'tag' => '2068',
                              'role' => 'unknown',

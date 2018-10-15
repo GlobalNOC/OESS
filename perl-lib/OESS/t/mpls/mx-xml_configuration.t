@@ -29,7 +29,9 @@ my $exp_xml = '<configuration>
         <name>2004</name>
         <description>OESS-L2VPLS-3012</description>
         <encapsulation>vlan-vpls</encapsulation>
+        
         <vlan-id>2004</vlan-id>
+        
         <output-vlan-map>
           <swap/>
         </output-vlan-map>
@@ -42,7 +44,9 @@ my $exp_xml = '<configuration>
         <name>2004</name>
         <description>OESS-L2VPLS-3012</description>
         <encapsulation>vlan-vpls</encapsulation>
+        
         <vlan-id>2004</vlan-id>
+        
         <output-vlan-map>
           <swap/>
         </output-vlan-map>
@@ -90,10 +94,12 @@ my $conf = $device->xml_configuration(
         interfaces => [
             {
                 interface => 'ge-0/0/1',
+                unit => 2004,
                 tag => 2004
             },
             {
                 interface => 'ge-0/0/2',
+                unit => 2004,
                 tag => 2004
             }
         ],
@@ -103,7 +109,9 @@ my $conf = $device->xml_configuration(
         state => 'active',
         ckt_type => 'L2VPLS'
     }],
+    [],
     ''
 );
 
+warn "XML: " . $conf . "\n";
 ok($conf eq $exp_xml, "Got expected xml");

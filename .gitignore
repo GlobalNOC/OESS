@@ -3,6 +3,8 @@
 *.old
 #*
 .#*
+.*.swp
+.*.swo
 app/dist
 frontend/dist
 perl-lib/OESS/Makefile

@@ -1,0 +1,57 @@
+<div>
+  <!-- Latest compiled and minified CSS -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+  <!-- Latest compiled and minified JavaScript -->
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+
+  <script>
+    [% INCLUDE js_templates/api/vrf.js %]
+    [% INCLUDE js_templates/api/command.js  %]
+    [% INCLUDE js_templates/api/interfaces.js  %]
+    [% INCLUDE js_templates/view_l3vpn.js %]
+  </script>
+
+  <div class="row" style="margin-bottom: 15px">
+    <div class="col-md-6">
+      <h2 id="description"></h2>
+      <div id="vrf-id" style="display: none;"></div>
+    </div>
+    <div class="col-md-6" style="margin-top: 30px; text-align: right;">
+      <button id="edit-vrf-button" class="btn btn-success" type="button">Edit VRF</button>
+      <button id="delete-vrf-button" class="btn btn-danger" type="button">Remove VRF</button>
+    </div>
+  </div>
+
+  <div class="row" style="margin-bottom: 15px">
+    <div class="col-md-12">
+      <ul class="nav nav-tabs" role="tablist">
+        <li role="presentation" class="active">
+          <a href="#details" aria-controls="details" role="tab" data-toggle="tab" onclick="updateStatisticsIFrame()">Details</a>
+        </li>
+        <li role="presentation">
+          <a href="#statistics" aria-controls="statistics" role="tab" data-toggle="tab" onclick="updateStatisticsIFrame()">Statistics</a>
+        </li>
+        <li role="presentation">
+          <a href="#commands" aria-controls="commands" role="tab" data-toggle="tab" onclick="updateStatisticsIFrame()">Commands</a>
+        </li>
+      </ul>
+
+      <div class="tab-content">
+        <div role="tabpanel" class="tab-pane active" id="details">
+          <br/>
+          [% INCLUDE html_templates/view_l3vpn/details.html %]
+        </div>
+        <div role="tabpanel" class="tab-pane" id="statistics">
+          <br/>
+          [% INCLUDE html_templates/view_l3vpn/statistics.html %]
+        </div>
+        <div role="tabpanel" class="tab-pane" id="commands">
+          <br/>
+          [% INCLUDE html_templates/view_l3vpn/commands.html %]
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

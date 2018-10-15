@@ -182,6 +182,27 @@ sub _register_rpc_methods{
                                   required => 1,
                                   pattern => $GRNOC::WebService::Regex::NUMBER_ID);
     $dispatcher->register_method($method);
+    
+    $method = GRNOC::RabbitMQ::Method->new( name => "add_vrf",
+                                            description => "adds a vrf for this switch",
+                                            callback => sub { return {status => $self->add_vrf(@_) }});
+    
+    $method->add_input_parameter( name => "vrf_id",
+                                  description => "vrf_id to be added",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::NUMBER_ID);
+    $dispatcher->register_method($method);
+    
+    $method = GRNOC::RabbitMQ::Method->new( name => "remove_vrf",
+                                            description => "removes a vrf from this switch",
+                                            callback => sub { return {status => $self->remove_vrf(@_) }});
+
+    $method->add_input_parameter( name => "vrf_id",
+                                  description => "vrf_id to be removed",
+                                  required => 1,
+                                  pattern => $GRNOC::WebService::Regex::NUMBER_ID);
+    $dispatcher->register_method($method);
+
 
     $method = GRNOC::RabbitMQ::Method->new( name => "echo",
                                             description => " just an echo to check to see if we are aliave",
@@ -251,6 +272,13 @@ sub _register_rpc_methods{
                                                 $self->get_lsp_paths(@_);
                                             },
                                             description => "for each LSP on the switch, provides a list of link addresses");
+    $dispatcher->register_method($method);
+
+    $method = GRNOC::RabbitMQ::Method->new( name => "get_vrf_stats",
+                                            callback => sub {
+                                                $self->get_vrf_stats(@_);
+                                            }, description => "Get VRF BGP Stats");
+
     $dispatcher->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name        => "is_connected",
@@ -337,11 +365,23 @@ sub _update_cache {
         $self->{'ckts'}->{$ckt} = $data->{'ckts'}->{$ckt};
     }
 
+    foreach my $vrf (keys %{$self->{'vrfs'}}){
+	delete $self->{'vrfs'}->{$vrf};
+    }
+
+    foreach my $vrf (keys %{$data->{'vrfs'}}) {
+        $self->{'logger'}->debug("Processing cache for vrf $vrf");
+
+        $data->{'vrfs'}->{$vrf}->{'vrf_id'} = $vrf;
+        $self->{'vrfs'}->{$vrf} = $data->{'vrfs'}->{$vrf};
+    }
+    
+
     if ($self->{'node'}->{'name'}) {
         $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.FWDCTL.Switch.'.$self->{'node'}->{'name'});
     }
 
-    $self->{'logger'}->info("Loaded circuits from cache file $self->{'share_file'}");
+    $self->{'logger'}->info("Loaded circuits / VRFs from cache file $self->{'share_file'}");
     return 1;
 }
 
@@ -435,6 +475,54 @@ sub remove_vlan{
     return $res;
 }
 
+=head2 add_vrf
+
+adds a VRF to the device
+
+=cut
+sub add_vrf{
+
+    my $self = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    my $vrf = $p_ref->{'vrf_id'}{'value'};
+
+    $self->{'logger'}->error("Calling add_vrf: " . $vrf);
+
+    $self->_update_cache();
+
+    my $vrf_obj = $self->_generate_vrf_commands( $vrf );
+
+    return $self->{'device'}->add_vrf($vrf_obj);
+}
+
+
+=head2 remove_vrf
+
+  removes a VRF from this switch
+
+=cut
+
+sub remove_vrf{
+    my $self = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    my $vrf = $p_ref->{'vrf_id'}{'value'};
+
+    $self->{'logger'}->debug("Calling remove_vrf: " . $vrf);
+
+    $self->_update_cache();
+
+    my $vrf_obj = $self->_generate_vrf_commands( $vrf );
+
+    my $res = $self->{'device'}->remove_vrf($vrf_obj);
+    $self->{'logger'}->debug("after remove vrf");
+    $self->{'logger'}->debug("Results: " . Data::Dumper::Dumper($res));
+    return $res;
+}
+
 =head2 diff
 
 Proxies diff signal to the underlying device object.
@@ -450,14 +538,15 @@ sub diff {
     $self->{'logger'}->debug("Calling Switch.diff");
     $self->_update_cache();
 
-    my $to_be_removed = $self->{'device'}->get_config_to_remove( circuits => $self->{'ckts'} );
+    $self->{'logger'}->debug("Active VRFS: " . Dumper($self->{'vrfs'}));
+    my $to_be_removed = $self->{'device'}->get_config_to_remove( circuits => $self->{'ckts'}, vrfs => $self->{'vrfs'} );
     if (!defined $to_be_removed) {
         $self->{'logger'}->error('Could not communicate with device.');
         return FWDCTL_FAILURE;
     }
     $self->{'logger'}->debug("Config to remove: " . Dumper($to_be_removed));
 
-    return $self->{'device'}->diff(circuits => $self->{'ckts'}, force_diff =>  $force_diff, remove => $to_be_removed);
+    return $self->{'device'}->diff(circuits => $self->{'ckts'}, vrfs => $self->{'vrfs'}, force_diff =>  $force_diff, remove => $to_be_removed);
 }
 
 =head2 get_diff_text
@@ -471,8 +560,9 @@ sub get_diff_text {
 
     $self->{'logger'}->debug("Calling Switch.get_diff_text");
     $self->_update_cache();
-    my $to_be_removed = $self->{'device'}->get_config_to_remove( circuits => $self->{'ckts'} );
-    my $diff = $self->{'device'}->get_diff_text(circuits => $self->{'ckts'}, remove => $to_be_removed);
+    $self->{'logger'}->debug("Active VRFS: " . Dumper($self->{'vrfs'}));
+    my $to_be_removed = $self->{'device'}->get_config_to_remove( circuits => $self->{'ckts'}, vrfs => $self->{'vrfs'} );
+    my $diff = $self->{'device'}->get_diff_text(circuits => $self->{'ckts'}, vrfs => $self->{'vrfs'}, remove => $to_be_removed);
     if (!defined $diff) {
         return 'No diff required at this time.';
     }
@@ -539,6 +629,19 @@ sub get_LSPs{
     return $self->{'device'}->get_LSPs();
 }
 
+
+=head2 get_vrf_stats
+
+=cut
+
+sub get_vrf_stats{
+    my $self = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    return $self->{'device'}->get_vrf_stats();
+}
+
 =head2 get_lsp_paths
 
 returns a map from LSP-name to [array of IP addresses for links along the LSP path]
@@ -560,6 +663,15 @@ sub _generate_commands{
 
     my $obj = $self->{'ckts'}->{$ckt_id};
     $obj->{'circuit_id'} = $ckt_id;
+    return $obj;
+}
+
+sub _generate_vrf_commands{
+    my $self = shift;
+    my $vrf_id = shift;
+
+    my $obj = $self->{'vrfs'}->{$vrf_id};
+    $obj->{'vrf_id'} = $vrf_id;
     return $obj;
 }
 

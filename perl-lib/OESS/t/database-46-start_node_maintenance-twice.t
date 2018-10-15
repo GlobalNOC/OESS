@@ -26,7 +26,7 @@ ok(defined(OESS::Database::ERR_NODE_ALREADY_IN_MAINTENANCE), 'ERR_NODE_ALREADY_I
 my $res = $db->start_node_maintenance(41, 'a random description');
 
 ok(defined($res), 'we can put a node into maintenance mode');
-ok(defined($res->{'node'}) && $res->{'node'}->{'name'} == 'Node 41', 'the right node was put into maintenance mode');
+ok(defined($res->{'node'}) && $res->{'node'}->{'name'} eq 'Node 41', 'the right node was put into maintenance mode');
 
 # We try to put the node into maintenance mode while it's already in
 # maintenance mode; it should fail

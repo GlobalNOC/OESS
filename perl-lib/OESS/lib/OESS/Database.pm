@@ -31,11 +31,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 1.2.5
+Version 2.0.0
 
 =cut
 
-our $VERSION = '1.2.5';
+our $VERSION = '2.0.0';
 
 =head1 SYNOPSIS
 
@@ -83,7 +83,7 @@ use Data::Dumper;
 
 use Socket qw( inet_aton inet_ntoa);
 
-use constant VERSION => '1.2.5';
+use constant VERSION => '2.0.0';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant OESS_PW_FILE => "/etc/oess/.passwd.xml";
@@ -211,6 +211,47 @@ sub reconnect{
     $dbh->{'mysql_auto_reconnect'}   = 1;
     $self->{'dbh'}                   = $dbh;
 
+}
+
+=head2 find_available_unit
+
+=cut
+sub find_available_unit{
+    my $self = shift;
+    my %params = @_;
+    my $interface_id = $params{'interface_id'};
+    my $tag = $params{'tag'};
+    my $inner_tag = $params{'inner_tag'};
+
+    if(!defined($inner_tag)){
+        return $tag;
+    }
+
+    $self->{'logger'}->error("Finding units for interface: " . $interface_id);
+
+    #find available unit > 5000
+    my $used_vrf_units = $self->_execute_query("select unit from vrf_ep where unit > 5000 and state = 'active' and interface_id= ?",[$interface_id]);
+    my $used_circuit_units = $self->_execute_query("select unit from circuit_edge_interface_membership where interface_id = ? and end_epoch = -1 and circuit_id in (select circuit.circuit_id from circuit join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id and circuit.circuit_state = 'active' and circuit_instantiation.circuit_state = 'active' and circuit_instantiation.end_epoch = -1)",[$interface_id]);
+    $self->{'logger'}->error("Used Circuit Ints: " . Dumper($used_circuit_units));
+    
+    my %used;
+
+    foreach my $used_vrf_unit (@$used_vrf_units){
+        $used{$used_vrf_unit->{'unit'}} = 1;
+    }
+
+    foreach my $used_circuit_units (@{$used_circuit_units}){
+        $used{$used_circuit_units->{'unit'}} = 1;
+    }
+
+    for(my $i=5000;$i<16000;$i++){
+        $self->{'logger'}->error("Checking to see if unit $i is already used by OESS");
+        if(defined($used{$i}) && $used{$i} == 1){
+            next;
+        }
+        $self->{'logger'}->error("$i is available");
+        return $i;
+    }
 }
 
 =head2 compare_versions
@@ -670,82 +711,79 @@ sub is_external_vlan_available_on_interface {
     my %args = @_;
 
     my $vlan_tag     = $args{'vlan'};
+    my $inner_vlan_tag = $args{'inner_vlan'};
     my $interface_id = $args{'interface_id'};
     my $circuit_id = $args{'circuit_id'};
 
+    my $type = 'openflow';
+
     if(!defined($interface_id)){
         $self->_set_error("No Interface ID Specified");
-        return undef;
+        return;
     }
 
     if(!defined($vlan_tag)){
         $self->_set_error("No VLAN Tag specified");
-        return undef;
+        return;
     }
 
     my $query = "select circuit.name, circuit.circuit_id from circuit join circuit_edge_interface_membership " .
                 " on circuit.circuit_id = circuit_edge_interface_membership.circuit_id " .
                 " where circuit_edge_interface_membership.interface_id = ? " .
                 " and circuit_edge_interface_membership.extern_vlan_id = ? " .
+                " and circuit_edge_interface_membership.inner_tag = ? " .
                 " and circuit_edge_interface_membership.end_epoch = -1";
 
-    my $result = $self->_execute_query($query, [$interface_id, $vlan_tag]);
+    my $result = $self->_execute_query($query, [$interface_id, $vlan_tag, $inner_vlan_tag]);
     if (!defined $result) {
         $self->_set_error("Internal error while finding available external vlan tags.");
         return;
     }
+    foreach my $circuit (@{$result}) {
+        if (defined $circuit_id && $circuit->{'circuit_id'} == $circuit_id) {
+            # There's no problem here; We are editing the circuit.
+            return { status => 1, type => 'openflow' };
+        } else {
+            return { status => 0, type => 'openflow' };
+        }
+    }
 
-    $query = "select * from interface where interface.interface_id = ?";
-    my $interface = $self->_execute_query( $query, [$interface_id])->[0];
+    $query = "select vrf.vrf_id from vrf join vrf_ep on vrf.vrf_id = vrf_ep.vrf_id where vrf.state='active' and vrf_ep.interface_id=? and vrf_ep.tag=? and vrf_ep.inner_tag=?";
+    my $result2 = $self->_execute_query($query, [$interface_id, $vlan_tag, $inner_vlan_tag]);
+    if (!defined $result2) {
+        $self->_set_error("Internal error while finding available vrf vlan tags");
+        return;
+    }
+    foreach my $vrf (@{$result2}) {
+        if (defined $circuit_id && $vrf->{vrf_id} == $circuit_id) {
+            # There's no problem here; We are editing the circuit.
+            return { status => 1, type => 'mpls' };
+        } else {
+            return { status => 0, type => 'mpls' };
+        }
+    }
 
     # Verify $vlan_tag is within the interface's available tag range
+
+    $query = "select * from interface where interface.interface_id = ?";
+    my $interface = $self->_execute_query($query, [$interface_id])->[0];
+
     my $tags = $self->_process_tag_string($interface->{'vlan_tag_range'});
-
-    my $mpls_tags = $self->_process_tag_string($interface->{'mpls_vlan_tag_range'});
-
-    my $type = 'openflow';
-
-    my $available_vlan = 0;
     foreach my $tag (@{$tags}){
         if ($tag == $vlan_tag) {
-            $available_vlan = 1;
+            return { status => 1, type => 'openflow' };
         }
     }
 
-    if ($available_vlan == 0) {
-	foreach my $tag (@{$mpls_tags}){
-	    if ($tag == $vlan_tag) {
-		$available_vlan = 1;
-		$type = 'mpls';
-	    }
-	}
-
-	if($available_vlan == 0){
-
-	    $self->_set_error("VLAN $vlan_tag is not within the default VLAN range.");
-	    return {status => 0, type => $type};
-	}
-    }
-
-    # Verify no other circuit is using $vlan_tag on $interface_id
-    my $err = "VLAN $vlan_tag already in use on another circuit\n";
-    if (@{$result} > 0) {
-        if (defined $circuit_id) {
-            foreach my $circuit (@{$result}) {
-                if ($circuit->{'circuit_id'} == $circuit_id) {
-                    # There's no problem here; We are editing the circuit.
-                } else {
-                    $self->_set_error($err);
-                    return {status => 0, type => $type };
-                }
-            }
-        } else {
-            $self->_set_error($err);
-            return {status => 0, type => $type};
+    my $mpls_tags = $self->_process_tag_string($interface->{'mpls_vlan_tag_range'});
+    foreach my $tag (@{$mpls_tags}){
+        if ($tag == $vlan_tag) {
+            return { status => 1, type => 'mpls' };
         }
     }
 
-    return { status => 1, type => $type };
+    $self->{logger}->error("Couldn't determine if VLAN $vlan_tag was available.");
+    return { status => 0, type => 'openflow' };
 }
 
 =head2 get_user_by_id
@@ -1973,7 +2011,7 @@ sub get_workgroup_interfaces {
 
     my $interfaces = [];
 
-    my $query = "select interface.description,interface.operational_state as operational_state, interface.name as int_name, interface.interface_id, interface.vlan_tag_range, node.name as node_name, node.node_id " .
+    my $query = "select interface.description,interface.operational_state as operational_state, interface.name as int_name, interface.interface_id, interface.vlan_tag_range, interface.cloud_interconnect_id, interface.cloud_interconnect_type, node.name as node_name, node.node_id " .
 	        "from workgroup " .
 		"join interface on interface.workgroup_id = workgroup.workgroup_id " .
 		"join interface_instantiation on (interface.interface_id = interface_instantiation.interface_id and interface_instantiation.end_epoch = -1) " .
@@ -2006,6 +2044,8 @@ sub get_workgroup_interfaces {
 	push(@$interfaces, {"interface_id"   => $row->{'interface_id'},
                             "vlan_tag_range" => $row->{'vlan_tag_range'},
                             "interface_name" => $row->{'int_name'},
+                            "cloud_interconnect_id" => $row->{'cloud_interconnect_id'},
+                            "cloud_interconnect_type" => $row->{'cloud_interconnect_type'},
                             "node_id"        => $row->{'node_id'},
                             "node_name"      => $row->{'node_name'},
                             "remote_links"    => \@remote_links,
@@ -2621,13 +2661,14 @@ sub add_acl {
         $args{'eval_position'},
         $args{'vlan_start'},
         $args{'vlan_end'},
-        $args{'notes'}
+        $args{'notes'},
+        $args{'entity_id'}
     ];
 
     my $user_id = $args{'user_id'};
 
 
-    my $query = "insert into interface_acl (workgroup_id, interface_id, allow_deny, eval_position, vlan_start, vlan_end, notes) values (?,?,?,?,?,?,?)";
+    my $query = "insert into interface_acl (workgroup_id, interface_id, allow_deny, eval_position, vlan_start, vlan_end, notes, entity_id) values (?,?,?,?,?,?,?,?)";
     my $acl_id = $self->_execute_query($query, $args);
 
     if (! defined $acl_id){
@@ -2743,10 +2784,11 @@ sub update_acl {
         }
     }
 
-    $query = "update interface_acl set workgroup_id = ?, allow_deny = ?, eval_position = ?, vlan_start = ?, vlan_end = ?, notes = ? where interface_acl_id = ?";
+    $query = "update interface_acl set workgroup_id = ?, entity_id = ?, allow_deny = ?, eval_position = ?, vlan_start = ?, vlan_end = ?, notes = ? where interface_acl_id = ?";
 
     my $params = [
         $args{'workgroup_id'},
+        $args{'entity_id'},
         $args{'allow_deny'},
         $args{'eval_position'},
         $args{'vlan_start'},
@@ -2899,10 +2941,11 @@ sub get_acls {
     my %args = @_;
 
     my $acls = [];
-    my $sql= "select acl.interface_acl_id, acl.workgroup_id, workgroup.name as workgroup_name, owner_workgroup.workgroup_id as owner_workgroup_id, owner_workgroup.name as owner_workgroup_name, acl.interface_id, interface.name as interface_name, acl.allow_deny, acl.eval_position, acl.vlan_start, acl.vlan_end, acl.notes ";
+    my $sql= "select acl.interface_acl_id, acl.workgroup_id, workgroup.name as workgroup_name, owner_workgroup.workgroup_id as owner_workgroup_id, owner_workgroup.name as owner_workgroup_name, acl.interface_id, interface.name as interface_name, acl.allow_deny, acl.eval_position, acl.vlan_start, acl.vlan_end, acl.notes, entity.entity_id as entity_id, entity.name as entity_name ";
     $sql .= " from workgroup as owner_workgroup";
     $sql .= " join interface on owner_workgroup.workgroup_id = interface.workgroup_id ";
     $sql .= " join interface_acl as acl on acl.interface_id = interface.interface_id ";
+    $sql .= " left join entity on acl.entity_id = entity.entity_id ";
     $sql .= " left join workgroup on acl.workgroup_id = workgroup.workgroup_id ";
     $sql .= " where 1=1 ";
     $sql .= " and owner_workgroup.workgroup_id = ? " if(defined($args{'owner_workgroup_id'}));
@@ -3649,6 +3692,62 @@ sub edit_user {
     return 1;
 }
 
+=head2 get_current_vrfs
+
+=cut
+
+sub get_current_vrfs{
+    my $self = shift;
+    my %args = @_;
+
+    my $res = $self->_execute_query("select * from vrf where vrf.state = 'active'",[]);
+    
+    if(!defined($res)){
+        $self->_set_error("Internal error while getting vrfs");
+        return;
+    }
+
+    my $vrfs;
+
+    foreach my $row (@$res){
+        $vrfs->{$row->{'vrf_id'}} = { 'vrf_id' => $row->{'vrf_id'},
+                                      'name'   => $row->{'name'},
+                                      'description' => $row->{'description'},
+                                      'state' => $row->{'state'},
+                                      'endpoints' => [],
+                                      'workgroup_id' => $row->{'workgroup_id'}};
+        
+        my $eps = $self->_execute_query("select vrf_ep.*, node.name, node.node_id, interface.name as interface from vrf_ep join interface on vrf_ep.interface_id = interface.interface_id join node on interface.node_id = node.node_id where vrf_id = ? and state = 'active'",[$row->{'vrf_id'}]);
+
+        foreach my $ep (@$eps){
+
+            my $peers = $self->_execute_query("select * from vrf_ep_peer where vrf_ep_id = ? and state = 'active'",[$ep->{'vrf_ep_id'}]);
+            
+            my @bgp;
+
+            foreach my $bgp (@$peers){
+                push(@bgp, $bgp);
+            }
+            push(@{$vrfs->{$row->{'vrf_id'}}->{'endpoints'}},{interface_id => $ep->{'interface_id'},
+                                                              node_id      => $ep->{'node_id'},
+                                                              interface    => $ep->{'interface'},
+                                                              bandwidth    => $ep->{'bandwidth'},
+                                                              tag          => $ep->{'tag'},
+                                                              peers => \@bgp });
+            
+        }
+        
+    }
+
+    my $results;
+
+    foreach my $vrf_id (keys %$vrfs){
+        push (@$results, $vrfs->{$vrf_id});
+    }
+
+    return $results;
+}
+
 =head2 get_current_circuits_by_interface
 
 =cut
@@ -4132,7 +4231,7 @@ sub get_circuit_endpoints {
     my %args = @_;
 
     #my $query = "select * from circuit_edge_interface_membership where circuit_edge_interface_membership.circuit_id = ? and circuit_edge_interface_membership.end_epoch = -1";
-    my $query = "select distinct(interface.interface_id), circuit_edge_interface_membership.extern_vlan_id, circuit_edge_interface_membership.circuit_edge_id, interface.name as int_name,interface.description as interface_description, node.name as node_name, node.node_id as node_id, interface.port_number, interface.role, network.is_local from interface left join  interface_instantiation on interface.interface_id = interface_instantiation.interface_id and interface_instantiation.end_epoch = -1 join node on interface.node_id = node.node_id left join node_instantiation on node_instantiation.node_id = node.node_id and node_instantiation.end_epoch = -1 join network on node.network_id = network.network_id join circuit_edge_interface_membership on circuit_edge_interface_membership.interface_id = interface.interface_id where circuit_edge_interface_membership.circuit_id = ? and ";
+    my $query = "select distinct(interface.interface_id), circuit_edge_interface_membership.unit, circuit_edge_interface_membership.extern_vlan_id, circuit_edge_interface_membership.inner_tag, circuit_edge_interface_membership.circuit_edge_id, interface.name as int_name,interface.description as interface_description, node.name as node_name, node.node_id as node_id, interface.port_number, interface.role, network.is_local from interface left join  interface_instantiation on interface.interface_id = interface_instantiation.interface_id and interface_instantiation.end_epoch = -1 join node on interface.node_id = node.node_id left join node_instantiation on node_instantiation.node_id = node.node_id and node_instantiation.end_epoch = -1 join network on node.network_id = network.network_id join circuit_edge_interface_membership on circuit_edge_interface_membership.interface_id = interface.interface_id where circuit_edge_interface_membership.circuit_id = ? and ";
 
     my @bind_values = ($args{'circuit_id'});
 
@@ -4180,6 +4279,8 @@ sub get_circuit_endpoints {
         push (@$results, {'node'      => $endpoint->{'node_name'},
                           'interface' => $endpoint->{'int_name'},
                           'tag'       => $endpoint->{'extern_vlan_id'},
+                          'inner_tag' => $endpoint->{'inner_tag'},
+                          'unit'      => $endpoint->{'unit'},
                           'node_id'   => $endpoint->{'node_id'},
                           'port_no'   => $endpoint->{'port_number'},
                           'local'     => $endpoint->{'is_local'},
@@ -5935,7 +6036,7 @@ sub add_into{
     my $insert_link_path_membership_query = "insert into link_path_membership (path_id,link_id,end_epoch,start_epoch) VALUES ((select path_id from path where path_type=? and circuit_id=(select circuit_id from circuit where name=?)),?,-1, unix_timestamp(now()) )";
     my $insert_link_path_membership_sth   = $self->_prepare_query($insert_link_path_membership_query) or return;
 
-    my $insert_circuit_edge_interface_membership_query = "insert into circuit_edge_interface_membership (circuit_id,interface_id,extern_vlan_id,end_epoch,start_epoch) VALUES ((select circuit_id from circuit where name=?),?,?,-1,unix_timestamp(now()))";
+    my $insert_circuit_edge_interface_membership_query = "insert into circuit_edge_interface_membership (circuit_id,interface_id,extern_vlan_id,end_epoch,start_epoch,unit) VALUES ((select circuit_id from circuit where name=?),?,?,-1,unix_timestamp(now()),?)";
     my $insert_circuit_edge_interface_membership_sth   = $self->_prepare_query($insert_circuit_edge_interface_membership_query) or return;
 
     my $circuits = $db_dump->{'circuit'};
@@ -5993,7 +6094,8 @@ sub add_into{
 
 	    $insert_circuit_edge_interface_membership_sth->execute($circuit_name,
 								   $interface_db_id,
-								   $end_point->{'vlan'}
+								   $end_point->{'vlan'},
+                                                                   $end_point->{'unit'}
 		                                                  ) or return;
 	}
 
@@ -6655,6 +6757,7 @@ sub validate_circuit {
     my $nodes        = $args{'nodes'};
     my $interfaces   = $args{'interfaces'};
     my $vlans        = $args{'vlans'};
+    my $inner_vlans  = $args{'inner_vlans'} || [];
 
     my $type;
 
@@ -6672,8 +6775,15 @@ sub validate_circuit {
         
         my $interface = $self->get_interface( interface_id => $interface_id);
 
-        my $res = $self->is_external_vlan_available_on_interface( interface_id => $interface_id, vlan => $vlans->[$i]);
-        warn Dumper($res);
+        my $res = $self->is_external_vlan_available_on_interface(
+            interface_id => $interface_id,
+            vlan => $vlans->[$i],
+            inner_vlan => $inner_vlans->[$i]
+        );
+        if (!$res->{status}) {
+            return (0, "VLAN $vlans->[$i] $inner_vlans->[$i] is not available on $nodes->[$i] $interfaces->[$i].");
+        }
+
         if(!defined($type)){
             $type = $res->{'type'};
         }else{
@@ -6754,16 +6864,25 @@ An array of names of endpoint nodes that this circuit should use. The order of t
 
 =item interfaces
 
-An array of names of interfaces that this circuit should use. The order of this should match nodes and tags such that a given nodes[i]-interfaces[i]-tags[i] combination is accurate.
+An array of interfaces this circuit should use. The order of this
+should match nodes and interfaces such that a given C<(nodes[i],
+interfaces[i], tags[i], inner_tags[i])> combination is accurate.
 
 =item tags
 
-An array of vlan tags that this circuit should use. The order of this should match nodes and interfaces such that a given nodes[i]-interfaces[i]-tags[i] combination is accurate.
+An array of vlan tags that this circuit should use. The order of this
+should match nodes and interfaces such that a given C<(nodes[i],
+interfaces[i], tags[i], inner_tags[i])> combination is accurate.
+
+=item inner_tags
+
+An array of vlan tags that this circuit should use. The order of this
+should match nodes and interfaces such that a given C<(nodes[i],
+interfaces[i], tags[i], inner_tags[i])> combination is accurate.
 
 =back
 
 =cut
-
 sub provision_circuit {
     my $self = shift;
     my %args = @_;
@@ -6777,6 +6896,7 @@ sub provision_circuit {
     my $nodes            = $args{'nodes'};
     my $interfaces       = $args{'interfaces'};
     my $tags             = $args{'tags'};
+    my $inner_tags       = $args{'inner_tags'};
     my $mac_addresses    = $args{'mac_addresses'};
     my $endpoint_mac_address_nums = $args{'endpoint_mac_address_nums'};
     my $user_name        = $args{'user_name'};
@@ -6922,6 +7042,7 @@ sub provision_circuit {
 	my $node      = @$nodes[$i];
 	my $interface = @$interfaces[$i];
 	my $vlan      = @$tags[$i];
+	my $inner_vlan = @$inner_tags[$i];
         my $endpoint_mac_address_num = @$endpoint_mac_address_nums[$i];
         my $circuit_edge_id;
         
@@ -6974,14 +7095,20 @@ sub provision_circuit {
         }
 
         # Verify requested endpoint parameters adhere to current ACLs
-        if (! $self->_validate_endpoint(interface_id => $interface_id, workgroup_id => $workgroup_id, vlan => $vlan)){
+        if (! $self->_validate_endpoint(interface_id => $interface_id, workgroup_id => $workgroup_id, vlan => $vlan, inner_tag => $inner_vlan)){
             $self->_set_error("Interface \"$interface\" on endpoint \"$node\" with VLAN tag \"$vlan\" is not allowed for this workgroup.");
             $self->_rollback();
             return;
         }
 
+        my $unit = $self->find_available_unit( interface_id => $interface_id, inner_tag => $inner_vlan, tag => $vlan);
+        if(!defined($unit)){
+            $self->_set_error("Unable to calculate unit name to use for interface");
+            $self->_rollback();
+            return;
+        }
 	# Verify that $vlan is not already in use on this interface
-	my $is_avail = $self->is_external_vlan_available_on_interface(vlan => $vlan, interface_id => $interface_id);
+	my $is_avail = $self->is_external_vlan_available_on_interface(vlan => $vlan, interface_id => $interface_id, inner_tag => $inner_vlan, unit => $unit);
         if(!$is_avail->{'status'}){
 	    $self->_set_error("Vlan '$vlan' is currently in use by another circuit on interface '$interface' on endpoint '$node'");
             $self->_rollback();
@@ -6994,11 +7121,10 @@ sub provision_circuit {
             return;
         }
 
-	$query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, end_epoch, start_epoch) values (?, ?, ?, -1, unix_timestamp(NOW()))";
+	$query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, inner_tag, end_epoch, start_epoch, unit) values (?, ?, ?, ?, -1, unix_timestamp(NOW()),?)";
 
-	$circuit_edge_id = $self->_execute_query($query, [$interface_id, $circuit_id, $vlan]);
+	$circuit_edge_id = $self->_execute_query($query, [$interface_id, $circuit_id, $vlan, $inner_vlan,$unit]);
 	if (! defined($circuit_edge_id) ){
-            #if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $vlan])){
 	    $self->_set_error("Unable to create circuit edge to interface '$interface' on endpoint '$node'");
             $self->_rollback();
 	    return;
@@ -7062,10 +7188,12 @@ sub provision_circuit {
             return;
         }
 
+        #find available uit
+        my $unit = $self->find_available_unit( interface_id => $interface_id, tag => $tag, inner_tag => undef);
 
-        $query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, end_epoch, start_epoch) values (?, ?, ?, -1, unix_timestamp(NOW()))";
+        $query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, end_epoch, start_epoch, unit) values (?, ?, ?, -1, unix_timestamp(NOW()), ?)";
 
-        if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $tag])){
+        if (! defined $self->_execute_query($query, [$interface_id, $circuit_id, $tag, $unit])){
             $self->_set_error("Unable to create circuit edge to interface \"$urn\" with tag $tag.");
             $self->_rollback();
             return;
@@ -8057,6 +8185,7 @@ sub edit_circuit {
     my $nodes                     = $args{'nodes'};
     my $interfaces                = $args{'interfaces'};
     my $tags                      = $args{'tags'};
+    my $inner_tags                = $args{'inner_tags'};
     my $state                     = $args{'state'} || "active";
     my $user_name                 = $args{'user_name'};
     my $workgroup_id              = $args{'workgroup_id'};
@@ -8174,6 +8303,7 @@ sub edit_circuit {
         my $node      = @$nodes[$i];
         my $interface = @$interfaces[$i];
         my $vlan      = @$tags[$i];
+        my $inner_vlan = @$inner_tags[$i];
         my $endpoint_mac_address_num = @$endpoint_mac_address_nums[$i];
         my $circuit_edge_id;
 
@@ -8181,10 +8311,16 @@ sub edit_circuit {
             " join node on node.node_id = interface.node_id " .
             " where node.name = ? and interface.name = ? ";
         my $interface_id = $self->_execute_query($query, [$node, $interface])->[0]->{'interface_id'};
+        
+        my $unit = $self->find_available_unit( interface_id => $interface_id, inner_tag => $inner_vlan, tag => $vlan);
+        if(!defined($unit)){
+            $self->_set_error("Unable to calculate unit name to use for interface");
+            $self->_rollback();
+            return;
+        }
+        $query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, inner_tag, end_epoch, start_epoch, unit) values (?, ?, ?, ?, -1, unix_timestamp(NOW()),?)";
 
-        $query = "insert into circuit_edge_interface_membership (interface_id, circuit_id, extern_vlan_id, end_epoch, start_epoch) values (?, ?, ?, -1, unix_timestamp(NOW()))";
-
-        $circuit_edge_id = $self->_execute_query($query, [$interface_id, $circuit_id, $vlan]);
+        $circuit_edge_id = $self->_execute_query($query, [$interface_id, $circuit_id, $vlan, $inner_vlan, $unit]);
         if (! defined($circuit_edge_id) ){
 
             $self->_set_error("Unable to create circuit edge to interface '$interface'");
@@ -8406,10 +8542,6 @@ sub _get_uuid {
 
     return @$result[0]->{'uuid'};
 }
-
-=head2 _rollback
-
-=cut
 
 =head2 _commit
 
@@ -9148,7 +9280,8 @@ sub validate_endpoints {
         }
 
         # need to check to see if this external vlan is open on this interface first
-        if (! $self->is_external_vlan_available_on_interface(vlan => $vlan, interface_id => $interface_id, circuit_id => $circuit_id) ){
+        my $is_avail = $self->is_external_vlan_available_on_interface(vlan => $vlan, interface_id => $interface_id, circuit_id => $circuit_id);
+        if (!$is_avail->{'status'}) {
             $self->_set_error("Vlan '$vlan' is currently in use by another circuit on interface '$interface' on endpoint '$node'");
             return;
         }

@@ -33,6 +33,7 @@ ok($ckt->has_backup_path(), "Circuit has backup path");
 
 my $flows = $ckt->get_flows();
 
+warn Dumper($flows);
 
 ok(scalar(@$flows) == 26, "Total number of flows match " . scalar(@$flows));
 

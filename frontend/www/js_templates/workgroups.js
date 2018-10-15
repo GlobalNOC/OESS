@@ -17,13 +17,15 @@ function workgroups_init(){
 	    if (! record) return;
 
 	    var workgroup_id = record.getData('workgroup_id');
-	    var name         = record.getData('name');
-        var wtype = record.getData('type');
+	    var name = record.getData('name');
+            var wtype = record.getData('type');
+            var username = record.getData('username');
 
-	    session.data.workgroup_id   = workgroup_id;
+	    session.data.workgroup_id = workgroup_id;
 	    session.data.workgroup_name = name;
-        session.data.workgroup_type = wtype;
-	session.save();
+            session.data.workgroup_type = wtype;
+            session.data.username = username;
+            session.save();
 
 	    window.location = "?action=index";
 	    
@@ -40,6 +42,7 @@ function make_workgroups_table(){
 	resultsList: "results",
 	fields: [{key: "name"},
                  {key: "workgroup_id"},
+                 {key: "username"},
                  {key: "type"}
 		],
 	metafields: {

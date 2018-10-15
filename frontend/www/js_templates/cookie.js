@@ -45,7 +45,8 @@ function Cookie(){
 	  ds.responseSchema = {
 	      resultsList: "results",
 	      fields: [{key: "name"},
-	               {key: "workgroup_id"}
+                       {key: "workgroup_id"},
+                       {key: "username"}
 		       ],
 	      metafields: {
 		  error: "error"
@@ -56,6 +57,7 @@ function Cookie(){
 			for (var i =0; i < resp.results.length; i++){
 			    if(resp.results[i].workgroup_id == workgroup_id){
 				this.data.workgroup_name = resp.results[i].name;
+				this.data.username = resp.results[i].username;
 				YAHOO.util.Dom.get("active_workgroup_name").innerHTML = this.data.workgroup_name;
 				break;
 			    }
@@ -80,6 +82,7 @@ function Cookie(){
 				     for (var i =0; i < resp.results.length; i++){
 					 if(resp.results[i].workgroup_id == workgroup_id){
 					     this.data.workgroup_name = resp.results[i].name;
+                                             this.data.username = resp.results[i].username;
 					     YAHOO.util.Dom.get("active_workgroup_name").innerHTML = this.data.workgroup_name;
 					     break;
 					 }
@@ -113,6 +116,7 @@ function Cookie(){
       var id   = this.data.workgroup_id;
       var name = this.data.workgroup_name;
       var wtype = this.data.workgroup_type;
+      var username = this.data.username;
       this.data = {};
 
       // if we're only flushing data, keep the workgroup info
@@ -120,6 +124,7 @@ function Cookie(){
 	  this.data.workgroup_id   = id;
 	  this.data.workgroup_name = name;
           this.data.workgroup_type = wtype;
+          this.data.username = username;
       }
 
       this.save();

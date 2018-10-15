@@ -1,0 +1,143 @@
+<div class="main_page" style="margin: 0px; padding: 15px;">
+  <!-- Latest compiled and minified CSS -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+  <!-- Latest compiled and minified JavaScript -->
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+
+  <script>
+    [% INCLUDE js_templates/api/vrf.js %]
+    [% INCLUDE js_templates/api/interfaces.js  %]
+    [% INCLUDE js_templates/provision_l3vpn.js %]
+  </script>
+  
+  <div class="modal fade" role="dialog" tabindex="-1" id="modal1">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 id="endpoint-select-header" class="modal-title">Modal title</h4>
+        </div>
+        <div class="modal-body">
+          <form id="endpoint-select-form">
+            <div class="form-group">
+              <label class="control-label">Interface</label>
+              <select id="endpoint-select-interface" class="form-control">
+                <option>et-3/0/0</option>
+                <option>et-3/0/1</option>
+                <option>et-3/0/2</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="control-label">VLAN</label>
+              <select id="endpoint-select-vlan" class="form-control"></select>
+            </div>
+            <div class="form-group">
+              <label class="control-label">Bandwidth (Mb/s)</label>
+              <input id="endpoint-select-bandwidth" class="form-control" type="number" placeholder="100" min="10" max="100000">
+            </div>
+            <div class="form-group">
+              <input id="endpoint-select-node" class="form-control" type="hidden" value="">
+            </div>
+            <div class="form-group">
+              <input id="endpoint-select-id" class="form-control" type="hidden" value="-1">
+            </div>
+            <button id="endpoint-select-submit" class="btn btn-success" type="submit">Add Endpoint</button>
+            <button id="endpoint-select-cancel" class="btn btn-danger" type="button">Cancel</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" id="modal2">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 id="peering-select-header" class="modal-title">Modal title</h4>
+        </div>
+        <div class="modal-body">
+          <form id="peering-select-form">
+            <div class="form-group">
+              <label class="control-label">OESS peer IP</label>
+              <input id="peering-select-oess-peer-ip" class="form-control" type="text" placeholder="198.162.1.1/24" pattern="^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$" required>
+            </div>
+            <div class="form-group">
+              <label class="control-label">Your peer IP</label>
+              <input id="peering-select-your-peer-ip" class="form-control" type="text" placeholder="198.162.1.2/24" pattern="^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$" required>
+            </div>
+            <div class="form-group">
+              <label class="control-label">BGP ASN</label>
+              <input id="peering-select-bgp-asn" class="form-control" type="number" required>
+            </div>
+            <div class="form-group">
+              <label class="control-label">BGP Key (optional)</label>
+              <input id="peering-select-bgp-key" class="form-control" type="text">
+            </div>
+            <div class="form-group">
+              <input id="peering-peering-index" class="form-control" type="hidden" value="-1">
+            </div>
+            <div class="form-group">
+              <input id="peering-endpoint-index" class="form-control" type="hidden" value="-1">
+            </div>
+            <button id="peering-select-submit" class="btn btn-success" type="submit">Add Peering</button>
+            <button id="peering-select-cancel" class="btn btn-danger" type="button">Cancel</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row" style="margin-bottom: 15px;">
+    <div class="col-md-12">
+      <div id="map" class="openlayers"></div>
+      [% INCLUDE html_templates/map_legend.html %]
+    </div>
+  </div>
+
+  <form id="private-network-form">
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label class="control-label">Description</label><input id="description" class="form-control" type="text" required>
+        </div>
+        <!-- <div class="form-group"> -->
+        <!--   <label class="control-label">OESS peer IP</label><input id="oess-peer-ip" class="form-control" type="text" placeholder="198.162.1.0/24" pattern="^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$" required> -->
+        <!-- </div> -->
+      </div>
+
+      <div class="col-md-6">
+        <div class="radio"><label><input type="radio" name="provision-time" value="now" onchange="setDateTimeVisibility()" checked>Create now</label></div>
+        <div class="radio"><label><input type="radio" name="provision-time" value="later" onchange="setDateTimeVisibility()">Create later</label></div>
+        <input type="datetime-local" id="provision-time-picker">
+
+        <div class="radio"><label><input type="radio" name="remove-time" value="never" onchange="setDateTimeVisibility()" checked>Never remove</label></div>
+        <div class="radio"><label><input type="radio" name="remove-time" value="later" onchange="setDateTimeVisibility()">Remove later</label></div>
+        <input type="datetime-local" id="remove-time-picker">
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-12">
+        <div class="table-responsive">
+          <div id="endpoint-selection-table">
+          </div>
+          <!-- <table class="table"> -->
+          <!--   <thead> -->
+          <!--     <tr><th>Node</th><th>Interface</th><th>VLAN</th><th>ASN</th><th>Peer IP</th><th></th></tr> -->
+          <!--   </thead> -->
+          <!--   <tbody id="endpoint-selection-table"> -->
+          <!--   </tbody> -->
+          <!-- </table> -->
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-12">
+        <button class="btn btn-success" type="submit">Add Private Network</button>
+        <button class="btn btn-danger" type="button">Cancel</button>
+      </div>
+    </div>
+
+  </form>
+</div>
