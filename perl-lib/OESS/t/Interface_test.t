@@ -75,8 +75,9 @@ my $parameter = "extern_vlan_id";
 my $circuit_vlans =  ($database->_execute_query("SELECT $parameter 
 			FROM circuit_edge_interface_membership WHERE interface_id=".$interface_id))[0];
 foreach my $vlan  (@$circuit_vlans){
-	push(@$used_vlans,$vlan->{$parameter});
-}
+		push(@$used_vlans,$vlan->{$parameter});
+	}
+
 cmp_deeply($used_vlans, $interface->used_vlans, "The method used_vlans() returns expected output");
 
 
