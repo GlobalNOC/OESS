@@ -24,7 +24,7 @@ my $interface_id = $db->execute_query("SELECT interface_id from interface_acl LI
 
 $interface_id = (@$interface_id[0]->{'interface_id'});
 
-
+##
 # Initialize instance of interfaceusing interface id
 my $interface = OESS::Interface->new(	db 	=> $db,
 					interface_id => $interface_id
