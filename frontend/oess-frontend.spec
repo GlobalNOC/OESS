@@ -13,8 +13,8 @@ BuildRequires: perl
 BuildRequires: python >= 2.6, python-libs >= 2.6
 BuildRequires: python-simplejson
 
-Requires: oess-core >= 1.2.4, nox >= 0.10.14
-Requires: yui2
+Requires: oess-core >= 1.2.4
+Requires: yui
 Requires: httpd, mod_ssl
 Requires: nddi-tiles
 Requires: perl-Crypt-SSLeay
