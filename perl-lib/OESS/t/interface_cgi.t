@@ -1,16 +1,16 @@
-#!/usr/bin/perl 
+#!/usr/bin/perl -T 
 
 use strict;
 use warnings;
 use Data::Dumper;
 use GRNOC::Config;
 use GRNOC::WebService::Client;
-use Test::More tests=>1;
+use Test::More tests=>8;
 use Test::Deep;
 use OESS::DB;
 use Log::Log4perl;
 use OESS::Interface;
-use OESS::ACL
+
 # Initialize logging
 Log::Log4perl->init("/etc/oess/logging.conf");
 my $db = OESS::DB->new();
@@ -30,7 +30,6 @@ my $svc =new  GRNOC::WebService::Client(
 			debug	=> 0 
 );
 
-my $acls = OESS::ACL->new( db => $db, interface_id => $interface_id);
 my $methods = [
           'get_available_vlans',
           'get_workgroup_interfaces',
@@ -45,7 +44,7 @@ cmp_deeply($svc->get_available_vlans(interface_id=>undef),
           'results' => undef
         }, "get_available_vlans() give throw an error when passed no object to it");
 
-ok(defined($db) and defined($interface) and defined($svc),"Sanity Check, can instantiate OESS::DB,OESS::Interface, GRNOC::WebService::Client");
+ok((defined($db) and defined($interface) and defined($svc)),"Sanity Check, can instantiate OESS::DB,OESS::Interface, GRNOC::WebService::Client");
 cmp_deeply($svc->get_available_vlans(interface_id=>$interface_id, workgroup_id=>$workgroup_id),
 	{
           'results' => {

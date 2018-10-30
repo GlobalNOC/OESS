@@ -1,14 +1,11 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -T
 
 use OESS::Interface;
 use Test::More tests => 19;
 use Log::Log4perl;
-use OESS::DB::Interface;
 use OESS::DB;
-use OESS::Database;
 use Data::Dumper;
 use Test::Deep;
-use OESS::DB::Interface;
 
 
 # Initialize logging
@@ -16,7 +13,6 @@ Log::Log4perl->init("/etc/oess/logging.conf");
 
 # Initialize DB
 my $db = OESS::DB->new();
-my $database = OESS::Database->new();
 #Test Query
 #my $query = "SELECT TOP 5 FROM node ORDER BY name";
 
