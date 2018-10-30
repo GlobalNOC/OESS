@@ -8,13 +8,31 @@ use Log::Log4perl;
 use Paws;
 use XML::Simple;
 
-=head1 NAME
+=head1 OESS::Cloud::AWS
 
-OESS::Cloud::AWS
+B<Configuration:>
+
+The credentials for each interconnect must be defined under the
+C<cloud> tag in C</etc/oess/database.xml>. Valid interconnect types
+for AWS connections are C<aws-hosted-vinterface> and
+C<aws-hosted-connection>.
+
+    <connection region="us-east-1"
+                interconnect_type="aws-hosted-vinterface"
+                interconnect_id="dxcon-aaa12345"
+                access_key="..."
+                secret_key="..."
+                workgroup="AWS" />
+
+Associate credentials with a physical endpoint by setting the
+C<interconnect_id> of the interface in the OESS database.
+
 
 =cut
 
 =head2 new
+
+    my $aws = OESS::Cloud::AWS->new();
 
 =cut
 
