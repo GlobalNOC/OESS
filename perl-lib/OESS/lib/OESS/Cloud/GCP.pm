@@ -3,76 +3,137 @@ package OESS::Cloud::GCP;
 use strict;
 use warnings;
 
-use GRNOC::Log;
 use HTML::Entities;
 use JSON;
 use JSON::WebToken;
+use Log::Log4perl;
 use LWP::UserAgent;
 
 
+=head1 OESS::Cloud::GCP
+
+B<Configuration:>
+
+The credentials for each interconnect must be defined under the
+C<cloud> tag in C</etc/oess/database.xml>. Valid interconnect types
+for GCP connections are C<gcp-partner-interconnect>. GCP interconnects
+should pass a path to service account credentials via
+C<google_application_credentials>. To generate these credentials see
+https://cloud.google.com/docs/authentication/production#obtaining_and_providing_service_account_credentials_manually
+
+    <connection region="us-east-1"
+                interconnect_type="gcp-partner-interconnect"
+                interconnect_id="https://www.googleapis.com/..."
+                google_application_credentials="/etc/oess/gapi.conf",
+                workgroup="GCP" />
+
+Associate credentials with a physical endpoint by setting the
+C<interconnect_id> of the interface in the OESS database.
+
+=cut
+
+=head2 new
+
+    my $gcp = OESS::Cloud::GCP->new();
+
+=cut
 sub new {
     my $class = shift;
     my %params = @_;
 
-    my $logger = GRNOC::Log->new(config => "/etc/oess/logging.conf", watch => 5);
-
     my $self = bless {
-        path => $params{path} || '/etc/oess/gapi.conf',
-        logger => $logger->get_logger("VCE.Database.Connection"),
-        config => undef
+        config => '/etc/oess/database.xml'
+        logger => Log::Log4perl->get_logger('OESS.Cloud.GCP'),
+        @_
     }, $class;
 
-    my $json = do {
-        open(my $json_fh, "<:encoding(UTF-8)", $self->{path})
-            or die("Can't open \$self->{path}\": $!\n");
-        local $/;
-        <$json_fh>
-    };
+    $self->{creds} = XML::Simple::XMLin($self->{config});
+    $self->{connections} = {};
 
     my $coder = JSON->new;
-    $self->{config} = $coder->decode($json);
 
-    my $time = time;
-    my $jwt = JSON::WebToken->encode(
-        {
-            iss => $self->{config}->{client_email},
-            scope => 'https://www.googleapis.com/auth/compute',
-            aud => $self->{config}->{token_uri},
-            exp => $time + 3600,
-            iat => $time,
-            prn => $self->{config}->{client_email}
-        },
-        $self->{config}->{private_key},
-        'RS256',
-        { typ => 'JWT' }
-    );
-
-    my $ua = LWP::UserAgent->new();
-    my $response = $ua->post(
-        $self->{config}->{token_uri},
-        {
-            grant_type => encode_entities('urn:ietf:params:oauth:grant-type:jwt-bearer'),
-            assertion => $jwt
+    foreach my $conn (@{$self->{creds}->{cloud}->{connection}}) {
+        if ($conn->{interconnect_type} ne 'gcp-partner-interconnect') {
+            next;
         }
-    );
 
-    if (!$response->is_success()) {
-        $self->{logger}->error($response->content);
-    } else {
+        my $json = do {
+            open(my $json_fh, "<:encoding(UTF-8)", $conn->{google_application_credentials})
+                or die("Can't open \$conn->{google_application_credentials}\": $!\n");
+            local $/;
+            <$json_fh>
+        };
+        my $config = $coder->decode($json);
+
+        $conn->{client_email} = $config->{client_email};
+        $conn->{private_key}  = $config->{private_key};
+        $conn->{project_id}   = $config->{project_id};
+        $conn->{token_uri}    = $config->{token_uri};
+
+        my $time = time;
+        my $jwt = JSON::WebToken->encode(
+            {
+                iss => $conn->{client_email},
+                scope => 'https://www.googleapis.com/auth/compute',
+                aud => $conn->{token_uri},
+                exp => $time + 3600,
+                iat => $time,
+                prn => $conn->{client_email}
+            },
+            $conn->{private_key},
+            'RS256',
+            { typ => 'JWT' }
+        );
+
+        my $ua = LWP::UserAgent->new();
+        my $response = $ua->post(
+            $conn->{token_uri},
+            {
+                grant_type => encode_entities('urn:ietf:params:oauth:grant-type:jwt-bearer'),
+                assertion => $jwt
+            }
+        );
+        if (!$response->is_success()) {
+            $self->{logger}->error($response->content);
+            next;
+        }
+
         my $data = decode_json($response->content);
-        $self->{http} = LWP::UserAgent->new();
-        $self->{http}->default_header(Authorization => "Bearer $data->{access_token}");
+        $conn->{access_token} = $data->{access_token};
+
+        $conn->{http} = LWP::UserAgent->new();
+        $conn->{http}->default_header(Authorization => "Bearer $conn->{access_token}");
+
+        $self->{connections}->{$conn->{interconnect_id}} = $conn;
     }
 
     return $self;
 }
 
+=head2 get_interconnect_attachments
+
+get_interconnect_attachments returns a list of all attachments
+associated with C<interconnect_id>'s project and region. Not that it
+may be possible that attachments associated with other interconnects
+are also returned.
+
+    my $resp = get_interconnect_attachments(
+        interconnect_id => "https://www.googleapis.com/..."
+    );
+
+=cut
 sub get_interconnect_attachments {
     my $self = shift;
+    my %params = @_;
 
-    my $project = $self->{config}->{project_id};
-    my $region = "us-east1";
-    my $api_response = $self->{http}->get("https://www.googleapis.com/compute/v1/projects/$project/regions/$region/interconnectAttachments");
+    my $interconnect_id = $params{interconnect_id};
+
+    my $conn    = $self->{connections}->{$interconnect_id};
+    my $http    = $conn->{http};
+    my $project = $conn->{project_id};
+    my $region  = $conn->{region};
+
+    my $api_response = $http->get("https://www.googleapis.com/compute/v1/projects/$project/regions/$region/interconnectAttachments");
     if (!$api_response->is_success) {
         print "Error:\n";
         print "Code was ", $api_response->code, "\n";
@@ -85,11 +146,48 @@ sub get_interconnect_attachments {
     return $api_data;
 }
 
-sub get_interconnects {
-    my $self = shift;
+# sub get_interconnects {
+#     my $self = shift;
 
-    my $project = $self->{config}->{project_id};
-    my $api_response = $self->{http}->get("https://www.googleapis.com/compute/v1/projects/$project/global/interconnects");
+#     my $project = "";
+#     my $api_response = $self->{http}->get("https://www.googleapis.com/compute/v1/projects/$project/global/interconnects");
+#     if (!$api_response->is_success) {
+#         print "Error:\n";
+#         print "Code was ", $api_response->code, "\n";
+#         print "Msg: ", $api_response->message, "\n";
+#         print $api_response->content, "\n";
+#         die;
+#     }
+
+#     my $api_data = decode_json($api_response->content);
+#     return $api_data;
+# }
+
+=head2 delete_interconnect_attachment
+
+delete_interconnect_attachment removes the GCP interconnect attachment
+C<connection_id>. Once deleted, the underly VLAN will once again be
+available for provisioning.
+
+    my $resp = delete_interconnect_attachment(
+        interconnect_id => "https://www.googleapis.com/...",
+        connection_id   => "" # Interconnect attachment name
+    );
+
+=cut
+sub delete_interconnect_attachment {
+    my $self = shift;
+    my %params = @_;
+
+    my $interconnect_id = $params{interconnect_id};
+    my $attachment_name = $params{connection_id};
+
+    my $conn    = $self->{connections}->{$interconnect_id};
+    my $http    = $conn->{http};
+    my $project = $conn->{project_id};
+    my $region  = $conn->{region};
+
+    my $api_response = $http->delete("https://www.googleapis.com/compute/v1/projects/$project/regions/$region/interconnectAttachments/$attachment_name");
     if (!$api_response->is_success) {
         print "Error:\n";
         print "Code was ", $api_response->code, "\n";
@@ -105,10 +203,10 @@ sub get_interconnects {
 =head2 insert_interconnect_attachment
 
     my $resp = insert_interconnect_attachment(
-        cloud_interconnect_id   => "https://www.googleapis.com/...",
-        cloud_interconnect_name => "rtsw.chic.net.internet2.edu - xe-7/0/1",
+        interconnect_id   => "https://www.googleapis.com/...",
+        interconnect_name => "rtsw.chic.net.internet2.edu - xe-7/0/1", # Provider name
         bandwidth   => "BPS_50M",
-        name        => "GCP L3VPN 1",
+        name        => "GCP L3VPN 1",                                        # Customer name
         pairing_key => "00000000-0000-0000-0000-000000000000/us-east1/1",
         portal_url  => "https://al2s.net.internet2.edu/...",                 # Optional
         vlan        => 300
@@ -130,16 +228,18 @@ sub insert_interconnect_attachment {
     my $self = shift;
     my %params = @_;
 
-    my $cloud_interconnect_id   = $params{cloud_interconnect_id};
-    my $cloud_interconnect_name = $params{cloud_interconnect_name};
+    my $cloud_interconnect_id   = $params{interconnect_id};
+    my $cloud_interconnect_name = $params{interconnect_name};
     my $bandwidth   = $params{bandwidth};
     my $name        = $params{name};
     my $pairing_key = $params{pairing_key};
     my $portal_url  = $params{portal_url} || "https://al2s.net.internet2.edu/oess/";
     my $vlan        = $params{vlan};
 
-    my $project = $self->{config}->{project_id};
-    my $region = "us-east1"; # TODO Make configurable
+    my $conn    = $self->{connections}->{$cloud_interconnect_id};
+    my $http    = $conn->{http};
+    my $project = $conn->{project_id};
+    my $region  = $conn->{region};
 
     my $payload = {
         name            => $name,
@@ -160,8 +260,10 @@ sub insert_interconnect_attachment {
     $req->header("Content-Type" => "application/json");
     $req->content( encode_json($payload) );
 
-    my $api_response = $self->{http}->request($req);
+    my $api_response = $http->request($req);
     if (!$api_response->is_success) {
+        # TODO Handle errors better
+
         print "Error:\n";
         print "Code was ", $api_response->code, "\n";
         print "Msg: ", $api_response->message, "\n";
