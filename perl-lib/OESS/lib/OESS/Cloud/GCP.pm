@@ -143,6 +143,8 @@ sub get_interconnect_attachments {
     }
 
     my $api_data = decode_json($api_response->content);
+    # TODO: Find failure modes and log as error
+    warn Dumper($api_data);
     return $api_data;
 }
 
@@ -180,6 +182,8 @@ sub delete_interconnect_attachment {
     }
 
     my $api_data = decode_json($api_response->content);
+    # TODO: Find failure modes and log as error
+    warn Dumper($api_data);
     return $api_data;
 }
 
@@ -255,6 +259,8 @@ sub insert_interconnect_attachment {
     }
 
     my $api_data = decode_json($api_response->content);
+    # TODO: Find failure modes and log as error
+    warn Dumper($api_data);
     return $api_data;
 }
 
