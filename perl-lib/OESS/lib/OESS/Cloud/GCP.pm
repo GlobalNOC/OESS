@@ -8,7 +8,7 @@ use JSON;
 use JSON::WebToken;
 use Log::Log4perl;
 use LWP::UserAgent;
-
+use XML::Simple;
 
 =head1 OESS::Cloud::GCP
 
@@ -42,7 +42,7 @@ sub new {
     my %params = @_;
 
     my $self = bless {
-        config => '/etc/oess/database.xml'
+        config => '/etc/oess/database.xml',
         logger => Log::Log4perl->get_logger('OESS.Cloud.GCP'),
         @_
     }, $class;
@@ -146,23 +146,6 @@ sub get_interconnect_attachments {
     return $api_data;
 }
 
-# sub get_interconnects {
-#     my $self = shift;
-
-#     my $project = "";
-#     my $api_response = $self->{http}->get("https://www.googleapis.com/compute/v1/projects/$project/global/interconnects");
-#     if (!$api_response->is_success) {
-#         print "Error:\n";
-#         print "Code was ", $api_response->code, "\n";
-#         print "Msg: ", $api_response->message, "\n";
-#         print $api_response->content, "\n";
-#         die;
-#     }
-
-#     my $api_data = decode_json($api_response->content);
-#     return $api_data;
-# }
-
 =head2 delete_interconnect_attachment
 
 delete_interconnect_attachment removes the GCP interconnect attachment
@@ -204,11 +187,11 @@ sub delete_interconnect_attachment {
 
     my $resp = insert_interconnect_attachment(
         interconnect_id   => "https://www.googleapis.com/...",
-        interconnect_name => "rtsw.chic.net.internet2.edu - xe-7/0/1", # Provider name
-        bandwidth   => "BPS_50M",
-        name        => "GCP L3VPN 1",                                        # Customer name
+        interconnect_name => "rtsw.chic.net.internet2.edu - xe-7/0/1",    # Optional metadata
+        bandwidth     => "BPS_50M",
+        connection_id => "GCP L3VPN 1",                                   # Interconnect attachment name
         pairing_key => "00000000-0000-0000-0000-000000000000/us-east1/1",
-        portal_url  => "https://al2s.net.internet2.edu/...",                 # Optional
+        portal_url  => "https://al2s.net.internet2.edu/...",              # Optional metadata
         vlan        => 300
     );
 
@@ -229,9 +212,9 @@ sub insert_interconnect_attachment {
     my %params = @_;
 
     my $cloud_interconnect_id   = $params{interconnect_id};
-    my $cloud_interconnect_name = $params{interconnect_name};
-    my $bandwidth   = $params{bandwidth};
-    my $name        = $params{name};
+    my $cloud_interconnect_name = $params{interconnect_name} || "";
+    my $bandwidth     = $params{bandwidth};
+    my $connection_id = $params{connection_id};
     my $pairing_key = $params{pairing_key};
     my $portal_url  = $params{portal_url} || "https://al2s.net.internet2.edu/oess/";
     my $vlan        = $params{vlan};
@@ -242,7 +225,7 @@ sub insert_interconnect_attachment {
     my $region  = $conn->{region};
 
     my $payload = {
-        name            => $name,
+        name            => $connection_id,
         interconnect    => $cloud_interconnect_id,
         type            => "PARTNER_PROVIDER",
         pairingKey      => $pairing_key,
