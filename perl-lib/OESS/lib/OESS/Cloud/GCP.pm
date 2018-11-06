@@ -184,6 +184,18 @@ sub delete_interconnect_attachment {
 
     my $api_data = decode_json($api_response->content);
     # TODO: Find failure modes and log as error
+    # {
+    #   "error": {
+    #     "errors": [
+    #       {
+    #         "domain": "global",
+    #         "reason": "notFound",
+    #         "message": "The resource 'projects/project-name/regions/us-east1/interconnectAttachments/a-000-000-000' was not found"
+    #       }
+    #     ],
+    #     "code": 404,
+    #     "message": "The resource 'projects/project-name/regions/us-east1/interconnectAttachments/a-000-000-000' was not found"
+    # }
     warn Dumper($api_data);
     return $api_data;
 }
