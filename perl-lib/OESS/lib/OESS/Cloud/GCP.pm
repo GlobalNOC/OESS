@@ -106,9 +106,80 @@ sub new {
         $conn->{http}->default_header(Authorization => "Bearer $conn->{access_token}");
 
         $self->{connections}->{$conn->{interconnect_id}} = $conn;
+
+        my $zone = $self->get_interconnect_availability_zone(interconnect_id => $conn->{interconnect_id});
+        $self->{connections}->{$conn->{interconnect_id}}->{availability_zone} = $zone;
     }
 
     return $self;
+}
+
+=head2 select_interconnect_interface
+
+    my $interface = $gcp->select_interconnect_interface(
+        entity      => $entity,
+        pairing_key => '00000000-0000-0000-0000-000000000000/us-east1/1'
+    );
+
+select_interconnect_interface returns an interface in the same
+availability zone as specified in C<pairing_key>. C<undef> is returned
+if no interface exists as a part of C<entity> in the specified
+availability zone.
+
+When creating a PARTNER_PROVIDER interconnect attachment, we must use
+an interconnect in the same availability zone as specified in the
+pairing_key. Otherwise the creation will fail.
+
+=cut
+sub select_interconnect_interface {
+    my $self = shift;
+    my %params = @_;
+
+    my $entity      = $params{entity};
+    my $pairing_key = $params{pairing_key};
+
+    my @parts = split(/\//, $pairing_key);
+    my $pairing_key_zone = 'zone' . $parts[2];
+
+    foreach my $interface (@{$entity->{interfaces}}) {
+        my $interconnect_id = $interface->{cloud_interconnect_id};
+        my $zone = $self->{connections}->{$interconnect_id}->{availability_zone};
+
+        if ($zone eq $pairing_key_zone) {
+            return $interface;
+        }
+    }
+
+    warn "Couldn't find expected zone: $pairing_key_zone.";
+    return undef;
+}
+
+=head2 get_interconnect_availability_zone
+
+    my $zone = $self->get_interconnect_availability_zone(interconnect_id => $interconnect_id);
+
+get_interconnect_availability_zone gets the availability zone
+associated with C<interconnect_id>.
+
+=cut
+sub get_interconnect_availability_zone {
+    my $self = shift;
+    my %params = @_;
+
+    my $interconnect_id = $params{interconnect_id};
+
+    my $conn    = $self->{connections}->{$interconnect_id};
+    my $http    = $conn->{http};
+    my $project = $conn->{project_id};
+    my $region  = $conn->{region};
+
+    my $api_response = $http->get($interconnect_id);
+    my $api_data = decode_json($api_response->content);
+
+    $api_response = $http->get($api_data->{location});
+    my $loc_data = decode_json($api_response->content);
+
+    return $loc_data->{availabilityZone};
 }
 
 =head2 get_interconnect_attachments

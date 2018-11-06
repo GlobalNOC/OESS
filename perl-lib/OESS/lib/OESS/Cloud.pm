@@ -7,6 +7,8 @@ use Exporter;
 
 use OESS::Cloud::AWS;
 use OESS::Cloud::GCP;
+
+use Data::Dumper;
 use Data::UUID;
 
 
@@ -103,8 +105,13 @@ sub setup_endpoints {
             my $interconnect_name = $vrf_name;
             my $connection_id     = 'a-' . lc($uuid);
 
+            my $interface = $gcp->select_interconnect_interface(
+                entity => $ep->entity,
+                pairing_key => $ep->cloud_account_id
+            );
+
             my $res = $gcp->insert_interconnect_attachment(
-                interconnect_id   => $ep->interface()->cloud_interconnect_id,
+                interconnect_id   => $interface->cloud_interconnect_id,
                 interconnect_name => $interconnect_name,
                 bandwidth         => 'BPS_50M',
                 connection_id     => $connection_id,
