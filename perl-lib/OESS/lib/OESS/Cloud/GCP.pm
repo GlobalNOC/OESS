@@ -3,6 +3,7 @@ package OESS::Cloud::GCP;
 use strict;
 use warnings;
 
+use Data::Dumper;
 use HTML::Entities;
 use JSON;
 use JSON::WebToken;
@@ -135,10 +136,10 @@ sub get_interconnect_attachments {
 
     my $api_response = $http->get("https://www.googleapis.com/compute/v1/projects/$project/regions/$region/interconnectAttachments");
     if (!$api_response->is_success) {
-        print "Error:\n";
-        print "Code was ", $api_response->code, "\n";
-        print "Msg: ", $api_response->message, "\n";
-        print $api_response->content, "\n";
+        warn "Error:\n";
+        warn "Code was ", $api_response->code, "\n";
+        warn "Msg: ", $api_response->message, "\n";
+        warn $api_response->content, "\n";
         die;
     }
 
@@ -174,10 +175,10 @@ sub delete_interconnect_attachment {
 
     my $api_response = $http->delete("https://www.googleapis.com/compute/v1/projects/$project/regions/$region/interconnectAttachments/$attachment_name");
     if (!$api_response->is_success) {
-        print "Error:\n";
-        print "Code was ", $api_response->code, "\n";
-        print "Msg: ", $api_response->message, "\n";
-        print $api_response->content, "\n";
+        warn "Error:\n";
+        warn "Code was ", $api_response->code, "\n";
+        warn "Msg: ", $api_response->message, "\n";
+        warn $api_response->content, "\n";
         die;
     }
 
@@ -251,10 +252,10 @@ sub insert_interconnect_attachment {
     if (!$api_response->is_success) {
         # TODO Handle errors better
 
-        print "Error:\n";
-        print "Code was ", $api_response->code, "\n";
-        print "Msg: ", $api_response->message, "\n";
-        print $api_response->content, "\n";
+        warn "Error:\n";
+        warn "Code was ", $api_response->code, "\n";
+        warn "Msg: ", $api_response->message, "\n";
+        warn $api_response->content, "\n";
         die;
     }
 
