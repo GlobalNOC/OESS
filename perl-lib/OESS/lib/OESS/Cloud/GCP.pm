@@ -182,10 +182,48 @@ sub get_interconnect_availability_zone {
     return $loc_data->{availabilityZone};
 }
 
+
+=head2 get_aggregated_interconnect_attachments
+
+get_aggregated_interconnect_attachments returns a list of all
+attachments, associated with all interconnects, owned by the GCP
+account associated with C<interconnect_id>.
+
+    my $resp = get_aggregated_interconnect_attachments(
+        interconnect_id => "https://www.googleapis.com/..."
+    );
+
+=cut
+sub get_aggregated_interconnect_attachments {
+    my $self = shift;
+    my %params = @_;
+
+    my $interconnect_id = $params{interconnect_id};
+
+    my $conn    = $self->{connections}->{$interconnect_id};
+    my $http    = $conn->{http};
+    my $project = $conn->{project_id};
+
+    my $api_response = $http->get("https://www.googleapis.com/compute/v1/projects/$project/aggregated/interconnectAttachments");
+    if (!$api_response->is_success) {
+        warn "Error:\n";
+        warn "Code was ", $api_response->code, "\n";
+        warn "Msg: ", $api_response->message, "\n";
+        warn $api_response->content, "\n";
+        die;
+    }
+
+    my $api_data = decode_json($api_response->content);
+    # TODO: Find failure modes and log as error
+    warn Dumper($api_data);
+    return $api_data;
+}
+
+
 =head2 get_interconnect_attachments
 
 get_interconnect_attachments returns a list of all attachments
-associated with C<interconnect_id>'s project and region. Not that it
+associated with C<interconnect_id>'s project and region. Note that it
 may be possible that attachments associated with other interconnects
 are also returned.
 
