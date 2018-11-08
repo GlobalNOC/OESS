@@ -4,12 +4,16 @@ use strict;
 use warnings;
 
 use Exporter;
+use Log::Log4perl;
 
 use OESS::Cloud::AWS;
 use OESS::Cloud::GCP;
 
 use Data::Dumper;
 use Data::UUID;
+
+
+my $logger = Log::Log4perl->get_logger('OESS.Cloud');
 
 
 =head2 setup_endpoints
@@ -37,7 +41,7 @@ sub setup_endpoints {
         }
 
         if ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-connection') {
-            warn "oooooooooooo AWS oooooooooooo";
+            $logger->info("Adding cloud interconnect of type aws-hosted-connection.");
             my $aws = OESS::Cloud::AWS->new();
 
             my $res = $aws->allocate_connection(
@@ -52,7 +56,7 @@ sub setup_endpoints {
             push @$result, $ep;
 
         } elsif ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-vinterface') {
-            warn "oooooooooooo AWS oooooooooooo";
+            $logger->info("Adding cloud interconnect of type aws-hosted-vinterface.");
             my $aws = OESS::Cloud::AWS->new();
 
             my $amazon_addr   = undef;
@@ -89,7 +93,7 @@ sub setup_endpoints {
             push @$result, $ep;
 
         } elsif ($ep->interface()->cloud_interconnect_type eq 'gcp-partner-interconnect') {
-            warn "oooooooooooo GCP oooooooooooo";
+            $logger->info("Adding cloud interconnect of type gcp-partner-interconnect.");
             my $gcp = OESS::Cloud::GCP->new();
 
             my $id_gen = Data::UUID->new;
@@ -123,7 +127,7 @@ sub setup_endpoints {
             push @$result, $ep;
 
         } else {
-            warn "Cloud interconnect type is not supported.";
+            $logger->warn("Cloud interconnect type is not supported.");
             push @$result, $ep;
         }
     }
@@ -148,38 +152,37 @@ sub cleanup_endpoints {
         }
 
         if ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-connection') {
-            warn "oooooooooooo AWS oooooooooooo";
             my $aws = OESS::Cloud::AWS->new();
 
             my $aws_account = $ep->cloud_account_id;
             my $aws_connection = $ep->cloud_connection_id;
-            warn "Removing aws conn $aws_connection from $aws_account";
+
+            $logger->info("Removing aws-hosted-connection $aws_connection from $aws_account.");
             $aws->delete_connection($ep->interface()->cloud_interconnect_id, $aws_connection);
 
         } elsif ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-vinterface') {
-            warn "oooooooooooo AWS oooooooooooo";
             my $aws = OESS::Cloud::AWS->new();
 
             my $aws_account = $ep->cloud_account_id;
             my $aws_connection = $ep->cloud_connection_id;
-            warn "Removing aws vint $aws_connection from $aws_account";
+
+            $logger->info("Removing aws-hosted-vinterface $aws_connection from $aws_account.");
             $aws->delete_vinterface($ep->interface()->cloud_interconnect_id, $aws_connection);
 
         } elsif ($ep->interface()->cloud_interconnect_type eq 'gcp-partner-interconnect') {
-            warn "oooooooooooo GCP oooooooooooo";
             my $gcp = OESS::Cloud::GCP->new();
 
             my $interconnect_id = $ep->interface()->cloud_interconnect_id;
             my $connection_id = $ep->cloud_connection_id;
 
-            warn "Removing gcp partner interconnect $connection_id from $interconnect_id";
+            $logger->info("Removing gcp-partner-interconnect $connection_id from $interconnect_id.");
             my $res = $gcp->delete_interconnect_attachment(
                 interconnect_id => $interconnect_id,
                 connection_id => $connection_id
             );
 
         } else {
-            warn "Cloud interconnect type is not supported.";
+            $logger->warn("Cloud interconnect type is not supported.");
         }
     }
 
