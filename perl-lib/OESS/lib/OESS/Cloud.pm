@@ -117,7 +117,7 @@ sub setup_endpoints {
             my $res = $gcp->insert_interconnect_attachment(
                 interconnect_id   => $interface->cloud_interconnect_id,
                 interconnect_name => $interconnect_name,
-                bandwidth         => 'BPS_50M',
+                bandwidth         => 'BPS_' . $ep->bandwidth . 'M',
                 connection_id     => $connection_id,
                 pairing_key       => $ep->cloud_account_id,
                 portal_url        => 'https://al2s.net.internet2.edu/',
