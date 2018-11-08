@@ -2,17 +2,16 @@
 
 use strict;
 use warnings;
-use OESS::DB::Entity; 
 use Data::Dumper;
 use GRNOC::Config;
 use GRNOC::WebService::Client;
 use Test::More tests=>8;
 use Test::Deep;
 use OESS::DB;
+use OESS::DB::Entity ; 
 use Log::Log4perl;
 use OESS::Interface;
 use OESS::Entity;
-
 # Initialize logging
 Log::Log4perl->init("/etc/oess/logging.conf");
 my $db = OESS::DB->new();
@@ -142,7 +141,7 @@ cmp_deeply ($svc->get_root_entities() ,
                                         ]
                          }
                        ]
-        }, "The method get_root entities gives desired results.");
+        }, "The method get_root_entities gives desired results.");
 
 cmp_deeply($svc->get_entity_children(entity_id=>7),
 {
@@ -363,15 +362,7 @@ cmp_deeply($svc->get_entity(entity_id=>undef),
           'results' => undef
         }, "The method get_entity() gives expected results when entity is not defined.");
 
-## Testing on vrf_id and circuit_id pending
-#{
-#            'entity_id' => '7',
-#            'url' => 'https://terapop.example.net/',
-#            'name' => 'Big State TeraPOP',
-#            'logo_url' => 'https://terapop.example.net/favicon.ico',
-#            'description' => 'The R&E networking hub for Big State'
-# }
-#cmp_deeply();
+## Not sure about test cases from vrf_id and circuit_id as vrf_table is empty
 cmp_deeply($svc->update_entity(entity_id=>123, name=>"Ok", url=>"Ok", logo_url=>"ok", description=>"Ok"),
 {
           'results' => [
@@ -431,19 +422,67 @@ cmp_deeply($svc->remove_interface(entity_id=>345, interface_id=>4444),
 );
 cmp_deeply($svc->remove_interface(entity_id=>123, interface_id=>4444),
 {
-          'error_text' => 'Unable to find entity 345 in the db',
+          'error_text' => 'Unable to find interface 4444 in the db',
           'error' => 1,
           'results' => undef
         }, "The method remove_interface() gives expected results when the entity_id is not in the DB."
 );
-
-
-
 # Not Sure of case when interface has already been removed
-#cmp_deeply($svc->remove_interface(entity_id=>123, interface_id=>333),);
-#warn Dumper($svc->remove_interface(entity_id=>123, interface_id=>1));
+
+cmp_deeply($svc->add_user(entity_id=>123, user_id =>1),
+{
+          'results' => [
+                         {
+                           'success' => 1
+                         }
+                       ]
+        }, "The method add_user() gives expected result when entity_id is 123 and user_id is 1.");
+
+cmp_deeply($svc->add_user(entity_id=>456, user_id=>1),
+{
+          'error_text' => 'Unable to find entity 456 in the db',
+          'error' => 1,
+          'results' => undef
+        },"The method add_user() gives expected result when entity_id is not in the DB.");	
+
+cmp_deeply($svc->add_user(entity_id=>123, user_id=>4444),
+{
+          'error_text' => 'Unable to find user 4444 in the db.',
+          'error' => 1,
+          'results' => undef
+        }, "The method add_user() gives expeceted result when user is out of range.");
+
+cmp_deeply($svc->remove_user(entity_id=>123, user_id=>1),
+{
+          'results' => [
+                         {
+                           'success' => 1
+                         }
+                       ]
+        }                       , "The method remove_user() gives expected reqult for entity_id = 123 and user_id = 1");
+
+cmp_deeply($svc->remove_user(entity_id=>444, user_id=>4567),
+{
+          'error_text' => 'Unable to find entity 444 in the db',
+          'error' => 1,
+          'results' => undef
+        }, "The method remove_user() returns expected result when entity is not in the DB.");
+cmp_deeply($svc->remove_user(entity_id=>123, user_id=>4567),
+{
+          'error_text' => 'Unable to find user 4567 in the db',
+          'error' => 1,
+          'results' => undef
+        },"The method remove_user() returns expected result when user_id is invalid." );
+#cmp_deeply($svc->add_user());
+#my $entities = OESS::DB::Entity::get_entities(db => $db, name => 'Big State TeraPOP');
+#warn Dumper($entities);
+#for(my $i=0; $i < 200; $i++)
+#{
+#warn Dumper($svc->get_entities(workgroup_id =>$i, name=>'Big State TeraPOP'));
+#}
 #$db->execute_query("UPDATE interface_acl SET entity_id =7 WHERE interface_id = 391");
-#my $entity = OESS::Entity->new(db=> $db, entity_id => 7);
-warn Dumper($svc->remove_interface(entity_id=>123, interface_id=>4444));
-#warn Dumper($db->execute_query("SELECT * FROM entity_interface_membership WHERE interface_id = 123"));
+#my $entity = OESS::Entity->new(db=> $db, entity_id => 123);
+#warn Dumper($entity->{'users'});
+#warn Dumper($svc->remove_user(entity_id=>123, user_id=>4567));
+#warn Dumper($db->execute_query("SELECT * FROM entity WHERE entity_id = 7"));
 #warn Dumper($db->execute_query("SELECT * FROM interface_acl WHERE interface_id = 391"));
