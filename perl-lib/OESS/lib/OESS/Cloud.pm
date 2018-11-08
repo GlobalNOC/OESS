@@ -8,11 +8,13 @@ use Log::Log4perl;
 
 use OESS::Cloud::AWS;
 use OESS::Cloud::GCP;
+use OESS::Config;
 
 use Data::Dumper;
 use Data::UUID;
 
 
+my $config = OESS::Config->new();
 my $logger = Log::Log4perl->get_logger('OESS.Cloud');
 
 
@@ -120,7 +122,7 @@ sub setup_endpoints {
                 bandwidth         => 'BPS_' . $ep->bandwidth . 'M',
                 connection_id     => $connection_id,
                 pairing_key       => $ep->cloud_account_id,
-                portal_url        => 'https://al2s.net.internet2.edu/',
+                portal_url        => $config->base_url,
                 vlan              => $ep->tag
             );
             $ep->cloud_connection_id($connection_id);
