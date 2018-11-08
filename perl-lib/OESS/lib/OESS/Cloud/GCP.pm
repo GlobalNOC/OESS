@@ -31,6 +31,24 @@ https://cloud.google.com/docs/authentication/production#obtaining_and_providing_
 Associate credentials with a physical endpoint by setting the
 C<interconnect_id> of the interface in the OESS database.
 
+B<Google API:>
+
+Google API errors take the form of the following JSON structure.
+
+    {
+      "error": {
+        "errors": [
+          {
+            "domain": "global",
+            "reason": "notFound",
+            "message": "The resource 'projects/project-name/regions/us-east1/interconnectAttachments/a-000-000-000' was not found"
+          }
+        ],
+        "code": 404,
+        "message": "The resource 'projects/project-name/regions/us-east1/interconnectAttachments/a-000-000-000' was not found"
+    }
+
+
 =cut
 
 =head2 new
@@ -205,17 +223,17 @@ sub get_aggregated_interconnect_attachments {
     my $project = $conn->{project_id};
 
     my $api_response = $http->get("https://www.googleapis.com/compute/v1/projects/$project/aggregated/interconnectAttachments");
-    if (!$api_response->is_success) {
-        warn "Error:\n";
-        warn "Code was ", $api_response->code, "\n";
-        warn "Msg: ", $api_response->message, "\n";
-        warn $api_response->content, "\n";
-        die;
+    if (!$api_response->is_success && $api_response->code == 500) {
+        $self->{logger}->error("get_aggregated_interconnect_attachments: HTTP 500");
+        return;
     }
 
     my $api_data = decode_json($api_response->content);
-    # TODO: Find failure modes and log as error
-    warn Dumper($api_data);
+    if (defined $api_data->{error}) {
+        $self->{logger}->error($api_data->{error}->{message});
+        return;
+    }
+
     return $api_data;
 }
 
@@ -244,17 +262,17 @@ sub get_interconnect_attachments {
     my $region  = $conn->{region};
 
     my $api_response = $http->get("https://www.googleapis.com/compute/v1/projects/$project/regions/$region/interconnectAttachments");
-    if (!$api_response->is_success) {
-        warn "Error:\n";
-        warn "Code was ", $api_response->code, "\n";
-        warn "Msg: ", $api_response->message, "\n";
-        warn $api_response->content, "\n";
-        die;
+    if (!$api_response->is_success && $api_response->code == 500) {
+        $self->{logger}->error("get_interconnect_attachments: HTTP 500");
+        return;
     }
 
     my $api_data = decode_json($api_response->content);
-    # TODO: Find failure modes and log as error
-    warn Dumper($api_data);
+    if (defined $api_data->{error}) {
+        $self->{logger}->error($api_data->{error}->{message});
+        return;
+    }
+
     return $api_data;
 }
 
@@ -283,29 +301,18 @@ sub delete_interconnect_attachment {
     my $region  = $conn->{region};
 
     my $api_response = $http->delete("https://www.googleapis.com/compute/v1/projects/$project/regions/$region/interconnectAttachments/$attachment_name");
-    if (!$api_response->is_success) {
-        warn "Error:\n";
-        warn "Code was ", $api_response->code, "\n";
-        warn "Msg: ", $api_response->message, "\n";
-        warn $api_response->content, "\n";
-        die;
+    if (!$api_response->is_success && $api_response->code == 500) {
+        $self->{logger}->error("delete_interconnect_attachment: HTTP 500");
+        return;
     }
 
     my $api_data = decode_json($api_response->content);
-    # TODO: Find failure modes and log as error
-    # {
-    #   "error": {
-    #     "errors": [
-    #       {
-    #         "domain": "global",
-    #         "reason": "notFound",
-    #         "message": "The resource 'projects/project-name/regions/us-east1/interconnectAttachments/a-000-000-000' was not found"
-    #       }
-    #     ],
-    #     "code": 404,
-    #     "message": "The resource 'projects/project-name/regions/us-east1/interconnectAttachments/a-000-000-000' was not found"
-    # }
-    warn Dumper($api_data);
+    if (defined $api_data->{error}) {
+        $self->{logger}->error($api_data->{error}->{message});
+        return;
+    }
+
+    $self->{logger}->info("delete_interconnect_attachment: Status is $api_data->{status}.");
     return $api_data;
 }
 
@@ -370,19 +377,18 @@ sub insert_interconnect_attachment {
     $req->content( encode_json($payload) );
 
     my $api_response = $http->request($req);
-    if (!$api_response->is_success) {
-        # TODO Handle errors better
-
-        warn "Error:\n";
-        warn "Code was ", $api_response->code, "\n";
-        warn "Msg: ", $api_response->message, "\n";
-        warn $api_response->content, "\n";
-        die;
+    if (!$api_response->is_success && $api_response->code == 500) {
+        $self->{logger}->error("insert_interconnect_attachment: HTTP 500");
+        return;
     }
 
     my $api_data = decode_json($api_response->content);
-    # TODO: Find failure modes and log as error
-    warn Dumper($api_data);
+    if (defined $api_data->{error}) {
+        $self->{logger}->error($api_data->{error}->{message});
+        return;
+    }
+
+    $self->{logger}->info("insert_interconnect_attachment: Status is $api_data->{status}.");
     return $api_data;
 }
 
