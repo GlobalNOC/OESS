@@ -81,7 +81,7 @@ sub get_aws_virtual_interface{
     my @aws_conns;
 
     foreach my $cloud (@{$config->get_cloud_config()->{'connection'}}){
-        if($cloud->{'interconnect_type'} eq 'aws-hosted-vinterface'){
+        if($cloud->{'interconnect_type'} eq 'aws-hosted-vinterface' || $cloud->{'interconnect_type'} eq 'aws-hosted-connection'){
             $ENV{'AWS_ACCESS_KEY'} = $cloud->{access_key};
             $ENV{'AWS_SECRET_KEY'} = $cloud->{secret_key};
             

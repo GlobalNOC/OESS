@@ -36,7 +36,11 @@ async function addToConnectionCallback() {
 `;
     }
 
-    document.querySelector('#add-to-connection-list').innerHTML = '<table class="table">' + html + '</table>';
+    if (connections.length === 0) {
+        document.querySelector('#add-to-connection-list').innerHTML = '<p>No existing connections found. Create a new L3VPN to connect to this Entity.</p><br/>'
+    } else {
+        document.querySelector('#add-to-connection-list').innerHTML = '<table class="table">' + html + '</table>';
+    }
 }
 
 async function addToConnectionCancelCallback() {
@@ -83,6 +87,22 @@ async function loadEntityList(parentEntity=null) {
     let entityDescription = document.querySelector('#entity-description');
     entityDescription.innerHTML = description;
 
+    let header = document.querySelector('#entity-header');
+    header.style.flexDirection = 'column';
+
+    let elogo = document.querySelector('#entity-logo');
+    let ename = document.querySelector('#entity-name');
+    if (entityID == "1") {
+        elogo.style.display = 'none';
+        ename.style.display = 'none';
+        header.innerHTML = `<h1>Network Entities</h1>
+            <p>Browse connected network entities here. Once you've located a network you'd like to connect with, you may use the provided links to add the network to an existing Layer3 VPN or use the network as the basis for a new VPN.</p><p>To create a new entity, please <a href="mailto:[% admin_email %]?SUBJECT=System Support: OESS Entity Creation Request">contact</a> your OESS administrator.</p>`;
+    } else {
+        header.innerHTML = '';
+        elogo.style.display = 'block';
+        ename.style.display = 'block';
+    }
+
     let path   = sessionStorage.getItem('phone-crumb');
     let cpath  = '';
 
@@ -100,8 +120,6 @@ async function loadEntityList(parentEntity=null) {
         let found  = 0;
 
         for (let i = 0; i < crumbs.length; i++) {
-            console.log('yo');
-            console.log(crumbs[i].name);
             if (crumbs[i].name === parent.name) {
                 found = 1;
                 crumbs = crumbs.splice(i, 1);
@@ -128,28 +146,18 @@ async function loadEntityList(parentEntity=null) {
     entityCrumbsString += `<li class="active">${name}</li>`;
     entityCrumbs.innerHTML = entityCrumbsString;
 
+    let entityActions = document.querySelector('#entity-actions');
+    if (entity.interfaces.length > 0) {
+        entityActions.style.display = 'flex';
+    } else {
+        entityActions.style.display = 'none';
+    }
 
     entity.children.forEach(function(entity) {
         let childLi  = `<li role="presentation" onclick="loadEntityList(${entity.entity_id})"><a href="#">${entity.name}</a></li>`;
         entityNav += childLi;
     });
     entitiesList.innerHTML = entityNav;
-
-    if (entity.interfaces.length < 1) {
-        document.querySelector('#entity-interfaces-title').style.display = 'none';
-    } else {
-        document.querySelector('#entity-interfaces-title').style.display = 'block';
-    }
-
-    let entityInterfaces = '';
-    entity.interfaces.forEach(function(intf) {
-            if (intf.operational_state === 'up') {
-                entityInterfaces += `<p class="entity-interface"><span class="label label-success">&nbsp;▴&nbsp;</span> <b>${intf.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${intf.name}</p>`;
-            } else {
-                entityInterfaces += `<p class="entity-interface"><span class="label label-danger">&nbsp;▾&nbsp;</span> <b>${intf.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${intf.name}</p>`;
-            }
-    });
-    document.querySelector('#entity-interfaces').innerHTML = entityInterfaces;
 
     if (entity.contacts.length < 1) {
         document.querySelector('#entity-contacts-title').style.display = 'none';

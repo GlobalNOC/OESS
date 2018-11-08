@@ -292,13 +292,25 @@ async function submitPrivateNetworkForm(form) {
 
   let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
   
-  return await provisionVRF(
-    session.data.workgroup_id,
-    elements['description'].value,
-    elements['description'].value,
-    endpoints,
-    provisionTime,
-    removeTime,
-    -1
-  );
+  try {
+      let vrfID = await provisionVRF(
+          session.data.workgroup_id,
+          elements['description'].value,
+          elements['description'].value,
+          endpoints,
+          provisionTime,
+          removeTime,
+          -1
+      );
+
+      if (vrfID === null) {
+          addNetworkLoadingModal.modal('hide');
+      } else {
+          window.location.href = `index.cgi?action=view_l3vpn&vrf_id=${vrfID}`;
+      }
+  } catch (error){
+      addNetworkLoadingModal.modal('hide');
+      alert('Failed to modify L3VPN: ' + error);
+      return;
+  }
 }

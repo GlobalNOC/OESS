@@ -38,6 +38,10 @@ async function loadEntityList() {
     let html = '';
     let ok = true;
 
+    if (entities.length === 0) {
+        html = '<p>There are no Layer3 VPNs currently provisioned. Click <a href="[% path %]new/index.cgi?action=provision_cloud">here</a> to create one.</p>';
+    }
+
     entities.forEach(function(entity, index) {
 
         let endpointHTML = '';

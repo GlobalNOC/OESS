@@ -173,15 +173,15 @@ sub reserve {
     }
     
 
-    my $primary_path = $self->get_shortest_path($ep1, $ep2, []);
-    if(!defined($primary_path)){
-        log_error("Unable to connect $source_stp and $dest_stp");
-        $args->{'fail_text'} = "no path exists connecting both source and destination STP";
-        push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_FAIL, connection_id => 9999999, args => $args});
-        return OESS::NSI::Constant::RESERVATION_FAIL;
-    }
-    
-    my $backup_path = $self->get_shortest_path($ep1, $ep2, $primary_path);
+#    my $primary_path = $self->get_shortest_path($ep1, $ep2, []);
+#    if(!defined($primary_path)){
+#        log_error("Unable to connect $source_stp and $dest_stp");
+#        $args->{'fail_text'} = "no path exists connecting both source and destination STP";
+#        push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_FAIL, connection_id => 9999999, args => $args});
+#        return OESS::NSI::Constant::RESERVATION_FAIL;
+#    }
+#    
+#    my $backup_path = $self->get_shortest_path($ep1, $ep2, $primary_path);
 
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "provisioning.cgi");
     
@@ -193,8 +193,8 @@ sub reserve {
                                       bandwidth => $capacity,
                                       provision_time => $start_time,
                                       remove_time => $end_time,
-                                      link => $primary_path,
-                                      backup_link => $backup_path,
+#                                      link => $primary_path,
+#                                      backup_link => $backup_path,
                                       remote_url => $args->{'header'}->{'replyTo'},
                                       remote_requester => $args->{'header'}->{'requesterNSA'},
                                       node => [$ep1->{'node'}, $ep2->{'node'}],

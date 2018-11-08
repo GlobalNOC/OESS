@@ -154,7 +154,6 @@ sub from_hash{
 
     $self->{'unit'} = $hash->{'unit'};
 
-    warn "Searching for Entity\n";
     $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, interface_id => $self->{'interface'}->{'interface_id'}, vlan => $self->{'tag'});
 }
 
@@ -234,9 +233,16 @@ sub type{
 =cut
 sub peers{
     my $self = shift;
+    my $peers = shift;
+
+    if(defined($peers)){
+        $self->{'peers'} = $peers;
+    }
+
     if(!defined($self->{'peers'})){
         return [];
     }
+
     return $self->{'peers'};
 }
 

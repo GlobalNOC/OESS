@@ -79,10 +79,9 @@ async function addNetworkSubmitCallback(event) {
         } else {
             window.location.href = `index.cgi?action=view_l3vpn&vrf_id=${vrfID}`;
         }
-
     } catch (error){
         addNetworkLoadingModal.modal('hide');
-        alert('Failed to provision Cloud Connection.  Error: ' + error);
+        alert('Failed to provision L3VPN: ' + error);
         return;
     }
 }
