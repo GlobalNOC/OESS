@@ -268,12 +268,13 @@ sub _write_cache{
 		push(@bgp, $bgp->to_hash());
 	    }
 	    
-	    my $int_obj = { name => $ep->interface()->name(),
-			    tag => $ep->tag(),
+            my $int_obj = { name => $ep->interface()->name,
+                            type => $ep->interface()->cloud_interconnect_type,
+                            tag => $ep->tag(),
                             unit => $ep->unit(),
                             inner_tag => $ep->inner_tag(),
                             bandwidth => $ep->bandwidth(),
-			    peers => \@bgp };
+                            peers => \@bgp };
 	    
 	    
 	    if(defined($switches{$ep->node()->name()}->{'vrfs'}{$vrf->vrf_id()})){
