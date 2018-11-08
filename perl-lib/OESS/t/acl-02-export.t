@@ -117,11 +117,29 @@ cmp_deeply(
 
 $acl = OESS::ACL->new( interface_id => 21, db => $db );
 
+warn Dumper($acl->to_hash());
+
 cmp_deeply(
     $acl->to_hash(),
     {
         interface_id => 21,
         acls => [
+{
+                        'eval_position' => '20',
+                        'workgroup_id' => '31',
+                        'allow_deny' => 'allow',
+                        'entity_id' => '11',
+                        'end' => '4095',
+                        'start' => '-1'
+},
+{
+                        'eval_position' => '30',
+                        'workgroup_id' => '31',
+                        'allow_deny' => 'allow',
+                        'entity_id' => '12',
+                        'end' => '4095',
+                        'start' => '-1'
+}
         ],
     },
     'ACL object 6 (id=21): to_hash returns the right information, even when interface_acl_ids aren\'t in desired order'

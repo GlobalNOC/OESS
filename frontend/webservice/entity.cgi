@@ -391,7 +391,7 @@ sub get_entities{
             foreach my $acl (@{$int->acls()->acls()}){
                 next if $acl->{'entity_id'} != $entity->entity_id();
                 next if $acl->{'allow_deny'} ne 'allow';
-                next if $acl->{'workgroup_id'} != $workgroup_id;
+                next if (defined($acl->{'workgroup_id'}) && $acl->{'workgroup_id'} != $workgroup_id) ;
                 for (my $i=$acl->{'start'}; $i<=$acl->{'end'}; $i++) {
                     if ($int->vlan_valid(workgroup_id => $workgroup_id, vlan => $i)) {
                         $obj->{'available_vlans'} = \@allowed_vlans;
@@ -542,7 +542,7 @@ sub get_entity{
         foreach my $acl (@{$int->acls()->acls()}){
             next if $acl->{'entity_id'} != $entity->entity_id();
             next if $acl->{'allow_deny'} ne 'allow';
-            next if $acl->{'workgroup_id'} != $workgroup_id;
+            next if (defined($acl->{'workgroup_id'}) && $acl->{'workgroup_id'} != $workgroup_id);
             for(my $i=$acl->{'start'}; $i<=$acl->{'end'}; $i++){
                 if($int->vlan_valid( workgroup_id => $workgroup_id, vlan => $i )){
                     push(@allowed_vlans,$i);

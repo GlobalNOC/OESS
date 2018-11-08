@@ -42,6 +42,10 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
   form.append('remove_time', removeTime);
   form.append('vrf_id', vrfID);
 
+  if (endpoints.length < 2) {
+      throw('At least two endpoints must be specified.');
+  }
+
   endpoints.forEach(function(endpoint) {
     let e = {
       bandwidth: endpoint.bandwidth,
@@ -57,6 +61,10 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
       e['node']      = endpoint.node;
     }
 
+    if (endpoint.peerings.length < 1) {
+      throw('At least one peering on each endpoint must be specified.');
+    }
+
     endpoint.peerings.forEach(function(p) {
       e.peerings.push({
         asn: p.asn,
@@ -69,27 +77,16 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
     form.append('endpoint', JSON.stringify(e));
   });
 
-  try {
-    const resp = await fetch(url, {method: 'post', credentials: 'include', body: form});
-    const data = await resp.json();
+  const resp = await fetch(url, {method: 'post', credentials: 'include', body: form});
+  const data = await resp.json();
 
-    if ('error_text' in data) {
-        throw(data.error_text);
-    }
+  if ('error_text' in data) throw(data.error_text);
 
-    if (typeof data.results.success !== 'undefined' && typeof data.results.vrf_id !== 'undefined') {
-      return parseInt(data.results.vrf_id);
-    }
-
-  } catch(error) {
-    console.log('Failure occurred in provisionVRF.');
-    console.log(error);
-    alert(error);
-    return null;
+  if (typeof data.results.success === 'undefined' || typeof data.results.vrf_id === 'undefined') {
+    throw("Unexpected response format received from server.");
   }
 
-  //should never get here
-  throw("Unexpected response from server");
+  return parseInt(data.results.vrf_id);
 }
 
 async function getVRF(vrfID) {

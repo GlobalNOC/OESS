@@ -109,20 +109,26 @@ async function addNetworkSubmitCallback(event) {
     let url = new URL(window.location.href);
     let id = url.searchParams.get('vrf_id');
 
-    let vrfID = await provisionVRF(
-        session.data.workgroup_id,
-        document.querySelector('#description').value,
-        document.querySelector('#description').value,
-        JSON.parse(sessionStorage.getItem('endpoints')),
-        provisionTime,
-        removeTime,
-        id
-    );
+    try {
+        let vrfID = await provisionVRF(
+            session.data.workgroup_id,
+            document.querySelector('#description').value,
+            document.querySelector('#description').value,
+            JSON.parse(sessionStorage.getItem('endpoints')),
+            provisionTime,
+            removeTime,
+            id
+        );
 
-    if (vrfID === null) {
+        if (vrfID === null) {
+            addNetworkLoadingModal.modal('hide');
+        } else {
+            window.location.href = `index.cgi?action=view_l3vpn&vrf_id=${vrfID}`;
+        }
+    } catch (error){
         addNetworkLoadingModal.modal('hide');
-    } else {
-        window.location.href = `index.cgi?action=view_l3vpn&vrf_id=${vrfID}`;
+        alert('Failed to modify L3VPN: ' + error);
+        return;
     }
 }
 

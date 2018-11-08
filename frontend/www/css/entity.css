@@ -2,8 +2,6 @@
     display: grid;
     grid-gap: 15px;
 
-    height: 85vh;
-
     grid-template-columns: minmax(200px, max-content) auto;
     grid-template-rows: max-content 1fr;
 }
@@ -11,8 +9,6 @@
 .entity-nav {
     grid-column: 1 / 2;
     grid-row:    1 / 3;
-
-    overflow-y: auto;
 
     padding-top: 15px;
 }

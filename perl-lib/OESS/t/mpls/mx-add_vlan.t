@@ -116,11 +116,13 @@ $ok = $device->add_vlan({
     interfaces => [
         {
             interface => 'ge-0/0/1',
-            tag => 2004
+            tag => 2004,
+            unit => 2004
         },
         {
             interface => 'ge-0/0/2',
-            tag => 2004
+            tag => 2004,
+            unit => 2004
         }
     ],
     paths => [],
@@ -189,7 +191,9 @@ my $expected_config = '<configuration>
         <name>2004</name>
         <description>OESS-L2VPLS-3012</description>
         <encapsulation>vlan-vpls</encapsulation>
+        
         <vlan-id>2004</vlan-id>
+        
         <output-vlan-map>
           <swap/>
         </output-vlan-map>
@@ -202,7 +206,9 @@ my $expected_config = '<configuration>
         <name>2004</name>
         <description>OESS-L2VPLS-3012</description>
         <encapsulation>vlan-vpls</encapsulation>
+        
         <vlan-id>2004</vlan-id>
+        
         <output-vlan-map>
           <swap/>
         </output-vlan-map>

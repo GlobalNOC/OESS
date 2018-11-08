@@ -83,7 +83,6 @@ sub to_hash{
     }
    
     foreach my $int (@{$self->interfaces()}){
-        warn Dumper($int);
         push(@{$obj->{'interfaces'}}, $int->to_hash());
     }
  

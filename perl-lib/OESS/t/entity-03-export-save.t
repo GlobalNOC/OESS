@@ -147,9 +147,6 @@ cmp_deeply(
 # Try changing multiple things, update the DB, and see if we get the expected results after:
 $ent2->name('xyzzy');
 $ent2->logo_url('https://example.edu/icon');
-$ent2->add_interface(OESS::Interface->new(interface_id => 14081, db => $db));
-$ent2->add_interface(OESS::Interface->new(interface_id => 21, db => $db));
-$ent2->remove_interface(OESS::Interface->new(interface_id => 35961, db => $db));
 $ent2->remove_user(OESS::User->new(user_id => 121, db => $db));
 $ent2->add_child({ entity_id => 15 });
 $ent2->add_child({ entity_id => 15 }); # Try adding it twice!
@@ -157,6 +154,8 @@ $ent2->add_child({ entity_id => 15 }); # Try adding it twice!
 ok(!defined($ent2->update_db()), 'Entity 2: no DB errors when running update_db()');
 
 my $ent2a = OESS::Entity->new( entity_id => 14, db => $db );
+
+warn Dumper($ent2a);
 
 cmp_deeply(
     $ent2a->to_hash(),
@@ -168,7 +167,7 @@ cmp_deeply(
         url         => 'https://b-metro.example.edu/',
         logo_url    => 'https://example.edu/icon',
 
-        interfaces  => bag( _interface(21), _interface(14081) ),
+        interfaces  => bag( _interface(35961) ),
         contacts    => bag( _user(881) ),
         parents     => bag(
             {
