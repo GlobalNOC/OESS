@@ -91,19 +91,19 @@ sub _fetch_from_db{
         if (defined $self->{'name'} && defined $self->{'node'}) {
             my $interface_id = OESS::DB::Interface::get_interface(db => $self->{'db'}, interface => $self->{'name'}, node => $self->{'node'});
             if (!defined $interface_id) {
-                $self->{'logger'}->error("sdfsdfUnable to fetch interface $self->{name} on $self->{node} from the db!");
+                $self->{'logger'}->error("Unable to fetch interface $self->{name} on $self->{node} from the db!");
                 return;
             }
             $self->{'interface_id'} = $interface_id;
         } else {
-	    $self->{'logger'}->error("123123Unable to fetch interface $self->{name} on $self->{node} from the db!");
+	    $self->{'logger'}->error("Unable to fetch interface $self->{name} on $self->{node} from the db!");
 	    return;
 	}
     }
 
     my $info = OESS::DB::Interface::fetch(db => $self->{'db'}, interface_id => $self->{'interface_id'});
     if (!defined $info) {
-        $self->{'logger'}->error("#####Unable to fetch interface $self->{interface_id} from the db!");
+        $self->{'logger'}->error("Unable to fetch interface $self->{interface_id} from the db!");
         return;
     }
 

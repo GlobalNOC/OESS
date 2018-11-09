@@ -1,4 +1,4 @@
-#!/usr/bin/perl -T
+#!/usr/bin/perl
 
 use OESS::Interface;
 use Test::More tests => 19;
@@ -90,3 +90,33 @@ ok($interface->vlan_valid(vlan=>10000,workgroup_id=>11) eq 0, "The method vlan_v
 ok($interface->vlan_valid(vlan=>391,workgroup_id=>11) eq 0, "The method vlan_valid() returns expected result when vlan 391 is in use");
 ok($interface->vlan_valid(vlan=>3,workgroup_id=>123)eq 0 , "The method vlan_valid() returns expected result when vlan is not_allowed");
 ok($interface->vlan_valid(vlan=>40,workgroup_id=>11) eq 0," The method vlan_valid() returns expected result when vlan is out of mpls_range");
+
+# Testing the Interface object
+ok($interface->{'name'} eq "e15/1", "The object interface returns expected name");
+cmp_deeply($interface->{'acls'}->{'acls'},
+[
+          {
+            'eval_position' => '10',
+            'workgroup_id' => '11',
+            'allow_deny' => 'deny',
+            'entity_id' => '7',
+            'end' => undef,
+            'start' => 1
+          },
+          {
+            'eval_position' => '20',
+            'workgroup_id' => 11,
+            'allow_deny' => 'allow',
+            'entity_id' => '7',
+            'end' => 4095,
+            'start' => 1
+          }
+        ], "The object interface 391 has expect list of acls");
+my $flag = 0;
+foreach my $i ( @{$interface->{'used_vlans'}}){
+	if ($i == 391){
+		$flag= 1;
+	}
+}
+ok($flag == 1, "The expected vlan is in use by the interface object");
+

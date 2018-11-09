@@ -473,12 +473,16 @@ cmp_deeply($svc->remove_user(entity_id=>123, user_id=>4567),
           'error' => 1,
           'results' => undef
         },"The method remove_user() returns expected result when user_id is invalid." );
+
+
 #cmp_deeply($svc->add_user());
 #my $entities = OESS::DB::Entity::get_entities(db => $db, name => 'Big State TeraPOP');
 #warn Dumper($entities);
 #for(my $i=0; $i < 200; $i++)
 #{
-#warn Dumper($svc->get_entities(workgroup_id =>$i, name=>'Big State TeraPOP'));
+warn Dumper($svc->get_entities(workgroup_id =>10, name=>'Big State TeraPOP'));
+my $a = [];
+warn Dumper($a);
 #}
 #$db->execute_query("UPDATE interface_acl SET entity_id =7 WHERE interface_id = 391");
 #my $entity = OESS::Entity->new(db=> $db, entity_id => 123);
