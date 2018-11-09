@@ -37,7 +37,6 @@ async function showEndpointSelectionModal(endpoint, options) {
 
             await loadEntities(endpoint.entity_id, options);
             await loadInterfaces();
-            // await loadEntityBandwidths();
 
             document.querySelector('#entity-index').value = endpoint.index;
             document.querySelector('#entity-id').value = endpoint.entity_id;
