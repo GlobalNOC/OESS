@@ -107,7 +107,10 @@ sub _build_from_model{
     $self->{'endpoints'} = ();
     #process Endpoints
     foreach my $ep (@{$self->{'model'}->{'endpoints'}}){
-	push(@{$self->{'endpoints'}}, OESS::Endpoint->new( db => $self->{'db'}, model => $ep, type => 'vrf'));
+        $ep->{workgroup_id} = $self->{model}->{workgroup_id};
+
+        my $ep_obj = OESS::Endpoint->new(db => $self->{'db'}, model => $ep, type => 'vrf');
+        push(@{$self->{'endpoints'}}, $ep_obj);
     }
 
     #process Workgroups

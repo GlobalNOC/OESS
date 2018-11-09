@@ -267,8 +267,19 @@ sub provision_vrf{
     if (defined $model->{'vrf_id'} && $model->{'vrf_id'} != -1) {
         return _edit_vrf(method => $method, db => $db, model => $model, skip_cloud_provisioning => $params->{'skip_cloud_provisioning'}{'values'});
     }else{
-        my $vrf = OESS::VRF->new( db => $db, model => $model);
-        
+
+        my $vrf;
+        eval {
+            $vrf = OESS::VRF->new(db => $db, model => $model);
+        };
+        if ($@) {
+            $method->set_error("$@");
+            return;
+        }
+
+        $method->set_error("VRF creation is currently disabled for testing. Please contact Jonathan to enable.");
+        return;
+
         if (!$params->{skip_cloud_provisioning}{value}) {
             eval {
                 my $setup_endpoints = OESS::Cloud::setup_endpoints($vrf->name, $vrf->endpoints);

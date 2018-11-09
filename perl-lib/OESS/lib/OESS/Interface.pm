@@ -316,4 +316,31 @@ sub vlan_valid{
     return 1;
 }
 
+=head2 is_bandwidth_valid
+
+     my $ok = is_bandwidth_valid(bandwidth => 100);
+
+is_bandwidth_valid returns C<1> if C<bandwidth> can be set on this
+interface as this interface's max capacity, otherwise we return C<0>.
+
+=cut
+sub is_bandwidth_valid {
+    my $self   = shift;
+    my %params = @_;
+
+    my $bandwidth = $params{bandwidth};
+
+    my $aws_conn = { 50 => 1, 100 => 1, 200 => 1, 300 => 1, 400 => 1, 500 => 1 };
+    my $default  = { 0 => 1 };
+    my $gcp_part = { 50 => 1, 100 => 1, 200 => 1, 300 => 1, 400 => 1, 500 => 1, 1000 => 1, 2000 => 1, 5000 => 1, 10000 => 1 };
+
+    if ($self->cloud_interconnect_type eq 'aws-hosted-connection') {
+        if (defined $aws_conn->{$bandwidth}) { return 1; } else { return 0; }
+    } elsif ($self->cloud_interconnect_type eq 'gcp-partner-interconnect') {
+        if (defined $gcp_part->{$bandwidth}) { return 1; } else { return 0; }
+    } else {
+        if (defined $default->{$bandwidth}) { return 1; } else { return 0; }
+    }
+}
+
 1;
