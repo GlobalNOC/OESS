@@ -112,6 +112,7 @@ cmp_deeply($interface->{'acls'}->{'acls'},
             'start' => 1
           }
         ], "The object interface 391 has expect list of acls");
+
 my $flag = 0;
 foreach my $i ( @{$interface->{'used_vlans'}}){
 	if ($i == 391){
@@ -119,4 +120,8 @@ foreach my $i ( @{$interface->{'used_vlans'}}){
 	}
 }
 ok($flag == 1, "The expected vlan is in use by the interface object");
-
+ok($interface->{'interface_id'} eq '391', "The object interface has the correct interface_id");
+ok($interface->{'node'}->{'node_id'} eq "11", "The object interface has the correct node");
+ok($interface->{'operational_state'} eq "up", "The operational state is up for the given interface");
+ok($interface->{'mpls_vlan_tag_range'} eq '1-10', "The tag range defined for interface 391 is correct");
+warn Dumper($interface->{'mpls_vlan_tag_range'});
