@@ -1,7 +1,7 @@
-#!/usr/bin/perl -T
+#!/usr/bin/perl -T 
 
 use OESS::Interface;
-use Test::More tests => 28;
+use Test::More tests => 29;
 use Log::Log4perl;
 use OESS::DB;
 use Data::Dumper;
@@ -147,3 +147,4 @@ foreach my $i ( @{$interface->{'used_vlans'}}){
 }
 ok($flag == 1, "Vlan 444 is not in use by the interface object");
 ok($interface->{'operational_state'} eq "up", "The operational state is up for the given interface");
+ok($interface->{'cloud_interconnect_id'} eq undef, "There is no cloud interconnect type defined for the interface");
