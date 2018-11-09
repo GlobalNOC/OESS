@@ -917,7 +917,6 @@ sub add_vrf{
                                 key => $bgp->{'md5_key'}
                      });
             }            
-
         }
 
 
@@ -927,6 +926,7 @@ sub add_vrf{
         }
 
         push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
+                                          type => $i->{'type'},
                                           inner_tag => $i->{'inner_tag'},
                                           tag  => $i->{'tag'},
                                           unit => $i->{'unit'},

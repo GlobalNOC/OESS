@@ -224,8 +224,11 @@ async function loadEntityCloudAccountInput(entity) {
     if (interconnect_id === null || interconnect_id === 'null' || interconnect_id === '') {
         document.querySelector('#entity-cloud-account').style.display = 'none';
     } else {
-        // TODO Update cloud account label based on interconnect type
-        document.querySelector('#entity-cloud-account-label').innerHTML = 'AWS Account Owner';
+        let label = 'AWS Account Owner';
+        if (interconnect_type === 'gcp-partner-interconnect') {
+            label = 'GCP Pairing Key';
+        }
+        document.querySelector('#entity-cloud-account-label').innerHTML = label;
         document.querySelector('#entity-cloud-account').style.display = 'block';
     }
 }

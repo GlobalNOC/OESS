@@ -13,7 +13,43 @@ use OESS::Peer;
 use OESS::Entity;
 use Data::Dumper;
 
+
+=head1 OESS::Endpoint
+
+An C<Endpoint> represents an edge connection of a circuit or vrf.
+
+=cut
+
 =head2 new
+
+B<Example 1:>
+
+    my $json = {
+        inner_tag           => undef,      # Inner VLAN tag (qnq only)
+        tag                 => 1234,       # Outer VLAN tag
+        cloud_account_id    => '',         # AWS account or GCP pairing key
+        cloud_connection_id => '',         # Probably shouldn't exist as an arg
+        entity              => 'us-east1', # Interfaces to select from
+        bandwidth           => 100,        # Acts as an interface selector and validator
+        workgroup_id        => 10,         # Acts as an interface selector and validator
+        peerings            => [ {...} ]
+    };
+    my $endpoint = OESS::Endpoint->new(db => $db, type => 'vrf', model => $json);
+
+B<Example 2:>
+
+    my $json = {
+        inner_tag           => undef,      # Inner VLAN tag (qnq only)
+        tag                 => 1234,       # Outer VLAN tag
+        cloud_account_id    => '',         # AWS account or GCP pairing key
+        cloud_connection_id => '',         # Probably shouldn't exist as an arg
+        node                => 'switch.1', # Name of node to select
+        interface           => 'xe-7/0/1', # Name of interface to select
+        bandwidth           => 100,        # Acts as an interface validator
+        workgroup_id        => 10,         # Acts as an interface validator
+        peerings            => [ {...} ]
+    };
+    my $endpoint = OESS::Endpoint->new(db => $db, type => 'vrf', model => $json);
 
 =cut
 sub new{
@@ -27,7 +63,7 @@ sub new{
         vrf_id => undef,
         db => undef,
         @_
-        );
+    );
 
     my $self = \%args;
     
@@ -58,8 +94,6 @@ sub new{
 =cut
 sub _build_from_model{
     my $self = shift;
-
-    warn "Building endpoint from model\n";
     
     $self->{'inner_tag'} = $self->{'model'}->{'inner_tag'};
     $self->{'tag'} = $self->{'model'}->{'tag'};
@@ -72,10 +106,39 @@ sub _build_from_model{
         $self->{'interface'} = OESS::Interface->new( db => $self->{'db'}, name => $self->{'model'}->{'interface'}, node => $self->{'model'}->{'node'});
         $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, interface_id => $self->{'interface'}->{'interface_id'}, vlan => $self->{'tag'});
     }else{
-        $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, name => $self->{'model'}->{'entity'});
-        $self->{'interface'} = $self->{'entity'}->interfaces()->[0];
-    }
+        $self->{'entity'} = OESS::Entity->new(db => $self->{'db'}, name => $self->{'model'}->{'entity'});
 
+        my $err = undef;
+        foreach my $intf (@{$self->{entity}->interfaces()}) {
+            my $valid_bandwidth = $intf->is_bandwidth_valid(bandwidth => $self->{model}->{bandwidth});
+            if (!$valid_bandwidth) {
+                $err = "The choosen bandwidth for this Endpoint is invalid.";
+            }
+
+            my $valid_vlan = 0;
+            if (defined $self->{model}->{workgroup_id}) {
+                $valid_vlan = $intf->vlan_valid(
+                    vlan         => $self->{model}->{tag},
+                    workgroup_id => $self->{model}->{workgroup_id}
+                );
+                if (!$valid_vlan) {
+                    $err = "The selected workgroup cannot use vlan $self->{model}->{tag} on $self->{model}->{entity}.";
+                }
+            } else {
+                warn "Endpoint model is missing workgroup_id. Skipping vlan validation.";
+                $valid_vlan = 1;
+            }
+
+            if ($valid_vlan && $valid_bandwidth) {
+                $self->{interface} = $intf;
+                last;
+            }
+        }
+
+        if (!defined $self->{interface}) {
+            die $err;
+        }
+    }
 
     if($self->{'type'} eq 'vrf'){
         $self->{'peers'} = ();
