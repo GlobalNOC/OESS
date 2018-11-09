@@ -1,19 +1,18 @@
-#!/usr/bin/perl 
+#!/usr/bin/perl  
 
 use strict;
 use warnings;
 use Data::Dumper;
 use GRNOC::Config;
 use GRNOC::WebService::Client;
-use Test::More tests=>8;
+use Test::More tests=>23;
 use Test::Deep;
 use OESS::DB;
-use OESS::DB::Entity ; 
 use Log::Log4perl;
 use OESS::Interface;
-use OESS::Entity;
 # Initialize logging
 Log::Log4perl->init("/etc/oess/logging.conf");
+
 my $db = OESS::DB->new();
 my $interface_id = 391;
 my $workgroup_id = 11;
@@ -30,11 +29,6 @@ my $svc =new  GRNOC::WebService::Client(
                         realm   => 'OESS',
                         debug   => 0
 );
-#warn Dumper($db->execute_query("SELECT * FROM entity where entity_id = 7"));
-#warn Dumper($db->execute_query("SELECT * FROM interface_acl WHERE interface_id=391 "));
-#warn Dumper(($svc->get_entities(workgroup_id=> 11, name=>"Big State TeraPOP")));
-#my $entities = OESS::DB::Entity::get_entities(db => $db, name=>"Big State TeraPOP");
-#warn Dumper($entities);
 cmp_deeply ($svc->get_root_entities() , 
 {
           'results' => [
@@ -475,18 +469,3 @@ cmp_deeply($svc->remove_user(entity_id=>123, user_id=>4567),
         },"The method remove_user() returns expected result when user_id is invalid." );
 
 
-#cmp_deeply($svc->add_user());
-#my $entities = OESS::DB::Entity::get_entities(db => $db, name => 'Big State TeraPOP');
-#warn Dumper($entities);
-#for(my $i=0; $i < 200; $i++)
-#{
-warn Dumper($svc->get_entities(workgroup_id =>10, name=>'Big State TeraPOP'));
-my $a = [];
-warn Dumper($a);
-#}
-#$db->execute_query("UPDATE interface_acl SET entity_id =7 WHERE interface_id = 391");
-#my $entity = OESS::Entity->new(db=> $db, entity_id => 123);
-#warn Dumper($entity->{'users'});
-#warn Dumper($svc->remove_user(entity_id=>123, user_id=>4567));
-#warn Dumper($db->execute_query("SELECT * FROM entity WHERE entity_id = 7"));
-#warn Dumper($db->execute_query("SELECT * FROM interface_acl WHERE interface_id = 391"));

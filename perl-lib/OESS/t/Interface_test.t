@@ -1,7 +1,7 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -T
 
 use OESS::Interface;
-use Test::More tests => 19;
+use Test::More tests => 28;
 use Log::Log4perl;
 use OESS::DB;
 use Data::Dumper;
@@ -24,9 +24,8 @@ ok(defined($interface)
 	,"Object  of type interface initiated");
 $query = "SELECT * FROM interface where interface_id=".$interface_id;
 my $test_interface = ($db->execute_query($query))[0][0];
-#warn Dumper ($test_interface);
 
-ok($interface->operational_state eq ($test_interface->{'operational_state'})
+ok($interface->operational_state() eq ("up")
 	, "The method operational_state() returns the right information");
 
 ok($interface->interface_id() eq ($interface_id)
@@ -43,18 +42,34 @@ ok($interface->description() eq 'e15/1', "The method description() returns corre
 
 #ok($interface->port_number() eq $test_interface->{'port_number'}, "The method port_number() returns correct information");
 
-my $acls = OESS::ACL->new( db => $db, interface_id => $interface_id);
-cmp_deeply($interface->acls()->{'acls'} 
-		, $acls->{'acls'}
-		," The method acls() returns correct object");
+cmp_deeply($interface->acls()->{'acls'} ,
+[
+          {
+            'eval_position' => '10',
+            'workgroup_id' => '11',
+            'allow_deny' => 'deny',
+            'entity_id' => '7',
+            'end' => undef,
+            'start' => 1
+          },
+          {
+            'eval_position' => '20',
+            'workgroup_id' => 11,
+            'allow_deny' => 'allow',
+            'entity_id' => '7',
+            'end' => 4095,
+            'start' => 1
+          }
+        ] 
+	," The method acls() returns correct object");
 
-ok(($interface->node())->node_id eq ($test_interface->{'node_id'}), "The method node() returns the correct node");
+ok(($interface->node())->{'node_id'} eq '11', "The method node() returns the correct node");
 
 cmp_deeply($interface->mpls_vlan_tag_range(), '1-10' 
 		, "The method mpls_vlan_tag_range() returns the expected result");
 
 ### Test : used_vlans ###
-cmp_deeply($interface->used_vlans,
+cmp_deeply($interface->used_vlans(),
 	[
           391
         ], "The method used_vlans() returns expected output");
@@ -91,6 +106,9 @@ ok($interface->vlan_valid(vlan=>40,workgroup_id=>11) eq 0," The method vlan_vali
 
 # Testing the Interface object
 ok($interface->{'name'} eq "e15/1", "The object interface returns expected name");
+ok($interface->{'interface_id'} eq '391', "The object interface has the correct interface_id");
+ok($interface->{'node'}->{'node_id'} eq "11", "The object interface has the correct node");
+ok($interface->{'description'} eq 'e15/1', "The object interface has correct description");
 cmp_deeply($interface->{'acls'}->{'acls'},
 [
           {
@@ -111,15 +129,21 @@ cmp_deeply($interface->{'acls'}->{'acls'},
           }
         ], "The object interface 391 has expect list of acls");
 
+ok($interface->{'mpls_vlan_tag_range'} eq '1-10', "The tag range defined for interface 391 is correct");
 my $flag = 0;
 foreach my $i ( @{$interface->{'used_vlans'}}){
 	if ($i == 391){
 		$flag= 1;
 	}
 }
-ok($flag == 1, "The expected vlan is in use by the interface object");
-ok($interface->{'interface_id'} eq '391', "The object interface has the correct interface_id");
-ok($interface->{'node'}->{'node_id'} eq "11", "The object interface has the correct node");
+ok($flag == 1, "Vlan 391 is in use by the interface object");
+
+
+$flag =1;
+foreach my $i ( @{$interface->{'used_vlans'}}){
+        if ($i == 444){
+                $flag= 0;
+        }
+}
+ok($flag == 1, "Vlan 444 is not in use by the interface object");
 ok($interface->{'operational_state'} eq "up", "The operational state is up for the given interface");
-ok($interface->{'mpls_vlan_tag_range'} eq '1-10', "The tag range defined for interface 391 is correct");
-#warn Dumper($interface->{'mpls_vlan_tag_range'});
