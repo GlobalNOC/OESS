@@ -277,9 +277,6 @@ sub provision_vrf{
             return;
         }
 
-        $method->set_error("VRF creation is currently disabled for testing. Please contact Jonathan to enable.");
-        return;
-
         if (!$params->{skip_cloud_provisioning}{value}) {
             eval {
                 my $setup_endpoints = OESS::Cloud::setup_endpoints($vrf->name, $vrf->endpoints);
