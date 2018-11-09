@@ -39,7 +39,19 @@
             </div>
             <div class="form-group">
               <label class="control-label">Max Bandwidth (Mb/s)</label>
-              <input id="entity-bandwidth" class="form-control" type="number" placeholder="Unlimited" min="10" max="100000">
+              <select id="entity-bandwidth" class="form-control">
+                <option value="0" selected>Unlimited</option>
+                <option value="50">50 Mb/s</option>
+                <option value="100">100 Mb/s</option>
+                <option value="200">200 Mb/s</option>
+                <option value="300">300 Mb/s</option>
+                <option value="400">400 Mb/s</option>
+                <option value="500">500 Mb/s</option>
+                <option value="1000">1 Gb/s</option>
+                <option value="2000">2 Gb/s</option>
+                <option value="5000">5 Gb/s</option>
+                <option value="10000">10 Gb/s</option>
+              </select>
             </div>
             <div class="form-group" id="entity-cloud-account" style="display: none;">
               <label id="entity-cloud-account-label" class="control-label"></label>
