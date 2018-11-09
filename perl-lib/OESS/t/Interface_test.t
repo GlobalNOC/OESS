@@ -13,8 +13,6 @@ Log::Log4perl->init("/etc/oess/logging.conf");
 
 # Initialize DB
 my $db = OESS::DB->new();
-#Test Query
-#my $query = "SELECT TOP 5 FROM node ORDER BY name";
 
 my $interface_id = 391;
 
@@ -124,4 +122,4 @@ ok($interface->{'interface_id'} eq '391', "The object interface has the correct 
 ok($interface->{'node'}->{'node_id'} eq "11", "The object interface has the correct node");
 ok($interface->{'operational_state'} eq "up", "The operational state is up for the given interface");
 ok($interface->{'mpls_vlan_tag_range'} eq '1-10', "The tag range defined for interface 391 is correct");
-warn Dumper($interface->{'mpls_vlan_tag_range'});
+#warn Dumper($interface->{'mpls_vlan_tag_range'});
