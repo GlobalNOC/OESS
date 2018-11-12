@@ -1,17 +1,21 @@
-#!/usr/bin/perl -T 
+#!/usr/bin/perl  
 
-use strict;
+#use strict;
+
 use warnings;
 use Data::Dumper;
 use GRNOC::Config;
 use GRNOC::WebService::Client;
 use Test::More tests=>23;
 use Test::Deep;
+use OESS::DB::Entity ;
 use OESS::DB;
 use Log::Log4perl;
 use OESS::Interface;
 # Initialize logging
 Log::Log4perl->init("/etc/oess/logging.conf");
+
+#OESS::DB::Entity->import(get_entities);
 
 my $db = OESS::DB->new();
 my $interface_id = 391;
@@ -467,5 +471,23 @@ cmp_deeply($svc->remove_user(entity_id=>123, user_id=>4567),
           'error' => 1,
           'results' => undef
         },"The method remove_user() returns expected result when user_id is invalid." );
+cmp_deeply($svc->get_entities(workgroup_id=>undef),
+{
+          'error_text' => 'get_entities: input parameter workgroup_id cannot be NULL ',
+          'error' => 1,
+          'results' => undef
+        }, " The method get_entities() gives expected resut when parameter workgroup_id is null.");
 
+cmp_deeply($svc->get_entities(),
+{
+          'error_text' => 'get_entities: required input parameter workgroup_id is missing ',
+          'error' => 1,
+          'results' => undef
+        },"The method get_entities() retuens expected results when parameter workgroup_id is missing.");
+OESS::DB::User::find_user_by_remote_auth( db => $db, remote_user => $ENV{'REMOTE_USER'} );
+#warn Dumper (OESS::DB::Entity::get_root_entities(db => $db));
+warn Dumper($INC{"OESS/DB/Entity.pm"},"\n");
+warn Dumper($INC{"OESS/DB.pm"},"\n");
+my $db_entity = OESS::DB::Entity->get_entities(db => $db, name => "Test");
 
+warn Dumper($svc->get_entities(workgroup_id=> 11, name=>"test"));
