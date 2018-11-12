@@ -714,6 +714,7 @@ sub is_external_vlan_available_on_interface {
     my $inner_vlan_tag = $args{'inner_vlan'};
     my $interface_id = $args{'interface_id'};
     my $circuit_id = $args{'circuit_id'};
+    my $vrf_id = $args{'vrf_id'};
 
     my $type = 'openflow';
 
@@ -6789,9 +6790,6 @@ sub validate_circuit {
             vlan => $vlans->[$i],
             inner_vlan => $inner_vlans->[$i]
         );
-        if (!$res->{status}) {
-            return (0, "VLAN $vlans->[$i] $inner_vlans->[$i] is not available on $nodes->[$i] $interfaces->[$i].");
-        }
 
         if(!defined($type)){
             $type = $res->{'type'};
