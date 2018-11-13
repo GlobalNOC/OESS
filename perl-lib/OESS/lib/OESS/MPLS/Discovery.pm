@@ -414,7 +414,8 @@ sub path_handler {
             async_callback => sub {
                 my $res = shift;
                 if(!defined($res->{'error'})){
-                    my %paths = %{$res->{'results'}};
+                    return if(!defined($res->{'results'}));
+		    my %paths = %{$res->{'results'}};
                     foreach my $lsp (keys %paths){
                         $lsp_paths{$lsp} = [] if !defined($lsp_paths{$lsp});
                         push @{$lsp_paths{$lsp}}, @{$paths{$lsp}};
@@ -558,6 +559,7 @@ sub handle_vrf_stats{
     my $time = time();
     my $tsds_val = ();
     $self->{'logger'}->debug("Handling RIB stats: " . Dumper($rib_stats));
+    return if(!defined($rib_stats));
     while (scalar(@$rib_stats) > 0){
         my $rib = shift @$rib_stats;
         my $meta = { routing_table => $rib->{'vrf'},
