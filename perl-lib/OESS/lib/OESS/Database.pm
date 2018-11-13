@@ -10116,14 +10116,16 @@ sub move_edge_interface_circuits {
                  "  circuit_id, ".
                  "  start_epoch, ".
                  "  end_epoch, ".
-                 "  extern_vlan_id ) ".
-                 "VALUES( ?,?,?,?,? )";
+                 "  extern_vlan_id, ". 
+                 "  unit ) ".
+                 "VALUES( ?,?,?,?,?, ? )";
         $recs = $self->_execute_query($query, [
-            $new_interface_id, 
-            $edge_int_rec->{'circuit_id'},
-            $now,
-            -1,
-            $edge_int_rec->{'extern_vlan_id'},
+                                          $new_interface_id, 
+                                          $edge_int_rec->{'circuit_id'},
+                                          $now,
+                                          -1,
+                                          $edge_int_rec->{'extern_vlan_id'},
+                                          $edge_int_rec->{'unit'}
         ]);
         if(!$recs){
             $self->_rollback() if($do_commit);
