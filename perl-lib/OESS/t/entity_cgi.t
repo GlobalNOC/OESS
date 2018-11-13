@@ -1,4 +1,4 @@
-#!/usr/bin/perl  
+#!/usr/bin/perl -T 
 
 #use strict;
 
@@ -6,7 +6,7 @@ use warnings;
 use Data::Dumper;
 use GRNOC::Config;
 use GRNOC::WebService::Client;
-use Test::More tests=>23;
+use Test::More tests=>26;
 use Test::Deep;
 use OESS::DB::Entity ;
 use OESS::DB;
@@ -484,10 +484,70 @@ cmp_deeply($svc->get_entities(),
           'error' => 1,
           'results' => undef
         },"The method get_entities() retuens expected results when parameter workgroup_id is missing.");
-OESS::DB::User::find_user_by_remote_auth( db => $db, remote_user => $ENV{'REMOTE_USER'} );
-#warn Dumper (OESS::DB::Entity::get_root_entities(db => $db));
-warn Dumper($INC{"OESS/DB/Entity.pm"},"\n");
-warn Dumper($INC{"OESS/DB.pm"},"\n");
-my $db_entity = OESS::DB::Entity->get_entities(db => $db, name => "Test");
 
-warn Dumper($svc->get_entities(workgroup_id=> 11, name=>"test"));
+cmp_deeply($svc->get_entities(workgroup_id=>11, name=>"Big State TeraPOP"),
+{
+          'results' => [
+                         {
+                           'contacts' => [],
+                           'name' => 'Big State TeraPOP',
+                           'children' => [
+                                           {
+                                             'entity_id' => '16',
+                                             'name' => 'EC Utopia',
+                                             'url' => undef,
+                                             'description' => 'Guess where this region is?',
+                                             'logo_url' => undef
+                                           }
+                                         ],
+                           'logo_url' => 'https://terapop.example.net/favicon.ico',
+                           'description' => 'The R&E networking hub for Big State',
+                           'interfaces' => [
+                                             {
+                                               'cloud_interconnect_id' => undef,
+                                               'available_vlans' => [],
+                                               'name' => 'e15/1',
+                                               'interface_id' => '391',
+                                               'description' => 'e15/1',
+                                               'node' => 'Node 11',
+                                               'cloud_interconnect_type' => undef,
+                                               'node_id' => '11',
+                                               'acls' => {
+                                                           'acls' => [
+                                                                       {
+                                                                         'workgroup_id' => '11',
+                                                                         'eval_position' => '10',
+                                                                         'entity_id' => '7',
+                                                                         'allow_deny' => 'deny',
+                                                                         'start' => '1',
+                                                                         'end' => undef
+                                                                       },
+                                                                       {
+                                                                         'workgroup_id' => '11',
+                                                                         'eval_position' => '20',
+                                                                         'entity_id' => '7',
+                                                                         'allow_deny' => 'allow',
+                                                                         'start' => '1',
+                                                                         'end' => '4095'
+                                                                       }
+                                                                     ],
+                                                           'interface_id' => '391'
+                                                         },
+                                               'operational_state' => 'up'
+                                             }
+                                           ],
+                           'entity_id' => '7',
+                           'url' => 'https://terapop.example.net/',
+                           'parents' => [
+                                          {
+                                            'entity_id' => '2',
+                                            'name' => 'Connectors',
+                                            'url' => undef,
+                                            'description' => 'Those that are included in this classification',
+                                            'logo_url' => undef
+                                          }
+                                        ]
+                         }
+                       ]
+        }, "The method get_entities() returns expected result when workgroup_id is 11 for entity name Big State TeraPOP");
+
