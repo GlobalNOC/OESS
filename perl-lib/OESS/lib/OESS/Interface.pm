@@ -86,7 +86,6 @@ sub to_hash{
 =cut
 sub _fetch_from_db{
     my $self = shift;
-    $self->{'logger'}->error("Inside fetch from db");
     if (!defined $self->{'interface_id'}) {
         if (defined $self->{'name'} && defined $self->{'node'}) {
             my $interface_id = OESS::DB::Interface::get_interface(db => $self->{'db'}, interface => $self->{'name'}, node => $self->{'node'});
