@@ -23,7 +23,7 @@ use Data::Dumper;
 my $db = OESS::Database->new(config => OESSDatabaseTester::getConfigFilePath());
 
 my $acls = $db->get_acls( owner_workgroup_id => 1 );
-is(@$acls, 5, '5 ACLs Retrieved');
+is(@$acls, 4, '5 ACLs Retrieved');
 
 my $acl = $acls->[0];
 
@@ -43,4 +43,4 @@ $acls = $db->get_acls( interface_acl_id => 1 );
 is(@$acls, 1, '1 ACLs Retrieved');
 
 $acls = $db->get_acls( );
-is(@$acls, 15, '15 ACLs Retrieved');
+is(@$acls, 14, '15 ACLs Retrieved');
