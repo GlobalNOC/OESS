@@ -33,7 +33,7 @@ sub fetch{
 
     my $in_use = OESS::DB::Interface::vrf_vlans_in_use(db => $db, interface_id => $interface_id );
 
-    push(@{$in_use},OESS::DB::Interface::circuit_vlans_in_use(db => $db, interface_id => $interface_id));
+    push(@{$in_use},@{OESS::DB::Interface::circuit_vlans_in_use(db => $db, interface_id => $interface_id)});
 
     return {interface_id => $interface->{'interface_id'},
             cloud_interconnect_type => $interface->{'cloud_interconnect_type'},
@@ -150,7 +150,14 @@ sub circuit_vlans_in_use{
     my $db = $params{'db'};
     my $interface_id = $params{'interface_id'};
 
-    
+    my $circuit_tags = $db->execute_query("select circuit_edge_interface_membership.extern_vlan_id from circuit_edge_interface_membership join circuit on circuit.circuit_id = circuit_edge_interface_membership.circuit_id join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id where circuit_instantiation.end_epoch = -1 and circuit_instantiation.circuit_state = 'active' and circuit.circuit_state = 'active' and circuit_edge_interface_membership.end_epoch = -1 and circuit_edge_interface_membership.interface_id = ?",[$interface_id]);
+
+    my @tags;
+    foreach my $tag (@$circuit_tags){
+        push(@tags, $tag->{'extern_vlan_id'});
+    }
+
+    return \@tags;
 }
 
 1;

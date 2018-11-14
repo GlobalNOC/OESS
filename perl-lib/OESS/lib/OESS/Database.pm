@@ -31,11 +31,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 2.0.0
+Version 2.0.1
 
 =cut
 
-our $VERSION = '2.0.0';
+our $VERSION = '2.0.1';
 
 =head1 SYNOPSIS
 
@@ -83,7 +83,7 @@ use Data::Dumper;
 
 use Socket qw( inet_aton inet_ntoa);
 
-use constant VERSION => '2.0.0';
+use constant VERSION => '2.0.1';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant OESS_PW_FILE => "/etc/oess/.passwd.xml";
@@ -714,6 +714,7 @@ sub is_external_vlan_available_on_interface {
     my $inner_vlan_tag = $args{'inner_vlan'};
     my $interface_id = $args{'interface_id'};
     my $circuit_id = $args{'circuit_id'};
+    my $vrf_id = $args{'vrf_id'};
 
     my $type = 'openflow';
 
@@ -6789,9 +6790,6 @@ sub validate_circuit {
             vlan => $vlans->[$i],
             inner_vlan => $inner_vlans->[$i]
         );
-        if (!$res->{status}) {
-            return (0, "VLAN $vlans->[$i] $inner_vlans->[$i] is not available on $nodes->[$i] $interfaces->[$i].");
-        }
 
         if(!defined($type)){
             $type = $res->{'type'};
@@ -10135,14 +10133,16 @@ sub move_edge_interface_circuits {
                  "  circuit_id, ".
                  "  start_epoch, ".
                  "  end_epoch, ".
-                 "  extern_vlan_id ) ".
-                 "VALUES( ?,?,?,?,? )";
+                 "  extern_vlan_id, ". 
+                 "  unit ) ".
+                 "VALUES( ?,?,?,?,?, ? )";
         $recs = $self->_execute_query($query, [
-            $new_interface_id, 
-            $edge_int_rec->{'circuit_id'},
-            $now,
-            -1,
-            $edge_int_rec->{'extern_vlan_id'},
+                                          $new_interface_id, 
+                                          $edge_int_rec->{'circuit_id'},
+                                          $now,
+                                          -1,
+                                          $edge_int_rec->{'extern_vlan_id'},
+                                          $edge_int_rec->{'unit'}
         ]);
         if(!$recs){
             $self->_rollback() if($do_commit);
