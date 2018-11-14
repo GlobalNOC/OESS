@@ -15,18 +15,16 @@ use OESS::RabbitMQ::Client;
 use OESS::NSI::Utils;
 use OESS::NSI::Query;
 
-
-my $logger = GRNOC::Log->new(config => '/etc/oess/logging.conf', watch => 15);
-my $log    = $logger->get_logger('OESS.NSI.WWW');
-
-
-my $api    = OESS::RabbitMQ::Client->new( timeout => 60,
-                                          topic    => 'OESS.NSI.Processor');
-
-
 sub _send_to_daemon{
     my $method = shift;
     my $data = shift;
+
+    my $logger = GRNOC::Log->new(config => '/etc/oess/logging.conf', watch => 15);
+    my $log    = $logger->get_logger('OESS.NSI.WWW');
+
+    
+    my $api    = OESS::RabbitMQ::Client->new( timeout => 60,
+					      topic    => 'OESS.NSI.Processor');
 
     $log->info("Calling $method");
 
