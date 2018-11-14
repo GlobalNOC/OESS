@@ -7219,7 +7219,7 @@ sub provision_circuit {
 
         my $relevant_links = $link_lookup->{$path_type};
 
-        next if(!defined(@$relevant_links) || !defined($relevant_links->[0]));
+        next if !defined($relevant_links->[0]);
 	next if ($path_type eq 'backup' && $type eq 'mpls');
 
         # create the primary path object
@@ -8389,7 +8389,7 @@ sub edit_circuit {
 
         my $relevant_links = $link_lookup->{$path_type};
 
-        if (!defined @{$relevant_links} || !defined $relevant_links->[0]) {
+        if (!defined $relevant_links->[0]) {
             # When no links are set on a circuit's path, the path
             # should be decom'd. Failure to decom unused paths may
             # result in the wrong circuit type being used for
@@ -10628,7 +10628,7 @@ sub get_active_link_id_by_connectors{
     #find current link if any
     my $link = $self->get_link_by_a_or_z_end( interface_a_id => $interface_a_id, interface_z_id => $interface_z_id);
     print STDERR "Found LInk: " . Dumper($link);
-    if(defined($link) && defined(@{$link})){
+    if(defined($link)){
         $link = @{$link}[0];
         print STDERR "Returning LinkID: " . $link->{'link_id'} . "\n";
         return ($link->{'link_id'},$link->{''});
