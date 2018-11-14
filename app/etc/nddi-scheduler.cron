@@ -2,3 +2,4 @@
 #1 1 * * * root /usr/bin/perl /usr/bin/populate_remote_topologies.pl
 #1 1 * * * root /usr/bin/perl /usr/bin/oess_topology_submitter.pl
 #1 1 * * * root /usr/bin/perl /usr/bin/oess_pull_aws_interfaces.pl
+#1 1 * * * root /usr/bin/perl /usr/bin/oess_pull_gcp_interfaces.pl
