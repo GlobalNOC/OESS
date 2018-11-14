@@ -1,4 +1,4 @@
-Name:		oess-core		
+Name:		oess-core applications
 Version:	2.0.1
 Release:	1%{?dist}
 Summary:	The core OESS service providers
