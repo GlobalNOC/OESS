@@ -74,12 +74,14 @@ use constant OFPAT_SET_TP_DST   => 10;
 use constant OFPAT_ENQUEUE      => 11;
 use constant OFPAT_VENDOR       => 65535;
 use constant OFPP_CONTROLLER    => 65533;
-
 use constant VLAN_WILDCARD      => 0;
 use constant PORT_WILDCARD      => 0;
-
 use constant UNTAGGED           => -1;
 use constant OF_UNTAGGED        => 65535;
+
+=head2 OFPP_CONTROLLER
+
+=head2 UNTAGGED
 
 =head2 new
 
