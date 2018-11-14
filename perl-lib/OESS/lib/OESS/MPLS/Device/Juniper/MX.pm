@@ -59,7 +59,7 @@ sub new{
 
     $self->{'template_dir'} = "juniper/13.3R8";
 
-    $self->{'tt'} = Template->new(INCLUDE_PATH => OESS::Database::SHARE_DIR . "share/mpls/templates/") or die "Unable to create Template Toolkit!";
+    $self->{'tt'} = Template->new(INCLUDE_PATH => OESS::Database::SHARE_DIR . "share/mpls/templates/:./share/mpls/templates/", RELATIVE => 1) or die "Unable to create Template Toolkit!";
 
     my $creds = $self->_get_credentials();
     if(!defined($creds)){

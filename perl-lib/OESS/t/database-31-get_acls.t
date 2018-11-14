@@ -27,14 +27,14 @@ is(@$acls, 5, '5 ACLs Retrieved');
 
 my $acl = $acls->[0];
 
-is($acl->{'vlan_end'},200,'vlan_end ok');
-is($acl->{'vlan_start'},101,'vlan_start ok');
-is($acl->{'workgroup_id'},21,'workgroup_id ok');
-is($acl->{'interface_id'},45901,'interface_id ok');
-is($acl->{'interface_acl_id'},1,'interface_acl_id ok');
+is($acl->{'vlan_end'},4095,'vlan_end ok');
+is($acl->{'vlan_start'},1,'vlan_start ok');
+is($acl->{'workgroup_id'},undef,'workgroup_id ok');
+is($acl->{'interface_id'},45571,'interface_id ok');
+is($acl->{'interface_acl_id'},20,'interface_acl_id ok');
 is($acl->{'eval_position'},10,'eval_position ok');
-is($acl->{'allow_deny'},'deny','allow_deny ok');
-is($acl->{'notes'},'ima note','notes ok');
+is($acl->{'allow_deny'},'allow','allow_deny ok');
+is($acl->{'notes'},'Default ACL Rule','notes ok');
 
 $acls = $db->get_acls( interface_id => 45811 );
 is(@$acls, 6, '6 ACLs Retrieved');

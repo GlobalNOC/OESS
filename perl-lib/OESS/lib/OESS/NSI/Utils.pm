@@ -79,9 +79,9 @@ sub build_header{
         $header_info->value($header_info->value(), SOAP::Data->name(sessionSecurityAttr => $header->{'sessionSecurityAttr'})->type(''));
     }
     
-    my $header = SOAP::Header->name( 'header:nsiHeader' => \$header_info)->attr({ 'xmlns:header' => 'http://schemas.ogf.org/nsi/2013/12/framework/headers'});
+    my $new_header = SOAP::Header->name( 'header:nsiHeader' => \$header_info)->attr({ 'xmlns:header' => 'http://schemas.ogf.org/nsi/2013/12/framework/headers'});
     
-    return $header;
+    return $new_header;
 }
 
 
