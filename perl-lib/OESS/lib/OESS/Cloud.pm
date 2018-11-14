@@ -14,10 +14,6 @@ use Data::Dumper;
 use Data::UUID;
 
 
-my $config = OESS::Config->new();
-my $logger = Log::Log4perl->get_logger('OESS.Cloud');
-
-
 =head2 setup_endpoints
 
 setup_endpoints configures cloud services for any interface in
@@ -35,6 +31,9 @@ sub setup_endpoints {
     my $vrf_name   = shift;
     my $endpoints  = shift;
     my $result     = [];
+
+    my $config = OESS::Config->new();
+    my $logger = Log::Log4perl->get_logger('OESS.Cloud');
 
     foreach my $ep (@$endpoints) {
         if (!$ep->interface()->cloud_interconnect_id) {
@@ -147,6 +146,9 @@ C<$endpoints> with a configured cloud interconnect id.
 =cut
 sub cleanup_endpoints {
     my $endpoints = shift;
+
+    my $config = OESS::Config->new();
+    my $logger = Log::Log4perl->get_logger('OESS.Cloud');
 
     foreach my $ep (@$endpoints) {
         if (!$ep->interface()->cloud_interconnect_id) {
