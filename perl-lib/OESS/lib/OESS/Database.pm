@@ -8391,8 +8391,25 @@ sub edit_circuit {
 
         my $relevant_links = $link_lookup->{$path_type};
 
-        next if(!defined(@$relevant_links) || !defined($relevant_links->[0]));
-	next if($path_type eq 'backup' && $type eq 'mpls');
+        if (!defined @{$relevant_links} || !defined $relevant_links->[0]) {
+            # When no links are set on a circuit's path, the path
+            # should be decom'd. Failure to decom unused paths may
+            # result in the wrong circuit type being used for
+            # provisioning on the network devices.
+
+            my $pquery = "update path inner join path_instantiation on path.path_id=path_instantiation.path_id
+                          set path.path_state='decom', path_instantiation.path_state='decom'
+                          where path.circuit_id=? and path.path_type=?";
+            my $ok = $self->_execute_query($pquery, [$circuit_id, $path_type]);
+            if (!defined $ok){
+                $self->_set_error("Unable to decom $path_type path of circuit $circuit_id.");
+                $self->_rollback() if($do_commit);
+                return;
+            }
+
+            next;
+        }
+        next if($path_type eq 'backup' && $type eq 'mpls');
 
         #try to find the path first
         $query = "select * from path where circuit_id = ? and path_type = ?";
