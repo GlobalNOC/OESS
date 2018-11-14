@@ -418,6 +418,77 @@ sub get_node_by_ip{
 }
 
 
+=head2 get_path_id
+
+    my $path_id = get_path_id(circuit_id => 123, type => 'primary');
+
+get_path_id returns the path_id of circuit C<circuit_id>'s specified
+path type. Returns C<undef> if not found.
+
+=cut
+sub get_path_id {
+    my $self = shift;
+    my %args = @_;
+
+    my $circuit_id = $args{circuit_id};
+    my $type       = $args{type};
+
+    my $query = "select * from path where circuit_id=? and path_type=?";
+    my $res = $self->_execute_query($query, [$circuit_id, $type]);
+    if (!defined $res || !defined $res->[0]) {
+        return;
+    }
+
+    return $res->[0]->{path_id};
+}
+
+=head2 set_path_state
+
+    $self->_start_transaction();
+    my $ok = set_path_state(path_id => 123, state => 'active');
+    if (!$ok) {
+        $self->_rollback();
+    }
+
+set_path_state sets the state of path C<path_id> to C<state>. This
+function creates a new instantiation for the update and ensures that
+C<path_state> in the path table is equal to C<path_state> in the last
+path_instantiation table entry for the path.
+
+B<Note>: This function must be wrapped in a transaction.
+
+=cut
+sub set_path_state {
+    my $self = shift;
+    my %args = @_;
+
+    my $path_id = $args{path_id};
+    my $state   = $args{state};
+
+    my $path = "update path set path.path_state=? where path.path_id=?";
+    my $ok   = $self->_execute_query($path, [$state, $path_id]);
+    if (!defined $ok){
+        $self->_set_error("Unable to set state of $state on path $path_id.");
+        return;
+    }
+
+    my $path_instantiation = "update path_instantiation set end_epoch=unix_timestamp(NOW()) where path_id=? and end_epoch=?";
+    $ok = $self->_execute_query($path_instantiation, [$path_id, -1]);
+    if (!defined $ok){
+        $self->_set_error("Unable to set end_epoch on path_instantiation $path_id.");
+        return;
+    }
+
+    $path_instantiation = "insert into path_instantiation (path_id, end_epoch, start_epoch, path_state) values (?, ?, unix_timestamp(NOW()), ?)";
+    $ok = $self->_execute_query($path_instantiation, [$path_id, -1, $state]);
+    if (!defined $ok){
+        $self->_set_error("Unable to create path_instantiation of state $state on $path_id.");
+        return;
+    }
+
+    return 1;
+}
+
 
 =head2 update_circuit_path_state
 
@@ -8395,16 +8466,12 @@ sub edit_circuit {
             # result in the wrong circuit type being used for
             # provisioning on the network devices.
 
-            my $pquery = "update path inner join path_instantiation on path.path_id=path_instantiation.path_id
-                          set path.path_state='decom', path_instantiation.path_state='decom'
-                          where path.circuit_id=? and path.path_type=?";
-            my $ok = $self->_execute_query($pquery, [$circuit_id, $path_type]);
-            if (!defined $ok){
-                $self->_set_error("Unable to decom $path_type path of circuit $circuit_id.");
+            my $path_id = $self->get_path_id(circuit_id => $circuit_id, type => $path_type);
+            my $ok = $self->set_path_state(path_id => $path_id, state => 'decom');
+            if (!$ok) {
                 $self->_rollback() if($do_commit);
                 return;
             }
-
             next;
         }
         next if($path_type eq 'backup' && $type eq 'mpls');
