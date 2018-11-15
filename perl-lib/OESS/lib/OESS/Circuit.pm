@@ -181,6 +181,7 @@ sub _load_circuit_details{
 	$self->{'logger'}->error("NO DATA FOR THIS CIRCUIT!!! " . $self->{'circuit_id'});
 	return;
     }
+
     $self->{'details'} = $data;
     $self->_process_circuit_details();
 }
@@ -215,7 +216,7 @@ sub _process_circuit_details{
     $self->{'logger'}->debug("Circuit Details: " . Dumper($self->{'details'}));
 
     if(scalar(@{$self->{'details'}->{'tertiary_links'}}) > 0){
-        $self->{'logger'}->debug("Circuit has backup path");
+        $self->{'logger'}->debug("Circuit has tertiary path");
         $self->{'has_tertiary_path'} = 1;
     }
 
@@ -1053,8 +1054,9 @@ sub get_details{
 
 =head2 generate_clr
 
-=cut
+generate_clr creates a circuit layout record for this circuit.
 
+=cut
 sub generate_clr{
     my $self = shift;
 
