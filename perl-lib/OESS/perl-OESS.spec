@@ -31,6 +31,7 @@ BuildRequires: perl(Test::Pod)
 BuildRequires: perl(Test::Pod::Coverage)
 BuildRequires: perl(Time::HiRes)
 BuildRequires: perl(XML::Simple)
+BuildRequires: perl(SOAP::Lite)
 
 Requires: perl
 Requires: perl-NetAddr-IP
