@@ -424,7 +424,7 @@ get_path_instantiation returns the last path instantiation associated
 with C<path_id>.
 
 =cut
-sub get_path_instantiation {
+sub get_current_path_instantiation {
     my $self = shift;
     my %args = @_;
 
@@ -8486,13 +8486,17 @@ sub edit_circuit {
 
         my $relevant_links = $link_lookup->{$path_type};
 
+        # When no links are set on a circuit's path, the path should
+        # be decom'd. Failure to decom unused paths may result in the
+        # wrong circuit type being used for provisioning on the
+        # network devices.
         if (!defined $relevant_links->[0]) {
-            # When no links are set on a circuit's path, the path
-            # should be decom'd. Failure to decom unused paths may
-            # result in the wrong circuit type being used for
-            # provisioning on the network devices.
-
             my $path_id = $self->get_path_id(circuit_id => $circuit_id, type => $path_type);
+            if (!defined $path_id) {
+                # If the path doesn't already exist we can ignore setting its state.
+                next;
+            }
+
             my $ok = $self->set_path_state(path_id => $path_id, state => 'decom');
             if (!$ok) {
                 $self->_rollback() if($do_commit);

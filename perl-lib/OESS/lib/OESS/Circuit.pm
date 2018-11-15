@@ -1324,7 +1324,7 @@ sub _change_active_path{
     $self->{'db'}->_start_transaction();
 
     my $cur_path_id = $self->{db}->get_path_id(circuit_id => $self->{circuit_id}, type => $current_path);
-    my $cur_path_inst = $self->{db}->get_path_instantiation(path_id => $cur_path_id);
+    my $cur_path_inst = $self->{db}->get_current_path_instantiation(path_id => $cur_path_id);
     my $cur_path_state = $cur_path_inst->{path_state};
     my $cur_path_end = $cur_path_inst->{end_epoch};
 
@@ -1345,7 +1345,7 @@ sub _change_active_path{
     }
 
     my $new_path_id = $self->{db}->get_path_id(circuit_id => $self->{circuit_id}, type => $new_path);
-    my $new_path_inst = $self->{db}->get_path_instantiation(path_id => $new_path_id);
+    my $new_path_inst = $self->{db}->get_current_path_instantiation(path_id => $new_path_id);
     my $new_path_state = $new_path_inst->{path_state};
     my $new_path_end = $new_path_inst->{end_epoch};
 
