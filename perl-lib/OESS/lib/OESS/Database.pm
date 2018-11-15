@@ -418,10 +418,10 @@ sub get_node_by_ip{
 }
 
 
-=head2 get_path_instantiation
+=head2 get_current_path_instantiation
 
-get_path_instantiation returns the last path instantiation associated
-with C<path_id>.
+get_current_path_instantiation returns the last path instantiation
+associated with C<path_id>.
 
 =cut
 sub get_current_path_instantiation {
