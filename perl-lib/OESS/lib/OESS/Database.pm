@@ -418,6 +418,27 @@ sub get_node_by_ip{
 }
 
 
+=head2 get_path_instantiation
+
+get_path_instantiation returns the last path instantiation associated
+with C<path_id>.
+
+=cut
+sub get_path_instantiation {
+    my $self = shift;
+    my %args = @_;
+
+    my $path_id = $args{path_id};
+
+    my $query = "select * from path_instantiation where path_id=? order by path_instantiation_id desc";
+    my $res = $self->_execute_query($query, [$path_id]);
+    if (!defined $res) {
+        return;
+    }
+
+    return $res->[0];
+}
+
 =head2 get_path_id
 
     my $path_id = get_path_id(circuit_id => 123, type => 'primary');

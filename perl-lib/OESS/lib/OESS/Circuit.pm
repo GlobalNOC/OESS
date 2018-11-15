@@ -1323,83 +1323,59 @@ sub _change_active_path{
 
     $self->{'db'}->_start_transaction();
 
+    my $cur_path_id = $self->{db}->get_path_id(circuit_id => $self->{circuit_id}, type => $current_path);
+    my $cur_path_inst = $self->{db}->get_path_instantiation(path_id => $cur_path_id);
+    my $cur_path_state = $cur_path_inst->{path_state};
+    my $cur_path_end = $cur_path_inst->{end_epoch};
+
+    if (defined $cur_path_inst && $cur_path_inst->{end_epoch} != -1) {
+        my $id = $cur_path_inst->{path_instantiation_id};
+        my $q  = "insert into path_instantiation (path_id, path_state, start_epoch, end_epoch) values (?, ?, ?, ?)";
+        my $count = $self->{db}->_execute_query($q, [$cur_path_id, 'decom', $cur_path_end, -1]);
+        if (!defined $count || $count < 0) {
+            $self->{db}->_rollback();
+            my $err = "Unable to correct path_instantiation.";
+            $self->{logger}->error($err);
+            $self->error($err);
+            return;
+        }
+        $cur_path_state = 'decom';
+    } elsif ($cur_path_state ne 'decom') {
+        $cur_path_state = 'available';
+    }
+
+    my $new_path_id = $self->{db}->get_path_id(circuit_id => $self->{circuit_id}, type => $new_path);
+    my $new_path_inst = $self->{db}->get_path_instantiation(path_id => $new_path_id);
+    my $new_path_state = $new_path_inst->{path_state};
+    my $new_path_end = $new_path_inst->{end_epoch};
+
+    if (defined $new_path_inst && $new_path_inst->{end_epoch} != -1) {
+        my $id = $new_path_inst->{path_instantiation_id};
+        my $q  = "insert into path_instantiation (path_id, path_state, start_epoch, end_epoch) values (?, ?, ?, ?)";
+        my $count = $self->{db}->_execute_query($q, [$new_path_id, 'decom', $new_path_end, -1]);
+        if (!defined $count || $count < 0) {
+            $self->{db}->_rollback();
+            my $err = "Unable to correct path_instantiation.";
+            $self->{logger}->error($err);
+            $self->error($err);
+            return;
+        }
+        $new_path_state = 'decom';
+    } elsif ($new_path_state ne 'decom') {
+        $new_path_state = 'active';
+    }
+
     $self->{'logger'}->info("Circuit $self->{'circuit_id'} changing paths from $current_path to $new_path");
 
-    my $query  = "select path.path_id from path join path_instantiation on path.path_id=path_instantiation.path_id where path.path_type=? and path_instantiation.end_epoch=-1 and path_instantiation.path_state='active' and circuit_id=?";
-    my $results = $self->{'db'}->_execute_query($query, [$current_path, $self->{'circuit_id'}]);
-    if (!defined $results->[0]) {
-        $self->{logger}->warn("_change_active_path called for non-existing path instantiation.");
-        return 1;
-    }
-
-    my $old_path_id = $results->[0]->{'path_id'};
-
-    $results = $self->{'db'}->_execute_query($query, [$new_path, $self->{'circuit_id'}]);
-    my $new_path_id = $results->[0]->{'path_id'};
-
-    $self->{'logger'}->info("Changing paths from $old_path_id to $new_path_id");
-
-    # Decom the current path instantiation for each path
-    my $decom_path_instantiation = "
-UPDATE path_instantiation set path_instantiation.end_epoch=unix_timestamp(NOW())
-WHERE path_instantiation.path_id=? and path_instantiation.end_epoch=-1";
-    
-    my $affected = $self->{'db'}->_execute_query($decom_path_instantiation, [$old_path_id]);
-    if (!defined $affected || $affected < 0) {
-	$self->{'db'}->_rollback();
-        my $err = "Unable to decom old path's current path_instantiation.";
-        $self->{'logger'}->error($err);
-        $self->error($err);
+    my $ok = $self->{db}->set_path_state(path_id => $cur_path_id, state => $cur_path_state);
+    if (!$ok) {
+        $self->{db}->_rollback();
         return;
     }
 
-    $affected = $self->{'db'}->_execute_query($decom_path_instantiation, [$new_path_id]);
-    if (!defined $affected || $affected < 0) {
-	$self->{'db'}->_rollback();
-        my $err = "Unable to decom new path's current path_instantiation.";
-        $self->{'logger'}->error($err);
-        $self->error($err);
-        return;
-    }
-
-    # Create a new path instantiation for each path
-    my $create_path_instantiation = "
-insert into path_instantiation (path_id, start_epoch, end_epoch, path_state) values (?, unix_timestamp(NOW()), -1, ?)";
-    my $success = $self->{'db'}->_execute_query($create_path_instantiation, [$old_path_id, 'available']);
-    if (!$success) {
-	$self->{'db'}->_rollback();
-        my $err = "Unable to add old path's new path_instantiation entry.";
-        $self->{'logger'}->error($err);
-        $self->error($err);
-        return;
-    }
-
-    $success = $self->{'db'}->_execute_query($create_path_instantiation, [$new_path_id, 'active']);
-    if (!$success) {
-	$self->{'db'}->_rollback();
-        my $err = "Unable to add new path's new path_instantiation entry.";
-        $self->{'logger'}->error($err);
-        $self->error($err);
-        return;
-    }
-
-    # Update the path table
-    my $set_path_state = "update path set path_state=? where path_id=?";
-    $affected = $self->{'db'}->_execute_query($set_path_state, ['available', $old_path_id]);
-    if (!defined $affected || $affected < 0) {
-        $self->{'db'}->_rollback();
-        my $err = "Unable to update old path's new state.";
-        $self->{'logger'}->error($err);
-        $self->error($err);
-        return;
-    }
-
-    $affected = $self->{'db'}->_execute_query($set_path_state, ['active', $new_path_id]);
-    if (!defined $affected || $affected < 0) {
-	$self->{'db'}->_rollback();
-        my $err = "Unable to update new path's new state.";
-        $self->{'logger'}->error($err);
-        $self->error($err);
+    $ok = $self->{db}->set_path_state(path_id => $new_path_id, state => $new_path_state);
+    if (!$ok) {
+        $self->{db}->_rollback();
         return;
     }
 
