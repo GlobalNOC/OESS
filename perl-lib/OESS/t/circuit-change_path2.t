@@ -17,7 +17,7 @@ use OESS::Database;
 use OESS::Circuit;
 use OESSDatabaseTester;
 
-use Test::More tests => 6;
+use Test::More tests => 8;
 use Test::Deep;
 use Data::Dumper;
 
@@ -26,23 +26,52 @@ my $db = OESS::Database->new(config => OESSDatabaseTester::getConfigFilePath());
 my $user_id = 11;
 my $user = $db->get_user_by_id(user_id => $user_id)->[0];
 
-my $ckt = OESS::Circuit->new(circuit_id => 4111, db => $db);
-$ckt->{type} = 'mpls';
 
+#my $tpaths = $db->get_circuit_paths(circuit_id => 2911);
+#warn Dumper($tpaths);
 
-$db->_execute_query("update path_instantiation set end_epoch=unix_timestamp(now()) where path_instantiation.path_instantiation_id=9591");
+# 1. Create test circuit
+my $new = $db->provision_circuit(
+    user_name      => $user->{auth_name},
+    workgroup_id   => 241, # changed limit from 20 to 200
+    description    => 'Change path',
+    bandwidth      => '0',
+    provision_time => -1,
+    remove_time    => -1,
+    links          => ['Link 61', 'Link 101', 'Link 221', 'Link 1'],
+    backup_links   => ['Link 61', 'Link 151', 'Link 91', 'Link 81', 'Link 71', 'Link 231', 'Link 21'],
+    nodes          => ['Node 21', 'Node 71'],
+    interfaces     => ['e15/5', 'e15/4'],
+    tags           => [4080, 2045]
+);
+if (!defined $new) {
+    warn Dumper($db->get_error());
+}
+sleep 1;
 
-
-# my $details = $db->get_circuit_details('circuit_id' => 4111);
+# my $details = $db->get_circuit_details('circuit_id' => $new->{circuit_id});
 # warn Dumper($details);
 
-# my $tpaths = $db->get_circuit_paths(circuit_id => 4111);
-# warn Dumper($tpaths);
 
+# 2. Misconfigure path_instantiation
+my $response = $db->_execute_query("
+    select * from path
+    join path_instantiation on path.path_id=path_instantiation.path_id
+    where path.circuit_id=? and path_instantiation.end_epoch=-1",
+    [$new->{circuit_id}]
+);
 
-my $r = $db->edit_circuit(
-    'circuit_id' => 4111,
-    'description' => 'Circuit 4111',
+foreach my $r (@{$response}) {
+    if ($r->{path_type} ne 'backup') {
+        next;
+    }
+    $db->_execute_query("update path_instantiation set end_epoch=unix_timestamp(now()) where path_instantiation.path_instantiation_id=?", [$r->{path_instantiation_id}]);
+}
+
+# 3. Edit circuit removing links
+my $edit = $db->edit_circuit(
+    'circuit_id' => $new->{circuit_id},
+    'description' => 'Change path',
     'bandwidth' => '0',
     'workgroup_id' => '241',
     'provision_time' => -1,
@@ -52,14 +81,18 @@ my $r = $db->edit_circuit(
     'backup_links' => [],
     'nodes' => ['Node 21', 'Node 71'],
     'interfaces' => ['e15/5', 'e15/4'],
-    'tags' => [4090, 2055],
+    'tags' => [4080, 2045],
     'static_mac' => '0',
     'state' => 'active',
     'user_name' => $user->{auth_name},
     'do_sanity_check' => 0
 );
+sleep 1;
 
-$ckt->update_mpls_path(
+my $ckt = OESS::Circuit->new(circuit_id => $new->{circuit_id}, db => $db);
+$ckt->{type} = 'mpls';
+
+my $update = $ckt->update_mpls_path(
     reason => 'none',
     links  => [
         {
@@ -92,12 +125,14 @@ $ckt->update_mpls_path(
           }
     ]
 );
+ok($update == 1, "update_mpls_path");
+sleep 1;
 
-my $response = $db->_execute_query("
+$response = $db->_execute_query("
     select * from path
     join path_instantiation on path.path_id=path_instantiation.path_id
     where path.circuit_id=? and path_instantiation.end_epoch=-1",
-    [4111]
+    [$new->{circuit_id}]
 );
 
 my $paths = {};
@@ -113,3 +148,11 @@ ok($paths->{backup}->{path_state} eq 'decom', "backup path instantiation set as 
 
 ok($paths->{tertiary}->{end_epoch} == -1, "valid tertiary path instantiation exists");
 ok($paths->{tertiary}->{path_state} eq 'active', "tertiary path instantiation set as active");
+
+my $delete = $db->remove_circuit(circuit_id => $new->{circuit_id}, remove_time => -1, username => $user->{auth_name});
+if (!defined $delete) {
+    warn Dumper($new->{circuit_id});
+    warn Dumper($db->get_error());
+}
+
+ok(defined $delete && $delete->{success} == 1, "removed circuit");

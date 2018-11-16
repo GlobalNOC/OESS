@@ -4170,10 +4170,22 @@ sub get_circuit_details {
     if (my $row = $sth->fetchrow_hashref()){
 
         my $active_path = 'tertiary';
-        if (defined $row->{backup_path_state} && $row->{backup_path_state} eq 'active') {
-            $active_path = 'backup';
-        } elsif (defined $row->{primary_path_state} && $row->{primary_path_state} eq 'active') {
-            $active_path = 'primary';
+        if ($row->{type} eq 'openflow') {
+            # Openflow circuits assume primary if backup path isn't
+            # active. This check was previous embedded directly in the
+            # select query.
+            # ie. if(bu_pi.path_state = 'active', 'backup', 'primary') as active_path
+            if (defined $row->{backup_path_state} && $row->{backup_path_state} eq 'active') {
+                $active_path = 'backup';
+            } else {
+                $active_path = 'primary';
+            }
+        } else {
+            if (defined $row->{backup_path_state} && $row->{backup_path_state} eq 'active') {
+                $active_path = 'backup';
+            } elsif (defined $row->{primary_path_state} && $row->{primary_path_state} eq 'active') {
+                $active_path = 'primary';
+            }
         }
 
         my $dt = DateTime->from_epoch( epoch => $row->{'start_epoch'} );
@@ -7461,6 +7473,10 @@ The internal MySQL primary key int identifier for this circuit.
 =item remove_time
 
 When to remove this circuit in epoch seconds.
+
+=item username
+
+User who requested the change
 
 =back
 
