@@ -1,7 +1,7 @@
-#!/usr/bin/perl  
+#!/usr/bin/perl  -I
 
 use OESS::Interface;
-use Test::More tests => 29;
+use Test::More tests => 30;
 use Log::Log4perl;
 use OESS::DB;
 use Data::Dumper;
@@ -34,7 +34,7 @@ ok($interface->interface_id() eq ($interface_id)
 ok($interface->name() eq 'e15/1'
 	, " The method name() returns correct information");
 
-ok($interface->cloud_interconnect_id() eq undef,"The interconnect id is not defined for interface_id 391");
+ok($interface->cloud_interconnect_id() eq 'Test',"The method cloud_interconnect_id() gives expected output for interface_id 391");
 $a = $interface->cloud_interconnect_type();
 ok($a eq undef , "The method cloud_interconnect_type() returns correct information");
 
@@ -148,3 +148,4 @@ foreach my $i ( @{$interface->{'used_vlans'}}){
 ok($flag == 1, "Vlan 444 is not in use by the interface object");
 ok($interface->{'operational_state'} eq "up", "The operational state is up for the given interface");
 ok($interface->{'cloud_interconnect_id'} eq 'Test', "Iterface object shows correct value for cloud_interconnect_id");
+ok($interface->{'cloud_interconnect_type'} eq undef, "Cloud interconnect type has not neem defined for interface_id 391");
