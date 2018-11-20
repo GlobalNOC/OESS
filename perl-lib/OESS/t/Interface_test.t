@@ -1,4 +1,4 @@
-#!/usr/bin/perl  -I
+#!/usr/bin/perl  -T
 
 use OESS::Interface;
 use Test::More tests => 30;
