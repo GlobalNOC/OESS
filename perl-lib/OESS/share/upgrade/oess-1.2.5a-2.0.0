@@ -105,8 +105,6 @@ sub upgrade{
     $dbh->do("alter table circuit_edge_interface_membership add column inner_tag int(10)");
     $dbh->do("alter table circuit_edge_interface_membership add column unit int(11)");
     $dbh->do("update circuit_edge_interface_membership set unit = extern_vlan_id");
-    $dbh->do("insert into command (name,template,type) VALUES ('version','show version','node'),('lsp brief','show mpls lsp brief','node'),('show interface','show interfaces [% interface %].[% unit %]','unit'),('show interfaces all','show interfaces','node')");
-
     # Done with the rest of the upgrade update our version
     $str = "update oess_version set version = '$version'";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
