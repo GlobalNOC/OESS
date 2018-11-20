@@ -151,6 +151,7 @@ LOCK TABLES `circuit_instantiation` WRITE;
 --- Modify a value for interface.cgi test case
 UPDATE interface SET mpls_vlan_tag_range = '1-10' WHERE interface_id = 391;
 ---
+-- Modify interface for interface.pm test case
 
 --- Modify interface_acl for entity.cgi test case
 UPDATE interface_acl SET entity_id =7 WHERE interface_id = 391;
