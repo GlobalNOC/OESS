@@ -190,7 +190,7 @@ cmp_deeply( $svc->get_entity_interfaces(entity_id=>7),
 {
           'results' => [
                          {
-                           'cloud_interconnect_id' => undef,
+                           'cloud_interconnect_id' => 'Test',
                            'name' => 'e15/1',
                            'interface_id' => '391',
                            'description' => 'e15/1',
@@ -221,7 +221,7 @@ cmp_deeply( $svc->get_entity_interfaces(entity_id=>7),
                            'operational_state' => 'up'
                          },
                          {
-                           'cloud_interconnect_id' => undef,
+                           'cloud_interconnect_id' => 'Test',
                            'name' => 'e15/1',
                            'interface_id' => '391',
                            'description' => 'e15/1',
@@ -279,7 +279,7 @@ cmp_deeply($svc->get_entity(entity_id=>7, workgroup_id=>11),
                          'description' => 'The R&E networking hub for Big State',
                          'interfaces' => [
                                            {
-                                             'cloud_interconnect_id' => undef,
+                                             'cloud_interconnect_id' => 'Test',
                                              'available_vlans' => [
                                                                     2,
                                                                     3,
@@ -504,7 +504,7 @@ cmp_deeply($svc->get_entities(workgroup_id=>11, name=>"Big State TeraPOP"),
                            'description' => 'The R&E networking hub for Big State',
                            'interfaces' => [
                                              {
-                                               'cloud_interconnect_id' => undef,
+                                               'cloud_interconnect_id' => 'Test',
                                                'available_vlans' => [],
                                                'name' => 'e15/1',
                                                'interface_id' => '391',
