@@ -12,9 +12,10 @@ use OESS::DB::User ;
 use OESS::DB;
 use Log::Log4perl;
 use OESS::Interface;
+use OESS::Endpoint;
 # Initialize logging
 Log::Log4perl->init("/etc/oess/logging.conf");
-
+use JSON;
 #OESS::DB::Entity->import(get_entities);
 
 my $db = OESS::DB->new();
@@ -33,7 +34,6 @@ my $svc =new  GRNOC::WebService::Client(
                         realm   => 'OESS',
                         debug   => 0
 );
-
 
 cmp_deeply($svc->get_vrf_details(vrf_id => 1),
 {
@@ -83,7 +83,7 @@ cmp_deeply($svc->get_vrf_details(vrf_id => 1),
                                                                 'operational_state' => 'up'
                                                               },
                                                               {
-                                                                'cloud_interconnect_id' => undef,
+                                                                'cloud_interconnect_id' => 'Test',
                                                                 'name' => 'e15/1',
                                                                 'interface_id' => '391',
                                                                 'description' => 'e15/1',
@@ -157,7 +157,7 @@ cmp_deeply($svc->get_vrf_details(vrf_id => 1),
                        ]
         }, "The method get_vrf_details() gives expected output when vrf exists (vrf_id = 1).");
 #warn Dumper($db->execute_query("SELECT * FROM vrf LIMIT 2"));
-ok ( undef == $svc->get_vrf_details(vrf_id => 9999), "The method get_vrf_details() returns expected value when vrf_id is not in database.");
+ok ( undef eq  $svc->get_vrf_details(vrf_id => 9999), "The method get_vrf_details() returns expected value when vrf_id is not in database.");
 
 cmp_deeply($svc->get_vrf_details(vrf_id => undef),
 {
@@ -166,6 +166,8 @@ cmp_deeply($svc->get_vrf_details(vrf_id => undef),
           'results' => undef
         }, "The method get_vrf_details() returns expected output when parameter vrf_id is undefined.");
 
+my $temp_env_remote =  $ENV{'REMOTE_USER'};
+$ENV{'REMOTE_USER'} = 'user_881@foo.net';
 
 cmp_deeply($svc->get_vrfs(workgroup_id => 21),
 [
@@ -223,7 +225,7 @@ cmp_deeply($svc->get_vrfs(workgroup_id => 21),
                                                  'operational_state' => 'up'
                                                },
                                                {
-                                                 'cloud_interconnect_id' => undef,
+                                                 'cloud_interconnect_id' => 'Test',
                                                  'name' => 'e15/1',
                                                  'interface_id' => '391',
                                                  'description' => 'e15/1',
@@ -313,33 +315,40 @@ cmp_deeply($svc->get_vrfs(workgroup_id=>4444),
         }, "Method get_vrfs() gives expected results when a workgroup is out of range");
 
 
-my $temp_env_remote =  $ENV{'REMOTE_USER'};
-$ENV{'REMOTE_USER'} = 'user_881@foo.net';
-warn Dumper($svc->get_vrfs(workgroup_id=>21));
+
 #warn Dumper($db->execute_query("select *  from remote_auth order by auth_id desc limit 1"));
-my $user = OESS::DB::User::find_user_by_remote_auth( db => $db, remote_user => $ENV{'REMOTE_USER'} );
+#my $user = OESS::DB::User::find_user_by_remote_auth( db => $db, remote_user => $ENV{'REMOTE_USER'} );
 #warn Dumper($user);
-$user = OESS::User->new(db => $db, user_id =>  $user->{'user_id'} );
-warn Dumper($user->{'user_id'});
-warn Dumper("Condition !user->in_workgroup(241) && !user->is_admin()");
-warn Dumper(!$user->in_workgroup(241) && !$user->is_admin());
-ok(!$user->in_workgroup(241) && !$user->is_admin(), "!user->in_workgroup(241) && !user->is_admin()");
-warn Dumper(OESS::DB::VRF::get_vrfs( db => $db, workgroup_id => 241, state => 'active'));
+#$user = OESS::User->new(db => $db, user_id =>  $user->{'user_id'} );
+#warn Dumper($user->{'user_id'});
+#warn Dumper("Condition !user->in_workgroup(241) && !user->is_admin()");
+#warn Dumper(!$user->in_workgroup(241) && !$user->is_admin());
+#ok(!$user->in_workgroup(241) && !$user->is_admin(), "!user->in_workgroup(241) && !user->is_admin()");
+#warn Dumper(OESS::DB::VRF::get_vrfs( db => $db, workgroup_id => 241, state => 'active'));
 #warn Dumper($db->execute_query("select * FROM user_workgroup_membership where user_id = 881"));
-warn Dumper($db->execute_query("select * FROM user WHERE user_id = 881"));
+#warn Dumper($db->execute_query("select * FROM user WHERE user_id = 881"));
 #warn Dumper(OESS::DB::User::find_user_by_remote_auth( db => $db, remote_user => $ENV{'REMOTE_USER'} ));
-warn Dumper("get_vrfs()");
+#warn Dumper("get_vrfs()");
 #warn Dumper($svc->get_vrfs(workgroup_id => 21));
 #warn Dumper($db->execute_query("SELECT * FROM vrf "));
 #warn Dumper(OESS::DB::VRF::get_vrfs(db => $db, workgroup_id => 21, state => 'active'));
 #warn Dumper(OESS::DB::Interface::get_interfaces(db => $db, workgroup_id => 21));
 #$db->execute_query("INSERT INTO vrf VALUES (3,'Test_3', 'Test_3 get_vrfs', 241, 1, 1, 881,'".localtime()."', 881, 7 )");
 #$db->execute_query("INSERT INTO vrf_ep VALUES (3, 3, 3, 3, 3, 3, 1, 1 )");
-warn Dumper($db->execute_query("select distinct(vrf.vrf_id) from vrf join vrf_ep on vrf_ep.vrf_id = vrf.vrf_id where vrf.state = 'active' and workgroup_id = 241"));
+#warn Dumper($db->execute_query("select distinct(vrf.vrf_id) from vrf join vrf_ep on vrf_ep.vrf_id = vrf.vrf_id where vrf.state = 'active' and workgroup_id = 241"));
 #$db->execute_query("UPDATE vrf SET last_modified_by = 1, created_by= 1 where vrf_id = 1");
-warn Dumper($db->execute_query("select * from vrf"));
-$ENV{'REMOTE_USER'} = $temp_env_remote;
+#warn Dumper($db->execute_query("select * from vrf"));
 #get_vrfs
 #provision
 #remove
 
+
+# Test  provision
+#my %test_json = ("node"=>"11", "interface"=>$interface, "local_ip"=>"111", tag=>"Test");
+#$test_json = encode_json \%test_json;
+#my %test_json1 = ("node"=>"21", "interface"=>$interface, "local_ip"=>"222", tag=>"Test");
+#$test_json1 = encode_json \%test_json1;
+warn Dumper($db->execute_query("SELECT * FROM circuit order by circuit_id desc limit 1"));
+warn Dumper($svc->provision(vrf_id=>3, name=>"Test_provision", workgroup_id=>21, description=>"Test_provision",endpoint=>[], local_asn=>2 ));
+my $ep = OESS::Endpoint->new(type=>'circuit', db=>$db, vrf_endpoint_id=>11);
+$ENV{'REMOTE_USER'} = $temp_env_remote;
