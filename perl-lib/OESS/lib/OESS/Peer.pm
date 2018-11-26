@@ -70,6 +70,13 @@ sub from_hash{
     $self->{'md5_key'} = $hash->{'md5_key'};
     $self->{'state'} = $hash->{'state'};
     $self->{'local_ip'} = $hash->{'local_ip'};
+
+    if ($self->{'local_ip'} =~ /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$/) {
+        $self->{'ip_version'} = 4;
+    } else {
+        $self->{'ip_version'} = 6;
+    }
+
     $self->{'operational_state'} = $hash->{'operational_state'};
 
 }
@@ -88,6 +95,7 @@ sub to_hash{
     $obj->{'md5_key'} = $self->{'md5_key'};
     $obj->{'state'} = $self->{'state'};
     $obj->{'local_ip'} = $self->{'local_ip'};
+    $obj->{'ip_version'} = $self->{'ip_version'};
     $obj->{'operational_state'} = $self->operational_state();
     return $obj;
 }
