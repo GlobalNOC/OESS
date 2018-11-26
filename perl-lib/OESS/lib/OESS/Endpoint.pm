@@ -158,11 +158,10 @@ sub _build_from_model{
                 $peer->{key} = md5_hex($rand);
                 if ($peer->{version} == 4) {
                     $peer->{local_ip} = '172.31.254.' . $last_octet . '/31';
-                    $peer->{peer_ip}  = '172.31.254.' . $last_octet + 1 . '/31';
+                    $peer->{peer_ip}  = '172.31.254.' . ($last_octet + 1) . '/31';
                 } else {
-                    my $second_last_octet = $last_octet + 1;
                     $peer->{local_ip} = 'fd28:221e:28fa:61d3::' . $last_octet . '/127';
-                    $peer->{peer_ip}  = 'fd28:221e:28fa:61d3::' . $second_last_octet . '/127';
+                    $peer->{peer_ip}  = 'fd28:221e:28fa:61d3::' . ($last_octet + 1) . '/127';
                 }
 
                 # Assuming we use .2 and .3 the first time around. We
