@@ -232,6 +232,8 @@ async function loadEntityCloudAccountInput(entity) {
         document.querySelector('#entity-cloud-account-label').innerHTML = label;
         document.querySelector('#entity-cloud-account').style.display = 'block';
     }
+
+    document.querySelector('#entity-cloud-account-type').value = interconnect_type;
 }
 
 async function addEntitySubmitCallback(event) {
@@ -255,7 +257,8 @@ async function addEntitySubmitCallback(event) {
         tag: document.querySelector('#entity-vlans').value,
         entity_id: document.querySelector('#entity-id').value,
         entity: document.querySelector('#entity-name').value,
-        cloud_account_id: document.querySelector('#entity-cloud-account-id').value
+        cloud_account_id: document.querySelector('#entity-cloud-account-id').value,
+        cloud_account_type: document.querySelector('#entity-cloud-account-type').value
     };
 
     console.log(entity);

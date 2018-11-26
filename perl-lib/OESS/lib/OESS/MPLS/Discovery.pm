@@ -539,7 +539,7 @@ sub vrf_stats_handler{
 	    }
 	    $self->{'logger'}->debug("Total Time for get_vrf_stats " . $node->{'mgmt_addr'} . " call: " . tv_interval($start,[gettimeofday]));
 	    $self->handle_vrf_stats(node => $node, stats => $res->{'results'});
-											}));
+        }));
     }
 }
 

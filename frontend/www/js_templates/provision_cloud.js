@@ -127,6 +127,11 @@ function setIPv4ValidationMessage(input) {
 }
 
 function newPeering(index) {
+    let ipVersion = document.querySelector(`#new-peering-form-${index} .ip-version`);
+    if (!ipVersion.validity.valid) {
+        ipVersion.reportValidity();
+        return null;
+    }
     let asn = document.querySelector(`#new-peering-form-${index} .bgp-asn`);
     if (!asn.validity.valid) {
         asn.reportValidity();
@@ -148,7 +153,10 @@ function newPeering(index) {
         return null;
     }
 
+    let ipVersionNo = ipVersion.checked ? 6 : 4;
+
     let peering = {
+        ipVersion: ipVersionNo,
         asn: asn.value,
         key: key.value,
         oessPeerIP: oessPeerIP.value,
@@ -191,6 +199,7 @@ function loadSelectedEndpointList() {
           endpoint.peerings.forEach(function(peering, peeringIndex) {
                   peerings += `
 <tr>
+  <td>${peering.ipVersion === 4 ? 'ipv4' : 'ipv6'}</td>
   <td>${peering.asn}</td>
   <td>${peering.yourPeerIP}</td>
   <td>${peering.key}</td>
@@ -215,14 +224,15 @@ function loadSelectedEndpointList() {
   <div class="table-responsive">
     <div id="endpoints">
       <table class="table">
-        <thead><tr><th>Your ASN</th><th>Your IP</th><th>Your BGP Key</th><th>OESS IP</th><th></th></tr></thead>
+        <thead><tr><th></th><th>Your ASN</th><th>Your IP</th><th>Your BGP Key</th><th>OESS IP</th><th></th></tr></thead>
         <tbody>
           ${peerings}
           <tr id="new-peering-form-${index}">
-            <td><input class="form-control bgp-asn" type="number" ${ endpoint.cloud_account_id ? 'disabled' : 'required' } /></td>
-            <td><input class="form-control your-peer-ip" type="text" required /></td>
-            <td><input class="form-control bgp-key" type="text" ${ endpoint.cloud_account_id ? 'required' : '' } /></td>
-            <td><input class="form-control oess-peer-ip" type="text" required /></td>
+            <td><div class="checkbox"><label><input class="ip-version" type="checkbox" onchange="loadPeerFormValidator(${index})"> ipv6</input></label></div></td>
+            <td><input class="form-control bgp-asn" type="number" ${ endpoint.cloud_account_type ? 'disabled' : 'required' } /></td>
+            <td><input class="form-control your-peer-ip" type="text" ${ endpoint.cloud_account_type ? 'disabled' : 'required' } /></td>
+            <td><input class="form-control bgp-key" type="text" ${ endpoint.cloud_account_type ? 'disabled' : '' } /></td>
+            <td><input class="form-control oess-peer-ip" type="text" ${ endpoint.cloud_account_type ? 'disabled' : 'required' } /></td>
             <td><button class="btn btn-success btn-sm" class="form-control" type="button" onclick="newPeering(${index})">&nbsp;<span class="glyphicon glyphicon-plus"></span>&nbsp;</button></td>
           </tr>
         </tbody>
@@ -238,10 +248,23 @@ function loadSelectedEndpointList() {
   document.getElementById('selected-endpoint-list').innerHTML = selectedEndpointList;
 
   endpoints.forEach(function(endpoint, index) {
-          let yourPeerIP = document.querySelector(`#new-peering-form-${index} .your-peer-ip`);
-          asIPv4CIDRorIPv6CIDR(yourPeerIP);
-
-          let oessPeerIP = document.querySelector(`#new-peering-form-${index} .oess-peer-ip`);
-          asIPv4CIDRorIPv6CIDR(oessPeerIP);
+    loadPeerFormValidator(index);
   });
+}
+
+function loadPeerFormValidator(index) {
+  let ipVersion =  document.querySelector(`#new-peering-form-${index} .ip-version`);
+  if (ipVersion.checked) {
+    let yourPeerIP = document.querySelector(`#new-peering-form-${index} .your-peer-ip`);
+    asIPv6CIDR(yourPeerIP);
+
+    let oessPeerIP = document.querySelector(`#new-peering-form-${index} .oess-peer-ip`);
+    asIPv6CIDR(oessPeerIP);
+  } else {
+    let yourPeerIP = document.querySelector(`#new-peering-form-${index} .your-peer-ip`);
+    asIPv4CIDR(yourPeerIP);
+
+    let oessPeerIP = document.querySelector(`#new-peering-form-${index} .oess-peer-ip`);
+    asIPv4CIDR(oessPeerIP);
+  }
 }
