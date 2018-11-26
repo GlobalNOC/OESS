@@ -147,6 +147,10 @@ sub _build_from_model{
         my $last_octet = 2;
 
         foreach my $peer (@{$self->{'model'}->{'peerings'}}){
+            # Peerings are auto-generated for cloud connection
+            # endpoints. The user has only the option to select the ip
+            # version used for peering.
+
             if (defined $self->{cloud_account_id} && $self->{cloud_account_id} ne '') {
                 my $rand = rand();
 
@@ -168,17 +172,6 @@ sub _build_from_model{
 
             push(@{$self->{'peers'}}, OESS::Peer->new(db => $self->{'db'}, model => $peer, vrf_ep_peer_id => -1));
         }
-
-        # if (defined $self->{cloud_account_id} && @{$self->{'peers'}} < 1) {
-        #     my $rand = rand();
-        #     my $peer = {
-        #         asn => 64512, # https://tools.ietf.org/html/rfc6996
-        #         key => md5_hex($rand),
-        #         local_ip => '172.31.254.2/31',
-        #         peer_ip  => '172.31.254.3/31'
-        #     };
-        #     push @{$self->{peers}}, OESS::Peer->new(db => $self->{db}, model => $peer);
-        # }
     }
 
     #unit will be selected at creation....
