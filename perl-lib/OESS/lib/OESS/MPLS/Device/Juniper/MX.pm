@@ -59,7 +59,7 @@ sub new{
 
     $self->{'template_dir'} = "juniper/13.3R8";
 
-    $self->{'tt'} = Template->new(INCLUDE_PATH => OESS::Database::SHARE_DIR . "share/mpls/templates/") or die "Unable to create Template Toolkit!";
+    $self->{'tt'} = Template->new(INCLUDE_PATH => OESS::Database::SHARE_DIR . "share/mpls/templates/:./share/mpls/templates/", RELATIVE => 1) or die "Unable to create Template Toolkit!";
 
     my $creds = $self->_get_credentials();
     if(!defined($creds)){
@@ -633,10 +633,13 @@ sub _process_interface{
 =cut
 sub get_vrf_stats{
     my $self = shift;
+    my $success_cb = shift;
+    my $error_cb = shift;
 
     if(!$self->connected()){
-        $self->{'logger'}->error("Not currently connected to device");
-        return;
+        my $error = "Not currently connected to device";
+        $self->{'logger'}->error($error);
+        return &$error_cb($error);
     }
 
     my $reply = $self->{'jnx'}->get_bgp_summary_information( instance => "OESS-L3VPN");
@@ -645,7 +648,7 @@ sub get_vrf_stats{
         my $error = $self->{'jnx'}->get_first_error();
         $self->set_error($error->{'error_message'});
         $self->{'logger'}->error("Error fetching VRF stats: " . $error->{'error_message'});
-        return;
+        return &$error_cb($error->{'error_message'});
     }
 
     my %vrf_stats;
@@ -724,9 +727,11 @@ sub get_vrf_stats{
                           suppressed_internal_prefix_count => $suppressed_internal_prefix_count,
                           pending_prefix_count => $pending_prefix_count });
     }
-    return {peer_stats => \@peer_stats,
-            rib_stats => \@rib_stats};
-    
+
+    return &$success_cb({
+        peer_stats => \@peer_stats,
+        rib_stats  => \@rib_stats
+    });
 }
 
 =head2 remove_vlan
@@ -917,7 +922,6 @@ sub add_vrf{
                                 key => $bgp->{'md5_key'}
                      });
             }            
-
         }
 
 
@@ -927,6 +931,7 @@ sub add_vrf{
         }
 
         push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
+                                          type => $i->{'type'},
                                           inner_tag => $i->{'inner_tag'},
                                           tag  => $i->{'tag'},
                                           unit => $i->{'unit'},
@@ -2151,10 +2156,13 @@ B<Returns>
 =cut
 sub get_lsp_paths{
     my $self = shift;
+    my $success_cb = shift;
+    my $error_cb = shift;
 
     if(!$self->connected()){
-        $self->{'logger'}->error('Not currently connected to device');
-        return;
+        my $error = 'Not currently connected to device';
+        $self->{'logger'}->error($error);
+        return &$error_cb($error);
     }
 
     my $res = $self->{'jnx'}->get_mpls_lsp_information(extensive => 1);
@@ -2188,7 +2196,7 @@ sub get_lsp_paths{
             }
         }
     }
-    return $lsp_routes;
+    return &$success_cb($lsp_routes);
 }
 
 =head2 _process_rsvp_session_data

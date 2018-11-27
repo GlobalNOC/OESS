@@ -24,8 +24,24 @@ sub fetch{
     $user = $user->[0];
     $user->{'workgroups'} = ();
     my $workgroups = $db->execute_query("select workgroup_id from user_workgroup_membership where user_id = ?",[$user_id]);
+    $user->{'is_admin'} = 0;
     foreach my $workgroup (@$workgroups){
-        push(@{$user->{'workgroups'}}, OESS::Workgroup->new(db => $db, workgroup_id => $workgroup->{'workgroup_id'}));
+        my $wg = OESS::Workgroup->new(db => $db, workgroup_id => $workgroup->{'workgroup_id'});
+        push(@{$user->{'workgroups'}}, $wg);
+        if($wg->type() eq 'admin'){
+            $user->{'is_admin'} = 1;
+        }
+    }
+
+    #if they are an admin they are a part of every workgroup
+    if($user->{'is_admin'}){
+        $user->{'workgroups'} = ();
+        my $workgroups = $db->execute_query("select workgroup_id from workgroup",[]);
+        
+        foreach my $workgroup (@$workgroups){
+            push(@{$user->{'workgroups'}}, OESS::Workgroup->new(db => $db, workgroup_id => $workgroup->{'workgroup_id'}));
+        }
+
     }
 
     return $user;

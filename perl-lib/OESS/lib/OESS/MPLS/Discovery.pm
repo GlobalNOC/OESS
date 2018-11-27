@@ -414,7 +414,8 @@ sub path_handler {
             async_callback => sub {
                 my $res = shift;
                 if(!defined($res->{'error'})){
-                    my %paths = %{$res->{'results'}};
+                    return if(!defined($res->{'results'}));
+		    my %paths = %{$res->{'results'}};
                     foreach my $lsp (keys %paths){
                         $lsp_paths{$lsp} = [] if !defined($lsp_paths{$lsp});
                         push @{$lsp_paths{$lsp}}, @{$paths{$lsp}};
@@ -538,7 +539,7 @@ sub vrf_stats_handler{
 	    }
 	    $self->{'logger'}->debug("Total Time for get_vrf_stats " . $node->{'mgmt_addr'} . " call: " . tv_interval($start,[gettimeofday]));
 	    $self->handle_vrf_stats(node => $node, stats => $res->{'results'});
-											}));
+        }));
     }
 }
 
@@ -558,6 +559,7 @@ sub handle_vrf_stats{
     my $time = time();
     my $tsds_val = ();
     $self->{'logger'}->debug("Handling RIB stats: " . Dumper($rib_stats));
+    return if(!defined($rib_stats));
     while (scalar(@$rib_stats) > 0){
         my $rib = shift @$rib_stats;
         my $meta = { routing_table => $rib->{'vrf'},
@@ -875,7 +877,7 @@ sub get_active_link_id_by_connectors{
     #find current link if any
     my $link = $self->{'db'}->get_link_by_a_or_z_end( interface_a_id => $interface_a_id, interface_z_id => $interface_z_id);
     print STDERR "Found LInk: " . Data::Dumper::Dumper($link);
-    if(defined($link) && defined(@{$link})){
+    if(defined($link)){
         $link = @{$link}[0];
         print STDERR "Returning LinkID: " . $link->{'link_id'} . "\n";
         return ($link->{'link_id'}, $link->{'link_state'});

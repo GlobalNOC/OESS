@@ -162,6 +162,7 @@ async function loadEntities(parentEntity=null, options) {
 
     setEntity(entity.entity_id, entity.name);
     loadEntityVLANs(entity);
+    loadEntityBandwidths(entity);
     loadEntityCloudAccountInput(entity);
 }
 
@@ -224,10 +225,15 @@ async function loadEntityCloudAccountInput(entity) {
     if (interconnect_id === null || interconnect_id === 'null' || interconnect_id === '') {
         document.querySelector('#entity-cloud-account').style.display = 'none';
     } else {
-        // TODO Update cloud account label based on interconnect type
-        document.querySelector('#entity-cloud-account-label').innerHTML = 'AWS Account Owner';
+        let label = 'AWS Account Owner';
+        if (interconnect_type === 'gcp-partner-interconnect') {
+            label = 'GCP Pairing Key';
+        }
+        document.querySelector('#entity-cloud-account-label').innerHTML = label;
         document.querySelector('#entity-cloud-account').style.display = 'block';
     }
+
+    document.querySelector('#entity-cloud-account-type').value = interconnect_type;
 }
 
 async function addEntitySubmitCallback(event) {
@@ -251,7 +257,8 @@ async function addEntitySubmitCallback(event) {
         tag: document.querySelector('#entity-vlans').value,
         entity_id: document.querySelector('#entity-id').value,
         entity: document.querySelector('#entity-name').value,
-        cloud_account_id: document.querySelector('#entity-cloud-account-id').value
+        cloud_account_id: document.querySelector('#entity-cloud-account-id').value,
+        cloud_account_type: document.querySelector('#entity-cloud-account-type').value
     };
 
     console.log(entity);
@@ -333,6 +340,49 @@ async function loadInterfaces() {
     }
 
     loadInterfaceVLANs();
+}
+
+async function loadEntityBandwidths(entity) {
+    if (!entity) {
+        document.querySelector('#endpoint-bandwidth').setAttribute('disabled', true);
+        return null;
+    }
+    document.querySelector('#endpoint-bandwidth').removeAttribute('disabled');
+
+    let entityType = 'default';
+    for (let i = 0; i < entity.interfaces.length; i++) {
+        entityType = entity.interfaces[i].cloud_interconnect_type;
+    }
+
+    let options = `
+        <option value="0" selected>Unlimited</option>
+`;
+
+    if (entityType === 'aws-hosted-connection') {
+        options = `
+        <option value="50" selected>50 Mb/s</option>
+        <option value="100">100 Mb/s</option>
+        <option value="200">200 Mb/s</option>
+        <option value="300">300 Mb/s</option>
+        <option value="400">400 Mb/s</option>
+        <option value="500">500 Mb/s</option>
+`;
+    } else if (entityType === 'gcp-partner-interconnect') {
+        options = `
+        <option value="50" selected>50 Mb/s</option>
+        <option value="100">100 Mb/s</option>
+        <option value="200">200 Mb/s</option>
+        <option value="300">300 Mb/s</option>
+        <option value="400">400 Mb/s</option>
+        <option value="500">500 Mb/s</option>
+        <option value="1000">1 Gb/s</option>
+        <option value="2000">2 Gb/s</option>
+        <option value="5000">5 Gb/s</option>
+        <option value="10000">10 Gb/s</option>
+`;
+    }
+
+    document.querySelector('#entity-bandwidth').innerHTML = options;
 }
 
 async function loadInterfaceVLANs() {

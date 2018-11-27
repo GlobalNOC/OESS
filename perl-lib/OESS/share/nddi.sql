@@ -674,7 +674,7 @@ CREATE TABLE `oess_version` (
 
 LOCK TABLES `oess_version` WRITE;
 /*!40000 ALTER TABLE `oess_version` DISABLE KEYS */;
-INSERT INTO `oess_version` VALUES ('2.0.0');
+INSERT INTO `oess_version` VALUES ('2.0.1');
 /*!40000 ALTER TABLE `oess_version` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -689,7 +689,7 @@ CREATE TABLE `path` (
   `path_id` int(10) NOT NULL AUTO_INCREMENT,
   `path_type` enum('primary','backup','tertiary') NOT NULL DEFAULT 'primary',
   `circuit_id` int(10) NOT NULL,
-  `path_state` enum('active','available','deploying') NOT NULL DEFAULT 'active',
+  `path_state` enum('active','available','deploying','decom') NOT NULL DEFAULT 'active',
   `mpls_path_type` enum('strict','loose','none') NOT NULL DEFAULT 'none',
   PRIMARY KEY (`path_id`),
   UNIQUE KEY `path_idx` (`path_type`,`circuit_id`),
@@ -718,7 +718,7 @@ CREATE TABLE `path_instantiation` (
   `path_instantiation_id` int(11) NOT NULL AUTO_INCREMENT,
   `path_id` int(10) NOT NULL,
   `end_epoch` int(10) NOT NULL,
-  `path_state` enum('active','available','deploying') NOT NULL DEFAULT 'active',
+  `path_state` enum('active','available','deploying','decom') NOT NULL DEFAULT 'active',
   `start_epoch` int(10) NOT NULL,
   PRIMARY KEY (`path_instantiation_id`),
   KEY `end_epoch_path` (`path_id`,`end_epoch`),

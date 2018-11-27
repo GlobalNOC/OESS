@@ -271,13 +271,16 @@ sub _register_rpc_methods{
                                             callback    => sub {
                                                 $self->get_lsp_paths(@_);
                                             },
-                                            description => "for each LSP on the switch, provides a list of link addresses");
+                                            description => "for each LSP on the switch, provides a list of link addresses",
+                                            async => 1);
     $dispatcher->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name => "get_vrf_stats",
                                             callback => sub {
                                                 $self->get_vrf_stats(@_);
-                                            }, description => "Get VRF BGP Stats");
+                                            },
+                                            description => "Get VRF BGP Stats",
+                                            async => 1);
 
     $dispatcher->register_method($method);
 
@@ -639,7 +642,10 @@ sub get_vrf_stats{
     my $m_ref = shift;
     my $p_ref = shift;
 
-    return $self->{'device'}->get_vrf_stats();
+    my $success_cb = $m_ref->{success_callback};
+    my $error_cb = $m_ref->{error_callback};
+
+    return $self->{'device'}->get_vrf_stats($success_cb, $error_cb);
 }
 
 =head2 get_lsp_paths
@@ -654,7 +660,10 @@ sub get_lsp_paths{
     my $m_ref = shift;
     my $p_ref = shift;
 
-    return $self->{'device'}->get_lsp_paths();
+    my $success_cb = $m_ref->{success_callback};
+    my $error_cb = $m_ref->{error_callback};
+
+    return $self->{'device'}->get_lsp_paths($success_cb, $error_cb);
 }
 
 sub _generate_commands{

@@ -31,11 +31,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 2.0.0
+Version 2.0.1
 
 =cut
 
-our $VERSION = '2.0.0';
+our $VERSION = '2.0.1';
 
 =head1 SYNOPSIS
 
@@ -83,7 +83,7 @@ use Data::Dumper;
 
 use Socket qw( inet_aton inet_ntoa);
 
-use constant VERSION => '2.0.0';
+use constant VERSION => '2.0.1';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant OESS_PW_FILE => "/etc/oess/.passwd.xml";
@@ -418,6 +418,98 @@ sub get_node_by_ip{
 }
 
 
+=head2 get_current_path_instantiation
+
+get_current_path_instantiation returns the last path instantiation
+associated with C<path_id>.
+
+=cut
+sub get_current_path_instantiation {
+    my $self = shift;
+    my %args = @_;
+
+    my $path_id = $args{path_id};
+
+    my $query = "select * from path_instantiation where path_id=? order by path_instantiation_id desc";
+    my $res = $self->_execute_query($query, [$path_id]);
+    if (!defined $res) {
+        return;
+    }
+
+    return $res->[0];
+}
+
+=head2 get_path_id
+
+    my $path_id = get_path_id(circuit_id => 123, type => 'primary');
+
+get_path_id returns the path_id of circuit C<circuit_id>'s specified
+path type. Returns C<undef> if not found.
+
+=cut
+sub get_path_id {
+    my $self = shift;
+    my %args = @_;
+
+    my $circuit_id = $args{circuit_id};
+    my $type       = $args{type};
+
+    my $query = "select * from path where circuit_id=? and path_type=?";
+    my $res = $self->_execute_query($query, [$circuit_id, $type]);
+    if (!defined $res || !defined $res->[0]) {
+        return;
+    }
+
+    return $res->[0]->{path_id};
+}
+
+=head2 set_path_state
+
+    $self->_start_transaction();
+    my $ok = set_path_state(path_id => 123, state => 'active');
+    if (!$ok) {
+        $self->_rollback();
+    }
+
+set_path_state sets the state of path C<path_id> to C<state>. This
+function creates a new instantiation for the update and ensures that
+C<path_state> in the path table is equal to C<path_state> in the last
+path_instantiation table entry for the path.
+
+B<Note>: This function must be wrapped in a transaction.
+
+=cut
+sub set_path_state {
+    my $self = shift;
+    my %args = @_;
+
+    my $path_id = $args{path_id};
+    my $state   = $args{state};
+
+    my $path = "update path set path.path_state=? where path.path_id=?";
+    my $ok   = $self->_execute_query($path, [$state, $path_id]);
+    if (!defined $ok){
+        $self->_set_error("Unable to set state of $state on path $path_id.");
+        return;
+    }
+
+    my $path_instantiation = "update path_instantiation set end_epoch=unix_timestamp(NOW()) where path_id=? and end_epoch=?";
+    $ok = $self->_execute_query($path_instantiation, [$path_id, -1]);
+    if (!defined $ok){
+        $self->_set_error("Unable to set end_epoch on path_instantiation $path_id.");
+        return;
+    }
+
+    $path_instantiation = "insert into path_instantiation (path_id, end_epoch, start_epoch, path_state) values (?, ?, unix_timestamp(NOW()), ?)";
+    $ok = $self->_execute_query($path_instantiation, [$path_id, -1, $state]);
+    if (!defined $ok){
+        $self->_set_error("Unable to create path_instantiation of state $state on $path_id.");
+        return;
+    }
+
+    return 1;
+}
+
 
 =head2 update_circuit_path_state
 
@@ -714,6 +806,7 @@ sub is_external_vlan_available_on_interface {
     my $inner_vlan_tag = $args{'inner_vlan'};
     my $interface_id = $args{'interface_id'};
     my $circuit_id = $args{'circuit_id'};
+    my $vrf_id = $args{'vrf_id'};
 
     my $type = 'openflow';
 
@@ -3990,10 +4083,9 @@ sub get_circuit_details_by_name {
 
 =head2 get_circuit_paths
 
-    returns the circuits paths include the links that they ride over and their status
+returns the circuits paths include the links that they ride over and their status
 
 =cut
-
 sub get_circuit_paths{
     my $self = shift;
     my %args = @_;
@@ -4007,7 +4099,7 @@ sub get_circuit_paths{
     my $query = "select path.path_id, path.path_type, path.circuit_id, path.mpls_path_type, path_instantiation.* ";
     $query .= "from path ";
     $query .= "join path_instantiation on path.path_id = path_instantiation.path_id ";
-    $query .= "where path.circuit_id = ? and path_instantiation.end_epoch = -1 ";
+    $query .= "where path.circuit_id = ? and path_instantiation.end_epoch = -1 and path_instantiation.path_state!='decom'";
     $query .= "order by path.path_id";
 
     my $paths = $self->_execute_query($query, [$circuit_id]);
@@ -4020,7 +4112,6 @@ sub get_circuit_paths{
                                                          links => $path->{'links'} );
 
     }
-
 
     return $paths;
 }
@@ -4057,8 +4148,7 @@ sub get_circuit_details {
     # basic circuit info
     my $query = "select circuit.restore_to_primary,circuit.type, circuit.external_identifier, circuit.name, circuit.description, circuit.circuit_id, circuit.static_mac, circuit_instantiation.modified_by_user_id, circuit_instantiation.loop_node,circuit_instantiation.reason, circuit.workgroup_id, " .
         " circuit.remote_url, circuit.remote_requester, " . 
-	" circuit_instantiation.reserved_bandwidth_mbps, circuit_instantiation.circuit_state, circuit_instantiation.start_epoch, pr_p.path_id as primary_path_id, bu_p.path_id as backup_path_id, ter_p.path_id as tertiary_path_id, " .
-	" if(bu_pi.path_state = 'active', 'backup', 'primary') as active_path " .
+	" circuit_instantiation.reserved_bandwidth_mbps, circuit_instantiation.circuit_state, circuit_instantiation.start_epoch, pr_p.path_id as primary_path_id, pr_pi.path_state as primary_path_state, bu_p.path_id as backup_path_id, bu_pi.path_state as backup_path_state, ter_p.path_id as tertiary_path_id, ter_pi.path_state as tertiary_path_state " .
 	"from circuit " .
 	" join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id " .
 	"  and circuit_instantiation.end_epoch = -1 " .
@@ -4078,6 +4168,26 @@ sub get_circuit_details {
     my $backup_path_id;
     my $show_historical =0;
     if (my $row = $sth->fetchrow_hashref()){
+
+        my $active_path = 'tertiary';
+        if ($row->{type} eq 'openflow') {
+            # Openflow circuits assume primary if backup path isn't
+            # active. This check was previous embedded directly in the
+            # select query.
+            # ie. if(bu_pi.path_state = 'active', 'backup', 'primary') as active_path
+            if (defined $row->{backup_path_state} && $row->{backup_path_state} eq 'active') {
+                $active_path = 'backup';
+            } else {
+                $active_path = 'primary';
+            }
+        } else {
+            if (defined $row->{backup_path_state} && $row->{backup_path_state} eq 'active') {
+                $active_path = 'backup';
+            } elsif (defined $row->{primary_path_state} && $row->{primary_path_state} eq 'active') {
+                $active_path = 'primary';
+            }
+        }
+
         my $dt = DateTime->from_epoch( epoch => $row->{'start_epoch'} );
         $details = {'circuit_id'             => $circuit_id,
                     'name'                   => $row->{'name'},
@@ -4085,7 +4195,7 @@ sub get_circuit_details {
                     'loop_node'              => $row->{'loop_node'},
                     'bandwidth'              => $row->{'reserved_bandwidth_mbps'},
                     'state'                  => $row->{'circuit_state'},
-                    'active_path'            => $row->{'active_path'},
+                    'active_path'            => $active_path,
                     'user_id'                => $row->{'modified_by_user_id'},
                     'last_edited'            => $dt->strftime('%m/%d/%Y %H:%M:%S'),
                     'workgroup_id'           => $row->{'workgroup_id'},
@@ -6789,9 +6899,6 @@ sub validate_circuit {
             vlan => $vlans->[$i],
             inner_vlan => $inner_vlans->[$i]
         );
-        if (!$res->{status}) {
-            return (0, "VLAN $vlans->[$i] $inner_vlans->[$i] is not available on $nodes->[$i] $interfaces->[$i].");
-        }
 
         if(!defined($type)){
             $type = $res->{'type'};
@@ -7221,7 +7328,7 @@ sub provision_circuit {
 
         my $relevant_links = $link_lookup->{$path_type};
 
-        next if(!defined(@$relevant_links) || !defined($relevant_links->[0]));
+        next if !defined($relevant_links->[0]);
 	next if ($path_type eq 'backup' && $type eq 'mpls');
 
         # create the primary path object
@@ -7366,6 +7473,10 @@ The internal MySQL primary key int identifier for this circuit.
 =item remove_time
 
 When to remove this circuit in epoch seconds.
+
+=item username
+
+User who requested the change
 
 =back
 
@@ -8391,8 +8502,25 @@ sub edit_circuit {
 
         my $relevant_links = $link_lookup->{$path_type};
 
-        next if(!defined(@$relevant_links) || !defined($relevant_links->[0]));
-	next if($path_type eq 'backup' && $type eq 'mpls');
+        # When no links are set on a circuit's path, the path should
+        # be decom'd. Failure to decom unused paths may result in the
+        # wrong circuit type being used for provisioning on the
+        # network devices.
+        if (!defined $relevant_links->[0]) {
+            my $path_id = $self->get_path_id(circuit_id => $circuit_id, type => $path_type);
+            if (!defined $path_id) {
+                # If the path doesn't already exist we can ignore setting its state.
+                next;
+            }
+
+            my $ok = $self->set_path_state(path_id => $path_id, state => 'decom');
+            if (!$ok) {
+                $self->_rollback() if($do_commit);
+                return;
+            }
+            next;
+        }
+        next if($path_type eq 'backup' && $type eq 'mpls');
 
         #try to find the path first
         $query = "select * from path where circuit_id = ? and path_type = ?";
@@ -10118,14 +10246,16 @@ sub move_edge_interface_circuits {
                  "  circuit_id, ".
                  "  start_epoch, ".
                  "  end_epoch, ".
-                 "  extern_vlan_id ) ".
-                 "VALUES( ?,?,?,?,? )";
+                 "  extern_vlan_id, ". 
+                 "  unit ) ".
+                 "VALUES( ?,?,?,?,?, ? )";
         $recs = $self->_execute_query($query, [
-            $new_interface_id, 
-            $edge_int_rec->{'circuit_id'},
-            $now,
-            -1,
-            $edge_int_rec->{'extern_vlan_id'},
+                                          $new_interface_id, 
+                                          $edge_int_rec->{'circuit_id'},
+                                          $now,
+                                          -1,
+                                          $edge_int_rec->{'extern_vlan_id'},
+                                          $edge_int_rec->{'unit'}
         ]);
         if(!$recs){
             $self->_rollback() if($do_commit);
@@ -10611,7 +10741,7 @@ sub get_active_link_id_by_connectors{
     #find current link if any
     my $link = $self->get_link_by_a_or_z_end( interface_a_id => $interface_a_id, interface_z_id => $interface_z_id);
     print STDERR "Found LInk: " . Dumper($link);
-    if(defined($link) && defined(@{$link})){
+    if(defined($link)){
         $link = @{$link}[0];
         print STDERR "Returning LinkID: " . $link->{'link_id'} . "\n";
         return ($link->{'link_id'},$link->{''});

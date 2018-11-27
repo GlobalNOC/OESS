@@ -70,7 +70,8 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
         asn: p.asn,
         key: p.key,
         local_ip: p.oessPeerIP,
-        peer_ip:  p.yourPeerIP
+        peer_ip:  p.yourPeerIP,
+        version: p.ipVersion
       });
     });
 

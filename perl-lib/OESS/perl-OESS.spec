@@ -1,6 +1,6 @@
 Summary: OESS Perl Libraries
 Name: perl-OESS
-Version: 2.0.0
+Version: 2.0.1
 Release: 1%{?dist}
 License: APL 2.0
 Group: Network
@@ -31,6 +31,7 @@ BuildRequires: perl(Test::Pod)
 BuildRequires: perl(Test::Pod::Coverage)
 BuildRequires: perl(Time::HiRes)
 BuildRequires: perl(XML::Simple)
+BuildRequires: perl(SOAP::Lite)
 
 Requires: perl
 Requires: perl-NetAddr-IP

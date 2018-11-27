@@ -49,6 +49,29 @@ sub main{
     my $cgi = new CGI;
     my $tt  = Template->new(INCLUDE_PATH => "$FindBin::Bin/..") || die $Template::ERROR;
 
+    my $is_valid_user = $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'});
+    if(!defined($is_valid_user)){
+
+        #-- What to pass to the TT and what http headers to send
+        my ($vars, $output, $filename, $title, $breadcrumbs, $current_breadcrumb);
+        $filename           = "html_templates/denied2.html";
+        $title              = "Access Denied";
+        $vars->{'admin_email'}        = $db->get_admin_email();
+
+        $vars->{'page'}               = $filename;
+        $vars->{'title'}              = $title;
+        $vars->{'breadcrumbs'}        = $breadcrumbs;
+        $vars->{'current_breadcrumb'} = $current_breadcrumb;
+        $vars->{'is_admin'}           = 0;
+	$vars->{'path'}               = "../";
+        $vars->{'is_read_only'}       = 1;
+        $vars->{'version'}            = OESS::Database::VERSION;
+
+        $tt->process("html_templates/base.html", $vars, \$output) or warn $tt->error();
+        print "Content-type: text/html\n\n" . $output;
+        return;
+    }
+
     my $is_admin = $db->get_user_admin_status(username=>$ENV{'REMOTE_USER'})->[0]{'is_admin'};
     if (!defined $is_admin) {
 	$is_admin = 0;

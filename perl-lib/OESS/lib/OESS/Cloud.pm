@@ -4,8 +4,14 @@ use strict;
 use warnings;
 
 use Exporter;
+use Log::Log4perl;
 
 use OESS::Cloud::AWS;
+use OESS::Cloud::GCP;
+use OESS::Config;
+
+use Data::Dumper;
+use Data::UUID;
 
 
 =head2 setup_endpoints
@@ -26,16 +32,19 @@ sub setup_endpoints {
     my $endpoints  = shift;
     my $result     = [];
 
+    my $config = OESS::Config->new();
+    my $logger = Log::Log4perl->get_logger('OESS.Cloud');
+
     foreach my $ep (@$endpoints) {
         if (!$ep->interface()->cloud_interconnect_id) {
             push @$result, $ep;
             next;
         }
 
-        warn "oooooooooooo AWS oooooooooooo";
-        my $aws = OESS::Cloud::AWS->new();
-
         if ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-connection') {
+            $logger->info("Adding cloud interconnect of type aws-hosted-connection.");
+            my $aws = OESS::Cloud::AWS->new();
+
             my $res = $aws->allocate_connection(
                 $ep->interface()->cloud_interconnect_id,
                 $vrf_name,
@@ -48,6 +57,9 @@ sub setup_endpoints {
             push @$result, $ep;
 
         } elsif ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-vinterface') {
+            $logger->info("Adding cloud interconnect of type aws-hosted-vinterface.");
+            my $aws = OESS::Cloud::AWS->new();
+
             my $amazon_addr   = undef;
             my $asn           = 55038;
             my $auth_key      = undef;
@@ -62,6 +74,9 @@ sub setup_endpoints {
 
                 if ($peer->local_ip =~ /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$/) {
                     $ip_version = 'ipv4';
+                } else {
+                    $amazon_addr = undef;
+                    $customer_addr = undef;
                 }
             }
 
@@ -81,8 +96,42 @@ sub setup_endpoints {
             $peer->peer_asn($res->{AmazonSideAsn});
             push @$result, $ep;
 
+        } elsif ($ep->interface()->cloud_interconnect_type eq 'gcp-partner-interconnect') {
+            $logger->info("Adding cloud interconnect of type gcp-partner-interconnect.");
+            my $gcp = OESS::Cloud::GCP->new();
+
+            my $id_gen = Data::UUID->new;
+            my $id_obj = $id_gen->create();
+            my $uuid   = $id_gen->to_string($id_obj);
+
+            # GCP attachment names ($connection_id) require that: the
+            # first character must be a lowercase letter, and all
+            # following characters must be a dash, lowercase letter,
+            # or digit, except the last character, which cannot be a
+            # dash. To meet these requirements 'a-' is appended to a
+            # lowercase uuid.
+            my $interconnect_name = $vrf_name;
+            my $connection_id     = 'a-' . lc($uuid);
+
+            my $interface = $gcp->select_interconnect_interface(
+                entity => $ep->entity,
+                pairing_key => $ep->cloud_account_id
+            );
+
+            my $res = $gcp->insert_interconnect_attachment(
+                interconnect_id   => $interface->cloud_interconnect_id,
+                interconnect_name => $interconnect_name,
+                bandwidth         => 'BPS_' . $ep->bandwidth . 'M',
+                connection_id     => $connection_id,
+                pairing_key       => $ep->cloud_account_id,
+                portal_url        => $config->base_url,
+                vlan              => $ep->tag
+            );
+            $ep->cloud_connection_id($connection_id);
+            push @$result, $ep;
+
         } else {
-            warn "Cloud interconnect type is not supported.";
+            $logger->warn("Cloud interconnect type is not supported.");
             push @$result, $ep;
         }
     }
@@ -101,28 +150,46 @@ C<$endpoints> with a configured cloud interconnect id.
 sub cleanup_endpoints {
     my $endpoints = shift;
 
+    my $config = OESS::Config->new();
+    my $logger = Log::Log4perl->get_logger('OESS.Cloud');
+
     foreach my $ep (@$endpoints) {
         if (!$ep->interface()->cloud_interconnect_id) {
             next;
         }
 
-        warn "oooooooooooo AWS oooooooooooo";
-        my $aws = OESS::Cloud::AWS->new();
-
         if ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-connection') {
+            my $aws = OESS::Cloud::AWS->new();
+
             my $aws_account = $ep->cloud_account_id;
             my $aws_connection = $ep->cloud_connection_id;
-            warn "Removing aws conn $aws_connection from $aws_account";
+
+            $logger->info("Removing aws-hosted-connection $aws_connection from $aws_account.");
             $aws->delete_connection($ep->interface()->cloud_interconnect_id, $aws_connection);
 
         } elsif ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-vinterface') {
+            my $aws = OESS::Cloud::AWS->new();
+
             my $aws_account = $ep->cloud_account_id;
             my $aws_connection = $ep->cloud_connection_id;
-            warn "Removing aws vint $aws_connection from $aws_account";
+
+            $logger->info("Removing aws-hosted-vinterface $aws_connection from $aws_account.");
             $aws->delete_vinterface($ep->interface()->cloud_interconnect_id, $aws_connection);
 
+        } elsif ($ep->interface()->cloud_interconnect_type eq 'gcp-partner-interconnect') {
+            my $gcp = OESS::Cloud::GCP->new();
+
+            my $interconnect_id = $ep->interface()->cloud_interconnect_id;
+            my $connection_id = $ep->cloud_connection_id;
+
+            $logger->info("Removing gcp-partner-interconnect $connection_id from $interconnect_id.");
+            my $res = $gcp->delete_interconnect_attachment(
+                interconnect_id => $interconnect_id,
+                connection_id => $connection_id
+            );
+
         } else {
-            warn "Cloud interconnect type is not supported.";
+            $logger->warn("Cloud interconnect type is not supported.");
         }
     }
 

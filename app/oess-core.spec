@@ -1,5 +1,5 @@
-Name:		oess-core		
-Version:	2.0.0
+Name:		oess-core
+Version:	2.0.1
 Release:	1%{?dist}
 Summary:	The core OESS service providers
 
@@ -11,7 +11,6 @@ BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 BuildRequires:	perl
 
-Requires:       nox >= 0.10.14
 Requires:       xmlsec1-devel
 Requires:	xmlsec1-openssl-devel
 Requires(interp): /bin/sh
@@ -21,7 +20,7 @@ Requires: /bin/bash
 Requires: /usr/bin/perl
 Requires: perl(base), perl(constant), perl(strict), perl(warnings)
 
-Requires: perl-OESS >= 1.2.4
+Requires: perl-OESS >= 2.0.1
 
 Requires: perl(AnyEvent), perl(AnyEvent::DBus), perl(AnyEvent::RabbitMQ)
 Requires: perl(CPAN), perl(CPAN::Shell)
@@ -90,6 +89,7 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} populate_remote_topologies.pl %{buildroot}/%{_bindir}
 %{__install} oess_topology_submitter.pl %{buildroot}/%{_bindir}
 %{__install} oess_pull_aws_interfaces.pl %{buildroot}/%{_bindir}
+%{__install} oess_pull_gcp_interfaces.pl %{buildroot}/%{_bindir}
 
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{_sysconfdir}/dbus-1/system.d/
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{_sysconfdir}/init.d/
@@ -137,6 +137,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/populate_remote_topologies.pl
 %{_bindir}/oess_topology_submitter.pl
 %{_bindir}/oess_pull_aws_interfaces.pl
+%{_bindir}/oess_pull_gcp_interfaces.pl
 
 %{_sysconfdir}/dbus-1/system.d/nddi-dbus.conf
 %{_sysconfdir}/init.d/oess-fwdctl
