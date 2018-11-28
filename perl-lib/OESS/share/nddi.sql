@@ -19,7 +19,7 @@
 -- Current Database: `oess`
 --
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `oess` /*!40100 DEFAULT CHARACTER SET latin1 */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `oess` /*!40100 DEFAULT CHARACTER SET utf8 */;
 
 USE `oess`;
 
@@ -164,7 +164,7 @@ CREATE TABLE `cloud_connection_vrf_ep` (
   PRIMARY KEY (`cloud_connection_vrf_ep_id`),
   KEY `vrf_ep_id` (`vrf_ep_id`),
   CONSTRAINT `cloud_connection_vrf_ep_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -180,7 +180,7 @@ CREATE TABLE `command` (
   `template` varchar(255) NOT NULL,
   `type` varchar(255) NOT NULL,
   PRIMARY KEY (`command_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -228,7 +228,7 @@ CREATE TABLE `entity` (
   `logo_url` varchar(255) DEFAULT NULL,
   `url` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`entity_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -243,7 +243,7 @@ CREATE TABLE `entity_hierarchy` (
   `entity_child_id` int(11) NOT NULL,
   KEY `entity_parent` (`entity_parent_id`),
   KEY `entity_child` (`entity_child_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -258,7 +258,7 @@ CREATE TABLE `entity_interface_membership` (
   `interface_id` int(11) NOT NULL,
   UNIQUE KEY `unique_entity_interface` (`entity_id`,`interface_id`),
   KEY `interface` (`interface_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 
@@ -833,7 +833,7 @@ DROP TABLE IF EXISTS `schema_version`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `schema_version` (
   `version` varchar(100) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -906,7 +906,7 @@ CREATE TABLE `user_entity_membership` (
   `entity_id` int(11) NOT NULL,
   KEY `entity` (`entity_id`),
   KEY `user` (`user_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -951,7 +951,7 @@ CREATE TABLE `vrf` (
   CONSTRAINT `vrf_ibfk_3` FOREIGN KEY (`last_modified_by`) REFERENCES `user` (`user_id`),
   CONSTRAINT `vrf_ibfk_1` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`),
   CONSTRAINT `vrf_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `user` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -984,7 +984,7 @@ CREATE TABLE `vrf_ep` (
   KEY `interface_id` (`interface_id`),
   CONSTRAINT `vrf_ep_ibfk_2` FOREIGN KEY (`interface_id`) REFERENCES `interface` (`interface_id`),
   CONSTRAINT `vrf_ep_ibfk_1` FOREIGN KEY (`vrf_id`) REFERENCES `vrf` (`vrf_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1015,7 +1015,7 @@ CREATE TABLE `vrf_ep_peer` (
   PRIMARY KEY (`vrf_ep_peer_id`),
   KEY `vrf_ep_id` (`vrf_ep_id`),
   CONSTRAINT `vrf_ep_peer_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
