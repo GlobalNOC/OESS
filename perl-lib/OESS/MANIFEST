@@ -8,6 +8,7 @@ lib/OESS/ACL.pm
 lib/OESS/Circuit.pm
 lib/OESS/Cloud.pm
 lib/OESS/Cloud/AWS.pm
+lib/OESS/Cloud/GCP.pm
 lib/OESS/Config.pm
 lib/OESS/Database.pm
 lib/OESS/DB.pm
