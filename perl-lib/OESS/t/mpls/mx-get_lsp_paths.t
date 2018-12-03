@@ -20,6 +20,18 @@ my $device = OESS::MPLS::Device::Juniper::MX->new(
 $device->{'root_namespace'} = 'http://xml.juniper.net/junos/15.1F6/';
 
 
+
+sub success {
+    my $return_value = shift;
+    return $return_value;
+}
+
+sub error {
+    my $return_value = shift;
+    return $return_value;
+}
+
+
 my $mock = OESS::Mock->new;
 $device->{jnx} = $mock;
 
@@ -122,7 +134,8 @@ my $paths = {
     ]
 };
 
-my $result = $device->get_lsp_paths();
+my $result = $device->get_lsp_paths(\&success, \&error);
+
 my ($ok, $stack) = Test::Deep::cmp_details($result, $paths);
 ok($ok, "LSP paths discovered");
 
@@ -153,7 +166,7 @@ $mock->new_sub(
 </rpc-reply>')
 );
 
-$result = $device->get_lsp_paths();
+$result = $device->get_lsp_paths(\&success, \&error);
 ($ok, $stack) = Test::Deep::cmp_details($result, {});
 ok($ok, "empty hash returned when error message received.");
 

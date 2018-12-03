@@ -19,7 +19,7 @@
 -- Current Database: `oess_test`
 --
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `oess_test` /*!40100 DEFAULT CHARACTER SET latin1 */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `oess_test` /*!40100 DEFAULT CHARACTER SET utf8 */;
 
 USE `oess_test`;
 
@@ -166,7 +166,7 @@ CREATE TABLE `cloud_connection_vrf_ep` (
   `cloud_connection_id` varchar(255) NOT NULL,
   PRIMARY KEY (`cloud_connection_vrf_ep_id`),
   KEY `vrf_ep_id` (`vrf_ep_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -249,7 +249,7 @@ CREATE TABLE `entity` (
   `logo_url` varchar(255) DEFAULT NULL,
   `url` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`entity_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=17 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -274,7 +274,7 @@ CREATE TABLE `entity_hierarchy` (
   `entity_child_id` int(11) NOT NULL,
   KEY `entity_parent` (`entity_parent_id`),
   KEY `entity_child` (`entity_child_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -683,7 +683,7 @@ DROP TABLE IF EXISTS `oess_version`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `oess_version` (
   `version` varchar(32) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -856,7 +856,7 @@ DROP TABLE IF EXISTS `schema_version`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `schema_version` (
   `version` varchar(100) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1000,7 +1000,7 @@ CREATE TABLE `vrf` (
   KEY `workgroup_id` (`workgroup_id`),
   KEY `created_by` (`created_by`),
   KEY `last_modified_by` (`last_modified_by`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1031,7 +1031,7 @@ CREATE TABLE `vrf_ep` (
   PRIMARY KEY (`vrf_ep_id`),
   KEY `vrf_id` (`vrf_id`),
   KEY `interface_id` (`interface_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1062,7 +1062,7 @@ CREATE TABLE `vrf_ep_peer` (
   `operational_state` int(1) DEFAULT NULL,
   PRIMARY KEY (`vrf_ep_peer_id`),
   KEY `vrf_ep_id` (`vrf_ep_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
