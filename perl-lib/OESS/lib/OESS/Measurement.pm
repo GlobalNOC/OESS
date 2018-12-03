@@ -31,7 +31,6 @@ use strict;
 use warnings;
 
 use GRNOC::Log;
-use RRDs;
 use XML::Simple;
 use OESS::Database;
 use Data::Dumper;
