@@ -59,6 +59,7 @@ Requires: perl(GRNOC::WebService::Client)   >= 1.4.1
 Requires: perl(GRNOC::WebService)           >= 1.2.9
 Requires: perl(GRNOC::WebService::Regex)
 Requires: perl(JSON)
+Requires: perl(JSON::WebToken)
 Requires: perl(JSON::XS)
 Requires: perl(List::Compare)
 Requires: perl(List::MoreUtils)
