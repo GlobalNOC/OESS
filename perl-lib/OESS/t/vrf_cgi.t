@@ -6,13 +6,15 @@ use warnings;
 use Data::Dumper;
 use GRNOC::Config;
 use GRNOC::WebService::Client;
-use Test::More tests=>23;
+use Test::More tests=>8;
 use Test::Deep;
 use OESS::DB::User ;
 use OESS::DB;
 use Log::Log4perl;
 use OESS::Interface;
 use OESS::Endpoint;
+use Data::Structure::Util qw( unbless );
+
 # Initialize logging
 Log::Log4perl->init("/etc/oess/logging.conf");
 use JSON;
@@ -35,23 +37,32 @@ my $svc =new  GRNOC::WebService::Client(
                         debug   => 0
 );
 
-cmp_deeply($svc->get_vrf_details(vrf_id => 1),
+cmp_deeply($svc->get_vrf_details(vrf_id => 2),
 {
           'results' => [
                          {
-                           'name' => 'Test',
+                           'name' => 'Test_2',
                            'last_modified_by' => {
-                                                   'email' => 'user_1@foo.net',
+                                                   'email' => 'user_881@foo.net',
                                                    'is_admin' => '0',
-                                                   'user_id' => '1',
+                                                   'user_id' => '881',
                                                    'type' => 'normal',
-                                                   'workgroups' => [],
-                                                   'first_name' => 'User 1',
-                                                   'last_name' => 'User 1'
+                                                   'workgroups' => [
+                                                                     {
+                                                                       'max_circuits' => '20',
+                                                                       'workgroup_id' => '241',
+                                                                       'external_id' => '',
+                                                                       'interfaces' => undef,
+                                                                       'name' => 'Workgroup 241',
+                                                                       'type' => 'normal'
+                                                                     }
+                                                                   ],
+                                                   'first_name' => 'User 881',
+                                                   'last_name' => 'User 881'
                                                  },
                            'last_modified' => '0',
-                           'vrf_id' => '1',
-                           'description' => 'Test',
+                           'vrf_id' => '2',
+                           'description' => 'Test_2',
                            'state' => 'active',
                            'endpoints' => [],
                            'workgroup' => {
@@ -144,13 +155,22 @@ cmp_deeply($svc->get_vrf_details(vrf_id => 1),
                            'created' => '1',
                            'prefix_limit' => 1000,
                            'created_by' => {
-                                             'email' => 'user_1@foo.net',
+                                             'email' => 'user_881@foo.net',
                                              'is_admin' => '0',
-                                             'user_id' => '1',
+                                             'user_id' => '881',
                                              'type' => 'normal',
-                                             'workgroups' => [],
-                                             'first_name' => 'User 1',
-                                             'last_name' => 'User 1'
+                                             'workgroups' => [
+                                                               {
+                                                                 'max_circuits' => '20',
+                                                                 'workgroup_id' => '241',
+                                                                 'external_id' => '',
+                                                                 'interfaces' => undef,
+                                                                 'name' => 'Workgroup 241',
+                                                                 'type' => 'normal'
+                                                               }
+                                                             ],
+                                             'first_name' => 'User 881',
+                                             'last_name' => 'User 881'
                                            },
                            'operational_state' => 'up'
                          }
@@ -168,7 +188,6 @@ cmp_deeply($svc->get_vrf_details(vrf_id => undef),
 
 my $temp_env_remote =  $ENV{'REMOTE_USER'};
 $ENV{'REMOTE_USER'} = 'user_881@foo.net';
-
 cmp_deeply($svc->get_vrfs(workgroup_id => 21),
 [
           {
@@ -315,40 +334,20 @@ cmp_deeply($svc->get_vrfs(workgroup_id=>4444),
         }, "Method get_vrfs() gives expected results when a workgroup is out of range");
 
 
-
-#warn Dumper($db->execute_query("select *  from remote_auth order by auth_id desc limit 1"));
-#my $user = OESS::DB::User::find_user_by_remote_auth( db => $db, remote_user => $ENV{'REMOTE_USER'} );
-#warn Dumper($user);
-#$user = OESS::User->new(db => $db, user_id =>  $user->{'user_id'} );
-#warn Dumper($user->{'user_id'});
-#warn Dumper("Condition !user->in_workgroup(241) && !user->is_admin()");
-#warn Dumper(!$user->in_workgroup(241) && !$user->is_admin());
-#ok(!$user->in_workgroup(241) && !$user->is_admin(), "!user->in_workgroup(241) && !user->is_admin()");
-#warn Dumper(OESS::DB::VRF::get_vrfs( db => $db, workgroup_id => 241, state => 'active'));
-#warn Dumper($db->execute_query("select * FROM user_workgroup_membership where user_id = 881"));
-#warn Dumper($db->execute_query("select * FROM user WHERE user_id = 881"));
-#warn Dumper(OESS::DB::User::find_user_by_remote_auth( db => $db, remote_user => $ENV{'REMOTE_USER'} ));
-#warn Dumper("get_vrfs()");
-#warn Dumper($svc->get_vrfs(workgroup_id => 21));
-#warn Dumper($db->execute_query("SELECT * FROM vrf "));
-#warn Dumper(OESS::DB::VRF::get_vrfs(db => $db, workgroup_id => 21, state => 'active'));
-#warn Dumper(OESS::DB::Interface::get_interfaces(db => $db, workgroup_id => 21));
-#$db->execute_query("INSERT INTO vrf VALUES (3,'Test_3', 'Test_3 get_vrfs', 241, 1, 1, 881,'".localtime()."', 881, 7 )");
-#$db->execute_query("INSERT INTO vrf_ep VALUES (3, 3, 3, 3, 3, 3, 1, 1 )");
-#warn Dumper($db->execute_query("select distinct(vrf.vrf_id) from vrf join vrf_ep on vrf_ep.vrf_id = vrf.vrf_id where vrf.state = 'active' and workgroup_id = 241"));
-#$db->execute_query("UPDATE vrf SET last_modified_by = 1, created_by= 1 where vrf_id = 1");
-#warn Dumper($db->execute_query("select * from vrf"));
-#get_vrfs
-#provision
-#remove
-
-
-# Test  provision
-#my %test_json = ("node"=>"11", "interface"=>$interface, "local_ip"=>"111", tag=>"Test");
-#$test_json = encode_json \%test_json;
-#my %test_json1 = ("node"=>"21", "interface"=>$interface, "local_ip"=>"222", tag=>"Test");
-#$test_json1 = encode_json \%test_json1;
-warn Dumper($db->execute_query("SELECT * FROM circuit order by circuit_id desc limit 1"));
-warn Dumper($svc->provision(vrf_id=>3, name=>"Test_provision", workgroup_id=>21, description=>"Test_provision",endpoint=>[], local_asn=>2 ));
-my $ep = OESS::Endpoint->new(type=>'circuit', db=>$db, vrf_endpoint_id=>11);
+# Test permissions for provisioning
+my $ep = {1=>2};
+my $user = OESS::DB::User::find_user_by_remote_auth( db => $db, remote_user => $ENV{'REMOTE_USER'} );
+my $user = OESS::User->new(db => $db, user_id => $user->{'user_id'}  );
+ok(defined($user),"Remote user in OESS");
+cmp_deeply($svc->provision(vrf_id=>100, name=>"Test_provision", workgroup_id=>9999, description=>"Test_provision",endpoint=>[$ep, $ep], local_asn=>2 ),
+{
+          'error_text' => 'User is not in workgroup',
+          'error' => 1,
+          'results' => undef
+        },"The method provision() provides expected output when workgroup_id is not valid (workgroup_id = 9999)");
 $ENV{'REMOTE_USER'} = $temp_env_remote;
+
+my $peer = OESS::Peer->new(vrf_peer_id =>1, db => $db,  asn=>1, key=>"3", oessPeerIP=>"1.1.1.1", yourPeerIP=>1000);
+my $ep = OESS::Endpoint->new(db=>$db, vrf_endpoint_id=>11, bandwidth=>1000, tag=>3, peerings=>[$peer], type=>'vrf');
+ok($ep->interface()->vlan_valid(workgroup_id=>$workgroup_id,vlan=>$ep->tag()) eq 1, "The given endpoint has a valid vlan");
+
