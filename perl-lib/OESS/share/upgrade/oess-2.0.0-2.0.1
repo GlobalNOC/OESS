@@ -50,13 +50,11 @@ sub upgrade{
     my $str;
     my $sth;
 
-    
-    
-    $str = "alter table `path_instantiation` modify column `path_state` enum('active','available','deploying','decom') NOT NULL DEFAULT 'active'"
+    $str = "alter table `path_instantiation` modify column `path_state` enum('active','available','deploying','decom') NOT NULL DEFAULT 'active'";
     $sth = $dbh->prepare($str) or die "Unable to prepare table update \n";
     $sth->execute() or die "Unable to update table\n";
 
-    $str = "alter table `path` modify column `path_state` enum('active','available','deploying','decom') NOT NULL DEFAULT 'active'"
+    $str = "alter table `path` modify column `path_state` enum('active','available','deploying','decom') NOT NULL DEFAULT 'active'";
     $sth = $dbh->prepare($str) or die "Unable to prepare table update \n";
     $sth->execute() or die "Unable to update table\n";
 
