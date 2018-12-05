@@ -1202,15 +1202,9 @@ sub get_active_path{
 =head2 update_mpls_path
 
 =cut
-
 sub update_mpls_path{
     my $self = shift;
     my %params = @_;
-
-    my $do_commit = 1;
-    if (defined $params{'do_commit'}) {
-        $do_commit = $params{'do_commit'};
-    }
 
     if(!defined($params{'user_id'})){
         #if this isn't defined set the system user
@@ -1226,12 +1220,20 @@ sub update_mpls_path{
         return;
     }
 
+    $self->{'db'}->_start_transaction();
+
     if ($self->has_primary_path()) {
         $self->{'logger'}->debug("Checking primary path for $self->{'circuit_id'}");
 
         if (_compare_links($self->get_path(path => 'primary'), $params{'links'})) {
             $self->{'logger'}->debug("Primary path selected for $self->{'circuit_id'}");
-            return $self->_change_active_path(new_path => 'primary');
+            my $ok = $self->_change_active_path(new_path => 'primary');
+            if ($ok) {
+                $self->{db}->_commit();
+            } else {
+                $self->{db}->_rollback();
+            }
+            return $ok;
         }
     }
 
@@ -1240,7 +1242,13 @@ sub update_mpls_path{
 
         if (_compare_links($self->get_path(path => 'backup'), $params{'links'})) {
             $self->{'logger'}->info("Backup path selected for $self->{'circuit_id'}");
-            return $self->_change_active_path(new_path => 'backup');
+            my $ok = $self->_change_active_path(new_path => 'backup');
+            if ($ok) {
+                $self->{db}->_commit();
+            } else {
+                $self->{db}->_rollback();
+            }
+            return $ok;
         }
     }
 
@@ -1250,8 +1258,6 @@ sub update_mpls_path{
     # existing.
     #
     # Check and see if circuit has any previously defined tertiary path
-
-    $self->{'db'}->_start_transaction();
 
     my $query  = "select path.path_id from path join path_instantiation on path.path_id=path_instantiation.path_id where path.path_type=? and circuit_id=? and path_instantiaiton.end_epoch=-1";
     my $results = $self->{'db'}->_execute_query($query, ["tertiary", $self->{'circuit_id'}]);
@@ -1295,15 +1301,24 @@ sub update_mpls_path{
         $self->{'details'}->{'tertiary_links'} = $params{'links'};
     }
 
-    $self->{'db'}->_commit();
-
-    return $self->_change_active_path(new_path => 'tertiary');
+    my $ok = $self->_change_active_path(new_path => 'tertiary');
+    if ($ok) {
+        $self->{db}->_commit();
+    } else {
+        $self->{db}->_rollback();
+    }
+    return $ok;
 }
 
+=head2 _change_active_path
+
+B<Note>: This method B<must> be called within a transaction.
+
+=cut
 sub _change_active_path{
     my $self = shift;
     my %params = @_;
-    
+
     my $current_path = $self->get_active_path();
     my $new_path = $params{'new_path'};
 
@@ -1315,8 +1330,6 @@ sub _change_active_path{
         return 1;
     }
 
-    $self->{'db'}->_start_transaction();
-
     my $cur_path_id = $self->{db}->get_path_id(circuit_id => $self->{circuit_id}, type => $current_path);
     my $cur_path_inst = $self->{db}->get_current_path_instantiation(path_id => $cur_path_id);
     my $cur_path_state = $cur_path_inst->{path_state};
@@ -1327,7 +1340,6 @@ sub _change_active_path{
         my $q  = "insert into path_instantiation (path_id, path_state, start_epoch, end_epoch) values (?, ?, ?, ?)";
         my $count = $self->{db}->_execute_query($q, [$cur_path_id, 'decom', $cur_path_end, -1]);
         if (!defined $count || $count < 0) {
-            $self->{db}->_rollback();
             my $err = "Unable to correct path_instantiation.";
             $self->{logger}->error($err);
             $self->error($err);
@@ -1348,7 +1360,6 @@ sub _change_active_path{
         my $q  = "insert into path_instantiation (path_id, path_state, start_epoch, end_epoch) values (?, ?, ?, ?)";
         my $count = $self->{db}->_execute_query($q, [$new_path_id, 'decom', $new_path_end, -1]);
         if (!defined $count || $count < 0) {
-            $self->{db}->_rollback();
             my $err = "Unable to correct path_instantiation.";
             $self->{logger}->error($err);
             $self->error($err);
@@ -1363,13 +1374,11 @@ sub _change_active_path{
 
     my $ok = $self->{db}->set_path_state(path_id => $cur_path_id, state => $cur_path_state);
     if (!$ok) {
-        $self->{db}->_rollback();
         return;
     }
 
     $ok = $self->{db}->set_path_state(path_id => $new_path_id, state => $new_path_state);
     if (!$ok) {
-        $self->{db}->_rollback();
         return;
     }
 
