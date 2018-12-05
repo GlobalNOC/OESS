@@ -8253,15 +8253,28 @@ sub add_or_update_interface{
 
 =over 4
 
-=item B<circuit_id> - Circuit on this path
+=item B<circuit_id>
 
-=item B<link_ids> - An array of the links composing the path
+Circuit on this path
 
-=item B<path_type> - Can be primary secondary or tertiary
+=item B<link_ids>
+
+An array of link_ids composing the path
+
+=item B<path_type>
+
+Must be C<primary>, C<secondary>, or C<tertiary>.
 
 =back
 
-Creates a new path in the active state.
+    my $path_id = create_path(1, [2, 3, 4], 'primary');
+
+Creates a new path of type C<path_type> in the active state. If a
+path of the given type already exists for circuit C<circuit_id> decom
+any existing path_instantiaitons and link_path_memberships and
+recreate in the active state.
+
+B<Note:> This method B<must> be wrapped in a transaction!
 
 =cut
 sub create_path {
@@ -8270,17 +8283,30 @@ sub create_path {
     my $link_ids   = shift;
     my $path_type  = shift;
 
-    my $query = undef;
+    my $query = "select path.path_id from path where path_type=? and circuit_id=?";
+    my $path_id = undef;
+    my $path = $self->_execute_query($query, [$path_type, $circuit_id]);
 
-    $query = "insert into path (path_type, mpls_path_type, circuit_id, path_state) VALUES (?, ?, ?, ?)";
-    my $path_id = $self->_execute_query($query, [$path_type, 'strict', $circuit_id, 'active']);
+    if (defined $path && defined $path->[0]) {
+        my $cleanup_update = undef;
 
-    $query = "insert into path_instantiation (start_epoch, end_epoch, path_id, path_state) VALUES (UNIX_TIMESTAMP( NOW() ), -1, ?, ?)";
+        $cleanup_update = "update path_instantiation set end_epoch=unix_timestamp(now()) where path_id=? and end_epoch=?";
+        $self->_execute_query($cleanup_update, [$path->[0]->{path_id}, -1]);
+
+        $cleanup_update = "update link_path_membership set end_epoch=unix_timestamp(now()) where path_id=? and end_epoch=?";
+        $self->_execute_query($cleanup_update, [$path->[0]->{path_id}, -1]);
+        $path_id = $path->[0]->{path_id};
+    } else {
+        $query = "insert into path (path_type, mpls_path_type, circuit_id, path_state) VALUES (?, ?, ?, ?)";
+        $path_id = $self->_execute_query($query, [$path_type, 'strict', $circuit_id, 'active']);
+    }
+
+    $query = "insert into path_instantiation (start_epoch, end_epoch, path_id, path_state) VALUES (UNIX_TIMESTAMP(NOW()), -1, ?, ?)";
     my $path_instantiation_id = $self->_execute_query($query, [$path_id, 'active']);
 
     foreach my $link_id (@{$link_ids}) {
-	$query = "insert into link_path_membership (start_epoch, end_epoch, link_id, path_id) VALUES (UNIX_TIMESTAMP( NOW() ), -1, ?, ?)";
-	my $result = $self->_execute_query($query, [$link_id, $path_id]);
+        $query = "insert into link_path_membership (start_epoch, end_epoch, link_id, path_id, interface_a_vlan_id, interface_z_vlan_id) VALUES (UNIX_TIMESTAMP(NOW()), -1, ?, ?)";
+        my $result = $self->_execute_query($query, [$link_id, $path_id, $circuit_id + 5000, $circuit_id + 5000]);
     }
 
     return $path_id;

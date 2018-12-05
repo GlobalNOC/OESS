@@ -306,11 +306,11 @@ sub _write_cache{
             next;
         }
         my $details = $ckt->get_details();
-	my $eps = $ckt->get_endpoints();
+        my $eps = $ckt->get_endpoints();
 
-	my $ckt_type = "L2VPN";
-        
-        if(defined($ckt->get_mpls_path_type( path => 'primary'))){
+        my $ckt_type = "L2VPN";
+
+        if(defined $ckt->get_mpls_path_type(path => 'primary') && scalar(@{$ckt->get_path(path => 'primary')}) > 0){
             $ckt_type = "L2CCC";
         }
 
