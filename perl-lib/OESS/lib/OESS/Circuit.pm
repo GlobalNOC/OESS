@@ -1201,6 +1201,17 @@ sub get_active_path{
 
 =head2 update_mpls_path
 
+    my $ckt = OESS::Circuit->new(db => $db, circuit_id => $circuit_id);
+    $ckt->{db}->_start_transaction();
+    my $ok = $ckt->update_mpls_path(links => \@ckt_path);
+    if ($ok) {
+        $ckt->{db}->_commit();
+    } else {
+        $ckt->{db}->_rollback();
+    }
+
+B<Note>: This method B<must> be called within a transaction.
+
 =cut
 sub update_mpls_path{
     my $self = shift;
@@ -1220,20 +1231,12 @@ sub update_mpls_path{
         return;
     }
 
-    $self->{'db'}->_start_transaction();
-
     if ($self->has_primary_path()) {
         $self->{'logger'}->debug("Checking primary path for $self->{'circuit_id'}");
 
         if (_compare_links($self->get_path(path => 'primary'), $params{'links'})) {
             $self->{'logger'}->debug("Primary path selected for $self->{'circuit_id'}");
-            my $ok = $self->_change_active_path(new_path => 'primary');
-            if ($ok) {
-                $self->{db}->_commit();
-            } else {
-                $self->{db}->_rollback();
-            }
-            return $ok;
+            return $self->_change_active_path(new_path => 'primary');
         }
     }
 
@@ -1242,13 +1245,7 @@ sub update_mpls_path{
 
         if (_compare_links($self->get_path(path => 'backup'), $params{'links'})) {
             $self->{'logger'}->info("Backup path selected for $self->{'circuit_id'}");
-            my $ok = $self->_change_active_path(new_path => 'backup');
-            if ($ok) {
-                $self->{db}->_commit();
-            } else {
-                $self->{db}->_rollback();
-            }
-            return $ok;
+            return $self->_change_active_path(new_path => 'backup');
         }
     }
 
@@ -1301,13 +1298,7 @@ sub update_mpls_path{
         $self->{'details'}->{'tertiary_links'} = $params{'links'};
     }
 
-    my $ok = $self->_change_active_path(new_path => 'tertiary');
-    if ($ok) {
-        $self->{db}->_commit();
-    } else {
-        $self->{db}->_rollback();
-    }
-    return $ok;
+    return $self->_change_active_path(new_path => 'tertiary');
 }
 
 =head2 _change_active_path

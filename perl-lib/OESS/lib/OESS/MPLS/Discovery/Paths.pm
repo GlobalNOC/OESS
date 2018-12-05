@@ -82,6 +82,8 @@ sub _process_paths{
     my %ip_links; # Map from IP address to link_id
     my %links_by_id; # Map from link_id to link
 
+    $self->{db}->_start_transaction();
+
     my $links_db = $self->{'db'}->get_current_links(type => 'mpls');
     foreach my $link (@{$links_db}){
         my $ip_a = $link->{'ip_a'};
@@ -113,8 +115,15 @@ sub _process_paths{
        @ckt_path = grep defined, @ckt_path;
 
        my $ckt = OESS::Circuit->new(db => $self->{'db'}, circuit_id => $circuit_id);
-       $ckt->update_mpls_path(links => \@ckt_path);
+       my $ok = $ckt->update_mpls_path(links => \@ckt_path);
+       if (!$ok) {
+           $self->{db}->_rollback();
+           return 0;
+       }
     }
+
+    $self->{db}->_commit();
+    return 1;
 }
 
 =head2 get_circuits
