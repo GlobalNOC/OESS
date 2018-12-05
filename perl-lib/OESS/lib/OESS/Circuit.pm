@@ -1208,7 +1208,7 @@ sub update_mpls_path{
     my %params = @_;
 
     my $do_commit = 1;
-    if(defined($params{'do_commit'})){
+    if (defined $params{'do_commit'}) {
         $do_commit = $params{'do_commit'};
     }
 
@@ -1248,16 +1248,17 @@ sub update_mpls_path{
     # we check that we are tracking the auto-generated path correctly;
     # This includes adding the path to the database if not already
     # existing.
+    #
+    # Check and see if circuit has any previously defined tertiary path
 
-    #check and see if circuit has any previously defined tertiary path
-    my $query  = "select path.path_id from path where path.path_type=? and circuit_id=?";
+    $self->{'db'}->_start_transaction();
+
+    my $query  = "select path.path_id from path join path_instantiation on path.path_id=path_instantiation.path_id where path.path_type=? and circuit_id=? and path_instantiaiton.end_epoch=-1";
     my $results = $self->{'db'}->_execute_query($query, ["tertiary", $self->{'circuit_id'}]);
 
-    if(defined($results) && defined($results->[0])){
-
-        $self->{'logger'}->debug("Tertiary path already exists...");
+    if (defined $results && defined $results->[0]) {
+        $self->{'logger'}->debug("Tertiary path already exists.");
         my $tertiary_path_id = $results->[0]->{'path_id'};
-
 
         if(!_compare_links($self->get_path(path => 'tertiary'), $params{'links'})) {
             my $query = "update link_path_membership set end_epoch = unix_timestamp(NOW()) where path_id = ? and end_epoch = -1";
@@ -1274,13 +1275,11 @@ sub update_mpls_path{
                     $self->{'circuit_id'} + 5000
                 ]);
             }
-        }else{
-            #nothing to do here
         }
 
     }else{
-        $self->{'logger'}->error("No tertiary path exists...creating...");
-	
+        $self->{'logger'}->info("Creating tertiary path for circuit $self->{circuit_id}.");
+
         my @link_ids;
         foreach my $link (@{$params{'links'}}) {
             push(@link_ids, $link->{'link_id'});
@@ -1289,19 +1288,14 @@ sub update_mpls_path{
         $self->{'logger'}->debug("Creating tertiary path with links ". Dumper(@link_ids));
 
         my $path_id = $self->{'db'}->create_path($self->{'circuit_id'}, \@link_ids, 'tertiary');
-        $self->{'paths'}->{'tertiary'}->{'path_id'} = $path_id; # Required by _change_active_path
+
+        $self->{'details'}->{'paths'}->{'tertiary'}->{'path_id'} = $path_id;
+        $self->{'details'}->{'paths'}->{'tertiary'}->{'mpls_path_type'} = 'tertiary';
         $self->{'has_tertiary_path'} = 1;
-
-        my $query = "update link_path_membership set end_epoch=unix_timestamp(NOW()) where path_id=? and end_epoch=-1";
-        $self->{'db'}->_execute_query($query,[$path_id]);
-
-        $query = "insert into link_path_membership (end_epoch,link_id,path_id,start_epoch,interface_a_vlan_id,interface_z_vlan_id) VALUES (-1,?,?,unix_timestamp(NOW()),?,?)";
-        foreach my $link (@{$params{'links'}}){
-            $self->{'db'}->_execute_query($query, [$link->{'link_id'}, $path_id, $self->{'circuit_id'} + 5000, $self->{'circuit_id'} + 5000]);
-        }
-
         $self->{'details'}->{'tertiary_links'} = $params{'links'};
     }
+
+    $self->{'db'}->_commit();
 
     return $self->_change_active_path(new_path => 'tertiary');
 }
