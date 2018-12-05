@@ -76,8 +76,8 @@ sub _process_paths{
     my $circuit_lsps = $params{'circuit_lsps'}; # map from circuit ID to list of LSPs making up the path of the circuit
     my $lsp_paths = $params{'lsp_paths'};       # map from LSP name to list of link-endpoint IP addresses
 
-    $self->{'logger'}->error(Dumper($circuit_lsps));
-    $self->{'logger'}->error(Dumper($lsp_paths));
+    $self->{'logger'}->debug(Dumper($circuit_lsps));
+    $self->{'logger'}->debug(Dumper($lsp_paths));
 
     my %ip_links; # Map from IP address to link_id
     my %links_by_id; # Map from link_id to link

@@ -1256,7 +1256,7 @@ sub update_mpls_path{
     #
     # Check and see if circuit has any previously defined tertiary path
 
-    my $query  = "select path.path_id from path join path_instantiation on path.path_id=path_instantiation.path_id where path.path_type=? and circuit_id=? and path_instantiaiton.end_epoch=-1";
+    my $query  = "select path.path_id from path join path_instantiation on path.path_id=path_instantiation.path_id where path.path_type=? and circuit_id=? and path_instantiation.end_epoch=-1";
     my $results = $self->{'db'}->_execute_query($query, ["tertiary", $self->{'circuit_id'}]);
 
     if (defined $results && defined $results->[0]) {

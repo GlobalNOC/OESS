@@ -8305,7 +8305,7 @@ sub create_path {
     my $path_instantiation_id = $self->_execute_query($query, [$path_id, 'active']);
 
     foreach my $link_id (@{$link_ids}) {
-        $query = "insert into link_path_membership (start_epoch, end_epoch, link_id, path_id, interface_a_vlan_id, interface_z_vlan_id) VALUES (UNIX_TIMESTAMP(NOW()), -1, ?, ?)";
+        $query = "insert into link_path_membership (start_epoch, end_epoch, link_id, path_id, interface_a_vlan_id, interface_z_vlan_id) VALUES (UNIX_TIMESTAMP(NOW()), -1, ?, ?, ?, ?)";
         my $result = $self->_execute_query($query, [$link_id, $path_id, $circuit_id + 5000, $circuit_id + 5000]);
     }
 
