@@ -829,7 +829,7 @@ sub is_external_vlan_available_on_interface {
         $inner_tags = "and circuit_edge_interface_membership.inner_tag is NULL ";
     }
 
-    my $query = "select circuit.name, circuit.circuit_id from circuit join circuit_edge_interface_membership " .
+    my $query = "select circuit.type, circuit.name, circuit.circuit_id from circuit join circuit_edge_interface_membership " .
                 "on circuit.circuit_id = circuit_edge_interface_membership.circuit_id " .
                 "where circuit_edge_interface_membership.interface_id = ? " .
                 "and circuit_edge_interface_membership.extern_vlan_id = ? " .
@@ -844,9 +844,9 @@ sub is_external_vlan_available_on_interface {
     foreach my $circuit (@{$result}) {
         if (defined $circuit_id && $circuit->{'circuit_id'} == $circuit_id) {
             # There's no problem here; We are editing the circuit.
-            return { status => 1, type => 'openflow' };
+            return { status => 1, type => $circuit->{'type'} };
         } else {
-            return { status => 0, type => 'openflow' };
+            return { status => 0, type => $circuit->{'type'} };
         }
     }
 
