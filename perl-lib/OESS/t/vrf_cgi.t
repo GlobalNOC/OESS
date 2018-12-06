@@ -170,7 +170,7 @@ cmp_deeply($svc->get_vrf_details(vrf_id => 2),
                            'operational_state' => 'up'
                          }
                        ]
-        }, "The method get_vrf_details() gives expected output when vrf exists (vrf_id = 1).");
+        }, "The method get_vrf_details() gives expected output when vrf exists (vrf_id = 2).");
 
 ok ( undef eq  $svc->get_vrf_details(vrf_id => 9999), "The method get_vrf_details() returns expected value when vrf_id is not in database.");
 
