@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -T
 
 #use strict;
 
@@ -6,24 +6,19 @@ use warnings;
 use Data::Dumper;
 use GRNOC::Config;
 use GRNOC::WebService::Client;
-use Test::More tests=>8;
+use Test::More tests=>7;
 use Test::Deep;
-use OESS::DB::User ;
 use OESS::DB;
 use Log::Log4perl;
 use OESS::Interface;
 use OESS::Endpoint;
-use Data::Structure::Util qw( unbless );
 
 # Initialize logging
 Log::Log4perl->init("/etc/oess/logging.conf");
 use JSON;
-#OESS::DB::Entity->import(get_entities);
 
 my $db = OESS::DB->new();
-my $interface_id = 391;
 my $workgroup_id = 11;
-my $interface = OESS::Interface->new(interface_id=>$interface_id, db=>$db);
 my $config_path = "/etc/oess/database.xml";
 my $config = GRNOC::Config->new(config_file=> $config_path);
 my $url = ($config->get("/config"))[0][0]->{'base_url'};
@@ -176,7 +171,7 @@ cmp_deeply($svc->get_vrf_details(vrf_id => 2),
                          }
                        ]
         }, "The method get_vrf_details() gives expected output when vrf exists (vrf_id = 1).");
-#warn Dumper($db->execute_query("SELECT * FROM vrf LIMIT 2"));
+
 ok ( undef eq  $svc->get_vrf_details(vrf_id => 9999), "The method get_vrf_details() returns expected value when vrf_id is not in database.");
 
 cmp_deeply($svc->get_vrf_details(vrf_id => undef),
@@ -325,7 +320,6 @@ cmp_deeply($svc->get_vrfs(workgroup_id => 21),
             'operational_state' => 'up'
           }
         ], "The method get_vrfs() returns expected value for workgroup 21");
-#warn Dumper($db->execute_query("SELECT * FROM vrf_ep_peer LIMIT 1"));
 cmp_deeply($svc->get_vrfs(workgroup_id=>4444),
 {
           'error_text' => 'User is not in workgroup',
@@ -335,8 +329,6 @@ cmp_deeply($svc->get_vrfs(workgroup_id=>4444),
 
 
 # Test permissions for provisioning
-my $user = OESS::DB::User::find_user_by_remote_auth( db => $db, remote_user => $ENV{'REMOTE_USER'} );
-my $user = OESS::User->new(db => $db, user_id => $user->{'user_id'}  );
 my $peer1 = OESS::Peer->new(vrf_peer_id =>1, db => $db,  asn=>1, key=>"3", oessPeerIP=>"1.1.1.1", yourPeerIP=>1000);
 my $peer2 = OESS::Peer->new(vrf_peer_id =>1, db => $db,  asn=>1, key=>"3", oessPeerIP=>"1.1.1.2", yourPeerIP=>2000);
  my $json = {
@@ -349,16 +341,15 @@ my $peer2 = OESS::Peer->new(vrf_peer_id =>1, db => $db,  asn=>1, key=>"3", oessP
         workgroup_id        => 11,         # Acts as an interface selector and validator
         peerings            => [ $peer1, $peer2 ]
     };
-#my $ep = OESS::Endpoint->new(db=>$db, vrf_endpoint_id=>11, bandwidth=>1000, tag=>3, peerings=>[$peer1, $peer2], type=>'vrf');
+
 my $ep = OESS::Endpoint->new(db=>$db, type=>'vrf', model=>$json);
 $ep = $ep->to_hash();
+
 ## Altered interface and node as only interface name and node name are required while re-generating the Endpoint
 $ep->{'interface'} = $ep->{'interface'}->{'name'};
 $ep->{'node'} = $ep->{'node'}->{'name'}; 
-#warn Dumper($ep);
 $ep = encode_json($ep);
 
-ok(defined($user),"Remote user in OESS");
 cmp_deeply($svc->provision(vrf_id=>100, name=>"Test_provision", workgroup_id=>9999, description=>"Test_provision",endpoint=>[$ep, $ep], local_asn=>2 ),
 {
           'error_text' => 'User is not in workgroup',
