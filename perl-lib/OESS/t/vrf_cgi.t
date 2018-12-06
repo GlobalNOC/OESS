@@ -335,9 +335,29 @@ cmp_deeply($svc->get_vrfs(workgroup_id=>4444),
 
 
 # Test permissions for provisioning
-my $ep = {1=>2};
 my $user = OESS::DB::User::find_user_by_remote_auth( db => $db, remote_user => $ENV{'REMOTE_USER'} );
 my $user = OESS::User->new(db => $db, user_id => $user->{'user_id'}  );
+my $peer1 = OESS::Peer->new(vrf_peer_id =>1, db => $db,  asn=>1, key=>"3", oessPeerIP=>"1.1.1.1", yourPeerIP=>1000);
+my $peer2 = OESS::Peer->new(vrf_peer_id =>1, db => $db,  asn=>1, key=>"3", oessPeerIP=>"1.1.1.2", yourPeerIP=>2000);
+ my $json = {
+        inner_tag           => undef,      # Inner VLAN tag (qnq only)
+        tag                 => 391,       # Outer VLAN tag
+        cloud_account_id    => '',         # AWS account or GCP pairing key
+        cloud_connection_id => '',         # Probably shouldn't exist as an arg
+        entity              => 'Big State TeraPOP', # Interfaces to select from
+        bandwidth           => 100,        # Acts as an interface selector and validator
+        workgroup_id        => 11,         # Acts as an interface selector and validator
+        peerings            => [ $peer1, $peer2 ]
+    };
+#my $ep = OESS::Endpoint->new(db=>$db, vrf_endpoint_id=>11, bandwidth=>1000, tag=>3, peerings=>[$peer1, $peer2], type=>'vrf');
+my $ep = OESS::Endpoint->new(db=>$db, type=>'vrf', model=>$json);
+$ep = $ep->to_hash();
+## Altered interface and node as only interface name and node name are required while re-generating the Endpoint
+$ep->{'interface'} = $ep->{'interface'}->{'name'};
+$ep->{'node'} = $ep->{'node'}->{'name'}; 
+#warn Dumper($ep);
+$ep = encode_json($ep);
+
 ok(defined($user),"Remote user in OESS");
 cmp_deeply($svc->provision(vrf_id=>100, name=>"Test_provision", workgroup_id=>9999, description=>"Test_provision",endpoint=>[$ep, $ep], local_asn=>2 ),
 {
@@ -345,9 +365,14 @@ cmp_deeply($svc->provision(vrf_id=>100, name=>"Test_provision", workgroup_id=>99
           'error' => 1,
           'results' => undef
         },"The method provision() provides expected output when workgroup_id is not valid (workgroup_id = 9999)");
-$ENV{'REMOTE_USER'} = $temp_env_remote;
 
-my $peer = OESS::Peer->new(vrf_peer_id =>1, db => $db,  asn=>1, key=>"3", oessPeerIP=>"1.1.1.1", yourPeerIP=>1000);
-my $ep = OESS::Endpoint->new(db=>$db, vrf_endpoint_id=>11, bandwidth=>1000, tag=>3, peerings=>[$peer], type=>'vrf');
-ok($ep->interface()->vlan_valid(workgroup_id=>$workgroup_id,vlan=>$ep->tag()) eq 1, "The given endpoint has a valid vlan");
+## Testingrif interface is blessed in ep
+cmp_deeply($svc->provision( name=>"Test_provision", workgroup_id=>11, description=>"Test_provision",endpoint=>[$ep, $ep], local_asn=>2),
+{
+          'error_text' => 'error creating VRF: VLAN: 391 is not allowed for workgroup on interface: e15/1',
+          'error' => 1,
+          'results' => undef
+       }, "The method provision performs in a expected manner when the VLAN is not available for given endpoint.");
+
+$ENV{'REMOTE_USER'} = $temp_env_remote;
 
