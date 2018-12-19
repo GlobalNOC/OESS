@@ -34,12 +34,19 @@ async function loadVRF() {
   let endpoints = [];
 
   vrf.endpoints.forEach(function(e) {
+    let entity_id = null;
+    let entity_name = null;
+    if (e.hasOwnProperty('entity')) {
+      entity_id = e.entity.entity_id;
+      entity_name = e.entity.name;
+    }
+
     let endpoint = {
         cloud_account_id: e.cloud_account_id,
         cloud_account_type: e.interface.cloud_interconnect_type,
         bandwidth: e.bandwidth,
-        entity_id: e.entity.entity_id,
-        entity: e.entity.name,
+        entity_id: entity_id,
+        entity: entity_name,
         name: e.interface.name,
         node: e.node.name,
         peerings: [],
@@ -324,7 +331,11 @@ function loadSelectedEndpointList() {
   console.log(endpoints);
   endpoints.forEach(function(endpoint, index) {
           let endpointName = '';
-          endpointName = `${endpoint.entity} - ${endpoint.node} - ${endpoint.name} <small>${endpoint.tag}</small>`;
+          if (endpoint.entity) {
+            endpointName = `${endpoint.entity} - <small>${endpoint.node} - ${endpoint.name} ${endpoint.tag}</small>`;
+          } else {
+            endpointName = `${endpoint.node} - <small>${endpoint.name} ${endpoint.tag}</small>`;
+          }
          
           let peerings = '';
           endpoint.peerings.forEach(function(peering, peeringIndex) {

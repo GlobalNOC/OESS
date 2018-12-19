@@ -163,11 +163,19 @@ async function loadVRF() {
 
     peerSelections.appendChild(select);
 
+    // Ignore display of entity if not assigned to an interface.
+    let ename = ``;
+    if (endpoint.hasOwnProperty('entity')) {
+      ename = `${endpoint.entity.name} - <small>${endpoint.node.name} - ${endpoint.interface.name} - ${endpoint.tag}`;
+    } else {
+      ename = `${endpoint.node.name} - <small>${endpoint.interface.name} - ${endpoint.tag}`;
+    }
+
     let html = `
 <div class="panel panel-default">
   <div class="panel-heading" style="height: 40px;">
     <h4 style="margin: 0px; float: left;">
-	${endpoint.entity.name} - <small>${endpoint.node.name} - ${endpoint.interface.name} - ${endpoint.tag}</small>
+	${ename}</small>
     </h4>
   </div>
 
