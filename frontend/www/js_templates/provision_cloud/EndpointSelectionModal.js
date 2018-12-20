@@ -253,9 +253,8 @@ async function addEntitySubmitCallback(event) {
 
     let entity = {
         bandwidth: document.querySelector('#entity-bandwidth').value,
-        interface: "TBD",
-        node: "TBD",
         name: "TBD",
+        node: "TBD",
         peerings: [],
         tag: document.querySelector('#entity-vlans').value,
         entity_id: document.querySelector('#entity-id').value,
@@ -439,7 +438,7 @@ async function addInterfaceSubmitCallback(event) {
     }
     let endpoint = {
         bandwidth: document.querySelector('#endpoint-bandwidth').value,
-        interface: intf,
+        name: intf,
         node: node,
         entity: entity,
         entity_id: entity_id,
