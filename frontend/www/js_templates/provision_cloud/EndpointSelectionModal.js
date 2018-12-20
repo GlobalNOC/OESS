@@ -120,6 +120,9 @@ async function loadEntities(parentEntity=null, options) {
     r.style.display = 'none';
 
     let entity = await getEntities(session.data.workgroup_id, parentEntity, options);
+    if (entity === null) {
+        return null;
+    }
 
     let parent = null;
     if ('parents' in entity && entity.parents.length > 0) {
