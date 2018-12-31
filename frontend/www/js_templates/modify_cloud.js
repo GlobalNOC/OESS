@@ -22,10 +22,6 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-function render(obj, elem) {
-  elem.innerHTML = obj.render();
-}
-
 async function loadVRF() {
   let url = new URL(window.location.href);
   let id = url.searchParams.get('vrf_id');
@@ -51,6 +47,7 @@ async function loadVRF() {
         bandwidth: e.bandwidth,
         entity_id: entity_id,
         entity: entity_name,
+        interface_id: e.interface.interface_id,
         name: e.interface.name,
         node: e.node.name,
         peerings: [],
@@ -336,7 +333,7 @@ function loadSelectedEndpointList() {
   render(e, document.querySelector('#selected-endpoint-list'));
 
   endpoints.forEach(function(endpoint, index) {
-    loadPeerFormValidator(index);
+    //loadPeerFormValidator(index);
   });
 }
 

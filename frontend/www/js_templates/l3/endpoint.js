@@ -1,5 +1,6 @@
-class Endpoint {
+class Endpoint extends Component {
   constructor(props) {
+    super();
     this.props = props;
   }
 

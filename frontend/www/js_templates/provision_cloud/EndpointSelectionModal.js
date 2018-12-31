@@ -1,96 +1,142 @@
+/**
+ * render calls obj.render(props) to generate an HTML string. Once
+ * generated, the HTML string is assigned to elem.innerHTML.
+ */
+async function render(obj, elem, props) {
+  elem.innerHTML = await obj.render(props);
+}
+
+
+let m = undefined;
+
+
+async function load() {
+  let interfaces = await getInterfacesByWorkgroup(session.data.workgroup_id);
+  let vlans = await getAvailableVLANs(session.data.workgroup_id, interfaces[0].interface_id);
+
+  m = new EndpointSelectionModal({
+    interface: interfaces[0].interface_id,
+    vlan: vlans[0]
+  });
+  update();
+}
+
+async function update(props) {
+  render(m, document.querySelector('#add-endpoint-modal'), props);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-  let addEntitySubmit = document.querySelector('#add-entity-submit');
-  addEntitySubmit.addEventListener('click', addEntitySubmitCallback);
+  load();
 
-  let addEntityCancel = document.querySelector('#add-entity-cancel');
-  addEntityCancel.addEventListener('click', addEntityCancelCallback);
+  //let addEntitySubmit = document.querySelector('#add-entity-submit');
+  //addEntitySubmit.addEventListener('click', addEntitySubmitCallback);
 
-  let addInterfaceSubmit = document.querySelector('#add-endpoint-submit');
-  addInterfaceSubmit.addEventListener('click', addInterfaceSubmitCallback);
+  //let addEntityCancel = document.querySelector('#add-entity-cancel');
+  //addEntityCancel.addEventListener('click', addEntityCancelCallback);
 
-  let addInterfaceCancel = document.querySelector('#add-endpoint-cancel');
-  addInterfaceCancel.addEventListener('click', addInterfaceCancelCallback);
+  //let addInterfaceSubmit = document.querySelector('#add-endpoint-submit');
+  //addInterfaceSubmit.addEventListener('click', addInterfaceSubmitCallback);
 
-  let endpointInterfaceSelect = document.querySelector('#endpoint-select-interface');
-  endpointInterfaceSelect.addEventListener('change', loadInterfaceVLANs);
-  endpointInterfaceSelect.addEventListener('change', loadInterfaceCloudAccountInput);
+  //let addInterfaceCancel = document.querySelector('#add-endpoint-cancel');
+  //addInterfaceCancel.addEventListener('click', addInterfaceCancelCallback);
+
+  // let endpointInterfaceSelect = document.querySelector('#endpoint-select-interface');
+  // endpointInterfaceSelect.addEventListener('change', loadInterfaceVLANs);
+  // endpointInterfaceSelect.addEventListener('change', loadInterfaceCloudAccountInput);
 });
 
 async function showEndpointSelectionModal(endpoint, options) {
+  if (endpoint) {
+    document.querySelector('#endpoint-select-header').innerHTML = 'Modify Network Endpoint';
+
+    m.setIndex(endpoint.index);
+    m.setEntity(endpoint.entity_id);
+    m.setInterface(endpoint.interface_id);
+    m.setVLAN(endpoint.tag);
+
+    update({});
+  } else {
+    document.querySelector('#endpoint-select-header').innerHTML = 'Add Network Endpoint';
+    update();
+  }
+
     // Clear all pre-existing values from form
-    document.querySelector('#entity-index').value = null;
-    document.querySelector('#entity-id').value = null;
-    document.querySelector('#entity-name').value = null;
-    document.querySelector('#entity-node').value = null;
-    document.querySelector('#entity-interface').value = null;
-    document.querySelector('#endpoint-vlans').value = null;
-    document.querySelector('#entity-vlans').value = null;
-    document.querySelector('#endpoint-bandwidth').value = null;
-    document.querySelector('#entity-bandwidth').value = null;
-    document.querySelector('#entity-cloud-account-id').value = null;
+    // let m = new EndpointSelectionModal(endpoint);
+    // render(m, document.querySelector('#add-endpoint-modal'));
 
-    if (endpoint) {
-        document.querySelector('#endpoint-select-header').innerHTML = 'Modify Network Endpoint';
+    // document.querySelector('#entity-index').value = null;
+    // document.querySelector('#entity-id').value = null;
+    // document.querySelector('#entity-name').value = null;
+    // document.querySelector('#entity-node').value = null;
+    // document.querySelector('#entity-interface').value = null;
+    // document.querySelector('#endpoint-vlans').value = null;
+    // document.querySelector('#entity-vlans').value = null;
+    // document.querySelector('#endpoint-bandwidth').value = null;
+    // document.querySelector('#entity-bandwidth').value = null;
+    // document.querySelector('#entity-cloud-account-id').value = null;
 
-        if ('entity_id' in endpoint && endpoint.entity_id !== -1) {
-            $('#basic').tab('show');
+    // if (endpoint) {
+    //     document.querySelector('#endpoint-select-header').innerHTML = 'Modify Network Endpoint';
 
-            await loadEntities(endpoint.entity_id, options);
-            await loadInterfaces();
+    //     if ('entity_id' in endpoint && endpoint.entity_id !== -1) {
+    //         $('#basic').tab('show');
 
-            document.querySelector('#entity-index').value = endpoint.index;
-            document.querySelector('#entity-id').value = endpoint.entity_id;
-            document.querySelector('#entity-name').value = endpoint.entity;
+    //         await loadEntities(endpoint.entity_id, options);
+    //         await loadInterfaces();
 
-            document.querySelector('#entity-node').value = endpoint.node;
-            document.querySelector('#entity-interface').value = endpoint.interface;
+    //         document.querySelector('#entity-index').value = endpoint.index;
+    //         document.querySelector('#entity-id').value = endpoint.entity_id;
+    //         document.querySelector('#entity-name').value = endpoint.entity;
 
-            loadEntityVLANs();
-        } else {
-            $('#advanced').tab('show');
+    //         document.querySelector('#entity-node').value = endpoint.node;
+    //         document.querySelector('#entity-interface').value = endpoint.interface;
 
-            await loadEntities();
-            await loadInterfaces();
-            await loadInterfaceVLANs();
+    //         loadEntityVLANs();
+    //     } else {
+    //         $('#advanced').tab('show');
 
-            // #entity-index is shared between interfaces and entities
-            document.querySelector('#endpoint-select-interface').value = `${endpoint.node} - ${endpoint.interface}`;
-            document.querySelector('#entity-index').value = endpoint.index;
+    //         await loadEntities();
+    //         await loadInterfaces();
+    //         await loadInterfaceVLANs();
 
-            // Must call after endpoint-select-interface's value set
-            await loadInterfaceCloudAccountInput();
+    //         // #entity-index is shared between interfaces and entities
+    //         document.querySelector('#endpoint-select-interface').value = `${endpoint.node} - ${endpoint.interface}`;
+    //         document.querySelector('#entity-index').value = endpoint.index;
 
-            console.log(`${endpoint.node} - ${endpoint.interface}`);
-            console.log(`${endpoint.node} - ${endpoint.name}`);
-        }
+    //         // Must call after endpoint-select-interface's value set
+    //         await loadInterfaceCloudAccountInput();
 
-        document.querySelector('#endpoint-vlans').value = endpoint.tag;
-        document.querySelector('#entity-vlans').value = endpoint.tag;
+    //         console.log(`${endpoint.node} - ${endpoint.interface}`);
+    //         console.log(`${endpoint.node} - ${endpoint.name}`);
+    //     }
 
-        document.querySelector('#endpoint-bandwidth').value = endpoint.bandwidth;
-        document.querySelector('#entity-bandwidth').value = endpoint.bandwidth;
+    //     document.querySelector('#endpoint-vlans').value = endpoint.tag;
+    //     document.querySelector('#entity-vlans').value = endpoint.tag;
 
-        document.querySelector('#add-endpoint-submit').innerHTML = 'Modify Interface';
-        document.querySelector('#add-entity-submit').innerHTML = 'Modify Entity';
+    //     document.querySelector('#endpoint-bandwidth').value = endpoint.bandwidth;
+    //     document.querySelector('#entity-bandwidth').value = endpoint.bandwidth;
 
-        let addEntitySubmitButton = document.querySelector('#add-entity-submit');
-        addEntitySubmitButton.innerHTML = `Modify Endpoint`;
+    //     document.querySelector('#add-endpoint-submit').innerHTML = 'Modify Interface';
+    //     document.querySelector('#add-entity-submit').innerHTML = 'Modify Entity';
+
+    //     let addEntitySubmitButton = document.querySelector('#add-entity-submit');
+    //     addEntitySubmitButton.innerHTML = `Modify Endpoint`;
 
 
-    } else {
-        document.querySelector('#endpoint-select-header').innerHTML = 'Add Network Endpoint';
+    // } else {
+    //     document.querySelector('#endpoint-select-header').innerHTML = 'Add Network Endpoint';
 
-        console.log('adding endpoint');
+    //     console.log('adding endpoint');
 
-        loadEntities();
-        loadEntityVLANs();
+    //     loadEntities();
+    //     loadEntityVLANs();
 
-        await loadInterfaces();
-        loadInterfaceVLANs();
-        loadInterfaceCloudAccountInput();
+    //     await loadInterfaces();
+    //     loadInterfaceVLANs();
+    //     loadInterfaceCloudAccountInput();
 
-        document.querySelector('#entity-index').value = -1;
-    }
+    //     document.querySelector('#entity-index').value = -1;
+    // }
 
     let endpointSelectionModal = $('#add-endpoint-modal');
     endpointSelectionModal.modal('show');
@@ -425,48 +471,6 @@ async function loadInterfaceCloudAccountInput() {
     let id = select.options[select.selectedIndex].getAttribute('data-id');
     let interconnect_id = select.options[select.selectedIndex].getAttribute('data-cloud-interconnect-id');
     let interconnect_type = select.options[select.selectedIndex].getAttribute('data-cloud-interconnect-type');
-}
-
-async function addInterfaceSubmitCallback(event) {
-    let select = document.querySelector('#endpoint-select-interface');
-    let node = select.options[select.selectedIndex].getAttribute('data-node');
-    let intf = select.options[select.selectedIndex].getAttribute('data-interface');
-    let entity = select.options[select.selectedIndex].getAttribute('data-entity');
-    let entity_id = select.options[select.selectedIndex].getAttribute('data-entity_id');
-    if(entity == "undefined" || entity == "" || entity == null || entity == undefined){
-        entity = "NA";
-    }
-    let endpoint = {
-        bandwidth: document.querySelector('#endpoint-bandwidth').value,
-        name: intf,
-        node: node,
-        entity: entity,
-        entity_id: entity_id,
-        peerings: [],
-        cloud_account_id: '',
-        tag: document.querySelector('#endpoint-vlans').value
-    };
-    console.log(endpoint);
-
-    let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
-    let endpointIndex = document.querySelector('#entity-index').value;
-    if (endpointIndex >= 0) {
-        endpoint.peerings = endpoints[endpointIndex].peerings;
-        endpoints[endpointIndex] = endpoint;
-    } else {
-        endpoints.push(endpoint);
-    }
-
-    sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
-    loadSelectedEndpointList();
-
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('hide');
-}
-
-async function addInterfaceCancelCallback(event) {
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('hide');
 }
 
 function loadEntitySearchList(search) {

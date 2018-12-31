@@ -57,7 +57,7 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
     if ('entity_id' in endpoint && endpoint.interface === 'TBD' && endpoint.node === 'TBD') {
       e['entity'] = endpoint.entity;
     } else {
-      e['interface'] = endpoint.interface;
+      e['interface'] = endpoint.name;;
       e['node']      = endpoint.node;
     }
 
