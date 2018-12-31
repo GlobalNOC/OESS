@@ -2,37 +2,13 @@ class InterfaceForm extends Component {
   constructor(props) {
     super();
     this.props = {
-      interfaces: props.interfaces || [],
-      interface:  props.interface  || null,
-      vlans:      props.vlans      || [],
-      vlan:       props.vlan       || null,
-      onCancel:   props.onCancel   || this.onCancel,
-      onSubmit:   props.onSubmit,
-      onInterfaceChange: props.onInterfaceChange, // || this.onInterfaceChange,
-      onVLANChange:      props.onVLANChange      || this.onVLANChange
+      interface:         props.interface  || null,
+      vlan:              props.vlan       || null,
+      onCancel:          props.onCancel,
+      onSubmit:          props.onSubmit,
+      onInterfaceChange: props.onInterfaceChange
     };
-    console.log(this.props);
   } 
-
-  onInterfaceChange(intf) {
-    console.log('onInterfaceChange');
-  }
-
-  onVLANChange(vlan) {
-    console.log('onVLANChange');
-  }
-
-  onCancel(e) {
-    addInterfaceCancelCallback(e);
-  }
-
-  setInterfaceID(id) {
-    this.onInterfaceChange(id);
-  }
-
-  setVLANID(id) {
-    this.onVLANChange(id);
-  }
 
   async render(props) {
     console.log('InterfaceForm:', props);
@@ -54,7 +30,6 @@ class InterfaceForm extends Component {
       if (intf.interface_id == props.interface) {
         selected = 'selected';
       }
-console.log(intf);
       return `<option value="${intf.interface_id}"
                       data-node="${intf.node}"
                       data-interface="${intf.name}"
@@ -87,7 +62,6 @@ console.log(intf);
       <label class="control-label">VLAN</label>
       <select id="endpoint-vlans"
               class="form-control"
-              onchange="document.components[${this._id}].onVLANChange(this.value)"
               value="${props.vlan}">
         ${svlans}
       </select>

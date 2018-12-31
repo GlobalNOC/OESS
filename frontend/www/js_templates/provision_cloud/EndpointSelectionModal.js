@@ -54,7 +54,7 @@ async function showEndpointSelectionModal(endpoint, options) {
     m.setInterface(endpoint.interface_id);
     m.setVLAN(endpoint.tag);
 
-    update({});
+    update();
   } else {
     document.querySelector('#endpoint-select-header').innerHTML = 'Add Network Endpoint';
     update();

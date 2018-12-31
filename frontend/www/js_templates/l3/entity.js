@@ -2,8 +2,9 @@ class EntityForm extends Component {
   constructor(props) {
     super();
     this.props = {
-      onCancel:   props.onCancel   || this.onCancel,
-      onSubmit:   props.onSubmit   || this.onSubmit
+      onCancel:       props.onCancel,
+      onSubmit:       props.onSubmit,
+      onEntityChange: props.onEntityChange
     };
   }
   

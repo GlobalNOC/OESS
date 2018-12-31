@@ -11,7 +11,11 @@ class EndpointSelectionModal extends Component {
 
     console.log('EndpointSelectionModal:', this.props);
 
-    this.entityForm = new EntityForm({});
+    this.entityForm = new EntityForm({
+      onSubmit: this.onSubmitEntity.bind(this),
+      onCancel: this.onCancelEntity.bind(this),
+      onEntityChange: this.onEntityChange.bind(this)
+    });
     this.interfaceForm = new InterfaceForm({
       onSubmit: this.onSubmitInterface.bind(this),
       onCancel: this.onCancelInterface.bind(this),
@@ -35,6 +39,26 @@ class EndpointSelectionModal extends Component {
     this.props.vlan = i;
   }
 
+  onEntityChange(entity) {
+    this.props.entity = entity;
+    this.props.vlan = null;
+    update();
+  }
+
+  onCancelEntity(e) {
+
+  }
+
+  onSubmitEntity(e) {
+
+  }
+
+  onInterfaceChange(intf) {
+    this.props.interface = intf;
+    this.props.vlan = null;
+    update();
+  }
+
   onCancelInterface(e) {
     let addEndpointModal = $('#add-endpoint-modal');
     addEndpointModal.modal('hide');
@@ -44,6 +68,7 @@ class EndpointSelectionModal extends Component {
     let select = document.querySelector('#endpoint-select-interface');
     let node = select.options[select.selectedIndex].getAttribute('data-node');
     let intf = select.options[select.selectedIndex].getAttribute('data-interface');
+    let intf_id = select.options[select.selectedIndex].value;
     let entity = select.options[select.selectedIndex].getAttribute('data-entity');
     let entity_id = select.options[select.selectedIndex].getAttribute('data-entity_id');
     if(entity == "undefined" || entity == "" || entity == null || entity == undefined){
@@ -53,6 +78,7 @@ class EndpointSelectionModal extends Component {
     let endpoint = {
         bandwidth: document.querySelector('#endpoint-bandwidth').value,
         name: intf,
+        interface_id: intf_id,
         node: node,
         entity: entity,
         entity_id: entity_id,
@@ -76,20 +102,14 @@ class EndpointSelectionModal extends Component {
     addEndpointModal.modal('hide');
   }
 
-  onInterfaceChange(intf) {
-    this.props.interface = intf;
-    this.props.vlan = null;
-    update();
-  }
-
-  async render(props) {
-    console.log('EndpointSelectionModal:', props);
+  async render() {
+    console.log('EndpointSelectionModal.render:');
 
     let entityIsActive =  this.props.entity_id ? 'active': '';
     let intfIsActive = this.props.entity_id ? '' : 'active';
 
     let [entityForm, interfaceForm] = await Promise.all([
-      this.entityForm.render(props),
+      this.entityForm.render({}),
       this.interfaceForm.render({
         interface:         this.props.interface,
         vlan:              this.props.vlan
