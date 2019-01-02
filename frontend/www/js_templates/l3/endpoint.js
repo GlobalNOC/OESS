@@ -21,6 +21,8 @@ class Endpoint extends Component {
       return p.render();
     }).join('');
 
+    console.log('endpoint:', this.props);
+
     let requiresRoutingInfo = this.props.cloud_account_type ? 'disabled' : 'required';
     let acceptsBGPKey = this.props.cloud_account_type ? 'disabled' : '';
 

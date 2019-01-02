@@ -46,6 +46,7 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
       throw('At least two endpoints must be specified.');
   }
 
+console.log(endpoints);
   endpoints.forEach(function(endpoint) {
     let e = {
       bandwidth: endpoint.bandwidth,
@@ -54,7 +55,7 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
       cloud_account_id: endpoint.cloud_account_id
     };
 
-    if ('entity_id' in endpoint && endpoint.interface === 'TBD' && endpoint.node === 'TBD') {
+    if ('entity_id' in endpoint && endpoint.name === 'TBD' && endpoint.node === 'TBD') {
       e['entity'] = endpoint.entity;
     } else {
       e['interface'] = endpoint.name;;

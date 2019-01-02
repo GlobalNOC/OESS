@@ -8,13 +8,16 @@ class EndpointSelectionModal extends Component {
 
     this.props.index  = -1;
     this.props.entity = null;
+    this.props.entityName = 'TBD';
+    this.props.entityNode = 'TBD';
 
     console.log('EndpointSelectionModal:', this.props);
 
     this.entityForm = new EntityForm({
       onSubmit: this.onSubmitEntity.bind(this),
       onCancel: this.onCancelEntity.bind(this),
-      onEntityChange: this.onEntityChange.bind(this)
+      onEntityChange: this.onEntityChange.bind(this),
+      onEntityInterfaceChange: this.onEntityInterfaceChange.bind(this)
     });
     this.interfaceForm = new InterfaceForm({
       onSubmit: this.onSubmitInterface.bind(this),
@@ -49,12 +52,70 @@ class EndpointSelectionModal extends Component {
     update();
   }
 
-  onCancelEntity(e) {
+  onEntityInterfaceChange(name, node) {
+    console.log(name, node);
+    this.props.entityName = name;
+    this.props.entityNode = node;
+  }
 
+  onCancelEntity(e) {
+    let entityAlert = document.querySelector('#entity-alert');
+    entityAlert.innerHTML = '';
+    entityAlert.style.display = 'none';
+    let entityAlertOK = document.querySelector('#entity-alert-ok');
+    entityAlertOK.innerHTML = '';
+    entityAlertOK.style.display = 'none';
+
+    let addEndpointModal = $('#add-endpoint-modal');
+    addEndpointModal.modal('hide');
   }
 
   onSubmitEntity(e) {
+    console.log('addEntitySubmitCallback:');
+    let name = document.querySelector('#entity-name').value;
+    if (name === '') {
+        document.querySelector('#entity-alert').style.display = 'block';
+        return null;
+    }
 
+    if (!document.querySelector('#entity-bandwidth').validity.valid) {
+        document.querySelector('#entity-bandwidth').reportValidity();
+        return null;
+    }
+
+    let entity = {
+        bandwidth: document.querySelector('#entity-bandwidth').value,
+        name: this.props.entityName,
+        node: this.props.entityNode,
+        peerings: [],
+        tag: document.querySelector('#entity-vlans').value,
+        entity_id: document.querySelector('#entity-id').value,
+        entity: document.querySelector('#entity-name').value,
+        cloud_account_id: document.querySelector('#entity-cloud-account-id').value,
+        cloud_account_type: document.querySelector('#entity-cloud-account-type').value
+    };
+
+    let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
+    if (this.props.index >= 0) {
+        entity.peerings = endpoints[this.props.index].peerings;
+        endpoints[this.props.index] = entity;
+    } else {
+        endpoints.push(entity);
+    }
+
+    sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
+    loadSelectedEndpointList();
+
+    let entityAlert = document.querySelector('#entity-alert');
+    entityAlert.innerHTML = '';
+    entityAlert.style.display = 'none';
+    let entityAlertOK = document.querySelector('#entity-alert-ok');
+    entityAlertOK.innerHTML = '';
+    entityAlertOK.style.display = 'none';
+
+    let addEndpointModal = $('#add-endpoint-modal');
+    addEndpointModal.modal('hide');
+    return 1;
   }
 
   onInterfaceChange(intf) {
