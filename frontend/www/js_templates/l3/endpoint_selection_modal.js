@@ -6,7 +6,7 @@ class EndpointSelectionModal extends Component {
     super();
     this.props = props || {};
 
-    this.props.index = -1;
+    this.props.index  = -1;
     this.props.entity = null;
 
     console.log('EndpointSelectionModal:', this.props);
@@ -37,6 +37,10 @@ class EndpointSelectionModal extends Component {
 
   setVLAN(i) {
     this.props.vlan = i;
+  }
+
+  setEntity(i) {
+    this.props.entity = i;
   }
 
   onEntityChange(entity) {
@@ -105,14 +109,16 @@ class EndpointSelectionModal extends Component {
   async render() {
     console.log('EndpointSelectionModal.render:');
 
-    let entityIsActive =  this.props.entity_id ? 'active': '';
-    let intfIsActive = this.props.entity_id ? '' : 'active';
+    let entityIsActive =  this.props.entity ? 'active': '';
+    let intfIsActive = this.props.entity ? '' : 'active';
 
     let [entityForm, interfaceForm] = await Promise.all([
-      this.entityForm.render({}),
+      this.entityForm.render({
+        entity: this.props.entity
+      }),
       this.interfaceForm.render({
-        interface:         this.props.interface,
-        vlan:              this.props.vlan
+        interface: this.props.interface,
+        vlan:      this.props.vlan
       })
     ]);
 

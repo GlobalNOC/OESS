@@ -2,8 +2,6 @@ class InterfaceForm extends Component {
   constructor(props) {
     super();
     this.props = {
-      interface:         props.interface  || null,
-      vlan:              props.vlan       || null,
       onCancel:          props.onCancel,
       onSubmit:          props.onSubmit,
       onInterfaceChange: props.onInterfaceChange

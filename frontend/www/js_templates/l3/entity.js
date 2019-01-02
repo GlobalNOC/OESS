@@ -16,7 +16,71 @@ class EntityForm extends Component {
     addEntitySubmitCallback(e);
   }
 
-  async render() {
+  async render(props) {
+    console.log('EntityForm:', props);
+    let options = {};
+    let entity = await getEntities(session.data.workgroup_id, props.entity, options);
+
+    if (entity === null) {
+      return `<div class="form-group"></div>`;
+    }
+
+    let parent = null;
+    if ('parents' in entity && entity.parents.length > 0) {
+      parent = entity.parents[0];
+    }
+
+    let entities = '';
+    let spacer = '';
+
+    // loadEntities(${parent.entity_id})
+    // loadEntities(${child.entity_id})
+    if (parent) {
+      entities += `
+      <button type="button" class="list-group-item active"
+              onclick="document.components[${this._id}].props.onEntityChange(${parent.entity_id})">
+        <span class="glyphicon glyphicon-menu-up"></span>&nbsp;&nbsp;
+        ${entity.name}
+      </button>
+      `;
+      spacer = '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
+    }
+
+    if ('children' in entity && entity.children.length > 0) {
+      for (let i = 0; i < entity.children.length; i++) {
+        let child = entity.children[i];
+        entities += `
+        <button type="button" class="list-group-item"
+                onclick="document.components[${this._id}].props.onEntityChange(${child.entity_id})">
+          ${spacer}${child.name}
+          <span class="glyphicon glyphicon-menu-right" style="float: right;"></span>
+        </button>
+        `;
+      }
+    }
+
+    // Once the user has selected a leaf entity it's expected that we
+    // display all its associated ports.
+    if ('children' in entity && entity.children.length === 0) {
+      entity.interfaces.forEach(function(child) {
+        entities += `
+        <button type="button"
+                class="list-group-item"
+                onclick="setEntityEndpoint(${entity.entity_id}, '${entity.name}', '${child.node}', '${child.name}')">
+          ${spacer}<b>${child.node}</b> ${child.name}
+        </button>
+        `;
+      });
+    }
+
+    if (entities === '') {
+      entities += `
+      <button type="button" class="list-group-item">
+        Placeholder<span class="glyphicon glyphicon-menu-right" style="float: right;"></span>
+      </button>
+      `;
+    }
+
     return `
     <div class="form-group">
       <input id="entity-search" class="form-control" type="text" placeholder="Search" oninput="loadEntitySearchList(this)"/>
@@ -24,9 +88,7 @@ class EntityForm extends Component {
     </div>
     <div style="height: 200px; overflow-y: scroll; margin-bottom: 15px;">
       <div id="entity-list" class="list-group">
-        <button type="button" class="list-group-item">
-          Placeholder<span class="glyphicon glyphicon-menu-right" style="float: right;"></span>
-        </button>
+        ${entities}
       </div>
     </div>
     <div class="form-group">
