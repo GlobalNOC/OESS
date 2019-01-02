@@ -378,7 +378,7 @@ sub get_entities{
     my $workgroup_id = $params->{'workgroup_id'}{'value'};
 
     my $entities = OESS::DB::Entity::get_entities(db => $db, name => $params->{name}{value});
-
+warn Dumper($entities);
     my $results = [];
     foreach my $entity (@$entities) {
 

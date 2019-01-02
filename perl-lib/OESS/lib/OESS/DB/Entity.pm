@@ -100,9 +100,9 @@ sub get_entities {
     my $reqs = [];
     my $args = [];
 
-    my $where = 'where entity_hierarchy.entity_parent_id != 1';
+    my $where = 'where';
     if (defined $name) {
-        $where .= " and entity.name like ?";
+        $where .= " entity.name like ?";
         push @$args, "%$name%";
     }
     warn "$where";
@@ -115,6 +115,7 @@ sub get_entities {
         order by entity.name",
         $args
     );
+warn Dumper($entities);
 
     my $result = [];
     foreach my $entity (@$entities){

@@ -9,6 +9,23 @@ class EntityForm extends Component {
     };
   }
 
+  async loadEntitySearchList(search) {
+    let entities = await getEntitiesAll(session.data.workgroup_id, search.value);
+
+    let items = '';
+    for (let i = 0; i < entities.length; i++) {
+      let e = entities[i];
+      items += `
+      <a href="#"
+         class="list-group-item"
+         onclick="document.components[${this._id}].props.onEntityChange(${e.entity_id})">${e.name}</a>
+      `;
+    }
+
+    let list = document.querySelector('#entity-search-list');
+    list.innerHTML = items;
+  }
+
   async render(props) {
     console.log('EntityForm:', props);
     let options = {};
@@ -142,7 +159,8 @@ class EntityForm extends Component {
 
     return `
     <div class="form-group">
-      <input id="entity-search" class="form-control" type="text" placeholder="Search" oninput="loadEntitySearchList(this)"/>
+      <input id="entity-search" class="form-control" type="text" placeholder="Search"
+             oninput="document.components[${this._id}].loadEntitySearchList(this)"/>
       <div id="entity-search-list" class="list-group" style="max-height:250px; overflow-y:scroll; position: absolute; width: 95%; z-index: 100; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);"></div>
     </div>
     <div style="height: 200px; overflow-y: scroll; margin-bottom: 15px;">
