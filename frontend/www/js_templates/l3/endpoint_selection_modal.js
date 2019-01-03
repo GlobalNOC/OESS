@@ -175,7 +175,8 @@ class EndpointSelectionModal extends Component {
 
     let [entityForm, interfaceForm] = await Promise.all([
       this.entityForm.render({
-        entity: this.props.entity
+        entity: this.props.entity,
+        vlan: this.props.vlan
       }),
       this.interfaceForm.render({
         interface: this.props.interface,
@@ -183,11 +184,13 @@ class EndpointSelectionModal extends Component {
       })
     ]);
 
+    let header = this.props.index === -1 ? 'Add Network Endpoint' : 'Modify Network Endpoint';
+
     return `
       <div class="modal-dialog" role="document">
         <div class="modal-content">
           <div class="modal-header">
-            <h4 id="endpoint-select-header" class="modal-title">Add Network Endpoint</h4>
+            <h4 id="endpoint-select-header" class="modal-title">${header}</h4>
           </div>
           <div class="modal-body">
             <div style="margin-bottom: 15px;">

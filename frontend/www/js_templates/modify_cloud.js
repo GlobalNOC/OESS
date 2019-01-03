@@ -1,9 +1,38 @@
+/**
+ * render calls obj.render(props) to generate an HTML string. Once
+ * generated, the HTML string is assigned to elem.innerHTML.
+ */
+async function render(obj, elem, props) {
+  elem.innerHTML = await obj.render(props);
+}
+
+
+let m = undefined;
+
+
+async function load() {
+  let interfaces = await getInterfacesByWorkgroup(session.data.workgroup_id);
+  let vlans = await getAvailableVLANs(session.data.workgroup_id, interfaces[0].interface_id);
+
+  m = new EndpointSelectionModal({
+    interface: interfaces[0].interface_id,
+    vlan: vlans[0]
+  });
+  update();
+}
+
+async function update(props) {
+  render(m, document.querySelector('#add-endpoint-modal'), props);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   sessionStorage.setItem('endpoints', '[]');
 
+  load();
+
   loadUserMenu().then(function() {
-      loadVRF();
-      setDateTimeVisibility();
+    loadVRF();
+    setDateTimeVisibility();
   });
 
   let addNetworkEndpoint = document.querySelector('#add-network-endpoint');
@@ -75,14 +104,25 @@ async function loadVRF() {
 }
 
 async function addNetworkEndpointCallback(event) {
-    showEndpointSelectionModal(null);
+  m.setIndex(-1);
+  update();
+
+  let endpointSelectionModal = $('#add-endpoint-modal');
+  endpointSelectionModal.modal('show');
 }
 
 async function modifyNetworkEndpointCallback(index) {
-    let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
-    endpoints[index].index = index;
+  let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
+  endpoints[index].index = index;
 
-    showEndpointSelectionModal(endpoints[index], {vrf: JSON.parse(sessionStorage.getItem('vrf'))});
+  m.setIndex(index);
+  m.setEntity(endpoints[index].entity_id);
+  m.setInterface(endpoints[index].interface_id);
+  m.setVLAN(endpoints[index].tag);
+  update();
+
+  let endpointSelectionModal = $('#add-endpoint-modal');
+  endpointSelectionModal.modal('show');
 }
 
 async function deleteNetworkEndpointCallback(index) {

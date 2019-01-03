@@ -101,12 +101,18 @@ class EntityForm extends Component {
     for (key in vlanH) {
         vlans.push(key);
     }
+    if (!props.vlan) {
+      props.vlan = vlans[0];
+    } else if (!vlans.includes(props.vlan)) {
+      vlans.unshift(props.vlan);
+    }
 
     let accessRequestable = false;
     let vlanSelectable = true;
     let vlanOptions = '';
     for (let i = 0; i < vlans.length; i++) {
-      vlanOptions += `<option>${vlans[i]}</option>`;
+      let selected = vlans[i] == props.vlan ? 'selected' : '';
+      vlanOptions += `<option ${selected}>${vlans[i]}</option>`;
     }
     if (vlanOptions === '') {
       accessRequestable = true;
