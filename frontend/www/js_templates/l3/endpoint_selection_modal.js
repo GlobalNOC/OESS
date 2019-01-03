@@ -11,8 +11,6 @@ class EndpointSelectionModal extends Component {
     this.props.entityName = 'TBD';
     this.props.entityNode = 'TBD';
 
-    console.log('EndpointSelectionModal:', this.props);
-
     this.entityForm = new EntityForm({
       onSubmit: this.onSubmitEntity.bind(this),
       onCancel: this.onCancelEntity.bind(this),
@@ -53,7 +51,6 @@ class EndpointSelectionModal extends Component {
   }
 
   onEntityInterfaceChange(name, node) {
-    console.log(name, node);
     this.props.entityName = name;
     this.props.entityNode = node;
   }
@@ -71,7 +68,6 @@ class EndpointSelectionModal extends Component {
   }
 
   onSubmitEntity(e) {
-    console.log('addEntitySubmitCallback:');
     let name = document.querySelector('#entity-name').value;
     if (name === '') {
         document.querySelector('#entity-alert').style.display = 'block';
@@ -121,6 +117,7 @@ class EndpointSelectionModal extends Component {
   onInterfaceChange(intf) {
     this.props.interface = intf;
     this.props.vlan = null;
+    this.props.entity = null;
     update();
   }
 
@@ -138,6 +135,9 @@ class EndpointSelectionModal extends Component {
     let entity_id = select.options[select.selectedIndex].getAttribute('data-entity_id');
     if(entity == "undefined" || entity == "" || entity == null || entity == undefined){
         entity = "NA";
+    }
+    if(entity_id == "undefined" || entity_id == "" || entity_id == null || entity_id == undefined){
+        entity_id = null;
     }
 
     let endpoint = {
@@ -168,8 +168,6 @@ class EndpointSelectionModal extends Component {
   }
 
   async render() {
-    console.log('EndpointSelectionModal.render:');
-
     let entityIsActive =  this.props.entity ? 'active': '';
     let intfIsActive = this.props.entity ? '' : 'active';
 

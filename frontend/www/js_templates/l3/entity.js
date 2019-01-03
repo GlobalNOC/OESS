@@ -27,7 +27,6 @@ class EntityForm extends Component {
   }
 
   async render(props) {
-    console.log('EntityForm:', props);
     let options = {};
     let entity = await getEntities(session.data.workgroup_id, props.entity, options);
 

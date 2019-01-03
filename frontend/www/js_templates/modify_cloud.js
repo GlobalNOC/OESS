@@ -230,49 +230,8 @@ async function addEntityCancelCallback(event) {
     addEndpointModal.modal('hide');
 }
 
-//--- Add Endpoint Modal
-
-async function loadEntityList(parentEntity=null) {
-    let entity = await getEntities(session.data.workgroup_id, parentEntity);
-    let entitiesList = document.querySelector('#entities-list');
-
-    let parent = null;
-    if ('parents' in entity && entity.parents.length > 0) {
-        parent = entity.parents[0];
-    }
-
-    let entities = '';
-
-    entitiesList.innerHTML = '';
-    if (parentEntity !== null) {
-        entities += `<button type="button" class="list-group-item" onclick="loadEntityList(${parent.entity_id})">
-                         ${parent.name}
-                         <span class="glyphicon glyphicon-menu-left" style="float: right;"></span>
-                     </button>`;
-    }
-
-    if ('children' in entity && entity.children.length > 0) {
-        entity.children.forEach(function(child) {
-                entities += `<button type="button" class="list-group-item" onclick="loadEntityList(${child.entity_id})">
-                                 ${child.name}
-                                 <span class="glyphicon glyphicon-menu-right" style="float: right;"></span>
-                             </button>`;
-        });
-
-        entitiesList.innerHTML = entities;
-    }
-
-    setEntity(entity.entity_id, entity.name);
-
-    let entityAlertOK = document.querySelector('#entity-alert-ok');
-    entityAlertOK.innerHTML = `<p>Selected ${entity.name}.</p>`;
-    entityAlertOK.style.display = 'block';
-}
-
-
 
 //--- Main - Schedule ---
-
 
 
 function setDateTimeVisibility() {

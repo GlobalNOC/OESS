@@ -9,8 +9,6 @@ class InterfaceForm extends Component {
   } 
 
   async render(props) {
-    console.log('InterfaceForm:', props);
-
     let interfaces = await getInterfacesByWorkgroup(session.data.workgroup_id);
     if (!props.interface) {
       props.interface = interfaces[0].interface_id;
