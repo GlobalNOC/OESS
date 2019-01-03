@@ -46,7 +46,6 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
       throw('At least two endpoints must be specified.');
   }
 
-console.log(endpoints);
   endpoints.forEach(function(endpoint) {
     let e = {
       bandwidth: endpoint.bandwidth,

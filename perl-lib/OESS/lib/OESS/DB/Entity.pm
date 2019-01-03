@@ -115,7 +115,6 @@ sub get_entities {
         order by entity.name",
         $args
     );
-warn Dumper($entities);
 
     my $result = [];
     foreach my $entity (@$entities){
