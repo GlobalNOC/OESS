@@ -186,50 +186,6 @@ async function addNetworkCancelCallback(event) {
     window.location.href = 'index.cgi?action=welcome';
 }
 
-async function addEntitySubmitCallback(event) {
-    let name = document.querySelector('#entity-name').value;
-    if (name === '') {
-        document.querySelector('#entity-alert').style.display = 'block';
-        return null;
-    }
-
-    if (!document.querySelector('#entity-bandwidth').validity.valid) {
-        document.querySelector('#entity-bandwidth').reportValidity();
-        return null;
-    }
-
-    let entity = {
-        bandwidth: document.querySelector('#entity-bandwidth').value,
-        entity_id: document.querySelector('#entity-id').value,
-        entity: document.querySelector('#entity-name').value,
-        node: "TBD",
-        name: "TBD",
-        //name: document.querySelector('#entity-name').value,
-        peerings: [],
-        tag: document.querySelector('#entity-vlans').value
-    };
-
-    let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
-    let endpointIndex = document.querySelector('#entity-index').value;
-    if (endpointIndex >= 0) {
-        entity.peerings = endpoints[endpointIndex].peerings;
-        endpoints[endpointIndex] = entity;
-    } else {
-        endpoints.push(entity);
-    }
-
-    sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
-    loadSelectedEndpointList();
-
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('hide');
-}
-
-async function addEntityCancelCallback(event) {
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('hide');
-}
-
 
 //--- Main - Schedule ---
 
