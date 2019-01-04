@@ -150,6 +150,10 @@ sub main{
                 {title => "Update cloud network", url => "#"}
             ];
         }
+        case "acl" {
+            $filename = "html_templates/acl.html";
+            $title    = "Edit ACL";
+        }
         case "decom" {
             $filename = "html_templates/denied.html";
             $title    = "Access Denied";
