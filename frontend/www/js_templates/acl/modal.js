@@ -7,14 +7,26 @@ class ACLModal extends Component {
     this.state.selectedWorkgroupID = -1;
     this.state.entityID = -1;
     this.state.allow = 'allow';
-    this.state.high = -1;
-    this.state.low = -1;
+    this.state.high = 4095;
+    this.state.low = 2;
     this.state.notes = '';
+    this.state.position = 10;
   }
 
   saveACL(e) {
-    console.log(this.state);
-    $('#myModal').modal('hide');
+    if (this.state.aclID === -1) {
+      console.log(this.state);
+
+      addACL(this.state).then(() => {
+        update();
+        $('#myModal').modal('hide');        
+      });
+    } else {
+      modifyACL(this.state).then(() => {
+        update();
+        $('#myModal').modal('hide');
+      });
+    }
   }
 
   setSelectedWorkgroupID(e) {
@@ -42,30 +54,57 @@ class ACLModal extends Component {
   }
 
   async render(props) {
-    if (props.aclID < 0) {
-      return `<div></div>`;
-    }
-    let acl = await getACL(props.aclID);
-    this.state.aclID = acl.interface_acl_id;
-    this.state.selectedWorkgroupID = acl.workgroup_id;
-    this.state.entityID = acl.entity_id;
-    this.state.allow = acl.allow_deny;
-    this.state.high = acl.vlan_end;
-    this.state.low = acl.vlan_start;
-    this.state.notes = acl.notes || '';
+    let acl = null;
+    let entities = [];
+    let workgroups = [];
 
-    let workgroups = await getAllWorkgroups();
+    if (props.aclID === -1) {
+      [workgroups, entities] = await Promise.all([
+        getAllWorkgroups(),
+        getEntitiesAll(this.state.workgroupID)
+      ]);
+
+      this.state.aclID = -1;
+      this.state.selectedWorkgroupID = -1;
+      this.state.entityID = -1;
+      this.state.allow = 'allow';
+      this.state.high = 4095;
+      this.state.low = 2;
+      this.state.notes = '';
+      this.state.position = 10;
+
+      this.state.interfaceID = props.interfaceID;
+    } else {
+      [acl, workgroups, entities] = await Promise.all([
+        getACL(props.aclID),
+        getAllWorkgroups(),
+        getEntitiesAll(this.state.workgroupID)
+      ]);
+      console.log(acl);
+
+      this.state.aclID = acl.interface_acl_id;
+      this.state.selectedWorkgroupID = acl.workgroup_id || -1;
+      this.state.entityID = acl.entity_id;
+      this.state.allow = acl.allow_deny;
+      this.state.high = acl.vlan_end;
+      this.state.low = acl.vlan_start;
+      this.state.notes = acl.notes || '';
+      this.state.position = acl.eval_position;
+      this.state.interfaceID = acl.interface_id;
+    }
+    workgroups.unshift({workgroup_id: -1, name: 'all'});
+
     let workgroupOptions = workgroups.map((w) => {
-      if (this.state.selectedWorkgroupID === -1) {
-        this.state.selectedWorkgroupID = w.workgroup_id;
-      }
       let selected = w.workgroup_id == this.state.selectedWorkgroupID ? 'selected' : '';
       return `<option value="${w.workgroup_id}" ${selected}>${w.name}</option>`;
     }).join('');
 
-    let entities = await getEntities(this.state.workgroupID);
     let entityOptions = entities.map((e) => {
-      return `<option value="${e.entity_id}">${e.name}</option>`;
+      if (this.state.entityID === -1) {
+        this.state.entityID = e.entity_id;
+      }
+      let selected = e.entity_id == this.state.entityID ? 'selected' : '';
+      return `<option value="${e.entity_id}" ${selected}>${e.name}</option>`;
     }).join('');
 
     return `
@@ -75,29 +114,48 @@ class ACLModal extends Component {
             <button type="button" class="close" data-dismiss="modal" aria-label="Close">
               <span aria-hidden="true">&times;</span>
             </button>
-            <h4 class="modal-title">Modal title</h4>
+            <h4 class="modal-title">Edit ACL <small>${props.aclID}</small></h4>
           </div>
           <div class="modal-body">
-            <p>Editing acl ${props.aclID}</p>
-<form>
-            <select onchange="document.components[${this._id}].setAllow(this)">
-              <option>allow</option>
-              <option>deny</option>
-            </select>
-            <select onchange="document.components[${this._id}].setSelectedWorkgroupID(this)">
-              ${workgroupOptions}
-            </select>
-            <select onchange="document.components[${this._id}].setEntityID(this)">
-              ${entityOptions}
-            </select>
-            <input type="number" value="${this.state.low}" oninput="document.components[${this._id}].setLow(this)"/>
-            <input type="number" value="${this.state.high}" oninput="document.components[${this._id}].setHigh(this)"/>
-            <input type="text" value="${this.state.notes}" oninput="document.components[${this._id}].setNotes(this)"/>
-</form>
+            <form>
+              <div class="form-group">
+                <label for="allowdeny">Allow / Deny</label><br/>
+                <select id="allowdeny" class="form-control" onchange="document.components[${this._id}].setAllow(this)">
+                  <option>allow</option>
+                  <option>deny</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="workgroup">Workgroup</label><br/>
+                <select id="workgroup" class="form-control" onchange="document.components[${this._id}].setSelectedWorkgroupID(this)">
+                  ${workgroupOptions}
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="entity">Entity</label><br/>
+                <select id="entity" class="form-control" onchange="document.components[${this._id}].setEntityID(this)">
+                  ${entityOptions}
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="low">Low</label><br/>
+                <input id="low" class="form-control" type="number" value="${this.state.low}" oninput="document.components[${this._id}].setLow(this)"/>
+              </div>
+              <div class="form-group">
+                <label for="high">High</label><br/>
+                <input id="high" class="form-control" type="number" value="${this.state.high}" oninput="document.components[${this._id}].setHigh(this)"/>
+              </div>
+              <div class="form-group">
+                <label for="notes">Notes</label><br/>
+                <textarea id="notes" class="form-control" rows="3" value="${this.state.notes}" oninput="document.components[${this._id}].setNotes(this)"></textarea>
+              </div>
+            </form>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-            <button onclick="document.components[${this._id}].saveACL(this)" type="button" class="btn btn-primary">Save changes</button>
+            <button onclick="document.components[${this._id}].saveACL(this)" type="button" class="btn btn-primary">
+              ${acl === null ? 'Create ACL' : 'Save changes'}
+            </button>
           </div>
         </div><!-- /.modal-content -->
       </div><!-- /.modal-dialog -->

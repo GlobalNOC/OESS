@@ -8,17 +8,29 @@ class ACLList extends Component {
     let acls = await getACLs(props.interfaceID);
     let rows = acls.map((acl) => {
       return `
-      <tr onClick="document.components[${this._id}].state.onClickACL(${acl.interface_acl_id})">
+      <tr>
         <td>${acl.allow_deny}</td>
         <td>${acl.workgroup_name ? acl.workgroup_name : 'all'}</td>
         <td>${acl.entity_name}</td>
         <td>${acl.vlan_start}</td>
         <td>${acl.vlan_end}</td>
+        <td align="right">
+          <button type="button" class="btn btn-default" onclick="document.components[${this._id}].state.onClickEdit(${acl.interface_acl_id})">
+            <span class="glyphicon glyphicon-edit" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="btn btn-default" onclick="document.components[${this._id}].state.onClickDelete(${acl.interface_acl_id})">
+            <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
+          </button>
+        </td>
       </tr>
       `;
     }).join('');
 
     return `
+    <button type="button" class="btn btn-success" onclick="document.components[${this._id}].state.onClickAdd(${props.interfaceID})">
+      <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New ACL
+    </button>
+
     <table class="table table-striped">
       <thead>
         <tr>
@@ -27,6 +39,7 @@ class ACLList extends Component {
           <th>Entity</th>
           <th>Low</th>
           <th>High</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>

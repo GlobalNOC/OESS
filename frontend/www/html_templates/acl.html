@@ -22,13 +22,34 @@
     [% INCLUDE js_templates/component.js %]
     [% INCLUDE js_templates/api/acl.js %]
     [% INCLUDE js_templates/api/entity.js %]
+    [% INCLUDE js_templates/api/interfaces.js %]
     [% INCLUDE js_templates/api/workgroup.js %]
+    [% INCLUDE js_templates/acl/interface_list.js %]
     [% INCLUDE js_templates/acl/list.js %]
     [% INCLUDE js_templates/acl/modal.js %]
     [% INCLUDE js_templates/acl/editor.js %]
+    [% INCLUDE js_templates/acl.js %]
   </script>
 
-  <div id="acl-editor"></div>
+  <style>
+    .container {
+    display: flex;
+    flex-direction: row;
+    }
+
+    #interface-list {
+    margin-right: 15px;
+    }
+    #acl-editor {
+    margin-top: 29px;
+    flex: 1;
+    }
+  </style>
+
+  <div class="container">
+    <div id="interface-list"></div>
+    <div id="acl-editor"></div>
+  </div>
 
   <div id="myModal" class="modal fade" tabindex="-1" role="dialog"></div>
 </div>

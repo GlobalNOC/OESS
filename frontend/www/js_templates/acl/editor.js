@@ -1,50 +1,40 @@
-let editor;
-let modal;
-
-async function update(props) {
-  props = {interfaceID: 148};
-
-  let elem = document.querySelector('#acl-editor');
-  let elem2 = document.querySelector('#myModal');
-
-  [elem.innerHTML, elem2.innerHTML] = await Promise.all([
-    editor.render(props),
-    modal.render({aclID: editor.state.selectedACL})
-  ]);
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-  loadUserMenu();
-
-  editor = new ACLEditor({workgroupID: session.data.workgroup_id});
-  modal = new ACLModal({workgroupID: session.data.workgroup_id});
-  update();
-});
-
 class ACLEditor extends Component {
   constructor(state) {
     super();
     this.state = state;
-    this.state.selectedACL = -1;
 
     this.list = new ACLList({
-      workgroupID: this.state.workgroupID,
-      onClickACL: this.showEditACLModal.bind(this)
+      workgroupID:   this.state.workgroupID,
+      onClickAdd:    this.showAddACLModal.bind(this),
+      onClickEdit:   this.showEditACLModal.bind(this),
+      onClickDelete: this.confirmAndDeleteACL.bind(this)
     });
   }
 
-  showEditACLModal(aclID) {
-    console.log('showing modal for acl:', aclID);
+  showAddACLModal(interfaceID) {
     $('#myModal').modal('show');
-    this.state.selectedACL = aclID;
-    update();
+    this.state.onSelectACL(-1);
+  }
+
+  showEditACLModal(aclID) {
+    $('#myModal').modal('show');
+    this.state.onSelectACL(aclID);
   }
 
   hideEditACLModal() {
-    console.log('hiding modal for acl');
     $('#myModal').modal('hide');
-    this.state.selectedACL = -1;
-    update();
+    this.state.onSelectACL(-1);
+  }
+
+  confirmAndDeleteACL(id) {
+    let ok = confirm("You are about to remove an acl. This CANNOT be undone! Are you sure you want to proceed?");
+    if (!ok) {
+      return false;
+    }
+
+    let result = deleteACL(id).then((ok) => {
+      this.state.onSelectACL(-1);
+    });
   }
 
   async render(props) {
@@ -52,7 +42,6 @@ class ACLEditor extends Component {
 
     return `
     <div>
-      <p>Interface ${props.interfaceID} ACLs:</p>
       ${list}
     </div>
     `;

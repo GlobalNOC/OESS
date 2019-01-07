@@ -40,3 +40,85 @@ async function getACLs(interfaceID) {
         return [];
     }
 }
+
+/**
+ * deleteACL deletes the specified ACL returning true upon success.
+ *
+ * @param {integer} aclID - Identifier of the relevant acl
+ */
+async function deleteACL(aclID) {
+    let url = `[% path %]services/workgroup_manage.cgi?method=remove_acl&interface_acl_id=${aclID}`;
+
+    try {
+        const resp = await fetch(url, {method: 'get', credentials: 'include'});
+        const data = await resp.json();
+
+        if (data.error_text) throw data.error_text;
+        if (data.results.length < 1) return null;
+
+        return data.results[0]['success'] === 1 ? true : false;
+    } catch(error) {
+        console.log('Failure occurred in deleteACL.');
+        console.log(error);
+        return false;
+    }
+}
+
+/**
+ * modifyACL modifies the specified ACL returning true upon success.
+ *
+ * @param {integer} aclID - Identifier of the relevant acl
+ */
+async function modifyACL(acl) {
+    console.log(acl);
+
+  let url = `[% path %]services/workgroup_manage.cgi?method=update_acl&interface_acl_id=${acl.aclID}`;
+  url += `&eval_position=${acl.position}`;
+  url += `&allow_deny=${acl.allow}`;
+  url += `&vlan_start=${acl.low}`;
+  url += `&interface_id=${acl.interfaceID}`;
+  url += (acl.selectedWorkgroupID === -1 ? '' : `&workgroup_id=${acl.selectedWorkgroupID}`); // `&workgroup_id=${acl.selectedWorkgroupID}`;
+  url += `&vlan_end=${acl.high}`;
+  url += `&notes=${acl.notes}`;
+
+  try {
+    const resp = await fetch(url, {method: 'get', credentials: 'include'});
+    const data = await resp.json();
+
+    if (data.error_text) throw data.error_text;
+    if (data.results.length < 1) return null;
+
+    return data.results[0];
+  } catch(error) {
+    console.log('Failure occurred in modifyACL.');
+    console.log(error);
+    return false;
+  }
+}
+
+/**
+ * addACL creates a new ACL and returns a hash containing success and
+ * interface_acl_id upon success.
+ */
+async function addACL(acl) {
+  let url = `[% path %]services/workgroup_manage.cgi?method=add_acl`;
+  url += `&allow_deny=${acl.allow}`;
+  url += `&vlan_start=${acl.low}`;
+  url += `&interface_id=${acl.interfaceID}`;
+  url += (acl.selectedWorkgroupID === -1 ? '' : `&workgroup_id=${acl.selectedWorkgroupID}`);
+  url += `&vlan_end=${acl.high}`;
+  url += `&notes=${acl.notes}`;
+
+  try {
+    const resp = await fetch(url, {method: 'get', credentials: 'include'});
+    const data = await resp.json();
+    if (data.error_text) throw data.error_text;
+    if (data.results.length < 1) return null;
+
+    return data.results[0];
+  } catch(error) {
+    console.log('Failure occurred in addACL.');
+    console.log(error);
+    return false;
+  }
+}

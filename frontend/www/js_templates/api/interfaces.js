@@ -79,8 +79,9 @@ async function getEntities(workgroupID, parentEntityID=null, options) {
  * @param {integer} workgroupID - Identifier of the current workgroup
  * @param {string} queryString - Entity name to filter results by
  */
-async function getEntitiesAll(workgroupID, queryString) {
-    let url = `[% path %]services/entity.cgi?method=get_entities&workgroup_id=${workgroupID}&name=${queryString}`;
+async function getEntitiesAll(workgroupID, queryString=null) {
+    let url = `[% path %]services/entity.cgi?method=get_entities&workgroup_id=${workgroupID}`;
+    url += (queryString != null ? `&name=${queryString}` : '');
 
     try {
         const resp = await fetch(url, {method: 'get', credentials: 'include'});
