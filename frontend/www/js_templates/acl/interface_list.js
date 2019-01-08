@@ -30,7 +30,7 @@ class InterfaceList extends Component {
 
     return `
     <h2>Interface ACLs</h2>
-    <table class="table table-striped">
+    <table class="table table-striped table-hover" style="cursor: pointer;">
       <thead>
         <tr>
           <th>Node</th>

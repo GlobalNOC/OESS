@@ -32,9 +32,10 @@ class ACLEditor extends Component {
       return false;
     }
 
-    let result = deleteACL(id).then((ok) => {
+    deleteACL(id).then((ok) => {
       this.state.onSelectACL(-1);
     });
+    return true;
   }
 
   async render(props) {
