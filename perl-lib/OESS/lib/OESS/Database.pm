@@ -141,6 +141,34 @@ sub new {
     $self->{'configuration'} = $config;
 
     $self->{'rabbitMQ'} = $config->{'rabbitMQ'};
+    my $grafana = $config->{'grafana'};
+    if (!defined $grafana) {
+        my $result = {};
+        my $host = 'https://localhost/grafana';
+        my $uid = 'aaaaaaaaa';
+        my $org = 1;
+        my $panel = 1;
+
+        $result->{'oess-interface'} = "$host/d-solo/$uid/oess-interface?panelId=$panel&orgId=$org";
+        $result->{'oess-bgp-peer'} = "$host/d-solo/$uid/oess-bgp-peer?panelId=$panel&orgId=$org";
+        $result->{'oess-routing-table'} = "$host/d-solo/$uid/oess-routing-table?panelId=$panel&orgId=$org";
+
+        $self->{grafana} = $result;
+    } else {
+        my $result = {};
+        my $host = $grafana->{host};
+
+        foreach my $graph (@{$grafana->{graph}}) {
+            my $uid = $graph->{uid};
+            my $name = $graph->{panelName};
+            my $org = $graph->{orgId};
+            my $panel = $graph->{panelId};
+
+            $result->{$name} = "$host/d-solo/$uid/$name?panelId=$panel&orgId=$org";
+        }
+        $self->{grafana} = $result;
+    }
+
     $self->{'fwdctl'}   = undef;
 
     my $snapp_config_location = $config->{'snapp_config_location'};
