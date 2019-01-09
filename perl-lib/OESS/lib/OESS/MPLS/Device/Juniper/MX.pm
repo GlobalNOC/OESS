@@ -1518,7 +1518,7 @@ sub _is_circuit_on_port{
         # check to see if the port matches the port
         # check to see if the vlan matches the vlan
 
-        if($int->{'interface'} eq $port && $int->{'unit'} eq $vlan){
+        if($int->{'interface'} eq $port && $int->{'unit'} eq $unit){
             $self->{'logger'}->debug("Interface $int->{'interface'}.$int->{'unit'} is in circuit $circuit_id.");
             return 1;
         }
@@ -1551,7 +1551,7 @@ sub _is_vrf_on_port{
         # check to see if the port matches the port
         # check to see if the vlan matches the vlan
 
-        if($int->{'name'} eq $port && $int->{'unit'} eq $vlan){
+        if($int->{'name'} eq $port && $int->{'unit'} eq $unit){
             $self->{'logger'}->error("Interface $int->{'name'}.$int->{'unit'} is in vrf $vrf_id.");
             return 1;
         }
