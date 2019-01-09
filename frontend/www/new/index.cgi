@@ -160,9 +160,9 @@ sub main{
         }
     }
 
-    $vars->{'g_port'}  = 'https://aj-dev7.grnoc.iu.edu/grafana/d-solo/LbLWIXmmk/oess-interface?orgId=1&panelId=4';
-    $vars->{'g_peer'}  = 'https://aj-dev7.grnoc.iu.edu/grafana/d-solo/mop4gHoik/oess-bgp-peer?orgId=1&panelId=4';
-    $vars->{'g_route'} = 'https://aj-dev7.grnoc.iu.edu/grafana/d-solo/YBv2sDTik/oess-routing-table?orgId=1&panelId=2';
+    $vars->{'g_port'}  = $db->{grafana}->{'oess-interface'};
+    $vars->{'g_peer'}  = $db->{grafana}->{'oess-bgp-peer'};
+    $vars->{'g_route'} = $db->{grafana}->{'oess-routing-table'};
 
     $vars->{'admin_email'}        = $db->get_admin_email();
     $vars->{'page'}               = $filename;
@@ -170,7 +170,7 @@ sub main{
     $vars->{'breadcrumbs'}        = $breadcrumbs;
     $vars->{'current_breadcrumb'} = $current_breadcrumb;
     $vars->{'path'}               = "../";
-    $vars->{'is_admin'}           = $is_admin;		    
+    $vars->{'is_admin'}           = $is_admin;
     $vars->{'is_read_only'}       = $is_read_only;
     $vars->{'version'}            = OESS::Database::VERSION;
 
