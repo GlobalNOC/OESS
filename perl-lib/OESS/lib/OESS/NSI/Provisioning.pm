@@ -511,7 +511,7 @@ sub _build_dataPlaneStatus{
     }
 
     return SOAP::Data->name( dataPlaneStatus => \SOAP::Data->value( SOAP::Data->name( active => $active)->type(''),
-                                                                    SOAP::Data->name( version => 0)->type(''),
+                                                                    SOAP::Data->name( version => 1)->type(''),
                                                                     SOAP::Data->name( versionConsistent => 'true')->type('')));
                       
 }

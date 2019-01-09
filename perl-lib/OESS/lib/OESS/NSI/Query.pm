@@ -212,7 +212,7 @@ sub _build_connectionStates{
     my $lifecycleState;
     
     my $active;
-    my $version = 0;
+    my $version = 1;
     my $versionConsistent = "true";   
 
     if($ckt->{'circuit_state'} eq 'active'){
@@ -321,7 +321,7 @@ sub _build_criteria{
                             \SOAP::Data->value($self->_build_schedule( $ckt ),
                                                SOAP::Data->name( serviceType => 'http://services.ogf.org/nsi/2013/12/descriptions/EVTS.A-GOLE')->type(''),
                                                $self->_build_p2ps( $ckt )
-                           ))->attr({ version => 0});
+                           ))->attr({ version => 1});
 }
 
 
