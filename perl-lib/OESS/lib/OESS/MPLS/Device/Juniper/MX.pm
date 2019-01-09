@@ -1175,7 +1175,7 @@ sub get_config_to_remove{
     foreach my $ri (@{$routing_instances}){
         my $name = $xp->findvalue( './c:name', $ri );
 
-	$self->{'logger'}->debug("Processing routing instance: " . $name);
+        $self->{'logger'}->debug("Processing routing instance: " . $name);
 
         if($name =~ /^OESS/){
             $name =~ /OESS\-(\S+)\-(\d+)/;
@@ -1198,8 +1198,8 @@ sub get_config_to_remove{
 
             foreach my $int (@$ints){
                 my $int_full_name = $xp->findvalue( './c:name', $int);
-		$self->{'logger'}->debug("Checking to see if port: $int_full_name is part of circuit: $circuit_id");
-                my ($int_name,$unit_name) = split('.',$int_full_name);
+                $self->{'logger'}->debug("Checking to see if port: $int_full_name is part of circuit: $circuit_id");
+                my ($int_name,$unit_name) = split('\.',$int_full_name);
                 if($type eq 'L3VPN'){
                     if(!$self->_is_vrf_on_port($circuit_id, $vrfs, $int_name, $unit_name)){
                         $ri_dels .= "<instance><name>$name</name><interface operation='delete'><name>$int_full_name</name></interface></instance>";
@@ -1217,26 +1217,40 @@ sub get_config_to_remove{
 
             if($type eq 'L2VPN'){
                 my $sites = $xp->find(' ./c:protocols/c:l2vpn/c:site', $ri);
-		foreach my $site (@$sites){
-		    my $site_name = $xp->findvalue( './c:name', $site);
-		    $self->{'logger'}->debug("Site Name: " . $site_name);
-		    my $ints = $xp->find('./c:interface', $site);
+                foreach my $site (@$sites){
+                    my $site_name = $xp->findvalue( './c:name', $site);
+                    my $site_id = $xp->findvalue( './c:site-identifier', $site);
 
-		    foreach my $int (@$ints){
-			my $int_full_name = $xp->findvalue( './c:name', $int);
-			my ($int_name,$unit_name) = split('.',$name);
-			$self->{'logger'}->debug("Checking to see if port: $name is part of circuit: $circuit_id");
-			if(!$self->_is_circuit_on_port($circuit_id, $circuits, $int_name, $unit_name)){
-                            $ri_dels .= "<instance><name>$name</name><protocols><l2vpn><site operation='delete'><name>$site_name</name></site></l2vpn></protocols></instance>";
-			}
-		    }
-		}
+                    my $expected_site_name = $self->{'name'} . '-' . $circuit_id;
+                    my $expected_site_id = $circuits->{$circuit_id}->{site_id};
+
+                    if ($expected_site_id != $site_id || $expected_site_name ne $site_name) {
+                        $ri_dels .= "<instance><name>$name</name><protocols><l2vpn><site operation='delete'><name>$site_name</name></site></l2vpn></protocols></instance>";
+                        next;
+                    }
+
+                    my $ints = $xp->find('./c:interface', $site);
+                    my $intf_dels = '';
+
+                    foreach my $int (@$ints){
+                        my $int_full_name = $xp->findvalue( './c:name', $int);
+                        $self->{'logger'}->debug("Checking if port $int_full_name is a part of circuit $circuit_id.");
+
+                        my ($int_name, $unit_name) = split('\.', $int_full_name);
+                        if (!$self->_is_circuit_on_port($circuit_id, $circuits, $int_name, $unit_name)) {
+                            $intf_dels .= "<interface operation='delete'><name>$int_full_name</name></interface>";
+                        }
+                    }
+                    if ($intf_dels ne '') {
+                        $ri_dels .= "<instance><name>$name</name><protocols><l2vpn><site><name>$site_name</name>$intf_dels</site></l2vpn></protocols></instance>";
+                    }
+                }
             }
         }
     }
 
     if($ri_dels ne ''){
-	$delete .= "<routing-instances>$ri_dels</routing-instances>";
+        $delete .= "<routing-instances>$ri_dels</routing-instances>";
     }
 
     my $interfaces = $xp->find( '/base:rpc-reply/c:configuration/c:interfaces/c:interface');
