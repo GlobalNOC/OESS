@@ -76,10 +76,18 @@ async function modifyACL(acl) {
   url += `&eval_position=${acl.position}`;
   url += `&allow_deny=${acl.allow}`;
   url += `&vlan_start=${acl.low}`;
-  url += `&interface_id=${acl.interfaceID}`;
-  url += (acl.selectedWorkgroupID === -1 ? '' : `&workgroup_id=${acl.selectedWorkgroupID}`); // `&workgroup_id=${acl.selectedWorkgroupID}`;
+  url += ('interfaceID' in acl ? `&interface_id=${acl.interfaceID}` : '');
+
+  if ('entityID' in acl && acl.entityID && acl.entityID !== -1) {
+    url += `&entity_id=${acl.entityID}`;
+  }
+
+  if ('selectedWorkgroupID' in acl && acl.selectedWorkgroupID && acl.selectedWorkgroupID !== -1) {
+      url += `&workgroup_id=${acl.selectedWorkgroupID}`;
+  }
+
   url += `&vlan_end=${acl.high}`;
-  url += `&notes=${acl.notes}`;
+  url += ('notes' in acl ? `&notes=${acl.notes}` : '');
 
   try {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});

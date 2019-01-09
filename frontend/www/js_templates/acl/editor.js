@@ -7,7 +7,9 @@ class ACLEditor extends Component {
       workgroupID:   this.state.workgroupID,
       onClickAdd:    this.showAddACLModal.bind(this),
       onClickEdit:   this.showEditACLModal.bind(this),
-      onClickDelete: this.confirmAndDeleteACL.bind(this)
+      onClickDelete: this.confirmAndDeleteACL.bind(this),
+      onClickIncreasePriority: this.increaseACLPriority.bind(this),
+      onClickDecreasePriority: this.decreaseACLPriority.bind(this)
     });
   }
 
@@ -36,6 +38,35 @@ class ACLEditor extends Component {
       this.state.onSelectACL(-1);
     });
     return true;
+  }
+
+  increaseACLPriority(id, position, allow_deny, low, high, workgroupID, entityID) {
+    modifyACL({
+      aclID: id,
+      position: position - 10,
+      low: low,
+      high: high,
+      allow: allow_deny,
+      selectedWorkgroupID: workgroupID,
+      entityID: entityID
+    }).then((ok) => {
+      this.state.onSelectACL(-1);
+    });
+  }
+
+  decreaseACLPriority(id, position, allow_deny, low, high, workgroupID, entityID) {
+    console.log('down', position);
+    modifyACL({
+      aclID: id,
+      position: position + 10,
+      low: low,
+      high: high,
+      allow: allow_deny,
+      selectedWorkgroupID: workgroupID,
+      entityID: entityID
+    }).then((ok) => {
+      this.state.onSelectACL(-1);
+    });
   }
 
   async render(props) {
