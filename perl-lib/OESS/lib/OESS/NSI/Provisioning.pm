@@ -376,9 +376,76 @@ sub _init {
 
 
 sub _release_failed{
-    my ($self, $args) = @_;
-
+    my ($self, $data) = @_;
     log_error("RELEASE FAILED!!");
+
+    my $soap = OESS::NSI::Utils::build_client( proxy =>$data->{'header'}->{'replyTo'},ssl => $self->{'ssl'});
+
+    $self->_release_confirmed( $data );
+
+    my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
+    eval{
+	my $db = OESS::Database->new();
+        my $dn = $db->get_local_domain_name();
+        my $providerNSA = "nsi" . $dn . ":2013:nsa";
+	
+        my $soap_response = $soap->error($nsiheader, SOAP::Data->name( serviceException => \SOAP::Data->value( SOAP::Data->name( nsaid => $providerNSA)->type(''),
+													       SOAP::Data->name( connectionId => $data->{'connectionId'})->type(''),
+													       SOAP::Data->name( text => 'An error occured releasing the circuit')->type(''),
+													       SOAP::Data->name( errorId => 00700 )->type(''))));
+
+    };
+    log_error("Unable to send releaseFailed message: " . Data::Dumper::Dumper($@)) if $@;
+    
+}
+
+sub _provisioning_failed{
+    my ($self, $data) = @_;
+    log_error("provisioning FAILED!!");
+
+    $self->_provisioning_success( $data );
+
+    #ok now send the error
+
+    my $soap = OESS::NSI::Utils::build_client( proxy =>$data->{'header'}->{'replyTo'},ssl => $self->{'ssl'});
+
+    my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
+    eval{
+        my $db = OESS::Database->new();
+        my $dn = $db->get_local_domain_name();
+        my $providerNSA = "nsi" . $dn . ":2013:nsa";
+
+        my $soap_response = $soap->error($nsiheader, SOAP::Data->name( serviceException => \SOAP::Data->value( SOAP::Data->name( nsaid => $providerNSA)->type(''),
+													       SOAP::Data->name( connectionId => $data->{'connectionId'})->type(''),
+													       SOAP::Data->name( text => 'An error occured provisioning the circuit')->type(''),
+													       SOAP::Data->name( errorId => 00700 )->type(''))));
+    };
+    log_error("Unable to send provisioningFailed message: " . Data::Dumper::Dumper($@)) if $@;
+}
+
+sub _terminate_failure{
+    my ($self, $data) = @_;
+    log_error("terminate FAILED!!");
+
+    #first send the terminate success
+    $self->terminate_success( $data );
+
+    #now send the error 
+
+    my $soap = OESS::NSI::Utils::build_client( proxy =>$data->{'header'}->{'replyTo'},ssl => $self->{'ssl'});
+
+    my $nsiheader = OESS::NSI::Utils::build_header($data->{'header'});
+    eval{
+        my $db = OESS::Database->new();
+        my $dn = $db->get_local_domain_name();
+        my $providerNSA = "nsi" . $dn . ":2013:nsa";
+
+        my $soap_response = $soap->error($nsiheader, SOAP::Data->name( serviceException => \SOAP::Data->value( SOAP::Data->name( nsaid => $providerNSA)->type(''),
+													       SOAP::Data->name( connectionId => $data->{'connectionId'})->type(''),
+													       SOAP::Data->name( text => 'An error occured terminating the circuit')->type(''),
+													       SOAP::Data->name( errorId => 00700 )->type(''))));
+    };
+    log_error("Unable to send terminateFailed message: " . Data::Dumper::Dumper($@)) if $@;
 }
 
 sub _do_release{
