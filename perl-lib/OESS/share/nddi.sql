@@ -242,25 +242,11 @@ CREATE TABLE `entity_hierarchy` (
   `entity_parent_id` int(11) NOT NULL,
   `entity_child_id` int(11) NOT NULL,
   KEY `entity_parent` (`entity_parent_id`),
-  KEY `entity_child` (`entity_child_id`)
+  KEY `entity_child` (`entity_child_id`),
+  CONSTRAINT `entity_hierarchy_ibfk_1` FOREIGN KEY (`entity_child_id`) REFERENCES `entity` (`entity_id`) ON DELETE CASCADE,
+  CONSTRAINT `entity_hierarchy_ibfk_2` FOREIGN KEY (`entity_parent_id`) REFERENCES `entity` (`entity_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `entity_interface_membership`
---
-
-DROP TABLE IF EXISTS `entity_interface_membership`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `entity_interface_membership` (
-  `entity_id` int(11) NOT NULL,
-  `interface_id` int(11) NOT NULL,
-  UNIQUE KEY `unique_entity_interface` (`entity_id`,`interface_id`),
-  KEY `interface` (`interface_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
 
 --
 -- Table structure for table `edge_interface_move_maintenance_circuit_membership`
@@ -674,7 +660,7 @@ CREATE TABLE `oess_version` (
 
 LOCK TABLES `oess_version` WRITE;
 /*!40000 ALTER TABLE `oess_version` DISABLE KEYS */;
-INSERT INTO `oess_version` VALUES ('2.0.1');
+INSERT INTO `oess_version` VALUES ('2.0.2');
 /*!40000 ALTER TABLE `oess_version` ENABLE KEYS */;
 UNLOCK TABLES;
 
