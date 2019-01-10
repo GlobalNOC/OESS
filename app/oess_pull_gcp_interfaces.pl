@@ -8,7 +8,6 @@ use warnings;
 use Data::Dumper;
 use JSON;
 use Log::Log4perl;
-use Paws;
 use XML::Simple;
 use GRNOC::WebService::Client;
 use OESS::Config;
@@ -28,7 +27,7 @@ sub main{
 
     my $gcp_ints = get_gcp_virtual_interface($config);
 
-    compare_and_update_vrfs( vrfs => $vrfs, aws_ints => $gcp_ints, client => $client);
+    compare_and_update_vrfs( vrfs => $vrfs, gcp_ints => $gcp_ints, client => $client);
 }
 
 sub find_gcp_workgroup{
@@ -107,7 +106,7 @@ sub get_gcp_virtual_interface{
 sub compare_and_update_vrfs{
     my %params = @_;
     my $vrfs = $params{'vrfs'};
-    my $aws_ints = $params{'aws_ints'};
+    my $gcp_ints = $params{'gcp_ints'};
     my $client = $params{'client'};
 
     foreach my $vrf (@$vrfs) {
@@ -115,8 +114,8 @@ sub compare_and_update_vrfs{
             next if ( !defined( $endpoint->{cloud_connection_id} ) );
             my $connection_id = $endpoint->{cloud_connection_id};   
 
-            warn "get_vrf_aws_details";
-            my $peering = get_vrf_aws_details(aws_ints => $aws_ints, cloud_connection_id => $connection_id);
+            warn "get_vrf_gcp_details";
+            my $peering = get_vrf_grp_details(gcp_ints => $gcp_ints, cloud_connection_id => $connection_id);
             my $update = update_endpoint_values($endpoint->{'peers'}->[0], $peering);
             if($update){
                 update_oess_vrf($vrf,$client);
@@ -161,17 +160,17 @@ sub update_oess_vrf{
     my $res = $client->provision(%params);
 }
 
-sub get_vrf_aws_details {
+sub get_vrf_gcp_details {
     my %params = @_;
     my $cloud_connection_id = $params{'cloud_connection_id'};
-    my $virtual_interfaces = $params{'aws_ints'};
+    my $virtual_interfaces = $params{'gcp_ints'};
 
-    foreach my $aws (@$virtual_interfaces){
-        if ( $aws->{name} ne $cloud_connection_id ) {
+    foreach my $gcp (@$virtual_interfaces){
+        if ( $gcp->{name} ne $cloud_connection_id ) {
             next;
         }
         warn "Found\n";
-        return $aws
+        return $gcp
     }
 }
 
