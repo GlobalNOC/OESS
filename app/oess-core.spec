@@ -66,6 +66,9 @@ AutoreqProv: no
 
 %build
 
+%pre
+/usr/bin/getent group _oess || /usr/sbin/groupadd -r _oess
+/usr/bin/getent passwd _oess || /usr/sbin/useradd -r -s /sbin/nologin -g _oess _oess
 
 %install
 rm -rf $RPM_BUILD_ROOT
