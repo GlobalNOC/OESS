@@ -1099,6 +1099,7 @@ sub xml_configuration {
 
             push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
                                               unit => $i->{'unit'},
+					      type => $i->{'type'},
                                               inner_tag  => $i->{'inner_tag'},
                                               tag  => $i->{'tag'},
                                               bandwidth => $i->{'bandwidth'},
