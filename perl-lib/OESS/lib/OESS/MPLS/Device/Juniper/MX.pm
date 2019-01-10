@@ -1166,9 +1166,16 @@ sub get_config_to_remove{
 
     my $delete = "";
     my $ri_dels = "";
+    my $remove_cos = "<class-of-service>
+    <interfaces>";
     my $xp = XML::LibXML::XPathContext->new($dom);
+    my $cos_xp = XML::LibXML::XPathContext->new($dom);
+
     $xp->registerNs("base", $dom->documentElement->namespaceURI);
     $xp->registerNs('c', 'http://xml.juniper.net/xnm/1.1/xnm');
+
+    $cos_xp->registerNs("base", $dom->documentElement->namespaceURI);
+    $cos_xp->registerNs('c', 'http://xml.juniper.net/xnm/1.1/xnm');
 
     $self->{'logger'}->debug("About to process routing instances");
     my $routing_instances = $xp->find( '/base:rpc-reply/c:configuration/c:routing-instances/c:instance');
@@ -1264,6 +1271,7 @@ sub get_config_to_remove{
 	    my $description = $xp->findvalue( './c:description', $unit );
 	    if($description =~ /^OESS/){
 		$description =~ /OESS\-(\w+)\-(\d+)/;
+		
                 my $type = $1;
 		my $circuit_id = $2;
 		my $unit_name = $xp->findvalue( './c:name', $unit);
@@ -1281,6 +1289,9 @@ sub get_config_to_remove{
                         next;
                     }
 
+		    #check shaper
+		    $self->_check_for_shaper($vrfs,  $int_name, $unit_name, $cos_xp, $remove_cos);
+			
                     $int_del .= "<unit><name>$unit_name</name>";
 
                     # Need to process each BGP peer for L3VPNs
@@ -1411,6 +1422,10 @@ sub get_config_to_remove{
 	$delete .= "<protocols><connections>" . $ris_dels . "</connections></protocols>";
     }
 
+    $remove_cos .= "</interfaces></class-of-service>";
+
+    $delete .= $remove_cos;
+
     return $delete;
 }
 
@@ -1444,6 +1459,42 @@ sub _get_strict_path{
     return undef;
 }
 
+=head2 _check_for_shaper
+
+=cut
+
+sub _check_for_shaper{
+    my $self = shift;
+    my $vrfs = shift;
+    my $vrf_id = shift;
+    my $port = shift;
+    my $unit = shift;
+    my $cos_xp = shift;
+    my $remove = shift;
+
+    my $vrf = $vrfs->{$vrf_id};
+    foreach my $int (@{$vrf->{'interfaces'}}){
+
+	if($int->{'name'} eq $port && $int->{'unit'} eq $unit){
+	    if($int->{'bandwidth'} > 0){
+
+		#will be changed by the template
+		return;
+	    
+	    }else{
+
+		#needs to be removed
+		if($cos_xp->exists( "/base:rpc-reply/c:configuration/c:class-of-service/c:interfaces/c:interface/[\@name=\"$port\']/c:unit/[\@name=\"$unit\"]")){
+		    #delete the unit!
+		    $remove .= "<interface><name>$port</name><unit operation='delete'><name>$unit</name></unit></interface></interfaces>";
+		}
+	    }
+	}
+    }
+
+
+}
+
 =head2 _is_circuit_on_port
 
 =cut
@@ -1452,7 +1503,7 @@ sub _is_circuit_on_port{
     my $circuit_id = shift;
     my $circuits = shift;
     my $port = shift;
-    my $vlan = shift;
+    my $unit = shift;
 
     if(!defined($circuit_id)){
         $self->{'logger'}->error("Unable to find the circuit ID");
@@ -1467,15 +1518,8 @@ sub _is_circuit_on_port{
         # check to see if the port matches the port
         # check to see if the vlan matches the vlan
 
-        my $unit = $int->{'tag'};
-        if (defined $int->{'inner_tag'}) {
-            my $a = $int->{'tag'};
-            my $b = $int->{'inner_tag'};
-            $unit = ((($a+$b+1)*($a+$b))/2)+$b+5000;
-        }
-
-        if($int->{'interface'} eq $port && $unit eq $vlan){
-            $self->{'logger'}->debug("Interface $int->{'interface'}.$unit is in circuit $circuit_id.");
+        if($int->{'interface'} eq $port && $int->{'unit'} eq $unit){
+            $self->{'logger'}->debug("Interface $int->{'interface'}.$int->{'unit'} is in circuit $circuit_id.");
             return 1;
         }
     }
@@ -1492,7 +1536,7 @@ sub _is_vrf_on_port{
     my $vrf_id = shift;
     my $vrfs = shift;
     my $port = shift;
-    my $vlan = shift; # Unit name on device
+    my $unit = shift; # Unit name on device
 
     if(!defined($vrf_id)){
         $self->{'logger'}->error("Unable to find the vrf ID");
@@ -1507,15 +1551,8 @@ sub _is_vrf_on_port{
         # check to see if the port matches the port
         # check to see if the vlan matches the vlan
 
-        my $unit = $int->{'tag'};
-        if (defined $int->{'inner_tag'}) {
-            my $a = $int->{'tag'};
-            my $b = $int->{'inner_tag'};
-            $unit = ((($a+$b+1)*($a+$b))/2)+$b+5000;
-        }
-
-        if($int->{'name'} eq $port && $unit eq $vlan){
-            $self->{'logger'}->error("Interface $int->{'name'}.$unit is in vrf $vrf_id.");
+        if($int->{'name'} eq $port && $int->{'unit'} eq $unit){
+            $self->{'logger'}->error("Interface $int->{'name'}.$int->{'unit'} is in vrf $vrf_id.");
             return 1;
         }
     }
