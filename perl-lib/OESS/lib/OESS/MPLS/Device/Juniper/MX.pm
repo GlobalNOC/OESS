@@ -1290,7 +1290,7 @@ sub get_config_to_remove{
                     }
 
 		    #check shaper
-		    $self->_check_for_shaper($vrfs,  $int_name, $unit_name, $cos_xp, $remove_cos)
+		    $self->_check_for_shaper($vrfs,  $int_name, $unit_name, $cos_xp, $remove_cos);
 			
                     $int_del .= "<unit><name>$unit_name</name>";
 
