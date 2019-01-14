@@ -1,9 +1,38 @@
+/**
+ * render calls obj.render(props) to generate an HTML string. Once
+ * generated, the HTML string is assigned to elem.innerHTML.
+ */
+async function render(obj, elem, props) {
+  elem.innerHTML = await obj.render(props);
+}
+
+
+let m = undefined;
+
+
+async function load() {
+  let interfaces = await getInterfacesByWorkgroup(session.data.workgroup_id);
+  let vlans = await getAvailableVLANs(session.data.workgroup_id, interfaces[0].interface_id);
+
+  m = new EndpointSelectionModal({
+    interface: interfaces[0].interface_id,
+    vlan: vlans[0]
+  });
+  update();
+}
+
+async function update(props) {
+  render(m, document.querySelector('#add-endpoint-modal'), props);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   sessionStorage.setItem('endpoints', '[]');
 
+  load();
+
   loadUserMenu().then(function() {
-      loadVRF();
-      setDateTimeVisibility();
+    loadVRF();
+    setDateTimeVisibility();
   });
 
   let addNetworkEndpoint = document.querySelector('#add-network-endpoint');
@@ -47,6 +76,7 @@ async function loadVRF() {
         bandwidth: e.bandwidth,
         entity_id: entity_id,
         entity: entity_name,
+        interface_id: e.interface.interface_id,
         name: e.interface.name,
         node: e.node.name,
         peerings: [],
@@ -74,14 +104,25 @@ async function loadVRF() {
 }
 
 async function addNetworkEndpointCallback(event) {
-    showEndpointSelectionModal(null);
+  m.setIndex(-1);
+  update();
+
+  let endpointSelectionModal = $('#add-endpoint-modal');
+  endpointSelectionModal.modal('show');
 }
 
 async function modifyNetworkEndpointCallback(index) {
-    let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
-    endpoints[index].index = index;
+  let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
+  endpoints[index].index = index;
 
-    showEndpointSelectionModal(endpoints[index], {vrf: JSON.parse(sessionStorage.getItem('vrf'))});
+  m.setIndex(index);
+  m.setEntity(endpoints[index].entity_id);
+  m.setInterface(endpoints[index].interface_id);
+  m.setVLAN(endpoints[index].tag);
+  update();
+
+  let endpointSelectionModal = $('#add-endpoint-modal');
+  endpointSelectionModal.modal('show');
 }
 
 async function deleteNetworkEndpointCallback(index) {
@@ -145,93 +186,8 @@ async function addNetworkCancelCallback(event) {
     window.location.href = 'index.cgi?action=welcome';
 }
 
-async function addEntitySubmitCallback(event) {
-    let name = document.querySelector('#entity-name').value;
-    if (name === '') {
-        document.querySelector('#entity-alert').style.display = 'block';
-        return null;
-    }
-
-    if (!document.querySelector('#entity-bandwidth').validity.valid) {
-        document.querySelector('#entity-bandwidth').reportValidity();
-        return null;
-    }
-
-    let entity = {
-        bandwidth: document.querySelector('#entity-bandwidth').value,
-        entity_id: document.querySelector('#entity-id').value,
-        entity: document.querySelector('#entity-name').value,
-        node: "TBD",
-        name: "TBD",
-        //name: document.querySelector('#entity-name').value,
-        peerings: [],
-        tag: document.querySelector('#entity-vlans').value
-    };
-
-    let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
-    let endpointIndex = document.querySelector('#entity-index').value;
-    if (endpointIndex >= 0) {
-        entity.peerings = endpoints[endpointIndex].peerings;
-        endpoints[endpointIndex] = entity;
-    } else {
-        endpoints.push(entity);
-    }
-
-    sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
-    loadSelectedEndpointList();
-
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('hide');
-}
-
-async function addEntityCancelCallback(event) {
-    let addEndpointModal = $('#add-endpoint-modal');
-    addEndpointModal.modal('hide');
-}
-
-//--- Add Endpoint Modal
-
-async function loadEntityList(parentEntity=null) {
-    let entity = await getEntities(session.data.workgroup_id, parentEntity);
-    let entitiesList = document.querySelector('#entities-list');
-
-    let parent = null;
-    if ('parents' in entity && entity.parents.length > 0) {
-        parent = entity.parents[0];
-    }
-
-    let entities = '';
-
-    entitiesList.innerHTML = '';
-    if (parentEntity !== null) {
-        entities += `<button type="button" class="list-group-item" onclick="loadEntityList(${parent.entity_id})">
-                         ${parent.name}
-                         <span class="glyphicon glyphicon-menu-left" style="float: right;"></span>
-                     </button>`;
-    }
-
-    if ('children' in entity && entity.children.length > 0) {
-        entity.children.forEach(function(child) {
-                entities += `<button type="button" class="list-group-item" onclick="loadEntityList(${child.entity_id})">
-                                 ${child.name}
-                                 <span class="glyphicon glyphicon-menu-right" style="float: right;"></span>
-                             </button>`;
-        });
-
-        entitiesList.innerHTML = entities;
-    }
-
-    setEntity(entity.entity_id, entity.name);
-
-    let entityAlertOK = document.querySelector('#entity-alert-ok');
-    entityAlertOK.innerHTML = `<p>Selected ${entity.name}.</p>`;
-    entityAlertOK.style.display = 'block';
-}
-
-
 
 //--- Main - Schedule ---
-
 
 
 function setDateTimeVisibility() {
@@ -328,69 +284,11 @@ function loadSelectedEndpointList() {
   let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
   let selectedEndpointList = '';
 
-  console.log(endpoints);
-  endpoints.forEach(function(endpoint, index) {
-          let endpointName = '';
-          if (endpoint.entity) {
-            endpointName = `${endpoint.entity} - <small>${endpoint.node} - ${endpoint.name} ${endpoint.tag}</small>`;
-          } else {
-            endpointName = `${endpoint.node} - <small>${endpoint.name} ${endpoint.tag}</small>`;
-          }
-         
-          let peerings = '';
-          endpoint.peerings.forEach(function(peering, peeringIndex) {
-                  peerings += `
-<tr>
-  <td>${peering.ipVersion === 4 ? 'ipv4' : 'ipv6'}</td>
-  <td>${peering.asn}</td>
-  <td>${peering.yourPeerIP}</td>
-  <td>${peering.key}</td>
-  <td>${peering.oessPeerIP}</td>
-  <td><button class="btn btn-danger btn-sm" class="form-control" type="button" onclick="deletePeering(${index}, ${peeringIndex})">&nbsp;<span class="glyphicon glyphicon-trash"></span>&nbsp;</button></td>
-</tr>
-`;
-          });
-
-          let html = `
-<div id="entity-${index}" class="panel panel-default">
-  <div class="panel-heading">
-    <h4 style="margin: 0px">
-      ${endpointName}
-      <span style="float: right; margin-top: -5px;">
-        <button class="btn btn-link" type="button" onclick="modifyNetworkEndpointCallback(${index})"><span class="glyphicon glyphicon-edit"></span></button>
-        <button class="btn btn-link" type="button" onclick="deleteNetworkEndpointCallback(${index})"><span class="glyphicon glyphicon-trash"></span></button>
-      </span>
-    </h4>
-  </div>
-
-  <div class="table-responsive">
-    <div id="endpoints">
-      <table class="table">
-        <thead><tr><th></th><th>Your ASN</th><th>Your IP</th><th>Your BGP Key</th><th>OESS IP</th><th></th></tr></thead>
-        <tbody>
-          ${peerings}
-          <tr id="new-peering-form-${index}">
-            <td><div class="checkbox"><label><input class="ip-version" type="checkbox" onchange="loadPeerFormValidator(${index})"> ipv6</input></label></div></td>
-            <td><input class="form-control bgp-asn" type="number" ${ endpoint.cloud_account_type ? 'disabled' : 'required' } /></td>
-            <td><input class="form-control your-peer-ip" type="text" ${ endpoint.cloud_account_type ? 'disabled' : 'required' } /></td>
-            <td><input class="form-control bgp-key" type="text" ${ endpoint.cloud_account_type ? 'disabled' : '' } /></td>
-            <td><input class="form-control oess-peer-ip" type="text" ${ endpoint.cloud_account_type ? 'disabled' : 'required' } /></td>
-            <td><button class="btn btn-success btn-sm" class="form-control" type="button" onclick="newPeering(${index})">&nbsp;<span class="glyphicon glyphicon-plus"></span>&nbsp;</button></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-`;
-
-          selectedEndpointList += html;
-  });
-
-  document.getElementById('selected-endpoint-list').innerHTML = selectedEndpointList;
+  let e = new EndpointList({endpoints: endpoints});
+  render(e, document.querySelector('#selected-endpoint-list'));
 
   endpoints.forEach(function(endpoint, index) {
-    loadPeerFormValidator(index);
+    //loadPeerFormValidator(index);
   });
 }
 
