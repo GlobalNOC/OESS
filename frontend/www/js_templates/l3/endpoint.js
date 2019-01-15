@@ -17,6 +17,7 @@ class Endpoint extends Component {
     let peerings = this.props.peerings.map((peering, index) => {
       peering.index = index;
       peering.endpointIndex = this.props.index;
+      peering.cloudAccountType = this.props.cloud_account_type;
       let p = new Peering(peering);
       return p.render();
     }).join('');

@@ -153,7 +153,7 @@ async function loadVRF() {
   <td></td>
   <td>${peering.peer_asn}</td>
   <td>${peering.peer_ip}</td>
-  <td>${peering.md5_key}</td>
+  <td>${endpoint.cloud_connection_id ? '*****' : peering.md5_key}</td>
   <td>${peering.local_ip}</td>
 			       <td><span id="state" class="label label-${peering.operational_label}">${peering.operational_state}</span></td>
 </tr>`;
