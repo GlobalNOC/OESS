@@ -9,7 +9,7 @@ class Peering {
       <td>${this.props.ipVersion === 4 ? 'ipv4' : 'ipv6'}</td>
       <td>${this.props.asn}</td>
       <td>${this.props.yourPeerIP}</td>
-      <td>${this.props.key}</td>
+      <td>${this.props.cloudAccountType ? '' : this.props.key}</td>
       <td>${this.props.oessPeerIP}</td>
       <td>
         <button class="btn btn-danger btn-sm"
