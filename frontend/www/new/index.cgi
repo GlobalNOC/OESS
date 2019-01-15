@@ -49,6 +49,29 @@ sub main{
     my $cgi = new CGI;
     my $tt  = Template->new(INCLUDE_PATH => "$FindBin::Bin/..") || die $Template::ERROR;
 
+    my $is_valid_user = $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'});
+    if(!defined($is_valid_user)){
+
+        #-- What to pass to the TT and what http headers to send
+        my ($vars, $output, $filename, $title, $breadcrumbs, $current_breadcrumb);
+        $filename           = "html_templates/denied2.html";
+        $title              = "Access Denied";
+        $vars->{'admin_email'}        = $db->get_admin_email();
+
+        $vars->{'page'}               = $filename;
+        $vars->{'title'}              = $title;
+        $vars->{'breadcrumbs'}        = $breadcrumbs;
+        $vars->{'current_breadcrumb'} = $current_breadcrumb;
+        $vars->{'is_admin'}           = 0;
+	$vars->{'path'}               = "../";
+        $vars->{'is_read_only'}       = 1;
+        $vars->{'version'}            = OESS::Database::VERSION;
+
+        $tt->process("html_templates/base.html", $vars, \$output) or warn $tt->error();
+        print "Content-type: text/html\n\n" . $output;
+        return;
+    }
+
     my $is_admin = $db->get_user_admin_status(username=>$ENV{'REMOTE_USER'})->[0]{'is_admin'};
     if (!defined $is_admin) {
 	$is_admin = 0;
@@ -127,6 +150,10 @@ sub main{
                 {title => "Update cloud network", url => "#"}
             ];
         }
+        case "acl" {
+            $filename = "html_templates/acl.html";
+            $title    = "Edit ACL";
+        }
         case "decom" {
             $filename = "html_templates/denied.html";
             $title    = "Access Denied";
@@ -137,9 +164,9 @@ sub main{
         }
     }
 
-    $vars->{'g_port'}  = 'https://aj-dev7.grnoc.iu.edu/grafana/d-solo/LbLWIXmmk/oess-interface?orgId=1&panelId=4';
-    $vars->{'g_peer'}  = 'https://aj-dev7.grnoc.iu.edu/grafana/d-solo/mop4gHoik/oess-bgp-peer?orgId=1&panelId=4';
-    $vars->{'g_route'} = 'https://aj-dev7.grnoc.iu.edu/grafana/d-solo/YBv2sDTik/oess-routing-table?orgId=1&panelId=2';
+    $vars->{'g_port'}  = $db->{grafana}->{'oess-interface'};
+    $vars->{'g_peer'}  = $db->{grafana}->{'oess-bgp-peer'};
+    $vars->{'g_route'} = $db->{grafana}->{'oess-routing-table'};
 
     $vars->{'admin_email'}        = $db->get_admin_email();
     $vars->{'page'}               = $filename;
@@ -147,7 +174,7 @@ sub main{
     $vars->{'breadcrumbs'}        = $breadcrumbs;
     $vars->{'current_breadcrumb'} = $current_breadcrumb;
     $vars->{'path'}               = "../";
-    $vars->{'is_admin'}           = $is_admin;		    
+    $vars->{'is_admin'}           = $is_admin;
     $vars->{'is_read_only'}       = $is_read_only;
     $vars->{'version'}            = OESS::Database::VERSION;
 

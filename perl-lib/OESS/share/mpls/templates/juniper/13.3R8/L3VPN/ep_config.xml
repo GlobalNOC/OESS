@@ -99,7 +99,13 @@
               [% IF peer.key %]
               <authentication-key>[% peer.key %]</authentication-key>
               [% END %]
-   
+
+              [% IF interface.type == 'gcp-partner-interconnect' %]
+              <multihop>
+                <ttl>4</ttl>
+              </multihop>
+              [% END %]
+
               <export>OESS-L3VPN-[% vrf_id %]-OUT</export>
               <peer-as>[% peer.asn %]</peer-as>
             </neighbor>

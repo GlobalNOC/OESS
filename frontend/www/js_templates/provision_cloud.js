@@ -1,5 +1,34 @@
+/**
+ * render calls obj.render(props) to generate an HTML string. Once
+ * generated, the HTML string is assigned to elem.innerHTML.
+ */
+async function render(obj, elem, props) {
+  elem.innerHTML = await obj.render(props);
+}
+
+
+let m = undefined;
+
+
+async function load() {
+  let interfaces = await getInterfacesByWorkgroup(session.data.workgroup_id);
+  let vlans = await getAvailableVLANs(session.data.workgroup_id, interfaces[0].interface_id);
+
+  m = new EndpointSelectionModal({
+    interface: interfaces[0].interface_id,
+    vlan: vlans[0]
+  });
+  update();
+}
+
+async function update(props) {
+  render(m, document.querySelector('#add-endpoint-modal'), props);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   sessionStorage.setItem('endpoints', '[]');
+
+  load();
 
   loadUserMenu().then(function() {
       setDateTimeVisibility();
@@ -22,14 +51,25 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function addNetworkEndpointCallback(event) {
-    showEndpointSelectionModal(null);
+  m.setIndex(-1);
+  update();
+
+  let endpointSelectionModal = $('#add-endpoint-modal');
+  endpointSelectionModal.modal('show');
 }
 
 async function modifyNetworkEndpointCallback(index) {
-    let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
-    endpoints[index].index = index;
+  let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
+  endpoints[index].index = index;
 
-    showEndpointSelectionModal(endpoints[index]);
+  m.setIndex(index);
+  m.setEntity(endpoints[index].entity_id);
+  m.setInterface(endpoints[index].interface_id);
+  m.setVLAN(endpoints[index].tag);
+  update();
+
+  let endpointSelectionModal = $('#add-endpoint-modal');
+  endpointSelectionModal.modal('show');
 }
 
 async function deleteNetworkEndpointCallback(index) {
@@ -127,6 +167,11 @@ function setIPv4ValidationMessage(input) {
 }
 
 function newPeering(index) {
+    let ipVersion = document.querySelector(`#new-peering-form-${index} .ip-version`);
+    if (!ipVersion.validity.valid) {
+        ipVersion.reportValidity();
+        return null;
+    }
     let asn = document.querySelector(`#new-peering-form-${index} .bgp-asn`);
     if (!asn.validity.valid) {
         asn.reportValidity();
@@ -148,7 +193,10 @@ function newPeering(index) {
         return null;
     }
 
+    let ipVersionNo = ipVersion.checked ? 6 : 4;
+
     let peering = {
+        ipVersion: ipVersionNo,
         asn: asn.value,
         key: key.value,
         oessPeerIP: oessPeerIP.value,
@@ -178,70 +226,27 @@ function loadSelectedEndpointList() {
   let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
   let selectedEndpointList = '';
 
-  console.log(endpoints);
-  endpoints.forEach(function(endpoint, index) {
-          let endpointName = '';
-          if ('entity_id' in endpoint) {
-              endpointName = `${endpoint.entity} ${endpoint.node} <small>${endpoint.name} ${endpoint.tag}</small>`;
-          } else {
-              endpointName = `${endpoint.node} <small>${endpoint.name} - ${endpoint.tag}</small>`;
-          }
-
-          let peerings = '';
-          endpoint.peerings.forEach(function(peering, peeringIndex) {
-                  peerings += `
-<tr>
-  <td>${peering.asn}</td>
-  <td>${peering.yourPeerIP}</td>
-  <td>${peering.key}</td>
-  <td>${peering.oessPeerIP}</td>
-  <td><button class="btn btn-danger btn-sm" class="form-control" type="button" onclick="deletePeering(${index}, ${peeringIndex})">&nbsp;<span class="glyphicon glyphicon-trash"></span>&nbsp;</button></td>
-</tr>
-`;
-          });
-
-          let html = `
-<div id="entity-${index}" class="panel panel-default">
-  <div class="panel-heading">
-    <h4 style="margin: 0px">
-      ${endpointName}
-      <span style="float: right; margin-top: -5px;">
-        <button class="btn btn-link" type="button" onclick="modifyNetworkEndpointCallback(${index})"><span class="glyphicon glyphicon-edit"></span></button>
-        <button class="btn btn-link" type="button" onclick="deleteNetworkEndpointCallback(${index})"><span class="glyphicon glyphicon-trash"></span></button>
-      </span>
-    </h4>
-  </div>
-
-  <div class="table-responsive">
-    <div id="endpoints">
-      <table class="table">
-        <thead><tr><th>Your ASN</th><th>Your IP</th><th>Your BGP Key</th><th>OESS IP</th><th></th></tr></thead>
-        <tbody>
-          ${peerings}
-          <tr id="new-peering-form-${index}">
-            <td><input class="form-control bgp-asn" type="number" ${ endpoint.cloud_account_id ? 'disabled' : 'required' } /></td>
-            <td><input class="form-control your-peer-ip" type="text" required /></td>
-            <td><input class="form-control bgp-key" type="text" ${ endpoint.cloud_account_id ? 'required' : '' } /></td>
-            <td><input class="form-control oess-peer-ip" type="text" required /></td>
-            <td><button class="btn btn-success btn-sm" class="form-control" type="button" onclick="newPeering(${index})">&nbsp;<span class="glyphicon glyphicon-plus"></span>&nbsp;</button></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-`;
-
-          selectedEndpointList += html;
-  });
-
-  document.getElementById('selected-endpoint-list').innerHTML = selectedEndpointList;
+  let e = new EndpointList({endpoints: endpoints});
+  render(e, document.querySelector('#selected-endpoint-list'));
 
   endpoints.forEach(function(endpoint, index) {
-          let yourPeerIP = document.querySelector(`#new-peering-form-${index} .your-peer-ip`);
-          asIPv4CIDRorIPv6CIDR(yourPeerIP);
-
-          let oessPeerIP = document.querySelector(`#new-peering-form-${index} .oess-peer-ip`);
-          asIPv4CIDRorIPv6CIDR(oessPeerIP);
+    //loadPeerFormValidator(index);
   });
+}
+
+function loadPeerFormValidator(index) {
+  let ipVersion =  document.querySelector(`#new-peering-form-${index} .ip-version`);
+  if (ipVersion.checked) {
+    let yourPeerIP = document.querySelector(`#new-peering-form-${index} .your-peer-ip`);
+    asIPv6CIDR(yourPeerIP);
+
+    let oessPeerIP = document.querySelector(`#new-peering-form-${index} .oess-peer-ip`);
+    asIPv6CIDR(oessPeerIP);
+  } else {
+    let yourPeerIP = document.querySelector(`#new-peering-form-${index} .your-peer-ip`);
+    asIPv4CIDR(yourPeerIP);
+
+    let oessPeerIP = document.querySelector(`#new-peering-form-${index} .oess-peer-ip`);
+    asIPv4CIDR(oessPeerIP);
+  }
 }

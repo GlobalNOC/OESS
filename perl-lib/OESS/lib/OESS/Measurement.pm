@@ -31,7 +31,6 @@ use strict;
 use warnings;
 
 use GRNOC::Log;
-use RRDs;
 use XML::Simple;
 use OESS::Database;
 use Data::Dumper;
@@ -288,7 +287,8 @@ sub _tsds_of_query{
 	url    => $self->{'config'}->{'tsds'}->{'url'} . "/query.cgi",
 	uid    => $self->{'config'}->{'tsds'}->{'username'},
 	passwd => $self->{'config'}->{'tsds'}->{'password'},
-	debug => 1,
+	realm  => $self->{'config'}->{'tsds'}->{'realm'},
+	debug => 0,
     );
     my $res = $req->query(query => $query);
     if (!defined $res) {
@@ -421,6 +421,7 @@ sub _tsds_interface_query{
         url    => $self->{'config'}->{'tsds'}->{'url'} . "/query.cgi",
         uid    => $self->{'config'}->{'tsds'}->{'username'},
         passwd => $self->{'config'}->{'tsds'}->{'password'},
+	realm  => $self->{'config'}->{'tsds'}->{'realm'},
         debug => 1,
 	);
 

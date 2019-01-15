@@ -21,8 +21,12 @@ sub build_client{
         log_debug("Using SSL: " . Data::Dumper::Dumper($params{'ssl'}));
         $ENV{HTTPS_CERT_FILE} = $params{'ssl'}->{'cert'};
         $ENV{HTTPS_KEY_FILE}  = $params{'ssl'}->{'key'};
-        $soap = SOAP::Lite->new->proxy( $params{'proxy'}, ssl_opts => {SSL_cert_file => $params{'ssl'}->{'cert'},
-                                                                       SSL_key_file => $params{'ssl'}->{'key'}});
+	$soap = SOAP::Lite->new->proxy( $params{'proxy'},
+                                        ssl_opts => [SSL_cert_file => $params{'ssl'}->{'cert'},
+                                                     SSL_key_file => $params{'ssl'}->{'key'},
+                                                     SSL_use_cert => 1,
+                                                     SSL_verify_mode => 0,
+                                                     verify_hostname => 0]);
     }else{
         log_debug("Not using SSL");
         $soap = SOAP::Lite->new->proxy( $params{'proxy'});
@@ -79,9 +83,9 @@ sub build_header{
         $header_info->value($header_info->value(), SOAP::Data->name(sessionSecurityAttr => $header->{'sessionSecurityAttr'})->type(''));
     }
     
-    my $header = SOAP::Header->name( 'header:nsiHeader' => \$header_info)->attr({ 'xmlns:header' => 'http://schemas.ogf.org/nsi/2013/12/framework/headers'});
+    my $new_header = SOAP::Header->name( 'header:nsiHeader' => \$header_info)->attr({ 'xmlns:header' => 'http://schemas.ogf.org/nsi/2013/12/framework/headers'});
     
-    return $header;
+    return $new_header;
 }
 
 

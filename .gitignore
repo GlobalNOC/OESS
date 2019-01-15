@@ -45,3 +45,5 @@ perl-lib/OESS/blib/
 perl-lib/OESS/cover_db/
 perl-lib/OESS/pm_to_blib
 perl-lib/OESS/tap/
+perl-lib/OESS/lib/OESS/pod2htmd.tmp
+perl-lib/OESS/lib/OESS/pod2htmi.tmp

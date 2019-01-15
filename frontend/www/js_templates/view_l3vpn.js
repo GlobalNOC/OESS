@@ -153,7 +153,7 @@ async function loadVRF() {
   <td></td>
   <td>${peering.peer_asn}</td>
   <td>${peering.peer_ip}</td>
-  <td>${peering.md5_key}</td>
+  <td>${endpoint.cloud_connection_id ? '*****' : peering.md5_key}</td>
   <td>${peering.local_ip}</td>
 			       <td><span id="state" class="label label-${peering.operational_label}">${peering.operational_state}</span></td>
 </tr>`;
@@ -163,11 +163,19 @@ async function loadVRF() {
 
     peerSelections.appendChild(select);
 
+    // Ignore display of entity if not assigned to an interface.
+    let ename = ``;
+    if (endpoint.hasOwnProperty('entity')) {
+      ename = `${endpoint.entity.name} - <small>${endpoint.node.name} - ${endpoint.interface.name} - ${endpoint.tag}`;
+    } else {
+      ename = `${endpoint.node.name} - <small>${endpoint.interface.name} - ${endpoint.tag}`;
+    }
+
     let html = `
 <div class="panel panel-default">
   <div class="panel-heading" style="height: 40px;">
     <h4 style="margin: 0px; float: left;">
-	${endpoint.entity.name} - <small>${endpoint.node.name} - ${endpoint.interface.name} - ${endpoint.tag}</small>
+	${ename}</small>
     </h4>
   </div>
 

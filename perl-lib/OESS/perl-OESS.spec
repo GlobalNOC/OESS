@@ -1,6 +1,6 @@
 Summary: OESS Perl Libraries
 Name: perl-OESS
-Version: 2.0.0
+Version: 2.0.1
 Release: 1%{?dist}
 License: APL 2.0
 Group: Network
@@ -31,6 +31,7 @@ BuildRequires: perl(Test::Pod)
 BuildRequires: perl(Test::Pod::Coverage)
 BuildRequires: perl(Time::HiRes)
 BuildRequires: perl(XML::Simple)
+BuildRequires: perl(SOAP::Lite)
 
 Requires: perl
 Requires: perl-NetAddr-IP
@@ -58,6 +59,7 @@ Requires: perl(GRNOC::WebService::Client)   >= 1.4.1
 Requires: perl(GRNOC::WebService)           >= 1.2.9
 Requires: perl(GRNOC::WebService::Regex)
 Requires: perl(JSON)
+Requires: perl(JSON::WebToken)
 Requires: perl(JSON::XS)
 Requires: perl(List::Compare)
 Requires: perl(List::MoreUtils)
@@ -73,7 +75,6 @@ Requires: perl(NetAddr::IP)
 Requires: perl(POSIX)
 Requires: perl(Proc::Daemon)
 Requires: perl(Proc::ProcessTable)
-Requires: perl(RRDs)
 Requires: perl(Set::Scalar)
 Requires: perl(SOAP::Lite)
 Requires: perl(Socket)
@@ -88,7 +89,8 @@ Requires: perl(XML::Writer)
 Requires: perl(XML::LibXML::XPathContext)
 Requires: grnoc-routerproxy >= 2.0.1
 
-Provides: perl-OESS-Circuit, perl-OESS-Database, perl-OESS-DBus, perl-OESS-Topology,perl-OESS-Measurement,perl-OESS-FlowRule,perl(OESS::DB::Command),perl(OESS::Workgroup),perl(OESS::Cloud::AWS),perl(OESS::DB::User),perl(OESS::Cloud),perl(OESS::DB),perl(OESS::Interface),perl(OESS::Entity),perl(OESS::VRF),perl(OESS::DB::VRF),perl(OESS::DB::Entity)
+
+Provides: perl-OESS-Circuit, perl-OESS-Database, perl-OESS-DBus, perl-OESS-Topology,perl-OESS-Measurement,perl-OESS-FlowRule,perl(OESS::DB::Command),perl(OESS::Workgroup),perl(OESS::Cloud::AWS),perl(OESS::Cloud::GCP),perl(OESS::DB::User),perl(OESS::Cloud),perl(OESS::DB),perl(OESS::Interface),perl(OESS::Entity),perl(OESS::VRF),perl(OESS::DB::VRF),perl(OESS::DB::Entity),perl(OESS::WebService)
 Obsoletes: perl-OESS-Circuit, perl-OESS-Database, perl-OESS-DBus, perl-OESS-Topology,perl-OESS-Measurement,perl-OESS-FlowRule
 
 AutoReq: no
@@ -143,6 +145,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::ACL.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud::AWS.3pm.gz
+%doc %{_mandir}/man3/OESS::Cloud::GCP.3pm.gz
 %doc %{_mandir}/man3/OESS::Config.3pm.gz
 %doc %{_mandir}/man3/OESS::DB.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::Command.3pm.gz
@@ -217,6 +220,7 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/DB/Workgroup.pm
 %{perl_vendorlib}/OESS/Cloud.pm
 %{perl_vendorlib}/OESS/Cloud/AWS.pm
+%{perl_vendorlib}/OESS/Cloud/GCP.pm
 %{perl_vendorlib}/OESS/Config.pm
 %{perl_vendorlib}/OESS/Endpoint.pm
 %{perl_vendorlib}/OESS/Entity.pm

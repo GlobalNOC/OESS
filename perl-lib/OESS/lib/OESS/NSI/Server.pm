@@ -12,22 +12,19 @@ use JSON;
 
 use GRNOC::Log;
 use OESS::RabbitMQ::Client;
-use OESS::DBus;
 use OESS::NSI::Utils;
 use OESS::NSI::Query;
-
-
-my $logger = GRNOC::Log->new(config => '/etc/oess/logging.conf', watch => 15);
-my $log    = $logger->get_logger('OESS.NSI.WWW');
-
-
-my $api    = OESS::RabbitMQ::Client->new( timeout => 60,
-                                          topic    => 'OESS.NSI.Processor');
-
 
 sub _send_to_daemon{
     my $method = shift;
     my $data = shift;
+
+    my $logger = GRNOC::Log->new(config => '/etc/oess/logging.conf', watch => 15);
+    my $log    = $logger->get_logger('OESS.NSI.WWW');
+
+    
+    my $api    = OESS::RabbitMQ::Client->new( timeout => 60,
+					      topic    => 'OESS.NSI.Processor');
 
     $log->info("Calling $method");
 
@@ -237,7 +234,7 @@ sub reserve{
 			      });
     
 
-    my $header = OESS::NSI::Utils::build_header($header);
+    my $new_header = OESS::NSI::Utils::build_header($header);
 
     my $result;
     if($res < 0){
@@ -250,7 +247,7 @@ sub reserve{
             $result = SOAP::Data->name( connectionId => $res )->type("");
         }
     }
-    return ("reserveResponse",$header, $result);
+    return ("reserveResponse",$new_header, $result);
 }
 
 =head2 reserveAbort
@@ -579,3 +576,4 @@ sub queryResultSync{
     return ("queryResultSyncConfirmed",$nsiheader);;
 }
 
+1;

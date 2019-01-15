@@ -127,6 +127,8 @@ sub main{
     ReadMode('noecho');
     my $tsds_password = required_parameter("TSDS Password: ");
     ReadMode('normal');
+    my $grafana_url = optional_parameter("Grafana URL", "https://localhost/grafana");
+
     #put all of this into a config file
     print "Creating Configuration file (/etc/oess/database.xml)\n";
     open(FILE, "> /etc/oess/database.xml");
@@ -135,6 +137,11 @@ sub main{
 <config host="$db_host" port="$db_port" base_url="$base_url"
         openflow="$use_openflow" mpls="$use_mpls">
   <tsds url="$tsds_url" username="$tsds_username" password="$tsds_password" />
+  <grafana host="$grafana_url">
+    <graph panelName="oess-interface"     uid="aaaaaaaaa" orgId="1" panelId="1"/>
+    <graph panelName="oess-bgp-peer"      uid="aaaaaaaaa" orgId="1" panelId="1"/>
+    <graph panelName="oess-routing-table" uid="aaaaaaaaa" orgId="1" panelId="1"/>
+  </grafana>
   <credentials username="oess" password="$oess_pass" database="oess" />
   <oscars host="$oscars_host" cert="$my_cert" key="$my_key" topo="$topo_host"/>
   <smtp from_address="$from_address" image_base_url="$image_base_url" from_name="$from_name" />

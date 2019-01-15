@@ -37,18 +37,20 @@ my $db = OESS::DB->new( config => OESSDatabaseTester::getConfigFilePath() );
 my $acl = OESS::ACL->new( interface_id => 45811, db => $db );
 
 ok(defined($db) && defined($acl), 'Sanity-check: can instantiate OESS::DB and OESS::ACL objects');
-
+warn Dumper($acl->to_hash());
 cmp_deeply(
     $acl->to_hash(),
     {
         interface_id => 45811,
         acls => [
-            acl_row(10, 21,  'allow', 100, undef, undef),
-            acl_row(20, 31,  'allow', 101, undef, undef),
+            acl_row(10,  21, 'allow', 100, undef, undef),
+            acl_row(20,  31, 'allow', 101, undef, undef),
+            acl_row(22, 241, 'allow',   1,  4095, undef),
             acl_row(30, 101, 'allow', 102, undef, undef),
-            acl_row(40, 61,  'allow', 103, undef, undef),
-            acl_row(50, 71,  'allow', 104, undef, undef),
-            acl_row(60, 81,  'allow', 105, undef, undef),
+            acl_row(40,  61, 'allow', 103, undef, undef),
+            acl_row(50,  71, 'allow', 104, undef, undef),
+            acl_row(60,  81, 'allow', 105, undef, undef),
+
         ],
     },
     'ACL object 1 (id=45811): to_hash returns the right information, in the right order'

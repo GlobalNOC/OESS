@@ -107,7 +107,7 @@ sub process_request {
 
     if($request =~ /^reserve$/){
         my $circuit = $self->{'reservation'}->reserve($data);
-        if($circuit > 0 && $circuit < 99999){
+        if($circuit > 0 && $circuit < 9999999){
             log_debug("adding circuit $circuit to watch list");
             push(@{$self->{'watched_circuits'}},$circuit);
         }

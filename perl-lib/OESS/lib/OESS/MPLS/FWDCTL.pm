@@ -216,6 +216,7 @@ sub build_cache{
         $details->{'node_id'} = $details->{'node_id'};
 	$details->{'id'} = $details->{'node_id'};
         $details->{'name'} = $details->{'name'};
+	$details->{'short_name'} = $details->{'short_name'};
 	$details->{'ip'} = $details->{'ip'};
 	$details->{'vendor'} = $details->{'vendor'};
 	$details->{'model'} = $details->{'model'};
@@ -268,12 +269,13 @@ sub _write_cache{
 		push(@bgp, $bgp->to_hash());
 	    }
 	    
-	    my $int_obj = { name => $ep->interface()->name(),
-			    tag => $ep->tag(),
+            my $int_obj = { name => $ep->interface()->name,
+                            type => $ep->interface()->cloud_interconnect_type,
+                            tag => $ep->tag(),
                             unit => $ep->unit(),
                             inner_tag => $ep->inner_tag(),
                             bandwidth => $ep->bandwidth(),
-			    peers => \@bgp };
+                            peers => \@bgp };
 	    
 	    
 	    if(defined($switches{$ep->node()->name()}->{'vrfs'}{$vrf->vrf_id()})){
@@ -305,11 +307,11 @@ sub _write_cache{
             next;
         }
         my $details = $ckt->get_details();
-	my $eps = $ckt->get_endpoints();
+        my $eps = $ckt->get_endpoints();
 
-	my $ckt_type = "L2VPN";
-        
-        if(defined($ckt->get_mpls_path_type( path => 'primary'))){
+        my $ckt_type = "L2VPN";
+
+        if(defined $ckt->get_mpls_path_type(path => 'primary') && scalar(@{$ckt->get_path(path => 'primary')}) > 0){
             $ckt_type = "L2CCC";
         }
 
@@ -365,7 +367,7 @@ sub _write_cache{
 		    push(@$paths,{ name => 'PRIMARY',  
 				   mpls_path_type => 'loose',
 				   dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-				   dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}});
+				   dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'short_name'}});
 		}else{
 		    #ok so they specified a strict path... get the LSPs
 		    push(@$paths,{ name => 'PRIMARY', mpls_path_type => 'strict',
@@ -373,7 +375,7 @@ sub _write_cache{
 								 start => $ep_a->{'node'},
 								 end => $ep_z->{'node'}),
 				   dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-				   dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
+				   dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'short_name'}
 			 });
 		    
 		    my $backup = $ckt->get_mpls_path_type( path => 'backup');
@@ -382,7 +384,7 @@ sub _write_cache{
 			push(@$paths,{ name => 'SECONDARY', 
 				       mpls_path_type => 'loose',
 				       dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}});
+				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'short_name'}});
 		    }else{
 			push(@$paths,{ name => 'SECONDARY',
 				       mpls_path_type => 'strict',
@@ -390,13 +392,13 @@ sub _write_cache{
 								     start => $ep_a->{'node'},
 								     end => $ep_z->{'node'}),
 				       dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
+				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'short_name'}
 			     });
 			#our tertiary path...
 			push(@$paths,{ name => 'TERTIARY',
 				       dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
 				       mpls_path_type => 'loose',
-				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
+				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'short_name'}
 			     });
 		    }
 		}	
@@ -414,7 +416,7 @@ sub _write_cache{
 			paths => $paths,
 			ckt_type => $ckt_type,
 			site_id => $site_id,
-			a_side => $ep_a->{'node_id'},
+			a_side => $ep_a->{'short_name'},
                         state  => $ckt->{'state'}
                       };
 

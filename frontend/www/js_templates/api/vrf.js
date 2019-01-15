@@ -54,10 +54,10 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
       cloud_account_id: endpoint.cloud_account_id
     };
 
-    if ('entity_id' in endpoint && endpoint.interface === 'TBD' && endpoint.node === 'TBD') {
+    if ('entity_id' in endpoint && endpoint.name === 'TBD' && endpoint.node === 'TBD') {
       e['entity'] = endpoint.entity;
     } else {
-      e['interface'] = endpoint.interface;
+      e['interface'] = endpoint.name;;
       e['node']      = endpoint.node;
     }
 
@@ -70,7 +70,8 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
         asn: p.asn,
         key: p.key,
         local_ip: p.oessPeerIP,
-        peer_ip:  p.yourPeerIP
+        peer_ip:  p.yourPeerIP,
+        version: p.ipVersion
       });
     });
 

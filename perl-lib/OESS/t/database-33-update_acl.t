@@ -14,7 +14,7 @@ BEGIN {
 use lib "$path";
 use OESSDatabaseTester;
 
-use Test::More tests => 34;
+use Test::More tests => 36;
 use Test::Deep;
 use OESS::Database;
 use OESSDatabaseTester;
@@ -133,13 +133,15 @@ $acl_id = $db->update_acl(
 
 # make sure the eval_position reordering worked correctly
 $acls = $db->get_acls( owner_workgroup_id => 51 );
-is(@$acls, 6, '6 ACLs Retrieved');
+is(@$acls, 7, '7 ACLs Retrieved');
+warn Dumper($acls);
 is($acls->[0]{'interface_acl_id'},4, 'correct order');
-is($acls->[1]{'interface_acl_id'},5, 'correct order');
-is($acls->[2]{'interface_acl_id'},3, 'correct order');
-is($acls->[3]{'interface_acl_id'},6, 'correct order');
-is($acls->[4]{'interface_acl_id'},7, 'correct order');
-is($acls->[5]{'interface_acl_id'},8, 'correct order');
+is($acls->[1]{'interface_acl_id'},19, 'correct order');
+is($acls->[2]{'interface_acl_id'},5, 'correct order');
+is($acls->[3]{'interface_acl_id'},3, 'correct order');
+is($acls->[4]{'interface_acl_id'},6, 'correct order');
+is($acls->[5]{'interface_acl_id'},7, 'correct order');
+is($acls->[6]{'interface_acl_id'},8, 'correct order');
 
 # try to add acl to a lower value at same eval position as another acl
 $acl_id = $db->update_acl(
@@ -155,11 +157,12 @@ $acl_id = $db->update_acl(
 );
 # make sure the eval_position reordering worked correctly
 my $acls = $db->get_acls( owner_workgroup_id => 51 );
-is(@$acls, 6, '6 ACLs Retrieved');
+is(@$acls, 7, '7 ACLs Retrieved');
 is($acls->[0]{'interface_acl_id'},7, 'correct order');
 is($acls->[1]{'interface_acl_id'},4, 'correct order');
-is($acls->[2]{'interface_acl_id'},5, 'correct order');
-is($acls->[3]{'interface_acl_id'},3, 'correct order');
-is($acls->[4]{'interface_acl_id'},6, 'correct order');
-is($acls->[5]{'interface_acl_id'},8, 'correct order');
+is($acls->[2]{'interface_acl_id'},19, 'correct order');
+is($acls->[3]{'interface_acl_id'},5, 'correct order');
+is($acls->[4]{'interface_acl_id'},3, 'correct order');
+is($acls->[5]{'interface_acl_id'},6, 'correct order');
+is($acls->[6]{'interface_acl_id'},8, 'correct order');
 
