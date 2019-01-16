@@ -1188,5 +1188,41 @@ UNLOCK TABLES;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+LOCK TABLES `interface` WRITE;
+UPDATE interface SET mpls_vlan_tag_range = '1-10' WHERE interface_id = 391;
+UPDATE interface SET cloud_interconnect_id = "Test" WHERE interface_id = 391;
+UNLOCK TABLES;
+/*---
+-- Modify interface for interface.pm test case
 
+--- Modify interface_acl for entity.cgi test case
+*/
+LOCK TABLES `interface_acl` WRITE;
+UPDATE interface_acl SET entity_id =7 WHERE interface_id = 391;
+UNLOCK TABLES;
+
+LOCK TABLES `entity` WRITE;
+INSERT INTO entity VALUES ('123', 'TestUrl', 'Test', 'TestlogoUrl', 'For testing entity.cgi');
+UNLOCK TABLES;
+/*---
+--- Adding a value to vrf to make a test case for vrf.cgi
+*/
+
+LOCK TABLES `vrf` WRITE;
+INSERT INTO vrf VALUES (1,'Test', 'Test', 21, 1, 1, 1,'".localtime()."', 1, 7 );
+
+INSERT INTO vrf VALUES (2, 'Test_2', 'Test_2', 21, 1, 1, 881, 0, 881, 7 );
+INSERT INTO vrf VALUES (3,'Test_3', 'Test_3 get_vrfs', 241, 1, 1, 881,'".localtime()."', 881, 7 );
+UNLOCK TABLES;
+
+LOCK TABLES `vrf_ep` WRITE;
+INSERT INTO vrf_ep VALUES (3, 3, 3, 3, 3, 1, 1, 1 );
+INSERT INTO vrf_ep VALUES (2, 0, 3, 123, 2, 391, '', 0);
+UNLOCK TABLES;
+
+/*--- Adding values to cloud_connection_vrf_ep for vrf test method provision*/
+LOCK TABLES `cloud_connection_vrf_ep` WRITE;
+INSERT INTO cloud_connection_vrf_ep VALUES (1, 3, 'TEST acc id', 'Test cloud connection id');
+INSERT INTO cloud_connection_vrf_ep VALUES (2, 2, 'Test 3', ' Test cloud 3');
+UNLOCK TABLES;
 -- Dump completed on 2018-09-27 21:40:49

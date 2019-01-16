@@ -154,6 +154,15 @@ sub main{
             $filename = "html_templates/denied.html";
             $title    = "Access Denied";
         }
+		case "add_entity" {
+			$filename 		= "html_templates/add_entity.html";
+            $current_breadcrumb = "Add Entity";
+			$title 			= "Add Entity";
+			$breadcrumbs	= [
+				{title	=> "Welcome",	url => "?action=welcome"},
+				{title	=> "Add Entity",	url	=> "#"}
+			];
+		}
         else {
             $filename = "html_templates/error.html"; 
             $title    = "Error";
