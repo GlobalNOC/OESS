@@ -100,10 +100,13 @@ sub get_entities {
     my $reqs = [];
     my $args = [];
 
-    my $where = 'where entity_hierarchy.entity_parent_id != 1';
+    my $where = '';
     if (defined $name) {
-        $where .= " and entity.name like ?";
+        $where .= " entity.name like ?";
         push @$args, "%$name%";
+    }
+    if (@$args > 0) {
+        $where = 'where' . $where;
     }
     warn "$where";
 

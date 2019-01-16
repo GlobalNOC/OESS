@@ -216,6 +216,7 @@ sub build_cache{
         $details->{'node_id'} = $details->{'node_id'};
 	$details->{'id'} = $details->{'node_id'};
         $details->{'name'} = $details->{'name'};
+	$details->{'short_name'} = $details->{'short_name'};
 	$details->{'ip'} = $details->{'ip'};
 	$details->{'vendor'} = $details->{'vendor'};
 	$details->{'model'} = $details->{'model'};
@@ -366,7 +367,7 @@ sub _write_cache{
 		    push(@$paths,{ name => 'PRIMARY',  
 				   mpls_path_type => 'loose',
 				   dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-				   dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}});
+				   dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'short_name'}});
 		}else{
 		    #ok so they specified a strict path... get the LSPs
 		    push(@$paths,{ name => 'PRIMARY', mpls_path_type => 'strict',
@@ -374,7 +375,7 @@ sub _write_cache{
 								 start => $ep_a->{'node'},
 								 end => $ep_z->{'node'}),
 				   dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-				   dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
+				   dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'short_name'}
 			 });
 		    
 		    my $backup = $ckt->get_mpls_path_type( path => 'backup');
@@ -383,7 +384,7 @@ sub _write_cache{
 			push(@$paths,{ name => 'SECONDARY', 
 				       mpls_path_type => 'loose',
 				       dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}});
+				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'short_name'}});
 		    }else{
 			push(@$paths,{ name => 'SECONDARY',
 				       mpls_path_type => 'strict',
@@ -391,13 +392,13 @@ sub _write_cache{
 								     start => $ep_a->{'node'},
 								     end => $ep_z->{'node'}),
 				       dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
+				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'short_name'}
 			     });
 			#our tertiary path...
 			push(@$paths,{ name => 'TERTIARY',
 				       dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
 				       mpls_path_type => 'loose',
-				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
+				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'short_name'}
 			     });
 		    }
 		}	
@@ -415,7 +416,7 @@ sub _write_cache{
 			paths => $paths,
 			ckt_type => $ckt_type,
 			site_id => $site_id,
-			a_side => $ep_a->{'node_id'},
+			a_side => $ep_a->{'short_name'},
                         state  => $ckt->{'state'}
                       };
 
