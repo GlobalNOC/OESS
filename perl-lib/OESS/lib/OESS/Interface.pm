@@ -68,6 +68,11 @@ sub from_hash{
 sub to_hash{
     my $self = shift;
 
+    my $acl_models = [];
+    foreach my $acl (@{$self->acls()}) {
+        push @$acl_models, $acl->to_hash();
+    }
+
     my $res = { name => $self->name(),
                 cloud_interconnect_id => $self->cloud_interconnect_id(),
                 cloud_interconnect_type => $self->cloud_interconnect_type(),
@@ -75,7 +80,7 @@ sub to_hash{
                 interface_id => $self->interface_id(),
                 node_id => $self->node()->node_id(),
                 node => $self->node()->name(),
-                acls => $self->acls()->to_hash(),
+                acls => $acl_models,
                 operational_state => $self->{'operational_state'} };
     
     return $res;
