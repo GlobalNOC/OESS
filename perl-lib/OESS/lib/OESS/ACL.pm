@@ -5,6 +5,8 @@ use warnings;
 
 package OESS::ACL;
 
+use OESS::DB::ACL;
+
 =head2 new
 
     my $acl = OESS::ACL->new(db => $db, interface_acl_id => 1);
@@ -14,16 +16,21 @@ or
     my $acl = OESS::ACL->new(
         db => $db,
         model => {
-            workgroup_id  => 1,
-            interface_id  => 1,
-            allow_deny    => 'allow',
-            eval_position => 10,
-            start         => 100,
-            end           => 120,
-            notes         => 'group 1-A',
-            entity_id     => 1
+            interface_acl_id => 1,           # Optional
+            workgroup_id     => 1,
+            interface_id     => 1,
+            allow_deny       => 'allow',
+            eval_position    => 10,
+            start            => 100,
+            end              => 120,
+            notes            => 'group 1-A',
+            entity_id        => 1
         }
     );
+
+new creates a new ACL object. When created with a model,
+C<interface_acl_id> may optionally be specified; This is useful if
+you've already queried the raw data from the database.
 
 =cut
 sub new {
