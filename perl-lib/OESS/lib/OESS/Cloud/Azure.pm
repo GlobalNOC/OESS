@@ -114,25 +114,156 @@ sub expressRouteCrossConnections {
 }
 
 
-
 sub expressRouteCrossConnection {
     my $self = shift;
     my $id = shift;
 
     my $http = $self->{connection}->{http};
-    my $resp = $http->get("https://management.azure.com/$id?api-version=2016-11-01");
+    my $resp = $http->get("https://management.azure.com/$id?api-version=2018-08-01");
+    return decode_json($resp->content);
+}
+
+
+sub add_peering {
+    my $self = shift;
+    my $id = shift;         # CrossConnectionId
+
+    my $payload = {
+        properties => {
+            peerASN => 3,
+            peeringType => 'AzurePrivatePeering',
+#            primaryPeerAddressPrefix => '192.168.16.252/30',
+#            secondaryPeerAddressPrefix => '192.168.18.252/30',
+            vlanId => 2032,
+            ipv6PeeringConfig => {
+                primaryPeerAddressPrefix => "3FFE:FFFF:0:CD30::/126",
+                secondaryPeerAddressPrefix => "3FFE:FFFF:0:CD30::4/126"
+            }
+        }
+    };
+
+    my $req = HTTP::Request->new("PUT", "https://management.azure.com$id/peerings/AzurePrivatePeering?api-version=2018-12-01");
+    $req->header("Content-Type" => "application/json");
+    $req->content(encode_json($payload));
+
+    my $http = $self->{connection}->{http};
+    my $resp = $http->request($req);
+    return decode_json($resp->content);
+}
+
+sub delete_peering {
+    my $self = shift;
+    my $peering_id = shift;
+    my $req = HTTP::Request->new("DELETE", "https://management.azure.com$peering_id/peerings/AzurePrivatePeering?api-version=2018-08-01");
+    $req->header("Content-Type" => "application/json");
+
+    my $http = $self->{connection}->{http};
+    my $resp = $http->request($req);
+    return decode_json($resp->content);
+}
+
+
+sub set_cross_connection_state_to_provisioning {
+    my $self = shift;
+    my $id = shift;         # CrossConnectionId
+    my $circuit_id = shift; # CircuitId
+
+    my $payload = {
+        id => $id,
+        properties => {
+            bandwidthInMbps => 50,
+            serviceProviderProvisioningState => 'Provisioning',
+            peeringLocation => 'Silicon Valley Test',
+            expressRouteCircuit => { id => $circuit_id },
+            peerings => [
+                {
+                    name => 'AzurePrivatePeering',
+                    properties => {
+                        peerASN => 3,
+                        primaryPeerAddressPrefix => '192.168.16.252/30',
+                        secondaryPeerAddressPrefix => '192.168.18.252/30',
+                        vlanId => 2032,
+                        ipv6PeeringConfig => {
+                            primaryPeerAddressPrefix => "3FFE:FFFF:0:CD30::/126",
+                            secondaryPeerAddressPrefix => "3FFE:FFFF:0:CD30::4/126"
+                        }
+                    }
+                }
+            ]
+        },
+        location => 'westus'
+    };
+
+    my $req = HTTP::Request->new("PUT", "https://management.azure.com/$id?api-version=2018-12-01");
+    $req->header("Content-Type" => "application/json");
+    $req->content(encode_json($payload));
+
+    my $http = $self->{connection}->{http};
+    my $resp = $http->request($req);
+
+    return decode_json($resp->content);
+}
+
+sub set_cross_connection_state_to_provisioned {
+    my $self = shift;
+    my $id = shift;         # CrossConnectionId
+    my $circuit_id = shift; # CircuitId
+
+    my $payload = {
+        id => $id,
+        properties => {
+            bandwidthInMbps => 50,
+            serviceProviderProvisioningState => 'Provisioned',
+            peeringLocation => 'Silicon Valley Test',
+            expressRouteCircuit => { id => $circuit_id }
+        },
+        location => 'westus'
+    };
+
+    my $req = HTTP::Request->new("PUT", "https://management.azure.com/$id?api-version=2018-12-01");
+    $req->header("Content-Type" => "application/json");
+    $req->content(encode_json($payload));
+
+    my $http = $self->{connection}->{http};
+    my $resp = $http->request($req);
+
     return decode_json($resp->content);
 }
 
 sub updateExpressRouteCrossConnectionState {
     my $self = shift;
-    my $id = shift;
+    my $id = shift;         # CrossConnectionId
+    my $circuit_id = shift; # CircuitId
     my $state = shift;
 
-    my $payload = { state => $state };
-    $payload = { serviceProviderProvisioningState => $state };
+    my $payload = {
+        id => $id,
+        properties => {
+            bandwidthInMbps => 50,
+            serviceProviderProvisioningState => $state,
+            peeringLocation => 'Silicon Valley Test',
+            expressRouteCircuit => { id => $circuit_id },
+            peerings => [
+                {
+                    name => 'AzurePrivatePeering',
+                    properties => {
+                        peerASN => 3,
+                        primaryPeerAddressPrefix => '192.168.16.252/30',
+                        secondaryPeerAddressPrefix => '192.168.18.252/30',
+                        vlanId => 2032
+                        # ipv6PeeringConfig => {
+                        #     primaryPeerAddressPrefix => "3FFE:FFFF:0:CD30::/126",
+                        #     secondaryPeerAddressPrefix => "3FFE:FFFF:0:CD30::4/126",
+                        #     state => 'Enabled'
+                        # }
+                    }
+                }
+            ]
+        },
+        location => 'westus'
+    };
 
-    my $req = HTTP::Request->new("PATCH", "https://management.azure.com/$id?api-version=2016-11-01");
+    my $req = HTTP::Request->new("PUT", "https://management.azure.com/$id?api-version=2018-12-01");
     $req->header("Content-Type" => "application/json");
     $req->content(encode_json($payload));
 
