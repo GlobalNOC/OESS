@@ -77,7 +77,8 @@ sub fetch {
     die 'Required argument `interface_acl_id` is missing.' if !defined $args->{interface_acl_id};
 
     my $acl = $args->{db}->execute_query(
-        "select * from interface_acl where interface_acl_id=?",
+        "select interface_acl_id, workgroup_id, interface_id, allow_deny, eval_position, vlan_start as start, vlan_end as end, notes, entity_id
+         from interface_acl where interface_acl_id=?",
         [$args->{interface_acl_id}]
     );
     return undef if (!defined $acl || !defined $acl->[0]);
@@ -128,12 +129,85 @@ sub fetch_all {
     my $where = (@$params > 0) ? 'where ' . join(' and ', @$params) : '';
 
     my $acls = $args->{db}->execute_query(
-        "select * from interface_acl $where",
+        "select interface_acl_id, workgroup_id, interface_id, allow_deny, eval_position, vlan_start as start, vlan_end as end, notes, entity_id
+         from interface_acl $where order by eval_position asc",
         $values
     );
     return [] if (!defined $acls);
 
     return $acls;
+}
+
+=head2 update
+
+    my $id = OESS::DB::ACL::update(
+        db => $db,
+        acl => {
+            interface_acl_id => 1,
+            workgroup_id     => 1,           # Optional
+            interface_id     => 1,           # Optional
+            allow_deny       => 'allow',     # Optional
+            eval_position    => 10,          # Optional
+            start            => 100,         # Optional
+            end              => 120,         # Optional
+            notes            => 'group 1-A', # Optional
+            entity_id        => 1            # Optional
+        }
+    );
+
+=cut
+sub update {
+    my $args = {
+        db  => undef,
+        acl => {},
+        @_
+    };
+
+    return if !defined $args->{acl}->{interface_acl_id};
+
+    my $params = [];
+    my $values = [];
+
+    if (defined $args->{acl}->{workgroup_id}) {
+        push @$params, 'workgroup_id=?';
+        push @$values, $args->{acl}->{workgroup_id};
+    }
+    if (defined $args->{acl}->{interface_id}) {
+        push @$params, 'interface_id=?';
+        push @$values, $args->{acl}->{interface_id};
+    }
+    if (defined $args->{acl}->{allow_deny}) {
+        push @$params, 'allow_deny=?';
+        push @$values, $args->{acl}->{allow_deny};
+    }
+    if (defined $args->{acl}->{eval_position}) {
+        push @$params, 'eval_position=?';
+        push @$values, $args->{acl}->{eval_position};
+    }
+    if (defined $args->{acl}->{start}) {
+        push @$params, 'vlan_start=?';
+        push @$values, $args->{acl}->{start};
+    }
+    if (defined $args->{acl}->{end}) {
+        push @$params, 'vlan_end=?';
+        push @$values, $args->{acl}->{end};
+    }
+    if (defined $args->{acl}->{notes}) {
+        push @$params, 'notes=?';
+        push @$values, $args->{acl}->{notes};
+    }
+    if (defined $args->{acl}->{entity_id}) {
+        push @$params, 'entity_id=?';
+        push @$values, $args->{acl}->{entity_id};
+    }
+
+    my $fields = join(', ', @$params);
+    push @$values, $args->{acl}->{interface_acl_id};
+
+    return $args->{db}->execute_query(
+        "UPDATE interface_acl SET $fields WHERE interface_acl_id=?",
+        $values
+    );
 }
 
 return 1;

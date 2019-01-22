@@ -137,8 +137,8 @@ sub from_hash {
     $self->{interface_id} = $hash->{interface_id};
     $self->{allow_deny} = $hash->{allow_deny};
     $self->{eval_position} = $hash->{eval_position};
-    $self->{start} = $hash->{vlan_start};
-    $self->{end} = $hash->{vlan_end};
+    $self->{start} = $hash->{start};
+    $self->{end} = $hash->{end};
     $self->{notes} = $hash->{notes};
     $self->{entity_id} = $hash->{entity_id};
 
@@ -169,9 +169,10 @@ sub to_hash {
 
 =head2 vlan_allowed
 
-vlan_allowed returns 1 if C<workgroup_id> is authorized to provision
-C<vlan> on C<< $self->{interface_id} >>. Otherwise this method returns
-0.
+vlan_allowed returns C<1> if C<workgroup_id> is authorized to
+provision C<vlan> on C<< $self->{interface_id} >>. Returns C<0> if
+C<workgroup_id> is explicitly denied access to C<vlan> on C<<
+$self->{interface_id} >>. Otherwise this method returns C<-1>.
 
 =cut
 sub vlan_allowed {
@@ -185,22 +186,41 @@ sub vlan_allowed {
     die 'Required argument `workgroup_id` is missing.' if !defined $args->{workgroup_id};
     die 'Required argument `vlan` is missing.' if !defined $args->{vlan};
 
-    my $workgroup_id = $args->{'workgroup_id'};
-    my $vlan = $args->{'vlan'};
-
     if ($self->{workgroup_id} != $args->{workgroup_id}) {
-        return 0;
+        # Implicit denial
+        return -1;
     }
 
-    if ($args->{vlan} > $self->{high} || $args->{vlan} < $self->{low}) {
-        return 0;
+    if ($args->{vlan} > $self->{end} || $args->{vlan} < $self->{start}) {
+        # Implicit denial
+        return -1;
     }
 
     if ($self->{allow_deny} eq 'deny') {
+        # Explicit denial
         return 0;
     }
 
+    # Selected workgroup_id, vlan range, and state is allow
     return 1;
+}
+
+=head2 update_db
+
+update_db writes this ACL to the database. If the C<<
+$self->{interface_acl_id} >> is not defined this call is delegated to
+C<< $self->create >>. Returns 1 on success.
+
+=cut
+sub update_db {
+    my $self = shift;
+
+    if (!defined $self->{interface_acl_id}) {
+        return $self->create();
+    }
+
+    my $acl = $self->to_hash();
+    return OESS::DB::ACL::update(db => $self->{db}, acl => $acl);
 }
 
 return 1;

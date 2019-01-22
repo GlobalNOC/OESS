@@ -387,18 +387,18 @@ sub update_acl {
     my $db2 = OESS::DB->new();
 
     my $original_acl = OESS::ACL->new(db => $db2, interface_acl_id => $acl_id);
-    warn Dumper($original_acl);
-
     my $acl = OESS::ACL->new(db => $db2, interface_acl_id => $acl_id);
+
     $acl->{workgroup_id}  = $args->{workgroup_id}{value};
+    $acl->{interface_id}  = $args->{interface_id}{value};
     $acl->{entity_id}     = $args->{entity_id}{value};
     $acl->{allow_deny}    = $args->{allow_deny}{value};
     $acl->{eval_position} = $args->{eval_position}{value};
     $acl->{start}         = $args->{vlan_start}{value};
     $acl->{end}           = $args->{vlan_end}{value};
     $acl->{notes}         = $args->{notes}{value};
-    warn Dumper($acl);
 
+    my $success = $acl->update_db();
 
 
     my $original_values =  get_acls($acl_id)->{'results'}[0];
@@ -409,23 +409,6 @@ sub update_acl {
         $original_workgroup_name = "All workgroups";
     }
 
-    my $original_interface_name = $db->get_interface(interface_id => $original_acl->{interface_id})->{name};
-
-
-    my $success = $db->update_acl(
-        interface_acl_id => $args->{"interface_acl_id"}{'value'},
-        workgroup_id     => $args->{"workgroup_id"}{'value'} || undef,
-        entity_id        => $args->{"entity_id"}{'value'} || undef,
-        interface_id     => $args->{"interface_id"}{'value'},
-        allow_deny       => $args->{"allow_deny"}{'value'},
-        eval_position    => $args->{"eval_position"}{'value'},
-        vlan_start       => $args->{"vlan_start"}{'value'},
-        vlan_end         => $args->{"vlan_end"}{'value'} || undef,
-        notes            => $args->{"notes"}{'value'} || undef,
-        user_id          => $user_id
-    );
-
-
     my $workgroup_name;
     if ($workgroup_id){
         $workgroup_name = $db->get_workgroup_by_id(workgroup_id => $acl->{workgroup_id})->{'name'};
@@ -433,15 +416,14 @@ sub update_acl {
         $workgroup_name = "All workgroups";
     }
 
+    my $original_interface_name = $db->get_interface(interface_id => $original_acl->{interface_id})->{name};
     my $interface_name = $db->get_interface(interface_id => $acl->{interface_id})->{'name'};
-
 
     if (!defined $success) {
         $logger->info("Failed to update acl with id $acl_id, at ". localtime() . " on $interface_name. Action was initiated by $username.");
         $method->set_error( $db->get_error() );
         return;
     }
-
 
     my $output_string = "Changed: ";
     if ($original_acl->{start} != $acl->{start}) {

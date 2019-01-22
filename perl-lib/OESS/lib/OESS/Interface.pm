@@ -309,10 +309,26 @@ sub vlan_valid{
         return 0;
     }
 
-    if(!$self->acls()->vlan_allowed( vlan => $vlan, workgroup_id => $workgroup_id)){
+    my $allow = 0;
+    foreach my $a (@{$self->acls}) {
+        my $ok = $a->vlan_allowed(workgroup_id => $workgroup_id, vlan => $vlan);
+        if ($ok == 1) {
+            $allow = 1;
+            last;
+        }
+        if ($ok == 0) {
+            # Because this rule explictly denies access to this vlan
+            # and there could be lower priority rule that may allow
+            # this vlan, we break from the for loop. This ensures the
+            # higher priority rule is respected.
+            $allow = 0;
+            last;
+        }
+    }
+    if (!$allow) {
         return 0;
     }
-    
+
     if(!defined($self->mpls_range()->{$vlan})){
         return 0;
     }
