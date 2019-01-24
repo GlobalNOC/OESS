@@ -2537,7 +2537,7 @@ sub _edit_config{
     );
 
     eval {
-        $self->{'logger'}->info("Calling edit_config: " . $queryargs{'config'});
+        $self->{'logger'}->debug("Calling edit_config: " . $queryargs{'config'});
         $self->{'jnx'}->edit_config(%queryargs);
 
         my $dom = $self->{'jnx'}->get_dom()->toString();
