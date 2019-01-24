@@ -1167,8 +1167,7 @@ sub get_config_to_remove{
 
     my $delete = "";
     my $ri_dels = "";
-    my $remove_cos = "<class-of-service>
-    <interfaces>";
+    my $remove_cos = "";
     my $xp = XML::LibXML::XPathContext->new($dom);
     my $cos_xp = XML::LibXML::XPathContext->new($dom);
 
@@ -1423,9 +1422,9 @@ sub get_config_to_remove{
 	$delete .= "<protocols><connections>" . $ris_dels . "</connections></protocols>";
     }
 
-    $remove_cos .= "</interfaces></class-of-service>";
-
-    $delete .= $remove_cos;
+    if ($remove_cos ne '') {
+        $delete .= "<class-of-service><interfaces>$remove_cos</interfaces></class-of-service>";
+    }
 
     return $delete;
 }
@@ -2538,7 +2537,7 @@ sub _edit_config{
     );
 
     eval {
-        $self->{'logger'}->info("Calling edit_config: " . $queryargs{'config'});
+        $self->{'logger'}->debug("Calling edit_config: " . $queryargs{'config'});
         $self->{'jnx'}->edit_config(%queryargs);
 
         my $dom = $self->{'jnx'}->get_dom()->toString();
