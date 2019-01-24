@@ -5,8 +5,10 @@ use warnings;
 
 package OESS::DB::Interface;
 
-use OESS::Node;
+use OESS::DB::ACL;
+
 use OESS::ACL;
+use OESS::Node;
 
 use Data::Dumper;
 
@@ -27,8 +29,13 @@ sub fetch{
 
     $interface = $interface->[0];
 
-    my $acls = OESS::ACL->new( db => $db, interface_id => $interface_id);
-    
+    my $acl_models = OESS::DB::ACL::fetch_all(db => $db, interface_id => $interface_id);
+    my $acls = [];
+    foreach my $model (@$acl_models) {
+        my $acl = OESS::ACL->new(db => $db, model => $model);
+        push @$acls, $acl;
+    }
+
     my $node = OESS::Node->new( db => $db, node_id => $interface->{'node_id'});
 
     my $in_use = OESS::DB::Interface::vrf_vlans_in_use(db => $db, interface_id => $interface_id );

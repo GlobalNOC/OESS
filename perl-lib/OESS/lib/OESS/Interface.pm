@@ -68,6 +68,11 @@ sub from_hash{
 sub to_hash{
     my $self = shift;
 
+    my $acl_models = [];
+    foreach my $acl (@{$self->acls()}) {
+        push @$acl_models, $acl->to_hash();
+    }
+
     my $res = { name => $self->name(),
                 cloud_interconnect_id => $self->cloud_interconnect_id(),
                 cloud_interconnect_type => $self->cloud_interconnect_type(),
@@ -75,7 +80,7 @@ sub to_hash{
                 interface_id => $self->interface_id(),
                 node_id => $self->node()->node_id(),
                 node => $self->node()->name(),
-                acls => $self->acls()->to_hash(),
+                acls => $acl_models,
                 operational_state => $self->{'operational_state'} };
     
     return $res;
@@ -304,10 +309,26 @@ sub vlan_valid{
         return 0;
     }
 
-    if(!$self->acls()->vlan_allowed( vlan => $vlan, workgroup_id => $workgroup_id)){
+    my $allow = 0;
+    foreach my $a (@{$self->acls}) {
+        my $ok = $a->vlan_allowed(workgroup_id => $workgroup_id, vlan => $vlan);
+        if ($ok == 1) {
+            $allow = 1;
+            last;
+        }
+        if ($ok == 0) {
+            # Because this rule explictly denies access to this vlan
+            # and there could be lower priority rule that may allow
+            # this vlan, we break from the for loop. This ensures the
+            # higher priority rule is respected.
+            $allow = 0;
+            last;
+        }
+    }
+    if (!$allow) {
         return 0;
     }
-    
+
     if(!defined($self->mpls_range()->{$vlan})){
         return 0;
     }
