@@ -115,6 +115,15 @@ sub main{
                 {title => "Private network details", url => "#"}
             ];
         }
+        case "view_l2vpn" {
+            $title              = "L2VPN Details";
+            $filename           = "html_templates/view_l2vpn.html";
+            $current_breadcrumb = "L2VPN Details";
+            $breadcrumbs        = [
+                {title => "Welcome",       url => "?action=welcome"},
+                {title => "L2VPN Details", url => "#"}
+            ];
+        }
         case "provision_cloud" {
             $title              = "New cloud network";
             $filename           = "html_templates/provision_cloud.html";
