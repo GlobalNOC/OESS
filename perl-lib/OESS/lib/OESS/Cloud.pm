@@ -7,6 +7,7 @@ use Exporter;
 use Log::Log4perl;
 
 use OESS::Cloud::AWS;
+use OESS::Cloud::Azure;
 use OESS::Cloud::GCP;
 use OESS::Config;
 
@@ -130,6 +131,25 @@ sub setup_endpoints {
             $ep->cloud_connection_id($connection_id);
             push @$result, $ep;
 
+        } elsif ($ep->interface()->cloud_interconnect_type eq 'azure-express-route') {
+            $logger->info("Adding cloud interconnect of type azure-express-route.");
+            my $azure = OESS::Cloud::Azure->new();
+
+            my $conn = $azure->expressRouteCrossConnection($ep->interface()->cloud_interconnect_id, $ep->cloud_account_id);
+            my $res = $azure->set_cross_connection_state_to_provisioned(
+                interconnect_id  => $ep->interface()->cloud_interconnect_id,
+                service_key      => $ep->cloud_account_id,
+                circuit_id       => $conn->{properties}->{expressRouteCircuit}->{id},
+                region           => $conn->{location},
+                peering_location => $conn->{properties}->{peeringLocation},
+                bandwidth        => $conn->{properties}->{bandwidthInMbps},
+                vlan             => $ep->tag
+            );
+            $ep->cloud_connection_id($res->{id});
+            $ep->inner_tag($ep->tag);
+            $ep->tag($conn->{properties}->{sTag});
+            push @$result, $ep;
+
         } else {
             $logger->warn("Cloud interconnect type is not supported.");
             push @$result, $ep;
@@ -186,6 +206,24 @@ sub cleanup_endpoints {
             my $res = $gcp->delete_interconnect_attachment(
                 interconnect_id => $interconnect_id,
                 connection_id => $connection_id
+            );
+
+        } elsif ($ep->interface()->cloud_interconnect_type eq 'azure-express-route') {
+            my $azure = OESS::Cloud::Azure->new();
+
+            my $interconnect_id = $ep->interface()->cloud_interconnect_id;
+            my $service_key = $ep->cloud_account_id;
+
+            $logger->info("Removing azure-express-route $service_key from $interconnect_id.");
+            my $conn = $azure->expressRouteCrossConnection($interconnect_id, $service_key);
+            my $res = $azure->set_cross_connection_state_to_not_provisioned(
+                interconnect_id  => $interconnect_id,
+                service_key      => $service_key,
+                circuit_id       => $conn->{properties}->{expressRouteCircuit}->{id},
+                region           => $conn->{location},
+                peering_location => $conn->{properties}->{peeringLocation},
+                bandwidth        => $conn->{properties}->{bandwidthInMbps},
+                vlan             => $ep->tag
             );
 
         } else {
