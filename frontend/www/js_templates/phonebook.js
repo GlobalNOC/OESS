@@ -51,6 +51,9 @@ async function addToConnectionCancelCallback() {
 async function loadEntityList(parentEntity=null) {
     let entity = await getEntities(session.data.workgroup_id, parentEntity);
     let entitiesList = document.querySelector('#entity-list');
+ 
+    let edit_entity_btn = document.querySelector('#edit-entity');
+    edit_entity_btn.style.display = 'none';
 
     let logoURL = entity.logo_url || '../media/default_entity.png';
     let description = entity.description;
@@ -170,4 +173,21 @@ async function loadEntityList(parentEntity=null) {
             entityContacts += `<p class="entity-contact"><b>${contact.first_name} ${contact.last_name}</b><br/>${contact.email}</p>`;
     });
     document.querySelector('#entity-contacts').innerHTML = entityContacts;
+
+    let user = await getCurrentUser();
+    let url2 = `[% path %]services/entity.cgi?action=get_valid_users&entity_id=${entityID}`;
+    const resp = await fetch(url2, {method: 'get', credentials: 'include'}); 
+    const data = await resp.json();
+    if (data.results.includes(user.user_id)){
+          let edit_entity_btn = document.querySelector('#edit-entity');
+          edit_entity_btn.style.display = 'block';
+          edit_entity_btn.onclick = function(){
+          window.location.href = `[% path %]new/index.cgi?action=edit_entity&entity_id=${entityID}`;
+        };
+   
+   }
+
+
 }
+
+

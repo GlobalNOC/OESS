@@ -107,6 +107,20 @@ sub register_ro_methods{
         description     => "The workgroup id to find the ACLs for the entity"   );
 
     $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new(
+        name            => "get_valid_users",
+        description     => "returns a JSON object representing all valid user for given entity",
+        callback        => sub { get_valid_users(@_) }
+    );
+    $method->add_input_parameter(
+        name            => 'entity_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "The entity id to find the users the entity"
+    );
+    $svc->register_method($method);
+
 }
 
 sub register_rw_methods{
@@ -596,7 +610,19 @@ sub get_entity{
     
 }
 
+sub get_valid_users{
+    my $method = shift;
+    my $params = shift;
 
+    my $entity_id = $params->{'entity_id'}{'value'};
+    my $users = $db->execute_query("SELECT user_id from user_entity_membership WHERE entity_id =$entity_id"); 
+    my @res;
+    my @users;
+    foreach my $var  (@$users){
+        push(@res, $var->{'user_id'});
+    }    
+    return {results => \@res}; 
+}
 
 sub main{
     register_ro_methods();

@@ -24,44 +24,28 @@
     [% INCLUDE js_templates/api/vlan.js %]
     [% INCLUDE js_templates/api/interfaces.js  %]
     [% INCLUDE js_templates/api/validateIP.js  %]
-    [% INCLUDE js_templates/provision_cloud.js  %]
+    [% INCLUDE js_templates/api/entity.js %]
+    [% INCLUDE js_templates/entity.js %]
   </script>
-
-  [% INCLUDE html_templates/provision_cloud/EndpointSelectionModal.html %]
-
-  <div class="modal fade" role="dialog" tabindex="-1" id="add-network-loading">
-    <div class="modal-dialog" role="document">
-      <div class="modal-content" style="text-align: center;">
-        <img src="[% path %]media/loading.gif" width="200px;"/>
-        <p>Give us just a few seconds. We're in process of provisioning your network now.</p>
-        <br/>
-      </div>
-    </div>
-  </div>
-
-  <div class="row">
-    <div class="col-md-6">
-      <h1>New Entity</h1>
-      <div class="form-group">
-        <label class="control-label">Entity Name</label><input id="entity_name" class="form-control" type="text" >
-        <label class="control-label">Description</label><input id="description" class="form-control" type="text" >
-        <label class="control-label">Logo URL</label><input id="logo_url" class="form-control" type="text" >
-        <label class="control-label">URL</label><input id="logo_url" class="form-control" type="text" >
-      </div>
-    </div>
-  </div>
   <div class="row">
     <div class="col-md-6">
       <h1>Edit Entity</h1>
-      <div class="form-group">
-        <label class="control-label">Entity Name</label><input id="entity_name" class="form-control" type="text" >
-        <label class="control-label">Description</label><input id="description" class="form-control" type="text" >
-        <label class="control-label">Logo URL</label><input id="logo_url" class="form-control" type="text" >
-        <label class="control-label">URL</label><input id="logo_url" class="form-control" type="text" >
-      </div>
+      <form>
+        <div class="form-group">
+          <label class="control-label">Edit Entity Name</label><input id="entity-name" class="form-control" type="text" >
+          <label class="control-label">Edit Description</label><input id="description" class="form-control" type="text" >
+          <label class="control-label">Edit Logo URL</label><input id="logo-url" class="form-control" type="text" >
+          <label class="control-label">Edit URL</label><input id="entity-url" class="form-control" type="text" >
+        </div>
+         <button id="edit-entity-btn" class="btn btn-success" type="button">Edit Entity</button>
+         <button id="cancel-edit-entity" class="btn btn-danger" type="button">Cancel</button>
+      </form>
     </div>
   </div>
 
+  <div>
+     
+  </div>
 <!--
   <div class="row">
     <div class="col-md-3" style="padding-bottom: 15px;">

@@ -6,20 +6,28 @@ use Log::Log4perl;
 use OESS::DB;
 use Data::Dumper;
 use Test::Deep;
-
-
+use FindBin;
+use OESS::ACL;
 # Initialize logging
 Log::Log4perl->init("/etc/oess/logging.conf");
 
-# Initialize DB
-my $db = OESS::DB->new();
+my $cwd;
 
+BEGIN {
+    if($FindBin::Bin =~ /(.*)/){
+    $cwd = $1;
+    }
+}
+
+# Initialize DB
+my $db = OESS::DB->new(config => "$cwd/conf/database.xml");
 my $interface_id = 391;
 
 # Initialize instance of interfaceusing interface id
 my $interface = OESS::Interface->new(	db 	=> $db,
 					interface_id => $interface_id
 						);
+
 ok(defined($interface)
 	,"Object  of type interface initiated");
 $query = "SELECT * FROM interface where interface_id=".$interface_id;
@@ -71,11 +79,10 @@ cmp_deeply($interface->mpls_vlan_tag_range(), '1-10'
 ### Test : used_vlans ###
 cmp_deeply($interface->used_vlans(),
 	[
-          391
+          3
         ], "The method used_vlans() returns expected output");
-
 ## Test : vlan_in_use ###
-my $test1 = $interface->vlan_in_use(391);
+my $test1 = $interface->vlan_in_use(3);
 my $test2 = not $interface->vlan_in_use(5555);
 ok($test1 eq 1,"The method vlan_in_use() does return 1 if vlan is present" );
 
@@ -96,11 +103,13 @@ cmp_deeply($interface->mpls_range(),
           '5' => 1
         },"The method mpls_range() returns expected results");
 ### Test : vlan_valid ###
+$used_vlans = $interface->used_vlans();
 $test1 = $interface->vlan_in_use("1234");
 $test2 = not $interface->vlan_in_use(@$used_vlans[0]);
-ok ($interface->vlan_valid(vlan=>3,workgroup_id=>11) eq 1,"The method vlan_valid() does return expected result");
+
+ok ($interface->vlan_valid(vlan=>10,workgroup_id=>11) eq 1,"The method vlan_valid() does return expected result");
 ok($interface->vlan_valid(vlan=>10000,workgroup_id=>11) eq 0, "The method vlan_valid() returns expected result when vlan is out of vlan range");
-ok($interface->vlan_valid(vlan=>391,workgroup_id=>11) eq 0, "The method vlan_valid() returns expected result when vlan 391 is in use");
+ok($interface->vlan_valid(vlan=>3,workgroup_id=>241) eq 0, "The method vlan_valid() returns expected result when vlan 391 is in use");
 ok($interface->vlan_valid(vlan=>3,workgroup_id=>123)eq 0 , "The method vlan_valid() returns expected result when vlan is not_allowed");
 ok($interface->vlan_valid(vlan=>40,workgroup_id=>11) eq 0," The method vlan_valid() returns expected result when vlan is out of mpls_range");
 
@@ -127,16 +136,16 @@ cmp_deeply($interface->{'acls'}->{'acls'},
             'end' => 4095,
             'start' => 1
           }
-        ], "The object interface 391 has expect list of acls");
+        ], "The object interface 391 has expected list of acls");
 
 ok($interface->{'mpls_vlan_tag_range'} eq '1-10', "The tag range defined for interface 391 is correct");
 my $flag = 0;
 foreach my $i ( @{$interface->{'used_vlans'}}){
-	if ($i == 391){
+	if ($i == 3){
 		$flag= 1;
 	}
 }
-ok($flag == 1, "Vlan 391 is in use by the interface object");
+ok($flag == 1, "Vlan 3 is in use by the interface object");
 
 
 $flag =1;
