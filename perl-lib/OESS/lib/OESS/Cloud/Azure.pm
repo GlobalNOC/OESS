@@ -17,9 +17,9 @@ The credentials for each interconnect must be defined under the
 C<cloud> tag in C</etc/oess/database.xml>. Valid interconnect types
 for Azure connections are C<azure-express-route>.
 
-The C<interconnect_id> should be the name of the associated Azure
-ResourceGroup that represents the physical connection. Listed under
-the provider subscription's Resource groups.
+The C<interconnect_id> should be the name of the associated Azure port
+that represents the physical connection. Listed under the provider
+subscription's Resource groups.
 
 C<subscription_id> is the Azure Subscription ID of the provider's
 account as shown under Subscriptions.
@@ -34,12 +34,13 @@ C<tenant_id> is the Azure Directory (tenant) ID as shown under App
 registrations (Preview). There should be just one per organization.
 
     <!-- azure-express-route -->
-    <connection region="us-east"
-                interconnect_type="azure-express-route"
-                interconnect_id="CrossConnection-SiliconValleyTest"
-                subscription_id="00000000-0000-0000-0000-000000000000"
-                client_id="00000000-0000-0000-0000-000000000000"
+    <connection client_id="00000000-0000-0000-0000-000000000000"
                 client_secret="..."
+                interconnect_type="azure-express-route"
+                interconnect_id="ProviderTest-SJC-TEST-06GMR-CIS-1-PRI-A"
+                region="us-east"
+                resource_group="CrossConnection-SiliconValleyTest"
+                subscription_id="00000000-0000-0000-0000-000000000000"
                 tenant_id="00000000-0000-0000-0000-000000000000"
                 workgroup="Azure" />
 
@@ -165,9 +166,10 @@ sub expressRouteCrossConnections {
 
     my $conn = $self->{connections}->{$interconnect_id};
     my $sub  = $conn->{subscription_id};
+    my $group = $conn->{resource_group};
 
     my $api_response = $conn->{http}->get(
-        "https://management.azure.com/subscriptions/$sub/resourceGroups/$interconnect_id/providers/Microsoft.Network/expressRouteCrossConnections/?api-version=2018-12-01"
+        "https://management.azure.com/subscriptions/$sub/resourceGroups/$group/providers/Microsoft.Network/expressRouteCrossConnections/?api-version=2018-12-01"
     );
 
     my $api_data = decode_json($api_response->content);
@@ -190,10 +192,11 @@ sub expressRouteCrossConnection {
     my $service_key     = shift;
 
     my $conn = $self->{connections}->{$interconnect_id};
-    my $sub  = $conn->{subscription_id};
+    my $sub = $conn->{subscription_id};
+    my $group = $conn->{resource_group};
 
     my $resp = $conn->{http}->get(
-        "https://management.azure.com/subscriptions/$sub/resourceGroups/$interconnect_id/providers/Microsoft.Network/expressRouteCrossConnections/$service_key?api-version=2018-12-01"
+        "https://management.azure.com/subscriptions/$sub/resourceGroups/$group/providers/Microsoft.Network/expressRouteCrossConnections/$service_key?api-version=2018-12-01"
     );
     return decode_json($resp->content);
 }
@@ -209,7 +212,10 @@ sub expressRouteCrossConnection {
         region           => $conn->{location},
         peering_location => $conn->{properties}->{peeringLocation},
         bandwidth        => $conn->{properties}->{bandwidthInMbps},
-        vlan             => $vlan
+        vlan             => $vlan,
+        local_asn        => $asn,
+        primary_prefix   => $slash30_a,
+        secondary_prefix => $slash30_b
     );
 
 set_cross_connection_state_to_provisioned sets the
@@ -228,16 +234,20 @@ sub set_cross_connection_state_to_provisioned {
         peering_location => undef,
         bandwidth        => undef,
         vlan             => undef,
+        local_asn        => undef,
+        primary_prefix   => undef,
+        secondary_prefix => undef,
         @_
     };
 
     my $conn = $self->{connections}->{$args->{interconnect_id}};
-    my $sub  = $conn->{subscription_id};
+    my $sub = $conn->{subscription_id};
+    my $group = $conn->{resource_group};
 
-    my $url = "https://management.azure.com/subscriptions/$sub/resourceGroups/$args->{interconnect_id}/providers/Microsoft.Network/expressRouteCrossConnections/$args->{service_key}?api-version=2018-12-01";
+    my $url = "https://management.azure.com/subscriptions/$sub/resourceGroups/$group/providers/Microsoft.Network/expressRouteCrossConnections/$args->{service_key}?api-version=2018-12-01";
 
     my $payload = {
-        id => "/subscriptions/$sub/resourceGroups/$args->{interconnect_id}/providers/Microsoft.Network/expressRouteCrossConnections/$args->{service_key}",
+        id => "/subscriptions/$sub/resourceGroups/$group/providers/Microsoft.Network/expressRouteCrossConnections/$args->{service_key}",
         properties => {
             bandwidthInMbps => $args->{bandwidth},
             serviceProviderProvisioningState => 'Provisioned',
@@ -247,9 +257,9 @@ sub set_cross_connection_state_to_provisioned {
                 {
                     name => 'AzurePrivatePeering',
                     properties => {
-                        peerASN => 55038,
-                        primaryPeerAddressPrefix => '192.168.16.252/30',
-                        secondaryPeerAddressPrefix => '192.168.18.252/30',
+                        peerASN => $args->{local_asn},
+                        primaryPeerAddressPrefix => $args->{primary_prefix},
+                        secondaryPeerAddressPrefix => $args->{secondary_prefix},
                         vlanId => $args->{vlan},
                         # NOTE: private ipv6 peerings not supported by azure
                         # ipv6PeeringConfig => {
@@ -310,12 +320,13 @@ sub set_cross_connection_state_to_not_provisioned {
     };
 
     my $conn = $self->{connections}->{$args->{interconnect_id}};
-    my $sub  = $conn->{subscription_id};
+    my $sub = $conn->{subscription_id};
+    my $group = $conn->{resource_group};
 
-    my $url = "https://management.azure.com/subscriptions/$sub/resourceGroups/$args->{interconnect_id}/providers/Microsoft.Network/expressRouteCrossConnections/$args->{service_key}?api-version=2018-12-01";
+    my $url = "https://management.azure.com/subscriptions/$sub/resourceGroups/$group/providers/Microsoft.Network/expressRouteCrossConnections/$args->{service_key}?api-version=2018-12-01";
 
     my $payload = {
-        id => "/subscriptions/$sub/resourceGroups/$args->{interconnect_id}/providers/Microsoft.Network/expressRouteCrossConnections/$args->{service_key}",
+        id => "/subscriptions/$sub/resourceGroups/$group/providers/Microsoft.Network/expressRouteCrossConnections/$args->{service_key}",
         properties => {
             bandwidthInMbps => $args->{bandwidth},
             serviceProviderProvisioningState => 'NotProvisioned',
@@ -332,6 +343,34 @@ sub set_cross_connection_state_to_not_provisioned {
 
     my $resp = $conn->{http}->request($req);
     return decode_json($resp->content);
+}
+
+=head2 get_port_sibling
+
+     my $sibling = get_port_sibling('Internet2Test-AAA-AAAA-06AAA-AAA-1-PRI-A');
+
+get_azure_port_sibling returns the name of C<$interconnect_id>'s
+sibling port. Sibling is determined by the interconnect's
+resource_group as defined in the oess config.
+
+=cut
+sub get_port_sibling {
+    my $self = shift;
+    my $interconnect_id = shift;
+
+    my $resource_group = $self->{connections}->{$interconnect_id}->{resource_group};
+    foreach my $key (keys %{$self->{connections}}) {
+        if ($key eq $interconnect_id) {
+            next;
+        }
+
+        my $v = $self->{connections}->{$key};
+        if ($v->{resource_group} eq $resource_group) {
+            return $v->{interconnect_id};
+        }
+    }
+
+    return undef;
 }
 
 =head2 subscriptions
@@ -378,6 +417,42 @@ sub allExpressRouteCrossConnections {
 
     my $api_data = decode_json($api_response->content);
     return $api_data;
+}
+
+=head2 get_cross_connection_by_id
+
+get_cross_connection_by_id very slowly gets an Azure CrossConnection
+by ID (Microsoft doesn't provide a better method of doing this).
+
+The result includes C<properties.primaryAzurePort> and
+C<properties.secondaryAzurePort>. These may be used to lookup the
+physical connections associated with the ExpressRoute Circuit.
+
+=cut
+sub get_cross_connection_by_id {
+    my $self = shift;
+    my $interconnect_id = shift;
+    my $service_key = shift;
+
+    my $conn = $self->{connections}->{$interconnect_id};
+    my $sub  = $conn->{subscription_id};
+
+    my $api_response = $conn->{http}->get(
+        "https://management.azure.com/subscriptions/$sub/providers/Microsoft.Network/expressRouteCrossConnections/?api-version=2018-12-01"
+    );
+    my $api_data = decode_json($api_response->content);
+
+    foreach my $v (@{$api_data->{value}}) {
+        if ($v->{name} eq $service_key) {
+            $api_response = $conn->{http}->get(
+                "https://management.azure.com/$v->{id}/?api-version=2018-12-01"
+            );
+            $api_data = decode_json($api_response->content);
+            return $api_data;
+        }
+    }
+
+    return undef;
 }
 
 return 1;
