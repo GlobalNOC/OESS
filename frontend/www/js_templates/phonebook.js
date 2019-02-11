@@ -11,7 +11,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
   let addToConnectionCancel = document.querySelector('#add-to-connection-cancel');
   addToConnectionCancel.addEventListener('click', addToConnectionCancelCallback);
+
+
+  let user_list = document.querySelector('#user-list');
+  document.addEventListener("click", (e) => {
+    const user_list = document.getElementById("user-list");
+    const dropdown_btn = document.getElementById("dropdown-btn");
+    const user_search = document.getElementById("user-search");
+    //console.log(user_list.classList.contains("show"));
+    let targetElement = e.target;
+    console.log(targetElement != user_list);
+    if (targetElement != dropdown_btn
+         && targetElement != user_search
+         && user_list.classList.contains("show"))
+      {
+        user_list.classList.toggle("show");
+      }
 });
+
+ });
 
 // Called when the 'Add to existing Connection' button is
 // pressed. Presents the user with a list of all connections to which
@@ -54,9 +72,11 @@ async function loadEntityList(parentEntity=null) {
  
     let edit_entity_btn = document.querySelector('#edit-entity');
     let add_user_btn = document.querySelector('#user-dropdown');
+    let user_list = document.querySelector('#user-list');
 
     edit_entity_btn.style.display = 'none';
     add_user_btn.style.display = 'none';
+
 
     let logoURL = entity.logo_url || '../media/default_entity.png';
     let description = entity.description;
@@ -179,8 +199,8 @@ async function loadEntityList(parentEntity=null) {
     let entityContacts = '';
     let contact_ids = [];
     entity.contacts.forEach(function(contact) {
-            console.log("contact");
-            console.log(contact);
+            //console.log("contact");
+            //console.log(contact);
             var user_id = contact.user_id;
             contact_ids.push(user_id);
 	    entityContacts += `<p class="entity-contact"><b>${contact.first_name} ${contact.last_name}</b>`;
@@ -194,19 +214,28 @@ async function loadEntityList(parentEntity=null) {
 
     if (valid_users.includes(user.user_id)){
           let edit_entity_btn = document.querySelector('#edit-entity');
-          edit_entity_btn.style.display = 'inline-block';
+          edit_entity_btn.style.display = 'block';
           edit_entity_btn.onclick = function(){
             window.location.href = `[% path %]new/index.cgi?action=edit_entity&entity_id=${entityID}`;
           };
 
           let user_list = document.querySelector('#user-list');
           user_list.innerHTML ="";
+          var search = document.createElement("INPUT");
+          search.setAttribute('type','text');
+          search.onkeyup = function () { filterFunction()};
+          search.id = "user-search";
+          search.placeholder = "Search...";
+          user_list.appendChild(search);
+
+          //var search = document.getElementById("user-search");
+          //search.style.display ='block';
           add_user_btn.style.display = 'block';
           let users_url = `[% path %]services/data.cgi?action=get_users`;
           const users_resp = await fetch(users_url, {method:'get', credentials:'include'});
           var users = await users_resp.json();
           users = users['results'];
-          console.log(users);
+          //console.log(users);
           let i =0;
           for (i =0 ; i < users.length; i++){
             var ele = document.createElement("A");
@@ -216,7 +245,6 @@ async function loadEntityList(parentEntity=null) {
               var t = document.createTextNode(users[i]['first_name'] + " "  +users[i]['family_name']);
               ele.appendChild(t);
               user_list.appendChild(ele);
-              console.log(users[i]['first_name']);
             }
           }
    }
@@ -247,7 +275,6 @@ async function add_user(user_id, entityID){
   const url = `[% path %]services/entity.cgi?action=add_user&entity_id=${entityID}&user_id=${user_id}`;
   const response = await fetch(url, {method:'get', credentials:'include'});
   const data = await response.json();
-  console.log(data);
   await loadEntityList(entityID);
  }
 

@@ -14,9 +14,9 @@
 			background-color: #3e8e41;
 		}
 
-		#myInput {
+		#user-search {
 			border-box: box-sizing;
-			background-image: url('searchicon.png');
+                        background-image: url('../media/baseline_search_black_18dp.png');
 			background-position: 14px 12px;
 			background-repeat: no-repeat;
 			font-size: 16px;
@@ -25,11 +25,11 @@
 			border-bottom: 1px solid #ddd;
 		}
 
-		#myInput:focus {outline: 3px solid #ddd;}
+		#user-list:focus {outline: 3px solid #ddd;}
 
 		.dropdown {
 			position: relative;
-			display: inline-block;
+			display: block;
 		}
 
 		.dropdown-content {
@@ -121,9 +121,8 @@
       <div id="entity-contacts" class="entity-contacts">
       </div>
       <div id="user-dropdown" class="dropdown" style="margin-bottom: 5px">
-        <button onclick="showDropdown()" class="dropbtn button btn btn-primary">Add Contacts</button>
+        <button id="dropdown-btn" onclick="showDropdown()" class="dropbtn button btn btn-primary">Add Contacts</button>
           <div id="user-list" class="dropdown-content">
-            <input type="text" placeholder="Search.." id="user-search" onkeyup="filterFunction()">
           </div>
       </div> 
       <!--
