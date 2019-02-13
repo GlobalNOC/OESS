@@ -52,7 +52,7 @@ sub build_header{
 
     if(!defined($header->{'correlationId'})){
         my $ug = Data::UUID->new;
-        $header->{'correlationId'} = "urn:uuid:" . $ug->to_string($ug->create());
+        $header->{'correlationId'} = "urn:uuid:" . lc($ug->to_string($ug->create()));
     }
 
     if(!defined($header->{'requesterNSA'})){
