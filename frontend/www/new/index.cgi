@@ -166,7 +166,17 @@ sub main{
                 {title	=> "Welcome",	url => "?action=welcome"},
                 {title	=> "Edit Entity",	url	=> "#"}
             ];
-        }       else {
+        }
+        case "add_entity" {
+            $filename           = "html_templates/add_entity.html";
+            $current_breadcrumb = "Add Entity";
+            $title              = "Add Entity";
+            $breadcrumbs        = [
+                {title  => "Welcome",   url => "?action=welcome"},
+                {title  => "Add Entity",       url     => "#"}
+            ];
+        } 
+	else {
             $filename = "html_templates/error.html"; 
             $title    = "Error";
         }
