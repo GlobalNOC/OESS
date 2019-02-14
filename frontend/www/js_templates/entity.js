@@ -24,13 +24,13 @@ async function loadEntityContent(parentEntity=null, action){
     }
 
    if (action == "edit_entity"){
-      document.querySelector('#edit-entity-btn').onclick = function(){
-      edit_entity(entity.entity_id);
       entity_name.value	= entity.name;
       description.value	= entity.description;
       logo_url.value	= entity.logo_url;
       entity_url.value	= entity.url;
-     };
+      document.querySelector('#edit-entity-btn').onclick = function(){
+        edit_entity(entity.entity_id);
+           };
     }
     document.querySelector('#cancel').onclick = function(){
         window.location.href = `[% path %]new/index.cgi?action=phonebook&entity_id=${entity.entity_id}`;
