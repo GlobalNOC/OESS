@@ -10,8 +10,18 @@ class CircuitHeader extends Component {
     ]);
 
     return `
-<h2>${circuit.description} <small>${circuit.circuit_id}</small></h2>
-<hr/>
+<div class="col-sm-6">
+  <h2>${circuit.description} <small>${circuit.circuit_id}</small></h2>
+</div>
+
+<div class="col-sm-6" style="text-align: right; padding-top: 23px;">
+  <button class="btn-sm btn-success" type="button" onclick="">
+    <span class="glyphicon glyphicon-floppy-disk"></span> Save
+  </button>
+  <button class="btn-sm btn-danger" type="button" onclick="">
+    <span class="glyphicon glyphicon-trash"></span> Delete
+  </button>
+</div>
 `;
   }
 }
