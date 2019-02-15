@@ -7,6 +7,7 @@ use Exporter;
 use Log::Log4perl;
 
 use OESS::Cloud::AWS;
+use OESS::Cloud::Azure;
 use OESS::Cloud::GCP;
 use OESS::Config;
 
@@ -130,6 +131,55 @@ sub setup_endpoints {
             $ep->cloud_connection_id($connection_id);
             push @$result, $ep;
 
+        } elsif ($ep->interface()->cloud_interconnect_type eq 'azure-express-route') {
+            $logger->info("Adding cloud interconnect of type azure-express-route.");
+            my $azure = OESS::Cloud::Azure->new();
+            my $peer1 = $ep->peers->[0];
+            $peer1->local_ip('192.168.100.249/30');
+            $peer1->peer_ip('192.168.100.250/30');
+            $peer1->peer_asn(12076);
+
+            my $conn = $azure->expressRouteCrossConnection($ep->interface()->cloud_interconnect_id, $ep->cloud_account_id);
+            my $res = $azure->set_cross_connection_state_to_provisioned(
+                interconnect_id  => $ep->interface()->cloud_interconnect_id,
+                service_key      => $ep->cloud_account_id,
+                circuit_id       => $conn->{properties}->{expressRouteCircuit}->{id},
+                region           => $conn->{location},
+                peering_location => $conn->{properties}->{peeringLocation},
+                bandwidth        => $conn->{properties}->{bandwidthInMbps},
+                vlan             => $ep->tag,
+                local_asn        => 55038,
+                primary_prefix   => '192.168.100.248/30',
+                secondary_prefix => '192.168.100.252/30'
+            );
+            $ep->cloud_connection_id($res->{id});
+            $ep->inner_tag($ep->tag);
+            $ep->tag($conn->{properties}->{sTag});
+            push @$result, $ep;
+
+            # Azure ExpressRoute Circuits expect two physical endpoints.
+            my $interconnect_id2 = $azure->get_port_sibling($ep->interface()->cloud_interconnect_id);
+
+            my $intfs = OESS::DB::Interface::get_interfaces(db => $ep->{db}, cloud_interconnect_id => $interconnect_id2);
+            my $intf_id = $intfs->[0];
+            my $intf2 = OESS::DB::Interface::fetch(db => $ep->{db}, interface_id => $intf_id);
+
+            my $ep2_model = {
+                inner_tag           => $ep->tag,
+                tag                 => $conn->{properties}->{sTag},
+                cloud_account_id    => $ep->cloud_account_id,
+                cloud_connection_id => $res->{id},
+                node                => $intf2->{node}->{name},
+                interface           => $intf2->{name},
+                bandwidth           => $ep->{bandwidth},
+                peerings            => [{ version => 4 }]
+            };
+            my $ep2 = OESS::Endpoint->new(db => $ep->{db}, type => 'vrf', model => $ep2_model);
+            $ep2->peers->[0]->local_ip('192.168.100.253/30');
+            $ep2->peers->[0]->peer_ip('192.168.100.254/30');
+            $ep2->peers->[0]->peer_asn(12076);
+            push @$result, $ep2;
+
         } else {
             $logger->warn("Cloud interconnect type is not supported.");
             push @$result, $ep;
@@ -186,6 +236,24 @@ sub cleanup_endpoints {
             my $res = $gcp->delete_interconnect_attachment(
                 interconnect_id => $interconnect_id,
                 connection_id => $connection_id
+            );
+
+        } elsif ($ep->interface()->cloud_interconnect_type eq 'azure-express-route') {
+            my $azure = OESS::Cloud::Azure->new();
+
+            my $interconnect_id = $ep->interface()->cloud_interconnect_id;
+            my $service_key = $ep->cloud_account_id;
+
+            $logger->info("Removing azure-express-route $service_key from $interconnect_id.");
+            my $conn = $azure->expressRouteCrossConnection($interconnect_id, $service_key);
+            my $res = $azure->set_cross_connection_state_to_not_provisioned(
+                interconnect_id  => $interconnect_id,
+                service_key      => $service_key,
+                circuit_id       => $conn->{properties}->{expressRouteCircuit}->{id},
+                region           => $conn->{location},
+                peering_location => $conn->{properties}->{peeringLocation},
+                bandwidth        => $conn->{properties}->{bandwidthInMbps},
+                vlan             => $ep->tag
             );
 
         } else {

@@ -72,12 +72,12 @@ sub register_ro_methods{
 
     $svc->register_method($method);
 
-    my $method = GRNOC::WebService::Method->new(
+    $method = GRNOC::WebService::Method->new(
         name => "get_workgroup_interfaces",
         description => "returns a list of available vlan tags ",
         callback => sub { get_workgroup_interfaces(@_) }
-        );
-    
+    );
+
     $method->add_input_parameter( name => 'workgroup_id',
                                   pattern => $GRNOC::WebService::Regex::INTEGER,
                                   required => 1,
