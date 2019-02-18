@@ -433,7 +433,6 @@ sub get_entities{
 
     my $entities = OESS::DB::Entity::get_entities(db => $db, name => $params->{name}{value});
 
-
     my $results = [];
     foreach my $entity (@$entities) {
 
