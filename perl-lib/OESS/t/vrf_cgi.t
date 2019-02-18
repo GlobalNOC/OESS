@@ -31,7 +31,7 @@ my $svc =new  GRNOC::WebService::Client(
                         realm   => 'OESS',
                         debug   => 0
 );
-
+#warn Dumper($svc->get_vrf_details(vrf_id => 2));
 cmp_deeply($svc->get_vrf_details(vrf_id => 2),
 {
           'results' => [
@@ -39,13 +39,13 @@ cmp_deeply($svc->get_vrf_details(vrf_id => 2),
                            'name' => 'Test_2',
                            'last_modified_by' => {
                                                    'email' => 'user_881@foo.net',
-                                                   'is_admin' => '0',
-                                                   'user_id' => '881',
+                                                   'is_admin' => 0,
+                                                   'user_id' => 881,
                                                    'type' => 'normal',
                                                    'workgroups' => [
                                                                      {
-                                                                       'max_circuits' => '20',
-                                                                       'workgroup_id' => '241',
+                                                                       'max_circuits' => 200,
+                                                                       'workgroup_id' => 241,
                                                                        'external_id' => '',
                                                                        'interfaces' => undef,
                                                                        'name' => 'Workgroup 241',
@@ -55,90 +55,253 @@ cmp_deeply($svc->get_vrf_details(vrf_id => 2),
                                                    'first_name' => 'User 881',
                                                    'last_name' => 'User 881'
                                                  },
-                           'last_modified' => '0',
+                           'last_modified' => 0,
                            'vrf_id' => '2',
                            'description' => 'Test_2',
                            'state' => 'active',
-                           'endpoints' => [],
+                           'endpoints' => [
+                                            {
+                                              'inner_tag' => 0,
+                                              'peers' => [],
+                                              'vrf_endpoint_id' => 2,
+                                              'node' => {
+                                                          'longitude' => '-118.295056',
+                                                          'node_id' => 11,
+                                                          'latitude' => '33.737916',
+                                                          'name' => 'Node 11'
+                                                        },
+                                              'vrf_id' => 2,
+                                              'cloud_account_id' => 'Test 3',
+                                              'entity' => {
+                                                            'contacts' => [],
+                                                            'name' => 'Big State TeraPOP',
+                                                            'children' => [
+                                                                            {
+                                                                              'entity_id' => 16,
+                                                                              'name' => 'EC Utopia',
+                                                                              'url' => undef,
+                                                                              'description' => 'Guess where this region is?',
+                                                                              'logo_url' => undef
+                                                                            }
+                                                                          ],
+                                                            'logo_url' => 'https://terapop.example.net/favicon.ico',
+                                                            'description' => 'The R&E networking hub for Big State',
+                                                            'interfaces' => [
+                                                                              {
+                                                                                'cloud_interconnect_id' => 'Test',
+                                                                                'name' => 'e15/1',
+                                                                                'interface_id' => 391,
+                                                                                'description' => 'e15/1',
+                                                                                'node' => 'Node 11',
+                                                                                'cloud_interconnect_type' => undef,
+                                                                                'node_id' => 11,
+                                                                                'acls' => {
+                                                                                            'acls' => [
+                                                                                                        {
+                                                                                                          'workgroup_id' => 11,
+                                                                                                          'eval_position' => '10',
+                                                                                                          'entity_id' => 7,
+                                                                                                          'allow_deny' => 'deny',
+                                                                                                          'start' => 1,
+                                                                                                          'end' => undef
+                                                                                                        },
+                                                                                                        {
+                                                                                                          'workgroup_id' => 11,
+                                                                                                          'eval_position' => '20',
+                                                                                                          'entity_id' => 7,
+                                                                                                          'allow_deny' => 'allow',
+                                                                                                          'start' => 1,
+                                                                                                          'end' => 4095
+                                                                                                        }
+                                                                                                      ],
+                                                                                            'interface_id' => 391
+                                                                                          },
+                                                                                'operational_state' => 'up'
+                                                                              },
+                                                                              {
+                                                                                'cloud_interconnect_id' => 'Test',
+                                                                                'name' => 'e15/1',
+                                                                                'interface_id' => 391,
+                                                                                'description' => 'e15/1',
+                                                                                'node' => 'Node 11',
+                                                                                'cloud_interconnect_type' => undef,
+                                                                                'node_id' => 11,
+                                                                                'acls' => {
+                                                                                            'acls' => [
+                                                                                                        {
+                                                                                                          'workgroup_id' => 11,
+                                                                                                          'eval_position' => '10',
+                                                                                                          'entity_id' => 7,
+                                                                                                          'allow_deny' => 'deny',
+                                                                                                          'start' => 1,
+                                                                                                          'end' => undef
+                                                                                                        },
+                                                                                                        {
+                                                                                                          'workgroup_id' => 11,
+                                                                                                          'eval_position' => '20',
+                                                                                                          'entity_id' => 7,
+                                                                                                          'allow_deny' => 'allow',
+                                                                                                          'start' => 1,
+                                                                                                          'end' => 4095
+                                                                                                        }
+                                                                                                      ],
+                                                                                            'interface_id' => 391
+                                                                                          },
+                                                                                'operational_state' => 'up'
+                                                                              },
+                                                                              {
+                                                                                'cloud_interconnect_id' => undef,
+                                                                                'name' => 'fe-4/0/2',
+                                                                                'interface_id' => 14081,
+                                                                                'description' => 'fe-4/0/2',
+                                                                                'node' => undef,
+                                                                                'cloud_interconnect_type' => undef,
+                                                                                'node_id' => undef,
+                                                                                'acls' => {
+                                                                                            'acls' => [
+                                                                                                        {
+                                                                                                          'workgroup_id' => 31,
+                                                                                                          'eval_position' => 1,
+                                                                                                          'entity_id' => 7,
+                                                                                                          'allow_deny' => 'allow',
+                                                                                                          'start' => -1,
+                                                                                                          'end' => 4095
+                                                                                                        }
+                                                                                                      ],
+                                                                                            'interface_id' => 14081
+                                                                                          },
+                                                                                'operational_state' => 'unknown'
+                                                                              }
+                                                                            ],
+                                                            'entity_id' => 7,
+                                                            'url' => 'https://terapop.example.net/',
+                                                            'parents' => [
+                                                                           {
+                                                                             'entity_id' => 2,
+                                                                             'name' => 'Connectors',
+                                                                             'url' => undef,
+                                                                             'description' => 'Those that are included in this classification',
+                                                                             'logo_url' => undef
+                                                                           }
+                                                                         ]
+                                                          },
+                                              'unit' => 0,
+                                              'bandwidth' => 123,
+                                              'interface' => {
+                                                               'cloud_interconnect_id' => 'Test',
+                                                               'name' => 'e15/1',
+                                                               'interface_id' => 391,
+                                                               'description' => 'e15/1',
+                                                               'node' => 'Node 11',
+                                                               'cloud_interconnect_type' => undef,
+                                                               'node_id' => 11,
+                                                               'acls' => {
+                                                                           'acls' => [
+                                                                                       {
+                                                                                         'workgroup_id' => 11,
+                                                                                         'eval_position' => '10',
+                                                                                         'entity_id' => 7,
+                                                                                         'allow_deny' => 'deny',
+                                                                                         'start' => 1,
+                                                                                         'end' => undef
+                                                                                       },
+                                                                                       {
+                                                                                         'workgroup_id' => 11,
+                                                                                         'eval_position' => '20',
+                                                                                         'entity_id' => 7,
+                                                                                         'allow_deny' => 'allow',
+                                                                                         'start' => 1,
+                                                                                         'end' => 4095
+                                                                                       }
+                                                                                     ],
+                                                                           'interface_id' => 391
+                                                                         },
+                                                               'operational_state' => 'up'
+                                                             },
+                                              'tag' => 3,
+                                              'type' => 'vrf',
+                                              'cloud_connection_id' => ' Test cloud 3'
+                                            }
+                                          ],
                            'workgroup' => {
-                                            'max_circuits' => '20',
-                                            'workgroup_id' => '21',
+                                            'max_circuits' => 20,
+                                            'workgroup_id' => 21,
                                             'external_id' => undef,
                                             'interfaces' => [
                                                               {
                                                                 'cloud_interconnect_id' => undef,
                                                                 'name' => 'e1/1',
-                                                                'interface_id' => '321',
+                                                                'interface_id' => 321,
                                                                 'description' => 'e1/1',
                                                                 'node' => 'Node 11',
                                                                 'cloud_interconnect_type' => undef,
-                                                                'node_id' => '11',
+                                                                'node_id' => 11,
                                                                 'acls' => {
                                                                             'acls' => [
                                                                                         {
-                                                                                          'workgroup_id' => '11',
-                                                                                          'eval_position' => '10',
+                                                                                          'workgroup_id' => 11,
+                                                                                          'eval_position' => 10,
                                                                                           'entity_id' => undef,
                                                                                           'allow_deny' => 'allow',
-                                                                                          'start' => '1',
-                                                                                          'end' => '10'
+                                                                                          'start' => 1,
+                                                                                          'end' => 10
                                                                                         }
                                                                                       ],
-                                                                            'interface_id' => '321'
+                                                                            'interface_id' => 321
                                                                           },
                                                                 'operational_state' => 'up'
                                                               },
                                                               {
                                                                 'cloud_interconnect_id' => 'Test',
                                                                 'name' => 'e15/1',
-                                                                'interface_id' => '391',
+                                                                'interface_id' => 391,
                                                                 'description' => 'e15/1',
                                                                 'node' => 'Node 11',
                                                                 'cloud_interconnect_type' => undef,
-                                                                'node_id' => '11',
+                                                                'node_id' => 11,
                                                                 'acls' => {
                                                                             'acls' => [
                                                                                         {
-                                                                                          'workgroup_id' => '11',
+                                                                                          'workgroup_id' => 11,
                                                                                           'eval_position' => '10',
-                                                                                          'entity_id' => '7',
+                                                                                          'entity_id' => 7,
                                                                                           'allow_deny' => 'deny',
-                                                                                          'start' => '1',
+                                                                                          'start' => 1,
                                                                                           'end' => undef
                                                                                         },
                                                                                         {
-                                                                                          'workgroup_id' => '11',
+                                                                                          'workgroup_id' => 11,
                                                                                           'eval_position' => '20',
-                                                                                          'entity_id' => '7',
+                                                                                          'entity_id' => 7,
                                                                                           'allow_deny' => 'allow',
-                                                                                          'start' => '1',
-                                                                                          'end' => '4095'
+                                                                                          'start' => 1,
+                                                                                          'end' => 4095
                                                                                         }
                                                                                       ],
-                                                                            'interface_id' => '391'
+                                                                            'interface_id' => 391
                                                                           },
                                                                 'operational_state' => 'up'
                                                               },
                                                               {
                                                                 'cloud_interconnect_id' => undef,
                                                                 'name' => 'e15/1',
-                                                                'interface_id' => '511',
+                                                                'interface_id' => 511,
                                                                 'description' => 'e15/1',
                                                                 'node' => 'Node 51',
                                                                 'cloud_interconnect_type' => undef,
-                                                                'node_id' => '51',
+                                                                'node_id' => 51,
                                                                 'acls' => {
                                                                             'acls' => [
                                                                                         {
-                                                                                          'workgroup_id' => '11',
-                                                                                          'eval_position' => '10',
+                                                                                          'workgroup_id' => 11,
+                                                                                          'eval_position' => 10,
                                                                                           'entity_id' => undef,
                                                                                           'allow_deny' => 'allow',
-                                                                                          'start' => '1',
-                                                                                          'end' => '10'
+                                                                                          'start' => 1,
+                                                                                          'end' => 10
                                                                                         }
                                                                                       ],
-                                                                            'interface_id' => '511'
+                                                                            'interface_id' => 511
                                                                           },
                                                                 'operational_state' => 'up'
                                                               }
@@ -146,18 +309,18 @@ cmp_deeply($svc->get_vrf_details(vrf_id => 2),
                                             'name' => 'Workgroup 21',
                                             'type' => 'normal'
                                           },
-                           'local_asn' => '7',
-                           'created' => '1',
+                           'created' => 1,
+                           'local_asn' => 7,
                            'prefix_limit' => 1000,
                            'created_by' => {
                                              'email' => 'user_881@foo.net',
-                                             'is_admin' => '0',
-                                             'user_id' => '881',
+                                             'is_admin' => 0,
+                                             'user_id' => 881,
                                              'type' => 'normal',
                                              'workgroups' => [
                                                                {
-                                                                 'max_circuits' => '20',
-                                                                 'workgroup_id' => '241',
+                                                                 'max_circuits' => 200,
+                                                                 'workgroup_id' => 241,
                                                                  'external_id' => '',
                                                                  'interfaces' => undef,
                                                                  'name' => 'Workgroup 241',

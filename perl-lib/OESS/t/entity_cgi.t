@@ -12,17 +12,36 @@ use OESS::DB::Entity ;
 use OESS::DB;
 use Log::Log4perl;
 use OESS::Interface;
+use FindBin;
 # Initialize logging
 Log::Log4perl->init("/etc/oess/logging.conf");
 
-#OESS::DB::Entity->import(get_entities);
+my $cwd;
 
-my $db = OESS::DB->new();
+BEGIN {
+    if($FindBin::Bin =~ /(.*)/){
+    $cwd = $1;
+    }
+}
+warn Dumper($cwd);
+$user="pmorpari";
+$pass="paridev123";
+#open(my $fh, "> /usr/share/oess-frontend/www/.htpasswd");
+#print $fh $user . ":" . crypt($pass,$pass) . "\n";
+
+#OESS::DB::Entity->import(get_entities);
+foreach my $key (sort(keys(%ENV))) {
+    warn Dumper( "$key = $ENV{$key}\n");
+}
+warn Dumper($ENV{'REMOTE_USER'});
 my $interface_id = 391;
 my $workgroup_id = 11;
 my $interface = OESS::Interface->new(interface_id=>$interface_id, db=>$db);
-my $config_path = "/etc/oess/database.xml";
+my $config_path = "$cwd/conf/database.xml";
 my $config = GRNOC::Config->new(config_file=> $config_path);
+my $db = OESS::DB->new(config=>$config_path);
+#warn Dumper(">>>>>>>>>>>");
+#warn Dumper(($config->get("/config/cloud")));
 my $url = ($config->get("/config"))[0][0]->{'base_url'};
 my $username = ($config->get("/config/cloud"))[0][0]->{'user'};
 my $password = ($config->get("/config/cloud"))[0][0]->{'password'};
@@ -31,8 +50,18 @@ my $svc =new  GRNOC::WebService::Client(
                         uid     => $username,
                         passwd  => $password,
                         realm   => 'OESS',
-                        debug   => 0
+                        debug   => 0 
 );
+#warn Dumper(">>>>>>>>>>>>>>>>>");
+#warn Dumper($svc);
+#warn Dumper(OESS::DB::Entity::get_root_entities(db => $db));
+my $root_entities = OESS::DB::Entity::get_root_entities(db => $db);
+    
+my @entities;
+foreach my $ent (@$root_entities){
+    push(@entities,$ent->to_hash());
+}
+#warn Dumper(\@entities);
 cmp_deeply ($svc->get_root_entities() , 
 {
           'results' => [
@@ -41,28 +70,28 @@ cmp_deeply ($svc->get_root_entities() ,
                            'name' => 'Connectors',
                            'children' => [
                                            {
-                                             'entity_id' => '7',
-                                             'name' => 'Big State TeraPOP',
-                                             'url' => 'https://terapop.example.net/',
-                                             'description' => 'The R&E networking hub for Big State',
-                                             'logo_url' => 'https://terapop.example.net/favicon.ico'
-                                           },
-                                           {
-                                             'entity_id' => '8',
+                                             'entity_id' => 8,
                                              'name' => 'Small State MilliPOP',
                                              'url' => 'https://smst.millipop.net/',
                                              'description' => undef,
                                              'logo_url' => undef
+                                           },
+                                           {
+                                             'entity_id' => 7,
+                                             'name' => 'Big State TeraPOP',
+                                             'url' => 'https://terapop.example.net/',
+                                             'description' => 'The R&E networking hub for Big State',
+                                             'logo_url' => 'https://terapop.example.net/favicon.ico'
                                            }
                                          ],
                            'logo_url' => undef,
                            'description' => 'Those that are included in this classification',
                            'interfaces' => [],
-                           'entity_id' => '2',
+                           'entity_id' => 2,
                            'url' => undef,
                            'parents' => [
                                           {
-                                            'entity_id' => '1',
+                                            'entity_id' => 1,
                                             'name' => 'root',
                                             'url' => 'ftp://example.net/pub/',
                                             'description' => 'The top of the hierarchy blah blah blah',
@@ -75,14 +104,14 @@ cmp_deeply ($svc->get_root_entities() ,
                            'name' => 'Universities',
                            'children' => [
                                            {
-                                             'entity_id' => '5',
+                                             'entity_id' => 5,
                                              'name' => 'University of A',
                                              'url' => undef,
                                              'description' => undef,
                                              'logo_url' => 'https://a.example.edu/logo.png'
                                            },
                                            {
-                                             'entity_id' => '6',
+                                             'entity_id' => 6,
                                              'name' => 'B University',
                                              'url' => 'gopher://b.example.edu/',
                                              'description' => 'mascot: Wally B. from the 1980s short',
@@ -92,11 +121,11 @@ cmp_deeply ($svc->get_root_entities() ,
                            'logo_url' => undef,
                            'description' => 'Fabulous ones',
                            'interfaces' => [],
-                           'entity_id' => '3',
+                           'entity_id' => 3,
                            'url' => undef,
                            'parents' => [
                                           {
-                                            'entity_id' => '1',
+                                            'entity_id' => 1,
                                             'name' => 'root',
                                             'url' => 'ftp://example.net/pub/',
                                             'description' => 'The top of the hierarchy blah blah blah',
@@ -109,14 +138,14 @@ cmp_deeply ($svc->get_root_entities() ,
                            'name' => 'Cloud Providers',
                            'children' => [
                                            {
-                                             'entity_id' => '9',
+                                             'entity_id' => 9,
                                              'name' => 'Blue Cloud',
                                              'url' => 'http://bluecloud.com/special/custom-networking',
                                              'description' => '*Totally* not a parody of an actual cloud provider',
                                              'logo_url' => 'http://bluecloud.com/logo-anim.gif'
                                            },
                                            {
-                                             'entity_id' => '10',
+                                             'entity_id' => 10,
                                              'name' => 'Elasticloud',
                                              'url' => 'https://elasticloud.com/r-and-e-landing',
                                              'description' => 'It\'s elastic!',
@@ -126,11 +155,11 @@ cmp_deeply ($svc->get_root_entities() ,
                            'logo_url' => undef,
                            'description' => 'Those that belong to the emperor',
                            'interfaces' => [],
-                           'entity_id' => '4',
+                           'entity_id' => 4,
                            'url' => undef,
                            'parents' => [
                                           {
-                                            'entity_id' => '1',
+                                            'entity_id' => 1,
                                             'name' => 'root',
                                             'url' => 'ftp://example.net/pub/',
                                             'description' => 'The top of the hierarchy blah blah blah',
@@ -192,64 +221,87 @@ cmp_deeply( $svc->get_entity_interfaces(entity_id=>7),
                          {
                            'cloud_interconnect_id' => 'Test',
                            'name' => 'e15/1',
-                           'interface_id' => '391',
+                           'interface_id' => 391,
                            'description' => 'e15/1',
                            'node' => 'Node 11',
                            'cloud_interconnect_type' => undef,
-                           'node_id' => '11',
+                           'node_id' => 11,
                            'acls' => {
                                        'acls' => [
                                                    {
-                                                     'workgroup_id' => '11',
+                                                     'workgroup_id' => 11,
                                                      'eval_position' => '10',
-                                                     'entity_id' => '7',
+                                                     'entity_id' => 7,
                                                      'allow_deny' => 'deny',
-                                                     'start' => '1',
+                                                     'start' => 1,
                                                      'end' => undef
                                                    },
                                                    {
-                                                     'workgroup_id' => '11',
+                                                     'workgroup_id' => 11,
                                                      'eval_position' => '20',
-                                                     'entity_id' => '7',
+                                                     'entity_id' => 7,
                                                      'allow_deny' => 'allow',
-                                                     'start' => '1',
-                                                     'end' => '4095'
+                                                     'start' => 1,
+                                                     'end' => 4095
                                                    }
                                                  ],
-                                       'interface_id' => '391'
+                                       'interface_id' => 391
                                      },
                            'operational_state' => 'up'
                          },
                          {
                            'cloud_interconnect_id' => 'Test',
                            'name' => 'e15/1',
-                           'interface_id' => '391',
+                           'interface_id' => 391,
                            'description' => 'e15/1',
                            'node' => 'Node 11',
                            'cloud_interconnect_type' => undef,
-                           'node_id' => '11',
+                           'node_id' => 11,
                            'acls' => {
                                        'acls' => [
                                                    {
-                                                     'workgroup_id' => '11',
+                                                     'workgroup_id' => 11,
                                                      'eval_position' => '10',
-                                                     'entity_id' => '7',
+                                                     'entity_id' => 7,
                                                      'allow_deny' => 'deny',
-                                                     'start' => '1',
+                                                     'start' => 1,
                                                      'end' => undef
                                                    },
                                                    {
-                                                     'workgroup_id' => '11',
+                                                     'workgroup_id' => 11,
                                                      'eval_position' => '20',
-                                                     'entity_id' => '7',
+                                                     'entity_id' => 7,
                                                      'allow_deny' => 'allow',
-                                                     'start' => '1',
-                                                     'end' => '4095'
+                                                     'start' => 1,
+                                                     'end' => 4095
                                                    }
                                                  ],
-                                       'interface_id' => '391'
+                                       'interface_id' => 391
                                      },
                            'operational_state' => 'up'
+                         },
+                         {
+                           'cloud_interconnect_id' => undef,
+                           'name' => 'fe-4/0/2',
+                           'interface_id' => 14081,
+                           'description' => 'fe-4/0/2',
+                           'node' => undef,
+                           'cloud_interconnect_type' => undef,
+                           'node_id' => undef,
+                           'acls' => {
+                                       'acls' => [
+                                                   {
+                                                     'workgroup_id' => 31,
+                                                     'eval_position' => 1,
+                                                     'entity_id' => 7,
+                                                     'allow_deny' => 'allow',
+                                                     'start' => -1,
+                                                     'end' => 4095
+                                                   }
+                                                 ],
+                                       'interface_id' => 14081
+                                     },
+                           'operational_state' => 'unknown'
                          }
                        ]
         }, "The method get_entity_interfaces gives expected results when entity_id is valid.");
@@ -261,6 +313,9 @@ cmp_deeply(
           'results' => undef
         },$svc->get_entity_interfaces(entity_id=>345), "The method get_entity_interfaces gives expected result when entity_id is out of range.");
 
+warn Dumper("<<<<<<<<<<<<<<<<<<<<<<<<<<");
+warn Dumper($ENV{'REMOTE_USER'});
+warn Dumper($svc->get_entity(entity_id=>7, workgroup_id=>11));
 cmp_deeply($svc->get_entity(entity_id=>7, workgroup_id=>11),
 {
           'results' => {
@@ -551,3 +606,5 @@ cmp_deeply($svc->get_entities(workgroup_id=>11, name=>"Big State TeraPOP"),
                        ]
         }, "The method get_entities() returns expected result when workgroup_id is 11 for entity name Big State TeraPOP");
 
+$ENV{'REMOTE_USER'} = $temp_user;
+warn Dumper($ENV{'REMOTE_USER'});
