@@ -120,7 +120,11 @@ document.addEventListener('DOMContentLoaded', function() {
   raw = new CircuitRaw({workgroupID: session.data.workgroup_id});
 
   circuitHeader = new CircuitHeader({workgroupID: session.data.workgroiup_id});
-  endpointList = new EndpointList({workgroupID: session.data.workgroiup_id});
+  endpointList = new EndpointList({
+    workgroupID: session.data.workgroiup_id,
+    onDelete: state.deleteEndpoint.bind(state),
+    onModify: state.selectEndpoint.bind(state)
+  });
 
   endpointModal = new EndpointSelectionModal({
     workgroupID: session.data.workgroiup_id,
