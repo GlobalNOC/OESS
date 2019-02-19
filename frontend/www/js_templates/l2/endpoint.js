@@ -33,24 +33,47 @@ class Endpoint extends Component {
     let handleModify = `document.components[${this._id}].onModify()`;
 
     let displayEdits = (this.state.editable) ? 'block' : 'none';
+    let height = '100';
+
+    let title = `
+    <div style="">
+      <h3>Node:&nbsp;</h3>
+      <h4>Port:&nbsp;</h4>
+      <h5>VLAN:&nbsp;</h5>
+    </div>
+
+    <div style="">
+      <h3>${props.node} <small></small></h3>
+      <h4>${props.interface} <small>${props.interface_description}</small></h4>
+      <h5>${props.tag}</h5>
+    </div>
+`;
+    if (props.entity && props.entity.name) {
+      height = 130;
+      title = `
+      <div style="">
+        <h3>Entity:&nbsp;</h3>
+        <h4>Node:&nbsp;</h4>
+        <h4>Port:&nbsp;</h4>
+        <h5>VLAN:&nbsp;</h5>
+      </div>
+
+      <div style="">
+        <h3>${props.entity.name} <small></small></h3>
+        <h4>${props.node}</h4>
+        <h4>${props.interface} <small>${props.interface_description}</small></h4>
+        <h5>${props.tag}</h5>
+      </div>
+`;
+    }
 
     return `
     <div class="panel panel-default" style="padding: 0 15 0 15;">
 
       <div style="display:flex; flex-direction: row; flex-wrap: nowrap;">
-        <div style="">
-          <h3>Node:&nbsp;</h3>
-          <h4>Port:&nbsp;</h4>
-          <h5>VLAN:&nbsp;</h5>
-        </div>
+        ${title}
 
-        <div style="">
-          <h3>${props.node} <small></small></h3>
-          <h4>${props.interface} <small>${props.interface_description}</small></h4>
-          <h5>${props.tag}</h5>
-        </div>
-
-<iframe src="https://io3.bldc.grnoc.iu.edu/grafana/d-solo/te5oS11mk/oess-interface?refresh=30s&orgId=1&panelId=2&var-node=mx960-1.sdn-test.grnoc.iu.edu&var-interface=em0&from=now-1h&to=now" height="100" frameborder="0" style="flex: 1;"></iframe>
+<iframe src="https://io3.bldc.grnoc.iu.edu/grafana/d-solo/te5oS11mk/oess-interface?refresh=30s&orgId=1&panelId=2&var-node=mx960-1.sdn-test.grnoc.iu.edu&var-interface=em0&from=now-1h&to=now" height="${height}" frameborder="0" style="flex: 1;"></iframe>
 
         <div style="display: ${displayEdits};">
           <button class="btn btn-link" type="button" onclick="${handleModify}" style="padding: 12 6 12 6;">
