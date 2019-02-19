@@ -28,14 +28,20 @@ async function provisionCircuit(workgroupID, description, endpoints, staticMAC, 
   endpoints.forEach(function(endpoint) {
     bandwidth = (endpoint.bandwidth > bandwidth) ? endpoint.bandwidth : bandwidth;
 
+    let e = {
+      bandwidth: endpoint.bandwidth,
+      tag:       endpoint.tag,
+      cloud_account_id: endpoint.cloud_account_id
+    };
+
     if ('entity_id' in endpoint && endpoint.name === 'TBD' && endpoint.interface === 'TBD') {
-      form.append('entity', endpoint.entity);
+      e['entity'] = endpoint.entity;
     } else {
-      form.append('node', endpoint.node);
-      form.append('interface', endpoint.interface);
+      e['interface'] = endpoint.interface;
+      e['node']      = endpoint.node;
     }
 
-    form.append('tag', endpoint.tag);
+    form.append('endpoint', JSON.stringify(e));
   });
   form.append('bandwidth', bandwidth);
 
