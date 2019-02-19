@@ -40,6 +40,8 @@ use OESS::Database;
 use OESS::Topology;
 use OESS::Circuit;
 use OESS::VRF;
+use OESS::DB;
+use OESS::Endpoint; 
 use Time::HiRes qw(gettimeofday tv_interval);
 use GRNOC::WebService;
 use OESS::Webservice;
@@ -207,7 +209,7 @@ sub register_webservice_methods {
     $method->add_input_parameter(
         name            => 'node',
         pattern         => $GRNOC::WebService::Regex::TEXT,
-        required        => 1,
+        required        => 0,
         multiple        => 1,
         description     => "Array of nodes to be used."
 	);
@@ -216,10 +218,29 @@ sub register_webservice_methods {
     $method->add_input_parameter(
         name            => 'interface',
         pattern         => $GRNOC::WebService::Regex::TEXT,
-        required        => 1,
+        required        => 0,
         multiple        => 1,
         description     => 'Array of interfaces to be used. Note that interface[0] is on node[0].'
 	);
+
+        #add the required input parameter node
+    $method->add_input_parameter(
+        name            => 'node',
+        pattern         => $GRNOC::WebService::Regex::TEXT,
+        required        => 0,
+        multiple        => 1,
+        description     => "Array of nodes to be used."
+        );
+
+    #add the required input parameter interface
+    $method->add_input_parameter(
+        name            => 'endpoint',
+        pattern         => $GRNOC::WebService::Regex::TEXT,
+        required        => 0,
+        multiple        => 1,
+        description     => 'Array of interfaces to be used. Note that interface[0] is on node[0].'
+        );
+
 
     #add the required input parameter tag
     $method->add_input_parameter(
@@ -1073,6 +1094,7 @@ sub provision_circuit {
     my $backup_links  = $args->{'backup_link'}{'value'} || [];
     my $nodes         = $args->{'node'}{'value'} || [];
     my $interfaces    = $args->{'interface'}{'value'} || [];
+    my $endpoints     = $args->{'endpoint'}{'value'} || [];
     my $tags          = $args->{'tag'}{'value'} || [];
     my $inner_tags    = $args->{'inner_tag'}{'value'} || [];
     my $mac_addresses = $args->{'mac_address'}{'value'} || [];
@@ -1120,6 +1142,33 @@ sub provision_circuit {
         $method->set_error("You are a read-only user and unable to provision.");
         return;
     }
+
+    my $new_db = OESS::DB->new();
+
+    foreach my $endpoint (@$endpoints){
+	my $obj;
+	eval{
+	    $obj = decode_json($endpoint);
+	};
+	if ($@) {
+	    $method->set_error("Cannot decode endpoint: $@");
+	    return;
+	}
+	
+	$obj->{'workgroup_id'} = $workgroup_id;
+
+
+
+	my $ep = OESS::Endpoint->new( db => $new_db, model => $obj );
+	if(defined($ep)){
+	    push(@$interfaces, $ep->interface->name());
+	    push(@$nodes, $ep->node->name());
+	    push(@$tags, $ep->tag());
+	    push(@$inner_tags, $ep->inner_tag());
+	}
+    }
+    
+
 
     my ($status,$err) = $db->validate_circuit(
 	links => $links,
