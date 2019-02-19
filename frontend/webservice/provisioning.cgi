@@ -246,7 +246,7 @@ sub register_webservice_methods {
     $method->add_input_parameter(
         name            => 'tag',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
-        required        => 1,
+        required        => 0,
         multiple        => 1,
         description     => 'An array of vlan tags to be used on each interface. Note that tag[0] is on interface[0] and tag[1] is on interface[1].'
 	);
