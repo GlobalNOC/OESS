@@ -2,29 +2,106 @@ class GlobalState extends Component {
   constructor(state) {
     super();
     this.id = -1;
+    this.selectedEndpoint = -1;
   }
 
-  selectCircuit(id) {
+  async selectCircuit(id) {
     this.id = id;
+
+    [this.circuit, this.history, this.events, this.raw] = await Promise.all([
+      getCircuit(id),
+      getCircuitHistory(id),
+      getCircuitEvents(id),
+      getRawCircuit(id)
+    ]);
+
     update();
+  }
+
+  selectEndpoint(i) {
+    $('#add-endpoint-modal').modal('show');
+
+    // Ensure index field is properly set. Could change after endpoint
+    // removal.
+    if (i > -1) {
+      this.circuit.endpoints[i].index = i;
+      this.selectedEndpoint = i;
+    }
+    update();
+  }
+
+  updateEndpoint(e) {
+console.log('updateEndpoint', e);
+
+    e['interface'] = e.name;
+    e['interface_description'] = 'NA';
+
+    if (e.index < 0) {
+      this.circuit.endpoints.push(e);
+    } else {
+      this.circuit.endpoints[e.index] = e;
+    }
+
+    console.log(this.circuit);
+    console.log('update endpoint:', e);
+
+    update();
+  }
+
+  deleteEndpoint(i) {
+    this.circuit.endpoints.splice(i, 1);
+    update();
+  }
+
+  saveCircuit() {
+    console.log('save circuit:', this.circuit);
+    provisionCircuit(
+      session.data.workgroup_id,
+      this.circuit.description,
+      this.circuit.endpoints,
+      this.circuit.static_mac,
+      this.circuit.provision_time,
+      this.circuit.remove_time,
+      this.circuit.circuit_id
+    );
+  }
+
+  deleteCircuit() {
+    console.log('delete circuit:', this.circuit);
   }
 }
 
 let state = new GlobalState();
 
-let circuit = null;
+
 let circuitHeader = null;
 let endpointList = null;
+let details = null;
+let history = null;
+let events = null;
+let raw = null;
+let endpointModal = null;
 
 async function update(props) {
-  let elem = document.querySelector('#circuit');
+  console.log(state);
+
   let headerElem = document.querySelector('#circuit-header');
   let epointListElem = document.querySelector('#endpoints');
+  let detailsElem = document.querySelector('#circuit-details');
+  let historyElem = document.querySelector('#profile2');
+  let eventsElem = document.querySelector('#messages2');
+  let rawElem = document.querySelector('#settings2');
+  let endpointModalElem = document.querySelector('#add-endpoint-modal');
 
-  [elem.innerHTML, headerElem.innerHTML, epointListElem.innerHTML] = await Promise.all([
-    circuit.render({id: state.id}),
-    circuitHeader.render({id: state.id}),
-    endpointList.render({id: state.id})
+
+  [detailsElem.innerHTML, historyElem.innerHTML, eventsElem.innerHTML, rawElem.innerHTML, headerElem.innerHTML, epointListElem.innerHTML, endpointModalElem.innerHTML] = await Promise.all([
+    details.render(state.circuit),
+    history.render(state),
+    events.render(state),
+    raw.render(state),
+    circuitHeader.render(state.circuit),
+    endpointList.render(state.circuit),
+    endpointModal.render(state.circuit.endpoints[state.selectedEndpoint] || {})
   ]);
 }
 
@@ -32,13 +109,26 @@ document.addEventListener('DOMContentLoaded', function() {
   loadUserMenu();
 
   let url = new URL(window.location.href);
-  let id = url.searchParams.get('vrf_id');
+  let id = url.searchParams.get('circuit_id');
 
-  circuit = new Circuit({workgroupID: session.data.workgroup_id});
+  state = new GlobalState();
+  console.log('GlobalState:', state);
+
+  details = new CircuitDetails({workgroupID: session.data.workgroup_id});
+  history = new CircuitHistory({workgroupID: session.data.workgroup_id});
+  events = new CircuitEvents({workgroupID: session.data.workgroup_id});
+  raw = new CircuitRaw({workgroupID: session.data.workgroup_id});
+
   circuitHeader = new CircuitHeader({workgroupID: session.data.workgroiup_id});
   endpointList = new EndpointList({workgroupID: session.data.workgroiup_id});
 
-  state = new GlobalState();
+  endpointModal = new EndpointSelectionModal({
+    workgroupID: session.data.workgroiup_id,
+    interface: -1,
+    vlan: 1,
+    onEndpointSubmit: state.updateEndpoint.bind(state)
+  });
+
   state.selectCircuit(id);
 
   let map = new NDDIMap('map');

@@ -8,7 +8,14 @@
   <script>
     [% INCLUDE js_templates/component.js %]
 
+    [% INCLUDE js_templates/api/vlan.js %]
+    [% INCLUDE js_templates/api/interfaces.js %]
+    [% INCLUDE js_templates/api/entity.js %]
     [% INCLUDE js_templates/api/circuit.js %]
+    [% INCLUDE js_templates/l3/interface.js %]
+    [% INCLUDE js_templates/l3/entity.js %]
+    [% INCLUDE js_templates/l2/endpoint_selection_modal.js %]
+
     [% INCLUDE js_templates/l2/endpoint.js %]
     [% INCLUDE js_templates/l2/circuit.js %]
 
@@ -16,20 +23,47 @@
   </script>
 
   <div id="circuit-header" class="row"></div>
-  <hr/>
+  <br/>
 
+  <!-- circuit tabs -->
   <div class="row">
-    <div id="circuit" class="col-sm-6"></div>
+    <div id="circuit2" class="col-sm-12">
 
-    <div class="col-sm-6" >
-      <div id="map" class="openlayers"></div>
+      <ul class="nav nav-tabs" role="tablist">
+        <li role="presentation" class="active">
+          <a href="#home2" aria-controls="home2" role="tab" data-toggle="tab">Details</a>
+        </li>
+        <li role="presentation">
+          <a href="#profile2" aria-controls="profile2" role="tab" data-toggle="tab">History</a>
+        </li>
+        <li role="presentation">
+          <a href="#messages2" aria-controls="messages2" role="tab" data-toggle="tab">Events</a>
+        </li>
+        <li role="presentation">
+          <a href="#settings2" aria-controls="settings2" role="tab" data-toggle="tab">Raw</a>
+        </li>
+      </ul>
+
+      <div class="tab-content">
+        <br/>
+        <div role="tabpanel" class="tab-pane active" id="home2">
+          <div class="row">
+            <div id="circuit-details" class="col-sm-6"></div>
+            <div class="col-sm-6" ><div id="map" class="openlayers"></div></div>
+          </div>
+        </div>
+        <div role="tabpanel" class="tab-pane" id="profile2"></div>
+        <div role="tabpanel" class="tab-pane" id="messages2"></div>
+        <div role="tabpanel" class="tab-pane" id="settings2"></div>
+      </div>
+
     </div>
   </div>
 
   <div class="row">
     <br/>
     <div id="actions" class="col-sm-12">
-      <button class="btn-sm btn-primary" type="button" onclick="">
+      <button class="btn-sm btn-primary" type="button" onclick="state.selectEndpoint(-1);">
         <span class="glyphicon glyphicon-plus"></span> New Endpoint
       </button>
     </div>
@@ -40,4 +74,7 @@
     <div id="endpoints" class="col-sm-12"></div>
   </div>
 
+  <!-- endpoint modal -->
+  <div class="modal fade" role="dialog" tabindex="-1" id="add-endpoint-modal">
+  </div>
 </div>
