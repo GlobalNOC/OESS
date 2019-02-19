@@ -39,42 +39,28 @@ async function loadEntityContent(parentEntity=null, action){
 }
 
 async function edit_entity(entityID){
-    let entity_name     = document.querySelector('#entity-name');
-    let description     = document.querySelector('#description');
-    let logo_url        = document.querySelector('#logo-url');
-    let entity_url      = document.querySelector('#entity-url');
-
     let url = `[% path %]services/entity.cgi?action=update_entity&entity_id=${entityID}`;
-    if (entity_name.value)
-    {
-        url += `&name=${entity_name.value}`;
-    }
-    if (description.value)
-    {
-        url += `&description=${description.value}`;
-    }
-    if (logo_url.value)
-    {
-        url += `&logo_url=${logo_url.value}`;
-    }
-    if (entity_url.value)
-    {
-        url += `&url=${entity_url.value}` ;
-    }
-    
-    const resp = await fetch(url, {method: 'get', credentials: 'include'});
+
+    await call_url(url);
     window.location.href = `[% path %]new/index.cgi?action=phonebook&entity_id=${entityID}`;
 
 }
 
 async function add_entity(entityID){
+    let user = await getCurrentUser();
+    let url = `[% path %]services/entity.cgi?action=add_child_entity&current_entity_id=${entityID}&user_id=${user.user_id}`;
+
+    await call_url(url);
+    window.location.href = `[% path %]new/index.cgi?action=phonebook&entity_id=${entityID}`;
+
+}
+
+async function call_url(url) {
     let entity_name     = document.querySelector('#entity-name');
     let description     = document.querySelector('#description');
     let logo_url        = document.querySelector('#logo-url');
     let entity_url      = document.querySelector('#entity-url');
 
-    let user = await getCurrentUser();
-    let url = `[% path %]services/entity.cgi?action=add_child_entity&current_entity_id=${entityID}&user_id=${user.user_id}`;
     if (entity_name.value)
     {
         url += `&name=${entity_name.value}`;
@@ -91,8 +77,14 @@ async function add_entity(entityID){
     {
         url += `&url=${entity_url.value}` ;
     }
-    
-    const resp = await fetch(url, {method: 'get', credentials: 'include'});
-    window.location.href = `[% path %]new/index.cgi?action=phonebook&entity_id=${entityID}`;
-
+    try {
+      const resp = await fetch(url, {method: 'get', credentials: 'include'});
+      const data = await resp.json();
+      console.log(data);
+      return data.results[0];
+    }catch(error) {
+      console.log('Failure occurred in deleteVRF.');
+      console.log(error);
+      return null;
+    }    
 }

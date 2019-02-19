@@ -274,16 +274,26 @@ function filterFunction() {
 // Add user to entity
 async function add_user(user_id, entityID){
   const url = `[% path %]services/entity.cgi?action=add_user&entity_id=${entityID}&user_id=${user_id}`;
-  const response = await fetch(url, {method:'get', credentials:'include'});
-  const data = await response.json();
+  const data = call_url(url); 
   await loadEntityList(entityID);
  }
 
 async function remove_user(user_id, entityID){
   const url = `[% path %]services/entity.cgi?action=remove_user&entity_id=${entityID}&user_id=${user_id}`;
-  const response = await fetch(url, {method:'get', credentials:'include'});
-  const data = await response.json;
+  const data = call_url(url);
 
   await loadEntityList(entityID);
 }
 
+async function call_url(url){
+    try {
+      const resp = await fetch(url, {method: 'get', credentials: 'include'});
+      const data = await resp.json();
+      console.log(data);
+      return data;
+    } catch(error) {
+      console.log('Failure occurred in getVRF.');
+      console.log(error);
+      return null;
+    }
+}
