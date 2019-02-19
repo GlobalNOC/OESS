@@ -222,11 +222,23 @@ sub _process_circuit_details{
 
     $self->{'endpoints'} = $self->{'details'}->{'endpoints'};
 
+    my $new_db = OESS::DB->new();
+
     foreach my $endpoint (@{$self->{'endpoints'}}){
         if($endpoint->{'local'} == 0){
             $self->{'interdomain'} = 1;
         }
+	my $entity = OESS::Entity->new( db => $new_db, interface_id => $endpoint->{'interface_id'}, vlan => $endpoint->{'tag'} );
+	if(!defined($entity)){
+	    next;
+	}
+
+	$endpoint->{'entity'} = $entity->to_hash();
     }
+
+    
+    
+
 
     if(!$self->{'just_display'}){       	
 	$self->_create_graph();
