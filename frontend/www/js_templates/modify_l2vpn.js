@@ -18,20 +18,20 @@ class GlobalState extends Component {
     update();
   }
 
-  selectEndpoint(i) {
+  selectEndpoint(index) {
     $('#add-endpoint-modal').modal('show');
+    this.selectedEndpoint = index;
 
-    // Ensure index field is properly set. Could change after endpoint
-    // removal.
-    if (i > -1) {
-      this.circuit.endpoints[i].index = i;
-      this.selectedEndpoint = i;
+    // Ensure index field is properly set. Could change after an
+    // endpoint removal.
+    if (this.selectedEndpoint > -1) {
+      this.circuit.endpoints[this.selectedEndpoint].index = this.selectedEndpoint;
     }
     update();
   }
 
   updateEndpoint(e) {
-console.log('updateEndpoint', e);
+    console.log('updateEndpoint', e);
 
     e['interface'] = e.name;
     e['interface_description'] = 'NA';
@@ -83,7 +83,6 @@ let raw = null;
 let endpointModal = null;
 
 async function update(props) {
-  console.log(state);
 
   let headerElem = document.querySelector('#circuit-header');
   let epointListElem = document.querySelector('#endpoints');
@@ -92,7 +91,6 @@ async function update(props) {
   let eventsElem = document.querySelector('#messages2');
   let rawElem = document.querySelector('#settings2');
   let endpointModalElem = document.querySelector('#add-endpoint-modal');
-
 
   [detailsElem.innerHTML, historyElem.innerHTML, eventsElem.innerHTML, rawElem.innerHTML, headerElem.innerHTML, epointListElem.innerHTML, endpointModalElem.innerHTML] = await Promise.all([
     details.render(state.circuit),
@@ -103,6 +101,7 @@ async function update(props) {
     endpointList.render(state.circuit),
     endpointModal.render(state.circuit.endpoints[state.selectedEndpoint] || {})
   ]);
+
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -110,6 +109,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   let url = new URL(window.location.href);
   let id = url.searchParams.get('circuit_id');
+
+  let editable = (session.data.isAdmin || !session.data.isReadOnly);
 
   state = new GlobalState();
   console.log('GlobalState:', state);
@@ -119,9 +120,14 @@ document.addEventListener('DOMContentLoaded', function() {
   events = new CircuitEvents({workgroupID: session.data.workgroup_id});
   raw = new CircuitRaw({workgroupID: session.data.workgroup_id});
 
-  circuitHeader = new CircuitHeader({workgroupID: session.data.workgroiup_id});
+  circuitHeader = new CircuitHeader({
+    workgroupID: session.data.workgroiup_id,
+    editable: editable
+  });
   endpointList = new EndpointList({
     workgroupID: session.data.workgroiup_id,
+    editable: editable,
+    onCreate: state.selectEndpoint.bind(state),
     onDelete: state.deleteEndpoint.bind(state),
     onModify: state.selectEndpoint.bind(state)
   });

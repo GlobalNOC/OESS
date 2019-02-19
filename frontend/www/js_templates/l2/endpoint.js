@@ -32,11 +32,12 @@ class Endpoint extends Component {
     let handleDelete = `document.components[${this._id}].onDelete()`;
     let handleModify = `document.components[${this._id}].onModify()`;
 
+    let displayEdits = (this.state.editable) ? 'block' : 'none';
+
     return `
     <div class="panel panel-default" style="padding: 0 15 0 15;">
 
       <div style="display:flex; flex-direction: row; flex-wrap: nowrap;">
-
         <div style="">
           <h3>Node:&nbsp;</h3>
           <h4>Port:&nbsp;</h4>
@@ -51,7 +52,7 @@ class Endpoint extends Component {
 
 <iframe src="https://io3.bldc.grnoc.iu.edu/grafana/d-solo/te5oS11mk/oess-interface?refresh=30s&orgId=1&panelId=2&var-node=mx960-1.sdn-test.grnoc.iu.edu&var-interface=em0&from=now-1h&to=now" height="100" frameborder="0" style="flex: 1;"></iframe>
 
-        <div>
+        <div style="display: ${displayEdits};">
           <button class="btn btn-link" type="button" onclick="${handleModify}" style="padding: 12 6 12 6;">
             <span class="glyphicon glyphicon-edit"></span>
           </button>
@@ -76,22 +77,42 @@ class EndpointList extends Component {
     this.state.onModify = ('onModify' in this.state) ? this.state.onModify : () => { console.log('EndpointList.onModify'); };
   }
 
+  onCreate() {
+    this.state.onCreate(-1);
+  }
+
   async render(props) {
+    let handleCreate = `document.components[${this._id}].onCreate()`;
+    let displayEdits = (this.state.editable) ? 'block' : 'none';
+
     let endpoints = props.endpoints.map((e, i) => {
       e.index = i;
 
       let obj = new Endpoint({
         onDelete: this.state.onDelete,
         onModify: this.state.onModify,
-        endpoint: e
+        endpoint: e,
+        editable: this.state.editable
       });
 
       return obj.render(e);
     }).join('');
 
     return `
-    <div>
-      ${endpoints}
+    <div class="row">
+      <br/>
+      <div id="actions" class="col-sm-12" style="display: ${displayEdits};">
+        <button class="btn-sm btn-primary" type="button" onclick="${handleCreate}">
+          <span class="glyphicon glyphicon-plus"></span> New Endpoint
+        </button>
+      </div>
+    </div>
+
+    <div class="row">
+      <br/>
+      <div class="col-sm-12">
+        ${endpoints}
+      </div>
     </div>
 `;
   }

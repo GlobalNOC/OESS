@@ -102,12 +102,14 @@ class CircuitHeader extends Component {
   }
 
   async render(props) {
+    let displayEdits = (this.state.editable) ? 'block' : 'none';
+
     return `
 <div class="col-sm-6">
   <h2>${props.description} <small>${props.circuit_id}</small></h2>
 </div>
 
-<div class="col-sm-6" style="text-align: right; padding-top: 23px;">
+<div class="col-sm-6" style="text-align: right; padding-top: 23px; display: ${displayEdits};">
   <button class="btn-sm btn-success" type="button" onclick="state.saveCircuit();">
     <span class="glyphicon glyphicon-floppy-disk"></span> Save
   </button>
