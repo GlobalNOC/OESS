@@ -5,8 +5,10 @@ use warnings;
 
 package OESS::DB::Interface;
 
-use OESS::Node;
+use OESS::DB::ACL;
+
 use OESS::ACL;
+use OESS::Node;
 
 use Data::Dumper;
 
@@ -27,8 +29,13 @@ sub fetch{
 
     $interface = $interface->[0];
 
-    my $acls = OESS::ACL->new( db => $db, interface_id => $interface_id);
-    
+    my $acl_models = OESS::DB::ACL::fetch_all(db => $db, interface_id => $interface_id);
+    my $acls = [];
+    foreach my $model (@$acl_models) {
+        my $acl = OESS::ACL->new(db => $db, model => $model);
+        push @$acls, $acl;
+    }
+
     my $node = OESS::Node->new( db => $db, node_id => $interface->{'node_id'});
 
     my $in_use = OESS::DB::Interface::vrf_vlans_in_use(db => $db, interface_id => $interface_id );
@@ -52,6 +59,7 @@ sub fetch{
 }
 
 =head2 get_interface
+
 =cut
 sub get_interface{
     my %params = @_;
@@ -70,50 +78,59 @@ sub get_interface{
 }
 
 =head2 get_interfaces
+
+    my $acl = OESS::DB::Interface::get_interfaces(
+        db => $conn,
+        cloud_interconnect_id => 1, # Optional
+        node_id               => 1, # Optional
+        workgroup_id          => 1  # Optional
+    );
+
+get_interfaces returns a list of all Interfaces from the database
+filtered by the provided arguments.
+
 =cut
 sub get_interfaces{
-    my %params = @_;
+    my $args = {
+        db => undef,
+        cloud_interconnect_id => undef,
+        node_id => undef,
+        workgroup_id => undef,
+        @_
+    };
 
-    my $db = $params{'db'};
-   
-    my @where_str;
-    my @where_val;
+    my $db = $args->{db};
 
-    if(defined($params{'node_id'})){
-        push(@where_val, $params{'node_id'});
-        push(@where_str, "node_id = ?");
+    my $params = [];
+    my $values = [];
+
+    if (defined $args->{node_id}) {
+        push @$params, "node_id=?";
+        push @$values, $args->{node_id};
+    }
+    if (defined $args->{workgroup_id}) {
+        push @$params, "workgroup_id=?";
+        push @$values, $args->{workgroup_id};
+    }
+    if (defined $args->{cloud_interconnect_id}) {
+        push @$params, "cloud_interconnect_id=?";
+        push @$values, $args->{cloud_interconnect_id};
     }
 
-    if(defined($params{'workgroup_id'})){
-        push(@where_val, $params{'workgroup_id'});
-        push(@where_str, "workgroup_id = ?");
-    }
+    my $where = (@$params > 0) ? 'where ' . join(' and ', @$params) : '';
 
-    
-    my $where;
+    my $interfaces = $db->execute_query("select interface_id from interface $where", $values);
 
-    foreach my $str (@where_str){
-        if(!defined($where)){
-            $where .= $str;
-        }else{
-            $where .= " and " . $str;
-        }
-    }
-
-    my $query = "select interface_id from interface where $where";
-    #warn "Query: " . $query . "\n";
-    #warn "Query Params: " . Dumper(\@where_val);
-    my $interfaces = $db->execute_query($query,\@where_val);
     my @ints;
-    foreach my $int (@$interfaces){
+    foreach my $int (@$interfaces) {
         push(@ints, $int->{'interface_id'});
     }
 
     return \@ints;
-
 }
 
 =head2 get_acls
+
 =cut
 sub get_acls{
     my %params = @_;
@@ -126,6 +143,7 @@ sub get_acls{
 }
 
 =head2 vrf_vlans_in_use
+
 =cut
 sub vrf_vlans_in_use{
     my %params = @_;

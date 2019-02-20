@@ -173,6 +173,7 @@ my $correct_trunk_result = {
                                             {
                                              'local' => '1',
                                              'node' => 'Node 11',
+					     'interface_id' => 321,
                                              'mac_addrs' => [],
                                              'interface_description' => 'e1/1',
                                              'port_no' => '1',
@@ -187,6 +188,7 @@ my $correct_trunk_result = {
                                             {
                                              'local' => '1',
                                              'node' => 'Node 51',
+					     'interface_id' => 51,
                                              'mac_addrs' => [],
                                              'interface_description' => 'e3/1',
                                              'port_no' => '97',
@@ -349,6 +351,7 @@ my $correct_result =  {
                            {
                              'local' => '1',
                              'node' => 'Node 11',
+			     'interface_id' => 321,
                              'interface_description' => 'e1/1',
                              'port_no' => '1',
                              'node_id' => '11',
@@ -363,6 +366,7 @@ my $correct_result =  {
                            {
                              'local' => '1',
                              'node' => 'Node 51',
+			     'interface_id' => 511,
                              'interface_description' => 'e15/1',
                              'port_no' => '673',
                              'node_id' => '51',

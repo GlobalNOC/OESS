@@ -134,6 +134,8 @@ class EntityForm extends Component {
     } else {
       if (entity.cloud_interconnect_type === 'gcp-partner-interconnect') {
         cloudAccountLabel = 'GCP Pairing Key';
+      } else if (entity.cloud_interconnect_type === 'azure-express-route') {
+        cloudAccountLabel = 'ExpressRoute Service Key';
       }
     }
 

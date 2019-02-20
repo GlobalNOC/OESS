@@ -339,6 +339,11 @@ sub peers{
 =cut
 sub inner_tag{
     my $self = shift;
+    my $inner_tag = shift;
+
+    if (defined $inner_tag) {
+        $self->{'inner_tag'} = $inner_tag;
+    }
     return $self->{'inner_tag'};
 }
 
@@ -347,6 +352,11 @@ sub inner_tag{
 =cut
 sub tag{
     my $self = shift;
+    my $tag = shift;
+
+    if (defined $tag) {
+        $self->{'tag'} = $tag;
+    }
     return $self->{'tag'};
 }
 
