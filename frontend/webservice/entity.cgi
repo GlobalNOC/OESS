@@ -435,14 +435,13 @@ sub get_entities{
 
     my $results = [];
     foreach my $entity (@$entities) {
-
         my %vlans;
         my @ints;
         foreach my $int (@{$entity->interfaces()}){
             my $obj = $int->to_hash();
             my @allowed_vlans;
 
-            foreach my $acl (@{$int->acls()->acls()}){
+            foreach my $acl (@{$int->acls()}){
                 next if $acl->{'entity_id'} != $entity->entity_id();
                 next if $acl->{'allow_deny'} ne 'allow';
                 next if (defined($acl->{'workgroup_id'}) && $acl->{'workgroup_id'} != $workgroup_id) ;
@@ -593,7 +592,7 @@ sub get_entity{
         my $obj = $int->to_hash();
         my @allowed_vlans;
 
-        foreach my $acl (@{$int->acls()->acls()}){
+        foreach my $acl (@{$int->acls()}){
             next if $acl->{'entity_id'} != $entity->entity_id();
             next if $acl->{'allow_deny'} ne 'allow';
             next if (defined($acl->{'workgroup_id'}) && $acl->{'workgroup_id'} != $workgroup_id);

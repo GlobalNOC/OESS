@@ -105,6 +105,10 @@ sub to_hash{
 =cut
 sub peer_ip{
     my $self = shift;
+    my $ip = shift;
+    if (defined $ip) {
+        $self->{'peer_ip'} = $ip;
+    }
     return $self->{'peer_ip'};
 }
 
@@ -113,6 +117,10 @@ sub peer_ip{
 =cut
 sub local_ip{
     my $self = shift;
+    my $ip = shift;
+    if (defined $ip) {
+        $self->{'local_ip'} = $ip;
+    }
     return $self->{'local_ip'};
 }
 
