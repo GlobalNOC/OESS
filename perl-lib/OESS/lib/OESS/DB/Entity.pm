@@ -313,6 +313,9 @@ sub add_children {
     );
 }
 
+=head2 create_entity
+
+=cut
 sub create_entity {
     my %params = @_;
     my $db = $params{'db'};

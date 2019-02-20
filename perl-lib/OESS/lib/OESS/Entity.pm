@@ -8,6 +8,7 @@ package OESS::Entity;
 use OESS::DB::Entity;
 
 use OESS::User;
+
 =head2 new
 
 =cut
@@ -355,7 +356,7 @@ sub remove_user {
     return 1;
 }
 
-=head2 create_entity
+=head2 create_child_entity
 
 =cut
 sub create_child_entity {
