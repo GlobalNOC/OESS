@@ -223,7 +223,8 @@ sub _process_circuit_details{
 
     $self->{'endpoints'} = $self->{'details'}->{'endpoints'};
 
-    my $new_db = OESS::DB->new();
+    warn "DB CONFIG: " . $self->{'db'}->{'config_file'} . "\n";
+    my $new_db = OESS::DB->new( config => $self->{'db'}->{'config_file'});
 
     foreach my $endpoint (@{$self->{'endpoints'}}){
         if($endpoint->{'local'} == 0){

@@ -139,7 +139,7 @@ sub new {
     my $database = $config->{'credentials'}->{'database'};
 
     $self->{'configuration'} = $config;
-
+    $self->{'config_file'} = $config_filename;
     $self->{'rabbitMQ'} = $config->{'rabbitMQ'};
     my $grafana = $config->{'grafana'};
     if (!defined $grafana) {
@@ -201,7 +201,7 @@ sub new {
     if (! defined $self->{'topo'}){
 	$self->{'topo'} = OESS::Topology->new(db => $self);
     }
-
+    
     $self->{'processes'} = $config->{'process'};
     
     $self->{'override_version_check'} = 0;
