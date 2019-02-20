@@ -25,7 +25,7 @@ class Endpoint extends Component {
   }
 
   onModify() {
-    this.state.onModify(this.state.index, this.state.endpoint);
+    this.state.onModify(this.state.endpoint.index, this.state.endpoint);
   }
 
   render(props) {

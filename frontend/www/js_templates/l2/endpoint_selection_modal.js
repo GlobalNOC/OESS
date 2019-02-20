@@ -201,17 +201,20 @@ class EndpointSelectionModal extends Component {
   async render(props) {
     this.index = ('index' in props) ? props.index : -1;
 
-    let entityIsActive =  this.props.entity ? 'active': '';
-    let intfIsActive = this.props.entity ? '' : 'active';
+    let entityIsActive =  props.entity ? 'active': '';
+    let intfIsActive = props.entity ? '' : 'active';
+    if (props.entity === undefined) {
+      props.entity = {};
+    }
 
     let [entityForm, interfaceForm] = await Promise.all([
       this.entityForm.render({
-        entity: this.props.entity,
-        vlan: this.props.vlan
+        entity: props.entity.entity_id,
+        vlan:   props.tag
       }),
       this.interfaceForm.render({
-        interface: this.props.interface,
-        vlan:      this.props.vlan
+        interface: props.interface_id,
+        vlan:      props.tag
       })
     ]);
 
