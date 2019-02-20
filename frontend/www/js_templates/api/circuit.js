@@ -1,3 +1,21 @@
+async function deleteCircuit(workgroupID, circuitID, end=-1) {
+  let url = '[% path %]services/provisioning.cgi?method=remove_circuit';
+  url += `&circuit_id=${circuitID}`;
+  url += `&remove_time=${end}`;
+  url += `&workgroup_id=${workgroupID}`;
+
+  try {
+    const resp = await fetch(url, {method: 'get', credentials: 'include'});
+    const data = await resp.json();
+
+    if ('error_text' in data) throw(data.error_text);
+    return data.results;
+  } catch(error) {
+    console.log('Failure occurred in deleteCircuit:', error);
+    return null;
+  }
+}
+
 /**
  * provisionCircuit provisions a new L3VPN. Returns the vrf identifier on
  * success or null if an error occurred.

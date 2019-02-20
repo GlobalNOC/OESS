@@ -106,7 +106,7 @@ class EndpointList extends Component {
 
   async render(props) {
     let handleCreate = `document.components[${this._id}].onCreate()`;
-    let displayEdits = (this.state.editable) ? 'block' : 'none';
+    let displayEdits = (this.state.editable && props.state !== 'decom') ? 'block' : 'none';
 
     let endpoints = props.endpoints.map((e, i) => {
       e.index = i;
@@ -115,7 +115,7 @@ class EndpointList extends Component {
         onDelete: this.state.onDelete,
         onModify: this.state.onModify,
         endpoint: e,
-        editable: this.state.editable
+        editable: (this.state.editable && props.state !== 'decom')
       });
 
       return obj.render(e);

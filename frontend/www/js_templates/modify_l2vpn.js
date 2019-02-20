@@ -67,7 +67,8 @@ class GlobalState extends Component {
   }
 
   deleteCircuit() {
-    console.log('delete circuit:', this.circuit);
+    let data = deleteCircuit(session.data.workgroup_id, this.circuit.circuit_id);
+    console.log(data);
   }
 }
 

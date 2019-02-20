@@ -102,7 +102,7 @@ class CircuitHeader extends Component {
   }
 
   async render(props) {
-    let displayEdits = (this.state.editable) ? 'block' : 'none';
+    let displayEdits = (this.state.editable && props.state !== 'decom') ? 'block' : 'none';
 
     return `
 <div class="col-sm-6">
