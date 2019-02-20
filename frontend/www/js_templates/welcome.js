@@ -3,7 +3,8 @@ document.addEventListener('DOMContentLoaded', function() {
   let entityID = url.searchParams.get('entity_id');
 
   loadUserMenu().then(function() {
-      loadEntityList();
+    loadEntityList();
+    loadL2VPNs();
   });
 });
 
@@ -140,4 +141,43 @@ async function loadEntityList() {
     });
 
     entitiesList.innerHTML = html;
+}
+
+async function loadL2VPNs() {
+  let circuits = await getCircuits(session.data.workgroup_id);
+  let circuitsList = document.querySelector('#l2vpn-list');
+
+  let html = '';
+  let ok = true;
+
+  if (circuits.length === 0) {
+    html = '<p>There are no Layer2 VPNs currently provisioned. Click <a href="[% path %]index.cgi?action=endpoints">here</a> to create one.</p>';
+  }
+
+  circuits.forEach(function(circuit, index) {
+    html += `
+<div class="panel panel-default">
+  <div class="panel-heading" style="display: flex; background-color: ${bg_color};">
+    <div style="width: 30px; background-color: ${color}; margin: -10px 15px -10px -15px;">
+    </div>
+    <div style="flex: 1;">
+      <h4>${circuit.description}</h4>
+      <div style="display: flex;">
+        <p style="padding-right: 15px; margin-bottom: 0px;"><b>Owner:</b> ${entity.workgroup.name}</p>
+        <p style="padding-right: 15px; margin-bottom: 0px;"><b>Created on:</b> ${createdOn.toDateString()}</p>
+      </div>
+    </div>
+    <h4>
+      ${edit}
+      <a href="?action=view_l3vpn&vrf_id=${entity.vrf_id}"><span class="glyphicon glyphicon-stats" style="padding-right: 9px;"></span></a>
+      ${del}
+      <a id="entity-body-${index}-opened" onclick="toggleEntityBody(${index})" href="javascript:void(0)" style="display: none;"><span class="glyphicon glyphicon-chevron-up"></span></a>
+      <a id="entity-body-${index}-closed" onclick="toggleEntityBody(${index})" href="javascript:void(0)"><span class="glyphicon glyphicon-chevron-down"></span></a>
+    </h4>
+  </div>
+</div>
+`;
+  });
+
+  circuitsList.innerHTML = html;
 }

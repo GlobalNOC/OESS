@@ -93,6 +93,20 @@ async function getCircuit(id) {
   }
 }
 
+async function getCircuits(workgroupID) {
+  let url = `[% path %]services/data.cgi?method=get_existing_circuits&workgroup_id=${workgroupID}`;
+
+  try {
+    const resp = await fetch(url, {method: 'get', credentials: 'include'});
+    const data = await resp.json();
+    return data.results;
+  } catch(error) {
+    console.log('Failure occurred in getCircuit:', error);
+    return [];
+  }
+}
+
+
 async function getCircuitEvents(id) {
   let url = `[% path %]services/data.cgi?method=get_circuit_scheduled_events&circuit_id=${id}`;
 
