@@ -10,6 +10,7 @@ use OESS::FlowRule;
 use Graph::Directed;
 use Data::Dumper;
 use OESS::Topology;
+use OESS::DB;
 #link statuses
 use constant OESS_LINK_UP       => 1;
 use constant OESS_LINK_DOWN     => 0;
