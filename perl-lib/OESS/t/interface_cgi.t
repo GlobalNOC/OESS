@@ -5,7 +5,7 @@ use warnings;
 use Data::Dumper;
 use GRNOC::Config;
 use GRNOC::WebService::Client;
-use Test::More tests=>8;
+use Test::More skip_all => "Need to setup apache test";
 use Test::Deep;
 use OESS::DB;
 use Log::Log4perl;

@@ -1,36 +1,35 @@
 #!/usr/bin/perl  -T
 
+use strict;
 use OESS::Interface;
-use Test::More tests => 30;
-use Log::Log4perl;
 use OESS::DB;
-use Data::Dumper;
 use Test::Deep;
 use FindBin;
 use OESS::ACL;
-# Initialize logging
-Log::Log4perl->init("/etc/oess/logging.conf");
-
-my $cwd;
+my $path;
 
 BEGIN {
     if($FindBin::Bin =~ /(.*)/){
-    $cwd = $1;
+    $path = $1;
     }
 }
 
+use lib "$path";
+
+use OESSDatabaseTester;
+use Test::More tests => 30;
 # Initialize DB
-my $db = OESS::DB->new(config => "$cwd/conf/database.xml");
+my $db = OESS::DB->new(config => OESSDatabaseTester::getConfigFilePath());
 my $interface_id = 391;
 
 # Initialize instance of interfaceusing interface id
 my $interface = OESS::Interface->new(	db 	=> $db,
 					interface_id => $interface_id
-						);
+				);
 
 ok(defined($interface)
 	,"Object  of type interface initiated");
-$query = "SELECT * FROM interface where interface_id=".$interface_id;
+my $query = "SELECT * FROM interface where interface_id=".$interface_id;
 my $test_interface = ($db->execute_query($query))[0][0];
 
 ok($interface->operational_state() eq ("up")
@@ -103,7 +102,7 @@ cmp_deeply($interface->mpls_range(),
           '5' => 1
         },"The method mpls_range() returns expected results");
 ### Test : vlan_valid ###
-$used_vlans = $interface->used_vlans();
+my $used_vlans = $interface->used_vlans();
 $test1 = $interface->vlan_in_use("1234");
 $test2 = not $interface->vlan_in_use(@$used_vlans[0]);
 
