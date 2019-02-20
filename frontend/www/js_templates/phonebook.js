@@ -193,19 +193,25 @@ async function loadEntityList(parentEntity=null) {
     const resp = await fetch(url2, {method: 'get', credentials: 'include'}); 
     const data = await resp.json();
     var valid_users = data.results;
-    let entityContacts = '';
+    let entityContacts = document.querySelector('#entity-contacts');
+    entityContacts.innerHTML = '';
     let contact_ids = [];
     entity.contacts.forEach(function(contact) {
             var user_id = contact.user_id;
             contact_ids.push(user_id);
-	    entityContacts += `<p class="entity-contact"><b>${contact.first_name} ${contact.last_name}</b>`;
+	    let p = document.createElement('p');
+	    p.className = 'entity-contact';
+
+	    let name = document.createElement('b');
+	    name.innerHTML = contact.first_name + " " + contact.last_name;
+            p.appendChild(name);
+
             if (valid_users.includes( user.user_id)){
-              entityContacts += `<sup style = "cursor:pointer" onclick='remove_user(${user_id}, ${entity.entity_id})'> &#10006</sup>`;
+	      p.innerHTML += `<sup class ='entity-contact' style='cursor:pointer' onclick='x_onclick(${user_id}, ${entity.entity_id})'>  &#10006</sup>`;
             }
-            
-            entityContacts += `<br/>${contact.email}<br/></p>`;
+	    p.innerHTML += '<br/>' + contact.email + '<br/>';
+	    entityContacts.appendChild(p)
     });
-    document.querySelector('#entity-contacts').innerHTML = entityContacts;
 
     if (valid_users.includes(user.user_id)){
           edit_entity_btn.style.display = 'block';
@@ -237,7 +243,10 @@ async function loadEntityList(parentEntity=null) {
             var ele = document.createElement("A");
             let user_id = users[i]['user_id'];
             if (!contact_ids.includes(user_id)){
-              ele.onclick = function(){ add_user(user_id, entityID)};
+              ele.onclick = async function(){ 
+		await add_user(user_id, entityID)
+                await loadEntityList(entityID);
+	      };
               var t = document.createTextNode(users[i]['first_name'] + " "  +users[i]['family_name']);
               ele.appendChild(t);
               user_list.appendChild(ele);
@@ -271,29 +280,7 @@ function filterFunction() {
   }
 }
 
-// Add user to entity
-async function add_user(user_id, entityID){
-  const url = `[% path %]services/entity.cgi?action=add_user&entity_id=${entityID}&user_id=${user_id}`;
-  const data = call_url(url); 
+async function x_onclick(user_id, entityID){
+  await remove_user(user_id, entityID);
   await loadEntityList(entityID);
- }
-
-async function remove_user(user_id, entityID){
-  const url = `[% path %]services/entity.cgi?action=remove_user&entity_id=${entityID}&user_id=${user_id}`;
-  const data = call_url(url);
-
-  await loadEntityList(entityID);
-}
-
-async function call_url(url){
-    try {
-      const resp = await fetch(url, {method: 'get', credentials: 'include'});
-      const data = await resp.json();
-      console.log(data);
-      return data;
-    } catch(error) {
-      console.log('Failure occurred in getVRF.');
-      console.log(error);
-      return null;
-    }
 }
