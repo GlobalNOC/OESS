@@ -3,7 +3,6 @@
 #use strict;
 
 use warnings;
-use Data::Dumper;
 use GRNOC::Config;
 use GRNOC::WebService::Client;
 use Test::More skip_all => "Need to setup apache test";
@@ -23,25 +22,13 @@ BEGIN {
     $cwd = $1;
     }
 }
-warn Dumper($cwd);
-$user="pmorpari";
-$pass="paridev123";
-#open(my $fh, "> /usr/share/oess-frontend/www/.htpasswd");
-#print $fh $user . ":" . crypt($pass,$pass) . "\n";
 
-#OESS::DB::Entity->import(get_entities);
-foreach my $key (sort(keys(%ENV))) {
-    warn Dumper( "$key = $ENV{$key}\n");
-}
-warn Dumper($ENV{'REMOTE_USER'});
 my $interface_id = 391;
 my $workgroup_id = 11;
 my $interface = OESS::Interface->new(interface_id=>$interface_id, db=>$db);
 my $config_path = "$cwd/conf/database.xml";
 my $config = GRNOC::Config->new(config_file=> $config_path);
 my $db = OESS::DB->new(config=>$config_path);
-#warn Dumper(">>>>>>>>>>>");
-#warn Dumper(($config->get("/config/cloud")));
 my $url = ($config->get("/config"))[0][0]->{'base_url'};
 my $username = ($config->get("/config/cloud"))[0][0]->{'user'};
 my $password = ($config->get("/config/cloud"))[0][0]->{'password'};
@@ -52,16 +39,12 @@ my $svc =new  GRNOC::WebService::Client(
                         realm   => 'OESS',
                         debug   => 0 
 );
-#warn Dumper(">>>>>>>>>>>>>>>>>");
-#warn Dumper($svc);
-#warn Dumper(OESS::DB::Entity::get_root_entities(db => $db));
 my $root_entities = OESS::DB::Entity::get_root_entities(db => $db);
     
 my @entities;
 foreach my $ent (@$root_entities){
     push(@entities,$ent->to_hash());
 }
-#warn Dumper(\@entities);
 cmp_deeply ($svc->get_root_entities() , 
 {
           'results' => [
@@ -313,9 +296,6 @@ cmp_deeply(
           'results' => undef
         },$svc->get_entity_interfaces(entity_id=>345), "The method get_entity_interfaces gives expected result when entity_id is out of range.");
 
-warn Dumper("<<<<<<<<<<<<<<<<<<<<<<<<<<");
-warn Dumper($ENV{'REMOTE_USER'});
-warn Dumper($svc->get_entity(entity_id=>7, workgroup_id=>11));
 cmp_deeply($svc->get_entity(entity_id=>7, workgroup_id=>11),
 {
           'results' => {
@@ -607,4 +587,3 @@ cmp_deeply($svc->get_entities(workgroup_id=>11, name=>"Big State TeraPOP"),
         }, "The method get_entities() returns expected result when workgroup_id is 11 for entity name Big State TeraPOP");
 
 $ENV{'REMOTE_USER'} = $temp_user;
-warn Dumper($ENV{'REMOTE_USER'});

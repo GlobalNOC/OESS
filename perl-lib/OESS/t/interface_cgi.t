@@ -2,7 +2,6 @@
 
 use strict;
 use warnings;
-use Data::Dumper;
 use GRNOC::Config;
 use GRNOC::WebService::Client;
 use Test::More skip_all => "Need to setup apache test";

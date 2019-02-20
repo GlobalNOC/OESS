@@ -3,7 +3,6 @@
 #use strict;
 
 use warnings;
-use Data::Dumper;
 use GRNOC::Config;
 use GRNOC::WebService::Client;
 use Test::More skip_all => "Need to setup apache test";
@@ -31,7 +30,6 @@ my $svc =new  GRNOC::WebService::Client(
                         realm   => 'OESS',
                         debug   => 0
 );
-#warn Dumper($svc->get_vrf_details(vrf_id => 2));
 cmp_deeply($svc->get_vrf_details(vrf_id => 2),
 {
           'results' => [
