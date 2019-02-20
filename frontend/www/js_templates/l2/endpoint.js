@@ -73,7 +73,7 @@ class Endpoint extends Component {
       <div style="display:flex; flex-direction: row; flex-wrap: nowrap;">
         ${title}
 
-<iframe src="https://io3.bldc.grnoc.iu.edu/grafana/d-solo/te5oS11mk/oess-interface?refresh=30s&orgId=1&panelId=2&var-node=mx960-1.sdn-test.grnoc.iu.edu&var-interface=em0&from=now-1h&to=now" height="${height}" frameborder="0" style="flex: 1;"></iframe>
+        <iframe src="[% g_l2_port %]&from=now-1h&to=now&var-node=${props.node}&var-interface=${props.interface}&refresh=30s" height="${height}" frameborder="0" style="flex: 1;"></iframe>
 
         <div style="display: ${displayEdits};">
           <button class="btn btn-link" type="button" onclick="${handleModify}" style="padding: 12 6 12 6;">

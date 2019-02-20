@@ -182,9 +182,10 @@ sub main{
         }
     }
 
-    $vars->{'g_port'}  = $db->{grafana}->{'oess-interface'};
-    $vars->{'g_peer'}  = $db->{grafana}->{'oess-bgp-peer'};
-    $vars->{'g_route'} = $db->{grafana}->{'oess-routing-table'};
+    $vars->{'g_port'}    = $db->{grafana}->{'oess-interface'};
+    $vars->{'g_l2_port'} = $db->{grafana}->{'oess-l2-interface'};
+    $vars->{'g_peer'}    = $db->{grafana}->{'oess-bgp-peer'};
+    $vars->{'g_route'}   = $db->{grafana}->{'oess-routing-table'};
 
     $vars->{'admin_email'}        = $db->get_admin_email();
     $vars->{'page'}               = $filename;

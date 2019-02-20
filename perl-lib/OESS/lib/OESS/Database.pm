@@ -149,6 +149,7 @@ sub new {
         my $org = 1;
         my $panel = 1;
 
+        $result->{'oess-l2-interface'} = "$host/d-solo/$uid/oess-l2-interface?panelId=$panel&orgId=$org";
         $result->{'oess-interface'} = "$host/d-solo/$uid/oess-interface?panelId=$panel&orgId=$org";
         $result->{'oess-bgp-peer'} = "$host/d-solo/$uid/oess-bgp-peer?panelId=$panel&orgId=$org";
         $result->{'oess-routing-table'} = "$host/d-solo/$uid/oess-routing-table?panelId=$panel&orgId=$org";
