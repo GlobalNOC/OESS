@@ -139,7 +139,7 @@ sub new {
     my $database = $config->{'credentials'}->{'database'};
 
     $self->{'configuration'} = $config;
-
+    $self->{'config_file'} = $config_filename;
     $self->{'rabbitMQ'} = $config->{'rabbitMQ'};
     my $grafana = $config->{'grafana'};
     if (!defined $grafana) {
@@ -201,7 +201,7 @@ sub new {
     if (! defined $self->{'topo'}){
 	$self->{'topo'} = OESS::Topology->new(db => $self);
     }
-
+    
     $self->{'processes'} = $config->{'process'};
     
     $self->{'override_version_check'} = 0;
@@ -4425,6 +4425,7 @@ sub get_circuit_endpoints {
         
         push (@$results, {'node'      => $endpoint->{'node_name'},
                           'interface' => $endpoint->{'int_name'},
+			  'interface_id' => $endpoint->{'interface_id'},
                           'tag'       => $endpoint->{'extern_vlan_id'},
                           'inner_tag' => $endpoint->{'inner_tag'},
                           'unit'      => $endpoint->{'unit'},

@@ -10,6 +10,7 @@ use OESS::FlowRule;
 use Graph::Directed;
 use Data::Dumper;
 use OESS::Topology;
+use OESS::DB;
 #link statuses
 use constant OESS_LINK_UP       => 1;
 use constant OESS_LINK_DOWN     => 0;
@@ -222,11 +223,24 @@ sub _process_circuit_details{
 
     $self->{'endpoints'} = $self->{'details'}->{'endpoints'};
 
+    warn "DB CONFIG: " . $self->{'db'}->{'config_file'} . "\n";
+    my $new_db = OESS::DB->new( config => $self->{'db'}->{'config_file'});
+
     foreach my $endpoint (@{$self->{'endpoints'}}){
         if($endpoint->{'local'} == 0){
             $self->{'interdomain'} = 1;
         }
+	my $entity = OESS::Entity->new( db => $new_db, interface_id => $endpoint->{'interface_id'}, vlan => $endpoint->{'tag'} );
+	if(!defined($entity)){
+	    next;
+	}
+
+	$endpoint->{'entity'} = $entity->to_hash();
     }
+
+    
+    
+
 
     if(!$self->{'just_display'}){       	
 	$self->_create_graph();
