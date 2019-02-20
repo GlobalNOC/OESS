@@ -31,8 +31,6 @@ class GlobalState extends Component {
   }
 
   updateEndpoint(e) {
-    console.log('updateEndpoint', e);
-
     e['interface'] = e.name;
     e['interface_description'] = 'NA';
 
@@ -41,9 +39,6 @@ class GlobalState extends Component {
     } else {
       this.circuit.endpoints[e.index] = e;
     }
-
-    console.log(this.circuit);
-    console.log('update endpoint:', e);
 
     update();
   }
@@ -54,7 +49,7 @@ class GlobalState extends Component {
   }
 
   saveCircuit() {
-    console.log('save circuit:', this.circuit);
+    console.log('saveCircuit:', this.circuit);
     provisionCircuit(
       session.data.workgroup_id,
       this.circuit.description,
@@ -63,12 +58,26 @@ class GlobalState extends Component {
       this.circuit.provision_time,
       this.circuit.remove_time,
       this.circuit.circuit_id
-    );
+    ).then(function(result) {
+      if (result !== null && result.success == 1) {
+        window.location.href = `index.cgi?action=modify_l2vpn&circuit_id=${result.circuit_id}`;
+      }
+    });
   }
 
   deleteCircuit() {
-    let data = deleteCircuit(session.data.workgroup_id, this.circuit.circuit_id);
-    console.log(data);
+    if (!window.confirm('Are you sure you wish to remove this circuit?')) {
+      return null;
+    }
+
+    deleteCircuit(
+      session.data.workgroup_id,
+      this.circuit.circuit_id
+    ).then(function(result) {
+      if (result !== null) {
+        window.location.href = 'index.cgi';
+      }
+    });
   }
 }
 
@@ -84,7 +93,6 @@ let raw = null;
 let endpointModal = null;
 
 async function update(props) {
-
   let headerElem = document.querySelector('#circuit-header');
   let epointListElem = document.querySelector('#endpoints');
   let detailsElem = document.querySelector('#circuit-details');
@@ -102,7 +110,6 @@ async function update(props) {
     endpointList.render(state.circuit),
     endpointModal.render(state.circuit.endpoints[state.selectedEndpoint] || {})
   ]);
-
 }
 
 document.addEventListener('DOMContentLoaded', function() {
