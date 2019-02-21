@@ -16,6 +16,14 @@ async function deleteConnection(id, name) {
     }
 }
 
+async function deleteL2VPN(id, name) {
+  let ok = confirm(`Are you sure you want to delete ${name}?`);
+  if (ok) {
+    await deleteCircuit(session.data.workgroup_id, id);
+    window.location = '?action=welcome';
+  }
+}
+
 async function toggleEntityBody(id) {
    let entityBody = document.querySelector(`#entity-body-${id}`);
    let entityClosed = document.querySelector(`#entity-body-${id}-closed`);
@@ -98,7 +106,7 @@ async function loadEntityList() {
     </div>
     <h4>
       ${edit}
-      <a href="?action=view_l3vpn&vrf_id=${entity.vrf_id}"><span class="glyphicon glyphicon-stats" style="padding-right: 9px;"></span></a>
+      <a href="?action=view_l3vpn&vrf_id=${entity.vrf_id}"><span class="glyphicon glyphicon-eye-open" style="padding-right: 9px;"></span></a>
       ${del}
       <a id="entity-body-${index}-opened" onclick="toggleEntityBody(${index})" href="javascript:void(0)" style="display: none;"><span class="glyphicon glyphicon-chevron-up"></span></a>
       <a id="entity-body-${index}-closed" onclick="toggleEntityBody(${index})" href="javascript:void(0)"><span class="glyphicon glyphicon-chevron-down"></span></a>
@@ -155,6 +163,36 @@ async function loadL2VPNs() {
   }
 
   circuits.forEach(function(circuit, index) {
+    let color = ok ? '#E0F0D9' : '#F2DEDE';
+    let createdOn = new Date(circuit.created_on);
+    let modifiedOn = new Date(circuit.last_edited);
+
+    let del = `<a onclick="deleteL2VPN(${circuit.circuit_id}, '${circuit.description}')" href='javascript:void(0)'><span class='glyphicon glyphicon-trash' style='padding-right: 9px;'></span></a>`;
+
+    let bg_color = '#fff';
+    let owner = 1;
+    if(circuit.workgroup_id != session.data.workgroup_id){
+      bg_color = '#e5e5e5';
+      owner = 0;
+    }
+
+    let endpointHTML = '';
+    circuit.endpoints.forEach(function(endpoint) {
+      let endpointOK = true;
+
+      if (endpointOK) {
+        endpointHTML += `
+        <p class="entity-interface"><span class="label label-success">▴</span> <b>${endpoint.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${endpoint.interface} - ${endpoint.tag}
+        </p>
+        `;
+      } else {
+        endpointHTML += `
+        <p class="entity-interface"><span class="label label-danger">▾</span> <b>${endpoint.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${endpoint.interface} - ${endpoint.tag}
+        </p>
+        `;
+      }
+    });
+
     html += `
 <div class="panel panel-default">
   <div class="panel-heading" style="display: flex; background-color: ${bg_color};">
@@ -163,17 +201,44 @@ async function loadL2VPNs() {
     <div style="flex: 1;">
       <h4>${circuit.description}</h4>
       <div style="display: flex;">
-        <p style="padding-right: 15px; margin-bottom: 0px;"><b>Owner:</b> ${entity.workgroup.name}</p>
+        <p style="padding-right: 15px; margin-bottom: 0px;"><b>Owner:</b> ${circuit.workgroup.name}</p>
         <p style="padding-right: 15px; margin-bottom: 0px;"><b>Created on:</b> ${createdOn.toDateString()}</p>
       </div>
     </div>
     <h4>
-      ${edit}
-      <a href="?action=view_l3vpn&vrf_id=${entity.vrf_id}"><span class="glyphicon glyphicon-stats" style="padding-right: 9px;"></span></a>
+      <a href="?action=modify_l2vpn&circuit_id=${circuit.circuit_id}"><span class="glyphicon glyphicon-eye-open" style="padding-right: 9px;"></span></a>
       ${del}
-      <a id="entity-body-${index}-opened" onclick="toggleEntityBody(${index})" href="javascript:void(0)" style="display: none;"><span class="glyphicon glyphicon-chevron-up"></span></a>
-      <a id="entity-body-${index}-closed" onclick="toggleEntityBody(${index})" href="javascript:void(0)"><span class="glyphicon glyphicon-chevron-down"></span></a>
+      <a id="entity-body-${index+100000}-opened" onclick="toggleEntityBody(${index+100000})" href="javascript:void(0)" style="display: none;"><span class="glyphicon glyphicon-chevron-up"></span></a>
+      <a id="entity-body-${index+100000}-closed" onclick="toggleEntityBody(${index+100000})" href="javascript:void(0)"><span class="glyphicon glyphicon-chevron-down"></span></a>
     </h4>
+  </div>
+
+  <div id="entity-body-${index+100000}" class="panel-body" style="padding-left: 45px; display: none;">
+    <div style="display: flex;">
+      <div style="padding-right: 15px;">
+        <p><b>Description</b></p>
+        <p><b>ID</b></p>
+      </div>
+      <div style="padding-right: 18px;">
+        <p>${circuit.description}</p>
+        <p>${circuit.circuit_id}</p>
+      </div>
+      <div style="padding-right: 15px;">
+        <p><b>Created by</b><p>
+        <p><b>Created on</b><p>
+        <p><b>Last modified by</b></p>
+        <p><b>Last modified on</b></p>
+      </div>
+      <div style="padding-right: 18px;">
+        <p>${circuit.created_by.email}</p>
+        <p>${createdOn.toDateString()}</p>
+        <p>${circuit.last_modified_by.email}</p>
+        <p>${modifiedOn.toDateString()}</p>
+      </div>
+      <div style="flex: 1; display: flex; flex-direction: column;">
+        ${endpointHTML}
+      </div>
+    </div>
   </div>
 </div>
 `;
