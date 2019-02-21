@@ -42,32 +42,41 @@ ok($interface->name() eq 'e15/1'
 	, " The method name() returns correct information");
 
 ok($interface->cloud_interconnect_id() eq 'Test',"The method cloud_interconnect_id() gives expected output for interface_id 391");
-$a = $interface->cloud_interconnect_type();
-ok($a eq undef , "The method cloud_interconnect_type() returns correct information");
+my $a = $interface->cloud_interconnect_type();
+ok(!defined($a) , "The method cloud_interconnect_type() returns correct information");
 
 ok($interface->description() eq 'e15/1', "The method description() returns correct information");
 
-#ok($interface->port_number() eq $test_interface->{'port_number'}, "The method port_number() returns correct information");
+my $acls = [];
 
-cmp_deeply($interface->acls()->{'acls'} ,
+foreach my $acl (@{$interface->acls()}){
+ push @$acls, $acl->to_hash();
+}
+cmp_deeply($acls ,
 [
           {
-            'eval_position' => '10',
-            'workgroup_id' => '11',
-            'allow_deny' => 'deny',
-            'entity_id' => '7',
+            'workgroup_id' => 11,
+            'interface_id' => 391,
+            'interface_acl_id' => 11,
             'end' => undef,
+            'eval_position' => 10,
+            'entity_id' => 7,
+            'allow_deny' => 'deny',
+            'notes' => '(for test 34-provision_circuit.t)',
             'start' => 1
           },
           {
-            'eval_position' => '20',
             'workgroup_id' => 11,
-            'allow_deny' => 'allow',
-            'entity_id' => '7',
+            'interface_id' => 391,
+            'interface_acl_id' => 12,
             'end' => 4095,
+            'eval_position' => 20,
+            'entity_id' => 7,
+            'allow_deny' => 'allow',
+            'notes' => '(for test 34-provision_circuit.t)',
             'start' => 1
           }
-        ] 
+        ]
 	," The method acls() returns correct object");
 
 ok(($interface->node())->{'node_id'} eq '11', "The method node() returns the correct node");
