@@ -1,7 +1,58 @@
 <div>
   <!-- Latest compiled and minified CSS -->
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+	<style>
+		.dropbtn {
+			background-color: #4CAF50;
+			color: white;
+			border: none;
+			cursor: pointer;
+		}
 
+		.dropbtn:hover, .dropbtn:focus {
+			background-color: #3e8e41;
+		}
+
+		#user-search {
+			border-box: box-sizing;
+                        background-image: url('../media/baseline_search_black_18dp.png');
+			background-position: 14px 12px;
+			background-repeat: no-repeat;
+			font-size: 16px;
+			padding: 14px 20px 12px 45px;
+			border: none;
+			border-bottom: 1px solid #ddd;
+		}
+
+		#user-list:focus {outline: 3px solid #ddd;}
+
+		.dropdown {
+			position: relative;
+			display: block;
+		}
+
+		.dropdown-content {
+			display: none;
+			position: absolute;
+			background-color: #f6f6f6;
+			min-width: 230px;
+			overflow: auto;
+			border: 1px solid #ddd;
+			z-index: 1;
+		}
+
+		.dropdown-content a {
+			color: black;
+			padding: 12px 16px;
+			text-decoration: none;
+			display: block;
+		}
+
+		.dropdown a:hover {background-color: #ddd;}
+
+		.show {display: block;}
+	</style>
   <!-- Latest compiled and minified JavaScript -->
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
 
@@ -15,7 +66,8 @@
           crossorigin=""></script>
 
   <link type="text/css" rel="stylesheet" href="[% path %]css/entity.css">
-
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/css/select2.min.css" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/js/select2.min.js"></script>
   <script>
     [% INCLUDE js_templates/api/vrf.js %]
     [% INCLUDE js_templates/api/interfaces.js %]
@@ -68,28 +120,19 @@
       <h3 id="entity-contacts-title">Contacts</h3>
       <div id="entity-contacts" class="entity-contacts">
       </div>
-
-      <!--
-      <h3>Children</h3>
-      <div class="entity-children">
-        <p class="entity-child"><a href="#">
-            <img class="entity-child-img" src="https://shop.lego.com/static/images/svg/lego-logo.svg" />
-            <b>Network Analysis and Control</b>
-        </a></p>
-        <p class="entity-child"><a href="#">
-            <img class="entity-child-img" src="https://shop.lego.com/static/images/svg/lego-logo.svg" />
-            <b>Monitoring Information and Infrastructure</b>
-         </a></p>
-      </div>
-
-      <div class="entity-map">
-        <div id="map" class="openlayers"></div>
-      </div>
-      -->
+      <div id="user-dropdown" class="dropdown" style="margin-bottom: 5px">
+        <button id="dropdown-btn" onclick="showDropdown()" class="dropbtn button btn btn-primary">Add Contacts</button>
+        <div id="user-list" class="dropdown-content">
+        </div>
+      </div> 
 
       <div id="entity-actions" class="entity-actions">
         <button id="entity-connect" class="button btn btn-primary" type="button" style="margin-right: 15px;">Connect to GlobalNOC</button>
         <button id="entity-connect-existing" class="button btn btn-primary" type="button">Add to existing Connection</button>
+      </div>
+      <div id= "add-edit-entity" class="entity-actions" >
+        <button id="add-entity" class ="button btn btn-primary" type="button"  style="display:none; margin-right:15px">Add Entity</button>
+        <button id="edit-entity" class ="button btn btn-primary" type="button" style="display:none" >Edit Entity</button>
       </div>
     </div>
   </div>

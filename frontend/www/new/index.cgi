@@ -158,7 +158,25 @@ sub main{
             $filename = "html_templates/denied.html";
             $title    = "Access Denied";
         }
-        else {
+        case "edit_entity" {
+            $filename		= "html_templates/edit_entity.html";
+            $current_breadcrumb = "Edit Entity";
+            $title		= "Edit Entity";
+            $breadcrumbs	= [
+                {title	=> "Welcome",	url => "?action=welcome"},
+                {title	=> "Edit Entity",	url	=> "#"}
+            ];
+        }
+        case "add_entity" {
+            $filename           = "html_templates/add_entity.html";
+            $current_breadcrumb = "Add Entity";
+            $title              = "Add Entity";
+            $breadcrumbs        = [
+                {title  => "Welcome",   url => "?action=welcome"},
+                {title  => "Add Entity",       url     => "#"}
+            ];
+        } 
+	else {
             $filename = "html_templates/error.html"; 
             $title    = "Error";
         }
