@@ -8,7 +8,6 @@ package OESS::DB::Entity;
 use OESS::Interface;
 use OESS::Entity;
 use OESS::User;
-use Data::Dumper;
 use List::MoreUtils qw(uniq);
 
 =head2 fetch
@@ -312,6 +311,41 @@ sub add_children {
         "INSERT into entity_hierarchy (entity_parent_id, entity_child_id) VALUES $param_str",
         $values
     );
+}
+
+=head2 create_entity
+
+=cut
+sub create_entity {
+    my %params = @_;
+    my $db = $params{'db'};
+    my $name = $params{'name'};
+    my $description = $params{'description'};
+    my $logo_url = $params{'logo_url'};
+    my $url = $params{'url'};
+
+    if (!defined($name)){
+      $name = '';  
+    }
+    if (!defined($description)){
+      $description = '';
+    } 
+    if (!defined($logo_url)){
+      $logo_url = '';
+    }
+    if (!defined($url)){
+      $url = '';
+    }
+
+    my $param_str = '(?, ?, ?, ?)';
+    my $values = [$name, $description, $logo_url, $url];
+    my $entity_id =  $db->execute_query(
+      "INSERT into entity (name, description, logo_url, url) VALUES $param_str",
+     $values 
+    );
+
+    return $entity_id;
+    
 }
 
 1;

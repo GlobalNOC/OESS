@@ -68,6 +68,11 @@ sub from_hash{
 sub to_hash{
     my $self = shift;
 
+    my $acl_models = [];
+    foreach my $acl (@{$self->acls()}) {
+        push @$acl_models, $acl->to_hash();
+    }
+
     my $res = { name => $self->name(),
                 cloud_interconnect_id => $self->cloud_interconnect_id(),
                 cloud_interconnect_type => $self->cloud_interconnect_type(),
@@ -75,7 +80,7 @@ sub to_hash{
                 interface_id => $self->interface_id(),
                 node_id => $self->node()->node_id(),
                 node => $self->node()->name(),
-                acls => $self->acls()->to_hash(),
+                acls => $acl_models,
                 operational_state => $self->{'operational_state'} };
     
     return $res;
@@ -304,10 +309,26 @@ sub vlan_valid{
         return 0;
     }
 
-    if(!$self->acls()->vlan_allowed( vlan => $vlan, workgroup_id => $workgroup_id)){
+    my $allow = 0;
+    foreach my $a (@{$self->acls}) {
+        my $ok = $a->vlan_allowed(workgroup_id => $workgroup_id, vlan => $vlan);
+        if ($ok == 1) {
+            $allow = 1;
+            last;
+        }
+        if ($ok == 0) {
+            # Because this rule explictly denies access to this vlan
+            # and there could be lower priority rule that may allow
+            # this vlan, we break from the for loop. This ensures the
+            # higher priority rule is respected.
+            $allow = 0;
+            last;
+        }
+    }
+    if (!$allow) {
         return 0;
     }
-    
+
     if(!defined($self->mpls_range()->{$vlan})){
         return 0;
     }
@@ -331,11 +352,14 @@ sub is_bandwidth_valid {
     my $bandwidth = $params{bandwidth};
 
     my $aws_conn = { 50 => 1, 100 => 1, 200 => 1, 300 => 1, 400 => 1, 500 => 1 };
+    my $azr_conn = { 0 => 1};
     my $default  = { 0 => 1 };
     my $gcp_part = { 50 => 1, 100 => 1, 200 => 1, 300 => 1, 400 => 1, 500 => 1, 1000 => 1, 2000 => 1, 5000 => 1, 10000 => 1 };
 
     if ($self->cloud_interconnect_type eq 'aws-hosted-connection') {
         if (defined $aws_conn->{$bandwidth}) { return 1; } else { return 0; }
+    } elsif ($self->cloud_interconnect_type eq 'azure-express-route') {
+        if (defined $azr_conn->{$bandwidth}) { return 1; } else { return 0; }
     } elsif ($self->cloud_interconnect_type eq 'gcp-partner-interconnect') {
         if (defined $gcp_part->{$bandwidth}) { return 1; } else { return 0; }
     } else {

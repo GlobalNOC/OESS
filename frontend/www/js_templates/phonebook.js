@@ -11,7 +11,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
   let addToConnectionCancel = document.querySelector('#add-to-connection-cancel');
   addToConnectionCancel.addEventListener('click', addToConnectionCancelCallback);
+
+
+  let user_list = document.querySelector('#user-list');
+  document.addEventListener("click", (e) => {
+    const user_list = document.getElementById("user-list");
+    const dropdown_btn = document.getElementById("dropdown-btn");
+    const user_search = document.getElementById("user-search");
+    let targetElement = e.target;
+    if (targetElement != dropdown_btn
+         && targetElement != user_search
+         && user_list.classList.contains("show"))
+      {
+        user_list.classList.toggle("show");
+      }
 });
+
+ });
 
 // Called when the 'Add to existing Connection' button is
 // pressed. Presents the user with a list of all connections to which
@@ -51,6 +67,13 @@ async function addToConnectionCancelCallback() {
 async function loadEntityList(parentEntity=null) {
     let entity = await getEntities(session.data.workgroup_id, parentEntity);
     let entitiesList = document.querySelector('#entity-list');
+ 
+    let edit_entity_btn = document.querySelector('#edit-entity');
+    let add_entity_btn = document.querySelector('#add-entity');
+    let add_user_btn = document.querySelector('#user-dropdown');
+    let user_list = document.querySelector('#user-list');
+
+
 
     let logoURL = entity.logo_url || '../media/default_entity.png';
     let description = entity.description;
@@ -165,9 +188,99 @@ async function loadEntityList(parentEntity=null) {
         document.querySelector('#entity-contacts-title').style.display = 'block';
     }
 
-    let entityContacts = '';
+    let user = await getCurrentUser();
+    let url2 = `[% path %]services/entity.cgi?action=get_valid_users&entity_id=${entityID}`;
+    const resp = await fetch(url2, {method: 'get', credentials: 'include'}); 
+    const data = await resp.json();
+    var valid_users = data.results;
+    let entityContacts = document.querySelector('#entity-contacts');
+    entityContacts.innerHTML = '';
+    let contact_ids = [];
     entity.contacts.forEach(function(contact) {
-            entityContacts += `<p class="entity-contact"><b>${contact.first_name} ${contact.last_name}</b><br/>${contact.email}</p>`;
+            var user_id = contact.user_id;
+            contact_ids.push(user_id);
+	    let p = document.createElement('p');
+	    p.className = 'entity-contact';
+
+	    let name = document.createElement('b');
+	    name.innerHTML = contact.first_name + " " + contact.last_name;
+            p.appendChild(name);
+
+            if (valid_users.includes( user.user_id)){
+	      p.innerHTML += `<sup class ='entity-contact' style='cursor:pointer' onclick='x_onclick(${user_id}, ${entity.entity_id})'>  &#10006</sup>`;
+            }
+	    p.innerHTML += '<br/>' + contact.email + '<br/>';
+	    entityContacts.appendChild(p)
     });
-    document.querySelector('#entity-contacts').innerHTML = entityContacts;
+
+    if (valid_users.includes(user.user_id)){
+          edit_entity_btn.style.display = 'block';
+          edit_entity_btn.onclick = function(){
+            window.location.href = `[% path %]new/index.cgi?action=edit_entity&entity_id=${entityID}`;
+          };
+
+          add_entity_btn.style.display = 'block'; 
+          add_entity_btn.onclick = function(){
+            window.location.href = `[% path %]new/index.cgi?action=add_entity&entity_id=${entityID}`;
+          };
+
+          let user_list = document.querySelector('#user-list');
+          user_list.innerHTML ="";
+          var search = document.createElement("INPUT");
+          search.setAttribute('type','text');
+          search.onkeyup = function () { filterFunction()};
+          search.id = "user-search";
+          search.placeholder = "Search...";
+          user_list.appendChild(search);
+
+          add_user_btn.style.display = 'block';
+          let users_url = `[% path %]services/data.cgi?action=get_users`;
+          const users_resp = await fetch(users_url, {method:'get', credentials:'include'});
+          var users = await users_resp.json();
+          users = users['results'];
+          let i =0;
+          for (i =0 ; i < users.length; i++){
+            var ele = document.createElement("A");
+            let user_id = users[i]['user_id'];
+            if (!contact_ids.includes(user_id)){
+              ele.onclick = async function(){ 
+		await add_user(user_id, entityID)
+                await loadEntityList(entityID);
+	      };
+              var t = document.createTextNode(users[i]['first_name'] + " "  +users[i]['family_name']);
+              ele.appendChild(t);
+              user_list.appendChild(ele);
+            }
+          }
+    }
+    else{
+      add_entity_btn.style.display = 'none'; 
+      edit_entity_btn.style.display = 'none'; 
+      add_user_btn.style.display = 'none';
+    } 
+}
+
+function showDropdown()   {
+  document.getElementById("user-list").classList.toggle("show");
+}
+
+function filterFunction() {
+  var input, filter, ul, li, a, i;
+  input = document.getElementById("user-search");
+  filter = input.value.toUpperCase();
+  div = document.getElementById("user-list");
+  a = div.getElementsByTagName("a");
+  for (i = 0; i < a.length; i++) {
+    txtValue = a[i].textContent || a[i].innerText;
+    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+      a[i].style.display = "";
+    } else {
+      a[i].style.display = "none";
+    }
+  }
+}
+
+async function x_onclick(user_id, entityID){
+  await remove_user(user_id, entityID);
+  await loadEntityList(entityID);
 }

@@ -107,6 +107,20 @@ sub register_ro_methods{
         description     => "The workgroup id to find the ACLs for the entity"   );
 
     $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new(
+        name            => "get_valid_users",
+        description     => "returns a JSON object representing all valid user for given entity",
+        callback        => sub { get_valid_users(@_) }
+    );
+    $method->add_input_parameter(
+        name            => 'entity_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "The entity id to find the users the entity"
+    );
+    $svc->register_method($method);
+
 }
 
 sub register_rw_methods{
@@ -216,6 +230,46 @@ sub register_rw_methods{
         required => 1,
         description => "user to be removed"
     );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new(
+        name            => "add_child_entity",
+        description     => "Adding child entity",
+        callback        => sub { add_child_entity(@_) }
+    );
+
+    $method->add_input_parameter(
+        name => "current_entity_id",
+        pattern => $GRNOC::WebService::Regex::INTEGER,
+        required => 1,
+	description => "entity to be updated"
+    );
+    $method->add_input_parameter(
+        name => 'user_id',
+        pattern => $GRNOC::WebService::Regex::INTEGER,
+        required => 1,
+        description => "user to be added"
+    );
+    $method->add_input_parameter(
+        name => 'description',
+        pattern => $GRNOC::WebService::Regex::TEXT,
+        required => 0,
+        description => "the description to be set on the entity");
+    $method->add_input_parameter(
+        name => 'name',
+        pattern => $GRNOC::WebService::Regex::NAME_ID,
+        required => 0,
+        description => "the name of the entity");
+    $method->add_input_parameter(
+        name => 'url',
+        pattern => $GRNOC::WebService::Regex::TEXT,
+        required => 0,
+        description => "The URL of the entities web page");
+    $method->add_input_parameter(
+        name => 'logo_url',
+        pattern => $GRNOC::WebService::Regex::TEXT,
+        required => 0,
+        description => "The URL to the logo for the entity");
     $svc->register_method($method);
 }
 
@@ -378,17 +432,16 @@ sub get_entities{
     my $workgroup_id = $params->{'workgroup_id'}{'value'};
 
     my $entities = OESS::DB::Entity::get_entities(db => $db, name => $params->{name}{value});
-warn Dumper($entities);
+
     my $results = [];
     foreach my $entity (@$entities) {
-
         my %vlans;
         my @ints;
         foreach my $int (@{$entity->interfaces()}){
             my $obj = $int->to_hash();
             my @allowed_vlans;
 
-            foreach my $acl (@{$int->acls()->acls()}){
+            foreach my $acl (@{$int->acls()}){
                 next if $acl->{'entity_id'} != $entity->entity_id();
                 next if $acl->{'allow_deny'} ne 'allow';
                 next if (defined($acl->{'workgroup_id'}) && $acl->{'workgroup_id'} != $workgroup_id) ;
@@ -539,7 +592,7 @@ sub get_entity{
         my $obj = $int->to_hash();
         my @allowed_vlans;
 
-        foreach my $acl (@{$int->acls()->acls()}){
+        foreach my $acl (@{$int->acls()}){
             next if $acl->{'entity_id'} != $entity->entity_id();
             next if $acl->{'allow_deny'} ne 'allow';
             next if (defined($acl->{'workgroup_id'}) && $acl->{'workgroup_id'} != $workgroup_id);
@@ -596,7 +649,43 @@ sub get_entity{
     
 }
 
+sub get_valid_users{
+    my $method = shift;
+    my $params = shift;
 
+    my $entity_id = $params->{'entity_id'}{'value'};
+    my $users = $db->execute_query("SELECT user_id from user_entity_membership WHERE entity_id =$entity_id"); 
+    my @res;
+    my @users;
+    foreach my $var  (@$users){
+        push(@res, $var->{'user_id'});
+    }    
+    return {results => \@res}; 
+}
+
+sub add_child_entity {
+    my $method = shift;
+    my $params = shift;
+
+    my $entity = OESS::Entity->new(db => $db, entity_id => $params->{'current_entity_id'}{'value'});
+    if (!defined $entity) {
+        $method->set_error("Unable to find entity $params->{'entity_id'}{'value'} in the db");
+        return;
+    }
+
+   my $child_id = $entity->create_child_entity(
+                name =>  $params->{name}{value},
+                description =>  $params->{description}{value},
+                logo_url =>  $params->{logo_url}{value},
+                url =>  $params->{url}{value},
+		user_id => $params->{'user_id'}{'value'}
+              ); 
+    if (!defined $child_id){
+        $method->set_error("Unable to add child"); 
+	return;
+    }
+    return { results => [ { success => 1, child_entity_id => $child_id } ] };
+}
 
 sub main{
     register_ro_methods();
