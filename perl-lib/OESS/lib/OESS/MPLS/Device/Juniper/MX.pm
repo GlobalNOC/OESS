@@ -164,8 +164,8 @@ sub lock {
     my $self = shift;
 
     if (!$self->connected()) {
-	$self->{'logger'}->error("Not currently connected to device");
-	return 0;
+        $self->{'logger'}->error("Not currently connected to device");
+        return 0;
     }
 
     eval {
@@ -1659,6 +1659,10 @@ sub get_device_diff {
     $queryargs{'config'} = $conf;
 
     my $ok = $self->lock();
+    if (!$ok) {
+        $self->{'logger'}->error("Unable to generate diff without a valid lock.");
+        return;
+    }
 
     my $res = $self->{'jnx'}->edit_config(%queryargs);
     if ($self->{'jnx'}->has_error) {
@@ -2529,6 +2533,11 @@ sub _edit_config{
 
     $self->{'logger'}->debug("Locking config");
     $ok = $self->lock();
+    if (!$ok) {
+        $self->{'logger'}->error("Unable to edit config without a valid lock.");
+        return FWDCTL_FAILURE;
+    }
+
     $self->{'logger'}->debug("Locked config!");
 
     %queryargs = (
