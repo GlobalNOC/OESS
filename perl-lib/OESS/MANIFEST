@@ -12,6 +12,7 @@ lib/OESS/Cloud/GCP.pm
 lib/OESS/Config.pm
 lib/OESS/Database.pm
 lib/OESS/DB.pm
+lib/OESS/DB/ACL.pm
 lib/OESS/DB/Command.pm
 lib/OESS/DB/Entity.pm
 lib/OESS/DB/Interface.pm
