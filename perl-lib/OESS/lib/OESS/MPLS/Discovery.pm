@@ -117,7 +117,8 @@ sub new{
     $self->{'tsds_svc'} = GRNOC::WebService::Client->new( url => $tsds_conf->{'url'} . "/push.cgi",
                                                           uid => $tsds_conf->{'username'},
                                                           passwd => $tsds_conf->{'password'},
-                                                          usePost => 1,
+							  realm => $tsds_conf->{'realm'},
+							  usePost => 1,
                                                           debug => 1);
 
     #create the client for talking to our Discovery switch objects!

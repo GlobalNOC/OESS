@@ -129,6 +129,7 @@ cmp_deeply($res,{
 	      {
                              'local' => '1',
                              'node' => 'Node 111',
+			     'interface_id' => 551,
                              'interface_description' => 'e3/1',
                              'port_no' => '97',
                              'node_id' => '111',
@@ -143,6 +144,7 @@ cmp_deeply($res,{
 	      {
                              'local' => '1',
                              'node' => 'Node 31',
+			     'interface_id' => 45851,
                              'interface_description' => 'e1/2',
                              'port_no' => '2',
                              'node_id' => '31',

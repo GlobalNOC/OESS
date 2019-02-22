@@ -7,6 +7,8 @@ package OESS::Entity;
 
 use OESS::DB::Entity;
 
+use OESS::User;
+
 =head2 new
 
 =cut
@@ -352,6 +354,61 @@ sub remove_user {
     }
 
     return 1;
+}
+
+=head2 create_child_entity
+
+=cut
+sub create_child_entity {
+    my $self = shift;
+    my %params = @_;
+    my $name = $params{'name'};
+    my $description = $params{'description'};
+    my $logo_url = $params{'logo_url'};
+    my $url = $params{'url'};
+
+    $self->{db}->start_transaction();
+    my $child_id = OESS::DB::Entity::create_entity(db => $self->{db},
+                                    name => $name,
+                                    description => $description,
+                                    logo_url => $logo_url,
+                                    url=> $url );
+   
+    if (!defined ($child_id)){
+      $self->{db}->rollback();
+      warn $self->{db}->{error};
+      return;
+      }
+    $self->{db}->commit();
+
+    my $child_entity = OESS::Entity->new(db => $self->{db}, entity_id => $child_id);
+    if (!defined $child_entity) {
+      warn "Unable to find child entity $child_entity in the db";
+      return;
+    }
+
+    # Add User to the child first
+    my $user = OESS::User->new(db => $self->{db}, user_id => $params{user_id});
+    if (!defined $user) {
+        warn "Unable to find user $params{'user_id'} in the db.";
+        return;
+    }
+    $child_entity->add_user($user);
+
+    my $err_child = $child_entity->update_db();
+    if (defined $err_child) {
+        warn "$err_child";
+        return;
+    }
+
+    $self->add_child($child_entity);
+    my $err = $self->update_db();
+    if (defined ($err)){
+      warn "Unable to add child";
+      return;
+    }
+   
+   return $child_id;
 }
 
 1;

@@ -216,6 +216,7 @@ sub build_cache{
         $details->{'node_id'} = $details->{'node_id'};
 	$details->{'id'} = $details->{'node_id'};
         $details->{'name'} = $details->{'name'};
+	$details->{'short_name'} = $details->{'short_name'};
 	$details->{'ip'} = $details->{'ip'};
 	$details->{'vendor'} = $details->{'vendor'};
 	$details->{'model'} = $details->{'model'};
@@ -292,8 +293,6 @@ sub _write_cache{
 	}
     }
 
-    $self->{'logger'}->error("SWITCHES WITH VRF: " .  Dumper(%switches));
-    
     foreach my $ckt_id (keys (%{$self->{'circuit'}})){
         my $found = 0;
         next if $self->{'circuit'}->{$ckt_id}->{'type'} ne 'mpls';
@@ -366,7 +365,7 @@ sub _write_cache{
 		    push(@$paths,{ name => 'PRIMARY',  
 				   mpls_path_type => 'loose',
 				   dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-				   dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}});
+				   dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'short_name'}});
 		}else{
 		    #ok so they specified a strict path... get the LSPs
 		    push(@$paths,{ name => 'PRIMARY', mpls_path_type => 'strict',
@@ -374,7 +373,7 @@ sub _write_cache{
 								 start => $ep_a->{'node'},
 								 end => $ep_z->{'node'}),
 				   dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-				   dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
+				   dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'short_name'}
 			 });
 		    
 		    my $backup = $ckt->get_mpls_path_type( path => 'backup');
@@ -383,7 +382,7 @@ sub _write_cache{
 			push(@$paths,{ name => 'SECONDARY', 
 				       mpls_path_type => 'loose',
 				       dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}});
+				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'short_name'}});
 		    }else{
 			push(@$paths,{ name => 'SECONDARY',
 				       mpls_path_type => 'strict',
@@ -391,13 +390,13 @@ sub _write_cache{
 								     start => $ep_a->{'node'},
 								     end => $ep_z->{'node'}),
 				       dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
+				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'short_name'}
 			     });
 			#our tertiary path...
 			push(@$paths,{ name => 'TERTIARY',
 				       dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
 				       mpls_path_type => 'loose',
-				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
+				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'short_name'}
 			     });
 		    }
 		}	
@@ -415,7 +414,7 @@ sub _write_cache{
 			paths => $paths,
 			ckt_type => $ckt_type,
 			site_id => $site_id,
-			a_side => $ep_a->{'node_id'},
+			a_side => $ep_a->{'short_name'},
                         state  => $ckt->{'state'}
                       };
 
@@ -845,8 +844,8 @@ sub addVrf{
     my $endpoints = $vrf->endpoints();
     my %nodes;
     foreach my $ep (@$endpoints){
-        $self->{'logger'}->error("EP: " . Dumper($ep));
-        $self->{'logger'}->error("addVrf: Node: " . $ep->node()->name() . " is involved in the vrf");
+        $self->{'logger'}->debug("EP: " . Dumper($ep));
+        $self->{'logger'}->debug("addVrf: Node: " . $ep->node()->name() . " is involved in the vrf");
         $nodes{$ep->node()->name()}= 1;
     }
 
@@ -854,56 +853,61 @@ sub addVrf{
 
     if ($vrf->state() eq "deploying" || $vrf->state() eq "scheduled") {
         $self->{'logger'}->error("addVrf: Wrong circuit state was encountered");
-        
-        my $state = $vrf->state();
 
+        my $state = $vrf->state();
         $self->{'logger'}->error($self->{'db2'}->get_error());
     }
 
 
-    $self->{'logger'}->info("Adding VRF.");
+    $self->{'logger'}->info("Provisioning L3VPN.");
 
-    my $cv  = AnyEvent->condvar;
-    my $err = '';
+    my $cv = AnyEvent->condvar;
+    my $node_errors = {};
 
-    $cv->begin( sub {
-        if ($err ne '') {
-            foreach my $node (keys %nodes){
-                my $node_id = $self->{'node_info'}->{$node}->{'id'};
-                my $node_addr = $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
-                
-                $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $node_addr;
-                $self->{'fwdctl_events'}->remove_vrf(vrf_id => $vrf_id,
-                                                     async_callback => sub {
-                                                         $self->{'logger'}->error("Removed VRF from $node_addr.");
-                                                     });
+    $cv->begin(
+        sub {
+            if (!%$node_errors) {
+                $self->{'logger'}->info("L3VPN successfully provisioned.");
+                return &$success({status => $result});
             }
-            
-            $self->{'logger'}->error("Failed to add VRF.");
-            return &$error($err);
+
+            foreach my $node (keys %nodes) {
+                if (exists $node_errors->{$node}) {
+                    # Addition failed so no need to rollback.
+                    $self->{logger}->error($node_errors->{$node});
+                    next;
+                }
+
+                my $node_id = $self->{'node_info'}->{$node}->{'id'};
+                my $node_ip = $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
+
+                $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch.$node_ip";
+                $self->{'fwdctl_events'}->remove_vrf(
+                    vrf_id => $vrf_id,
+                    async_callback => sub {
+                        $self->{logger}->warn("Rolled back L3VPN on $node ($node_ip).");
+                    });
+            }
+
+            return &$error("Failed to provision L3VPN.");
         }
-        
-        $self->{'logger'}->info("Added VRF.");
-        return &$success({status => $result});
-    });
-    
+    );
+
     foreach my $node (keys %nodes){
         $cv->begin();
-
-        $self->{'logger'}->error("Getting ready to add VRF: " . $vrf->vrf_id() . " to switch: " . $node);
-
+        $self->{'logger'}->info("Adding VRF " . $vrf->vrf_id() . " to $node.");
 
         my $node_id = $self->{'node_info'}->{$node}->{'id'};
+        my $node_ip = $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
 
-        $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
+        $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch.$node_ip";
         $self->{'fwdctl_events'}->add_vrf(
-            vrf_id => $vrf_id,
+            vrf_id         => $vrf_id,
             async_callback => sub {
                 my $res = shift;
 
-                if($res->{'results'}->{'status'} != FWDCTL_SUCCESS){
-                    $self->{'logger'}->error("Switch " . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . " reported an error.");
-                    $err .= "Switch : " . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . " reported an error";
+                if ($res->{'results'}->{'status'} != FWDCTL_SUCCESS) {
+                    $node_errors->{$node} = "Failed to add L3VPN on $node ($node_ip).";
                 }
                 $cv->end();
             });
@@ -953,8 +957,8 @@ sub delVrf{
     my $endpoints = $vrf->endpoints();
     my %nodes;
     foreach my $ep (@$endpoints){
-        $self->{'logger'}->error("EP: " . Dumper($ep));
-        $self->{'logger'}->error("delVrf: Node: " . $ep->node()->name() . " is involved in the vrf");
+        $self->{'logger'}->debug("EP: " . Dumper($ep));
+        $self->{'logger'}->debug("delVrf: Node: " . $ep->node()->name() . " is involved in the vrf");
         $nodes{$ep->node()->name()}= 1;
 
     }

@@ -115,6 +115,24 @@ sub main{
                 {title => "Private network details", url => "#"}
             ];
         }
+        case "modify_l2vpn" {
+            $title              = "L2VPN Details";
+            $filename           = "html_templates/modify_l2vpn.html";
+            $current_breadcrumb = "Modify L2VPN";
+            $breadcrumbs        = [
+                {title => "Welcome",       url => "?action=welcome"},
+                {title => "L2VPN Details", url => "#"}
+            ];
+        }
+        case "view_l2vpn" {
+            $title              = "L2VPN Details";
+            $filename           = "html_templates/view_l2vpn.html";
+            $current_breadcrumb = "L2VPN Details";
+            $breadcrumbs        = [
+                {title => "Welcome",       url => "?action=welcome"},
+                {title => "L2VPN Details", url => "#"}
+            ];
+        }
         case "provision_cloud" {
             $title              = "New cloud network";
             $filename           = "html_templates/provision_cloud.html";
@@ -150,19 +168,42 @@ sub main{
                 {title => "Update cloud network", url => "#"}
             ];
         }
+        case "acl" {
+            $filename = "html_templates/acl.html";
+            $title    = "Edit ACL";
+        }
         case "decom" {
             $filename = "html_templates/denied.html";
             $title    = "Access Denied";
         }
-        else {
+        case "edit_entity" {
+            $filename		= "html_templates/edit_entity.html";
+            $current_breadcrumb = "Edit Entity";
+            $title		= "Edit Entity";
+            $breadcrumbs	= [
+                {title	=> "Welcome",	url => "?action=welcome"},
+                {title	=> "Edit Entity",	url	=> "#"}
+            ];
+        }
+        case "add_entity" {
+            $filename           = "html_templates/add_entity.html";
+            $current_breadcrumb = "Add Entity";
+            $title              = "Add Entity";
+            $breadcrumbs        = [
+                {title  => "Welcome",   url => "?action=welcome"},
+                {title  => "Add Entity",       url     => "#"}
+            ];
+        } 
+	else {
             $filename = "html_templates/error.html"; 
             $title    = "Error";
         }
     }
 
-    $vars->{'g_port'}  = 'https://aj-dev7.grnoc.iu.edu/grafana/d-solo/LbLWIXmmk/oess-interface?orgId=1&panelId=4';
-    $vars->{'g_peer'}  = 'https://aj-dev7.grnoc.iu.edu/grafana/d-solo/mop4gHoik/oess-bgp-peer?orgId=1&panelId=4';
-    $vars->{'g_route'} = 'https://aj-dev7.grnoc.iu.edu/grafana/d-solo/YBv2sDTik/oess-routing-table?orgId=1&panelId=2';
+    $vars->{'g_port'}    = $db->{grafana}->{'oess-interface'};
+    $vars->{'g_l2_port'} = $db->{grafana}->{'oess-l2-interface'};
+    $vars->{'g_peer'}    = $db->{grafana}->{'oess-bgp-peer'};
+    $vars->{'g_route'}   = $db->{grafana}->{'oess-routing-table'};
 
     $vars->{'admin_email'}        = $db->get_admin_email();
     $vars->{'page'}               = $filename;
@@ -170,7 +211,7 @@ sub main{
     $vars->{'breadcrumbs'}        = $breadcrumbs;
     $vars->{'current_breadcrumb'} = $current_breadcrumb;
     $vars->{'path'}               = "../";
-    $vars->{'is_admin'}           = $is_admin;		    
+    $vars->{'is_admin'}           = $is_admin;
     $vars->{'is_read_only'}       = $is_read_only;
     $vars->{'version'}            = OESS::Database::VERSION;
 

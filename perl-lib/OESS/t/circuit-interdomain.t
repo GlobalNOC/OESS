@@ -38,6 +38,7 @@ ok(scalar(@$endpoints) == 3, "Has correct number of endpoints");
 
 cmp_deeply($endpoints->[0], {
             'local' => '1',
+	    'interface_id' => 741,
             'node' => 'Node 91',
             'mac_addrs' => [],
             'interface_description' => 'e15/1',
@@ -54,6 +55,7 @@ cmp_deeply($endpoints->[0], {
 cmp_deeply($endpoints->[1], {
             'local' => '1',
             'node' => 'Node 91',
+	    'interface_id' => 761,
             'mac_addrs' => [],
             'interface_description' => 'e15/3',
             'port_no' => '675',
@@ -68,6 +70,7 @@ cmp_deeply($endpoints->[1], {
 
 cmp_deeply($endpoints->[2], {
                 'local' => '0',
+		'interface_id' => 29961,
             'node' => 'ion.internet2.edu-rtr.newy',
             'mac_addrs' => [],
             'interface_description' => 'xe-1/1/0',

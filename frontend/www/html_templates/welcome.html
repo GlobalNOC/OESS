@@ -17,6 +17,7 @@
  <link type="text/css" rel="stylesheet" href="[% path %]css/entity.css">
 
   <script>
+    [% INCLUDE js_templates/api/circuit.js %]
     [% INCLUDE js_templates/api/vrf.js %]
     [% INCLUDE js_templates/api/validateIP.js %]
     [% INCLUDE js_templates/welcome.js %]
@@ -24,10 +25,11 @@
   
   <br/>
   <h3>Layer3 VPNs</h3>
-  <p>&nbsp;
-    <!-- <a class="btn btn-primary btn-lg" role="button" href="?action=provision_cloud">New Connection</a> -->
-    <!-- <a class="btn btn-default btn-lg" role="button" href="?action=phonebook">Discover Networks</a> -->
-  </p>
-  <div id="entity-list">
-  </div>
+  <p>&nbsp;</p>
+  <div id="entity-list"></div>
+
+  <br/>
+  <h3>Layer2 VPNs</h3>
+  <p>&nbsp;</p>
+  <div id="l2vpn-list"></div>
 </div>

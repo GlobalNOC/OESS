@@ -382,6 +382,11 @@ sub _update_cache {
 
     if ($self->{'node'}->{'name'}) {
         $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.FWDCTL.Switch.'.$self->{'node'}->{'name'});
+
+        # If a node name changes its important we update it. Failure
+        # to do so will cause diff to re-add any sites with the old
+        # node name.
+        $self->{'device'}->{'name'} = $self->{'node'}->{'name'};
     }
 
     $self->{'logger'}->info("Loaded circuits / VRFs from cache file $self->{'share_file'}");

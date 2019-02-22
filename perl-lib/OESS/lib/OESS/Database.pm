@@ -31,11 +31,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 2.0.1
+Version 2.0.2
 
 =cut
 
-our $VERSION = '2.0.1';
+our $VERSION = '2.0.2';
 
 =head1 SYNOPSIS
 
@@ -83,7 +83,7 @@ use Data::Dumper;
 
 use Socket qw( inet_aton inet_ntoa);
 
-use constant VERSION => '2.0.1';
+use constant VERSION => '2.0.2';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant OESS_PW_FILE => "/etc/oess/.passwd.xml";
@@ -139,8 +139,37 @@ sub new {
     my $database = $config->{'credentials'}->{'database'};
 
     $self->{'configuration'} = $config;
-
+    $self->{'config_file'} = $config_filename;
     $self->{'rabbitMQ'} = $config->{'rabbitMQ'};
+    my $grafana = $config->{'grafana'};
+    if (!defined $grafana) {
+        my $result = {};
+        my $host = 'https://localhost/grafana';
+        my $uid = 'aaaaaaaaa';
+        my $org = 1;
+        my $panel = 1;
+
+        $result->{'oess-l2-interface'} = "$host/d-solo/$uid/oess-l2-interface?panelId=$panel&orgId=$org";
+        $result->{'oess-interface'} = "$host/d-solo/$uid/oess-interface?panelId=$panel&orgId=$org";
+        $result->{'oess-bgp-peer'} = "$host/d-solo/$uid/oess-bgp-peer?panelId=$panel&orgId=$org";
+        $result->{'oess-routing-table'} = "$host/d-solo/$uid/oess-routing-table?panelId=$panel&orgId=$org";
+
+        $self->{grafana} = $result;
+    } else {
+        my $result = {};
+        my $host = $grafana->{host};
+
+        foreach my $graph (@{$grafana->{graph}}) {
+            my $uid = $graph->{uid};
+            my $name = $graph->{panelName};
+            my $org = $graph->{orgId};
+            my $panel = $graph->{panelId};
+
+            $result->{$name} = "$host/d-solo/$uid/$name?panelId=$panel&orgId=$org";
+        }
+        $self->{grafana} = $result;
+    }
+
     $self->{'fwdctl'}   = undef;
 
     my $snapp_config_location = $config->{'snapp_config_location'};
@@ -173,7 +202,7 @@ sub new {
     if (! defined $self->{'topo'}){
 	$self->{'topo'} = OESS::Topology->new(db => $self);
     }
-
+    
     $self->{'processes'} = $config->{'process'};
     
     $self->{'override_version_check'} = 0;
@@ -4397,6 +4426,7 @@ sub get_circuit_endpoints {
         
         push (@$results, {'node'      => $endpoint->{'node_name'},
                           'interface' => $endpoint->{'int_name'},
+			  'interface_id' => $endpoint->{'interface_id'},
                           'tag'       => $endpoint->{'extern_vlan_id'},
                           'inner_tag' => $endpoint->{'inner_tag'},
                           'unit'      => $endpoint->{'unit'},

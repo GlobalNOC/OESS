@@ -113,6 +113,7 @@ sub compare_and_update_vrfs{
             next if ( !defined( $endpoint->{cloud_connection_id} ) );
             my $connection_id = $endpoint->{cloud_connection_id};   
             my $aws_peering = get_vrf_aws_details( aws_ints => $aws_ints, cloud_connection_id => $connection_id );
+	    next if (!defined($aws_peering));
             my $update = update_endpoint_values( $endpoint->{'peers'}->[0], $aws_peering );
             if($update){
                 update_oess_vrf($vrf,$client);

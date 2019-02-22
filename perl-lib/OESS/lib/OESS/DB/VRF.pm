@@ -172,8 +172,7 @@ sub find_available_unit{
 
     #find available unit > 5000
     my $used_vrf_units = $db->execute_query("select unit from vrf_ep where unit > 5000 and state = 'active' and interface_id= ?",[$interface_id]);
-    my $used_circuit_units = $db->execute_query("select unit from circuit_edge_interface_membership where interface_id = ? and end_epoch = -1 and circuit_id in (select circuit.circuit_id from circuit join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id and circu
-it.circuit_state = 'active' and circuit_instantiation.circuit_state = 'active' and circuit_instantiation.end_epoch = -1)",[$interface_id]);
+    my $used_circuit_units = $db->execute_query("select unit from circuit_edge_interface_membership where interface_id = ? and end_epoch = -1 and circuit_id in (select circuit.circuit_id from circuit join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id and circuit.circuit_state = 'active' and circuit_instantiation.circuit_state = 'active' and circuit_instantiation.end_epoch = -1)",[$interface_id]);
 
     my %used;
 

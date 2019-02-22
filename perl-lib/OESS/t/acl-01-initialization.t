@@ -17,23 +17,22 @@ use OESS::ACL;
 use OESSDatabaseTester;
 
 use Test::More tests => 6;
+use Test::Exception;
+
 use Test::Deep;
 use Data::Dumper;
 
 my $db = OESS::DB->new( config => OESSDatabaseTester::getConfigFilePath() );
 ok(defined($db), 'Can instantiate OESS::DB object');
 
-my $acl = OESS::ACL->new( interface_id => 45811, db => $db );
+my $acl = OESS::ACL->new( interface_acl_id => 1, db => $db );
 ok(defined($acl), 'Can instantiate an OESS::ACL for an interface that\'s present');
 
-$acl = OESS::ACL->new( interface_id => 15, db => $db );
+$acl = OESS::ACL->new( interface_acl_id => 200, db => $db );
 ok(defined($acl), 'Can instantiate an OESS::ACL for an interface that\'s *not* present');
 
-$acl = OESS::ACL->new( interface_id => undef, db => $db );
-ok(defined($acl), 'Can instantiate an OESS::ACL for undefined interface');
+dies_ok { my $acl = OESS::ACL->new(interface_acl_id => undef, db => $db); } 'OESS::ACL::new should die if missing model or interface_acl_id';
 
-$acl = OESS::ACL->new( db => undef, interface_id => 45811 );
-ok(!defined($acl), 'OESS::ACL::new should return undef if not given a DB object (1)');
+dies_ok { my $acl = OESS::ACL->new(db => undef, interface_acl_id => 1); } 'OESS::ACL::new should die if not given a DB object (1)';
 
-$acl = OESS::ACL->new( interface_id => 45811 );
-ok(!defined($acl), 'OESS::ACL::new should return undef if not given a DB object (2)');
+dies_ok { my $acl = OESS::ACL->new(interface_acl_id => 1); } 'OESS::ACL::new should die if not given a DB object key (2)';

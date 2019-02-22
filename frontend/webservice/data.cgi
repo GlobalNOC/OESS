@@ -736,6 +736,13 @@ sub register_webservice_methods {
     
     #register the get_vlan_tag_range() method
     $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new(
+        name 		=> "get_users",
+        description	=> "returns all the users in the database",
+        callback	=> sub { get_users( @_ ) }
+    );
+    $svc->register_method($method);
 }
 
 
@@ -1390,6 +1397,11 @@ sub send_json {
     }
     print "Content-type: text/plain\n\n" . encode_json($output);
 }
-
+sub get_users {
+    
+    my $users = $db->get_users();
+    
+    return { results => $users };
+}
 main();
 
