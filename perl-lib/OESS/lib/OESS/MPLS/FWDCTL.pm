@@ -1297,21 +1297,20 @@ sub get_diff_text {
     if (!defined $node) {
         my $err = "Node $node_id doesn't exist.";
         $self->{'logger'}->error($err);
-        &$error_cb({error => $err, status => FWDCTL_FAILURE});
-        return;
+        return &$error_cb($err);
     }
 
     $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
     $self->{'fwdctl_events'}->get_diff_text(
-	async_callback => sub {
+        async_callback => sub {
             my $response = shift;
-
             if (defined $response->{'error'}) {
-                &$error_cb({error => $response->{'error'}, status => FWDCTL_FAILURE});
+                return &$error_cb($response->{error});
             } else {
-                &$success_cb( {status => FWDCTL_SUCCESS, results => [ $response->{'results'} ]});
+                return &$success_cb($response->{results});
             }
-	});
+        }
+    );
 }
 
 =head2 get_vrf_object

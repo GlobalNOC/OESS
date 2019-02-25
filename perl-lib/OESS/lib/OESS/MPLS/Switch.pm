@@ -311,12 +311,12 @@ sub _register_rpc_methods{
                                   pattern => $GRNOC::WebService::Regex::INTEGER);
     $dispatcher->register_method($method);
 
-    $method = GRNOC::RabbitMQ::Method->new( name        => "get_diff_text",
-					    callback    => sub {
-                                                my $resp = { text => $self->get_diff_text(@_) };
-                                                return $resp;
-                                            },
-					    description => "Proxies diff signal to the underlying device object." );
+    $method = GRNOC::RabbitMQ::Method->new(
+        name        => "get_diff_text",
+        async       => 1,
+        callback    => sub { $self->get_diff_text(@_); },
+        description => "Proxies diff signal to the underlying device object."
+    );
     $dispatcher->register_method($method);
 }
 
@@ -562,20 +562,32 @@ sub diff {
 =cut
 
 sub get_diff_text {
-    my $self  = shift;
-    my $m_ref = shift;
-    my $p_ref = shift;
+    my $self   = shift;
+    my $method = shift;
+    my $params = shift;
+
+    my $success = $method->{'success_callback'};
+    my $error   = $method->{'error_callback'};
 
     $self->{'logger'}->debug("Calling Switch.get_diff_text");
     $self->_update_cache();
     $self->{'logger'}->debug("Active VRFS: " . Dumper($self->{'vrfs'}));
-    my $to_be_removed = $self->{'device'}->get_config_to_remove( circuits => $self->{'ckts'}, vrfs => $self->{'vrfs'} );
-    my $diff = $self->{'device'}->get_diff_text(circuits => $self->{'ckts'}, vrfs => $self->{'vrfs'}, remove => $to_be_removed);
-    if (!defined $diff) {
-        return 'No diff required at this time.';
+
+    my $to_be_removed = $self->{'device'}->get_config_to_remove(
+        circuits => $self->{'ckts'},
+        vrfs => $self->{'vrfs'}
+    );
+
+    my ($diff, $err) = $self->{'device'}->get_diff_text(
+        circuits => $self->{'ckts'},
+        vrfs => $self->{'vrfs'},
+        remove => $to_be_removed
+    );
+    if (defined $err) {
+        return &$error($err);
     }
 
-    return $diff;
+    return &$success($diff);
 }
 
 =head2 get_interfaces

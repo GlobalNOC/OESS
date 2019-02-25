@@ -847,12 +847,27 @@ sub get_diff_text {
 
     my $node_id = $args->{'node_id'}{'value'};
     require OESS::RabbitMQ::Client;
-    my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
-					  timeout  => 60 );
+    my $mq = OESS::RabbitMQ::Client->new(
+        topic    => 'OF.FWDCTL.RPC',
+        timeout  => 60
+    );
     $mq->{'topic'} = "MPLS.FWDCTL.RPC";
-    my $event   = $mq->get_diff_text( node_id => $node_id );
 
-    return $event->{'results'};
+    my $cv = AnyEvent->condvar;
+    $mq->get_diff_text(
+        node_id => $node_id,
+        async_callback => sub {
+            my $result = shift;
+            $cv->send($result);
+        }
+    );
+
+    my $result = $cv->recv();
+    if (defined $result->{error}) {
+        $method->set_error($result->{error});
+        return;
+    }
+    return { results => [{ text => $result->{results}}] };
 }
 
 
