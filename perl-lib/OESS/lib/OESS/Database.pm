@@ -80,6 +80,7 @@ use GRNOC::Config;
 use OESS::Topology;
 use DateTime;
 use Data::Dumper;
+use Log::Log4perl;
 
 use Socket qw( inet_aton inet_ntoa);
 
@@ -2803,7 +2804,7 @@ sub add_acl {
     my $acl_id = $self->_execute_query($query, $args);
 
     if (! defined $acl_id){
-        $self->_set_error("Unable to add interface acl");
+        $self->_set_error("Unable to add acl for interface: $interface->{'name'}");
         return;
     }
 
