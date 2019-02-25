@@ -578,16 +578,16 @@ sub get_diff_text {
         vrfs => $self->{'vrfs'}
     );
 
-    my ($diff, $err) = $self->{'device'}->get_diff_text(
+    my $diff = $self->{'device'}->get_diff_text(
         circuits => $self->{'ckts'},
         vrfs => $self->{'vrfs'},
         remove => $to_be_removed
     );
-    if (defined $err) {
-        return &$error($err);
+    if (defined $diff->{error}) {
+        return &$error($diff->{error});
     }
 
-    return &$success($diff);
+    return &$success($diff->{value});
 }
 
 =head2 get_interfaces
