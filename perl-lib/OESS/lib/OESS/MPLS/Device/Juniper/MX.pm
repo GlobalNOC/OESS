@@ -1641,6 +1641,12 @@ sub _is_active_circuit{
 
 =head2 get_device_diff
 
+    my $diff = get_device_diff($xml_configuration);
+    if (defined $diff->{error}) {
+        warn $diff->{error};
+    }
+    print $diff->{value};
+
 Returns and stores a human readable diff for display to users.
 
 =cut
@@ -1648,55 +1654,58 @@ sub get_device_diff {
     my $self = shift;
     my $conf = shift;
 
-    if(!$self->connected()){
-        $self->{'logger'}->error("Not currently connected to device");
-        return;
+    if (!$self->connected()) {
+        return (undef, "Not currently connected to device");
     }
 
     $self->{'logger'}->debug("Candidate config: " . $conf);
 
-    my %queryargs = ('target' => 'candidate');
-    $queryargs{'config'} = $conf;
+    my %queryargs = (
+        'config' => $conf,
+        'target' => 'candidate',
+    );
 
     my $ok = $self->lock();
     if (!$ok) {
-        $self->{'logger'}->error("Unable to generate diff without a valid lock.");
-        return;
+        return {value => undef, error => "Unable to generate diff without a valid lock."};
     }
 
     my $res = $self->{'jnx'}->edit_config(%queryargs);
     if ($self->{'jnx'}->has_error) {
-	my $dom = $self->{'jnx'}->get_dom();
-	$self->{'logger'}->error($dom->toString());
+        my $dom = $self->{'jnx'}->get_dom();
+        $self->{'logger'}->error($dom->toString());
+
         my $error = $self->{'jnx'}->get_first_error();
         if ($error->{'error_message'} !~ /uncommitted/) {
-            $self->{'logger'}->error("Error getting device diff: " . $error->{'error_message'});
             $self->disconnect();
-            return;
+            return {value => undef, error => "Error getting device diff: $error->{error_message}"};
         }
     }
 
     # According to docs format isn't considered when used with
     # compare. However in 15.1F6-S6.4 it is; I would expect this to
     # continue in later Junos versions.
-    my $configcompare = $self->{'jnx'}->get_configuration( compare => "rollback", rollback => "0", format => "text" );
+    my $configcompare = $self->{'jnx'}->get_configuration(
+        compare => "rollback",
+        rollback => "0",
+        format => "text"
+    );
     if ($self->{'jnx'}->has_error) {
+        my $dom = $self->{'jnx'}->get_dom();
+        $self->{'logger'}->error($dom->toString());
+
         my $error = $self->{'jnx'}->get_first_error();
-
         if ($error->{'error_message'} !~ /uncommitted/) {
-            $self->set_error($error->{'error_message'});
-
-            $self->{'logger'}->error("Error getting diff from MX: " . $error->{'error_message'});
             $res = $self->{'jnx'}->discard_changes();
-
             $ok = $self->unlock();
-            return;
+            return {value => undef, error => "Error getting device diff: $error->{error_message}"};
         }
     }
 
     my $dom = $self->{'jnx'}->get_dom();
     my $text = $dom->getElementsByTagName('configuration-output')->string_value();
-    $self->{'logger'}->error("Raw diff text: " . $text);
+    $self->{'logger'}->warn("Raw diff: " . $text);
+
     $ok = $self->unlock();
 
     $text =~ s/\n\[edit .*\]\n[+|-] \s+ authentication-key \S+ \#\# SECRET-DATA\n//g;
@@ -1708,7 +1717,7 @@ sub get_device_diff {
         $text = '';
     }
 
-    return $text;
+    return {value => $text, error => undef};
 }
 
 =head2 _large_diff( $diff )
@@ -1775,12 +1784,16 @@ sub diff {
     # Check the size of the diff to see if verification is required for
     # the changes to be applied. $diff is a human readable diff.
     my $diff = $self->get_device_diff($configuration);
-    if (!defined $diff || $diff eq '') {
+    if (defined $diff->{error}) {
+        $self->{'logger'}->error($diff->{error});
+        return FWDCTL_FAILURE;
+    }
+    if ($diff->{value} eq '') {
         $self->{'logger'}->info('No diff required at this time.');
         return FWDCTL_FAILURE;
     }
 
-    if ($self->_large_diff($diff)) {
+    if ($self->_large_diff($diff->{value})) {
         # It may be possible that a large diffs is considered untrusted.
         # If so, block until the diff has been approved.
         $self->{'logger'}->info('Large diff detected. Waiting for approval before installation.');
@@ -1795,6 +1808,12 @@ sub diff {
 
 =head2 get_diff_text
 
+    my $diff = get_diff_text(...);
+    if (defined $diff->{error}) {
+        warn $diff->{error};
+    }
+    print $diff->{value};
+
 Returns a human readable diff between $circuits and this Device's
 configuration, or undef when no diff is required. Takes an array of
 circuits to build the current configuration, and a remove string of
@@ -1807,18 +1826,17 @@ sub get_diff_text {
     my $circuits = $params{'circuits'};
     my $vrfs = $params{'vrfs'};
     my $remove = $params{'remove'};
-    if(!$self->connected()){
-        $self->{'logger'}->error("Not currently connected to device");
-        return;
-    }
-    
+
     $self->{'logger'}->debug("Calling MX.get_diff_text");
+
+    if(!$self->connected()){
+        return {value => undef, error => "Not currently connected to device."};
+    }
 
     my @circuits;
     foreach my $ckt_id (keys (%{$circuits})){
         push(@circuits, $circuits->{$ckt_id});
     }
-
 
     my @vrfs;
     foreach my $vrf_id (keys (%{$vrfs})){
@@ -1827,16 +1845,10 @@ sub get_diff_text {
 
     my $configuration = $self->xml_configuration(\@circuits,\@vrfs, $remove );
     if ($configuration eq '<configuration></configuration>') {
-        return undef;
+        return {value => '', error => undef};
     }
 
-    my $diff = $self->get_device_diff($configuration);
-    if ($diff eq '') {
-        # Handles case where a device returns an empty string
-        return undef;
-    }
-
-    return $diff;
+    return $self->get_device_diff($configuration);
 }
 
 =head2 unit_name_available

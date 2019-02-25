@@ -51,8 +51,6 @@ function display_mpls(obj) {
 }
 
 function makeConfigPanel(x, y, width, obj) {
-
-
     var pre = YAHOO.util.Dom.get('config_diff_pre');
     pre.node_id = obj.getData('node_id');
 
@@ -67,46 +65,45 @@ function makeConfigPanel(x, y, width, obj) {
     YAHOO.util.Dom.setStyle(['config_diff_pre'], 'overflow', 'auto');
 
     load_diff = function(node_id) {
-	var url    = '../services/admin/admin.cgi?';
-	var params = 'method=get_diff_text'+
-        '&node_id='  + node_id;
-	
-	var pre = YAHOO.util.Dom.get('config_diff_pre');
-	pre.innerHTML = 'Loading diff...';
+      var url    = '../services/admin/admin.cgi?';
+      var params = 'method=get_diff_text' + '&node_id='  + node_id;
 
-	var ds = new YAHOO.util.DataSource(url);
-	ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-	ds.responseSchema = {
-	    resultsList: "results",
-	    fields: [
-	{key: 'text'}
-		     ],
-	    metaFields: {
-		error: "error"
-	    }
-	};
+      var pre = YAHOO.util.Dom.get('config_diff_pre');
+      pre.innerHTML = 'Loading diff...';
 
-	ds.sendRequest(params, {
-		success: function(req, resp) {
-		    if (resp.results.length == 0) {
-			pre.innerHTML = 'Failed to receive diff. Please try again later.';
-			console.log('Request failed: ' + resp.error);
-		    } else {
-			if (resp.results[0].text == "\n") {
-			    // TODO This is here due to a bug in the backend
-			    pre.innerHTML = "No diff required at this time.";
-			} else {
-			    pre.innerHTML = resp.results[0].text;
-			}
-		    }
-		},
-		    failure: function(req, resp){
-		    pre.innerHTML = 'Failed to receive diff. Please try again later.';
-		    console.log('Request failed: ' + resp.error);
-		}
-	    });
+      var ds = new YAHOO.util.DataSource(url);
+      ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+      ds.responseSchema = {
+        resultsList: "results",
+        fields: [
+          {key: 'text'}
+        ],
+        metaFields: {
+          error_text: "error_text"
+        }
+      };
+
+      ds.sendRequest(params, {
+        success: function(req, resp) {
+          if (resp.meta.error_text) {
+            pre.innerHTML = 'Failed to generate diff: ' + resp.meta.error_text;
+            return null;
+          }
+
+          if (resp.results[0].text == "\n" || resp.results[0].text == "") {
+            // TODO This is here due to a bug in the backend
+            pre.innerHTML = "No diff required at this time.";
+          } else {
+            pre.innerHTML = resp.results[0].text;
+          }
+          return 1;
+        },
+        failure: function(req, resp){
+          pre.innerHTML = 'Failed to receive diff. Please try again later.';
+          console.log('Request failed: ' + resp.error);
+        }
+      });
     };
-
 
     var approve = new YAHOO.widget.Button('approve_diff_btn', {label: 'Approve'});
     approve.node_id = obj.getData('node_id');
