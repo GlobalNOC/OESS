@@ -80,7 +80,6 @@ use GRNOC::Config;
 use OESS::Topology;
 use DateTime;
 use Data::Dumper;
-use Log::Log4perl;
 
 use Socket qw( inet_aton inet_ntoa);
 
