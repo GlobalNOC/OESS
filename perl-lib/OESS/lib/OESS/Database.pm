@@ -2803,7 +2803,7 @@ sub add_acl {
     my $acl_id = $self->_execute_query($query, $args);
 
     if (! defined $acl_id){
-        $self->_set_error("Unable to add new workgroup");
+        $self->_set_error("Unable to add acl for interface: $interface->{'name'}");
         return;
     }
 
