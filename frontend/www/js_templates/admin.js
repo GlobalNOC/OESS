@@ -153,12 +153,12 @@ function makeConfigPanel(x, y, width, obj) {
     panel.load_diff      = load_diff;
 
     panel.load = function(node_id, name) {
-	this.setHeader('Configuration Details - ' + name);
-	this.setFooter('Approve this pending configuration?');
+	  this.setHeader('Configuration Details - ' + name);
+	  this.setFooter('Approve this pending configuration?');
 
-	this.approve_button.node_id = node_id;
-	this.load_diff(node_id);
-    }
+	  this.approve_button.node_id = node_id;
+	  this.load_diff(node_id);
+    };
 
     panel.hideEvent.subscribe(function() {
         pre.innerHTML = 'Loading diff...';
@@ -174,10 +174,12 @@ function makeConfigTable(div_id) {
         var is_pending = rec.getData("pending_diff");
         var html;
 
-        if (is_pending == "1") {
-            html = '<p style="color:#BA2617">Pending Approval</p>';
+        if (is_pending == "2") {
+            html = '<p style="color:#BA2617">Error</p>';
+        } else if (is_pending == "1") {
+            html = '<p style="color:#BA7717">Pending Approval</p>';
         } else {
-            html = '<p style="color:#32BA17">OK</p>';
+            html = '<p style="color:#59BA17">OK</p>';
         }
         el.innerHTML = html;
     };

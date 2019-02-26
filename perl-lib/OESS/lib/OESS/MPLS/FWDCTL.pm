@@ -32,6 +32,10 @@ use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
 use constant FWDCTL_BLOCKED     => 4;
 
+use constant PENDING_DIFF_NONE  => 0;
+use constant PENDING_DIFF       => 1;
+use constant PENDING_DIFF_ERROR => 2;
+
 #link statuses
 use constant OESS_LINK_UP       => 1;
 use constant OESS_LINK_DOWN     => 0;
@@ -1238,9 +1242,9 @@ sub diff {
         # If the database asserts there is no diff pending but memory
         # disagrees, then the pending state was modified by an admin.
         # The pending diff may now proceed.
-        if ($self->{'children'}->{$node_id}->{'pending_diff'} == 1 && $pending_diff == 0) {
+        if ($self->{'children'}->{$node_id}->{'pending_diff'} == PENDING_DIFF && $pending_diff == PENDING_DIFF_NONE) {
             $force_diff = 1;
-            $self->{'children'}->{$node_id}->{'pending_diff'} = 0;
+            $self->{'children'}->{$node_id}->{'pending_diff'} = PENDING_DIFF_NONE;
         }
 
         $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
@@ -1259,17 +1263,23 @@ sub diff {
                 if ($res->{'results'}->{'status'} == FWDCTL_BLOCKED) {
                     my $node_id = $res->{'results'}->{'node_id'};
 
-                    $self->{'db'}->set_diff_approval(0, $node_id);
-                    $self->{'children'}->{$node_id}->{'pending_diff'} = 1;
+                    $self->{'db'}->set_pending_diff(PENDING_DIFF, $node_id);
+                    $self->{'children'}->{$node_id}->{'pending_diff'} = PENDING_DIFF;
 
                     $self->{'logger'}->warn("Diff for node $node_id requires admin approval.");
                     return 0;
-                }else{
-                    $self->{'db'}->set_diff_approval(1, $node_id);
-                    $self->{'children'}->{$node_id}->{'pending_diff'} = 0;
-                }
+                } elsif ($res->{'results'}->{'status'} == FWDCTL_FAILURE) {
+                    $self->{db}->set_pending_diff(PENDING_DIFF_ERROR, $node_id);
+                    $self->{'children'}->{$node_id}->{'pending_diff'} = PENDING_DIFF_ERROR;
 
-                return 1;
+                    $self->{'logger'}->warn("Diff for node $node_id failed.");
+                    return 0;
+                } else {
+                    $self->{'db'}->set_pending_diff(PENDING_DIFF_NONE, $node_id);
+                    $self->{'children'}->{$node_id}->{'pending_diff'} = PENDING_DIFF_NONE;
+
+                    return 1;
+                }
             });
     }
 

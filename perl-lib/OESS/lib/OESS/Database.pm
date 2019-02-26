@@ -96,6 +96,10 @@ use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
 
+use constant PENDING_DIFF_NONE  => 0;
+use constant PENDING_DIFF       => 1;
+use constant PENDING_DIFF_ERROR => 2;
+
 use constant ERR_NODE_ALREADY_IN_MAINTENANCE => "Node is already in maintenance mode.";
 
 our $ENABLE_DEVEL=0;
@@ -8103,23 +8107,32 @@ sub get_diffs {
     return $res;
 }
 
-=head2 set_diff_approval
+=head2 set_pending_diff
+
+    # PENDING_DIFF_NONE  => 0
+    # PENDING_DIFF       => 1
+    # PENDING_DIFF_ERROR => 2
+
+    my $ok = set_pending_diff(PENDING_DIFF_NONE, $node_id);
+
+set_pending_diff sets the state of the node's current diff. If the
+diff between OESS and the network node is empty, the state must be set
+to C<PENDING_DIFF_NONE>. If an error occurs while attempting to
+generate a diff the state should be set to C<PENDING_DIFF_ERROR>.
 
 =cut
-sub set_diff_approval {
-    my $self     = shift;
-    my $approved = shift;
-    my $node_id  = shift;
+sub set_pending_diff {
+    my $self    = shift;
+    my $state   = shift;
+    my $node_id = shift;
 
-    my $pending_diff = 0;
-    if (!$approved) {
-        $pending_diff = 1;
-    }
-
-    my $res = $self->_execute_query("UPDATE node set pending_diff=? WHERE node_id=?", [$pending_diff, $node_id]);
+    my $res = $self->_execute_query(
+        "UPDATE node set pending_diff=? WHERE node_id=?",
+        [$state, $node_id]
+    );
     if(!defined $res){
-	$self->_set_error("Unable to update pending_diff.");
-	return;
+        $self->_set_error("Unable to update pending_diff.");
+        return;
     }
     return 1;
 }
