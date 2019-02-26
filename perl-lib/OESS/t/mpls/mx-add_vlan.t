@@ -69,6 +69,10 @@ $mock->new_sub(
     result => 1
 );
 
+$mock->new_sub(
+    name    => 'open_configuration',
+    result => 1
+);
 
 $mock->new_sub(
     name   => 'get_dom',
@@ -254,20 +258,20 @@ my $expected_config = '<configuration>
 # passed $expected_config.
 my $err = $mock->sub_called(
     name  => 'edit_config',
-    count => 3,
+    count => 2,
     args  => {
         target => 'candidate',
         config => $expected_config
     }
 );
 
-ok(!defined $err, "edit_config called 3 times with expected NetConf payload.");
+ok(!defined $err, "edit_config called 2 times with expected NetConf payload.");
 warn "$err" if defined $err;
 
 $err = $mock->sub_called(
     name  => 'get_dom',
-    count => 3
+    count => 1
 );
 
-ok(!defined $err, "get_dom called 3 times.");
+ok(!defined $err, "get_dom called 1 times.");
 warn "$err" if defined $err;
