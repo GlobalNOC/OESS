@@ -394,29 +394,32 @@ sub update_acl {
     if($acl->{'eval_position'} != $args->{eval_position}{value}){
         #doing an interface move... grab all the acls for this interface
         my $interface = OESS::Interface->new( db => $db2, interface_id => $acl->{interface_id});
-        my $other_acl;
+
         foreach my $a (@{$interface->acls()}){
-            if($a->{'eval_position'} == $args->{eval_position}{value}){
-                $other_acl = $a;
-            }
-        }
+	    next if $a->{acl_id} == $acl_id;
+	    
+	    if($args->{eval_position}{value} < $acl->{eval_position}){
+		
+		if($a->{eval_position} >= $args->{eval_position}{value} && $a->{eval_position} < $acl->{eval_position}){
+		    $a->{eval_position} += 10;
+		    if(!$a->update_db()){
+			$method->set_error( $db->get_error() );
+			$db2->rollback();
+			return;
+		    }
+		}
 
-        if(!defined($other_acl)){
-            #log error
-            $logger->info("Failed to find other ACL to update for eval_position");
-            $method->set_error( $db->get_error() );
-	    $db2->rollback();
-            return;
-        }
-
-        $other_acl->{eval_position} = $acl->{eval_position};
-        my $success = $other_acl->update_db();
-        if (!defined $success) {
-            $logger->info("Failed to update acl with id " . $other_acl->{acl_id} . ", at ". localtime() . ". Action was initiated by $username.");
-            $method->set_error( $db->get_error() );
-	    $db2->rollback();
-            return;
-        }
+	    }elsif( $args->{eval_position}{value} > $acl->{eval_position}){
+		if($a->{eval_position} <= $args->{eval_position}{value} && $a->{eval_position} > $acl->{eval_position}){
+		    $a->{eval_position} -= 10;
+		    if(!$a->update_db()){
+			$method->set_error( $db->get_error() );
+                        $db2->rollback();
+                        return;
+		    }
+		}
+	    }
+	}
     }
 
 
