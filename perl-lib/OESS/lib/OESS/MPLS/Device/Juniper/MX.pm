@@ -1790,7 +1790,7 @@ sub diff {
     }
     if ($diff->{value} eq '') {
         $self->{'logger'}->info('No diff required at this time.');
-        return FWDCTL_FAILURE;
+        return FWDCTL_SUCCESS;
     }
 
     if ($self->_large_diff($diff->{value})) {

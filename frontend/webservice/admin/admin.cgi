@@ -43,6 +43,9 @@ use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
 
+use constant PENDING_DIFF_NONE  => 0;
+use constant PENDING_DIFF       => 1;
+use constant PENDING_DIFF_ERROR => 2;
 
 Log::Log4perl::init('/etc/oess/logging.conf');
 
@@ -870,7 +873,6 @@ sub get_diff_text {
     return { results => [{ text => $result->{results}}] };
 }
 
-
 =head2 set_diff_approval
 
 Approves or denies diffing for a node with pending configuration
@@ -883,7 +885,12 @@ sub set_diff_approval {
     my $approved = $args->{'approved'}{'value'};
     my $node_id  = $args->{'node_id'}{'value'};
 
-    my $res = $db->set_diff_approval($approved, $node_id);
+    if ($approved != 1) {
+        $method->set_error("Diffs may only be approved via the web API.");
+        return;
+    }
+
+    my $res = $db->set_pending_diff(PENDING_DIFF_NONE, $node_id);
     if (!defined $res) {
         $method->set_error($db->get_error());
         return;

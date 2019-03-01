@@ -32,6 +32,10 @@ use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
 use constant FWDCTL_BLOCKED     => 4;
 
+use constant PENDING_DIFF_NONE  => 0;
+use constant PENDING_DIFF       => 1;
+use constant PENDING_DIFF_ERROR => 2;
+
 #link statuses
 use constant OESS_LINK_UP       => 1;
 use constant OESS_LINK_DOWN     => 0;
@@ -216,7 +220,6 @@ sub build_cache{
         $details->{'node_id'} = $details->{'node_id'};
 	$details->{'id'} = $details->{'node_id'};
         $details->{'name'} = $details->{'name'};
-	$details->{'short_name'} = $details->{'short_name'};
 	$details->{'ip'} = $details->{'ip'};
 	$details->{'vendor'} = $details->{'vendor'};
 	$details->{'model'} = $details->{'model'};
@@ -365,7 +368,7 @@ sub _write_cache{
 		    push(@$paths,{ name => 'PRIMARY',  
 				   mpls_path_type => 'loose',
 				   dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-				   dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'short_name'}});
+				   dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}});
 		}else{
 		    #ok so they specified a strict path... get the LSPs
 		    push(@$paths,{ name => 'PRIMARY', mpls_path_type => 'strict',
@@ -373,7 +376,7 @@ sub _write_cache{
 								 start => $ep_a->{'node'},
 								 end => $ep_z->{'node'}),
 				   dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-				   dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'short_name'}
+				   dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
 			 });
 		    
 		    my $backup = $ckt->get_mpls_path_type( path => 'backup');
@@ -382,7 +385,7 @@ sub _write_cache{
 			push(@$paths,{ name => 'SECONDARY', 
 				       mpls_path_type => 'loose',
 				       dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'short_name'}});
+				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}});
 		    }else{
 			push(@$paths,{ name => 'SECONDARY',
 				       mpls_path_type => 'strict',
@@ -390,13 +393,13 @@ sub _write_cache{
 								     start => $ep_a->{'node'},
 								     end => $ep_z->{'node'}),
 				       dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'short_name'}
+				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
 			     });
 			#our tertiary path...
 			push(@$paths,{ name => 'TERTIARY',
 				       dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
 				       mpls_path_type => 'loose',
-				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'short_name'}
+				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
 			     });
 		    }
 		}	
@@ -414,7 +417,7 @@ sub _write_cache{
 			paths => $paths,
 			ckt_type => $ckt_type,
 			site_id => $site_id,
-			a_side => $ep_a->{'short_name'},
+			a_side => $ep_a->{'node_id'},
                         state  => $ckt->{'state'}
                       };
 
@@ -1238,9 +1241,9 @@ sub diff {
         # If the database asserts there is no diff pending but memory
         # disagrees, then the pending state was modified by an admin.
         # The pending diff may now proceed.
-        if ($self->{'children'}->{$node_id}->{'pending_diff'} == 1 && $pending_diff == 0) {
+        if ($self->{'children'}->{$node_id}->{'pending_diff'} == PENDING_DIFF && $pending_diff == PENDING_DIFF_NONE) {
             $force_diff = 1;
-            $self->{'children'}->{$node_id}->{'pending_diff'} = 0;
+            $self->{'children'}->{$node_id}->{'pending_diff'} = PENDING_DIFF_NONE;
         }
 
         $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
@@ -1259,17 +1262,23 @@ sub diff {
                 if ($res->{'results'}->{'status'} == FWDCTL_BLOCKED) {
                     my $node_id = $res->{'results'}->{'node_id'};
 
-                    $self->{'db'}->set_diff_approval(0, $node_id);
-                    $self->{'children'}->{$node_id}->{'pending_diff'} = 1;
+                    $self->{'db'}->set_pending_diff(PENDING_DIFF, $node_id);
+                    $self->{'children'}->{$node_id}->{'pending_diff'} = PENDING_DIFF;
 
                     $self->{'logger'}->warn("Diff for node $node_id requires admin approval.");
                     return 0;
-                }else{
-                    $self->{'db'}->set_diff_approval(1, $node_id);
-                    $self->{'children'}->{$node_id}->{'pending_diff'} = 0;
-                }
+                } elsif ($res->{'results'}->{'status'} == FWDCTL_FAILURE) {
+                    $self->{db}->set_pending_diff(PENDING_DIFF_ERROR, $node_id);
+                    $self->{'children'}->{$node_id}->{'pending_diff'} = PENDING_DIFF_ERROR;
 
-                return 1;
+                    $self->{'logger'}->warn("Diff for node $node_id failed.");
+                    return 0;
+                } else {
+                    $self->{'db'}->set_pending_diff(PENDING_DIFF_NONE, $node_id);
+                    $self->{'children'}->{$node_id}->{'pending_diff'} = PENDING_DIFF_NONE;
+
+                    return 1;
+                }
             });
     }
 
