@@ -253,7 +253,22 @@ sub provision_vrf{
             return;
         }
 
+        my $last_octet = 2;
         foreach my $peering (@{$obj->{peerings}}) {
+            if (defined $obj->{cloud_account_id} && $obj->{cloud_account_id} ne '') {
+                if ($peering->{version} == 4) {
+                    $peering->{local_ip} = '172.31.254.' . $last_octet . '/31';
+                    $peering->{peer_ip}  = '172.31.254.' . ($last_octet + 1) . '/31';
+                } else {
+                    $peering->{local_ip} = 'fd28:221e:28fa:61d3::' . $last_octet . '/127';
+                    $peering->{peer_ip}  = 'fd28:221e:28fa:61d3::' . ($last_octet + 1) . '/127';
+                }
+            }
+
+            # Assuming we use .2 and .3 the first time around. We
+            # can use .4 and .5 on the next peering.
+            $last_octet += 2;
+
             if (defined $peerings->{"$obj->{node} $obj->{interface} $peering->{local_ip}"}) {
                 $method->set_error("Cannot have duplicate local addresses on an interface.");
                 return;
