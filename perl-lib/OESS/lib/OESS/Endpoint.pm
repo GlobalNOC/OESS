@@ -103,12 +103,27 @@ sub _build_from_model{
     $self->{cloud_account_id} = $self->{model}->{cloud_account_id};
     $self->{cloud_connection_id} = $self->{model}->{cloud_connection_id};
 
-
-    if(defined($self->{'model'}->{'interface'})){
-        $self->{'interface'} = OESS::Interface->new( db => $self->{'db'}, name => $self->{'model'}->{'interface'}, node => $self->{'model'}->{'node'});
-        $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, interface_id => $self->{'interface'}->{'interface_id'}, vlan => $self->{'tag'});
-    }else{
+    if (defined $self->{'model'}->{'interface'}) {
+        $self->{'interface'} = OESS::Interface->new(db => $self->{'db'}, name => $self->{'model'}->{'interface'}, node => $self->{'model'}->{'node'});
+        $self->{'entity'} = OESS::Entity->new(db => $self->{'db'}, interface_id => $self->{'interface'}->{'interface_id'}, vlan => $self->{'tag'});
+    } else {
         $self->{'entity'} = OESS::Entity->new(db => $self->{'db'}, name => $self->{'model'}->{'entity'});
+
+        # There are a few ways to select an Entity's interface.
+
+        # The default selection method is to find the first interface
+        # that has supports C<bandwidth> and has C<tag> available.
+
+        # As there is only one interface per AWS Entity there is no
+        # special selection method.
+
+        # Interface selection for a GCP Entity is based purely on the
+        # user provided GCP pairing key.
+
+        # Interface selection for an Azure Entity is somewhat
+        # irrelevent. Each interface of the Azure port pair is
+        # configured similarly with the only difference between the
+        # two being the peer addresses assigned to each.
 
         my $err = undef;
         foreach my $intf (@{$self->{entity}->interfaces()}) {
