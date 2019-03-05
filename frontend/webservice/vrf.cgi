@@ -243,6 +243,7 @@ sub provision_vrf{
     # on the same interface.
     my $peerings = {};
 
+    my $last_octet = 2;
     foreach my $endpoint (@{$params->{'endpoint'}{'value'}}){
         my $obj;
         eval{
@@ -253,7 +254,6 @@ sub provision_vrf{
             return;
         }
 
-        my $last_octet = 2;
         foreach my $peering (@{$obj->{peerings}}) {
             if (defined $obj->{cloud_account_id} && $obj->{cloud_account_id} ne '') {
                 if ($peering->{version} == 4) {
