@@ -11,6 +11,8 @@ class EndpointSelectionModal extends Component {
     this.props.entityName = 'TBD';
     this.props.entityNode = 'TBD';
 
+    this.props.interface = (this.props.interface === null) ? -1 : this.props.interface.interface_id;
+
     this.entityForm = new EntityForm({
       onSubmit: this.onSubmitEntity.bind(this),
       onCancel: this.onCancelEntity.bind(this),
