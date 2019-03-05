@@ -146,6 +146,19 @@ sub _build_from_model{
                 $valid_vlan = 1;
             }
 
+            if ($intf->cloud_interconnect_type eq 'gcp-partner-interconnect') {
+                my @part = split(/\//, $self->{cloud_account_id});
+                my $key_zone = 'zone' . $part[2];
+
+                @part = split(/-/, $intf->cloud_interconnect_id);
+                my $conn_zone = $part[4];
+
+                if ($conn_zone ne $key_zone) {
+                    $err = "The provided pairing key couldn't be used.";
+                    $valid_vlan = 0;
+                }
+            }
+
             if ($valid_vlan && $valid_bandwidth) {
                 $self->{interface} = $intf;
                 last;
