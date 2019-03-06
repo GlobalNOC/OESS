@@ -244,7 +244,16 @@ sub provision_vrf{
     my $selected_endpoints = [];
     my $db = OESS::DB->new;
 
+<<<<<<< HEAD
     my $last_octet = 2;
+=======
+    # Use $peerings to validate a local address isn't specified twice
+    # on the same interface. Cloud peerings are provided/overwritten
+    # with sane defaults.
+    my $peerings = {};
+    my $last_octet = 2;
+
+>>>>>>> adding peering info for azure connections
     foreach my $value (@{$params->{endpoint}{value}}) {
         my $endpoint;
         eval{
@@ -320,7 +329,11 @@ sub provision_vrf{
                 $endpoint2->{peerings} = [{
                     asn => 12076,
                     key => '',
+<<<<<<< HEAD
                     local_ip => '192.168.100.253/30',
+=======
+                    local_ip => '192.168.100.243/30',
+>>>>>>> adding peering info for azure connections
                     peer_ip  => '192.168.100.254/30',
                     version  => 4
                 }];
@@ -328,7 +341,11 @@ sub provision_vrf{
                 $endpoint->{peerings} = [{
                     asn => 12076,
                     key => '',
+<<<<<<< HEAD
                     local_ip => '192.168.100.253/30',
+=======
+                    local_ip => '192.168.100.243/30',
+>>>>>>> adding peering info for azure connections
                     peer_ip  => '192.168.100.254/30',
                     version  => 4
                 }];
@@ -366,16 +383,31 @@ sub provision_vrf{
         else {
             warn "Skipping endpoint with unknown interconnect type '$endpoint->{cloud_interconnect_type}' specified.";
         }
-    }
 
-    # Use $peerings to validate a local address isn't specified twice
-    # on the same interface. Cloud peerings are provided/overwritten
-    # with sane defaults.
-    my $peerings = {};
-    my $last_octet = 2;
+    }
 
     foreach my $endpoint (@$selected_endpoints) {
         foreach my $peering (@{$endpoint->{peerings}}) {
+<<<<<<< HEAD
+=======
+            if (defined $endpoint->{cloud_account_id} && $endpoint->{cloud_account_id} ne '') {
+                if ($peering->{local_ip}) {
+                    next;
+                }
+
+                if ($peering->{version} == 4) {
+                    $peering->{local_ip} = '172.31.254.' . $last_octet . '/31';
+                    $peering->{peer_ip}  = '172.31.254.' . ($last_octet + 1) . '/31';
+                } else {
+                    $peering->{local_ip} = 'fd28:221e:28fa:61d3::' . $last_octet . '/127';
+                    $peering->{peer_ip}  = 'fd28:221e:28fa:61d3::' . ($last_octet + 1) . '/127';
+                }
+            }
+
+            # Assuming we use .2 and .3 the first time around. We
+            # can use .4 and .5 on the next peering.
+            $last_octet += 2;
+>>>>>>> adding peering info for azure connections
 
             if (defined $peerings->{"$endpoint->{node} $endpoint->{interface} $peering->{local_ip}"}) {
                 $method->set_error("Cannot have duplicate local addresses on an interface.");
