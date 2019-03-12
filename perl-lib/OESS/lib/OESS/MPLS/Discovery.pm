@@ -698,6 +698,11 @@ sub handle_links{
             my $node_z = $adj_a->{'remote_node'};
             my $intf_z = $intfs->{$adj_a->{'remote_ip'}};
 
+            if (!defined $adjs->{$node_z}) {
+                $self->{logger}->error("Couldn't find $node_z in adjacencies hash. A device's short name may be incorrectly set or may not be connected to OESS.");
+                next;
+            }
+
             my $adj_z = $adjs->{$node_z}->{$intf_z};
 
             if (!defined $adj_a || !defined $adj_z) {
