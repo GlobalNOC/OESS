@@ -5,8 +5,6 @@ use warnings;
 
 package OESS::Endpoint;
 
-use Digest::MD5 qw(md5_hex);
-
 use OESS::DB;
 use OESS::Interface;
 use OESS::Entity;
@@ -146,19 +144,6 @@ sub _build_from_model{
                 $valid_vlan = 1;
             }
 
-            if ($intf->cloud_interconnect_type eq 'gcp-partner-interconnect') {
-                my @part = split(/\//, $self->{cloud_account_id});
-                my $key_zone = 'zone' . $part[2];
-
-                @part = split(/-/, $intf->cloud_interconnect_id);
-                my $conn_zone = $part[4];
-
-                if ($conn_zone ne $key_zone) {
-                    $err = "The provided pairing key couldn't be used.";
-                    $valid_vlan = 0;
-                }
-            }
-
             if ($valid_vlan && $valid_bandwidth) {
                 $self->{interface} = $intf;
                 last;
@@ -170,38 +155,17 @@ sub _build_from_model{
         }
     }
 
-    if($self->{'type'} eq 'vrf'){
+    if ($self->{'type'} eq 'vrf') {
         $self->{'peers'} = [];
-        my $last_octet = 2;
 
-        foreach my $peer (@{$self->{'model'}->{'peerings'}}){
-            # Peerings are auto-generated for cloud connection
-            # endpoints. The user has only the option to select the ip
-            # version used for peering.
-
-            if (defined $self->{cloud_account_id} && $self->{cloud_account_id} ne '') {
-                my $rand = rand();
-
-                $peer->{asn} = 64512;
-                $peer->{key} = md5_hex($rand);
-                if ($peer->{version} == 4) {
-                    $peer->{local_ip} = '172.31.254.' . $last_octet . '/31';
-                    $peer->{peer_ip}  = '172.31.254.' . ($last_octet + 1) . '/31';
-                } else {
-                    $peer->{local_ip} = 'fd28:221e:28fa:61d3::' . $last_octet . '/127';
-                    $peer->{peer_ip}  = 'fd28:221e:28fa:61d3::' . ($last_octet + 1) . '/127';
-                }
-
-                # Assuming we use .2 and .3 the first time around. We
-                # can use .4 and .5 on the next peering.
-                $last_octet += 2;
-            }
-
-            push(@{$self->{'peers'}}, OESS::Peer->new(db => $self->{'db'}, model => $peer, vrf_ep_peer_id => -1));
+        foreach my $peer (@{$self->{'model'}->{'peerings'}}) {
+            push @{$self->{'peers'}}, OESS::Peer->new(db => $self->{'db'}, model => $peer, vrf_ep_peer_id => -1);
         }
     }
 
-    #unit will be selected at creation....
+    # Unit will be selected at creation. In many cases this will be
+    # the same as C<< $self->{tag} >>, however this will not always be
+    # the case as in QnQ tagged endpoints.
     $self->{'unit'} = undef;
 }
 

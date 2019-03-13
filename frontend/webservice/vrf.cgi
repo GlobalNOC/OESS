@@ -3,6 +3,8 @@
 use strict;
 use warnings;
 
+use Data::Dumper;
+use Digest::MD5 qw(md5_hex);
 use JSON;
 use Log::Log4perl;
 
