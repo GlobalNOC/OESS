@@ -488,13 +488,12 @@ sub _edit_vrf{
     my $model = $params{'model'};
     my $db = $params{'db'};
     my $skip_cloud_provisioning = $params{'skip_cloud_provisioning'};
-    
+
     my $vrf = OESS::VRF->new( db => $db, vrf_id => $model->{'vrf_id'} );
-    
+
     my @new_endpoints;
 
     #first lets update all the "basic" stuff like name, description, etc...
-    
 
     my @cloud_adds;
     my @cloud_dels;
@@ -520,21 +519,21 @@ sub _edit_vrf{
                         next if($new_peer->{'asn'} ne $peer->peer_asn());
                         next if($new_peer->{'key'} ne $peer->md5_key());
                         $peer_found = 1;
-                
+
                         #remove the peering from the new_ep
                         splice(@{$new_ep->{'peerings'}},$j,1);
-                        last;                                
+                        last;
                     }
                     if($peer_found){
-                        push(@new_peers, $peer);                        
+                        push(@new_peers, $peer);
                     }
                 }
-                
+
                 foreach my $model_peer (@{$new_ep->{'peerings'}}){
                     my $peer = OESS::Peer->new( model => $model_peer, db => $db );
                     push(@new_peers, $peer);
                 }
-                
+
                 $ep->peers(\@new_peers);
 
             }
@@ -551,7 +550,7 @@ sub _edit_vrf{
             }
         }
     }
-    
+
     if($#{$model->{'endpoints'}} >= 0){
         foreach my $model_ep (@{$model->{'endpoints'}}){
             #create an Endpoint object!
@@ -579,7 +578,6 @@ sub _edit_vrf{
                     }
                 }
             }
-            
         };
         if ($@) {
             $method->set_error("$@");
@@ -597,7 +595,7 @@ sub _edit_vrf{
     my $vrf_id = $vrf->vrf_id();
 
     my $res = vrf_del(method => $method, vrf_id => $vrf_id);
-    
+
     my $ok = $vrf->update_db();
     if(!$ok){
         #whoops... failed to update... re-add to network and signal to user
@@ -608,7 +606,7 @@ sub _edit_vrf{
 
     #ok we made it this far... and have updated our DB now to update the cache
     _update_cache(vrf_id => $vrf_id);
-    
+
     #finally we get to adding it to the network again!
     $res = vrf_add(method => $method, vrf_id => $vrf_id);
 
