@@ -1172,71 +1172,84 @@ sub edit_link {
 =head2 create_link_instantiation
 
 =cut
-
-sub create_link_instantiation{
+sub create_link_instantiation {
     my $self = shift;
-    my %args = @_;
+    my $args = {
+        link_id        => undef,
+        interface_a_id => undef,
+        interface_z_id => undef,
+        ip_a           => undef,
+        ip_z           => undef,
+        mpls           => 0,
+        openflow       => 0,
+        state          => 'planned',
+        @_
+    };
 
-    if(!defined($args{'link_id'})){
-	$self->_set_error("Link ID was not specified");
-	return;
+    if (!defined $args->{link_id}) {
+        $self->_set_error("Required argument `link_id` is missing.");
+        return;
     }
 
-    if(!defined($args{'state'})){
-	$args{'state'} = "Unknown";
+    if (!defined $args->{interface_a_id}) {
+        $self->_set_error("Required argument `interface_a_id` is missing.");
+        return;
     }
 
-    if(!defined($args{'interface_a_id'})){
-	$self->_set_error("Interface A was not specified");
-	return;
+    if (!defined $args->{interface_z_id}) {
+        $self->_set_error("Required argument `interface_z_id` is missing.");
+        return;
     }
 
-    if(!defined($args{'interface_z_id'})){
-	$self->_set_error("Interface Z was not specified");
-	return;
+    eval {
+        my $q = $self->{dbh}->prepare(
+            "insert into link_instantiation (
+               end_epoch, start_epoch, link_id, interface_a_id, interface_z_id, ip_a, ip_z, mpls, openflow, link_state
+             ) VALUES (-1, unix_timestamp(NOW()), ?, ?, ?, ?, ?, ?, ?, ?)"
+        );
+        $q->execute(
+            $args->{link_id},
+            $args->{interface_a_id},
+            $args->{interface_z_id},
+            $args->{ip_a},
+            $args->{ip_z},
+            $args->{mpls},
+            $args->{openflow},
+            $args->{state}
+        );
+    };
+    if ($@) {
+        $self->_set_error("$@");
+        return;
     }
 
-    if(!defined($args{'openflow'}) && !defined($args{'mpls'})){
-	$args{'openflow'} = 1;
-	$args{'mpls'} = 0;
-    }
-
-    if(!defined($args{'openflow'})){
-	$args{'openflow'} = 0;
-    }
-
-    if(!defined($args{'mpls'})){
-	$args{'mpls'} = 0;
-    }
-
-    my $res = $self->_execute_query("insert into link_instantiation (link_id,end_epoch,start_epoch,link_state,interface_a_id,interface_z_id, openflow, mpls, ip_a, ip_z) VALUES (?,-1,UNIX_TIMESTAMP(NOW()),?,?,?,?,?,?,?)",[$args{'link_id'},$args{'state'},$args{'interface_a_id'},$args{'interface_z_id'}, $args{'openflow'}, $args{'mpls'}, $args{'ip_a'}, $args{'ip_z'}]);
-
-    if(!defined($res)){
-	return;
-    }
-
-    return $res;
-
-
+    return 1;
 }
-
 
 =head2 decom_link_instantiation
 
-=cut
+decom_link_instantiation sets the C<end_epoch> of the active
+link_instantiation identified by C<link_id>.
 
+=cut
 sub decom_link_instantiation{
     my $self = shift;
-    my %args = @_;
+    my $args = {
+        link_id => undef,
+        @_
+    };
 
-    if(!defined($args{'link_id'})){
-	$self->_set_error("No Link ID Specified to decom_link_instantiation");
-	return;
+    if (!defined $args->{link_id}) {
+        $self->_set_error("Required argument `link_id` is missing.");
+        return;
     }
 
-    my $res = $self->_execute_query("update link_instantiation set end_epoch = UNIX_TIMESTAMP(NOW()) where link_id = ? and end_epoch = -1", [$args{'link_id'}]);
+    my $result = $self->_execute_query(
+        "update link_instantiation set end_epoch=UNIX_TIMESTAMP(NOW()) where link_id=? and end_epoch=-1",
+        [$args->{link_id}]
+    );
 
-    return 1;
+    return $result;
 }
 
 =head2 get_edge_links
@@ -5515,16 +5528,14 @@ sub decom_link {
     }
 
     if($link_details->{'status'} eq 'down'){
-	#link does not appear to be connected... set the interfaces back to "unknown" state
-
-	my $update_interface_role = "update interface set role = 'unknown' where interface_id = ?";
-	my $res = $self->_execute_query($update_interface_role,[$link_details->{'interface_a_id'}]);
-	$res = $self->_execute_query($update_interface_role,[$link_details->{'interface_z_id'}]);
+        #link does not appear to be connected... set the interfaces back to "unknown" state
+        my $update_interface_role = "update interface set role = 'unknown' where interface_id = ?";
+        my $res = $self->_execute_query($update_interface_role,[$link_details->{'interface_a_id'}]);
+        $res = $self->_execute_query($update_interface_role,[$link_details->{'interface_z_id'}]);
     }else{
-	#link is still up so its connected create a new instantiation waiting for approval
-	$self->_execute_query("update link_instantiation set end_epoch = unix_timestamp(NOW()) where end_epoch = -1 and link_id = ?", [$link_id]);
-	$self->_execute_query("insert into link_instantiation (end_epoch, start_epoch, link_state, link_id, interface_a_id, interface_z_id) VALUES (-1,unix_timestamp(NOW()),'available',?,?,?)",[$link_id,$link_details->{'interface_a_id'},$link_details->{'interface_z_id'}]);
-
+        #link is still up so its connected create a new instantiation waiting for approval
+        $self->_execute_query("update link_instantiation set end_epoch = unix_timestamp(NOW()) where end_epoch = -1 and link_id = ?", [$link_id]);
+        $self->_execute_query("insert into link_instantiation (end_epoch, start_epoch, link_state, link_id, interface_a_id, interface_z_id) VALUES (-1,unix_timestamp(NOW()),'available',?,?,?)",[$link_id,$link_details->{'interface_a_id'},$link_details->{'interface_z_id'}]);
     }
 
     $self->_commit();
@@ -5673,15 +5684,21 @@ sub get_link_ints_on_node{
 
 =head2 get_link
 
-should use this everywhere
+    my $link = Database::get_link(
+      link_id   => 123,          # Optional
+      link_name => 'NodeA-NodeZ' # Optional
+    );
+    if (!defined $link) {
+      warn Database::get_error();
+    }
+
+get_link returns the link identified by C<link_id> or C<link_name>.
 
 =cut
 
 sub get_link{
     my $self = shift;
     my %args = @_;
-
-
 
     if(!defined($args{'link_id'}) && !defined($args{'link_name'})){
 	$self->_set_error("No Link_id or link_name specified");
