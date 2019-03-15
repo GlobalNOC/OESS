@@ -131,6 +131,7 @@ class EntityForm extends Component {
     let cloudAccountLabel = 'AWS Account Owner';
     if (entity.cloud_interconnect_id === null || entity.cloud_interconnect_id === 'null' || entity.cloud_interconnect_id === '') {
       entity.cloud_interconnect_id = null;
+      entity.cloud_interconnect_type = '';
     } else {
       if (entity.cloud_interconnect_type === 'gcp-partner-interconnect') {
         cloudAccountLabel = 'GCP Pairing Key';
