@@ -725,14 +725,14 @@ sub handle_links{
 
             my $a_links;
             my $z_links;
-		
+
             # lets first remove any circuits not going to the node we want on these interfaces
             foreach my $link (@$links_a){
                 my $other_int = $self->{'db'}->get_interface(interface_id => $link->{'interface_a_id'});
                 if ($other_int->{'interface_id'} == $a_int) {
                     $other_int = $self->{'db'}->get_interface(interface_id => $link->{'interface_z_id'});
                 }
-		    
+
                 my $other_node = $self->{'db'}->get_node_by_id(node_id => $other_int->{'node_id'});
                 if ($other_node->{'node_id'} == $z_node->{'node_id'}) {
                     push(@$a_links, $link);
@@ -763,6 +763,11 @@ sub handle_links{
                 }
 
                 my $old_z_interface = $self->{'db'}->get_interface(interface_id => $old_z);
+                $self->{db}->update_interface_role(
+                    interface_id =>  $old_z_interface->{interface_id},
+                    role         =>  'unknown'
+                );
+
                 $self->{'db'}->decom_link_instantiation(link_id => $link->{'link_id'});
                 $self->{'db'}->create_link_instantiation(
                     link_id => $link->{'link_id'},
@@ -784,6 +789,11 @@ sub handle_links{
                 }
 
                 my $old_z_interface = $self->{'db'}->get_interface(interface_id => $old_z);
+                $self->{db}->update_interface_role(
+                    interface_id =>  $old_z_interface->{interface_id},
+                    role         =>  'unknown'
+                );
+
                 #if its in the links_a that means the z end changed...
                 $self->{'db'}->decom_link_instantiation(link_id => $link->{'link_id'});
                 $self->{'db'}->create_link_instantiation(
@@ -806,6 +816,11 @@ sub handle_links{
                 }
 
                 my $old_a_interface= $self->{'db'}->get_interface(interface_id => $old_a);
+                $self->{db}->update_interface_role(
+                    interface_id =>  $old_a_interface->{interface_id},
+                    role         =>  'unknown'
+                );
+
                 $self->{'db'}->decom_link_instantiation(link_id => $link->{'link_id'});
                 $self->{'db'}->create_link_instantiation(
                     link_id => $link->{'link_id'},

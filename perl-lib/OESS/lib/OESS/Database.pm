@@ -4681,6 +4681,39 @@ sub update_interface_operational_state{
     return 1;
 }
 
+=head2 update_interface_role
+
+=cut
+sub update_interface_role {
+    my $self = shift;
+    my $args = {
+        interface_id => undef,
+        role         => undef
+        @_
+    };
+
+    if (!defined $args->{interface_id}) {
+        $self->_set_error("Required argument `interface_id` is missing.");
+        return;
+    }
+
+    if (!defined $args->{role}) {
+        $self->_set_error("Required argument `role` is missing.");
+        return;
+    }
+
+    my $res = $self->_execute_query(
+        "update interface set role=? where interface.interface_id=?",
+        [$args->{role}, $args->{interface_id}]
+    );
+    if (!defined $res) {
+        $self->_set_error("Unable to update interface $args->{interface_id} role.");
+        return;
+    }
+
+    return $res;
+}
+
 =head2 update_interfaces_operational_state
 
 =over 4
