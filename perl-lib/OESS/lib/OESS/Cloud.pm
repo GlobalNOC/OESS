@@ -138,6 +138,7 @@ sub setup_endpoints {
             $peer1->local_ip('192.168.100.249/30');
             $peer1->peer_ip('192.168.100.250/30');
             $peer1->peer_asn(12076);
+            $peer1->{md5_key} = '';
 
             my $conn = $azure->expressRouteCrossConnection($ep->interface()->cloud_interconnect_id, $ep->cloud_account_id);
             my $res = $azure->set_cross_connection_state_to_provisioned(
@@ -178,6 +179,7 @@ sub setup_endpoints {
             $ep2->peers->[0]->local_ip('192.168.100.253/30');
             $ep2->peers->[0]->peer_ip('192.168.100.254/30');
             $ep2->peers->[0]->peer_asn(12076);
+            $ep2->peers->[0]->{md5_key} = '';
             push @$result, $ep2;
 
         } else {
