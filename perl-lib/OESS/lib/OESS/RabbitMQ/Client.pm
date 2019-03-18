@@ -19,6 +19,7 @@ sub new{
 
     my %args = (
         timeout => 15,
+        config  => '/etc/oess/database.xml',
         @_
     );
 
@@ -26,7 +27,7 @@ sub new{
         $args{'timeout'} = 15;
     }
     
-    my $config = GRNOC::Config->new(config_file => '/etc/oess/database.xml');
+    my $config = GRNOC::Config->new(config_file => $args{'config'});
     
     my $user = $config->get('/config/rabbitMQ/@user')->[0];
     my $pass = $config->get('/config/rabbitMQ/@pass')->[0];

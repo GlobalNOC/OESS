@@ -128,6 +128,7 @@ sub new{
 
     # Create the client for talking to our Discovery switch objects!
     $self->{'rmq_client'} = OESS::RabbitMQ::Client->new(
+        config => $self->{'config'},
         timeout => 120,
         topic => 'MPLS.Discovery'
     );
