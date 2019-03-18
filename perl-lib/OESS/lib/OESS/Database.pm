@@ -4688,7 +4688,7 @@ sub update_interface_role {
     my $self = shift;
     my $args = {
         interface_id => undef,
-        role         => undef
+        role         => undef,
         @_
     };
 
@@ -4703,7 +4703,7 @@ sub update_interface_role {
     }
 
     my $res = $self->_execute_query(
-        "update interface set role=? where interface.interface_id=?",
+        "update interface set role=? where interface_id=?",
         [$args->{role}, $args->{interface_id}]
     );
     if (!defined $res) {

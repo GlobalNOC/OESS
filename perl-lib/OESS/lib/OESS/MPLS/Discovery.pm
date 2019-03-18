@@ -84,63 +84,81 @@ device additions and initial device population
 =cut
 sub new{
     my $class = shift;
-    #process our args
     my %args = (
         @_
-        );
+    );
 
     my $self = \%args;
 
-    #setup the logger
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Discovery');
+
     bless $self, $class;
 
-    #create the DB
-    if(!defined($self->{'config'})){
+    if (!defined $self->{'config'}) {
         $self->{'config'} = "/etc/oess/database.xml";
     }
-    $self->{'db'} = OESS::Database->new( config_file => $self->{'config'} );
+    if (!defined $self->{'test'}) {
+        $self->{'test'} = 0;
+    }
 
-    die if(!defined($self->{'db'}));
+    $self->{'db'} = OESS::Database->new(config => $self->{'config'});
+    die if (!defined $self->{'db'});
 
-    #init our sub modules
     $self->{'interface'} = $self->_init_interfaces();
-    die if (!defined($self->{'interface'}));
+    die if (!defined $self->{'interface'});
+
     $self->{'lsp'} = $self->_init_lsp();
-    die if (!defined($self->{'lsp'}));
+    die if (!defined $self->{'lsp'});
+
     $self->{'isis'} = $self->_init_isis();
-    die if (!defined($self->{'isis'}));
+    die if (!defined $self->{'isis'});
+
     $self->{'path'} = $self->_init_paths();
-    die if (!defined($self->{'path'}));
-    
+    die if (!defined $self->{'path'});
+
     my $tsds_conf = $self->{'db'}->{'configuration'}->{'tsds'};
-    $self->{'tsds_svc'} = GRNOC::WebService::Client->new( url => $tsds_conf->{'url'} . "/push.cgi",
-                                                          uid => $tsds_conf->{'username'},
-                                                          passwd => $tsds_conf->{'password'},
-							  realm => $tsds_conf->{'realm'},
-							  usePost => 1,
-                                                          debug => 1);
+    $self->{'tsds_svc'} = GRNOC::WebService::Client->new(
+        url => $tsds_conf->{'url'} . "/push.cgi",
+        uid => $tsds_conf->{'username'},
+        passwd => $tsds_conf->{'password'},
+        realm => $tsds_conf->{'realm'},
+        usePost => 1,
+        debug => 1
+    );
 
-    #create the client for talking to our Discovery switch objects!
-    $self->{'rmq_client'} = OESS::RabbitMQ::Client->new( timeout => 120,
-							 topic => 'MPLS.Discovery');
-    
-    die if(!defined($self->{'rmq_client'}));
+    # Create the client for talking to our Discovery switch objects!
+    $self->{'rmq_client'} = OESS::RabbitMQ::Client->new(
+        timeout => 120,
+        topic => 'MPLS.Discovery'
+    );
+    die if (!defined $self->{'rmq_client'});
 
-    #setup the timers
+
+    # Create a child process for each switch
+    $self->{'children'}  = {};
+    $self->{'ipv4_intf'} = {};
+
+    # If creating this object for testing skip creation of child
+    # processes and child pollers.
+    if ($self->{'test'}) {
+        return $self;
+    }
+
     $self->{'device_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->device_handler(); });
     $self->{'int_timer'} = AnyEvent->timer( after => 60, interval => 120, cb => sub { $self->int_handler(); });
-    $self->{'lsp_timer'} = AnyEvent->timer( after => 100, interval => 200, cb => sub { $self->lsp_handler(); });
-    $self->{'isis_timer'} = AnyEvent->timer( after => 800, interval => 120, cb => sub { $self->isis_handler(); } );
-    $self->{'path_timer'} = AnyEvent->timer( after => 50, interval => 300, cb => sub { $self->path_handler(); });
-    $self->{'vrf_stats_time'} = AnyEvent->timer( after => 20, interval => VRF_STATS_INTERVAL, cb => sub { $self->vrf_stats_handler(); });
+    $self->{'lsp_timer'} = AnyEvent->timer( after => 70, interval => 200, cb => sub { $self->lsp_handler(); });
+    $self->{'isis_timer'} = AnyEvent->timer( after => 80, interval => 120, cb => sub { $self->isis_handler(); } );
+    $self->{'path_timer'} = AnyEvent->timer( after => 40, interval => 300, cb => sub { $self->path_handler(); });
+    $self->{'vrf_stats_time'} = AnyEvent->timer( after => 20, interval => VRF_STATS_INTERVAL, cb => sub {
+        $self->vrf_stats_handler();
+    });
 
-    #our dispatcher for receiving events (only new_switch right now)    
-    my $dispatcher = OESS::RabbitMQ::Dispatcher->new( queue => 'MPLS-Discovery',
-						      topic => "MPLS.Discovery.RPC");
-
-    $self->register_rpc_methods( $dispatcher );
-    $self->{'dispatcher'} = $dispatcher;
+    # Dispatcher for receiving events (eg. A new switch was created).
+    $self->{'dispatcher'} = OESS::RabbitMQ::Dispatcher->new(
+        queue => 'MPLS-Discovery',
+        topic => "MPLS.Discovery.RPC"
+    );
+    $self->register_rpc_methods($self->{'dispatcher'});
 
     # When this process receives sigterm send an event to notify all
     # children to exit cleanly.
@@ -148,16 +166,11 @@ sub new{
         $self->stop();
     };
 
-    # Create a child process for each switch
-    $self->{'children'} = {};
-
     my $nodes = $self->{'db'}->get_current_nodes(type => 'mpls');
     foreach my $node (@$nodes) {
-	warn "Making Baby!\n";
-	$self->make_baby($node->{'node_id'});
+        warn "Making Baby!\n";
+        $self->make_baby($node->{'node_id'});
     }
-
-    $self->{'ipv4_intf'} = {};
 
     return $self;
 }
@@ -683,7 +696,7 @@ sub handle_links{
         $details->{'model'} = $details->{'model'};
         $details->{'sw_version'} = $details->{'sw_version'};
         $node_info{$node->{'name'}} = $details;
-	$node_info{$details->{'short_name'}} = $details;
+        $node_info{$details->{'short_name'}} = $details;
     }
 
     $self->{'logger'}->debug("Adjacencies: " . Dumper($adjs));
@@ -772,6 +785,10 @@ sub handle_links{
                     interface_id =>  $old_z_interface->{interface_id},
                     role         =>  'unknown'
                 );
+                $self->{db}->update_interface_role(
+                    interface_id =>  $z_int,
+                    role         =>  'trunk'
+                );
 
                 $self->{'db'}->decom_link_instantiation(link_id => $link->{'link_id'});
                 $self->{'db'}->create_link_instantiation(
@@ -797,6 +814,10 @@ sub handle_links{
                 $self->{db}->update_interface_role(
                     interface_id =>  $old_z_interface->{interface_id},
                     role         =>  'unknown'
+                );
+                $self->{db}->update_interface_role(
+                    interface_id =>  $z_int,
+                    role         =>  'trunk'
                 );
 
                 #if its in the links_a that means the z end changed...
@@ -824,6 +845,10 @@ sub handle_links{
                 $self->{db}->update_interface_role(
                     interface_id =>  $old_a_interface->{interface_id},
                     role         =>  'unknown'
+                );
+                $self->{db}->update_interface_role(
+                    interface_id =>  $a_int,
+                    role         =>  'trunk'
                 );
 
                 $self->{'db'}->decom_link_instantiation(link_id => $link->{'link_id'});
