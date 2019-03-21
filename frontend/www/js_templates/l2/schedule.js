@@ -17,6 +17,10 @@ class Schedule {
     this.parent.appendChild(this.element);
   }
 
+  /**
+   * setCreatePickerDisplay displays the create picker if the 'Create
+   * later' radio is selected. Otherwise the picker is hidden.
+   */
   setCreatePickerDisplay(event) {
     if (this.parent.querySelector('.create-picker-now').checked) {
       this.parent.querySelector('.create-picker-datetime').style.display = 'none';
@@ -25,6 +29,10 @@ class Schedule {
     }
   }
 
+  /**
+   * setRemovePickerDisplay displays the remove picker if the 'Remove
+   * later' radio is selected. Otherwise the picker is hidden.
+   */
   setRemovePickerDisplay(event) {
     if (this.parent.querySelector('.remove-picker-never').checked) {
       this.parent.querySelector('.remove-picker-datetime').style.display = 'none';
@@ -33,6 +41,10 @@ class Schedule {
     }
   }
 
+  /**
+   * createTime returns the unix time when create should be executed
+   * or -1 if the 'Create now' radio is selected.
+   */
   createTime() {
     let date = -1;
     if (!this.parent.querySelector('.create-picker-now').checked) {
@@ -41,6 +53,10 @@ class Schedule {
     return date;
   }
 
+  /**
+   * removeTime returns the unix time when remove should be executed
+   * or -1 if the 'Never remove' radio is selected.
+   */
   removeTime() {
     let date = -1;
     if (!this.parent.querySelector('.remove-picker-never').checked) {
