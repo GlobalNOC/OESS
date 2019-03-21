@@ -1,0 +1,249 @@
+<template id="l2vpn-endpoint">
+  <div class="panel panel-default" style="padding: 0 15 0 15;">
+
+    <div style="display:flex; flex-direction: row; flex-wrap: nowrap;">
+      <div>
+        <h3>Node:&nbsp;</h3>
+        <h4>Port:&nbsp;</h4>
+        <h5>VLAN:&nbsp;</h5>
+      </div>
+
+      <div>
+        <h3 class="l2vpn-node"></h3>
+        <h4><span class="l2vpn-interface"></span> <small class="l2vpn-interface-description"></small></h4>
+        <h5 class="l2vpn-tag"></h5>
+      </div>
+
+      <iframe class="l2vpn-graph" height="100" frameborder="0" style="flex: 1;"></iframe>
+
+      <div style="display: block;">
+        <button class="btn btn-link l2vpn-modify-button" type="button" onclick="" style="padding: 12 6 12 6;">
+          <span class="glyphicon glyphicon-edit"></span>
+        </button>
+        <button class="btn btn-link l2vpn-delete-button" type="button" onclick="" style="padding: 12 6 12 6;">
+          <span class="glyphicon glyphicon-trash"></span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+</template>
+
+
+
+<div class="modal fade" role="dialog" tabindex="-1" id="add-endpoint-modal">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 id="endpoint-select-header" class="modal-title">Select an Endpoint</h4>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom: 15px;">
+          <div id="entity-alert" class="alert alert-danger" role="alert" style="display: none;"></div>
+          <div id="entity-alert-ok" class="alert alert-info" role="alert" style="display: none;"></div>
+
+          <ul class="nav nav-tabs">
+            <li role="presentation">
+              <a id="basic" href="#basic-content" aria-controls="basic" role="tab" data-toggle="tab">By Entity</a>
+            </li>
+            <li role="presentation" class="active">
+              <a id="advanced" href="#advanced-content" aria-controls="advanced" role="tab" data-toggle="tab">My Interfaces</a>
+            </li>
+          </ul>
+
+          <div class="tab-content">
+            <div role="tabpanel" id="basic-content" class="tab-pane">
+              <div style="margin-bottom: 15px;"></div>
+
+              <!-- entity form -->
+              <div class="form-group">
+                <input id="entity-search" class="form-control" type="text" placeholder="Search"/>
+                <div id="entity-search-list" class="list-group" style="max-height:250px; overflow-y:scroll; position: absolute; width: 95%; z-index: 100; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);"></div>
+
+                <div style="height: 200px; overflow-y: scroll; margin-top: 15px; margin-bottom: 15px;">
+                  <div id="entity-list" class="list-group">Loading...</div>
+                </div>
+                <div class="form-group">
+                  <label class="control-label">VLAN</label>
+                  <select id="entity-vlans" class="form-control"></select>
+                </div>
+                <div class="form-group">
+                  <label class="control-label">Max Bandwidth (Mb/s)</label>
+                  <select id="entity-bandwidth" class="form-control"></select>
+                </div>
+                <!-- style="display: ${entity.cloud_interconnect_id ? 'block' : 'none'};" -->
+                <div class="form-group" id="entity-cloud-account">
+                  <label id="entity-cloud-account-label" class="control-label">Cloud Label</label>
+                  <input id="entity-cloud-account-id" class="form-control" type="text" placeholder="123456789">
+                </div>
+
+                <!-- style="display: ${vlanSelectable ? 'inline-block' : 'none'}" -->
+                <button id="add-entity-submit" class="btn btn-success" type="submit">
+                  Add Endpoint
+                </button>
+                <!-- style="display: ${accessRequestable ? 'inline-block' : 'none'}" -->
+                <button id="add-entity-request-access"
+                        class="btn btn-info"
+                        type="button"
+                        onclick="location.href='mailto:[% admin_email %]?SUBJECT=System Support: NDDI/OS3E Entity Access Request';">
+                  Request Access
+                </button>
+                <button id="add-entity-cancel" class="btn btn-danger" type="button">
+                  Cancel
+                </button>
+
+
+
+              </div>
+            </div>
+
+            <div role="tabpanel" id="advanced-content" class="tab-pane active">
+              <div style="margin-bottom: 15px;"></div>
+
+              <!-- interface form -->
+              <div class="form-group">
+                <label class="control-label">Interface</label>
+                <select id="endpoint-select-interface" class="form-control">
+                  <!-- loading interfaces -->
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="control-label">VLAN</label>
+                <select id="endpoint-select-vlan" class="form-control">
+                  <!-- loading vlans -->
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="control-label">Max Bandwidth (Mb/s)</label>
+                <input id="endpoint-bandwidth"
+                       class="form-control"
+                       type="number"
+                       placeholder="Unlimited"
+                       min="10"
+                       max="100000">
+              </div>
+              <div class="form-group">
+                <input id="endpoint-index" class="form-control" type="hidden">
+              </div>
+
+              <!-- if props.interface == -1 then 'disabled' else '' -->
+              <button id="add-endpoint-submit" class="btn btn-success" type="submit">
+                Add Endpoint
+              </button>
+              <button id="add-endpoint-cancel" class="btn btn-danger" type="button">
+                Cancel
+              </button>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<div>
+  <!-- Latest compiled and minified CSS -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+  <!-- Latest compiled and minified JavaScript -->
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+
+  <div id="circuit-header" class="row">
+    <div class="col-sm-6">
+      <h2>&nbsp;</h2>
+    </div>
+
+    <div class="col-sm-6" style="text-align: right; padding-top: 23px;">
+      <button class="btn-sm btn-success l2vpn-save-button" type="button">
+        <span class="glyphicon glyphicon-floppy-disk"></span> Save
+      </button>
+      <button class="btn-sm btn-danger l2vpn-cancel-button" type="button">
+        <span class="glyphicon glyphicon-ban-circle"></span> Cancel
+      </button>
+    </div>
+  </div>
+
+  <!-- circuit tabs -->
+  <div class="row">
+    <div id="circuit2" class="col-sm-12">
+
+      <hr/>
+      <div class="row">
+      </div>
+
+      <div class="row">
+
+        <div class="col-md-6">
+          <div class="row">
+            <div class="col-md-12">
+              <div class="form-group">
+                <label>Name</label>
+                <input id="l2vpn-circuit-description" class="form-control" type="text" placeholder="Example L2VPN">
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <p><b>Schedule</b></p>
+              <div class="radio">
+                <label><input class="l2vpn-circuit-create-radio" type="radio" name="provision-time" id="l2vpn-circuit-create-now" checked>Create now</label>
+              </div>
+              <div class="radio">
+                <label><input class="l2vpn-circuit-create-radio" type="radio" name="provision-time">Create later</label>
+              </div>
+              <input type="datetime-local" id="l2vpn-circuit-create-picker" style="display: none;">
+            </div>
+            <div class="col-md-6">
+              <p><b>&nbsp;</b></p>
+              <div class="radio">
+                <label><input class="l2vpn-circuit-remove-radio" type="radio" name="remove-time" id="l2vpn-circuit-remove-never" checked>Never remove</label>
+              </div>
+              <div class="radio">
+                <label><input class="l2vpn-circuit-remove-radio" type="radio" name="remove-time">Remove later</label>
+              </div>
+              <input type="datetime-local" id="l2vpn-circuit-remove-picker" style="display: none;">
+            </div>
+          </div>
+        </div>
+
+        <!-- <div class="col-sm-6" ><div id="map" class="openlayers"></div></div> -->
+      </div>
+
+      <div class="row">
+        <br/>
+        <div id="actions" class="col-sm-12" style="display: ${displayEdits};">
+          <button class="btn-sm btn-primary l2vpn-new-endpoint-button" type="button">
+            <span class="glyphicon glyphicon-plus"></span> New Endpoint
+          </button>
+        </div>
+      </div>
+
+      <div class="row">
+        <br/>
+        <div class="col-sm-12">
+          <div id="endpoints"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <script>
+      [% INCLUDE js_templates/component.js %]
+
+      [% INCLUDE js_templates/api/vlan.js %]
+      [% INCLUDE js_templates/api/interfaces.js %]
+      [% INCLUDE js_templates/api/entity.js %]
+      [% INCLUDE js_templates/api/circuit.js %]
+      [% INCLUDE js_templates/l2/demo.js %]
+
+      [% INCLUDE js_templates/l2/endpoint.js %]
+      [% INCLUDE js_templates/l2/circuit.js %]
+
+      [% INCLUDE js_templates/provision_l2vpn.js %]
+    </script>
+
+</div>
