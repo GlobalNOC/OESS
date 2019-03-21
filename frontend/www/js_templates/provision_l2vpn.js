@@ -71,42 +71,15 @@ document.querySelector('.l2vpn-cancel-button').addEventListener('click', functio
   }
 });
 
+let schedule = new Schedule('#l2vpn-schedule-picker');
+
 document.querySelector('.l2vpn-save-button').addEventListener('click', function(e) {
   state.circuit.description = document.querySelector('#l2vpn-circuit-description').value;
 
-  if (document.querySelector('#l2vpn-circuit-create-now').checked) {
-    state.circuit.provision_time = -1;
-  } else {
-    state.circuit.provision_time = new Date(document.querySelector('#l2vpn-circuit-create-picker').value).getTime() / 1000;
-  }
-
-  if (document.querySelector('#l2vpn-circuit-remove-never').checked) {
-    state.circuit.remove_time = -1;
-  } else {
-    state.circuit.remove_time = new Date(document.querySelector('#l2vpn-circuit-remove-picker').value).getTime() / 1000;
-  }
+  state.circuit.provision_time = schedule.createTime();
+  state.circuit.remove_time = schedule.removeTime();
 
   state.saveCircuit();
-});
-
-document.querySelectorAll('.l2vpn-circuit-create-radio').forEach((elem) => {
-  elem.addEventListener('change', function(e) {
-    if (document.querySelector('#l2vpn-circuit-create-now').checked) {
-      document.querySelector('#l2vpn-circuit-create-picker').style.display = 'none';
-    } else {
-      document.querySelector('#l2vpn-circuit-create-picker').style.display = 'block';
-    }
-  });
-});
-
-document.querySelectorAll('.l2vpn-circuit-remove-radio').forEach((elem) => {
-  elem.addEventListener('change', function(e) {
-    if (document.querySelector('#l2vpn-circuit-remove-never').checked) {
-      document.querySelector('#l2vpn-circuit-remove-picker').style.display = 'none';
-    } else {
-      document.querySelector('#l2vpn-circuit-remove-picker').style.display = 'block';
-    }
-  });
 });
 
 async function update(props) {

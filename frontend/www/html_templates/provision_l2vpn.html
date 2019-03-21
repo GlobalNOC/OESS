@@ -3,13 +3,15 @@
 
     <div style="display:flex; flex-direction: row; flex-wrap: nowrap;">
       <div>
-        <h3>Node:&nbsp;</h3>
+        <h3>Entity:&nbsp;</h3>
+        <h4>Node:&nbsp;</h3>
         <h4>Port:&nbsp;</h4>
         <h5>VLAN:&nbsp;</h5>
       </div>
 
       <div>
-        <h3 class="l2vpn-node"></h3>
+        <h3 class="l2vpn-entity">NA</h3>
+        <h4 class="l2vpn-node"></h4>
         <h4><span class="l2vpn-interface"></span> <small class="l2vpn-interface-description"></small></h4>
         <h5 class="l2vpn-tag"></h5>
       </div>
@@ -186,29 +188,7 @@
             </div>
           </div>
 
-          <div class="row">
-            <div class="col-md-6">
-              <p><b>Schedule</b></p>
-              <div class="radio">
-                <label><input class="l2vpn-circuit-create-radio" type="radio" name="provision-time" id="l2vpn-circuit-create-now" checked>Create now</label>
-              </div>
-              <div class="radio">
-                <label><input class="l2vpn-circuit-create-radio" type="radio" name="provision-time">Create later</label>
-              </div>
-              <input type="datetime-local" id="l2vpn-circuit-create-picker" style="display: none;">
-            </div>
-            <div class="col-md-6">
-              <p><b>&nbsp;</b></p>
-              <div class="radio">
-                <label><input class="l2vpn-circuit-remove-radio" type="radio" name="remove-time" id="l2vpn-circuit-remove-never" checked>Never remove</label>
-              </div>
-              <div class="radio">
-                <label><input class="l2vpn-circuit-remove-radio" type="radio" name="remove-time">Remove later</label>
-              </div>
-              <input type="datetime-local" id="l2vpn-circuit-remove-picker" style="display: none;">
-            </div>
-          </div>
-        </div>
+          <div class="row" id="l2vpn-schedule-picker"></div>
 
         <!-- <div class="col-sm-6" ><div id="map" class="openlayers"></div></div> -->
       </div>
@@ -231,6 +211,8 @@
 
     </div>
 
+    [% INCLUDE html_templates/l2/schedule.html %]
+
     <script>
       [% INCLUDE js_templates/component.js %]
 
@@ -238,6 +220,8 @@
       [% INCLUDE js_templates/api/interfaces.js %]
       [% INCLUDE js_templates/api/entity.js %]
       [% INCLUDE js_templates/api/circuit.js %]
+
+      [% INCLUDE js_templates/l2/schedule.js %]
       [% INCLUDE js_templates/l2/demo.js %]
 
       [% INCLUDE js_templates/l2/endpoint.js %]

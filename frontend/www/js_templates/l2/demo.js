@@ -3,6 +3,7 @@ function NewEndpoint(endpoint) {
   let t = document.querySelector('#l2vpn-endpoint');
   let e = document.importNode(t.content, true);
 
+  e.querySelector('.l2vpn-entity').innerHTML = endpoint.entity || 'NA';
   e.querySelector('.l2vpn-node').innerHTML = endpoint.node;
   e.querySelector('.l2vpn-interface').innerHTML = endpoint.interface;
   e.querySelector('.l2vpn-interface-description').innerHTML = endpoint.interface_description;

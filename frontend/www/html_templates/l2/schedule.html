@@ -1,0 +1,38 @@
+<template id="template-schedule-picker">
+  <span>
+    <div class="col-md-6">
+      <p><b>Schedule</b></p>
+      <div class="radio">
+        <label>
+          <input class="create-picker-radio create-picker-now" type="radio" name="provision-time" checked/>
+          Create now
+        </label>
+      </div>
+      <div class="radio">
+        <label>
+          <input class="create-picker-radio" type="radio" name="provision-time"/>
+          Create later
+        </label>
+      </div>
+
+      <input type="datetime-local" class="create-picker-datetime" style="display: none;"/>
+    </div>
+
+    <div class="col-md-6">
+      <p><b>&nbsp;</b></p>
+      <div class="radio">
+        <label>
+          <input class="remove-picker-radio remove-picker-never" type="radio" name="remove-time" checked/>
+          Never remove
+        </label>
+      </div>
+      <div class="radio">
+        <label>
+          <input class="remove-picker-radio" type="radio" name="remove-time"/>
+          Remove later
+        </label>
+      </div>
+
+      <input type="datetime-local" class="remove-picker-datetime" style="display: none;"/>
+    </div>
+</template>
