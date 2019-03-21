@@ -1,28 +1,4 @@
 
-function NewEndpoint(endpoint) {
-  let t = document.querySelector('#l2vpn-endpoint');
-  let e = document.importNode(t.content, true);
-
-  e.querySelector('.l2vpn-entity').innerHTML = endpoint.entity || 'NA';
-  e.querySelector('.l2vpn-node').innerHTML = endpoint.node;
-  e.querySelector('.l2vpn-interface').innerHTML = endpoint.interface;
-  e.querySelector('.l2vpn-interface-description').innerHTML = endpoint.interface_description;
-  e.querySelector('.l2vpn-tag').innerHTML = endpoint.tag;
-  e.querySelector('.l2vpn-graph').setAttribute('src', `https://io3.bldc.grnoc.iu.edu/grafana/d-solo/te5oS11mk/oess-l2-interface?panelId=2&amp;orgId=1&amp;from=now-1h&amp;to=now&amp;var-node=${endpoint.node}&amp;var-interface=${endpoint.interface}&amp;refresh=30s`);
-
-  e.querySelector('.l2vpn-modify-button').addEventListener('click', function(e) {
-    PopulateInterfaceForm(endpoint);
-    $('#add-endpoint-modal').modal('show');
-  });
-
-  e.querySelector('.l2vpn-delete-button').addEventListener('click', function(e) {
-    state.deleteEndpoint(endpoint.index);
-    update();
-  });
-
-  return e;
-}
-
 async function PopulateInterfaceForm(endpoint) {
   let interfaces   = await getInterfacesByWorkgroup(session.data.workgroup_id);
   let interface_id = (interfaces.length === 0) ? -1 : interfaces[0].interface_id;
