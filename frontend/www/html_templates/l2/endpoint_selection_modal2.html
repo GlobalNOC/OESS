@@ -1,0 +1,95 @@
+<template id="endpoint-selection-modal2">
+  <div class="modal fade" role="dialog" tabindex="-1" id="add-endpoint-modal2">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="endpoint-select-header" class="modal-title">Select an Endpoint</h4>
+        </div>
+        <div class="modal-body">
+          <div style="margin-bottom: 15px;">
+            <!-- <div id="entity-alert" class="alert alert-danger" role="alert" style="display: none;"></div> -->
+            <!-- <div id="entity-alert-ok" class="alert alert-info" role="alert" style="display: none;"></div> -->
+
+            <ul class="nav nav-tabs">
+              <li role="presentation">
+                <a id="basic" href="#basic-content" aria-controls="basic" role="tab" data-toggle="tab">By Entity</a>
+              </li>
+              <li role="presentation" class="active">
+                <a id="advanced" href="#advanced-content" aria-controls="advanced" role="tab" data-toggle="tab">My Interfaces</a>
+              </li>
+            </ul>
+
+            <div class="tab-content">
+
+              <div role="tabpanel" id="basic-content" class="tab-pane">
+                <div style="margin-bottom: 15px;"></div>
+
+                <!-- entity form -->
+                <div class="form-group">
+                  <input class="form-control entity-search" type="text" placeholder="Search"/>
+                  <div class="list-group entity-search-list" style="max-height:250px; overflow-y:scroll; position: absolute; width: 95%; z-index: 100; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);"></div>
+
+                  <div style="height: 200px; overflow-y: scroll; margin-top: 15px; margin-bottom: 15px;">
+                    <div class="list-group entity-list">Loading...</div>
+                  </div>
+                  <div class="form-group">
+                    <label class="control-label">VLAN</label>
+                    <select class="form-control entity-vlans"></select>
+                  </div>
+                  <div class="form-group">
+                    <label class="control-label">Max Bandwidth (Mb/s)</label>
+                    <select class="form-control entity-bandwidth"></select>
+                  </div>
+                  <!-- style="display: ${entity.cloud_interconnect_id ? 'block' : 'none'};" -->
+                  <div class="form-group entity-cloud-account">
+                    <label class="control-label entity-cloud-account-label">Cloud Label</label>
+                    <input class="form-control entity-cloud-account-id" type="text" placeholder="123456789">
+                  </div>
+
+                  <!-- style="display: ${vlanSelectable ? 'inline-block' : 'none'}" -->
+                  <button class="btn btn-success add-entity-submit" type="submit">
+                    Add Endpoint
+                  </button>
+                  <!-- style="display: ${accessRequestable ? 'inline-block' : 'none'}" -->
+                  <button class="btn btn-info add-entity-request-access"
+                          type="button"
+                          onclick="location.href='mailto:[% admin_email %]?SUBJECT=System Support: NDDI/OS3E Entity Access Request';">
+                    Request Access
+                  </button>
+                  <button class="btn btn-danger add-entity-cancel" type="button">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+
+              <!-- interface form -->
+              <div role="tabpanel" id="advanced-content" class="tab-pane active">
+                <br/>
+
+                <div class="form-group">
+                  <label class="control-label">Interface</label>
+                  <select class="form-control endpoint-select-interface"></select>
+                </div>
+                <div class="form-group">
+                  <label class="control-label">VLAN</label>
+                  <select class="form-control endpoint-select-vlan"></select>
+                </div>
+                <div class="form-group">
+                  <label class="control-label">Max Bandwidth (Mb/s)</label>
+                  <input class="form-control endpoint-bandwidth" placeholder="Unlimited" type="number" min="10" max="100000"/>
+                </div>
+                <div class="form-group">
+                  <input id="endpoint-index" class="form-control" type="hidden">
+                </div>
+
+                <button class="btn btn-success add-endpoint-submit" type="submit">Add Endpoint</button>
+                <button class="btn btn-danger add-endpoint-cancel" type="button">Cancel</button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>

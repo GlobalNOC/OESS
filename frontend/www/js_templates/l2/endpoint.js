@@ -10,8 +10,7 @@ function NewEndpoint(endpoint) {
   e.querySelector('.l2vpn-graph').setAttribute('src', `https://io3.bldc.grnoc.iu.edu/grafana/d-solo/te5oS11mk/oess-l2-interface?panelId=2&amp;orgId=1&amp;from=now-1h&amp;to=now&amp;var-node=${endpoint.node}&amp;var-interface=${endpoint.interface}&amp;refresh=30s`);
 
   e.querySelector('.l2vpn-modify-button').addEventListener('click', function(e) {
-    PopulateInterfaceForm(endpoint);
-    $('#add-endpoint-modal').modal('show');
+    modal.display(endpoint);
   });
 
   e.querySelector('.l2vpn-delete-button').addEventListener('click', function(e) {

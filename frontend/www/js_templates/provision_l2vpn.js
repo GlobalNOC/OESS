@@ -59,10 +59,11 @@ class GlobalState extends Component {
 
 let state = new GlobalState();
 
+let schedule = new Schedule('#l2vpn-schedule-picker');
+let modal = new EndpointSelectionModal2('#endpoint-selection-modal2-div');
+
 document.querySelector('.l2vpn-new-endpoint-button').addEventListener('click', function(e) {
-  PopulateInterfaceForm(null);
-  PopulateEntityForm(null);
-  $('#add-endpoint-modal').modal('show');
+  modal.display(null);
 });
 
 document.querySelector('.l2vpn-cancel-button').addEventListener('click', function(e) {
@@ -70,8 +71,6 @@ document.querySelector('.l2vpn-cancel-button').addEventListener('click', functio
     window.location.href = 'index.cgi';
   }
 });
-
-let schedule = new Schedule('#l2vpn-schedule-picker');
 
 document.querySelector('.l2vpn-save-button').addEventListener('click', function(e) {
   state.circuit.description = document.querySelector('#l2vpn-circuit-description').value;
@@ -105,9 +104,4 @@ document.addEventListener('DOMContentLoaded', function() {
   console.log('GlobalState:', state);
 
   state.selectCircuit(-1);
-
-  let map = new NDDIMap('map');
-  map.on("loaded", function(){
-    this.updateMapFromSession(session);
-  });
 });
