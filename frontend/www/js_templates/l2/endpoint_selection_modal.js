@@ -30,8 +30,8 @@ class EndpointSelectionModal2 {
       index = endpoint.index;
     }
 
-    let interfaceSelector = document.querySelector('.endpoint-select-interface');
-    let vlanSelector = document.querySelector('.endpoint-select-vlan');
+    let interfaceSelector = this.parent.querySelector('.endpoint-select-interface');
+    let vlanSelector = this.parent.querySelector('.endpoint-select-vlan');
 
     interfaceSelector.innerHTML = '';
     interfaces.forEach((i) => {
@@ -86,10 +86,10 @@ class EndpointSelectionModal2 {
     interfaceSelector.onchange = loadVlanSelector;
 
     // Setup interface-add and interface-cancel callbacks
-    document.querySelector('.add-endpoint-submit').onclick = function(e) {
+    this.parent.querySelector('.add-endpoint-submit').onclick = function(e) {
       let endpoint = {
         index:            index,
-        bandwidth:        document.querySelector('.endpoint-bandwidth').value,
+        bandwidth:        this.parent.querySelector('.endpoint-bandwidth').value,
         interface:        interfaceSelector.options[interfaceSelector.selectedIndex].dataset.name,
         interface_id:     interfaceSelector.options[interfaceSelector.selectedIndex].value,
         interface_description: interfaceSelector.options[interfaceSelector.selectedIndex].dataset.description,
@@ -103,9 +103,9 @@ class EndpointSelectionModal2 {
 
       state.updateEndpoint(endpoint);
       $('#add-endpoint-modal2').modal('hide');
-    };
+    }.bind(this);
 
-    document.querySelector('.add-endpoint-cancel').onclick = function(e) {
+    this.parent.querySelector('.add-endpoint-cancel').onclick = function(e) {
       $('#add-endpoint-modal2').modal('hide');
     };
 
@@ -122,9 +122,9 @@ class EndpointSelectionModal2 {
       index = endpoint.index;
     }
 
-    document.querySelector('.entity-search').oninput = function(search) {
+    this.parent.querySelector('.entity-search').oninput = function(search) {
       if (search.target.value.length < 2) {
-        let list = document.querySelector('.entity-search-list');
+        let list = this.parent.querySelector('.entity-search-list');
         list.innerHTML = '';
         return null;
       }
@@ -136,7 +136,7 @@ class EndpointSelectionModal2 {
       // TODO FIX THIS
       this.searchTimeout = setTimeout(function() {
         getEntitiesAll(session.data.workgroup_id, search.target.value).then(function(entities) {
-          let list = document.querySelector('.entity-search-list');
+          let list = this.parent.querySelector('.entity-search-list');
           list.innerHTML = '';
 
           for (let i = 0; i < entities.length; i++) {
@@ -157,12 +157,12 @@ class EndpointSelectionModal2 {
       }.bind(this), 800);
 
       return 1;
-    };
+    }.bind(this);
 
     let options = {};
     let entity = await getEntities(session.data.workgroup_id, entity_id, options);
 
-    let list = document.querySelector('.entity-list');
+    let list = this.parent.querySelector('.entity-list');
     list.innerHTML = '';
 
     if (entity === null) {
@@ -228,7 +228,7 @@ class EndpointSelectionModal2 {
     }
 
     // VLAN Select
-    let vlanSelector = document.querySelector('.entity-vlans');
+    let vlanSelector = this.parent.querySelector('.entity-vlans');
     vlanSelector.innerHTML = '';
 
     let vlans = [];
@@ -281,9 +281,9 @@ class EndpointSelectionModal2 {
       entity.cloud_interconnect_type = entity.interfaces[i].cloud_interconnect_type;
     }
 
-    let cloudAccountLabel = document.querySelector('.entity-cloud-account-label');
+    let cloudAccountLabel = this.parent.querySelector('.entity-cloud-account-label');
     cloudAccountLabel.innerText = 'AWS Account Owner';
-    let cloudAccountInput = document.querySelector('.entity-cloud-account');
+    let cloudAccountInput = this.parent.querySelector('.entity-cloud-account');
     // TODO Set cloudAccountInput placeholder to something resembling
     // the expected input.
 
@@ -298,7 +298,7 @@ class EndpointSelectionModal2 {
       }
     }
 
-    let cloudAccount = document.querySelector('.entity-cloud-account');
+    let cloudAccount = this.parent.querySelector('.entity-cloud-account');
     if (entity.cloud_interconnect_id === null) {
       cloudAccount.style.display = 'none';
     } else {
@@ -306,7 +306,7 @@ class EndpointSelectionModal2 {
     }
 
     // Max Bandwidth
-    let bandwidthSelector = document.querySelector('.entity-bandwidth');
+    let bandwidthSelector = this.parent.querySelector('.entity-bandwidth');
     bandwidthSelector.innerHTML = '';
 
     let bandwidthOptions  = [[0, 'Unlimited']];
@@ -359,7 +359,7 @@ class EndpointSelectionModal2 {
     //   if no vlans request access
     //      disabled add endpoint
 
-    let addButton = document.querySelector('.add-entity-submit');
+    let addButton = this.parent.querySelector('.add-entity-submit');
     addButton.onclick = function(e) {
       console.log('endpoint:', endpoint);
       console.log('entity:', entity);
@@ -376,12 +376,12 @@ class EndpointSelectionModal2 {
       $('#add-endpoint-modal2').modal('hide');
     };
 
-    let cancelButton =document.querySelector('.add-entity-cancel');
+    let cancelButton =this.parent.querySelector('.add-entity-cancel');
     cancelButton.onclick = function(e) {
       $('#add-endpoint-modal2').modal('hide');
     };
 
-    let requestButton = document.querySelector('.add-entity-request-access');
+    let requestButton = this.parent.querySelector('.add-entity-request-access');
     if (entity.interfaces.length === 0) {
       addButton.setAttribute('disabled', '');
       requestButton.style.display = 'none';
