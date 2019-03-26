@@ -743,6 +743,16 @@ sub register_webservice_methods {
         callback	=> sub { get_users( @_ ) }
     );
     $svc->register_method($method);
+    # get_maps_short()
+    $method = GRNOC::WebService::Method->new(
+	name            => "get_maps_short",
+	description     => "returns a JSON object representing the network layout",
+	callback        => sub { get_maps_short( @_ ) } 
+	);
+    #register get_maps_short method
+    $svc->register_method($method);
+ 
+
 }
 
 
@@ -1192,6 +1202,36 @@ sub get_maps {
         $results->{'results'} = $layers;
     }
 
+    return $results;
+}
+
+sub get_maps_short{
+    
+    my ( $method, $args ) = @_ ;
+    my $results;
+
+    my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
+    if(!$is_admin ){
+        $method->set_error( 'Error: Not an admin' );
+        return;
+    }
+
+    my $nodes = $db->get_map_nodes();
+    if (!defined $nodes) {
+        $method->set_error( $db->get_error() );
+        return;
+    } else {
+        $results->{'results'} = {};
+        $results->{'results'}{'nodes'} = $nodes;
+    }
+
+    my $links = $db->get_map_links();
+    if (!defined $links) {
+        $method->set_error( $db->get_error() );
+        return;
+    } else {
+        $results->{'results'}{'links'} = $links;
+    }
     return $results;
 }
 

@@ -1427,6 +1427,76 @@ sub get_node_interfaces {
     return \@results;
 
 }
+=head2 get_map_nodes
+
+Returns nodes information to be displayed on map.
+Re-defined to suit new requirements.- An update to get_map_layers
+
+=cut
+
+sub get_map_nodes{
+    my $self = shift;
+    my %args = @_;
+
+    my $dbh = $self->{'dbh'};
+
+    my $query = <<HERE;
+    select node.node_id,
+    node.name as node_name,
+    node.latitude,
+    node.longitude,
+    node.operational_state
+    from node
+HERE
+    
+    my $rows = $self->_execute_query($query);
+    return $rows; 
+}
+
+=head2 get_map_links
+
+Returns links to be displayed on the map
+
+=cut
+sub get_map_links{
+    my $self = shift;
+    my $links = $self->get_current_links(type => 'openflow');
+    my $mpls_links = $self->get_current_links(type => 'mpls');
+    foreach my $link (@$mpls_links){
+        push(@$links, $link);
+    }
+
+    #my $link_maintenances = $self->get_link_maintenances();
+ 
+    my @result ;
+    foreach my $link (@$links){
+        my $inta = $self->get_interface( interface_id => $link->{'interface_a_id'});
+        my $intb = $self->get_interface( interface_id => $link->{'interface_z_id'});
+
+        my $link_data_a = {
+            "link_name"     => $link->{'name'},
+            "openflow"      => $link->{'openflow'},
+            "mpls"          => $link->{'mpls'},
+            "link_state"    => $link->{'status'},
+            "from_node"	    => $intb->{'node_id'},
+            "to_node"       => $inta->{'node_id'},
+            "link_id"       => $link->{'link_id'}
+        };
+
+        my $link_data_b = {
+            "link_name"     => $link->{'name'},
+            "openflow"      => $link->{'openflow'},
+            "mpls"          => $link->{'mpls'},
+            "link_state"    => $link->{'status'},
+            "from_node"     => $inta->{'node_id'},
+            "to_node"       => $intb->{'node_id'},
+            "link_id"       => $link->{'link_id'}
+        };
+            push(@result, $link_data_b);
+            push(@result, $link_data_a);
+    }
+    return \@result;
+}
 
 =head2 get_map_layers
 
@@ -1461,7 +1531,6 @@ sub get_map_layers {
     node_instantiation.model,
     node_instantiation.sw_version,
     node_instantiation.mgmt_addr,
-    node_instantiation.tcp_port,
     node.vlan_tag_range,
     node.node_id as node_id,
     node.default_drop as default_drop,
@@ -1529,7 +1598,7 @@ HERE
                                                                "model"        => $row->{'model'},
                                                                "sw_version"   => $row->{'sw_version'},
                                                                "mgmt_addr"    => $row->{'mgmt_addr'},
-                                                               "tcp_port"     => $row->{'tcp_port'},
+							       #"tcp_port"     => $row->{'tcp_port'},
 							       "vlan_range"   => $row->{'vlan_tag_range'},
 							       "default_drop" => $row->{'default_drop'},
 							       "default_forward" => $row->{'default_forward'},

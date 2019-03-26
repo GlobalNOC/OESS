@@ -176,6 +176,15 @@ sub main{
                 {title  => "Add Entity",       url     => "#"}
             ];
         } 
+        case "map" {
+            $filename           = "html_templates/map.html";
+            $current_breadcrumb = "Map";
+            $title              = "Map";
+            $breadcrumbs        = [
+                {title  => "Welcome",   url => "?action=welcome"},
+                {title  => "Map",       url     => "#"}
+            ];
+        } 
 	else {
             $filename = "html_templates/error.html"; 
             $title    = "Error";
