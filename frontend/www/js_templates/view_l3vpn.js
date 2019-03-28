@@ -194,7 +194,8 @@ async function loadVRF() {
       </div>
 
       <div style="flex: 1; padding-left: 15px;">
-        <h3>Neighbors</h3>
+        <h3>&nbsp;</h3>
+        <h4>Neighbors:</h4>
         <table class="table table-condensed" style="text-align: left;">
           <thead>
             <tr><th>Peer ASN</th><th>Peer IP</th><th>BGP Key</th><th>OESS IP</th><th>Status</th></tr>
