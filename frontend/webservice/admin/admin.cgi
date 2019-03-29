@@ -173,6 +173,25 @@ sub register_webservice_methods {
                                   description => 'Circuit IDs of the circuits on original_interface.' );
     $svc->register_method($method);
 
+    $method = GRNOC::WebService::Method->new(
+        name        => 'move_interface_configuration',
+        description => "Moves an interface's entire configuration.",
+        callback    => sub { move_interface_configuration(@_) }
+    );
+    $method->add_input_parameter(
+        name        => 'orig_interface_id',
+        pattern     => $GRNOC::WebService::Regex::INTEGER,
+        required    => 1,
+        description => 'Interface ID of the original interface.'
+    );
+    $method->add_input_parameter(
+        name        => 'new_interface_id',
+        pattern     => $GRNOC::WebService::Regex::INTEGER,
+        required    => 1,
+        description => 'Interface ID of the temporary interface.'
+    );
+    $svc->register_method($method);
+
     $method = GRNOC::WebService::Method->new( name        => 'get_pending_nodes',
                                               description => "Returns a list of nodes to be approved.",
                                               callback    => sub { get_pending_nodes(@_) } );
@@ -1522,6 +1541,17 @@ sub move_edge_interface_circuits {
     }
 
     return $results;
+}
+
+sub move_interface_configuration {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
+    return { results => [ { status => 'win' } ] };
 }
 
 sub get_pending_nodes {
