@@ -273,37 +273,38 @@ class EndpointSelectionModal2 {
     }
 
     // Cloud Connection Input
-    for (let i = 0; i < entity.interfaces.length; i++) {
-      if (typeof entity.interfaces[i].cloud_interconnect_id === 'undefined') {
-        continue;
-      }
-      entity.cloud_interconnect_id = entity.interfaces[i].cloud_interconnect_id;
-      entity.cloud_interconnect_type = entity.interfaces[i].cloud_interconnect_type;
-    }
+    // for (let i = 0; i < entity.interfaces.length; i++) {
+    //   if (typeof entity.interfaces[i].cloud_interconnect_id === 'undefined') {
+    //     continue;
+    //   }
+    //   entity.cloud_interconnect_id = entity.interfaces[i].cloud_interconnect_id;
+    //   entity.cloud_interconnect_type = entity.interfaces[i].cloud_interconnect_type;
+    // }
 
-    let cloudAccountLabel = this.parent.querySelector('.entity-cloud-account-label');
-    cloudAccountLabel.innerText = 'AWS Account Owner';
-    let cloudAccountInput = this.parent.querySelector('.entity-cloud-account');
+    // let cloudAccountLabel = this.parent.querySelector('.entity-cloud-account-label');
+    // cloudAccountLabel.innerText = 'AWS Account Owner';
+    // let cloudAccountInput = this.parent.querySelector('.entity-cloud-account');
+
     // TODO Set cloudAccountInput placeholder to something resembling
     // the expected input.
 
-    if (!('cloud_interconnect_id' in entity) || entity.cloud_interconnect_id === null || entity.cloud_interconnect_id === 'null' || entity.cloud_interconnect_id === '') {
-      entity.cloud_interconnect_id = null;
-      entity.cloud_interconnect_type = '';
-    } else {
-      if (entity.cloud_interconnect_type === 'gcp-partner-interconnect') {
-        cloudAccountLabel.innerText = 'GCP Pairing Key';
-      } else if (entity.cloud_interconnect_type === 'azure-express-route') {
-        cloudAccountLabel.innerText = 'ExpressRoute Service Key';
-      }
-    }
+    // if (!('cloud_interconnect_id' in entity) || entity.cloud_interconnect_id === null || entity.cloud_interconnect_id === 'null' || entity.cloud_interconnect_id === '') {
+    //   entity.cloud_interconnect_id = null;
+    //   entity.cloud_interconnect_type = '';
+    // } else {
+    //   if (entity.cloud_interconnect_type === 'gcp-partner-interconnect') {
+    //     cloudAccountLabel.innerText = 'GCP Pairing Key';
+    //   } else if (entity.cloud_interconnect_type === 'azure-express-route') {
+    //     cloudAccountLabel.innerText = 'ExpressRoute Service Key';
+    //   }
+    // }
 
-    let cloudAccount = this.parent.querySelector('.entity-cloud-account');
-    if (entity.cloud_interconnect_id === null) {
-      cloudAccount.style.display = 'none';
-    } else {
-      cloudAccount.style.display = 'block';
-    }
+    // let cloudAccount = this.parent.querySelector('.entity-cloud-account');
+    // if (entity.cloud_interconnect_id === null) {
+    //   cloudAccount.style.display = 'none';
+    // } else {
+    //   cloudAccount.style.display = 'block';
+    // }
 
     // Max Bandwidth
     let bandwidthSelector = this.parent.querySelector('.entity-bandwidth');
@@ -366,7 +367,8 @@ class EndpointSelectionModal2 {
 
       endpoint.bandwidth = bandwidthSelector.options[bandwidthSelector.selectedIndex].value;
       endpoint.tag = vlanSelector.options[vlanSelector.selectedIndex].value;
-      endpoint.cloud_account_id = cloudAccountInput.value;
+      // endpoint.cloud_account_id = cloudAccountInput.value;
+      endpoint.cloud_account_id = '';
       endpoint.entity = entity.name;
       endpoint.name = 'TBD';
       endpoint.node = 'TBD';
@@ -519,8 +521,10 @@ class EndpointSelectionModal extends Component {
         tag: document.querySelector('#entity-vlans').value,
         entity_id: document.querySelector('#entity-id').value,
         entity: document.querySelector('#entity-name').value,
-        cloud_account_id: document.querySelector('#entity-cloud-account-id').value,
-        cloud_account_type: document.querySelector('#entity-cloud-account-type').value,
+        // cloud_account_id: document.querySelector('#entity-cloud-account-id').value,
+        cloud_account_id: '',
+        // cloud_account_type: document.querySelector('#entity-cloud-account-type').value,
+        cloud_account_type: '',
         index: this.index
     };
 
