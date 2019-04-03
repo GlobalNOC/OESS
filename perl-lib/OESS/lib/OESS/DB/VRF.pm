@@ -216,8 +216,6 @@ sub add_endpoint{
         $db->rollback();
         return;
     }
- 
-
 
     if (defined $model->{cloud_account_id} && $model->{cloud_account_id} ne '') {
         $db->execute_query(

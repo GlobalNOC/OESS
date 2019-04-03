@@ -114,13 +114,8 @@ sub setup_endpoints {
             my $interconnect_name = $vrf_name;
             my $connection_id     = 'a-' . lc($uuid);
 
-            my $interface = $gcp->select_interconnect_interface(
-                entity => $ep->entity,
-                pairing_key => $ep->cloud_account_id
-            );
-
             my $res = $gcp->insert_interconnect_attachment(
-                interconnect_id   => $interface->cloud_interconnect_id,
+                interconnect_id   => $ep->interface->cloud_interconnect_id,
                 interconnect_name => $interconnect_name,
                 bandwidth         => 'BPS_' . $ep->bandwidth . 'M',
                 connection_id     => $connection_id,
@@ -215,6 +210,9 @@ sub cleanup_endpoints {
 
             my $aws_account = $ep->cloud_account_id;
             my $aws_connection = $ep->cloud_connection_id;
+            if (!defined $aws_connection || $aws_connection eq '') {
+                next;
+            }
 
             $logger->info("Removing aws-hosted-connection $aws_connection from $aws_account.");
             $aws->delete_connection($ep->interface()->cloud_interconnect_id, $aws_connection);
@@ -224,6 +222,9 @@ sub cleanup_endpoints {
 
             my $aws_account = $ep->cloud_account_id;
             my $aws_connection = $ep->cloud_connection_id;
+            if (!defined $aws_connection || $aws_connection eq '') {
+                next;
+            }
 
             $logger->info("Removing aws-hosted-vinterface $aws_connection from $aws_account.");
             $aws->delete_vinterface($ep->interface()->cloud_interconnect_id, $aws_connection);
@@ -233,6 +234,9 @@ sub cleanup_endpoints {
 
             my $interconnect_id = $ep->interface()->cloud_interconnect_id;
             my $connection_id = $ep->cloud_connection_id;
+            if (!defined $connection_id || $connection_id eq '') {
+                next;
+            }
 
             $logger->info("Removing gcp-partner-interconnect $connection_id from $interconnect_id.");
             my $res = $gcp->delete_interconnect_attachment(
