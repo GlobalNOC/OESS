@@ -10330,6 +10330,50 @@ sub move_edge_interface_circuits {
             $self->_rollback() if($do_commit);
             return;
         }
+    
+        # Update active vrf_ep entries to the new interface_id
+        $query = "UPDATE vrf_ep ".
+                "SET interface_id = ? ".
+                "WHERE interface_id = ? AND state = 'active'";
+        $recs = $self->_execute_query($query, [
+                                         $new_interface_id,
+                                         $orig_interface_id]);
+        if (!defined($recs)) {
+            $self->_rollback() if($do_commit);
+            return;
+        }
+
+        # Update new interface's cloud interconnect settings
+        $query = "UPDATE interface ".
+                "SET cloud_interconnect_type = ".
+                    "(SELECT cloud_interconnect_type ".
+                    "FROM (select * from interface) as inter ".
+                    "WHERE interface_id = ?), ".
+                "cloud_interconnect_id = ".
+                    "(SELECT cloud_interconnect_id ".
+                    "FROM (select * from interface) as inter ".
+                    "WHERE interface_id = ?) ".
+                "WHERE interface_id = ?";
+        $recs = $self->_execute_query($query, [
+                                        $orig_interface_id,
+                                        $orig_interface_id,
+                                        $new_interface_id]);
+        if (!defined($recs)) {
+            $self->_rollback() if($do_commit);
+            return;
+        }
+
+        # Clear old interface's cloud interconnect settings
+        $query = "UPDATE interface ".
+                "SET cloud_interconnect_type = NULL, ".
+                "cloud_interconnect_id = NULL ".
+                "WHERE interface_id = ?";
+        $recs = $self->_execute_query($query, [$orig_interface_id]);
+        if (!defined($recs)) {
+            $self->_rollback() if($do_commit);
+            return;
+        }
+
         $moved_circuits{$edge_int_rec->{'circuit_id'}} = 1;
     }
     $self->_commit() if($do_commit);
