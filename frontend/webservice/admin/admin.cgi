@@ -1551,7 +1551,37 @@ sub move_interface_configuration {
         return send_json($err);
     }
 
-    return { results => [ { status => 'win' } ] };
+    my $node_id = $args->{node_id}{value};
+
+    use OESS::RabbitMQ::Client;
+
+    my $mq = OESS::RabbitMQ::Client->new(
+        topic    => 'MPLS.FWDCTL.RPC',
+        timeout  => 60
+    );
+    if (!defined $mq) {
+        $method->set_error("Couldn't create RabbitMQ client.");
+        return;
+    }
+
+    my $cv = AnyEvent->condvar;
+    $mq->update_cache(async_callback => sub {
+        my $result = shift;
+        $cv->send($result);
+    });
+
+    my $result = $cv->recv();
+    if (!defined $result) {
+        $method->set_error("Error while calling `update_cache` via RabbitMQ.");
+        return;
+    }
+    if (defined $result->{'error'}) {
+        $method->set_error("Error while calling `update_cache`: $result->{error}");
+        return;
+    }
+
+    my $status = $result->{results}->{status};
+    return { results => [ { status => $status } ] };
 }
 
 sub get_pending_nodes {
