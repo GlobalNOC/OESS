@@ -192,6 +192,19 @@ sub register_webservice_methods {
     );
     $svc->register_method($method);
 
+    $method = GRNOC::WebService::Method->new(
+        name        => 'update_cache',
+        description => "Rewrites a node's circuit cache file.",
+        callback    => sub { update_cache(@_) }
+    );
+    $method->add_input_parameter(
+        name        => 'node_id',
+        pattern     => $GRNOC::WebService::Regex::INTEGER,
+        required    => 0,
+        description => 'Node ID of the network device.'
+    );
+    $svc->register_method($method);
+
     $method = GRNOC::WebService::Method->new( name        => 'get_pending_nodes',
                                               description => "Returns a list of nodes to be approved.",
                                               callback    => sub { get_pending_nodes(@_) } );
@@ -1551,6 +1564,50 @@ sub move_interface_configuration {
         return send_json($err);
     }
 
+    my $new_interface_id = $args->{new_interface_id}{value};
+    my $orig_interface_id = $args->{orig_interface_id}{value};
+
+    use OESS::RabbitMQ::Client;
+
+    my $mq = OESS::RabbitMQ::Client->new(
+        topic    => 'MPLS.FWDCTL.RPC',
+        timeout  => 60
+    );
+    if (!defined $mq) {
+        $method->set_error("Couldn't create RabbitMQ client.");
+        return;
+    }
+
+    my $cv = AnyEvent->condvar;
+    $mq->update_cache(
+        async_callback => sub {
+            my $result = shift;
+            $cv->send($result);
+        }
+    );
+
+    my $result = $cv->recv();
+    if (!defined $result) {
+        $method->set_error("Error while calling `update_cache` via RabbitMQ.");
+        return;
+    }
+    if (defined $result->{'error'}) {
+        $method->set_error("Error while calling `update_cache`: $result->{error}");
+        return;
+    }
+
+    my $status = $result->{results}->{status};
+    return { results => [ { status => $status } ] };
+}
+
+sub update_cache {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
     my $node_id = $args->{node_id}{value};
 
     use OESS::RabbitMQ::Client;
@@ -1565,10 +1622,13 @@ sub move_interface_configuration {
     }
 
     my $cv = AnyEvent->condvar;
-    $mq->update_cache(async_callback => sub {
-        my $result = shift;
-        $cv->send($result);
-    });
+    $mq->update_cache(
+        node_id        => $node_id,
+        async_callback => sub {
+            my $result = shift;
+            $cv->send($result);
+        }
+    );
 
     my $result = $cv->recv();
     if (!defined $result) {
