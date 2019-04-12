@@ -1567,19 +1567,17 @@ sub move_interface_configuration {
     my $new_interface_id = $args->{new_interface_id}{value};
     my $orig_interface_id = $args->{orig_interface_id}{value};
 
-    eval {
-        $db->_start_transaction();
-        $db->move_acls(
-            new_interface => $new_interface_id,
-            old_interface => $orig_interface_id
-        );
-        $db->_commit();
-    };
-    if ($@) {
-        $method->set_error("Couldn't move ACLs: $@");
+    $db->_start_transaction();
+    my $err = $db->move_acls(
+        new_interface => $new_interface_id,
+        old_interface => $orig_interface_id
+    );
+    if (defined $err) {
+        $method->set_error("Couldn't move ACLs: $err");
         $db->_rollback();
         return;
     }
+    $db->_commit();
 
     use OESS::RabbitMQ::Client;
 
