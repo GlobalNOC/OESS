@@ -123,6 +123,7 @@ sub allocate_vinterface {
     my $customer_addr = shift;
     my $vinterface_name = shift;
     my $tag = shift;
+    my $jumbo = shift; # Supported values are 1500 and 9001. Default value is 1500.
 
     $ENV{'AWS_ACCESS_KEY'} = $self->{connections}->{$interconnect_id}->{access_key};
     $ENV{'AWS_SECRET_KEY'} = $self->{connections}->{$interconnect_id}->{secret_key};
@@ -130,7 +131,8 @@ sub allocate_vinterface {
     my $allocation = {
         Asn => $asn,
         VirtualInterfaceName => $vinterface_name,
-        Vlan => $tag
+        Vlan => $tag,
+        Mtu => 1500
     };
     if (defined $addr_family) {
         $allocation->{AddressFamily} = $addr_family;
@@ -143,6 +145,9 @@ sub allocate_vinterface {
     }
     if (defined $customer_addr) {
         $allocation->{CustomerAddress} = $customer_addr;
+    }
+    if (defined $jumbo) {
+        $allocation->{Mtu} = 9001;
     }
 
     my $dc = Paws->service(
