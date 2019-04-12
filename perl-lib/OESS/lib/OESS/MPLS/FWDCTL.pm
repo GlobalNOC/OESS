@@ -504,6 +504,11 @@ sub _register_rpc_methods{
                                   required => 0,
                                   pattern => $GRNOC::WebService::Regex::INTEGER);
 
+    $method->add_input_parameter( name => "node_id",
+                                  description => "the node ID to update",
+                                  required => 0,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);
+
     $method->add_input_parameter( name => "vrf_id",
                                   description => "the vrf ID to update",
                                   required => 0,
@@ -658,7 +663,7 @@ sub update_cache {
     my $error   = $m_ref->{'error_callback'};
 
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
-    
+    my $node_id =  $p_ref->{'node_id'}{'value'};
     my $vrf_id = $p_ref->{'vrf_id'}{'value'};
     
     if ((!defined($circuit_id) || $circuit_id == -1 ) && (!defined($vrf_id) || $vrf_id == -1)) {
@@ -716,6 +721,9 @@ sub update_cache {
     );
 
     foreach my $id (keys %{$self->{'children'}}){
+        if (defined $node_id && $node_id != $id) {
+            next;
+        }
         my $addr = $self->{'node_by_id'}->{$id}->{'mgmt_addr'};
         $condvar->begin();
 
