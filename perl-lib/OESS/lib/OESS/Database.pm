@@ -2815,6 +2815,50 @@ sub add_acl {
 
 }
 
+=head2 move_acls
+
+move_acls takes all ACLs on C<new_interface> and copies them to
+C<old_interface>. ACLs on C<old_interface> are then removed leaving
+only the default acl.
+
+=cut
+sub move_acls {
+    my $self = shift;
+    my $args = {
+        new_interface => undef,
+        old_interface => undef,
+        @_
+    };
+
+    die 'Required argument `new_interface` is missing.' if !defined $args->{new_interface};
+    die 'Required argument `old_interface` is missing.' if !defined $args->{old_interface};
+
+    my $q = "UPDATE interface_acl SET interface_id=? WHERE interface_id=?";
+    my $count = $self->_execute_query($q, [$args->{new_interface}, $args->{old_interface}]);
+    if (!defined $count) {
+        die $self->get_error;
+    }
+
+    $q = "DELETE FROM interface_acl WHERE interface_id=?";
+    $count = $self->_execute_query($q, [$args->{old_interface}]);
+    if (!defined $count) {
+        die $self->get_error;
+    }
+
+    $q = "
+    INSERT INTO interface_acl
+    (workgroup_id,interface_id,allow_deny,eval_position,vlan_start,vlan_end,notes)
+    VALUES (NULL,?,'allow',10,1,4095,'Default ACL Rule')
+    ";
+    $count = $self->_execute_query($q, [$args->{old_interface}]);
+    if (!defined $count) {
+        die $self->error;
+    }
+
+    return 1;
+}
+
+
 =head2 update_acl
 
 Updates acl
