@@ -10149,6 +10149,15 @@ sub add_edge_interface_move_maintenance {
         }
     }
 
+    # Apply new cloud settings to temp interface
+    my $rec =  $self->migrate_cloud_settings(
+        orig_interface_id => $orig_interface_id,
+        new_interface_id => $temp_interface_id);
+    if (!defined($rec)) {
+        $self->_set_error("Unable to migrate cloud settings".$self->{'dbh'}->errstr);
+        $self->_rollback() if($do_commit);
+    }
+
     $self->_commit() if($do_commit);
     return { 
         maintenance_id   => $maintenance_id,
@@ -10226,6 +10235,15 @@ sub revert_edge_interface_move_maintenance {
 	    $self->_rollback() if($do_commit);
         return;
     }
+    
+    # restore cloud settings
+    my $rec =  $self->migrate_cloud_settings(
+        orig_interface_id => $maints->[0]{'temp_interface_id'},
+        new_interface_id  => $maints->[0]{'orig_interface_id'});
+    if (!defined($rec)) {
+        $self->_set_error("Unable to restore cloud settings".$self->{'dbh'}->errstr);
+        $self->_rollback() if($do_commit);
+    }
 
     # now set the end_epoch time on the maintenance record
     my $query = "UPDATE edge_interface_move_maintenance ".
@@ -10271,6 +10289,55 @@ sub get_circuit_edge_interface_memberships {
     my $edge_interface_recs = $self->_execute_query($query, $params) || return;
 
     return $edge_interface_recs;
+}
+
+=head2 migrate_cloud_settings
+
+=cut
+
+sub migrate_cloud_settings {
+    my ($self, %args) = @_;
+    my $orig_interface_id = $args{'orig_interface_id'};
+    my $new_interface_id  = $args{'new_interface_id'};
+    my $do_commit = 0;
+
+    # Gather original interface's cloud settings        
+    my $query = "SELECT cloud_interconnect_type AS it, ".
+             "  cloud_interconnect_id AS ii ".
+             "FROM interface WHERE interface_id = ? ";
+    my $recs = $self->_execute_query($query, [$orig_interface_id]);
+    if (!defined($recs) || scalar($recs) == 0) {
+        $self->_rollback() if($do_commit);
+        return;
+    }
+    my $orig_interconnect_type = $recs->[0]->{it};
+    my $orig_interconnect_id = $recs->[0]->{ii};
+
+    # Perform the update on the new interface's cloud settings
+    $query = "UPDATE interface ".
+            "SET cloud_interconnect_type = ?, ".
+            "  cloud_interconnect_id = ? ".
+            "WHERE interface_id = ?";
+    $recs = $self->_execute_query($query, [
+                                    $orig_interconnect_type,
+                                    $orig_interconnect_id,
+                                    $new_interface_id]);
+    if (!defined($recs)) {
+        $self->_rollback() if($do_commit);
+        return;
+    }
+
+    # Clear old interface's cloud settings
+    $query = "UPDATE interface ".
+            "SET cloud_interconnect_type = NULL, ".
+            "  cloud_interconnect_id = NULL ".
+            "WHERE interface_id = ?";
+    $recs = $self->_execute_query($query, [$orig_interface_id]);
+    if (!defined($recs)) {
+        $self->_rollback() if($do_commit);
+        return;
+    }
+    return $recs;
 }
 
 =head2 move_edge_interface_circuits
