@@ -932,11 +932,12 @@ sub add_vrf{
 
         push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
                                           type => $i->{'type'},
+                                          mtu  => $i->{'mtu'},
                                           inner_tag => $i->{'inner_tag'},
                                           tag  => $i->{'tag'},
                                           unit => $i->{'unit'},
                                           bandwidth => $i->{'bandwidth'},
-					  v4_peers => \@bgp_v4,
+                                          v4_peers => \@bgp_v4,
                                           has_ipv4 => $has_ipv4,
                                           has_ipv6 => $has_ipv6,
                                           v6_peers => \@bgp_v6 });
@@ -1099,7 +1100,8 @@ sub xml_configuration {
 
             push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
                                               unit => $i->{'unit'},
-					      type => $i->{'type'},
+                                              type => $i->{'type'},
+                                              mtu  => $i->{'mtu'},
                                               inner_tag  => $i->{'inner_tag'},
                                               tag  => $i->{'tag'},
                                               bandwidth => $i->{'bandwidth'},
@@ -1112,7 +1114,7 @@ sub xml_configuration {
         $vars->{'vrf_id'} = $vrf->{'vrf_id'};
         $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
         $vars->{'prefix_limit'} = $vrf->{'prefix_limit'};
-        
+
         $self->{'logger'}->error("VARS: " . Dumper($vars));
         
         if($vrf->{'state'} eq 'active'){

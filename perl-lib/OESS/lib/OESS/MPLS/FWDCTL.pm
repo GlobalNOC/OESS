@@ -273,6 +273,7 @@ sub _write_cache{
 	    }
 	    
             my $int_obj = { name => $ep->interface()->name,
+                            mtu  => $ep->mtu(),
                             type => $ep->interface()->cloud_interconnect_type,
                             tag => $ep->tag(),
                             unit => $ep->unit(),
@@ -431,6 +432,7 @@ sub _write_cache{
 	$data->{'ckts'} = $switches{$node}->{'ckts'};
         $data->{'vrfs'} = $switches{$node}->{'vrfs'};
 	$self->{'logger'}->info("writing shared file for node_id: " . $self->{'node_info'}->{$node}->{'id'});
+
 	my $file = $self->{'share_file'} . "." . $self->{'node_info'}->{$node}->{'id'};
 	open(my $fh, ">", $file) or $self->{'logger'}->error("Unable to open $file " . $!);
         print $fh encode_json($data);
