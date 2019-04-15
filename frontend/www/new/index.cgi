@@ -116,7 +116,7 @@ sub main{
             ];
         }
         case "modify_l2vpn" {
-            $title              = "L2VPN Details";
+            $title              = "L2VPN - Details";
             $filename           = "html_templates/modify_l2vpn.html";
             $current_breadcrumb = "Modify L2VPN";
             $breadcrumbs        = [
@@ -124,9 +124,9 @@ sub main{
                 {title => "L2VPN Details", url => "#"}
             ];
         }
-        case "view_l2vpn" {
-            $title              = "L2VPN Details";
-            $filename           = "html_templates/view_l2vpn.html";
+        case "provision_l2vpn" {
+            $title              = "L2VPN - Provision";
+            $filename           = "html_templates/provision_l2vpn.html";
             $current_breadcrumb = "L2VPN Details";
             $breadcrumbs        = [
                 {title => "Welcome",       url => "?action=welcome"},
