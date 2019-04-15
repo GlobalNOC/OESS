@@ -318,13 +318,16 @@ sub fetch_endpoint{
 
 =head2 update_endpoint
 
-    my $id = OESS::DB::VRF::update_endpoint(
+    my $err = OESS::DB::VRF::update_endpoint(
         db       => $db,
         endpoint => {
             vrf_ep_id => 1,
             mtu       => 1500, # Optional
         }
     );
+    if (defined $err) {
+        warn $err;
+    }
 
 =cut
 sub update_endpoint {
@@ -334,8 +337,8 @@ sub update_endpoint {
         @_
     };
 
-    die 'Required argument `db` is missing.' if !defined $args->{db};
-    die 'Required argument `endpoint.vrf_ep_id` is missing.' if !defined $args->{endpoint}->{vrf_ep_id};
+    return 'Required argument `db` is missing.' if !defined $args->{db};
+    return 'Required argument `endpoint.vrf_ep_id` is missing.' if !defined $args->{endpoint}->{vrf_ep_id};
 
     my $params = [];
     my $values = [];
@@ -348,10 +351,15 @@ sub update_endpoint {
     my $fields = join(', ', @$params);
     push @$values, $args->{endpoint}->{vrf_ep_id};
 
-    return $args->{db}->execute_query(
+    my $result = $args->{db}->execute_query(
         "UPDATE vrf_ep SET $fields WHERE vrf_ep.vrf_ep_id=?",
         $values
     );
+    if (!$result) {
+        return 'Error updating vrf_ep: ' . $args->{db}->get_error;
+    }
+
+    return undef;
 }
 
 =head2 fetch_endpoint_peers

@@ -66,7 +66,6 @@ sub setup_endpoints {
             my $auth_key      = undef;
             my $customer_addr = undef;
             my $ip_version    = 'ipv6';
-            my $jumbo         = 0;
 
             my $peer = $ep->peers()->[0];
             if (defined $peer) {
@@ -92,7 +91,7 @@ sub setup_endpoints {
                 $customer_addr,
                 $vrf_name,
                 $ep->tag,
-                $jumbo
+                $ep->mtu
             );
             $ep->cloud_account_id($ep->cloud_account_id);
             $ep->cloud_connection_id($res->{VirtualInterfaceId});
