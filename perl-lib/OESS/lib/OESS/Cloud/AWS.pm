@@ -132,7 +132,7 @@ sub allocate_vinterface {
         Asn => $asn,
         VirtualInterfaceName => $vinterface_name,
         Vlan => $tag,
-        Mtu => 1500
+        Mtu => 9001
     };
     if (defined $addr_family) {
         $allocation->{AddressFamily} = $addr_family;
