@@ -2828,6 +2828,47 @@ sub add_acl {
 
 }
 
+=head2 move_acls
+
+    my $err = move_acls(
+        new_interface => 2,
+        old_interface => 1
+    );
+    if (defined $err) {
+        warn $err;
+    }
+
+move_acls takes all ACLs on C<new_interface> and copies them to
+C<old_interface>. ACLs on C<old_interface> are then removed.
+
+=cut
+sub move_acls {
+    my $self = shift;
+    my $args = {
+        new_interface => undef,
+        old_interface => undef,
+        @_
+    };
+
+    return 'Required argument `new_interface` is missing.' if !defined $args->{new_interface};
+    return 'Required argument `old_interface` is missing.' if !defined $args->{old_interface};
+
+    my $q = "UPDATE interface_acl SET interface_id=? WHERE interface_id=?";
+    my $count = $self->_execute_query($q, [$args->{new_interface}, $args->{old_interface}]);
+    if (!defined $count) {
+        return $self->get_error;
+    }
+
+    $q = "DELETE FROM interface_acl WHERE interface_id=?";
+    $count = $self->_execute_query($q, [$args->{old_interface}]);
+    if (!defined $count) {
+        return $self->get_error;
+    }
+
+    return undef;
+}
+
+
 =head2 update_acl
 
 Updates acl
