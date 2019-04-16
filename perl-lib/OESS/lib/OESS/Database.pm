@@ -10347,10 +10347,16 @@ sub migrate_cloud_settings {
              "  cloud_interconnect_id AS ii ".
              "FROM interface WHERE interface_id = ? ";
     my $recs = $self->_execute_query($query, [$orig_interface_id]);
-    if (!defined($recs) || scalar($recs) == 0) {
+    if (!defined($recs)) {
         $self->_rollback() if($do_commit);
         return;
     }
+    if (scalar($recs) == 0) {
+        # If there are no cloud_settings associated with this
+        # interface return an OK.
+        return 1;
+    }
+
     my $orig_interconnect_type = $recs->[0]->{it};
     my $orig_interconnect_id = $recs->[0]->{ii};
 
