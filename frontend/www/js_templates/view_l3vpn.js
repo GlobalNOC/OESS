@@ -173,24 +173,28 @@ async function loadVRF() {
       ename = `${endpoint.node.name} - <small>${endpoint.interface.name} - ${endpoint.tag}`;
     }
 
+    endpoint.jumbo = (parseInt(endpoint.mtu) == 9000 || parseInt(endpoint.mtu) == 9001) ? true : false;
+
     let html = `
 <div class="panel panel-default" style="padding: 0 15 20 15;">
 
     <div style="display: flex">
       <div>
         <h3>Entity:&nbsp;</h3>
-        <h4>Node:&nbsp;</h4>
-        <h4>Port:&nbsp;</h4>
-        <h5>VLAN:&nbsp;</h5>
+        <h4>Node:</h4>
+        <h4>Port:</h4>
+        <h4>VLAN:</h4>
         <h5>Bandwidth:</h5>
+        <h5>Frame:</h5>
       </div>
 
       <div>
         <h3>${endpoint.entity.name}</h3>
         <h4>${endpoint.node.name}</h4>
         <h4>${endpoint.interface.name} <small>${endpoint.interface.description}</small></h4>
-        <h5>${endpoint.tag}</h5>
+        <h4>${endpoint.tag}</h4>
         <h5>${(endpoint.bandwidth == 0) ? 'Unlimited' : `${endpoint.bandwidth} Mb/s`}</h5>
+        <h5>${(endpoint.jumbo) ? 'Jumbo' : 'Standard'}</h5>
       </div>
 
       <div style="flex: 1; padding-left: 15px;">
