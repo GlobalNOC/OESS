@@ -282,6 +282,25 @@ sub fetch_endpoints{
     return $res;
 }
 
+=head2 fetch_endpoints_on_interface
+
+=cut
+sub fetch_endpoints_on_interface{
+    my %params = @_;
+    my $db = $params{'db'};
+    my $interface_id = $params{'interface_id'};
+    my $state = $params{'state'} || 'active';
+
+    my $res = $db->execute_query(
+        "select vrf_ep.vrf_ep_id from vrf_ep ".
+        "left join cloud_connection_vrf_ep on vrf_ep.vrf_ep_id=cloud_connection_vrf_ep.vrf_ep_id ".
+        "where interface_id = ? and state = ?", [$interface_id, $state]);
+    if(!defined($res)) {
+        return;
+    }
+    return $res;
+}
+
 =head2 fetch_endpoint
 
 =cut
