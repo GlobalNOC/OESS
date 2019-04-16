@@ -1,8 +1,8 @@
--- MySQL dump 10.14  Distrib 5.5.56-MariaDB, for Linux (x86_64)
+-- MySQL dump 10.16  Distrib 10.1.22-MariaDB, for Linux (x86_64)
 --
--- Host: localhost    Database: oess
+-- Host: localhost    Database: discovery
 -- ------------------------------------------------------
--- Server version	5.5.56-MariaDB
+-- Server version	10.1.22-MariaDB
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -16,12 +16,12 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Current Database: `oess`
+-- Current Database: `discovery`
 --
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `oess` /*!40100 DEFAULT CHARACTER SET utf8 */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `discovery` /*!40100 DEFAULT CHARACTER SET latin1 */;
 
-USE `oess`;
+USE `discovery`;
 
 --
 -- Table structure for table `circuit`
@@ -79,7 +79,7 @@ CREATE TABLE `circuit_edge_interface_membership` (
   KEY `circuit_circuit_interface_membership_fk` (`circuit_id`),
   CONSTRAINT `circuit_edge_interface_membership_ibfk_1` FOREIGN KEY (`interface_id`) REFERENCES `interface` (`interface_id`),
   CONSTRAINT `circuit_edge_interface_membership_ibfk_2` FOREIGN KEY (`circuit_id`) REFERENCES `circuit` (`circuit_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -148,7 +148,6 @@ LOCK TABLES `circuit_instantiation` WRITE;
 /*!40000 ALTER TABLE `circuit_instantiation` ENABLE KEYS */;
 UNLOCK TABLES;
 
-
 --
 -- Table structure for table `cloud_connection_vrf_ep`
 --
@@ -164,8 +163,17 @@ CREATE TABLE `cloud_connection_vrf_ep` (
   PRIMARY KEY (`cloud_connection_vrf_ep_id`),
   KEY `vrf_ep_id` (`vrf_ep_id`),
   CONSTRAINT `cloud_connection_vrf_ep_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `cloud_connection_vrf_ep`
+--
+
+LOCK TABLES `cloud_connection_vrf_ep` WRITE;
+/*!40000 ALTER TABLE `cloud_connection_vrf_ep` DISABLE KEYS */;
+/*!40000 ALTER TABLE `cloud_connection_vrf_ep` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `command`
@@ -180,8 +188,17 @@ CREATE TABLE `command` (
   `template` varchar(255) NOT NULL,
   `type` varchar(255) NOT NULL,
   PRIMARY KEY (`command_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `command`
+--
+
+LOCK TABLES `command` WRITE;
+/*!40000 ALTER TABLE `command` DISABLE KEYS */;
+/*!40000 ALTER TABLE `command` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `edge_interface_move_maintenance`
@@ -215,54 +232,6 @@ LOCK TABLES `edge_interface_move_maintenance` WRITE;
 UNLOCK TABLES;
 
 --
--- Table structure for table `entity`
---
-
-DROP TABLE IF EXISTS `entity`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `entity` (
-  `entity_id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) DEFAULT NULL,
-  `description` text,
-  `logo_url` varchar(255) DEFAULT NULL,
-  `url` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`entity_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `entity_hierarchy`
---
-
-DROP TABLE IF EXISTS `entity_hierarchy`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `entity_hierarchy` (
-  `entity_parent_id` int(11) NOT NULL,
-  `entity_child_id` int(11) NOT NULL,
-  KEY `entity_parent` (`entity_parent_id`),
-  KEY `entity_child` (`entity_child_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `entity_interface_membership`
---
-
-DROP TABLE IF EXISTS `entity_interface_membership`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `entity_interface_membership` (
-  `entity_id` int(11) NOT NULL,
-  `interface_id` int(11) NOT NULL,
-  UNIQUE KEY `unique_entity_interface` (`entity_id`,`interface_id`),
-  KEY `interface` (`interface_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
-
---
 -- Table structure for table `edge_interface_move_maintenance_circuit_membership`
 --
 
@@ -286,6 +255,80 @@ CREATE TABLE `edge_interface_move_maintenance_circuit_membership` (
 LOCK TABLES `edge_interface_move_maintenance_circuit_membership` WRITE;
 /*!40000 ALTER TABLE `edge_interface_move_maintenance_circuit_membership` DISABLE KEYS */;
 /*!40000 ALTER TABLE `edge_interface_move_maintenance_circuit_membership` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `entity`
+--
+
+DROP TABLE IF EXISTS `entity`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `entity` (
+  `entity_id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) DEFAULT NULL,
+  `description` text,
+  `logo_url` varchar(255) DEFAULT NULL,
+  `url` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`entity_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `entity`
+--
+
+LOCK TABLES `entity` WRITE;
+/*!40000 ALTER TABLE `entity` DISABLE KEYS */;
+/*!40000 ALTER TABLE `entity` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `entity_hierarchy`
+--
+
+DROP TABLE IF EXISTS `entity_hierarchy`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `entity_hierarchy` (
+  `entity_parent_id` int(11) NOT NULL,
+  `entity_child_id` int(11) NOT NULL,
+  KEY `entity_parent` (`entity_parent_id`),
+  KEY `entity_child` (`entity_child_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `entity_hierarchy`
+--
+
+LOCK TABLES `entity_hierarchy` WRITE;
+/*!40000 ALTER TABLE `entity_hierarchy` DISABLE KEYS */;
+/*!40000 ALTER TABLE `entity_hierarchy` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `entity_interface_membership`
+--
+
+DROP TABLE IF EXISTS `entity_interface_membership`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `entity_interface_membership` (
+  `entity_id` int(11) NOT NULL,
+  `interface_id` int(11) NOT NULL,
+  UNIQUE KEY `unique_entity_interface` (`entity_id`,`interface_id`),
+  KEY `interface` (`interface_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `entity_interface_membership`
+--
+
+LOCK TABLES `entity_interface_membership` WRITE;
+/*!40000 ALTER TABLE `entity_interface_membership` DISABLE KEYS */;
+/*!40000 ALTER TABLE `entity_interface_membership` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -315,7 +358,7 @@ CREATE TABLE `interface` (
   KEY `interface_ibfk_1` (`workgroup_id`),
   CONSTRAINT `interface_ibfk_1` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`),
   CONSTRAINT `node_interface_fk` FOREIGN KEY (`node_id`) REFERENCES `node` (`node_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -324,6 +367,7 @@ CREATE TABLE `interface` (
 
 LOCK TABLES `interface` WRITE;
 /*!40000 ALTER TABLE `interface` DISABLE KEYS */;
+INSERT INTO `interface` VALUES (1,'xe-7/0/1',1,'xe-7/0/1',NULL,NULL,'up','unknown',2,NULL,'1-4095',NULL),(2,'xe-7/0/2',2,'xe-7/0/2',NULL,NULL,'up','unknown',2,NULL,'1-4095',NULL),(3,'xe-7/0/3',3,'xe-7/0/3',NULL,NULL,'up','trunk',2,NULL,'1-4095',NULL),(4,'xe-7/0/1',1,'xe-7/0/1',NULL,NULL,'up','unknown',3,NULL,'1-4095',NULL),(5,'xe-7/0/2',2,'xe-7/0/2',NULL,NULL,'up','unknown',3,NULL,'1-4095',NULL),(6,'xe-7/0/3',3,'xe-7/0/3',NULL,NULL,'up','trunk',3,NULL,'1-4095',NULL);
 /*!40000 ALTER TABLE `interface` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -388,6 +432,7 @@ CREATE TABLE `interface_instantiation` (
 
 LOCK TABLES `interface_instantiation` WRITE;
 /*!40000 ALTER TABLE `interface_instantiation` DISABLE KEYS */;
+INSERT INTO `interface_instantiation` VALUES (1,-1,'up',1348237707,10000,9000),(2,-1,'up',1348237707,10000,9000),(3,-1,'up',1348237707,10000,9000),(4,-1,'up',1348237707,10000,9000),(5,-1,'up',1348237707,10000,9000),(6,-1,'up',1348237707,10000,9000);
 /*!40000 ALTER TABLE `interface_instantiation` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -409,7 +454,7 @@ CREATE TABLE `link` (
   `in_maint` enum('yes','no') NOT NULL DEFAULT 'no',
   PRIMARY KEY (`link_id`),
   UNIQUE KEY `links_idx` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -418,6 +463,7 @@ CREATE TABLE `link` (
 
 LOCK TABLES `link` WRITE;
 /*!40000 ALTER TABLE `link` DISABLE KEYS */;
+INSERT INTO `link` VALUES (1,'link1',NULL,'up',100,'unknown',NULL,'no');
 /*!40000 ALTER TABLE `link` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -454,6 +500,7 @@ CREATE TABLE `link_instantiation` (
 
 LOCK TABLES `link_instantiation` WRITE;
 /*!40000 ALTER TABLE `link_instantiation` DISABLE KEYS */;
+INSERT INTO `link_instantiation` VALUES (1,-1,'active',1348601263,3,6,0,1,'198.169.70.2','198.169.70.3');
 /*!40000 ALTER TABLE `link_instantiation` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -553,8 +600,19 @@ CREATE TABLE `network` (
   `is_local` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`network_id`),
   UNIQUE KEY `network_idx` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `network`
+--
+
+LOCK TABLES `network` WRITE;
+/*!40000 ALTER TABLE `network` DISABLE KEYS */;
+INSERT INTO `network` VALUES (1,'network.test',0,0,1);
+/*!40000 ALTER TABLE `network` ENABLE KEYS */;
+UNLOCK TABLES;
+
 --
 -- Table structure for table `node`
 --
@@ -584,7 +642,7 @@ CREATE TABLE `node` (
   UNIQUE KEY `node_idx` (`name`),
   KEY `network_node_fk` (`network_id`),
   CONSTRAINT `network_node_fk` FOREIGN KEY (`network_id`) REFERENCES `network` (`network_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -593,6 +651,7 @@ CREATE TABLE `node` (
 
 LOCK TABLES `node` WRITE;
 /*!40000 ALTER TABLE `node` DISABLE KEYS */;
+INSERT INTO `node` VALUES (2,'node2',0,0,'unknown','up',1,'1-4095','1','1',4000,0,1,0,'no',0,'node2'),(3,'node3',0,0,'unknown','up',1,'1-4095','1','1',4000,0,1,0,'no',0,'node3');
 /*!40000 ALTER TABLE `node` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -629,6 +688,7 @@ CREATE TABLE `node_instantiation` (
 
 LOCK TABLES `node_instantiation` WRITE;
 /*!40000 ALTER TABLE `node_instantiation` DISABLE KEYS */;
+INSERT INTO `node_instantiation` VALUES (2,-1,1348237415,'active','00000002',0,1,'juniper','mx960','13.3R3','192.168.1.2','10.0.1.2',830),(3,-1,1348237415,'active','00000003',0,1,'juniper','mx960','13.3R3','192.168.1.3','10.0.1.3',830);
 /*!40000 ALTER TABLE `node_instantiation` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -723,7 +783,7 @@ CREATE TABLE `path_instantiation` (
   PRIMARY KEY (`path_instantiation_id`),
   KEY `end_epoch_path` (`path_id`,`end_epoch`),
   CONSTRAINT `path_path_instantiaiton_fk` FOREIGN KEY (`path_id`) REFERENCES `path` (`path_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -777,7 +837,7 @@ CREATE TABLE `remote_auth` (
   UNIQUE KEY `remote_auth_idx` (`auth_name`),
   KEY `user_auth_values_fk` (`user_id`),
   CONSTRAINT `user_auth_values_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -891,8 +951,17 @@ CREATE TABLE `user` (
   `status` enum('active','decom') NOT NULL DEFAULT 'active',
   PRIMARY KEY (`user_id`),
   KEY `user_idx` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `user`
+--
+
+LOCK TABLES `user` WRITE;
+/*!40000 ALTER TABLE `user` DISABLE KEYS */;
+/*!40000 ALTER TABLE `user` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `user_entity_membership`
@@ -910,6 +979,15 @@ CREATE TABLE `user_entity_membership` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Dumping data for table `user_entity_membership`
+--
+
+LOCK TABLES `user_entity_membership` WRITE;
+/*!40000 ALTER TABLE `user_entity_membership` DISABLE KEYS */;
+/*!40000 ALTER TABLE `user_entity_membership` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `user_workgroup_membership`
 --
 
@@ -925,6 +1003,15 @@ CREATE TABLE `user_workgroup_membership` (
   CONSTRAINT `workgroups_user_workgroup_membership_fk` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `user_workgroup_membership`
+--
+
+LOCK TABLES `user_workgroup_membership` WRITE;
+/*!40000 ALTER TABLE `user_workgroup_membership` DISABLE KEYS */;
+/*!40000 ALTER TABLE `user_workgroup_membership` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `vrf`
@@ -948,9 +1035,9 @@ CREATE TABLE `vrf` (
   KEY `workgroup_id` (`workgroup_id`),
   KEY `created_by` (`created_by`),
   KEY `last_modified_by` (`last_modified_by`),
-  CONSTRAINT `vrf_ibfk_3` FOREIGN KEY (`last_modified_by`) REFERENCES `user` (`user_id`),
   CONSTRAINT `vrf_ibfk_1` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`),
-  CONSTRAINT `vrf_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `user` (`user_id`)
+  CONSTRAINT `vrf_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `user` (`user_id`),
+  CONSTRAINT `vrf_ibfk_3` FOREIGN KEY (`last_modified_by`) REFERENCES `user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -982,8 +1069,8 @@ CREATE TABLE `vrf_ep` (
   PRIMARY KEY (`vrf_ep_id`),
   KEY `vrf_id` (`vrf_id`),
   KEY `interface_id` (`interface_id`),
-  CONSTRAINT `vrf_ep_ibfk_2` FOREIGN KEY (`interface_id`) REFERENCES `interface` (`interface_id`),
-  CONSTRAINT `vrf_ep_ibfk_1` FOREIGN KEY (`vrf_id`) REFERENCES `vrf` (`vrf_id`)
+  CONSTRAINT `vrf_ep_ibfk_1` FOREIGN KEY (`vrf_id`) REFERENCES `vrf` (`vrf_id`),
+  CONSTRAINT `vrf_ep_ibfk_2` FOREIGN KEY (`interface_id`) REFERENCES `interface` (`interface_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -1046,7 +1133,7 @@ CREATE TABLE `workgroup` (
   `status` enum('active','decom') NOT NULL DEFAULT 'active',
   PRIMARY KEY (`workgroup_id`),
   UNIQUE KEY `workgroups_idx` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1076,9 +1163,13 @@ CREATE TABLE `workgroup_node_membership` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `workgroup_node_membership`
+-- Dumping data for table `workgroup_node_membership`
 --
 
+LOCK TABLES `workgroup_node_membership` WRITE;
+/*!40000 ALTER TABLE `workgroup_node_membership` DISABLE KEYS */;
+/*!40000 ALTER TABLE `workgroup_node_membership` ENABLE KEYS */;
+UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -1089,4 +1180,4 @@ CREATE TABLE `workgroup_node_membership` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2018-05-17 16:55:19
+-- Dump completed on 2019-03-18 15:30:17

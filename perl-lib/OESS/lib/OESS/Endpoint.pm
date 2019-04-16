@@ -5,8 +5,6 @@ use warnings;
 
 package OESS::Endpoint;
 
-use Digest::MD5 qw(md5_hex);
-
 use OESS::DB;
 use OESS::Interface;
 use OESS::Entity;
@@ -100,11 +98,27 @@ sub _build_from_model{
     $self->{cloud_account_id} = $self->{model}->{cloud_account_id};
     $self->{cloud_connection_id} = $self->{model}->{cloud_connection_id};
 
-    if(defined($self->{'model'}->{'interface'})){
-        $self->{'interface'} = OESS::Interface->new( db => $self->{'db'}, name => $self->{'model'}->{'interface'}, node => $self->{'model'}->{'node'});
-        $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, interface_id => $self->{'interface'}->{'interface_id'}, vlan => $self->{'tag'});
-    }else{
+    if (defined $self->{'model'}->{'interface'}) {
+        $self->{'interface'} = OESS::Interface->new(db => $self->{'db'}, name => $self->{'model'}->{'interface'}, node => $self->{'model'}->{'node'});
+        $self->{'entity'} = OESS::Entity->new(db => $self->{'db'}, interface_id => $self->{'interface'}->{'interface_id'}, vlan => $self->{'tag'});
+    } else {
         $self->{'entity'} = OESS::Entity->new(db => $self->{'db'}, name => $self->{'model'}->{'entity'});
+
+        # There are a few ways to select an Entity's interface.
+
+        # The default selection method is to find the first interface
+        # that has supports C<bandwidth> and has C<tag> available.
+
+        # As there is only one interface per AWS Entity there is no
+        # special selection method.
+
+        # Interface selection for a GCP Entity is based purely on the
+        # user provided GCP pairing key.
+
+        # Interface selection for an Azure Entity is somewhat
+        # irrelevent. Each interface of the Azure port pair is
+        # configured similarly with the only difference between the
+        # two being the peer addresses assigned to each.
 
         my $err = undef;
         foreach my $intf (@{$self->{entity}->interfaces()}) {
@@ -138,34 +152,11 @@ sub _build_from_model{
         }
     }
 
-    if($self->{'type'} eq 'vrf'){
+    if ($self->{'type'} eq 'vrf') {
         $self->{'peers'} = [];
-        my $last_octet = 2;
 
-        foreach my $peer (@{$self->{'model'}->{'peerings'}}){
-            # Peerings are auto-generated for cloud connection
-            # endpoints. The user has only the option to select the ip
-            # version used for peering.
-
-            if (defined $self->{cloud_account_id} && $self->{cloud_account_id} ne '') {
-                my $rand = rand();
-
-                $peer->{asn} = 64512;
-                $peer->{key} = md5_hex($rand);
-                if ($peer->{version} == 4) {
-                    $peer->{local_ip} = '172.31.254.' . $last_octet . '/31';
-                    $peer->{peer_ip}  = '172.31.254.' . ($last_octet + 1) . '/31';
-                } else {
-                    $peer->{local_ip} = 'fd28:221e:28fa:61d3::' . $last_octet . '/127';
-                    $peer->{peer_ip}  = 'fd28:221e:28fa:61d3::' . ($last_octet + 1) . '/127';
-                }
-
-                # Assuming we use .2 and .3 the first time around. We
-                # can use .4 and .5 on the next peering.
-                $last_octet += 2;
-            }
-
-            push(@{$self->{'peers'}}, OESS::Peer->new(db => $self->{'db'}, model => $peer, vrf_ep_peer_id => -1));
+        foreach my $peer (@{$self->{'model'}->{'peerings'}}) {
+            push @{$self->{'peers'}}, OESS::Peer->new(db => $self->{'db'}, model => $peer, vrf_ep_peer_id => -1);
         }
     }elsif($self->{type} eq 'circuit'){
         $self->{circuit_id} = $self->{model}->{circuit_id};

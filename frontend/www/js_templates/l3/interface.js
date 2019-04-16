@@ -10,12 +10,16 @@ class InterfaceForm extends Component {
 
   async render(props) {
     let interfaces = await getInterfacesByWorkgroup(session.data.workgroup_id);
-    if (!props.interface) {
+    if (interfaces === []) {
+      props.interface = -1;
+    } else if (!props.interface) {
       props.interface = interfaces[0].interface_id;
     }
 
     let vlans = await getAvailableVLANs(session.data.workgroup_id, props.interface);
-    if (!props.vlan) {
+    if (vlans === []) {
+      props.vlan = -1;
+    } else if (!props.vlan) {
       props.vlan = vlans[0];
     } else if (!vlans.includes(props.vlan)) {
       vlans.unshift(props.vlan);
@@ -77,7 +81,8 @@ class InterfaceForm extends Component {
     <button id="add-endpoint-submit"
             class="btn btn-success"
             type="submit"
-            onclick="document.components[${this._id}].props.onSubmit(this)">
+            onclick="document.components[${this._id}].props.onSubmit(this)"
+            ${(props.interface == -1) ? 'disabled' : ''}>
       Add Endpoint
     </button>
     <button id="add-endpoint-cancel"

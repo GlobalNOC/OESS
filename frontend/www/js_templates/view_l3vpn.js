@@ -144,18 +144,20 @@ async function loadVRF() {
 
     let peeringHTML = '';
     endpoint.peers.forEach(function(peering, peeringIndex) {
-	    peering.operational_label = 'success';
-	    if(peering.operational_state != 'up'){
+	  peering.operational_label = 'success';
+	  if(peering.operational_state != 'up'){
 		peering.operational_label = 'danger';
-	    }
+	  }
+
+      peering.md5_key = (peering.md5_key) ? peering.md5_key : '(unauthenticated)';
+
       peeringHTML += `
 <tr>
-  <td></td>
   <td>${peering.peer_asn}</td>
   <td>${peering.peer_ip}</td>
   <td>${endpoint.cloud_connection_id ? '*****' : peering.md5_key}</td>
   <td>${peering.local_ip}</td>
-			       <td><span id="state" class="label label-${peering.operational_label}">${peering.operational_state}</span></td>
+  <td><span id="state" class="label label-${peering.operational_label}">${peering.operational_state}</span></td>
 </tr>`;
 
       select.innerHTML += `<option value=${peering.peer_ip}>${peering.peer_ip}</option>`;
@@ -172,24 +174,39 @@ async function loadVRF() {
     }
 
     let html = `
-<div class="panel panel-default">
-  <div class="panel-heading" style="height: 40px;">
-    <h4 style="margin: 0px; float: left;">
-	${ename}</small>
-    </h4>
-  </div>
+<div class="panel panel-default" style="padding: 0 15 20 15;">
 
-  <div style="padding-left: 15px; padding-right: 15px">
-  </div>
+    <div style="display: flex">
+      <div>
+        <h3>Entity:&nbsp;</h3>
+        <h4>Node:&nbsp;</h4>
+        <h4>Port:&nbsp;</h4>
+        <h5>VLAN:&nbsp;</h5>
+        <h5>Bandwidth:</h5>
+      </div>
 
-  <table class="table">
-    <thead>
-      <tr><th></th><th>Your ASN</th><th>Your IP</th><th>Your BGP Key</th><th>OESS IP</th><th>Status</th></tr>
-    </thead>
-    <tbody>
-      ${peeringHTML}
-    </tbody>
-  </table>
+      <div>
+        <h3>${endpoint.entity.name}</h3>
+        <h4>${endpoint.node.name}</h4>
+        <h4>${endpoint.interface.name} <small>${endpoint.interface.description}</small></h4>
+        <h5>${endpoint.tag}</h5>
+        <h5>${(endpoint.bandwidth == 0) ? 'Unlimited' : `${endpoint.bandwidth} Mb/s`}</h5>
+      </div>
+
+      <div style="flex: 1; padding-left: 15px;">
+        <h3>&nbsp;</h3>
+        <h4>Neighbors:</h4>
+        <table class="table table-condensed" style="text-align: left;">
+          <thead>
+            <tr><th>Peer ASN</th><th>Peer IP</th><th>BGP Key</th><th>OESS IP</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            ${peeringHTML}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
 </div>`;
 
     let endpoints = document.getElementById('endpoints');

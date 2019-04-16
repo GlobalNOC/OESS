@@ -2485,20 +2485,105 @@ function setup_network_tab(){
             build_interface_acl_table(interface_id);
         }
 
+        function makeMoveConfigurationPanel(params) {
+            var width = 450;
+            var container_id = "int_move_panel";
+
+            var move_int_form_creator = getMoveConfigurationForm(container_id, {
+                orig_interface_id: params.orig_interface_id,
+                node: params.node
+            });
+
+            var panel = new YAHOO.widget.Panel(container_id, {
+                width: width,
+                centered: true
+            });
+            panel.setHeader(`Move ${params.interface_name} configuration to:` );
+            panel.setBody(`<div>${move_int_form_creator.markup()}</div>`);
+            panel.setFooter("<div style='text-align: right;' id='move_edge_int_button'></div>");
+            panel.render(YAHOO.util.Dom.get("active_element_details"));
+
+            var move_int_form = move_int_form_creator.init();
+
+            //hook up maint submission
+            var add_button = new YAHOO.widget.Button("move_edge_int_button", {label: "Apply"});
+            add_button.on('click', function(){
+                var move_edge_int = function(){
+                    add_button.set('label', 'Submitting...');
+                    var url = "../services/admin/admin.cgi?";
+                    var postVars = "method=move_interface_configuration"+
+                                   "&orig_interface_id="+params.orig_interface_id+
+                                   "&new_interface_id="+move_int_form.val().new_interface_id;
+
+                    var ds = new YAHOO.util.DataSource(url, { connMethodPost: true } );
+                    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                    ds.responseSchema = {
+                        resultsList: "results",
+                        fields: [
+                            {key: "moved_circuits"},
+                            {key: "unmoved_circuits"}
+                        ],
+                        metaFields: {
+                            error: "error"
+                        }
+                    };
+                    ds.sendRequest(postVars,{
+                        success: function(req, resp){
+                            add_button.set('label', 'Add');
+                            if (resp.meta.error){
+                                alert("Error moving circuits: " + resp.meta.error, null, {error: true});
+                                return;
+                            }
+                            var res = resp.results[0];
+
+                            var msg = `
+                            <div>Interface configuration move succesful.</div>
+                            <div class="success">
+                              <ul>
+                                <li>ACLs Moved</li>
+                                <li>Cloud Configurations Moved</li>
+                                <li>Layer2 Endpoints Moved</li>
+                                <li>Layer3 Endpoints Moved</li>
+                              </ul>
+                            </div>
+                            <div class="warning">
+                            </div>
+                            `;
+
+                            panel.destroy();
+                            alert(msg);
+                            table.load();
+                        },
+                        failure: function(req, resp){
+                            add_button.set('label', 'Add');
+                            alert("Server error moving circuits.", null, {error: true});
+                        }
+                    });
+                };
+                var msg = "This will cause all selected circuits on this interface to be moved to the "+
+                          "selected interface. Circuits with conflicting vlans will remain unmoved."+
+                          "Are you sure this is what you want to do?";
+                showConfirm(msg, move_edge_int, function(){});
+            });
+
+            panel.hideEvent.subscribe(function(){
+                this.destroy();
+            });
+        }
+
         function makeIntMovePanel(params){
             var obj = {};
 
             var width = 450;
             var container_id = "int_move_panel";
-            //var region = YAHOO.util.Dom.getRegion(params.align_container_id);
+
             var move_int_form_creator = getMoveIntForm(container_id, {
                 orig_interface_id: params.orig_interface_id,
                 node: params.node
             });
-            var panel = new YAHOO.widget.Panel(container_id,{
+            var panel = new YAHOO.widget.Panel(container_id, {
                 width: width,
-                centered: true//,
-                //xy: [(region.right - width),region.top]
+                centered: true
             });
 
             panel.setHeader("Move Circuit Endpoints from interface: "+params.interface_name);
@@ -2509,12 +2594,11 @@ function setup_network_tab(){
             );
             panel.setFooter("<div style='text-align: right;' id='move_edge_int_button'></div>");
             panel.render(YAHOO.util.Dom.get("active_element_details"));
-            //panel.show();
 
             var move_int_form = move_int_form_creator.init();
+
             //hook up maint submission
             var add_button = new YAHOO.widget.Button("move_edge_int_button", {label: "Apply"});
-
             add_button.on('click', function(){
                 var move_edge_int = function(){
                     add_button.set('label', 'Submitting...');
@@ -2622,6 +2706,14 @@ function setup_network_tab(){
             }
             function moveCktsAction(rec){
                 makeIntMovePanel({
+                    align_container_id: rec.getId(),
+                    orig_interface_id: rec.getData('interface_id'),
+                    interface_name: rec.getData('name'),
+                    node: node
+                });
+            }
+            function moveConfigurationAction(rec){
+                makeMoveConfigurationPanel({
                     align_container_id: rec.getId(),
                     orig_interface_id: rec.getData('interface_id'),
                     interface_name: rec.getData('name'),
@@ -2785,6 +2877,9 @@ function setup_network_tab(){
                             }}},
                             { text: 'Move Circuits', value: 'Move Circuits', 'onclick': { fn: function(){
                                 moveCktsAction(rec);
+                            }}},
+                            { text: 'Move Configuration', value: 'Move Configuration', 'onclick': { fn: function(){
+                                moveConfigurationAction(rec);
                             }}}
                         ];
                         menu.addItems(items);
@@ -4385,6 +4480,228 @@ function getMoveIntForm(container_id, config){
         markup: markup,
         init:   init
     }
+}
+
+function getMoveConfigurationForm(container_id, config){
+    config = config || {};
+    var selector_ids = {
+        node: container_id+'_mei_node_selector',
+        oint: container_id+'_mei_oint_selector',
+        nint: container_id+'_mei_nint_selector'
+    };
+    var ckt_select_container_id = container_id+"_circuit_select_container";
+    var ckt_toggle_id           = container_id+"_circuit_select_toggle";
+    var ckt_options_table_id    = container_id+"_circuit_options_table"; 
+    var ckt_selected_table_id   = container_id+"_circuit_selected_table";
+
+    var markup = function(){
+        let nodeSelector = `
+        <div>
+          <p>Node:</p>
+          <select id="${selector_ids.node}"></select>
+        </div>
+        `;
+
+        let ointSelector = `
+        <div>
+          <p>Original Interface:</p>
+          <select id="${selector_ids.oint}"></select>
+        </div>
+        `;
+
+        let markup = `
+        <div class="move_edge_int_form">
+          <p><b>Warning:</b> Moving this interface's configuration will move all layer2 circuits,
+             all layer3 circuits, all ACLs, all Cloud Interconnect information, and will trigger
+             a diff of the affected node.</p>
+          <br/>
+
+          ${(!config.node)              ? nodeSelector : ''}
+          ${(!config.orig_interface_id) ? ointSelector : ''}
+          <div>
+            <p>New Interface:</p>
+            <select id="${selector_ids.nint}"></select>
+          </div>
+          <div class="yui-buttongroup" id="${ckt_toggle_id}">
+            <input type="radio" value="Move Configuration" checked>
+          </div>
+        </div>
+        <!-- TODO remove circuit selector -->
+        <div class="ckt_table_holder" id="${ckt_select_container_id}">
+          <!-- <p class="subtitle">Circuits on Original Interface</p> -->
+          <div id="${ckt_options_table_id}"></div>
+          <!-- <p class="subtitle">Selected Circuits</p> -->
+          <div id="${ckt_selected_table_id}"></div>
+        </div>
+        `;
+
+        return markup;
+    };
+
+    //function to update placeholder messages for selectors
+    var updatePlaceholder = function(selector_type, msg, disable){
+        disable = disable || false;
+        $('#'+selector_ids[selector_type]).attr('data-placeholder', msg);
+        $('#'+selector_ids[selector_type]).prop('disable', disable);
+        $('#'+selector_ids[selector_type]).trigger("liszt:updated");
+    };
+
+    //adds options to a selector
+    var addOptions = function(selector_type, options){
+        //if null was passed in for the options set loading message and clear 
+        //current options
+        if(options === null){
+            $('#'+selector_ids[selector_type]).empty();
+            updatePlaceholder(selector_type, "Loading...");
+        }else {
+            $.each(options, function(i, option){
+                var opt = '<option value="'+option.value+'">'+option.name+'</option>';
+                $('#'+selector_ids[selector_type]).append(opt);
+            });
+            updatePlaceholder(selector_type, "Choose One");
+        }
+        $('#'+selector_ids[selector_type]).trigger("change");
+    };
+
+    //gets options for a selector
+    var getOptions = function(selector_types, obj){
+        var url;
+        if ((selector_types.length === 1) && (selector_types[0] === "node")) {
+            url = "../services/data.cgi?method=get_nodes";
+        } else {
+            url = "../services/data.cgi?method=get_node_interfaces"+
+                  "&show_down=0"+
+                  "&show_trunk=0"+
+                  "&node="+obj.node;
+        }
+        var ds = new YAHOO.util.DataSource(url);
+        ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+        ds.responseSchema = {
+            resultsList: "results",
+            fields: [
+                {key: obj.fields.name},
+                {key: obj.fields.value}
+            ],
+            metaFields: {
+                error: "error"
+            }
+        };
+        ds.sendRequest("",{
+            success: function(req, resp){
+                if (resp.meta.error){
+                    $.each(selector_types, function(i, selector_type){ 
+                        updatePlaceholder(selector_type, "Data Error");
+                    });
+                    return;
+                }
+                var options = [];
+                $.each(resp.results, function(i, result){
+                    options.push({
+                        value: result[obj.fields.value],
+                        name:  result[obj.fields.name]
+                    });
+                });
+                $.each(selector_types, function(i, selector_type){ 
+                    addOptions(selector_type, null);
+                    addOptions(selector_type, options);
+                });
+            },
+            failure: function(req, resp){
+                $.each(selector_types, function(i, selector_type){ 
+                    updatePlaceholder(selector_type, "Data Error");
+                });
+            }
+        });
+    };
+
+    var isAllCircuits;
+    var init = function(){
+
+        //set up circuit selection toggle
+        var circuit_toggle = new YAHOO.widget.ButtonGroup(ckt_toggle_id);
+
+        var isAllCircuits = function(){
+            var value;
+            $.each(circuit_toggle.getButtons(), function(i, button){
+                if (button.get('checked')) {
+                    value = (button.get('value') === 'Move Configuration') ? true : false;
+                }
+            });
+            return value;
+        };
+
+        //set loading messages and init chosen selectors
+        $.each(selector_ids, function(type, selector_id){
+            if ((type === 'node') && config.node) {
+                return true;
+            }
+            if ((type === 'oint') && config.orig_interface_id) {
+                return true;
+            }
+            updatePlaceholder(type, "Loading...", true);
+            $('#'+selector_id).chosen();
+        });
+
+        //on node change event fetch interface options
+        $('#'+selector_ids.node).on('change', function(){
+            var types = ['oint', 'nint'];
+            //clear current options
+            $.each(types, function(i, type){
+                addOptions(type, null);
+            });
+
+            //fetch new ones
+            getOptions(types, {
+                node: $('#'+selector_ids.node).chosen().val(),
+                fields:  { 
+                    name:  'name',
+                    value: 'interface_id'
+                }
+            });
+        });
+    
+        // get the node options
+        if (config.node) {
+            var types = ['nint'];
+            if (!config.orig_interface_id) {
+                types.push('oint');
+            }
+            //fetch new ones
+            getOptions(types, {
+                node: config.node,
+                fields:  { 
+                    name:  'name',
+                    value: 'interface_id'
+                }
+            });
+        } else {
+            getOptions(['node'], {
+                fields: {
+                    name:  'name',
+                    value: 'name'
+                }
+            });
+        }
+
+        var val = function() {
+            var orig_interface_id;
+            if (config.orig_interface_id) {
+                orig_interface_id = config.orig_interface_id;
+            } else {
+                orig_interface_id = $('#'+selector_ids.oint).chosen().val();
+            }
+            return {
+                orig_interface_id: orig_interface_id,
+                new_interface_id:  $('#'+selector_ids.nint).chosen().val()
+            };
+        };
+        return { val: val };
+    };
+
+    return {
+        markup: markup,
+        init:   init
+    };
 }
 
 function makeOwnedInterfaceTable(id){
