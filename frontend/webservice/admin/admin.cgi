@@ -1556,6 +1556,18 @@ sub move_edge_interface_circuits {
     return $results;
 }
 
+=head2 move_interface_configuration
+
+move_interface_configuration moves any ACLs, Cloud Interconnects,
+Circuit Endpoints, VRF Endpoints and Workgroup Membership on
+C<orig_interface_id> to C<new_interface_id>. After the move
+C<orig_interface_id> will be an unowned interface without any of the
+previously mentioned configuration.
+
+move_interface_configuration replaces move_edge_interface_circuits and
+the related _interface_move_maintenance methods.
+
+=cut
 sub move_interface_configuration {
     my ($method, $args) = @_;
 
@@ -1568,6 +1580,7 @@ sub move_interface_configuration {
     my $orig_interface_id = $args->{orig_interface_id}{value};
 
     $db->_start_transaction();
+    # ACLs
     my $err = $db->move_acls(
         new_interface => $new_interface_id,
         old_interface => $orig_interface_id
@@ -1577,6 +1590,34 @@ sub move_interface_configuration {
         $db->_rollback();
         return;
     }
+
+    # Cloud Interconnects
+    my $cloud_ok = $db->migrate_cloud_settings(
+        orig_interface_id => $orig_interface_id,
+        new_interface_id  => $new_interface_id,
+        do_commit         => 0
+    );
+    if (!defined $cloud_ok) {
+        $method->set_error("Couldn't move Cloud Interconnects: " . $db->get_error());
+        $db->_rollback();
+        return;
+    }
+
+    # Circuit Endpoints
+    my $circuit_ok = $db->move_edge_interface_circuits(
+        orig_interface_id => $orig_interface_id,
+        new_interface_id  => $new_interface_id,
+        do_commit         => 0
+    );
+    if (!defined $circuit_ok) {
+        $method->set_error("Couldn't move Circuit Endpoints: " . $db->get_error());
+        $db->_rollback();
+        return;
+    }
+
+    # TODO VRF Endpoints
+
+    # TODO Workgroup Membership
     $db->_commit();
 
     use OESS::RabbitMQ::Client;
