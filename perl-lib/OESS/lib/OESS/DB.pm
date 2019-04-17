@@ -144,8 +144,7 @@ sub execute_query{
 =cut
 sub start_transaction{
     my $self = shift;
-
-    $self->{'dbh'}->begin_work() or $self->logger->error("Error: " . $self->{'dbh'}->errstr);
+    $self->{'dbh'}->begin_work() or $self->{'logger'}->error("Error: " . $self->{'dbh'}->errstr);
 }
 
 =head2 commit
