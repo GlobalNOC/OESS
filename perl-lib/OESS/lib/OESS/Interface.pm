@@ -58,6 +58,7 @@ sub from_hash{
     $self->{'mpls_vlan_tag_range'} = $hash->{'mpls_vlan_tag_range'};
     $self->{'used_vlans'} = $hash->{'used_vlans'};
     $self->{'operational_state'} = $hash->{'operational_state'};
+    $self->{'workgroup_id'} = $hash->{'workgroup_id'};
 
     return 1;
 }
@@ -81,8 +82,9 @@ sub to_hash{
                 node_id => $self->node()->node_id(),
                 node => $self->node()->name(),
                 acls => $acl_models,
-                operational_state => $self->{'operational_state'} };
-    
+                operational_state => $self->{'operational_state'},
+                workgroup_id => $self->workgroup_id() };
+
     return $res;
 }
 
@@ -121,6 +123,21 @@ sub _fetch_from_db{
 sub update_db{
     my $self = shift;
 
+    if (!defined $self->{'db'}) {
+        $self->{'logger'}->error("Could not update Interface: No database object specified.");
+        return;
+    }
+
+    my $ok = OESS::DB::Interface::update(
+        db => $self->{'db'},
+        interface => $self->to_hash
+    );
+    if (!defined $ok) {
+        $self->{'logger'}->error("Could not update Interface: ...");
+        return;
+    }
+
+    return $ok;
 }
 
 =head2 operational_state
@@ -201,11 +218,12 @@ sub node{
     return $self->{'node'};
 }
 
-=head2 workgroup
+=head2 workgroup_id
 
 =cut
-sub workgroup{
-    
+sub workgroup_id{
+    my $self = shift;
+    return $self->{'workgroup_id'};
 }
 
 =head2 vlan_tag_range

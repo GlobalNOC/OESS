@@ -209,39 +209,39 @@ sub update {
     my $params = [];
     my $values = [];
 
-    if (defined $args->{interface}->{cloud_interconnect_id}) {
+    if (exists $args->{interface}->{cloud_interconnect_id}) {
         push @$params, 'cloud_interconnect_id=?';
         push @$values, $args->{interface}->{cloud_interconnect_id};
     }
-    if (defined $args->{interface}->{cloud_interconnect_type}) {
+    if (exists $args->{interface}->{cloud_interconnect_type}) {
         push @$params, 'cloud_interconnect_type=?';
         push @$values, $args->{interface}->{cloud_interconnect_type};
     }
-    if (defined $args->{interface}->{name}) {
+    if (exists $args->{interface}->{name}) {
         push @$params, 'name=?';
         push @$values, $args->{interface}->{name};
     }
-    if (defined $args->{interface}->{role}) {
+    if (exists $args->{interface}->{role}) {
         push @$params, 'role=?';
         push @$values, $args->{interface}->{role};
     }
-    if (defined $args->{interface}->{description}) {
+    if (exists $args->{interface}->{description}) {
         push @$params, 'description=?';
         push @$values, $args->{interface}->{description};
     }
-    if (defined $args->{interface}->{operational_state}) {
+    if (exists $args->{interface}->{operational_state}) {
         push @$params, 'operational_state=?';
         push @$values, $args->{interface}->{operational_state};
     }
-    if (defined $args->{interface}->{vlan_tag_range}) {
+    if (exists $args->{interface}->{vlan_tag_range}) {
         push @$params, 'vlan_tag_range=?';
         push @$values, $args->{interface}->{vlan_tag_range};
     }
-    if (defined $args->{interface}->{mpls_vlan_tag_range}) {
+    if (exists $args->{interface}->{mpls_vlan_tag_range}) {
         push @$params, 'mpls_vlan_tag_range=?';
         push @$values, $args->{interface}->{mpls_vlan_tag_range};
     }
-    if (defined $args->{interface}->{workgroup_id}) {
+    if (exists $args->{interface}->{workgroup_id}) {
         push @$params, 'workgroup_id=?';
         push @$values, $args->{interface}->{workgroup_id};
     }
