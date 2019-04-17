@@ -4570,7 +4570,7 @@ function getMoveConfigurationForm(container_id, config){
             url = "../services/data.cgi?method=get_nodes";
         } else {
             url = "../services/data.cgi?method=get_node_interfaces"+
-                  "&show_down=0"+
+                  "&show_down=1"+
                   "&show_trunk=0"+
                   "&node="+obj.node;
         }
