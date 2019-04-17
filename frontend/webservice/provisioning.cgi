@@ -671,14 +671,14 @@ sub _send_mpls_add_command {
     my $result = $cv->recv();
 
     if (defined $result->{'error'} || !defined $result->{'results'}){
-	warn '_send_mpls_add_command: Could not complete rabbitmq call to addVlan. Received no event_id';
+	warn "_send_mpls_add_command: $result->{'error'}\n";
 	if (defined $result->{'error'}) {
 	    warn '_send_mpls_add_command: ' . $result->{'error'};
 	}
-        return undef;
+        return (0, $result->{'error'});
     }
 
-    return $result->{'results'}->{'status'};
+    return ($result->{'results'}->{'status'}, $result->{'error'});
 }
 
 sub _send_add_command {
@@ -743,10 +743,10 @@ sub _send_mpls_remove_command {
     my $result = $cv->recv();
     if($result->{'error'} || !($result->{'results'})){
         warn "Error occured while calling mpls_remove_command: " . $result->{'error'};
-        return undef;
+        return (0, $result->{'error'});
     }
 
-    return $result->{'results'}->{'status'};
+    return ($result->{'results'}->{'status'}, $result->{'error'});
 }
 
 sub _send_remove_command {
@@ -1267,8 +1267,7 @@ sub provision_circuit {
 		warn 'provision_circuit: sending add command to mpls controller';
 		my $before_add_command = [gettimeofday];
 
-                my $result = _send_mpls_add_command( circuit_id => $output->{'circuit_id'} );
-                my $err    = undef;
+                my ($result, $err) = _send_mpls_add_command( circuit_id => $output->{'circuit_id'} );
 
                 my $after_add_command = [gettimeofday];
 
@@ -1277,7 +1276,7 @@ sub provision_circuit {
 
                 if (!defined $result || $result == 0) {
                     # failure, remove the circuit now
-		    $err = "provision_circuit: response from mpls controller was undef. Couldn't talk to fwdctl: $err";
+		    #$err = "provision_circuit: response from mpls controller was undef. Couldn't talk to fwdctl: $err";
                     warn "$err";
                     $output->{'warning'} = $err;
                     $method->set_error($err);
@@ -1408,15 +1407,11 @@ sub provision_circuit {
                 warn "Unexpected circuit state '$state' was received while reprovisioning circuit. Forwarding may not work as expected";
             }
 	}else{
-	    my $result = _send_mpls_remove_command( circuit_id => $circuit_id );
+	    my ($result, $err) = _send_mpls_remove_command( circuit_id => $circuit_id );
 
-            if ( !$result ) {
-                $output->{'warning'} = "Unable to talk to fwdctl service - is it running?";
-                $method->set_error("Unable to talk to fwdctl service - is it running?");
-                return;
-            }
-            if ( $result == 0 ) {
-                $method->set_error("Unable to remove circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been left in the database.");
+            if ( !$result || $result == 0) {
+                $output->{'warning'} = $err;
+		$method->set_error($err);
                 return;
             }
             # modify database entry
@@ -1427,13 +1422,10 @@ sub provision_circuit {
             }
             # add flows on switch
             if($state eq 'active' || $state eq 'looped'){
-                $result = _send_mpls_add_command( circuit_id => $output->{'circuit_id'} );
-                if ( !defined $result ) {
-                    $output->{'warning'} = "Unable to talk to fwdctl service - is it running?";
-                }
-                if ( $result == 0 ) {
-                    $method->set_error("Unable to edit circuit. Please check your logs or contact your server adminstrator for more information. Circuit is likely not live on the network anymore.");
-                    return;
+                ($result, $err) = _send_mpls_add_command( circuit_id => $output->{'circuit_id'} );
+                if ( !defined $result || $result == 0) {
+                    $output->{'warning'} = $err;
+		    $method->set_error($err);
                 }
             }
 	}
@@ -1517,27 +1509,17 @@ sub remove_circuit {
 		}
             }
         } else {
-            $result = _send_mpls_remove_command( circuit_id => $circuit_id );
+            ($result, $err) = _send_mpls_remove_command( circuit_id => $circuit_id );
         }
 
-        if ( !defined $result) {
-            warn "Unable to talk to fwdctl service - is it running?";
-            $method->set_error("Unable to talk to fwdctl service - is it running?");
+        if ( !defined $result || $result == 0) {
+            warn "$err";
+            $method->set_error($err);
 	    if ( !$args->{'force'}{'value'} ) {
-		return;
+		if(!$args->{'force'}{'value'}){
+		    return;
+		}
 	    }
-        }
-
-        if ( $result == 0) {
-            warn "Unable to remove circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been left in the database";
-            $method->set_error("Unable to remove circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been left in the database");
-
-            # If force is sent, it will clear it from the database
-            # regardless of whether fwdctl reported success or not.
-            # Otherwise the error is returned.
-            if ( !$args->{'force'}{'value'} ) {
-                return;
-            }
         }
     }
 
@@ -1628,16 +1610,16 @@ sub reprovision_circuit {
 	    return {results => {status => 0} ,error => 1, error_message => $error_text};
 	}
     } else {
-        my $success= _send_mpls_remove_command(circuit_id => $circuit_id);
-        if (!$success) {
-            $method->set_error('Error sending circuit removal request to controller, please try again or contact your Systems Administrator');
+        my ($success, $err) = _send_mpls_remove_command(circuit_id => $circuit_id);
+        if (!$success || $success == 0) {
+            $method->set_error($err);
         }
 
 	#sleep(30);
 
-        my $add_success = _send_mpls_add_command(circuit_id => $circuit_id);
-        if (!$add_success) {
-            $method->set_error('Error sending circuit provision request to controller, please try again or contact your Systems Administrator');
+        ($success, $err) = _send_mpls_add_command(circuit_id => $circuit_id);
+        if (!$success || $success == 0) {
+            $method->set_error($err);
             return;
         }
 	
