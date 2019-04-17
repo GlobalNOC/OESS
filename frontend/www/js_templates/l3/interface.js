@@ -10,11 +10,7 @@ class InterfaceForm extends Component {
 
   async render(props) {
     let interfaces = await getInterfacesByWorkgroup(session.data.workgroup_id);
-    if (interfaces === []) {
-      props.interface = -1;
-    } else if (!props.interface) {
-      props.interface = interfaces[0].interface_id;
-    }
+    let interface_id = (interfaces.length === 0) ? -1 : interfaces[0].interface_id;
 
     let vlans = await getAvailableVLANs(session.data.workgroup_id, props.interface);
     if (vlans === []) {
