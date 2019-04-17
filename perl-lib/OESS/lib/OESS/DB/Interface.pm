@@ -178,4 +178,81 @@ sub circuit_vlans_in_use{
     return \@tags;
 }
 
+=head2 update
+
+    OESS::DB::Interface::update(
+        db => $db,
+        interface => {
+            interface_id            => 1,
+            cloud_interconnect_id   => 'gxcon12345',            # Optional
+            cloud_interconnect_type => 'aws-hosted-vinterface', # Optional
+            name                    => 'xe-7/0/0',              # Optional
+            role                    => 'unknown',               # Optional
+            description             => '...',                   # Optional
+            operational_state       => 'up',                    # Optional
+            vlan_tag_range          => '-1',                    # Optional
+            mpls_vlan_tag_range     => '1-4095',                # Optional
+            workgroup_id            => 1                        # Optional
+        }
+    );
+
+=cut
+sub update {
+    my $args = {
+        db  => undef,
+        interface => {},
+        @_
+    };
+
+    return if !defined $args->{interface}->{interface_id};
+
+    my $params = [];
+    my $values = [];
+
+    if (defined $args->{interface}->{cloud_interconnect_id}) {
+        push @$params, 'cloud_interconnect_id=?';
+        push @$values, $args->{interface}->{cloud_interconnect_id};
+    }
+    if (defined $args->{interface}->{cloud_interconnect_type}) {
+        push @$params, 'cloud_interconnect_type=?';
+        push @$values, $args->{interface}->{cloud_interconnect_type};
+    }
+    if (defined $args->{interface}->{name}) {
+        push @$params, 'name=?';
+        push @$values, $args->{interface}->{name};
+    }
+    if (defined $args->{interface}->{role}) {
+        push @$params, 'role=?';
+        push @$values, $args->{interface}->{role};
+    }
+    if (defined $args->{interface}->{description}) {
+        push @$params, 'description=?';
+        push @$values, $args->{interface}->{description};
+    }
+    if (defined $args->{interface}->{operational_state}) {
+        push @$params, 'operational_state=?';
+        push @$values, $args->{interface}->{operational_state};
+    }
+    if (defined $args->{interface}->{vlan_tag_range}) {
+        push @$params, 'vlan_tag_range=?';
+        push @$values, $args->{interface}->{vlan_tag_range};
+    }
+    if (defined $args->{interface}->{mpls_vlan_tag_range}) {
+        push @$params, 'mpls_vlan_tag_range=?';
+        push @$values, $args->{interface}->{mpls_vlan_tag_range};
+    }
+    if (defined $args->{interface}->{workgroup_id}) {
+        push @$params, 'workgroup_id=?';
+        push @$values, $args->{interface}->{workgroup_id};
+    }
+
+    my $fields = join(', ', @$params);
+    push @$values, $args->{interface}->{interface_id};
+
+    return $args->{db}->execute_query(
+        "UPDATE interface SET $fields WHERE interface_id=?",
+        $values
+    );
+}
+
 1;
