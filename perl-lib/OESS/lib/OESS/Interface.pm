@@ -6,6 +6,7 @@ use warnings;
 package OESS::Interface;
 
 use OESS::DB::Interface;
+use Data::Dumper;
 
 =head2 new
 
@@ -32,7 +33,6 @@ sub new{
         $self->{'logger'}->error("No Database Object specified");
         return;
     }
-
     my $ok = $self->_fetch_from_db();
     if (!$ok) {
         return;
@@ -364,6 +364,41 @@ sub is_bandwidth_valid {
         if (defined $gcp_part->{$bandwidth}) { return 1; } else { return 0; }
     } else {
         if (defined $default->{$bandwidth}) { return 1; } else { return 0; }
+    }
+}
+
+=head2 find_available_unit
+
+=cut
+sub find_available_unit{
+    my $self = shift;
+    my %params = @_;
+
+    my $interface_id = $params{'interface_id'};
+    my $tag = $params{'tag'};
+    my $inner_tag = $params{'inner_tag'};
+
+    if(!defined($inner_tag)){
+        return $tag;
+    }
+    my $used_vrf_units = $self->_execute_query("select unit from vrf_ep where unit >= 5000 and state = 'active' and interface_id= ?",[$interface_id]);
+    my $used_circuit_units = $self->_execute_query("select unit from circuit_edge_interface_membership where interface_id = ? and end_epoch = -1 and circuit_id in (select circuit.circuit_id from circuit join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id and circuit.circuit_state = 'active' and circuit_instantiation.circuit_state = 'active' and circuit_instantiation.end_epoch = -1)",[$interface_id]);
+    
+    my %used;
+
+    foreach my $used_vrf_unit (@$used_vrf_units){
+        $used{$used_vrf_unit->{'unit'}} = 1;
+    }
+
+    foreach my $used_circuit_units (@{$used_circuit_units}){
+        $used{$used_circuit_units->{'unit'}} = 1;
+    }
+
+    for(my $i=5000;$i<16000;$i++){
+        if(defined($used{$i}) && $used{$i} == 1){
+            next;
+        }
+        return $i;
     }
 }
 

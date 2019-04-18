@@ -18,6 +18,8 @@ use GRNOC::Config;
 use OESS::DB::VRF;
 use OESS::DB::Node;
 use OESS::DB::Interface;
+use OESS::DB::Circuit;
+use OESS::DB::Endpoint;
 
 use Data::Dumper;
 

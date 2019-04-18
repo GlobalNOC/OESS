@@ -10394,7 +10394,6 @@ sub move_edge_interface_circuits {
     warn "Circuit IDS: " . Dumper($circuit_ids);
 
     my $do_commit    = (defined($args{'do_commit'})) ? $args{'do_commit'} : 1;
-
     #sanity checks
     if(!defined($orig_interface_id)){
         $self->_set_error("Must pass in orig_interface_id.");
