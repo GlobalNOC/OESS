@@ -149,7 +149,7 @@ sub _build_from_model{
         }
 
         if (!defined $self->{interface}) {
-            die $err;
+            return $err;
         }
     }
 
