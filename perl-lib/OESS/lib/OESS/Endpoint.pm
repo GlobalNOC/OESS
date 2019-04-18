@@ -97,6 +97,7 @@ sub _build_from_model{
     $self->{'bandwidth'} = $self->{'model'}->{'bandwidth'};
     $self->{cloud_account_id} = $self->{model}->{cloud_account_id};
     $self->{cloud_connection_id} = $self->{model}->{cloud_connection_id};
+    $self->{mtu} = $self->{model}->{mtu};
 
     if (defined $self->{'model'}->{'interface'}) {
         $self->{'interface'} = OESS::Interface->new(db => $self->{'db'}, name => $self->{'model'}->{'interface'}, node => $self->{'model'}->{'node'});
@@ -194,7 +195,7 @@ sub to_hash{
         $obj->{'peers'} = \@peers;
         $obj->{'vrf_id'} = $self->vrf_id();
         $obj->{'vrf_endpoint_id'} = $self->vrf_endpoint_id();
-
+        $obj->{'mtu'} = $self->mtu();
     }else{
         $obj->{'circuit_id'} = $self->circuit_id();
         $obj->{'circuit_endpoint_id'} = $self->circuit_endpoint_id();
@@ -217,11 +218,13 @@ sub from_hash{
     $self->{'bandwidth'} = $hash->{'bandwidth'};
     $self->{'interface'} = $hash->{'interface'};
 
+    $self->{cloud_account_id} = $hash->{cloud_account_id};
+    $self->{cloud_connection_id} = $hash->{cloud_connection_id};
+
     if($self->{'type'} eq 'vrf'){
         $self->{'peers'} = $hash->{'peers'};
         $self->{'vrf_id'} = $hash->{'vrf_id'};
-        $self->{cloud_account_id} = $hash->{cloud_account_id};
-        $self->{cloud_connection_id} = $hash->{cloud_connection_id};
+        $self->{'mtu'} = $hash->{'mtu'};
     }else{
         $self->{'circuit_id'} = $hash->{'circuit_id'};
         $self->{start_epoch} = $hash->{start_epoch};
@@ -353,6 +356,19 @@ sub node{
 sub type{
     my $self = shift;
     $self->{'type'};
+}
+
+=head2 mtu
+
+=cut
+sub mtu {
+    my $self = shift;
+    my $mtu = shift;
+
+    if (defined $mtu) {
+        $self->{'mtu'} = $mtu;
+    }
+    return $self->{'mtu'};
 }
 
 =head2 peers

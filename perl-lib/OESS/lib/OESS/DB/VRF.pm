@@ -210,7 +210,7 @@ sub add_endpoint{
         return;
     }   
 
-    my $vrf_ep_id = $db->execute_query("insert into vrf_ep (interface_id, tag, inner_tag, bandwidth, vrf_id, state,unit) VALUES (?,?,?,?,?,?,?)",[$model->{'interface'}->{'interface_id'}, $model->{'tag'}, $model->{'inner_tag'}, $model->{'bandwidth'}, $vrf_id, 'active',$unit]);
+    my $vrf_ep_id = $db->execute_query("insert into vrf_ep (interface_id, tag, inner_tag, bandwidth, vrf_id, state, unit, mtu) VALUES (?,?,?,?,?,?,?,?)",[$model->{'interface'}->{'interface_id'}, $model->{'tag'}, $model->{'inner_tag'}, $model->{'bandwidth'}, $vrf_id, 'active', $unit, $model->{'mtu'}]);
     if(!defined($vrf_ep_id)){
         my $error = $db->get_error();
         $db->rollback();
@@ -333,6 +333,52 @@ sub fetch_endpoint{
     $vrf_ep->{'interface'} = $interface;
 
     return $vrf_ep;    
+}
+
+=head2 update_endpoint
+
+    my $err = OESS::DB::VRF::update_endpoint(
+        db       => $db,
+        endpoint => {
+            vrf_ep_id => 1,
+            mtu       => 1500, # Optional
+        }
+    );
+    if (defined $err) {
+        warn $err;
+    }
+
+=cut
+sub update_endpoint {
+    my $args = {
+        db       => undef,
+        endpoint => {},
+        @_
+    };
+
+    return 'Required argument `db` is missing.' if !defined $args->{db};
+    return 'Required argument `endpoint.vrf_ep_id` is missing.' if !defined $args->{endpoint}->{vrf_ep_id};
+
+    my $params = [];
+    my $values = [];
+
+    if (defined $args->{endpoint}->{mtu}) {
+        push @$params, 'mtu=?';
+        push @$values, $args->{endpoint}->{mtu};
+    }
+
+    my $fields = join(', ', @$params);
+    push @$values, $args->{endpoint}->{vrf_ep_id};
+
+    my $result = $args->{db}->execute_query(
+        "UPDATE vrf_ep SET $fields WHERE vrf_ep.vrf_ep_id=?",
+        $values
+    );
+    if (!$result) {
+        return 'Error updating vrf_ep: ' . $args->{db}->get_error;
+    }
+
+    return undef;
 }
 
 =head2 fetch_endpoint_peers

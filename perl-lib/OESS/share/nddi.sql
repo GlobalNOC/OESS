@@ -979,6 +979,7 @@ CREATE TABLE `vrf_ep` (
   `interface_id` int(10) NOT NULL,
   `state` enum('active','decom') DEFAULT NULL,
   `unit` int(11) NOT NULL,
+  `mtu` int(11) NOT NULL DEFAULT 9000,
   PRIMARY KEY (`vrf_ep_id`),
   KEY `vrf_id` (`vrf_id`),
   KEY `interface_id` (`interface_id`),

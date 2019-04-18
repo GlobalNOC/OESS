@@ -90,7 +90,8 @@ sub setup_endpoints {
                 $auth_key,
                 $customer_addr,
                 $vrf_name,
-                $ep->tag
+                $ep->tag,
+                $ep->mtu
             );
             $ep->cloud_account_id($ep->cloud_account_id);
             $ep->cloud_connection_id($res->{VirtualInterfaceId});

@@ -123,6 +123,8 @@ class EntityForm extends Component {
     let accessRequestable = false;
     let vlanSelectable = true;
     let vlanOptions = '';
+    let jumboToggleable = false;
+
     for (let i = 0; i < vlans.length; i++) {
       let selected = vlans[i] == props.vlan ? 'selected' : '';
       vlanOptions += `<option ${selected}>${vlans[i]}</option>`;
@@ -151,6 +153,8 @@ class EntityForm extends Component {
         cloudAccountLabel = 'GCP Pairing Key';
       } else if (entity.cloud_interconnect_type === 'azure-express-route') {
         cloudAccountLabel = 'ExpressRoute Service Key';
+      } else if (entity.cloud_interconnect_type === 'aws-hosted-vinterface') {
+        jumboToggleable = true;
       }
     }
 
@@ -199,6 +203,10 @@ class EntityForm extends Component {
       <select id="entity-bandwidth" class="form-control" ${vlanSelectable ? '' : 'disabled'}>
         ${bandwidthOptions}
       </select>
+    </div>
+    <div class="form-group">
+      <label class="control-label">Jumbo Frames</label><br/>
+      <input id="entity-jumbo-frames" type="checkbox" ${props.jumbo ? 'checked' : ''} ${jumboToggleable ? '' : 'disabled'}> Enable</input>
     </div>
     <div class="form-group" id="entity-cloud-account" style="display: ${entity.cloud_interconnect_id ? 'block' : 'none'};">
       <label id="entity-cloud-account-label" class="control-label">${cloudAccountLabel}</label>

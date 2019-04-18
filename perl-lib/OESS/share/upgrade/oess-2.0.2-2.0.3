@@ -62,10 +62,12 @@ sub upgrade{
     $sth = $dbh->prepare("UPDATE interface SET cloud_interconnect_id=NULL where cloud_interconnect_id=''") or die "Unable to prepare version update \n";
     $sth->execute() or die "Unable to update version\n";
 
+    $sth = $dbh->prepare("ALTER TABLE vrf_ep ADD COLUMN mtu int(11) NOT NULL DEFAULT 9000") or die "Unable to prepare new vrf_ep column \n";
+    $sth->execute() or die "Unable to add column 'mtu' to vrf_ep table\n";
+
     $str = "update oess_version set version = '$version'";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
     $sth->execute() or die "Unable to update version\n";
-
 }
 
 main();

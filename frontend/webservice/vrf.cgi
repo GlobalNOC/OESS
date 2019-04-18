@@ -422,6 +422,23 @@ sub provision_vrf{
         push(@{$model->{endpoints}}, $endpoint);
     }
 
+    # Handle Jumbo frame support here. By default the MTU on all
+    # endpoints should be 9000.
+    #
+    # AWS hosted vInterfaces are slightly different; Valid MTUs are
+    # 9001 (default) and 1500 if jumbo frames are disabled.
+    foreach my $endpoint (@$selected_endpoints) {
+        $endpoint->{mtu} = 9000;
+
+        if ($endpoint->{cloud_interconnect_type} eq 'aws-hosted-vinterface') {
+            if (!defined $endpoint->{jumbo} || $endpoint->{jumbo} == 1) {
+                $endpoint->{mtu} = 9001;
+            } else {
+                $endpoint->{mtu} = 1500;
+            }
+        }
+    }
+
     if (defined $model->{'vrf_id'} && $model->{'vrf_id'} != -1) {
         return _edit_vrf(
             method => $method,
