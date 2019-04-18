@@ -218,12 +218,13 @@ sub from_hash{
     $self->{'bandwidth'} = $hash->{'bandwidth'};
     $self->{'interface'} = $hash->{'interface'};
 
+    $self->{cloud_account_id} = $hash->{cloud_account_id};
+    $self->{cloud_connection_id} = $hash->{cloud_connection_id};
+
     if($self->{'type'} eq 'vrf'){
         $self->{'peers'} = $hash->{'peers'};
         $self->{'vrf_id'} = $hash->{'vrf_id'};
         $self->{'mtu'} = $hash->{'mtu'};
-        $self->{cloud_account_id} = $hash->{cloud_account_id};
-        $self->{cloud_connection_id} = $hash->{cloud_connection_id};
     }else{
         $self->{'circuit_id'} = $hash->{'circuit_id'};
         $self->{start_epoch} = $hash->{start_epoch};
