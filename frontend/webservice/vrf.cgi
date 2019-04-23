@@ -403,8 +403,8 @@ sub provision_vrf{
                 next;
             }
 
-            $peering->{asn} = (!defined $peering->{asn}) ? 64512 : $peering->{asn};
-            $peering->{key} = (!defined $peering->{key}) ? md5_hex(rand) : $peering->{key};
+            $peering->{asn} = (!defined $peering->{asn} || $peering->{asn} eq '') ? 64512 : $peering->{asn};
+            $peering->{key} = (!defined $peering->{key} || $peering->{key} eq '') ? md5_hex(rand) : $peering->{key};
             if ($peering->{version} == 4) {
                 $peering->{local_ip} = '172.31.254.' . $last_octet . '/31';
                 $peering->{peer_ip}  = '172.31.254.' . ($last_octet + 1) . '/31';

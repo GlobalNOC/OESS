@@ -46,6 +46,9 @@ async function renderCommandParams() {
     let info = JSON.parse(sessionStorage.getItem("commandParams"));
     let select = document.querySelector('#command-select');
     let option = select.options[select.selectedIndex];
+    if (option === undefined) {
+        return null;
+    }
 
     document.querySelector('#command-node-selector').style.display = 'block';
     document.querySelector('#command-intf-selector').style.display = 'block';
