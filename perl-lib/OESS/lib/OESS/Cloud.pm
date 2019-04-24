@@ -36,6 +36,8 @@ sub setup_endpoints {
     my $config = OESS::Config->new();
     my $logger = Log::Log4perl->get_logger('OESS.Cloud');
 
+    my $azure_connections = {};
+
     foreach my $ep (@$endpoints) {
         if (!$ep->interface()->cloud_interconnect_id) {
             push @$result, $ep;
@@ -129,12 +131,17 @@ sub setup_endpoints {
 
         } elsif ($ep->interface()->cloud_interconnect_type eq 'azure-express-route') {
             $logger->info("Adding cloud interconnect of type azure-express-route.");
+
+            if (defined $azure_connections->{$ep->cloud_account_id}) {
+                my $conf = $azure_connections->{$ep->cloud_account_id};
+                $ep->cloud_connection_id($conf->{id});
+                $ep->tag($conf->{tag});
+                $ep->inner_tag($conf->{inner_tag});
+                push @$result, $ep;
+                next;
+            }
+
             my $azure = OESS::Cloud::Azure->new();
-            my $peer1 = $ep->peers->[0];
-            $peer1->local_ip('192.168.100.249/30');
-            $peer1->peer_ip('192.168.100.250/30');
-            $peer1->peer_asn(12076);
-            $peer1->{md5_key} = '';
 
             my $conn = $azure->expressRouteCrossConnection($ep->interface()->cloud_interconnect_id, $ep->cloud_account_id);
             my $res = $azure->set_cross_connection_state_to_provisioned(
@@ -149,34 +156,18 @@ sub setup_endpoints {
                 primary_prefix   => '192.168.100.248/30',
                 secondary_prefix => '192.168.100.252/30'
             );
+
             $ep->cloud_connection_id($res->{id});
             $ep->inner_tag($ep->tag);
             $ep->tag($conn->{properties}->{sTag});
-            push @$result, $ep;
 
-            # Azure ExpressRoute Circuits expect two physical endpoints.
-            my $interconnect_id2 = $azure->get_port_sibling($ep->interface()->cloud_interconnect_id);
-
-            my $intfs = OESS::DB::Interface::get_interfaces(db => $ep->{db}, cloud_interconnect_id => $interconnect_id2);
-            my $intf_id = $intfs->[0];
-            my $intf2 = OESS::DB::Interface::fetch(db => $ep->{db}, interface_id => $intf_id);
-
-            my $ep2_model = {
-                inner_tag           => $ep->tag,
-                tag                 => $conn->{properties}->{sTag},
-                cloud_account_id    => $ep->cloud_account_id,
-                cloud_connection_id => $res->{id},
-                node                => $intf2->{node}->{name},
-                interface           => $intf2->{name},
-                bandwidth           => $ep->{bandwidth},
-                peerings            => [{ version => 4 }]
+            $azure_connections->{$ep->cloud_account_id} = {
+                id        => $ep->cloud_connection_id,
+                tag       => $ep->tag,
+                inner_tag => $ep->inner_tag
             };
-            my $ep2 = OESS::Endpoint->new(db => $ep->{db}, type => 'vrf', model => $ep2_model);
-            $ep2->peers->[0]->local_ip('192.168.100.253/30');
-            $ep2->peers->[0]->peer_ip('192.168.100.254/30');
-            $ep2->peers->[0]->peer_asn(12076);
-            $ep2->peers->[0]->{md5_key} = '';
-            push @$result, $ep2;
+
+            push @$result, $ep;
 
         } else {
             $logger->warn("Cloud interconnect type is not supported.");
