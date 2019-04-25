@@ -12,11 +12,18 @@ let m = undefined;
 
 async function load() {
   let interfaces = await getInterfacesByWorkgroup(session.data.workgroup_id);
-  let vlans = await getAvailableVLANs(session.data.workgroup_id, interfaces[0].interface_id);
+  let interface = null;
+
+  let vlans = [];
+  if (interfaces.length > 0) {
+    interface = interfaces[0];
+    vlans = await getAvailableVLANs(session.data.workgroup_id, interface.interface_id);
+  }
+  let vlan = (vlans.length > 0) ? vlans[0] : null;
 
   m = new EndpointSelectionModal({
-    interface: interfaces[0].interface_id,
-    vlan: vlans[0]
+    interface: interface,
+    vlan: vlan
   });
   update();
 }

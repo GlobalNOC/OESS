@@ -67,6 +67,33 @@ sub resetSNAPPDB {
     return 1;
 }
 
+sub load_database {
+    my $config_file = shift;
+    my $dump_file = shift;
+
+    my $config = GRNOC::Config->new(config_file => $config_file);
+    my $user = $config->get('/config/credentials[1]/@username')->[0];
+    my $pass = $config->get('/config/credentials[1]/@password')->[0];
+    my $db = $config->get('/config/credentials[1]/@database')->[0];
+
+    my $dbh = DBI->connect(
+        "DBI:mysql:dbname=;host=localhost;port=6633",
+        $user,
+        $pass,
+        { PrintError => 0, RaiseError => 0 }
+    );
+    $dbh->do("create database $db");
+    $dbh->do("set foreign_key_checks = 0");
+
+    my $command = "/usr/bin/mysql -u $user --password=$pass $db < $dump_file";
+    if (system $command) {
+        return 0;
+    }
+
+    $dbh->do("set foreign_key_checks = 1");
+    return 1;
+}
+
 sub resetOESSDB {
     my $creds = &getConfig();
     #drop the oess-test DB if it exists, and then create it

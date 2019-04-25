@@ -12,11 +12,18 @@ let m = undefined;
 
 async function load() {
   let interfaces = await getInterfacesByWorkgroup(session.data.workgroup_id);
-  let vlans = await getAvailableVLANs(session.data.workgroup_id, interfaces[0].interface_id);
+  let interface = null;
+
+  let vlans = [];
+  if (interfaces.length > 0) {
+    interface = interfaces[0];
+    vlans = await getAvailableVLANs(session.data.workgroup_id, interface.interface_id);
+  }
+  let vlan = (vlans.length > 0) ? vlans[0] : null;
 
   m = new EndpointSelectionModal({
-    interface: interfaces[0].interface_id,
-    vlan: vlans[0]
+    interface: interface,
+    vlan: vlan
   });
   update();
 }
@@ -77,6 +84,8 @@ async function loadVRF() {
         entity_id: entity_id,
         entity: entity_name,
         interface_id: e.interface.interface_id,
+        mtu: e.mtu,
+        jumbo: (parseInt(e.mtu) == 9000 || parseInt(e.mtu) == 9001) ? true : false,
         name: e.interface.name,
         node: e.node.name,
         peerings: [],
@@ -119,6 +128,7 @@ async function modifyNetworkEndpointCallback(index) {
   m.setEntity(endpoints[index].entity_id);
   m.setInterface(endpoints[index].interface_id);
   m.setVLAN(endpoints[index].tag);
+  m.setJumbo(endpoints[index].jumbo);
   update();
 
   let endpointSelectionModal = $('#add-endpoint-modal');

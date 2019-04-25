@@ -6,6 +6,7 @@ use warnings;
 package OESS::Interface;
 
 use OESS::DB::Interface;
+use Data::Dumper;
 
 =head2 new
 
@@ -32,7 +33,6 @@ sub new{
         $self->{'logger'}->error("No Database Object specified");
         return;
     }
-
     my $ok = $self->_fetch_from_db();
     if (!$ok) {
         return;
@@ -58,6 +58,7 @@ sub from_hash{
     $self->{'mpls_vlan_tag_range'} = $hash->{'mpls_vlan_tag_range'};
     $self->{'used_vlans'} = $hash->{'used_vlans'};
     $self->{'operational_state'} = $hash->{'operational_state'};
+    $self->{'workgroup_id'} = $hash->{'workgroup_id'};
 
     return 1;
 }
@@ -81,8 +82,9 @@ sub to_hash{
                 node_id => $self->node()->node_id(),
                 node => $self->node()->name(),
                 acls => $acl_models,
-                operational_state => $self->{'operational_state'} };
-    
+                operational_state => $self->{'operational_state'},
+                workgroup_id => $self->workgroup_id() };
+
     return $res;
 }
 
@@ -121,6 +123,21 @@ sub _fetch_from_db{
 sub update_db{
     my $self = shift;
 
+    if (!defined $self->{'db'}) {
+        $self->{'logger'}->error("Could not update Interface: No database object specified.");
+        return;
+    }
+
+    my $ok = OESS::DB::Interface::update(
+        db => $self->{'db'},
+        interface => $self->to_hash
+    );
+    if (!defined $ok) {
+        $self->{'logger'}->error("Could not update Interface: ...");
+        return;
+    }
+
+    return $ok;
 }
 
 =head2 operational_state
@@ -201,11 +218,12 @@ sub node{
     return $self->{'node'};
 }
 
-=head2 workgroup
+=head2 workgroup_id
 
 =cut
-sub workgroup{
-    
+sub workgroup_id{
+    my $self = shift;
+    return $self->{'workgroup_id'};
 }
 
 =head2 vlan_tag_range
@@ -364,6 +382,41 @@ sub is_bandwidth_valid {
         if (defined $gcp_part->{$bandwidth}) { return 1; } else { return 0; }
     } else {
         if (defined $default->{$bandwidth}) { return 1; } else { return 0; }
+    }
+}
+
+=head2 find_available_unit
+
+=cut
+sub find_available_unit{
+    my $self = shift;
+    my %params = @_;
+
+    my $interface_id = $params{'interface_id'};
+    my $tag = $params{'tag'};
+    my $inner_tag = $params{'inner_tag'};
+
+    if(!defined($inner_tag)){
+        return $tag;
+    }
+    my $used_vrf_units = $self->_execute_query("select unit from vrf_ep where unit >= 5000 and state = 'active' and interface_id= ?",[$interface_id]);
+    my $used_circuit_units = $self->_execute_query("select unit from circuit_edge_interface_membership where interface_id = ? and end_epoch = -1 and circuit_id in (select circuit.circuit_id from circuit join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id and circuit.circuit_state = 'active' and circuit_instantiation.circuit_state = 'active' and circuit_instantiation.end_epoch = -1)",[$interface_id]);
+    
+    my %used;
+
+    foreach my $used_vrf_unit (@$used_vrf_units){
+        $used{$used_vrf_unit->{'unit'}} = 1;
+    }
+
+    foreach my $used_circuit_units (@{$used_circuit_units}){
+        $used{$used_circuit_units->{'unit'}} = 1;
+    }
+
+    for(my $i=5000;$i<16000;$i++){
+        if(defined($used{$i}) && $used{$i} == 1){
+            next;
+        }
+        return $i;
     }
 }
 

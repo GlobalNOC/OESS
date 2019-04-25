@@ -1,0 +1,32 @@
+<template id="l2vpn-endpoint">
+  <div class="panel panel-default" style="padding: 0 15 0 15;">
+
+    <div style="display:flex; flex-direction: row; flex-wrap: nowrap;">
+      <div>
+        <h3>Entity:&nbsp;</h3>
+        <h4>Node:&nbsp;</h3>
+        <h4>Port:&nbsp;</h4>
+        <h5>VLAN:&nbsp;</h5>
+      </div>
+
+      <div>
+        <h3 class="l2vpn-entity">NA</h3>
+        <h4 class="l2vpn-node"></h4>
+        <h4><span class="l2vpn-interface"></span> <small class="l2vpn-interface-description"></small></h4>
+        <h5 class="l2vpn-tag"></h5>
+      </div>
+
+      <iframe class="l2vpn-graph" height="100" frameborder="0" style="flex: 1;"></iframe>
+
+      <div style="display: block;">
+        <button class="btn btn-link l2vpn-modify-button" type="button" onclick="" style="padding: 12 6 12 6;">
+          <span class="glyphicon glyphicon-edit"></span>
+        </button>
+        <button class="btn btn-link l2vpn-delete-button" type="button" onclick="" style="padding: 12 6 12 6;">
+          <span class="glyphicon glyphicon-trash"></span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+</template>

@@ -5,25 +5,39 @@ class EntityForm extends Component {
       onCancel:       props.onCancel,
       onSubmit:       props.onSubmit,
       onEntityChange: props.onEntityChange,
-      onEntityInterfaceChange: props.onEntityInterfaceChange
+      onEntityInterfaceChange: props.onEntityInterfaceChange,
+      searchTimeout: null
     };
   }
 
   async loadEntitySearchList(search) {
-    let entities = await getEntitiesAll(session.data.workgroup_id, search.value);
+    if (search.value.length < 1) {
+      let list = document.querySelector('#entity-search-list');
+      list.innerHTML = '';
+      return null;
+    }
+    if (search.value.length < 2) {
+      return null;
+    }
 
-    let items = '';
-    for (let i = 0; i < entities.length; i++) {
-      let e = entities[i];
-      items += `
+    clearTimeout(this.props.searchTimeout);
+
+    this.props.searchTimeout = setTimeout(function() {
+      getEntitiesAll(session.data.workgroup_id, search.value).then(function(entities) {
+        let items = '';
+        for (let i = 0; i < entities.length; i++) {
+          let e = entities[i];
+          items += `
       <a href="#"
          class="list-group-item"
          onclick="document.components[${this._id}].props.onEntityChange(${e.entity_id})">${e.name}</a>
       `;
-    }
+        }
 
-    let list = document.querySelector('#entity-search-list');
-    list.innerHTML = items;
+        let list = document.querySelector('#entity-search-list');
+        list.innerHTML = items;
+      }.bind(this));
+    }.bind(this), 800);
   }
 
   async render(props) {
@@ -109,6 +123,8 @@ class EntityForm extends Component {
     let accessRequestable = false;
     let vlanSelectable = true;
     let vlanOptions = '';
+    let jumboToggleable = false;
+
     for (let i = 0; i < vlans.length; i++) {
       let selected = vlans[i] == props.vlan ? 'selected' : '';
       vlanOptions += `<option ${selected}>${vlans[i]}</option>`;
@@ -131,11 +147,14 @@ class EntityForm extends Component {
     let cloudAccountLabel = 'AWS Account Owner';
     if (entity.cloud_interconnect_id === null || entity.cloud_interconnect_id === 'null' || entity.cloud_interconnect_id === '') {
       entity.cloud_interconnect_id = null;
+      entity.cloud_interconnect_type = '';
     } else {
       if (entity.cloud_interconnect_type === 'gcp-partner-interconnect') {
         cloudAccountLabel = 'GCP Pairing Key';
       } else if (entity.cloud_interconnect_type === 'azure-express-route') {
         cloudAccountLabel = 'ExpressRoute Service Key';
+      } else if (entity.cloud_interconnect_type === 'aws-hosted-vinterface') {
+        jumboToggleable = true;
       }
     }
 
@@ -184,6 +203,10 @@ class EntityForm extends Component {
       <select id="entity-bandwidth" class="form-control" ${vlanSelectable ? '' : 'disabled'}>
         ${bandwidthOptions}
       </select>
+    </div>
+    <div class="form-group">
+      <label class="control-label">Jumbo Frames</label><br/>
+      <input id="entity-jumbo-frames" type="checkbox" ${props.jumbo ? 'checked' : ''} ${jumboToggleable ? '' : 'disabled'}> Enable</input>
     </div>
     <div class="form-group" id="entity-cloud-account" style="display: ${entity.cloud_interconnect_id ? 'block' : 'none'};">
       <label id="entity-cloud-account-label" class="control-label">${cloudAccountLabel}</label>

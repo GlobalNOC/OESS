@@ -11,6 +11,8 @@ class EndpointSelectionModal extends Component {
     this.props.entityName = 'TBD';
     this.props.entityNode = 'TBD';
 
+    this.props.interface = (this.props.interface === null) ? -1 : this.props.interface.interface_id;
+
     this.entityForm = new EntityForm({
       onSubmit: this.onSubmitEntity.bind(this),
       onCancel: this.onCancelEntity.bind(this),
@@ -42,6 +44,10 @@ class EndpointSelectionModal extends Component {
 
   setEntity(i) {
     this.props.entity = i;
+  }
+
+  setJumbo(i) {
+    this.props.jumbo = i;
   }
 
   onEntityChange(entity) {
@@ -88,7 +94,8 @@ class EndpointSelectionModal extends Component {
         entity_id: document.querySelector('#entity-id').value,
         entity: document.querySelector('#entity-name').value,
         cloud_account_id: document.querySelector('#entity-cloud-account-id').value,
-        cloud_account_type: document.querySelector('#entity-cloud-account-type').value
+        cloud_account_type: document.querySelector('#entity-cloud-account-type').value,
+        jumbo: document.querySelector('#entity-jumbo-frames').checked
     };
 
     let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
@@ -174,7 +181,8 @@ class EndpointSelectionModal extends Component {
     let [entityForm, interfaceForm] = await Promise.all([
       this.entityForm.render({
         entity: this.props.entity,
-        vlan: this.props.vlan
+        vlan: this.props.vlan,
+        jumbo: this.props.jumbo
       }),
       this.interfaceForm.render({
         interface: this.props.interface,

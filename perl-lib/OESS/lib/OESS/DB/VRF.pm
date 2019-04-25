@@ -170,8 +170,8 @@ sub find_available_unit{
         return $tag;
     }
 
-    #find available unit > 5000
-    my $used_vrf_units = $db->execute_query("select unit from vrf_ep where unit > 5000 and state = 'active' and interface_id= ?",[$interface_id]);
+    #find available unit >= 5000
+    my $used_vrf_units = $db->execute_query("select unit from vrf_ep where unit >= 5000 and state = 'active' and interface_id= ?",[$interface_id]);
     my $used_circuit_units = $db->execute_query("select unit from circuit_edge_interface_membership where interface_id = ? and end_epoch = -1 and circuit_id in (select circuit.circuit_id from circuit join circuit_instantiation on circuit.circuit_id = circuit_instantiation.circuit_id and circuit.circuit_state = 'active' and circuit_instantiation.circuit_state = 'active' and circuit_instantiation.end_epoch = -1)",[$interface_id]);
 
     my %used;
@@ -210,14 +210,12 @@ sub add_endpoint{
         return;
     }   
 
-    my $vrf_ep_id = $db->execute_query("insert into vrf_ep (interface_id, tag, inner_tag, bandwidth, vrf_id, state,unit) VALUES (?,?,?,?,?,?,?)",[$model->{'interface'}->{'interface_id'}, $model->{'tag'}, $model->{'inner_tag'}, $model->{'bandwidth'}, $vrf_id, 'active',$unit]);
+    my $vrf_ep_id = $db->execute_query("insert into vrf_ep (interface_id, tag, inner_tag, bandwidth, vrf_id, state, unit, mtu) VALUES (?,?,?,?,?,?,?,?)",[$model->{'interface'}->{'interface_id'}, $model->{'tag'}, $model->{'inner_tag'}, $model->{'bandwidth'}, $vrf_id, 'active', $unit, $model->{'mtu'}]);
     if(!defined($vrf_ep_id)){
         my $error = $db->get_error();
         $db->rollback();
         return;
     }
- 
-
 
     if (defined $model->{cloud_account_id} && $model->{cloud_account_id} ne '') {
         $db->execute_query(
@@ -282,6 +280,25 @@ sub fetch_endpoints{
     return $res;
 }
 
+=head2 fetch_endpoints_on_interface
+
+=cut
+sub fetch_endpoints_on_interface{
+    my %params = @_;
+    my $db = $params{'db'};
+    my $interface_id = $params{'interface_id'};
+    my $state = $params{'state'} || 'active';
+
+    my $res = $db->execute_query(
+        "select vrf_ep.vrf_ep_id from vrf_ep ".
+        "left join cloud_connection_vrf_ep on vrf_ep.vrf_ep_id=cloud_connection_vrf_ep.vrf_ep_id ".
+        "where interface_id = ? and state = ?", [$interface_id, $state]);
+    if(!defined($res)) {
+        return;
+    }
+    return $res;
+}
+
 =head2 fetch_endpoint
 
 =cut
@@ -316,6 +333,52 @@ sub fetch_endpoint{
     $vrf_ep->{'interface'} = $interface;
 
     return $vrf_ep;    
+}
+
+=head2 update_endpoint
+
+    my $err = OESS::DB::VRF::update_endpoint(
+        db       => $db,
+        endpoint => {
+            vrf_ep_id => 1,
+            mtu       => 1500, # Optional
+        }
+    );
+    if (defined $err) {
+        warn $err;
+    }
+
+=cut
+sub update_endpoint {
+    my $args = {
+        db       => undef,
+        endpoint => {},
+        @_
+    };
+
+    return 'Required argument `db` is missing.' if !defined $args->{db};
+    return 'Required argument `endpoint.vrf_ep_id` is missing.' if !defined $args->{endpoint}->{vrf_ep_id};
+
+    my $params = [];
+    my $values = [];
+
+    if (defined $args->{endpoint}->{mtu}) {
+        push @$params, 'mtu=?';
+        push @$values, $args->{endpoint}->{mtu};
+    }
+
+    my $fields = join(', ', @$params);
+    push @$values, $args->{endpoint}->{vrf_ep_id};
+
+    my $result = $args->{db}->execute_query(
+        "UPDATE vrf_ep SET $fields WHERE vrf_ep.vrf_ep_id=?",
+        $values
+    );
+    if (!$result) {
+        return 'Error updating vrf_ep: ' . $args->{db}->get_error;
+    }
+
+    return undef;
 }
 
 =head2 fetch_endpoint_peers
