@@ -874,6 +874,7 @@ sub is_external_vlan_available_on_interface {
         $self->_set_error("Internal error while finding available external vlan tags.");
         return;
     }
+
     foreach my $circuit (@{$result}) {
         if (defined $circuit_id && $circuit->{'circuit_id'} == $circuit_id) {
             # There's no problem here; We are editing the circuit.
@@ -883,12 +884,24 @@ sub is_external_vlan_available_on_interface {
         }
     }
 
-    $query = "select vrf.vrf_id from vrf join vrf_ep on vrf.vrf_id = vrf_ep.vrf_id where vrf.state='active' and vrf_ep.interface_id=? and vrf_ep.tag=? and vrf_ep.inner_tag=?";
-    my $result2 = $self->_execute_query($query, [$interface_id, $vlan_tag, $inner_vlan_tag]);
+    
+
+    $query = "select vrf.vrf_id from vrf join vrf_ep on vrf.vrf_id = vrf_ep.vrf_id where vrf.state='active' and vrf_ep.interface_id=? and vrf_ep.tag=?";
+    my $query_args2 = [$interface_id, $vlan_tag];
+    
+    if (defined $inner_vlan_tag) {
+        push @$query_args, $inner_vlan_tag;
+        $inner_tags = " and vrf_ep.inner_tag=? ";
+    } else {
+        $inner_tags = " and vrf_ep.inner_tag=? is NULL ";
+    } 
+
+    my $result2 = $self->_execute_query($query, $query_args2);
     if (!defined $result2) {
         $self->_set_error("Internal error while finding available vrf vlan tags");
         return;
     }
+
     foreach my $vrf (@{$result2}) {
         if (defined $circuit_id && $vrf->{vrf_id} == $circuit_id) {
             # There's no problem here; We are editing the circuit.
