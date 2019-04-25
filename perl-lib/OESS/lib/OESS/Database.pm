@@ -893,7 +893,7 @@ sub is_external_vlan_available_on_interface {
         push @$query_args, $inner_vlan_tag;
         $inner_tags = " and vrf_ep.inner_tag=? ";
     } else {
-        $inner_tags = " and vrf_ep.inner_tag=? is NULL ";
+        $inner_tags = " and vrf_ep.inner_tag is NULL ";
     } 
 
     my $result2 = $self->_execute_query($query, $query_args2);
