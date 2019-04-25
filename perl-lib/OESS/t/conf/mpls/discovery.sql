@@ -308,30 +308,6 @@ LOCK TABLES `entity_hierarchy` WRITE;
 UNLOCK TABLES;
 
 --
--- Table structure for table `entity_interface_membership`
---
-
-DROP TABLE IF EXISTS `entity_interface_membership`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `entity_interface_membership` (
-  `entity_id` int(11) NOT NULL,
-  `interface_id` int(11) NOT NULL,
-  UNIQUE KEY `unique_entity_interface` (`entity_id`,`interface_id`),
-  KEY `interface` (`interface_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `entity_interface_membership`
---
-
-LOCK TABLES `entity_interface_membership` WRITE;
-/*!40000 ALTER TABLE `entity_interface_membership` DISABLE KEYS */;
-/*!40000 ALTER TABLE `entity_interface_membership` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Table structure for table `interface`
 --
 

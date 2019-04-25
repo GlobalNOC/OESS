@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 #-------------------------------------------------------------------
-#----- OESS 2.0.2 - 2.0.3 upgrade module                         
+#----- OESS 2.0.3 - 2.0.4 upgrade module                         
 #-----                                                               
 #----- Copyright(C) 2010 The Trustees of Indiana University          
 #--------------------------------------------------------------------
@@ -8,7 +8,7 @@
 #----- $Id: $                                                        
 #-----                                                               
 #----- This is run when upgrading the database from     
-#----- version 2.0.2 to version 2.0.3                               
+#----- version 2.0.3 to version 2.0.4                               
 #-------------------------------------------------------------------- 
 
 use strict;
@@ -51,7 +51,10 @@ sub upgrade{
     my $sth;
 
     $sth = $dbh->prepare("ALTER TABLE entity ALTER name DROP DEFAULT, ADD UNIQUE (name)") or die "Unable to prepare version update \n";
-    $sth->execute() or die "Unable to update version\n";
+    $sth->execute() or die "Unable to update entity table\n";
+
+    $sth = $dbh->prepare("DROP TABLE entity_interface_membership") or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to drop entity_interface_membership table\n";
 
     $str = "update oess_version set version = '$version'";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
