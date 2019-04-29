@@ -77,14 +77,14 @@ sub main {
     }
 
     if ( !$svc ){
-  send_json( {"error" => "Unable to access GRNOC::WebService" });
-  exit(1);
+        send_json( {"error" => "Unable to access GRNOC::WebService" });
+        exit(1);
     }
     
     my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
     if ($user->{'status'} eq "decom") {
         send_json("error");
-  exit(1);
+        exit(1);
     }
 
     #register the WebService Methods
@@ -101,33 +101,33 @@ sub register_webservice_methods {
 
     # get_workgroups()
     $method = GRNOC::WebService::Method->new(
-  name            => "get_workgroups",
-  description     => "returns a list of workgroups the logged in user has access to",
-  callback        => sub { get_workgroups( @_ ) }
-  );
+        name            => "get_workgroups",
+        description     => "returns a list of workgroups the logged in user has access to",
+        callback        => sub { get_workgroups( @_ ) }
+        );
 
     #register get_workgroups() method
     $svc->register_method($method);
 
     # get_maps()
     $method = GRNOC::WebService::Method->new(
-  name            => "get_maps",
-  description     => "returns a JSON object representing the network layout",
-  callback        => sub { get_maps( @_ ) } 
-  );
+        name            => "get_maps",
+        description     => "returns a JSON object representing the network layout",
+        callback        => sub { get_maps( @_ ) } 
+        );
     
     # add the required input parameter workgroup_id
     $method->add_input_parameter(
-  name            => 'workgroup_id',
-  pattern         => $GRNOC::WebService::Regex::INTEGER,
-  required        => 0,
-  description     => "The workgroup ID that the user is currently participating in."
+        name            => 'workgroup_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        description     => "The workgroup ID that the user is currently participating in."
     );
     $method->add_input_parameter(
-  name            => 'link_type',
-  pattern         => $OESS::Webservice::CIRCUIT_TYPE,
-  required        => 0,
-  description     => "The type of links that shall be included in the map."
+        name            => 'link_type',
+        pattern         => $OESS::Webservice::CIRCUIT_TYPE,
+        required        => 0,
+        description     => "The type of links that shall be included in the map."
     );
     
     #register get_maps method
@@ -135,15 +135,15 @@ sub register_webservice_methods {
     
     #get_nodes() 
     $method = GRNOC::WebService::Method->new(
-  name            => "get_nodes",
-  description     => "returns a list of nodes",
-  callback        => sub { get_nodes( @_ ) }
+        name            => "get_nodes",
+        description     => "returns a list of nodes",
+        callback        => sub { get_nodes( @_ ) }
     );
     $method->add_input_parameter(
-  name            => 'type',
-  pattern         => $OESS::Webservice::CIRCUIT_TYPE_WITH_ALL,
-  required        => 0,
-  description     => "The type of nodes that shall be included in the map."
+        name            => 'type',
+        pattern         => $OESS::Webservice::CIRCUIT_TYPE_WITH_ALL,
+        required        => 0,
+        description     => "The type of nodes that shall be included in the map."
     );
     
     #register get_nodes() method
@@ -151,10 +151,10 @@ sub register_webservice_methods {
 
     #get_node_interfaces
      $method = GRNOC::WebService::Method->new(
-   name            => "get_node_interfaces",
-   description     => "returns a list of interfaces on the given node",
-   callback        => sub { get_node_interfaces( @_ ) }
-   );
+         name            => "get_node_interfaces",
+         description     => "returns a list of interfaces on the given node",
+         callback        => sub { get_node_interfaces( @_ ) }
+         );
     
     #add the required input parameter node
     $method->add_input_parameter(
@@ -171,7 +171,7 @@ sub register_webservice_methods {
         required        => 0,
         description     => "The workgroup ID that the user is currently participating in."
         );
-  
+        
     #add the optional input parameter show_down
     $method->add_input_parameter(
         name            => 'show_down',
@@ -201,10 +201,10 @@ sub register_webservice_methods {
 
     #get_interface
     $method = GRNOC::WebService::Method->new(
-  name            => "get_interface",
-  description     => "returns the interface details",
-  callback        => sub { get_interface( @_ ) }
-  );
+        name            => "get_interface",
+        description     => "returns the interface details",
+        callback        => sub { get_interface( @_ ) }
+        );
     
     #add the required parameter interface_id
     $method->add_input_parameter(
@@ -212,17 +212,17 @@ sub register_webservice_methods {
         pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 1,
         description     => "The interface ID for which the user wants the details."
-  );
+        );
 
     #register the get_interface() method
     $svc->register_method($method);
 
     #get_workgroup_interfaces
     $method = GRNOC::WebService::Method->new(
-  name            => "get_workgroup_interfaces",
-  description     => "returns a list of interfaces in a workgroup.",
-  callback        => sub { get_workgroup_interfaces( @_ ) }
-  );
+        name            => "get_workgroup_interfaces",
+        description     => "returns a list of interfaces in a workgroup.",
+        callback        => sub { get_workgroup_interfaces( @_ ) }
+        );
     
     #add the required parameter workgroup_id
     $method->add_input_parameter(
@@ -237,17 +237,17 @@ sub register_webservice_methods {
 
     #get_shortest_path
     $method = GRNOC::WebService::Method->new(
-  name            => "get_shortest_path",
-  description     => "returns the shortest contiguous path between the given nodes",
-  callback        => sub { get_shortest_path( @_ ) }
-  );
+        name            => "get_shortest_path",
+        description     => "returns the shortest contiguous path between the given nodes",
+        callback        => sub { get_shortest_path( @_ ) }
+        );
     
     #add the required input parameter node
     $method->add_input_parameter(
         name            => 'node',
         pattern         => $GRNOC::WebService::Regex::TEXT,
         required        => 1,
-  multiple        => 1,
+        multiple        => 1,
         description     => "An array of node names to connect together with the shortest path."
         );
 
@@ -266,7 +266,7 @@ sub register_webservice_methods {
         name            => 'link',
         pattern         => $GRNOC::WebService::Regex::TEXT,
         required        => 0,
-  multiple        => 1,
+        multiple        => 1,
         description     => "A list of links to avoid when doing the shortest path calculation"
         );
     
@@ -275,10 +275,10 @@ sub register_webservice_methods {
     
     #get_existing_circuits
     $method = GRNOC::WebService::Method->new(
-  name            => "get_existing_circuits",
-  description     => "returns a list of circuits for the given workgroup",
-  callback        => sub { get_existing_circuits( @_ ) }
-  );
+        name            => "get_existing_circuits",
+        description     => "returns a list of circuits for the given workgroup",
+        callback        => sub { get_existing_circuits( @_ ) }
+        );
 
     #add the required input paramter workgroup_id
     $method->add_input_parameter(
@@ -293,7 +293,7 @@ sub register_webservice_methods {
         name            => 'path_node_id',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 0,
-  multiple        => 1,
+        multiple        => 1,
         description     => "Filters the results for circuits that traverse the node of the node_id given"
         );
 
@@ -302,7 +302,7 @@ sub register_webservice_methods {
         name            => 'endpoint_node_id',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 0,
-  multiple        => 1,
+        multiple        => 1,
         description     => "Filters the results to circuits that terminate on the specified node_id"
         );
 
@@ -311,10 +311,10 @@ sub register_webservice_methods {
     
     #get_circuits_by_interface_id
     $method = GRNOC::WebService::Method->new(
-  name            => "get_circuits_by_interface_id",
-  description     => "returns a list of circuits on an interface",
-  callback        => sub { get_circuits_by_interface_id( @_ ) }
-  );
+        name            => "get_circuits_by_interface_id",
+        description     => "returns a list of circuits on an interface",
+        callback        => sub { get_circuits_by_interface_id( @_ ) }
+        );
 
     #add the required input parameter interface_id
     $method->add_input_parameter(
@@ -329,10 +329,10 @@ sub register_webservice_methods {
 
     #get_circuit_details
     $method = GRNOC::WebService::Method->new(
-  name            => "get_circuit_details",
-  description     => "returns all of the details for a given circuit",
-  callback        => sub { get_circuit_details ( @_ ) }
-  );
+        name            => "get_circuit_details",
+        description     => "returns all of the details for a given circuit",
+        callback        => sub { get_circuit_details ( @_ ) }
+        );
     
     #add the required input parameter circuit_id
     $method->add_input_parameter(
@@ -349,8 +349,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
         name            => "get_vrf_details",
         description     => "returns all of the details for a given vrf",
-  callback        => sub { get_vrf_details ( @_ ) }
-  );
+        callback        => sub { get_vrf_details ( @_ ) }
+        );
 
     #add the required input parameter circuit_id
     $method->add_input_parameter(
@@ -366,10 +366,10 @@ sub register_webservice_methods {
 
     #get_circuit_details_by_external_identifier
     $method = GRNOC::WebService::Method->new(
-  name            => "get_circuit_details_by_external_identifier",
-  description     => "finds the circuit based on some external id",
-  callback        => sub { get_circuit_details_by_external_identifier( @_ ) }
-  );
+        name            => "get_circuit_details_by_external_identifier",
+        description     => "finds the circuit based on some external id",
+        callback        => sub { get_circuit_details_by_external_identifier( @_ ) }
+        );
 
     #add the required input parameter external_identifier
     $method->add_input_parameter(
@@ -385,10 +385,10 @@ sub register_webservice_methods {
     
     #get_circuit_scheduled_events
     $method = GRNOC::WebService::Method->new(
-  name            => "get_circuit_scheduled_events",
-  description     => "returns a list of scheduled circuit events.",
-  callback        => sub { get_circuit_scheduled_events( @_ ) }
-  );
+        name            => "get_circuit_scheduled_events",
+        description     => "returns a list of scheduled circuit events.",
+        callback        => sub { get_circuit_scheduled_events( @_ ) }
+        );
 
     #add the required input parameter circuit_id
     $method->add_input_parameter(
@@ -403,10 +403,10 @@ sub register_webservice_methods {
 
     #get_circuit_history
     $method = GRNOC::WebService::Method->new(
-  name            => "get_circuit_history",
-  description     => "returns a list of network events that have affected this circuit",
-  callback        => sub { get_circuit_history( @_ ) }
-  );
+        name            => "get_circuit_history",
+        description     => "returns a list of network events that have affected this circuit",
+        callback        => sub { get_circuit_history( @_ ) }
+        );
 
     #add the required input parameter circuit_id
     $method->add_input_parameter(
@@ -421,10 +421,10 @@ sub register_webservice_methods {
 
     #is_vlan_tag_available
     $method = GRNOC::WebService::Method->new(
-  name            => "is_vlan_tag_available",
-  description     => "returns the availability of the vlan tag for a given node and interface",
-  callback        => sub { is_vlan_tag_available ( @_ ) }
-  );
+        name            => "is_vlan_tag_available",
+        description     => "returns the availability of the vlan tag for a given node and interface",
+        callback        => sub { is_vlan_tag_available ( @_ ) }
+        );
 
     #add the required input paramter interface
     $method->add_input_parameter(
@@ -472,10 +472,10 @@ sub register_webservice_methods {
 
     #get_workgroup_members
     $method = GRNOC::WebService::Method->new(
-  name            => "get_workgroup_members",
-  description     => "descr",
-  callback        => sub { get_users_in_workgroup( @_ ) }
-  );
+        name            => "get_workgroup_members",
+        description     => "descr",
+        callback        => sub { get_users_in_workgroup( @_ ) }
+        );
 
     #add the required input parameter workgroup_id
     $method->add_input_parameter(
@@ -498,10 +498,10 @@ sub register_webservice_methods {
 
     #generate_clr
     $method = GRNOC::WebService::Method->new(
-  name            => "generate_clr",
-  description     => "generates a human readable Circuit Layout Record describing the given circuit.",
-  callback        => sub { generate_clr ( @_ ) }
-  );
+        name            => "generate_clr",
+        description     => "generates a human readable Circuit Layout Record describing the given circuit.",
+        callback        => sub { generate_clr ( @_ ) }
+        );
 
     #add the required input parameter circuit_id
     $method->add_input_parameter(
@@ -524,15 +524,15 @@ sub register_webservice_methods {
 
     #get_all_node_status
     $method = GRNOC::WebService::Method->new(
-  name            => "get_all_node_status",
-  description     => "returns a list of all active nodes and their operational status.",
-  callback        => sub { get_all_node_status( @_ ) }
+        name            => "get_all_node_status",
+        description     => "returns a list of all active nodes and their operational status.",
+        callback        => sub { get_all_node_status( @_ ) }
     );
     $method->add_input_parameter(
-  name            => 'type',
-  pattern         => $OESS::Webservice::CIRCUIT_TYPE_WITH_ALL,
-  required        => 0,
-  description     => "The type of nodes that shall be included in the map."
+        name            => 'type',
+        pattern         => $OESS::Webservice::CIRCUIT_TYPE_WITH_ALL,
+        required        => 0,
+        description     => "The type of nodes that shall be included in the map."
     );
 
     #register the get_all_node_status() method
@@ -545,10 +545,10 @@ sub register_webservice_methods {
         callback        => sub { get_all_link_status( @_ ) }
         );
     $method->add_input_parameter(
-  name            => 'type',
-  pattern         => $OESS::Webservice::CIRCUIT_TYPE_WITH_ALL,
-  required        => 0,
-  description     => "The type of links that shall be included."
+        name            => 'type',
+        pattern         => $OESS::Webservice::CIRCUIT_TYPE_WITH_ALL,
+        required        => 0,
+        description     => "The type of links that shall be included."
     );
 
     #register the get_all_link_status() method
@@ -556,10 +556,10 @@ sub register_webservice_methods {
 
     #get_all_resources_for_workgroup
     $method = GRNOC::WebService::Method->new(
-  name            => "get_all_resources_for_workgroup",
-  description     => "returns a list of all resources (endpoints) for which the workgroup has access",
-  callback        => sub { get_all_resources( @_ ) }
-  );
+        name            => "get_all_resources_for_workgroup",
+        description     => "returns a list of all resources (endpoints) for which the workgroup has access",
+        callback        => sub { get_all_resources( @_ ) }
+        );
 
     #add the required input parameter workgroup_id
     $method->add_input_parameter(
@@ -567,17 +567,17 @@ sub register_webservice_methods {
         pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 1,
         description     => "The workgroup ID that the user wants to get the list of resources."
-  );
+        );
 
     #register the get_all_resources_for_workgroup() method
     $svc->register_method($method);
 
     #send_email
     $method = GRNOC::WebService::Method->new(
-  name            => "send_email",
-  description     => "sends an email o behalf of user from the OESS application",
-  callback        => sub { send_message ( @_ ) }
-  );
+        name            => "send_email",
+        description     => "sends an email o behalf of user from the OESS application",
+        callback        => sub { send_message ( @_ ) }
+        );
 
     #add the required input parameter subject
     $method->add_input_parameter(
@@ -585,7 +585,7 @@ sub register_webservice_methods {
         pattern         => $GRNOC::WebService::Regex::TEXT,
         required        => 1,
         description     => "The subject of the email."
-  );
+        );
     
     #add the required input parameter body
     $method->add_input_parameter(
@@ -593,17 +593,17 @@ sub register_webservice_methods {
         pattern         => $GRNOC::WebService::Regex::TEXT,
         required        => 1,
         description     => "The body of the email."
-  );
+        );
 
     #register the send_email() method
     $svc->register_method($method);
 
     #get_link_by_name
     $method = GRNOC::WebService::Method->new(
-  name            => "get_link_by_name",
-  description     => "returns a link details given the name of the link.",
-  callback        => sub {  get_link_by_name( @_ ) }
-  );
+        name            => "get_link_by_name",
+        description     => "returns a link details given the name of the link.",
+        callback        => sub {  get_link_by_name( @_ ) }
+        );
 
     #add the required input parameter name
     $method->add_input_parameter(
@@ -611,17 +611,17 @@ sub register_webservice_methods {
         pattern         => $GRNOC::WebService::Regex::TEXT,
         required        => 1,
         description     => "The name of the link."
-  );
+        );
 
     #register the get_link_by_name() method
     $svc->register_method($method);
 
     #is_within_mac_limit
     $method = GRNOC::WebService::Method->new(
-  name            => "is_within_mac_limit",
-  description     => "Returns if a new mac address can be added on node’s interface",
-  callback        => sub { is_within_mac_limit( @_ ) }
-  );
+        name            => "is_within_mac_limit",
+        description     => "Returns if a new mac address can be added on node’s interface",
+        callback        => sub { is_within_mac_limit( @_ ) }
+        );
 
     #add the required input paramter workgroup_id
     $method->add_input_parameter(
@@ -629,16 +629,16 @@ sub register_webservice_methods {
         pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 1,
         description     => "The ID of the workgroup for which the mac limit check is requested for."
-  );
+        );
 
     #add the required input parameter mac_address
     $method->add_input_parameter(
         name            => 'mac_address',
         pattern         => $GRNOC::WebService::Regex::MAC_ADDRESS,
         required        => 1,
-  multiple        => 1,
+        multiple        => 1,
         description     => "List of mac addresses that may need to added."
-  );
+        );
 
     #add the required input paramter node
     $method->add_input_parameter(
@@ -646,7 +646,7 @@ sub register_webservice_methods {
         pattern         => $GRNOC::WebService::Regex::TEXT,
         required        => 1,
         description     => "Name of the node for which the mac address limit check is requested for."
-  );
+        );
     
     #add the required input parameter interface
     $method->add_input_parameter(
@@ -654,17 +654,17 @@ sub register_webservice_methods {
         pattern         => $GRNOC::WebService::Regex::TEXT,
         required        => 1,
         description     => "Interface on the node for which the mac address limit check is requested for."
-  );
+        );
 
     #register the is_within_mac_limit() method
     $svc->register_method($method);
 
     #is_within_circuit_endpoint_limit
     $method = GRNOC::WebService::Method->new(
-  name            => "is_within_circuit_endpoint_limit",
-  description     => "Checks that number of circuits in a workgroup on an endpoint are within the specified limit",
-  callback        => sub { is_within_circuit_endpoint_limit( @_ ) }
-   );
+        name            => "is_within_circuit_endpoint_limit",
+        description     => "Checks that number of circuits in a workgroup on an endpoint are within the specified limit",
+        callback        => sub { is_within_circuit_endpoint_limit( @_ ) }
+         );
 
     #add the required input parameter workgroup_id
     $method->add_input_parameter(
@@ -672,7 +672,7 @@ sub register_webservice_methods {
         pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 1,
         description     => "The ID of the workgroup for which the circuit limit check is requested for.."
-  );
+        );
 
     #add the required input parameter endpoint_num
     $method->add_input_parameter(
@@ -680,7 +680,7 @@ sub register_webservice_methods {
         pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 1,
         description     => "The number for which the endpoints allowed on the circuit is checked for."
-  );
+        );
 
     #register the is_within_circuit_endpoint_limit() method
     $svc->register_method($method);
@@ -690,7 +690,7 @@ sub register_webservice_methods {
         name            => "is_within_circuit_limit",
         description     => "Checks that number of circuits in a workgroup  are within the specified limit",
         callback        => sub { is_within_circuit_limit( @_ ) }
-  );
+        );
 
     #add the required input parameter workgroup_id
     $method->add_input_parameter(
@@ -708,7 +708,7 @@ sub register_webservice_methods {
         name            => "get_vlan_tag_range",
         description     => "returns a vlan tag range for a node on an interface in a workgroup",
         callback        => sub { get_vlan_tag_range( @_ ) }
-  );
+        );
 
     #add the required input parameter workgroup_id
     $method->add_input_parameter(
@@ -738,13 +738,12 @@ sub register_webservice_methods {
     $svc->register_method($method);
 
     $method = GRNOC::WebService::Method->new(
-        name    => "get_users",
-        description => "returns all the users in the database",
-        callback  => sub { get_users( @_ ) }
+        name                 => "get_users",
+        description        => "returns all the users in the database",
+        callback        => sub { get_users( @_ ) }
     );
     $svc->register_method($method);
 
-    # get_maps_short()
     $method = GRNOC::WebService::Method->new(
     name            => "get_maps_short",
     description     => "returns a JSON object representing the network layout",
@@ -772,14 +771,14 @@ sub get_workgroups {
     my $workgroups = $db->get_workgroups_by_auth_name( auth_name => $username );
 
     if ( !defined $workgroups ) {
-  $method->set_error($db->get_error());
-  return;
+        $method->set_error($db->get_error());
+        return;
     }
     else {
 
-  foreach my $workgroup (@$workgroups) {
-      $workgroup->{username} = $username;
-  }
+        foreach my $workgroup (@$workgroups) {
+            $workgroup->{username} = $username;
+        }
         $results->{'results'} = $workgroups;
     }
 
@@ -796,8 +795,8 @@ sub get_circuits_by_interface_id {
     my $circuits = $db->get_circuits_by_interface_id( interface_id => $interface_id );
     
     if ( !defined $circuits ) {
-  $method->set_error( $db->get_error() ) ;
-  return;
+        $method->set_error( $db->get_error() ) ;
+        return;
     }
     else {
         $results->{'results'} = $circuits;
@@ -816,8 +815,8 @@ sub get_interface {
     my $interface = $db->get_interface( interface_id => $interface_id );
 
     if ( !defined $interface ) {
-  $method->set_error( $db->get_error() );
-  return;
+        $method->set_error( $db->get_error() );
+        return;
     }
     else {
         $results->{'results'} = $interface;
@@ -834,15 +833,15 @@ sub get_workgroup_interfaces {
     my $workgroup_id = $args->{'workgroup_id'}{'value'};
     my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
     if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
-  $method->set_error('Error: you are not part of this workgroup');
-  return;
+        $method->set_error('Error: you are not part of this workgroup');
+        return;
     }
 
     my $acls = $db->get_workgroup_interfaces( workgroup_id => $workgroup_id );
 
     if ( !defined $acls ) {
-  $method->set_error( $db->get_error() );
-  return;
+        $method->set_error( $db->get_error() );
+        return;
     }
     else {
         $results->{'results'} = $acls;
@@ -865,8 +864,8 @@ sub is_vlan_tag_available {
         interface => $interface
     );
     if (!defined $interface_id) {
-  $method->set_error( "Unable to find interface '$interface' on endpoint '$node'" );
-  return;
+        $method->set_error( "Unable to find interface '$interface' on endpoint '$node'" );
+        return;
     }
 
     my $is_vlan_tag_accessible = $db->_validate_endpoint(
@@ -931,8 +930,8 @@ sub get_link_by_name {
     my $link = $db->get_link_by_name( name => $name );
     
     if ( !defined $link ) {
-  $method->set_error( $db->get_error() );
-  return;
+        $method->set_error( $db->get_error() );
+        return;
     }
     else {
         $results->{'results'} = $link;
@@ -951,8 +950,8 @@ sub get_circuit_scheduled_events {
     my $events = $db->get_circuit_scheduled_events( circuit_id => $circuit_id );
 
     if ( !defined $events ) {
-  $method->set_error( $db->get_error() );
-  return;
+        $method->set_error( $db->get_error() );
+        return;
     }
     else {
         $results->{'results'} = $events;
@@ -971,8 +970,8 @@ sub get_circuit_history {
     my $events = $db->get_circuit_history( circuit_id => $circuit_id );
 
     if ( !defined $events ) {
-  $method->set_error( $db->get_error() );
-  return;
+        $method->set_error( $db->get_error() );
+        return;
     }
     else {
         $results->{'results'} = $events;
@@ -1010,8 +1009,8 @@ sub get_circuit_details {
     my $details = $ckt->get_details();
 
     if ( !defined $details ) {
-  $method->set_error( $db->get_error() );
-  return;
+        $method->set_error( $db->get_error() );
+        return;
     }
     else {
         $results->{'results'} = $details;
@@ -1031,7 +1030,7 @@ sub get_circuit_details_by_external_identifier {
         external_identifier => $external_id );
 
     if ( !defined $info ) {
-  $method->set_error( $db->get_error() );
+        $method->set_error( $db->get_error() );
         return;
     }
 
@@ -1039,8 +1038,8 @@ sub get_circuit_details_by_external_identifier {
     my $details = $ckt->get_details();
 
     if ( !defined $details ) {
-  $method->set_error( $db->get_error() );
-  return;
+        $method->set_error( $db->get_error() );
+        return;
     }
     else {
         $results->{'results'} = $details;
@@ -1062,15 +1061,15 @@ sub get_existing_circuits {
     my $is_admin = $db->get_user_admin_status( 'username' => $username )->[0];
     if ( !$workgroup_id ) {
         if(!$is_admin) {
-      $method->set_error( "Error: no workgroup_id specified" );
-      return;
-  }
+            $method->set_error( "Error: no workgroup_id specified" );
+            return;
+        }
     }else {
         my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
         if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
             $method->set_error( 'Error: you are not part of this workgroup' );
-      return;
-  }
+            return;
+        }
     }
 
     my %link_status;
@@ -1090,7 +1089,7 @@ sub get_existing_circuits {
         endpoint_nodes => @endpoint_nodes,
         path_nodes     => @path_nodes,
         link_status    => \%link_status,
-  type           => 'all'
+        type           => 'all'
     );
 
     
@@ -1101,8 +1100,8 @@ sub get_existing_circuits {
     }
     
     if ( !defined $circuits ) {
-  $method->set_error( $db->get_error() );
-  return;
+        $method->set_error( $db->get_error() );
+        return;
     }
     else {
         $results->{'results'} = \@res;
@@ -1125,12 +1124,12 @@ sub get_shortest_path {
     my $sp_links = $topo->find_path(
         nodes      => @nodes,
         used_links => @links_to_avoid,
-  type => $type
+        type => $type
     );
 
     if ( !defined $sp_links ) {
-  $method->set_error( "No path found" );
-  return;
+        $method->set_error( "No path found" );
+        return;
     }
 
     foreach my $link (@$sp_links) {
@@ -1149,8 +1148,8 @@ sub get_nodes {
     my $nodes = $db->get_current_nodes(type => $type);
 
     if ( !defined($nodes) ) {
-  $method->set_error( $db->get_error() );
-  return;
+        $method->set_error( $db->get_error() );
+        return;
     }
     return ( { results => $nodes } );
 
@@ -1177,8 +1176,8 @@ sub get_node_interfaces {
 
     # something went wrong
     if ( !defined $interfaces ) {
-  $method->set_error( $db->get_error() );
-  return;
+        $method->set_error( $db->get_error() );
+        return;
     } else {
         $results->{'results'} = $interfaces;
     }
@@ -1198,14 +1197,14 @@ sub get_maps {
 
     my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
     if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
-  $method->set_error( 'Error: you are not part of this workgroup' );
-  return;
+        $method->set_error( 'Error: you are not part of this workgroup' );
+        return;
     }
 
     my $layers = $db->get_map_layers(workgroup_id => $workgroup_id, link_type => $link_type);
     if (!defined $layers) {
-  $method->set_error( $db->get_error() );
-  return;
+        $method->set_error( $db->get_error() );
+        return;
     } else {
         $results->{'results'} = $layers;
     }
@@ -1349,15 +1348,15 @@ sub get_users_in_workgroup {
     my $order_by     = $args->{'order_by'}{'value'};
     my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
     if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
-  $method->set_error( 'Error: you are not part of this workgroup' );
-  return;
+        $method->set_error( 'Error: you are not part of this workgroup' );
+        return;
     }
 
     my $users = $db->get_users_in_workgroup( workgroup_id => $workgroup_id, order_by => $order_by );
 
     if ( !defined $users ) {
-  $method->set_error( $db->get_error() );
-  return;
+        $method->set_error( $db->get_error() );
+        return;
     }
     else {
         $results->{'results'} = $users;
@@ -1374,7 +1373,7 @@ sub generate_clr {
     my $circuit_id = $args->{'circuit_id'}{'value'};
 
     if ( !defined($circuit_id) ) {
-  $method->set_error( "No Circuit ID Specified" );
+        $method->set_error( "No Circuit ID Specified" );
     }
 
     my $ckt = OESS::Circuit->new( circuit_id => $circuit_id, db => $db);
@@ -1387,11 +1386,11 @@ sub generate_clr {
     }
     
     if ( !defined($circuit_clr) ) {
-  $method->set_error( $db->get_error() );
-  return;
+        $method->set_error( $db->get_error() );
+        return;
     }
     else {
-  $results->{'results'} = { clr => $circuit_clr };
+        $results->{'results'} = { clr => $circuit_clr };
     }
 
     return $results;
@@ -1431,8 +1430,8 @@ sub get_all_resources {
 
     my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
     if(!$is_admin && !$db->is_user_in_workgroup(user_id => $user_id, workgroup_id => $workgroup_id)){
-  $method->set_error( 'Error: you are not part of this workgroup' );
-  return;
+        $method->set_error( 'Error: you are not part of this workgroup' );
+        return;
     }
 
     $results->{'results'} = $db->get_available_resources( workgroup_id => $workgroup_id );
@@ -1445,8 +1444,8 @@ sub is_within_circuit_limit {
     my $workgroup_id   = $args->{'workgroup_id'}{'value'};
     
     if(!$workgroup_id){
-  $method->set_error( "Must send workgroup_id" );
-  return;
+        $method->set_error( "Must send workgroup_id" );
+        return;
     }
     my $return = $db->is_within_circuit_limit(
         workgroup_id => $workgroup_id
@@ -1468,8 +1467,8 @@ sub is_within_circuit_endpoint_limit {
     my $endpoint_num   = $args->{'endpoint_num'}{'value'};
 
     if(!defined($workgroup_id) || !defined($endpoint_num)){
-  $method->set_error("Must send workgroup_id and endpoint_num" );
-  return;
+        $method->set_error("Must send workgroup_id and endpoint_num" );
+        return;
     }
     my $return = $db->is_within_circuit_endpoint_limit(
         workgroup_id => $workgroup_id,
@@ -1493,8 +1492,8 @@ sub is_within_mac_limit {
     my $workgroup_id   = $args->{'workgroup_id'}{'value'};
 
     if(!@mac_addresses || !$interface || !$node || !$workgroup_id){
-  $method->set_error( "Must send mac_address, interface, node, and workgroup_id" );
-  return;
+        $method->set_error( "Must send mac_address, interface, node, and workgroup_id" );
+        return;
     }
 
     my $return = $db->is_within_mac_limit(
