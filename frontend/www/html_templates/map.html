@@ -1,51 +1,11 @@
-<html>
-<head>
-  
-  <title>Quick Start - Leaflet</title>
+<div>
+  <link rel="stylesheet" type="text/css" href="https://pmorpari-dev.grnoc.iu.edu/atlas3_dev/css/atlas3_leafletmap.css">
+  <script src = 'https://pmorpari-dev.grnoc.iu.edu/atlas3_dev/js/atlas3_leafletmap.js' crossorigin=""></script>
 
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <link rel="shortcut icon" type="image/x-icon" href="docs/images/favicon.ico" />
+  <div style="height: 400px; width: 800px;" id="map"></div>
+  <script>
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.4.0/dist/leaflet.css" integrity="sha512-puBpdR0798OZvTTbP4A8Ix/l+A4dHDD0DGqYW6RQ+9jxkRFclaxxQb/SJAWZfWAkuyeQUytO7+7N4QKrDh+drA==" crossorigin=""/>
-    <script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js" integrity="sha512-QVftwZFqvtRNi0ZyCtsznlKSWOStnDORoefr1enyq5mVL4tmKB3S/EnC3rRJcxCPavG10IcrVGSmPh6Qw5lwrg==" crossorigin=""></script>
+    [% INCLUDE js_templates/map_new.js %]
+  </script>
+</div>
 
-
-  
-</head>
-<body>
-
-
-
-<div id="mapid" style="width: 600px; height: 400px;"></div>
-<script>
-
-//[% INCLUDE js_templates/map_new.js %]
-[% INCLUDE js_templates/atlas3.js %]
- LeafletMap({            
-      containerId: "map",
-      zoom: 3,
-      lat: 37,
-      lng: -97,
-      bing_api_key: "AplW162gFohrU9tZYti5XUCVeCG0ljiq5KgvLQREoqNBCl872zhHUs8PoVZ2j6Fw",
-      map_tile_url: "https://api.tiles.mapbox.com/v4/mapbox.light/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiYXJhZ3VzYSIsImEiOiJjajNvamMxdjAwMDZ0MzJudTF3MnU2Z3JnIn0.pcs4pCcxoV2HMSjw3XXrRQ",
-      "networkLayers": [{
-      "name": "I2 AL2S",
-      "lineWidth": 4,
-      "mapSource": "../networks/al2s.json",
-      "lineColor": "#36278C",
-      "map2dataSource": {
-      "type": "atlasUsage",
-      "source": "../data/al2s_complete.xml"
-      }
-      }]
-      });
-    
-
-</script>
-
-<div style="height: 400px; width: 800px; position: relative;" id="map" class="leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom" tabindex="0">
-
-</body>
-</html>
