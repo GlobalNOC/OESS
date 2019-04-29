@@ -640,8 +640,8 @@ The internal MySQL primary key int identifier for this circuit.
 #     my $new_active_path_id = $self->circuit_has_alternate_path(circuit_id => $circuit_id );
 
 #     if(!$new_active_path_id){
-#         $self->_set_error("Circuit $circuit_id has no alternate path, refusing to try to switch to alternate.");
-#         return;
+#       $self->_set_error("Circuit $circuit_id has no alternate path, refusing to try to switch to alternate.");
+#       return;
 #     }
 
 #     $self->_start_transaction();
@@ -649,16 +649,16 @@ The internal MySQL primary key int identifier for this circuit.
 
 #     # grab the path_id of the one we're switching away from
 #     $query = "select path_instantiation.path_id, path_instantiation.path_instantiation_id from path " .
-#              " join path_instantiation on path.path_id = path_instantiation.path_id " .
-#              " where path_instantiation.path_state = 'active' and path_instantiation.end_epoch = -1 " .
-#              " and path.circuit_id = ?";
+#            " join path_instantiation on path.path_id = path_instantiation.path_id " .
+#            " where path_instantiation.path_state = 'active' and path_instantiation.end_epoch = -1 " .
+#            " and path.circuit_id = ?";
 
 #     my $results = $self->_execute_query($query, [$circuit_id]);
 
 #     if (! defined $results || @$results < 1){
-#         $self->_set_error("Unable to find path_id for current path.");
-#         $self->_rollback();
-#         return;
+#       $self->_set_error("Unable to find path_id for current path.");
+#       $self->_rollback();
+#       return;
 #     }
 
 #     my $old_active_path_id   = @$results[0]->{'path_id'};
@@ -666,26 +666,26 @@ The internal MySQL primary key int identifier for this circuit.
 
 #     # decom the current path instantiation
 #     $query = "update path_instantiation set path_instantiation.end_epoch = unix_timestamp(NOW()) " .
-#              " where path_instantiation.path_id = ? and path_instantiation.end_epoch = -1";
+#            " where path_instantiation.path_id = ? and path_instantiation.end_epoch = -1";
 
 #     my $success = $self->_execute_query($query, [$old_active_path_id]);
 
 #     if (! $success ){
-#         $self->_set_error("Unable to change path_instantiation of current path to inactive.");
-#         $self->_rollback();
-#         return;
+#       $self->_set_error("Unable to change path_instantiation of current path to inactive.");
+#       $self->_rollback();
+#       return;
 #     }
 
 #     # create a new path instantiation of the old path
 #     $query = "insert into path_instantiation (path_id, start_epoch, end_epoch, path_state) " .
-#              " values (?, unix_timestamp(NOW()), -1, 'available')";
+#            " values (?, unix_timestamp(NOW()), -1, 'available')";
 
 #     my $new_available = $self->_execute_query($query, [$old_active_path_id]);
 
 #     if (! defined $new_available){
-#         $self->_set_error("Unable to create new available path based on old instantiation.");
-#         $self->_rollback();
-#         return;
+#       $self->_set_error("Unable to create new available path based on old instantiation.");
+#       $self->_rollback();
+#       return;
 #     }
 
 #     # point the internal vlan mappings from the old over to the new path instance
@@ -694,9 +694,9 @@ The internal MySQL primary key int identifier for this circuit.
 #     #$success = $self->_execute_query($query, [$new_available, $old_instantiation]);
 
 #     if (! defined $success){
-#         $self->_set_error("Unable to move internal vlan id mappings over to new path instance.");
-#         $self->_rollback();
-#         return;
+#       $self->_set_error("Unable to move internal vlan id mappings over to new path instance.");
+#       $self->_rollback();
+#       return;
 #     }
 
 #     # at this point, the old path instantiation has been decom'd by virtue of its end_epoch
@@ -708,9 +708,9 @@ The internal MySQL primary key int identifier for this circuit.
 #     $success = $self->_execute_query($query, [$new_active_path_id]);
 
 #     if (! $success){
-#         $self->_set_error("Unable to change state to active in alternate path.");
-#         $self->_rollback();
-#         return;
+#       $self->_set_error("Unable to change state to active in alternate path.");
+#       $self->_rollback();
+#       return;
 #     }
 
 #     $self->_commit();
@@ -2047,8 +2047,8 @@ sub get_workgroups {
     my $results = $self->_execute_query($sql,\@dbargs);
 
 #    if (! defined $results){
-#        $self->_set_error("Internal error while fetching workgroups");
-#        return;
+#       $self->_set_error("Internal error while fetching workgroups");
+#       return;
 #    }
 
     foreach my $workgroup (@$results){
@@ -4672,7 +4672,7 @@ sub get_circuit_links {
         " join path on path.path_id = link_path_membership.path_id and path.circuit_id = ? " .
         "  and path.path_type = ? ".
         " join interface if_a on link_inst.interface_a_id = if_a.interface_id ".
-         " join interface if_z on link_inst.interface_z_id = if_z.interface_id ".
+        " join interface if_z on link_inst.interface_z_id = if_z.interface_id ".
         " join node node_a on if_a.node_id = node_a.node_id ".
         " join node node_z on if_z.node_id = node_z.node_id ";
 
@@ -5960,7 +5960,7 @@ sub get_link_details {
     my $query = "select link_inst.openflow, link_inst.mpls, link.name, node_a.name as node_a, if_a.name as interface_a, if_a.interface_id as interface_a_id, if_a.port_number as port_no_a, node_z.name as node_z, if_z.name as interface_z, if_z.interface_id as interface_z_id, if_z.port_number as port_no_z from link " .
     " join link_instantiation link_inst on link.link_id = link_inst.link_id and link_inst.end_epoch = -1".
         " join interface if_a on link_inst.interface_a_id = if_a.interface_id ".
-         " join interface if_z on link_inst.interface_z_id = if_z.interface_id ".
+        " join interface if_z on link_inst.interface_z_id = if_z.interface_id ".
         " join node node_a on if_a.node_id = node_a.node_id ".
         " join node node_z on if_z.node_id = node_z.node_id ".
     " where link.name = ?";
@@ -9081,8 +9081,8 @@ sub _get_available_internal_vlan_id {
     my $interface_id = $args{'interface_id'};
 
     #my $query = "select internal_vlan_id from path_instantiation_vlan_ids " .
-#        " join path_instantiation on path_instantiation.path_instantiation_id = path_instantiation_vlan_ids.path_instantiation_id " .
-#        "   where path_instantiation.end_epoch = -1 and path_instantiation_vlan_ids.node_id = ?";
+#       " join path_instantiation on path_instantiation.path_instantiation_id = path_instantiation_vlan_ids.path_instantiation_id " .
+#       "   where path_instantiation.end_epoch = -1 and path_instantiation_vlan_ids.node_id = ?";
     my $query = 
         "select CASE
 WHEN link_instantiation.interface_a_id = ? 

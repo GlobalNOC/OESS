@@ -738,8 +738,8 @@ sub register_webservice_methods {
     $svc->register_method($method);
 
     $method = GRNOC::WebService::Method->new(
-        name                 => "get_users",
-        description        => "returns all the users in the database",
+        name            => "get_users",
+        description     => "returns all the users in the database",
         callback        => sub { get_users( @_ ) }
     );
     $svc->register_method($method);
@@ -759,7 +759,6 @@ sub register_webservice_methods {
     );
     #register get_maps_atlas method
     $svc->register_method($method); 
-
 }
 
 
@@ -1213,131 +1212,122 @@ sub get_maps {
 }
 
 sub get_maps_short{
-    
-    my ( $method, $args ) = @_ ;
-    my $results;
-
-    my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
-    if(!$is_admin ){
-        $method->set_error( 'Error: Not an admin' );
-        return;
-    }
-
-    my $nodes = $db->get_map_nodes();
-    if (!defined $nodes) {
+        my ( $method, $args ) = @_ ;
+        my $results;
+        my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
+        if(!$is_admin ){
+                $method->set_error( 'Error: Not an admin' );
+                return;
+            }
+        my $nodes = $db->get_map_nodes();
+        if (!defined $nodes) {
         $method->set_error( $db->get_error() );
         return;
     } else {
         $results->{'results'} = {};
         $results->{'results'}{'nodes'} = $nodes;
     }
-
-    my $links = $db->get_map_links();
-    if (!defined $links) {
+        my $links = $db->get_map_links();
+        if (!defined $links) {
         $method->set_error( $db->get_error() );
         return;
     } else {
         $results->{'results'}{'links'} = $links;
     }
-    return $results;
+        return $results;
 }
-  sub get_maps_atlas {
-
-      my ( $method, $args ) = @_ ;
-      my $results;
-
-      my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
-      if(!$is_admin ){
-          $method->set_error( 'Error: Not an admin' );
-          return;
+sub get_maps_atlas {
+        my ( $method, $args ) = @_ ;
+        my $results;
+        my $user_id = $db->get_user_id_by_auth_name(auth_name => $username);
+        if(!$is_admin ){
+                $method->set_error( 'Error: Not an admin' );
+                return;
       }
-      my $nodes_dict;
-      my $nodes = $db->get_map_nodes();
-      if (!defined $nodes) {
-          $method->set_error( $db->get_error() );
-          return;
-      } else {
-
-          $results->{'results'} = {};
-          my @pops;
-          foreach my $node (@$nodes){
-              #warn Dumper($node);
-            if ($node->{'latitude'} != 0 or %$node->{'longitude'} != 0){
-                my $pop = {
-                              "lat"       => "$node->{'latitude'}",
-                              "real_lat"  => "$node->{'latitude'}",
-                              "lon"       => "$node->{'longitude'}",
-                              "real_lon"  => "$node->{'longitude'}",
-                              "name"      => %$node->{'node_name'},
-                              "pop_id"    => "$node->{'node_id'}"
-
-                };
-              $nodes_dict->{$node->{'node_id'}} = $pop;
-              push(@pops, $pop);
-            }
-           }
-           # Remove 0,0 nodes
-           $results->{'results'}{'pops'} = \@pops;
-       }
-
-       my $links = $db->get_link_ep();
-       #warn Dumper($links);
-       if (!defined $links) {
-           $method->set_error($db->get_error());
-           return;
-       } else {
-           my @adjacencies;
-           foreach my $link (values $links){
-               my $append = {};
-               #warn Dumper(@$link[0]->{'node_name'});
-               $append->{'name'} = @$link[0]->{'node_name'} ." - ". @$link[1]->{'node_name'};
-               if (!defined @$link[0]->{'node_name'} or !defined @$link[1]->{'node_name'}){
-                   next;
+        my $nodes_dict;
+        my $nodes = $db->get_map_nodes();
+        if (!defined $nodes) {
+                $method->set_error( $db->get_error() );
+                return;
+              } else {
+        $results->{'results'} = {};
+        my @pops;
+        foreach my $node (@$nodes){
+        #warn Dumper($node);
+        if ($node->{'latitude'} != 0 or %$node->{'longitude'} != 0){
+        my $pop = {
+                "lat"       => "$node->{'latitude'}",
+                "real_lat"  => "$node->{'latitude'}",
+                "lon"       => "$node->{'longitude'}",
+                "real_lon"  => "$node->{'longitude'}",
+                "name"      => %$node->{'node_name'},
+                "pop_id"    => "$node->{'node_id'}"
+                                };
+        $nodes_dict->{$node->{'node_id'}} = $pop;
+        push(@pops, $pop);
+                    }
+                   }
+        # Remove 0,0 nodes
+        $results->{'results'}{'pops'} = \@pops;
                }
-               $append->{'circuits'} = [];
-               $append->{'path'} = [];
-               my $circuit_obj = {};
-               $circuit_obj->{'name'} = @$link[0]->{'node_name'} . " - ". @$link[1]->{'node_name'};
-               $circuit_obj->{'endpoints'} = [];
-               #warn Dumper($nodes_dict);
-               my $p1  = {
-                             "order"   => "10",
-                             "lat"     => $nodes_dict->{@$link[0]->{'node_id'}}{'lat'},
-                             "lon"     => $nodes_dict->{@$link[0]->{'node_id'}}{'lon'}
+        my $links = $db->get_link_ep();
+        #warn Dumper($links);
+        if (!defined $links) {
+        $method->set_error($db->get_error());
+        return;
+               } else {
+        my @adjacencies;
+        foreach my $link (values $links){
+                my $append = {};
+                #warn Dumper(@$link[0]->{'node_name'});
+                $append->{'name'} = @$link[0]->{'node_name'} ." - ". @$link[1]->{'node_name'};
+                if (!defined @$link[0]->{'node_name'} or !defined @$link[1]->{'node_name'}){
+                        next;
+                }
+                $append->{'circuits'} = [];
+                $append->{'path'} = [];
+                my $circuit_obj = {};
+                $circuit_obj->{'name'} = @$link[0]->{'node_name'} . " - ". @$link[1]->{'node_name'};
+                $circuit_obj->{'endpoints'} = [];
+                #warn Dumper($nodes_dict);
+                my $p1  = {
+                        "order"   => "10",
+                        "lat"     => $nodes_dict->{@$link[0]->{'node_id'}}{'lat'},
+                        "lon"     => $nodes_dict->{@$link[0]->{'node_id'}}{'lon'}
                          };
-               my $p2  = {
-                             "order"   => "20",
-                             "lat"     => $nodes_dict->{@$link[1]->{'node_id'}}{'lat'},
-                             "lon"     => $nodes_dict->{@$link[1]->{'node_id'}}{'lon'}
+                my $p2  = {
+                        "order"   => "20",
+                        "lat"     => $nodes_dict->{@$link[1]->{'node_id'}}{'lat'},
+                        "lon"     => $nodes_dict->{@$link[1]->{'node_id'}}{'lon'}
                          };
-
-               push($append->{'path'}, $p1);
-               push($append->{'path'}, $p2);
-               my $ep1 = {
-                             "interface_name"  => @$link[0]->{'name'},
-                             "node_name"       => @$link[0]->{'node_name'},
-                             "node_id"         => "@$link[0]->{'node_id'}",
-                             "interface_id"    => "@$link[0]->{'interface_id'}",
-                             "pop_code"        => @$link[0]->{'node_name'}
-                         };
+                push($append->{'path'}, $p1);
+                push($append->{'path'}, $p2);
+                my $ep1 = {
+                        "interface_name"  => @$link[0]->{'name'},
+                        "node_name"       => @$link[0]->{'node_name'},
+                        "node_id"         => "@$link[0]->{'node_id'}",
+                        "interface_id"    => "@$link[0]->{'interface_id'}",
+                        "pop_code"        => @$link[0]->{'node_name'}
+                           };
                 my $ep2 = {
-                             "interface_name"  => @$link[1]->{'name'},
-                             "node_name"       => @$link[1]->{'node_name'},
-                             "node_id"         => "@$link[1]->{'node_id'}",
-                             "interface_id"    => "@$link[1]->{'interface_id'}",
-                             "pop_code"        => @$link[1]->{'node_name'}
+                        "interface_name"  => @$link[1]->{'name'},
+                        "node_name"       => @$link[1]->{'node_name'},
+                        "node_id"         => "@$link[1]->{'node_id'}",
+                        "interface_id"    => "@$link[1]->{'interface_id'}",
+                        "pop_code"        => @$link[1]->{'node_name'}
                          };
-               push($circuit_obj->{'endpoints'}, $ep1);
-               push($circuit_obj->{'endpoints'}, $ep2);
-               push($append->{'circuits'}, $circuit_obj);
-               push(@adjacencies, $append);
+                push($circuit_obj->{'endpoints'}, $ep1);
+                push($circuit_obj->{'endpoints'}, $ep2);
+                push($append->{'circuits'}, $circuit_obj);
+                push(@ad        jacencies, $append);
            }
-           $results->{'results'}{'adjacencies'} = \@adjacencies;
+                $results->{'results'}{'adjacencies'} = \@adjacencies;
        }
-       my $retval ={};
-       $retval->{'results'} =  [$results->{'results'}];
-       return $retval;
-   }
+        my $retval ={};
+        $retval->{'results'} =  [$results->{'results'}];
+        return $retval;
+}
+
 
 sub get_users_in_workgroup {
     
