@@ -14,6 +14,7 @@
  * @property {string} [node=undefined] - Name of node
  * @property {integer} tag - VLAN number
  * @property {integer} [cloud_account_id=undefined] - Cloud account owner for cloud interconnect
+ * @property {boolean} [jumbo] - Jumbo frames enabled
  * @property {Peering[]} peerings - Peers on this endpoint
  */
 
@@ -50,6 +51,7 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
     let e = {
       bandwidth: endpoint.bandwidth,
       tag:       endpoint.tag,
+      jumbo:     (endpoint.jumbo) ? 1 : 0,
       peerings:  [],
       cloud_account_id: endpoint.cloud_account_id
     };

@@ -115,7 +115,7 @@ sub compare_and_update_vrfs{
             my $connection_id = $endpoint->{cloud_connection_id};   
 
             warn "get_vrf_gcp_details";
-            my $peering = get_vrf_grp_details(gcp_ints => $gcp_ints, cloud_connection_id => $connection_id);
+            my $peering = get_vrf_gcp_details(gcp_ints => $gcp_ints, cloud_connection_id => $connection_id);
 	    next if(!defined($peering) || $peering eq '');
             my $update = update_endpoint_values($endpoint->{'peers'}->[0], $peering);
             if($update){

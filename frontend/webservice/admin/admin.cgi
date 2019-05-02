@@ -36,6 +36,13 @@ use Log::Log4perl;
 use GRNOC::WebService;
 
 use OESS::Database;
+use OESS::DB;
+use OESS::DB::ACL;
+
+use OESS::ACL;
+use OESS::Endpoint;
+use OESS::Interface;
+
 #use Time::HiRes qw( gettimeofday tv_interval);
 
 use constant FWDCTL_WAITING     => 2;
@@ -50,6 +57,7 @@ use constant PENDING_DIFF_ERROR => 2;
 Log::Log4perl::init('/etc/oess/logging.conf');
 
 my $db = new OESS::Database();
+my $db2 = new OESS::DB();
 
 my $svc = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
 
@@ -171,6 +179,38 @@ sub register_webservice_methods {
                                   required    => 0,
                                   multiple    => 1,
                                   description => 'Circuit IDs of the circuits on original_interface.' );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new(
+        name        => 'move_interface_configuration',
+        description => "Moves an interface's entire configuration.",
+        callback    => sub { move_interface_configuration(@_) }
+    );
+    $method->add_input_parameter(
+        name        => 'orig_interface_id',
+        pattern     => $GRNOC::WebService::Regex::INTEGER,
+        required    => 1,
+        description => 'Interface ID of the original interface.'
+    );
+    $method->add_input_parameter(
+        name        => 'new_interface_id',
+        pattern     => $GRNOC::WebService::Regex::INTEGER,
+        required    => 1,
+        description => 'Interface ID of the temporary interface.'
+    );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new(
+        name        => 'update_cache',
+        description => "Rewrites a node's circuit cache file.",
+        callback    => sub { update_cache(@_) }
+    );
+    $method->add_input_parameter(
+        name        => 'node_id',
+        pattern     => $GRNOC::WebService::Regex::INTEGER,
+        required    => 0,
+        description => 'Node ID of the network device.'
+    );
     $svc->register_method($method);
 
     $method = GRNOC::WebService::Method->new( name        => 'get_pending_nodes',
@@ -1522,6 +1562,169 @@ sub move_edge_interface_circuits {
     }
 
     return $results;
+}
+
+=head2 move_interface_configuration
+
+move_interface_configuration moves any ACLs, Cloud Interconnects,
+Circuit Endpoints, VRF Endpoints and Workgroup Membership on
+C<orig_interface_id> to C<new_interface_id>. After the move
+C<orig_interface_id> will be an unowned interface without any of the
+previously mentioned configuration.
+
+move_interface_configuration replaces move_edge_interface_circuits and
+the related _interface_move_maintenance methods.
+
+=cut
+sub move_interface_configuration {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
+    my $new_interface_id = $args->{new_interface_id}{value};
+    my $orig_interface_id = $args->{orig_interface_id}{value};
+
+    $db2->start_transaction();
+
+    # ACLs
+    my $acls = OESS::DB::ACL::fetch_all(
+        db => $db2,
+        interface_id => $orig_interface_id
+    );
+    foreach my $acl (@$acls) {
+        my $obj = OESS::ACL->new(db => $db2, model => $acl);
+        $obj->{interface_id} = $new_interface_id;
+
+        my $ok = $obj->update_db();
+        if (!defined $ok) {
+            $method->set_error("Couldn't move ACLs: $err");
+            $db2->rollback();
+            return;
+        }
+    }
+
+    # Cloud Interconnects and Workgroup
+    my $orig_interface = OESS::Interface->new(
+        db => $db2,
+        interface_id => $orig_interface_id
+    );
+    my $new_interface = OESS::Interface->new(
+        db => $db2,
+        interface_id => $new_interface_id
+    );
+
+    $new_interface->{cloud_interconnect_id} = $orig_interface->{cloud_interconnect_id};
+    $new_interface->{cloud_interconnect_type} = $orig_interface->{cloud_interconnect_type};
+    $new_interface->{workgroup_id} = $orig_interface->{workgroup_id};
+    my $new_ok = $new_interface->update_db();
+    if (!defined $new_ok) {
+        $method->set_error("Couldn't update new interface: " . $db2->get_error());
+        $db2->rollback();
+        return;
+    }
+
+    $orig_interface->{cloud_interconnect_id} = undef;
+    $orig_interface->{cloud_interconnect_type} = undef;
+    $orig_interface->{workgroup_id} = undef;
+    my $orig_ok = $orig_interface->update_db();
+    if (!defined $orig_ok) {
+        $method->set_error("Couldn't update original interface: " . $db2->get_error());
+        $db2->rollback();
+        return;
+    }
+
+    # Endpoints 'n VRF Endpoints
+    my $endpoints_ok = OESS::Endpoint::move_endpoints(
+        db => $db2,
+        new_interface_id => $new_interface_id,
+        orig_interface_id => $orig_interface_id
+    );
+    if (!defined $endpoints_ok) {
+        $method->set_error("Couldn't move Endpoints: " . $db2->get_error());
+        $db2->rollback();
+        return;
+    }
+
+    $db2->commit();
+
+    use OESS::RabbitMQ::Client;
+
+    my $mq = OESS::RabbitMQ::Client->new(
+        topic    => 'MPLS.FWDCTL.RPC',
+        timeout  => 60
+    );
+    if (!defined $mq) {
+        $method->set_error("Couldn't create RabbitMQ client.");
+        return;
+    }
+
+    my $cv = AnyEvent->condvar;
+    $mq->update_cache(
+        async_callback => sub {
+            my $result = shift;
+            $cv->send($result);
+        }
+    );
+
+    my $result = $cv->recv();
+    if (!defined $result) {
+        $method->set_error("Error while calling `update_cache` via RabbitMQ.");
+        return;
+    }
+    if (defined $result->{'error'}) {
+        $method->set_error("Error while calling `update_cache`: $result->{error}");
+        return;
+    }
+
+    my $status = $result->{results}->{status};
+    return { results => [ { status => $status } ] };
+}
+
+sub update_cache {
+    my ($method, $args) = @_;
+
+    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    if (defined $err) {
+        return send_json($err);
+    }
+
+    my $node_id = $args->{node_id}{value};
+
+    use OESS::RabbitMQ::Client;
+
+    my $mq = OESS::RabbitMQ::Client->new(
+        topic    => 'MPLS.FWDCTL.RPC',
+        timeout  => 60
+    );
+    if (!defined $mq) {
+        $method->set_error("Couldn't create RabbitMQ client.");
+        return;
+    }
+
+    my $cv = AnyEvent->condvar;
+    $mq->update_cache(
+        node_id        => $node_id,
+        async_callback => sub {
+            my $result = shift;
+            $cv->send($result);
+        }
+    );
+
+    my $result = $cv->recv();
+    if (!defined $result) {
+        $method->set_error("Error while calling `update_cache` via RabbitMQ.");
+        return;
+    }
+    if (defined $result->{'error'}) {
+        $method->set_error("Error while calling `update_cache`: $result->{error}");
+        return;
+    }
+
+    my $status = $result->{results}->{status};
+    return { results => [ { status => $status } ] };
 }
 
 sub get_pending_nodes {

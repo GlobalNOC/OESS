@@ -1,6 +1,6 @@
 Summary: OESS Perl Libraries
 Name: perl-OESS
-Version: 2.0.2
+Version: 2.0.3
 Release: 1%{?dist}
 License: APL 2.0
 Group: Network
@@ -145,11 +145,14 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::ACL.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud::AWS.3pm.gz
+%doc %{_mandir}/man3/OESS::Cloud::Azure.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud::GCP.3pm.gz
 %doc %{_mandir}/man3/OESS::Config.3pm.gz
 %doc %{_mandir}/man3/OESS::DB.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::ACL.3pm.gz
+%doc %{_mandir}/man3/OESS::DB::Circuit.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::Command.3pm.gz
+%doc %{_mandir}/man3/OESS::DB::Endpoint.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::Entity.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::Interface.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::Node.3pm.gz
@@ -213,7 +216,9 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/FV.pm
 %{perl_vendorlib}/OESS/DB.pm
 %{perl_vendorlib}/OESS/DB/ACL.pm
+%{perl_vendorlib}/OESS/DB/Circuit.pm
 %{perl_vendorlib}/OESS/DB/Command.pm
+%{perl_vendorlib}/OESS/DB/Endpoint.pm
 %{perl_vendorlib}/OESS/DB/Entity.pm
 %{perl_vendorlib}/OESS/DB/Interface.pm
 %{perl_vendorlib}/OESS/DB/Node.pm
@@ -222,6 +227,7 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/DB/Workgroup.pm
 %{perl_vendorlib}/OESS/Cloud.pm
 %{perl_vendorlib}/OESS/Cloud/AWS.pm
+%{perl_vendorlib}/OESS/Cloud/Azure.pm
 %{perl_vendorlib}/OESS/Cloud/GCP.pm
 %{perl_vendorlib}/OESS/Config.pm
 %{perl_vendorlib}/OESS/Endpoint.pm

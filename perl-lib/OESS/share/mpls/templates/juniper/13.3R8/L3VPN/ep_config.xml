@@ -18,7 +18,7 @@
         <family>
           [% IF interface.has_ipv4 %]
           <inet>
-            <mtu>9000</mtu>
+            <mtu>[% interface.mtu %]</mtu>
             [% FOREACH peer IN interface.v4_peers %]
             <address>
               <name>[% peer.local_ip %]</name>
@@ -28,7 +28,7 @@
           [% END %]
           [% IF interface.has_ipv6 %]
           <inet6>
-            <mtu>9000</mtu>
+            <mtu>[% interface.mtu %]</mtu>
             [% FOREACH peer IN interface.v6_peers %]
             <address>
               <name>[% peer.local_ip %]</name>

@@ -273,6 +273,7 @@ sub _write_cache{
 	    }
 	    
             my $int_obj = { name => $ep->interface()->name,
+                            mtu  => $ep->mtu(),
                             type => $ep->interface()->cloud_interconnect_type,
                             tag => $ep->tag(),
                             unit => $ep->unit(),
@@ -431,6 +432,7 @@ sub _write_cache{
 	$data->{'ckts'} = $switches{$node}->{'ckts'};
         $data->{'vrfs'} = $switches{$node}->{'vrfs'};
 	$self->{'logger'}->info("writing shared file for node_id: " . $self->{'node_info'}->{$node}->{'id'});
+
 	my $file = $self->{'share_file'} . "." . $self->{'node_info'}->{$node}->{'id'};
 	open(my $fh, ">", $file) or $self->{'logger'}->error("Unable to open $file " . $!);
         print $fh encode_json($data);
@@ -501,6 +503,11 @@ sub _register_rpc_methods{
     
     $method->add_input_parameter( name => "circuit_id",
                                   description => "the circuit ID to update",
+                                  required => 0,
+                                  pattern => $GRNOC::WebService::Regex::INTEGER);
+
+    $method->add_input_parameter( name => "node_id",
+                                  description => "the node ID to update",
                                   required => 0,
                                   pattern => $GRNOC::WebService::Regex::INTEGER);
 
@@ -658,7 +665,7 @@ sub update_cache {
     my $error   = $m_ref->{'error_callback'};
 
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
-    
+    my $node_id =  $p_ref->{'node_id'}{'value'};
     my $vrf_id = $p_ref->{'vrf_id'}{'value'};
     
     if ((!defined($circuit_id) || $circuit_id == -1 ) && (!defined($vrf_id) || $vrf_id == -1)) {
@@ -716,6 +723,9 @@ sub update_cache {
     );
 
     foreach my $id (keys %{$self->{'children'}}){
+        if (defined $node_id && $node_id != $id) {
+            next;
+        }
         my $addr = $self->{'node_by_id'}->{$id}->{'mgmt_addr'};
         $condvar->begin();
 

@@ -18,6 +18,8 @@ use GRNOC::Config;
 use OESS::DB::VRF;
 use OESS::DB::Node;
 use OESS::DB::Interface;
+use OESS::DB::Circuit;
+use OESS::DB::Endpoint;
 
 use Data::Dumper;
 
@@ -142,8 +144,7 @@ sub execute_query{
 =cut
 sub start_transaction{
     my $self = shift;
-
-    $self->{'dbh'}->begin_work() or $self->logger->error("Error: " . $self->{'dbh'}->errstr);
+    $self->{'dbh'}->begin_work() or $self->{'logger'}->error("Error: " . $self->{'dbh'}->errstr);
 }
 
 =head2 commit
