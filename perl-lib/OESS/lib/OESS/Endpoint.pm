@@ -32,6 +32,8 @@ B<Example 1:>
         entity              => 'us-east1', # Interfaces to select from
         bandwidth           => 100,        # Acts as an interface selector and validator
         workgroup_id        => 10,         # Acts as an interface selector and validator
+        mtu                 => 9000,
+        unit                => 345,
         peerings            => [ {...} ]
     };
     my $endpoint = OESS::Endpoint->new(db => $db, type => 'vrf', model => $json);
@@ -47,6 +49,8 @@ B<Example 2:>
         interface           => 'xe-7/0/1', # Name of interface to select
         bandwidth           => 100,        # Acts as an interface validator
         workgroup_id        => 10,         # Acts as an interface validator
+        mtu                 => 9000,
+        unit                => 345,
         peerings            => [ {...} ]
     };
     my $endpoint = OESS::Endpoint->new(db => $db, type => 'vrf', model => $json);

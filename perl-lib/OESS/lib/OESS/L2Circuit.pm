@@ -23,23 +23,45 @@ OESS::L2Circuit - Circuit Interaction Module
 
 =head1 SYNOPSIS
 
-This is a module to provide a simplified object oriented way to connect to
-and interact with the OESS Circuits.
+This is a module to provide a simplified object oriented way to
+connect to and interact with the OESS Circuits.
 
 Some examples:
 
     use OESS::L2Circuit;
 
-    my $ckt = OESS::L2Circuit->new( circuit_id => 100, db => new OESS::Database());
+    my $ckt = OESS::L2Circuit->new(
+        db         => new OESS::DB,
+        circuit_id => 100
+    );
 
-    my $circuit_id = $ckt->get_id();
+    # or
 
-    if (! defined $circuit_id){
-        warn "Uh oh, something bad happened: " . $circuit->get_error();
-        exit(1);
+    $ckt = OESS::L2Circuit->new(
+        model = {
+            name => '',
+            description => ''
+            remote_url => '',
+            remote_requester => '',
+            provision_time => '',
+            remove_time => '',
+            links => [
+                # Link names
+            ],
+            tertiary_links => [
+                # Link names
+            ].
+            endpoints => [
+                # See OESS::Endpoint
+            ],
+            user_id => '',
+            workgroup_id => '',
+        }
+    );
+
+    if (!defined $ckt) {
+        warn $circuit->get_error;
     }
-
-    my $success = $circuit->change_path();
 
 =cut
 
@@ -56,72 +78,143 @@ sub new{
     my $class = ref($that) || $that;
 
     my $self = {
-        details => undef,
         circuit_id => undef,
-        db => undef,
-        logger => Log::Log4perl->get_logger("OESS.L2Circuit"),
+        db         => undef,
+        details    => undef,
+        logger     => Log::Log4perl->get_logger('OESS.L2Circuit'),
         just_display => 0,
         link_status => undef,
         @_
     };
     bless $self, $class;
 
-    if(!defined($self->{'db'})){
-        $self->{'logger'}->error("No Database Object specified");
+    if (!defined $self->{'db'}) {
+        $self->{'logger'}->debug('Optional argument `db` is missing. Cannot save object to database.');
+    }
+
+    if (defined $self->{'db'} && defined $self->{'circuit_id'}) {
+        eval {
+            $self->_load_circuit_details();
+        };
+        if ($@) {
+            $self->{logger}->error("Couldn't load L2Circuit: $@");
+            return;
+        }
+    } elsif (!defined $self->{'details'}) {
+        $self->{logger}->debug('Optional argument `model` is missing.');
+        $self->{logger}->error("Couldn't load L2Circuit from db or model.");
         return;
     }
 
-    if(!defined($self->{'circuit_id'}) && !defined($self->{'details'})){
-        $self->{'logger'}->error("No circuit id or details specified");
-        return;
-    }
-
-    if(defined($self->{'details'})){
-        $self->_process_circuit_details();
-    }else{
-        $self->_load_circuit_details();
-    }
-
-    if(!defined($self->{'details'})){
-        $self->{'logger'}->error("NO CIRCUIT FOUND!");
-        return;
-    }
+    $self->_process_circuit_details($self->{'details'});
 
     return $self;
 }
 
-=head2 get_type
-
-=cut
-sub get_type{
-    my $self = shift;
-    return $self->{'type'};
-}
-
-=head2 get_id
+=head2 circuit_id
 
 returns the id of the circuit
 
 =cut
-sub get_id{
+sub circuit_id {
     my $self = shift;
     return $self->{'circuit_id'};
 }
 
-=head2 get_name
+=head2 name
 
 =cut
-sub get_name{
+sub name{
     my $self = shift;
-    return $self->{'details'}->{'name'};
+    my $name = shift;
+    if (defined $name) {
+        $self->{'name'} = $name;
+    }
+    return $self->{'name'};
 }
 
-=head2 get_restore_to_primary
+=head2 description
 
 =cut
-sub get_restore_to_primary{
+sub description{
     my $self = shift;
-    return $self->{'details'}->{'restore_to_primary'};
+    my $description = shift;
+    if (defined $description) {
+        $self->{'description'} = $description;
+    }
+    return $self->{'description'};
+}
+
+=head2 remote_url
+
+=cut
+sub remote_url{
+    my $self = shift;
+    my $remote_url = shift;
+    if (defined $remote_url) {
+        $self->{'remote_url'} = $remote_url;
+    }
+    return $self->{'remote_url'};
+}
+
+=head2 remote_requester
+
+=cut
+sub remote_requester{
+    my $self = shift;
+    my $remote_requester = shift;
+    if (defined $remote_requester) {
+        $self->{'remote_requester'} = $remote_requester;
+    }
+    return $self->{'remote_requester'};
+}
+
+=head2 provision_time
+
+=cut
+sub provision_time{
+    my $self = shift;
+    my $provision_time = shift;
+    if (defined $provision_time) {
+        $self->{'provision_time'} = $provision_time;
+    }
+    return $self->{'provision_time'};
+}
+
+=head2 remove_time
+
+=cut
+sub remove_time{
+    my $self = shift;
+    my $remove_time = shift;
+    if (defined $remove_time) {
+        $self->{'remove_time'} = $remove_time;
+    }
+    return $self->{'remove_time'};
+}
+
+=head2 user_id
+
+=cut
+sub user_id{
+    my $self = shift;
+    my $user_id = shift;
+    if (defined $user_id) {
+        $self->{'user_id'} = $user_id;
+    }
+    return $self->{'user_id'};
+}
+
+=head2 workgroup_id
+
+=cut
+sub workgroup_id{
+    my $self = shift;
+    my $workgroup_id = shift;
+    if (defined $workgroup_id) {
+        $self->{'workgroup_id'} = $workgroup_id;
+    }
+    return $self->{'workgroup_id'};
 }
 
 =head2 update_circuit_details
@@ -132,29 +225,16 @@ sure this object is in sync with the database.
 =cut
 sub update_circuit_details{
     my $self = shift;
-    my %params = @_;
+    my $params = { @_ };
 
-    if(defined($params{'link_status'})){
-        $self->{'link_status'} = $params{'link_status'};
+    if (defined $params->{'link_status'}) {
+        $self->{'link_status'} = $params->{'link_status'};
     }
 
     $self->{'graph'} = {};
     $self->{'endpoints'} = {};
 
     $self->_load_circuit_details();
-}
-
-=head2 set_link_status
-
-=cut
-sub set_link_status{
-    my $self = shift;
-    my %params = @_;
-    if(!defined($params{'link_status'})){
-        return;
-    }else{
-        $self->{'link_status'} = $params{'link_status'};
-    }
 }
 
 sub _load_circuit_details{
@@ -170,66 +250,50 @@ sub _load_circuit_details{
     }
 
     $self->{'details'} = $data;
-    $self->_process_circuit_details();
+    $self->_process_circuit_details($self->{'details'});
 }
 
 sub _process_circuit_details{
     my $self = shift;
+    my $hash = shift;
 
-    $self->{'remote_url'} = $self->{'details'}->{'remote_url'};
-    $self->{'remote_requester'} = $self->{'details'}->{'remote_requester'};
-    $self->{'state'} = $self->{'details'}->{'state'};
-    $self->{'circuit_id'} = $self->{'details'}->{'circuit_id'};
-    $self->{'loop_node'} = $self->{'details'}->{'loop_node'};
-    $self->{'logger'}->debug("Processing circuit " . $self->{'circuit_id'});
-    $self->{'active_path'} = $self->{'details'}->{'active_path'};
-    $self->{'logger'}->debug("Active path: " . $self->get_active_path());
-    $self->{'static_mac'} = $self->{'details'}->{'static_mac'};
-    $self->{'has_primary_path'} =0;
-    $self->{'has_backup_path'} = 0;
-    $self->{'has_tertiary_path'} = 0;
-   
-    $self->{'type'} = $self->{'details'}->{'type'};
-    $self->{'interdomain'} = 0;
-    if(scalar(@{$self->{'details'}->{'links'}})> 0){
-        $self->{'has_primary_path'} = 1;
-    }
+    $self->{'remote_url'}       = $hash->{'remote_url'};
+    $self->{'remote_requester'} = $hash->{'remote_requester'};
+    $self->{'circuit_id'}       = $hash->{'circuit_id'};
+    $self->{'loop_node'}        = $hash->{'loop_node'};
+    $self->{'active_path'}      = $hash->{'active_path'};
+    $self->{'static_mac'}       = $hash->{'static_mac'};
 
-    if(scalar(@{$self->{'details'}->{'backup_links'}}) > 0){
-        $self->{'logger'}->debug("Circuit has backup path");
-	$self->{'has_backup_path'} = 1;
-    }
+    $self->{'has_primary_path'} = (@{$hash->{'links'}} > 0) ? 1 : 0;
+    $self->{'has_tertiary_path'} = (@{$hash->{'tertiary_links'}} > 0) ? 1 : 0;
 
-    $self->{'logger'}->debug("Circuit Details: " . Dumper($self->{'details'}));
+    # TODO Load primary links
 
-    if(scalar(@{$self->{'details'}->{'tertiary_links'}}) > 0){
-        $self->{'logger'}->debug("Circuit has tertiary path");
-        $self->{'has_tertiary_path'} = 1;
-    }
+    # TODO Load tertiary links
 
-    $self->{'endpoints'} = $self->{'details'}->{'endpoints'};
-
-    warn "DB CONFIG: " . $self->{'db'}->{'config_file'} . "\n";
-    my $new_db = OESS::DB->new( config => $self->{'db'}->{'config_file'});
+    $self->{'endpoints'} = $hash->{'endpoints'};
 
     foreach my $endpoint (@{$self->{'endpoints'}}){
-        if($endpoint->{'local'} == 0){
+        if ($endpoint->{'local'} == 0) {
             $self->{'interdomain'} = 1;
         }
-        my $entity = OESS::Entity->new( db => $new_db, interface_id => $endpoint->{'interface_id'}, vlan => $endpoint->{'tag'} );
-        if(!defined($entity)){
+
+        my $entity = OESS::Entity->new(
+            db => $self->{'db'},
+            interface_id => $endpoint->{'interface_id'},
+            vlan => $endpoint->{'tag'}
+        );
+        if (!defined $entity) {
             next;
         }
 
         $endpoint->{'entity'} = $entity->to_hash();
     }
 
-    if(!$self->{'just_display'}){
+    if (!$self->{'just_display'}) {
         $self->_create_graph();
     }
 }
-
-
 
 sub _create_graph{
     my $self = shift;
@@ -248,40 +312,20 @@ sub _create_graph{
 
     $self->{'graph'}->{'primary'} = $p;
 
-    if($self->has_backup_path()){
-	
-	$self->{'logger'}->debug("Creating a Graph for the backup path for the circuit " . $self->{'circuit_id'});
+    if ($self->has_backup_path()) {
+        $self->{'logger'}->debug("Creating a Graph for the backup path for the circuit " . $self->{'circuit_id'});
 
-	@links = @{$self->{'details'}->{'backup_links'}};
-	my $b = Graph::Undirected->new;
-	
-	foreach my $link (@links){
-	    $b->add_vertex($link->{'node_z'});
-	    $b->add_vertex($link->{'node_a'});
-	    $b->add_edge($link->{'node_a'},$link->{'node_z'});
-	}
-	
-	$self->{'graph'}->{'backup'} = $b;
-    }
+        @links = @{$self->{'details'}->{'backup_links'}};
+        my $b = Graph::Undirected->new;
 
-}
-
-=head2 on_node( $node_id )
-
-Returns 1 if $node_id is part of a path in this circuit or 0 if it's not.
-
-=cut
-sub on_node {
-    my $self    = shift;
-    my $node_id = shift;
-
-    foreach my $point (@{$self->{'endpoints'}}) {
-        if ("$node_id" eq $point->{'node_id'}) {
-            return 1;
+        foreach my $link (@links){
+            $b->add_vertex($link->{'node_z'});
+            $b->add_vertex($link->{'node_a'});
+            $b->add_edge($link->{'node_a'},$link->{'node_z'});
         }
-    }
 
-    return 0;
+        $self->{'graph'}->{'backup'} = $b;
+    }
 }
 
 =head2 get_details
@@ -289,6 +333,9 @@ sub on_node {
 =cut
 sub get_details{
     my $self = shift;
+
+    # TODO Create a to_hash method
+
     return $self->{'details'};
 }
 
@@ -301,9 +348,9 @@ sub generate_clr{
     my $self = shift;
 
     my $clr = "";
-    $clr .= "Circuit: " . $self->{'details'}->{'name'} . "\n";
-    $clr .= "Created by: " . $self->{'details'}->{'created_by'}->{'given_names'} . " " . $self->{'details'}->{'created_by'}->{'family_name'} . " at " . $self->{'details'}->{'created_on'} . " for workgroup " . $self->{'details'}->{'workgroup'}->{'name'} . "\n";
-    $clr .= "Last Modified By: " . $self->{'details'}->{'last_modified_by'}->{'given_names'} . " " . $self->{'details'}->{'last_modified_by'}->{'family_name'} . " at " . $self->{'details'}->{'last_edited'} . "\n\n";
+    $clr .= "Circuit: $self->{'details'}->{'name'}\n";
+    $clr .= "Created by: $self->{'details'}->{'created_by'}->{'given_names'} $self->{'details'}->{'created_by'}->{'family_name'} at $self->{'details'}->{'created_on'} for workgroup $self->{'details'}->{'workgroup'}->{'name'}\n";
+    $clr .= "Last Modified By: $self->{'details'}->{'last_modified_by'}->{'given_names'} $self->{'details'}->{'last_modified_by'}->{'family_name'} at $self->{'details'}->{'last_edited'}\n\n";
     $clr .= "Endpoints: \n";
 
     my $active = $self->get_active_path();
@@ -313,43 +360,23 @@ sub generate_clr{
     $clr .= "\nActive Path:\n";
     $clr .= $active . "\n";
 
-    if($#{$self->get_path( path => 'primary')} > -1){
+    if ($#{$self->get_path( path => 'primary')} > -1){
         $clr .= "\nPrimary Path:\n";
         foreach my $path (@{$self->get_path( path => 'primary' )}){
-            $clr .= "  " . $path->{'name'} . "\n";
+            $clr .= "  $path->{'name'}\n";
         }
     }
 
-    if($#{$self->get_path( path => 'backup')} > -1){
-        $clr .= "\nBackup Path:\n";
-        foreach my $path (@{$self->get_path( path => 'backup' )}){
-            $clr .= "  " . $path->{'name'} . "\n";
-        }
-    }
-
-    if($self->{'type'} eq 'mpls'){
-        # In mpls land the tertiary path is the auto-selected
-        # path. Displaying 'Default' to users for less confusion.
-        if($#{$self->get_path( path => 'tertiary')} > -1){
-            $clr .= "\nDefault Path:\n";
-            foreach my $path (@{$self->get_path( path => 'tertiary' )}){
-                $clr .= "  " . $path->{'name'} . "\n";
-            }
+    # In mpls land the tertiary path is the auto-selected
+    # path. Displaying 'Default' to users for less confusion.
+    if ($#{$self->get_path( path => 'tertiary')} > -1){
+        $clr .= "\nDefault Path:\n";
+        foreach my $path (@{$self->get_path( path => 'tertiary' )}){
+            $clr .= "  $path->{'name'}\n";
         }
     }
 
     return $clr;
-}
-
-=head2 generate_clr_raw
-
-=cut
-
-sub generate_clr_raw{
-    my $self = shift;
-
-    my $str = "";
-    return $str;
 }
 
 =head2 get_endpoints
@@ -366,14 +393,6 @@ sub get_endpoints{
 sub has_primary_path{
     my $self = shift;
     return $self->{'has_primary_path'};
-}
-
-=head2 has_backup_path
-
-=cut
-sub has_backup_path{
-    my $self = shift;
-    return $self->{'has_backup_path'};
 }
 
 =head2 has_tertiary_path
@@ -394,18 +413,14 @@ sub get_path{
 
     my $path = $params{'path'};
 
-    if(!defined($path)){
-        $self->{'logger'}->error("Path was not defined");
+    if (!defined $path) {
+        $self->{'logger'}->error("Path was not defined.");
         return;
     }
 
-    $self->{'logger'}->trace("Returning links for path '$path'");
-
-    if($path eq 'backup'){
-        return $self->{'details'}->{'backup_links'};
-    }elsif($path eq 'tertiary'){
+    if ($path eq 'tertiary') {
         return $self->{'details'}->{'tertiary_links'};
-    }else{
+    } else {
         return $self->{'details'}->{'links'};
     }
 }
@@ -415,7 +430,6 @@ sub get_path{
 =cut
 sub get_active_path{
     my $self = shift;
-
     return $self->{'active_path'};
 }
 
@@ -664,6 +678,9 @@ sub get_mpls_path_type{
 
 =head2 get_mpls_hops
 
+get_mpls_hops returns an array of IPs representing the next hops from
+C<start> to C<end>.
+
 =cut
 sub get_mpls_hops{
     my $self = shift;
@@ -713,10 +730,6 @@ sub get_mpls_hops{
     foreach my $link (@$p){
         my $node_a = $link->{'node_a'};
         my $node_z = $link->{'node_z'};
-
-        # When using link based ip addresses
-        # $ip_address{$node_a}{$node_z} = $link->{'ip_z'};
-        # $ip_address{$node_z}{$node_a} = $link->{'ip_a'};
 
         $ip_address{$node_a}{$node_z} = $nodes{$node_z}->{'loopback_address'};
         $ip_address{$node_z}{$node_a} = $nodes{$node_a}->{'loopback_address'};
