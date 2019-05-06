@@ -91,7 +91,7 @@ async function loadEntityList(parentEntity=null) {
     let entityName = document.querySelector('#entity-name');
     entityName.dataset.id = entityID;
     if (parent !== null) {
-        entityName.innerHTML = `${name} <small>of <a href="#" onclick="loadEntityList(${parent.entity_id})">${parent.name}</a></small>`;
+        entityName.innerHTML = `${name} <small>of <a href="?action=phonebook&entity_id=${parent.entity_id}">${parent.name}</a></small>`;
     } else {
         entityName.innerHTML = name;
     }
@@ -156,10 +156,6 @@ async function loadEntityList(parentEntity=null) {
         cpath = crumbs.map(function(c){ return c.name; }).join(' / ');
         sessionStorage.setItem('phone-crumb', JSON.stringify(crumbs));
 
-        if (parent !== null && entity.children.length === 0) {
-            entityNav += `<li role="presentation" onclick="loadEntityList(${parent.entity_id})"><a href="#">Go back</a></li>`;
-        }
-
         crumbs.forEach(function(c) {
             entityCrumbsString += `<li><a href="#" onclick="loadEntityList(${c.id})">${c.name}</a></li>`;
         });
@@ -176,8 +172,8 @@ async function loadEntityList(parentEntity=null) {
         entityActions.style.display = 'none';
     }
 
-    entity.children.forEach(function(entity) {
-        let childLi  = `<li role="presentation" onclick="loadEntityList(${entity.entity_id})"><a href="#">${entity.name}</a></li>`;
+    entity.children.forEach(function(childEntity) {
+        let childLi  = `<li role="presentation"><a href="?action=phonebook&entity_id=${childEntity.entity_id}">${childEntity.name}</a></li>`;
         entityNav += childLi;
     });
     entitiesList.innerHTML = entityNav;
