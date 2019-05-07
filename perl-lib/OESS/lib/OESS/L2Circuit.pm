@@ -10,6 +10,8 @@ use Graph::Directed;
 use Log::Log4perl;
 
 use OESS::DB;
+use OESS::DB::Circuit;
+use OESS::User;
 
 #link statuses
 use constant OESS_LINK_UP       => 1;
@@ -217,60 +219,156 @@ sub workgroup_id{
     return $self->{'workgroup_id'};
 }
 
-=head2 update_circuit_details
-
-update_circuit_details reloads this circuit from the database to make
-sure this object is in sync with the database.
+=head2 load_users
 
 =cut
-sub update_circuit_details{
+sub load_users {
     my $self = shift;
-    my $params = { @_ };
 
-    if (defined $params->{'link_status'}) {
-        $self->{'link_status'} = $params->{'link_status'};
+    # TODO User object shouldn't load workgroup info. Way too much
+    # info there.
+
+    $self->{created_by} = OESS::User->new(
+        db => $self->{db},
+        user_id => $self->{created_by_id}
+    );
+
+    $self->{last_modified_by} = new OESS::User(
+        db => $self->{db},
+        user_id => $self->{last_modified_by_id}
+    );
+}
+
+=head2 load_links
+
+=cut
+sub load_links {
+    my $self = shift;
+}
+
+=head2 load_endpoints
+
+=cut
+sub load_endpoints {
+    my $self = shift;
+}
+
+=head2 load_workgroup
+
+=cut
+sub load_workgroup {
+    my $self = shift;
+}
+
+sub to_hash {
+    my $self = shift;
+
+    my $hash = {
+        remote_requester => $self->{remote_requester},
+        external_identifier => $self->{external_identifier},
+        state => $self->{state},
+        remote_url => $self->{remote_url},
+        created_on => $self->{created_on},
+        circuit_id => $self->{circuit_id},
+        workgroup_id => $self->{workgroup_id},
+        created_on_epoch => $self->{created_on_epoch},
+        last_modified_on_epoch => $self->{last_modified_on_epoch},
+        name => $self->{name},
+        reason => $self->{reason},
+        description => $self->{description},
+        user_id => $self->{user_id},
+        last_modified_on => $self->{last_modified_on},
+
+        provision_time => '',
+        remove_time => '',
+        links => [
+            # Link names
+        ],
+        tertiary_links => [
+            # Link names
+        ],
+        endpoints => [
+            # See OESS::Endpoint
+        ]
+    };
+
+    if (defined $self->{created_by}) {
+        $hash->{created_by} = $self->{created_by}->to_hash;
+    }
+    if (defined $self->{last_modified_by}) {
+        $hash->{last_modified_by} = $self->{last_modified_by}->to_hash;
     }
 
-    $self->{'graph'} = {};
-    $self->{'endpoints'} = {};
-
-    $self->_load_circuit_details();
+    return $hash;
 }
 
 sub _load_circuit_details{
     my $self = shift;
     $self->{'logger'}->debug("Loading Circuit data for circuit: " . $self->{'circuit_id'});
-    my $data = $self->{'db'}->get_circuit_details(
-        circuit_id => $self->{'circuit_id'},
-        link_status => $self->{'link_status'}
+
+    my $datas = OESS::DB::Circuit::fetch_circuit(
+        db => $self->{db},
+        circuit_id => $self->{circuit_id}
     );
-    if(!defined($data)){
-        $self->{'logger'}->error("NO DATA FOR THIS CIRCUIT!!! " . $self->{'circuit_id'});
+    if (!defined $datas || @$datas == 0) {
+        $self->{logger}->error("No data for circuit $self->{circuit_id}.");
         return;
     }
 
-    $self->{'details'} = $data;
-    $self->_process_circuit_details($self->{'details'});
+    my $data = $datas->[0];
+    my $first_data = OESS::DB::Circuit::fetch_circuit(
+        db => $self->{db},
+        circuit_id => $self->{circuit_id},
+        first => 1
+    );
+
+    $data->{last_modified_by_id} = $data->{user_id};
+    $data->{last_modified_on_epoch} = $data->{start_epoch};
+    $data->{last_modified_on} = DateTime->from_epoch(
+        epoch => $data->{'last_modified_on_epoch'}
+    )->strftime('%m/%d/%Y %H:%M:%S');
+
+    $data->{created_by_id} = $first_data->[0]->{user_id} || $data->{user_id};
+    $data->{created_on_epoch} = $first_data->[0]->{start_epoch} || $data->{start_epoch};
+    $data->{created_on} = DateTime->from_epoch(
+        epoch => $data->{'created_on_epoch'}
+    )->strftime('%m/%d/%Y %H:%M:%S');
+
+    delete $data->{end_epoch};
+    delete $data->{start_epoch};
+
+    $self->{details} = $data;
+    $self->_process_circuit_details($data);
 }
 
 sub _process_circuit_details{
     my $self = shift;
     my $hash = shift;
 
-    $self->{'remote_url'}       = $hash->{'remote_url'};
-    $self->{'remote_requester'} = $hash->{'remote_requester'};
-    $self->{'circuit_id'}       = $hash->{'circuit_id'};
-    $self->{'loop_node'}        = $hash->{'loop_node'};
-    $self->{'active_path'}      = $hash->{'active_path'};
-    $self->{'static_mac'}       = $hash->{'static_mac'};
-
-    $self->{'has_primary_path'} = (@{$hash->{'links'}} > 0) ? 1 : 0;
-    $self->{'has_tertiary_path'} = (@{$hash->{'tertiary_links'}} > 0) ? 1 : 0;
+    $self->{remote_requester} = $hash->{remote_requester};
+    $self->{last_modified_by_id} = $hash->{last_modified_by_id};
+    $self->{external_identifier} = $hash->{external_identifier};
+    $self->{state} = $hash->{state};
+    $self->{remote_url} = $hash->{remote_url};
+    $self->{created_on} = $hash->{created_on};
+    $self->{circuit_id} = $hash->{circuit_id};
+    $self->{workgroup_id} = $hash->{workgroup_id};
+    $self->{created_on_epoch} = $hash->{created_on_epoch};
+    $self->{last_modified_on_epoch} = $hash->{last_modified_on_epoch};
+    $self->{name} = $hash->{name};
+    $self->{reason} = $hash->{reason};
+    $self->{description} = $hash->{description};
+    $self->{user_id} = $hash->{user_id};
+    $self->{last_modified_on} = $hash->{last_modified_on};
+    $self->{created_by_id} = $hash->{created_by_id};
 
     # TODO Load primary links
+    $self->{'has_primary_path'} = (defined $hash->{'links'} && @{$hash->{'links'}} > 0) ? 1 : 0;
 
     # TODO Load tertiary links
+    $self->{'has_tertiary_path'} = (defined $hash->{'tertiary_links'} && @{$hash->{'tertiary_links'}} > 0) ? 1 : 0;
 
+    # TODO Load endpoints
     $self->{'endpoints'} = $hash->{'endpoints'};
 
     foreach my $endpoint (@{$self->{'endpoints'}}){
@@ -290,9 +388,9 @@ sub _process_circuit_details{
         $endpoint->{'entity'} = $entity->to_hash();
     }
 
-    if (!$self->{'just_display'}) {
-        $self->_create_graph();
-    }
+    # if (!$self->{'just_display'}) {
+    #     $self->_create_graph();
+    # }
 }
 
 sub _create_graph{

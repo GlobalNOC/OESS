@@ -16,18 +16,60 @@ use Data::Dumper;
 =head2 fetch_circuit
 
 =cut
-sub fetch_circuit{
-    my %params = @_;
-    my $db = $params{'db'};
-    my $state = $params{'state'} || 'active';
-    my $circuit_id = $params{'circuit_id'};
+sub fetch_circuit {
+    my $args = {
+        db         => undef,
+        circuit_id => undef,
+        state      => undef,
+        first      => undef,
+        @_
+    };
 
-    my $res = $db->execute_query("SELECT * FROM circuit ".
-                                 "WHERE circuit_id = ? AND state = ?",
-                                     [$circuit_id, $state]);
-    if(!defined($res) || !defined($res->[0])){
+    my $params = [];
+    my $values = [];
+
+    if (defined $args->{circuit_id}) {
+        push @$params, "circuit.circuit_id=?";
+        push @$values, $args->{circuit_id};
+    }
+    if (defined $args->{workgroup_id}) {
+        push @$params, "circuit.workgroup_id=?";
+        push @$values, $args->{workgroup_id};
+    }
+    if (defined $args->{state}) {
+        push @$params, "circuit.circuit_state=?";
+        push @$values, $args->{state};
+    }
+
+    # We hardcode end_epoch to -1 to prevent history from being
+    # queried. Ideally history will be stored in other ways in the
+    # future.
+    my $end_epoch;
+    if (defined $args->{first} && $args->{first} == 1) {
+        push @$params, "circuit_instantiation.end_epoch > ?";
+        push @$values, -1;
+        $end_epoch = 'min(end_epoch) as end_epoch';
+    } else {
+        push @$params, "circuit_instantiation.end_epoch = ?";
+        push @$values, -1;
+        $end_epoch = 'end_epoch';
+    }
+
+    my $where = (@$params > 0) ? 'WHERE ' . join(' AND ', @$params) : '';
+
+    my $res = $args->{db}->execute_query(
+        "SELECT start_epoch, $end_epoch, circuit.circuit_id, name, description, workgroup_id,
+                circuit.circuit_state as state, modified_by_user_id as user_id, reason,
+                external_identifier, remote_url, remote_requester
+         FROM circuit
+         JOIN circuit_instantiation on circuit.circuit_id=circuit_instantiation.circuit_id
+         $where",
+        $values
+    );
+    if (!defined $res) {
         return;
     }
+
     return $res;
 }
 
