@@ -708,6 +708,7 @@ sub _may_modify_entity {
     my $entity = shift;
 
     my $user_id = OESS::DB::User::find_user_by_remote_auth(db => $db, remote_user => $user_name);
+    $user_id = $user_id->{'user_id'};
 
     return 0 if !defined($user_id);
 
