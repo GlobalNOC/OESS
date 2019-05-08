@@ -14,8 +14,13 @@ sub fetch{
     my $db = $params{'db'};
     my $user_id = $params{'user_id'};
 
-    my $user = $db->execute_query("select * from user where user_id = ?",[$user_id]);
-    
+    my $q = "
+        select user.*, remote_auth.auth_name
+        from user
+        join remote_auth on user.user_id=remote_auth.user_id
+        where user.user_id=?
+    ";
+    my $user = $db->execute_query($q, [$user_id]);
     if(!defined($user) || !defined($user->[0])){
         return;
     }

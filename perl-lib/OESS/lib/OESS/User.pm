@@ -55,16 +55,17 @@ sub to_hash{
     $obj->{'last_name'} = $self->last_name();
     $obj->{'email'} = $self->email();
     $obj->{'user_id'} = $self->user_id();
-    
+    $obj->{'auth_name'} = $self->auth_name();
+
     my @wgs;
     foreach my $wg (@{$self->workgroups()}){
         push(@wgs, $wg->to_hash());
     }
-    
+
     $obj->{'is_admin'} = $self->is_admin();
     $obj->{'type'} = $self->type();
     $obj->{'workgroups'} = \@wgs;
-    
+
     return $obj;
 }
 
@@ -82,6 +83,7 @@ sub from_hash{
     $self->{'workgroups'} = $hash->{'workgroups'};
     $self->{'type'} = $hash->{'type'};
     $self->{'is_admin'} = $hash->{'is_admin'};
+    $self->{'auth_name'} = $hash->{'auth_name'};
 
     return 1;
 }
@@ -98,6 +100,14 @@ sub _fetch_from_db{
     }
 
     return $self->from_hash($user);
+}
+
+=head2 auth_name
+
+=cut
+sub auth_name {
+    my $self = shift;
+    return $self->{'auth_name'};
 }
 
 =head2 first_name
