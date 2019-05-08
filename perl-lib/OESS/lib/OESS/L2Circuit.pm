@@ -11,6 +11,7 @@ use Log::Log4perl;
 
 use OESS::DB;
 use OESS::DB::Circuit;
+use OESS::Path;
 use OESS::User;
 
 #link statuses
@@ -47,12 +48,6 @@ Some examples:
             remote_requester => '',
             provision_time => '',
             remove_time => '',
-            links => [
-                # Link names
-            ],
-            tertiary_links => [
-                # Link names
-            ].
             endpoints => [
                 # See OESS::Endpoint
             ],
@@ -239,11 +234,23 @@ sub load_users {
     );
 }
 
-=head2 load_links
+=head2 load_paths
 
 =cut
-sub load_links {
+sub load_paths {
     my $self = shift;
+
+    my ($path_datas, $error) = OESS::DB::Path::fetch_all(
+        db => $self->{db},
+        circuit_id => $self->{circuit_id}
+    );
+
+    my $paths = [];
+    foreach my $data (@$path_datas) {
+        push @$paths, new OESS::Path(model => $data);
+    }
+
+    $self->{paths} = $paths;
 }
 
 =head2 load_endpoints
@@ -281,12 +288,6 @@ sub to_hash {
 
         provision_time => '',
         remove_time => '',
-        links => [
-            # Link names
-        ],
-        tertiary_links => [
-            # Link names
-        ],
         endpoints => [
             # See OESS::Endpoint
         ]
@@ -297,6 +298,13 @@ sub to_hash {
     }
     if (defined $self->{last_modified_by}) {
         $hash->{last_modified_by} = $self->{last_modified_by}->to_hash;
+    }
+
+    if (defined $self->{paths}) {
+        $hash->{paths} = [];
+        foreach my $path (@{$self->{paths}}) {
+            push @{$hash->{paths}}, $path->to_hash;
+        }
     }
 
     return $hash;
