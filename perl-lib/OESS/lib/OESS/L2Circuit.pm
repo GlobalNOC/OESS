@@ -20,18 +20,16 @@ use constant OESS_LINK_DOWN     => 0;
 use constant OESS_LINK_UNKNOWN  => 2;
 
 
-=head1 NAME
+=head1 OESS::L2Circuit
 
-OESS::L2Circuit - Circuit Interaction Module
-
-=head1 SYNOPSIS
+    use OESS::L2Circuit;
 
 This is a module to provide a simplified object oriented way to
 connect to and interact with the OESS Circuits.
 
-Some examples:
+=cut
 
-    use OESS::L2Circuit;
+=head2 new
 
     my $ckt = OESS::L2Circuit->new(
         db         => new OESS::DB,
@@ -48,9 +46,6 @@ Some examples:
             remote_requester => '',
             provision_time => '',
             remove_time => '',
-            endpoints => [
-                # See OESS::Endpoint
-            ],
             user_id => '',
             workgroup_id => '',
         }
@@ -60,17 +55,11 @@ Some examples:
         warn $circuit->get_error;
     }
 
-=cut
-
-
-=head2 new
-
 Creates a new OESS::L2Circuit object requires an OESS::Database handle
 and either the details from get_circuit_details or a circuit_id.
 
 =cut
-
-sub new{
+sub new {
     my $that  = shift;
     my $class = ref($that) || $that;
 
@@ -232,6 +221,7 @@ sub load_users {
         db => $self->{db},
         user_id => $self->{last_modified_by_id}
     );
+    return 1;
 }
 
 =head2 load_paths
@@ -244,13 +234,19 @@ sub load_paths {
         db => $self->{db},
         circuit_id => $self->{circuit_id}
     );
-
-    my $paths = [];
-    foreach my $data (@$path_datas) {
-        push @$paths, new OESS::Path(model => $data);
+    if (defined $error) {
+        $self->{logger}->error($error);
+        return;
     }
 
-    $self->{paths} = $paths;
+    $self->{paths} = [];
+    foreach my $data (@$path_datas) {
+        my $path = new OESS::Path(db => $self->{db}, model => $data);
+        $path->load_links;
+        push @{$self->{paths}}, $path;
+    }
+
+    return 1;
 }
 
 =head2 load_endpoints
@@ -258,6 +254,9 @@ sub load_paths {
 =cut
 sub load_endpoints {
     my $self = shift;
+
+    $self->{endpoints} = [];
+    return 1;
 }
 
 =head2 load_workgroup
@@ -267,6 +266,9 @@ sub load_workgroup {
     my $self = shift;
 }
 
+=head2 to_hash
+
+=cut
 sub to_hash {
     my $self = shift;
 
@@ -285,12 +287,8 @@ sub to_hash {
         description => $self->{description},
         user_id => $self->{user_id},
         last_modified_on => $self->{last_modified_on},
-
         provision_time => '',
-        remove_time => '',
-        endpoints => [
-            # See OESS::Endpoint
-        ]
+        remove_time => ''
     };
 
     if (defined $self->{created_by}) {
@@ -305,6 +303,11 @@ sub to_hash {
         foreach my $path (@{$self->{paths}}) {
             push @{$hash->{paths}}, $path->to_hash;
         }
+    }
+
+    if (defined $self->{endpoints}) {
+        $hash->{endpoints} = [];
+        # TODO Load endpoints
     }
 
     return $hash;
@@ -485,10 +488,10 @@ sub generate_clr{
     return $clr;
 }
 
-=head2 get_endpoints
+=head2 endpoints
 
 =cut
-sub get_endpoints{
+sub endpoints{
     my $self = shift;
     return $self->{'endpoints'};
 }
@@ -842,7 +845,7 @@ sub get_mpls_hops{
     }
 
     #verify that our start/end are endpoints
-    my $eps = $self->get_endpoints();
+    my $eps = $self->endpoints();
 
     #find the next hop in the shortest path from $ep_a to $ep_z
     my @shortest_path = $self->{'graph'}->{$path}->SP_Dijkstra($start,$end);
