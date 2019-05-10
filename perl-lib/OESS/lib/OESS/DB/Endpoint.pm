@@ -8,7 +8,23 @@ package OESS::DB::Endpoint;
 use Data::Dumper;
 
 
+=head1 OESS::DB::Endpoint
+
+    use OESS::DB::Endpoint;
+
+=cut
+
 =head2 fetch_all
+
+    my ($endpoints, $error) = OESS::DB::Endpoint::fetch_all(
+        db => new OESS::DB,
+        circuit_id => 100
+    );
+    warn $error if defined $error;
+
+fetch_all returns a list of all active endpoints for of both Circuits
+and VRFs. Each VRF Endpoint will contain C<vrf_ep_id> and Circuit
+Endpoints will contain C<circuit_ep_id>.
 
 =cut
 sub fetch_all {
@@ -16,37 +32,51 @@ sub fetch_all {
         db => undef,
         circuit_id => undef,
         vrf_id => undef,
+        entity_id => undef,
+        interface_id => undef,
+        node_id => undef,
         @_
     };
 
     return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
 
-    my $endpoint_type = 'vrf';
+    my $type = undef;
 
     my $params = [];
     my $values = [];
 
+    # When circuit_id or vrf_id is defined we change our endpoint_type
+    # which is used to select between our circuit_ep and vrf_ep
+    # endpoint queries.
     if (defined $args->{circuit_id}) {
-        # When circuit_id is defined we change our endpoint_type which
-        # is used to select between our circuit_ep and vrf_ep endpoint
-        # queries.
-        $endpoint_type = 'circuit';
-
+        $type = 'circuit';
         push @$params, 'circuit_ep.circuit_id=?';
         push @$values, $args->{circuit_id};
-
-        push @$params, 'circuit_ep.end_epoch=?';
-        push @$values, -1;
     }
     if (defined $args->{vrf_id}) {
+        $type = 'vrf';
         push @$params, 'vrf_ep.vrf_id=?';
         push @$values, $args->{vrf_id};
     }
+    if (defined $args->{entity_id}) {
+        push @$params, 'entity.entity_id=?';
+        push @$values, $args->{entity_id};
+    }
+    if (defined $args->{interface_id}) {
+        push @$params, 'interface.interface_id=?';
+        push @$values, $args->{interface_id};
+    }
+    if (defined $args->{node_id}) {
+        push @$params, 'node.node_id=?';
+        push @$values, $args->{node_id};
+    }
 
-    my $where = (@$params > 0) ? 'WHERE ' . join(' AND ', @$params) : '';
+    my $where = (@$params > 0) ? 'WHERE ' . join(' AND ', @$params) : 'WHERE 1 ';
 
     my $q;
-    if ($endpoint_type eq 'circuit') {
+    my $endpoints = [];
+
+    if (!defined $type || $type eq 'circuit') {
         #       circuit_ep_id: 36
         #           entity_id: 3
         #         entity_name: mx960-1
@@ -77,11 +107,21 @@ sub fetch_all {
             JOIN entity ON entity.entity_id=interface_acl.entity_id
             LEFT JOIN cloud_connection_vrf_ep as cloud on cloud.circuit_ep_id=circuit_ep.circuit_edge_id
             $where
+            AND circuit_ep.end_epoch = -1
             AND circuit_ep.extern_vlan_id > interface_acl.vlan_start
             AND circuit_ep.extern_vlan_id < interface_acl.vlan_end
         ";
+        my $circuit_endpoints = $args->{db}->execute_query($q, $values);
+        if (!defined $circuit_endpoints) {
+            return (undef, "Couldn't find Circuit Endpoints: " . $args->{db}->get_error);
+        }
 
-    } else {
+        foreach my $e (@$circuit_endpoints) {
+            push @$endpoints, $e;
+        }
+    }
+
+    if (!defined $type || $type eq 'vrf') {
         #           vrf_ep_id: 3
         #           entity_id: 3
         #         entity_name: mx960-1
@@ -115,11 +155,14 @@ sub fetch_all {
             AND vrf_ep.tag > interface_acl.vlan_start
             AND vrf_ep.tag < interface_acl.vlan_end
         ";
-    }
+        my $vrf_endpoints = $args->{db}->execute_query($q, $values);
+        if (!defined $vrf_endpoints) {
+            return (undef, "Couldn't find VRF Endpoints: " . $args->{db}->get_error);
+        }
 
-    my $endpoints = $args->{db}->execute_query($q, $values);
-    if (!defined $endpoints) {
-        return (undef, "Couldn't find Endpoints: " . $args->{db}->get_error);
+        foreach my $e (@$vrf_endpoints) {
+            push @$endpoints, $e;
+        }
     }
 
     return ($endpoints, undef);
