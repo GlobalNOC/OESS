@@ -7,6 +7,124 @@ package OESS::DB::Endpoint;
 
 use Data::Dumper;
 
+
+=head2 fetch_all
+
+=cut
+sub fetch_all {
+    my $args = {
+        db => undef,
+        circuit_id => undef,
+        vrf_id => undef,
+        @_
+    };
+
+    return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
+
+    my $endpoint_type = 'vrf';
+
+    my $params = [];
+    my $values = [];
+
+    if (defined $args->{circuit_id}) {
+        # When circuit_id is defined we change our endpoint_type which
+        # is used to select between our circuit_ep and vrf_ep endpoint
+        # queries.
+        $endpoint_type = 'circuit';
+
+        push @$params, 'circuit_ep.circuit_id=?';
+        push @$values, $args->{circuit_id};
+
+        push @$params, 'circuit_ep.end_epoch=?';
+        push @$values, -1;
+    }
+    if (defined $args->{vrf_id}) {
+        push @$params, 'vrf_ep.vrf_id=?';
+        push @$values, $args->{vrf_id};
+    }
+
+    my $where = (@$params > 0) ? 'WHERE ' . join(' AND ', @$params) : '';
+
+    my $q;
+    if ($endpoint_type eq 'circuit') {
+        #       circuit_ep_id: 36
+        #           entity_id: 3
+        #         entity_name: mx960-1
+        #        interface_id: 57
+        #      interface_name: xe-7/0/2
+        #   operational_state: up
+        #             node_id: 2
+        #           node_name: mx960-1.sdn-test.grnoc.iu.edu
+        #                unit: 327
+        #                 tag: 327
+        #           inner_tag: NULL
+        #           bandwidth: NULL
+        #                 mtu: 9000
+        #    cloud_account_id: NULL
+        # cloud_connection_id: NULL
+
+        $q = "
+            SELECT circuit_ep.circuit_edge_id AS circuit_ep_id,
+                   entity.entity_id, entity.name AS entity_name,
+                   interface.interface_id, interface.name AS interface_name, interface.operational_state,
+                   node.node_id, node.name AS node_name,
+                   unit, extern_vlan_id AS tag, inner_tag,
+                   bandwidth, mtu, cloud_account_id, cloud_connection_id
+            FROM circuit_edge_interface_membership AS circuit_ep
+            JOIN interface ON interface.interface_id=circuit_ep.interface_id
+            JOIN node ON node.node_id=interface.node_id
+            JOIN interface_acl ON interface_acl.interface_id=interface.interface_id
+            JOIN entity ON entity.entity_id=interface_acl.entity_id
+            LEFT JOIN cloud_connection_vrf_ep as cloud on cloud.circuit_ep_id=circuit_ep.circuit_edge_id
+            $where
+            AND circuit_ep.extern_vlan_id > interface_acl.vlan_start
+            AND circuit_ep.extern_vlan_id < interface_acl.vlan_end
+        ";
+
+    } else {
+        #           vrf_ep_id: 3
+        #           entity_id: 3
+        #         entity_name: mx960-1
+        #        interface_id: 57
+        #      interface_name: xe-7/0/2
+        #   operational_state: up
+        #             node_id: 2
+        #           node_name: mx960-1.sdn-test.grnoc.iu.edu
+        #                unit: 6
+        #                 tag: 6
+        #           inner_tag: NULL
+        #           bandwidth: 0
+        #                 mtu: 9000
+        #    cloud_account_id: NULL
+        # cloud_connection_id: NULL
+
+        $q = "
+            SELECT vrf_ep.vrf_ep_id,
+                   entity.entity_id, entity.name AS entity_name,
+                   interface.interface_id, interface.name AS interface_name, interface.operational_state,
+                   node.node_id, node.name AS node_name,
+                   unit, tag, inner_tag,
+                   bandwidth, mtu, cloud_account_id, cloud_connection_id
+            FROM vrf_ep
+            JOIN interface ON interface.interface_id=vrf_ep.interface_id
+            JOIN node ON node.node_id=interface.node_id
+            JOIN interface_acl ON interface_acl.interface_id=interface.interface_id
+            JOIN entity ON entity.entity_id=interface_acl.entity_id
+            LEFT JOIN cloud_connection_vrf_ep as cloud on cloud.vrf_ep_id=vrf_ep.vrf_ep_id
+            $where
+            AND vrf_ep.tag > interface_acl.vlan_start
+            AND vrf_ep.tag < interface_acl.vlan_end
+        ";
+    }
+
+    my $endpoints = $args->{db}->execute_query($q, $values);
+    if (!defined $endpoints) {
+        return (undef, "Couldn't find Endpoints: " . $args->{db}->get_error);
+    }
+
+    return ($endpoints, undef);
+}
+
 =head2 update_vrf
 
 =cut

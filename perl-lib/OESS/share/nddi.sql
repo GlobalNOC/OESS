@@ -161,11 +161,14 @@ DROP TABLE IF EXISTS `cloud_connection_vrf_ep`;
 CREATE TABLE `cloud_connection_vrf_ep` (
   `cloud_connection_vrf_ep_id` int(11) NOT NULL AUTO_INCREMENT,
   `vrf_ep_id` int(11) DEFAULT NULL,
+  `circuit_ep_id` int(11) DEFAULT NULL,
   `cloud_account_id` varchar(255) NOT NULL,
   `cloud_connection_id` varchar(255) NOT NULL,
   PRIMARY KEY (`cloud_connection_vrf_ep_id`),
   KEY `vrf_ep_id` (`vrf_ep_id`),
-  CONSTRAINT `cloud_connection_vrf_ep_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`) ON DELETE CASCADE
+  KEY `cloud_connection_circuit_ep_ibfk_1` (`circuit_ep_id`),
+  CONSTRAINT `cloud_connection_vrf_ep_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`) ON DELETE CASCADE,
+  CONSTRAINT `cloud_connection_circuit_ep_ibfk_1` FOREIGN KEY (`circuit_ep_id`) REFERENCES `circuit_edge_interface_membership` (`circuit_edge_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
