@@ -79,12 +79,12 @@ sub fetch_all {
     if (!defined $type || $type eq 'circuit') {
         #       circuit_ep_id: 36
         #           entity_id: 3
-        #         entity_name: mx960-1
+        #              entity: mx960-1
         #        interface_id: 57
-        #      interface_name: xe-7/0/2
+        #           interface: xe-7/0/2
         #   operational_state: up
         #             node_id: 2
-        #           node_name: mx960-1.sdn-test.grnoc.iu.edu
+        #                node: mx960-1.sdn-test.grnoc.iu.edu
         #                unit: 327
         #                 tag: 327
         #           inner_tag: NULL
@@ -95,9 +95,9 @@ sub fetch_all {
 
         $q = "
             SELECT circuit_ep.circuit_edge_id AS circuit_ep_id,
-                   entity.entity_id, entity.name AS entity_name,
-                   interface.interface_id, interface.name AS interface_name, interface.operational_state,
-                   node.node_id, node.name AS node_name,
+                   entity.entity_id, entity.name AS entity,
+                   interface.interface_id, interface.name AS interface, interface.operational_state,
+                   node.node_id, node.name AS node,
                    unit, extern_vlan_id AS tag, inner_tag,
                    bandwidth, mtu, cloud_account_id, cloud_connection_id
             FROM circuit_edge_interface_membership AS circuit_ep
@@ -124,12 +124,12 @@ sub fetch_all {
     if (!defined $type || $type eq 'vrf') {
         #           vrf_ep_id: 3
         #           entity_id: 3
-        #         entity_name: mx960-1
+        #              entity: mx960-1
         #        interface_id: 57
-        #      interface_name: xe-7/0/2
+        #           interface: xe-7/0/2
         #   operational_state: up
         #             node_id: 2
-        #           node_name: mx960-1.sdn-test.grnoc.iu.edu
+        #                node: mx960-1.sdn-test.grnoc.iu.edu
         #                unit: 6
         #                 tag: 6
         #           inner_tag: NULL
@@ -140,9 +140,9 @@ sub fetch_all {
 
         $q = "
             SELECT vrf_ep.vrf_ep_id,
-                   entity.entity_id, entity.name AS entity_name,
-                   interface.interface_id, interface.name AS interface_name, interface.operational_state,
-                   node.node_id, node.name AS node_name,
+                   entity.entity_id, entity.name AS entity,
+                   interface.interface_id, interface.name AS interface, interface.operational_state,
+                   node.node_id, node.name AS node,
                    unit, tag, inner_tag,
                    bandwidth, mtu, cloud_account_id, cloud_connection_id
             FROM vrf_ep
