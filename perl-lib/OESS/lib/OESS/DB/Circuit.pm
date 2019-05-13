@@ -16,7 +16,7 @@ use Data::Dumper;
 =head2 fetch_circuit
 
 =cut
-sub fetch_circuit {
+sub fetch_circuits {
     my $args = {
         db         => undef,
         circuit_id => undef,
@@ -33,7 +33,8 @@ sub fetch_circuit {
         push @$values, $args->{circuit_id};
     }
     if (defined $args->{workgroup_id}) {
-        push @$params, "circuit.workgroup_id=?";
+        push @$params, "(circuit.workgroup_id=? OR interface.workgroup_id=?)";
+        push @$values, $args->{workgroup_id};
         push @$values, $args->{workgroup_id};
     }
     if (defined $args->{state}) {
@@ -48,22 +49,25 @@ sub fetch_circuit {
     if (defined $args->{first} && $args->{first} == 1) {
         push @$params, "circuit_instantiation.end_epoch > ?";
         push @$values, -1;
-        $end_epoch = 'min(end_epoch) as end_epoch';
+        $end_epoch = 'min(circuit_instantiation.end_epoch) as end_epoch';
     } else {
         push @$params, "circuit_instantiation.end_epoch = ?";
         push @$values, -1;
-        $end_epoch = 'end_epoch';
+        $end_epoch = 'circuit_instantiation.end_epoch';
     }
 
     my $where = (@$params > 0) ? 'WHERE ' . join(' AND ', @$params) : '';
 
     my $res = $args->{db}->execute_query(
-        "SELECT start_epoch, $end_epoch, circuit.circuit_id, name, description, workgroup_id,
-                circuit.circuit_state as state, modified_by_user_id as user_id, reason,
+        "SELECT circuit_instantiation.start_epoch, $end_epoch, circuit.circuit_id, circuit.name, circuit.description,
+                circuit.workgroup_id, circuit.circuit_state as state, modified_by_user_id as user_id, reason,
                 external_identifier, remote_url, remote_requester
          FROM circuit
          JOIN circuit_instantiation on circuit.circuit_id=circuit_instantiation.circuit_id
-         $where",
+         JOIN circuit_edge_interface_membership on circuit_edge_interface_membership.circuit_id=circuit.circuit_id
+         JOIN interface on interface.interface_id=circuit_edge_interface_membership.interface_id
+         $where
+         GROUP BY circuit.circuit_id",
         $values
     );
     if (!defined $res) {

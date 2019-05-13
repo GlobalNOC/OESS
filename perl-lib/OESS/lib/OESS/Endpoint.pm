@@ -95,7 +95,7 @@ sub new{
 =cut
 sub _build_from_model{
     my $self = shift;
-    
+
     $self->{'inner_tag'} = $self->{'model'}->{'inner_tag'};
     $self->{'tag'} = $self->{'model'}->{'tag'};
     $self->{'bandwidth'} = $self->{'model'}->{'bandwidth'};
@@ -157,15 +157,18 @@ sub _build_from_model{
         }
     }
 
+# TODO Abstract away types
+
+
     if ($self->{'type'} eq 'vrf') {
         $self->{'peers'} = [];
 
         foreach my $peer (@{$self->{'model'}->{'peerings'}}) {
             push @{$self->{'peers'}}, OESS::Peer->new(db => $self->{'db'}, model => $peer, vrf_ep_peer_id => -1);
         }
-    }elsif($self->{type} eq 'circuit'){
+    } else {
         $self->{circuit_id} = $self->{model}->{circuit_id};
-        $self->{circuit_endpoint_id} = $self->{model}->{circuit_edge_id};
+        $self->{circuit_endpoint_id} = $self->{model}->{circuit_edge_id} || $self->{model}->{circuit_ep_id};
         $self->{start_epoch} = $self->{model}->{start_epoch};
     }
 

@@ -131,8 +131,8 @@ sub fetch_all {
             LEFT JOIN cloud_connection_vrf_ep as cloud on cloud.circuit_ep_id=circuit_ep.circuit_edge_id
             $where
             AND circuit_ep.end_epoch = -1
-            AND circuit_ep.extern_vlan_id > interface_acl.vlan_start
-            AND circuit_ep.extern_vlan_id < interface_acl.vlan_end
+            AND circuit_ep.extern_vlan_id >= interface_acl.vlan_start
+            AND circuit_ep.extern_vlan_id <= interface_acl.vlan_end
         ";
         my $circuit_endpoints = $args->{db}->execute_query($q, $values);
         if (!defined $circuit_endpoints) {
@@ -175,8 +175,8 @@ sub fetch_all {
             JOIN entity ON entity.entity_id=interface_acl.entity_id
             LEFT JOIN cloud_connection_vrf_ep as cloud on cloud.vrf_ep_id=vrf_ep.vrf_ep_id
             $where
-            AND vrf_ep.tag > interface_acl.vlan_start
-            AND vrf_ep.tag < interface_acl.vlan_end
+            AND vrf_ep.tag >= interface_acl.vlan_start
+            AND vrf_ep.tag <= interface_acl.vlan_end
         ";
         my $vrf_endpoints = $args->{db}->execute_query($q, $values);
         if (!defined $vrf_endpoints) {

@@ -6,6 +6,7 @@ use warnings;
 package OESS::L2Circuit;
 
 use Data::Dumper;
+use DateTime;
 use Graph::Directed;
 use Log::Log4perl;
 
@@ -64,35 +65,34 @@ sub new {
     my $class = ref($that) || $that;
 
     my $self = {
-        circuit_id => undef,
-        db         => undef,
-        details    => undef,
-        logger     => Log::Log4perl->get_logger('OESS.L2Circuit'),
+        circuit_id   => undef,
+        db           => undef,
+        model        => undef,
+        logger       => Log::Log4perl->get_logger('OESS.L2Circuit'),
         just_display => 0,
-        link_status => undef,
         @_
     };
     bless $self, $class;
 
-    if (!defined $self->{'db'}) {
+    if (!defined $self->{db}) {
         $self->{'logger'}->debug('Optional argument `db` is missing. Cannot save object to database.');
     }
 
-    if (defined $self->{'db'} && defined $self->{'circuit_id'}) {
+    if (defined $self->{db} && defined $self->{circuit_id}) {
         eval {
-            $self->_load_circuit_details();
+            $self->{model} = $self->_load_circuit_details();
         };
         if ($@) {
             $self->{logger}->error("Couldn't load L2Circuit: $@");
             return;
         }
-    } elsif (!defined $self->{'details'}) {
+    } elsif (!defined $self->{model}) {
         $self->{logger}->debug('Optional argument `model` is missing.');
         $self->{logger}->error("Couldn't load L2Circuit from db or model.");
         return;
     }
 
-    $self->_process_circuit_details($self->{'details'});
+    $self->_process_circuit_details($self->{model});
 
     return $self;
 }
@@ -212,7 +212,7 @@ sub load_users {
     # TODO User object shouldn't load workgroup info. Way too much
     # info there.
 
-    $self->{created_by} = OESS::User->new(
+    $self->{created_by} = new OESS::User(
         db => $self->{db},
         user_id => $self->{created_by_id}
     );
@@ -255,7 +255,17 @@ sub load_paths {
 sub load_endpoints {
     my $self = shift;
 
+    my ($ep_datas, $error) = OESS::DB::Endpoint::fetch_all(
+        db => $self->{db},
+        circuit_id => $self->{circuit_id}
+    );
+
     $self->{endpoints} = [];
+    foreach my $data (@$ep_datas) {
+        my $ep = new OESS::Endpoint(db => $self->{db}, model => $data);
+        push @{$self->{endpoints}}, $ep;
+    }
+
     return 1;
 }
 
@@ -307,7 +317,9 @@ sub to_hash {
 
     if (defined $self->{endpoints}) {
         $hash->{endpoints} = [];
-        # TODO Load endpoints
+        foreach my $ep (@{$self->{endpoints}}) {
+            push @{$hash->{endpoints}}, $ep->to_hash;
+        }
     }
 
     return $hash;
@@ -317,7 +329,7 @@ sub _load_circuit_details{
     my $self = shift;
     $self->{'logger'}->debug("Loading Circuit data for circuit: " . $self->{'circuit_id'});
 
-    my $datas = OESS::DB::Circuit::fetch_circuit(
+    my $datas = OESS::DB::Circuit::fetch_circuits(
         db => $self->{db},
         circuit_id => $self->{circuit_id}
     );
@@ -327,7 +339,7 @@ sub _load_circuit_details{
     }
 
     my $data = $datas->[0];
-    my $first_data = OESS::DB::Circuit::fetch_circuit(
+    my $first_data = OESS::DB::Circuit::fetch_circuits(
         db => $self->{db},
         circuit_id => $self->{circuit_id},
         first => 1
@@ -348,8 +360,7 @@ sub _load_circuit_details{
     delete $data->{end_epoch};
     delete $data->{start_epoch};
 
-    $self->{details} = $data;
-    $self->_process_circuit_details($data);
+    return $data;
 }
 
 sub _process_circuit_details{
@@ -357,21 +368,28 @@ sub _process_circuit_details{
     my $hash = shift;
 
     $self->{remote_requester} = $hash->{remote_requester};
-    $self->{last_modified_by_id} = $hash->{last_modified_by_id};
+
     $self->{external_identifier} = $hash->{external_identifier};
     $self->{state} = $hash->{state};
     $self->{remote_url} = $hash->{remote_url};
-    $self->{created_on} = $hash->{created_on};
+
     $self->{circuit_id} = $hash->{circuit_id};
     $self->{workgroup_id} = $hash->{workgroup_id};
-    $self->{created_on_epoch} = $hash->{created_on_epoch};
-    $self->{last_modified_on_epoch} = $hash->{last_modified_on_epoch};
+
     $self->{name} = $hash->{name};
     $self->{reason} = $hash->{reason};
     $self->{description} = $hash->{description};
     $self->{user_id} = $hash->{user_id};
-    $self->{last_modified_on} = $hash->{last_modified_on};
+
+    # These extra bits need to be looked up separately to find the
+    # first circuit instantiation.
     $self->{created_by_id} = $hash->{created_by_id};
+    $self->{created_on} = $hash->{created_on};
+    $self->{created_on_epoch} = $hash->{created_on_epoch};
+
+    $self->{last_modified_by_id} = $hash->{user_id};
+    $self->{last_modified_on} = DateTime->from_epoch(epoch => $hash->{start_epoch})->strftime('%m/%d/%Y %H:%M:%S');
+    $self->{last_modified_on_epoch} = $hash->{start_epoch};
 
     # TODO Load primary links
     $self->{'has_primary_path'} = (defined $hash->{'links'} && @{$hash->{'links'}} > 0) ? 1 : 0;
@@ -380,9 +398,12 @@ sub _process_circuit_details{
     $self->{'has_tertiary_path'} = (defined $hash->{'tertiary_links'} && @{$hash->{'tertiary_links'}} > 0) ? 1 : 0;
 
     # TODO Load endpoints
-    $self->{'endpoints'} = $hash->{'endpoints'};
 
-    foreach my $endpoint (@{$self->{'endpoints'}}){
+    foreach my $endpoint (@{$hash->{'endpoints'}}){
+        if (!defined $self->{endpoints}) {
+            $self->{endpoints} = [];
+        }
+
         if ($endpoint->{'local'} == 0) {
             $self->{'interdomain'} = 1;
         }
@@ -396,9 +417,11 @@ sub _process_circuit_details{
             next;
         }
 
-        $endpoint->{'entity'} = $entity->to_hash();
+        push @{$self->{endpoints}}, $entity;
+        # $endpoint->{'entity'} = $entity->to_hash();
     }
 
+    # warn Dumper($self);
     # if (!$self->{'just_display'}) {
     #     $self->_create_graph();
     # }
@@ -408,7 +431,7 @@ sub _create_graph{
     my $self = shift;
 
     $self->{'logger'}->debug("Creating graphs for circuit " . $self->{'circuit_id'});
-    my @links = @{$self->{'details'}->{'links'}};
+    my @links = @{$self->{model}->{'links'}};
 
     $self->{'logger'}->debug("Creating a Graph for the primary path for the circuit " . $self->{'circuit_id'});
 
@@ -424,7 +447,7 @@ sub _create_graph{
     if ($self->has_backup_path()) {
         $self->{'logger'}->debug("Creating a Graph for the backup path for the circuit " . $self->{'circuit_id'});
 
-        @links = @{$self->{'details'}->{'backup_links'}};
+        @links = @{$self->{model}->{'backup_links'}};
         my $b = Graph::Undirected->new;
 
         foreach my $link (@links){
@@ -437,17 +460,6 @@ sub _create_graph{
     }
 }
 
-=head2 get_details
-
-=cut
-sub get_details{
-    my $self = shift;
-
-    # TODO Create a to_hash method
-
-    return $self->{'details'};
-}
-
 =head2 generate_clr
 
 generate_clr creates a circuit layout record for this circuit.
@@ -457,9 +469,9 @@ sub generate_clr{
     my $self = shift;
 
     my $clr = "";
-    $clr .= "Circuit: $self->{'details'}->{'name'}\n";
-    $clr .= "Created by: $self->{'details'}->{'created_by'}->{'given_names'} $self->{'details'}->{'created_by'}->{'family_name'} at $self->{'details'}->{'created_on'} for workgroup $self->{'details'}->{'workgroup'}->{'name'}\n";
-    $clr .= "Last Modified By: $self->{'details'}->{'last_modified_by'}->{'given_names'} $self->{'details'}->{'last_modified_by'}->{'family_name'} at $self->{'details'}->{'last_edited'}\n\n";
+    $clr .= "Circuit: $self->{model}->{'name'}\n";
+    $clr .= "Created by: $self->{model}->{'created_by'}->{'given_names'} $self->{model}->{'created_by'}->{'family_name'} at $self->{model}->{'created_on'} for workgroup $self->{model}->{'workgroup'}->{'name'}\n";
+    $clr .= "Last Modified By: $self->{model}->{'last_modified_by'}->{'given_names'} $self->{model}->{'last_modified_by'}->{'family_name'} at $self->{model}->{'last_edited'}\n\n";
     $clr .= "Endpoints: \n";
 
     my $active = $self->get_active_path();
@@ -528,9 +540,9 @@ sub get_path{
     }
 
     if ($path eq 'tertiary') {
-        return $self->{'details'}->{'tertiary_links'};
+        return $self->{model}->{'tertiary_links'};
     } else {
-        return $self->{'details'}->{'links'};
+        return $self->{model}->{'links'};
     }
 }
 
@@ -608,7 +620,7 @@ sub update_mpls_path{
 
         if(!_compare_links($self->get_path(path => 'tertiary'), $params{'links'})) {
             my $query = "update link_path_membership set end_epoch = unix_timestamp(NOW()) where path_id = ? and end_epoch = -1";
-            $self->{'db'}->_execute_query($query,[$self->{'details'}->{'paths'}->{'tertiary'}->{'path_id'}]);
+            $self->{'db'}->_execute_query($query,[$self->{model}->{'paths'}->{'tertiary'}->{'path_id'}]);
 
             $query = "insert into link_path_membership (end_epoch,link_id,path_id,start_epoch,interface_a_vlan_id,interface_z_vlan_id) " .
                 "VALUES (-1,?,?,unix_timestamp(NOW()),?,?)";
@@ -635,10 +647,10 @@ sub update_mpls_path{
 
         my $path_id = $self->{'db'}->create_path($self->{'circuit_id'}, \@link_ids, 'tertiary');
 
-        $self->{'details'}->{'paths'}->{'tertiary'}->{'path_id'} = $path_id;
-        $self->{'details'}->{'paths'}->{'tertiary'}->{'mpls_path_type'} = 'tertiary';
+        $self->{model}->{'paths'}->{'tertiary'}->{'path_id'} = $path_id;
+        $self->{model}->{'paths'}->{'tertiary'}->{'mpls_path_type'} = 'tertiary';
         $self->{'has_tertiary_path'} = 1;
-        $self->{'details'}->{'tertiary_links'} = $params{'links'};
+        $self->{model}->{'tertiary_links'} = $params{'links'};
     }
 
     return $self->_change_active_path(new_path => 'tertiary');
@@ -660,7 +672,7 @@ sub _change_active_path{
         # If an attempt is made to change the active path, but no
         # change is required return ok.
         $self->{'active_path'} = $current_path;
-        $self->{'details'}->{'active_path'} = $current_path;
+        $self->{model}->{'active_path'} = $current_path;
         return 1;
     }
 
@@ -719,7 +731,7 @@ sub _change_active_path{
     $self->{'db'}->_commit();
 
     $self->{'active_path'} = $params{'new_path'};
-    $self->{'details'}->{'active_path'} = $params{'new_path'};
+    $self->{model}->{'active_path'} = $params{'new_path'};
     return 1;
 }
 
@@ -756,14 +768,6 @@ sub is_interdomain{
     return $self->{'interdomain'};
 }
 
-=head2 is_static_mac
-
-=cut
-sub is_static_mac{
-    my $self = shift;
-    return $self->{'static_mac'};
-}
-
 =head2 get_mpls_path_type
 
 =cut
@@ -776,13 +780,13 @@ sub get_mpls_path_type{
         return;
     }
 
-    $self->{'logger'}->debug("MPLS Path Type: " . Data::Dumper::Dumper($self->{'details'}{'paths'}));
+    $self->{'logger'}->debug("MPLS Path Type: " . Data::Dumper::Dumper($self->{model}{'paths'}));
 
-    if(!defined($self->{'details'}{'paths'}{$params{'path'}})){
+    if(!defined($self->{model}{'paths'}{$params{'path'}})){
         return;
     }
 
-    return $self->{'details'}{'paths'}{$params{'path'}}{'mpls_path_type'};
+    return $self->{model}{'paths'}{$params{'path'}}{'mpls_path_type'};
 }
 
 =head2 get_mpls_hops
@@ -866,59 +870,6 @@ sub get_mpls_hops{
     $self->{'logger'}->debug("IP addresses: " . Dumper(@ips));
 
     return \@ips;
-}
-
-=head2 get_path_status
-
-=cut
-sub get_path_status{
-    my $self = shift;
-    my %params = @_;
-
-    my $path = $params{'path'};
-    my $link_status = $params{'link_status'};
-
-    if(!defined($path)){
-        return;
-    }
-
-    my %down_links;
-    my %unknown_links;
-
-    if(!defined($link_status)){
-        my $links = $self->{'db'}->get_current_links(type => $self->{'type'});
-
-        foreach my $link (@$links){
-            if( $link->{'status'} eq 'down'){
-                $down_links{$link->{'name'}} = $link;
-            }elsif($link->{'status'} eq 'unknown'){
-                $unknown_links{$link->{'name'}} = $link;
-            }
-        }
-    }else{
-        foreach my $key (keys (%{$link_status})){
-            if($link_status->{$key} == OESS_LINK_DOWN){
-                $down_links{$key} = 1;
-            }elsif($link_status->{$key} == OESS_LINK_UNKNOWN){
-                $unknown_links{$key} = 1;
-            }
-        }
-    }
-
-    my $path_links = $self->get_path( path => $path );
-
-    foreach my $link (@$path_links){
-
-        if( $down_links{ $link->{'name'} } ){
-            $self->{'logger'}->warn("Path is down because link: " . $link->{'name'} . " is down");
-            return 0;
-        }elsif($unknown_links{$link->{'name'}}){
-            $self->{'logger'}->warn("Path is unknown because link: " . $link->{'name'} . " is unknown");
-            return 2;
-        }
-    }
-
-    return 1;
 }
 
 =head2 error
