@@ -17,14 +17,37 @@ use Data::Dumper;
 =head2 fetch_all
 
     my ($endpoints, $error) = OESS::DB::Endpoint::fetch_all(
-        db => new OESS::DB,
-        circuit_id => 100
+        db           => new OESS::DB,
+        circuit_id   => 100,          # Optional
+        vrf_id       => 100,          # Optional
+        entity_id    => 100,          # Optional
+        node_id      => 100,          # Optional
+        interface_id => 100           # Optional
     );
     warn $error if defined $error;
 
 fetch_all returns a list of all active endpoints for of both Circuits
 and VRFs. Each VRF Endpoint will contain C<vrf_ep_id> and Circuit
 Endpoints will contain C<circuit_ep_id>.
+
+    {
+        vrf_ep_id           => 3,                   # Optional
+        circuit_ep_id       => 3,                   # Optional
+        entity              => 'mx960-1',
+        entity_id           => 3,
+        node                => 'test.grnoc.iu.edu',
+        node_id             => 2,
+        interface           => 'xe-7/0/2',
+        interface_id        => 57,
+        unit                => 6,
+        tag                 => 6,
+        inner_tag           => undef,
+        bandwidth           => 0,
+        cloud_account_id    => undef,
+        cloud_connection_id => undef,
+        mtu                 => 9000,
+        operational_state   => 'up'
+    }
 
 =cut
 sub fetch_all {
