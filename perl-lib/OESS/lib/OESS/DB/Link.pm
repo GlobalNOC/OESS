@@ -7,6 +7,8 @@ use Data::Dumper;
 
 =head1 OESS::DB::Link
 
+    use OESS::DB::Link;
+
 =cut
 
 =head2 create

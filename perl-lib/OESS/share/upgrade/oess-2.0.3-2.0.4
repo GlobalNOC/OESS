@@ -65,6 +65,9 @@ sub upgrade{
     $sth = $dbh->prepare("ALTER TABLE cloud_connection_vrf_ep ADD COLUMN `circuit_ep_id` int(11) DEFAULT NULL, ADD CONSTRAINT `cloud_connection_circuit_ep_ibfk_1` FOREIGN KEY (`circuit_ep_id`) REFERENCES `circuit_edge_interface_membership` (`circuit_edge_id`) ON DELETE CASCADE") or die "Unable to prepare add foreign key to cloud_connection_vrf_ep \n";
     $sth->execute() or die "Unable to add foreign key to cloud_connection_vrf_ep \n";
 
+    $sth = $dbh->prepare("ALTER TABLE vrf_ep_peer ADD COLUMN `circuit_ep_id` int(11) DEFAULT NULL, ADD CONSTRAINT `vrf_ep_peer_ibfk_2` FOREIGN KEY (`circuit_ep_id`) REFERENCES `circuit_edge_interface_membership` (`circuit_edge_id`) ON DELETE CASCADE") or die "Unable to prepare add foreign key to vrf_ep_peer \n";
+    $sth->execute() or die "Unable to add foreign key to vrf_ep_peer \n";
+
     $str = "update oess_version set version = '$version'";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
     $sth->execute() or die "Unable to update version\n";

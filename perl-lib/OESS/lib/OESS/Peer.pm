@@ -1,5 +1,3 @@
-#!/usr/bin/perl
-
 use strict;
 use warnings;
 
@@ -7,7 +5,35 @@ package OESS::Peer;
 
 use Data::Dumper;
 
+use OESS::DB::Peer;
+
+
+=head1 OESS::Peer
+
+    use OESS::Peer;
+
+=cut
+
 =head2 new
+
+    my $peer = new OESS::Peer(
+        db             => $db,
+        vrf_ep_peer_id => 100
+    );
+
+    # or
+
+    my $peer = new OESS::Peer(
+        model => {
+            circuit_ep_id => 7,                # Optional
+            vrf_ep_id     => 7,                # Optional
+            local_ip      => '192.168.1.2/31',
+            peer_asn      => 1200
+            peer_ip       => '192.168.1.3/31',
+            md5_key       => undef,
+            status        => 'up'              # Actually operational_state
+        }
+    );
 
 =cut
 sub new{

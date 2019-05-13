@@ -271,7 +271,7 @@ DROP TABLE IF EXISTS `entity`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `entity` (
   `entity_id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255),
+  `name` varchar(255) DEFAULT NULL,
   `description` text,
   `logo_url` varchar(255) DEFAULT NULL,
   `url` varchar(255) DEFAULT NULL,
@@ -1081,9 +1081,12 @@ CREATE TABLE `vrf_ep_peer` (
   `state` enum('active','decom') DEFAULT NULL,
   `local_ip` varchar(255) DEFAULT NULL,
   `md5_key` varchar(255) DEFAULT NULL,
+  `circuit_ep_id` int(11) DEFAULT NULL,
   PRIMARY KEY (`vrf_ep_peer_id`),
   KEY `vrf_ep_id` (`vrf_ep_id`),
-  CONSTRAINT `vrf_ep_peer_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`)
+  KEY `vrf_ep_peer_ibfk_2` (`circuit_ep_id`),
+  CONSTRAINT `vrf_ep_peer_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`),
+  CONSTRAINT `vrf_ep_peer_ibfk_2` FOREIGN KEY (`circuit_ep_id`) REFERENCES `circuit_edge_interface_membership` (`circuit_edge_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -1162,4 +1165,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2019-05-10 17:34:58
+-- Dump completed on 2019-05-13 15:26:34
