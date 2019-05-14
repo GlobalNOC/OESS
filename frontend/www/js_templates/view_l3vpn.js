@@ -84,7 +84,7 @@ async function deleteConnection(id) {
 
         let result = await deleteVRF(session.data.workgroup_id, vrfID);
 
-        if (result !== null) {
+        if (result != null) {
             window.location = '?action=welcome';
         }
         else {
