@@ -45,6 +45,7 @@ connect to and interact with the OESS Circuits.
             description => ''
             remote_url => '',
             remote_requester => '',
+            external_identifier => '',
             provision_time => '',
             remove_time => '',
             user_id => '',
@@ -153,6 +154,18 @@ sub remote_requester{
         $self->{'remote_requester'} = $remote_requester;
     }
     return $self->{'remote_requester'};
+}
+
+=head2 external_identifier
+
+=cut
+sub external_identifier{
+    my $self = shift;
+    my $external_identifier = shift;
+    if (defined $external_identifier) {
+        $self->{'external_identifier'} = $external_identifier;
+    }
+    return $self->{'external_identifier'};
 }
 
 =head2 provision_time
@@ -267,6 +280,16 @@ sub load_endpoints {
     }
 
     return 1;
+}
+
+=head2 add_endpoint
+
+=cut
+sub add_endpoint {
+    my $self = shift;
+    my $endpoint = shift;
+
+    push @{$self->{endpoints}}, $endpoint;
 }
 
 =head2 load_workgroup

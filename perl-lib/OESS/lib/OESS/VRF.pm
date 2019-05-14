@@ -346,7 +346,7 @@ sub update {
     # Validate we have at least 2 endpoints
     if (@{$modal->{endpoints}} < 2) {
         $self->{'logger'}->error("VRF Needs at least 2 endpoints");
-	$self->error("VRF Needs at least 2 endpoints");
+        $self->error("VRF Needs at least 2 endpoints");
         return 0;
     }
 
@@ -358,15 +358,15 @@ sub update {
         my $tag = $ep->{tag};
 
         if (!defined $tag) {
-	    $self->error("Endpoint tag is missing.");
+            $self->error("Endpoint tag is missing.");
             return 0;
         }
         if (!defined $intf) {
-	    $self->error("Endpoint interface is missing.");
+            $self->error("Endpoint interface is missing.");
             return 0;
         }
         if (!defined $node) {
-	    $self->error("Endpoint node is missing.");
+            $self->error("Endpoint node is missing.");
             return 0;
         }
 
@@ -385,7 +385,7 @@ sub update {
             my $local_ip = NetAddr::IP->new($peer->local_ip());
 
             if(!$local_ip->contains($peer_ip)){
-		$self->error("Peer and Local IPs must be in the same subnet.");
+                $self->error("Peer and Local IPs must be in the same subnet.");
                 return 0;
             }
         }
@@ -427,7 +427,7 @@ sub _edit {
     $result = OESS::DB::VRF::delete_endpoints(db => $self->{db}, vrf_id => $vrf->{vrf_id});
     if (!$result) {
         $self->{db}->rollback();
-	$self->error("Could not remove old endpoints from VRF.");
+        $self->error("Could not remove old endpoints from VRF.");
         return;
     }
 

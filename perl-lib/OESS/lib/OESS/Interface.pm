@@ -7,6 +7,7 @@ package OESS::Interface;
 
 use OESS::DB::Interface;
 use Data::Dumper;
+use Log::Log4perl;
 
 =head2 new
 
@@ -18,10 +19,11 @@ sub new{
     my $logger = Log::Log4perl->get_logger("OESS.Interface");
 
     my %args = (
+        db           => undef,
         interface_id => undef,
-        db => undef,
+        model        => undef,
         @_
-        );
+    );
 
     my $self = \%args;
 
@@ -29,13 +31,20 @@ sub new{
 
     $self->{'logger'} = $logger;
 
-    if(!defined($self->{'db'})){
-        $self->{'logger'}->error("No Database Object specified");
-        return;
+    if (!defined $self->{'db'}) {
+        $self->{'logger'}->warn("No Database Object specified");
     }
-    my $ok = $self->_fetch_from_db();
-    if (!$ok) {
-        return;
+
+    my $can_lookup = (defined $self->{interface_id} || (defined $self->{name} && defined $self->{node}));
+    if (defined $self->{'db'} && $can_lookup) {
+        my $ok = $self->_fetch_from_db();
+        if (!$ok) {
+            return;
+        }
+    }
+
+    if (defined $self->{model}) {
+        $self->from_hash($self->{model});
     }
 
     return $self;
@@ -47,7 +56,7 @@ sub new{
 sub from_hash{
     my $self = shift;
     my $hash = shift;
-    
+
     $self->{'name'} = $hash->{'name'};
     $self->{'interface_id'} = $hash->{'interface_id'};
     $self->{'node'} = $hash->{'node'};

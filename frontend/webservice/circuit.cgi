@@ -102,10 +102,71 @@ my $provision = GRNOC::WebService::Method->new(
     description => 'Creates and provisions a new Circuit.'
 );
 $provision->add_input_parameter(
+    name            => 'circuit_id',
+    pattern         => $GRNOC::WebService::Regex::INTEGER,
+    required        => 0,
+    description     => "-1 or undefined indicate circuit is to be added."
+);
+$provision->add_input_parameter(
     name => 'workgroup_id',
     pattern => $GRNOC::WebService::Regex::INTEGER,
     required => 1,
     description => 'Identifier of managing Workgroup.'
+);
+
+$provision->add_input_parameter(
+    name            => 'description',
+    pattern         => $GRNOC::WebService::Regex::TEXT,
+    required        => 1,
+    description     => "The description of the circuit."
+);
+
+$provision->add_input_parameter(
+	name            => 'provision_time',
+	pattern         => $GRNOC::WebService::Regex::INTEGER,
+	required        => 1,
+	description     => "Timestamp of when circuit should be created in epoch time format. -1 means now."
+);
+$provision->add_input_parameter(
+    name            => 'remove_time',
+    pattern         => $GRNOC::WebService::Regex::INTEGER,
+    required        => 1,
+    description     => "The time the circuit should be removed from the network in epoch time format. -1 means never."
+);
+
+$provision->add_input_parameter(
+	name            => 'link',
+	pattern         => $GRNOC::WebService::Regex::TEXT,
+	required        => 0,
+	multiple        => 1,
+	description     => "Array of names of links to be used in the primary path."
+);
+
+$provision->add_input_parameter(
+    name            => 'endpoints',
+    pattern         => $GRNOC::WebService::Regex::TEXT,
+    required        => 1,
+    multiple        => 0,
+    description     => 'JSON array of endpoints to be used.'
+);
+
+$provision->add_input_parameter(
+    name            => 'external_identifier',
+    pattern         => $GRNOC::WebService::Regex::TEXT,
+    required        => 0,
+    description     => "External Identifier of the circuit"
+);
+$provision->add_input_parameter(
+    name            => 'remote_url',
+    pattern         => $GRNOC::WebService::Regex::TEXT,
+    required        => 0,
+    description     => "The remote URL for the IDC"
+);
+$provision->add_input_parameter(
+    name            => 'remote_requester',
+    pattern         => $GRNOC::WebService::Regex::TEXT,
+    required        => 0,
+    description     => "The remote requester."
 );
 $ws->register_method($provision);
 
@@ -117,6 +178,109 @@ sub provision {
         $method->set_error("User '$user->{auth_name}' is read-only.");
         return;
     }
+
+    my $circuit = new OESS::L2Circuit(
+        db => $db,
+        model => {
+            name => $args->{description}->{value},
+            description => $args->{description}->{value},
+            remote_url => $args->{remote_url}->{value},
+            remote_requester => $args->{remote_requester}->{value},
+            external_identifier => $args->{external_identifier}->{value},
+            provision_time => $args->{provision_time}->{value},
+            remove_time => $args->{remove_time}->{value},
+            user_id => $user->{user_id},
+            workgroup_id => $args->{workgroup_id}->{value}
+        }
+    );
+
+    # Endpoint: { entity: 'entity name', bandwidth: 0, tag: 100, inner_tag: 100, peerings: [{ version: 4 }]  }
+    foreach my $value (@{$args->{endpoint}->{value}}) {
+        my $endpoint;
+        eval{
+            $endpoint = decode_json($value);
+        };
+        if ($@) {
+            $method->set_error("Cannot decode endpoint: $@");
+            return;
+        }
+
+        my $entity = new OESS::Entity(db => $db, name => $endpoint->{entity});
+        my $interface = $entity->select_interface(
+            inner_tag => $endpoint->{inner_tag},
+            tag => $endpoint->{tag},
+            workgroup_id => $args->{workgroup_id}->{value}
+        );
+        if (!defined $interface) {
+            $method->set_error("Cannot find a valid Interface for $endpoint->{entity}.");
+            return;
+        }
+
+        $endpoint->{interface} = $interface->name;
+        $endpoint->{node} = $interface->node;
+        my $endpoint = new OESS::Endpoint(db => $db, model => $endpoint);
+
+        if ($interface->cloud_interconnect_type eq 'azure-express-route') {
+            my $interface2 = $entity->select_interface(
+                inner_tag => $endpoint->{inner_tag},
+                tag => $endpoint->{tag},
+                workgroup_id => $args->{workgroup_id}->{value}
+            );
+            if (!defined $interface2) {
+                $method->set_error("Cannot find a valid Interface for $endpoint->{entity}.");
+                return;
+            }
+
+            $endpoint->{interface} = $interface2->name;
+            $endpoint->{node} = $interface2->node;
+            my $endpoint2 = new OESS::Endpoint(db => $db, model => $ep);
+
+            if ($endpoint->cloud_interconnect_id =~ /PRI/) {
+                $endpoint->add_peer(new OESS::Peer(
+                    db => $db,
+                    asn => 12076,
+                    key => '',
+                    local_ip => '192.168.100.249/30',
+                    peer_ip  => '192.168.100.250/30',
+                    version  => 4
+                ));
+                $endpoint2->add_peer(new OESS::Peer(
+                    db => $db,
+                    asn => 12076,
+                    key => '',
+                    local_ip => '192.168.100.253/30',
+                    peer_ip  => '192.168.100.254/30',
+                    version  => 4
+                ));
+            } else {
+                $endpoint2->add_peer(new OESS::Peer(
+                    db => $db,
+                    asn => 12076,
+                    key => '',
+                    local_ip => '192.168.100.249/30',
+                    peer_ip  => '192.168.100.250/30',
+                    version  => 4
+                ));
+                $endpoint->add_peer(new OESS::Peer(
+                    db => $db,
+                    asn => 12076,
+                    key => '',
+                    local_ip => '192.168.100.253/30',
+                    peer_ip  => '192.168.100.254/30',
+                    version  => 4
+                ));
+            }
+        } else {
+            # TODO setup peering without azure weirdness
+        }
+
+        warn 'interface: ' . Dumper($interface);
+
+
+        # $circuit->add_endpoint();
+    }
+
+    warn Dumper($circuit->to_hash);
 
     return {status => 1};
 }
@@ -143,6 +307,13 @@ $ws->register_method($remove);
 
 sub remove {
     my ($method, $args) = @_;
+
+    my $user = OESS::DB::User::get(db => $db, auth_name => $ENV{REMOTE_USER});
+    if ($user->{type} eq 'read-only') {
+        $method->set_error("User '$user->{auth_name}' is read-only.");
+        return;
+    }
+
     return {status => 1};
 }
 
