@@ -50,6 +50,11 @@ class GlobalState extends Component {
 
   saveCircuit() {
     console.log('saveCircuit:', this.circuit);
+
+    let provisionModal = $('#modify-loading');
+    provisionModal.find('p').text("Give us a few seconds. We're modifying your L2VPN now.");
+    provisionModal.modal('show');
+
     provisionCircuit(
       session.data.workgroup_id,
       this.circuit.description,
@@ -62,6 +67,10 @@ class GlobalState extends Component {
       if (result !== null && result.success == 1) {
         window.location.href = `index.cgi?action=modify_l2vpn&circuit_id=${result.circuit_id}`;
       }
+      else {
+        provisionModal.modal('hide');
+        window.alert('There was an error modifying the L2VPN.');
+      }
     });
   }
 
@@ -70,12 +79,20 @@ class GlobalState extends Component {
       return null;
     }
 
+    let provisionModal = $('#modify-loading');
+    provisionModal.find('p').text("Give us a few seconds. We're deleting your L2VPN now.");
+    provisionModal.modal('show');
+
     deleteCircuit(
       session.data.workgroup_id,
       this.circuit.circuit_id
     ).then(function(result) {
       if (result !== null) {
         window.location.href = 'index.cgi';
+      }
+      else {
+        provisionModal.modal('hide');
+        window.alert('There was an error deleting the L2VPN.');
       }
     });
   }

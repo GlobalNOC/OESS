@@ -11,6 +11,9 @@ document.addEventListener('DOMContentLoaded', function() {
 async function deleteConnection(id, name) {
     let ok = confirm(`Are you sure you want to delete ${name}?`);
     if (ok) {
+        let deleteCircuitModal = $('#delete-circuit-loading');
+        deleteCircuitModal.modal('show');
+
         await deleteVRF(session.data.workgroup_id, id);
         window.location = '?action=welcome';
     }
@@ -19,6 +22,9 @@ async function deleteConnection(id, name) {
 async function deleteL2VPN(id, name) {
   let ok = confirm(`Are you sure you want to delete ${name}?`);
   if (ok) {
+    let deleteCircuitModal = $('#delete-circuit-loading');
+    deleteCircuitModal.modal('show');
+
     await deleteCircuit(session.data.workgroup_id, id);
     window.location = '?action=welcome';
   }

@@ -32,6 +32,9 @@ class GlobalState extends Component {
   saveCircuit() {
     console.log('provisionCircuit:', this.circuit);
 
+    let addL2VpnModal = $('#add-l2vpn-loading');
+    addL2VpnModal.modal('show');
+
     provisionCircuit(
       session.data.workgroup_id,
       this.circuit.description,
@@ -43,6 +46,10 @@ class GlobalState extends Component {
     ).then(function(result) {
       if (result !== null && result.success == 1) {
         window.location.href = `index.cgi?action=modify_l2vpn&circuit_id=${result.circuit_id}`;
+      }
+      else {
+        addL2VpnModal.modal('hide');
+        window.alert('There was an error provisioning the L2VPN.');
       }
     });
   }
