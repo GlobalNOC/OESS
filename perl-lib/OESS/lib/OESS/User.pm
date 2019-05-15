@@ -51,11 +51,11 @@ sub to_hash{
 
     my $obj = {};
 
+    $obj->{'username'} = $self->username();
     $obj->{'first_name'} = $self->first_name();
     $obj->{'last_name'} = $self->last_name();
     $obj->{'email'} = $self->email();
     $obj->{'user_id'} = $self->user_id();
-    $obj->{'auth_name'} = $self->auth_name();
 
     my @wgs;
     foreach my $wg (@{$self->workgroups()}){
@@ -77,13 +77,13 @@ sub from_hash{
     my $hash = shift;
 
     $self->{'user_id'} = $hash->{'user_id'};
+    $self->{'username'} = $hash->{'username'};
     $self->{'first_name'} = $hash->{'given_names'};
     $self->{'last_name'} = $hash->{'family_name'};
     $self->{'email'} = $hash->{'email'};
     $self->{'workgroups'} = $hash->{'workgroups'};
     $self->{'type'} = $hash->{'type'};
     $self->{'is_admin'} = $hash->{'is_admin'};
-    $self->{'auth_name'} = $hash->{'auth_name'};
 
     return 1;
 }
@@ -102,12 +102,12 @@ sub _fetch_from_db{
     return $self->from_hash($user);
 }
 
-=head2 auth_name
+=head2 username
 
 =cut
-sub auth_name {
+sub username{
     my $self = shift;
-    return $self->{'auth_name'};
+    return $self->{'username'};
 }
 
 =head2 first_name

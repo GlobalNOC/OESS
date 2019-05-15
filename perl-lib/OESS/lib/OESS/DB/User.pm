@@ -15,10 +15,10 @@ sub fetch{
     my $user_id = $params{'user_id'};
 
     my $q = "
-        select user.*, remote_auth.auth_name
-        from user
-        join remote_auth on user.user_id=remote_auth.user_id
-        where user.user_id=?
+    select remote_auth.auth_name as username, user.*
+    from user
+    join remote_auth on remote_auth.user_id=user.user_id
+    where user.user_id = ?
     ";
     my $user = $db->execute_query($q, [$user_id]);
     if(!defined($user) || !defined($user->[0])){
