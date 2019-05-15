@@ -51,6 +51,7 @@ sub to_hash{
 
     my $obj = {};
 
+    $obj->{'username'} = $self->username();
     $obj->{'first_name'} = $self->first_name();
     $obj->{'last_name'} = $self->last_name();
     $obj->{'email'} = $self->email();
@@ -76,6 +77,7 @@ sub from_hash{
     my $hash = shift;
 
     $self->{'user_id'} = $hash->{'user_id'};
+    $self->{'username'} = $hash->{'username'};
     $self->{'first_name'} = $hash->{'given_names'};
     $self->{'last_name'} = $hash->{'family_name'};
     $self->{'email'} = $hash->{'email'};
@@ -98,6 +100,14 @@ sub _fetch_from_db{
     }
 
     return $self->from_hash($user);
+}
+
+=head2 username
+
+=cut
+sub username{
+    my $self = shift;
+    return $self->{'username'};
 }
 
 =head2 first_name
