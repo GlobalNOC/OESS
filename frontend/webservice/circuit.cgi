@@ -274,9 +274,6 @@ sub provision {
             # TODO setup peering without azure weirdness
         }
 
-        warn 'interface: ' . Dumper($interface);
-
-
         # $circuit->add_endpoint();
     }
 
