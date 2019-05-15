@@ -98,6 +98,7 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} etc/logging.conf $RPM_BUILD_ROOT%{_sysconfdir}/oess/
 %{__install} etc/firmware.xml $RPM_BUILD_ROOT%{_sysconfdir}/oess/
 %{__install} etc/watchdog.conf $RPM_BUILD_ROOT%{_sysconfdir}/oess/
+%{__install} etc/fwdctl.xml $RPM_BUILD_ROOT%{_sysconfdir}/oess/
 %{__install} etc/nddi-dbus.conf $RPM_BUILD_ROOT%{_sysconfdir}/dbus-1/system.d/
 %{__install} etc/nsi.conf.example $RPM_BUILD_ROOT%{_sysconfdir}/oess/nsi.conf
 %{__install} etc/fwdctl-init-rh  $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-fwdctl
@@ -159,6 +160,7 @@ rm -rf $RPM_BUILD_ROOT
 %config(noreplace) %{_sysconfdir}/oess/logging.conf
 %config(noreplace) %{_sysconfdir}/oess/firmware.xml
 %config(noreplace) %{_sysconfdir}/oess/watchdog.conf
+%config(noreplace) %{_sysconfdir}/oess/fwdctl.xml
 %doc
 
 %post
