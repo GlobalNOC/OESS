@@ -79,8 +79,18 @@ async function deleteConnection(id) {
 
     let ok = confirm(`Are you sure you want to delete this connection?`);
     if (ok) {
-        await deleteVRF(session.data.workgroup_id, vrfID);
-        window.location = '?action=welcome';
+        let deleteModal = $('#delete-l3vpn-loading');
+        deleteModal.modal('show');
+
+        let result = await deleteVRF(session.data.workgroup_id, vrfID);
+
+        if (result != null) {
+            window.location = '?action=welcome';
+        }
+        else {
+            deleteModal.modal('hide');
+            alert('There was an error deleting this connection.');
+        }
     }
 }
 
