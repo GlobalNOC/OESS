@@ -128,6 +128,7 @@ async function loadVRF() {
   document.getElementById('created-by').innerHTML = vrf.created_by.email;
   document.getElementById('owned-by').innerHTML = vrf.workgroup.name;
   document.getElementById('state').innerHTML = vrf.state;
+  document.getElementById('local_asn').innerHTML = vrf.local_asn;
 
   let peerSelections = document.getElementById('peering-selection');
 
