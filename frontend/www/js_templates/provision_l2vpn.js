@@ -49,7 +49,7 @@ class GlobalState extends Component {
       }
       else {
         addL2VpnModal.modal('hide');
-        window.alert('There was an error provisioning the L2VPN.');
+        window.alert('There was an error provisioning the connection.');
       }
     });
   }

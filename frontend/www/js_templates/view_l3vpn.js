@@ -89,7 +89,7 @@ async function deleteConnection(id) {
         }
         else {
             deleteModal.modal('hide');
-            alert('There was an error deleting this L3VPN.');
+            alert('There was an error deleting this connection.');
         }
     }
 }
