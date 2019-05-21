@@ -13,7 +13,93 @@ use OESS::Workgroup;
 
 use Data::Dumper;
 
-=head2 fetch_circuit
+=head2 create
+
+    my $id = OESS::DB::Circuit::create(
+        db => $db,
+        model => {
+            name                => $name,
+            description         => $description,
+            user_id             => $user_id,
+            workgroup_id        => $workgroup_id,
+            provision_time      => '',                   # Optional
+            remove_time         => '',                   # Optional
+            remote_url          => $remote_url,          # Optional
+            remote_requester    => $remote_requester,    # Optional
+            external_identifier => $external_identifier  # Optional
+        }
+    );
+
+=cut
+sub create {
+    my $args = {
+        db => undef,
+        model => undef,
+        @_
+    };
+
+    return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
+    return (undef, 'Required argument `model` is missing.') if !defined $args->{model};
+
+    my $circuit_state = 'active';
+    if (defined $args->{model}->{provision_time}) {
+        # TODO add provision event
+        $circuit_state = 'scheduled';
+    }
+
+    if (defined $args->{model}->{remove_time}) {
+        # TODO add remove event
+    }
+
+    my $circuit = [
+        $args->{model}->{name},
+        $args->{model}->{description},
+        $args->{model}->{workgroup_id},
+        $args->{model}->{external_identifier},
+        $circuit_state,
+        0,
+        0,
+        $args->{model}->{remote_url},
+        $args->{model}->{remote_requester},
+        'mpls'
+    ];
+    my $circuit_id = $args->{db}->execute_query(
+        "INSERT INTO circuit (
+                name, description, workgroup_id, external_identifier,
+                circuit_state, restore_to_primary, static_mac,
+                remote_url, remote_requester, type
+         )
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        $circuit
+    );
+    if (!defined $circuit_id) {
+        return (undef, $args->{db}->get_error);
+    }
+
+    my $circuit_inst = [
+        $circuit_id,
+        0,
+        $circuit_state,
+        $args->{model}->{user_id},
+        'Circuit Creation'
+    ];
+    my $circuit_inst_id = $args->{db}->execute_query(
+        "INSERT INTO circuit_instantiation (
+                circuit_id, end_epoch, start_epoch,
+                reserved_bandwidth_mbps, circuit_state,
+                modified_by_user_id, reason
+         )
+         VALUES (?, -1, UNIX_TIMESTAMP(NOW()), ?, ?, ?, ?)",
+        $circuit_inst
+    );
+    if (!defined $circuit_inst_id) {
+        return (undef, $args->{db}->get_error);
+    }
+
+    return ($circuit_id, undef);
+}
+
+=head2 fetch_circuits
 
 =cut
 sub fetch_circuits {

@@ -57,6 +57,7 @@ sub new{
 
     my %args = (
         db           => undef,
+        name         => undef,
         entity_id    => undef,
         model        => undef,
         reservations => {},

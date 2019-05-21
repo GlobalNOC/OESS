@@ -262,36 +262,6 @@ sub load_paths {
     return 1;
 }
 
-=head2 load_endpoints
-
-=cut
-sub load_endpoints {
-    my $self = shift;
-
-    my ($ep_datas, $error) = OESS::DB::Endpoint::fetch_all(
-        db => $self->{db},
-        circuit_id => $self->{circuit_id}
-    );
-
-    $self->{endpoints} = [];
-    foreach my $data (@$ep_datas) {
-        my $ep = new OESS::Endpoint(db => $self->{db}, model => $data);
-        push @{$self->{endpoints}}, $ep;
-    }
-
-    return 1;
-}
-
-=head2 add_endpoint
-
-=cut
-sub add_endpoint {
-    my $self = shift;
-    my $endpoint = shift;
-
-    push @{$self->{endpoints}}, $endpoint;
-}
-
 =head2 load_workgroup
 
 =cut
@@ -411,8 +381,10 @@ sub _process_circuit_details{
     $self->{created_on_epoch} = $hash->{created_on_epoch};
 
     $self->{last_modified_by_id} = $hash->{user_id};
-    $self->{last_modified_on} = DateTime->from_epoch(epoch => $hash->{start_epoch})->strftime('%m/%d/%Y %H:%M:%S');
-    $self->{last_modified_on_epoch} = $hash->{start_epoch};
+    if (defined $hash->{start_epoch}) {
+        $self->{last_modified_on} = DateTime->from_epoch(epoch => $hash->{start_epoch})->strftime('%m/%d/%Y %H:%M:%S');
+        $self->{last_modified_on_epoch} = $hash->{start_epoch};
+    }
 
     # TODO Load primary links
     $self->{'has_primary_path'} = (defined $hash->{'links'} && @{$hash->{'links'}} > 0) ? 1 : 0;
@@ -905,6 +877,100 @@ sub error{
         $self->{'error'} = $error;
     }
     return $self->{'error'};
+}
+
+# BEGIN Endpoints
+
+=head2 load_endpoints
+
+=cut
+sub load_endpoints {
+    my $self = shift;
+
+    my ($ep_datas, $error) = OESS::DB::Endpoint::fetch_all(
+        db => $self->{db},
+        circuit_id => $self->{circuit_id}
+    );
+
+    $self->{endpoints} = [];
+    foreach my $data (@$ep_datas) {
+        my $ep = new OESS::Endpoint(db => $self->{db}, model => $data);
+        push @{$self->{endpoints}}, $ep;
+    }
+
+    return 1;
+}
+
+=head2 add_endpoint
+
+=cut
+sub add_endpoint {
+    my $self = shift;
+    my $endpoint = shift;
+
+    push @{$self->{endpoints}}, $endpoint;
+}
+
+=head2 get_endpoint
+
+    my $ep = $l2vpn->get_endpoint(
+        circuit_ep_id => 100
+    );
+
+get_endpoint returns the endpoint identified by C<circuit_ep_id> or
+C<vrf_ep_id>.
+
+=cut
+sub get_endpoint {
+    my $self = shift;
+    my $args = {
+        circuit_ep_id => undef,
+        @_
+    };
+
+    if (!defined $args->{circuit_ep_id}) {
+        return;
+    }
+
+    foreach my $ep (@{$self->{endpoints}}) {
+        if ($args->{circuit_ep_id} eq $ep->{circuit_ep_id}) {
+            return $ep;
+        }
+    }
+
+    return;
+}
+
+sub create {
+    my $self = shift;
+
+    if (!defined $self->{db}) {
+        $self->{'logger'}->error('Unable to write db; Handle is missing.');
+    }
+
+
+
+    return 1;
+}
+
+sub update {
+    my $self = shift;
+
+    if (!defined $self->{db}) {
+        $self->{'logger'}->error('Unable to write db; Handle is missing.');
+    }
+
+    return 1;
+}
+
+sub remove {
+    my $self = shift;
+
+    if (!defined $self->{db}) {
+        $self->{'logger'}->error('Unable to write db; Handle is missing.');
+    }
+
+    return 1;
 }
 
 1;

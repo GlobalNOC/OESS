@@ -18,6 +18,7 @@ use OESS::DB;
 use OESS::DB::Circuit;
 use OESS::DB::Entity;
 use OESS::DB::User;
+use OESS::Entity;
 use OESS::L2Circuit;
 use OESS::RabbitMQ::Client;
 use OESS::VRF;
@@ -143,10 +144,10 @@ $provision->add_input_parameter(
 );
 
 $provision->add_input_parameter(
-    name            => 'endpoints',
+    name            => 'endpoint',
     pattern         => $GRNOC::WebService::Regex::TEXT,
     required        => 1,
-    multiple        => 0,
+    multiple        => 1,
     description     => 'JSON array of endpoints to be used.'
 );
 
@@ -173,7 +174,11 @@ $ws->register_method($provision);
 sub provision {
     my ($method, $args) = @_;
 
-    my $user = OESS::DB::User::get(db => $db, auth_name => $ENV{REMOTE_USER});
+    my $user = OESS::DB::User::fetch(db => $db, username => $ENV{REMOTE_USER});
+    if (!defined $user) {
+        $method->set_error("User '$user->{auth_name}' is invalid.");
+        return;
+    }
     if ($user->{type} eq 'read-only') {
         $method->set_error("User '$user->{auth_name}' is read-only.");
         return;
@@ -196,29 +201,37 @@ sub provision {
 
     # Endpoint: { entity: 'entity name', bandwidth: 0, tag: 100, inner_tag: 100, peerings: [{ version: 4 }]  }
     foreach my $value (@{$args->{endpoint}->{value}}) {
-        my $endpoint;
+        my $ep;
         eval{
-            $endpoint = decode_json($value);
+            $ep = decode_json($value);
         };
         if ($@) {
             $method->set_error("Cannot decode endpoint: $@");
             return;
         }
 
-        my $entity = new OESS::Entity(db => $db, name => $endpoint->{entity});
+        my $entity = new OESS::Entity(db => $db, name => $ep->{entity});
+
         my $interface = $entity->select_interface(
-            inner_tag => $endpoint->{inner_tag},
-            tag => $endpoint->{tag},
+            inner_tag    => $ep->{inner_tag},
+            tag          => $ep->{tag},
             workgroup_id => $args->{workgroup_id}->{value}
         );
         if (!defined $interface) {
-            $method->set_error("Cannot find a valid Interface for $endpoint->{entity}.");
+            $method->set_error("Cannot find a valid Interface for $ep->{entity}.");
             return;
         }
 
-        $endpoint->{interface} = $interface->name;
-        $endpoint->{node} = $interface->node;
-        my $endpoint = new OESS::Endpoint(db => $db, model => $endpoint);
+        # Populate Endpoint modal with selected Interface details.
+        $ep->{entity_id} = $entity->{entity_id};
+        $ep->{interface} = $interface->{name};
+        $ep->{interface_id} = $interface->{interface_id};
+        $ep->{node} = $interface->{node}->{name};
+        $ep->{node_id} = $interface->{node}->{node_id};
+        warn Dumper($ep);
+
+        my $endpoint = new OESS::Endpoint(db => $db, model => $ep);
+        # warn Dumper($endpoint->to_hash);
 
         if ($interface->cloud_interconnect_type eq 'azure-express-route') {
             my $interface2 = $entity->select_interface(
@@ -231,50 +244,19 @@ sub provision {
                 return;
             }
 
-            $endpoint->{interface} = $interface2->name;
-            $endpoint->{node} = $interface2->node;
-            my $endpoint2 = new OESS::Endpoint(db => $db, model => $ep);
+            # Populate Endpoint modal with selected Interface details.
+            $ep->{entity_id} = $entity->{entity_id};
+            $ep->{interface} = $interface2->{name};
+            $ep->{interface_id} = $interface2->{interface_id};
+            $ep->{node} = $interface2->{node}->{name};
+            $ep->{node_id} = $interface2->{node}->{node_id};
+            warn Dumper($ep);
 
-            if ($endpoint->cloud_interconnect_id =~ /PRI/) {
-                $endpoint->add_peer(new OESS::Peer(
-                    db => $db,
-                    asn => 12076,
-                    key => '',
-                    local_ip => '192.168.100.249/30',
-                    peer_ip  => '192.168.100.250/30',
-                    version  => 4
-                ));
-                $endpoint2->add_peer(new OESS::Peer(
-                    db => $db,
-                    asn => 12076,
-                    key => '',
-                    local_ip => '192.168.100.253/30',
-                    peer_ip  => '192.168.100.254/30',
-                    version  => 4
-                ));
-            } else {
-                $endpoint2->add_peer(new OESS::Peer(
-                    db => $db,
-                    asn => 12076,
-                    key => '',
-                    local_ip => '192.168.100.249/30',
-                    peer_ip  => '192.168.100.250/30',
-                    version  => 4
-                ));
-                $endpoint->add_peer(new OESS::Peer(
-                    db => $db,
-                    asn => 12076,
-                    key => '',
-                    local_ip => '192.168.100.253/30',
-                    peer_ip  => '192.168.100.254/30',
-                    version  => 4
-                ));
-            }
-        } else {
-            # TODO setup peering without azure weirdness
+            my $endpoint2 = new OESS::Endpoint(db => $db, model => $ep);
+            # warn Dumper($endpoint2->to_hash);
         }
 
-        # $circuit->add_endpoint();
+        $circuit->add_endpoint($endpoint);
     }
 
     warn Dumper($circuit->to_hash);

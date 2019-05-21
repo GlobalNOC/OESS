@@ -22,6 +22,36 @@ An C<Endpoint> represents an edge connection of a circuit or vrf.
 
 =head2 new
 
+B<Example 0:>
+
+    my $ep = new OESS::Endpoint(
+        db => $db,
+        circuit_ep_id => 100,
+        vrf_ep_id     => 100
+    }
+
+    # or
+
+    my $ep = new OESS::Endpoint(
+        db => $db,
+        model => {
+            entity              => 'mx960-1',
+            entity_id           => 3,
+            node                => 'test.grnoc.iu.edu',
+            node_id             => 2,
+            interface           => 'xe-7/0/2',
+            interface_id        => 57,
+            unit                => 6,
+            tag                 => 6,
+            inner_tag           => undef,
+            bandwidth           => 0,
+            cloud_account_id    => undef,
+            cloud_connection_id => undef,
+            mtu                 => 9000,
+            operational_state   => 'up'
+        }
+    )
+
 B<Example 1:>
 
     my $json = {

@@ -13,18 +13,31 @@ sub fetch{
     my %params = @_;
     my $db = $params{'db'};
     my $user_id = $params{'user_id'};
+    my $username = $params{'username'};
 
-    my $q = "
-    select remote_auth.auth_name as username, user.*
-    from user
-    join remote_auth on remote_auth.user_id=user.user_id
-    where user.user_id = ?
-    ";
-    my $user = $db->execute_query($q, [$user_id]);
+    my $user;
+
+    if (defined $user_id) {
+        my $q = "
+            select remote_auth.auth_name as username, user.*
+            from user
+            join remote_auth on remote_auth.user_id=user.user_id
+            where user.user_id = ?
+        ";
+        $user = $db->execute_query($q, [$user_id]);
+    } else {
+        my $q = "
+            select remote_auth.auth_name as username, user.*
+            from user
+            join remote_auth on remote_auth.user_id=user.user_id
+            where remote_auth.auth_name = ?
+        ";
+        $user = $db->execute_query($q, [$username]);
+    }
+
     if(!defined($user) || !defined($user->[0])){
         return;
     }
-
 
     $user = $user->[0];
     $user->{'workgroups'} = ();
