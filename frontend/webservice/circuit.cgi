@@ -261,7 +261,17 @@ sub provision {
 
     warn Dumper($circuit->to_hash);
 
-    return {status => 1};
+    $db->start_transaction;
+
+    my ($circuit_id, $error) = $circuit->create;
+    if (defined $error) {
+        $db->rollback;
+        $method->set_error($error);
+        return;
+    }
+    $db->commit;
+
+    return {status => 1, circuit_id => $circuit_id};
 }
 
 

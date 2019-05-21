@@ -526,6 +526,18 @@ sub unit{
     return $self->{'unit'};
 }
 
+=head2 workgroup_id
+
+=cut
+sub workgroup_id {
+    my $self = shift;
+    my $workgroup_id = shift;
+    if (defined $workgroup_id) {
+        $self->{'workgroup_id'} = $workgroup_id;
+    }
+    return $self->{'workgroup_id'};
+}
+
 =head2 decom
 
 =cut
@@ -595,7 +607,7 @@ sub update_db_circuit{
         $self->{db}->rollback();
         return $self->{db}->{error};
     }
-    $result = OESS::DB::Endpoint::add_circuit_edge_membership(
+    $result = OESS::DB::Endpoint::update_circuit_edge_membership(
                         db       => $self->{db},
                         endpoint => $endpoint);
     if(!defined($result)){
@@ -685,6 +697,90 @@ sub move_endpoints{
         $endpoint->update_db();
     }
     return 1;
+}
+
+=head2 create
+
+    $db->start_transaction;
+    my ($id, $err) = $ep->create(
+        circuit_id   => 100, # Optional
+        vrf_id       => 100  # Optional
+        workgroup_id => 100
+    );
+    if (defined $err) {
+        $db->rollback;
+        warn $err;
+    }
+
+create saves this Endpoint along with its Peers to the database. This
+method B<must> be wrapped in a transaction and B<shall> only be used
+to create a new Endpoint.
+
+=cut
+sub create {
+    my $self = shift;
+    my $args = {
+        circuit_id   => undef,
+        vrf_id       => undef,
+        workgroup_id => undef,
+        @_
+    };
+
+    if (!defined $self->{db}) {
+        $self->{'logger'}->error("Couldn't create Endpoint: DB handle is missing.");
+        return (undef, "Couldn't create Endpoint: DB handle is missing.");
+    }
+
+    return (undef, 'Required argument `workgroup_id` is missing.') if !defined $args->{workgroup_id};
+
+    my $ok = $self->interface()->vlan_valid(
+        workgroup_id => $args->{workgroup_id},
+        vlan => $self->tag
+    );
+    if (!$ok) {
+        my $name = $self->interface()->name;
+        my $tag = $self->tag;
+        $self->{'logger'}->error("Couldn't create Endpoint: Outer tag $tag cannot be used by $args->{workgroup_id} on $name.");
+        return (undef, "Couldn't create Endpoint: Outer tag $tag cannot be used by $args->{workgroup_id} on $name.");
+    }
+
+    my $unit = OESS::DB::Endpoint::find_available_unit(
+        db => $self->{db},
+        interface_id => $self->interface->{'interface_id'},
+        tag => $self->tag,
+        inner_tag => $self->inner_tag
+    );
+    if (!defined $unit) {
+        $self->{'logger'}->error("Couldn't create Endpoint: Couldn't find an available Unit.");
+        return (undef, "Couldn't create Endpoint: Couldn't find an available Unit.");
+    }
+
+    if (defined $args->{circuit_id}) {
+        my $ep_data = $self->to_hash;
+        $ep_data->{circuit_id} = $args->{circuit_id};
+        $ep_data->{unit} = $unit;
+
+        my $circuit_ep_id = OESS::DB::Endpoint::add_circuit_edge_membership(
+            db => $self->{db},
+            endpoint => $ep_data
+        );
+        if (!defined $circuit_ep_id) {
+            $self->{'logger'}->error("Couldn't create Endpoint: " . $self->{db}->get_error);
+            return (undef, "Couldn't create Endpoint: " . $self->{db}->get_error);
+        }
+
+        return ($circuit_ep_id, undef);
+
+    } elsif (defined $args->{vrf_id}) {
+        # TODO add vrf endpoint
+        $self->{'logger'}->error("Couldn't create Endpoint: VRF Endpoint creation not supported here.");
+        return (undef, "Couldn't create Endpoint: VRF Endpoint creation not supported here.");
+
+    } else {
+        $self->{'logger'}->error("Couldn't create Endpoint: No associated Circuit or VRF identifier specified.");
+        return (undef, "Couldn't create Endpoint: No associated Circuit or VRF identifier specified.");
+    }
+
 }
 
 1;

@@ -941,16 +941,64 @@ sub get_endpoint {
     return;
 }
 
+=head2 create
+
+    $db->start_transaction;
+    my ($id, $err) = $l2vpn->create;
+    if (defined $err) {
+        $db->rollback;
+        warn $err;
+    }
+
+create saves this L2Circuit along with its Endpoints and Paths to the
+database. This method B<must> be wrapped in a transaction and B<shall>
+only be used to create a new L2Circuit.
+
+=cut
 sub create {
     my $self = shift;
 
     if (!defined $self->{db}) {
-        $self->{'logger'}->error('Unable to write db; Handle is missing.');
+        $self->{'logger'}->error("Couldn't create Circuit: DB handle is missing.");
+        return (undef, "Couldn't create Circuit: DB handle is missing.");
     }
 
+    my ($circuit_id, $circuit_err) = OESS::DB::Circuit::create(
+        db => $self->{db},
+        model => {
+            name => $self->name,
+            description => $self->description,
+            user_id => $self->user_id,
+            workgroup_id => $self->workgroup_id,
+            provision_time => $self->provision_time,
+            remove_time => $self->remove_time,
+            remote_url => $self->remote_url,
+            remote_requester => $self->remote_requester,
+            external_identifier => $self->external_identifier
+        }
+    );
+    if (defined $circuit_err) {
+        $self->{logger}->error("Couldn't create Circuit: $circuit_err");
+        return (undef, "Couldn't create Circuit: $circuit_err");
+    }
 
+    if (@{$self->{endpoints}} < 2) {
+        $self->{logger}->error("Couldn't create Circuit: Circuit requires at least two Endpoints.");
+        return (undef, "Couldn't create Circuit: Circuit requires at least two Endpoints.");
+    }
 
-    return 1;
+    foreach my $ep (@{$self->{endpoints}}) {
+        my ($ep_id, $ep_err) = $ep->create(
+            circuit_id => $circuit_id,
+            workgroup_id => $self->workgroup_id
+        );
+        if (defined $ep_err) {
+            $self->{logger}->error("Couldn't create Circuit: $ep_err");
+            return (undef, "Couldn't create Circuit: $ep_err");
+        }
+    }
+
+    return ($circuit_id, undef);
 }
 
 sub update {

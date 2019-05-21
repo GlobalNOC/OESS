@@ -270,7 +270,34 @@ sub add_circuit_edge_membership{
     my %params = @_;
     my $db = $params{db};
     my $endpoint = $params{endpoint};
-    
+
+    my $result = $db->execute_query(
+        "INSERT INTO circuit_edge_interface_membership (".
+            "interface_id, ".
+            "circuit_id, ".
+            "end_epoch, ".
+            "start_epoch, ".
+            "extern_vlan_id, ".
+            "inner_tag, ".
+            "unit".
+            ") VALUES (?, ?, ?, UNIX_TIMESTAMP(NOW()), ?, ?, ?)",
+            [$endpoint->{interface}->{interface_id},
+             $endpoint->{circuit_id},
+             -1,
+             $endpoint->{tag},
+             $endpoint->{inner_tag},
+             $endpoint->{unit}]);
+    return $result;
+}
+
+=head2 update_circuit_edge_membership
+
+=cut
+sub update_circuit_edge_membership{
+    my %params = @_;
+    my $db = $params{db};
+    my $endpoint = $params{endpoint};
+
     my $result = $db->execute_query(
         "INSERT INTO circuit_edge_interface_membership (".
             "interface_id, ".
@@ -348,6 +375,62 @@ sub add_vrf_peers{
             "md5_key".
             ") VALUES $param_str", $values);
     return $result;
+}
+
+=head2 find_available_unit
+
+=cut
+sub find_available_unit{
+    my $args = {
+        db           => undef,
+        interface_id => undef,
+        tag          => undef,
+        inner_tag    => undef,
+        @_
+    };
+
+    if (!defined $args->{db} || !defined $args->{interface_id}) {
+        return;
+    }
+
+    # To preserve backwards compatibility with existing VLANs we find
+    # an available unit >= 5000.
+    my $used_vrf_units = $args->{db}->execute_query(
+        "select unit from vrf_ep where unit >= 5000 and state = 'active' and interface_id = ?",
+        [$args->{interface_id}]
+    );
+
+    my $circuit_units_q = "
+        select unit
+        from circuit_edge_interface_membership
+        where interface_id = ? and end_epoch = -1 and circuit_id in (
+            select circuit.circuit_id
+            from circuit
+            join circuit_instantiation on circuit.circuit_id=circuit_instantiation.circuit_id
+                 and circuit.circuit_state = 'active'
+                 and circuit_instantiation.circuit_state = 'active'
+                 and circuit_instantiation.end_epoch = -1
+        )";
+    my $used_circuit_units = $args->{db}->execute_query($circuit_units_q, [$args->{interface_id}]);
+
+    my %used;
+
+    foreach my $used_vrf_unit (@$used_vrf_units){
+        $used{$used_vrf_unit->{'unit'}} = 1;
+    }
+
+    foreach my $used_circuit_units (@{$used_circuit_units}){
+        $used{$used_circuit_units->{'unit'}} = 1;
+    }
+
+    for (my $i = 5000; $i < 16000; $i++) {
+        if (defined $used{$i} && $used{$i} == 1) {
+            next;
+        }
+        return $i;
+    }
+
+    return;
 }
 
 1;
